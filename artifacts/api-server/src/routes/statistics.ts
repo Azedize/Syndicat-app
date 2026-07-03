@@ -10,8 +10,9 @@ import {
   supportTicketsTable,
   usersTable,
   electionsTable,
+  paymentProofsTable,
 } from "@workspace/db/schema";
-import { eq, and, count, sum, gte, desc, sql } from "drizzle-orm";
+import { eq, and, or, count, sum, gte, lt, desc, sql } from "drizzle-orm";
 import { requireAuth, requireRole } from "../middleware/auth.js";
 import { syndicateWhere } from "../lib/syndicate-filter.js";
 
@@ -278,6 +279,95 @@ router.get(
           monthlyExpenses: Math.round(Number(thisMonthExpenses[0].value)),
           totalRevenue: Math.round(Number(totalRevenue[0].value)),
           totalExpenses: Math.round(Number(totalExpenses[0].value)),
+        },
+      });
+    } catch (err) {
+      req.log.error(err);
+      res.status(500).json({ error: "Erreur serveur" });
+    }
+  },
+);
+
+// ─── Finance/cotisations action items (admin dashboard summary) ──────────────
+router.get(
+  "/statistics/finance/pending",
+  requireAuth,
+  requireRole("super_admin", "syndicate_admin"),
+  async (req, res) => {
+    try {
+      const cotWhere = syndicateWhere(req, cotisationsTable.syndicateId);
+      const today = new Date().toISOString().split("T")[0];
+
+      const overdueClause = and(
+        eq(cotisationsTable.status, "pending"),
+        lt(cotisationsTable.dueDate, today),
+      );
+      const validationClause = eq(cotisationsTable.status, "pending_validation");
+      const statusFilter = or(overdueClause, validationClause);
+
+      const [flaggedCotisations, overdueCountRow, validationCountRow] = await Promise.all([
+        db
+          .select({
+            id: cotisationsTable.id,
+            memberId: cotisationsTable.memberId,
+            label: cotisationsTable.label,
+            period: cotisationsTable.period,
+            amount: cotisationsTable.amount,
+            dueDate: cotisationsTable.dueDate,
+            status: cotisationsTable.status,
+            syndicateId: cotisationsTable.syndicateId,
+          })
+          .from(cotisationsTable)
+          .where(cotWhere ? and(cotWhere, statusFilter) : statusFilter)
+          .orderBy(desc(cotisationsTable.createdAt))
+          .limit(200),
+        db
+          .select({ value: count() })
+          .from(cotisationsTable)
+          .where(cotWhere ? and(cotWhere, overdueClause) : overdueClause),
+        db
+          .select({ value: count() })
+          .from(cotisationsTable)
+          .where(cotWhere ? and(cotWhere, validationClause) : validationClause),
+      ]);
+
+      const memberIds = [...new Set(flaggedCotisations.map((c) => c.memberId))];
+      const members = memberIds.length
+        ? await db
+            .select({ id: usersTable.id, name: usersTable.name })
+            .from(usersTable)
+            .where(sql`${usersTable.id} IN ${memberIds}`)
+        : [];
+      const memberNameById = new Map(members.map((m) => [m.id, m.name]));
+
+      const pendingProofsWhere = eq(paymentProofsTable.status, "pending");
+      const proofs = await db
+        .select({
+          id: paymentProofsTable.id,
+          cotisationId: paymentProofsTable.cotisationId,
+          proofUrl: paymentProofsTable.proofUrl,
+          uploadedById: paymentProofsTable.uploadedById,
+          createdAt: paymentProofsTable.createdAt,
+        })
+        .from(paymentProofsTable)
+        .where(pendingProofsWhere)
+        .orderBy(desc(paymentProofsTable.createdAt))
+        .limit(200);
+
+      const relevantCotisationIds = new Set(flaggedCotisations.map((c) => c.id));
+      const scopedProofs = proofs.filter((p) => relevantCotisationIds.has(p.cotisationId));
+
+      const items = flaggedCotisations.map((c) => ({
+        ...c,
+        memberName: memberNameById.get(c.memberId) ?? c.memberId,
+        proof: scopedProofs.find((p) => p.cotisationId === c.id) ?? null,
+      }));
+
+      res.json({
+        data: {
+          overdueCount: Number(overdueCountRow[0].value),
+          pendingValidationCount: Number(validationCountRow[0].value),
+          items,
         },
       });
     } catch (err) {
