@@ -65176,7 +65176,7 @@ router13.post(
       memberId: external_exports.string().min(1),
       label: external_exports.string().min(1),
       period: external_exports.string().min(1),
-      amount: external_exports.number().int().positive(),
+      amount: external_exports.number().positive(),
       dueDate: external_exports.string(),
       status: external_exports.enum(["pending", "paid", "overdue"]).default("pending"),
       syndicateId: external_exports.string().optional()
@@ -65211,11 +65211,12 @@ router13.put("/cotisations/:id/pay", requireAuth, async (req, res) => {
       res.status(404).json({ error: "Cotisation introuvable" });
       return;
     }
-    if (req.user.role === "member" && cotisation.memberId !== req.user.userId) {
+    const isMember = req.user.role === "member";
+    if (isMember && cotisation.memberId !== req.user.userId) {
       res.status(403).json({ error: "Acc\xE8s refus\xE9" });
       return;
     }
-    if (req.user.role !== "member" && !isSameSyndicate2(req, cotisation.syndicateId)) {
+    if (!isMember && !isSameSyndicate2(req, cotisation.syndicateId)) {
       res.status(403).json({ error: "Acc\xE8s refus\xE9" });
       return;
     }
@@ -65223,8 +65224,15 @@ router13.put("/cotisations/:id/pay", requireAuth, async (req, res) => {
       res.status(400).json({ error: "Cette cotisation est d\xE9j\xE0 pay\xE9e" });
       return;
     }
-    const isMember = req.user.role === "member";
-    if (isMember && result.data.proofUrl) {
+    if (isMember) {
+      if (!result.data.proofUrl) {
+        res.status(400).json({ error: "Une preuve de paiement est requise" });
+        return;
+      }
+      if (cotisation.status === "pending_validation") {
+        res.status(400).json({ error: "Une preuve est d\xE9j\xE0 en attente de validation pour cette cotisation" });
+        return;
+      }
       await db.transaction(async (tx) => {
         await tx.update(cotisationsTable).set({ status: "pending_validation" }).where(eq(cotisationsTable.id, id2));
         await tx.insert(paymentProofsTable).values({

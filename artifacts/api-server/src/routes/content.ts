@@ -247,7 +247,7 @@ router.post(
       memberId: z.string().min(1),
       label: z.string().min(1),
       period: z.string().min(1),
-      amount: z.number().int().positive(),
+      amount: z.number().positive(),
       dueDate: z.string(),
       status: z.enum(["pending", "paid", "overdue"]).default("pending"),
       syndicateId: z.string().optional(),
@@ -268,8 +268,10 @@ router.post(
 
 /**
  * POST /cotisations/:id/pay
- * Member submits payment proof → status becomes "pending_validation".
- * Admin direct payment (no proof) is still supported: omit proofUrl to pay directly.
+ * Member submits payment proof (mandatory) → status becomes "pending_validation",
+ * pending admin review at PUT /payment-proofs/:id/review. Members can never
+ * self-mark a cotisation as paid.
+ * Admins may mark a cotisation as paid directly (e.g. confirmed cash/bank payment).
  */
 router.put("/cotisations/:id/pay", requireAuth, async (req, res) => {
   const id = req.params.id as string;
@@ -279,20 +281,26 @@ router.put("/cotisations/:id/pay", requireAuth, async (req, res) => {
   try {
     const [cotisation] = await db.select().from(cotisationsTable).where(eq(cotisationsTable.id, id));
     if (!cotisation) { res.status(404).json({ error: "Cotisation introuvable" }); return; }
-    if (req.user!.role === "member" && cotisation.memberId !== req.user!.userId) {
+    const isMember = req.user!.role === "member";
+    if (isMember && cotisation.memberId !== req.user!.userId) {
       res.status(403).json({ error: "Accès refusé" }); return;
     }
-    if (req.user!.role !== "member" && !isSameSyndicate(req, cotisation.syndicateId)) {
+    if (!isMember && !isSameSyndicate(req, cotisation.syndicateId)) {
       res.status(403).json({ error: "Accès refusé" }); return;
     }
     if (cotisation.status === "paid") {
       res.status(400).json({ error: "Cette cotisation est déjà payée" }); return;
     }
 
-    const isMember = req.user!.role === "member";
-
-    if (isMember && result.data.proofUrl) {
-      // Member uploads proof → enters pending_validation flow
+    if (isMember) {
+      // Members can never self-mark a cotisation as paid — a proof of payment
+      // is mandatory and always routes through admin review.
+      if (!result.data.proofUrl) {
+        res.status(400).json({ error: "Une preuve de paiement est requise" }); return;
+      }
+      if (cotisation.status === "pending_validation") {
+        res.status(400).json({ error: "Une preuve est déjà en attente de validation pour cette cotisation" }); return;
+      }
       await db.transaction(async (tx) => {
         await tx
           .update(cotisationsTable)
@@ -307,7 +315,7 @@ router.put("/cotisations/:id/pay", requireAuth, async (req, res) => {
       });
       res.json({ message: "Preuve de paiement soumise, en attente de validation" });
     } else {
-      // Admin direct payment (or member without proof) → mark paid immediately
+      // Admin direct payment (bank transfer confirmed manually, cash, etc.)
       const receipt = `REC-${Date.now()}`;
       const [updated] = await db
         .update(cotisationsTable)
