@@ -43,6 +43,23 @@ interface PeriodStat {
   rate: number;
 }
 
+interface PendingItem {
+  id: string;
+  memberId: string;
+  memberName: string;
+  label: string;
+  period: string;
+  amount: number;
+  dueDate: string | null;
+  status: string;
+  proof: {
+    id: string;
+    proofUrl: string;
+    uploadedById: string;
+    createdAt: string;
+  } | null;
+}
+
 interface DashboardData {
   building: {
     id: string;
@@ -286,6 +303,79 @@ const CAT_COLORS = [
   "#06B6D4","#84CC16","#F97316","#EC4899","#6366F1",
 ];
 
+function PendingActionsPanel({
+  items,
+  onReview,
+  busyId,
+}: {
+  items: PendingItem[];
+  onReview: (item: PendingItem, action: "approve" | "reject") => void;
+  busyId: string | null;
+}) {
+  if (items.length === 0) return null;
+  return (
+    <View style={styles.card}>
+      <View style={styles.pendingHeaderRow}>
+        <Ionicons name="alert-circle" size={18} color="#F97316" />
+        <Text style={styles.cardTitle}>Action requise ({items.length})</Text>
+      </View>
+      {items.map((item) => {
+        const isBusy = busyId === item.id;
+        const isValidation = item.status === "pending_validation";
+        return (
+          <View key={item.id} style={styles.pendingRow}>
+            <View style={styles.pendingInfo}>
+              <Text style={styles.pendingName}>{item.memberName}</Text>
+              <Text style={styles.pendingLabel}>
+                {item.label} · {fmtMAD(item.amount)}
+              </Text>
+              <View
+                style={[
+                  styles.pendingBadge,
+                  {
+                    backgroundColor: isValidation ? "#FEF3C7" : "#FEE2E2",
+                  },
+                ]}
+              >
+                <Text
+                  style={[
+                    styles.pendingBadgeText,
+                    { color: isValidation ? "#B45309" : "#B91C1C" },
+                  ]}
+                >
+                  {isValidation ? "Preuve à valider" : "En retard"}
+                </Text>
+              </View>
+            </View>
+            {isValidation && item.proof ? (
+              <View style={styles.pendingActions}>
+                <TouchableOpacity
+                  disabled={isBusy}
+                  onPress={() => onReview(item, "reject")}
+                  style={[styles.pendingBtn, styles.pendingBtnReject]}
+                >
+                  <Ionicons name="close" size={16} color="#EF4444" />
+                </TouchableOpacity>
+                <TouchableOpacity
+                  disabled={isBusy}
+                  onPress={() => onReview(item, "approve")}
+                  style={[styles.pendingBtn, styles.pendingBtnApprove]}
+                >
+                  {isBusy ? (
+                    <ActivityIndicator size="small" color="#fff" />
+                  ) : (
+                    <Ionicons name="checkmark" size={16} color="#fff" />
+                  )}
+                </TouchableOpacity>
+              </View>
+            ) : null}
+          </View>
+        );
+      })}
+    </View>
+  );
+}
+
 // ─── Main screen ──────────────────────────────────────────────────────────────
 export default function TableauBordFinancier() {
   const router = useRouter();
@@ -296,6 +386,8 @@ export default function TableauBordFinancier() {
   const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [section, setSection] = useState<"finance" | "travaux" | "prestataires">("finance");
+  const [pendingItems, setPendingItems] = useState<PendingItem[]>([]);
+  const [reviewBusyId, setReviewBusyId] = useState<string | null>(null);
 
   const loadBuildings = useCallback(async () => {
     const res = await apiRequest<{ data: BuildingQuick[] }>("/finance/buildings");
@@ -313,11 +405,22 @@ export default function TableauBordFinancier() {
     }
   }, []);
 
+  const loadPending = useCallback(async () => {
+    try {
+      const res = await apiRequest<{
+        data: { overdueCount: number; pendingValidationCount: number; items: PendingItem[] };
+      }>("/statistics/finance/pending");
+      setPendingItems(res.data.items);
+    } catch {
+      // Non-blocking: dashboard still works without the action panel.
+    }
+  }, []);
+
   useEffect(() => {
     (async () => {
       setLoading(true);
       try {
-        await loadBuildings();
+        await Promise.all([loadBuildings(), loadPending()]);
       } finally {
         setLoading(false);
       }
@@ -330,10 +433,27 @@ export default function TableauBordFinancier() {
 
   const onRefresh = useCallback(async () => {
     setRefreshing(true);
-    await loadBuildings();
+    await Promise.all([loadBuildings(), loadPending()]);
     if (selectedId) await loadDashboard(selectedId);
     setRefreshing(false);
-  }, [selectedId, loadBuildings, loadDashboard]);
+  }, [selectedId, loadBuildings, loadDashboard, loadPending]);
+
+  const handleReview = useCallback(
+    async (item: PendingItem, action: "approve" | "reject") => {
+      if (!item.proof) return;
+      setReviewBusyId(item.id);
+      try {
+        await apiRequest(`/payment-proofs/${item.proof.id}/review`, "PUT", { action });
+        setPendingItems((prev) => prev.filter((p) => p.id !== item.id));
+        if (selectedId) await loadDashboard(selectedId);
+      } catch (e: any) {
+        setError(e.message ?? "Erreur lors de la validation");
+      } finally {
+        setReviewBusyId(null);
+      }
+    },
+    [selectedId, loadDashboard],
+  );
 
   if (loading) {
     return (
@@ -459,6 +579,12 @@ export default function TableauBordFinancier() {
             {/* ══ SECTION : FINANCES ══════════════════════════════════ */}
             {section === "finance" && summary && (
               <>
+                <PendingActionsPanel
+                  items={pendingItems}
+                  onReview={handleReview}
+                  busyId={reviewBusyId}
+                />
+
                 {/* Recouvrement gauge */}
                 <View style={styles.card}>
                   <RecoveryGauge rate={summary.tauxRecouvrement} />
@@ -808,6 +934,42 @@ export default function TableauBordFinancier() {
 
 // ─── Styles ───────────────────────────────────────────────────────────────────
 const styles = StyleSheet.create({
+  pendingHeaderRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 8,
+    marginBottom: 12,
+  },
+  pendingRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    paddingVertical: 10,
+    borderTopWidth: 1,
+    borderTopColor: "#F1F5F9",
+  },
+  pendingInfo: { flex: 1, gap: 4 },
+  pendingName: { fontSize: 14, fontWeight: "700", color: "#1E293B" },
+  pendingLabel: { fontSize: 12, color: "#64748B" },
+  pendingBadge: {
+    alignSelf: "flex-start",
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+    borderRadius: 6,
+    marginTop: 2,
+  },
+  pendingBadgeText: { fontSize: 11, fontWeight: "600" },
+  pendingActions: { flexDirection: "row", gap: 8, marginLeft: 8 },
+  pendingBtn: {
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    justifyContent: "center",
+    alignItems: "center",
+  },
+  pendingBtnReject: { backgroundColor: "#FEE2E2" },
+  pendingBtnApprove: { backgroundColor: "#10B981" },
+
   root: { flex: 1, backgroundColor: "#F1F5F9" },
   centered: {
     flex: 1,

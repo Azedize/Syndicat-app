@@ -6,6 +6,8 @@ import {
   boolean,
   timestamp,
   primaryKey,
+  index,
+  uniqueIndex,
 } from "drizzle-orm/pg-core";
 import { sql } from "drizzle-orm";
 
@@ -31,21 +33,25 @@ export const syndicatesTable = pgTable("syndicates", {
 
 // ─── Users & Auth ───────────────────────────────────────────────────────────
 
-export const usersTable = pgTable("users", {
-  id: id(),
-  name: text("name").notNull(),
-  email: text("email").notNull().unique(),
-  phone: text("phone"),
-  passwordHash: text("password_hash").notNull(),
-  role: text("role").notNull().default("member"),
-  status: text("status").notNull().default("active"),
-  syndicateId: text("syndicate_id"),
-  pushToken: text("push_token"),
-  profession: text("profession"),
-  avatar: text("avatar"),
-  createdAt: createdAt(),
-  updatedAt: timestamp("updated_at").defaultNow(),
-});
+export const usersTable = pgTable(
+  "users",
+  {
+    id: id(),
+    name: text("name").notNull(),
+    email: text("email").notNull().unique(),
+    phone: text("phone"),
+    passwordHash: text("password_hash").notNull(),
+    role: text("role").notNull().default("member"),
+    status: text("status").notNull().default("active"),
+    syndicateId: text("syndicate_id"),
+    pushToken: text("push_token"),
+    profession: text("profession"),
+    avatar: text("avatar"),
+    createdAt: createdAt(),
+    updatedAt: timestamp("updated_at").defaultNow(),
+  },
+  (t) => [index("users_syndicate_id_idx").on(t.syndicateId)],
+);
 
 export const refreshTokensTable = pgTable("refresh_tokens", {
   id: id(),
@@ -67,53 +73,72 @@ export const passwordResetTokensTable = pgTable("password_reset_tokens", {
 
 // ─── Members ────────────────────────────────────────────────────────────────
 
-export const membersTable = pgTable("members", {
-  id: id(),
-  name: text("name").notNull(),
-  email: text("email").notNull(),
-  phone: text("phone").default(""),
-  profession: text("profession").default(""),
-  syndicateId: text("syndicate_id"),
-  status: text("status").default("active"),
-  cotisationStatus: text("cotisation_status").default("pending"),
-  joinDate: text("join_date"),
-  createdAt: createdAt(),
-});
+export const membersTable = pgTable(
+  "members",
+  {
+    id: id(),
+    name: text("name").notNull(),
+    email: text("email").notNull(),
+    phone: text("phone").default(""),
+    profession: text("profession").default(""),
+    syndicateId: text("syndicate_id"),
+    status: text("status").default("active"),
+    cotisationStatus: text("cotisation_status").default("pending"),
+    joinDate: text("join_date"),
+    createdAt: createdAt(),
+  },
+  (t) => [
+    uniqueIndex("members_email_unique_idx").on(t.email),
+    index("members_syndicate_id_idx").on(t.syndicateId),
+    index("members_status_idx").on(t.status),
+  ],
+);
 
 // ─── Real Estate: Buildings, Lots, Tenants ──────────────────────────────────
 
-export const buildingsTable = pgTable("buildings", {
-  id: id(),
-  name: text("name").notNull(),
-  address: text("address").notNull(),
-  city: text("city").default("Casablanca"),
-  type: text("type").default("residential"),
-  totalFloors: integer("total_floors").default(0),
-  totalLots: integer("total_lots").default(0),
-  constructionYear: integer("construction_year"),
-  syndicateId: text("syndicate_id"),
-  adminId: text("admin_id"),
-  bankAccount: text("bank_account"),
-  registrationNumber: text("registration_number"),
-  description: text("description"),
-  status: text("status").default("active"),
-  createdAt: createdAt(),
-});
+export const buildingsTable = pgTable(
+  "buildings",
+  {
+    id: id(),
+    name: text("name").notNull(),
+    address: text("address").notNull(),
+    city: text("city").default("Casablanca"),
+    type: text("type").default("residential"),
+    totalFloors: integer("total_floors").default(0),
+    totalLots: integer("total_lots").default(0),
+    constructionYear: integer("construction_year"),
+    syndicateId: text("syndicate_id"),
+    adminId: text("admin_id"),
+    bankAccount: text("bank_account"),
+    registrationNumber: text("registration_number"),
+    description: text("description"),
+    status: text("status").default("active"),
+    createdAt: createdAt(),
+  },
+  (t) => [index("buildings_syndicate_id_idx").on(t.syndicateId)],
+);
 
-export const lotsTable = pgTable("lots", {
-  id: id(),
-  number: text("number").notNull(),
-  type: text("type").default("appartement"),
-  floor: integer("floor").default(0),
-  surfaceM2: doublePrecision("surface_m2"),
-  tantiemes: integer("tantiemes").default(0),
-  buildingId: text("building_id").notNull(),
-  ownerId: text("owner_id"),
-  tenantId: text("tenant_id"),
-  status: text("status").default("occupied"),
-  description: text("description"),
-  createdAt: createdAt(),
-});
+export const lotsTable = pgTable(
+  "lots",
+  {
+    id: id(),
+    number: text("number").notNull(),
+    type: text("type").default("appartement"),
+    floor: integer("floor").default(0),
+    surfaceM2: doublePrecision("surface_m2"),
+    tantiemes: integer("tantiemes").default(0),
+    buildingId: text("building_id").notNull(),
+    ownerId: text("owner_id"),
+    tenantId: text("tenant_id"),
+    status: text("status").default("occupied"),
+    description: text("description"),
+    createdAt: createdAt(),
+  },
+  (t) => [
+    index("lots_building_id_idx").on(t.buildingId),
+    index("lots_owner_id_idx").on(t.ownerId),
+  ],
+);
 
 export const tenantsTable = pgTable("tenants", {
   id: id(),
@@ -185,17 +210,25 @@ export const appelsDeFondsTable = pgTable("appels_de_fonds", {
 
 // ─── Finance ────────────────────────────────────────────────────────────────
 
-export const transactionsTable = pgTable("transactions", {
-  id: id(),
-  type: text("type").notNull(),
-  amount: doublePrecision("amount").notNull(),
-  label: text("label").notNull(),
-  date: text("date").notNull(),
-  status: text("status").default("paid"),
-  memberId: text("member_id"),
-  syndicateId: text("syndicate_id"),
-  createdAt: createdAt(),
-});
+export const transactionsTable = pgTable(
+  "transactions",
+  {
+    id: id(),
+    type: text("type").notNull(),
+    amount: doublePrecision("amount").notNull(),
+    label: text("label").notNull(),
+    date: text("date").notNull(),
+    status: text("status").default("paid"),
+    memberId: text("member_id"),
+    syndicateId: text("syndicate_id"),
+    createdAt: createdAt(),
+  },
+  (t) => [
+    index("transactions_syndicate_id_idx").on(t.syndicateId),
+    index("transactions_member_id_idx").on(t.memberId),
+    index("transactions_status_idx").on(t.status),
+  ],
+);
 
 export const salaryRecordsTable = pgTable("salary_records", {
   id: id(),
@@ -623,35 +656,50 @@ export const ticketRepliesTable = pgTable("ticket_replies", {
   createdAt: createdAt(),
 });
 
-export const cotisationsTable = pgTable("cotisations", {
-  id: id(),
-  memberId: text("member_id").notNull(),
-  label: text("label").notNull(),
-  period: text("period").notNull(),
-  amount: doublePrecision("amount").notNull(),
-  dueDate: text("due_date"),
-  status: text("status").default("pending"),
-  syndicateId: text("syndicate_id"),
-  paidDate: text("paid_date"),
-  receipt: text("receipt"),
-  createdAt: createdAt(),
-});
+export const cotisationsTable = pgTable(
+  "cotisations",
+  {
+    id: id(),
+    memberId: text("member_id").notNull(),
+    label: text("label").notNull(),
+    period: text("period").notNull(),
+    amount: doublePrecision("amount").notNull(),
+    dueDate: text("due_date"),
+    status: text("status").default("pending"),
+    syndicateId: text("syndicate_id"),
+    paidDate: text("paid_date"),
+    receipt: text("receipt"),
+    createdAt: createdAt(),
+  },
+  (t) => [
+    index("cotisations_member_id_idx").on(t.memberId),
+    index("cotisations_syndicate_id_idx").on(t.syndicateId),
+    index("cotisations_status_idx").on(t.status),
+  ],
+);
 
-export const paymentProofsTable = pgTable("payment_proofs", {
-  id: id(),
-  cotisationId: text("cotisation_id").notNull(),
-  userId: text("user_id"),
-  fileUrl: text("file_url"),
-  proofUrl: text("proof_url"),
-  amount: doublePrecision("amount"),
-  notes: text("notes"),
-  status: text("status").default("pending"),
-  uploadedById: text("uploaded_by_id"),
-  reviewedById: text("reviewed_by_id"),
-  reviewNote: text("review_note"),
-  reviewedAt: timestamp("reviewed_at"),
-  createdAt: createdAt(),
-});
+export const paymentProofsTable = pgTable(
+  "payment_proofs",
+  {
+    id: id(),
+    cotisationId: text("cotisation_id").notNull(),
+    userId: text("user_id"),
+    fileUrl: text("file_url"),
+    proofUrl: text("proof_url"),
+    amount: doublePrecision("amount"),
+    notes: text("notes"),
+    status: text("status").default("pending"),
+    uploadedById: text("uploaded_by_id"),
+    reviewedById: text("reviewed_by_id"),
+    reviewNote: text("review_note"),
+    reviewedAt: timestamp("reviewed_at"),
+    createdAt: createdAt(),
+  },
+  (t) => [
+    index("payment_proofs_cotisation_id_idx").on(t.cotisationId),
+    index("payment_proofs_status_idx").on(t.status),
+  ],
+);
 
 export const alertsTable = pgTable("alerts", {
   id: id(),
