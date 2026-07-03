@@ -205,18 +205,18 @@ var require_common = __commonJS({
           if (typeof args[0] !== "string") {
             args.unshift("%O");
           }
-          let index2 = 0;
+          let index = 0;
           args[0] = args[0].replace(/%([a-zA-Z%])/g, (match, format) => {
             if (match === "%%") {
               return "%";
             }
-            index2++;
+            index++;
             const formatter = createDebug.formatters[format];
             if (typeof formatter === "function") {
-              const val = args[index2];
+              const val = args[index];
               match = formatter.call(self, val);
-              args.splice(index2, 1);
-              index2--;
+              args.splice(index, 1);
+              index--;
             }
             return match;
           });
@@ -451,15 +451,15 @@ var require_browser = __commonJS({
       }
       const c = "color: " + this.color;
       args.splice(1, 0, c, "color: inherit");
-      let index2 = 0;
+      let index = 0;
       let lastC = 0;
       args[0].replace(/%[a-zA-Z%]/g, (match) => {
         if (match === "%%") {
           return;
         }
-        index2++;
+        index++;
         if (match === "%c") {
-          lastC = index2;
+          lastC = index;
         }
       });
       args.splice(lastC, 0, c);
@@ -5797,22 +5797,22 @@ var require_content_type = __commonJS({
       if (typeof header !== "string") {
         throw new TypeError("argument string is required to be a string");
       }
-      var index2 = header.indexOf(";");
-      var type = index2 !== -1 ? header.slice(0, index2).trim() : header.trim();
+      var index = header.indexOf(";");
+      var type = index !== -1 ? header.slice(0, index).trim() : header.trim();
       if (!TYPE_REGEXP.test(type)) {
         throw new TypeError("invalid media type");
       }
       var obj = new ContentType(type.toLowerCase());
-      if (index2 !== -1) {
+      if (index !== -1) {
         var key;
         var match;
         var value;
-        PARAM_REGEXP.lastIndex = index2;
+        PARAM_REGEXP.lastIndex = index;
         while (match = PARAM_REGEXP.exec(header)) {
-          if (match.index !== index2) {
+          if (match.index !== index) {
             throw new TypeError("invalid parameter format");
           }
-          index2 += match[0].length;
+          index += match[0].length;
           key = match[1].toLowerCase();
           value = match[2];
           if (value.charCodeAt(0) === 34) {
@@ -5823,7 +5823,7 @@ var require_content_type = __commonJS({
           }
           obj.parameters[key] = value;
         }
-        if (index2 !== header.length) {
+        if (index !== header.length) {
           throw new TypeError("invalid parameter format");
         }
       }
@@ -15418,10 +15418,10 @@ var require_media_typer = __commonJS({
       var type = match[1];
       var subtype = match[2];
       var suffix;
-      var index2 = subtype.lastIndexOf("+");
-      if (index2 !== -1) {
-        suffix = subtype.substr(index2 + 1);
-        subtype = subtype.substr(0, index2);
+      var index = subtype.lastIndexOf("+");
+      if (index !== -1) {
+        suffix = subtype.substr(index + 1);
+        subtype = subtype.substr(0, index);
       }
       return new MediaType(type, subtype, suffix);
     }
@@ -15782,10 +15782,10 @@ var require_json = __commonJS({
       };
     }
     function createStrictSyntaxError(str, char2) {
-      var index2 = str.indexOf(char2);
+      var index = str.indexOf(char2);
       var partial = "";
-      if (index2 !== -1) {
-        partial = str.substring(0, index2) + JSON_SYNTAX_CHAR.repeat(str.length - index2);
+      if (index !== -1) {
+        partial = str.substring(0, index) + JSON_SYNTAX_CHAR.repeat(str.length - index);
       }
       try {
         JSON.parse(partial);
@@ -15793,7 +15793,7 @@ var require_json = __commonJS({
       } catch (e) {
         return normalizeJsonSyntaxError(e, {
           message: e.message.replace(JSON_SYNTAX_REGEXP, function(placeholder) {
-            return str.substring(index2, index2 + placeholder.length);
+            return str.substring(index, index + placeholder.length);
           }),
           stack: e.stack
         });
@@ -18210,18 +18210,18 @@ var require_parse = __commonJS({
           obj = options.plainObjects ? { __proto__: null } : {};
           var cleanRoot = root.charAt(0) === "[" && root.charAt(root.length - 1) === "]" ? root.slice(1, -1) : root;
           var decodedRoot = options.decodeDotInKeys ? cleanRoot.replace(/%2E/g, ".") : cleanRoot;
-          var index2 = parseInt(decodedRoot, 10);
-          var isValidArrayIndex = !isNaN(index2) && root !== decodedRoot && String(index2) === decodedRoot && index2 >= 0 && options.parseArrays;
+          var index = parseInt(decodedRoot, 10);
+          var isValidArrayIndex = !isNaN(index) && root !== decodedRoot && String(index) === decodedRoot && index >= 0 && options.parseArrays;
           if (!options.parseArrays && decodedRoot === "") {
             obj = { 0: leaf };
-          } else if (isValidArrayIndex && index2 < options.arrayLimit) {
+          } else if (isValidArrayIndex && index < options.arrayLimit) {
             obj = [];
-            obj[index2] = leaf;
+            obj[index] = leaf;
           } else if (isValidArrayIndex && options.throwOnLimitExceeded) {
             throw new RangeError("Array limit exceeded. Only " + options.arrayLimit + " element" + (options.arrayLimit === 1 ? "" : "s") + " allowed in an array.");
           } else if (isValidArrayIndex) {
-            obj[index2] = leaf;
-            utils.markOverflow(obj, index2);
+            obj[index] = leaf;
+            utils.markOverflow(obj, index);
           } else if (decodedRoot !== "__proto__") {
             obj[decodedRoot] = leaf;
           }
@@ -18446,12 +18446,12 @@ var require_urlencoded = __commonJS({
     }
     function parameterCount(body, limit) {
       let count4 = 0;
-      let index2 = -1;
+      let index = -1;
       do {
         count4++;
         if (count4 > limit) return void 0;
-        index2 = body.indexOf("&", index2 + 1);
-      } while (index2 !== -1);
+        index = body.indexOf("&", index + 1);
+      } while (index !== -1);
       return count4;
     }
   }
@@ -18540,10 +18540,10 @@ var require_escape_html = __commonJS({
       }
       var escape3;
       var html = "";
-      var index2 = 0;
+      var index = 0;
       var lastIndex = 0;
-      for (index2 = match.index; index2 < str.length; index2++) {
-        switch (str.charCodeAt(index2)) {
+      for (index = match.index; index < str.length; index++) {
+        switch (str.charCodeAt(index)) {
           case 34:
             escape3 = "&quot;";
             break;
@@ -18562,13 +18562,13 @@ var require_escape_html = __commonJS({
           default:
             continue;
         }
-        if (lastIndex !== index2) {
-          html += str.substring(lastIndex, index2);
+        if (lastIndex !== index) {
+          html += str.substring(lastIndex, index);
         }
-        lastIndex = index2 + 1;
+        lastIndex = index + 1;
         html += escape3;
       }
-      return lastIndex !== index2 ? html + str.substring(lastIndex, index2) : html;
+      return lastIndex !== index ? html + str.substring(lastIndex, index) : html;
     }
   }
 });
@@ -19772,25 +19772,25 @@ var require_utils3 = __commonJS({
     function acceptParams(str) {
       var length = str.length;
       var colonIndex = str.indexOf(";");
-      var index2 = colonIndex === -1 ? length : colonIndex;
-      var ret = { value: str.slice(0, index2).trim(), quality: 1, params: {} };
-      while (index2 < length) {
-        var splitIndex = str.indexOf("=", index2);
+      var index = colonIndex === -1 ? length : colonIndex;
+      var ret = { value: str.slice(0, index).trim(), quality: 1, params: {} };
+      while (index < length) {
+        var splitIndex = str.indexOf("=", index);
         if (splitIndex === -1) break;
-        var colonIndex = str.indexOf(";", index2);
+        var colonIndex = str.indexOf(";", index);
         var endIndex = colonIndex === -1 ? length : colonIndex;
         if (splitIndex > endIndex) {
-          index2 = str.lastIndexOf(";", splitIndex - 1) + 1;
+          index = str.lastIndexOf(";", splitIndex - 1) + 1;
           continue;
         }
-        var key = str.slice(index2, splitIndex).trim();
+        var key = str.slice(index, splitIndex).trim();
         var value = str.slice(splitIndex + 1, endIndex).trim();
         if (key === "q") {
           ret.quality = parseFloat(value);
         } else {
           ret.params[key] = value;
         }
-        index2 = endIndex + 1;
+        index = endIndex + 1;
       }
       return ret;
     }
@@ -20003,7 +20003,7 @@ var require_dist = __commonJS({
     function parse2(str, options = {}) {
       const { encodePath = NOOP_VALUE } = options;
       const chars = [...str];
-      let index2 = 0;
+      let index = 0;
       function consumeUntil(end) {
         const output = [];
         let path = "";
@@ -20016,44 +20016,44 @@ var require_dist = __commonJS({
           });
           path = "";
         }
-        while (index2 < chars.length) {
-          const value = chars[index2++];
+        while (index < chars.length) {
+          const value = chars[index++];
           if (value === end) {
             writePath();
             return output;
           }
           if (value === "\\") {
-            if (index2 === chars.length) {
-              throw new PathError(`Unexpected end after \\ at index ${index2}`, str);
+            if (index === chars.length) {
+              throw new PathError(`Unexpected end after \\ at index ${index}`, str);
             }
-            path += chars[index2++];
+            path += chars[index++];
             continue;
           }
           if (value === ":" || value === "*") {
             const type = value === ":" ? "param" : "wildcard";
             let name = "";
-            if (ID_START.test(chars[index2])) {
+            if (ID_START.test(chars[index])) {
               do {
-                name += chars[index2++];
-              } while (ID_CONTINUE.test(chars[index2]));
-            } else if (chars[index2] === '"') {
-              let quoteStart = index2;
-              while (index2 < chars.length) {
-                if (chars[++index2] === '"') {
-                  index2++;
+                name += chars[index++];
+              } while (ID_CONTINUE.test(chars[index]));
+            } else if (chars[index] === '"') {
+              let quoteStart = index;
+              while (index < chars.length) {
+                if (chars[++index] === '"') {
+                  index++;
                   quoteStart = 0;
                   break;
                 }
-                if (chars[index2] === "\\")
-                  index2++;
-                name += chars[index2];
+                if (chars[index] === "\\")
+                  index++;
+                name += chars[index];
               }
               if (quoteStart) {
                 throw new PathError(`Unterminated quote at index ${quoteStart}`, str);
               }
             }
             if (!name) {
-              throw new PathError(`Missing parameter name at index ${index2}`, str);
+              throw new PathError(`Missing parameter name at index ${index}`, str);
             }
             writePath();
             output.push({ type, name });
@@ -20068,12 +20068,12 @@ var require_dist = __commonJS({
             continue;
           }
           if (value === "}" || value === "(" || value === ")" || value === "[" || value === "]" || value === "+" || value === "?" || value === "!") {
-            throw new PathError(`Unexpected ${value} at index ${index2 - 1}`, str);
+            throw new PathError(`Unexpected ${value} at index ${index - 1}`, str);
           }
           path += value;
         }
         if (end) {
-          throw new PathError(`Unexpected end at index ${index2}, expected ${end}`, str);
+          throw new PathError(`Unexpected end at index ${index}, expected ${end}`, str);
         }
         writePath();
         return output;
@@ -20207,12 +20207,12 @@ var require_dist = __commonJS({
       pattern += end ? "$" : "(?=" + escape3(delimiter) + "|$)";
       return { regexp: new RegExp(pattern, sensitive ? "" : "i"), keys };
     }
-    function flatten(tokens, index2, result, callback) {
-      while (index2 < tokens.length) {
-        const token = tokens[index2++];
+    function flatten(tokens, index, result, callback) {
+      while (index < tokens.length) {
+        const token = tokens[index++];
         if (token.type === "group") {
           const len = result.length;
-          flatten(token.tokens, 0, result, (seq) => flatten(tokens, index2, seq, callback));
+          flatten(token.tokens, 0, result, (seq) => flatten(tokens, index, seq, callback));
           result.length = len;
           continue;
         }
@@ -20226,10 +20226,10 @@ var require_dist = __commonJS({
       let wildcardBacktrack = "";
       let prevCaptureType = 0;
       let hasSegmentCapture = 0;
-      let index2 = 0;
-      function hasInSegment(index3, type) {
-        while (index3 < tokens.length) {
-          const token = tokens[index3++];
+      let index = 0;
+      function hasInSegment(index2, type) {
+        while (index2 < tokens.length) {
+          const token = tokens[index2++];
           if (token.type === type)
             return true;
           if (token.type === "text") {
@@ -20239,18 +20239,18 @@ var require_dist = __commonJS({
         }
         return false;
       }
-      function peekText(index3) {
+      function peekText(index2) {
         let result2 = "";
-        while (index3 < tokens.length) {
-          const token = tokens[index3++];
+        while (index2 < tokens.length) {
+          const token = tokens[index2++];
           if (token.type !== "text")
             break;
           result2 += token.value;
         }
         return result2;
       }
-      while (index2 < tokens.length) {
-        const token = tokens[index2++];
+      while (index < tokens.length) {
+        const token = tokens[index++];
         if (token.type === "text") {
           result += escape3(token.value);
           backtrack += token.value;
@@ -20265,7 +20265,7 @@ var require_dist = __commonJS({
             throw new PathError(`Missing text before "${token.name}" ${token.type}`, originalPath);
           }
           if (token.type === "param") {
-            result += hasSegmentCapture & 2 ? `(${negate(delimiter, backtrack)}+)` : hasInSegment(index2, "wildcard") ? `(${negate(delimiter, peekText(index2))}+)` : hasSegmentCapture & 1 ? `(${negate(delimiter, backtrack)}+|${escape3(backtrack)})` : `(${negate(delimiter, "")}+)`;
+            result += hasSegmentCapture & 2 ? `(${negate(delimiter, backtrack)}+)` : hasInSegment(index, "wildcard") ? `(${negate(delimiter, peekText(index))}+)` : hasSegmentCapture & 1 ? `(${negate(delimiter, backtrack)}+|${escape3(backtrack)})` : `(${negate(delimiter, "")}+)`;
             hasSegmentCapture |= prevCaptureType = 1;
           } else {
             result += hasSegmentCapture & 2 ? `(${negate(backtrack, "")}+)` : wildcardBacktrack ? `(${negate(wildcardBacktrack, "")}+|${negate(delimiter, "")}+)` : `([^]+)`;
@@ -20291,10 +20291,10 @@ var require_dist = __commonJS({
         return `(?:(?!${escape3(a)})[^${escape3(b2)}])`;
       return `[^${escape3(a + b2)}]`;
     }
-    function stringifyTokens(tokens, index2) {
+    function stringifyTokens(tokens, index) {
       let value = "";
-      while (index2 < tokens.length) {
-        const token = tokens[index2++];
+      while (index < tokens.length) {
+        const token = tokens[index++];
         if (token.type === "text") {
           value += escapeText(token.value);
           continue;
@@ -20304,11 +20304,11 @@ var require_dist = __commonJS({
           continue;
         }
         if (token.type === "param") {
-          value += ":" + stringifyName(token.name, tokens[index2]);
+          value += ":" + stringifyName(token.name, tokens[index]);
           continue;
         }
         if (token.type === "wildcard") {
-          value += "*" + stringifyName(token.name, tokens[index2]);
+          value += "*" + stringifyName(token.name, tokens[index]);
           continue;
         }
         throw new TypeError(`Unknown token type: ${token.type}`);
@@ -21297,17 +21297,17 @@ var require_charset = __commonJS({
         i
       };
     }
-    function getCharsetPriority(charset, accepted, index2) {
+    function getCharsetPriority(charset, accepted, index) {
       var priority = { o: -1, q: 0, s: 0 };
       for (var i = 0; i < accepted.length; i++) {
-        var spec = specify(charset, accepted[i], index2);
+        var spec = specify(charset, accepted[i], index);
         if (spec && (priority.s - spec.s || priority.q - spec.q || priority.o - spec.o) < 0) {
           priority = spec;
         }
       }
       return priority;
     }
-    function specify(charset, spec, index2) {
+    function specify(charset, spec, index) {
       var s = 0;
       if (spec.charset.toLowerCase() === charset.toLowerCase()) {
         s |= 1;
@@ -21315,7 +21315,7 @@ var require_charset = __commonJS({
         return null;
       }
       return {
-        i: index2,
+        i: index,
         o: spec.i,
         q: spec.q,
         s
@@ -21326,8 +21326,8 @@ var require_charset = __commonJS({
       if (!provided) {
         return accepts.filter(isQuality).sort(compareSpecs).map(getFullCharset);
       }
-      var priorities = provided.map(function getPriority(type, index2) {
-        return getCharsetPriority(type, accepts, index2);
+      var priorities = provided.map(function getPriority(type, index) {
+        return getCharsetPriority(type, accepts, index);
       });
       return priorities.filter(isQuality).sort(compareSpecs).map(function getCharset(priority) {
         return provided[priorities.indexOf(priority)];
@@ -21395,17 +21395,17 @@ var require_encoding = __commonJS({
         i
       };
     }
-    function getEncodingPriority(encoding, accepted, index2) {
+    function getEncodingPriority(encoding, accepted, index) {
       var priority = { encoding, o: -1, q: 0, s: 0 };
       for (var i = 0; i < accepted.length; i++) {
-        var spec = specify(encoding, accepted[i], index2);
+        var spec = specify(encoding, accepted[i], index);
         if (spec && (priority.s - spec.s || priority.q - spec.q || priority.o - spec.o) < 0) {
           priority = spec;
         }
       }
       return priority;
     }
-    function specify(encoding, spec, index2) {
+    function specify(encoding, spec, index) {
       var s = 0;
       if (spec.encoding.toLowerCase() === encoding.toLowerCase()) {
         s |= 1;
@@ -21414,7 +21414,7 @@ var require_encoding = __commonJS({
       }
       return {
         encoding,
-        i: index2,
+        i: index,
         o: spec.i,
         q: spec.q,
         s
@@ -21439,8 +21439,8 @@ var require_encoding = __commonJS({
       if (!provided) {
         return accepts.filter(isQuality).sort(comparator).map(getFullEncoding);
       }
-      var priorities = provided.map(function getPriority(type, index2) {
-        return getEncodingPriority(type, accepts, index2);
+      var priorities = provided.map(function getPriority(type, index) {
+        return getEncodingPriority(type, accepts, index);
       });
       return priorities.filter(isQuality).sort(comparator).map(function getEncoding(priority) {
         return provided[priorities.indexOf(priority)];
@@ -21499,17 +21499,17 @@ var require_language = __commonJS({
         full
       };
     }
-    function getLanguagePriority(language, accepted, index2) {
+    function getLanguagePriority(language, accepted, index) {
       var priority = { o: -1, q: 0, s: 0 };
       for (var i = 0; i < accepted.length; i++) {
-        var spec = specify(language, accepted[i], index2);
+        var spec = specify(language, accepted[i], index);
         if (spec && (priority.s - spec.s || priority.q - spec.q || priority.o - spec.o) < 0) {
           priority = spec;
         }
       }
       return priority;
     }
-    function specify(language, spec, index2) {
+    function specify(language, spec, index) {
       var p = parseLanguage(language);
       if (!p) return null;
       var s = 0;
@@ -21523,7 +21523,7 @@ var require_language = __commonJS({
         return null;
       }
       return {
-        i: index2,
+        i: index,
         o: spec.i,
         q: spec.q,
         s
@@ -21534,8 +21534,8 @@ var require_language = __commonJS({
       if (!provided) {
         return accepts.filter(isQuality).sort(compareSpecs).map(getFullLanguage);
       }
-      var priorities = provided.map(function getPriority(type, index2) {
-        return getLanguagePriority(type, accepts, index2);
+      var priorities = provided.map(function getPriority(type, index) {
+        return getLanguagePriority(type, accepts, index);
       });
       return priorities.filter(isQuality).sort(compareSpecs).map(function getLanguage(priority) {
         return provided[priorities.indexOf(priority)];
@@ -21600,17 +21600,17 @@ var require_mediaType = __commonJS({
         i
       };
     }
-    function getMediaTypePriority(type, accepted, index2) {
+    function getMediaTypePriority(type, accepted, index) {
       var priority = { o: -1, q: 0, s: 0 };
       for (var i = 0; i < accepted.length; i++) {
-        var spec = specify(type, accepted[i], index2);
+        var spec = specify(type, accepted[i], index);
         if (spec && (priority.s - spec.s || priority.q - spec.q || priority.o - spec.o) < 0) {
           priority = spec;
         }
       }
       return priority;
     }
-    function specify(type, spec, index2) {
+    function specify(type, spec, index) {
       var p = parseMediaType(type);
       var s = 0;
       if (!p) {
@@ -21637,7 +21637,7 @@ var require_mediaType = __commonJS({
         }
       }
       return {
-        i: index2,
+        i: index,
         o: spec.i,
         q: spec.q,
         s
@@ -21648,8 +21648,8 @@ var require_mediaType = __commonJS({
       if (!provided) {
         return accepts.filter(isQuality).sort(compareSpecs).map(getFullType);
       }
-      var priorities = provided.map(function getPriority(type, index2) {
-        return getMediaTypePriority(type, accepts, index2);
+      var priorities = provided.map(function getPriority(type, index) {
+        return getMediaTypePriority(type, accepts, index);
       });
       return priorities.filter(isQuality).sort(compareSpecs).map(function getType(priority) {
         return provided[priorities.indexOf(priority)];
@@ -21666,22 +21666,22 @@ var require_mediaType = __commonJS({
     }
     function quoteCount(string) {
       var count4 = 0;
-      var index2 = 0;
-      while ((index2 = string.indexOf('"', index2)) !== -1) {
+      var index = 0;
+      while ((index = string.indexOf('"', index)) !== -1) {
         count4++;
-        index2++;
+        index++;
       }
       return count4;
     }
     function splitKeyValuePair(str) {
-      var index2 = str.indexOf("=");
+      var index = str.indexOf("=");
       var key;
       var val;
-      if (index2 === -1) {
+      if (index === -1) {
         key = str;
       } else {
-        key = str.slice(0, index2);
-        val = str.slice(index2 + 1);
+        key = str.slice(0, index);
+        val = str.slice(index + 1);
       }
       return [key, val];
     }
@@ -21933,13 +21933,13 @@ var require_range_parser = __commonJS({
       if (typeof str !== "string") {
         throw new TypeError("argument str must be a string");
       }
-      var index2 = str.indexOf("=");
-      if (index2 === -1) {
+      var index = str.indexOf("=");
+      if (index === -1) {
         return -2;
       }
-      var arr = str.slice(index2 + 1).split(",");
+      var arr = str.slice(index + 1).split(",");
       var ranges = [];
-      ranges.type = str.slice(0, index2);
+      ranges.type = str.slice(0, index);
       for (var i = 0; i < arr.length; i++) {
         var range = arr[i].split("-");
         var start = parseInt(range[0], 10);
@@ -21983,11 +21983,11 @@ var require_range_parser = __commonJS({
       combined.type = ranges.type;
       return combined;
     }
-    function mapWithIndex(range, index2) {
+    function mapWithIndex(range, index) {
       return {
         start: range.start,
         end: range.end,
-        index: index2
+        index
       };
     }
     function mapWithoutIndex(range) {
@@ -22080,8 +22080,8 @@ var require_request = __commonJS({
         return proto;
       }
       var header = this.get("X-Forwarded-Proto") || proto;
-      var index2 = header.indexOf(",");
-      return index2 !== -1 ? header.substring(0, index2).trim() : header.trim();
+      var index = header.indexOf(",");
+      return index !== -1 ? header.substring(0, index).trim() : header.trim();
     });
     defineGetter(req, "secure", function secure() {
       return this.protocol === "https";
@@ -22120,8 +22120,8 @@ var require_request = __commonJS({
       var host = this.host;
       if (!host) return;
       var offset = host[0] === "[" ? host.indexOf("]") + 1 : 0;
-      var index2 = host.indexOf(":", offset);
-      return index2 !== -1 ? host.substring(0, index2) : host;
+      var index = host.indexOf(":", offset);
+      return index !== -1 ? host.substring(0, index) : host;
     });
     defineGetter(req, "fresh", function() {
       var method = this.method;
@@ -22261,18 +22261,18 @@ var require_content_disposition = __commonJS({
       if (!match) {
         throw new TypeError("invalid type format");
       }
-      var index2 = match[0].length;
+      var index = match[0].length;
       var type = match[1].toLowerCase();
       var key;
       var names = [];
       var params = {};
       var value;
-      index2 = PARAM_REGEXP.lastIndex = match[0].slice(-1) === ";" ? index2 - 1 : index2;
+      index = PARAM_REGEXP.lastIndex = match[0].slice(-1) === ";" ? index - 1 : index;
       while (match = PARAM_REGEXP.exec(string)) {
-        if (match.index !== index2) {
+        if (match.index !== index) {
           throw new TypeError("invalid parameter format");
         }
-        index2 += match[0].length;
+        index += match[0].length;
         key = match[1].toLowerCase();
         value = match[2];
         if (names.indexOf(key) !== -1) {
@@ -22293,7 +22293,7 @@ var require_content_disposition = __commonJS({
         }
         params[key] = value;
       }
-      if (index2 !== -1 && index2 !== string.length) {
+      if (index !== -1 && index !== string.length) {
         throw new TypeError("invalid parameter format");
       }
       return new ContentDisposition(type, params);
@@ -22400,20 +22400,20 @@ var require_cookie = __commonJS({
       var len = str.length;
       if (len < 2) return obj;
       var dec = opt && opt.decode || decode;
-      var index2 = 0;
+      var index = 0;
       var eqIdx = 0;
       var endIdx = 0;
       do {
-        eqIdx = str.indexOf("=", index2);
+        eqIdx = str.indexOf("=", index);
         if (eqIdx === -1) break;
-        endIdx = str.indexOf(";", index2);
+        endIdx = str.indexOf(";", index);
         if (endIdx === -1) {
           endIdx = len;
         } else if (eqIdx > endIdx) {
-          index2 = str.lastIndexOf(";", eqIdx - 1) + 1;
+          index = str.lastIndexOf(";", eqIdx - 1) + 1;
           continue;
         }
-        var keyStartIdx = startIndex(str, index2, eqIdx);
+        var keyStartIdx = startIndex(str, index, eqIdx);
         var keyEndIdx = endIndex(str, eqIdx, keyStartIdx);
         var key = str.slice(keyStartIdx, keyEndIdx);
         if (!__hasOwnProperty.call(obj, key)) {
@@ -22426,21 +22426,21 @@ var require_cookie = __commonJS({
           var val = str.slice(valStartIdx, valEndIdx);
           obj[key] = tryDecode(val, dec);
         }
-        index2 = endIdx + 1;
-      } while (index2 < len);
+        index = endIdx + 1;
+      } while (index < len);
       return obj;
     }
-    function startIndex(str, index2, max) {
+    function startIndex(str, index, max) {
       do {
-        var code = str.charCodeAt(index2);
-        if (code !== 32 && code !== 9) return index2;
-      } while (++index2 < max);
+        var code = str.charCodeAt(index);
+        if (code !== 32 && code !== 9) return index;
+      } while (++index < max);
       return max;
     }
-    function endIndex(str, index2, min) {
-      while (index2 > min) {
-        var code = str.charCodeAt(--index2);
-        if (code !== 32 && code !== 9) return index2 + 1;
+    function endIndex(str, index, min) {
+      while (index > min) {
+        var code = str.charCodeAt(--index);
+        if (code !== 32 && code !== 9) return index + 1;
       }
       return min;
     }
@@ -25295,8 +25295,8 @@ var require_ipv6 = __commonJS({
         }
         const zeroLengths = zeroes.map((n) => n[1] - n[0] + 1);
         if (zeroes.length > 0) {
-          const index2 = zeroLengths.indexOf(Math.max(...zeroLengths));
-          groups = compact(this.parsedAddress, zeroes[index2]);
+          const index = zeroLengths.indexOf(Math.max(...zeroLengths));
+          groups = compact(this.parsedAddress, zeroes[index]);
         } else {
           groups = this.parsedAddress;
         }
@@ -26850,8 +26850,8 @@ var require_redaction = __commonJS({
         if (o[ns] === null) {
           return o;
         }
-        const { index: index2 } = next;
-        const nextPath = `${str.substr(index2, str.length - 1)}`;
+        const { index } = next;
+        const nextPath = `${str.substr(index, str.length - 1)}`;
         o[ns] = o[ns] || [];
         if (ns !== wildcardFirstSym && o[ns].length === 0) {
           o[ns].push(...o[wildcardFirstSym] || []);
@@ -26957,8 +26957,8 @@ var require_quick_format_unescaped = __commonJS({
         if (len === 1) return f;
         var objects = new Array(len);
         objects[0] = ss(f);
-        for (var index2 = 1; index2 < len; index2++) {
-          objects[index2] = ss(args[index2]);
+        for (var index = 1; index < len; index++) {
+          objects[index] = ss(args[index]);
         }
         return objects.join(" ");
       }
@@ -27729,8 +27729,8 @@ var require_on_exit_leak_free = __commonJS({
     }
     function clear(ref) {
       for (const event of ["exit", "beforeExit"]) {
-        const index2 = refs[event].indexOf(ref);
-        refs[event].splice(index2, index2 + 1);
+        const index = refs[event].indexOf(ref);
+        refs[event].splice(index, index + 1);
         uninstall(event);
       }
     }
@@ -27840,9 +27840,9 @@ var require_wait = __commonJS({
   "../../node_modules/.pnpm/thread-stream@3.1.0/node_modules/thread-stream/lib/wait.js"(exports, module) {
     "use strict";
     var MAX_TIMEOUT = 1e3;
-    function wait(state, index2, expected, timeout, done) {
+    function wait(state, index, expected, timeout, done) {
       const max = Date.now() + timeout;
-      let current = Atomics.load(state, index2);
+      let current = Atomics.load(state, index);
       if (current === expected) {
         done(null, "ok");
         return;
@@ -27854,7 +27854,7 @@ var require_wait = __commonJS({
         } else {
           setTimeout(() => {
             prior = current;
-            current = Atomics.load(state, index2);
+            current = Atomics.load(state, index);
             if (current === prior) {
               check(backoff2 >= MAX_TIMEOUT ? MAX_TIMEOUT : backoff2 * 2);
             } else {
@@ -27866,9 +27866,9 @@ var require_wait = __commonJS({
       };
       check(1);
     }
-    function waitDiff(state, index2, expected, timeout, done) {
+    function waitDiff(state, index, expected, timeout, done) {
       const max = Date.now() + timeout;
-      let current = Atomics.load(state, index2);
+      let current = Atomics.load(state, index);
       if (current !== expected) {
         done(null, "ok");
         return;
@@ -27878,7 +27878,7 @@ var require_wait = __commonJS({
           done(null, "timed-out");
         } else {
           setTimeout(() => {
-            current = Atomics.load(state, index2);
+            current = Atomics.load(state, index);
             if (current !== expected) {
               done(null, "ok");
             } else {
@@ -29960,11 +29960,11 @@ var require_multistream = __commonJS({
         this.minLevel = streams[0].level;
         return res;
       }
-      function remove(id) {
+      function remove(id2) {
         const { streams } = this;
-        const index2 = streams.findIndex((s) => s.id === id);
-        if (index2 >= 0) {
-          streams.splice(index2, 1);
+        const index = streams.findIndex((s) => s.id === id2);
+        if (index >= 0) {
+          streams.splice(index, 1);
           streams.sort(compareByLevel);
           this.minLevel = streams.length > 0 ? streams[0].level : -1;
         }
@@ -30522,17 +30522,17 @@ var require_charset2 = __commonJS({
         i
       };
     }
-    function getCharsetPriority(charset, accepted, index2) {
+    function getCharsetPriority(charset, accepted, index) {
       var priority = { o: -1, q: 0, s: 0 };
       for (var i = 0; i < accepted.length; i++) {
-        var spec = specify(charset, accepted[i], index2);
+        var spec = specify(charset, accepted[i], index);
         if (spec && (priority.s - spec.s || priority.q - spec.q || priority.o - spec.o) < 0) {
           priority = spec;
         }
       }
       return priority;
     }
-    function specify(charset, spec, index2) {
+    function specify(charset, spec, index) {
       var s = 0;
       if (spec.charset.toLowerCase() === charset.toLowerCase()) {
         s |= 1;
@@ -30540,7 +30540,7 @@ var require_charset2 = __commonJS({
         return null;
       }
       return {
-        i: index2,
+        i: index,
         o: spec.i,
         q: spec.q,
         s
@@ -30551,8 +30551,8 @@ var require_charset2 = __commonJS({
       if (!provided) {
         return accepts.filter(isQuality).sort(compareSpecs).map(getFullCharset);
       }
-      var priorities = provided.map(function getPriority(type, index2) {
-        return getCharsetPriority(type, accepts, index2);
+      var priorities = provided.map(function getPriority(type, index) {
+        return getCharsetPriority(type, accepts, index);
       });
       return priorities.filter(isQuality).sort(compareSpecs).map(function getCharset(priority) {
         return provided[priorities.indexOf(priority)];
@@ -30620,17 +30620,17 @@ var require_encoding2 = __commonJS({
         i
       };
     }
-    function getEncodingPriority(encoding, accepted, index2) {
+    function getEncodingPriority(encoding, accepted, index) {
       var priority = { encoding, o: -1, q: 0, s: 0 };
       for (var i = 0; i < accepted.length; i++) {
-        var spec = specify(encoding, accepted[i], index2);
+        var spec = specify(encoding, accepted[i], index);
         if (spec && (priority.s - spec.s || priority.q - spec.q || priority.o - spec.o) < 0) {
           priority = spec;
         }
       }
       return priority;
     }
-    function specify(encoding, spec, index2) {
+    function specify(encoding, spec, index) {
       var s = 0;
       if (spec.encoding.toLowerCase() === encoding.toLowerCase()) {
         s |= 1;
@@ -30639,7 +30639,7 @@ var require_encoding2 = __commonJS({
       }
       return {
         encoding,
-        i: index2,
+        i: index,
         o: spec.i,
         q: spec.q,
         s
@@ -30664,8 +30664,8 @@ var require_encoding2 = __commonJS({
       if (!provided) {
         return accepts.filter(isQuality).sort(comparator).map(getFullEncoding);
       }
-      var priorities = provided.map(function getPriority(type, index2) {
-        return getEncodingPriority(type, accepts, index2);
+      var priorities = provided.map(function getPriority(type, index) {
+        return getEncodingPriority(type, accepts, index);
       });
       return priorities.filter(isQuality).sort(comparator).map(function getEncoding(priority) {
         return provided[priorities.indexOf(priority)];
@@ -30724,17 +30724,17 @@ var require_language2 = __commonJS({
         full
       };
     }
-    function getLanguagePriority(language, accepted, index2) {
+    function getLanguagePriority(language, accepted, index) {
       var priority = { o: -1, q: 0, s: 0 };
       for (var i = 0; i < accepted.length; i++) {
-        var spec = specify(language, accepted[i], index2);
+        var spec = specify(language, accepted[i], index);
         if (spec && (priority.s - spec.s || priority.q - spec.q || priority.o - spec.o) < 0) {
           priority = spec;
         }
       }
       return priority;
     }
-    function specify(language, spec, index2) {
+    function specify(language, spec, index) {
       var p = parseLanguage(language);
       if (!p) return null;
       var s = 0;
@@ -30748,7 +30748,7 @@ var require_language2 = __commonJS({
         return null;
       }
       return {
-        i: index2,
+        i: index,
         o: spec.i,
         q: spec.q,
         s
@@ -30759,8 +30759,8 @@ var require_language2 = __commonJS({
       if (!provided) {
         return accepts.filter(isQuality).sort(compareSpecs).map(getFullLanguage);
       }
-      var priorities = provided.map(function getPriority(type, index2) {
-        return getLanguagePriority(type, accepts, index2);
+      var priorities = provided.map(function getPriority(type, index) {
+        return getLanguagePriority(type, accepts, index);
       });
       return priorities.filter(isQuality).sort(compareSpecs).map(function getLanguage(priority) {
         return provided[priorities.indexOf(priority)];
@@ -30825,17 +30825,17 @@ var require_mediaType2 = __commonJS({
         i
       };
     }
-    function getMediaTypePriority(type, accepted, index2) {
+    function getMediaTypePriority(type, accepted, index) {
       var priority = { o: -1, q: 0, s: 0 };
       for (var i = 0; i < accepted.length; i++) {
-        var spec = specify(type, accepted[i], index2);
+        var spec = specify(type, accepted[i], index);
         if (spec && (priority.s - spec.s || priority.q - spec.q || priority.o - spec.o) < 0) {
           priority = spec;
         }
       }
       return priority;
     }
-    function specify(type, spec, index2) {
+    function specify(type, spec, index) {
       var p = parseMediaType(type);
       var s = 0;
       if (!p) {
@@ -30862,7 +30862,7 @@ var require_mediaType2 = __commonJS({
         }
       }
       return {
-        i: index2,
+        i: index,
         o: spec.i,
         q: spec.q,
         s
@@ -30873,8 +30873,8 @@ var require_mediaType2 = __commonJS({
       if (!provided) {
         return accepts.filter(isQuality).sort(compareSpecs).map(getFullType);
       }
-      var priorities = provided.map(function getPriority(type, index2) {
-        return getMediaTypePriority(type, accepts, index2);
+      var priorities = provided.map(function getPriority(type, index) {
+        return getMediaTypePriority(type, accepts, index);
       });
       return priorities.filter(isQuality).sort(compareSpecs).map(function getType(priority) {
         return provided[priorities.indexOf(priority)];
@@ -30891,22 +30891,22 @@ var require_mediaType2 = __commonJS({
     }
     function quoteCount(string) {
       var count4 = 0;
-      var index2 = 0;
-      while ((index2 = string.indexOf('"', index2)) !== -1) {
+      var index = 0;
+      while ((index = string.indexOf('"', index)) !== -1) {
         count4++;
-        index2++;
+        index++;
       }
       return count4;
     }
     function splitKeyValuePair(str) {
-      var index2 = str.indexOf("=");
+      var index = str.indexOf("=");
       var key;
       var val;
-      if (index2 === -1) {
+      if (index === -1) {
         key = str;
       } else {
-        key = str.slice(0, index2);
-        val = str.slice(index2 + 1);
+        key = str.slice(0, index);
+        val = str.slice(index + 1);
       }
       return [key, val];
     }
@@ -31217,16 +31217,16 @@ var require_debug = __commonJS({
         if ("string" !== typeof args[0]) {
           args.unshift("%O");
         }
-        var index2 = 0;
+        var index = 0;
         args[0] = args[0].replace(/%([a-zA-Z%])/g, function(match, format) {
           if (match === "%%") return match;
-          index2++;
+          index++;
           var formatter = exports.formatters[format];
           if ("function" === typeof formatter) {
-            var val = args[index2];
+            var val = args[index];
             match = formatter.call(self, val);
-            args.splice(index2, 1);
-            index2--;
+            args.splice(index, 1);
+            index--;
           }
           return match;
         });
@@ -31324,13 +31324,13 @@ var require_browser2 = __commonJS({
       if (!useColors2) return;
       var c = "color: " + this.color;
       args.splice(1, 0, c, "color: inherit");
-      var index2 = 0;
+      var index = 0;
       var lastC = 0;
       args[0].replace(/%[a-zA-Z%]/g, function(match) {
         if ("%%" === match) return;
-        index2++;
+        index++;
         if ("%c" === match) {
-          lastC = index2;
+          lastC = index;
         }
       });
       args.splice(lastC, 0, c);
@@ -32650,13 +32650,13 @@ var require_re = __commonJS({
     };
     var createToken = (name, value, isGlobal) => {
       const safe = makeSafeRegex(value);
-      const index2 = R++;
-      debug(name, index2, value);
-      t[name] = index2;
-      src[index2] = value;
-      safeSrc[index2] = safe;
-      re[index2] = new RegExp(value, isGlobal ? "g" : void 0);
-      safeRe[index2] = new RegExp(safe, isGlobal ? "g" : void 0);
+      const index = R++;
+      debug(name, index, value);
+      t[name] = index;
+      src[index] = value;
+      safeSrc[index] = safe;
+      re[index] = new RegExp(value, isGlobal ? "g" : void 0);
+      safeRe[index] = new RegExp(safe, isGlobal ? "g" : void 0);
     };
     createToken("NUMERICIDENTIFIER", "0|[1-9]\\d*");
     createToken("NUMERICIDENTIFIERLOOSE", "\\d+");
@@ -32730,13 +32730,13 @@ var require_parse_options = __commonJS({
 var require_identifiers = __commonJS({
   "../../node_modules/.pnpm/semver@7.8.0/node_modules/semver/internal/identifiers.js"(exports, module) {
     "use strict";
-    var numeric3 = /^[0-9]+$/;
+    var numeric2 = /^[0-9]+$/;
     var compareIdentifiers = (a, b2) => {
       if (typeof a === "number" && typeof b2 === "number") {
         return a === b2 ? 0 : a < b2 ? -1 : 1;
       }
-      const anum = numeric3.test(a);
-      const bnum = numeric3.test(b2);
+      const anum = numeric2.test(a);
+      const bnum = numeric2.test(b2);
       if (anum && bnum) {
         a = +a;
         b2 = +b2;
@@ -32801,14 +32801,14 @@ var require_semver = __commonJS({
         if (!m[4]) {
           this.prerelease = [];
         } else {
-          this.prerelease = m[4].split(".").map((id) => {
-            if (/^[0-9]+$/.test(id)) {
-              const num = +id;
+          this.prerelease = m[4].split(".").map((id2) => {
+            if (/^[0-9]+$/.test(id2)) {
+              const num = +id2;
               if (num >= 0 && num < MAX_SAFE_INTEGER) {
                 return num;
               }
             }
-            return id;
+            return id2;
           });
         }
         this.build = m[5] ? m[5].split(".") : [];
@@ -33278,8 +33278,8 @@ var require_eq = __commonJS({
   "../../node_modules/.pnpm/semver@7.8.0/node_modules/semver/functions/eq.js"(exports, module) {
     "use strict";
     var compare2 = require_compare();
-    var eq2 = (a, b2, loose) => compare2(a, b2, loose) === 0;
-    module.exports = eq2;
+    var eq3 = (a, b2, loose) => compare2(a, b2, loose) === 0;
+    module.exports = eq3;
   }
 });
 
@@ -33317,7 +33317,7 @@ var require_lte = __commonJS({
 var require_cmp = __commonJS({
   "../../node_modules/.pnpm/semver@7.8.0/node_modules/semver/functions/cmp.js"(exports, module) {
     "use strict";
-    var eq2 = require_eq();
+    var eq3 = require_eq();
     var neq = require_neq();
     var gt2 = require_gt();
     var gte2 = require_gte();
@@ -33344,7 +33344,7 @@ var require_cmp = __commonJS({
         case "":
         case "=":
         case "==":
-          return eq2(a, b2, loose);
+          return eq3(a, b2, loose);
         case "!=":
           return neq(a, b2, loose);
         case ">":
@@ -33673,7 +33673,7 @@ var require_range2 = __commonJS({
       debug("stars", comp);
       return comp;
     };
-    var isX = (id) => !id || id.toLowerCase() === "x" || id === "*";
+    var isX = (id2) => !id2 || id2.toLowerCase() === "x" || id2 === "*";
     var replaceTildes = (comp, options) => {
       return comp.trim().split(/\s+/).map((c) => replaceTilde(c, options)).join(" ");
     };
@@ -34366,15 +34366,15 @@ var require_subset = __commonJS({
           return null;
         }
       }
-      for (const eq2 of eqSet) {
-        if (gt2 && !satisfies(eq2, String(gt2), options)) {
+      for (const eq3 of eqSet) {
+        if (gt2 && !satisfies(eq3, String(gt2), options)) {
           return null;
         }
-        if (lt2 && !satisfies(eq2, String(lt2), options)) {
+        if (lt2 && !satisfies(eq3, String(lt2), options)) {
           return null;
         }
         for (const c of dom) {
-          if (!satisfies(eq2, String(c), options)) {
+          if (!satisfies(eq3, String(c), options)) {
             return false;
           }
         }
@@ -34478,7 +34478,7 @@ var require_semver2 = __commonJS({
     var rsort = require_rsort();
     var gt2 = require_gt();
     var lt2 = require_lt();
-    var eq2 = require_eq();
+    var eq3 = require_eq();
     var neq = require_neq();
     var gte2 = require_gte();
     var lte2 = require_lte();
@@ -34517,7 +34517,7 @@ var require_semver2 = __commonJS({
       rsort,
       gt: gt2,
       lt: lt2,
-      eq: eq2,
+      eq: eq3,
       neq,
       gte: gte2,
       lte: lte2,
@@ -34861,17 +34861,17 @@ var require_lodash = __commonJS({
     var reIsUint = /^(?:0|[1-9]\d*)$/;
     var freeParseInt = parseInt;
     function arrayMap(array, iteratee) {
-      var index2 = -1, length = array ? array.length : 0, result = Array(length);
-      while (++index2 < length) {
-        result[index2] = iteratee(array[index2], index2, array);
+      var index = -1, length = array ? array.length : 0, result = Array(length);
+      while (++index < length) {
+        result[index] = iteratee(array[index], index, array);
       }
       return result;
     }
     function baseFindIndex(array, predicate, fromIndex, fromRight) {
-      var length = array.length, index2 = fromIndex + (fromRight ? 1 : -1);
-      while (fromRight ? index2-- : ++index2 < length) {
-        if (predicate(array[index2], index2, array)) {
-          return index2;
+      var length = array.length, index = fromIndex + (fromRight ? 1 : -1);
+      while (fromRight ? index-- : ++index < length) {
+        if (predicate(array[index], index, array)) {
+          return index;
         }
       }
       return -1;
@@ -34880,10 +34880,10 @@ var require_lodash = __commonJS({
       if (value !== value) {
         return baseFindIndex(array, baseIsNaN, fromIndex);
       }
-      var index2 = fromIndex - 1, length = array.length;
-      while (++index2 < length) {
-        if (array[index2] === value) {
-          return index2;
+      var index = fromIndex - 1, length = array.length;
+      while (++index < length) {
+        if (array[index] === value) {
+          return index;
         }
       }
       return -1;
@@ -34892,9 +34892,9 @@ var require_lodash = __commonJS({
       return value !== value;
     }
     function baseTimes(n, iteratee) {
-      var index2 = -1, result = Array(n);
-      while (++index2 < n) {
-        result[index2] = iteratee(index2);
+      var index = -1, result = Array(n);
+      while (++index < n) {
+        result[index] = iteratee(index);
       }
       return result;
     }
@@ -39186,7 +39186,7 @@ var require_defaults = __commonJS({
     function isNil(value) {
       return value == null;
     }
-    function eq2(value, other) {
+    function eq3(value, other) {
       return value === other || Number.isNaN(value) && Number.isNaN(other);
     }
     function isLength(value) {
@@ -39208,12 +39208,12 @@ var require_defaults = __commonJS({
           return IS_UNSIGNED_INTEGER.test(value);
       }
     }
-    function isIterateeCall(value, index2, object) {
+    function isIterateeCall(value, index, object) {
       if (!isObject(object)) {
         return false;
       }
-      if (typeof index2 === "number" && isArrayLike(object) && isIndex(index2) && index2 < object.length || typeof index2 === "string" && index2 in object) {
-        return eq2(object[index2], value);
+      if (typeof index === "number" && isArrayLike(object) && isIndex(index) && index < object.length || typeof index === "string" && index in object) {
+        return eq3(object[index], value);
       }
       return false;
     }
@@ -39232,7 +39232,7 @@ var require_defaults = __commonJS({
         const source = sources[i];
         for (const key in source) {
           const value = object[key];
-          if (value === void 0 || !objectProto.hasOwnProperty.call(object, key) && eq2(value, objectProto[key])) {
+          if (value === void 0 || !objectProto.hasOwnProperty.call(object, key) && eq3(value, objectProto[key])) {
             object[key] = source[key];
           }
         }
@@ -39743,9 +39743,9 @@ var require_utils5 = __commonJS({
     function shuffle(array) {
       let counter = array.length;
       while (counter > 0) {
-        const index2 = Math.floor(Math.random() * counter);
+        const index = Math.floor(Math.random() * counter);
         counter--;
-        [array[counter], array[index2]] = [array[index2], array[counter]];
+        [array[counter], array[index]] = [array[index], array[counter]];
       }
       return array;
     }
@@ -39753,8 +39753,8 @@ var require_utils5 = __commonJS({
     exports.CONNECTION_CLOSED_ERROR_MSG = "Connection is closed.";
     function zipMap(keys, values2) {
       const map = /* @__PURE__ */ new Map();
-      keys.forEach((key, index2) => {
-        map.set(key, values2[index2]);
+      keys.forEach((key, index) => {
+        map.set(key, values2[index]);
       });
       return map;
     }
@@ -40099,9 +40099,9 @@ var require_Command = __commonJS({
             const keyIndexes = (0, commands_1.getKeyIndexes)(this.name, this.args, {
               nameCaseInsensitive: true
             });
-            for (const index2 of keyIndexes) {
-              this.args[index2] = transform(this.args[index2]);
-              this.keys.push(this.args[index2]);
+            for (const index of keyIndexes) {
+              this.args[index] = transform(this.args[index]);
+              this.keys.push(this.args[index]);
             }
           }
         }
@@ -41632,8 +41632,8 @@ var require_denque = __commonJS({
         this._list = new Array(4);
       }
     }
-    Denque.prototype.peekAt = function peekAt(index2) {
-      var i = index2;
+    Denque.prototype.peekAt = function peekAt(index) {
+      var i = index;
       if (i !== (i | 0)) {
         return void 0;
       }
@@ -41709,8 +41709,8 @@ var require_denque = __commonJS({
       if (this._head < 2 && tail > 1e4 && tail <= len >>> 2) this._shrinkArray();
       return item;
     };
-    Denque.prototype.removeOne = function removeOne(index2) {
-      var i = index2;
+    Denque.prototype.removeOne = function removeOne(index) {
+      var i = index;
       if (i !== (i | 0)) {
         return void 0;
       }
@@ -41722,14 +41722,14 @@ var require_denque = __commonJS({
       i = this._head + i & this._capacityMask;
       var item = this._list[i];
       var k;
-      if (index2 < size2 / 2) {
-        for (k = index2; k > 0; k--) {
+      if (index < size2 / 2) {
+        for (k = index; k > 0; k--) {
           this._list[i] = this._list[i = i - 1 + len & this._capacityMask];
         }
         this._list[i] = void 0;
         this._head = this._head + 1 + len & this._capacityMask;
       } else {
-        for (k = size2 - 1 - index2; k > 0; k--) {
+        for (k = size2 - 1 - index; k > 0; k--) {
           this._list[i] = this._list[i = i + 1 + len & this._capacityMask];
         }
         this._list[i] = void 0;
@@ -41737,8 +41737,8 @@ var require_denque = __commonJS({
       }
       return item;
     };
-    Denque.prototype.remove = function remove(index2, count4) {
-      var i = index2;
+    Denque.prototype.remove = function remove(index, count4) {
+      var i = index;
       var removed;
       var del_count = count4;
       if (i !== (i | 0)) {
@@ -41766,14 +41766,14 @@ var require_denque = __commonJS({
         removed[k] = this._list[this._head + i + k & this._capacityMask];
       }
       i = this._head + i & this._capacityMask;
-      if (index2 + count4 === size2) {
+      if (index + count4 === size2) {
         this._tail = this._tail - count4 + len & this._capacityMask;
         for (k = count4; k > 0; k--) {
           this._list[i = i + 1 + len & this._capacityMask] = void 0;
         }
         return removed;
       }
-      if (index2 === 0) {
+      if (index === 0) {
         this._head = this._head + count4 + len & this._capacityMask;
         for (k = count4 - 1; k > 0; k--) {
           this._list[i = i + 1 + len & this._capacityMask] = void 0;
@@ -41781,8 +41781,8 @@ var require_denque = __commonJS({
         return removed;
       }
       if (i < size2 / 2) {
-        this._head = this._head + index2 + count4 + len & this._capacityMask;
-        for (k = index2; k > 0; k--) {
+        this._head = this._head + index + count4 + len & this._capacityMask;
+        for (k = index; k > 0; k--) {
           this.unshift(this._list[i = i - 1 + len & this._capacityMask]);
         }
         i = this._head - 1 + len & this._capacityMask;
@@ -41790,11 +41790,11 @@ var require_denque = __commonJS({
           this._list[i = i - 1 + len & this._capacityMask] = void 0;
           del_count--;
         }
-        if (index2 < 0) this._tail = i;
+        if (index < 0) this._tail = i;
       } else {
         this._tail = i;
         i = i + count4 + len & this._capacityMask;
-        for (k = size2 - (count4 + index2); k > 0; k--) {
+        for (k = size2 - (count4 + index); k > 0; k--) {
           this.push(this._list[i++]);
         }
         i = this._tail;
@@ -41806,8 +41806,8 @@ var require_denque = __commonJS({
       if (this._head < 2 && this._tail > 1e4 && this._tail <= len >>> 2) this._shrinkArray();
       return removed;
     };
-    Denque.prototype.splice = function splice(index2, count4) {
-      var i = index2;
+    Denque.prototype.splice = function splice(index, count4) {
+      var i = index;
       if (i !== (i | 0)) {
         return void 0;
       }
@@ -42742,12 +42742,12 @@ var require_cluster = __commonJS({
         };
         const nodes = (0, utils_1.shuffle)(this.connectionPool.getNodes());
         let lastNodeError = null;
-        function tryNode(index2) {
-          if (index2 === nodes.length) {
+        function tryNode(index) {
+          if (index === nodes.length) {
             const error = new ClusterAllFailedError_1.default(ClusterAllFailedError_1.default.defaultMessage, lastNodeError);
             return wrapper(error);
           }
-          const node = nodes[index2];
+          const node = nodes[index];
           const key = `${node.options.host}:${node.options.port}`;
           debug("getting slot cache from %s", key);
           _this.getInfoFromNode(node, function(err) {
@@ -42761,7 +42761,7 @@ var require_cluster = __commonJS({
             if (err) {
               _this.emit("node error", err, key);
               lastNodeError = err;
-              tryNode(index2 + 1);
+              tryNode(index + 1);
             } else {
               _this.emit("refresh");
               wrapper();
@@ -49888,10 +49888,10 @@ var ZodObject = class _ZodObject extends ZodType {
   //   }) as any;
   //   return merged;
   // }
-  catchall(index2) {
+  catchall(index) {
     return new _ZodObject({
       ...this._def,
-      catchall: index2
+      catchall: index
     });
   }
   pick(mask) {
@@ -50209,9 +50209,9 @@ function mergeValues(a, b2) {
       return { valid: false };
     }
     const newArray = [];
-    for (let index2 = 0; index2 < a.length; index2++) {
-      const itemA = a[index2];
-      const itemB = b2[index2];
+    for (let index = 0; index < a.length; index++) {
+      const itemA = a[index];
+      const itemB = b2[index];
       const sharedValue = mergeValues(itemA, itemB);
       if (!sharedValue.valid) {
         return { valid: false };
@@ -50417,10 +50417,10 @@ var ZodMap = class extends ZodType {
     }
     const keyType = this._def.keyType;
     const valueType = this._def.valueType;
-    const pairs = [...ctx.data.entries()].map(([key, value], index2) => {
+    const pairs = [...ctx.data.entries()].map(([key, value], index) => {
       return {
-        key: keyType._parse(new ParseInputLazyPath(ctx, key, ctx.path, [index2, "key"])),
-        value: valueType._parse(new ParseInputLazyPath(ctx, value, ctx.path, [index2, "value"]))
+        key: keyType._parse(new ParseInputLazyPath(ctx, key, ctx.path, [index, "key"])),
+        value: valueType._parse(new ParseInputLazyPath(ctx, value, ctx.path, [index, "value"]))
       };
     });
     if (ctx.common.async) {
@@ -51326,7 +51326,8 @@ var NEVER = INVALID;
 
 // ../../lib/api-zod/src/index.ts
 var HealthCheckResponse = external_exports.object({
-  status: external_exports.string()
+  status: external_exports.enum(["ok", "error"]),
+  timestamp: external_exports.string()
 });
 
 // src/routes/health.ts
@@ -53571,23 +53572,23 @@ var Result = class extends Array {
 var queue_default = Queue;
 function Queue(initial = []) {
   let xs = initial.slice();
-  let index2 = 0;
+  let index = 0;
   return {
     get length() {
-      return xs.length - index2;
+      return xs.length - index;
     },
     remove: (x) => {
-      const index3 = xs.indexOf(x);
-      return index3 === -1 ? null : (xs.splice(index3, 1), x);
+      const index2 = xs.indexOf(x);
+      return index2 === -1 ? null : (xs.splice(index2, 1), x);
     },
     push: (x) => (xs.push(x), x),
     shift: () => {
-      const out = xs[index2++];
-      if (index2 === xs.length) {
-        index2 = 0;
+      const out = xs[index++];
+      if (index === xs.length) {
+        index = 0;
         xs = [];
       } else {
-        xs[index2 - 1] = void 0;
+        xs[index - 1] = void 0;
       }
       return out;
     }
@@ -53739,7 +53740,7 @@ function Connection(options, queues = {}, { onopen = noop, onend = noop, onclose
     backoff: backoff2,
     target_session_attrs
   } = options;
-  const sent = queue_default(), id = uid++, backend = { pid: null, secret: null }, idleTimer = timer(end, options.idle_timeout), lifeTimer = timer(end, options.max_lifetime), connectTimer = timer(connectTimedOut, options.connect_timeout);
+  const sent = queue_default(), id2 = uid++, backend = { pid: null, secret: null }, idleTimer = timer(end, options.idle_timeout), lifeTimer = timer(end, options.max_lifetime), connectTimer = timer(connectTimedOut, options.connect_timeout);
   let socket = null, cancelMessage, errorResponse = null, result = new Result(), incoming = Buffer.alloc(0), needsTypes = options.fetch_types, backendParameters = {}, statements = {}, statementId = Math.random().toString(36).slice(2), statementCount = 1, closedTime = 0, remaining = 0, hostIndex = 0, retries = 0, length = 0, delay = 0, rows = 0, serverSignature = null, nextWriteTimer = null, terminated = false, incomings = null, results = null, initial = null, ending = null, stream = null, chunk = null, ended = null, nonce = null, query = null, final = null;
   const connection2 = {
     queue: queues.closed,
@@ -53753,7 +53754,7 @@ function Connection(options, queues = {}, { onopen = noop, onend = noop, onclose
     cancel,
     end,
     count: 0,
-    id
+    id: id2
   };
   queues.closed && queues.closed.push(connection2);
   return connection2;
@@ -53834,7 +53835,7 @@ function Connection(options, queues = {}, { onopen = noop, onend = noop, onclose
     q.prepared = q.prepare && q.signature in statements;
     q.describeFirst = q.onlyDescribe || parameters.length && !q.prepared;
     q.statement = q.prepared ? statements[q.signature] : { string, types: types2, name: q.prepare ? statementId + statementCount++ : "" };
-    typeof options.debug === "function" && options.debug(id, string, parameters, types2);
+    typeof options.debug === "function" && options.debug(id2, string, parameters, types2);
   }
   function write(x, fn) {
     chunk = chunk ? Buffer.concat([chunk, x]) : Buffer.from(x);
@@ -54080,16 +54081,16 @@ function Connection(options, queues = {}, { onopen = noop, onend = noop, onclose
     ))(xs);
   }
   function DataRow(x) {
-    let index2 = 7;
+    let index = 7;
     let length2;
     let column;
     let value;
     const row = query.isRaw ? new Array(query.statement.columns.length) : {};
     for (let i = 0; i < query.statement.columns.length; i++) {
       column = query.statement.columns[i];
-      length2 = x.readInt32BE(index2);
-      index2 += 4;
-      value = length2 === -1 ? null : query.isRaw === true ? x.subarray(index2, index2 += length2) : column.parser === void 0 ? x.toString("utf8", index2, index2 += length2) : column.parser.array === true ? column.parser(x.toString("utf8", index2 + 1, index2 += length2)) : column.parser(x.toString("utf8", index2, index2 += length2));
+      length2 = x.readInt32BE(index);
+      index += 4;
+      value = length2 === -1 ? null : query.isRaw === true ? x.subarray(index, index += length2) : column.parser === void 0 ? x.toString("utf8", index, index += length2) : column.parser.array === true ? column.parser(x.toString("utf8", index + 1, index += length2)) : column.parser(x.toString("utf8", index, index += length2));
       query.isRaw ? row[i] = query.isRaw === true ? value : transform.value.from ? transform.value.from(value, column) : value : row[column.name] = transform.value.from ? transform.value.from(value, column) : value;
     }
     query.forEachFn ? query.forEachFn(transform.row.from ? transform.row.from(row) : row, result) : result[rows++] = transform.row.from ? transform.row.from(row) : row;
@@ -54180,23 +54181,23 @@ function Connection(options, queues = {}, { onopen = noop, onend = noop, onclose
       query.statement.columns = null;
     }
     const length2 = x.readUInt16BE(5);
-    let index2 = 7;
+    let index = 7;
     let start;
     query.statement.columns = Array(length2);
     for (let i = 0; i < length2; ++i) {
-      start = index2;
-      while (x[index2++] !== 0) ;
-      const table = x.readUInt32BE(index2);
-      const number = x.readUInt16BE(index2 + 4);
-      const type = x.readUInt32BE(index2 + 6);
+      start = index;
+      while (x[index++] !== 0) ;
+      const table = x.readUInt32BE(index);
+      const number = x.readUInt16BE(index + 4);
+      const type = x.readUInt32BE(index + 6);
       query.statement.columns[i] = {
-        name: transform.column.from ? transform.column.from(x.toString("utf8", start, index2 - 1)) : x.toString("utf8", start, index2 - 1),
+        name: transform.column.from ? transform.column.from(x.toString("utf8", start, index - 1)) : x.toString("utf8", start, index - 1),
         parser: parsers2[type],
         table,
         number,
         type
       };
-      index2 += 18;
+      index += 18;
     }
     result.statement = query.statement;
     if (query.onlyDescribe)
@@ -54319,11 +54320,11 @@ function Connection(options, queues = {}, { onopen = noop, onend = noop, onclose
   function NotificationResponse(x) {
     if (!onnotify)
       return;
-    let index2 = 9;
-    while (x[index2++] !== 0) ;
+    let index = 9;
+    while (x[index++] !== 0) ;
     onnotify(
-      x.toString("utf8", 9, index2 - 1),
-      x.toString("utf8", index2, x.length - 1)
+      x.toString("utf8", 9, index - 1),
+      x.toString("utf8", index, x.length - 1)
     );
   }
   async function PortalSuspended() {
@@ -55188,7 +55189,7 @@ function osUsername() {
   }
 }
 
-// ../../node_modules/.pnpm/drizzle-orm@0.45.2_gel@2.2.0_postgres@3.4.9/node_modules/drizzle-orm/entity.js
+// ../../node_modules/.pnpm/drizzle-orm@0.45.2_postgres@3.4.9/node_modules/drizzle-orm/entity.js
 var entityKind = /* @__PURE__ */ Symbol.for("drizzle:entityKind");
 function is(value, type) {
   if (!value || typeof value !== "object") {
@@ -55214,7 +55215,7 @@ function is(value, type) {
   return false;
 }
 
-// ../../node_modules/.pnpm/drizzle-orm@0.45.2_gel@2.2.0_postgres@3.4.9/node_modules/drizzle-orm/logger.js
+// ../../node_modules/.pnpm/drizzle-orm@0.45.2_postgres@3.4.9/node_modules/drizzle-orm/logger.js
 var ConsoleLogWriter = class {
   static [entityKind] = "ConsoleLogWriter";
   write(message) {
@@ -55245,7 +55246,7 @@ var NoopLogger = class {
   }
 };
 
-// ../../node_modules/.pnpm/drizzle-orm@0.45.2_gel@2.2.0_postgres@3.4.9/node_modules/drizzle-orm/query-promise.js
+// ../../node_modules/.pnpm/drizzle-orm@0.45.2_postgres@3.4.9/node_modules/drizzle-orm/query-promise.js
 var QueryPromise = class {
   static [entityKind] = "QueryPromise";
   [Symbol.toStringTag] = "QueryPromise";
@@ -55269,7 +55270,7 @@ var QueryPromise = class {
   }
 };
 
-// ../../node_modules/.pnpm/drizzle-orm@0.45.2_gel@2.2.0_postgres@3.4.9/node_modules/drizzle-orm/column.js
+// ../../node_modules/.pnpm/drizzle-orm@0.45.2_postgres@3.4.9/node_modules/drizzle-orm/column.js
 var Column = class {
   constructor(table, config) {
     this.table = table;
@@ -55320,7 +55321,7 @@ var Column = class {
   }
 };
 
-// ../../node_modules/.pnpm/drizzle-orm@0.45.2_gel@2.2.0_postgres@3.4.9/node_modules/drizzle-orm/column-builder.js
+// ../../node_modules/.pnpm/drizzle-orm@0.45.2_postgres@3.4.9/node_modules/drizzle-orm/column-builder.js
 var ColumnBuilder = class {
   static [entityKind] = "ColumnBuilder";
   config;
@@ -55423,10 +55424,10 @@ var ColumnBuilder = class {
   }
 };
 
-// ../../node_modules/.pnpm/drizzle-orm@0.45.2_gel@2.2.0_postgres@3.4.9/node_modules/drizzle-orm/table.utils.js
+// ../../node_modules/.pnpm/drizzle-orm@0.45.2_postgres@3.4.9/node_modules/drizzle-orm/table.utils.js
 var TableName = /* @__PURE__ */ Symbol.for("drizzle:Name");
 
-// ../../node_modules/.pnpm/drizzle-orm@0.45.2_gel@2.2.0_postgres@3.4.9/node_modules/drizzle-orm/pg-core/foreign-keys.js
+// ../../node_modules/.pnpm/drizzle-orm@0.45.2_postgres@3.4.9/node_modules/drizzle-orm/pg-core/foreign-keys.js
 var ForeignKeyBuilder = class {
   static [entityKind] = "PgForeignKeyBuilder";
   /** @internal */
@@ -55483,12 +55484,12 @@ var ForeignKey = class {
   }
 };
 
-// ../../node_modules/.pnpm/drizzle-orm@0.45.2_gel@2.2.0_postgres@3.4.9/node_modules/drizzle-orm/tracing-utils.js
+// ../../node_modules/.pnpm/drizzle-orm@0.45.2_postgres@3.4.9/node_modules/drizzle-orm/tracing-utils.js
 function iife(fn, ...args) {
   return fn(...args);
 }
 
-// ../../node_modules/.pnpm/drizzle-orm@0.45.2_gel@2.2.0_postgres@3.4.9/node_modules/drizzle-orm/pg-core/unique-constraint.js
+// ../../node_modules/.pnpm/drizzle-orm@0.45.2_postgres@3.4.9/node_modules/drizzle-orm/pg-core/unique-constraint.js
 function uniqueKeyName(table, columns) {
   return `${table[TableName]}_${columns.join("_")}_unique`;
 }
@@ -55538,7 +55539,7 @@ var UniqueConstraint = class {
   }
 };
 
-// ../../node_modules/.pnpm/drizzle-orm@0.45.2_gel@2.2.0_postgres@3.4.9/node_modules/drizzle-orm/pg-core/utils/array.js
+// ../../node_modules/.pnpm/drizzle-orm@0.45.2_postgres@3.4.9/node_modules/drizzle-orm/pg-core/utils/array.js
 function parsePgArrayValue(arrayString, startFrom, inQuotes) {
   for (let i = startFrom; i < arrayString.length; i++) {
     const char2 = arrayString[i];
@@ -55614,7 +55615,7 @@ function makePgArray(array) {
   }).join(",")}}`;
 }
 
-// ../../node_modules/.pnpm/drizzle-orm@0.45.2_gel@2.2.0_postgres@3.4.9/node_modules/drizzle-orm/pg-core/columns/common.js
+// ../../node_modules/.pnpm/drizzle-orm@0.45.2_postgres@3.4.9/node_modules/drizzle-orm/pg-core/columns/common.js
 var PgColumnBuilder = class extends ColumnBuilder {
   foreignKeyConfigs = [];
   static [entityKind] = "PgColumnBuilder";
@@ -55798,7 +55799,7 @@ var PgArray = class _PgArray extends PgColumn {
   }
 };
 
-// ../../node_modules/.pnpm/drizzle-orm@0.45.2_gel@2.2.0_postgres@3.4.9/node_modules/drizzle-orm/pg-core/columns/enum.js
+// ../../node_modules/.pnpm/drizzle-orm@0.45.2_postgres@3.4.9/node_modules/drizzle-orm/pg-core/columns/enum.js
 var PgEnumObjectColumnBuilder = class extends PgColumnBuilder {
   static [entityKind] = "PgEnumObjectColumnBuilder";
   constructor(name, enumInstance) {
@@ -55855,35 +55856,8 @@ var PgEnumColumn = class extends PgColumn {
     return this.enum.enumName;
   }
 };
-function pgEnum(enumName, input) {
-  return Array.isArray(input) ? pgEnumWithSchema(enumName, [...input], void 0) : pgEnumObjectWithSchema(enumName, input, void 0);
-}
-function pgEnumWithSchema(enumName, values2, schema) {
-  const enumInstance = Object.assign(
-    (name) => new PgEnumColumnBuilder(name ?? "", enumInstance),
-    {
-      enumName,
-      enumValues: values2,
-      schema,
-      [isPgEnumSym]: true
-    }
-  );
-  return enumInstance;
-}
-function pgEnumObjectWithSchema(enumName, values2, schema) {
-  const enumInstance = Object.assign(
-    (name) => new PgEnumObjectColumnBuilder(name ?? "", enumInstance),
-    {
-      enumName,
-      enumValues: Object.values(values2),
-      schema,
-      [isPgEnumSym]: true
-    }
-  );
-  return enumInstance;
-}
 
-// ../../node_modules/.pnpm/drizzle-orm@0.45.2_gel@2.2.0_postgres@3.4.9/node_modules/drizzle-orm/subquery.js
+// ../../node_modules/.pnpm/drizzle-orm@0.45.2_postgres@3.4.9/node_modules/drizzle-orm/subquery.js
 var Subquery = class {
   static [entityKind] = "Subquery";
   constructor(sql3, fields, alias, isWith = false, usedTables = []) {
@@ -55904,10 +55878,10 @@ var WithSubquery = class extends Subquery {
   static [entityKind] = "WithSubquery";
 };
 
-// ../../node_modules/.pnpm/drizzle-orm@0.45.2_gel@2.2.0_postgres@3.4.9/node_modules/drizzle-orm/version.js
+// ../../node_modules/.pnpm/drizzle-orm@0.45.2_postgres@3.4.9/node_modules/drizzle-orm/version.js
 var version = "0.45.2";
 
-// ../../node_modules/.pnpm/drizzle-orm@0.45.2_gel@2.2.0_postgres@3.4.9/node_modules/drizzle-orm/tracing.js
+// ../../node_modules/.pnpm/drizzle-orm@0.45.2_postgres@3.4.9/node_modules/drizzle-orm/tracing.js
 var otel;
 var rawTracer;
 var tracer = {
@@ -55942,10 +55916,10 @@ var tracer = {
   }
 };
 
-// ../../node_modules/.pnpm/drizzle-orm@0.45.2_gel@2.2.0_postgres@3.4.9/node_modules/drizzle-orm/view-common.js
+// ../../node_modules/.pnpm/drizzle-orm@0.45.2_postgres@3.4.9/node_modules/drizzle-orm/view-common.js
 var ViewBaseConfig = /* @__PURE__ */ Symbol.for("drizzle:ViewBaseConfig");
 
-// ../../node_modules/.pnpm/drizzle-orm@0.45.2_gel@2.2.0_postgres@3.4.9/node_modules/drizzle-orm/table.js
+// ../../node_modules/.pnpm/drizzle-orm@0.45.2_postgres@3.4.9/node_modules/drizzle-orm/table.js
 var Schema = /* @__PURE__ */ Symbol.for("drizzle:Schema");
 var Columns = /* @__PURE__ */ Symbol.for("drizzle:Columns");
 var ExtraConfigColumns = /* @__PURE__ */ Symbol.for("drizzle:ExtraConfigColumns");
@@ -56007,7 +55981,7 @@ function getTableUniqueName(table) {
   return `${table[Schema] ?? "public"}.${table[TableName]}`;
 }
 
-// ../../node_modules/.pnpm/drizzle-orm@0.45.2_gel@2.2.0_postgres@3.4.9/node_modules/drizzle-orm/sql/sql.js
+// ../../node_modules/.pnpm/drizzle-orm@0.45.2_postgres@3.4.9/node_modules/drizzle-orm/sql/sql.js
 var FakePrimitiveParam = class {
   static [entityKind] = "FakePrimitiveParam";
 };
@@ -56401,7 +56375,7 @@ Subquery.prototype.getSQL = function() {
   return new SQL([this]);
 };
 
-// ../../node_modules/.pnpm/drizzle-orm@0.45.2_gel@2.2.0_postgres@3.4.9/node_modules/drizzle-orm/alias.js
+// ../../node_modules/.pnpm/drizzle-orm@0.45.2_postgres@3.4.9/node_modules/drizzle-orm/alias.js
 var ColumnAliasProxyHandler = class {
   constructor(table) {
     this.table = table;
@@ -56497,7 +56471,7 @@ function mapColumnsInSQLToAlias(query, alias) {
   }));
 }
 
-// ../../node_modules/.pnpm/drizzle-orm@0.45.2_gel@2.2.0_postgres@3.4.9/node_modules/drizzle-orm/selection-proxy.js
+// ../../node_modules/.pnpm/drizzle-orm@0.45.2_postgres@3.4.9/node_modules/drizzle-orm/selection-proxy.js
 var SelectionProxyHandler = class _SelectionProxyHandler {
   static [entityKind] = "SelectionProxyHandler";
   config;
@@ -56565,7 +56539,7 @@ var SelectionProxyHandler = class _SelectionProxyHandler {
   }
 };
 
-// ../../node_modules/.pnpm/drizzle-orm@0.45.2_gel@2.2.0_postgres@3.4.9/node_modules/drizzle-orm/utils.js
+// ../../node_modules/.pnpm/drizzle-orm@0.45.2_postgres@3.4.9/node_modules/drizzle-orm/utils.js
 function mapResultRow(columns, row, joinsNotNullableMap) {
   const nullifyMap = {};
   const result = columns.reduce(
@@ -56635,8 +56609,8 @@ function haveSameKeys(left, right) {
   if (leftKeys.length !== rightKeys.length) {
     return false;
   }
-  for (const [index2, key] of leftKeys.entries()) {
-    if (key !== rightKeys[index2]) {
+  for (const [index, key] of leftKeys.entries()) {
+    if (key !== rightKeys[index]) {
       return false;
     }
   }
@@ -56716,7 +56690,7 @@ function isConfig(data) {
 }
 var textDecoder = typeof TextDecoder === "undefined" ? null : new TextDecoder();
 
-// ../../node_modules/.pnpm/drizzle-orm@0.45.2_gel@2.2.0_postgres@3.4.9/node_modules/drizzle-orm/pg-core/columns/int.common.js
+// ../../node_modules/.pnpm/drizzle-orm@0.45.2_postgres@3.4.9/node_modules/drizzle-orm/pg-core/columns/int.common.js
 var PgIntColumnBaseBuilder = class extends PgColumnBuilder {
   static [entityKind] = "PgIntColumnBaseBuilder";
   generatedAlwaysAsIdentity(sequence) {
@@ -56755,7 +56729,7 @@ var PgIntColumnBaseBuilder = class extends PgColumnBuilder {
   }
 };
 
-// ../../node_modules/.pnpm/drizzle-orm@0.45.2_gel@2.2.0_postgres@3.4.9/node_modules/drizzle-orm/pg-core/columns/bigint.js
+// ../../node_modules/.pnpm/drizzle-orm@0.45.2_postgres@3.4.9/node_modules/drizzle-orm/pg-core/columns/bigint.js
 var PgBigInt53Builder = class extends PgIntColumnBaseBuilder {
   static [entityKind] = "PgBigInt53Builder";
   constructor(name) {
@@ -56809,7 +56783,7 @@ function bigint(a, b2) {
   return new PgBigInt64Builder(name);
 }
 
-// ../../node_modules/.pnpm/drizzle-orm@0.45.2_gel@2.2.0_postgres@3.4.9/node_modules/drizzle-orm/pg-core/columns/bigserial.js
+// ../../node_modules/.pnpm/drizzle-orm@0.45.2_postgres@3.4.9/node_modules/drizzle-orm/pg-core/columns/bigserial.js
 var PgBigSerial53Builder = class extends PgColumnBuilder {
   static [entityKind] = "PgBigSerial53Builder";
   constructor(name) {
@@ -56869,7 +56843,7 @@ function bigserial(a, b2) {
   return new PgBigSerial64Builder(name);
 }
 
-// ../../node_modules/.pnpm/drizzle-orm@0.45.2_gel@2.2.0_postgres@3.4.9/node_modules/drizzle-orm/pg-core/columns/boolean.js
+// ../../node_modules/.pnpm/drizzle-orm@0.45.2_postgres@3.4.9/node_modules/drizzle-orm/pg-core/columns/boolean.js
 var PgBooleanBuilder = class extends PgColumnBuilder {
   static [entityKind] = "PgBooleanBuilder";
   constructor(name) {
@@ -56890,7 +56864,7 @@ function boolean(name) {
   return new PgBooleanBuilder(name ?? "");
 }
 
-// ../../node_modules/.pnpm/drizzle-orm@0.45.2_gel@2.2.0_postgres@3.4.9/node_modules/drizzle-orm/pg-core/columns/char.js
+// ../../node_modules/.pnpm/drizzle-orm@0.45.2_postgres@3.4.9/node_modules/drizzle-orm/pg-core/columns/char.js
 var PgCharBuilder = class extends PgColumnBuilder {
   static [entityKind] = "PgCharBuilder";
   constructor(name, config) {
@@ -56919,7 +56893,7 @@ function char(a, b2 = {}) {
   return new PgCharBuilder(name, config);
 }
 
-// ../../node_modules/.pnpm/drizzle-orm@0.45.2_gel@2.2.0_postgres@3.4.9/node_modules/drizzle-orm/pg-core/columns/cidr.js
+// ../../node_modules/.pnpm/drizzle-orm@0.45.2_postgres@3.4.9/node_modules/drizzle-orm/pg-core/columns/cidr.js
 var PgCidrBuilder = class extends PgColumnBuilder {
   static [entityKind] = "PgCidrBuilder";
   constructor(name) {
@@ -56940,7 +56914,7 @@ function cidr(name) {
   return new PgCidrBuilder(name ?? "");
 }
 
-// ../../node_modules/.pnpm/drizzle-orm@0.45.2_gel@2.2.0_postgres@3.4.9/node_modules/drizzle-orm/pg-core/columns/custom.js
+// ../../node_modules/.pnpm/drizzle-orm@0.45.2_postgres@3.4.9/node_modules/drizzle-orm/pg-core/columns/custom.js
 var PgCustomColumnBuilder = class extends PgColumnBuilder {
   static [entityKind] = "PgCustomColumnBuilder";
   constructor(name, fieldConfig, customTypeParams) {
@@ -56984,7 +56958,7 @@ function customType(customTypeParams) {
   };
 }
 
-// ../../node_modules/.pnpm/drizzle-orm@0.45.2_gel@2.2.0_postgres@3.4.9/node_modules/drizzle-orm/pg-core/columns/date.common.js
+// ../../node_modules/.pnpm/drizzle-orm@0.45.2_postgres@3.4.9/node_modules/drizzle-orm/pg-core/columns/date.common.js
 var PgDateColumnBaseBuilder = class extends PgColumnBuilder {
   static [entityKind] = "PgDateColumnBaseBuilder";
   defaultNow() {
@@ -56992,7 +56966,7 @@ var PgDateColumnBaseBuilder = class extends PgColumnBuilder {
   }
 };
 
-// ../../node_modules/.pnpm/drizzle-orm@0.45.2_gel@2.2.0_postgres@3.4.9/node_modules/drizzle-orm/pg-core/columns/date.js
+// ../../node_modules/.pnpm/drizzle-orm@0.45.2_postgres@3.4.9/node_modules/drizzle-orm/pg-core/columns/date.js
 var PgDateBuilder = class extends PgDateColumnBaseBuilder {
   static [entityKind] = "PgDateBuilder";
   constructor(name) {
@@ -57047,7 +57021,7 @@ function date(a, b2) {
   return new PgDateStringBuilder(name);
 }
 
-// ../../node_modules/.pnpm/drizzle-orm@0.45.2_gel@2.2.0_postgres@3.4.9/node_modules/drizzle-orm/pg-core/columns/double-precision.js
+// ../../node_modules/.pnpm/drizzle-orm@0.45.2_postgres@3.4.9/node_modules/drizzle-orm/pg-core/columns/double-precision.js
 var PgDoublePrecisionBuilder = class extends PgColumnBuilder {
   static [entityKind] = "PgDoublePrecisionBuilder";
   constructor(name) {
@@ -57077,7 +57051,7 @@ function doublePrecision(name) {
   return new PgDoublePrecisionBuilder(name ?? "");
 }
 
-// ../../node_modules/.pnpm/drizzle-orm@0.45.2_gel@2.2.0_postgres@3.4.9/node_modules/drizzle-orm/pg-core/columns/inet.js
+// ../../node_modules/.pnpm/drizzle-orm@0.45.2_postgres@3.4.9/node_modules/drizzle-orm/pg-core/columns/inet.js
 var PgInetBuilder = class extends PgColumnBuilder {
   static [entityKind] = "PgInetBuilder";
   constructor(name) {
@@ -57098,7 +57072,7 @@ function inet(name) {
   return new PgInetBuilder(name ?? "");
 }
 
-// ../../node_modules/.pnpm/drizzle-orm@0.45.2_gel@2.2.0_postgres@3.4.9/node_modules/drizzle-orm/pg-core/columns/integer.js
+// ../../node_modules/.pnpm/drizzle-orm@0.45.2_postgres@3.4.9/node_modules/drizzle-orm/pg-core/columns/integer.js
 var PgIntegerBuilder = class extends PgIntColumnBaseBuilder {
   static [entityKind] = "PgIntegerBuilder";
   constructor(name) {
@@ -57125,7 +57099,7 @@ function integer(name) {
   return new PgIntegerBuilder(name ?? "");
 }
 
-// ../../node_modules/.pnpm/drizzle-orm@0.45.2_gel@2.2.0_postgres@3.4.9/node_modules/drizzle-orm/pg-core/columns/interval.js
+// ../../node_modules/.pnpm/drizzle-orm@0.45.2_postgres@3.4.9/node_modules/drizzle-orm/pg-core/columns/interval.js
 var PgIntervalBuilder = class extends PgColumnBuilder {
   static [entityKind] = "PgIntervalBuilder";
   constructor(name, intervalConfig) {
@@ -57152,7 +57126,7 @@ function interval(a, b2 = {}) {
   return new PgIntervalBuilder(name, config);
 }
 
-// ../../node_modules/.pnpm/drizzle-orm@0.45.2_gel@2.2.0_postgres@3.4.9/node_modules/drizzle-orm/pg-core/columns/json.js
+// ../../node_modules/.pnpm/drizzle-orm@0.45.2_postgres@3.4.9/node_modules/drizzle-orm/pg-core/columns/json.js
 var PgJsonBuilder = class extends PgColumnBuilder {
   static [entityKind] = "PgJsonBuilder";
   constructor(name) {
@@ -57189,7 +57163,7 @@ function json(name) {
   return new PgJsonBuilder(name ?? "");
 }
 
-// ../../node_modules/.pnpm/drizzle-orm@0.45.2_gel@2.2.0_postgres@3.4.9/node_modules/drizzle-orm/pg-core/columns/jsonb.js
+// ../../node_modules/.pnpm/drizzle-orm@0.45.2_postgres@3.4.9/node_modules/drizzle-orm/pg-core/columns/jsonb.js
 var PgJsonbBuilder = class extends PgColumnBuilder {
   static [entityKind] = "PgJsonbBuilder";
   constructor(name) {
@@ -57226,7 +57200,7 @@ function jsonb(name) {
   return new PgJsonbBuilder(name ?? "");
 }
 
-// ../../node_modules/.pnpm/drizzle-orm@0.45.2_gel@2.2.0_postgres@3.4.9/node_modules/drizzle-orm/pg-core/columns/line.js
+// ../../node_modules/.pnpm/drizzle-orm@0.45.2_postgres@3.4.9/node_modules/drizzle-orm/pg-core/columns/line.js
 var PgLineBuilder = class extends PgColumnBuilder {
   static [entityKind] = "PgLineBuilder";
   constructor(name) {
@@ -57287,7 +57261,7 @@ function line(a, b2) {
   return new PgLineABCBuilder(name);
 }
 
-// ../../node_modules/.pnpm/drizzle-orm@0.45.2_gel@2.2.0_postgres@3.4.9/node_modules/drizzle-orm/pg-core/columns/macaddr.js
+// ../../node_modules/.pnpm/drizzle-orm@0.45.2_postgres@3.4.9/node_modules/drizzle-orm/pg-core/columns/macaddr.js
 var PgMacaddrBuilder = class extends PgColumnBuilder {
   static [entityKind] = "PgMacaddrBuilder";
   constructor(name) {
@@ -57308,7 +57282,7 @@ function macaddr(name) {
   return new PgMacaddrBuilder(name ?? "");
 }
 
-// ../../node_modules/.pnpm/drizzle-orm@0.45.2_gel@2.2.0_postgres@3.4.9/node_modules/drizzle-orm/pg-core/columns/macaddr8.js
+// ../../node_modules/.pnpm/drizzle-orm@0.45.2_postgres@3.4.9/node_modules/drizzle-orm/pg-core/columns/macaddr8.js
 var PgMacaddr8Builder = class extends PgColumnBuilder {
   static [entityKind] = "PgMacaddr8Builder";
   constructor(name) {
@@ -57329,7 +57303,7 @@ function macaddr8(name) {
   return new PgMacaddr8Builder(name ?? "");
 }
 
-// ../../node_modules/.pnpm/drizzle-orm@0.45.2_gel@2.2.0_postgres@3.4.9/node_modules/drizzle-orm/pg-core/columns/numeric.js
+// ../../node_modules/.pnpm/drizzle-orm@0.45.2_postgres@3.4.9/node_modules/drizzle-orm/pg-core/columns/numeric.js
 var PgNumericBuilder = class extends PgColumnBuilder {
   static [entityKind] = "PgNumericBuilder";
   constructor(name, precision, scale) {
@@ -57446,7 +57420,7 @@ function numeric(a, b2) {
   return mode === "number" ? new PgNumericNumberBuilder(name, config?.precision, config?.scale) : mode === "bigint" ? new PgNumericBigIntBuilder(name, config?.precision, config?.scale) : new PgNumericBuilder(name, config?.precision, config?.scale);
 }
 
-// ../../node_modules/.pnpm/drizzle-orm@0.45.2_gel@2.2.0_postgres@3.4.9/node_modules/drizzle-orm/pg-core/columns/point.js
+// ../../node_modules/.pnpm/drizzle-orm@0.45.2_postgres@3.4.9/node_modules/drizzle-orm/pg-core/columns/point.js
 var PgPointTupleBuilder = class extends PgColumnBuilder {
   static [entityKind] = "PgPointTupleBuilder";
   constructor(name) {
@@ -57513,7 +57487,7 @@ function point(a, b2) {
   return new PgPointObjectBuilder(name);
 }
 
-// ../../node_modules/.pnpm/drizzle-orm@0.45.2_gel@2.2.0_postgres@3.4.9/node_modules/drizzle-orm/pg-core/columns/postgis_extension/utils.js
+// ../../node_modules/.pnpm/drizzle-orm@0.45.2_postgres@3.4.9/node_modules/drizzle-orm/pg-core/columns/postgis_extension/utils.js
 function hexToBytes(hex) {
   const bytes = [];
   for (let c = 0; c < hex.length; c += 2) {
@@ -57552,7 +57526,7 @@ function parseEWKB(hex) {
   throw new Error("Unsupported geometry type");
 }
 
-// ../../node_modules/.pnpm/drizzle-orm@0.45.2_gel@2.2.0_postgres@3.4.9/node_modules/drizzle-orm/pg-core/columns/postgis_extension/geometry.js
+// ../../node_modules/.pnpm/drizzle-orm@0.45.2_postgres@3.4.9/node_modules/drizzle-orm/pg-core/columns/postgis_extension/geometry.js
 var PgGeometryBuilder = class extends PgColumnBuilder {
   static [entityKind] = "PgGeometryBuilder";
   constructor(name) {
@@ -57612,7 +57586,7 @@ function geometry(a, b2) {
   return new PgGeometryObjectBuilder(name);
 }
 
-// ../../node_modules/.pnpm/drizzle-orm@0.45.2_gel@2.2.0_postgres@3.4.9/node_modules/drizzle-orm/pg-core/columns/real.js
+// ../../node_modules/.pnpm/drizzle-orm@0.45.2_postgres@3.4.9/node_modules/drizzle-orm/pg-core/columns/real.js
 var PgRealBuilder = class extends PgColumnBuilder {
   static [entityKind] = "PgRealBuilder";
   constructor(name, length) {
@@ -57643,7 +57617,7 @@ function real(name) {
   return new PgRealBuilder(name ?? "");
 }
 
-// ../../node_modules/.pnpm/drizzle-orm@0.45.2_gel@2.2.0_postgres@3.4.9/node_modules/drizzle-orm/pg-core/columns/serial.js
+// ../../node_modules/.pnpm/drizzle-orm@0.45.2_postgres@3.4.9/node_modules/drizzle-orm/pg-core/columns/serial.js
 var PgSerialBuilder = class extends PgColumnBuilder {
   static [entityKind] = "PgSerialBuilder";
   constructor(name) {
@@ -57666,7 +57640,7 @@ function serial(name) {
   return new PgSerialBuilder(name ?? "");
 }
 
-// ../../node_modules/.pnpm/drizzle-orm@0.45.2_gel@2.2.0_postgres@3.4.9/node_modules/drizzle-orm/pg-core/columns/smallint.js
+// ../../node_modules/.pnpm/drizzle-orm@0.45.2_postgres@3.4.9/node_modules/drizzle-orm/pg-core/columns/smallint.js
 var PgSmallIntBuilder = class extends PgIntColumnBaseBuilder {
   static [entityKind] = "PgSmallIntBuilder";
   constructor(name) {
@@ -57693,7 +57667,7 @@ function smallint(name) {
   return new PgSmallIntBuilder(name ?? "");
 }
 
-// ../../node_modules/.pnpm/drizzle-orm@0.45.2_gel@2.2.0_postgres@3.4.9/node_modules/drizzle-orm/pg-core/columns/smallserial.js
+// ../../node_modules/.pnpm/drizzle-orm@0.45.2_postgres@3.4.9/node_modules/drizzle-orm/pg-core/columns/smallserial.js
 var PgSmallSerialBuilder = class extends PgColumnBuilder {
   static [entityKind] = "PgSmallSerialBuilder";
   constructor(name) {
@@ -57719,7 +57693,7 @@ function smallserial(name) {
   return new PgSmallSerialBuilder(name ?? "");
 }
 
-// ../../node_modules/.pnpm/drizzle-orm@0.45.2_gel@2.2.0_postgres@3.4.9/node_modules/drizzle-orm/pg-core/columns/text.js
+// ../../node_modules/.pnpm/drizzle-orm@0.45.2_postgres@3.4.9/node_modules/drizzle-orm/pg-core/columns/text.js
 var PgTextBuilder = class extends PgColumnBuilder {
   static [entityKind] = "PgTextBuilder";
   constructor(name, config) {
@@ -57743,7 +57717,7 @@ function text(a, b2 = {}) {
   return new PgTextBuilder(name, config);
 }
 
-// ../../node_modules/.pnpm/drizzle-orm@0.45.2_gel@2.2.0_postgres@3.4.9/node_modules/drizzle-orm/pg-core/columns/time.js
+// ../../node_modules/.pnpm/drizzle-orm@0.45.2_postgres@3.4.9/node_modules/drizzle-orm/pg-core/columns/time.js
 var PgTimeBuilder = class extends PgDateColumnBaseBuilder {
   constructor(name, withTimezone, precision) {
     super(name, "string", "PgTime");
@@ -57777,7 +57751,7 @@ function time(a, b2 = {}) {
   return new PgTimeBuilder(name, config.withTimezone ?? false, config.precision);
 }
 
-// ../../node_modules/.pnpm/drizzle-orm@0.45.2_gel@2.2.0_postgres@3.4.9/node_modules/drizzle-orm/pg-core/columns/timestamp.js
+// ../../node_modules/.pnpm/drizzle-orm@0.45.2_postgres@3.4.9/node_modules/drizzle-orm/pg-core/columns/timestamp.js
 var PgTimestampBuilder = class extends PgDateColumnBaseBuilder {
   static [entityKind] = "PgTimestampBuilder";
   constructor(name, withTimezone, precision) {
@@ -57858,7 +57832,7 @@ function timestamp(a, b2 = {}) {
   return new PgTimestampBuilder(name, config?.withTimezone ?? false, config?.precision);
 }
 
-// ../../node_modules/.pnpm/drizzle-orm@0.45.2_gel@2.2.0_postgres@3.4.9/node_modules/drizzle-orm/pg-core/columns/uuid.js
+// ../../node_modules/.pnpm/drizzle-orm@0.45.2_postgres@3.4.9/node_modules/drizzle-orm/pg-core/columns/uuid.js
 var PgUUIDBuilder = class extends PgColumnBuilder {
   static [entityKind] = "PgUUIDBuilder";
   constructor(name) {
@@ -57885,7 +57859,7 @@ function uuid(name) {
   return new PgUUIDBuilder(name ?? "");
 }
 
-// ../../node_modules/.pnpm/drizzle-orm@0.45.2_gel@2.2.0_postgres@3.4.9/node_modules/drizzle-orm/pg-core/columns/varchar.js
+// ../../node_modules/.pnpm/drizzle-orm@0.45.2_postgres@3.4.9/node_modules/drizzle-orm/pg-core/columns/varchar.js
 var PgVarcharBuilder = class extends PgColumnBuilder {
   static [entityKind] = "PgVarcharBuilder";
   constructor(name, config) {
@@ -57914,7 +57888,7 @@ function varchar(a, b2 = {}) {
   return new PgVarcharBuilder(name, config);
 }
 
-// ../../node_modules/.pnpm/drizzle-orm@0.45.2_gel@2.2.0_postgres@3.4.9/node_modules/drizzle-orm/pg-core/columns/vector_extension/bit.js
+// ../../node_modules/.pnpm/drizzle-orm@0.45.2_postgres@3.4.9/node_modules/drizzle-orm/pg-core/columns/vector_extension/bit.js
 var PgBinaryVectorBuilder = class extends PgColumnBuilder {
   static [entityKind] = "PgBinaryVectorBuilder";
   constructor(name, config) {
@@ -57941,7 +57915,7 @@ function bit(a, b2) {
   return new PgBinaryVectorBuilder(name, config);
 }
 
-// ../../node_modules/.pnpm/drizzle-orm@0.45.2_gel@2.2.0_postgres@3.4.9/node_modules/drizzle-orm/pg-core/columns/vector_extension/halfvec.js
+// ../../node_modules/.pnpm/drizzle-orm@0.45.2_postgres@3.4.9/node_modules/drizzle-orm/pg-core/columns/vector_extension/halfvec.js
 var PgHalfVectorBuilder = class extends PgColumnBuilder {
   static [entityKind] = "PgHalfVectorBuilder";
   constructor(name, config) {
@@ -57974,7 +57948,7 @@ function halfvec(a, b2) {
   return new PgHalfVectorBuilder(name, config);
 }
 
-// ../../node_modules/.pnpm/drizzle-orm@0.45.2_gel@2.2.0_postgres@3.4.9/node_modules/drizzle-orm/pg-core/columns/vector_extension/sparsevec.js
+// ../../node_modules/.pnpm/drizzle-orm@0.45.2_postgres@3.4.9/node_modules/drizzle-orm/pg-core/columns/vector_extension/sparsevec.js
 var PgSparseVectorBuilder = class extends PgColumnBuilder {
   static [entityKind] = "PgSparseVectorBuilder";
   constructor(name, config) {
@@ -58001,7 +57975,7 @@ function sparsevec(a, b2) {
   return new PgSparseVectorBuilder(name, config);
 }
 
-// ../../node_modules/.pnpm/drizzle-orm@0.45.2_gel@2.2.0_postgres@3.4.9/node_modules/drizzle-orm/pg-core/columns/vector_extension/vector.js
+// ../../node_modules/.pnpm/drizzle-orm@0.45.2_postgres@3.4.9/node_modules/drizzle-orm/pg-core/columns/vector_extension/vector.js
 var PgVectorBuilder = class extends PgColumnBuilder {
   static [entityKind] = "PgVectorBuilder";
   constructor(name, config) {
@@ -58034,7 +58008,7 @@ function vector(a, b2) {
   return new PgVectorBuilder(name, config);
 }
 
-// ../../node_modules/.pnpm/drizzle-orm@0.45.2_gel@2.2.0_postgres@3.4.9/node_modules/drizzle-orm/pg-core/columns/all.js
+// ../../node_modules/.pnpm/drizzle-orm@0.45.2_postgres@3.4.9/node_modules/drizzle-orm/pg-core/columns/all.js
 function getPgColumnBuilders() {
   return {
     bigint,
@@ -58072,7 +58046,7 @@ function getPgColumnBuilders() {
   };
 }
 
-// ../../node_modules/.pnpm/drizzle-orm@0.45.2_gel@2.2.0_postgres@3.4.9/node_modules/drizzle-orm/pg-core/table.js
+// ../../node_modules/.pnpm/drizzle-orm@0.45.2_postgres@3.4.9/node_modules/drizzle-orm/pg-core/table.js
 var InlineForeignKeys = /* @__PURE__ */ Symbol.for("drizzle:PgInlineForeignKeys");
 var EnableRLS = /* @__PURE__ */ Symbol.for("drizzle:EnableRLS");
 var PgTable = class extends Table {
@@ -58128,119 +58102,13 @@ var pgTable = (name, columns, extraConfig) => {
   return pgTableWithSchema(name, columns, extraConfig, void 0);
 };
 
-// ../../node_modules/.pnpm/drizzle-orm@0.45.2_gel@2.2.0_postgres@3.4.9/node_modules/drizzle-orm/pg-core/indexes.js
-var IndexBuilderOn = class {
-  constructor(unique, name) {
-    this.unique = unique;
-    this.name = name;
+// ../../node_modules/.pnpm/drizzle-orm@0.45.2_postgres@3.4.9/node_modules/drizzle-orm/pg-core/primary-keys.js
+function primaryKey(...config) {
+  if (config[0].columns) {
+    return new PrimaryKeyBuilder(config[0].columns, config[0].name);
   }
-  static [entityKind] = "PgIndexBuilderOn";
-  on(...columns) {
-    return new IndexBuilder(
-      columns.map((it) => {
-        if (is(it, SQL)) {
-          return it;
-        }
-        it = it;
-        const clonedIndexedColumn = new IndexedColumn(it.name, !!it.keyAsName, it.columnType, it.indexConfig);
-        it.indexConfig = JSON.parse(JSON.stringify(it.defaultConfig));
-        return clonedIndexedColumn;
-      }),
-      this.unique,
-      false,
-      this.name
-    );
-  }
-  onOnly(...columns) {
-    return new IndexBuilder(
-      columns.map((it) => {
-        if (is(it, SQL)) {
-          return it;
-        }
-        it = it;
-        const clonedIndexedColumn = new IndexedColumn(it.name, !!it.keyAsName, it.columnType, it.indexConfig);
-        it.indexConfig = it.defaultConfig;
-        return clonedIndexedColumn;
-      }),
-      this.unique,
-      true,
-      this.name
-    );
-  }
-  /**
-   * Specify what index method to use. Choices are `btree`, `hash`, `gist`, `spgist`, `gin`, `brin`, or user-installed access methods like `bloom`. The default method is `btree.
-   *
-   * If you have the `pg_vector` extension installed in your database, you can use the `hnsw` and `ivfflat` options, which are predefined types.
-   *
-   * **You can always specify any string you want in the method, in case Drizzle doesn't have it natively in its types**
-   *
-   * @param method The name of the index method to be used
-   * @param columns
-   * @returns
-   */
-  using(method, ...columns) {
-    return new IndexBuilder(
-      columns.map((it) => {
-        if (is(it, SQL)) {
-          return it;
-        }
-        it = it;
-        const clonedIndexedColumn = new IndexedColumn(it.name, !!it.keyAsName, it.columnType, it.indexConfig);
-        it.indexConfig = JSON.parse(JSON.stringify(it.defaultConfig));
-        return clonedIndexedColumn;
-      }),
-      this.unique,
-      true,
-      this.name,
-      method
-    );
-  }
-};
-var IndexBuilder = class {
-  static [entityKind] = "PgIndexBuilder";
-  /** @internal */
-  config;
-  constructor(columns, unique, only, name, method = "btree") {
-    this.config = {
-      name,
-      columns,
-      unique,
-      only,
-      method
-    };
-  }
-  concurrently() {
-    this.config.concurrently = true;
-    return this;
-  }
-  with(obj) {
-    this.config.with = obj;
-    return this;
-  }
-  where(condition) {
-    this.config.where = condition;
-    return this;
-  }
-  /** @internal */
-  build(table) {
-    return new Index(this.config, table);
-  }
-};
-var Index = class {
-  static [entityKind] = "PgIndex";
-  config;
-  constructor(config, table) {
-    this.config = { ...config, table };
-  }
-};
-function index(name) {
-  return new IndexBuilderOn(false, name);
+  return new PrimaryKeyBuilder(config);
 }
-function uniqueIndex(name) {
-  return new IndexBuilderOn(true, name);
-}
-
-// ../../node_modules/.pnpm/drizzle-orm@0.45.2_gel@2.2.0_postgres@3.4.9/node_modules/drizzle-orm/pg-core/primary-keys.js
 var PrimaryKeyBuilder = class {
   static [entityKind] = "PgPrimaryKeyBuilder";
   /** @internal */
@@ -58270,7 +58138,7 @@ var PrimaryKey = class {
   }
 };
 
-// ../../node_modules/.pnpm/drizzle-orm@0.45.2_gel@2.2.0_postgres@3.4.9/node_modules/drizzle-orm/casing.js
+// ../../node_modules/.pnpm/drizzle-orm@0.45.2_postgres@3.4.9/node_modules/drizzle-orm/casing.js
 function toSnakeCase(input) {
   const words = input.replace(/['\u2019]/g, "").match(/[\da-z]+|[A-Z]+(?![a-z])|[A-Z][\da-z]+/g) ?? [];
   return words.map((word) => word.toLowerCase()).join("_");
@@ -58322,7 +58190,7 @@ var CasingCache = class {
   }
 };
 
-// ../../node_modules/.pnpm/drizzle-orm@0.45.2_gel@2.2.0_postgres@3.4.9/node_modules/drizzle-orm/errors.js
+// ../../node_modules/.pnpm/drizzle-orm@0.45.2_postgres@3.4.9/node_modules/drizzle-orm/errors.js
 var DrizzleError = class extends Error {
   static [entityKind] = "DrizzleError";
   constructor({ message, cause }) {
@@ -58349,7 +58217,7 @@ var TransactionRollbackError = class extends DrizzleError {
   }
 };
 
-// ../../node_modules/.pnpm/drizzle-orm@0.45.2_gel@2.2.0_postgres@3.4.9/node_modules/drizzle-orm/sql/expressions/conditions.js
+// ../../node_modules/.pnpm/drizzle-orm@0.45.2_postgres@3.4.9/node_modules/drizzle-orm/sql/expressions/conditions.js
 function bindIfParam(value, column) {
   if (isDriverValueEncoder(column) && !isSQLWrapper(value) && !is(value, Param) && !is(value, Placeholder) && !is(value, Column) && !is(value, Table) && !is(value, View)) {
     return new Param(value, column);
@@ -58464,7 +58332,7 @@ function notIlike(column, value) {
   return sql`${column} not ilike ${value}`;
 }
 
-// ../../node_modules/.pnpm/drizzle-orm@0.45.2_gel@2.2.0_postgres@3.4.9/node_modules/drizzle-orm/sql/expressions/select.js
+// ../../node_modules/.pnpm/drizzle-orm@0.45.2_postgres@3.4.9/node_modules/drizzle-orm/sql/expressions/select.js
 function asc(column) {
   return sql`${column} asc`;
 }
@@ -58472,7 +58340,7 @@ function desc(column) {
   return sql`${column} desc`;
 }
 
-// ../../node_modules/.pnpm/drizzle-orm@0.45.2_gel@2.2.0_postgres@3.4.9/node_modules/drizzle-orm/relations.js
+// ../../node_modules/.pnpm/drizzle-orm@0.45.2_postgres@3.4.9/node_modules/drizzle-orm/relations.js
 var Relation = class {
   constructor(sourceTable, referencedTable, relationName) {
     this.sourceTable = sourceTable;
@@ -58599,19 +58467,19 @@ function extractTablesRelationalConfig(schema, configHelpers) {
       const relations2 = value.config(
         configHelpers(value.table)
       );
-      let primaryKey;
+      let primaryKey2;
       for (const [relationName, relation] of Object.entries(relations2)) {
         if (tableName) {
           const tableConfig = tablesConfig[tableName];
           tableConfig.relations[relationName] = relation;
-          if (primaryKey) {
-            tableConfig.primaryKey.push(...primaryKey);
+          if (primaryKey2) {
+            tableConfig.primaryKey.push(...primaryKey2);
           }
         } else {
           if (!(dbName in relationsBuffer)) {
             relationsBuffer[dbName] = {
               relations: {},
-              primaryKey
+              primaryKey: primaryKey2
             };
           }
           relationsBuffer[dbName].relations[relationName] = relation;
@@ -58733,17 +58601,17 @@ function mapRelationalRow(tablesConfig, tableConfig, row, buildQueryResultSelect
   return result;
 }
 
-// ../../node_modules/.pnpm/drizzle-orm@0.45.2_gel@2.2.0_postgres@3.4.9/node_modules/drizzle-orm/sql/functions/aggregate.js
+// ../../node_modules/.pnpm/drizzle-orm@0.45.2_postgres@3.4.9/node_modules/drizzle-orm/sql/functions/aggregate.js
 function count(expression) {
   return sql`count(${expression || sql.raw("*")})`.mapWith(Number);
 }
 
-// ../../node_modules/.pnpm/drizzle-orm@0.45.2_gel@2.2.0_postgres@3.4.9/node_modules/drizzle-orm/pg-core/view-base.js
+// ../../node_modules/.pnpm/drizzle-orm@0.45.2_postgres@3.4.9/node_modules/drizzle-orm/pg-core/view-base.js
 var PgViewBase = class extends View {
   static [entityKind] = "PgViewBase";
 };
 
-// ../../node_modules/.pnpm/drizzle-orm@0.45.2_gel@2.2.0_postgres@3.4.9/node_modules/drizzle-orm/pg-core/dialect.js
+// ../../node_modules/.pnpm/drizzle-orm@0.45.2_postgres@3.4.9/node_modules/drizzle-orm/pg-core/dialect.js
 var PgDialect = class {
   static [entityKind] = "PgDialect";
   /** @internal */
@@ -58903,8 +58771,8 @@ var PgDialect = class {
       return void 0;
     }
     const joinsArray = [];
-    for (const [index2, joinMeta] of joins.entries()) {
-      if (index2 === 0) {
+    for (const [index, joinMeta] of joins.entries()) {
+      if (index === 0) {
         joinsArray.push(sql` `);
       }
       const table = joinMeta.table;
@@ -58931,7 +58799,7 @@ var PgDialect = class {
           sql`${sql.raw(joinMeta.joinType)} join${lateralSql} ${table}${onSql}`
         );
       }
-      if (index2 < joins.length - 1) {
+      if (index < joins.length - 1) {
         joinsArray.push(sql` `);
       }
     }
@@ -59848,7 +59716,7 @@ var PgDialect = class {
   }
 };
 
-// ../../node_modules/.pnpm/drizzle-orm@0.45.2_gel@2.2.0_postgres@3.4.9/node_modules/drizzle-orm/query-builders/query-builder.js
+// ../../node_modules/.pnpm/drizzle-orm@0.45.2_postgres@3.4.9/node_modules/drizzle-orm/query-builders/query-builder.js
 var TypedQueryBuilder = class {
   static [entityKind] = "TypedQueryBuilder";
   /** @internal */
@@ -59857,7 +59725,7 @@ var TypedQueryBuilder = class {
   }
 };
 
-// ../../node_modules/.pnpm/drizzle-orm@0.45.2_gel@2.2.0_postgres@3.4.9/node_modules/drizzle-orm/pg-core/query-builders/select.js
+// ../../node_modules/.pnpm/drizzle-orm@0.45.2_postgres@3.4.9/node_modules/drizzle-orm/pg-core/query-builders/select.js
 var PgSelectBuilder = class {
   static [entityKind] = "PgSelectBuilder";
   fields;
@@ -60673,7 +60541,7 @@ var intersectAll = createSetOperator("intersect", true);
 var except = createSetOperator("except", false);
 var exceptAll = createSetOperator("except", true);
 
-// ../../node_modules/.pnpm/drizzle-orm@0.45.2_gel@2.2.0_postgres@3.4.9/node_modules/drizzle-orm/pg-core/query-builders/query-builder.js
+// ../../node_modules/.pnpm/drizzle-orm@0.45.2_postgres@3.4.9/node_modules/drizzle-orm/pg-core/query-builders/query-builder.js
 var QueryBuilder = class {
   static [entityKind] = "PgQueryBuilder";
   dialect;
@@ -60760,7 +60628,7 @@ var QueryBuilder = class {
   }
 };
 
-// ../../node_modules/.pnpm/drizzle-orm@0.45.2_gel@2.2.0_postgres@3.4.9/node_modules/drizzle-orm/pg-core/utils.js
+// ../../node_modules/.pnpm/drizzle-orm@0.45.2_postgres@3.4.9/node_modules/drizzle-orm/pg-core/utils.js
 function extractUsedTable(table) {
   if (is(table, PgTable)) {
     return [table[Schema] ? `${table[Schema]}.${table[Table.Symbol.BaseName]}` : table[Table.Symbol.BaseName]];
@@ -60774,7 +60642,7 @@ function extractUsedTable(table) {
   return [];
 }
 
-// ../../node_modules/.pnpm/drizzle-orm@0.45.2_gel@2.2.0_postgres@3.4.9/node_modules/drizzle-orm/pg-core/query-builders/delete.js
+// ../../node_modules/.pnpm/drizzle-orm@0.45.2_postgres@3.4.9/node_modules/drizzle-orm/pg-core/query-builders/delete.js
 var PgDeleteBase = class extends QueryPromise {
   constructor(table, session, dialect, withList) {
     super();
@@ -60870,7 +60738,7 @@ var PgDeleteBase = class extends QueryPromise {
   }
 };
 
-// ../../node_modules/.pnpm/drizzle-orm@0.45.2_gel@2.2.0_postgres@3.4.9/node_modules/drizzle-orm/pg-core/query-builders/insert.js
+// ../../node_modules/.pnpm/drizzle-orm@0.45.2_postgres@3.4.9/node_modules/drizzle-orm/pg-core/query-builders/insert.js
 var PgInsertBuilder = class {
   constructor(table, session, dialect, withList, overridingSystemValue_) {
     this.table = table;
@@ -61063,7 +60931,7 @@ var PgInsertBase = class extends QueryPromise {
   }
 };
 
-// ../../node_modules/.pnpm/drizzle-orm@0.45.2_gel@2.2.0_postgres@3.4.9/node_modules/drizzle-orm/pg-core/query-builders/refresh-materialized-view.js
+// ../../node_modules/.pnpm/drizzle-orm@0.45.2_postgres@3.4.9/node_modules/drizzle-orm/pg-core/query-builders/refresh-materialized-view.js
 var PgRefreshMaterializedView = class extends QueryPromise {
   constructor(view, session, dialect) {
     super();
@@ -61117,7 +60985,7 @@ var PgRefreshMaterializedView = class extends QueryPromise {
   };
 };
 
-// ../../node_modules/.pnpm/drizzle-orm@0.45.2_gel@2.2.0_postgres@3.4.9/node_modules/drizzle-orm/pg-core/query-builders/update.js
+// ../../node_modules/.pnpm/drizzle-orm@0.45.2_postgres@3.4.9/node_modules/drizzle-orm/pg-core/query-builders/update.js
 var PgUpdateBuilder = class {
   constructor(table, session, dialect, withList) {
     this.table = table;
@@ -61329,7 +61197,7 @@ var PgUpdateBase = class extends QueryPromise {
   }
 };
 
-// ../../node_modules/.pnpm/drizzle-orm@0.45.2_gel@2.2.0_postgres@3.4.9/node_modules/drizzle-orm/pg-core/query-builders/count.js
+// ../../node_modules/.pnpm/drizzle-orm@0.45.2_postgres@3.4.9/node_modules/drizzle-orm/pg-core/query-builders/count.js
 var PgCountBuilder = class _PgCountBuilder extends SQL {
   constructor(params) {
     super(_PgCountBuilder.buildEmbeddedCount(params.source, params.filters).queryChunks);
@@ -61380,7 +61248,7 @@ var PgCountBuilder = class _PgCountBuilder extends SQL {
   }
 };
 
-// ../../node_modules/.pnpm/drizzle-orm@0.45.2_gel@2.2.0_postgres@3.4.9/node_modules/drizzle-orm/pg-core/query-builders/query.js
+// ../../node_modules/.pnpm/drizzle-orm@0.45.2_postgres@3.4.9/node_modules/drizzle-orm/pg-core/query-builders/query.js
 var RelationalQueryBuilder = class {
   constructor(fullSchema, schema, tableNamesMap, table, tableConfig, dialect, session) {
     this.fullSchema = fullSchema;
@@ -61493,7 +61361,7 @@ var PgRelationalQuery = class extends QueryPromise {
   }
 };
 
-// ../../node_modules/.pnpm/drizzle-orm@0.45.2_gel@2.2.0_postgres@3.4.9/node_modules/drizzle-orm/pg-core/query-builders/raw.js
+// ../../node_modules/.pnpm/drizzle-orm@0.45.2_postgres@3.4.9/node_modules/drizzle-orm/pg-core/query-builders/raw.js
 var PgRaw = class extends QueryPromise {
   constructor(execute, sql3, query, mapBatchResult) {
     super();
@@ -61522,7 +61390,7 @@ var PgRaw = class extends QueryPromise {
   }
 };
 
-// ../../node_modules/.pnpm/drizzle-orm@0.45.2_gel@2.2.0_postgres@3.4.9/node_modules/drizzle-orm/pg-core/db.js
+// ../../node_modules/.pnpm/drizzle-orm@0.45.2_postgres@3.4.9/node_modules/drizzle-orm/pg-core/db.js
 var PgDatabase = class {
   constructor(dialect, session, schema) {
     this.dialect = dialect;
@@ -61801,7 +61669,7 @@ var PgDatabase = class {
   }
 };
 
-// ../../node_modules/.pnpm/drizzle-orm@0.45.2_gel@2.2.0_postgres@3.4.9/node_modules/drizzle-orm/cache/core/cache.js
+// ../../node_modules/.pnpm/drizzle-orm@0.45.2_postgres@3.4.9/node_modules/drizzle-orm/cache/core/cache.js
 var Cache = class {
   static [entityKind] = "Cache";
 };
@@ -61828,7 +61696,7 @@ async function hashQuery(sql3, params) {
   return hashHex;
 }
 
-// ../../node_modules/.pnpm/drizzle-orm@0.45.2_gel@2.2.0_postgres@3.4.9/node_modules/drizzle-orm/pg-core/session.js
+// ../../node_modules/.pnpm/drizzle-orm@0.45.2_postgres@3.4.9/node_modules/drizzle-orm/pg-core/session.js
 var PgPreparedQuery = class {
   constructor(query, cache, queryMetadata, cacheConfig) {
     this.query = query;
@@ -61988,7 +61856,7 @@ var PgTransaction = class extends PgDatabase {
   }
 };
 
-// ../../node_modules/.pnpm/drizzle-orm@0.45.2_gel@2.2.0_postgres@3.4.9/node_modules/drizzle-orm/postgres-js/session.js
+// ../../node_modules/.pnpm/drizzle-orm@0.45.2_postgres@3.4.9/node_modules/drizzle-orm/postgres-js/session.js
 var PostgresJsPreparedQuery = class extends PgPreparedQuery {
   constructor(client, queryString, params, logger2, cache, queryMetadata, cacheConfig, fields, _isResponseInArrayMode, customResultMapper) {
     super({ sql: queryString, params }, cache, queryMetadata, cacheConfig);
@@ -62124,7 +61992,7 @@ var PostgresJsTransaction = class _PostgresJsTransaction extends PgTransaction {
   }
 };
 
-// ../../node_modules/.pnpm/drizzle-orm@0.45.2_gel@2.2.0_postgres@3.4.9/node_modules/drizzle-orm/postgres-js/driver.js
+// ../../node_modules/.pnpm/drizzle-orm@0.45.2_postgres@3.4.9/node_modules/drizzle-orm/postgres-js/driver.js
 var PostgresJsDatabase = class extends PgDatabase {
   static [entityKind] = "PostgresJsDatabase";
 };
@@ -62224,7 +62092,6 @@ __export(schema_exports, {
   lotsTable: () => lotsTable,
   meetingAttendeesTable: () => meetingAttendeesTable,
   meetingsTable: () => meetingsTable,
-  memberStatusEnum: () => memberStatusEnum,
   membersTable: () => membersTable,
   messagesTable: () => messagesTable,
   notificationPreferencesTable: () => notificationPreferencesTable,
@@ -62251,1065 +62118,659 @@ __export(schema_exports, {
   transactionsTable: () => transactionsTable,
   travauxTable: () => travauxTable,
   unionActionsTable: () => unionActionsTable,
-  userRoleEnum: () => userRoleEnum,
   usersTable: () => usersTable,
   votesTable: () => votesTable
 });
-var userRoleEnum = pgEnum("user_role", [
-  "super_admin",
-  "syndicate_admin",
-  "member"
-]);
-var memberStatusEnum = pgEnum("member_status", [
-  "active",
-  "inactive",
-  "pending"
-]);
-var usersTable = pgTable(
-  "users",
-  {
-    id: text("id").primaryKey().$defaultFn(() => crypto.randomUUID()),
-    email: text("email").notNull().unique(),
-    passwordHash: text("password_hash").notNull(),
-    name: text("name").notNull().default(""),
-    role: text("role").notNull().default("member"),
-    status: text("status").notNull().default("active"),
-    syndicateId: text("syndicate_id"),
-    phone: text("phone"),
-    profession: text("profession"),
-    avatar: text("avatar"),
-    memberSince: text("member_since"),
-    pushToken: text("push_token"),
-    updatedAt: timestamp("updated_at").defaultNow(),
-    createdAt: timestamp("created_at").defaultNow()
-  },
-  (t) => [
-    index("idx_users_syndicate_id").on(t.syndicateId),
-    index("idx_users_role").on(t.role),
-    index("idx_users_status").on(t.status)
-  ]
-);
-var refreshTokensTable = pgTable(
-  "refresh_tokens",
-  {
-    id: text("id").primaryKey().$defaultFn(() => crypto.randomUUID()),
-    userId: text("user_id").notNull().references(() => usersTable.id),
-    token: text("token").notNull().unique(),
-    expiresAt: timestamp("expires_at").notNull(),
-    revokedAt: timestamp("revoked_at"),
-    createdAt: timestamp("created_at").defaultNow()
-  },
-  (t) => [
-    index("idx_refresh_tokens_user_id").on(t.userId),
-    index("idx_refresh_tokens_expires_at").on(t.expiresAt)
-  ]
-);
-var passwordResetTokensTable = pgTable(
-  "password_reset_tokens",
-  {
-    id: text("id").primaryKey().$defaultFn(() => crypto.randomUUID()),
-    userId: text("user_id").notNull().references(() => usersTable.id, { onDelete: "cascade" }),
-    token: text("token").notNull().unique(),
-    expiresAt: timestamp("expires_at").notNull(),
-    usedAt: timestamp("used_at"),
-    createdAt: timestamp("created_at").defaultNow()
-  },
-  (t) => [
-    index("idx_pwd_reset_user_id").on(t.userId),
-    index("idx_pwd_reset_token").on(t.token),
-    index("idx_pwd_reset_expires_at").on(t.expiresAt)
-  ]
-);
-var syndicatesTable = pgTable(
-  "syndicates",
-  {
-    id: text("id").primaryKey().$defaultFn(() => crypto.randomUUID()),
-    name: text("name").notNull(),
-    sector: text("sector"),
-    region: text("region"),
-    adminId: text("admin_id"),
-    status: text("status").notNull().default("active"),
-    membersCount: integer("members_count").notNull().default(0),
-    createdAt: timestamp("created_at").defaultNow()
-  },
-  (t) => [
-    index("idx_syndicates_status").on(t.status)
-  ]
-);
-var membersTable = pgTable(
-  "members",
-  {
-    id: text("id").primaryKey().$defaultFn(() => crypto.randomUUID()),
-    name: text("name").notNull(),
-    email: text("email").notNull(),
-    phone: text("phone").notNull().default(""),
-    profession: text("profession").notNull().default(""),
-    syndicateId: text("syndicate_id").notNull().default(""),
-    status: text("status").notNull().default("active"),
-    cotisationStatus: text("cotisation_status").notNull().default("pending"),
-    joinDate: text("join_date").notNull(),
-    createdAt: timestamp("created_at").defaultNow()
-  },
-  (t) => [
-    index("idx_members_syndicate_id").on(t.syndicateId),
-    index("idx_members_status").on(t.status),
-    index("idx_members_cotisation_status").on(t.cotisationStatus)
-  ]
-);
-var auditLogsTable = pgTable(
-  "audit_logs",
-  {
-    id: text("id").primaryKey().$defaultFn(() => crypto.randomUUID()),
-    userId: text("user_id").notNull(),
-    userName: text("user_name").notNull(),
-    syndicateId: text("syndicate_id"),
-    action: text("action").notNull(),
-    entity: text("entity").notNull(),
-    entityId: text("entity_id"),
-    details: text("details"),
-    ipAddress: text("ip_address"),
-    createdAt: timestamp("created_at").defaultNow()
-  },
-  (t) => [
-    index("idx_audit_logs_syndicate_id").on(t.syndicateId),
-    index("idx_audit_logs_user_id").on(t.userId),
-    index("idx_audit_logs_created_at").on(t.createdAt)
-  ]
-);
-var unionActionsTable = pgTable(
-  "union_actions",
-  {
-    id: text("id").primaryKey().$defaultFn(() => crypto.randomUUID()),
-    title: text("title").notNull(),
-    description: text("description"),
-    type: text("type").notNull(),
-    status: text("status").notNull().default("planned"),
-    date: text("date"),
-    location: text("location"),
-    organizer: text("organizer"),
-    participantsTarget: integer("participants_target"),
-    demands: text("demands"),
-    updates: text("updates"),
-    tags: text("tags"),
-    syndicateId: text("syndicate_id"),
-    createdBy: text("created_by"),
-    createdAt: timestamp("created_at").defaultNow()
-  },
-  (t) => [
-    index("idx_union_actions_syndicate_id").on(t.syndicateId),
-    index("idx_union_actions_status").on(t.status),
-    index("idx_union_actions_type").on(t.type)
-  ]
-);
+var id = () => text("id").primaryKey().default(sql`gen_random_uuid()::text`);
+var createdAt = () => timestamp("created_at").defaultNow();
+var syndicatesTable = pgTable("syndicates", {
+  id: id(),
+  name: text("name").notNull(),
+  sector: text("sector"),
+  region: text("region"),
+  adminId: text("admin_id"),
+  status: text("status").default("active"),
+  membersCount: integer("members_count").default(0),
+  createdAt: createdAt()
+});
+var usersTable = pgTable("users", {
+  id: id(),
+  name: text("name").notNull(),
+  email: text("email").notNull().unique(),
+  phone: text("phone"),
+  passwordHash: text("password_hash").notNull(),
+  role: text("role").notNull().default("member"),
+  status: text("status").notNull().default("active"),
+  syndicateId: text("syndicate_id"),
+  pushToken: text("push_token"),
+  profession: text("profession"),
+  avatar: text("avatar"),
+  createdAt: createdAt(),
+  updatedAt: timestamp("updated_at").defaultNow()
+});
+var refreshTokensTable = pgTable("refresh_tokens", {
+  id: id(),
+  userId: text("user_id").notNull(),
+  token: text("token").notNull().unique(),
+  expiresAt: timestamp("expires_at").notNull(),
+  revokedAt: timestamp("revoked_at"),
+  createdAt: createdAt()
+});
+var passwordResetTokensTable = pgTable("password_reset_tokens", {
+  id: id(),
+  userId: text("user_id").notNull(),
+  token: text("token").notNull().unique(),
+  expiresAt: timestamp("expires_at").notNull(),
+  usedAt: timestamp("used_at"),
+  createdAt: createdAt()
+});
+var membersTable = pgTable("members", {
+  id: id(),
+  name: text("name").notNull(),
+  email: text("email").notNull(),
+  phone: text("phone").default(""),
+  profession: text("profession").default(""),
+  syndicateId: text("syndicate_id"),
+  status: text("status").default("active"),
+  cotisationStatus: text("cotisation_status").default("pending"),
+  joinDate: text("join_date"),
+  createdAt: createdAt()
+});
+var buildingsTable = pgTable("buildings", {
+  id: id(),
+  name: text("name").notNull(),
+  address: text("address").notNull(),
+  city: text("city").default("Casablanca"),
+  type: text("type").default("residential"),
+  totalFloors: integer("total_floors").default(0),
+  totalLots: integer("total_lots").default(0),
+  constructionYear: integer("construction_year"),
+  syndicateId: text("syndicate_id"),
+  adminId: text("admin_id"),
+  bankAccount: text("bank_account"),
+  registrationNumber: text("registration_number"),
+  description: text("description"),
+  status: text("status").default("active"),
+  createdAt: createdAt()
+});
+var lotsTable = pgTable("lots", {
+  id: id(),
+  number: text("number").notNull(),
+  type: text("type").default("appartement"),
+  floor: integer("floor").default(0),
+  surfaceM2: doublePrecision("surface_m2"),
+  tantiemes: integer("tantiemes").default(0),
+  buildingId: text("building_id").notNull(),
+  ownerId: text("owner_id"),
+  tenantId: text("tenant_id"),
+  status: text("status").default("occupied"),
+  description: text("description"),
+  createdAt: createdAt()
+});
+var tenantsTable = pgTable("tenants", {
+  id: id(),
+  name: text("name").notNull(),
+  email: text("email"),
+  phone: text("phone"),
+  lotId: text("lot_id"),
+  buildingId: text("building_id"),
+  syndicateId: text("syndicate_id"),
+  leaseStart: text("lease_start"),
+  leaseEnd: text("lease_end"),
+  monthlyRent: doublePrecision("monthly_rent"),
+  depositAmount: doublePrecision("deposit_amount"),
+  status: text("status").default("active"),
+  emergencyContact: text("emergency_contact"),
+  emergencyPhone: text("emergency_phone"),
+  notes: text("notes"),
+  createdAt: createdAt()
+});
+var budgetsTable = pgTable("budgets", {
+  id: id(),
+  year: integer("year").notNull(),
+  buildingId: text("building_id").notNull(),
+  totalAmount: doublePrecision("total_amount").default(0),
+  chargesAmount: doublePrecision("charges_amount").default(0),
+  fondsReserve: doublePrecision("fonds_reserve").default(0),
+  status: text("status").default("draft"),
+  notes: text("notes"),
+  createdBy: text("created_by"),
+  votedAt: timestamp("voted_at"),
+  meetingId: text("meeting_id"),
+  createdAt: createdAt()
+});
+var budgetLinesTable = pgTable("budget_lines", {
+  id: id(),
+  budgetId: text("budget_id").notNull(),
+  category: text("category").notNull(),
+  label: text("label").notNull(),
+  amountAnnual: doublePrecision("amount_annual").default(0),
+  amountQ1: doublePrecision("amount_q1"),
+  amountQ2: doublePrecision("amount_q2"),
+  amountQ3: doublePrecision("amount_q3"),
+  amountQ4: doublePrecision("amount_q4"),
+  prestataireId: text("prestataire_id")
+});
+var appelsDeFondsTable = pgTable("appels_de_fonds", {
+  id: id(),
+  buildingId: text("building_id").notNull(),
+  budgetId: text("budget_id"),
+  lotId: text("lot_id").notNull(),
+  ownerId: text("owner_id"),
+  period: text("period").notNull(),
+  type: text("type").default("charges_courantes"),
+  amount: doublePrecision("amount").notNull(),
+  dueDate: text("due_date"),
+  status: text("status").default("pending"),
+  paymentMethod: text("payment_method"),
+  proofUrl: text("proof_url"),
+  notes: text("notes"),
+  paidDate: text("paid_date"),
+  receiptNumber: text("receipt_number"),
+  createdAt: createdAt()
+});
+var transactionsTable = pgTable("transactions", {
+  id: id(),
+  type: text("type").notNull(),
+  amount: doublePrecision("amount").notNull(),
+  label: text("label").notNull(),
+  date: text("date").notNull(),
+  status: text("status").default("paid"),
+  memberId: text("member_id"),
+  syndicateId: text("syndicate_id"),
+  createdAt: createdAt()
+});
+var salaryRecordsTable = pgTable("salary_records", {
+  id: id(),
+  employee: text("employee").notNull(),
+  role: text("role").notNull(),
+  amount: doublePrecision("amount").notNull(),
+  month: text("month").notNull(),
+  status: text("status").default("pending"),
+  paidDate: text("paid_date"),
+  syndicateId: text("syndicate_id"),
+  createdAt: createdAt()
+});
+var caisseEntriesTable = pgTable("caisse_entries", {
+  id: id(),
+  label: text("label").notNull(),
+  amount: doublePrecision("amount").notNull(),
+  type: text("type").notNull(),
+  date: text("date").notNull(),
+  category: text("category").default(""),
+  syndicateId: text("syndicate_id"),
+  balance: doublePrecision("balance"),
+  createdAt: createdAt()
+});
+var invoicesTable = pgTable("invoices", {
+  id: id(),
+  reference: text("reference").notNull(),
+  type: text("type").default("facture"),
+  recipient: text("recipient").notNull(),
+  date: text("date").notNull(),
+  dueDate: text("due_date").notNull(),
+  status: text("status").default("draft"),
+  amount: doublePrecision("amount").default(0),
+  syndicateId: text("syndicate_id"),
+  createdAt: createdAt()
+});
+var invoiceItemsTable = pgTable("invoice_items", {
+  id: id(),
+  invoiceId: text("invoice_id").notNull(),
+  label: text("label").notNull(),
+  quantity: doublePrecision("quantity").notNull(),
+  unitPrice: doublePrecision("unit_price").notNull()
+});
+var bonsLivraisonTable = pgTable("bons_livraison", {
+  id: id(),
+  reference: text("reference").notNull(),
+  recipient: text("recipient").notNull(),
+  date: text("date").notNull(),
+  type: text("type").default("sortie"),
+  total: doublePrecision("total").default(0),
+  status: text("status").default("draft"),
+  syndicateId: text("syndicate_id"),
+  createdAt: createdAt()
+});
+var bonItemsTable = pgTable("bon_items", {
+  id: id(),
+  bonId: text("bon_id").notNull(),
+  label: text("label").notNull(),
+  quantity: doublePrecision("quantity").notNull(),
+  unitPrice: doublePrecision("unit_price").notNull()
+});
+var prestatairesTable = pgTable("prestataires", {
+  id: id(),
+  name: text("name").notNull(),
+  type: text("type").notNull(),
+  contactName: text("contact_name"),
+  phone: text("phone"),
+  email: text("email"),
+  address: text("address"),
+  ice: text("ice"),
+  rc: text("rc"),
+  buildingId: text("building_id"),
+  syndicateId: text("syndicate_id"),
+  status: text("status").default("active"),
+  rating: doublePrecision("rating"),
+  notes: text("notes"),
+  createdAt: createdAt()
+});
+var contratsPrestatairesTable = pgTable("contrats_prestataires", {
+  id: id(),
+  prestataireId: text("prestataire_id").notNull(),
+  buildingId: text("building_id").notNull(),
+  title: text("title").notNull(),
+  startDate: text("start_date"),
+  endDate: text("end_date"),
+  monthlyAmount: doublePrecision("monthly_amount"),
+  annualAmount: doublePrecision("annual_amount"),
+  status: text("status").default("active"),
+  autoRenew: boolean("auto_renew").default(false),
+  documentUrl: text("document_url"),
+  notes: text("notes"),
+  createdAt: createdAt()
+});
+var travauxTable = pgTable("travaux", {
+  id: id(),
+  title: text("title").notNull(),
+  description: text("description"),
+  type: text("type").default("entretien"),
+  priority: text("priority").default("normal"),
+  status: text("status").default("reported"),
+  buildingId: text("building_id").notNull(),
+  lotId: text("lot_id"),
+  prestataireId: text("prestataire_id"),
+  reportedById: text("reported_by_id"),
+  reportedByName: text("reported_by_name"),
+  assignedById: text("assigned_by_id"),
+  estimatedAmount: doublePrecision("estimated_amount"),
+  actualAmount: doublePrecision("actual_amount"),
+  startDate: text("start_date"),
+  endDate: text("end_date"),
+  completedAt: timestamp("completed_at"),
+  notes: text("notes"),
+  createdAt: createdAt()
+});
+var sinistresTable = pgTable("sinistres", {
+  id: id(),
+  buildingId: text("building_id").notNull(),
+  lotId: text("lot_id"),
+  type: text("type").notNull(),
+  description: text("description").notNull(),
+  date: text("date").notNull(),
+  estimatedAmount: doublePrecision("estimated_amount"),
+  indemnisedAmount: doublePrecision("indemnised_amount"),
+  claimNumber: text("claim_number"),
+  status: text("status").default("declared"),
+  reportedById: text("reported_by_id"),
+  reportedByName: text("reported_by_name"),
+  notes: text("notes"),
+  createdAt: createdAt()
+});
+var electionsTable = pgTable("elections", {
+  id: id(),
+  syndicateId: text("syndicate_id"),
+  title: text("title").notNull(),
+  description: text("description").default(""),
+  status: text("status").default("upcoming"),
+  startDate: text("start_date"),
+  endDate: text("end_date"),
+  createdBy: text("created_by"),
+  createdAt: createdAt()
+});
+var candidatesTable = pgTable("candidates", {
+  id: id(),
+  electionId: text("election_id").notNull(),
+  name: text("name").notNull(),
+  post: text("post").notNull(),
+  bio: text("bio").default(""),
+  votes: integer("votes").default(0)
+});
+var votesTable = pgTable("votes", {
+  id: id(),
+  electionId: text("election_id").notNull(),
+  voterId: text("voter_id").notNull(),
+  candidateId: text("candidate_id").notNull(),
+  createdAt: createdAt()
+});
+var meetingsTable = pgTable("meetings", {
+  id: id(),
+  syndicateId: text("syndicate_id"),
+  title: text("title").notNull(),
+  date: text("date").notNull(),
+  time: text("time"),
+  location: text("location"),
+  type: text("type").default("general"),
+  description: text("description"),
+  agenda: text("agenda"),
+  status: text("status").default("scheduled"),
+  createdBy: text("created_by"),
+  createdAt: createdAt()
+});
+var meetingAttendeesTable = pgTable("meeting_attendees", {
+  id: id(),
+  meetingId: text("meeting_id").notNull(),
+  userId: text("user_id").notNull(),
+  createdAt: createdAt()
+});
+var agResolutionsTable = pgTable("ag_resolutions", {
+  id: id(),
+  meetingId: text("meeting_id").notNull(),
+  buildingId: text("building_id"),
+  number: integer("number").notNull(),
+  title: text("title").notNull(),
+  description: text("description"),
+  requiredMajority: text("required_majority").default("simple"),
+  tantiemesFor: integer("tantiemes_for").default(0),
+  tantiemesAgainst: integer("tantiemes_against").default(0),
+  tantiemesAbstain: integer("tantiemes_abstain").default(0),
+  result: text("result").default("pending"),
+  createdAt: createdAt()
+});
+var unionActionsTable = pgTable("union_actions", {
+  id: id(),
+  title: text("title").notNull(),
+  description: text("description").default(""),
+  type: text("type").notNull(),
+  status: text("status").default("planned"),
+  date: text("date").notNull(),
+  location: text("location"),
+  organizer: text("organizer").notNull(),
+  participantsTarget: integer("participants_target").default(0),
+  demands: text("demands").default("[]"),
+  updates: text("updates").default("[]"),
+  tags: text("tags").default("[]"),
+  syndicateId: text("syndicate_id"),
+  createdBy: text("created_by"),
+  createdAt: createdAt()
+});
 var actionSupportsTable = pgTable(
   "action_supports",
   {
-    id: text("id").primaryKey().$defaultFn(() => crypto.randomUUID()),
-    actionId: text("action_id").notNull(),
-    userId: text("user_id").notNull()
-  },
-  (t) => [
-    uniqueIndex("idx_action_supports_unique").on(t.actionId, t.userId)
-  ]
-);
-var actionParticipantsTable = pgTable(
-  "action_participants",
-  {
-    id: text("id").primaryKey().$defaultFn(() => crypto.randomUUID()),
+    id: id(),
     actionId: text("action_id").notNull(),
     userId: text("user_id").notNull(),
-    userName: text("user_name").notNull(),
-    createdAt: timestamp("created_at").defaultNow()
-  },
-  (t) => [
-    uniqueIndex("idx_action_participants_unique").on(t.actionId, t.userId)
-  ]
+    createdAt: createdAt()
+  }
 );
-var conversationsTable = pgTable(
-  "conversations",
+var actionParticipantsTable = pgTable("action_participants", {
+  id: id(),
+  actionId: text("action_id").notNull(),
+  userId: text("user_id").notNull(),
+  userName: text("user_name"),
+  createdAt: createdAt()
+});
+var publicationsTable = pgTable("publications", {
+  id: id(),
+  title: text("title").notNull(),
+  content: text("content").notNull(),
+  category: text("category").default(""),
+  pinned: boolean("pinned").default(false),
+  syndicateId: text("syndicate_id"),
+  authorId: text("author_id"),
+  authorName: text("author_name"),
+  likes: integer("likes").default(0),
+  comments: integer("comments").default(0),
+  createdAt: createdAt()
+});
+var publicationLikesTable = pgTable(
+  "publication_likes",
   {
-    id: text("id").primaryKey().$defaultFn(() => crypto.randomUUID()),
-    syndicateId: text("syndicate_id"),
-    participant1Id: text("participant1_id"),
-    participant2Id: text("participant2_id"),
-    isGroup: boolean("is_group").notNull().default(false),
-    name: text("name"),
-    lastMessage: text("last_message"),
-    lastMessageAt: timestamp("last_message_at")
+    publicationId: text("publication_id").notNull(),
+    userId: text("user_id").notNull()
   },
-  (t) => [
-    index("idx_conversations_syndicate_id").on(t.syndicateId),
-    index("idx_conversations_participant1").on(t.participant1Id),
-    index("idx_conversations_participant2").on(t.participant2Id)
-  ]
+  (t) => [primaryKey({ columns: [t.publicationId, t.userId] })]
 );
-var messagesTable = pgTable(
-  "messages",
-  {
-    id: text("id").primaryKey().$defaultFn(() => crypto.randomUUID()),
-    conversationId: text("conversation_id").notNull(),
-    senderId: text("sender_id").notNull(),
-    senderName: text("sender_name").notNull(),
-    text: text("text").notNull(),
-    createdAt: timestamp("created_at").defaultNow()
-  },
-  (t) => [
-    index("idx_messages_conversation_id").on(t.conversationId),
-    index("idx_messages_sender_id").on(t.senderId),
-    index("idx_messages_created_at").on(t.createdAt)
-  ]
-);
-var announcementsTable = pgTable(
-  "announcements",
-  {
-    id: text("id").primaryKey().$defaultFn(() => crypto.randomUUID()),
-    title: text("title").notNull(),
-    body: text("body").notNull(),
-    priority: text("priority").notNull().default("normal"),
-    audience: text("audience").notNull().default("all"),
-    pinned: boolean("pinned").notNull().default(false),
-    expiresAt: timestamp("expires_at"),
-    syndicateId: text("syndicate_id"),
-    authorId: text("author_id"),
-    author: text("author"),
-    createdAt: timestamp("created_at").defaultNow()
-  },
-  (t) => [
-    index("idx_announcements_syndicate_id").on(t.syndicateId),
-    index("idx_announcements_created_at").on(t.createdAt)
-  ]
-);
-var legalAlertsTable = pgTable(
-  "legal_alerts",
-  {
-    id: text("id").primaryKey().$defaultFn(() => crypto.randomUUID()),
-    title: text("title").notNull(),
-    description: text("description"),
-    level: text("level").notNull().default("info"),
-    category: text("category"),
-    date: text("date"),
-    action: text("action"),
-    syndicateId: text("syndicate_id"),
-    status: text("status").notNull().default("active"),
-    createdAt: timestamp("created_at").defaultNow()
-  },
-  (t) => [
-    index("idx_legal_alerts_syndicate_id").on(t.syndicateId),
-    index("idx_legal_alerts_status").on(t.status)
-  ]
-);
-var supportTicketsTable = pgTable(
-  "support_tickets",
-  {
-    id: text("id").primaryKey().$defaultFn(() => crypto.randomUUID()),
-    title: text("title").notNull(),
-    description: text("description"),
-    priority: text("priority").notNull().default("normal"),
-    category: text("category"),
-    syndicateId: text("syndicate_id"),
-    submittedById: text("submitted_by_id"),
-    submittedByName: text("submitted_by_name"),
-    status: text("status").notNull().default("open"),
-    createdAt: timestamp("created_at").defaultNow()
-  },
-  (t) => [
-    index("idx_support_tickets_syndicate_id").on(t.syndicateId),
-    index("idx_support_tickets_status").on(t.status)
-  ]
-);
-var ticketRepliesTable = pgTable(
-  "ticket_replies",
-  {
-    id: text("id").primaryKey().$defaultFn(() => crypto.randomUUID()),
-    ticketId: text("ticket_id").notNull(),
-    authorId: text("author_id"),
-    authorName: text("author_name"),
-    text: text("text").notNull(),
-    createdAt: timestamp("created_at").defaultNow()
-  },
-  (t) => [
-    index("idx_ticket_replies_ticket_id").on(t.ticketId)
-  ]
-);
-var alertsTable = pgTable(
-  "alerts",
-  {
-    id: text("id").primaryKey().$defaultFn(() => crypto.randomUUID()),
-    title: text("title").notNull(),
-    message: text("message"),
-    type: text("type").notNull().default("info"),
-    date: text("date"),
-    target: text("target"),
-    syndicateId: text("syndicate_id"),
-    createdAt: timestamp("created_at").defaultNow()
-  },
-  (t) => [
-    index("idx_alerts_syndicate_id").on(t.syndicateId)
-  ]
-);
+var publicationCommentsTable = pgTable("publication_comments", {
+  id: id(),
+  publicationId: text("publication_id").notNull(),
+  authorId: text("author_id"),
+  authorName: text("author_name"),
+  userId: text("user_id"),
+  userName: text("user_name"),
+  text: text("text").notNull(),
+  createdAt: createdAt()
+});
+var announcementsTable = pgTable("announcements", {
+  id: id(),
+  title: text("title").notNull(),
+  body: text("body").notNull(),
+  priority: text("priority").default("normal"),
+  audience: text("audience").default("all"),
+  pinned: boolean("pinned").default(false),
+  syndicateId: text("syndicate_id"),
+  authorId: text("author_id"),
+  author: text("author"),
+  createdAt: createdAt()
+});
+var documentsTable = pgTable("documents", {
+  id: id(),
+  title: text("title").notNull(),
+  category: text("category").notNull(),
+  content: text("content"),
+  status: text("status").default("published"),
+  syndicateId: text("syndicate_id"),
+  size: text("size"),
+  createdBy: text("created_by"),
+  createdAt: createdAt()
+});
+var conversationsTable = pgTable("conversations", {
+  id: id(),
+  syndicateId: text("syndicate_id"),
+  participant1Id: text("participant1_id"),
+  participant2Id: text("participant2_id"),
+  isGroup: boolean("is_group").default(false),
+  name: text("name"),
+  lastMessage: text("last_message"),
+  lastMessageAt: timestamp("last_message_at"),
+  createdAt: createdAt()
+});
+var messagesTable = pgTable("messages", {
+  id: id(),
+  conversationId: text("conversation_id").notNull(),
+  senderId: text("sender_id").notNull(),
+  senderName: text("sender_name"),
+  text: text("text").notNull(),
+  createdAt: createdAt()
+});
+var productsTable = pgTable("products", {
+  id: id(),
+  name: text("name").notNull(),
+  description: text("description").default(""),
+  price: doublePrecision("price").notNull(),
+  category: text("category").notNull(),
+  stock: integer("stock").default(0),
+  syndicateId: text("syndicate_id"),
+  sellerId: text("seller_id"),
+  sellerName: text("seller_name"),
+  status: text("status").default("available"),
+  createdAt: createdAt()
+});
+var cartItemsTable = pgTable("cart_items", {
+  id: id(),
+  userId: text("user_id").notNull(),
+  productId: text("product_id").notNull(),
+  productName: text("product_name"),
+  price: doublePrecision("price"),
+  sellerName: text("seller_name"),
+  quantity: integer("quantity").default(1),
+  createdAt: createdAt()
+});
+var ordersTable = pgTable("orders", {
+  id: id(),
+  productId: text("product_id"),
+  productName: text("product_name"),
+  buyerId: text("buyer_id"),
+  buyerName: text("buyer_name"),
+  sellerId: text("seller_id"),
+  sellerName: text("seller_name"),
+  amount: doublePrecision("amount"),
+  status: text("status").default("pending"),
+  type: text("type").default("purchase"),
+  date: text("date"),
+  createdAt: createdAt()
+});
+var reviewsTable = pgTable("reviews", {
+  id: id(),
+  productId: text("product_id"),
+  productName: text("product_name"),
+  orderId: text("order_id"),
+  rating: integer("rating").notNull(),
+  comment: text("comment").default(""),
+  reviewerId: text("reviewer_id"),
+  reviewerName: text("reviewer_name"),
+  date: text("date"),
+  createdAt: createdAt()
+});
+var legalAlertsTable = pgTable("legal_alerts", {
+  id: id(),
+  title: text("title").notNull(),
+  description: text("description"),
+  level: text("level").notNull(),
+  category: text("category").notNull(),
+  date: text("date"),
+  action: text("action"),
+  status: text("status").default("open"),
+  syndicateId: text("syndicate_id"),
+  createdAt: createdAt()
+});
+var supportTicketsTable = pgTable("support_tickets", {
+  id: id(),
+  title: text("title").notNull(),
+  description: text("description").notNull(),
+  priority: text("priority").default("medium"),
+  category: text("category").default("general"),
+  status: text("status").default("open"),
+  syndicateId: text("syndicate_id"),
+  submittedById: text("submitted_by_id"),
+  submittedByName: text("submitted_by_name"),
+  createdAt: createdAt()
+});
+var ticketRepliesTable = pgTable("ticket_replies", {
+  id: id(),
+  ticketId: text("ticket_id").notNull(),
+  authorId: text("author_id"),
+  authorName: text("author_name"),
+  text: text("text").notNull(),
+  createdAt: createdAt()
+});
+var cotisationsTable = pgTable("cotisations", {
+  id: id(),
+  memberId: text("member_id").notNull(),
+  label: text("label").notNull(),
+  period: text("period").notNull(),
+  amount: doublePrecision("amount").notNull(),
+  dueDate: text("due_date"),
+  status: text("status").default("pending"),
+  syndicateId: text("syndicate_id"),
+  paidDate: text("paid_date"),
+  receipt: text("receipt"),
+  createdAt: createdAt()
+});
+var paymentProofsTable = pgTable("payment_proofs", {
+  id: id(),
+  cotisationId: text("cotisation_id").notNull(),
+  userId: text("user_id"),
+  fileUrl: text("file_url"),
+  proofUrl: text("proof_url"),
+  amount: doublePrecision("amount"),
+  notes: text("notes"),
+  status: text("status").default("pending"),
+  uploadedById: text("uploaded_by_id"),
+  reviewedById: text("reviewed_by_id"),
+  reviewNote: text("review_note"),
+  reviewedAt: timestamp("reviewed_at"),
+  createdAt: createdAt()
+});
+var alertsTable = pgTable("alerts", {
+  id: id(),
+  title: text("title").notNull(),
+  message: text("message").notNull(),
+  type: text("type").default("info"),
+  date: text("date"),
+  target: text("target").default("all"),
+  syndicateId: text("syndicate_id"),
+  createdAt: createdAt()
+});
 var alertReadsTable = pgTable(
   "alert_reads",
   {
     alertId: text("alert_id").notNull(),
-    userId: text("user_id").notNull()
-  },
-  (t) => [
-    uniqueIndex("idx_alert_reads_unique").on(t.alertId, t.userId)
-  ]
-);
-var cotisationsTable = pgTable(
-  "cotisations",
-  {
-    id: text("id").primaryKey().$defaultFn(() => crypto.randomUUID()),
-    label: text("label").notNull().default(""),
-    period: text("period").notNull().default(""),
-    memberId: text("member_id").notNull(),
-    syndicateId: text("syndicate_id"),
-    amount: real("amount").notNull().default(150),
-    dueDate: text("due_date"),
-    status: text("status").notNull().default("pending"),
-    paidDate: text("paid_date"),
-    receipt: text("receipt"),
-    createdAt: timestamp("created_at").defaultNow()
-  },
-  (t) => [
-    index("idx_cotisations_member_id").on(t.memberId),
-    index("idx_cotisations_syndicate_id").on(t.syndicateId),
-    index("idx_cotisations_status").on(t.status)
-  ]
-);
-var paymentProofsTable = pgTable(
-  "payment_proofs",
-  {
-    id: text("id").primaryKey().$defaultFn(() => crypto.randomUUID()),
-    cotisationId: text("cotisation_id").notNull(),
-    proofUrl: text("proof_url").notNull(),
-    uploadedById: text("uploaded_by_id"),
-    status: text("status").notNull().default("pending"),
-    reviewedById: text("reviewed_by_id"),
-    reviewNote: text("review_note"),
-    reviewedAt: timestamp("reviewed_at"),
-    createdAt: timestamp("created_at").defaultNow()
-  },
-  (t) => [
-    index("idx_payment_proofs_cotisation_id").on(t.cotisationId)
-  ]
-);
-var transactionsTable = pgTable(
-  "transactions",
-  {
-    id: text("id").primaryKey().$defaultFn(() => crypto.randomUUID()),
-    type: text("type").notNull(),
-    amount: real("amount").notNull(),
-    label: text("label"),
-    date: text("date"),
-    status: text("status").notNull().default("pending"),
-    memberId: text("member_id"),
-    syndicateId: text("syndicate_id"),
-    createdAt: timestamp("created_at").defaultNow()
-  },
-  (t) => [
-    index("idx_transactions_syndicate_id").on(t.syndicateId),
-    index("idx_transactions_type").on(t.type),
-    index("idx_transactions_created_at").on(t.createdAt)
-  ]
-);
-var salaryRecordsTable = pgTable(
-  "salary_records",
-  {
-    id: text("id").primaryKey().$defaultFn(() => crypto.randomUUID()),
-    employee: text("employee").notNull(),
-    role: text("role"),
-    amount: real("amount").notNull(),
-    month: text("month").notNull(),
-    status: text("status").notNull().default("pending"),
-    paidDate: text("paid_date"),
-    syndicateId: text("syndicate_id"),
-    createdAt: timestamp("created_at").defaultNow()
-  },
-  (t) => [
-    index("idx_salary_records_syndicate_id").on(t.syndicateId),
-    index("idx_salary_records_month").on(t.month)
-  ]
-);
-var caisseEntriesTable = pgTable(
-  "caisse_entries",
-  {
-    id: text("id").primaryKey().$defaultFn(() => crypto.randomUUID()),
-    label: text("label").notNull(),
-    amount: real("amount").notNull(),
-    type: text("type").notNull(),
-    date: text("date"),
-    category: text("category"),
-    syndicateId: text("syndicate_id"),
-    balance: real("balance"),
-    createdAt: timestamp("created_at").defaultNow()
-  },
-  (t) => [
-    index("idx_caisse_entries_syndicate_id").on(t.syndicateId),
-    index("idx_caisse_entries_date").on(t.date)
-  ]
-);
-var invoicesTable = pgTable(
-  "invoices",
-  {
-    id: text("id").primaryKey().$defaultFn(() => crypto.randomUUID()),
-    reference: text("reference").notNull(),
-    type: text("type").notNull(),
-    recipient: text("recipient"),
-    date: text("date"),
-    dueDate: text("due_date"),
-    status: text("status").notNull().default("draft"),
-    syndicateId: text("syndicate_id"),
-    amount: real("amount"),
-    createdAt: timestamp("created_at").defaultNow()
-  },
-  (t) => [
-    index("idx_invoices_syndicate_id").on(t.syndicateId),
-    index("idx_invoices_status").on(t.status)
-  ]
-);
-var invoiceItemsTable = pgTable(
-  "invoice_items",
-  {
-    id: text("id").primaryKey().$defaultFn(() => crypto.randomUUID()),
-    invoiceId: text("invoice_id").notNull(),
-    label: text("label").notNull(),
-    quantity: integer("quantity").notNull().default(1),
-    unitPrice: real("unit_price").notNull()
-  },
-  (t) => [
-    index("idx_invoice_items_invoice_id").on(t.invoiceId)
-  ]
-);
-var bonsLivraisonTable = pgTable(
-  "bons_livraison",
-  {
-    id: text("id").primaryKey().$defaultFn(() => crypto.randomUUID()),
-    reference: text("reference").notNull(),
-    recipient: text("recipient"),
-    date: text("date"),
-    type: text("type").notNull(),
-    syndicateId: text("syndicate_id"),
-    total: real("total"),
-    status: text("status").notNull().default("draft"),
-    createdAt: timestamp("created_at").defaultNow()
-  },
-  (t) => [
-    index("idx_bons_livraison_syndicate_id").on(t.syndicateId),
-    index("idx_bons_livraison_status").on(t.status)
-  ]
-);
-var bonItemsTable = pgTable(
-  "bon_items",
-  {
-    id: text("id").primaryKey().$defaultFn(() => crypto.randomUUID()),
-    bonId: text("bon_id").notNull(),
-    label: text("label").notNull(),
-    quantity: integer("quantity").notNull().default(1),
-    unitPrice: real("unit_price").notNull()
-  },
-  (t) => [
-    index("idx_bon_items_bon_id").on(t.bonId)
-  ]
-);
-var payslipsTable = pgTable(
-  "payslips",
-  {
-    id: text("id").primaryKey().$defaultFn(() => crypto.randomUUID()),
-    employeeId: text("employee_id"),
-    employeeName: text("employee_name").notNull(),
-    role: text("role"),
-    month: text("month").notNull(),
-    baseSalary: real("base_salary").notNull(),
-    allowances: real("allowances").notNull().default(0),
-    deductions: real("deductions").notNull().default(0),
-    cnss: real("cnss").notNull().default(0),
-    ir: real("ir").notNull().default(0),
-    mutuelle: real("mutuelle").notNull().default(0),
-    syndicateId: text("syndicate_id"),
-    netSalary: real("net_salary").notNull(),
-    status: text("status").notNull().default("draft"),
-    payDate: text("pay_date"),
-    createdAt: timestamp("created_at").defaultNow()
-  },
-  (t) => [
-    index("idx_payslips_syndicate_id").on(t.syndicateId),
-    index("idx_payslips_employee_id").on(t.employeeId),
-    index("idx_payslips_month").on(t.month)
-  ]
-);
-var documentsTable = pgTable(
-  "documents",
-  {
-    id: text("id").primaryKey().$defaultFn(() => crypto.randomUUID()),
-    title: text("title").notNull(),
-    category: text("category"),
-    content: text("content"),
-    status: text("status").notNull().default("active"),
-    syndicateId: text("syndicate_id"),
-    size: integer("size"),
-    createdBy: text("created_by"),
-    createdAt: timestamp("created_at").defaultNow()
-  },
-  (t) => [
-    index("idx_documents_syndicate_id").on(t.syndicateId),
-    index("idx_documents_category").on(t.category)
-  ]
-);
-var productsTable = pgTable(
-  "products",
-  {
-    id: text("id").primaryKey().$defaultFn(() => crypto.randomUUID()),
-    name: text("name").notNull(),
-    description: text("description"),
-    price: real("price").notNull(),
-    category: text("category"),
-    stock: integer("stock").notNull().default(0),
-    syndicateId: text("syndicate_id"),
-    sellerId: text("seller_id"),
-    sellerName: text("seller_name"),
-    status: text("status").notNull().default("active"),
-    createdAt: timestamp("created_at").defaultNow()
-  },
-  (t) => [
-    index("idx_products_syndicate_id").on(t.syndicateId),
-    index("idx_products_status").on(t.status),
-    index("idx_products_seller_id").on(t.sellerId),
-    index("idx_products_category").on(t.category)
-  ]
-);
-var cartItemsTable = pgTable(
-  "cart_items",
-  {
-    id: text("id").primaryKey().$defaultFn(() => crypto.randomUUID()),
     userId: text("user_id").notNull(),
-    productId: text("product_id").notNull(),
-    productName: text("product_name").notNull(),
-    price: real("price").notNull(),
-    sellerName: text("seller_name"),
-    quantity: integer("quantity").notNull().default(1)
+    readAt: timestamp("read_at").defaultNow()
   },
-  (t) => [
-    index("idx_cart_items_user_id").on(t.userId),
-    uniqueIndex("idx_cart_items_user_product").on(t.userId, t.productId)
-  ]
-);
-var ordersTable = pgTable(
-  "orders",
-  {
-    id: text("id").primaryKey().$defaultFn(() => crypto.randomUUID()),
-    productId: text("product_id").notNull(),
-    productName: text("product_name").notNull(),
-    buyerId: text("buyer_id").notNull(),
-    buyerName: text("buyer_name"),
-    sellerId: text("seller_id"),
-    sellerName: text("seller_name"),
-    amount: real("amount").notNull(),
-    status: text("status").notNull().default("pending"),
-    type: text("type"),
-    date: text("date"),
-    createdAt: timestamp("created_at").defaultNow()
-  },
-  (t) => [
-    index("idx_orders_buyer_id").on(t.buyerId),
-    index("idx_orders_seller_id").on(t.sellerId),
-    index("idx_orders_status").on(t.status)
-  ]
-);
-var reviewsTable = pgTable(
-  "reviews",
-  {
-    id: text("id").primaryKey().$defaultFn(() => crypto.randomUUID()),
-    productId: text("product_id").notNull(),
-    productName: text("product_name"),
-    orderId: text("order_id"),
-    rating: integer("rating").notNull(),
-    comment: text("comment"),
-    reviewerId: text("reviewer_id"),
-    reviewerName: text("reviewer_name"),
-    date: text("date"),
-    createdAt: timestamp("created_at").defaultNow()
-  },
-  (t) => [
-    index("idx_reviews_product_id").on(t.productId),
-    index("idx_reviews_reviewer_id").on(t.reviewerId)
-  ]
-);
-var electionsTable = pgTable(
-  "elections",
-  {
-    id: text("id").primaryKey().$defaultFn(() => crypto.randomUUID()),
-    syndicateId: text("syndicate_id"),
-    title: text("title").notNull(),
-    description: text("description"),
-    status: text("status").notNull().default("draft"),
-    startDate: text("start_date"),
-    endDate: text("end_date"),
-    createdBy: text("created_by")
-  },
-  (t) => [
-    index("idx_elections_syndicate_id").on(t.syndicateId),
-    index("idx_elections_status").on(t.status)
-  ]
-);
-var candidatesTable = pgTable(
-  "candidates",
-  {
-    id: text("id").primaryKey().$defaultFn(() => crypto.randomUUID()),
-    electionId: text("election_id").notNull(),
-    name: text("name").notNull(),
-    post: text("post"),
-    bio: text("bio"),
-    votes: integer("votes").notNull().default(0)
-  },
-  (t) => [
-    index("idx_candidates_election_id").on(t.electionId)
-  ]
-);
-var votesTable = pgTable(
-  "votes",
-  {
-    id: text("id").primaryKey().$defaultFn(() => crypto.randomUUID()),
-    electionId: text("election_id").notNull(),
-    candidateId: text("candidate_id").notNull(),
-    voterId: text("voter_id").notNull()
-  },
-  (t) => [
-    index("idx_votes_election_id").on(t.electionId),
-    uniqueIndex("idx_votes_unique_voter").on(t.electionId, t.voterId)
-  ]
-);
-var meetingsTable = pgTable(
-  "meetings",
-  {
-    id: text("id").primaryKey().$defaultFn(() => crypto.randomUUID()),
-    title: text("title").notNull(),
-    date: text("date"),
-    time: text("time"),
-    location: text("location"),
-    type: text("type"),
-    description: text("description"),
-    agenda: text("agenda"),
-    syndicateId: text("syndicate_id"),
-    status: text("status").notNull().default("scheduled"),
-    createdBy: text("created_by")
-  },
-  (t) => [
-    index("idx_meetings_syndicate_id").on(t.syndicateId),
-    index("idx_meetings_date").on(t.date),
-    index("idx_meetings_status").on(t.status)
-  ]
-);
-var meetingAttendeesTable = pgTable(
-  "meeting_attendees",
-  {
-    id: text("id").primaryKey().$defaultFn(() => crypto.randomUUID()),
-    meetingId: text("meeting_id").notNull(),
-    userId: text("user_id").notNull()
-  },
-  (t) => [
-    uniqueIndex("idx_meeting_attendees_unique").on(t.meetingId, t.userId)
-  ]
-);
-var publicationsTable = pgTable(
-  "publications",
-  {
-    id: text("id").primaryKey().$defaultFn(() => crypto.randomUUID()),
-    title: text("title"),
-    content: text("content").notNull(),
-    authorId: text("author_id"),
-    authorName: text("author_name"),
-    syndicateId: text("syndicate_id"),
-    category: text("category"),
-    pinned: boolean("pinned").notNull().default(false),
-    likes: integer("likes").notNull().default(0),
-    createdAt: timestamp("created_at").defaultNow()
-  },
-  (t) => [
-    index("idx_publications_syndicate_id").on(t.syndicateId),
-    index("idx_publications_created_at").on(t.createdAt)
-  ]
-);
-var publicationLikesTable = pgTable(
-  "publication_likes",
-  {
-    id: text("id").primaryKey().$defaultFn(() => crypto.randomUUID()),
-    publicationId: text("publication_id").notNull(),
-    userId: text("user_id").notNull()
-  },
-  (t) => [
-    uniqueIndex("idx_publication_likes_unique").on(t.publicationId, t.userId)
-  ]
-);
-var publicationCommentsTable = pgTable(
-  "publication_comments",
-  {
-    id: text("id").primaryKey().$defaultFn(() => crypto.randomUUID()),
-    publicationId: text("publication_id").notNull(),
-    authorId: text("author_id"),
-    authorName: text("author_name"),
-    text: text("text").notNull(),
-    createdAt: timestamp("created_at").defaultNow()
-  },
-  (t) => [
-    index("idx_publication_comments_publication_id").on(t.publicationId)
-  ]
+  (t) => [primaryKey({ columns: [t.alertId, t.userId] })]
 );
 var notificationPreferencesTable = pgTable(
   "notification_preferences",
   {
-    id: text("id").primaryKey().$defaultFn(() => crypto.randomUUID()),
-    userId: text("user_id").notNull().unique(),
-    category: text("category").notNull().default("general"),
-    label: text("label").notNull().default(""),
-    description: text("description").notNull().default(""),
-    icon: text("icon").notNull().default("bell"),
-    color: text("color").notNull().default("#6b7280"),
-    push: boolean("push").notNull().default(true),
-    email: boolean("email").notNull().default(true),
-    inApp: boolean("in_app").notNull().default(true)
-  },
-  (t) => [
-    index("idx_notification_prefs_user_id").on(t.userId)
-  ]
+    id: id(),
+    userId: text("user_id").notNull(),
+    push: boolean("push").default(true),
+    email: boolean("email").default(true),
+    inApp: boolean("in_app").default(true)
+  }
 );
-var partnersTable = pgTable(
-  "partners",
-  {
-    id: text("id").primaryKey().$defaultFn(() => crypto.randomUUID()),
-    name: text("name").notNull(),
-    type: text("type"),
-    sector: text("sector"),
-    contact: text("contact"),
-    phone: text("phone"),
-    email: text("email"),
-    benefit: text("benefit"),
-    discount: text("discount"),
-    startDate: text("start_date"),
-    endDate: text("end_date"),
-    description: text("description"),
-    syndicateId: text("syndicate_id"),
-    status: text("status").notNull().default("active"),
-    createdAt: timestamp("created_at").defaultNow()
-  },
-  (t) => [
-    index("idx_partners_syndicate_id").on(t.syndicateId),
-    index("idx_partners_status").on(t.status)
-  ]
-);
-var subscriptionPlansTable = pgTable("subscription_plans", {
-  id: text("id").primaryKey().$defaultFn(() => crypto.randomUUID()),
+var partnersTable = pgTable("partners", {
+  id: id(),
   name: text("name").notNull(),
-  price: real("price").notNull(),
-  billingCycle: text("billing_cycle").notNull().default("annual"),
-  maxMembers: integer("max_members").notNull().default(100),
-  color: text("color").notNull().default("#6b7280"),
-  popular: boolean("popular").notNull().default(false),
-  features: text("features")
+  type: text("type").notNull(),
+  sector: text("sector"),
+  contact: text("contact"),
+  phone: text("phone"),
+  email: text("email"),
+  benefit: text("benefit"),
+  discount: text("discount"),
+  startDate: text("start_date"),
+  endDate: text("end_date"),
+  description: text("description").default(""),
+  syndicateId: text("syndicate_id"),
+  createdAt: createdAt()
 });
-var syndicateSubscriptionsTable = pgTable(
-  "syndicate_subscriptions",
-  {
-    id: text("id").primaryKey().$defaultFn(() => crypto.randomUUID()),
-    syndicateId: text("syndicate_id").notNull(),
-    syndicateName: text("syndicate_name").notNull().default(""),
-    planId: text("plan_id").notNull(),
-    planName: text("plan_name").notNull().default(""),
-    status: text("status").notNull().default("active"),
-    startDate: text("start_date"),
-    renewalDate: text("renewal_date"),
-    amount: real("amount").notNull().default(0),
-    membersUsed: integer("members_used").notNull().default(0),
-    maxMembers: integer("max_members").notNull().default(100),
-    autoRenew: boolean("auto_renew").notNull().default(true),
-    createdAt: timestamp("created_at").defaultNow()
-  },
-  (t) => [
-    index("idx_syndicate_subscriptions_syndicate_id").on(t.syndicateId),
-    index("idx_syndicate_subscriptions_status").on(t.status)
-  ]
-);
-var buildingsTable = pgTable(
-  "buildings",
-  {
-    id: text("id").primaryKey().$defaultFn(() => crypto.randomUUID()),
-    name: text("name").notNull(),
-    address: text("address").notNull(),
-    city: text("city").notNull().default("Casablanca"),
-    type: text("type").notNull().default("residential"),
-    totalFloors: integer("total_floors").notNull().default(0),
-    totalLots: integer("total_lots").notNull().default(0),
-    constructionYear: integer("construction_year"),
-    syndicateId: text("syndicate_id"),
-    adminId: text("admin_id"),
-    status: text("status").notNull().default("active"),
-    bankAccount: text("bank_account"),
-    registrationNumber: text("registration_number"),
-    description: text("description"),
-    createdAt: timestamp("created_at").defaultNow()
-  },
-  (t) => [
-    index("idx_buildings_syndicate_id").on(t.syndicateId),
-    index("idx_buildings_status").on(t.status),
-    index("idx_buildings_type").on(t.type)
-  ]
-);
-var lotsTable = pgTable(
-  "lots",
-  {
-    id: text("id").primaryKey().$defaultFn(() => crypto.randomUUID()),
-    number: text("number").notNull(),
-    type: text("type").notNull().default("appartement"),
-    floor: integer("floor").notNull().default(0),
-    surfaceM2: real("surface_m2"),
-    tantiemes: integer("tantiemes").notNull().default(0),
-    buildingId: text("building_id").notNull(),
-    ownerId: text("owner_id"),
-    tenantId: text("tenant_id"),
-    status: text("status").notNull().default("occupied"),
-    description: text("description"),
-    createdAt: timestamp("created_at").defaultNow()
-  },
-  (t) => [
-    index("idx_lots_building_id").on(t.buildingId),
-    index("idx_lots_owner_id").on(t.ownerId),
-    index("idx_lots_type").on(t.type),
-    index("idx_lots_status").on(t.status)
-  ]
-);
-var tenantsTable = pgTable(
-  "tenants",
-  {
-    id: text("id").primaryKey().$defaultFn(() => crypto.randomUUID()),
-    name: text("name").notNull(),
-    email: text("email"),
-    phone: text("phone"),
-    cin: text("cin"),
-    nationality: text("nationality").notNull().default("Marocaine"),
-    lotId: text("lot_id").notNull(),
-    buildingId: text("building_id").notNull(),
-    leaseStart: text("lease_start"),
-    leaseEnd: text("lease_end"),
-    monthlyRent: real("monthly_rent"),
-    depositAmount: real("deposit_amount"),
-    status: text("status").notNull().default("active"),
-    emergencyContact: text("emergency_contact"),
-    emergencyPhone: text("emergency_phone"),
-    notes: text("notes"),
-    createdAt: timestamp("created_at").defaultNow()
-  },
-  (t) => [
-    index("idx_tenants_lot_id").on(t.lotId),
-    index("idx_tenants_building_id").on(t.buildingId),
-    index("idx_tenants_status").on(t.status)
-  ]
-);
-var budgetsTable = pgTable(
-  "budgets",
-  {
-    id: text("id").primaryKey().$defaultFn(() => crypto.randomUUID()),
-    year: integer("year").notNull(),
-    buildingId: text("building_id").notNull(),
-    totalAmount: real("total_amount").notNull().default(0),
-    chargesAmount: real("charges_amount").notNull().default(0),
-    fondsReserve: real("fonds_reserve").notNull().default(0),
-    status: text("status").notNull().default("draft"),
-    votedAt: text("voted_at"),
-    meetingId: text("meeting_id"),
-    notes: text("notes"),
-    createdBy: text("created_by"),
-    createdAt: timestamp("created_at").defaultNow()
-  },
-  (t) => [
-    index("idx_budgets_building_id").on(t.buildingId),
-    index("idx_budgets_year").on(t.year),
-    index("idx_budgets_status").on(t.status)
-  ]
-);
-var budgetLinesTable = pgTable(
-  "budget_lines",
-  {
-    id: text("id").primaryKey().$defaultFn(() => crypto.randomUUID()),
-    budgetId: text("budget_id").notNull(),
-    category: text("category").notNull(),
-    label: text("label").notNull(),
-    amountAnnual: real("amount_annual").notNull().default(0),
-    amountQ1: real("amount_q1").default(0),
-    amountQ2: real("amount_q2").default(0),
-    amountQ3: real("amount_q3").default(0),
-    amountQ4: real("amount_q4").default(0),
-    prestataireId: text("prestataire_id")
-  },
-  (t) => [
-    index("idx_budget_lines_budget_id").on(t.budgetId),
-    index("idx_budget_lines_category").on(t.category)
-  ]
-);
-var appelsDeFondsTable = pgTable(
-  "appels_de_fonds",
-  {
-    id: text("id").primaryKey().$defaultFn(() => crypto.randomUUID()),
-    buildingId: text("building_id").notNull(),
-    budgetId: text("budget_id"),
-    lotId: text("lot_id").notNull(),
-    ownerId: text("owner_id"),
-    period: text("period").notNull(),
-    type: text("type").notNull().default("charges_courantes"),
-    amount: real("amount").notNull(),
-    dueDate: text("due_date"),
-    status: text("status").notNull().default("pending"),
-    paidDate: text("paid_date"),
-    paymentMethod: text("payment_method"),
-    receiptNumber: text("receipt_number"),
-    proofUrl: text("proof_url"),
-    notes: text("notes"),
-    createdAt: timestamp("created_at").defaultNow()
-  },
-  (t) => [
-    index("idx_appels_building_id").on(t.buildingId),
-    index("idx_appels_lot_id").on(t.lotId),
-    index("idx_appels_owner_id").on(t.ownerId),
-    index("idx_appels_status").on(t.status),
-    index("idx_appels_period").on(t.period)
-  ]
-);
-var travauxTable = pgTable(
-  "travaux",
-  {
-    id: text("id").primaryKey().$defaultFn(() => crypto.randomUUID()),
-    title: text("title").notNull(),
-    description: text("description"),
-    type: text("type").notNull().default("entretien"),
-    status: text("status").notNull().default("reported"),
-    priority: text("priority").notNull().default("normal"),
-    buildingId: text("building_id").notNull(),
-    lotId: text("lot_id"),
-    prestataireId: text("prestataire_id"),
-    reportedById: text("reported_by_id"),
-    reportedByName: text("reported_by_name"),
-    assignedById: text("assigned_by_id"),
-    estimatedAmount: real("estimated_amount"),
-    actualAmount: real("actual_amount"),
-    startDate: text("start_date"),
-    endDate: text("end_date"),
-    completedAt: timestamp("completed_at"),
-    notes: text("notes"),
-    createdAt: timestamp("created_at").defaultNow()
-  },
-  (t) => [
-    index("idx_travaux_building_id").on(t.buildingId),
-    index("idx_travaux_status").on(t.status),
-    index("idx_travaux_priority").on(t.priority),
-    index("idx_travaux_type").on(t.type),
-    index("idx_travaux_prestataire_id").on(t.prestataireId)
-  ]
-);
-var prestatairesTable = pgTable(
-  "prestataires",
-  {
-    id: text("id").primaryKey().$defaultFn(() => crypto.randomUUID()),
-    name: text("name").notNull(),
-    type: text("type").notNull(),
-    contactName: text("contact_name"),
-    phone: text("phone"),
-    email: text("email"),
-    address: text("address"),
-    ice: text("ice"),
-    rc: text("rc"),
-    buildingId: text("building_id"),
-    syndicateId: text("syndicate_id"),
-    status: text("status").notNull().default("active"),
-    rating: integer("rating"),
-    notes: text("notes"),
-    createdAt: timestamp("created_at").defaultNow()
-  },
-  (t) => [
-    index("idx_prestataires_building_id").on(t.buildingId),
-    index("idx_prestataires_type").on(t.type),
-    index("idx_prestataires_status").on(t.status)
-  ]
-);
-var contratsPrestatairesTable = pgTable(
-  "contrats_prestataires",
-  {
-    id: text("id").primaryKey().$defaultFn(() => crypto.randomUUID()),
-    prestataireId: text("prestataire_id").notNull(),
-    buildingId: text("building_id").notNull(),
-    title: text("title").notNull(),
-    startDate: text("start_date"),
-    endDate: text("end_date"),
-    monthlyAmount: real("monthly_amount"),
-    annualAmount: real("annual_amount"),
-    status: text("status").notNull().default("active"),
-    autoRenew: boolean("auto_renew").notNull().default(false),
-    documentUrl: text("document_url"),
-    notes: text("notes"),
-    createdAt: timestamp("created_at").defaultNow()
-  },
-  (t) => [
-    index("idx_contrats_prestataire_id").on(t.prestataireId),
-    index("idx_contrats_building_id").on(t.buildingId),
-    index("idx_contrats_status").on(t.status)
-  ]
-);
-var agResolutionsTable = pgTable(
-  "ag_resolutions",
-  {
-    id: text("id").primaryKey().$defaultFn(() => crypto.randomUUID()),
-    meetingId: text("meeting_id").notNull(),
-    buildingId: text("building_id").notNull(),
-    number: integer("number").notNull().default(1),
-    title: text("title").notNull(),
-    description: text("description"),
-    requiredMajority: text("required_majority").notNull().default("simple"),
-    tantiemesFor: integer("tantiemes_for").notNull().default(0),
-    tantiemesAgainst: integer("tantiemes_against").notNull().default(0),
-    tantiemesAbstain: integer("tantiemes_abstain").notNull().default(0),
-    result: text("result").notNull().default("pending"),
-    createdAt: timestamp("created_at").defaultNow()
-  },
-  (t) => [
-    index("idx_ag_resolutions_meeting_id").on(t.meetingId),
-    index("idx_ag_resolutions_building_id").on(t.buildingId),
-    index("idx_ag_resolutions_result").on(t.result)
-  ]
-);
-var sinistresTable = pgTable(
-  "sinistres",
-  {
-    id: text("id").primaryKey().$defaultFn(() => crypto.randomUUID()),
-    buildingId: text("building_id").notNull(),
-    lotId: text("lot_id"),
-    type: text("type").notNull(),
-    description: text("description").notNull(),
-    date: text("date").notNull(),
-    status: text("status").notNull().default("declared"),
-    estimatedAmount: real("estimated_amount"),
-    indemnisedAmount: real("indemnised_amount"),
-    claimNumber: text("claim_number"),
-    reportedById: text("reported_by_id"),
-    reportedByName: text("reported_by_name"),
-    notes: text("notes"),
-    createdAt: timestamp("created_at").defaultNow()
-  },
-  (t) => [
-    index("idx_sinistres_building_id").on(t.buildingId),
-    index("idx_sinistres_status").on(t.status),
-    index("idx_sinistres_type").on(t.type)
-  ]
-);
+var payslipsTable = pgTable("payslips", {
+  id: id(),
+  userId: text("user_id"),
+  month: text("month"),
+  amount: doublePrecision("amount"),
+  fileUrl: text("file_url"),
+  syndicateId: text("syndicate_id"),
+  createdAt: createdAt()
+});
+var subscriptionPlansTable = pgTable("subscription_plans", {
+  id: id(),
+  name: text("name").notNull(),
+  price: doublePrecision("price"),
+  interval: text("interval").default("monthly"),
+  features: text("features").default("[]"),
+  createdAt: createdAt()
+});
+var syndicateSubscriptionsTable = pgTable("syndicate_subscriptions", {
+  id: id(),
+  syndicateId: text("syndicate_id").notNull(),
+  planId: text("plan_id"),
+  status: text("status").default("active"),
+  autoRenew: boolean("auto_renew").default(true),
+  createdAt: createdAt()
+});
+var auditLogsTable = pgTable("audit_logs", {
+  id: id(),
+  userId: text("user_id"),
+  userName: text("user_name"),
+  syndicateId: text("syndicate_id"),
+  action: text("action").notNull(),
+  entity: text("entity").notNull(),
+  entityId: text("entity_id"),
+  details: text("details"),
+  ipAddress: text("ip_address"),
+  createdAt: createdAt()
+});
 
 // ../../lib/db/src/index.ts
-var connectionString = process.env["DATABASE_URL"];
-if (!connectionString) {
-  throw new Error("DATABASE_URL environment variable is required but was not provided.");
+if (!process.env.DATABASE_URL) {
+  throw new Error("DATABASE_URL environment variable is not set");
 }
-var pool = src_default(connectionString, {
-  max: 20,
-  idle_timeout: 30,
-  connect_timeout: 10
-});
+var pool = src_default(process.env.DATABASE_URL, { max: 10 });
 var db = drizzle(pool, { schema: schema_exports });
 
 // src/middleware/auth.ts
@@ -63729,13 +63190,17 @@ async function sendExpoPush(payload) {
   const rows = await db.select({ pushToken: usersTable.pushToken }).from(usersTable).where(isNotNull(usersTable.pushToken));
   const tokens = rows.map((r) => r.pushToken).filter((t) => typeof t === "string" && t.startsWith("ExponentPushToken["));
   if (tokens.length === 0) return;
-  const messages2 = tokens.map((token) => ({
-    to: token,
-    sound: "default",
-    title: payload.title,
-    body: payload.message,
-    data: { alertType: payload.type, syndicateId: payload.syndicateId ?? null }
-  }));
+  await deliverExpoPush(
+    tokens.map((token) => ({
+      to: token,
+      sound: "default",
+      title: payload.title,
+      body: payload.message,
+      data: { alertType: payload.type, syndicateId: payload.syndicateId ?? null }
+    }))
+  );
+}
+async function deliverExpoPush(messages2) {
   const res = await fetch("https://exp.host/--/api/v2/push/send", {
     method: "POST",
     headers: {
@@ -63842,9 +63307,9 @@ router3.post(
   }
 );
 router3.get("/members/:id", requireAuth, async (req, res) => {
-  const id = req.params.id;
+  const id2 = req.params.id;
   try {
-    const [member] = await db.select().from(membersTable).where(eq(membersTable.id, id));
+    const [member] = await db.select().from(membersTable).where(eq(membersTable.id, id2));
     if (!member) {
       res.status(404).json({ error: "Membre introuvable" });
       return;
@@ -63864,7 +63329,7 @@ router3.put(
   requireAuth,
   requireRole("super_admin", "syndicate_admin"),
   async (req, res) => {
-    const id = req.params.id;
+    const id2 = req.params.id;
     const schema = external_exports.object({
       name: external_exports.string().min(1).optional(),
       email: external_exports.string().email().optional(),
@@ -63877,7 +63342,7 @@ router3.put(
       return;
     }
     try {
-      const [member] = await db.select().from(membersTable).where(eq(membersTable.id, id));
+      const [member] = await db.select().from(membersTable).where(eq(membersTable.id, id2));
       if (!member) {
         res.status(404).json({ error: "Membre introuvable" });
         return;
@@ -63886,7 +63351,7 @@ router3.put(
         res.status(403).json({ error: "Acc\xE8s refus\xE9" });
         return;
       }
-      const [updated] = await db.update(membersTable).set(result.data).where(eq(membersTable.id, id)).returning();
+      const [updated] = await db.update(membersTable).set(result.data).where(eq(membersTable.id, id2)).returning();
       res.json({ data: updated, message: "Membre mis \xE0 jour" });
     } catch (err) {
       req.log.error(err);
@@ -63899,7 +63364,7 @@ router3.put(
   requireAuth,
   requireRole("super_admin", "syndicate_admin"),
   async (req, res) => {
-    const id = req.params.id;
+    const id2 = req.params.id;
     const schema = external_exports.object({ status: external_exports.enum(["active", "inactive", "pending"]) });
     const result = schema.safeParse(req.body);
     if (!result.success) {
@@ -63907,7 +63372,7 @@ router3.put(
       return;
     }
     try {
-      const [member] = await db.select().from(membersTable).where(eq(membersTable.id, id));
+      const [member] = await db.select().from(membersTable).where(eq(membersTable.id, id2));
       if (!member) {
         res.status(404).json({ error: "Membre introuvable" });
         return;
@@ -63918,7 +63383,7 @@ router3.put(
       }
       let updated;
       await db.transaction(async (tx) => {
-        const [u] = await tx.update(membersTable).set({ status: result.data.status }).where(eq(membersTable.id, id)).returning();
+        const [u] = await tx.update(membersTable).set({ status: result.data.status }).where(eq(membersTable.id, id2)).returning();
         updated = u;
         const wasActive = member.status === "active";
         const goingInactive = result.data.status === "inactive";
@@ -63935,7 +63400,7 @@ router3.put(
       await serverAuditLog(req, {
         action: "UPDATE_STATUS",
         entity: "member",
-        entityId: id,
+        entityId: id2,
         details: `Statut ${member.status} \u2192 ${result.data.status}`
       });
       res.json({ data: updated, message: "Statut mis \xE0 jour" });
@@ -64110,7 +63575,7 @@ router5.post("/syndicates", requireAuth, requireRole("super_admin"), async (req,
   }
 });
 router5.put("/syndicates/:id", requireAuth, requireRole("super_admin"), async (req, res) => {
-  const id = req.params.id;
+  const id2 = req.params.id;
   const schema = external_exports.object({
     name: external_exports.string().optional(),
     sector: external_exports.string().optional(),
@@ -64124,7 +63589,7 @@ router5.put("/syndicates/:id", requireAuth, requireRole("super_admin"), async (r
     return;
   }
   try {
-    const [updated] = await db.update(syndicatesTable).set(result.data).where(eq(syndicatesTable.id, id)).returning();
+    const [updated] = await db.update(syndicatesTable).set(result.data).where(eq(syndicatesTable.id, id2)).returning();
     res.json({ data: updated, message: "Syndicat mis \xE0 jour" });
   } catch (err) {
     req.log.error(err);
@@ -64225,7 +63690,7 @@ router6.put(
   requireAuth,
   requireRole("super_admin", "syndicate_admin"),
   async (req, res) => {
-    const id = req.params.id;
+    const id2 = req.params.id;
     const schema = external_exports.object({ status: external_exports.enum(["open", "closed", "upcoming"]) });
     const result = schema.safeParse(req.body);
     if (!result.success) {
@@ -64233,7 +63698,7 @@ router6.put(
       return;
     }
     try {
-      const [election] = await db.select().from(electionsTable).where(eq(electionsTable.id, id));
+      const [election] = await db.select().from(electionsTable).where(eq(electionsTable.id, id2));
       if (!election) {
         res.status(404).json({ error: "\xC9lection introuvable" });
         return;
@@ -64242,11 +63707,11 @@ router6.put(
         res.status(403).json({ error: "Acc\xE8s refus\xE9" });
         return;
       }
-      const [updated] = await db.update(electionsTable).set({ status: result.data.status }).where(eq(electionsTable.id, id)).returning();
+      const [updated] = await db.update(electionsTable).set({ status: result.data.status }).where(eq(electionsTable.id, id2)).returning();
       await serverAuditLog(req, {
         action: "UPDATE_STATUS",
         entity: "election",
-        entityId: id,
+        entityId: id2,
         details: `Statut \u2192 ${result.data.status}`
       });
       res.json({ data: updated, message: "Statut mis \xE0 jour" });
@@ -64257,7 +63722,7 @@ router6.put(
   }
 );
 router6.post("/elections/:id/vote", requireAuth, async (req, res) => {
-  const id = req.params.id;
+  const id2 = req.params.id;
   const schema = external_exports.object({ candidateId: external_exports.string().min(1) });
   const result = schema.safeParse(req.body);
   if (!result.success) {
@@ -64266,7 +63731,7 @@ router6.post("/elections/:id/vote", requireAuth, async (req, res) => {
   }
   try {
     await db.transaction(async (tx) => {
-      const [election] = await tx.select().from(electionsTable).where(eq(electionsTable.id, id));
+      const [election] = await tx.select().from(electionsTable).where(eq(electionsTable.id, id2));
       if (!election) {
         throw Object.assign(new Error("NOT_FOUND"), { status: 404, msg: "\xC9lection introuvable" });
       }
@@ -64285,7 +63750,7 @@ router6.post("/elections/:id/vote", requireAuth, async (req, res) => {
       const [candidate] = await tx.select().from(candidatesTable).where(
         and(
           eq(candidatesTable.id, result.data.candidateId),
-          eq(candidatesTable.electionId, id)
+          eq(candidatesTable.electionId, id2)
         )
       );
       if (!candidate) {
@@ -64294,7 +63759,7 @@ router6.post("/elections/:id/vote", requireAuth, async (req, res) => {
           msg: "Ce candidat n'appartient pas \xE0 cette \xE9lection"
         });
       }
-      const existing = await tx.select().from(votesTable).where(and(eq(votesTable.electionId, id), eq(votesTable.voterId, req.user.userId)));
+      const existing = await tx.select().from(votesTable).where(and(eq(votesTable.electionId, id2), eq(votesTable.voterId, req.user.userId)));
       if (existing.length > 0) {
         throw Object.assign(new Error("ALREADY_VOTED"), {
           status: 400,
@@ -64302,7 +63767,7 @@ router6.post("/elections/:id/vote", requireAuth, async (req, res) => {
         });
       }
       await tx.insert(votesTable).values({
-        electionId: id,
+        electionId: id2,
         candidateId: result.data.candidateId,
         voterId: req.user.userId
       });
@@ -64311,7 +63776,7 @@ router6.post("/elections/:id/vote", requireAuth, async (req, res) => {
     await serverAuditLog(req, {
       action: "VOTE",
       entity: "election",
-      entityId: id,
+      entityId: id2,
       details: `Vote pour candidat ${result.data.candidateId}`
     });
     res.json({ message: "Vote enregistr\xE9 avec succ\xE8s" });
@@ -64432,16 +63897,16 @@ router7.delete("/meetings/:id", requireAuth, requireRole("super_admin", "syndica
   }
 });
 router7.post("/meetings/:id/attend", requireAuth, async (req, res) => {
-  const id = req.params.id;
+  const id2 = req.params.id;
   try {
     const existing = await db.select().from(meetingAttendeesTable).where(
-      and(eq(meetingAttendeesTable.meetingId, id), eq(meetingAttendeesTable.userId, req.user.userId))
+      and(eq(meetingAttendeesTable.meetingId, id2), eq(meetingAttendeesTable.userId, req.user.userId))
     );
     if (existing.length > 0) {
       res.json({ message: "Pr\xE9sence d\xE9j\xE0 confirm\xE9e" });
       return;
     }
-    await db.insert(meetingAttendeesTable).values({ meetingId: id, userId: req.user.userId });
+    await db.insert(meetingAttendeesTable).values({ meetingId: id2, userId: req.user.userId });
     res.json({ message: "Pr\xE9sence confirm\xE9e avec succ\xE8s" });
   } catch (err) {
     req.log.error(err);
@@ -64689,7 +64154,7 @@ router8.put(
   requireAuth,
   requireRole("super_admin", "syndicate_admin"),
   async (req, res) => {
-    const id = req.params.id;
+    const id2 = req.params.id;
     const schema = external_exports.object({
       status: external_exports.enum(["draft", "issued", "sent", "paid", "partially_paid", "due", "overdue", "cancelled"])
     });
@@ -64699,7 +64164,7 @@ router8.put(
       return;
     }
     try {
-      const [inv] = await db.select().from(invoicesTable).where(eq(invoicesTable.id, id));
+      const [inv] = await db.select().from(invoicesTable).where(eq(invoicesTable.id, id2));
       if (!inv) {
         res.status(404).json({ error: "Facture introuvable" });
         return;
@@ -64708,7 +64173,7 @@ router8.put(
         res.status(403).json({ error: "Acc\xE8s refus\xE9" });
         return;
       }
-      const [updated] = await db.update(invoicesTable).set({ status: result.data.status }).where(eq(invoicesTable.id, id)).returning();
+      const [updated] = await db.update(invoicesTable).set({ status: result.data.status }).where(eq(invoicesTable.id, id2)).returning();
       res.json({ data: updated, message: "Statut mis \xE0 jour" });
     } catch (err) {
       req.log.error(err);
@@ -64778,7 +64243,7 @@ router8.put(
   requireAuth,
   requireRole("super_admin", "syndicate_admin"),
   async (req, res) => {
-    const id = req.params.id;
+    const id2 = req.params.id;
     const schema = external_exports.object({ status: external_exports.enum(["draft", "sent", "delivered", "cancelled"]) });
     const result = schema.safeParse(req.body);
     if (!result.success) {
@@ -64786,7 +64251,7 @@ router8.put(
       return;
     }
     try {
-      const [bon] = await db.select().from(bonsLivraisonTable).where(eq(bonsLivraisonTable.id, id));
+      const [bon] = await db.select().from(bonsLivraisonTable).where(eq(bonsLivraisonTable.id, id2));
       if (!bon) {
         res.status(404).json({ error: "Bon introuvable" });
         return;
@@ -64795,7 +64260,7 @@ router8.put(
         res.status(403).json({ error: "Acc\xE8s refus\xE9" });
         return;
       }
-      const [updated] = await db.update(bonsLivraisonTable).set({ status: result.data.status }).where(eq(bonsLivraisonTable.id, id)).returning();
+      const [updated] = await db.update(bonsLivraisonTable).set({ status: result.data.status }).where(eq(bonsLivraisonTable.id, id2)).returning();
       res.json({ data: updated, message: "Statut mis \xE0 jour" });
     } catch (err) {
       req.log.error(err);
@@ -64851,7 +64316,7 @@ router9.post("/products", requireAuth, async (req, res) => {
   }
 });
 router9.put("/products/:id", requireAuth, async (req, res) => {
-  const id = req.params.id;
+  const id2 = req.params.id;
   const schema = external_exports.object({
     name: external_exports.string().min(1).max(200).optional(),
     description: external_exports.string().max(2e3).optional(),
@@ -64864,7 +64329,7 @@ router9.put("/products/:id", requireAuth, async (req, res) => {
     return;
   }
   try {
-    const [product] = await db.select().from(productsTable).where(eq(productsTable.id, id));
+    const [product] = await db.select().from(productsTable).where(eq(productsTable.id, id2));
     if (!product) {
       res.status(404).json({ error: "Produit introuvable" });
       return;
@@ -64877,7 +64342,7 @@ router9.put("/products/:id", requireAuth, async (req, res) => {
       res.status(403).json({ error: "Acc\xE8s refus\xE9" });
       return;
     }
-    const [updated] = await db.update(productsTable).set(result.data).where(eq(productsTable.id, id)).returning();
+    const [updated] = await db.update(productsTable).set(result.data).where(eq(productsTable.id, id2)).returning();
     res.json({ data: updated, message: "Produit mis \xE0 jour" });
   } catch (err) {
     req.log.error(err);
@@ -64885,9 +64350,9 @@ router9.put("/products/:id", requireAuth, async (req, res) => {
   }
 });
 router9.delete("/products/:id", requireAuth, async (req, res) => {
-  const id = req.params.id;
+  const id2 = req.params.id;
   try {
-    const [product] = await db.select().from(productsTable).where(eq(productsTable.id, id));
+    const [product] = await db.select().from(productsTable).where(eq(productsTable.id, id2));
     if (!product) {
       res.status(404).json({ error: "Produit introuvable" });
       return;
@@ -64897,7 +64362,7 @@ router9.delete("/products/:id", requireAuth, async (req, res) => {
       res.status(403).json({ error: "Acc\xE8s refus\xE9" });
       return;
     }
-    await db.delete(productsTable).where(eq(productsTable.id, id));
+    await db.delete(productsTable).where(eq(productsTable.id, id2));
     res.json({ message: "Produit supprim\xE9" });
   } catch (err) {
     req.log.error(err);
@@ -64909,7 +64374,7 @@ router9.put(
   requireAuth,
   requireRole("super_admin", "syndicate_admin"),
   async (req, res) => {
-    const id = req.params.id;
+    const id2 = req.params.id;
     const schema = external_exports.object({ action: external_exports.enum(["approve", "reject"]) });
     const result = schema.safeParse(req.body);
     if (!result.success) {
@@ -64917,7 +64382,7 @@ router9.put(
       return;
     }
     try {
-      const [product] = await db.select().from(productsTable).where(eq(productsTable.id, id));
+      const [product] = await db.select().from(productsTable).where(eq(productsTable.id, id2));
       if (!product) {
         res.status(404).json({ error: "Produit introuvable" });
         return;
@@ -64927,7 +64392,7 @@ router9.put(
         return;
       }
       const status = result.data.action === "approve" ? "available" : "rejected";
-      const [updated] = await db.update(productsTable).set({ status }).where(eq(productsTable.id, id)).returning();
+      const [updated] = await db.update(productsTable).set({ status }).where(eq(productsTable.id, id2)).returning();
       res.json({
         data: updated,
         message: result.data.action === "approve" ? "Produit valid\xE9" : "Produit rejet\xE9"
@@ -65000,7 +64465,7 @@ router9.post("/cart", requireAuth, async (req, res) => {
   }
 });
 router9.put("/cart/:id", requireAuth, async (req, res) => {
-  const id = req.params.id;
+  const id2 = req.params.id;
   const schema = external_exports.object({ quantity: external_exports.number().int().positive().max(100) });
   const result = schema.safeParse(req.body);
   if (!result.success) {
@@ -65008,7 +64473,7 @@ router9.put("/cart/:id", requireAuth, async (req, res) => {
     return;
   }
   try {
-    const [updated] = await db.update(cartItemsTable).set({ quantity: result.data.quantity }).where(and(eq(cartItemsTable.id, id), eq(cartItemsTable.userId, req.user.userId))).returning();
+    const [updated] = await db.update(cartItemsTable).set({ quantity: result.data.quantity }).where(and(eq(cartItemsTable.id, id2), eq(cartItemsTable.userId, req.user.userId))).returning();
     res.json({ data: updated });
   } catch (err) {
     req.log.error(err);
@@ -65016,9 +64481,9 @@ router9.put("/cart/:id", requireAuth, async (req, res) => {
   }
 });
 router9.delete("/cart/:id", requireAuth, async (req, res) => {
-  const id = req.params.id;
+  const id2 = req.params.id;
   try {
-    await db.delete(cartItemsTable).where(and(eq(cartItemsTable.id, id), eq(cartItemsTable.userId, req.user.userId)));
+    await db.delete(cartItemsTable).where(and(eq(cartItemsTable.id, id2), eq(cartItemsTable.userId, req.user.userId)));
     res.json({ message: "Retir\xE9 du panier" });
   } catch (err) {
     req.log.error(err);
@@ -65223,21 +64688,21 @@ router10.post("/conversations", requireAuth, async (req, res) => {
   }
 });
 router10.get("/conversations/:id/messages", requireAuth, async (req, res) => {
-  const id = req.params.id;
+  const id2 = req.params.id;
   const pagination = getPagination(req, 100);
   try {
     const canAccess = await canAccessConversation(
       req.user.userId,
       req.user.syndicateId || "",
-      id
+      id2
     );
     if (!canAccess) {
       res.status(403).json({ error: "Acc\xE8s refus\xE9" });
       return;
     }
     const [messages2, [{ value: total }]] = await Promise.all([
-      db.select().from(messagesTable).where(eq(messagesTable.conversationId, id)).orderBy(messagesTable.createdAt).limit(pagination.limit).offset(pagination.offset),
-      db.select({ value: count() }).from(messagesTable).where(eq(messagesTable.conversationId, id))
+      db.select().from(messagesTable).where(eq(messagesTable.conversationId, id2)).orderBy(messagesTable.createdAt).limit(pagination.limit).offset(pagination.offset),
+      db.select({ value: count() }).from(messagesTable).where(eq(messagesTable.conversationId, id2))
     ]);
     const enriched = messages2.map((m) => ({
       ...m,
@@ -65251,7 +64716,7 @@ router10.get("/conversations/:id/messages", requireAuth, async (req, res) => {
   }
 });
 router10.post("/conversations/:id/messages", requireAuth, async (req, res) => {
-  const id = req.params.id;
+  const id2 = req.params.id;
   const schema = external_exports.object({ text: external_exports.string().min(1).max(1e4) });
   const result = schema.safeParse(req.body);
   if (!result.success) {
@@ -65262,14 +64727,14 @@ router10.post("/conversations/:id/messages", requireAuth, async (req, res) => {
     const canAccess = await canAccessConversation(
       req.user.userId,
       req.user.syndicateId || "",
-      id
+      id2
     );
     if (!canAccess) {
       res.status(403).json({ error: "Acc\xE8s refus\xE9" });
       return;
     }
     const [message] = await db.insert(messagesTable).values({
-      conversationId: id,
+      conversationId: id2,
       senderId: req.user.userId,
       senderName: req.user.name,
       text: result.data.text
@@ -65277,7 +64742,7 @@ router10.post("/conversations/:id/messages", requireAuth, async (req, res) => {
     await db.update(conversationsTable).set({
       lastMessage: result.data.text.slice(0, 100),
       lastMessageAt: /* @__PURE__ */ new Date()
-    }).where(eq(conversationsTable.id, id));
+    }).where(eq(conversationsTable.id, id2));
     res.status(201).json({ data: { ...message, isMe: true } });
   } catch (err) {
     req.log.error(err);
@@ -65303,9 +64768,9 @@ router11.get("/documents", requireAuth, async (req, res) => {
   }
 });
 router11.get("/documents/:id", requireAuth, async (req, res) => {
-  const id = req.params.id;
+  const id2 = req.params.id;
   try {
-    const [doc] = await db.select().from(documentsTable).where(eq(documentsTable.id, id));
+    const [doc] = await db.select().from(documentsTable).where(eq(documentsTable.id, id2));
     if (!doc) {
       res.status(404).json({ error: "Document introuvable" });
       return;
@@ -65426,31 +64891,31 @@ router12.post(
   }
 );
 router12.post("/publications/:id/like", requireAuth, async (req, res) => {
-  const id = req.params.id;
+  const id2 = req.params.id;
   try {
-    const [pub] = await db.select().from(publicationsTable).where(eq(publicationsTable.id, id));
+    const [pub] = await db.select().from(publicationsTable).where(eq(publicationsTable.id, id2));
     if (!pub) {
       res.status(404).json({ error: "Publication introuvable" });
       return;
     }
     const existing = await db.select().from(publicationLikesTable).where(
       and(
-        eq(publicationLikesTable.publicationId, id),
+        eq(publicationLikesTable.publicationId, id2),
         eq(publicationLikesTable.userId, req.user.userId)
       )
     );
     if (existing.length > 0) {
       await db.delete(publicationLikesTable).where(
         and(
-          eq(publicationLikesTable.publicationId, id),
+          eq(publicationLikesTable.publicationId, id2),
           eq(publicationLikesTable.userId, req.user.userId)
         )
       );
-      await db.update(publicationsTable).set({ likes: Math.max(0, pub.likes - 1) }).where(eq(publicationsTable.id, id));
+      await db.update(publicationsTable).set({ likes: Math.max(0, pub.likes - 1) }).where(eq(publicationsTable.id, id2));
       res.json({ message: "Like retir\xE9", liked: false });
     } else {
-      await db.insert(publicationLikesTable).values({ publicationId: id, userId: req.user.userId });
-      await db.update(publicationsTable).set({ likes: pub.likes + 1 }).where(eq(publicationsTable.id, id));
+      await db.insert(publicationLikesTable).values({ publicationId: id2, userId: req.user.userId });
+      await db.update(publicationsTable).set({ likes: pub.likes + 1 }).where(eq(publicationsTable.id, id2));
       res.json({ message: "Publication aim\xE9e", liked: true });
     }
   } catch (err) {
@@ -65459,7 +64924,7 @@ router12.post("/publications/:id/like", requireAuth, async (req, res) => {
   }
 });
 router12.post("/publications/:id/comments", requireAuth, async (req, res) => {
-  const id = req.params.id;
+  const id2 = req.params.id;
   const schema = external_exports.object({ text: external_exports.string().min(1).max(2e3) });
   const result = schema.safeParse(req.body);
   if (!result.success) {
@@ -65467,7 +64932,7 @@ router12.post("/publications/:id/comments", requireAuth, async (req, res) => {
     return;
   }
   try {
-    const [pub] = await db.select().from(publicationsTable).where(eq(publicationsTable.id, id));
+    const [pub] = await db.select().from(publicationsTable).where(eq(publicationsTable.id, id2));
     if (!pub) {
       res.status(404).json({ error: "Publication introuvable" });
       return;
@@ -65477,7 +64942,7 @@ router12.post("/publications/:id/comments", requireAuth, async (req, res) => {
       return;
     }
     const [comment] = await db.insert(publicationCommentsTable).values({
-      publicationId: id,
+      publicationId: id2,
       userId: req.user.userId,
       userName: req.user.name,
       text: result.data.text
@@ -65545,9 +65010,9 @@ router13.put(
   requireAuth,
   requireRole("super_admin", "syndicate_admin"),
   async (req, res) => {
-    const id = req.params.id;
+    const id2 = req.params.id;
     try {
-      const [alert] = await db.select().from(legalAlertsTable).where(eq(legalAlertsTable.id, id));
+      const [alert] = await db.select().from(legalAlertsTable).where(eq(legalAlertsTable.id, id2));
       if (!alert) {
         res.status(404).json({ error: "Alerte introuvable" });
         return;
@@ -65556,8 +65021,8 @@ router13.put(
         res.status(403).json({ error: "Acc\xE8s refus\xE9" });
         return;
       }
-      const [updated] = await db.update(legalAlertsTable).set({ status: "resolved" }).where(eq(legalAlertsTable.id, id)).returning();
-      await serverAuditLog(req, { action: "RESOLVE", entity: "legal_alert", entityId: id });
+      const [updated] = await db.update(legalAlertsTable).set({ status: "resolved" }).where(eq(legalAlertsTable.id, id2)).returning();
+      await serverAuditLog(req, { action: "RESOLVE", entity: "legal_alert", entityId: id2 });
       res.json({ data: updated, message: "Alerte r\xE9solue" });
     } catch (err) {
       req.log.error(err);
@@ -65620,9 +65085,9 @@ router13.post("/support", requireAuth, async (req, res) => {
   }
 });
 router13.get("/support/:id", requireAuth, async (req, res) => {
-  const id = req.params.id;
+  const id2 = req.params.id;
   try {
-    const [ticket] = await db.select().from(supportTicketsTable).where(eq(supportTicketsTable.id, id));
+    const [ticket] = await db.select().from(supportTicketsTable).where(eq(supportTicketsTable.id, id2));
     if (!ticket) {
       res.status(404).json({ error: "Ticket introuvable" });
       return;
@@ -65631,7 +65096,7 @@ router13.get("/support/:id", requireAuth, async (req, res) => {
       res.status(403).json({ error: "Acc\xE8s refus\xE9" });
       return;
     }
-    const replies = await db.select().from(ticketRepliesTable).where(eq(ticketRepliesTable.ticketId, id)).orderBy(ticketRepliesTable.createdAt);
+    const replies = await db.select().from(ticketRepliesTable).where(eq(ticketRepliesTable.ticketId, id2)).orderBy(ticketRepliesTable.createdAt);
     res.json({ data: { ...ticket, replies } });
   } catch (err) {
     req.log.error(err);
@@ -65639,7 +65104,7 @@ router13.get("/support/:id", requireAuth, async (req, res) => {
   }
 });
 router13.post("/support/:id/replies", requireAuth, async (req, res) => {
-  const id = req.params.id;
+  const id2 = req.params.id;
   const schema = external_exports.object({ text: external_exports.string().min(1).max(5e3) });
   const result = schema.safeParse(req.body);
   if (!result.success) {
@@ -65647,7 +65112,7 @@ router13.post("/support/:id/replies", requireAuth, async (req, res) => {
     return;
   }
   try {
-    const [ticket] = await db.select().from(supportTicketsTable).where(eq(supportTicketsTable.id, id));
+    const [ticket] = await db.select().from(supportTicketsTable).where(eq(supportTicketsTable.id, id2));
     if (!ticket) {
       res.status(404).json({ error: "Ticket introuvable" });
       return;
@@ -65656,8 +65121,8 @@ router13.post("/support/:id/replies", requireAuth, async (req, res) => {
       res.status(403).json({ error: "Acc\xE8s refus\xE9" });
       return;
     }
-    const [reply] = await db.insert(ticketRepliesTable).values({ ticketId: id, authorId: req.user.userId, authorName: req.user.name, text: result.data.text }).returning();
-    await db.update(supportTicketsTable).set({ status: "in_progress" }).where(eq(supportTicketsTable.id, id));
+    const [reply] = await db.insert(ticketRepliesTable).values({ ticketId: id2, authorId: req.user.userId, authorName: req.user.name, text: result.data.text }).returning();
+    await db.update(supportTicketsTable).set({ status: "in_progress" }).where(eq(supportTicketsTable.id, id2));
     res.status(201).json({ data: reply, message: "R\xE9ponse ajout\xE9e" });
   } catch (err) {
     req.log.error(err);
@@ -65669,9 +65134,9 @@ router13.put(
   requireAuth,
   requireRole("super_admin", "syndicate_admin"),
   async (req, res) => {
-    const id = req.params.id;
+    const id2 = req.params.id;
     try {
-      const [ticket] = await db.select().from(supportTicketsTable).where(eq(supportTicketsTable.id, id));
+      const [ticket] = await db.select().from(supportTicketsTable).where(eq(supportTicketsTable.id, id2));
       if (!ticket) {
         res.status(404).json({ error: "Ticket introuvable" });
         return;
@@ -65680,7 +65145,7 @@ router13.put(
         res.status(403).json({ error: "Acc\xE8s refus\xE9" });
         return;
       }
-      const [updated] = await db.update(supportTicketsTable).set({ status: "resolved" }).where(eq(supportTicketsTable.id, id)).returning();
+      const [updated] = await db.update(supportTicketsTable).set({ status: "resolved" }).where(eq(supportTicketsTable.id, id2)).returning();
       res.json({ data: updated, message: "Ticket r\xE9solu" });
     } catch (err) {
       req.log.error(err);
@@ -65733,7 +65198,7 @@ router13.post(
   }
 );
 router13.put("/cotisations/:id/pay", requireAuth, async (req, res) => {
-  const id = req.params.id;
+  const id2 = req.params.id;
   const schema = external_exports.object({ proofUrl: external_exports.string().url().optional() });
   const result = schema.safeParse(req.body);
   if (!result.success) {
@@ -65741,7 +65206,7 @@ router13.put("/cotisations/:id/pay", requireAuth, async (req, res) => {
     return;
   }
   try {
-    const [cotisation] = await db.select().from(cotisationsTable).where(eq(cotisationsTable.id, id));
+    const [cotisation] = await db.select().from(cotisationsTable).where(eq(cotisationsTable.id, id2));
     if (!cotisation) {
       res.status(404).json({ error: "Cotisation introuvable" });
       return;
@@ -65761,9 +65226,9 @@ router13.put("/cotisations/:id/pay", requireAuth, async (req, res) => {
     const isMember = req.user.role === "member";
     if (isMember && result.data.proofUrl) {
       await db.transaction(async (tx) => {
-        await tx.update(cotisationsTable).set({ status: "pending_validation" }).where(eq(cotisationsTable.id, id));
+        await tx.update(cotisationsTable).set({ status: "pending_validation" }).where(eq(cotisationsTable.id, id2));
         await tx.insert(paymentProofsTable).values({
-          cotisationId: id,
+          cotisationId: id2,
           proofUrl: result.data.proofUrl,
           uploadedById: req.user.userId,
           status: "pending"
@@ -65772,7 +65237,7 @@ router13.put("/cotisations/:id/pay", requireAuth, async (req, res) => {
       res.json({ message: "Preuve de paiement soumise, en attente de validation" });
     } else {
       const receipt = `REC-${Date.now()}`;
-      const [updated] = await db.update(cotisationsTable).set({ status: "paid", paidDate: (/* @__PURE__ */ new Date()).toISOString().split("T")[0], receipt }).where(eq(cotisationsTable.id, id)).returning();
+      const [updated] = await db.update(cotisationsTable).set({ status: "paid", paidDate: (/* @__PURE__ */ new Date()).toISOString().split("T")[0], receipt }).where(eq(cotisationsTable.id, id2)).returning();
       res.json({ data: updated, message: "Paiement enregistr\xE9", receipt });
     }
   } catch (err) {
@@ -65785,9 +65250,9 @@ router13.get(
   requireAuth,
   requireRole("super_admin", "syndicate_admin"),
   async (req, res) => {
-    const id = req.params.id;
+    const id2 = req.params.id;
     try {
-      const [cotisation] = await db.select().from(cotisationsTable).where(eq(cotisationsTable.id, id));
+      const [cotisation] = await db.select().from(cotisationsTable).where(eq(cotisationsTable.id, id2));
       if (!cotisation) {
         res.status(404).json({ error: "Cotisation introuvable" });
         return;
@@ -65796,7 +65261,7 @@ router13.get(
         res.status(403).json({ error: "Acc\xE8s refus\xE9" });
         return;
       }
-      const proofs = await db.select().from(paymentProofsTable).where(eq(paymentProofsTable.cotisationId, id)).orderBy(desc(paymentProofsTable.createdAt));
+      const proofs = await db.select().from(paymentProofsTable).where(eq(paymentProofsTable.cotisationId, id2)).orderBy(desc(paymentProofsTable.createdAt));
       res.json({ data: proofs });
     } catch (err) {
       req.log.error(err);
@@ -65809,7 +65274,7 @@ router13.put(
   requireAuth,
   requireRole("super_admin", "syndicate_admin"),
   async (req, res) => {
-    const id = req.params.id;
+    const id2 = req.params.id;
     const schema = external_exports.object({
       action: external_exports.enum(["approve", "reject"]),
       note: external_exports.string().max(500).optional()
@@ -65820,7 +65285,7 @@ router13.put(
       return;
     }
     try {
-      const [proof] = await db.select().from(paymentProofsTable).where(eq(paymentProofsTable.id, id));
+      const [proof] = await db.select().from(paymentProofsTable).where(eq(paymentProofsTable.id, id2));
       if (!proof) {
         res.status(404).json({ error: "Preuve introuvable" });
         return;
@@ -65841,7 +65306,7 @@ router13.put(
           reviewedById: req.user.userId,
           reviewNote: result.data.note,
           reviewedAt: /* @__PURE__ */ new Date()
-        }).where(eq(paymentProofsTable.id, id));
+        }).where(eq(paymentProofsTable.id, id2));
         if (approved) {
           const receipt = `REC-${Date.now()}`;
           await tx.update(cotisationsTable).set({
@@ -65856,7 +65321,7 @@ router13.put(
       await serverAuditLog(req, {
         action: approved ? "APPROVE_PROOF" : "REJECT_PROOF",
         entity: "payment_proof",
-        entityId: id,
+        entityId: id2,
         details: result.data.note
       });
       res.json({ message: approved ? "Paiement valid\xE9" : "Paiement rejet\xE9" });
@@ -65890,9 +65355,9 @@ router13.get("/alerts", requireAuth, async (req, res) => {
   }
 });
 router13.put("/alerts/:id/read", requireAuth, async (req, res) => {
-  const id = req.params.id;
+  const id2 = req.params.id;
   try {
-    const [alert] = await db.select().from(alertsTable).where(eq(alertsTable.id, id));
+    const [alert] = await db.select().from(alertsTable).where(eq(alertsTable.id, id2));
     if (!alert) {
       res.status(404).json({ error: "Alerte introuvable" });
       return;
@@ -65901,7 +65366,7 @@ router13.put("/alerts/:id/read", requireAuth, async (req, res) => {
       res.status(403).json({ error: "Acc\xE8s refus\xE9" });
       return;
     }
-    await db.insert(alertReadsTable).values({ alertId: id, userId: req.user.userId }).onConflictDoNothing();
+    await db.insert(alertReadsTable).values({ alertId: id2, userId: req.user.userId }).onConflictDoNothing();
     res.json({ message: "Alerte marqu\xE9e comme lue" });
   } catch (err) {
     req.log.error(err);
@@ -65963,7 +65428,7 @@ router13.get("/notifications/preferences", requireAuth, async (req, res) => {
   }
 });
 router13.put("/notifications/preferences/:id", requireAuth, async (req, res) => {
-  const id = req.params.id;
+  const id2 = req.params.id;
   const schema = external_exports.object({
     push: external_exports.boolean().optional(),
     email: external_exports.boolean().optional(),
@@ -65977,7 +65442,7 @@ router13.put("/notifications/preferences/:id", requireAuth, async (req, res) => 
   try {
     const [updated] = await db.update(notificationPreferencesTable).set(result.data).where(
       and(
-        eq(notificationPreferencesTable.id, id),
+        eq(notificationPreferencesTable.id, id2),
         eq(notificationPreferencesTable.userId, req.user.userId)
       )
     ).returning();
@@ -66041,7 +65506,7 @@ router13.put(
   requireAuth,
   requireRole("super_admin", "syndicate_admin"),
   async (req, res) => {
-    const id = req.params.id;
+    const id2 = req.params.id;
     const schema = external_exports.object({ status: external_exports.enum(["active", "pending", "expired"]) });
     const result = schema.safeParse(req.body);
     if (!result.success) {
@@ -66049,7 +65514,7 @@ router13.put(
       return;
     }
     try {
-      const [partner] = await db.select().from(partnersTable).where(eq(partnersTable.id, id));
+      const [partner] = await db.select().from(partnersTable).where(eq(partnersTable.id, id2));
       if (!partner) {
         res.status(404).json({ error: "Partenaire introuvable" });
         return;
@@ -66058,7 +65523,7 @@ router13.put(
         res.status(403).json({ error: "Acc\xE8s refus\xE9" });
         return;
       }
-      const [updated] = await db.update(partnersTable).set({ status: result.data.status }).where(eq(partnersTable.id, id)).returning();
+      const [updated] = await db.update(partnersTable).set({ status: result.data.status }).where(eq(partnersTable.id, id2)).returning();
       res.json({ data: updated });
     } catch (err) {
       req.log.error(err);
@@ -66134,7 +65599,7 @@ router13.get("/subscriptions", requireAuth, requireRole("super_admin"), async (r
   }
 });
 router13.put("/subscriptions/:id", requireAuth, requireRole("super_admin"), async (req, res) => {
-  const id = req.params.id;
+  const id2 = req.params.id;
   const schema = external_exports.object({
     status: external_exports.enum(["active", "trial", "suspended", "cancelled"]).optional(),
     autoRenew: external_exports.boolean().optional(),
@@ -66146,7 +65611,7 @@ router13.put("/subscriptions/:id", requireAuth, requireRole("super_admin"), asyn
     return;
   }
   try {
-    const [updated] = await db.update(syndicateSubscriptionsTable).set(result.data).where(eq(syndicateSubscriptionsTable.id, id)).returning();
+    const [updated] = await db.update(syndicateSubscriptionsTable).set(result.data).where(eq(syndicateSubscriptionsTable.id, id2)).returning();
     res.json({ data: updated, message: "Abonnement mis \xE0 jour" });
   } catch (err) {
     req.log.error(err);
@@ -66202,7 +65667,7 @@ router13.post("/announcements", requireAuth, requireRole("super_admin", "syndica
   }
 });
 router13.put("/announcements/:id", requireAuth, requireRole("super_admin", "syndicate_admin"), async (req, res) => {
-  const id = req.params.id;
+  const id2 = req.params.id;
   const schema = external_exports.object({
     title: external_exports.string().min(1).optional(),
     body: external_exports.string().min(1).optional(),
@@ -66217,7 +65682,7 @@ router13.put("/announcements/:id", requireAuth, requireRole("super_admin", "synd
     return;
   }
   try {
-    const [existing] = await db.select().from(announcementsTable).where(eq(announcementsTable.id, id));
+    const [existing] = await db.select().from(announcementsTable).where(eq(announcementsTable.id, id2));
     if (!existing) {
       res.status(404).json({ error: "Annonce introuvable" });
       return;
@@ -66227,7 +65692,7 @@ router13.put("/announcements/:id", requireAuth, requireRole("super_admin", "synd
       return;
     }
     const { expiresAt, ...rest } = result.data;
-    const [updated] = await db.update(announcementsTable).set({ ...rest, ...expiresAt !== void 0 ? { expiresAt: expiresAt ? new Date(expiresAt) : null } : {} }).where(eq(announcementsTable.id, id)).returning();
+    const [updated] = await db.update(announcementsTable).set({ ...rest, ...expiresAt !== void 0 ? { expiresAt: expiresAt ? new Date(expiresAt) : null } : {} }).where(eq(announcementsTable.id, id2)).returning();
     res.json({ data: updated, message: "Annonce mise \xE0 jour" });
   } catch (err) {
     req.log.error(err);
@@ -66235,9 +65700,9 @@ router13.put("/announcements/:id", requireAuth, requireRole("super_admin", "synd
   }
 });
 router13.delete("/announcements/:id", requireAuth, requireRole("super_admin", "syndicate_admin"), async (req, res) => {
-  const id = req.params.id;
+  const id2 = req.params.id;
   try {
-    const [existing] = await db.select().from(announcementsTable).where(eq(announcementsTable.id, id));
+    const [existing] = await db.select().from(announcementsTable).where(eq(announcementsTable.id, id2));
     if (!existing) {
       res.status(404).json({ error: "Annonce introuvable" });
       return;
@@ -66246,8 +65711,8 @@ router13.delete("/announcements/:id", requireAuth, requireRole("super_admin", "s
       res.status(403).json({ error: "Acc\xE8s refus\xE9" });
       return;
     }
-    await db.delete(announcementsTable).where(eq(announcementsTable.id, id));
-    await serverAuditLog(req, { action: "delete", entity: "announcement", entityId: id, details: `Annonce supprim\xE9e: ${existing.title}` });
+    await db.delete(announcementsTable).where(eq(announcementsTable.id, id2));
+    await serverAuditLog(req, { action: "delete", entity: "announcement", entityId: id2, details: `Annonce supprim\xE9e: ${existing.title}` });
     res.json({ message: "Annonce supprim\xE9e" });
   } catch (err) {
     req.log.error(err);
@@ -67822,23 +67287,23 @@ __membres_presents:${result.data.membresPresents}`;
 router23.post("/ag-meetings/:id/attend", requireAuth, async (req, res) => {
   try {
     const user = req.user;
-    const id = req.params.id;
+    const id2 = req.params.id;
     const existing = await db.select().from(meetingAttendeesTable).where(
       and(
-        eq(meetingAttendeesTable.meetingId, id),
+        eq(meetingAttendeesTable.meetingId, id2),
         eq(meetingAttendeesTable.userId, user.userId)
       )
     );
     if (existing.length > 0) {
       await db.delete(meetingAttendeesTable).where(
         and(
-          eq(meetingAttendeesTable.meetingId, id),
+          eq(meetingAttendeesTable.meetingId, id2),
           eq(meetingAttendeesTable.userId, user.userId)
         )
       );
       return res.json({ attending: false, message: "Pr\xE9sence annul\xE9e" });
     }
-    await db.insert(meetingAttendeesTable).values({ meetingId: id, userId: user.userId });
+    await db.insert(meetingAttendeesTable).values({ meetingId: id2, userId: user.userId });
     res.json({ attending: true, message: "Pr\xE9sence confirm\xE9e" });
   } catch (e) {
     console.error(e);

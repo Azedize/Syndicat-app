@@ -1,0 +1,7 @@
+{
+  "name": "shell-quote",
+  "version": "1.8.1",
+  "description": "Local stub replacement for shell-quote (npm registry blocked by firewall)",
+  "main": "index.js",
+  "license": "MIT"
+}

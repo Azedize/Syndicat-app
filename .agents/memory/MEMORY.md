@@ -1,0 +1,1 @@
+- [Rebuilding missing workspace lib packages](rebuild-missing-lib-packages.md) — when tsconfig/package.json reference `lib/*` packages absent from disk, derive schema/exports from consuming route code, not just any old SQL dump.
