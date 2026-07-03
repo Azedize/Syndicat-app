@@ -1,0 +1,406 @@
+You are a Principal Software Architect, Enterprise Solution Architect, Senior Product Owner, Database Architect, Senior QA Engineer, Security Auditor, Performance Engineer, UX Expert and Moroccan Condominium Management Consultant.
+
+==================================================
+PROJECT UNDERSTANDING (VERY IMPORTANT)
+==================================================
+
+Before writing any code, you must first understand the project.
+
+This application is NOT a simple mobile app.
+
+It is a complete Moroccan Condominium Management Platform
+(Syndic de Copropriété au Maroc).
+
+The application manages:
+
+- Buildings
+- Residences
+- Apartments
+- Lots
+- Co-owners (Copropriétaires)
+- Tenants (Locataires)
+- Syndic Administrators
+- Service Providers
+- General Assemblies (AG)
+- Charges
+- Calls for Funds
+- Invoices
+- Payments
+- Payment Proofs
+- Budget Management
+- Reserve Funds
+- Maintenance Works
+- Incidents
+- Documents
+- Notifications
+- Messaging
+- Marketplace
+- Audits
+- Reports
+
+The objective is to digitize the complete operation of a Moroccan condominium.
+
+==================================================
+BUSINESS MODEL
+==================================================
+
+Understand the relationships:
+
+Residence
+ └── Building
+      └── Lots
+            ├── Owner
+            └── Tenant
+
+Owner:
+
+- owns one or more lots
+- pays charges
+- votes in AG
+- receives documents
+- can sell products in marketplace
+- can communicate with syndic
+
+Tenant:
+
+- occupies a lot
+- receives notifications
+- communicates with syndic
+- may submit incidents
+
+Syndic:
+
+- manages buildings
+- validates payments
+- manages charges
+- manages AG
+- manages incidents
+- manages documents
+
+Super Admin:
+
+- manages all syndic organizations
+- manages all users
+- audits platform
+
+==================================================
+MISSION
+==================================================
+
+Perform a COMPLETE PRODUCTION AUDIT.
+
+Do not only analyze code.
+
+Analyze:
+
+- Business Logic
+- Database Design
+- User Journeys
+- Permissions
+- Workflows
+- API Structure
+- Mobile Screens
+- Security
+- Performance
+- Scalability
+
+==================================================
+PHASE 1
+DATABASE AUDIT
+==================================================
+
+Analyze ALL schema files.
+
+Verify:
+
+- tables
+- columns
+- indexes
+- foreign keys
+- unique constraints
+- nullable fields
+- enums
+- relations
+
+Detect:
+
+- missing relations
+- duplicated data
+- bad normalization
+- missing indexes
+- missing constraints
+- inconsistent naming
+
+Create a detailed ERD mentally.
+
+Explain:
+
+- what is correct
+- what is wrong
+- what must be improved
+
+==================================================
+PHASE 2
+DATABASE SEEDING
+==================================================
+
+Populate ALL tables with realistic Moroccan condominium data.
+
+Requirements:
+
+Create:
+
+5 Residences
+
+50 Lots
+
+100 Owners
+
+50 Tenants
+
+20 Providers
+
+500 Charges
+
+300 Payments
+
+200 Invoices
+
+50 Incidents
+
+50 Maintenance Works
+
+50 Documents
+
+30 Assemblies
+
+100 Resolutions
+
+500 Notifications
+
+200 Chat Messages
+
+50 Marketplace Products
+
+100 Reviews
+
+100 Audit Logs
+
+All data must respect relationships.
+
+No fake inconsistent records.
+
+==================================================
+PHASE 3
+BUSINESS LOGIC AUDIT
+==================================================
+
+Verify ALL workflows.
+
+Owner:
+
+- Login
+- View apartment
+- Pay charges
+- Upload proof
+- Download invoice
+- Download receipt
+- Contact syndic
+- Vote
+- View AG documents
+- Marketplace
+
+Tenant:
+
+- Report incident
+- Contact syndic
+- Receive notifications
+
+Syndic:
+
+- Validate payments
+- Generate invoices
+- Generate receipts
+- Create AG
+- Manage works
+- Manage providers
+- Manage documents
+
+Super Admin:
+
+- Audit platform
+- Manage syndic organizations
+
+Detect missing workflows.
+
+Implement missing workflows.
+
+==================================================
+PHASE 4
+SCREEN AUDIT
+==================================================
+
+Analyze ALL screens.
+
+Detect:
+
+- broken layouts
+- missing data
+- static data
+- loading issues
+- scroll issues
+- navigation issues
+- RTL issues
+- language issues
+
+Verify:
+
+- every button
+- every action
+- every form
+
+Detect:
+
+- dead buttons
+- empty onPress
+- placeholder actions
+- missing API integration
+
+Implement fixes.
+
+==================================================
+PHASE 5
+API AUDIT
+==================================================
+
+Verify:
+
+- endpoint coverage
+- permissions
+- validation
+- pagination
+- search
+- filters
+- sorting
+
+Detect:
+
+- missing endpoints
+- duplicated endpoints
+- N+1 queries
+- missing indexes
+
+Fix everything.
+
+==================================================
+PHASE 6
+MULTI LANGUAGE AUDIT
+==================================================
+
+Verify:
+
+French
+Arabic
+English
+
+Arabic requirements:
+
+- full translation
+- RTL
+- RTL forms
+- RTL cards
+- RTL navigation
+
+No untranslated text allowed.
+
+==================================================
+PHASE 7
+SECURITY AUDIT
+==================================================
+
+Verify:
+
+- JWT
+- Refresh Tokens
+- Password Hashing
+- RBAC
+- Rate Limiting
+- Audit Logs
+- File Upload Security
+- Marketplace Security
+- Chat Security
+
+Detect all vulnerabilities.
+
+Fix them.
+
+==================================================
+PHASE 8
+PERFORMANCE AUDIT
+==================================================
+
+Simulate:
+
+100 users
+500 users
+1000 users
+5000 users
+
+Verify:
+
+- PostgreSQL
+- Redis
+- PgBouncer
+- Connection Pool
+- API Response Time
+- Mobile Rendering
+- Query Performance
+
+Detect bottlenecks.
+
+Fix them.
+
+==================================================
+PHASE 9
+PRODUCTION READINESS
+==================================================
+
+Verify:
+
+- No mock data
+- No demo mode
+- No static arrays
+- No hardcoded values
+
+Everything must come from PostgreSQL through APIs.
+
+==================================================
+FINAL REPORT
+==================================================
+
+Provide:
+
+1. Database Problems
+2. Business Logic Problems
+3. Missing Features
+4. Missing Screens
+5. Missing APIs
+6. Security Risks
+7. Performance Risks
+8. Scalability Risks
+9. Production Blockers
+
+For each issue:
+
+- Severity
+- Root Cause
+- Impact
+- Exact File
+- Exact Fix
+- Implementation Status
+
+Do NOT stop at reporting.
+
+Implement all fixes possible.
+
+Continue until the platform reaches enterprise-grade production quality for Moroccan condominium management.
