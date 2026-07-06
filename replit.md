@@ -17,22 +17,39 @@ lib/
 
 ## Running the project
 
-Three workflows are pre-configured:
+### 1. Install dependencies (first time / after clean clone)
+
+```bash
+pnpm install
+```
+
+### 2. Set required secrets
+
+Add these in Replit Secrets before starting the API:
+
+| Secret | Required | Notes |
+|---|---|---|
+| `JWT_SECRET` | ✅ Yes | Min 32 chars — used for auth token signing |
+| `DATABASE_URL` | ✅ Yes | PostgreSQL connection string |
+| `REDIS_URL` | No | Enables Redis-backed rate limiting; falls back to in-memory |
+
+### 3. Apply the database schema
+
+```bash
+pnpm --filter @workspace/db run db:push
+# Optional: seed with sample data
+pnpm --filter @workspace/db run seed
+```
+
+### 4. Start the workflows
+
+Three workflows are pre-configured and start automatically:
 
 | Workflow | Command |
 |---|---|
 | API Server | `pnpm --filter @workspace/api-server run dev` |
 | Mobile (Expo) | `pnpm --filter @workspace/mobile run dev` |
 | Component Preview | `pnpm --filter @workspace/mockup-sandbox run dev` |
-
-### Prerequisites before starting
-
-1. **PostgreSQL** — provision a database and set `DATABASE_URL`.
-2. **Redis** — optional; set `REDIS_URL` to enable Redis-backed rate limiting (falls back to in-memory if unset).
-3. **Run migrations** — `pnpm --filter @workspace/db run db:push` then optionally seed with `pnpm --filter @workspace/db run seed`.
-4. **Secrets** — the following must be set as Replit secrets:
-   - `SESSION_SECRET` — already present
-   - `JWT_SECRET` — required for API auth token signing (min 32 characters)
 
 ## User preferences
 
