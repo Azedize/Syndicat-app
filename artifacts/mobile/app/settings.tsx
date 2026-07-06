@@ -42,12 +42,12 @@ export default function SettingsScreen() {
 
   const handleLogout = () => {
     Alert.alert(
-      "Déconnexion",
-      "Êtes-vous sûr de vouloir vous déconnecter ?",
+      t("logoutConfirmTitle"),
+      t("logoutConfirmMessage"),
       [
-        { text: "Annuler", style: "cancel" },
+        { text: t("cancel"), style: "cancel" },
         {
-          text: "Déconnecter",
+          text: t("logout"),
           style: "destructive",
           onPress: async () => {
             await logout();
@@ -59,7 +59,7 @@ export default function SettingsScreen() {
   };
 
   const initials = user?.name.split(" ").map((n) => n[0]).join("").slice(0, 2).toUpperCase() ?? "";
-  const roleLabel = user?.role === "super_admin" ? "Super Administrateur" : user?.role === "syndicate_admin" ? "Admin Syndicat" : "Membre";
+  const roleLabel = user?.role === "super_admin" ? t("superAdmin") : user?.role === "syndicate_admin" ? t("syndicateAdmin") : t("member");
 
   return (
     <View style={[styles.root, { backgroundColor: colors.background }]}>
@@ -67,7 +67,7 @@ export default function SettingsScreen() {
         <TouchableOpacity onPress={() => router.back()} style={styles.backBtn}>
           <Feather name="arrow-left" size={22} color={colors.foreground} />
         </TouchableOpacity>
-        <Text style={[styles.title, { color: colors.foreground }]}>Paramètres</Text>
+        <Text style={[styles.title, { color: colors.foreground }]}>{t("settingsTitle")}</Text>
       </View>
 
       <ScrollView
@@ -90,13 +90,13 @@ export default function SettingsScreen() {
           </View>
           <View style={styles.profileChevron}>
             <Feather name="edit-2" size={14} color="rgba(255,255,255,0.8)" />
-            <Text style={styles.profileChevronText}>Modifier</Text>
+            <Text style={styles.profileChevronText}>{t("editProfile")}</Text>
           </View>
         </TouchableOpacity>
 
         {/* Appearance */}
         <View style={styles.group}>
-          <Text style={[styles.groupTitle, { color: colors.mutedForeground }]}>APPARENCE</Text>
+          <Text style={[styles.groupTitle, { color: colors.mutedForeground }]}>{t("appearanceSection")}</Text>
           <View style={[styles.card, { backgroundColor: colors.card, borderColor: colors.border }]}>
             {/* Dark mode toggle */}
             <View style={styles.navRow}>
@@ -104,9 +104,9 @@ export default function SettingsScreen() {
                 <Feather name={isDark ? "moon" : "sun"} size={16} color={isDark ? "#f59e0b" : colors.primary} />
               </View>
               <View style={{ flex: 1 }}>
-                <Text style={[styles.navLabel, { color: colors.foreground }]}>Mode sombre</Text>
+                <Text style={[styles.navLabel, { color: colors.foreground }]}>{t("darkModeLabel")}</Text>
                 <Text style={[styles.navSub, { color: colors.mutedForeground }]}>
-                  {mode === "system" ? "Automatique (système)" : isDark ? "Activé" : "Désactivé"}
+                  {mode === "system" ? t("systemAuto") : isDark ? t("enabled") : t("disabled")}
                 </Text>
               </View>
               <Switch
@@ -125,7 +125,7 @@ export default function SettingsScreen() {
               <View style={[styles.rowIcon, { backgroundColor: colors.primary + "18" }]}>
                 <Feather name="monitor" size={16} color={colors.primary} />
               </View>
-              <Text style={[styles.navLabel, { color: colors.foreground, flex: 1 }]}>Suivre le thème du système</Text>
+              <Text style={[styles.navLabel, { color: colors.foreground, flex: 1 }]}>{t("followSystemTheme")}</Text>
               {mode === "system" ? <Feather name="check" size={18} color={colors.primary} /> : null}
             </TouchableOpacity>
           </View>
@@ -133,13 +133,13 @@ export default function SettingsScreen() {
 
         {/* Notifications */}
         <View style={styles.group}>
-          <Text style={[styles.groupTitle, { color: colors.mutedForeground }]}>NOTIFICATIONS</Text>
+          <Text style={[styles.groupTitle, { color: colors.mutedForeground }]}>{t("notificationsSection")}</Text>
           <View style={[styles.card, { backgroundColor: colors.card, borderColor: colors.border }]}>
-            <SettingRow icon="bell" label="Notifications push" sub="Alertes et actualités" value={notifications} onToggle={() => toggle(setNotifications, notifications)} colors={colors} />
+            <SettingRow icon="bell" label={t("pushNotifications")} sub={t("pushNotificationsSub")} value={notifications} onToggle={() => toggle(setNotifications, notifications)} colors={colors} />
             <View style={[styles.sep, { backgroundColor: colors.border }]} />
-            <SettingRow icon="mail" label="Notifications par email" sub="Récapitulatifs hebdomadaires" value={emailNotifs} onToggle={() => toggle(setEmailNotifs, emailNotifs)} colors={colors} />
+            <SettingRow icon="mail" label={t("emailNotifications")} sub={t("emailNotificationsSub")} value={emailNotifs} onToggle={() => toggle(setEmailNotifs, emailNotifs)} colors={colors} />
             <View style={[styles.sep, { backgroundColor: colors.border }]} />
-            <SettingRow icon="message-square" label="Notifications SMS" sub="Alertes urgentes seulement" value={smsNotifs} onToggle={() => toggle(setSmsNotifs, smsNotifs)} colors={colors} />
+            <SettingRow icon="message-square" label={t("smsNotifications")} sub={t("smsNotificationsSub")} value={smsNotifs} onToggle={() => toggle(setSmsNotifs, smsNotifs)} colors={colors} />
           </View>
         </View>
 
@@ -175,21 +175,21 @@ export default function SettingsScreen() {
 
         {/* Security */}
         <View style={styles.group}>
-          <Text style={[styles.groupTitle, { color: colors.mutedForeground }]}>SÉCURITÉ</Text>
+          <Text style={[styles.groupTitle, { color: colors.mutedForeground }]}>{t("securitySection")}</Text>
           <View style={[styles.card, { backgroundColor: colors.card, borderColor: colors.border }]}>
-            <SettingRow icon="cpu" label="Authentification biométrique" sub="Face ID / Touch ID" value={biometric} onToggle={() => toggle(setBiometric, biometric)} colors={colors} />
+            <SettingRow icon="cpu" label={t("biometricAuth")} sub="Face ID / Touch ID" value={biometric} onToggle={() => toggle(setBiometric, biometric)} colors={colors} />
             <View style={[styles.sep, { backgroundColor: colors.border }]} />
-            <SettingRow icon="shield" label="Double authentification" sub="SMS / Application" value={twoFactor} onToggle={() => toggle(setTwoFactor, twoFactor)} colors={colors} />
+            <SettingRow icon="shield" label={t("twoFactorAuth")} sub="SMS / Application" value={twoFactor} onToggle={() => toggle(setTwoFactor, twoFactor)} colors={colors} />
             <View style={[styles.sep, { backgroundColor: colors.border }]} />
-            <SettingRow icon="lock" label="Verrouillage auto" sub="Après 5 min d'inactivité" value={autoLock} onToggle={() => toggle(setAutoLock, autoLock)} colors={colors} />
+            <SettingRow icon="lock" label={t("autoLockLabel")} sub={t("autoLockSub")} value={autoLock} onToggle={() => toggle(setAutoLock, autoLock)} colors={colors} />
             <View style={[styles.sep, { backgroundColor: colors.border }]} />
             <TouchableOpacity style={styles.navRow} onPress={() => router.push("/profile" as any)}>
               <View style={[styles.rowIcon, { backgroundColor: colors.primary + "18" }]}>
                 <Feather name="key" size={16} color={colors.primary} />
               </View>
               <View style={{ flex: 1 }}>
-                <Text style={[styles.navLabel, { color: colors.foreground }]}>Changer le mot de passe</Text>
-                <Text style={[styles.navSub, { color: colors.mutedForeground }]}>Via la page profil</Text>
+                <Text style={[styles.navLabel, { color: colors.foreground }]}>{t("changePassword")}</Text>
+                <Text style={[styles.navSub, { color: colors.mutedForeground }]}>{t("viaProfilePage")}</Text>
               </View>
               <Feather name="chevron-right" size={18} color={colors.mutedForeground} />
             </TouchableOpacity>
@@ -198,13 +198,11 @@ export default function SettingsScreen() {
 
         {/* About */}
         <View style={styles.group}>
-          <Text style={[styles.groupTitle, { color: colors.mutedForeground }]}>À PROPOS</Text>
+          <Text style={[styles.groupTitle, { color: colors.mutedForeground }]}>{t("aboutSection")}</Text>
           <View style={[styles.card, { backgroundColor: colors.card, borderColor: colors.border }]}>
             {[
-              { icon: "info" as const, label: "Version de l'application", value: "2.0.0" },
-              { icon: "zap" as const, label: "Mode", value: "Démo (LocalStorage)" },
-              { icon: "server" as const, label: "Statut serveur", value: "✓ Opérationnel" },
-              { icon: "shield" as const, label: "Dernière mise à jour", value: "21 Mai 2026" },
+              { icon: "info" as const, label: t("appVersion"), value: "2.0.0" },
+              { icon: "server" as const, label: t("serverStatus"), value: t("operational") },
             ].map((item, i) => (
               <View key={item.label}>
                 {i > 0 ? <View style={[styles.sep, { backgroundColor: colors.border }]} /> : null}
@@ -223,7 +221,7 @@ export default function SettingsScreen() {
         {/* Logout */}
         <TouchableOpacity style={[styles.logoutBtn, { borderColor: colors.destructive + "50" }]} onPress={handleLogout} activeOpacity={0.7}>
           <Feather name="log-out" size={16} color={colors.destructive} />
-          <Text style={[styles.logoutText, { color: colors.destructive }]}>Se déconnecter</Text>
+          <Text style={[styles.logoutText, { color: colors.destructive }]}>{t("logout")}</Text>
         </TouchableOpacity>
       </ScrollView>
     </View>

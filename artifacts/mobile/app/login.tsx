@@ -15,42 +15,47 @@ import {
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useAuth, type UserRole } from "@/context/AuthContext";
+import { useLanguage } from "@/context/LanguageContext";
 import { useColors } from "@/hooks/useColors";
 
-const ROLES: {
+function useRoles(t: (key: string) => string): {
   role: UserRole;
   label: string;
   subtitle: string;
   icon: keyof typeof Feather.glyphMap;
   email: string;
-}[] = [
-  {
-    role: "super_admin",
-    label: "Super Admin",
-    subtitle: "Gestion globale",
-    icon: "shield",
-    email: "admin@syndycat.ma",
-  },
-  {
-    role: "syndicate_admin",
-    label: "Admin Syndicat",
-    subtitle: "Gestion du syndicat",
-    icon: "briefcase",
-    email: "syndic@andalous.ma",
-  },
-  {
-    role: "member",
-    label: "Membre",
-    subtitle: "Accès membre",
-    icon: "user",
-    email: "omar.benali@gmail.com",
-  },
-];
+}[] {
+  return [
+    {
+      role: "super_admin",
+      label: t("superAdmin"),
+      subtitle: t("superAdminDesc"),
+      icon: "shield",
+      email: "admin@syndycat.ma",
+    },
+    {
+      role: "syndicate_admin",
+      label: t("syndicateAdmin"),
+      subtitle: t("syndicateAdminDesc"),
+      icon: "briefcase",
+      email: "syndic@andalous.ma",
+    },
+    {
+      role: "member",
+      label: t("member"),
+      subtitle: t("memberDesc"),
+      icon: "user",
+      email: "omar.benali@gmail.com",
+    },
+  ];
+}
 
 export default function LoginScreen() {
   const colors = useColors();
   const insets = useSafeAreaInsets();
   const { login } = useAuth();
+  const { t } = useLanguage();
+  const ROLES = useRoles(t);
 
   const [selectedRole, setSelectedRole] = useState<UserRole>("syndicate_admin");
   const [email, setEmail] = useState(__DEV__ ? "syndic@andalous.ma" : "");
@@ -68,15 +73,15 @@ export default function LoginScreen() {
 
   const handleLogin = async () => {
     if (!email.trim()) {
-      setError("Veuillez saisir votre email.");
+      setError(t("emailRequired"));
       return;
     }
     if (!password) {
-      setError("Veuillez saisir votre mot de passe.");
+      setError(t("passwordRequired"));
       return;
     }
     if (password.length < 6) {
-      setError("Le mot de passe doit contenir au moins 6 caractères.");
+      setError(t("passwordTooShort"));
       return;
     }
     setLoading(true);
@@ -84,7 +89,7 @@ export default function LoginScreen() {
     const ok = await login(email, password);
     setLoading(false);
     if (!ok) {
-      setError("Email ou mot de passe incorrect.");
+      setError(t("invalidCredentials"));
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
     } else {
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
@@ -111,16 +116,16 @@ export default function LoginScreen() {
             <View style={[styles.logoIcon, { backgroundColor: colors.primary }]}>
               <Feather name="shield" size={32} color="#fff" />
             </View>
-            <Text style={[styles.logoTitle, { color: colors.primary }]}>SYNDYCAT</Text>
+            <Text style={[styles.logoTitle, { color: colors.primary }]}>{t("appName")}</Text>
             <Text style={[styles.logoSub, { color: colors.mutedForeground }]}>
-              Global CPS Platform
+              {t("appTagline")}
             </Text>
           </View>
 
           {/* Role selector */}
           <View style={styles.section}>
             <Text style={[styles.sectionLabel, { color: colors.foreground }]}>
-              Sélectionnez votre rôle
+              {t("selectRole")}
             </Text>
             <View style={styles.roleRow}>
               {ROLES.map((r) => {
@@ -167,10 +172,10 @@ export default function LoginScreen() {
 
           {/* Form */}
           <View style={[styles.form, { backgroundColor: colors.card, borderColor: colors.border }]}>
-            <Text style={[styles.formTitle, { color: colors.foreground }]}>Connexion</Text>
+            <Text style={[styles.formTitle, { color: colors.foreground }]}>{t("login")}</Text>
 
             <View style={styles.inputGroup}>
-              <Text style={[styles.inputLabel, { color: colors.foreground }]}>Email</Text>
+              <Text style={[styles.inputLabel, { color: colors.foreground }]}>{t("email")}</Text>
               <View
                 style={[
                   styles.inputWrap,
@@ -186,13 +191,13 @@ export default function LoginScreen() {
                   autoCapitalize="none"
                   autoCorrect={false}
                   placeholderTextColor={colors.mutedForeground}
-                  placeholder="votre@email.com"
+                  placeholder={t("emailPlaceholder")}
                 />
               </View>
             </View>
 
             <View style={styles.inputGroup}>
-              <Text style={[styles.inputLabel, { color: colors.foreground }]}>Mot de passe</Text>
+              <Text style={[styles.inputLabel, { color: colors.foreground }]}>{t("password")}</Text>
               <View
                 style={[
                   styles.inputWrap,
@@ -206,7 +211,7 @@ export default function LoginScreen() {
                   onChangeText={setPassword}
                   secureTextEntry={!showPassword}
                   placeholderTextColor={colors.mutedForeground}
-                  placeholder="••••••••"
+                  placeholder={t("passwordPlaceholder")}
                 />
                 <TouchableOpacity onPress={() => setShowPassword((p) => !p)}>
                   <Feather
@@ -238,7 +243,7 @@ export default function LoginScreen() {
                 <ActivityIndicator color="#fff" size="small" />
               ) : (
                 <>
-                  <Text style={styles.loginBtnText}>Se connecter</Text>
+                  <Text style={styles.loginBtnText}>{t("connect")}</Text>
                   <Feather name="arrow-right" size={18} color="#fff" />
                 </>
               )}
@@ -250,12 +255,12 @@ export default function LoginScreen() {
             >
               <Feather name="unlock" size={12} color={colors.mutedForeground} />
               <Text style={[styles.forgotText, { color: colors.mutedForeground }]}>
-                Mot de passe oublié ?
+                {t("forgotPassword")}
               </Text>
             </TouchableOpacity>
 
             <Text style={[styles.demoNote, { color: colors.mutedForeground }]}>
-              Mode démo — email pré-rempli selon le rôle sélectionné
+              {t("demoMode")}
             </Text>
           </View>
         </ScrollView>

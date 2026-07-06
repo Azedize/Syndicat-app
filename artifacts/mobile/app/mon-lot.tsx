@@ -174,6 +174,13 @@ export default function MonLotScreen() {
           <Text style={s.headerTitle}>Lot {lot.number}</Text>
           <Text style={s.headerSub}>{lot.buildingName ?? "Mon appartement"}</Text>
         </View>
+        <TouchableOpacity
+          style={s.supportIconBtn}
+          onPress={() => router.push("/support" as any)}
+          accessibilityLabel="Contacter le support"
+        >
+          <Feather name="headphones" size={18} color="#fff" />
+        </TouchableOpacity>
         <View style={[s.lotTypeBadge, { backgroundColor: "rgba(255,255,255,0.2)" }]}>
           <Text style={s.lotTypeBadgeText}>{TYPE_LABELS[lot.type ?? ""] ?? lot.type ?? "Logement"}</Text>
         </View>
@@ -269,6 +276,7 @@ export default function MonLotScreen() {
               {[
                 { label: "Signaler un incident", icon: "alert-triangle" as const, color: "#ef4444", route: "/sinistres" },
                 { label: "Demander une intervention", icon: "tool" as const, color: "#f59e0b", route: "/travaux" },
+                { label: "Contacter le support", icon: "headphones" as const, color: "#ef4444", route: "/support" },
                 { label: "Contacter le syndic", icon: "message-circle" as const, color: "#3b82f6", route: "/chat" },
                 { label: "Mes documents", icon: "folder" as const, color: "#6366f1", route: "/documents" },
               ].map((action) => (
@@ -384,6 +392,7 @@ const s = StyleSheet.create({
   backBtn: { width: 40, height: 40, borderRadius: 12, backgroundColor: "rgba(255,255,255,0.2)", alignItems: "center", justifyContent: "center" },
   headerTitle: { fontSize: 20, fontFamily: "Inter_700Bold", color: "#fff" },
   headerSub: { fontSize: 12, fontFamily: "Inter_400Regular", color: "rgba(255,255,255,0.8)", marginTop: 2 },
+  supportIconBtn: { width: 36, height: 36, borderRadius: 10, backgroundColor: "rgba(255,255,255,0.2)", alignItems: "center", justifyContent: "center" },
   lotTypeBadge: { paddingHorizontal: 10, paddingVertical: 4, borderRadius: 8 },
   lotTypeBadgeText: { fontSize: 11, fontFamily: "Inter_600SemiBold", color: "#fff" },
   statsStrip: { flexDirection: "row", borderBottomWidth: StyleSheet.hairlineWidth },

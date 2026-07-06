@@ -1,6 +1,7 @@
 import AsyncStorage from "@react-native-async-storage/async-storage";
+import * as Updates from "expo-updates";
 import React, { createContext, useCallback, useContext, useEffect, useState } from "react";
-import { I18nManager } from "react-native";
+import { Alert, I18nManager, Platform } from "react-native";
 
 export type LangCode = "fr" | "en" | "ar" | "es";
 
@@ -80,6 +81,41 @@ export const TRANSLATIONS: Translations = {
   recurringTasks: { fr: "Tâches Récurrentes", en: "Recurring Tasks", ar: "المهام المتكررة", es: "Tareas Recurrentes" },
   versionHistory: { fr: "Historique des Versions", en: "Version History", ar: "سجل الإصدارات", es: "Historial de Versiones" },
   paymentPrediction: { fr: "Prévisions", en: "Predictions", ar: "التنبؤات", es: "Previsiones" },
+  emailPlaceholder: { fr: "votre@email.com", en: "your@email.com", ar: "بريدك@الإلكتروني.com", es: "tu@correo.com" },
+  passwordPlaceholder: { fr: "••••••••", en: "••••••••", ar: "••••••••", es: "••••••••" },
+  forgotPassword: { fr: "Mot de passe oublié ?", en: "Forgot password?", ar: "نسيت كلمة المرور؟", es: "¿Olvidó su contraseña?" },
+  emailRequired: { fr: "Veuillez saisir votre email.", en: "Please enter your email.", ar: "الرجاء إدخال بريدك الإلكتروني.", es: "Por favor ingrese su correo." },
+  passwordRequired: { fr: "Veuillez saisir votre mot de passe.", en: "Please enter your password.", ar: "الرجاء إدخال كلمة المرور.", es: "Por favor ingrese su contraseña." },
+  passwordTooShort: { fr: "Le mot de passe doit contenir au moins 6 caractères.", en: "Password must be at least 6 characters.", ar: "يجب أن تتكون كلمة المرور من 6 أحرف على الأقل.", es: "La contraseña debe tener al menos 6 caracteres." },
+  invalidCredentials: { fr: "Email ou mot de passe incorrect.", en: "Incorrect email or password.", ar: "البريد الإلكتروني أو كلمة المرور غير صحيحة.", es: "Correo o contraseña incorrectos." },
+  settingsTitle: { fr: "Paramètres", en: "Settings", ar: "الإعدادات", es: "Ajustes" },
+  editProfile: { fr: "Modifier", en: "Edit", ar: "تعديل", es: "Editar" },
+  appearanceSection: { fr: "APPARENCE", en: "APPEARANCE", ar: "المظهر", es: "APARIENCIA" },
+  darkModeLabel: { fr: "Mode sombre", en: "Dark mode", ar: "الوضع الداكن", es: "Modo oscuro" },
+  systemAuto: { fr: "Automatique (système)", en: "Automatic (system)", ar: "تلقائي (النظام)", es: "Automático (sistema)" },
+  enabled: { fr: "Activé", en: "Enabled", ar: "مفعّل", es: "Activado" },
+  disabled: { fr: "Désactivé", en: "Disabled", ar: "معطّل", es: "Desactivado" },
+  followSystemTheme: { fr: "Suivre le thème du système", en: "Follow system theme", ar: "اتباع مظهر النظام", es: "Seguir el tema del sistema" },
+  notificationsSection: { fr: "NOTIFICATIONS", en: "NOTIFICATIONS", ar: "الإشعارات", es: "NOTIFICACIONES" },
+  pushNotifications: { fr: "Notifications push", en: "Push notifications", ar: "إشعارات فورية", es: "Notificaciones push" },
+  pushNotificationsSub: { fr: "Alertes et actualités", en: "Alerts and news", ar: "التنبيهات والأخبار", es: "Alertas y noticias" },
+  emailNotifications: { fr: "Notifications par email", en: "Email notifications", ar: "إشعارات البريد الإلكتروني", es: "Notificaciones por correo" },
+  emailNotificationsSub: { fr: "Récapitulatifs hebdomadaires", en: "Weekly summaries", ar: "ملخصات أسبوعية", es: "Resúmenes semanales" },
+  smsNotifications: { fr: "Notifications SMS", en: "SMS notifications", ar: "إشعارات الرسائل النصية", es: "Notificaciones SMS" },
+  smsNotificationsSub: { fr: "Alertes urgentes seulement", en: "Urgent alerts only", ar: "التنبيهات العاجلة فقط", es: "Solo alertas urgentes" },
+  securitySection: { fr: "SÉCURITÉ", en: "SECURITY", ar: "الأمان", es: "SEGURIDAD" },
+  biometricAuth: { fr: "Authentification biométrique", en: "Biometric authentication", ar: "المصادقة البيومترية", es: "Autenticación biométrica" },
+  twoFactorAuth: { fr: "Double authentification", en: "Two-factor authentication", ar: "المصادقة الثنائية", es: "Autenticación de dos factores" },
+  autoLockLabel: { fr: "Verrouillage auto", en: "Auto-lock", ar: "قفل تلقائي", es: "Bloqueo automático" },
+  autoLockSub: { fr: "Après 5 min d'inactivité", en: "After 5 min of inactivity", ar: "بعد 5 دقائق من عدم النشاط", es: "Tras 5 min de inactividad" },
+  changePassword: { fr: "Changer le mot de passe", en: "Change password", ar: "تغيير كلمة المرور", es: "Cambiar contraseña" },
+  viaProfilePage: { fr: "Via la page profil", en: "Via the profile page", ar: "عبر صفحة الملف الشخصي", es: "Mediante la página de perfil" },
+  aboutSection: { fr: "À PROPOS", en: "ABOUT", ar: "حول", es: "ACERCA DE" },
+  appVersion: { fr: "Version de l'application", en: "App version", ar: "إصدار التطبيق", es: "Versión de la app" },
+  serverStatus: { fr: "Statut serveur", en: "Server status", ar: "حالة الخادم", es: "Estado del servidor" },
+  operational: { fr: "✓ Opérationnel", en: "✓ Operational", ar: "✓ يعمل", es: "✓ Operativo" },
+  logoutConfirmTitle: { fr: "Déconnexion", en: "Logout", ar: "تسجيل الخروج", es: "Cerrar sesión" },
+  logoutConfirmMessage: { fr: "Êtes-vous sûr de vouloir vous déconnecter ?", en: "Are you sure you want to log out?", ar: "هل أنت متأكد أنك تريد تسجيل الخروج؟", es: "¿Está seguro de que desea cerrar sesión?" },
 };
 
 interface LanguageContextValue {
@@ -117,8 +153,31 @@ export function LanguageProvider({ children }: { children: React.ReactNode }) {
     const currentIsRTL = I18nManager.isRTL;
     setLangState(code);
     AsyncStorage.setItem(STORAGE_KEY, code).catch(() => {});
+
     if (newIsRTL !== currentIsRTL) {
+      I18nManager.allowRTL(newIsRTL);
       I18nManager.forceRTL(newIsRTL);
+
+      // Layout mirroring (RTL) only takes effect after the native app restarts.
+      // Try to reload automatically (works in production/EAS builds using expo-updates);
+      // fall back to prompting the user to restart manually (e.g. in Expo Go / dev client).
+      const attemptReload = async () => {
+        try {
+          if (Platform.OS !== "web" && Updates.reloadAsync) {
+            await Updates.reloadAsync();
+            return;
+          }
+        } catch {
+          // expo-updates is not available in this runtime (e.g. Expo Go) — fall through to manual prompt.
+        }
+        Alert.alert(
+          option?.rtl ? "إعادة التشغيل مطلوبة" : "Redémarrage requis",
+          option?.rtl
+            ? "الرجاء إغلاق التطبيق وإعادة فتحه لتطبيق اتجاه الكتابة من اليمين إلى اليسار بشكل كامل."
+            : "Veuillez fermer complètement l'application et la rouvrir pour appliquer la mise en page de droite à gauche.",
+        );
+      };
+      attemptReload();
     }
   }, []);
 

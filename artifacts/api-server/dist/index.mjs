@@ -65700,7 +65700,7 @@ router13.put(
 router13.get("/payslips", requireAuth, async (req, res) => {
   const pagination = getPagination(req);
   try {
-    const where = req.user.role === "member" ? eq(payslipsTable.employeeId, req.user.userId) : syndicateWhere(req, payslipsTable.syndicateId);
+    const where = req.user.role === "member" ? eq(payslipsTable.userId, req.user.userId) : syndicateWhere(req, payslipsTable.syndicateId);
     const [rows, [{ value: total }]] = await Promise.all([
       db.select().from(payslipsTable).where(where).orderBy(desc(payslipsTable.createdAt)).limit(pagination.limit).offset(pagination.offset),
       db.select({ value: count() }).from(payslipsTable).where(where)

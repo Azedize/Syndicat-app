@@ -630,7 +630,7 @@ router.get("/payslips", requireAuth, async (req, res) => {
   try {
     const where =
       req.user!.role === "member"
-        ? eq(payslipsTable.employeeId, req.user!.userId)
+        ? eq(payslipsTable.userId, req.user!.userId)
         : syndicateWhere(req, payslipsTable.syndicateId);
     const [rows, [{ value: total }]] = await Promise.all([
       db.select().from(payslipsTable)

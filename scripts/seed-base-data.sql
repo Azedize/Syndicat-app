@@ -96,3 +96,21 @@ INSERT INTO products (id, name, description, price, category, stock, syndicate_i
   ('0001bd04-7269-49b5-8a9c-c82db2fa4d61', 'Stylos professionnels (x10)', 'Lot de 10 stylos professionnels de qualité', 35.00, 'fournitures', 100, 'syn_sne', 'user_dir_sne', 'SNE', 'available', NOW() - '40 days'::interval),
   ('35ad45ef-d657-4261-b691-3f385fa6df55', 'Tableau blanc magnétique 60x90', 'Tableau blanc magnétique idéal pour salle de classe ou bureau', 280.00, 'materiel', 15, 'syn_sne', 'user_dir_sne', 'SNE', 'available', NOW() - '20 days'::interval)
 ON CONFLICT (id) DO NOTHING;
+
+-- Buildings, lots and members for "Mon Appartement" (co-ownership) feature
+INSERT INTO members (id, name, email, phone, profession, syndicate_id, status, cotisation_status, join_date)
+VALUES
+  ('member_mohammed', 'Mohammed Alaoui', 'mohammed.alaoui@sne.ma', '0661000001', 'Enseignant', 'syn_sne', 'active', 'pending', '2023-09-01'),
+  ('member_khadija', 'Khadija Tahiri', 'khadija.tahiri@sne.ma', '0661000002', 'Enseignante', 'syn_sne', 'active', 'pending', '2023-09-01')
+ON CONFLICT (email) DO NOTHING;
+
+INSERT INTO buildings (id, name, address, city, type, total_floors, total_lots, construction_year, syndicate_id, status)
+VALUES
+  ('bldg_andalous', 'Résidence Al Andalous', '12 Rue Ibn Sina, Agdal', 'Rabat', 'residential', 6, 24, 2015, 'syn_sne', 'active')
+ON CONFLICT (id) DO NOTHING;
+
+INSERT INTO lots (id, number, type, floor, surface_m2, tantiemes, building_id, owner_id, status, description)
+VALUES
+  ('lot_mohammed', 'A-304', 'appartement', 3, 85, 42, 'bldg_andalous', 'user_member_1', 'occupied', 'Appartement 3 pièces avec balcon'),
+  ('lot_khadija', 'B-112', 'appartement', 1, 68, 34, 'bldg_andalous', 'user_member_2', 'occupied', 'Appartement 2 pièces rez-jardin')
+ON CONFLICT (id) DO NOTHING;
