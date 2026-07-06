@@ -12,10 +12,396 @@ import {
 import { Ionicons } from "@expo/vector-icons";
 import { useRouter } from "expo-router";
 import { apiRequest } from "@/lib/api";
+import { useLanguage } from "@/context/LanguageContext";
 
 const { width: SCREEN_WIDTH } = Dimensions.get("window");
 const CHART_WIDTH = SCREEN_WIDTH - 48;
 const CHART_HEIGHT = 140;
+
+// ─── Translations ─────────────────────────────────────────────────────────────
+const STRINGS = {
+  loading: {
+    fr: "Chargement du tableau de bord…",
+    en: "Loading dashboard…",
+    ar: "جاري تحميل لوحة القيادة...",
+    es: "Cargando panel de control...",
+  },
+  headerTitle: {
+    fr: "Tableau de Bord Financier",
+    en: "Financial Dashboard",
+    ar: "لوحة القيادة المالية",
+    es: "Panel de Control Financiero",
+  },
+  recuperationRate: {
+    fr: "Taux de recouvrement",
+    en: "Recovery Rate",
+    ar: "معدل التحصيل",
+    es: "Tasa de Recuperación",
+  },
+  recoveryObjective: {
+    fr: "Objectif 90%",
+    en: "Target 90%",
+    ar: "الهدف 90%",
+    es: "Objetivo 90%",
+  },
+  called: {
+    fr: "Appelé",
+    en: "Called",
+    ar: "المطلوب",
+    es: "Llamado",
+  },
+  collected: {
+    fr: "Encaissé",
+    en: "Collected",
+    ar: "المحصل",
+    es: "Cobrado",
+  },
+  actionRequired: {
+    fr: "Action requise",
+    en: "Action Required",
+    ar: "إجراء مطلوب",
+    es: "Acción Requerida",
+  },
+  proofToValidate: {
+    fr: "Preuve à valider",
+    en: "Proof to validate",
+    ar: "إثبات للتحقق",
+    es: "Prueba a validar",
+  },
+  overdue: {
+    fr: "En retard",
+    en: "Overdue",
+    ar: "متأخر",
+    es: "Atrasado",
+  },
+  loadError: {
+    fr: "Erreur de chargement",
+    en: "Loading error",
+    ar: "خطأ في التحميل",
+    es: "Error de carga",
+  },
+  validationError: {
+    fr: "Erreur lors de la validation",
+    en: "Validation error",
+    ar: "خطأ أثناء التحقق",
+    es: "Error durante la validación",
+  },
+  finances: {
+    fr: "Finances",
+    en: "Finance",
+    ar: "المالية",
+    es: "Finanzas",
+  },
+  travaux: {
+    fr: "Travaux",
+    en: "Works",
+    ar: "الأشغال",
+    es: "Obras",
+  },
+  prestataires: {
+    fr: "Prestataires",
+    en: "Providers",
+    ar: "المزودون",
+    es: "Proveedores",
+  },
+  unpaid: {
+    fr: "Impayé",
+    en: "Unpaid",
+    ar: "غير مدفوع",
+    es: "Impago",
+  },
+  pending: {
+    fr: "En attente",
+    en: "Pending",
+    ar: "في الانتظار",
+    es: "Pendiente",
+  },
+  annualBudget: {
+    fr: "Budget annuel",
+    en: "Annual Budget",
+    ar: "الميزانية السنوية",
+    es: "Presupuesto anual",
+  },
+  reserveFund: {
+    fr: "Fonds de réserve",
+    en: "Reserve Fund",
+    ar: "صندوق الاحتياط",
+    es: "Fondo de reserva",
+  },
+  planned: {
+    fr: "prévu",
+    en: "planned",
+    ar: "مخطط",
+    es: "previsto",
+  },
+  occupiedLots: {
+    fr: "Lots occupés",
+    en: "Occupied Lots",
+    ar: "الوحدات المشغولة",
+    es: "Lotes ocupados",
+  },
+  occupationRate: {
+    fr: "taux",
+    en: "rate",
+    ar: "معدل",
+    es: "tasa",
+  },
+  callsForFunds: {
+    fr: "Appels de fonds",
+    en: "Calls for Funds",
+    ar: "طلبات المساهمة",
+    es: "Llamadas a fondos",
+  },
+  paidCount: {
+    fr: "payés",
+    en: "paid",
+    ar: "مدفوعة",
+    es: "pagados",
+  },
+  unpaidCount: {
+    fr: "impayés",
+    en: "unpaid",
+    ar: "غير مدفوعة",
+    es: "impagos",
+  },
+  paymentHistory: {
+    fr: "Historique des paiements (6 mois)",
+    en: "Payment History (6 months)",
+    ar: "سجل المدفوعات (6 أشهر)",
+    es: "Historial de pagos (6 meses)",
+  },
+  budgetDistribution: {
+    fr: "Répartition du budget",
+    en: "Budget Distribution",
+    ar: "توزيع الميزانية",
+    es: "Distribución del presupuesto",
+  },
+  totalBudget: {
+    fr: "Total budget",
+    en: "Total budget",
+    ar: "إجمالي الميزانية",
+    es: "Presupuesto total",
+  },
+  worksSummary: {
+    fr: "Résumé des travaux",
+    en: "Works Summary",
+    ar: "ملخص الأشغال",
+    es: "Resumen de obras",
+  },
+  worksInProgress: {
+    fr: "en cours",
+    en: "in progress",
+    ar: "قيد التنفيذ",
+    es: "en curso",
+  },
+  worksUrgent: {
+    fr: "urgents",
+    en: "urgent",
+    ar: "عاجل",
+    es: "urgentes",
+  },
+  spending: {
+    fr: "Dépenses",
+    en: "Spending",
+    ar: "المصاريف",
+    es: "Gastos",
+  },
+  estimated: {
+    fr: "estimé",
+    en: "estimated",
+    ar: "مقدر",
+    es: "estimado",
+  },
+  realSpending: {
+    fr: "réel",
+    en: "real",
+    ar: "فعلي",
+    es: "real",
+  },
+  activeWorks: {
+    fr: "Travaux actifs",
+    en: "Active Works",
+    ar: "الأشغال النشطة",
+    es: "Obras activas",
+  },
+  providersAndContracts: {
+    fr: "Prestataires & Contrats",
+    en: "Providers & Contracts",
+    ar: "المزودون والعقود",
+    es: "Proveedores y Contratos",
+  },
+  activeContracts: {
+    fr: "contrats actifs",
+    en: "active contracts",
+    ar: "عقود نشطة",
+    es: "contratos activos",
+  },
+  monthlyCost: {
+    fr: "coût mensuel",
+    en: "monthly cost",
+    ar: "التكلفة الشهرية",
+    es: "coste mensual",
+  },
+  activeProviderList: {
+    fr: "Liste des prestataires actifs",
+    en: "Active Provider List",
+    ar: "قائمة المزودين النشطين",
+    es: "Lista de proveedores activos",
+  },
+  providerName: {
+    fr: "PRESTATAIRE",
+    en: "PROVIDER",
+    ar: "المزود",
+    es: "PROVEEDOR",
+  },
+  contractType: {
+    fr: "TYPE",
+    en: "TYPE",
+    ar: "النوع",
+    es: "TIPO",
+  },
+  amount: {
+    fr: "MONTANT",
+    en: "AMOUNT",
+    ar: "المبلغ",
+    es: "MONTO",
+  },
+  recoveryAbbr: {
+    fr: "recouv.",
+    en: "recov.",
+    ar: "تحصيل",
+    es: "recov.",
+  },
+  annual: {
+    fr: "annuel",
+    en: "annual",
+    ar: "سنوي",
+    es: "anual",
+  },
+  endsOn: {
+    fr: "Finit le",
+    en: "Ends on",
+    ar: "ينتهي في",
+    es: "Termina el",
+  },
+  statusPlanned: {
+    fr: "Planifié",
+    en: "Planned",
+    ar: "مخطط",
+    es: "Planificado",
+  },
+  statusScheduled: {
+    fr: "Programmé",
+    en: "Scheduled",
+    ar: "مجدول",
+    es: "Programado",
+  },
+  statusInProgress: {
+    fr: "En cours",
+    en: "In progress",
+    ar: "قيد التنفيذ",
+    es: "En curso",
+  },
+  statusCompleted: {
+    fr: "Terminé",
+    en: "Completed",
+    ar: "مكتمل",
+    es: "Completado",
+  },
+  priorityUrgent: {
+    fr: "Urgent",
+    en: "Urgent",
+    ar: "عاجل",
+    es: "Urgente",
+  },
+  priorityHigh: {
+    fr: "Haute",
+    en: "High",
+    ar: "عالية",
+    es: "Alta",
+  },
+  priorityNormal: {
+    fr: "Normale",
+    en: "Normal",
+    ar: "عادية",
+    es: "Normal",
+  },
+  priorityLow: {
+    fr: "Basse",
+    en: "Low",
+    ar: "منخفضة",
+    es: "Baja",
+  },
+};
+
+const CATEGORY_STRINGS: Record<string, Record<string, string>> = {
+  nettoyage: {
+    fr: "Nettoyage",
+    en: "Cleaning",
+    ar: "التنظيف",
+    es: "Limpieza",
+  },
+  gardiennage: {
+    fr: "Gardiennage",
+    en: "Security",
+    ar: "الحراسة",
+    es: "Seguridad",
+  },
+  ascenseur: {
+    fr: "Ascenseur",
+    en: "Elevator",
+    ar: "المصعد",
+    es: "Ascensor",
+  },
+  electricite: {
+    fr: "Électricité",
+    en: "Electricity",
+    ar: "الكهرباء",
+    es: "Electricidad",
+  },
+  eau: {
+    fr: "Eau",
+    en: "Water",
+    ar: "الماء",
+    es: "Agua",
+  },
+  assurance: {
+    fr: "Assurance",
+    en: "Insurance",
+    ar: "التأمين",
+    es: "Seguro",
+  },
+  espaces_verts: {
+    fr: "Espaces verts",
+    en: "Green Spaces",
+    ar: "المساحات الخضراء",
+    es: "Zonas verdes",
+  },
+  administration: {
+    fr: "Administration",
+    en: "Administration",
+    ar: "الإدارة",
+    es: "Administración",
+  },
+  fonds_reserve: {
+    fr: "Fonds de réserve",
+    en: "Reserve Fund",
+    ar: "صندوق الاحتياط",
+    es: "Fondo de reserva",
+  },
+  entretien: {
+    fr: "Entretien",
+    en: "Maintenance",
+    ar: "الصيانة",
+    es: "Mantenimiento",
+  },
+  travaux: {
+    fr: "Travaux",
+    en: "Works",
+    ar: "الأشغال",
+    es: "Obras",
+  },
+};
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 interface BuildingQuick {
@@ -149,6 +535,30 @@ const CATEGORY_LABELS: Record<string, string> = {
   travaux: "Travaux",
 };
 
+const getCategoryLabel = (cat: string, lang: string) => {
+  return CATEGORY_STRINGS[cat]?.[lang] || CATEGORY_LABELS[cat] || cat;
+};
+
+const getStatusLabel = (status: string, lang: string) => {
+  switch (status) {
+    case "planned": return STRINGS.statusPlanned[lang as "fr"];
+    case "scheduled": return STRINGS.statusScheduled[lang as "fr"];
+    case "in_progress": return STRINGS.statusInProgress[lang as "fr"];
+    case "completed": return STRINGS.statusCompleted[lang as "fr"];
+    default: return status;
+  }
+};
+
+const getPriorityLabel = (prio: string, lang: string) => {
+  switch (prio) {
+    case "urgent": return STRINGS.priorityUrgent[lang as "fr"];
+    case "high": return STRINGS.priorityHigh[lang as "fr"];
+    case "normal": return STRINGS.priorityNormal[lang as "fr"];
+    case "low": return STRINGS.priorityLow[lang as "fr"];
+    default: return prio;
+  }
+};
+
 const PRIORITY_COLOR: Record<string, string> = {
   urgent: "#EF4444",
   high: "#F97316",
@@ -192,13 +602,14 @@ function KpiCard({
 }
 
 function RecoveryGauge({ rate }: { rate: number }) {
+  const { lang } = useLanguage();
   const color =
     rate >= 80 ? "#10B981" : rate >= 60 ? "#F59E0B" : "#EF4444";
   const barW = Math.round((CHART_WIDTH - 32) * (rate / 100));
   return (
     <View style={styles.gaugeWrap}>
       <View style={styles.gaugeRow}>
-        <Text style={styles.gaugeLabel}>Taux de recouvrement</Text>
+        <Text style={styles.gaugeLabel}>{STRINGS.recuperationRate[lang]}</Text>
         <Text style={[styles.gaugeValue, { color }]}>{rate}%</Text>
       </View>
       <View style={styles.gaugeTrack}>
@@ -208,7 +619,7 @@ function RecoveryGauge({ rate }: { rate: number }) {
       </View>
       <View style={styles.gaugeHints}>
         <Text style={styles.gaugeHint}>0%</Text>
-        <Text style={styles.gaugeHint}>Objectif 90%</Text>
+        <Text style={styles.gaugeHint}>{STRINGS.recoveryObjective[lang]}</Text>
         <Text style={styles.gaugeHint}>100%</Text>
       </View>
     </View>
@@ -216,6 +627,7 @@ function RecoveryGauge({ rate }: { rate: number }) {
 }
 
 function BarChart({ data }: { data: MonthBar[] }) {
+  const { lang } = useLanguage();
   const maxVal = Math.max(...data.map((d) => Math.max(d.due, d.paid)), 1);
   const barW = Math.floor((CHART_WIDTH - 32) / data.length - 8);
   return (
@@ -223,11 +635,11 @@ function BarChart({ data }: { data: MonthBar[] }) {
       <View style={styles.chartLegend}>
         <View style={styles.legendItem}>
           <View style={[styles.legendDot, { backgroundColor: "#E5E7EB" }]} />
-          <Text style={styles.legendLabel}>Appelé</Text>
+          <Text style={styles.legendLabel}>{STRINGS.called[lang]}</Text>
         </View>
         <View style={styles.legendItem}>
           <View style={[styles.legendDot, { backgroundColor: "#10B981" }]} />
-          <Text style={styles.legendLabel}>Encaissé</Text>
+          <Text style={styles.legendLabel}>{STRINGS.collected[lang]}</Text>
         </View>
       </View>
       <View style={styles.bars}>
@@ -312,12 +724,13 @@ function PendingActionsPanel({
   onReview: (item: PendingItem, action: "approve" | "reject") => void;
   busyId: string | null;
 }) {
+  const { lang } = useLanguage();
   if (items.length === 0) return null;
   return (
     <View style={styles.card}>
       <View style={styles.pendingHeaderRow}>
         <Ionicons name="alert-circle" size={18} color="#F97316" />
-        <Text style={styles.cardTitle}>Action requise ({items.length})</Text>
+        <Text style={styles.cardTitle}>{STRINGS.actionRequired[lang]} ({items.length})</Text>
       </View>
       {items.map((item) => {
         const isBusy = busyId === item.id;
@@ -343,7 +756,7 @@ function PendingActionsPanel({
                     { color: isValidation ? "#B45309" : "#B91C1C" },
                   ]}
                 >
-                  {isValidation ? "Preuve à valider" : "En retard"}
+                  {isValidation ? STRINGS.proofToValidate[lang] : STRINGS.overdue[lang]}
                 </Text>
               </View>
             </View>
@@ -379,6 +792,7 @@ function PendingActionsPanel({
 // ─── Main screen ──────────────────────────────────────────────────────────────
 export default function TableauBordFinancier() {
   const router = useRouter();
+  const { lang } = useLanguage();
   const [buildings, setBuildings] = useState<BuildingQuick[]>([]);
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [data, setData] = useState<DashboardData | null>(null);
@@ -401,9 +815,9 @@ export default function TableauBordFinancier() {
       const res = await apiRequest<{ data: DashboardData }>(`/finance/building/${id}`);
       setData(res.data);
     } catch (e: any) {
-      setError(e.message ?? "Erreur de chargement");
+      setError(e.message ?? STRINGS.loadError[lang]);
     }
-  }, []);
+  }, [lang]);
 
   const loadPending = useCallback(async () => {
     try {
@@ -429,7 +843,7 @@ export default function TableauBordFinancier() {
 
   useEffect(() => {
     if (selectedId) loadDashboard(selectedId);
-  }, [selectedId]);
+  }, [selectedId, loadDashboard]);
 
   const onRefresh = useCallback(async () => {
     setRefreshing(true);
@@ -447,19 +861,19 @@ export default function TableauBordFinancier() {
         setPendingItems((prev) => prev.filter((p) => p.id !== item.id));
         if (selectedId) await loadDashboard(selectedId);
       } catch (e: any) {
-        setError(e.message ?? "Erreur lors de la validation");
+        setError(e.message ?? STRINGS.validationError[lang]);
       } finally {
         setReviewBusyId(null);
       }
     },
-    [selectedId, loadDashboard],
+    [selectedId, loadDashboard, lang],
   );
 
   if (loading) {
     return (
       <View style={styles.centered}>
         <ActivityIndicator size="large" color="#3B82F6" />
-        <Text style={styles.loadingText}>Chargement du tableau de bord…</Text>
+        <Text style={styles.loadingText}>{STRINGS.loading[lang]}</Text>
       </View>
     );
   }
@@ -476,7 +890,7 @@ export default function TableauBordFinancier() {
           <Ionicons name="arrow-back" size={22} color="#fff" />
         </TouchableOpacity>
         <View>
-          <Text style={styles.headerTitle}>Tableau de Bord Financier</Text>
+          <Text style={styles.headerTitle}>{STRINGS.headerTitle[lang]}</Text>
           {data && (
             <Text style={styles.headerSub}>
               {data.building.name} · {data.building.city}

@@ -17,6 +17,7 @@ import {
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useBreakpoints } from "@/hooks/useBreakpoints";
 import { useColors } from "@/hooks/useColors";
+import { useLanguage } from "@/context/LanguageContext";
 
 type Role = "super_admin" | "syndicate_admin" | "member";
 type Status = "active" | "inactive" | "suspended" | "pending";
@@ -34,17 +35,74 @@ interface User {
   avatar: string;
 }
 
-const ROLE_CONFIG: Record<Role, { label: string; color: string; icon: keyof typeof Feather.glyphMap }> = {
-  super_admin: { label: "Super Admin", color: "#7c3aed", icon: "shield" },
-  syndicate_admin: { label: "Admin Syndicat", color: "#3b82f6", icon: "briefcase" },
-  member: { label: "Membre", color: "#10b981", icon: "user" },
+const STRINGS = {
+  superAdmin: { fr: "Super Admin", en: "Super Admin", ar: "مدير عام", es: "Super Admin" },
+  syndicateAdmin: { fr: "Admin Syndicat", en: "Syndicate Admin", ar: "مدير النقابة", es: "Admin Sindicato" },
+  member: { fr: "Membre", en: "Member", ar: "عضو", es: "Miembro" },
+  active: { fr: "Actif", en: "Active", ar: "نشط", es: "Activo" },
+  inactive: { fr: "Inactif", en: "Inactive", ar: "غير نشط", es: "Inactivo" },
+  suspended: { fr: "Suspendu", en: "Suspended", ar: "موقوف", es: "Suspendido" },
+  pending: { fr: "En attente", en: "Pending", ar: "في الانتظار", es: "Pendiente" },
+  deleteUserTitle: { fr: "Supprimer l'utilisateur", en: "Delete User", ar: "حذف المستخدم", es: "Eliminar usuario" },
+  deleteUserConfirm: { fr: "Êtes-vous sûr de vouloir supprimer {name} ?", en: "Are you sure you want to delete {name}?", ar: "هل أنت متأكد أنك تريد حذف {name}؟", es: "¿Está seguro de que desea eliminar a {name}?" },
+  cancel: { fr: "Annuler", en: "Cancel", ar: "إلغاء", es: "Cancelar" },
+  delete: { fr: "Supprimer", en: "Delete", ar: "حذف", es: "Eliminar" },
+  requiredFields: { fr: "Champs requis", en: "Required Fields", ar: "الحقول المطلوبة", es: "Campos obligatorios" },
+  nameEmailRequired: { fr: "Le nom et l'email sont obligatoires.", en: "Name and email are required.", ar: "الاسم والبريد الإلكتروني مطلوبان.", es: "El nombre y el correo electrónico son obligatorios." },
+  never: { fr: "Jamais", en: "Never", ar: "أبداً", es: "Nunca" },
+  userCreated: { fr: "Utilisateur créé", en: "User Created", ar: "تم إنشاء المستخدم", es: "Usuario creado" },
+  userAddedPending: { fr: "{name} a été ajouté avec le statut \"En attente de validation\".", en: "{name} has been added with \"Pending validation\" status.", ar: "تم إضافة {name} مع حالة \"في انتظار التحقق\".", es: "{name} ha sido añadido con el estado \"Pendiente de validación\"." },
+  all: { fr: "Tous", en: "All", ar: "الكل", es: "Todos" },
+  superAdmins: { fr: "Super Admins", en: "Super Admins", ar: "المديرون العامون", es: "Super Admins" },
+  admins: { fr: "Admins", en: "Admins", ar: "المديرون", es: "Admins" },
+  members: { fr: "Membres", en: "Members", ar: "الأعضاء", es: "Miembros" },
+  suspendedPlural: { fr: "Suspendus", en: "Suspended", ar: "الموقوفون", es: "Suspendidos" },
+  userManagement: { fr: "Gestion des Utilisateurs", en: "User Management", ar: "إدارة المستخدمين", es: "Gestión de usuarios" },
+  globalAdmin: { fr: "Administration globale de la plateforme", en: "Global platform administration", ar: "الإدارة العامة للمنصة", es: "Administración global de la plataforma" },
+  total: { fr: "Total", en: "Total", ar: "المجموع", es: "Total" },
+  activeStats: { fr: "Actifs", en: "Active", ar: "النشطون", es: "Activos" },
+  searchPlaceholder: { fr: "Rechercher par nom, email, syndicat...", en: "Search by name, email, syndicate...", ar: "البحث بالاسم ، البريد الإلكتروني ، النقابة ...", es: "Buscar por nombre, email, sindicato..." },
+  noUserFound: { fr: "Aucun utilisateur trouvé", en: "No user found", ar: "لم يتم العثور على مستخدم", es: "No se encontró ningún usuario" },
+  email: { fr: "Email", en: "Email", ar: "البريد الإلكتروني", es: "Correo electrónico" },
+  phone: { fr: "Téléphone", en: "Phone", ar: "الهاتف", es: "Teléfono" },
+  notProvided: { fr: "Non renseigné", en: "Not provided", ar: "غير محدد", es: "No proporcionado" },
+  syndicate: { fr: "Syndicat", en: "Syndicate", ar: "النقابة", es: "Sindicato" },
+  memberSince: { fr: "Membre depuis", en: "Member since", ar: "عضو منذ", es: "Miembro desde" },
+  lastLogin: { fr: "Dernière connexion", en: "Last login", ar: "آخر تسجيل دخول", es: "Último inicio de sesión" },
+  accountStatus: { fr: "Statut du compte", en: "Account Status", ar: "حالة الحساب", es: "Estado de la cuenta" },
+  role: { fr: "Rôle", en: "Role", ar: "الدور", es: "Rol" },
+  emailSent: { fr: "Email envoyé", en: "Email Sent", ar: "تم إرسال البريد الإلكتروني", es: "Email enviado" },
+  resetEmailSent: { fr: "Un lien de réinitialisation de mot de passe a été envoyé à {email}.", en: "A password reset link has been sent to {email}.", ar: "تم إرسال رابط إعادة تعيين كلمة المرور إلى {email}.", es: "Se ha enviado un enlace de restablecimiento de contraseña a {email}." },
+  resetPassword: { fr: "Réinitialiser MDP", en: "Reset Password", ar: "إعادة تعيين كلمة المرور", es: "Restablecer contraseña" },
+  newUser: { fr: "Nouvel Utilisateur", en: "New User", ar: "مستخدم جديد", es: "Nuevo usuario" },
+  create: { fr: "Créer", en: "Create", ar: "إنشاء", es: "Crear" },
+  fullName: { fr: "Nom complet *", en: "Full Name *", ar: "الاسم الكامل *", es: "Nombre completo *" },
+  fullNamePlaceholder: { fr: "Ex: Mohammed Alaoui", en: "Ex: John Doe", ar: "مثال: محمد العلوي", es: "Ej: Juan Pérez" },
+  emailPlaceholder: { fr: "Ex: m.alaoui@syndicat.ma", en: "Ex: john.doe@email.com", ar: "مثال: m.alaoui@syndicat.ma", es: "Ej: juan.perez@email.com" },
+  phonePlaceholder: { fr: "+212 6 XX XX XX XX", en: "+1 23 45 67 89", ar: "+212 6 XX XX XX XX", es: "+34 6 XX XX XX XX" },
+  lastLogin2m: { fr: "Il y a 2 min", en: "2 min ago", ar: "منذ دقيقتين", es: "Hace 2 min" },
+  lastLogin1h: { fr: "Il y a 1h", en: "1h ago", ar: "منذ ساعة", es: "Hace 1h" },
+  lastLogin3h: { fr: "Il y a 3h", en: "3h ago", ar: "منذ 3 ساعات", es: "Hace 3 horas" },
+  lastLoginYesterday: { fr: "Hier", en: "Yesterday", ar: "أمس", es: "Ayer" },
+  lastLogin2j: { fr: "Il y a 2j", en: "2d ago", ar: "منذ يومين", es: "Hace 2 días" },
+  lastLogin5h: { fr: "Il y a 5h", en: "5h ago", ar: "منذ 5 ساعات", es: "Hace 5 horas" },
+  lastLogin30j: { fr: "Il y a 30j", en: "30d ago", ar: "منذ 30 يوماً", es: "Hace 30 días" },
+  lastLogin6h: { fr: "Il y a 6h", en: "6h ago", ar: "منذ 6 ساعات", es: "Hace 6 horas" },
+  lastLogin60j: { fr: "Il y a 60j", en: "60d ago", ar: "منذ 60 يوماً", es: "Hace 60 días" },
+  lastLogin1j: { fr: "Il y a 1j", en: "1d ago", ar: "منذ يوم", es: "Hace 1 día" },
 };
 
-const STATUS_CONFIG: Record<Status, { label: string; color: string }> = {
-  active: { label: "Actif", color: "#10b981" },
-  inactive: { label: "Inactif", color: "#6b7280" },
-  suspended: { label: "Suspendu", color: "#ef4444" },
-  pending: { label: "En attente", color: "#f59e0b" },
+const ROLE_CONFIG: Record<Role, { labelKey: keyof typeof STRINGS; color: string; icon: keyof typeof Feather.glyphMap }> = {
+  super_admin: { labelKey: "superAdmin", color: "#7c3aed", icon: "shield" },
+  syndicate_admin: { labelKey: "syndicateAdmin", color: "#3b82f6", icon: "briefcase" },
+  member: { labelKey: "member", color: "#10b981", icon: "user" },
+};
+
+const STATUS_CONFIG: Record<Status, { labelKey: keyof typeof STRINGS; color: string }> = {
+  active: { labelKey: "active", color: "#10b981" },
+  inactive: { labelKey: "inactive", color: "#6b7280" },
+  suspended: { labelKey: "suspended", color: "#ef4444" },
+  pending: { labelKey: "pending", color: "#f59e0b" },
 };
 
 const SYNDICATES = [
@@ -56,18 +114,18 @@ const SYNDICATES = [
 ];
 
 const INITIAL_USERS: User[] = [
-  { id: "u1", name: "Ahmed Benali", email: "admin@syndycat.com", phone: "+212 6 61 11 22 33", role: "super_admin", status: "active", syndicate: "Plateforme Globale", joinDate: "2023-01-01", lastLogin: "Il y a 2 min", avatar: "AB" },
-  { id: "u2", name: "Fatima Zahra El Alami", email: "admin@syndicat.com", phone: "+212 6 62 33 44 55", role: "syndicate_admin", status: "active", syndicate: "SNE — Syndicat National de l'Éducation", joinDate: "2023-03-15", lastLogin: "Il y a 1h", avatar: "FZ" },
-  { id: "u3", name: "Mohammed Alaoui", email: "membre@email.com", phone: "+212 6 63 44 55 66", role: "member", status: "active", syndicate: "SNE — Syndicat National de l'Éducation", joinDate: "2023-09-01", lastLogin: "Il y a 3h", avatar: "MA" },
-  { id: "u4", name: "Nadia Benkiran", email: "n.benkiran@cdt.ma", phone: "+212 6 64 55 66 77", role: "syndicate_admin", status: "active", syndicate: "CDT — Confédération Démocratique du Travail", joinDate: "2023-04-20", lastLogin: "Hier", avatar: "NB" },
-  { id: "u5", name: "Omar Slimani", email: "o.slimani@sne.ma", phone: "+212 6 65 66 77 88", role: "member", status: "active", syndicate: "SNE — Syndicat National de l'Éducation", joinDate: "2024-01-10", lastLogin: "Il y a 2j", avatar: "OS" },
-  { id: "u6", name: "Zineb Mansour", email: "z.mansour@umt.ma", phone: "+212 6 66 77 88 99", role: "member", status: "pending", syndicate: "UMT — Union Marocaine du Travail", joinDate: "2026-05-01", lastLogin: "Jamais", avatar: "ZM" },
-  { id: "u7", name: "Rachid Amrani", email: "r.amrani@fnte.ma", phone: "+212 6 67 88 99 00", role: "syndicate_admin", status: "active", syndicate: "FNTE — Fédération Nationale des Travailleurs", joinDate: "2023-06-15", lastLogin: "Il y a 5h", avatar: "RA" },
-  { id: "u8", name: "Sanaa Benchekroun", email: "s.bench@cdt.ma", phone: "+212 6 68 99 00 11", role: "member", status: "suspended", syndicate: "CDT — Confédération Démocratique du Travail", joinDate: "2023-11-20", lastLogin: "Il y a 30j", avatar: "SB" },
-  { id: "u9", name: "Karim Zouheir", email: "k.zouheir@sne.ma", phone: "+212 6 69 00 11 22", role: "member", status: "active", syndicate: "SNE — Syndicat National de l'Éducation", joinDate: "2024-02-14", lastLogin: "Il y a 6h", avatar: "KZ" },
-  { id: "u10", name: "Laila Berrada", email: "l.berrada@umt.ma", phone: "+212 6 70 11 22 33", role: "member", status: "inactive", syndicate: "UMT — Union Marocaine du Travail", joinDate: "2022-08-30", lastLogin: "Il y a 60j", avatar: "LB" },
-  { id: "u11", name: "Hassan Berrada", email: "h.berrada@sne.ma", phone: "+212 6 71 22 33 44", role: "member", status: "active", syndicate: "SNE — Syndicat National de l'Éducation", joinDate: "2024-03-01", lastLogin: "Il y a 1j", avatar: "HB" },
-  { id: "u12", name: "Khadija Tahiri", email: "k.tahiri@fnte.ma", phone: "+212 6 72 33 44 55", role: "member", status: "pending", syndicate: "FNTE — Fédération Nationale des Travailleurs", joinDate: "2026-04-15", lastLogin: "Jamais", avatar: "KT" },
+  { id: "u1", name: "Ahmed Benali", email: "admin@syndycat.com", phone: "+212 6 61 11 22 33", role: "super_admin", status: "active", syndicate: "Plateforme Globale", joinDate: "2023-01-01", lastLogin: "lastLogin2m", avatar: "AB" },
+  { id: "u2", name: "Fatima Zahra El Alami", email: "admin@syndicat.com", phone: "+212 6 62 33 44 55", role: "syndicate_admin", status: "active", syndicate: "SNE — Syndicat National de l'Éducation", joinDate: "2023-03-15", lastLogin: "lastLogin1h", avatar: "FZ" },
+  { id: "u3", name: "Mohammed Alaoui", email: "membre@email.com", phone: "+212 6 63 44 55 66", role: "member", status: "active", syndicate: "SNE — Syndicat National de l'Éducation", joinDate: "2023-09-01", lastLogin: "lastLogin3h", avatar: "MA" },
+  { id: "u4", name: "Nadia Benkiran", email: "n.benkiran@cdt.ma", phone: "+212 6 64 55 66 77", role: "syndicate_admin", status: "active", syndicate: "CDT — Confédération Démocratique du Travail", joinDate: "2023-04-20", lastLogin: "lastLoginYesterday", avatar: "NB" },
+  { id: "u5", name: "Omar Slimani", email: "o.slimani@sne.ma", phone: "+212 6 65 66 77 88", role: "member", status: "active", syndicate: "SNE — Syndicat National de l'Éducation", joinDate: "2024-01-10", lastLogin: "lastLogin2j", avatar: "OS" },
+  { id: "u6", name: "Zineb Mansour", email: "z.mansour@umt.ma", phone: "+212 6 66 77 88 99", role: "member", status: "pending", syndicate: "UMT — Union Marocaine du Travail", joinDate: "2026-05-01", lastLogin: "never", avatar: "ZM" },
+  { id: "u7", name: "Rachid Amrani", email: "r.amrani@fnte.ma", phone: "+212 6 67 88 99 00", role: "syndicate_admin", status: "active", syndicate: "FNTE — Fédération Nationale des Travailleurs", joinDate: "2023-06-15", lastLogin: "lastLogin5h", avatar: "RA" },
+  { id: "u8", name: "Sanaa Benchekroun", email: "s.bench@cdt.ma", phone: "+212 6 68 99 00 11", role: "member", status: "suspended", syndicate: "CDT — Confédération Démocratique du Travail", joinDate: "2023-11-20", lastLogin: "lastLogin30j", avatar: "SB" },
+  { id: "u9", name: "Karim Zouheir", email: "k.zouheir@sne.ma", phone: "+212 6 69 00 11 22", role: "member", status: "active", syndicate: "SNE — Syndicat National de l'Éducation", joinDate: "2024-02-14", lastLogin: "lastLogin6h", avatar: "KZ" },
+  { id: "u10", name: "Laila Berrada", email: "l.berrada@umt.ma", phone: "+212 6 70 11 22 33", role: "member", status: "inactive", syndicate: "UMT — Union Marocaine du Travail", joinDate: "2022-08-30", lastLogin: "lastLogin60j", avatar: "LB" },
+  { id: "u11", name: "Hassan Berrada", email: "h.berrada@sne.ma", phone: "+212 6 71 22 33 44", role: "member", status: "active", syndicate: "SNE — Syndicat National de l'Éducation", joinDate: "2024-03-01", lastLogin: "lastLogin1j", avatar: "HB" },
+  { id: "u12", name: "Khadija Tahiri", email: "k.tahiri@fnte.ma", phone: "+212 6 72 33 44 55", role: "member", status: "pending", syndicate: "FNTE — Fédération Nationale des Travailleurs", joinDate: "2026-04-15", lastLogin: "never", avatar: "KT" },
 ];
 
 type TabFilter = "all" | Role | "suspended" | "pending";
@@ -76,6 +134,7 @@ export default function UtilisateursScreen() {
   const colors = useColors();
   const insets = useSafeAreaInsets();
   const { isWide } = useBreakpoints();
+  const { lang } = useLanguage();
   const topPad = isWide ? 0 : (Platform.OS === "web" ? 67 : insets.top);
 
   const [users, setUsers] = useState<User[]>(INITIAL_USERS);
@@ -119,10 +178,10 @@ export default function UtilisateursScreen() {
   };
 
   const handleDelete = (uid: string, name: string) => {
-    Alert.alert("Supprimer l'utilisateur", `Êtes-vous sûr de vouloir supprimer ${name} ?`, [
-      { text: "Annuler", style: "cancel" },
+    Alert.alert(STRINGS.deleteUserTitle[lang], STRINGS.deleteUserConfirm[lang].replace("{name}", name), [
+      { text: STRINGS.cancel[lang], style: "cancel" },
       {
-        text: "Supprimer",
+        text: STRINGS.delete[lang],
         style: "destructive",
         onPress: () => {
           Haptics.notificationAsync(Haptics.NotificationFeedbackType.Warning);
@@ -135,7 +194,7 @@ export default function UtilisateursScreen() {
 
   const handleAdd = () => {
     if (!newName.trim() || !newEmail.trim()) {
-      Alert.alert("Champs requis", "Le nom et l'email sont obligatoires.");
+      Alert.alert(STRINGS.requiredFields[lang], STRINGS.nameEmailRequired[lang]);
       return;
     }
     const newUser: User = {
@@ -147,23 +206,23 @@ export default function UtilisateursScreen() {
       status: "pending",
       syndicate: newSyndicate,
       joinDate: new Date().toISOString().split("T")[0],
-      lastLogin: "Jamais",
+      lastLogin: "never",
       avatar: newName.trim().split(" ").map((n) => n[0]).join("").slice(0, 2).toUpperCase(),
     };
     setUsers((prev) => [newUser, ...prev]);
     setShowAdd(false);
     setNewName(""); setNewEmail(""); setNewPhone(""); setNewRole("member");
     Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-    Alert.alert("Utilisateur créé", `${newUser.name} a été ajouté avec le statut "En attente de validation".`);
+    Alert.alert(STRINGS.userCreated[lang], STRINGS.userAddedPending[lang].replace("{name}", newUser.name));
   };
 
   const TABS: { key: TabFilter; label: string; count: number }[] = [
-    { key: "all", label: "Tous", count: counts.all },
-    { key: "super_admin", label: "Super Admins", count: counts.super_admin },
-    { key: "syndicate_admin", label: "Admins", count: counts.syndicate_admin },
-    { key: "member", label: "Membres", count: counts.member },
-    { key: "pending", label: "En attente", count: counts.pending },
-    { key: "suspended", label: "Suspendus", count: counts.suspended },
+    { key: "all", label: STRINGS.all[lang], count: counts.all },
+    { key: "super_admin", label: STRINGS.superAdmins[lang], count: counts.super_admin },
+    { key: "syndicate_admin", label: STRINGS.admins[lang], count: counts.syndicate_admin },
+    { key: "member", label: STRINGS.members[lang], count: counts.member },
+    { key: "pending", label: STRINGS.pending[lang], count: counts.pending },
+    { key: "suspended", label: STRINGS.suspendedPlural[lang], count: counts.suspended },
   ];
 
   return (
@@ -175,8 +234,8 @@ export default function UtilisateursScreen() {
             <Feather name="arrow-left" size={22} color="#fff" />
           </TouchableOpacity>
           <View style={{ flex: 1 }}>
-            <Text style={styles.headerTitle}>Gestion des Utilisateurs</Text>
-            <Text style={styles.headerSub}>Administration globale de la plateforme</Text>
+            <Text style={styles.headerTitle}>{STRINGS.userManagement[lang]}</Text>
+            <Text style={styles.headerSub}>{STRINGS.globalAdmin[lang]}</Text>
           </View>
           <TouchableOpacity
             style={styles.addBtn}
@@ -189,10 +248,10 @@ export default function UtilisateursScreen() {
         {/* Stats row */}
         <View style={styles.statsRow}>
           {[
-            { label: "Total", value: counts.all, color: "#fff" },
-            { label: "Actifs", value: counts.active, color: "#6ee7b7" },
-            { label: "En attente", value: counts.pending, color: "#fcd34d" },
-            { label: "Suspendus", value: counts.suspended, color: "#fca5a5" },
+            { label: STRINGS.total[lang], value: counts.all, color: "#fff" },
+            { label: STRINGS.activeStats[lang], value: counts.active, color: "#6ee7b7" },
+            { label: STRINGS.pending[lang], value: counts.pending, color: "#fcd34d" },
+            { label: STRINGS.suspendedPlural[lang], value: counts.suspended, color: "#fca5a5" },
           ].map((s) => (
             <View key={s.label} style={styles.statBox}>
               <Text style={[styles.statVal, { color: s.color }]}>{s.value}</Text>
@@ -207,7 +266,7 @@ export default function UtilisateursScreen() {
         <Feather name="search" size={16} color={colors.mutedForeground} />
         <TextInput
           style={[styles.searchInput, { color: colors.foreground }]}
-          placeholder="Rechercher par nom, email, syndicat..."
+          placeholder={STRINGS.searchPlaceholder[lang]}
           placeholderTextColor={colors.mutedForeground}
           value={search}
           onChangeText={setSearch}
@@ -250,7 +309,7 @@ export default function UtilisateursScreen() {
         ListEmptyComponent={
           <View style={styles.empty}>
             <Feather name="users" size={40} color={colors.mutedForeground} />
-            <Text style={[styles.emptyText, { color: colors.mutedForeground }]}>Aucun utilisateur trouvé</Text>
+            <Text style={[styles.emptyText, { color: colors.mutedForeground }]}>{STRINGS.noUserFound[lang]}</Text>
           </View>
         }
         renderItem={({ item: u }) => {
@@ -270,16 +329,16 @@ export default function UtilisateursScreen() {
                   <Text style={[styles.userName, { color: colors.foreground }]} numberOfLines={1}>{u.name}</Text>
                   <View style={[styles.statusBadge, { backgroundColor: statusCfg.color + "18" }]}>
                     <View style={[styles.statusDot, { backgroundColor: statusCfg.color }]} />
-                    <Text style={[styles.statusText, { color: statusCfg.color }]}>{statusCfg.label}</Text>
+                    <Text style={[styles.statusText, { color: statusCfg.color }]}>{STRINGS[statusCfg.labelKey][lang]}</Text>
                   </View>
                 </View>
                 <Text style={[styles.userEmail, { color: colors.mutedForeground }]} numberOfLines={1}>{u.email}</Text>
                 <View style={styles.cardMeta}>
                   <View style={[styles.roleBadge, { backgroundColor: roleCfg.color + "12" }]}>
                     <Feather name={roleCfg.icon} size={10} color={roleCfg.color} />
-                    <Text style={[styles.roleText, { color: roleCfg.color }]}>{roleCfg.label}</Text>
+                    <Text style={[styles.roleText, { color: roleCfg.color }]}>{STRINGS[roleCfg.labelKey][lang]}</Text>
                   </View>
-                  <Text style={[styles.lastLogin, { color: colors.mutedForeground }]}>{u.lastLogin}</Text>
+                  <Text style={[styles.lastLogin, { color: colors.mutedForeground }]}>{STRINGS[u.lastLogin as keyof typeof STRINGS] ? STRINGS[u.lastLogin as keyof typeof STRINGS][lang] : u.lastLogin}</Text>
                 </View>
                 <Text style={[styles.syndicate, { color: colors.mutedForeground }]} numberOfLines={1}>{u.syndicate}</Text>
               </View>
@@ -308,7 +367,7 @@ export default function UtilisateursScreen() {
                   <Text style={styles.modalName}>{u.name}</Text>
                   <View style={[styles.modalRoleBadge, { backgroundColor: "rgba(255,255,255,0.2)" }]}>
                     <Feather name={roleCfg.icon} size={12} color="#fff" />
-                    <Text style={styles.modalRoleText}>{roleCfg.label}</Text>
+                    <Text style={styles.modalRoleText}>{STRINGS[roleCfg.labelKey][lang]}</Text>
                   </View>
                 </View>
               </View>
@@ -316,11 +375,11 @@ export default function UtilisateursScreen() {
                 {/* Info card */}
                 <View style={[styles.infoCard, { backgroundColor: colors.card, borderColor: colors.border }]}>
                   {[
-                    { icon: "mail" as const, label: "Email", value: u.email },
-                    { icon: "phone" as const, label: "Téléphone", value: u.phone || "Non renseigné" },
-                    { icon: "briefcase" as const, label: "Syndicat", value: u.syndicate },
-                    { icon: "calendar" as const, label: "Membre depuis", value: u.joinDate },
-                    { icon: "clock" as const, label: "Dernière connexion", value: u.lastLogin },
+                    { icon: "mail" as const, label: STRINGS.email[lang], value: u.email },
+                    { icon: "phone" as const, label: STRINGS.phone[lang], value: u.phone || STRINGS.notProvided[lang] },
+                    { icon: "briefcase" as const, label: STRINGS.syndicate[lang], value: u.syndicate },
+                    { icon: "calendar" as const, label: STRINGS.memberSince[lang], value: u.joinDate },
+                    { icon: "clock" as const, label: STRINGS.lastLogin[lang], value: STRINGS[u.lastLogin as keyof typeof STRINGS] ? STRINGS[u.lastLogin as keyof typeof STRINGS][lang] : u.lastLogin },
                   ].map(({ icon, label, value }, i) => (
                     <View key={label}>
                       {i > 0 && <View style={[styles.infoSep, { backgroundColor: colors.border }]} />}
@@ -339,7 +398,7 @@ export default function UtilisateursScreen() {
 
                 {/* Status */}
                 <View style={{ gap: 8 }}>
-                  <Text style={[styles.sectionTitle, { color: colors.foreground }]}>Statut du compte</Text>
+                  <Text style={[styles.sectionTitle, { color: colors.foreground }]}>{STRINGS.accountStatus[lang]}</Text>
                   <View style={styles.statusActions}>
                     {(["active", "inactive", "suspended", "pending"] as Status[]).map((s) => {
                       const cfg = STATUS_CONFIG[s];
@@ -352,7 +411,7 @@ export default function UtilisateursScreen() {
                           }]}
                           onPress={() => handleStatusChange(u.id, s)}
                         >
-                          <Text style={[styles.statusBtnText, { color: u.status === s ? "#fff" : colors.mutedForeground }]}>{cfg.label}</Text>
+                          <Text style={[styles.statusBtnText, { color: u.status === s ? "#fff" : colors.mutedForeground }]}>{STRINGS[cfg.labelKey][lang]}</Text>
                         </TouchableOpacity>
                       );
                     })}
@@ -361,7 +420,7 @@ export default function UtilisateursScreen() {
 
                 {/* Role change */}
                 <View style={{ gap: 8 }}>
-                  <Text style={[styles.sectionTitle, { color: colors.foreground }]}>Rôle</Text>
+                  <Text style={[styles.sectionTitle, { color: colors.foreground }]}>{STRINGS.role[lang]}</Text>
                   <View style={styles.roleActions}>
                     {(["super_admin", "syndicate_admin", "member"] as Role[]).map((r) => {
                       const cfg = ROLE_CONFIG[r];
@@ -379,7 +438,7 @@ export default function UtilisateursScreen() {
                           }}
                         >
                           <Feather name={cfg.icon} size={14} color={u.role === r ? cfg.color : colors.mutedForeground} />
-                          <Text style={[styles.roleBtnText, { color: u.role === r ? cfg.color : colors.mutedForeground }]}>{cfg.label}</Text>
+                          <Text style={[styles.roleBtnText, { color: u.role === r ? cfg.color : colors.mutedForeground }]}>{STRINGS[cfg.labelKey][lang]}</Text>
                         </TouchableOpacity>
                       );
                     })}
@@ -390,17 +449,17 @@ export default function UtilisateursScreen() {
                 <View style={styles.actionBtns}>
                   <TouchableOpacity
                     style={[styles.actionBtn, { backgroundColor: "#f59e0b15", borderColor: "#f59e0b40" }]}
-                    onPress={() => { Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success); Alert.alert("Email envoyé", `Un lien de réinitialisation de mot de passe a été envoyé à ${u.email}.`); }}
+                    onPress={() => { Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success); Alert.alert(STRINGS.emailSent[lang], STRINGS.resetEmailSent[lang].replace("{email}", u.email)); }}
                   >
                     <Feather name="key" size={15} color="#f59e0b" />
-                    <Text style={[styles.actionBtnText, { color: "#f59e0b" }]}>Réinitialiser MDP</Text>
+                    <Text style={[styles.actionBtnText, { color: "#f59e0b" }]}>{STRINGS.resetPassword[lang]}</Text>
                   </TouchableOpacity>
                   <TouchableOpacity
                     style={[styles.actionBtn, { backgroundColor: "#ef444415", borderColor: "#ef444440" }]}
                     onPress={() => handleDelete(u.id, u.name)}
                   >
                     <Feather name="trash-2" size={15} color="#ef4444" />
-                    <Text style={[styles.actionBtnText, { color: "#ef4444" }]}>Supprimer</Text>
+                    <Text style={[styles.actionBtnText, { color: "#ef4444" }]}>{STRINGS.delete[lang]}</Text>
                   </TouchableOpacity>
                 </View>
               </ScrollView>
@@ -416,16 +475,16 @@ export default function UtilisateursScreen() {
             <TouchableOpacity onPress={() => setShowAdd(false)}>
               <Feather name="x" size={22} color="#fff" />
             </TouchableOpacity>
-            <Text style={styles.modalTitle}>Nouvel Utilisateur</Text>
+            <Text style={styles.modalTitle}>{STRINGS.newUser[lang]}</Text>
             <TouchableOpacity onPress={handleAdd}>
-              <Text style={styles.modalSave}>Créer</Text>
+              <Text style={styles.modalSave}>{STRINGS.create[lang]}</Text>
             </TouchableOpacity>
           </View>
           <ScrollView contentContainerStyle={{ padding: 20, gap: 16, paddingBottom: 40 }}>
             {[
-              { label: "Nom complet *", val: newName, set: setNewName, placeholder: "Ex: Mohammed Alaoui" },
-              { label: "Email *", val: newEmail, set: setNewEmail, placeholder: "Ex: m.alaoui@syndicat.ma" },
-              { label: "Téléphone", val: newPhone, set: setNewPhone, placeholder: "+212 6 XX XX XX XX" },
+              { label: STRINGS.fullName[lang], val: newName, set: setNewName, placeholder: STRINGS.fullNamePlaceholder[lang] },
+              { label: STRINGS.email[lang] + " *", val: newEmail, set: setNewEmail, placeholder: STRINGS.emailPlaceholder[lang] },
+              { label: STRINGS.phone[lang], val: newPhone, set: setNewPhone, placeholder: STRINGS.phonePlaceholder[lang] },
             ].map(({ label, val, set, placeholder }) => (
               <View key={label} style={{ gap: 6 }}>
                 <Text style={[styles.fieldLabel, { color: colors.mutedForeground }]}>{label}</Text>
@@ -440,7 +499,7 @@ export default function UtilisateursScreen() {
             ))}
 
             <View style={{ gap: 6 }}>
-              <Text style={[styles.fieldLabel, { color: colors.mutedForeground }]}>Rôle</Text>
+              <Text style={[styles.fieldLabel, { color: colors.mutedForeground }]}>{STRINGS.role[lang]}</Text>
               <View style={styles.roleActions}>
                 {(["super_admin", "syndicate_admin", "member"] as Role[]).map((r) => {
                   const cfg = ROLE_CONFIG[r];
@@ -451,12 +510,35 @@ export default function UtilisateursScreen() {
                       onPress={() => { setNewRole(r); Haptics.selectionAsync(); }}
                     >
                       <Feather name={cfg.icon} size={14} color={newRole === r ? cfg.color : colors.mutedForeground} />
-                      <Text style={[styles.roleBtnText, { color: newRole === r ? cfg.color : colors.mutedForeground }]}>{cfg.label}</Text>
+                      <Text style={[styles.roleBtnText, { color: newRole === r ? cfg.color : colors.mutedForeground }]}>{STRINGS[cfg.labelKey][lang]}</Text>
                     </TouchableOpacity>
                   );
                 })}
               </View>
             </View>
+
+            <View style={{ gap: 6 }}>
+              <Text style={[styles.fieldLabel, { color: colors.mutedForeground }]}>{STRINGS.syndicate[lang]}</Text>
+              {SYNDICATES.map((s) => (
+                <TouchableOpacity
+                  key={s}
+                  style={[styles.syndicateOption, {
+                    backgroundColor: newSyndicate === s ? colors.primary + "12" : colors.card,
+                    borderColor: newSyndicate === s ? colors.primary : colors.border,
+                  }]}
+                  onPress={() => { setNewSyndicate(s); Haptics.selectionAsync(); }}
+                >
+                  <Text style={[styles.syndicateText, { color: newSyndicate === s ? colors.primary : colors.foreground }]} numberOfLines={1}>{s}</Text>
+                  {newSyndicate === s && <Feather name="check" size={16} color={colors.primary} />}
+                </TouchableOpacity>
+              ))}
+            </View>
+          </ScrollView>
+        </View>
+      </Modal>
+    </View>
+  );
+}
 
             <View style={{ gap: 6 }}>
               <Text style={[styles.fieldLabel, { color: colors.mutedForeground }]}>Syndicat</Text>

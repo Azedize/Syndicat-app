@@ -16,8 +16,78 @@ import {
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useAuth } from "@/context/AuthContext";
+import { useLanguage } from "@/context/LanguageContext";
 import { useBreakpoints } from "@/hooks/useBreakpoints";
 import { useColors } from "@/hooks/useColors";
+
+const STRINGS = {
+  statusPending: { fr: "En attente", en: "Pending", ar: "في الانتظار", es: "Pendiente" },
+  statusInProgress: { fr: "En cours", en: "In progress", ar: "قيد التنفيذ", es: "En curso" },
+  statusApproved: { fr: "Approuvé", en: "Approved", ar: "تمت الموافقة", es: "Aprobado" },
+  statusRejected: { fr: "Rejeté", en: "Rejected", ar: "مرفوض", es: "Rechazado" },
+  statusCancelled: { fr: "Annulé", en: "Cancelled", ar: "ملغى", es: "Cancelado" },
+  priorityLow: { fr: "Faible", en: "Low", ar: "منخفضة", es: "Baja" },
+  priorityMedium: { fr: "Moyenne", en: "Medium", ar: "متوسطة", es: "Media" },
+  priorityHigh: { fr: "Haute", en: "High", ar: "عالية", es: "Alta" },
+  priorityUrgent: { fr: "Urgent", en: "Urgent", ar: "عاجل", es: "Urgente" },
+  catStatuts: { fr: "Statuts", en: "Bylaws", ar: "القوانين الأساسية", es: "Estatutos" },
+  catReglement: { fr: "Règlement Intérieur", en: "Internal Rules", ar: "النظام الداخلي", es: "Reglamento Interno" },
+  catFinance: { fr: "Finance", en: "Finance", ar: "المالية", es: "Finanzas" },
+  catJuridique: { fr: "Juridique", en: "Legal", ar: "قانوني", es: "Legal" },
+  catElection: { fr: "Election", en: "Election", ar: "انتخابات", es: "Elección" },
+  catPublication: { fr: "Publication", en: "Publication", ar: "نشر", es: "Publicación" },
+  catGouvernance: { fr: "Gouvernance", en: "Governance", ar: "الحكامة", es: "Gobernanza" },
+  stepApproveTitle: { fr: "Étape approuvée", en: "Step approved", ar: "تمت الموافقة على المرحلة", es: "Etapa aprobada" },
+  stepApproveMsg: { fr: "L'étape a été validée. La prochaine étape a été notifiée.", en: "The step has been validated. The next step has been notified.", ar: "تم التحقق من المرحلة. تم إخطار المرحلة التالية.", es: "La etapa ha sido validada. La siguiente etapa ha sido notificada." },
+  stepRejectTitle: { fr: "Étape rejetée", en: "Step rejected", ar: "تم رفض المرحلة", es: "Etapa rechazada" },
+  stepRejectMsg: { fr: "L'étape a été rejetée. L'initiateur sera informé.", en: "The step has been rejected. The initiator will be informed.", ar: "تم رفض المرحلة. سيتم إخطار المبادر.", es: "La etapa ha sido rechazada. El iniciador será informado." },
+  titleRequired: { fr: "Titre requis", en: "Title required", ar: "العنوان مطلوب", es: "Título requerido" },
+  wfCreated: { fr: "Workflow créé", en: "Workflow created", ar: "تم إنشاء سير العمل", es: "Workflow creado" },
+  wfCreatedMsg: { fr: "Le workflow a été initié et les responsables ont été notifiés.", en: "The workflow has been initiated and those responsible have been notified.", ar: "تم بدء سير العمل وتم إخطار المسؤولين.", es: "Se ha iniciado el flujo de trabajo y se ha notificado a los responsables." },
+  headerTitle: { fr: "Workflows d'Approbation", en: "Approval Workflows", ar: "سير عمل الموافقات", es: "Flujos de Trabajo de Aprobación" },
+  headerSub: { fr: "Gestion des processus multi-niveaux", en: "Multi-level process management", ar: "إدارة العمليات متعددة المستويات", es: "Gestión de procesos multinivel" },
+  statTotal: { fr: "Total", en: "Total", ar: "المجموع", es: "Total" },
+  statInProgress: { fr: "En cours", en: "In progress", ar: "قيد التنفيذ", es: "En curso" },
+  statRequired: { fr: "Approbation requise", en: "Approval required", ar: "موافقة مطلوبة", es: "Aprobación requerida" },
+  statApproved: { fr: "Approuvés", en: "Approved", ar: "المقبولة", es: "Aprobados" },
+  tabAll: { fr: "Tous", en: "All", ar: "الكل", es: "Todos" },
+  tabInProgress: { fr: "En cours", en: "In progress", ar: "قيد التنفيذ", es: "En curso" },
+  tabPending: { fr: "En attente", en: "Pending", ar: "في الانتظار", es: "Pendiente" },
+  tabApproved: { fr: "Approuvés", en: "Approved", ar: "المقبولة", es: "Aprobados" },
+  tabRejected: { fr: "Rejetés", en: "Rejected", ar: "المرفوضة", es: "Rechazados" },
+  emptyMsg: { fr: "Aucun workflow trouvé", en: "No workflow found", ar: "لم يتم العثور على سير عمل", es: "No se encontró ningún flujo de trabajo" },
+  daysLeft: { fr: "j restants", en: "days left", ar: "أيام متبقية", es: "días restantes" },
+  overdue: { fr: "Délai dépassé", en: "Overdue", ar: "تجاوز المهلة", es: "Plazo vencido" },
+  stepPrefix: { fr: "Étape", en: "Step", ar: "المرحلة", es: "Etapa" },
+  waitingOn: { fr: "En attente:", en: "Waiting for:", ar: "في انتظار:", es: "Esperando a:" },
+  workflowSteps: { fr: "Étapes du workflow", en: "Workflow steps", ar: "خطوات سير العمل", es: "Pasos del flujo de trabajo" },
+  openDoc: { fr: "Ouverture du document", en: "Opening document", ar: "فتح الوثيقة", es: "Abriendo documento" },
+  openDocMsg: { fr: "\"{{doc}}\" sera ouvert dans le visualiseur.\n\nFonctionnalité bientôt disponible dans la prochaine version.", en: "\"{{doc}}\" will be opened in the viewer.\n\nFeature coming soon in the next version.", ar: "سيتم فتح \"{{doc}}\" في العارض.\n\nستتوفر هذه الميزة قريبًا في الإصدار القادم.", es: "\"{{doc}}\" se abrirá en el visor.\n\nFunción próximamente disponible en la próxima versión." },
+  actionRequired: { fr: "Action requise", en: "Action required", ar: "إجراء مطلوب", es: "Acción requerida" },
+  waitingForValidation: { fr: "En attente de validation par:", en: "Waiting for validation by:", ar: "في انتظار التحقق من قبل:", es: "Esperando validación por:" },
+  approve: { fr: "Approuver", en: "Approve", ar: "موافقة", es: "Aprobar" },
+  reject: { fr: "Rejeter", en: "Reject", ar: "رفض", es: "Rechazar" },
+  approveStep: { fr: "✓ Approuver l'étape", en: "✓ Approve step", ar: "✓ الموافقة على المرحلة", es: "✓ Aprobar etapa" },
+  rejectStep: { fr: "✗ Rejeter l'étape", en: "✗ Reject step", ar: "✗ رفض المرحلة", es: "✗ Rechazar etapa" },
+  commentOptional: { fr: "Commentaire (optionnel)", en: "Comment (optional)", ar: "تعليق (اختياري)", es: "Comentario (opcional)" },
+  commentPlaceholder: { fr: "Ajoutez un commentaire à votre décision...", en: "Add a comment to your decision...", ar: "أضف تعليقاً على قرارك...", es: "Añada un comentario a su decisión..." },
+  cancel: { fr: "Annuler", en: "Cancel", ar: "إلغاء", es: "Cancelar" },
+  confirm: { fr: "Confirmer", en: "Confirm", ar: "تأكيد", es: "Confirmar" },
+  newWorkflow: { fr: "Nouveau Workflow", en: "New Workflow", ar: "سير عمل جديد", es: "Nuevo Flujo de Trabajo" },
+  create: { fr: "Créer", en: "Create", ar: "إنشاء", es: "Crear" },
+  titleLabel: { fr: "Titre *", en: "Title *", ar: "العنوان *", es: "Título *" },
+  titlePlaceholder: { fr: "Ex: Révision du Règlement Intérieur", en: "Ex: Internal Rules Revision", ar: "مثال: مراجعة النظام الداخلي", es: "Ej: Revisión del Reglamento Interno" },
+  categoryLabel: { fr: "Catégorie", en: "Category", ar: "الفئة", es: "Categoría" },
+  priorityLabel: { fr: "Priorité", en: "Priority", ar: "الأولوية", es: "Prioridad" },
+  descriptionLabel: { fr: "Description", en: "Description", ar: "الوصف", es: "Descripción" },
+  descriptionPlaceholder: { fr: "Décrivez l'objet et le contexte de ce workflow...", en: "Describe the purpose and context of this workflow...", ar: "صف الغرض وسياق سير العمل هذا...", es: "Describa el objeto y el contexto de este flujo de trabajo..." },
+  initiator: { fr: "Initiateur", en: "Initiator", ar: "المبادر", es: "Iniciador" },
+  admin: { fr: "Admin", en: "Admin", ar: "مدير", es: "Admin" },
+  direction: { fr: "Direction", en: "Management", ar: "الإدارة", es: "Dirección" },
+  initialValidation: { fr: "Validation initiale", en: "Initial validation", ar: "التحقق الأولي", es: "Validación inicial" },
+  directionApproval: { fr: "Approbation direction", en: "Management approval", ar: "موافقة الإدارة", es: "Aprobación dirección" },
+  publication: { fr: "Publication", en: "Publication", ar: "نشر", es: "Publicación" },
+};
 
 type WfStatus = "pending" | "in_progress" | "approved" | "rejected" | "cancelled";
 type WfPriority = "low" | "medium" | "high" | "urgent";
@@ -49,28 +119,28 @@ interface Workflow {
 }
 
 const STATUS_CONFIG: Record<WfStatus, { label: string; color: string; icon: keyof typeof Feather.glyphMap }> = {
-  pending: { label: "En attente", color: "#f59e0b", icon: "clock" },
-  in_progress: { label: "En cours", color: "#3b82f6", icon: "loader" },
-  approved: { label: "Approuvé", color: "#10b981", icon: "check-circle" },
-  rejected: { label: "Rejeté", color: "#ef4444", icon: "x-circle" },
-  cancelled: { label: "Annulé", color: "#6b7280", icon: "slash" },
+  pending: { label: "statusPending", color: "#f59e0b", icon: "clock" },
+  in_progress: { label: "statusInProgress", color: "#3b82f6", icon: "loader" },
+  approved: { label: "statusApproved", color: "#10b981", icon: "check-circle" },
+  rejected: { label: "statusRejected", color: "#ef4444", icon: "x-circle" },
+  cancelled: { label: "statusCancelled", color: "#6b7280", icon: "slash" },
 };
 
 const PRIORITY_CONFIG: Record<WfPriority, { label: string; color: string }> = {
-  low: { label: "Faible", color: "#6b7280" },
-  medium: { label: "Moyenne", color: "#3b82f6" },
-  high: { label: "Haute", color: "#f59e0b" },
-  urgent: { label: "Urgent", color: "#ef4444" },
+  low: { label: "priorityLow", color: "#6b7280" },
+  medium: { label: "priorityMedium", color: "#3b82f6" },
+  high: { label: "priorityHigh", color: "#f59e0b" },
+  urgent: { label: "priorityUrgent", color: "#ef4444" },
 };
 
 const CAT_COLORS: Record<string, string> = {
-  "Statuts": "#7c3aed",
-  "Règlement Intérieur": "#3b82f6",
-  "Finance": "#10b981",
-  "Juridique": "#ef4444",
-  "Election": "#f59e0b",
-  "Publication": "#f97316",
-  "Gouvernance": "#8b5cf6",
+  "catStatuts": "#7c3aed",
+  "catReglement": "#3b82f6",
+  "catFinance": "#10b981",
+  "catJuridique": "#ef4444",
+  "catElection": "#f59e0b",
+  "catPublication": "#f97316",
+  "catGouvernance": "#8b5cf6",
 };
 
 const INITIAL_WORKFLOWS: Workflow[] = [
@@ -172,6 +242,7 @@ type TabFilter = "all" | WfStatus;
 
 export default function WorkflowScreen() {
   const colors = useColors();
+  const { lang } = useLanguage();
   const insets = useSafeAreaInsets();
   const { user } = useAuth();
   const { isWide } = useBreakpoints();
@@ -225,13 +296,13 @@ export default function WorkflowScreen() {
     setShowApprove(false);
     setApproveComment("");
     Alert.alert(
-      isApprove ? "Étape approuvée" : "Étape rejetée",
-      isApprove ? "L'étape a été validée. La prochaine étape a été notifiée." : "L'étape a été rejetée. L'initiateur sera informé."
+      isApprove ? STRINGS.stepApproveTitle[lang] : STRINGS.stepRejectTitle[lang],
+      isApprove ? STRINGS.stepApproveMsg[lang] : STRINGS.stepRejectMsg[lang]
     );
   };
 
   const handleCreate = () => {
-    if (!newTitle.trim()) { Alert.alert("Titre requis"); return; }
+    if (!newTitle.trim()) { Alert.alert(STRINGS.titleRequired[lang]); return; }
     const newWf: Workflow = {
       id: `wf${Date.now()}`,
       title: newTitle.trim(),
@@ -239,29 +310,29 @@ export default function WorkflowScreen() {
       description: newDesc.trim(),
       status: "pending",
       priority: newPriority,
-      initiator: user?.name ?? "Administrateur",
+      initiator: user?.name ?? STRINGS.admin[lang],
       startDate: new Date().toISOString().split("T")[0],
       deadline: "",
       currentStep: 0,
       steps: [
-        { id: "s1", title: "Validation initiale", assignee: user?.name ?? "Admin", role: "Initiateur", status: "current" },
-        { id: "s2", title: "Approbation direction", assignee: "Bureau National", role: "Direction", status: "waiting" },
-        { id: "s3", title: "Publication", assignee: "Secrétariat", role: "Admin", status: "waiting" },
+        { id: "s1", title: STRINGS.initialValidation[lang], assignee: user?.name ?? STRINGS.admin[lang], role: STRINGS.initiator[lang], status: "current" },
+        { id: "s2", title: STRINGS.directionApproval[lang], assignee: STRINGS.direction[lang], role: STRINGS.direction[lang], status: "waiting" },
+        { id: "s3", title: STRINGS.publication[lang], assignee: STRINGS.admin[lang], role: STRINGS.admin[lang], status: "waiting" },
       ],
     };
     setWorkflows((prev) => [newWf, ...prev]);
     setShowCreate(false);
-    setNewTitle(""); setNewDesc(""); setNewCat("Règlement Intérieur"); setNewPriority("medium");
+    setNewTitle(""); setNewDesc(""); setNewCat("catReglement"); setNewPriority("medium");
     Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-    Alert.alert("Workflow créé", "Le workflow a été initié et les responsables ont été notifiés.");
+    Alert.alert(STRINGS.wfCreated[lang], STRINGS.wfCreatedMsg[lang]);
   };
 
-  const TABS: { key: TabFilter; label: string; count: number }[] = [
-    { key: "all", label: "Tous", count: counts.all },
-    { key: "in_progress", label: "En cours", count: counts.in_progress },
-    { key: "pending", label: "En attente", count: counts.pending },
-    { key: "approved", label: "Approuvés", count: counts.approved },
-    { key: "rejected", label: "Rejetés", count: counts.rejected },
+  const TABS: { key: TabFilter | "all"; label: string; count: number }[] = [
+    { key: "all", label: STRINGS.tabAll[lang], count: counts.all },
+    { key: "in_progress", label: STRINGS.tabInProgress[lang], count: counts.in_progress },
+    { key: "pending", label: STRINGS.tabPending[lang], count: counts.pending },
+    { key: "approved", label: STRINGS.tabApproved[lang], count: counts.approved },
+    { key: "rejected", label: STRINGS.tabRejected[lang], count: counts.rejected },
   ];
 
   return (
@@ -273,8 +344,8 @@ export default function WorkflowScreen() {
             <Feather name="arrow-left" size={22} color="#fff" />
           </TouchableOpacity>
           <View style={{ flex: 1 }}>
-            <Text style={styles.headerTitle}>Workflows d'Approbation</Text>
-            <Text style={styles.headerSub}>Gestion des processus multi-niveaux</Text>
+            <Text style={styles.headerTitle}>{STRINGS.headerTitle[lang]}</Text>
+            <Text style={styles.headerSub}>{STRINGS.headerSub[lang]}</Text>
           </View>
           <TouchableOpacity
             style={styles.addBtn}
@@ -286,10 +357,10 @@ export default function WorkflowScreen() {
 
         <View style={styles.statsRow}>
           {[
-            { label: "Total", value: counts.all, color: "#fff" },
-            { label: "En cours", value: counts.in_progress, color: "#93c5fd" },
-            { label: "Approbation requise", value: myPending, color: "#fde68a" },
-            { label: "Approuvés", value: counts.approved, color: "#6ee7b7" },
+            { label: STRINGS.statTotal[lang], value: counts.all, color: "#fff" },
+            { label: STRINGS.statInProgress[lang], value: counts.in_progress, color: "#93c5fd" },
+            { label: STRINGS.statRequired[lang], value: myPending, color: "#fde68a" },
+            { label: STRINGS.statApproved[lang], value: counts.approved, color: "#6ee7b7" },
           ].map((s) => (
             <View key={s.label} style={styles.statBox}>
               <Text style={[styles.statVal, { color: s.color }]}>{s.value}</Text>

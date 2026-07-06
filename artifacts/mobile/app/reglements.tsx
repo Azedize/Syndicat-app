@@ -16,11 +16,351 @@ import {
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useAuth } from "@/context/AuthContext";
+import { useLanguage } from "@/context/LanguageContext";
 import { useBreakpoints } from "@/hooks/useBreakpoints";
 import { useColors } from "@/hooks/useColors";
 
 type DocType = "statuts" | "ri" | "circulaire" | "charte" | "accord";
 type DocStatus = "published" | "draft" | "revision" | "archived";
+
+const STRINGS = {
+  screenTitle: {
+    fr: "Règlements & Statuts",
+    en: "Rules & Statutes",
+    ar: "اللوائح والنظم الأساسية",
+    es: "Reglamentos y Estatutos",
+  },
+  screenSub: {
+    fr: "Documents réglementaires officiels",
+    en: "Official regulatory documents",
+    ar: "الوثائق التنظيمية الرسمية",
+    es: "Documentos regulatorios oficiales",
+  },
+  published: {
+    fr: "Publiés",
+    en: "Published",
+    ar: "منشور",
+    es: "Publicado",
+  },
+  revision: {
+    fr: "En révision",
+    en: "In revision",
+    ar: "قيد المراجعة",
+    es: "En revisión",
+  },
+  downloads: {
+    fr: "Téléchargements",
+    en: "Downloads",
+    ar: "التحميلات",
+    es: "Descargas",
+  },
+  searchPlaceholder: {
+    fr: "Rechercher un règlement, statut, circulaire...",
+    en: "Search rules, statutes, circulars...",
+    ar: "البحث عن لائحة، نظام أساسي، منشور...",
+    es: "Buscar reglamento, estatuto, circular...",
+  },
+  tabAll: {
+    fr: "Tous",
+    en: "All",
+    ar: "الكل",
+    es: "Todos",
+  },
+  tabStatuts: {
+    fr: "Statuts",
+    en: "Statutes",
+    ar: "النظام الأساسي",
+    es: "Estatutos",
+  },
+  tabRI: {
+    fr: "Règl. Intérieur",
+    en: "Internal Rules",
+    ar: "النظام الداخلي",
+    es: "Regl. Interno",
+  },
+  tabCirculaires: {
+    fr: "Circulaires",
+    en: "Circulars",
+    ar: "مناشير",
+    es: "Circulares",
+  },
+  tabChartes: {
+    fr: "Chartes",
+    en: "Charters",
+    ar: "مواثيق",
+    es: "Estatutos",
+  },
+  tabAccords: {
+    fr: "Accords",
+    en: "Agreements",
+    ar: "اتفاقيات",
+    es: "Acuerdos",
+  },
+  tabRevision: {
+    fr: "En révision",
+    en: "Under Revision",
+    ar: "قيد المراجعة",
+    es: "En revisión",
+  },
+  tabHistory: {
+    fr: "Historique",
+    en: "History",
+    ar: "السجل",
+    es: "Historial",
+  },
+  historyTitle: {
+    fr: "Historique des révisions",
+    en: "Revision History",
+    ar: "سجل المراجعات",
+    es: "Historial de revisiones",
+  },
+  historySub: {
+    fr: "Toutes les versions des documents réglementaires depuis la création du syndicat.",
+    en: "All versions of regulatory documents since the union's creation.",
+    ar: "جميع نسخ الوثائق التنظيمية منذ إنشاء النقابة.",
+    es: "Todas las versiones de los documentos regulatorios desde la creación del sindicato.",
+  },
+  currentVersion: {
+    fr: "Actuelle",
+    en: "Current",
+    ar: "الحالية",
+    es: "Actual",
+  },
+  by: {
+    fr: "Par",
+    en: "By",
+    ar: "بواسطة",
+    es: "Por",
+  },
+  noDocs: {
+    fr: "Aucun document trouvé",
+    en: "No documents found",
+    ar: "لم يتم العثور على وثائق",
+    es: "No se encontraron documentos",
+  },
+  updated: {
+    fr: "Màj:",
+    en: "Updated:",
+    ar: "تحديث:",
+    es: "Act:",
+  },
+  pagesCount: {
+    fr: "pages",
+    en: "pages",
+    ar: "صفحات",
+    es: "páginas",
+  },
+  pdfAction: {
+    fr: "PDF",
+    en: "PDF",
+    ar: "PDF",
+    es: "PDF",
+  },
+  shareAction: {
+    fr: "Partager",
+    en: "Share",
+    ar: "مشاركة",
+    es: "Compartir",
+  },
+  publishAction: {
+    fr: "Publier",
+    en: "Publish",
+    ar: "نشر",
+    es: "Publicar",
+  },
+  publishSuccessTitle: {
+    fr: "Document publié",
+    en: "Document published",
+    ar: "تم نشر الوثيقة",
+    es: "Documento publicado",
+  },
+  publishSuccessMsg: {
+    fr: "Le document a été publié et est maintenant accessible à tous les membres.",
+    en: "The document has been published and is now accessible to all members.",
+    ar: "تم نشر الوثيقة وهي الآن متاحة لجميع الأعضاء.",
+    es: "El documento ha sido publicado y ahora es accesible para todos los miembros.",
+  },
+  titleRequired: {
+    fr: "Titre requis",
+    en: "Title required",
+    ar: "العنوان مطلوب",
+    es: "Título requerido",
+  },
+  createSuccessTitle: {
+    fr: "Document créé",
+    en: "Document created",
+    ar: "تم إنشاء الوثيقة",
+    es: "Documento creado",
+  },
+  createSuccessMsg: {
+    fr: "Le brouillon a été créé. Vous pouvez maintenant le compléter et le soumettre pour approbation.",
+    en: "The draft has been created. You can now complete it and submit it for approval.",
+    ar: "تم إنشاء المسودة. يمكنك الآن إكمالها وتقديمها للموافقة عليها.",
+    es: "Se ha creado el borrador. Ahora puede completarlo y enviarlo para su aprobación.",
+  },
+  adminName: {
+    fr: "Administrateur",
+    en: "Administrator",
+    ar: "المدير",
+    es: "Administrador",
+  },
+  pendingApproval: {
+    fr: "En attente",
+    en: "Pending",
+    ar: "قيد الانتظار",
+    es: "Pendiente",
+  },
+  downloadAlertTitle: {
+    fr: "Téléchargement",
+    en: "Download",
+    ar: "تحميل",
+    es: "Descargar",
+  },
+  downloadAlertMsg: {
+    fr: "téléchargé en PDF (mode démo).",
+    en: "downloaded as PDF (demo mode).",
+    ar: "تم تحميله بصيغة PDF (وضع تجريبي).",
+    es: "descargado en PDF (modo demo).",
+  },
+  shareAlertTitle: {
+    fr: "Partager",
+    en: "Share",
+    ar: "مشاركة",
+    es: "Compartir",
+  },
+  shareAlertMsg: {
+    fr: "Lien de partage copié pour",
+    en: "Share link copied for",
+    ar: "تم نسخ رابط المشاركة لـ",
+    es: "Enlace de compartir copiado para",
+  },
+  demoSuffix: {
+    fr: "(mode démo).",
+    en: "(demo mode).",
+    ar: "(وضع تجريبي).",
+    es: "(modo demo).",
+  },
+  modalNewDoc: {
+    fr: "Nouveau Document",
+    en: "New Document",
+    ar: "وثيقة جديدة",
+    es: "Nuevo Documento",
+  },
+  btnCreate: {
+    fr: "Créer",
+    en: "Create",
+    ar: "إنشاء",
+    es: "Crear",
+  },
+  fieldTitle: {
+    fr: "Titre *",
+    en: "Title *",
+    ar: "العنوان *",
+    es: "Título *",
+  },
+  fieldTitlePlaceholder: {
+    fr: "Ex: Règlement Intérieur 2026",
+    en: "Ex: Internal Rules 2026",
+    ar: "مثال: النظام الداخلي 2026",
+    es: "Ej: Reglamento Interno 2026",
+  },
+  fieldType: {
+    fr: "Type de document",
+    en: "Document type",
+    ar: "نوع الوثيقة",
+    es: "Tipo de documento",
+  },
+  fieldDesc: {
+    fr: "Description",
+    en: "Description",
+    ar: "الوصف",
+    es: "Descripción",
+  },
+  fieldDescPlaceholder: {
+    fr: "Décrivez le contenu et l'objectif de ce document...",
+    en: "Describe the content and purpose of this document...",
+    ar: "صف محتوى وهدف هذه الوثيقة...",
+    es: "Describa el contenido y el propósito de este documento...",
+  },
+  author: {
+    fr: "Auteur",
+    en: "Author",
+    ar: "المؤلف",
+    es: "Autor",
+  },
+  approvedBy: {
+    fr: "Approuvé par",
+    en: "Approved by",
+    ar: "تمت الموافقة من قبل",
+    es: "Aprobado por",
+  },
+  publicationDate: {
+    fr: "Publication",
+    en: "Publication",
+    ar: "النشر",
+    es: "Publicación",
+  },
+  lastUpdate: {
+    fr: "Dernière mise à jour",
+    en: "Last update",
+    ar: "آخر تحديث",
+    es: "Última actualización",
+  },
+  pagesLabel: {
+    fr: "Nombre de pages",
+    en: "Number of pages",
+    ar: "عدد الصفحات",
+    es: "Número de páginas",
+  },
+  notPublished: {
+    fr: "Non publié",
+    en: "Not published",
+    ar: "غير منشور",
+    es: "No publicado",
+  },
+  btnDownloadPDF: {
+    fr: "Télécharger PDF",
+    en: "Download PDF",
+    ar: "تحميل PDF",
+    es: "Descargar PDF",
+  },
+  btnPublishDoc: {
+    fr: "Publier ce document",
+    en: "Publish this document",
+    ar: "نشر هذه الوثيقة",
+    es: "Publicar este documento",
+  },
+  downloadSuccess: {
+    fr: "PDF téléchargé",
+    en: "PDF downloaded",
+    ar: "تم تحميل PDF",
+    es: "PDF descargado",
+  },
+  downloadSuccessMsg: {
+    fr: "a été sauvegardé dans vos documents.",
+    en: "has been saved in your documents.",
+    ar: "تم حفظه في مستنداتك.",
+    es: "ha sido guardado en sus documentos.",
+  },
+  linkCopied: {
+    fr: "Lien copié",
+    en: "Link copied",
+    ar: "تم نسخ الرابط",
+    es: "Enlace copiado",
+  },
+  linkCopiedMsg: {
+    fr: "Le lien de partage du document a été copié dans le presse-papiers.",
+    en: "The document share link has been copied to the clipboard.",
+    ar: "تم نسخ رابط مشاركة الوثيقة إلى الحافظة.",
+    es: "El enlace para compartir el documento se ha copiado al portapapeles.",
+  },
+  notApproved: {
+    fr: "Non approuvé",
+    en: "Not approved",
+    ar: "غير معتمد",
+    es: "No aprobado",
+  },
+};
 
 interface ReglementDoc {
   id: string;
@@ -38,20 +378,22 @@ interface ReglementDoc {
   downloads: number;
 }
 
-const TYPE_CONFIG: Record<DocType, { label: string; color: string; icon: keyof typeof Feather.glyphMap }> = {
-  statuts: { label: "Statuts", color: "#7c3aed", icon: "book-open" },
-  ri: { label: "Règlement Intérieur", color: "#3b82f6", icon: "book" },
-  circulaire: { label: "Circulaire", color: "#10b981", icon: "mail" },
-  charte: { label: "Charte", color: "#f59e0b", icon: "star" },
-  accord: { label: "Accord", color: "#ef4444", icon: "check-circle" },
+const TYPE_CONFIG: Record<DocType, { label: { [key in LangCode]: string }; color: string; icon: keyof typeof Feather.glyphMap }> = {
+  statuts: { label: STRINGS.tabStatuts, color: "#7c3aed", icon: "book-open" },
+  ri: { label: STRINGS.tabRI, color: "#3b82f6", icon: "book" },
+  circulaire: { label: STRINGS.tabCirculaires, color: "#10b981", icon: "mail" },
+  charte: { label: STRINGS.tabChartes, color: "#f59e0b", icon: "star" },
+  accord: { label: STRINGS.tabAccords, color: "#ef4444", icon: "check-circle" },
 };
 
-const STATUS_CONFIG: Record<DocStatus, { label: string; color: string }> = {
-  published: { label: "Publié", color: "#10b981" },
-  draft: { label: "Brouillon", color: "#6b7280" },
-  revision: { label: "En révision", color: "#f59e0b" },
-  archived: { label: "Archivé", color: "#9ca3af" },
+const STATUS_CONFIG: Record<DocStatus, { label: { [key in LangCode]: string }; color: string }> = {
+  published: { label: { fr: "Publié", en: "Published", ar: "منشور", es: "Publicado" }, color: "#10b981" },
+  draft: { label: { fr: "Brouillon", en: "Draft", ar: "مسودة", es: "Borrador" }, color: "#6b7280" },
+  revision: { label: { fr: "En révision", en: "In revision", ar: "قيد المراجعة", es: "En revisión" }, color: "#f59e0b" },
+  archived: { label: { fr: "Archivé", en: "Archived", ar: "مؤرشف", es: "Archivado" }, color: "#9ca3af" },
 };
+
+import { LangCode } from "@/context/LanguageContext";
 
 const INITIAL_DOCS: ReglementDoc[] = [
   {
@@ -182,6 +524,7 @@ export default function ReglementsScreen() {
   const colors = useColors();
   const insets = useSafeAreaInsets();
   const { user } = useAuth();
+  const { lang } = useLanguage();
   const { isWide } = useBreakpoints();
   const topPad = isWide ? 0 : (Platform.OS === "web" ? 67 : insets.top);
   const isAdmin = user?.role !== "member";
@@ -215,11 +558,11 @@ export default function ReglementsScreen() {
     Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
     setDocs((prev) => prev.map((d) => d.id === id ? { ...d, status: "published", publishedDate: new Date().toISOString().split("T")[0] } : d));
     if (selected?.id === id) setSelected((prev) => prev ? { ...prev, status: "published" } : null);
-    Alert.alert("Document publié", "Le document a été publié et est maintenant accessible à tous les membres.");
+    Alert.alert(STRINGS.publishSuccessTitle[lang], STRINGS.publishSuccessMsg[lang]);
   };
 
   const handleCreateDoc = () => {
-    if (!newTitle.trim()) { Alert.alert("Titre requis"); return; }
+    if (!newTitle.trim()) { Alert.alert(STRINGS.titleRequired[lang]); return; }
     const doc: ReglementDoc = {
       id: `r${Date.now()}`,
       title: newTitle.trim(),
@@ -228,8 +571,8 @@ export default function ReglementsScreen() {
       version: "v1.0-draft",
       publishedDate: "",
       updatedDate: new Date().toISOString().split("T")[0],
-      author: user?.name ?? "Administrateur",
-      approvedBy: "En attente",
+      author: user?.name ?? STRINGS.adminName[lang],
+      approvedBy: STRINGS.pendingApproval[lang],
       pages: 0,
       description: newDesc.trim(),
       tags: [newType],
@@ -239,18 +582,18 @@ export default function ReglementsScreen() {
     setShowCreate(false);
     setNewTitle(""); setNewDesc(""); setNewType("ri");
     Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-    Alert.alert("Document créé", "Le brouillon a été créé. Vous pouvez maintenant le compléter et le soumettre pour approbation.");
+    Alert.alert(STRINGS.createSuccessTitle[lang], STRINGS.createSuccessMsg[lang]);
   };
 
   const TABS: { key: TabType; label: string }[] = [
-    { key: "tous", label: "Tous" },
-    { key: "statuts", label: "Statuts" },
-    { key: "ri", label: "Règl. Intérieur" },
-    { key: "circulaire", label: "Circulaires" },
-    { key: "charte", label: "Chartes" },
-    { key: "accord", label: "Accords" },
-    ...(isAdmin ? [{ key: "revision" as TabType, label: "En révision" }] : []),
-    { key: "versions" as TabType, label: "Historique" },
+    { key: "tous", label: STRINGS.tabAll[lang] },
+    { key: "statuts", label: STRINGS.tabStatuts[lang] },
+    { key: "ri", label: STRINGS.tabRI[lang] },
+    { key: "circulaire", label: STRINGS.tabCirculaires[lang] },
+    { key: "charte", label: STRINGS.tabChartes[lang] },
+    { key: "accord", label: STRINGS.tabAccords[lang] },
+    ...(isAdmin ? [{ key: "revision" as TabType, label: STRINGS.tabRevision[lang] }] : []),
+    { key: "versions" as TabType, label: STRINGS.tabHistory[lang] },
   ];
 
   return (
@@ -262,8 +605,8 @@ export default function ReglementsScreen() {
             <Feather name="arrow-left" size={22} color="#fff" />
           </TouchableOpacity>
           <View style={{ flex: 1 }}>
-            <Text style={styles.headerTitle}>Règlements & Statuts</Text>
-            <Text style={styles.headerSub}>Documents réglementaires officiels</Text>
+            <Text style={styles.headerTitle}>{STRINGS.screenTitle[lang]}</Text>
+            <Text style={styles.headerSub}>{STRINGS.screenSub[lang]}</Text>
           </View>
           {isAdmin && (
             <TouchableOpacity style={styles.addBtn} onPress={() => { setShowCreate(true); Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium); }}>
@@ -273,9 +616,9 @@ export default function ReglementsScreen() {
         </View>
         <View style={styles.statsRow}>
           {[
-            { icon: "file-text" as const, val: publishedCount, label: "Publiés" },
-            { icon: "edit-3" as const, val: revisionCount, label: "En révision" },
-            { icon: "download" as const, val: totalDownloads, label: "Téléchargements" },
+            { icon: "file-text" as const, val: publishedCount, label: STRINGS.published[lang] },
+            { icon: "edit-3" as const, val: revisionCount, label: STRINGS.revision[lang] },
+            { icon: "download" as const, val: totalDownloads, label: STRINGS.downloads[lang] },
           ].map((s) => (
             <View key={s.label} style={styles.statBox}>
               <Feather name={s.icon} size={14} color="rgba(255,255,255,0.8)" />
@@ -291,7 +634,7 @@ export default function ReglementsScreen() {
         <Feather name="search" size={16} color={colors.mutedForeground} />
         <TextInput
           style={[styles.searchInput, { color: colors.foreground }]}
-          placeholder="Rechercher un règlement, statut, circulaire..."
+          placeholder={STRINGS.searchPlaceholder[lang]}
           placeholderTextColor={colors.mutedForeground}
           value={search}
           onChangeText={setSearch}
@@ -322,8 +665,8 @@ export default function ReglementsScreen() {
           contentContainerStyle={{ padding: 16, gap: 16, paddingBottom: insets.bottom + 40 }}
           showsVerticalScrollIndicator={false}
         >
-          <Text style={[styles.vhTitle, { color: colors.foreground }]}>Historique des révisions</Text>
-          <Text style={[styles.vhSub, { color: colors.mutedForeground }]}>Toutes les versions des documents réglementaires depuis la création du syndicat.</Text>
+          <Text style={[styles.vhTitle, { color: colors.foreground }]}>{STRINGS.historyTitle[lang]}</Text>
+          <Text style={[styles.vhSub, { color: colors.mutedForeground }]}>{STRINGS.historySub[lang]}</Text>
           {[
             {
               doc: "Statuts du Syndicat",
@@ -380,12 +723,12 @@ export default function ReglementsScreen() {
                         </View>
                         {ver.status === "current" && (
                           <View style={[styles.vhCurrentBadge, { backgroundColor: "#10b98118" }]}>
-                            <Text style={[styles.vhCurrentText, { color: "#10b981" }]}>Actuelle</Text>
+                            <Text style={[styles.vhCurrentText, { color: "#10b981" }]}>{STRINGS.currentVersion[lang]}</Text>
                           </View>
                         )}
                         <Text style={[styles.vhDate, { color: colors.mutedForeground }]}>{ver.date}</Text>
                       </View>
-                      <Text style={[styles.vhAuthor, { color: colors.mutedForeground }]}>Par {ver.author}</Text>
+                      <Text style={[styles.vhAuthor, { color: colors.mutedForeground }]}>{STRINGS.by[lang]} {ver.author}</Text>
                       <Text style={[styles.vhNote, { color: colors.foreground }]}>{ver.note}</Text>
                     </View>
                   </View>
@@ -403,7 +746,7 @@ export default function ReglementsScreen() {
         ListEmptyComponent={
           <View style={styles.empty}>
             <Feather name="book-open" size={40} color={colors.mutedForeground} />
-            <Text style={[styles.emptyText, { color: colors.mutedForeground }]}>Aucun document trouvé</Text>
+            <Text style={[styles.emptyText, { color: colors.mutedForeground }]}>{STRINGS.noDocs[lang]}</Text>
           </View>
         }
         renderItem={({ item: d }) => {
@@ -422,11 +765,11 @@ export default function ReglementsScreen() {
                 <View style={{ flex: 1, gap: 4 }}>
                   <View style={styles.docBadges}>
                     <View style={[styles.typeBadge, { backgroundColor: typeCfg.color + "15" }]}>
-                      <Text style={[styles.typeBadgeText, { color: typeCfg.color }]}>{typeCfg.label}</Text>
+                      <Text style={[styles.typeBadgeText, { color: typeCfg.color }]}>{typeCfg.label[lang]}</Text>
                     </View>
                     <View style={[styles.statusBadge, { backgroundColor: statusCfg.color + "15" }]}>
                       <View style={[styles.statusDot, { backgroundColor: statusCfg.color }]} />
-                      <Text style={[styles.statusText, { color: statusCfg.color }]}>{statusCfg.label}</Text>
+                      <Text style={[styles.statusText, { color: statusCfg.color }]}>{statusCfg.label[lang]}</Text>
                     </View>
                   </View>
                   <Text style={[styles.docTitle, { color: colors.foreground }]} numberOfLines={2}>{d.title}</Text>
@@ -446,12 +789,12 @@ export default function ReglementsScreen() {
                 ) : (
                   <View style={styles.metaItem}>
                     <Feather name="edit-3" size={11} color={colors.mutedForeground} />
-                    <Text style={[styles.metaText, { color: colors.mutedForeground }]}>Màj: {d.updatedDate}</Text>
+                    <Text style={[styles.metaText, { color: colors.mutedForeground }]}>{STRINGS.updated[lang]} {d.updatedDate}</Text>
                   </View>
                 )}
                 <View style={styles.metaItem}>
                   <Feather name="file-text" size={11} color={colors.mutedForeground} />
-                  <Text style={[styles.metaText, { color: colors.mutedForeground }]}>{d.pages} pages</Text>
+                  <Text style={[styles.metaText, { color: colors.mutedForeground }]}>{d.pages} {STRINGS.pagesCount[lang]}</Text>
                 </View>
                 {d.downloads > 0 && (
                   <View style={styles.metaItem}>
@@ -480,11 +823,11 @@ export default function ReglementsScreen() {
                   onPress={(e) => {
                     e.stopPropagation?.();
                     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-                    Alert.alert("Téléchargement", `"${d.title}" téléchargé en PDF (mode démo).`);
+                    Alert.alert(STRINGS.downloadAlertTitle[lang], `"${d.title}" ${STRINGS.downloadAlertMsg[lang]}`);
                   }}
                 >
                   <Feather name="download" size={14} color={colors.primary} />
-                  <Text style={[styles.docActionText, { color: colors.primary }]}>PDF</Text>
+                  <Text style={[styles.docActionText, { color: colors.primary }]}>{STRINGS.pdfAction[lang]}</Text>
                 </TouchableOpacity>
                 {d.status === "published" && (
                   <TouchableOpacity
@@ -492,11 +835,11 @@ export default function ReglementsScreen() {
                     onPress={(e) => {
                       e.stopPropagation?.();
                       Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-                      Alert.alert("Partager", `Lien de partage copié pour "${d.title}" (mode démo).`);
+                      Alert.alert(STRINGS.shareAlertTitle[lang], `${STRINGS.shareAlertMsg[lang]} "${d.title}" ${STRINGS.demoSuffix[lang]}`);
                     }}
                   >
                     <Feather name="share-2" size={14} color="#6366f1" />
-                    <Text style={[styles.docActionText, { color: "#6366f1" }]}>Partager</Text>
+                    <Text style={[styles.docActionText, { color: "#6366f1" }]}>{STRINGS.shareAction[lang]}</Text>
                   </TouchableOpacity>
                 )}
                 {isAdmin && (d.status === "draft" || d.status === "revision") && (
@@ -505,7 +848,7 @@ export default function ReglementsScreen() {
                     onPress={(e) => { e.stopPropagation?.(); handlePublish(d.id); }}
                   >
                     <Feather name="check-circle" size={14} color="#10b981" />
-                    <Text style={[styles.docActionText, { color: "#10b981" }]}>Publier</Text>
+                    <Text style={[styles.docActionText, { color: "#10b981" }]}>{STRINGS.publishAction[lang]}</Text>
                   </TouchableOpacity>
                 )}
               </View>

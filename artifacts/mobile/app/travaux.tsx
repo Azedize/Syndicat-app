@@ -8,33 +8,195 @@ import {
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useAuth } from "@/context/AuthContext";
+import { useLanguage } from "@/context/LanguageContext";
 import { useBreakpoints } from "@/hooks/useBreakpoints";
 import { useColors } from "@/hooks/useColors";
 import { apiRequest } from "@/lib/api";
 import FilterChips from "@/components/FilterChips";
 import StatisticsHeader from "@/components/StatisticsHeader";
 
-const PRIORITY_CONFIG: Record<string, { color: string; label: string; icon: keyof typeof Feather.glyphMap }> = {
-  urgent:  { color: "#ef4444", label: "URGENT",    icon: "alert-circle" },
-  high:    { color: "#f97316", label: "Élevée",    icon: "alert-triangle" },
-  normal:  { color: "#3b82f6", label: "Normale",   icon: "info" },
-  low:     { color: "#6b7280", label: "Faible",    icon: "minus-circle" },
+const STRINGS = {
+  screenTitle: {
+    fr: "Travaux & Interventions",
+    en: "Works & Interventions",
+    ar: "الأشغال والتدخلات",
+    es: "Obras e Intervenciones"
+  },
+  workOrder: {
+    fr: "bon",
+    en: "order",
+    ar: "طلب",
+    es: "orden"
+  },
+  workOrders: {
+    fr: "bons",
+    en: "orders",
+    ar: "طلبات",
+    es: "órdenes"
+  },
+  ofWorks: {
+    fr: "de travaux",
+    en: "of works",
+    ar: "أشغال",
+    es: "de obras"
+  },
+  total: {
+    fr: "Total",
+    en: "Total",
+    ar: "المجموع",
+    es: "Total"
+  },
+  priority: {
+    fr: "Prioritaires",
+    en: "Priority",
+    ar: "أولوية",
+    es: "Prioridad"
+  },
+  inProgress: {
+    fr: "En cours",
+    en: "In progress",
+    ar: "قيد التنفيذ",
+    es: "En curso"
+  },
+  completed: {
+    fr: "Terminés",
+    en: "Completed",
+    ar: "مكتمل",
+    es: "Completado"
+  },
+  filterAll: {
+    fr: "Tous",
+    en: "All",
+    ar: "الكل",
+    es: "Todos"
+  },
+  filterReported: {
+    fr: "Signalés",
+    en: "Reported",
+    ar: "مبلغ عنه",
+    es: "Reportado"
+  },
+  emptyList: {
+    fr: "Aucun bon de travaux",
+    en: "No work orders",
+    ar: "لا توجد طلبات أشغال",
+    es: "No hay órdenes de trabajo"
+  },
+  notAssigned: {
+    fr: "Non assigné",
+    en: "Not assigned",
+    ar: "غير معين",
+    es: "No asignado"
+  },
+  lot: {
+    fr: "Lot",
+    en: "Lot",
+    ar: "وحدة",
+    es: "Lote"
+  },
+  newWorkOrder: {
+    fr: "Nouveau Bon de Travaux",
+    en: "New Work Order",
+    ar: "طلب أشغال جديد",
+    es: "Nueva Orden de Trabajo"
+  },
+  titleLabel: {
+    fr: "Titre *",
+    en: "Title *",
+    ar: "العنوان *",
+    es: "Título *"
+  },
+  titlePlaceholder: {
+    fr: "Ex: Fuite toiture terrasse",
+    en: "Ex: Roof terrace leak",
+    ar: "مثال: تسرب في سقف الشرفة",
+    es: "Ej: Gotera en azotea"
+  },
+  descriptionLabel: {
+    fr: "Description",
+    en: "Description",
+    ar: "الوصف",
+    es: "Descripción"
+  },
+  descriptionPlaceholder: {
+    fr: "Décrivez le problème en détail...",
+    en: "Describe the problem in detail...",
+    ar: "صف المشكلة بالتفصيل...",
+    es: "Describa el problema en detalle..."
+  },
+  typeLabel: {
+    fr: "Type de travaux",
+    en: "Type of works",
+    ar: "نوع الأشغال",
+    es: "Tipo de obra"
+  },
+  priorityLabel: {
+    fr: "Priorité",
+    en: "Priority",
+    ar: "الأولوية",
+    es: "Prioridad"
+  },
+  submitBtn: {
+    fr: "Créer le bon de travaux",
+    en: "Create work order",
+    ar: "إنشاء طلب الأشغال",
+    es: "Crear orden de trabajo"
+  },
+  errorTitle: {
+    fr: "Erreur",
+    en: "Error",
+    ar: "خطأ",
+    es: "Error"
+  },
+  titleRequired: {
+    fr: "Le titre est obligatoire",
+    en: "Title is required",
+    ar: "العنوان مطلوب",
+    es: "El título es obligatorio"
+  },
+  createError: {
+    fr: "Impossible de créer le bon de travaux",
+    en: "Failed to create work order",
+    ar: "فشل في إنشاء طلب الأشغال",
+    es: "No se pudo crear la orden de trabajo"
+  },
+  priorityUrgent: { fr: "URGENT", en: "URGENT", ar: "عاجل", es: "URGENTE" },
+  priorityHigh: { fr: "Élevée", en: "High", ar: "عالية", es: "Alta" },
+  priorityNormal: { fr: "Normale", en: "Normal", ar: "عادية", es: "Normal" },
+  priorityLow: { fr: "Faible", en: "Low", ar: "منخفضة", es: "Baja" },
+  statusReported: { fr: "Signalé", en: "Reported", ar: "مبلغ عنه", es: "Reportado" },
+  statusAssigned: { fr: "Assigné", en: "Assigned", ar: "معين", es: "Asignado" },
+  statusInProgress: { fr: "En cours", en: "In progress", ar: "قيد التنفيذ", es: "En curso" },
+  statusCompleted: { fr: "Terminé", en: "Completed", ar: "مكتمل", es: "Completado" },
+  statusCancelled: { fr: "Annulé", en: "Cancelled", ar: "ملغى", es: "Cancelado" },
+  typeEntretien: { fr: "Entretien courant", en: "Routine maintenance", ar: "صيانة دورية", es: "Mantenimiento rutinario" },
+  typeReparation: { fr: "Réparation", en: "Repair", ar: "إصلاح", es: "Reparación" },
+  typeAmelioration: { fr: "Amélioration", en: "Improvement", ar: "تحسين", es: "Mejora" },
+  typeGrosTravaux: { fr: "Gros travaux", en: "Major works", ar: "أشغال كبرى", es: "Obras mayores" },
+  typeUrgence: { fr: "Urgence", en: "Emergency", ar: "طوارئ", es: "Emergencia" },
 };
 
-const STATUS_CONFIG: Record<string, { color: string; label: string }> = {
-  reported:    { color: "#f59e0b", label: "Signalé" },
-  assigned:    { color: "#3b82f6", label: "Assigné" },
-  in_progress: { color: "#7c3aed", label: "En cours" },
-  completed:   { color: "#10b981", label: "Terminé" },
-  cancelled:   { color: "#6b7280", label: "Annulé" },
+const PRIORITY_CONFIG: Record<string, { color: string; icon: keyof typeof Feather.glyphMap; stringKey: keyof typeof STRINGS }> = {
+  urgent:  { color: "#ef4444", icon: "alert-circle",   stringKey: "priorityUrgent" },
+  high:    { color: "#f97316", icon: "alert-triangle", stringKey: "priorityHigh" },
+  normal:  { color: "#3b82f6", icon: "info",           stringKey: "priorityNormal" },
+  low:     { color: "#6b7280", icon: "minus-circle",   stringKey: "priorityLow" },
 };
 
-const TYPE_LABELS: Record<string, string> = {
-  entretien:     "Entretien courant",
-  reparation:    "Réparation",
-  amelioration:  "Amélioration",
-  gros_travaux:  "Gros travaux",
-  urgence:       "Urgence",
+const STATUS_CONFIG: Record<string, { color: string; stringKey: keyof typeof STRINGS }> = {
+  reported:    { color: "#f59e0b", stringKey: "statusReported" },
+  assigned:    { color: "#3b82f6", stringKey: "statusAssigned" },
+  in_progress: { color: "#7c3aed", stringKey: "statusInProgress" },
+  completed:   { color: "#10b981", stringKey: "statusCompleted" },
+  cancelled:   { color: "#6b7280", stringKey: "statusCancelled" },
+};
+
+const TYPE_CONFIG: Record<string, keyof typeof STRINGS> = {
+  entretien:     "typeEntretien",
+  reparation:    "typeReparation",
+  amelioration:  "typeAmelioration",
+  gros_travaux:  "typeGrosTravaux",
+  urgence:       "typeUrgence",
 };
 
 type Travail = {
@@ -59,6 +221,7 @@ export default function TravauxScreen() {
   const colors = useColors();
   const insets = useSafeAreaInsets();
   const { user, token } = useAuth();
+  const { lang } = useLanguage();
   const { isWide } = useBreakpoints();
 
   const [travaux, setTravaux] = useState<Travail[]>([]);
@@ -87,7 +250,7 @@ export default function TravauxScreen() {
 
   const handleSubmit = async () => {
     if (!form.title.trim()) {
-      Alert.alert("Erreur", "Le titre est obligatoire");
+      Alert.alert(STRINGS.errorTitle[lang], STRINGS.titleRequired[lang]);
       return;
     }
     try {
@@ -97,7 +260,7 @@ export default function TravauxScreen() {
       setForm({ title: "", description: "", type: "entretien", priority: "normal", buildingId: "" });
       load(true);
     } catch (e: any) {
-      Alert.alert("Erreur", e.message ?? "Impossible de créer le bon de travaux");
+      Alert.alert(STRINGS.errorTitle[lang], e.message ?? STRINGS.createError[lang]);
     } finally { setSubmitting(false); }
   };
 
@@ -109,23 +272,23 @@ export default function TravauxScreen() {
   };
 
   const FILTERS = [
-    { key: "all", label: "Tous" },
-    { key: "reported", label: "Signalés" },
-    { key: "in_progress", label: "En cours" },
-    { key: "completed", label: "Terminés" },
+    { key: "all", label: STRINGS.filterAll[lang] },
+    { key: "reported", label: STRINGS.filterReported[lang] },
+    { key: "in_progress", label: STRINGS.inProgress[lang] },
+    { key: "completed", label: STRINGS.completed[lang] },
   ];
 
   return (
     <View style={[styles.root, { backgroundColor: colors.background }]}>
       <StatisticsHeader
-        title="Travaux & Interventions"
-        subtitle={`${travaux.length} bon${travaux.length !== 1 ? "s" : ""} de travaux`}
+        title={STRINGS.screenTitle[lang]}
+        subtitle={`${travaux.length} ${travaux.length !== 1 ? STRINGS.workOrders[lang] : STRINGS.workOrder[lang]} ${STRINGS.ofWorks[lang]}`}
         color="#f59e0b"
         stats={[
-          { label: "Total",       value: stats.total,      color: "#f59e0b" },
-          { label: "Prioritaires",value: stats.urgent,     color: "#ef4444" },
-          { label: "En cours",    value: stats.inProgress, color: "#7c3aed" },
-          { label: "Terminés",    value: stats.done,       color: "#10b981" },
+          { label: STRINGS.total[lang],       value: stats.total,      color: "#f59e0b" },
+          { label: STRINGS.priority[lang],    value: stats.urgent,     color: "#ef4444" },
+          { label: STRINGS.inProgress[lang], value: stats.inProgress, color: "#7c3aed" },
+          { label: STRINGS.completed[lang],    value: stats.done,       color: "#10b981" },
         ]}
         action={{ icon: "plus", onPress: () => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); setShowModal(true); } }}
       />
@@ -148,7 +311,7 @@ export default function TravauxScreen() {
           {travaux.length === 0 ? (
             <View style={styles.empty}>
               <Feather name="tool" size={36} color={colors.mutedForeground} />
-              <Text style={[styles.emptyText, { color: colors.mutedForeground }]}>Aucun bon de travaux</Text>
+              <Text style={[styles.emptyText, { color: colors.mutedForeground }]}>{STRINGS.emptyList[lang]}</Text>
             </View>
           ) : (
             travaux.map((t) => {
@@ -160,15 +323,15 @@ export default function TravauxScreen() {
                   <View style={styles.cardTop}>
                     <View style={{ flex: 1, gap: 4 }}>
                       <Text style={[styles.cardTitle, { color: colors.foreground }]} numberOfLines={2}>{t.title}</Text>
-                      <Text style={[styles.cardType, { color: colors.mutedForeground }]}>{TYPE_LABELS[t.type] ?? t.type}</Text>
+                      <Text style={[styles.cardType, { color: colors.mutedForeground }]}>{STRINGS[TYPE_CONFIG[t.type] || "typeReparation"][lang]}</Text>
                     </View>
                     <View style={styles.badges}>
                       <View style={[styles.badge, { backgroundColor: pri.color + "18" }]}>
                         <Feather name={pri.icon} size={10} color={pri.color} />
-                        <Text style={[styles.badgeText, { color: pri.color }]}>{pri.label}</Text>
+                        <Text style={[styles.badgeText, { color: pri.color }]}>{STRINGS[pri.stringKey][lang]}</Text>
                       </View>
                       <View style={[styles.badge, { backgroundColor: sta.color + "18" }]}>
-                        <Text style={[styles.badgeText, { color: sta.color }]}>{sta.label}</Text>
+                        <Text style={[styles.badgeText, { color: sta.color }]}>{STRINGS[sta.stringKey][lang]}</Text>
                       </View>
                     </View>
                   </View>
@@ -186,14 +349,14 @@ export default function TravauxScreen() {
                     ) : (
                       <View style={styles.footerItem}>
                         <Feather name="user-x" size={12} color="#f59e0b" />
-                        <Text style={[styles.footerText, { color: "#f59e0b" }]}>Non assigné</Text>
+                        <Text style={[styles.footerText, { color: "#f59e0b" }]}>{STRINGS.notAssigned[lang]}</Text>
                       </View>
                     )}
                     {t.estimatedAmount ? (
-                      <Text style={[styles.footerAmount, { color: colors.mutedForeground }]}>~{t.estimatedAmount.toLocaleString("fr-MA")} MAD</Text>
+                      <Text style={[styles.footerAmount, { color: colors.mutedForeground }]}>~{t.estimatedAmount.toLocaleString(lang === "fr" ? "fr-MA" : lang)} MAD</Text>
                     ) : null}
                     {t.lot ? (
-                      <Text style={[styles.footerText, { color: colors.mutedForeground }]}>Lot {t.lot.number}</Text>
+                      <Text style={[styles.footerText, { color: colors.mutedForeground }]}>{STRINGS.lot[lang]} {t.lot.number}</Text>
                     ) : null}
                   </View>
                 </View>
@@ -207,25 +370,25 @@ export default function TravauxScreen() {
       <Modal visible={showModal} animationType="slide" presentationStyle="pageSheet" onRequestClose={() => setShowModal(false)}>
         <View style={[styles.modal, { backgroundColor: colors.background }]}>
           <View style={[styles.modalHeader, { borderBottomColor: colors.border }]}>
-            <Text style={[styles.modalTitle, { color: colors.foreground }]}>Nouveau Bon de Travaux</Text>
+            <Text style={[styles.modalTitle, { color: colors.foreground }]}>{STRINGS.newWorkOrder[lang]}</Text>
             <TouchableOpacity onPress={() => setShowModal(false)}>
               <Feather name="x" size={22} color={colors.foreground} />
             </TouchableOpacity>
           </View>
           <ScrollView contentContainerStyle={styles.modalBody}>
-            <Text style={[styles.fieldLabel, { color: colors.mutedForeground }]}>Titre *</Text>
+            <Text style={[styles.fieldLabel, { color: colors.mutedForeground }]}>{STRINGS.titleLabel[lang]}</Text>
             <TextInput
               style={[styles.input, { backgroundColor: colors.card, borderColor: colors.border, color: colors.foreground }]}
-              placeholder="Ex: Fuite toiture terrasse"
+              placeholder={STRINGS.titlePlaceholder[lang]}
               placeholderTextColor={colors.mutedForeground}
               value={form.title}
               onChangeText={(v) => setForm((p) => ({ ...p, title: v }))}
             />
 
-            <Text style={[styles.fieldLabel, { color: colors.mutedForeground }]}>Description</Text>
+            <Text style={[styles.fieldLabel, { color: colors.mutedForeground }]}>{STRINGS.descriptionLabel[lang]}</Text>
             <TextInput
               style={[styles.input, styles.textarea, { backgroundColor: colors.card, borderColor: colors.border, color: colors.foreground }]}
-              placeholder="Décrivez le problème en détail..."
+              placeholder={STRINGS.descriptionPlaceholder[lang]}
               placeholderTextColor={colors.mutedForeground}
               value={form.description}
               onChangeText={(v) => setForm((p) => ({ ...p, description: v }))}
@@ -234,24 +397,24 @@ export default function TravauxScreen() {
               textAlignVertical="top"
             />
 
-            <Text style={[styles.fieldLabel, { color: colors.mutedForeground }]}>Type de travaux</Text>
+            <Text style={[styles.fieldLabel, { color: colors.mutedForeground }]}>{STRINGS.typeLabel[lang]}</Text>
             <View style={styles.optionRow}>
-              {Object.entries(TYPE_LABELS).map(([k, v]) => (
+              {Object.entries(TYPE_CONFIG).map(([k, stringKey]) => (
                 <TouchableOpacity key={k}
                   style={[styles.optionChip, { backgroundColor: form.type === k ? "#f59e0b" : colors.secondary, borderColor: form.type === k ? "#f59e0b" : colors.border }]}
                   onPress={() => setForm((p) => ({ ...p, type: k }))}>
-                  <Text style={[styles.optionText, { color: form.type === k ? "#fff" : colors.foreground }]}>{v}</Text>
+                  <Text style={[styles.optionText, { color: form.type === k ? "#fff" : colors.foreground }]}>{STRINGS[stringKey][lang]}</Text>
                 </TouchableOpacity>
               ))}
             </View>
 
-            <Text style={[styles.fieldLabel, { color: colors.mutedForeground }]}>Priorité</Text>
+            <Text style={[styles.fieldLabel, { color: colors.mutedForeground }]}>{STRINGS.priorityLabel[lang]}</Text>
             <View style={styles.optionRow}>
               {Object.entries(PRIORITY_CONFIG).map(([k, v]) => (
                 <TouchableOpacity key={k}
                   style={[styles.optionChip, { backgroundColor: form.priority === k ? v.color : colors.secondary, borderColor: form.priority === k ? v.color : colors.border }]}
                   onPress={() => setForm((p) => ({ ...p, priority: k }))}>
-                  <Text style={[styles.optionText, { color: form.priority === k ? "#fff" : colors.foreground }]}>{v.label}</Text>
+                  <Text style={[styles.optionText, { color: form.priority === k ? "#fff" : colors.foreground }]}>{STRINGS[v.stringKey][lang]}</Text>
                 </TouchableOpacity>
               ))}
             </View>
@@ -261,7 +424,7 @@ export default function TravauxScreen() {
               onPress={handleSubmit}
               disabled={submitting}
             >
-              {submitting ? <ActivityIndicator color="#fff" size="small" /> : <Text style={styles.submitText}>Créer le bon de travaux</Text>}
+              {submitting ? <ActivityIndicator color="#fff" size="small" /> : <Text style={styles.submitText}>{STRINGS.submitBtn[lang]}</Text>}
             </TouchableOpacity>
           </ScrollView>
         </View>

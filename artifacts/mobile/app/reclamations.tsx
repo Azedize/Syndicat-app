@@ -14,9 +14,415 @@ import {
   View,
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
+import { useLanguage } from "@/context/LanguageContext";
 import { useAuth } from "@/context/AuthContext";
 import { useBreakpoints } from "@/hooks/useBreakpoints";
 import { useColors } from "@/hooks/useColors";
+
+const STRINGS = {
+  salaire: {
+    fr: "Salaire",
+    en: "Salary",
+    ar: "الراتب",
+    es: "Salario",
+  },
+  conditionTravail: {
+    fr: "Conditions de travail",
+    en: "Working conditions",
+    ar: "ظروف العمل",
+    es: "Condiciones de trabajo",
+  },
+  discrimination: {
+    fr: "Discrimination",
+    en: "Discrimination",
+    ar: "التمييز",
+    es: "Discriminación",
+  },
+  harcelement: {
+    fr: "Harcèlement",
+    en: "Harassment",
+    ar: "التحرش",
+    es: "Acoso",
+  },
+  licenciement: {
+    fr: "Licenciement",
+    en: "Dismissal",
+    ar: "الفصل",
+    es: "Despido",
+  },
+  conge: {
+    fr: "Congé",
+    en: "Leave",
+    ar: "إجازة",
+    es: "Vacaciones",
+  },
+  avancement: {
+    fr: "Avancement",
+    en: "Advancement",
+    ar: "الترقية",
+    es: "Ascenso",
+  },
+  securite: {
+    fr: "Sécurité",
+    en: "Security",
+    ar: "الأمن",
+    es: "Seguridad",
+  },
+  autre: {
+    fr: "Autre",
+    en: "Other",
+    ar: "آخر",
+    es: "Otro",
+  },
+  deposee: {
+    fr: "Déposée",
+    en: "Filed",
+    ar: "مقدمة",
+    es: "Presentada",
+  },
+  enInstruction: {
+    fr: "En instruction",
+    en: "Under review",
+    ar: "قيد المراجعة",
+    es: "En instrucción",
+  },
+  transmiseDirection: {
+    fr: "Transmise direction",
+    en: "Forwarded to management",
+    ar: "مرسلة للإدارة",
+    es: "Transmitida a la dirección",
+  },
+  enMediation: {
+    fr: "En médiation",
+    en: "In mediation",
+    ar: "في وساطة",
+    es: "En mediación",
+  },
+  resolue: {
+    fr: "Résolue",
+    en: "Resolved",
+    ar: "تم حلها",
+    es: "Resuelta",
+  },
+  classee: {
+    fr: "Classée",
+    en: "Closed",
+    ar: "مؤرشفة",
+    es: "Archivada",
+  },
+  contentieux: {
+    fr: "Contentieux",
+    en: "Litigation",
+    ar: "نزاع قضائي",
+    es: "Contencioso",
+  },
+  urgente: {
+    fr: "Urgente",
+    en: "Urgent",
+    ar: "عاجلة",
+    es: "Urgente",
+  },
+  haute: {
+    fr: "Haute",
+    en: "High",
+    ar: "عالية",
+    es: "Alta",
+  },
+  normale: {
+    fr: "Normale",
+    en: "Normal",
+    ar: "عادية",
+    es: "Normal",
+  },
+  basse: {
+    fr: "Basse",
+    en: "Low",
+    ar: "منخفضة",
+    es: "Baja",
+  },
+  champsRequis: {
+    fr: "Champs requis",
+    en: "Required fields",
+    ar: "حقول مطلوبة",
+    es: "Campos requeridos",
+  },
+  veuillezRenseigner: {
+    fr: "Veuillez renseigner le titre et la description.",
+    en: "Please provide both title and description.",
+    ar: "يرجى تقديم العنوان والوصف.",
+    es: "Por favor, proporcione el título y la descripción.",
+  },
+  reclamationDeposee: {
+    fr: "Réclamation déposée",
+    en: "Claim filed",
+    ar: "تم تقديم المطالبة",
+    es: "Reclamación presentada",
+  },
+  reclamationEnregistree: {
+    fr: "Votre réclamation a été enregistrée.\nRéférence : REC-2026-048\n\nLe syndicat vous contactera dans les 48h ouvrées.",
+    en: "Your claim has been recorded.\nReference: REC-2026-048\n\nThe union will contact you within 48 business hours.",
+    ar: "تم تسجيل مطالبتك.\nالمرجع: REC-2026-048\n\nستتصل بك النقابة في غضون 48 ساعة عمل.",
+    es: "Su reclamación ha sido registrada.\nReferencia: REC-2026-048\n\nEl sindicato se pondrá en contacto con usted en un plazo de 48 horas hábiles.",
+  },
+  screenTitle: {
+    fr: "Réclamations & Griefs",
+    en: "Claims & Grievances",
+    ar: "المطالبات والتظلمات",
+    es: "Reclamaciones y Quejas",
+  },
+  enCoursUrgentes: {
+    fr: "en cours · {urgentes} urgentes",
+    en: "in progress · {urgentes} urgent",
+    ar: "{urgentes} قيد التنفيذ · عاجلة",
+    es: "en curso · {urgentes} urgentes",
+  },
+  vosReclamations: {
+    fr: "Vos réclamations syndicales",
+    en: "Your union claims",
+    ar: "مطالباتك النقابية",
+    es: "Tus reclamaciones sindicales",
+  },
+  deposer: {
+    fr: "Déposer",
+    en: "File",
+    ar: "تقديم",
+    es: "Presentar",
+  },
+  total: {
+    fr: "Total",
+    en: "Total",
+    ar: "المجموع",
+    es: "Total",
+  },
+  enCours: {
+    fr: "En cours",
+    en: "In progress",
+    ar: "قيد التنفيذ",
+    es: "En curso",
+  },
+  resolues: {
+    fr: "Résolues",
+    en: "Resolved",
+    ar: "تم حلها",
+    es: "Resueltas",
+  },
+  urgentesLabel: {
+    fr: "Urgentes",
+    en: "Urgent",
+    ar: "عاجلة",
+    es: "Urgentes",
+  },
+  rechercher: {
+    fr: "Rechercher une réclamation...",
+    en: "Search a claim...",
+    ar: "البحث عن مطالبة...",
+    es: "Buscar una reclamación...",
+  },
+  toutes: {
+    fr: "Toutes",
+    en: "All",
+    ar: "الكل",
+    es: "Todas",
+  },
+  aucuneReclamation: {
+    fr: "Aucune réclamation",
+    en: "No claims",
+    ar: "لا توجد مطالبات",
+    es: "No hay reclamaciones",
+  },
+  aucuneMatch: {
+    fr: "Aucune réclamation ne correspond aux filtres.",
+    en: "No claims match the filters.",
+    ar: "لا توجد مطالبات تطابق الفلاتر.",
+    es: "Ninguna reclamación coincide con los filtros.",
+  },
+  pasEncoreDepose: {
+    fr: "Vous n'avez pas encore déposé de réclamation.\nDéposez-en une via le bouton ci-dessus.",
+    en: "You haven't filed a claim yet.\nFile one using the button above.",
+    ar: "لم تقدم أي مطالبة بعد.\nقدم واحدة عبر الزر أعلاه.",
+    es: "Aún no ha presentado ninguna reclamación.\nPresente una mediante el botón de arriba.",
+  },
+  anonyme: {
+    fr: "Anonyme",
+    en: "Anonymous",
+    ar: "مجهول",
+    es: "Anónimo",
+  },
+  deposeeLe: {
+    fr: "Déposée le",
+    en: "Filed on",
+    ar: "قدمت في",
+    es: "Presentada el",
+  },
+  etapesCount: {
+    fr: "étapes",
+    en: "steps",
+    ar: "خطوات",
+    es: "pasos",
+  },
+  priorite: {
+    fr: "Priorité",
+    en: "Priority",
+    ar: "الأولوية",
+    es: "Prioridad",
+  },
+  description: {
+    fr: "Description",
+    en: "Description",
+    ar: "الوصف",
+    es: "Descripción",
+  },
+  informations: {
+    fr: "Informations",
+    en: "Information",
+    ar: "المعلومات",
+    es: "Información",
+  },
+  membre: {
+    fr: "Membre",
+    en: "Member",
+    ar: "عضو",
+    es: "Miembro",
+  },
+  service: {
+    fr: "Service",
+    en: "Department",
+    ar: "المصلحة",
+    es: "Servicio",
+  },
+  dateDepot: {
+    fr: "Date de dépôt",
+    en: "Date filed",
+    ar: "تاريخ التقديم",
+    es: "Fecha de presentación",
+  },
+  echeance: {
+    fr: "Échéance",
+    en: "Due date",
+    ar: "الموعد النهائي",
+    es: "Vencimiento",
+  },
+  dateCloture: {
+    fr: "Date clôture",
+    en: "Closing date",
+    ar: "تاريخ الإغلاق",
+    es: "Fecha de cierre",
+  },
+  traitePar: {
+    fr: "Traité par",
+    en: "Handled by",
+    ar: "عولج من قبل",
+    es: "Tratado por",
+  },
+  noteDelegue: {
+    fr: "Note du délégué",
+    en: "Delegate note",
+    ar: "ملاحظة المندوب",
+    es: "Nota del delegado",
+  },
+  documentsJoints: {
+    fr: "Documents joints",
+    en: "Attached documents",
+    ar: "الوثائق المرفقة",
+    es: "Documentos adjuntos",
+  },
+  historique: {
+    fr: "Historique",
+    en: "History",
+    ar: "السجل",
+    es: "Historial",
+  },
+  marquerResolue: {
+    fr: "Marquer résolue",
+    en: "Mark as resolved",
+    ar: "تحديد كمحلولة",
+    es: "Marcar como resuelta",
+  },
+  mediation: {
+    fr: "Médiation",
+    en: "Mediation",
+    ar: "وساطة",
+    es: "Mediación",
+  },
+  alertMediation: {
+    fr: "Procédure de médiation engagée.",
+    en: "Mediation procedure initiated.",
+    ar: "بدأت إجراءات الوساطة.",
+    es: "Procedimiento de mediación iniciado.",
+  },
+  alertContentieux: {
+    fr: "Dossier transmis au service juridique pour procédure contentieuse.",
+    en: "Case forwarded to legal department for litigation proceedings.",
+    ar: "تم إرسال الملف إلى القسم القانوني لاتخاذ إجراءات التقاضي.",
+    es: "Expediente remitido al departamento jurídico para procedimiento contencioso.",
+  },
+  deposerReclamation: {
+    fr: "Déposer une réclamation",
+    en: "File a claim",
+    ar: "تقديم مطالبة",
+    es: "Presentar una reclamación",
+  },
+  infoBulleTraitement: {
+    fr: "Votre réclamation sera traitée par votre délégué syndical dans un délai de 48h ouvrées. Vous pouvez choisir de rester anonyme.",
+    en: "Your claim will be handled by your union delegate within 48 business hours. You can choose to remain anonymous.",
+    ar: "سيتم التعامل مع مطالبتك من قبل مندوبك النقابي في غضون 48 ساعة عمل. يمكنك اختيار البقاء مجهول الهوية.",
+    es: "Su reclamación será tratada por su delegado sindical en un plazo de 48 horas hábiles. Puede optar por permanecer en el anonimato.",
+  },
+  typeReclamation: {
+    fr: "Type de réclamation *",
+    en: "Claim type *",
+    ar: "نوع المطالبة *",
+    es: "Tipo de reclamación *",
+  },
+  titreReclamation: {
+    fr: "Titre de la réclamation *",
+    en: "Claim title *",
+    ar: "عنوان المطالبة *",
+    es: "Título de la reclamación *",
+  },
+  titrePlaceholder: {
+    fr: "Ex: Non-paiement des heures supplémentaires",
+    en: "Ex: Non-payment of overtime",
+    ar: "مثال: عدم دفع الساعات الإضافية",
+    es: "Ej: Impago de horas extras",
+  },
+  descDetaille: {
+    fr: "Description détaillée *",
+    en: "Detailed description *",
+    ar: "وصف مفصل *",
+    es: "Descripción detallada *",
+  },
+  descPlaceholder: {
+    fr: "Décrivez les faits, dates, personnes impliquées, articles du Code du Travail si connus...",
+    en: "Describe the facts, dates, people involved, Labor Code articles if known...",
+    ar: "صف الوقائع، التواريخ، الأشخاص المعنيين، مواد قانون الشغل إذا كانت معروفة...",
+    es: "Describa los hechos, fechas, personas involucradas, artículos del Código del Trabajo si se conocen...",
+  },
+  reclamationAnonyme: {
+    fr: "Réclamation anonyme",
+    en: "Anonymous claim",
+    ar: "مطالبة مجهولة",
+    es: "Reclamación anónima",
+  },
+  identitePasCommuniquee: {
+    fr: "Votre identité ne sera pas communiquée à l'employeur",
+    en: "Your identity will not be shared with the employer",
+    ar: "لن يتم الكشف عن هويتك لصاحب العمل",
+    es: "Su identidad no será comunicada al empleador",
+  },
+  deposerLaReclamation: {
+    fr: "Déposer la réclamation",
+    en: "File the claim",
+    ar: "تقديم المطالبة",
+    es: "Presentar la reclamación",
+  },
+  anonymeProtege: {
+    fr: "Anonyme (protégé)",
+    en: "Anonymous (protected)",
+    ar: "مجهول (محمي)",
+    es: "Anónimo (protegido)",
+  },
+};
 
 type ReclamationType =
   | "salaire"
@@ -62,32 +468,32 @@ interface Reclamation {
 }
 
 const TYPE_CONFIG: Record<ReclamationType, { label: string; icon: keyof typeof Feather.glyphMap; color: string }> = {
-  salaire: { label: "Salaire", icon: "dollar-sign", color: "#10b981" },
-  condition_travail: { label: "Conditions de travail", icon: "tool", color: "#f59e0b" },
-  discrimination: { label: "Discrimination", icon: "alert-octagon", color: "#ef4444" },
-  harcelement: { label: "Harcèlement", icon: "slash", color: "#dc2626" },
-  licenciement: { label: "Licenciement", icon: "user-x", color: "#ef4444" },
-  conge: { label: "Congé", icon: "calendar", color: "#3b82f6" },
-  avancement: { label: "Avancement", icon: "trending-up", color: "#7c3aed" },
-  securite: { label: "Sécurité", icon: "shield", color: "#f97316" },
-  autre: { label: "Autre", icon: "more-horizontal", color: "#6b7280" },
+  salaire: { label: "salaire", icon: "dollar-sign", color: "#10b981" },
+  condition_travail: { label: "conditionTravail", icon: "tool", color: "#f59e0b" },
+  discrimination: { label: "discrimination", icon: "alert-octagon", color: "#ef4444" },
+  harcelement: { label: "harcelement", icon: "slash", color: "#dc2626" },
+  licenciement: { label: "licenciement", icon: "user-x", color: "#ef4444" },
+  conge: { label: "conge", icon: "calendar", color: "#3b82f6" },
+  avancement: { label: "avancement", icon: "trending-up", color: "#7c3aed" },
+  securite: { label: "securite", icon: "shield", color: "#f97316" },
+  autre: { label: "autre", icon: "more-horizontal", color: "#6b7280" },
 };
 
 const STATUT_CONFIG: Record<ReclamationStatut, { label: string; color: string }> = {
-  deposee: { label: "Déposée", color: "#6b7280" },
-  en_instruction: { label: "En instruction", color: "#3b82f6" },
-  transmise_direction: { label: "Transmise direction", color: "#f59e0b" },
-  en_mediation: { label: "En médiation", color: "#7c3aed" },
-  resolue: { label: "Résolue", color: "#10b981" },
-  classee: { label: "Classée", color: "#6b7280" },
-  contentieux: { label: "Contentieux", color: "#ef4444" },
+  deposee: { label: "deposee", color: "#6b7280" },
+  en_instruction: { label: "enInstruction", color: "#3b82f6" },
+  transmise_direction: { label: "transmiseDirection", color: "#f59e0b" },
+  en_mediation: { label: "enMediation", color: "#7c3aed" },
+  resolue: { label: "resolue", color: "#10b981" },
+  classee: { label: "classee", color: "#6b7280" },
+  contentieux: { label: "contentieux", color: "#ef4444" },
 };
 
 const PRIORITE_CONFIG: Record<ReclamationPriorite, { label: string; color: string }> = {
-  urgente: { label: "Urgente", color: "#dc2626" },
-  haute: { label: "Haute", color: "#ef4444" },
-  normale: { label: "Normale", color: "#f59e0b" },
-  basse: { label: "Basse", color: "#6b7280" },
+  urgente: { label: "urgente", color: "#dc2626" },
+  haute: { label: "haute", color: "#ef4444" },
+  normale: { label: "normale", color: "#f59e0b" },
+  basse: { label: "basse", color: "#6b7280" },
 };
 
 const RECLAMATIONS: Reclamation[] = [
@@ -239,6 +645,7 @@ export default function ReclamationsScreen() {
   const insets = useSafeAreaInsets();
   const { user } = useAuth();
   const { isWide } = useBreakpoints();
+  const { lang } = useLanguage();
   const topPad = isWide ? 0 : (Platform.OS === "web" ? 67 : insets.top);
 
   const isAdmin = user?.role === "super_admin" || user?.role === "syndicate_admin";
@@ -273,7 +680,7 @@ export default function ReclamationsScreen() {
 
   const handleDeposer = () => {
     if (!newTitle.trim() || !newDesc.trim()) {
-      Alert.alert("Champs requis", "Veuillez renseigner le titre et la description.");
+      Alert.alert(STRINGS.champsRequis[lang], STRINGS.veuillezRenseigner[lang]);
       return;
     }
     Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
@@ -282,7 +689,7 @@ export default function ReclamationsScreen() {
     setNewDesc("");
     setNewType("autre");
     setNewAnon(false);
-    Alert.alert("Réclamation déposée", `Votre réclamation a été enregistrée.\nRéférence : REC-2026-048\n\nLe syndicat vous contactera dans les 48h ouvrées.`);
+    Alert.alert(STRINGS.reclamationDeposee[lang], STRINGS.reclamationEnregistree[lang]);
   };
 
   return (
@@ -293,9 +700,9 @@ export default function ReclamationsScreen() {
           <Feather name="arrow-left" size={22} color={colors.foreground} />
         </TouchableOpacity>
         <View style={{ flex: 1 }}>
-          <Text style={[s.title, { color: colors.foreground }]}>Réclamations & Griefs</Text>
+          <Text style={[s.title, { color: colors.foreground }]}>{STRINGS.screenTitle[lang]}</Text>
           <Text style={[s.subtitle, { color: colors.mutedForeground }]}>
-            {isAdmin ? `${stats.enCours} en cours · ${stats.urgentes} urgentes` : "Vos réclamations syndicales"}
+            {isAdmin ? STRINGS.enCoursUrgentes[lang].replace("{urgentes}", stats.urgentes.toString()).replace("{enCours}", stats.enCours.toString()) : STRINGS.vosReclamations[lang]}
           </Text>
         </View>
         <TouchableOpacity
@@ -303,7 +710,7 @@ export default function ReclamationsScreen() {
           onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium); setShowNew(true); }}
         >
           <Feather name="plus" size={16} color="#fff" />
-          <Text style={s.newBtnText}>Déposer</Text>
+          <Text style={s.newBtnText}>{STRINGS.deposer[lang]}</Text>
         </TouchableOpacity>
       </View>
 
@@ -311,10 +718,10 @@ export default function ReclamationsScreen() {
       {isAdmin && (
         <View style={[s.statsBar, { backgroundColor: colors.card, borderBottomColor: colors.border }]}>
           {[
-            { label: "Total", value: stats.total, color: colors.foreground },
-            { label: "En cours", value: stats.enCours, color: "#3b82f6" },
-            { label: "Résolues", value: stats.resolues, color: "#10b981" },
-            { label: "Urgentes", value: stats.urgentes, color: "#ef4444" },
+            { label: STRINGS.total[lang], value: stats.total, color: colors.foreground },
+            { label: STRINGS.enCours[lang], value: stats.enCours, color: "#3b82f6" },
+            { label: STRINGS.resolues[lang], value: stats.resolues, color: "#10b981" },
+            { label: STRINGS.urgentesLabel[lang], value: stats.urgentes, color: "#ef4444" },
           ].map((st) => (
             <View key={st.label} style={s.statItem}>
               <Text style={[s.statValue, { color: st.color }]}>{st.value}</Text>
@@ -330,7 +737,7 @@ export default function ReclamationsScreen() {
           <Feather name="search" size={15} color={colors.mutedForeground} />
           <TextInput
             style={[s.searchInput, { color: colors.foreground }]}
-            placeholder="Rechercher une réclamation..."
+            placeholder={STRINGS.rechercher[lang]}
             placeholderTextColor={colors.mutedForeground}
             value={searchText}
             onChangeText={setSearchText}
@@ -351,7 +758,7 @@ export default function ReclamationsScreen() {
               onPress={() => { setFilterStatut(st); Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); }}
             >
               <Text style={[s.chipText, { color: active ? "#fff" : colors.foreground }]}>
-                {st === "all" ? `Toutes (${count})` : `${cfg?.label} (${count})`}
+                {st === "all" ? `${STRINGS.toutes[lang]} (${count})` : `${STRINGS[cfg?.label as keyof typeof STRINGS][lang]} (${count})`}
               </Text>
             </TouchableOpacity>
           );
@@ -365,9 +772,9 @@ export default function ReclamationsScreen() {
             <View style={[s.emptyIcon, { backgroundColor: colors.secondary }]}>
               <Feather name="inbox" size={32} color={colors.primary} />
             </View>
-            <Text style={[s.emptyTitle, { color: colors.foreground }]}>Aucune réclamation</Text>
+            <Text style={[s.emptyTitle, { color: colors.foreground }]}>{STRINGS.aucuneReclamation[lang]}</Text>
             <Text style={[s.emptyText, { color: colors.mutedForeground }]}>
-              {isAdmin ? "Aucune réclamation ne correspond aux filtres." : "Vous n'avez pas encore déposé de réclamation.\nDéposez-en une via le bouton ci-dessus."}
+              {isAdmin ? STRINGS.aucuneMatch[lang] : STRINGS.pasEncoreDepose[lang]}
             </Text>
           </View>
         )}
@@ -390,35 +797,35 @@ export default function ReclamationsScreen() {
                 <View style={{ flex: 1, gap: 4 }}>
                   <View style={s.badgeRow}>
                     <View style={[s.badge, { backgroundColor: sc.color + "18" }]}>
-                      <Text style={[s.badgeText, { color: sc.color }]}>{sc.label}</Text>
+                      <Text style={[s.badgeText, { color: sc.color }]}>{STRINGS[sc.label as keyof typeof STRINGS][lang]}</Text>
                     </View>
                     <View style={[s.badge, { backgroundColor: pc.color + "18" }]}>
-                      <Text style={[s.badgeText, { color: pc.color }]}>{pc.label}</Text>
+                      <Text style={[s.badgeText, { color: pc.color }]}>{STRINGS[pc.label as keyof typeof STRINGS][lang]}</Text>
                     </View>
                     {rec.anonymous && (
                       <View style={[s.badge, { backgroundColor: "#6b728018" }]}>
-                        <Text style={[s.badgeText, { color: "#6b7280" }]}>Anonyme</Text>
+                        <Text style={[s.badgeText, { color: "#6b7280" }]}>{STRINGS.anonyme[lang]}</Text>
                       </View>
                     )}
                   </View>
                   <Text style={[s.cardTitle, { color: colors.foreground }]} numberOfLines={2}>{rec.titre}</Text>
-                  <Text style={[s.cardRef, { color: colors.mutedForeground }]}>{rec.reference} · {tc.label}</Text>
+                  <Text style={[s.cardRef, { color: colors.mutedForeground }]}>{rec.reference} · {STRINGS[tc.label as keyof typeof STRINGS][lang]}</Text>
                 </View>
                 <Feather name="chevron-right" size={16} color={colors.mutedForeground} />
               </View>
               <View style={[s.cardFooter, { borderTopColor: colors.border }]}>
                 <View style={s.metaItem}>
                   <Feather name="user" size={11} color={colors.mutedForeground} />
-                  <Text style={[s.metaText, { color: colors.mutedForeground }]}>{rec.anonymous ? "Anonyme" : rec.membre}</Text>
+                  <Text style={[s.metaText, { color: colors.mutedForeground }]}>{rec.anonymous ? STRINGS.anonyme[lang] : rec.membre}</Text>
                 </View>
                 <View style={s.metaItem}>
                   <Feather name="calendar" size={11} color={colors.mutedForeground} />
-                  <Text style={[s.metaText, { color: colors.mutedForeground }]}>Déposée le {new Date(rec.dateDepot).toLocaleDateString("fr-FR")}</Text>
+                  <Text style={[s.metaText, { color: colors.mutedForeground }]}>{STRINGS.deposeeLe[lang]} {new Date(rec.dateDepot).toLocaleDateString(lang === "en" ? "en-US" : lang === "fr" ? "fr-FR" : lang === "ar" ? "ar-MA" : "es-ES")}</Text>
                 </View>
                 {rec.etapes.length > 0 && (
                   <View style={s.metaItem}>
                     <Feather name="list" size={11} color={colors.mutedForeground} />
-                    <Text style={[s.metaText, { color: colors.mutedForeground }]}>{rec.etapes.length} étapes</Text>
+                    <Text style={[s.metaText, { color: colors.mutedForeground }]}>{rec.etapes.length} {STRINGS.etapesCount[lang]}</Text>
                   </View>
                 )}
               </View>
@@ -453,32 +860,32 @@ export default function ReclamationsScreen() {
                 <View style={s.badgeRowLarge}>
                   <View style={[s.badgeLg, { backgroundColor: sc.color + "18", borderColor: sc.color + "30" }]}>
                     <View style={[s.dot, { backgroundColor: sc.color }]} />
-                    <Text style={[s.badgeLgText, { color: sc.color }]}>{sc.label}</Text>
+                    <Text style={[s.badgeLgText, { color: sc.color }]}>{STRINGS[sc.label as keyof typeof STRINGS][lang]}</Text>
                   </View>
                   <View style={[s.badgeLg, { backgroundColor: pc.color + "18", borderColor: pc.color + "30" }]}>
-                    <Text style={[s.badgeLgText, { color: pc.color }]}>Priorité {pc.label}</Text>
+                    <Text style={[s.badgeLgText, { color: pc.color }]}>{STRINGS.priorite[lang]} {STRINGS[pc.label as keyof typeof STRINGS][lang]}</Text>
                   </View>
                   <View style={[s.badgeLg, { backgroundColor: tc.color + "18", borderColor: tc.color + "30" }]}>
-                    <Text style={[s.badgeLgText, { color: tc.color }]}>{tc.label}</Text>
+                    <Text style={[s.badgeLgText, { color: tc.color }]}>{STRINGS[tc.label as keyof typeof STRINGS][lang]}</Text>
                   </View>
                 </View>
 
                 {/* Description */}
                 <View style={[s.section, { backgroundColor: colors.card, borderColor: colors.border }]}>
-                  <Text style={[s.sectionTitle, { color: colors.foreground }]}>Description</Text>
+                  <Text style={[s.sectionTitle, { color: colors.foreground }]}>{STRINGS.description[lang]}</Text>
                   <Text style={[s.sectionBody, { color: colors.mutedForeground }]}>{selected.description}</Text>
                 </View>
 
                 {/* Info grid */}
                 <View style={[s.section, { backgroundColor: colors.card, borderColor: colors.border }]}>
-                  <Text style={[s.sectionTitle, { color: colors.foreground }]}>Informations</Text>
+                  <Text style={[s.sectionTitle, { color: colors.foreground }]}>{STRINGS.informations[lang]}</Text>
                   {[
-                    { label: "Membre", value: selected.anonymous ? "Anonyme (protégé)" : selected.membre, icon: "user" as const },
-                    { label: "Service", value: selected.service, icon: "briefcase" as const },
-                    { label: "Date de dépôt", value: new Date(selected.dateDepot).toLocaleDateString("fr-FR"), icon: "calendar" as const },
-                    ...(selected.dateEcheance ? [{ label: "Échéance", value: new Date(selected.dateEcheance).toLocaleDateString("fr-FR"), icon: "clock" as const }] : []),
-                    ...(selected.dateCloture ? [{ label: "Date clôture", value: new Date(selected.dateCloture).toLocaleDateString("fr-FR"), icon: "check-circle" as const }] : []),
-                    ...(selected.traitePar ? [{ label: "Traité par", value: selected.traitePar, icon: "user-check" as const }] : []),
+                    { label: STRINGS.membre[lang], value: selected.anonymous ? STRINGS.anonymeProtege[lang] : selected.membre, icon: "user" as const },
+                    { label: STRINGS.service[lang], value: selected.service, icon: "briefcase" as const },
+                    { label: STRINGS.dateDepot[lang], value: new Date(selected.dateDepot).toLocaleDateString(lang === "en" ? "en-US" : lang === "fr" ? "fr-FR" : lang === "ar" ? "ar-MA" : "es-ES"), icon: "calendar" as const },
+                    ...(selected.dateEcheance ? [{ label: STRINGS.echeance[lang], value: new Date(selected.dateEcheance).toLocaleDateString(lang === "en" ? "en-US" : lang === "fr" ? "fr-FR" : lang === "ar" ? "ar-MA" : "es-ES"), icon: "clock" as const }] : []),
+                    ...(selected.dateCloture ? [{ label: STRINGS.dateCloture[lang], value: new Date(selected.dateCloture).toLocaleDateString(lang === "en" ? "en-US" : lang === "fr" ? "fr-FR" : lang === "ar" ? "ar-MA" : "es-ES"), icon: "check-circle" as const }] : []),
+                    ...(selected.traitePar ? [{ label: STRINGS.traitePar[lang], value: selected.traitePar, icon: "user-check" as const }] : []),
                   ].map((info) => (
                     <View key={info.label} style={[s.infoRow, { borderTopColor: colors.border }]}>
                       <Feather name={info.icon} size={13} color={colors.mutedForeground} />
@@ -493,7 +900,7 @@ export default function ReclamationsScreen() {
                   <View style={[s.section, { backgroundColor: "#10b98110", borderColor: "#10b98130" }]}>
                     <View style={s.sectionTitleRow}>
                       <Feather name="message-circle" size={14} color="#10b981" />
-                      <Text style={[s.sectionTitle, { color: "#10b981" }]}>Note du délégué</Text>
+                      <Text style={[s.sectionTitle, { color: "#10b981" }]}>{STRINGS.noteDelegue[lang]}</Text>
                     </View>
                     <Text style={[s.sectionBody, { color: colors.foreground }]}>{selected.commentaireAdmin}</Text>
                   </View>
@@ -502,7 +909,7 @@ export default function ReclamationsScreen() {
                 {/* Documents */}
                 {selected.documentsJoints.length > 0 && (
                   <View style={[s.section, { backgroundColor: colors.card, borderColor: colors.border }]}>
-                    <Text style={[s.sectionTitle, { color: colors.foreground }]}>Documents joints ({selected.documentsJoints.length})</Text>
+                    <Text style={[s.sectionTitle, { color: colors.foreground }]}>{STRINGS.documentsJoints[lang]} ({selected.documentsJoints.length})</Text>
                     {selected.documentsJoints.map((doc, i) => (
                       <TouchableOpacity key={i} style={[s.docRow, { borderTopColor: colors.border }]} onPress={() => Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light)}>
                         <Feather name="file-text" size={14} color="#6366f1" />
@@ -521,7 +928,7 @@ export default function ReclamationsScreen() {
                   <View style={[s.sectionTitleRow, { justifyContent: "space-between" }]}>
                     <View style={s.sectionTitleRow}>
                       <Feather name="list" size={14} color={colors.primary} />
-                      <Text style={[s.sectionTitle, { color: colors.foreground }]}>Historique ({selected.etapes.length} étapes)</Text>
+                      <Text style={[s.sectionTitle, { color: colors.foreground }]}>{STRINGS.historique[lang]} ({selected.etapes.length} {STRINGS.etapesCount[lang]})</Text>
                     </View>
                     <Feather name={showEtapes ? "chevron-up" : "chevron-down"} size={16} color={colors.mutedForeground} />
                   </View>
@@ -529,7 +936,7 @@ export default function ReclamationsScreen() {
                     <View key={i} style={[s.etapeRow, { borderTopColor: colors.border }]}>
                       <View style={[s.etapeDot, { backgroundColor: i === selected.etapes.length - 1 ? colors.primary : colors.border }]} />
                       <View style={{ flex: 1, gap: 2 }}>
-                        <Text style={[s.etapeDate, { color: colors.mutedForeground }]}>{new Date(etape.date).toLocaleDateString("fr-FR")} · {etape.auteur}</Text>
+                        <Text style={[s.etapeDate, { color: colors.mutedForeground }]}>{new Date(etape.date).toLocaleDateString(lang === "en" ? "en-US" : lang === "fr" ? "fr-FR" : lang === "ar" ? "ar-MA" : "es-ES")} · {etape.auteur}</Text>
                         <Text style={[s.etapeAction, { color: colors.foreground }]}>{etape.action}</Text>
                       </View>
                     </View>
@@ -541,24 +948,24 @@ export default function ReclamationsScreen() {
                   <View style={s.actionsRow}>
                     <TouchableOpacity
                       style={[s.actionBtn, { backgroundColor: "#10b981" }]}
-                      onPress={() => { Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success); Alert.alert("Réclamation résolue", "La réclamation a été marquée comme résolue."); setSelected(null); }}
+                      onPress={() => { Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success); Alert.alert(STRINGS.resolue[lang], STRINGS.resolue[lang]); setSelected(null); }}
                     >
                       <Feather name="check-circle" size={14} color="#fff" />
-                      <Text style={s.actionBtnText}>Marquer résolue</Text>
+                      <Text style={s.actionBtnText}>{STRINGS.marquerResolue[lang]}</Text>
                     </TouchableOpacity>
                     <TouchableOpacity
                       style={[s.actionBtn, { backgroundColor: "#7c3aed" }]}
-                      onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium); Alert.alert("Médiation", "Procédure de médiation engagée."); }}
+                      onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium); Alert.alert(STRINGS.mediation[lang], STRINGS.alertMediation[lang]); }}
                     >
                       <Feather name="users" size={14} color="#fff" />
-                      <Text style={s.actionBtnText}>Médiation</Text>
+                      <Text style={s.actionBtnText}>{STRINGS.mediation[lang]}</Text>
                     </TouchableOpacity>
                     <TouchableOpacity
                       style={[s.actionBtn, { backgroundColor: "#ef4444" }]}
-                      onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Heavy); Alert.alert("Contentieux", "Dossier transmis au service juridique pour procédure contentieuse."); }}
+                      onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Heavy); Alert.alert(STRINGS.contentieux[lang], STRINGS.alertContentieux[lang]); }}
                     >
                       <Feather name="alert-triangle" size={14} color="#fff" />
-                      <Text style={s.actionBtnText}>Contentieux</Text>
+                      <Text style={s.actionBtnText}>{STRINGS.contentieux[lang]}</Text>
                     </TouchableOpacity>
                   </View>
                 )}
@@ -573,7 +980,7 @@ export default function ReclamationsScreen() {
         <View style={[s.modal, { backgroundColor: colors.background }]}>
           <View style={[s.modalHeader, { backgroundColor: colors.card, borderBottomColor: colors.border }]}>
             <Feather name="plus-circle" size={20} color={colors.primary} />
-            <Text style={[s.modalTitle, { color: colors.foreground }]}>Déposer une réclamation</Text>
+            <Text style={[s.modalTitle, { color: colors.foreground }]}>{STRINGS.deposerReclamation[lang]}</Text>
             <TouchableOpacity onPress={() => setShowNew(false)} style={s.closeBtn}>
               <Feather name="x" size={22} color={colors.foreground} />
             </TouchableOpacity>
@@ -584,13 +991,13 @@ export default function ReclamationsScreen() {
             <View style={[s.infoBox, { backgroundColor: "#3b82f610", borderColor: "#3b82f630" }]}>
               <Feather name="info" size={14} color="#3b82f6" />
               <Text style={[s.infoBoxText, { color: "#3b82f6" }]}>
-                Votre réclamation sera traitée par votre délégué syndical dans un délai de 48h ouvrées. Vous pouvez choisir de rester anonyme.
+                {STRINGS.infoBulleTraitement[lang]}
               </Text>
             </View>
 
             {/* Type */}
             <View style={{ gap: 8 }}>
-              <Text style={[s.fieldLabel, { color: colors.foreground }]}>Type de réclamation *</Text>
+              <Text style={[s.fieldLabel, { color: colors.foreground }]}>{STRINGS.typeReclamation[lang]}</Text>
               <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: 8 }}>
                 {TYPES_LIST.map(([key, cfg]) => (
                   <TouchableOpacity
@@ -599,7 +1006,7 @@ export default function ReclamationsScreen() {
                     onPress={() => { setNewType(key); Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); }}
                   >
                     <Feather name={cfg.icon} size={13} color={newType === key ? "#fff" : cfg.color} />
-                    <Text style={[s.typeChipText, { color: newType === key ? "#fff" : colors.foreground }]}>{cfg.label}</Text>
+                    <Text style={[s.typeChipText, { color: newType === key ? "#fff" : colors.foreground }]}>{STRINGS[cfg.label as keyof typeof STRINGS][lang]}</Text>
                   </TouchableOpacity>
                 ))}
               </ScrollView>
@@ -607,10 +1014,10 @@ export default function ReclamationsScreen() {
 
             {/* Title */}
             <View style={{ gap: 8 }}>
-              <Text style={[s.fieldLabel, { color: colors.foreground }]}>Titre de la réclamation *</Text>
+              <Text style={[s.fieldLabel, { color: colors.foreground }]}>{STRINGS.titreReclamation[lang]}</Text>
               <TextInput
                 style={[s.input, { backgroundColor: colors.muted, borderColor: colors.border, color: colors.foreground }]}
-                placeholder="Ex: Non-paiement des heures supplémentaires"
+                placeholder={STRINGS.titrePlaceholder[lang]}
                 placeholderTextColor={colors.mutedForeground}
                 value={newTitle}
                 onChangeText={setNewTitle}
@@ -619,10 +1026,10 @@ export default function ReclamationsScreen() {
 
             {/* Description */}
             <View style={{ gap: 8 }}>
-              <Text style={[s.fieldLabel, { color: colors.foreground }]}>Description détaillée *</Text>
+              <Text style={[s.fieldLabel, { color: colors.foreground }]}>{STRINGS.descDetaille[lang]}</Text>
               <TextInput
                 style={[s.textarea, { backgroundColor: colors.muted, borderColor: colors.border, color: colors.foreground }]}
-                placeholder="Décrivez les faits, dates, personnes impliquées, articles du Code du Travail si connus..."
+                placeholder={STRINGS.descPlaceholder[lang]}
                 placeholderTextColor={colors.mutedForeground}
                 multiline
                 numberOfLines={5}
@@ -638,8 +1045,8 @@ export default function ReclamationsScreen() {
             >
               <Feather name={newAnon ? "eye-off" : "eye"} size={16} color={newAnon ? "#7c3aed" : colors.mutedForeground} />
               <View style={{ flex: 1 }}>
-                <Text style={[s.anonTitle, { color: colors.foreground }]}>Réclamation anonyme</Text>
-                <Text style={[s.anonDesc, { color: colors.mutedForeground }]}>Votre identité ne sera pas communiquée à l'employeur</Text>
+                <Text style={[s.anonTitle, { color: colors.foreground }]}>{STRINGS.reclamationAnonyme[lang]}</Text>
+                <Text style={[s.anonDesc, { color: colors.mutedForeground }]}>{STRINGS.identitePasCommuniquee[lang]}</Text>
               </View>
               <View style={[s.toggle, { backgroundColor: newAnon ? "#7c3aed" : colors.border }]}>
                 <View style={[s.toggleThumb, { marginLeft: newAnon ? 20 : 2 }]} />
@@ -648,7 +1055,7 @@ export default function ReclamationsScreen() {
 
             <TouchableOpacity style={[s.submitBtn, { backgroundColor: colors.primary }]} onPress={handleDeposer} activeOpacity={0.85}>
               <Feather name="send" size={16} color="#fff" />
-              <Text style={s.submitText}>Déposer la réclamation</Text>
+              <Text style={s.submitText}>{STRINGS.deposerLaReclamation[lang]}</Text>
             </TouchableOpacity>
           </ScrollView>
         </View>

@@ -18,15 +18,138 @@ import { useData } from "@/context/DataContext";
 import { useBreakpoints } from "@/hooks/useBreakpoints";
 import { useColors } from "@/hooks/useColors";
 
+import { useLanguage } from "@/context/LanguageContext";
+
 const TOTAL_STEPS = 4;
 
-const SECTORS = ["Éducation", "Santé", "Administration publique", "Industrie", "Commerce", "Ingénierie", "Transport", "Agriculture", "Tourisme", "Justice", "Autre"];
-const REGIONS = ["Casablanca-Settat", "Rabat-Salé-Kénitra", "Fès-Meknès", "Marrakech-Safi", "Souss-Massa", "Tanger-Tétouan-Al Hoceïma", "Oriental", "Béni Mellal-Khénifra", "Drâa-Tafilalet", "Guelmim-Oued Noun", "National"];
-const LEGAL_FORMS = ["Syndicat professionnel — Dahir 1957", "Syndicat sectoriel", "Fédération syndicale", "Confédération syndicale", "Union locale"];
-const COTISATION_CYCLES = ["Mensuel", "Trimestriel", "Annuel"];
-const LOGO_COLORS = ["#7c3aed", "#3b82f6", "#10b981", "#f59e0b", "#ef4444", "#ec4899", "#06b6d4", "#8b5cf6", "#f97316", "#6366f1"];
+const STRINGS = {
+  sectors: {
+    education: { fr: "Éducation", en: "Education", ar: "التعليم", es: "Educación" },
+    health: { fr: "Santé", en: "Health", ar: "الصحة", es: "Salud" },
+    publicAdmin: { fr: "Administration publique", en: "Public Administration", ar: "الإدارة العامة", es: "Administración Pública" },
+    industry: { fr: "Industrie", en: "Industry", ar: "الصناعة", es: "Industria" },
+    commerce: { fr: "Commerce", en: "Commerce", ar: "التجارة", es: "Comercio" },
+    engineering: { fr: "Ingénierie", en: "Engineering", ar: "الهندسة", es: "Ingeniería" },
+    transport: { fr: "Transport", en: "Transport", ar: "النقل", es: "Transporte" },
+    agriculture: { fr: "Agriculture", en: "Agriculture", ar: "الفلاحة", es: "Agricultura" },
+    tourism: { fr: "Tourisme", en: "Tourism", ar: "السياحة", es: "Turismo" },
+    justice: { fr: "Justice", en: "Justice", ar: "العدل", es: "Justicia" },
+    other: { fr: "Autre", en: "Other", ar: "أخرى", es: "Otro" },
+  },
+  regions: {
+    casablanca: { fr: "Casablanca-Settat", en: "Casablanca-Settat", ar: "الدار البيضاء-سطات", es: "Casablanca-Settat" },
+    rabat: { fr: "Rabat-Salé-Kénitra", en: "Rabat-Salé-Kénitra", ar: "الرباط-سلا-القنيطرة", es: "Rabat-Salé-Kenitra" },
+    fes: { fr: "Fès-Meknès", en: "Fès-Meknès", ar: "فاس-مكناس", es: "Fez-Mequinez" },
+    marrakech: { fr: "Marrakech-Safi", en: "Marrakech-Safi", ar: "مراكش-آسفي", es: "Marrakech-Safí" },
+    souss: { fr: "Souss-Massa", en: "Souss-Massa", ar: "سوس-ماسة", es: "Sus-Masa" },
+    tanger: { fr: "Tanger-Tétouan-Al Hoceïma", en: "Tanger-Tétouan-Al Hoceima", ar: "طنجة-تطوان-الحسيمة", es: "Tánger-Tetuán-Alhucemas" },
+    oriental: { fr: "Oriental", en: "Oriental", ar: "الجهة الشرقية", es: "Oriental" },
+    beni: { fr: "Béni Mellal-Khénifra", en: "Béni Mellal-Khénifra", ar: "بني ملال-خنيفرة", es: "Beni Melal-Jenifra" },
+    draa: { fr: "Drâa-Tafilalet", en: "Drâa-Tafilalet", ar: "درعة-تافيلالت", es: "Drá-Tafilalet" },
+    guelmim: { fr: "Guelmim-Oued Noun", en: "Guelmim-Oued Noun", ar: "كلميم-واد نون", es: "Guelmim-Oued Nun" },
+    national: { fr: "National", en: "National", ar: "وطني", es: "Nacional" },
+  },
+  legalForms: {
+    professional: { fr: "Syndicat professionnel — Dahir 1957", en: "Professional Union — 1957 Dahir", ar: "نقابة مهنية — ظهير 1957", es: "Sindicato profesional — Dahir 1957" },
+    sectoral: { fr: "Syndicat sectoriel", en: "Sectoral Union", ar: "نقابة قطاعية", es: "Sindicato sectorial" },
+    federation: { fr: "Fédération syndicale", en: "Trade Union Federation", ar: "اتحاد نقابي", es: "Federación sindical" },
+    confederation: { fr: "Confédération syndicale", en: "Trade Union Confederation", ar: "كونفدرالية نقابية", es: "Confederación sindical" },
+    localUnion: { fr: "Union locale", en: "Local Union", ar: "اتحاد محلي", es: "Unión local" },
+  },
+  cycles: {
+    monthly: { fr: "Mensuel", en: "Monthly", ar: "شهري", es: "Mensual" },
+    quarterly: { fr: "Trimestriel", en: "Quarterly", ar: "فصلي", es: "Trimestral" },
+    yearly: { fr: "Annuel", en: "Yearly", ar: "سنوي", es: "Anual" },
+  },
+  steps: {
+    identity: { fr: "Identité", en: "Identity", ar: "الهوية", es: "Identidad" },
+    contact: { fr: "Contact", en: "Contact", ar: "الاتصال", es: "Contacto" },
+    legal: { fr: "Légal", en: "Legal", ar: "القانوني", es: "Legal" },
+    config: { fr: "Configuration", en: "Configuration", ar: "الإعدادات", es: "Configuración" },
+  },
+  titles: {
+    create: { fr: "Créer un syndicat", en: "Create a union", ar: "إنشاء نقابة", es: "Crear un sindicato" },
+    stepLabel: { fr: "Étape", en: "Step", ar: "خطوة", es: "Paso" },
+    identityTitle: { fr: "Identité du syndicat", en: "Union Identity", ar: "هوية النقابة", es: "Identidad del sindicato" },
+    contactTitle: { fr: "Contact & Apparence", en: "Contact & Appearance", ar: "الاتصال والمظهر", es: "Contacto y Apariencia" },
+    legalTitle: { fr: "Informations légales", en: "Legal Information", ar: "معلومات قانونية", es: "Información legal" },
+    configTitle: { fr: "Configuration & Récapitulatif", en: "Configuration & Summary", ar: "الإعدادات والملخص", es: "Configuración y Resumen" },
+  },
+  fields: {
+    fullName: { fr: "Nom complet du syndicat *", en: "Full name of the union *", ar: "الاسم الكامل للنقابة *", es: "Nombre completo del sindicato *" },
+    fullNamePlaceholder: { fr: "Ex: Syndicat National des Enseignants", en: "Ex: National Union of Teachers", ar: "مثال: النقابة الوطنية للمدرسين", es: "Ej: Sindicato Nacional de Docentes" },
+    abbreviation: { fr: "Sigle / Abréviation *", en: "Acronym / Abbreviation *", ar: "الاسم المختصر *", es: "Sigla / Abreviatura *" },
+    abbreviationPlaceholder: { fr: "Ex: SNE", en: "Ex: NUT", ar: "مثال: SNE", es: "Ej: SNE" },
+    mission: { fr: "Mission / Description", en: "Mission / Description", ar: "المهمة / الوصف", es: "Misión / Descripción" },
+    missionPlaceholder: { fr: "Décrivez la mission principale du syndicat...", en: "Describe the union's primary mission...", ar: "صف المهمة الرئيسية للنقابة...", es: "Describa la misión principal del sindicato..." },
+    sector: { fr: "Secteur d'activité", en: "Activity Sector", ar: "قطاع النشاط", es: "Sector de actividad" },
+    region: { fr: "Région", en: "Region", ar: "الجهة", es: "Región" },
+    email: { fr: "Email officiel *", en: "Official Email *", ar: "البريد الإلكتروني الرسمي *", es: "Correo oficial *" },
+    emailPlaceholder: { fr: "contact@syndicat.ma", en: "contact@union.ma", ar: "contact@syndicat.ma", es: "contacto@sindicato.ma" },
+    phone: { fr: "Téléphone *", en: "Phone *", ar: "الهاتف *", es: "Teléfono *" },
+    phonePlaceholder: { fr: "+212 5 00 00 00 00", en: "+212 5 00 00 00 00", ar: "+212 5 00 00 00 00", es: "+212 5 00 00 00 00" },
+    website: { fr: "Site web", en: "Website", ar: "الموقع الإلكتروني", es: "Sitio web" },
+    websitePlaceholder: { fr: "https://www.syndicat.ma", en: "https://www.union.ma", ar: "https://www.syndicat.ma", es: "https://www.sindicato.ma" },
+    address: { fr: "Adresse du siège", en: "Headquarters Address", ar: "عنوان المقر", es: "Dirección de la sede" },
+    addressPlaceholder: { fr: "Numéro, rue, ville...", en: "Number, street, city...", ar: "رقم، شارع، مدينة...", es: "Número, calle, ciudad..." },
+    colorLogo: { fr: "Couleur / Logo du syndicat", en: "Color / Union Logo", ar: "لون / شعار النقابة", es: "Color / Logo del sindicato" },
+    logoDefaultAbbr: { fr: "SND", en: "SND", ar: "نقابة", es: "SND" },
+    logoDefaultName: { fr: "Nom du syndicat", en: "Union Name", ar: "اسم النقابة", es: "Nombre del sindicato" },
+    regNumber: { fr: "Numéro d'enregistrement *", en: "Registration Number *", ar: "رقم التسجيل *", es: "Número de registro *" },
+    regNumberPlaceholder: { fr: "Ex: 2024-SYN-001234", en: "Ex: 2024-SYN-001234", ar: "مثال: 2024-SYN-001234", es: "Ej: 2024-SYN-001234" },
+    foundingDate: { fr: "Date de fondation *", en: "Founding Date *", ar: "تاريخ التأسيس *", es: "Fecha de fundación *" },
+    foundingDatePlaceholder: { fr: "AAAA-MM-JJ", en: "YYYY-MM-DD", ar: "YYYY-MM-DD", es: "AAAA-MM-DD" },
+    memberCount: { fr: "Nombre initial de membres", en: "Initial number of members", ar: "العدد الأولي للأعضاء", es: "Número inicial de miembros" },
+    memberCountPlaceholder: { fr: "Ex: 50", en: "Ex: 50", ar: "مثال: 50", es: "Ej: 50" },
+    legalForm: { fr: "Forme juridique", en: "Legal Form", ar: "الشكل القانوني", es: "Forma jurídica" },
+    cotisationAmount: { fr: "Montant cotisation (MAD)", en: "Contribution Amount (MAD)", ar: "مبلغ الاشتراك (درهم)", es: "Monto de la cotización (MAD)" },
+    cotisationCycle: { fr: "Cycle de cotisation", en: "Contribution Cycle", ar: "دورة الاشتراك", es: "Ciclo de cotización" },
+  },
+  descriptions: {
+    step1: { fr: "Renseignez les informations d'identité principales de votre syndicat.", en: "Fill in the main identity information of your union.", ar: "املأ معلومات الهوية الرئيسية لنقابتك.", es: "Complete la información de identidad principal de su sindicato." },
+    step2: { fr: "Ces coordonnées seront visibles par les membres et affichées dans l'annuaire.", en: "These details will be visible to members and displayed in the directory.", ar: "ستكون هذه البيانات مرئية للأعضاء ومعروضة في الدليل.", es: "Estos datos serán visibles para los miembros y se mostrarán en el directorio." },
+    step3: { fr: "Informations juridiques requises conformément au Dahir n° 1-57-119 du 16 juillet 1957.", en: "Legal information required in accordance with Dahir No. 1-57-119 of July 16, 1957.", ar: "المعلومات القانونية المطلوبة وفقاً للظهير رقم 1-57-119 الصادر في 16 يوليو 1957.", es: "Información legal requerida de acuerdo con el Dahir n° 1-57-119 del 16 de julio de 1957." },
+    step4: { fr: "Configurez les paramètres financiers et d'adhésion de votre syndicat.", en: "Configure the financial and membership settings of your union.", ar: "قم بتهيئة الإعدادات المالية والعضوية لنقابتك.", es: "Configure los ajustes financieros y de membresía de su sindicato." },
+    legalNote: { fr: "Ces informations seront vérifiées lors de la validation de votre syndicat sur la plateforme. Assurez-vous de la conformité avec le Dahir 1-57-119.", en: "This information will be verified during the validation of your union on the platform. Ensure compliance with Dahir 1-57-119.", ar: "سيتم التحقق من هذه المعلومات أثناء التحقق من نقابتك على المنصة. تأكد من الامتثال للظهير 1-57-119.", es: "Esta información será verificada durante la validación de su sindicato en la plataforma. Asegúrese de cumplir con el Dahir 1-57-119." },
+  },
+  preview: {
+    notProvided: { fr: "Non renseigné", en: "Not provided", ar: "غير متوفر", es: "No proporcionado" },
+    regPrefix: { fr: "N°", en: "No.", ar: "رقم", es: "Nº" },
+    foundedPrefix: { fr: "Fondé le", en: "Founded on", ar: "تأسس في", es: "Fundado el" },
+    summaryPart1: { fr: "Cotisation de", en: "Contribution of", ar: "اشتراك", es: "Cotización de" },
+    summaryPart2: { fr: "par membre", en: "per member", ar: "لكل عضو", es: "por miembro" },
+    revenueEst: { fr: "Revenus estimés:", en: "Estimated revenue:", ar: "الإيرادات المقدرة:", es: "Ingresos estimados:" },
+    cyclesSmall: {
+      monthly: { fr: "mois", en: "month", ar: "شهر", es: "mes" },
+      quarterly: { fr: "trimestre", en: "quarter", ar: "trimestre", es: "trimestre" },
+      yearly: { fr: "an", en: "year", ar: "سنة", es: "año" },
+    }
+  },
+  validation: {
+    required: { fr: "Requis", en: "Required", ar: "مطلوب", es: "Requerido" },
+    nameReq: { fr: "Le nom du syndicat est obligatoire.", en: "The union name is required.", ar: "اسم النقابة مطلوب.", es: "El nombre del sindicato es obligatorio." },
+    abbrReq: { fr: "Le sigle/abréviation est obligatoire.", en: "The acronym/abbreviation is required.", ar: "الاسم المختصر مطلوب.", es: "La sigla/abreviatura es obligatoria." },
+    emailReq: { fr: "L'email de contact est obligatoire.", en: "Contact email is required.", ar: "البريد الإلكتروني للاتصال مطلوب.", es: "El correo de contacto es obligatorio." },
+    phoneReq: { fr: "Le téléphone est obligatoire.", en: "Phone is required.", ar: "الهاتف مطلوب.", es: "El teléfono es obligatorio." },
+    regNumberReq: { fr: "Le numéro d'enregistrement est obligatoire.", en: "Registration number is required.", ar: "رقم التسجيل مطلوب.", es: "El número de registro es obligatorio." },
+    foundingDateReq: { fr: "La date de fondation est obligatoire.", en: "Founding date is required.", ar: "تاريخ التأسيس مطلوب.", es: "La fecha de fundación es obligatoria." },
+  },
+  alerts: {
+    createdTitle: { fr: "Syndicat créé !", en: "Union created!", ar: "تم إنشاء النقابة!", es: "¡Sindicato creado!" },
+    createdMsg: { fr: "Le syndicat \"{name}\" a été créé avec succès. Vous pouvez maintenant inviter des membres.", en: "The union \"{name}\" has been successfully created. You can now invite members.", ar: "تم إنشاء النقابة \"{name}\" بنجاح. يمكنك الآن دعوة الأعضاء.", es: "El sindicato \"{name}\" se ha creado con éxito. Ahora puede invitar a miembros." },
+    dashboardBtn: { fr: "Voir le tableau de bord", en: "View Dashboard", ar: "عرض لوحة القيادة", es: "Ver el panel de control" },
+  },
+  buttons: {
+    continue: { fr: "Continuer", en: "Continue", ar: "استمرار", es: "Continuar" },
+    createBtn: { fr: "Créer le syndicat", en: "Create the union", ar: "إنشاء النقابة", es: "Crear el sindicato" },
+  }
+};
 
-const STEP_LABELS = ["Identité", "Contact", "Légal", "Configuration"];
+const SECTORS = ["education", "health", "publicAdmin", "industry", "commerce", "engineering", "transport", "agriculture", "tourism", "justice", "other"];
+const REGIONS = ["casablanca", "rabat", "fes", "marrakech", "souss", "tanger", "oriental", "beni", "draa", "guelmim", "national"];
+const LEGAL_FORMS = ["professional", "sectoral", "federation", "confederation", "localUnion"];
+const COTISATION_CYCLES = ["monthly", "quarterly", "yearly"];
+
 const STEP_ICONS: Array<keyof typeof Feather.glyphMap> = ["home", "phone", "file-text", "settings"];
 
 interface SetupForm {
@@ -49,6 +172,7 @@ interface SetupForm {
 }
 
 export default function SyndicateSetupScreen() {
+  const { lang } = useLanguage();
   const colors = useColors();
   const insets = useSafeAreaInsets();
   const { user } = useAuth();
