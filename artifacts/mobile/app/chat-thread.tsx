@@ -25,16 +25,37 @@ export default function ChatThreadScreen() {
   const colors = useColors();
   const insets = useSafeAreaInsets();
   const { id } = useLocalSearchParams<{ id: string }>();
-  const { conversations, messages, sendMessage } = useData();
   const [text, setText] = useState("");
   const [apiMessages, setApiMessages] = useState<ChatMessage[]>([]);
+  const [typingVisible, setTypingVisible] = useState(false);
   const listRef = useRef<FlatList>(null);
+  const lastMessageAtRef = useRef<string | null>(null);
   const { isWide } = useBreakpoints();
   const topPad = isWide ? 0 : (Platform.OS === "web" ? 67 : insets.top);
 
+  const { conversations, messages, sendMessage, markConversationRead, deleteConversation } = useData();
   const conversation = conversations.find((c) => c.id === id);
 
-  // Load historical messages from API when entering thread, with cancellation guard
+  function mapApiMessage(r: any): ChatMessage {
+    return {
+      id: String(r.id),
+      conversationId: id,
+      sender: String(r.senderName ?? r.sender ?? ""),
+      senderId: String(r.senderId ?? ""),
+      text: String(r.text ?? r.content ?? ""),
+      time: r.createdAt
+        ? new Date(r.createdAt).toLocaleTimeString("fr-FR", { hour: "2-digit", minute: "2-digit" })
+        : String(r.time ?? ""),
+      isMe: Boolean(r.isMe ?? false),
+      messageType: r.messageType ?? "text",
+      attachmentUrl: r.attachmentUrl ?? null,
+      attachmentType: r.attachmentType ?? null,
+      attachmentName: r.attachmentName ?? null,
+      createdAt: r.createdAt ? String(r.createdAt) : undefined,
+    };
+  }
+
+  // Load historical messages on mount; mark conversation as read
   useEffect(() => {
     if (!id) return;
     let cancelled = false;
@@ -42,20 +63,46 @@ export default function ChatThreadScreen() {
       .then((res: any) => {
         if (cancelled) return;
         const rows: any[] = res?.data ?? [];
-        setApiMessages(rows.map((r: any) => ({
-          id: String(r.id),
-          conversationId: id, // tag with current id so stale responses are filterable
-          sender: String(r.senderName ?? r.sender ?? ""),
-          text: String(r.text ?? r.content ?? ""),
-          time: r.createdAt
-            ? new Date(r.createdAt).toLocaleTimeString("fr-FR", { hour: "2-digit", minute: "2-digit" })
-            : String(r.time ?? ""),
-          isMe: Boolean(r.isMe ?? false),
-        })));
+        const mapped = rows.map(mapApiMessage);
+        setApiMessages(mapped);
+        if (mapped.length > 0) {
+          const last = mapped[mapped.length - 1];
+          lastMessageAtRef.current = last.createdAt ?? null;
+        }
       })
-      .catch(() => {/* keep showing optimistic messages on API failure */});
+      .catch(() => { /* keep showing optimistic messages on API failure */ });
+    markConversationRead(id);
     return () => { cancelled = true; };
-  }, [id]);
+  }, [id]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // Poll for new messages every 4 seconds
+  useEffect(() => {
+    if (!id) return;
+    const timer = setInterval(async () => {
+      try {
+        const since = lastMessageAtRef.current ?? new Date(0).toISOString();
+        const res = await chatApi.since(id, since) as any;
+        const rows: any[] = res?.data ?? [];
+        if (rows.length > 0) {
+          const mapped = rows.map(mapApiMessage);
+          setApiMessages((prev) => {
+            const existingIds = new Set(prev.map((m) => m.id));
+            const fresh = mapped.filter((m) => !existingIds.has(m.id));
+            if (fresh.length === 0) return prev;
+            const last = fresh[fresh.length - 1];
+            lastMessageAtRef.current = last.createdAt ?? null;
+            // Scroll to bottom when new messages arrive from others
+            if (fresh.some((m) => !m.isMe)) {
+              setTimeout(() => listRef.current?.scrollToEnd({ animated: true }), 100);
+              markConversationRead(id);
+            }
+            return [...prev, ...fresh];
+          });
+        }
+      } catch { /* keep showing stale */ }
+    }, 4000);
+    return () => clearInterval(timer);
+  }, [id]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // Merge: show API history + optimistic "isMe" messages not yet echoed by server.
   // Optimistic messages use temp IDs (m<timestamp>) that won't match server UUIDs, so
@@ -83,7 +130,7 @@ export default function ChatThreadScreen() {
     );
   }
 
-  const isGroup = conversation.role === "Groupe";
+  const isGroup = conversation.isGroup || conversation.convType === "group" || conversation.role === "Groupe";
 
   return (
     <KeyboardAvoidingView
@@ -133,7 +180,14 @@ export default function ChatThreadScreen() {
             Alert.alert("Options", undefined, [
               { text: "Annuler", style: "cancel" },
               { text: "Partager la conversation", onPress: () => shareContent(`Conversation avec ${conversation.participant} sur SYNDYCAT`) },
-              { text: "Supprimer la conversation", style: "destructive", onPress: () => { router.back(); } },
+              {
+                text: "Supprimer la conversation",
+                style: "destructive",
+                onPress: () => {
+                  deleteConversation(id);
+                  router.back();
+                },
+              },
             ]);
           }}
         >

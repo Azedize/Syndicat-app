@@ -344,19 +344,6 @@ export const marketplace = {
     request<{ data: unknown }>("/reviews", { method: "POST", body: JSON.stringify(data) }),
 };
 
-// ─── Chat ─────────────────────────────────────────────────────────────────────
-
-export const chat = {
-  conversations: () => request<{ data: unknown[] }>("/conversations"),
-  messages: (conversationId: string) =>
-    request<{ data: unknown[] }>(`/conversations/${conversationId}/messages`),
-  sendMessage: (conversationId: string, text: string) =>
-    request<{ data: unknown }>(`/conversations/${conversationId}/messages`, {
-      method: "POST",
-      body: JSON.stringify({ text }),
-    }),
-};
-
 // ─── Documents ───────────────────────────────────────────────────────────────
 
 export const documents = {
@@ -466,6 +453,92 @@ export const content = {
       method: "POST",
       body: JSON.stringify({ employeeId, month }),
     }),
+};
+
+// ─── Chat ────────────────────────────────────────────────────────────────────
+
+export interface ApiConversation {
+  id: string;
+  convType: "direct" | "group" | "announcement" | "support" | "building";
+  isGroup: boolean;
+  participant: string;
+  participantId?: string | null;
+  role: string;
+  lastMessage: string;
+  time: string;
+  unread: number;
+  syndicateId?: string | null;
+  buildingId?: string | null;
+  participantIds?: string[];
+}
+
+export interface ApiMessage {
+  id: string;
+  conversationId: string;
+  senderId: string;
+  senderName: string;
+  text: string;
+  messageType: "text" | "image" | "document" | "announcement";
+  attachmentUrl?: string | null;
+  attachmentType?: string | null;
+  attachmentName?: string | null;
+  isMe: boolean;
+  createdAt: string;
+}
+
+export const chat = {
+  conversations: () =>
+    request<{ data: ApiConversation[]; total: number }>("/conversations"),
+
+  unreadCount: () =>
+    request<{ total: number }>("/conversations/unread-count"),
+
+  messages: (id: string) =>
+    request<{ data: ApiMessage[]; total: number }>(`/conversations/${id}/messages`),
+
+  since: (id: string, since: string) =>
+    request<{ data: ApiMessage[] }>(`/conversations/${id}/since?since=${encodeURIComponent(since)}`),
+
+  send: (
+    id: string,
+    payload: {
+      text?: string;
+      messageType?: "text" | "image" | "document" | "announcement";
+      attachmentUrl?: string;
+      attachmentType?: string;
+      attachmentName?: string;
+    },
+  ) =>
+    request<{ data: ApiMessage }>(`/conversations/${id}/messages`, {
+      method: "POST",
+      body: JSON.stringify({ text: payload.text ?? "", ...payload }),
+    }),
+
+  // Legacy alias kept for existing callers
+  sendMessage: (id: string, text: string) =>
+    request<{ data: ApiMessage }>(`/conversations/${id}/messages`, {
+      method: "POST",
+      body: JSON.stringify({ text }),
+    }),
+
+  create: (params: {
+    participantId?: string;
+    isGroup?: boolean;
+    name?: string;
+    convType?: ApiConversation["convType"];
+    buildingId?: string;
+    participantIds?: string[];
+  }) =>
+    request<{ data: ApiConversation; existing?: boolean }>("/conversations", {
+      method: "POST",
+      body: JSON.stringify(params),
+    }),
+
+  markRead: (id: string) =>
+    request<{ message: string }>(`/conversations/${id}/read`, { method: "PATCH" }),
+
+  delete: (id: string) =>
+    request<{ message: string }>(`/conversations/${id}`, { method: "DELETE" }),
 };
 
 // ─── Statistics ───────────────────────────────────────────────────────────────

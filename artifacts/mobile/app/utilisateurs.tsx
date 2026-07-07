@@ -540,29 +540,6 @@ export default function UtilisateursScreen() {
   );
 }
 
-            <View style={{ gap: 6 }}>
-              <Text style={[styles.fieldLabel, { color: colors.mutedForeground }]}>Syndicat</Text>
-              {SYNDICATES.map((s) => (
-                <TouchableOpacity
-                  key={s}
-                  style={[styles.syndicateOption, {
-                    backgroundColor: newSyndicate === s ? colors.primary + "12" : colors.card,
-                    borderColor: newSyndicate === s ? colors.primary : colors.border,
-                  }]}
-                  onPress={() => { setNewSyndicate(s); Haptics.selectionAsync(); }}
-                >
-                  <Text style={[styles.syndicateText, { color: newSyndicate === s ? colors.primary : colors.foreground }]} numberOfLines={1}>{s}</Text>
-                  {newSyndicate === s && <Feather name="check" size={16} color={colors.primary} />}
-                </TouchableOpacity>
-              ))}
-            </View>
-          </ScrollView>
-        </View>
-      </Modal>
-    </View>
-  );
-}
-
 const styles = StyleSheet.create({
   root: { flex: 1 },
   header: { paddingHorizontal: 20, paddingBottom: 20 },

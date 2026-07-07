@@ -84,6 +84,78 @@ const ALL_ACTIVITIES: ActivityLog[] = [
   { id: "a18", category: "system", action: "Mise à jour système", target: "SYNDYCAT Global CPS v2.0.1", detail: "Déploiement patch de sécurité. Temps d'arrêt: 0s (rolling update).", user: "Système", userAvatar: "SY", userRole: "Système", timestamp: "2026-05-19 03:00", relativeTime: "Il y a 7j", severity: "info" },
 ];
 
+// ─── Entity → Category mapping ────────────────────────────────────────────────
+
+const ENTITY_TO_CATEGORY: Record<string, Exclude<ActivityCategory, "all">> = {
+  auth: "auth", user: "auth", login: "auth", session: "auth", password: "auth",
+  transaction: "finance", payment: "finance", cotisation: "finance", invoice: "finance",
+  bon: "finance", budget: "finance", salary: "finance", caisse: "finance",
+  election: "elections", vote: "elections", candidate: "elections",
+  meeting: "governance", resolution: "governance", workflow: "governance",
+  document: "documents", file: "documents",
+  publication: "members", member: "members", tenant: "members",
+  message: "chat", conversation: "chat",
+  order: "marketplace", product: "marketplace", cart: "marketplace",
+  system: "system", backup: "system", job: "system",
+};
+
+function inferCategory(entity: string): Exclude<ActivityCategory, "all"> {
+  const e = (entity ?? "").toLowerCase();
+  for (const [key, cat] of Object.entries(ENTITY_TO_CATEGORY)) {
+    if (e.includes(key)) return cat;
+  }
+  return "system";
+}
+
+function inferSeverity(action: string): Severity {
+  const a = (action ?? "").toLowerCase();
+  if (a.includes("fail") || a.includes("error") || a.includes("reject") || a.includes("échoué")) return "error";
+  if (a.includes("warn") || a.includes("attempt") || a.includes("suspect") || a.includes("tentative")) return "warning";
+  if (a.includes("creat") || a.includes("add") || a.includes("approv") || a.includes("pay") || a.includes("login") || a.includes("success") || a.includes("valid")) return "success";
+  return "info";
+}
+
+function relativeLabel(iso: string): string {
+  const diff = Date.now() - new Date(iso).getTime();
+  const mins = Math.floor(diff / 60000);
+  if (mins < 1) return "À l'instant";
+  if (mins < 60) return `Il y a ${mins} min`;
+  const hrs = Math.floor(mins / 60);
+  if (hrs < 24) return `Il y a ${hrs}h`;
+  const days = Math.floor(hrs / 24);
+  if (days === 1) return "Hier";
+  return `Il y a ${days}j`;
+}
+
+function safeDate(iso: string | null | undefined): Date | null {
+  if (!iso) return null;
+  const d = new Date(iso);
+  return Number.isNaN(d.getTime()) ? null : d;
+}
+
+function mapApiLog(raw: {
+  id: string; userId: string; userName: string | null; syndicateId: string | null;
+  action: string; entity: string; entityId: string | null; details: string | null; createdAt: string;
+}): ActivityLog {
+  const userName = raw.userName ?? "Système";
+  const avatar = userName.split(" ").filter(Boolean).slice(0, 2).map((w) => w[0]).join("").toUpperCase() || "SY";
+  const d = safeDate(raw.createdAt);
+  const ts = d ? d.toISOString().slice(0, 16).replace("T", " ") : "";
+  return {
+    id: raw.id,
+    category: inferCategory(raw.entity ?? ""),
+    action: raw.action ?? "",
+    target: raw.entityId ? `${raw.entity ?? ""} #${raw.entityId.slice(0, 8)}` : (raw.entity ?? ""),
+    detail: raw.details ?? undefined,
+    user: userName,
+    userAvatar: avatar,
+    userRole: "",
+    timestamp: ts,
+    relativeTime: d ? relativeLabel(d.toISOString()) : "",
+    severity: inferSeverity(raw.action ?? ""),
+  };
+}
+
 export default function ActivityScreen() {
   const colors = useColors();
   const insets = useSafeAreaInsets();
@@ -92,10 +164,24 @@ export default function ActivityScreen() {
   const topPad = isWide ? 0 : (Platform.OS === "web" ? 67 : insets.top);
   const isAdmin = user?.role !== "member";
 
+  const [activities, setActivities] = useState<ActivityLog[]>(ALL_ACTIVITIES);
+  const [loadingApi, setLoadingApi] = useState(false);
   const [category, setCategory] = useState<ActivityCategory>("all");
   const [selectedLog, setSelectedLog] = useState<ActivityLog | null>(null);
 
-  const filtered = category === "all" ? ALL_ACTIVITIES : ALL_ACTIVITIES.filter((a) => a.category === category);
+  useEffect(() => {
+    setLoadingApi(true);
+    auditApi.getLogs()
+      .then((res) => {
+        if (res.data && res.data.length > 0) {
+          setActivities(res.data.map(mapApiLog));
+        }
+      })
+      .catch(() => { /* keep static fallback */ })
+      .finally(() => setLoadingApi(false));
+  }, []);
+
+  const filtered = category === "all" ? activities : activities.filter((a) => a.category === category);
 
   // Group by day
   const grouped = filtered.reduce<Record<string, ActivityLog[]>>((acc, log) => {
@@ -114,12 +200,12 @@ export default function ActivityScreen() {
 
   const sections = Object.entries(grouped).map(([title, data]) => ({ title, data }));
 
-  const counts: Record<string, number> = { all: ALL_ACTIVITIES.length };
+  const counts: Record<string, number> = { all: activities.length };
   Object.keys(CAT_CONFIG).forEach((k) => {
-    counts[k] = ALL_ACTIVITIES.filter((a) => a.category === k).length;
+    counts[k] = activities.filter((a) => a.category === k).length;
   });
 
-  const errorCount = ALL_ACTIVITIES.filter((a) => a.severity === "error" || a.severity === "warning").length;
+  const errorCount = activities.filter((a) => a.severity === "error" || a.severity === "warning").length;
 
   return (
     <View style={[styles.root, { backgroundColor: colors.background }]}>
@@ -146,10 +232,10 @@ export default function ActivityScreen() {
         {/* Stats */}
         <View style={styles.statsRow}>
           {[
-            { icon: "activity" as const, val: ALL_ACTIVITIES.length, label: "Événements", color: "#fff" },
-            { icon: "check-circle" as const, val: ALL_ACTIVITIES.filter((a) => a.severity === "success").length, label: "Succès", color: "#6ee7b7" },
+            { icon: "activity" as const, val: activities.length, label: "Événements", color: "#fff" },
+            { icon: "check-circle" as const, val: activities.filter((a) => a.severity === "success").length, label: "Succès", color: "#6ee7b7" },
             { icon: "alert-triangle" as const, val: errorCount, label: "Alertes", color: errorCount > 0 ? "#fcd34d" : "#6ee7b7" },
-            { icon: "users" as const, val: new Set(ALL_ACTIVITIES.map((a) => a.user)).size, label: "Utilisateurs", color: "#c4b5fd" },
+            { icon: "users" as const, val: new Set(activities.map((a) => a.user)).size, label: "Utilisateurs", color: "#c4b5fd" },
           ].map((s) => (
             <View key={s.label} style={styles.statBox}>
               <Feather name={s.icon} size={12} color={s.color} />
@@ -160,7 +246,7 @@ export default function ActivityScreen() {
         </View>
 
         {/* Security alert if needed */}
-        {ALL_ACTIVITIES.some((a) => a.severity === "error" || (a.severity === "warning" && a.category === "auth")) && (
+        {activities.some((a) => a.severity === "error" || (a.severity === "warning" && a.category === "auth")) && (
           <View style={styles.securityAlert}>
             <Feather name="shield" size={14} color="#fbbf24" />
             <Text style={styles.securityAlertText}>1 tentative de connexion suspecte détectée</Text>

@@ -147,20 +147,30 @@ export interface CaisseEntry {
 
 export interface ChatConversation {
   id: string;
+  convType: "direct" | "group" | "announcement" | "support" | "building";
   participant: string;
+  participantId?: string | null;
   role: string;
   lastMessage: string;
   time: string;
   unread: number;
+  buildingId?: string | null;
+  participantIds?: string[];
 }
 
 export interface ChatMessage {
   id: string;
   conversationId: string;
   sender: string;
+  senderId?: string;
   text: string;
   time: string;
   isMe: boolean;
+  messageType?: "text" | "image" | "document" | "announcement";
+  attachmentUrl?: string | null;
+  attachmentType?: string | null;
+  attachmentName?: string | null;
+  createdAt?: string;
 }
 
 export interface Syndicate {
@@ -364,6 +374,9 @@ interface DataContextType {
   refreshAlerts: () => Promise<void>;
   voteForCandidate: (candidateId: string, electionId: string) => Promise<void>;
   sendMessage: (conversationId: string, text: string) => void;
+  markConversationRead: (conversationId: string) => void;
+  deleteConversation: (conversationId: string) => void;
+  refreshConversations: () => Promise<void>;
   addTransaction: (t: Transaction) => void;
   createElection: (e: Election) => void;
   addToCart: (item: Omit<CartItem, "id">) => void;
@@ -381,6 +394,24 @@ interface DataContextType {
 }
 
 
+
+// ─── Row mapper (module-level, no closure deps) ──────────────────────────────
+
+function mapConversationRow(r: unknown): import("./DataContext").ChatConversation {
+  const row = r as Record<string, unknown>;
+  return {
+    id: String(row.id),
+    convType: (row.convType as "direct" | "group" | "announcement" | "support" | "building") ?? "direct",
+    participant: String(row.participant ?? row.participantName ?? ""),
+    participantId: row.participantId ? String(row.participantId) : null,
+    role: String(row.role ?? ""),
+    lastMessage: String(row.lastMessage ?? row.lastMessageContent ?? ""),
+    time: String(row.time ?? row.lastMessageAt ?? ""),
+    unread: Number(row.unread ?? row.unreadCount ?? 0),
+    buildingId: row.buildingId ? String(row.buildingId) : null,
+    participantIds: Array.isArray(row.participantIds) ? (row.participantIds as string[]) : [],
+  };
+}
 
 const DataContext = createContext<DataContextType | undefined>(undefined);
 
@@ -797,17 +828,7 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
         if (conversationsRes.status === "fulfilled") {
           const rows = (conversationsRes.value as { data: unknown[] }).data;
           if (rows?.length) {
-            setConversations(rows.map((r: unknown) => {
-              const row = r as Record<string, unknown>;
-              return {
-                id: String(row.id),
-                participant: String(row.participant ?? row.participantName ?? ""),
-                role: String(row.role ?? ""),
-                lastMessage: String(row.lastMessage ?? row.lastMessageContent ?? ""),
-                time: String(row.time ?? row.lastMessageAt ?? ""),
-                unread: Number(row.unread ?? row.unreadCount ?? 0),
-              };
-            }));
+            setConversations(rows.map(mapConversationRow));
           }
         }
 
@@ -917,6 +938,13 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
     return () => clearInterval(id);
   }, [user]); // eslint-disable-line react-hooks/exhaustive-deps
 
+  // Poll conversations every 5s for real-time unread count and last message updates
+  useEffect(() => {
+    if (!user) return;
+    const id = setInterval(() => { refreshConversations(); }, 5_000);
+    return () => clearInterval(id);
+  }, [user]); // eslint-disable-line react-hooks/exhaustive-deps
+
   const addMember = (m: Member) => {
     setMembers((p) => [m, ...p]);
     api.members.create(m).catch(() => {
@@ -1014,16 +1042,39 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
       throw err;
     }
   };
+  const refreshConversations = async () => {
+    try {
+      const res = await api.chat.conversations() as { data: unknown[] };
+      if (res?.data?.length) setConversations(res.data.map(mapConversationRow));
+    } catch { /* keep stale */ }
+  };
+
+  const markConversationRead = (conversationId: string) => {
+    setConversations((p) => p.map((c) => c.id === conversationId ? { ...c, unread: 0 } : c));
+    api.chat.markRead(conversationId).catch(() => {});
+  };
+
+  const deleteConversation = (conversationId: string) => {
+    setConversations((p) => p.filter((c) => c.id !== conversationId));
+    api.chat.delete(conversationId).catch(() => {});
+  };
+
   const sendMessage = (conversationId: string, text: string) => {
+    const now = new Date();
     const msg: ChatMessage = {
       id: `m${Date.now()}`,
       conversationId,
       sender: "Moi",
       text,
-      time: new Date().toLocaleTimeString("fr-FR", { hour: "2-digit", minute: "2-digit" }),
+      time: now.toLocaleTimeString("fr-FR", { hour: "2-digit", minute: "2-digit" }),
       isMe: true,
+      messageType: "text",
+      createdAt: now.toISOString(),
     };
     setMessages((p) => [...p, msg]);
+    setConversations((p) => p.map((c) =>
+      c.id === conversationId ? { ...c, lastMessage: text, time: msg.time, unread: 0 } : c
+    ));
     api.chat.sendMessage(conversationId, text).catch(() => {});
   };
   const addTransaction = (t: Transaction) => {
@@ -1096,6 +1147,7 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
         addPartner, updatePartnerStatus, generatePayslip,
         confirmMeetingAttendance,
         addMeeting, updateMeeting,
+        markConversationRead, deleteConversation, refreshConversations,
       }}
     >
       {children}

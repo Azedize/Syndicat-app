@@ -1,3 +1,5 @@
 - [Rebuilding missing workspace lib packages](rebuild-missing-lib-packages.md) — when tsconfig/package.json reference `lib/*` packages absent from disk, derive schema/exports from consuming route code, not just any old SQL dump.
 - [Expo RTL reload requirement](expo-rtl-reload.md) — forceRTL() alone doesn't flip layout; app must reload, and reloadAsync throws in Expo Go/dev client.
 - [Stale lib/db dist masks schema errors](stale-db-dist-typecheck.md) — tsc can pass while referencing dropped/renamed Drizzle columns because `lib/db/dist` typings are stale; verify against `lib/db/src/schema.ts` source, not dist types.
+- [Audit screen real-API mapping](activity-audit-wiring.md) — activity.tsx uses static seed data with real-API override; mapApiLog must guard invalid dates with safeDate() before calling toISOString().
+- [Schema FK constraints added](schema-fk-constraints.md) — 41 .references() calls added to schema.ts; avoid circular pairs (e.g. skip syndicates.adminId→users since users.syndicateId→syndicates already exists).

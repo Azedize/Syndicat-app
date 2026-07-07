@@ -62205,6 +62205,7 @@ __export(schema_exports, {
   meetingAttendeesTable: () => meetingAttendeesTable,
   meetingsTable: () => meetingsTable,
   membersTable: () => membersTable,
+  messageReadsTable: () => messageReadsTable,
   messagesTable: () => messagesTable,
   notificationPreferencesTable: () => notificationPreferencesTable,
   ordersTable: () => ordersTable,
@@ -62252,10 +62253,12 @@ var usersTable = pgTable(
     name: text("name").notNull(),
     email: text("email").notNull().unique(),
     phone: text("phone"),
+    cin: text("cin"),
+    // Moroccan CIN (Carte d'Identité Nationale)
     passwordHash: text("password_hash").notNull(),
     role: text("role").notNull().default("member"),
     status: text("status").notNull().default("active"),
-    syndicateId: text("syndicate_id"),
+    syndicateId: text("syndicate_id").references(() => syndicatesTable.id, { onDelete: "set null" }),
     pushToken: text("push_token"),
     profession: text("profession"),
     avatar: text("avatar"),
@@ -62264,17 +62267,21 @@ var usersTable = pgTable(
   },
   (t) => [index("users_syndicate_id_idx").on(t.syndicateId)]
 );
-var refreshTokensTable = pgTable("refresh_tokens", {
-  id: id(),
-  userId: text("user_id").notNull(),
-  token: text("token").notNull().unique(),
-  expiresAt: timestamp("expires_at").notNull(),
-  revokedAt: timestamp("revoked_at"),
-  createdAt: createdAt()
-});
+var refreshTokensTable = pgTable(
+  "refresh_tokens",
+  {
+    id: id(),
+    userId: text("user_id").notNull().references(() => usersTable.id, { onDelete: "cascade" }),
+    token: text("token").notNull().unique(),
+    expiresAt: timestamp("expires_at").notNull(),
+    revokedAt: timestamp("revoked_at"),
+    createdAt: createdAt()
+  },
+  (t) => [index("refresh_tokens_user_id_idx").on(t.userId)]
+);
 var passwordResetTokensTable = pgTable("password_reset_tokens", {
   id: id(),
-  userId: text("user_id").notNull(),
+  userId: text("user_id").notNull().references(() => usersTable.id, { onDelete: "cascade" }),
   token: text("token").notNull().unique(),
   expiresAt: timestamp("expires_at").notNull(),
   usedAt: timestamp("used_at"),
@@ -62288,7 +62295,7 @@ var membersTable = pgTable(
     email: text("email").notNull(),
     phone: text("phone").default(""),
     profession: text("profession").default(""),
-    syndicateId: text("syndicate_id"),
+    syndicateId: text("syndicate_id").references(() => syndicatesTable.id, { onDelete: "cascade" }),
     status: text("status").default("active"),
     cotisationStatus: text("cotisation_status").default("pending"),
     joinDate: text("join_date"),
@@ -62311,8 +62318,8 @@ var buildingsTable = pgTable(
     totalFloors: integer("total_floors").default(0),
     totalLots: integer("total_lots").default(0),
     constructionYear: integer("construction_year"),
-    syndicateId: text("syndicate_id"),
-    adminId: text("admin_id"),
+    syndicateId: text("syndicate_id").references(() => syndicatesTable.id, { onDelete: "cascade" }),
+    adminId: text("admin_id").references(() => usersTable.id, { onDelete: "set null" }),
     bankAccount: text("bank_account"),
     registrationNumber: text("registration_number"),
     description: text("description"),
@@ -62330,8 +62337,8 @@ var lotsTable = pgTable(
     floor: integer("floor").default(0),
     surfaceM2: doublePrecision("surface_m2"),
     tantiemes: integer("tantiemes").default(0),
-    buildingId: text("building_id").notNull(),
-    ownerId: text("owner_id"),
+    buildingId: text("building_id").notNull().references(() => buildingsTable.id, { onDelete: "cascade" }),
+    ownerId: text("owner_id").references(() => membersTable.id, { onDelete: "set null" }),
     tenantId: text("tenant_id"),
     status: text("status").default("occupied"),
     description: text("description"),
@@ -62342,68 +62349,97 @@ var lotsTable = pgTable(
     index("lots_owner_id_idx").on(t.ownerId)
   ]
 );
-var tenantsTable = pgTable("tenants", {
-  id: id(),
-  name: text("name").notNull(),
-  email: text("email"),
-  phone: text("phone"),
-  lotId: text("lot_id"),
-  buildingId: text("building_id"),
-  syndicateId: text("syndicate_id"),
-  leaseStart: text("lease_start"),
-  leaseEnd: text("lease_end"),
-  monthlyRent: doublePrecision("monthly_rent"),
-  depositAmount: doublePrecision("deposit_amount"),
-  status: text("status").default("active"),
-  emergencyContact: text("emergency_contact"),
-  emergencyPhone: text("emergency_phone"),
-  notes: text("notes"),
-  createdAt: createdAt()
-});
-var budgetsTable = pgTable("budgets", {
-  id: id(),
-  year: integer("year").notNull(),
-  buildingId: text("building_id").notNull(),
-  totalAmount: doublePrecision("total_amount").default(0),
-  chargesAmount: doublePrecision("charges_amount").default(0),
-  fondsReserve: doublePrecision("fonds_reserve").default(0),
-  status: text("status").default("draft"),
-  notes: text("notes"),
-  createdBy: text("created_by"),
-  votedAt: timestamp("voted_at"),
-  meetingId: text("meeting_id"),
-  createdAt: createdAt()
-});
-var budgetLinesTable = pgTable("budget_lines", {
-  id: id(),
-  budgetId: text("budget_id").notNull(),
-  category: text("category").notNull(),
-  label: text("label").notNull(),
-  amountAnnual: doublePrecision("amount_annual").default(0),
-  amountQ1: doublePrecision("amount_q1"),
-  amountQ2: doublePrecision("amount_q2"),
-  amountQ3: doublePrecision("amount_q3"),
-  amountQ4: doublePrecision("amount_q4"),
-  prestataireId: text("prestataire_id")
-});
-var appelsDeFondsTable = pgTable("appels_de_fonds", {
-  id: id(),
-  buildingId: text("building_id").notNull(),
-  budgetId: text("budget_id"),
-  lotId: text("lot_id").notNull(),
-  ownerId: text("owner_id"),
-  period: text("period").notNull(),
-  type: text("type").default("charges_courantes"),
-  amount: doublePrecision("amount").notNull(),
-  dueDate: text("due_date"),
-  status: text("status").default("pending"),
-  paymentMethod: text("payment_method"),
-  proofUrl: text("proof_url"),
-  notes: text("notes"),
-  paidDate: text("paid_date"),
-  receiptNumber: text("receipt_number"),
-  createdAt: createdAt()
-});
+var tenantsTable = pgTable(
+  "tenants",
+  {
+    id: id(),
+    name: text("name").notNull(),
+    email: text("email"),
+    phone: text("phone"),
+    lotId: text("lot_id").references(() => lotsTable.id, { onDelete: "set null" }),
+    buildingId: text("building_id").references(() => buildingsTable.id, { onDelete: "cascade" }),
+    syndicateId: text("syndicate_id").references(() => syndicatesTable.id, { onDelete: "cascade" }),
+    leaseStart: text("lease_start"),
+    leaseEnd: text("lease_end"),
+    monthlyRent: doublePrecision("monthly_rent"),
+    depositAmount: doublePrecision("deposit_amount"),
+    status: text("status").default("active"),
+    emergencyContact: text("emergency_contact"),
+    emergencyPhone: text("emergency_phone"),
+    notes: text("notes"),
+    createdAt: createdAt()
+  },
+  (t) => [
+    index("tenants_syndicate_id_idx").on(t.syndicateId),
+    index("tenants_building_id_idx").on(t.buildingId),
+    index("tenants_lot_id_idx").on(t.lotId),
+    index("tenants_status_idx").on(t.status)
+  ]
+);
+var budgetsTable = pgTable(
+  "budgets",
+  {
+    id: id(),
+    year: integer("year").notNull(),
+    buildingId: text("building_id").notNull().references(() => buildingsTable.id, { onDelete: "cascade" }),
+    totalAmount: doublePrecision("total_amount").default(0),
+    chargesAmount: doublePrecision("charges_amount").default(0),
+    fondsReserve: doublePrecision("fonds_reserve").default(0),
+    status: text("status").default("draft"),
+    notes: text("notes"),
+    createdBy: text("created_by"),
+    votedAt: timestamp("voted_at"),
+    meetingId: text("meeting_id"),
+    createdAt: createdAt()
+  },
+  (t) => [
+    index("budgets_building_id_idx").on(t.buildingId),
+    index("budgets_status_idx").on(t.status)
+  ]
+);
+var budgetLinesTable = pgTable(
+  "budget_lines",
+  {
+    id: id(),
+    budgetId: text("budget_id").notNull().references(() => budgetsTable.id, { onDelete: "cascade" }),
+    category: text("category").notNull(),
+    label: text("label").notNull(),
+    amountAnnual: doublePrecision("amount_annual").default(0),
+    amountQ1: doublePrecision("amount_q1"),
+    amountQ2: doublePrecision("amount_q2"),
+    amountQ3: doublePrecision("amount_q3"),
+    amountQ4: doublePrecision("amount_q4"),
+    prestataireId: text("prestataire_id")
+  },
+  (t) => [index("budget_lines_budget_id_idx").on(t.budgetId)]
+);
+var appelsDeFondsTable = pgTable(
+  "appels_de_fonds",
+  {
+    id: id(),
+    buildingId: text("building_id").notNull().references(() => buildingsTable.id, { onDelete: "cascade" }),
+    budgetId: text("budget_id").references(() => budgetsTable.id, { onDelete: "set null" }),
+    lotId: text("lot_id").notNull().references(() => lotsTable.id, { onDelete: "cascade" }),
+    ownerId: text("owner_id").references(() => membersTable.id, { onDelete: "set null" }),
+    period: text("period").notNull(),
+    type: text("type").default("charges_courantes"),
+    amount: doublePrecision("amount").notNull(),
+    dueDate: text("due_date"),
+    status: text("status").default("pending"),
+    paymentMethod: text("payment_method"),
+    proofUrl: text("proof_url"),
+    notes: text("notes"),
+    paidDate: text("paid_date"),
+    receiptNumber: text("receipt_number"),
+    createdAt: createdAt()
+  },
+  (t) => [
+    index("appels_building_id_idx").on(t.buildingId),
+    index("appels_owner_id_idx").on(t.ownerId),
+    index("appels_status_idx").on(t.status),
+    index("appels_due_date_idx").on(t.dueDate)
+  ]
+);
 var transactionsTable = pgTable(
   "transactions",
   {
@@ -62423,28 +62459,36 @@ var transactionsTable = pgTable(
     index("transactions_status_idx").on(t.status)
   ]
 );
-var salaryRecordsTable = pgTable("salary_records", {
-  id: id(),
-  employee: text("employee").notNull(),
-  role: text("role").notNull(),
-  amount: doublePrecision("amount").notNull(),
-  month: text("month").notNull(),
-  status: text("status").default("pending"),
-  paidDate: text("paid_date"),
-  syndicateId: text("syndicate_id"),
-  createdAt: createdAt()
-});
-var caisseEntriesTable = pgTable("caisse_entries", {
-  id: id(),
-  label: text("label").notNull(),
-  amount: doublePrecision("amount").notNull(),
-  type: text("type").notNull(),
-  date: text("date").notNull(),
-  category: text("category").default(""),
-  syndicateId: text("syndicate_id"),
-  balance: doublePrecision("balance"),
-  createdAt: createdAt()
-});
+var salaryRecordsTable = pgTable(
+  "salary_records",
+  {
+    id: id(),
+    employee: text("employee").notNull(),
+    role: text("role").notNull(),
+    amount: doublePrecision("amount").notNull(),
+    month: text("month").notNull(),
+    status: text("status").default("pending"),
+    paidDate: text("paid_date"),
+    syndicateId: text("syndicate_id").references(() => syndicatesTable.id, { onDelete: "cascade" }),
+    createdAt: createdAt()
+  },
+  (t) => [index("salary_records_syndicate_id_idx").on(t.syndicateId)]
+);
+var caisseEntriesTable = pgTable(
+  "caisse_entries",
+  {
+    id: id(),
+    label: text("label").notNull(),
+    amount: doublePrecision("amount").notNull(),
+    type: text("type").notNull(),
+    date: text("date").notNull(),
+    category: text("category").default(""),
+    syndicateId: text("syndicate_id").references(() => syndicatesTable.id, { onDelete: "cascade" }),
+    balance: doublePrecision("balance"),
+    createdAt: createdAt()
+  },
+  (t) => [index("caisse_entries_syndicate_id_idx").on(t.syndicateId)]
+);
 var invoicesTable = pgTable("invoices", {
   id: id(),
   reference: text("reference").notNull(),
@@ -62457,13 +62501,17 @@ var invoicesTable = pgTable("invoices", {
   syndicateId: text("syndicate_id"),
   createdAt: createdAt()
 });
-var invoiceItemsTable = pgTable("invoice_items", {
-  id: id(),
-  invoiceId: text("invoice_id").notNull(),
-  label: text("label").notNull(),
-  quantity: doublePrecision("quantity").notNull(),
-  unitPrice: doublePrecision("unit_price").notNull()
-});
+var invoiceItemsTable = pgTable(
+  "invoice_items",
+  {
+    id: id(),
+    invoiceId: text("invoice_id").notNull().references(() => invoicesTable.id, { onDelete: "cascade" }),
+    label: text("label").notNull(),
+    quantity: doublePrecision("quantity").notNull(),
+    unitPrice: doublePrecision("unit_price").notNull()
+  },
+  (t) => [index("invoice_items_invoice_id_idx").on(t.invoiceId)]
+);
 var bonsLivraisonTable = pgTable("bons_livraison", {
   id: id(),
   reference: text("reference").notNull(),
@@ -62475,13 +62523,17 @@ var bonsLivraisonTable = pgTable("bons_livraison", {
   syndicateId: text("syndicate_id"),
   createdAt: createdAt()
 });
-var bonItemsTable = pgTable("bon_items", {
-  id: id(),
-  bonId: text("bon_id").notNull(),
-  label: text("label").notNull(),
-  quantity: doublePrecision("quantity").notNull(),
-  unitPrice: doublePrecision("unit_price").notNull()
-});
+var bonItemsTable = pgTable(
+  "bon_items",
+  {
+    id: id(),
+    bonId: text("bon_id").notNull().references(() => bonsLivraisonTable.id, { onDelete: "cascade" }),
+    label: text("label").notNull(),
+    quantity: doublePrecision("quantity").notNull(),
+    unitPrice: doublePrecision("unit_price").notNull()
+  },
+  (t) => [index("bon_items_bon_id_idx").on(t.bonId)]
+);
 var prestatairesTable = pgTable("prestataires", {
   id: id(),
   name: text("name").notNull(),
@@ -62514,43 +62566,58 @@ var contratsPrestatairesTable = pgTable("contrats_prestataires", {
   notes: text("notes"),
   createdAt: createdAt()
 });
-var travauxTable = pgTable("travaux", {
-  id: id(),
-  title: text("title").notNull(),
-  description: text("description"),
-  type: text("type").default("entretien"),
-  priority: text("priority").default("normal"),
-  status: text("status").default("reported"),
-  buildingId: text("building_id").notNull(),
-  lotId: text("lot_id"),
-  prestataireId: text("prestataire_id"),
-  reportedById: text("reported_by_id"),
-  reportedByName: text("reported_by_name"),
-  assignedById: text("assigned_by_id"),
-  estimatedAmount: doublePrecision("estimated_amount"),
-  actualAmount: doublePrecision("actual_amount"),
-  startDate: text("start_date"),
-  endDate: text("end_date"),
-  completedAt: timestamp("completed_at"),
-  notes: text("notes"),
-  createdAt: createdAt()
-});
-var sinistresTable = pgTable("sinistres", {
-  id: id(),
-  buildingId: text("building_id").notNull(),
-  lotId: text("lot_id"),
-  type: text("type").notNull(),
-  description: text("description").notNull(),
-  date: text("date").notNull(),
-  estimatedAmount: doublePrecision("estimated_amount"),
-  indemnisedAmount: doublePrecision("indemnised_amount"),
-  claimNumber: text("claim_number"),
-  status: text("status").default("declared"),
-  reportedById: text("reported_by_id"),
-  reportedByName: text("reported_by_name"),
-  notes: text("notes"),
-  createdAt: createdAt()
-});
+var travauxTable = pgTable(
+  "travaux",
+  {
+    id: id(),
+    title: text("title").notNull(),
+    description: text("description"),
+    type: text("type").default("entretien"),
+    priority: text("priority").default("normal"),
+    status: text("status").default("reported"),
+    buildingId: text("building_id").notNull(),
+    lotId: text("lot_id"),
+    prestataireId: text("prestataire_id"),
+    reportedById: text("reported_by_id"),
+    reportedByName: text("reported_by_name"),
+    assignedById: text("assigned_by_id"),
+    estimatedAmount: doublePrecision("estimated_amount"),
+    actualAmount: doublePrecision("actual_amount"),
+    startDate: text("start_date"),
+    endDate: text("end_date"),
+    completedAt: timestamp("completed_at"),
+    notes: text("notes"),
+    createdAt: createdAt()
+  },
+  (t) => [
+    index("travaux_building_id_idx").on(t.buildingId),
+    index("travaux_status_idx").on(t.status),
+    index("travaux_priority_idx").on(t.priority)
+  ]
+);
+var sinistresTable = pgTable(
+  "sinistres",
+  {
+    id: id(),
+    buildingId: text("building_id").notNull(),
+    lotId: text("lot_id"),
+    type: text("type").notNull(),
+    description: text("description").notNull(),
+    date: text("date").notNull(),
+    estimatedAmount: doublePrecision("estimated_amount"),
+    indemnisedAmount: doublePrecision("indemnised_amount"),
+    claimNumber: text("claim_number"),
+    status: text("status").default("declared"),
+    reportedById: text("reported_by_id"),
+    reportedByName: text("reported_by_name"),
+    notes: text("notes"),
+    createdAt: createdAt()
+  },
+  (t) => [
+    index("sinistres_building_id_idx").on(t.buildingId),
+    index("sinistres_status_idx").on(t.status)
+  ]
+);
 var electionsTable = pgTable("elections", {
   id: id(),
   syndicateId: text("syndicate_id"),
@@ -62564,19 +62631,27 @@ var electionsTable = pgTable("elections", {
 });
 var candidatesTable = pgTable("candidates", {
   id: id(),
-  electionId: text("election_id").notNull(),
+  electionId: text("election_id").notNull().references(() => electionsTable.id, { onDelete: "cascade" }),
   name: text("name").notNull(),
   post: text("post").notNull(),
   bio: text("bio").default(""),
   votes: integer("votes").default(0)
 });
-var votesTable = pgTable("votes", {
-  id: id(),
-  electionId: text("election_id").notNull(),
-  voterId: text("voter_id").notNull(),
-  candidateId: text("candidate_id").notNull(),
-  createdAt: createdAt()
-});
+var votesTable = pgTable(
+  "votes",
+  {
+    id: id(),
+    electionId: text("election_id").notNull().references(() => electionsTable.id, { onDelete: "cascade" }),
+    voterId: text("voter_id").notNull().references(() => usersTable.id, { onDelete: "cascade" }),
+    candidateId: text("candidate_id").notNull().references(() => candidatesTable.id, { onDelete: "cascade" }),
+    createdAt: createdAt()
+  },
+  (t) => [
+    // Prevent duplicate votes: one voter per election
+    uniqueIndex("votes_election_voter_unique_idx").on(t.electionId, t.voterId),
+    index("votes_election_id_idx").on(t.electionId)
+  ]
+);
 var meetingsTable = pgTable("meetings", {
   id: id(),
   syndicateId: text("syndicate_id"),
@@ -62591,15 +62666,19 @@ var meetingsTable = pgTable("meetings", {
   createdBy: text("created_by"),
   createdAt: createdAt()
 });
-var meetingAttendeesTable = pgTable("meeting_attendees", {
-  id: id(),
-  meetingId: text("meeting_id").notNull(),
-  userId: text("user_id").notNull(),
-  createdAt: createdAt()
-});
+var meetingAttendeesTable = pgTable(
+  "meeting_attendees",
+  {
+    id: id(),
+    meetingId: text("meeting_id").notNull().references(() => meetingsTable.id, { onDelete: "cascade" }),
+    userId: text("user_id").notNull().references(() => usersTable.id, { onDelete: "cascade" }),
+    createdAt: createdAt()
+  },
+  (t) => [index("meeting_attendees_meeting_id_idx").on(t.meetingId)]
+);
 var agResolutionsTable = pgTable("ag_resolutions", {
   id: id(),
-  meetingId: text("meeting_id").notNull(),
+  meetingId: text("meeting_id").notNull().references(() => meetingsTable.id, { onDelete: "cascade" }),
   buildingId: text("building_id"),
   number: integer("number").notNull(),
   title: text("title").notNull(),
@@ -62660,8 +62739,8 @@ var publicationsTable = pgTable("publications", {
 var publicationLikesTable = pgTable(
   "publication_likes",
   {
-    publicationId: text("publication_id").notNull(),
-    userId: text("user_id").notNull()
+    publicationId: text("publication_id").notNull().references(() => publicationsTable.id, { onDelete: "cascade" }),
+    userId: text("user_id").notNull().references(() => usersTable.id, { onDelete: "cascade" })
   },
   (t) => [primaryKey({ columns: [t.publicationId, t.userId] })]
 );
@@ -62698,25 +62777,66 @@ var documentsTable = pgTable("documents", {
   createdBy: text("created_by"),
   createdAt: createdAt()
 });
-var conversationsTable = pgTable("conversations", {
-  id: id(),
-  syndicateId: text("syndicate_id"),
-  participant1Id: text("participant1_id"),
-  participant2Id: text("participant2_id"),
-  isGroup: boolean("is_group").default(false),
-  name: text("name"),
-  lastMessage: text("last_message"),
-  lastMessageAt: timestamp("last_message_at"),
-  createdAt: createdAt()
-});
-var messagesTable = pgTable("messages", {
-  id: id(),
-  conversationId: text("conversation_id").notNull(),
-  senderId: text("sender_id").notNull(),
-  senderName: text("sender_name"),
-  text: text("text").notNull(),
-  createdAt: createdAt()
-});
+var conversationsTable = pgTable(
+  "conversations",
+  {
+    id: id(),
+    syndicateId: text("syndicate_id").references(() => syndicatesTable.id, { onDelete: "cascade" }),
+    buildingId: text("building_id").references(() => buildingsTable.id, { onDelete: "set null" }),
+    // "direct" | "group" | "announcement" | "support" | "building"
+    convType: text("conv_type").notNull().default("direct"),
+    participant1Id: text("participant1_id").references(() => usersTable.id, { onDelete: "cascade" }),
+    participant2Id: text("participant2_id").references(() => usersTable.id, { onDelete: "cascade" }),
+    // JSON array of participant user IDs for group conversations
+    participantIds: text("participant_ids"),
+    isGroup: boolean("is_group").default(false),
+    name: text("name"),
+    lastMessage: text("last_message"),
+    lastMessageAt: timestamp("last_message_at"),
+    createdAt: createdAt()
+  },
+  (t) => [
+    index("conversations_participant1_id_idx").on(t.participant1Id),
+    index("conversations_participant2_id_idx").on(t.participant2Id),
+    index("conversations_syndicate_id_idx").on(t.syndicateId),
+    index("conversations_conv_type_idx").on(t.convType)
+  ]
+);
+var messagesTable = pgTable(
+  "messages",
+  {
+    id: id(),
+    conversationId: text("conversation_id").notNull().references(() => conversationsTable.id, { onDelete: "cascade" }),
+    senderId: text("sender_id").notNull().references(() => usersTable.id, { onDelete: "cascade" }),
+    senderName: text("sender_name"),
+    text: text("text").notNull().default(""),
+    // "text" | "image" | "document" | "announcement"
+    messageType: text("message_type").notNull().default("text"),
+    attachmentUrl: text("attachment_url"),
+    attachmentType: text("attachment_type"),
+    // MIME type e.g. "image/jpeg"
+    attachmentName: text("attachment_name"),
+    // original filename
+    createdAt: createdAt()
+  },
+  (t) => [
+    index("messages_conversation_id_idx").on(t.conversationId),
+    index("messages_created_at_idx").on(t.createdAt)
+  ]
+);
+var messageReadsTable = pgTable(
+  "message_reads",
+  {
+    id: id(),
+    conversationId: text("conversation_id").notNull().references(() => conversationsTable.id, { onDelete: "cascade" }),
+    userId: text("user_id").notNull().references(() => usersTable.id, { onDelete: "cascade" }),
+    lastReadAt: timestamp("last_read_at").defaultNow()
+  },
+  (t) => [
+    index("message_reads_conv_user_idx").on(t.conversationId, t.userId),
+    index("message_reads_user_id_idx").on(t.userId)
+  ]
+);
 var productsTable = pgTable("products", {
   id: id(),
   name: text("name").notNull(),
@@ -62778,21 +62898,29 @@ var legalAlertsTable = pgTable("legal_alerts", {
   syndicateId: text("syndicate_id"),
   createdAt: createdAt()
 });
-var supportTicketsTable = pgTable("support_tickets", {
-  id: id(),
-  title: text("title").notNull(),
-  description: text("description").notNull(),
-  priority: text("priority").default("medium"),
-  category: text("category").default("general"),
-  status: text("status").default("open"),
-  syndicateId: text("syndicate_id"),
-  submittedById: text("submitted_by_id"),
-  submittedByName: text("submitted_by_name"),
-  createdAt: createdAt()
-});
+var supportTicketsTable = pgTable(
+  "support_tickets",
+  {
+    id: id(),
+    title: text("title").notNull(),
+    description: text("description").notNull(),
+    priority: text("priority").default("medium"),
+    category: text("category").default("general"),
+    status: text("status").default("open"),
+    syndicateId: text("syndicate_id").references(() => syndicatesTable.id, { onDelete: "cascade" }),
+    submittedById: text("submitted_by_id").references(() => usersTable.id, { onDelete: "set null" }),
+    submittedByName: text("submitted_by_name"),
+    createdAt: createdAt()
+  },
+  (t) => [
+    index("support_tickets_submitted_by_id_idx").on(t.submittedById),
+    index("support_tickets_syndicate_id_idx").on(t.syndicateId),
+    index("support_tickets_status_idx").on(t.status)
+  ]
+);
 var ticketRepliesTable = pgTable("ticket_replies", {
   id: id(),
-  ticketId: text("ticket_id").notNull(),
+  ticketId: text("ticket_id").notNull().references(() => supportTicketsTable.id, { onDelete: "cascade" }),
   authorId: text("author_id"),
   authorName: text("author_name"),
   text: text("text").notNull(),
@@ -62823,7 +62951,7 @@ var paymentProofsTable = pgTable(
   "payment_proofs",
   {
     id: id(),
-    cotisationId: text("cotisation_id").notNull(),
+    cotisationId: text("cotisation_id").notNull().references(() => cotisationsTable.id, { onDelete: "cascade" }),
     userId: text("user_id"),
     fileUrl: text("file_url"),
     proofUrl: text("proof_url"),
@@ -62854,8 +62982,8 @@ var alertsTable = pgTable("alerts", {
 var alertReadsTable = pgTable(
   "alert_reads",
   {
-    alertId: text("alert_id").notNull(),
-    userId: text("user_id").notNull(),
+    alertId: text("alert_id").notNull().references(() => alertsTable.id, { onDelete: "cascade" }),
+    userId: text("user_id").notNull().references(() => usersTable.id, { onDelete: "cascade" }),
     readAt: timestamp("read_at").defaultNow()
   },
   (t) => [primaryKey({ columns: [t.alertId, t.userId] })]
@@ -63157,8 +63285,12 @@ router2.post("/auth/change-password", requireAuth, async (req, res) => {
       return;
     }
     const passwordHash = await bcryptjs_default.hash(newPassword, 10);
-    await db.update(usersTable).set({ passwordHash, updatedAt: /* @__PURE__ */ new Date() }).where(eq(usersTable.id, user.id));
-    res.json({ message: "Mot de passe modifi\xE9 avec succ\xE8s" });
+    const now = /* @__PURE__ */ new Date();
+    await db.transaction(async (tx) => {
+      await tx.update(usersTable).set({ passwordHash, updatedAt: now }).where(eq(usersTable.id, user.id));
+      await tx.update(refreshTokensTable).set({ revokedAt: now }).where(eq(refreshTokensTable.userId, user.id));
+    });
+    res.json({ message: "Mot de passe modifi\xE9 avec succ\xE8s. Veuillez vous reconnecter." });
   } catch (err) {
     req.log.error(err);
     res.status(500).json({ error: "Erreur serveur" });
@@ -63705,7 +63837,8 @@ var import_express5 = __toESM(require_express2(), 1);
 var router5 = (0, import_express5.Router)();
 router5.get("/syndicates", requireAuth, async (req, res) => {
   try {
-    const rows = await db.select().from(syndicatesTable);
+    const user = req.user;
+    const rows = user.role === "super_admin" ? await db.select().from(syndicatesTable) : await db.select().from(syndicatesTable).where(eq(syndicatesTable.id, user.syndicateId ?? ""));
     res.json({ data: rows });
   } catch (err) {
     req.log.error(err);
@@ -64754,8 +64887,29 @@ var router10 = (0, import_express10.Router)();
 async function canAccessConversation(userId, syndicateId, conversationId) {
   const [conv] = await db.select().from(conversationsTable).where(eq(conversationsTable.id, conversationId));
   if (!conv) return false;
-  if (conv.isGroup) return conv.syndicateId === syndicateId;
+  if (conv.convType === "announcement") return conv.syndicateId === syndicateId;
+  if (conv.convType === "building") return conv.syndicateId === syndicateId;
+  if (conv.isGroup) {
+    if (conv.participantIds) {
+      try {
+        const ids = JSON.parse(conv.participantIds);
+        return ids.includes(userId);
+      } catch {
+      }
+    }
+    return conv.syndicateId === syndicateId;
+  }
   return conv.participant1Id === userId || conv.participant2Id === userId;
+}
+function formatTime(d) {
+  if (!d) return "";
+  const now = /* @__PURE__ */ new Date();
+  const sameDay = d.getFullYear() === now.getFullYear() && d.getMonth() === now.getMonth() && d.getDate() === now.getDate();
+  if (sameDay) return d.toLocaleTimeString("fr-FR", { hour: "2-digit", minute: "2-digit" });
+  const daysDiff = Math.floor((now.getTime() - d.getTime()) / 864e5);
+  if (daysDiff === 1) return "Hier";
+  if (daysDiff < 7) return d.toLocaleDateString("fr-FR", { weekday: "short" });
+  return d.toLocaleDateString("fr-FR", { day: "2-digit", month: "2-digit" });
 }
 router10.get("/conversations", requireAuth, async (req, res) => {
   try {
@@ -64768,6 +64922,14 @@ router10.get("/conversations", requireAuth, async (req, res) => {
         and(
           eq(conversationsTable.isGroup, true),
           eq(conversationsTable.syndicateId, syndicateId)
+        ),
+        and(
+          eq(conversationsTable.convType, "announcement"),
+          eq(conversationsTable.syndicateId, syndicateId)
+        ),
+        and(
+          eq(conversationsTable.convType, "building"),
+          eq(conversationsTable.syndicateId, syndicateId)
         )
       )
     ).orderBy(desc(conversationsTable.lastMessageAt));
@@ -64775,27 +64937,107 @@ router10.get("/conversations", requireAuth, async (req, res) => {
       res.json({ data: [], total: 0 });
       return;
     }
-    const participantIds = Array.from(new Set(
-      conversations.flatMap((c) => [c.participant1Id, c.participant2Id].filter(Boolean))
-    ));
+    const participantIds = Array.from(
+      new Set(
+        conversations.flatMap(
+          (c) => [c.participant1Id, c.participant2Id].filter(Boolean)
+        )
+      )
+    );
     const users = participantIds.length > 0 ? await db.select({ id: usersTable.id, name: usersTable.name, role: usersTable.role }).from(usersTable).where(inArray(usersTable.id, participantIds)) : [];
     const userMap = Object.fromEntries(users.map((u) => [u.id, u]));
+    const readRows = await db.select().from(messageReadsTable).where(
+      and(
+        eq(messageReadsTable.userId, userId),
+        inArray(
+          messageReadsTable.conversationId,
+          conversations.map((c) => c.id)
+        )
+      )
+    );
+    const readMap = Object.fromEntries(
+      readRows.map((r) => [r.conversationId, r.lastReadAt])
+    );
+    const unreadCounts = await Promise.all(
+      conversations.map(async (c) => {
+        const lastRead = readMap[c.id];
+        if (!lastRead) {
+          const [{ value: value2 }] = await db.select({ value: count() }).from(messagesTable).where(
+            and(
+              eq(messagesTable.conversationId, c.id),
+              sql`${messagesTable.senderId} != ${userId}`
+            )
+          );
+          return { id: c.id, unread: Number(value2) };
+        }
+        const [{ value }] = await db.select({ value: count() }).from(messagesTable).where(
+          and(
+            eq(messagesTable.conversationId, c.id),
+            gt(messagesTable.createdAt, lastRead),
+            sql`${messagesTable.senderId} != ${userId}`
+          )
+        );
+        return { id: c.id, unread: Number(value) };
+      })
+    );
+    const unreadMap = Object.fromEntries(unreadCounts.map((u) => [u.id, u.unread]));
     const enriched = conversations.map((c) => {
       const otherId = c.participant1Id === userId ? c.participant2Id : c.participant1Id;
       const other = otherId ? userMap[otherId] : null;
       return {
         id: c.id,
+        convType: c.convType,
         isGroup: c.isGroup,
-        participant: c.isGroup ? c.name ?? "Groupe" : other?.name ?? "Contact",
+        participant: c.isGroup ? c.name ?? "Groupe" : c.convType === "announcement" ? c.name ?? "Annonce" : c.convType === "building" ? c.name ?? "Immeuble" : other?.name ?? "Contact",
         participantId: otherId,
-        role: c.isGroup ? "Groupe" : other?.role ?? "member",
+        role: c.isGroup ? "Groupe" : c.convType === "announcement" ? "Annonce" : c.convType === "building" ? "Immeuble" : other?.role ?? "member",
         lastMessage: c.lastMessage ?? "",
-        time: c.lastMessageAt ? new Date(c.lastMessageAt).toLocaleTimeString("fr-FR", { hour: "2-digit", minute: "2-digit" }) : "",
-        unread: 0,
-        syndicateId: c.syndicateId
+        time: formatTime(c.lastMessageAt),
+        unread: unreadMap[c.id] ?? 0,
+        syndicateId: c.syndicateId,
+        buildingId: c.buildingId,
+        participantIds: c.participantIds ? JSON.parse(c.participantIds) : []
       };
     });
     res.json({ data: enriched, total: enriched.length });
+  } catch (err) {
+    req.log.error(err);
+    res.status(500).json({ error: "Erreur serveur" });
+  }
+});
+router10.get("/conversations/unread-count", requireAuth, async (req, res) => {
+  try {
+    const userId = req.user.userId;
+    const syndicateId = req.user.syndicateId || "";
+    const conversations = await db.select({ id: conversationsTable.id }).from(conversationsTable).where(
+      or(
+        eq(conversationsTable.participant1Id, userId),
+        eq(conversationsTable.participant2Id, userId),
+        and(eq(conversationsTable.isGroup, true), eq(conversationsTable.syndicateId, syndicateId)),
+        and(eq(conversationsTable.convType, "announcement"), eq(conversationsTable.syndicateId, syndicateId))
+      )
+    );
+    if (conversations.length === 0) {
+      res.json({ total: 0 });
+      return;
+    }
+    const readRows = await db.select().from(messageReadsTable).where(eq(messageReadsTable.userId, userId));
+    const readMap = Object.fromEntries(readRows.map((r) => [r.conversationId, r.lastReadAt]));
+    let total = 0;
+    await Promise.all(
+      conversations.map(async (c) => {
+        const lastRead = readMap[c.id];
+        const [{ value }] = await db.select({ value: count() }).from(messagesTable).where(
+          and(
+            eq(messagesTable.conversationId, c.id),
+            sql`${messagesTable.senderId} != ${userId}`,
+            lastRead ? gt(messagesTable.createdAt, lastRead) : void 0
+          )
+        );
+        total += Number(value);
+      })
+    );
+    res.json({ total });
   } catch (err) {
     req.log.error(err);
     res.status(500).json({ error: "Erreur serveur" });
@@ -64805,7 +65047,11 @@ router10.post("/conversations", requireAuth, async (req, res) => {
   const schema = external_exports.object({
     participantId: external_exports.string().optional(),
     isGroup: external_exports.boolean().default(false),
-    name: external_exports.string().max(100).optional()
+    name: external_exports.string().max(100).optional(),
+    convType: external_exports.enum(["direct", "group", "announcement", "support", "building"]).default("direct"),
+    buildingId: external_exports.string().optional(),
+    participantIds: external_exports.array(external_exports.string()).optional()
+    // for group conversations
   });
   const result = schema.safeParse(req.body);
   if (!result.success) {
@@ -64813,33 +65059,103 @@ router10.post("/conversations", requireAuth, async (req, res) => {
     return;
   }
   try {
-    if (!result.data.isGroup && result.data.participantId) {
+    const { participantId, isGroup, name, convType, buildingId, participantIds } = result.data;
+    if (!isGroup && convType === "direct" && participantId) {
       const existing = await db.select().from(conversationsTable).where(
         or(
           and(
             eq(conversationsTable.participant1Id, req.user.userId),
-            eq(conversationsTable.participant2Id, result.data.participantId)
+            eq(conversationsTable.participant2Id, participantId)
           ),
           and(
-            eq(conversationsTable.participant1Id, result.data.participantId),
+            eq(conversationsTable.participant1Id, participantId),
             eq(conversationsTable.participant2Id, req.user.userId)
           )
         )
       );
       if (existing.length > 0) {
-        res.json({ data: existing[0], existing: true });
+        const conv2 = existing[0];
+        res.json({ data: { ...conv2, id: conv2.id }, existing: true });
         return;
       }
     }
+    const allParticipantIds = participantIds ? [.../* @__PURE__ */ new Set([req.user.userId, ...participantIds])] : void 0;
     const [conv] = await db.insert(conversationsTable).values({
       syndicateId: req.user.syndicateId || "",
+      buildingId,
+      convType,
       participant1Id: req.user.userId,
-      participant2Id: result.data.participantId,
-      isGroup: result.data.isGroup,
-      name: result.data.name,
+      participant2Id: participantId,
+      participantIds: allParticipantIds ? JSON.stringify(allParticipantIds) : void 0,
+      isGroup: isGroup || convType === "group",
+      name,
       lastMessage: ""
     }).returning();
     res.status(201).json({ data: conv });
+  } catch (err) {
+    req.log.error(err);
+    res.status(500).json({ error: "Erreur serveur" });
+  }
+});
+router10.delete("/conversations/:id", requireAuth, async (req, res) => {
+  const id2 = req.params.id;
+  try {
+    const canAccess = await canAccessConversation(
+      req.user.userId,
+      req.user.syndicateId || "",
+      id2
+    );
+    if (!canAccess) {
+      res.status(403).json({ error: "Acc\xE8s refus\xE9" });
+      return;
+    }
+    const [conv] = await db.select().from(conversationsTable).where(eq(conversationsTable.id, id2));
+    const isCreator = conv?.participant1Id === req.user.userId;
+    const isAdmin = req.user.role === "super_admin" || req.user.role === "syndicate_admin";
+    if (!isCreator && !isAdmin) {
+      res.status(403).json({ error: "Seul le cr\xE9ateur peut supprimer cette conversation" });
+      return;
+    }
+    await db.delete(conversationsTable).where(eq(conversationsTable.id, id2));
+    res.json({ message: "Conversation supprim\xE9e" });
+  } catch (err) {
+    req.log.error(err);
+    res.status(500).json({ error: "Erreur serveur" });
+  }
+});
+router10.patch("/conversations/:id/read", requireAuth, async (req, res) => {
+  const id2 = req.params.id;
+  try {
+    const canAccess = await canAccessConversation(
+      req.user.userId,
+      req.user.syndicateId || "",
+      id2
+    );
+    if (!canAccess) {
+      res.status(403).json({ error: "Acc\xE8s refus\xE9" });
+      return;
+    }
+    const existing = await db.select().from(messageReadsTable).where(
+      and(
+        eq(messageReadsTable.conversationId, id2),
+        eq(messageReadsTable.userId, req.user.userId)
+      )
+    );
+    if (existing.length > 0) {
+      await db.update(messageReadsTable).set({ lastReadAt: /* @__PURE__ */ new Date() }).where(
+        and(
+          eq(messageReadsTable.conversationId, id2),
+          eq(messageReadsTable.userId, req.user.userId)
+        )
+      );
+    } else {
+      await db.insert(messageReadsTable).values({
+        conversationId: id2,
+        userId: req.user.userId,
+        lastReadAt: /* @__PURE__ */ new Date()
+      });
+    }
+    res.json({ message: "Marqu\xE9 comme lu" });
   } catch (err) {
     req.log.error(err);
     res.status(500).json({ error: "Erreur serveur" });
@@ -64873,12 +65189,53 @@ router10.get("/conversations/:id/messages", requireAuth, async (req, res) => {
     res.status(500).json({ error: "Erreur serveur" });
   }
 });
+router10.get("/conversations/:id/since", requireAuth, async (req, res) => {
+  const id2 = req.params.id;
+  const since = req.query.since;
+  try {
+    const canAccess = await canAccessConversation(
+      req.user.userId,
+      req.user.syndicateId || "",
+      id2
+    );
+    if (!canAccess) {
+      res.status(403).json({ error: "Acc\xE8s refus\xE9" });
+      return;
+    }
+    const sinceDate = since ? new Date(since) : /* @__PURE__ */ new Date(0);
+    const messages2 = await db.select().from(messagesTable).where(
+      and(
+        eq(messagesTable.conversationId, id2),
+        gt(messagesTable.createdAt, sinceDate)
+      )
+    ).orderBy(messagesTable.createdAt).limit(50);
+    const enriched = messages2.map((m) => ({
+      ...m,
+      isMe: m.senderId === req.user.userId,
+      senderName: m.senderName ?? "Inconnu"
+    }));
+    res.json({ data: enriched });
+  } catch (err) {
+    req.log.error(err);
+    res.status(500).json({ error: "Erreur serveur" });
+  }
+});
 router10.post("/conversations/:id/messages", requireAuth, async (req, res) => {
   const id2 = req.params.id;
-  const schema = external_exports.object({ text: external_exports.string().min(1).max(1e4) });
+  const schema = external_exports.object({
+    text: external_exports.string().max(1e4).default(""),
+    messageType: external_exports.enum(["text", "image", "document", "announcement"]).default("text"),
+    attachmentUrl: external_exports.string().url().optional(),
+    attachmentType: external_exports.string().max(100).optional(),
+    attachmentName: external_exports.string().max(255).optional()
+  });
   const result = schema.safeParse(req.body);
   if (!result.success) {
     res.status(400).json({ error: "Message invalide" });
+    return;
+  }
+  if (!result.data.text.trim() && !result.data.attachmentUrl) {
+    res.status(400).json({ error: "Le message ne peut pas \xEAtre vide" });
     return;
   }
   try {
@@ -64895,12 +65252,34 @@ router10.post("/conversations/:id/messages", requireAuth, async (req, res) => {
       conversationId: id2,
       senderId: req.user.userId,
       senderName: req.user.name,
-      text: result.data.text
+      text: result.data.text || "",
+      messageType: result.data.messageType,
+      attachmentUrl: result.data.attachmentUrl,
+      attachmentType: result.data.attachmentType,
+      attachmentName: result.data.attachmentName
     }).returning();
-    await db.update(conversationsTable).set({
-      lastMessage: result.data.text.slice(0, 100),
-      lastMessageAt: /* @__PURE__ */ new Date()
-    }).where(eq(conversationsTable.id, id2));
+    const preview = result.data.attachmentName ? `\u{1F4CE} ${result.data.attachmentName}` : result.data.text.slice(0, 100);
+    await db.update(conversationsTable).set({ lastMessage: preview, lastMessageAt: /* @__PURE__ */ new Date() }).where(eq(conversationsTable.id, id2));
+    const existing = await db.select().from(messageReadsTable).where(
+      and(
+        eq(messageReadsTable.conversationId, id2),
+        eq(messageReadsTable.userId, req.user.userId)
+      )
+    );
+    if (existing.length > 0) {
+      await db.update(messageReadsTable).set({ lastReadAt: /* @__PURE__ */ new Date() }).where(
+        and(
+          eq(messageReadsTable.conversationId, id2),
+          eq(messageReadsTable.userId, req.user.userId)
+        )
+      );
+    } else {
+      await db.insert(messageReadsTable).values({
+        conversationId: id2,
+        userId: req.user.userId,
+        lastReadAt: /* @__PURE__ */ new Date()
+      });
+    }
     res.status(201).json({ data: { ...message, isMe: true } });
   } catch (err) {
     req.log.error(err);
@@ -67426,6 +67805,9 @@ router23.get("/ag-meetings/:id", requireAuth, async (req, res) => {
     const user = req.user;
     const [meeting] = await db.select().from(meetingsTable).where(eq(meetingsTable.id, req.params.id));
     if (!meeting) return res.status(404).json({ error: "AG introuvable" });
+    if (user.role !== "super_admin" && meeting.syndicateId && meeting.syndicateId !== user.syndicateId) {
+      return res.status(403).json({ error: "Acc\xE8s refus\xE9" });
+    }
     const [attendees, resolutions] = await Promise.all([
       db.select().from(meetingAttendeesTable).where(eq(meetingAttendeesTable.meetingId, meeting.id)),
       db.select().from(agResolutionsTable).where(eq(agResolutionsTable.meetingId, meeting.id)).orderBy(agResolutionsTable.number)
@@ -67704,10 +68086,14 @@ router24.get("/finance/buildings", requireAuth, async (req, res) => {
 });
 router24.get("/finance/building/:id", requireAuth, async (req, res) => {
   try {
+    const user = req.user;
     const buildingId = req.params.id;
     const [building] = await db.select().from(buildingsTable).where(eq(buildingsTable.id, buildingId));
     if (!building)
       return res.status(404).json({ error: "Immeuble introuvable" });
+    if (user.role !== "super_admin" && building.syndicateId && building.syndicateId !== user.syndicateId) {
+      return res.status(403).json({ error: "Acc\xE8s refus\xE9" });
+    }
     const [appels, travaux, budgets, lots, prestataires, contrats] = await Promise.all([
       db.select().from(appelsDeFondsTable).where(eq(appelsDeFondsTable.buildingId, buildingId)),
       db.select().from(travauxTable).where(eq(travauxTable.buildingId, buildingId)),
@@ -67898,8 +68284,8 @@ var app = (0, import_express26.default)();
 app.set("trust proxy", 1);
 var allowedOrigins = process.env.ALLOWED_ORIGINS ? process.env.ALLOWED_ORIGINS.split(",").map((o) => o.trim()) : [];
 if (process.env.NODE_ENV === "production" && allowedOrigins.length === 0) {
-  logger.warn(
-    "ALLOWED_ORIGINS is not set in production \u2014 all origins are currently allowed. Set ALLOWED_ORIGINS to a comma-separated list of permitted origins."
+  throw new Error(
+    "FATAL: ALLOWED_ORIGINS environment variable must be set in production. Set it to a comma-separated list of permitted origins (e.g. https://app.syndycat.ma). Refusing to start with open CORS + credentials=true."
   );
 }
 app.use(helmet({ contentSecurityPolicy: false }));

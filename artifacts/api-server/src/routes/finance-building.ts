@@ -78,6 +78,7 @@ router.get("/finance/buildings", requireAuth, async (req, res) => {
 // GET /finance/building/:id — full financial dashboard data
 router.get("/finance/building/:id", requireAuth, async (req, res) => {
   try {
+    const user = (req as any).user;
     const buildingId = req.params.id;
 
     const [building] = await db
@@ -87,6 +88,11 @@ router.get("/finance/building/:id", requireAuth, async (req, res) => {
 
     if (!building)
       return res.status(404).json({ error: "Immeuble introuvable" });
+
+    // Syndicate isolation: non-super_admin can only access their own syndicate's buildings
+    if (user.role !== "super_admin" && building.syndicateId && building.syndicateId !== user.syndicateId) {
+      return res.status(403).json({ error: "Accès refusé" });
+    }
 
     // Fetch everything in parallel
     const [appels, travaux, budgets, lots, prestataires, contrats] =

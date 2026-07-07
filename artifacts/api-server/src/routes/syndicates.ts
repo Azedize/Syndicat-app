@@ -9,7 +9,15 @@ const router = Router();
 
 router.get("/syndicates", requireAuth, async (req, res) => {
   try {
-    const rows = await db.select().from(syndicatesTable);
+    const user = req.user!;
+    // super_admin sees all syndicates; other roles only see their own
+    const rows =
+      user.role === "super_admin"
+        ? await db.select().from(syndicatesTable)
+        : await db
+            .select()
+            .from(syndicatesTable)
+            .where(eq(syndicatesTable.id, user.syndicateId ?? ""));
     res.json({ data: rows });
   } catch (err) {
     req.log.error(err);

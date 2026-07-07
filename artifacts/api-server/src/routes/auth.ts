@@ -229,8 +229,14 @@ router.post("/auth/change-password", requireAuth, async (req, res) => {
       return;
     }
     const passwordHash = await bcrypt.hash(newPassword, 10);
-    await db.update(usersTable).set({ passwordHash, updatedAt: new Date() }).where(eq(usersTable.id, user.id));
-    res.json({ message: "Mot de passe modifié avec succès" });
+    const now = new Date();
+    await db.transaction(async (tx) => {
+      // Update the password
+      await tx.update(usersTable).set({ passwordHash, updatedAt: now }).where(eq(usersTable.id, user.id));
+      // Revoke all existing refresh tokens — forces re-login on all devices after password change
+      await tx.update(refreshTokensTable).set({ revokedAt: now }).where(eq(refreshTokensTable.userId, user.id));
+    });
+    res.json({ message: "Mot de passe modifié avec succès. Veuillez vous reconnecter." });
   } catch (err) {
     req.log.error(err);
     res.status(500).json({ error: "Erreur serveur" });

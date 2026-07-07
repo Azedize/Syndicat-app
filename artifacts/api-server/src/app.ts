@@ -17,12 +17,13 @@ const allowedOrigins = process.env.ALLOWED_ORIGINS
   ? process.env.ALLOWED_ORIGINS.split(",").map((o) => o.trim())
   : [];
 
-// In production, ALLOWED_ORIGINS must be explicitly set. An empty list in production
-// would silently permit any origin with credentials=true, which is a security risk.
+// In production, ALLOWED_ORIGINS must be explicitly set.
+// An empty list in production with credentials=true would permit any origin — hard-fail here.
 if (process.env.NODE_ENV === "production" && allowedOrigins.length === 0) {
-  logger.warn(
-    "ALLOWED_ORIGINS is not set in production — all origins are currently allowed. " +
-    "Set ALLOWED_ORIGINS to a comma-separated list of permitted origins.",
+  throw new Error(
+    "FATAL: ALLOWED_ORIGINS environment variable must be set in production. " +
+    "Set it to a comma-separated list of permitted origins (e.g. https://app.syndycat.ma). " +
+    "Refusing to start with open CORS + credentials=true.",
   );
 }
 

@@ -95,6 +95,11 @@ router.get("/ag-meetings/:id", requireAuth, async (req, res) => {
 
     if (!meeting) return res.status(404).json({ error: "AG introuvable" });
 
+    // Syndicate isolation: non-super_admin can only read their own syndicate's meetings
+    if (user.role !== "super_admin" && meeting.syndicateId && meeting.syndicateId !== user.syndicateId) {
+      return res.status(403).json({ error: "Accès refusé" });
+    }
+
     const [attendees, resolutions] = await Promise.all([
       db.select().from(meetingAttendeesTable).where(eq(meetingAttendeesTable.meetingId, meeting.id)),
       db

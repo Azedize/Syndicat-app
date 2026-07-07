@@ -57,7 +57,7 @@ export default function DashboardScreen() {
   const colors = useColors();
   const insets = useSafeAreaInsets();
   const { user } = useAuth();
-  const { members, elections, meetings, transactions, syndicates, alerts, conversations, cotisations } = useData();
+  const { members, elections, meetings, transactions, syndicates, alerts, conversations, cotisations, supportTickets } = useData();
   const { favorites } = useFavorites();
   const { activities } = useActivity();
   const [dismissedAlerts, setDismissedAlerts] = useState<Set<string>>(new Set());
@@ -216,7 +216,7 @@ export default function DashboardScreen() {
                   </View>
                   <View style={{ flex: 1, gap: 3 }}>
                     <Text style={[styles.meetingChipTitle, { color: colors.foreground }]} numberOfLines={2}>{m.title}</Text>
-                    <Text style={[styles.meetingChipTime, { color: colors.mutedForeground }]}>{m.time} • {m.location.split(",")[0]}</Text>
+                    <Text style={[styles.meetingChipTime, { color: colors.mutedForeground }]}>{m.time} • {(m.location ?? "").split(",")[0]}</Text>
                   </View>
                 </TouchableOpacity>
               ))}
@@ -253,7 +253,7 @@ export default function DashboardScreen() {
               </View>
               <View style={styles.statsRow}>
                 <StatCard label="Actifs" value={syndicates.filter((s) => s.status === "active").length} icon="activity" iconColor="#10b981" />
-                <StatCard label="Tickets ouverts" value={3} icon="headphones" iconColor="#ef4444" subtitle="support" />
+                <StatCard label="Tickets ouverts" value={supportTickets.filter((t) => t.status === "open").length} icon="headphones" iconColor="#ef4444" subtitle="support" />
               </View>
             </>
           ) : isSyndicateAdmin ? (
