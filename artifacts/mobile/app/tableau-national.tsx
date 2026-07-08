@@ -19,6 +19,8 @@ import { useData } from "@/context/DataContext";
 import { useBreakpoints } from "@/hooks/useBreakpoints";
 import { useColors } from "@/hooks/useColors";
 import { statistics, type EnrichedSyndicate } from "@/services/api";
+import { apiRequest } from "@/lib/api";
+import { useAuth } from "@/context/AuthContext";
 
 interface SyndicateStat {
   id: string;
@@ -44,7 +46,23 @@ interface PlatformAlert {
   syndicat?: string;
 }
 
-type TabType = "syndicats" | "alertes" | "finances" | "stats";
+type TabType = "syndicats" | "alertes" | "finances" | "stats" | "classement";
+
+type RankingRow = {
+  id: string;
+  syndicateId: string;
+  syndicateName?: string | null;
+  rank: number;
+  totalScore: number;
+  collectionRate: number;
+  incidentResolutionRate: number;
+  documentationScore: number;
+  meetingComplianceScore: number;
+  memberSatisfaction: number;
+  month: number;
+  year: number;
+  region?: string | null;
+};
 
 const HEALTH_CONFIG = {
   healthy: { label: "Sain", color: "#10b981", bg: "#10b98118", icon: "check-circle" as const },
@@ -81,12 +99,15 @@ export default function TableauNationalScreen() {
   const { isWide } = useBreakpoints();
   const topPad = isWide ? 0 : (Platform.OS === "web" ? 67 : insets.top);
   const { alerts } = useData();
+  const { token } = useAuth();
 
   const [tab, setTab] = useState<TabType>("syndicats");
   const [selectedSyndicat, setSelectedSyndicat] = useState<SyndicateStat | null>(null);
   const [filterHealth, setFilterHealth] = useState<"all" | "healthy" | "warning" | "critical">("all");
   const [syndicats, setSyndicats] = useState<SyndicateStat[]>([]);
   const [loading, setLoading] = useState(true);
+  const [rankings, setRankings] = useState<RankingRow[]>([]);
+  const [rankingsLoading, setRankingsLoading] = useState(false);
 
   useEffect(() => {
     setLoading(true);
@@ -95,6 +116,15 @@ export default function TableauNationalScreen() {
       .catch(() => {})
       .finally(() => setLoading(false));
   }, []);
+
+  useEffect(() => {
+    if (tab !== "classement") return;
+    setRankingsLoading(true);
+    apiRequest("/rankings", "GET", undefined, token)
+      .then((data) => setRankings(data.data ?? []))
+      .catch(() => {})
+      .finally(() => setRankingsLoading(false));
+  }, [tab, token]);
 
   // Map DataContext alerts to platform alerts format
   const platformAlerts: PlatformAlert[] = alerts.map((a) => ({
@@ -119,6 +149,7 @@ export default function TableauNationalScreen() {
     { key: "alertes", label: "Alertes", icon: "bell", badge: criticalAlerts || undefined },
     { key: "finances", label: "Finances", icon: "dollar-sign" },
     { key: "stats", label: "Statistiques", icon: "bar-chart-2" },
+    { key: "classement", label: "Classement", icon: "award" },
   ];
 
   return (
@@ -408,7 +439,7 @@ export default function TableauNationalScreen() {
             ))}
           </View>
         </ScrollView>
-      ) : (
+      ) : tab === "stats" ? (
         <ScrollView contentContainerStyle={{ padding: 16, gap: 14, paddingBottom: insets.bottom + 80 }}>
           <View style={[styles.statCard, { backgroundColor: colors.card, borderColor: colors.border }]}>
             <View style={styles.statCardHeader}>
@@ -495,7 +526,74 @@ export default function TableauNationalScreen() {
             ))}
           </View>
         </ScrollView>
-      )}
+      ) : tab === "classement" ? (
+        rankingsLoading ? (
+          <View style={{ flex: 1, alignItems: "center", justifyContent: "center", gap: 12 }}>
+            <ActivityIndicator size="large" color="#f59e0b" />
+            <Text style={{ fontFamily: "Inter_400Regular", fontSize: 13, color: colors.mutedForeground }}>Calcul du classement...</Text>
+          </View>
+        ) : (
+          <FlatList
+            data={rankings}
+            keyExtractor={(r) => r.id}
+            contentContainerStyle={{ padding: 16, gap: 10, paddingBottom: insets.bottom + 80 }}
+            showsVerticalScrollIndicator={false}
+            ListHeaderComponent={
+              <View style={[styles.statCard, { backgroundColor: colors.card, borderColor: colors.border, marginBottom: 4 }]}>
+                <Text style={[styles.statCardTitle, { color: colors.foreground }]}>
+                  Classement National · {rankings[0]?.month ?? "—"}/{rankings[0]?.year ?? ""}
+                </Text>
+                <Text style={{ fontFamily: "Inter_400Regular", fontSize: 12, color: colors.mutedForeground, marginTop: 4 }}>
+                  Score calculé sur 5 critères : recouvrement, résolution incidents, documentation, réunions, satisfaction.
+                </Text>
+              </View>
+            }
+            ListEmptyComponent={
+              <View style={{ alignItems: "center", justifyContent: "center", padding: 40, gap: 12 }}>
+                <Feather name="award" size={36} color={colors.mutedForeground} />
+                <Text style={{ fontFamily: "Inter_600SemiBold", fontSize: 14, color: colors.foreground }}>Aucun classement disponible</Text>
+                <Text style={{ fontFamily: "Inter_400Regular", fontSize: 12, color: colors.mutedForeground, textAlign: "center" }}>
+                  Utilisez "Calculer le classement" dans le panneau super-admin pour générer les scores.
+                </Text>
+              </View>
+            }
+            renderItem={({ item: r, index }) => {
+              const podiumColors = ["#f59e0b", "#9ca3af", "#a16207"];
+              const rankColor = r.rank <= 3 ? podiumColors[r.rank - 1] : colors.primary;
+              return (
+                <View style={[styles.syndicatCard, { backgroundColor: colors.card, borderColor: r.rank === 1 ? "#f59e0b40" : colors.border }]}>
+                  <View style={styles.syndicatHeader}>
+                    <View style={[styles.syndicatAvatar, { backgroundColor: rankColor + "20" }]}>
+                      <Text style={{ fontSize: r.rank <= 3 ? 18 : 14, fontFamily: "Inter_700Bold", color: rankColor }}>#{r.rank}</Text>
+                    </View>
+                    <View style={{ flex: 1 }}>
+                      <Text style={[styles.syndicatName, { color: colors.foreground }]} numberOfLines={1}>{r.syndicateName ?? r.syndicateId}</Text>
+                      {r.region ? <Text style={[styles.syndicatRegion, { color: colors.mutedForeground }]}>{r.region}</Text> : null}
+                    </View>
+                    <View style={{ alignItems: "flex-end" }}>
+                      <Text style={{ fontSize: 18, fontFamily: "Inter_700Bold", color: rankColor }}>{Math.round(r.totalScore)}</Text>
+                      <Text style={{ fontSize: 10, fontFamily: "Inter_400Regular", color: colors.mutedForeground }}>/ 100</Text>
+                    </View>
+                  </View>
+                  <View style={[styles.metricsRow, { borderColor: colors.border }]}>
+                    {[
+                      { label: "Recouvr.", value: `${Math.round(r.collectionRate)}%`, color: "#10b981" },
+                      { label: "Incidents", value: `${Math.round(r.incidentResolutionRate)}%`, color: "#3b82f6" },
+                      { label: "Docs", value: `${Math.round(r.documentationScore)}`, color: "#7c3aed" },
+                      { label: "Réunions", value: `${Math.round(r.meetingComplianceScore)}`, color: "#f59e0b" },
+                    ].map((m, i, arr) => (
+                      <View key={m.label} style={[styles.metricCell, i < arr.length - 1 ? { borderRightWidth: 1, borderRightColor: colors.border } : null]}>
+                        <Text style={[styles.metricVal, { color: m.color }]}>{m.value}</Text>
+                        <Text style={[styles.metricLabel, { color: colors.mutedForeground }]}>{m.label}</Text>
+                      </View>
+                    ))}
+                  </View>
+                </View>
+              );
+            }}
+          />
+        )
+      ) : null}
 
       <Modal visible={!!selectedSyndicat} animationType="slide" presentationStyle="pageSheet">
         {selectedSyndicat ? (

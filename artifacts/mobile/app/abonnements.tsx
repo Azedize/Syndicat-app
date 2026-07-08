@@ -1,64 +1,151 @@
 import { Feather } from "@expo/vector-icons";
 import * as Haptics from "expo-haptics";
 import { router } from "expo-router";
-import React, { useState } from "react";
+import React, { useCallback, useEffect, useState } from "react";
 import {
-  Alert,
-  Modal,
-  Platform,
-  ScrollView,
-  StyleSheet,
-  Text,
-  TouchableOpacity,
-  View,
+  ActivityIndicator, Alert, Modal, Platform, RefreshControl,
+  ScrollView, StyleSheet, Text, TouchableOpacity, View,
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useAuth } from "@/context/AuthContext";
-import { useData, type SyndicateSubscription } from "@/context/DataContext";
 import { useBreakpoints } from "@/hooks/useBreakpoints";
 import { useColors } from "@/hooks/useColors";
+import { apiRequest } from "@/lib/api";
 
 type TabType = "plans" | "abonnements";
 
-const STATUS_CONFIG = {
-  active: { label: "Actif", color: "#10b981", bg: "#10b98118" },
-  trial: { label: "Essai", color: "#3b82f6", bg: "#3b82f618" },
+const STATUS_CONFIG: Record<string, { label: string; color: string; bg: string }> = {
+  active:    { label: "Actif",    color: "#10b981", bg: "#10b98118" },
+  trial:     { label: "Essai",    color: "#3b82f6", bg: "#3b82f618" },
   suspended: { label: "Suspendu", color: "#ef4444", bg: "#ef444418" },
-  cancelled: { label: "Annulé", color: "#6b7280", bg: "#6b728018" },
+  cancelled: { label: "Annulé",   color: "#6b7280", bg: "#6b728018" },
 };
+
+type SubscriptionPlan = {
+  id: string;
+  name: string;
+  price: string | number;
+  interval: string;
+  features: string; // JSON string array
+  createdAt: string;
+};
+
+type SyndicateSub = {
+  id: string;
+  syndicateId: string;
+  planId?: string | null;
+  status: string;
+  autoRenew?: boolean;
+  createdAt: string;
+  syndicateName?: string | null;
+  planName?: string | null;
+  planPrice?: string | number | null;
+  planInterval?: string | null;
+};
+
+type MySub = SyndicateSub & {
+  planFeatures?: string | null;
+};
+
+function parseFeatures(features?: string | null): string[] {
+  if (!features) return [];
+  try {
+    const parsed = JSON.parse(features);
+    return Array.isArray(parsed) ? parsed : [];
+  } catch {
+    return [];
+  }
+}
+
+function formatPrice(price?: string | number | null): string {
+  if (price == null) return "0";
+  return parseFloat(String(price)).toLocaleString("fr-MA");
+}
 
 export default function AbonnementsScreen() {
   const colors = useColors();
   const insets = useSafeAreaInsets();
-  const { user } = useAuth();
-  const { subscriptionPlans, syndicateSubscriptions, updateSubscription } = useData();
+  const { user, token } = useAuth();
   const { isWide } = useBreakpoints();
   const topPad = isWide ? 0 : (Platform.OS === "web" ? 67 : insets.top);
   const role = user?.role ?? "member";
   const isSuper = role === "super_admin";
+  const isAdmin = role === "syndicate_admin" || isSuper;
 
   const [tab, setTab] = useState<TabType>(isSuper ? "abonnements" : "plans");
-  const [selectedSub, setSelectedSub] = useState<SyndicateSubscription | null>(null);
-  const [showUpgradeModal, setShowUpgradeModal] = useState(false);
+  const [plans, setPlans] = useState<SubscriptionPlan[]>([]);
+  const [subscriptions, setSubscriptions] = useState<SyndicateSub[]>([]);
+  const [mySub, setMySub] = useState<MySub | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
+  const [showManage, setShowManage] = useState<SyndicateSub | null>(null);
   const [selectedPlanId, setSelectedPlanId] = useState("");
+  const [saving, setSaving] = useState(false);
 
-  const mySub = syndicateSubscriptions.find((s) => s.syndicateId === "1");
+  const load = useCallback(async (silent = false) => {
+    try {
+      if (!silent) setLoading(true);
+      const [plansRes, mySubRes] = await Promise.all([
+        apiRequest("/subscriptions/plans", "GET", undefined, token),
+        apiRequest("/subscriptions/my", "GET", undefined, token).catch(() => ({ data: null })),
+      ]);
+      setPlans(plansRes.data ?? []);
+      setMySub(mySubRes.data ?? null);
 
-  const totalRevenue = syndicateSubscriptions
-    .filter((s) => s.status === "active")
-    .reduce((sum, s) => sum + s.amount, 0);
-  const activeCount = syndicateSubscriptions.filter((s) => s.status === "active").length;
+      if (isSuper) {
+        const allRes = await apiRequest("/subscriptions", "GET", undefined, token);
+        setSubscriptions(allRes.data ?? []);
+      }
+    } catch (e) { console.error(e); }
+    finally { setLoading(false); setRefreshing(false); }
+  }, [token, isSuper]);
 
-  const handleUpgrade = () => {
-    if (!selectedSub || !selectedPlanId) return;
-    Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-    updateSubscription(selectedSub.id, selectedPlanId);
-    setShowUpgradeModal(false);
-    Alert.alert("Succès", "L'abonnement a été mis à jour avec succès.");
+  useEffect(() => { load(); }, [load]);
+  const onRefresh = () => { setRefreshing(true); load(true); };
+
+  const handleSubscribe = async (planId: string) => {
+    try {
+      setSaving(true);
+      await apiRequest("/subscriptions", "POST", { planId }, token);
+      Alert.alert("Succès", "Abonnement activé avec succès.");
+      setShowManage(null);
+      load(true);
+    } catch (e: any) {
+      Alert.alert("Erreur", e.message ?? "Impossible de modifier l'abonnement");
+    } finally { setSaving(false); }
   };
+
+  const handleUpdateSub = async (subId: string, status: string) => {
+    try {
+      setSaving(true);
+      await apiRequest(`/subscriptions/${subId}`, "PUT", { status }, token);
+      setShowManage(null);
+      load(true);
+    } catch (e: any) {
+      Alert.alert("Erreur", e.message ?? "Impossible de mettre à jour");
+    } finally { setSaving(false); }
+  };
+
+  const activeCount = subscriptions.filter((s) => s.status === "active").length;
+
+  if (loading) {
+    return (
+      <View style={[styles.root, { backgroundColor: colors.background }]}>
+        <View style={[styles.header, { paddingTop: topPad + 16, backgroundColor: colors.card, borderBottomColor: colors.border }]}>
+          <TouchableOpacity onPress={() => router.back()} style={styles.backBtn}>
+            <Feather name="arrow-left" size={22} color={colors.foreground} />
+          </TouchableOpacity>
+          <Text style={[styles.title, { color: colors.foreground }]}>Abonnements</Text>
+          <View style={{ width: 38 }} />
+        </View>
+        <View style={styles.center}><ActivityIndicator color={colors.primary} size="large" /></View>
+      </View>
+    );
+  }
 
   return (
     <View style={[styles.root, { backgroundColor: colors.background }]}>
+      {/* Header */}
       <View style={[styles.header, { paddingTop: topPad + 16, backgroundColor: colors.card, borderBottomColor: colors.border }]}>
         <TouchableOpacity onPress={() => router.back()} style={styles.backBtn}>
           <Feather name="arrow-left" size={22} color={colors.foreground} />
@@ -67,6 +154,7 @@ export default function AbonnementsScreen() {
         <View style={{ width: 38 }} />
       </View>
 
+      {/* Tabs — super admin only */}
       {isSuper && (
         <View style={[styles.tabRow, { backgroundColor: colors.card, borderBottomColor: colors.border }]}>
           {(["abonnements", "plans"] as TabType[]).map((t) => (
@@ -84,17 +172,19 @@ export default function AbonnementsScreen() {
       )}
 
       <ScrollView
+        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={colors.primary} />}
         showsVerticalScrollIndicator={false}
         contentContainerStyle={{ padding: 16, gap: 16, paddingBottom: isWide ? 32 : insets.bottom + 100 }}
       >
+        {/* ── Super admin: all subscriptions ─────────────────────────────── */}
         {isSuper && tab === "abonnements" && (
           <>
-            {/* Revenue strip */}
+            {/* Stats strip */}
             <View style={[styles.statsRow, { backgroundColor: colors.card, borderColor: colors.border }]}>
               {[
-                { label: "Revenu annuel", value: `${totalRevenue.toLocaleString()} MAD`, icon: "trending-up" as const, color: "#10b981" },
-                { label: "Syndicats actifs", value: `${activeCount}/${syndicateSubscriptions.length}`, icon: "check-circle" as const, color: colors.primary },
-                { label: "Taux renouvellement", value: "80%", icon: "refresh-cw" as const, color: "#3b82f6" },
+                { label: "Total syndicats", value: subscriptions.length.toString(), icon: "layers" as const, color: colors.primary },
+                { label: "Actifs", value: `${activeCount}/${subscriptions.length}`, icon: "check-circle" as const, color: "#10b981" },
+                { label: "Plans", value: plans.length.toString(), icon: "star" as const, color: "#f59e0b" },
               ].map((s, i, arr) => (
                 <View key={s.label} style={[styles.statCell, i < arr.length - 1 ? { borderRightWidth: 1, borderRightColor: colors.border } : null]}>
                   <View style={[styles.statIcon, { backgroundColor: s.color + "18" }]}>
@@ -106,75 +196,49 @@ export default function AbonnementsScreen() {
               ))}
             </View>
 
-            {/* Syndicate subscriptions list */}
-            {syndicateSubscriptions.map((sub) => {
-              const st = STATUS_CONFIG[sub.status];
-              const plan = subscriptionPlans.find((p) => p.id === sub.planId);
-              const usagePct = sub.maxMembers === 9999 ? 20 : Math.round((sub.membersUsed / sub.maxMembers) * 100);
+            {/* Subscription cards */}
+            {subscriptions.length === 0 ? (
+              <View style={styles.empty}>
+                <Feather name="inbox" size={32} color={colors.mutedForeground} />
+                <Text style={[styles.emptyText, { color: colors.mutedForeground }]}>Aucun abonnement enregistré</Text>
+              </View>
+            ) : subscriptions.map((sub) => {
+              const st = STATUS_CONFIG[sub.status] ?? STATUS_CONFIG.active;
               return (
                 <View key={sub.id} style={[styles.subCard, { backgroundColor: colors.card, borderColor: colors.border }]}>
                   <View style={styles.subCardHeader}>
                     <View style={{ flex: 1 }}>
-                      <Text style={[styles.subName, { color: colors.foreground }]} numberOfLines={1}>
-                        {sub.syndicateName}
-                      </Text>
+                      <Text style={[styles.subName, { color: colors.foreground }]} numberOfLines={1}>{sub.syndicateName ?? sub.syndicateId}</Text>
                       <View style={styles.subMeta}>
-                        <View style={[styles.planChip, { backgroundColor: (plan?.color ?? "#6b7280") + "20" }]}>
-                          <Text style={[styles.planChipText, { color: plan?.color ?? "#6b7280" }]}>{sub.planName}</Text>
-                        </View>
+                        {sub.planName ? (
+                          <View style={[styles.planChip, { backgroundColor: colors.primary + "20" }]}>
+                            <Text style={[styles.planChipText, { color: colors.primary }]}>{sub.planName}</Text>
+                          </View>
+                        ) : null}
                         <View style={[styles.statusChip, { backgroundColor: st.bg }]}>
                           <Text style={[styles.statusChipText, { color: st.color }]}>{st.label}</Text>
                         </View>
                       </View>
                     </View>
                     <View style={{ alignItems: "flex-end", gap: 4 }}>
-                      <Text style={[styles.subAmount, { color: colors.foreground }]}>
-                        {sub.amount.toLocaleString()} MAD
-                      </Text>
-                      <Text style={[styles.subAmountLabel, { color: colors.mutedForeground }]}>/an</Text>
+                      {sub.planPrice != null ? (
+                        <>
+                          <Text style={[styles.subAmount, { color: colors.foreground }]}>{formatPrice(sub.planPrice)} MAD</Text>
+                          <Text style={[styles.subAmountLabel, { color: colors.mutedForeground }]}>/{sub.planInterval ?? "an"}</Text>
+                        </>
+                      ) : null}
                     </View>
                   </View>
-
-                  <View style={[styles.usageBar, { backgroundColor: colors.border }]}>
-                    <View
-                      style={[
-                        styles.usageBarFill,
-                        {
-                          width: `${Math.min(usagePct, 100)}%` as any,
-                          backgroundColor: usagePct > 90 ? "#ef4444" : usagePct > 70 ? "#f59e0b" : colors.primary,
-                        },
-                      ]}
-                    />
-                  </View>
-                  <View style={styles.usageRow}>
-                    <Text style={[styles.usageText, { color: colors.mutedForeground }]}>
-                      {sub.membersUsed} membres utilisés
-                    </Text>
-                    <Text style={[styles.usageText, { color: colors.mutedForeground }]}>
-                      {sub.maxMembers === 9999 ? "∞" : sub.maxMembers} max
-                    </Text>
-                  </View>
-
                   <View style={[styles.subFooter, { borderTopColor: colors.border }]}>
-                    <View style={{ gap: 2 }}>
-                      <Text style={[styles.subInfoText, { color: colors.mutedForeground }]}>
-                        Renouvellement: {sub.renewalDate}
+                    <View style={{ flexDirection: "row", alignItems: "center", gap: 4 }}>
+                      <Feather name="refresh-cw" size={11} color={sub.autoRenew ? "#10b981" : colors.mutedForeground} />
+                      <Text style={[styles.subInfoText, { color: sub.autoRenew ? "#10b981" : colors.mutedForeground }]}>
+                        Renouvellement {sub.autoRenew ? "auto" : "manuel"}
                       </Text>
-                      <View style={{ flexDirection: "row", alignItems: "center", gap: 4 }}>
-                        <Feather name="refresh-cw" size={11} color={sub.autoRenew ? "#10b981" : colors.mutedForeground} />
-                        <Text style={[styles.subInfoText, { color: sub.autoRenew ? "#10b981" : colors.mutedForeground }]}>
-                          Renouvellement {sub.autoRenew ? "auto" : "manuel"}
-                        </Text>
-                      </View>
                     </View>
                     <TouchableOpacity
                       style={[styles.manageBtn, { backgroundColor: colors.primary + "15", borderColor: colors.primary + "30" }]}
-                      onPress={() => {
-                        Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-                        setSelectedSub(sub);
-                        setSelectedPlanId(sub.planId);
-                        setShowUpgradeModal(true);
-                      }}
+                      onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); setShowManage(sub); setSelectedPlanId(sub.planId ?? ""); }}
                     >
                       <Feather name="edit-2" size={13} color={colors.primary} />
                       <Text style={[styles.manageBtnText, { color: colors.primary }]}>Gérer</Text>
@@ -186,117 +250,92 @@ export default function AbonnementsScreen() {
           </>
         )}
 
+        {/* ── Plans tab / non-super-admin ────────────────────────────────── */}
         {(tab === "plans" || !isSuper) && (
           <>
-            {/* Current plan for syndicate admin */}
-            {role === "syndicate_admin" && mySub && (
+            {/* Current plan banner (syndicate admin) */}
+            {!isSuper && mySub && (
               <View style={[styles.currentPlanBanner, { backgroundColor: colors.primary + "15", borderColor: colors.primary + "40" }]}>
                 <View style={{ flex: 1 }}>
                   <Text style={[styles.currentPlanLabel, { color: colors.primary }]}>Votre plan actuel</Text>
-                  <Text style={[styles.currentPlanName, { color: colors.foreground }]}>{mySub.planName}</Text>
-                  <Text style={[styles.currentPlanRenewal, { color: colors.mutedForeground }]}>
-                    Renouvellement le {mySub.renewalDate}
+                  <Text style={[styles.currentPlanName, { color: colors.foreground }]}>{mySub.planName ?? "—"}</Text>
+                </View>
+                <View style={[styles.statusChip, { backgroundColor: STATUS_CONFIG[mySub.status]?.bg ?? STATUS_CONFIG.active.bg }]}>
+                  <Text style={[styles.statusChipText, { color: STATUS_CONFIG[mySub.status]?.color ?? STATUS_CONFIG.active.color }]}>
+                    {STATUS_CONFIG[mySub.status]?.label ?? mySub.status}
                   </Text>
                 </View>
-                <View style={[styles.statusChip, { backgroundColor: STATUS_CONFIG[mySub.status].bg }]}>
-                  <Text style={[styles.statusChipText, { color: STATUS_CONFIG[mySub.status].color }]}>
-                    {STATUS_CONFIG[mySub.status].label}
-                  </Text>
-                </View>
-              </View>
-            )}
-
-            {/* For members */}
-            {role === "member" && mySub && (
-              <View style={[styles.memberPlanCard, { backgroundColor: colors.card, borderColor: colors.border }]}>
-                <View style={[styles.memberPlanIcon, { backgroundColor: colors.primary + "15" }]}>
-                  <Feather name="star" size={24} color={colors.primary} />
-                </View>
-                <Text style={[styles.memberPlanTitle, { color: colors.foreground }]}>
-                  Plan {mySub.planName}
-                </Text>
-                <Text style={[styles.memberPlanSubtitle, { color: colors.mutedForeground }]}>
-                  Votre syndicat bénéficie du plan {mySub.planName} incluant toutes les fonctionnalités ci-dessous.
-                </Text>
               </View>
             )}
 
             {/* Plans grid */}
-            {subscriptionPlans.map((plan) => {
+            {plans.length === 0 ? (
+              <View style={styles.empty}>
+                <Feather name="package" size={32} color={colors.mutedForeground} />
+                <Text style={[styles.emptyText, { color: colors.mutedForeground }]}>Aucun plan disponible</Text>
+              </View>
+            ) : plans.map((plan, idx) => {
+              const features = parseFeatures(plan.features);
               const isCurrent = mySub?.planId === plan.id;
+              const planColors = ["#7c3aed", "#3b82f6", "#10b981", "#f59e0b", "#ec4899", "#6366f1"];
+              const pc = planColors[idx % planColors.length];
+
               return (
                 <View
                   key={plan.id}
-                  style={[
-                    styles.planCard,
-                    { backgroundColor: colors.card, borderColor: isCurrent ? plan.color : colors.border },
-                    plan.popular && { borderColor: plan.color, borderWidth: 2 },
-                  ]}
+                  style={[styles.planCard, { backgroundColor: colors.card, borderColor: isCurrent ? pc : colors.border, borderWidth: isCurrent ? 2 : 1 }]}
                 >
-                  {plan.popular && (
-                    <View style={[styles.popularBadge, { backgroundColor: plan.color }]}>
-                      <Text style={styles.popularBadgeText}>⭐ Le plus populaire</Text>
-                    </View>
-                  )}
-                  {isCurrent && !plan.popular && (
+                  {isCurrent && (
                     <View style={[styles.popularBadge, { backgroundColor: "#10b981" }]}>
                       <Text style={styles.popularBadgeText}>✓ Plan actuel</Text>
                     </View>
                   )}
 
                   <View style={styles.planCardHeader}>
-                    <View style={[styles.planIconCircle, { backgroundColor: plan.color + "18" }]}>
-                      <Feather
-                        name={plan.id === "plan_essentiel" ? "package" : plan.id === "plan_pro" ? "zap" : "award"}
-                        size={22}
-                        color={plan.color}
-                      />
+                    <View style={[styles.planIconCircle, { backgroundColor: pc + "18" }]}>
+                      <Feather name={idx === 0 ? "package" : idx === 1 ? "zap" : "award"} size={22} color={pc} />
                     </View>
                     <View style={{ flex: 1 }}>
                       <Text style={[styles.planName, { color: colors.foreground }]}>{plan.name}</Text>
-                      <Text style={[styles.planMax, { color: colors.mutedForeground }]}>
-                        {plan.maxMembers === 9999 ? "Membres illimités" : `Jusqu'à ${plan.maxMembers} membres`}
-                      </Text>
+                      <Text style={[styles.planInterval, { color: colors.mutedForeground }]}>{plan.interval ?? "mensuel"}</Text>
                     </View>
                     <View style={{ alignItems: "flex-end" }}>
-                      <Text style={[styles.planPrice, { color: plan.color }]}>
-                        {plan.price.toLocaleString()}
-                      </Text>
-                      <Text style={[styles.planPriceCurrency, { color: colors.mutedForeground }]}>MAD/an</Text>
+                      <Text style={[styles.planPrice, { color: pc }]}>{formatPrice(plan.price)}</Text>
+                      <Text style={[styles.planPriceCurrency, { color: colors.mutedForeground }]}>MAD/{plan.interval === "monthly" ? "mois" : "an"}</Text>
                     </View>
                   </View>
 
                   <View style={[styles.planDivider, { backgroundColor: colors.border }]} />
 
-                  <View style={{ gap: 8 }}>
-                    {plan.features.map((f) => (
-                      <View key={f} style={styles.featureRow}>
-                        <View style={[styles.featureCheck, { backgroundColor: plan.color + "18" }]}>
-                          <Feather name="check" size={12} color={plan.color} />
+                  {features.length > 0 ? (
+                    <View style={{ gap: 8 }}>
+                      {features.map((f) => (
+                        <View key={f} style={styles.featureRow}>
+                          <View style={[styles.featureCheck, { backgroundColor: pc + "18" }]}>
+                            <Feather name="check" size={12} color={pc} />
+                          </View>
+                          <Text style={[styles.featureText, { color: colors.foreground }]}>{f}</Text>
                         </View>
-                        <Text style={[styles.featureText, { color: colors.foreground }]}>{f}</Text>
-                      </View>
-                    ))}
-                  </View>
+                      ))}
+                    </View>
+                  ) : null}
 
-                  {role === "syndicate_admin" && !isCurrent && (
+                  {isAdmin && !isCurrent && (
                     <TouchableOpacity
-                      style={[styles.upgradeBtn, { backgroundColor: plan.color }]}
+                      style={[styles.upgradeBtn, { backgroundColor: pc }]}
                       onPress={() => {
                         Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
-                        if (mySub) {
-                          setSelectedSub(mySub);
-                          setSelectedPlanId(plan.id);
-                          setShowUpgradeModal(true);
-                        }
+                        Alert.alert(
+                          "Changer de plan",
+                          `Passer au plan "${plan.name}" ?`,
+                          [
+                            { text: "Annuler", style: "cancel" },
+                            { text: "Confirmer", onPress: () => handleSubscribe(plan.id) },
+                          ]
+                        );
                       }}
                     >
-                      <Text style={styles.upgradeBtnText}>
-                        {(subscriptionPlans.findIndex((p) => p.id === plan.id) >
-                          subscriptionPlans.findIndex((p) => p.id === mySub?.planId))
-                          ? "Passer à ce plan"
-                          : "Rétrograder"}
-                      </Text>
+                      <Text style={styles.upgradeBtnText}>Choisir ce plan</Text>
                       <Feather name="arrow-right" size={14} color="#fff" />
                     </TouchableOpacity>
                   )}
@@ -319,61 +358,64 @@ export default function AbonnementsScreen() {
         )}
       </ScrollView>
 
-      {/* Upgrade/manage modal */}
-      <Modal visible={showUpgradeModal} transparent animationType="slide" onRequestClose={() => setShowUpgradeModal(false)}>
+      {/* Manage subscription modal (super admin) */}
+      <Modal visible={!!showManage} transparent animationType="slide" onRequestClose={() => setShowManage(null)}>
         <View style={styles.modalOverlay}>
           <View style={[styles.modalSheet, { backgroundColor: colors.card }]}>
             <View style={styles.modalHandle} />
-            <Text style={[styles.modalTitle, { color: colors.foreground }]}>
-              {isSuper ? "Gérer l'abonnement" : "Changer de plan"}
-            </Text>
-            {selectedSub && (
-              <Text style={[styles.modalSubtitle, { color: colors.mutedForeground }]}>
-                {selectedSub.syndicateName}
-              </Text>
+            <Text style={[styles.modalTitle, { color: colors.foreground }]}>Gérer l'abonnement</Text>
+            {showManage && (
+              <Text style={[styles.modalSubtitle, { color: colors.mutedForeground }]}>{showManage.syndicateName}</Text>
             )}
 
             <View style={{ gap: 10, marginTop: 16 }}>
-              {subscriptionPlans.map((plan) => {
+              {plans.map((plan) => {
                 const isSelected = selectedPlanId === plan.id;
                 return (
                   <TouchableOpacity
                     key={plan.id}
-                    style={[
-                      styles.planOption,
-                      { borderColor: isSelected ? plan.color : colors.border, backgroundColor: isSelected ? plan.color + "10" : colors.background },
-                    ]}
+                    style={[styles.planOption, { borderColor: isSelected ? colors.primary : colors.border, backgroundColor: isSelected ? colors.primary + "10" : colors.background }]}
                     onPress={() => { Haptics.selectionAsync(); setSelectedPlanId(plan.id); }}
                   >
-                    <View style={[styles.planOptionDot, { borderColor: plan.color, backgroundColor: isSelected ? plan.color : "transparent" }]} />
+                    <View style={[styles.planOptionDot, { borderColor: colors.primary, backgroundColor: isSelected ? colors.primary : "transparent" }]} />
                     <View style={{ flex: 1 }}>
                       <Text style={[styles.planOptionName, { color: colors.foreground }]}>{plan.name}</Text>
-                      <Text style={[styles.planOptionPrice, { color: colors.mutedForeground }]}>
-                        {plan.price.toLocaleString()} MAD/an • {plan.maxMembers === 9999 ? "Illimité" : `${plan.maxMembers} membres`}
-                      </Text>
+                      <Text style={[styles.planOptionPrice, { color: colors.mutedForeground }]}>{formatPrice(plan.price)} MAD/{plan.interval ?? "an"}</Text>
                     </View>
-                    {plan.popular && (
-                      <View style={[styles.popularDot, { backgroundColor: plan.color }]}>
-                        <Text style={styles.popularDotText}>Populaire</Text>
-                      </View>
-                    )}
+                    {isSelected ? <Feather name="check-circle" size={16} color={colors.primary} /> : null}
                   </TouchableOpacity>
                 );
               })}
             </View>
 
-            <View style={styles.modalActions}>
+            <View style={{ gap: 10, marginTop: 20 }}>
+              {showManage?.status !== "suspended" ? (
+                <TouchableOpacity
+                  style={[styles.modalAction, { backgroundColor: "#ef444415", borderColor: "#ef444430" }]}
+                  onPress={() => showManage && handleUpdateSub(showManage.id, "suspended")}
+                >
+                  <Feather name="pause-circle" size={16} color="#ef4444" />
+                  <Text style={[styles.modalActionText, { color: "#ef4444" }]}>Suspendre l'abonnement</Text>
+                </TouchableOpacity>
+              ) : (
+                <TouchableOpacity
+                  style={[styles.modalAction, { backgroundColor: "#10b98115", borderColor: "#10b98130" }]}
+                  onPress={() => showManage && handleUpdateSub(showManage.id, "active")}
+                >
+                  <Feather name="play-circle" size={16} color="#10b981" />
+                  <Text style={[styles.modalActionText, { color: "#10b981" }]}>Réactiver l'abonnement</Text>
+                </TouchableOpacity>
+              )}
+
               <TouchableOpacity
-                style={[styles.modalCancel, { borderColor: colors.border }]}
-                onPress={() => setShowUpgradeModal(false)}
+                style={[styles.confirmBtn, { backgroundColor: colors.primary, opacity: saving ? 0.7 : 1 }]}
+                onPress={() => selectedPlanId && handleSubscribe(selectedPlanId)}
+                disabled={saving || !selectedPlanId}
               >
-                <Text style={[styles.modalCancelText, { color: colors.mutedForeground }]}>Annuler</Text>
+                {saving ? <ActivityIndicator color="#fff" size="small" /> : <Text style={styles.confirmBtnText}>Enregistrer le plan</Text>}
               </TouchableOpacity>
-              <TouchableOpacity
-                style={[styles.modalConfirm, { backgroundColor: colors.primary }]}
-                onPress={handleUpgrade}
-              >
-                <Text style={styles.modalConfirmText}>Confirmer</Text>
+              <TouchableOpacity style={styles.cancelBtn} onPress={() => setShowManage(null)}>
+                <Text style={[styles.cancelBtnText, { color: colors.mutedForeground }]}>Annuler</Text>
               </TouchableOpacity>
             </View>
           </View>
@@ -385,185 +427,68 @@ export default function AbonnementsScreen() {
 
 const styles = StyleSheet.create({
   root: { flex: 1 },
-  header: {
-    flexDirection: "row",
-    alignItems: "center",
-    paddingHorizontal: 16,
-    paddingBottom: 16,
-    borderBottomWidth: 1,
-    gap: 12,
-  },
-  backBtn: { width: 38, height: 38, alignItems: "center", justifyContent: "center" },
-  title: { flex: 1, fontSize: 20, fontFamily: "Inter_700Bold", textAlign: "center" },
-  tabRow: {
-    flexDirection: "row",
-    borderBottomWidth: 1,
-  },
-  tabBtn: {
-    flex: 1,
-    paddingVertical: 12,
-    alignItems: "center",
-    borderBottomWidth: 2,
-    borderBottomColor: "transparent",
-  },
+  center: { flex: 1, alignItems: "center", justifyContent: "center" },
+  header: { paddingHorizontal: 20, paddingBottom: 16, flexDirection: "row", alignItems: "center", borderBottomWidth: StyleSheet.hairlineWidth },
+  backBtn: { width: 38, height: 38, borderRadius: 10, alignItems: "center", justifyContent: "center" },
+  title: { flex: 1, fontSize: 18, fontFamily: "Inter_700Bold", textAlign: "center" },
+  tabRow: { flexDirection: "row", borderBottomWidth: StyleSheet.hairlineWidth },
+  tabBtn: { flex: 1, paddingVertical: 12, alignItems: "center", borderBottomWidth: 2, borderBottomColor: "transparent" },
   tabLabel: { fontSize: 13, fontFamily: "Inter_600SemiBold" },
-  statsRow: {
-    flexDirection: "row",
-    borderRadius: 16,
-    borderWidth: 1,
-    overflow: "hidden",
-  },
+  statsRow: { flexDirection: "row", borderRadius: 16, borderWidth: 1, overflow: "hidden" },
   statCell: { flex: 1, alignItems: "center", paddingVertical: 14, gap: 4 },
-  statIcon: { width: 32, height: 32, borderRadius: 9, alignItems: "center", justifyContent: "center" },
-  statVal: { fontSize: 13, fontFamily: "Inter_700Bold" },
-  statLab: { fontSize: 10, fontFamily: "Inter_400Regular", textAlign: "center" },
-  subCard: {
-    borderRadius: 16,
-    borderWidth: 1,
-    padding: 16,
-    gap: 12,
-  },
+  statIcon: { width: 36, height: 36, borderRadius: 10, alignItems: "center", justifyContent: "center" },
+  statVal: { fontSize: 16, fontFamily: "Inter_700Bold" },
+  statLab: { fontSize: 10, fontFamily: "Inter_400Regular" },
+  empty: { alignItems: "center", gap: 10, paddingVertical: 32 },
+  emptyText: { fontSize: 14, fontFamily: "Inter_400Regular" },
+  subCard: { borderRadius: 16, borderWidth: 1, overflow: "hidden", padding: 14, gap: 12 },
   subCardHeader: { flexDirection: "row", alignItems: "flex-start", gap: 12 },
-  subName: { fontSize: 15, fontFamily: "Inter_700Bold", marginBottom: 6 },
-  subMeta: { flexDirection: "row", gap: 6 },
-  planChip: { paddingHorizontal: 8, paddingVertical: 3, borderRadius: 20 },
+  subName: { fontSize: 15, fontFamily: "Inter_700Bold" },
+  subMeta: { flexDirection: "row", gap: 8, marginTop: 6, flexWrap: "wrap" },
+  planChip: { paddingHorizontal: 8, paddingVertical: 3, borderRadius: 8 },
   planChipText: { fontSize: 11, fontFamily: "Inter_600SemiBold" },
-  statusChip: { paddingHorizontal: 8, paddingVertical: 3, borderRadius: 20 },
+  statusChip: { paddingHorizontal: 8, paddingVertical: 3, borderRadius: 8 },
   statusChipText: { fontSize: 11, fontFamily: "Inter_600SemiBold" },
-  subAmount: { fontSize: 18, fontFamily: "Inter_700Bold" },
+  subAmount: { fontSize: 16, fontFamily: "Inter_700Bold" },
   subAmountLabel: { fontSize: 11, fontFamily: "Inter_400Regular" },
-  usageBar: { height: 6, borderRadius: 3, overflow: "hidden" },
-  usageBarFill: { height: "100%", borderRadius: 3 },
-  usageRow: { flexDirection: "row", justifyContent: "space-between" },
-  usageText: { fontSize: 11, fontFamily: "Inter_400Regular" },
-  subFooter: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "space-between",
-    borderTopWidth: 1,
-    paddingTop: 12,
-  },
-  subInfoText: { fontSize: 11, fontFamily: "Inter_400Regular" },
-  manageBtn: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 5,
-    paddingHorizontal: 12,
-    paddingVertical: 7,
-    borderRadius: 10,
-    borderWidth: 1,
-  },
-  manageBtnText: { fontSize: 12, fontFamily: "Inter_600SemiBold" },
-  currentPlanBanner: {
-    flexDirection: "row",
-    alignItems: "center",
-    borderRadius: 16,
-    borderWidth: 1.5,
-    padding: 16,
-    gap: 12,
-  },
-  currentPlanLabel: { fontSize: 11, fontFamily: "Inter_600SemiBold", letterSpacing: 0.5, marginBottom: 2 },
-  currentPlanName: { fontSize: 20, fontFamily: "Inter_700Bold" },
-  currentPlanRenewal: { fontSize: 12, fontFamily: "Inter_400Regular", marginTop: 2 },
-  memberPlanCard: {
-    borderRadius: 16,
-    borderWidth: 1,
-    padding: 24,
-    alignItems: "center",
-    gap: 10,
-  },
-  memberPlanIcon: { width: 56, height: 56, borderRadius: 28, alignItems: "center", justifyContent: "center" },
-  memberPlanTitle: { fontSize: 20, fontFamily: "Inter_700Bold" },
-  memberPlanSubtitle: { fontSize: 13, fontFamily: "Inter_400Regular", textAlign: "center", lineHeight: 20 },
-  planCard: {
-    borderRadius: 16,
-    borderWidth: 1,
-    padding: 18,
-    gap: 14,
-    overflow: "hidden",
-  },
-  popularBadge: {
-    alignSelf: "flex-start",
-    paddingHorizontal: 10,
-    paddingVertical: 4,
-    borderRadius: 20,
-    marginBottom: 4,
-  },
+  subFooter: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", paddingTop: 10, borderTopWidth: StyleSheet.hairlineWidth },
+  subInfoText: { fontSize: 12, fontFamily: "Inter_400Regular" },
+  manageBtn: { flexDirection: "row", alignItems: "center", gap: 6, paddingHorizontal: 12, paddingVertical: 7, borderRadius: 10, borderWidth: 1 },
+  manageBtnText: { fontSize: 13, fontFamily: "Inter_600SemiBold" },
+  currentPlanBanner: { borderRadius: 16, borderWidth: 1, padding: 16, flexDirection: "row", alignItems: "center", gap: 12 },
+  currentPlanLabel: { fontSize: 11, fontFamily: "Inter_600SemiBold", marginBottom: 2 },
+  currentPlanName: { fontSize: 18, fontFamily: "Inter_700Bold" },
+  planCard: { borderRadius: 16, overflow: "hidden", padding: 16, gap: 12 },
+  popularBadge: { alignSelf: "flex-start", paddingHorizontal: 10, paddingVertical: 4, borderRadius: 8, marginBottom: 8 },
   popularBadgeText: { fontSize: 11, fontFamily: "Inter_700Bold", color: "#fff" },
   planCardHeader: { flexDirection: "row", alignItems: "center", gap: 12 },
-  planIconCircle: { width: 46, height: 46, borderRadius: 14, alignItems: "center", justifyContent: "center" },
-  planName: { fontSize: 18, fontFamily: "Inter_700Bold" },
-  planMax: { fontSize: 12, fontFamily: "Inter_400Regular", marginTop: 2 },
+  planIconCircle: { width: 44, height: 44, borderRadius: 12, alignItems: "center", justifyContent: "center" },
+  planName: { fontSize: 16, fontFamily: "Inter_700Bold" },
+  planInterval: { fontSize: 11, fontFamily: "Inter_400Regular", marginTop: 2 },
   planPrice: { fontSize: 22, fontFamily: "Inter_700Bold" },
   planPriceCurrency: { fontSize: 11, fontFamily: "Inter_400Regular" },
   planDivider: { height: 1 },
   featureRow: { flexDirection: "row", alignItems: "center", gap: 10 },
-  featureCheck: { width: 22, height: 22, borderRadius: 6, alignItems: "center", justifyContent: "center" },
-  featureText: { fontSize: 13, fontFamily: "Inter_500Medium", flex: 1 },
-  upgradeBtn: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "center",
-    gap: 8,
-    paddingVertical: 13,
-    borderRadius: 12,
-    marginTop: 4,
-  },
-  upgradeBtnText: { fontSize: 14, fontFamily: "Inter_700Bold", color: "#fff" },
-  contactCard: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 14,
-    borderRadius: 16,
-    borderWidth: 1,
-    padding: 16,
-  },
-  contactTitle: { fontSize: 14, fontFamily: "Inter_600SemiBold", marginBottom: 2 },
-  contactSub: { fontSize: 12, fontFamily: "Inter_400Regular", lineHeight: 17 },
-  modalOverlay: { flex: 1, backgroundColor: "rgba(0,0,0,0.4)", justifyContent: "flex-end" },
-  modalSheet: {
-    borderTopLeftRadius: 24,
-    borderTopRightRadius: 24,
-    padding: 24,
-    gap: 8,
-  },
-  modalHandle: {
-    width: 40,
-    height: 4,
-    borderRadius: 2,
-    backgroundColor: "#e5e7eb",
-    alignSelf: "center",
-    marginBottom: 12,
-  },
+  featureCheck: { width: 24, height: 24, borderRadius: 8, alignItems: "center", justifyContent: "center" },
+  featureText: { fontSize: 13, fontFamily: "Inter_400Regular", flex: 1 },
+  upgradeBtn: { borderRadius: 12, padding: 14, flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 8, marginTop: 4 },
+  upgradeBtnText: { fontSize: 15, fontFamily: "Inter_700Bold", color: "#fff" },
+  contactCard: { borderRadius: 16, borderWidth: 1, padding: 16, flexDirection: "row", alignItems: "center", gap: 14 },
+  contactTitle: { fontSize: 14, fontFamily: "Inter_700Bold" },
+  contactSub: { fontSize: 12, fontFamily: "Inter_400Regular", marginTop: 2, lineHeight: 17 },
+  modalOverlay: { flex: 1, backgroundColor: "rgba(0,0,0,0.5)", justifyContent: "flex-end" },
+  modalSheet: { borderTopLeftRadius: 24, borderTopRightRadius: 24, padding: 24, paddingBottom: 40 },
+  modalHandle: { width: 40, height: 4, backgroundColor: "#d1d5db", borderRadius: 2, alignSelf: "center", marginBottom: 20 },
   modalTitle: { fontSize: 18, fontFamily: "Inter_700Bold" },
-  modalSubtitle: { fontSize: 13, fontFamily: "Inter_400Regular", marginTop: -4 },
-  planOption: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 12,
-    borderWidth: 1.5,
-    borderRadius: 12,
-    padding: 14,
-  },
-  planOptionDot: { width: 20, height: 20, borderRadius: 10, borderWidth: 2 },
-  planOptionName: { fontSize: 15, fontFamily: "Inter_700Bold" },
+  modalSubtitle: { fontSize: 13, fontFamily: "Inter_400Regular", marginTop: 4 },
+  planOption: { borderRadius: 12, borderWidth: 1, padding: 14, flexDirection: "row", alignItems: "center", gap: 12 },
+  planOptionDot: { width: 18, height: 18, borderRadius: 9, borderWidth: 2 },
+  planOptionName: { fontSize: 14, fontFamily: "Inter_600SemiBold" },
   planOptionPrice: { fontSize: 12, fontFamily: "Inter_400Regular", marginTop: 2 },
-  popularDot: { paddingHorizontal: 7, paddingVertical: 3, borderRadius: 8 },
-  popularDotText: { fontSize: 10, fontFamily: "Inter_600SemiBold", color: "#fff" },
-  modalActions: { flexDirection: "row", gap: 10, marginTop: 16 },
-  modalCancel: {
-    flex: 1,
-    paddingVertical: 14,
-    borderRadius: 12,
-    borderWidth: 1,
-    alignItems: "center",
-  },
-  modalCancelText: { fontSize: 14, fontFamily: "Inter_600SemiBold" },
-  modalConfirm: {
-    flex: 1,
-    paddingVertical: 14,
-    borderRadius: 12,
-    alignItems: "center",
-  },
-  modalConfirmText: { fontSize: 14, fontFamily: "Inter_700Bold", color: "#fff" },
+  modalAction: { borderRadius: 12, borderWidth: 1, padding: 14, flexDirection: "row", alignItems: "center", gap: 10 },
+  modalActionText: { fontSize: 14, fontFamily: "Inter_600SemiBold" },
+  confirmBtn: { borderRadius: 14, padding: 16, alignItems: "center" },
+  confirmBtnText: { fontSize: 16, fontFamily: "Inter_700Bold", color: "#fff" },
+  cancelBtn: { borderRadius: 14, padding: 16, alignItems: "center" },
+  cancelBtnText: { fontSize: 15, fontFamily: "Inter_500Medium" },
 });

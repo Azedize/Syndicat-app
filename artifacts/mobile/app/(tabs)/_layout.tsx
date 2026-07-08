@@ -212,6 +212,7 @@ export default function TabLayout() {
   const { user } = useAuth();
   const role = user?.role ?? "member";
   const isAdmin = role === "super_admin" || role === "syndicate_admin";
+  const isTenant = role === "tenant";
   const hiddenTabStyle = { display: "none" as const };
 
   return (
@@ -224,17 +225,26 @@ export default function TabLayout() {
         name="members"
         options={{
           title: role === "super_admin" ? "Syndicats" : "Membres",
-          tabBarItemStyle: isAdmin ? undefined : hiddenTabStyle,
+          // Tenants cannot see members/syndicates management
+          tabBarItemStyle: (isAdmin) ? undefined : hiddenTabStyle,
         }}
       />
       <Tabs.Screen
         name="finance"
         options={{
           title: "Finance",
-          tabBarItemStyle: isAdmin ? undefined : hiddenTabStyle,
+          // Tenants cannot access finance management
+          tabBarItemStyle: (isAdmin) ? undefined : hiddenTabStyle,
         }}
       />
-      <Tabs.Screen name="marketplace" options={{ title: "Marketplace" }} />
+      <Tabs.Screen
+        name="marketplace"
+        options={{
+          title: "Marketplace",
+          // Tenants can access marketplace (view only — server enforces write restrictions)
+          tabBarItemStyle: isTenant ? hiddenTabStyle : undefined,
+        }}
+      />
       <Tabs.Screen name="more" options={{ title: "Plus" }} />
     </Tabs>
   );

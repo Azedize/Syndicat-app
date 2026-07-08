@@ -25,11 +25,11 @@ var __export = (target, all) => {
   for (var name in all)
     __defProp(target, name, { get: all[name], enumerable: true });
 };
-var __copyProps = (to, from, except2, desc2) => {
+var __copyProps = (to, from, except2, desc3) => {
   if (from && typeof from === "object" || typeof from === "function") {
     for (let key of __getOwnPropNames(from))
       if (!__hasOwnProp.call(to, key) && key !== except2)
-        __defProp(to, key, { get: () => from[key], enumerable: !(desc2 = __getOwnPropDesc(from, key)) || desc2.enumerable });
+        __defProp(to, key, { get: () => from[key], enumerable: !(desc3 = __getOwnPropDesc(from, key)) || desc3.enumerable });
   }
   return to;
 };
@@ -875,8 +875,8 @@ var require_depd = __commonJS({
       return deprecate;
     }
     function eehaslisteners(emitter, type) {
-      var count4 = typeof emitter.listenerCount !== "function" ? emitter.listeners(type).length : emitter.listenerCount(type);
-      return count4 > 0;
+      var count5 = typeof emitter.listenerCount !== "function" ? emitter.listeners(type).length : emitter.listenerCount(type);
+      return count5 > 0;
     }
     function isignored(namespace) {
       if (process.noDeprecation) {
@@ -1466,10 +1466,10 @@ var require_http_errors = __commonJS({
       return ServerError;
     }
     function nameFunc(func, name) {
-      var desc2 = Object.getOwnPropertyDescriptor(func, "name");
-      if (desc2 && desc2.configurable) {
-        desc2.value = name;
-        Object.defineProperty(func, "name", desc2);
+      var desc3 = Object.getOwnPropertyDescriptor(func, "name");
+      if (desc3 && desc3.configurable) {
+        desc3.value = name;
+        Object.defineProperty(func, "name", desc3);
       }
     }
     function populateConstructorExports(exports2, codes, HttpError) {
@@ -16913,14 +16913,14 @@ var require_get = __commonJS({
         throw e;
       }
     }
-    var desc2 = !!hasProtoAccessor && gOPD && gOPD(
+    var desc3 = !!hasProtoAccessor && gOPD && gOPD(
       Object.prototype,
       /** @type {keyof typeof Object.prototype} */
       "__proto__"
     );
     var $Object = Object;
     var $getPrototypeOf = $Object.getPrototypeOf;
-    module.exports = desc2 && typeof desc2.get === "function" ? callBind([desc2.get]) : typeof $getPrototypeOf === "function" ? (
+    module.exports = desc3 && typeof desc3.get === "function" ? callBind([desc3.get]) : typeof $getPrototypeOf === "function" ? (
       /** @type {import('./get')} */
       function getDunder(value) {
         return $getPrototypeOf(value == null ? value : $Object(value));
@@ -17270,10 +17270,10 @@ var require_get_intrinsic = __commonJS({
             return void undefined2;
           }
           if ($gOPD && i + 1 >= parts.length) {
-            var desc2 = $gOPD(value, part);
-            isOwn = !!desc2;
-            if (isOwn && "get" in desc2 && !("originalValue" in desc2.get)) {
-              value = desc2.get;
+            var desc3 = $gOPD(value, part);
+            isOwn = !!desc3;
+            if (isOwn && "get" in desc3 && !("originalValue" in desc3.get)) {
+              value = desc3.get;
             } else {
               value = value[part];
             }
@@ -18445,14 +18445,14 @@ var require_urlencoded = __commonJS({
       };
     }
     function parameterCount(body, limit) {
-      let count4 = 0;
+      let count5 = 0;
       let index2 = -1;
       do {
-        count4++;
-        if (count4 > limit) return void 0;
+        count5++;
+        if (count5 > limit) return void 0;
         index2 = body.indexOf("&", index2 + 1);
       } while (index2 !== -1);
-      return count4;
+      return count5;
     }
   }
 });
@@ -20613,27 +20613,27 @@ var require_router = __commonJS({
     var slice = Array.prototype.slice;
     var flatten = Array.prototype.flat;
     var methods = METHODS.map((method) => method.toLowerCase());
-    module.exports = Router26;
+    module.exports = Router31;
     module.exports.Route = Route;
-    function Router26(options) {
-      if (!(this instanceof Router26)) {
-        return new Router26(options);
+    function Router31(options) {
+      if (!(this instanceof Router31)) {
+        return new Router31(options);
       }
       const opts = options || {};
-      function router26(req, res, next) {
-        router26.handle(req, res, next);
+      function router31(req, res, next) {
+        router31.handle(req, res, next);
       }
-      Object.setPrototypeOf(router26, this);
-      router26.caseSensitive = opts.caseSensitive;
-      router26.mergeParams = opts.mergeParams;
-      router26.params = {};
-      router26.strict = opts.strict;
-      router26.stack = [];
-      return router26;
+      Object.setPrototypeOf(router31, this);
+      router31.caseSensitive = opts.caseSensitive;
+      router31.mergeParams = opts.mergeParams;
+      router31.params = {};
+      router31.strict = opts.strict;
+      router31.stack = [];
+      return router31;
     }
-    Router26.prototype = function() {
+    Router31.prototype = function() {
     };
-    Router26.prototype.param = function param(name, fn) {
+    Router31.prototype.param = function param(name, fn) {
       if (!name) {
         throw new TypeError("argument name is required");
       }
@@ -20653,7 +20653,7 @@ var require_router = __commonJS({
       params.push(fn);
       return this;
     };
-    Router26.prototype.handle = function handle(req, res, callback) {
+    Router31.prototype.handle = function handle(req, res, callback) {
       if (!callback) {
         throw new TypeError("argument callback is required");
       }
@@ -20780,7 +20780,7 @@ var require_router = __commonJS({
         }
       }
     };
-    Router26.prototype.use = function use(handler) {
+    Router31.prototype.use = function use(handler) {
       let offset = 0;
       let path = "/";
       if (typeof handler !== "function") {
@@ -20813,7 +20813,7 @@ var require_router = __commonJS({
       }
       return this;
     };
-    Router26.prototype.route = function route(path) {
+    Router31.prototype.route = function route(path) {
       const route2 = new Route(path);
       const layer = new Layer(path, {
         sensitive: this.caseSensitive,
@@ -20828,7 +20828,7 @@ var require_router = __commonJS({
       return route2;
     };
     methods.concat("all").forEach(function(method) {
-      Router26.prototype[method] = function(path) {
+      Router31.prototype[method] = function(path) {
         const route = this.route(path);
         route[method].apply(route, slice.call(arguments, 1));
         return this;
@@ -21011,13 +21011,13 @@ var require_application = __commonJS({
     var compileTrust = require_utils3().compileTrust;
     var resolve = __require("node:path").resolve;
     var once = require_once();
-    var Router26 = require_router();
+    var Router31 = require_router();
     var slice = Array.prototype.slice;
     var flatten = Array.prototype.flat;
     var app2 = exports = module.exports = {};
     var trustProxyDefaultSymbol = "@@symbol:trust_proxy_default";
     app2.init = function init() {
-      var router26 = null;
+      var router31 = null;
       this.cache = /* @__PURE__ */ Object.create(null);
       this.engines = /* @__PURE__ */ Object.create(null);
       this.settings = /* @__PURE__ */ Object.create(null);
@@ -21026,13 +21026,13 @@ var require_application = __commonJS({
         configurable: true,
         enumerable: true,
         get: function getrouter() {
-          if (router26 === null) {
-            router26 = new Router26({
+          if (router31 === null) {
+            router31 = new Router31({
               caseSensitive: this.enabled("case sensitive routing"),
               strict: this.enabled("strict routing")
             });
           }
-          return router26;
+          return router31;
         }
       });
     };
@@ -21103,15 +21103,15 @@ var require_application = __commonJS({
       if (fns.length === 0) {
         throw new TypeError("app.use() requires a middleware function");
       }
-      var router26 = this.router;
+      var router31 = this.router;
       fns.forEach(function(fn2) {
         if (!fn2 || !fn2.handle || !fn2.set) {
-          return router26.use(path, fn2);
+          return router31.use(path, fn2);
         }
         debug(".use app under %s", path);
         fn2.mountpath = path;
         fn2.parent = this;
-        router26.use(path, function mounted_app(req, res, next) {
+        router31.use(path, function mounted_app(req, res, next) {
           var orig = req.app;
           fn2.handle(req, res, function(err) {
             Object.setPrototypeOf(req, orig.request);
@@ -21665,13 +21665,13 @@ var require_mediaType = __commonJS({
       return spec.q > 0;
     }
     function quoteCount(string) {
-      var count4 = 0;
+      var count5 = 0;
       var index2 = 0;
       while ((index2 = string.indexOf('"', index2)) !== -1) {
-        count4++;
+        count5++;
         index2++;
       }
-      return count4;
+      return count5;
     }
     function splitKeyValuePair(str) {
       var index2 = str.indexOf("=");
@@ -22976,8 +22976,8 @@ var require_send = __commonJS({
       }
     }
     function hasListeners(emitter, type) {
-      var count4 = typeof emitter.listenerCount !== "function" ? emitter.listeners(type).length : emitter.listenerCount(type);
-      return count4 > 0;
+      var count5 = typeof emitter.listenerCount !== "function" ? emitter.listeners(type).length : emitter.listenerCount(type);
+      return count5 > 0;
     }
     function normalizeList(val, name) {
       var list = [].concat(val || []);
@@ -23684,7 +23684,7 @@ var require_express = __commonJS({
     var EventEmitter = __require("node:events").EventEmitter;
     var mixin = require_merge_descriptors();
     var proto = require_application();
-    var Router26 = require_router();
+    var Router31 = require_router();
     var req = require_request();
     var res = require_response();
     exports = module.exports = createApplication;
@@ -23706,8 +23706,8 @@ var require_express = __commonJS({
     exports.application = proto;
     exports.request = req;
     exports.response = res;
-    exports.Route = Router26.Route;
-    exports.Router = Router26;
+    exports.Route = Router31.Route;
+    exports.Router = Router31;
     exports.json = bodyParser.json;
     exports.raw = bodyParser.raw;
     exports.static = require_serve_static();
@@ -24101,13 +24101,13 @@ var require_ipv4 = __commonJS({
     "use strict";
     var __createBinding = exports && exports.__createBinding || (Object.create ? (function(o, m, k, k2) {
       if (k2 === void 0) k2 = k;
-      var desc2 = Object.getOwnPropertyDescriptor(m, k);
-      if (!desc2 || ("get" in desc2 ? !m.__esModule : desc2.writable || desc2.configurable)) {
-        desc2 = { enumerable: true, get: function() {
+      var desc3 = Object.getOwnPropertyDescriptor(m, k);
+      if (!desc3 || ("get" in desc3 ? !m.__esModule : desc3.writable || desc3.configurable)) {
+        desc3 = { enumerable: true, get: function() {
           return m[k];
         } };
       }
-      Object.defineProperty(o, k2, desc2);
+      Object.defineProperty(o, k2, desc3);
     }) : (function(o, m, k, k2) {
       if (k2 === void 0) k2 = k;
       o[k2] = m[k];
@@ -24667,13 +24667,13 @@ var require_regular_expressions = __commonJS({
     "use strict";
     var __createBinding = exports && exports.__createBinding || (Object.create ? (function(o, m, k, k2) {
       if (k2 === void 0) k2 = k;
-      var desc2 = Object.getOwnPropertyDescriptor(m, k);
-      if (!desc2 || ("get" in desc2 ? !m.__esModule : desc2.writable || desc2.configurable)) {
-        desc2 = { enumerable: true, get: function() {
+      var desc3 = Object.getOwnPropertyDescriptor(m, k);
+      if (!desc3 || ("get" in desc3 ? !m.__esModule : desc3.writable || desc3.configurable)) {
+        desc3 = { enumerable: true, get: function() {
           return m[k];
         } };
       }
-      Object.defineProperty(o, k2, desc2);
+      Object.defineProperty(o, k2, desc3);
     }) : (function(o, m, k, k2) {
       if (k2 === void 0) k2 = k;
       o[k2] = m[k];
@@ -24759,13 +24759,13 @@ var require_ipv6 = __commonJS({
     "use strict";
     var __createBinding = exports && exports.__createBinding || (Object.create ? (function(o, m, k, k2) {
       if (k2 === void 0) k2 = k;
-      var desc2 = Object.getOwnPropertyDescriptor(m, k);
-      if (!desc2 || ("get" in desc2 ? !m.__esModule : desc2.writable || desc2.configurable)) {
-        desc2 = { enumerable: true, get: function() {
+      var desc3 = Object.getOwnPropertyDescriptor(m, k);
+      if (!desc3 || ("get" in desc3 ? !m.__esModule : desc3.writable || desc3.configurable)) {
+        desc3 = { enumerable: true, get: function() {
           return m[k];
         } };
       }
-      Object.defineProperty(o, k2, desc2);
+      Object.defineProperty(o, k2, desc3);
     }) : (function(o, m, k, k2) {
       if (k2 === void 0) k2 = k;
       o[k2] = m[k];
@@ -25876,13 +25876,13 @@ var require_ip_address = __commonJS({
     "use strict";
     var __createBinding = exports && exports.__createBinding || (Object.create ? (function(o, m, k, k2) {
       if (k2 === void 0) k2 = k;
-      var desc2 = Object.getOwnPropertyDescriptor(m, k);
-      if (!desc2 || ("get" in desc2 ? !m.__esModule : desc2.writable || desc2.configurable)) {
-        desc2 = { enumerable: true, get: function() {
+      var desc3 = Object.getOwnPropertyDescriptor(m, k);
+      if (!desc3 || ("get" in desc3 ? !m.__esModule : desc3.writable || desc3.configurable)) {
+        desc3 = { enumerable: true, get: function() {
           return m[k];
         } };
       }
-      Object.defineProperty(o, k2, desc2);
+      Object.defineProperty(o, k2, desc3);
     }) : (function(o, m, k, k2) {
       if (k2 === void 0) k2 = k;
       o[k2] = m[k];
@@ -30890,13 +30890,13 @@ var require_mediaType2 = __commonJS({
       return spec.q > 0;
     }
     function quoteCount(string) {
-      var count4 = 0;
+      var count5 = 0;
       var index2 = 0;
       while ((index2 = string.indexOf('"', index2)) !== -1) {
-        count4++;
+        count5++;
         index2++;
       }
-      return count4;
+      return count5;
     }
     function splitKeyValuePair(str) {
       var index2 = str.indexOf("=");
@@ -41737,51 +41737,51 @@ var require_denque = __commonJS({
       }
       return item;
     };
-    Denque.prototype.remove = function remove(index2, count4) {
+    Denque.prototype.remove = function remove(index2, count5) {
       var i = index2;
       var removed;
-      var del_count = count4;
+      var del_count = count5;
       if (i !== (i | 0)) {
         return void 0;
       }
       if (this._head === this._tail) return void 0;
       var size2 = this.size();
       var len = this._list.length;
-      if (i >= size2 || i < -size2 || count4 < 1) return void 0;
+      if (i >= size2 || i < -size2 || count5 < 1) return void 0;
       if (i < 0) i += size2;
-      if (count4 === 1 || !count4) {
+      if (count5 === 1 || !count5) {
         removed = new Array(1);
         removed[0] = this.removeOne(i);
         return removed;
       }
-      if (i === 0 && i + count4 >= size2) {
+      if (i === 0 && i + count5 >= size2) {
         removed = this.toArray();
         this.clear();
         return removed;
       }
-      if (i + count4 > size2) count4 = size2 - i;
+      if (i + count5 > size2) count5 = size2 - i;
       var k;
-      removed = new Array(count4);
-      for (k = 0; k < count4; k++) {
+      removed = new Array(count5);
+      for (k = 0; k < count5; k++) {
         removed[k] = this._list[this._head + i + k & this._capacityMask];
       }
       i = this._head + i & this._capacityMask;
-      if (index2 + count4 === size2) {
-        this._tail = this._tail - count4 + len & this._capacityMask;
-        for (k = count4; k > 0; k--) {
+      if (index2 + count5 === size2) {
+        this._tail = this._tail - count5 + len & this._capacityMask;
+        for (k = count5; k > 0; k--) {
           this._list[i = i + 1 + len & this._capacityMask] = void 0;
         }
         return removed;
       }
       if (index2 === 0) {
-        this._head = this._head + count4 + len & this._capacityMask;
-        for (k = count4 - 1; k > 0; k--) {
+        this._head = this._head + count5 + len & this._capacityMask;
+        for (k = count5 - 1; k > 0; k--) {
           this._list[i = i + 1 + len & this._capacityMask] = void 0;
         }
         return removed;
       }
       if (i < size2 / 2) {
-        this._head = this._head + index2 + count4 + len & this._capacityMask;
+        this._head = this._head + index2 + count5 + len & this._capacityMask;
         for (k = index2; k > 0; k--) {
           this.unshift(this._list[i = i - 1 + len & this._capacityMask]);
         }
@@ -41793,8 +41793,8 @@ var require_denque = __commonJS({
         if (index2 < 0) this._tail = i;
       } else {
         this._tail = i;
-        i = i + count4 + len & this._capacityMask;
-        for (k = size2 - (count4 + index2); k > 0; k--) {
+        i = i + count5 + len & this._capacityMask;
+        for (k = size2 - (count5 + index2); k > 0; k--) {
           this.push(this._list[i++]);
         }
         i = this._tail;
@@ -41806,7 +41806,7 @@ var require_denque = __commonJS({
       if (this._head < 2 && this._tail > 1e4 && this._tail <= len >>> 2) this._shrinkArray();
       return removed;
     };
-    Denque.prototype.splice = function splice(index2, count4) {
+    Denque.prototype.splice = function splice(index2, count5) {
       var i = index2;
       if (i !== (i | 0)) {
         return void 0;
@@ -41826,13 +41826,13 @@ var require_denque = __commonJS({
           for (k = 0; k < i; k++) {
             temp[k] = this._list[this._head + k & this._capacityMask];
           }
-          if (count4 === 0) {
+          if (count5 === 0) {
             removed = [];
             if (i > 0) {
               this._head = this._head + i + len & this._capacityMask;
             }
           } else {
-            removed = this.remove(i, count4);
+            removed = this.remove(i, count5);
             this._head = this._head + i + len & this._capacityMask;
           }
           while (arg_len > arguments_index) {
@@ -41842,18 +41842,18 @@ var require_denque = __commonJS({
             this.unshift(temp[k - 1]);
           }
         } else {
-          temp = new Array(size2 - (i + count4));
+          temp = new Array(size2 - (i + count5));
           var leng = temp.length;
           for (k = 0; k < leng; k++) {
-            temp[k] = this._list[this._head + i + count4 + k & this._capacityMask];
+            temp[k] = this._list[this._head + i + count5 + k & this._capacityMask];
           }
-          if (count4 === 0) {
+          if (count5 === 0) {
             removed = [];
             if (i != size2) {
               this._tail = this._head + i + len & this._capacityMask;
             }
           } else {
-            removed = this.remove(i, count4);
+            removed = this.remove(i, count5);
             this._tail = this._tail - leng + len & this._capacityMask;
           }
           while (arguments_index < arg_len) {
@@ -41865,7 +41865,7 @@ var require_denque = __commonJS({
         }
         return removed;
       } else {
-        return this.remove(i, count4);
+        return this.remove(i, count5);
       }
     };
     Denque.prototype.clear = function clear() {
@@ -44372,15 +44372,15 @@ var require_DataHandler = __commonJS({
             if (channel) {
               this.redis.condition.subscriber.del(replyType, channel);
             }
-            const count4 = reply[2];
-            if (Number(count4) === 0) {
+            const count5 = reply[2];
+            if (Number(count5) === 0) {
               this.redis.condition.subscriber = false;
             }
             const item = this.shiftCommand(reply);
             if (!item) {
               return;
             }
-            if (!fillUnsubCommand(item.command, count4)) {
+            if (!fillUnsubCommand(item.command, count5)) {
               this.redis.commandQueue.unshift(item);
             }
             break;
@@ -44424,30 +44424,30 @@ var require_DataHandler = __commonJS({
     };
     exports.default = DataHandler;
     var remainingRepliesMap = /* @__PURE__ */ new WeakMap();
-    function fillSubCommand(command, count4) {
+    function fillSubCommand(command, count5) {
       let remainingReplies = remainingRepliesMap.has(command) ? remainingRepliesMap.get(command) : command.args.length;
       remainingReplies -= 1;
       if (remainingReplies <= 0) {
-        command.resolve(count4);
+        command.resolve(count5);
         remainingRepliesMap.delete(command);
         return true;
       }
       remainingRepliesMap.set(command, remainingReplies);
       return false;
     }
-    function fillUnsubCommand(command, count4) {
+    function fillUnsubCommand(command, count5) {
       let remainingReplies = remainingRepliesMap.has(command) ? remainingRepliesMap.get(command) : command.args.length;
       if (remainingReplies === 0) {
-        if (Number(count4) === 0) {
+        if (Number(count5) === 0) {
           remainingRepliesMap.delete(command);
-          command.resolve(count4);
+          command.resolve(count5);
           return true;
         }
         return false;
       }
       remainingReplies -= 1;
       if (remainingReplies <= 0) {
-        command.resolve(count4);
+        command.resolve(count5);
         return true;
       }
       remainingRepliesMap.set(command, remainingReplies);
@@ -45556,7 +45556,7 @@ var require_built3 = __commonJS({
 });
 
 // src/app.ts
-var import_express26 = __toESM(require_express2(), 1);
+var import_express31 = __toESM(require_express2(), 1);
 var import_cors = __toESM(require_lib3(), 1);
 
 // ../../node_modules/.pnpm/helmet@8.2.0/node_modules/helmet/index.mjs
@@ -47278,7 +47278,7 @@ var import_pino_http = __toESM(require_logger(), 1);
 var import_compression = __toESM(require_compression(), 1);
 
 // src/routes/index.ts
-var import_express25 = __toESM(require_express2(), 1);
+var import_express30 = __toESM(require_express2(), 1);
 
 // src/routes/health.ts
 var import_express = __toESM(require_express2(), 1);
@@ -51333,7 +51333,10 @@ var HealthCheckResponse = external_exports.object({
 // src/routes/health.ts
 var router = (0, import_express.Router)();
 router.get("/healthz", (_req, res) => {
-  const data = HealthCheckResponse.parse({ status: "ok" });
+  const data = HealthCheckResponse.parse({
+    status: "ok",
+    timestamp: (/* @__PURE__ */ new Date()).toISOString()
+  });
   res.json(data);
 });
 var health_default = router;
@@ -62196,17 +62199,24 @@ __export(schema_exports, {
   contratsPrestatairesTable: () => contratsPrestatairesTable,
   conversationsTable: () => conversationsTable,
   cotisationsTable: () => cotisationsTable,
+  debtEscalationsTable: () => debtEscalationsTable,
   documentsTable: () => documentsTable,
   electionsTable: () => electionsTable,
+  expenseJustificationsTable: () => expenseJustificationsTable,
+  expenseVotesTable: () => expenseVotesTable,
+  ideaVotesTable: () => ideaVotesTable,
+  ideasTable: () => ideasTable,
   invoiceItemsTable: () => invoiceItemsTable,
   invoicesTable: () => invoicesTable,
   legalAlertsTable: () => legalAlertsTable,
   lotsTable: () => lotsTable,
+  marketplacePromotionsTable: () => marketplacePromotionsTable,
   meetingAttendeesTable: () => meetingAttendeesTable,
   meetingsTable: () => meetingsTable,
   membersTable: () => membersTable,
   messageReadsTable: () => messageReadsTable,
   messagesTable: () => messagesTable,
+  nationalRankingsTable: () => nationalRankingsTable,
   notificationPreferencesTable: () => notificationPreferencesTable,
   ordersTable: () => ordersTable,
   partnersTable: () => partnersTable,
@@ -62214,6 +62224,9 @@ __export(schema_exports, {
   paymentProofsTable: () => paymentProofsTable,
   payslipsTable: () => payslipsTable,
   prestatairesTable: () => prestatairesTable,
+  productCommentsTable: () => productCommentsTable,
+  productFavoritesTable: () => productFavoritesTable,
+  productReportsTable: () => productReportsTable,
   productsTable: () => productsTable,
   publicationCommentsTable: () => publicationCommentsTable,
   publicationLikesTable: () => publicationLikesTable,
@@ -62234,16 +62247,33 @@ __export(schema_exports, {
   usersTable: () => usersTable,
   votesTable: () => votesTable
 });
+var money = (col) => numeric(col, { precision: 12, scale: 2 });
 var id = () => text("id").primaryKey().default(sql`gen_random_uuid()::text`);
 var createdAt = () => timestamp("created_at").defaultNow();
 var syndicatesTable = pgTable("syndicates", {
   id: id(),
   name: text("name").notNull(),
+  abbreviation: text("abbreviation"),
   sector: text("sector"),
   region: text("region"),
   adminId: text("admin_id"),
   status: text("status").default("active"),
   membersCount: integer("members_count").default(0),
+  // Contact
+  email: text("email"),
+  phone: text("phone"),
+  website: text("website"),
+  address: text("address"),
+  // Legal (Dahir 1-57-119)
+  legalForm: text("legal_form"),
+  registrationNumber: text("registration_number"),
+  foundingDate: text("founding_date"),
+  mission: text("mission"),
+  // Branding
+  logoColor: text("logo_color").default("#7c3aed"),
+  // Finance defaults
+  cotisationAmount: money("cotisation_amount"),
+  cotisationCycle: text("cotisation_cycle").default("monthly"),
   createdAt: createdAt()
 });
 var usersTable = pgTable(
@@ -62335,7 +62365,7 @@ var lotsTable = pgTable(
     number: text("number").notNull(),
     type: text("type").default("appartement"),
     floor: integer("floor").default(0),
-    surfaceM2: doublePrecision("surface_m2"),
+    surfaceM2: money("surface_m2"),
     tantiemes: integer("tantiemes").default(0),
     buildingId: text("building_id").notNull().references(() => buildingsTable.id, { onDelete: "cascade" }),
     ownerId: text("owner_id").references(() => membersTable.id, { onDelete: "set null" }),
@@ -62361,8 +62391,8 @@ var tenantsTable = pgTable(
     syndicateId: text("syndicate_id").references(() => syndicatesTable.id, { onDelete: "cascade" }),
     leaseStart: text("lease_start"),
     leaseEnd: text("lease_end"),
-    monthlyRent: doublePrecision("monthly_rent"),
-    depositAmount: doublePrecision("deposit_amount"),
+    monthlyRent: money("monthly_rent"),
+    depositAmount: money("deposit_amount"),
     status: text("status").default("active"),
     emergencyContact: text("emergency_contact"),
     emergencyPhone: text("emergency_phone"),
@@ -62382,9 +62412,9 @@ var budgetsTable = pgTable(
     id: id(),
     year: integer("year").notNull(),
     buildingId: text("building_id").notNull().references(() => buildingsTable.id, { onDelete: "cascade" }),
-    totalAmount: doublePrecision("total_amount").default(0),
-    chargesAmount: doublePrecision("charges_amount").default(0),
-    fondsReserve: doublePrecision("fonds_reserve").default(0),
+    totalAmount: money("total_amount").default("0"),
+    chargesAmount: money("charges_amount").default("0"),
+    fondsReserve: money("fonds_reserve").default("0"),
     status: text("status").default("draft"),
     notes: text("notes"),
     createdBy: text("created_by"),
@@ -62404,11 +62434,11 @@ var budgetLinesTable = pgTable(
     budgetId: text("budget_id").notNull().references(() => budgetsTable.id, { onDelete: "cascade" }),
     category: text("category").notNull(),
     label: text("label").notNull(),
-    amountAnnual: doublePrecision("amount_annual").default(0),
-    amountQ1: doublePrecision("amount_q1"),
-    amountQ2: doublePrecision("amount_q2"),
-    amountQ3: doublePrecision("amount_q3"),
-    amountQ4: doublePrecision("amount_q4"),
+    amountAnnual: money("amount_annual").default("0"),
+    amountQ1: money("amount_q1"),
+    amountQ2: money("amount_q2"),
+    amountQ3: money("amount_q3"),
+    amountQ4: money("amount_q4"),
     prestataireId: text("prestataire_id")
   },
   (t) => [index("budget_lines_budget_id_idx").on(t.budgetId)]
@@ -62423,14 +62453,18 @@ var appelsDeFondsTable = pgTable(
     ownerId: text("owner_id").references(() => membersTable.id, { onDelete: "set null" }),
     period: text("period").notNull(),
     type: text("type").default("charges_courantes"),
-    amount: doublePrecision("amount").notNull(),
+    amount: money("amount").notNull(),
     dueDate: text("due_date"),
+    // status: pending | pending_validation | paid | overdue | rejected
     status: text("status").default("pending"),
     paymentMethod: text("payment_method"),
     proofUrl: text("proof_url"),
     notes: text("notes"),
     paidDate: text("paid_date"),
     receiptNumber: text("receipt_number"),
+    rejectionReason: text("rejection_reason"),
+    validatedBy: text("validated_by"),
+    validatedAt: timestamp("validated_at"),
     createdAt: createdAt()
   },
   (t) => [
@@ -62445,7 +62479,7 @@ var transactionsTable = pgTable(
   {
     id: id(),
     type: text("type").notNull(),
-    amount: doublePrecision("amount").notNull(),
+    amount: money("amount").notNull(),
     label: text("label").notNull(),
     date: text("date").notNull(),
     status: text("status").default("paid"),
@@ -62465,7 +62499,7 @@ var salaryRecordsTable = pgTable(
     id: id(),
     employee: text("employee").notNull(),
     role: text("role").notNull(),
-    amount: doublePrecision("amount").notNull(),
+    amount: money("amount").notNull(),
     month: text("month").notNull(),
     status: text("status").default("pending"),
     paidDate: text("paid_date"),
@@ -62479,12 +62513,12 @@ var caisseEntriesTable = pgTable(
   {
     id: id(),
     label: text("label").notNull(),
-    amount: doublePrecision("amount").notNull(),
+    amount: money("amount").notNull(),
     type: text("type").notNull(),
     date: text("date").notNull(),
     category: text("category").default(""),
     syndicateId: text("syndicate_id").references(() => syndicatesTable.id, { onDelete: "cascade" }),
-    balance: doublePrecision("balance"),
+    balance: money("balance"),
     createdAt: createdAt()
   },
   (t) => [index("caisse_entries_syndicate_id_idx").on(t.syndicateId)]
@@ -62497,7 +62531,7 @@ var invoicesTable = pgTable("invoices", {
   date: text("date").notNull(),
   dueDate: text("due_date").notNull(),
   status: text("status").default("draft"),
-  amount: doublePrecision("amount").default(0),
+  amount: money("amount").default("0"),
   syndicateId: text("syndicate_id"),
   createdAt: createdAt()
 });
@@ -62507,8 +62541,8 @@ var invoiceItemsTable = pgTable(
     id: id(),
     invoiceId: text("invoice_id").notNull().references(() => invoicesTable.id, { onDelete: "cascade" }),
     label: text("label").notNull(),
-    quantity: doublePrecision("quantity").notNull(),
-    unitPrice: doublePrecision("unit_price").notNull()
+    quantity: money("quantity").notNull(),
+    unitPrice: money("unit_price").notNull()
   },
   (t) => [index("invoice_items_invoice_id_idx").on(t.invoiceId)]
 );
@@ -62518,7 +62552,7 @@ var bonsLivraisonTable = pgTable("bons_livraison", {
   recipient: text("recipient").notNull(),
   date: text("date").notNull(),
   type: text("type").default("sortie"),
-  total: doublePrecision("total").default(0),
+  total: money("total").default("0"),
   status: text("status").default("draft"),
   syndicateId: text("syndicate_id"),
   createdAt: createdAt()
@@ -62529,8 +62563,8 @@ var bonItemsTable = pgTable(
     id: id(),
     bonId: text("bon_id").notNull().references(() => bonsLivraisonTable.id, { onDelete: "cascade" }),
     label: text("label").notNull(),
-    quantity: doublePrecision("quantity").notNull(),
-    unitPrice: doublePrecision("unit_price").notNull()
+    quantity: money("quantity").notNull(),
+    unitPrice: money("unit_price").notNull()
   },
   (t) => [index("bon_items_bon_id_idx").on(t.bonId)]
 );
@@ -62547,7 +62581,7 @@ var prestatairesTable = pgTable("prestataires", {
   buildingId: text("building_id"),
   syndicateId: text("syndicate_id"),
   status: text("status").default("active"),
-  rating: doublePrecision("rating"),
+  rating: money("rating"),
   notes: text("notes"),
   createdAt: createdAt()
 });
@@ -62558,8 +62592,8 @@ var contratsPrestatairesTable = pgTable("contrats_prestataires", {
   title: text("title").notNull(),
   startDate: text("start_date"),
   endDate: text("end_date"),
-  monthlyAmount: doublePrecision("monthly_amount"),
-  annualAmount: doublePrecision("annual_amount"),
+  monthlyAmount: money("monthly_amount"),
+  annualAmount: money("annual_amount"),
   status: text("status").default("active"),
   autoRenew: boolean("auto_renew").default(false),
   documentUrl: text("document_url"),
@@ -62581,8 +62615,8 @@ var travauxTable = pgTable(
     reportedById: text("reported_by_id"),
     reportedByName: text("reported_by_name"),
     assignedById: text("assigned_by_id"),
-    estimatedAmount: doublePrecision("estimated_amount"),
-    actualAmount: doublePrecision("actual_amount"),
+    estimatedAmount: money("estimated_amount"),
+    actualAmount: money("actual_amount"),
     startDate: text("start_date"),
     endDate: text("end_date"),
     completedAt: timestamp("completed_at"),
@@ -62604,10 +62638,19 @@ var sinistresTable = pgTable(
     type: text("type").notNull(),
     description: text("description").notNull(),
     date: text("date").notNull(),
-    estimatedAmount: doublePrecision("estimated_amount"),
-    indemnisedAmount: doublePrecision("indemnised_amount"),
+    estimatedAmount: money("estimated_amount"),
+    indemnisedAmount: money("indemnised_amount"),
     claimNumber: text("claim_number"),
+    // status: declared | under_review | assigned | in_progress | resolved | closed
     status: text("status").default("declared"),
+    urgency: text("urgency").default("normal"),
+    // low | normal | high | critical
+    imageUrls: text("image_urls").default("[]"),
+    // JSON array of photo URLs
+    contractorId: text("contractor_id"),
+    resolvedAt: timestamp("resolved_at"),
+    resolutionNote: text("resolution_note"),
+    invoiceUrl: text("invoice_url"),
     reportedById: text("reported_by_id"),
     reportedByName: text("reported_by_name"),
     notes: text("notes"),
@@ -62615,7 +62658,8 @@ var sinistresTable = pgTable(
   },
   (t) => [
     index("sinistres_building_id_idx").on(t.buildingId),
-    index("sinistres_status_idx").on(t.status)
+    index("sinistres_status_idx").on(t.status),
+    index("sinistres_urgency_idx").on(t.urgency)
   ]
 );
 var electionsTable = pgTable("elections", {
@@ -62837,55 +62881,181 @@ var messageReadsTable = pgTable(
     index("message_reads_user_id_idx").on(t.userId)
   ]
 );
-var productsTable = pgTable("products", {
-  id: id(),
-  name: text("name").notNull(),
-  description: text("description").default(""),
-  price: doublePrecision("price").notNull(),
-  category: text("category").notNull(),
-  stock: integer("stock").default(0),
-  syndicateId: text("syndicate_id"),
-  sellerId: text("seller_id"),
-  sellerName: text("seller_name"),
-  status: text("status").default("available"),
-  createdAt: createdAt()
-});
-var cartItemsTable = pgTable("cart_items", {
-  id: id(),
-  userId: text("user_id").notNull(),
-  productId: text("product_id").notNull(),
-  productName: text("product_name"),
-  price: doublePrecision("price"),
-  sellerName: text("seller_name"),
-  quantity: integer("quantity").default(1),
-  createdAt: createdAt()
-});
-var ordersTable = pgTable("orders", {
-  id: id(),
-  productId: text("product_id"),
-  productName: text("product_name"),
-  buyerId: text("buyer_id"),
-  buyerName: text("buyer_name"),
-  sellerId: text("seller_id"),
-  sellerName: text("seller_name"),
-  amount: doublePrecision("amount"),
-  status: text("status").default("pending"),
-  type: text("type").default("purchase"),
-  date: text("date"),
-  createdAt: createdAt()
-});
-var reviewsTable = pgTable("reviews", {
-  id: id(),
-  productId: text("product_id"),
-  productName: text("product_name"),
-  orderId: text("order_id"),
-  rating: integer("rating").notNull(),
-  comment: text("comment").default(""),
-  reviewerId: text("reviewer_id"),
-  reviewerName: text("reviewer_name"),
-  date: text("date"),
-  createdAt: createdAt()
-});
+var productsTable = pgTable(
+  "products",
+  {
+    id: id(),
+    name: text("name").notNull(),
+    description: text("description").default(""),
+    price: money("price").notNull(),
+    category: text("category").notNull(),
+    condition: text("condition").default("bon"),
+    // neuf | bon | acceptable | mauvais
+    location: text("location").default(""),
+    imageUrls: text("image_urls").default("[]"),
+    // JSON array of image URLs
+    stock: integer("stock").default(1),
+    syndicateId: text("syndicate_id"),
+    sellerId: text("seller_id"),
+    sellerName: text("seller_name"),
+    status: text("status").default("pending_review"),
+    rejectionReason: text("rejection_reason"),
+    moderationNote: text("moderation_note"),
+    moderatedBy: text("moderated_by"),
+    moderatedAt: timestamp("moderated_at"),
+    featured: boolean("featured").default(false),
+    boosted: boolean("boosted").default(false),
+    boostType: text("boost_type"),
+    // featured | top_search | homepage
+    boostExpiresAt: timestamp("boost_expires_at"),
+    viewCount: integer("view_count").default(0),
+    createdAt: createdAt()
+  },
+  (t) => [
+    index("products_status_idx").on(t.status),
+    index("products_seller_id_idx").on(t.sellerId),
+    index("products_syndicate_id_idx").on(t.syndicateId),
+    index("products_category_idx").on(t.category),
+    index("products_featured_idx").on(t.featured),
+    index("products_created_at_idx").on(t.createdAt)
+  ]
+);
+var cartItemsTable = pgTable(
+  "cart_items",
+  {
+    id: id(),
+    userId: text("user_id").notNull(),
+    productId: text("product_id").notNull(),
+    productName: text("product_name"),
+    price: money("price"),
+    sellerName: text("seller_name"),
+    quantity: integer("quantity").default(1),
+    createdAt: createdAt()
+  },
+  (t) => [
+    index("cart_items_user_id_idx").on(t.userId),
+    index("cart_items_product_id_idx").on(t.productId)
+  ]
+);
+var ordersTable = pgTable(
+  "orders",
+  {
+    id: id(),
+    productId: text("product_id"),
+    productName: text("product_name"),
+    buyerId: text("buyer_id"),
+    buyerName: text("buyer_name"),
+    sellerId: text("seller_id"),
+    sellerName: text("seller_name"),
+    amount: money("amount"),
+    status: text("status").default("pending"),
+    // pending | confirmed | shipped | delivered | cancelled
+    type: text("type").default("purchase"),
+    date: text("date"),
+    createdAt: createdAt()
+  },
+  (t) => [
+    index("orders_buyer_id_idx").on(t.buyerId),
+    index("orders_seller_id_idx").on(t.sellerId),
+    index("orders_status_idx").on(t.status),
+    index("orders_created_at_idx").on(t.createdAt)
+  ]
+);
+var reviewsTable = pgTable(
+  "reviews",
+  {
+    id: id(),
+    productId: text("product_id"),
+    productName: text("product_name"),
+    orderId: text("order_id"),
+    rating: integer("rating").notNull(),
+    comment: text("comment").default(""),
+    reviewerId: text("reviewer_id"),
+    reviewerName: text("reviewer_name"),
+    date: text("date"),
+    createdAt: createdAt()
+  },
+  (t) => [
+    index("reviews_product_id_idx").on(t.productId),
+    index("reviews_reviewer_id_idx").on(t.reviewerId)
+  ]
+);
+var productFavoritesTable = pgTable(
+  "product_favorites",
+  {
+    id: id(),
+    productId: text("product_id").notNull().references(() => productsTable.id, { onDelete: "cascade" }),
+    userId: text("user_id").notNull(),
+    createdAt: createdAt()
+  },
+  (t) => [
+    index("product_favorites_product_id_idx").on(t.productId),
+    index("product_favorites_user_id_idx").on(t.userId),
+    uniqueIndex("product_favorites_unique_idx").on(t.productId, t.userId)
+  ]
+);
+var productReportsTable = pgTable(
+  "product_reports",
+  {
+    id: id(),
+    productId: text("product_id").notNull().references(() => productsTable.id, { onDelete: "cascade" }),
+    reporterId: text("reporter_id").notNull(),
+    reporterName: text("reporter_name"),
+    reason: text("reason").notNull(),
+    // spam | inappropriate | fraude | mauvaise_info | autre
+    details: text("details").default(""),
+    status: text("status").default("pending"),
+    // pending | reviewed | dismissed
+    reviewedBy: text("reviewed_by"),
+    reviewedAt: timestamp("reviewed_at"),
+    createdAt: createdAt()
+  },
+  (t) => [
+    index("product_reports_product_id_idx").on(t.productId),
+    index("product_reports_reporter_id_idx").on(t.reporterId),
+    index("product_reports_status_idx").on(t.status)
+  ]
+);
+var productCommentsTable = pgTable(
+  "product_comments",
+  {
+    id: id(),
+    productId: text("product_id").notNull().references(() => productsTable.id, { onDelete: "cascade" }),
+    userId: text("user_id").notNull(),
+    userName: text("user_name"),
+    userRole: text("user_role"),
+    content: text("content").notNull(),
+    createdAt: createdAt()
+  },
+  (t) => [
+    index("product_comments_product_id_idx").on(t.productId),
+    index("product_comments_created_at_idx").on(t.createdAt)
+  ]
+);
+var marketplacePromotionsTable = pgTable(
+  "marketplace_promotions",
+  {
+    id: id(),
+    productId: text("product_id").notNull().references(() => productsTable.id, { onDelete: "cascade" }),
+    sellerId: text("seller_id").notNull(),
+    type: text("type").notNull(),
+    // featured | top_search | homepage
+    startDate: timestamp("start_date").notNull(),
+    endDate: timestamp("end_date").notNull(),
+    amount: money("amount").notNull(),
+    status: text("status").default("active"),
+    // active | expired | cancelled
+    approvedBy: text("approved_by"),
+    notes: text("notes"),
+    createdAt: createdAt()
+  },
+  (t) => [
+    index("marketplace_promotions_product_id_idx").on(t.productId),
+    index("marketplace_promotions_seller_id_idx").on(t.sellerId),
+    index("marketplace_promotions_status_idx").on(t.status),
+    index("marketplace_promotions_end_date_idx").on(t.endDate)
+  ]
+);
 var legalAlertsTable = pgTable("legal_alerts", {
   id: id(),
   title: text("title").notNull(),
@@ -62933,7 +63103,7 @@ var cotisationsTable = pgTable(
     memberId: text("member_id").notNull(),
     label: text("label").notNull(),
     period: text("period").notNull(),
-    amount: doublePrecision("amount").notNull(),
+    amount: money("amount").notNull(),
     dueDate: text("due_date"),
     status: text("status").default("pending"),
     syndicateId: text("syndicate_id"),
@@ -62955,7 +63125,7 @@ var paymentProofsTable = pgTable(
     userId: text("user_id"),
     fileUrl: text("file_url"),
     proofUrl: text("proof_url"),
-    amount: doublePrecision("amount"),
+    amount: money("amount"),
     notes: text("notes"),
     status: text("status").default("pending"),
     uploadedById: text("uploaded_by_id"),
@@ -63018,7 +63188,7 @@ var payslipsTable = pgTable("payslips", {
   id: id(),
   userId: text("user_id"),
   month: text("month"),
-  amount: doublePrecision("amount"),
+  amount: money("amount"),
   fileUrl: text("file_url"),
   syndicateId: text("syndicate_id"),
   createdAt: createdAt()
@@ -63026,7 +63196,7 @@ var payslipsTable = pgTable("payslips", {
 var subscriptionPlansTable = pgTable("subscription_plans", {
   id: id(),
   name: text("name").notNull(),
-  price: doublePrecision("price"),
+  price: money("price"),
   interval: text("interval").default("monthly"),
   features: text("features").default("[]"),
   createdAt: createdAt()
@@ -63051,6 +63221,146 @@ var auditLogsTable = pgTable("audit_logs", {
   ipAddress: text("ip_address"),
   createdAt: createdAt()
 });
+var ideasTable = pgTable(
+  "ideas",
+  {
+    id: id(),
+    syndicateId: text("syndicate_id").references(() => syndicatesTable.id, { onDelete: "cascade" }),
+    userId: text("user_id").references(() => usersTable.id, { onDelete: "set null" }),
+    userName: text("user_name").notNull(),
+    title: text("title").notNull(),
+    description: text("description").notNull(),
+    category: text("category").default("general"),
+    // infrastructure | environment | services | general | governance
+    // status: submitted | under_review | approved | rejected | implemented
+    status: text("status").default("submitted"),
+    voteCount: integer("vote_count").default(0),
+    voteDeadline: text("vote_deadline"),
+    implementedAt: timestamp("implemented_at"),
+    adminNote: text("admin_note"),
+    createdAt: createdAt()
+  },
+  (t) => [
+    index("ideas_syndicate_id_idx").on(t.syndicateId),
+    index("ideas_status_idx").on(t.status),
+    index("ideas_user_id_idx").on(t.userId)
+  ]
+);
+var ideaVotesTable = pgTable(
+  "idea_votes",
+  {
+    id: id(),
+    ideaId: text("idea_id").notNull().references(() => ideasTable.id, { onDelete: "cascade" }),
+    userId: text("user_id").notNull().references(() => usersTable.id, { onDelete: "cascade" }),
+    createdAt: createdAt()
+  },
+  (t) => [
+    uniqueIndex("idea_votes_unique_idx").on(t.ideaId, t.userId),
+    index("idea_votes_idea_id_idx").on(t.ideaId)
+  ]
+);
+var debtEscalationsTable = pgTable(
+  "debt_escalations",
+  {
+    id: id(),
+    syndicateId: text("syndicate_id").references(() => syndicatesTable.id, { onDelete: "cascade" }),
+    memberId: text("member_id").references(() => membersTable.id, { onDelete: "set null" }),
+    memberName: text("member_name"),
+    totalOverdue: money("total_overdue").notNull(),
+    overdueMonths: integer("overdue_months").notNull(),
+    // 3 | 6 | 12
+    // level: warning | serious | critical (maps to 3/6/12 months)
+    level: text("level").notNull(),
+    status: text("status").default("open"),
+    // open | meeting_scheduled | resolved
+    alertSentAt: timestamp("alert_sent_at"),
+    meetingId: text("meeting_id"),
+    resolvedAt: timestamp("resolved_at"),
+    createdAt: createdAt()
+  },
+  (t) => [
+    index("debt_escalations_syndicate_id_idx").on(t.syndicateId),
+    index("debt_escalations_member_id_idx").on(t.memberId),
+    index("debt_escalations_status_idx").on(t.status)
+  ]
+);
+var expenseJustificationsTable = pgTable(
+  "expense_justifications",
+  {
+    id: id(),
+    syndicateId: text("syndicate_id").references(() => syndicatesTable.id, { onDelete: "cascade" }),
+    transactionId: text("transaction_id"),
+    title: text("title").notNull(),
+    description: text("description").notNull(),
+    amount: money("amount").notNull(),
+    category: text("category"),
+    receiptUrl: text("receipt_url"),
+    // status: pending | approved | challenged | resolved
+    status: text("status").default("pending"),
+    submittedBy: text("submitted_by"),
+    submitterName: text("submitter_name"),
+    challengedBy: text("challenged_by"),
+    challengerName: text("challenger_name"),
+    challengeReason: text("challenge_reason"),
+    voteCount: integer("vote_count").default(0),
+    votesFor: integer("votes_for").default(0),
+    votesAgainst: integer("votes_against").default(0),
+    resolvedAt: timestamp("resolved_at"),
+    resolutionNote: text("resolution_note"),
+    createdAt: createdAt()
+  },
+  (t) => [
+    index("expense_justifications_syndicate_id_idx").on(t.syndicateId),
+    index("expense_justifications_status_idx").on(t.status)
+  ]
+);
+var expenseVotesTable = pgTable(
+  "expense_votes",
+  {
+    id: id(),
+    justificationId: text("justification_id").notNull().references(() => expenseJustificationsTable.id, { onDelete: "cascade" }),
+    userId: text("user_id").notNull().references(() => usersTable.id, { onDelete: "cascade" }),
+    vote: text("vote").notNull(),
+    // for | against
+    createdAt: createdAt()
+  },
+  (t) => [
+    uniqueIndex("expense_votes_unique_idx").on(t.justificationId, t.userId)
+  ]
+);
+var nationalRankingsTable = pgTable(
+  "national_rankings",
+  {
+    id: id(),
+    syndicateId: text("syndicate_id").notNull().references(() => syndicatesTable.id, { onDelete: "cascade" }),
+    month: integer("month").notNull(),
+    // 1–12
+    year: integer("year").notNull(),
+    // Scoring components (0–100 each)
+    collectionRate: money("collection_rate").default("0"),
+    // % cotisations paid
+    incidentResolutionRate: money("incident_resolution_rate").default("0"),
+    // % incidents closed
+    documentationScore: money("documentation_score").default("0"),
+    // % docs uploaded
+    meetingComplianceScore: money("meeting_compliance_score").default("0"),
+    // AGs held on time
+    memberSatisfaction: money("member_satisfaction").default("0"),
+    // avg review
+    totalScore: money("total_score").default("0"),
+    // weighted aggregate
+    rank: integer("rank").default(0),
+    // national rank
+    regionRank: integer("region_rank").default(0),
+    region: text("region").default(""),
+    createdAt: createdAt()
+  },
+  (t) => [
+    uniqueIndex("national_rankings_unique_idx").on(t.syndicateId, t.month, t.year),
+    index("national_rankings_year_month_idx").on(t.year, t.month),
+    index("national_rankings_score_idx").on(t.totalScore)
+  ]
+);
 
 // ../../lib/db/src/index.ts
 if (!process.env.DATABASE_URL) {
@@ -63102,6 +63412,21 @@ function requireRole(...roles) {
   };
 }
 var requireAdmin = requireRole("super_admin", "syndicate_admin");
+var requireTenant = requireRole("tenant");
+function requireNotTenant(req, res, next) {
+  if (!req.user) {
+    res.status(401).json({ error: "Non authentifi\xE9" });
+    return;
+  }
+  if (req.user.role === "tenant") {
+    res.status(403).json({ error: "Acc\xE8s r\xE9serv\xE9 aux membres et administrateurs" });
+    return;
+  }
+  next();
+}
+function validateAuthConfig() {
+  getJwtSecret();
+}
 function signToken(payload) {
   return import_jsonwebtoken.default.sign(payload, getJwtSecret(), { expiresIn: "15m" });
 }
@@ -63845,42 +64170,138 @@ router5.get("/syndicates", requireAuth, async (req, res) => {
     res.status(500).json({ error: "Erreur serveur" });
   }
 });
-router5.post("/syndicates", requireAuth, requireRole("super_admin"), async (req, res) => {
-  const schema = external_exports.object({
-    name: external_exports.string().min(1),
-    sector: external_exports.string().min(1),
-    region: external_exports.string().default(""),
-    adminId: external_exports.string().optional()
-  });
-  const result = schema.safeParse(req.body);
-  if (!result.success) {
-    res.status(400).json({ error: "Donn\xE9es invalides" });
-    return;
-  }
+router5.get("/syndicates/:id", requireAuth, async (req, res) => {
   try {
-    const [syndicate] = await db.insert(syndicatesTable).values(result.data).returning();
-    res.status(201).json({ data: syndicate, message: "Syndicat cr\xE9\xE9 avec succ\xE8s" });
+    const user = req.user;
+    const id2 = req.params.id;
+    if (user.role !== "super_admin" && user.syndicateId !== id2) {
+      res.status(403).json({ error: "Acc\xE8s refus\xE9" });
+      return;
+    }
+    const [syndicate] = await db.select().from(syndicatesTable).where(eq(syndicatesTable.id, id2));
+    if (!syndicate) {
+      res.status(404).json({ error: "Syndicat introuvable" });
+      return;
+    }
+    res.json({ data: syndicate });
   } catch (err) {
     req.log.error(err);
     res.status(500).json({ error: "Erreur serveur" });
   }
 });
-router5.put("/syndicates/:id", requireAuth, requireRole("super_admin"), async (req, res) => {
+var createSchema = external_exports.object({
+  // Identity
+  name: external_exports.string().min(1).max(200),
+  abbreviation: external_exports.string().min(1).max(20).optional(),
+  sector: external_exports.string().min(1),
+  region: external_exports.string().default(""),
+  mission: external_exports.string().max(1e3).optional(),
+  // Contact
+  email: external_exports.string().email().optional(),
+  phone: external_exports.string().max(30).optional(),
+  website: external_exports.string().url().optional().or(external_exports.literal("")),
+  address: external_exports.string().max(300).optional(),
+  // Legal
+  legalForm: external_exports.string().optional(),
+  registrationNumber: external_exports.string().optional(),
+  foundingDate: external_exports.string().optional(),
+  // Finance
+  cotisationAmount: external_exports.string().optional(),
+  cotisationCycle: external_exports.enum(["monthly", "quarterly", "yearly"]).default("monthly"),
+  // Branding
+  logoColor: external_exports.string().regex(/^#[0-9a-fA-F]{6}$/).default("#7c3aed"),
+  // Optional: initial member count
+  membersCount: external_exports.number().int().min(0).default(0),
+  // Optional: designate an existing user as admin
+  adminId: external_exports.string().optional()
+});
+router5.post("/syndicates", requireAuth, requireRole("super_admin"), async (req, res) => {
+  const result = createSchema.safeParse(req.body);
+  if (!result.success) {
+    res.status(400).json({ error: "Donn\xE9es invalides", details: result.error.flatten() });
+    return;
+  }
+  try {
+    const data = result.data;
+    const [syndicate] = await db.transaction(async (tx) => {
+      if (data.adminId) {
+        const [admin] = await tx.select({ id: usersTable.id }).from(usersTable).where(eq(usersTable.id, data.adminId)).limit(1);
+        if (!admin) {
+          throw Object.assign(new Error("adminId introuvable"), { status: 400 });
+        }
+      }
+      const [s] = await tx.insert(syndicatesTable).values({
+        name: data.name,
+        abbreviation: data.abbreviation,
+        sector: data.sector,
+        region: data.region,
+        mission: data.mission,
+        email: data.email,
+        phone: data.phone,
+        website: data.website || void 0,
+        address: data.address,
+        legalForm: data.legalForm,
+        registrationNumber: data.registrationNumber,
+        foundingDate: data.foundingDate,
+        cotisationAmount: data.cotisationAmount,
+        cotisationCycle: data.cotisationCycle,
+        logoColor: data.logoColor,
+        membersCount: data.membersCount,
+        adminId: data.adminId,
+        status: "active"
+      }).returning();
+      if (data.adminId) {
+        const result2 = await tx.update(usersTable).set({ syndicateId: s.id, role: "syndicate_admin" }).where(eq(usersTable.id, data.adminId)).returning({ id: usersTable.id });
+        if (result2.length === 0) {
+          throw Object.assign(new Error("Impossible de lier l'administrateur"), { status: 500 });
+        }
+      }
+      return [s];
+    });
+    res.status(201).json({ data: syndicate, message: "Syndicat cr\xE9\xE9 avec succ\xE8s" });
+  } catch (err) {
+    req.log.error(err);
+    const status = typeof err?.status === "number" ? err.status : 500;
+    res.status(status).json({ error: err?.message ?? "Erreur serveur" });
+  }
+});
+var updateSchema = external_exports.object({
+  name: external_exports.string().min(1).max(200).optional(),
+  abbreviation: external_exports.string().max(20).optional(),
+  sector: external_exports.string().optional(),
+  region: external_exports.string().optional(),
+  mission: external_exports.string().max(1e3).optional(),
+  email: external_exports.string().email().optional(),
+  phone: external_exports.string().max(30).optional(),
+  website: external_exports.string().url().optional().or(external_exports.literal("")),
+  address: external_exports.string().max(300).optional(),
+  legalForm: external_exports.string().optional(),
+  registrationNumber: external_exports.string().optional(),
+  foundingDate: external_exports.string().optional(),
+  cotisationAmount: external_exports.string().optional(),
+  cotisationCycle: external_exports.enum(["monthly", "quarterly", "yearly"]).optional(),
+  logoColor: external_exports.string().regex(/^#[0-9a-fA-F]{6}$/).optional(),
+  status: external_exports.enum(["active", "inactive"]).optional(),
+  adminId: external_exports.string().optional()
+});
+router5.put("/syndicates/:id", requireAuth, requireAdmin, async (req, res) => {
   const id2 = req.params.id;
-  const schema = external_exports.object({
-    name: external_exports.string().optional(),
-    sector: external_exports.string().optional(),
-    region: external_exports.string().optional(),
-    status: external_exports.enum(["active", "inactive"]).optional(),
-    adminId: external_exports.string().optional()
-  });
-  const result = schema.safeParse(req.body);
+  const user = req.user;
+  if (user.role === "syndicate_admin" && user.syndicateId !== id2) {
+    res.status(403).json({ error: "Acc\xE8s refus\xE9" });
+    return;
+  }
+  const result = updateSchema.safeParse(req.body);
   if (!result.success) {
     res.status(400).json({ error: "Donn\xE9es invalides" });
     return;
   }
   try {
     const [updated] = await db.update(syndicatesTable).set(result.data).where(eq(syndicatesTable.id, id2)).returning();
+    if (!updated) {
+      res.status(404).json({ error: "Syndicat introuvable" });
+      return;
+    }
     res.json({ data: updated, message: "Syndicat mis \xE0 jour" });
   } catch (err) {
     req.log.error(err);
@@ -63892,7 +64313,7 @@ var syndicates_default = router5;
 // src/routes/elections.ts
 var import_express6 = __toESM(require_express2(), 1);
 var router6 = (0, import_express6.Router)();
-router6.get("/elections", requireAuth, async (req, res) => {
+router6.get("/elections", requireAuth, requireNotTenant, async (req, res) => {
   try {
     const syndicateId = req.user.syndicateId;
     const elections = syndicateId ? await db.select().from(electionsTable).where(eq(electionsTable.syndicateId, syndicateId)) : await db.select().from(electionsTable);
@@ -64012,7 +64433,7 @@ router6.put(
     }
   }
 );
-router6.post("/elections/:id/vote", requireAuth, async (req, res) => {
+router6.post("/elections/:id/vote", requireAuth, requireNotTenant, async (req, res) => {
   const id2 = req.params.id;
   const schema = external_exports.object({ candidateId: external_exports.string().min(1) });
   const result = schema.safeParse(req.body);
@@ -64564,16 +64985,149 @@ var finance_default = router8;
 // src/routes/marketplace.ts
 var import_express9 = __toESM(require_express2(), 1);
 var router9 = (0, import_express9.Router)();
+function parsePage(q) {
+  const page = Math.max(1, parseInt(q.page ?? "1") || 1);
+  const limit = Math.min(50, Math.max(1, parseInt(q.limit ?? "20") || 20));
+  return { page, limit, offset: (page - 1) * limit };
+}
+function isAdmin(role) {
+  return role === "super_admin" || role === "syndicate_admin";
+}
 router9.get("/products", requireAuth, async (req, res) => {
-  const { category, status, sellerId } = req.query;
+  const q = req.query;
+  const { page, limit, offset } = parsePage(q);
+  const user = req.user;
   try {
-    const syndicateId = req.user.syndicateId || "";
-    const conditions = [eq(productsTable.syndicateId, syndicateId)];
-    if (category) conditions.push(eq(productsTable.category, category));
-    if (status) conditions.push(eq(productsTable.status, status));
-    if (sellerId === "me") conditions.push(eq(productsTable.sellerId, req.user.userId));
-    const rows = await db.select().from(productsTable).where(and(...conditions)).orderBy(desc(productsTable.createdAt));
+    const conds = [];
+    if (isAdmin(user.role)) {
+      if (q.status) conds.push(eq(productsTable.status, q.status));
+    } else {
+      conds.push(eq(productsTable.status, "approved"));
+    }
+    if (q.category && q.category !== "Tous") conds.push(eq(productsTable.category, q.category));
+    if (q.condition) conds.push(eq(productsTable.condition, q.condition));
+    if (q.featured === "true") conds.push(eq(productsTable.featured, true));
+    if (q.sellerId === "me") conds.push(eq(productsTable.sellerId, user.userId));
+    else if (q.sellerId) conds.push(eq(productsTable.sellerId, q.sellerId));
+    if (q.search) {
+      conds.push(
+        or(
+          ilike(productsTable.name, `%${q.search}%`),
+          ilike(productsTable.description, `%${q.search}%`),
+          ilike(productsTable.sellerName, `%${q.search}%`),
+          ilike(productsTable.location, `%${q.search}%`)
+        )
+      );
+    }
+    const where = conds.length ? and(...conds) : void 0;
+    const [rows, [{ total }]] = await Promise.all([
+      db.select().from(productsTable).where(where).orderBy(desc(productsTable.boosted), desc(productsTable.featured), desc(productsTable.createdAt)).limit(limit).offset(offset),
+      db.select({ total: count() }).from(productsTable).where(where)
+    ]);
+    res.json({ data: rows, pagination: { page, limit, total, pages: Math.ceil(total / limit) } });
+  } catch (err) {
+    req.log.error(err);
+    res.status(500).json({ error: "Erreur serveur" });
+  }
+});
+router9.get("/products/featured", requireAuth, async (req, res) => {
+  try {
+    const rows = await db.select().from(productsTable).where(and(eq(productsTable.status, "approved"), eq(productsTable.featured, true))).orderBy(desc(productsTable.boosted), desc(productsTable.createdAt)).limit(12);
     res.json({ data: rows });
+  } catch (err) {
+    req.log.error(err);
+    res.status(500).json({ error: "Erreur serveur" });
+  }
+});
+router9.get(
+  "/products/pending",
+  requireAuth,
+  requireRole(["super_admin", "syndicate_admin"]),
+  async (req, res) => {
+    const q = req.query;
+    const { page, limit, offset } = parsePage(q);
+    try {
+      const [rows, [{ total }]] = await Promise.all([
+        db.select().from(productsTable).where(eq(productsTable.status, "pending_review")).orderBy(asc(productsTable.createdAt)).limit(limit).offset(offset),
+        db.select({ total: count() }).from(productsTable).where(eq(productsTable.status, "pending_review"))
+      ]);
+      res.json({ data: rows, pagination: { page, limit, total, pages: Math.ceil(total / limit) } });
+    } catch (err) {
+      req.log.error(err);
+      res.status(500).json({ error: "Erreur serveur" });
+    }
+  }
+);
+router9.get("/products/my-favorites", requireAuth, async (req, res) => {
+  const q = req.query;
+  const { page, limit, offset } = parsePage(q);
+  const userId = req.user.userId;
+  try {
+    const favs = await db.select({ productId: productFavoritesTable.productId }).from(productFavoritesTable).where(eq(productFavoritesTable.userId, userId));
+    const ids = favs.map((f) => f.productId);
+    if (!ids.length) {
+      res.json({ data: [], pagination: { page, limit, total: 0, pages: 0 } });
+      return;
+    }
+    const [rows, [{ total }]] = await Promise.all([
+      db.select().from(productsTable).where(and(inArray(productsTable.id, ids), eq(productsTable.status, "approved"))).orderBy(desc(productsTable.createdAt)).limit(limit).offset(offset),
+      db.select({ total: count() }).from(productsTable).where(and(inArray(productsTable.id, ids), eq(productsTable.status, "approved")))
+    ]);
+    res.json({ data: rows, pagination: { page, limit, total, pages: Math.ceil(total / limit) } });
+  } catch (err) {
+    req.log.error(err);
+    res.status(500).json({ error: "Erreur serveur" });
+  }
+});
+router9.get("/products/my-listings", requireAuth, async (req, res) => {
+  const q = req.query;
+  const { page, limit, offset } = parsePage(q);
+  const userId = req.user.userId;
+  try {
+    const [rows, [{ total }]] = await Promise.all([
+      db.select().from(productsTable).where(eq(productsTable.sellerId, userId)).orderBy(desc(productsTable.createdAt)).limit(limit).offset(offset),
+      db.select({ total: count() }).from(productsTable).where(eq(productsTable.sellerId, userId))
+    ]);
+    res.json({ data: rows, pagination: { page, limit, total, pages: Math.ceil(total / limit) } });
+  } catch (err) {
+    req.log.error(err);
+    res.status(500).json({ error: "Erreur serveur" });
+  }
+});
+router9.get("/products/:id", requireAuth, async (req, res) => {
+  const id2 = req.params.id;
+  const user = req.user;
+  try {
+    const [product] = await db.select().from(productsTable).where(eq(productsTable.id, id2));
+    if (!product) {
+      res.status(404).json({ error: "Produit introuvable" });
+      return;
+    }
+    if (product.status !== "approved" && !isAdmin(user.role) && product.sellerId !== user.userId) {
+      res.status(403).json({ error: "Produit non disponible" });
+      return;
+    }
+    db.update(productsTable).set({ viewCount: sql`${productsTable.viewCount} + 1` }).where(eq(productsTable.id, id2)).execute().catch(() => {
+    });
+    const [fav, [{ avgRating, ratingCount }], reports] = await Promise.all([
+      db.select().from(productFavoritesTable).where(and(eq(productFavoritesTable.productId, id2), eq(productFavoritesTable.userId, user.userId))).limit(1),
+      db.select({
+        avgRating: sql`coalesce(avg(${reviewsTable.rating})::numeric(3,1), 0)`,
+        ratingCount: count()
+      }).from(reviewsTable).where(eq(reviewsTable.productId, id2)),
+      isAdmin(user.role) ? db.select({ total: count() }).from(productReportsTable).where(
+        and(eq(productReportsTable.productId, id2), eq(productReportsTable.status, "pending"))
+      ) : Promise.resolve([{ total: 0 }])
+    ]);
+    res.json({
+      data: {
+        ...product,
+        isFavorited: fav.length > 0,
+        avgRating: Number(avgRating).toFixed(1),
+        ratingCount,
+        pendingReports: reports[0]?.total ?? 0
+      }
+    });
   } catch (err) {
     req.log.error(err);
     res.status(500).json({ error: "Erreur serveur" });
@@ -64585,22 +65139,31 @@ router9.post("/products", requireAuth, async (req, res) => {
     description: external_exports.string().max(2e3).default(""),
     price: external_exports.number().positive(),
     category: external_exports.string().min(1),
-    stock: external_exports.number().int().nonnegative().default(0)
+    condition: external_exports.enum(["neuf", "bon", "acceptable", "mauvais"]).default("bon"),
+    location: external_exports.string().max(200).default(""),
+    imageUrls: external_exports.array(external_exports.string()).max(8).default([]),
+    stock: external_exports.number().int().nonnegative().default(1)
   });
   const result = schema.safeParse(req.body);
   if (!result.success) {
-    res.status(400).json({ error: "Donn\xE9es invalides" });
+    res.status(400).json({ error: "Donn\xE9es invalides", details: result.error.flatten() });
     return;
   }
   try {
+    const user = req.user;
+    const adminUser = isAdmin(user.role);
     const [product] = await db.insert(productsTable).values({
       ...result.data,
-      syndicateId: req.user.syndicateId || "",
-      sellerId: req.user.userId,
-      sellerName: req.user.name,
-      status: req.user.role === "member" ? "pending" : "available"
+      imageUrls: JSON.stringify(result.data.imageUrls),
+      syndicateId: user.syndicateId ?? "",
+      sellerId: user.userId,
+      sellerName: user.name,
+      status: adminUser ? "approved" : "pending_review"
     }).returning();
-    res.status(201).json({ data: product, message: "Produit ajout\xE9 \u2014 en attente de validation" });
+    res.status(201).json({
+      data: product,
+      message: adminUser ? "Produit publi\xE9 avec succ\xE8s" : "Produit soumis \u2014 en attente de validation par l'administration"
+    });
   } catch (err) {
     req.log.error(err);
     res.status(500).json({ error: "Erreur serveur" });
@@ -64612,11 +65175,15 @@ router9.put("/products/:id", requireAuth, async (req, res) => {
     name: external_exports.string().min(1).max(200).optional(),
     description: external_exports.string().max(2e3).optional(),
     price: external_exports.number().positive().optional(),
+    category: external_exports.string().optional(),
+    condition: external_exports.enum(["neuf", "bon", "acceptable", "mauvais"]).optional(),
+    location: external_exports.string().max(200).optional(),
+    imageUrls: external_exports.array(external_exports.string()).max(8).optional(),
     stock: external_exports.number().int().nonnegative().optional()
   });
   const result = schema.safeParse(req.body);
   if (!result.success) {
-    res.status(400).json({ error: "Donn\xE9es invalides" });
+    res.status(400).json({ error: "Donn\xE9es invalides", details: result.error.flatten() });
     return;
   }
   try {
@@ -64625,15 +65192,22 @@ router9.put("/products/:id", requireAuth, async (req, res) => {
       res.status(404).json({ error: "Produit introuvable" });
       return;
     }
-    if (req.user.role === "member" && product.sellerId !== req.user.userId) {
-      res.status(403).json({ error: "Vous ne pouvez modifier que vos propres produits" });
-      return;
-    }
-    if (req.user.role !== "super_admin" && product.syndicateId !== req.user.syndicateId) {
+    const user = req.user;
+    const adminUser = isAdmin(user.role);
+    if (!adminUser && product.sellerId !== user.userId) {
       res.status(403).json({ error: "Acc\xE8s refus\xE9" });
       return;
     }
-    const [updated] = await db.update(productsTable).set(result.data).where(eq(productsTable.id, id2)).returning();
+    const updates = { ...result.data };
+    if (result.data.imageUrls !== void 0) {
+      updates.imageUrls = JSON.stringify(result.data.imageUrls);
+    }
+    if (!adminUser && product.status === "approved") {
+      updates.status = "pending_review";
+      updates.moderatedBy = null;
+      updates.moderatedAt = null;
+    }
+    const [updated] = await db.update(productsTable).set(updates).where(eq(productsTable.id, id2)).returning();
     res.json({ data: updated, message: "Produit mis \xE0 jour" });
   } catch (err) {
     req.log.error(err);
@@ -64648,8 +65222,8 @@ router9.delete("/products/:id", requireAuth, async (req, res) => {
       res.status(404).json({ error: "Produit introuvable" });
       return;
     }
-    const isAdmin = req.user.role === "super_admin" || req.user.role === "syndicate_admin";
-    if (!isAdmin && product.sellerId !== req.user.userId) {
+    const user = req.user;
+    if (!isAdmin(user.role) && product.sellerId !== user.userId) {
       res.status(403).json({ error: "Acc\xE8s refus\xE9" });
       return;
     }
@@ -64660,16 +65234,30 @@ router9.delete("/products/:id", requireAuth, async (req, res) => {
     res.status(500).json({ error: "Erreur serveur" });
   }
 });
-router9.put(
-  "/products/:id/validate",
+router9.post(
+  "/products/:id/moderate",
   requireAuth,
-  requireRole("super_admin", "syndicate_admin"),
+  requireRole(["super_admin", "syndicate_admin"]),
   async (req, res) => {
     const id2 = req.params.id;
-    const schema = external_exports.object({ action: external_exports.enum(["approve", "reject"]) });
+    const schema = external_exports.object({
+      action: external_exports.enum([
+        "approve",
+        "reject",
+        "request_modification",
+        "feature",
+        "unfeature",
+        "boost",
+        "unboost"
+      ]),
+      reason: external_exports.string().max(1e3).optional(),
+      note: external_exports.string().max(1e3).optional(),
+      boostType: external_exports.enum(["featured", "top_search", "homepage"]).optional(),
+      boostDays: external_exports.number().int().min(1).max(90).optional()
+    });
     const result = schema.safeParse(req.body);
     if (!result.success) {
-      res.status(400).json({ error: "Action invalide" });
+      res.status(400).json({ error: "Donn\xE9es invalides", details: result.error.flatten() });
       return;
     }
     try {
@@ -64678,16 +65266,220 @@ router9.put(
         res.status(404).json({ error: "Produit introuvable" });
         return;
       }
-      if (req.user.role !== "super_admin" && product.syndicateId !== req.user.syndicateId) {
-        res.status(403).json({ error: "Acc\xE8s refus\xE9" });
+      const { action, reason, note, boostType, boostDays } = result.data;
+      const user = req.user;
+      const updates = {
+        moderatedBy: user.userId,
+        moderatedAt: /* @__PURE__ */ new Date(),
+        moderationNote: note ?? null
+      };
+      switch (action) {
+        case "approve":
+          updates.status = "approved";
+          updates.rejectionReason = null;
+          break;
+        case "reject":
+          updates.status = "rejected";
+          updates.rejectionReason = reason ?? "Non conforme aux r\xE8gles du marketplace";
+          break;
+        case "request_modification":
+          updates.status = "modification_requested";
+          updates.rejectionReason = reason ?? "Des modifications sont requises avant publication";
+          break;
+        case "feature":
+          updates.featured = true;
+          break;
+        case "unfeature":
+          updates.featured = false;
+          break;
+        case "boost":
+          updates.boosted = true;
+          updates.boostType = boostType ?? "featured";
+          updates.boostExpiresAt = new Date(Date.now() + (boostDays ?? 7) * 864e5);
+          break;
+        case "unboost":
+          updates.boosted = false;
+          updates.boostType = null;
+          updates.boostExpiresAt = null;
+          break;
+      }
+      const [updated] = await db.update(productsTable).set(updates).where(eq(productsTable.id, id2)).returning();
+      res.json({ data: updated, message: `Action "${action}" effectu\xE9e avec succ\xE8s` });
+    } catch (err) {
+      req.log.error(err);
+      res.status(500).json({ error: "Erreur serveur" });
+    }
+  }
+);
+router9.post("/products/:id/favorite", requireAuth, async (req, res) => {
+  const productId = req.params.id;
+  const userId = req.user.userId;
+  try {
+    const [existing] = await db.select().from(productFavoritesTable).where(
+      and(eq(productFavoritesTable.productId, productId), eq(productFavoritesTable.userId, userId))
+    );
+    if (existing) {
+      await db.delete(productFavoritesTable).where(
+        and(
+          eq(productFavoritesTable.productId, productId),
+          eq(productFavoritesTable.userId, userId)
+        )
+      );
+      res.json({ isFavorited: false, message: "Retir\xE9 des favoris" });
+    } else {
+      await db.insert(productFavoritesTable).values({ productId, userId });
+      res.json({ isFavorited: true, message: "Ajout\xE9 aux favoris" });
+    }
+  } catch (err) {
+    req.log.error(err);
+    res.status(500).json({ error: "Erreur serveur" });
+  }
+});
+router9.get("/products/:id/comments", requireAuth, async (req, res) => {
+  const productId = req.params.id;
+  const q = req.query;
+  const { page, limit, offset } = parsePage(q);
+  try {
+    const [rows, [{ total }]] = await Promise.all([
+      db.select().from(productCommentsTable).where(eq(productCommentsTable.productId, productId)).orderBy(asc(productCommentsTable.createdAt)).limit(limit).offset(offset),
+      db.select({ total: count() }).from(productCommentsTable).where(eq(productCommentsTable.productId, productId))
+    ]);
+    res.json({ data: rows, pagination: { page, limit, total, pages: Math.ceil(total / limit) } });
+  } catch (err) {
+    req.log.error(err);
+    res.status(500).json({ error: "Erreur serveur" });
+  }
+});
+router9.post("/products/:id/comments", requireAuth, async (req, res) => {
+  const productId = req.params.id;
+  const schema = external_exports.object({ content: external_exports.string().min(1).max(1e3) });
+  const result = schema.safeParse(req.body);
+  if (!result.success) {
+    res.status(400).json({ error: "Le commentaire ne peut pas \xEAtre vide" });
+    return;
+  }
+  try {
+    const user = req.user;
+    const [comment] = await db.insert(productCommentsTable).values({
+      productId,
+      userId: user.userId,
+      userName: user.name,
+      userRole: user.role,
+      content: result.data.content
+    }).returning();
+    res.status(201).json({ data: comment });
+  } catch (err) {
+    req.log.error(err);
+    res.status(500).json({ error: "Erreur serveur" });
+  }
+});
+router9.delete("/products/:id/comments/:commentId", requireAuth, async (req, res) => {
+  const { id: productId, commentId } = req.params;
+  try {
+    const [comment] = await db.select().from(productCommentsTable).where(
+      and(
+        eq(productCommentsTable.id, commentId),
+        eq(productCommentsTable.productId, productId)
+      )
+    );
+    if (!comment) {
+      res.status(404).json({ error: "Commentaire introuvable" });
+      return;
+    }
+    const user = req.user;
+    if (!isAdmin(user.role) && comment.userId !== user.userId) {
+      res.status(403).json({ error: "Acc\xE8s refus\xE9" });
+      return;
+    }
+    await db.delete(productCommentsTable).where(eq(productCommentsTable.id, commentId));
+    res.json({ message: "Commentaire supprim\xE9" });
+  } catch (err) {
+    req.log.error(err);
+    res.status(500).json({ error: "Erreur serveur" });
+  }
+});
+router9.post("/products/:id/report", requireAuth, async (req, res) => {
+  const productId = req.params.id;
+  const schema = external_exports.object({
+    reason: external_exports.enum(["spam", "inappropriate", "fraude", "mauvaise_info", "autre"]),
+    details: external_exports.string().max(1e3).default("")
+  });
+  const result = schema.safeParse(req.body);
+  if (!result.success) {
+    res.status(400).json({ error: "Donn\xE9es invalides" });
+    return;
+  }
+  try {
+    const user = req.user;
+    const [report] = await db.insert(productReportsTable).values({
+      productId,
+      reporterId: user.userId,
+      reporterName: user.name,
+      ...result.data
+    }).returning();
+    res.status(201).json({ data: report, message: "Signalement envoy\xE9 \u2014 merci pour votre vigilance" });
+  } catch (err) {
+    req.log.error(err);
+    res.status(500).json({ error: "Erreur serveur" });
+  }
+});
+router9.post(
+  "/products/:id/promote",
+  requireAuth,
+  requireRole(["super_admin", "syndicate_admin"]),
+  async (req, res) => {
+    const productId = req.params.id;
+    const schema = external_exports.object({
+      type: external_exports.enum(["featured", "top_search", "homepage"]),
+      durationDays: external_exports.number().int().min(1).max(90),
+      amount: external_exports.number().nonnegative().default(0)
+    });
+    const result = schema.safeParse(req.body);
+    if (!result.success) {
+      res.status(400).json({ error: "Donn\xE9es invalides" });
+      return;
+    }
+    try {
+      const [product] = await db.select().from(productsTable).where(eq(productsTable.id, productId));
+      if (!product) {
+        res.status(404).json({ error: "Produit introuvable" });
         return;
       }
-      const status = result.data.action === "approve" ? "available" : "rejected";
-      const [updated] = await db.update(productsTable).set({ status }).where(eq(productsTable.id, id2)).returning();
-      res.json({
-        data: updated,
-        message: result.data.action === "approve" ? "Produit valid\xE9" : "Produit rejet\xE9"
-      });
+      const user = req.user;
+      const now = /* @__PURE__ */ new Date();
+      const endDate = new Date(now.getTime() + result.data.durationDays * 864e5);
+      const [promo] = await db.insert(marketplacePromotionsTable).values({
+        productId,
+        sellerId: product.sellerId ?? user.userId,
+        type: result.data.type,
+        startDate: now,
+        endDate,
+        amount: String(result.data.amount),
+        status: "active",
+        approvedBy: user.userId
+      }).returning();
+      await db.update(productsTable).set({
+        boosted: true,
+        boostType: result.data.type,
+        boostExpiresAt: endDate,
+        featured: result.data.type === "featured" || result.data.type === "homepage" ? true : void 0
+      }).where(eq(productsTable.id, productId));
+      res.status(201).json({ data: promo, message: "Promotion activ\xE9e avec succ\xE8s" });
+    } catch (err) {
+      req.log.error(err);
+      res.status(500).json({ error: "Erreur serveur" });
+    }
+  }
+);
+router9.get(
+  "/products/:id/reports",
+  requireAuth,
+  requireRole(["super_admin", "syndicate_admin"]),
+  async (req, res) => {
+    const productId = req.params.id;
+    try {
+      const rows = await db.select().from(productReportsTable).where(eq(productReportsTable.productId, productId)).orderBy(desc(productReportsTable.createdAt));
+      res.json({ data: rows });
     } catch (err) {
       req.log.error(err);
       res.status(500).json({ error: "Erreur serveur" });
@@ -64696,8 +65488,8 @@ router9.put(
 );
 router9.get("/cart", requireAuth, async (req, res) => {
   try {
-    const items = await db.select().from(cartItemsTable).where(eq(cartItemsTable.userId, req.user.userId));
-    res.json({ data: items });
+    const rows = await db.select().from(cartItemsTable).where(eq(cartItemsTable.userId, req.user.userId)).orderBy(desc(cartItemsTable.createdAt));
+    res.json({ data: rows });
   } catch (err) {
     req.log.error(err);
     res.status(500).json({ error: "Erreur serveur" });
@@ -64706,7 +65498,7 @@ router9.get("/cart", requireAuth, async (req, res) => {
 router9.post("/cart", requireAuth, async (req, res) => {
   const schema = external_exports.object({
     productId: external_exports.string(),
-    quantity: external_exports.number().int().positive().max(100).default(1)
+    quantity: external_exports.number().int().positive().default(1)
   });
   const result = schema.safeParse(req.body);
   if (!result.success) {
@@ -64715,56 +65507,58 @@ router9.post("/cart", requireAuth, async (req, res) => {
   }
   try {
     const [product] = await db.select().from(productsTable).where(eq(productsTable.id, result.data.productId));
-    if (!product) {
-      res.status(404).json({ error: "Produit introuvable" });
-      return;
-    }
-    if (product.status !== "available") {
-      res.status(400).json({ error: "Ce produit n'est pas disponible" });
+    if (!product || product.status !== "approved") {
+      res.status(404).json({ error: "Produit non disponible" });
       return;
     }
     if (product.sellerId === req.user.userId) {
-      res.status(400).json({ error: "Vous ne pouvez pas acheter votre propre produit" });
+      res.status(400).json({ error: "Vous ne pouvez pas acheter vos propres produits" });
       return;
     }
-    if (product.stock > 0 && result.data.quantity > product.stock) {
-      res.status(400).json({ error: `Stock insuffisant (${product.stock} disponible(s))` });
-      return;
-    }
-    const existing = await db.select().from(cartItemsTable).where(
+    const [existing] = await db.select().from(cartItemsTable).where(
       and(
         eq(cartItemsTable.userId, req.user.userId),
         eq(cartItemsTable.productId, result.data.productId)
       )
     );
-    if (existing.length > 0) {
-      await db.update(cartItemsTable).set({ quantity: existing[0].quantity + result.data.quantity }).where(eq(cartItemsTable.id, existing[0].id));
-    } else {
-      await db.insert(cartItemsTable).values({
-        userId: req.user.userId,
-        productId: product.id,
-        productName: product.name,
-        price: product.price,
-        sellerName: product.sellerName,
-        quantity: result.data.quantity
-      });
+    if (existing) {
+      const [updated] = await db.update(cartItemsTable).set({ quantity: existing.quantity + result.data.quantity }).where(eq(cartItemsTable.id, existing.id)).returning();
+      res.json({ data: updated, message: "Panier mis \xE0 jour" });
+      return;
     }
-    res.json({ message: "Ajout\xE9 au panier" });
+    const [item] = await db.insert(cartItemsTable).values({
+      userId: req.user.userId,
+      productId: product.id,
+      productName: product.name,
+      price: product.price,
+      sellerName: product.sellerName,
+      quantity: result.data.quantity
+    }).returning();
+    res.status(201).json({ data: item, message: "Produit ajout\xE9 au panier" });
   } catch (err) {
     req.log.error(err);
     res.status(500).json({ error: "Erreur serveur" });
   }
 });
 router9.put("/cart/:id", requireAuth, async (req, res) => {
-  const id2 = req.params.id;
-  const schema = external_exports.object({ quantity: external_exports.number().int().positive().max(100) });
+  const schema = external_exports.object({ quantity: external_exports.number().int().positive() });
   const result = schema.safeParse(req.body);
   if (!result.success) {
-    res.status(400).json({ error: "Donn\xE9es invalides" });
+    res.status(400).json({ error: "Quantit\xE9 invalide" });
     return;
   }
   try {
-    const [updated] = await db.update(cartItemsTable).set({ quantity: result.data.quantity }).where(and(eq(cartItemsTable.id, id2), eq(cartItemsTable.userId, req.user.userId))).returning();
+    const [item] = await db.select().from(cartItemsTable).where(
+      and(
+        eq(cartItemsTable.id, req.params.id),
+        eq(cartItemsTable.userId, req.user.userId)
+      )
+    );
+    if (!item) {
+      res.status(404).json({ error: "Article introuvable" });
+      return;
+    }
+    const [updated] = await db.update(cartItemsTable).set({ quantity: result.data.quantity }).where(eq(cartItemsTable.id, item.id)).returning();
     res.json({ data: updated });
   } catch (err) {
     req.log.error(err);
@@ -64772,74 +65566,55 @@ router9.put("/cart/:id", requireAuth, async (req, res) => {
   }
 });
 router9.delete("/cart/:id", requireAuth, async (req, res) => {
-  const id2 = req.params.id;
   try {
-    await db.delete(cartItemsTable).where(and(eq(cartItemsTable.id, id2), eq(cartItemsTable.userId, req.user.userId)));
-    res.json({ message: "Retir\xE9 du panier" });
+    await db.delete(cartItemsTable).where(
+      and(
+        eq(cartItemsTable.id, req.params.id),
+        eq(cartItemsTable.userId, req.user.userId)
+      )
+    );
+    res.json({ message: "Article retir\xE9 du panier" });
   } catch (err) {
     req.log.error(err);
     res.status(500).json({ error: "Erreur serveur" });
   }
 });
-router9.get("/reviews", requireAuth, async (req, res) => {
-  const { productId } = req.query;
+router9.delete("/cart", requireAuth, async (req, res) => {
   try {
-    const conditions = [];
-    if (productId) conditions.push(eq(reviewsTable.productId, productId));
-    const rows = conditions.length > 0 ? await db.select().from(reviewsTable).where(and(...conditions)).orderBy(desc(reviewsTable.createdAt)) : await db.select().from(reviewsTable).orderBy(desc(reviewsTable.createdAt));
-    res.json({ data: rows });
-  } catch (err) {
-    req.log.error(err);
-    res.status(500).json({ error: "Erreur serveur" });
-  }
-});
-router9.post("/reviews", requireAuth, async (req, res) => {
-  const schema = external_exports.object({
-    productId: external_exports.string().min(1),
-    orderId: external_exports.string().min(1),
-    rating: external_exports.number().int().min(1).max(5),
-    comment: external_exports.string().max(1e3).default("")
-  });
-  const result = schema.safeParse(req.body);
-  if (!result.success) {
-    res.status(400).json({ error: "Donn\xE9es invalides" });
-    return;
-  }
-  try {
-    const [review] = await db.insert(reviewsTable).values({
-      ...result.data,
-      reviewerId: req.user.userId,
-      reviewerName: req.user.name,
-      date: (/* @__PURE__ */ new Date()).toISOString().split("T")[0]
-    }).returning();
-    res.status(201).json({ data: review, message: "Avis publi\xE9" });
+    await db.delete(cartItemsTable).where(eq(cartItemsTable.userId, req.user.userId));
+    res.json({ message: "Panier vid\xE9" });
   } catch (err) {
     req.log.error(err);
     res.status(500).json({ error: "Erreur serveur" });
   }
 });
 router9.get("/orders", requireAuth, async (req, res) => {
+  const q = req.query;
+  const { page, limit, offset } = parsePage(q);
+  const user = req.user;
   try {
-    const rows = await db.select().from(ordersTable).where(
-      req.user.role === "member" ? eq(ordersTable.buyerId, req.user.userId) : eq(ordersTable.sellerId, req.user.userId)
-    ).orderBy(desc(ordersTable.createdAt));
-    res.json({ data: rows });
+    const cond = isAdmin(user.role) ? void 0 : or(eq(ordersTable.buyerId, user.userId), eq(ordersTable.sellerId, user.userId));
+    const [rows, [{ total }]] = await Promise.all([
+      db.select().from(ordersTable).where(cond).orderBy(desc(ordersTable.createdAt)).limit(limit).offset(offset),
+      db.select({ total: count() }).from(ordersTable).where(cond)
+    ]);
+    res.json({ data: rows, pagination: { page, limit, total, pages: Math.ceil(total / limit) } });
   } catch (err) {
     req.log.error(err);
     res.status(500).json({ error: "Erreur serveur" });
   }
 });
 router9.post("/orders", requireAuth, async (req, res) => {
-  const schema = external_exports.object({ cartItemIds: external_exports.array(external_exports.string()).min(1).max(50) });
+  const schema = external_exports.object({ cartItemIds: external_exports.array(external_exports.string()).min(1) });
   const result = schema.safeParse(req.body);
   if (!result.success) {
-    res.status(400).json({ error: "Panier invalide" });
+    res.status(400).json({ error: "Donn\xE9es invalides" });
     return;
   }
   try {
     const items = await db.select().from(cartItemsTable).where(eq(cartItemsTable.userId, req.user.userId));
     const toOrder = items.filter((i) => result.data.cartItemIds.includes(i.id));
-    if (toOrder.length === 0) {
+    if (!toOrder.length) {
       res.status(400).json({ error: "Aucun article \xE0 commander" });
       return;
     }
@@ -64847,9 +65622,9 @@ router9.post("/orders", requireAuth, async (req, res) => {
     await db.transaction(async (tx) => {
       for (const item of toOrder) {
         const [product] = await tx.select().from(productsTable).where(eq(productsTable.id, item.productId));
-        if (!product || product.status !== "available") continue;
+        if (!product || product.status !== "approved") continue;
         if (product.sellerId === req.user.userId) continue;
-        if (product.stock > 0 && item.quantity > product.stock) continue;
+        if (product.stock !== null && product.stock > 0 && item.quantity > product.stock) continue;
         const [order] = await tx.insert(ordersTable).values({
           productId: item.productId,
           productName: item.productName,
@@ -64857,23 +65632,92 @@ router9.post("/orders", requireAuth, async (req, res) => {
           buyerName: req.user.name,
           sellerId: product.sellerId,
           sellerName: product.sellerName,
-          amount: item.price * item.quantity,
+          amount: String(Number(item.price) * (item.quantity ?? 1)),
           status: "pending",
           type: "purchase",
           date: (/* @__PURE__ */ new Date()).toISOString().split("T")[0]
         }).returning();
         orders.push(order);
-        if (product.stock > 0) {
+        if (product.stock !== null && product.stock > 0) {
           await tx.update(productsTable).set({ stock: sql`${productsTable.stock} - ${item.quantity}` }).where(eq(productsTable.id, product.id));
         }
         await tx.delete(cartItemsTable).where(eq(cartItemsTable.id, item.id));
       }
     });
-    if (orders.length === 0) {
-      res.status(400).json({ error: "Aucune commande valide \u2014 v\xE9rifiez le stock et la disponibilit\xE9" });
+    if (!orders.length) {
+      res.status(400).json({ error: "Aucune commande valide \u2014 v\xE9rifiez la disponibilit\xE9" });
       return;
     }
     res.status(201).json({ data: orders, message: "Commande pass\xE9e avec succ\xE8s" });
+  } catch (err) {
+    req.log.error(err);
+    res.status(500).json({ error: "Erreur serveur" });
+  }
+});
+router9.put(
+  "/orders/:id",
+  requireAuth,
+  requireRole(["super_admin", "syndicate_admin"]),
+  async (req, res) => {
+    const schema = external_exports.object({
+      status: external_exports.enum(["pending", "confirmed", "shipped", "delivered", "cancelled"])
+    });
+    const result = schema.safeParse(req.body);
+    if (!result.success) {
+      res.status(400).json({ error: "Statut invalide" });
+      return;
+    }
+    try {
+      const [order] = await db.update(ordersTable).set({ status: result.data.status }).where(eq(ordersTable.id, req.params.id)).returning();
+      res.json({ data: order });
+    } catch (err) {
+      req.log.error(err);
+      res.status(500).json({ error: "Erreur serveur" });
+    }
+  }
+);
+router9.get("/reviews", requireAuth, async (req, res) => {
+  const q = req.query;
+  const { page, limit, offset } = parsePage(q);
+  const cond = q.productId ? eq(reviewsTable.productId, q.productId) : void 0;
+  try {
+    const [rows, [{ total }]] = await Promise.all([
+      db.select().from(reviewsTable).where(cond).orderBy(desc(reviewsTable.createdAt)).limit(limit).offset(offset),
+      db.select({ total: count() }).from(reviewsTable).where(cond)
+    ]);
+    res.json({ data: rows, pagination: { page, limit, total, pages: Math.ceil(total / limit) } });
+  } catch (err) {
+    req.log.error(err);
+    res.status(500).json({ error: "Erreur serveur" });
+  }
+});
+router9.post("/reviews", requireAuth, async (req, res) => {
+  const schema = external_exports.object({
+    productId: external_exports.string(),
+    orderId: external_exports.string().optional(),
+    rating: external_exports.number().int().min(1).max(5),
+    comment: external_exports.string().max(2e3).default("")
+  });
+  const result = schema.safeParse(req.body);
+  if (!result.success) {
+    res.status(400).json({ error: "Donn\xE9es invalides" });
+    return;
+  }
+  try {
+    const user = req.user;
+    const [product] = await db.select().from(productsTable).where(eq(productsTable.id, result.data.productId));
+    if (!product) {
+      res.status(404).json({ error: "Produit introuvable" });
+      return;
+    }
+    const [review] = await db.insert(reviewsTable).values({
+      ...result.data,
+      productName: product.name,
+      reviewerId: user.userId,
+      reviewerName: user.name,
+      date: (/* @__PURE__ */ new Date()).toISOString().split("T")[0]
+    }).returning();
+    res.status(201).json({ data: review });
   } catch (err) {
     req.log.error(err);
     res.status(500).json({ error: "Erreur serveur" });
@@ -64958,29 +65802,23 @@ router10.get("/conversations", requireAuth, async (req, res) => {
     const readMap = Object.fromEntries(
       readRows.map((r) => [r.conversationId, r.lastReadAt])
     );
-    const unreadCounts = await Promise.all(
-      conversations.map(async (c) => {
-        const lastRead = readMap[c.id];
-        if (!lastRead) {
-          const [{ value: value2 }] = await db.select({ value: count() }).from(messagesTable).where(
-            and(
-              eq(messagesTable.conversationId, c.id),
-              sql`${messagesTable.senderId} != ${userId}`
-            )
-          );
-          return { id: c.id, unread: Number(value2) };
-        }
-        const [{ value }] = await db.select({ value: count() }).from(messagesTable).where(
-          and(
-            eq(messagesTable.conversationId, c.id),
-            gt(messagesTable.createdAt, lastRead),
-            sql`${messagesTable.senderId} != ${userId}`
-          )
-        );
-        return { id: c.id, unread: Number(value) };
-      })
+    const convIds = conversations.map((c) => c.id);
+    const unreadMessages = await db.select({
+      conversationId: messagesTable.conversationId,
+      createdAt: messagesTable.createdAt
+    }).from(messagesTable).where(
+      and(
+        inArray(messagesTable.conversationId, convIds),
+        sql`${messagesTable.senderId} != ${userId}`
+      )
     );
-    const unreadMap = Object.fromEntries(unreadCounts.map((u) => [u.id, u.unread]));
+    const unreadMap = Object.fromEntries(convIds.map((id2) => [id2, 0]));
+    for (const msg of unreadMessages) {
+      const lastRead = readMap[msg.conversationId];
+      if (!lastRead || msg.createdAt && msg.createdAt > lastRead) {
+        unreadMap[msg.conversationId] = (unreadMap[msg.conversationId] ?? 0) + 1;
+      }
+    }
     const enriched = conversations.map((c) => {
       const otherId = c.participant1Id === userId ? c.participant2Id : c.participant1Id;
       const other = otherId ? userMap[otherId] : null;
@@ -65023,20 +65861,25 @@ router10.get("/conversations/unread-count", requireAuth, async (req, res) => {
     }
     const readRows = await db.select().from(messageReadsTable).where(eq(messageReadsTable.userId, userId));
     const readMap = Object.fromEntries(readRows.map((r) => [r.conversationId, r.lastReadAt]));
-    let total = 0;
-    await Promise.all(
-      conversations.map(async (c) => {
-        const lastRead = readMap[c.id];
-        const [{ value }] = await db.select({ value: count() }).from(messagesTable).where(
-          and(
-            eq(messagesTable.conversationId, c.id),
-            sql`${messagesTable.senderId} != ${userId}`,
-            lastRead ? gt(messagesTable.createdAt, lastRead) : void 0
-          )
-        );
-        total += Number(value);
-      })
+    const unreadMsgs = await db.select({
+      conversationId: messagesTable.conversationId,
+      createdAt: messagesTable.createdAt
+    }).from(messagesTable).where(
+      and(
+        inArray(
+          messagesTable.conversationId,
+          conversations.map((c) => c.id)
+        ),
+        sql`${messagesTable.senderId} != ${userId}`
+      )
     );
+    let total = 0;
+    for (const msg of unreadMsgs) {
+      const lastRead = readMap[msg.conversationId];
+      if (!lastRead || msg.createdAt && msg.createdAt > lastRead) {
+        total++;
+      }
+    }
     res.json({ total });
   } catch (err) {
     req.log.error(err);
@@ -65111,8 +65954,8 @@ router10.delete("/conversations/:id", requireAuth, async (req, res) => {
     }
     const [conv] = await db.select().from(conversationsTable).where(eq(conversationsTable.id, id2));
     const isCreator = conv?.participant1Id === req.user.userId;
-    const isAdmin = req.user.role === "super_admin" || req.user.role === "syndicate_admin";
-    if (!isCreator && !isAdmin) {
+    const isAdmin2 = req.user.role === "super_admin" || req.user.role === "syndicate_admin";
+    if (!isCreator && !isAdmin2) {
       res.status(403).json({ error: "Seul le cr\xE9ateur peut supprimer cette conversation" });
       return;
     }
@@ -67289,7 +68132,7 @@ var prestataires_default = router19;
 // src/routes/budget.ts
 var import_express20 = __toESM(require_express2(), 1);
 var router20 = (0, import_express20.Router)();
-router20.get("/budgets", requireAuth, async (req, res) => {
+router20.get("/budgets", requireAuth, requireNotTenant, async (req, res) => {
   try {
     const { buildingId, year, status } = req.query;
     const conditions = [];
@@ -67313,7 +68156,7 @@ router20.get("/budgets", requireAuth, async (req, res) => {
     res.status(500).json({ error: "Server error" });
   }
 });
-router20.get("/budgets/:id", requireAuth, async (req, res) => {
+router20.get("/budgets/:id", requireAuth, requireNotTenant, async (req, res) => {
   try {
     const [budget] = await db.select().from(budgetsTable).where(eq(budgetsTable.id, req.params.id));
     if (!budget) return res.status(404).json({ error: "Budget not found" });
@@ -67425,7 +68268,7 @@ router20.get("/appels-de-fonds", requireAuth, async (req, res) => {
     if (status) conditions.push(eq(appelsDeFondsTable.status, status));
     if (period) conditions.push(eq(appelsDeFondsTable.period, period));
     if (ownerId) conditions.push(eq(appelsDeFondsTable.ownerId, ownerId));
-    if (user.role === "member") {
+    if (user.role === "member" || user.role === "tenant") {
       const [member] = await db.select({ id: membersTable.id }).from(membersTable).where(eq(membersTable.email, user.email)).limit(1);
       if (member) {
         conditions.push(or(
@@ -67451,15 +68294,32 @@ router20.get("/appels-de-fonds", requireAuth, async (req, res) => {
 });
 router20.put("/appels-de-fonds/:id/pay", requireAuth, async (req, res) => {
   try {
+    const user = req.user;
+    const [appel] = await db.select().from(appelsDeFondsTable).where(eq(appelsDeFondsTable.id, req.params.id));
+    if (!appel) return res.status(404).json({ error: "Not found" });
+    const isAdmin2 = user.role === "super_admin" || user.role === "syndicate_admin";
+    if (!isAdmin2) {
+      const [member] = await db.select({ id: membersTable.id }).from(membersTable).where(eq(membersTable.email, user.email)).limit(1);
+      const memberId = member?.id;
+      const isOwner = appel.ownerId === user.userId || memberId && appel.ownerId === memberId;
+      if (!isOwner) {
+        return res.status(403).json({ error: "Vous ne pouvez soumettre un paiement que pour vos propres appels de fonds" });
+      }
+    }
     const { paymentMethod, proofUrl, notes } = req.body;
+    if (!paymentMethod) {
+      return res.status(400).json({ error: "Le mode de paiement est obligatoire" });
+    }
     const [updated] = await db.update(appelsDeFondsTable).set({
-      status: "pending",
+      // pending_validation = payment submitted, awaiting admin review
+      status: "pending_validation",
       paymentMethod,
-      proofUrl,
-      notes
+      proofUrl: proofUrl ?? null,
+      notes: notes ?? null,
+      // Clear any previous rejection
+      rejectionReason: null
     }).where(eq(appelsDeFondsTable.id, req.params.id)).returning();
-    if (!updated) return res.status(404).json({ error: "Not found" });
-    res.json(updated);
+    res.json({ data: updated, message: "Paiement soumis, en attente de validation" });
   } catch (e) {
     console.error(e);
     res.status(500).json({ error: "Server error" });
@@ -67467,14 +68327,166 @@ router20.put("/appels-de-fonds/:id/pay", requireAuth, async (req, res) => {
 });
 router20.put("/appels-de-fonds/:id/validate", requireAuth, requireAdmin, async (req, res) => {
   try {
-    const { approve, receiptNumber } = req.body;
+    const user = req.user;
+    const { approve, rejectionReason } = req.body;
+    const [appel] = await db.select().from(appelsDeFondsTable).where(eq(appelsDeFondsTable.id, req.params.id));
+    if (!appel) return res.status(404).json({ error: "Not found" });
+    if (appel.status !== "pending_validation") {
+      return res.status(400).json({ error: "Cet appel n'est pas en attente de validation" });
+    }
+    if (!approve && !rejectionReason) {
+      return res.status(400).json({ error: "Un motif de rejet est obligatoire" });
+    }
+    const now = /* @__PURE__ */ new Date();
+    const receiptNum = approve ? `REC-${now.getFullYear()}${String(now.getMonth() + 1).padStart(2, "0")}${String(now.getDate()).padStart(2, "0")}-${Math.floor(1e3 + Math.random() * 9e3)}` : void 0;
     const [updated] = await db.update(appelsDeFondsTable).set({
-      status: approve ? "paid" : "pending",
-      paidDate: approve ? (/* @__PURE__ */ new Date()).toISOString().split("T")[0] : void 0,
-      receiptNumber: approve ? receiptNumber ?? `REC-${Date.now()}` : void 0
+      status: approve ? "paid" : "rejected",
+      paidDate: approve ? now.toISOString().split("T")[0] : void 0,
+      receiptNumber: receiptNum,
+      rejectionReason: approve ? null : rejectionReason ?? "Paiement non conforme",
+      validatedBy: user.userId,
+      validatedAt: now
     }).where(eq(appelsDeFondsTable.id, req.params.id)).returning();
-    if (!updated) return res.status(404).json({ error: "Not found" });
-    res.json(updated);
+    db.insert(auditLogsTable).values({
+      userId: user.userId,
+      userName: user.name,
+      syndicateId: user.syndicateId ?? null,
+      action: approve ? "payment_approved" : "payment_rejected",
+      entity: "appel_de_fonds",
+      entityId: appel.id,
+      details: JSON.stringify({
+        amount: appel.amount,
+        period: appel.period,
+        paymentMethod: appel.paymentMethod,
+        receiptNumber: receiptNum,
+        rejectionReason: approve ? null : rejectionReason
+      })
+    }).catch(() => {
+    });
+    if (approve) {
+      db.insert(transactionsTable).values({
+        type: "cotisation",
+        amount: appel.amount,
+        label: `Cotisation ${appel.period} \u2014 Re\xE7u ${receiptNum}`,
+        date: now.toISOString().split("T")[0],
+        status: "paid",
+        memberId: appel.ownerId ?? null,
+        syndicateId: null
+      }).catch(() => {
+      });
+    }
+    res.json({
+      data: updated,
+      message: approve ? `Paiement valid\xE9. Re\xE7u: ${receiptNum}` : "Paiement rejet\xE9. Le propri\xE9taire sera inform\xE9."
+    });
+  } catch (e) {
+    console.error(e);
+    res.status(500).json({ error: "Server error" });
+  }
+});
+router20.post("/appels-de-fonds/escalate-debts", requireAuth, requireAdmin, async (req, res) => {
+  try {
+    const now = /* @__PURE__ */ new Date();
+    const overdueCharges = await db.select({
+      ownerId: appelsDeFondsTable.ownerId,
+      amount: appelsDeFondsTable.amount,
+      buildingId: appelsDeFondsTable.buildingId
+    }).from(appelsDeFondsTable).where(eq(appelsDeFondsTable.status, "overdue"));
+    if (overdueCharges.length === 0) {
+      res.json({ escalations: 0, message: "Aucune charge en retard" });
+      return;
+    }
+    const byMember = /* @__PURE__ */ new Map();
+    for (const charge of overdueCharges) {
+      if (!charge.ownerId) continue;
+      if (!byMember.has(charge.ownerId)) {
+        byMember.set(charge.ownerId, { ownerId: charge.ownerId, buildingId: charge.buildingId, totalOverdue: 0, months: 0 });
+      }
+      const entry = byMember.get(charge.ownerId);
+      entry.totalOverdue += parseFloat(String(charge.amount ?? 0));
+      entry.months += 1;
+    }
+    const created = [];
+    for (const [ownerId, data] of byMember) {
+      let level = null;
+      let overdueMonths = data.months;
+      if (data.months >= 12) {
+        level = "critical";
+        overdueMonths = 12;
+      } else if (data.months >= 6) {
+        level = "serious";
+        overdueMonths = 6;
+      } else if (data.months >= 3) {
+        level = "warning";
+        overdueMonths = 3;
+      }
+      if (!level) continue;
+      const [member] = await db.select().from(membersTable).where(eq(membersTable.id, ownerId));
+      const [building] = await db.select({ syndicateId: buildingsTable.syndicateId }).from(buildingsTable).where(eq(buildingsTable.id, data.buildingId));
+      if (req.user.role !== "super_admin" && building?.syndicateId !== req.user.syndicateId) continue;
+      const existing = await db.select().from(debtEscalationsTable).where(and(eq(debtEscalationsTable.memberId, ownerId), eq(debtEscalationsTable.status, "open")));
+      if (existing.length > 0) {
+        const [updated] = await db.update(debtEscalationsTable).set({ level, overdueMonths, totalOverdue: String(data.totalOverdue.toFixed(2)), alertSentAt: now }).where(eq(debtEscalationsTable.id, existing[0].id)).returning();
+        created.push(updated);
+      } else {
+        const [row] = await db.insert(debtEscalationsTable).values({
+          syndicateId: building?.syndicateId,
+          memberId: ownerId,
+          memberName: member?.name ?? "Membre inconnu",
+          totalOverdue: String(data.totalOverdue.toFixed(2)),
+          overdueMonths,
+          level,
+          status: "open",
+          alertSentAt: now
+        }).returning();
+        created.push(row);
+      }
+    }
+    res.json({ escalations: created.length, data: created });
+  } catch (e) {
+    console.error(e);
+    res.status(500).json({ error: "Server error" });
+  }
+});
+router20.get("/debt-escalations", requireAuth, requireAdmin, async (req, res) => {
+  try {
+    const rows = await db.select().from(debtEscalationsTable).where(
+      req.user.role === "super_admin" ? eq(debtEscalationsTable.status, "open") : and(eq(debtEscalationsTable.status, "open"), eq(debtEscalationsTable.syndicateId, req.user.syndicateId))
+    ).orderBy(desc(debtEscalationsTable.createdAt));
+    res.json({ data: rows });
+  } catch (e) {
+    console.error(e);
+    res.status(500).json({ error: "Server error" });
+  }
+});
+router20.post("/budgets/check-reserve-fund", requireAuth, requireAdmin, async (req, res) => {
+  try {
+    const { thresholdMonths = 3 } = req.body;
+    const base = db.select({
+      fondsReserve: budgetsTable.fondsReserve,
+      chargesAmount: budgetsTable.chargesAmount,
+      syndicateId: buildingsTable.syndicateId,
+      syndicateName: syndicatesTable.name
+    }).from(budgetsTable).innerJoin(buildingsTable, eq(budgetsTable.buildingId, buildingsTable.id)).leftJoin(syndicatesTable, eq(buildingsTable.syndicateId, syndicatesTable.id));
+    const budgetData = req.user.role === "super_admin" ? await base : await base.where(eq(buildingsTable.syndicateId, req.user.syndicateId));
+    const alertsCreated = [];
+    for (const budget of budgetData) {
+      const reserve = parseFloat(String(budget.fondsReserve ?? 0));
+      const monthly = parseFloat(String(budget.chargesAmount ?? 0)) / 12;
+      const threshold = monthly * thresholdMonths;
+      if (monthly > 0 && reserve < threshold) {
+        const [alert] = await db.insert(alertsTable).values({
+          title: "\u26A0\uFE0F Fonds de r\xE9serve insuffisant",
+          message: `Le fonds de r\xE9serve de ${budget.syndicateName ?? "votre syndicat"} (${reserve.toFixed(2)} MAD) est inf\xE9rieur au seuil de ${thresholdMonths} mois de charges (${threshold.toFixed(2)} MAD). Une r\xE9union extraordinaire est recommand\xE9e.`,
+          type: "warning",
+          date: (/* @__PURE__ */ new Date()).toISOString().split("T")[0],
+          target: "admin",
+          syndicateId: budget.syndicateId
+        }).returning();
+        alertsCreated.push(alert);
+      }
+    }
+    res.json({ alerts: alertsCreated.length, data: alertsCreated });
   } catch (e) {
     console.error(e);
     res.status(500).json({ error: "Server error" });
@@ -67533,7 +68545,7 @@ router21.get("/sinistres", requireAuth, async (req, res) => {
 router21.post("/sinistres", requireAuth, async (req, res) => {
   try {
     const user = req.user;
-    const { buildingId, lotId, type, description, date: date2, estimatedAmount, notes } = req.body;
+    const { buildingId, lotId, type, description, date: date2, estimatedAmount, notes, urgency, imageUrls } = req.body;
     if (!buildingId || !type || !description || !date2) {
       return res.status(400).json({ error: "buildingId, type, description et date sont obligatoires" });
     }
@@ -67544,6 +68556,8 @@ router21.post("/sinistres", requireAuth, async (req, res) => {
       description,
       date: date2,
       estimatedAmount: estimatedAmount ? Number(estimatedAmount) : void 0,
+      urgency: urgency ?? "normal",
+      imageUrls: JSON.stringify(Array.isArray(imageUrls) ? imageUrls : []),
       reportedById: user.userId,
       reportedByName: user.name,
       notes
@@ -67565,10 +68579,15 @@ router21.post("/sinistres", requireAuth, async (req, res) => {
 });
 router21.put("/sinistres/:id", requireAuth, requireAdmin, async (req, res) => {
   try {
-    const allowed = ["status", "estimatedAmount", "indemnisedAmount", "claimNumber", "notes"];
+    const allowed = ["status", "urgency", "estimatedAmount", "indemnisedAmount", "claimNumber", "notes", "contractorId", "resolutionNote", "invoiceUrl", "imageUrls"];
     const updates = {};
     for (const k of allowed) {
-      if (req.body[k] !== void 0) updates[k] = req.body[k];
+      if (req.body[k] !== void 0) {
+        updates[k] = k === "imageUrls" && Array.isArray(req.body[k]) ? JSON.stringify(req.body[k]) : req.body[k];
+      }
+    }
+    if (req.body.status === "resolved" || req.body.status === "closed") {
+      updates.resolvedAt = /* @__PURE__ */ new Date();
     }
     const [updated] = await db.update(sinistresTable).set(updates).where(eq(sinistresTable.id, req.params.id)).returning();
     if (!updated) return res.status(404).json({ error: "Sinistre introuvable" });
@@ -68250,37 +69269,625 @@ router24.get("/finance/building/:id", requireAuth, async (req, res) => {
 });
 var finance_building_default = router24;
 
-// src/routes/index.ts
+// src/routes/ideas.ts
+var import_express25 = __toESM(require_express2(), 1);
 var router25 = (0, import_express25.Router)();
-router25.use(health_default);
-router25.use(auth_default);
-router25.use(members_default);
-router25.use(users_default);
-router25.use(syndicates_default);
-router25.use(elections_default);
-router25.use(meetings_default);
-router25.use(finance_default);
-router25.use(marketplace_default);
-router25.use(chat_default);
-router25.use(documents_default);
-router25.use(publications_default);
-router25.use(content_default);
-router25.use(audit_default);
-router25.use(statistics_default);
-router25.use(buildings_default);
-router25.use(lots_default);
-router25.use(travaux_default);
-router25.use(prestataires_default);
-router25.use(budget_default);
-router25.use(sinistres_default);
-router25.use(locataires_default);
-router25.use(ag_default);
-router25.use(finance_building_default);
-var routes_default = router25;
+router25.get("/ideas", requireAuth, async (req, res) => {
+  try {
+    const user = req.user;
+    const { status, category } = req.query;
+    const conditions = [];
+    if (user.syndicateId) conditions.push(eq(ideasTable.syndicateId, user.syndicateId));
+    if (status) conditions.push(eq(ideasTable.status, status));
+    if (category) conditions.push(eq(ideasTable.category, category));
+    const ideas = await db.select().from(ideasTable).where(conditions.length ? and(...conditions) : void 0).orderBy(desc(ideasTable.voteCount), desc(ideasTable.createdAt));
+    const ideaIds = ideas.map((i) => i.id);
+    const userVotes = ideaIds.length ? await db.select({ ideaId: ideaVotesTable.ideaId }).from(ideaVotesTable).where(
+      and(eq(ideaVotesTable.userId, user.userId), sql`${ideaVotesTable.ideaId} = ANY(${sql.raw(`ARRAY[${ideaIds.map((id2) => `'${id2}'`).join(",")}]::text[]`)})`)
+    ) : [];
+    const votedSet = new Set(userVotes.map((v) => v.ideaId));
+    res.json({
+      data: ideas.map((i) => ({ ...i, hasVoted: votedSet.has(i.id) })),
+      total: ideas.length
+    });
+  } catch (e) {
+    console.error(e);
+    res.status(500).json({ error: "Erreur serveur" });
+  }
+});
+router25.post("/ideas", requireAuth, async (req, res) => {
+  try {
+    const user = req.user;
+    const { title, description, category, voteDeadline } = req.body;
+    if (!title?.trim() || !description?.trim()) {
+      return res.status(400).json({ error: "Le titre et la description sont obligatoires" });
+    }
+    const thisYear = (/* @__PURE__ */ new Date()).getFullYear().toString();
+    const [existing] = await db.select({ id: ideasTable.id }).from(ideasTable).where(
+      and(
+        eq(ideasTable.userId, user.userId),
+        eq(ideasTable.syndicateId, user.syndicateId ?? ""),
+        sql`EXTRACT(YEAR FROM ${ideasTable.createdAt}) = ${thisYear}`,
+        sql`${ideasTable.status} != 'rejected'`
+      )
+    ).limit(1);
+    if (existing) {
+      return res.status(409).json({
+        error: "Vous avez d\xE9j\xE0 soumis une id\xE9e cette ann\xE9e. Une seule proposition active par an est autoris\xE9e."
+      });
+    }
+    const [idea] = await db.insert(ideasTable).values({
+      syndicateId: user.syndicateId ?? null,
+      userId: user.userId,
+      userName: user.name,
+      title: title.trim(),
+      description: description.trim(),
+      category: category ?? "general",
+      voteDeadline: voteDeadline ?? null,
+      status: "submitted",
+      voteCount: 0
+    }).returning();
+    res.status(201).json({ data: idea, message: "Id\xE9e soumise avec succ\xE8s" });
+  } catch (e) {
+    console.error(e);
+    res.status(500).json({ error: "Erreur serveur" });
+  }
+});
+router25.post("/ideas/:id/vote", requireAuth, async (req, res) => {
+  try {
+    const user = req.user;
+    const ideaId = req.params.id;
+    const [idea] = await db.select().from(ideasTable).where(eq(ideasTable.id, ideaId));
+    if (!idea) return res.status(404).json({ error: "Id\xE9e introuvable" });
+    if (idea.status === "rejected" || idea.status === "implemented") {
+      return res.status(400).json({ error: "Le vote est ferm\xE9 pour cette id\xE9e" });
+    }
+    if (idea.voteDeadline && new Date(idea.voteDeadline) < /* @__PURE__ */ new Date()) {
+      return res.status(400).json({ error: "La p\xE9riode de vote est termin\xE9e" });
+    }
+    const [existingVote] = await db.select().from(ideaVotesTable).where(and(eq(ideaVotesTable.ideaId, ideaId), eq(ideaVotesTable.userId, user.userId)));
+    if (existingVote) {
+      await db.delete(ideaVotesTable).where(eq(ideaVotesTable.id, existingVote.id));
+      await db.update(ideasTable).set({ voteCount: Math.max(0, (idea.voteCount ?? 1) - 1) }).where(eq(ideasTable.id, ideaId));
+      return res.json({ hasVoted: false, message: "Vote retir\xE9" });
+    }
+    await db.insert(ideaVotesTable).values({ ideaId, userId: user.userId });
+    const [updated] = await db.update(ideasTable).set({ voteCount: (idea.voteCount ?? 0) + 1 }).where(eq(ideasTable.id, ideaId)).returning();
+    res.json({ hasVoted: true, voteCount: updated.voteCount, message: "Vote enregistr\xE9" });
+  } catch (e) {
+    console.error(e);
+    res.status(500).json({ error: "Erreur serveur" });
+  }
+});
+router25.put("/ideas/:id", requireAuth, requireAdmin, async (req, res) => {
+  try {
+    const allowed = {};
+    const { status, adminNote, voteDeadline } = req.body;
+    if (status) allowed.status = status;
+    if (adminNote !== void 0) allowed.adminNote = adminNote;
+    if (voteDeadline !== void 0) allowed.voteDeadline = voteDeadline;
+    if (status === "implemented") allowed.implementedAt = /* @__PURE__ */ new Date();
+    const [updated] = await db.update(ideasTable).set(allowed).where(eq(ideasTable.id, req.params.id)).returning();
+    if (!updated) return res.status(404).json({ error: "Id\xE9e introuvable" });
+    res.json({ data: updated, message: "Id\xE9e mise \xE0 jour" });
+  } catch (e) {
+    console.error(e);
+    res.status(500).json({ error: "Erreur serveur" });
+  }
+});
+router25.delete("/ideas/:id", requireAuth, async (req, res) => {
+  try {
+    const user = req.user;
+    const [idea] = await db.select().from(ideasTable).where(eq(ideasTable.id, req.params.id));
+    if (!idea) return res.status(404).json({ error: "Id\xE9e introuvable" });
+    const isAdmin2 = user.role === "super_admin" || user.role === "syndicate_admin";
+    if (!isAdmin2 && idea.userId !== user.userId) {
+      return res.status(403).json({ error: "Acc\xE8s refus\xE9" });
+    }
+    await db.delete(ideasTable).where(eq(ideasTable.id, idea.id));
+    res.json({ message: "Id\xE9e supprim\xE9e" });
+  } catch (e) {
+    console.error(e);
+    res.status(500).json({ error: "Erreur serveur" });
+  }
+});
+var ideas_default = router25;
+
+// src/routes/transparency.ts
+var import_express26 = __toESM(require_express2(), 1);
+var router26 = (0, import_express26.Router)();
+router26.get("/expense-justifications", requireAuth, async (req, res) => {
+  try {
+    const user = req.user;
+    const { status } = req.query;
+    const conditions = [];
+    if (user.syndicateId) conditions.push(eq(expenseJustificationsTable.syndicateId, user.syndicateId));
+    if (status) conditions.push(eq(expenseJustificationsTable.status, status));
+    const rows = await db.select().from(expenseJustificationsTable).where(conditions.length ? and(...conditions) : void 0).orderBy(desc(expenseJustificationsTable.createdAt));
+    const ids = rows.map((r) => r.id);
+    const myVotes = ids.length ? await db.select({ justificationId: expenseVotesTable.justificationId, vote: expenseVotesTable.vote }).from(expenseVotesTable).where(eq(expenseVotesTable.userId, user.userId)) : [];
+    const voteMap = new Map(myVotes.map((v) => [v.justificationId, v.vote]));
+    res.json({
+      data: rows.map((r) => ({ ...r, myVote: voteMap.get(r.id) ?? null })),
+      total: rows.length
+    });
+  } catch (e) {
+    console.error(e);
+    res.status(500).json({ error: "Erreur serveur" });
+  }
+});
+router26.post("/expense-justifications", requireAuth, requireAdmin, async (req, res) => {
+  try {
+    const user = req.user;
+    const { title, description, amount, category, receiptUrl, transactionId } = req.body;
+    if (!title?.trim() || !amount) {
+      return res.status(400).json({ error: "Le titre et le montant sont obligatoires" });
+    }
+    const [row] = await db.insert(expenseJustificationsTable).values({
+      syndicateId: user.syndicateId ?? null,
+      transactionId: transactionId ?? null,
+      title: title.trim(),
+      description: (description ?? "").trim(),
+      amount: String(parseFloat(String(amount))),
+      category: category ?? null,
+      receiptUrl: receiptUrl ?? null,
+      status: "pending",
+      submittedBy: user.userId,
+      submitterName: user.name
+    }).returning();
+    res.status(201).json({ data: row, message: "Justificatif soumis" });
+  } catch (e) {
+    console.error(e);
+    res.status(500).json({ error: "Erreur serveur" });
+  }
+});
+router26.post("/expense-justifications/:id/challenge", requireAuth, async (req, res) => {
+  try {
+    const user = req.user;
+    const { reason } = req.body;
+    if (!reason?.trim()) {
+      return res.status(400).json({ error: "Le motif de contestation est obligatoire" });
+    }
+    const [row] = await db.select().from(expenseJustificationsTable).where(eq(expenseJustificationsTable.id, req.params.id));
+    if (!row) return res.status(404).json({ error: "Justificatif introuvable" });
+    if (row.status !== "pending") {
+      return res.status(400).json({ error: "Ce justificatif ne peut plus \xEAtre contest\xE9" });
+    }
+    const [updated] = await db.update(expenseJustificationsTable).set({
+      status: "challenged",
+      challengedBy: user.userId,
+      challengerName: user.name,
+      challengeReason: reason.trim()
+    }).where(eq(expenseJustificationsTable.id, row.id)).returning();
+    res.json({ data: updated, message: "Contestation enregistr\xE9e. Les membres peuvent voter." });
+  } catch (e) {
+    console.error(e);
+    res.status(500).json({ error: "Erreur serveur" });
+  }
+});
+router26.post("/expense-justifications/:id/vote", requireAuth, async (req, res) => {
+  try {
+    const user = req.user;
+    const { vote } = req.body;
+    if (!["for", "against"].includes(vote)) {
+      return res.status(400).json({ error: "Vote invalide: 'for' ou 'against'" });
+    }
+    const [row] = await db.select().from(expenseJustificationsTable).where(eq(expenseJustificationsTable.id, req.params.id));
+    if (!row) return res.status(404).json({ error: "Justificatif introuvable" });
+    if (row.status !== "challenged") {
+      return res.status(400).json({ error: "Le vote n'est ouvert que pour les justificatifs contest\xE9s" });
+    }
+    const [existingVote] = await db.select().from(expenseVotesTable).where(
+      and(
+        eq(expenseVotesTable.justificationId, row.id),
+        eq(expenseVotesTable.userId, user.userId)
+      )
+    );
+    if (existingVote) {
+      if (existingVote.vote === vote) {
+        return res.status(409).json({ error: "Vous avez d\xE9j\xE0 vot\xE9" });
+      }
+      await db.update(expenseVotesTable).set({ vote }).where(eq(expenseVotesTable.id, existingVote.id));
+    } else {
+      await db.insert(expenseVotesTable).values({
+        justificationId: row.id,
+        userId: user.userId,
+        vote
+      });
+    }
+    const allVotes = await db.select().from(expenseVotesTable).where(eq(expenseVotesTable.justificationId, row.id));
+    const votesFor = allVotes.filter((v) => v.vote === "for").length;
+    const votesAgainst = allVotes.filter((v) => v.vote === "against").length;
+    await db.update(expenseJustificationsTable).set({ voteCount: allVotes.length, votesFor, votesAgainst }).where(eq(expenseJustificationsTable.id, row.id));
+    res.json({ message: "Vote enregistr\xE9", votesFor, votesAgainst, total: allVotes.length });
+  } catch (e) {
+    console.error(e);
+    res.status(500).json({ error: "Erreur serveur" });
+  }
+});
+router26.put("/expense-justifications/:id/resolve", requireAuth, requireAdmin, async (req, res) => {
+  try {
+    const { status, resolutionNote } = req.body;
+    const [updated] = await db.update(expenseJustificationsTable).set({
+      status: status ?? "resolved",
+      resolutionNote: resolutionNote ?? null,
+      resolvedAt: /* @__PURE__ */ new Date()
+    }).where(eq(expenseJustificationsTable.id, req.params.id)).returning();
+    if (!updated) return res.status(404).json({ error: "Justificatif introuvable" });
+    res.json({ data: updated, message: "Justificatif r\xE9solu" });
+  } catch (e) {
+    console.error(e);
+    res.status(500).json({ error: "Erreur serveur" });
+  }
+});
+var transparency_default = router26;
+
+// src/routes/rankings.ts
+var import_express27 = __toESM(require_express2(), 1);
+var router27 = (0, import_express27.Router)();
+async function computeScoreForSyndicate(syndicateId, month, year) {
+  const monthStr = `${year}-${String(month).padStart(2, "0")}`;
+  const monthStart = `${monthStr}-01`;
+  const monthEnd = new Date(year, month, 0).toISOString().split("T")[0];
+  const buildings = await db.select({ id: buildingsTable.id }).from(buildingsTable).where(eq(buildingsTable.syndicateId, syndicateId));
+  const buildingIds = buildings.map((b2) => b2.id);
+  if (!buildingIds.length) return null;
+  const appelsAll = await db.select({ status: appelsDeFondsTable.status, amount: appelsDeFondsTable.amount }).from(appelsDeFondsTable).where(
+    and(
+      inArray(appelsDeFondsTable.buildingId, buildingIds),
+      sql`${appelsDeFondsTable.period} LIKE ${monthStr + "%"}`
+    )
+  );
+  const totalAmt = appelsAll.reduce((s, a) => s + parseFloat(a.amount ?? "0"), 0);
+  const paidAmt = appelsAll.filter((a) => a.status === "paid").reduce((s, a) => s + parseFloat(a.amount ?? "0"), 0);
+  const collectionRate = totalAmt > 0 ? paidAmt / totalAmt * 100 : 100;
+  const sinistresAll = await db.select({ status: sinistresTable.status }).from(sinistresTable).where(inArray(sinistresTable.buildingId, buildingIds));
+  const totalSin = sinistresAll.length;
+  const resolvedSin = sinistresAll.filter((s) => ["resolved", "closed"].includes(s.status)).length;
+  const incidentResolutionRate = totalSin > 0 ? resolvedSin / totalSin * 100 : 100;
+  const docsCount = await db.select({ id: documentsTable.id }).from(documentsTable).where(
+    and(
+      eq(documentsTable.syndicateId, syndicateId),
+      sql`${documentsTable.createdAt} >= ${monthStart}`,
+      sql`${documentsTable.createdAt} <= ${monthEnd}`
+    )
+  );
+  const documentationScore = Math.min(100, docsCount.length / 5 * 100);
+  const meetingsHeld = await db.select({ id: meetingsTable.id }).from(meetingsTable).where(
+    and(
+      eq(meetingsTable.syndicateId, syndicateId),
+      sql`EXTRACT(YEAR FROM ${meetingsTable.createdAt}) = ${year}`,
+      sql`${meetingsTable.status} IN ('completed', 'held')`
+    )
+  );
+  const expectedMeetings = Math.ceil(month / 3);
+  const meetingComplianceScore = Math.min(100, meetingsHeld.length / expectedMeetings * 100);
+  const memberSatisfaction = 50;
+  const totalScore = collectionRate * 0.35 + incidentResolutionRate * 0.25 + documentationScore * 0.15 + meetingComplianceScore * 0.15 + memberSatisfaction * 0.1;
+  return {
+    collectionRate: collectionRate.toFixed(2),
+    incidentResolutionRate: incidentResolutionRate.toFixed(2),
+    documentationScore: documentationScore.toFixed(2),
+    meetingComplianceScore: meetingComplianceScore.toFixed(2),
+    memberSatisfaction: memberSatisfaction.toFixed(2),
+    totalScore: totalScore.toFixed(2)
+  };
+}
+router27.post("/rankings/compute", requireAuth, requireAdmin, async (req, res) => {
+  try {
+    const now = /* @__PURE__ */ new Date();
+    const month = parseInt((req.body.month ?? now.getMonth() + 1).toString());
+    const year = parseInt((req.body.year ?? now.getFullYear()).toString());
+    const syndicates = await db.select({ id: syndicatesTable.id, region: syndicatesTable.city }).from(syndicatesTable);
+    const results = [];
+    for (const syndicate of syndicates) {
+      try {
+        const scores = await computeScoreForSyndicate(syndicate.id, month, year);
+        if (!scores) continue;
+        await db.insert(nationalRankingsTable).values({
+          syndicateId: syndicate.id,
+          month,
+          year,
+          region: syndicate.region ?? "",
+          ...scores
+        }).onConflictDoUpdate({
+          target: [nationalRankingsTable.syndicateId, nationalRankingsTable.month, nationalRankingsTable.year],
+          set: scores
+        });
+        results.push({ syndicateId: syndicate.id, totalScore: scores.totalScore });
+      } catch (_) {
+      }
+    }
+    results.sort((a, b2) => parseFloat(b2.totalScore) - parseFloat(a.totalScore));
+    for (let i = 0; i < results.length; i++) {
+      await db.update(nationalRankingsTable).set({ rank: i + 1 }).where(
+        and(
+          eq(nationalRankingsTable.syndicateId, results[i].syndicateId),
+          eq(nationalRankingsTable.month, month),
+          eq(nationalRankingsTable.year, year)
+        )
+      );
+    }
+    res.json({ message: `Classement calcul\xE9 pour ${month}/${year}`, computed: results.length });
+  } catch (e) {
+    console.error(e);
+    res.status(500).json({ error: "Erreur serveur" });
+  }
+});
+router27.get("/rankings", requireAuth, async (req, res) => {
+  try {
+    const now = /* @__PURE__ */ new Date();
+    const month = parseInt(req.query.month ?? now.getMonth() + 1);
+    const year = parseInt(req.query.year ?? now.getFullYear());
+    const region = req.query.region;
+    const limit = Math.min(100, parseInt(req.query.limit ?? "50"));
+    const offset = parseInt(req.query.offset ?? "0");
+    const conditions = [
+      eq(nationalRankingsTable.month, month),
+      eq(nationalRankingsTable.year, year)
+    ];
+    if (region) conditions.push(eq(nationalRankingsTable.region, region));
+    const rows = await db.select({
+      ranking: nationalRankingsTable,
+      syndicateName: syndicatesTable.name,
+      syndicateCity: syndicatesTable.city
+    }).from(nationalRankingsTable).leftJoin(syndicatesTable, eq(nationalRankingsTable.syndicateId, syndicatesTable.id)).where(and(...conditions)).orderBy(nationalRankingsTable.rank).limit(limit).offset(offset);
+    const [{ total }] = await db.select({ total: sql`COUNT(*)` }).from(nationalRankingsTable).where(and(...conditions));
+    res.json({
+      data: rows.map((r) => ({ ...r.ranking, syndicateName: r.syndicateName, city: r.syndicateCity })),
+      total,
+      month,
+      year
+    });
+  } catch (e) {
+    console.error(e);
+    res.status(500).json({ error: "Erreur serveur" });
+  }
+});
+router27.get("/rankings/my-syndicate", requireAuth, async (req, res) => {
+  try {
+    const user = req.user;
+    if (!user.syndicateId) return res.json({ data: [] });
+    const rows = await db.select().from(nationalRankingsTable).where(eq(nationalRankingsTable.syndicateId, user.syndicateId)).orderBy(desc(nationalRankingsTable.year), desc(nationalRankingsTable.month)).limit(12);
+    res.json({ data: rows });
+  } catch (e) {
+    console.error(e);
+    res.status(500).json({ error: "Erreur serveur" });
+  }
+});
+var rankings_default = router27;
+
+// src/routes/team.ts
+var import_express28 = __toESM(require_express2(), 1);
+var router28 = (0, import_express28.Router)();
+router28.get("/team", requireAuth, async (req, res) => {
+  try {
+    const user = req.user;
+    if (!user.syndicateId) return res.json({ data: [] });
+    const admins = await db.select({
+      id: usersTable.id,
+      name: usersTable.name,
+      email: usersTable.email,
+      phone: usersTable.phone,
+      role: usersTable.role,
+      avatar: usersTable.avatar,
+      syndicateId: usersTable.syndicateId
+    }).from(usersTable).where(
+      and(
+        eq(usersTable.syndicateId, user.syndicateId),
+        or(
+          eq(usersTable.role, "syndicate_admin"),
+          eq(usersTable.role, "super_admin")
+        )
+      )
+    );
+    const committee = await db.select({
+      id: membersTable.id,
+      name: membersTable.name,
+      email: membersTable.email,
+      phone: membersTable.phone,
+      role: membersTable.role,
+      syndicateId: membersTable.syndicateId
+    }).from(membersTable).where(
+      and(
+        eq(membersTable.syndicateId, user.syndicateId),
+        or(
+          eq(membersTable.role, "committee"),
+          eq(membersTable.role, "president"),
+          eq(membersTable.role, "treasurer"),
+          eq(membersTable.role, "secretary")
+        )
+      )
+    );
+    const [syndicate] = await db.select().from(syndicatesTable).where(eq(syndicatesTable.id, user.syndicateId));
+    res.json({
+      data: {
+        syndicate: syndicate ?? null,
+        admins: admins.map((a) => ({ ...a, type: "admin" })),
+        committee: committee.map((c) => ({ ...c, type: "committee" }))
+      }
+    });
+  } catch (e) {
+    console.error(e);
+    res.status(500).json({ error: "Erreur serveur" });
+  }
+});
+router28.put("/team/syndicate", requireAuth, requireAdmin, async (req, res) => {
+  try {
+    const user = req.user;
+    if (!user.syndicateId) return res.status(400).json({ error: "Pas de syndicat associ\xE9" });
+    const allowed = ["email", "phone", "address", "officeHours", "website"];
+    const updates = {};
+    for (const k of allowed) {
+      if (req.body[k] !== void 0) updates[k] = req.body[k];
+    }
+    const [updated] = await db.update(syndicatesTable).set(updates).where(eq(syndicatesTable.id, user.syndicateId)).returning();
+    res.json({ data: updated, message: "Informations mises \xE0 jour" });
+  } catch (e) {
+    console.error(e);
+    res.status(500).json({ error: "Erreur serveur" });
+  }
+});
+router28.put("/team/members/:id", requireAuth, requireAdmin, async (req, res) => {
+  try {
+    const { role } = req.body;
+    const validRoles = ["member", "committee", "president", "treasurer", "secretary"];
+    if (!validRoles.includes(role)) {
+      return res.status(400).json({ error: `R\xF4le invalide. Valeurs accept\xE9es: ${validRoles.join(", ")}` });
+    }
+    const [updated] = await db.update(membersTable).set({ profession: role }).where(eq(membersTable.id, req.params.id)).returning();
+    if (!updated) return res.status(404).json({ error: "Membre introuvable" });
+    res.json({ data: updated, message: "R\xF4le mis \xE0 jour" });
+  } catch (e) {
+    console.error(e);
+    res.status(500).json({ error: "Erreur serveur" });
+  }
+});
+var team_default = router28;
+
+// src/routes/subscriptions.ts
+var import_express29 = __toESM(require_express2(), 1);
+var router29 = (0, import_express29.Router)();
+router29.get("/subscriptions/plans", requireAuth, async (_req, res) => {
+  try {
+    const plans = await db.select().from(subscriptionPlansTable).orderBy(subscriptionPlansTable.name);
+    res.json({ data: plans });
+  } catch (e) {
+    console.error(e);
+    res.status(500).json({ error: "Server error" });
+  }
+});
+router29.get("/subscriptions/my", requireAuth, async (req, res) => {
+  try {
+    const syndicateId = req.user.syndicateId;
+    if (!syndicateId) {
+      res.status(400).json({ error: "Aucun syndicat associ\xE9" });
+      return;
+    }
+    const [sub] = await db.select({
+      id: syndicateSubscriptionsTable.id,
+      syndicateId: syndicateSubscriptionsTable.syndicateId,
+      planId: syndicateSubscriptionsTable.planId,
+      status: syndicateSubscriptionsTable.status,
+      autoRenew: syndicateSubscriptionsTable.autoRenew,
+      createdAt: syndicateSubscriptionsTable.createdAt,
+      planName: subscriptionPlansTable.name,
+      planPrice: subscriptionPlansTable.price,
+      planInterval: subscriptionPlansTable.interval,
+      planFeatures: subscriptionPlansTable.features
+    }).from(syndicateSubscriptionsTable).leftJoin(subscriptionPlansTable, eq(syndicateSubscriptionsTable.planId, subscriptionPlansTable.id)).where(eq(syndicateSubscriptionsTable.syndicateId, syndicateId)).orderBy(desc(syndicateSubscriptionsTable.createdAt)).limit(1);
+    res.json({ data: sub ?? null });
+  } catch (e) {
+    console.error(e);
+    res.status(500).json({ error: "Server error" });
+  }
+});
+router29.get("/subscriptions", requireAuth, requireAdmin, async (req, res) => {
+  try {
+    const rows = await db.select({
+      id: syndicateSubscriptionsTable.id,
+      syndicateId: syndicateSubscriptionsTable.syndicateId,
+      planId: syndicateSubscriptionsTable.planId,
+      status: syndicateSubscriptionsTable.status,
+      autoRenew: syndicateSubscriptionsTable.autoRenew,
+      createdAt: syndicateSubscriptionsTable.createdAt,
+      syndicateName: syndicatesTable.name,
+      planName: subscriptionPlansTable.name,
+      planPrice: subscriptionPlansTable.price,
+      planInterval: subscriptionPlansTable.interval
+    }).from(syndicateSubscriptionsTable).leftJoin(syndicatesTable, eq(syndicateSubscriptionsTable.syndicateId, syndicatesTable.id)).leftJoin(subscriptionPlansTable, eq(syndicateSubscriptionsTable.planId, subscriptionPlansTable.id)).orderBy(desc(syndicateSubscriptionsTable.createdAt));
+    res.json({ data: rows });
+  } catch (e) {
+    console.error(e);
+    res.status(500).json({ error: "Server error" });
+  }
+});
+router29.post("/subscriptions", requireAuth, requireAdmin, async (req, res) => {
+  try {
+    const { planId, syndicateId: targetSyndicateId } = req.body;
+    if (!planId) {
+      res.status(400).json({ error: "planId est requis" });
+      return;
+    }
+    const syndicateId = req.user.role === "super_admin" ? targetSyndicateId : req.user.syndicateId;
+    if (!syndicateId) {
+      res.status(400).json({ error: "syndicateId est requis" });
+      return;
+    }
+    const [plan] = await db.select().from(subscriptionPlansTable).where(eq(subscriptionPlansTable.id, planId));
+    if (!plan) {
+      res.status(404).json({ error: "Plan introuvable" });
+      return;
+    }
+    await db.update(syndicateSubscriptionsTable).set({ status: "cancelled" }).where(eq(syndicateSubscriptionsTable.syndicateId, syndicateId));
+    const [sub] = await db.insert(syndicateSubscriptionsTable).values({
+      syndicateId,
+      planId,
+      status: "active",
+      autoRenew: true
+    }).returning();
+    res.status(201).json({ data: sub, message: "Abonnement activ\xE9" });
+  } catch (e) {
+    console.error(e);
+    res.status(500).json({ error: "Server error" });
+  }
+});
+router29.put("/subscriptions/:id", requireAuth, requireAdmin, async (req, res) => {
+  try {
+    const { id: id2 } = req.params;
+    const { status, autoRenew } = req.body;
+    const update = {};
+    if (status !== void 0) update.status = status;
+    if (autoRenew !== void 0) update.autoRenew = autoRenew;
+    const [updated] = await db.update(syndicateSubscriptionsTable).set(update).where(eq(syndicateSubscriptionsTable.id, id2)).returning();
+    if (!updated) {
+      res.status(404).json({ error: "Abonnement introuvable" });
+      return;
+    }
+    res.json({ data: updated, message: "Mis \xE0 jour" });
+  } catch (e) {
+    console.error(e);
+    res.status(500).json({ error: "Server error" });
+  }
+});
+var subscriptions_default = router29;
+
+// src/routes/index.ts
+var router30 = (0, import_express30.Router)();
+router30.use(health_default);
+router30.use(auth_default);
+router30.use(members_default);
+router30.use(users_default);
+router30.use(syndicates_default);
+router30.use(elections_default);
+router30.use(meetings_default);
+router30.use(finance_default);
+router30.use(marketplace_default);
+router30.use(chat_default);
+router30.use(documents_default);
+router30.use(publications_default);
+router30.use(content_default);
+router30.use(audit_default);
+router30.use(statistics_default);
+router30.use(buildings_default);
+router30.use(lots_default);
+router30.use(travaux_default);
+router30.use(prestataires_default);
+router30.use(budget_default);
+router30.use(sinistres_default);
+router30.use(locataires_default);
+router30.use(ag_default);
+router30.use(finance_building_default);
+router30.use(ideas_default);
+router30.use(transparency_default);
+router30.use(rankings_default);
+router30.use(team_default);
+router30.use(subscriptions_default);
+var routes_default = router30;
 
 // src/app.ts
 var import_ioredis = __toESM(require_built3(), 1);
-var app = (0, import_express26.default)();
+var app = (0, import_express31.default)();
 app.set("trust proxy", 1);
 var allowedOrigins = process.env.ALLOWED_ORIGINS ? process.env.ALLOWED_ORIGINS.split(",").map((o) => o.trim()) : [];
 if (process.env.NODE_ENV === "production" && allowedOrigins.length === 0) {
@@ -68352,14 +69959,15 @@ app.use(
     }
   })
 );
-app.use(import_express26.default.json({ limit: "2mb" }));
-app.use(import_express26.default.urlencoded({ extended: true, limit: "2mb" }));
+app.use(import_express31.default.json({ limit: "2mb" }));
+app.use(import_express31.default.urlencoded({ extended: true, limit: "2mb" }));
 app.use("/api/auth", authLimiter);
 app.use("/api", apiLimiter);
 app.use("/api", routes_default);
 var app_default = app;
 
 // src/index.ts
+validateAuthConfig();
 var rawPort = process.env["PORT"];
 if (!rawPort) {
   throw new Error(

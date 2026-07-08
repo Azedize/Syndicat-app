@@ -2,7 +2,7 @@ import {
   pgTable,
   text,
   integer,
-  doublePrecision,
+  numeric,
   boolean,
   timestamp,
   primaryKey,
@@ -10,6 +10,9 @@ import {
   uniqueIndex,
 } from "drizzle-orm/pg-core";
 import { sql } from "drizzle-orm";
+
+// Precise monetary type — numeric(12,2) avoids floating-point errors in financial calculations
+const money = (col: string) => numeric(col, { precision: 12, scale: 2 });
 
 const id = () =>
   text("id")
@@ -23,11 +26,27 @@ const createdAt = () => timestamp("created_at").defaultNow();
 export const syndicatesTable = pgTable("syndicates", {
   id: id(),
   name: text("name").notNull(),
+  abbreviation: text("abbreviation"),
   sector: text("sector"),
   region: text("region"),
   adminId: text("admin_id"),
   status: text("status").default("active"),
   membersCount: integer("members_count").default(0),
+  // Contact
+  email: text("email"),
+  phone: text("phone"),
+  website: text("website"),
+  address: text("address"),
+  // Legal (Dahir 1-57-119)
+  legalForm: text("legal_form"),
+  registrationNumber: text("registration_number"),
+  foundingDate: text("founding_date"),
+  mission: text("mission"),
+  // Branding
+  logoColor: text("logo_color").default("#7c3aed"),
+  // Finance defaults
+  cotisationAmount: money("cotisation_amount"),
+  cotisationCycle: text("cotisation_cycle").default("monthly"),
   createdAt: createdAt(),
 });
 
@@ -130,7 +149,7 @@ export const lotsTable = pgTable(
     number: text("number").notNull(),
     type: text("type").default("appartement"),
     floor: integer("floor").default(0),
-    surfaceM2: doublePrecision("surface_m2"),
+    surfaceM2: money("surface_m2"),
     tantiemes: integer("tantiemes").default(0),
     buildingId: text("building_id").notNull().references(() => buildingsTable.id, { onDelete: "cascade" }),
     ownerId: text("owner_id").references(() => membersTable.id, { onDelete: "set null" }),
@@ -157,8 +176,8 @@ export const tenantsTable = pgTable(
     syndicateId: text("syndicate_id").references(() => syndicatesTable.id, { onDelete: "cascade" }),
     leaseStart: text("lease_start"),
     leaseEnd: text("lease_end"),
-    monthlyRent: doublePrecision("monthly_rent"),
-    depositAmount: doublePrecision("deposit_amount"),
+    monthlyRent: money("monthly_rent"),
+    depositAmount: money("deposit_amount"),
     status: text("status").default("active"),
     emergencyContact: text("emergency_contact"),
     emergencyPhone: text("emergency_phone"),
@@ -181,9 +200,9 @@ export const budgetsTable = pgTable(
     id: id(),
     year: integer("year").notNull(),
     buildingId: text("building_id").notNull().references(() => buildingsTable.id, { onDelete: "cascade" }),
-    totalAmount: doublePrecision("total_amount").default(0),
-    chargesAmount: doublePrecision("charges_amount").default(0),
-    fondsReserve: doublePrecision("fonds_reserve").default(0),
+    totalAmount: money("total_amount").default("0"),
+    chargesAmount: money("charges_amount").default("0"),
+    fondsReserve: money("fonds_reserve").default("0"),
     status: text("status").default("draft"),
     notes: text("notes"),
     createdBy: text("created_by"),
@@ -204,11 +223,11 @@ export const budgetLinesTable = pgTable(
     budgetId: text("budget_id").notNull().references(() => budgetsTable.id, { onDelete: "cascade" }),
     category: text("category").notNull(),
     label: text("label").notNull(),
-    amountAnnual: doublePrecision("amount_annual").default(0),
-    amountQ1: doublePrecision("amount_q1"),
-    amountQ2: doublePrecision("amount_q2"),
-    amountQ3: doublePrecision("amount_q3"),
-    amountQ4: doublePrecision("amount_q4"),
+    amountAnnual: money("amount_annual").default("0"),
+    amountQ1: money("amount_q1"),
+    amountQ2: money("amount_q2"),
+    amountQ3: money("amount_q3"),
+    amountQ4: money("amount_q4"),
     prestataireId: text("prestataire_id"),
   },
   (t) => [index("budget_lines_budget_id_idx").on(t.budgetId)],
@@ -224,14 +243,18 @@ export const appelsDeFondsTable = pgTable(
     ownerId: text("owner_id").references(() => membersTable.id, { onDelete: "set null" }),
     period: text("period").notNull(),
     type: text("type").default("charges_courantes"),
-    amount: doublePrecision("amount").notNull(),
+    amount: money("amount").notNull(),
     dueDate: text("due_date"),
+    // status: pending | pending_validation | paid | overdue | rejected
     status: text("status").default("pending"),
     paymentMethod: text("payment_method"),
     proofUrl: text("proof_url"),
     notes: text("notes"),
     paidDate: text("paid_date"),
     receiptNumber: text("receipt_number"),
+    rejectionReason: text("rejection_reason"),
+    validatedBy: text("validated_by"),
+    validatedAt: timestamp("validated_at"),
     createdAt: createdAt(),
   },
   (t) => [
@@ -249,7 +272,7 @@ export const transactionsTable = pgTable(
   {
     id: id(),
     type: text("type").notNull(),
-    amount: doublePrecision("amount").notNull(),
+    amount: money("amount").notNull(),
     label: text("label").notNull(),
     date: text("date").notNull(),
     status: text("status").default("paid"),
@@ -270,7 +293,7 @@ export const salaryRecordsTable = pgTable(
     id: id(),
     employee: text("employee").notNull(),
     role: text("role").notNull(),
-    amount: doublePrecision("amount").notNull(),
+    amount: money("amount").notNull(),
     month: text("month").notNull(),
     status: text("status").default("pending"),
     paidDate: text("paid_date"),
@@ -285,12 +308,12 @@ export const caisseEntriesTable = pgTable(
   {
     id: id(),
     label: text("label").notNull(),
-    amount: doublePrecision("amount").notNull(),
+    amount: money("amount").notNull(),
     type: text("type").notNull(),
     date: text("date").notNull(),
     category: text("category").default(""),
     syndicateId: text("syndicate_id").references(() => syndicatesTable.id, { onDelete: "cascade" }),
-    balance: doublePrecision("balance"),
+    balance: money("balance"),
     createdAt: createdAt(),
   },
   (t) => [index("caisse_entries_syndicate_id_idx").on(t.syndicateId)],
@@ -304,7 +327,7 @@ export const invoicesTable = pgTable("invoices", {
   date: text("date").notNull(),
   dueDate: text("due_date").notNull(),
   status: text("status").default("draft"),
-  amount: doublePrecision("amount").default(0),
+  amount: money("amount").default("0"),
   syndicateId: text("syndicate_id"),
   createdAt: createdAt(),
 });
@@ -315,8 +338,8 @@ export const invoiceItemsTable = pgTable(
     id: id(),
     invoiceId: text("invoice_id").notNull().references(() => invoicesTable.id, { onDelete: "cascade" }),
     label: text("label").notNull(),
-    quantity: doublePrecision("quantity").notNull(),
-    unitPrice: doublePrecision("unit_price").notNull(),
+    quantity: money("quantity").notNull(),
+    unitPrice: money("unit_price").notNull(),
   },
   (t) => [index("invoice_items_invoice_id_idx").on(t.invoiceId)],
 );
@@ -327,7 +350,7 @@ export const bonsLivraisonTable = pgTable("bons_livraison", {
   recipient: text("recipient").notNull(),
   date: text("date").notNull(),
   type: text("type").default("sortie"),
-  total: doublePrecision("total").default(0),
+  total: money("total").default("0"),
   status: text("status").default("draft"),
   syndicateId: text("syndicate_id"),
   createdAt: createdAt(),
@@ -339,8 +362,8 @@ export const bonItemsTable = pgTable(
     id: id(),
     bonId: text("bon_id").notNull().references(() => bonsLivraisonTable.id, { onDelete: "cascade" }),
     label: text("label").notNull(),
-    quantity: doublePrecision("quantity").notNull(),
-    unitPrice: doublePrecision("unit_price").notNull(),
+    quantity: money("quantity").notNull(),
+    unitPrice: money("unit_price").notNull(),
   },
   (t) => [index("bon_items_bon_id_idx").on(t.bonId)],
 );
@@ -360,7 +383,7 @@ export const prestatairesTable = pgTable("prestataires", {
   buildingId: text("building_id"),
   syndicateId: text("syndicate_id"),
   status: text("status").default("active"),
-  rating: doublePrecision("rating"),
+  rating: money("rating"),
   notes: text("notes"),
   createdAt: createdAt(),
 });
@@ -372,8 +395,8 @@ export const contratsPrestatairesTable = pgTable("contrats_prestataires", {
   title: text("title").notNull(),
   startDate: text("start_date"),
   endDate: text("end_date"),
-  monthlyAmount: doublePrecision("monthly_amount"),
-  annualAmount: doublePrecision("annual_amount"),
+  monthlyAmount: money("monthly_amount"),
+  annualAmount: money("annual_amount"),
   status: text("status").default("active"),
   autoRenew: boolean("auto_renew").default(false),
   documentUrl: text("document_url"),
@@ -396,8 +419,8 @@ export const travauxTable = pgTable(
     reportedById: text("reported_by_id"),
     reportedByName: text("reported_by_name"),
     assignedById: text("assigned_by_id"),
-    estimatedAmount: doublePrecision("estimated_amount"),
-    actualAmount: doublePrecision("actual_amount"),
+    estimatedAmount: money("estimated_amount"),
+    actualAmount: money("actual_amount"),
     startDate: text("start_date"),
     endDate: text("end_date"),
     completedAt: timestamp("completed_at"),
@@ -420,10 +443,17 @@ export const sinistresTable = pgTable(
     type: text("type").notNull(),
     description: text("description").notNull(),
     date: text("date").notNull(),
-    estimatedAmount: doublePrecision("estimated_amount"),
-    indemnisedAmount: doublePrecision("indemnised_amount"),
+    estimatedAmount: money("estimated_amount"),
+    indemnisedAmount: money("indemnised_amount"),
     claimNumber: text("claim_number"),
+    // status: declared | under_review | assigned | in_progress | resolved | closed
     status: text("status").default("declared"),
+    urgency: text("urgency").default("normal"), // low | normal | high | critical
+    imageUrls: text("image_urls").default("[]"), // JSON array of photo URLs
+    contractorId: text("contractor_id"),
+    resolvedAt: timestamp("resolved_at"),
+    resolutionNote: text("resolution_note"),
+    invoiceUrl: text("invoice_url"),
     reportedById: text("reported_by_id"),
     reportedByName: text("reported_by_name"),
     notes: text("notes"),
@@ -432,6 +462,7 @@ export const sinistresTable = pgTable(
   (t) => [
     index("sinistres_building_id_idx").on(t.buildingId),
     index("sinistres_status_idx").on(t.status),
+    index("sinistres_urgency_idx").on(t.urgency),
   ],
 );
 
@@ -683,59 +714,182 @@ export const messageReadsTable = pgTable(
 );
 
 // ─── Marketplace ────────────────────────────────────────────────────────────
+// status: pending_review | approved | rejected | modification_requested | sold_out
 
-export const productsTable = pgTable("products", {
-  id: id(),
-  name: text("name").notNull(),
-  description: text("description").default(""),
-  price: doublePrecision("price").notNull(),
-  category: text("category").notNull(),
-  stock: integer("stock").default(0),
-  syndicateId: text("syndicate_id"),
-  sellerId: text("seller_id"),
-  sellerName: text("seller_name"),
-  status: text("status").default("available"),
-  createdAt: createdAt(),
-});
+export const productsTable = pgTable(
+  "products",
+  {
+    id: id(),
+    name: text("name").notNull(),
+    description: text("description").default(""),
+    price: money("price").notNull(),
+    category: text("category").notNull(),
+    condition: text("condition").default("bon"), // neuf | bon | acceptable | mauvais
+    location: text("location").default(""),
+    imageUrls: text("image_urls").default("[]"), // JSON array of image URLs
+    stock: integer("stock").default(1),
+    syndicateId: text("syndicate_id"),
+    sellerId: text("seller_id"),
+    sellerName: text("seller_name"),
+    status: text("status").default("pending_review"),
+    rejectionReason: text("rejection_reason"),
+    moderationNote: text("moderation_note"),
+    moderatedBy: text("moderated_by"),
+    moderatedAt: timestamp("moderated_at"),
+    featured: boolean("featured").default(false),
+    boosted: boolean("boosted").default(false),
+    boostType: text("boost_type"), // featured | top_search | homepage
+    boostExpiresAt: timestamp("boost_expires_at"),
+    viewCount: integer("view_count").default(0),
+    createdAt: createdAt(),
+  },
+  (t) => [
+    index("products_status_idx").on(t.status),
+    index("products_seller_id_idx").on(t.sellerId),
+    index("products_syndicate_id_idx").on(t.syndicateId),
+    index("products_category_idx").on(t.category),
+    index("products_featured_idx").on(t.featured),
+    index("products_created_at_idx").on(t.createdAt),
+  ],
+);
 
-export const cartItemsTable = pgTable("cart_items", {
-  id: id(),
-  userId: text("user_id").notNull(),
-  productId: text("product_id").notNull(),
-  productName: text("product_name"),
-  price: doublePrecision("price"),
-  sellerName: text("seller_name"),
-  quantity: integer("quantity").default(1),
-  createdAt: createdAt(),
-});
+export const cartItemsTable = pgTable(
+  "cart_items",
+  {
+    id: id(),
+    userId: text("user_id").notNull(),
+    productId: text("product_id").notNull(),
+    productName: text("product_name"),
+    price: money("price"),
+    sellerName: text("seller_name"),
+    quantity: integer("quantity").default(1),
+    createdAt: createdAt(),
+  },
+  (t) => [
+    index("cart_items_user_id_idx").on(t.userId),
+    index("cart_items_product_id_idx").on(t.productId),
+  ],
+);
 
-export const ordersTable = pgTable("orders", {
-  id: id(),
-  productId: text("product_id"),
-  productName: text("product_name"),
-  buyerId: text("buyer_id"),
-  buyerName: text("buyer_name"),
-  sellerId: text("seller_id"),
-  sellerName: text("seller_name"),
-  amount: doublePrecision("amount"),
-  status: text("status").default("pending"),
-  type: text("type").default("purchase"),
-  date: text("date"),
-  createdAt: createdAt(),
-});
+export const ordersTable = pgTable(
+  "orders",
+  {
+    id: id(),
+    productId: text("product_id"),
+    productName: text("product_name"),
+    buyerId: text("buyer_id"),
+    buyerName: text("buyer_name"),
+    sellerId: text("seller_id"),
+    sellerName: text("seller_name"),
+    amount: money("amount"),
+    status: text("status").default("pending"), // pending | confirmed | shipped | delivered | cancelled
+    type: text("type").default("purchase"),
+    date: text("date"),
+    createdAt: createdAt(),
+  },
+  (t) => [
+    index("orders_buyer_id_idx").on(t.buyerId),
+    index("orders_seller_id_idx").on(t.sellerId),
+    index("orders_status_idx").on(t.status),
+    index("orders_created_at_idx").on(t.createdAt),
+  ],
+);
 
-export const reviewsTable = pgTable("reviews", {
-  id: id(),
-  productId: text("product_id"),
-  productName: text("product_name"),
-  orderId: text("order_id"),
-  rating: integer("rating").notNull(),
-  comment: text("comment").default(""),
-  reviewerId: text("reviewer_id"),
-  reviewerName: text("reviewer_name"),
-  date: text("date"),
-  createdAt: createdAt(),
-});
+export const reviewsTable = pgTable(
+  "reviews",
+  {
+    id: id(),
+    productId: text("product_id"),
+    productName: text("product_name"),
+    orderId: text("order_id"),
+    rating: integer("rating").notNull(),
+    comment: text("comment").default(""),
+    reviewerId: text("reviewer_id"),
+    reviewerName: text("reviewer_name"),
+    date: text("date"),
+    createdAt: createdAt(),
+  },
+  (t) => [
+    index("reviews_product_id_idx").on(t.productId),
+    index("reviews_reviewer_id_idx").on(t.reviewerId),
+  ],
+);
+
+export const productFavoritesTable = pgTable(
+  "product_favorites",
+  {
+    id: id(),
+    productId: text("product_id").notNull().references(() => productsTable.id, { onDelete: "cascade" }),
+    userId: text("user_id").notNull(),
+    createdAt: createdAt(),
+  },
+  (t) => [
+    index("product_favorites_product_id_idx").on(t.productId),
+    index("product_favorites_user_id_idx").on(t.userId),
+    uniqueIndex("product_favorites_unique_idx").on(t.productId, t.userId),
+  ],
+);
+
+export const productReportsTable = pgTable(
+  "product_reports",
+  {
+    id: id(),
+    productId: text("product_id").notNull().references(() => productsTable.id, { onDelete: "cascade" }),
+    reporterId: text("reporter_id").notNull(),
+    reporterName: text("reporter_name"),
+    reason: text("reason").notNull(), // spam | inappropriate | fraude | mauvaise_info | autre
+    details: text("details").default(""),
+    status: text("status").default("pending"), // pending | reviewed | dismissed
+    reviewedBy: text("reviewed_by"),
+    reviewedAt: timestamp("reviewed_at"),
+    createdAt: createdAt(),
+  },
+  (t) => [
+    index("product_reports_product_id_idx").on(t.productId),
+    index("product_reports_reporter_id_idx").on(t.reporterId),
+    index("product_reports_status_idx").on(t.status),
+  ],
+);
+
+export const productCommentsTable = pgTable(
+  "product_comments",
+  {
+    id: id(),
+    productId: text("product_id").notNull().references(() => productsTable.id, { onDelete: "cascade" }),
+    userId: text("user_id").notNull(),
+    userName: text("user_name"),
+    userRole: text("user_role"),
+    content: text("content").notNull(),
+    createdAt: createdAt(),
+  },
+  (t) => [
+    index("product_comments_product_id_idx").on(t.productId),
+    index("product_comments_created_at_idx").on(t.createdAt),
+  ],
+);
+
+export const marketplacePromotionsTable = pgTable(
+  "marketplace_promotions",
+  {
+    id: id(),
+    productId: text("product_id").notNull().references(() => productsTable.id, { onDelete: "cascade" }),
+    sellerId: text("seller_id").notNull(),
+    type: text("type").notNull(), // featured | top_search | homepage
+    startDate: timestamp("start_date").notNull(),
+    endDate: timestamp("end_date").notNull(),
+    amount: money("amount").notNull(),
+    status: text("status").default("active"), // active | expired | cancelled
+    approvedBy: text("approved_by"),
+    notes: text("notes"),
+    createdAt: createdAt(),
+  },
+  (t) => [
+    index("marketplace_promotions_product_id_idx").on(t.productId),
+    index("marketplace_promotions_seller_id_idx").on(t.sellerId),
+    index("marketplace_promotions_status_idx").on(t.status),
+    index("marketplace_promotions_end_date_idx").on(t.endDate),
+  ],
+);
 
 // ─── Legal Alerts, Support, System Alerts ──────────────────────────────────
 
@@ -789,7 +943,7 @@ export const cotisationsTable = pgTable(
     memberId: text("member_id").notNull(),
     label: text("label").notNull(),
     period: text("period").notNull(),
-    amount: doublePrecision("amount").notNull(),
+    amount: money("amount").notNull(),
     dueDate: text("due_date"),
     status: text("status").default("pending"),
     syndicateId: text("syndicate_id"),
@@ -812,7 +966,7 @@ export const paymentProofsTable = pgTable(
     userId: text("user_id"),
     fileUrl: text("file_url"),
     proofUrl: text("proof_url"),
-    amount: doublePrecision("amount"),
+    amount: money("amount"),
     notes: text("notes"),
     status: text("status").default("pending"),
     uploadedById: text("uploaded_by_id"),
@@ -880,7 +1034,7 @@ export const payslipsTable = pgTable("payslips", {
   id: id(),
   userId: text("user_id"),
   month: text("month"),
-  amount: doublePrecision("amount"),
+  amount: money("amount"),
   fileUrl: text("file_url"),
   syndicateId: text("syndicate_id"),
   createdAt: createdAt(),
@@ -889,7 +1043,7 @@ export const payslipsTable = pgTable("payslips", {
 export const subscriptionPlansTable = pgTable("subscription_plans", {
   id: id(),
   name: text("name").notNull(),
-  price: doublePrecision("price"),
+  price: money("price"),
   interval: text("interval").default("monthly"),
   features: text("features").default("[]"),
   createdAt: createdAt(),
@@ -918,3 +1072,145 @@ export const auditLogsTable = pgTable("audit_logs", {
   ipAddress: text("ip_address"),
   createdAt: createdAt(),
 });
+
+// ─── P6: Improvement Ideas & Voting ─────────────────────────────────────────
+
+export const ideasTable = pgTable(
+  "ideas",
+  {
+    id: id(),
+    syndicateId: text("syndicate_id").references(() => syndicatesTable.id, { onDelete: "cascade" }),
+    userId: text("user_id").references(() => usersTable.id, { onDelete: "set null" }),
+    userName: text("user_name").notNull(),
+    title: text("title").notNull(),
+    description: text("description").notNull(),
+    category: text("category").default("general"), // infrastructure | environment | services | general | governance
+    // status: submitted | under_review | approved | rejected | implemented
+    status: text("status").default("submitted"),
+    voteCount: integer("vote_count").default(0),
+    voteDeadline: text("vote_deadline"),
+    implementedAt: timestamp("implemented_at"),
+    adminNote: text("admin_note"),
+    createdAt: createdAt(),
+  },
+  (t) => [
+    index("ideas_syndicate_id_idx").on(t.syndicateId),
+    index("ideas_status_idx").on(t.status),
+    index("ideas_user_id_idx").on(t.userId),
+  ],
+);
+
+export const ideaVotesTable = pgTable(
+  "idea_votes",
+  {
+    id: id(),
+    ideaId: text("idea_id").notNull().references(() => ideasTable.id, { onDelete: "cascade" }),
+    userId: text("user_id").notNull().references(() => usersTable.id, { onDelete: "cascade" }),
+    createdAt: createdAt(),
+  },
+  (t) => [
+    uniqueIndex("idea_votes_unique_idx").on(t.ideaId, t.userId),
+    index("idea_votes_idea_id_idx").on(t.ideaId),
+  ],
+);
+
+// ─── P7: Debt Escalation ─────────────────────────────────────────────────────
+
+export const debtEscalationsTable = pgTable(
+  "debt_escalations",
+  {
+    id: id(),
+    syndicateId: text("syndicate_id").references(() => syndicatesTable.id, { onDelete: "cascade" }),
+    memberId: text("member_id").references(() => membersTable.id, { onDelete: "set null" }),
+    memberName: text("member_name"),
+    totalOverdue: money("total_overdue").notNull(),
+    overdueMonths: integer("overdue_months").notNull(), // 3 | 6 | 12
+    // level: warning | serious | critical (maps to 3/6/12 months)
+    level: text("level").notNull(),
+    status: text("status").default("open"), // open | meeting_scheduled | resolved
+    alertSentAt: timestamp("alert_sent_at"),
+    meetingId: text("meeting_id"),
+    resolvedAt: timestamp("resolved_at"),
+    createdAt: createdAt(),
+  },
+  (t) => [
+    index("debt_escalations_syndicate_id_idx").on(t.syndicateId),
+    index("debt_escalations_member_id_idx").on(t.memberId),
+    index("debt_escalations_status_idx").on(t.status),
+  ],
+);
+
+// ─── P10: Financial Transparency ─────────────────────────────────────────────
+
+export const expenseJustificationsTable = pgTable(
+  "expense_justifications",
+  {
+    id: id(),
+    syndicateId: text("syndicate_id").references(() => syndicatesTable.id, { onDelete: "cascade" }),
+    transactionId: text("transaction_id"),
+    title: text("title").notNull(),
+    description: text("description").notNull(),
+    amount: money("amount").notNull(),
+    category: text("category"),
+    receiptUrl: text("receipt_url"),
+    // status: pending | approved | challenged | resolved
+    status: text("status").default("pending"),
+    submittedBy: text("submitted_by"),
+    submitterName: text("submitter_name"),
+    challengedBy: text("challenged_by"),
+    challengerName: text("challenger_name"),
+    challengeReason: text("challenge_reason"),
+    voteCount: integer("vote_count").default(0),
+    votesFor: integer("votes_for").default(0),
+    votesAgainst: integer("votes_against").default(0),
+    resolvedAt: timestamp("resolved_at"),
+    resolutionNote: text("resolution_note"),
+    createdAt: createdAt(),
+  },
+  (t) => [
+    index("expense_justifications_syndicate_id_idx").on(t.syndicateId),
+    index("expense_justifications_status_idx").on(t.status),
+  ],
+);
+
+export const expenseVotesTable = pgTable(
+  "expense_votes",
+  {
+    id: id(),
+    justificationId: text("justification_id").notNull().references(() => expenseJustificationsTable.id, { onDelete: "cascade" }),
+    userId: text("user_id").notNull().references(() => usersTable.id, { onDelete: "cascade" }),
+    vote: text("vote").notNull(), // for | against
+    createdAt: createdAt(),
+  },
+  (t) => [
+    uniqueIndex("expense_votes_unique_idx").on(t.justificationId, t.userId),
+  ],
+);
+
+// ─── P12: National Ranking ───────────────────────────────────────────────────
+
+export const nationalRankingsTable = pgTable(
+  "national_rankings",
+  {
+    id: id(),
+    syndicateId: text("syndicate_id").notNull().references(() => syndicatesTable.id, { onDelete: "cascade" }),
+    month: integer("month").notNull(), // 1–12
+    year: integer("year").notNull(),
+    // Scoring components (0–100 each)
+    collectionRate: money("collection_rate").default("0"),       // % cotisations paid
+    incidentResolutionRate: money("incident_resolution_rate").default("0"), // % incidents closed
+    documentationScore: money("documentation_score").default("0"), // % docs uploaded
+    meetingComplianceScore: money("meeting_compliance_score").default("0"), // AGs held on time
+    memberSatisfaction: money("member_satisfaction").default("0"), // avg review
+    totalScore: money("total_score").default("0"),              // weighted aggregate
+    rank: integer("rank").default(0),                          // national rank
+    regionRank: integer("region_rank").default(0),
+    region: text("region").default(""),
+    createdAt: createdAt(),
+  },
+  (t) => [
+    uniqueIndex("national_rankings_unique_idx").on(t.syndicateId, t.month, t.year),
+    index("national_rankings_year_month_idx").on(t.year, t.month),
+    index("national_rankings_score_idx").on(t.totalScore),
+  ],
+);

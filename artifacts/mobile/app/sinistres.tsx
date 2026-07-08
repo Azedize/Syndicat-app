@@ -29,12 +29,20 @@ const STATUS_CONFIG: Record<string, { label: string; color: string }> = {
   closed:      { label: "Clôturé",          color: "#10b981" },
 };
 
+const URGENCY_CONFIG: Record<string, { label: string; color: string; icon: keyof typeof Feather.glyphMap }> = {
+  low:      { label: "Faible",   color: "#10b981", icon: "arrow-down-circle" },
+  medium:   { label: "Moyen",    color: "#f59e0b", icon: "minus-circle" },
+  high:     { label: "Élevé",    color: "#f97316", icon: "arrow-up-circle" },
+  critical: { label: "Critique", color: "#ef4444", icon: "alert-octagon" },
+};
+
 type Sinistre = {
   id: string;
   type: string;
   description: string;
   date: string;
   status: string;
+  urgency?: string | null;
   buildingId: string;
   lotId?: string;
   estimatedAmount?: number;
@@ -54,7 +62,8 @@ export default function SinistresScreen() {
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [showModal, setShowModal] = useState(false);
-  const [form, setForm] = useState({ type: "degat_eau", description: "", date: new Date().toISOString().split("T")[0], buildingId: "", estimatedAmount: "" });
+  const isAdmin = user?.role === "syndicate_admin" || user?.role === "super_admin";
+  const [form, setForm] = useState({ type: "degat_eau", urgency: "medium", description: "", date: new Date().toISOString().split("T")[0], buildingId: "", estimatedAmount: "" });
   const [submitting, setSubmitting] = useState(false);
 
   const topPad = isWide ? 0 : Platform.OS === "web" ? 67 : insets.top;
@@ -76,11 +85,15 @@ export default function SinistresScreen() {
     try {
       setSubmitting(true);
       await apiRequest("/sinistres", "POST", {
-        ...form,
+        type: form.type,
+        urgency: form.urgency,
+        description: form.description,
+        date: form.date,
+        buildingId: form.buildingId,
         estimatedAmount: form.estimatedAmount ? parseFloat(form.estimatedAmount) : undefined,
       }, token);
       setShowModal(false);
-      setForm({ type: "degat_eau", description: "", date: new Date().toISOString().split("T")[0], buildingId: "", estimatedAmount: "" });
+      setForm({ type: "degat_eau", urgency: "medium", description: "", date: new Date().toISOString().split("T")[0], buildingId: "", estimatedAmount: "" });
       load(true);
     } catch (e: any) {
       Alert.alert("Erreur", e.message ?? "Impossible de déclarer le sinistre");
@@ -154,8 +167,18 @@ export default function SinistresScreen() {
                         {s.date}{s.lot ? ` — Lot ${s.lot.number}` : ""}{s.reportedByName ? ` — ${s.reportedByName}` : ""}
                       </Text>
                     </View>
-                    <View style={[styles.statusBadge, { backgroundColor: sc.color + "18" }]}>
-                      <Text style={[styles.statusText, { color: sc.color }]}>{sc.label}</Text>
+                    <View style={{ alignItems: "flex-end", gap: 4 }}>
+                      <View style={[styles.statusBadge, { backgroundColor: sc.color + "18" }]}>
+                        <Text style={[styles.statusText, { color: sc.color }]}>{sc.label}</Text>
+                      </View>
+                      {s.urgency ? (() => {
+                        const uc = URGENCY_CONFIG[s.urgency] ?? URGENCY_CONFIG.medium;
+                        return (
+                          <View style={[styles.statusBadge, { backgroundColor: uc.color + "18" }]}>
+                            <Text style={[styles.statusText, { color: uc.color }]}>{uc.label}</Text>
+                          </View>
+                        );
+                      })() : null}
                     </View>
                   </View>
 
@@ -197,6 +220,18 @@ export default function SinistresScreen() {
                   onPress={() => setForm((p) => ({ ...p, type: k }))}>
                   <Feather name={v.icon} size={16} color={form.type === k ? "#fff" : v.color} />
                   <Text style={[styles.typeBtnText, { color: form.type === k ? "#fff" : colors.foreground }]}>{v.label}</Text>
+                </TouchableOpacity>
+              ))}
+            </View>
+
+            <Text style={[styles.fieldLabel, { color: colors.mutedForeground }]}>Niveau d'urgence</Text>
+            <View style={styles.typeGrid}>
+              {Object.entries(URGENCY_CONFIG).map(([k, v]) => (
+                <TouchableOpacity key={k}
+                  style={[styles.typeBtn, { backgroundColor: form.urgency === k ? v.color : colors.secondary, borderColor: form.urgency === k ? v.color : colors.border }]}
+                  onPress={() => setForm((p) => ({ ...p, urgency: k }))}>
+                  <Feather name={v.icon} size={14} color={form.urgency === k ? "#fff" : v.color} />
+                  <Text style={[styles.typeBtnText, { color: form.urgency === k ? "#fff" : colors.foreground }]}>{v.label}</Text>
                 </TouchableOpacity>
               ))}
             </View>

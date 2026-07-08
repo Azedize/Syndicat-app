@@ -4,12 +4,12 @@ import { sql, inArray } from "drizzle-orm";
 import { db } from "@workspace/db";
 import { electionsTable, candidatesTable, votesTable } from "@workspace/db/schema";
 import { eq, and } from "drizzle-orm";
-import { requireAuth, requireRole } from "../middleware/auth.js";
+import { requireAuth, requireRole, requireNotTenant } from "../middleware/auth.js";
 import { serverAuditLog } from "../lib/audit.js";
 
 const router = Router();
 
-router.get("/elections", requireAuth, async (req, res) => {
+router.get("/elections", requireAuth, requireNotTenant, async (req, res) => {
   try {
     const syndicateId = req.user!.syndicateId;
     const elections = syndicateId
@@ -149,7 +149,7 @@ router.put(
   },
 );
 
-router.post("/elections/:id/vote", requireAuth, async (req, res) => {
+router.post("/elections/:id/vote", requireAuth, requireNotTenant, async (req, res) => {
   const id = req.params.id as string;
   const schema = z.object({ candidateId: z.string().min(1) });
   const result = schema.safeParse(req.body);

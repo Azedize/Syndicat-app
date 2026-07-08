@@ -17,6 +17,7 @@ import { useAuth } from "@/context/AuthContext";
 import { useData } from "@/context/DataContext";
 import { useBreakpoints } from "@/hooks/useBreakpoints";
 import { useColors } from "@/hooks/useColors";
+import { syndicates as syndicatesApi } from "@/services/api";
 
 import { useLanguage } from "@/context/LanguageContext";
 
@@ -151,6 +152,12 @@ const LEGAL_FORMS = ["professional", "sectoral", "federation", "confederation", 
 const COTISATION_CYCLES = ["monthly", "quarterly", "yearly"];
 
 const STEP_ICONS: Array<keyof typeof Feather.glyphMap> = ["home", "phone", "file-text", "settings"];
+const STEP_LABELS = ["Identité", "Contact", "Légal", "Config"];
+const LOGO_COLORS = [
+  "#7c3aed", "#2563eb", "#0891b2", "#059669",
+  "#16a34a", "#ca8a04", "#dc2626", "#db2777",
+  "#9333ea", "#0f172a",
+];
 
 interface SetupForm {
   name: string;
@@ -179,6 +186,7 @@ export default function SyndicateSetupScreen() {
   const { addSyndicate } = useData();
   const { isWide } = useBreakpoints();
   const topPad = isWide ? 0 : (Platform.OS === "web" ? 67 : insets.top);
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
   const [step, setStep] = useState(1);
   const [form, setForm] = useState<SetupForm>({
@@ -235,24 +243,62 @@ export default function SyndicateSetupScreen() {
     setStep((s) => s - 1);
   };
 
-  const handleFinish = () => {
-    const newSyndicate = {
-      id: `s${Date.now()}`,
-      name: form.name,
-      sector: form.sector,
-      members: parseInt(form.memberCount) || 0,
-      admin: user?.name ?? "Admin",
-      status: "active" as const,
-      createdAt: new Date().toISOString().slice(0, 10),
-      region: form.region,
-    };
-    addSyndicate(newSyndicate);
-    Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-    Alert.alert(
-      "Syndicat créé !",
-      `Le syndicat "${form.name}" a été créé avec succès. Vous pouvez maintenant inviter des membres.`,
-      [{ text: "Voir le tableau de bord", onPress: () => router.replace("/(tabs)/" as any) }]
-    );
+  const handleFinish = async () => {
+    if (isSubmitting) return;
+    setIsSubmitting(true);
+    try {
+      const payload = {
+        name: form.name,
+        abbreviation: form.abbreviation || undefined,
+        sector: form.sector,
+        region: form.region,
+        mission: form.mission || undefined,
+        email: form.email || undefined,
+        phone: form.phone || undefined,
+        website: form.website || undefined,
+        address: form.address || undefined,
+        legalForm: form.legalForm || undefined,
+        registrationNumber: form.registrationNumber || undefined,
+        foundingDate: form.foundingDate || undefined,
+        cotisationAmount: form.cotisationAmount || undefined,
+        cotisationCycle: (form.cotisationCycle === "Mensuel" || form.cotisationCycle === "monthly")
+          ? "monthly"
+          : (form.cotisationCycle === "Trimestriel" || form.cotisationCycle === "quarterly")
+            ? "quarterly"
+            : "yearly",
+        logoColor: form.logoColor,
+        membersCount: parseInt(form.memberCount) || 0,
+      };
+
+      const response = await syndicatesApi.create(payload);
+      const created = (response as any)?.data;
+
+      // Update local data context for immediate UI feedback
+      if (created) {
+        addSyndicate({
+          id: created.id,
+          name: created.name,
+          sector: created.sector,
+          members: created.membersCount ?? 0,
+          admin: user?.name ?? "Admin",
+          status: "active" as const,
+          createdAt: created.createdAt ?? new Date().toISOString().slice(0, 10),
+          region: created.region ?? "",
+        });
+      }
+
+      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+      Alert.alert(
+        "Syndicat créé !",
+        `Le syndicat "${form.name}" a été créé avec succès. Vous pouvez maintenant inviter des membres.`,
+        [{ text: "Voir le tableau de bord", onPress: () => router.replace("/(tabs)/" as any) }]
+      );
+    } catch (err: any) {
+      const msg = err?.message ?? "Une erreur est survenue lors de la création du syndicat.";
+      Alert.alert("Erreur", msg);
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   const renderStep = () => {
@@ -509,14 +555,15 @@ export default function SyndicateSetupScreen() {
 
       <View style={[styles.footer, { backgroundColor: colors.card, borderTopColor: colors.border, paddingBottom: insets.bottom + 16 }]}>
         <TouchableOpacity
-          style={[styles.nextBtn, { backgroundColor: colors.primary }]}
+          style={[styles.nextBtn, { backgroundColor: colors.primary, opacity: isSubmitting ? 0.7 : 1 }]}
           onPress={step === TOTAL_STEPS ? handleFinish : handleNext}
           activeOpacity={0.85}
+          disabled={isSubmitting}
         >
           {step === TOTAL_STEPS ? (
             <>
-              <Feather name="check-circle" size={18} color="#fff" />
-              <Text style={styles.nextBtnText}>Créer le syndicat</Text>
+              <Feather name={isSubmitting ? "loader" : "check-circle"} size={18} color="#fff" />
+              <Text style={styles.nextBtnText}>{isSubmitting ? "Création en cours…" : "Créer le syndicat"}</Text>
             </>
           ) : (
             <>

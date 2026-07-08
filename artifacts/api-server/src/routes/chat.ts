@@ -124,37 +124,30 @@ router.get("/conversations", requireAuth, async (req, res) => {
       readRows.map((r) => [r.conversationId, r.lastReadAt]),
     );
 
-    // Count unread messages per conversation
-    const unreadCounts = await Promise.all(
-      conversations.map(async (c) => {
-        const lastRead = readMap[c.id];
-        if (!lastRead) {
-          // Never read — count all messages not by current user
-          const [{ value }] = await db
-            .select({ value: count() })
-            .from(messagesTable)
-            .where(
-              and(
-                eq(messagesTable.conversationId, c.id),
-                sql`${messagesTable.senderId} != ${userId}`,
-              ),
-            );
-          return { id: c.id, unread: Number(value) };
-        }
-        const [{ value }] = await db
-          .select({ value: count() })
-          .from(messagesTable)
-          .where(
-            and(
-              eq(messagesTable.conversationId, c.id),
-              gt(messagesTable.createdAt, lastRead),
-              sql`${messagesTable.senderId} != ${userId}`,
-            ),
-          );
-        return { id: c.id, unread: Number(value) };
-      }),
-    );
-    const unreadMap = Object.fromEntries(unreadCounts.map((u) => [u.id, u.unread]));
+    // Count unread messages in a single batch query — avoids N+1 per conversation.
+    // Strategy: fetch all messages in these conversations sent by others,
+    // then group-count by conversation, applying per-conversation read cutoffs in JS.
+    const convIds = conversations.map((c) => c.id);
+    const unreadMessages = await db
+      .select({
+        conversationId: messagesTable.conversationId,
+        createdAt: messagesTable.createdAt,
+      })
+      .from(messagesTable)
+      .where(
+        and(
+          inArray(messagesTable.conversationId, convIds),
+          sql`${messagesTable.senderId} != ${userId}`,
+        ),
+      );
+
+    const unreadMap: Record<string, number> = Object.fromEntries(convIds.map((id) => [id, 0]));
+    for (const msg of unreadMessages) {
+      const lastRead = readMap[msg.conversationId];
+      if (!lastRead || (msg.createdAt && msg.createdAt > lastRead)) {
+        unreadMap[msg.conversationId] = (unreadMap[msg.conversationId] ?? 0) + 1;
+      }
+    }
 
     const enriched = conversations.map((c) => {
       const otherId =
@@ -225,23 +218,30 @@ router.get("/conversations/unread-count", requireAuth, async (req, res) => {
       .where(eq(messageReadsTable.userId, userId));
     const readMap = Object.fromEntries(readRows.map((r) => [r.conversationId, r.lastReadAt]));
 
+    // Single batch query — avoids N+1 per conversation
+    const unreadMsgs = await db
+      .select({
+        conversationId: messagesTable.conversationId,
+        createdAt: messagesTable.createdAt,
+      })
+      .from(messagesTable)
+      .where(
+        and(
+          inArray(
+            messagesTable.conversationId,
+            conversations.map((c) => c.id),
+          ),
+          sql`${messagesTable.senderId} != ${userId}`,
+        ),
+      );
+
     let total = 0;
-    await Promise.all(
-      conversations.map(async (c) => {
-        const lastRead = readMap[c.id];
-        const [{ value }] = await db
-          .select({ value: count() })
-          .from(messagesTable)
-          .where(
-            and(
-              eq(messagesTable.conversationId, c.id),
-              sql`${messagesTable.senderId} != ${userId}`,
-              lastRead ? gt(messagesTable.createdAt, lastRead) : undefined,
-            ),
-          );
-        total += Number(value);
-      }),
-    );
+    for (const msg of unreadMsgs) {
+      const lastRead = readMap[msg.conversationId];
+      if (!lastRead || (msg.createdAt && msg.createdAt > lastRead)) {
+        total++;
+      }
+    }
 
     res.json({ total });
   } catch (err) {

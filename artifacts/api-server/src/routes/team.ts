@@ -1,0 +1,138 @@
+/**
+ * P11 — Syndic Team Directory
+ * - Lists admins + committee members with their roles, contacts, office hours
+ * - Syndicate admins can update team member profiles
+ * - All authenticated users in the syndicate can view
+ */
+import { Router } from "express";
+import { db } from "@workspace/db";
+import {
+  usersTable,
+  membersTable,
+  syndicatesTable,
+} from "@workspace/db/schema";
+import { eq, and, or, desc } from "drizzle-orm";
+import { requireAuth, requireAdmin } from "../middleware/auth.js";
+
+const router = Router();
+
+// GET /team — directory of syndicate admin team + committee
+router.get("/team", requireAuth, async (req, res) => {
+  try {
+    const user = req.user!;
+    if (!user.syndicateId) return res.json({ data: [] });
+
+    // Admins in this syndicate
+    const admins = await db
+      .select({
+        id: usersTable.id,
+        name: usersTable.name,
+        email: usersTable.email,
+        phone: usersTable.phone,
+        role: usersTable.role,
+        avatar: usersTable.avatar,
+        syndicateId: usersTable.syndicateId,
+      })
+      .from(usersTable)
+      .where(
+        and(
+          eq(usersTable.syndicateId, user.syndicateId),
+          or(
+            eq(usersTable.role, "syndicate_admin"),
+            eq(usersTable.role, "super_admin")
+          )
+        )
+      );
+
+    // Committee members (members with role "committee" or "president" etc.)
+    const committee = await db
+      .select({
+        id: membersTable.id,
+        name: membersTable.name,
+        email: membersTable.email,
+        phone: membersTable.phone,
+        role: membersTable.role,
+        syndicateId: membersTable.syndicateId,
+      })
+      .from(membersTable)
+      .where(
+        and(
+          eq(membersTable.syndicateId, user.syndicateId),
+          or(
+            eq(membersTable.role, "committee"),
+            eq(membersTable.role, "president"),
+            eq(membersTable.role, "treasurer"),
+            eq(membersTable.role, "secretary")
+          )
+        )
+      );
+
+    // Syndicate info
+    const [syndicate] = await db
+      .select()
+      .from(syndicatesTable)
+      .where(eq(syndicatesTable.id, user.syndicateId));
+
+    res.json({
+      data: {
+        syndicate: syndicate ?? null,
+        admins: admins.map((a) => ({ ...a, type: "admin" })),
+        committee: committee.map((c) => ({ ...c, type: "committee" })),
+      },
+    });
+  } catch (e) {
+    console.error(e);
+    res.status(500).json({ error: "Erreur serveur" });
+  }
+});
+
+// PUT /team/syndicate — admin updates syndicate contact info
+router.put("/team/syndicate", requireAuth, requireAdmin, async (req, res) => {
+  try {
+    const user = req.user!;
+    if (!user.syndicateId) return res.status(400).json({ error: "Pas de syndicat associé" });
+
+    const allowed = ["email", "phone", "address", "officeHours", "website"];
+    const updates: Record<string, any> = {};
+    for (const k of allowed) {
+      if (req.body[k] !== undefined) updates[k] = req.body[k];
+    }
+
+    const [updated] = await db
+      .update(syndicatesTable)
+      .set(updates)
+      .where(eq(syndicatesTable.id, user.syndicateId))
+      .returning();
+
+    res.json({ data: updated, message: "Informations mises à jour" });
+  } catch (e) {
+    console.error(e);
+    res.status(500).json({ error: "Erreur serveur" });
+  }
+});
+
+// PUT /team/members/:id — admin updates a committee member's role
+router.put("/team/members/:id", requireAuth, requireAdmin, async (req, res) => {
+  try {
+    const { role } = req.body;
+    const validRoles = ["member", "committee", "president", "treasurer", "secretary"];
+    if (!validRoles.includes(role)) {
+      return res.status(400).json({ error: `Rôle invalide. Valeurs acceptées: ${validRoles.join(", ")}` });
+    }
+
+    // Store committee role in the profession field (membersTable has no dedicated role column)
+    const [updated] = await db
+      .update(membersTable)
+      .set({ profession: role })
+      .where(eq(membersTable.id, req.params.id as string))
+      .returning();
+
+    if (!updated) return res.status(404).json({ error: "Membre introuvable" });
+    res.json({ data: updated, message: "Rôle mis à jour" });
+  } catch (e) {
+    console.error(e);
+    res.status(500).json({ error: "Erreur serveur" });
+  }
+});
+
+export default router;

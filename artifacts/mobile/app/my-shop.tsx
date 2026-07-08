@@ -1,12 +1,14 @@
 import { Feather } from "@expo/vector-icons";
 import * as Haptics from "expo-haptics";
 import { router } from "expo-router";
-import React, { useState } from "react";
+import React, { useCallback, useEffect, useState } from "react";
 import {
+  ActivityIndicator,
   Alert,
   FlatList,
   Modal,
   Platform,
+  RefreshControl,
   ScrollView,
   StyleSheet,
   Text,
@@ -16,377 +18,432 @@ import {
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useAuth } from "@/context/AuthContext";
-import { useData, type Product } from "@/context/DataContext";
 import { useBreakpoints } from "@/hooks/useBreakpoints";
 import { useColors } from "@/hooks/useColors";
+import { marketplace } from "@/services/api";
 
-const CATS = ["Éducation", "Fournitures", "Papeterie", "Livres", "Matériel", "Accessoires"];
+// ─── Types ────────────────────────────────────────────────────────────────────
 
-type FormMode = "add" | "edit";
+type Product = {
+  id: string;
+  name: string;
+  description: string;
+  price: string;
+  category: string;
+  condition: string;
+  location: string;
+  stock: number;
+  status: string;
+  rejectionReason: string | null;
+  viewCount: number;
+  createdAt: string;
+};
+
+const CATS = ["Électroménager", "Meubles", "Vêtements", "Électronique", "Sport", "Livres", "Autre"];
+const CONDITIONS = [
+  { value: "neuf", label: "Neuf" },
+  { value: "bon", label: "Bon état" },
+  { value: "acceptable", label: "État acceptable" },
+  { value: "mauvais", label: "Mauvais état" },
+];
+
+const STATUS_CONFIG: Record<string, { color: string; label: string }> = {
+  approved:               { color: "#22c55e", label: "Publié" },
+  pending_review:         { color: "#f59e0b", label: "En validation" },
+  rejected:               { color: "#ef4444", label: "Rejeté" },
+  modification_requested: { color: "#f97316", label: "Modif. requises" },
+  sold_out:               { color: "#94a3b8", label: "Épuisé" },
+};
+
+// ─── Screen ───────────────────────────────────────────────────────────────────
 
 export default function MyShopScreen() {
   const colors = useColors();
   const insets = useSafeAreaInsets();
   const { user } = useAuth();
-  const { products, addProduct, updateProduct, deleteProduct } = useData();
   const { isWide } = useBreakpoints();
   const topPad = isWide ? 0 : (Platform.OS === "web" ? 67 : insets.top);
 
-  const myProducts = products.filter((p) => p.seller === user?.name);
+  const [products, setProducts] = useState<Product[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
   const [showForm, setShowForm] = useState(false);
-  const [formMode, setFormMode] = useState<FormMode>("add");
-  const [editingProduct, setEditingProduct] = useState<Product | null>(null);
-  const [selectedProduct, setSelectedProduct] = useState<Product | null>(null);
+  const [saving, setSaving] = useState(false);
+  const [editingId, setEditingId] = useState<string | null>(null);
+  const [deleting, setDeleting] = useState<string | null>(null);
 
+  // Form state
   const [name, setName] = useState("");
   const [desc, setDesc] = useState("");
   const [price, setPrice] = useState("");
-  const [stock, setStock] = useState("");
-  const [category, setCategory] = useState("Éducation");
+  const [stock, setStock] = useState("1");
+  const [category, setCategory] = useState(CATS[0]!);
+  const [condition, setCondition] = useState("bon");
+  const [location, setLocation] = useState("");
 
-  const totalRevenue = myProducts
-    .filter((p) => p.status === "available")
-    .reduce((s, p) => s + p.price * Math.max(1, 50 - p.stock), 0);
+  // ─── Fetch ───────────────────────────────────────────────────────────
 
-  const statusConfig = (status: Product["status"]) => {
-    if (status === "available") return { color: colors.success, label: "Disponible", icon: "check-circle" as const };
-    if (status === "sold_out") return { color: colors.destructive, label: "Épuisé", icon: "x-circle" as const };
-    return { color: "#f59e0b", label: "En validation", icon: "clock" as const };
+  const fetchListings = useCallback(async () => {
+    try {
+      const res = await marketplace.myListings();
+      setProducts((res.data as Product[]) ?? []);
+    } catch {
+      // keep stale
+    } finally {
+      setLoading(false);
+      setRefreshing(false);
+    }
+  }, []);
+
+  useEffect(() => { fetchListings(); }, [fetchListings]);
+  const onRefresh = () => { setRefreshing(true); fetchListings(); };
+
+  // ─── Form helpers ─────────────────────────────────────────────────────
+
+  const resetForm = () => {
+    setName(""); setDesc(""); setPrice(""); setStock("1");
+    setCategory(CATS[0]!); setCondition("bon"); setLocation("");
+    setEditingId(null);
   };
 
   const openAdd = () => {
-    setFormMode("add");
-    setEditingProduct(null);
-    setName(""); setDesc(""); setPrice(""); setStock(""); setCategory("Éducation");
+    resetForm();
     setShowForm(true);
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
   };
 
   const openEdit = (p: Product) => {
-    setFormMode("edit");
-    setEditingProduct(p);
+    setEditingId(p.id);
     setName(p.name);
     setDesc(p.description);
-    setPrice(String(p.price));
+    setPrice(String(Number(p.price)));
     setStock(String(p.stock));
     setCategory(p.category);
-    setSelectedProduct(null);
+    setCondition(p.condition);
+    setLocation(p.location ?? "");
     setShowForm(true);
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
   };
 
-  const handleSave = () => {
-    if (!name.trim() || !price.trim()) return;
-    if (formMode === "add") {
-      const p: Product = {
-        id: Date.now().toString(),
-        name: name.trim(),
-        description: desc.trim(),
-        price: parseFloat(price) || 0,
-        seller: user?.name ?? "Moi",
-        category,
-        status: "pending",
-        stock: parseInt(stock) || 1,
-      };
-      addProduct(p);
-    } else if (editingProduct) {
-      updateProduct({
-        ...editingProduct,
-        name: name.trim(),
-        description: desc.trim(),
-        price: parseFloat(price) || 0,
-        stock: parseInt(stock) || editingProduct.stock,
-        category,
-      });
+  const handleSave = async () => {
+    if (!name.trim() || !price.trim()) {
+      Alert.alert("Champs requis", "Le nom et le prix sont obligatoires");
+      return;
     }
-    setShowForm(false);
-    Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+    const parsedPrice = parseFloat(price);
+    if (isNaN(parsedPrice) || parsedPrice <= 0) {
+      Alert.alert("Prix invalide", "Entrez un prix valide en MAD");
+      return;
+    }
+    setSaving(true);
+    try {
+      const payload = {
+        name: name.trim(),
+        description: desc.trim(),
+        price: parsedPrice,
+        stock: parseInt(stock) || 1,
+        category,
+        condition,
+        location: location.trim(),
+        imageUrls: [],
+      };
+      if (editingId) {
+        await marketplace.updateProduct(editingId, payload);
+      } else {
+        await marketplace.addProduct(payload);
+      }
+      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+      setShowForm(false);
+      resetForm();
+      await fetchListings();
+    } catch (e: any) {
+      Alert.alert("Erreur", e?.message ?? "Impossible de sauvegarder le produit");
+    } finally {
+      setSaving(false);
+    }
   };
 
-  const handleDelete = (p: Product) => {
-    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
-    Alert.alert(
-      "Supprimer le produit",
-      `Supprimer "${p.name}" de votre boutique? Cette action est irréversible.`,
-      [
-        { text: "Annuler", style: "cancel" },
-        {
-          text: "Supprimer",
-          style: "destructive",
-          onPress: () => {
-            deleteProduct(p.id);
-            setSelectedProduct(null);
-            Haptics.notificationAsync(Haptics.NotificationFeedbackType.Warning);
-          },
+  const handleDelete = (id: string, productName: string) => {
+    Alert.alert("Supprimer", `Supprimer "${productName}" définitivement ?`, [
+      { text: "Annuler", style: "cancel" },
+      {
+        text: "Supprimer",
+        style: "destructive",
+        onPress: async () => {
+          setDeleting(id);
+          try {
+            await marketplace.deleteProduct(id);
+            setProducts((prev) => prev.filter((p) => p.id !== id));
+            Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+          } catch {
+            Alert.alert("Erreur", "Impossible de supprimer ce produit");
+          } finally {
+            setDeleting(null);
+          }
         },
-      ]
+      },
+    ]);
+  };
+
+  // ─── Stats ────────────────────────────────────────────────────────────
+
+  const approved = products.filter((p) => p.status === "approved");
+  const totalViews = products.reduce((s, p) => s + (p.viewCount ?? 0), 0);
+
+  // ─── Render ───────────────────────────────────────────────────────────
+
+  const renderItem = ({ item: p }: { item: Product }) => {
+    const sc = STATUS_CONFIG[p.status] ?? { color: colors.mutedForeground, label: p.status };
+    return (
+      <View style={[styles.productCard, { backgroundColor: colors.card, borderColor: colors.border }]}>
+        <View style={styles.cardTop}>
+          <View style={{ flex: 1 }}>
+            <Text style={[styles.productName, { color: colors.foreground }]}>{p.name}</Text>
+            <Text style={[styles.productPrice, { color: colors.primary }]}>
+              {Number(p.price).toLocaleString("fr-MA")} MAD
+            </Text>
+            <Text style={[styles.productMeta, { color: colors.mutedForeground }]}>
+              {p.category} · Stock: {p.stock} · {p.viewCount ?? 0} vue(s)
+            </Text>
+          </View>
+          <View style={[styles.statusPill, { backgroundColor: sc.color + "20" }]}>
+            <Text style={[styles.statusText, { color: sc.color }]}>{sc.label}</Text>
+          </View>
+        </View>
+
+        {p.rejectionReason && (
+          <View style={[styles.rejectionBox, { backgroundColor: colors.destructive + "10", borderColor: colors.destructive + "30" }]}>
+            <Feather name="alert-circle" size={12} color={colors.destructive} />
+            <Text style={[styles.rejectionText, { color: colors.destructive }]}>{p.rejectionReason}</Text>
+          </View>
+        )}
+
+        <View style={styles.cardActions}>
+          <TouchableOpacity
+            style={[styles.actionBtn, { backgroundColor: colors.primary + "12" }]}
+            onPress={() => openEdit(p)}
+          >
+            <Feather name="edit-2" size={14} color={colors.primary} />
+            <Text style={[styles.actionBtnText, { color: colors.primary }]}>Modifier</Text>
+          </TouchableOpacity>
+          <TouchableOpacity
+            style={[styles.actionBtn, { backgroundColor: colors.secondary }]}
+            onPress={() => { router.push({ pathname: "/product-detail", params: { id: p.id } } as any); }}
+          >
+            <Feather name="eye" size={14} color={colors.foreground} />
+            <Text style={[styles.actionBtnText, { color: colors.foreground }]}>Voir</Text>
+          </TouchableOpacity>
+          <TouchableOpacity
+            style={[styles.actionBtn, { backgroundColor: colors.destructive + "12" }]}
+            onPress={() => handleDelete(p.id, p.name)}
+            disabled={deleting === p.id}
+          >
+            {deleting === p.id ? (
+              <ActivityIndicator size="small" color={colors.destructive} />
+            ) : (
+              <>
+                <Feather name="trash-2" size={14} color={colors.destructive} />
+                <Text style={[styles.actionBtnText, { color: colors.destructive }]}>Supprimer</Text>
+              </>
+            )}
+          </TouchableOpacity>
+        </View>
+      </View>
     );
   };
-
-  const STATS = [
-    { label: "Produits", value: myProducts.length, color: colors.primary },
-    { label: "En ligne", value: myProducts.filter((p) => p.status === "available").length, color: colors.success },
-    { label: "En attente", value: myProducts.filter((p) => p.status === "pending").length, color: "#f59e0b" },
-    { label: "Ventes est.", value: totalRevenue > 999 ? `${Math.round(totalRevenue / 1000)}k` : `${totalRevenue}`, color: colors.foreground },
-  ];
 
   return (
     <View style={[styles.root, { backgroundColor: colors.background }]}>
       {/* Header */}
-      <View style={[styles.header, { paddingTop: topPad + 16, backgroundColor: colors.primary }]}>
-        <TouchableOpacity onPress={() => router.back()} style={styles.backBtn}>
-          <Feather name="arrow-left" size={22} color="#fff" />
-        </TouchableOpacity>
-        <View style={{ flex: 1 }}>
-          <Text style={styles.headerTitle}>Ma Boutique</Text>
-          <Text style={styles.headerSub}>Gérez vos produits et ventes</Text>
+      <View style={[styles.header, { paddingTop: topPad + 16, backgroundColor: colors.card, borderBottomColor: colors.border }]}>
+        <View style={styles.headerRow}>
+          <TouchableOpacity onPress={() => router.back()} style={{ padding: 4 }}>
+            <Feather name="arrow-left" size={22} color={colors.foreground} />
+          </TouchableOpacity>
+          <View style={{ flex: 1, marginStart: 10 }}>
+            <Text style={[styles.title, { color: colors.foreground }]}>Ma Boutique</Text>
+            <Text style={[styles.subtitle, { color: colors.mutedForeground }]}>
+              {approved.length} produit{approved.length !== 1 ? "s" : ""} publié{approved.length !== 1 ? "s" : ""}
+            </Text>
+          </View>
+          <TouchableOpacity
+            style={[styles.addBtn, { backgroundColor: colors.primary }]}
+            onPress={openAdd}
+          >
+            <Feather name="plus" size={18} color="#fff" />
+            <Text style={styles.addBtnText}>Ajouter</Text>
+          </TouchableOpacity>
         </View>
-        <TouchableOpacity
-          style={[styles.addBtn, { backgroundColor: "rgba(255,255,255,0.2)" }]}
-          onPress={openAdd}
-        >
-          <Feather name="plus" size={20} color="#fff" />
-        </TouchableOpacity>
-      </View>
 
-      {/* Stats */}
-      <View style={[styles.statsBar, { backgroundColor: colors.card, borderBottomColor: colors.border }]}>
-        {STATS.map((s, i) => (
-          <React.Fragment key={s.label}>
-            {i > 0 ? <View style={[styles.statDiv, { backgroundColor: colors.border }]} /> : null}
-            <View style={styles.statItem}>
-              <Text style={[styles.statVal, { color: s.color }]}>{s.value}</Text>
+        {/* Stats */}
+        <View style={styles.statsRow}>
+          {[
+            { label: "Total annonces", value: products.length },
+            { label: "Publiés", value: approved.length },
+            { label: "Total vues", value: totalViews },
+          ].map((s) => (
+            <View key={s.label} style={[styles.statBox, { backgroundColor: colors.background, borderColor: colors.border }]}>
+              <Text style={[styles.statValue, { color: colors.primary }]}>{s.value}</Text>
               <Text style={[styles.statLabel, { color: colors.mutedForeground }]}>{s.label}</Text>
             </View>
-          </React.Fragment>
-        ))}
+          ))}
+        </View>
       </View>
 
-      {/* Pending notice */}
-      {myProducts.some((p) => p.status === "pending") ? (
-        <View style={[styles.noticeBanner, { backgroundColor: "#f59e0b12", borderColor: "#f59e0b40" }]}>
-          <Feather name="clock" size={14} color="#f59e0b" />
-          <Text style={[styles.noticeText, { color: "#f59e0b" }]}>
-            {myProducts.filter((p) => p.status === "pending").length} produit(s) en attente de validation par l'administrateur
-          </Text>
-        </View>
-      ) : null}
-
-      {myProducts.length === 0 ? (
-        <View style={styles.empty}>
-          <View style={[styles.emptyIcon, { backgroundColor: colors.primary + "15" }]}>
-            <Feather name="shopping-bag" size={40} color={colors.primary} />
-          </View>
-          <Text style={[styles.emptyTitle, { color: colors.foreground }]}>Votre boutique est vide</Text>
-          <Text style={[styles.emptySub, { color: colors.mutedForeground }]}>
-            Ajoutez votre premier produit pour commencer à vendre sur la marketplace.
-          </Text>
-          <TouchableOpacity style={[styles.emptyBtn, { backgroundColor: colors.primary }]} onPress={openAdd}>
-            <Feather name="plus" size={16} color="#fff" />
-            <Text style={styles.emptyBtnText}>Ajouter un produit</Text>
-          </TouchableOpacity>
+      {/* List */}
+      {loading ? (
+        <View style={styles.centered}>
+          <ActivityIndicator size="large" color={colors.primary} />
         </View>
       ) : (
         <FlatList
-          data={myProducts}
+          data={products}
           keyExtractor={(p) => p.id}
-          contentContainerStyle={{ padding: 16, gap: 12, paddingBottom: insets.bottom + 40 }}
+          renderItem={renderItem}
+          contentContainerStyle={[styles.list, { paddingBottom: isWide ? 32 : insets.bottom + 100 }]}
           showsVerticalScrollIndicator={false}
-          renderItem={({ item: p }) => {
-            const sc = statusConfig(p.status);
-            return (
-              <TouchableOpacity
-                style={[styles.productCard, { backgroundColor: colors.card, borderColor: colors.border }]}
-                onPress={() => setSelectedProduct(p)}
-                activeOpacity={0.8}
-              >
-                <View style={[styles.productImg, { backgroundColor: colors.primary + "12" }]}>
-                  <Feather name="package" size={24} color={colors.primary} />
-                </View>
-                <View style={{ flex: 1, gap: 4 }}>
-                  <Text style={[styles.productName, { color: colors.foreground }]} numberOfLines={1}>{p.name}</Text>
-                  <Text style={[styles.productDesc, { color: colors.mutedForeground }]} numberOfLines={1}>{p.description}</Text>
-                  <View style={styles.productMeta}>
-                    <Text style={[styles.productPrice, { color: colors.primary }]}>{p.price} MAD</Text>
-                    <View style={[styles.stockBadge, { backgroundColor: colors.muted }]}>
-                      <Feather name="layers" size={10} color={colors.mutedForeground} />
-                      <Text style={[styles.stockText, { color: colors.mutedForeground }]}>Stock: {p.stock}</Text>
-                    </View>
-                  </View>
-                </View>
-                <View style={styles.productRight}>
-                  <View style={[styles.statusTag, { backgroundColor: sc.color + "15" }]}>
-                    <Feather name={sc.icon} size={10} color={sc.color} />
-                    <Text style={[styles.statusTagText, { color: sc.color }]}>{sc.label}</Text>
-                  </View>
-                  <View style={styles.actionBtns}>
-                    <TouchableOpacity
-                      style={[styles.iconBtn, { backgroundColor: colors.primary + "15" }]}
-                      onPress={() => openEdit(p)}
-                    >
-                      <Feather name="edit-2" size={13} color={colors.primary} />
-                    </TouchableOpacity>
-                    <TouchableOpacity
-                      style={[styles.iconBtn, { backgroundColor: colors.destructive + "12" }]}
-                      onPress={() => handleDelete(p)}
-                    >
-                      <Feather name="trash-2" size={13} color={colors.destructive} />
-                    </TouchableOpacity>
-                  </View>
-                </View>
+          refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={colors.primary} />}
+          ListEmptyComponent={
+            <View style={styles.empty}>
+              <Feather name="package" size={48} color={colors.mutedForeground} />
+              <Text style={[styles.emptyTitle, { color: colors.foreground }]}>Aucune annonce</Text>
+              <Text style={[styles.emptySub, { color: colors.mutedForeground }]}>
+                Publiez votre premier produit et touchez tous les résidents de la plateforme.
+              </Text>
+              <TouchableOpacity style={[styles.emptyAction, { backgroundColor: colors.primary }]} onPress={openAdd}>
+                <Feather name="plus" size={16} color="#fff" />
+                <Text style={styles.emptyActionText}>Créer une annonce</Text>
               </TouchableOpacity>
-            );
-          }}
+            </View>
+          }
         />
       )}
 
-      {/* Product detail modal */}
-      <Modal visible={!!selectedProduct} animationType="slide" presentationStyle="pageSheet">
-        {selectedProduct ? (
-          <View style={[styles.modal, { backgroundColor: colors.background }]}>
-            <View style={[styles.modalHeader, { borderBottomColor: colors.border }]}>
-              <TouchableOpacity onPress={() => setSelectedProduct(null)}>
-                <Feather name="x" size={22} color={colors.mutedForeground} />
-              </TouchableOpacity>
-              <Text style={[styles.modalTitle, { color: colors.foreground }]} numberOfLines={1}>
-                {selectedProduct.name}
-              </Text>
-              <TouchableOpacity
-                style={[styles.editHeaderBtn, { backgroundColor: colors.primary + "15" }]}
-                onPress={() => openEdit(selectedProduct)}
-              >
-                <Feather name="edit-2" size={15} color={colors.primary} />
-              </TouchableOpacity>
-            </View>
-            <ScrollView contentContainerStyle={{ padding: 20, gap: 16, paddingBottom: 40 }}>
-              {/* Hero */}
-              <View style={[styles.productHero, { backgroundColor: colors.primary + "10", borderColor: colors.primary + "20" }]}>
-                <View style={[styles.productHeroImg, { backgroundColor: colors.primary + "20" }]}>
-                  <Feather name="package" size={48} color={colors.primary} />
-                </View>
-                <Text style={[styles.productHeroName, { color: colors.foreground }]}>{selectedProduct.name}</Text>
-                <Text style={[styles.productHeroPrice, { color: colors.primary }]}>{selectedProduct.price} MAD</Text>
-                <View style={[styles.statusTag, { backgroundColor: statusConfig(selectedProduct.status).color + "15" }]}>
-                  <Feather name={statusConfig(selectedProduct.status).icon} size={11} color={statusConfig(selectedProduct.status).color} />
-                  <Text style={[styles.statusTagText, { color: statusConfig(selectedProduct.status).color }]}>
-                    {statusConfig(selectedProduct.status).label}
-                  </Text>
-                </View>
-              </View>
-
-              {/* Details */}
-              <View style={[styles.detailCard, { backgroundColor: colors.card, borderColor: colors.border }]}>
-                {[
-                  { label: "Description", value: selectedProduct.description || "—" },
-                  { label: "Catégorie", value: selectedProduct.category },
-                  { label: "Stock disponible", value: `${selectedProduct.stock} unités` },
-                  { label: "Vendeur", value: selectedProduct.seller },
-                ].map((item, i) => (
-                  <View key={item.label}>
-                    {i > 0 ? <View style={[styles.sep, { backgroundColor: colors.border }]} /> : null}
-                    <View style={styles.detailRow}>
-                      <Text style={[styles.detailLabel, { color: colors.mutedForeground }]}>{item.label}</Text>
-                      <Text style={[styles.detailValue, { color: colors.foreground }]} numberOfLines={2}>{item.value}</Text>
-                    </View>
-                  </View>
-                ))}
-              </View>
-
-              {/* Actions */}
-              <View style={{ flexDirection: "row", gap: 10 }}>
-                <TouchableOpacity
-                  style={[styles.actionBtn, { backgroundColor: colors.primary }]}
-                  onPress={() => openEdit(selectedProduct)}
-                >
-                  <Feather name="edit-2" size={15} color="#fff" />
-                  <Text style={[styles.actionBtnText, { color: "#fff" }]}>Modifier</Text>
-                </TouchableOpacity>
-                <TouchableOpacity
-                  style={[styles.actionBtn, { backgroundColor: colors.destructive + "12", borderColor: colors.destructive + "30", borderWidth: 1 }]}
-                  onPress={() => handleDelete(selectedProduct)}
-                >
-                  <Feather name="trash-2" size={15} color={colors.destructive} />
-                  <Text style={[styles.actionBtnText, { color: colors.destructive }]}>Supprimer</Text>
-                </TouchableOpacity>
-              </View>
-            </ScrollView>
-          </View>
-        ) : null}
-      </Modal>
-
-      {/* Add / Edit form modal */}
-      <Modal visible={showForm} animationType="slide" presentationStyle="pageSheet">
-        <View style={[styles.modal, { backgroundColor: colors.background }]}>
-          <View style={[styles.modalHeader, { borderBottomColor: colors.border }]}>
+      {/* Add / Edit modal */}
+      <Modal visible={showForm} animationType="slide" presentationStyle="pageSheet" onRequestClose={() => { setShowForm(false); resetForm(); }}>
+        <View style={[styles.modalRoot, { backgroundColor: colors.background }]}>
+          <View style={[styles.modalHeader, { borderBottomColor: colors.border, paddingTop: insets.top + 16 }]}>
+            <TouchableOpacity onPress={() => { setShowForm(false); resetForm(); }}>
+              <Feather name="x" size={22} color={colors.foreground} />
+            </TouchableOpacity>
             <Text style={[styles.modalTitle, { color: colors.foreground }]}>
-              {formMode === "add" ? "Nouveau produit" : "Modifier le produit"}
+              {editingId ? "Modifier l'annonce" : "Nouvelle annonce"}
             </Text>
-            <TouchableOpacity onPress={() => setShowForm(false)}>
-              <Feather name="x" size={22} color={colors.mutedForeground} />
+            <TouchableOpacity
+              style={[styles.saveBtn, { backgroundColor: saving ? colors.secondary : colors.primary }]}
+              onPress={handleSave}
+              disabled={saving}
+            >
+              {saving ? <ActivityIndicator size="small" color="#fff" /> : <Text style={styles.saveBtnText}>Publier</Text>}
             </TouchableOpacity>
           </View>
-          <ScrollView contentContainerStyle={{ padding: 20, gap: 16, paddingBottom: 40 }} showsVerticalScrollIndicator={false}>
-            {[
-              { label: "Nom du produit *", value: name, setter: setName, placeholder: "Ex: Manuel pédagogique", numeric: false },
-              { label: "Description", value: desc, setter: setDesc, placeholder: "Description courte du produit", numeric: false },
-              { label: "Prix (MAD) *", value: price, setter: setPrice, placeholder: "150", numeric: true },
-              { label: "Stock", value: stock, setter: setStock, placeholder: "10", numeric: true },
-            ].map((field) => (
-              <View key={field.label} style={{ gap: 6 }}>
-                <Text style={[styles.fieldLabel, { color: colors.foreground }]}>{field.label}</Text>
+
+          <ScrollView contentContainerStyle={styles.modalBody} showsVerticalScrollIndicator={false}>
+            {/* Name */}
+            <Text style={[styles.fieldLabel, { color: colors.foreground }]}>Titre de l'annonce *</Text>
+            <TextInput
+              style={[styles.input, { borderColor: colors.border, color: colors.foreground, backgroundColor: colors.card }]}
+              placeholder="Ex : Machine à laver Samsung 8kg"
+              placeholderTextColor={colors.mutedForeground}
+              value={name}
+              onChangeText={setName}
+              maxLength={200}
+            />
+
+            {/* Price + Stock */}
+            <View style={styles.rowFields}>
+              <View style={{ flex: 1 }}>
+                <Text style={[styles.fieldLabel, { color: colors.foreground }]}>Prix (MAD) *</Text>
                 <TextInput
-                  style={[styles.fieldInput, { borderColor: colors.border, backgroundColor: colors.card, color: colors.foreground }]}
-                  value={field.value}
-                  onChangeText={field.setter}
-                  placeholder={field.placeholder}
+                  style={[styles.input, { borderColor: colors.border, color: colors.foreground, backgroundColor: colors.card }]}
+                  placeholder="500"
                   placeholderTextColor={colors.mutedForeground}
-                  keyboardType={field.numeric ? "numeric" : "default"}
+                  value={price}
+                  onChangeText={setPrice}
+                  keyboardType="numeric"
                 />
               </View>
-            ))}
+              <View style={{ flex: 1 }}>
+                <Text style={[styles.fieldLabel, { color: colors.foreground }]}>Stock</Text>
+                <TextInput
+                  style={[styles.input, { borderColor: colors.border, color: colors.foreground, backgroundColor: colors.card }]}
+                  placeholder="1"
+                  placeholderTextColor={colors.mutedForeground}
+                  value={stock}
+                  onChangeText={setStock}
+                  keyboardType="numeric"
+                />
+              </View>
+            </View>
 
-            <View style={{ gap: 6 }}>
-              <Text style={[styles.fieldLabel, { color: colors.foreground }]}>Catégorie</Text>
-              <View style={styles.catGrid}>
-                {CATS.map((cat) => (
+            {/* Category */}
+            <Text style={[styles.fieldLabel, { color: colors.foreground }]}>Catégorie</Text>
+            <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ marginBottom: 12 }}>
+              <View style={{ flexDirection: "row", gap: 8 }}>
+                {CATS.map((c) => (
                   <TouchableOpacity
-                    key={cat}
-                    style={[
-                      styles.catChip,
-                      {
-                        backgroundColor: category === cat ? colors.primary : colors.card,
-                        borderColor: category === cat ? colors.primary : colors.border,
-                      },
-                    ]}
-                    onPress={() => setCategory(cat)}
+                    key={c}
+                    style={[styles.chip, { borderColor: colors.border, backgroundColor: category === c ? colors.primary : colors.card }]}
+                    onPress={() => setCategory(c)}
                   >
-                    <Text style={[styles.catText, { color: category === cat ? "#fff" : colors.mutedForeground }]}>
-                      {cat}
-                    </Text>
+                    <Text style={[styles.chipText, { color: category === c ? "#fff" : colors.foreground }]}>{c}</Text>
                   </TouchableOpacity>
                 ))}
               </View>
+            </ScrollView>
+
+            {/* Condition */}
+            <Text style={[styles.fieldLabel, { color: colors.foreground }]}>État</Text>
+            <View style={styles.conditionRow}>
+              {CONDITIONS.map((c) => (
+                <TouchableOpacity
+                  key={c.value}
+                  style={[
+                    styles.conditionChip,
+                    { borderColor: condition === c.value ? colors.primary : colors.border },
+                    condition === c.value && { backgroundColor: colors.primary + "15" },
+                  ]}
+                  onPress={() => setCondition(c.value)}
+                >
+                  <Text style={[styles.conditionChipText, { color: condition === c.value ? colors.primary : colors.foreground }]}>
+                    {c.label}
+                  </Text>
+                </TouchableOpacity>
+              ))}
             </View>
 
-            {formMode === "add" ? (
-              <View style={[styles.noteBox, { backgroundColor: colors.primary + "10", borderColor: colors.primary + "30" }]}>
+            {/* Location */}
+            <Text style={[styles.fieldLabel, { color: colors.foreground }]}>Localisation</Text>
+            <TextInput
+              style={[styles.input, { borderColor: colors.border, color: colors.foreground, backgroundColor: colors.card }]}
+              placeholder="Ex : Hay Riad, Rabat"
+              placeholderTextColor={colors.mutedForeground}
+              value={location}
+              onChangeText={setLocation}
+              maxLength={200}
+            />
+
+            {/* Description */}
+            <Text style={[styles.fieldLabel, { color: colors.foreground }]}>Description</Text>
+            <TextInput
+              style={[styles.textarea, { borderColor: colors.border, color: colors.foreground, backgroundColor: colors.card }]}
+              placeholder="Décrivez votre produit : état, caractéristiques, raison de la vente..."
+              placeholderTextColor={colors.mutedForeground}
+              value={desc}
+              onChangeText={setDesc}
+              multiline
+              maxLength={2000}
+              textAlignVertical="top"
+            />
+
+            {!editingId && (
+              <View style={[styles.infoBox, { backgroundColor: colors.primary + "10", borderColor: colors.primary + "30" }]}>
                 <Feather name="info" size={14} color={colors.primary} />
-                <Text style={[styles.noteText, { color: colors.primary }]}>
-                  Votre produit sera soumis à validation par l'administrateur avant d'apparaître dans le marketplace.
+                <Text style={[styles.infoText, { color: colors.primary }]}>
+                  Votre annonce sera soumise à validation avant d'être publiée sur le marketplace.
                 </Text>
               </View>
-            ) : null}
-
-            <TouchableOpacity
-              style={[styles.saveBtn, { backgroundColor: name.trim() && price.trim() ? colors.primary : colors.muted }]}
-              onPress={handleSave}
-              disabled={!name.trim() || !price.trim()}
-            >
-              <Feather name={formMode === "add" ? "send" : "check"} size={16} color={name.trim() && price.trim() ? "#fff" : colors.mutedForeground} />
-              <Text style={[styles.saveBtnText, { color: name.trim() && price.trim() ? "#fff" : colors.mutedForeground }]}>
-                {formMode === "add" ? "Soumettre pour validation" : "Enregistrer les modifications"}
-              </Text>
-            </TouchableOpacity>
+            )}
           </ScrollView>
         </View>
       </Modal>
@@ -394,61 +451,55 @@ export default function MyShopScreen() {
   );
 }
 
+// ─── Styles ───────────────────────────────────────────────────────────────────
+
 const styles = StyleSheet.create({
   root: { flex: 1 },
-  header: { flexDirection: "row", alignItems: "center", paddingHorizontal: 20, paddingBottom: 20, gap: 12 },
-  backBtn: { padding: 4 },
-  headerTitle: { fontSize: 18, fontFamily: "Inter_700Bold", color: "#fff" },
-  headerSub: { fontSize: 11, fontFamily: "Inter_400Regular", color: "rgba(255,255,255,0.75)", marginTop: 2 },
-  addBtn: { width: 40, height: 40, borderRadius: 12, alignItems: "center", justifyContent: "center" },
-  statsBar: { flexDirection: "row", paddingVertical: 16, borderBottomWidth: 1 },
-  statItem: { flex: 1, alignItems: "center", gap: 3 },
-  statVal: { fontSize: 18, fontFamily: "Inter_700Bold" },
-  statLabel: { fontSize: 10, fontFamily: "Inter_400Regular" },
-  statDiv: { width: 1 },
-  noticeBanner: { flexDirection: "row", alignItems: "center", gap: 8, margin: 16, marginBottom: 0, padding: 12, borderRadius: 12, borderWidth: 1 },
-  noticeText: { flex: 1, fontSize: 12, fontFamily: "Inter_500Medium" },
-  empty: { flex: 1, alignItems: "center", justifyContent: "center", padding: 40, gap: 16 },
-  emptyIcon: { width: 90, height: 90, borderRadius: 24, alignItems: "center", justifyContent: "center" },
-  emptyTitle: { fontSize: 18, fontFamily: "Inter_700Bold", textAlign: "center" },
-  emptySub: { fontSize: 14, fontFamily: "Inter_400Regular", textAlign: "center", lineHeight: 20 },
-  emptyBtn: { flexDirection: "row", alignItems: "center", gap: 8, paddingHorizontal: 24, paddingVertical: 14, borderRadius: 14, marginTop: 8 },
-  emptyBtnText: { fontSize: 14, fontFamily: "Inter_700Bold", color: "#fff" },
-  productCard: { flexDirection: "row", alignItems: "center", padding: 14, borderRadius: 16, borderWidth: 1, gap: 12 },
-  productImg: { width: 54, height: 54, borderRadius: 14, alignItems: "center", justifyContent: "center" },
-  productName: { fontSize: 13, fontFamily: "Inter_700Bold" },
-  productDesc: { fontSize: 11, fontFamily: "Inter_400Regular" },
-  productMeta: { flexDirection: "row", alignItems: "center", gap: 8 },
-  productPrice: { fontSize: 14, fontFamily: "Inter_700Bold" },
-  stockBadge: { flexDirection: "row", alignItems: "center", gap: 4, paddingHorizontal: 8, paddingVertical: 3, borderRadius: 20 },
-  stockText: { fontSize: 10, fontFamily: "Inter_500Medium" },
-  productRight: { alignItems: "flex-end", gap: 8 },
-  statusTag: { flexDirection: "row", alignItems: "center", gap: 4, paddingHorizontal: 8, paddingVertical: 3, borderRadius: 20 },
-  statusTagText: { fontSize: 10, fontFamily: "Inter_600SemiBold" },
-  actionBtns: { flexDirection: "row", gap: 6 },
-  iconBtn: { width: 30, height: 30, borderRadius: 8, alignItems: "center", justifyContent: "center" },
-  modal: { flex: 1 },
-  modalHeader: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", padding: 20, borderBottomWidth: 1, gap: 12 },
-  modalTitle: { flex: 1, fontSize: 18, fontFamily: "Inter_700Bold" },
-  editHeaderBtn: { width: 36, height: 36, borderRadius: 10, alignItems: "center", justifyContent: "center" },
-  productHero: { borderRadius: 20, borderWidth: 1, padding: 24, alignItems: "center", gap: 8 },
-  productHeroImg: { width: 80, height: 80, borderRadius: 20, alignItems: "center", justifyContent: "center", marginBottom: 4 },
-  productHeroName: { fontSize: 18, fontFamily: "Inter_700Bold", textAlign: "center" },
-  productHeroPrice: { fontSize: 24, fontFamily: "Inter_700Bold" },
-  detailCard: { borderRadius: 16, borderWidth: 1, padding: 4 },
-  sep: { height: 1, marginHorizontal: 12 },
-  detailRow: { flexDirection: "row", alignItems: "flex-start", justifyContent: "space-between", padding: 12, gap: 12 },
-  detailLabel: { fontSize: 12, fontFamily: "Inter_400Regular", width: 110 },
-  detailValue: { flex: 1, fontSize: 13, fontFamily: "Inter_600SemiBold", textAlign: "right" },
-  actionBtn: { flex: 1, flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 8, paddingVertical: 14, borderRadius: 14 },
-  actionBtnText: { fontSize: 14, fontFamily: "Inter_700Bold" },
-  fieldLabel: { fontSize: 13, fontFamily: "Inter_500Medium" },
-  fieldInput: { borderWidth: 1, borderRadius: 12, paddingHorizontal: 14, paddingVertical: 12, fontSize: 14, fontFamily: "Inter_400Regular" },
-  catGrid: { flexDirection: "row", flexWrap: "wrap", gap: 8 },
-  catChip: { paddingHorizontal: 14, paddingVertical: 8, borderRadius: 20, borderWidth: 1, flexShrink: 0 },
-  catText: { fontSize: 12, fontFamily: "Inter_500Medium" },
-  noteBox: { flexDirection: "row", gap: 10, padding: 12, borderRadius: 12, borderWidth: 1, alignItems: "flex-start" },
-  noteText: { flex: 1, fontSize: 12, fontFamily: "Inter_400Regular", lineHeight: 17 },
-  saveBtn: { flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 8, paddingVertical: 16, borderRadius: 14, marginTop: 8 },
-  saveBtnText: { fontSize: 15, fontFamily: "Inter_700Bold" },
+  header: { borderBottomWidth: 1, paddingHorizontal: 16, paddingBottom: 12, gap: 10 },
+  headerRow: { flexDirection: "row", alignItems: "center" },
+  title: { fontSize: 20, fontWeight: "800" },
+  subtitle: { fontSize: 12, marginTop: 1 },
+  addBtn: { flexDirection: "row", alignItems: "center", gap: 5, paddingHorizontal: 14, paddingVertical: 8, borderRadius: 20 },
+  addBtnText: { color: "#fff", fontWeight: "700", fontSize: 13 },
+  statsRow: { flexDirection: "row", gap: 8 },
+  statBox: { flex: 1, borderRadius: 10, borderWidth: 1, padding: 10, alignItems: "center" },
+  statValue: { fontSize: 18, fontWeight: "800" },
+  statLabel: { fontSize: 10, marginTop: 2, textAlign: "center" },
+  list: { padding: 12, gap: 12 },
+  centered: { flex: 1, alignItems: "center", justifyContent: "center" },
+  empty: { flex: 1, alignItems: "center", justifyContent: "center", gap: 12, paddingTop: 60, padding: 32 },
+  emptyTitle: { fontSize: 20, fontWeight: "700" },
+  emptySub: { fontSize: 14, textAlign: "center", lineHeight: 20 },
+  emptyAction: { flexDirection: "row", alignItems: "center", gap: 8, paddingHorizontal: 20, paddingVertical: 12, borderRadius: 10, marginTop: 8 },
+  emptyActionText: { color: "#fff", fontWeight: "700", fontSize: 15 },
+  productCard: { borderRadius: 12, borderWidth: 1, padding: 14, gap: 10 },
+  cardTop: { flexDirection: "row", alignItems: "flex-start", gap: 10 },
+  productName: { fontSize: 15, fontWeight: "700", lineHeight: 20 },
+  productPrice: { fontSize: 16, fontWeight: "800", marginTop: 2 },
+  productMeta: { fontSize: 11, marginTop: 3 },
+  statusPill: { paddingHorizontal: 8, paddingVertical: 4, borderRadius: 20 },
+  statusText: { fontSize: 11, fontWeight: "700" },
+  rejectionBox: { flexDirection: "row", alignItems: "flex-start", gap: 6, padding: 8, borderRadius: 8, borderWidth: 1 },
+  rejectionText: { fontSize: 11, flex: 1, lineHeight: 16 },
+  cardActions: { flexDirection: "row", gap: 8, flexWrap: "wrap" },
+  actionBtn: { flexDirection: "row", alignItems: "center", gap: 5, paddingHorizontal: 10, paddingVertical: 6, borderRadius: 8 },
+  actionBtnText: { fontSize: 12, fontWeight: "600" },
+  // Modal
+  modalRoot: { flex: 1 },
+  modalHeader: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", paddingHorizontal: 16, paddingBottom: 12, borderBottomWidth: 1 },
+  modalTitle: { fontSize: 17, fontWeight: "700" },
+  saveBtn: { paddingHorizontal: 16, paddingVertical: 8, borderRadius: 20 },
+  saveBtnText: { color: "#fff", fontWeight: "700" },
+  modalBody: { padding: 16, gap: 4, paddingBottom: 60 },
+  fieldLabel: { fontSize: 13, fontWeight: "600", marginBottom: 6, marginTop: 10 },
+  input: { borderWidth: 1, borderRadius: 10, paddingHorizontal: 14, paddingVertical: 10, fontSize: 14 },
+  textarea: { borderWidth: 1, borderRadius: 10, paddingHorizontal: 14, paddingVertical: 10, fontSize: 14, minHeight: 120 },
+  rowFields: { flexDirection: "row", gap: 10 },
+  chip: { paddingHorizontal: 12, paddingVertical: 7, borderRadius: 20, borderWidth: 1 },
+  chipText: { fontSize: 13, fontWeight: "600" },
+  conditionRow: { flexDirection: "row", flexWrap: "wrap", gap: 8, marginBottom: 4 },
+  conditionChip: { paddingHorizontal: 12, paddingVertical: 7, borderRadius: 8, borderWidth: 1.5 },
+  conditionChipText: { fontSize: 13, fontWeight: "600" },
+  infoBox: { flexDirection: "row", alignItems: "flex-start", gap: 8, padding: 12, borderRadius: 10, borderWidth: 1, marginTop: 8 },
+  infoText: { fontSize: 13, flex: 1, lineHeight: 18 },
 });

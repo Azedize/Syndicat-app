@@ -64,7 +64,7 @@ router.get("/sinistres", requireAuth, async (req, res) => {
 router.post("/sinistres", requireAuth, async (req, res) => {
   try {
     const user = (req as any).user;
-    const { buildingId, lotId, type, description, date, estimatedAmount, notes } = req.body;
+    const { buildingId, lotId, type, description, date, estimatedAmount, notes, urgency, imageUrls } = req.body;
 
     if (!buildingId || !type || !description || !date) {
       return res.status(400).json({ error: "buildingId, type, description et date sont obligatoires" });
@@ -79,6 +79,8 @@ router.post("/sinistres", requireAuth, async (req, res) => {
         description,
         date,
         estimatedAmount: estimatedAmount ? Number(estimatedAmount) : undefined,
+        urgency: urgency ?? "normal",
+        imageUrls: JSON.stringify(Array.isArray(imageUrls) ? imageUrls : []),
         reportedById: user.userId,
         reportedByName: user.name,
         notes,
@@ -109,10 +111,18 @@ router.post("/sinistres", requireAuth, async (req, res) => {
 // PUT /sinistres/:id — Update claim status/amounts
 router.put("/sinistres/:id", requireAuth, requireAdmin, async (req, res) => {
   try {
-    const allowed = ["status", "estimatedAmount", "indemnisedAmount", "claimNumber", "notes"];
+    const allowed = ["status", "urgency", "estimatedAmount", "indemnisedAmount", "claimNumber", "notes", "contractorId", "resolutionNote", "invoiceUrl", "imageUrls"];
     const updates: Record<string, any> = {};
     for (const k of allowed) {
-      if (req.body[k] !== undefined) updates[k] = req.body[k];
+      if (req.body[k] !== undefined) {
+        updates[k] = (k === "imageUrls" && Array.isArray(req.body[k]))
+          ? JSON.stringify(req.body[k])
+          : req.body[k];
+      }
+    }
+    // Auto-set resolvedAt when closing
+    if (req.body.status === "resolved" || req.body.status === "closed") {
+      updates.resolvedAt = new Date();
     }
 
     const [updated] = await db
