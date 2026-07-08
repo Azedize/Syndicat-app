@@ -1,0 +1,308 @@
+You are a Senior Product Owner, Enterprise Architect, Business Analyst, Financial Auditor, Procurement Manager, and Moroccan Condominium Management Expert.
+
+Your mission is to audit, redesign, and fully implement the "Prestataires" module for a Moroccan Condominium Management Platform (SYNDYCAT GLOBAL CPS).
+
+IMPORTANT:
+
+- Do not only report.
+- Implement complete business logic.
+- Implement database changes.
+- Implement API changes.
+- Implement mobile screens.
+- Implement permissions.
+- Implement notifications.
+- Implement audit logs.
+- No mock data.
+- All data must come from PostgreSQL.
+- Production-ready only.
+
+====================================================
+OBJECTIVE
+====================================================
+
+Manage all service providers working with the condominium:
+
+- Security companies
+- Cleaning companies
+- Elevator maintenance
+- Electricians
+- Plumbers
+- Garden maintenance
+- Insurance companies
+- Internet providers
+- Building contractors
+- Painters
+- Pest control companies
+- Lawyers
+- Accountants
+- Any external supplier
+
+====================================================
+DATABASE
+====================================================
+
+Create or improve tables:
+
+prestataires
+
+Fields:
+
+- id
+- name
+- company_name
+- category
+- phone
+- email
+- address
+- city
+- rc
+- ice
+- tax_id
+- contact_person
+- status
+- rating
+- created_at
+- updated_at
+
+contracts
+
+Fields:
+
+- id
+- prestataire_id
+- syndicate_id
+- contract_number
+- start_date
+- end_date
+- amount
+- renewal_date
+- status
+- attachment_url
+
+prestataire_interventions
+
+Fields:
+
+- id
+- prestataire_id
+- building_id
+- ticket_id
+- description
+- intervention_date
+- cost
+- invoice_url
+- status
+- created_at
+
+====================================================
+PRESTATAIRE PROFILE
+====================================================
+
+Each provider must have:
+
+- General information
+- Contact information
+- Contracts
+- Interventions
+- Invoices
+- Ratings
+- Documents
+- Performance statistics
+
+====================================================
+CONTRACT MANAGEMENT
+====================================================
+
+Allow Syndic Admin to:
+
+- Create contract
+- Upload contract PDF
+- Renew contract
+- Suspend contract
+- Terminate contract
+
+Automatic notifications:
+
+- Contract expires in 60 days
+- Contract expires in 30 days
+- Contract expires in 7 days
+
+====================================================
+INTERVENTION MANAGEMENT
+====================================================
+
+Example:
+
+Elevator breakdown
+
+↓
+
+Create incident
+
+↓
+
+Assign provider
+
+↓
+
+Provider intervention
+
+↓
+
+Upload report
+
+↓
+
+Upload invoice
+
+↓
+
+Validate by Syndic Admin
+
+↓
+
+Create financial transaction
+
+↓
+
+Close intervention
+
+Track:
+
+- Response time
+- Resolution time
+- Cost
+- Satisfaction
+
+====================================================
+INVOICES & JUSTIFICATION
+====================================================
+
+Every intervention must contain:
+
+- Report
+- Photos
+- Invoice
+- Proof of execution
+
+No payment allowed without documents.
+
+====================================================
+RATING SYSTEM
+====================================================
+
+After intervention:
+
+Syndic Admin rates:
+
+- Quality
+- Speed
+- Communication
+- Price
+
+Calculate average rating.
+
+Display top providers.
+
+====================================================
+SUPER ADMIN DASHBOARD
+====================================================
+
+Display:
+
+- Total providers
+- Active providers
+- Expired contracts
+- Contracts ending soon
+- Total interventions
+- Total costs
+- Best providers
+- Worst providers
+
+====================================================
+MOBILE APP
+====================================================
+
+Create screens:
+
+1. Prestataires List
+2. Prestataire Details
+3. Contracts
+4. Interventions
+5. Invoices
+6. Ratings
+7. Statistics
+
+Features:
+
+- Search
+- Filters
+- Pagination
+- Upload files
+- Download files
+- View PDFs
+- View Images
+
+====================================================
+PERMISSIONS
+====================================================
+
+Super Admin:
+- Full access
+
+Syndic Admin:
+- Manage providers
+- Manage contracts
+- Assign interventions
+
+Owner:
+- View interventions
+- View provider information
+
+Tenant:
+- View only interventions related to their building
+
+====================================================
+NOTIFICATIONS
+====================================================
+
+Notify:
+
+- New intervention assigned
+- Contract expiration
+- Invoice uploaded
+- Invoice approved
+- Invoice rejected
+
+====================================================
+AUDIT LOG
+====================================================
+
+Log:
+
+- Provider creation
+- Provider modification
+- Contract creation
+- Contract renewal
+- Contract termination
+- Invoice validation
+- Intervention closure
+
+====================================================
+FINAL REPORT
+====================================================
+
+Generate:
+
+1. Database changes
+2. API endpoints created
+3. Mobile screens created
+4. Business logic implemented
+5. Security checks
+6. Performance optimizations
+7. Remaining risks
+8. Production readiness score
+
+Target:
+
+A complete, production-ready Prestataires module for Moroccan condominium management.
