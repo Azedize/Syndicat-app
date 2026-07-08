@@ -111,6 +111,6 @@ ON CONFLICT (id) DO NOTHING;
 
 INSERT INTO lots (id, number, type, floor, surface_m2, tantiemes, building_id, owner_id, status, description)
 VALUES
-  ('lot_mohammed', 'A-304', 'appartement', 3, 85, 42, 'bldg_andalous', 'user_member_1', 'occupied', 'Appartement 3 pièces avec balcon'),
-  ('lot_khadija', 'B-112', 'appartement', 1, 68, 34, 'bldg_andalous', 'user_member_2', 'occupied', 'Appartement 2 pièces rez-jardin')
+  ('lot_mohammed', 'A-304', 'appartement', 3, 85, 42, 'bldg_andalous', 'member_mohammed', 'occupied', 'Appartement 3 pièces avec balcon'),
+  ('lot_khadija', 'B-112', 'appartement', 1, 68, 34, 'bldg_andalous', 'member_khadija', 'occupied', 'Appartement 2 pièces rez-jardin')
 ON CONFLICT (id) DO NOTHING;
