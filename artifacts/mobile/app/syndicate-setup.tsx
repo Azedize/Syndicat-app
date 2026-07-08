@@ -40,25 +40,43 @@ const MOROCCAN_CITIES = [
 ];
 
 const SECTORS = [
-  "Copropriété", "Éducation", "Santé", "Administration publique",
-  "Industrie", "Commerce", "Ingénierie", "Transport",
-  "Agriculture", "Tourisme", "Justice", "Autre",
+  "Copropriété résidentielle",
+  "Copropriété commerciale",
+  "Usage mixte (résidentiel + commercial)",
+  "Résidence fermée (gated community)",
+  "Complexe hôtelier / touristique",
+  "Immeubles de bureaux",
+  "Zone industrielle",
+  "Quartier administratif",
+  "Complexe universitaire",
+  "Santé / cliniques",
+  "Autre",
 ];
 
 const REGIONS = [
-  "Casablanca-Settat", "Rabat-Salé-Kénitra", "Fès-Meknès", "Marrakech-Safi",
-  "Souss-Massa", "Tanger-Tétouan-Al Hoceïma", "Oriental",
-  "Béni Mellal-Khénifra", "Drâa-Tafilalet", "Guelmim-Oued Noun", "National",
+  "Casablanca-Settat",
+  "Rabat-Salé-Kénitra",
+  "Fès-Meknès",
+  "Marrakech-Safi",
+  "Souss-Massa",
+  "Tanger-Tétouan-Al Hoceïma",
+  "Oriental",
+  "Béni Mellal-Khénifra",
+  "Drâa-Tafilalet",
+  "Guelmim-Oued Noun",
+  "Laâyoune-Sakia El Hamra",
+  "Dakhla-Oued Ed Dahab",
 ];
 
 const LEGAL_FORMS = [
-  "Syndicat de Copropriété",
-  "Association",
-  "Coopérative",
-  "Syndicat Professionnel",
-  "Fédération",
-  "Union",
-  "Autre",
+  "Syndicat de copropriété (Dahir 1957)",
+  "Association syndicale libre (ASL)",
+  "Association syndicale autorisée (ASA)",
+  "Société civile immobilière (SCI)",
+  "Coopérative immobilière (Al Omrane)",
+  "Groupement de copropriétaires (GCP)",
+  "Association de quartier (Loi 1958)",
+  "Autre forme juridique",
 ];
 
 const COTISATION_CYCLES = [
@@ -71,6 +89,21 @@ const LOGO_COLORS = [
   "#7c3aed", "#2563eb", "#0891b2", "#059669",
   "#16a34a", "#ca8a04", "#dc2626", "#db2777",
   "#9333ea", "#0f172a",
+];
+
+const LOGO_PRESETS: { icon: keyof typeof Feather.glyphMap; color: string; label: string }[] = [
+  { icon: "home",        color: "#7c3aed", label: "Résidence"     },
+  { icon: "grid",        color: "#2563eb", label: "Immeuble"      },
+  { icon: "shield",      color: "#059669", label: "Sécurité"      },
+  { icon: "users",       color: "#0891b2", label: "Communauté"    },
+  { icon: "star",        color: "#ca8a04", label: "Premium"       },
+  { icon: "award",       color: "#dc2626", label: "Excellence"    },
+  { icon: "globe",       color: "#9333ea", label: "National"      },
+  { icon: "layers",      color: "#16a34a", label: "Copropriété"   },
+  { icon: "key",         color: "#db2777", label: "Accès"         },
+  { icon: "map-pin",     color: "#0f172a", label: "Quartier"      },
+  { icon: "briefcase",   color: "#f97316", label: "Professionnel" },
+  { icon: "trending-up", color: "#6366f1", label: "Croissance"    },
 ];
 
 // ─── Validation helpers ───────────────────────────────────────────────────────
@@ -134,8 +167,9 @@ interface SetupForm {
   cotisationAmount: string;
   cotisationCycle: string;
   logoColor: string;
-  logoUri: string; // local URI before upload
-  logoUrl: string; // remote URL after upload
+  logoUri: string;
+  logoUrl: string;
+  logoPreset: string;
   mission: string;
 }
 
@@ -294,6 +328,108 @@ function CityPicker({
                 {item === value ? (
                   <Feather name="check" size={16} color={colors.primary} />
                 ) : null}
+              </TouchableOpacity>
+            )}
+          />
+        </View>
+      </Modal>
+    </View>
+  );
+}
+
+function SimplePicker({
+  label,
+  value,
+  onChange,
+  options,
+  colors,
+  error,
+  title,
+}: {
+  label: string;
+  value: string;
+  onChange: (v: string) => void;
+  options: string[];
+  colors: ReturnType<typeof useColors>;
+  error?: string;
+  title: string;
+}) {
+  const [open, setOpen] = useState(false);
+  const [query, setQuery] = useState("");
+  const showSearch = options.length > 8;
+  const filtered = showSearch
+    ? options.filter((o) => o.toLowerCase().includes(query.toLowerCase()))
+    : options;
+
+  return (
+    <View style={{ gap: 6 }}>
+      <Text style={[styles.fieldLabel, { color: colors.mutedForeground }]}>{label}</Text>
+      <TouchableOpacity
+        style={[
+          styles.fieldBox,
+          styles.pickerBtn,
+          { backgroundColor: colors.card, borderColor: error ? colors.destructive : colors.border },
+        ]}
+        onPress={() => setOpen(true)}
+        activeOpacity={0.8}
+      >
+        <Text style={[styles.input, { color: value ? colors.foreground : colors.mutedForeground }]}>
+          {value || `Sélectionnez…`}
+        </Text>
+        <Feather name="chevron-down" size={16} color={colors.mutedForeground} />
+      </TouchableOpacity>
+      {error ? (
+        <View style={styles.errorRow}>
+          <Feather name="alert-circle" size={12} color={colors.destructive} />
+          <Text style={[styles.errorText, { color: colors.destructive }]}>{error}</Text>
+        </View>
+      ) : null}
+
+      <Modal visible={open} animationType="slide" presentationStyle="pageSheet">
+        <View style={[styles.pickerModal, { backgroundColor: colors.background }]}>
+          <View style={[styles.pickerModalHeader, { borderBottomColor: colors.border }]}>
+            <Text style={[styles.pickerModalTitle, { color: colors.foreground }]}>{title}</Text>
+            <TouchableOpacity onPress={() => { setOpen(false); setQuery(""); }}>
+              <Feather name="x" size={22} color={colors.mutedForeground} />
+            </TouchableOpacity>
+          </View>
+          {showSearch ? (
+            <View style={[styles.pickerSearch, { backgroundColor: colors.muted, margin: 16, borderRadius: 12 }]}>
+              <Feather name="search" size={16} color={colors.mutedForeground} style={{ marginLeft: 10 }} />
+              <TextInput
+                style={[styles.pickerSearchInput, { color: colors.foreground }]}
+                placeholder={`Rechercher…`}
+                placeholderTextColor={colors.mutedForeground}
+                value={query}
+                onChangeText={setQuery}
+                autoFocus
+              />
+            </View>
+          ) : null}
+          <FlatList
+            data={filtered}
+            keyExtractor={(item) => item}
+            keyboardShouldPersistTaps="handled"
+            renderItem={({ item }) => (
+              <TouchableOpacity
+                style={[
+                  styles.pickerItem,
+                  {
+                    backgroundColor: item === value ? colors.primary + "15" : "transparent",
+                    borderBottomColor: colors.border,
+                  },
+                ]}
+                onPress={() => {
+                  onChange(item);
+                  setOpen(false);
+                  setQuery("");
+                  Haptics.selectionAsync();
+                }}
+              >
+                <Text style={[styles.pickerItemText, { color: item === value ? colors.primary : colors.foreground }]}>
+                  {item}
+                </Text>
+                {item === value ? <Feather name="check" size={16} color={colors.primary} /> : null}
               </TouchableOpacity>
             )}
           />
@@ -468,9 +604,9 @@ export default function SyndicateSetupScreen() {
   const [form, setForm] = useState<SetupForm>({
     name: "",
     abbreviation: "",
-    sector: "Copropriété",
+    sector: "Copropriété résidentielle",
     region: "Casablanca-Settat",
-    legalForm: "Syndicat de Copropriété",
+    legalForm: "Syndicat de copropriété (Dahir 1957)",
     email: "",
     phone: "",
     website: "",
@@ -487,6 +623,7 @@ export default function SyndicateSetupScreen() {
     logoColor: "#7c3aed",
     logoUri: "",
     logoUrl: "",
+    logoPreset: "home",
     mission: "",
   });
 
@@ -795,46 +932,22 @@ export default function SyndicateSetupScreen() {
                 multiline
               />
             </Field>
-            <Text style={[styles.fieldLabel, { color: colors.mutedForeground }]}>Secteur d'activité</Text>
-            <View style={styles.chipGrid}>
-              {SECTORS.map((s) => (
-                <TouchableOpacity
-                  key={s}
-                  style={[
-                    styles.chip,
-                    {
-                      backgroundColor: form.sector === s ? colors.primary : colors.muted,
-                      borderColor: form.sector === s ? colors.primary : colors.border,
-                    },
-                  ]}
-                  onPress={() => { up("sector", s); Haptics.selectionAsync(); }}
-                >
-                  <Text style={[styles.chipText, { color: form.sector === s ? "#fff" : colors.foreground }]}>
-                    {s}
-                  </Text>
-                </TouchableOpacity>
-              ))}
-            </View>
-            <Text style={[styles.fieldLabel, { color: colors.mutedForeground }]}>Région</Text>
-            <View style={styles.chipGrid}>
-              {REGIONS.map((r) => (
-                <TouchableOpacity
-                  key={r}
-                  style={[
-                    styles.chip,
-                    {
-                      backgroundColor: form.region === r ? colors.primary : colors.muted,
-                      borderColor: form.region === r ? colors.primary : colors.border,
-                    },
-                  ]}
-                  onPress={() => { up("region", r); Haptics.selectionAsync(); }}
-                >
-                  <Text style={[styles.chipText, { color: form.region === r ? "#fff" : colors.foreground }]}>
-                    {r}
-                  </Text>
-                </TouchableOpacity>
-              ))}
-            </View>
+            <SimplePicker
+              label="Secteur d'activité"
+              value={form.sector}
+              onChange={(v) => up("sector", v)}
+              options={SECTORS}
+              colors={colors}
+              title="Secteur d'activité"
+            />
+            <SimplePicker
+              label="Région"
+              value={form.region}
+              onChange={(v) => up("region", v)}
+              options={REGIONS}
+              colors={colors}
+              title="Choisir une région"
+            />
           </View>
         );
 
@@ -912,6 +1025,8 @@ export default function SyndicateSetupScreen() {
                 <View style={[styles.logoCircle, { backgroundColor: form.logoUri ? "transparent" : form.logoColor }]}>
                   {form.logoUri ? (
                     <Image source={{ uri: form.logoUri }} style={styles.logoImg} />
+                  ) : form.logoPreset ? (
+                    <Feather name={form.logoPreset as keyof typeof Feather.glyphMap} size={28} color="#fff" />
                   ) : (
                     <Text style={styles.logoAbbr}>{form.abbreviation || "SYN"}</Text>
                   )}
@@ -922,63 +1037,97 @@ export default function SyndicateSetupScreen() {
                   </Text>
                   <Text style={[styles.logoSector, { color: colors.mutedForeground }]}>{form.sector}</Text>
                 </View>
+                {form.logoUri ? (
+                  <TouchableOpacity
+                    style={[styles.logoClearBtn, { backgroundColor: colors.destructive + "15", borderColor: colors.destructive + "40" }]}
+                    onPress={() => { up("logoUri", ""); up("logoUrl", ""); }}
+                    activeOpacity={0.8}
+                  >
+                    <Feather name="trash-2" size={13} color={colors.destructive} />
+                  </TouchableOpacity>
+                ) : null}
               </View>
+
+              {/* Preset gallery */}
+              {!form.logoUri ? (
+                <>
+                  <Text style={[styles.logoColorLabel, { color: colors.mutedForeground }]}>
+                    Choisissez un logo prédéfini
+                  </Text>
+                  <View style={styles.logoPresetGrid}>
+                    {LOGO_PRESETS.map((p) => {
+                      const selected = !form.logoUri && form.logoPreset === p.icon && form.logoColor === p.color;
+                      return (
+                        <TouchableOpacity
+                          key={p.icon + p.color}
+                          style={[
+                            styles.logoPresetTile,
+                            {
+                              borderColor: selected ? p.color : colors.border,
+                              borderWidth: selected ? 2 : 1,
+                              backgroundColor: selected ? p.color + "15" : colors.card,
+                            },
+                          ]}
+                          onPress={() => {
+                            up("logoPreset", p.icon);
+                            up("logoColor", p.color);
+                            Haptics.selectionAsync();
+                          }}
+                          activeOpacity={0.75}
+                        >
+                          <View style={[styles.logoPresetIcon, { backgroundColor: p.color }]}>
+                            <Feather name={p.icon} size={20} color="#fff" />
+                          </View>
+                          <Text style={[styles.logoPresetLabel, { color: colors.mutedForeground }]} numberOfLines={1}>
+                            {p.label}
+                          </Text>
+                          {selected ? (
+                            <View style={[styles.logoPresetCheck, { backgroundColor: p.color }]}>
+                              <Feather name="check" size={8} color="#fff" />
+                            </View>
+                          ) : null}
+                        </TouchableOpacity>
+                      );
+                    })}
+                  </View>
+
+                  <View style={[styles.logoOrRow, { borderColor: colors.border }]}>
+                    <View style={[styles.logoOrLine, { backgroundColor: colors.border }]} />
+                    <Text style={[styles.logoOrText, { color: colors.mutedForeground }]}>ou</Text>
+                    <View style={[styles.logoOrLine, { backgroundColor: colors.border }]} />
+                  </View>
+                </>
+              ) : null}
 
               {/* Upload buttons */}
               <View style={styles.logoActions}>
                 <TouchableOpacity
-                  style={[styles.logoBtn, { backgroundColor: colors.card, borderColor: colors.border }]}
+                  style={[
+                    styles.logoBtn,
+                    {
+                      backgroundColor: form.logoUri ? colors.primary + "15" : colors.card,
+                      borderColor: form.logoUri ? colors.primary : colors.border,
+                      flex: 1,
+                    },
+                  ]}
                   onPress={() => pickImage("gallery")}
                   activeOpacity={0.8}
                 >
-                  <Feather name="image" size={15} color={colors.primary} />
-                  <Text style={[styles.logoBtnText, { color: colors.primary }]}>Galerie</Text>
+                  <Feather name="upload" size={15} color={colors.primary} />
+                  <Text style={[styles.logoBtnText, { color: colors.primary }]}>
+                    {form.logoUri ? "Changer l'image" : "Téléverser depuis mon appareil"}
+                  </Text>
                 </TouchableOpacity>
-                {Platform.OS !== "web" && (
+                {Platform.OS !== "web" && !form.logoUri && (
                   <TouchableOpacity
                     style={[styles.logoBtn, { backgroundColor: colors.card, borderColor: colors.border }]}
                     onPress={() => pickImage("camera")}
                     activeOpacity={0.8}
                   >
-                    <Feather name="camera" size={15} color={colors.primary} />
-                    <Text style={[styles.logoBtnText, { color: colors.primary }]}>Caméra</Text>
+                    <Feather name="camera" size={15} color={colors.mutedForeground} />
                   </TouchableOpacity>
                 )}
-                {form.logoUri ? (
-                  <TouchableOpacity
-                    style={[styles.logoBtn, { backgroundColor: colors.card, borderColor: colors.destructive }]}
-                    onPress={() => { up("logoUri", ""); up("logoUrl", ""); }}
-                    activeOpacity={0.8}
-                  >
-                    <Feather name="trash-2" size={15} color={colors.destructive} />
-                    <Text style={[styles.logoBtnText, { color: colors.destructive }]}>Supprimer</Text>
-                  </TouchableOpacity>
-                ) : null}
               </View>
-
-              {/* Color picker (shown when no image) */}
-              {!form.logoUri ? (
-                <>
-                  <Text style={[styles.logoColorLabel, { color: colors.mutedForeground }]}>
-                    Ou choisissez une couleur
-                  </Text>
-                  <View style={styles.colorGrid}>
-                    {LOGO_COLORS.map((c) => (
-                      <TouchableOpacity
-                        key={c}
-                        style={[styles.colorDot, { backgroundColor: c }]}
-                        onPress={() => { up("logoColor", c); Haptics.selectionAsync(); }}
-                      >
-                        {form.logoColor === c && (
-                          <View style={styles.colorCheck}>
-                            <Feather name="check" size={16} color="#fff" />
-                          </View>
-                        )}
-                      </TouchableOpacity>
-                    ))}
-                  </View>
-                </>
-              ) : null}
             </View>
           </View>
         );
@@ -1041,28 +1190,14 @@ export default function SyndicateSetupScreen() {
                 keyboardType="numeric"
               />
             </Field>
-            <Text style={[styles.fieldLabel, { color: colors.mutedForeground }]}>Forme juridique</Text>
-            <View style={styles.chipGrid}>
-              {LEGAL_FORMS.map((f) => (
-                <TouchableOpacity
-                  key={f}
-                  style={[
-                    styles.chip,
-                    {
-                      backgroundColor: form.legalForm === f ? colors.primary : colors.muted,
-                      borderColor: form.legalForm === f ? colors.primary : colors.border,
-                    },
-                  ]}
-                  onPress={() => { up("legalForm", f); Haptics.selectionAsync(); }}
-                >
-                  <Text
-                    style={[styles.chipText, { color: form.legalForm === f ? "#fff" : colors.foreground }]}
-                  >
-                    {f}
-                  </Text>
-                </TouchableOpacity>
-              ))}
-            </View>
+            <SimplePicker
+              label="Forme juridique"
+              value={form.legalForm}
+              onChange={(v) => up("legalForm", v)}
+              options={LEGAL_FORMS}
+              colors={colors}
+              title="Forme juridique"
+            />
             <View style={[styles.legalNote, { backgroundColor: "#3b82f618", borderColor: "#3b82f630" }]}>
               <Feather name="info" size={14} color="#3b82f6" />
               <Text style={[styles.legalNoteText, { color: "#3b82f6" }]}>
@@ -1086,6 +1221,8 @@ export default function SyndicateSetupScreen() {
                 <View style={[styles.previewLogo, { backgroundColor: form.logoUri ? "transparent" : form.logoColor }]}>
                   {form.logoUri ? (
                     <Image source={{ uri: form.logoUri }} style={styles.previewLogoImg} />
+                  ) : form.logoPreset ? (
+                    <Feather name={form.logoPreset as keyof typeof Feather.glyphMap} size={22} color="#fff" />
                   ) : (
                     <Text style={styles.previewAbbr}>{form.abbreviation || "SYN"}</Text>
                   )}
@@ -1388,14 +1525,68 @@ const styles = StyleSheet.create({
   logoBtn: {
     flexDirection: "row",
     alignItems: "center",
+    justifyContent: "center",
     gap: 6,
     paddingHorizontal: 14,
-    paddingVertical: 9,
+    paddingVertical: 10,
     borderRadius: 10,
     borderWidth: 1,
   },
   logoBtnText: { fontSize: 12, fontFamily: "Inter_600SemiBold" },
+  logoClearBtn: {
+    width: 32,
+    height: 32,
+    borderRadius: 8,
+    borderWidth: 1,
+    alignItems: "center",
+    justifyContent: "center",
+  },
   logoColorLabel: { fontSize: 11, fontFamily: "Inter_500Medium" },
+  logoPresetGrid: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    gap: 8,
+  },
+  logoPresetTile: {
+    width: "22%",
+    aspectRatio: 0.85,
+    borderRadius: 12,
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 6,
+    padding: 8,
+    position: "relative",
+  },
+  logoPresetIcon: {
+    width: 40,
+    height: 40,
+    borderRadius: 12,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  logoPresetLabel: {
+    fontSize: 9,
+    fontFamily: "Inter_500Medium",
+    textAlign: "center",
+  },
+  logoPresetCheck: {
+    position: "absolute",
+    top: 4,
+    right: 4,
+    width: 14,
+    height: 14,
+    borderRadius: 7,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  logoOrRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 10,
+    paddingVertical: 4,
+  },
+  logoOrLine: { flex: 1, height: 1 },
+  logoOrText: { fontSize: 11, fontFamily: "Inter_400Regular" },
   colorGrid: { flexDirection: "row", flexWrap: "wrap", gap: 12 },
   colorDot: { width: 44, height: 44, borderRadius: 22, alignItems: "center", justifyContent: "center" },
   colorCheck: {
