@@ -1,6 +1,10 @@
 import app from "./app";
 import { logger } from "./lib/logger";
 import { pool } from "@workspace/db";
+import { validateAuthConfig } from "./middleware/auth.js";
+
+// Fail fast on missing auth config — do not wait for first request
+validateAuthConfig();
 
 const rawPort = process.env["PORT"];
 

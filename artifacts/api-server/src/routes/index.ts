@@ -24,6 +24,12 @@ import sinistresRouter from "./sinistres.js";
 import locatairesRouter from "./locataires.js";
 import agRouter from "./ag.js";
 import financeBuildingRouter from "./finance-building.js";
+// ─── P1–P12 feature routes ────────────────────────────────────────────────
+import ideasRouter from "./ideas.js";
+import transparencyRouter from "./transparency.js";
+import rankingsRouter from "./rankings.js";
+import teamRouter from "./team.js";
+import subscriptionsRouter from "./subscriptions.js";
 
 const router: IRouter = Router();
 
@@ -52,5 +58,11 @@ router.use(sinistresRouter);
 router.use(locatairesRouter);
 router.use(agRouter);
 router.use(financeBuildingRouter);
+// ─── P1–P12 features ────────────────────────────────────────────────────────
+router.use(ideasRouter);
+router.use(transparencyRouter);
+router.use(rankingsRouter);
+router.use(teamRouter);
+router.use(subscriptionsRouter);
 
 export default router;

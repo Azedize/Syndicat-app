@@ -98,7 +98,7 @@ router.put(
       await db
         .update(usersTable)
         .set({ status: result.data.status })
-        .where(eq(usersTable.id, req.params.id));
+        .where(eq(usersTable.id, req.params.id as string));
       res.json({ success: true });
     } catch (err) {
       req.log.error(err);
@@ -122,7 +122,7 @@ router.put(
       await db
         .update(usersTable)
         .set({ role: result.data.role })
-        .where(eq(usersTable.id, req.params.id));
+        .where(eq(usersTable.id, req.params.id as string));
       res.json({ success: true });
     } catch (err) {
       req.log.error(err);
@@ -137,7 +137,7 @@ router.delete(
   requireRole("super_admin"),
   async (req, res) => {
     try {
-      await db.delete(usersTable).where(eq(usersTable.id, req.params.id));
+      await db.delete(usersTable).where(eq(usersTable.id, req.params.id as string));
       res.json({ success: true });
     } catch (err) {
       req.log.error(err);

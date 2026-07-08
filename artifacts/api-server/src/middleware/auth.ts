@@ -18,7 +18,7 @@ function getJwtSecret(): string {
 export interface JwtPayload {
   userId: string;
   email: string;
-  role: "super_admin" | "syndicate_admin" | "member";
+  role: "super_admin" | "syndicate_admin" | "member" | "tenant";
   syndicateId?: string;
   name: string;
 }
@@ -63,6 +63,24 @@ export function requireRole(...roles: JwtPayload["role"][]) {
 
 /** Shorthand: requires super_admin or syndicate_admin role */
 export const requireAdmin = requireRole("super_admin", "syndicate_admin");
+
+/** Shorthand: requires tenant (locataire) role */
+export const requireTenant = requireRole("tenant");
+
+/** Blocks tenant users — passes members and admins */
+export function requireNotTenant(req: Request, res: Response, next: NextFunction) {
+  if (!req.user) { res.status(401).json({ error: "Non authentifié" }); return; }
+  if (req.user.role === "tenant") {
+    res.status(403).json({ error: "Accès réservé aux membres et administrateurs" });
+    return;
+  }
+  next();
+}
+
+/** Validates at startup — throws if JWT_SECRET is missing so misconfiguration is caught immediately */
+export function validateAuthConfig(): void {
+  getJwtSecret();
+}
 
 /** Access token: short-lived (15 min) */
 export function signToken(payload: JwtPayload): string {

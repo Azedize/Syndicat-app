@@ -1,14 +1,13 @@
 import { Feather } from "@expo/vector-icons";
 import * as Haptics from "expo-haptics";
 import { router } from "expo-router";
-import React, { useState } from "react";
-import { shareContent } from "@/hooks/useShare";
+import React, { useCallback, useEffect, useState } from "react";
 import {
+  ActivityIndicator,
   Alert,
   FlatList,
-  Modal,
   Platform,
-  ScrollView,
+  RefreshControl,
   StyleSheet,
   Text,
   TextInput,
@@ -17,63 +16,217 @@ import {
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useAuth } from "@/context/AuthContext";
-import { useData, type Product } from "@/context/DataContext";
 import { useBreakpoints } from "@/hooks/useBreakpoints";
 import { useColors } from "@/hooks/useColors";
 import FilterChips from "@/components/FilterChips";
 import FilterTabs from "@/components/FilterTabs";
+import { marketplace } from "@/services/api";
 
-const CATEGORIES = ["Tous", "Éducation", "Fournitures", "Papeterie", "Livres", "Matériel", "Accessoires"];
+// ─── Types ────────────────────────────────────────────────────────────────────
+
+type Product = {
+  id: string;
+  name: string;
+  description: string;
+  price: string;
+  category: string;
+  condition: string;
+  location: string;
+  stock: number;
+  sellerId: string;
+  sellerName: string;
+  status: string;
+  featured: boolean;
+  boosted: boolean;
+  viewCount: number;
+  createdAt: string;
+};
+
+const CATEGORIES = ["Tous", "Électroménager", "Meubles", "Vêtements", "Électronique", "Sport", "Livres", "Autre"];
+const CONDITION_LABELS: Record<string, string> = { neuf: "Neuf", bon: "Bon état", acceptable: "Acceptable", mauvais: "Mauvais état" };
 
 type AdminTab = "catalogue" | "validation" | "commandes";
+
+// ─── Screen ───────────────────────────────────────────────────────────────────
 
 export default function MarketplaceScreen() {
   const colors = useColors();
   const insets = useSafeAreaInsets();
   const { user } = useAuth();
-  const { products, orders, validateProduct, addToCart, cart } = useData();
+  const { isWide } = useBreakpoints();
+  const topPad = isWide ? 0 : (Platform.OS === "web" ? 67 : insets.top);
+
+  const [products, setProducts] = useState<Product[]>([]);
+  const [pending, setPending] = useState<Product[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
   const [search, setSearch] = useState("");
   const [category, setCategory] = useState("Tous");
   const [adminTab, setAdminTab] = useState<AdminTab>("catalogue");
-  const [selectedProduct, setSelectedProduct] = useState<Product | null>(null);
-  const { isWide } = useBreakpoints();
-  const topPad = isWide ? 0 : (Platform.OS === "web" ? 67 : insets.top);
-  const cartCount = cart.reduce((s, c) => s + c.quantity, 0);
+  const [moderating, setModerating] = useState<string | null>(null);
 
-  const isAdmin = user?.role === "super_admin";
+  const isAdmin = user?.role === "super_admin" || user?.role === "syndicate_admin";
 
-  const filtered = products.filter((p) => {
-    const matchSearch = !search || p.name.toLowerCase().includes(search.toLowerCase()) || p.seller.toLowerCase().includes(search.toLowerCase());
-    const matchCat = category === "Tous" || p.category === category;
-    const matchStatus = isAdmin ? true : p.status === "available";
-    return matchSearch && matchCat && matchStatus;
-  });
+  // ─── Fetch ─────────────────────────────────────────────────────────────
 
-  const pendingProducts = products.filter((p) => p.status === "pending");
+  const fetchProducts = useCallback(async () => {
+    try {
+      const params: Record<string, string> = {};
+      if (category !== "Tous") params.category = category;
+      if (search.trim()) params.search = search.trim();
+      const res = await marketplace.products(params);
+      setProducts((res.data as Product[]) ?? []);
+    } catch {
+      // keep stale data
+    }
+  }, [category, search]);
 
-  const handleValidate = (id: string, productName: string) => {
-    Alert.alert("Valider le produit", `Valider "${productName}" pour qu'il apparaisse dans le catalogue?`, [
-      { text: "Annuler", style: "cancel" },
-      {
-        text: "Valider",
-        onPress: () => {
-          validateProduct(id);
-          Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+  const fetchPending = useCallback(async () => {
+    if (!isAdmin) return;
+    try {
+      const res = await marketplace.pending();
+      setPending((res.data as Product[]) ?? []);
+    } catch {
+      // keep stale
+    }
+  }, [isAdmin]);
+
+  const fetchAll = useCallback(async () => {
+    await Promise.all([fetchProducts(), fetchPending()]);
+    setLoading(false);
+    setRefreshing(false);
+  }, [fetchProducts, fetchPending]);
+
+  useEffect(() => { fetchAll(); }, [fetchAll]);
+
+  const onRefresh = () => { setRefreshing(true); fetchAll(); };
+
+  // ─── Moderate ──────────────────────────────────────────────────────────
+
+  const handleModerate = (id: string, action: "approve" | "reject", productName: string) => {
+    const labels = { approve: "Approuver", reject: "Rejeter" };
+    Alert.alert(
+      `${labels[action]} le produit`,
+      `${labels[action]} "${productName}" ?`,
+      [
+        { text: "Annuler", style: "cancel" },
+        {
+          text: labels[action],
+          style: action === "reject" ? "destructive" : "default",
+          onPress: async () => {
+            setModerating(id);
+            try {
+              await marketplace.moderate(id, { action });
+              Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+              // refresh both lists
+              await Promise.all([fetchProducts(), fetchPending()]);
+            } catch {
+              Alert.alert("Erreur", "Action impossible");
+            } finally {
+              setModerating(null);
+            }
+          },
         },
-      },
-    ]);
+      ],
+    );
   };
 
-  const handleReject = () => {
-    Alert.alert("Produit rejeté", "Le vendeur sera notifié du refus.");
-    Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
+  // ─── Render helpers ────────────────────────────────────────────────────
+
+  const renderProductCard = ({ item: p }: { item: Product }) => {
+    const price = Number(p.price).toLocaleString("fr-MA") + " MAD";
+    return (
+      <TouchableOpacity
+        style={[styles.card, { backgroundColor: colors.card, borderColor: colors.border }]}
+        onPress={() => { router.push({ pathname: "/product-detail", params: { id: p.id } } as any); Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); }}
+        activeOpacity={0.8}
+      >
+        <View style={[styles.cardImagePlaceholder, { backgroundColor: colors.secondary }]}>
+          {p.featured && (
+            <View style={[styles.featuredBadge, { backgroundColor: "#f59e0b" }]}>
+              <Feather name="star" size={10} color="#fff" />
+              <Text style={styles.featuredBadgeText}>Vedette</Text>
+            </View>
+          )}
+          <Feather name="shopping-bag" size={28} color={colors.mutedForeground} />
+        </View>
+        <View style={styles.cardBody}>
+          <Text style={[styles.cardName, { color: colors.foreground }]} numberOfLines={2}>{p.name}</Text>
+          <Text style={[styles.cardPrice, { color: colors.primary }]}>{price}</Text>
+          <View style={styles.cardMeta}>
+            <View style={[styles.conditionBadge, { backgroundColor: colors.secondary }]}>
+              <Text style={[styles.conditionText, { color: colors.mutedForeground }]}>
+                {CONDITION_LABELS[p.condition] ?? p.condition}
+              </Text>
+            </View>
+            {p.location ? (
+              <View style={styles.locationRow}>
+                <Feather name="map-pin" size={11} color={colors.mutedForeground} />
+                <Text style={[styles.locationText, { color: colors.mutedForeground }]} numberOfLines={1}>{p.location}</Text>
+              </View>
+            ) : null}
+          </View>
+          <Text style={[styles.sellerText, { color: colors.mutedForeground }]}>
+            <Feather name="user" size={11} /> {p.sellerName}
+          </Text>
+        </View>
+      </TouchableOpacity>
+    );
   };
 
-  const statusConfig = (status: Product["status"]) => ({
-    available: { color: colors.success, label: "Disponible" },
-    sold_out: { color: colors.destructive, label: "Épuisé" },
-    pending: { color: "#f59e0b", label: "En attente" },
-  }[status]);
+  const renderPendingCard = ({ item: p }: { item: Product }) => (
+    <View style={[styles.pendingCard, { backgroundColor: colors.card, borderColor: "#f59e0b40", borderLeftColor: "#f59e0b" }]}>
+      <View style={{ flex: 1 }}>
+        <Text style={[styles.pendingName, { color: colors.foreground }]}>{p.name}</Text>
+        <Text style={[styles.pendingMeta, { color: colors.mutedForeground }]}>
+          {Number(p.price).toLocaleString("fr-MA")} MAD · {p.category} · {CONDITION_LABELS[p.condition] ?? p.condition}
+        </Text>
+        <Text style={[styles.pendingMeta, { color: colors.mutedForeground }]}>
+          Vendeur : {p.sellerName}
+        </Text>
+        {p.description ? (
+          <Text style={[styles.pendingDesc, { color: colors.mutedForeground }]} numberOfLines={2}>
+            {p.description}
+          </Text>
+        ) : null}
+      </View>
+      <View style={styles.pendingActions}>
+        <TouchableOpacity
+          style={[styles.modBtn, { backgroundColor: colors.success + "15" }]}
+          onPress={() => handleModerate(p.id, "approve", p.name)}
+          disabled={moderating === p.id}
+        >
+          {moderating === p.id ? (
+            <ActivityIndicator size="small" color={colors.success} />
+          ) : (
+            <>
+              <Feather name="check" size={14} color={colors.success} />
+              <Text style={[styles.modBtnText, { color: colors.success }]}>Approuver</Text>
+            </>
+          )}
+        </TouchableOpacity>
+        <TouchableOpacity
+          style={[styles.modBtn, { backgroundColor: colors.destructive + "15" }]}
+          onPress={() => handleModerate(p.id, "reject", p.name)}
+          disabled={moderating === p.id}
+        >
+          <Feather name="x" size={14} color={colors.destructive} />
+          <Text style={[styles.modBtnText, { color: colors.destructive }]}>Rejeter</Text>
+        </TouchableOpacity>
+        <TouchableOpacity
+          style={[styles.modBtn, { backgroundColor: colors.primary + "10" }]}
+          onPress={() => { router.push({ pathname: "/product-detail", params: { id: p.id } } as any); }}
+        >
+          <Feather name="eye" size={14} color={colors.primary} />
+          <Text style={[styles.modBtnText, { color: colors.primary }]}>Voir</Text>
+        </TouchableOpacity>
+      </View>
+    </View>
+  );
+
+  // ─── Main render ────────────────────────────────────────────────────────
+
+  const listData = products;
 
   return (
     <View style={[styles.root, { backgroundColor: colors.background }]}>
@@ -83,30 +236,32 @@ export default function MarketplaceScreen() {
           <View>
             <Text style={[styles.title, { color: colors.foreground }]}>Marketplace</Text>
             <Text style={[styles.subtitle, { color: colors.mutedForeground }]}>
-              {isAdmin ? `${pendingProducts.length} en validation` : `${filtered.length} produits disponibles`}
+              {isAdmin
+                ? `${pending.length} en attente de validation`
+                : `${listData.length} produit${listData.length !== 1 ? "s" : ""} disponible${listData.length !== 1 ? "s" : ""}`}
             </Text>
           </View>
           <View style={{ flexDirection: "row", alignItems: "center", gap: 8 }}>
-            <TouchableOpacity
-              style={[styles.cartBtn, { backgroundColor: colors.secondary }]}
-              onPress={() => { router.push("/search" as any); Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); }}
-            >
-              <Feather name="search" size={18} color={colors.primary} />
-            </TouchableOpacity>
             {isAdmin ? (
               <View style={[styles.adminBadge, { backgroundColor: colors.primary + "15" }]}>
                 <Feather name="shield" size={14} color={colors.primary} />
                 <Text style={[styles.adminBadgeText, { color: colors.primary }]}>Admin</Text>
               </View>
             ) : (
-              <TouchableOpacity style={[styles.cartBtn, { backgroundColor: colors.primary + "15" }]} onPress={() => { router.push("/cart"); Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); }}>
-                <Feather name="shopping-cart" size={20} color={colors.primary} />
-                {cartCount > 0 && (
-                  <View style={[styles.cartBadge, { backgroundColor: colors.primary }]}>
-                    <Text style={styles.cartBadgeText}>{cartCount}</Text>
-                  </View>
-                )}
-              </TouchableOpacity>
+              <>
+                <TouchableOpacity
+                  style={[styles.headerBtn, { backgroundColor: colors.secondary }]}
+                  onPress={() => { router.push("/favorites" as any); Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); }}
+                >
+                  <Feather name="heart" size={18} color={colors.primary} />
+                </TouchableOpacity>
+                <TouchableOpacity
+                  style={[styles.headerBtn, { backgroundColor: colors.primary + "15" }]}
+                  onPress={() => { router.push("/cart"); Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); }}
+                >
+                  <Feather name="shopping-cart" size={20} color={colors.primary} />
+                </TouchableOpacity>
+              </>
             )}
           </View>
         </View>
@@ -115,21 +270,26 @@ export default function MarketplaceScreen() {
           <Feather name="search" size={16} color={colors.mutedForeground} />
           <TextInput
             style={[styles.searchInput, { color: colors.foreground }]}
-            placeholder="Rechercher un produit..."
+            placeholder="Rechercher un produit, vendeur..."
             placeholderTextColor={colors.mutedForeground}
             value={search}
             onChangeText={setSearch}
           />
-          {search ? <TouchableOpacity onPress={() => setSearch("")}><Feather name="x" size={16} color={colors.mutedForeground} /></TouchableOpacity> : null}
+          {search ? (
+            <TouchableOpacity onPress={() => setSearch("")}>
+              <Feather name="x" size={16} color={colors.mutedForeground} />
+            </TouchableOpacity>
+          ) : null}
         </View>
       </View>
 
+      {/* Tabs / filter chips */}
       {isAdmin ? (
         <FilterTabs
           options={[
-            { key: "catalogue",  label: "Catalogue" },
-            { key: "validation", label: `Validation (${pendingProducts.length})` },
-            { key: "commandes",  label: "Commandes" },
+            { key: "catalogue", label: "Catalogue" },
+            { key: "validation", label: `Validation (${pending.length})` },
+            { key: "commandes", label: "Commandes" },
           ]}
           value={adminTab}
           onChange={(k) => setAdminTab(k as AdminTab)}
@@ -144,285 +304,207 @@ export default function MarketplaceScreen() {
         />
       )}
 
-      {/* Admin Validation Tab */}
-      {isAdmin && adminTab === "validation" ? (
+      {/* Content */}
+      {loading ? (
+        <View style={styles.centered}>
+          <ActivityIndicator size="large" color={colors.primary} />
+          <Text style={[styles.loadingText, { color: colors.mutedForeground }]}>Chargement du marketplace...</Text>
+        </View>
+      ) : isAdmin && adminTab === "validation" ? (
         <FlatList
-          data={pendingProducts}
+          data={pending}
           keyExtractor={(p) => p.id}
-          contentContainerStyle={{ padding: 16, gap: 14, paddingBottom: isWide ? 32 : insets.bottom + 100 }}
+          renderItem={renderPendingCard}
+          contentContainerStyle={[styles.list, { paddingBottom: isWide ? 32 : insets.bottom + 100 }]}
           showsVerticalScrollIndicator={false}
-          ListEmptyComponent={
-            <View style={styles.emptyVal}>
-              <Feather name="check-circle" size={40} color={colors.success} />
-              <Text style={[styles.emptyValTitle, { color: colors.foreground }]}>Tout est validé!</Text>
-              <Text style={[styles.emptyValSub, { color: colors.mutedForeground }]}>Aucun produit en attente de validation.</Text>
-            </View>
-          }
-          renderItem={({ item: p }) => (
-            <View style={[styles.valCard, { backgroundColor: colors.card, borderColor: "#f59e0b40", borderLeftColor: "#f59e0b" }]}>
-              <View style={styles.valTop}>
-                <View style={[styles.valImg, { backgroundColor: colors.primary + "10" }]}>
-                  <Feather name="package" size={22} color={colors.primary} />
-                </View>
-                <View style={{ flex: 1, gap: 3 }}>
-                  <Text style={[styles.valName, { color: colors.foreground }]}>{p.name}</Text>
-                  <Text style={[styles.valDesc, { color: colors.mutedForeground }]} numberOfLines={2}>{p.description}</Text>
-                  <View style={styles.valMeta}>
-                    <Feather name="user" size={11} color={colors.mutedForeground} />
-                    <Text style={[styles.valSeller, { color: colors.primary }]}>{p.seller}</Text>
-                    <Text style={[styles.valDot, { color: colors.mutedForeground }]}>•</Text>
-                    <Text style={[styles.valPrice, { color: colors.foreground }]}>{p.price} MAD</Text>
-                    <Text style={[styles.valDot, { color: colors.mutedForeground }]}>•</Text>
-                    <Text style={[styles.valStock, { color: colors.mutedForeground }]}>Stock: {p.stock}</Text>
-                  </View>
-                </View>
-              </View>
-              <View style={styles.valActions}>
-                <TouchableOpacity
-                  style={[styles.valBtn, { backgroundColor: colors.destructive + "15", borderColor: colors.destructive + "30" }]}
-                  onPress={handleReject}
-                >
-                  <Feather name="x" size={15} color={colors.destructive} />
-                  <Text style={[styles.valBtnText, { color: colors.destructive }]}>Rejeter</Text>
-                </TouchableOpacity>
-                <TouchableOpacity
-                  style={[styles.valBtn, { flex: 2, backgroundColor: colors.success, borderColor: colors.success }]}
-                  onPress={() => handleValidate(p.id, p.name)}
-                >
-                  <Feather name="check" size={15} color="#fff" />
-                  <Text style={[styles.valBtnText, { color: "#fff" }]}>Valider & Publier</Text>
-                </TouchableOpacity>
-              </View>
-            </View>
-          )}
-        />
-      ) : isAdmin && adminTab === "commandes" ? (
-        <ScrollView contentContainerStyle={{ padding: 20, paddingBottom: isWide ? 32 : insets.bottom + 100 }}>
-          <View style={[styles.statsGrid, { gap: 12 }]}>
-            {[
-              { label: "Commandes totales", value: String(orders.length), color: colors.primary, icon: "shopping-bag" as const },
-              { label: "En cours", value: String(orders.filter((o) => o.status === "pending" || o.status === "confirmed").length), color: "#f59e0b", icon: "clock" as const },
-              { label: "Livrées", value: String(orders.filter((o) => o.status === "delivered").length), color: colors.success, icon: "check-circle" as const },
-              { label: "Commission (MAD)", value: Math.round(orders.filter((o) => o.status === "delivered").reduce((s, o) => s + o.amount, 0) * 0.05).toLocaleString("fr-MA"), color: "#8b5cf6", icon: "dollar-sign" as const },
-            ].map((s) => (
-              <View key={s.label} style={[styles.statCard, { backgroundColor: colors.card, borderColor: colors.border }]}>
-                <View style={[styles.statIcon, { backgroundColor: s.color + "15" }]}>
-                  <Feather name={s.icon} size={18} color={s.color} />
-                </View>
-                <Text style={[styles.statValue, { color: colors.foreground }]}>{s.value}</Text>
-                <Text style={[styles.statLabel, { color: colors.mutedForeground }]}>{s.label}</Text>
-              </View>
-            ))}
-          </View>
-          <View style={[styles.comNote, { backgroundColor: colors.primary + "10", borderColor: colors.primary + "30", marginTop: 16 }]}>
-            <Feather name="info" size={14} color={colors.primary} />
-            <Text style={[styles.comNoteText, { color: colors.primary }]}>
-              Commission plateforme: 5% sur chaque transaction. Les fonds sont reversés mensuellement.
-            </Text>
-          </View>
-        </ScrollView>
-      ) : (
-        /* Product grid */
-        <FlatList
-          data={filtered}
-          keyExtractor={(p) => p.id}
-          numColumns={2}
-          contentContainerStyle={{ padding: 16, gap: 12, paddingBottom: isWide ? 32 : insets.bottom + 100 }}
-          columnWrapperStyle={{ gap: 12 }}
-          showsVerticalScrollIndicator={false}
+          refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={colors.primary} />}
           ListEmptyComponent={
             <View style={styles.empty}>
-              <Feather name="package" size={40} color={colors.mutedForeground} />
-              <Text style={[styles.emptyText, { color: colors.mutedForeground }]}>Aucun produit trouvé</Text>
+              <Feather name="check-circle" size={44} color={colors.success} />
+              <Text style={[styles.emptyTitle, { color: colors.foreground }]}>File vide !</Text>
+              <Text style={[styles.emptySub, { color: colors.mutedForeground }]}>
+                Aucun produit en attente de validation.
+              </Text>
             </View>
           }
-          renderItem={({ item: p }) => {
-            const sc = statusConfig(p.status);
-            return (
-              <TouchableOpacity
-                style={[styles.productCard, { flex: 1, backgroundColor: colors.card, borderColor: colors.border }]}
-                onPress={() => setSelectedProduct(p)}
-                activeOpacity={0.8}
-              >
-                <View style={[styles.productImg, { backgroundColor: colors.primary + "10" }]}>
-                  <Feather name="package" size={28} color={colors.primary} />
-                  {isAdmin ? (
-                    <View style={[styles.productStatusBadge, { backgroundColor: sc.color }]}>
-                      <Text style={styles.productStatusText}>{sc.label}</Text>
-                    </View>
-                  ) : null}
-                </View>
-                <View style={styles.productInfo}>
-                  <Text style={[styles.productName, { color: colors.foreground }]} numberOfLines={2}>{p.name}</Text>
-                  <Text style={[styles.productSeller, { color: colors.mutedForeground }]} numberOfLines={1}>
-                    {p.seller}
-                  </Text>
-                  <View style={styles.productBottom}>
-                    <Text style={[styles.productPrice, { color: colors.primary }]}>{p.price} MAD</Text>
-                    {p.status === "available" ? (
-                      <TouchableOpacity
-                        style={[styles.addCartBtn, { backgroundColor: colors.primary }]}
-                        onPress={() => {
-                          addToCart({ productId: p.id, name: p.name, price: p.price, seller: p.seller, quantity: 1 });
-                          Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-                          Alert.alert("Ajouté!", `${p.name} est dans votre panier.`);
-                        }}
-                      >
-                        <Feather name="shopping-cart" size={12} color="#fff" />
-                      </TouchableOpacity>
-                    ) : (
-                      <Text style={[styles.soldOut, { color: sc.color }]}>{sc.label}</Text>
-                    )}
-                  </View>
-                </View>
-              </TouchableOpacity>
-            );
-          }}
+        />
+      ) : isAdmin && adminTab === "commandes" ? (
+        <OrdersAdminView colors={colors} insets={insets} isWide={isWide} refreshing={refreshing} onRefresh={onRefresh} />
+      ) : (
+        <FlatList
+          data={listData}
+          keyExtractor={(p) => p.id}
+          renderItem={renderProductCard}
+          numColumns={2}
+          columnWrapperStyle={{ gap: 12 }}
+          contentContainerStyle={[styles.list, { paddingBottom: isWide ? 32 : insets.bottom + 100 }]}
+          showsVerticalScrollIndicator={false}
+          refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={colors.primary} />}
+          ListEmptyComponent={
+            <View style={styles.empty}>
+              <Feather name="shopping-bag" size={44} color={colors.mutedForeground} />
+              <Text style={[styles.emptyTitle, { color: colors.foreground }]}>
+                {search ? "Aucun résultat" : "Marketplace vide"}
+              </Text>
+              <Text style={[styles.emptySub, { color: colors.mutedForeground }]}>
+                {search
+                  ? `Aucun produit ne correspond à "${search}"`
+                  : "Soyez le premier à publier un produit !"}
+              </Text>
+            </View>
+          }
         />
       )}
 
-      {/* Product detail modal */}
-      <Modal visible={!!selectedProduct} animationType="slide" presentationStyle="pageSheet">
-        {selectedProduct ? (
-          <View style={[styles.modal, { backgroundColor: colors.background }]}>
-            <View style={[styles.modalHeader, { borderBottomColor: colors.border }]}>
-              <TouchableOpacity onPress={() => setSelectedProduct(null)}>
-                <Feather name="x" size={22} color={colors.mutedForeground} />
-              </TouchableOpacity>
-              <Text style={[styles.modalTitle, { color: colors.foreground }]} numberOfLines={1}>
-                {selectedProduct.name}
-              </Text>
-              <TouchableOpacity
-                style={[styles.shareBtn, { backgroundColor: colors.secondary }]}
-                onPress={() => {
-                  Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-                  shareContent(`${selectedProduct.name}\n${selectedProduct.description}\nPrix: ${selectedProduct.price} MAD\n\nDisponible sur SYNDYCAT Marketplace`, selectedProduct.name);
-                }}
-              >
-                <Feather name="share-2" size={16} color={colors.primary} />
-              </TouchableOpacity>
-            </View>
-            <ScrollView contentContainerStyle={{ padding: 20, gap: 20, paddingBottom: 40 }}>
-              <View style={[styles.detailImg, { backgroundColor: colors.primary + "10" }]}>
-                <Feather name="package" size={60} color={colors.primary} />
-              </View>
-              <View style={{ gap: 8 }}>
-                <Text style={[styles.detailName, { color: colors.foreground }]}>{selectedProduct.name}</Text>
-                <Text style={[styles.detailDesc, { color: colors.mutedForeground }]}>{selectedProduct.description}</Text>
-              </View>
-              <View style={[styles.detailMeta, { backgroundColor: colors.card, borderColor: colors.border }]}>
-                {[
-                  { label: "Vendeur", value: selectedProduct.seller },
-                  { label: "Catégorie", value: selectedProduct.category },
-                  { label: "Stock", value: `${selectedProduct.stock} unités` },
-                  { label: "Statut", value: statusConfig(selectedProduct.status).label },
-                ].map((item, i) => (
-                  <View key={item.label}>
-                    {i > 0 ? <View style={[styles.sep, { backgroundColor: colors.border }]} /> : null}
-                    <View style={styles.metaRow}>
-                      <Text style={[styles.metaLabel, { color: colors.mutedForeground }]}>{item.label}</Text>
-                      <Text style={[styles.metaValue, { color: colors.foreground }]}>{item.value}</Text>
-                    </View>
-                  </View>
-                ))}
-              </View>
-              <View style={styles.detailFooter}>
-                <Text style={[styles.detailPrice, { color: colors.primary }]}>{selectedProduct.price} MAD</Text>
-                {selectedProduct.status === "available" ? (
-                  <TouchableOpacity
-                    style={[styles.buyBtn, { backgroundColor: colors.primary }]}
-                    onPress={() => {
-                      addToCart({ productId: selectedProduct.id, name: selectedProduct.name, price: selectedProduct.price, seller: selectedProduct.seller, quantity: 1 });
-                      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-                      setSelectedProduct(null);
-                      Alert.alert("Ajouté au panier!", `${selectedProduct.name} a été ajouté.`, [
-                        { text: "Voir le panier", onPress: () => router.push("/cart") },
-                        { text: "Continuer", style: "cancel" },
-                      ]);
-                    }}
-                  >
-                    <Feather name="shopping-cart" size={16} color="#fff" />
-                    <Text style={styles.buyBtnText}>Ajouter au panier</Text>
-                  </TouchableOpacity>
-                ) : (
-                  <View style={[styles.soldOutBtn, { backgroundColor: colors.muted }]}>
-                    <Text style={[styles.soldOutBtnText, { color: colors.mutedForeground }]}>Rupture de stock</Text>
-                  </View>
-                )}
-              </View>
-            </ScrollView>
-          </View>
-        ) : null}
-      </Modal>
+      {/* Sell FAB — visible to members */}
+      {!isAdmin && (
+        <TouchableOpacity
+          style={[styles.fab, { backgroundColor: colors.primary, bottom: isWide ? 24 : insets.bottom + 80 }]}
+          onPress={() => { router.push("/my-shop"); Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium); }}
+        >
+          <Feather name="plus" size={22} color="#fff" />
+          <Text style={styles.fabText}>Vendre</Text>
+        </TouchableOpacity>
+      )}
     </View>
   );
 }
 
+// ─── Orders admin sub-view ────────────────────────────────────────────────────
+
+function OrdersAdminView({
+  colors, insets, isWide, refreshing, onRefresh,
+}: {
+  colors: ReturnType<typeof useColors>;
+  insets: ReturnType<typeof useSafeAreaInsets>;
+  isWide: boolean;
+  refreshing: boolean;
+  onRefresh: () => void;
+}) {
+  const [orders, setOrders] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    marketplace.orders().then((r) => { setOrders((r.data as any[]) ?? []); }).catch(() => {}).finally(() => setLoading(false));
+  }, []);
+
+  if (loading) {
+    return (
+      <View style={styles.centered}>
+        <ActivityIndicator color={colors.primary} />
+      </View>
+    );
+  }
+
+  const statusColors: Record<string, string> = {
+    pending: "#f59e0b",
+    confirmed: colors.primary,
+    shipped: "#6366f1",
+    delivered: colors.success,
+    cancelled: colors.destructive,
+  };
+  const statusLabels: Record<string, string> = {
+    pending: "En attente",
+    confirmed: "Confirmé",
+    shipped: "Expédié",
+    delivered: "Livré",
+    cancelled: "Annulé",
+  };
+
+  return (
+    <FlatList
+      data={orders}
+      keyExtractor={(o) => o.id}
+      contentContainerStyle={[styles.list, { paddingBottom: isWide ? 32 : insets.bottom + 100 }]}
+      showsVerticalScrollIndicator={false}
+      refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={colors.primary} />}
+      ListEmptyComponent={
+        <View style={styles.empty}>
+          <Feather name="package" size={44} color={colors.mutedForeground} />
+          <Text style={[styles.emptyTitle, { color: colors.foreground }]}>Aucune commande</Text>
+        </View>
+      }
+      renderItem={({ item: o }) => (
+        <View style={[styles.orderRow, { backgroundColor: colors.card, borderColor: colors.border }]}>
+          <View style={{ flex: 1 }}>
+            <Text style={[styles.orderName, { color: colors.foreground }]}>{o.productName}</Text>
+            <Text style={[styles.orderMeta, { color: colors.mutedForeground }]}>
+              {o.buyerName} → {o.sellerName}
+            </Text>
+            <Text style={[styles.orderAmount, { color: colors.primary }]}>
+              {Number(o.amount).toLocaleString("fr-MA")} MAD
+            </Text>
+          </View>
+          <View style={[styles.orderStatus, { backgroundColor: (statusColors[o.status] ?? colors.mutedForeground) + "20" }]}>
+            <Text style={[styles.orderStatusText, { color: statusColors[o.status] ?? colors.mutedForeground }]}>
+              {statusLabels[o.status] ?? o.status}
+            </Text>
+          </View>
+        </View>
+      )}
+    />
+  );
+}
+
+// ─── Styles ───────────────────────────────────────────────────────────────────
+
 const styles = StyleSheet.create({
   root: { flex: 1 },
-  header: { paddingHorizontal: 20, paddingBottom: 16, borderBottomWidth: 1, gap: 12 },
-  headerRow: { flexDirection: "row", alignItems: "center", justifyContent: "space-between" },
-  title: { fontSize: 22, fontFamily: "Inter_700Bold" },
-  subtitle: { fontSize: 12, fontFamily: "Inter_400Regular", marginTop: 2 },
-  adminBadge: { flexDirection: "row", alignItems: "center", gap: 6, paddingHorizontal: 12, paddingVertical: 7, borderRadius: 20 },
-  adminBadgeText: { fontSize: 12, fontFamily: "Inter_700Bold" },
-  cartBtn: { width: 44, height: 44, borderRadius: 12, alignItems: "center", justifyContent: "center" },
-  cartBadge: { position: "absolute", top: 6, right: 6, width: 16, height: 16, borderRadius: 8, alignItems: "center", justifyContent: "center" },
-  cartBadgeText: { fontSize: 9, fontFamily: "Inter_700Bold", color: "#fff" },
-  searchWrap: { flexDirection: "row", alignItems: "center", borderWidth: 1, borderRadius: 12, paddingHorizontal: 12, paddingVertical: 10, gap: 8 },
-  searchInput: { flex: 1, fontSize: 14, fontFamily: "Inter_400Regular" },
-  empty: { alignItems: "center", gap: 12, marginTop: 60 },
-  emptyText: { fontSize: 14, fontFamily: "Inter_400Regular" },
-  productCard: { borderRadius: 16, borderWidth: 1, overflow: "hidden" },
-  productImg: { height: 100, alignItems: "center", justifyContent: "center", position: "relative" },
-  productStatusBadge: { position: "absolute", top: 8, right: 8, paddingHorizontal: 6, paddingVertical: 3, borderRadius: 8 },
-  productStatusText: { fontSize: 9, fontFamily: "Inter_700Bold", color: "#fff" },
-  productInfo: { padding: 12, gap: 4 },
-  productName: { fontSize: 12, fontFamily: "Inter_700Bold", lineHeight: 16 },
-  productSeller: { fontSize: 10, fontFamily: "Inter_400Regular" },
-  productBottom: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", marginTop: 4 },
-  productPrice: { fontSize: 14, fontFamily: "Inter_700Bold" },
-  addCartBtn: { width: 28, height: 28, borderRadius: 8, alignItems: "center", justifyContent: "center" },
-  soldOut: { fontSize: 10, fontFamily: "Inter_600SemiBold" },
-  valCard: { borderRadius: 16, borderWidth: 1, borderLeftWidth: 4, padding: 16, gap: 14 },
-  valTop: { flexDirection: "row", gap: 12, alignItems: "flex-start" },
-  valImg: { width: 54, height: 54, borderRadius: 14, alignItems: "center", justifyContent: "center" },
-  valName: { fontSize: 14, fontFamily: "Inter_700Bold" },
-  valDesc: { fontSize: 12, fontFamily: "Inter_400Regular", lineHeight: 16 },
-  valMeta: { flexDirection: "row", alignItems: "center", gap: 5, flexWrap: "wrap" },
-  valSeller: { fontSize: 11, fontFamily: "Inter_600SemiBold" },
-  valDot: { fontSize: 11 },
-  valPrice: { fontSize: 12, fontFamily: "Inter_700Bold" },
-  valStock: { fontSize: 11, fontFamily: "Inter_400Regular" },
-  valActions: { flexDirection: "row", gap: 10 },
-  valBtn: { flex: 1, flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 8, paddingVertical: 12, borderRadius: 12, borderWidth: 1 },
-  valBtnText: { fontSize: 13, fontFamily: "Inter_600SemiBold" },
-  emptyVal: { alignItems: "center", gap: 12, marginTop: 60 },
-  emptyValTitle: { fontSize: 16, fontFamily: "Inter_700Bold" },
-  emptyValSub: { fontSize: 13, fontFamily: "Inter_400Regular", textAlign: "center" },
-  statsGrid: { flexDirection: "row", flexWrap: "wrap" },
-  statCard: { flex: 1, minWidth: "45%", borderRadius: 16, borderWidth: 1, padding: 16, gap: 6, margin: 4 },
-  statIcon: { width: 40, height: 40, borderRadius: 12, alignItems: "center", justifyContent: "center" },
-  statValue: { fontSize: 22, fontFamily: "Inter_700Bold" },
-  statLabel: { fontSize: 11, fontFamily: "Inter_400Regular" },
-  comNote: { flexDirection: "row", gap: 10, padding: 14, borderRadius: 14, borderWidth: 1, alignItems: "flex-start" },
-  comNoteText: { flex: 1, fontSize: 12, fontFamily: "Inter_400Regular", lineHeight: 17 },
-  modal: { flex: 1 },
-  modalHeader: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", padding: 20, borderBottomWidth: 1 },
-  modalTitle: { flex: 1, fontSize: 16, fontFamily: "Inter_700Bold", textAlign: "center", marginHorizontal: 8 },
-  shareBtn: { width: 36, height: 36, borderRadius: 10, alignItems: "center", justifyContent: "center" },
-  detailImg: { height: 160, borderRadius: 20, alignItems: "center", justifyContent: "center" },
-  detailName: { fontSize: 20, fontFamily: "Inter_700Bold" },
-  detailDesc: { fontSize: 14, fontFamily: "Inter_400Regular", lineHeight: 20 },
-  detailMeta: { borderRadius: 16, borderWidth: 1, overflow: "hidden" },
-  sep: { height: 1, marginHorizontal: 14 },
-  metaRow: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", padding: 14 },
-  metaLabel: { fontSize: 13, fontFamily: "Inter_400Regular" },
-  metaValue: { fontSize: 13, fontFamily: "Inter_600SemiBold" },
-  detailFooter: { flexDirection: "row", alignItems: "center", gap: 16 },
-  detailPrice: { fontSize: 26, fontFamily: "Inter_700Bold" },
-  buyBtn: { flex: 1, flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 8, paddingVertical: 16, borderRadius: 14 },
-  buyBtnText: { fontSize: 14, fontFamily: "Inter_700Bold", color: "#fff" },
-  soldOutBtn: { flex: 1, alignItems: "center", paddingVertical: 16, borderRadius: 14 },
-  soldOutBtnText: { fontSize: 14, fontFamily: "Inter_600SemiBold" },
+  header: { borderBottomWidth: 1, paddingHorizontal: 16, paddingBottom: 12, gap: 10 },
+  headerRow: { flexDirection: "row", justifyContent: "space-between", alignItems: "center" },
+  title: { fontSize: 22, fontWeight: "800" },
+  subtitle: { fontSize: 13, marginTop: 2 },
+  headerBtn: { width: 36, height: 36, borderRadius: 18, alignItems: "center", justifyContent: "center" },
+  adminBadge: { flexDirection: "row", alignItems: "center", gap: 5, paddingHorizontal: 10, paddingVertical: 6, borderRadius: 20 },
+  adminBadgeText: { fontSize: 12, fontWeight: "700" },
+  searchWrap: { flexDirection: "row", alignItems: "center", gap: 8, paddingHorizontal: 12, paddingVertical: 8, borderRadius: 10, borderWidth: 1 },
+  searchInput: { flex: 1, fontSize: 14 },
+  list: { padding: 12, gap: 12 },
+  centered: { flex: 1, alignItems: "center", justifyContent: "center", gap: 12, padding: 24 },
+  loadingText: { fontSize: 14 },
+  empty: { flex: 1, alignItems: "center", justifyContent: "center", paddingTop: 60, gap: 10 },
+  emptyTitle: { fontSize: 18, fontWeight: "700" },
+  emptySub: { fontSize: 14, textAlign: "center", maxWidth: 280 },
+  card: { flex: 1, borderRadius: 12, borderWidth: 1, overflow: "hidden" },
+  cardImagePlaceholder: { height: 110, alignItems: "center", justifyContent: "center" },
+  featuredBadge: { position: "absolute", top: 6, start: 6, flexDirection: "row", alignItems: "center", gap: 3, paddingHorizontal: 6, paddingVertical: 2, borderRadius: 10 },
+  featuredBadgeText: { color: "#fff", fontSize: 9, fontWeight: "700" },
+  cardBody: { padding: 10, gap: 4 },
+  cardName: { fontSize: 13, fontWeight: "600", lineHeight: 18 },
+  cardPrice: { fontSize: 15, fontWeight: "800" },
+  cardMeta: { flexDirection: "row", alignItems: "center", flexWrap: "wrap", gap: 6 },
+  conditionBadge: { paddingHorizontal: 6, paddingVertical: 2, borderRadius: 6 },
+  conditionText: { fontSize: 10, fontWeight: "600" },
+  locationRow: { flexDirection: "row", alignItems: "center", gap: 2 },
+  locationText: { fontSize: 10, maxWidth: 80 },
+  sellerText: { fontSize: 11 },
+  pendingCard: { borderRadius: 10, borderWidth: 1, borderStartWidth: 4, padding: 14, gap: 10 },
+  pendingName: { fontSize: 15, fontWeight: "700" },
+  pendingMeta: { fontSize: 12, marginTop: 2 },
+  pendingDesc: { fontSize: 12, marginTop: 4, lineHeight: 17 },
+  pendingActions: { flexDirection: "row", gap: 8, flexWrap: "wrap" },
+  modBtn: { flexDirection: "row", alignItems: "center", gap: 5, paddingHorizontal: 12, paddingVertical: 7, borderRadius: 8 },
+  modBtnText: { fontSize: 12, fontWeight: "600" },
+  orderRow: { flexDirection: "row", alignItems: "center", borderRadius: 10, borderWidth: 1, padding: 12, gap: 10 },
+  orderName: { fontSize: 14, fontWeight: "600" },
+  orderMeta: { fontSize: 11, marginTop: 2 },
+  orderAmount: { fontSize: 14, fontWeight: "700", marginTop: 2 },
+  orderStatus: { paddingHorizontal: 8, paddingVertical: 4, borderRadius: 8 },
+  orderStatusText: { fontSize: 11, fontWeight: "600" },
+  fab: {
+    position: "absolute",
+    end: 16,
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 8,
+    paddingHorizontal: 18,
+    paddingVertical: 12,
+    borderRadius: 28,
+    elevation: 4,
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.2,
+    shadowRadius: 6,
+  },
+  fabText: { color: "#fff", fontSize: 15, fontWeight: "700" },
 });

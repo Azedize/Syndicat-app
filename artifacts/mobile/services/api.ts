@@ -315,31 +315,97 @@ export const finance = {
 // ─── Marketplace ──────────────────────────────────────────────────────────────
 
 export const marketplace = {
-  products: (params?: { status?: string; category?: string; search?: string }) => {
-    const qs = new URLSearchParams();
-    if (params?.status) qs.set("status", params.status);
-    if (params?.category) qs.set("category", params.category);
-    if (params?.search) qs.set("search", params.search);
-    return request<{ data: unknown[] }>(`/products?${qs}`);
+  // ── Products ──────────────────────────────────────────────────────────────
+  products: (params?: Record<string, string>) => {
+    const qs = new URLSearchParams(params ?? {});
+    return request<{ data: unknown[]; pagination: unknown }>(`/products?${qs}`);
   },
+  featured: () => request<{ data: unknown[] }>("/products/featured"),
+  pending: () => request<{ data: unknown[]; pagination: unknown }>("/products/pending"),
+  myFavorites: (params?: Record<string, string>) => {
+    const qs = new URLSearchParams(params ?? {});
+    return request<{ data: unknown[]; pagination: unknown }>(`/products/my-favorites?${qs}`);
+  },
+  myListings: (params?: Record<string, string>) => {
+    const qs = new URLSearchParams(params ?? {});
+    return request<{ data: unknown[]; pagination: unknown }>(`/products/my-listings?${qs}`);
+  },
+  productDetail: (id: string) =>
+    request<{ data: unknown }>(`/products/${id}`),
   addProduct: (data: unknown) =>
-    request<{ data: unknown }>("/products", { method: "POST", body: JSON.stringify(data) }),
+    request<{ data: unknown; message: string }>("/products", { method: "POST", body: JSON.stringify(data) }),
   updateProduct: (id: string, data: unknown) =>
-    request<{ data: unknown }>(`/products/${id}`, { method: "PUT", body: JSON.stringify(data) }),
+    request<{ data: unknown; message: string }>(`/products/${id}`, { method: "PUT", body: JSON.stringify(data) }),
   deleteProduct: (id: string) =>
     request<{ message: string }>(`/products/${id}`, { method: "DELETE" }),
-  validateProduct: (id: string, action: "approve" | "reject" = "approve") =>
-    request<{ data: unknown }>(`/products/${id}/validate`, {
-      method: "PUT",
-      body: JSON.stringify({ action }),
+
+  // ── Moderation ────────────────────────────────────────────────────────────
+  moderate: (id: string, payload: { action: string; reason?: string; note?: string; boostType?: string; boostDays?: number }) =>
+    request<{ data: unknown; message: string }>(`/products/${id}/moderate`, {
+      method: "POST",
+      body: JSON.stringify(payload),
     }),
-  orders: () => request<{ data: unknown[] }>("/orders"),
+
+  // ── Favorites ─────────────────────────────────────────────────────────────
+  toggleFavorite: (id: string) =>
+    request<{ isFavorited: boolean; message: string }>(`/products/${id}/favorite`, { method: "POST" }),
+
+  // ── Comments ──────────────────────────────────────────────────────────────
+  comments: (productId: string, params?: Record<string, string>) => {
+    const qs = new URLSearchParams(params ?? {});
+    return request<{ data: unknown[]; pagination: unknown }>(`/products/${productId}/comments?${qs}`);
+  },
+  addComment: (productId: string, content: string) =>
+    request<{ data: unknown }>(`/products/${productId}/comments`, {
+      method: "POST",
+      body: JSON.stringify({ content }),
+    }),
+  deleteComment: (productId: string, commentId: string) =>
+    request<{ message: string }>(`/products/${productId}/comments/${commentId}`, { method: "DELETE" }),
+
+  // ── Reports ───────────────────────────────────────────────────────────────
+  reportProduct: (id: string, payload: { reason: string; details?: string }) =>
+    request<{ data: unknown; message: string }>(`/products/${id}/report`, {
+      method: "POST",
+      body: JSON.stringify(payload),
+    }),
+
+  // ── Premium promotion ─────────────────────────────────────────────────────
+  promote: (id: string, payload: { type: string; durationDays: number; amount?: number }) =>
+    request<{ data: unknown; message: string }>(`/products/${id}/promote`, {
+      method: "POST",
+      body: JSON.stringify(payload),
+    }),
+
+  // ── Cart ──────────────────────────────────────────────────────────────────
+  cart: () => request<{ data: unknown[] }>("/cart"),
+  addToCart: (productId: string, quantity = 1) =>
+    request<{ data: unknown; message: string }>("/cart", {
+      method: "POST",
+      body: JSON.stringify({ productId, quantity }),
+    }),
+  updateCartItem: (id: string, quantity: number) =>
+    request<{ data: unknown }>(`/cart/${id}`, { method: "PUT", body: JSON.stringify({ quantity }) }),
+  removeFromCart: (id: string) =>
+    request<{ message: string }>(`/cart/${id}`, { method: "DELETE" }),
+  clearCart: () => request<{ message: string }>("/cart", { method: "DELETE" }),
+
+  // ── Orders ────────────────────────────────────────────────────────────────
+  orders: (params?: Record<string, string>) => {
+    const qs = new URLSearchParams(params ?? {});
+    return request<{ data: unknown[]; pagination: unknown }>(`/orders?${qs}`);
+  },
   placeOrder: (cartItemIds: string[]) =>
-    request<{ data: unknown }>("/orders", {
+    request<{ data: unknown; message: string }>("/orders", {
       method: "POST",
       body: JSON.stringify({ cartItemIds }),
     }),
-  reviews: () => request<{ data: unknown[] }>("/reviews"),
+
+  // ── Reviews ───────────────────────────────────────────────────────────────
+  reviews: (productId?: string) => {
+    const qs = productId ? `?productId=${productId}` : "";
+    return request<{ data: unknown[] }>(`/reviews${qs}`);
+  },
   addReview: (data: unknown) =>
     request<{ data: unknown }>("/reviews", { method: "POST", body: JSON.stringify(data) }),
 };
@@ -713,4 +779,166 @@ export const actions = {
     request<{ participating: boolean; message: string }>(`/actions/${id}/participate`, { method: "POST" }),
   participants: (id: string) =>
     request<{ data: Array<{ id: string; userId: string; userName: string; createdAt: string }> }>(`/actions/${id}/participants`),
+};
+
+// ─── P6: Ideas & Voting ───────────────────────────────────────────────────────
+
+export interface ApiIdea {
+  id: string;
+  syndicateId?: string | null;
+  userId?: string | null;
+  userName: string;
+  title: string;
+  description: string;
+  category: string;
+  status: string;
+  voteCount: number;
+  voteDeadline?: string | null;
+  implementedAt?: string | null;
+  adminNote?: string | null;
+  userVoted?: boolean;
+  createdAt: string;
+}
+
+export const ideas = {
+  list: () => request<{ data: ApiIdea[] }>("/ideas"),
+  create: (data: { title: string; description: string; category: string }) =>
+    request<{ data: ApiIdea; message: string }>("/ideas", { method: "POST", body: JSON.stringify(data) }),
+  vote: (id: string) =>
+    request<{ voted: boolean; voteCount: number }>(`/ideas/${id}/vote`, { method: "POST" }),
+  review: (id: string, data: { status: string; adminNote?: string }) =>
+    request<{ data: ApiIdea; message: string }>(`/ideas/${id}`, { method: "PUT", body: JSON.stringify(data) }),
+  delete: (id: string) => request<{ message: string }>(`/ideas/${id}`, { method: "DELETE" }),
+};
+
+// ─── P10: Financial Transparency ─────────────────────────────────────────────
+
+export interface ApiExpenseJustification {
+  id: string;
+  syndicateId?: string | null;
+  title: string;
+  description: string;
+  amount: string | number;
+  category?: string | null;
+  receiptUrl?: string | null;
+  status: string;
+  submitterName?: string | null;
+  challengerName?: string | null;
+  challengeReason?: string | null;
+  votesFor?: number;
+  votesAgainst?: number;
+  voteCount?: number;
+  createdAt: string;
+}
+
+export const transparency = {
+  list: () => request<{ data: ApiExpenseJustification[] }>("/expense-justifications"),
+  create: (data: { title: string; description: string; amount: number; category?: string; receiptUrl?: string }) =>
+    request<{ data: ApiExpenseJustification; message: string }>("/expense-justifications", { method: "POST", body: JSON.stringify(data) }),
+  challenge: (id: string, reason: string) =>
+    request<{ data: ApiExpenseJustification; message: string }>(`/expense-justifications/${id}/challenge`, { method: "POST", body: JSON.stringify({ reason }) }),
+  vote: (id: string, vote: "for" | "against") =>
+    request<{ data: ApiExpenseJustification }>(`/expense-justifications/${id}/vote`, { method: "POST", body: JSON.stringify({ vote }) }),
+  resolve: (id: string, outcome: string) =>
+    request<{ data: ApiExpenseJustification; message: string }>(`/expense-justifications/${id}/resolve`, { method: "PUT", body: JSON.stringify({ outcome }) }),
+};
+
+// ─── P11: Team Directory ──────────────────────────────────────────────────────
+
+export interface ApiTeamMember {
+  id: string;
+  name: string;
+  email: string;
+  phone?: string | null;
+  role: string;
+  committeeRole?: string | null;
+  joinDate?: string | null;
+  type: "admin" | "committee";
+}
+
+export const team = {
+  list: () => request<{ data: ApiTeamMember[]; syndicate: { name: string; address?: string | null; email?: string | null; phone?: string | null } }>("/team"),
+  updateSyndicate: (data: { phone?: string; email?: string; address?: string; website?: string }) =>
+    request<{ message: string }>("/team/syndicate", { method: "PUT", body: JSON.stringify(data) }),
+  updateMember: (id: string, committeeRole: string) =>
+    request<{ message: string }>(`/team/members/${id}`, { method: "PUT", body: JSON.stringify({ committeeRole }) }),
+};
+
+// ─── P12: National Rankings ───────────────────────────────────────────────────
+
+export interface ApiRanking {
+  id: string;
+  syndicateId: string;
+  syndicateName?: string | null;
+  rank: number;
+  totalScore: number;
+  collectionRate: number;
+  incidentResolutionRate: number;
+  documentationScore: number;
+  meetingComplianceScore: number;
+  memberSatisfaction: number;
+  month: number;
+  year: number;
+  region?: string | null;
+}
+
+export const rankings = {
+  compute: (syndicateId?: string) =>
+    request<{ data: ApiRanking[] }>("/rankings/compute", { method: "POST", body: JSON.stringify({ syndicateId }) }),
+  list: (params?: { month?: number; year?: number; region?: string }) => {
+    const qs = new URLSearchParams();
+    if (params?.month) qs.set("month", String(params.month));
+    if (params?.year) qs.set("year", String(params.year));
+    if (params?.region) qs.set("region", params.region);
+    return request<{ data: ApiRanking[] }>(`/rankings?${qs}`);
+  },
+  mySyndicate: () => request<{ data: ApiRanking[] }>("/rankings/my-syndicate"),
+};
+
+// ─── P9: Subscriptions ────────────────────────────────────────────────────────
+
+export interface ApiSubscriptionPlan {
+  id: string;
+  name: string;
+  price: string | number;
+  interval: string;
+  features: string; // JSON string
+  createdAt: string;
+}
+
+export interface ApiSyndicateSub {
+  id: string;
+  syndicateId: string;
+  planId?: string | null;
+  status: string;
+  autoRenew?: boolean;
+  createdAt: string;
+  syndicateName?: string | null;
+  planName?: string | null;
+  planPrice?: string | number | null;
+  planInterval?: string | null;
+}
+
+export const subscriptions = {
+  plans: () => request<{ data: ApiSubscriptionPlan[] }>("/subscriptions/plans"),
+  my: () => request<{ data: ApiSyndicateSub | null }>("/subscriptions/my"),
+  list: () => request<{ data: ApiSyndicateSub[] }>("/subscriptions"),
+  subscribe: (planId: string, syndicateId?: string) =>
+    request<{ data: ApiSyndicateSub; message: string }>("/subscriptions", { method: "POST", body: JSON.stringify({ planId, syndicateId }) }),
+  update: (id: string, data: { status?: string; autoRenew?: boolean }) =>
+    request<{ data: ApiSyndicateSub; message: string }>(`/subscriptions/${id}`, { method: "PUT", body: JSON.stringify(data) }),
+};
+
+// ─── P7/P8: Debt Escalation & Reserve Alerts ────────────────────────────────
+
+export const debtEscalations = {
+  escalate: () =>
+    request<{ escalations: number; data: any[] }>("/appels-de-fonds/escalate-debts", { method: "POST" }),
+  list: () =>
+    request<{ data: any[] }>("/debt-escalations"),
+};
+
+export const reserveFund = {
+  check: (thresholdMonths = 3) =>
+    request<{ alerts: number; data: any[] }>("/budgets/check-reserve-fund", { method: "POST", body: JSON.stringify({ thresholdMonths }) }),
 };

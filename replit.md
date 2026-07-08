@@ -30,7 +30,7 @@ Add these in Replit Secrets before starting the API:
 | Secret | Required | Notes |
 |---|---|---|
 | `JWT_SECRET` | ✅ Yes | Min 32 chars — used for auth token signing |
-| `DATABASE_URL` | ✅ Yes | PostgreSQL connection string |
+| `DATABASE_URL` | ✅ Auto | Injected automatically by Replit — do not set manually |
 | `REDIS_URL` | No | Enables Redis-backed rate limiting; falls back to in-memory |
 
 ### 3. Apply the database schema
