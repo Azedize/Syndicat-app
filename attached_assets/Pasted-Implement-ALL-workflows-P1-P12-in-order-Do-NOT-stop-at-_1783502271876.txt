@@ -1,0 +1,186 @@
+Implement ALL workflows P1 → P12 in order.
+
+Do NOT stop at analysis.
+
+Do NOT only generate reports.
+
+Do NOT create mock screens.
+
+Work as a Senior Enterprise Architect, Product Owner, Backend Architect, Mobile Architect, DBA, Security Engineer and Moroccan Condominium Management Expert.
+
+====================================================
+GLOBAL RULES
+====================================================
+
+Before implementing each workflow:
+
+1. Audit Database Schema
+2. Audit API Routes
+3. Audit Mobile Screens
+4. Audit Permissions (RBAC)
+5. Audit Performance
+6. Audit Security
+7. Audit Scalability
+
+For each workflow:
+
+- Detect existing implementation
+- Detect missing implementation
+- Detect broken logic
+- Detect missing tables
+- Detect missing columns
+- Detect missing indexes
+- Detect missing APIs
+- Detect missing screens
+- Detect missing permissions
+
+Then implement the workflow completely.
+
+====================================================
+IMPLEMENTATION ORDER
+====================================================
+
+Phase 1 → P1 Marketplace
+Phase 2 → P2 Cotisation Validation
+Phase 3 → P3 Digital Member Badge
+Phase 4 → P4 Incident Reporting
+Phase 5 → P5 Employees Transparency
+Phase 6 → P6 Improvement Ideas & Voting
+Phase 7 → P7 Debt Escalation
+Phase 8 → P8 Emergency Financial Alerts
+Phase 9 → P9 Subscription Management
+Phase 10 → P10 Financial Transparency
+Phase 11 → P11 Syndic Team Directory
+Phase 12 → P12 National Ranking System
+
+====================================================
+FOR EACH PHASE
+====================================================
+
+Step 1:
+Database changes
+
+- Create missing tables
+- Create missing relations
+- Create foreign keys
+- Create indexes
+- Create audit tables
+
+Step 2:
+API
+
+- Create missing endpoints
+- Add validation
+- Add permissions
+- Add pagination
+- Add filtering
+- Add search
+- Add audit logs
+
+Step 3:
+Mobile
+
+- Create screens
+- Create forms
+- Create dashboards
+- Create details pages
+- Create admin actions
+- Create loading states
+- Create empty states
+- Create error states
+
+Step 4:
+Production Quality
+
+- Typecheck
+- Security review
+- Performance review
+- Scalability review
+
+====================================================
+IMPORTANT
+====================================================
+
+NO MOCK DATA.
+
+NO STATIC ARRAYS.
+
+NO HARDCODED RECORDS.
+
+Everything must come from PostgreSQL.
+
+All screens must consume real API data.
+
+====================================================
+PERFORMANCE REQUIREMENTS
+====================================================
+
+Assume:
+
+- 1,000 concurrent users
+- 10,000 users
+- 100 buildings
+- 500 buildings
+- 50,000 payment records
+- 100,000 messages
+
+Optimize:
+
+- PostgreSQL
+- Indexes
+- Query plans
+- Redis cache
+- Rate limiting
+- Pagination
+- Connection pooling
+- N+1 elimination
+- PM2
+- PgBouncer
+
+====================================================
+SECURITY REQUIREMENTS
+====================================================
+
+- JWT
+- Refresh Tokens
+- RBAC
+- Audit Logs
+- Upload Validation
+- File Security
+- Rate Limiting
+- Input Validation
+
+====================================================
+RTL & ARABIC
+====================================================
+
+Complete RTL support.
+
+No remaining:
+- marginLeft
+- marginRight
+- hardcoded directions
+
+Use:
+- I18nManager
+- start/end properties
+- Arabic translations everywhere
+
+====================================================
+AFTER EACH PHASE
+====================================================
+
+Generate a report:
+
+- Files modified
+- Tables modified
+- APIs created
+- Screens created
+- Risks remaining
+- Production readiness score
+
+Then continue automatically to the next workflow until P12 is completed.
+
+Goal:
+
+A fully production-ready Moroccan Condominium Management Platform capable of serving thousands of syndicates, buildings, apartments, residents, employees, financial operations, votes, incidents, marketplace listings and governance processes.
