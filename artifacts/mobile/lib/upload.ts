@@ -1,5 +1,6 @@
 import * as DocumentPicker from "expo-document-picker";
 import * as ImagePicker from "expo-image-picker";
+import { getToken } from "@/services/api";
 
 function getBaseUrl(): string {
   const domain = process.env.EXPO_PUBLIC_DOMAIN;
@@ -9,9 +10,13 @@ function getBaseUrl(): string {
 
 async function uploadUri(uri: string, fileName: string, contentType: string): Promise<string | undefined> {
   try {
+    const token = await getToken();
     const urlRes = await fetch(`${getBaseUrl()}/storage/uploads/request-url`, {
       method: "POST",
-      headers: { "Content-Type": "application/json" },
+      headers: {
+        "Content-Type": "application/json",
+        ...(token ? { Authorization: `Bearer ${token}` } : {}),
+      },
       body: JSON.stringify({ name: fileName, size: 5000000, contentType }),
     });
     if (!urlRes.ok) return undefined;
@@ -53,4 +58,19 @@ export async function pickAndUploadPhoto(): Promise<string | undefined> {
   const ext = asset.uri.split(".").pop() ?? "jpg";
   const contentType = ext === "png" ? "image/png" : "image/jpeg";
   return uploadUri(asset.uri, `photo-${Date.now()}.${ext}`, contentType);
+}
+
+/** Opens the camera, captures a photo, and uploads it. Returns the object path, or undefined on failure/cancel/permission denied. */
+export async function captureAndUploadPhoto(): Promise<string | undefined> {
+  const { status } = await ImagePicker.requestCameraPermissionsAsync();
+  if (status !== "granted") return undefined;
+  const result = await ImagePicker.launchCameraAsync({
+    mediaTypes: ImagePicker.MediaTypeOptions.Images,
+    quality: 0.8,
+  });
+  if (result.canceled || !result.assets?.[0]) return undefined;
+  const asset = result.assets[0];
+  const ext = asset.uri.split(".").pop() ?? "jpg";
+  const contentType = ext === "png" ? "image/png" : "image/jpeg";
+  return uploadUri(asset.uri, `violation-${Date.now()}.${ext}`, contentType);
 }

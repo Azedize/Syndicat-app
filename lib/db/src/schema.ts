@@ -1246,6 +1246,96 @@ export const expenseVotesTable = pgTable(
   ],
 );
 
+// ─── Parking Management ─────────────────────────────────────────────────────
+
+export const parkingSpotsTable = pgTable(
+  "parking_spots",
+  {
+    id: id(),
+    buildingId: text("building_id").notNull().references(() => buildingsTable.id, { onDelete: "cascade" }),
+    lotId: text("lot_id").references(() => lotsTable.id, { onDelete: "set null" }), // null for visitor/unassigned spots
+    spotNumber: text("spot_number").notNull(), // e.g. "P-12", "G-3", "V-01"
+    type: text("type").notNull().default("resident"), // resident | garage | visitor
+    floor: text("floor"), // e.g. "SS-1", "RDC"
+    status: text("status").notNull().default("available"), // available | occupied | reserved | maintenance
+    notes: text("notes"),
+    createdAt: createdAt(),
+  },
+  (t) => [
+    index("parking_spots_building_id_idx").on(t.buildingId),
+    index("parking_spots_lot_id_idx").on(t.lotId),
+    index("parking_spots_status_idx").on(t.status),
+    uniqueIndex("parking_spots_building_number_idx").on(t.buildingId, t.spotNumber),
+  ],
+);
+
+export const vehiclesTable = pgTable(
+  "vehicles",
+  {
+    id: id(),
+    lotId: text("lot_id").references(() => lotsTable.id, { onDelete: "cascade" }),
+    userId: text("user_id").notNull().references(() => usersTable.id, { onDelete: "cascade" }),
+    plateNumber: text("plate_number").notNull(),
+    brand: text("brand"),
+    model: text("model"),
+    color: text("color"),
+    status: text("status").notNull().default("active"), // active | inactive
+    createdAt: createdAt(),
+  },
+  (t) => [
+    index("vehicles_lot_id_idx").on(t.lotId),
+    index("vehicles_user_id_idx").on(t.userId),
+    uniqueIndex("vehicles_plate_unique_idx").on(t.plateNumber),
+  ],
+);
+
+export const parkingViolationsTable = pgTable(
+  "parking_violations",
+  {
+    id: id(),
+    spotId: text("spot_id").references(() => parkingSpotsTable.id, { onDelete: "set null" }),
+    buildingId: text("building_id").notNull().references(() => buildingsTable.id, { onDelete: "cascade" }),
+    plateNumber: text("plate_number").notNull(),
+    reportedById: text("reported_by_id").notNull().references(() => usersTable.id, { onDelete: "cascade" }),
+    reportedByName: text("reported_by_name").notNull(),
+    photoUrl: text("photo_url"),
+    notes: text("notes"),
+    status: text("status").notNull().default("open"), // open | resolved | dismissed
+    resolvedById: text("resolved_by_id").references(() => usersTable.id, { onDelete: "set null" }),
+    resolvedAt: timestamp("resolved_at"),
+    reportedAt: timestamp("reported_at").defaultNow(),
+    createdAt: createdAt(),
+  },
+  (t) => [
+    index("parking_violations_building_id_idx").on(t.buildingId),
+    index("parking_violations_spot_id_idx").on(t.spotId),
+    index("parking_violations_status_idx").on(t.status),
+    index("parking_violations_reported_at_idx").on(t.reportedAt),
+  ],
+);
+
+export const visitorParkingReservationsTable = pgTable(
+  "visitor_parking_reservations",
+  {
+    id: id(),
+    spotId: text("spot_id").notNull().references(() => parkingSpotsTable.id, { onDelete: "cascade" }),
+    requestedById: text("requested_by_id").notNull().references(() => usersTable.id, { onDelete: "cascade" }),
+    visitorName: text("visitor_name").notNull(),
+    visitorPlate: text("visitor_plate"),
+    startTime: timestamp("start_time").notNull(),
+    endTime: timestamp("end_time").notNull(),
+    status: text("status").notNull().default("confirmed"), // confirmed | cancelled | expired
+    notes: text("notes"),
+    createdAt: createdAt(),
+  },
+  (t) => [
+    index("visitor_reservations_spot_id_idx").on(t.spotId),
+    index("visitor_reservations_requested_by_idx").on(t.requestedById),
+    index("visitor_reservations_times_idx").on(t.startTime, t.endTime),
+    index("visitor_reservations_status_idx").on(t.status),
+  ],
+);
+
 // ─── P12: National Ranking ───────────────────────────────────────────────────
 
 export const nationalRankingsTable = pgTable(

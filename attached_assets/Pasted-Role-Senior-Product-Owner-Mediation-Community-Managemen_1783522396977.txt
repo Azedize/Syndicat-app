@@ -1,0 +1,25 @@
+Role: Senior Product Owner, Mediation & Community Management Expert, Legal Compliance Expert.
+
+Context: Residents need a structured channel to report noise, pets, garbage, illegal activity, or common-area abuse, with a full mediation-to-penalty lifecycle.
+
+Implement the following workflow:
+
+
+Submit complaint: category (noise, pets, garbage, illegal activity, common area abuse, other), free-text description, target apartment/resident (optional), option to submit anonymously.
+Upload evidence: photos and videos attached to the complaint.
+Mediation process: syndic assigns a mediator (or handles directly), logs mediation attempts and outcomes.
+Syndic review: syndic evaluates validity, requests additional evidence if needed, escalates if unresolved.
+Resolution process: complaint marked resolved with resolution notes, or escalated to penalty process.
+Penalty process: syndic issues a formal warning or financial penalty per the co-ownership by-laws, logged and notifiable to the concerned resident.
+Full lifecycle tracking: submitted → under review → mediation → resolved/escalated → penalty applied/closed.
+
+
+Database: complaints (id, building_id, category, description, is_anonymous, reported_by nullable, target_lot_id, status, created_at), complaint_evidence (id, complaint_id, file_url, file_type), complaint_actions (id, complaint_id, action_type: mediation/review/resolution/penalty, notes, actor_id, created_at).
+
+API: submit complaint (with anonymity flag), upload evidence, update status/mediation notes, apply penalty, list complaints with full timeline.
+
+Mobile: complaint submission form with photo/video capture and anonymous toggle, complaint tracking timeline for the submitter (if not anonymous), syndic review/mediation dashboard.
+
+Permissions: any resident can submit; Syndic Admin manages the full lifecycle; anonymous complaints hide the identity of the submitter from all roles except a restricted audit-only record for legal purposes.
+
+Notifications: complaint received (to syndic), status updates (to submitter, if not anonymous), penalty notice (to concerned resident).
