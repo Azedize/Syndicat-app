@@ -4,6 +4,7 @@ import { useLocalSearchParams } from "expo-router";
 import React, { useCallback, useEffect, useState } from "react";
 import {
   ActivityIndicator,
+  Modal,
   RefreshControl,
   ScrollView,
   StyleSheet,
@@ -76,6 +77,7 @@ export default function LotsScreen() {
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [filter, setFilter] = useState<string>("all");
+  const [selectedLot, setSelectedLot] = useState<Lot | null>(null);
 
   const load = useCallback(async (silent = false) => {
     try {
@@ -160,7 +162,7 @@ export default function LotsScreen() {
                 <TouchableOpacity
                   key={lot.id}
                   style={[styles.card, { backgroundColor: colors.card, borderColor: hasOverdue ? "#ef444440" : colors.border }]}
-                  onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); }}
+                  onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); setSelectedLot(lot); }}
                   activeOpacity={0.8}
                 >
                   <View style={styles.cardMain}>
@@ -224,6 +226,105 @@ export default function LotsScreen() {
           )}
         </ScrollView>
       )}
+
+      {/* Lot detail modal */}
+      <Modal visible={!!selectedLot} animationType="slide" presentationStyle="pageSheet" onRequestClose={() => setSelectedLot(null)}>
+        {selectedLot ? (
+          <View style={[styles.modalRoot, { backgroundColor: colors.background }]}>
+            <View style={[styles.modalHeader, { borderBottomColor: colors.border }]}>
+              <Text style={[styles.modalTitle, { color: colors.foreground }]}>Lot {selectedLot.number}</Text>
+              <TouchableOpacity onPress={() => setSelectedLot(null)}>
+                <Feather name="x" size={22} color={colors.foreground} />
+              </TouchableOpacity>
+            </View>
+            <ScrollView contentContainerStyle={{ padding: 20, gap: 14, paddingBottom: 40 }} showsVerticalScrollIndicator={false}>
+              {/* Type + Status hero */}
+              <View style={[styles.modalHero, { backgroundColor: (LOT_TYPE_COLORS[selectedLot.type] ?? "#7c3aed") + "15", borderColor: (LOT_TYPE_COLORS[selectedLot.type] ?? "#7c3aed") + "40" }]}>
+                <View style={[styles.modalHeroIcon, { backgroundColor: (LOT_TYPE_COLORS[selectedLot.type] ?? "#7c3aed") + "25" }]}>
+                  <Feather name={LOT_TYPE_ICONS[selectedLot.type] ?? "home"} size={28} color={LOT_TYPE_COLORS[selectedLot.type] ?? "#7c3aed"} />
+                </View>
+                <Text style={[styles.modalHeroTitle, { color: colors.foreground }]}>
+                  {selectedLot.type.charAt(0).toUpperCase() + selectedLot.type.slice(1)} — Lot {selectedLot.number}
+                </Text>
+                <View style={[styles.statusBadge, { backgroundColor: (STATUS_COLORS[selectedLot.status] ?? "#6b7280") + "20" }]}>
+                  <Text style={[styles.statusText, { color: STATUS_COLORS[selectedLot.status] ?? "#6b7280" }]}>
+                    {STATUS_LABELS[selectedLot.status] ?? selectedLot.status}
+                  </Text>
+                </View>
+              </View>
+
+              {/* Lot details */}
+              <View style={[styles.detailCard, { backgroundColor: colors.card, borderColor: colors.border }]}>
+                {[
+                  { icon: "layers" as const, label: "Étage", value: selectedLot.floor.toString() },
+                  { icon: "maximize" as const, label: "Surface", value: selectedLot.surfaceM2 ? `${selectedLot.surfaceM2} m²` : "—" },
+                  { icon: "percent" as const, label: "Tantièmes", value: `${selectedLot.tantiemes} ‰` },
+                ].map((row, i) => (
+                  <View key={row.label}>
+                    {i > 0 ? <View style={[styles.sep2, { backgroundColor: colors.border }]} /> : null}
+                    <View style={styles.detailRow}>
+                      <View style={styles.detailLabelRow}>
+                        <Feather name={row.icon} size={14} color={colors.mutedForeground} />
+                        <Text style={[styles.detailLabel, { color: colors.mutedForeground }]}>{row.label}</Text>
+                      </View>
+                      <Text style={[styles.detailValue, { color: colors.foreground }]}>{row.value}</Text>
+                    </View>
+                  </View>
+                ))}
+              </View>
+
+              {/* Owner */}
+              <View style={[styles.detailCard, { backgroundColor: colors.card, borderColor: colors.border }]}>
+                <Text style={[styles.sectionTitle, { color: colors.foreground }]}>Propriétaire</Text>
+                {selectedLot.owner ? (
+                  <>
+                    <View style={[styles.sep2, { backgroundColor: colors.border }]} />
+                    {[
+                      { label: "Nom", value: selectedLot.owner.name },
+                      { label: "Email", value: selectedLot.owner.email },
+                      { label: "Téléphone", value: selectedLot.owner.phone },
+                    ].map((row, i) => (
+                      <View key={row.label}>
+                        {i > 0 ? <View style={[styles.sep2, { backgroundColor: colors.border }]} /> : null}
+                        <View style={styles.detailRow}>
+                          <Text style={[styles.detailLabel, { color: colors.mutedForeground }]}>{row.label}</Text>
+                          <Text style={[styles.detailValue, { color: colors.foreground }]}>{row.value || "—"}</Text>
+                        </View>
+                      </View>
+                    ))}
+                  </>
+                ) : (
+                  <>
+                    <View style={[styles.sep2, { backgroundColor: colors.border }]} />
+                    <Text style={[styles.detailLabel, { color: "#f59e0b", paddingVertical: 8 }]}>Aucun propriétaire renseigné</Text>
+                  </>
+                )}
+              </View>
+
+              {/* Charges */}
+              {selectedLot.chargeStats && (selectedLot.chargeStats.pending > 0 || selectedLot.chargeStats.overdue > 0) ? (
+                <View style={[styles.detailCard, { backgroundColor: colors.card, borderColor: "#ef444440" }]}>
+                  <Text style={[styles.sectionTitle, { color: colors.foreground }]}>Situation financière</Text>
+                  <View style={[styles.sep2, { backgroundColor: colors.border }]} />
+                  {[
+                    { label: "Appels en attente", value: selectedLot.chargeStats.pending.toString(), color: "#f59e0b" },
+                    { label: "Appels en retard", value: selectedLot.chargeStats.overdue.toString(), color: "#ef4444" },
+                    { label: "Montant dû", value: `${selectedLot.chargeStats.pendingAmount.toLocaleString("fr-MA")} MAD`, color: "#ef4444" },
+                  ].map((row, i) => (
+                    <View key={row.label}>
+                      {i > 0 ? <View style={[styles.sep2, { backgroundColor: colors.border }]} /> : null}
+                      <View style={styles.detailRow}>
+                        <Text style={[styles.detailLabel, { color: colors.mutedForeground }]}>{row.label}</Text>
+                        <Text style={[styles.detailValue, { color: row.color }]}>{row.value}</Text>
+                      </View>
+                    </View>
+                  ))}
+                </View>
+              ) : null}
+            </ScrollView>
+          </View>
+        ) : null}
+      </Modal>
     </View>
   );
 }
@@ -232,6 +333,19 @@ const styles = StyleSheet.create({
   root: { flex: 1 },
   list: { padding: 16, gap: 10 },
   card: { borderRadius: 18, borderWidth: 1, overflow: "hidden" },
+  modalRoot: { flex: 1 },
+  modalHeader: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", padding: 20, borderBottomWidth: 1 },
+  modalTitle: { fontSize: 18, fontFamily: "Inter_700Bold" },
+  modalHero: { alignItems: "center", gap: 10, padding: 20, borderRadius: 18, borderWidth: 1 },
+  modalHeroIcon: { width: 64, height: 64, borderRadius: 20, alignItems: "center", justifyContent: "center" },
+  modalHeroTitle: { fontSize: 15, fontFamily: "Inter_700Bold", textAlign: "center" },
+  detailCard: { borderRadius: 16, borderWidth: 1, paddingHorizontal: 14, paddingVertical: 4, gap: 0 },
+  detailRow: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", paddingVertical: 10 },
+  detailLabelRow: { flexDirection: "row", alignItems: "center", gap: 6 },
+  detailLabel: { fontSize: 12, fontFamily: "Inter_400Regular" },
+  detailValue: { fontSize: 13, fontFamily: "Inter_600SemiBold" },
+  sep2: { height: StyleSheet.hairlineWidth },
+  sectionTitle: { fontSize: 13, fontFamily: "Inter_700Bold", paddingTop: 10, paddingBottom: 2 },
   cardMain: { flexDirection: "row", alignItems: "center", gap: 12, padding: 14 },
   lotIcon: { width: 44, height: 44, borderRadius: 12, alignItems: "center", justifyContent: "center" },
   cardRow: { flexDirection: "row", alignItems: "center", gap: 8 },

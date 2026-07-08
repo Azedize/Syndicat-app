@@ -110,6 +110,11 @@ export default function TableauNationalScreen() {
   const [rankings, setRankings] = useState<RankingRow[]>([]);
   const [rankingsLoading, setRankingsLoading] = useState(false);
 
+  // Syndicate detail enrichment
+  const [syndicateFullData, setSyndicateFullData] = useState<Record<string, any> | null>(null);
+  const [syndicateMembers, setSyndicateMembers] = useState<any[]>([]);
+  const [syndicateDetailLoading, setSyndicateDetailLoading] = useState(false);
+
   useEffect(() => {
     setLoading(true);
     statistics.syndicates()
@@ -126,6 +131,25 @@ export default function TableauNationalScreen() {
       .catch(() => {})
       .finally(() => setRankingsLoading(false));
   }, [tab, token]);
+
+  useEffect(() => {
+    if (!selectedSyndicat) {
+      setSyndicateFullData(null);
+      setSyndicateMembers([]);
+      return;
+    }
+    setSyndicateDetailLoading(true);
+    Promise.all([
+      apiRequest(`/syndicates/${selectedSyndicat.id}`, "GET", undefined, token),
+      apiRequest(`/members?syndicateId=${selectedSyndicat.id}&limit=50`, "GET", undefined, token),
+    ])
+      .then(([syndRes, membersRes]) => {
+        setSyndicateFullData((syndRes as any).data ?? null);
+        setSyndicateMembers((membersRes as any).data ?? []);
+      })
+      .catch(() => {})
+      .finally(() => setSyndicateDetailLoading(false));
+  }, [selectedSyndicat?.id, token]);
 
   // Map DataContext alerts to platform alerts format
   const platformAlerts: PlatformAlert[] = alerts.map((a) => ({
@@ -626,6 +650,73 @@ export default function TableauNationalScreen() {
                         </View>
                       ))}
                     </View>
+
+                    {/* Extended info from full API fetch */}
+                    {syndicateDetailLoading ? (
+                      <ActivityIndicator color={colors.primary} />
+                    ) : syndicateFullData ? (
+                      <View style={[styles.infoCard, { backgroundColor: colors.card, borderColor: colors.border }]}>
+                        <View style={styles.infoRow}>
+                          <Text style={[styles.infoLabel, { color: colors.mutedForeground, fontFamily: "Inter_600SemiBold" }]}>Informations complètes</Text>
+                        </View>
+                        {[
+                          { label: "Forme juridique", value: syndicateFullData.legalForm },
+                          { label: "Adresse", value: syndicateFullData.address },
+                          { label: "Ville", value: syndicateFullData.city },
+                          { label: "Email", value: syndicateFullData.email },
+                          { label: "Téléphone", value: syndicateFullData.phone },
+                          { label: "Date de fondation", value: syndicateFullData.foundingDate },
+                          { label: "N° enregistrement", value: syndicateFullData.registrationNumber },
+                          { label: "ICE", value: syndicateFullData.iceNumber },
+                        ].filter((r) => r.value).map((row, i) => (
+                          <View key={row.label}>
+                            <View style={[styles.sep, { backgroundColor: colors.border }]} />
+                            <View style={styles.infoRow}>
+                              <Text style={[styles.infoLabel, { color: colors.mutedForeground }]}>{row.label}</Text>
+                              <Text style={[styles.infoValue, { color: colors.foreground }]} numberOfLines={2}>{row.value}</Text>
+                            </View>
+                          </View>
+                        ))}
+                      </View>
+                    ) : null}
+
+                    {/* Members list */}
+                    {syndicateMembers.length > 0 ? (
+                      <View style={[styles.infoCard, { backgroundColor: colors.card, borderColor: colors.border }]}>
+                        <View style={[styles.infoRow, { paddingBottom: 4 }]}>
+                          <Text style={[styles.infoLabel, { color: colors.mutedForeground, fontFamily: "Inter_600SemiBold" }]}>
+                            Membres ({syndicateMembers.length})
+                          </Text>
+                        </View>
+                        {syndicateMembers.slice(0, 10).map((m: any, i: number) => {
+                          const sc = { active: { color: "#10b981", label: "Actif" }, inactive: { color: "#9ca3af", label: "Inactif" }, pending: { color: "#f59e0b", label: "En attente" } }[m.status as string] ?? { color: "#9ca3af", label: m.status };
+                          return (
+                            <View key={m.id}>
+                              <View style={[styles.sep, { backgroundColor: colors.border }]} />
+                              <View style={[styles.infoRow, { paddingVertical: 10, alignItems: "flex-start" }]}>
+                                <View style={{ flex: 1, gap: 2 }}>
+                                  <Text style={[styles.infoValue, { color: colors.foreground }]}>{m.name}</Text>
+                                  {m.email ? <Text style={[styles.infoLabel, { color: colors.mutedForeground }]}>{m.email}</Text> : null}
+                                  {m.phone ? <Text style={[styles.infoLabel, { color: colors.mutedForeground }]}>{m.phone}</Text> : null}
+                                  {m.profession ? <Text style={[styles.infoLabel, { color: colors.mutedForeground }]}>{m.profession}</Text> : null}
+                                  {m.joinDate ? <Text style={[styles.infoLabel, { color: colors.mutedForeground }]}>Adhésion: {m.joinDate}</Text> : null}
+                                </View>
+                                <View style={[styles.healthBadge, { backgroundColor: sc.color + "18", borderWidth: 0 }]}>
+                                  <Text style={[styles.healthBadgeText, { color: sc.color }]}>{sc.label}</Text>
+                                </View>
+                              </View>
+                            </View>
+                          );
+                        })}
+                        {syndicateMembers.length > 10 ? (
+                          <View style={[styles.sep, { backgroundColor: colors.border }]}>
+                            <Text style={[styles.infoLabel, { color: colors.mutedForeground, textAlign: "center", paddingVertical: 8 }]}>
+                              + {syndicateMembers.length - 10} autres membres
+                            </Text>
+                          </View>
+                        ) : null}
+                      </View>
+                    ) : null}
 
                     <View style={styles.detailActions}>
                       {[

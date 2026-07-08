@@ -1,9 +1,10 @@
 import { Feather } from "@expo/vector-icons";
 import * as Haptics from "expo-haptics";
+import * as ImagePicker from "expo-image-picker";
 import { router } from "expo-router";
 import React, { useCallback, useEffect, useState } from "react";
 import {
-  ActivityIndicator, Alert, Modal, RefreshControl,
+  ActivityIndicator, Alert, Image, Modal, RefreshControl,
   ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, View,
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
@@ -68,7 +69,7 @@ export default function ChargesScreen() {
   const [payMethod, setPayMethod] = useState("virement");
   const [payNote, setPayNote] = useState("");
   const [submitting, setSubmitting] = useState(false);
-  const [payProofUrl, setPayProofUrl] = useState("");
+  const [payProofUri, setPayProofUri] = useState("");
   const [rejectModal, setRejectModal] = useState<Appel | null>(null);
   const [rejectReason, setRejectReason] = useState("");
 
@@ -86,18 +87,67 @@ export default function ChargesScreen() {
   useEffect(() => { load(); }, [load]);
   const onRefresh = () => { setRefreshing(true); load(true); };
 
+  const pickProofImage = async () => {
+    try {
+      const perm = await ImagePicker.requestMediaLibraryPermissionsAsync();
+      if (!perm.granted) {
+        const cam = await ImagePicker.requestCameraPermissionsAsync();
+        if (!cam.granted) return;
+        const result = await ImagePicker.launchCameraAsync({ allowsEditing: true, quality: 0.7 });
+        if (!result.canceled && result.assets[0]) setPayProofUri(result.assets[0].uri);
+        return;
+      }
+      const result = await ImagePicker.launchImageLibraryAsync({
+        mediaTypes: ImagePicker.MediaTypeOptions.Images,
+        allowsEditing: true,
+        quality: 0.7,
+      });
+      if (!result.canceled && result.assets[0]) {
+        setPayProofUri(result.assets[0].uri);
+        Haptics.selectionAsync();
+      }
+    } catch { /* silently ignore */ }
+  };
+
+  const uploadProofImage = async (uri: string): Promise<string | undefined> => {
+    try {
+      const ext = uri.split(".").pop() ?? "jpg";
+      const contentType = ext === "png" ? "image/png" : "image/jpeg";
+      const fileName = `proof-${Date.now()}.${ext}`;
+      const domain = process.env.EXPO_PUBLIC_DOMAIN;
+      const baseUrl = domain ? `https://${domain}/api` : `http://localhost:${process.env.EXPO_PUBLIC_API_PORT ?? "8080"}/api`;
+      const urlRes = await fetch(`${baseUrl}/storage/uploads/request-url`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ name: fileName, size: 500000, contentType }),
+      });
+      if (!urlRes.ok) return undefined;
+      const { uploadURL, objectPath } = await urlRes.json();
+      const imgRes = await fetch(uri);
+      const blob = await imgRes.blob();
+      const uploadResp = await fetch(uploadURL, { method: "PUT", headers: { "Content-Type": contentType }, body: blob });
+      return uploadResp.ok ? objectPath : undefined;
+    } catch { return undefined; }
+  };
+
   const handlePay = async () => {
     if (!payModal) return;
     try {
       setSubmitting(true);
+      let proofUrl: string | undefined;
+      if (payProofUri) {
+        proofUrl = await uploadProofImage(payProofUri);
+        // fall back to local URI if upload failed (non-blocking)
+        if (!proofUrl) proofUrl = payProofUri;
+      }
       await apiRequest(`/appels-de-fonds/${payModal.id}/pay`, "PUT", {
         paymentMethod: payMethod,
         notes: payNote || undefined,
-        proofUrl: payProofUrl || undefined,
+        proofUrl: proofUrl || undefined,
       }, token);
       setPayModal(null);
       setPayNote("");
-      setPayProofUrl("");
+      setPayProofUri("");
       load(true);
     } catch (e: any) {
       Alert.alert("Erreur", e.message ?? "Impossible de soumettre le paiement");
@@ -358,16 +408,33 @@ export default function ChargesScreen() {
               onChangeText={setPayNote}
             />
 
-            <Text style={[styles.fieldLabel, { color: colors.mutedForeground }]}>URL du justificatif (optionnel)</Text>
-            <TextInput
-              style={[styles.input, { backgroundColor: colors.card, borderColor: colors.border, color: colors.foreground }]}
-              placeholder="https://... (lien vers reçu bancaire, scan...)"
-              placeholderTextColor={colors.mutedForeground}
-              value={payProofUrl}
-              onChangeText={setPayProofUrl}
-              autoCapitalize="none"
-              keyboardType="url"
-            />
+            <Text style={[styles.fieldLabel, { color: colors.mutedForeground }]}>Justificatif de paiement (optionnel)</Text>
+            {payProofUri ? (
+              <View style={{ gap: 8 }}>
+                <Image source={{ uri: payProofUri }} style={{ width: "100%", height: 160, borderRadius: 12, resizeMode: "cover" }} />
+                <TouchableOpacity
+                  style={[styles.input, { backgroundColor: "#ef444410", borderColor: "#ef444430", alignItems: "center", paddingVertical: 10 }]}
+                  onPress={() => setPayProofUri("")}
+                >
+                  <Text style={{ fontSize: 13, fontFamily: "Inter_500Medium", color: "#ef4444" }}>Supprimer le justificatif</Text>
+                </TouchableOpacity>
+              </View>
+            ) : (
+              <TouchableOpacity
+                style={[styles.methodBtn, { backgroundColor: colors.card, borderColor: colors.border, borderWidth: 1, borderStyle: "dashed" }]}
+                onPress={pickProofImage}
+                activeOpacity={0.8}
+              >
+                <View style={{ width: 36, height: 36, borderRadius: 10, backgroundColor: "#3b82f615", alignItems: "center", justifyContent: "center" }}>
+                  <Feather name="camera" size={18} color="#3b82f6" />
+                </View>
+                <View style={{ flex: 1 }}>
+                  <Text style={{ fontSize: 14, fontFamily: "Inter_500Medium", color: colors.foreground }}>Joindre un justificatif</Text>
+                  <Text style={{ fontSize: 11, fontFamily: "Inter_400Regular", color: colors.mutedForeground }}>Reçu, virement, chèque...</Text>
+                </View>
+                <Feather name="upload" size={16} color={colors.mutedForeground} />
+              </TouchableOpacity>
+            )}
 
             <TouchableOpacity
               style={[styles.submitBtn, { backgroundColor: "#10b981", opacity: submitting ? 0.7 : 1 }]}

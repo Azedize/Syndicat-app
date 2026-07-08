@@ -15,11 +15,14 @@ function isSameSyndicate(req: any, syndicateId: string): boolean {
 }
 
 router.get("/members", requireAuth, async (req, res) => {
-  const { search, status } = req.query as Record<string, string>;
+  const { search, status, syndicateId } = req.query as Record<string, string>;
   const pagination = getPagination(req);
   try {
     const conditions: any[] = [];
-    if (req.user!.role !== "super_admin" && req.user!.syndicateId) {
+    if (req.user!.role === "super_admin" && syndicateId) {
+      // super_admin filtering by specific syndicate
+      conditions.push(eq(membersTable.syndicateId, syndicateId));
+    } else if (req.user!.role !== "super_admin" && req.user!.syndicateId) {
       conditions.push(eq(membersTable.syndicateId, req.user!.syndicateId));
     }
     if (status) conditions.push(eq(membersTable.status, status as any));

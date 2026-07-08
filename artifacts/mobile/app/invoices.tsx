@@ -1,10 +1,12 @@
 import { Feather } from "@expo/vector-icons";
 import * as Haptics from "expo-haptics";
+import * as ImagePicker from "expo-image-picker";
 import { router } from "expo-router";
 import React, { useState } from "react";
 import {
   Alert,
   FlatList,
+  Image,
   Modal,
   Platform,
   ScrollView,
@@ -35,6 +37,7 @@ export default function InvoicesScreen() {
   const [addRecipient, setAddRecipient] = useState("");
   const [addAmount, setAddAmount] = useState("");
   const [addLabel, setAddLabel] = useState("");
+  const [addProofUri, setAddProofUri] = useState("");
 
   const filteredInvoices = invoices.filter((inv) => inv.type === tab.slice(0, -1) as "facture" | "devis");
 
@@ -50,8 +53,37 @@ export default function InvoicesScreen() {
     cancelled: { label: "Annulé", color: "#6b7280" },
   };
 
+  const pickProofImage = async () => {
+    try {
+      const perm = await ImagePicker.requestMediaLibraryPermissionsAsync();
+      if (!perm.granted) {
+        const cam = await ImagePicker.requestCameraPermissionsAsync();
+        if (!cam.granted) {
+          Alert.alert("Permission requise", "Veuillez autoriser l'accès à la galerie ou à la caméra pour joindre un justificatif.");
+          return;
+        }
+        const result = await ImagePicker.launchCameraAsync({ allowsEditing: true, quality: 0.8 });
+        if (!result.canceled && result.assets[0]) setAddProofUri(result.assets[0].uri);
+        return;
+      }
+      const result = await ImagePicker.launchImageLibraryAsync({
+        mediaTypes: ImagePicker.MediaTypeOptions.Images,
+        allowsEditing: true,
+        quality: 0.8,
+      });
+      if (!result.canceled && result.assets[0]) {
+        setAddProofUri(result.assets[0].uri);
+        Haptics.selectionAsync();
+      }
+    } catch { /* silently ignore */ }
+  };
+
   const handleAdd = () => {
     if (!addRecipient.trim() || !addAmount.trim() || !addLabel.trim()) return;
+    if (!addProofUri) {
+      Alert.alert("Justificatif requis", "Veuillez joindre un justificatif (image de la facture ou du devis) avant de continuer.");
+      return;
+    }
     const count = invoices.filter((i) => i.type === addType).length + 1;
     const ref = addType === "facture" ? `FAC-2026-00${count}` : `DEV-2026-00${count}`;
     const inv: Invoice = {
@@ -69,7 +101,7 @@ export default function InvoicesScreen() {
     addInvoice(inv);
     Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
     setShowAdd(false);
-    setAddRecipient(""); setAddAmount(""); setAddLabel("");
+    setAddRecipient(""); setAddAmount(""); setAddLabel(""); setAddProofUri("");
     Alert.alert("Créé!", `${addType === "facture" ? "Facture" : "Devis"} ${ref} créé avec succès.`);
   };
 
@@ -280,18 +312,53 @@ export default function InvoicesScreen() {
               </View>
             ))}
 
+            {/* Mandatory justificatif */}
+            <View>
+              <View style={{ flexDirection: "row", alignItems: "center", gap: 6, marginBottom: 8 }}>
+                <Text style={[styles.fieldLabel, { color: colors.foreground }]}>Justificatif *</Text>
+                <View style={{ paddingHorizontal: 6, paddingVertical: 2, borderRadius: 6, backgroundColor: "#ef444418" }}>
+                  <Text style={{ fontSize: 10, fontFamily: "Inter_600SemiBold", color: "#ef4444" }}>Obligatoire</Text>
+                </View>
+              </View>
+              {addProofUri ? (
+                <View style={{ gap: 8 }}>
+                  <Image source={{ uri: addProofUri }} style={{ width: "100%", height: 140, borderRadius: 12, resizeMode: "cover" }} />
+                  <TouchableOpacity
+                    style={[styles.input, { backgroundColor: "#ef444410", borderColor: "#ef444430", alignItems: "center", paddingVertical: 10 }]}
+                    onPress={() => setAddProofUri("")}
+                  >
+                    <Text style={{ fontSize: 13, fontFamily: "Inter_500Medium", color: "#ef4444" }}>Changer le justificatif</Text>
+                  </TouchableOpacity>
+                </View>
+              ) : (
+                <TouchableOpacity
+                  style={[styles.input, { borderColor: "#ef444440", borderStyle: "dashed", backgroundColor: "#ef444408", flexDirection: "row", alignItems: "center", gap: 10, paddingVertical: 14 }]}
+                  onPress={pickProofImage}
+                  activeOpacity={0.8}
+                >
+                  <View style={{ width: 36, height: 36, borderRadius: 10, backgroundColor: "#ef444418", alignItems: "center", justifyContent: "center" }}>
+                    <Feather name="upload" size={16} color="#ef4444" />
+                  </View>
+                  <View style={{ flex: 1 }}>
+                    <Text style={{ fontSize: 14, fontFamily: "Inter_600SemiBold", color: "#ef4444" }}>Joindre le justificatif</Text>
+                    <Text style={{ fontSize: 11, fontFamily: "Inter_400Regular", color: colors.mutedForeground }}>Image de la facture / devis fournisseur</Text>
+                  </View>
+                </TouchableOpacity>
+              )}
+            </View>
+
             <View style={styles.actionBtns}>
-              <TouchableOpacity style={[styles.actionBtn, { backgroundColor: colors.muted }]} onPress={() => setShowAdd(false)}>
+              <TouchableOpacity style={[styles.actionBtn, { backgroundColor: colors.muted }]} onPress={() => { setShowAdd(false); setAddProofUri(""); }}>
                 <Text style={[styles.actionBtnText, { color: colors.mutedForeground }]}>Annuler</Text>
               </TouchableOpacity>
               <TouchableOpacity
                 style={[styles.actionBtn, {
-                  backgroundColor: addRecipient.trim() && addAmount.trim() && addLabel.trim() ? colors.primary : colors.muted,
+                  backgroundColor: addRecipient.trim() && addAmount.trim() && addLabel.trim() && addProofUri ? colors.primary : colors.muted,
                 }]}
                 onPress={handleAdd}
-                disabled={!addRecipient.trim() || !addAmount.trim() || !addLabel.trim()}
+                disabled={!addRecipient.trim() || !addAmount.trim() || !addLabel.trim() || !addProofUri}
               >
-                <Text style={[styles.actionBtnText, { color: addRecipient.trim() && addAmount.trim() && addLabel.trim() ? "#fff" : colors.mutedForeground }]}>
+                <Text style={[styles.actionBtnText, { color: addRecipient.trim() && addAmount.trim() && addLabel.trim() && addProofUri ? "#fff" : colors.mutedForeground }]}>
                   Créer
                 </Text>
               </TouchableOpacity>
