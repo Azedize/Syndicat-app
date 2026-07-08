@@ -1,0 +1,285 @@
+You are a Senior Product Owner, UX Architect, Business Analyst, QA Lead, and Moroccan Condominium (Syndic de Copropriété) Expert.
+
+Your mission is to fully audit, redesign, and implement the following production issues in the SYNDYCAT GLOBAL CPS application.
+
+IMPORTANT:
+Do not only report issues.
+Analyze the existing implementation.
+Identify root causes.
+Implement production-ready fixes.
+Respect Moroccan condominium management realities.
+Provide clean UI/UX, validation, security, and scalability.
+
+==================================================
+P1 — IMMEUBLES & RÉSIDENCES (SUPER ADMIN)
+==================================================
+
+Current Problem:
+
+When Super Admin opens "Immeubles & Résidences", the displayed information is incomplete.
+
+Required:
+
+For each Syndicat display:
+
+- Syndicat information
+- Building information
+- Number of buildings
+- Number of apartments
+- Number of occupied lots
+- Number of vacant lots
+- Number of owners
+- Number of tenants
+- Number of employees
+- Financial balance
+- Collection rate
+- Number of unpaid charges
+- Number of incidents
+- Number of meetings
+- Number of documents
+
+Add detailed drill-down screens:
+
+Syndicat
+ → Buildings
+ → Lots
+ → Owners
+ → Tenants
+ → Employees
+ → Financial dashboard
+ → Documents
+ → Incidents
+ → Meetings
+
+Each screen must support:
+
+- Pagination
+- Search
+- Filters
+- Sorting
+- Loading states
+- Empty states
+- Error states
+
+Add statistics cards and charts.
+
+No static data.
+
+Everything must come from PostgreSQL.
+
+==================================================
+P2 — CREATE NEW SYNDICAT
+==================================================
+
+Current Problems:
+
+1. Weak validation
+2. No professional UX
+3. No success feedback
+4. City is free text
+5. Website should not be mandatory
+6. Legal form is free text
+7. Logo upload incomplete
+8. Syndicate card design is poor
+
+Required Fixes:
+
+--------------------------------------------------
+Validation
+--------------------------------------------------
+
+Validate:
+
+- Name required
+- Address required
+- City required
+- Country required
+- Email format
+- Phone format
+- Registration number format
+- ICE format
+- RC format
+
+Show inline validation errors.
+
+No generic alerts.
+
+--------------------------------------------------
+City Selector
+--------------------------------------------------
+
+Replace free text.
+
+Create searchable dropdown containing all Moroccan cities:
+
+Casablanca
+Rabat
+Tanger
+Fès
+Marrakech
+Agadir
+Meknès
+Oujda
+Tétouan
+El Jadida
+Nador
+Khouribga
+Kénitra
+Safi
+Mohammedia
+Laâyoune
+Dakhla
+and all official Moroccan cities.
+
+--------------------------------------------------
+Legal Form
+--------------------------------------------------
+
+Replace free text.
+
+Dropdown:
+
+- Syndicat de Copropriété
+- Association
+- Coopérative
+- Syndicat Professionnel
+- Fédération
+- Union
+- Autre
+
+--------------------------------------------------
+Website
+--------------------------------------------------
+
+Must be optional.
+
+User can create a syndicate without website.
+
+--------------------------------------------------
+Logo
+--------------------------------------------------
+
+Allow:
+
+Option 1:
+Upload logo from mobile gallery
+
+Option 2:
+Upload logo from camera
+
+Option 3:
+Choose default logo templates
+
+Provide preview before save.
+
+--------------------------------------------------
+Success Workflow
+--------------------------------------------------
+
+After creation:
+
+Display:
+
+✅ Syndicat créé avec succès
+
+Show:
+
+- Syndicate Name
+- Registration Number
+- Creation Date
+- Assigned Administrator
+
+Add buttons:
+
+- Voir le Syndicat
+- Ajouter des Membres
+- Ajouter un Immeuble
+- Retour au Tableau de Bord
+
+--------------------------------------------------
+Professional Syndicate Card
+--------------------------------------------------
+
+Redesign completely.
+
+Display:
+
+- Logo
+- Syndicate Name
+- Legal Form
+- City
+- Registration Number
+- Number of Buildings
+- Number of Members
+- Status
+- Creation Date
+
+Modern card UI.
+
+Moroccan professional style.
+
+==================================================
+DATABASE AUDIT
+==================================================
+
+Verify:
+
+- Schema consistency
+- Foreign keys
+- Missing indexes
+- Missing constraints
+
+Detect:
+
+- orphan records
+- duplicated records
+- invalid relations
+
+==================================================
+PERFORMANCE
+==================================================
+
+Verify:
+
+- N+1 Queries
+- PostgreSQL indexes
+- Redis cache
+- Rate limiting
+- Pagination
+- Slow queries
+
+Target:
+
+1000 concurrent users.
+
+==================================================
+SECURITY
+==================================================
+
+Verify:
+
+- RBAC
+- Super Admin permissions
+- Syndicate Admin permissions
+- Member permissions
+
+Ensure:
+
+No unauthorized access.
+
+==================================================
+FINAL REPORT
+==================================================
+
+Generate:
+
+1. Root causes
+2. Files modified
+3. Database changes
+4. API changes
+5. Mobile changes
+6. UX improvements
+7. Remaining risks
+8. Production readiness score
+
+The final implementation must be production-ready for Moroccan condominium management.

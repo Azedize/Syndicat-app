@@ -37,13 +37,17 @@ export const syndicatesTable = pgTable("syndicates", {
   phone: text("phone"),
   website: text("website"),
   address: text("address"),
+  city: text("city"),
   // Legal (Dahir 1-57-119)
   legalForm: text("legal_form"),
   registrationNumber: text("registration_number"),
+  iceNumber: text("ice_number"),
+  rcNumber: text("rc_number"),
   foundingDate: text("founding_date"),
   mission: text("mission"),
   // Branding
   logoColor: text("logo_color").default("#7c3aed"),
+  logoUrl: text("logo_url"),
   // Finance defaults
   cotisationAmount: money("cotisation_amount"),
   cotisationCycle: text("cotisation_cycle").default("monthly"),

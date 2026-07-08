@@ -37,9 +37,13 @@ Add these in Replit Secrets before starting the API:
 
 ```bash
 pnpm --filter @workspace/db run db:push
-# Optional: seed with sample data
-pnpm --filter @workspace/db run seed
+# Seed with sample/demo data (test accounts, password: password123)
+pnpm --filter @workspace/scripts run seed
 ```
+
+Already done in this environment: dependencies installed, schema pushed to the
+provisioned Postgres database, and demo data seeded. Demo login on the mobile
+app's login screen: `syndic@andalous.ma` / `password123` (pre-filled).
 
 ### 4. Start the workflows
 
