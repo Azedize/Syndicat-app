@@ -31,6 +31,7 @@ import rankingsRouter from "./rankings.js";
 import teamRouter from "./team.js";
 import subscriptionsRouter from "./subscriptions.js";
 import parkingRouter from "./parking.js";
+import escalationRouter from "./escalation.js";
 
 const router: IRouter = Router();
 
@@ -66,5 +67,6 @@ router.use(rankingsRouter);
 router.use(teamRouter);
 router.use(subscriptionsRouter);
 router.use(parkingRouter);
+router.use(escalationRouter);
 
 export default router;

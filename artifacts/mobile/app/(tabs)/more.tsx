@@ -46,6 +46,7 @@ const MENU_SECTIONS: { title: string; items: MenuItem[] }[] = [
       { label: "Devis & Factures", icon: "file-text", route: "/invoices", color: "#6366f1", roles: ["super_admin", "syndicate_admin"] },
       { label: "Bons de Livraison", icon: "package", route: "/bon-livraison", color: "#f97316", roles: ["super_admin", "syndicate_admin"] },
       { label: "Rapports Financiers", icon: "bar-chart-2", route: "/reports", color: "#7c3aed", roles: ["super_admin", "syndicate_admin"] },
+      { label: "Recouvrement & Escalades", icon: "trending-up", route: "/escalation", color: "#ef4444", roles: ["super_admin", "syndicate_admin"] },
     ],
   },
   {

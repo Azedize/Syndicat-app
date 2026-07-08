@@ -51,6 +51,8 @@ export const syndicatesTable = pgTable("syndicates", {
   // Finance defaults
   cotisationAmount: money("cotisation_amount"),
   cotisationCycle: text("cotisation_cycle").default("monthly"),
+  // Legal escalation threshold (months of non-payment before legal action)
+  legalThresholdMonths: integer("legal_threshold_months").default(18),
   createdAt: createdAt(),
 });
 
@@ -1182,11 +1184,22 @@ export const debtEscalationsTable = pgTable(
     syndicateId: text("syndicate_id").references(() => syndicatesTable.id, { onDelete: "cascade" }),
     memberId: text("member_id").references(() => membersTable.id, { onDelete: "set null" }),
     memberName: text("member_name"),
+    // lot reference
+    lotId: text("lot_id").references(() => lotsTable.id, { onDelete: "set null" }),
+    residentType: text("resident_type").default("member"), // member | tenant
     totalOverdue: money("total_overdue").notNull(),
-    overdueMonths: integer("overdue_months").notNull(), // 3 | 6 | 12
-    // level: warning | serious | critical (maps to 3/6/12 months)
+    overdueMonths: integer("overdue_months").notNull(),
+    // escalation_level: reminder | warning | final_warning | agm_proposal | legal_action
+    escalationLevel: text("escalation_level").notNull(),
+    // legacy column kept for backward compatibility
     level: text("level").notNull(),
-    status: text("status").default("open"), // open | meeting_scheduled | resolved
+    status: text("status").default("open"), // open | meeting_scheduled | overridden | resolved
+    // generated letter PDF URL
+    letterUrl: text("letter_url"),
+    // override tracking
+    overriddenBy: text("overridden_by"),
+    overrideReason: text("override_reason"),
+    overriddenAt: timestamp("overridden_at"),
     alertSentAt: timestamp("alert_sent_at"),
     meetingId: text("meeting_id"),
     resolvedAt: timestamp("resolved_at"),
@@ -1195,7 +1208,9 @@ export const debtEscalationsTable = pgTable(
   (t) => [
     index("debt_escalations_syndicate_id_idx").on(t.syndicateId),
     index("debt_escalations_member_id_idx").on(t.memberId),
+    index("debt_escalations_lot_id_idx").on(t.lotId),
     index("debt_escalations_status_idx").on(t.status),
+    index("debt_escalations_level_idx").on(t.escalationLevel),
   ],
 );
 
