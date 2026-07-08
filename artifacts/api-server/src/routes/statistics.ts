@@ -11,6 +11,13 @@ import {
   usersTable,
   electionsTable,
   paymentProofsTable,
+  buildingsTable,
+  lotsTable,
+  tenantsTable,
+  sinistresTable,
+  documentsTable,
+  meetingsTable,
+  appelsDeFondsTable,
 } from "@workspace/db/schema";
 import { eq, and, or, count, sum, gte, lt, desc, sql } from "drizzle-orm";
 import { requireAuth, requireRole } from "../middleware/auth.js";
@@ -437,6 +444,227 @@ router.get(
       });
 
       res.json({ data: enriched });
+    } catch (err) {
+      req.log.error(err);
+      res.status(500).json({ error: "Erreur serveur" });
+    }
+  },
+);
+
+// ─── Per-syndicate building stats (super_admin only) ──────────────────────────
+// GET /statistics/buildings
+// Returns aggregated stats for each syndicate: buildings, lots, occupancy,
+// owners, tenants, employees, incidents, documents, meetings, charges, finance.
+router.get(
+  "/statistics/buildings",
+  requireAuth,
+  requireRole("super_admin"),
+  async (req, res) => {
+    try {
+      // Fetch all syndicates
+      const syndicates = await db
+        .select({ id: syndicatesTable.id, name: syndicatesTable.name })
+        .from(syndicatesTable)
+        .orderBy(syndicatesTable.name);
+
+      if (syndicates.length === 0) {
+        res.json({ data: [] });
+        return;
+      }
+
+      // --- Bulk aggregation queries (no N+1) ---
+
+      // Buildings per syndicate
+      const buildingCounts = await db
+        .select({
+          syndicateId: buildingsTable.syndicateId,
+          total: count(),
+        })
+        .from(buildingsTable)
+        .groupBy(buildingsTable.syndicateId);
+
+      // Lot stats per syndicate (total, occupied, vacant)
+      const lotStats = await db
+        .select({
+          syndicateId: buildingsTable.syndicateId,
+          totalLots: count(),
+          occupiedLots: sql<number>`COUNT(*) FILTER (WHERE ${lotsTable.status} = 'occupied')`,
+          vacantLots: sql<number>`COUNT(*) FILTER (WHERE ${lotsTable.status} != 'occupied')`,
+        })
+        .from(lotsTable)
+        .innerJoin(buildingsTable, eq(lotsTable.buildingId, buildingsTable.id))
+        .groupBy(buildingsTable.syndicateId);
+
+      // Owners (members) per syndicate
+      const ownerCounts = await db
+        .select({
+          syndicateId: membersTable.syndicateId,
+          total: count(),
+        })
+        .from(membersTable)
+        .groupBy(membersTable.syndicateId);
+
+      // Tenants per syndicate
+      const tenantCounts = await db
+        .select({
+          syndicateId: tenantsTable.syndicateId,
+          total: count(),
+        })
+        .from(tenantsTable)
+        .where(eq(tenantsTable.status, "active"))
+        .groupBy(tenantsTable.syndicateId);
+
+      // Employees (users with role employee/staff scoped to syndicate)
+      const employeeCounts = await db
+        .select({
+          syndicateId: usersTable.syndicateId,
+          total: count(),
+        })
+        .from(usersTable)
+        .where(
+          sql`${usersTable.role} IN ('employee','staff','gardien','gestionnaire')`
+        )
+        .groupBy(usersTable.syndicateId);
+
+      // Sinistres (incidents) per syndicate via building join
+      const sinistreStats = await db
+        .select({
+          syndicateId: buildingsTable.syndicateId,
+          total: count(),
+        })
+        .from(sinistresTable)
+        .innerJoin(buildingsTable, eq(sinistresTable.buildingId, buildingsTable.id))
+        .groupBy(buildingsTable.syndicateId);
+
+      // Documents per syndicate
+      const documentCounts = await db
+        .select({
+          syndicateId: documentsTable.syndicateId,
+          total: count(),
+        })
+        .from(documentsTable)
+        .groupBy(documentsTable.syndicateId);
+
+      // Meetings (AG) per syndicate
+      const meetingCounts = await db
+        .select({
+          syndicateId: meetingsTable.syndicateId,
+          total: count(),
+        })
+        .from(meetingsTable)
+        .groupBy(meetingsTable.syndicateId);
+
+      // Appels de fonds (charges) stats per syndicate via building join
+      // unpaid = pending + overdue; paid count; collection rate
+      const chargeStats = await db
+        .select({
+          syndicateId: buildingsTable.syndicateId,
+          totalCharges: count(),
+          unpaidCharges: sql<number>`COUNT(*) FILTER (WHERE ${appelsDeFondsTable.status} IN ('pending','overdue'))`,
+          paidCharges: sql<number>`COUNT(*) FILTER (WHERE ${appelsDeFondsTable.status} = 'paid')`,
+          totalAmount: sql<number>`COALESCE(SUM(CAST(${appelsDeFondsTable.amount} AS numeric)), 0)`,
+          paidAmount: sql<number>`COALESCE(SUM(CAST(${appelsDeFondsTable.amount} AS numeric)) FILTER (WHERE ${appelsDeFondsTable.status} = 'paid'), 0)`,
+        })
+        .from(appelsDeFondsTable)
+        .innerJoin(buildingsTable, eq(appelsDeFondsTable.buildingId, buildingsTable.id))
+        .groupBy(buildingsTable.syndicateId);
+
+      // Financial balance from caisse_entries (latest balance per syndicate)
+      const latestCaisse = await db
+        .select({
+          syndicateId: caisseEntriesTable.syndicateId,
+          balance: caisseEntriesTable.balance,
+          amount: caisseEntriesTable.amount,
+          createdAt: caisseEntriesTable.createdAt,
+        })
+        .from(caisseEntriesTable)
+        .orderBy(desc(caisseEntriesTable.createdAt));
+
+      // Build lookup maps
+      const byCounts = (rows: { syndicateId: string | null; total: number }[]) => {
+        const m = new Map<string, number>();
+        for (const r of rows) {
+          if (r.syndicateId) m.set(r.syndicateId, Number(r.total));
+        }
+        return m;
+      };
+
+      const buildingMap = byCounts(buildingCounts);
+      const ownerMap = byCounts(ownerCounts);
+      const tenantMap = byCounts(tenantCounts);
+      const employeeMap = byCounts(employeeCounts);
+      const sinistreMap = byCounts(sinistreStats);
+      const documentMap = byCounts(documentCounts);
+      const meetingMap = byCounts(meetingCounts);
+
+      const lotMap = new Map<string, { totalLots: number; occupiedLots: number; vacantLots: number }>();
+      for (const r of lotStats) {
+        if (r.syndicateId) {
+          lotMap.set(r.syndicateId, {
+            totalLots: Number(r.totalLots),
+            occupiedLots: Number(r.occupiedLots),
+            vacantLots: Number(r.vacantLots),
+          });
+        }
+      }
+
+      const chargeMap = new Map<string, { unpaidCharges: number; paidCharges: number; totalCharges: number; collectionRate: number; financialBalance: number }>();
+      for (const r of chargeStats) {
+        if (r.syndicateId) {
+          const total = Number(r.totalCharges);
+          const paid = Number(r.paidCharges);
+          const unpaid = Number(r.unpaidCharges);
+          const totalAmt = Number(r.totalAmount);
+          const paidAmt = Number(r.paidAmount);
+          const collectionRate = total > 0 ? Math.round((paid / total) * 100) : 0;
+          chargeMap.set(r.syndicateId, {
+            unpaidCharges: unpaid,
+            paidCharges: paid,
+            totalCharges: total,
+            collectionRate,
+            financialBalance: Math.round(paidAmt - totalAmt + paidAmt), // paidAmt - unpaidAmt
+          });
+        }
+      }
+
+      // Latest caisse balance per syndicate
+      const caisseBalanceMap = new Map<string, number>();
+      for (const entry of latestCaisse) {
+        if (entry.syndicateId && !caisseBalanceMap.has(entry.syndicateId)) {
+          const bal = entry.balance != null ? Number(entry.balance) : Number(entry.amount ?? 0);
+          caisseBalanceMap.set(entry.syndicateId, bal);
+        }
+      }
+
+      const result = syndicates.map((sy) => {
+        const lots = lotMap.get(sy.id) ?? { totalLots: 0, occupiedLots: 0, vacantLots: 0 };
+        const charges = chargeMap.get(sy.id) ?? { unpaidCharges: 0, paidCharges: 0, totalCharges: 0, collectionRate: 0, financialBalance: 0 };
+        return {
+          syndicateId: sy.id,
+          syndicateName: sy.name,
+          // Real estate
+          buildings: buildingMap.get(sy.id) ?? 0,
+          totalLots: lots.totalLots,
+          occupiedLots: lots.occupiedLots,
+          vacantLots: lots.vacantLots,
+          // People
+          owners: ownerMap.get(sy.id) ?? 0,
+          tenants: tenantMap.get(sy.id) ?? 0,
+          employees: employeeMap.get(sy.id) ?? 0,
+          // Operations
+          incidents: sinistreMap.get(sy.id) ?? 0,
+          documents: documentMap.get(sy.id) ?? 0,
+          meetings: meetingMap.get(sy.id) ?? 0,
+          // Finance
+          unpaidCharges: charges.unpaidCharges,
+          paidCharges: charges.paidCharges,
+          totalCharges: charges.totalCharges,
+          collectionRate: charges.collectionRate,
+          financialBalance: caisseBalanceMap.get(sy.id) ?? 0,
+        };
+      });
+
+      res.json({ data: result });
     } catch (err) {
       req.log.error(err);
       res.status(500).json({ error: "Erreur serveur" });

@@ -21,6 +21,7 @@ import { useColors } from "@/hooks/useColors";
 import { statistics, type EnrichedSyndicate } from "@/services/api";
 import { apiRequest } from "@/lib/api";
 import { useAuth } from "@/context/AuthContext";
+import SyndicateCard, { type SyndicateCardData } from "@/components/SyndicateCard";
 
 interface SyndicateStat {
   id: string;
@@ -264,47 +265,19 @@ export default function TableauNationalScreen() {
                 contentContainerStyle={{ padding: 16, gap: 12, paddingBottom: insets.bottom + 80 }}
                 showsVerticalScrollIndicator={false}
                 renderItem={({ item: synd }) => {
-                  const hc = HEALTH_CONFIG[synd.status];
+                  const cardData: SyndicateCardData = {
+                    id: synd.id,
+                    name: synd.name,
+                    region: synd.region,
+                    membersCount: synd.members,
+                    status: synd.status,
+                    adminName: synd.adminName,
+                  };
                   return (
-                    <TouchableOpacity
-                      style={[styles.syndicatCard, { backgroundColor: colors.card, borderColor: synd.status === "critical" ? "#ef444440" : synd.status === "warning" ? "#f59e0b30" : colors.border }]}
-                      onPress={() => { setSelectedSyndicat(synd); Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); }}
-                      activeOpacity={0.8}
-                    >
-                      <View style={styles.syndicatHeader}>
-                        <View style={[styles.syndicatAvatar, { backgroundColor: colors.primary + "15" }]}>
-                          <Feather name="layers" size={16} color={colors.primary} />
-                        </View>
-                        <View style={{ flex: 1 }}>
-                          <Text style={[styles.syndicatName, { color: colors.foreground }]} numberOfLines={2}>{synd.name}</Text>
-                          <Text style={[styles.syndicatRegion, { color: colors.mutedForeground }]}>{synd.region}</Text>
-                        </View>
-                        <View style={[styles.healthBadge, { backgroundColor: hc.bg }]}>
-                          <Feather name={hc.icon} size={11} color={hc.color} />
-                          <Text style={[styles.healthBadgeText, { color: hc.color }]}>{hc.label}</Text>
-                        </View>
-                      </View>
-                      <View style={[styles.metricsRow, { borderColor: colors.border }]}>
-                        {[
-                          { label: "Membres", value: synd.members.toLocaleString(), color: colors.foreground },
-                          { label: "Cotisations", value: `${synd.cotisationRate}%`, color: synd.cotisationRate >= 80 ? "#10b981" : synd.cotisationRate >= 70 ? "#f59e0b" : "#ef4444" },
-                          { label: "Solde", value: `${(synd.balance / 1000).toFixed(0)}k`, color: colors.foreground },
-                          { label: "Tickets", value: synd.openTickets.toString(), color: synd.openTickets > 10 ? "#ef4444" : synd.openTickets > 5 ? "#f59e0b" : "#10b981" },
-                        ].map((m, i, arr) => (
-                          <View key={m.label} style={[styles.metricCell, i < arr.length - 1 ? { borderRightWidth: 1, borderRightColor: colors.border } : null]}>
-                            <Text style={[styles.metricVal, { color: m.color }]}>{m.value}</Text>
-                            <Text style={[styles.metricLabel, { color: colors.mutedForeground }]}>{m.label}</Text>
-                          </View>
-                        ))}
-                      </View>
-                      <View style={styles.syndicatFooter}>
-                        <Feather name="user" size={11} color={colors.mutedForeground} />
-                        <Text style={[styles.syndicatAdmin, { color: colors.mutedForeground }]}>{synd.adminName}</Text>
-                        <Text style={[styles.syndicatDot, { color: colors.mutedForeground }]}>·</Text>
-                        <Feather name="clock" size={11} color={colors.mutedForeground} />
-                        <Text style={[styles.syndicatTime, { color: colors.mutedForeground }]}>{synd.lastActivity}</Text>
-                      </View>
-                    </TouchableOpacity>
+                    <SyndicateCard
+                      data={cardData}
+                      onPress={() => setSelectedSyndicat(synd)}
+                    />
                   );
                 }}
               />

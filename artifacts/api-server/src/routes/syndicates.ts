@@ -12,7 +12,6 @@ const router = Router();
 router.get("/syndicates", requireAuth, async (req, res) => {
   try {
     const user = req.user!;
-    // super_admin sees all; other roles only see their own syndicate
     const rows =
       user.role === "super_admin"
         ? await db.select().from(syndicatesTable)
@@ -33,7 +32,6 @@ router.get("/syndicates/:id", requireAuth, async (req, res) => {
   try {
     const user = req.user!;
     const id = req.params.id as string;
-    // non-admins can only read their own syndicate
     if (user.role !== "super_admin" && user.syndicateId !== id) {
       res.status(403).json({ error: "Accès refusé" });
       return;
@@ -48,29 +46,81 @@ router.get("/syndicates/:id", requireAuth, async (req, res) => {
 });
 
 // ─── POST /syndicates ──────────────────────────────────────────────────────────
-// Full onboarding: creates syndicate + optionally links admin user + initial settings.
 
-const createSchema = z.object({
+// Legal form allowed values (UI display values stored as free text in DB)
+const LEGAL_FORM_VALUES = [
+  "Syndicat de Copropriété",
+  "Association",
+  "Coopérative",
+  "Syndicat Professionnel",
+  "Fédération",
+  "Union",
+  "Autre",
+] as const;
+
+// Moroccan phone: +212XXXXXXXXX or 0XXXXXXXXX (10 digits local)
+const MOROCCAN_PHONE_RE = /^(\+212|0)[0-9]{9}$/;
+
+// Registration number: flexible alphanumeric with dashes
+const REG_NUMBER_RE = /^[A-Za-z0-9\-\/\.]{3,50}$/;
+
+// ICE: 15 digits
+const ICE_RE = /^[0-9]{15}$/;
+
+// RC: alphanumeric 3-20 chars
+const RC_RE = /^[A-Za-z0-9\-\/\.]{3,20}$/;
+
+export const createSyndicateSchema = z.object({
   // Identity
-  name: z.string().min(1).max(200),
+  name: z.string().min(1, "Le nom est obligatoire").max(200),
   abbreviation: z.string().min(1).max(20).optional(),
   sector: z.string().min(1),
   region: z.string().default(""),
   mission: z.string().max(1000).optional(),
   // Contact
-  email: z.string().email().optional(),
-  phone: z.string().max(30).optional(),
+  email: z.string().email("Format email invalide").optional().or(z.literal("")),
+  phone: z
+    .string()
+    .max(30)
+    .refine((v) => !v || MOROCCAN_PHONE_RE.test(v.replace(/\s/g, "")), {
+      message: "Format téléphone invalide (ex: +212600000000 ou 0600000000)",
+    })
+    .optional()
+    .or(z.literal("")),
   website: z.string().url().optional().or(z.literal("")),
   address: z.string().max(300).optional(),
+  city: z.string().max(100).optional(),
+  country: z.string().max(100).default("Maroc"),
   // Legal
   legalForm: z.string().optional(),
-  registrationNumber: z.string().optional(),
+  registrationNumber: z
+    .string()
+    .refine((v) => !v || REG_NUMBER_RE.test(v), {
+      message: "Format numéro d'enregistrement invalide",
+    })
+    .optional()
+    .or(z.literal("")),
+  iceNumber: z
+    .string()
+    .refine((v) => !v || ICE_RE.test(v), {
+      message: "Le numéro ICE doit comporter 15 chiffres",
+    })
+    .optional()
+    .or(z.literal("")),
+  rcNumber: z
+    .string()
+    .refine((v) => !v || RC_RE.test(v), {
+      message: "Format numéro RC invalide",
+    })
+    .optional()
+    .or(z.literal("")),
   foundingDate: z.string().optional(),
   // Finance
   cotisationAmount: z.string().optional(),
   cotisationCycle: z.enum(["monthly", "quarterly", "yearly"]).default("monthly"),
   // Branding
   logoColor: z.string().regex(/^#[0-9a-fA-F]{6}$/).default("#7c3aed"),
+  logoUrl: z.string().optional().or(z.literal("")),
   // Optional: initial member count
   membersCount: z.number().int().min(0).default(0),
   // Optional: designate an existing user as admin
@@ -78,7 +128,7 @@ const createSchema = z.object({
 });
 
 router.post("/syndicates", requireAuth, requireRole("super_admin"), async (req, res) => {
-  const result = createSchema.safeParse(req.body);
+  const result = createSyndicateSchema.safeParse(req.body);
   if (!result.success) {
     res.status(400).json({ error: "Données invalides", details: result.error.flatten() });
     return;
@@ -87,7 +137,6 @@ router.post("/syndicates", requireAuth, requireRole("super_admin"), async (req, 
     const data = result.data;
 
     const [syndicate] = await db.transaction(async (tx) => {
-      // 0. Validate adminId before creating the syndicate (fast-fail inside transaction)
       if (data.adminId) {
         const [admin] = await tx
           .select({ id: usersTable.id })
@@ -99,36 +148,39 @@ router.post("/syndicates", requireAuth, requireRole("super_admin"), async (req, 
         }
       }
 
-      // 1. Create the syndicate
-      const [s] = await tx.insert(syndicatesTable).values({
+      const insertValues: Record<string, unknown> = {
         name: data.name,
         abbreviation: data.abbreviation,
         sector: data.sector,
         region: data.region,
         mission: data.mission,
-        email: data.email,
-        phone: data.phone,
+        email: data.email || undefined,
+        phone: data.phone || undefined,
         website: data.website || undefined,
         address: data.address,
+        city: data.city,
         legalForm: data.legalForm,
-        registrationNumber: data.registrationNumber,
+        registrationNumber: data.registrationNumber || undefined,
+        iceNumber: data.iceNumber || undefined,
+        rcNumber: data.rcNumber || undefined,
         foundingDate: data.foundingDate,
         cotisationAmount: data.cotisationAmount,
         cotisationCycle: data.cotisationCycle,
         logoColor: data.logoColor,
+        logoUrl: data.logoUrl || undefined,
         membersCount: data.membersCount,
         adminId: data.adminId,
         status: "active",
-      }).returning();
+      };
+      const [s] = await tx.insert(syndicatesTable).values(insertValues as any).returning();
 
-      // 2. Link admin user → syndicate (guaranteed to match since we pre-validated)
       if (data.adminId) {
-        const result = await tx
+        const linkResult = await tx
           .update(usersTable)
           .set({ syndicateId: s.id, role: "syndicate_admin" })
           .where(eq(usersTable.id, data.adminId))
           .returning({ id: usersTable.id });
-        if (result.length === 0) {
+        if (linkResult.length === 0) {
           throw Object.assign(new Error("Impossible de lier l'administrateur"), { status: 500 });
         }
       }
@@ -156,12 +208,17 @@ const updateSchema = z.object({
   phone: z.string().max(30).optional(),
   website: z.string().url().optional().or(z.literal("")),
   address: z.string().max(300).optional(),
+  city: z.string().max(100).optional(),
+  country: z.string().max(100).optional(),
   legalForm: z.string().optional(),
   registrationNumber: z.string().optional(),
+  iceNumber: z.string().optional(),
+  rcNumber: z.string().optional(),
   foundingDate: z.string().optional(),
   cotisationAmount: z.string().optional(),
   cotisationCycle: z.enum(["monthly", "quarterly", "yearly"]).optional(),
   logoColor: z.string().regex(/^#[0-9a-fA-F]{6}$/).optional(),
+  logoUrl: z.string().optional().or(z.literal("")),
   status: z.enum(["active", "inactive"]).optional(),
   adminId: z.string().optional(),
 });
@@ -170,7 +227,6 @@ router.put("/syndicates/:id", requireAuth, requireAdmin, async (req, res) => {
   const id = req.params.id as string;
   const user = req.user!;
 
-  // syndicate_admin can only update their own syndicate
   if (user.role === "syndicate_admin" && user.syndicateId !== id) {
     res.status(403).json({ error: "Accès refusé" });
     return;
