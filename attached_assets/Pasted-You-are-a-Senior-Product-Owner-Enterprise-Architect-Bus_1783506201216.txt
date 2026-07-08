@@ -1,0 +1,537 @@
+You are a Senior Product Owner, Enterprise Architect, Business Analyst, QA Lead, Financial Auditor, UX Architect, Security Architect, PostgreSQL Expert, and Moroccan Condominium Management Expert.
+
+Your mission is to perform a COMPLETE PRODUCTION AUDIT and IMPLEMENTATION of the SYNDYCAT GLOBAL CPS platform.
+
+IMPORTANT RULES
+
+- Do NOT only generate reports.
+- Do NOT only identify problems.
+- Implement complete solutions.
+- Analyze business logic.
+- Analyze database structure.
+- Analyze API architecture.
+- Analyze mobile application architecture.
+- Analyze security.
+- Analyze scalability.
+- Analyze Moroccan condominium management requirements.
+- Detect missing workflows.
+- Detect broken workflows.
+- Detect inconsistent workflows.
+- Detect orphan screens.
+- Detect dead code.
+- Detect mock data.
+- Detect static data.
+- Detect schema issues.
+- Detect RBAC issues.
+- Detect performance bottlenecks.
+
+Everything must be:
+
+- Production Ready
+- Scalable
+- Secure
+- Auditable
+- Maintainable
+- Moroccan Condominium Compliant
+
+====================================================
+PHASE 1 — COMPLETE SYSTEM AUDIT
+====================================================
+
+Audit:
+
+- Database
+- Backend API
+- Mobile App
+- Authentication
+- Authorization
+- Finance
+- Marketplace
+- Meetings
+- Voting
+- Documents
+- Notifications
+- Employees
+- Owners
+- Tenants
+- Lots
+- Buildings
+- Syndicates
+
+Detect:
+
+- Mock data
+- Static data
+- Dead code
+- Unused screens
+- Broken navigation
+- Missing APIs
+- Missing DB relations
+- Missing indexes
+- N+1 queries
+- Slow endpoints
+- Security vulnerabilities
+
+Everything must use PostgreSQL.
+
+No mock data allowed.
+
+====================================================
+PHASE 2 — SUPER ADMIN DASHBOARD
+====================================================
+
+For every Syndicate display:
+
+- Syndicate Information
+- Buildings
+- Lots
+- Owners
+- Tenants
+- Employees
+- Documents
+- Meetings
+- Incidents
+- Financial Dashboard
+- Charges
+- Recovery Rate
+- Reserve Fund
+- Budget
+- Marketplace Statistics
+
+Statistics:
+
+- Number of buildings
+- Number of apartments
+- Number of occupied lots
+- Number of vacant lots
+- Number of owners
+- Number of tenants
+- Number of employees
+- Number of incidents
+- Number of documents
+- Number of AG meetings
+- Number of unpaid charges
+- Number of payments
+- Collection rate
+- Financial balance
+
+Features:
+
+- Pagination
+- Search
+- Filters
+- Sorting
+- Charts
+- Export PDF
+- Export Excel
+
+====================================================
+PHASE 3 — COMPLETE SYNDICATE CREATION
+====================================================
+
+Replace all local workflows.
+
+Use real APIs only.
+
+Required Fields:
+
+- Name
+- Abbreviation
+- Legal Form
+- Registration Number
+- ICE
+- RC
+- Founding Date
+- Address
+- City
+- Country
+- Email
+- Phone
+- Website (optional)
+- Mission
+- Logo
+- Bank Account
+- Bank Name
+
+Validation:
+
+- Required fields
+- Email validation
+- Phone validation
+- ICE validation
+- RC validation
+- Registration validation
+
+City:
+
+Use searchable Moroccan city selector.
+
+Legal Form:
+
+Dropdown:
+
+- Syndicat de Copropriété
+- Association
+- Coopérative
+- Fédération
+- Union
+- Syndicat Professionnel
+- Autre
+
+Logo:
+
+- Camera
+- Gallery
+- Default Templates
+
+After Creation:
+
+Automatically:
+
+- Create Syndicate
+- Create Syndicate Admin
+- Create Default Budget
+- Create Reserve Fund
+- Create Default Settings
+- Create Subscription
+- Create Notifications
+- Create Audit Logs
+
+Everything inside PostgreSQL transaction.
+
+====================================================
+PHASE 4 — LOTS & UNITS
+====================================================
+
+Display:
+
+- Lot Number
+- Building
+- Floor
+- Area
+- Type
+- Status
+- Owner
+- Tenant
+- Charges
+- Last Payment
+- Balance
+
+Lot Detail:
+
+- Documents
+- Charges
+- Payments
+- Meetings
+- Votes
+- Incidents
+- Financial History
+
+====================================================
+PHASE 5 — OWNERS
+====================================================
+
+Display:
+
+- Full Name
+- CIN
+- Phone
+- Email
+- Address
+- Ownership %
+- Balance
+- Charges
+- Documents
+- Votes
+- Attendance
+
+Complete Owner Dashboard.
+
+====================================================
+PHASE 6 — TENANTS
+====================================================
+
+Display:
+
+- Full Name
+- CIN
+- Phone
+- Email
+- Apartment
+- Lease Start
+- Lease End
+- Rent Amount
+- Emergency Contact
+
+Tenant Dashboard:
+
+- Documents
+- Complaints
+- Incidents
+- Payments
+- Attendance
+
+Implement full Tenant RBAC.
+
+====================================================
+PHASE 7 — FINANCIAL MANAGEMENT
+====================================================
+
+Every financial operation MUST have supporting documents.
+
+No exceptions.
+
+Charges:
+
+Mandatory:
+
+- Title
+- Amount
+- Category
+- Due Date
+- Attachment
+
+Attachments:
+
+- Invoice
+- Receipt
+- Bank Transfer
+- Supplier Proof
+- PDF
+
+Create:
+
+charge_attachments
+
+Invoices:
+
+Mandatory:
+
+- Supplier
+- Invoice Number
+- HT
+- TVA
+- TTC
+- Attachment
+
+Create:
+
+invoice_attachments
+
+Quotations:
+
+Mandatory:
+
+- Supplier
+- Amount
+- Description
+- Attachment
+
+Create:
+
+quotation_attachments
+
+Admin cannot validate:
+
+- Charge
+- Invoice
+- Quotation
+
+Without proof.
+
+====================================================
+PHASE 8 — DOCUMENT MANAGEMENT
+====================================================
+
+Implement real file storage.
+
+No fake files.
+
+Support:
+
+- Images
+- PDFs
+- Contracts
+- Invoices
+- Receipts
+- AG Minutes
+
+Features:
+
+- Upload
+- Download
+- Preview
+- Share
+- Archive
+
+====================================================
+PHASE 9 — CHAT SYSTEM
+====================================================
+
+Audit complete chat workflow.
+
+Verify:
+
+- Contact Syndic
+- Contact Owner
+- Contact Tenant
+- Create Conversation
+- Participants
+- Messages
+- Attachments
+- Notifications
+
+Implement:
+
+- Read receipts
+- Typing indicators
+- Push notifications
+- Role restrictions
+
+====================================================
+PHASE 10 — RTL & ARABIC
+====================================================
+
+Implement 100% RTL support.
+
+Audit:
+
+- Layouts
+- Navigation
+- Cards
+- Tables
+- Forms
+- Modals
+
+Replace:
+
+marginLeft
+marginRight
+
+With RTL-safe equivalents.
+
+Implement:
+
+I18nManager
+
+Verify:
+
+French
+Arabic
+English
+
+====================================================
+PHASE 11 — SECURITY
+====================================================
+
+Audit:
+
+- JWT
+- Refresh Tokens
+- RBAC
+- API Permissions
+- File Access
+- Financial Access
+
+Roles:
+
+- Super Admin
+- Syndicate Admin
+- Owner
+- Tenant
+- Employee
+
+Prevent unauthorized access.
+
+====================================================
+PHASE 12 — PERFORMANCE & SCALABILITY
+====================================================
+
+Target:
+
+1000 concurrent users.
+
+Audit:
+
+- PostgreSQL
+- Redis
+- PM2
+- PgBouncer
+- N+1 Queries
+- Rate Limiting
+- Connection Pooling
+
+Implement:
+
+- Redis Cache
+- Query Optimization
+- Proper Indexes
+- Pagination Everywhere
+- Lazy Loading
+
+====================================================
+PHASE 13 — DATABASE AUDIT
+====================================================
+
+Verify:
+
+- Foreign Keys
+- Constraints
+- Indexes
+- Relations
+
+Detect:
+
+- Orphan Records
+- Duplicate Records
+- Broken Relations
+
+Convert all financial amounts:
+
+doublePrecision
+→ numeric(12,2)
+
+====================================================
+PHASE 14 — AUDIT LOG
+====================================================
+
+Log:
+
+- Create
+- Update
+- Delete
+- Approve
+- Reject
+- Upload
+- Download
+
+Store:
+
+- User
+- Date
+- Action
+- IP
+- Before
+- After
+
+====================================================
+FINAL REPORT
+====================================================
+
+Generate:
+
+1. Root Causes
+2. Business Logic Problems
+3. Database Problems
+4. API Problems
+5. Mobile Problems
+6. Security Problems
+7. Performance Problems
+8. Files Modified
+9. Schema Changes
+10. New APIs
+11. New Tables
+12. Remaining Risks
+13. Production Readiness Score
+
+The final result must be a fully production-ready Moroccan condominium management platform with no mock data, complete financial transparency, complete auditability, full RTL support, proper RBAC, and support for at least 1000 concurrent users.
