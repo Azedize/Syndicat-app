@@ -146,7 +146,8 @@ export default function PrestatairesScreen() {
               const hasExpiring = p.expiringContracts > 0;
 
               return (
-                <View key={p.id} style={[styles.card, { backgroundColor: colors.card, borderColor: hasExpiring ? "#f59e0b40" : colors.border }]}>
+                <TouchableOpacity key={p.id} activeOpacity={0.8} onPress={() => router.push(`/prestataire-detail?id=${p.id}` as any)}
+                  style={[styles.card, { backgroundColor: colors.card, borderColor: hasExpiring ? "#f59e0b40" : colors.border }]}>
                   <View style={styles.cardTop}>
                     <View style={[styles.typeIcon, { backgroundColor: tc.color + "18" }]}>
                       <Feather name={tc.icon} size={22} color={tc.color} />
@@ -221,7 +222,7 @@ export default function PrestatairesScreen() {
                       ))}
                     </View>
                   ) : null}
-                </View>
+                </TouchableOpacity>
               );
             })
           )}

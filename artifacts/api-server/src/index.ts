@@ -2,9 +2,13 @@ import app from "./app";
 import { logger } from "./lib/logger";
 import { pool } from "@workspace/db";
 import { validateAuthConfig } from "./middleware/auth.js";
+import { startContractExpiryScheduler } from "./lib/contract-expiry.js";
 
 // Fail fast on missing auth config — do not wait for first request
 validateAuthConfig();
+
+// Periodically checks provider contracts nearing expiry (60/30/7 days) and sends alerts
+startContractExpiryScheduler();
 
 const rawPort = process.env["PORT"];
 

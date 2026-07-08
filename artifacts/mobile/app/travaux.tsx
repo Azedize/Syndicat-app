@@ -12,6 +12,8 @@ import { useLanguage } from "@/context/LanguageContext";
 import { useBreakpoints } from "@/hooks/useBreakpoints";
 import { useColors } from "@/hooks/useColors";
 import { apiRequest } from "@/lib/api";
+import { pickAndUploadInvoice, pickAndUploadPdf, pickAndUploadPhoto } from "@/lib/upload";
+import { prestataires as prestatairesApi, travaux as travauxApi } from "@/services/api";
 import FilterChips from "@/components/FilterChips";
 import StatisticsHeader from "@/components/StatisticsHeader";
 
@@ -169,6 +171,17 @@ const STRINGS = {
   statusInProgress: { fr: "En cours", en: "In progress", ar: "قيد التنفيذ", es: "En curso" },
   statusCompleted: { fr: "Terminé", en: "Completed", ar: "مكتمل", es: "Completado" },
   statusCancelled: { fr: "Annulé", en: "Cancelled", ar: "ملغى", es: "Cancelado" },
+  statusPendingValidation: { fr: "À valider", en: "Pending validation", ar: "بانتظار التصديق", es: "Pendiente de validación" },
+  assignAction: { fr: "Assigner un prestataire", en: "Assign a provider", ar: "تعيين مزود", es: "Asignar proveedor" },
+  reportAction: { fr: "Soumettre le rapport", en: "Submit report", ar: "إرسال التقرير", es: "Enviar informe" },
+  validateAction: { fr: "Valider & payer", en: "Validate & pay", ar: "تصديق ودفع", es: "Validar y pagar" },
+  prestataireIdLabel: { fr: "ID Prestataire *", en: "Provider ID *", ar: "معرف المزود *", es: "ID del proveedor *" },
+  reportPdf: { fr: "Rapport d'intervention (PDF)", en: "Intervention report (PDF)", ar: "تقرير التدخل (PDF)", es: "Informe de intervención (PDF)" },
+  photoProof: { fr: "Photo de preuve", en: "Proof photo", ar: "صورة إثبات", es: "Foto de prueba" },
+  invoiceDoc: { fr: "Facture", en: "Invoice", ar: "الفاتورة", es: "Factura" },
+  invoiceAmountLabel: { fr: "Montant de la facture (MAD)", en: "Invoice amount (MAD)", ar: "مبلغ الفاتورة", es: "Monto de la factura" },
+  missingDocs: { fr: "Rapport, photo et facture sont obligatoires", en: "Report, photo and invoice are required", ar: "التقرير والصورة والفاتورة مطلوبة", es: "Informe, foto y factura son obligatorios" },
+  validateConfirm: { fr: "Confirmer la validation et le paiement de cette intervention ?", en: "Confirm validation and payment for this intervention?", ar: "تأكيد التصديق ودفع هذا التدخل؟", es: "¿Confirmar validación y pago de esta intervención?" },
   typeEntretien: { fr: "Entretien courant", en: "Routine maintenance", ar: "صيانة دورية", es: "Mantenimiento rutinario" },
   typeReparation: { fr: "Réparation", en: "Repair", ar: "إصلاح", es: "Reparación" },
   typeAmelioration: { fr: "Amélioration", en: "Improvement", ar: "تحسين", es: "Mejora" },
@@ -184,11 +197,12 @@ const PRIORITY_CONFIG: Record<string, { color: string; icon: keyof typeof Feathe
 };
 
 const STATUS_CONFIG: Record<string, { color: string; stringKey: keyof typeof STRINGS }> = {
-  reported:    { color: "#f59e0b", stringKey: "statusReported" },
-  assigned:    { color: "#3b82f6", stringKey: "statusAssigned" },
-  in_progress: { color: "#7c3aed", stringKey: "statusInProgress" },
-  completed:   { color: "#10b981", stringKey: "statusCompleted" },
-  cancelled:   { color: "#6b7280", stringKey: "statusCancelled" },
+  reported:           { color: "#f59e0b", stringKey: "statusReported" },
+  assigned:           { color: "#3b82f6", stringKey: "statusAssigned" },
+  in_progress:        { color: "#7c3aed", stringKey: "statusInProgress" },
+  pending_validation: { color: "#ec4899", stringKey: "statusPendingValidation" },
+  completed:          { color: "#10b981", stringKey: "statusCompleted" },
+  cancelled:          { color: "#6b7280", stringKey: "statusCancelled" },
 };
 
 const TYPE_CONFIG: Record<string, keyof typeof STRINGS> = {
@@ -234,7 +248,83 @@ export default function TravauxScreen() {
   const [form, setForm] = useState({ title: "", description: "", type: "entretien", priority: "normal", buildingId: "" });
   const [submitting, setSubmitting] = useState(false);
 
+  // Workflow action modal (assign / report / validate)
+  const [actionTravail, setActionTravail] = useState<Travail | null>(null);
+  const [assignPrestataireId, setAssignPrestataireId] = useState("");
+  const [reportUrl, setReportUrl] = useState("");
+  const [photoUrl, setPhotoUrl] = useState("");
+  const [invoiceUrl, setInvoiceUrl] = useState("");
+  const [invoiceAmount, setInvoiceAmount] = useState("");
+  const [actionBusy, setActionBusy] = useState(false);
+
   const isAdmin = user?.role === "super_admin" || user?.role === "syndicate_admin";
+
+  const closeActionModal = () => {
+    setActionTravail(null);
+    setAssignPrestataireId("");
+    setReportUrl("");
+    setPhotoUrl("");
+    setInvoiceUrl("");
+    setInvoiceAmount("");
+  };
+
+  const handleAssign = async () => {
+    if (!actionTravail || !assignPrestataireId.trim()) return;
+    try {
+      setActionBusy(true);
+      await travauxApi.assign(actionTravail.id, assignPrestataireId.trim());
+      closeActionModal();
+      load(true);
+    } catch (e: any) { Alert.alert(STRINGS.errorTitle[lang], e.message ?? "Erreur"); }
+    finally { setActionBusy(false); }
+  };
+
+  const handlePickReport = async () => {
+    const path = await pickAndUploadPdf();
+    if (path) setReportUrl(path); else Alert.alert(STRINGS.errorTitle[lang], "Échec du téléversement");
+  };
+  const handlePickPhoto = async () => {
+    const path = await pickAndUploadPhoto();
+    if (path) setPhotoUrl(path); else Alert.alert(STRINGS.errorTitle[lang], "Échec du téléversement");
+  };
+  const handlePickInvoice = async () => {
+    const path = await pickAndUploadInvoice();
+    if (path) setInvoiceUrl(path); else Alert.alert(STRINGS.errorTitle[lang], "Échec du téléversement");
+  };
+
+  const handleSubmitReport = async () => {
+    if (!actionTravail || !reportUrl || !photoUrl || !invoiceUrl) {
+      Alert.alert(STRINGS.errorTitle[lang], STRINGS.missingDocs[lang]);
+      return;
+    }
+    try {
+      setActionBusy(true);
+      await travauxApi.submitReport(actionTravail.id, {
+        reportUrl, photoUrls: [photoUrl], invoiceUrl,
+        invoiceAmount: invoiceAmount ? Number(invoiceAmount) : undefined,
+      });
+      closeActionModal();
+      load(true);
+    } catch (e: any) { Alert.alert(STRINGS.errorTitle[lang], e.message ?? "Erreur"); }
+    finally { setActionBusy(false); }
+  };
+
+  const handleValidate = (t: Travail) => {
+    Alert.alert(STRINGS.validateAction[lang], STRINGS.validateConfirm[lang], [
+      { text: STRINGS.errorTitle[lang] === "Erreur" ? "Annuler" : "Cancel", style: "cancel" },
+      {
+        text: "OK",
+        onPress: async () => {
+          try {
+            await travauxApi.validate(t.id);
+            load(true);
+          } catch (e: any) {
+            Alert.alert(STRINGS.errorTitle[lang], e.message ?? "Erreur");
+          }
+        },
+      },
+    ]);
+  };
   const load = useCallback(async (silent = false) => {
     try {
       if (!silent) setLoading(true);
@@ -359,12 +449,97 @@ export default function TravauxScreen() {
                       <Text style={[styles.footerText, { color: colors.mutedForeground }]}>{STRINGS.lot[lang]} {t.lot.number}</Text>
                     ) : null}
                   </View>
+
+                  {isAdmin && t.status !== "completed" && t.status !== "cancelled" ? (
+                    <View style={styles.workflowRow}>
+                      {t.status === "reported" ? (
+                        <TouchableOpacity style={[styles.workflowBtn, { backgroundColor: "#3b82f6" }]} onPress={() => setActionTravail(t)}>
+                          <Feather name="user-plus" size={13} color="#fff" />
+                          <Text style={styles.workflowBtnText}>{STRINGS.assignAction[lang]}</Text>
+                        </TouchableOpacity>
+                      ) : t.status === "assigned" || t.status === "in_progress" ? (
+                        <TouchableOpacity style={[styles.workflowBtn, { backgroundColor: "#7c3aed" }]} onPress={() => setActionTravail(t)}>
+                          <Feather name="upload" size={13} color="#fff" />
+                          <Text style={styles.workflowBtnText}>{STRINGS.reportAction[lang]}</Text>
+                        </TouchableOpacity>
+                      ) : t.status === "pending_validation" ? (
+                        <TouchableOpacity style={[styles.workflowBtn, { backgroundColor: "#10b981" }]} onPress={() => handleValidate(t)}>
+                          <Feather name="check-circle" size={13} color="#fff" />
+                          <Text style={styles.workflowBtnText}>{STRINGS.validateAction[lang]}</Text>
+                        </TouchableOpacity>
+                      ) : null}
+                    </View>
+                  ) : null}
                 </View>
               );
             })
           )}
         </ScrollView>
       )}
+
+      {/* Workflow action modal: assign or submit report */}
+      <Modal visible={!!actionTravail} animationType="slide" presentationStyle="pageSheet" onRequestClose={closeActionModal}>
+        <View style={[styles.modal, { backgroundColor: colors.background }]}>
+          <View style={[styles.modalHeader, { borderBottomColor: colors.border }]}>
+            <Text style={[styles.modalTitle, { color: colors.foreground }]} numberOfLines={1}>{actionTravail?.title}</Text>
+            <TouchableOpacity onPress={closeActionModal}>
+              <Feather name="x" size={22} color={colors.foreground} />
+            </TouchableOpacity>
+          </View>
+          <ScrollView contentContainerStyle={styles.modalBody}>
+            {actionTravail?.status === "reported" ? (
+              <>
+                <Text style={[styles.fieldLabel, { color: colors.mutedForeground }]}>{STRINGS.prestataireIdLabel[lang]}</Text>
+                <TextInput
+                  style={[styles.input, { backgroundColor: colors.card, borderColor: colors.border, color: colors.foreground }]}
+                  placeholder="ID du prestataire"
+                  placeholderTextColor={colors.mutedForeground}
+                  value={assignPrestataireId}
+                  onChangeText={setAssignPrestataireId}
+                />
+                <TouchableOpacity
+                  style={[styles.submitBtn, { backgroundColor: "#3b82f6", opacity: actionBusy ? 0.7 : 1 }]}
+                  onPress={handleAssign}
+                  disabled={actionBusy || !assignPrestataireId.trim()}
+                >
+                  {actionBusy ? <ActivityIndicator color="#fff" size="small" /> : <Text style={styles.submitText}>{STRINGS.assignAction[lang]}</Text>}
+                </TouchableOpacity>
+              </>
+            ) : (
+              <>
+                <TouchableOpacity style={[styles.docPickBtn, { borderColor: colors.border, backgroundColor: colors.card }]} onPress={handlePickReport}>
+                  <Feather name="file-text" size={16} color="#7c3aed" />
+                  <Text style={{ color: "#7c3aed", fontFamily: "Inter_600SemiBold" }}>{reportUrl ? "✓ " : ""}{STRINGS.reportPdf[lang]}</Text>
+                </TouchableOpacity>
+                <TouchableOpacity style={[styles.docPickBtn, { borderColor: colors.border, backgroundColor: colors.card }]} onPress={handlePickPhoto}>
+                  <Feather name="camera" size={16} color="#7c3aed" />
+                  <Text style={{ color: "#7c3aed", fontFamily: "Inter_600SemiBold" }}>{photoUrl ? "✓ " : ""}{STRINGS.photoProof[lang]}</Text>
+                </TouchableOpacity>
+                <TouchableOpacity style={[styles.docPickBtn, { borderColor: colors.border, backgroundColor: colors.card }]} onPress={handlePickInvoice}>
+                  <Feather name="file" size={16} color="#7c3aed" />
+                  <Text style={{ color: "#7c3aed", fontFamily: "Inter_600SemiBold" }}>{invoiceUrl ? "✓ " : ""}{STRINGS.invoiceDoc[lang]}</Text>
+                </TouchableOpacity>
+                <Text style={[styles.fieldLabel, { color: colors.mutedForeground }]}>{STRINGS.invoiceAmountLabel[lang]}</Text>
+                <TextInput
+                  style={[styles.input, { backgroundColor: colors.card, borderColor: colors.border, color: colors.foreground }]}
+                  placeholder="0"
+                  placeholderTextColor={colors.mutedForeground}
+                  keyboardType="numeric"
+                  value={invoiceAmount}
+                  onChangeText={setInvoiceAmount}
+                />
+                <TouchableOpacity
+                  style={[styles.submitBtn, { backgroundColor: "#7c3aed", opacity: actionBusy ? 0.7 : 1 }]}
+                  onPress={handleSubmitReport}
+                  disabled={actionBusy}
+                >
+                  {actionBusy ? <ActivityIndicator color="#fff" size="small" /> : <Text style={styles.submitText}>{STRINGS.reportAction[lang]}</Text>}
+                </TouchableOpacity>
+              </>
+            )}
+          </ScrollView>
+        </View>
+      </Modal>
 
       {/* New travail modal */}
       <Modal visible={showModal} animationType="slide" presentationStyle="pageSheet" onRequestClose={() => setShowModal(false)}>
@@ -463,4 +638,8 @@ const styles = StyleSheet.create({
   optionText: { fontSize: 12, fontFamily: "Inter_500Medium" },
   submitBtn: { borderRadius: 14, padding: 16, alignItems: "center", marginTop: 16 },
   submitText: { fontSize: 16, fontFamily: "Inter_700Bold", color: "#fff" },
+  workflowRow: { flexDirection: "row", marginTop: 4 },
+  workflowBtn: { flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 6, paddingVertical: 10, borderRadius: 10, flex: 1 },
+  workflowBtnText: { color: "#fff", fontSize: 12, fontFamily: "Inter_700Bold" },
+  docPickBtn: { flexDirection: "row", alignItems: "center", gap: 8, borderWidth: 1, borderRadius: 12, padding: 14, marginBottom: 10 },
 });

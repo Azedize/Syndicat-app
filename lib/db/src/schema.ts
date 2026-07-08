@@ -389,25 +389,41 @@ export const prestatairesTable = pgTable("prestataires", {
   syndicateId: text("syndicate_id"),
   status: text("status").default("active"),
   rating: money("rating"),
+  evaluationsCount: integer("evaluations_count").default(0),
   notes: text("notes"),
   createdAt: createdAt(),
 });
 
-export const contratsPrestatairesTable = pgTable("contrats_prestataires", {
-  id: id(),
-  prestataireId: text("prestataire_id").notNull(),
-  buildingId: text("building_id").notNull(),
-  title: text("title").notNull(),
-  startDate: text("start_date"),
-  endDate: text("end_date"),
-  monthlyAmount: money("monthly_amount"),
-  annualAmount: money("annual_amount"),
-  status: text("status").default("active"),
-  autoRenew: boolean("auto_renew").default(false),
-  documentUrl: text("document_url"),
-  notes: text("notes"),
-  createdAt: createdAt(),
-});
+export const contratsPrestatairesTable = pgTable(
+  "contrats_prestataires",
+  {
+    id: id(),
+    prestataireId: text("prestataire_id").notNull(),
+    buildingId: text("building_id").notNull(),
+    title: text("title").notNull(),
+    startDate: text("start_date"),
+    endDate: text("end_date"),
+    monthlyAmount: money("monthly_amount"),
+    annualAmount: money("annual_amount"),
+    // status: active | expired | suspended | terminated | renewed
+    status: text("status").default("active"),
+    autoRenew: boolean("auto_renew").default(false),
+    documentUrl: text("document_url"),
+    // JSON array of day-thresholds (60/30/7) already notified, e.g. "[60,30]"
+    notifiedThresholds: text("notified_thresholds").default("[]"),
+    renewedFromContractId: text("renewed_from_contract_id"),
+    terminatedAt: timestamp("terminated_at"),
+    terminationReason: text("termination_reason"),
+    notes: text("notes"),
+    createdAt: createdAt(),
+  },
+  (t) => [
+    index("contrats_prestataires_prestataire_id_idx").on(t.prestataireId),
+    index("contrats_prestataires_building_id_idx").on(t.buildingId),
+    index("contrats_prestataires_status_idx").on(t.status),
+    index("contrats_prestataires_end_date_idx").on(t.endDate),
+  ],
+);
 
 export const travauxTable = pgTable(
   "travaux",
@@ -417,6 +433,7 @@ export const travauxTable = pgTable(
     description: text("description"),
     type: text("type").default("entretien"),
     priority: text("priority").default("normal"),
+    // status: reported | assigned | in_progress | pending_validation | completed | cancelled
     status: text("status").default("reported"),
     buildingId: text("building_id").notNull(),
     lotId: text("lot_id"),
@@ -424,11 +441,23 @@ export const travauxTable = pgTable(
     reportedById: text("reported_by_id"),
     reportedByName: text("reported_by_name"),
     assignedById: text("assigned_by_id"),
+    assignedAt: timestamp("assigned_at"),
     estimatedAmount: money("estimated_amount"),
     actualAmount: money("actual_amount"),
     startDate: text("start_date"),
     endDate: text("end_date"),
     completedAt: timestamp("completed_at"),
+    // Intervention proof — required before validation/payment
+    reportUrl: text("report_url"),
+    photoUrls: text("photo_urls").default("[]"),
+    invoiceUrl: text("invoice_url"),
+    invoiceAmount: money("invoice_amount"),
+    validatedById: text("validated_by_id"),
+    validatedByName: text("validated_by_name"),
+    validatedAt: timestamp("validated_at"),
+    transactionId: text("transaction_id"),
+    responseTimeMinutes: integer("response_time_minutes"),
+    resolutionTimeMinutes: integer("resolution_time_minutes"),
     notes: text("notes"),
     createdAt: createdAt(),
   },
@@ -436,6 +465,31 @@ export const travauxTable = pgTable(
     index("travaux_building_id_idx").on(t.buildingId),
     index("travaux_status_idx").on(t.status),
     index("travaux_priority_idx").on(t.priority),
+    index("travaux_prestataire_id_idx").on(t.prestataireId),
+  ],
+);
+
+export const prestataireEvaluationsTable = pgTable(
+  "prestataire_evaluations",
+  {
+    id: id(),
+    prestataireId: text("prestataire_id")
+      .notNull()
+      .references(() => prestatairesTable.id, { onDelete: "cascade" }),
+    travauxId: text("travaux_id"),
+    syndicateId: text("syndicate_id"),
+    quality: integer("quality").notNull(),
+    speed: integer("speed").notNull(),
+    communication: integer("communication").notNull(),
+    price: integer("price").notNull(),
+    average: money("average").notNull(),
+    comment: text("comment"),
+    ratedById: text("rated_by_id"),
+    ratedByName: text("rated_by_name"),
+    createdAt: createdAt(),
+  },
+  (t) => [
+    index("prestataire_evaluations_prestataire_id_idx").on(t.prestataireId),
   ],
 );
 

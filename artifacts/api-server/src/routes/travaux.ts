@@ -6,10 +6,13 @@ import {
   prestatairesTable,
   buildingsTable,
   lotsTable,
+  transactionsTable,
 } from "@workspace/db/schema";
 import { eq, and, desc, inArray, sql } from "drizzle-orm";
 import { requireAuth, requireAdmin } from "../middleware/auth.js";
 import { createAlert } from "../lib/notify.js";
+import { serverAuditLog } from "../lib/audit.js";
+import { getUserBuildingIds } from "../lib/scope.js";
 
 const router = Router();
 
@@ -32,8 +35,13 @@ router.get("/travaux", requireAuth, async (req, res) => {
       const ids = buildingsInSyndicate.map((b) => b.id);
       if (ids.length === 0) return res.json({ data: [], total: 0 });
       conditions.push(inArray(travauxTable.buildingId, ids));
+    } else if (user.role === "member" || user.role === "tenant") {
+      // Scope to buildings the member/tenant is linked to
+      const ids = await getUserBuildingIds(user);
+      if (ids.length === 0) return res.json({ data: [], total: 0 });
+      conditions.push(inArray(travauxTable.buildingId, ids));
     }
-    // super_admin sees all; member sees all (filtered later if needed)
+    // super_admin with no buildingId filter sees all
 
     if (status) conditions.push(eq(travauxTable.status, status));
     if (priority) conditions.push(eq(travauxTable.priority, priority));
@@ -127,7 +135,7 @@ const createTravauxSchema = z.object({
   notes: z.string().max(2000).optional(),
 });
 
-// POST /travaux — Create work order
+// POST /travaux — Create work order / incident
 router.post("/travaux", requireAuth, async (req, res) => {
   const parsed = createTravauxSchema.safeParse(req.body);
   if (!parsed.success) {
@@ -144,13 +152,15 @@ router.post("/travaux", requireAuth, async (req, res) => {
         description,
         type: type ?? "entretien",
         priority: priority ?? "normal",
-        status: "reported",
+        status: prestataireId ? "assigned" : "reported",
         buildingId,
         lotId,
         prestataireId,
+        assignedById: prestataireId ? user.userId : undefined,
+        assignedAt: prestataireId ? new Date() : undefined,
         reportedById: user.userId,
         reportedByName: user.name,
-        estimatedAmount,
+        estimatedAmount: estimatedAmount !== undefined ? String(estimatedAmount) : undefined,
         startDate,
         endDate,
         notes,
@@ -173,7 +183,163 @@ router.post("/travaux", requireAuth, async (req, res) => {
       }).catch(() => {});
     }
 
+    await serverAuditLog(req, {
+      action: "CREATE",
+      entity: "travaux",
+      entityId: travail.id,
+      details: `Incident créé: ${title}`,
+    });
+
     res.status(201).json({ data: travail, message: "Bon de travaux créé" });
+  } catch (e) {
+    console.error(e);
+    res.status(500).json({ error: "Server error" });
+  }
+});
+
+// POST /travaux/:id/assign — assign a provider, tracks response time
+router.post("/travaux/:id/assign", requireAuth, requireAdmin, async (req, res) => {
+  const { prestataireId } = req.body;
+  if (!prestataireId) return res.status(400).json({ error: "prestataireId requis" });
+  try {
+    const [travail] = await db.select().from(travauxTable).where(eq(travauxTable.id, req.params.id));
+    if (!travail) return res.status(404).json({ error: "Not found" });
+
+    const now = new Date();
+    const responseTimeMinutes = Math.round((now.getTime() - new Date(travail.createdAt as any).getTime()) / 60000);
+
+    const user = (req as any).user;
+    const [updated] = await db
+      .update(travauxTable)
+      .set({
+        prestataireId,
+        status: "assigned",
+        assignedById: user.userId,
+        assignedAt: now,
+        responseTimeMinutes,
+      })
+      .where(eq(travauxTable.id, req.params.id))
+      .returning();
+
+    await serverAuditLog(req, {
+      action: "ASSIGN",
+      entity: "travaux",
+      entityId: updated.id,
+      details: `Prestataire assigné à: ${updated.title}`,
+    });
+
+    res.json({ data: updated, message: "Prestataire assigné" });
+  } catch (e) {
+    console.error(e);
+    res.status(500).json({ error: "Server error" });
+  }
+});
+
+// POST /travaux/:id/report — upload intervention proof (report + photos + invoice)
+const reportSchema = z.object({
+  reportUrl: z.string().min(1, "Le rapport d'intervention est obligatoire"),
+  photoUrls: z.array(z.string()).min(1, "Au moins une photo est requise comme preuve"),
+  invoiceUrl: z.string().min(1, "La facture est obligatoire"),
+  invoiceAmount: z.number().positive().optional(),
+});
+router.post("/travaux/:id/report", requireAuth, requireAdmin, async (req, res) => {
+  const parsed = reportSchema.safeParse(req.body);
+  if (!parsed.success) {
+    return res.status(400).json({ error: parsed.error.issues[0]?.message ?? "Documents manquants" });
+  }
+  try {
+    const { reportUrl, photoUrls, invoiceUrl, invoiceAmount } = parsed.data;
+    const [updated] = await db
+      .update(travauxTable)
+      .set({
+        reportUrl,
+        photoUrls: JSON.stringify(photoUrls),
+        invoiceUrl,
+        invoiceAmount: invoiceAmount !== undefined ? String(invoiceAmount) : undefined,
+        status: "pending_validation",
+      })
+      .where(eq(travauxTable.id, req.params.id))
+      .returning();
+
+    if (!updated) return res.status(404).json({ error: "Not found" });
+
+    await serverAuditLog(req, {
+      action: "SUBMIT_REPORT",
+      entity: "travaux",
+      entityId: updated.id,
+      details: `Rapport d'intervention soumis: ${updated.title}`,
+    });
+
+    res.json({ data: updated, message: "Rapport soumis, en attente de validation" });
+  } catch (e) {
+    console.error(e);
+    res.status(500).json({ error: "Server error" });
+  }
+});
+
+// POST /travaux/:id/validate — syndic validates proof, creates the financial
+// transaction, and closes the intervention. Blocked without full documentation.
+router.post("/travaux/:id/validate", requireAuth, requireAdmin, async (req, res) => {
+  try {
+    const [travail] = await db.select().from(travauxTable).where(eq(travauxTable.id, req.params.id));
+    if (!travail) return res.status(404).json({ error: "Not found" });
+
+    const photos: string[] = JSON.parse(travail.photoUrls ?? "[]");
+    if (!travail.reportUrl || !travail.invoiceUrl || photos.length === 0) {
+      return res.status(400).json({
+        error:
+          "Impossible de valider : rapport d'intervention, photos et facture sont tous obligatoires. Merci de compléter le dossier avant de continuer.",
+      });
+    }
+
+    const user = (req as any).user;
+    const now = new Date();
+    const resolutionTimeMinutes = Math.round(
+      (now.getTime() - new Date((travail.assignedAt ?? travail.createdAt) as any).getTime()) / 60000,
+    );
+
+    const amount = travail.invoiceAmount ?? travail.estimatedAmount ?? 0;
+
+    const [building] = await db
+      .select({ syndicateId: buildingsTable.syndicateId })
+      .from(buildingsTable)
+      .where(eq(buildingsTable.id, travail.buildingId));
+
+    const [transaction] = await db
+      .insert(transactionsTable)
+      .values({
+        type: "expense",
+        amount: String(amount),
+        label: `Intervention: ${travail.title}`,
+        date: now.toISOString().split("T")[0],
+        status: "paid",
+        syndicateId: building?.syndicateId,
+      })
+      .returning();
+
+    const [updated] = await db
+      .update(travauxTable)
+      .set({
+        status: "completed",
+        completedAt: now,
+        actualAmount: String(amount),
+        validatedById: user.userId,
+        validatedByName: user.name,
+        validatedAt: now,
+        transactionId: transaction.id,
+        resolutionTimeMinutes,
+      })
+      .where(eq(travauxTable.id, req.params.id))
+      .returning();
+
+    await serverAuditLog(req, {
+      action: "VALIDATE",
+      entity: "travaux",
+      entityId: updated.id,
+      details: `Intervention validée et clôturée: ${updated.title} — ${amount} MAD`,
+    });
+
+    res.json({ data: updated, message: "Intervention validée, paiement enregistré" });
   } catch (e) {
     console.error(e);
     res.status(500).json({ error: "Server error" });
@@ -183,6 +349,12 @@ router.post("/travaux", requireAuth, async (req, res) => {
 // PUT /travaux/:id — Update work order (status, assignment, amounts)
 router.put("/travaux/:id", requireAuth, requireAdmin, async (req, res) => {
   try {
+    if (req.body.status === "completed") {
+      return res.status(400).json({
+        error: "Utilisez /travaux/:id/validate pour clôturer une intervention (rapport, photos et facture requis).",
+      });
+    }
+
     const allowed = [
       "title", "description", "type", "status", "priority",
       "prestataireId", "estimatedAmount", "actualAmount",
@@ -191,10 +363,6 @@ router.put("/travaux/:id", requireAuth, requireAdmin, async (req, res) => {
     const updates: Record<string, any> = {};
     for (const k of allowed) {
       if (req.body[k] !== undefined) updates[k] = req.body[k];
-    }
-
-    if (req.body.status === "completed") {
-      updates.completedAt = new Date();
     }
 
     const [updated] = await db
