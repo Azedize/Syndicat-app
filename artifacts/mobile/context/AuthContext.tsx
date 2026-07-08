@@ -17,7 +17,7 @@ import {
   clearAllTokens,
 } from "../services/api";
 
-export type UserRole = "super_admin" | "syndicate_admin" | "member";
+export type UserRole = "super_admin" | "syndicate_admin" | "member" | "tenant";
 
 export interface AuthUser {
   id: string;
