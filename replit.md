@@ -29,7 +29,7 @@ Add these in Replit Secrets before starting the API:
 
 | Secret | Required | Notes |
 |---|---|---|
-| `JWT_SECRET` | ✅ Yes | Min 32 chars — used for auth token signing |
+| `JWT_SECRET` | ✅ Yes | Min 32 chars — used for auth token signing. Already set as a Replit Secret. |
 | `DATABASE_URL` | ✅ Auto | Injected automatically by Replit — do not set manually |
 | `REDIS_URL` | No | Enables Redis-backed rate limiting; falls back to in-memory |
 
