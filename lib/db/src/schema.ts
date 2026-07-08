@@ -333,6 +333,7 @@ export const invoicesTable = pgTable("invoices", {
   status: text("status").default("draft"),
   amount: money("amount").default("0"),
   syndicateId: text("syndicate_id"),
+  proofUrl: text("proof_url"),
   createdAt: createdAt(),
 });
 

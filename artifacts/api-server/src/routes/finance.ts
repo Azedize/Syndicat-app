@@ -256,6 +256,7 @@ router.post(
       status: z.enum(["draft", "issued", "sent", "paid", "partially_paid", "due", "overdue", "cancelled"]).default("draft"),
       items: z.array(itemSchema).default([]),
       syndicateId: z.string().optional(),
+      proofUrl: z.string().optional(),
     });
     const result = schema.safeParse(req.body);
     if (!result.success) { res.status(400).json({ error: "Données invalides" }); return; }

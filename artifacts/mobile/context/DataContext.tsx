@@ -101,6 +101,8 @@ export interface Invoice {
   amount: number;
   status: "draft" | "sent" | "paid" | "overdue" | "cancelled";
   items: { label: string; quantity: number; unitPrice: number }[];
+  proofUri?: string;
+  proofUrl?: string;
 }
 
 export interface Review {

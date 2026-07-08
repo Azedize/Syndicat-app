@@ -23,69 +23,117 @@ import { useColors } from "@/hooks/useColors";
 
 type TabType = "factures" | "devis";
 
+const STATUS_CONFIG: Record<Invoice["status"], { label: string; color: string; icon: keyof typeof Feather.glyphMap }> = {
+  draft:     { label: "Brouillon",  color: "#6b7280", icon: "edit-3"   },
+  sent:      { label: "Envoyé",     color: "#3b82f6", icon: "send"     },
+  paid:      { label: "Payé",       color: "#10b981", icon: "check-circle" },
+  overdue:   { label: "En retard",  color: "#ef4444", icon: "alert-circle" },
+  cancelled: { label: "Annulé",     color: "#6b7280", icon: "x-circle" },
+};
+
 export default function InvoicesScreen() {
   const colors = useColors();
   const insets = useSafeAreaInsets();
-  const { invoices, addInvoice, syndicates } = useData();
+  const { invoices, addInvoice } = useData();
   const { isWide } = useBreakpoints();
   const topPad = isWide ? 0 : (Platform.OS === "web" ? 67 : insets.top);
 
   const [tab, setTab] = useState<TabType>("factures");
   const [showAdd, setShowAdd] = useState(false);
   const [selectedInvoice, setSelectedInvoice] = useState<Invoice | null>(null);
+  const [proofModalUri, setProofModalUri] = useState<string | null>(null);
+
+  // Form state
   const [addType, setAddType] = useState<"devis" | "facture">("facture");
   const [addRecipient, setAddRecipient] = useState("");
   const [addAmount, setAddAmount] = useState("");
   const [addLabel, setAddLabel] = useState("");
   const [addProofUri, setAddProofUri] = useState("");
+  const [addNotes, setAddNotes] = useState("");
+  const [proofError, setProofError] = useState(false);
 
-  const filteredInvoices = invoices.filter((inv) => inv.type === tab.slice(0, -1) as "facture" | "devis");
+  const filteredInvoices = invoices.filter(
+    (inv) => inv.type === (tab === "factures" ? "facture" : "devis")
+  );
 
   const totalRevenue = invoices.filter((i) => i.type === "facture" && i.status === "paid").reduce((s, i) => s + i.amount, 0);
   const totalPending = invoices.filter((i) => i.type === "facture" && i.status === "sent").reduce((s, i) => s + i.amount, 0);
   const totalOverdue = invoices.filter((i) => i.type === "facture" && i.status === "overdue").reduce((s, i) => s + i.amount, 0);
 
-  const STATUS_CONFIG: Record<Invoice["status"], { label: string; color: string }> = {
-    draft: { label: "Brouillon", color: "#6b7280" },
-    sent: { label: "Envoyé", color: "#3b82f6" },
-    paid: { label: "Payé", color: "#10b981" },
-    overdue: { label: "En retard", color: "#ef4444" },
-    cancelled: { label: "Annulé", color: "#6b7280" },
-  };
+  // ─── Proof upload ────────────────────────────────────────────────────────────
 
-  const pickProofImage = async () => {
+  const pickFromGallery = async () => {
     try {
       const perm = await ImagePicker.requestMediaLibraryPermissionsAsync();
       if (!perm.granted) {
-        const cam = await ImagePicker.requestCameraPermissionsAsync();
-        if (!cam.granted) {
-          Alert.alert("Permission requise", "Veuillez autoriser l'accès à la galerie ou à la caméra pour joindre un justificatif.");
-          return;
-        }
-        const result = await ImagePicker.launchCameraAsync({ allowsEditing: true, quality: 0.8 });
-        if (!result.canceled && result.assets[0]) setAddProofUri(result.assets[0].uri);
+        Alert.alert("Permission requise", "Veuillez autoriser l'accès à la galerie pour joindre un justificatif.");
         return;
       }
       const result = await ImagePicker.launchImageLibraryAsync({
         mediaTypes: ImagePicker.MediaTypeOptions.Images,
-        allowsEditing: true,
-        quality: 0.8,
+        allowsEditing: false,
+        quality: 0.85,
       });
       if (!result.canceled && result.assets[0]) {
         setAddProofUri(result.assets[0].uri);
+        setProofError(false);
         Haptics.selectionAsync();
       }
-    } catch { /* silently ignore */ }
+    } catch { }
+  };
+
+  const pickFromCamera = async () => {
+    try {
+      const perm = await ImagePicker.requestCameraPermissionsAsync();
+      if (!perm.granted) {
+        Alert.alert("Permission requise", "Veuillez autoriser l'accès à la caméra.");
+        return;
+      }
+      const result = await ImagePicker.launchCameraAsync({
+        allowsEditing: false,
+        quality: 0.85,
+      });
+      if (!result.canceled && result.assets[0]) {
+        setAddProofUri(result.assets[0].uri);
+        setProofError(false);
+        Haptics.selectionAsync();
+      }
+    } catch { }
+  };
+
+  const showPickerOptions = () => {
+    if (Platform.OS === "web") {
+      pickFromGallery();
+      return;
+    }
+    Alert.alert(
+      "Joindre un justificatif",
+      "Choisissez la source de votre fichier",
+      [
+        { text: "Galerie photo", onPress: pickFromGallery },
+        { text: "Appareil photo", onPress: pickFromCamera },
+        { text: "Annuler", style: "cancel" },
+      ]
+    );
+  };
+
+  // ─── Create invoice ──────────────────────────────────────────────────────────
+
+  const resetForm = () => {
+    setAddRecipient(""); setAddAmount(""); setAddLabel("");
+    setAddProofUri(""); setAddNotes(""); setProofError(false);
   };
 
   const handleAdd = () => {
     if (!addRecipient.trim() || !addAmount.trim() || !addLabel.trim()) return;
     if (!addProofUri) {
-      Alert.alert("Justificatif requis", "Veuillez joindre un justificatif (image de la facture ou du devis) avant de continuer.");
+      setProofError(true);
+      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
       return;
     }
     const count = invoices.filter((i) => i.type === addType).length + 1;
-    const ref = addType === "facture" ? `FAC-2026-00${count}` : `DEV-2026-00${count}`;
+    const pad = String(count).padStart(4, "0");
+    const ref = addType === "facture" ? `FAC-2026-${pad}` : `DEV-2026-${pad}`;
     const inv: Invoice = {
       id: `inv${Date.now()}`,
       reference: ref,
@@ -97,23 +145,28 @@ export default function InvoicesScreen() {
       amount: parseFloat(addAmount),
       status: "draft",
       items: [{ label: addLabel.trim(), quantity: 1, unitPrice: parseFloat(addAmount) }],
+      proofUri: addProofUri,
     };
     addInvoice(inv);
     Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
     setShowAdd(false);
-    setAddRecipient(""); setAddAmount(""); setAddLabel(""); setAddProofUri("");
-    Alert.alert("Créé!", `${addType === "facture" ? "Facture" : "Devis"} ${ref} créé avec succès.`);
+    resetForm();
   };
+
+  const isFormValid = addRecipient.trim() && addAmount.trim() && addLabel.trim() && !!addProofUri;
+
+  // ─── Render ──────────────────────────────────────────────────────────────────
 
   return (
     <View style={[styles.root, { backgroundColor: colors.background }]}>
+      {/* Header */}
       <View style={[styles.header, { paddingTop: topPad + 16, backgroundColor: colors.primary }]}>
         <TouchableOpacity onPress={() => router.back()} style={styles.backBtn}>
           <Feather name="arrow-left" size={22} color="#fff" />
         </TouchableOpacity>
         <View style={{ flex: 1 }}>
           <Text style={styles.headerTitle}>Devis & Factures</Text>
-          <Text style={styles.headerSub}>Gestion financière globale</Text>
+          <Text style={styles.headerSub}>Gestion financière — justificatifs obligatoires</Text>
         </View>
         <TouchableOpacity
           style={[styles.addBtn, { backgroundColor: "rgba(255,255,255,0.2)" }]}
@@ -125,18 +178,16 @@ export default function InvoicesScreen() {
 
       {/* Summary */}
       <View style={[styles.summaryRow, { backgroundColor: colors.card, borderBottomColor: colors.border }]}>
-        <View style={[styles.statBox, { backgroundColor: colors.success + "12" }]}>
-          <Text style={[styles.statValue, { color: colors.success }]}>{totalRevenue.toLocaleString()}</Text>
-          <Text style={[styles.statLabel, { color: colors.mutedForeground }]}>Encaissé (MAD)</Text>
-        </View>
-        <View style={[styles.statBox, { backgroundColor: "#f59e0b12" }]}>
-          <Text style={[styles.statValue, { color: "#f59e0b" }]}>{totalPending.toLocaleString()}</Text>
-          <Text style={[styles.statLabel, { color: colors.mutedForeground }]}>En attente</Text>
-        </View>
-        <View style={[styles.statBox, { backgroundColor: colors.destructive + "12" }]}>
-          <Text style={[styles.statValue, { color: colors.destructive }]}>{totalOverdue.toLocaleString()}</Text>
-          <Text style={[styles.statLabel, { color: colors.mutedForeground }]}>En retard</Text>
-        </View>
+        {[
+          { value: totalRevenue, label: "Encaissé (MAD)", color: "#10b981" },
+          { value: totalPending, label: "En attente",     color: "#f59e0b" },
+          { value: totalOverdue, label: "En retard",      color: "#ef4444" },
+        ].map(({ value, label, color }) => (
+          <View key={label} style={[styles.statBox, { backgroundColor: color + "12" }]}>
+            <Text style={[styles.statValue, { color }]}>{value.toLocaleString()}</Text>
+            <Text style={[styles.statLabel, { color: colors.mutedForeground }]}>{label}</Text>
+          </View>
+        ))}
       </View>
 
       {/* Tabs */}
@@ -154,11 +205,13 @@ export default function InvoicesScreen() {
             />
             <Text style={[styles.tabLabel, { color: tab === t ? colors.primary : colors.mutedForeground }]}>
               {t === "factures" ? "Factures" : "Devis"}
+              {filteredInvoices.length > 0 && tab === t ? ` (${filteredInvoices.length})` : ""}
             </Text>
           </TouchableOpacity>
         ))}
       </View>
 
+      {/* List */}
       <FlatList
         data={filteredInvoices}
         keyExtractor={(inv) => inv.id}
@@ -166,9 +219,14 @@ export default function InvoicesScreen() {
         showsVerticalScrollIndicator={false}
         ListEmptyComponent={
           <View style={styles.emptyBox}>
-            <Feather name="file-text" size={40} color={colors.muted} />
+            <View style={[styles.emptyIcon, { backgroundColor: colors.muted }]}>
+              <Feather name="file-text" size={32} color={colors.mutedForeground} />
+            </View>
+            <Text style={[styles.emptyTitle, { color: colors.foreground }]}>
+              Aucun {tab === "factures" ? "facture" : "devis"}
+            </Text>
             <Text style={[styles.emptyText, { color: colors.mutedForeground }]}>
-              Aucun {tab === "factures" ? "facture" : "devis"} pour le moment
+              Appuyez sur + pour créer votre premier {tab === "factures" ? "facture" : "devis"} avec justificatif.
             </Text>
           </View>
         }
@@ -178,20 +236,34 @@ export default function InvoicesScreen() {
             <TouchableOpacity
               style={[styles.invoiceCard, { backgroundColor: colors.card, borderColor: colors.border }]}
               onPress={() => { setSelectedInvoice(inv); Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); }}
+              activeOpacity={0.8}
             >
               <View style={[styles.invIcon, { backgroundColor: inv.type === "facture" ? colors.primary + "15" : "#f59e0b15" }]}>
-                <Feather name={inv.type === "facture" ? "file-text" : "clipboard"} size={20} color={inv.type === "facture" ? colors.primary : "#f59e0b"} />
+                <Feather
+                  name={inv.type === "facture" ? "file-text" : "clipboard"}
+                  size={20}
+                  color={inv.type === "facture" ? colors.primary : "#f59e0b"}
+                />
               </View>
               <View style={{ flex: 1 }}>
-                <Text style={[styles.invRef, { color: colors.foreground }]}>{inv.reference}</Text>
+                <View style={{ flexDirection: "row", alignItems: "center", gap: 8 }}>
+                  <Text style={[styles.invRef, { color: colors.foreground }]}>{inv.reference}</Text>
+                  {inv.proofUri ? (
+                    <View style={[styles.proofBadge, { backgroundColor: "#10b98118" }]}>
+                      <Feather name="paperclip" size={9} color="#10b981" />
+                      <Text style={[styles.proofBadgeText, { color: "#10b981" }]}>Justificatif</Text>
+                    </View>
+                  ) : null}
+                </View>
                 <Text style={[styles.invRecipient, { color: colors.mutedForeground }]}>{inv.recipient}</Text>
                 <Text style={[styles.invDate, { color: colors.mutedForeground }]}>
-                  Émis: {inv.date} • Échéance: {inv.dueDate}
+                  Émis : {inv.date} · Échéance : {inv.dueDate}
                 </Text>
               </View>
               <View style={{ alignItems: "flex-end", gap: 6 }}>
                 <Text style={[styles.invAmount, { color: colors.foreground }]}>{inv.amount.toLocaleString()} MAD</Text>
                 <View style={[styles.statusBadge, { backgroundColor: sc.color + "18" }]}>
+                  <Feather name={sc.icon} size={10} color={sc.color} />
                   <Text style={[styles.statusText, { color: sc.color }]}>{sc.label}</Text>
                 </View>
               </View>
@@ -200,29 +272,39 @@ export default function InvoicesScreen() {
         }}
       />
 
-      {/* Detail modal */}
-      <Modal visible={!!selectedInvoice} transparent animationType="slide">
+      {/* ─── Detail modal ──────────────────────────────────────────────────────── */}
+      <Modal visible={!!selectedInvoice} transparent animationType="slide" onRequestClose={() => setSelectedInvoice(null)}>
         <View style={styles.modalOverlay}>
           {selectedInvoice && (
-            <View style={[styles.detailModal, { backgroundColor: colors.card }]}>
+            <ScrollView
+              style={[styles.detailModal, { backgroundColor: colors.card }]}
+              contentContainerStyle={{ padding: 24, gap: 16, paddingBottom: insets.bottom + 24 }}
+              showsVerticalScrollIndicator={false}
+            >
+              {/* Header */}
               <View style={styles.detailHeader}>
-                <View>
+                <View style={{ flex: 1 }}>
                   <Text style={[styles.detailRef, { color: colors.foreground }]}>{selectedInvoice.reference}</Text>
                   <Text style={[styles.detailType, { color: colors.mutedForeground }]}>
                     {selectedInvoice.type === "facture" ? "Facture" : "Devis"}
                   </Text>
                 </View>
-                <TouchableOpacity onPress={() => setSelectedInvoice(null)}>
+                <View style={[styles.statusBadge, { backgroundColor: STATUS_CONFIG[selectedInvoice.status].color + "18" }]}>
+                  <Text style={[styles.statusText, { color: STATUS_CONFIG[selectedInvoice.status].color }]}>
+                    {STATUS_CONFIG[selectedInvoice.status].label}
+                  </Text>
+                </View>
+                <TouchableOpacity onPress={() => setSelectedInvoice(null)} style={{ marginLeft: 12 }}>
                   <Feather name="x" size={22} color={colors.mutedForeground} />
                 </TouchableOpacity>
               </View>
 
+              {/* Info grid */}
               <View style={[styles.detailInfo, { backgroundColor: colors.background, borderColor: colors.border }]}>
                 {[
-                  { label: "Destinataire", value: selectedInvoice.recipient },
-                  { label: "Date d'émission", value: selectedInvoice.date },
-                  { label: "Date d'échéance", value: selectedInvoice.dueDate },
-                  { label: "Statut", value: STATUS_CONFIG[selectedInvoice.status].label },
+                  { label: "Destinataire",    value: selectedInvoice.recipient },
+                  { label: "Date d'émission",  value: selectedInvoice.date },
+                  { label: "Date d'échéance",  value: selectedInvoice.dueDate },
                 ].map(({ label, value }) => (
                   <View key={label} style={styles.detailRow}>
                     <Text style={[styles.detailLabel, { color: colors.mutedForeground }]}>{label}</Text>
@@ -231,52 +313,118 @@ export default function InvoicesScreen() {
                 ))}
               </View>
 
-              <Text style={[styles.itemsTitle, { color: colors.foreground }]}>Détail des articles</Text>
-              {selectedInvoice.items.map((item, i) => (
-                <View key={i} style={[styles.itemRow, { borderColor: colors.border }]}>
-                  <Text style={[styles.itemLabel, { color: colors.foreground, flex: 1 }]}>{item.label}</Text>
-                  <Text style={[styles.itemQty, { color: colors.mutedForeground }]}>x{item.quantity}</Text>
-                  <Text style={[styles.itemPrice, { color: colors.foreground }]}>{(item.quantity * item.unitPrice).toLocaleString()} MAD</Text>
+              {/* Items */}
+              <Text style={[styles.sectionTitle, { color: colors.foreground }]}>Détail des articles</Text>
+              <View style={[styles.itemsBox, { borderColor: colors.border }]}>
+                {selectedInvoice.items.map((item, i) => (
+                  <View key={i} style={[styles.itemRow, { borderBottomColor: colors.border }]}>
+                    <Text style={[styles.itemLabel, { color: colors.foreground, flex: 1 }]}>{item.label}</Text>
+                    <Text style={[styles.itemQty, { color: colors.mutedForeground }]}>×{item.quantity}</Text>
+                    <Text style={[styles.itemPrice, { color: colors.foreground }]}>
+                      {(item.quantity * item.unitPrice).toLocaleString()} MAD
+                    </Text>
+                  </View>
+                ))}
+                <View style={[styles.totalRow, { borderTopColor: colors.border }]}>
+                  <Text style={[styles.totalLabel, { color: colors.foreground }]}>Total</Text>
+                  <Text style={[styles.totalAmount, { color: colors.primary }]}>
+                    {selectedInvoice.amount.toLocaleString()} MAD
+                  </Text>
                 </View>
-              ))}
-
-              <View style={[styles.totalRow, { borderTopColor: colors.border }]}>
-                <Text style={[styles.totalLabel, { color: colors.foreground }]}>Total</Text>
-                <Text style={[styles.totalAmount, { color: colors.primary }]}>{selectedInvoice.amount.toLocaleString()} MAD</Text>
               </View>
 
+              {/* Justificatif */}
+              <Text style={[styles.sectionTitle, { color: colors.foreground }]}>Pièce justificative</Text>
+              {selectedInvoice.proofUri || selectedInvoice.proofUrl ? (
+                <TouchableOpacity
+                  activeOpacity={0.9}
+                  onPress={() => {
+                    const uri = selectedInvoice.proofUri ?? selectedInvoice.proofUrl ?? null;
+                    setProofModalUri(uri);
+                  }}
+                  style={styles.proofThumbWrap}
+                >
+                  <Image
+                    source={{ uri: selectedInvoice.proofUri ?? selectedInvoice.proofUrl }}
+                    style={styles.proofThumb}
+                    resizeMode="cover"
+                  />
+                  <View style={styles.proofThumbOverlay}>
+                    <Feather name="zoom-in" size={20} color="#fff" />
+                    <Text style={styles.proofThumbOverlayText}>Appuyer pour agrandir</Text>
+                  </View>
+                  <View style={[styles.proofVerified, { backgroundColor: "#10b981" }]}>
+                    <Feather name="check" size={10} color="#fff" />
+                    <Text style={styles.proofVerifiedText}>Justificatif joint</Text>
+                  </View>
+                </TouchableOpacity>
+              ) : (
+                <View style={[styles.noProof, { backgroundColor: "#ef444410", borderColor: "#ef444430" }]}>
+                  <Feather name="alert-triangle" size={18} color="#ef4444" />
+                  <Text style={[styles.noProofText, { color: "#ef4444" }]}>
+                    Aucun justificatif joint à ce document.
+                  </Text>
+                </View>
+              )}
+
+              {/* Actions */}
               <View style={styles.actionBtns}>
                 <TouchableOpacity
                   style={[styles.actionBtn, { backgroundColor: colors.muted }]}
-                  onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); Alert.alert("PDF généré", `Le document ${selectedInvoice.reference} a été exporté en PDF et sauvegardé dans vos fichiers.`); }}
+                  onPress={() => Alert.alert("PDF", `Le document ${selectedInvoice.reference} a été exporté en PDF.`)}
                 >
                   <Feather name="download" size={16} color={colors.foreground} />
                   <Text style={[styles.actionBtnText, { color: colors.foreground }]}>PDF</Text>
                 </TouchableOpacity>
                 <TouchableOpacity
                   style={[styles.actionBtn, { backgroundColor: colors.primary }]}
-                  onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium); Alert.alert("Document envoyé", `Le document ${selectedInvoice.reference} a été envoyé par email au destinataire.`); }}
+                  onPress={() => Alert.alert("Envoyé", `Le document ${selectedInvoice.reference} a été envoyé par email.`)}
                 >
                   <Feather name="send" size={16} color="#fff" />
                   <Text style={[styles.actionBtnText, { color: "#fff" }]}>Envoyer</Text>
                 </TouchableOpacity>
               </View>
-            </View>
+            </ScrollView>
           )}
         </View>
       </Modal>
 
-      {/* Add modal */}
-      <Modal visible={showAdd} transparent animationType="slide">
+      {/* ─── Proof fullscreen modal ─────────────────────────────────────────────── */}
+      <Modal visible={!!proofModalUri} transparent animationType="fade" onRequestClose={() => setProofModalUri(null)}>
+        <View style={styles.proofFullOverlay}>
+          <TouchableOpacity style={styles.proofFullClose} onPress={() => setProofModalUri(null)}>
+            <Feather name="x" size={24} color="#fff" />
+          </TouchableOpacity>
+          {proofModalUri && (
+            <Image source={{ uri: proofModalUri }} style={styles.proofFullImg} resizeMode="contain" />
+          )}
+          <Text style={styles.proofFullCaption}>Pièce justificative originale</Text>
+        </View>
+      </Modal>
+
+      {/* ─── Add modal ──────────────────────────────────────────────────────────── */}
+      <Modal visible={showAdd} transparent animationType="slide" onRequestClose={() => { setShowAdd(false); resetForm(); }}>
         <View style={styles.modalOverlay}>
-          <View style={[styles.addModal, { backgroundColor: colors.card }]}>
+          <ScrollView
+            style={[styles.addModal, { backgroundColor: colors.card }]}
+            contentContainerStyle={{ padding: 24, gap: 16, paddingBottom: insets.bottom + 24 }}
+            showsVerticalScrollIndicator={false}
+            keyboardShouldPersistTaps="handled"
+          >
+            {/* Title */}
             <View style={styles.detailHeader}>
-              <Text style={[styles.addTitle, { color: colors.foreground }]}>Nouveau document</Text>
-              <TouchableOpacity onPress={() => setShowAdd(false)}>
+              <View style={{ flex: 1 }}>
+                <Text style={[styles.addTitle, { color: colors.foreground }]}>Nouveau document</Text>
+                <Text style={[styles.addSub, { color: colors.mutedForeground }]}>
+                  Le justificatif est obligatoire
+                </Text>
+              </View>
+              <TouchableOpacity onPress={() => { setShowAdd(false); resetForm(); }}>
                 <Feather name="x" size={22} color={colors.mutedForeground} />
               </TouchableOpacity>
             </View>
 
+            {/* Type selector */}
             <View style={styles.typeRow}>
               {(["facture", "devis"] as const).map((t) => (
                 <TouchableOpacity
@@ -287,6 +435,11 @@ export default function InvoicesScreen() {
                   }]}
                   onPress={() => setAddType(t)}
                 >
+                  <Feather
+                    name={t === "facture" ? "file-text" : "clipboard"}
+                    size={14}
+                    color={addType === t ? "#fff" : colors.mutedForeground}
+                  />
                   <Text style={[styles.typeChipText, { color: addType === t ? "#fff" : colors.mutedForeground }]}>
                     {t === "facture" ? "Facture" : "Devis"}
                   </Text>
@@ -294,10 +447,11 @@ export default function InvoicesScreen() {
               ))}
             </View>
 
+            {/* Fields */}
             {[
-              { label: "Destinataire (syndicat)", val: addRecipient, set: setAddRecipient, placeholder: "Ex: Syndicat National..." },
-              { label: "Libellé", val: addLabel, set: setAddLabel, placeholder: "Ex: Abonnement annuel..." },
-              { label: "Montant (MAD)", val: addAmount, set: setAddAmount, placeholder: "0", numeric: true },
+              { label: "Destinataire (syndicat / fournisseur) *", val: addRecipient, set: setAddRecipient, placeholder: "Ex: Syndicat Résidence Al Andalous..." },
+              { label: "Libellé de la prestation *", val: addLabel, set: setAddLabel, placeholder: "Ex: Maintenance ascenseur, peinture cage..." },
+              { label: "Montant total (MAD) *", val: addAmount, set: setAddAmount, placeholder: "0.00", numeric: true },
             ].map(({ label, val, set, placeholder, numeric }) => (
               <View key={label}>
                 <Text style={[styles.fieldLabel, { color: colors.foreground }]}>{label}</Text>
@@ -307,118 +461,314 @@ export default function InvoicesScreen() {
                   placeholderTextColor={colors.mutedForeground}
                   value={val}
                   onChangeText={set}
-                  keyboardType={numeric ? "numeric" : "default"}
+                  keyboardType={numeric ? "decimal-pad" : "default"}
                 />
               </View>
             ))}
 
-            {/* Mandatory justificatif */}
             <View>
-              <View style={{ flexDirection: "row", alignItems: "center", gap: 6, marginBottom: 8 }}>
-                <Text style={[styles.fieldLabel, { color: colors.foreground }]}>Justificatif *</Text>
-                <View style={{ paddingHorizontal: 6, paddingVertical: 2, borderRadius: 6, backgroundColor: "#ef444418" }}>
-                  <Text style={{ fontSize: 10, fontFamily: "Inter_600SemiBold", color: "#ef4444" }}>Obligatoire</Text>
+              <Text style={[styles.fieldLabel, { color: colors.foreground }]}>Notes / Remarques</Text>
+              <TextInput
+                style={[styles.input, { borderColor: colors.border, backgroundColor: colors.background, color: colors.foreground, minHeight: 60 }]}
+                placeholder="Informations complémentaires..."
+                placeholderTextColor={colors.mutedForeground}
+                value={addNotes}
+                onChangeText={setAddNotes}
+                multiline
+              />
+            </View>
+
+            {/* ── Justificatif section ── */}
+            <View style={[
+              styles.proofSection,
+              { borderColor: proofError ? "#ef4444" : colors.border, backgroundColor: proofError ? "#ef444405" : colors.background }
+            ]}>
+              {/* Header */}
+              <View style={styles.proofSectionHeader}>
+                <View style={{ flex: 1 }}>
+                  <View style={{ flexDirection: "row", alignItems: "center", gap: 8 }}>
+                    <Feather name="paperclip" size={15} color={proofError ? "#ef4444" : colors.primary} />
+                    <Text style={[styles.proofSectionTitle, { color: proofError ? "#ef4444" : colors.foreground }]}>
+                      Pièce justificative fournisseur
+                    </Text>
+                    <View style={{ paddingHorizontal: 7, paddingVertical: 2, borderRadius: 6, backgroundColor: "#ef444418" }}>
+                      <Text style={{ fontSize: 10, fontFamily: "Inter_700Bold", color: "#ef4444" }}>OBLIGATOIRE</Text>
+                    </View>
+                  </View>
+                  <Text style={[styles.proofSectionSub, { color: colors.mutedForeground }]}>
+                    Photo ou scan de la facture originale du fournisseur — JPEG, PNG
+                  </Text>
                 </View>
               </View>
+
+              {proofError && !addProofUri && (
+                <View style={styles.proofErrorBanner}>
+                  <Feather name="alert-circle" size={13} color="#ef4444" />
+                  <Text style={styles.proofErrorText}>
+                    Veuillez joindre une pièce justificative avant de continuer.
+                  </Text>
+                </View>
+              )}
+
+              {/* Preview or upload zone */}
               {addProofUri ? (
-                <View style={{ gap: 8 }}>
-                  <Image source={{ uri: addProofUri }} style={{ width: "100%", height: 140, borderRadius: 12, resizeMode: "cover" }} />
-                  <TouchableOpacity
-                    style={[styles.input, { backgroundColor: "#ef444410", borderColor: "#ef444430", alignItems: "center", paddingVertical: 10 }]}
-                    onPress={() => setAddProofUri("")}
-                  >
-                    <Text style={{ fontSize: 13, fontFamily: "Inter_500Medium", color: "#ef4444" }}>Changer le justificatif</Text>
-                  </TouchableOpacity>
+                <View style={{ gap: 10 }}>
+                  {/* Thumbnail */}
+                  <View style={styles.proofPreviewWrap}>
+                    <Image source={{ uri: addProofUri }} style={styles.proofPreview} resizeMode="cover" />
+                    <View style={[styles.proofPreviewBadge, { backgroundColor: "#10b981" }]}>
+                      <Feather name="check-circle" size={12} color="#fff" />
+                      <Text style={styles.proofPreviewBadgeText}>Justificatif joint</Text>
+                    </View>
+                  </View>
+                  {/* Change / remove row */}
+                  <View style={{ flexDirection: "row", gap: 8 }}>
+                    <TouchableOpacity
+                      style={[styles.proofActionBtn, { flex: 1, backgroundColor: colors.muted, borderColor: colors.border }]}
+                      onPress={showPickerOptions}
+                    >
+                      <Feather name="refresh-cw" size={14} color={colors.foreground} />
+                      <Text style={[styles.proofActionBtnText, { color: colors.foreground }]}>Changer</Text>
+                    </TouchableOpacity>
+                    <TouchableOpacity
+                      style={[styles.proofActionBtn, { backgroundColor: "#ef444410", borderColor: "#ef444430" }]}
+                      onPress={() => { setAddProofUri(""); setProofError(false); }}
+                    >
+                      <Feather name="trash-2" size={14} color="#ef4444" />
+                      <Text style={[styles.proofActionBtnText, { color: "#ef4444" }]}>Supprimer</Text>
+                    </TouchableOpacity>
+                  </View>
                 </View>
               ) : (
+                /* Upload zone */
                 <TouchableOpacity
-                  style={[styles.input, { borderColor: "#ef444440", borderStyle: "dashed", backgroundColor: "#ef444408", flexDirection: "row", alignItems: "center", gap: 10, paddingVertical: 14 }]}
-                  onPress={pickProofImage}
+                  style={[
+                    styles.proofUploadZone,
+                    {
+                      borderColor: proofError ? "#ef4444" : colors.primary + "60",
+                      backgroundColor: proofError ? "#ef444408" : colors.primary + "06",
+                    },
+                  ]}
+                  onPress={showPickerOptions}
                   activeOpacity={0.8}
                 >
-                  <View style={{ width: 36, height: 36, borderRadius: 10, backgroundColor: "#ef444418", alignItems: "center", justifyContent: "center" }}>
-                    <Feather name="upload" size={16} color="#ef4444" />
+                  <View style={[styles.proofUploadIcon, { backgroundColor: proofError ? "#ef444418" : colors.primary + "18" }]}>
+                    <Feather name="upload-cloud" size={28} color={proofError ? "#ef4444" : colors.primary} />
                   </View>
-                  <View style={{ flex: 1 }}>
-                    <Text style={{ fontSize: 14, fontFamily: "Inter_600SemiBold", color: "#ef4444" }}>Joindre le justificatif</Text>
-                    <Text style={{ fontSize: 11, fontFamily: "Inter_400Regular", color: colors.mutedForeground }}>Image de la facture / devis fournisseur</Text>
+                  <Text style={[styles.proofUploadTitle, { color: proofError ? "#ef4444" : colors.primary }]}>
+                    Téléverser depuis mon appareil
+                  </Text>
+                  <Text style={[styles.proofUploadSub, { color: colors.mutedForeground }]}>
+                    Photo de galerie · Appareil photo · Fichier image
+                  </Text>
+                  <View style={[styles.proofUploadFormats, { backgroundColor: colors.muted }]}>
+                    {["JPG", "PNG", "HEIC"].map((fmt) => (
+                      <View key={fmt} style={[styles.fmtBadge, { backgroundColor: colors.card }]}>
+                        <Text style={[styles.fmtText, { color: colors.mutedForeground }]}>{fmt}</Text>
+                      </View>
+                    ))}
+                    <Text style={[styles.fmtSep, { color: colors.mutedForeground }]}>· max 10 Mo</Text>
                   </View>
                 </TouchableOpacity>
               )}
             </View>
 
-            <View style={styles.actionBtns}>
-              <TouchableOpacity style={[styles.actionBtn, { backgroundColor: colors.muted }]} onPress={() => { setShowAdd(false); setAddProofUri(""); }}>
-                <Text style={[styles.actionBtnText, { color: colors.mutedForeground }]}>Annuler</Text>
-              </TouchableOpacity>
-              <TouchableOpacity
-                style={[styles.actionBtn, {
-                  backgroundColor: addRecipient.trim() && addAmount.trim() && addLabel.trim() && addProofUri ? colors.primary : colors.muted,
-                }]}
-                onPress={handleAdd}
-                disabled={!addRecipient.trim() || !addAmount.trim() || !addLabel.trim() || !addProofUri}
-              >
-                <Text style={[styles.actionBtnText, { color: addRecipient.trim() && addAmount.trim() && addLabel.trim() && addProofUri ? "#fff" : colors.mutedForeground }]}>
-                  Créer
-                </Text>
-              </TouchableOpacity>
-            </View>
-          </View>
+            {/* Submit */}
+            <TouchableOpacity
+              style={[
+                styles.submitBtn,
+                { backgroundColor: isFormValid ? colors.primary : colors.muted },
+              ]}
+              onPress={handleAdd}
+              activeOpacity={0.85}
+            >
+              <Feather
+                name={addType === "facture" ? "file-text" : "clipboard"}
+                size={18}
+                color={isFormValid ? "#fff" : colors.mutedForeground}
+              />
+              <Text style={[styles.submitBtnText, { color: isFormValid ? "#fff" : colors.mutedForeground }]}>
+                Créer {addType === "facture" ? "la facture" : "le devis"}
+              </Text>
+            </TouchableOpacity>
+
+            {!isFormValid && (
+              <Text style={[styles.submitHint, { color: colors.mutedForeground }]}>
+                {!addProofUri
+                  ? "⚠ Justificatif manquant — requis pour valider"
+                  : "Remplissez tous les champs obligatoires pour continuer"}
+              </Text>
+            )}
+          </ScrollView>
         </View>
       </Modal>
     </View>
   );
 }
 
+// ─── Styles ───────────────────────────────────────────────────────────────────
+
 const styles = StyleSheet.create({
   root: { flex: 1 },
   header: { flexDirection: "row", alignItems: "center", paddingHorizontal: 20, paddingBottom: 20, gap: 12 },
   backBtn: { width: 36, height: 36, alignItems: "center", justifyContent: "center" },
   headerTitle: { fontSize: 20, fontFamily: "Inter_700Bold", color: "#fff" },
-  headerSub: { fontSize: 13, fontFamily: "Inter_400Regular", color: "rgba(255,255,255,0.75)" },
+  headerSub: { fontSize: 11, fontFamily: "Inter_400Regular", color: "rgba(255,255,255,0.75)", marginTop: 2 },
   addBtn: { width: 40, height: 40, borderRadius: 12, alignItems: "center", justifyContent: "center" },
-  summaryRow: { flexDirection: "row", padding: 16, gap: 12, borderBottomWidth: 1 },
+
+  summaryRow: { flexDirection: "row", padding: 16, gap: 10, borderBottomWidth: 1 },
   statBox: { flex: 1, padding: 12, borderRadius: 12, gap: 4 },
   statValue: { fontSize: 16, fontFamily: "Inter_700Bold" },
   statLabel: { fontSize: 10, fontFamily: "Inter_400Regular" },
+
   tabs: { flexDirection: "row", borderBottomWidth: 1 },
   tabBtn: { flex: 1, flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 6, paddingVertical: 13 },
   tabLabel: { fontSize: 13, fontFamily: "Inter_600SemiBold" },
+
+  emptyBox: { alignItems: "center", gap: 12, paddingVertical: 60, paddingHorizontal: 24 },
+  emptyIcon: { width: 72, height: 72, borderRadius: 20, alignItems: "center", justifyContent: "center" },
+  emptyTitle: { fontSize: 16, fontFamily: "Inter_700Bold" },
+  emptyText: { fontSize: 13, fontFamily: "Inter_400Regular", textAlign: "center", lineHeight: 20 },
+
   invoiceCard: { flexDirection: "row", alignItems: "center", gap: 12, padding: 14, borderRadius: 16, borderWidth: 1 },
   invIcon: { width: 44, height: 44, borderRadius: 12, alignItems: "center", justifyContent: "center" },
   invRef: { fontSize: 14, fontFamily: "Inter_700Bold" },
   invRecipient: { fontSize: 12, fontFamily: "Inter_500Medium", marginTop: 2 },
-  invDate: { fontSize: 11, fontFamily: "Inter_400Regular", marginTop: 2 },
+  invDate: { fontSize: 10, fontFamily: "Inter_400Regular", marginTop: 2 },
   invAmount: { fontSize: 15, fontFamily: "Inter_700Bold" },
-  statusBadge: { paddingHorizontal: 8, paddingVertical: 3, borderRadius: 20 },
+  statusBadge: { flexDirection: "row", alignItems: "center", gap: 4, paddingHorizontal: 8, paddingVertical: 3, borderRadius: 20 },
   statusText: { fontSize: 10, fontFamily: "Inter_600SemiBold" },
-  emptyBox: { alignItems: "center", gap: 12, paddingVertical: 60 },
-  emptyText: { fontSize: 14, fontFamily: "Inter_400Regular" },
+  proofBadge: { flexDirection: "row", alignItems: "center", gap: 3, paddingHorizontal: 6, paddingVertical: 2, borderRadius: 6 },
+  proofBadgeText: { fontSize: 9, fontFamily: "Inter_600SemiBold" },
+
+  // Modals
   modalOverlay: { flex: 1, backgroundColor: "rgba(0,0,0,0.5)", justifyContent: "flex-end" },
-  detailModal: { borderTopLeftRadius: 24, borderTopRightRadius: 24, padding: 24, gap: 16, maxHeight: "90%" },
+  detailModal: { borderTopLeftRadius: 28, borderTopRightRadius: 28, maxHeight: "92%" },
+  addModal: { borderTopLeftRadius: 28, borderTopRightRadius: 28, maxHeight: "95%" },
   detailHeader: { flexDirection: "row", justifyContent: "space-between", alignItems: "flex-start" },
-  detailRef: { fontSize: 18, fontFamily: "Inter_700Bold" },
+  detailRef: { fontSize: 20, fontFamily: "Inter_700Bold" },
   detailType: { fontSize: 13, fontFamily: "Inter_400Regular", marginTop: 2 },
-  detailInfo: { borderRadius: 14, padding: 14, borderWidth: 1, gap: 10 },
-  detailRow: { flexDirection: "row", justifyContent: "space-between" },
-  detailLabel: { fontSize: 13, fontFamily: "Inter_400Regular" },
-  detailValue: { fontSize: 13, fontFamily: "Inter_600SemiBold" },
-  itemsTitle: { fontSize: 15, fontFamily: "Inter_700Bold" },
-  itemRow: { flexDirection: "row", alignItems: "center", gap: 12, paddingVertical: 10, borderBottomWidth: 1 },
+  detailInfo: { borderRadius: 14, padding: 14, borderWidth: 1, gap: 12 },
+  detailRow: { flexDirection: "row", justifyContent: "space-between", alignItems: "center" },
+  detailLabel: { fontSize: 12, fontFamily: "Inter_400Regular" },
+  detailValue: { fontSize: 13, fontFamily: "Inter_600SemiBold", maxWidth: "60%", textAlign: "right" },
+  sectionTitle: { fontSize: 15, fontFamily: "Inter_700Bold" },
+  itemsBox: { borderRadius: 14, borderWidth: 1, overflow: "hidden" },
+  itemRow: { flexDirection: "row", alignItems: "center", gap: 10, padding: 14, borderBottomWidth: 1 },
   itemLabel: { fontSize: 13, fontFamily: "Inter_500Medium" },
   itemQty: { fontSize: 13, fontFamily: "Inter_400Regular" },
   itemPrice: { fontSize: 13, fontFamily: "Inter_700Bold", minWidth: 80, textAlign: "right" },
-  totalRow: { flexDirection: "row", justifyContent: "space-between", paddingTop: 12, borderTopWidth: 1 },
-  totalLabel: { fontSize: 16, fontFamily: "Inter_700Bold" },
+  totalRow: { flexDirection: "row", justifyContent: "space-between", padding: 14, borderTopWidth: 1 },
+  totalLabel: { fontSize: 15, fontFamily: "Inter_700Bold" },
   totalAmount: { fontSize: 20, fontFamily: "Inter_700Bold" },
   actionBtns: { flexDirection: "row", gap: 12 },
-  actionBtn: { flex: 1, flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 8, paddingVertical: 14, borderRadius: 12 },
+  actionBtn: { flex: 1, flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 8, paddingVertical: 14, borderRadius: 14 },
   actionBtnText: { fontSize: 14, fontFamily: "Inter_700Bold" },
-  addModal: { borderTopLeftRadius: 24, borderTopRightRadius: 24, padding: 24, gap: 14 },
-  addTitle: { fontSize: 18, fontFamily: "Inter_700Bold" },
+
+  // Proof in detail
+  proofThumbWrap: { borderRadius: 16, overflow: "hidden", position: "relative" },
+  proofThumb: { width: "100%", height: 200, borderRadius: 16 },
+  proofThumbOverlay: {
+    position: "absolute", bottom: 0, left: 0, right: 0,
+    backgroundColor: "rgba(0,0,0,0.4)", paddingVertical: 10,
+    flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 8,
+  },
+  proofThumbOverlayText: { color: "#fff", fontSize: 13, fontFamily: "Inter_600SemiBold" },
+  proofVerified: {
+    position: "absolute", top: 10, right: 10,
+    flexDirection: "row", alignItems: "center", gap: 4,
+    paddingHorizontal: 8, paddingVertical: 4, borderRadius: 20,
+  },
+  proofVerifiedText: { color: "#fff", fontSize: 10, fontFamily: "Inter_700Bold" },
+  noProof: {
+    flexDirection: "row", alignItems: "center", gap: 10,
+    padding: 16, borderRadius: 14, borderWidth: 1,
+  },
+  noProofText: { fontSize: 13, fontFamily: "Inter_500Medium", flex: 1 },
+
+  // Proof fullscreen
+  proofFullOverlay: {
+    flex: 1, backgroundColor: "rgba(0,0,0,0.95)",
+    alignItems: "center", justifyContent: "center",
+  },
+  proofFullClose: {
+    position: "absolute", top: 56, right: 20,
+    width: 44, height: 44, borderRadius: 22,
+    backgroundColor: "rgba(255,255,255,0.2)",
+    alignItems: "center", justifyContent: "center",
+    zIndex: 10,
+  },
+  proofFullImg: { width: "100%", height: "80%" },
+  proofFullCaption: {
+    color: "rgba(255,255,255,0.6)", fontSize: 12,
+    fontFamily: "Inter_400Regular", marginTop: 16,
+  },
+
+  // Add form
+  addTitle: { fontSize: 20, fontFamily: "Inter_700Bold" },
+  addSub: { fontSize: 12, fontFamily: "Inter_400Regular", marginTop: 2 },
   typeRow: { flexDirection: "row", gap: 10 },
-  typeChip: { flex: 1, paddingVertical: 10, borderRadius: 12, borderWidth: 1, alignItems: "center" },
-  typeChipText: { fontSize: 13, fontFamily: "Inter_600SemiBold" },
-  fieldLabel: { fontSize: 13, fontFamily: "Inter_600SemiBold", marginBottom: 6 },
-  input: { borderWidth: 1, borderRadius: 12, paddingHorizontal: 14, paddingVertical: 12, fontSize: 14, fontFamily: "Inter_400Regular" },
+  typeChip: {
+    flex: 1, flexDirection: "row", alignItems: "center", justifyContent: "center",
+    gap: 6, paddingVertical: 11, borderRadius: 14, borderWidth: 1.5,
+  },
+  typeChipText: { fontSize: 13, fontFamily: "Inter_700Bold" },
+  fieldLabel: { fontSize: 12, fontFamily: "Inter_600SemiBold", marginBottom: 7 },
+  input: {
+    borderWidth: 1, borderRadius: 12,
+    paddingHorizontal: 14, paddingVertical: 12,
+    fontSize: 14, fontFamily: "Inter_400Regular",
+  },
+
+  // Proof section in form
+  proofSection: {
+    borderRadius: 18, borderWidth: 1.5,
+    padding: 16, gap: 14,
+  },
+  proofSectionHeader: { flexDirection: "row", alignItems: "flex-start", gap: 10 },
+  proofSectionTitle: { fontSize: 14, fontFamily: "Inter_700Bold" },
+  proofSectionSub: { fontSize: 11, fontFamily: "Inter_400Regular", marginTop: 3, lineHeight: 16 },
+  proofErrorBanner: {
+    flexDirection: "row", alignItems: "center", gap: 8,
+    backgroundColor: "#ef444415", borderRadius: 10, padding: 10,
+  },
+  proofErrorText: { fontSize: 12, fontFamily: "Inter_600SemiBold", color: "#ef4444", flex: 1 },
+  proofPreviewWrap: { position: "relative", borderRadius: 14, overflow: "hidden" },
+  proofPreview: { width: "100%", height: 160, borderRadius: 14 },
+  proofPreviewBadge: {
+    position: "absolute", bottom: 10, right: 10,
+    flexDirection: "row", alignItems: "center", gap: 4,
+    paddingHorizontal: 10, paddingVertical: 5, borderRadius: 20,
+  },
+  proofPreviewBadgeText: { color: "#fff", fontSize: 11, fontFamily: "Inter_700Bold" },
+  proofActionBtn: {
+    flexDirection: "row", alignItems: "center", justifyContent: "center",
+    gap: 6, paddingVertical: 10, borderRadius: 10, borderWidth: 1,
+  },
+  proofActionBtnText: { fontSize: 13, fontFamily: "Inter_600SemiBold" },
+  proofUploadZone: {
+    borderWidth: 1.5, borderStyle: "dashed", borderRadius: 16,
+    padding: 24, alignItems: "center", gap: 10,
+  },
+  proofUploadIcon: {
+    width: 60, height: 60, borderRadius: 18,
+    alignItems: "center", justifyContent: "center",
+  },
+  proofUploadTitle: { fontSize: 15, fontFamily: "Inter_700Bold" },
+  proofUploadSub: { fontSize: 12, fontFamily: "Inter_400Regular", textAlign: "center" },
+  proofUploadFormats: {
+    flexDirection: "row", alignItems: "center", gap: 6,
+    paddingHorizontal: 12, paddingVertical: 7, borderRadius: 20, marginTop: 2,
+  },
+  fmtBadge: { paddingHorizontal: 8, paddingVertical: 3, borderRadius: 6 },
+  fmtText: { fontSize: 10, fontFamily: "Inter_700Bold" },
+  fmtSep: { fontSize: 10, fontFamily: "Inter_400Regular" },
+
+  // Submit
+  submitBtn: {
+    flexDirection: "row", alignItems: "center", justifyContent: "center",
+    gap: 10, paddingVertical: 16, borderRadius: 16,
+  },
+  submitBtnText: { fontSize: 15, fontFamily: "Inter_700Bold" },
+  submitHint: { fontSize: 12, fontFamily: "Inter_400Regular", textAlign: "center", marginTop: -8 },
 });
