@@ -42,7 +42,7 @@ pnpm --filter @workspace/scripts run seed
 ```
 
 Already done in this environment: dependencies installed, schema pushed to the
-provisioned Postgres database, and demo data seeded (re-seeded 2026-07-08 after
+provisioned Postgres database, and demo data seeded (re-seeded 2026-07-09 after
 re-import). Demo login on the mobile app's login screen:
 `syndic@andalous.ma` / `password123` (pre-filled). Note: API routes are
 mounted under `/api` (e.g. `/api/auth/login`), not at the route paths defined
