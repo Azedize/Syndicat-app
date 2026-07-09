@@ -32,6 +32,7 @@ import teamRouter from "./team.js";
 import subscriptionsRouter from "./subscriptions.js";
 import parkingRouter from "./parking.js";
 import escalationRouter from "./escalation.js";
+import storageRouter from "./storage.js";
 
 const router: IRouter = Router();
 
@@ -68,5 +69,11 @@ router.use(teamRouter);
 router.use(subscriptionsRouter);
 router.use(parkingRouter);
 router.use(escalationRouter);
+router.use(storageRouter);
+// NOTE: pdf.ts and actions.ts exist but are intentionally NOT mounted yet —
+// they reference DB columns dropped/renamed since they were written
+// (invoices.notes, transactions.reference/description/category/paymentMethod,
+// budgets.syndicateId, meetings.attendees, etc.). Fix the schema mismatches
+// and clear `pnpm --filter @workspace/api-server run typecheck` before mounting.
 
 export default router;
