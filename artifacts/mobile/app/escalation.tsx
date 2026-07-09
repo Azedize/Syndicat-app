@@ -285,7 +285,7 @@ export default function EscalationScreen() {
         title="Recouvrement"
         subtitle="Suivi des escalades de dette"
         onBack={() => router.back()}
-        right={
+        rightContent={
           isAdmin ? (
             <TouchableOpacity
               style={[s.scanBtn, { borderColor: colors.border }]}
@@ -314,9 +314,9 @@ export default function EscalationScreen() {
 
         {/* Filter chips */}
         <FilterChips
-          chips={filterChips}
-          selected={filter}
-          onSelect={setFilter}
+          options={filterChips}
+          value={filter}
+          onChange={setFilter}
         />
 
         {/* List */}
@@ -325,7 +325,7 @@ export default function EscalationScreen() {
         ) : displayed.length === 0 ? (
           <View style={s.empty}>
             <Feather name="check-circle" size={48} color={colors.border} />
-            <Text style={[s.emptyText, { color: colors.textSecondary }]}>
+            <Text style={[s.emptyText, { color: colors.mutedForeground }]}>
               Aucune escalade active
             </Text>
           </View>
@@ -361,11 +361,11 @@ export default function EscalationScreen() {
             <Text style={[s.modalTitle, { color: colors.text }]}>
               Annuler l'escalade
             </Text>
-            <Text style={[s.modalSub, { color: colors.textSecondary }]}>
+            <Text style={[s.modalSub, { color: colors.mutedForeground }]}>
               {overrideTarget?.memberName} — {overrideTarget?.levelLabel}
             </Text>
 
-            <Text style={[s.inputLabel, { color: colors.textSecondary }]}>
+            <Text style={[s.inputLabel, { color: colors.mutedForeground }]}>
               Justification (obligatoire) *
             </Text>
             <TextInput
@@ -380,7 +380,7 @@ export default function EscalationScreen() {
               multiline
               numberOfLines={4}
               placeholder="Expliquez la raison de cette annulation…"
-              placeholderTextColor={colors.textSecondary}
+              placeholderTextColor={colors.mutedForeground}
               value={overrideReason}
               onChangeText={setOverrideReason}
             />
@@ -390,7 +390,7 @@ export default function EscalationScreen() {
                 style={[s.modalBtn, { borderColor: colors.border }]}
                 onPress={() => setOverrideTarget(null)}
               >
-                <Text style={{ color: colors.textSecondary }}>Annuler</Text>
+                <Text style={{ color: colors.mutedForeground }}>Annuler</Text>
               </TouchableOpacity>
               <TouchableOpacity
                 style={[s.modalBtnPrimary, submitting && s.disabled]}
@@ -450,7 +450,7 @@ function EscalationCard({ item, colors, isAdmin, onOpenLetter, onOverride, onRes
       <Text style={[s.residentName, { color: colors.text }]}>
         {item.memberName ?? "Résident inconnu"}
       </Text>
-      <Text style={[s.lotInfo, { color: colors.textSecondary }]}>
+      <Text style={[s.lotInfo, { color: colors.mutedForeground }]}>
         {item.building?.name ?? ""}
         {item.lot ? ` — Lot N° ${item.lot.number}` : ""}
       </Text>
@@ -458,13 +458,13 @@ function EscalationCard({ item, colors, isAdmin, onOpenLetter, onOverride, onRes
       {/* Financials */}
       <View style={s.financialRow}>
         <View>
-          <Text style={[s.amountLabel, { color: colors.textSecondary }]}>Montant impayé</Text>
+          <Text style={[s.amountLabel, { color: colors.mutedForeground }]}>Montant impayé</Text>
           <Text style={[s.amountValue, { color: cfg.color }]}>
             {amount.toLocaleString("fr-MA", { minimumFractionDigits: 2 })} MAD
           </Text>
         </View>
         <View style={{ alignItems: "flex-end" }}>
-          <Text style={[s.amountLabel, { color: colors.textSecondary }]}>Impayé depuis</Text>
+          <Text style={[s.amountLabel, { color: colors.mutedForeground }]}>Impayé depuis</Text>
           <Text style={[s.amountValue, { color: colors.text }]}>
             {item.overdueMonths} mois
           </Text>
@@ -474,8 +474,8 @@ function EscalationCard({ item, colors, isAdmin, onOpenLetter, onOverride, onRes
       {/* Override reason */}
       {item.overrideReason ? (
         <View style={[s.overrideNote, { backgroundColor: colors.background }]}>
-          <Feather name="info" size={12} color={colors.textSecondary} />
-          <Text style={[s.overrideNoteText, { color: colors.textSecondary }]}>
+          <Feather name="info" size={12} color={colors.mutedForeground} />
+          <Text style={[s.overrideNoteText, { color: colors.mutedForeground }]}>
             {item.overrideReason}
           </Text>
         </View>

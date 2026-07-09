@@ -24,3 +24,7 @@ description: Key design decisions and gotchas in the debt escalation workflow (s
 
 ## Letter templates
 - `formatMoney()` already appends "MAD" — do NOT append "MAD" again in letter body template strings.
+
+## Mobile "Une erreur s'est produite" crash triage
+- The generic ErrorFallback screen gives no stack trace. Check two layers, in order: (1) API response shape vs what the screen destructures (missing `items` array, string vs number amounts, status values not in the screen's STATUS_CONFIG/LEVEL_CONFIG map); (2) prop names passed to shared components (FilterChips wants `options/value/onChange` not `chips/selected/onSelect`; ScreenHeader wants `rightContent` not `right`) and color tokens (`useColors()` has `mutedForeground`, not `textSecondary`) — always verify against the actual component source, don't assume prop names.
+- **Why:** fixed the API layer first (real bug, but not the crash's cause) before finding the actual crash was mistyped props/color keys in the screen itself — cross-check both layers before declaring victory.
