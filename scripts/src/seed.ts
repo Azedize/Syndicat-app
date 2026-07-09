@@ -333,7 +333,7 @@ async function main() {
   ]).onConflictDoNothing();
 
   await db.insert(bonsLivraisonTable).values([
-    { id: "bon_1", reference: "BL-2026-001", recipient: "Résidence Atlas", date: "2026-07-02", type: "entree", total: "1200.00", status: "validated", syndicateId: "syn_residence_atlas", createdAt: daysAgo(33) },
+    { id: "bon_1", reference: "BL-2026-001", recipient: "Résidence Atlas", date: "2026-07-02", type: "entree", total: "1200.00", status: "delivered", syndicateId: "syn_residence_atlas", createdAt: daysAgo(33) },
   ]).onConflictDoNothing();
   await db.insert(bonItemsTable).values([
     { id: "bonitem_1", bonId: "bon_1", label: "Ampoules LED (lot de 20)", quantity: "20", unitPrice: "60.00" },

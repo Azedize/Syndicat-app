@@ -11,7 +11,7 @@ import {
   bonsLivraisonTable,
   bonItemsTable,
 } from "@workspace/db/schema";
-import { eq, desc, count } from "drizzle-orm";
+import { eq, desc, count, inArray } from "drizzle-orm";
 import { requireAuth, requireRole } from "../middleware/auth.js";
 import { syndicateWhere, effectiveSyndicateId } from "../lib/syndicate-filter.js";
 import { getPagination, buildPagedResponse } from "../lib/paginate.js";
@@ -229,7 +229,30 @@ router.get(
           .offset(pagination.offset),
         db.select({ value: count() }).from(invoicesTable).where(where),
       ]);
-      res.json(buildPagedResponse(rows, Number(total), pagination));
+
+      // Attach line items — the mobile client renders selectedInvoice.items.map(...)
+      // and crashes with a blank error screen if items is undefined.
+      const invoiceIds = rows.map((r) => r.id);
+      const allItems = invoiceIds.length
+        ? await db.select().from(invoiceItemsTable).where(inArray(invoiceItemsTable.invoiceId, invoiceIds))
+        : [];
+      const itemsByInvoice = new Map<string, typeof allItems>();
+      for (const item of allItems) {
+        const arr = itemsByInvoice.get(item.invoiceId) ?? [];
+        arr.push(item);
+        itemsByInvoice.set(item.invoiceId, arr);
+      }
+      const enriched = rows.map((r) => ({
+        ...r,
+        amount: Number(r.amount),
+        items: (itemsByInvoice.get(r.id) ?? []).map((i) => ({
+          label: i.label,
+          quantity: Number(i.quantity),
+          unitPrice: Number(i.unitPrice),
+        })),
+      }));
+
+      res.json(buildPagedResponse(enriched, Number(total), pagination));
     } catch (err) {
       req.log.error(err);
       res.status(500).json({ error: "Erreur serveur" });
@@ -332,7 +355,35 @@ router.get(
           .offset(pagination.offset),
         db.select({ value: count() }).from(bonsLivraisonTable).where(where),
       ]);
-      res.json(buildPagedResponse(rows, Number(total), pagination));
+
+      // Attach line items — mobile client renders selected.items.map(...) and
+      // crashes with a blank error screen if items is undefined.
+      const bonIds = rows.map((r) => r.id);
+      const allItems = bonIds.length
+        ? await db.select().from(bonItemsTable).where(inArray(bonItemsTable.bonId, bonIds))
+        : [];
+      const itemsByBon = new Map<string, typeof allItems>();
+      for (const item of allItems) {
+        const arr = itemsByBon.get(item.bonId) ?? [];
+        arr.push(item);
+        itemsByBon.set(item.bonId, arr);
+      }
+      // Normalize any legacy/seed status values not recognized by the mobile client's
+      // STATUS_CONFIG (draft | sent | delivered | cancelled) — an unmapped status
+      // crashes the list render immediately.
+      const VALID_STATUSES = new Set(["draft", "sent", "delivered", "cancelled"]);
+      const enriched = rows.map((r) => ({
+        ...r,
+        total: Number(r.total),
+        status: VALID_STATUSES.has(r.status ?? "") ? r.status : "delivered",
+        items: (itemsByBon.get(r.id) ?? []).map((i) => ({
+          label: i.label,
+          quantity: Number(i.quantity),
+          unitPrice: Number(i.unitPrice),
+        })),
+      }));
+
+      res.json(buildPagedResponse(enriched, Number(total), pagination));
     } catch (err) {
       req.log.error(err);
       res.status(500).json({ error: "Erreur serveur" });
