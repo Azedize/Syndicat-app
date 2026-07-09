@@ -1,7 +1,9 @@
 import { db } from "@workspace/db";
 import { alertsTable, usersTable } from "@workspace/db/schema";
-import { isNotNull, inArray, eq } from "drizzle-orm";
+import { and, isNotNull, inArray, eq } from "drizzle-orm";
 import { logger } from "./logger.js";
+
+const ADMIN_ROLES = ["super_admin", "syndicate_admin"];
 
 export interface AlertPayload {
   title: string;
@@ -32,10 +34,26 @@ export async function createAlert(payload: AlertPayload): Promise<void> {
 }
 
 async function sendExpoPush(payload: AlertPayload): Promise<void> {
+  const target = payload.target ?? "admin";
+
+  // Scope recipients: syndicateId (when provided) restricts to that syndicate only;
+  // target further restricts by role. This prevents financial/sensitive alert
+  // content from being broadcast to unrelated syndicates or non-admin roles.
+  const conditions = [isNotNull(usersTable.pushToken)];
+  if (payload.syndicateId) {
+    conditions.push(eq(usersTable.syndicateId, payload.syndicateId));
+  }
+  if (target === "admin") {
+    conditions.push(inArray(usersTable.role, ADMIN_ROLES));
+  } else if (target === "member") {
+    conditions.push(eq(usersTable.role, "member"));
+  }
+  // target === "all" imposes no role filter, but still respects syndicateId scoping above.
+
   const rows = await db
     .select({ pushToken: usersTable.pushToken })
     .from(usersTable)
-    .where(isNotNull(usersTable.pushToken));
+    .where(and(...conditions));
 
   const tokens = rows
     .map((r) => r.pushToken)
@@ -96,7 +114,7 @@ export async function sendPushToSyndicate(
   const rows = await db
     .select({ pushToken: usersTable.pushToken })
     .from(usersTable)
-    .where(isNotNull(usersTable.pushToken));
+    .where(and(isNotNull(usersTable.pushToken), eq(usersTable.syndicateId, syndicateId)));
 
   const tokens = rows
     .map((r) => r.pushToken)
