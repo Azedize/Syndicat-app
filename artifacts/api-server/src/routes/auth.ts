@@ -5,7 +5,7 @@ import { z } from "zod";
 import { db } from "@workspace/db";
 import { usersTable, refreshTokensTable, passwordResetTokensTable } from "@workspace/db/schema";
 import { eq, and, gt, isNull } from "drizzle-orm";
-import { requireAuth, signToken, signRefreshToken } from "../middleware/auth.js";
+import { requireAuth, signToken, signRefreshToken, type JwtPayload } from "../middleware/auth.js";
 
 /**
  * Sends a password reset email.
@@ -87,7 +87,7 @@ router.post("/auth/login", async (req, res) => {
     const accessToken = signToken({
       userId: user.id,
       email: user.email,
-      role: user.role,
+      role: user.role as JwtPayload["role"],
       syndicateId: user.syndicateId ?? undefined,
       name: user.name,
     });
@@ -160,7 +160,7 @@ router.post("/auth/refresh", async (req, res) => {
     const accessToken = signToken({
       userId: user.id,
       email: user.email,
-      role: user.role,
+      role: user.role as JwtPayload["role"],
       syndicateId: user.syndicateId ?? undefined,
       name: user.name,
     });

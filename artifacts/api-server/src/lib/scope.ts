@@ -1,5 +1,5 @@
 import { db } from "@workspace/db";
-import { lotsTable, membersTable, tenantsTable } from "@workspace/db/schema";
+import { lotsTable, membersTable, tenantsTable, buildingsTable } from "@workspace/db/schema";
 import { eq, or, inArray } from "drizzle-orm";
 import type { JwtPayload } from "../middleware/auth.js";
 
@@ -36,4 +36,38 @@ export async function getUserBuildingIds(user: JwtPayload): Promise<string[]> {
   }
 
   return [];
+}
+
+/**
+ * Throws a 403-friendly error when the user has no access to the given buildingId.
+ * Call this after loading a resource and before returning or mutating it.
+ *
+ * Returns the building row (already fetched inside) so callers can use syndicateId etc.
+ */
+export async function assertUserCanAccessBuilding(
+  user: JwtPayload,
+  buildingId: string,
+): Promise<void> {
+  if (user.role === "super_admin") return; // unrestricted
+
+  if (user.role === "syndicate_admin") {
+    const [building] = await db
+      .select({ syndicateId: buildingsTable.syndicateId })
+      .from(buildingsTable)
+      .where(eq(buildingsTable.id, buildingId));
+    if (!building || building.syndicateId !== user.syndicateId) {
+      const err: any = new Error("Accès refusé");
+      err.status = 403;
+      throw err;
+    }
+    return;
+  }
+
+  // member / tenant: verify via linked lots / tenancy
+  const allowedIds = await getUserBuildingIds(user);
+  if (!allowedIds.includes(buildingId)) {
+    const err: any = new Error("Accès refusé");
+    err.status = 403;
+    throw err;
+  }
 }

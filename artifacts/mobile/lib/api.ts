@@ -3,7 +3,15 @@ import { getToken } from "../services/api";
 function getBaseUrl(): string {
   const domain = process.env.EXPO_PUBLIC_DOMAIN;
   if (domain) return `https://${domain}/api`;
-  // fallback: API server on PORT (default 8080 in dev)
+  // In production, EXPO_PUBLIC_DOMAIN must be set — missing it silently breaks
+  // all API calls. Fail loudly so misconfigured production builds are caught.
+  if (process.env.NODE_ENV === "production") {
+    throw new Error(
+      "[SYNDYCAT] EXPO_PUBLIC_DOMAIN is required in production builds. " +
+        "Set it to your Replit dev domain in the environment variables.",
+    );
+  }
+  // Dev fallback: API server on PORT (default 8080)
   const port = process.env.EXPO_PUBLIC_API_PORT ?? "8080";
   return `http://localhost:${port}/api`;
 }

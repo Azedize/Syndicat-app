@@ -12,7 +12,7 @@ import { eq, and, desc, inArray, sql } from "drizzle-orm";
 import { requireAuth, requireAdmin } from "../middleware/auth.js";
 import { createAlert } from "../lib/notify.js";
 import { serverAuditLog } from "../lib/audit.js";
-import { getUserBuildingIds } from "../lib/scope.js";
+import { getUserBuildingIds, assertUserCanAccessBuilding } from "../lib/scope.js";
 
 const router = Router();
 
@@ -25,6 +25,13 @@ router.get("/travaux", requireAuth, async (req, res) => {
     const conditions: any[] = [];
 
     if (buildingId) {
+      // Verify the requesting user actually has access to the requested building
+      // before using it as a filter — prevents cross-syndicate data leaks.
+      try {
+        await assertUserCanAccessBuilding(user, buildingId);
+      } catch {
+        return res.status(403).json({ error: "Accès refusé à cet immeuble" });
+      }
       conditions.push(eq(travauxTable.buildingId, buildingId));
     } else if (user.role === "syndicate_admin" && user.syndicateId) {
       // Scope to buildings belonging to this syndicate
@@ -97,12 +104,20 @@ router.get("/travaux", requireAuth, async (req, res) => {
 // GET /travaux/:id
 router.get("/travaux/:id", requireAuth, async (req, res) => {
   try {
+    const user = (req as any).user;
     const [travail] = await db
       .select()
       .from(travauxTable)
       .where(eq(travauxTable.id, req.params.id));
 
     if (!travail) return res.status(404).json({ error: "Not found" });
+
+    // Scope check: verify user has access to this work order's building
+    try {
+      await assertUserCanAccessBuilding(user, travail.buildingId);
+    } catch {
+      return res.status(403).json({ error: "Accès refusé" });
+    }
 
     const [prestataire, lot, building] = await Promise.all([
       travail.prestataireId
@@ -144,6 +159,13 @@ router.post("/travaux", requireAuth, async (req, res) => {
   try {
     const user = (req as any).user;
     const { title, description, type, priority, buildingId, lotId, prestataireId, estimatedAmount, startDate, endDate, notes } = parsed.data;
+
+    // Scope check: verify the caller is allowed to create a work order for this building
+    try {
+      await assertUserCanAccessBuilding(user, buildingId);
+    } catch {
+      return res.status(403).json({ error: "Accès refusé à cet immeuble" });
+    }
 
     const [travail] = await db
       .insert(travauxTable)
@@ -202,13 +224,14 @@ router.post("/travaux/:id/assign", requireAuth, requireAdmin, async (req, res) =
   const { prestataireId } = req.body;
   if (!prestataireId) return res.status(400).json({ error: "prestataireId requis" });
   try {
+    const user = (req as any).user;
     const [travail] = await db.select().from(travauxTable).where(eq(travauxTable.id, req.params.id));
     if (!travail) return res.status(404).json({ error: "Not found" });
+    try { await assertUserCanAccessBuilding(user, travail.buildingId); } catch { return res.status(403).json({ error: "Accès refusé" }); }
 
     const now = new Date();
     const responseTimeMinutes = Math.round((now.getTime() - new Date(travail.createdAt as any).getTime()) / 60000);
 
-    const user = (req as any).user;
     const [updated] = await db
       .update(travauxTable)
       .set({
@@ -248,6 +271,10 @@ router.post("/travaux/:id/report", requireAuth, requireAdmin, async (req, res) =
     return res.status(400).json({ error: parsed.error.issues[0]?.message ?? "Documents manquants" });
   }
   try {
+    const user = (req as any).user;
+    const [existing] = await db.select({ buildingId: travauxTable.buildingId }).from(travauxTable).where(eq(travauxTable.id, req.params.id));
+    if (!existing) return res.status(404).json({ error: "Not found" });
+    try { await assertUserCanAccessBuilding(user, existing.buildingId); } catch { return res.status(403).json({ error: "Accès refusé" }); }
     const { reportUrl, photoUrls, invoiceUrl, invoiceAmount } = parsed.data;
     const [updated] = await db
       .update(travauxTable)
@@ -281,8 +308,10 @@ router.post("/travaux/:id/report", requireAuth, requireAdmin, async (req, res) =
 // transaction, and closes the intervention. Blocked without full documentation.
 router.post("/travaux/:id/validate", requireAuth, requireAdmin, async (req, res) => {
   try {
+    const user = (req as any).user;
     const [travail] = await db.select().from(travauxTable).where(eq(travauxTable.id, req.params.id));
     if (!travail) return res.status(404).json({ error: "Not found" });
+    try { await assertUserCanAccessBuilding(user, travail.buildingId); } catch { return res.status(403).json({ error: "Accès refusé" }); }
 
     const photos: string[] = JSON.parse(travail.photoUrls ?? "[]");
     if (!travail.reportUrl || !travail.invoiceUrl || photos.length === 0) {
@@ -292,7 +321,6 @@ router.post("/travaux/:id/validate", requireAuth, requireAdmin, async (req, res)
       });
     }
 
-    const user = (req as any).user;
     const now = new Date();
     const resolutionTimeMinutes = Math.round(
       (now.getTime() - new Date((travail.assignedAt ?? travail.createdAt) as any).getTime()) / 60000,
@@ -356,6 +384,11 @@ router.put("/travaux/:id", requireAuth, requireAdmin, async (req, res) => {
       });
     }
 
+    const user = (req as any).user;
+    const [existing] = await db.select({ buildingId: travauxTable.buildingId }).from(travauxTable).where(eq(travauxTable.id, req.params.id));
+    if (!existing) return res.status(404).json({ error: "Not found" });
+    try { await assertUserCanAccessBuilding(user, existing.buildingId); } catch { return res.status(403).json({ error: "Accès refusé" }); }
+
     const allowed = [
       "title", "description", "type", "status", "priority",
       "prestataireId", "estimatedAmount", "actualAmount",
@@ -383,6 +416,11 @@ router.put("/travaux/:id", requireAuth, requireAdmin, async (req, res) => {
 // DELETE /travaux/:id
 router.delete("/travaux/:id", requireAuth, requireAdmin, async (req, res) => {
   try {
+    const user = (req as any).user;
+    const [existing] = await db.select({ buildingId: travauxTable.buildingId }).from(travauxTable).where(eq(travauxTable.id, req.params.id));
+    if (!existing) return res.status(404).json({ error: "Not found" });
+    try { await assertUserCanAccessBuilding(user, existing.buildingId); } catch { return res.status(403).json({ error: "Accès refusé" }); }
+
     const [deleted] = await db
       .delete(travauxTable)
       .where(eq(travauxTable.id, req.params.id))

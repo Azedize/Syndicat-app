@@ -175,13 +175,13 @@ router.post("/budgets/:id/generate-appels", requireAuth, requireAdmin, async (re
 
     if (lots.length === 0) return res.status(400).json({ error: "No lots found for this building" });
 
-    const totalTantiemes = lots.reduce((s, l) => s + l.tantiemes, 0);
+    const totalTantiemes = lots.reduce((s, l) => s + (l.tantiemes ?? 0), 0);
     if (totalTantiemes === 0) return res.status(400).json({ error: "Lots have no tantiemes assigned" });
 
     const chargeType = type ?? "charges_courantes";
-    const baseAmount = chargeType === "fonds_reserve"
-      ? budget.fondsReserve
-      : budget.chargesAmount;
+    const baseAmount = Number(
+      chargeType === "fonds_reserve" ? (budget.fondsReserve ?? 0) : (budget.chargesAmount ?? 0),
+    );
 
     // Quarterly: divide annual amount by 4
     const periodAmount = baseAmount / 4;
