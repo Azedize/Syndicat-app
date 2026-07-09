@@ -49,17 +49,26 @@ router.post(
   requireAuth,
   requireRole("super_admin", "syndicate_admin"),
   async (req, res) => {
-    const schema = z.object({
-      type: z.enum(["cotisation", "depense", "salaire", "recette"]),
-      amount: z.number().positive(),
-      label: z.string().min(1),
-      date: z.string(),
-      status: z.enum(["paid", "pending", "overdue"]).default("paid"),
-      memberId: z.string().optional(),
-      syndicateId: z.string().optional(),
-    });
+    const schema = z
+      .object({
+        type: z.enum(["cotisation", "depense", "salaire", "recette"]),
+        amount: z.number().positive(),
+        label: z.string().min(1),
+        date: z.string(),
+        status: z.enum(["paid", "pending", "overdue"]).default("paid"),
+        memberId: z.string().optional(),
+        syndicateId: z.string().optional(),
+        proofUrl: z.string().optional(),
+      })
+      .refine((d) => d.type !== "depense" || !!d.proofUrl, {
+        message: "Un justificatif (facture) est obligatoire pour toute dépense.",
+        path: ["proofUrl"],
+      });
     const result = schema.safeParse(req.body);
-    if (!result.success) { res.status(400).json({ error: "Données invalides" }); return; }
+    if (!result.success) {
+      res.status(400).json({ error: result.error.issues[0]?.message ?? "Données invalides" });
+      return;
+    }
     try {
       const sid = effectiveSyndicateId(req, result.data.syndicateId);
       const { syndicateId: _sid, ...data } = result.data;

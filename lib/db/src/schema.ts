@@ -284,6 +284,7 @@ export const transactionsTable = pgTable(
     status: text("status").default("paid"),
     memberId: text("member_id"),
     syndicateId: text("syndicate_id"),
+    proofUrl: text("proof_url"),
     createdAt: createdAt(),
   },
   (t) => [

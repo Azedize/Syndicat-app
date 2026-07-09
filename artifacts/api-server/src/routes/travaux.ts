@@ -308,12 +308,13 @@ router.post("/travaux/:id/validate", requireAuth, requireAdmin, async (req, res)
     const [transaction] = await db
       .insert(transactionsTable)
       .values({
-        type: "expense",
+        type: "depense",
         amount: String(amount),
         label: `Intervention: ${travail.title}`,
         date: now.toISOString().split("T")[0],
         status: "paid",
         syndicateId: building?.syndicateId,
+        proofUrl: travail.invoiceUrl,
       })
       .returning();
 
