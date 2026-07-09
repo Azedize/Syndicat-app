@@ -515,7 +515,7 @@ async function main() {
 
   // ─── P7: Debt Escalation ─────────────────────────────────────────────────
   await db.insert(debtEscalationsTable).values([
-    { id: "escalation_1", syndicateId: "syn_residence_atlas", memberId: "member_3", memberName: "Hassan Cherkaoui", totalOverdue: "2700.00", overdueMonths: 6, level: "serious", status: "meeting_scheduled", alertSentAt: daysAgo(10), meetingId: "meeting_1", createdAt: daysAgo(15) },
+    { id: "escalation_1", syndicateId: "syn_residence_atlas", memberId: "member_3", memberName: "Hassan Cherkaoui", totalOverdue: "2700.00", overdueMonths: 6, escalationLevel: "final_warning", level: "serious", status: "meeting_scheduled", alertSentAt: daysAgo(10), meetingId: "meeting_1", createdAt: daysAgo(15) },
   ]).onConflictDoNothing();
 
   // ─── P10: Financial Transparency ─────────────────────────────────────────
