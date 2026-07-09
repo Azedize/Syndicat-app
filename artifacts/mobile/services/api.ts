@@ -959,6 +959,7 @@ export interface ApiPrestataire {
   rating?: string | number | null;
   evaluationsCount?: number;
   notes?: string | null;
+  documentUrl?: string | null;
   activeContracts?: number;
   openWorkOrders?: number;
   expiringContracts?: number;

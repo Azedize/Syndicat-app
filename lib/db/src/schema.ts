@@ -394,6 +394,7 @@ export const prestatairesTable = pgTable("prestataires", {
   rating: money("rating"),
   evaluationsCount: integer("evaluations_count").default(0),
   notes: text("notes"),
+  documentUrl: text("document_url"),
   createdAt: createdAt(),
 });
 

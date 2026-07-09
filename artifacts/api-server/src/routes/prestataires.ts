@@ -208,6 +208,7 @@ const createPrestataireSchema = z.object({
   rc: z.string().max(30).optional(),
   buildingId: z.string().optional(),
   notes: z.string().max(2000).optional(),
+  documentUrl: z.string().min(1, "Un document (image ou PDF) justifiant le besoin est obligatoire"),
 });
 
 // POST /prestataires
@@ -245,7 +246,7 @@ router.put("/prestataires/:id", requireAuth, requireAdmin, async (req, res) => {
   try {
     const allowed = [
       "name", "type", "contactName", "phone", "email", "address",
-      "ice", "rc", "status", "notes",
+      "ice", "rc", "status", "notes", "documentUrl",
     ];
     const updates: Record<string, any> = {};
     for (const k of allowed) {

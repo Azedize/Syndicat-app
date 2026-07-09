@@ -1,6 +1,6 @@
 import { Ionicons, Feather } from "@expo/vector-icons";
 import { useRouter } from "expo-router";
-import React, { useEffect } from "react";
+import React from "react";
 import {
   View,
   Text,
@@ -12,6 +12,7 @@ import {
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useAuth } from "@/context/AuthContext";
 import { useBreakpoints } from "@/hooks/useBreakpoints";
+import { useColors } from "@/hooks/useColors";
 
 const MENU_ITEMS_ADMIN = [
   {
@@ -100,6 +101,7 @@ const MENU_ITEMS_MEMBER = [
 ];
 
 export default function FinanceScreen() {
+  const colors = useColors();
   const insets = useSafeAreaInsets();
   const { user } = useAuth();
   const router = useRouter();
@@ -110,56 +112,57 @@ export default function FinanceScreen() {
     user?.role === "super_admin" || user?.role === "syndicate_admin";
   const items = isAdmin ? MENU_ITEMS_ADMIN : MENU_ITEMS_MEMBER;
 
-  // Auto-redirect admins directly to the financial dashboard if they tap the tab
-  // (keep this screen as a hub for all finance sub-screens)
+  // Keep this screen as a hub for all finance sub-screens.
 
   return (
-    <View style={[styles.root, { paddingTop: topPad }]}>
+    <View style={[styles.root, { backgroundColor: colors.background, paddingTop: topPad }]}>
       {/* Header */}
-      <View style={styles.header}>
+      <View style={[styles.header, { backgroundColor: colors.card, borderBottomColor: colors.border }]}>
         <View>
-          <Text style={styles.headerTitle}>Finance</Text>
-          <Text style={styles.headerSub}>
+          <Text style={[styles.headerTitle, { color: colors.foreground }]}>Finance</Text>
+          <Text style={[styles.headerSub, { color: colors.mutedForeground }]}>
             {isAdmin
               ? "Gestion financière de la copropriété"
               : "Mes finances & paiements"}
           </Text>
         </View>
-        <View style={styles.headerIcon}>
-          <Feather name="dollar-sign" size={24} color="#3B82F6" />
+        <View style={[styles.headerIcon, { backgroundColor: colors.primary + "18" }]}>
+          <Feather name="dollar-sign" size={24} color={colors.primary} />
         </View>
       </View>
 
-      {/* Admin highlight card */}
-      {isAdmin && (
-        <TouchableOpacity
-          style={styles.highlightCard}
-          onPress={() => router.push("/tableau-bord-financier" as any)}
-          activeOpacity={0.85}
-        >
-          <View style={styles.highlightLeft}>
-            <Ionicons name="bar-chart" size={28} color="#fff" />
-          </View>
-          <View style={{ flex: 1 }}>
-            <Text style={styles.highlightTitle}>Tableau de Bord Financier</Text>
-            <Text style={styles.highlightSub}>
-              Taux de recouvrement · Budget · Fonds de réserve
-            </Text>
-          </View>
-          <Ionicons name="chevron-forward" size={20} color="rgba(255,255,255,0.7)" />
-        </TouchableOpacity>
-      )}
-
       <ScrollView
+        style={styles.scrollFlex}
         showsVerticalScrollIndicator={false}
-        contentContainerStyle={styles.scroll}
+        contentContainerStyle={[styles.scroll, { paddingBottom: isWide ? 32 : insets.bottom + 100 }]}
+        bounces
       >
-        <Text style={styles.sectionTitle}>Modules financiers</Text>
+        {/* Admin highlight card */}
+        {isAdmin && (
+          <TouchableOpacity
+            style={[styles.highlightCard, { backgroundColor: colors.primary }]}
+            onPress={() => router.push("/tableau-bord-financier" as any)}
+            activeOpacity={0.85}
+          >
+            <View style={styles.highlightLeft}>
+              <Ionicons name="bar-chart" size={28} color="#fff" />
+            </View>
+            <View style={{ flex: 1 }}>
+              <Text style={styles.highlightTitle}>Tableau de Bord Financier</Text>
+              <Text style={styles.highlightSub}>
+                Taux de recouvrement · Budget · Fonds de réserve
+              </Text>
+            </View>
+            <Ionicons name="chevron-forward" size={20} color="rgba(255,255,255,0.7)" />
+          </TouchableOpacity>
+        )}
+
+        <Text style={[styles.sectionTitle, { color: colors.mutedForeground }]}>Modules financiers</Text>
 
         {items.map((item) => (
           <TouchableOpacity
             key={item.route}
-            style={styles.menuItem}
+            style={[styles.menuItem, { backgroundColor: colors.card, borderColor: colors.border }]}
             onPress={() => router.push(item.route as any)}
             activeOpacity={0.75}
           >
@@ -167,21 +170,19 @@ export default function FinanceScreen() {
               <Feather name={item.icon} size={20} color={item.color} />
             </View>
             <View style={styles.menuText}>
-              <Text style={styles.menuLabel}>{item.label}</Text>
-              <Text style={styles.menuSub}>{item.sub}</Text>
+              <Text style={[styles.menuLabel, { color: colors.foreground }]}>{item.label}</Text>
+              <Text style={[styles.menuSub, { color: colors.mutedForeground }]}>{item.sub}</Text>
             </View>
-            <Ionicons name="chevron-forward" size={18} color="#CBD5E1" />
+            <Ionicons name="chevron-forward" size={18} color={colors.mutedForeground} />
           </TouchableOpacity>
         ))}
-
-        <View style={{ height: 32 }} />
       </ScrollView>
     </View>
   );
 }
 
 const styles = StyleSheet.create({
-  root: { flex: 1, backgroundColor: "#F8FAFC" },
+  root: { flex: 1 },
 
   header: {
     flexDirection: "row",
@@ -189,31 +190,30 @@ const styles = StyleSheet.create({
     alignItems: "center",
     paddingHorizontal: 20,
     paddingVertical: 16,
-    backgroundColor: "#fff",
-    borderBottomWidth: 1,
-    borderBottomColor: "#F1F5F9",
+    borderBottomWidth: StyleSheet.hairlineWidth,
   },
-  headerTitle: { fontSize: 22, fontWeight: "800", color: "#1E293B" },
-  headerSub: { fontSize: 13, color: "#64748B", marginTop: 2 },
+  headerTitle: { fontSize: 22, fontFamily: "Inter_800ExtraBold" },
+  headerSub: { fontSize: 13, fontFamily: "Inter_400Regular", marginTop: 2 },
   headerIcon: {
     width: 44,
     height: 44,
     borderRadius: 12,
-    backgroundColor: "#EFF6FF",
     justifyContent: "center",
     alignItems: "center",
   },
+
+  scrollFlex: { flex: 1 },
+  scroll: { paddingHorizontal: 16, paddingTop: 16 },
 
   highlightCard: {
     flexDirection: "row",
     alignItems: "center",
     gap: 14,
-    margin: 16,
+    marginBottom: 16,
     padding: 16,
-    backgroundColor: "#1E3A5F",
     borderRadius: 16,
-    shadowColor: "#1E3A5F",
-    shadowOpacity: 0.3,
+    shadowColor: "#000",
+    shadowOpacity: 0.15,
     shadowRadius: 10,
     elevation: 4,
   },
@@ -228,20 +228,18 @@ const styles = StyleSheet.create({
   highlightTitle: {
     color: "#fff",
     fontSize: 15,
-    fontWeight: "700",
+    fontFamily: "Inter_700Bold",
   },
   highlightSub: {
     color: "rgba(255,255,255,0.65)",
     fontSize: 12,
+    fontFamily: "Inter_400Regular",
     marginTop: 3,
   },
 
-  scroll: { paddingHorizontal: 16, paddingTop: 8 },
-
   sectionTitle: {
     fontSize: 12,
-    fontWeight: "700",
-    color: "#94A3B8",
+    fontFamily: "Inter_700Bold",
     textTransform: "uppercase",
     letterSpacing: 0.8,
     marginBottom: 10,
@@ -252,14 +250,10 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     alignItems: "center",
     gap: 14,
-    backgroundColor: "#fff",
     borderRadius: 14,
+    borderWidth: 1,
     padding: 14,
     marginBottom: 10,
-    shadowColor: "#000",
-    shadowOpacity: 0.04,
-    shadowRadius: 4,
-    elevation: 1,
   },
   menuIcon: {
     width: 44,
@@ -269,6 +263,6 @@ const styles = StyleSheet.create({
     alignItems: "center",
   },
   menuText: { flex: 1 },
-  menuLabel: { fontSize: 14, fontWeight: "700", color: "#1E293B" },
-  menuSub: { fontSize: 12, color: "#64748B", marginTop: 2 },
+  menuLabel: { fontSize: 14, fontFamily: "Inter_700Bold" },
+  menuSub: { fontSize: 12, fontFamily: "Inter_400Regular", marginTop: 2 },
 });

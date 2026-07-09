@@ -3,14 +3,16 @@ import * as Haptics from "expo-haptics";
 import { router } from "expo-router";
 import React, { useCallback, useEffect, useState } from "react";
 import {
-  ActivityIndicator, Linking, Platform, RefreshControl,
-  ScrollView, StyleSheet, Text, TouchableOpacity, View,
+  ActivityIndicator, Alert, Linking, Modal, Platform, RefreshControl,
+  ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, View,
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useAuth } from "@/context/AuthContext";
 import { useBreakpoints } from "@/hooks/useBreakpoints";
 import { useColors } from "@/hooks/useColors";
 import { apiRequest } from "@/lib/api";
+import { pickAndUploadInvoice } from "@/lib/upload";
+import { prestataires as prestatairesApi } from "@/services/api";
 import FilterChips from "@/components/FilterChips";
 import ScreenHeader from "@/components/ScreenHeader";
 import StatsStrip from "@/components/StatsStrip";
@@ -44,7 +46,8 @@ type Prestataire = {
 export default function PrestatairesScreen() {
   const colors = useColors();
   const insets = useSafeAreaInsets();
-  const { token } = useAuth();
+  const { token, user } = useAuth();
+  const isAdmin = user?.role === "super_admin" || user?.role === "syndicate_admin";
   const { isWide } = useBreakpoints();
 
   const [prestataires, setPrestataires] = useState<Prestataire[]>([]);
@@ -52,7 +55,65 @@ export default function PrestatairesScreen() {
   const [refreshing, setRefreshing] = useState(false);
   const [filterType, setFilterType] = useState("all");
 
+  const [showAdd, setShowAdd] = useState(false);
+  const [submitting, setSubmitting] = useState(false);
+  const [uploading, setUploading] = useState(false);
+  const [form, setForm] = useState({
+    name: "", type: "autre", contactName: "", phone: "", email: "", notes: "",
+  });
+  const [documentUrl, setDocumentUrl] = useState("");
+  const [documentName, setDocumentName] = useState("");
+
   const topPad = isWide ? 0 : Platform.OS === "web" ? 67 : insets.top;
+
+  const resetForm = () => {
+    setForm({ name: "", type: "autre", contactName: "", phone: "", email: "", notes: "" });
+    setDocumentUrl("");
+    setDocumentName("");
+  };
+
+  const handlePickJustification = async () => {
+    try {
+      setUploading(true);
+      const path = await pickAndUploadInvoice();
+      if (path) setDocumentUrl(path);
+      setDocumentName(path ? "Justificatif joint (image/PDF)" : documentName);
+    } catch {
+      Alert.alert("Erreur", "Impossible de téléverser le document");
+    } finally { setUploading(false); }
+  };
+
+  const handleCreatePrestataire = async () => {
+    if (!form.name.trim() || !form.type.trim()) {
+      Alert.alert("Champs requis", "Le nom et le type du prestataire sont obligatoires");
+      return;
+    }
+    if (!documentUrl) {
+      Alert.alert(
+        "Justificatif obligatoire",
+        "Vous devez joindre une image ou un PDF justifiant le besoin de ce prestataire."
+      );
+      return;
+    }
+    try {
+      setSubmitting(true);
+      await prestatairesApi.create({
+        name: form.name.trim(),
+        type: form.type.trim(),
+        contactName: form.contactName.trim() || undefined,
+        phone: form.phone.trim() || undefined,
+        email: form.email.trim() || undefined,
+        notes: form.notes.trim() || undefined,
+        documentUrl,
+      });
+      setShowAdd(false);
+      resetForm();
+      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+      load();
+    } catch (e: any) {
+      Alert.alert("Erreur", e.message ?? "Impossible de créer le prestataire");
+    } finally { setSubmitting(false); }
+  };
 
   const load = useCallback(async (silent = false) => {
     try {
@@ -98,6 +159,14 @@ export default function PrestatairesScreen() {
           <Text style={styles.headerTitle}>Prestataires</Text>
           <Text style={styles.headerSub}>{prestataires.length} prestataire{prestataires.length !== 1 ? "s" : ""} • {totalMonthly.toLocaleString("fr-MA")} MAD/mois</Text>
         </View>
+        {isAdmin ? (
+          <TouchableOpacity
+            onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); setShowAdd(true); }}
+            style={styles.addBtn}
+          >
+            <Feather name="plus" size={22} color="#fff" />
+          </TouchableOpacity>
+        ) : null}
       </View>
 
       {/* Summary cards */}
@@ -228,6 +297,125 @@ export default function PrestatairesScreen() {
           )}
         </ScrollView>
       )}
+
+      {/* Add prestataire modal */}
+      <Modal visible={showAdd} animationType="slide" presentationStyle="pageSheet" onRequestClose={() => setShowAdd(false)}>
+        <View style={[styles.modalRoot, { backgroundColor: colors.background }]}>
+          <View style={[styles.modalHeader, { borderBottomColor: colors.border }]}>
+            <Text style={[styles.modalTitle, { color: colors.foreground }]}>Nouveau prestataire</Text>
+            <TouchableOpacity onPress={() => { setShowAdd(false); resetForm(); }}>
+              <Feather name="x" size={22} color={colors.mutedForeground} />
+            </TouchableOpacity>
+          </View>
+
+          <ScrollView contentContainerStyle={styles.modalBody} showsVerticalScrollIndicator={false}>
+            <Text style={[styles.fieldLabel, { color: colors.mutedForeground }]}>Nom *</Text>
+            <TextInput
+              style={[styles.input, { color: colors.foreground, borderColor: colors.border, backgroundColor: colors.card }]}
+              placeholder="Ex: Ascenseurs Atlas"
+              placeholderTextColor={colors.mutedForeground}
+              value={form.name}
+              onChangeText={(v) => setForm((p) => ({ ...p, name: v }))}
+            />
+
+            <Text style={[styles.fieldLabel, { color: colors.mutedForeground }]}>Type *</Text>
+            <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: 8, paddingVertical: 2 }}>
+              {Object.entries(TYPE_CONFIG).map(([k, v]) => (
+                <TouchableOpacity
+                  key={k}
+                  onPress={() => setForm((p) => ({ ...p, type: k }))}
+                  style={[
+                    styles.typeChip,
+                    { borderColor: form.type === k ? v.color : colors.border, backgroundColor: form.type === k ? v.color + "18" : colors.card },
+                  ]}
+                >
+                  <Feather name={v.icon} size={13} color={form.type === k ? v.color : colors.mutedForeground} />
+                  <Text style={[styles.typeChipText, { color: form.type === k ? v.color : colors.mutedForeground }]}>{v.label}</Text>
+                </TouchableOpacity>
+              ))}
+            </ScrollView>
+
+            <Text style={[styles.fieldLabel, { color: colors.mutedForeground }]}>Contact</Text>
+            <TextInput
+              style={[styles.input, { color: colors.foreground, borderColor: colors.border, backgroundColor: colors.card }]}
+              placeholder="Nom du contact"
+              placeholderTextColor={colors.mutedForeground}
+              value={form.contactName}
+              onChangeText={(v) => setForm((p) => ({ ...p, contactName: v }))}
+            />
+
+            <Text style={[styles.fieldLabel, { color: colors.mutedForeground }]}>Téléphone</Text>
+            <TextInput
+              style={[styles.input, { color: colors.foreground, borderColor: colors.border, backgroundColor: colors.card }]}
+              placeholder="+212 6XX XXX XXX"
+              placeholderTextColor={colors.mutedForeground}
+              keyboardType="phone-pad"
+              value={form.phone}
+              onChangeText={(v) => setForm((p) => ({ ...p, phone: v }))}
+            />
+
+            <Text style={[styles.fieldLabel, { color: colors.mutedForeground }]}>Email</Text>
+            <TextInput
+              style={[styles.input, { color: colors.foreground, borderColor: colors.border, backgroundColor: colors.card }]}
+              placeholder="contact@exemple.ma"
+              placeholderTextColor={colors.mutedForeground}
+              keyboardType="email-address"
+              autoCapitalize="none"
+              value={form.email}
+              onChangeText={(v) => setForm((p) => ({ ...p, email: v }))}
+            />
+
+            <Text style={[styles.fieldLabel, { color: colors.mutedForeground }]}>Note / besoin</Text>
+            <TextInput
+              style={[styles.input, styles.inputMulti, { color: colors.foreground, borderColor: colors.border, backgroundColor: colors.card }]}
+              placeholder="Décrivez le besoin justifiant ce prestataire"
+              placeholderTextColor={colors.mutedForeground}
+              multiline
+              value={form.notes}
+              onChangeText={(v) => setForm((p) => ({ ...p, notes: v }))}
+            />
+
+            <Text style={[styles.fieldLabel, { color: colors.mutedForeground }]}>Justificatif (image ou PDF) *</Text>
+            <TouchableOpacity
+              style={[
+                styles.uploadBtn,
+                { borderColor: documentUrl ? "#10b981" : colors.border, backgroundColor: documentUrl ? "#10b98110" : colors.card },
+              ]}
+              onPress={handlePickJustification}
+              disabled={uploading}
+            >
+              {uploading ? (
+                <ActivityIndicator color="#3b82f6" size="small" />
+              ) : (
+                <Feather name={documentUrl ? "check-circle" : "upload"} size={18} color={documentUrl ? "#10b981" : "#3b82f6"} />
+              )}
+              <Text style={[styles.uploadBtnText, { color: documentUrl ? "#10b981" : colors.foreground }]}>
+                {documentName || "Joindre une image ou un PDF justifiant le besoin"}
+              </Text>
+            </TouchableOpacity>
+            <Text style={[styles.helperText, { color: colors.mutedForeground }]}>
+              Obligatoire : une photo, un devis ou un document PDF expliquant pourquoi ce prestataire est nécessaire.
+            </Text>
+
+            <TouchableOpacity
+              style={[styles.submitBtn, { opacity: submitting ? 0.6 : 1 }]}
+              onPress={handleCreatePrestataire}
+              disabled={submitting}
+            >
+              {submitting ? (
+                <ActivityIndicator color="#fff" size="small" />
+              ) : (
+                <>
+                  <Feather name="check" size={18} color="#fff" />
+                  <Text style={styles.submitBtnText}>Créer le prestataire</Text>
+                </>
+              )}
+            </TouchableOpacity>
+
+            <View style={{ height: 40 }} />
+          </ScrollView>
+        </View>
+      </Modal>
     </View>
   );
 }
@@ -266,4 +454,21 @@ const styles = StyleSheet.create({
   center: { flex: 1, alignItems: "center", justifyContent: "center" },
   empty: { alignItems: "center", gap: 12, paddingVertical: 60 },
   emptyText: { fontSize: 14, fontFamily: "Inter_400Regular" },
+
+  addBtn: { width: 40, height: 40, borderRadius: 12, backgroundColor: "rgba(255,255,255,0.2)", alignItems: "center", justifyContent: "center" },
+
+  modalRoot: { flex: 1 },
+  modalHeader: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", paddingHorizontal: 20, paddingVertical: 16, borderBottomWidth: StyleSheet.hairlineWidth },
+  modalTitle: { fontSize: 17, fontFamily: "Inter_700Bold" },
+  modalBody: { padding: 20, gap: 4 },
+  fieldLabel: { fontSize: 12, fontFamily: "Inter_600SemiBold", marginTop: 14, marginBottom: 6 },
+  input: { borderWidth: 1, borderRadius: 12, paddingHorizontal: 14, paddingVertical: 12, fontSize: 14, fontFamily: "Inter_400Regular" },
+  inputMulti: { minHeight: 80, textAlignVertical: "top" },
+  typeChip: { flexDirection: "row", alignItems: "center", gap: 6, paddingHorizontal: 12, paddingVertical: 8, borderRadius: 20, borderWidth: 1 },
+  typeChipText: { fontSize: 12, fontFamily: "Inter_600SemiBold" },
+  uploadBtn: { flexDirection: "row", alignItems: "center", gap: 10, borderWidth: 1.5, borderStyle: "dashed", borderRadius: 12, paddingHorizontal: 14, paddingVertical: 16 },
+  uploadBtnText: { flex: 1, fontSize: 13, fontFamily: "Inter_500Medium" },
+  helperText: { fontSize: 11, fontFamily: "Inter_400Regular", marginTop: 6, lineHeight: 15 },
+  submitBtn: { flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 8, backgroundColor: "#3b82f6", borderRadius: 14, paddingVertical: 15, marginTop: 24 },
+  submitBtnText: { color: "#fff", fontSize: 15, fontFamily: "Inter_700Bold" },
 });
