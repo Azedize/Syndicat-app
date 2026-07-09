@@ -106,7 +106,7 @@ router.get("/products/featured", requireAuth, async (req, res) => {
 router.get(
   "/products/pending",
   requireAuth,
-  requireRole(["super_admin", "syndicate_admin"]),
+  requireRole("super_admin", "syndicate_admin"),
   async (req, res) => {
     const q = req.query as Record<string, string>;
     const { page, limit, offset } = parsePage(q);
@@ -374,7 +374,7 @@ router.delete("/products/:id", requireAuth, async (req, res) => {
 router.post(
   "/products/:id/moderate",
   requireAuth,
-  requireRole(["super_admin", "syndicate_admin"]),
+  requireRole("super_admin", "syndicate_admin"),
   async (req, res) => {
     const id = req.params.id as string;
     const schema = z.object({
@@ -606,7 +606,7 @@ router.post("/products/:id/report", requireAuth, async (req, res) => {
 router.post(
   "/products/:id/promote",
   requireAuth,
-  requireRole(["super_admin", "syndicate_admin"]),
+  requireRole("super_admin", "syndicate_admin"),
   async (req, res) => {
     const productId = req.params.id as string;
     const schema = z.object({
@@ -665,7 +665,7 @@ router.post(
 router.get(
   "/products/:id/reports",
   requireAuth,
-  requireRole(["super_admin", "syndicate_admin"]),
+  requireRole("super_admin", "syndicate_admin"),
   async (req, res) => {
     const productId = req.params.id as string;
     try {
@@ -908,7 +908,7 @@ router.post("/orders", requireAuth, async (req, res) => {
 router.put(
   "/orders/:id",
   requireAuth,
-  requireRole(["super_admin", "syndicate_admin"]),
+  requireRole("super_admin", "syndicate_admin"),
   async (req, res) => {
     const schema = z.object({
       status: z.enum(["pending", "confirmed", "shipped", "delivered", "cancelled"]),
