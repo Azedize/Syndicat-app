@@ -55,6 +55,7 @@ const MENU_SECTIONS: { title: string; items: MenuItem[] }[] = [
       { label: "Travaux & Interventions", icon: "tool", route: "/travaux", color: "#f59e0b", roles: ["super_admin", "syndicate_admin", "member", "tenant"] },
       { label: "Prestataires", icon: "briefcase", route: "/prestataires", color: "#3b82f6", roles: ["super_admin", "syndicate_admin"] },
       { label: "Sinistres & Incidents", icon: "alert-triangle", route: "/sinistres", color: "#ef4444", roles: ["super_admin", "syndicate_admin", "member", "tenant"] },
+      { label: "Travaux Privatifs", icon: "edit-2", route: "/travaux-privatifs", color: "#f97316", roles: ["super_admin", "syndicate_admin", "member", "tenant"] },
       { label: "Parking & Véhicules", icon: "map-pin", route: "/parking", color: "#7c3aed", roles: ["super_admin", "syndicate_admin", "member", "tenant"] },
     ],
   },

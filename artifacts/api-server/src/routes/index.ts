@@ -33,6 +33,7 @@ import subscriptionsRouter from "./subscriptions.js";
 import parkingRouter from "./parking.js";
 import escalationRouter from "./escalation.js";
 import storageRouter from "./storage.js";
+import travauxPrivatifsRouter from "./travaux-privatifs.js";
 
 const router: IRouter = Router();
 
@@ -70,6 +71,7 @@ router.use(subscriptionsRouter);
 router.use(parkingRouter);
 router.use(escalationRouter);
 router.use(storageRouter);
+router.use(travauxPrivatifsRouter);
 // NOTE: pdf.ts and actions.ts exist but are intentionally NOT mounted yet —
 // they reference DB columns dropped/renamed since they were written
 // (invoices.notes, transactions.reference/description/category/paymentMethod,

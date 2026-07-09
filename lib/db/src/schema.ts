@@ -1354,6 +1354,69 @@ export const visitorParkingReservationsTable = pgTable(
 
 // ─── P12: National Ranking ───────────────────────────────────────────────────
 
+// ─── Travaux Privatifs (Resident Structural/Exterior Modification Requests) ───
+// Full approval trail: submission → syndic review → optional committee → optional GA vote → final decision
+// Every step is recorded permanently for legal reference (disputes often arise years later).
+
+export const travauxPrivatifsTable = pgTable(
+  "travaux_privatifs",
+  {
+    id: id(),
+    buildingId: text("building_id").notNull(),
+    lotId: text("lot_id"),
+    syndicateId: text("syndicate_id"),
+    // Requester
+    requestedById: text("requested_by_id"),
+    requestedByName: text("requested_by_name").notNull(),
+    // Request details
+    title: text("title").notNull(),
+    description: text("description").notNull(),
+    // workType: ac_unit | balcony | windows | facade | structural | plumbing | electrical | other
+    workType: text("work_type").notNull(),
+    // Supporting documents (JSON arrays of URLs)
+    currentPhotoUrls: text("current_photo_urls").default("[]"),
+    proposedPhotoUrls: text("proposed_photo_urls").default("[]"),
+    planUrls: text("plan_urls").default("[]"),
+    // status: submitted | under_review | committee_review | vote_required | approved | rejected | withdrawn
+    status: text("status").default("submitted"),
+    // ── Syndic initial review ───────────────────────────────────────────────
+    requiresCommitteeReview: boolean("requires_committee_review"),
+    requiresGAVote: boolean("requires_ga_vote"),
+    bylawReference: text("bylaw_reference"),      // which article of the by-laws applies
+    syndicReviewNote: text("syndic_review_note"),
+    syndicReviewedById: text("syndic_reviewed_by_id"),
+    syndicReviewedByName: text("syndic_reviewed_by_name"),
+    syndicReviewedAt: timestamp("syndic_reviewed_at"),
+    // ── Committee review ────────────────────────────────────────────────────
+    committeeNote: text("committee_note"),
+    // committeeRecommendation: approve | reject | escalate_vote
+    committeeRecommendation: text("committee_recommendation"),
+    committeeReviewedById: text("committee_reviewed_by_id"),
+    committeeReviewedByName: text("committee_reviewed_by_name"),
+    committeeReviewedAt: timestamp("committee_reviewed_at"),
+    // ── GA Vote ─────────────────────────────────────────────────────────────
+    voteItemId: text("vote_item_id"),             // optional link to elections/meetings record
+    // voteOutcome: approved | rejected | inconclusive
+    voteOutcome: text("vote_outcome"),
+    voteDate: text("vote_date"),
+    voteSummary: text("vote_summary"),
+    // ── Final decision (permanent legal record) ─────────────────────────────
+    // finalDecision: approved | rejected
+    finalDecision: text("final_decision"),
+    finalDecisionNote: text("final_decision_note"),
+    finalDecisionById: text("final_decision_by_id"),
+    finalDecisionByName: text("final_decision_by_name"),
+    finalDecisionAt: timestamp("final_decision_at"),
+    createdAt: createdAt(),
+  },
+  (t) => [
+    index("travaux_privatifs_building_id_idx").on(t.buildingId),
+    index("travaux_privatifs_status_idx").on(t.status),
+    index("travaux_privatifs_requested_by_id_idx").on(t.requestedById),
+    index("travaux_privatifs_syndicate_id_idx").on(t.syndicateId),
+  ],
+);
+
 export const nationalRankingsTable = pgTable(
   "national_rankings",
   {
