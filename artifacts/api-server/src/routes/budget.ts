@@ -12,18 +12,47 @@ import {
   syndicatesTable,
   alertsTable,
 } from "@workspace/db/schema";
-import { eq, and, desc, sql, sum, or } from "drizzle-orm";
-import { requireAuth, requireAdmin, requireNotTenant } from "../middleware/auth.js";
+import { eq, and, desc, sql, sum, or, inArray } from "drizzle-orm";
+import { requireAuth, requireAdmin, requireOperationalAccess } from "../middleware/auth.js";
 import { serverAuditLog } from "../lib/audit.js";
 
 const router = Router();
 
-// GET /budgets
-router.get("/budgets", requireAuth, requireNotTenant, async (req, res) => {
+// GET /budgets — admin only (members see their charges via /appels-de-fonds)
+router.get("/budgets", requireAuth, requireAdmin, async (req, res) => {
   try {
+    const user = req.user!;
+
+    // Mandatory syndicate scoping: syndicate_admin must have syndicateId in JWT
+    if (user.role === "syndicate_admin" && !user.syndicateId) {
+      return res.status(403).json({ error: "Syndicat non défini dans le token" });
+    }
+
     const { buildingId, year, status } = req.query as Record<string, string>;
 
+    // Scope by syndicate: budgetsTable has no syndicateId — derive via building FK
+    // Get allowed building IDs for this syndicate, then filter budgets by buildingId
+    let allowedBuildingIds: string[] | null = null;
+    if (user.role === "syndicate_admin") {
+      const scopedBuildings = await db
+        .select({ id: buildingsTable.id })
+        .from(buildingsTable)
+        .where(eq(buildingsTable.syndicateId, user.syndicateId!));
+      allowedBuildingIds = scopedBuildings.map((b) => b.id);
+      if (allowedBuildingIds.length === 0) return res.json({ data: [], total: 0 });
+    } else if (user.role === "super_admin" && req.query.syndicateId) {
+      const scopedBuildings = await db
+        .select({ id: buildingsTable.id })
+        .from(buildingsTable)
+        .where(eq(buildingsTable.syndicateId, req.query.syndicateId as string));
+      allowedBuildingIds = scopedBuildings.map((b) => b.id);
+      if (allowedBuildingIds.length === 0) return res.json({ data: [], total: 0 });
+    }
+
     const conditions: any[] = [];
+    if (allowedBuildingIds !== null) {
+      conditions.push(inArray(budgetsTable.buildingId, allowedBuildingIds));
+    }
     if (buildingId) conditions.push(eq(budgetsTable.buildingId, buildingId));
     if (year) conditions.push(eq(budgetsTable.year, parseInt(year)));
     if (status) conditions.push(eq(budgetsTable.status, status));
@@ -60,15 +89,30 @@ router.get("/budgets", requireAuth, requireNotTenant, async (req, res) => {
   }
 });
 
-// GET /budgets/:id
-router.get("/budgets/:id", requireAuth, requireNotTenant, async (req, res) => {
+// GET /budgets/:id — admin only
+router.get("/budgets/:id", requireAuth, requireAdmin, async (req, res) => {
   try {
+    const user = req.user!;
+
     const [budget] = await db
       .select()
       .from(budgetsTable)
       .where(eq(budgetsTable.id, req.params.id));
 
     if (!budget) return res.status(404).json({ error: "Budget not found" });
+
+    // Syndicate isolation: budgetsTable has no syndicateId — derive via building FK
+    if (user.role === "syndicate_admin") {
+      if (!user.syndicateId) return res.status(403).json({ error: "Syndicat non défini dans le token" });
+      const [bld] = await db
+        .select({ syndicateId: buildingsTable.syndicateId })
+        .from(buildingsTable)
+        .where(eq(buildingsTable.id, budget.buildingId))
+        .limit(1);
+      if (!bld || bld.syndicateId !== user.syndicateId) {
+        return res.status(403).json({ error: "Accès refusé" });
+      }
+    }
 
     const lines = await db
       .select()
@@ -89,7 +133,7 @@ router.get("/budgets/:id", requireAuth, requireNotTenant, async (req, res) => {
 });
 
 // POST /budgets
-router.post("/budgets", requireAuth, requireAdmin, async (req, res) => {
+router.post("/budgets", requireAuth, requireOperationalAccess, async (req, res) => {
   try {
     const user = (req as any).user;
     const { year, buildingId, totalAmount, chargesAmount, fondsReserve, status, notes, lines } = req.body;
@@ -137,7 +181,7 @@ router.post("/budgets", requireAuth, requireAdmin, async (req, res) => {
 });
 
 // PUT /budgets/:id
-router.put("/budgets/:id", requireAuth, requireAdmin, async (req, res) => {
+router.put("/budgets/:id", requireAuth, requireOperationalAccess, async (req, res) => {
   try {
     const allowed = ["totalAmount", "chargesAmount", "fondsReserve", "status", "votedAt", "meetingId", "notes"];
     const updates: Record<string, any> = {};
@@ -160,7 +204,7 @@ router.put("/budgets/:id", requireAuth, requireAdmin, async (req, res) => {
 });
 
 // POST /budgets/:id/generate-appels — Auto-generate appels de fonds for all lots
-router.post("/budgets/:id/generate-appels", requireAuth, requireAdmin, async (req, res) => {
+router.post("/budgets/:id/generate-appels", requireAuth, requireOperationalAccess, async (req, res) => {
   try {
     const { period, type } = req.body;
     if (!period) return res.status(400).json({ error: "period is required (e.g. '2026-Q1')" });

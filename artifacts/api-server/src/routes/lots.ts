@@ -10,17 +10,54 @@ import {
   travauxTable,
 } from "@workspace/db/schema";
 import { eq, and, desc, sql, count, or, inArray } from "drizzle-orm";
-import { requireAuth, requireAdmin } from "../middleware/auth.js";
+import { requireAuth, requireAdmin, requireOperationalAccess } from "../middleware/auth.js";
 
 const router = Router();
 
-// GET /lots — List lots for a building
+// GET /lots — List lots scoped to the user's syndicate (via building join)
+// super_admin: all lots (or filter by ?syndicateId= for a specific syndicate)
+// syndicate_admin / member: only lots belonging to their syndicate's buildings
+// tenant: blocked (no lot ownership rights)
 router.get("/lots", requireAuth, async (req, res) => {
   try {
+    const user = req.user!;
+    if (user.role === "tenant") {
+      return res.status(403).json({ error: "Accès refusé" });
+    }
+
     const { buildingId, type, status, ownerId } = req.query as Record<string, string>;
 
     const conditions: any[] = [];
-    if (buildingId) conditions.push(eq(lotsTable.buildingId, buildingId));
+    if (buildingId) {
+      // When a specific buildingId is provided, verify it belongs to the caller's syndicate
+      // (prevents cross-syndicate enumeration by guessing building IDs)
+      if (user.role !== "super_admin") {
+        const [building] = await db
+          .select({ syndicateId: buildingsTable.syndicateId })
+          .from(buildingsTable)
+          .where(eq(buildingsTable.id, buildingId))
+          .limit(1);
+        if (!building || building.syndicateId !== user.syndicateId) {
+          return res.status(403).json({ error: "Accès refusé" });
+        }
+      }
+      conditions.push(eq(lotsTable.buildingId, buildingId));
+    } else {
+      // Derive allowed building IDs from syndicate scope
+      const targetSyndicateId =
+        user.role === "super_admin"
+          ? (req.query.syndicateId as string | undefined)
+          : user.syndicateId;
+      if (targetSyndicateId) {
+        const scopedBuildings = await db
+          .select({ id: buildingsTable.id })
+          .from(buildingsTable)
+          .where(eq(buildingsTable.syndicateId, targetSyndicateId));
+        if (scopedBuildings.length === 0) return res.json({ data: [], total: 0 });
+        conditions.push(inArray(lotsTable.buildingId, scopedBuildings.map((b) => b.id)));
+      }
+      // super_admin with no syndicateId filter sees all lots (global view)
+    }
     if (type) conditions.push(eq(lotsTable.type, type));
     if (status) conditions.push(eq(lotsTable.status, status));
     if (ownerId) conditions.push(eq(lotsTable.ownerId, ownerId));
@@ -132,12 +169,28 @@ router.get("/lots/my-lot", requireAuth, async (req, res) => {
 // GET /lots/:id — Lot detail
 router.get("/lots/:id", requireAuth, async (req, res) => {
   try {
+    const user = req.user!;
+    if (user.role === "tenant") return res.status(403).json({ error: "Accès refusé" });
+
     const [lot] = await db
       .select()
       .from(lotsTable)
       .where(eq(lotsTable.id, req.params.id));
 
     if (!lot) return res.status(404).json({ error: "Lot not found" });
+
+    // Syndicate isolation for non-super_admin
+    if (user.role !== "super_admin") {
+      if (!user.syndicateId) return res.status(403).json({ error: "Syndicat non défini dans le token" });
+      const [building] = await db
+        .select({ syndicateId: buildingsTable.syndicateId })
+        .from(buildingsTable)
+        .where(eq(buildingsTable.id, lot.buildingId))
+        .limit(1);
+      if (!building || building.syndicateId !== user.syndicateId) {
+        return res.status(403).json({ error: "Accès refusé" });
+      }
+    }
 
     let owner = null;
     let tenant = null;
@@ -178,9 +231,10 @@ router.get("/lots/:id", requireAuth, async (req, res) => {
   }
 });
 
-// POST /lots — Create lot
-router.post("/lots", requireAuth, requireAdmin, async (req, res) => {
+// POST /lots — Create lot (syndicate_admin; super_admin requires ?supervision=true)
+router.post("/lots", requireAuth, requireOperationalAccess, async (req, res) => {
   try {
+    const user = req.user!;
     const {
       number, type, floor, surfaceM2, tantiemes,
       buildingId, ownerId, tenantId, status, description,
@@ -188,6 +242,16 @@ router.post("/lots", requireAuth, requireAdmin, async (req, res) => {
 
     if (!number || !buildingId) {
       return res.status(400).json({ error: "number and buildingId are required" });
+    }
+
+    // Syndicate ownership: verify the target building belongs to the caller's syndicate
+    if (user.role !== "super_admin") {
+      if (!user.syndicateId) return res.status(403).json({ error: "Syndicat non défini dans le token" });
+      const [bld] = await db.select({ syndicateId: buildingsTable.syndicateId })
+        .from(buildingsTable).where(eq(buildingsTable.id, buildingId)).limit(1);
+      if (!bld || bld.syndicateId !== user.syndicateId) {
+        return res.status(403).json({ error: "Accès refusé" });
+      }
     }
 
     const [lot] = await db
@@ -219,9 +283,18 @@ router.post("/lots", requireAuth, requireAdmin, async (req, res) => {
   }
 });
 
-// PUT /lots/:id — Update lot
-router.put("/lots/:id", requireAuth, requireAdmin, async (req, res) => {
+// PUT /lots/:id — Update lot (syndicate_admin; super_admin requires ?supervision=true)
+router.put("/lots/:id", requireAuth, requireOperationalAccess, async (req, res) => {
   try {
+    const user = req.user!;
+    // Row-level syndicate check before mutation
+    if (user.role !== "super_admin") {
+      if (!user.syndicateId) return res.status(403).json({ error: "Syndicat non défini dans le token" });
+      const [existing] = await db.select({ buildingId: lotsTable.buildingId }).from(lotsTable).where(eq(lotsTable.id, req.params.id)).limit(1);
+      if (!existing) return res.status(404).json({ error: "Lot not found" });
+      const [bld] = await db.select({ syndicateId: buildingsTable.syndicateId }).from(buildingsTable).where(eq(buildingsTable.id, existing.buildingId)).limit(1);
+      if (!bld || bld.syndicateId !== user.syndicateId) return res.status(403).json({ error: "Accès refusé" });
+    }
     const allowed = [
       "number", "type", "floor", "surfaceM2", "tantiemes",
       "ownerId", "tenantId", "status", "description",
@@ -245,9 +318,18 @@ router.put("/lots/:id", requireAuth, requireAdmin, async (req, res) => {
   }
 });
 
-// DELETE /lots/:id
-router.delete("/lots/:id", requireAuth, requireAdmin, async (req, res) => {
+// DELETE /lots/:id (syndicate_admin; super_admin requires ?supervision=true)
+router.delete("/lots/:id", requireAuth, requireOperationalAccess, async (req, res) => {
   try {
+    const user = req.user!;
+    // Row-level syndicate check before deletion
+    if (user.role !== "super_admin") {
+      if (!user.syndicateId) return res.status(403).json({ error: "Syndicat non défini dans le token" });
+      const [existing] = await db.select({ buildingId: lotsTable.buildingId }).from(lotsTable).where(eq(lotsTable.id, req.params.id)).limit(1);
+      if (!existing) return res.status(404).json({ error: "Lot not found" });
+      const [bld] = await db.select({ syndicateId: buildingsTable.syndicateId }).from(buildingsTable).where(eq(buildingsTable.id, existing.buildingId)).limit(1);
+      if (!bld || bld.syndicateId !== user.syndicateId) return res.status(403).json({ error: "Accès refusé" });
+    }
     const [lot] = await db
       .delete(lotsTable)
       .where(eq(lotsTable.id, req.params.id))

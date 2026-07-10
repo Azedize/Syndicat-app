@@ -12,6 +12,7 @@ import {
 } from "react-native";
 
 import { useAuth } from "@/context/AuthContext";
+import { useRole } from "@/hooks/usePermission";
 import { useData } from "@/context/DataContext";
 import { useBreakpoints } from "@/hooks/useBreakpoints";
 import { useColors } from "@/hooks/useColors";
@@ -209,10 +210,7 @@ const ts = StyleSheet.create({
 });
 
 export default function TabLayout() {
-  const { user } = useAuth();
-  const role = user?.role ?? "member";
-  const isAdmin = role === "super_admin" || role === "syndicate_admin";
-  const isTenant = role === "tenant";
+  const { isSuperAdmin, isSyndicateAdmin, isAdmin, isTenant, role } = useRole();
   const hiddenTabStyle = { display: "none" as const };
 
   return (
@@ -220,31 +218,42 @@ export default function TabLayout() {
       tabBar={(props) => <CustomTabBar {...props} />}
       screenOptions={{ headerShown: false }}
     >
+      {/* Dashboard — all roles */}
       <Tabs.Screen name="index" options={{ title: "Dashboard" }} />
+
+      {/* Members / Syndicats — admin only.
+          Super Admin sees "Syndicats" (platform list).
+          Syndic Admin sees "Membres" (their syndicate's members). */}
       <Tabs.Screen
         name="members"
         options={{
-          title: role === "super_admin" ? "Syndicats" : "Membres",
-          // Tenants cannot see members/syndicates management
-          tabBarItemStyle: (isAdmin) ? undefined : hiddenTabStyle,
+          title: isSuperAdmin ? "Syndicats" : "Membres",
+          tabBarItemStyle: isAdmin ? undefined : hiddenTabStyle,
         }}
       />
+
+      {/* Finance — admin only.
+          Super Admin sees platform revenue / global stats.
+          Syndic Admin sees their syndicate's financial overview. */}
       <Tabs.Screen
         name="finance"
         options={{
           title: "Finance",
-          // Tenants cannot access finance management
-          tabBarItemStyle: (isAdmin) ? undefined : hiddenTabStyle,
+          tabBarItemStyle: isAdmin ? undefined : hiddenTabStyle,
         }}
       />
+
+      {/* Marketplace — visible to super_admin, syndicate_admin, member.
+          Tenant is blocked: cannot browse or purchase. */}
       <Tabs.Screen
         name="marketplace"
         options={{
           title: "Marketplace",
-          // Tenants can access marketplace (view only — server enforces write restrictions)
           tabBarItemStyle: isTenant ? hiddenTabStyle : undefined,
         }}
       />
+
+      {/* More — all roles (content gated per role inside the screen) */}
       <Tabs.Screen name="more" options={{ title: "Plus" }} />
     </Tabs>
   );

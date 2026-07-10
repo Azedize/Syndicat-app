@@ -3,7 +3,7 @@ import { z } from "zod";
 import { db } from "@workspace/db";
 import { membersTable, syndicatesTable, usersTable } from "@workspace/db/schema";
 import { eq, and, ilike, or, sql, count, inArray } from "drizzle-orm";
-import { requireAuth, requireRole } from "../middleware/auth.js";
+import { requireAuth, requireRole, requireOperationalAccess } from "../middleware/auth.js";
 import { serverAuditLog } from "../lib/audit.js";
 import { getPagination, buildPagedResponse } from "../lib/paginate.js";
 import { createAlert } from "../lib/notify.js";
@@ -19,10 +19,17 @@ router.get("/members", requireAuth, async (req, res) => {
   const pagination = getPagination(req);
   try {
     const conditions: any[] = [];
-    if (req.user!.role === "super_admin" && syndicateId) {
-      // super_admin filtering by specific syndicate
-      conditions.push(eq(membersTable.syndicateId, syndicateId));
-    } else if (req.user!.role !== "super_admin" && req.user!.syndicateId) {
+    if (req.user!.role === "super_admin") {
+      if (syndicateId) {
+        // super_admin filtering by specific syndicate
+        conditions.push(eq(membersTable.syndicateId, syndicateId));
+      }
+      // super_admin with no syndicateId filter sees all members (platform view)
+    } else {
+      // Non-super_admin MUST have syndicateId in JWT — never return unscoped results
+      if (!req.user!.syndicateId) {
+        return res.status(403).json({ error: "Syndicat non défini dans le token" });
+      }
       conditions.push(eq(membersTable.syndicateId, req.user!.syndicateId));
     }
     if (status) conditions.push(eq(membersTable.status, status as any));
@@ -71,7 +78,7 @@ router.get("/members", requireAuth, async (req, res) => {
 router.post(
   "/members",
   requireAuth,
-  requireRole("super_admin", "syndicate_admin"),
+  requireOperationalAccess,
   async (req, res) => {
     const schema = z.object({
       name: z.string().min(1),
@@ -149,7 +156,7 @@ router.get("/members/:id", requireAuth, async (req, res) => {
 router.put(
   "/members/:id",
   requireAuth,
-  requireRole("super_admin", "syndicate_admin"),
+  requireOperationalAccess,
   async (req, res) => {
     const id = req.params.id as string;
     const schema = z.object({

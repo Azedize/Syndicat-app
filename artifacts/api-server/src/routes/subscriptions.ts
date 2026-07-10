@@ -6,7 +6,7 @@ import {
   syndicatesTable,
 } from "@workspace/db/schema";
 import { eq, desc } from "drizzle-orm";
-import { requireAuth, requireAdmin } from "../middleware/auth.js";
+import { requireAuth, requireAdmin, requireRole } from "../middleware/auth.js";
 
 const router = Router();
 
@@ -53,8 +53,8 @@ router.get("/subscriptions/my", requireAuth, async (req, res) => {
   }
 });
 
-// GET /subscriptions — All syndicate subscriptions (super_admin)
-router.get("/subscriptions", requireAuth, requireAdmin, async (req, res) => {
+// GET /subscriptions — All syndicate subscriptions (super_admin only)
+router.get("/subscriptions", requireAuth, requireRole("super_admin"), async (req, res) => {
   try {
     const rows = await db
       .select({

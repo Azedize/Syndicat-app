@@ -11,14 +11,19 @@ import {
   lotsTable,
 } from "@workspace/db/schema";
 import { eq, and, inArray, sql } from "drizzle-orm";
-import { requireAuth } from "../middleware/auth.js";
+import { requireAuth, requireRole } from "../middleware/auth.js";
 
 const router = Router();
 
-// GET /finance/buildings — list buildings with quick stats
-router.get("/finance/buildings", requireAuth, async (req, res) => {
+// GET /finance/buildings — list buildings with quick stats (admin only)
+router.get("/finance/buildings", requireAuth, requireRole("super_admin", "syndicate_admin"), async (req, res) => {
   try {
     const user = (req as any).user;
+
+    // syndicate_admin must have syndicateId in JWT — never fall back to unscoped query
+    if (user.role === "syndicate_admin" && !user.syndicateId) {
+      return res.status(403).json({ error: "Syndicat non défini dans le token" });
+    }
 
     const buildings =
       user.role === "super_admin"
@@ -26,11 +31,7 @@ router.get("/finance/buildings", requireAuth, async (req, res) => {
         : await db
             .select()
             .from(buildingsTable)
-            .where(
-              user.syndicateId
-                ? eq(buildingsTable.syndicateId, user.syndicateId)
-                : sql`1=1`,
-            );
+            .where(eq(buildingsTable.syndicateId, user.syndicateId!));
 
     if (buildings.length === 0) return res.json({ data: [] });
 
@@ -75,8 +76,8 @@ router.get("/finance/buildings", requireAuth, async (req, res) => {
   }
 });
 
-// GET /finance/building/:id — full financial dashboard data
-router.get("/finance/building/:id", requireAuth, async (req, res) => {
+// GET /finance/building/:id — full financial dashboard data (admin only)
+router.get("/finance/building/:id", requireAuth, requireRole("super_admin", "syndicate_admin"), async (req, res) => {
   try {
     const user = (req as any).user;
     const buildingId = req.params.id;

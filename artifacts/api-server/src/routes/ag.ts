@@ -20,6 +20,20 @@ router.get("/ag-meetings", requireAuth, async (req, res) => {
     const user = (req as any).user;
     const { buildingId, status, type } = req.query as Record<string, string>;
 
+    // Syndicate scoping: syndicate_admin and member see only their syndicate's meetings.
+    // super_admin sees all, or filters by ?syndicateId= for supervision mode.
+    // Non-super_admin without syndicateId in JWT: blocked (never return unscoped results).
+    if (user.role !== "super_admin" && !user.syndicateId) {
+      return res.status(403).json({ error: "Syndicat non défini dans le token" });
+    }
+
+    const syndicateFilter =
+      user.role === "super_admin"
+        ? req.query.syndicateId
+          ? eq(meetingsTable.syndicateId, req.query.syndicateId as string)
+          : undefined
+        : eq(meetingsTable.syndicateId, user.syndicateId!);
+
     // Filter meetings of AG type
     const rows = await db
       .select()
@@ -30,9 +44,7 @@ router.get("/ag-meetings", requireAuth, async (req, res) => {
           sql`(${meetingsTable.type} LIKE 'ag%' OR ${meetingsTable.type} = 'general')`,
           buildingId ? sql`${meetingsTable.description} LIKE ${"%" + buildingId + "%"}` : undefined,
           status ? eq(meetingsTable.status, status) : undefined,
-          user.role === "syndicate_admin" && user.syndicateId
-            ? eq(meetingsTable.syndicateId, user.syndicateId)
-            : undefined,
+          syndicateFilter,
         )
       )
       .orderBy(desc(meetingsTable.date));

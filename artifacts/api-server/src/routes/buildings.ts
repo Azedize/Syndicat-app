@@ -10,7 +10,7 @@ import {
   sinistresTable,
 } from "@workspace/db/schema";
 import { eq, and, sql, desc, count } from "drizzle-orm";
-import { requireAuth, requireAdmin } from "../middleware/auth.js";
+import { requireAuth, requireAdmin, requireOperationalAccess } from "../middleware/auth.js";
 
 const router = Router();
 
@@ -84,6 +84,12 @@ router.get("/buildings/:id", requireAuth, async (req, res) => {
 
     if (!building) return res.status(404).json({ error: "Building not found" });
 
+    // Syndicate isolation for non-super_admin
+    const user = req.user!;
+    if (user.role !== "super_admin" && building.syndicateId && building.syndicateId !== user.syndicateId) {
+      return res.status(403).json({ error: "Accès refusé" });
+    }
+
     const lots = await db
       .select()
       .from(lotsTable)
@@ -122,8 +128,8 @@ router.get("/buildings/:id", requireAuth, async (req, res) => {
   }
 });
 
-// POST /buildings — Create building (admin)
-router.post("/buildings", requireAuth, requireAdmin, async (req, res) => {
+// POST /buildings — Create building (syndicate_admin; super_admin requires ?supervision=true)
+router.post("/buildings", requireAuth, requireOperationalAccess, async (req, res) => {
   try {
     const user = (req as any).user;
     const {
@@ -164,9 +170,16 @@ router.post("/buildings", requireAuth, requireAdmin, async (req, res) => {
   }
 });
 
-// PUT /buildings/:id — Update building
-router.put("/buildings/:id", requireAuth, requireAdmin, async (req, res) => {
+// PUT /buildings/:id — Update building (syndicate_admin: own syndicate only; super_admin requires ?supervision=true)
+router.put("/buildings/:id", requireAuth, requireOperationalAccess, async (req, res) => {
   try {
+    // Syndicate isolation for syndicate_admin
+    if (req.user!.role === "syndicate_admin") {
+      const [existing] = await db.select({ syndicateId: buildingsTable.syndicateId }).from(buildingsTable).where(eq(buildingsTable.id, req.params.id));
+      if (existing && existing.syndicateId !== req.user!.syndicateId) {
+        return res.status(403).json({ error: "Accès refusé" });
+      }
+    }
     const allowed = [
       "name", "address", "city", "type", "totalFloors", "totalLots",
       "constructionYear", "bankAccount", "registrationNumber", "description", "status",

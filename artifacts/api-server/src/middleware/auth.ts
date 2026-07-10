@@ -77,6 +77,56 @@ export function requireNotTenant(req: Request, res: Response, next: NextFunction
   next();
 }
 
+/** Shorthand: requires super_admin only */
+export const requireSuperAdmin = requireRole("super_admin");
+
+/** Shorthand: requires syndicate_admin only */
+export const requireSyndicateAdmin = requireRole("syndicate_admin");
+
+/** Shorthand: requires member only */
+export const requireMember = requireRole("member");
+
+/** Shorthand: requires tenant role specifically */
+export const requireTenantOnly = requireRole("tenant");
+
+/**
+ * Operational route guard — for day-to-day syndicate management routes.
+ * - syndicate_admin: full access (scoped to their syndicate via JWT syndicateId)
+ * - super_admin: must pass ?supervision=true to access another syndicate's operational data.
+ *   Without it, returns 403 with a clear supervision-required error.
+ * - member / tenant: blocked (403)
+ */
+export function requireOperationalAccess(req: Request, res: Response, next: NextFunction) {
+  if (!req.user) { res.status(401).json({ error: "Non authentifié" }); return; }
+  const { role } = req.user;
+  if (role === "syndicate_admin") { next(); return; }
+  if (role === "super_admin") {
+    if (req.query.supervision !== "true") {
+      res.status(403).json({
+        error: "Les Super Admins doivent activer le mode supervision pour accéder aux opérations d'un syndicat.",
+        code: "SUPERVISION_REQUIRED",
+        hint: "Ajoutez ?supervision=true à la requête.",
+      });
+      return;
+    }
+    next();
+    return;
+  }
+  res.status(403).json({ error: "Accès réservé aux administrateurs du syndicat" });
+}
+
+/**
+ * Asserts that the authenticated user may access a resource belonging to the given syndicate.
+ * Returns true if access is allowed, false otherwise.
+ * Use this inside route handlers after fetching the resource, to enforce row-level syndicate isolation.
+ */
+export function assertSyndicateAccess(req: Request, resourceSyndicateId: string | null | undefined): boolean {
+  if (!req.user) return false;
+  const { role, syndicateId } = req.user;
+  if (role === "super_admin") return true;
+  return resourceSyndicateId === syndicateId;
+}
+
 /** Validates at startup — throws if JWT_SECRET is missing so misconfiguration is caught immediately */
 export function validateAuthConfig(): void {
   getJwtSecret();

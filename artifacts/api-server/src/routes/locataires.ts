@@ -2,13 +2,13 @@ import { Router } from "express";
 import { db } from "@workspace/db";
 import { tenantsTable, lotsTable, buildingsTable } from "@workspace/db/schema";
 import { eq, and, desc, or, ilike } from "drizzle-orm";
-import { requireAuth, requireAdmin } from "../middleware/auth.js";
+import { requireAuth, requireAdmin, requireRole, requireOperationalAccess } from "../middleware/auth.js";
 import { z } from "zod";
 
 const router = Router();
 
-// GET /locataires
-router.get("/locataires", requireAuth, async (req, res) => {
+// GET /locataires — admin only (tenants see their own lease via /locataires/my-lease)
+router.get("/locataires", requireAuth, requireRole("super_admin", "syndicate_admin"), async (req, res) => {
   try {
     const user = (req as any).user;
     const { status, buildingId, lotId, search } = req.query as Record<string, string>;
@@ -64,8 +64,8 @@ router.get("/locataires", requireAuth, async (req, res) => {
   }
 });
 
-// GET /locataires/:id
-router.get("/locataires/:id", requireAuth, async (req, res) => {
+// GET /locataires/:id — admin only or the tenant viewing their own record
+router.get("/locataires/:id", requireAuth, requireRole("super_admin", "syndicate_admin"), async (req, res) => {
   try {
     const [row] = await db
       .select({
@@ -95,6 +95,20 @@ router.get("/locataires/:id", requireAuth, async (req, res) => {
       .limit(1);
 
     if (!row) return res.status(404).json({ error: "Locataire introuvable" });
+
+    // Syndicate isolation: syndicate_admin can only view tenants in their own syndicate
+    const user = req.user!;
+    if (user.role === "syndicate_admin" && row.buildingId) {
+      const [building] = await db
+        .select({ syndicateId: buildingsTable.syndicateId })
+        .from(buildingsTable)
+        .where(eq(buildingsTable.id, row.buildingId))
+        .limit(1);
+      if (building && building.syndicateId !== user.syndicateId) {
+        return res.status(403).json({ error: "Accès refusé" });
+      }
+    }
+
     res.json({ data: row });
   } catch (e) {
     console.error(e);
@@ -102,8 +116,8 @@ router.get("/locataires/:id", requireAuth, async (req, res) => {
   }
 });
 
-// POST /locataires
-router.post("/locataires", requireAuth, requireAdmin, async (req, res) => {
+// POST /locataires (syndicate_admin; super_admin requires ?supervision=true)
+router.post("/locataires", requireAuth, requireOperationalAccess, async (req, res) => {
   const schema = z.object({
     name: z.string().min(1),
     email: z.string().email().optional().or(z.literal("")),
@@ -163,8 +177,8 @@ router.post("/locataires", requireAuth, requireAdmin, async (req, res) => {
   }
 });
 
-// PUT /locataires/:id
-router.put("/locataires/:id", requireAuth, requireAdmin, async (req, res) => {
+// PUT /locataires/:id (syndicate_admin; super_admin requires ?supervision=true)
+router.put("/locataires/:id", requireAuth, requireOperationalAccess, async (req, res) => {
   const schema = z.object({
     name: z.string().min(1).optional(),
     email: z.string().email().optional().or(z.literal("")),
@@ -204,9 +218,19 @@ router.put("/locataires/:id", requireAuth, requireAdmin, async (req, res) => {
   }
 });
 
-// DELETE /locataires/:id
-router.delete("/locataires/:id", requireAuth, requireAdmin, async (req, res) => {
+// DELETE /locataires/:id (syndicate_admin; super_admin requires ?supervision=true)
+router.delete("/locataires/:id", requireAuth, requireOperationalAccess, async (req, res) => {
   try {
+    // Syndicate isolation before deletion
+    const user = req.user!;
+    if (user.role !== "super_admin") {
+      if (!user.syndicateId) return res.status(403).json({ error: "Syndicat non défini dans le token" });
+      const [existing] = await db.select({ syndicateId: tenantsTable.syndicateId })
+        .from(tenantsTable).where(eq(tenantsTable.id, req.params.id)).limit(1);
+      if (existing && existing.syndicateId !== user.syndicateId) {
+        return res.status(403).json({ error: "Accès refusé" });
+      }
+    }
     const [deleted] = await db
       .delete(tenantsTable)
       .where(eq(tenantsTable.id, req.params.id))
