@@ -44,5 +44,10 @@ channel = "stable-25_05"
 
 [userenv]
 
+[userenv.shared]
+ALLOWED_ORIGINS = ""
+LOG_LEVEL = "info"
+NODE_ENV = "development"
+
 [objectStorage]
 defaultBucketID = "replit-objstore-89a27f97-efed-43a3-a959-1576cb0184d3"
