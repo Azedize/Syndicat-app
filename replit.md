@@ -42,17 +42,17 @@ pnpm --filter @workspace/scripts run seed
 ```
 
 Already done in this environment: dependencies installed, schema pushed to the
-provisioned Postgres database, and demo data seeded (re-seeded 2026-07-10 after
-re-import). Demo login on the mobile app's login screen:
+provisioned Postgres database, and demo data seeded. Demo login on the mobile app's login screen:
 `syndic@andalous.ma` / `password123` (pre-filled). Note: API routes are
 mounted under `/api` (e.g. `/api/auth/login`), not at the route paths defined
 in `src/routes/*.ts` directly.
 
-### 2026-07-10 re-import setup notes
+### 2026-07-10 setup notes (zip import)
 
-- `JWT_SECRET` was missing from this environment's secrets (the README's "Already set" claim didn't hold after re-import) — a new random secret was generated and stored as a Replit Secret.
-- `pnpm install` was required (node_modules was absent), then `db:push` and `pnpm --filter @workspace/scripts run seed` to populate the fresh Postgres instance.
-- All 3 workflows (API Server, Expo mobile, Component Preview Server) start cleanly and were verified via screenshot + a live `/api/auth/login` call.
+- `JWT_SECRET` required as a Replit Secret (not auto-injected) — set manually after import.
+- `pnpm install` required (node_modules not included in zip), then `db:push` and seed.
+- All 3 workflows (API Server, Expo mobile, Component Preview Server) confirmed running.
+- Pre-existing typecheck errors exist in `api-server` and `mockup-sandbox` — runtime is unaffected but schema/type alignment should be addressed.
 
 ### 4. Start the workflows
 
