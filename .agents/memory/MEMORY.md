@@ -2,7 +2,7 @@
 - [Expo RTL reload requirement](expo-rtl-reload.md) — forceRTL() alone doesn't flip layout; app must reload, and reloadAsync throws in Expo Go/dev client.
 - [Stale lib/db dist masks schema errors](stale-db-typecheck.md) — tsc can pass while referencing dropped/renamed Drizzle columns because `lib/db/dist` typings are stale; verify against `lib/db/src/schema.ts` source, not dist types.
 - [Audit screen real-API mapping](activity-audit-wiring.md) — activity.tsx uses static seed data with real-API override; mapApiLog must guard invalid dates with safeDate() before calling toISOString().
-- [Schema FK constraints added](schema-fk-constraints.md) — 41 .references() calls added to schema.ts; avoid circular pairs (e.g. skip syndicates.adminId→users since users.syndicateId→syndicates already exists).
+- [Schema FK constraints added](schema-fk-constraints.md) — 41+ .references() calls added to schema.ts; avoid circular pairs; lotsTable.tenantId→tenantsTable skipped due to circular reference (lots defined before tenants).
 - [Database seed script](seed-script.md) — `pnpm --filter @workspace/scripts run seed` seeds all roles/tables; not idempotent, link userId columns to real users.id.
 - [Financial precision migration](financial-precision.md) — all doublePrecision() replaced with money() helper = numeric(12,2); non-monetary columns (surface, qty, rating) also use money() which is acceptable but non-ideal; future refactor should add qty()/rating() helpers.
 - [Tenant RBAC pattern](tenant-rbac.md) — "tenant" added as 4th JwtPayload role; requireNotTenant helper blocks budget/elections routes; appels-de-fonds/pay enforces per-row ownership check since tenants/members can only pay their own charges.
@@ -11,3 +11,5 @@
 - [.replit JWT_SECRET leak](jwt-secret-in-replit-file.md) — this project's `.replit` has JWT_SECRET hardcoded in `[userenv.shared]` (committed, not gitignored) instead of a real Replit Secret; flagged as follow-up, not yet fixed.
 - [Debt escalation architecture](debt-escalation-arch.md) — daily scanner idempotency, PDF ?token= query param for mobile Linking.openURL, push notification scoping.
 - [Audit log supervision model](audit-supervision-model.md) — super_admin vs syndicate_admin distinguished via actorRole/isSupervision in serverAuditLog(); also flags an IDOR class to grep for.
+- [Syndicate isolation hard-fail pattern](syndicate-isolation-hardening.md) — syndicate_admin routes MUST hard-fail (403) when syndicateId is absent from JWT, never fall through to global scope; meetings, appels-de-fonds, and budget routes all patched to enforce this.
+- [Tenant mobile RBAC screens](tenant-mobile-screens.md) — tenant role gets QUICK_ACTIONS_TENANT (Mon Bail, Documents, Chat, Incidents, Travaux); mon-bail.tsx and etat-des-lieux.tsx created as functional placeholders pending Phase 9 API; meetings strip and elections banner hidden via !isTenant guard.

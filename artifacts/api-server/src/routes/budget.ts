@@ -31,7 +31,6 @@ router.get("/budgets", requireAuth, requireAdmin, async (req, res) => {
     const { buildingId, year, status } = req.query as Record<string, string>;
 
     // Scope by syndicate: budgetsTable has no syndicateId — derive via building FK
-    // Get allowed building IDs for this syndicate, then filter budgets by buildingId
     let allowedBuildingIds: string[] | null = null;
     if (user.role === "syndicate_admin") {
       const scopedBuildings = await db
@@ -49,6 +48,13 @@ router.get("/budgets", requireAuth, requireAdmin, async (req, res) => {
       if (allowedBuildingIds.length === 0) return res.json({ data: [], total: 0 });
     }
 
+    // If a specific buildingId is requested by syndicate_admin, verify it's in scope
+    if (buildingId && user.role === "syndicate_admin") {
+      if (!allowedBuildingIds || !allowedBuildingIds.includes(buildingId)) {
+        return res.status(403).json({ error: "Accès refusé à cet immeuble" });
+      }
+    }
+
     const conditions: any[] = [];
     if (allowedBuildingIds !== null) {
       conditions.push(inArray(budgetsTable.buildingId, allowedBuildingIds));
@@ -63,28 +69,40 @@ router.get("/budgets", requireAuth, requireAdmin, async (req, res) => {
       .where(conditions.length ? and(...conditions) : undefined)
       .orderBy(desc(budgetsTable.year));
 
-    const enriched = await Promise.all(
-      rows.map(async (b) => {
-        const lines = await db
-          .select()
-          .from(budgetLinesTable)
-          .where(eq(budgetLinesTable.budgetId, b.id));
+    if (rows.length === 0) return res.json({ data: [], total: 0 });
 
-        const [chargeStats] = await db
-          .select({
-            collected: sql<number>`COALESCE(SUM(${appelsDeFondsTable.amount}) FILTER (WHERE ${appelsDeFondsTable.status} = 'paid'), 0)`,
-            pending: sql<number>`COALESCE(SUM(${appelsDeFondsTable.amount}) FILTER (WHERE ${appelsDeFondsTable.status} IN ('pending','overdue')), 0)`,
-          })
-          .from(appelsDeFondsTable)
-          .where(eq(appelsDeFondsTable.budgetId, b.id));
+    // Batch-load lines and charge stats — avoids N+1 (was 2N queries, now 2)
+    const budgetIds = rows.map((b) => b.id);
+    const [allLines, allChargeStats] = await Promise.all([
+      db.select().from(budgetLinesTable).where(inArray(budgetLinesTable.budgetId, budgetIds)),
+      db
+        .select({
+          budgetId: appelsDeFondsTable.budgetId,
+          collected: sql<number>`COALESCE(SUM(${appelsDeFondsTable.amount}) FILTER (WHERE ${appelsDeFondsTable.status} = 'paid'), 0)`,
+          pending: sql<number>`COALESCE(SUM(${appelsDeFondsTable.amount}) FILTER (WHERE ${appelsDeFondsTable.status} IN ('pending','overdue')), 0)`,
+        })
+        .from(appelsDeFondsTable)
+        .where(inArray(appelsDeFondsTable.budgetId, budgetIds))
+        .groupBy(appelsDeFondsTable.budgetId),
+    ]);
 
-        return { ...b, lines, chargeStats };
-      })
-    );
+    const linesByBudget = new Map<string, typeof allLines>();
+    for (const line of allLines) {
+      const arr = linesByBudget.get(line.budgetId) ?? [];
+      arr.push(line);
+      linesByBudget.set(line.budgetId, arr);
+    }
+    const chargeStatsByBudget = new Map(allChargeStats.map((s) => [s.budgetId, s]));
+
+    const enriched = rows.map((b) => ({
+      ...b,
+      lines: linesByBudget.get(b.id) ?? [],
+      chargeStats: chargeStatsByBudget.get(b.id) ?? { collected: 0, pending: 0 },
+    }));
 
     res.json({ data: enriched, total: enriched.length });
   } catch (e) {
-    console.error(e);
+    req.log.error(e);
     res.status(500).json({ error: "Server error" });
   }
 });
@@ -127,19 +145,34 @@ router.get("/budgets/:id", requireAuth, requireAdmin, async (req, res) => {
 
     res.json({ budget, lines, appels });
   } catch (e) {
-    console.error(e);
+    req.log.error(e);
     res.status(500).json({ error: "Server error" });
   }
 });
 
 // POST /budgets
+// SECURITY: Verify buildingId belongs to caller's syndicate before INSERT
 router.post("/budgets", requireAuth, requireOperationalAccess, async (req, res) => {
   try {
-    const user = (req as any).user;
+    const user = req.user!;
     const { year, buildingId, totalAmount, chargesAmount, fondsReserve, status, notes, lines } = req.body;
 
     if (!year || !buildingId) {
       return res.status(400).json({ error: "year and buildingId are required" });
+    }
+
+    // Syndicate ownership check via building FK
+    const [building] = await db
+      .select({ syndicateId: buildingsTable.syndicateId })
+      .from(buildingsTable)
+      .where(eq(buildingsTable.id, buildingId))
+      .limit(1);
+
+    if (!building) {
+      return res.status(404).json({ error: "Immeuble introuvable" });
+    }
+    if (user.role === "syndicate_admin" && building.syndicateId !== user.syndicateId) {
+      return res.status(403).json({ error: "Accès refusé : cet immeuble n'appartient pas à votre syndicat" });
     }
 
     const [budget] = await db
@@ -152,7 +185,7 @@ router.post("/budgets", requireAuth, requireOperationalAccess, async (req, res) 
         fondsReserve: fondsReserve ?? 0,
         status: status ?? "draft",
         notes,
-        createdBy: user.id,
+        createdBy: user.userId,
       })
       .returning();
 
@@ -173,16 +206,48 @@ router.post("/budgets", requireAuth, requireOperationalAccess, async (req, res) 
       );
     }
 
+    await serverAuditLog(req, {
+      action: "CREATE",
+      entity: "budget",
+      entityId: budget.id,
+      syndicateId: building.syndicateId ?? undefined,
+      details: `Budget ${year} créé pour immeuble ${buildingId}`,
+    });
+
     res.status(201).json(budget);
   } catch (e) {
-    console.error(e);
+    req.log.error(e);
     res.status(500).json({ error: "Server error" });
   }
 });
 
 // PUT /budgets/:id
+// SECURITY: Fetch budget first, verify building ownership before UPDATE
 router.put("/budgets/:id", requireAuth, requireOperationalAccess, async (req, res) => {
   try {
+    const user = req.user!;
+
+    // Fetch existing budget for ownership check
+    const [existing] = await db
+      .select()
+      .from(budgetsTable)
+      .where(eq(budgetsTable.id, req.params.id));
+
+    if (!existing) return res.status(404).json({ error: "Budget not found" });
+
+    // Syndicate ownership check via building FK
+    const [building] = await db
+      .select({ syndicateId: buildingsTable.syndicateId })
+      .from(buildingsTable)
+      .where(eq(buildingsTable.id, existing.buildingId))
+      .limit(1);
+
+    if (user.role === "syndicate_admin") {
+      if (!building || building.syndicateId !== user.syndicateId) {
+        return res.status(403).json({ error: "Accès refusé" });
+      }
+    }
+
     const allowed = ["totalAmount", "chargesAmount", "fondsReserve", "status", "votedAt", "meetingId", "notes"];
     const updates: Record<string, any> = {};
     for (const k of allowed) {
@@ -196,21 +261,45 @@ router.put("/budgets/:id", requireAuth, requireOperationalAccess, async (req, re
       .returning();
 
     if (!updated) return res.status(404).json({ error: "Budget not found" });
+
+    await serverAuditLog(req, {
+      action: "UPDATE",
+      entity: "budget",
+      entityId: req.params.id,
+      syndicateId: building?.syndicateId ?? undefined,
+      details: `Budget mis à jour: ${JSON.stringify(updates)}`,
+    });
+
     res.json(updated);
   } catch (e) {
-    console.error(e);
+    req.log.error(e);
     res.status(500).json({ error: "Server error" });
   }
 });
 
 // POST /budgets/:id/generate-appels — Auto-generate appels de fonds for all lots
+// SECURITY: Verify building ownership before generating charges
 router.post("/budgets/:id/generate-appels", requireAuth, requireOperationalAccess, async (req, res) => {
   try {
+    const user = req.user!;
     const { period, type } = req.body;
     if (!period) return res.status(400).json({ error: "period is required (e.g. '2026-Q1')" });
 
     const [budget] = await db.select().from(budgetsTable).where(eq(budgetsTable.id, req.params.id));
     if (!budget) return res.status(404).json({ error: "Budget not found" });
+
+    // Syndicate ownership check via building FK
+    const [building] = await db
+      .select({ syndicateId: buildingsTable.syndicateId })
+      .from(buildingsTable)
+      .where(eq(buildingsTable.id, budget.buildingId))
+      .limit(1);
+
+    if (user.role === "syndicate_admin") {
+      if (!building || building.syndicateId !== user.syndicateId) {
+        return res.status(403).json({ error: "Accès refusé : cet immeuble n'appartient pas à votre syndicat" });
+      }
+    }
 
     const lots = await db
       .select()
@@ -247,13 +336,21 @@ router.post("/budgets/:id/generate-appels", requireAuth, requireOperationalAcces
 
     await db.insert(appelsDeFondsTable).values(appels);
 
+    await serverAuditLog(req, {
+      action: "GENERATE_APPELS",
+      entity: "budget",
+      entityId: budget.id,
+      syndicateId: building?.syndicateId ?? undefined,
+      details: `${appels.length} appels générés pour période ${period}`,
+    });
+
     res.status(201).json({
       message: `Generated ${appels.length} appels de fonds for period ${period}`,
       total: appels.reduce((s, a) => s + a.amount, 0),
       count: appels.length,
     });
   } catch (e) {
-    console.error(e);
+    req.log.error(e);
     res.status(500).json({ error: "Server error" });
   }
 });
@@ -261,21 +358,53 @@ router.post("/budgets/:id/generate-appels", requireAuth, requireOperationalAcces
 // ─── Appels de Fonds ──────────────────────────────────────────────────────
 
 // GET /appels-de-fonds
+// SECURITY: Admin path scoped to syndicate; buildingId param verified before use
 router.get("/appels-de-fonds", requireAuth, async (req, res) => {
   try {
-    const user = (req as any).user;
+    const user = req.user!;
     const { buildingId, lotId, status, period, ownerId } = req.query as Record<string, string>;
 
     const conditions: any[] = [];
-    if (buildingId) conditions.push(eq(appelsDeFondsTable.buildingId, buildingId));
+
+    // Syndicate admin MUST have syndicateId in JWT — never fall through to global scope
+    if (user.role === "syndicate_admin" && !user.syndicateId) {
+      return res.status(403).json({ error: "Syndicat non défini dans le token" });
+    }
+
+    if (buildingId) {
+      // For syndicate_admin, verify the buildingId belongs to their syndicate
+      if (user.role === "syndicate_admin") {
+        const [bld] = await db
+          .select({ syndicateId: buildingsTable.syndicateId })
+          .from(buildingsTable)
+          .where(eq(buildingsTable.id, buildingId))
+          .limit(1);
+        if (!bld || bld.syndicateId !== user.syndicateId) {
+          return res.status(403).json({ error: "Accès refusé à cet immeuble" });
+        }
+      }
+      conditions.push(eq(appelsDeFondsTable.buildingId, buildingId));
+    } else if (user.role === "syndicate_admin") {
+      // No explicit buildingId — scope to all buildings in this syndicate
+      const syndicateBuildings = await db
+        .select({ id: buildingsTable.id })
+        .from(buildingsTable)
+        .where(eq(buildingsTable.syndicateId, user.syndicateId!));
+      const buildingIds = syndicateBuildings.map((b) => b.id);
+      if (buildingIds.length === 0) {
+        return res.json({ data: [], total: 0, stats: { total: 0, collected: 0, pending: 0, overdue: 0 } });
+      }
+      conditions.push(inArray(appelsDeFondsTable.buildingId, buildingIds));
+    }
+
     if (lotId) conditions.push(eq(appelsDeFondsTable.lotId, lotId));
     if (status) conditions.push(eq(appelsDeFondsTable.status, status));
     if (period) conditions.push(eq(appelsDeFondsTable.period, period));
     if (ownerId) conditions.push(eq(appelsDeFondsTable.ownerId, ownerId));
 
-    // Members and tenants see only their own charges.
+    // Members see only their own charges.
     // ownerId may store membersTable.id (seeded) or usersTable.id — try both.
-    if (user.role === "member" || user.role === "tenant") {
+    if (user.role === "member") {
       const [member] = await db
         .select({ id: membersTable.id })
         .from(membersTable)
@@ -291,25 +420,33 @@ router.get("/appels-de-fonds", requireAuth, async (req, res) => {
       }
     }
 
-    const rows = await db
-      .select()
-      .from(appelsDeFondsTable)
-      .where(conditions.length ? and(...conditions) : undefined)
-      .orderBy(desc(appelsDeFondsTable.createdAt));
+    // Tenants do NOT have access to appels de fonds at all
+    if (user.role === "tenant") {
+      return res.status(403).json({ error: "Les locataires n'ont pas accès aux charges de copropriété" });
+    }
 
-    const [stats] = await db
-      .select({
-        total: sql<number>`COALESCE(SUM(${appelsDeFondsTable.amount}), 0)`,
-        collected: sql<number>`COALESCE(SUM(${appelsDeFondsTable.amount}) FILTER (WHERE ${appelsDeFondsTable.status} = 'paid'), 0)`,
-        pending: sql<number>`COALESCE(SUM(${appelsDeFondsTable.amount}) FILTER (WHERE ${appelsDeFondsTable.status} = 'pending'), 0)`,
-        overdue: sql<number>`COALESCE(SUM(${appelsDeFondsTable.amount}) FILTER (WHERE ${appelsDeFondsTable.status} = 'overdue'), 0)`,
-      })
-      .from(appelsDeFondsTable)
-      .where(conditions.length ? and(...conditions) : undefined);
+    const where = conditions.length ? and(...conditions) : undefined;
+
+    const [rows, [stats]] = await Promise.all([
+      db
+        .select()
+        .from(appelsDeFondsTable)
+        .where(where)
+        .orderBy(desc(appelsDeFondsTable.createdAt)),
+      db
+        .select({
+          total: sql<number>`COALESCE(SUM(${appelsDeFondsTable.amount}), 0)`,
+          collected: sql<number>`COALESCE(SUM(${appelsDeFondsTable.amount}) FILTER (WHERE ${appelsDeFondsTable.status} = 'paid'), 0)`,
+          pending: sql<number>`COALESCE(SUM(${appelsDeFondsTable.amount}) FILTER (WHERE ${appelsDeFondsTable.status} = 'pending'), 0)`,
+          overdue: sql<number>`COALESCE(SUM(${appelsDeFondsTable.amount}) FILTER (WHERE ${appelsDeFondsTable.status} = 'overdue'), 0)`,
+        })
+        .from(appelsDeFondsTable)
+        .where(where),
+    ]);
 
     res.json({ data: rows, total: rows.length, stats });
   } catch (e) {
-    console.error(e);
+    req.log.error(e);
     res.status(500).json({ error: "Server error" });
   }
 });
@@ -318,6 +455,11 @@ router.get("/appels-de-fonds", requireAuth, async (req, res) => {
 router.put("/appels-de-fonds/:id/pay", requireAuth, async (req, res) => {
   try {
     const user = req.user!;
+
+    // Tenants cannot pay appels de fonds (not owners)
+    if (user.role === "tenant") {
+      return res.status(403).json({ error: "Les locataires n'ont pas accès aux charges de copropriété" });
+    }
 
     // Fetch the call-for-funds first to verify ownership
     const [appel] = await db
@@ -328,8 +470,20 @@ router.put("/appels-de-fonds/:id/pay", requireAuth, async (req, res) => {
     if (!appel) return res.status(404).json({ error: "Not found" });
 
     // Admins can submit payment for any call-for-funds in their syndicate.
-    // Members and tenants may only pay calls assigned to them.
     const isAdmin = user.role === "super_admin" || user.role === "syndicate_admin";
+
+    if (isAdmin && user.role === "syndicate_admin") {
+      // Verify this charge belongs to the admin's syndicate via building FK
+      const [bld] = await db
+        .select({ syndicateId: buildingsTable.syndicateId })
+        .from(buildingsTable)
+        .where(eq(buildingsTable.id, appel.buildingId))
+        .limit(1);
+      if (!bld || bld.syndicateId !== user.syndicateId) {
+        return res.status(403).json({ error: "Accès refusé" });
+      }
+    }
+
     if (!isAdmin) {
       // Resolve member record by email (seeded rows use membersTable.id as ownerId)
       const [member] = await db
@@ -353,12 +507,10 @@ router.put("/appels-de-fonds/:id/pay", requireAuth, async (req, res) => {
     const [updated] = await db
       .update(appelsDeFondsTable)
       .set({
-        // pending_validation = payment submitted, awaiting admin review
         status: "pending_validation",
         paymentMethod,
         proofUrl: proofUrl ?? null,
         notes: notes ?? null,
-        // Clear any previous rejection
         rejectionReason: null,
       })
       .where(eq(appelsDeFondsTable.id, req.params.id))
@@ -366,7 +518,7 @@ router.put("/appels-de-fonds/:id/pay", requireAuth, async (req, res) => {
 
     res.json({ data: updated, message: "Paiement soumis, en attente de validation" });
   } catch (e) {
-    console.error(e);
+    req.log.error(e);
     res.status(500).json({ error: "Server error" });
   }
 });
@@ -383,9 +535,7 @@ router.put("/appels-de-fonds/:id/validate", requireAuth, requireAdmin, async (re
       .where(eq(appelsDeFondsTable.id, req.params.id));
     if (!appel) return res.status(404).json({ error: "Not found" });
 
-    // appels_de_fonds has no syndicateId of its own — derive it via the building,
-    // so a super_admin's validation is correctly traced to the syndicate it affected,
-    // and a syndicate_admin can be blocked from validating another syndicate's calls.
+    // Derive syndicate via building for isolation and audit
     const [building] = await db
       .select({ syndicateId: buildingsTable.syndicateId })
       .from(buildingsTable)
@@ -404,8 +554,9 @@ router.put("/appels-de-fonds/:id/validate", requireAuth, requireAdmin, async (re
     }
 
     const now = new Date();
+    // Generate receipt number using crypto-safe method
     const receiptNum = approve
-      ? `REC-${now.getFullYear()}${String(now.getMonth() + 1).padStart(2, "0")}${String(now.getDate()).padStart(2, "0")}-${Math.floor(1000 + Math.random() * 9000)}`
+      ? `REC-${now.getFullYear()}${String(now.getMonth() + 1).padStart(2, "0")}${String(now.getDate()).padStart(2, "0")}-${String(now.getTime()).slice(-6)}`
       : undefined;
 
     const [updated] = await db
@@ -421,7 +572,6 @@ router.put("/appels-de-fonds/:id/validate", requireAuth, requireAdmin, async (re
       .where(eq(appelsDeFondsTable.id, req.params.id))
       .returning();
 
-    // Write audit log (routed through serverAuditLog for consistent actor/supervision tracking)
     await serverAuditLog(req, {
       action: approve ? "payment_approved" : "payment_rejected",
       entity: "appel_de_fonds",
@@ -445,7 +595,7 @@ router.put("/appels-de-fonds/:id/validate", requireAuth, requireAdmin, async (re
         date: now.toISOString().split("T")[0],
         status: "paid",
         memberId: appel.ownerId ?? null,
-        syndicateId: null,
+        syndicateId: building?.syndicateId ?? null,
       }).catch(() => {});
     }
 
@@ -456,12 +606,12 @@ router.put("/appels-de-fonds/:id/validate", requireAuth, requireAdmin, async (re
         : "Paiement rejeté. Le propriétaire sera informé.",
     });
   } catch (e) {
-    console.error(e);
+    req.log.error(e);
     res.status(500).json({ error: "Server error" });
   }
 });
 
-// POST /appels-de-fonds/escalate-debts — P7: Scan overdue charges and create escalation records
+// POST /appels-de-fonds/escalate-debts — Scan overdue charges and create escalation records
 router.post("/appels-de-fonds/escalate-debts", requireAuth, requireAdmin, async (req, res) => {
   try {
     const now = new Date();
@@ -530,7 +680,7 @@ router.post("/appels-de-fonds/escalate-debts", requireAuth, requireAdmin, async 
     }
     res.json({ escalations: created.length, data: created });
   } catch (e) {
-    console.error(e);
+    req.log.error(e);
     res.status(500).json({ error: "Server error" });
   }
 });
@@ -547,12 +697,12 @@ router.get("/debt-escalations", requireAuth, requireAdmin, async (req, res) => {
       .orderBy(desc(debtEscalationsTable.createdAt));
     res.json({ data: rows });
   } catch (e) {
-    console.error(e);
+    req.log.error(e);
     res.status(500).json({ error: "Server error" });
   }
 });
 
-// POST /budgets/check-reserve-fund — P8: Check reserve fund, fire alerts if below threshold
+// POST /budgets/check-reserve-fund — Check reserve fund, fire alerts if below threshold
 router.post("/budgets/check-reserve-fund", requireAuth, requireAdmin, async (req, res) => {
   try {
     const { thresholdMonths = 3 } = req.body as { thresholdMonths?: number };
@@ -591,7 +741,7 @@ router.post("/budgets/check-reserve-fund", requireAuth, requireAdmin, async (req
     }
     res.json({ alerts: alertsCreated.length, data: alertsCreated });
   } catch (e) {
-    console.error(e);
+    req.log.error(e);
     res.status(500).json({ error: "Server error" });
   }
 });
@@ -614,7 +764,7 @@ router.put("/appels-de-fonds/mark-overdue", requireAuth, requireAdmin, async (re
 
     res.json({ updated: result.length });
   } catch (e) {
-    console.error(e);
+    req.log.error(e);
     res.status(500).json({ error: "Server error" });
   }
 });

@@ -35,13 +35,24 @@ const MENU_SECTIONS: { title: string; items: MenuItem[] }[] = [
       { label: "Lots & Unités", icon: "grid", route: "/lots", color: "#3b82f6", roles: ["super_admin", "syndicate_admin"] },
       { label: "Copropriétaires", icon: "users", route: "/members", color: "#10b981", roles: ["super_admin", "syndicate_admin"] },
       { label: "Locataires", icon: "user-check", route: "/locataires", color: "#06b6d4", roles: ["super_admin", "syndicate_admin"] },
-      { label: "Mon Appartement", icon: "home", route: "/mon-lot", color: "#7c3aed", roles: ["member", "tenant"] },
+      { label: "Mon Appartement", icon: "home", route: "/mon-lot", color: "#7c3aed", roles: ["member"] },
+      // Tenant gets their own dedicated section below
+    ],
+  },
+  {
+    // ── Tenant only: lease & apartment info ──────────────────────────────────
+    title: "Mon Logement",
+    items: [
+      { label: "Mon Appartement", icon: "home", route: "/mon-lot", color: "#7c3aed", roles: ["tenant"] },
+      { label: "Mon Bail & Loyer", icon: "file-text", route: "/mon-bail", color: "#3b82f6", roles: ["tenant"] },
+      { label: "État des Lieux", icon: "clipboard", route: "/etat-des-lieux", color: "#10b981", roles: ["tenant"] },
     ],
   },
   {
     title: "Charges & Finance",
     items: [
-      { label: "Charges & Appels de Fonds", icon: "credit-card", route: "/charges", color: "#10b981", roles: ["super_admin", "syndicate_admin", "member", "tenant"] },
+      // Tenants CANNOT access copropriété charges — removed from tenant roles
+      { label: "Charges & Appels de Fonds", icon: "credit-card", route: "/charges", color: "#10b981", roles: ["super_admin", "syndicate_admin", "member"] },
       { label: "Budget Prévisionnel", icon: "pie-chart", route: "/budget-previsionnel", color: "#3b82f6", roles: ["super_admin", "syndicate_admin"] },
       { label: "Devis & Factures", icon: "file-text", route: "/invoices", color: "#6366f1", roles: ["super_admin", "syndicate_admin"] },
       { label: "Bons de Livraison", icon: "package", route: "/bon-livraison", color: "#f97316", roles: ["super_admin", "syndicate_admin"] },
@@ -60,6 +71,7 @@ const MENU_SECTIONS: { title: string; items: MenuItem[] }[] = [
     ],
   },
   {
+    // Tenants CANNOT attend AG — they are not copropriétaires
     title: "Assemblée Générale",
     items: [
       { label: "Assemblées Générales", icon: "users", route: "/assemblee-generale", color: "#7c3aed", roles: ["super_admin", "syndicate_admin", "member"] },
@@ -108,7 +120,8 @@ const MENU_SECTIONS: { title: string; items: MenuItem[] }[] = [
       { label: "Gestion des Utilisateurs", icon: "users", route: "/utilisateurs", color: "#7c3aed", roles: ["super_admin"] },
       { label: "Tableau de Bord National", icon: "globe", route: "/tableau-national", color: "#6366f1", roles: ["super_admin"] },
       { label: "Créer un Syndicat", icon: "plus-circle", route: "/syndicate-setup", color: "#10b981", roles: ["super_admin"] },
-      { label: "Journal d'Audit", icon: "shield", route: "/journal-audit", color: "#ef4444", roles: ["super_admin", "syndicate_admin"] },
+      // Audit log restricted to super_admin only (super-admin level governance)
+      { label: "Journal d'Audit", icon: "shield", route: "/journal-audit", color: "#ef4444", roles: ["super_admin"] },
       { label: "Statistiques Globales", icon: "trending-up", route: "/statistiques", color: "#10b981", roles: ["super_admin", "syndicate_admin"] },
     ],
   },
@@ -176,6 +189,21 @@ export default function MoreScreen() {
     role === "syndicate_admin" ? "briefcase" :
     role === "tenant" ? "key" : "home";
 
+  // Stats strip items — tenant sees a simplified view (no financial counters)
+  const statsItems = role === "tenant"
+    ? [
+        { icon: "bell" as const, label: "Alertes", value: unreadAlerts, color: "#ef4444", show: true },
+        { icon: "tool" as const, label: "Travaux", value: openTickets, color: "#8b5cf6", show: true },
+        { icon: "message-circle" as const, label: "Messages", value: 0, color: "#ec4899", show: true },
+      ]
+    : [
+        { icon: "bell" as const, label: "Alertes", value: unreadAlerts, color: "#ef4444", show: true },
+        { icon: "check-square" as const, label: "Votes", value: openElections, color: "#f59e0b", show: true },
+        { icon: "tool" as const, label: "Travaux", value: openTickets, color: "#8b5cf6", show: role !== "member" },
+        { icon: "users" as const, label: "Copropriétaires", value: activeOwners, color: colors.primary, show: role !== "member" },
+        { icon: "shopping-cart" as const, label: "Panier", value: cartCount, color: "#f97316", show: role === "member" },
+      ];
+
   return (
     <View style={[styles.root, { backgroundColor: colors.background }]}>
       <View style={[styles.header, { paddingTop: topPad + 16, backgroundColor: colors.card, borderBottomColor: colors.border }]}>
@@ -217,13 +245,7 @@ export default function MoreScreen() {
 
         {/* Live stats strip */}
         <View style={[styles.statsStrip, { backgroundColor: colors.card, borderColor: colors.border }]}>
-          {[
-            { icon: "bell" as const, label: "Alertes", value: unreadAlerts, color: "#ef4444", show: true },
-            { icon: "check-square" as const, label: "Votes", value: openElections, color: "#f59e0b", show: true },
-            { icon: "tool" as const, label: "Travaux", value: openTickets, color: "#8b5cf6", show: role !== "member" },
-            { icon: "users" as const, label: "Copropriétaires", value: activeOwners, color: colors.primary, show: role !== "member" },
-            { icon: "shopping-cart" as const, label: "Panier", value: cartCount, color: "#f97316", show: role === "member" },
-          ].filter((s) => s.show).map((s, i, arr) => (
+          {statsItems.filter((s) => s.show).map((s, i, arr) => (
             <View key={s.label} style={[styles.statCell, i < arr.length - 1 ? { borderRightWidth: 1, borderRightColor: colors.border } : null]}>
               <View style={[styles.statIcon, { backgroundColor: s.color + "18" }]}>
                 <Feather name={s.icon} size={14} color={s.color} />

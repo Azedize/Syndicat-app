@@ -4,6 +4,7 @@ import { db } from "@workspace/db";
 import { meetingsTable, meetingAttendeesTable } from "@workspace/db/schema";
 import { eq, and, inArray, asc } from "drizzle-orm";
 import { requireAuth, requireRole } from "../middleware/auth.js";
+import { serverAuditLog } from "../lib/audit.js";
 
 const router = Router();
 
@@ -11,12 +12,23 @@ const ALL_MEETING_TYPES = ["board", "general", "committee", "emergency", "ag_ord
 
 router.get("/meetings", requireAuth, async (req, res) => {
   try {
-    const syndicateId = req.user!.syndicateId;
-    const meetings = syndicateId
-      ? await db.select().from(meetingsTable)
-          .where(eq(meetingsTable.syndicateId, syndicateId))
-          .orderBy(asc(meetingsTable.date))
-      : await db.select().from(meetingsTable).orderBy(asc(meetingsTable.date));
+    const user = req.user!;
+
+    // Tenants do not participate in meetings (not copropriétaires)
+    if (user.role === "tenant") {
+      return res.status(403).json({ error: "Les locataires n'ont pas accès aux assemblées générales" });
+    }
+
+    // Non-super users must have syndicateId in JWT — never fall through to global scope
+    if (user.role !== "super_admin" && !user.syndicateId) {
+      return res.status(403).json({ error: "Syndicat non défini dans le token" });
+    }
+
+    const meetings = user.role === "super_admin"
+      ? await db.select().from(meetingsTable).orderBy(asc(meetingsTable.date))
+      : await db.select().from(meetingsTable)
+          .where(eq(meetingsTable.syndicateId, user.syndicateId!))
+          .orderBy(asc(meetingsTable.date));
 
     if (meetings.length === 0) {
       res.json({ data: [], total: 0 });
@@ -37,7 +49,7 @@ router.get("/meetings", requireAuth, async (req, res) => {
 
     const withAttendance = meetings.map((m) => {
       const attendees = attendeesByMeeting[m.id] ?? [];
-      const userConfirmed = attendees.some((a) => a.userId === req.user!.userId);
+      const userConfirmed = attendees.some((a) => a.userId === user.userId);
       const agendaLines = m.agenda
         ? m.agenda.split("\n").map((s) => s.trim()).filter(Boolean)
         : [];
@@ -64,12 +76,29 @@ router.post("/meetings", requireAuth, requireRole("super_admin", "syndicate_admi
   const result = schema.safeParse(req.body);
   if (!result.success) { res.status(400).json({ error: "Données invalides" }); return; }
   try {
+    const user = req.user!;
+
+    // syndicate_admin must have a syndicateId — hard fail to prevent unscoped records
+    if (user.role === "syndicate_admin" && !user.syndicateId) {
+      return res.status(403).json({ error: "Syndicat non défini dans le token" });
+    }
+
+    const syndicateId = user.syndicateId ?? "";
     const [meeting] = await db.insert(meetingsTable).values({
       ...result.data,
-      syndicateId: req.user!.syndicateId || "",
+      syndicateId,
       status: "scheduled",
-      createdBy: req.user!.userId,
+      createdBy: user.userId,
     }).returning();
+
+    await serverAuditLog(req, {
+      action: "CREATE",
+      entity: "meeting",
+      entityId: meeting.id,
+      syndicateId: syndicateId || undefined,
+      details: `Réunion créée: ${meeting.title} le ${meeting.date}`,
+    });
+
     res.status(201).json({ data: meeting, message: "Réunion créée avec succès" });
   } catch (err) {
     req.log.error(err);
@@ -90,15 +119,31 @@ router.put("/meetings/:id", requireAuth, requireRole("super_admin", "syndicate_a
   const result = schema.safeParse(req.body);
   if (!result.success) { res.status(400).json({ error: "Données invalides" }); return; }
   try {
-    const whereClause = req.user!.role === "super_admin"
+    const user = req.user!;
+
+    if (user.role === "syndicate_admin" && !user.syndicateId) {
+      return res.status(403).json({ error: "Syndicat non défini dans le token" });
+    }
+
+    const whereClause = user.role === "super_admin"
       ? eq(meetingsTable.id, req.params.id)
-      : and(eq(meetingsTable.id, req.params.id), eq(meetingsTable.syndicateId, req.user!.syndicateId ?? ""));
+      : and(eq(meetingsTable.id, req.params.id), eq(meetingsTable.syndicateId, user.syndicateId!));
+
     const [meeting] = await db
       .update(meetingsTable)
       .set(result.data)
       .where(whereClause)
       .returning();
     if (!meeting) { res.status(404).json({ error: "Réunion introuvable ou accès refusé" }); return; }
+
+    await serverAuditLog(req, {
+      action: "UPDATE",
+      entity: "meeting",
+      entityId: req.params.id,
+      syndicateId: meeting.syndicateId || undefined,
+      details: `Réunion mise à jour: ${JSON.stringify(result.data)}`,
+    });
+
     res.json({ data: meeting, message: "Réunion mise à jour" });
   } catch (err) {
     req.log.error(err);
@@ -108,11 +153,27 @@ router.put("/meetings/:id", requireAuth, requireRole("super_admin", "syndicate_a
 
 router.delete("/meetings/:id", requireAuth, requireRole("super_admin", "syndicate_admin"), async (req, res) => {
   try {
-    const whereClause = req.user!.role === "super_admin"
+    const user = req.user!;
+
+    if (user.role === "syndicate_admin" && !user.syndicateId) {
+      return res.status(403).json({ error: "Syndicat non défini dans le token" });
+    }
+
+    const whereClause = user.role === "super_admin"
       ? eq(meetingsTable.id, req.params.id)
-      : and(eq(meetingsTable.id, req.params.id), eq(meetingsTable.syndicateId, req.user!.syndicateId ?? ""));
+      : and(eq(meetingsTable.id, req.params.id), eq(meetingsTable.syndicateId, user.syndicateId!));
+
     const [meeting] = await db.delete(meetingsTable).where(whereClause).returning();
     if (!meeting) { res.status(404).json({ error: "Réunion introuvable ou accès refusé" }); return; }
+
+    await serverAuditLog(req, {
+      action: "DELETE",
+      entity: "meeting",
+      entityId: req.params.id,
+      syndicateId: meeting.syndicateId || undefined,
+      details: `Réunion supprimée: ${meeting.title}`,
+    });
+
     res.json({ message: "Réunion supprimée" });
   } catch (err) {
     req.log.error(err);
@@ -122,15 +183,39 @@ router.delete("/meetings/:id", requireAuth, requireRole("super_admin", "syndicat
 
 router.post("/meetings/:id/attend", requireAuth, async (req, res) => {
   const id = req.params.id as string;
+  const user = req.user!;
+
+  // Tenants cannot attend AG meetings
+  if (user.role === "tenant") {
+    return res.status(403).json({ error: "Les locataires n'ont pas accès aux assemblées générales" });
+  }
+
+  // Non-super users must have syndicateId — hard fail
+  if (user.role !== "super_admin" && !user.syndicateId) {
+    return res.status(403).json({ error: "Syndicat non défini dans le token" });
+  }
+
   try {
+    const [meeting] = await db
+      .select({ syndicateId: meetingsTable.syndicateId })
+      .from(meetingsTable)
+      .where(eq(meetingsTable.id, id));
+
+    if (!meeting) return res.status(404).json({ error: "Réunion introuvable" });
+
+    // Verify the meeting belongs to the user's syndicate
+    if (user.role !== "super_admin" && meeting.syndicateId !== user.syndicateId) {
+      return res.status(403).json({ error: "Accès refusé" });
+    }
+
     const existing = await db.select().from(meetingAttendeesTable).where(
-      and(eq(meetingAttendeesTable.meetingId, id), eq(meetingAttendeesTable.userId, req.user!.userId))
+      and(eq(meetingAttendeesTable.meetingId, id), eq(meetingAttendeesTable.userId, user.userId))
     );
     if (existing.length > 0) {
       res.json({ message: "Présence déjà confirmée" });
       return;
     }
-    await db.insert(meetingAttendeesTable).values({ meetingId: id, userId: req.user!.userId });
+    await db.insert(meetingAttendeesTable).values({ meetingId: id, userId: user.userId });
     res.json({ message: "Présence confirmée avec succès" });
   } catch (err) {
     req.log.error(err);

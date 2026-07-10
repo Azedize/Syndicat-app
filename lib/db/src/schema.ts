@@ -38,6 +38,7 @@ export const syndicatesTable = pgTable("syndicates", {
   website: text("website"),
   address: text("address"),
   city: text("city"),
+  country: text("country").default("Maroc"),
   // Legal (Dahir 1-57-119)
   legalForm: text("legal_form"),
   registrationNumber: text("registration_number"),
@@ -265,6 +266,7 @@ export const appelsDeFondsTable = pgTable(
   },
   (t) => [
     index("appels_building_id_idx").on(t.buildingId),
+    index("appels_lot_id_idx").on(t.lotId),
     index("appels_owner_id_idx").on(t.ownerId),
     index("appels_status_idx").on(t.status),
     index("appels_due_date_idx").on(t.dueDate),
@@ -326,19 +328,23 @@ export const caisseEntriesTable = pgTable(
   (t) => [index("caisse_entries_syndicate_id_idx").on(t.syndicateId)],
 );
 
-export const invoicesTable = pgTable("invoices", {
-  id: id(),
-  reference: text("reference").notNull(),
-  type: text("type").default("facture"),
-  recipient: text("recipient").notNull(),
-  date: text("date").notNull(),
-  dueDate: text("due_date").notNull(),
-  status: text("status").default("draft"),
-  amount: money("amount").default("0"),
-  syndicateId: text("syndicate_id"),
-  proofUrl: text("proof_url"),
-  createdAt: createdAt(),
-});
+export const invoicesTable = pgTable(
+  "invoices",
+  {
+    id: id(),
+    reference: text("reference").notNull(),
+    type: text("type").default("facture"),
+    recipient: text("recipient").notNull(),
+    date: text("date").notNull(),
+    dueDate: text("due_date").notNull(),
+    status: text("status").default("draft"),
+    amount: money("amount").default("0"),
+    syndicateId: text("syndicate_id").references(() => syndicatesTable.id, { onDelete: "set null" }),
+    proofUrl: text("proof_url"),
+    createdAt: createdAt(),
+  },
+  (t) => [index("invoices_syndicate_id_idx").on(t.syndicateId)],
+);
 
 export const invoiceItemsTable = pgTable(
   "invoice_items",
@@ -352,17 +358,21 @@ export const invoiceItemsTable = pgTable(
   (t) => [index("invoice_items_invoice_id_idx").on(t.invoiceId)],
 );
 
-export const bonsLivraisonTable = pgTable("bons_livraison", {
-  id: id(),
-  reference: text("reference").notNull(),
-  recipient: text("recipient").notNull(),
-  date: text("date").notNull(),
-  type: text("type").default("sortie"),
-  total: money("total").default("0"),
-  status: text("status").default("draft"),
-  syndicateId: text("syndicate_id"),
-  createdAt: createdAt(),
-});
+export const bonsLivraisonTable = pgTable(
+  "bons_livraison",
+  {
+    id: id(),
+    reference: text("reference").notNull(),
+    recipient: text("recipient").notNull(),
+    date: text("date").notNull(),
+    type: text("type").default("sortie"),
+    total: money("total").default("0"),
+    status: text("status").default("draft"),
+    syndicateId: text("syndicate_id").references(() => syndicatesTable.id, { onDelete: "set null" }),
+    createdAt: createdAt(),
+  },
+  (t) => [index("bons_livraison_syndicate_id_idx").on(t.syndicateId)],
+);
 
 export const bonItemsTable = pgTable(
   "bon_items",
@@ -378,32 +388,40 @@ export const bonItemsTable = pgTable(
 
 // ─── Prestataires, Contrats, Travaux, Sinistres ────────────────────────────
 
-export const prestatairesTable = pgTable("prestataires", {
-  id: id(),
-  name: text("name").notNull(),
-  type: text("type").notNull(),
-  contactName: text("contact_name"),
-  phone: text("phone"),
-  email: text("email"),
-  address: text("address"),
-  ice: text("ice"),
-  rc: text("rc"),
-  buildingId: text("building_id"),
-  syndicateId: text("syndicate_id"),
-  status: text("status").default("active"),
-  rating: money("rating"),
-  evaluationsCount: integer("evaluations_count").default(0),
-  notes: text("notes"),
-  documentUrl: text("document_url"),
-  createdAt: createdAt(),
-});
+export const prestatairesTable = pgTable(
+  "prestataires",
+  {
+    id: id(),
+    name: text("name").notNull(),
+    type: text("type").notNull(),
+    contactName: text("contact_name"),
+    phone: text("phone"),
+    email: text("email"),
+    address: text("address"),
+    ice: text("ice"),
+    rc: text("rc"),
+    buildingId: text("building_id").references(() => buildingsTable.id, { onDelete: "set null" }),
+    syndicateId: text("syndicate_id").references(() => syndicatesTable.id, { onDelete: "cascade" }),
+    status: text("status").default("active"),
+    rating: money("rating"),
+    evaluationsCount: integer("evaluations_count").default(0),
+    notes: text("notes"),
+    documentUrl: text("document_url"),
+    createdAt: createdAt(),
+  },
+  (t) => [
+    index("prestataires_syndicate_id_idx").on(t.syndicateId),
+    index("prestataires_building_id_idx").on(t.buildingId),
+    index("prestataires_status_idx").on(t.status),
+  ],
+);
 
 export const contratsPrestatairesTable = pgTable(
   "contrats_prestataires",
   {
     id: id(),
-    prestataireId: text("prestataire_id").notNull(),
-    buildingId: text("building_id").notNull(),
+    prestataireId: text("prestataire_id").notNull().references(() => prestatairesTable.id, { onDelete: "cascade" }),
+    buildingId: text("building_id").notNull().references(() => buildingsTable.id, { onDelete: "cascade" }),
     title: text("title").notNull(),
     startDate: text("start_date"),
     endDate: text("end_date"),
@@ -439,7 +457,7 @@ export const travauxTable = pgTable(
     priority: text("priority").default("normal"),
     // status: reported | assigned | in_progress | pending_validation | completed | cancelled
     status: text("status").default("reported"),
-    buildingId: text("building_id").notNull(),
+    buildingId: text("building_id").notNull().references(() => buildingsTable.id, { onDelete: "cascade" }),
     lotId: text("lot_id"),
     prestataireId: text("prestataire_id"),
     reportedById: text("reported_by_id"),
@@ -501,7 +519,7 @@ export const sinistresTable = pgTable(
   "sinistres",
   {
     id: id(),
-    buildingId: text("building_id").notNull(),
+    buildingId: text("building_id").notNull().references(() => buildingsTable.id, { onDelete: "cascade" }),
     lotId: text("lot_id"),
     type: text("type").notNull(),
     description: text("description").notNull(),
@@ -531,17 +549,24 @@ export const sinistresTable = pgTable(
 
 // ─── Elections ──────────────────────────────────────────────────────────────
 
-export const electionsTable = pgTable("elections", {
-  id: id(),
-  syndicateId: text("syndicate_id"),
-  title: text("title").notNull(),
-  description: text("description").default(""),
-  status: text("status").default("upcoming"),
-  startDate: text("start_date"),
-  endDate: text("end_date"),
-  createdBy: text("created_by"),
-  createdAt: createdAt(),
-});
+export const electionsTable = pgTable(
+  "elections",
+  {
+    id: id(),
+    syndicateId: text("syndicate_id").references(() => syndicatesTable.id, { onDelete: "cascade" }),
+    title: text("title").notNull(),
+    description: text("description").default(""),
+    status: text("status").default("upcoming"),
+    startDate: text("start_date"),
+    endDate: text("end_date"),
+    createdBy: text("created_by").references(() => usersTable.id, { onDelete: "set null" }),
+    createdAt: createdAt(),
+  },
+  (t) => [
+    index("elections_syndicate_id_idx").on(t.syndicateId),
+    index("elections_status_idx").on(t.status),
+  ],
+);
 
 export const candidatesTable = pgTable("candidates", {
   id: id(),
@@ -570,20 +595,28 @@ export const votesTable = pgTable(
 
 // ─── Meetings & AG ──────────────────────────────────────────────────────────
 
-export const meetingsTable = pgTable("meetings", {
-  id: id(),
-  syndicateId: text("syndicate_id"),
-  title: text("title").notNull(),
-  date: text("date").notNull(),
-  time: text("time"),
-  location: text("location"),
-  type: text("type").default("general"),
-  description: text("description"),
-  agenda: text("agenda"),
-  status: text("status").default("scheduled"),
-  createdBy: text("created_by"),
-  createdAt: createdAt(),
-});
+export const meetingsTable = pgTable(
+  "meetings",
+  {
+    id: id(),
+    syndicateId: text("syndicate_id").references(() => syndicatesTable.id, { onDelete: "cascade" }),
+    title: text("title").notNull(),
+    date: text("date").notNull(),
+    time: text("time"),
+    location: text("location"),
+    type: text("type").default("general"),
+    description: text("description"),
+    agenda: text("agenda"),
+    status: text("status").default("scheduled"),
+    createdBy: text("created_by").references(() => usersTable.id, { onDelete: "set null" }),
+    createdAt: createdAt(),
+  },
+  (t) => [
+    index("meetings_syndicate_id_idx").on(t.syndicateId),
+    index("meetings_date_idx").on(t.date),
+    index("meetings_status_idx").on(t.status),
+  ],
+);
 
 export const meetingAttendeesTable = pgTable(
   "meeting_attendees",
@@ -651,19 +684,23 @@ export const actionParticipantsTable = pgTable("action_participants", {
 
 // ─── Publications & Announcements ──────────────────────────────────────────
 
-export const publicationsTable = pgTable("publications", {
-  id: id(),
-  title: text("title").notNull(),
-  content: text("content").notNull(),
-  category: text("category").default(""),
-  pinned: boolean("pinned").default(false),
-  syndicateId: text("syndicate_id"),
-  authorId: text("author_id"),
-  authorName: text("author_name"),
-  likes: integer("likes").default(0),
-  comments: integer("comments").default(0),
-  createdAt: createdAt(),
-});
+export const publicationsTable = pgTable(
+  "publications",
+  {
+    id: id(),
+    title: text("title").notNull(),
+    content: text("content").notNull(),
+    category: text("category").default(""),
+    pinned: boolean("pinned").default(false),
+    syndicateId: text("syndicate_id").references(() => syndicatesTable.id, { onDelete: "cascade" }),
+    authorId: text("author_id").references(() => usersTable.id, { onDelete: "set null" }),
+    authorName: text("author_name"),
+    likes: integer("likes").default(0),
+    comments: integer("comments").default(0),
+    createdAt: createdAt(),
+  },
+  (t) => [index("publications_syndicate_id_idx").on(t.syndicateId)],
+);
 
 export const publicationLikesTable = pgTable(
   "publication_likes",
@@ -700,17 +737,24 @@ export const announcementsTable = pgTable("announcements", {
 
 // ─── Documents ──────────────────────────────────────────────────────────────
 
-export const documentsTable = pgTable("documents", {
-  id: id(),
-  title: text("title").notNull(),
-  category: text("category").notNull(),
-  content: text("content"),
-  status: text("status").default("published"),
-  syndicateId: text("syndicate_id"),
-  size: text("size"),
-  createdBy: text("created_by"),
-  createdAt: createdAt(),
-});
+export const documentsTable = pgTable(
+  "documents",
+  {
+    id: id(),
+    title: text("title").notNull(),
+    category: text("category").notNull(),
+    content: text("content"),
+    status: text("status").default("published"),
+    syndicateId: text("syndicate_id").references(() => syndicatesTable.id, { onDelete: "cascade" }),
+    size: text("size"),
+    createdBy: text("created_by").references(() => usersTable.id, { onDelete: "set null" }),
+    createdAt: createdAt(),
+  },
+  (t) => [
+    index("documents_syndicate_id_idx").on(t.syndicateId),
+    index("documents_category_idx").on(t.category),
+  ],
+);
 
 // ─── Chat ───────────────────────────────────────────────────────────────────
 

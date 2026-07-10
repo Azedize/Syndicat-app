@@ -51,6 +51,16 @@ const QUICK_ACTIONS_MEMBER = [
   { label: "Chat", icon: "message-circle" as const, route: "/chat" as const, color: "#3b82f6" },
 ];
 
+// Tenants: lease info, maintenance, documents, chat — NO financial/assembly access
+const QUICK_ACTIONS_TENANT = [
+  { label: "Mon Appart.", icon: "home" as const, route: "/mon-lot" as const, color: "#7c3aed" },
+  { label: "Mon Bail", icon: "file-text" as const, route: "/mon-bail" as const, color: "#3b82f6" },
+  { label: "Travaux", icon: "tool" as const, route: "/travaux" as const, color: "#f59e0b" },
+  { label: "Incidents", icon: "alert-triangle" as const, route: "/sinistres" as const, color: "#ef4444" },
+  { label: "Documents", icon: "folder" as const, route: "/documents" as const, color: "#6366f1" },
+  { label: "Chat", icon: "message-circle" as const, route: "/chat" as const, color: "#ec4899" },
+];
+
 const ACTION_GAP = 10;
 
 export default function DashboardScreen() {
@@ -80,7 +90,14 @@ export default function DashboardScreen() {
   const unreadAlerts = alerts.filter((a) => !a.read && !dismissedAlerts.has(a.id));
   const totalUnread = conversations.reduce((s, c) => s + c.unread, 0);
 
-  const quickActions = isSuperAdmin ? QUICK_ACTIONS_SUPER : isSyndicateAdmin ? QUICK_ACTIONS_ADMIN : QUICK_ACTIONS_MEMBER;
+  const isTenant = user.role === "tenant";
+  const quickActions = isSuperAdmin
+    ? QUICK_ACTIONS_SUPER
+    : isSyndicateAdmin
+    ? QUICK_ACTIONS_ADMIN
+    : isTenant
+    ? QUICK_ACTIONS_TENANT
+    : QUICK_ACTIONS_MEMBER;
 
   const greetingTime = () => {
     const h = new Date().getHours();
@@ -140,7 +157,7 @@ export default function DashboardScreen() {
         <View style={styles.roleBadge}>
           <Feather name={isSuperAdmin ? "shield" : isSyndicateAdmin ? "briefcase" : "user"} size={11} color="rgba(255,255,255,0.9)" />
           <Text style={styles.roleBadgeText}>
-            {isSuperAdmin ? "Super Administrateur" : isSyndicateAdmin ? "Admin Syndicat" : "Membre"}
+            {isSuperAdmin ? "Super Administrateur" : isSyndicateAdmin ? "Admin Syndicat" : isTenant ? "Locataire" : "Membre"}
           </Text>
         </View>
       </View>
@@ -191,8 +208,8 @@ export default function DashboardScreen() {
           </TouchableOpacity>
         ) : null}
 
-        {/* Upcoming meeting strip */}
-        {upcomingMeetings.length > 0 && (
+        {/* Upcoming meeting strip — tenants are not copropriétaires, no AG access */}
+        {!isTenant && upcomingMeetings.length > 0 && (
           <View style={{ gap: 8 }}>
             <View style={styles.sectionRow}>
               <Text style={[styles.sectionTitle, { color: colors.foreground }]}>Prochaines réunions</Text>
@@ -224,8 +241,8 @@ export default function DashboardScreen() {
           </View>
         )}
 
-        {/* Open election banner */}
-        {openElections > 0 ? (
+        {/* Open election banner — tenants cannot vote in syndicate elections */}
+        {!isTenant && openElections > 0 ? (
           <TouchableOpacity
             style={[styles.electionBanner, { backgroundColor: colors.primary }]}
             onPress={() => router.push("/elections" as any)}

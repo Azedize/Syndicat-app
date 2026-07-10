@@ -1,0 +1,418 @@
+You are a Senior Software Architect, Product Owner, Database Architect, Security Engineer, QA Lead, DevOps Engineer, Performance Engineer, and Moroccan Condominium Management Expert.
+
+Mission:
+
+Perform a COMPLETE production audit and implementation of SYNDYCAT GLOBAL CPS.
+
+IMPORTANT:
+
+Do not only report issues.
+
+For every issue:
+
+1. Analyze current implementation.
+2. Identify root cause.
+3. Analyze business impact.
+4. Analyze database impact.
+5. Analyze API impact.
+6. Analyze mobile impact.
+7. Analyze security impact.
+8. Analyze scalability impact.
+9. Implement production-ready fixes.
+10. Validate all scenarios after implementation.
+
+====================================================
+PHASE 1 — CRITICAL SECURITY FIXES (P0)
+====================================================
+
+Audit all API routes.
+
+Verify that every route respects syndicate isolation.
+
+Fix all cross-syndicate access vulnerabilities.
+
+Specifically audit:
+
+- Budgets
+- Buildings
+- Appels de Fonds
+- Charges
+- Invoices
+- Payments
+- Documents
+- Marketplace
+- Meetings
+- Elections
+- Chat
+- Support Tickets
+
+Requirement:
+
+A Syndicate Admin must NEVER access another syndicate's data.
+
+Validate ownership using:
+
+syndicateId
+buildingId
+lotId
+memberId
+
+before every read or write operation.
+
+Add server audit logging to:
+
+- create
+- update
+- delete
+- validate
+- approve
+- reject
+
+operations.
+
+====================================================
+PHASE 2 — DATABASE INTEGRITY
+====================================================
+
+Audit all tables.
+
+Detect:
+
+- Missing foreign keys
+- Missing indexes
+- Orphan records
+- Duplicate records
+- Invalid references
+
+Implement:
+
+- Missing FK constraints
+- Missing indexes
+- Missing unique constraints
+
+Add:
+
+country column to syndicates table.
+
+Replace fragile email relations with proper FK relations.
+
+Verify all relationships:
+
+Users
+Members
+Tenants
+Lots
+Buildings
+Syndicates
+Payments
+Invoices
+Marketplace
+Chat
+
+====================================================
+PHASE 3 — ROLE SEPARATION (RBAC)
+====================================================
+
+Redesign permissions completely.
+
+SUPER ADMIN
+
+Can:
+
+- Manage all syndicates
+- Create syndicates
+- Suspend syndicates
+- Platform analytics
+- Subscription management
+- Billing management
+- Audit logs
+- Platform configuration
+
+Cannot:
+
+- Act as a syndicate admin without supervision mode.
+
+SYNDICATE ADMIN
+
+Can:
+
+- Manage own syndicate only
+- Buildings
+- Lots
+- Owners
+- Tenants
+- Charges
+- Budgets
+- Meetings
+- Incidents
+- Documents
+
+Cannot:
+
+- Create other syndicates
+- Access platform analytics
+- Access other syndicates
+
+MEMBER
+
+Can:
+
+- Own charges
+- Own documents
+- Own votes
+- Marketplace
+- Chat
+- Support
+
+TENANT
+
+Can:
+
+- Lease information
+- Documents
+- Notifications
+- Chat
+
+Cannot:
+
+- Assemblies
+- Charges management
+- Financial dashboards
+
+Apply RBAC in:
+
+- API
+- Mobile
+- Navigation
+- Menus
+- Buttons
+- Actions
+
+====================================================
+PHASE 4 — MOBILE APPLICATION AUDIT
+====================================================
+
+Analyze every screen.
+
+Detect:
+
+- Static data
+- Mock data
+- Fake counters
+- Hardcoded statistics
+- Missing APIs
+- Broken navigation
+- Missing validations
+- Missing loading states
+- Missing error states
+
+Requirement:
+
+100% data must come from PostgreSQL through APIs.
+
+No mock data.
+
+No fallback fake data.
+
+====================================================
+PHASE 5 — RTL + ARABIC
+====================================================
+
+Complete RTL support.
+
+Audit:
+
+- Layouts
+- Flex directions
+- Margins
+- Paddings
+- Text alignment
+- Navigation
+
+Implement:
+
+I18nManager
+
+Verify:
+
+Arabic
+French
+English
+
+All screens.
+
+====================================================
+PHASE 6 — PERFORMANCE
+====================================================
+
+Target:
+
+1000 concurrent users.
+
+Audit:
+
+- N+1 queries
+- Slow queries
+- Missing pagination
+- Missing caching
+
+Implement:
+
+- Redis cache
+- PgBouncer
+- PostgreSQL indexes
+- Query optimization
+- Batch loading
+- Pagination
+
+Verify:
+
+Dashboard
+Buildings
+Lots
+Marketplace
+Chat
+Documents
+Meetings
+
+====================================================
+PHASE 7 — CHAT SYSTEM
+====================================================
+
+Audit full chat workflow.
+
+Verify:
+
+- Create conversation
+- Add participants
+- Send message
+- Receive message
+- Read status
+- Notifications
+- Attachments
+
+Detect:
+
+- Missing APIs
+- Missing relations
+- Missing indexes
+
+Implement production-ready chat.
+
+====================================================
+PHASE 8 — MARKETPLACE
+====================================================
+
+Implement full workflow.
+
+Member creates product.
+
+Product contains:
+
+- Images
+- Category
+- Description
+- Price
+- Location
+
+Status:
+
+pending_review
+
+Admin validates.
+
+Only validated products appear.
+
+Add:
+
+- Reviews
+- Ratings
+- Favorites
+- Contact seller
+- Featured paid listings
+
+====================================================
+PHASE 9 — PAYMENTS & PROOFS
+====================================================
+
+Implement payment validation workflow.
+
+Member uploads:
+
+- Transfer receipt
+- Cash receipt photo
+
+Admin validates.
+
+Generate audit trail.
+
+Store proof files.
+
+Track:
+
+pending
+approved
+rejected
+
+====================================================
+PHASE 10 — SUPER ADMIN DASHBOARD
+====================================================
+
+Create complete platform dashboard.
+
+Display:
+
+- Total syndicates
+- Total buildings
+- Total lots
+- Total owners
+- Total tenants
+- Total employees
+- Total charges
+- Collection rate
+- Revenue
+- Active subscriptions
+- Expired subscriptions
+
+Add charts.
+
+All data from PostgreSQL.
+
+====================================================
+PHASE 11 — PRODUCTION READINESS
+====================================================
+
+Verify:
+
+- Redis
+- PostgreSQL
+- PM2
+- PgBouncer
+- JWT
+- Refresh Tokens
+- Rate Limiting
+- Security Headers
+- Audit Logs
+
+====================================================
+FINAL REPORT
+====================================================
+
+Generate:
+
+1. Root causes
+2. Files modified
+3. Database changes
+4. API changes
+5. Mobile changes
+6. Security fixes
+7. Performance fixes
+8. RBAC fixes
+9. Remaining risks
+10. Production readiness score
+
+Do not stop after reporting.
+
+Continue implementing fixes until all critical and high priority issues are resolved.
+
+The final result must be production-ready for real Moroccan condominium management.
