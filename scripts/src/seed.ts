@@ -358,7 +358,7 @@ async function main() {
 
   // ─── Elections, Candidates, Votes ────────────────────────────────────────
   await db.insert(electionsTable).values([
-    { id: "election_1", syndicateId: "syn_residence_atlas", title: "Élection du conseil syndical 2026", description: "Renouvellement du conseil syndical pour le mandat 2026-2028", status: "active", startDate: "2026-07-01", endDate: "2026-07-31", createdBy: "user_admin_atlas", createdAt: daysAgo(7) },
+    { id: "election_1", syndicateId: "syn_residence_atlas", title: "Élection du conseil syndical 2026", description: "Renouvellement du conseil syndical pour le mandat 2026-2028", status: "open", startDate: "2026-07-01", endDate: "2026-07-31", createdBy: "user_admin_atlas", createdAt: daysAgo(7) },
   ]).onConflictDoNothing();
   await db.insert(candidatesTable).values([
     { id: "cand_1", electionId: "election_1", name: "Mohammed Alaoui", post: "Président du conseil syndical", bio: "Membre depuis 2021, ingénieur", votes: 1 },
