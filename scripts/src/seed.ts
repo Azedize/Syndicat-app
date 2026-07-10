@@ -711,7 +711,7 @@ async function main() {
     { id: "vehicle_3", lotId: "lot_a205", userId: "user_tenant_1",  plateNumber: "78901-A-1",  brand: "Renault", model: "Clio",    color: "Rouge",  status: "active", createdAt: daysAgo(400) },
     { id: "vehicle_4", lotId: "lot_ag01", userId: "user_tenant_2",  plateNumber: "34567-R-2",  brand: "Hyundai", model: "Tucson",  color: "Noir",   status: "active", createdAt: daysAgo(200) },
     { id: "vehicle_5", lotId: "lot_ag12", userId: "user_member_3",  plateNumber: "90123-R-2",  brand: "Peugeot", model: "508",     color: "Bleu",   status: "active", createdAt: daysAgo(800) },
-    { id: "vehicle_6", lotId: "lot_a301", userId: "user_member_1",  plateNumber: "11122-A-1",  brand: "BMW",     model: "Série 3", color: "Argent", status: "active", notes: "Véhicule secondaire", createdAt: daysAgo(500) },
+    { id: "vehicle_6", lotId: "lot_a301", userId: "user_member_1",  plateNumber: "11122-A-1",  brand: "BMW",     model: "Série 3", color: "Argent", status: "active", createdAt: daysAgo(500) },
   ]).onConflictDoNothing();
 
   await db.insert(parkingViolationsTable).values([
