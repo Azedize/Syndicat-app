@@ -150,6 +150,7 @@ export interface CaisseEntry {
 export interface ChatConversation {
   id: string;
   convType: "direct" | "group" | "announcement" | "support" | "building";
+  isGroup: boolean;
   participant: string;
   participantId?: string | null;
   role: string;
@@ -404,6 +405,7 @@ function mapConversationRow(r: unknown): import("./DataContext").ChatConversatio
   return {
     id: String(row.id),
     convType: (row.convType as "direct" | "group" | "announcement" | "support" | "building") ?? "direct",
+    isGroup: Boolean(row.isGroup),
     participant: String(row.participant ?? row.participantName ?? ""),
     participantId: row.participantId ? String(row.participantId) : null,
     role: String(row.role ?? ""),
@@ -976,7 +978,7 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
   };
   const validateProduct = (id: string) => {
     setProducts((p) => p.map((pr) => (pr.id === id ? { ...pr, status: "available" } : pr)));
-    api.marketplace.validateProduct(id).catch(() => {});
+    api.marketplace.updateProduct(id, { status: "available" }).catch(() => {});
     notificationBus.emit({ type: "success", message: "Produit validé et publié sur le marketplace" });
   };
   const addSyndicate = (s: Syndicate) => {

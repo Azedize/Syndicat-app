@@ -161,7 +161,7 @@ export default function IdeasScreen() {
           {ideas.length === 0 ? (
             <View style={styles.empty}>
               <View style={[styles.emptyIcon, { backgroundColor: "#7c3aed15" }]}>
-                <Feather name="lightbulb" size={32} color="#7c3aed" />
+                <Feather name="zap" size={32} color="#7c3aed" />
               </View>
               <Text style={[styles.emptyTitle, { color: colors.foreground }]}>Aucune idée soumise</Text>
               <Text style={[styles.emptyText, { color: colors.mutedForeground }]}>Soyez le premier à proposer une amélioration pour votre résidence.</Text>

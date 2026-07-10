@@ -876,10 +876,10 @@ export default function ReglementsScreen() {
                 <View style={styles.docBadges}>
                   <View style={[styles.typeBadge, { backgroundColor: typeCfg.color + "15" }]}>
                     <Feather name={typeCfg.icon} size={12} color={typeCfg.color} />
-                    <Text style={[styles.typeBadgeText, { color: typeCfg.color }]}>{typeCfg.label}</Text>
+                    <Text style={[styles.typeBadgeText, { color: typeCfg.color }]}>{typeCfg.label[lang]}</Text>
                   </View>
                   <View style={[styles.statusBadge, { backgroundColor: statusCfg.color + "15" }]}>
-                    <Text style={[styles.statusText, { color: statusCfg.color }]}>{statusCfg.label}</Text>
+                    <Text style={[styles.statusText, { color: statusCfg.color }]}>{statusCfg.label[lang]}</Text>
                   </View>
                   <Text style={[styles.versionTag, { color: colors.mutedForeground, borderColor: colors.border }]}>{d.version}</Text>
                 </View>
@@ -995,7 +995,7 @@ export default function ReglementsScreen() {
                     onPress={() => { setNewType(key); Haptics.selectionAsync(); }}
                   >
                     <Feather name={cfg.icon} size={16} color={newType === key ? cfg.color : colors.mutedForeground} />
-                    <Text style={[styles.typeOptionText, { color: newType === key ? cfg.color : colors.mutedForeground }]}>{cfg.label}</Text>
+                    <Text style={[styles.typeOptionText, { color: newType === key ? cfg.color : colors.mutedForeground }]}>{cfg.label[lang]}</Text>
                   </TouchableOpacity>
                 ))}
               </View>

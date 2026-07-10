@@ -184,7 +184,7 @@ function DecisionTrail({ row, colors }: { row: TravauxPrivatif; colors: any }) {
       color: "#f59e0b",
     },
     row.finalDecisionNote && {
-      icon: (row.finalDecision === "approved" ? "check-circle" : "x-circle") as const,
+      icon: (row.finalDecision === "approved" ? "check-circle" : "x-circle") as "check-circle" | "x-circle",
       title: `Décision finale — ${row.finalDecision === "approved" ? "Approuvé" : "Refusé"}`,
       note: row.finalDecisionNote,
       by: row.finalDecisionByName,
