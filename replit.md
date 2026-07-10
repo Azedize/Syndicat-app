@@ -41,18 +41,30 @@ pnpm --filter @workspace/db run db:push
 pnpm --filter @workspace/scripts run seed
 ```
 
-Already done in this environment: dependencies installed, schema pushed to the
-provisioned Postgres database, and demo data seeded. Demo login on the mobile app's login screen:
-`syndic@andalous.ma` / `password123` (pre-filled). Note: API routes are
-mounted under `/api` (e.g. `/api/auth/login`), not at the route paths defined
-in `src/routes/*.ts` directly.
+Note: API routes are mounted under `/api` (e.g. `/api/auth/login`), not at the
+route paths defined in `src/routes/*.ts` directly.
 
-### 2026-07-10 setup notes (zip import)
+### Environment setup status (2026-07-10, zip import)
 
-- `JWT_SECRET` required as a Replit Secret (not auto-injected) — set manually after import.
-- `pnpm install` required (node_modules not included in zip), then `db:push` and seed.
-- All 3 workflows (API Server, Expo mobile, Component Preview Server) confirmed running.
-- Pre-existing typecheck errors exist in `api-server` and `mockup-sandbox` — runtime is unaffected but schema/type alignment should be addressed.
+The following was completed after importing the project from zip:
+
+| Step | Status |
+|---|---|
+| `pnpm install` | ✅ Done — 1151 packages installed |
+| `JWT_SECRET` Replit Secret | ✅ Set |
+| `DATABASE_URL` | ✅ Auto-injected by Replit Postgres |
+| `db:push` (schema applied) | ✅ Done — all tables created |
+| API Server workflow | ✅ Running on port 8080 |
+| Mobile (Expo) workflow | ✅ Running |
+| Component Preview Server | ✅ Running |
+
+**Demo credentials** (pre-filled on the login screen): `syndic@andalous.ma` / `password123`
+
+> ⚠️ The database has not been seeded yet. Run `pnpm --filter @workspace/scripts run seed` to populate demo data before logging in with the pre-filled credentials.
+
+**Known issues:**
+- Pre-existing typecheck errors exist in `api-server` — runtime is unaffected but `tsc` does not pass cleanly. See Task #3.
+- Some mobile screens hardcode `EXPO_PUBLIC_DOMAIN` without a fallback helper. See Task #4.
 
 ### 4. Start the workflows
 
