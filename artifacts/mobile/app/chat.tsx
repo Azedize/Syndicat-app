@@ -19,6 +19,7 @@ import {
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useAuth } from "@/context/AuthContext";
 import { useData, type ChatConversation } from "@/context/DataContext";
+import { useLanguage } from "@/context/LanguageContext";
 import { useBreakpoints } from "@/hooks/useBreakpoints";
 import { useColors } from "@/hooks/useColors";
 import { apiRequest } from "@/lib/api";
@@ -60,6 +61,7 @@ export default function ChatScreen() {
   const colors = useColors();
   const insets = useSafeAreaInsets();
   const { user, token } = useAuth();
+  const { t } = useLanguage();
   const { conversations, refreshConversations, deleteConversation, markConversationRead } = useData();
   const [search, setSearch] = useState("");
   const [filterTab, setFilterTab] = useState<FilterTab>("all");
@@ -121,18 +123,18 @@ export default function ChatScreen() {
   const handleLongPress = (c: ChatConversation) => {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
     Alert.alert(c.participant, undefined, [
-      { text: "Annuler", style: "cancel" },
-      { text: "Ouvrir", onPress: () => openThread(c) },
+      { text: t("cancel"), style: "cancel" },
+      { text: t("viewDetails"), onPress: () => openThread(c) },
       {
-        text: "Supprimer",
+        text: t("delete"),
         style: "destructive",
         onPress: () =>
           Alert.alert(
-            "Supprimer la conversation?",
-            "Cette action est irréversible.",
+            t("delete"),
+            undefined,
             [
-              { text: "Annuler", style: "cancel" },
-              { text: "Supprimer", style: "destructive", onPress: () => { deleteConversation(c.id); } },
+              { text: t("cancel"), style: "cancel" },
+              { text: t("delete"), style: "destructive", onPress: () => { deleteConversation(c.id); } },
             ],
           ),
       },
@@ -199,7 +201,7 @@ export default function ChatScreen() {
         router.push({ pathname: "/chat-thread", params: { id: convId } });
       }
     } catch {
-      Alert.alert("Erreur", "Impossible de créer le groupe. Réessayez.");
+      Alert.alert(t("error"), t("error"));
     } finally {
       setCreatingGroup(false);
     }
@@ -220,10 +222,10 @@ export default function ChatScreen() {
   // ─── Render ────────────────────────────────────────────────────────────────
 
   const FILTER_TABS: { key: FilterTab; label: string }[] = [
-    { key: "all", label: "Tous" },
-    { key: "direct", label: "Directs" },
-    { key: "group", label: "Groupes" },
-    { key: "announcement", label: "Annonces" },
+    { key: "all", label: t("all") },
+    { key: "direct", label: t("chat") },
+    { key: "group", label: t("members") },
+    { key: "announcement", label: t("announcements") },
   ];
 
   return (
@@ -234,24 +236,24 @@ export default function ChatScreen() {
           <Feather name="arrow-left" size={22} color={colors.foreground} />
         </TouchableOpacity>
         <View style={{ flex: 1 }}>
-          <Text style={[styles.title, { color: colors.foreground }]}>Chat Hub</Text>
+          <Text style={[styles.title, { color: colors.foreground }]}>{t("chatTitle")}</Text>
           {totalUnread > 0 ? (
             <Text style={[styles.subtitle, { color: colors.mutedForeground }]}>
-              {totalUnread} message{totalUnread > 1 ? "s" : ""} non lu{totalUnread > 1 ? "s" : ""}
+              {totalUnread} message{totalUnread > 1 ? "s" : ""}
             </Text>
           ) : (
-            <Text style={[styles.subtitle, { color: colors.success }]}>Tout lu ✓</Text>
+            <Text style={[styles.subtitle, { color: colors.success }]}>✓</Text>
           )}
         </View>
         <TouchableOpacity
           style={[styles.iconBtn, { backgroundColor: colors.secondary }]}
           onPress={() => {
             Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-            Alert.alert("Nouvelle conversation", undefined, [
-              { text: "Annuler", style: "cancel" },
-              { text: "Message direct", onPress: handleOpenNew },
+            Alert.alert(t("newConversation"), undefined, [
+              { text: t("cancel"), style: "cancel" },
+              { text: t("chat"), onPress: handleOpenNew },
               {
-                text: "Créer un groupe",
+                text: t("newConversation"),
                 onPress: () => {
                   setShowGroupNew(true);
                   setSelectedContacts([]);
@@ -271,7 +273,7 @@ export default function ChatScreen() {
         <Feather name="search" size={16} color={colors.mutedForeground} />
         <TextInput
           style={[styles.searchInput, { color: colors.foreground }]}
-          placeholder="Rechercher une conversation..."
+          placeholder={t("searchConversations")}
           placeholderTextColor={colors.mutedForeground}
           value={search}
           onChangeText={setSearch}
@@ -289,22 +291,22 @@ export default function ChatScreen() {
         showsHorizontalScrollIndicator={false}
         contentContainerStyle={{ paddingHorizontal: 12, paddingVertical: 10, gap: 8 }}
       >
-        {FILTER_TABS.map((t) => {
-          const active = filterTab === t.key;
+        {FILTER_TABS.map((tab) => {
+          const active = filterTab === tab.key;
           const tabUnread =
-            t.key === "all"
+            tab.key === "all"
               ? totalUnread
               : conversations
                   .filter((c) => {
-                    if (t.key === "direct") return c.convType === "direct" && !c.isGroup;
-                    if (t.key === "group") return c.isGroup || c.convType === "group";
-                    if (t.key === "announcement") return c.convType === "announcement";
+                    if (tab.key === "direct") return c.convType === "direct" && !c.isGroup;
+                    if (tab.key === "group") return c.isGroup || c.convType === "group";
+                    if (tab.key === "announcement") return c.convType === "announcement";
                     return false;
                   })
                   .reduce((s, c) => s + c.unread, 0);
           return (
             <TouchableOpacity
-              key={t.key}
+              key={tab.key}
               style={[
                 styles.filterTab,
                 {
@@ -312,10 +314,10 @@ export default function ChatScreen() {
                   borderColor: active ? colors.primary : colors.border,
                 },
               ]}
-              onPress={() => { setFilterTab(t.key); Haptics.selectionAsync(); }}
+              onPress={() => { setFilterTab(tab.key); Haptics.selectionAsync(); }}
             >
               <Text style={[styles.filterTabText, { color: active ? "#fff" : colors.foreground }]}>
-                {t.label}
+                {tab.label}
               </Text>
               {tabUnread > 0 && (
                 <View style={[styles.tabBadge, { backgroundColor: active ? "#ffffff40" : colors.primary }]}>
@@ -389,7 +391,7 @@ export default function ChatScreen() {
                   style={[styles.convMsg, { color: c.unread > 0 ? colors.foreground : colors.mutedForeground }]}
                   numberOfLines={1}
                 >
-                  {c.lastMessage || "Démarrer la conversation..."}
+                  {c.lastMessage || t("typeMessage")}
                 </Text>
               </View>
             </TouchableOpacity>
@@ -401,12 +403,12 @@ export default function ChatScreen() {
               <Feather name="message-circle" size={32} color={colors.primary} />
             </View>
             <Text style={[styles.emptyTitle, { color: colors.foreground }]}>
-              {search ? "Aucun résultat" : "Aucune conversation"}
+              {search ? t("noData") : t("noConversations")}
             </Text>
             <Text style={[styles.emptyText, { color: colors.mutedForeground }]}>
               {search
-                ? `Aucune conversation ne correspond à "${search}"`
-                : "Appuyez sur le bouton ✏️ pour démarrer une conversation."}
+                ? `${t("noData")} "${search}"`
+                : t("noConversations")}
             </Text>
             {!search && (
               <TouchableOpacity
@@ -414,7 +416,7 @@ export default function ChatScreen() {
                 onPress={handleOpenNew}
               >
                 <Feather name="edit" size={16} color="#fff" />
-                <Text style={styles.emptyBtnText}>Nouvelle conversation</Text>
+                <Text style={styles.emptyBtnText}>{t("newConversation")}</Text>
               </TouchableOpacity>
             )}
           </View>
@@ -425,7 +427,7 @@ export default function ChatScreen() {
       <Modal visible={showNew} animationType="slide" presentationStyle="pageSheet">
         <View style={[styles.modal, { backgroundColor: colors.background }]}>
           <View style={[styles.modalHeader, { borderBottomColor: colors.border, backgroundColor: colors.card }]}>
-            <Text style={[styles.modalTitle, { color: colors.foreground }]}>Nouveau message direct</Text>
+            <Text style={[styles.modalTitle, { color: colors.foreground }]}>{t("newConversation")}</Text>
             <TouchableOpacity onPress={() => setShowNew(false)} style={{ padding: 4 }}>
               <Feather name="x" size={22} color={colors.mutedForeground} />
             </TouchableOpacity>
@@ -435,7 +437,7 @@ export default function ChatScreen() {
             <Feather name="search" size={16} color={colors.mutedForeground} />
             <TextInput
               style={[styles.searchInput, { color: colors.foreground }]}
-              placeholder="Rechercher un contact..."
+              placeholder={t("searchConversations")}
               placeholderTextColor={colors.mutedForeground}
               value={contactSearch}
               onChangeText={setContactSearch}
@@ -449,7 +451,7 @@ export default function ChatScreen() {
           </View>
 
           <Text style={[styles.sectionLabel, { color: colors.mutedForeground, paddingHorizontal: 20, marginBottom: 4 }]}>
-            {filteredContacts.length} MEMBRE{filteredContacts.length !== 1 ? "S" : ""} DISPONIBLE{filteredContacts.length !== 1 ? "S" : ""}
+            {filteredContacts.length}
           </Text>
 
           {loadingContacts ? (
@@ -478,10 +480,10 @@ export default function ChatScreen() {
                     <Text style={[styles.contactName, { color: colors.foreground }]}>{contact.name}</Text>
                     <Text style={[styles.contactRole, { color: colors.mutedForeground }]}>
                       {contact.role === "syndicate_admin"
-                        ? "Gestionnaire syndicat"
+                        ? t("roleSyndicAdmin")
                         : contact.role === "super_admin"
-                          ? "Super administrateur"
-                          : "Copropriétaire / Adhérent"}
+                          ? t("roleSuperAdmin")
+                          : t("roleMember")}
                     </Text>
                   </View>
                   <Feather name="message-square" size={16} color={colors.primary} />
@@ -489,7 +491,7 @@ export default function ChatScreen() {
               ))}
               {filteredContacts.length === 0 && !loadingContacts && (
                 <View style={styles.empty}>
-                  <Text style={[styles.emptyText, { color: colors.mutedForeground }]}>Aucun membre trouvé</Text>
+                  <Text style={[styles.emptyText, { color: colors.mutedForeground }]}>{t("noMembers")}</Text>
                 </View>
               )}
             </ScrollView>
@@ -501,7 +503,7 @@ export default function ChatScreen() {
       <Modal visible={showGroupNew} animationType="slide" presentationStyle="pageSheet">
         <View style={[styles.modal, { backgroundColor: colors.background }]}>
           <View style={[styles.modalHeader, { borderBottomColor: colors.border, backgroundColor: colors.card }]}>
-            <Text style={[styles.modalTitle, { color: colors.foreground }]}>Créer un groupe</Text>
+            <Text style={[styles.modalTitle, { color: colors.foreground }]}>{t("newConversation")}</Text>
             <TouchableOpacity onPress={() => setShowGroupNew(false)} style={{ padding: 4 }}>
               <Feather name="x" size={22} color={colors.mutedForeground} />
             </TouchableOpacity>
@@ -510,12 +512,12 @@ export default function ChatScreen() {
           <ScrollView contentContainerStyle={{ padding: 16, gap: 16 }}>
             {/* Group name */}
             <View>
-              <Text style={[styles.formLabel, { color: colors.foreground }]}>Nom du groupe *</Text>
+              <Text style={[styles.formLabel, { color: colors.foreground }]}>{t("nameLabel")} *</Text>
               <TextInput
                 style={[styles.nameInput, { borderColor: colors.border, backgroundColor: colors.card, color: colors.foreground }]}
                 value={groupName}
                 onChangeText={setGroupName}
-                placeholder="Ex: Équipe Bureau, Copropriétaires Bât A..."
+                placeholder={t("nameLabel")}
                 placeholderTextColor={colors.mutedForeground}
                 maxLength={60}
               />
@@ -525,7 +527,7 @@ export default function ChatScreen() {
             {selectedContacts.length > 0 && (
               <View>
                 <Text style={[styles.formLabel, { color: colors.foreground }]}>
-                  Membres sélectionnés ({selectedContacts.length})
+                  {t("members")} ({selectedContacts.length})
                 </Text>
                 <View style={{ flexDirection: "row", flexWrap: "wrap", gap: 6, marginTop: 6 }}>
                   {selectedContacts.map((c) => (
@@ -547,7 +549,7 @@ export default function ChatScreen() {
               <Feather name="search" size={16} color={colors.mutedForeground} />
               <TextInput
                 style={[styles.searchInput, { color: colors.foreground }]}
-                placeholder="Rechercher un membre..."
+                placeholder={t("search")}
                 placeholderTextColor={colors.mutedForeground}
                 value={contactSearch}
                 onChangeText={setContactSearch}
@@ -580,7 +582,7 @@ export default function ChatScreen() {
                     <View style={{ flex: 1 }}>
                       <Text style={[styles.contactName, { color: colors.foreground }]}>{contact.name}</Text>
                       <Text style={[styles.contactRole, { color: colors.mutedForeground }]}>
-                        {contact.role === "syndicate_admin" ? "Gestionnaire" : "Adhérent"}
+                        {contact.role === "syndicate_admin" ? t("roleSyndicAdmin") : t("roleMember")}
                       </Text>
                     </View>
                   </TouchableOpacity>
@@ -608,7 +610,7 @@ export default function ChatScreen() {
                 <>
                   <Feather name="users" size={16} color="#fff" />
                   <Text style={styles.createGroupBtnText}>
-                    Créer le groupe ({selectedContacts.length} membre{selectedContacts.length !== 1 ? "s" : ""})
+                    {t("create")} ({selectedContacts.length})
                   </Text>
                 </>
               )}

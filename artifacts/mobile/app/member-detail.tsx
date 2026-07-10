@@ -18,12 +18,14 @@ import {
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useActivity } from "@/context/ActivityContext";
 import { useData } from "@/context/DataContext";
+import { useLanguage } from "@/context/LanguageContext";
 import { useBreakpoints } from "@/hooks/useBreakpoints";
 import { useColors } from "@/hooks/useColors";
 
 export default function MemberDetailScreen() {
   const colors = useColors();
   const insets = useSafeAreaInsets();
+  const { t } = useLanguage();
   const { id } = useLocalSearchParams<{ id: string }>();
   const { members, transactions, updateMemberStatus } = useData();
   const { logActivity } = useActivity();
@@ -31,7 +33,7 @@ export default function MemberDetailScreen() {
   const topPad = isWide ? 0 : (Platform.OS === "web" ? 67 : insets.top);
 
   const member = members.find((m) => m.id === id);
-  const memberTx = transactions.filter((t) => t.member === member?.name);
+  const memberTx = transactions.filter((tx) => tx.member === member?.name);
   const [tab, setTab] = useState<"info" | "cotisations" | "activity">("info");
 
   // Edit form state
@@ -47,27 +49,27 @@ export default function MemberDetailScreen() {
   if (!member) {
     return (
       <View style={[styles.root, { backgroundColor: colors.background }]}>
-        <Text style={{ color: colors.foreground, padding: 20 }}>Membre introuvable</Text>
+        <Text style={{ color: colors.foreground, padding: 20 }}>{t("error")}</Text>
       </View>
     );
   }
 
   const statusColor = member.status === "active" ? colors.success : member.status === "pending" ? "#f59e0b" : colors.destructive;
-  const statusLabel = member.status === "active" ? "Actif" : member.status === "pending" ? "En attente" : "Inactif";
+  const statusLabel = member.status === "active" ? t("statusActive") : member.status === "pending" ? t("statusPending") : t("statusInactive");
   const cotColor = member.cotisationStatus === "paid" ? colors.success : member.cotisationStatus === "pending" ? "#f59e0b" : colors.destructive;
-  const cotLabel = member.cotisationStatus === "paid" ? "Cotisation à jour" : member.cotisationStatus === "pending" ? "Paiement en attente" : "Cotisation en retard";
+  const cotLabel = member.cotisationStatus === "paid" ? t("statusPaid") : member.cotisationStatus === "pending" ? t("statusPending") : t("statusLate");
 
   const handleActivate = () => {
     updateMemberStatus(member.id, "active");
     Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-    Alert.alert("Membre activé", `${member.name} a été activé avec succès.`);
+    Alert.alert(t("statusActive"), `${member.name}`);
   };
 
   const handleDeactivate = () => {
-    Alert.alert("Désactiver le membre", `Voulez-vous désactiver ${member.name}?`, [
-      { text: "Annuler", style: "cancel" },
+    Alert.alert(t("statusInactive"), `${member.name}`, [
+      { text: t("cancel"), style: "cancel" },
       {
-        text: "Désactiver",
+        text: t("statusInactive"),
         style: "destructive",
         onPress: () => {
           updateMemberStatus(member.id, "inactive");
@@ -137,8 +139,8 @@ export default function MemberDetailScreen() {
       <View style={[styles.statsRow, { backgroundColor: colors.card, borderBottomColor: colors.border }]}>
         {[
           { label: "Syndicat", value: member.syndicate, icon: "briefcase" as const },
-          { label: "Adhésion", value: member.joinDate.slice(0, 7), icon: "calendar" as const },
-          { label: "Cotisations", value: `${memberTx.filter((t) => t.status === "paid").length} payées`, icon: "check-circle" as const },
+          { label: t("joinedOn"), value: member.joinDate.slice(0, 7), icon: "calendar" as const },
+          { label: t("cotisationsTitle"), value: `${memberTx.filter((tx) => tx.status === "paid").length}`, icon: "check-circle" as const },
         ].map((stat, i) => (
           <View key={stat.label} style={[styles.statItem, i < 2 ? { borderRightColor: colors.border, borderRightWidth: 1 } : null]}>
             <Feather name={stat.icon} size={14} color={colors.primary} />
@@ -151,17 +153,17 @@ export default function MemberDetailScreen() {
       {/* Tabs */}
       <View style={[styles.tabs, { borderBottomColor: colors.border }]}>
         {([
-          { key: "info", label: "Informations" },
-          { key: "cotisations", label: "Cotisations" },
-          { key: "activity", label: "Activité" },
-        ] as { key: typeof tab; label: string }[]).map((t) => (
+          { key: "info", label: t("contactInfo") },
+          { key: "cotisations", label: t("paymentHistory") },
+          { key: "activity", label: t("activityTitle") },
+        ] as { key: typeof tab; label: string }[]).map((tabItem) => (
           <TouchableOpacity
-            key={t.key}
-            style={[styles.tabBtn, tab === t.key ? { borderBottomColor: colors.primary, borderBottomWidth: 2 } : null]}
-            onPress={() => setTab(t.key)}
+            key={tabItem.key}
+            style={[styles.tabBtn, tab === tabItem.key ? { borderBottomColor: colors.primary, borderBottomWidth: 2 } : null]}
+            onPress={() => setTab(tabItem.key)}
           >
-            <Text style={[styles.tabLabel, { color: tab === t.key ? colors.primary : colors.mutedForeground }]}>
-              {t.label}
+            <Text style={[styles.tabLabel, { color: tab === tabItem.key ? colors.primary : colors.mutedForeground }]}>
+              {tabItem.label}
             </Text>
           </TouchableOpacity>
         ))}
@@ -173,11 +175,11 @@ export default function MemberDetailScreen() {
             <View style={[styles.infoCard, { backgroundColor: colors.card, borderColor: colors.border }]}>
               {[
                 { icon: "mail" as const, label: "Email", value: member.email },
-                { icon: "phone" as const, label: "Téléphone", value: member.phone },
+                { icon: "phone" as const, label: t("phoneLabel"), value: member.phone },
                 { icon: "briefcase" as const, label: "Profession", value: member.profession },
                 { icon: "users" as const, label: "Syndicat", value: member.syndicate },
-                { icon: "calendar" as const, label: "Date d'adhésion", value: member.joinDate },
-              ].map((item, i, arr) => (
+                { icon: "calendar" as const, label: t("joinedOn"), value: member.joinDate },
+              ].map((item, i) => (
                 <View key={item.label}>
                   {i > 0 ? <View style={[styles.sep, { backgroundColor: colors.border }]} /> : null}
                   <View style={styles.infoRow}>
@@ -192,9 +194,9 @@ export default function MemberDetailScreen() {
                       style={styles.copyBtn}
                       onPress={() => {
                         Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-                        if (item.label === "Email") {
+                        if (item.icon === "mail") {
                           Linking.openURL(`mailto:${item.value}`).catch(() => shareContent(item.value));
-                        } else if (item.label === "Téléphone") {
+                        } else if (item.icon === "phone") {
                           Linking.openURL(`tel:${item.value}`).catch(() => shareContent(item.value));
                         } else {
                           shareContent(item.value);
@@ -210,14 +212,14 @@ export default function MemberDetailScreen() {
 
             {/* Admin actions */}
             <View style={{ gap: 10 }}>
-              <Text style={[styles.actionsTitle, { color: colors.foreground }]}>Actions administrateur</Text>
+              <Text style={[styles.actionsTitle, { color: colors.foreground }]}>{t("memberDetail")}</Text>
               <View style={styles.actionsGrid}>
                 <TouchableOpacity
                   style={[styles.actionBtn, { backgroundColor: colors.primary }]}
                   onPress={() => router.push("/chat")}
                 >
                   <Feather name="message-circle" size={16} color="#fff" />
-                  <Text style={styles.actionBtnText}>Contacter</Text>
+                  <Text style={styles.actionBtnText}>{t("sendMessage")}</Text>
                 </TouchableOpacity>
                 {member.status !== "active" ? (
                   <TouchableOpacity
@@ -225,7 +227,7 @@ export default function MemberDetailScreen() {
                     onPress={handleActivate}
                   >
                     <Feather name="user-check" size={16} color="#fff" />
-                    <Text style={styles.actionBtnText}>Activer</Text>
+                    <Text style={styles.actionBtnText}>{t("statusActive")}</Text>
                   </TouchableOpacity>
                 ) : (
                   <TouchableOpacity
@@ -233,28 +235,28 @@ export default function MemberDetailScreen() {
                     onPress={handleDeactivate}
                   >
                     <Feather name="user-x" size={16} color="#fff" />
-                    <Text style={styles.actionBtnText}>Désactiver</Text>
+                    <Text style={styles.actionBtnText}>{t("statusInactive")}</Text>
                   </TouchableOpacity>
                 )}
                 <TouchableOpacity
                   style={[styles.actionBtn, { backgroundColor: "#f59e0b" }]}
                   onPress={() => {
                     Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-                    Alert.alert("Attestation générée", `L'attestation d'adhésion de ${member.name} a été générée et envoyée par email.`);
+                    Alert.alert(t("success"), `${member.name}`);
                   }}
                 >
                   <Feather name="file-text" size={16} color="#fff" />
-                  <Text style={styles.actionBtnText}>Attestation</Text>
+                  <Text style={styles.actionBtnText}>{t("download")}</Text>
                 </TouchableOpacity>
                 <TouchableOpacity
                   style={[styles.actionBtn, { backgroundColor: "#6366f1" }]}
                   onPress={() => {
                     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
-                    Alert.alert("Relance envoyée", `Un rappel de paiement a été envoyé à ${member.name} par email et SMS.`);
+                    Alert.alert(t("send"), `${member.name}`);
                   }}
                 >
                   <Feather name="send" size={16} color="#fff" />
-                  <Text style={styles.actionBtnText}>Relance</Text>
+                  <Text style={styles.actionBtnText}>{t("send")}</Text>
                 </TouchableOpacity>
               </View>
             </View>
@@ -264,20 +266,20 @@ export default function MemberDetailScreen() {
             {memberTx.length === 0 ? (
               <View style={styles.emptyState}>
                 <Feather name="credit-card" size={36} color={colors.mutedForeground} />
-                <Text style={[styles.emptyText, { color: colors.mutedForeground }]}>Aucune cotisation enregistrée</Text>
+                <Text style={[styles.emptyText, { color: colors.mutedForeground }]}>{t("noCotisations")}</Text>
               </View>
             ) : (
-              memberTx.map((t) => {
-                const sc = t.status === "paid" ? colors.success : t.status === "pending" ? "#f59e0b" : colors.destructive;
-                const sl = t.status === "paid" ? "Payé" : t.status === "pending" ? "En attente" : "En retard";
+              memberTx.map((tx) => {
+                const sc = tx.status === "paid" ? colors.success : tx.status === "pending" ? "#f59e0b" : colors.destructive;
+                const sl = tx.status === "paid" ? t("statusPaid") : tx.status === "pending" ? t("statusPending") : t("statusLate");
                 return (
-                  <View key={t.id} style={[styles.txCard, { backgroundColor: colors.card, borderColor: colors.border, borderLeftColor: sc }]}>
+                  <View key={tx.id} style={[styles.txCard, { backgroundColor: colors.card, borderColor: colors.border, borderLeftColor: sc }]}>
                     <View style={{ flex: 1 }}>
-                      <Text style={[styles.txLabel, { color: colors.foreground }]}>{t.label}</Text>
-                      <Text style={[styles.txDate, { color: colors.mutedForeground }]}>{t.date}</Text>
+                      <Text style={[styles.txLabel, { color: colors.foreground }]}>{tx.label}</Text>
+                      <Text style={[styles.txDate, { color: colors.mutedForeground }]}>{tx.date}</Text>
                     </View>
                     <View style={{ alignItems: "flex-end", gap: 5 }}>
-                      <Text style={[styles.txAmount, { color: colors.foreground }]}>{t.amount} MAD</Text>
+                      <Text style={[styles.txAmount, { color: colors.foreground }]}>{tx.amount} MAD</Text>
                       <View style={[styles.txBadge, { backgroundColor: sc + "15" }]}>
                         <Text style={[styles.txBadgeText, { color: sc }]}>{sl}</Text>
                       </View>
@@ -290,12 +292,12 @@ export default function MemberDetailScreen() {
         ) : (
           <View style={[styles.activityCard, { backgroundColor: colors.card, borderColor: colors.border }]}>
             {[
-              { icon: "log-in" as const, label: "Dernière connexion", value: "Aujourd'hui à 09:30", color: colors.success },
-              { icon: "check-square" as const, label: "Vote élections", value: "Oui — Bureau National 2026", color: colors.primary },
-              { icon: "file-text" as const, label: "Documents téléchargés", value: "3 documents ce mois", color: "#f59e0b" },
-              { icon: "shopping-bag" as const, label: "Achats marketplace", value: "2 commandes", color: "#6366f1" },
-              { icon: "message-circle" as const, label: "Messages envoyés", value: "12 messages ce mois", color: "#ec4899" },
-            ].map((act, i, arr) => (
+              { icon: "log-in" as const, label: t("activityTitle"), value: t("today"), color: colors.success },
+              { icon: "check-square" as const, label: t("elections"), value: t("electionsTitle"), color: colors.primary },
+              { icon: "file-text" as const, label: t("documents"), value: t("documentsTitle"), color: "#f59e0b" },
+              { icon: "shopping-bag" as const, label: t("marketplace"), value: t("orders"), color: "#6366f1" },
+              { icon: "message-circle" as const, label: t("chat"), value: t("chatTitle"), color: "#ec4899" },
+            ].map((act, i) => (
               <View key={act.label}>
                 {i > 0 ? <View style={[styles.sep, { backgroundColor: colors.border }]} /> : null}
                 <View style={styles.activityRow}>
@@ -319,17 +321,17 @@ export default function MemberDetailScreen() {
           <View style={{ backgroundColor: colors.card, borderTopLeftRadius: 24, borderTopRightRadius: 24, padding: 24, maxHeight: "85%" }}>
             <View style={{ width: 40, height: 4, borderRadius: 2, backgroundColor: "#e5e7eb", alignSelf: "center", marginBottom: 16 }} />
             <View style={{ flexDirection: "row", alignItems: "center", marginBottom: 20 }}>
-              <Text style={{ flex: 1, fontSize: 18, fontFamily: "Inter_700Bold", color: colors.foreground }}>Modifier le profil</Text>
+              <Text style={{ flex: 1, fontSize: 18, fontFamily: "Inter_700Bold", color: colors.foreground }}>{t("editProfileBtn")}</Text>
               <TouchableOpacity onPress={() => setShowEdit(false)}>
                 <Feather name="x" size={20} color={colors.mutedForeground} />
               </TouchableOpacity>
             </View>
             <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={{ gap: 14, paddingBottom: 20 }}>
               {[
-                { label: "NOM COMPLET", value: editName, setter: setEditName, placeholder: "Prénom et nom" },
-                { label: "EMAIL", value: editEmail, setter: setEditEmail, placeholder: "email@exemple.com" },
-                { label: "TÉLÉPHONE", value: editPhone, setter: setEditPhone, placeholder: "+212 6 XX XX XX XX" },
-                { label: "PROFESSION", value: editProfession, setter: setEditProfession, placeholder: "Poste / métier" },
+                { label: t("nameLabel"), value: editName, setter: setEditName, placeholder: t("fullNamePlaceholder") },
+                { label: "EMAIL", value: editEmail, setter: setEditEmail, placeholder: t("emailPlaceholder") },
+                { label: t("phoneLabel"), value: editPhone, setter: setEditPhone, placeholder: t("phonePlaceholder") },
+                { label: "Profession", value: editProfession, setter: setEditProfession, placeholder: "Poste / métier" },
               ].map((f) => (
                 <View key={f.label} style={{ gap: 6 }}>
                   <Text style={{ fontSize: 10, fontFamily: "Inter_600SemiBold", color: colors.mutedForeground, letterSpacing: 1 }}>{f.label}</Text>
@@ -347,17 +349,17 @@ export default function MemberDetailScreen() {
                   style={{ flex: 1, paddingVertical: 14, borderRadius: 12, borderWidth: 1, borderColor: colors.border, alignItems: "center" }}
                   onPress={() => setShowEdit(false)}
                 >
-                  <Text style={{ fontSize: 14, fontFamily: "Inter_600SemiBold", color: colors.mutedForeground }}>Annuler</Text>
+                  <Text style={{ fontSize: 14, fontFamily: "Inter_600SemiBold", color: colors.mutedForeground }}>{t("cancel")}</Text>
                 </TouchableOpacity>
                 <TouchableOpacity
                   style={{ flex: 1, paddingVertical: 14, borderRadius: 12, backgroundColor: colors.primary, alignItems: "center" }}
                   onPress={() => {
                     Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
                     setShowEdit(false);
-                    Alert.alert("Profil mis à jour", `Les informations de ${editName || member.name} ont été enregistrées.`);
+                    Alert.alert(t("profileUpdated"), `${editName || member.name}`);
                   }}
                 >
-                  <Text style={{ fontSize: 14, fontFamily: "Inter_700Bold", color: "#fff" }}>Enregistrer</Text>
+                  <Text style={{ fontSize: 14, fontFamily: "Inter_700Bold", color: "#fff" }}>{t("save")}</Text>
                 </TouchableOpacity>
               </View>
             </ScrollView>
@@ -370,17 +372,17 @@ export default function MemberDetailScreen() {
         <TouchableOpacity style={styles.actionsOverlay} activeOpacity={1} onPress={() => setShowActions(false)} />
         <View style={[styles.actionsSheet, { backgroundColor: colors.card }]}>
           <View style={[styles.actionsDrag, { backgroundColor: colors.border }]} />
-          <Text style={[styles.actionsSheetTitle, { color: colors.foreground }]}>Actions — {member?.name}</Text>
+          <Text style={[styles.actionsSheetTitle, { color: colors.foreground }]}>{t("memberDetail")} — {member?.name}</Text>
           {[
-            { icon: "download" as const, label: "Exporter la fiche PDF", color: "#6366f1", action: () => { Alert.alert("Exporté", `La fiche de ${member?.name} a été exportée en PDF.`); logActivity({ action: "Fiche exportée", target: member?.name ?? "", route: "/member-detail", icon: "download", color: "#6366f1" }); } },
-            { icon: "send" as const, label: "Envoyer une notification push", color: "#3b82f6", action: () => { Alert.alert("Notifié", `${member?.name} a reçu une notification.`); logActivity({ action: "Notification envoyée", target: member?.name ?? "", route: "/member-detail", icon: "send", color: "#3b82f6" }); } },
-            { icon: "mail" as const, label: "Envoyer un email", color: "#10b981", action: () => Alert.alert("Email envoyé", `Un email a été envoyé à ${member?.email}.`) },
-            { icon: "award" as const, label: "Générer une attestation", color: "#8b5cf6", action: () => { Alert.alert("Attestation générée", `L'attestation de ${member?.name} est disponible dans Documents.`); logActivity({ action: "Attestation générée", target: member?.name ?? "", route: "/documents", icon: "award", color: "#8b5cf6" }); } },
-            { icon: "copy" as const, label: "Copier l'identifiant membre", color: "#f59e0b", action: () => Alert.alert("Copié", `ID : ${member?.id}`) },
-            { icon: "share-2" as const, label: "Partager la fiche", color: "#ec4899", action: () => Alert.alert("Partagé", `La fiche de ${member?.name} a été partagée.`) },
+            { icon: "download" as const, label: t("download"), color: "#6366f1", action: () => { Alert.alert(t("download"), `${member?.name}`); logActivity({ action: t("download"), target: member?.name ?? "", route: "/member-detail", icon: "download", color: "#6366f1" }); } },
+            { icon: "send" as const, label: t("send"), color: "#3b82f6", action: () => { Alert.alert(t("send"), `${member?.name}`); logActivity({ action: t("send"), target: member?.name ?? "", route: "/member-detail", icon: "send", color: "#3b82f6" }); } },
+            { icon: "mail" as const, label: "Email", color: "#10b981", action: () => Alert.alert("Email", `${member?.email}`) },
+            { icon: "award" as const, label: t("download"), color: "#8b5cf6", action: () => { Alert.alert(t("download"), `${member?.name}`); logActivity({ action: t("download"), target: member?.name ?? "", route: "/documents", icon: "award", color: "#8b5cf6" }); } },
+            { icon: "copy" as const, label: t("memberDetail"), color: "#f59e0b", action: () => Alert.alert(t("memberDetail"), `ID : ${member?.id}`) },
+            { icon: "share-2" as const, label: t("share"), color: "#ec4899", action: () => Alert.alert(t("share"), `${member?.name}`) },
           ].map((item, i) => (
             <TouchableOpacity
-              key={item.label}
+              key={item.label + i}
               style={[styles.actionsItem, i > 0 ? { borderTopWidth: 1, borderTopColor: colors.border } : null]}
               onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); item.action(); setShowActions(false); }}
               activeOpacity={0.7}
@@ -396,7 +398,7 @@ export default function MemberDetailScreen() {
             style={[styles.actionsCancel, { backgroundColor: colors.destructive + "15" }]}
             onPress={() => setShowActions(false)}
           >
-            <Text style={[styles.actionsCancelText, { color: colors.destructive }]}>Fermer</Text>
+            <Text style={[styles.actionsCancelText, { color: colors.destructive }]}>{t("close")}</Text>
           </TouchableOpacity>
         </View>
       </Modal>

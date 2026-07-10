@@ -21,27 +21,28 @@ import { useActivity } from "@/context/ActivityContext";
 import { useAuth } from "@/context/AuthContext";
 import { useData, type Meeting } from "@/context/DataContext";
 import { useFavorites } from "@/context/FavoritesContext";
+import { useLanguage } from "@/context/LanguageContext";
 import { useBreakpoints } from "@/hooks/useBreakpoints";
 import { useColors } from "@/hooks/useColors";
 import { apiRequest } from "@/lib/api";
 import FilterTabs from "@/components/FilterTabs";
 
-const TYPE_CONFIG: Record<string, { label: string; icon: keyof typeof Feather.glyphMap; color: string }> = {
-  board:             { label: "Bureau",             icon: "briefcase",      color: "#7c3aed" },
-  general:           { label: "Assemblée Générale", icon: "users",          color: "#3b82f6" },
-  committee:         { label: "Commission",         icon: "layers",         color: "#10b981" },
-  emergency:         { label: "Urgence",            icon: "alert-triangle", color: "#ef4444" },
-  ag_ordinaire:      { label: "AG Ordinaire",       icon: "calendar",       color: "#3b82f6" },
-  ag_extraordinaire: { label: "AG Extraordinaire",  icon: "alert-triangle", color: "#ef4444" },
-  ag_constitutive:   { label: "AG Constitutive",    icon: "flag",           color: "#10b981" },
-  ag_elective:       { label: "AG Élective",        icon: "award",          color: "#f59e0b" },
+const TYPE_CONFIG: Record<string, { icon: keyof typeof Feather.glyphMap; color: string }> = {
+  board:             { icon: "briefcase",      color: "#7c3aed" },
+  general:           { icon: "users",          color: "#3b82f6" },
+  committee:         { icon: "layers",         color: "#10b981" },
+  emergency:         { icon: "alert-triangle", color: "#ef4444" },
+  ag_ordinaire:      { icon: "calendar",       color: "#3b82f6" },
+  ag_extraordinaire: { icon: "alert-triangle", color: "#ef4444" },
+  ag_constitutive:   { icon: "flag",           color: "#10b981" },
+  ag_elective:       { icon: "award",          color: "#f59e0b" },
 };
-const DEFAULT_TYPE = { label: "Réunion", icon: "calendar" as const, color: "#6b7280" };
+const DEFAULT_TYPE_ICON = { icon: "calendar" as const, color: "#6b7280" };
 
-const STATUS_CONFIG = {
-  scheduled: { label: "Planifiée", color: "#3b82f6" },
-  completed: { label: "Terminée", color: "#10b981" },
-  cancelled: { label: "Annulée", color: "#ef4444" },
+const STATUS_CONFIG_COLORS = {
+  scheduled: "#3b82f6",
+  completed: "#10b981",
+  cancelled: "#ef4444",
 };
 
 type FilterType = "all" | "scheduled" | "completed";
@@ -53,6 +54,7 @@ export default function MeetingsScreen() {
   const { meetings, confirmMeetingAttendance, addMeeting, updateMeeting } = useData();
   const { logActivity } = useActivity();
   const { toggleFavorite, isFavorite } = useFavorites();
+  const { t } = useLanguage();
   const FAV_ID = "screen-meetings";
   const [selected, setSelected] = useState<Meeting | null>(null);
   const [showCreate, setShowCreate] = useState(false);
@@ -79,6 +81,29 @@ export default function MeetingsScreen() {
   const [editLocation, setEditLocation] = useState("");
   const [editDesc, setEditDesc] = useState("");
 
+  const typeLabel = (key: string) => {
+    const map: Record<string, string> = {
+      board: t("meetTypeBoard"),
+      general: t("meetTypeGeneral"),
+      committee: t("meetTypeCommittee"),
+      emergency: t("typeUrgence"),
+      ag_ordinaire: t("meetTypeOrdinary"),
+      ag_extraordinaire: t("meetTypeExtraordinary"),
+      ag_constitutive: t("meetTypeConstitutive"),
+      ag_elective: t("meetTypeElective"),
+    };
+    return map[key] ?? t("defaultMeetType");
+  };
+
+  const statusLabel = (key: string) => {
+    const map: Record<string, string> = {
+      scheduled: t("statusScheduled"),
+      completed: t("statusCompleted"),
+      cancelled: t("statusCancelled"),
+    };
+    return map[key] ?? t("statusInProgress");
+  };
+
   const filtered = meetings.filter(
     (m) => filter === "all" || m.status === filter
   );
@@ -86,15 +111,15 @@ export default function MeetingsScreen() {
 
   const handleConfirm = (id: string, title: string) => {
     if (confirmed.has(id)) return;
-    Alert.alert("Confirmer la présence", `Confirmer votre présence à "${title}"?`, [
-      { text: "Annuler", style: "cancel" },
+    Alert.alert(t("confirmAttendanceTitle"), `${t("confirmAttendanceMsg")} "${title}"?`, [
+      { text: t("cancel"), style: "cancel" },
       {
-        text: "Confirmer",
+        text: t("confirm"),
         onPress: () => {
           setConfirmed((prev) => new Set(prev).add(id));
           confirmMeetingAttendance(id);
           Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-          logActivity({ action: "Présence confirmée", target: title, route: "/meetings", icon: "calendar", color: "#3b82f6" });
+          logActivity({ action: t("attendanceConfirmedLabel"), target: title, route: "/meetings", icon: "calendar", color: "#3b82f6" });
         },
       },
     ]);
@@ -108,7 +133,7 @@ export default function MeetingsScreen() {
         title: newTitle.trim(),
         date: newDate.trim(),
         time: newTime.trim() || "09:00",
-        location: newLocation.trim() || "À définir",
+        location: newLocation.trim() || t("locationTBD"),
         type: newType,
         description: newDesc.trim(),
       }, token);
@@ -130,9 +155,9 @@ export default function MeetingsScreen() {
       setNewTitle(""); setNewDate(""); setNewTime("");
       setNewLocation(""); setNewDesc("");
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-      logActivity({ action: "Réunion créée", target: newTitle, route: "/meetings", icon: "calendar", color: "#3b82f6" });
+      logActivity({ action: t("meetingCreatedLog"), target: newTitle, route: "/meetings", icon: "calendar", color: "#3b82f6" });
     } catch (e: any) {
-      Alert.alert("Erreur", e?.message ?? "Impossible de créer la réunion.");
+      Alert.alert(t("error"), e?.message ?? t("cannotCreateMeeting"));
     } finally {
       setSaving(false);
     }
@@ -164,7 +189,7 @@ export default function MeetingsScreen() {
       setEditMeeting(null);
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
     } catch (e: any) {
-      Alert.alert("Erreur", e?.message ?? "Impossible de modifier la réunion.");
+      Alert.alert(t("error"), e?.message ?? t("cannotEditMeeting"));
     } finally {
       setSaving(false);
     }
@@ -178,13 +203,13 @@ export default function MeetingsScreen() {
           <Feather name="arrow-left" size={22} color={colors.foreground} />
         </TouchableOpacity>
         <View style={{ flex: 1 }}>
-          <Text style={[styles.title, { color: colors.foreground }]}>Réunions</Text>
+          <Text style={[styles.title, { color: colors.foreground }]}>{t("meetingsTitle")}</Text>
           <Text style={[styles.subtitle, { color: colors.mutedForeground }]}>
-            {upcoming.length} réunion(s) à venir
+            {upcoming.length} {t("upcomingMeetings")}
           </Text>
         </View>
         <TouchableOpacity
-          onPress={() => toggleFavorite({ id: FAV_ID, title: "Réunions", icon: "calendar", color: "#3b82f6", route: "/meetings" })}
+          onPress={() => toggleFavorite({ id: FAV_ID, title: t("meetingsTitle"), icon: "calendar", color: "#3b82f6", route: "/meetings" })}
           style={{ padding: 6 }}
           hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
         >
@@ -211,7 +236,7 @@ export default function MeetingsScreen() {
             <Feather name="calendar" size={18} color="#fff" />
           </View>
           <View style={{ flex: 1 }}>
-            <Text style={styles.upcomingLabel}>Prochaine réunion</Text>
+            <Text style={styles.upcomingLabel}>{t("nextMeeting")}</Text>
             <Text style={styles.upcomingTitle} numberOfLines={1}>{upcoming[0]!.title}</Text>
             <Text style={styles.upcomingDate}>{upcoming[0]!.date} à {upcoming[0]!.time}</Text>
           </View>
@@ -221,9 +246,9 @@ export default function MeetingsScreen() {
 
       <FilterTabs
         options={[
-          { key: "all",       label: "Toutes" },
-          { key: "scheduled", label: "À venir" },
-          { key: "completed", label: "Terminées" },
+          { key: "all",       label: t("allFilter") },
+          { key: "scheduled", label: t("upcomingFilter") },
+          { key: "completed", label: t("completedFilter") },
         ]}
         value={filter}
         onChange={(k) => setFilter(k as FilterType)}
@@ -238,12 +263,12 @@ export default function MeetingsScreen() {
         ListEmptyComponent={
           <View style={styles.empty}>
             <Feather name="calendar" size={40} color={colors.mutedForeground} />
-            <Text style={[styles.emptyText, { color: colors.mutedForeground }]}>Aucune réunion</Text>
+            <Text style={[styles.emptyText, { color: colors.mutedForeground }]}>{t("noMeetings")}</Text>
           </View>
         }
         renderItem={({ item: m }) => {
-          const tc = TYPE_CONFIG[m.type] ?? DEFAULT_TYPE;
-          const sc = STATUS_CONFIG[m.status as keyof typeof STATUS_CONFIG] ?? { label: "En cours", color: "#6b7280" };
+          const tc = TYPE_CONFIG[m.type] ?? DEFAULT_TYPE_ICON;
+          const scColor = STATUS_CONFIG_COLORS[m.status as keyof typeof STATUS_CONFIG_COLORS] ?? "#6b7280";
           const isConfirmed = confirmed.has(m.id);
           const isScheduled = m.status === "scheduled";
           const isEmergency = m.type === "emergency" || m.type === "ag_extraordinaire";
@@ -267,11 +292,11 @@ export default function MeetingsScreen() {
                 </View>
                 <View style={{ flex: 1 }}>
                   <Text style={[styles.meetTitle, { color: colors.foreground }]} numberOfLines={1}>{m.title}</Text>
-                  <Text style={[styles.meetType, { color: tc.color }]}>{tc.label}</Text>
+                  <Text style={[styles.meetType, { color: tc.color }]}>{typeLabel(m.type)}</Text>
                 </View>
-                <View style={[styles.statusBadge, { backgroundColor: sc.color + "15" }]}>
-                  <View style={[styles.statusDot, { backgroundColor: sc.color }]} />
-                  <Text style={[styles.statusLabel, { color: sc.color }]}>{sc.label}</Text>
+                <View style={[styles.statusBadge, { backgroundColor: scColor + "15" }]}>
+                  <View style={[styles.statusDot, { backgroundColor: scColor }]} />
+                  <Text style={[styles.statusLabel, { color: scColor }]}>{statusLabel(m.status)}</Text>
                 </View>
               </View>
 
@@ -286,7 +311,7 @@ export default function MeetingsScreen() {
                 </View>
                 <View style={styles.infoItem}>
                   <Feather name="users" size={12} color={colors.mutedForeground} />
-                  <Text style={[styles.infoText, { color: colors.mutedForeground }]}>{m.attendees} participants</Text>
+                  <Text style={[styles.infoText, { color: colors.mutedForeground }]}>{m.attendees} {t("participants")}</Text>
                 </View>
               </View>
 
@@ -297,7 +322,7 @@ export default function MeetingsScreen() {
 
               {m.agenda && m.agenda.length > 0 ? (
                 <View style={[styles.agendaPreview, { backgroundColor: colors.background, borderColor: colors.border }]}>
-                  <Text style={[styles.agendaLabel, { color: colors.primary }]}>Ordre du jour</Text>
+                  <Text style={[styles.agendaLabel, { color: colors.primary }]}>{t("agendaLabel")}</Text>
                   {m.agenda.slice(0, 2).map((item, i) => (
                     <View key={i} style={styles.agendaItem}>
                       <View style={[styles.agendaBullet, { backgroundColor: colors.primary }]} />
@@ -305,7 +330,7 @@ export default function MeetingsScreen() {
                     </View>
                   ))}
                   {m.agenda.length > 2 ? (
-                    <Text style={[styles.agendaMore, { color: colors.primary }]}>+{m.agenda.length - 2} autres points</Text>
+                    <Text style={[styles.agendaMore, { color: colors.primary }]}>+{m.agenda.length - 2} {t("moreAgendaPoints")}</Text>
                   ) : null}
                 </View>
               ) : null}
@@ -317,7 +342,7 @@ export default function MeetingsScreen() {
                     onPress={() => setSelected(m)}
                   >
                     <Feather name="list" size={14} color={colors.primary} />
-                    <Text style={[styles.actionBtnText, { color: colors.primary }]}>Agenda complet</Text>
+                    <Text style={[styles.actionBtnText, { color: colors.primary }]}>{t("fullAgenda")}</Text>
                   </TouchableOpacity>
                   <TouchableOpacity
                     style={[styles.actionBtn, {
@@ -330,7 +355,7 @@ export default function MeetingsScreen() {
                   >
                     <Feather name={isConfirmed ? "check-circle" : "user-check"} size={14} color={isConfirmed ? colors.success : "#fff"} />
                     <Text style={[styles.actionBtnText, { color: isConfirmed ? colors.success : "#fff" }]}>
-                      {isConfirmed ? "Présence confirmée" : "Confirmer ma présence"}
+                      {isConfirmed ? t("attendanceConfirmedLabel") : t("confirmMyAttendance")}
                     </Text>
                   </TouchableOpacity>
                 </View>
@@ -339,11 +364,11 @@ export default function MeetingsScreen() {
                   style={[styles.pvBtn, { borderColor: colors.primary + "40", backgroundColor: colors.primary + "08" }]}
                   onPress={() => {
                     Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-                    Alert.alert("PV téléchargé", `Le procès-verbal de "${m.title}" a été téléchargé. Disponible dans votre espace Documents.`);
+                    Alert.alert(t("pvDownloadedTitle"), t("pvDownloadedMsg"));
                   }}
                 >
                   <Feather name="file-text" size={14} color={colors.primary} />
-                  <Text style={[styles.pvBtnText, { color: colors.primary }]}>Télécharger le PV</Text>
+                  <Text style={[styles.pvBtnText, { color: colors.primary }]}>{t("downloadPVBtn")}</Text>
                 </TouchableOpacity>
               ) : null}
             </TouchableOpacity>
@@ -363,8 +388,8 @@ export default function MeetingsScreen() {
                 <Text style={[styles.modalTitle, { color: colors.foreground }]} numberOfLines={1}>
                   {selected.title}
                 </Text>
-                <Text style={[styles.modalSub, { color: (TYPE_CONFIG[selected.type] ?? DEFAULT_TYPE).color }]}>
-                  {(TYPE_CONFIG[selected.type] ?? DEFAULT_TYPE).label}
+                <Text style={[styles.modalSub, { color: (TYPE_CONFIG[selected.type] ?? DEFAULT_TYPE_ICON).color }]}>
+                  {typeLabel(selected.type)}
                 </Text>
               </View>
               {isAdmin ? (
@@ -392,7 +417,7 @@ export default function MeetingsScreen() {
                 {[
                   { icon: "calendar" as const, value: selected.date },
                   { icon: "clock" as const, value: selected.time },
-                  { icon: "users" as const, value: `${selected.attendees} participants` },
+                  { icon: "users" as const, value: `${selected.attendees} ${t("participants")}` },
                 ].map((item) => (
                   <View key={item.icon} style={styles.detailInfoItem}>
                     <Feather name={item.icon} size={14} color={colors.primary} />
@@ -405,7 +430,7 @@ export default function MeetingsScreen() {
               <View style={[styles.locationCard, { backgroundColor: colors.card, borderColor: colors.border }]}>
                 <Feather name="map-pin" size={16} color={colors.primary} />
                 <View style={{ flex: 1 }}>
-                  <Text style={[styles.locationCardLabel, { color: colors.mutedForeground }]}>Lieu</Text>
+                  <Text style={[styles.locationCardLabel, { color: colors.mutedForeground }]}>{t("locationLabel")}</Text>
                   <Text style={[styles.locationCardValue, { color: colors.foreground }]}>{selected.location}</Text>
                 </View>
                 <TouchableOpacity
@@ -413,7 +438,7 @@ export default function MeetingsScreen() {
                   onPress={() => {
                     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
                     Linking.openURL(`https://maps.google.com/?q=${encodeURIComponent(selected?.location ?? "")}`).catch(() =>
-                      Alert.alert("Erreur", "Impossible d'ouvrir l'application Cartes.")
+                      Alert.alert(t("error"), "Impossible d'ouvrir l'application Cartes.")
                     );
                   }}
                 >
@@ -424,7 +449,7 @@ export default function MeetingsScreen() {
               {/* Description */}
               {selected.description ? (
                 <View style={[styles.descCard, { backgroundColor: colors.card, borderColor: colors.border }]}>
-                  <Text style={[styles.descLabel, { color: colors.foreground }]}>Description</Text>
+                  <Text style={[styles.descLabel, { color: colors.foreground }]}>{t("descriptionLabel")}</Text>
                   <Text style={[styles.descText, { color: colors.mutedForeground }]}>{selected.description}</Text>
                 </View>
               ) : null}
@@ -432,7 +457,7 @@ export default function MeetingsScreen() {
               {/* Agenda */}
               {selected.agenda && selected.agenda.length > 0 ? (
                 <View style={{ gap: 8 }}>
-                  <Text style={[styles.agendaFullTitle, { color: colors.foreground }]}>Ordre du jour</Text>
+                  <Text style={[styles.agendaFullTitle, { color: colors.foreground }]}>{t("agendaLabel")}</Text>
                   {selected.agenda.map((item, i) => (
                     <View key={i} style={[styles.agendaFullItem, { backgroundColor: colors.card, borderColor: colors.border }]}>
                       <View style={[styles.agendaNumber, { backgroundColor: colors.primary }]}>
@@ -451,15 +476,15 @@ export default function MeetingsScreen() {
                 </View>
                 <View style={{ flex: 1 }}>
                   <Text style={[styles.attendanceTitleInline, { color: colors.foreground }]}>
-                    {selected.attendees} participant{selected.attendees !== 1 ? "s" : ""} confirmé{selected.attendees !== 1 ? "s" : ""}
+                    {selected.attendees} {t("participants")}
                   </Text>
                   {selected.userConfirmed ? (
                     <Text style={{ fontSize: 11, fontFamily: "Inter_400Regular", color: colors.success, marginTop: 2 }}>
-                      ✓ Votre présence est confirmée
+                      ✓ {t("presenceConfirmed")}
                     </Text>
                   ) : (
                     <Text style={{ fontSize: 11, fontFamily: "Inter_400Regular", color: colors.mutedForeground, marginTop: 2 }}>
-                      Confirmez votre présence ci-dessous
+                      {t("confirmMyAttendance")}
                     </Text>
                   )}
                 </View>
@@ -479,7 +504,7 @@ export default function MeetingsScreen() {
                   >
                     <Feather name={confirmed.has(selected.id) ? "check-circle" : "user-check"} size={16} color={confirmed.has(selected.id) ? colors.success : "#fff"} />
                     <Text style={[styles.confirmBtnText, { color: confirmed.has(selected.id) ? colors.success : "#fff" }]}>
-                      {confirmed.has(selected.id) ? "Présence confirmée" : "Confirmer ma présence"}
+                      {confirmed.has(selected.id) ? t("attendanceConfirmedLabel") : t("confirmMyAttendance")}
                     </Text>
                   </TouchableOpacity>
                   <TouchableOpacity
@@ -489,12 +514,12 @@ export default function MeetingsScreen() {
                       const [d, m2, y] = (selected?.date ?? "01/01/2026").split("/");
                       const isoDate = `${y}${m2}${d}`;
                       Linking.openURL(`https://calendar.google.com/calendar/r/eventedit?text=${encodeURIComponent(selected?.title ?? "")}&dates=${isoDate}/${isoDate}&details=${encodeURIComponent(selected?.description ?? "")}&location=${encodeURIComponent(selected?.location ?? "")}`).catch(() =>
-                        Alert.alert("Calendrier", `"${selected?.title}" planifié le ${selected?.date} à ${selected?.time}.`)
+                        Alert.alert(t("calendarTitle"), `"${selected?.title}" ${selected?.date} ${selected?.time}.`)
                       );
                     }}
                   >
                     <Feather name="calendar" size={16} color={colors.primary} />
-                    <Text style={[styles.calBtnText, { color: colors.primary }]}>Ajouter à mon calendrier</Text>
+                    <Text style={[styles.calBtnText, { color: colors.primary }]}>{t("calendar")}</Text>
                   </TouchableOpacity>
                 </View>
               ) : selected.status === "completed" ? (
@@ -502,11 +527,11 @@ export default function MeetingsScreen() {
                   style={[styles.confirmBtn, { backgroundColor: colors.primary }]}
                   onPress={() => {
                     Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-                    Alert.alert("PV téléchargé", `Le procès-verbal de "${selected.title}" a été téléchargé. Disponible dans votre espace Documents.`);
+                    Alert.alert(t("pvDownloadedTitle"), t("pvDownloadedMsg"));
                   }}
                 >
                   <Feather name="file-text" size={16} color="#fff" />
-                  <Text style={[styles.confirmBtnText, { color: "#fff" }]}>Télécharger le PV</Text>
+                  <Text style={[styles.confirmBtnText, { color: "#fff" }]}>{t("downloadPVBtn")}</Text>
                 </TouchableOpacity>
               ) : null}
             </ScrollView>
@@ -518,7 +543,7 @@ export default function MeetingsScreen() {
       <Modal visible={showCreate} animationType="slide" presentationStyle="pageSheet">
         <View style={[styles.modal, { backgroundColor: colors.background }]}>
           <View style={[styles.modalHeader, { borderBottomColor: colors.border }]}>
-            <Text style={[styles.modalTitle, { color: colors.foreground }]}>Planifier une réunion</Text>
+            <Text style={[styles.modalTitle, { color: colors.foreground }]}>{t("createMeeting")}</Text>
             <TouchableOpacity onPress={() => setShowCreate(false)}>
               <Feather name="x" size={22} color={colors.mutedForeground} />
             </TouchableOpacity>
@@ -527,7 +552,7 @@ export default function MeetingsScreen() {
           <ScrollView contentContainerStyle={{ padding: 20, gap: 16, paddingBottom: 40 }}>
             {/* Type selector */}
             <View style={{ gap: 8 }}>
-              <Text style={[styles.fieldLabel, { color: colors.foreground }]}>Type de réunion</Text>
+              <Text style={[styles.fieldLabel, { color: colors.foreground }]}>{t("meetingTypeLabel")}</Text>
               <View style={styles.typeGrid}>
                 {(Object.entries(TYPE_CONFIG) as [Meeting["type"], typeof TYPE_CONFIG[keyof typeof TYPE_CONFIG]][]).map(([key, cfg]) => (
                   <TouchableOpacity
@@ -543,7 +568,7 @@ export default function MeetingsScreen() {
                   >
                     <Feather name={cfg.icon} size={14} color={newType === key ? "#fff" : colors.mutedForeground} />
                     <Text style={[styles.typeChipText, { color: newType === key ? "#fff" : colors.mutedForeground }]}>
-                      {cfg.label}
+                      {typeLabel(key)}
                     </Text>
                   </TouchableOpacity>
                 ))}
@@ -551,11 +576,11 @@ export default function MeetingsScreen() {
             </View>
 
             {[
-              { label: "Titre *", value: newTitle, setter: setNewTitle, placeholder: "Ex: Réunion mensuelle du bureau" },
-              { label: "Date *", value: newDate, setter: setNewDate, placeholder: "2026-06-15" },
-              { label: "Heure", value: newTime, setter: setNewTime, placeholder: "10:00" },
-              { label: "Lieu", value: newLocation, setter: setNewLocation, placeholder: "Siège du syndicat, Casablanca" },
-              { label: "Description", value: newDesc, setter: setNewDesc, placeholder: "Ordre du jour et détails..." },
+              { label: t("meetingTitleLabel"), value: newTitle, setter: setNewTitle, placeholder: "Ex: Réunion mensuelle du bureau" },
+              { label: t("meetingDateLabel"), value: newDate, setter: setNewDate, placeholder: "2026-06-15" },
+              { label: t("meetingTimeLabel"), value: newTime, setter: setNewTime, placeholder: "10:00" },
+              { label: t("locationLabel"), value: newLocation, setter: setNewLocation, placeholder: "Siège du syndicat, Casablanca" },
+              { label: t("meetingDescLabel"), value: newDesc, setter: setNewDesc, placeholder: "Ordre du jour et détails..." },
             ].map((field) => (
               <View key={field.label} style={{ gap: 6 }}>
                 <Text style={[styles.fieldLabel, { color: colors.foreground }]}>{field.label}</Text>
@@ -563,13 +588,13 @@ export default function MeetingsScreen() {
                   style={[
                     styles.fieldInput,
                     { borderColor: colors.border, backgroundColor: colors.card, color: colors.foreground },
-                    field.label === "Description" ? { minHeight: 80, textAlignVertical: "top" } : null,
+                    field.label === t("meetingDescLabel") ? { minHeight: 80, textAlignVertical: "top" } : null,
                   ]}
                   value={field.value}
                   onChangeText={field.setter}
                   placeholder={field.placeholder}
                   placeholderTextColor={colors.mutedForeground}
-                  multiline={field.label === "Description"}
+                  multiline={field.label === t("meetingDescLabel")}
                 />
               </View>
             ))}
@@ -585,7 +610,7 @@ export default function MeetingsScreen() {
                 <>
                   <Feather name="calendar" size={16} color={newTitle.trim() && newDate.trim() ? "#fff" : colors.mutedForeground} />
                   <Text style={[styles.confirmBtnText, { color: newTitle.trim() && newDate.trim() ? "#fff" : colors.mutedForeground }]}>
-                    Planifier la réunion
+                    {t("save")}
                   </Text>
                 </>
               )}
@@ -600,28 +625,28 @@ export default function MeetingsScreen() {
           <View style={{ backgroundColor: colors.card, borderTopLeftRadius: 24, borderTopRightRadius: 24, padding: 24, maxHeight: "90%" }}>
             <View style={{ width: 40, height: 4, borderRadius: 2, backgroundColor: "#e5e7eb", alignSelf: "center", marginBottom: 16 }} />
             <View style={{ flexDirection: "row", alignItems: "center", marginBottom: 20 }}>
-              <Text style={{ flex: 1, fontSize: 18, fontFamily: "Inter_700Bold", color: colors.foreground }}>Modifier la réunion</Text>
+              <Text style={{ flex: 1, fontSize: 18, fontFamily: "Inter_700Bold", color: colors.foreground }}>{t("edit")}</Text>
               <TouchableOpacity onPress={() => setShowEditMeeting(false)}>
                 <Feather name="x" size={20} color={colors.mutedForeground} />
               </TouchableOpacity>
             </View>
             <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={{ gap: 14, paddingBottom: 20 }}>
               {[
-                { label: "TITRE", value: editTitle, setter: setEditTitle, placeholder: "Titre de la réunion" },
-                { label: "DATE (JJ/MM/AAAA)", value: editDate, setter: setEditDate, placeholder: "15/06/2026" },
-                { label: "HEURE", value: editTime, setter: setEditTime, placeholder: "14:00" },
-                { label: "LIEU", value: editLocation, setter: setEditLocation, placeholder: "Siège du syndicat" },
-                { label: "DESCRIPTION", value: editDesc, setter: setEditDesc, placeholder: "Ordre du jour et description..." },
+                { label: t("meetingTitleLabel"), value: editTitle, setter: setEditTitle, placeholder: "Titre de la réunion" },
+                { label: t("meetingDateLabel"), value: editDate, setter: setEditDate, placeholder: "15/06/2026" },
+                { label: t("meetingTimeLabel"), value: editTime, setter: setEditTime, placeholder: "14:00" },
+                { label: t("locationLabel"), value: editLocation, setter: setEditLocation, placeholder: "Siège du syndicat" },
+                { label: t("meetingDescLabel"), value: editDesc, setter: setEditDesc, placeholder: "Ordre du jour et description..." },
               ].map((f) => (
                 <View key={f.label} style={{ gap: 6 }}>
                   <Text style={{ fontSize: 10, fontFamily: "Inter_600SemiBold", color: colors.mutedForeground, letterSpacing: 1 }}>{f.label}</Text>
                   <TextInput
-                    style={{ borderRadius: 12, borderWidth: 1, borderColor: colors.border, backgroundColor: colors.background, padding: 12, fontSize: 14, fontFamily: "Inter_400Regular", color: colors.foreground, minHeight: f.label === "DESCRIPTION" ? 72 : undefined }}
+                    style={{ borderRadius: 12, borderWidth: 1, borderColor: colors.border, backgroundColor: colors.background, padding: 12, fontSize: 14, fontFamily: "Inter_400Regular", color: colors.foreground, minHeight: f.label === t("meetingDescLabel") ? 72 : undefined }}
                     value={f.value}
                     onChangeText={f.setter}
                     placeholder={f.placeholder}
                     placeholderTextColor={colors.mutedForeground}
-                    multiline={f.label === "DESCRIPTION"}
+                    multiline={f.label === t("meetingDescLabel")}
                   />
                 </View>
               ))}
@@ -630,7 +655,7 @@ export default function MeetingsScreen() {
                   style={{ flex: 1, paddingVertical: 14, borderRadius: 12, borderWidth: 1, borderColor: colors.border, alignItems: "center" }}
                   onPress={() => setShowEditMeeting(false)}
                 >
-                  <Text style={{ fontSize: 14, fontFamily: "Inter_600SemiBold", color: colors.mutedForeground }}>Annuler</Text>
+                  <Text style={{ fontSize: 14, fontFamily: "Inter_600SemiBold", color: colors.mutedForeground }}>{t("cancel")}</Text>
                 </TouchableOpacity>
                 <TouchableOpacity
                   style={{ flex: 1, paddingVertical: 14, borderRadius: 12, backgroundColor: saving ? colors.muted : colors.primary, alignItems: "center" }}
@@ -640,7 +665,7 @@ export default function MeetingsScreen() {
                   {saving ? (
                     <ActivityIndicator size="small" color={colors.mutedForeground} />
                   ) : (
-                    <Text style={{ fontSize: 14, fontFamily: "Inter_700Bold", color: "#fff" }}>Enregistrer</Text>
+                    <Text style={{ fontSize: 14, fontFamily: "Inter_700Bold", color: "#fff" }}>{t("save")}</Text>
                   )}
                 </TouchableOpacity>
               </View>

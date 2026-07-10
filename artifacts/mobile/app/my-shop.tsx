@@ -18,6 +18,7 @@ import {
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useAuth } from "@/context/AuthContext";
+import { useLanguage } from "@/context/LanguageContext";
 import { useBreakpoints } from "@/hooks/useBreakpoints";
 import { useColors } from "@/hooks/useColors";
 import { marketplace } from "@/services/api";
@@ -61,6 +62,7 @@ export default function MyShopScreen() {
   const colors = useColors();
   const insets = useSafeAreaInsets();
   const { user } = useAuth();
+  const { t } = useLanguage();
   const { isWide } = useBreakpoints();
   const topPad = isWide ? 0 : (Platform.OS === "web" ? 67 : insets.top);
 
@@ -127,12 +129,12 @@ export default function MyShopScreen() {
 
   const handleSave = async () => {
     if (!name.trim() || !price.trim()) {
-      Alert.alert("Champs requis", "Le nom et le prix sont obligatoires");
+      Alert.alert(t("required"), t("onboardingRequired"));
       return;
     }
     const parsedPrice = parseFloat(price);
     if (isNaN(parsedPrice) || parsedPrice <= 0) {
-      Alert.alert("Prix invalide", "Entrez un prix valide en MAD");
+      Alert.alert(t("error"), t("error"));
       return;
     }
     setSaving(true);
@@ -157,17 +159,17 @@ export default function MyShopScreen() {
       resetForm();
       await fetchListings();
     } catch (e: any) {
-      Alert.alert("Erreur", e?.message ?? "Impossible de sauvegarder le produit");
+      Alert.alert(t("error"), e?.message ?? t("error"));
     } finally {
       setSaving(false);
     }
   };
 
   const handleDelete = (id: string, productName: string) => {
-    Alert.alert("Supprimer", `Supprimer "${productName}" définitivement ?`, [
-      { text: "Annuler", style: "cancel" },
+    Alert.alert(t("delete"), `${t("delete")} "${productName}" ?`, [
+      { text: t("cancel"), style: "cancel" },
       {
-        text: "Supprimer",
+        text: t("delete"),
         style: "destructive",
         onPress: async () => {
           setDeleting(id);
@@ -176,7 +178,7 @@ export default function MyShopScreen() {
             setProducts((prev) => prev.filter((p) => p.id !== id));
             Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
           } catch {
-            Alert.alert("Erreur", "Impossible de supprimer ce produit");
+            Alert.alert(t("error"), t("error"));
           } finally {
             setDeleting(null);
           }
@@ -224,14 +226,14 @@ export default function MyShopScreen() {
             onPress={() => openEdit(p)}
           >
             <Feather name="edit-2" size={14} color={colors.primary} />
-            <Text style={[styles.actionBtnText, { color: colors.primary }]}>Modifier</Text>
+            <Text style={[styles.actionBtnText, { color: colors.primary }]}>{t("edit")}</Text>
           </TouchableOpacity>
           <TouchableOpacity
             style={[styles.actionBtn, { backgroundColor: colors.secondary }]}
             onPress={() => { router.push({ pathname: "/product-detail", params: { id: p.id } } as any); }}
           >
             <Feather name="eye" size={14} color={colors.foreground} />
-            <Text style={[styles.actionBtnText, { color: colors.foreground }]}>Voir</Text>
+            <Text style={[styles.actionBtnText, { color: colors.foreground }]}>{t("viewDetails")}</Text>
           </TouchableOpacity>
           <TouchableOpacity
             style={[styles.actionBtn, { backgroundColor: colors.destructive + "12" }]}
@@ -243,7 +245,7 @@ export default function MyShopScreen() {
             ) : (
               <>
                 <Feather name="trash-2" size={14} color={colors.destructive} />
-                <Text style={[styles.actionBtnText, { color: colors.destructive }]}>Supprimer</Text>
+                <Text style={[styles.actionBtnText, { color: colors.destructive }]}>{t("delete")}</Text>
               </>
             )}
           </TouchableOpacity>
@@ -261,7 +263,7 @@ export default function MyShopScreen() {
             <Feather name="arrow-left" size={22} color={colors.foreground} />
           </TouchableOpacity>
           <View style={{ flex: 1, marginStart: 10 }}>
-            <Text style={[styles.title, { color: colors.foreground }]}>Ma Boutique</Text>
+            <Text style={[styles.title, { color: colors.foreground }]}>{t("myShop")}</Text>
             <Text style={[styles.subtitle, { color: colors.mutedForeground }]}>
               {approved.length} produit{approved.length !== 1 ? "s" : ""} publié{approved.length !== 1 ? "s" : ""}
             </Text>
@@ -271,7 +273,7 @@ export default function MyShopScreen() {
             onPress={openAdd}
           >
             <Feather name="plus" size={18} color="#fff" />
-            <Text style={styles.addBtnText}>Ajouter</Text>
+            <Text style={styles.addBtnText}>{t("add")}</Text>
           </TouchableOpacity>
         </View>
 
@@ -306,13 +308,13 @@ export default function MyShopScreen() {
           ListEmptyComponent={
             <View style={styles.empty}>
               <Feather name="package" size={48} color={colors.mutedForeground} />
-              <Text style={[styles.emptyTitle, { color: colors.foreground }]}>Aucune annonce</Text>
+              <Text style={[styles.emptyTitle, { color: colors.foreground }]}>{t("noProducts")}</Text>
               <Text style={[styles.emptySub, { color: colors.mutedForeground }]}>
                 Publiez votre premier produit et touchez tous les résidents de la plateforme.
               </Text>
               <TouchableOpacity style={[styles.emptyAction, { backgroundColor: colors.primary }]} onPress={openAdd}>
                 <Feather name="plus" size={16} color="#fff" />
-                <Text style={styles.emptyActionText}>Créer une annonce</Text>
+                <Text style={styles.emptyActionText}>{t("newPublication")}</Text>
               </TouchableOpacity>
             </View>
           }
@@ -327,14 +329,14 @@ export default function MyShopScreen() {
               <Feather name="x" size={22} color={colors.foreground} />
             </TouchableOpacity>
             <Text style={[styles.modalTitle, { color: colors.foreground }]}>
-              {editingId ? "Modifier l'annonce" : "Nouvelle annonce"}
+              {editingId ? t("edit") : t("newPublication")}
             </Text>
             <TouchableOpacity
               style={[styles.saveBtn, { backgroundColor: saving ? colors.secondary : colors.primary }]}
               onPress={handleSave}
               disabled={saving}
             >
-              {saving ? <ActivityIndicator size="small" color="#fff" /> : <Text style={styles.saveBtnText}>Publier</Text>}
+              {saving ? <ActivityIndicator size="small" color="#fff" /> : <Text style={styles.saveBtnText}>{t("save")}</Text>}
             </TouchableOpacity>
           </View>
 
@@ -424,7 +426,7 @@ export default function MyShopScreen() {
             />
 
             {/* Description */}
-            <Text style={[styles.fieldLabel, { color: colors.foreground }]}>Description</Text>
+            <Text style={[styles.fieldLabel, { color: colors.foreground }]}>{t("descriptionLabel")}</Text>
             <TextInput
               style={[styles.textarea, { borderColor: colors.border, color: colors.foreground, backgroundColor: colors.card }]}
               placeholder="Décrivez votre produit : état, caractéristiques, raison de la vente..."

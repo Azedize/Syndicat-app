@@ -13,6 +13,7 @@ import {
   View,
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
+import { useLanguage } from "@/context/LanguageContext";
 import { useBreakpoints } from "@/hooks/useBreakpoints";
 import { useColors } from "@/hooks/useColors";
 
@@ -62,6 +63,7 @@ export default function BudgetPrevisionnelScreen() {
   const colors = useColors();
   const insets = useSafeAreaInsets();
   const { isWide } = useBreakpoints();
+  const { t } = useLanguage();
   const topPad = isWide ? 0 : (Platform.OS === "web" ? 67 : insets.top);
 
   const [tab, setTab] = useState<TabType>("vue_ensemble");
@@ -117,7 +119,7 @@ export default function BudgetPrevisionnelScreen() {
           <Feather name="arrow-left" size={22} color={colors.foreground} />
         </TouchableOpacity>
         <View style={{ flex: 1 }}>
-          <Text style={[styles.title, { color: colors.foreground }]}>Budget Prévisionnel</Text>
+          <Text style={[styles.title, { color: colors.foreground }]}>{t("budgetTitle")}</Text>
           <Text style={[styles.subtitle, { color: colors.mutedForeground }]}>Exercice {ANNEE} — Exécution au 31/05/2026</Text>
         </View>
         <TouchableOpacity
@@ -131,41 +133,41 @@ export default function BudgetPrevisionnelScreen() {
       {/* KPI strip */}
       <View style={[styles.kpiStrip, { backgroundColor: colors.card, borderBottomColor: colors.border }]}>
         <View style={styles.kpiItem}>
-          <Text style={[styles.kpiLabel, { color: colors.mutedForeground }]}>Recettes réalisées</Text>
+          <Text style={[styles.kpiLabel, { color: colors.mutedForeground }]}>{t("allocated")}</Text>
           <Text style={[styles.kpiVal, { color: "#10b981" }]}>{fmt(totalRecettesRealise)}</Text>
           <Text style={[styles.kpiSub, { color: colors.mutedForeground }]}>/ {fmt(totalRecettesPrevu)}</Text>
         </View>
         <View style={[styles.kpiDiv, { backgroundColor: colors.border }]} />
         <View style={styles.kpiItem}>
-          <Text style={[styles.kpiLabel, { color: colors.mutedForeground }]}>Dépenses réalisées</Text>
+          <Text style={[styles.kpiLabel, { color: colors.mutedForeground }]}>{t("spent")}</Text>
           <Text style={[styles.kpiVal, { color: "#ef4444" }]}>{fmt(totalDepensesRealise)}</Text>
           <Text style={[styles.kpiSub, { color: colors.mutedForeground }]}>/ {fmt(totalDepensesPrevu)}</Text>
         </View>
         <View style={[styles.kpiDiv, { backgroundColor: colors.border }]} />
         <View style={styles.kpiItem}>
-          <Text style={[styles.kpiLabel, { color: colors.mutedForeground }]}>Solde actuel</Text>
+          <Text style={[styles.kpiLabel, { color: colors.mutedForeground }]}>{t("remaining")}</Text>
           <Text style={[styles.kpiVal, { color: soldeRealise >= 0 ? "#10b981" : "#ef4444" }]}>{fmt(soldeRealise)}</Text>
-          <Text style={[styles.kpiSub, { color: colors.mutedForeground }]}>prévu {fmt(soldePrevu)}</Text>
+          <Text style={[styles.kpiSub, { color: colors.mutedForeground }]}>{fmt(soldePrevu)}</Text>
         </View>
       </View>
 
       {/* Tabs */}
       <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.tabsRow} style={{ backgroundColor: colors.card, borderBottomWidth: 1, borderBottomColor: colors.border }}>
         {([
-          { key: "vue_ensemble" as const, label: "Vue ensemble", icon: "pie-chart" as const },
-          { key: "recettes" as const, label: "Recettes", icon: "trending-up" as const },
-          { key: "depenses" as const, label: "Dépenses", icon: "trending-down" as const },
-          { key: "comparatif" as const, label: "Comparatif", icon: "bar-chart-2" as const },
-        ]).map((t) => {
-          const active = tab === t.key;
+          { key: "vue_ensemble" as const, label: t("totalBudget"), icon: "pie-chart" as const },
+          { key: "recettes" as const, label: t("allocated"), icon: "trending-up" as const },
+          { key: "depenses" as const, label: t("spent"), icon: "trending-down" as const },
+          { key: "comparatif" as const, label: t("remaining"), icon: "bar-chart-2" as const },
+        ]).map((tabItem) => {
+          const active = tab === tabItem.key;
           return (
             <TouchableOpacity
-              key={t.key}
+              key={tabItem.key}
               style={[styles.tabBtn, active ? { borderBottomColor: colors.primary, borderBottomWidth: 2 } : null]}
-              onPress={() => { setTab(t.key); Haptics.selectionAsync(); }}
+              onPress={() => { setTab(tabItem.key); Haptics.selectionAsync(); }}
             >
-              <Feather name={t.icon} size={14} color={active ? colors.primary : colors.mutedForeground} />
-              <Text style={[styles.tabLabel, { color: active ? colors.primary : colors.mutedForeground }]}>{t.label}</Text>
+              <Feather name={tabItem.icon} size={14} color={active ? colors.primary : colors.mutedForeground} />
+              <Text style={[styles.tabLabel, { color: active ? colors.primary : colors.mutedForeground }]}>{tabItem.label}</Text>
             </TouchableOpacity>
           );
         })}
@@ -177,12 +179,12 @@ export default function BudgetPrevisionnelScreen() {
           <>
             {/* Execution global */}
             <View style={[styles.execCard, { backgroundColor: colors.card, borderColor: colors.border }]}>
-              <Text style={[styles.execTitle, { color: colors.foreground }]}>Taux d'exécution global</Text>
+              <Text style={[styles.execTitle, { color: colors.foreground }]}>{t("totalBudget")}</Text>
               <View style={styles.execBars}>
                 <View style={styles.execBarRow}>
                   <View style={[styles.execLabel2, {}]}>
                     <View style={[styles.dot, { backgroundColor: "#10b981" }]} />
-                    <Text style={[styles.execText, { color: colors.foreground }]}>Recettes</Text>
+                    <Text style={[styles.execText, { color: colors.foreground }]}>{t("allocated")}</Text>
                   </View>
                   <View style={[styles.execBar, { backgroundColor: colors.border }]}>
                     <View style={[styles.execBarFill, { width: `${pct(totalRecettesRealise, totalRecettesPrevu)}%` as any, backgroundColor: "#10b981" }]} />
@@ -192,7 +194,7 @@ export default function BudgetPrevisionnelScreen() {
                 <View style={styles.execBarRow}>
                   <View style={styles.execLabel2}>
                     <View style={[styles.dot, { backgroundColor: "#ef4444" }]} />
-                    <Text style={[styles.execText, { color: colors.foreground }]}>Dépenses</Text>
+                    <Text style={[styles.execText, { color: colors.foreground }]}>{t("spent")}</Text>
                   </View>
                   <View style={[styles.execBar, { backgroundColor: colors.border }]}>
                     <View style={[styles.execBarFill, { width: `${pct(totalDepensesRealise, totalDepensesPrevu)}%` as any, backgroundColor: "#ef4444" }]} />
@@ -205,8 +207,8 @@ export default function BudgetPrevisionnelScreen() {
 
             {/* Category summary */}
             {[
-              { titre: "Principales recettes", items: RECETTES.slice(0, 3), color: "#10b981" },
-              { titre: "Principales dépenses", items: DEPENSES.slice(0, 4), color: "#ef4444" },
+              { titre: t("allocated"), items: RECETTES.slice(0, 3), color: "#10b981" },
+              { titre: t("spent"), items: DEPENSES.slice(0, 4), color: "#ef4444" },
             ].map((section) => (
               <View key={section.titre} style={[styles.summarySection, { backgroundColor: colors.card, borderColor: colors.border }]}>
                 <Text style={[styles.summarySectionTitle, { color: colors.foreground }]}>{section.titre}</Text>
@@ -226,7 +228,7 @@ export default function BudgetPrevisionnelScreen() {
           <>
             <View style={[styles.totalBanner, { backgroundColor: "#10b98110", borderColor: "#10b98130" }]}>
               <Feather name="trending-up" size={16} color="#10b981" />
-              <Text style={[styles.totalBannerText, { color: "#10b981" }]}>Total encaissé : {fmt(totalRecettesRealise)} / {fmt(totalRecettesPrevu)} ({pct(totalRecettesRealise, totalRecettesPrevu)}%)</Text>
+              <Text style={[styles.totalBannerText, { color: "#10b981" }]}>{t("allocated")} : {fmt(totalRecettesRealise)} / {fmt(totalRecettesPrevu)} ({pct(totalRecettesRealise, totalRecettesPrevu)}%)</Text>
             </View>
             {categories(RECETTES).map((cat) => (
               <View key={cat} style={{ gap: 8 }}>
@@ -241,7 +243,7 @@ export default function BudgetPrevisionnelScreen() {
           <>
             <View style={[styles.totalBanner, { backgroundColor: "#ef444410", borderColor: "#ef444430" }]}>
               <Feather name="trending-down" size={16} color="#ef4444" />
-              <Text style={[styles.totalBannerText, { color: "#ef4444" }]}>Total décaissé : {fmt(totalDepensesRealise)} / {fmt(totalDepensesPrevu)} ({pct(totalDepensesRealise, totalDepensesPrevu)}%)</Text>
+              <Text style={[styles.totalBannerText, { color: "#ef4444" }]}>{t("spent")} : {fmt(totalDepensesRealise)} / {fmt(totalDepensesPrevu)} ({pct(totalDepensesRealise, totalDepensesPrevu)}%)</Text>
             </View>
             {categories(DEPENSES).map((cat) => (
               <View key={cat} style={{ gap: 8 }}>
@@ -255,22 +257,22 @@ export default function BudgetPrevisionnelScreen() {
         {tab === "comparatif" && (
           <>
             {[
-              { label: "Recettes", prevu: totalRecettesPrevu, realise: totalRecettesRealise, color: "#10b981" },
-              { label: "Dépenses", prevu: totalDepensesPrevu, realise: totalDepensesRealise, color: "#ef4444" },
-              { label: "Solde", prevu: soldePrevu, realise: soldeRealise, color: soldeRealise >= 0 ? "#10b981" : "#ef4444" },
+              { label: t("allocated"), prevu: totalRecettesPrevu, realise: totalRecettesRealise, color: "#10b981" },
+              { label: t("spent"), prevu: totalDepensesPrevu, realise: totalDepensesRealise, color: "#ef4444" },
+              { label: t("remaining"), prevu: soldePrevu, realise: soldeRealise, color: soldeRealise >= 0 ? "#10b981" : "#ef4444" },
             ].map((row) => (
               <View key={row.label} style={[styles.comparatifCard, { backgroundColor: colors.card, borderColor: colors.border }]}>
                 <Text style={[styles.comparatifLabel, { color: colors.mutedForeground }]}>{row.label}</Text>
                 <View style={styles.comparatifBars}>
                   <View style={styles.comparatifBarRow}>
-                    <Text style={[styles.comparatifBarLabel, { color: colors.mutedForeground }]}>Prévu</Text>
+                    <Text style={[styles.comparatifBarLabel, { color: colors.mutedForeground }]}>{t("totalBudget")}</Text>
                     <View style={[styles.comparatifBarBg, { backgroundColor: colors.border }]}>
                       <View style={[styles.comparatifBarFill, { width: "100%", backgroundColor: colors.border }]} />
                     </View>
                     <Text style={[styles.comparatifBarVal, { color: colors.foreground }]}>{fmt(row.prevu)}</Text>
                   </View>
                   <View style={styles.comparatifBarRow}>
-                    <Text style={[styles.comparatifBarLabel, { color: colors.mutedForeground }]}>Réalisé</Text>
+                    <Text style={[styles.comparatifBarLabel, { color: colors.mutedForeground }]}>{t("spent")}</Text>
                     <View style={[styles.comparatifBarBg, { backgroundColor: colors.border }]}>
                       <View style={[styles.comparatifBarFill, { width: `${Math.min(100, Math.abs(pct(row.realise, row.prevu)))}%` as any, backgroundColor: row.color }]} />
                     </View>
@@ -278,7 +280,7 @@ export default function BudgetPrevisionnelScreen() {
                   </View>
                 </View>
                 <Text style={[styles.comparatifEcart, { color: row.realise >= row.prevu ? "#10b981" : "#f59e0b" }]}>
-                  Écart : {fmt(Math.abs(row.realise - row.prevu))} ({row.realise < row.prevu ? "-" : "+"}{Math.abs(pct(row.realise, row.prevu) - 100)}%)
+                  {fmt(Math.abs(row.realise - row.prevu))} ({row.realise < row.prevu ? "-" : "+"}{Math.abs(pct(row.realise, row.prevu) - 100)}%)
                 </Text>
               </View>
             ))}
@@ -301,11 +303,11 @@ export default function BudgetPrevisionnelScreen() {
             </View>
             <View style={[styles.modalSep, { backgroundColor: colors.border }]} />
             {[
-              { label: "Catégorie", value: selected?.categorie },
-              { label: "Montant prévu", value: fmt(selected?.prevu ?? 0) },
-              { label: "Réalisé à ce jour", value: fmt(selected?.realise ?? 0) },
-              { label: "Taux d'exécution", value: `${pct(selected?.realise ?? 0, selected?.prevu ?? 1)}%` },
-              { label: "Solde restant", value: fmt(Math.max(0, (selected?.prevu ?? 0) - (selected?.realise ?? 0))) },
+              { label: t("categoryLabel"), value: selected?.categorie },
+              { label: t("totalBudget"), value: fmt(selected?.prevu ?? 0) },
+              { label: t("spent"), value: fmt(selected?.realise ?? 0) },
+              { label: t("remaining"), value: `${pct(selected?.realise ?? 0, selected?.prevu ?? 1)}%` },
+              { label: t("noBudget"), value: fmt(Math.max(0, (selected?.prevu ?? 0) - (selected?.realise ?? 0))) },
             ].map((row, i) => (
               <View key={i} style={styles.modalRow}>
                 <Text style={[styles.modalRowLabel, { color: colors.mutedForeground }]}>{row.label}</Text>

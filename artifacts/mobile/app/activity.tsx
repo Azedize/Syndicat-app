@@ -16,6 +16,7 @@ import {
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useAuth } from "@/context/AuthContext";
+import { useLanguage } from "@/context/LanguageContext";
 import { useBreakpoints } from "@/hooks/useBreakpoints";
 import { useColors } from "@/hooks/useColors";
 import { audit as auditApi } from "@/services/api";
@@ -160,6 +161,7 @@ export default function ActivityScreen() {
   const colors = useColors();
   const insets = useSafeAreaInsets();
   const { user } = useAuth();
+  const { t } = useLanguage();
   const { isWide } = useBreakpoints();
   const topPad = isWide ? 0 : (Platform.OS === "web" ? 67 : insets.top);
   const isAdmin = user?.role !== "member";
@@ -216,7 +218,7 @@ export default function ActivityScreen() {
             <Feather name="arrow-left" size={22} color="#fff" />
           </TouchableOpacity>
           <View style={{ flex: 1 }}>
-            <Text style={styles.headerTitle}>Journal d'Activité</Text>
+            <Text style={styles.headerTitle}>{t("activityTitle")}</Text>
             <Text style={styles.headerSub}>Audit trail & traçabilité complète</Text>
           </View>
           {isAdmin && (
@@ -269,7 +271,7 @@ export default function ActivityScreen() {
           onPress={() => { setCategory("all"); Haptics.selectionAsync(); }}
         >
           <Feather name="list" size={12} color={category === "all" ? "#fff" : colors.mutedForeground} />
-          <Text style={[styles.chipText, { color: category === "all" ? "#fff" : colors.mutedForeground }]}>Tout ({counts.all})</Text>
+          <Text style={[styles.chipText, { color: category === "all" ? "#fff" : colors.mutedForeground }]}>{t("all")} ({counts.all})</Text>
         </TouchableOpacity>
         {(Object.entries(CAT_CONFIG) as [Exclude<ActivityCategory, "all">, typeof CAT_CONFIG["auth"]][]).map(([key, cfg]) => (
           <TouchableOpacity
@@ -293,7 +295,7 @@ export default function ActivityScreen() {
         ListEmptyComponent={
           <View style={styles.empty}>
             <Feather name="activity" size={40} color={colors.mutedForeground} />
-            <Text style={[styles.emptyText, { color: colors.mutedForeground }]}>Aucune activité dans cette catégorie</Text>
+            <Text style={[styles.emptyText, { color: colors.mutedForeground }]}>{t("noActivity")}</Text>
           </View>
         }
         renderSectionHeader={({ section }) => (
@@ -323,7 +325,7 @@ export default function ActivityScreen() {
                       <Text style={[styles.catBadgeText, { color: catCfg.color }]}>{catCfg.label}</Text>
                     </View>
                     <View style={[styles.sevBadge, { backgroundColor: sevCfg.bg }]}>
-                      <Text style={[styles.sevBadgeText, { color: sevCfg.color }]}>{log.severity === "info" ? "Info" : log.severity === "warning" ? "Alerte" : log.severity === "success" ? "Succès" : "Erreur"}</Text>
+                      <Text style={[styles.sevBadgeText, { color: sevCfg.color }]}>{log.severity === "info" ? "Info" : log.severity === "warning" ? "Alerte" : log.severity === "success" ? "Succès" : t("error")}</Text>
                     </View>
                   </View>
                   <Text style={[styles.logTime, { color: colors.mutedForeground }]}>{log.relativeTime}</Text>
@@ -363,7 +365,7 @@ export default function ActivityScreen() {
                       </View>
                       <View style={[styles.sevBadge, { backgroundColor: sevCfg.bg }]}>
                         <Text style={[styles.sevBadgeText, { color: sevCfg.color }]}>
-                          {log.severity === "info" ? "Info" : log.severity === "warning" ? "Alerte" : log.severity === "success" ? "Succès" : "Erreur"}
+                          {log.severity === "info" ? "Info" : log.severity === "warning" ? "Alerte" : log.severity === "success" ? "Succès" : t("error")}
                         </Text>
                       </View>
                     </View>
@@ -406,7 +408,7 @@ export default function ActivityScreen() {
                     style={[styles.detailBtn, { backgroundColor: colors.muted }]}
                     onPress={() => setSelectedLog(null)}
                   >
-                    <Text style={[styles.detailBtnText, { color: colors.foreground }]}>Fermer</Text>
+                    <Text style={[styles.detailBtnText, { color: colors.foreground }]}>{t("close")}</Text>
                   </TouchableOpacity>
                 </View>
               </View>
