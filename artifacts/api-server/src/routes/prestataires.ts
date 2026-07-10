@@ -11,7 +11,7 @@ import {
 import { eq, and, desc, sql, count, inArray } from "drizzle-orm";
 import { requireAuth, requireAdmin } from "../middleware/auth.js";
 import { syndicateWhere, effectiveSyndicateId } from "../lib/syndicate-filter.js";
-import { getUserBuildingIds } from "../lib/scope.js";
+import { getUserBuildingIds, assertUserCanAccessBuilding } from "../lib/scope.js";
 import { serverAuditLog } from "../lib/audit.js";
 
 const router = Router();
@@ -241,9 +241,20 @@ router.post("/prestataires", requireAuth, requireAdmin, async (req, res) => {
   }
 });
 
+function isSamePrestataireSyndicate(user: any, syndicateId: string | null): boolean {
+  return user.role === "super_admin" || syndicateId === user.syndicateId;
+}
+
 // PUT /prestataires/:id
 router.put("/prestataires/:id", requireAuth, requireAdmin, async (req, res) => {
   try {
+    const user = (req as any).user;
+    const [existing] = await db.select().from(prestatairesTable).where(eq(prestatairesTable.id, req.params.id));
+    if (!existing) return res.status(404).json({ error: "Not found" });
+    if (!isSamePrestataireSyndicate(user, existing.syndicateId)) {
+      return res.status(403).json({ error: "Accès refusé" });
+    }
+
     const allowed = [
       "name", "type", "contactName", "phone", "email", "address",
       "ice", "rc", "status", "notes", "documentUrl",
@@ -266,6 +277,7 @@ router.put("/prestataires/:id", requireAuth, requireAdmin, async (req, res) => {
       entity: "prestataire",
       entityId: updated.id,
       details: `Prestataire modifié: ${updated.name}`,
+      syndicateId: updated.syndicateId ?? undefined,
     });
 
     res.json(updated);
@@ -278,6 +290,13 @@ router.put("/prestataires/:id", requireAuth, requireAdmin, async (req, res) => {
 // DELETE /prestataires/:id
 router.delete("/prestataires/:id", requireAuth, requireAdmin, async (req, res) => {
   try {
+    const user = (req as any).user;
+    const [existing] = await db.select().from(prestatairesTable).where(eq(prestatairesTable.id, req.params.id));
+    if (!existing) return res.status(404).json({ error: "Not found" });
+    if (!isSamePrestataireSyndicate(user, existing.syndicateId)) {
+      return res.status(403).json({ error: "Accès refusé" });
+    }
+
     const [deleted] = await db
       .delete(prestatairesTable)
       .where(eq(prestatairesTable.id, req.params.id))
@@ -290,6 +309,7 @@ router.delete("/prestataires/:id", requireAuth, requireAdmin, async (req, res) =
       entity: "prestataire",
       entityId: deleted.id,
       details: `Prestataire supprimé: ${deleted.name}`,
+      syndicateId: deleted.syndicateId ?? undefined,
     });
 
     res.json({ success: true });
@@ -330,6 +350,9 @@ router.post(
         .from(prestatairesTable)
         .where(eq(prestatairesTable.id, req.params.id));
       if (!prestataire) return res.status(404).json({ error: "Prestataire introuvable" });
+      if (!isSamePrestataireSyndicate(user, prestataire.syndicateId)) {
+        return res.status(403).json({ error: "Accès refusé" });
+      }
 
       const [evaluation] = await db
         .insert(prestataireEvaluationsTable)
@@ -465,7 +488,9 @@ router.post("/contrats", requireAuth, requireAdmin, async (req, res) => {
     return res.status(400).json({ error: parsed.error.issues[0]?.message ?? "Données invalides" });
   }
   try {
+    const user = (req as any).user;
     const { prestataireId, buildingId, title, startDate, endDate, monthlyAmount, annualAmount, autoRenew, documentUrl, notes } = parsed.data;
+    try { await assertUserCanAccessBuilding(user, buildingId); } catch { return res.status(403).json({ error: "Accès refusé" }); }
 
     const [contract] = await db
       .insert(contratsPrestatairesTable)
@@ -497,9 +522,22 @@ router.post("/contrats", requireAuth, requireAdmin, async (req, res) => {
   }
 });
 
+async function findContract(id: string) {
+  const [contract] = await db
+    .select()
+    .from(contratsPrestatairesTable)
+    .where(eq(contratsPrestatairesTable.id, id));
+  return contract;
+}
+
 // PUT /contrats/:id — generic field edits (not for lifecycle transitions)
 router.put("/contrats/:id", requireAuth, requireAdmin, async (req, res) => {
   try {
+    const user = (req as any).user;
+    const existing = await findContract(req.params.id);
+    if (!existing) return res.status(404).json({ error: "Not found" });
+    try { await assertUserCanAccessBuilding(user, existing.buildingId); } catch { return res.status(403).json({ error: "Accès refusé" }); }
+
     const allowed = [
       "title", "startDate", "endDate", "monthlyAmount", "annualAmount",
       "autoRenew", "documentUrl", "notes",
@@ -523,14 +561,6 @@ router.put("/contrats/:id", requireAuth, requireAdmin, async (req, res) => {
   }
 });
 
-async function findContract(id: string) {
-  const [contract] = await db
-    .select()
-    .from(contratsPrestatairesTable)
-    .where(eq(contratsPrestatairesTable.id, id));
-  return contract;
-}
-
 // POST /contrats/:id/renew — extends the contract, optionally with a new end date / PDF
 const renewSchema = z.object({
   endDate: z.string().min(1, "La nouvelle date de fin est obligatoire"),
@@ -544,8 +574,10 @@ router.post("/contrats/:id/renew", requireAuth, requireAdmin, async (req, res) =
     return res.status(400).json({ error: parsed.error.issues[0]?.message ?? "Données invalides" });
   }
   try {
+    const user = (req as any).user;
     const existing = await findContract(req.params.id);
     if (!existing) return res.status(404).json({ error: "Not found" });
+    try { await assertUserCanAccessBuilding(user, existing.buildingId); } catch { return res.status(403).json({ error: "Accès refusé" }); }
 
     const { endDate, documentUrl, monthlyAmount, annualAmount } = parsed.data;
 
@@ -588,6 +620,11 @@ router.post("/contrats/:id/renew", requireAuth, requireAdmin, async (req, res) =
 // POST /contrats/:id/suspend
 router.post("/contrats/:id/suspend", requireAuth, requireAdmin, async (req, res) => {
   try {
+    const user = (req as any).user;
+    const existing = await findContract(req.params.id);
+    if (!existing) return res.status(404).json({ error: "Not found" });
+    try { await assertUserCanAccessBuilding(user, existing.buildingId); } catch { return res.status(403).json({ error: "Accès refusé" }); }
+
     const [updated] = await db
       .update(contratsPrestatairesTable)
       .set({ status: "suspended" })
@@ -612,6 +649,11 @@ router.post("/contrats/:id/suspend", requireAuth, requireAdmin, async (req, res)
 // POST /contrats/:id/reactivate — undo a suspension
 router.post("/contrats/:id/reactivate", requireAuth, requireAdmin, async (req, res) => {
   try {
+    const user = (req as any).user;
+    const existing = await findContract(req.params.id);
+    if (!existing) return res.status(404).json({ error: "Not found" });
+    try { await assertUserCanAccessBuilding(user, existing.buildingId); } catch { return res.status(403).json({ error: "Accès refusé" }); }
+
     const [updated] = await db
       .update(contratsPrestatairesTable)
       .set({ status: "active" })
@@ -643,6 +685,11 @@ router.post("/contrats/:id/resilier", requireAuth, requireAdmin, async (req, res
     return res.status(400).json({ error: parsed.error.issues[0]?.message ?? "Motif requis" });
   }
   try {
+    const user = (req as any).user;
+    const existing = await findContract(req.params.id);
+    if (!existing) return res.status(404).json({ error: "Not found" });
+    try { await assertUserCanAccessBuilding(user, existing.buildingId); } catch { return res.status(403).json({ error: "Accès refusé" }); }
+
     const [updated] = await db
       .update(contratsPrestatairesTable)
       .set({

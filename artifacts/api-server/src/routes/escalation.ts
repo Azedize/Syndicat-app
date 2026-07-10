@@ -22,7 +22,7 @@ import {
 } from "@workspace/db/schema";
 import { eq, and, inArray, ne, desc, sql } from "drizzle-orm";
 import { z } from "zod";
-import { requireAuth, requireAdmin } from "../middleware/auth.js";
+import { requireAuth, requireAdmin, requireRole } from "../middleware/auth.js";
 import { runDailyEscalationScan, computeLevel, LEVEL_LABELS, LEVEL_ORDER } from "../lib/debt-escalation.js";
 import { serverAuditLog } from "../lib/audit.js";
 
@@ -271,7 +271,9 @@ router.get("/escalation/overdue", requireAuth, requireAdmin, async (req, res) =>
 
 // ─── POST /escalation/scan ────────────────────────────────────────────────────
 
-router.post("/escalation/scan", requireAuth, requireAdmin, async (req, res) => {
+// Runs across all syndicates, so it's a platform-level operation — restricted to
+// super_admin (a syndicate_admin has no legitimate reason to trigger a global scan).
+router.post("/escalation/scan", requireAuth, requireRole("super_admin"), async (req, res) => {
   try {
     const scanResult = await runDailyEscalationScan();
 
@@ -279,6 +281,7 @@ router.post("/escalation/scan", requireAuth, requireAdmin, async (req, res) => {
       action: "ESCALATION_SCAN",
       entity: "debt_escalations",
       details: `Scan manuel: ${scanResult.created} créées, ${scanResult.skipped} ignorées, ${scanResult.errors} erreurs`,
+      platformAction: true,
     });
 
     res.json({ success: true, result: scanResult });
