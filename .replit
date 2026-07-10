@@ -44,8 +44,5 @@ channel = "stable-25_05"
 
 [userenv]
 
-[userenv.shared]
-JWT_SECRET = "be4fab0f5ea0d2ffc334a245c1ea14594542a77508f3392b7ca7c218e5840b12806ddf3a8a91b90efd17ca0c640d09b1"
-
 [objectStorage]
 defaultBucketID = "replit-objstore-89a27f97-efed-43a3-a959-1576cb0184d3"
