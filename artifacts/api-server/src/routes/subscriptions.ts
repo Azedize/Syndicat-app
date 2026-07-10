@@ -114,8 +114,20 @@ router.post("/subscriptions", requireAuth, requireAdmin, async (req, res) => {
 // PUT /subscriptions/:id — Update subscription status (super_admin)
 router.put("/subscriptions/:id", requireAuth, requireAdmin, async (req, res) => {
   try {
+    const user = req.user!;
     const { id } = req.params;
     const { status, autoRenew } = req.body as { status?: string; autoRenew?: boolean };
+
+    if (user.role === "syndicate_admin") {
+      const [target] = await db
+        .select({ syndicateId: syndicateSubscriptionsTable.syndicateId })
+        .from(syndicateSubscriptionsTable)
+        .where(eq(syndicateSubscriptionsTable.id, id));
+      if (!target) { res.status(404).json({ error: "Abonnement introuvable" }); return; }
+      if (target.syndicateId !== user.syndicateId) {
+        res.status(403).json({ error: "Accès refusé" }); return;
+      }
+    }
 
     const update: any = {};
     if (status !== undefined) update.status = status;

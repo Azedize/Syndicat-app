@@ -114,10 +114,22 @@ router.put("/team/syndicate", requireAuth, requireAdmin, async (req, res) => {
 // PUT /team/members/:id — admin updates a committee member's role
 router.put("/team/members/:id", requireAuth, requireAdmin, async (req, res) => {
   try {
+    const user = req.user!;
     const { role } = req.body;
     const validRoles = ["member", "committee", "president", "treasurer", "secretary"];
     if (!validRoles.includes(role)) {
       return res.status(400).json({ error: `Rôle invalide. Valeurs acceptées: ${validRoles.join(", ")}` });
+    }
+
+    if (user.role === "syndicate_admin") {
+      const [target] = await db
+        .select({ syndicateId: membersTable.syndicateId })
+        .from(membersTable)
+        .where(eq(membersTable.id, req.params.id as string));
+      if (!target) return res.status(404).json({ error: "Membre introuvable" });
+      if (target.syndicateId !== user.syndicateId) {
+        return res.status(403).json({ error: "Accès refusé" });
+      }
     }
 
     // Store committee role in the profession field (membersTable has no dedicated role column)
