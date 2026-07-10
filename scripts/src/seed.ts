@@ -256,15 +256,15 @@ async function main() {
   // 9. FINANCE: Transactions · Salaires · Caisse · Factures · Bons livraison
   // ─────────────────────────────────────────────────────────────────────────
   await db.insert(transactionsTable).values([
-    { id: "tx_1",  type: "revenue",  amount: "450.00",   label: "Cotisation juillet — Lot A101",          date: "2026-07-05", status: "paid",    memberId: "member_1", syndicateId: "syn_residence_atlas", createdAt: daysAgo(30) },
+    { id: "tx_1",  type: "revenue",  amount: "450.00",   label: "Cotisation juillet — Lot A101",          date: "2026-07-05", status: "paid",    memberId: "user_member_1", syndicateId: "syn_residence_atlas", createdAt: daysAgo(30) },
     { id: "tx_2",  type: "expense",  amount: "8000.00",  label: "Maintenance ascenseur — juillet",         date: "2026-07-03", status: "paid",                         syndicateId: "syn_residence_atlas", createdAt: daysAgo(32) },
     { id: "tx_3",  type: "expense",  amount: "3500.00",  label: "Salaire gardien — juillet",               date: "2026-07-01", status: "paid",                         syndicateId: "syn_residence_atlas", createdAt: daysAgo(35) },
-    { id: "tx_4",  type: "revenue",  amount: "600.00",   label: "Cotisation juillet — Lot Ag-12",          date: "2026-07-02", status: "paid",    memberId: "member_4", syndicateId: "syn_jardins_agdal",  createdAt: daysAgo(28) },
-    { id: "tx_5",  type: "revenue",  amount: "450.00",   label: "Cotisation juin — Lot A101",              date: "2026-06-07", status: "paid",    memberId: "member_1", syndicateId: "syn_residence_atlas", createdAt: daysAgo(60) },
+    { id: "tx_4",  type: "revenue",  amount: "600.00",   label: "Cotisation juillet — Lot Ag-12",          date: "2026-07-02", status: "paid",    memberId: "user_member_3", syndicateId: "syn_jardins_agdal",  createdAt: daysAgo(28) },
+    { id: "tx_5",  type: "revenue",  amount: "450.00",   label: "Cotisation juin — Lot A101",              date: "2026-06-07", status: "paid",    memberId: "user_member_1", syndicateId: "syn_residence_atlas", createdAt: daysAgo(60) },
     { id: "tx_6",  type: "expense",  amount: "12000.00", label: "Travaux peinture cage d'escalier",        date: "2026-06-20", status: "paid",                         syndicateId: "syn_residence_atlas", createdAt: daysAgo(48) },
-    { id: "tx_7",  type: "revenue",  amount: "380.00",   label: "Cotisation juillet — Lot B01",            date: "2026-07-08", status: "paid",    memberId: "member_2", syndicateId: "syn_residence_atlas", createdAt: daysAgo(28) },
+    { id: "tx_7",  type: "revenue",  amount: "380.00",   label: "Cotisation juillet — Lot B01",            date: "2026-07-08", status: "paid",    memberId: "user_member_2", syndicateId: "syn_residence_atlas", createdAt: daysAgo(28) },
     { id: "tx_8",  type: "expense",  amount: "4200.00",  label: "Entretien espaces verts — Agdal juin",    date: "2026-06-25", status: "paid",                         syndicateId: "syn_jardins_agdal",  createdAt: daysAgo(42) },
-    { id: "tx_9",  type: "revenue",  amount: "600.00",   label: "Cotisation juillet — Lot Ag-02",          date: "2026-07-09", status: "pending", memberId: "member_5", syndicateId: "syn_jardins_agdal",  createdAt: daysAgo(1) },
+    { id: "tx_9",  type: "revenue",  amount: "600.00",   label: "Cotisation juillet — Lot Ag-02",          date: "2026-07-09", status: "pending", memberId: "user_member_4", syndicateId: "syn_jardins_agdal",  createdAt: daysAgo(1) },
   ]).onConflictDoNothing();
 
   await db.insert(salaryRecordsTable).values([

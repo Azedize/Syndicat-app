@@ -1,18 +1,12 @@
 ---
 name: Database seed script
-description: Where test data lives and how to reseed the SYNDYCAT dev database
+description: How to run the seed script and a data bug it had in the transactions table.
 ---
 
-`pnpm --filter @workspace/scripts run seed` (scripts/src/seed.ts) inserts realistic test
-data for all 4 roles (super_admin, syndicate_admin, member, tenant) across the full
-Drizzle schema (2 syndicates, 2 buildings, marketplace, ideas, transparency, rankings,
-subscriptions, auth tokens, etc.). All demo accounts use password `password123`.
+Run with `pnpm --filter @workspace/scripts run seed`. Seeds all roles/tables; not idempotent (uses `.onConflictDoNothing()` in most places but will still throw on FK violations if IDs are wrong). Demo credentials are printed in the seed script's own console output — do not duplicate them here.
 
-**Why:** replit.md referenced a `seed` script that didn't exist; `lib/db` has no seed
-script of its own, so it was added under `scripts/` (depends on `@workspace/db`).
+**Lesson:** this schema has inconsistent FK targets — some `memberId`/`ownerId` columns reference the `members` table, others reference `users`, and the two tables' ID sequences are numbered independently (not 1:1 by suffix).
 
-**How to apply:** Not idempotent — fixed ids will collide on rerun. To reseed, drop/recreate
-the public schema, run `pnpm --filter @workspace/db run db:push`, then run the seed script.
-When adding new tables to schema.ts, prefer linking `userId`-style columns to real
-`users.id` values (not member/salary-record ids) even where the column lacks an FK, so
-API code that filters by authenticated user id works against seed data.
+**Why:** easy to seed a value that satisfies the wrong table's ID convention, either causing an FK violation or (worse) inserting a row that silently points at the wrong person.
+
+**How to apply:** before seeding or fixing an FK violation on such a column, check which table `.references()` actually targets in the schema, then match rows by name/email — never assume matching numeric suffixes refer to the same entity.

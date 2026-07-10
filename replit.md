@@ -48,6 +48,12 @@ re-import). Demo login on the mobile app's login screen:
 mounted under `/api` (e.g. `/api/auth/login`), not at the route paths defined
 in `src/routes/*.ts` directly.
 
+### 2026-07-10 re-import setup notes
+
+- `JWT_SECRET` was missing from this environment's secrets (the README's "Already set" claim didn't hold after re-import) — a new random secret was generated and stored as a Replit Secret.
+- `pnpm install` was required (node_modules was absent), then `db:push` and `pnpm --filter @workspace/scripts run seed` to populate the fresh Postgres instance.
+- All 3 workflows (API Server, Expo mobile, Component Preview Server) start cleanly and were verified via screenshot + a live `/api/auth/login` call.
+
 ### 4. Start the workflows
 
 Three workflows are pre-configured and start automatically:

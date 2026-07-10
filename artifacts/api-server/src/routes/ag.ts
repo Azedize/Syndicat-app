@@ -472,6 +472,9 @@ router.post("/ag-meetings/:id/proxies", requireAuth, requireOperationalAccess, a
     const [meeting] = await db.select({ id: meetingsTable.id, syndicateId: meetingsTable.syndicateId })
       .from(meetingsTable).where(eq(meetingsTable.id, req.params.id));
     if (!meeting) { res.status(404).json({ error: "Réunion introuvable" }); return; }
+    if (user.syndicateId && user.syndicateId !== meeting.syndicateId) {
+      res.status(403).json({ error: "Accès refusé" }); return;
+    }
     const syndicateId = meeting.syndicateId ?? user.syndicateId;
     const [proxy] = await db.insert(agProxiesTable).values({
       meetingId: req.params.id,
@@ -497,6 +500,13 @@ router.put("/ag-meetings/:id/proxies/:proxyId", requireAuth, requireOperationalA
     res.status(400).json({ error: "Statut invalide (pending|accepted|revoked)" }); return;
   }
   try {
+    const user = (req as any).user;
+    const [meeting] = await db.select({ id: meetingsTable.id, syndicateId: meetingsTable.syndicateId })
+      .from(meetingsTable).where(eq(meetingsTable.id, req.params.id));
+    if (!meeting) { res.status(404).json({ error: "Réunion introuvable" }); return; }
+    if (user.syndicateId && user.syndicateId !== meeting.syndicateId) {
+      res.status(403).json({ error: "Accès refusé" }); return;
+    }
     const [updated] = await db.update(agProxiesTable)
       .set({ status })
       .where(and(eq(agProxiesTable.id, req.params.proxyId), eq(agProxiesTable.meetingId, req.params.id)))
@@ -509,6 +519,13 @@ router.put("/ag-meetings/:id/proxies/:proxyId", requireAuth, requireOperationalA
 // DELETE /ag-meetings/:id/proxies/:proxyId
 router.delete("/ag-meetings/:id/proxies/:proxyId", requireAuth, requireOperationalAccess, async (req, res) => {
   try {
+    const user = (req as any).user;
+    const [meeting] = await db.select({ id: meetingsTable.id, syndicateId: meetingsTable.syndicateId })
+      .from(meetingsTable).where(eq(meetingsTable.id, req.params.id));
+    if (!meeting) { res.status(404).json({ error: "Réunion introuvable" }); return; }
+    if (user.syndicateId && user.syndicateId !== meeting.syndicateId) {
+      res.status(403).json({ error: "Accès refusé" }); return;
+    }
     const [deleted] = await db.delete(agProxiesTable)
       .where(and(eq(agProxiesTable.id, req.params.proxyId), eq(agProxiesTable.meetingId, req.params.id)))
       .returning();

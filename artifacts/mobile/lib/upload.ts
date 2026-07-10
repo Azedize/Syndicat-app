@@ -38,6 +38,15 @@ export async function pickAndUploadPdf(): Promise<string | undefined> {
   return uploadUri(asset.uri, asset.name ?? `document-${Date.now()}.pdf`, "application/pdf");
 }
 
+/** Prompts the user to pick any document (PDF, image, or other file type) and uploads it. */
+export async function pickAndUploadDocument(): Promise<string | undefined> {
+  const result = await DocumentPicker.getDocumentAsync({ type: "*/*", copyToCacheDirectory: true });
+  if (result.canceled || !result.assets?.[0]) return undefined;
+  const asset = result.assets[0];
+  const contentType = asset.mimeType ?? "application/octet-stream";
+  return uploadUri(asset.uri, asset.name ?? `document-${Date.now()}`, contentType);
+}
+
 /** Prompts the user to pick an invoice (PDF or image) and uploads it. */
 export async function pickAndUploadInvoice(): Promise<string | undefined> {
   const result = await DocumentPicker.getDocumentAsync({ type: ["application/pdf", "image/*"], copyToCacheDirectory: true });
