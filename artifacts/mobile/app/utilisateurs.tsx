@@ -17,6 +17,7 @@ import {
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useBreakpoints } from "@/hooks/useBreakpoints";
 import { useColors } from "@/hooks/useColors";
+import { useRequireRole } from "@/hooks/useRequireRole";
 import { useLanguage } from "@/context/LanguageContext";
 
 type Role = "super_admin" | "syndicate_admin" | "member";
@@ -131,11 +132,14 @@ const INITIAL_USERS: User[] = [
 type TabFilter = "all" | Role | "suspended" | "pending";
 
 export default function UtilisateursScreen() {
+  const { allowed } = useRequireRole(["super_admin", "syndicate_admin"]);
   const colors = useColors();
   const insets = useSafeAreaInsets();
   const { isWide } = useBreakpoints();
   const { lang } = useLanguage();
   const topPad = isWide ? 0 : (Platform.OS === "web" ? 67 : insets.top);
+
+  if (!allowed) return null;
 
   const [users, setUsers] = useState<User[]>(INITIAL_USERS);
   const [tab, setTab] = useState<TabFilter>("all");

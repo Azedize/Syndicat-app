@@ -95,6 +95,16 @@ router.put(
       return;
     }
     try {
+      if (req.user!.role === "syndicate_admin") {
+        const [target] = await db
+          .select({ syndicateId: usersTable.syndicateId })
+          .from(usersTable)
+          .where(eq(usersTable.id, req.params.id as string));
+        if (!target) { res.status(404).json({ error: "Utilisateur introuvable" }); return; }
+        if (target.syndicateId !== req.user!.syndicateId) {
+          res.status(403).json({ error: "Accès refusé" }); return;
+        }
+      }
       await db
         .update(usersTable)
         .set({ status: result.data.status })

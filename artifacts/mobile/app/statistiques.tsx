@@ -17,6 +17,7 @@ import { useAuth } from "@/context/AuthContext";
 import { useData } from "@/context/DataContext";
 import { useBreakpoints } from "@/hooks/useBreakpoints";
 import { useColors } from "@/hooks/useColors";
+import { useRequireRole } from "@/hooks/useRequireRole";
 import { useLanguage } from "@/context/LanguageContext";
 import FilterTabs from "@/components/FilterTabs";
 import { statistics, type PlatformStats } from "@/services/api";
@@ -449,6 +450,7 @@ function sliceForPeriod(data: { label: string; value: number }[], period: "month
 }
 
 export default function StatistiquesScreen() {
+  const { allowed } = useRequireRole(["super_admin", "syndicate_admin"]);
   const colors = useColors();
   const insets = useSafeAreaInsets();
   const { user } = useAuth();
@@ -493,6 +495,8 @@ export default function StatistiquesScreen() {
   const platformExpenses = platformStats?.totalExpenses ?? totalExpenses;
   const platformMembers = platformStats?.totalMembers ?? (members.length + syndicates.reduce((s, sy) => s + sy.members, 0));
   const platformActiveSyndicates = platformStats?.activeSyndicates ?? syndicates.filter((s) => s.status === "active").length;
+
+  if (!allowed) return null;
 
   return (
     <View style={[styles.root, { backgroundColor: colors.background }]}>
