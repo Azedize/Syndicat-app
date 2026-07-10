@@ -2,7 +2,7 @@ import { Router } from "express";
 import { db } from "@workspace/db";
 import { sinistresTable, lotsTable, buildingsTable } from "@workspace/db/schema";
 import { eq, and, desc, inArray } from "drizzle-orm";
-import { requireAuth, requireAdmin } from "../middleware/auth.js";
+import { requireAuth, requireAdmin, requireOperationalAccess } from "../middleware/auth.js";
 import { createAlert } from "../lib/notify.js";
 
 const router = Router();
@@ -109,7 +109,7 @@ router.post("/sinistres", requireAuth, async (req, res) => {
 });
 
 // PUT /sinistres/:id — Update claim status/amounts
-router.put("/sinistres/:id", requireAuth, requireAdmin, async (req, res) => {
+router.put("/sinistres/:id", requireAuth, requireOperationalAccess, async (req, res) => {
   try {
     const allowed = ["status", "urgency", "estimatedAmount", "indemnisedAmount", "claimNumber", "notes", "contractorId", "resolutionNote", "invoiceUrl", "imageUrls"];
     const updates: Record<string, any> = {};

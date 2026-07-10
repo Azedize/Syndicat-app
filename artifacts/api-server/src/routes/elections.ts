@@ -4,7 +4,7 @@ import { sql, inArray } from "drizzle-orm";
 import { db } from "@workspace/db";
 import { electionsTable, candidatesTable, votesTable } from "@workspace/db/schema";
 import { eq, and } from "drizzle-orm";
-import { requireAuth, requireRole, requireNotTenant } from "../middleware/auth.js";
+import { requireAuth, requireRole, requireNotTenant, requireOperationalAccess } from "../middleware/auth.js";
 import { serverAuditLog } from "../lib/audit.js";
 
 const router = Router();
@@ -60,7 +60,7 @@ router.get("/elections", requireAuth, requireNotTenant, async (req, res) => {
 router.post(
   "/elections",
   requireAuth,
-  requireRole("super_admin", "syndicate_admin"),
+  requireOperationalAccess,
   async (req, res) => {
     const schema = z.object({
       title: z.string().min(1),
@@ -115,7 +115,7 @@ router.post(
 router.put(
   "/elections/:id/status",
   requireAuth,
-  requireRole("super_admin", "syndicate_admin"),
+  requireOperationalAccess,
   async (req, res) => {
     const id = req.params.id as string;
     const schema = z.object({ status: z.enum(["open", "closed", "upcoming"]) });

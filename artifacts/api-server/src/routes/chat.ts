@@ -10,6 +10,7 @@ import {
 import { eq, or, and, desc, count, inArray, gt, sql } from "drizzle-orm";
 import { requireAuth } from "../middleware/auth.js";
 import { getPagination, buildPagedResponse } from "../lib/paginate.js";
+import { sendPushToUsers } from "../lib/notify.js";
 
 const router = Router();
 
@@ -581,6 +582,39 @@ router.post("/conversations/:id/messages", requireAuth, async (req, res) => {
     }
 
     res.status(201).json({ data: { ...message, isMe: true } });
+
+    // ── Fire-and-forget push notifications to other participants ──────────────
+    // Runs after response is sent so it never delays the reply to the sender.
+    db.select().from(conversationsTable).where(eq(conversationsTable.id, id))
+      .then(([conv]) => {
+        if (!conv) return;
+        const senderId = req.user!.userId;
+        const recipientIds: string[] = [];
+
+        if (conv.isGroup) {
+          try {
+            const ids: string[] = JSON.parse(conv.participantIds ?? "[]");
+            recipientIds.push(...ids.filter((uid) => uid !== senderId));
+          } catch { /* ignore malformed JSON */ }
+        } else if (conv.participant1Id && conv.participant2Id) {
+          const other = conv.participant1Id === senderId ? conv.participant2Id : conv.participant1Id;
+          recipientIds.push(other);
+        }
+
+        if (recipientIds.length === 0) return;
+
+        const senderName = req.user!.name ?? "Message";
+        const pushTitle = conv.isGroup ? (conv.name ?? "Groupe") : senderName;
+        const pushBody = result.data.attachmentName
+          ? `📎 ${result.data.attachmentName}`
+          : result.data.text.trim().slice(0, 100) || "Nouveau message";
+
+        return sendPushToUsers(recipientIds, pushTitle, pushBody, {
+          conversationId: id,
+          type: "chat_message",
+        });
+      })
+      .catch(() => { /* never let push errors affect the route */ });
   } catch (err) {
     req.log.error(err);
     res.status(500).json({ error: "Erreur serveur" });

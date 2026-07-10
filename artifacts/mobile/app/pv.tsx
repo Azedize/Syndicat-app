@@ -1,8 +1,9 @@
 import { Feather } from "@expo/vector-icons";
 import * as Haptics from "expo-haptics";
 import { router } from "expo-router";
-import React, { useState } from "react";
+import React, { useState, useEffect, useCallback } from "react";
 import {
+  ActivityIndicator,
   Alert,
   FlatList,
   Modal,
@@ -19,6 +20,7 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useAuth } from "@/context/AuthContext";
 import { useBreakpoints } from "@/hooks/useBreakpoints";
 import { useColors } from "@/hooks/useColors";
+import { apiRequest } from "@/lib/api";
 
 type PVType = "bureau" | "ag" | "commission" | "election" | "urgence";
 type PVStatus = "draft" | "pending" | "published";
@@ -50,120 +52,44 @@ const STATUS_CONFIG: Record<PVStatus, { label: string; color: string; bg: string
   published: { label: "Publié", color: "#10b981", bg: "#10b98118" },
 };
 
-const INITIAL_PVS: PV[] = [
-  {
-    id: "pv1",
-    title: "PV Réunion Bureau — Mai 2026",
-    type: "bureau",
-    status: "published",
-    date: "2026-05-25",
-    redacteur: "Nadia Benkiran",
-    presences: 12,
-    summary: "Réunion mensuelle du bureau national portant sur le suivi des cotisations, le rapport financier du mois d'Avril, et la préparation de l'Assemblée Générale Ordinaire du 10 Juin 2026.",
-    resolutions: [
-      "Approbation du rapport financier d'Avril 2026 à l'unanimité",
-      "Lancement des convocations pour l'AGO du 10 Juin 2026",
-      "Création d'une commission de suivi des cotisations en retard",
-      "Validation du budget communication pour le second semestre",
-    ],
-    signataires: ["Fatima Zahra El Alami", "Mohamed Ouali", "Ahmed El Fassi"],
-  },
-  {
-    id: "pv2",
-    title: "PV Assemblée Générale Ordinaire — Déc 2025",
-    type: "ag",
-    status: "published",
-    date: "2025-12-15",
-    redacteur: "Ahmed El Fassi",
-    presences: 248,
-    summary: "Assemblée Générale Ordinaire annuelle tenue à Rabat. Présentation des bilans moraux et financiers, vote du budget 2026 et renouvellement partiel du bureau national.",
-    resolutions: [
-      "Adoption du rapport moral à 94% des voix",
-      "Adoption du rapport financier à l'unanimité",
-      "Approbation du budget prévisionnel 2026: 1 250 000 MAD",
-      "Renouvellement du mandat de la Secrétaire Générale",
-      "Amendement de l'article 18 du règlement intérieur",
-    ],
-    signataires: ["Fatima Zahra El Alami", "Ahmed El Fassi", "Nadia Benkiran", "Mohamed Ouali"],
-  },
-  {
-    id: "pv3",
-    title: "PV Commission Juridique — Mai 2026",
-    type: "commission",
-    status: "published",
-    date: "2026-05-12",
-    redacteur: "Omar Slimani",
-    presences: 8,
-    summary: "Réunion de la commission juridique pour l'analyse du Décret N°2026-15 et la révision des articles 11 à 14 des statuts du syndicat.",
-    resolutions: [
-      "Adoption de l'avis juridique sur le Décret N°2026-15",
-      "Proposition d'amendement de l'article 12 soumise au bureau",
-      "Création d'un guide pratique droits des enseignants",
-    ],
-    signataires: ["Omar Slimani", "Hassan Berrada"],
-  },
-  {
-    id: "pv4",
-    title: "PV Élection Bureau Régional — Mar 2026",
-    type: "election",
-    status: "published",
-    date: "2026-03-22",
-    redacteur: "Youssef Idrissi",
-    presences: 62,
-    summary: "Élection du bureau régional de Casablanca-Settat. Scrutin de liste — 3 listes en compétition pour 7 postes au bureau régional.",
-    resolutions: [
-      "Liste «Avenir Syndical» élue avec 58% des voix",
-      "Validation des résultats par la commission électorale",
-      "Intronisation du nouveau bureau le 01/04/2026",
-    ],
-    signataires: ["Youssef Idrissi", "Commission Électorale"],
-  },
-  {
-    id: "pv5",
-    title: "PV Réunion d'Urgence — Grève Avr 2026",
-    type: "urgence",
-    status: "published",
-    date: "2026-04-28",
-    redacteur: "Fatima Zahra El Alami",
-    presences: 25,
-    summary: "Réunion convoquée en urgence suite aux décisions ministérielles du 25/04/2026 portant atteinte aux droits acquis des enseignants.",
-    resolutions: [
-      "Déclaration de grève nationale de 48h les 05 et 06 mai 2026",
-      "Dépôt d'un recours juridique contre la décision ministérielle",
-      "Mise en place d'un comité de crise",
-      "Communication publique via les médias sociaux",
-    ],
-    signataires: ["Fatima Zahra El Alami", "Mohamed Ouali"],
-  },
-  {
-    id: "pv6",
-    title: "PV Réunion Bureau — Avr 2026",
-    type: "bureau",
-    status: "published",
-    date: "2026-04-20",
-    redacteur: "Nadia Benkiran",
-    presences: 11,
-    summary: "Réunion mensuelle d'Avril 2026 — suivi des actions syndicales, bilan des formations et préparation de la grève.",
-    resolutions: [
-      "Validation du plan d'action syndicale Avril-Juin 2026",
-      "Approbation du calendrier des formations régionales",
-      "Adoption du communiqué public suite aux négociations",
-    ],
-    signataires: ["Fatima Zahra El Alami", "Ahmed El Fassi", "Nadia Benkiran"],
-  },
-  {
-    id: "pv7",
-    title: "PV Commission Formation — Brouillon",
-    type: "commission",
-    status: "draft",
-    date: "2026-05-20",
-    redacteur: "Khadija Tahiri",
-    presences: 6,
-    summary: "Réunion de planification des formations syndicales du second semestre 2026. Document en cours de rédaction.",
-    resolutions: ["À compléter"],
+// ─── API mapping ──────────────────────────────────────────────────────────────
+
+const MEETING_TYPE_TO_PV: Record<string, PVType> = {
+  ag_ordinaire: "ag",
+  ag_extraordinaire: "ag",
+  ag_constitutive: "ag",
+  general: "ag",
+  ag_elective: "election",
+};
+
+const MEETING_STATUS_TO_PV: Record<string, PVStatus> = {
+  completed: "published",
+  scheduled: "pending",
+  in_progress: "pending",
+  cancelled: "draft",
+};
+
+function meetingToPV(m: any): PV {
+  const rawDesc = (m.description ?? "")
+    .replace(/\n__meta:\{[^}]*\}/, "")
+    .replace(/\n__membres_presents:\d+/, "")
+    .trim();
+  return {
+    id: m.id,
+    title: m.title,
+    type: MEETING_TYPE_TO_PV[m.type] ?? "ag",
+    status: MEETING_STATUS_TO_PV[m.status] ?? "pending",
+    date: m.date ?? "",
+    redacteur: m.createdByName ?? "Syndic",
+    presences: m.attendeesCount ?? 0,
+    summary: rawDesc || m.agenda || "Assemblée Générale",
+    resolutions: (m.resolutions ?? []).map((r: any) => {
+      const badge = r.result === "adopted" ? " ✓" : r.result === "rejected" ? " ✗" : "";
+      return `${r.title}${badge}`;
+    }),
     signataires: [],
-  },
-];
+  };
+}
 
 const FILTER_TYPES: { key: "all" | PVType; label: string }[] = [
   { key: "all", label: "Tous" },
@@ -183,17 +109,33 @@ export default function PVScreen() {
 
   const isAdmin = user?.role === "super_admin" || user?.role === "syndicate_admin";
 
-  const [pvList, setPVList] = useState<PV[]>(INITIAL_PVS);
+  const [pvList, setPVList] = useState<PV[]>([]);
+  const [loading, setLoading] = useState(true);
   const [filterType, setFilterType] = useState<"all" | PVType>("all");
   const [filterStatus, setFilterStatus] = useState<"all" | PVStatus>("all");
   const [selectedPV, setSelectedPV] = useState<PV | null>(null);
   const [showCreate, setShowCreate] = useState(false);
+  const [creating, setCreating] = useState(false);
 
   const [newTitle, setNewTitle] = useState("");
-  const [newType, setNewType] = useState<PVType>("bureau");
+  const [newType, setNewType] = useState<PVType>("ag");
   const [newSummary, setNewSummary] = useState("");
   const [newResolution, setNewResolution] = useState("");
   const [newResolutions, setNewResolutions] = useState<string[]>([]);
+
+  const fetchPVs = useCallback(async () => {
+    try {
+      setLoading(true);
+      const res = await apiRequest<{ data: any[] }>("/ag-meetings");
+      setPVList((res.data ?? []).map(meetingToPV));
+    } catch {
+      // keep empty list — network error handled silently
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
+  useEffect(() => { fetchPVs(); }, [fetchPVs]);
 
   const filtered = pvList.filter((p) => {
     const matchType = filterType === "all" || p.type === filterType;
@@ -229,24 +171,34 @@ export default function PVScreen() {
     setNewResolution("");
   };
 
-  const handleCreate = () => {
-    if (!newTitle.trim() || !newSummary.trim()) return;
-    const pv: PV = {
-      id: `pv${Date.now()}`,
-      title: newTitle.trim(),
-      type: newType,
-      status: "draft",
-      date: new Date().toISOString().slice(0, 10),
-      redacteur: user?.name ?? "Inconnu",
-      presences: 0,
-      summary: newSummary.trim(),
-      resolutions: newResolutions,
-      signataires: [user?.name ?? ""],
-    };
-    setPVList((prev) => [pv, ...prev]);
-    setShowCreate(false);
-    setNewTitle(""); setNewSummary(""); setNewResolutions([]); setNewResolution("");
-    Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+  const MEETING_TYPE_MAP: Record<PVType, string> = {
+    ag: "ag_ordinaire",
+    election: "ag_elective",
+    bureau: "general",
+    commission: "general",
+    urgence: "general",
+  };
+
+  const handleCreate = async () => {
+    if (!newTitle.trim() || !newSummary.trim() || creating) return;
+    setCreating(true);
+    try {
+      await apiRequest("/ag-meetings", "POST", {
+        title: newTitle.trim(),
+        type: MEETING_TYPE_MAP[newType],
+        description: newSummary.trim(),
+        agenda: newResolutions.join("\n"),
+        date: new Date().toISOString().slice(0, 10),
+      });
+      await fetchPVs();
+      setShowCreate(false);
+      setNewTitle(""); setNewSummary(""); setNewResolutions([]); setNewResolution("");
+      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+    } catch (err: any) {
+      Alert.alert("Erreur", err.message ?? "Impossible de créer le PV");
+    } finally {
+      setCreating(false);
+    }
   };
 
   const publishedCount = pvList.filter((p) => p.status === "published").length;
@@ -314,8 +266,14 @@ export default function PVScreen() {
         showsVerticalScrollIndicator={false}
         ListEmptyComponent={
           <View style={styles.empty}>
-            <Feather name="file-text" size={40} color={colors.mutedForeground} />
-            <Text style={[styles.emptyText, { color: colors.mutedForeground }]}>Aucun PV correspondant</Text>
+            {loading ? (
+              <ActivityIndicator size="large" color={colors.primary} />
+            ) : (
+              <>
+                <Feather name="file-text" size={40} color={colors.mutedForeground} />
+                <Text style={[styles.emptyText, { color: colors.mutedForeground }]}>Aucun PV correspondant</Text>
+              </>
+            )}
           </View>
         }
         renderItem={({ item: pv }) => {

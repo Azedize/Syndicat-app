@@ -4,10 +4,12 @@ import {
   meetingsTable,
   meetingAttendeesTable,
   agResolutionsTable,
+  agProxiesTable,
   buildingsTable,
+  membersTable,
 } from "@workspace/db/schema";
 import { eq, and, desc, sql, count, inArray } from "drizzle-orm";
-import { requireAuth, requireAdmin } from "../middleware/auth.js";
+import { requireAuth, requireAdmin, requireOperationalAccess } from "../middleware/auth.js";
 import { z } from "zod";
 
 const router = Router();
@@ -138,7 +140,7 @@ router.get("/ag-meetings/:id", requireAuth, async (req, res) => {
 });
 
 // POST /ag-meetings — Create AG meeting
-router.post("/ag-meetings", requireAuth, requireAdmin, async (req, res) => {
+router.post("/ag-meetings", requireAuth, requireOperationalAccess, async (req, res) => {
   const schema = z.object({
     title: z.string().min(1),
     date: z.string(),
@@ -190,7 +192,7 @@ router.post("/ag-meetings", requireAuth, requireAdmin, async (req, res) => {
 });
 
 // PUT /ag-meetings/:id/status — Update AG status
-router.put("/ag-meetings/:id/status", requireAuth, requireAdmin, async (req, res) => {
+router.put("/ag-meetings/:id/status", requireAuth, requireOperationalAccess, async (req, res) => {
   const schema = z.object({
     status: z.enum(["scheduled", "in_progress", "completed", "cancelled"]),
     membresPresents: z.number().int().optional(),
@@ -265,7 +267,7 @@ router.post("/ag-meetings/:id/attend", requireAuth, async (req, res) => {
 // ─── Resolutions ──────────────────────────────────────────────────────────────
 
 // POST /ag-meetings/:id/resolutions — Add resolution
-router.post("/ag-meetings/:id/resolutions", requireAuth, requireAdmin, async (req, res) => {
+router.post("/ag-meetings/:id/resolutions", requireAuth, requireOperationalAccess, async (req, res) => {
   const schema = z.object({
     title: z.string().min(1),
     description: z.string().optional().default(""),
@@ -318,7 +320,7 @@ router.post("/ag-meetings/:id/resolutions", requireAuth, requireAdmin, async (re
 });
 
 // PUT /ag-meetings/:id/resolutions/:resId/vote — Cast votes on resolution
-router.put("/ag-meetings/:id/resolutions/:resId/vote", requireAuth, requireAdmin, async (req, res) => {
+router.put("/ag-meetings/:id/resolutions/:resId/vote", requireAuth, requireOperationalAccess, async (req, res) => {
   const schema = z.object({
     tantiemesFor: z.number().int().nonnegative(),
     tantiemesAgainst: z.number().int().nonnegative(),
@@ -431,6 +433,88 @@ _____________________                    _____________________
     console.error(e);
     res.status(500).json({ error: "Erreur serveur" });
   }
+});
+
+// ─── AG Proxies (Pouvoirs / Procurations) ────────────────────────────────────
+
+const proxySchema = z.object({
+  grantorId: z.string().optional(),
+  grantorName: z.string().min(1).max(200),
+  granteeId: z.string().optional(),
+  granteeName: z.string().min(1).max(200),
+  documentUrl: z.string().url().optional(),
+  notes: z.string().max(1000).optional(),
+});
+
+// GET /ag-meetings/:id/proxies
+router.get("/ag-meetings/:id/proxies", requireAuth, async (req, res) => {
+  try {
+    const user = (req as any).user;
+    const [meeting] = await db.select({ id: meetingsTable.id, syndicateId: meetingsTable.syndicateId })
+      .from(meetingsTable).where(eq(meetingsTable.id, req.params.id));
+    if (!meeting) { res.status(404).json({ error: "Réunion introuvable" }); return; }
+    if (user.syndicateId && user.syndicateId !== meeting.syndicateId) {
+      res.status(403).json({ error: "Accès refusé" }); return;
+    }
+    const proxies = await db.select().from(agProxiesTable)
+      .where(eq(agProxiesTable.meetingId, req.params.id))
+      .orderBy(desc(agProxiesTable.createdAt));
+    res.json({ data: proxies });
+  } catch (e) { console.error(e); res.status(500).json({ error: "Erreur serveur" }); }
+});
+
+// POST /ag-meetings/:id/proxies
+router.post("/ag-meetings/:id/proxies", requireAuth, requireOperationalAccess, async (req, res) => {
+  const parsed = proxySchema.safeParse(req.body);
+  if (!parsed.success) { res.status(400).json({ error: parsed.error.issues[0]?.message }); return; }
+  try {
+    const user = (req as any).user;
+    const [meeting] = await db.select({ id: meetingsTable.id, syndicateId: meetingsTable.syndicateId })
+      .from(meetingsTable).where(eq(meetingsTable.id, req.params.id));
+    if (!meeting) { res.status(404).json({ error: "Réunion introuvable" }); return; }
+    const syndicateId = meeting.syndicateId ?? user.syndicateId;
+    const [proxy] = await db.insert(agProxiesTable).values({
+      meetingId: req.params.id,
+      syndicateId,
+      grantorId: parsed.data.grantorId,
+      grantorName: parsed.data.grantorName,
+      granteeId: parsed.data.granteeId,
+      granteeName: parsed.data.granteeName,
+      documentUrl: parsed.data.documentUrl,
+      notes: parsed.data.notes,
+    }).returning();
+    res.status(201).json({ data: proxy });
+  } catch (e: any) {
+    if (e?.code === "23505") { res.status(409).json({ error: "Ce copropriétaire a déjà un pouvoir pour cette réunion" }); return; }
+    console.error(e); res.status(500).json({ error: "Erreur serveur" });
+  }
+});
+
+// PUT /ag-meetings/:id/proxies/:proxyId — update status (accepted | revoked)
+router.put("/ag-meetings/:id/proxies/:proxyId", requireAuth, requireOperationalAccess, async (req, res) => {
+  const { status } = req.body as { status?: string };
+  if (!status || !["pending", "accepted", "revoked"].includes(status)) {
+    res.status(400).json({ error: "Statut invalide (pending|accepted|revoked)" }); return;
+  }
+  try {
+    const [updated] = await db.update(agProxiesTable)
+      .set({ status })
+      .where(and(eq(agProxiesTable.id, req.params.proxyId), eq(agProxiesTable.meetingId, req.params.id)))
+      .returning();
+    if (!updated) { res.status(404).json({ error: "Pouvoir introuvable" }); return; }
+    res.json({ data: updated });
+  } catch (e) { console.error(e); res.status(500).json({ error: "Erreur serveur" }); }
+});
+
+// DELETE /ag-meetings/:id/proxies/:proxyId
+router.delete("/ag-meetings/:id/proxies/:proxyId", requireAuth, requireOperationalAccess, async (req, res) => {
+  try {
+    const [deleted] = await db.delete(agProxiesTable)
+      .where(and(eq(agProxiesTable.id, req.params.proxyId), eq(agProxiesTable.meetingId, req.params.id)))
+      .returning();
+    if (!deleted) { res.status(404).json({ error: "Pouvoir introuvable" }); return; }
+    res.json({ success: true });
+  } catch (e) { console.error(e); res.status(500).json({ error: "Erreur serveur" }); }
 });
 
 export default router;

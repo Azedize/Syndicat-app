@@ -157,6 +157,9 @@ export const lotsTable = pgTable(
     type: text("type").default("appartement"),
     floor: integer("floor").default(0),
     surfaceM2: money("surface_m2"),
+    // Titre foncier (cadastral reference — required for legal procedures, Art. 2 Law 18-00)
+    titreFoncier: text("titre_foncier"),
+    surfaceCadastrale: money("surface_cadastrale"),
     tantiemes: integer("tantiemes").default(0),
     buildingId: text("building_id").notNull().references(() => buildingsTable.id, { onDelete: "cascade" }),
     ownerId: text("owner_id").references(() => membersTable.id, { onDelete: "set null" }),
@@ -270,6 +273,8 @@ export const appelsDeFondsTable = pgTable(
     index("appels_owner_id_idx").on(t.ownerId),
     index("appels_status_idx").on(t.status),
     index("appels_due_date_idx").on(t.dueDate),
+    // Composite for financial report queries (building × period)
+    index("appels_building_period_idx").on(t.buildingId, t.period),
   ],
 );
 
@@ -284,8 +289,8 @@ export const transactionsTable = pgTable(
     label: text("label").notNull(),
     date: text("date").notNull(),
     status: text("status").default("paid"),
-    memberId: text("member_id"),
-    syndicateId: text("syndicate_id"),
+    memberId: text("member_id").references(() => usersTable.id, { onDelete: "set null" }),
+    syndicateId: text("syndicate_id").references(() => syndicatesTable.id, { onDelete: "cascade" }),
     proofUrl: text("proof_url"),
     createdAt: createdAt(),
   },
@@ -293,6 +298,8 @@ export const transactionsTable = pgTable(
     index("transactions_syndicate_id_idx").on(t.syndicateId),
     index("transactions_member_id_idx").on(t.memberId),
     index("transactions_status_idx").on(t.status),
+    // Composite for financial dashboard queries (syndicate × type × date)
+    index("transactions_syndicate_type_date_idx").on(t.syndicateId, t.type, t.createdAt),
   ],
 );
 
@@ -459,10 +466,10 @@ export const travauxTable = pgTable(
     status: text("status").default("reported"),
     buildingId: text("building_id").notNull().references(() => buildingsTable.id, { onDelete: "cascade" }),
     lotId: text("lot_id"),
-    prestataireId: text("prestataire_id"),
-    reportedById: text("reported_by_id"),
+    prestataireId: text("prestataire_id").references(() => prestatairesTable.id, { onDelete: "set null" }),
+    reportedById: text("reported_by_id").references(() => usersTable.id, { onDelete: "set null" }),
     reportedByName: text("reported_by_name"),
-    assignedById: text("assigned_by_id"),
+    assignedById: text("assigned_by_id").references(() => usersTable.id, { onDelete: "set null" }),
     assignedAt: timestamp("assigned_at"),
     estimatedAmount: money("estimated_amount"),
     actualAmount: money("actual_amount"),
@@ -644,6 +651,36 @@ export const agResolutionsTable = pgTable("ag_resolutions", {
   createdAt: createdAt(),
 });
 
+// ─── AG Proxies (Law 18-00 Art. 20 — written proxy / pouvoir) ────────────────
+// A grantor delegates their vote to a grantee for a specific AG meeting.
+
+export const agProxiesTable = pgTable(
+  "ag_proxies",
+  {
+    id: id(),
+    meetingId: text("meeting_id").notNull().references(() => meetingsTable.id, { onDelete: "cascade" }),
+    syndicateId: text("syndicate_id").notNull().references(() => syndicatesTable.id, { onDelete: "cascade" }),
+    // Member giving the proxy
+    grantorId: text("grantor_id").references(() => membersTable.id, { onDelete: "cascade" }),
+    grantorName: text("grantor_name").notNull(),
+    // Member receiving the proxy
+    granteeId: text("grantee_id").references(() => membersTable.id, { onDelete: "set null" }),
+    granteeName: text("grantee_name").notNull(),
+    // status: pending | accepted | revoked
+    status: text("status").notNull().default("pending"),
+    documentUrl: text("document_url"),
+    notes: text("notes"),
+    createdAt: createdAt(),
+  },
+  (t) => [
+    index("ag_proxies_meeting_id_idx").on(t.meetingId),
+    index("ag_proxies_grantor_id_idx").on(t.grantorId),
+    index("ag_proxies_grantee_id_idx").on(t.granteeId),
+    // One proxy per grantor per meeting
+    uniqueIndex("ag_proxies_meeting_grantor_idx").on(t.meetingId, t.grantorId),
+  ],
+);
+
 // ─── Union Actions ──────────────────────────────────────────────────────────
 
 export const unionActionsTable = pgTable("union_actions", {
@@ -713,10 +750,10 @@ export const publicationLikesTable = pgTable(
 
 export const publicationCommentsTable = pgTable("publication_comments", {
   id: id(),
-  publicationId: text("publication_id").notNull(),
+  publicationId: text("publication_id").notNull().references(() => publicationsTable.id, { onDelete: "cascade" }),
   authorId: text("author_id"),
   authorName: text("author_name"),
-  userId: text("user_id"),
+  userId: text("user_id").references(() => usersTable.id, { onDelete: "set null" }),
   userName: text("user_name"),
   text: text("text").notNull(),
   createdAt: createdAt(),
@@ -802,6 +839,8 @@ export const messagesTable = pgTable(
   (t) => [
     index("messages_conversation_id_idx").on(t.conversationId),
     index("messages_created_at_idx").on(t.createdAt),
+    // Composite for paginated chat history (conversation × time)
+    index("messages_conv_created_at_idx").on(t.conversationId, t.createdAt),
   ],
 );
 
@@ -1466,6 +1505,65 @@ export const travauxPrivatifsTable = pgTable(
     index("travaux_privatifs_status_idx").on(t.status),
     index("travaux_privatifs_requested_by_id_idx").on(t.requestedById),
     index("travaux_privatifs_syndicate_id_idx").on(t.syndicateId),
+  ],
+);
+
+// ─── Conseil Syndical (Law 18-00 Art. 22 — elected oversight body) ───────────
+
+export const conseilSyndicalTable = pgTable(
+  "conseil_syndical",
+  {
+    id: id(),
+    syndicateId: text("syndicate_id").notNull().references(() => syndicatesTable.id, { onDelete: "cascade" }),
+    userId: text("user_id").references(() => usersTable.id, { onDelete: "set null" }),
+    memberId: text("member_id").references(() => membersTable.id, { onDelete: "set null" }),
+    // role: president | secretary | treasurer | member
+    role: text("role").notNull().default("member"),
+    name: text("name").notNull(),
+    email: text("email"),
+    phone: text("phone"),
+    mandateStart: text("mandate_start"),
+    mandateEnd: text("mandate_end"),
+    // status: active | expired | resigned | revoked
+    status: text("status").notNull().default("active"),
+    notes: text("notes"),
+    createdAt: createdAt(),
+  },
+  (t) => [
+    index("conseil_syndical_syndicate_id_idx").on(t.syndicateId),
+    index("conseil_syndical_user_id_idx").on(t.userId),
+    index("conseil_syndical_status_idx").on(t.status),
+  ],
+);
+
+// ─── Fonds de Travaux (Law 18-00 Art. 18 — mandatory 5% reserve fund) ────────
+
+export const fondsTravauxTable = pgTable(
+  "fonds_travaux",
+  {
+    id: id(),
+    syndicateId: text("syndicate_id").notNull().references(() => syndicatesTable.id, { onDelete: "cascade" }),
+    buildingId: text("building_id").references(() => buildingsTable.id, { onDelete: "cascade" }),
+    year: integer("year").notNull(),
+    // Basis for the 5% calculation (total annual charges budget)
+    budgetBase: money("budget_base").notNull(),
+    // Rate as a percentage — minimum 5% by law, syndicate may vote higher
+    ratePercent: money("rate_percent").notNull().default("5"),
+    // Computed: budgetBase × ratePercent / 100
+    targetAmount: money("target_amount").notNull(),
+    // Running balance of contributions received into this fund
+    currentBalance: money("current_balance").notNull().default("0"),
+    // status: active | funded | closed
+    status: text("status").notNull().default("active"),
+    // Approved by AG resolution (optional reference)
+    approvedByResolutionId: text("approved_by_resolution_id"),
+    notes: text("notes"),
+    createdAt: createdAt(),
+  },
+  (t) => [
+    uniqueIndex("fonds_travaux_unique_idx").on(t.syndicateId, t.buildingId, t.year),
+    index("fonds_travaux_syndicate_id_idx").on(t.syndicateId),
+    index("fonds_travaux_building_id_idx").on(t.buildingId),
   ],
 );
 

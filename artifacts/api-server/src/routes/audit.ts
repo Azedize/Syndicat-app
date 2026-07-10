@@ -2,8 +2,9 @@ import { Router } from "express";
 import { z } from "zod";
 import { db } from "@workspace/db";
 import { auditLogsTable } from "@workspace/db/schema";
-import { eq, desc } from "drizzle-orm";
+import { eq, desc, and, gte, sql } from "drizzle-orm";
 import { requireAuth, requireRole } from "../middleware/auth.js";
+import { getPagination, buildPagedResponse } from "../lib/paginate.js";
 import { serverAuditLog } from "../lib/audit.js";
 
 const router = Router();
@@ -47,16 +48,32 @@ router.post("/audit", requireAuth, async (req, res) => {
 
 router.get("/audit", requireAuth, requireRole("super_admin", "syndicate_admin"), async (req, res) => {
   try {
+    const pagination = getPagination(req, 50);
+    const { limit, offset } = pagination;
     const syndicateId = req.user!.syndicateId;
-    const logs = syndicateId
-      ? await db.select().from(auditLogsTable)
-          .where(eq(auditLogsTable.syndicateId, syndicateId))
-          .orderBy(desc(auditLogsTable.createdAt))
-          .limit(200)
-      : await db.select().from(auditLogsTable)
-          .orderBy(desc(auditLogsTable.createdAt))
-          .limit(200);
-    res.json({ data: logs });
+    // Optional: filter by actor userId or date range
+    const { actorId, since } = req.query as Record<string, string | undefined>;
+
+    const conditions: ReturnType<typeof eq>[] = [];
+    if (syndicateId) conditions.push(eq(auditLogsTable.syndicateId, syndicateId));
+    if (actorId) conditions.push(eq(auditLogsTable.actorId, actorId));
+    if (since) {
+      const d = new Date(since);
+      if (!isNaN(d.getTime())) conditions.push(gte(auditLogsTable.createdAt, d));
+    }
+
+    const baseQuery = db.select().from(auditLogsTable)
+      .where(conditions.length ? and(...conditions) : undefined)
+      .orderBy(desc(auditLogsTable.createdAt));
+
+    const [{ total }] = await db
+      .select({ total: sql<number>`count(*)::int` })
+      .from(auditLogsTable)
+      .where(conditions.length ? and(...conditions) : undefined);
+
+    const logs = await baseQuery.limit(limit).offset(offset);
+
+    res.json(buildPagedResponse(logs, total, pagination));
   } catch (err) {
     req.log.error(err);
     res.status(500).json({ error: "Erreur serveur" });

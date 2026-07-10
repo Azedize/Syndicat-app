@@ -1,4 +1,4 @@
-import express, { type Express } from "express";
+import express, { type Express, type Request, type Response, type NextFunction } from "express";
 import cors from "cors";
 import helmet from "helmet";
 import rateLimit from "express-rate-limit";
@@ -104,8 +104,31 @@ app.use(
 app.use(express.json({ limit: "2mb" }));
 app.use(express.urlencoded({ extended: true, limit: "2mb" }));
 
+// ─── Query / response timeout (30 s) ──────────────────────────────────────────
+// Prevents long-running handlers from holding connections open indefinitely.
+const REQUEST_TIMEOUT_MS = 30_000;
+app.use((_req: Request, res: Response, next: NextFunction) => {
+  res.setTimeout(REQUEST_TIMEOUT_MS, () => {
+    if (!res.headersSent) {
+      res.status(504).json({ error: "Délai de traitement dépassé" });
+    }
+  });
+  next();
+});
+
 app.use("/api/auth", authLimiter);
 app.use("/api", apiLimiter);
 app.use("/api", router);
+
+// ─── Global async error handler ───────────────────────────────────────────────
+// Catches any error thrown/rejected in route handlers (including async ones).
+// Without this, unhandled promise rejections leave the connection hanging.
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
+app.use((err: Error, req: Request, res: Response, _next: NextFunction) => {
+  const log = (req as any).log ?? logger;
+  log.error({ err: err.message, stack: err.stack }, "Unhandled route error");
+  if (res.headersSent) return;
+  res.status(500).json({ error: "Erreur serveur inattendue" });
+});
 
 export default app;

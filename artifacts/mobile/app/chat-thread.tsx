@@ -4,6 +4,7 @@ import { router, useLocalSearchParams } from "expo-router";
 import React, { useEffect, useRef, useState } from "react";
 import { shareContent } from "@/hooks/useShare";
 import {
+  ActivityIndicator,
   Alert,
   FlatList,
   KeyboardAvoidingView,
@@ -15,6 +16,8 @@ import {
   TouchableOpacity,
   View,
 } from "react-native";
+import { pickAndUploadPhoto, pickAndUploadDocument } from "@/lib/upload";
+import { apiRequest } from "@/lib/api";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { chat as chatApi } from "@/services/api";
 import { useData, type ChatMessage } from "@/context/DataContext";
@@ -114,12 +117,52 @@ export default function ChatThreadScreen() {
   );
   const threadMessages = [...apiMsgsForThread, ...localPending];
 
+  const [uploading, setUploading] = useState(false);
+
+  function getAttachmentBaseUrl(): string {
+    const domain = process.env.EXPO_PUBLIC_DOMAIN;
+    if (domain) return `https://${domain}/api`;
+    return `http://localhost:${process.env.EXPO_PUBLIC_API_PORT ?? "8080"}/api`;
+  }
+
   const handleSend = () => {
     if (!text.trim() || !id) return;
     sendMessage(id, text.trim());
     setText("");
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
     setTimeout(() => listRef.current?.scrollToEnd({ animated: true }), 100);
+  };
+
+  const handleAttach = async (type: "photo" | "document") => {
+    if (!id || uploading) return;
+    setUploading(true);
+    try {
+      const objectPath = type === "photo"
+        ? await pickAndUploadPhoto()
+        : await pickAndUploadDocument();
+      if (!objectPath) return; // user cancelled or upload failed silently
+
+      const attachmentUrl = `${getAttachmentBaseUrl()}/storage/public-objects/${objectPath}`;
+      const isImage = type === "photo";
+
+      await apiRequest(`/conversations/${id}/messages`, "POST", {
+        text: "",
+        messageType: isImage ? "image" : "document",
+        attachmentUrl,
+        attachmentType: isImage ? "image/jpeg" : "application/octet-stream",
+        attachmentName: objectPath.split("/").pop() ?? (isImage ? "photo.jpg" : "document"),
+      });
+
+      // Refresh message list
+      const res = await (await import("@/services/api")).chat.messages(id) as any;
+      setApiMessages((res?.data ?? []).map(mapApiMessage));
+      setTimeout(() => listRef.current?.scrollToEnd({ animated: true }), 100);
+      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+    } catch {
+      Alert.alert("Erreur", "Impossible d'envoyer le fichier. Vérifiez votre connexion.");
+    } finally {
+      setUploading(false);
+    }
   };
 
   if (!conversation) {
@@ -261,16 +304,19 @@ export default function ChatThreadScreen() {
       >
         <TouchableOpacity
           style={[styles.attachBtn, { backgroundColor: colors.secondary }]}
+          disabled={uploading}
           onPress={() => {
             Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
             Alert.alert("Pièce jointe", "Choisissez le type de fichier à envoyer:", [
               { text: "Annuler", style: "cancel" },
-              { text: "Photo", onPress: () => Alert.alert("Photo", "Fonctionnalité bientôt disponible — l'accès à la galerie photo sera activé dans la prochaine version.") },
-              { text: "Document", onPress: () => Alert.alert("Document", "Fonctionnalité bientôt disponible — le partage de fichiers sera activé dans la prochaine version.") },
+              { text: "📷 Photo", onPress: () => handleAttach("photo") },
+              { text: "📄 Document", onPress: () => handleAttach("document") },
             ]);
           }}
         >
-          <Feather name="paperclip" size={18} color={colors.mutedForeground} />
+          {uploading
+            ? <ActivityIndicator size="small" color={colors.primary} />
+            : <Feather name="paperclip" size={18} color={colors.mutedForeground} />}
         </TouchableOpacity>
         <TextInput
           style={[styles.msgInput, { backgroundColor: colors.background, borderColor: colors.border, color: colors.foreground }]}
