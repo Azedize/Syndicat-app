@@ -7,7 +7,6 @@ import {
   lotsTable,
   buildingsTable,
   membersTable,
-  auditLogsTable,
   transactionsTable,
   debtEscalationsTable,
   syndicatesTable,
@@ -15,6 +14,7 @@ import {
 } from "@workspace/db/schema";
 import { eq, and, desc, sql, sum, or } from "drizzle-orm";
 import { requireAuth, requireAdmin, requireNotTenant } from "../middleware/auth.js";
+import { serverAuditLog } from "../lib/audit.js";
 
 const router = Router();
 
@@ -339,6 +339,18 @@ router.put("/appels-de-fonds/:id/validate", requireAuth, requireAdmin, async (re
       .where(eq(appelsDeFondsTable.id, req.params.id));
     if (!appel) return res.status(404).json({ error: "Not found" });
 
+    // appels_de_fonds has no syndicateId of its own — derive it via the building,
+    // so a super_admin's validation is correctly traced to the syndicate it affected,
+    // and a syndicate_admin can be blocked from validating another syndicate's calls.
+    const [building] = await db
+      .select({ syndicateId: buildingsTable.syndicateId })
+      .from(buildingsTable)
+      .where(eq(buildingsTable.id, appel.buildingId));
+
+    if (user.role === "syndicate_admin" && building?.syndicateId !== user.syndicateId) {
+      return res.status(403).json({ error: "Accès refusé" });
+    }
+
     if (appel.status !== "pending_validation") {
       return res.status(400).json({ error: "Cet appel n'est pas en attente de validation" });
     }
@@ -365,14 +377,12 @@ router.put("/appels-de-fonds/:id/validate", requireAuth, requireAdmin, async (re
       .where(eq(appelsDeFondsTable.id, req.params.id))
       .returning();
 
-    // Write audit log
-    db.insert(auditLogsTable).values({
-      userId: user.userId,
-      userName: user.name,
-      syndicateId: user.syndicateId ?? null,
+    // Write audit log (routed through serverAuditLog for consistent actor/supervision tracking)
+    await serverAuditLog(req, {
       action: approve ? "payment_approved" : "payment_rejected",
       entity: "appel_de_fonds",
       entityId: appel.id,
+      syndicateId: building?.syndicateId ?? undefined,
       details: JSON.stringify({
         amount: appel.amount,
         period: appel.period,
@@ -380,7 +390,7 @@ router.put("/appels-de-fonds/:id/validate", requireAuth, requireAdmin, async (re
         receiptNumber: receiptNum,
         rejectionReason: approve ? null : rejectionReason,
       }),
-    }).catch(() => {});
+    });
 
     // On approval: create a transaction record for accounting
     if (approve) {

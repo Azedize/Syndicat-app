@@ -10,3 +10,4 @@
 - [API server route prefix](api-route-prefix.md) — api-server routes defined as e.g. `/auth/login` in src/routes/*.ts are actually mounted at `/api/auth/login`; app.ts does `app.use("/api", router)`.
 - [.replit JWT_SECRET leak](jwt-secret-in-replit-file.md) — this project's `.replit` has JWT_SECRET hardcoded in `[userenv.shared]` (committed, not gitignored) instead of a real Replit Secret; flagged as follow-up, not yet fixed.
 - [Debt escalation architecture](debt-escalation-arch.md) — daily scanner idempotency, PDF ?token= query param for mobile Linking.openURL, push notification scoping.
+- [Audit log supervision model](audit-supervision-model.md) — super_admin vs syndicate_admin distinguished via actorRole/isSupervision in serverAuditLog(); also flags an IDOR class to grep for.

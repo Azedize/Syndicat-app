@@ -4,6 +4,7 @@ import { db } from "@workspace/db";
 import { syndicatesTable, usersTable } from "@workspace/db/schema";
 import { eq } from "drizzle-orm";
 import { requireAuth, requireRole, requireAdmin } from "../middleware/auth.js";
+import { serverAuditLog } from "../lib/audit.js";
 
 const router = Router();
 
@@ -241,6 +242,9 @@ router.put("/syndicates/:id", requireAuth, requireAdmin, async (req, res) => {
       .where(eq(syndicatesTable.id, id))
       .returning();
     if (!updated) { res.status(404).json({ error: "Syndicat introuvable" }); return; }
+    // Managing syndicate settings/lifecycle is a normal Super Admin platform duty,
+    // not supervision of a syndicate_admin's day-to-day operations.
+    await serverAuditLog(req, { action: "UPDATE", entity: "syndicate", entityId: id, syndicateId: id, platformAction: user.role === "super_admin" });
     res.json({ data: updated, message: "Syndicat mis à jour" });
   } catch (err) {
     req.log.error(err);

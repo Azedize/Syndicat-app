@@ -1127,7 +1127,14 @@ export const auditLogsTable = pgTable("audit_logs", {
   id: id(),
   userId: text("user_id"),
   userName: text("user_name"),
+  // Role held by the actor at the time of the action — kept alongside userId so
+  // history remains readable even if the user's role changes later.
+  actorRole: text("actor_role"),
   syndicateId: text("syndicate_id"),
+  // True when a super_admin performed this action inside a specific syndicate's
+  // scope (supervision/support), as opposed to a syndicate_admin's normal,
+  // in-scope action or a super_admin's platform-level action (no syndicateId).
+  isSupervision: boolean("is_supervision").notNull().default(false),
   action: text("action").notNull(),
   entity: text("entity").notNull(),
   entityId: text("entity_id"),

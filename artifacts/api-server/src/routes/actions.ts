@@ -153,7 +153,7 @@ router.post(
         createdBy: req.user!.userId,
       }).returning();
 
-      await serverAuditLog(req, { action: "CREATE", entity: "union_action", entityId: row.id, details: row.title });
+      await serverAuditLog(req, { action: "CREATE", entity: "union_action", entityId: row.id, details: row.title, syndicateId });
       const [annotated] = await annotateActions([row], req.user!.userId);
       res.status(201).json({ data: annotated, message: "Action syndicale créée" });
     } catch (err) { req.log.error(err); res.status(500).json({ error: "Erreur serveur" }); }
@@ -201,7 +201,7 @@ router.put(
       if (tags !== undefined) updateData.tags = JSON.stringify(tags);
 
       const [updated] = await db.update(unionActionsTable).set(updateData).where(eq(unionActionsTable.id, id)).returning();
-      await serverAuditLog(req, { action: "UPDATE", entity: "union_action", entityId: id });
+      await serverAuditLog(req, { action: "UPDATE", entity: "union_action", entityId: id, syndicateId: action.syndicateId });
       const [annotated] = await annotateActions([updated], req.user!.userId);
       res.json({ data: annotated, message: "Action mise à jour" });
     } catch (err) { req.log.error(err); res.status(500).json({ error: "Erreur serveur" }); }
@@ -227,7 +227,7 @@ router.delete(
         await tx.delete(actionParticipantsTable).where(eq(actionParticipantsTable.actionId, id));
         await tx.delete(unionActionsTable).where(eq(unionActionsTable.id, id));
       });
-      await serverAuditLog(req, { action: "DELETE", entity: "union_action", entityId: id, details: action.title });
+      await serverAuditLog(req, { action: "DELETE", entity: "union_action", entityId: id, details: action.title, syndicateId: action.syndicateId });
       res.json({ message: "Action supprimée" });
     } catch (err) { req.log.error(err); res.status(500).json({ error: "Erreur serveur" }); }
   },

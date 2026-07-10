@@ -92,7 +92,7 @@ router.put(
         .set({ status: "resolved" })
         .where(eq(legalAlertsTable.id, id))
         .returning();
-      await serverAuditLog(req, { action: "RESOLVE", entity: "legal_alert", entityId: id });
+      await serverAuditLog(req, { action: "RESOLVE", entity: "legal_alert", entityId: id, syndicateId: alert.syndicateId ?? undefined });
       res.json({ data: updated, message: "Alerte résolue" });
     } catch (err) { req.log.error(err); res.status(500).json({ error: "Erreur serveur" }); }
   },
@@ -413,6 +413,7 @@ router.put(
         entity: "payment_proof",
         entityId: id,
         details: result.data.note,
+        syndicateId: cotisation.syndicateId ?? undefined,
       });
 
       res.json({ message: approved ? "Paiement validé" : "Paiement rejeté" });
@@ -755,7 +756,7 @@ router.post("/announcements", requireAuth, requireRole("super_admin", "syndicate
       author: req.user!.name ?? "Administrateur",
       expiresAt: result.data.expiresAt ? new Date(result.data.expiresAt) : undefined,
     }).returning();
-    await serverAuditLog(req, { action: "create", entity: "announcement", entityId: row.id, details: `Annonce: ${row.title}` });
+    await serverAuditLog(req, { action: "create", entity: "announcement", entityId: row.id, details: `Annonce: ${row.title}`, syndicateId: synId });
     res.status(201).json({ data: row, message: "Annonce publiée" });
   } catch (err) { req.log.error(err); res.status(500).json({ error: "Erreur serveur" }); }
 });
@@ -792,7 +793,7 @@ router.delete("/announcements/:id", requireAuth, requireRole("super_admin", "syn
     if (!existing) { res.status(404).json({ error: "Annonce introuvable" }); return; }
     if (!isSameSyndicate(req, existing.syndicateId)) { res.status(403).json({ error: "Accès refusé" }); return; }
     await db.delete(announcementsTable).where(eq(announcementsTable.id, id));
-    await serverAuditLog(req, { action: "delete", entity: "announcement", entityId: id, details: `Annonce supprimée: ${existing.title}` });
+    await serverAuditLog(req, { action: "delete", entity: "announcement", entityId: id, details: `Annonce supprimée: ${existing.title}`, syndicateId: existing.syndicateId ?? undefined });
     res.json({ message: "Annonce supprimée" });
   } catch (err) { req.log.error(err); res.status(500).json({ error: "Erreur serveur" }); }
 });
