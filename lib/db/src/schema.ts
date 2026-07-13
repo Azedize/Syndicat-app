@@ -1633,6 +1633,35 @@ export const invoiceAttachmentsTable = pgTable(
   (t) => [index("invoice_attachments_invoice_id_idx").on(t.invoiceId)],
 );
 
+// ─── Actes Administratifs ────────────────────────────────────────────────────
+
+export const actesAdministratifsTable = pgTable(
+  "actes_administratifs",
+  {
+    id: id(),
+    syndicateId: text("syndicate_id").references(() => syndicatesTable.id, { onDelete: "cascade" }),
+    createdById: text("created_by_id").references(() => usersTable.id, { onDelete: "set null" }),
+    type: text("type").notNull().default("decision"),
+    statut: text("statut").notNull().default("brouillon"),
+    numero: text("numero").notNull(),
+    titre: text("titre").notNull(),
+    objet: text("objet").notNull(),
+    date: text("date").notNull(),
+    dateEcheance: text("date_echeance"),
+    auteur: text("auteur").notNull(),
+    signataires: text("signataires").array().default([]),
+    destinataires: text("destinataires").array().default([]),
+    resumeContenu: text("resume_contenu"),
+    important: boolean("important").default(false),
+    createdAt: createdAt(),
+  },
+  (t) => [
+    index("actes_administratifs_syndicate_id_idx").on(t.syndicateId),
+    index("actes_administratifs_statut_idx").on(t.statut),
+    index("actes_administratifs_type_idx").on(t.type),
+  ],
+);
+
 export const nationalRankingsTable = pgTable(
   "national_rankings",
   {

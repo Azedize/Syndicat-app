@@ -80,7 +80,7 @@ router.put(
   requireAuth,
   requireRole("super_admin", "syndicate_admin"),
   async (req, res) => {
-    const id = req.params.id as string;
+    const id = String(req.params.id) as string;
     try {
       const [alert] = await db.select().from(legalAlertsTable).where(eq(legalAlertsTable.id, id));
       if (!alert) { res.status(404).json({ error: "Alerte introuvable" }); return; }
@@ -156,7 +156,7 @@ router.post("/support", requireAuth, async (req, res) => {
 });
 
 router.get("/support/:id", requireAuth, async (req, res) => {
-  const id = req.params.id as string;
+  const id = String(req.params.id) as string;
   try {
     const [ticket] = await db.select().from(supportTicketsTable).where(eq(supportTicketsTable.id, id));
     if (!ticket) { res.status(404).json({ error: "Ticket introuvable" }); return; }
@@ -173,7 +173,7 @@ router.get("/support/:id", requireAuth, async (req, res) => {
 });
 
 router.post("/support/:id/replies", requireAuth, async (req, res) => {
-  const id = req.params.id as string;
+  const id = String(req.params.id) as string;
   const schema = z.object({ text: z.string().min(1).max(5000) });
   const result = schema.safeParse(req.body);
   if (!result.success) { res.status(400).json({ error: "Réponse invalide" }); return; }
@@ -197,7 +197,7 @@ router.put(
   requireAuth,
   requireRole("super_admin", "syndicate_admin"),
   async (req, res) => {
-    const id = req.params.id as string;
+    const id = String(req.params.id) as string;
     try {
       const [ticket] = await db.select().from(supportTicketsTable).where(eq(supportTicketsTable.id, id));
       if (!ticket) { res.status(404).json({ error: "Ticket introuvable" }); return; }
@@ -259,7 +259,7 @@ router.post(
       const { syndicateId: _sid, ...data } = result.data;
       const [row] = await db
         .insert(cotisationsTable)
-        .values({ ...data, syndicateId: sid })
+        .values({ ...data, syndicateId: sid } as any)
         .returning();
       res.status(201).json({ data: row, message: "Cotisation créée" });
     } catch (err) { req.log.error(err); res.status(500).json({ error: "Erreur serveur" }); }
@@ -274,7 +274,7 @@ router.post(
  * Admins may mark a cotisation as paid directly (e.g. confirmed cash/bank payment).
  */
 router.put("/cotisations/:id/pay", requireAuth, async (req, res) => {
-  const id = req.params.id as string;
+  const id = String(req.params.id) as string;
   const schema = z.object({ proofUrl: z.string().url().optional() });
   const result = schema.safeParse(req.body);
   if (!result.success) { res.status(400).json({ error: "Données invalides" }); return; }
@@ -335,7 +335,7 @@ router.get(
   requireAuth,
   requireRole("super_admin", "syndicate_admin"),
   async (req, res) => {
-    const id = req.params.id as string;
+    const id = String(req.params.id) as string;
     try {
       const [cotisation] = await db.select().from(cotisationsTable).where(eq(cotisationsTable.id, id));
       if (!cotisation) { res.status(404).json({ error: "Cotisation introuvable" }); return; }
@@ -360,7 +360,7 @@ router.put(
   requireAuth,
   requireRole("super_admin", "syndicate_admin"),
   async (req, res) => {
-    const id = req.params.id as string;
+    const id = String(req.params.id) as string;
     const schema = z.object({
       action: z.enum(["approve", "reject"]),
       note: z.string().max(500).optional(),
@@ -459,7 +459,7 @@ router.get("/alerts", requireAuth, async (req, res) => {
 });
 
 router.put("/alerts/:id/read", requireAuth, async (req, res) => {
-  const id = req.params.id as string;
+  const id = String(req.params.id) as string;
   try {
     const [alert] = await db.select().from(alertsTable).where(eq(alertsTable.id, id));
     if (!alert) { res.status(404).json({ error: "Alerte introuvable" }); return; }
@@ -506,7 +506,7 @@ router.post(
     try {
       const sid = effectiveSyndicateId(req, result.data.syndicateId);
       const { syndicateId: _sid, ...data } = result.data;
-      const [row] = await db.insert(alertsTable).values({ ...data, syndicateId: sid }).returning();
+      const [row] = await db.insert(alertsTable).values({ ...data, syndicateId: sid } as any).returning();
       res.status(201).json({ data: row });
     } catch (err) { req.log.error(err); res.status(500).json({ error: "Erreur serveur" }); }
   },
@@ -525,7 +525,7 @@ router.get("/notifications/preferences", requireAuth, async (req, res) => {
 });
 
 router.put("/notifications/preferences/:id", requireAuth, async (req, res) => {
-  const id = req.params.id as string;
+  const id = String(req.params.id) as string;
   const schema = z.object({
     push: z.boolean().optional(),
     email: z.boolean().optional(),
@@ -592,7 +592,7 @@ router.post(
       const { syndicateId: _sid, ...data } = result.data;
       const [row] = await db
         .insert(partnersTable)
-        .values({ ...data, syndicateId: sid, status: "pending" })
+        .values({ ...data, syndicateId: sid, status: "pending" } as any)
         .returning();
       res.status(201).json({ data: row, message: "Partenaire ajouté" });
     } catch (err) { req.log.error(err); res.status(500).json({ error: "Erreur serveur" }); }
@@ -604,7 +604,7 @@ router.put(
   requireAuth,
   requireRole("super_admin", "syndicate_admin"),
   async (req, res) => {
-    const id = req.params.id as string;
+    const id = String(req.params.id) as string;
     const schema = z.object({ status: z.enum(["active", "pending", "expired"]) });
     const result = schema.safeParse(req.body);
     if (!result.success) { res.status(400).json({ error: "Statut invalide" }); return; }
@@ -616,7 +616,7 @@ router.put(
       }
       const [updated] = await db
         .update(partnersTable)
-        .set({ status: result.data.status })
+        .set({ status: result.data.status } as any)
         .where(eq(partnersTable.id, id))
         .returning();
       res.json({ data: updated });
@@ -672,7 +672,7 @@ router.post(
         data.baseSalary + data.allowances - data.deductions - data.cnss - data.ir - data.mutuelle;
       const [row] = await db
         .insert(payslipsTable)
-        .values({ ...data, syndicateId: sid, netSalary, status: "draft" })
+        .values({ ...data, syndicateId: sid, netSalary, status: "draft" } as any)
         .returning();
       res.status(201).json({ data: row, message: "Fiche de paie générée" });
     } catch (err) { req.log.error(err); res.status(500).json({ error: "Erreur serveur" }); }
@@ -699,7 +699,7 @@ router.get("/subscriptions", requireAuth, requireRole("super_admin"), async (req
 });
 
 router.put("/subscriptions/:id", requireAuth, requireRole("super_admin"), async (req, res) => {
-  const id = req.params.id as string;
+  const id = String(req.params.id) as string;
   const schema = z.object({
     status: z.enum(["active", "trial", "suspended", "cancelled"]).optional(),
     autoRenew: z.boolean().optional(),
@@ -755,14 +755,14 @@ router.post("/announcements", requireAuth, requireRole("super_admin", "syndicate
       authorId: req.user!.userId,
       author: req.user!.name ?? "Administrateur",
       expiresAt: result.data.expiresAt ? new Date(result.data.expiresAt) : undefined,
-    }).returning();
+    } as any).returning();
     await serverAuditLog(req, { action: "create", entity: "announcement", entityId: row.id, details: `Annonce: ${row.title}`, syndicateId: synId });
     res.status(201).json({ data: row, message: "Annonce publiée" });
   } catch (err) { req.log.error(err); res.status(500).json({ error: "Erreur serveur" }); }
 });
 
 router.put("/announcements/:id", requireAuth, requireRole("super_admin", "syndicate_admin"), async (req, res) => {
-  const id = req.params.id as string;
+  const id = String(req.params.id) as string;
   const schema = z.object({
     title: z.string().min(1).optional(),
     body: z.string().min(1).optional(),
@@ -787,7 +787,7 @@ router.put("/announcements/:id", requireAuth, requireRole("super_admin", "syndic
 });
 
 router.delete("/announcements/:id", requireAuth, requireRole("super_admin", "syndicate_admin"), async (req, res) => {
-  const id = req.params.id as string;
+  const id = String(req.params.id) as string;
   try {
     const [existing] = await db.select().from(announcementsTable).where(eq(announcementsTable.id, id));
     if (!existing) { res.status(404).json({ error: "Annonce introuvable" }); return; }

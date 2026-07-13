@@ -28,13 +28,13 @@ router.get("/prestataires", requireAuth, async (req, res) => {
 
     if (user.role === "member" || user.role === "tenant") {
       const buildingIds = await getUserBuildingIds(user);
-      if (buildingIds.length === 0) return res.json({ data: [], total: 0 });
+      if (buildingIds.length === 0) return void res.json({ data: [], total: 0 });
       const providerIds = await db
         .selectDistinct({ id: contratsPrestatairesTable.prestataireId })
         .from(contratsPrestatairesTable)
         .where(inArray(contratsPrestatairesTable.buildingId, buildingIds));
       const ids = providerIds.map((p) => p.id);
-      if (ids.length === 0) return res.json({ data: [], total: 0 });
+      if (ids.length === 0) return void res.json({ data: [], total: 0 });
       conditions.push(inArray(prestatairesTable.id, ids));
     } else {
       const sw = syndicateWhere(req, prestatairesTable.syndicateId);
@@ -51,7 +51,7 @@ router.get("/prestataires", requireAuth, async (req, res) => {
       .where(conditions.length ? and(...conditions) : undefined)
       .orderBy(prestatairesTable.name);
 
-    if (rows.length === 0) return res.json({ data: [], total: 0 });
+    if (rows.length === 0) return void res.json({ data: [], total: 0 });
 
     // Batch-load contracts and open work-order counts to avoid N+1
     const ids = rows.map((p) => p.id);
@@ -166,9 +166,9 @@ router.get("/prestataires/:id", requireAuth, async (req, res) => {
     const [p] = await db
       .select()
       .from(prestatairesTable)
-      .where(eq(prestatairesTable.id, req.params.id));
+      .where(eq(prestatairesTable.id, String(req.params.id)));
 
-    if (!p) return res.status(404).json({ error: "Not found" });
+    if (!p) return void res.status(404).json({ error: "Not found" });
 
     const [contracts, recentTravaux, evaluations] = await Promise.all([
       db
@@ -215,7 +215,7 @@ const createPrestataireSchema = z.object({
 router.post("/prestataires", requireAuth, requireAdmin, async (req, res) => {
   const parsed = createPrestataireSchema.safeParse(req.body);
   if (!parsed.success) {
-    return res.status(400).json({ error: parsed.error.issues[0]?.message ?? "Données invalides" });
+    return void res.status(400).json({ error: parsed.error.issues[0]?.message ?? "Données invalides" });
   }
   try {
     const user = (req as any).user;
@@ -249,10 +249,10 @@ function isSamePrestataireSyndicate(user: any, syndicateId: string | null): bool
 router.put("/prestataires/:id", requireAuth, requireAdmin, async (req, res) => {
   try {
     const user = (req as any).user;
-    const [existing] = await db.select().from(prestatairesTable).where(eq(prestatairesTable.id, req.params.id));
-    if (!existing) return res.status(404).json({ error: "Not found" });
+    const [existing] = await db.select().from(prestatairesTable).where(eq(prestatairesTable.id, String(req.params.id)));
+    if (!existing) return void res.status(404).json({ error: "Not found" });
     if (!isSamePrestataireSyndicate(user, existing.syndicateId)) {
-      return res.status(403).json({ error: "Accès refusé" });
+      return void res.status(403).json({ error: "Accès refusé" });
     }
 
     const allowed = [
@@ -267,10 +267,10 @@ router.put("/prestataires/:id", requireAuth, requireAdmin, async (req, res) => {
     const [updated] = await db
       .update(prestatairesTable)
       .set(updates)
-      .where(eq(prestatairesTable.id, req.params.id))
+      .where(eq(prestatairesTable.id, String(req.params.id)))
       .returning();
 
-    if (!updated) return res.status(404).json({ error: "Not found" });
+    if (!updated) return void res.status(404).json({ error: "Not found" });
 
     await serverAuditLog(req, {
       action: "UPDATE",
@@ -291,18 +291,18 @@ router.put("/prestataires/:id", requireAuth, requireAdmin, async (req, res) => {
 router.delete("/prestataires/:id", requireAuth, requireAdmin, async (req, res) => {
   try {
     const user = (req as any).user;
-    const [existing] = await db.select().from(prestatairesTable).where(eq(prestatairesTable.id, req.params.id));
-    if (!existing) return res.status(404).json({ error: "Not found" });
+    const [existing] = await db.select().from(prestatairesTable).where(eq(prestatairesTable.id, String(req.params.id)));
+    if (!existing) return void res.status(404).json({ error: "Not found" });
     if (!isSamePrestataireSyndicate(user, existing.syndicateId)) {
-      return res.status(403).json({ error: "Accès refusé" });
+      return void res.status(403).json({ error: "Accès refusé" });
     }
 
     const [deleted] = await db
       .delete(prestatairesTable)
-      .where(eq(prestatairesTable.id, req.params.id))
+      .where(eq(prestatairesTable.id, String(req.params.id)))
       .returning();
 
-    if (!deleted) return res.status(404).json({ error: "Not found" });
+    if (!deleted) return void res.status(404).json({ error: "Not found" });
 
     await serverAuditLog(req, {
       action: "DELETE",
@@ -338,7 +338,7 @@ router.post(
   async (req, res) => {
     const parsed = evaluationSchema.safeParse(req.body);
     if (!parsed.success) {
-      return res.status(400).json({ error: parsed.error.issues[0]?.message ?? "Données invalides" });
+      return void res.status(400).json({ error: parsed.error.issues[0]?.message ?? "Données invalides" });
     }
     try {
       const user = (req as any).user;
@@ -348,16 +348,16 @@ router.post(
       const [prestataire] = await db
         .select()
         .from(prestatairesTable)
-        .where(eq(prestatairesTable.id, req.params.id));
-      if (!prestataire) return res.status(404).json({ error: "Prestataire introuvable" });
+        .where(eq(prestatairesTable.id, String(req.params.id)));
+      if (!prestataire) return void res.status(404).json({ error: "Prestataire introuvable" });
       if (!isSamePrestataireSyndicate(user, prestataire.syndicateId)) {
-        return res.status(403).json({ error: "Accès refusé" });
+        return void res.status(403).json({ error: "Accès refusé" });
       }
 
       const [evaluation] = await db
         .insert(prestataireEvaluationsTable)
         .values({
-          prestataireId: req.params.id,
+          prestataireId: String(req.params.id),
           travauxId,
           syndicateId: user.syndicateId,
           quality,
@@ -375,14 +375,14 @@ router.post(
       const allEvals = await db
         .select({ average: prestataireEvaluationsTable.average })
         .from(prestataireEvaluationsTable)
-        .where(eq(prestataireEvaluationsTable.prestataireId, req.params.id));
+        .where(eq(prestataireEvaluationsTable.prestataireId, String(req.params.id)));
       const newAverage =
         allEvals.reduce((sum, e) => sum + Number(e.average), 0) / allEvals.length;
 
       await db
         .update(prestatairesTable)
         .set({ rating: newAverage.toFixed(2), evaluationsCount: allEvals.length })
-        .where(eq(prestatairesTable.id, req.params.id));
+        .where(eq(prestatairesTable.id, String(req.params.id)));
 
       await serverAuditLog(req, {
         action: "CREATE",
@@ -432,7 +432,7 @@ router.get("/contrats", requireAuth, async (req, res) => {
 
     if (user.role === "member" || user.role === "tenant") {
       const buildingIds = await getUserBuildingIds(user);
-      if (buildingIds.length === 0) return res.json({ data: [], total: 0 });
+      if (buildingIds.length === 0) return void res.json({ data: [], total: 0 });
       conditions.push(inArray(contratsPrestatairesTable.buildingId, buildingIds));
     }
 
@@ -446,7 +446,7 @@ router.get("/contrats", requireAuth, async (req, res) => {
       .where(conditions.length ? and(...conditions) : undefined)
       .orderBy(desc(contratsPrestatairesTable.createdAt));
 
-    if (rows.length === 0) return res.json({ data: [], total: 0 });
+    if (rows.length === 0) return void res.json({ data: [], total: 0 });
 
     const providerIds = [...new Set(rows.map((c) => c.prestataireId))];
     const providers = await db
@@ -485,12 +485,12 @@ const createContractSchema = z.object({
 router.post("/contrats", requireAuth, requireAdmin, async (req, res) => {
   const parsed = createContractSchema.safeParse(req.body);
   if (!parsed.success) {
-    return res.status(400).json({ error: parsed.error.issues[0]?.message ?? "Données invalides" });
+    return void res.status(400).json({ error: parsed.error.issues[0]?.message ?? "Données invalides" });
   }
   try {
     const user = (req as any).user;
     const { prestataireId, buildingId, title, startDate, endDate, monthlyAmount, annualAmount, autoRenew, documentUrl, notes } = parsed.data;
-    try { await assertUserCanAccessBuilding(user, buildingId); } catch { return res.status(403).json({ error: "Accès refusé" }); }
+    try { await assertUserCanAccessBuilding(user, buildingId); } catch { return void res.status(403).json({ error: "Accès refusé" }); }
 
     const [contract] = await db
       .insert(contratsPrestatairesTable)
@@ -505,7 +505,7 @@ router.post("/contrats", requireAuth, requireAdmin, async (req, res) => {
         autoRenew: autoRenew ?? false,
         documentUrl,
         notes,
-      })
+      } as any)
       .returning();
 
     await serverAuditLog(req, {
@@ -534,9 +534,9 @@ async function findContract(id: string) {
 router.put("/contrats/:id", requireAuth, requireAdmin, async (req, res) => {
   try {
     const user = (req as any).user;
-    const existing = await findContract(req.params.id);
-    if (!existing) return res.status(404).json({ error: "Not found" });
-    try { await assertUserCanAccessBuilding(user, existing.buildingId); } catch { return res.status(403).json({ error: "Accès refusé" }); }
+    const existing = await findContract(String(req.params.id));
+    if (!existing) return void res.status(404).json({ error: "Not found" });
+    try { await assertUserCanAccessBuilding(user, existing.buildingId); } catch { return void res.status(403).json({ error: "Accès refusé" }); }
 
     const allowed = [
       "title", "startDate", "endDate", "monthlyAmount", "annualAmount",
@@ -550,10 +550,10 @@ router.put("/contrats/:id", requireAuth, requireAdmin, async (req, res) => {
     const [updated] = await db
       .update(contratsPrestatairesTable)
       .set(updates)
-      .where(eq(contratsPrestatairesTable.id, req.params.id))
+      .where(eq(contratsPrestatairesTable.id, String(req.params.id)))
       .returning();
 
-    if (!updated) return res.status(404).json({ error: "Not found" });
+    if (!updated) return void res.status(404).json({ error: "Not found" });
     res.json(updated);
   } catch (e) {
     console.error(e);
@@ -571,13 +571,13 @@ const renewSchema = z.object({
 router.post("/contrats/:id/renew", requireAuth, requireAdmin, async (req, res) => {
   const parsed = renewSchema.safeParse(req.body);
   if (!parsed.success) {
-    return res.status(400).json({ error: parsed.error.issues[0]?.message ?? "Données invalides" });
+    return void res.status(400).json({ error: parsed.error.issues[0]?.message ?? "Données invalides" });
   }
   try {
     const user = (req as any).user;
-    const existing = await findContract(req.params.id);
-    if (!existing) return res.status(404).json({ error: "Not found" });
-    try { await assertUserCanAccessBuilding(user, existing.buildingId); } catch { return res.status(403).json({ error: "Accès refusé" }); }
+    const existing = await findContract(String(req.params.id));
+    if (!existing) return void res.status(404).json({ error: "Not found" });
+    try { await assertUserCanAccessBuilding(user, existing.buildingId); } catch { return void res.status(403).json({ error: "Accès refusé" }); }
 
     const { endDate, documentUrl, monthlyAmount, annualAmount } = parsed.data;
 
@@ -595,7 +595,7 @@ router.post("/contrats/:id/renew", requireAuth, requireAdmin, async (req, res) =
         documentUrl: documentUrl ?? existing.documentUrl,
         renewedFromContractId: existing.id,
         notes: existing.notes,
-      })
+      } as any)
       .returning();
 
     await db
@@ -621,16 +621,16 @@ router.post("/contrats/:id/renew", requireAuth, requireAdmin, async (req, res) =
 router.post("/contrats/:id/suspend", requireAuth, requireAdmin, async (req, res) => {
   try {
     const user = (req as any).user;
-    const existing = await findContract(req.params.id);
-    if (!existing) return res.status(404).json({ error: "Not found" });
-    try { await assertUserCanAccessBuilding(user, existing.buildingId); } catch { return res.status(403).json({ error: "Accès refusé" }); }
+    const existing = await findContract(String(req.params.id));
+    if (!existing) return void res.status(404).json({ error: "Not found" });
+    try { await assertUserCanAccessBuilding(user, existing.buildingId); } catch { return void res.status(403).json({ error: "Accès refusé" }); }
 
     const [updated] = await db
       .update(contratsPrestatairesTable)
       .set({ status: "suspended" })
-      .where(eq(contratsPrestatairesTable.id, req.params.id))
+      .where(eq(contratsPrestatairesTable.id, String(req.params.id)))
       .returning();
-    if (!updated) return res.status(404).json({ error: "Not found" });
+    if (!updated) return void res.status(404).json({ error: "Not found" });
 
     await serverAuditLog(req, {
       action: "SUSPEND",
@@ -650,16 +650,16 @@ router.post("/contrats/:id/suspend", requireAuth, requireAdmin, async (req, res)
 router.post("/contrats/:id/reactivate", requireAuth, requireAdmin, async (req, res) => {
   try {
     const user = (req as any).user;
-    const existing = await findContract(req.params.id);
-    if (!existing) return res.status(404).json({ error: "Not found" });
-    try { await assertUserCanAccessBuilding(user, existing.buildingId); } catch { return res.status(403).json({ error: "Accès refusé" }); }
+    const existing = await findContract(String(req.params.id));
+    if (!existing) return void res.status(404).json({ error: "Not found" });
+    try { await assertUserCanAccessBuilding(user, existing.buildingId); } catch { return void res.status(403).json({ error: "Accès refusé" }); }
 
     const [updated] = await db
       .update(contratsPrestatairesTable)
       .set({ status: "active" })
-      .where(eq(contratsPrestatairesTable.id, req.params.id))
+      .where(eq(contratsPrestatairesTable.id, String(req.params.id)))
       .returning();
-    if (!updated) return res.status(404).json({ error: "Not found" });
+    if (!updated) return void res.status(404).json({ error: "Not found" });
 
     await serverAuditLog(req, {
       action: "REACTIVATE",
@@ -682,13 +682,13 @@ const resilierSchema = z.object({
 router.post("/contrats/:id/resilier", requireAuth, requireAdmin, async (req, res) => {
   const parsed = resilierSchema.safeParse(req.body);
   if (!parsed.success) {
-    return res.status(400).json({ error: parsed.error.issues[0]?.message ?? "Motif requis" });
+    return void res.status(400).json({ error: parsed.error.issues[0]?.message ?? "Motif requis" });
   }
   try {
     const user = (req as any).user;
-    const existing = await findContract(req.params.id);
-    if (!existing) return res.status(404).json({ error: "Not found" });
-    try { await assertUserCanAccessBuilding(user, existing.buildingId); } catch { return res.status(403).json({ error: "Accès refusé" }); }
+    const existing = await findContract(String(req.params.id));
+    if (!existing) return void res.status(404).json({ error: "Not found" });
+    try { await assertUserCanAccessBuilding(user, existing.buildingId); } catch { return void res.status(403).json({ error: "Accès refusé" }); }
 
     const [updated] = await db
       .update(contratsPrestatairesTable)
@@ -697,9 +697,9 @@ router.post("/contrats/:id/resilier", requireAuth, requireAdmin, async (req, res
         terminatedAt: new Date(),
         terminationReason: parsed.data.reason,
       })
-      .where(eq(contratsPrestatairesTable.id, req.params.id))
+      .where(eq(contratsPrestatairesTable.id, String(req.params.id)))
       .returning();
-    if (!updated) return res.status(404).json({ error: "Not found" });
+    if (!updated) return void res.status(404).json({ error: "Not found" });
 
     await serverAuditLog(req, {
       action: "TERMINATE",

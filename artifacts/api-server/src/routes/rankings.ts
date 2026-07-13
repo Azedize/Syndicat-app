@@ -32,7 +32,7 @@ async function computeScoreForSyndicate(syndicateId: string, month: number, year
     .select({ id: buildingsTable.id })
     .from(buildingsTable)
     .where(eq(buildingsTable.syndicateId, syndicateId));
-  const buildingIds = buildings.map((b) => b.id);
+  const buildingIds = buildings.map((b) => b.id).filter((id): id is string => id != null);
   if (!buildingIds.length) return null;
 
   // 1. Collection rate — % of appels paid (period matches month)
@@ -55,7 +55,7 @@ async function computeScoreForSyndicate(syndicateId: string, month: number, year
     .from(sinistresTable)
     .where(inArray(sinistresTable.buildingId, buildingIds));
   const totalSin = sinistresAll.length;
-  const resolvedSin = sinistresAll.filter((s) => ["resolved", "closed"].includes(s.status)).length;
+  const resolvedSin = sinistresAll.filter((s) => ["resolved", "closed"].includes(s.status ?? "")).length;
   const incidentResolutionRate = totalSin > 0 ? (resolvedSin / totalSin) * 100 : 100;
 
   // 3. Documentation score — docs uploaded in month vs target of 5
@@ -215,7 +215,7 @@ router.get("/rankings", requireAuth, async (req, res) => {
 router.get("/rankings/my-syndicate", requireAuth, async (req, res) => {
   try {
     const user = req.user!;
-    if (!user.syndicateId) return res.json({ data: [] });
+    if (!user.syndicateId) return void res.json({ data: [] });
 
     const rows = await db
       .select()

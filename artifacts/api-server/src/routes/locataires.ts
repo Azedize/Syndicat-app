@@ -70,7 +70,7 @@ router.get("/locataires", requireAuth, requireRole("super_admin", "syndicate_adm
 router.get("/locataires/my-lease", requireAuth, async (req, res) => {
   try {
     const user = req.user!;
-    if (!user.email) return res.status(404).json({ error: "Aucun bail associé à ce compte" });
+    if (!user.email) return void res.status(404).json({ error: "Aucun bail associé à ce compte" });
 
     const [row] = await db
       .select({
@@ -100,7 +100,7 @@ router.get("/locataires/my-lease", requireAuth, async (req, res) => {
       .where(eq(tenantsTable.email, user.email))
       .limit(1);
 
-    if (!row) return res.status(404).json({ error: "Aucun bail associé à ce compte" });
+    if (!row) return void res.status(404).json({ error: "Aucun bail associé à ce compte" });
     res.json({ data: row });
   } catch (e) {
     console.error(e);
@@ -135,10 +135,10 @@ router.get("/locataires/:id", requireAuth, requireRole("super_admin", "syndicate
       .from(tenantsTable)
       .leftJoin(lotsTable, eq(tenantsTable.lotId, lotsTable.id))
       .leftJoin(buildingsTable, eq(tenantsTable.buildingId, buildingsTable.id))
-      .where(eq(tenantsTable.id, req.params.id))
+      .where(eq(tenantsTable.id, String(req.params.id)))
       .limit(1);
 
-    if (!row) return res.status(404).json({ error: "Locataire introuvable" });
+    if (!row) return void res.status(404).json({ error: "Locataire introuvable" });
 
     // Syndicate isolation: syndicate_admin can only view tenants in their own syndicate
     const user = req.user!;
@@ -149,7 +149,7 @@ router.get("/locataires/:id", requireAuth, requireRole("super_admin", "syndicate
         .where(eq(buildingsTable.id, row.buildingId))
         .limit(1);
       if (building && building.syndicateId !== user.syndicateId) {
-        return res.status(403).json({ error: "Accès refusé" });
+        return void res.status(403).json({ error: "Accès refusé" });
       }
     }
 
@@ -180,7 +180,7 @@ router.post("/locataires", requireAuth, requireOperationalAccess, async (req, re
   });
 
   const result = schema.safeParse(req.body);
-  if (!result.success) return res.status(400).json({ error: "Données invalides", details: result.error.issues });
+  if (!result.success) return void res.status(400).json({ error: "Données invalides", details: result.error.issues });
 
   try {
     const user = (req as any).user;
@@ -211,7 +211,7 @@ router.post("/locataires", requireAuth, requireOperationalAccess, async (req, re
         emergencyPhone: data.emergencyPhone || null,
         notes: data.notes || null,
         status: data.status,
-      })
+      } as any)
       .returning();
 
     res.status(201).json({ data: row, message: "Locataire enregistré avec succès" });
@@ -240,7 +240,7 @@ router.put("/locataires/:id", requireAuth, requireOperationalAccess, async (req,
   });
 
   const result = schema.safeParse(req.body);
-  if (!result.success) return res.status(400).json({ error: "Données invalides" });
+  if (!result.success) return void res.status(400).json({ error: "Données invalides" });
 
   try {
     const updates: Record<string, any> = {};
@@ -251,10 +251,10 @@ router.put("/locataires/:id", requireAuth, requireOperationalAccess, async (req,
     const [updated] = await db
       .update(tenantsTable)
       .set(updates)
-      .where(eq(tenantsTable.id, req.params.id))
+      .where(eq(tenantsTable.id, String(req.params.id)))
       .returning();
 
-    if (!updated) return res.status(404).json({ error: "Locataire introuvable" });
+    if (!updated) return void res.status(404).json({ error: "Locataire introuvable" });
     res.json({ data: updated, message: "Locataire mis à jour" });
   } catch (e) {
     console.error(e);
@@ -268,19 +268,19 @@ router.delete("/locataires/:id", requireAuth, requireOperationalAccess, async (r
     // Syndicate isolation before deletion
     const user = req.user!;
     if (user.role !== "super_admin") {
-      if (!user.syndicateId) return res.status(403).json({ error: "Syndicat non défini dans le token" });
+      if (!user.syndicateId) return void res.status(403).json({ error: "Syndicat non défini dans le token" });
       const [existing] = await db.select({ syndicateId: tenantsTable.syndicateId })
-        .from(tenantsTable).where(eq(tenantsTable.id, req.params.id)).limit(1);
+        .from(tenantsTable).where(eq(tenantsTable.id, String(req.params.id))).limit(1);
       if (existing && existing.syndicateId !== user.syndicateId) {
-        return res.status(403).json({ error: "Accès refusé" });
+        return void res.status(403).json({ error: "Accès refusé" });
       }
     }
     const [deleted] = await db
       .delete(tenantsTable)
-      .where(eq(tenantsTable.id, req.params.id))
+      .where(eq(tenantsTable.id, String(req.params.id)))
       .returning();
 
-    if (!deleted) return res.status(404).json({ error: "Locataire introuvable" });
+    if (!deleted) return void res.status(404).json({ error: "Locataire introuvable" });
     res.json({ message: "Locataire supprimé" });
   } catch (e) {
     console.error(e);

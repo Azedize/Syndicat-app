@@ -30,7 +30,7 @@ router.get("/members", requireAuth, requireRole("super_admin", "syndicate_admin"
     } else {
       // Non-super_admin MUST have syndicateId in JWT — never return unscoped results
       if (!req.user!.syndicateId) {
-        return res.status(403).json({ error: "Syndicat non défini dans le token" });
+        return void res.status(403).json({ error: "Syndicat non défini dans le token" });
       }
       conditions.push(eq(membersTable.syndicateId, req.user!.syndicateId));
     }
@@ -141,11 +141,11 @@ router.post(
 );
 
 router.get("/members/:id", requireAuth, requireRole("super_admin", "syndicate_admin"), async (req, res) => {
-  const id = req.params.id as string;
+  const id = String(req.params.id) as string;
   try {
     const [member] = await db.select().from(membersTable).where(eq(membersTable.id, id));
     if (!member) { res.status(404).json({ error: "Membre introuvable" }); return; }
-    if (!isSameSyndicate(req, member.syndicateId)) {
+    if (!isSameSyndicate(req, member.syndicateId ?? "")) {
       res.status(403).json({ error: "Accès refusé" }); return;
     }
     res.json({ data: member });
@@ -160,7 +160,7 @@ router.put(
   requireAuth,
   requireOperationalAccess,
   async (req, res) => {
-    const id = req.params.id as string;
+    const id = String(req.params.id) as string;
     const schema = z.object({
       name: z.string().min(1).optional(),
       email: z.string().email().optional(),
@@ -172,7 +172,7 @@ router.put(
     try {
       const [member] = await db.select().from(membersTable).where(eq(membersTable.id, id));
       if (!member) { res.status(404).json({ error: "Membre introuvable" }); return; }
-      if (!isSameSyndicate(req, member.syndicateId)) {
+      if (!isSameSyndicate(req, member.syndicateId ?? "")) {
         res.status(403).json({ error: "Accès refusé" }); return;
       }
       const [updated] = await db.update(membersTable).set(result.data).where(eq(membersTable.id, id)).returning();
@@ -189,14 +189,14 @@ router.put(
   requireAuth,
   requireRole("super_admin", "syndicate_admin"),
   async (req, res) => {
-    const id = req.params.id as string;
+    const id = String(req.params.id) as string;
     const schema = z.object({ status: z.enum(["active", "inactive", "pending"]) });
     const result = schema.safeParse(req.body);
     if (!result.success) { res.status(400).json({ error: "Statut invalide" }); return; }
     try {
       const [member] = await db.select().from(membersTable).where(eq(membersTable.id, id));
       if (!member) { res.status(404).json({ error: "Membre introuvable" }); return; }
-      if (!isSameSyndicate(req, member.syndicateId)) {
+      if (!isSameSyndicate(req, member.syndicateId ?? "")) {
         res.status(403).json({ error: "Accès refusé" }); return;
       }
 

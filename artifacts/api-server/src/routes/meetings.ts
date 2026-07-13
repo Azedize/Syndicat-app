@@ -16,12 +16,12 @@ router.get("/meetings", requireAuth, async (req, res) => {
 
     // Tenants do not participate in meetings (not copropriétaires)
     if (user.role === "tenant") {
-      return res.status(403).json({ error: "Les locataires n'ont pas accès aux assemblées générales" });
+      return void res.status(403).json({ error: "Les locataires n'ont pas accès aux assemblées générales" });
     }
 
     // Non-super users must have syndicateId in JWT — never fall through to global scope
     if (user.role !== "super_admin" && !user.syndicateId) {
-      return res.status(403).json({ error: "Syndicat non défini dans le token" });
+      return void res.status(403).json({ error: "Syndicat non défini dans le token" });
     }
 
     const meetings = user.role === "super_admin"
@@ -80,7 +80,7 @@ router.post("/meetings", requireAuth, requireRole("super_admin", "syndicate_admi
 
     // syndicate_admin must have a syndicateId — hard fail to prevent unscoped records
     if (user.role === "syndicate_admin" && !user.syndicateId) {
-      return res.status(403).json({ error: "Syndicat non défini dans le token" });
+      return void res.status(403).json({ error: "Syndicat non défini dans le token" });
     }
 
     const syndicateId = user.syndicateId ?? "";
@@ -122,12 +122,12 @@ router.put("/meetings/:id", requireAuth, requireRole("super_admin", "syndicate_a
     const user = req.user!;
 
     if (user.role === "syndicate_admin" && !user.syndicateId) {
-      return res.status(403).json({ error: "Syndicat non défini dans le token" });
+      return void res.status(403).json({ error: "Syndicat non défini dans le token" });
     }
 
     const whereClause = user.role === "super_admin"
-      ? eq(meetingsTable.id, req.params.id)
-      : and(eq(meetingsTable.id, req.params.id), eq(meetingsTable.syndicateId, user.syndicateId!));
+      ? eq(meetingsTable.id, String(req.params.id))
+      : and(eq(meetingsTable.id, String(req.params.id)), eq(meetingsTable.syndicateId, user.syndicateId!));
 
     const [meeting] = await db
       .update(meetingsTable)
@@ -139,7 +139,7 @@ router.put("/meetings/:id", requireAuth, requireRole("super_admin", "syndicate_a
     await serverAuditLog(req, {
       action: "UPDATE",
       entity: "meeting",
-      entityId: req.params.id,
+      entityId: String(req.params.id),
       syndicateId: meeting.syndicateId || undefined,
       details: `Réunion mise à jour: ${JSON.stringify(result.data)}`,
     });
@@ -156,12 +156,12 @@ router.delete("/meetings/:id", requireAuth, requireRole("super_admin", "syndicat
     const user = req.user!;
 
     if (user.role === "syndicate_admin" && !user.syndicateId) {
-      return res.status(403).json({ error: "Syndicat non défini dans le token" });
+      return void res.status(403).json({ error: "Syndicat non défini dans le token" });
     }
 
     const whereClause = user.role === "super_admin"
-      ? eq(meetingsTable.id, req.params.id)
-      : and(eq(meetingsTable.id, req.params.id), eq(meetingsTable.syndicateId, user.syndicateId!));
+      ? eq(meetingsTable.id, String(req.params.id))
+      : and(eq(meetingsTable.id, String(req.params.id)), eq(meetingsTable.syndicateId, user.syndicateId!));
 
     const [meeting] = await db.delete(meetingsTable).where(whereClause).returning();
     if (!meeting) { res.status(404).json({ error: "Réunion introuvable ou accès refusé" }); return; }
@@ -169,7 +169,7 @@ router.delete("/meetings/:id", requireAuth, requireRole("super_admin", "syndicat
     await serverAuditLog(req, {
       action: "DELETE",
       entity: "meeting",
-      entityId: req.params.id,
+      entityId: String(req.params.id),
       syndicateId: meeting.syndicateId || undefined,
       details: `Réunion supprimée: ${meeting.title}`,
     });
@@ -182,17 +182,17 @@ router.delete("/meetings/:id", requireAuth, requireRole("super_admin", "syndicat
 });
 
 router.post("/meetings/:id/attend", requireAuth, async (req, res) => {
-  const id = req.params.id as string;
+  const id = String(req.params.id) as string;
   const user = req.user!;
 
   // Tenants cannot attend AG meetings
   if (user.role === "tenant") {
-    return res.status(403).json({ error: "Les locataires n'ont pas accès aux assemblées générales" });
+    return void res.status(403).json({ error: "Les locataires n'ont pas accès aux assemblées générales" });
   }
 
   // Non-super users must have syndicateId — hard fail
   if (user.role !== "super_admin" && !user.syndicateId) {
-    return res.status(403).json({ error: "Syndicat non défini dans le token" });
+    return void res.status(403).json({ error: "Syndicat non défini dans le token" });
   }
 
   try {
@@ -201,11 +201,11 @@ router.post("/meetings/:id/attend", requireAuth, async (req, res) => {
       .from(meetingsTable)
       .where(eq(meetingsTable.id, id));
 
-    if (!meeting) return res.status(404).json({ error: "Réunion introuvable" });
+    if (!meeting) return void res.status(404).json({ error: "Réunion introuvable" });
 
     // Verify the meeting belongs to the user's syndicate
     if (user.role !== "super_admin" && meeting.syndicateId !== user.syndicateId) {
-      return res.status(403).json({ error: "Accès refusé" });
+      return void res.status(403).json({ error: "Accès refusé" });
     }
 
     const existing = await db.select().from(meetingAttendeesTable).where(

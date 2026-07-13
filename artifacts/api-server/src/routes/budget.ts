@@ -25,7 +25,7 @@ router.get("/budgets", requireAuth, requireAdmin, async (req, res) => {
 
     // Mandatory syndicate scoping: syndicate_admin must have syndicateId in JWT
     if (user.role === "syndicate_admin" && !user.syndicateId) {
-      return res.status(403).json({ error: "Syndicat non défini dans le token" });
+      return void res.status(403).json({ error: "Syndicat non défini dans le token" });
     }
 
     const { buildingId, year, status } = req.query as Record<string, string>;
@@ -38,20 +38,20 @@ router.get("/budgets", requireAuth, requireAdmin, async (req, res) => {
         .from(buildingsTable)
         .where(eq(buildingsTable.syndicateId, user.syndicateId!));
       allowedBuildingIds = scopedBuildings.map((b) => b.id);
-      if (allowedBuildingIds.length === 0) return res.json({ data: [], total: 0 });
+      if (allowedBuildingIds.length === 0) return void res.json({ data: [], total: 0 });
     } else if (user.role === "super_admin" && req.query.syndicateId) {
       const scopedBuildings = await db
         .select({ id: buildingsTable.id })
         .from(buildingsTable)
         .where(eq(buildingsTable.syndicateId, req.query.syndicateId as string));
       allowedBuildingIds = scopedBuildings.map((b) => b.id);
-      if (allowedBuildingIds.length === 0) return res.json({ data: [], total: 0 });
+      if (allowedBuildingIds.length === 0) return void res.json({ data: [], total: 0 });
     }
 
     // If a specific buildingId is requested by syndicate_admin, verify it's in scope
     if (buildingId && user.role === "syndicate_admin") {
       if (!allowedBuildingIds || !allowedBuildingIds.includes(buildingId)) {
-        return res.status(403).json({ error: "Accès refusé à cet immeuble" });
+        return void res.status(403).json({ error: "Accès refusé à cet immeuble" });
       }
     }
 
@@ -69,7 +69,7 @@ router.get("/budgets", requireAuth, requireAdmin, async (req, res) => {
       .where(conditions.length ? and(...conditions) : undefined)
       .orderBy(desc(budgetsTable.year));
 
-    if (rows.length === 0) return res.json({ data: [], total: 0 });
+    if (rows.length === 0) return void res.json({ data: [], total: 0 });
 
     // Batch-load lines and charge stats — avoids N+1 (was 2N queries, now 2)
     const budgetIds = rows.map((b) => b.id);
@@ -115,20 +115,20 @@ router.get("/budgets/:id", requireAuth, requireAdmin, async (req, res) => {
     const [budget] = await db
       .select()
       .from(budgetsTable)
-      .where(eq(budgetsTable.id, req.params.id));
+      .where(eq(budgetsTable.id, String(req.params.id)));
 
-    if (!budget) return res.status(404).json({ error: "Budget not found" });
+    if (!budget) return void res.status(404).json({ error: "Budget not found" });
 
     // Syndicate isolation: budgetsTable has no syndicateId — derive via building FK
     if (user.role === "syndicate_admin") {
-      if (!user.syndicateId) return res.status(403).json({ error: "Syndicat non défini dans le token" });
+      if (!user.syndicateId) return void res.status(403).json({ error: "Syndicat non défini dans le token" });
       const [bld] = await db
         .select({ syndicateId: buildingsTable.syndicateId })
         .from(buildingsTable)
         .where(eq(buildingsTable.id, budget.buildingId))
         .limit(1);
       if (!bld || bld.syndicateId !== user.syndicateId) {
-        return res.status(403).json({ error: "Accès refusé" });
+        return void res.status(403).json({ error: "Accès refusé" });
       }
     }
 
@@ -158,7 +158,7 @@ router.post("/budgets", requireAuth, requireOperationalAccess, async (req, res) 
     const { year, buildingId, totalAmount, chargesAmount, fondsReserve, status, notes, lines } = req.body;
 
     if (!year || !buildingId) {
-      return res.status(400).json({ error: "year and buildingId are required" });
+      return void res.status(400).json({ error: "year and buildingId are required" });
     }
 
     // Syndicate ownership check via building FK
@@ -169,10 +169,10 @@ router.post("/budgets", requireAuth, requireOperationalAccess, async (req, res) 
       .limit(1);
 
     if (!building) {
-      return res.status(404).json({ error: "Immeuble introuvable" });
+      return void res.status(404).json({ error: "Immeuble introuvable" });
     }
     if (user.role === "syndicate_admin" && building.syndicateId !== user.syndicateId) {
-      return res.status(403).json({ error: "Accès refusé : cet immeuble n'appartient pas à votre syndicat" });
+      return void res.status(403).json({ error: "Accès refusé : cet immeuble n'appartient pas à votre syndicat" });
     }
 
     const [budget] = await db
@@ -231,9 +231,9 @@ router.put("/budgets/:id", requireAuth, requireOperationalAccess, async (req, re
     const [existing] = await db
       .select()
       .from(budgetsTable)
-      .where(eq(budgetsTable.id, req.params.id));
+      .where(eq(budgetsTable.id, String(req.params.id)));
 
-    if (!existing) return res.status(404).json({ error: "Budget not found" });
+    if (!existing) return void res.status(404).json({ error: "Budget not found" });
 
     // Syndicate ownership check via building FK
     const [building] = await db
@@ -244,7 +244,7 @@ router.put("/budgets/:id", requireAuth, requireOperationalAccess, async (req, re
 
     if (user.role === "syndicate_admin") {
       if (!building || building.syndicateId !== user.syndicateId) {
-        return res.status(403).json({ error: "Accès refusé" });
+        return void res.status(403).json({ error: "Accès refusé" });
       }
     }
 
@@ -257,15 +257,15 @@ router.put("/budgets/:id", requireAuth, requireOperationalAccess, async (req, re
     const [updated] = await db
       .update(budgetsTable)
       .set(updates)
-      .where(eq(budgetsTable.id, req.params.id))
+      .where(eq(budgetsTable.id, String(req.params.id)))
       .returning();
 
-    if (!updated) return res.status(404).json({ error: "Budget not found" });
+    if (!updated) return void res.status(404).json({ error: "Budget not found" });
 
     await serverAuditLog(req, {
       action: "UPDATE",
       entity: "budget",
-      entityId: req.params.id,
+      entityId: String(req.params.id),
       syndicateId: building?.syndicateId ?? undefined,
       details: `Budget mis à jour: ${JSON.stringify(updates)}`,
     });
@@ -283,10 +283,10 @@ router.post("/budgets/:id/generate-appels", requireAuth, requireOperationalAcces
   try {
     const user = req.user!;
     const { period, type } = req.body;
-    if (!period) return res.status(400).json({ error: "period is required (e.g. '2026-Q1')" });
+    if (!period) return void res.status(400).json({ error: "period is required (e.g. '2026-Q1')" });
 
-    const [budget] = await db.select().from(budgetsTable).where(eq(budgetsTable.id, req.params.id));
-    if (!budget) return res.status(404).json({ error: "Budget not found" });
+    const [budget] = await db.select().from(budgetsTable).where(eq(budgetsTable.id, String(req.params.id)));
+    if (!budget) return void res.status(404).json({ error: "Budget not found" });
 
     // Syndicate ownership check via building FK
     const [building] = await db
@@ -297,7 +297,7 @@ router.post("/budgets/:id/generate-appels", requireAuth, requireOperationalAcces
 
     if (user.role === "syndicate_admin") {
       if (!building || building.syndicateId !== user.syndicateId) {
-        return res.status(403).json({ error: "Accès refusé : cet immeuble n'appartient pas à votre syndicat" });
+        return void res.status(403).json({ error: "Accès refusé : cet immeuble n'appartient pas à votre syndicat" });
       }
     }
 
@@ -306,10 +306,10 @@ router.post("/budgets/:id/generate-appels", requireAuth, requireOperationalAcces
       .from(lotsTable)
       .where(eq(lotsTable.buildingId, budget.buildingId));
 
-    if (lots.length === 0) return res.status(400).json({ error: "No lots found for this building" });
+    if (lots.length === 0) return void res.status(400).json({ error: "No lots found for this building" });
 
     const totalTantiemes = lots.reduce((s, l) => s + (l.tantiemes ?? 0), 0);
-    if (totalTantiemes === 0) return res.status(400).json({ error: "Lots have no tantiemes assigned" });
+    if (totalTantiemes === 0) return void res.status(400).json({ error: "Lots have no tantiemes assigned" });
 
     const chargeType = type ?? "charges_courantes";
     const baseAmount = Number(
@@ -329,12 +329,12 @@ router.post("/budgets/:id/generate-appels", requireAuth, requireOperationalAcces
       ownerId: lot.ownerId ?? undefined,
       period,
       type: chargeType,
-      amount: Math.round((periodAmount * lot.tantiemes) / totalTantiemes),
+      amount: Math.round((periodAmount * Number(lot.tantiemes ?? 0)) / totalTantiemes),
       dueDate: dueDate.toISOString().split("T")[0],
       status: "pending" as const,
     }));
 
-    await db.insert(appelsDeFondsTable).values(appels);
+    await db.insert(appelsDeFondsTable).values(appels as any);
 
     await serverAuditLog(req, {
       action: "GENERATE_APPELS",
@@ -368,7 +368,7 @@ router.get("/appels-de-fonds", requireAuth, async (req, res) => {
 
     // Syndicate admin MUST have syndicateId in JWT — never fall through to global scope
     if (user.role === "syndicate_admin" && !user.syndicateId) {
-      return res.status(403).json({ error: "Syndicat non défini dans le token" });
+      return void res.status(403).json({ error: "Syndicat non défini dans le token" });
     }
 
     if (buildingId) {
@@ -380,7 +380,7 @@ router.get("/appels-de-fonds", requireAuth, async (req, res) => {
           .where(eq(buildingsTable.id, buildingId))
           .limit(1);
         if (!bld || bld.syndicateId !== user.syndicateId) {
-          return res.status(403).json({ error: "Accès refusé à cet immeuble" });
+          return void res.status(403).json({ error: "Accès refusé à cet immeuble" });
         }
       }
       conditions.push(eq(appelsDeFondsTable.buildingId, buildingId));
@@ -392,7 +392,7 @@ router.get("/appels-de-fonds", requireAuth, async (req, res) => {
         .where(eq(buildingsTable.syndicateId, user.syndicateId!));
       const buildingIds = syndicateBuildings.map((b) => b.id);
       if (buildingIds.length === 0) {
-        return res.json({ data: [], total: 0, stats: { total: 0, collected: 0, pending: 0, overdue: 0 } });
+        return void res.json({ data: [], total: 0, stats: { total: 0, collected: 0, pending: 0, overdue: 0 } });
       }
       conditions.push(inArray(appelsDeFondsTable.buildingId, buildingIds));
     }
@@ -422,7 +422,7 @@ router.get("/appels-de-fonds", requireAuth, async (req, res) => {
 
     // Tenants do NOT have access to appels de fonds at all
     if (user.role === "tenant") {
-      return res.status(403).json({ error: "Les locataires n'ont pas accès aux charges de copropriété" });
+      return void res.status(403).json({ error: "Les locataires n'ont pas accès aux charges de copropriété" });
     }
 
     const where = conditions.length ? and(...conditions) : undefined;
@@ -458,16 +458,16 @@ router.put("/appels-de-fonds/:id/pay", requireAuth, async (req, res) => {
 
     // Tenants cannot pay appels de fonds (not owners)
     if (user.role === "tenant") {
-      return res.status(403).json({ error: "Les locataires n'ont pas accès aux charges de copropriété" });
+      return void res.status(403).json({ error: "Les locataires n'ont pas accès aux charges de copropriété" });
     }
 
     // Fetch the call-for-funds first to verify ownership
     const [appel] = await db
       .select()
       .from(appelsDeFondsTable)
-      .where(eq(appelsDeFondsTable.id, req.params.id));
+      .where(eq(appelsDeFondsTable.id, String(req.params.id)));
 
-    if (!appel) return res.status(404).json({ error: "Not found" });
+    if (!appel) return void res.status(404).json({ error: "Not found" });
 
     // Admins can submit payment for any call-for-funds in their syndicate.
     const isAdmin = user.role === "super_admin" || user.role === "syndicate_admin";
@@ -480,7 +480,7 @@ router.put("/appels-de-fonds/:id/pay", requireAuth, async (req, res) => {
         .where(eq(buildingsTable.id, appel.buildingId))
         .limit(1);
       if (!bld || bld.syndicateId !== user.syndicateId) {
-        return res.status(403).json({ error: "Accès refusé" });
+        return void res.status(403).json({ error: "Accès refusé" });
       }
     }
 
@@ -496,13 +496,13 @@ router.put("/appels-de-fonds/:id/pay", requireAuth, async (req, res) => {
         appel.ownerId === user.userId ||
         (memberId && appel.ownerId === memberId);
       if (!isOwner) {
-        return res.status(403).json({ error: "Vous ne pouvez soumettre un paiement que pour vos propres appels de fonds" });
+        return void res.status(403).json({ error: "Vous ne pouvez soumettre un paiement que pour vos propres appels de fonds" });
       }
     }
 
     const { paymentMethod, proofUrl, notes } = req.body;
     if (!paymentMethod) {
-      return res.status(400).json({ error: "Le mode de paiement est obligatoire" });
+      return void res.status(400).json({ error: "Le mode de paiement est obligatoire" });
     }
     const [updated] = await db
       .update(appelsDeFondsTable)
@@ -513,7 +513,7 @@ router.put("/appels-de-fonds/:id/pay", requireAuth, async (req, res) => {
         notes: notes ?? null,
         rejectionReason: null,
       })
-      .where(eq(appelsDeFondsTable.id, req.params.id))
+      .where(eq(appelsDeFondsTable.id, String(req.params.id)))
       .returning();
 
     res.json({ data: updated, message: "Paiement soumis, en attente de validation" });
@@ -532,8 +532,8 @@ router.put("/appels-de-fonds/:id/validate", requireAuth, requireAdmin, async (re
     const [appel] = await db
       .select()
       .from(appelsDeFondsTable)
-      .where(eq(appelsDeFondsTable.id, req.params.id));
-    if (!appel) return res.status(404).json({ error: "Not found" });
+      .where(eq(appelsDeFondsTable.id, String(req.params.id)));
+    if (!appel) return void res.status(404).json({ error: "Not found" });
 
     // Derive syndicate via building for isolation and audit
     const [building] = await db
@@ -542,20 +542,20 @@ router.put("/appels-de-fonds/:id/validate", requireAuth, requireAdmin, async (re
       .where(eq(buildingsTable.id, appel.buildingId));
 
     if (user.role === "syndicate_admin" && building?.syndicateId !== user.syndicateId) {
-      return res.status(403).json({ error: "Accès refusé" });
+      return void res.status(403).json({ error: "Accès refusé" });
     }
 
     if (appel.status !== "pending_validation") {
-      return res.status(400).json({ error: "Cet appel n'est pas en attente de validation" });
+      return void res.status(400).json({ error: "Cet appel n'est pas en attente de validation" });
     }
 
     if (!approve && !rejectionReason) {
-      return res.status(400).json({ error: "Un motif de rejet est obligatoire" });
+      return void res.status(400).json({ error: "Un motif de rejet est obligatoire" });
     }
 
     // Enforce: admin cannot approve a charge without proof of payment
     if (approve && !appel.proofUrl) {
-      return res.status(400).json({
+      return void res.status(400).json({
         error: "Validation refusée : une pièce justificative (proofUrl) est obligatoire avant d'approuver un paiement.",
         code: "PROOF_REQUIRED",
       });
@@ -577,7 +577,7 @@ router.put("/appels-de-fonds/:id/validate", requireAuth, requireAdmin, async (re
         validatedBy: user.userId,
         validatedAt: now,
       })
-      .where(eq(appelsDeFondsTable.id, req.params.id))
+      .where(eq(appelsDeFondsTable.id, String(req.params.id)))
       .returning();
 
     await serverAuditLog(req, {
@@ -682,7 +682,7 @@ router.post("/appels-de-fonds/escalate-debts", requireAuth, requireAdmin, async 
           level,
           status: "open",
           alertSentAt: now,
-        }).returning();
+        } as any).returning();
         created.push(row);
       }
     }

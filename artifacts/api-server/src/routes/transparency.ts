@@ -59,7 +59,7 @@ router.post("/expense-justifications", requireAuth, requireAdmin, async (req, re
     const { title, description, amount, category, receiptUrl, transactionId } = req.body;
 
     if (!title?.trim() || !amount) {
-      return res.status(400).json({ error: "Le titre et le montant sont obligatoires" });
+      return void res.status(400).json({ error: "Le titre et le montant sont obligatoires" });
     }
 
     const [row] = await db
@@ -92,17 +92,17 @@ router.post("/expense-justifications/:id/challenge", requireAuth, async (req, re
     const { reason } = req.body;
 
     if (!reason?.trim()) {
-      return res.status(400).json({ error: "Le motif de contestation est obligatoire" });
+      return void res.status(400).json({ error: "Le motif de contestation est obligatoire" });
     }
 
     const [row] = await db
       .select()
       .from(expenseJustificationsTable)
-      .where(eq(expenseJustificationsTable.id, req.params.id as string));
+      .where(eq(expenseJustificationsTable.id, String(req.params.id) as string));
 
-    if (!row) return res.status(404).json({ error: "Justificatif introuvable" });
+    if (!row) return void res.status(404).json({ error: "Justificatif introuvable" });
     if (row.status !== "pending") {
-      return res.status(400).json({ error: "Ce justificatif ne peut plus être contesté" });
+      return void res.status(400).json({ error: "Ce justificatif ne peut plus être contesté" });
     }
 
     const [updated] = await db
@@ -130,17 +130,17 @@ router.post("/expense-justifications/:id/vote", requireAuth, async (req, res) =>
     const { vote } = req.body; // "for" | "against"
 
     if (!["for", "against"].includes(vote)) {
-      return res.status(400).json({ error: "Vote invalide: 'for' ou 'against'" });
+      return void res.status(400).json({ error: "Vote invalide: 'for' ou 'against'" });
     }
 
     const [row] = await db
       .select()
       .from(expenseJustificationsTable)
-      .where(eq(expenseJustificationsTable.id, req.params.id as string));
+      .where(eq(expenseJustificationsTable.id, String(req.params.id) as string));
 
-    if (!row) return res.status(404).json({ error: "Justificatif introuvable" });
+    if (!row) return void res.status(404).json({ error: "Justificatif introuvable" });
     if (row.status !== "challenged") {
-      return res.status(400).json({ error: "Le vote n'est ouvert que pour les justificatifs contestés" });
+      return void res.status(400).json({ error: "Le vote n'est ouvert que pour les justificatifs contestés" });
     }
 
     // Upsert vote
@@ -156,7 +156,7 @@ router.post("/expense-justifications/:id/vote", requireAuth, async (req, res) =>
 
     if (existingVote) {
       if (existingVote.vote === vote) {
-        return res.status(409).json({ error: "Vous avez déjà voté" });
+        return void res.status(409).json({ error: "Vous avez déjà voté" });
       }
       await db.update(expenseVotesTable).set({ vote }).where(eq(expenseVotesTable.id, existingVote.id));
     } else {
@@ -200,10 +200,10 @@ router.put("/expense-justifications/:id/resolve", requireAuth, requireAdmin, asy
         resolutionNote: resolutionNote ?? null,
         resolvedAt: new Date(),
       })
-      .where(eq(expenseJustificationsTable.id, req.params.id as string))
+      .where(eq(expenseJustificationsTable.id, String(req.params.id) as string))
       .returning();
 
-    if (!updated) return res.status(404).json({ error: "Justificatif introuvable" });
+    if (!updated) return void res.status(404).json({ error: "Justificatif introuvable" });
     res.json({ data: updated, message: "Justificatif résolu" });
   } catch (e) {
     console.error(e);

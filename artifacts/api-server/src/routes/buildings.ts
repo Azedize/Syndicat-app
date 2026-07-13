@@ -30,7 +30,7 @@ router.get("/buildings", requireAuth, async (req, res) => {
       )
       .orderBy(desc(buildingsTable.createdAt));
 
-    if (rows.length === 0) return res.json({ data: [], total: 0 });
+    if (rows.length === 0) return void res.json({ data: [], total: 0 });
 
     // Batch-load all counts in 3 queries (instead of 3×N queries)
     const buildingIds = rows.map((b) => b.id);
@@ -87,14 +87,14 @@ router.get("/buildings/:id", requireAuth, async (req, res) => {
     const [building] = await db
       .select()
       .from(buildingsTable)
-      .where(eq(buildingsTable.id, req.params.id));
+      .where(eq(buildingsTable.id, String(req.params.id)));
 
-    if (!building) return res.status(404).json({ error: "Building not found" });
+    if (!building) return void res.status(404).json({ error: "Building not found" });
 
     // Syndicate isolation for non-super_admin
     const user = req.user!;
     if (user.role !== "super_admin" && building.syndicateId && building.syndicateId !== user.syndicateId) {
-      return res.status(403).json({ error: "Accès refusé" });
+      return void res.status(403).json({ error: "Accès refusé" });
     }
 
     const [lots, travaux, sinistres, [chargeStats]] = await Promise.all([
@@ -145,7 +145,7 @@ router.post("/buildings", requireAuth, requireOperationalAccess, async (req, res
     } = req.body;
 
     if (!name || !address) {
-      return res.status(400).json({ error: "name and address are required" });
+      return void res.status(400).json({ error: "name and address are required" });
     }
 
     const syndicateId = user.role === "super_admin"
@@ -153,7 +153,7 @@ router.post("/buildings", requireAuth, requireOperationalAccess, async (req, res
       : user.syndicateId;
 
     if (!syndicateId) {
-      return res.status(400).json({ error: "syndicateId est requis" });
+      return void res.status(400).json({ error: "syndicateId est requis" });
     }
 
     const [building] = await db
@@ -198,12 +198,12 @@ router.put("/buildings/:id", requireAuth, requireOperationalAccess, async (req, 
     const [existing] = await db
       .select({ syndicateId: buildingsTable.syndicateId })
       .from(buildingsTable)
-      .where(eq(buildingsTable.id, req.params.id));
+      .where(eq(buildingsTable.id, String(req.params.id)));
 
-    if (!existing) return res.status(404).json({ error: "Building not found" });
+    if (!existing) return void res.status(404).json({ error: "Building not found" });
 
     if (user.role === "syndicate_admin" && existing.syndicateId !== user.syndicateId) {
-      return res.status(403).json({ error: "Accès refusé" });
+      return void res.status(403).json({ error: "Accès refusé" });
     }
 
     const allowed = [
@@ -218,15 +218,15 @@ router.put("/buildings/:id", requireAuth, requireOperationalAccess, async (req, 
     const [updated] = await db
       .update(buildingsTable)
       .set(updates)
-      .where(eq(buildingsTable.id, req.params.id))
+      .where(eq(buildingsTable.id, String(req.params.id)))
       .returning();
 
-    if (!updated) return res.status(404).json({ error: "Building not found" });
+    if (!updated) return void res.status(404).json({ error: "Building not found" });
 
     await serverAuditLog(req, {
       action: "UPDATE",
       entity: "building",
-      entityId: req.params.id,
+      entityId: String(req.params.id),
       syndicateId: existing.syndicateId ?? undefined,
       details: `Immeuble mis à jour: ${JSON.stringify(updates)}`,
     });

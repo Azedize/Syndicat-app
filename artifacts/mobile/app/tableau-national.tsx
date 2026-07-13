@@ -497,20 +497,50 @@ export default function TableauNationalScreen() {
               </View>
               <Text style={[styles.statCardTitle, { color: colors.foreground }]}>Actions rapides</Text>
             </View>
-            {[
-              { label: "Créer un nouveau syndicat", icon: "plus-circle" as const, color: colors.primary, route: undefined },
-              { label: "Gérer les abonnements", icon: "star" as const, color: "#f59e0b", route: "/abonnements" },
-              { label: "Exporter rapport national", icon: "download" as const, color: "#10b981", route: undefined },
-              { label: "Envoyer communiqué global", icon: "send" as const, color: "#ec4899", route: undefined },
-            ].map((action, i) => (
+            {([
+              {
+                label: "Créer un nouveau syndicat",
+                icon: "plus-circle" as const,
+                color: colors.primary,
+                onPress: () => router.push("/syndicate-setup" as any),
+              },
+              {
+                label: "Gérer les abonnements",
+                icon: "star" as const,
+                color: "#f59e0b",
+                onPress: () => router.push("/abonnements" as any),
+              },
+              {
+                label: "Exporter rapport national",
+                icon: "download" as const,
+                color: "#10b981",
+                onPress: () => {
+                  const lines = [
+                    "Syndicat;Région;Membres;Statut",
+                    ...syndicats.map((s) =>
+                      [s.name, s.region, s.members, s.status].join(";")
+                    ),
+                  ].join("\n");
+                  Share.share({
+                    message: lines,
+                    title: `Rapport national SYNDYCAT — ${new Date().toLocaleDateString("fr-MA")}`,
+                  }).catch(() => Alert.alert("Erreur", "Impossible d'exporter le rapport."));
+                },
+              },
+              {
+                label: "Envoyer communiqué global",
+                icon: "send" as const,
+                color: "#ec4899",
+                onPress: () => router.push("/publications" as any),
+              },
+            ] as { label: string; icon: any; color: string; onPress: () => void }[]).map((action, i) => (
               <View key={action.label}>
                 {i > 0 ? <View style={[styles.sep, { backgroundColor: colors.border }]} /> : null}
                 <TouchableOpacity
                   style={styles.quickActionRow}
                   onPress={() => {
                     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-                    if (action.route) router.push(action.route as any);
-                    else Alert.alert(action.label, "Cette fonctionnalité sera disponible dans la prochaine mise à jour.");
+                    action.onPress();
                   }}
                   activeOpacity={0.7}
                 >

@@ -20,7 +20,7 @@ const router = Router();
 router.get("/team", requireAuth, async (req, res) => {
   try {
     const user = req.user!;
-    if (!user.syndicateId) return res.json({ data: [] });
+    if (!user.syndicateId) return void res.json({ data: [] });
 
     // Admins in this syndicate
     const admins = await db
@@ -44,14 +44,14 @@ router.get("/team", requireAuth, async (req, res) => {
         )
       );
 
-    // Committee members (members with role "committee" or "president" etc.)
+    // Committee members (members with status "committee", "president" etc.)
     const committee = await db
       .select({
         id: membersTable.id,
         name: membersTable.name,
         email: membersTable.email,
         phone: membersTable.phone,
-        role: membersTable.role,
+        role: membersTable.status,
         syndicateId: membersTable.syndicateId,
       })
       .from(membersTable)
@@ -59,10 +59,10 @@ router.get("/team", requireAuth, async (req, res) => {
         and(
           eq(membersTable.syndicateId, user.syndicateId),
           or(
-            eq(membersTable.role, "committee"),
-            eq(membersTable.role, "president"),
-            eq(membersTable.role, "treasurer"),
-            eq(membersTable.role, "secretary")
+            eq(membersTable.status, "committee"),
+            eq(membersTable.status, "president"),
+            eq(membersTable.status, "treasurer"),
+            eq(membersTable.status, "secretary")
           )
         )
       );
@@ -90,7 +90,7 @@ router.get("/team", requireAuth, async (req, res) => {
 router.put("/team/syndicate", requireAuth, requireAdmin, async (req, res) => {
   try {
     const user = req.user!;
-    if (!user.syndicateId) return res.status(400).json({ error: "Pas de syndicat associé" });
+    if (!user.syndicateId) return void res.status(400).json({ error: "Pas de syndicat associé" });
 
     const allowed = ["email", "phone", "address", "officeHours", "website"];
     const updates: Record<string, any> = {};
@@ -118,17 +118,17 @@ router.put("/team/members/:id", requireAuth, requireAdmin, async (req, res) => {
     const { role } = req.body;
     const validRoles = ["member", "committee", "president", "treasurer", "secretary"];
     if (!validRoles.includes(role)) {
-      return res.status(400).json({ error: `Rôle invalide. Valeurs acceptées: ${validRoles.join(", ")}` });
+      return void res.status(400).json({ error: `Rôle invalide. Valeurs acceptées: ${validRoles.join(", ")}` });
     }
 
     if (user.role === "syndicate_admin") {
       const [target] = await db
         .select({ syndicateId: membersTable.syndicateId })
         .from(membersTable)
-        .where(eq(membersTable.id, req.params.id as string));
-      if (!target) return res.status(404).json({ error: "Membre introuvable" });
+        .where(eq(membersTable.id, String(req.params.id) as string));
+      if (!target) return void res.status(404).json({ error: "Membre introuvable" });
       if (target.syndicateId !== user.syndicateId) {
-        return res.status(403).json({ error: "Accès refusé" });
+        return void res.status(403).json({ error: "Accès refusé" });
       }
     }
 
@@ -136,10 +136,10 @@ router.put("/team/members/:id", requireAuth, requireAdmin, async (req, res) => {
     const [updated] = await db
       .update(membersTable)
       .set({ profession: role })
-      .where(eq(membersTable.id, req.params.id as string))
+      .where(eq(membersTable.id, String(req.params.id) as string))
       .returning();
 
-    if (!updated) return res.status(404).json({ error: "Membre introuvable" });
+    if (!updated) return void res.status(404).json({ error: "Membre introuvable" });
     res.json({ data: updated, message: "Rôle mis à jour" });
   } catch (e) {
     console.error(e);

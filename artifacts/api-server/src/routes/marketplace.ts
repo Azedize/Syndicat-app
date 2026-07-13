@@ -198,7 +198,7 @@ router.get("/products/my-listings", requireAuth, async (req, res) => {
 // ─── GET /products/:id — detail + view count increment ───────────────────────
 
 router.get("/products/:id", requireAuth, async (req, res) => {
-  const id = req.params.id as string;
+  const id = String(req.params.id) as string;
   const user = req.user!;
   try {
     const [product] = await db.select().from(productsTable).where(eq(productsTable.id, id));
@@ -283,7 +283,7 @@ router.post("/products", requireAuth, async (req, res) => {
         sellerId: user.userId,
         sellerName: user.name,
         status: adminUser ? "approved" : "pending_review",
-      })
+      } as any)
       .returning();
     res.status(201).json({
       data: product,
@@ -300,7 +300,7 @@ router.post("/products", requireAuth, async (req, res) => {
 // ─── PUT /products/:id ─────────────────────────────────────────────────────────
 
 router.put("/products/:id", requireAuth, async (req, res) => {
-  const id = req.params.id as string;
+  const id = String(req.params.id) as string;
   const schema = z.object({
     name: z.string().min(1).max(200).optional(),
     description: z.string().max(2000).optional(),
@@ -352,7 +352,7 @@ router.put("/products/:id", requireAuth, async (req, res) => {
 // ─── DELETE /products/:id ──────────────────────────────────────────────────────
 
 router.delete("/products/:id", requireAuth, async (req, res) => {
-  const id = req.params.id as string;
+  const id = String(req.params.id) as string;
   try {
     const [product] = await db.select().from(productsTable).where(eq(productsTable.id, id));
     if (!product) { res.status(404).json({ error: "Produit introuvable" }); return; }
@@ -376,7 +376,7 @@ router.post(
   requireAuth,
   requireRole("super_admin", "syndicate_admin"),
   async (req, res) => {
-    const id = req.params.id as string;
+    const id = String(req.params.id) as string;
     const schema = z.object({
       action: z.enum([
         "approve",
@@ -456,7 +456,7 @@ router.post(
 // ─── POST /products/:id/favorite — toggle ─────────────────────────────────────
 
 router.post("/products/:id/favorite", requireAuth, async (req, res) => {
-  const productId = req.params.id as string;
+  const productId = String(req.params.id) as string;
   const userId = req.user!.userId;
   try {
     const [existing] = await db
@@ -489,7 +489,7 @@ router.post("/products/:id/favorite", requireAuth, async (req, res) => {
 // ─── GET /products/:id/comments ───────────────────────────────────────────────
 
 router.get("/products/:id/comments", requireAuth, async (req, res) => {
-  const productId = req.params.id as string;
+  const productId = String(req.params.id) as string;
   const q = req.query as Record<string, string>;
   const { page, limit, offset } = parsePage(q);
   try {
@@ -516,7 +516,7 @@ router.get("/products/:id/comments", requireAuth, async (req, res) => {
 // ─── POST /products/:id/comments ──────────────────────────────────────────────
 
 router.post("/products/:id/comments", requireAuth, async (req, res) => {
-  const productId = req.params.id as string;
+  const productId = String(req.params.id) as string;
   const schema = z.object({ content: z.string().min(1).max(1000) });
   const result = schema.safeParse(req.body);
   if (!result.success) {
@@ -573,7 +573,7 @@ router.delete("/products/:id/comments/:commentId", requireAuth, async (req, res)
 // ─── POST /products/:id/report — abuse report ─────────────────────────────────
 
 router.post("/products/:id/report", requireAuth, async (req, res) => {
-  const productId = req.params.id as string;
+  const productId = String(req.params.id) as string;
   const schema = z.object({
     reason: z.enum(["spam", "inappropriate", "fraude", "mauvaise_info", "autre"]),
     details: z.string().max(1000).default(""),
@@ -608,7 +608,7 @@ router.post(
   requireAuth,
   requireRole("super_admin", "syndicate_admin"),
   async (req, res) => {
-    const productId = req.params.id as string;
+    const productId = String(req.params.id) as string;
     const schema = z.object({
       type: z.enum(["featured", "top_search", "homepage"]),
       durationDays: z.number().int().min(1).max(90),
@@ -667,7 +667,7 @@ router.get(
   requireAuth,
   requireRole("super_admin", "syndicate_admin"),
   async (req, res) => {
-    const productId = req.params.id as string;
+    const productId = String(req.params.id) as string;
     try {
       const rows = await db
         .select()
@@ -770,7 +770,7 @@ router.put("/cart/:id", requireAuth, async (req, res) => {
       .from(cartItemsTable)
       .where(
         and(
-          eq(cartItemsTable.id, req.params.id as string),
+          eq(cartItemsTable.id, String(req.params.id) as string),
           eq(cartItemsTable.userId, req.user!.userId),
         ),
       );
@@ -793,7 +793,7 @@ router.delete("/cart/:id", requireAuth, async (req, res) => {
       .delete(cartItemsTable)
       .where(
         and(
-          eq(cartItemsTable.id, req.params.id as string),
+          eq(cartItemsTable.id, String(req.params.id) as string),
           eq(cartItemsTable.userId, req.user!.userId),
         ),
       );
@@ -922,7 +922,7 @@ router.put(
       const [order] = await db
         .update(ordersTable)
         .set({ status: result.data.status })
-        .where(eq(ordersTable.id, req.params.id as string))
+        .where(eq(ordersTable.id, String(req.params.id) as string))
         .returning();
       res.json({ data: order });
     } catch (err) {

@@ -1,5 +1,6 @@
 import { Feather } from "@expo/vector-icons";
 import * as Haptics from "expo-haptics";
+import * as Linking from "expo-linking";
 import { router } from "expo-router";
 import React, { useState } from "react";
 import { shareContent } from "@/hooks/useShare";
@@ -18,7 +19,7 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useAuth } from "@/context/AuthContext";
 import { useBreakpoints } from "@/hooks/useBreakpoints";
 import { useColors } from "@/hooks/useColors";
-import { auth as authApi } from "@/services/api";
+import { auth as authApi, getToken } from "@/services/api";
 
 export default function ProfileScreen() {
   const colors = useColors();
@@ -95,9 +96,20 @@ export default function ProfileScreen() {
     }
   };
 
-  const handleAttestation = () => {
+  const handleAttestation = async () => {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-    Alert.alert("Attestation d'adhésion", "Votre attestation a été générée et sera téléchargée dans quelques instants.");
+    try {
+      const currentToken = await getToken();
+      const domain = process.env.EXPO_PUBLIC_DOMAIN;
+      const base = domain
+        ? `https://${domain}`
+        : `http://localhost:${process.env.EXPO_PUBLIC_API_PORT ?? "8080"}`;
+      const tokenParam = currentToken ? `?token=${encodeURIComponent(currentToken)}` : "";
+      const url = `${base}/api/pdf/membership/${user?.id}${tokenParam}`;
+      await Linking.openURL(url);
+    } catch {
+      Alert.alert("Erreur", "Impossible de générer l'attestation. Vérifiez votre connexion.");
+    }
   };
 
   const [showQR, setShowQR] = useState(false);

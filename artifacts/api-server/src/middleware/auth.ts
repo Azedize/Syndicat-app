@@ -33,13 +33,16 @@ declare global {
 
 export function requireAuth(req: Request, res: Response, next: NextFunction) {
   const auth = req.headers.authorization;
-  if (!auth?.startsWith("Bearer ")) {
+  // Also accept ?token= query param so PDF/file URLs opened via Linking.openURL
+  // (which cannot attach Authorization headers) still authenticate correctly.
+  const queryToken = typeof req.query.token === "string" ? req.query.token : null;
+  const rawToken = auth?.startsWith("Bearer ") ? auth.slice(7) : queryToken;
+  if (!rawToken) {
     res.status(401).json({ error: "Non authentifié" });
     return;
   }
-  const token = auth.slice(7);
   try {
-    const payload = jwt.verify(token, getJwtSecret()) as JwtPayload;
+    const payload = jwt.verify(rawToken, getJwtSecret()) as JwtPayload;
     req.user = payload;
     next();
   } catch {

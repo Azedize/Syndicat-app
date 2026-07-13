@@ -324,7 +324,7 @@ router.post("/conversations", requireAuth, async (req, res) => {
 // ─── DELETE /conversations/:id ────────────────────────────────────────────────
 
 router.delete("/conversations/:id", requireAuth, async (req, res) => {
-  const id = req.params.id as string;
+  const id = String(req.params.id) as string;
   try {
     const canAccess = await canAccessConversation(
       req.user!.userId,
@@ -362,7 +362,7 @@ router.delete("/conversations/:id", requireAuth, async (req, res) => {
 // ─── PATCH /conversations/:id/read ────────────────────────────────────────────
 
 router.patch("/conversations/:id/read", requireAuth, async (req, res) => {
-  const id = req.params.id as string;
+  const id = String(req.params.id) as string;
   try {
     const canAccess = await canAccessConversation(
       req.user!.userId,
@@ -413,7 +413,7 @@ router.patch("/conversations/:id/read", requireAuth, async (req, res) => {
 // ─── GET /conversations/:id/messages ─────────────────────────────────────────
 
 router.get("/conversations/:id/messages", requireAuth, async (req, res) => {
-  const id = req.params.id as string;
+  const id = String(req.params.id) as string;
   const pagination = getPagination(req, 100);
   try {
     const canAccess = await canAccessConversation(
@@ -457,7 +457,7 @@ router.get("/conversations/:id/messages", requireAuth, async (req, res) => {
 // Polling endpoint — returns messages newer than ?since=<ISO timestamp>
 
 router.get("/conversations/:id/since", requireAuth, async (req, res) => {
-  const id = req.params.id as string;
+  const id = String(req.params.id) as string;
   const since = req.query.since as string | undefined;
   try {
     const canAccess = await canAccessConversation(
@@ -499,7 +499,7 @@ router.get("/conversations/:id/since", requireAuth, async (req, res) => {
 // ─── POST /conversations/:id/messages ─────────────────────────────────────────
 
 router.post("/conversations/:id/messages", requireAuth, async (req, res) => {
-  const id = req.params.id as string;
+  const id = String(req.params.id) as string;
   const schema = z.object({
     text: z.string().max(10000).default(""),
     messageType: z.enum(["text", "image", "document", "announcement"]).default("text"),

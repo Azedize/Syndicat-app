@@ -22,7 +22,7 @@ router.get("/lots", requireAuth, async (req, res) => {
   try {
     const user = req.user!;
     if (user.role === "tenant") {
-      return res.status(403).json({ error: "Accès refusé" });
+      return void res.status(403).json({ error: "Accès refusé" });
     }
 
     const { buildingId, type, status, ownerId } = req.query as Record<string, string>;
@@ -38,7 +38,7 @@ router.get("/lots", requireAuth, async (req, res) => {
           .where(eq(buildingsTable.id, buildingId))
           .limit(1);
         if (!building || building.syndicateId !== user.syndicateId) {
-          return res.status(403).json({ error: "Accès refusé" });
+          return void res.status(403).json({ error: "Accès refusé" });
         }
       }
       conditions.push(eq(lotsTable.buildingId, buildingId));
@@ -53,7 +53,7 @@ router.get("/lots", requireAuth, async (req, res) => {
           .select({ id: buildingsTable.id })
           .from(buildingsTable)
           .where(eq(buildingsTable.syndicateId, targetSyndicateId));
-        if (scopedBuildings.length === 0) return res.json({ data: [], total: 0 });
+        if (scopedBuildings.length === 0) return void res.json({ data: [], total: 0 });
         conditions.push(inArray(lotsTable.buildingId, scopedBuildings.map((b) => b.id)));
       }
       // super_admin with no syndicateId filter sees all lots (global view)
@@ -68,7 +68,7 @@ router.get("/lots", requireAuth, async (req, res) => {
       .where(conditions.length ? and(...conditions) : undefined)
       .orderBy(lotsTable.floor, lotsTable.number);
 
-    if (rows.length === 0) return res.json({ data: [], total: 0 });
+    if (rows.length === 0) return void res.json({ data: [], total: 0 });
 
     // Batch-load owners, tenants, and charge stats (no N+1)
     const ownerIds = [...new Set(rows.map((l) => l.ownerId).filter(Boolean))] as string[];
@@ -102,8 +102,8 @@ router.get("/lots", requireAuth, async (req, res) => {
     const chargesByLot = new Map<string, { pending: number; overdue: number; pendingAmount: number }>();
     for (const c of allCharges) {
       const agg = chargesByLot.get(c.lotId) ?? { pending: 0, overdue: 0, pendingAmount: 0 };
-      if (c.status === "pending") { agg.pending++; agg.pendingAmount += c.amount ?? 0; }
-      if (c.status === "overdue") { agg.overdue++; agg.pendingAmount += c.amount ?? 0; }
+      if (c.status === "pending") { agg.pending++; agg.pendingAmount += Number(c.amount ?? 0); }
+      if (c.status === "overdue") { agg.overdue++; agg.pendingAmount += Number(c.amount ?? 0); }
       chargesByLot.set(c.lotId, agg);
     }
 
@@ -146,14 +146,14 @@ router.get("/lots/my-lot", requireAuth, async (req, res) => {
       .where(ownerConditions.length > 1 ? or(...ownerConditions) : ownerConditions[0])
       .limit(1);
 
-    if (!lot) return res.status(404).json({ error: "Aucun lot associé à votre compte" });
+    if (!lot) return void res.status(404).json({ error: "Aucun lot associé à votre compte" });
 
     const [building] = await db
       .select()
       .from(buildingsTable)
       .where(eq(buildingsTable.id, lot.buildingId));
 
-    return res.json({
+    return void res.json({
       data: {
         ...lot,
         buildingName: building?.name ?? null,
@@ -170,25 +170,25 @@ router.get("/lots/my-lot", requireAuth, async (req, res) => {
 router.get("/lots/:id", requireAuth, async (req, res) => {
   try {
     const user = req.user!;
-    if (user.role === "tenant") return res.status(403).json({ error: "Accès refusé" });
+    if (user.role === "tenant") return void res.status(403).json({ error: "Accès refusé" });
 
     const [lot] = await db
       .select()
       .from(lotsTable)
-      .where(eq(lotsTable.id, req.params.id));
+      .where(eq(lotsTable.id, String(req.params.id)));
 
-    if (!lot) return res.status(404).json({ error: "Lot not found" });
+    if (!lot) return void res.status(404).json({ error: "Lot not found" });
 
     // Syndicate isolation for non-super_admin
     if (user.role !== "super_admin") {
-      if (!user.syndicateId) return res.status(403).json({ error: "Syndicat non défini dans le token" });
+      if (!user.syndicateId) return void res.status(403).json({ error: "Syndicat non défini dans le token" });
       const [building] = await db
         .select({ syndicateId: buildingsTable.syndicateId })
         .from(buildingsTable)
         .where(eq(buildingsTable.id, lot.buildingId))
         .limit(1);
       if (!building || building.syndicateId !== user.syndicateId) {
-        return res.status(403).json({ error: "Accès refusé" });
+        return void res.status(403).json({ error: "Accès refusé" });
       }
     }
 
@@ -241,16 +241,16 @@ router.post("/lots", requireAuth, requireOperationalAccess, async (req, res) => 
     } = req.body;
 
     if (!number || !buildingId) {
-      return res.status(400).json({ error: "number and buildingId are required" });
+      return void res.status(400).json({ error: "number and buildingId are required" });
     }
 
     // Syndicate ownership: verify the target building belongs to the caller's syndicate
     if (user.role !== "super_admin") {
-      if (!user.syndicateId) return res.status(403).json({ error: "Syndicat non défini dans le token" });
+      if (!user.syndicateId) return void res.status(403).json({ error: "Syndicat non défini dans le token" });
       const [bld] = await db.select({ syndicateId: buildingsTable.syndicateId })
         .from(buildingsTable).where(eq(buildingsTable.id, buildingId)).limit(1);
       if (!bld || bld.syndicateId !== user.syndicateId) {
-        return res.status(403).json({ error: "Accès refusé" });
+        return void res.status(403).json({ error: "Accès refusé" });
       }
     }
 
@@ -289,11 +289,11 @@ router.put("/lots/:id", requireAuth, requireOperationalAccess, async (req, res) 
     const user = req.user!;
     // Row-level syndicate check before mutation
     if (user.role !== "super_admin") {
-      if (!user.syndicateId) return res.status(403).json({ error: "Syndicat non défini dans le token" });
-      const [existing] = await db.select({ buildingId: lotsTable.buildingId }).from(lotsTable).where(eq(lotsTable.id, req.params.id)).limit(1);
-      if (!existing) return res.status(404).json({ error: "Lot not found" });
+      if (!user.syndicateId) return void res.status(403).json({ error: "Syndicat non défini dans le token" });
+      const [existing] = await db.select({ buildingId: lotsTable.buildingId }).from(lotsTable).where(eq(lotsTable.id, String(req.params.id))).limit(1);
+      if (!existing) return void res.status(404).json({ error: "Lot not found" });
       const [bld] = await db.select({ syndicateId: buildingsTable.syndicateId }).from(buildingsTable).where(eq(buildingsTable.id, existing.buildingId)).limit(1);
-      if (!bld || bld.syndicateId !== user.syndicateId) return res.status(403).json({ error: "Accès refusé" });
+      if (!bld || bld.syndicateId !== user.syndicateId) return void res.status(403).json({ error: "Accès refusé" });
     }
     const allowed = [
       "number", "type", "floor", "surfaceM2", "tantiemes",
@@ -307,10 +307,10 @@ router.put("/lots/:id", requireAuth, requireOperationalAccess, async (req, res) 
     const [updated] = await db
       .update(lotsTable)
       .set(updates)
-      .where(eq(lotsTable.id, req.params.id))
+      .where(eq(lotsTable.id, String(req.params.id)))
       .returning();
 
-    if (!updated) return res.status(404).json({ error: "Lot not found" });
+    if (!updated) return void res.status(404).json({ error: "Lot not found" });
     res.json(updated);
   } catch (e) {
     console.error(e);
@@ -324,18 +324,18 @@ router.delete("/lots/:id", requireAuth, requireOperationalAccess, async (req, re
     const user = req.user!;
     // Row-level syndicate check before deletion
     if (user.role !== "super_admin") {
-      if (!user.syndicateId) return res.status(403).json({ error: "Syndicat non défini dans le token" });
-      const [existing] = await db.select({ buildingId: lotsTable.buildingId }).from(lotsTable).where(eq(lotsTable.id, req.params.id)).limit(1);
-      if (!existing) return res.status(404).json({ error: "Lot not found" });
+      if (!user.syndicateId) return void res.status(403).json({ error: "Syndicat non défini dans le token" });
+      const [existing] = await db.select({ buildingId: lotsTable.buildingId }).from(lotsTable).where(eq(lotsTable.id, String(req.params.id))).limit(1);
+      if (!existing) return void res.status(404).json({ error: "Lot not found" });
       const [bld] = await db.select({ syndicateId: buildingsTable.syndicateId }).from(buildingsTable).where(eq(buildingsTable.id, existing.buildingId)).limit(1);
-      if (!bld || bld.syndicateId !== user.syndicateId) return res.status(403).json({ error: "Accès refusé" });
+      if (!bld || bld.syndicateId !== user.syndicateId) return void res.status(403).json({ error: "Accès refusé" });
     }
     const [lot] = await db
       .delete(lotsTable)
-      .where(eq(lotsTable.id, req.params.id))
+      .where(eq(lotsTable.id, String(req.params.id)))
       .returning();
 
-    if (!lot) return res.status(404).json({ error: "Lot not found" });
+    if (!lot) return void res.status(404).json({ error: "Lot not found" });
 
     await db
       .update(buildingsTable)

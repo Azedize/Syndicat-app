@@ -117,7 +117,7 @@ router.put(
   requireAuth,
   requireOperationalAccess,
   async (req, res) => {
-    const id = req.params.id as string;
+    const id = String(req.params.id) as string;
     const schema = z.object({ status: z.enum(["open", "closed", "upcoming"]) });
     const result = schema.safeParse(req.body);
     if (!result.success) { res.status(400).json({ error: "Statut invalide" }); return; }
@@ -150,7 +150,7 @@ router.put(
 );
 
 router.post("/elections/:id/vote", requireAuth, requireNotTenant, async (req, res) => {
-  const id = req.params.id as string;
+  const id = String(req.params.id) as string;
   const schema = z.object({ candidateId: z.string().min(1) });
   const result = schema.safeParse(req.body);
   if (!result.success) {

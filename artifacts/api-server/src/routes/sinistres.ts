@@ -23,7 +23,7 @@ router.get("/sinistres", requireAuth, async (req, res) => {
         .from(buildingsTable)
         .where(eq(buildingsTable.syndicateId, user.syndicateId));
       const ids = buildingsInSyndicate.map((b) => b.id);
-      if (ids.length === 0) return res.json({ data: [], total: 0 });
+      if (ids.length === 0) return void res.json({ data: [], total: 0 });
       conditions.push(inArray(sinistresTable.buildingId, ids));
     }
 
@@ -36,7 +36,7 @@ router.get("/sinistres", requireAuth, async (req, res) => {
       .where(conditions.length ? and(...conditions) : undefined)
       .orderBy(desc(sinistresTable.createdAt));
 
-    if (rows.length === 0) return res.json({ data: [], total: 0 });
+    if (rows.length === 0) return void res.json({ data: [], total: 0 });
 
     // Batch-load lots to avoid N+1
     const lotIds = [...new Set(rows.map((r) => r.lotId).filter(Boolean))] as string[];
@@ -67,7 +67,7 @@ router.post("/sinistres", requireAuth, async (req, res) => {
     const { buildingId, lotId, type, description, date, estimatedAmount, notes, urgency, imageUrls } = req.body;
 
     if (!buildingId || !type || !description || !date) {
-      return res.status(400).json({ error: "buildingId, type, description et date sont obligatoires" });
+      return void res.status(400).json({ error: "buildingId, type, description et date sont obligatoires" });
     }
 
     const [sinistre] = await db
@@ -84,7 +84,7 @@ router.post("/sinistres", requireAuth, async (req, res) => {
         reportedById: user.userId,
         reportedByName: user.name,
         notes,
-      })
+      } as any)
       .returning();
 
     // Find syndicate for scoped alert
@@ -128,10 +128,10 @@ router.put("/sinistres/:id", requireAuth, requireOperationalAccess, async (req, 
     const [updated] = await db
       .update(sinistresTable)
       .set(updates)
-      .where(eq(sinistresTable.id, req.params.id))
+      .where(eq(sinistresTable.id, String(req.params.id)))
       .returning();
 
-    if (!updated) return res.status(404).json({ error: "Sinistre introuvable" });
+    if (!updated) return void res.status(404).json({ error: "Sinistre introuvable" });
     res.json({ data: updated, message: "Sinistre mis à jour" });
   } catch (e) {
     console.error(e);

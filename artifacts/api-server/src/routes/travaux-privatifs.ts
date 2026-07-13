@@ -65,7 +65,7 @@ router.get("/travaux-privatifs", requireAuth, async (req, res) => {
 
     if (buildingId) {
       try { await assertUserCanAccessBuilding(user, buildingId); } catch {
-        return res.status(403).json({ error: "Accès refusé à cet immeuble" });
+        return void res.status(403).json({ error: "Accès refusé à cet immeuble" });
       }
       conditions.push(eq(travauxPrivatifsTable.buildingId, buildingId));
     }
@@ -88,8 +88,8 @@ router.get("/travaux-privatifs", requireAuth, async (req, res) => {
 // ─── GET /travaux-privatifs/:id ───────────────────────────────────────────────
 router.get("/travaux-privatifs/:id", requireAuth, async (req, res) => {
   try {
-    const row = await loadAndScope(req.params.id, req.user!).catch(() => null);
-    if (!row) return res.status(404).json({ error: "Demande introuvable ou accès refusé" });
+    const row = await loadAndScope(String(String(req.params.id)), req.user!).catch(() => null);
+    if (!row) return void res.status(404).json({ error: "Demande introuvable ou accès refusé" });
     res.json({ data: row });
   } catch (e) {
     console.error(e);
@@ -112,7 +112,7 @@ const submitSchema = z.object({
 router.post("/travaux-privatifs", requireAuth, async (req, res) => {
   const parsed = submitSchema.safeParse(req.body);
   if (!parsed.success) {
-    return res.status(400).json({ error: parsed.error.issues[0]?.message ?? "Données invalides" });
+    return void res.status(400).json({ error: parsed.error.issues[0]?.message ?? "Données invalides" });
   }
   try {
     const user = req.user!;
@@ -120,7 +120,7 @@ router.post("/travaux-privatifs", requireAuth, async (req, res) => {
             currentPhotoUrls, proposedPhotoUrls, planUrls } = parsed.data;
 
     try { await assertUserCanAccessBuilding(user, buildingId); } catch {
-      return res.status(403).json({ error: "Accès refusé à cet immeuble" });
+      return void res.status(403).json({ error: "Accès refusé à cet immeuble" });
     }
 
     const [building] = await db
@@ -171,17 +171,17 @@ const syndicReviewSchema = z.object({
 router.post("/travaux-privatifs/:id/syndic-review", requireAuth, requireAdmin, async (req, res) => {
   const parsed = syndicReviewSchema.safeParse(req.body);
   if (!parsed.success) {
-    return res.status(400).json({ error: parsed.error.issues[0]?.message ?? "Données invalides" });
+    return void res.status(400).json({ error: parsed.error.issues[0]?.message ?? "Données invalides" });
   }
   try {
     const user = req.user!;
     let row: any;
-    try { row = await loadAndScope(req.params.id, user); } catch {
-      return res.status(403).json({ error: "Accès refusé" });
+    try { row = await loadAndScope(String(String(req.params.id)), user); } catch {
+      return void res.status(403).json({ error: "Accès refusé" });
     }
-    if (!row) return res.status(404).json({ error: "Demande introuvable" });
+    if (!row) return void res.status(404).json({ error: "Demande introuvable" });
     if (row.status !== "submitted") {
-      return res.status(400).json({ error: "La revue initiale ne peut être effectuée que sur une demande soumise" });
+      return void res.status(400).json({ error: "La revue initiale ne peut être effectuée que sur une demande soumise" });
     }
 
     const { reviewNote, bylawReference, requiresCommitteeReview, requiresGAVote } = parsed.data;
@@ -208,7 +208,7 @@ router.post("/travaux-privatifs/:id/syndic-review", requireAuth, requireAdmin, a
         syndicReviewedByName: user.name,
         syndicReviewedAt: new Date(),
       })
-      .where(eq(travauxPrivatifsTable.id, req.params.id))
+      .where(eq(travauxPrivatifsTable.id, String(String(req.params.id))))
       .returning();
 
     await serverAuditLog(req, {
@@ -234,17 +234,17 @@ const committeeReviewSchema = z.object({
 router.post("/travaux-privatifs/:id/committee-review", requireAuth, requireAdmin, async (req, res) => {
   const parsed = committeeReviewSchema.safeParse(req.body);
   if (!parsed.success) {
-    return res.status(400).json({ error: parsed.error.issues[0]?.message ?? "Données invalides" });
+    return void res.status(400).json({ error: parsed.error.issues[0]?.message ?? "Données invalides" });
   }
   try {
     const user = req.user!;
     let row: any;
-    try { row = await loadAndScope(req.params.id, user); } catch {
-      return res.status(403).json({ error: "Accès refusé" });
+    try { row = await loadAndScope(String(String(req.params.id)), user); } catch {
+      return void res.status(403).json({ error: "Accès refusé" });
     }
-    if (!row) return res.status(404).json({ error: "Demande introuvable" });
+    if (!row) return void res.status(404).json({ error: "Demande introuvable" });
     if (row.status !== "committee_review") {
-      return res.status(400).json({ error: "Cette demande n'est pas en phase de revue par comité" });
+      return void res.status(400).json({ error: "Cette demande n'est pas en phase de revue par comité" });
     }
 
     const { committeeNote, recommendation } = parsed.data;
@@ -262,7 +262,7 @@ router.post("/travaux-privatifs/:id/committee-review", requireAuth, requireAdmin
         committeeReviewedByName: user.name,
         committeeReviewedAt: new Date(),
       })
-      .where(eq(travauxPrivatifsTable.id, req.params.id))
+      .where(eq(travauxPrivatifsTable.id, String(String(req.params.id))))
       .returning();
 
     await serverAuditLog(req, {
@@ -290,17 +290,17 @@ const voteSchema = z.object({
 router.post("/travaux-privatifs/:id/vote", requireAuth, requireAdmin, async (req, res) => {
   const parsed = voteSchema.safeParse(req.body);
   if (!parsed.success) {
-    return res.status(400).json({ error: parsed.error.issues[0]?.message ?? "Données invalides" });
+    return void res.status(400).json({ error: parsed.error.issues[0]?.message ?? "Données invalides" });
   }
   try {
     const user = req.user!;
     let row: any;
-    try { row = await loadAndScope(req.params.id, user); } catch {
-      return res.status(403).json({ error: "Accès refusé" });
+    try { row = await loadAndScope(String(String(req.params.id)), user); } catch {
+      return void res.status(403).json({ error: "Accès refusé" });
     }
-    if (!row) return res.status(404).json({ error: "Demande introuvable" });
+    if (!row) return void res.status(404).json({ error: "Demande introuvable" });
     if (row.status !== "vote_required") {
-      return res.status(400).json({ error: "Cette demande n'est pas en phase de vote" });
+      return void res.status(400).json({ error: "Cette demande n'est pas en phase de vote" });
     }
 
     const { voteOutcome, voteDate, voteSummary, voteItemId } = parsed.data;
@@ -314,7 +314,7 @@ router.post("/travaux-privatifs/:id/vote", requireAuth, requireAdmin, async (req
         voteSummary,
         voteItemId: voteItemId ?? null,
       })
-      .where(eq(travauxPrivatifsTable.id, req.params.id))
+      .where(eq(travauxPrivatifsTable.id, String(String(req.params.id))))
       .returning();
 
     await serverAuditLog(req, {
@@ -341,19 +341,19 @@ const decisionSchema = z.object({
 router.post("/travaux-privatifs/:id/decision", requireAuth, requireAdmin, async (req, res) => {
   const parsed = decisionSchema.safeParse(req.body);
   if (!parsed.success) {
-    return res.status(400).json({ error: parsed.error.issues[0]?.message ?? "Données invalides" });
+    return void res.status(400).json({ error: parsed.error.issues[0]?.message ?? "Données invalides" });
   }
   try {
     const user = req.user!;
     let row: any;
-    try { row = await loadAndScope(req.params.id, user); } catch {
-      return res.status(403).json({ error: "Accès refusé" });
+    try { row = await loadAndScope(String(String(req.params.id)), user); } catch {
+      return void res.status(403).json({ error: "Accès refusé" });
     }
-    if (!row) return res.status(404).json({ error: "Demande introuvable" });
+    if (!row) return void res.status(404).json({ error: "Demande introuvable" });
 
     // Strict: final decision only from under_review (all review/vote steps must be complete first)
     if (row.status !== "under_review") {
-      return res.status(400).json({
+      return void res.status(400).json({
         error: "La décision finale ne peut être rendue qu'après revue complète du dossier (statut : en examen)",
       });
     }
@@ -370,7 +370,7 @@ router.post("/travaux-privatifs/:id/decision", requireAuth, requireAdmin, async 
         finalDecisionByName: user.name,
         finalDecisionAt: new Date(),
       })
-      .where(eq(travauxPrivatifsTable.id, req.params.id))
+      .where(eq(travauxPrivatifsTable.id, String(String(req.params.id))))
       .returning();
 
     await serverAuditLog(req, {
@@ -397,19 +397,19 @@ router.put("/travaux-privatifs/:id/withdraw", requireAuth, async (req, res) => {
     const [row] = await db
       .select()
       .from(travauxPrivatifsTable)
-      .where(eq(travauxPrivatifsTable.id, req.params.id));
-    if (!row) return res.status(404).json({ error: "Demande introuvable" });
+      .where(eq(travauxPrivatifsTable.id, String(String(req.params.id))));
+    if (!row) return void res.status(404).json({ error: "Demande introuvable" });
     if (row.requestedById !== user.userId) {
-      return res.status(403).json({ error: "Seul le demandeur peut retirer sa demande" });
+      return void res.status(403).json({ error: "Seul le demandeur peut retirer sa demande" });
     }
     if (["approved", "rejected", "withdrawn"].includes(row.status ?? "")) {
-      return res.status(400).json({ error: "Cette demande ne peut plus être retirée" });
+      return void res.status(400).json({ error: "Cette demande ne peut plus être retirée" });
     }
 
     const [updated] = await db
       .update(travauxPrivatifsTable)
       .set({ status: "withdrawn" })
-      .where(eq(travauxPrivatifsTable.id, req.params.id))
+      .where(eq(travauxPrivatifsTable.id, String(String(req.params.id))))
       .returning();
 
     res.json({ data: updated, message: "Demande retirée" });

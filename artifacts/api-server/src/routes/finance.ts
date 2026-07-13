@@ -74,7 +74,7 @@ router.post(
       const { syndicateId: _sid, ...data } = result.data;
       const [row] = await db
         .insert(transactionsTable)
-        .values({ ...data, syndicateId: sid })
+        .values({ ...data, syndicateId: sid } as any)
         .returning();
       res.status(201).json({ data: row, message: "Transaction ajoutée" });
     } catch (err) {
@@ -131,7 +131,7 @@ router.post(
       const { syndicateId: _sid, ...data } = result.data;
       const [row] = await db
         .insert(salaryRecordsTable)
-        .values({ ...data, syndicateId: sid })
+        .values({ ...data, syndicateId: sid } as any)
         .returning();
       res.status(201).json({ data: row, message: "Salaire ajouté" });
     } catch (err) {
@@ -199,7 +199,7 @@ router.post(
           .orderBy(desc(caisseEntriesTable.createdAt))
           .limit(1);
 
-        const lastBalance = existing[0]?.balance ?? 0;
+        const lastBalance = Number(existing[0]?.balance ?? 0);
         const balance =
           data.type === "encaissement"
             ? lastBalance + data.amount
@@ -207,7 +207,7 @@ router.post(
 
         const [row] = await tx
           .insert(caisseEntriesTable)
-          .values({ ...data, syndicateId, balance })
+          .values({ ...data, syndicateId, balance: String(balance) } as any)
           .returning();
         newRow = row;
       });
@@ -298,12 +298,12 @@ router.post(
       const amount = items.reduce((s, i) => s + i.quantity * i.unitPrice, 0);
       const [inv] = await db
         .insert(invoicesTable)
-        .values({ ...data, syndicateId: sid, amount })
+        .values({ ...data, syndicateId: sid, amount } as any)
         .returning();
       if (items.length > 0) {
         await db
           .insert(invoiceItemsTable)
-          .values(items.map((i) => ({ ...i, invoiceId: inv.id })));
+          .values(items.map((i) => ({ ...i, invoiceId: inv.id })) as any);
       }
       res.status(201).json({ data: inv, message: "Facture créée" });
     } catch (err) {
@@ -318,7 +318,7 @@ router.put(
   requireAuth,
   requireRole("super_admin", "syndicate_admin"),
   async (req, res) => {
-    const id = req.params.id as string;
+    const id = String(req.params.id) as string;
     const schema = z.object({
       status: z.enum(["draft", "issued", "sent", "paid", "partially_paid", "due", "overdue", "cancelled"]),
     });
@@ -426,12 +426,12 @@ router.post(
       const total = items.reduce((s, i) => s + i.quantity * i.unitPrice, 0);
       const [bon] = await db
         .insert(bonsLivraisonTable)
-        .values({ ...data, syndicateId: sid, total, status: "draft" })
+        .values({ ...data, syndicateId: sid, total, status: "draft" } as any)
         .returning();
       if (items.length > 0) {
         await db
           .insert(bonItemsTable)
-          .values(items.map((i) => ({ ...i, bonId: bon.id })));
+          .values(items.map((i) => ({ ...i, bonId: bon.id })) as any);
       }
       res.status(201).json({ data: bon, message: "Bon de livraison créé" });
     } catch (err) {
@@ -446,7 +446,7 @@ router.put(
   requireAuth,
   requireRole("super_admin", "syndicate_admin"),
   async (req, res) => {
-    const id = req.params.id as string;
+    const id = String(req.params.id) as string;
     const schema = z.object({ status: z.enum(["draft", "sent", "delivered", "cancelled"]) });
     const result = schema.safeParse(req.body);
     if (!result.success) { res.status(400).json({ error: "Statut invalide" }); return; }

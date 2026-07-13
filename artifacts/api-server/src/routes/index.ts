@@ -37,6 +37,7 @@ import travauxPrivatifsRouter from "./travaux-privatifs.js";
 import actionsRouter from "./actions.js";
 import pdfRouter from "./pdf.js";
 import attachmentsRouter from "./attachments.js";
+import actesRouter from "./actes.js";
 
 const router: IRouter = Router();
 
@@ -78,5 +79,6 @@ router.use(travauxPrivatifsRouter);
 router.use(actionsRouter);
 router.use(pdfRouter);
 router.use(attachmentsRouter);
+router.use(actesRouter);
 
 export default router;

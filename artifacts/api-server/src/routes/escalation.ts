@@ -329,7 +329,7 @@ router.get("/escalation/history/:residentId", requireAuth, requireAdmin, async (
 router.get("/escalation/:id", requireAuth, requireAdmin, async (req, res) => {
   try {
     const user = req.user!;
-    const id = req.params.id as string;
+    const id = String(req.params.id) as string;
     const [escalation] = await db
       .select()
       .from(debtEscalationsTable)
@@ -386,7 +386,7 @@ const overrideSchema = z.object({
 router.post("/escalation/:id/override", requireAuth, requireAdmin, async (req, res) => {
   try {
     const user = req.user!;
-    const id = req.params.id as string;
+    const id = String(req.params.id) as string;
     const parsed = overrideSchema.safeParse(req.body);
     if (!parsed.success) {
       res.status(400).json({ error: parsed.error.errors[0]?.message ?? "Données invalides" });
@@ -442,7 +442,7 @@ router.post("/escalation/:id/override", requireAuth, requireAdmin, async (req, r
 router.post("/escalation/:id/resolve", requireAuth, requireAdmin, async (req, res) => {
   try {
     const user = req.user!;
-    const id = req.params.id as string;
+    const id = String(req.params.id) as string;
 
     const [escalation] = await db
       .select()

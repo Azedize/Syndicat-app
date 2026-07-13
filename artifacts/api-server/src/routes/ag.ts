@@ -27,7 +27,7 @@ router.get("/ag-meetings", requireAuth, requireNotTenant, async (req, res) => {
     // super_admin sees all, or filters by ?syndicateId= for supervision mode.
     // Non-super_admin without syndicateId in JWT: blocked (never return unscoped results).
     if (user.role !== "super_admin" && !user.syndicateId) {
-      return res.status(403).json({ error: "Syndicat non défini dans le token" });
+      return void res.status(403).json({ error: "Syndicat non défini dans le token" });
     }
 
     const syndicateFilter =
@@ -52,7 +52,7 @@ router.get("/ag-meetings", requireAuth, requireNotTenant, async (req, res) => {
       )
       .orderBy(desc(meetingsTable.date));
 
-    if (rows.length === 0) return res.json({ data: [], total: 0 });
+    if (rows.length === 0) return void res.json({ data: [], total: 0 });
 
     // Batch-load attendees and resolutions (no N+1)
     const meetingIds = rows.map((m) => m.id);
@@ -106,13 +106,13 @@ router.get("/ag-meetings/:id", requireAuth, requireNotTenant, async (req, res) =
     const [meeting] = await db
       .select()
       .from(meetingsTable)
-      .where(eq(meetingsTable.id, req.params.id));
+      .where(eq(meetingsTable.id, String(req.params.id)));
 
-    if (!meeting) return res.status(404).json({ error: "AG introuvable" });
+    if (!meeting) return void res.status(404).json({ error: "AG introuvable" });
 
     // Syndicate isolation: non-super_admin can only read their own syndicate's meetings
     if (user.role !== "super_admin" && meeting.syndicateId && meeting.syndicateId !== user.syndicateId) {
-      return res.status(403).json({ error: "Accès refusé" });
+      return void res.status(403).json({ error: "Accès refusé" });
     }
 
     const [attendees, resolutions] = await Promise.all([
@@ -156,7 +156,7 @@ router.post("/ag-meetings", requireAuth, requireOperationalAccess, async (req, r
   });
 
   const result = schema.safeParse(req.body);
-  if (!result.success) return res.status(400).json({ error: "Données invalides", details: result.error.issues });
+  if (!result.success) return void res.status(400).json({ error: "Données invalides", details: result.error.issues });
 
   try {
     const user = (req as any).user;
@@ -199,15 +199,15 @@ router.put("/ag-meetings/:id/status", requireAuth, requireOperationalAccess, asy
     membresPresents: z.number().int().optional(),
   });
   const result = schema.safeParse(req.body);
-  if (!result.success) return res.status(400).json({ error: "Statut invalide" });
+  if (!result.success) return void res.status(400).json({ error: "Statut invalide" });
 
   try {
     const [meeting] = await db
       .select()
       .from(meetingsTable)
-      .where(eq(meetingsTable.id, req.params.id));
+      .where(eq(meetingsTable.id, String(req.params.id)));
 
-    if (!meeting) return res.status(404).json({ error: "AG introuvable" });
+    if (!meeting) return void res.status(404).json({ error: "AG introuvable" });
 
     let descUpdate = meeting.description;
     if (result.data.membresPresents !== undefined) {
@@ -218,7 +218,7 @@ router.put("/ag-meetings/:id/status", requireAuth, requireOperationalAccess, asy
     const [updated] = await db
       .update(meetingsTable)
       .set({ status: result.data.status, description: descUpdate })
-      .where(eq(meetingsTable.id, req.params.id))
+      .where(eq(meetingsTable.id, String(req.params.id)))
       .returning();
 
     res.json({ data: updated, message: "Statut AG mis à jour" });
@@ -232,7 +232,7 @@ router.put("/ag-meetings/:id/status", requireAuth, requireOperationalAccess, asy
 router.post("/ag-meetings/:id/attend", requireAuth, async (req, res) => {
   try {
     const user = (req as any).user;
-    const id = req.params.id;
+    const id = String(req.params.id);
 
     const existing = await db
       .select()
@@ -254,7 +254,7 @@ router.post("/ag-meetings/:id/attend", requireAuth, async (req, res) => {
             eq(meetingAttendeesTable.userId, user.userId)
           )
         );
-      return res.json({ attending: false, message: "Présence annulée" });
+      return void res.json({ attending: false, message: "Présence annulée" });
     }
 
     await db.insert(meetingAttendeesTable).values({ meetingId: id, userId: user.userId });
@@ -278,12 +278,12 @@ router.post("/ag-meetings/:id/resolutions", requireAuth, requireOperationalAcces
   });
 
   const result = schema.safeParse(req.body);
-  if (!result.success) return res.status(400).json({ error: "Données invalides" });
+  if (!result.success) return void res.status(400).json({ error: "Données invalides" });
 
   try {
-    const meetingId = req.params.id;
+    const meetingId = String(req.params.id);
     const [meeting] = await db.select().from(meetingsTable).where(eq(meetingsTable.id, meetingId));
-    if (!meeting) return res.status(404).json({ error: "AG introuvable" });
+    if (!meeting) return void res.status(404).json({ error: "AG introuvable" });
 
     // Auto-increment resolution number
     const existing = await db
@@ -330,15 +330,15 @@ router.put("/ag-meetings/:id/resolutions/:resId/vote", requireAuth, requireOpera
   });
 
   const result = schema.safeParse(req.body);
-  if (!result.success) return res.status(400).json({ error: "Données invalides" });
+  if (!result.success) return void res.status(400).json({ error: "Données invalides" });
 
   try {
     const [resolution] = await db
       .select()
       .from(agResolutionsTable)
-      .where(eq(agResolutionsTable.id, req.params.resId));
+      .where(eq(agResolutionsTable.id, String(req.params.resId)));
 
-    if (!resolution) return res.status(404).json({ error: "Résolution introuvable" });
+    if (!resolution) return void res.status(404).json({ error: "Résolution introuvable" });
 
     const { tantiemesFor, tantiemesAgainst, tantiemesAbstain, totalTantiemes } = result.data;
 
@@ -363,7 +363,7 @@ router.put("/ag-meetings/:id/resolutions/:resId/vote", requireAuth, requireOpera
         tantiemesAbstain,
         result: adoptionResult,
       })
-      .where(eq(agResolutionsTable.id, req.params.resId))
+      .where(eq(agResolutionsTable.id, String(req.params.resId)))
       .returning();
 
     res.json({ data: updated, message: `Résolution ${adoptionResult === "adopted" ? "adoptée" : adoptionResult === "rejected" ? "rejetée" : "mise à jour"}` });
@@ -380,14 +380,14 @@ router.get("/ag-meetings/:id/pv", requireAuth, requireNotTenant, async (req, res
     const [meeting] = await db
       .select()
       .from(meetingsTable)
-      .where(eq(meetingsTable.id, req.params.id));
+      .where(eq(meetingsTable.id, String(req.params.id)));
 
-    if (!meeting) return res.status(404).json({ error: "AG introuvable" });
+    if (!meeting) return void res.status(404).json({ error: "AG introuvable" });
 
     // Syndicate isolation: this route previously had none — any authenticated
     // non-tenant user could fetch any syndicate's PV by guessing/incrementing IDs.
     if (user.role !== "super_admin" && meeting.syndicateId && meeting.syndicateId !== user.syndicateId) {
-      return res.status(403).json({ error: "Accès refusé" });
+      return void res.status(403).json({ error: "Accès refusé" });
     }
 
     const [resolutions, attendees] = await Promise.all([
@@ -459,13 +459,13 @@ router.get("/ag-meetings/:id/proxies", requireAuth, requireNotTenant, async (req
   try {
     const user = (req as any).user;
     const [meeting] = await db.select({ id: meetingsTable.id, syndicateId: meetingsTable.syndicateId })
-      .from(meetingsTable).where(eq(meetingsTable.id, req.params.id));
+      .from(meetingsTable).where(eq(meetingsTable.id, String(req.params.id)));
     if (!meeting) { res.status(404).json({ error: "Réunion introuvable" }); return; }
     if (user.syndicateId && user.syndicateId !== meeting.syndicateId) {
       res.status(403).json({ error: "Accès refusé" }); return;
     }
     const proxies = await db.select().from(agProxiesTable)
-      .where(eq(agProxiesTable.meetingId, req.params.id))
+      .where(eq(agProxiesTable.meetingId, String(req.params.id)))
       .orderBy(desc(agProxiesTable.createdAt));
     res.json({ data: proxies });
   } catch (e) { console.error(e); res.status(500).json({ error: "Erreur serveur" }); }
@@ -478,14 +478,14 @@ router.post("/ag-meetings/:id/proxies", requireAuth, requireOperationalAccess, a
   try {
     const user = (req as any).user;
     const [meeting] = await db.select({ id: meetingsTable.id, syndicateId: meetingsTable.syndicateId })
-      .from(meetingsTable).where(eq(meetingsTable.id, req.params.id));
+      .from(meetingsTable).where(eq(meetingsTable.id, String(req.params.id)));
     if (!meeting) { res.status(404).json({ error: "Réunion introuvable" }); return; }
     if (user.syndicateId && user.syndicateId !== meeting.syndicateId) {
       res.status(403).json({ error: "Accès refusé" }); return;
     }
     const syndicateId = meeting.syndicateId ?? user.syndicateId;
     const [proxy] = await db.insert(agProxiesTable).values({
-      meetingId: req.params.id,
+      meetingId: String(req.params.id),
       syndicateId,
       grantorId: parsed.data.grantorId,
       grantorName: parsed.data.grantorName,
@@ -510,14 +510,14 @@ router.put("/ag-meetings/:id/proxies/:proxyId", requireAuth, requireOperationalA
   try {
     const user = (req as any).user;
     const [meeting] = await db.select({ id: meetingsTable.id, syndicateId: meetingsTable.syndicateId })
-      .from(meetingsTable).where(eq(meetingsTable.id, req.params.id));
+      .from(meetingsTable).where(eq(meetingsTable.id, String(req.params.id)));
     if (!meeting) { res.status(404).json({ error: "Réunion introuvable" }); return; }
     if (user.syndicateId && user.syndicateId !== meeting.syndicateId) {
       res.status(403).json({ error: "Accès refusé" }); return;
     }
     const [updated] = await db.update(agProxiesTable)
       .set({ status })
-      .where(and(eq(agProxiesTable.id, req.params.proxyId), eq(agProxiesTable.meetingId, req.params.id)))
+      .where(and(eq(agProxiesTable.id, String(req.params.proxyId)), eq(agProxiesTable.meetingId, String(req.params.id))))
       .returning();
     if (!updated) { res.status(404).json({ error: "Pouvoir introuvable" }); return; }
     res.json({ data: updated });
@@ -529,13 +529,13 @@ router.delete("/ag-meetings/:id/proxies/:proxyId", requireAuth, requireOperation
   try {
     const user = (req as any).user;
     const [meeting] = await db.select({ id: meetingsTable.id, syndicateId: meetingsTable.syndicateId })
-      .from(meetingsTable).where(eq(meetingsTable.id, req.params.id));
+      .from(meetingsTable).where(eq(meetingsTable.id, String(req.params.id)));
     if (!meeting) { res.status(404).json({ error: "Réunion introuvable" }); return; }
     if (user.syndicateId && user.syndicateId !== meeting.syndicateId) {
       res.status(403).json({ error: "Accès refusé" }); return;
     }
     const [deleted] = await db.delete(agProxiesTable)
-      .where(and(eq(agProxiesTable.id, req.params.proxyId), eq(agProxiesTable.meetingId, req.params.id)))
+      .where(and(eq(agProxiesTable.id, String(req.params.proxyId)), eq(agProxiesTable.meetingId, String(req.params.id))))
       .returning();
     if (!deleted) { res.status(404).json({ error: "Pouvoir introuvable" }); return; }
     res.json({ success: true });

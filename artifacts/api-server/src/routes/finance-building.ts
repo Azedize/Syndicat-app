@@ -22,7 +22,7 @@ router.get("/finance/buildings", requireAuth, requireRole("super_admin", "syndic
 
     // syndicate_admin must have syndicateId in JWT — never fall back to unscoped query
     if (user.role === "syndicate_admin" && !user.syndicateId) {
-      return res.status(403).json({ error: "Syndicat non défini dans le token" });
+      return void res.status(403).json({ error: "Syndicat non défini dans le token" });
     }
 
     const buildings =
@@ -33,7 +33,7 @@ router.get("/finance/buildings", requireAuth, requireRole("super_admin", "syndic
             .from(buildingsTable)
             .where(eq(buildingsTable.syndicateId, user.syndicateId!));
 
-    if (buildings.length === 0) return res.json({ data: [] });
+    if (buildings.length === 0) return void res.json({ data: [] });
 
     // Batch-load all appels for all buildings (no N+1)
     const bldIds = buildings.map((b) => b.id);
@@ -80,7 +80,7 @@ router.get("/finance/buildings", requireAuth, requireRole("super_admin", "syndic
 router.get("/finance/building/:id", requireAuth, requireRole("super_admin", "syndicate_admin"), async (req, res) => {
   try {
     const user = (req as any).user;
-    const buildingId = req.params.id;
+    const buildingId = String(req.params.id);
 
     const [building] = await db
       .select()
@@ -88,11 +88,11 @@ router.get("/finance/building/:id", requireAuth, requireRole("super_admin", "syn
       .where(eq(buildingsTable.id, buildingId));
 
     if (!building)
-      return res.status(404).json({ error: "Immeuble introuvable" });
+      return void res.status(404).json({ error: "Immeuble introuvable" });
 
     // Syndicate isolation: non-super_admin can only access their own syndicate's buildings
     if (user.role !== "super_admin" && building.syndicateId && building.syndicateId !== user.syndicateId) {
-      return res.status(403).json({ error: "Accès refusé" });
+      return void res.status(403).json({ error: "Accès refusé" });
     }
 
     // Fetch everything in parallel
@@ -212,7 +212,7 @@ router.get("/finance/building/:id", requireAuth, requireRole("super_admin", "syn
     // ── Budget lines by category ──────────────────────────────────────────
     const budgetByCategory = budgetLines.reduce<Record<string, number>>(
       (acc, bl) => {
-        acc[bl.category] = (acc[bl.category] ?? 0) + (bl.amountAnnual ?? 0);
+        acc[bl.category] = (acc[bl.category] ?? 0) + Number(bl.amountAnnual ?? 0);
         return acc;
       },
       {},
@@ -229,7 +229,7 @@ router.get("/finance/building/:id", requireAuth, requireRole("super_admin", "syn
 
     // ── Contrats charges ──────────────────────────────────────────────────
     const chargesContrats = contrats.reduce(
-      (s, c) => s + (c.annualAmount ?? 0),
+      (s, c) => s + Number(c.annualAmount ?? 0),
       0,
     );
 
@@ -251,13 +251,13 @@ router.get("/finance/building/:id", requireAuth, requireRole("super_admin", "syn
           tauxRecouvrement,
           fondsReserveCollecte: Math.round(fondsReserveCollecte),
           budgetAnnuel: approvedBudget
-            ? Math.round(approvedBudget.totalAmount)
+            ? Math.round(Number(approvedBudget.totalAmount ?? 0))
             : 0,
           chargesAnnuelles: approvedBudget
-            ? Math.round(approvedBudget.chargesAmount)
+            ? Math.round(Number(approvedBudget.chargesAmount ?? 0))
             : 0,
           fondsReserveBudget: approvedBudget
-            ? Math.round(approvedBudget.fondsReserve)
+            ? Math.round(Number(approvedBudget.fondsReserve ?? 0))
             : 0,
         },
         lots: {

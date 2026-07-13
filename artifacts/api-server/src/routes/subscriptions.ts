@@ -115,7 +115,7 @@ router.post("/subscriptions", requireAuth, requireAdmin, async (req, res) => {
 router.put("/subscriptions/:id", requireAuth, requireAdmin, async (req, res) => {
   try {
     const user = req.user!;
-    const { id } = req.params;
+    const id = String(req.params.id);
     const { status, autoRenew } = req.body as { status?: string; autoRenew?: boolean };
 
     if (user.role === "syndicate_admin") {

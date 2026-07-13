@@ -30,7 +30,7 @@ router.get("/travaux", requireAuth, async (req, res) => {
       try {
         await assertUserCanAccessBuilding(user, buildingId);
       } catch {
-        return res.status(403).json({ error: "Accès refusé à cet immeuble" });
+        return void res.status(403).json({ error: "Accès refusé à cet immeuble" });
       }
       conditions.push(eq(travauxTable.buildingId, buildingId));
     } else if (user.role === "syndicate_admin" && user.syndicateId) {
@@ -40,12 +40,12 @@ router.get("/travaux", requireAuth, async (req, res) => {
         .from(buildingsTable)
         .where(eq(buildingsTable.syndicateId, user.syndicateId));
       const ids = buildingsInSyndicate.map((b) => b.id);
-      if (ids.length === 0) return res.json({ data: [], total: 0 });
+      if (ids.length === 0) return void res.json({ data: [], total: 0 });
       conditions.push(inArray(travauxTable.buildingId, ids));
     } else if (user.role === "member" || user.role === "tenant") {
       // Scope to buildings the member/tenant is linked to
       const ids = await getUserBuildingIds(user);
-      if (ids.length === 0) return res.json({ data: [], total: 0 });
+      if (ids.length === 0) return void res.json({ data: [], total: 0 });
       conditions.push(inArray(travauxTable.buildingId, ids));
     }
     // super_admin with no buildingId filter sees all
@@ -64,7 +64,7 @@ router.get("/travaux", requireAuth, async (req, res) => {
         desc(travauxTable.createdAt),
       );
 
-    if (rows.length === 0) return res.json({ data: [], total: 0 });
+    if (rows.length === 0) return void res.json({ data: [], total: 0 });
 
     // Batch-load prestataires and lots to avoid N+1
     const prestataireIds = [...new Set(rows.map((r) => r.prestataireId).filter(Boolean))] as string[];
@@ -108,15 +108,15 @@ router.get("/travaux/:id", requireAuth, async (req, res) => {
     const [travail] = await db
       .select()
       .from(travauxTable)
-      .where(eq(travauxTable.id, req.params.id));
+      .where(eq(travauxTable.id, String(String(req.params.id))));
 
-    if (!travail) return res.status(404).json({ error: "Not found" });
+    if (!travail) return void res.status(404).json({ error: "Not found" });
 
     // Scope check: verify user has access to this work order's building
     try {
       await assertUserCanAccessBuilding(user, travail.buildingId);
     } catch {
-      return res.status(403).json({ error: "Accès refusé" });
+      return void res.status(403).json({ error: "Accès refusé" });
     }
 
     const [prestataire, lot, building] = await Promise.all([
@@ -154,7 +154,7 @@ const createTravauxSchema = z.object({
 router.post("/travaux", requireAuth, async (req, res) => {
   const parsed = createTravauxSchema.safeParse(req.body);
   if (!parsed.success) {
-    return res.status(400).json({ error: parsed.error.issues[0]?.message ?? "Données invalides" });
+    return void res.status(400).json({ error: parsed.error.issues[0]?.message ?? "Données invalides" });
   }
   try {
     const user = (req as any).user;
@@ -164,7 +164,7 @@ router.post("/travaux", requireAuth, async (req, res) => {
     try {
       await assertUserCanAccessBuilding(user, buildingId);
     } catch {
-      return res.status(403).json({ error: "Accès refusé à cet immeuble" });
+      return void res.status(403).json({ error: "Accès refusé à cet immeuble" });
     }
 
     const [travail] = await db
@@ -222,12 +222,12 @@ router.post("/travaux", requireAuth, async (req, res) => {
 // POST /travaux/:id/assign — assign a provider, tracks response time
 router.post("/travaux/:id/assign", requireAuth, requireAdmin, async (req, res) => {
   const { prestataireId } = req.body;
-  if (!prestataireId) return res.status(400).json({ error: "prestataireId requis" });
+  if (!prestataireId) return void res.status(400).json({ error: "prestataireId requis" });
   try {
     const user = (req as any).user;
-    const [travail] = await db.select().from(travauxTable).where(eq(travauxTable.id, req.params.id));
-    if (!travail) return res.status(404).json({ error: "Not found" });
-    try { await assertUserCanAccessBuilding(user, travail.buildingId); } catch { return res.status(403).json({ error: "Accès refusé" }); }
+    const [travail] = await db.select().from(travauxTable).where(eq(travauxTable.id, String(String(req.params.id))));
+    if (!travail) return void res.status(404).json({ error: "Not found" });
+    try { await assertUserCanAccessBuilding(user, travail.buildingId); } catch { return void res.status(403).json({ error: "Accès refusé" }); }
 
     const now = new Date();
     const responseTimeMinutes = Math.round((now.getTime() - new Date(travail.createdAt as any).getTime()) / 60000);
@@ -241,7 +241,7 @@ router.post("/travaux/:id/assign", requireAuth, requireAdmin, async (req, res) =
         assignedAt: now,
         responseTimeMinutes,
       })
-      .where(eq(travauxTable.id, req.params.id))
+      .where(eq(travauxTable.id, String(String(req.params.id))))
       .returning();
 
     await serverAuditLog(req, {
@@ -268,13 +268,13 @@ const reportSchema = z.object({
 router.post("/travaux/:id/report", requireAuth, requireAdmin, async (req, res) => {
   const parsed = reportSchema.safeParse(req.body);
   if (!parsed.success) {
-    return res.status(400).json({ error: parsed.error.issues[0]?.message ?? "Documents manquants" });
+    return void res.status(400).json({ error: parsed.error.issues[0]?.message ?? "Documents manquants" });
   }
   try {
     const user = (req as any).user;
-    const [existing] = await db.select({ buildingId: travauxTable.buildingId }).from(travauxTable).where(eq(travauxTable.id, req.params.id));
-    if (!existing) return res.status(404).json({ error: "Not found" });
-    try { await assertUserCanAccessBuilding(user, existing.buildingId); } catch { return res.status(403).json({ error: "Accès refusé" }); }
+    const [existing] = await db.select({ buildingId: travauxTable.buildingId }).from(travauxTable).where(eq(travauxTable.id, String(String(req.params.id))));
+    if (!existing) return void res.status(404).json({ error: "Not found" });
+    try { await assertUserCanAccessBuilding(user, existing.buildingId); } catch { return void res.status(403).json({ error: "Accès refusé" }); }
     const { reportUrl, photoUrls, invoiceUrl, invoiceAmount } = parsed.data;
     const [updated] = await db
       .update(travauxTable)
@@ -285,10 +285,10 @@ router.post("/travaux/:id/report", requireAuth, requireAdmin, async (req, res) =
         invoiceAmount: invoiceAmount !== undefined ? String(invoiceAmount) : undefined,
         status: "pending_validation",
       })
-      .where(eq(travauxTable.id, req.params.id))
+      .where(eq(travauxTable.id, String(String(req.params.id))))
       .returning();
 
-    if (!updated) return res.status(404).json({ error: "Not found" });
+    if (!updated) return void res.status(404).json({ error: "Not found" });
 
     await serverAuditLog(req, {
       action: "SUBMIT_REPORT",
@@ -309,13 +309,13 @@ router.post("/travaux/:id/report", requireAuth, requireAdmin, async (req, res) =
 router.post("/travaux/:id/validate", requireAuth, requireAdmin, async (req, res) => {
   try {
     const user = (req as any).user;
-    const [travail] = await db.select().from(travauxTable).where(eq(travauxTable.id, req.params.id));
-    if (!travail) return res.status(404).json({ error: "Not found" });
-    try { await assertUserCanAccessBuilding(user, travail.buildingId); } catch { return res.status(403).json({ error: "Accès refusé" }); }
+    const [travail] = await db.select().from(travauxTable).where(eq(travauxTable.id, String(String(req.params.id))));
+    if (!travail) return void res.status(404).json({ error: "Not found" });
+    try { await assertUserCanAccessBuilding(user, travail.buildingId); } catch { return void res.status(403).json({ error: "Accès refusé" }); }
 
     const photos: string[] = JSON.parse(travail.photoUrls ?? "[]");
     if (!travail.reportUrl || !travail.invoiceUrl || photos.length === 0) {
-      return res.status(400).json({
+      return void res.status(400).json({
         error:
           "Impossible de valider : rapport d'intervention, photos et facture sont tous obligatoires. Merci de compléter le dossier avant de continuer.",
       });
@@ -358,7 +358,7 @@ router.post("/travaux/:id/validate", requireAuth, requireAdmin, async (req, res)
         transactionId: transaction.id,
         resolutionTimeMinutes,
       })
-      .where(eq(travauxTable.id, req.params.id))
+      .where(eq(travauxTable.id, String(String(req.params.id))))
       .returning();
 
     await serverAuditLog(req, {
@@ -379,15 +379,15 @@ router.post("/travaux/:id/validate", requireAuth, requireAdmin, async (req, res)
 router.put("/travaux/:id", requireAuth, requireAdmin, async (req, res) => {
   try {
     if (req.body.status === "completed") {
-      return res.status(400).json({
+      return void res.status(400).json({
         error: "Utilisez /travaux/:id/validate pour clôturer une intervention (rapport, photos et facture requis).",
       });
     }
 
     const user = (req as any).user;
-    const [existing] = await db.select({ buildingId: travauxTable.buildingId }).from(travauxTable).where(eq(travauxTable.id, req.params.id));
-    if (!existing) return res.status(404).json({ error: "Not found" });
-    try { await assertUserCanAccessBuilding(user, existing.buildingId); } catch { return res.status(403).json({ error: "Accès refusé" }); }
+    const [existing] = await db.select({ buildingId: travauxTable.buildingId }).from(travauxTable).where(eq(travauxTable.id, String(String(req.params.id))));
+    if (!existing) return void res.status(404).json({ error: "Not found" });
+    try { await assertUserCanAccessBuilding(user, existing.buildingId); } catch { return void res.status(403).json({ error: "Accès refusé" }); }
 
     const allowed = [
       "title", "description", "type", "status", "priority",
@@ -402,10 +402,10 @@ router.put("/travaux/:id", requireAuth, requireAdmin, async (req, res) => {
     const [updated] = await db
       .update(travauxTable)
       .set(updates)
-      .where(eq(travauxTable.id, req.params.id))
+      .where(eq(travauxTable.id, String(String(req.params.id))))
       .returning();
 
-    if (!updated) return res.status(404).json({ error: "Not found" });
+    if (!updated) return void res.status(404).json({ error: "Not found" });
     res.json({ data: updated, message: "Bon de travaux mis à jour" });
   } catch (e) {
     console.error(e);
@@ -417,16 +417,16 @@ router.put("/travaux/:id", requireAuth, requireAdmin, async (req, res) => {
 router.delete("/travaux/:id", requireAuth, requireAdmin, async (req, res) => {
   try {
     const user = (req as any).user;
-    const [existing] = await db.select({ buildingId: travauxTable.buildingId }).from(travauxTable).where(eq(travauxTable.id, req.params.id));
-    if (!existing) return res.status(404).json({ error: "Not found" });
-    try { await assertUserCanAccessBuilding(user, existing.buildingId); } catch { return res.status(403).json({ error: "Accès refusé" }); }
+    const [existing] = await db.select({ buildingId: travauxTable.buildingId }).from(travauxTable).where(eq(travauxTable.id, String(String(req.params.id))));
+    if (!existing) return void res.status(404).json({ error: "Not found" });
+    try { await assertUserCanAccessBuilding(user, existing.buildingId); } catch { return void res.status(403).json({ error: "Accès refusé" }); }
 
     const [deleted] = await db
       .delete(travauxTable)
-      .where(eq(travauxTable.id, req.params.id))
+      .where(eq(travauxTable.id, String(String(req.params.id))))
       .returning();
 
-    if (!deleted) return res.status(404).json({ error: "Not found" });
+    if (!deleted) return void res.status(404).json({ error: "Not found" });
     res.json({ success: true });
   } catch (e) {
     console.error(e);

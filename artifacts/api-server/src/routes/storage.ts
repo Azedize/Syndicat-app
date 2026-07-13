@@ -59,11 +59,9 @@ router.post("/storage/uploads/request-url", requireAuth, async (req: Request, re
       const [doc] = await db.insert(documentsTable).values({
         title: documentTitle ?? name,
         category: documentCategory,
-        fileUrl: objectPath,
-        size: `${Math.round(size / 1024)}Ko`,
-        status: "draft" as const,
+        content: objectPath,
         syndicateId: req.user!.syndicateId,
-        uploadedBy: req.user!.userId,
+        createdBy: req.user!.userId,
       }).returning();
       documentId = doc.id;
     }
@@ -80,7 +78,7 @@ router.post("/storage/uploads/request-url", requireAuth, async (req: Request, re
 // as published and optionally update its title.
 
 router.patch("/storage/documents/:id/confirm", requireAuth, async (req: Request, res: Response) => {
-  const id = req.params.id as string;
+  const id = String(req.params.id) as string;
   const schema = z.object({
     title: z.string().max(500).optional(),
     status: z.enum(["published", "draft"]).optional(),
@@ -144,7 +142,7 @@ router.get("/storage/objects/*path", requireAuth, async (req: Request, res: Resp
       const docs = await db
         .select({ syndicateId: documentsTable.syndicateId })
         .from(documentsTable)
-        .where(eq(documentsTable.fileUrl, objectPath));
+        .where(eq(documentsTable.content, objectPath));
       if (docs.length > 0 && docs[0].syndicateId !== req.user!.syndicateId) {
         res.status(403).json({ error: "Accès refusé" }); return;
       }
@@ -170,12 +168,12 @@ router.get("/storage/objects/*path", requireAuth, async (req: Request, res: Resp
 // Delete a document + its GCS object. Admin or document owner only.
 
 router.delete("/storage/documents/:id", requireAuth, async (req: Request, res: Response) => {
-  const id = req.params.id as string;
+  const id = String(req.params.id) as string;
   try {
     const [doc] = await db.select().from(documentsTable).where(eq(documentsTable.id, id));
     if (!doc) { res.status(404).json({ error: "Document introuvable" }); return; }
     const isAdmin = req.user!.role === "super_admin" || req.user!.role === "syndicate_admin";
-    const isOwner = doc.uploadedBy === req.user!.userId;
+    const isOwner = doc.createdBy === req.user!.userId;
     if (!isAdmin && !isOwner) { res.status(403).json({ error: "Accès refusé" }); return; }
     // Delete from DB (GCS object remains but becomes orphaned — acceptable for now)
     await db.delete(documentsTable).where(eq(documentsTable.id, id));

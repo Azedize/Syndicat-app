@@ -19,6 +19,7 @@ import { useData } from "@/context/DataContext";
 import { useBreakpoints } from "@/hooks/useBreakpoints";
 import { useColors } from "@/hooks/useColors";
 import { apiRequest } from "@/lib/api";
+import { Share } from "react-native";
 
 type EventType = "meeting" | "election" | "echeance";
 
@@ -136,6 +137,38 @@ export default function AgendaScreen() {
     return `${DAY_NAMES_LONG[d.getDay()]} ${d.getDate()} ${MONTH_NAMES[d.getMonth()]}`;
   };
 
+  // Build a minimal valid ICS (iCalendar) string from events so users can
+  // import directly into Google Calendar, Apple Calendar, Outlook, etc.
+  const buildICS = (events: AgendaEvent[]): string => {
+    const pad = (n: number) => String(n).padStart(2, "0");
+    const formatDt = (dateStr: string) => {
+      const d = new Date(dateStr);
+      return `${d.getFullYear()}${pad(d.getMonth() + 1)}${pad(d.getDate())}`;
+    };
+    const esc = (s: string) => s.replace(/\\/g, "\\\\").replace(/;/g, "\\;").replace(/,/g, "\\,").replace(/\n/g, "\\n");
+    const lines = [
+      "BEGIN:VCALENDAR",
+      "VERSION:2.0",
+      "PRODID:-//SYNDYCAT//Agenda Syndical//FR",
+      "CALSCALE:GREGORIAN",
+      "METHOD:PUBLISH",
+    ];
+    for (const ev of events) {
+      lines.push(
+        "BEGIN:VEVENT",
+        `UID:syndycat-${ev.id}@syndycat.app`,
+        `DTSTART;VALUE=DATE:${formatDt(ev.date)}`,
+        `DTEND;VALUE=DATE:${formatDt(ev.date)}`,
+        `SUMMARY:${esc(ev.title)}`,
+        `DESCRIPTION:${esc(ev.description)}`,
+        ...(ev.location ? [`LOCATION:${esc(ev.location)}`] : []),
+        "END:VEVENT",
+      );
+    }
+    lines.push("END:VCALENDAR");
+    return lines.join("\r\n");
+  };
+
   const getDaysUntil = (dateStr: string) => {
     const diff = Math.ceil((new Date(dateStr).getTime() - today.getTime()) / 86400000);
     if (diff === 0) return "Aujourd'hui";
@@ -164,7 +197,18 @@ export default function AgendaScreen() {
           </TouchableOpacity>
           <TouchableOpacity
             style={styles.viewBtn}
-            onPress={() => { Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success); Alert.alert("Calendrier synchronisé", "L'agenda syndical a été ajouté à votre calendrier personnel."); }}
+            onPress={() => {
+              Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+              const upcoming = allEvents.filter((ev) => ev.status === "upcoming");
+              if (upcoming.length === 0) {
+                Alert.alert("Aucun événement", "Il n'y a pas d'événements à venir à exporter.");
+                return;
+              }
+              const ics = buildICS(upcoming);
+              Share.share({ message: ics, title: "Agenda Syndical SYNDYCAT" }).catch(() =>
+                Alert.alert("Erreur", "Impossible d'exporter l'agenda.")
+              );
+            }}
           >
             <Feather name="calendar" size={18} color="#fff" />
           </TouchableOpacity>
@@ -422,10 +466,16 @@ export default function AgendaScreen() {
                   )}
                   <TouchableOpacity
                     style={[styles.modalActionBtn, { backgroundColor: colors.muted }]}
-                    onPress={() => { Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success); Alert.alert("Ajouté au calendrier", "L'événement a été ajouté à votre calendrier personnel."); }}
+                    onPress={() => {
+                      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+                      const ics = buildICS([ev]);
+                      Share.share({ message: ics, title: ev.title }).catch(() =>
+                        Alert.alert("Erreur", "Impossible d'exporter l'événement.")
+                      );
+                    }}
                   >
                     <Feather name="calendar" size={18} color={colors.foreground} />
-                    <Text style={[styles.modalActionBtnText, { color: colors.foreground }]}>Ajouter au calendrier</Text>
+                    <Text style={[styles.modalActionBtnText, { color: colors.foreground }]}>Exporter vers calendrier (.ics)</Text>
                   </TouchableOpacity>
                 </View>
               </ScrollView>

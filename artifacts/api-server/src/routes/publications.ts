@@ -95,7 +95,7 @@ router.post(
 );
 
 router.post("/publications/:id/like", requireAuth, async (req, res) => {
-  const id = req.params.id as string;
+  const id = String(req.params.id) as string;
   try {
     const [pub] = await db.select().from(publicationsTable).where(eq(publicationsTable.id, id));
     if (!pub) { res.status(404).json({ error: "Publication introuvable" }); return; }
@@ -121,7 +121,7 @@ router.post("/publications/:id/like", requireAuth, async (req, res) => {
         );
       await db
         .update(publicationsTable)
-        .set({ likes: Math.max(0, pub.likes - 1) })
+        .set({ likes: Math.max(0, (pub.likes ?? 0) - 1) })
         .where(eq(publicationsTable.id, id));
       res.json({ message: "Like retiré", liked: false });
     } else {
@@ -130,7 +130,7 @@ router.post("/publications/:id/like", requireAuth, async (req, res) => {
         .values({ publicationId: id, userId: req.user!.userId });
       await db
         .update(publicationsTable)
-        .set({ likes: pub.likes + 1 })
+        .set({ likes: (pub.likes ?? 0) + 1 })
         .where(eq(publicationsTable.id, id));
       res.json({ message: "Publication aimée", liked: true });
     }
@@ -141,7 +141,7 @@ router.post("/publications/:id/like", requireAuth, async (req, res) => {
 });
 
 router.post("/publications/:id/comments", requireAuth, async (req, res) => {
-  const id = req.params.id as string;
+  const id = String(req.params.id) as string;
   const schema = z.object({ text: z.string().min(1).max(2000) });
   const result = schema.safeParse(req.body);
   if (!result.success) { res.status(400).json({ error: "Commentaire vide" }); return; }

@@ -76,7 +76,7 @@ router.get("/parking/spots", requireAuth, async (req, res) => {
       // Scope automatically based on role
       const ids = await getScopedBuildingIds(user);
       if (ids.length === 0 && user.role !== "super_admin") {
-        return res.json({ data: [], total: 0 });
+        return void res.json({ data: [], total: 0 });
       }
       if (ids.length > 0) {
         conditions.push(inArray(parkingSpotsTable.buildingId, ids));
@@ -93,7 +93,7 @@ router.get("/parking/spots", requireAuth, async (req, res) => {
       .where(conditions.length ? and(...conditions) : undefined)
       .orderBy(parkingSpotsTable.spotNumber);
 
-    if (spots.length === 0) return res.json({ data: [], total: 0 });
+    if (spots.length === 0) return void res.json({ data: [], total: 0 });
 
     // Batch-load lots
     const lotIds = [...new Set(spots.map((s) => s.lotId).filter(Boolean))] as string[];
@@ -109,7 +109,7 @@ router.get("/parking/spots", requireAuth, async (req, res) => {
 
     res.json({ data: enriched, total: enriched.length });
   } catch (e: any) {
-    if (e?.status) return res.status(e.status).json({ error: e.message });
+    if (e?.status) return void res.status(e.status).json({ error: e.message });
     console.error(e);
     res.status(500).json({ error: "Erreur serveur" });
   }
@@ -143,10 +143,10 @@ router.get("/parking/spots/my", requireAuth, async (req, res) => {
       memberLots.forEach((l) => lotIds.push(l.id));
     } else {
       // Admins: no personal spot concept
-      return res.json({ data: null });
+      return void res.json({ data: null });
     }
 
-    if (lotIds.length === 0) return res.json({ data: null });
+    if (lotIds.length === 0) return void res.json({ data: null });
 
     const [spot] = await db
       .select()
@@ -174,7 +174,7 @@ const createSpotSchema = z.object({
 router.post("/parking/spots", requireAdmin, async (req, res) => {
   const parsed = createSpotSchema.safeParse(req.body);
   if (!parsed.success) {
-    return res.status(400).json({ error: parsed.error.issues[0]?.message ?? "Données invalides" });
+    return void res.status(400).json({ error: parsed.error.issues[0]?.message ?? "Données invalides" });
   }
   try {
     const user = req.user!;
@@ -196,9 +196,9 @@ router.post("/parking/spots", requireAdmin, async (req, res) => {
 
     res.status(201).json({ data: spot, message: "Place de parking créée" });
   } catch (e: any) {
-    if (e?.status) return res.status(e.status).json({ error: e.message });
+    if (e?.status) return void res.status(e.status).json({ error: e.message });
     if (e?.code === "23505") {
-      return res.status(409).json({ error: "Ce numéro de place existe déjà dans cet immeuble" });
+      return void res.status(409).json({ error: "Ce numéro de place existe déjà dans cet immeuble" });
     }
     console.error(e);
     res.status(500).json({ error: "Erreur serveur" });
@@ -210,8 +210,8 @@ router.put("/parking/spots/:id", requireAdmin, async (req, res) => {
   try {
     const user = req.user!;
     // Verify admin has access to this spot's building
-    const [existing] = await db.select({ buildingId: parkingSpotsTable.buildingId }).from(parkingSpotsTable).where(eq(parkingSpotsTable.id, req.params.id));
-    if (!existing) return res.status(404).json({ error: "Place introuvable" });
+    const [existing] = await db.select({ buildingId: parkingSpotsTable.buildingId }).from(parkingSpotsTable).where(eq(parkingSpotsTable.id, String(req.params.id)));
+    if (!existing) return void res.status(404).json({ error: "Place introuvable" });
     await assertBuildingAccess(user, existing.buildingId);
 
     const { lotId, status, notes, floor } = req.body as Record<string, string>;
@@ -223,12 +223,12 @@ router.put("/parking/spots/:id", requireAdmin, async (req, res) => {
         ...(notes !== undefined ? { notes } : {}),
         ...(floor !== undefined ? { floor } : {}),
       })
-      .where(eq(parkingSpotsTable.id, req.params.id))
+      .where(eq(parkingSpotsTable.id, String(req.params.id)))
       .returning();
 
     res.json({ data: spot, message: "Place mise à jour" });
   } catch (e: any) {
-    if (e?.status) return res.status(e.status).json({ error: e.message });
+    if (e?.status) return void res.status(e.status).json({ error: e.message });
     console.error(e);
     res.status(500).json({ error: "Erreur serveur" });
   }
@@ -250,7 +250,7 @@ router.get("/parking/vehicles", requireAuth, async (req, res) => {
         .from(usersTable)
         .where(eq(usersTable.syndicateId, user.syndicateId));
       const ids = users.map((u) => u.id);
-      if (ids.length === 0) return res.json({ data: [], total: 0 });
+      if (ids.length === 0) return void res.json({ data: [], total: 0 });
       conditions.push(inArray(vehiclesTable.userId, ids));
     }
 
@@ -301,7 +301,7 @@ const registerVehicleSchema = z.object({
 router.post("/parking/vehicles", requireAuth, async (req, res) => {
   const parsed = registerVehicleSchema.safeParse(req.body);
   if (!parsed.success) {
-    return res.status(400).json({ error: parsed.error.issues[0]?.message ?? "Données invalides" });
+    return void res.status(400).json({ error: parsed.error.issues[0]?.message ?? "Données invalides" });
   }
   try {
     const user = req.user!;
@@ -321,7 +321,7 @@ router.post("/parking/vehicles", requireAuth, async (req, res) => {
     res.status(201).json({ data: vehicle, message: "Véhicule enregistré" });
   } catch (e: any) {
     if (e?.code === "23505") {
-      return res.status(409).json({ error: "Cette plaque est déjà enregistrée" });
+      return void res.status(409).json({ error: "Cette plaque est déjà enregistrée" });
     }
     console.error(e);
     res.status(500).json({ error: "Erreur serveur" });
@@ -335,22 +335,22 @@ router.delete("/parking/vehicles/:id", requireAuth, async (req, res) => {
     const [vehicle] = await db
       .select()
       .from(vehiclesTable)
-      .where(eq(vehiclesTable.id, req.params.id));
+      .where(eq(vehiclesTable.id, String(req.params.id)));
 
-    if (!vehicle) return res.status(404).json({ error: "Véhicule introuvable" });
+    if (!vehicle) return void res.status(404).json({ error: "Véhicule introuvable" });
 
     if (vehicle.userId !== user.userId && user.role !== "super_admin" && user.role !== "syndicate_admin") {
-      return res.status(403).json({ error: "Accès refusé" });
+      return void res.status(403).json({ error: "Accès refusé" });
     }
     // Syndicate admin: ensure the vehicle owner belongs to their syndicate
     if (user.role === "syndicate_admin" && user.syndicateId) {
       const [owner] = await db.select({ syndicateId: usersTable.syndicateId }).from(usersTable).where(eq(usersTable.id, vehicle.userId));
       if (owner?.syndicateId !== user.syndicateId) {
-        return res.status(403).json({ error: "Accès refusé" });
+        return void res.status(403).json({ error: "Accès refusé" });
       }
     }
 
-    await db.delete(vehiclesTable).where(eq(vehiclesTable.id, req.params.id));
+    await db.delete(vehiclesTable).where(eq(vehiclesTable.id, String(req.params.id)));
     res.json({ message: "Véhicule supprimé" });
   } catch (e) {
     console.error(e);
@@ -373,7 +373,7 @@ router.get("/parking/violations", requireAuth, async (req, res) => {
     } else {
       const ids = await getScopedBuildingIds(user);
       if (ids.length === 0 && user.role !== "super_admin") {
-        return res.json({ data: [], total: 0 });
+        return void res.json({ data: [], total: 0 });
       }
       if (ids.length > 0) conditions.push(inArray(parkingViolationsTable.buildingId, ids));
     }
@@ -400,7 +400,7 @@ router.get("/parking/violations", requireAuth, async (req, res) => {
 
     res.json({ data: enriched, total: enriched.length });
   } catch (e: any) {
-    if (e?.status) return res.status(e.status).json({ error: e.message });
+    if (e?.status) return void res.status(e.status).json({ error: e.message });
     console.error(e);
     res.status(500).json({ error: "Erreur serveur" });
   }
@@ -418,7 +418,7 @@ const reportViolationSchema = z.object({
 router.post("/parking/violations", requireAuth, async (req, res) => {
   const parsed = reportViolationSchema.safeParse(req.body);
   if (!parsed.success) {
-    return res.status(400).json({ error: parsed.error.issues[0]?.message ?? "Données invalides" });
+    return void res.status(400).json({ error: parsed.error.issues[0]?.message ?? "Données invalides" });
   }
   try {
     const user = req.user!;
@@ -434,7 +434,7 @@ router.post("/parking/violations", requireAuth, async (req, res) => {
         .from(parkingSpotsTable)
         .where(eq(parkingSpotsTable.id, spotId));
       if (!spotCheck || spotCheck.buildingId !== buildingId) {
-        return res.status(400).json({ error: "La place indiquée n'appartient pas à cet immeuble" });
+        return void res.status(400).json({ error: "La place indiquée n'appartient pas à cet immeuble" });
       }
     }
 
@@ -485,7 +485,7 @@ router.post("/parking/violations", requireAuth, async (req, res) => {
 
     res.status(201).json({ data: violation, message: "Infraction signalée" });
   } catch (e: any) {
-    if (e?.status) return res.status(e.status).json({ error: e.message });
+    if (e?.status) return void res.status(e.status).json({ error: e.message });
     console.error(e);
     res.status(500).json({ error: "Erreur serveur" });
   }
@@ -495,7 +495,7 @@ router.post("/parking/violations", requireAuth, async (req, res) => {
 router.put("/parking/violations/:id/status", requireAdmin, async (req, res) => {
   const { status } = req.body as { status: string };
   if (!["resolved", "dismissed"].includes(status)) {
-    return res.status(400).json({ error: "Statut invalide. Valeurs acceptées: resolved, dismissed" });
+    return void res.status(400).json({ error: "Statut invalide. Valeurs acceptées: resolved, dismissed" });
   }
   try {
     const user = req.user!;
@@ -503,17 +503,17 @@ router.put("/parking/violations/:id/status", requireAdmin, async (req, res) => {
     const [existing] = await db
       .select({ buildingId: parkingViolationsTable.buildingId })
       .from(parkingViolationsTable)
-      .where(eq(parkingViolationsTable.id, req.params.id));
-    if (!existing) return res.status(404).json({ error: "Infraction introuvable" });
+      .where(eq(parkingViolationsTable.id, String(req.params.id)));
+    if (!existing) return void res.status(404).json({ error: "Infraction introuvable" });
     await assertBuildingAccess(user, existing.buildingId);
 
     const [violation] = await db
       .update(parkingViolationsTable)
       .set({ status, resolvedById: user.userId, resolvedAt: new Date() })
-      .where(eq(parkingViolationsTable.id, req.params.id))
+      .where(eq(parkingViolationsTable.id, String(req.params.id)))
       .returning();
 
-    if (!violation) return res.status(404).json({ error: "Infraction introuvable" });
+    if (!violation) return void res.status(404).json({ error: "Infraction introuvable" });
 
     await sendPushToUsers(
       [violation.reportedById],
@@ -523,7 +523,7 @@ router.put("/parking/violations/:id/status", requireAdmin, async (req, res) => {
 
     res.json({ data: violation, message: "Statut mis à jour" });
   } catch (e: any) {
-    if (e?.status) return res.status(e.status).json({ error: e.message });
+    if (e?.status) return void res.status(e.status).json({ error: e.message });
     console.error(e);
     res.status(500).json({ error: "Erreur serveur" });
   }
@@ -585,7 +585,7 @@ const createReservationSchema = z.object({
 router.post("/parking/reservations", requireAuth, async (req, res) => {
   const parsed = createReservationSchema.safeParse(req.body);
   if (!parsed.success) {
-    return res.status(400).json({ error: parsed.error.issues[0]?.message ?? "Données invalides" });
+    return void res.status(400).json({ error: parsed.error.issues[0]?.message ?? "Données invalides" });
   }
   try {
     const user = req.user!;
@@ -595,17 +595,17 @@ router.post("/parking/reservations", requireAuth, async (req, res) => {
     const end = new Date(endTime);
 
     if (isNaN(start.getTime()) || isNaN(end.getTime())) {
-      return res.status(400).json({ error: "Dates invalides" });
+      return void res.status(400).json({ error: "Dates invalides" });
     }
     if (end <= start) {
-      return res.status(400).json({ error: "La date de fin doit être postérieure à la date de début" });
+      return void res.status(400).json({ error: "La date de fin doit être postérieure à la date de début" });
     }
 
     // Verify the spot exists, is a visitor spot, and user has building access
     const [spot] = await db.select().from(parkingSpotsTable).where(eq(parkingSpotsTable.id, spotId));
-    if (!spot) return res.status(404).json({ error: "Place introuvable" });
+    if (!spot) return void res.status(404).json({ error: "Place introuvable" });
     if (spot.type !== "visitor") {
-      return res.status(400).json({ error: "Cette place n'est pas une place visiteur" });
+      return void res.status(400).json({ error: "Cette place n'est pas une place visiteur" });
     }
     await assertBuildingAccess(user, spot.buildingId);
 
@@ -656,7 +656,7 @@ router.post("/parking/reservations", requireAuth, async (req, res) => {
 
     res.status(201).json({ data: reservation, message: "Réservation confirmée" });
   } catch (e: any) {
-    if (e?.status) return res.status(e.status).json({ error: e.message });
+    if (e?.status) return void res.status(e.status).json({ error: e.message });
     console.error(e);
     res.status(500).json({ error: "Erreur serveur" });
   }
@@ -669,14 +669,14 @@ router.delete("/parking/reservations/:id", requireAuth, async (req, res) => {
     const [reservation] = await db
       .select()
       .from(visitorParkingReservationsTable)
-      .where(eq(visitorParkingReservationsTable.id, req.params.id));
+      .where(eq(visitorParkingReservationsTable.id, String(req.params.id)));
 
-    if (!reservation) return res.status(404).json({ error: "Réservation introuvable" });
+    if (!reservation) return void res.status(404).json({ error: "Réservation introuvable" });
 
     // Only the requester or an admin can cancel
     if (reservation.requestedById !== user.userId) {
       if (user.role !== "super_admin" && user.role !== "syndicate_admin") {
-        return res.status(403).json({ error: "Accès refusé" });
+        return void res.status(403).json({ error: "Accès refusé" });
       }
       // Syndicate admins can only cancel reservations in their buildings
       const [spot] = await db.select({ buildingId: parkingSpotsTable.buildingId }).from(parkingSpotsTable).where(eq(parkingSpotsTable.id, reservation.spotId));
@@ -686,12 +686,12 @@ router.delete("/parking/reservations/:id", requireAuth, async (req, res) => {
     const [updated] = await db
       .update(visitorParkingReservationsTable)
       .set({ status: "cancelled" })
-      .where(eq(visitorParkingReservationsTable.id, req.params.id))
+      .where(eq(visitorParkingReservationsTable.id, String(req.params.id)))
       .returning();
 
     res.json({ data: updated, message: "Réservation annulée" });
   } catch (e: any) {
-    if (e?.status) return res.status(e.status).json({ error: e.message });
+    if (e?.status) return void res.status(e.status).json({ error: e.message });
     console.error(e);
     res.status(500).json({ error: "Erreur serveur" });
   }
@@ -701,8 +701,8 @@ router.delete("/parking/reservations/:id", requireAuth, async (req, res) => {
 router.get("/parking/availability/:spotId", requireAuth, async (req, res) => {
   try {
     const user = req.user!;
-    const [spot] = await db.select({ buildingId: parkingSpotsTable.buildingId }).from(parkingSpotsTable).where(eq(parkingSpotsTable.id, req.params.spotId));
-    if (!spot) return res.status(404).json({ error: "Place introuvable" });
+    const [spot] = await db.select({ buildingId: parkingSpotsTable.buildingId }).from(parkingSpotsTable).where(eq(parkingSpotsTable.id, String(req.params.spotId)));
+    if (!spot) return void res.status(404).json({ error: "Place introuvable" });
     await assertBuildingAccess(user, spot.buildingId);
 
     const { from, to } = req.query as Record<string, string>;
@@ -718,7 +718,7 @@ router.get("/parking/availability/:spotId", requireAuth, async (req, res) => {
       .from(visitorParkingReservationsTable)
       .where(
         and(
-          eq(visitorParkingReservationsTable.spotId, req.params.spotId),
+          eq(visitorParkingReservationsTable.spotId, String(req.params.spotId)),
           eq(visitorParkingReservationsTable.status, "confirmed"),
           gte(visitorParkingReservationsTable.endTime, start),
           lte(visitorParkingReservationsTable.startTime, end),
@@ -728,7 +728,7 @@ router.get("/parking/availability/:spotId", requireAuth, async (req, res) => {
 
     res.json({ data: booked });
   } catch (e: any) {
-    if (e?.status) return res.status(e.status).json({ error: e.message });
+    if (e?.status) return void res.status(e.status).json({ error: e.message });
     console.error(e);
     res.status(500).json({ error: "Erreur serveur" });
   }

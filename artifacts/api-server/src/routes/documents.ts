@@ -26,7 +26,7 @@ router.get("/documents", requireAuth, async (req, res) => {
 });
 
 router.get("/documents/:id", requireAuth, async (req, res) => {
-  const id = req.params.id as string;
+  const id = String(req.params.id) as string;
   try {
     const [doc] = await db.select().from(documentsTable).where(eq(documentsTable.id, id));
     if (!doc) { res.status(404).json({ error: "Document introuvable" }); return; }
@@ -79,7 +79,7 @@ router.put(
   requireAuth,
   requireRole("super_admin", "syndicate_admin"),
   async (req, res) => {
-    const id = req.params.id as string;
+    const id = String(req.params.id) as string;
     const schema = z.object({
       title: z.string().min(1).max(500).optional(),
       category: z.enum(["reglements", "statuts", "pv", "juridique", "finances", "attestation"]).optional(),

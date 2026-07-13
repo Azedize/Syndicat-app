@@ -63,7 +63,7 @@ router.post("/ideas", requireAuth, async (req, res) => {
     const { title, description, category, voteDeadline } = req.body;
 
     if (!title?.trim() || !description?.trim()) {
-      return res.status(400).json({ error: "Le titre et la description sont obligatoires" });
+      return void res.status(400).json({ error: "Le titre et la description sont obligatoires" });
     }
 
     // Max 1 active (non-rejected) idea per user per calendar year
@@ -82,7 +82,7 @@ router.post("/ideas", requireAuth, async (req, res) => {
       .limit(1);
 
     if (existing) {
-      return res.status(409).json({
+      return void res.status(409).json({
         error: "Vous avez déjà soumis une idée cette année. Une seule proposition active par an est autorisée.",
       });
     }
@@ -113,16 +113,16 @@ router.post("/ideas", requireAuth, async (req, res) => {
 router.post("/ideas/:id/vote", requireAuth, async (req, res) => {
   try {
     const user = req.user!;
-    const ideaId = req.params.id as string;
+    const ideaId = String(req.params.id) as string;
 
     const [idea] = await db.select().from(ideasTable).where(eq(ideasTable.id, ideaId));
-    if (!idea) return res.status(404).json({ error: "Idée introuvable" });
+    if (!idea) return void res.status(404).json({ error: "Idée introuvable" });
 
     if (idea.status === "rejected" || idea.status === "implemented") {
-      return res.status(400).json({ error: "Le vote est fermé pour cette idée" });
+      return void res.status(400).json({ error: "Le vote est fermé pour cette idée" });
     }
     if (idea.voteDeadline && new Date(idea.voteDeadline) < new Date()) {
-      return res.status(400).json({ error: "La période de vote est terminée" });
+      return void res.status(400).json({ error: "La période de vote est terminée" });
     }
 
     // Check existing vote
@@ -137,7 +137,7 @@ router.post("/ideas/:id/vote", requireAuth, async (req, res) => {
       await db.update(ideasTable)
         .set({ voteCount: Math.max(0, (idea.voteCount ?? 1) - 1) })
         .where(eq(ideasTable.id, ideaId));
-      return res.json({ hasVoted: false, message: "Vote retiré" });
+      return void res.json({ hasVoted: false, message: "Vote retiré" });
     }
 
     await db.insert(ideaVotesTable).values({ ideaId, userId: user.userId });
@@ -168,10 +168,10 @@ router.put("/ideas/:id", requireAuth, requireAdmin, async (req, res) => {
     const [updated] = await db
       .update(ideasTable)
       .set(allowed)
-      .where(eq(ideasTable.id, req.params.id as string))
+      .where(eq(ideasTable.id, String(req.params.id) as string))
       .returning();
 
-    if (!updated) return res.status(404).json({ error: "Idée introuvable" });
+    if (!updated) return void res.status(404).json({ error: "Idée introuvable" });
     res.json({ data: updated, message: "Idée mise à jour" });
   } catch (e) {
     console.error(e);
@@ -183,12 +183,12 @@ router.put("/ideas/:id", requireAuth, requireAdmin, async (req, res) => {
 router.delete("/ideas/:id", requireAuth, async (req, res) => {
   try {
     const user = req.user!;
-    const [idea] = await db.select().from(ideasTable).where(eq(ideasTable.id, req.params.id as string));
-    if (!idea) return res.status(404).json({ error: "Idée introuvable" });
+    const [idea] = await db.select().from(ideasTable).where(eq(ideasTable.id, String(req.params.id) as string));
+    if (!idea) return void res.status(404).json({ error: "Idée introuvable" });
 
     const isAdmin = user.role === "super_admin" || user.role === "syndicate_admin";
     if (!isAdmin && idea.userId !== user.userId) {
-      return res.status(403).json({ error: "Accès refusé" });
+      return void res.status(403).json({ error: "Accès refusé" });
     }
 
     await db.delete(ideasTable).where(eq(ideasTable.id, idea.id));

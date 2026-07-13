@@ -124,7 +124,7 @@ const styles = {
 // ─── GET /pdf/invoice/:id ─────────────────────────────────────────────────────
 
 router.get("/pdf/invoice/:id", requireAuth, async (req, res) => {
-  const id = req.params.id as string;
+  const id = String(req.params.id) as string;
   try {
     const [invoice] = await db.select().from(invoicesTable).where(eq(invoicesTable.id, id));
     if (!invoice) { res.status(404).json({ error: "Facture introuvable" }); return; }
@@ -216,7 +216,7 @@ router.get("/pdf/invoice/:id", requireAuth, async (req, res) => {
 // ─── GET /pdf/receipt/:id ─────────────────────────────────────────────────────
 
 router.get("/pdf/receipt/:id", requireAuth, async (req, res) => {
-  const id = req.params.id as string;
+  const id = String(req.params.id) as string;
   try {
     const [tx] = await db.select().from(transactionsTable).where(eq(transactionsTable.id, id));
     if (!tx) { res.status(404).json({ error: "Transaction introuvable" }); return; }
@@ -289,7 +289,7 @@ router.get("/pdf/receipt/:id", requireAuth, async (req, res) => {
 // ─── GET /pdf/budget/:id ──────────────────────────────────────────────────────
 
 router.get("/pdf/budget/:id", requireAuth, async (req, res) => {
-  const id = req.params.id as string;
+  const id = String(req.params.id) as string;
   try {
     const [budget] = await db.select().from(budgetsTable).where(eq(budgetsTable.id, id));
     if (!budget) { res.status(404).json({ error: "Budget introuvable" }); return; }
@@ -369,7 +369,7 @@ router.get("/pdf/budget/:id", requireAuth, async (req, res) => {
 // AG meeting minutes (PV)
 
 router.get("/pdf/ag/:id", requireAuth, async (req, res) => {
-  const id = req.params.id as string;
+  const id = String(req.params.id) as string;
   try {
     const [meeting] = await db.select().from(meetingsTable).where(eq(meetingsTable.id, id));
     if (!meeting) { res.status(404).json({ error: "Réunion introuvable" }); return; }
@@ -450,7 +450,7 @@ router.get("/pdf/ag/:id", requireAuth, async (req, res) => {
 // ─── GET /pdf/membership/:userId ─────────────────────────────────────────────
 
 router.get("/pdf/membership/:userId", requireAuth, async (req, res) => {
-  const userId = req.params.userId as string;
+  const userId = String(req.params.userId) as string;
   if (req.user!.role !== "super_admin" && req.user!.role !== "syndicate_admin" && req.user!.userId !== userId) {
     res.status(403).json({ error: "Accès refusé" }); return;
   }
@@ -604,7 +604,7 @@ router.get("/pdf/escalation/:id", async (req, res) => {
     }
 
     const user = userPayload;
-    const id = req.params.id as string;
+    const id = String(req.params.id) as string;
 
     const [escalation] = await db
       .select()
@@ -841,6 +841,119 @@ router.get("/pdf/escalation/:id", async (req, res) => {
   } catch (err) {
     console.error(err);
     res.status(500).json({ error: "Erreur génération PDF" });
+  }
+});
+
+// ─── GET /pdf/acte/:id ────────────────────────────────────────────────────────
+// Generate a formal PDF for an administrative act
+
+router.get("/pdf/acte/:id", requireAuth, async (req, res) => {
+  const { id } = req.params as { id: string };
+  const { role, syndicateId } = req.user!;
+  try {
+    const { actesAdministratifsTable } = await import("@workspace/db/schema");
+    const [acte] = await db.select().from(actesAdministratifsTable).where(eq(actesAdministratifsTable.id, id));
+    if (!acte) { res.status(404).json({ error: "Acte introuvable" }); return; }
+    if (role !== "super_admin" && acte.syndicateId !== syndicateId) {
+      res.status(403).json({ error: "Accès refusé" }); return;
+    }
+    const syndicate = await getSyndicate(acte.syndicateId);
+
+    const TYPE_LABELS: Record<string, string> = {
+      convocation: "CONVOCATION",
+      decision: "DÉCISION",
+      pv: "PROCÈS-VERBAL",
+      proces_verbal_ag: "PROCÈS-VERBAL D'ASSEMBLÉE GÉNÉRALE",
+      resolution: "RÉSOLUTION",
+      mandat: "MANDAT",
+      attestation: "ATTESTATION",
+      courrier_officiel: "COURRIER OFFICIEL",
+    };
+
+    const STATUT_LABELS: Record<string, string> = {
+      brouillon: "BROUILLON",
+      valide: "VALIDÉ",
+      diffuse: "DIFFUSÉ",
+      archive: "ARCHIVÉ",
+    };
+
+    const sigRows = (acte.signataires ?? []).map((s) => [
+      { text: s, style: "value" },
+      { text: "✓ Signé", style: "value", color: "#10b981", alignment: "right" as const },
+    ]);
+
+    const destRows = (acte.destinataires ?? []).map((d) => [{ text: d, style: "value" }]);
+
+    const docDef = {
+      content: [
+        ...pageHeader(
+          TYPE_LABELS[acte.type] ?? acte.type.toUpperCase(),
+          `Réf: ${acte.numero} — ${syndicate?.name ?? ""}`,
+        ),
+        {
+          table: {
+            widths: ["*", "*"],
+            body: [
+              [{ text: "N° de référence", style: "label" }, { text: acte.numero, style: "value" }],
+              [{ text: "Date", style: "label" }, { text: formatDate(acte.date), style: "value" }],
+              ...(acte.dateEcheance ? [[{ text: "Échéance", style: "label" }, { text: formatDate(acte.dateEcheance), style: "value" }]] : []),
+              [{ text: "Statut", style: "label" }, { text: STATUT_LABELS[acte.statut] ?? acte.statut.toUpperCase(), style: "value" }],
+              [{ text: "Auteur", style: "label" }, { text: acte.auteur, style: "value" }],
+            ],
+          },
+          layout: "lightHorizontalLines",
+          margin: [0, 0, 0, 16],
+        },
+        { text: "OBJET", style: "sectionTitle" },
+        { text: acte.objet, style: "value", margin: [0, 0, 0, 16] },
+        ...(acte.resumeContenu ? [
+          { text: "CONTENU", style: "sectionTitle" },
+          { text: acte.resumeContenu, style: "value", margin: [0, 0, 0, 16] },
+        ] : []),
+        ...(sigRows.length > 0 ? [
+          { text: "SIGNATAIRES", style: "sectionTitle" },
+          {
+            table: { widths: ["*", "auto"], body: sigRows },
+            layout: "lightHorizontalLines",
+            margin: [0, 0, 0, 16],
+          },
+        ] : []),
+        ...(destRows.length > 0 ? [
+          { text: "DESTINATAIRES", style: "sectionTitle" },
+          {
+            table: { widths: ["*"], body: destRows },
+            layout: "lightHorizontalLines",
+            margin: [0, 0, 0, 16],
+          },
+        ] : []),
+        {
+          columns: [
+            [
+              { text: "\n\n_____________________________", style: "label" },
+              { text: "Signature autorisée", style: "label" },
+            ],
+            [
+              { text: syndicate?.name ?? "", style: "value", bold: true, alignment: "right" as const },
+              { text: syndicate?.address ?? "", style: "label", alignment: "right" as const },
+            ],
+          ],
+          margin: [0, 30, 0, 0],
+        },
+      ],
+      styles,
+      footer: (page: number, pages: number) => ({
+        text: `Page ${page} / ${pages}  —  Document officiel SYNDYCAT — ${new Date().toLocaleDateString("fr-MA")}`,
+        style: "footer",
+        alignment: "center",
+        margin: [0, 0, 0, 10],
+      }),
+    };
+
+    const filename = `acte-${acte.type}-${acte.numero.replace(/[^a-zA-Z0-9-]/g, "-")}.pdf`;
+    await sendPdf(res, docDef, filename);
+  } catch (err) {
+    req.log.error({ err }, "PDF acte error");
+    res.status(500).json({ error: "Erreur de génération PDF" });
   }
 });
 

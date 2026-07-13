@@ -32,7 +32,7 @@ router.get("/syndicates", requireAuth, async (req, res) => {
 router.get("/syndicates/:id", requireAuth, async (req, res) => {
   try {
     const user = req.user!;
-    const id = req.params.id as string;
+    const id = String(req.params.id) as string;
     if (user.role !== "super_admin" && user.syndicateId !== id) {
       res.status(403).json({ error: "Accès refusé" });
       return;
@@ -225,7 +225,7 @@ const updateSchema = z.object({
 });
 
 router.put("/syndicates/:id", requireAuth, requireAdmin, async (req, res) => {
-  const id = req.params.id as string;
+  const id = String(req.params.id) as string;
   const user = req.user!;
 
   if (user.role === "syndicate_admin" && user.syndicateId !== id) {

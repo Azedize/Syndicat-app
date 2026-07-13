@@ -56,7 +56,7 @@ router.get("/audit", requireAuth, requireRole("super_admin", "syndicate_admin"),
 
     const conditions: ReturnType<typeof eq>[] = [];
     if (syndicateId) conditions.push(eq(auditLogsTable.syndicateId, syndicateId));
-    if (actorId) conditions.push(eq(auditLogsTable.actorId, actorId));
+    if (actorId) conditions.push(eq(auditLogsTable.userId, actorId));
     if (since) {
       const d = new Date(since);
       if (!isNaN(d.getTime())) conditions.push(gte(auditLogsTable.createdAt, d));

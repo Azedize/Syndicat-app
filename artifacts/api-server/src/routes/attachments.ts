@@ -52,21 +52,21 @@ router.post("/charge-attachments", requireAuth, async (req, res) => {
     };
 
     if (!appelDeFondsId || !url || !filename) {
-      return res.status(400).json({ error: "appelDeFondsId, url et filename sont obligatoires" });
+      return void res.status(400).json({ error: "appelDeFondsId, url et filename sont obligatoires" });
     }
 
     // Validate the appel exists and user has access
     const [appel] = await db.select().from(appelsDeFondsTable).where(eq(appelsDeFondsTable.id, appelDeFondsId));
-    if (!appel) return res.status(404).json({ error: "Appel de fonds introuvable" });
+    if (!appel) return void res.status(404).json({ error: "Appel de fonds introuvable" });
 
     const syndicateId = await getAppelSyndicateId(appelDeFondsId);
     if (user.role === "syndicate_admin" && syndicateId !== user.syndicateId) {
-      return res.status(403).json({ error: "Accès refusé" });
+      return void res.status(403).json({ error: "Accès refusé" });
     }
     // Members/tenants can only attach to their own appels
     if (user.role === "member" || user.role === "tenant") {
       if (appel.ownerId !== user.userId) {
-        return res.status(403).json({ error: "Vous ne pouvez ajouter des pièces que pour vos propres charges" });
+        return void res.status(403).json({ error: "Vous ne pouvez ajouter des pièces que pour vos propres charges" });
       }
     }
 
@@ -91,10 +91,10 @@ router.post("/charge-attachments", requireAuth, async (req, res) => {
       details: filename,
     });
 
-    return res.status(201).json({ data: row });
+    return void res.status(201).json({ data: row });
   } catch (e) {
     req.log.error(e);
-    return res.status(500).json({ error: "Server error" });
+    return void res.status(500).json({ error: "Server error" });
   }
 });
 
@@ -106,7 +106,7 @@ router.get("/charge-attachments/:appelId", requireAuth, async (req, res) => {
 
     const syndicateId = await getAppelSyndicateId(appelId);
     if (user.role === "syndicate_admin" && syndicateId !== user.syndicateId) {
-      return res.status(403).json({ error: "Accès refusé" });
+      return void res.status(403).json({ error: "Accès refusé" });
     }
 
     const rows = await db
@@ -114,10 +114,10 @@ router.get("/charge-attachments/:appelId", requireAuth, async (req, res) => {
       .from(chargeAttachmentsTable)
       .where(eq(chargeAttachmentsTable.appelDeFondsId, appelId));
 
-    return res.json({ data: rows });
+    return void res.json({ data: rows });
   } catch (e) {
     req.log.error(e);
-    return res.status(500).json({ error: "Server error" });
+    return void res.status(500).json({ error: "Server error" });
   }
 });
 
@@ -125,17 +125,17 @@ router.get("/charge-attachments/:appelId", requireAuth, async (req, res) => {
 router.delete("/charge-attachments/:id", requireAuth, async (req, res) => {
   try {
     const user = req.user!;
-    const attId = String(req.params.id);
+    const attId = String(String(req.params.id));
     const [att] = await db.select().from(chargeAttachmentsTable).where(eq(chargeAttachmentsTable.id, attId));
-    if (!att) return res.status(404).json({ error: "Not found" });
+    if (!att) return void res.status(404).json({ error: "Not found" });
 
     // Only uploader, syndicate_admin, or super_admin can delete
     if (user.role !== "super_admin" && user.role !== "syndicate_admin" && att.uploadedBy !== user.userId) {
-      return res.status(403).json({ error: "Accès refusé" });
+      return void res.status(403).json({ error: "Accès refusé" });
     }
     const syndicateId = await getAppelSyndicateId(att.appelDeFondsId);
     if (user.role === "syndicate_admin" && syndicateId !== user.syndicateId) {
-      return res.status(403).json({ error: "Accès refusé" });
+      return void res.status(403).json({ error: "Accès refusé" });
     }
 
     await db.delete(chargeAttachmentsTable).where(eq(chargeAttachmentsTable.id, attId));
@@ -148,10 +148,10 @@ router.delete("/charge-attachments/:id", requireAuth, async (req, res) => {
       details: att.filename,
     });
 
-    return res.json({ message: "Pièce justificative supprimée" });
+    return void res.json({ message: "Pièce justificative supprimée" });
   } catch (e) {
     req.log.error(e);
-    return res.status(500).json({ error: "Server error" });
+    return void res.status(500).json({ error: "Server error" });
   }
 });
 
@@ -169,15 +169,15 @@ router.post("/invoice-attachments", requireAuth, requireAdmin, async (req, res) 
     };
 
     if (!invoiceId || !url || !filename) {
-      return res.status(400).json({ error: "invoiceId, url et filename sont obligatoires" });
+      return void res.status(400).json({ error: "invoiceId, url et filename sont obligatoires" });
     }
 
     const [invoice] = await db.select().from(invoicesTable).where(eq(invoicesTable.id, invoiceId));
-    if (!invoice) return res.status(404).json({ error: "Facture introuvable" });
+    if (!invoice) return void res.status(404).json({ error: "Facture introuvable" });
 
     const syndicateId = await getInvoiceSyndicateId(invoiceId);
     if (user.role === "syndicate_admin" && syndicateId !== user.syndicateId) {
-      return res.status(403).json({ error: "Accès refusé" });
+      return void res.status(403).json({ error: "Accès refusé" });
     }
 
     const [row] = await db.insert(invoiceAttachmentsTable).values({
@@ -196,10 +196,10 @@ router.post("/invoice-attachments", requireAuth, requireAdmin, async (req, res) 
       details: filename,
     });
 
-    return res.status(201).json({ data: row });
+    return void res.status(201).json({ data: row });
   } catch (e) {
     req.log.error(e);
-    return res.status(500).json({ error: "Server error" });
+    return void res.status(500).json({ error: "Server error" });
   }
 });
 
@@ -211,7 +211,7 @@ router.get("/invoice-attachments/:invoiceId", requireAuth, async (req, res) => {
 
     const syndicateId = await getInvoiceSyndicateId(invoiceId);
     if (user.role === "syndicate_admin" && syndicateId !== user.syndicateId) {
-      return res.status(403).json({ error: "Accès refusé" });
+      return void res.status(403).json({ error: "Accès refusé" });
     }
 
     const rows = await db
@@ -219,10 +219,10 @@ router.get("/invoice-attachments/:invoiceId", requireAuth, async (req, res) => {
       .from(invoiceAttachmentsTable)
       .where(eq(invoiceAttachmentsTable.invoiceId, invoiceId));
 
-    return res.json({ data: rows });
+    return void res.json({ data: rows });
   } catch (e) {
     req.log.error(e);
-    return res.status(500).json({ error: "Server error" });
+    return void res.status(500).json({ error: "Server error" });
   }
 });
 
@@ -230,13 +230,13 @@ router.get("/invoice-attachments/:invoiceId", requireAuth, async (req, res) => {
 router.delete("/invoice-attachments/:id", requireAuth, requireAdmin, async (req, res) => {
   try {
     const user = req.user!;
-    const invAttId = String(req.params.id);
+    const invAttId = String(String(req.params.id));
     const [att] = await db.select().from(invoiceAttachmentsTable).where(eq(invoiceAttachmentsTable.id, invAttId));
-    if (!att) return res.status(404).json({ error: "Not found" });
+    if (!att) return void res.status(404).json({ error: "Not found" });
 
     const syndicateId = await getInvoiceSyndicateId(att.invoiceId);
     if (user.role === "syndicate_admin" && syndicateId !== user.syndicateId) {
-      return res.status(403).json({ error: "Accès refusé" });
+      return void res.status(403).json({ error: "Accès refusé" });
     }
 
     await db.delete(invoiceAttachmentsTable).where(eq(invoiceAttachmentsTable.id, invAttId));
@@ -249,10 +249,10 @@ router.delete("/invoice-attachments/:id", requireAuth, requireAdmin, async (req,
       details: att.filename,
     });
 
-    return res.json({ message: "Pièce jointe supprimée" });
+    return void res.json({ message: "Pièce jointe supprimée" });
   } catch (e) {
     req.log.error(e);
-    return res.status(500).json({ error: "Server error" });
+    return void res.status(500).json({ error: "Server error" });
   }
 });
 

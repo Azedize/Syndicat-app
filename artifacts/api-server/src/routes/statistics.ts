@@ -94,7 +94,7 @@ router.get(
             && (t.type === "cotisation" || t.type === "recette")
             && t.status === "paid"
           )
-          .reduce((s, t) => s + (t.amount ?? 0), 0);
+          .reduce((s, t) => s + Number(t.amount ?? 0), 0);
         return { label: m.label, value: Math.round(val) };
       });
 
@@ -112,7 +112,7 @@ router.get(
             && (t.type === "depense" || t.type === "salaire")
             && t.status === "paid"
           )
-          .reduce((s, t) => s + Math.abs(t.amount ?? 0), 0);
+          .reduce((s, t) => s + Math.abs(Number(t.amount ?? 0)), 0);
         return { label: m.label, value: Math.round(val) };
       });
 
@@ -190,7 +190,7 @@ router.get(
         valeur: Math.round(
           cotisationsRows
             .filter((c) => c.status === "paid" && c.createdAt && c.createdAt >= m.from && c.createdAt <= m.to)
-            .reduce((s, c) => s + (c.amount ?? 0), 0)
+            .reduce((s, c) => s + Number(c.amount ?? 0), 0)
         ),
       }));
 
@@ -269,11 +269,11 @@ router.get(
       // Compute caisse balance: use the stored balance from the latest entry, or sum all amounts
       let caisseBalance = 0;
       if (latestCaisse.length > 0 && latestCaisse[0].balance != null) {
-        caisseBalance = latestCaisse[0].balance;
+        caisseBalance = Number(latestCaisse[0].balance ?? 0);
       } else {
         caisseBalance = latestCaisse.reduce((s, e) => {
           if (e.amount != null) {
-            return s + e.amount;
+            return s + Number(e.amount);
           }
           return s;
         }, 0);
@@ -415,7 +415,7 @@ router.get(
         const syCaisse = allCaisse.filter((c) => c.syndicateId === sy.id);
         let balance = 0;
         if (syCaisse.length > 0 && syCaisse[0].balance != null) {
-          balance = syCaisse[0].balance;
+          balance = Number(syCaisse[0].balance ?? 0);
         }
 
         const pendingElections = allElections.filter((e) => e.syndicateId === sy.id && e.status === "upcoming").length;

@@ -103,7 +103,7 @@ router.get("/actions", requireAuth, async (req, res) => {
 // ─── GET /actions/:id ─────────────────────────────────────────────────────────
 
 router.get("/actions/:id", requireAuth, async (req, res) => {
-  const id = req.params.id as string;
+  const id = String(req.params.id) as string;
   try {
     const [action] = await db.select().from(unionActionsTable).where(eq(unionActionsTable.id, id));
     if (!action) { res.status(404).json({ error: "Action introuvable" }); return; }
@@ -168,7 +168,7 @@ router.put(
   requireAuth,
   requireRole("super_admin", "syndicate_admin"),
   async (req, res) => {
-    const id = req.params.id as string;
+    const id = String(req.params.id) as string;
     const schema = z.object({
       title: z.string().min(1).max(200).optional(),
       description: z.string().max(5000).optional(),
@@ -216,7 +216,7 @@ router.delete(
   requireAuth,
   requireRole("super_admin", "syndicate_admin"),
   async (req, res) => {
-    const id = req.params.id as string;
+    const id = String(req.params.id) as string;
     try {
       const [action] = await db.select().from(unionActionsTable).where(eq(unionActionsTable.id, id));
       if (!action) { res.status(404).json({ error: "Action introuvable" }); return; }
@@ -237,7 +237,7 @@ router.delete(
 // ─── POST /actions/:id/support ────────────────────────────────────────────────
 
 router.post("/actions/:id/support", requireAuth, async (req, res) => {
-  const id = req.params.id as string;
+  const id = String(req.params.id) as string;
   try {
     const [action] = await db.select({ id: unionActionsTable.id, syndicateId: unionActionsTable.syndicateId })
       .from(unionActionsTable).where(eq(unionActionsTable.id, id));
@@ -266,7 +266,7 @@ router.post("/actions/:id/support", requireAuth, async (req, res) => {
 // ─── POST /actions/:id/participate ───────────────────────────────────────────
 
 router.post("/actions/:id/participate", requireAuth, async (req, res) => {
-  const id = req.params.id as string;
+  const id = String(req.params.id) as string;
   try {
     const [action] = await db.select().from(unionActionsTable).where(eq(unionActionsTable.id, id));
     if (!action) { res.status(404).json({ error: "Action introuvable" }); return; }
@@ -301,7 +301,7 @@ router.get(
   requireAuth,
   requireRole("super_admin", "syndicate_admin"),
   async (req, res) => {
-    const id = req.params.id as string;
+    const id = String(req.params.id) as string;
     try {
       const [action] = await db.select({ id: unionActionsTable.id, syndicateId: unionActionsTable.syndicateId })
         .from(unionActionsTable).where(eq(unionActionsTable.id, id));
