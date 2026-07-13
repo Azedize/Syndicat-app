@@ -17,6 +17,7 @@ import {
   View,
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
+import RoleGuard from "@/components/RoleGuard";
 import { useAuth } from "@/context/AuthContext";
 import { useData } from "@/context/DataContext";
 import { useBreakpoints } from "@/hooks/useBreakpoints";
@@ -587,7 +588,16 @@ function SuccessScreen({
 
 // ─── Main Component ───────────────────────────────────────────────────────────
 
+// Creating a new syndicate on the platform is a Super Admin-only action.
 export default function SyndicateSetupScreen() {
+  return (
+    <RoleGuard allow={["super_admin"]}>
+      <SyndicateSetupScreenInner />
+    </RoleGuard>
+  );
+}
+
+function SyndicateSetupScreenInner() {
   const colors = useColors();
   const insets = useSafeAreaInsets();
   const { user } = useAuth();

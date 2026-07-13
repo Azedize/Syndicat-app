@@ -13,8 +13,19 @@ import { useBreakpoints } from "@/hooks/useBreakpoints";
 import { useColors } from "@/hooks/useColors";
 import { apiRequest } from "@/lib/api";
 import FilterChips from "@/components/FilterChips";
+import RoleGuard from "@/components/RoleGuard";
 import ScreenHeader from "@/components/ScreenHeader";
 import StatsStrip from "@/components/StatsStrip";
+
+// Charges & appels de fonds are a copropriétaire (owner) financial matter — tenants
+// are not co-owners and must not reach this screen even via deep link.
+export default function ChargesScreen() {
+  return (
+    <RoleGuard allow={["super_admin", "syndicate_admin", "member"]}>
+      <ChargesScreenInner />
+    </RoleGuard>
+  );
+}
 
 const STATUS_CONFIG: Record<string, { color: string; label: string; icon: keyof typeof Feather.glyphMap }> = {
   pending:            { color: "#f59e0b", label: "À payer",            icon: "clock" },
@@ -55,7 +66,7 @@ type Appel = {
   buildingId: string;
 };
 
-export default function ChargesScreen() {
+function ChargesScreenInner() {
   const colors = useColors();
   const insets = useSafeAreaInsets();
   const { user, token } = useAuth();

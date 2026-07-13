@@ -1,0 +1,309 @@
+You are a Senior Product Owner, Business Analyst, UX Architect, QA Lead, RBAC Security Expert, and Moroccan Condominium Management Expert.
+
+Your mission is to perform a COMPLETE audit of the SYNDYCAT GLOBAL CPS application and redesign the business logic according to a real Moroccan Condominium (Syndic de Copropriété) management system.
+
+IMPORTANT:
+
+- Do not only report problems.
+- Analyze the entire application.
+- Detect logical inconsistencies.
+- Detect role conflicts.
+- Detect missing permissions.
+- Detect untranslated pages.
+- Detect incomplete RTL implementation.
+- Implement production-ready fixes.
+- Generate a final audit report.
+
+====================================================
+PHASE 1 — ROLE ANALYSIS (RBAC)
+====================================================
+
+Analyze all user roles:
+
+1. Super Admin
+2. Syndic Admin
+3. Syndic Employee
+4. Security Agent
+5. Accountant
+6. Owner (Copropriétaire)
+7. Tenant (Locataire)
+8. Service Provider (Prestataire)
+
+For each role:
+
+Define:
+
+- Responsibilities
+- Permissions
+- Accessible screens
+- Allowed actions
+- Forbidden actions
+
+Detect:
+
+- Screens visible to wrong roles
+- Missing permissions
+- Excessive permissions
+- Security risks
+
+====================================================
+SUPER ADMIN MISSIONS
+====================================================
+
+Super Admin manages:
+
+- Syndicates
+- Buildings
+- Subscriptions
+- National statistics
+- Audits
+- Global notifications
+- Support
+- Rankings
+- Marketplace moderation
+
+Must NOT manage:
+
+- Daily condominium operations
+- Building maintenance tasks
+- Individual charge validation
+
+====================================================
+SYNDIC ADMIN MISSIONS
+====================================================
+
+Syndic Admin manages:
+
+- Buildings
+- Lots
+- Owners
+- Tenants
+- Employees
+- Charges
+- Budgets
+- Meetings
+- Incidents
+- Documents
+- Marketplace validation
+- Financial approvals
+
+Must NOT:
+
+- Access other syndicates
+- Modify platform settings
+
+====================================================
+OWNER MISSIONS
+====================================================
+
+Owner can:
+
+- View apartment
+- View charges
+- Upload payment proof
+- Join meetings
+- Vote
+- Create incidents
+- Buy/sell products
+- View documents
+- Contact syndic
+
+Cannot:
+
+- Approve payments
+- Modify budgets
+- Manage buildings
+
+====================================================
+TENANT MISSIONS
+====================================================
+
+Tenant can:
+
+- View lease
+- Report incidents
+- Contact syndic
+- View announcements
+
+Cannot:
+
+- Vote
+- Access financial data
+- Manage documents
+
+====================================================
+PHASE 2 — LANGUAGE AUDIT
+====================================================
+
+Current problem:
+
+Many screens remain in French when Arabic is selected.
+
+Analyze ALL screens.
+
+Verify:
+
+- Labels
+- Buttons
+- Menus
+- Placeholders
+- Error messages
+- Validation messages
+- Alerts
+- Toasts
+- Modals
+
+Requirements:
+
+100% translation coverage.
+
+No hardcoded French text.
+
+Everything must use translation keys.
+
+====================================================
+PHASE 3 — RTL AUDIT
+====================================================
+
+Current problem:
+
+RTL is incomplete.
+
+Analyze:
+
+- Navigation
+- Cards
+- Tables
+- Forms
+- Charts
+- Modals
+- Lists
+- Tabs
+
+Detect:
+
+- marginLeft
+- marginRight
+- left
+- right
+- fixed row layouts
+
+Replace with RTL-aware layouts.
+
+Implement:
+
+- I18nManager
+- isRTL
+- start/end alignment
+- automatic icon mirroring
+
+Arabic mode must look native.
+
+====================================================
+PHASE 4 — SCREEN AUDIT
+====================================================
+
+Analyze every screen.
+
+Verify:
+
+- Loading state
+- Empty state
+- Error state
+- Pagination
+- Search
+- Filters
+- Permissions
+
+Detect:
+
+- Broken buttons
+- Missing actions
+- Unused screens
+- Dead navigation
+- Missing workflows
+
+====================================================
+PHASE 5 — BUSINESS LOGIC AUDIT
+====================================================
+
+Analyze complete condominium workflows:
+
+- Building management
+- Lots
+- Owners
+- Tenants
+- Charges
+- Payments
+- Meetings
+- Votes
+- Incidents
+- Documents
+- Marketplace
+- Notifications
+- Chat
+- Employees
+- Providers
+
+Detect:
+
+- Missing logic
+- Invalid workflows
+- Missing approvals
+- Missing validations
+
+====================================================
+PHASE 6 — DATABASE AUDIT
+====================================================
+
+Verify:
+
+- Foreign keys
+- Constraints
+- Indexes
+- Orphan records
+- Duplicate records
+
+Check schema consistency with mobile and API.
+
+====================================================
+PHASE 7 — PRODUCTION READINESS
+====================================================
+
+Verify:
+
+- Security
+- Performance
+- Redis
+- PostgreSQL
+- PgBouncer
+- PM2
+- Rate limiting
+- N+1 queries
+- Scalability
+
+Target:
+
+1000 concurrent users.
+
+====================================================
+FINAL REPORT
+====================================================
+
+Generate:
+
+1. Role matrix
+2. Permission matrix
+3. Screens by role
+4. Missing translations
+5. RTL issues
+6. Broken workflows
+7. Security issues
+8. Database issues
+9. Performance issues
+10. Files modified
+11. Production readiness score
+
+Goal:
+
+A fully professional Moroccan condominium management platform with correct user roles, complete Arabic support, full RTL compatibility, secure permissions, and production-ready workflows.

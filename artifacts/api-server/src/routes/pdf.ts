@@ -546,10 +546,11 @@ router.get("/verify/badge/:userId", async (req, res) => {
     const lot = member
       ? await db.select().from(lotsTable).where(eq(lotsTable.ownerId, member.id)).then((r) => r[0] ?? null)
       : null;
+    // Public endpoint (anyone scanning the QR badge) — must not leak contact PII
+    // such as email; only what's needed to confirm the badge is legitimate.
     res.json({
       valid: true,
       name: user.name,
-      email: user.email,
       syndicateName: syndicate?.name ?? null,
       lot: lot ? `N° ${lot.number} — Étage ${lot.floor ?? 0}` : null,
       status: "MEMBRE ACTIF",

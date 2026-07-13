@@ -17,6 +17,7 @@ import {
   View,
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
+import RoleGuard from "@/components/RoleGuard";
 import { useAuth } from "@/context/AuthContext";
 import { useBreakpoints } from "@/hooks/useBreakpoints";
 import { useColors } from "@/hooks/useColors";
@@ -80,7 +81,17 @@ const MAJORITY_LABELS: Record<string, string> = {
   unanimite:  "Unanimité",
 };
 
+// L'Assemblée Générale est un droit de gouvernance des copropriétaires (Loi 18-00) ;
+// les locataires n'y participent pas et ne doivent pas voir son contenu.
 export default function AssembleeGeneraleScreen() {
+  return (
+    <RoleGuard allow={["super_admin", "syndicate_admin", "member"]}>
+      <AssembleeGeneraleScreenInner />
+    </RoleGuard>
+  );
+}
+
+function AssembleeGeneraleScreenInner() {
   const colors = useColors();
   const insets = useSafeAreaInsets();
   const { user, token } = useAuth();

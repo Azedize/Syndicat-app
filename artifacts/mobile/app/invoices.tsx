@@ -17,6 +17,7 @@ import {
   View,
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
+import RoleGuard from "@/components/RoleGuard";
 import { useData, type Invoice } from "@/context/DataContext";
 import { useBreakpoints } from "@/hooks/useBreakpoints";
 import { useColors } from "@/hooks/useColors";
@@ -32,6 +33,14 @@ const STATUS_CONFIG: Record<Invoice["status"], { label: string; color: string; i
 };
 
 export default function InvoicesScreen() {
+  return (
+    <RoleGuard allow={["super_admin", "syndicate_admin"]}>
+      <InvoicesScreenInner />
+    </RoleGuard>
+  );
+}
+
+function InvoicesScreenInner() {
   const colors = useColors();
   const insets = useSafeAreaInsets();
   const { invoices, addInvoice } = useData();

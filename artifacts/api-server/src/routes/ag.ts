@@ -9,15 +9,16 @@ import {
   membersTable,
 } from "@workspace/db/schema";
 import { eq, and, desc, sql, count, inArray } from "drizzle-orm";
-import { requireAuth, requireAdmin, requireOperationalAccess } from "../middleware/auth.js";
+import { requireAuth, requireAdmin, requireOperationalAccess, requireNotTenant } from "../middleware/auth.js";
 import { z } from "zod";
 
 const router = Router();
 
 // ─── AG Meetings ──────────────────────────────────────────────────────────────
 
-// GET /ag-meetings
-router.get("/ag-meetings", requireAuth, async (req, res) => {
+// GET /ag-meetings — Assemblée Générale is a copropriétaire governance right (Loi 18-00);
+// tenants (locataires) are not co-owners and have no vote or attendance right here.
+router.get("/ag-meetings", requireAuth, requireNotTenant, async (req, res) => {
   try {
     const user = (req as any).user;
     const { buildingId, status, type } = req.query as Record<string, string>;
@@ -98,7 +99,7 @@ router.get("/ag-meetings", requireAuth, async (req, res) => {
 });
 
 // GET /ag-meetings/:id
-router.get("/ag-meetings/:id", requireAuth, async (req, res) => {
+router.get("/ag-meetings/:id", requireAuth, requireNotTenant, async (req, res) => {
   try {
     const user = (req as any).user;
 
@@ -373,14 +374,21 @@ router.put("/ag-meetings/:id/resolutions/:resId/vote", requireAuth, requireOpera
 });
 
 // GET /ag-meetings/:id/pv — Generate Procès-Verbal text
-router.get("/ag-meetings/:id/pv", requireAuth, async (req, res) => {
+router.get("/ag-meetings/:id/pv", requireAuth, requireNotTenant, async (req, res) => {
   try {
+    const user = (req as any).user;
     const [meeting] = await db
       .select()
       .from(meetingsTable)
       .where(eq(meetingsTable.id, req.params.id));
 
     if (!meeting) return res.status(404).json({ error: "AG introuvable" });
+
+    // Syndicate isolation: this route previously had none — any authenticated
+    // non-tenant user could fetch any syndicate's PV by guessing/incrementing IDs.
+    if (user.role !== "super_admin" && meeting.syndicateId && meeting.syndicateId !== user.syndicateId) {
+      return res.status(403).json({ error: "Accès refusé" });
+    }
 
     const [resolutions, attendees] = await Promise.all([
       db.select().from(agResolutionsTable).where(eq(agResolutionsTable.meetingId, meeting.id)).orderBy(agResolutionsTable.number),
@@ -447,7 +455,7 @@ const proxySchema = z.object({
 });
 
 // GET /ag-meetings/:id/proxies
-router.get("/ag-meetings/:id/proxies", requireAuth, async (req, res) => {
+router.get("/ag-meetings/:id/proxies", requireAuth, requireNotTenant, async (req, res) => {
   try {
     const user = (req as any).user;
     const [meeting] = await db.select({ id: meetingsTable.id, syndicateId: meetingsTable.syndicateId })

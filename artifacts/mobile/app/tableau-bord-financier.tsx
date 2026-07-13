@@ -12,6 +12,7 @@ import {
 import { Ionicons } from "@expo/vector-icons";
 import { useRouter } from "expo-router";
 import { apiRequest } from "@/lib/api";
+import RoleGuard from "@/components/RoleGuard";
 import { useLanguage } from "@/context/LanguageContext";
 
 const { width: SCREEN_WIDTH } = Dimensions.get("window");
@@ -790,7 +791,16 @@ function PendingActionsPanel({
 }
 
 // ─── Main screen ──────────────────────────────────────────────────────────────
+// Financial dashboard — administrators only.
 export default function TableauBordFinancier() {
+  return (
+    <RoleGuard allow={["super_admin", "syndicate_admin"]}>
+      <TableauBordFinancierInner />
+    </RoleGuard>
+  );
+}
+
+function TableauBordFinancierInner() {
   const router = useRouter();
   const { lang } = useLanguage();
   const [buildings, setBuildings] = useState<BuildingQuick[]>([]);

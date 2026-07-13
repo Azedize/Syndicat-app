@@ -13,6 +13,7 @@ import {
   View,
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
+import RoleGuard from "@/components/RoleGuard";
 import { useAuth } from "@/context/AuthContext";
 import { useBreakpoints } from "@/hooks/useBreakpoints";
 import { useColors } from "@/hooks/useColors";
@@ -72,6 +73,14 @@ function actionLabel(action: string) {
 const ENTITY_FILTERS = ["Tous", "élection", "membre", "cotisation", "transaction", "produit"];
 
 export default function JournalAuditScreen() {
+  return (
+    <RoleGuard allow={["super_admin", "syndicate_admin"]}>
+      <JournalAuditScreenInner />
+    </RoleGuard>
+  );
+}
+
+function JournalAuditScreenInner() {
   const colors = useColors();
   const insets = useSafeAreaInsets();
   const { user } = useAuth();

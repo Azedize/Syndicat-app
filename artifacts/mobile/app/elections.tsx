@@ -17,6 +17,7 @@ import {
   View,
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
+import RoleGuard from "@/components/RoleGuard";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useAuth } from "@/context/AuthContext";
 import { useBreakpoints } from "@/hooks/useBreakpoints";
@@ -46,7 +47,16 @@ interface ApiElection {
   createdAt: string;
 }
 
+// Elections (candidature, vote) sont un droit de copropriétaire (Loi 18-00) ; exclu aux locataires.
 export default function ElectionsScreen() {
+  return (
+    <RoleGuard allow={["super_admin", "syndicate_admin", "member"]}>
+      <ElectionsScreenInner />
+    </RoleGuard>
+  );
+}
+
+function ElectionsScreenInner() {
   const colors = useColors();
   const insets = useSafeAreaInsets();
   const { user } = useAuth();

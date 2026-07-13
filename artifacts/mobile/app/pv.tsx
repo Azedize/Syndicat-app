@@ -17,6 +17,7 @@ import {
   View,
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
+import RoleGuard from "@/components/RoleGuard";
 import { useAuth } from "@/context/AuthContext";
 import { useBreakpoints } from "@/hooks/useBreakpoints";
 import { useColors } from "@/hooks/useColors";
@@ -100,7 +101,16 @@ const FILTER_TYPES: { key: "all" | PVType; label: string }[] = [
   { key: "urgence", label: "Urgence" },
 ];
 
+// Procès-verbaux d'AG relèvent de la gouvernance des copropriétaires ; hors périmètre locataire.
 export default function PVScreen() {
+  return (
+    <RoleGuard allow={["super_admin", "syndicate_admin", "member"]}>
+      <PVScreenInner />
+    </RoleGuard>
+  );
+}
+
+function PVScreenInner() {
   const colors = useColors();
   const insets = useSafeAreaInsets();
   const { user } = useAuth();

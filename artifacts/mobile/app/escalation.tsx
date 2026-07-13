@@ -29,6 +29,7 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useAuth } from "@/context/AuthContext";
 import { useColors } from "@/hooks/useColors";
 import { apiRequest } from "@/lib/api";
+import RoleGuard from "@/components/RoleGuard";
 import ScreenHeader from "@/components/ScreenHeader";
 import StatsStrip from "@/components/StatsStrip";
 import FilterChips from "@/components/FilterChips";
@@ -112,6 +113,14 @@ const ALL_LEVELS: EscalationLevel[] = [
 // ─── Component ───────────────────────────────────────────────────────────────
 
 export default function EscalationScreen() {
+  return (
+    <RoleGuard allow={["super_admin", "syndicate_admin"]}>
+      <EscalationScreenInner />
+    </RoleGuard>
+  );
+}
+
+function EscalationScreenInner() {
   const colors = useColors();
   const insets = useSafeAreaInsets();
   const { user, token } = useAuth();

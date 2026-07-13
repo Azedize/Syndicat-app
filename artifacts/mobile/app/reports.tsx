@@ -12,6 +12,7 @@ import {
   View,
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
+import RoleGuard from "@/components/RoleGuard";
 import { useAuth } from "@/context/AuthContext";
 import { useData } from "@/context/DataContext";
 import { useBreakpoints } from "@/hooks/useBreakpoints";
@@ -115,7 +116,16 @@ const PERIOD_LABELS: Record<Period, string> = {
   year: "2026",
 };
 
+// Financial reports — administrators only.
 export default function ReportsScreen() {
+  return (
+    <RoleGuard allow={["super_admin", "syndicate_admin"]}>
+      <ReportsScreenInner />
+    </RoleGuard>
+  );
+}
+
+function ReportsScreenInner() {
   const colors = useColors();
   const insets = useSafeAreaInsets();
   const { user } = useAuth();

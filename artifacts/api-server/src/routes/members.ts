@@ -14,7 +14,9 @@ function isSameSyndicate(req: any, syndicateId: string): boolean {
   return req.user.role === "super_admin" || req.user.syndicateId === syndicateId;
 }
 
-router.get("/members", requireAuth, async (req, res) => {
+// Member directory (name, email, phone, profession) is admin-only per the permission
+// matrix — members and tenants must not be able to browse other residents' PII.
+router.get("/members", requireAuth, requireRole("super_admin", "syndicate_admin"), async (req, res) => {
   const { search, status, syndicateId } = req.query as Record<string, string>;
   const pagination = getPagination(req);
   try {
@@ -138,7 +140,7 @@ router.post(
   },
 );
 
-router.get("/members/:id", requireAuth, async (req, res) => {
+router.get("/members/:id", requireAuth, requireRole("super_admin", "syndicate_admin"), async (req, res) => {
   const id = req.params.id as string;
   try {
     const [member] = await db.select().from(membersTable).where(eq(membersTable.id, id));
