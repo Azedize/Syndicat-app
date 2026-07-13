@@ -18,6 +18,7 @@ import {
   budgetsTable,
   budgetLinesTable,
   meetingsTable,
+  meetingAttendeesTable,
   membersTable,
   syndicatesTable,
   usersTable,
@@ -26,7 +27,7 @@ import {
   buildingsTable,
   appelsDeFondsTable,
 } from "@workspace/db/schema";
-import { eq, and, inArray } from "drizzle-orm";
+import { eq, and, inArray, count } from "drizzle-orm";
 import QRCode from "qrcode";
 import { requireAuth } from "../middleware/auth.js";
 
@@ -141,7 +142,7 @@ router.get("/pdf/invoice/:id", requireAuth, async (req, res) => {
         { text: "Total", style: "tableHeader", alignment: "right" },
       ],
       ...items.map((item) => [
-        { text: item.description ?? "—", style: "value" },
+        { text: item.label ?? "—", style: "value" },
         { text: String(item.quantity ?? 1), alignment: "center", style: "value" },
         { text: formatMoney(item.unitPrice), alignment: "right", style: "value" },
         { text: formatMoney(parseFloat(String(item.unitPrice ?? 0)) * parseFloat(String(item.quantity ?? 1))), alignment: "right", style: "value" },
@@ -194,7 +195,7 @@ router.get("/pdf/invoice/:id", requireAuth, async (req, res) => {
             },
           ],
         },
-        invoice.notes ? { text: invoice.notes, style: "label", margin: [0, 16, 0, 0] } : {},
+        invoice.proofUrl ? { text: `Pièce justificative: ${invoice.proofUrl}`, style: "label", margin: [0, 16, 0, 0] } : {},
       ],
       styles,
       footer: (page: number, pages: number) => ({
@@ -226,16 +227,15 @@ router.get("/pdf/receipt/:id", requireAuth, async (req, res) => {
 
     const docDef = {
       content: [
-        ...pageHeader("REÇU DE PAIEMENT", `N° ${tx.reference ?? id}`),
+        ...pageHeader("REÇU DE PAIEMENT", `N° ${tx.id}`),
         {
           table: {
             widths: ["*", "*"],
             body: [
               [{ text: "Date", style: "label" }, { text: formatDate(tx.date as any), style: "value" }],
               [{ text: "Syndicat", style: "label" }, { text: syndicate?.name ?? "—", style: "value" }],
-              [{ text: "Description", style: "label" }, { text: tx.description ?? "—", style: "value" }],
-              [{ text: "Catégorie", style: "label" }, { text: tx.category ?? "—", style: "value" }],
-              [{ text: "Mode de paiement", style: "label" }, { text: tx.paymentMethod ?? "—", style: "value" }],
+              [{ text: "Libellé", style: "label" }, { text: tx.label ?? "—", style: "value" }],
+              [{ text: "Type", style: "label" }, { text: tx.type ?? "—", style: "value" }],
               [{ text: "Statut", style: "label" }, { text: tx.status === "paid" ? "PAYÉ" : tx.status ?? "—", style: "value" }],
             ],
           },
@@ -279,7 +279,7 @@ router.get("/pdf/receipt/:id", requireAuth, async (req, res) => {
       }),
     };
 
-    await sendPdf(res, docDef, `recu-${tx.reference ?? id}.pdf`);
+    await sendPdf(res, docDef, `recu-${tx.id}.pdf`);
   } catch (err) {
     req.log.error({ err }, "PDF receipt error");
     res.status(500).json({ error: "Erreur de génération PDF" });
@@ -293,11 +293,13 @@ router.get("/pdf/budget/:id", requireAuth, async (req, res) => {
   try {
     const [budget] = await db.select().from(budgetsTable).where(eq(budgetsTable.id, id));
     if (!budget) { res.status(404).json({ error: "Budget introuvable" }); return; }
-    if (req.user!.role !== "super_admin" && budget.syndicateId !== req.user!.syndicateId) {
+    const [building] = await db.select().from(buildingsTable).where(eq(buildingsTable.id, budget.buildingId));
+    const syndicateId = building?.syndicateId ?? null;
+    if (req.user!.role !== "super_admin" && syndicateId !== req.user!.syndicateId) {
       res.status(403).json({ error: "Accès refusé" }); return;
     }
     const lines = await db.select().from(budgetLinesTable).where(eq(budgetLinesTable.budgetId, id));
-    const syndicate = await getSyndicate(budget.syndicateId);
+    const syndicate = await getSyndicate(syndicateId);
 
     const linesBody = [
       [
@@ -374,6 +376,10 @@ router.get("/pdf/ag/:id", requireAuth, async (req, res) => {
     if (req.user!.role !== "super_admin" && meeting.syndicateId !== req.user!.syndicateId) {
       res.status(403).json({ error: "Accès refusé" }); return;
     }
+    const [{ attendeeCount }] = await db
+      .select({ attendeeCount: count() })
+      .from(meetingAttendeesTable)
+      .where(eq(meetingAttendeesTable.meetingId, id));
     const syndicate = await getSyndicate(meeting.syndicateId);
 
     const docDef = {
@@ -392,7 +398,7 @@ router.get("/pdf/ag/:id", requireAuth, async (req, res) => {
               [{ text: "Lieu", style: "label" }, { text: meeting.location ?? "—", style: "value" }],
               [{ text: "Type", style: "label" }, { text: meeting.type ?? "—", style: "value" }],
               [{ text: "Syndicat", style: "label" }, { text: syndicate?.name ?? "—", style: "value" }],
-              [{ text: "Membres présents", style: "label" }, { text: String(meeting.attendees ?? 0), style: "value" }],
+              [{ text: "Membres présents", style: "label" }, { text: String(Number(attendeeCount) ?? 0), style: "value" }],
             ],
           },
           layout: "lightHorizontalLines",

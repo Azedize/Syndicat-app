@@ -93,14 +93,18 @@ export const refreshTokensTable = pgTable(
   (t) => [index("refresh_tokens_user_id_idx").on(t.userId)],
 );
 
-export const passwordResetTokensTable = pgTable("password_reset_tokens", {
-  id: id(),
-  userId: text("user_id").notNull().references(() => usersTable.id, { onDelete: "cascade" }),
-  token: text("token").notNull().unique(),
-  expiresAt: timestamp("expires_at").notNull(),
-  usedAt: timestamp("used_at"),
-  createdAt: createdAt(),
-});
+export const passwordResetTokensTable = pgTable(
+  "password_reset_tokens",
+  {
+    id: id(),
+    userId: text("user_id").notNull().references(() => usersTable.id, { onDelete: "cascade" }),
+    token: text("token").notNull().unique(),
+    expiresAt: timestamp("expires_at").notNull(),
+    usedAt: timestamp("used_at"),
+    createdAt: createdAt(),
+  },
+  (t) => [index("password_reset_tokens_user_id_idx").on(t.userId)],
+);
 
 // ─── Members ────────────────────────────────────────────────────────────────
 
@@ -238,9 +242,12 @@ export const budgetLinesTable = pgTable(
     amountQ2: money("amount_q2"),
     amountQ3: money("amount_q3"),
     amountQ4: money("amount_q4"),
-    prestataireId: text("prestataire_id"),
+    prestataireId: text("prestataire_id").references(() => prestatairesTable.id, { onDelete: "set null" }),
   },
-  (t) => [index("budget_lines_budget_id_idx").on(t.budgetId)],
+  (t) => [
+    index("budget_lines_budget_id_idx").on(t.budgetId),
+    index("budget_lines_prestataire_id_idx").on(t.prestataireId),
+  ],
 );
 
 export const appelsDeFondsTable = pgTable(
@@ -575,14 +582,18 @@ export const electionsTable = pgTable(
   ],
 );
 
-export const candidatesTable = pgTable("candidates", {
-  id: id(),
-  electionId: text("election_id").notNull().references(() => electionsTable.id, { onDelete: "cascade" }),
-  name: text("name").notNull(),
-  post: text("post").notNull(),
-  bio: text("bio").default(""),
-  votes: integer("votes").default(0),
-});
+export const candidatesTable = pgTable(
+  "candidates",
+  {
+    id: id(),
+    electionId: text("election_id").notNull().references(() => electionsTable.id, { onDelete: "cascade" }),
+    name: text("name").notNull(),
+    post: text("post").notNull(),
+    bio: text("bio").default(""),
+    votes: integer("votes").default(0),
+  },
+  (t) => [index("candidates_election_id_idx").on(t.electionId)],
+);
 
 export const votesTable = pgTable(
   "votes",
@@ -636,20 +647,24 @@ export const meetingAttendeesTable = pgTable(
   (t) => [index("meeting_attendees_meeting_id_idx").on(t.meetingId)],
 );
 
-export const agResolutionsTable = pgTable("ag_resolutions", {
-  id: id(),
-  meetingId: text("meeting_id").notNull().references(() => meetingsTable.id, { onDelete: "cascade" }),
-  buildingId: text("building_id"),
-  number: integer("number").notNull(),
-  title: text("title").notNull(),
-  description: text("description"),
-  requiredMajority: text("required_majority").default("simple"),
-  tantiemesFor: integer("tantiemes_for").default(0),
-  tantiemesAgainst: integer("tantiemes_against").default(0),
-  tantiemesAbstain: integer("tantiemes_abstain").default(0),
-  result: text("result").default("pending"),
-  createdAt: createdAt(),
-});
+export const agResolutionsTable = pgTable(
+  "ag_resolutions",
+  {
+    id: id(),
+    meetingId: text("meeting_id").notNull().references(() => meetingsTable.id, { onDelete: "cascade" }),
+    buildingId: text("building_id"),
+    number: integer("number").notNull(),
+    title: text("title").notNull(),
+    description: text("description"),
+    requiredMajority: text("required_majority").default("simple"),
+    tantiemesFor: integer("tantiemes_for").default(0),
+    tantiemesAgainst: integer("tantiemes_against").default(0),
+    tantiemesAbstain: integer("tantiemes_abstain").default(0),
+    result: text("result").default("pending"),
+    createdAt: createdAt(),
+  },
+  (t) => [index("ag_resolutions_meeting_id_idx").on(t.meetingId)],
+);
 
 // ─── AG Proxies (Law 18-00 Art. 20 — written proxy / pouvoir) ────────────────
 // A grantor delegates their vote to a grantee for a specific AG meeting.
@@ -683,41 +698,60 @@ export const agProxiesTable = pgTable(
 
 // ─── Union Actions ──────────────────────────────────────────────────────────
 
-export const unionActionsTable = pgTable("union_actions", {
-  id: id(),
-  title: text("title").notNull(),
-  description: text("description").default(""),
-  type: text("type").notNull(),
-  status: text("status").default("planned"),
-  date: text("date").notNull(),
-  location: text("location"),
-  organizer: text("organizer").notNull(),
-  participantsTarget: integer("participants_target").default(0),
-  demands: text("demands").default("[]"),
-  updates: text("updates").default("[]"),
-  tags: text("tags").default("[]"),
-  syndicateId: text("syndicate_id"),
-  createdBy: text("created_by"),
-  createdAt: createdAt(),
-});
+export const unionActionsTable = pgTable(
+  "union_actions",
+  {
+    id: id(),
+    title: text("title").notNull(),
+    description: text("description").default(""),
+    type: text("type").notNull(),
+    status: text("status").default("planned"),
+    date: text("date").notNull(),
+    location: text("location"),
+    organizer: text("organizer").notNull(),
+    participantsTarget: integer("participants_target").default(0),
+    demands: text("demands").default("[]"),
+    updates: text("updates").default("[]"),
+    tags: text("tags").default("[]"),
+    syndicateId: text("syndicate_id").references(() => syndicatesTable.id, { onDelete: "cascade" }),
+    createdBy: text("created_by").references(() => usersTable.id, { onDelete: "set null" }),
+    createdAt: createdAt(),
+  },
+  (t) => [
+    index("union_actions_syndicate_id_idx").on(t.syndicateId),
+    index("union_actions_status_idx").on(t.status),
+    index("union_actions_type_idx").on(t.type),
+  ],
+);
 
 export const actionSupportsTable = pgTable(
   "action_supports",
   {
     id: id(),
-    actionId: text("action_id").notNull(),
-    userId: text("user_id").notNull(),
+    actionId: text("action_id").notNull().references(() => unionActionsTable.id, { onDelete: "cascade" }),
+    userId: text("user_id").notNull().references(() => usersTable.id, { onDelete: "cascade" }),
     createdAt: createdAt(),
   },
+  (t) => [
+    uniqueIndex("action_supports_unique_idx").on(t.actionId, t.userId),
+    index("action_supports_action_id_idx").on(t.actionId),
+  ],
 );
 
-export const actionParticipantsTable = pgTable("action_participants", {
-  id: id(),
-  actionId: text("action_id").notNull(),
-  userId: text("user_id").notNull(),
-  userName: text("user_name"),
-  createdAt: createdAt(),
-});
+export const actionParticipantsTable = pgTable(
+  "action_participants",
+  {
+    id: id(),
+    actionId: text("action_id").notNull().references(() => unionActionsTable.id, { onDelete: "cascade" }),
+    userId: text("user_id").notNull().references(() => usersTable.id, { onDelete: "cascade" }),
+    userName: text("user_name"),
+    createdAt: createdAt(),
+  },
+  (t) => [
+    uniqueIndex("action_participants_unique_idx").on(t.actionId, t.userId),
+    index("action_participants_action_id_idx").on(t.actionId),
+  ],
+);
 
 // ─── Publications & Announcements ──────────────────────────────────────────
 
@@ -1565,6 +1599,38 @@ export const fondsTravauxTable = pgTable(
     index("fonds_travaux_syndicate_id_idx").on(t.syndicateId),
     index("fonds_travaux_building_id_idx").on(t.buildingId),
   ],
+);
+
+// ─── Financial Attachment Tables ─────────────────────────────────────────────
+// Every charge (appel de fonds), invoice, and quotation must have supporting
+// documents. These tables allow multiple attachments per record.
+
+export const chargeAttachmentsTable = pgTable(
+  "charge_attachments",
+  {
+    id: id(),
+    appelDeFondsId: text("appel_de_fonds_id").notNull().references(() => appelsDeFondsTable.id, { onDelete: "cascade" }),
+    url: text("url").notNull(),
+    filename: text("filename").notNull(),
+    mimeType: text("mime_type"),
+    uploadedBy: text("uploaded_by").references(() => usersTable.id, { onDelete: "set null" }),
+    createdAt: createdAt(),
+  },
+  (t) => [index("charge_attachments_appel_id_idx").on(t.appelDeFondsId)],
+);
+
+export const invoiceAttachmentsTable = pgTable(
+  "invoice_attachments",
+  {
+    id: id(),
+    invoiceId: text("invoice_id").notNull().references(() => invoicesTable.id, { onDelete: "cascade" }),
+    url: text("url").notNull(),
+    filename: text("filename").notNull(),
+    mimeType: text("mime_type"),
+    uploadedBy: text("uploaded_by").references(() => usersTable.id, { onDelete: "set null" }),
+    createdAt: createdAt(),
+  },
+  (t) => [index("invoice_attachments_invoice_id_idx").on(t.invoiceId)],
 );
 
 export const nationalRankingsTable = pgTable(

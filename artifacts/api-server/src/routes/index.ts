@@ -34,6 +34,8 @@ import parkingRouter from "./parking.js";
 import escalationRouter from "./escalation.js";
 import storageRouter from "./storage.js";
 import travauxPrivatifsRouter from "./travaux-privatifs.js";
+import actionsRouter from "./actions.js";
+import pdfRouter from "./pdf.js";
 
 const router: IRouter = Router();
 
@@ -72,10 +74,7 @@ router.use(parkingRouter);
 router.use(escalationRouter);
 router.use(storageRouter);
 router.use(travauxPrivatifsRouter);
-// NOTE: pdf.ts and actions.ts exist but are intentionally NOT mounted yet —
-// they reference DB columns dropped/renamed since they were written
-// (invoices.notes, transactions.reference/description/category/paymentMethod,
-// budgets.syndicateId, meetings.attendees, etc.). Fix the schema mismatches
-// and clear `pnpm --filter @workspace/api-server run typecheck` before mounting.
+router.use(actionsRouter);
+router.use(pdfRouter);
 
 export default router;
