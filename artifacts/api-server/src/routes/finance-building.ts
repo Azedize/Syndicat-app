@@ -52,10 +52,10 @@ router.get("/finance/buildings", requireAuth, requireRole("super_admin", "syndic
 
     const enriched = buildings.map((b) => {
       const appels = appelsByBuilding.get(b.id) ?? [];
-      const totalDu = appels.reduce((s, a) => s + (a.amount ?? 0), 0);
+      const totalDu = appels.reduce((s, a) => s + Number(a.amount ?? 0), 0);
       const totalEncaisse = appels
         .filter((a) => a.status === "paid")
-        .reduce((s, a) => s + (a.amount ?? 0), 0);
+        .reduce((s, a) => s + Number(a.amount ?? 0), 0);
       const tauxRecouvrement =
         totalDu > 0 ? Math.round((totalEncaisse / totalDu) * 100) : 0;
       return {
@@ -146,11 +146,11 @@ router.get("/finance/building/:id", requireAuth, requireRole("super_admin", "syn
     const overdueAppels = appels.filter((a) => a.status === "overdue");
     const pendingAppels = appels.filter((a) => a.status === "pending");
 
-    const totalMontantDu = appels.reduce((s, a) => s + (a.amount ?? 0), 0);
-    const totalEncaisse = paidAppels.reduce((s, a) => s + (a.amount ?? 0), 0);
-    const totalImpaye = overdueAppels.reduce((s, a) => s + (a.amount ?? 0), 0);
+    const totalMontantDu = appels.reduce((s, a) => s + Number(a.amount ?? 0), 0);
+    const totalEncaisse = paidAppels.reduce((s, a) => s + Number(a.amount ?? 0), 0);
+    const totalImpaye = overdueAppels.reduce((s, a) => s + Number(a.amount ?? 0), 0);
     const totalEnAttente = pendingAppels.reduce(
-      (s, a) => s + (a.amount ?? 0),
+      (s, a) => s + Number(a.amount ?? 0),
       0,
     );
     const tauxRecouvrement =
@@ -160,7 +160,7 @@ router.get("/finance/building/:id", requireAuth, requireRole("super_admin", "syn
 
     const fondsReserveCollecte = appels
       .filter((a) => a.type === "fonds_reserve" && a.status === "paid")
-      .reduce((s, a) => s + (a.amount ?? 0), 0);
+      .reduce((s, a) => s + Number(a.amount ?? 0), 0);
 
     // ── Monthly history (last 6 months) ──────────────────────────────────
     const now = new Date();
@@ -176,11 +176,11 @@ router.get("/finance/building/:id", requireAuth, requireRole("super_admin", "syn
 
       const paid = paidAppels
         .filter((a) => a.paidDate?.startsWith(prefix))
-        .reduce((s, a) => s + (a.amount ?? 0), 0);
+        .reduce((s, a) => s + Number(a.amount ?? 0), 0);
 
       const due = appels
         .filter((a) => a.dueDate?.startsWith(prefix))
-        .reduce((s, a) => s + (a.amount ?? 0), 0);
+        .reduce((s, a) => s + Number(a.amount ?? 0), 0);
 
       return { label, paid: Math.round(paid), due: Math.round(due) };
     });
@@ -191,14 +191,14 @@ router.get("/finance/building/:id", requireAuth, requireRole("super_admin", "syn
       const pa = appels.filter((a) => a.period === period);
       const paid = pa
         .filter((a) => a.status === "paid")
-        .reduce((s, a) => s + (a.amount ?? 0), 0);
+        .reduce((s, a) => s + Number(a.amount ?? 0), 0);
       const overdue = pa
         .filter((a) => a.status === "overdue")
-        .reduce((s, a) => s + (a.amount ?? 0), 0);
+        .reduce((s, a) => s + Number(a.amount ?? 0), 0);
       const pending = pa
         .filter((a) => a.status === "pending")
-        .reduce((s, a) => s + (a.amount ?? 0), 0);
-      const total = pa.reduce((s, a) => s + (a.amount ?? 0), 0);
+        .reduce((s, a) => s + Number(a.amount ?? 0), 0);
+      const total = pa.reduce((s, a) => s + Number(a.amount ?? 0), 0);
       return {
         period,
         paid: Math.round(paid),
@@ -277,10 +277,10 @@ router.get("/finance/building/:id", requireAuth, requireRole("super_admin", "syn
           enCours: activeTravaux.length,
           termines: doneTravaux.length,
           budgetEstime: Math.round(
-            travaux.reduce((s, t) => s + (t.estimatedAmount ?? 0), 0),
+            travaux.reduce((s, t) => s + Number(t.estimatedAmount ?? 0), 0),
           ),
           depenseReelle: Math.round(
-            doneTravaux.reduce((s, t) => s + (t.actualAmount ?? 0), 0),
+            doneTravaux.reduce((s, t) => s + Number(t.actualAmount ?? 0), 0),
           ),
           urgents: travaux.filter(
             (t) => t.priority === "urgent" && t.status !== "completed",

@@ -66,7 +66,7 @@ export default function DocumentsScreen() {
   const colors = useColors();
   const insets = useSafeAreaInsets();
   const { user } = useAuth();
-  const { documents } = useData();
+  const { documents, updateDocument } = useData();
   const { logActivity } = useActivity();
   const { toggleFavorite, isFavorite } = useFavorites();
   const FAV_ID = "screen-documents";
@@ -77,6 +77,13 @@ export default function DocumentsScreen() {
   const [selectedTemplate, setSelectedTemplate] = useState<typeof DOC_TEMPLATES[0] | null>(null);
   const [genMember, setGenMember] = useState("");
   const [genNote, setGenNote] = useState("");
+  const [showPreview, setShowPreview] = useState(false);
+  const [previewContent, setPreviewContent] = useState<string | null>(null);
+  const [previewLoading, setPreviewLoading] = useState(false);
+  const [showEdit, setShowEdit] = useState(false);
+  const [editTitle, setEditTitle] = useState("");
+  const [editContent, setEditContent] = useState("");
+  const [savingEdit, setSavingEdit] = useState(false);
   const { isWide } = useBreakpoints();
   const topPad = isWide ? 0 : (Platform.OS === "web" ? 67 : insets.top);
   const isAdmin = user?.role !== "member";
@@ -118,9 +125,80 @@ export default function DocumentsScreen() {
     }
   };
 
-  const handleDownload = (doc: Document) => {
-    Alert.alert("Téléchargement", `"${doc.title}" sera téléchargé sur votre appareil.`);
+  const handleDownload = async (doc: Document) => {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    try {
+      const { documents: docsApi } = await import("@/services/api");
+      const res = (await docsApi.get(doc.id)) as { data: Record<string, unknown> };
+      const content = String(res.data.content ?? "");
+      const body = content
+        ? `${doc.title}\n\n${content}`
+        : `${doc.title}\n\n(Ce document ne contient pas de contenu textuel enregistré.)`;
+      await shareContent(body, doc.title);
+      logActivity({ action: "Document partagé", target: doc.title, route: "/documents", icon: "download", color: "#6366f1" });
+    } catch (err: any) {
+      Alert.alert(
+        "Erreur",
+        err?.message && !err.message.startsWith("HTTP")
+          ? err.message
+          : "Impossible de récupérer le document pour l'instant.",
+      );
+    }
+  };
+
+  const handlePreview = async (doc: Document) => {
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    setShowPreview(true);
+    setPreviewLoading(true);
+    setPreviewContent(null);
+    try {
+      const { documents: docsApi } = await import("@/services/api");
+      const res = (await docsApi.get(doc.id)) as { data: Record<string, unknown> };
+      setPreviewContent(String(res.data.content ?? "") || "Ce document ne contient pas encore de contenu enregistré.");
+    } catch {
+      setPreviewContent("Impossible de charger le contenu du document. Vérifiez votre connexion et réessayez.");
+    } finally {
+      setPreviewLoading(false);
+    }
+  };
+
+  const openEdit = async (doc: Document) => {
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    setEditTitle(doc.title);
+    setEditContent("");
+    setShowEdit(true);
+    try {
+      const { documents: docsApi } = await import("@/services/api");
+      const res = (await docsApi.get(doc.id)) as { data: Record<string, unknown> };
+      setEditContent(String(res.data.content ?? ""));
+    } catch {
+      // leave editContent empty; user can still overwrite and save
+    }
+  };
+
+  const handleSaveEdit = async () => {
+    if (!selected) return;
+    if (!editTitle.trim()) { Alert.alert("Titre requis", "Le titre du document ne peut pas être vide."); return; }
+    setSavingEdit(true);
+    try {
+      const { documents: docsApi } = await import("@/services/api");
+      await docsApi.update(selected.id, { title: editTitle.trim(), content: editContent });
+      updateDocument(selected.id, { title: editTitle.trim(), content: editContent });
+      logActivity({ action: "Document modifié", target: editTitle.trim(), route: "/documents", icon: "edit-2", color: "#6366f1" });
+      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+      setShowEdit(false);
+      setSelected((s) => (s ? { ...s, title: editTitle.trim(), content: editContent } : s));
+    } catch (err: any) {
+      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
+      Alert.alert(
+        "Erreur",
+        err?.message && !err.message.startsWith("HTTP")
+          ? err.message
+          : "Impossible d'enregistrer les modifications pour l'instant.",
+      );
+    } finally {
+      setSavingEdit(false);
+    }
   };
 
   return (
@@ -298,10 +376,7 @@ export default function DocumentsScreen() {
                   </TouchableOpacity>
                   <TouchableOpacity
                     style={[styles.secBtn, { borderColor: colors.border, backgroundColor: colors.card }]}
-                    onPress={() => {
-                      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-                      Alert.alert("Aperçu du document", `Ouverture de "${selected.title}".\n\nFonctionnalité bientôt disponible — le visualiseur PDF intégré sera activé dans la prochaine version.`);
-                    }}
+                    onPress={() => handlePreview(selected)}
                   >
                     <Feather name="eye" size={16} color={colors.foreground} />
                     <Text style={[styles.secBtnText, { color: colors.foreground }]}>Aperçu</Text>
@@ -309,13 +384,7 @@ export default function DocumentsScreen() {
                   {isAdmin ? (
                     <TouchableOpacity
                       style={[styles.secBtn, { borderColor: colors.primary + "50", backgroundColor: colors.primary + "08" }]}
-                      onPress={() => {
-                        Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-                        Alert.alert("Modifier le document", `Ouvrir l'éditeur pour "${selected.title}"?`, [
-                          { text: "Annuler", style: "cancel" },
-                          { text: "Modifier", onPress: () => Alert.alert("Éditeur", "Fonctionnalité bientôt disponible — l'éditeur de documents sera activé dans la prochaine version.") },
-                        ]);
-                      }}
+                      onPress={() => openEdit(selected)}
                     >
                       <Feather name="edit-2" size={16} color={colors.primary} />
                       <Text style={[styles.secBtnText, { color: colors.primary }]}>Modifier</Text>
@@ -412,6 +481,73 @@ export default function DocumentsScreen() {
                 </Text>
               </View>
             )}
+          </ScrollView>
+        </View>
+      </Modal>
+
+      {/* Preview modal — shows real document content from the API */}
+      <Modal visible={showPreview} animationType="slide" presentationStyle="pageSheet">
+        <View style={[styles.modal, { backgroundColor: colors.background }]}>
+          <View style={[styles.modalHeader, { borderBottomColor: colors.border }]}>
+            <TouchableOpacity onPress={() => setShowPreview(false)}>
+              <Feather name="x" size={22} color={colors.mutedForeground} />
+            </TouchableOpacity>
+            <View style={{ flex: 1, marginStart: 12 }}>
+              <Text style={[styles.modalTitle, { color: colors.foreground }]} numberOfLines={2}>
+                {selected?.title ?? "Aperçu"}
+              </Text>
+            </View>
+          </View>
+          <ScrollView contentContainerStyle={{ padding: 20, paddingBottom: 40 }}>
+            {previewLoading ? (
+              <Text style={{ color: colors.mutedForeground, fontFamily: "Inter_400Regular" }}>Chargement…</Text>
+            ) : (
+              <Text style={{ color: colors.foreground, fontFamily: "Inter_400Regular", fontSize: 14, lineHeight: 22 }}>
+                {previewContent}
+              </Text>
+            )}
+          </ScrollView>
+        </View>
+      </Modal>
+
+      {/* Edit modal — persists changes via PUT /documents/:id */}
+      <Modal visible={showEdit} animationType="slide" presentationStyle="pageSheet">
+        <View style={[styles.modal, { backgroundColor: colors.background }]}>
+          <View style={[styles.modalHeader, { borderBottomColor: colors.border }]}>
+            <Text style={[styles.modalTitle, { color: colors.foreground }]}>Modifier le document</Text>
+            <TouchableOpacity onPress={() => setShowEdit(false)}>
+              <Feather name="x" size={22} color={colors.mutedForeground} />
+            </TouchableOpacity>
+          </View>
+          <ScrollView contentContainerStyle={{ padding: 20, gap: 16, paddingBottom: 40 }}>
+            <View style={{ gap: 8 }}>
+              <Text style={[styles.fieldLabel, { color: colors.foreground }]}>Titre</Text>
+              <TextInput
+                style={[styles.fieldInput, { borderColor: colors.border, backgroundColor: colors.card, color: colors.foreground }]}
+                value={editTitle}
+                onChangeText={setEditTitle}
+                placeholderTextColor={colors.mutedForeground}
+              />
+            </View>
+            <View style={{ gap: 8 }}>
+              <Text style={[styles.fieldLabel, { color: colors.foreground }]}>Contenu</Text>
+              <TextInput
+                style={[styles.fieldInput, styles.fieldTextArea, { borderColor: colors.border, backgroundColor: colors.card, color: colors.foreground, minHeight: 180, textAlignVertical: "top" }]}
+                value={editContent}
+                onChangeText={setEditContent}
+                placeholder="Contenu du document..."
+                placeholderTextColor={colors.mutedForeground}
+                multiline
+              />
+            </View>
+            <TouchableOpacity
+              style={[styles.primaryAction, { backgroundColor: colors.primary, opacity: savingEdit ? 0.6 : 1 }]}
+              onPress={handleSaveEdit}
+              disabled={savingEdit}
+            >
+              <Feather name="save" size={18} color="#fff" />
+              <Text style={styles.primaryActionText}>{savingEdit ? "Enregistrement…" : "Enregistrer"}</Text>
+            </TouchableOpacity>
           </ScrollView>
         </View>
       </Modal>

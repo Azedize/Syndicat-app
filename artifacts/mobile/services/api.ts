@@ -452,6 +452,12 @@ export const documents = {
       method: "POST",
       body: JSON.stringify({ title, category, content, status: "published" }),
     }),
+  get: (id: string) => request<{ data: unknown }>(`/documents/${id}`),
+  update: (id: string, data: { title?: string; category?: string; content?: string; status?: string }) =>
+    request<{ data: unknown }>(`/documents/${id}`, {
+      method: "PUT",
+      body: JSON.stringify(data),
+    }),
 };
 
 // ─── Publications ─────────────────────────────────────────────────────────────

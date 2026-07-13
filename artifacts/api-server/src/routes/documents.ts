@@ -74,4 +74,41 @@ router.post(
   },
 );
 
+router.put(
+  "/documents/:id",
+  requireAuth,
+  requireRole("super_admin", "syndicate_admin"),
+  async (req, res) => {
+    const id = req.params.id as string;
+    const schema = z.object({
+      title: z.string().min(1).max(500).optional(),
+      category: z.enum(["reglements", "statuts", "pv", "juridique", "finances", "attestation"]).optional(),
+      content: z.string().max(500000).optional(),
+      status: z.enum(["published", "draft", "pending"]).optional(),
+    });
+    const result = schema.safeParse(req.body);
+    if (!result.success) { res.status(400).json({ error: "Données invalides" }); return; }
+    try {
+      const [existing] = await db.select().from(documentsTable).where(eq(documentsTable.id, id));
+      if (!existing) { res.status(404).json({ error: "Document introuvable" }); return; }
+      if (req.user!.role !== "super_admin" && existing.syndicateId !== req.user!.syndicateId) {
+        res.status(403).json({ error: "Accès refusé" }); return;
+      }
+      const updates: Record<string, unknown> = { ...result.data };
+      if (result.data.content !== undefined) {
+        updates.size = `${Math.round(result.data.content.length / 1024)}Ko`;
+      }
+      const [doc] = await db
+        .update(documentsTable)
+        .set(updates)
+        .where(eq(documentsTable.id, id))
+        .returning();
+      res.json({ data: doc, message: "Document mis à jour avec succès" });
+    } catch (err) {
+      req.log.error(err);
+      res.status(500).json({ error: "Erreur serveur" });
+    }
+  },
+);
+
 export default router;

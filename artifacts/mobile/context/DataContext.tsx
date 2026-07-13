@@ -57,6 +57,7 @@ export interface Document {
   date: string;
   size: string;
   status: "published" | "draft" | "pending";
+  content?: string;
 }
 
 export interface Product {
@@ -393,6 +394,7 @@ interface DataContextType {
   confirmMeetingAttendance: (id: string) => void;
   addMeeting: (m: Meeting) => void;
   updateMeeting: (m: Meeting) => void;
+  updateDocument: (id: string, changes: Partial<Pick<Document, "title" | "content" | "category" | "status">>) => void;
   markAllAlertsRead: () => void;
 }
 
@@ -848,6 +850,7 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
                 date: String(row.date ?? row.createdAt ?? ""),
                 size: String(row.size ?? ""),
                 status: (row.status as Document["status"]) ?? "published",
+                content: row.content != null ? String(row.content) : undefined,
               };
             }));
           }
@@ -974,6 +977,9 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
   const updateProduct = (p: Product) => {
     setProducts((prev) => prev.map((pr) => (pr.id === p.id ? p : pr)));
     api.marketplace.updateProduct(p.id, p).catch(() => {});
+  };
+  const updateDocument = (id: string, changes: Partial<Pick<Document, "title" | "content" | "category" | "status">>) => {
+    setDocuments((prev) => prev.map((d) => (d.id === id ? { ...d, ...changes } : d)));
   };
   const deleteProduct = (id: string) => {
     setProducts((prev) => prev.filter((pr) => pr.id !== id));
@@ -1153,7 +1159,7 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
         updateSubscription, toggleNotificationPref,
         addPartner, updatePartnerStatus, generatePayslip,
         confirmMeetingAttendance,
-        addMeeting, updateMeeting,
+        addMeeting, updateMeeting, updateDocument,
         markConversationRead, deleteConversation, refreshConversations,
       }}
     >

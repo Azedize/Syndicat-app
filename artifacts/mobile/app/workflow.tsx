@@ -16,6 +16,7 @@ import {
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useAuth } from "@/context/AuthContext";
+import { useData } from "@/context/DataContext";
 import { useLanguage } from "@/context/LanguageContext";
 import { useBreakpoints } from "@/hooks/useBreakpoints";
 import { useColors } from "@/hooks/useColors";
@@ -245,6 +246,7 @@ export default function WorkflowScreen() {
   const { lang } = useLanguage();
   const insets = useSafeAreaInsets();
   const { user } = useAuth();
+  const { documents } = useData();
   const { isWide } = useBreakpoints();
   const topPad = isWide ? 0 : (Platform.OS === "web" ? 67 : insets.top);
 
@@ -530,7 +532,18 @@ export default function WorkflowScreen() {
                 {w.document && (
                   <TouchableOpacity
                     style={[styles.docLink, { backgroundColor: catColor + "10", borderColor: catColor + "30" }]}
-                    onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); Alert.alert("Ouverture du document", `"${w.document}" sera ouvert dans le visualiseur.\n\nFonctionnalité bientôt disponible dans la prochaine version.`); }}
+                    onPress={() => {
+                      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+                      const match = documents.find((d) => w.document && (d.title === w.document || w.document.startsWith(d.title)));
+                      if (match) {
+                        router.push("/documents");
+                      } else {
+                        Alert.alert(
+                          "Document non trouvé",
+                          `"${w.document}" n'a pas encore été numérisé dans l'espace Documents. Contactez votre syndic pour l'obtenir.`,
+                        );
+                      }
+                    }}
                   >
                     <Feather name="file-text" size={16} color={catColor} />
                     <Text style={[styles.docLinkText, { color: catColor }]} numberOfLines={1}>{w.document}</Text>
