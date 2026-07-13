@@ -457,7 +457,7 @@ const styles = StyleSheet.create({
     fontFamily: "Inter_400Regular",
     padding: 0,
   },
-  cancelBtn: { paddingBottom: Platform.OS === "ios" ? 10 : 8, paddingLeft: 2 },
+  cancelBtn: { paddingBottom: Platform.OS === "ios" ? 10 : 8, paddingStart: 2 },
   cancelText: { fontSize: 14, fontFamily: "Inter_600SemiBold" },
 
   chipsBar: { flexShrink: 0,
@@ -504,7 +504,7 @@ const styles = StyleSheet.create({
 
   emptyContainer: { padding: 16, gap: 24, paddingBottom: 60 },
   emptySection: { gap: 10 },
-  emptySectionTitle: { fontSize: 11, fontFamily: "Inter_600SemiBold", letterSpacing: 1, marginLeft: 2 },
+  emptySectionTitle: { fontSize: 11, fontFamily: "Inter_600SemiBold", letterSpacing: 1, marginStart: 2 },
   historyHeader: { flexDirection: "row", alignItems: "center", justifyContent: "space-between" },
   clearText: { fontSize: 12, fontFamily: "Inter_500Medium" },
   historyCard: { borderRadius: 16, borderWidth: 1, overflow: "hidden" },

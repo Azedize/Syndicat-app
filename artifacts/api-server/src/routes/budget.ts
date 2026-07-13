@@ -553,6 +553,14 @@ router.put("/appels-de-fonds/:id/validate", requireAuth, requireAdmin, async (re
       return res.status(400).json({ error: "Un motif de rejet est obligatoire" });
     }
 
+    // Enforce: admin cannot approve a charge without proof of payment
+    if (approve && !appel.proofUrl) {
+      return res.status(400).json({
+        error: "Validation refusée : une pièce justificative (proofUrl) est obligatoire avant d'approuver un paiement.",
+        code: "PROOF_REQUIRED",
+      });
+    }
+
     const now = new Date();
     // Generate receipt number using crypto-safe method
     const receiptNum = approve

@@ -1373,7 +1373,7 @@ const styles = StyleSheet.create({
     marginTop: 2,
   },
   pendingBadgeText: { fontSize: 11, fontWeight: "600" },
-  pendingActions: { flexDirection: "row", gap: 8, marginLeft: 8 },
+  pendingActions: { flexDirection: "row", gap: 8, marginStart: 8 },
   pendingBtn: {
     width: 32,
     height: 32,
@@ -1426,7 +1426,7 @@ const styles = StyleSheet.create({
     borderRadius: 12,
     paddingVertical: 10,
     paddingHorizontal: 14,
-    marginRight: 8,
+    marginEnd: 8,
     minWidth: 140,
     shadowColor: "#000",
     shadowOpacity: 0.06,
@@ -1630,7 +1630,7 @@ const styles = StyleSheet.create({
   prioText: { fontSize: 10, fontWeight: "700", textTransform: "uppercase" },
   travauxTitle: { fontSize: 13, fontWeight: "600", color: "#1E293B" },
   travauxMeta: { flexDirection: "row", alignItems: "center", marginTop: 3 },
-  statusDot: { width: 7, height: 7, borderRadius: 4, marginRight: 5 },
+  statusDot: { width: 7, height: 7, borderRadius: 4, marginEnd: 5 },
   travauxStatus: { fontSize: 11, color: "#64748B" },
   travauxAmt: { fontSize: 11, color: "#64748B" },
 

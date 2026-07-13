@@ -240,7 +240,7 @@ export default function DocumentsScreen() {
               <TouchableOpacity onPress={() => setSelected(null)}>
                 <Feather name="x" size={22} color={colors.mutedForeground} />
               </TouchableOpacity>
-              <View style={{ flex: 1, marginLeft: 12 }}>
+              <View style={{ flex: 1, marginStart: 12 }}>
                 <Text style={[styles.modalTitle, { color: colors.foreground }]} numberOfLines={2}>
                   {selected.title}
                 </Text>

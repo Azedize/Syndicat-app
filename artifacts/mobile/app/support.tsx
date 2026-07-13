@@ -496,7 +496,7 @@ const styles = StyleSheet.create({
   priorityText: { fontSize: 10, fontFamily: "Inter_700Bold" },
   statusBadge: { flexDirection: "row", alignItems: "center", gap: 4, paddingHorizontal: 8, paddingVertical: 3, borderRadius: 20 },
   statusText: { fontSize: 10, fontFamily: "Inter_600SemiBold" },
-  ticketDate: { fontSize: 11, fontFamily: "Inter_400Regular", marginLeft: 54 },
+  ticketDate: { fontSize: 11, fontFamily: "Inter_400Regular", marginStart: 54 },
   fab: { position: "absolute", bottom: 24, left: 20, right: 20, flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 10, paddingVertical: 16, borderRadius: 16 },
   fabText: { fontSize: 15, fontFamily: "Inter_700Bold", color: "#fff" },
   modal: { flex: 1 },

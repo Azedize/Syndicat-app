@@ -758,7 +758,7 @@ const styles = StyleSheet.create({
   chartHeader: { flexDirection: "row", justifyContent: "space-between", alignItems: "center" },
   chartTitle: { fontSize: 15, fontFamily: "Inter_700Bold" },
   chartSub: { fontSize: 11, fontFamily: "Inter_400Regular" },
-  sectionLabel: { fontSize: 11, fontFamily: "Inter_600SemiBold", letterSpacing: 1, marginLeft: 4 },
+  sectionLabel: { fontSize: 11, fontFamily: "Inter_600SemiBold", letterSpacing: 1, marginStart: 4 },
   rankRow: { flexDirection: "row", alignItems: "center", gap: 12, borderRadius: 14, borderWidth: 1, padding: 14 },
   rankNum: { width: 36, height: 36, borderRadius: 10, alignItems: "center", justifyContent: "center" },
   rankNumText: { fontSize: 12, fontFamily: "Inter_700Bold" },

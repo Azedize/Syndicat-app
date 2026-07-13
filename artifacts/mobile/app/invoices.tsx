@@ -294,7 +294,7 @@ export default function InvoicesScreen() {
                     {STATUS_CONFIG[selectedInvoice.status].label}
                   </Text>
                 </View>
-                <TouchableOpacity onPress={() => setSelectedInvoice(null)} style={{ marginLeft: 12 }}>
+                <TouchableOpacity onPress={() => setSelectedInvoice(null)} style={{ marginStart: 12 }}>
                   <Feather name="x" size={22} color={colors.mutedForeground} />
                 </TouchableOpacity>
               </View>

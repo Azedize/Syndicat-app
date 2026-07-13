@@ -217,7 +217,7 @@ export default function DashboardScreen() {
                 <Text style={[styles.seeAll, { color: colors.primary }]}>Tout voir</Text>
               </TouchableOpacity>
             </View>
-            <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: 12, paddingRight: 4 }}>
+            <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: 12, paddingEnd: 4 }}>
               {upcomingMeetings.slice(0, 3).map((m) => (
                 <TouchableOpacity
                   key={m.id}
@@ -346,7 +346,7 @@ export default function DashboardScreen() {
                 <Text style={[styles.seeAll, { color: colors.primary }]}>Voir tout</Text>
               </TouchableOpacity>
             </View>
-            <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: 10, paddingRight: 4 }}>
+            <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: 10, paddingEnd: 4 }}>
               {favorites.slice(0, 8).map((fav) => (
                 <TouchableOpacity
                   key={fav.id}
@@ -461,8 +461,8 @@ const styles = StyleSheet.create({
   meetingChipDate: { width: 52, alignItems: "center", justifyContent: "center", paddingVertical: 14, gap: 2 },
   meetingChipDay: { fontSize: 18, fontFamily: "Inter_700Bold", color: "#fff" },
   meetingChipMonth: { fontSize: 9, fontFamily: "Inter_600SemiBold", color: "rgba(255,255,255,0.8)" },
-  meetingChipTitle: { fontSize: 12, fontFamily: "Inter_700Bold", paddingRight: 12 },
-  meetingChipTime: { fontSize: 10, fontFamily: "Inter_400Regular", paddingRight: 12 },
+  meetingChipTitle: { fontSize: 12, fontFamily: "Inter_700Bold", paddingEnd: 12 },
+  meetingChipTime: { fontSize: 10, fontFamily: "Inter_400Regular", paddingEnd: 12 },
   electionBanner: {
     flexDirection: "row",
     alignItems: "center",

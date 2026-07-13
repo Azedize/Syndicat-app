@@ -155,7 +155,7 @@ const styles = StyleSheet.create({
   exploreBtn: { flexDirection: "row", alignItems: "center", gap: 8, paddingHorizontal: 24, paddingVertical: 12, borderRadius: 14, marginTop: 8 },
   exploreBtnText: { fontSize: 14, fontFamily: "Inter_600SemiBold", color: "#fff" },
 
-  count: { fontSize: 12, fontFamily: "Inter_500Medium", marginBottom: 4, marginLeft: 2 },
+  count: { fontSize: 12, fontFamily: "Inter_500Medium", marginBottom: 4, marginStart: 2 },
   card: {
     flexDirection: "row",
     alignItems: "center",

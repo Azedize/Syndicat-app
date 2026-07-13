@@ -263,7 +263,7 @@ const styles = StyleSheet.create({
   summaryCard: { padding: 16, borderRadius: 16, borderWidth: 1, gap: 10, marginTop: 4 },
   summaryTitle: { fontSize: 15, fontFamily: "Inter_700Bold", marginBottom: 4 },
   summaryRow: { flexDirection: "row", justifyContent: "space-between", alignItems: "center" },
-  summaryLabel: { fontSize: 13, fontFamily: "Inter_400Regular", flex: 1, marginRight: 8 },
+  summaryLabel: { fontSize: 13, fontFamily: "Inter_400Regular", flex: 1, marginEnd: 8 },
   summaryValue: { fontSize: 13, fontFamily: "Inter_600SemiBold" },
   summaryDivider: { height: 1, marginVertical: 4 },
   totalLabel: { fontSize: 15, fontFamily: "Inter_700Bold" },

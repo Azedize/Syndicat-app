@@ -273,7 +273,7 @@ export default function AnnoncesScreen() {
               <TouchableOpacity onPress={() => setSelected(null)}>
                 <Feather name="x" size={22} color={colors.mutedForeground} />
               </TouchableOpacity>
-              <View style={{ flex: 1, marginLeft: 12 }}>
+              <View style={{ flex: 1, marginStart: 12 }}>
                 <Text style={[styles.modalTitle, { color: colors.foreground }]} numberOfLines={2}>{selected.title}</Text>
                 <Text style={[styles.modalSub, { color: colors.mutedForeground }]}>{selected.audience}</Text>
               </View>
@@ -326,7 +326,7 @@ export default function AnnoncesScreen() {
             <TouchableOpacity onPress={() => setShowCreate(false)}>
               <Feather name="x" size={22} color={colors.mutedForeground} />
             </TouchableOpacity>
-            <View style={{ flex: 1, marginLeft: 12 }}>
+            <View style={{ flex: 1, marginStart: 12 }}>
               <Text style={[styles.modalTitle, { color: colors.foreground }]}>{t("createAnnouncement")}</Text>
               <Text style={[styles.modalSub, { color: colors.mutedForeground }]}>Publiée immédiatement aux membres</Text>
             </View>

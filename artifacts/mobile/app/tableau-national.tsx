@@ -599,7 +599,7 @@ export default function TableauNationalScreen() {
               <TouchableOpacity onPress={() => setSelectedSyndicat(null)}>
                 <Feather name="x" size={22} color={colors.mutedForeground} />
               </TouchableOpacity>
-              <Text style={[styles.modalTitle, { color: colors.foreground, flex: 1, marginLeft: 12 }]} numberOfLines={2}>
+              <Text style={[styles.modalTitle, { color: colors.foreground, flex: 1, marginStart: 12 }]} numberOfLines={2}>
                 {selectedSyndicat.name}
               </Text>
             </View>

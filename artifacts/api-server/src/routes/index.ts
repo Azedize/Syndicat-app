@@ -36,6 +36,7 @@ import storageRouter from "./storage.js";
 import travauxPrivatifsRouter from "./travaux-privatifs.js";
 import actionsRouter from "./actions.js";
 import pdfRouter from "./pdf.js";
+import attachmentsRouter from "./attachments.js";
 
 const router: IRouter = Router();
 
@@ -76,5 +77,6 @@ router.use(storageRouter);
 router.use(travauxPrivatifsRouter);
 router.use(actionsRouter);
 router.use(pdfRouter);
+router.use(attachmentsRouter);
 
 export default router;

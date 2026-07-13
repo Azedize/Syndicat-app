@@ -148,7 +148,7 @@ function StepTrail({ row, colors }: { row: TravauxPrivatif; colors: any }) {
         );
       })}
       {isTerminal && (
-        <View style={[trail.dot, { borderColor: st.color, backgroundColor: st.color + "20", marginLeft: 4 }]}>
+        <View style={[trail.dot, { borderColor: st.color, backgroundColor: st.color + "20", marginStart: 4 }]}>
           <Feather name={row.status === "approved" ? "check" : "x"} size={8} color={st.color} />
         </View>
       )}
@@ -914,7 +914,7 @@ const trail = StyleSheet.create({
   container: { flexDirection: "row", alignItems: "center", flexWrap: "wrap", gap: 0, marginTop: 12 },
   row: { flexDirection: "row", alignItems: "center" },
   dot: { width: 18, height: 18, borderRadius: 9, borderWidth: 2, alignItems: "center", justifyContent: "center" },
-  label: { fontSize: 10, marginLeft: 4, marginRight: 2 },
+  label: { fontSize: 10, marginStart: 4, marginEnd: 2 },
   line: { width: 14, height: 2, marginHorizontal: 2 },
   box: { flexDirection: "row", alignItems: "center", gap: 6, padding: 10, borderRadius: 10, marginTop: 8 },
   txt: { fontSize: 12, fontFamily: "Inter_400Regular" },

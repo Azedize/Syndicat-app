@@ -358,7 +358,7 @@ export default function ParkingScreen() {
       {mySpot && (
         <View style={[styles.spotBanner, { backgroundColor: primary + "15", borderColor: primary + "33" }]}>
           <Feather name="map-pin" size={18} color={primary} />
-          <View style={{ flex: 1, marginLeft: 10 }}>
+          <View style={{ flex: 1, marginStart: 10 }}>
             <Text style={[styles.spotNum, { color: primary }]}>Place {mySpot.spotNumber}</Text>
             <Text style={[styles.spotSub, { color: sub }]}>
               {mySpot.type === "garage" ? "Garage" : mySpot.type === "visitor" ? "Visiteur" : "Résident"}
@@ -417,7 +417,7 @@ export default function ParkingScreen() {
                       <Text style={[styles.plateText, { color: primary }]}>{v.plateNumber}</Text>
                     </View>
                     <StatusBadge status={v.status} />
-                    <TouchableOpacity onPress={() => handleDeleteVehicle(v.id, v.plateNumber)} style={{ marginLeft: 8 }}>
+                    <TouchableOpacity onPress={() => handleDeleteVehicle(v.id, v.plateNumber)} style={{ marginStart: 8 }}>
                       <Feather name="trash-2" size={16} color="#ef4444" />
                     </TouchableOpacity>
                   </View>
@@ -465,8 +465,8 @@ export default function ParkingScreen() {
                   <View style={[styles.cardRow, { marginTop: 6 }]}>
                     <Feather name="clock" size={12} color={sub} />
                     <Text style={[styles.cardDate, { color: sub }]}> {formatDateTime(v.reportedAt)}</Text>
-                    <Text style={[styles.cardDate, { color: sub, marginLeft: 8 }]}>· {v.reportedByName}</Text>
-                    {v.photoUrl && <Feather name="image" size={12} color={primary} style={{ marginLeft: 8 }} />}
+                    <Text style={[styles.cardDate, { color: sub, marginStart: 8 }]}>· {v.reportedByName}</Text>
+                    {v.photoUrl && <Feather name="image" size={12} color={primary} style={{ marginStart: 8 }} />}
                   </View>
                 </View>
               ))
@@ -748,5 +748,5 @@ const styles = StyleSheet.create({
   primaryBtnText: { color: "#fff", fontSize: 15, fontFamily: "Inter_700Bold" },
   photoBtn: { flexDirection: "row", alignItems: "center", gap: 10, borderWidth: 1, borderRadius: 10, padding: 14, borderStyle: "dashed" },
   photoBtnText: { fontSize: 14, fontFamily: "Inter_600SemiBold" },
-  spotChip: { borderWidth: 1, borderRadius: 8, paddingHorizontal: 14, paddingVertical: 8, marginRight: 8, alignItems: "center", minWidth: 60 },
+  spotChip: { borderWidth: 1, borderRadius: 8, paddingHorizontal: 14, paddingVertical: 8, marginEnd: 8, alignItems: "center", minWidth: 60 },
 });

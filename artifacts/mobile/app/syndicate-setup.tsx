@@ -287,7 +287,7 @@ function CityPicker({
             </TouchableOpacity>
           </View>
           <View style={[styles.pickerSearch, { backgroundColor: colors.muted, margin: 16, borderRadius: 12 }]}>
-            <Feather name="search" size={16} color={colors.mutedForeground} style={{ marginLeft: 10 }} />
+            <Feather name="search" size={16} color={colors.mutedForeground} style={{ marginStart: 10 }} />
             <TextInput
               style={[styles.pickerSearchInput, { color: colors.foreground }]}
               placeholder="Rechercher une ville…"
@@ -395,7 +395,7 @@ function SimplePicker({
           </View>
           {showSearch ? (
             <View style={[styles.pickerSearch, { backgroundColor: colors.muted, margin: 16, borderRadius: 12 }]}>
-              <Feather name="search" size={16} color={colors.mutedForeground} style={{ marginLeft: 10 }} />
+              <Feather name="search" size={16} color={colors.mutedForeground} style={{ marginStart: 10 }} />
               <TextInput
                 style={[styles.pickerSearchInput, { color: colors.foreground }]}
                 placeholder={`Rechercher…`}
@@ -1671,7 +1671,7 @@ const styles = StyleSheet.create({
   pickerSearch: {
     flexDirection: "row",
     alignItems: "center",
-    paddingRight: 12,
+    paddingEnd: 12,
   },
   pickerSearchInput: {
     flex: 1,

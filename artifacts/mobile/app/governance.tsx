@@ -523,7 +523,7 @@ export default function GovernanceScreen() {
               <TouchableOpacity onPress={() => setSelectedMember(null)}>
                 <Feather name="x" size={22} color={colors.mutedForeground} />
               </TouchableOpacity>
-              <Text style={[styles.modalTitle, { color: colors.foreground, flex: 1, marginLeft: 12 }]}>
+              <Text style={[styles.modalTitle, { color: colors.foreground, flex: 1, marginStart: 12 }]}>
                 Fiche bureau
               </Text>
             </View>
@@ -599,7 +599,7 @@ export default function GovernanceScreen() {
               <TouchableOpacity onPress={() => setSelectedCommission(null)}>
                 <Feather name="x" size={22} color={colors.mutedForeground} />
               </TouchableOpacity>
-              <Text style={[styles.modalTitle, { color: colors.foreground, flex: 1, marginLeft: 12 }]} numberOfLines={1}>
+              <Text style={[styles.modalTitle, { color: colors.foreground, flex: 1, marginStart: 12 }]} numberOfLines={1}>
                 {selectedCommission.name}
               </Text>
             </View>
@@ -665,7 +665,7 @@ export default function GovernanceScreen() {
               <TouchableOpacity onPress={() => setSelectedMandat(null)}>
                 <Feather name="x" size={22} color={colors.mutedForeground} />
               </TouchableOpacity>
-              <Text style={[styles.modalTitle, { color: colors.foreground, flex: 1, marginLeft: 12 }]}>Détail du Mandat</Text>
+              <Text style={[styles.modalTitle, { color: colors.foreground, flex: 1, marginStart: 12 }]}>Détail du Mandat</Text>
             </View>
             <ScrollView contentContainerStyle={{ padding: 20, gap: 14, paddingBottom: 40 }}>
               {(() => {
@@ -742,7 +742,7 @@ export default function GovernanceScreen() {
               <TouchableOpacity onPress={() => setSelectedDelegation(null)}>
                 <Feather name="x" size={22} color={colors.mutedForeground} />
               </TouchableOpacity>
-              <Text style={[styles.modalTitle, { color: colors.foreground, flex: 1, marginLeft: 12 }]} numberOfLines={1}>
+              <Text style={[styles.modalTitle, { color: colors.foreground, flex: 1, marginStart: 12 }]} numberOfLines={1}>
                 {selectedDelegation.domaine}
               </Text>
             </View>

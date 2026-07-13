@@ -333,7 +333,7 @@ const styles = StyleSheet.create({
     gap: 0,
   },
   sectionLabel: { fontSize: 11, fontFamily: "Inter_600SemiBold", letterSpacing: 1, marginBottom: 12 },
-  sectionTitle: { fontSize: 11, fontFamily: "Inter_600SemiBold", letterSpacing: 1, marginLeft: 4 },
+  sectionTitle: { fontSize: 11, fontFamily: "Inter_600SemiBold", letterSpacing: 1, marginStart: 4 },
   switchRow: {
     flexDirection: "row",
     alignItems: "center",

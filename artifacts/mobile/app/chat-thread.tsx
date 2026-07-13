@@ -391,7 +391,7 @@ const styles = StyleSheet.create({
   },
   msgAvatarText: { fontSize: 10, fontFamily: "Inter_700Bold" },
   msgGroup: { maxWidth: "75%", gap: 3 },
-  msgSender: { fontSize: 11, fontFamily: "Inter_600SemiBold", marginLeft: 4 },
+  msgSender: { fontSize: 11, fontFamily: "Inter_600SemiBold", marginStart: 4 },
   bubble: {
     paddingHorizontal: 14,
     paddingVertical: 10,
@@ -399,7 +399,7 @@ const styles = StyleSheet.create({
     borderBottomLeftRadius: 4,
   },
   bubbleText: { fontSize: 14, fontFamily: "Inter_400Regular", lineHeight: 19 },
-  msgTime: { fontSize: 10, fontFamily: "Inter_400Regular", marginLeft: 4 },
+  msgTime: { fontSize: 10, fontFamily: "Inter_400Regular", marginStart: 4 },
   inputRow: {
     flexDirection: "row",
     alignItems: "flex-end",

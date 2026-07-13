@@ -289,7 +289,7 @@ const styles = StyleSheet.create({
   profileChevron: { alignItems: "center", gap: 4 },
   profileChevronText: { fontSize: 10, fontFamily: "Inter_600SemiBold", color: "rgba(255,255,255,0.8)" },
   group: { gap: 8 },
-  groupTitle: { fontSize: 11, fontFamily: "Inter_600SemiBold", letterSpacing: 1, marginLeft: 4 },
+  groupTitle: { fontSize: 11, fontFamily: "Inter_600SemiBold", letterSpacing: 1, marginStart: 4 },
   card: { borderRadius: 16, borderWidth: 1, overflow: "hidden" },
   navRow: { flexDirection: "row", alignItems: "center", padding: 14, gap: 12 },
   rowIcon: { width: 34, height: 34, borderRadius: 10, alignItems: "center", justifyContent: "center" },

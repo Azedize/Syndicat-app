@@ -356,7 +356,7 @@ const styles = StyleSheet.create({
   summaryVal: { fontSize: 12, fontFamily: "Inter_700Bold" },
   totalBanner: { flexDirection: "row", alignItems: "center", gap: 10, padding: 14, borderRadius: 14, borderWidth: 1 },
   totalBannerText: { flex: 1, fontSize: 12, fontFamily: "Inter_600SemiBold" },
-  catTitle: { fontSize: 10, fontFamily: "Inter_600SemiBold", letterSpacing: 1, marginLeft: 2 },
+  catTitle: { fontSize: 10, fontFamily: "Inter_600SemiBold", letterSpacing: 1, marginStart: 2 },
   ligneCard: { flexDirection: "row", alignItems: "flex-start", gap: 12, padding: 14, borderRadius: 14, borderWidth: 1 },
   ligneIcon: { width: 36, height: 36, borderRadius: 11, alignItems: "center", justifyContent: "center", marginTop: 2 },
   ligneLibelle: { fontSize: 13, fontFamily: "Inter_500Medium", lineHeight: 19 },

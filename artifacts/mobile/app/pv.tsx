@@ -320,7 +320,7 @@ export default function PVScreen() {
               <TouchableOpacity onPress={() => setSelectedPV(null)}>
                 <Feather name="x" size={22} color={colors.mutedForeground} />
               </TouchableOpacity>
-              <Text style={[styles.modalTitle, { color: colors.foreground, flex: 1, marginLeft: 12 }]} numberOfLines={2}>
+              <Text style={[styles.modalTitle, { color: colors.foreground, flex: 1, marginStart: 12 }]} numberOfLines={2}>
                 {selectedPV.title}
               </Text>
               <TouchableOpacity
@@ -561,7 +561,7 @@ const styles = StyleSheet.create({
   modal: { flex: 1 },
   modalHeader: { flexDirection: "row", alignItems: "center", padding: 20, borderBottomWidth: 1 },
   modalTitle: { fontSize: 17, fontFamily: "Inter_700Bold", lineHeight: 22 },
-  shareBtn: { width: 36, height: 36, borderRadius: 10, alignItems: "center", justifyContent: "center", marginLeft: 8 },
+  shareBtn: { width: 36, height: 36, borderRadius: 10, alignItems: "center", justifyContent: "center", marginStart: 8 },
   pvHero: { flexDirection: "row", alignItems: "flex-start", gap: 12, padding: 16, borderRadius: 16, borderWidth: 1 },
   pvHeroIcon: { width: 50, height: 50, borderRadius: 14, alignItems: "center", justifyContent: "center" },
   pvHeroRow: { flexDirection: "row", gap: 6, marginBottom: 4 },

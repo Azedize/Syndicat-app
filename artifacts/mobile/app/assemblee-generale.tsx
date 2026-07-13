@@ -427,7 +427,7 @@ export default function AssembleeGeneraleScreen() {
                 <TouchableOpacity onPress={() => setSelected(null)} style={s.modalBack}>
                   <Feather name="x" size={22} color="#fff" />
                 </TouchableOpacity>
-                <View style={{ flex: 1, marginLeft: 12 }}>
+                <View style={{ flex: 1, marginStart: 12 }}>
                   <Text style={s.modalTitle} numberOfLines={2}>{selected.title}</Text>
                   <Text style={s.modalSub}>{tc.label} — {sc.label}</Text>
                 </View>
@@ -612,7 +612,7 @@ export default function AssembleeGeneraleScreen() {
             <TouchableOpacity onPress={() => setShowCreate(false)} style={s.modalBack}>
               <Feather name="x" size={22} color="#fff" />
             </TouchableOpacity>
-            <Text style={[s.modalTitle, { marginLeft: 12 }]}>Planifier une AG</Text>
+            <Text style={[s.modalTitle, { marginStart: 12 }]}>Planifier une AG</Text>
           </View>
           <ScrollView contentContainerStyle={{ padding: 20, gap: 14, paddingBottom: 40 }}>
             {/* Type selector */}
@@ -686,7 +686,7 @@ export default function AssembleeGeneraleScreen() {
             <TouchableOpacity onPress={() => setShowAddResolution(false)} style={s.modalBack}>
               <Feather name="x" size={22} color="#fff" />
             </TouchableOpacity>
-            <Text style={[s.modalTitle, { marginLeft: 12 }]}>Nouvelle résolution</Text>
+            <Text style={[s.modalTitle, { marginStart: 12 }]}>Nouvelle résolution</Text>
           </View>
           <ScrollView contentContainerStyle={{ padding: 20, gap: 14, paddingBottom: 40 }}>
             <View style={{ gap: 6 }}>
@@ -745,7 +745,7 @@ export default function AssembleeGeneraleScreen() {
             <TouchableOpacity onPress={() => setShowVoteModal(null)} style={s.modalBack}>
               <Feather name="x" size={22} color="#fff" />
             </TouchableOpacity>
-            <View style={{ flex: 1, marginLeft: 12 }}>
+            <View style={{ flex: 1, marginStart: 12 }}>
               <Text style={s.modalTitle} numberOfLines={1}>Enregistrer les votes</Text>
               {showVoteModal && <Text style={s.modalSub} numberOfLines={1}>{showVoteModal.title}</Text>}
             </View>
@@ -799,7 +799,7 @@ export default function AssembleeGeneraleScreen() {
             <TouchableOpacity onPress={() => setShowPv(false)} style={s.modalBack}>
               <Feather name="x" size={22} color="#fff" />
             </TouchableOpacity>
-            <Text style={[s.modalTitle, { marginLeft: 12 }]}>Procès-Verbal</Text>
+            <Text style={[s.modalTitle, { marginStart: 12 }]}>Procès-Verbal</Text>
           </View>
           <ScrollView contentContainerStyle={{ padding: 20, paddingBottom: 60 }}>
             <View style={[s.pvContainer, { backgroundColor: colors.card, borderColor: colors.border }]}>
