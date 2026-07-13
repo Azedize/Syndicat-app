@@ -1,28 +1,24 @@
 ---
 name: Tenant mobile RBAC screens
-description: Tenant role routing in mobile app — which quick actions, menu sections, and dashboard widgets are visible vs. hidden.
+description: Status of tenant-role placeholder screens vs real API wiring, and a recurring list-endpoint scoping gap found while auditing them.
 ---
 
-## Rule
-The `tenant` role is NOT a copropriétaire. They do NOT have access to:
-- Charges & Appels de Fonds (financial data of copropriété)
-- Assemblée Générale / Meetings / Elections / Procès-Verbaux
-- Budget Prévisionnel, Rapports Financiers, Recouvrement
+mon-bail.tsx, documents.tsx, sinistres.tsx, and travaux-privatifs.tsx are now all wired to
+real API endpoints (not static placeholders) — this superseded an earlier note that mon-bail
+was a functional placeholder pending a later API phase.
 
-They DO have access to:
-- Mon Appartement / Mon Bail / État des Lieux (their own unit)
-- Travaux & Incidents (maintenance affecting their unit)
-- Documents (their lease, building rules)
-- Chat & Messagerie
-- Support & Réclamations
+**Recurring gap found while auditing these:** list (`GET`) endpoints that scope by
+`syndicateId`/`buildingId` for `syndicate_admin` often forget to add a *personal* scope
+(`reportedById`, `requestedById`, `status = published`, etc.) for the `member`/`tenant`
+branch, so residents can see every other resident's rows in the syndicate (sinistres,
+documents in draft/pending state, etc.) — not just their own.
 
-**Why:** Loi 18-00 (Morocco) gives voting and financial rights only to copropriétaires (owners). Tenants are residents, not co-owners.
+**Why:** the same conditions-array pattern is reused across routes
+(`artifacts/api-server/src/routes/*.ts`), and it's easy to add the admin-scope branch without
+adding the matching member/tenant branch, since both branches sit in the same `if/else if`
+chain and nothing type-checks that every role is covered.
 
-**How to apply:**
-- `QUICK_ACTIONS_TENANT` array in `(tabs)/index.tsx` — Mon Bail, Travaux, Incidents, Documents, Chat only
-- `more.tsx` section items filtered via `roles: AllRoles[]` arrays — tenant excluded from Charges, AG, Budget
-- "Mon Logement" section in more.tsx is tenant-only (Mon Appart, Mon Bail, État des Lieux)
-- Dashboard: meetings strip wrapped with `!isTenant &&`, elections banner wrapped with `!isTenant &&`
-- `isTenant` const derived from `user.role === "tenant"` — defined alongside `isSuperAdmin` and `isSyndicateAdmin`
-
-Screens created: `artifacts/mobile/app/mon-bail.tsx`, `artifacts/mobile/app/etat-des-lieux.tsx` (functional placeholders, Phase 9 will wire real API).
+**How to apply:** when reviewing or adding a `GET` list route, check every role in
+`JwtPayload["role"]` has an explicit scope branch — not just "falls through to no filter" for
+member/tenant. This is the same IDOR class documented in `audit-supervision-model.md`, just
+on list endpoints instead of fetch-by-id.

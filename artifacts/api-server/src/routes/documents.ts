@@ -13,6 +13,11 @@ router.get("/documents", requireAuth, async (req, res) => {
     const syndicateId = req.user!.syndicateId || "";
     const conditions: any[] = [eq(documentsTable.syndicateId, syndicateId)];
     if (category) conditions.push(eq(documentsTable.category, category as any));
+    // Members and tenants only see finalized documents — drafts/pending are
+    // internal admin working copies not meant for residents.
+    if (req.user!.role === "member" || req.user!.role === "tenant") {
+      conditions.push(eq(documentsTable.status, "published"));
+    }
     const rows = await db
       .select()
       .from(documentsTable)
@@ -31,6 +36,9 @@ router.get("/documents/:id", requireAuth, async (req, res) => {
     const [doc] = await db.select().from(documentsTable).where(eq(documentsTable.id, id));
     if (!doc) { res.status(404).json({ error: "Document introuvable" }); return; }
     if (req.user!.role !== "super_admin" && doc.syndicateId !== req.user!.syndicateId) {
+      res.status(403).json({ error: "Accès refusé" }); return;
+    }
+    if ((req.user!.role === "member" || req.user!.role === "tenant") && doc.status !== "published") {
       res.status(403).json({ error: "Accès refusé" }); return;
     }
     res.json({ data: doc });

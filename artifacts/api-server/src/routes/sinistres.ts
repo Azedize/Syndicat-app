@@ -27,6 +27,12 @@ router.get("/sinistres", requireAuth, async (req, res) => {
       conditions.push(inArray(sinistresTable.buildingId, ids));
     }
 
+    // Members and tenants only see the incidents they personally reported —
+    // they must not see other residents' claims in the syndicate.
+    if (user.role === "member" || user.role === "tenant") {
+      conditions.push(eq(sinistresTable.reportedById, user.userId));
+    }
+
     if (status) conditions.push(eq(sinistresTable.status, status));
     if (type) conditions.push(eq(sinistresTable.type, type));
 
