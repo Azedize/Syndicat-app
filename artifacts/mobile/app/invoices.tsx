@@ -19,17 +19,18 @@ import {
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import RoleGuard from "@/components/RoleGuard";
 import { useData, type Invoice } from "@/context/DataContext";
+import { useLanguage } from "@/context/LanguageContext";
 import { useBreakpoints } from "@/hooks/useBreakpoints";
 import { useColors } from "@/hooks/useColors";
 
 type TabType = "factures" | "devis";
 
-const STATUS_CONFIG: Record<Invoice["status"], { label: string; color: string; icon: keyof typeof Feather.glyphMap }> = {
-  draft:     { label: "Brouillon",  color: "#6b7280", icon: "edit-3"   },
-  sent:      { label: "Envoyé",     color: "#3b82f6", icon: "send"     },
-  paid:      { label: "Payé",       color: "#10b981", icon: "check-circle" },
-  overdue:   { label: "En retard",  color: "#ef4444", icon: "alert-circle" },
-  cancelled: { label: "Annulé",     color: "#6b7280", icon: "x-circle" },
+const STATUS_CONFIG: Record<Invoice["status"], { labelKey: string; color: string; icon: keyof typeof Feather.glyphMap }> = {
+  draft:     { labelKey: "invStatusDraft",     color: "#6b7280", icon: "edit-3"   },
+  sent:      { labelKey: "invStatusSent",      color: "#3b82f6", icon: "send"     },
+  paid:      { labelKey: "invStatusPaid",      color: "#10b981", icon: "check-circle" },
+  overdue:   { labelKey: "invStatusOverdue",   color: "#ef4444", icon: "alert-circle" },
+  cancelled: { labelKey: "invStatusCancelled", color: "#6b7280", icon: "x-circle" },
 };
 
 export default function InvoicesScreen() {
@@ -44,6 +45,7 @@ function InvoicesScreenInner() {
   const colors = useColors();
   const insets = useSafeAreaInsets();
   const { invoices, addInvoice } = useData();
+  const { t } = useLanguage();
   const { isWide } = useBreakpoints();
   const topPad = isWide ? 0 : (Platform.OS === "web" ? 67 : insets.top);
 
@@ -75,7 +77,7 @@ function InvoicesScreenInner() {
     try {
       const perm = await ImagePicker.requestMediaLibraryPermissionsAsync();
       if (!perm.granted) {
-        Alert.alert("Permission requise", "Veuillez autoriser l'accès à la galerie pour joindre un justificatif.");
+        Alert.alert(t("invPermissionRequired"), t("invPermGallery"));
         return;
       }
       const result = await ImagePicker.launchImageLibraryAsync({
@@ -95,7 +97,7 @@ function InvoicesScreenInner() {
     try {
       const perm = await ImagePicker.requestCameraPermissionsAsync();
       if (!perm.granted) {
-        Alert.alert("Permission requise", "Veuillez autoriser l'accès à la caméra.");
+        Alert.alert(t("invPermissionRequired"), t("invPermCamera"));
         return;
       }
       const result = await ImagePicker.launchCameraAsync({
@@ -116,12 +118,12 @@ function InvoicesScreenInner() {
       return;
     }
     Alert.alert(
-      "Joindre un justificatif",
-      "Choisissez la source de votre fichier",
+      t("invJoindreJustif"),
+      t("invChoisirSource"),
       [
-        { text: "Galerie photo", onPress: pickFromGallery },
-        { text: "Appareil photo", onPress: pickFromCamera },
-        { text: "Annuler", style: "cancel" },
+        { text: t("invGaleriePhoto"), onPress: pickFromGallery },
+        { text: t("invAppareilPhoto"), onPress: pickFromCamera },
+        { text: t("cancel"), style: "cancel" },
       ]
     );
   };
@@ -174,8 +176,8 @@ function InvoicesScreenInner() {
           <Feather name="arrow-left" size={22} color="#fff" />
         </TouchableOpacity>
         <View style={{ flex: 1 }}>
-          <Text style={styles.headerTitle}>Devis & Factures</Text>
-          <Text style={styles.headerSub}>Gestion financière — justificatifs obligatoires</Text>
+          <Text style={styles.headerTitle}>{t("invHeaderTitle")}</Text>
+          <Text style={styles.headerSub}>{t("invHeaderSub")}</Text>
         </View>
         <TouchableOpacity
           style={[styles.addBtn, { backgroundColor: "rgba(255,255,255,0.2)" }]}
@@ -188,9 +190,9 @@ function InvoicesScreenInner() {
       {/* Summary */}
       <View style={[styles.summaryRow, { backgroundColor: colors.card, borderBottomColor: colors.border }]}>
         {[
-          { value: totalRevenue, label: "Encaissé (MAD)", color: "#10b981" },
-          { value: totalPending, label: "En attente",     color: "#f59e0b" },
-          { value: totalOverdue, label: "En retard",      color: "#ef4444" },
+          { value: totalRevenue, label: t("invEncaisse"), color: "#10b981" },
+          { value: totalPending, label: t("invEnAttente"), color: "#f59e0b" },
+          { value: totalOverdue, label: t("invEnRetard"), color: "#ef4444" },
         ].map(({ value, label, color }) => (
           <View key={label} style={[styles.statBox, { backgroundColor: color + "12" }]}>
             <Text style={[styles.statValue, { color }]}>{value.toLocaleString()}</Text>
@@ -201,20 +203,20 @@ function InvoicesScreenInner() {
 
       {/* Tabs */}
       <View style={[styles.tabs, { backgroundColor: colors.card, borderBottomColor: colors.border }]}>
-        {(["factures", "devis"] as TabType[]).map((t) => (
+        {(["factures", "devis"] as TabType[]).map((tv) => (
           <TouchableOpacity
-            key={t}
-            style={[styles.tabBtn, tab === t && { borderBottomColor: colors.primary, borderBottomWidth: 2 }]}
-            onPress={() => setTab(t)}
+            key={tv}
+            style={[styles.tabBtn, tab === tv && { borderBottomColor: colors.primary, borderBottomWidth: 2 }]}
+            onPress={() => setTab(tv)}
           >
             <Feather
-              name={t === "factures" ? "file-text" : "clipboard"}
+              name={tv === "factures" ? "file-text" : "clipboard"}
               size={15}
-              color={tab === t ? colors.primary : colors.mutedForeground}
+              color={tab === tv ? colors.primary : colors.mutedForeground}
             />
-            <Text style={[styles.tabLabel, { color: tab === t ? colors.primary : colors.mutedForeground }]}>
-              {t === "factures" ? "Factures" : "Devis"}
-              {filteredInvoices.length > 0 && tab === t ? ` (${filteredInvoices.length})` : ""}
+            <Text style={[styles.tabLabel, { color: tab === tv ? colors.primary : colors.mutedForeground }]}>
+              {tv === "factures" ? t("invTabFactures") : t("invTabDevis")}
+              {filteredInvoices.length > 0 && tab === tv ? ` (${filteredInvoices.length})` : ""}
             </Text>
           </TouchableOpacity>
         ))}
@@ -232,10 +234,10 @@ function InvoicesScreenInner() {
               <Feather name="file-text" size={32} color={colors.mutedForeground} />
             </View>
             <Text style={[styles.emptyTitle, { color: colors.foreground }]}>
-              Aucun {tab === "factures" ? "facture" : "devis"}
+              {tab === "factures" ? t("invAucunFacture") : t("invAucunDevis")}
             </Text>
             <Text style={[styles.emptyText, { color: colors.mutedForeground }]}>
-              Appuyez sur + pour créer votre premier {tab === "factures" ? "facture" : "devis"} avec justificatif.
+              {t("invEmptyPrompt")} {tab === "factures" ? t("invFacture").toLowerCase() : t("invDevis").toLowerCase()} {t("invWithProof")}
             </Text>
           </View>
         }
@@ -260,20 +262,20 @@ function InvoicesScreenInner() {
                   {inv.proofUri ? (
                     <View style={[styles.proofBadge, { backgroundColor: "#10b98118" }]}>
                       <Feather name="paperclip" size={9} color="#10b981" />
-                      <Text style={[styles.proofBadgeText, { color: "#10b981" }]}>Justificatif</Text>
+                      <Text style={[styles.proofBadgeText, { color: "#10b981" }]}>{t("invJustificatif")}</Text>
                     </View>
                   ) : null}
                 </View>
                 <Text style={[styles.invRecipient, { color: colors.mutedForeground }]}>{inv.recipient}</Text>
                 <Text style={[styles.invDate, { color: colors.mutedForeground }]}>
-                  Émis : {inv.date} · Échéance : {inv.dueDate}
+                  {t("invEmis")} : {inv.date} · {t("invEcheance")} : {inv.dueDate}
                 </Text>
               </View>
               <View style={{ alignItems: "flex-end", gap: 6 }}>
                 <Text style={[styles.invAmount, { color: colors.foreground }]}>{inv.amount.toLocaleString()} MAD</Text>
                 <View style={[styles.statusBadge, { backgroundColor: sc.color + "18" }]}>
                   <Feather name={sc.icon} size={10} color={sc.color} />
-                  <Text style={[styles.statusText, { color: sc.color }]}>{sc.label}</Text>
+                  <Text style={[styles.statusText, { color: sc.color }]}>{t(sc.labelKey)}</Text>
                 </View>
               </View>
             </TouchableOpacity>
@@ -295,12 +297,12 @@ function InvoicesScreenInner() {
                 <View style={{ flex: 1 }}>
                   <Text style={[styles.detailRef, { color: colors.foreground }]}>{selectedInvoice.reference}</Text>
                   <Text style={[styles.detailType, { color: colors.mutedForeground }]}>
-                    {selectedInvoice.type === "facture" ? "Facture" : "Devis"}
+                    {selectedInvoice.type === "facture" ? t("invFacture") : t("invDevis")}
                   </Text>
                 </View>
                 <View style={[styles.statusBadge, { backgroundColor: STATUS_CONFIG[selectedInvoice.status].color + "18" }]}>
                   <Text style={[styles.statusText, { color: STATUS_CONFIG[selectedInvoice.status].color }]}>
-                    {STATUS_CONFIG[selectedInvoice.status].label}
+                    {t(STATUS_CONFIG[selectedInvoice.status].labelKey)}
                   </Text>
                 </View>
                 <TouchableOpacity onPress={() => setSelectedInvoice(null)} style={{ marginStart: 12 }}>
@@ -311,9 +313,9 @@ function InvoicesScreenInner() {
               {/* Info grid */}
               <View style={[styles.detailInfo, { backgroundColor: colors.background, borderColor: colors.border }]}>
                 {[
-                  { label: "Destinataire",    value: selectedInvoice.recipient },
-                  { label: "Date d'émission",  value: selectedInvoice.date },
-                  { label: "Date d'échéance",  value: selectedInvoice.dueDate },
+                  { label: t("invDestinataire"), value: selectedInvoice.recipient },
+                  { label: t("invDateEmission"), value: selectedInvoice.date },
+                  { label: t("invDateEcheance"), value: selectedInvoice.dueDate },
                 ].map(({ label, value }) => (
                   <View key={label} style={styles.detailRow}>
                     <Text style={[styles.detailLabel, { color: colors.mutedForeground }]}>{label}</Text>
@@ -323,7 +325,7 @@ function InvoicesScreenInner() {
               </View>
 
               {/* Items */}
-              <Text style={[styles.sectionTitle, { color: colors.foreground }]}>Détail des articles</Text>
+              <Text style={[styles.sectionTitle, { color: colors.foreground }]}>{t("invDetailArticles")}</Text>
               <View style={[styles.itemsBox, { borderColor: colors.border }]}>
                 {selectedInvoice.items.map((item, i) => (
                   <View key={i} style={[styles.itemRow, { borderBottomColor: colors.border }]}>
@@ -335,7 +337,7 @@ function InvoicesScreenInner() {
                   </View>
                 ))}
                 <View style={[styles.totalRow, { borderTopColor: colors.border }]}>
-                  <Text style={[styles.totalLabel, { color: colors.foreground }]}>Total</Text>
+                  <Text style={[styles.totalLabel, { color: colors.foreground }]}>{t("invTotal")}</Text>
                   <Text style={[styles.totalAmount, { color: colors.primary }]}>
                     {selectedInvoice.amount.toLocaleString()} MAD
                   </Text>
@@ -343,7 +345,7 @@ function InvoicesScreenInner() {
               </View>
 
               {/* Justificatif */}
-              <Text style={[styles.sectionTitle, { color: colors.foreground }]}>Pièce justificative</Text>
+              <Text style={[styles.sectionTitle, { color: colors.foreground }]}>{t("invPieceJustif")}</Text>
               {selectedInvoice.proofUri || selectedInvoice.proofUrl ? (
                 <TouchableOpacity
                   activeOpacity={0.9}
@@ -360,18 +362,18 @@ function InvoicesScreenInner() {
                   />
                   <View style={styles.proofThumbOverlay}>
                     <Feather name="zoom-in" size={20} color="#fff" />
-                    <Text style={styles.proofThumbOverlayText}>Appuyer pour agrandir</Text>
+                    <Text style={styles.proofThumbOverlayText}>{t("invAppuyerAgrandir")}</Text>
                   </View>
                   <View style={[styles.proofVerified, { backgroundColor: "#10b981" }]}>
                     <Feather name="check" size={10} color="#fff" />
-                    <Text style={styles.proofVerifiedText}>Justificatif joint</Text>
+                    <Text style={styles.proofVerifiedText}>{t("invJustifJoint")}</Text>
                   </View>
                 </TouchableOpacity>
               ) : (
                 <View style={[styles.noProof, { backgroundColor: "#ef444410", borderColor: "#ef444430" }]}>
                   <Feather name="alert-triangle" size={18} color="#ef4444" />
                   <Text style={[styles.noProofText, { color: "#ef4444" }]}>
-                    Aucun justificatif joint à ce document.
+                    {t("invAucunJustifJoint")}
                   </Text>
                 </View>
               )}
@@ -380,17 +382,17 @@ function InvoicesScreenInner() {
               <View style={styles.actionBtns}>
                 <TouchableOpacity
                   style={[styles.actionBtn, { backgroundColor: colors.muted }]}
-                  onPress={() => Alert.alert("PDF", `Le document ${selectedInvoice.reference} a été exporté en PDF.`)}
+                  onPress={() => Alert.alert(t("invPdfExportedTitle"), `${selectedInvoice.reference} — ${t("invPdfExportedMsg")}`)}
                 >
                   <Feather name="download" size={16} color={colors.foreground} />
                   <Text style={[styles.actionBtnText, { color: colors.foreground }]}>PDF</Text>
                 </TouchableOpacity>
                 <TouchableOpacity
                   style={[styles.actionBtn, { backgroundColor: colors.primary }]}
-                  onPress={() => Alert.alert("Envoyé", `Le document ${selectedInvoice.reference} a été envoyé par email.`)}
+                  onPress={() => Alert.alert(t("invSentTitle"), `${selectedInvoice.reference} — ${t("invSentMsg")}`)}
                 >
                   <Feather name="send" size={16} color="#fff" />
-                  <Text style={[styles.actionBtnText, { color: "#fff" }]}>Envoyer</Text>
+                  <Text style={[styles.actionBtnText, { color: "#fff" }]}>{t("invEnvoyerBtn")}</Text>
                 </TouchableOpacity>
               </View>
             </ScrollView>
@@ -407,7 +409,7 @@ function InvoicesScreenInner() {
           {proofModalUri && (
             <Image source={{ uri: proofModalUri }} style={styles.proofFullImg} resizeMode="contain" />
           )}
-          <Text style={styles.proofFullCaption}>Pièce justificative originale</Text>
+          <Text style={styles.proofFullCaption}>{t("invOriginalCaption")}</Text>
         </View>
       </Modal>
 
@@ -423,9 +425,9 @@ function InvoicesScreenInner() {
             {/* Title */}
             <View style={styles.detailHeader}>
               <View style={{ flex: 1 }}>
-                <Text style={[styles.addTitle, { color: colors.foreground }]}>Nouveau document</Text>
+                <Text style={[styles.addTitle, { color: colors.foreground }]}>{t("invNouveauDoc")}</Text>
                 <Text style={[styles.addSub, { color: colors.mutedForeground }]}>
-                  Le justificatif est obligatoire
+                  {t("invJustifObligatoire")}
                 </Text>
               </View>
               <TouchableOpacity onPress={() => { setShowAdd(false); resetForm(); }}>
@@ -435,22 +437,22 @@ function InvoicesScreenInner() {
 
             {/* Type selector */}
             <View style={styles.typeRow}>
-              {(["facture", "devis"] as const).map((t) => (
+              {(["facture", "devis"] as const).map((tv) => (
                 <TouchableOpacity
-                  key={t}
+                  key={tv}
                   style={[styles.typeChip, {
-                    backgroundColor: addType === t ? colors.primary : colors.background,
-                    borderColor: addType === t ? colors.primary : colors.border,
+                    backgroundColor: addType === tv ? colors.primary : colors.background,
+                    borderColor: addType === tv ? colors.primary : colors.border,
                   }]}
-                  onPress={() => setAddType(t)}
+                  onPress={() => setAddType(tv)}
                 >
                   <Feather
-                    name={t === "facture" ? "file-text" : "clipboard"}
+                    name={tv === "facture" ? "file-text" : "clipboard"}
                     size={14}
-                    color={addType === t ? "#fff" : colors.mutedForeground}
+                    color={addType === tv ? "#fff" : colors.mutedForeground}
                   />
-                  <Text style={[styles.typeChipText, { color: addType === t ? "#fff" : colors.mutedForeground }]}>
-                    {t === "facture" ? "Facture" : "Devis"}
+                  <Text style={[styles.typeChipText, { color: addType === tv ? "#fff" : colors.mutedForeground }]}>
+                    {tv === "facture" ? t("invFacture") : t("invDevis")}
                   </Text>
                 </TouchableOpacity>
               ))}
@@ -458,9 +460,9 @@ function InvoicesScreenInner() {
 
             {/* Fields */}
             {[
-              { label: "Destinataire (syndicat / fournisseur) *", val: addRecipient, set: setAddRecipient, placeholder: "Ex: Syndicat Résidence Al Andalous..." },
-              { label: "Libellé de la prestation *", val: addLabel, set: setAddLabel, placeholder: "Ex: Maintenance ascenseur, peinture cage..." },
-              { label: "Montant total (MAD) *", val: addAmount, set: setAddAmount, placeholder: "0.00", numeric: true },
+              { label: t("invDestinataireLabel"), val: addRecipient, set: setAddRecipient, placeholder: t("invDestinatairePh") },
+              { label: t("invLibelleLabel"), val: addLabel, set: setAddLabel, placeholder: t("invLibellePh") },
+              { label: t("invMontantLabel"), val: addAmount, set: setAddAmount, placeholder: "0.00", numeric: true },
             ].map(({ label, val, set, placeholder, numeric }) => (
               <View key={label}>
                 <Text style={[styles.fieldLabel, { color: colors.foreground }]}>{label}</Text>
@@ -476,10 +478,10 @@ function InvoicesScreenInner() {
             ))}
 
             <View>
-              <Text style={[styles.fieldLabel, { color: colors.foreground }]}>Notes / Remarques</Text>
+              <Text style={[styles.fieldLabel, { color: colors.foreground }]}>{t("invNotesLabel")}</Text>
               <TextInput
                 style={[styles.input, { borderColor: colors.border, backgroundColor: colors.background, color: colors.foreground, minHeight: 60 }]}
-                placeholder="Informations complémentaires..."
+                placeholder={t("invNotesPh")}
                 placeholderTextColor={colors.mutedForeground}
                 value={addNotes}
                 onChangeText={setAddNotes}
@@ -498,14 +500,14 @@ function InvoicesScreenInner() {
                   <View style={{ flexDirection: "row", alignItems: "center", gap: 8 }}>
                     <Feather name="paperclip" size={15} color={proofError ? "#ef4444" : colors.primary} />
                     <Text style={[styles.proofSectionTitle, { color: proofError ? "#ef4444" : colors.foreground }]}>
-                      Pièce justificative fournisseur
+                      {t("invProofSectionTitle")}
                     </Text>
                     <View style={{ paddingHorizontal: 7, paddingVertical: 2, borderRadius: 6, backgroundColor: "#ef444418" }}>
-                      <Text style={{ fontSize: 10, fontFamily: "Inter_700Bold", color: "#ef4444" }}>OBLIGATOIRE</Text>
+                      <Text style={{ fontSize: 10, fontFamily: "Inter_700Bold", color: "#ef4444" }}>{t("invObligatoireBadge")}</Text>
                     </View>
                   </View>
                   <Text style={[styles.proofSectionSub, { color: colors.mutedForeground }]}>
-                    Photo ou scan de la facture originale du fournisseur — JPEG, PNG
+                    {t("invProofSectionSub")}
                   </Text>
                 </View>
               </View>
@@ -514,7 +516,7 @@ function InvoicesScreenInner() {
                 <View style={styles.proofErrorBanner}>
                   <Feather name="alert-circle" size={13} color="#ef4444" />
                   <Text style={styles.proofErrorText}>
-                    Veuillez joindre une pièce justificative avant de continuer.
+                    {t("invProofErrorBanner")}
                   </Text>
                 </View>
               )}
@@ -527,7 +529,7 @@ function InvoicesScreenInner() {
                     <Image source={{ uri: addProofUri }} style={styles.proofPreview} resizeMode="cover" />
                     <View style={[styles.proofPreviewBadge, { backgroundColor: "#10b981" }]}>
                       <Feather name="check-circle" size={12} color="#fff" />
-                      <Text style={styles.proofPreviewBadgeText}>Justificatif joint</Text>
+                      <Text style={styles.proofPreviewBadgeText}>{t("invJustifJoint")}</Text>
                     </View>
                   </View>
                   {/* Change / remove row */}
@@ -537,14 +539,14 @@ function InvoicesScreenInner() {
                       onPress={showPickerOptions}
                     >
                       <Feather name="refresh-cw" size={14} color={colors.foreground} />
-                      <Text style={[styles.proofActionBtnText, { color: colors.foreground }]}>Changer</Text>
+                      <Text style={[styles.proofActionBtnText, { color: colors.foreground }]}>{t("invChanger")}</Text>
                     </TouchableOpacity>
                     <TouchableOpacity
                       style={[styles.proofActionBtn, { backgroundColor: "#ef444410", borderColor: "#ef444430" }]}
                       onPress={() => { setAddProofUri(""); setProofError(false); }}
                     >
                       <Feather name="trash-2" size={14} color="#ef4444" />
-                      <Text style={[styles.proofActionBtnText, { color: "#ef4444" }]}>Supprimer</Text>
+                      <Text style={[styles.proofActionBtnText, { color: "#ef4444" }]}>{t("invSupprimer")}</Text>
                     </TouchableOpacity>
                   </View>
                 </View>
@@ -565,10 +567,10 @@ function InvoicesScreenInner() {
                     <Feather name="upload-cloud" size={28} color={proofError ? "#ef4444" : colors.primary} />
                   </View>
                   <Text style={[styles.proofUploadTitle, { color: proofError ? "#ef4444" : colors.primary }]}>
-                    Téléverser depuis mon appareil
+                    {t("invTeleverser")}
                   </Text>
                   <Text style={[styles.proofUploadSub, { color: colors.mutedForeground }]}>
-                    Photo de galerie · Appareil photo · Fichier image
+                    {t("invTeleverserSub")}
                   </Text>
                   <View style={[styles.proofUploadFormats, { backgroundColor: colors.muted }]}>
                     {["JPG", "PNG", "HEIC"].map((fmt) => (
@@ -576,7 +578,7 @@ function InvoicesScreenInner() {
                         <Text style={[styles.fmtText, { color: colors.mutedForeground }]}>{fmt}</Text>
                       </View>
                     ))}
-                    <Text style={[styles.fmtSep, { color: colors.mutedForeground }]}>· max 10 Mo</Text>
+                    <Text style={[styles.fmtSep, { color: colors.mutedForeground }]}>· {t("invMaxSize")}</Text>
                   </View>
                 </TouchableOpacity>
               )}
@@ -597,15 +599,15 @@ function InvoicesScreenInner() {
                 color={isFormValid ? "#fff" : colors.mutedForeground}
               />
               <Text style={[styles.submitBtnText, { color: isFormValid ? "#fff" : colors.mutedForeground }]}>
-                Créer {addType === "facture" ? "la facture" : "le devis"}
+                {addType === "facture" ? t("invCreerFacture") : t("invCreerDevis")}
               </Text>
             </TouchableOpacity>
 
             {!isFormValid && (
               <Text style={[styles.submitHint, { color: colors.mutedForeground }]}>
                 {!addProofUri
-                  ? "⚠ Justificatif manquant — requis pour valider"
-                  : "Remplissez tous les champs obligatoires pour continuer"}
+                  ? t("invHintMissingProof")
+                  : t("invHintFillFields")}
               </Text>
             )}
           </ScrollView>

@@ -27,6 +27,7 @@ import {
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useAuth } from "@/context/AuthContext";
+import { useLanguage } from "@/context/LanguageContext";
 import { useColors } from "@/hooks/useColors";
 import { apiRequest } from "@/lib/api";
 import RoleGuard from "@/components/RoleGuard";
@@ -68,34 +69,34 @@ interface Escalation {
 
 const LEVEL_CONFIG: Record<
   EscalationLevel,
-  { label: string; color: string; bg: string; icon: keyof typeof Feather.glyphMap }
+  { labelKey: string; color: string; bg: string; icon: keyof typeof Feather.glyphMap }
 > = {
   reminder: {
-    label: "Rappel",
+    labelKey: "escLevelReminder",
     color: "#f59e0b",
     bg: "#fef3c7",
     icon: "bell",
   },
   warning: {
-    label: "Mise en demeure",
+    labelKey: "escLevelWarning",
     color: "#f97316",
     bg: "#ffedd5",
     icon: "alert-circle",
   },
   final_warning: {
-    label: "Dernière mise en demeure",
+    labelKey: "escLevelFinalWarning",
     color: "#ef4444",
     bg: "#fee2e2",
     icon: "alert-triangle",
   },
   agm_proposal: {
-    label: "AG Extraordinaire",
+    labelKey: "escLevelAgmProposal",
     color: "#9333ea",
     bg: "#f3e8ff",
     icon: "users",
   },
   legal_action: {
-    label: "Action juridique",
+    labelKey: "escLevelLegalAction",
     color: "#1e293b",
     bg: "#f1f5f9",
     icon: "briefcase",
@@ -124,6 +125,7 @@ function EscalationScreenInner() {
   const colors = useColors();
   const insets = useSafeAreaInsets();
   const { user, token } = useAuth();
+  const { t } = useLanguage();
 
   const [escalations, setEscalations] = useState<Escalation[]>([]);
   const [loading, setLoading] = useState(true);
@@ -154,7 +156,7 @@ function EscalationScreenInner() {
         );
         setEscalations(data.data ?? []);
       } catch (e: any) {
-        if (!silent) Alert.alert("Erreur", e.message ?? "Chargement impossible");
+        if (!silent) Alert.alert(t("error"), e.message ?? t("escLoadError"));
       } finally {
         setLoading(false);
         setRefreshing(false);
@@ -186,12 +188,12 @@ function EscalationScreenInner() {
       );
       const r = result.result;
       Alert.alert(
-        "Scan terminé",
-        `${r.created} nouvelle(s) escalade(s) créée(s), ${r.skipped} ignorée(s)${r.errors > 0 ? `, ${r.errors} erreur(s)` : ""}.`,
+        t("escScanTitle"),
+        `${r.created} ${t("escScanCreated")}, ${r.skipped} ${t("escScanSkipped")}${r.errors > 0 ? `, ${r.errors} ${t("escScanErrors")}` : ""}.`,
       );
       load(true);
     } catch (e: any) {
-      Alert.alert("Erreur", e.message ?? "Scan impossible");
+      Alert.alert(t("error"), e.message ?? t("escScanError"));
     } finally {
       setScanning(false);
     }
@@ -202,7 +204,7 @@ function EscalationScreenInner() {
   const submitOverride = async () => {
     if (!overrideTarget) return;
     if (overrideReason.trim().length < 10) {
-      Alert.alert("Justification requise", "La justification doit comporter au moins 10 caractères.");
+      Alert.alert(t("escJustifRequired"), t("escJustifMinLen"));
       return;
     }
     try {
@@ -217,7 +219,7 @@ function EscalationScreenInner() {
       setOverrideReason("");
       load(true);
     } catch (e: any) {
-      Alert.alert("Erreur", e.message ?? "Opération impossible");
+      Alert.alert(t("error"), e.message ?? t("escOverrideError"));
     } finally {
       setSubmitting(false);
     }
@@ -227,19 +229,19 @@ function EscalationScreenInner() {
 
   const handleResolve = (item: Escalation) => {
     Alert.alert(
-      "Marquer comme résolu",
-      `Confirmer la résolution de l'escalade pour ${item.memberName ?? "ce résident"} ?`,
+      t("escResolveTitle"),
+      `${t("escResolveConfirm")} ${item.memberName ?? t("escResidentFallback")} ?`,
       [
-        { text: "Annuler", style: "cancel" },
+        { text: t("cancel"), style: "cancel" },
         {
-          text: "Confirmer",
+          text: t("escConfirmBtn"),
           style: "default",
           onPress: async () => {
             try {
               await apiRequest(`/escalation/${item.id}/resolve`, "POST", {}, token);
               load(true);
             } catch (e: any) {
-              Alert.alert("Erreur", e.message ?? "Résolution impossible");
+              Alert.alert(t("error"), e.message ?? t("escResolveError"));
             }
           },
         },
@@ -260,7 +262,7 @@ function EscalationScreenInner() {
     const tokenParam = token ? `?token=${encodeURIComponent(token)}` : "";
     const url = `${base}${item.letterUrl}${tokenParam}`;
     Linking.openURL(url).catch(() =>
-      Alert.alert("Erreur", "Impossible d'ouvrir le document"),
+      Alert.alert(t("error"), t("escOpenDocError")),
     );
   };
 
@@ -272,16 +274,16 @@ function EscalationScreenInner() {
   }, {});
 
   const stats = [
-    { label: "Rappels", value: statsByLevel.reminder, color: "#f59e0b" },
-    { label: "Mise en demeure", value: statsByLevel.warning, color: "#f97316" },
-    { label: "Dernière M.D.", value: statsByLevel.final_warning, color: "#ef4444" },
-    { label: "AG Extraord.", value: statsByLevel.agm_proposal, color: "#9333ea" },
-    { label: "Contentieux", value: statsByLevel.legal_action, color: "#1e293b" },
+    { label: t("escStatReminders"), value: statsByLevel.reminder, color: "#f59e0b" },
+    { label: t("escStatWarning"), value: statsByLevel.warning, color: "#f97316" },
+    { label: t("escStatFinalWarning"), value: statsByLevel.final_warning, color: "#ef4444" },
+    { label: t("escStatAgm"), value: statsByLevel.agm_proposal, color: "#9333ea" },
+    { label: t("escStatLegal"), value: statsByLevel.legal_action, color: "#1e293b" },
   ];
 
   const filterChips = [
-    { key: "all", label: "Toutes" },
-    ...ALL_LEVELS.map((lv) => ({ key: lv, label: LEVEL_CONFIG[lv].label })),
+    { key: "all", label: t("escFilterAll") },
+    ...ALL_LEVELS.map((lv) => ({ key: lv, label: t(LEVEL_CONFIG[lv].labelKey) })),
   ];
 
   const displayed = escalations;
@@ -291,8 +293,8 @@ function EscalationScreenInner() {
   return (
     <View style={[s.root, { backgroundColor: colors.background }]}>
       <ScreenHeader
-        title="Recouvrement"
-        subtitle="Suivi des escalades de dette"
+        title={t("escHeaderTitle")}
+        subtitle={t("escHeaderSubtitle")}
         onBack={() => router.back()}
         rightContent={
           isAdmin ? (
@@ -306,7 +308,7 @@ function EscalationScreenInner() {
               ) : (
                 <Feather name="refresh-cw" size={16} color="#7c3aed" />
               )}
-              <Text style={s.scanBtnText}>{scanning ? "Scan…" : "Lancer scan"}</Text>
+              <Text style={s.scanBtnText}>{scanning ? t("escScanning") : t("escLaunchScan")}</Text>
             </TouchableOpacity>
           ) : undefined
         }
@@ -335,7 +337,7 @@ function EscalationScreenInner() {
           <View style={s.empty}>
             <Feather name="check-circle" size={48} color={colors.border} />
             <Text style={[s.emptyText, { color: colors.mutedForeground }]}>
-              Aucune escalade active
+              {t("escEmptyMsg")}
             </Text>
           </View>
         ) : (
@@ -368,14 +370,14 @@ function EscalationScreenInner() {
         <View style={s.modalBackdrop}>
           <View style={[s.modalCard, { backgroundColor: colors.card }]}>
             <Text style={[s.modalTitle, { color: colors.text }]}>
-              Annuler l'escalade
+              {t("escOverrideModalTitle")}
             </Text>
             <Text style={[s.modalSub, { color: colors.mutedForeground }]}>
               {overrideTarget?.memberName} — {overrideTarget?.levelLabel}
             </Text>
 
             <Text style={[s.inputLabel, { color: colors.mutedForeground }]}>
-              Justification (obligatoire) *
+              {t("escJustifLabel")}
             </Text>
             <TextInput
               style={[
@@ -388,7 +390,7 @@ function EscalationScreenInner() {
               ]}
               multiline
               numberOfLines={4}
-              placeholder="Expliquez la raison de cette annulation…"
+              placeholder={t("escJustifPlaceholder")}
               placeholderTextColor={colors.mutedForeground}
               value={overrideReason}
               onChangeText={setOverrideReason}
@@ -399,7 +401,7 @@ function EscalationScreenInner() {
                 style={[s.modalBtn, { borderColor: colors.border }]}
                 onPress={() => setOverrideTarget(null)}
               >
-                <Text style={{ color: colors.mutedForeground }}>Annuler</Text>
+                <Text style={{ color: colors.mutedForeground }}>{t("cancel")}</Text>
               </TouchableOpacity>
               <TouchableOpacity
                 style={[s.modalBtnPrimary, submitting && s.disabled]}
@@ -409,7 +411,7 @@ function EscalationScreenInner() {
                 {submitting ? (
                   <ActivityIndicator size="small" color="#fff" />
                 ) : (
-                  <Text style={{ color: "#fff", fontWeight: "700" }}>Confirmer</Text>
+                  <Text style={{ color: "#fff", fontWeight: "700" }}>{t("escConfirmBtn")}</Text>
                 )}
               </TouchableOpacity>
             </View>
@@ -432,6 +434,7 @@ interface CardProps {
 }
 
 function EscalationCard({ item, colors, isAdmin, onOpenLetter, onOverride, onResolve }: CardProps) {
+  const { t } = useLanguage();
   const cfg = LEVEL_CONFIG[item.escalationLevel] ?? LEVEL_CONFIG.reminder;
   const amount = parseFloat(item.totalOverdue ?? "0");
 
@@ -441,41 +444,41 @@ function EscalationCard({ item, colors, isAdmin, onOpenLetter, onOverride, onRes
       <View style={s.cardHeader}>
         <View style={[s.levelBadge, { backgroundColor: cfg.bg }]}>
           <Feather name={cfg.icon} size={12} color={cfg.color} />
-          <Text style={[s.levelBadgeText, { color: cfg.color }]}>{cfg.label}</Text>
+          <Text style={[s.levelBadgeText, { color: cfg.color }]}>{t(cfg.labelKey)}</Text>
         </View>
         {item.status === "overridden" && (
           <View style={[s.statusPill, { backgroundColor: "#f1f5f9" }]}>
-            <Text style={[s.statusPillText, { color: "#64748b" }]}>Annulé</Text>
+            <Text style={[s.statusPillText, { color: "#64748b" }]}>{t("escStatusOverridden")}</Text>
           </View>
         )}
         {item.status === "meeting_scheduled" && (
           <View style={[s.statusPill, { backgroundColor: "#f3e8ff" }]}>
-            <Text style={[s.statusPillText, { color: "#7c3aed" }]}>AG planifiée</Text>
+            <Text style={[s.statusPillText, { color: "#7c3aed" }]}>{t("escStatusMeeting")}</Text>
           </View>
         )}
       </View>
 
       {/* Resident + Lot */}
       <Text style={[s.residentName, { color: colors.text }]}>
-        {item.memberName ?? "Résident inconnu"}
+        {item.memberName ?? t("escResidentUnknown")}
       </Text>
       <Text style={[s.lotInfo, { color: colors.mutedForeground }]}>
         {item.building?.name ?? ""}
-        {item.lot ? ` — Lot N° ${item.lot.number}` : ""}
+        {item.lot ? ` — ${t("escLotNumber")} ${item.lot.number}` : ""}
       </Text>
 
       {/* Financials */}
       <View style={s.financialRow}>
         <View>
-          <Text style={[s.amountLabel, { color: colors.mutedForeground }]}>Montant impayé</Text>
+          <Text style={[s.amountLabel, { color: colors.mutedForeground }]}>{t("escAmountDue")}</Text>
           <Text style={[s.amountValue, { color: cfg.color }]}>
             {amount.toLocaleString("fr-MA", { minimumFractionDigits: 2 })} MAD
           </Text>
         </View>
         <View style={{ alignItems: "flex-end" }}>
-          <Text style={[s.amountLabel, { color: colors.mutedForeground }]}>Impayé depuis</Text>
+          <Text style={[s.amountLabel, { color: colors.mutedForeground }]}>{t("escOverdueSince")}</Text>
           <Text style={[s.amountValue, { color: colors.text }]}>
-            {item.overdueMonths} mois
+            {item.overdueMonths} {t("escMonths")}
           </Text>
         </View>
       </View>
@@ -496,7 +499,7 @@ function EscalationCard({ item, colors, isAdmin, onOpenLetter, onOverride, onRes
           {item.letterUrl ? (
             <TouchableOpacity style={[s.actionBtn, { borderColor: "#7c3aed" }]} onPress={onOpenLetter}>
               <Feather name="file-text" size={13} color="#7c3aed" />
-              <Text style={[s.actionBtnText, { color: "#7c3aed" }]}>Voir la lettre</Text>
+              <Text style={[s.actionBtnText, { color: "#7c3aed" }]}>{t("escViewLetter")}</Text>
             </TouchableOpacity>
           ) : null}
           <TouchableOpacity
@@ -504,21 +507,21 @@ function EscalationCard({ item, colors, isAdmin, onOpenLetter, onOverride, onRes
             onPress={onOverride}
           >
             <Feather name="x-circle" size={13} color="#f97316" />
-            <Text style={[s.actionBtnText, { color: "#f97316" }]}>Annuler</Text>
+            <Text style={[s.actionBtnText, { color: "#f97316" }]}>{t("escCancelBtn")}</Text>
           </TouchableOpacity>
           <TouchableOpacity
             style={[s.actionBtn, { borderColor: "#10b981" }]}
             onPress={onResolve}
           >
             <Feather name="check-circle" size={13} color="#10b981" />
-            <Text style={[s.actionBtnText, { color: "#10b981" }]}>Résolu</Text>
+            <Text style={[s.actionBtnText, { color: "#10b981" }]}>{t("escResolvedBtn")}</Text>
           </TouchableOpacity>
         </View>
       )}
       {item.letterUrl && item.status !== "open" && (
         <TouchableOpacity style={s.letterOnlyBtn} onPress={onOpenLetter}>
           <Feather name="download" size={13} color="#7c3aed" />
-          <Text style={[s.actionBtnText, { color: "#7c3aed" }]}>Télécharger la lettre</Text>
+          <Text style={[s.actionBtnText, { color: "#7c3aed" }]}>{t("escDownloadLetter")}</Text>
         </TouchableOpacity>
       )}
     </View>

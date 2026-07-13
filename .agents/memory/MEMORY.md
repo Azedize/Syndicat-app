@@ -12,3 +12,4 @@
 - [Audit log supervision model](audit-supervision-model.md) — super_admin vs syndicate_admin distinguished via actorRole/isSupervision in serverAuditLog(); also flags an IDOR class to grep for.
 - [Syndicate isolation hard-fail pattern](syndicate-isolation-hardening.md) — syndicate_admin routes MUST hard-fail (403) when syndicateId is absent from JWT, never fall through to global scope; meetings, appels-de-fonds, and budget routes all patched to enforce this.
 - [Tenant mobile RBAC screens](tenant-mobile-screens.md) — tenant role gets QUICK_ACTIONS_TENANT (Mon Bail, Documents, Chat, Incidents, Travaux); mon-bail.tsx and etat-des-lieux.tsx created as functional placeholders pending Phase 9 API; meetings strip and elections banner hidden via !isTenant guard.
+- [Language audit key collisions](language-audit-key-conflicts.md) — duplicate/colliding translation keys and `t` variable shadowing pitfalls when migrating screens to the global t()/useLanguage() system.

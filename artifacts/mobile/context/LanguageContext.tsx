@@ -994,7 +994,6 @@ export const TRANSLATIONS: Translations = {
   navFinBoard:        { fr: "Tableau Financier", en: "Financial Dashboard", ar: "اللوحة المالية", es: "Panel Financiero" },
   navMyApart:         { fr: "Mon Appart.", en: "My Apartment", ar: "شقتي", es: "Mi Apartamento" },
   navIncidents:       { fr: "Incidents", en: "Incidents", ar: "الحوادث", es: "Incidentes" },
-  upcomingMeetings:   { fr: "Prochaines réunions", en: "Upcoming meetings", ar: "الاجتماعات القادمة", es: "Próximas reuniones" },
   myFavoritesList:    { fr: "Mes favoris", en: "My favorites", ar: "المفضلة", es: "Mis favoritos" },
   superAdminLabel:    { fr: "Super Administrateur", en: "Super Administrator", ar: "المدير العام", es: "Super Administrador" },
   adminSyndicLabel:   { fr: "Admin Syndicat", en: "Syndicate Admin", ar: "مدير النقابة", es: "Admin Sindicato" },
@@ -1137,16 +1136,13 @@ export const TRANSLATIONS: Translations = {
   yourVote:             { fr: "Votre vote", en: "Your vote", ar: "صوتك", es: "Su voto" },
   castVote:             { fr: "Enregistrer mon vote", en: "Cast my vote", ar: "تسجيل صوتي", es: "Emitir mi voto" },
   electionClosed:       { fr: "Élection clôturée", en: "Election closed", ar: "الانتخاب مغلق", es: "Elección cerrada" },
-  noElections:          { fr: "Aucune élection", en: "No elections", ar: "لا توجد انتخابات", es: "Sin elecciones" },
   votesCount:           { fr: "votes", en: "votes", ar: "أصوات", es: "votos" },
   winner:               { fr: "Élu", en: "Elected", ar: "منتخب", es: "Elegido" },
 
   // ─── Meetings ───────────────────────────────────────────────────────────────
   confirmAttendance:    { fr: "Confirmer présence", en: "Confirm attendance", ar: "تأكيد الحضور", es: "Confirmar asistencia" },
-  agendaLabel:          { fr: "Ordre du jour", en: "Agenda", ar: "جدول الأعمال", es: "Orden del día" },
   meetingLocation:      { fr: "Lieu de la réunion", en: "Meeting location", ar: "مكان الاجتماع", es: "Lugar de la reunión" },
   attendees:            { fr: "Participants", en: "Attendees", ar: "المشاركون", es: "Asistentes" },
-  noMeetings:           { fr: "Aucune réunion", en: "No meetings", ar: "لا توجد اجتماعات", es: "Sin reuniones" },
   newMeeting:           { fr: "Nouvelle réunion", en: "New meeting", ar: "اجتماع جديد", es: "Nueva reunión" },
   meetingType:          { fr: "Type de réunion", en: "Meeting type", ar: "نوع الاجتماع", es: "Tipo de reunión" },
   ordinary:             { fr: "Ordinaire", en: "Ordinary", ar: "عادي", es: "Ordinaria" },
@@ -1162,12 +1158,8 @@ export const TRANSLATIONS: Translations = {
   noGovernance:         { fr: "Aucune donnée de gouvernance", en: "No governance data", ar: "لا توجد بيانات حوكمة", es: "Sin datos de gobernanza" },
 
   // ─── Parking ────────────────────────────────────────────────────────────────
-  reserveSpot:          { fr: "Réserver une place", en: "Reserve a spot", ar: "حجز مكان", es: "Reservar plaza" },
   violationReport:      { fr: "Signaler une infraction", en: "Report violation", ar: "الإبلاغ عن مخالفة", es: "Reportar infracción" },
-  spotAvailable:        { fr: "Disponible", en: "Available", ar: "متاح", es: "Disponible" },
-  spotOccupied:         { fr: "Occupé", en: "Occupied", ar: "مشغول", es: "Ocupado" },
   spotReserved:         { fr: "Réservé", en: "Reserved", ar: "محجوز", es: "Reservado" },
-  noParking:            { fr: "Aucune place de parking", en: "No parking spots", ar: "لا توجد أماكن انتظار", es: "Sin plazas de aparcamiento" },
   plateNumber:          { fr: "Plaque d'immatriculation", en: "License plate", ar: "لوحة الترخيص", es: "Matrícula" },
   parkingViolation:     { fr: "Infraction parking", en: "Parking violation", ar: "مخالفة الانتظار", es: "Infracción de aparcamiento" },
   reservationDate:      { fr: "Date de réservation", en: "Reservation date", ar: "تاريخ الحجز", es: "Fecha de reserva" },
@@ -1186,8 +1178,6 @@ export const TRANSLATIONS: Translations = {
   noContracts:          { fr: "Aucun contrat", en: "No contracts", ar: "لا توجد عقود", es: "Sin contratos" },
 
   // ─── Simulateur ─────────────────────────────────────────────────────────────
-  simulateurTitle:      { fr: "Simulateur de Charges", en: "Charge Simulator", ar: "محاكي الرسوم", es: "Simulador de Cargos" },
-  simulate:             { fr: "Simuler", en: "Simulate", ar: "محاكاة", es: "Simular" },
   monthlyFee:           { fr: "Charges mensuelles", en: "Monthly charges", ar: "الرسوم الشهرية", es: "Cargos mensuales" },
   chargeType:           { fr: "Type de charge", en: "Charge type", ar: "نوع الرسوم", es: "Tipo de cargo" },
   simulationUnits:      { fr: "Nombre de lots", en: "Number of units", ar: "عدد الوحدات", es: "Número de unidades" },
@@ -1210,13 +1200,9 @@ export const TRANSLATIONS: Translations = {
   newAssembly:          { fr: "Nouvelle assemblée", en: "New assembly", ar: "جمعية جديدة", es: "Nueva asamblea" },
 
   // ─── PV (Minutes) ────────────────────────────────────────────────────────────
-  pvTitle:              { fr: "Procès-Verbaux", en: "Meeting Minutes", ar: "محاضر الاجتماعات", es: "Actas de Reunión" },
   noPv:                 { fr: "Aucun procès-verbal", en: "No meeting minutes", ar: "لا توجد محاضر", es: "Sin actas" },
 
   // ─── Tenants ─────────────────────────────────────────────────────────────────
-  leaseStart:           { fr: "Début du bail", en: "Lease start", ar: "بداية العقد", es: "Inicio del contrato" },
-  leaseEnd:             { fr: "Fin du bail", en: "Lease end", ar: "نهاية العقد", es: "Fin del contrato" },
-  monthlyRent:          { fr: "Loyer mensuel", en: "Monthly rent", ar: "الإيجار الشهري", es: "Alquiler mensual" },
   depositAmount:        { fr: "Caution", en: "Deposit", ar: "التأمين", es: "Depósito" },
 
   // ─── Lot (Unit) ──────────────────────────────────────────────────────────────
@@ -1227,7 +1213,6 @@ export const TRANSLATIONS: Translations = {
 
   // ─── Users management ────────────────────────────────────────────────────────
   usersTitle:           { fr: "Utilisateurs", en: "Users", ar: "المستخدمون", es: "Usuarios" },
-  noUsers:              { fr: "Aucun utilisateur", en: "No users", ar: "لا يوجد مستخدمون", es: "Sin usuarios" },
   banConfirm:           { fr: "Êtes-vous sûr de vouloir bannir cet utilisateur ?", en: "Are you sure you want to ban this user?", ar: "هل أنت متأكد من رغبتك في حظر هذا المستخدم؟", es: "¿Está seguro de que desea prohibir este usuario?" },
   unbanUser:            { fr: "Débannir l'utilisateur", en: "Unban user", ar: "رفع حظر المستخدم", es: "Desbloquear usuario" },
   lastLogin:            { fr: "Dernière connexion", en: "Last login", ar: "آخر دخول", es: "Último acceso" },
@@ -1240,25 +1225,17 @@ export const TRANSLATIONS: Translations = {
 
   // ─── Finance tab ──────────────────────────────────────────────────────────────
   currentBalance:       { fr: "Solde actuel", en: "Current balance", ar: "الرصيد الحالي", es: "Saldo actual" },
-  income:               { fr: "Revenus", en: "Income", ar: "الدخل", es: "Ingresos" },
-  expenses:             { fr: "Dépenses", en: "Expenses", ar: "النفقات", es: "Gastos" },
   transactionsLabel:    { fr: "Transactions", en: "Transactions", ar: "المعاملات", es: "Transacciones" },
   pendingPaymentLabel:  { fr: "Paiement en attente", en: "Pending payment", ar: "دفعة معلقة", es: "Pago pendiente" },
   financialManagement:  { fr: "Gestion financière", en: "Financial management", ar: "الإدارة المالية", es: "Gestión financiera" },
 
   // ─── Legal ───────────────────────────────────────────────────────────────────
   legalAlerts:          { fr: "Alertes juridiques", en: "Legal alerts", ar: "التنبيهات القانونية", es: "Alertas legales" },
-  repertoireJuridique:  { fr: "Répertoire juridique", en: "Legal directory", ar: "الدليل القانوني", es: "Directorio legal" },
   acteAdm:              { fr: "Actes administratifs", en: "Administrative acts", ar: "الأعمال الإدارية", es: "Actos administrativos" },
-  noLegalAlerts:        { fr: "Aucune alerte juridique", en: "No legal alerts", ar: "لا توجد تنبيهات قانونية", es: "Sin alertas legales" },
   articleLabel:         { fr: "Article", en: "Article", ar: "مادة", es: "Artículo" },
   lawLabel:             { fr: "Loi", en: "Law", ar: "قانون", es: "Ley" },
 
   // ─── Union Actions ───────────────────────────────────────────────────────────
-  actionsTitle:         { fr: "Actions Syndicales", en: "Union Actions", ar: "الإجراءات النقابية", es: "Acciones Sindicales" },
-  noActions:            { fr: "Aucune action", en: "No actions", ar: "لا توجد إجراءات", es: "Sin acciones" },
-  newAction:            { fr: "Nouvelle action", en: "New action", ar: "إجراء جديد", es: "Nueva acción" },
-  participantsLabel:    { fr: "Participants", en: "Participants", ar: "المشاركون", es: "Participantes" },
   joinAction:           { fr: "Rejoindre", en: "Join", ar: "انضم", es: "Unirse" },
 
   // ─── Cotisations ─────────────────────────────────────────────────────────────
@@ -1268,7 +1245,6 @@ export const TRANSLATIONS: Translations = {
   proofUploaded:        { fr: "Justificatif soumis avec succès", en: "Proof submitted successfully", ar: "تم إرسال الإثبات بنجاح", es: "Comprobante enviado con éxito" },
 
   // ─── Reglements ──────────────────────────────────────────────────────────────
-  reglementsTitle:      { fr: "Règlements & Paiements", en: "Payments & Settlements", ar: "المدفوعات والتسويات", es: "Pagos y Liquidaciones" },
 
   // ─── Bon Livraison ────────────────────────────────────────────────────────────
   supplierLabel:        { fr: "Fournisseur", en: "Supplier", ar: "المورد", es: "Proveedor" },
@@ -1287,7 +1263,6 @@ export const TRANSLATIONS: Translations = {
   noMyProducts:         { fr: "Vous n'avez pas encore de produits", en: "You have no products yet", ar: "ليس لديك منتجات بعد", es: "Aún no tiene productos" },
 
   // ─── Partners ────────────────────────────────────────────────────────────────
-  noPartners:           { fr: "Aucun partenaire", en: "No partners", ar: "لا يوجد شركاء", es: "Sin socios" },
   partnerCategory:      { fr: "Catégorie du partenaire", en: "Partner category", ar: "فئة الشريك", es: "Categoría del socio" },
   partnerDiscount:      { fr: "Réduction", en: "Discount", ar: "خصم", es: "Descuento" },
   visitWebsite:         { fr: "Visiter le site", en: "Visit website", ar: "زيارة الموقع", es: "Visitar sitio" },
@@ -1317,7 +1292,6 @@ export const TRANSLATIONS: Translations = {
   exitInspection:       { fr: "Sortie", en: "Exit", ar: "خروج", es: "Salida" },
 
   // ─── CGU ────────────────────────────────────────────────────────────────────
-  cguTitle:             { fr: "Conditions Générales d'Utilisation", en: "Terms & Conditions", ar: "الشروط والأحكام العامة", es: "Términos y Condiciones" },
   privacyPolicy:        { fr: "Politique de confidentialité", en: "Privacy policy", ar: "سياسة الخصوصية", es: "Política de privacidad" },
   lastUpdated:          { fr: "Dernière mise à jour", en: "Last updated", ar: "آخر تحديث", es: "Última actualización" },
 
@@ -1327,11 +1301,8 @@ export const TRANSLATIONS: Translations = {
   noReclamationsYet:    { fr: "Aucune réclamation pour le moment", en: "No complaints yet", ar: "لا توجد شكاوى في الوقت الحالي", es: "Sin reclamaciones por el momento" },
 
   // ─── Admin Acts ──────────────────────────────────────────────────────────────
-  actesTitle:           { fr: "Actes Administratifs", en: "Administrative Acts", ar: "الأعمال الإدارية", es: "Actos Administrativos" },
-  noActes:              { fr: "Aucun acte administratif", en: "No administrative acts", ar: "لا توجد أعمال إدارية", es: "Sin actos administrativos" },
 
   // ─── Legal Directory ─────────────────────────────────────────────────────────
-  repertoireTitle:      { fr: "Répertoire Juridique", en: "Legal Directory", ar: "الدليل القانوني", es: "Directorio Legal" },
   noRepertoire:         { fr: "Aucun texte juridique", en: "No legal texts", ar: "لا توجد نصوص قانونية", es: "Sin textos legales" },
 
   // ─── Agenda / Calendar ────────────────────────────────────────────────────────
@@ -1350,7 +1321,6 @@ export const TRANSLATIONS: Translations = {
   editProfileTitle:     { fr: "Modifier le profil", en: "Edit profile", ar: "تعديل الملف الشخصي", es: "Editar perfil" },
   firstNameLabel:       { fr: "Prénom", en: "First name", ar: "الاسم الأول", es: "Nombre" },
   lastNameLabel:        { fr: "Nom de famille", en: "Last name", ar: "اللقب", es: "Apellido" },
-  profileUpdated:       { fr: "Profil mis à jour avec succès", en: "Profile updated successfully", ar: "تم تحديث الملف الشخصي بنجاح", es: "Perfil actualizado con éxito" },
 
   // ─── Workflow ────────────────────────────────────────────────────────────────
   workflowPending:      { fr: "En attente", en: "Pending", ar: "بانتظار", es: "Pendiente" },
@@ -1383,6 +1353,159 @@ export const TRANSLATIONS: Translations = {
   myBailLabel:          { fr: "Mon Bail", en: "My Lease", ar: "عقدي", es: "Mi Contrato" },
   inspectionLabel:      { fr: "État des lieux", en: "Property inspection", ar: "جرد الحالة", es: "Inventario" },
   statisticsLabel:      { fr: "Statistiques", en: "Statistics", ar: "الإحصائيات", es: "Estadísticas" },
+
+  // ─── PV screen ────────────────────────────────────────────────────────────
+  pvTypeBureau:         { fr: "Bureau", en: "Board", ar: "المكتب", es: "Oficina" },
+  pvTypeAG:             { fr: "Assemblée Générale", en: "General Assembly", ar: "الجمعية العامة", es: "Asamblea General" },
+  pvTypeCommission:     { fr: "Commission", en: "Committee", ar: "اللجنة", es: "Comisión" },
+  pvTypeElection:       { fr: "Élection", en: "Election", ar: "الانتخاب", es: "Elección" },
+  pvTypeUrgence:        { fr: "Urgence", en: "Emergency", ar: "طارئ", es: "Urgencia" },
+  pvStatusDraft:        { fr: "Brouillon", en: "Draft", ar: "مسودة", es: "Borrador" },
+  pvStatusPending:      { fr: "En attente", en: "Pending", ar: "قيد الانتظار", es: "Pendiente" },
+  pvStatusPublished:    { fr: "Publié", en: "Published", ar: "منشور", es: "Publicado" },
+  pvFilterAll:          { fr: "Tous", en: "All", ar: "الكل", es: "Todos" },
+  pvFilterAllStatus:    { fr: "Tous statuts", en: "All statuses", ar: "جميع الحالات", es: "Todos los estados" },
+  pvFilterPublished:    { fr: "Publiés", en: "Published", ar: "منشورة", es: "Publicados" },
+  pvFilterDraft:        { fr: "Brouillons", en: "Drafts", ar: "مسودات", es: "Borradores" },
+  pvPublishedCount:     { fr: "publié", en: "published", ar: "منشور", es: "publicado" },
+  pvPublishedCountPl:   { fr: "publiés", en: "published", ar: "منشورة", es: "publicados" },
+  pvInProgressCount:    { fr: "en cours", en: "in progress", ar: "قيد الإنجاز", es: "en curso" },
+  pvNoneMatching:       { fr: "Aucun PV correspondant", en: "No matching minutes", ar: "لا توجد محاضر مطابقة", es: "Sin actas coincidentes" },
+  pvPresences:          { fr: "présences", en: "attendees", ar: "الحضور", es: "asistentes" },
+  pvRedacteur:          { fr: "Rédacteur", en: "Author", ar: "المحرر", es: "Redactor" },
+  pvSummaryLabel:       { fr: "RÉSUMÉ", en: "SUMMARY", ar: "ملخص", es: "RESUMEN" },
+  pvResolutionsLabel:   { fr: "RÉSOLUTIONS ADOPTÉES", en: "ADOPTED RESOLUTIONS", ar: "القرارات المعتمدة", es: "RESOLUCIONES ADOPTADAS" },
+  pvSignatairesLabel:   { fr: "SIGNATAIRES", en: "SIGNATORIES", ar: "الموقعون", es: "FIRMANTES" },
+  pvDownloadPDF:        { fr: "Télécharger PDF", en: "Download PDF", ar: "تنزيل PDF", es: "Descargar PDF" },
+  pvPublishBtn:         { fr: "Publier", en: "Publish", ar: "نشر", es: "Publicar" },
+  pvPublishTitle:       { fr: "Publier le PV", en: "Publish minutes", ar: "نشر المحضر", es: "Publicar acta" },
+  pvPublishConfirm:     { fr: "Ce PV sera visible par tous les membres. Confirmer?", en: "These minutes will be visible to all members. Confirm?", ar: "سيكون هذا المحضر مرئياً لجميع الأعضاء. تأكيد؟", es: "Estas actas serán visibles para todos los miembros. ¿Confirmar?" },
+  pvDownloadTitle:      { fr: "Téléchargement", en: "Download", ar: "تنزيل", es: "Descarga" },
+  pvDownloadedSuffix:   { fr: "a été téléchargé (PDF).", en: "has been downloaded (PDF).", ar: "تم تنزيله (PDF).", es: "ha sido descargado (PDF)." },
+  pvNewTitle:           { fr: "Nouveau Procès-Verbal", en: "New Minutes", ar: "محضر جديد", es: "Nueva Acta" },
+  pvTitleFieldLabel:    { fr: "Titre du PV *", en: "Minutes title *", ar: "عنوان المحضر *", es: "Título del acta *" },
+  pvTitlePlaceholder:   { fr: "Ex: PV Réunion Bureau — Juin 2026", en: "e.g.: Board meeting minutes — June 2026", ar: "مثال: محضر اجتماع المكتب — يونيو 2026", es: "Ej.: Acta reunión de oficina — Junio 2026" },
+  pvMeetingTypeLabel:   { fr: "Type de réunion *", en: "Meeting type *", ar: "نوع الاجتماع *", es: "Tipo de reunión *" },
+  pvSummaryFieldLabel:  { fr: "Résumé *", en: "Summary *", ar: "الملخص *", es: "Resumen *" },
+  pvSummaryPlaceholder: { fr: "Décrivez l'objet et le déroulement de la réunion...", en: "Describe the purpose and course of the meeting...", ar: "صف موضوع ومجريات الاجتماع...", es: "Describa el objeto y desarrollo de la reunión..." },
+  pvResolutionsFieldLabel:{ fr: "Résolutions", en: "Resolutions", ar: "القرارات", es: "Resoluciones" },
+  pvResolutionPlaceholder:{ fr: "Ajouter une résolution...", en: "Add a resolution...", ar: "إضافة قرار...", es: "Agregar una resolución..." },
+  pvCreateBtn:          { fr: "Créer le PV (brouillon)", en: "Create minutes (draft)", ar: "إنشاء المحضر (مسودة)", es: "Crear acta (borrador)" },
+  pvCreateError:        { fr: "Impossible de créer le PV", en: "Unable to create the minutes", ar: "تعذر إنشاء المحضر", es: "No se pudo crear el acta" },
+
+  // ─── Escalation screen ────────────────────────────────────────────────────
+  escLevelReminder:     { fr: "Rappel", en: "Reminder", ar: "تذكير", es: "Recordatorio" },
+  escLevelWarning:      { fr: "Mise en demeure", en: "Formal notice", ar: "إنذار رسمي", es: "Notificación formal" },
+  escLevelFinalWarning: { fr: "Dernière mise en demeure", en: "Final formal notice", ar: "الإنذار الرسمي الأخير", es: "Última notificación formal" },
+  escLevelAgmProposal:  { fr: "AG Extraordinaire", en: "Extraordinary AGM", ar: "جمعية عامة استثنائية", es: "AG Extraordinaria" },
+  escLevelLegalAction:  { fr: "Action juridique", en: "Legal action", ar: "إجراء قانوني", es: "Acción legal" },
+  escLoadError:         { fr: "Chargement impossible", en: "Unable to load", ar: "تعذر التحميل", es: "No se pudo cargar" },
+  escScanTitle:         { fr: "Scan terminé", en: "Scan complete", ar: "اكتمل الفحص", es: "Escaneo completo" },
+  escScanCreated:       { fr: "nouvelle(s) escalade(s) créée(s)", en: "new escalation(s) created", ar: "تصعيد(ات) جديدة تم إنشاؤها", es: "nueva(s) escalada(s) creada(s)" },
+  escScanSkipped:       { fr: "ignorée(s)", en: "skipped", ar: "تم تجاهلها", es: "omitida(s)" },
+  escScanErrors:        { fr: "erreur(s)", en: "error(s)", ar: "خطأ(أخطاء)", es: "error(es)" },
+  escScanError:         { fr: "Scan impossible", en: "Unable to scan", ar: "تعذر الفحص", es: "No se pudo escanear" },
+  escJustifRequired:    { fr: "Justification requise", en: "Justification required", ar: "التبرير مطلوب", es: "Justificación requerida" },
+  escJustifMinLen:      { fr: "La justification doit comporter au moins 10 caractères.", en: "The justification must be at least 10 characters.", ar: "يجب أن يتكون التبرير من 10 أحرف على الأقل.", es: "La justificación debe tener al menos 10 caracteres." },
+  escOverrideError:     { fr: "Opération impossible", en: "Operation not possible", ar: "العملية غير ممكنة", es: "Operación no posible" },
+  escResolveTitle:      { fr: "Marquer comme résolu", en: "Mark as resolved", ar: "وضع علامة كمحلول", es: "Marcar como resuelto" },
+  escResolveConfirm:    { fr: "Confirmer la résolution de l'escalade pour", en: "Confirm resolution of the escalation for", ar: "تأكيد حل التصعيد لـ", es: "Confirmar la resolución de la escalada para" },
+  escResidentFallback:  { fr: "ce résident", en: "this resident", ar: "هذا الساكن", es: "este residente" },
+  escConfirmBtn:        { fr: "Confirmer", en: "Confirm", ar: "تأكيد", es: "Confirmar" },
+  escResolveError:      { fr: "Résolution impossible", en: "Unable to resolve", ar: "تعذر الحل", es: "No se pudo resolver" },
+  escOpenDocError:      { fr: "Impossible d'ouvrir le document", en: "Unable to open the document", ar: "تعذر فتح المستند", es: "No se pudo abrir el documento" },
+  escStatReminders:     { fr: "Rappels", en: "Reminders", ar: "التذكيرات", es: "Recordatorios" },
+  escStatWarning:       { fr: "Mise en demeure", en: "Formal notice", ar: "إنذار رسمي", es: "Notificación formal" },
+  escStatFinalWarning:  { fr: "Dernière M.D.", en: "Final notice", ar: "الإنذار الأخير", es: "Última notif." },
+  escStatAgm:           { fr: "AG Extraord.", en: "Extraord. AGM", ar: "جمعية استثنائية", es: "AG Extraord." },
+  escStatLegal:         { fr: "Contentieux", en: "Litigation", ar: "التقاضي", es: "Litigio" },
+  escFilterAll:         { fr: "Toutes", en: "All", ar: "الكل", es: "Todas" },
+  escHeaderTitle:       { fr: "Recouvrement", en: "Debt Recovery", ar: "استرداد الديون", es: "Recuperación" },
+  escHeaderSubtitle:    { fr: "Suivi des escalades de dette", en: "Debt escalation tracking", ar: "متابعة تصعيد الديون", es: "Seguimiento de escaladas de deuda" },
+  escScanning:          { fr: "Scan…", en: "Scanning…", ar: "جارٍ الفحص…", es: "Escaneando…" },
+  escLaunchScan:        { fr: "Lancer scan", en: "Run scan", ar: "بدء الفحص", es: "Iniciar escaneo" },
+  escEmptyMsg:          { fr: "Aucune escalade active", en: "No active escalation", ar: "لا يوجد تصعيد نشط", es: "Sin escalada activa" },
+  escStatusOverridden:  { fr: "Annulé", en: "Cancelled", ar: "ملغى", es: "Cancelado" },
+  escStatusMeeting:     { fr: "AG planifiée", en: "AGM scheduled", ar: "الجمعية مجدولة", es: "AG programada" },
+  escResidentUnknown:   { fr: "Résident inconnu", en: "Unknown resident", ar: "ساكن غير معروف", es: "Residente desconocido" },
+  escLotNumber:         { fr: "Lot N°", en: "Unit No.", ar: "الوحدة رقم", es: "Unidad N°" },
+  escAmountDue:         { fr: "Montant impayé", en: "Amount due", ar: "المبلغ المستحق", es: "Monto adeudado" },
+  escOverdueSince:      { fr: "Impayé depuis", en: "Overdue since", ar: "متأخر منذ", es: "Vencido desde" },
+  escMonths:            { fr: "mois", en: "months", ar: "أشهر", es: "meses" },
+  escViewLetter:        { fr: "Voir la lettre", en: "View letter", ar: "عرض الرسالة", es: "Ver la carta" },
+  escCancelBtn:         { fr: "Annuler", en: "Cancel", ar: "إلغاء", es: "Cancelar" },
+  escResolvedBtn:       { fr: "Résolu", en: "Resolved", ar: "محلول", es: "Resuelto" },
+  escDownloadLetter:    { fr: "Télécharger la lettre", en: "Download letter", ar: "تنزيل الرسالة", es: "Descargar la carta" },
+  escOverrideModalTitle:{ fr: "Annuler l'escalade", en: "Cancel escalation", ar: "إلغاء التصعيد", es: "Cancelar escalada" },
+  escJustifLabel:       { fr: "Justification (obligatoire) *", en: "Justification (required) *", ar: "التبرير (إلزامي) *", es: "Justificación (obligatoria) *" },
+  escJustifPlaceholder: { fr: "Expliquez la raison de cette annulation…", en: "Explain the reason for this cancellation…", ar: "اشرح سبب هذا الإلغاء…", es: "Explique el motivo de esta cancelación…" },
+
+  // ─── Invoices screen ──────────────────────────────────────────────────────
+  invStatusDraft:       { fr: "Brouillon", en: "Draft", ar: "مسودة", es: "Borrador" },
+  invStatusSent:        { fr: "Envoyé", en: "Sent", ar: "مرسل", es: "Enviado" },
+  invStatusPaid:        { fr: "Payé", en: "Paid", ar: "مدفوع", es: "Pagado" },
+  invStatusOverdue:     { fr: "En retard", en: "Overdue", ar: "متأخر", es: "Atrasado" },
+  invStatusCancelled:   { fr: "Annulé", en: "Cancelled", ar: "ملغى", es: "Cancelado" },
+  invHeaderTitle:       { fr: "Devis & Factures", en: "Quotes & Invoices", ar: "عروض الأسعار والفواتير", es: "Presupuestos y Facturas" },
+  invHeaderSub:         { fr: "Gestion financière — justificatifs obligatoires", en: "Financial management — supporting documents required", ar: "الإدارة المالية — المستندات الداعمة إلزامية", es: "Gestión financiera — comprobantes obligatorios" },
+  invEncaisse:          { fr: "Encaissé (MAD)", en: "Collected (MAD)", ar: "المحصل (درهم)", es: "Cobrado (MAD)" },
+  invEnAttente:         { fr: "En attente", en: "Pending", ar: "قيد الانتظار", es: "Pendiente" },
+  invEnRetard:          { fr: "En retard", en: "Overdue", ar: "متأخر", es: "Atrasado" },
+  invTabFactures:       { fr: "Factures", en: "Invoices", ar: "الفواتير", es: "Facturas" },
+  invTabDevis:          { fr: "Devis", en: "Quotes", ar: "عروض الأسعار", es: "Presupuestos" },
+  invAucunFacture:      { fr: "Aucun facture", en: "No invoice", ar: "لا توجد فاتورة", es: "Sin factura" },
+  invAucunDevis:        { fr: "Aucun devis", en: "No quote", ar: "لا يوجد عرض سعر", es: "Sin presupuesto" },
+  invEmptyPrompt:       { fr: "Appuyez sur + pour créer votre premier", en: "Tap + to create your first", ar: "اضغط على + لإنشاء أول", es: "Toque + para crear su primer" },
+  invWithProof:         { fr: "avec justificatif.", en: "with a supporting document.", ar: "مع مستند داعم.", es: "con comprobante." },
+  invJustificatif:      { fr: "Justificatif", en: "Supporting doc", ar: "مستند داعم", es: "Comprobante" },
+  invEmis:              { fr: "Émis", en: "Issued", ar: "صادر", es: "Emitido" },
+  invEcheance:          { fr: "Échéance", en: "Due", ar: "الاستحقاق", es: "Vencimiento" },
+  invFacture:           { fr: "Facture", en: "Invoice", ar: "فاتورة", es: "Factura" },
+  invDevis:             { fr: "Devis", en: "Quote", ar: "عرض سعر", es: "Presupuesto" },
+  invDestinataire:      { fr: "Destinataire", en: "Recipient", ar: "المستلم", es: "Destinatario" },
+  invDateEmission:      { fr: "Date d'émission", en: "Issue date", ar: "تاريخ الإصدار", es: "Fecha de emisión" },
+  invDateEcheance:      { fr: "Date d'échéance", en: "Due date", ar: "تاريخ الاستحقاق", es: "Fecha de vencimiento" },
+  invDetailArticles:    { fr: "Détail des articles", en: "Item details", ar: "تفاصيل البنود", es: "Detalle de artículos" },
+  invTotal:             { fr: "Total", en: "Total", ar: "المجموع", es: "Total" },
+  invPieceJustif:       { fr: "Pièce justificative", en: "Supporting document", ar: "المستند الداعم", es: "Documento de respaldo" },
+  invAppuyerAgrandir:   { fr: "Appuyer pour agrandir", en: "Tap to enlarge", ar: "اضغط للتكبير", es: "Toque para ampliar" },
+  invJustifJoint:       { fr: "Justificatif joint", en: "Document attached", ar: "المستند مرفق", es: "Documento adjunto" },
+  invAucunJustifJoint:  { fr: "Aucun justificatif joint à ce document.", en: "No supporting document attached.", ar: "لا يوجد مستند داعم مرفق بهذا المستند.", es: "Ningún comprobante adjunto a este documento." },
+  invPdfExportedTitle:  { fr: "PDF", en: "PDF", ar: "PDF", es: "PDF" },
+  invPdfExportedMsg:    { fr: "Le document a été exporté en PDF.", en: "The document has been exported as PDF.", ar: "تم تصدير المستند بصيغة PDF.", es: "El documento ha sido exportado como PDF." },
+  invSentTitle:         { fr: "Envoyé", en: "Sent", ar: "مرسل", es: "Enviado" },
+  invSentMsg:           { fr: "Le document a été envoyé par email.", en: "The document has been sent by email.", ar: "تم إرسال المستند عبر البريد الإلكتروني.", es: "El documento ha sido enviado por correo electrónico." },
+  invEnvoyerBtn:        { fr: "Envoyer", en: "Send", ar: "إرسال", es: "Enviar" },
+  invOriginalCaption:   { fr: "Pièce justificative originale", en: "Original supporting document", ar: "المستند الداعم الأصلي", es: "Documento de respaldo original" },
+  invNouveauDoc:        { fr: "Nouveau document", en: "New document", ar: "مستند جديد", es: "Nuevo documento" },
+  invJustifObligatoire: { fr: "Le justificatif est obligatoire", en: "The supporting document is required", ar: "المستند الداعم إلزامي", es: "El comprobante es obligatorio" },
+  invDestinataireLabel: { fr: "Destinataire (syndicat / fournisseur) *", en: "Recipient (syndicate / supplier) *", ar: "المستلم (النقابة / المورد) *", es: "Destinatario (sindicato / proveedor) *" },
+  invDestinatairePh:    { fr: "Ex: Syndicat Résidence Al Andalous...", en: "e.g.: Al Andalous Residence Syndicate...", ar: "مثال: نقابة إقامة الأندلس...", es: "Ej.: Sindicato Residencia Al Andalous..." },
+  invLibelleLabel:      { fr: "Libellé de la prestation *", en: "Service description *", ar: "وصف الخدمة *", es: "Descripción del servicio *" },
+  invLibellePh:         { fr: "Ex: Maintenance ascenseur, peinture cage...", en: "e.g.: Elevator maintenance, stairwell painting...", ar: "مثال: صيانة المصعد، طلاء الدرج...", es: "Ej.: Mantenimiento de ascensor, pintura de escalera..." },
+  invMontantLabel:      { fr: "Montant total (MAD) *", en: "Total amount (MAD) *", ar: "المبلغ الإجمالي (درهم) *", es: "Monto total (MAD) *" },
+  invNotesLabel:        { fr: "Notes / Remarques", en: "Notes / Remarks", ar: "ملاحظات", es: "Notas / Observaciones" },
+  invNotesPh:           { fr: "Informations complémentaires...", en: "Additional information...", ar: "معلومات إضافية...", es: "Información adicional..." },
+  invProofSectionTitle: { fr: "Pièce justificative fournisseur", en: "Supplier supporting document", ar: "المستند الداعم للمورد", es: "Documento de respaldo del proveedor" },
+  invObligatoireBadge:  { fr: "OBLIGATOIRE", en: "REQUIRED", ar: "إلزامي", es: "OBLIGATORIO" },
+  invProofSectionSub:   { fr: "Photo ou scan de la facture originale du fournisseur — JPEG, PNG", en: "Photo or scan of the original supplier invoice — JPEG, PNG", ar: "صورة أو مسح ضوئي للفاتورة الأصلية للمورد — JPEG، PNG", es: "Foto o escaneo de la factura original del proveedor — JPEG, PNG" },
+  invProofErrorBanner:  { fr: "Veuillez joindre une pièce justificative avant de continuer.", en: "Please attach a supporting document before continuing.", ar: "يرجى إرفاق مستند داعم قبل المتابعة.", es: "Por favor adjunte un comprobante antes de continuar." },
+  invChanger:           { fr: "Changer", en: "Change", ar: "تغيير", es: "Cambiar" },
+  invSupprimer:         { fr: "Supprimer", en: "Delete", ar: "حذف", es: "Eliminar" },
+  invTeleverser:        { fr: "Téléverser depuis mon appareil", en: "Upload from my device", ar: "تحميل من جهازي", es: "Subir desde mi dispositivo" },
+  invTeleverserSub:     { fr: "Photo de galerie · Appareil photo · Fichier image", en: "Gallery photo · Camera · Image file", ar: "صورة من المعرض · الكاميرا · ملف صورة", es: "Foto de galería · Cámara · Archivo de imagen" },
+  invMaxSize:           { fr: "max 10 Mo", en: "max 10 MB", ar: "بحد أقصى 10 ميغابايت", es: "máx. 10 MB" },
+  invCreerFacture:      { fr: "Créer la facture", en: "Create the invoice", ar: "إنشاء الفاتورة", es: "Crear la factura" },
+  invCreerDevis:        { fr: "Créer le devis", en: "Create the quote", ar: "إنشاء عرض السعر", es: "Crear el presupuesto" },
+  invHintMissingProof:  { fr: "⚠ Justificatif manquant — requis pour valider", en: "⚠ Missing supporting document — required to validate", ar: "⚠ المستند الداعم مفقود — مطلوب للتحقق", es: "⚠ Comprobante faltante — requerido para validar" },
+  invHintFillFields:    { fr: "Remplissez tous les champs obligatoires pour continuer", en: "Fill in all required fields to continue", ar: "املأ جميع الحقول المطلوبة للمتابعة", es: "Complete todos los campos obligatorios para continuar" },
+  invPermissionRequired:{ fr: "Permission requise", en: "Permission required", ar: "الإذن مطلوب", es: "Permiso requerido" },
+  invPermGallery:       { fr: "Veuillez autoriser l'accès à la galerie pour joindre un justificatif.", en: "Please allow access to the gallery to attach a supporting document.", ar: "يرجى السماح بالوصول إلى المعرض لإرفاق مستند داعم.", es: "Permita el acceso a la galería para adjuntar un comprobante." },
+  invPermCamera:        { fr: "Veuillez autoriser l'accès à la caméra.", en: "Please allow access to the camera.", ar: "يرجى السماح بالوصول إلى الكاميرا.", es: "Permita el acceso a la cámara." },
+  invJoindreJustif:     { fr: "Joindre un justificatif", en: "Attach a supporting document", ar: "إرفاق مستند داعم", es: "Adjuntar un comprobante" },
+  invChoisirSource:     { fr: "Choisissez la source de votre fichier", en: "Choose the source of your file", ar: "اختر مصدر ملفك", es: "Elija la fuente de su archivo" },
+  invGaleriePhoto:      { fr: "Galerie photo", en: "Photo gallery", ar: "معرض الصور", es: "Galería de fotos" },
+  invAppareilPhoto:     { fr: "Appareil photo", en: "Camera", ar: "الكاميرا", es: "Cámara" },
 };
 
 interface LanguageContextValue {

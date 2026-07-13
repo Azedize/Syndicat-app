@@ -19,6 +19,7 @@ import {
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import RoleGuard from "@/components/RoleGuard";
 import { useAuth } from "@/context/AuthContext";
+import { useLanguage } from "@/context/LanguageContext";
 import { useBreakpoints } from "@/hooks/useBreakpoints";
 import { useColors } from "@/hooks/useColors";
 import { apiRequest } from "@/lib/api";
@@ -39,18 +40,18 @@ interface PV {
   signataires: string[];
 }
 
-const TYPE_CONFIG: Record<PVType, { label: string; icon: keyof typeof Feather.glyphMap; color: string }> = {
-  bureau: { label: "Bureau", icon: "briefcase", color: "#7c3aed" },
-  ag: { label: "Assemblée Générale", icon: "users", color: "#3b82f6" },
-  commission: { label: "Commission", icon: "layers", color: "#10b981" },
-  election: { label: "Élection", icon: "check-square", color: "#f59e0b" },
-  urgence: { label: "Urgence", icon: "alert-triangle", color: "#ef4444" },
+const TYPE_CONFIG_META: Record<PVType, { key: string; icon: keyof typeof Feather.glyphMap; color: string }> = {
+  bureau: { key: "pvTypeBureau", icon: "briefcase", color: "#7c3aed" },
+  ag: { key: "pvTypeAG", icon: "users", color: "#3b82f6" },
+  commission: { key: "pvTypeCommission", icon: "layers", color: "#10b981" },
+  election: { key: "pvTypeElection", icon: "check-square", color: "#f59e0b" },
+  urgence: { key: "pvTypeUrgence", icon: "alert-triangle", color: "#ef4444" },
 };
 
-const STATUS_CONFIG: Record<PVStatus, { label: string; color: string; bg: string }> = {
-  draft: { label: "Brouillon", color: "#6b7280", bg: "#6b728018" },
-  pending: { label: "En attente", color: "#f59e0b", bg: "#f59e0b18" },
-  published: { label: "Publié", color: "#10b981", bg: "#10b98118" },
+const STATUS_CONFIG_META: Record<PVStatus, { key: string; color: string; bg: string }> = {
+  draft: { key: "pvStatusDraft", color: "#6b7280", bg: "#6b728018" },
+  pending: { key: "pvStatusPending", color: "#f59e0b", bg: "#f59e0b18" },
+  published: { key: "pvStatusPublished", color: "#10b981", bg: "#10b98118" },
 };
 
 // ─── API mapping ──────────────────────────────────────────────────────────────
@@ -83,7 +84,7 @@ function meetingToPV(m: any): PV {
     date: m.date ?? "",
     redacteur: m.createdByName ?? "Syndic",
     presences: m.attendeesCount ?? 0,
-    summary: rawDesc || m.agenda || "Assemblée Générale",
+    summary: rawDesc || m.agenda || m.title || "",
     resolutions: (m.resolutions ?? []).map((r: any) => {
       const badge = r.result === "adopted" ? " ✓" : r.result === "rejected" ? " ✗" : "";
       return `${r.title}${badge}`;
@@ -92,13 +93,13 @@ function meetingToPV(m: any): PV {
   };
 }
 
-const FILTER_TYPES: { key: "all" | PVType; label: string }[] = [
-  { key: "all", label: "Tous" },
-  { key: "bureau", label: "Bureau" },
-  { key: "ag", label: "AG" },
-  { key: "commission", label: "Commission" },
-  { key: "election", label: "Élection" },
-  { key: "urgence", label: "Urgence" },
+const FILTER_TYPES: { key: "all" | PVType; labelKey: string }[] = [
+  { key: "all", labelKey: "pvFilterAll" },
+  { key: "bureau", labelKey: "pvTypeBureau" },
+  { key: "ag", labelKey: "pvTypeAG" },
+  { key: "commission", labelKey: "pvTypeCommission" },
+  { key: "election", labelKey: "pvTypeElection" },
+  { key: "urgence", labelKey: "pvTypeUrgence" },
 ];
 
 // Procès-verbaux d'AG relèvent de la gouvernance des copropriétaires ; hors périmètre locataire.
@@ -114,6 +115,7 @@ function PVScreenInner() {
   const colors = useColors();
   const insets = useSafeAreaInsets();
   const { user } = useAuth();
+  const { t } = useLanguage();
   const { isWide } = useBreakpoints();
   const topPad = isWide ? 0 : (Platform.OS === "web" ? 67 : insets.top);
 
@@ -154,10 +156,10 @@ function PVScreenInner() {
   });
 
   const handlePublish = (id: string) => {
-    Alert.alert("Publier le PV", "Ce PV sera visible par tous les membres. Confirmer?", [
-      { text: "Annuler", style: "cancel" },
+    Alert.alert(t("pvPublishTitle"), t("pvPublishConfirm"), [
+      { text: t("cancel"), style: "cancel" },
       {
-        text: "Publier",
+        text: t("pvPublishBtn"),
         onPress: () => {
           setPVList((prev) => prev.map((p) => p.id === id ? { ...p, status: "published" as const } : p));
           setSelectedPV((prev) => prev ? { ...prev, status: "published" } : null);
@@ -171,7 +173,7 @@ function PVScreenInner() {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
     await Share.share({
       title: pv.title,
-      message: `${pv.title}\nDate: ${pv.date}\n\nRésumé: ${pv.summary}\n\nRésolutions:\n${pv.resolutions.map((r, i) => `${i + 1}. ${r}`).join("\n")}`,
+      message: `${pv.title}\nDate: ${pv.date}\n\n${t("pvSummaryLabel")}: ${pv.summary}\n\n${t("pvResolutionsLabel")}:\n${pv.resolutions.map((r, i) => `${i + 1}. ${r}`).join("\n")}`,
     });
   };
 
@@ -205,7 +207,7 @@ function PVScreenInner() {
       setNewTitle(""); setNewSummary(""); setNewResolutions([]); setNewResolution("");
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
     } catch (err: any) {
-      Alert.alert("Erreur", err.message ?? "Impossible de créer le PV");
+      Alert.alert(t("error"), err.message ?? t("pvCreateError"));
     } finally {
       setCreating(false);
     }
@@ -222,9 +224,9 @@ function PVScreenInner() {
           <Feather name="arrow-left" size={22} color={colors.foreground} />
         </TouchableOpacity>
         <View style={{ flex: 1 }}>
-          <Text style={[styles.title, { color: colors.foreground }]}>Procès-Verbaux</Text>
+          <Text style={[styles.title, { color: colors.foreground }]}>{t("pvTitle")}</Text>
           <Text style={[styles.subtitle, { color: colors.mutedForeground }]}>
-            {publishedCount} publié{publishedCount > 1 ? "s" : ""}{draftCount > 0 ? ` · ${draftCount} en cours` : ""}
+            {publishedCount} {publishedCount > 1 ? t("pvPublishedCountPl") : t("pvPublishedCount")}{draftCount > 0 ? ` · ${draftCount} ${t("pvInProgressCount")}` : ""}
           </Text>
         </View>
         {isAdmin ? (
@@ -250,19 +252,19 @@ function PVScreenInner() {
             style={[styles.chip, { backgroundColor: filterType === f.key ? colors.primary : colors.secondary, borderColor: filterType === f.key ? colors.primary : colors.border }]}
             onPress={() => { setFilterType(f.key); Haptics.selectionAsync(); }}
           >
-            <Text style={[styles.chipText, { color: filterType === f.key ? "#fff" : colors.foreground }]}>{f.label}</Text>
+            <Text style={[styles.chipText, { color: filterType === f.key ? "#fff" : colors.foreground }]}>{t(f.labelKey)}</Text>
           </TouchableOpacity>
         ))}
         <View style={[styles.chipDivider, { backgroundColor: colors.border }]} />
         {(["all", "published", "draft"] as const).map((s) => {
-          const labels = { all: "Tous statuts", published: "Publiés", draft: "Brouillons" };
+          const labelKeys = { all: "pvFilterAllStatus", published: "pvFilterPublished", draft: "pvFilterDraft" };
           return (
             <TouchableOpacity
               key={s}
               style={[styles.chip, { backgroundColor: filterStatus === s ? "#6b7280" : colors.secondary, borderColor: filterStatus === s ? "#6b7280" : colors.border }]}
               onPress={() => { setFilterStatus(s); Haptics.selectionAsync(); }}
             >
-              <Text style={[styles.chipText, { color: filterStatus === s ? "#fff" : colors.foreground }]}>{labels[s]}</Text>
+              <Text style={[styles.chipText, { color: filterStatus === s ? "#fff" : colors.foreground }]}>{t(labelKeys[s])}</Text>
             </TouchableOpacity>
           );
         })}
@@ -281,14 +283,14 @@ function PVScreenInner() {
             ) : (
               <>
                 <Feather name="file-text" size={40} color={colors.mutedForeground} />
-                <Text style={[styles.emptyText, { color: colors.mutedForeground }]}>Aucun PV correspondant</Text>
+                <Text style={[styles.emptyText, { color: colors.mutedForeground }]}>{t("pvNoneMatching")}</Text>
               </>
             )}
           </View>
         }
         renderItem={({ item: pv }) => {
-          const tc = TYPE_CONFIG[pv.type];
-          const sc = STATUS_CONFIG[pv.status];
+          const tc = TYPE_CONFIG_META[pv.type];
+          const sc = STATUS_CONFIG_META[pv.status];
           return (
             <TouchableOpacity
               style={[styles.card, { backgroundColor: colors.card, borderColor: pv.status === "draft" ? colors.border : tc.color + "40" }]}
@@ -305,14 +307,14 @@ function PVScreenInner() {
                   <Text style={[styles.cardMetaText, { color: colors.mutedForeground }]}>{pv.date}</Text>
                   <Text style={[styles.cardMetaDot, { color: colors.mutedForeground }]}>·</Text>
                   <Feather name="users" size={11} color={colors.mutedForeground} />
-                  <Text style={[styles.cardMetaText, { color: colors.mutedForeground }]}>{pv.presences} présences</Text>
+                  <Text style={[styles.cardMetaText, { color: colors.mutedForeground }]}>{pv.presences} {t("pvPresences")}</Text>
                 </View>
                 <View style={styles.cardMeta}>
                   <View style={[styles.typeBadge, { backgroundColor: tc.color + "18" }]}>
-                    <Text style={[styles.typeBadgeText, { color: tc.color }]}>{tc.label}</Text>
+                    <Text style={[styles.typeBadgeText, { color: tc.color }]}>{t(tc.key)}</Text>
                   </View>
                   <View style={[styles.statusBadge, { backgroundColor: sc.bg }]}>
-                    <Text style={[styles.statusBadgeText, { color: sc.color }]}>{sc.label}</Text>
+                    <Text style={[styles.statusBadgeText, { color: sc.color }]}>{t(sc.key)}</Text>
                   </View>
                 </View>
               </View>
@@ -343,8 +345,8 @@ function PVScreenInner() {
             <ScrollView contentContainerStyle={{ padding: 20, gap: 16, paddingBottom: 40 }}>
               {/* Hero banner */}
               {(() => {
-                const tc = TYPE_CONFIG[selectedPV.type];
-                const sc = STATUS_CONFIG[selectedPV.status];
+                const tc = TYPE_CONFIG_META[selectedPV.type];
+                const sc = STATUS_CONFIG_META[selectedPV.status];
                 return (
                   <View style={[styles.pvHero, { backgroundColor: tc.color + "12", borderColor: tc.color + "30" }]}>
                     <View style={[styles.pvHeroIcon, { backgroundColor: tc.color + "20" }]}>
@@ -353,10 +355,10 @@ function PVScreenInner() {
                     <View style={{ flex: 1, gap: 4 }}>
                       <View style={styles.pvHeroRow}>
                         <View style={[styles.typeBadge, { backgroundColor: tc.color + "25" }]}>
-                          <Text style={[styles.typeBadgeText, { color: tc.color }]}>{tc.label}</Text>
+                          <Text style={[styles.typeBadgeText, { color: tc.color }]}>{t(tc.key)}</Text>
                         </View>
                         <View style={[styles.statusBadge, { backgroundColor: sc.bg }]}>
-                          <Text style={[styles.statusBadgeText, { color: sc.color }]}>{sc.label}</Text>
+                          <Text style={[styles.statusBadgeText, { color: sc.color }]}>{t(sc.key)}</Text>
                         </View>
                       </View>
                       <View style={styles.pvHeroMeta}>
@@ -368,7 +370,7 @@ function PVScreenInner() {
                       </View>
                       <View style={styles.pvHeroMeta}>
                         <Feather name="edit-2" size={11} color={tc.color} />
-                        <Text style={[styles.pvHeroMetaText, { color: tc.color }]}>Rédacteur: {selectedPV.redacteur}</Text>
+                        <Text style={[styles.pvHeroMetaText, { color: tc.color }]}>{t("pvRedacteur")}: {selectedPV.redacteur}</Text>
                       </View>
                     </View>
                   </View>
@@ -377,13 +379,13 @@ function PVScreenInner() {
 
               {/* Summary */}
               <View style={[styles.section, { backgroundColor: colors.card, borderColor: colors.border }]}>
-                <Text style={[styles.sectionLabel, { color: colors.mutedForeground }]}>RÉSUMÉ</Text>
+                <Text style={[styles.sectionLabel, { color: colors.mutedForeground }]}>{t("pvSummaryLabel")}</Text>
                 <Text style={[styles.sectionBody, { color: colors.foreground }]}>{selectedPV.summary}</Text>
               </View>
 
               {/* Resolutions */}
               <View style={[styles.section, { backgroundColor: colors.card, borderColor: colors.border }]}>
-                <Text style={[styles.sectionLabel, { color: colors.mutedForeground }]}>RÉSOLUTIONS ADOPTÉES</Text>
+                <Text style={[styles.sectionLabel, { color: colors.mutedForeground }]}>{t("pvResolutionsLabel")}</Text>
                 {selectedPV.resolutions.map((r, i) => (
                   <View key={i} style={styles.resolutionRow}>
                     <View style={[styles.resolutionNum, { backgroundColor: colors.primary + "15" }]}>
@@ -397,7 +399,7 @@ function PVScreenInner() {
               {/* Signataires */}
               {selectedPV.signataires.length > 0 ? (
                 <View style={[styles.section, { backgroundColor: colors.card, borderColor: colors.border }]}>
-                  <Text style={[styles.sectionLabel, { color: colors.mutedForeground }]}>SIGNATAIRES</Text>
+                  <Text style={[styles.sectionLabel, { color: colors.mutedForeground }]}>{t("pvSignatairesLabel")}</Text>
                   {selectedPV.signataires.map((s, i) => (
                     <View key={i} style={styles.sigRow}>
                       <View style={[styles.sigAvatar, { backgroundColor: colors.primary + "15" }]}>
@@ -420,11 +422,11 @@ function PVScreenInner() {
                   style={[styles.actionBtn, { backgroundColor: colors.primary }]}
                   onPress={() => {
                     Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-                    Alert.alert("Téléchargement", `"${selectedPV.title}" a été téléchargé (PDF).`);
+                    Alert.alert(t("pvDownloadTitle"), `"${selectedPV.title}" ${t("pvDownloadedSuffix")}`);
                   }}
                 >
                   <Feather name="download" size={15} color="#fff" />
-                  <Text style={[styles.actionBtnText, { color: "#fff" }]}>Télécharger PDF</Text>
+                  <Text style={[styles.actionBtnText, { color: "#fff" }]}>{t("pvDownloadPDF")}</Text>
                 </TouchableOpacity>
                 {isAdmin && selectedPV.status !== "published" ? (
                   <TouchableOpacity
@@ -432,7 +434,7 @@ function PVScreenInner() {
                     onPress={() => handlePublish(selectedPV.id)}
                   >
                     <Feather name="globe" size={15} color="#10b981" />
-                    <Text style={[styles.actionBtnText, { color: "#10b981" }]}>Publier</Text>
+                    <Text style={[styles.actionBtnText, { color: "#10b981" }]}>{t("pvPublishBtn")}</Text>
                   </TouchableOpacity>
                 ) : null}
               </View>
@@ -445,7 +447,7 @@ function PVScreenInner() {
       <Modal visible={showCreate} animationType="slide" presentationStyle="pageSheet">
         <View style={[styles.modal, { backgroundColor: colors.background }]}>
           <View style={[styles.modalHeader, { borderBottomColor: colors.border }]}>
-            <Text style={[styles.modalTitle, { color: colors.foreground }]}>Nouveau Procès-Verbal</Text>
+            <Text style={[styles.modalTitle, { color: colors.foreground }]}>{t("pvNewTitle")}</Text>
             <TouchableOpacity onPress={() => { setShowCreate(false); setNewResolutions([]); setNewTitle(""); setNewSummary(""); }}>
               <Feather name="x" size={22} color={colors.mutedForeground} />
             </TouchableOpacity>
@@ -453,28 +455,28 @@ function PVScreenInner() {
           <ScrollView contentContainerStyle={{ padding: 20, gap: 16, paddingBottom: 40 }}>
             {/* Title */}
             <View style={{ gap: 8 }}>
-              <Text style={[styles.fieldLabel, { color: colors.foreground }]}>Titre du PV *</Text>
+              <Text style={[styles.fieldLabel, { color: colors.foreground }]}>{t("pvTitleFieldLabel")}</Text>
               <TextInput
                 style={[styles.fieldInput, { borderColor: colors.border, backgroundColor: colors.card, color: colors.foreground }]}
                 value={newTitle}
                 onChangeText={setNewTitle}
-                placeholder="Ex: PV Réunion Bureau — Juin 2026"
+                placeholder={t("pvTitlePlaceholder")}
                 placeholderTextColor={colors.mutedForeground}
               />
             </View>
 
             {/* Type */}
             <View style={{ gap: 8 }}>
-              <Text style={[styles.fieldLabel, { color: colors.foreground }]}>Type de réunion *</Text>
+              <Text style={[styles.fieldLabel, { color: colors.foreground }]}>{t("pvMeetingTypeLabel")}</Text>
               <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: 8 }}>
-                {(Object.entries(TYPE_CONFIG) as [PVType, typeof TYPE_CONFIG[PVType]][]).map(([key, cfg]) => (
+                {(Object.entries(TYPE_CONFIG_META) as [PVType, typeof TYPE_CONFIG_META[PVType]][]).map(([key, cfg]) => (
                   <TouchableOpacity
                     key={key}
                     style={[styles.typeChip, { backgroundColor: newType === key ? cfg.color : colors.secondary, borderColor: newType === key ? cfg.color : colors.border }]}
                     onPress={() => { setNewType(key); Haptics.selectionAsync(); }}
                   >
                     <Feather name={cfg.icon} size={12} color={newType === key ? "#fff" : cfg.color} />
-                    <Text style={[styles.chipText, { color: newType === key ? "#fff" : colors.foreground }]}>{cfg.label}</Text>
+                    <Text style={[styles.chipText, { color: newType === key ? "#fff" : colors.foreground }]}>{t(cfg.key)}</Text>
                   </TouchableOpacity>
                 ))}
               </ScrollView>
@@ -482,12 +484,12 @@ function PVScreenInner() {
 
             {/* Summary */}
             <View style={{ gap: 8 }}>
-              <Text style={[styles.fieldLabel, { color: colors.foreground }]}>Résumé *</Text>
+              <Text style={[styles.fieldLabel, { color: colors.foreground }]}>{t("pvSummaryFieldLabel")}</Text>
               <TextInput
                 style={[styles.fieldInput, { borderColor: colors.border, backgroundColor: colors.card, color: colors.foreground, height: 90, textAlignVertical: "top" }]}
                 value={newSummary}
                 onChangeText={setNewSummary}
-                placeholder="Décrivez l'objet et le déroulement de la réunion..."
+                placeholder={t("pvSummaryPlaceholder")}
                 placeholderTextColor={colors.mutedForeground}
                 multiline
               />
@@ -495,7 +497,7 @@ function PVScreenInner() {
 
             {/* Resolutions */}
             <View style={{ gap: 8 }}>
-              <Text style={[styles.fieldLabel, { color: colors.foreground }]}>Résolutions</Text>
+              <Text style={[styles.fieldLabel, { color: colors.foreground }]}>{t("pvResolutionsFieldLabel")}</Text>
               {newResolutions.map((r, i) => (
                 <View key={i} style={[styles.resolutionRow, { backgroundColor: colors.secondary, borderRadius: 10, padding: 8 }]}>
                   <View style={[styles.resolutionNum, { backgroundColor: colors.primary + "15" }]}>
@@ -512,7 +514,7 @@ function PVScreenInner() {
                   style={[styles.fieldInput, { borderColor: colors.border, backgroundColor: colors.card, color: colors.foreground, flex: 1 }]}
                   value={newResolution}
                   onChangeText={setNewResolution}
-                  placeholder="Ajouter une résolution..."
+                  placeholder={t("pvResolutionPlaceholder")}
                   placeholderTextColor={colors.mutedForeground}
                   onSubmitEditing={handleAddResolution}
                   returnKeyType="done"
@@ -534,7 +536,7 @@ function PVScreenInner() {
             >
               <Feather name="file-plus" size={16} color={newTitle.trim() && newSummary.trim() ? "#fff" : colors.mutedForeground} />
               <Text style={[styles.saveBtnText, { color: newTitle.trim() && newSummary.trim() ? "#fff" : colors.mutedForeground }]}>
-                Créer le PV (brouillon)
+                {t("pvCreateBtn")}
               </Text>
             </TouchableOpacity>
           </ScrollView>
