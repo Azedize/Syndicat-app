@@ -80,11 +80,11 @@ Pre-filled on the login screen:
 | Step | Status |
 |---|---|
 | `pnpm install` | ✅ Done |
-| `JWT_SECRET` Replit Secret | ✅ Set |
+| `JWT_SECRET` Replit Secret | ✅ Set (re-generated after re-import; secrets don't survive a zip export/import) |
 | `DATABASE_URL` | ✅ Auto-injected by Replit Postgres |
 | `db:push` (schema applied) | ✅ Done — all tables created |
 | `seed` (demo data) | ✅ Done — all tables populated |
-| API Server workflow | ✅ Running on port 8080 |
+| API Server workflow | ✅ Running on port 8080, login verified end-to-end |
 | Mobile (Expo) workflow | ✅ Running |
 | Component Preview Server | ✅ Running |
 
