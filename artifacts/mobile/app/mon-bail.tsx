@@ -1,14 +1,14 @@
 /**
  * Mon Bail & Loyer — Tenant lease information screen.
  *
- * Displays the current tenant's lease details fetched from the API.
- * Phase 9: This screen is a functional placeholder; the /tenants/:id
- * endpoint will be wired here once the tenant profile API is finalized.
+ * Displays the current tenant's lease details fetched from
+ * GET /locataires/my-lease (matched server-side by the tenant's account email).
  */
 import { Feather } from "@expo/vector-icons";
 import { router } from "expo-router";
-import React from "react";
+import React, { useEffect, useState } from "react";
 import {
+  ActivityIndicator,
   Platform,
   ScrollView,
   StyleSheet,
@@ -19,6 +19,7 @@ import {
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useAuth } from "@/context/AuthContext";
 import { useColors } from "@/hooks/useColors";
+import { locataires, type ApiTenantLease } from "@/services/api";
 
 interface InfoRowProps {
   label: string;
@@ -42,12 +43,65 @@ function InfoRow({ label, value, icon, color = "#7c3aed" }: InfoRowProps) {
   );
 }
 
+function formatDate(value: string | null): string {
+  if (!value) return "Non renseignée";
+  const d = new Date(value);
+  if (isNaN(d.getTime())) return value;
+  return d.toLocaleDateString("fr-FR", { day: "2-digit", month: "long", year: "numeric" });
+}
+
+function formatMAD(value: string | null): string {
+  if (!value) return "— MAD";
+  const n = Number(value);
+  return isNaN(n) ? "— MAD" : `${n.toLocaleString("fr-FR")} MAD`;
+}
+
 export default function MonBailScreen() {
   const colors = useColors();
   const insets = useSafeAreaInsets();
   const { user } = useAuth();
+  const [lease, setLease] = useState<ApiTenantLease | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
 
   const topPad = Platform.OS === "web" ? 67 : insets.top;
+
+  useEffect(() => {
+    let cancelled = false;
+    setLoading(true);
+    locataires.myLease()
+      .then((res) => { if (!cancelled) setLease(res.data); })
+      .catch((e) => { if (!cancelled) setError(e?.message ?? "Impossible de charger votre bail"); })
+      .finally(() => { if (!cancelled) setLoading(false); });
+    return () => { cancelled = true; };
+  }, []);
+
+  if (loading) {
+    return (
+      <View style={[styles.root, styles.centered, { backgroundColor: colors.background }]}>
+        <ActivityIndicator color={colors.primary} />
+      </View>
+    );
+  }
+
+  if (error || !lease) {
+    return (
+      <View style={[styles.root, { backgroundColor: colors.background }]}>
+        <View style={[styles.header, { paddingTop: topPad + 12, backgroundColor: colors.card, borderBottomColor: colors.border }]}>
+          <TouchableOpacity style={styles.backBtn} onPress={() => router.back()} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
+            <Feather name="arrow-left" size={22} color={colors.foreground} />
+          </TouchableOpacity>
+          <Text style={[styles.headerTitle, { color: colors.foreground }]}>Mon Bail & Loyer</Text>
+        </View>
+        <View style={[styles.centered, { flex: 1, gap: 12, padding: 24 }]}>
+          <Feather name="file-text" size={40} color={colors.mutedForeground} />
+          <Text style={[styles.infoNoteText, { color: colors.mutedForeground, textAlign: "center" }]}>
+            {error ?? "Aucun bail n'est encore associé à votre compte. Contactez votre syndic si vous pensez qu'il s'agit d'une erreur."}
+          </Text>
+        </View>
+      </View>
+    );
+  }
 
   return (
     <View style={[styles.root, { backgroundColor: colors.background }]}>
@@ -79,27 +133,36 @@ export default function MonBailScreen() {
             <Text style={styles.cardRole}>Locataire</Text>
           </View>
           <View style={[styles.activeBadge]}>
-            <Feather name="check-circle" size={12} color="#fff" />
-            <Text style={styles.activeBadgeText}>Actif</Text>
+            <Feather name={lease.status === "active" ? "check-circle" : "clock"} size={12} color="#fff" />
+            <Text style={styles.activeBadgeText}>
+              {lease.status === "active" ? "Actif" : lease.status === "pending" ? "En attente" : lease.status === "expired" ? "Expiré" : lease.status ?? "—"}
+            </Text>
           </View>
         </View>
 
-        {/* Lease details — will be populated from API in Phase 9 */}
         <View style={[styles.section, { backgroundColor: colors.card, borderColor: colors.border }]}>
           <Text style={[styles.sectionTitle, { color: colors.mutedForeground }]}>INFORMATIONS DU BAIL</Text>
           <InfoRow label="Type de bail" value="Location résidentielle" icon="file-text" color="#3b82f6" />
-          <InfoRow label="Date de début" value="À compléter" icon="calendar" color="#10b981" />
-          <InfoRow label="Date de fin" value="À compléter" icon="calendar" color="#f59e0b" />
-          <InfoRow label="Loyer mensuel" value="— MAD" icon="credit-card" color="#7c3aed" />
-          <InfoRow label="Caution versée" value="— MAD" icon="shield" color="#6366f1" />
+          <InfoRow label="Date de début" value={formatDate(lease.leaseStart)} icon="calendar" color="#10b981" />
+          <InfoRow label="Date de fin" value={formatDate(lease.leaseEnd)} icon="calendar" color="#f59e0b" />
+          <InfoRow label="Loyer mensuel" value={formatMAD(lease.monthlyRent)} icon="credit-card" color="#7c3aed" />
+          <InfoRow label="Caution versée" value={formatMAD(lease.depositAmount)} icon="shield" color="#6366f1" />
         </View>
 
         <View style={[styles.section, { backgroundColor: colors.card, borderColor: colors.border }]}>
           <Text style={[styles.sectionTitle, { color: colors.mutedForeground }]}>APPARTEMENT</Text>
-          <InfoRow label="Résidence" value="À compléter" icon="home" color="#7c3aed" />
-          <InfoRow label="Numéro de lot" value="À compléter" icon="grid" color="#3b82f6" />
-          <InfoRow label="Étage" value="À compléter" icon="layers" color="#10b981" />
+          <InfoRow label="Résidence" value={lease.buildingName ?? "Non renseignée"} icon="home" color="#7c3aed" />
+          <InfoRow label="Numéro de lot" value={lease.lotNumber ?? "Non renseigné"} icon="grid" color="#3b82f6" />
+          <InfoRow label="Étage" value={lease.floor != null ? String(lease.floor) : "Non renseigné"} icon="layers" color="#10b981" />
         </View>
+
+        {(lease.emergencyContact || lease.emergencyPhone) && (
+          <View style={[styles.section, { backgroundColor: colors.card, borderColor: colors.border }]}>
+            <Text style={[styles.sectionTitle, { color: colors.mutedForeground }]}>CONTACT D'URGENCE</Text>
+            <InfoRow label="Nom" value={lease.emergencyContact ?? "—"} icon="user" color="#ef4444" />
+            <InfoRow label="Téléphone" value={lease.emergencyPhone ?? "—"} icon="phone" color="#ef4444" />
+          </View>
+        )}
 
         <View style={[styles.infoNote, { backgroundColor: colors.secondary, borderColor: colors.border }]}>
           <Feather name="info" size={14} color={colors.primary} />
@@ -134,6 +197,7 @@ export default function MonBailScreen() {
 
 const styles = StyleSheet.create({
   root: { flex: 1 },
+  centered: { alignItems: "center", justifyContent: "center" },
   header: {
     paddingHorizontal: 20,
     paddingBottom: 16,

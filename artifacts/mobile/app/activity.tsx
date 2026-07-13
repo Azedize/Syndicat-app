@@ -59,32 +59,6 @@ const SEVERITY_CONFIG: Record<Severity, { color: string; bg: string }> = {
   error: { color: "#ef4444", bg: "#ef444415" },
 };
 
-const ALL_ACTIVITIES: ActivityLog[] = [
-  // Today
-  { id: "a1", category: "auth", action: "Connexion réussie", target: "Session Super Admin", detail: "Connexion depuis Chrome / Windows", user: "Ahmed Benali", userAvatar: "AB", userRole: "Super Admin", timestamp: "2026-05-26 09:02", relativeTime: "Il y a 2 min", severity: "success", ip: "196.xxx.xx.1" },
-  { id: "a2", category: "finance", action: "Paiement validé", target: "Cotisation mai 2026 — Mohammed Alaoui", detail: "150 MAD via carte bancaire. Réf: PAY-2026-0542", user: "Ahmed Benali", userAvatar: "AB", userRole: "Super Admin", timestamp: "2026-05-26 09:00", relativeTime: "Il y a 5 min", severity: "success" },
-  { id: "a3", category: "documents", action: "Document consulté", target: "Statuts SNE v4.2", detail: "Visualisation du PDF (28 pages)", user: "Ahmed Benali", userAvatar: "AB", userRole: "Super Admin", timestamp: "2026-05-26 08:55", relativeTime: "Il y a 8 min", severity: "info" },
-  { id: "a4", category: "governance", action: "Workflow soumis", target: "Révision des Statuts 2026", detail: "Workflow WF-001 soumis pour validation juridique", user: "Commission Juridique", userAvatar: "CJ", userRole: "Admin", timestamp: "2026-05-26 08:40", relativeTime: "Il y a 22 min", severity: "info" },
-  { id: "a5", category: "members", action: "Nouveau membre", target: "Zineb Mansour", detail: "Inscription validée — Section Meknès", user: "Fatima Zahra El Alami", userAvatar: "FZ", userRole: "Admin Syndicat", timestamp: "2026-05-26 08:20", relativeTime: "Il y a 42 min", severity: "success" },
-  { id: "a6", category: "finance", action: "Paiement échoué", target: "Cotisation — Hassan Berrada", detail: "Carte refusée — code erreur: INSUFFICIENT_FUNDS", user: "Système", userAvatar: "SY", userRole: "Système", timestamp: "2026-05-26 08:00", relativeTime: "Il y a 1h", severity: "error" },
-  { id: "a7", category: "chat", action: "Message envoyé", target: "Groupe Bureau National", detail: "Communication urgente: convocation réunion extraordinaire", user: "Fatima Zahra El Alami", userAvatar: "FZ", userRole: "Admin Syndicat", timestamp: "2026-05-26 07:45", relativeTime: "Il y a 1h15", severity: "info" },
-  { id: "a8", category: "elections", action: "Vote enregistré", target: "Élection Délégué Régional Fès", detail: "Vote anonyme #087 enregistré avec succès", user: "Membre anonyme", userAvatar: "**", userRole: "Membre", timestamp: "2026-05-26 07:30", relativeTime: "Il y a 1h30", severity: "success" },
-
-  // Yesterday
-  { id: "a9", category: "marketplace", action: "Boutique validée", target: "Boutique — Fournitures Bureau Omar Slimani", detail: "Validation après vérification de conformité. 12 produits approuvés.", user: "Ahmed Benali", userAvatar: "AB", userRole: "Super Admin", timestamp: "2026-05-25 17:30", relativeTime: "Hier 17:30", severity: "success" },
-  { id: "a10", category: "documents", action: "Document publié", target: "Circulaire N°2026-05 — Cotisations", detail: "Circulaire publiée et accessible à tous les membres", user: "Fatima Zahra El Alami", userAvatar: "FZ", userRole: "Admin Syndicat", timestamp: "2026-05-25 16:00", relativeTime: "Hier 16:00", severity: "success" },
-  { id: "a11", category: "system", action: "Sauvegarde effectuée", target: "Backup complet base de données", detail: "Taille: 2.3 GB — Durée: 4min 12sec", user: "Système", userAvatar: "SY", userRole: "Système", timestamp: "2026-05-25 03:00", relativeTime: "Hier 03:00", severity: "info" },
-  { id: "a12", category: "auth", action: "Tentative de connexion échouée", target: "Compte admin@syndicat.com", detail: "3 tentatives consécutives depuis IP inconnue. Compte temporairement verrouillé.", user: "Inconnu", userAvatar: "?", userRole: "Inconnu", timestamp: "2026-05-25 02:15", relativeTime: "Hier 02:15", severity: "warning", ip: "41.xxx.xx.99" },
-
-  // This week
-  { id: "a13", category: "finance", action: "Facture générée", target: "Facture #FAC-2026-0089 — CDT", detail: "Abonnement mensuel — 2 400 MAD. Envoi automatique par email.", user: "Système", userAvatar: "SY", userRole: "Système", timestamp: "2026-05-24 09:00", relativeTime: "Il y a 2j", severity: "info" },
-  { id: "a14", category: "governance", action: "Délégation créée", target: "Mohamed Ouali → Omar Slimani", detail: "Délégation formations syndicales — valide jusqu'au 31/12/2026", user: "Mohamed Ouali", userAvatar: "MO", userRole: "Admin Syndicat", timestamp: "2026-05-23 14:00", relativeTime: "Il y a 3j", severity: "info" },
-  { id: "a15", category: "members", action: "Membre suspendu", target: "Sanaa Benchekroun", detail: "Suspension temporaire suite à non-paiement cotisations. Motif: 3 mois impayés.", user: "Fatima Zahra El Alami", userAvatar: "FZ", userRole: "Admin Syndicat", timestamp: "2026-05-22 11:00", relativeTime: "Il y a 4j", severity: "warning" },
-  { id: "a16", category: "marketplace", action: "Commande passée", target: "Commande #CMD-0088 — Fournitures Bureau", detail: "340 MAD — Acheteur: Nadia Benkiran — Vendeur: Omar Slimani", user: "Nadia Benkiran", userAvatar: "NB", userRole: "Membre", timestamp: "2026-05-21 15:32", relativeTime: "Il y a 5j", severity: "success" },
-  { id: "a17", category: "elections", action: "Élection clôturée", target: "Élection Délégué Régional Fès", detail: "87 votants sur 120 inscrits (72.5%). Résultats publiés.", user: "Système", userAvatar: "SY", userRole: "Système", timestamp: "2026-05-20 18:00", relativeTime: "Il y a 6j", severity: "success" },
-  { id: "a18", category: "system", action: "Mise à jour système", target: "SYNDYCAT Global CPS v2.0.1", detail: "Déploiement patch de sécurité. Temps d'arrêt: 0s (rolling update).", user: "Système", userAvatar: "SY", userRole: "Système", timestamp: "2026-05-19 03:00", relativeTime: "Il y a 7j", severity: "info" },
-];
-
 // ─── Entity → Category mapping ────────────────────────────────────────────────
 
 const ENTITY_TO_CATEGORY: Record<string, Exclude<ActivityCategory, "all">> = {
@@ -166,21 +140,27 @@ export default function ActivityScreen() {
   const topPad = isWide ? 0 : (Platform.OS === "web" ? 67 : insets.top);
   const isAdmin = user?.role !== "member";
 
-  const [activities, setActivities] = useState<ActivityLog[]>(ALL_ACTIVITIES);
-  const [loadingApi, setLoadingApi] = useState(false);
+  const [activities, setActivities] = useState<ActivityLog[]>([]);
+  const [loadingApi, setLoadingApi] = useState(true);
+  const [loadError, setLoadError] = useState(false);
   const [category, setCategory] = useState<ActivityCategory>("all");
   const [selectedLog, setSelectedLog] = useState<ActivityLog | null>(null);
 
   useEffect(() => {
+    let cancelled = false;
     setLoadingApi(true);
+    setLoadError(false);
     auditApi.getLogs()
       .then((res) => {
-        if (res.data && res.data.length > 0) {
-          setActivities(res.data.map(mapApiLog));
-        }
+        if (cancelled) return;
+        setActivities((res.data ?? []).map(mapApiLog));
       })
-      .catch(() => { /* keep static fallback */ })
-      .finally(() => setLoadingApi(false));
+      .catch(() => {
+        if (cancelled) return;
+        setLoadError(true);
+      })
+      .finally(() => { if (!cancelled) setLoadingApi(false); });
+    return () => { cancelled = true; };
   }, []);
 
   const filtered = category === "all" ? activities : activities.filter((a) => a.category === category);
@@ -294,8 +274,16 @@ export default function ActivityScreen() {
         stickySectionHeadersEnabled
         ListEmptyComponent={
           <View style={styles.empty}>
-            <Feather name="activity" size={40} color={colors.mutedForeground} />
-            <Text style={[styles.emptyText, { color: colors.mutedForeground }]}>{t("noActivity")}</Text>
+            {loadingApi ? (
+              <ActivityIndicator color={colors.primary} />
+            ) : (
+              <>
+                <Feather name={loadError ? "wifi-off" : "activity"} size={40} color={colors.mutedForeground} />
+                <Text style={[styles.emptyText, { color: colors.mutedForeground }]}>
+                  {loadError ? "Impossible de charger le journal d'activité" : t("noActivity")}
+                </Text>
+              </>
+            )}
           </View>
         }
         renderSectionHeader={({ section }) => (

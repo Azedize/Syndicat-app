@@ -15,7 +15,7 @@ import { useData } from "@/context/DataContext";
 import { useBreakpoints } from "@/hooks/useBreakpoints";
 import { useColors } from "@/hooks/useColors";
 
-type FilterType = "all" | "meeting" | "election" | "cotisation" | "formation" | "action";
+type FilterType = "all" | "meeting" | "election" | "cotisation";
 
 interface CalendarEvent {
   id: string;
@@ -51,23 +51,7 @@ export default function CalendarScreen() {
     meeting: "#3b82f6",
     election: "#f59e0b",
     cotisation: "#10b981",
-    formation: "#8b5cf6",
-    action: "#ef4444",
   };
-
-  const STATIC_FORMATIONS: CalendarEvent[] = [
-    { id: "f1", title: "Formation — Droit Syndical Avancé", date: "2026-06-05", time: "09:00", type: "formation", status: "upcoming", location: "Salle de conférence SNE, Rabat", description: "Session de formation approfondie sur les droits syndicaux, la négociation collective et la gestion des conflits du travail.", color: "#8b5cf6", icon: "book-open" },
-    { id: "f2", title: "Atelier — Communication Syndicale", date: "2026-06-12", time: "14:00", type: "formation", status: "upcoming", location: "Centre de Formation, Casablanca", description: "Atelier pratique sur les techniques de communication syndicale, prise de parole en public et rédaction de communiqués.", color: "#8b5cf6", icon: "book-open" },
-    { id: "f3", title: "Séminaire — Finances & Trésorerie", date: "2026-07-03", time: "10:00", type: "formation", status: "upcoming", location: "Hôtel Kenzi Tower, Casablanca", description: "Séminaire destiné aux trésoriers et responsables financiers des sections syndicales.", color: "#8b5cf6", icon: "book-open" },
-    { id: "f4", title: "Formation — Leadership & Management", date: "2026-05-29", time: "09:30", type: "formation", status: "completed", location: "Centre syndical, Fès", description: "Formation sur les techniques de leadership adaptées au contexte syndical et à la mobilisation des membres.", color: "#8b5cf6", icon: "book-open" },
-  ];
-
-  const STATIC_ACTIONS: CalendarEvent[] = [
-    { id: "a1", title: "Rassemblement National — Défense des Droits", date: "2026-06-20", time: "10:00", type: "action", status: "upcoming", location: "Place du Parlement, Rabat", description: "Manifestation nationale pour la défense des droits des travailleurs de l'éducation. Mobilisation nationale de tous les membres.", color: "#ef4444", icon: "zap" },
-    { id: "a2", title: "Grève Sectorielle — 48h", date: "2026-07-15", time: "07:00", type: "action", status: "upcoming", location: "Secteur Education Nationale", description: "Action de grève de 48 heures reconductible en réponse au blocage des négociations salariales.", color: "#ef4444", icon: "zap" },
-    { id: "a3", title: "Sit-in devant le Ministère", date: "2026-05-27", time: "09:00", type: "action", status: "completed", location: "Avenue Mohammed V, Rabat", description: "Sit-in pacifique pour exiger la reprise des négociations et l'application des accords du 30 mars.", color: "#ef4444", icon: "zap" },
-    { id: "a4", title: "Conférence de Presse — Bilan Social", date: "2026-06-08", time: "11:00", type: "action", status: "upcoming", location: "Maison de la Presse, Rabat", description: "Point de presse pour présenter le bilan social du syndicat et les revendications pour 2026-2027.", color: "#ef4444", icon: "zap" },
-  ];
 
   const allEvents: CalendarEvent[] = [
     ...meetings.map((m) => ({
@@ -104,8 +88,6 @@ export default function CalendarScreen() {
         color: "#10b981",
         icon: "credit-card" as const,
       })),
-    ...STATIC_FORMATIONS,
-    ...STATIC_ACTIONS,
   ];
 
   const filteredEvents = filter === "all" ? allEvents : allEvents.filter((e) => e.type === filter);
@@ -168,8 +150,8 @@ export default function CalendarScreen() {
       <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom: insets.bottom + 32 }}>
         {/* Filter chips */}
         <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.filters}>
-          {(["all", "meeting", "election", "cotisation", "formation", "action"] as FilterType[]).map((f) => {
-            const labels: Record<FilterType, string> = { all: "Tout", meeting: "Réunions", election: "Elections", cotisation: "Cotisations", formation: "Formations", action: "Actions" };
+          {(["all", "meeting", "election", "cotisation"] as FilterType[]).map((f) => {
+            const labels: Record<FilterType, string> = { all: "Tout", meeting: "Réunions", election: "Elections", cotisation: "Cotisations" };
             return (
               <TouchableOpacity
                 key={f}
@@ -299,7 +281,7 @@ export default function CalendarScreen() {
                   <View style={{ flex: 1 }}>
                     <Text style={[styles.upcomingTitle, { color: colors.foreground }]} numberOfLines={1}>{ev.title}</Text>
                     <Text style={[styles.upcomingType, { color: colors.mutedForeground }]}>
-                      {{ meeting: "Réunion", election: "Élection", cotisation: "Cotisation", all: "", formation: "Formation", action: "Action syndicale" }[ev.type]}
+                      {{ meeting: "Réunion", election: "Élection", cotisation: "Cotisation", all: "" }[ev.type]}
                     </Text>
                   </View>
                 </View>

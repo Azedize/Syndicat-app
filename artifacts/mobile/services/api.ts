@@ -239,6 +239,34 @@ export const audit = {
     }),
 };
 
+// ─── Locataires (tenant lease info) ────────────────────────────────────────────
+
+export interface ApiTenantLease {
+  id: string;
+  name: string;
+  email: string | null;
+  phone: string | null;
+  lotId: string | null;
+  buildingId: string | null;
+  leaseStart: string | null;
+  leaseEnd: string | null;
+  monthlyRent: string | null;
+  depositAmount: string | null;
+  status: string | null;
+  emergencyContact: string | null;
+  emergencyPhone: string | null;
+  notes: string | null;
+  createdAt: string;
+  lotNumber: string | null;
+  floor: number | null;
+  buildingName: string | null;
+  buildingAddress: string | null;
+}
+
+export const locataires = {
+  myLease: () => request<{ data: ApiTenantLease }>("/locataires/my-lease"),
+};
+
 // ─── Members ─────────────────────────────────────────────────────────────────
 
 export const members = {

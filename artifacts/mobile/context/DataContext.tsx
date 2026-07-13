@@ -853,7 +853,10 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
           }
         }
       } catch {
-        // silently keep mock data
+        // API call failed (network/auth error): keep whatever was already
+        // loaded (or the empty initial state) rather than throwing — this
+        // effect has no UI-visible error surface, and other screens read
+        // these arrays defensively (empty-state UI, not fake data).
       }
     }
     loadFromApi();

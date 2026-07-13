@@ -19,15 +19,12 @@ import { useData } from "@/context/DataContext";
 import { useBreakpoints } from "@/hooks/useBreakpoints";
 import { useColors } from "@/hooks/useColors";
 
-type EventType = "meeting" | "election" | "formation" | "action" | "echeance" | "reunion_bureau";
+type EventType = "meeting" | "election" | "echeance";
 
 const TYPE_CONFIG: Record<EventType, { label: string; color: string; icon: keyof typeof Feather.glyphMap }> = {
   meeting: { label: "Réunion", color: "#3b82f6", icon: "users" },
   election: { label: "Élection", color: "#f59e0b", icon: "check-square" },
-  formation: { label: "Formation", color: "#8b5cf6", icon: "book-open" },
-  action: { label: "Action syndicale", color: "#ef4444", icon: "zap" },
   echeance: { label: "Échéance", color: "#10b981", icon: "credit-card" },
-  reunion_bureau: { label: "Bureau", color: "#7c3aed", icon: "briefcase" },
 };
 
 interface AgendaEvent {
@@ -48,24 +45,6 @@ interface AgendaEvent {
 const MONTH_NAMES = ["Janvier", "Février", "Mars", "Avril", "Mai", "Juin", "Juillet", "Août", "Septembre", "Octobre", "Novembre", "Décembre"];
 const DAY_NAMES_LONG = ["Dimanche", "Lundi", "Mardi", "Mercredi", "Jeudi", "Vendredi", "Samedi"];
 
-const STATIC_EVENTS: AgendaEvent[] = [
-  { id: "ev1", title: "Sit-in devant le Ministère de l'Éducation", type: "action", date: "2026-05-27", time: "09:00", endTime: "13:00", location: "Avenue Mohammed V, Rabat", description: "Action revendicative pour exiger la reprise des négociations sur les grilles salariales. Présence de toutes les sections régionales demandée.", status: "upcoming", participants: 450, mandatory: true, organizer: "Bureau National" },
-  { id: "ev2", title: "Formation — Leadership & Management Syndical", type: "formation", date: "2026-05-29", time: "09:30", endTime: "16:30", location: "Centre Syndical, Fès", description: "Session de formation destinée aux responsables de sections. Thèmes : gestion des équipes, prise de décision, mobilisation des membres.", status: "upcoming", participants: 35, mandatory: false, organizer: "Commission Formation" },
-  { id: "ev3", title: "Réunion mensuelle du Bureau National", type: "reunion_bureau", date: "2026-06-02", time: "10:00", endTime: "14:00", location: "Siège SNE, Rabat", description: "Ordre du jour : bilan du mois de mai, préparation AG de juin, résultats négociations ministérielles, validation budget Q3.", status: "upcoming", participants: 12, mandatory: true, organizer: "Secrétariat Général" },
-  { id: "ev4", title: "Assemblée Générale Ordinaire — Juin 2026", type: "meeting", date: "2026-06-15", time: "09:00", endTime: "17:00", location: "Salle des conférences Kenzi Tower, Casablanca", description: "AG annuelle ordinaire. Points : rapport moral, rapport financier, bilan des activités, élection de 3 postes vacants, programme 2026-2027.", status: "upcoming", participants: 280, mandatory: false, organizer: "Bureau National" },
-  { id: "ev5", title: "Formation — Droit Syndical Avancé", type: "formation", date: "2026-06-05", time: "09:00", endTime: "16:00", location: "Salle de conférence SNE, Rabat", description: "Formation approfondie sur les droits syndicaux, conventions collectives, négociation et gestion des conflits individuels et collectifs.", status: "upcoming", participants: 28, mandatory: false, organizer: "Commission Juridique" },
-  { id: "ev6", title: "Conférence de Presse — Bilan Social 2026", type: "action", date: "2026-06-08", time: "11:00", endTime: "12:30", location: "Maison de la Presse, Rabat", description: "Point de presse pour présenter le bilan social du syndicat, les avancées obtenues et les revendications pour l'année syndicale 2026-2027.", status: "upcoming", participants: 15, mandatory: false, organizer: "Bureau Communication" },
-  { id: "ev7", title: "Atelier — Communication Syndicale Digitale", type: "formation", date: "2026-06-12", time: "14:00", endTime: "18:00", location: "Centre de Formation, Casablanca", description: "Atelier pratique sur les réseaux sociaux, la communication de crise, la rédaction de communiqués de presse et les outils numériques.", status: "upcoming", participants: 22, mandatory: false, organizer: "Commission Formation" },
-  { id: "ev8", title: "Réunion Commission Juridique", type: "reunion_bureau", date: "2026-06-10", time: "14:00", endTime: "16:00", location: "Siège SNE, Rabat", description: "Révision des dossiers juridiques en cours, préparation des recours, analyse de la nouvelle réglementation sur le droit syndical.", status: "upcoming", participants: 6, mandatory: true, organizer: "Commission Juridique" },
-  { id: "ev9", title: "Rassemblement National — Défense des Droits", type: "action", date: "2026-06-20", time: "10:00", endTime: "14:00", location: "Place du Parlement, Rabat", description: "Grande manifestation nationale pour la défense des droits acquis des travailleurs de l'éducation. Mobilisation intersyndicale nationale.", status: "upcoming", participants: 2000, mandatory: false, organizer: "Intersyndicale nationale" },
-  { id: "ev10", title: "Séminaire — Finances & Trésorerie", type: "formation", date: "2026-07-03", time: "10:00", endTime: "17:00", location: "Hôtel Kenzi Tower, Casablanca", description: "Séminaire national destiné aux trésoriers et responsables financiers. Modules : comptabilité syndicale, audits, rapport financier annuel.", status: "upcoming", participants: 40, mandatory: false, organizer: "Commission Financière" },
-  { id: "ev11", title: "Grève Sectorielle — 48 heures", type: "action", date: "2026-07-15", time: "07:00", location: "Secteur Education Nationale", description: "Action de grève de 48 heures reconductible en réponse au blocage des négociations salariales. Appel national à la mobilisation.", status: "upcoming", participants: 15000, mandatory: false, organizer: "Bureau National" },
-  { id: "ev12", title: "Réunion Bureau Régional Casablanca", type: "reunion_bureau", date: "2026-07-08", time: "15:00", endTime: "17:00", location: "Section Casablanca", description: "Bilan du premier semestre 2026, préparation rentrée septembre, désignation délégués pour AG de septembre.", status: "upcoming", participants: 18, mandatory: true, organizer: "Bureau Régional Casa" },
-  // Past events
-  { id: "ev13", title: "Élection — Délégué Régional Fès", type: "election", date: "2026-05-10", time: "08:00", endTime: "18:00", location: "Section Fès", description: "Élection du délégué régional de la section de Fès. 3 candidats en lice pour 1 poste.", status: "completed", participants: 87, mandatory: false, organizer: "Commission Électorale" },
-  { id: "ev14", title: "Réunion de section — Section Rabat", type: "meeting", date: "2026-05-18", time: "16:30", endTime: "18:00", location: "Lycée Hassan II, Rabat", description: "Réunion mensuelle de la section de Rabat. Points : bilan financier, suivi des dossiers membres, annonce des formations.", status: "completed", participants: 45, mandatory: false, organizer: "Délégué Rabat" },
-];
-
 type FilterType = "all" | EventType;
 type ViewMode = "list" | "timeline";
 
@@ -73,7 +52,7 @@ export default function AgendaScreen() {
   const colors = useColors();
   const insets = useSafeAreaInsets();
   const { user } = useAuth();
-  const { meetings, elections } = useData();
+  const { meetings, elections, cotisations } = useData();
   const { isWide } = useBreakpoints();
   const topPad = isWide ? 0 : (Platform.OS === "web" ? 67 : insets.top);
 
@@ -105,9 +84,20 @@ export default function AgendaScreen() {
       status: new Date(e.startDate) >= today ? "upcoming" as const : "completed" as const,
       organizer: "Commission Électorale",
     })),
+    ...cotisations
+      .filter((c) => c.status !== "paid")
+      .map((c) => ({
+        id: c.id,
+        title: c.label,
+        type: "echeance" as EventType,
+        date: c.dueDate,
+        description: `Échéance de paiement — ${c.amount} MAD`,
+        status: new Date(c.dueDate) >= today ? "upcoming" as const : "completed" as const,
+        organizer: "Syndic",
+      })),
   ];
 
-  const allEvents = [...STATIC_EVENTS, ...dataEvents].sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
+  const allEvents = [...dataEvents].sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
 
   const filtered = allEvents.filter((ev) => {
     const matchFilter = filter === "all" || ev.type === filter;
@@ -137,9 +127,7 @@ export default function AgendaScreen() {
     { key: "all", label: "Tout" },
     { key: "meeting", label: "Réunions" },
     { key: "election", label: "Élections" },
-    { key: "formation", label: "Formations" },
-    { key: "action", label: "Actions" },
-    { key: "reunion_bureau", label: "Bureau" },
+    { key: "echeance", label: "Échéances" },
   ];
 
   const formatDate = (dateStr: string) => {

@@ -1,8 +1,10 @@
 /**
  * État des Lieux — Tenant property inspection record screen.
  *
- * Displays entry/exit inspection reports linked to the tenant's lot.
- * Phase 9: Placeholder pending /tenants/:id/etat-des-lieux API endpoint.
+ * There is no inspection-report entity in the backend yet (no table/route
+ * exists for entry/exit inspections), so this screen shows an honest
+ * "not yet available" state rather than inventing status data. Once a
+ * real endpoint is added, replace the empty state below with fetched records.
  */
 import { Feather } from "@expo/vector-icons";
 import { router } from "expo-router";
@@ -17,33 +19,6 @@ import {
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useColors } from "@/hooks/useColors";
-
-interface InspectionCardProps {
-  type: "entrée" | "sortie";
-  date: string;
-  status: "conforme" | "réserves" | "en_attente";
-  color: string;
-}
-
-function InspectionCard({ type, date, status, color }: InspectionCardProps) {
-  const colors = useColors();
-  const statusLabel = status === "conforme" ? "Conforme" : status === "réserves" ? "Avec réserves" : "En attente";
-  const statusColor = status === "conforme" ? "#10b981" : status === "réserves" ? "#f59e0b" : "#6b7280";
-  return (
-    <View style={[styles.inspCard, { backgroundColor: colors.card, borderColor: colors.border }]}>
-      <View style={[styles.inspIcon, { backgroundColor: color + "18" }]}>
-        <Feather name={type === "entrée" ? "log-in" : "log-out"} size={20} color={color} />
-      </View>
-      <View style={{ flex: 1 }}>
-        <Text style={[styles.inspTitle, { color: colors.foreground }]}>État des lieux d'{type}</Text>
-        <Text style={[styles.inspDate, { color: colors.mutedForeground }]}>{date}</Text>
-      </View>
-      <View style={[styles.statusBadge, { backgroundColor: statusColor + "18" }]}>
-        <Text style={[styles.statusText, { color: statusColor }]}>{statusLabel}</Text>
-      </View>
-    </View>
-  );
-}
 
 export default function EtatDesLieuxScreen() {
   const colors = useColors();
@@ -78,18 +53,24 @@ export default function EtatDesLieuxScreen() {
           </View>
         </View>
 
-        {/* Placeholder inspection cards */}
+        {/* No inspection-report backend exists yet — show an honest empty state */}
         <View style={{ gap: 10 }}>
           <Text style={[styles.sectionLabel, { color: colors.mutedForeground }]}>HISTORIQUE</Text>
-          <InspectionCard type="entrée" date="À compléter" status="en_attente" color="#3b82f6" />
-          <InspectionCard type="sortie" date="—" status="en_attente" color="#f59e0b" />
+          <View style={[styles.emptyCard, { backgroundColor: colors.card, borderColor: colors.border }]}>
+            <Feather name="clipboard" size={28} color={colors.mutedForeground} />
+            <Text style={[styles.emptyTitle, { color: colors.foreground }]}>Aucun état des lieux numérisé</Text>
+            <Text style={[styles.emptyText, { color: colors.mutedForeground }]}>
+              Les états des lieux d'entrée et de sortie ne sont pas encore disponibles dans l'application.
+              Contactez votre syndic pour obtenir une copie du document signé.
+            </Text>
+          </View>
         </View>
 
         <View style={[styles.infoNote, { backgroundColor: colors.secondary, borderColor: colors.border }]}>
           <Feather name="info" size={14} color={colors.primary} />
           <Text style={[styles.infoNoteText, { color: colors.mutedForeground }]}>
-            Votre syndic complétera les détails de l'état des lieux. Pour toute contestation,
-            contactez-le directement via le chat ou signalez un incident.
+            Pour toute question ou contestation concernant l'état de votre logement,
+            contactez votre syndic directement via le chat ou signalez un incident.
           </Text>
         </View>
 
@@ -145,29 +126,15 @@ const styles = StyleSheet.create({
     letterSpacing: 0.8,
     paddingHorizontal: 4,
   },
-  inspCard: {
-    flexDirection: "row",
+  emptyCard: {
     alignItems: "center",
-    gap: 14,
-    padding: 16,
+    gap: 8,
+    padding: 24,
     borderRadius: 16,
     borderWidth: 1,
   },
-  inspIcon: {
-    width: 44,
-    height: 44,
-    borderRadius: 12,
-    alignItems: "center",
-    justifyContent: "center",
-  },
-  inspTitle: { fontSize: 14, fontFamily: "Inter_600SemiBold" },
-  inspDate: { fontSize: 12, fontFamily: "Inter_400Regular", marginTop: 2 },
-  statusBadge: {
-    paddingHorizontal: 10,
-    paddingVertical: 5,
-    borderRadius: 20,
-  },
-  statusText: { fontSize: 11, fontFamily: "Inter_600SemiBold" },
+  emptyTitle: { fontSize: 14, fontFamily: "Inter_600SemiBold", marginTop: 4 },
+  emptyText: { fontSize: 12, fontFamily: "Inter_400Regular", textAlign: "center", lineHeight: 18 },
   infoNote: {
     flexDirection: "row",
     alignItems: "flex-start",

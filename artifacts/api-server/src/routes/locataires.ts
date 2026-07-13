@@ -64,6 +64,50 @@ router.get("/locataires", requireAuth, requireRole("super_admin", "syndicate_adm
   }
 });
 
+// GET /locataires/my-lease — tenant viewing their own lease record.
+// Tenants aren't FK-linked to a tenantsTable row; matched by verified JWT email,
+// since that's the only identifier both tables share.
+router.get("/locataires/my-lease", requireAuth, async (req, res) => {
+  try {
+    const user = req.user!;
+    if (!user.email) return res.status(404).json({ error: "Aucun bail associé à ce compte" });
+
+    const [row] = await db
+      .select({
+        id: tenantsTable.id,
+        name: tenantsTable.name,
+        email: tenantsTable.email,
+        phone: tenantsTable.phone,
+        lotId: tenantsTable.lotId,
+        buildingId: tenantsTable.buildingId,
+        leaseStart: tenantsTable.leaseStart,
+        leaseEnd: tenantsTable.leaseEnd,
+        monthlyRent: tenantsTable.monthlyRent,
+        depositAmount: tenantsTable.depositAmount,
+        status: tenantsTable.status,
+        emergencyContact: tenantsTable.emergencyContact,
+        emergencyPhone: tenantsTable.emergencyPhone,
+        notes: tenantsTable.notes,
+        createdAt: tenantsTable.createdAt,
+        lotNumber: lotsTable.number,
+        floor: lotsTable.floor,
+        buildingName: buildingsTable.name,
+        buildingAddress: buildingsTable.address,
+      })
+      .from(tenantsTable)
+      .leftJoin(lotsTable, eq(tenantsTable.lotId, lotsTable.id))
+      .leftJoin(buildingsTable, eq(tenantsTable.buildingId, buildingsTable.id))
+      .where(eq(tenantsTable.email, user.email))
+      .limit(1);
+
+    if (!row) return res.status(404).json({ error: "Aucun bail associé à ce compte" });
+    res.json({ data: row });
+  } catch (e) {
+    console.error(e);
+    res.status(500).json({ error: "Erreur serveur" });
+  }
+});
+
 // GET /locataires/:id — admin only or the tenant viewing their own record
 router.get("/locataires/:id", requireAuth, requireRole("super_admin", "syndicate_admin"), async (req, res) => {
   try {
