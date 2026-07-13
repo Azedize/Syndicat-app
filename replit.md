@@ -54,4 +54,8 @@ lib/
 scripts/          — DB seed and utility scripts
 ```
 
+## Setup status
+
+Project is running on Replit: dependencies installed, Postgres schema pushed (`db:push`), and seed data loaded (test accounts, password `password123` — see `pnpm --filter @workspace/scripts run seed` output for the full list). All three workflows (API Server, Expo mobile, Component Preview) are up. `DATABASE_URL`, `JWT_SECRET`, `SESSION_SECRET` are set; `REDIS_URL` and `SMTP_*` are still unset (optional in dev — rate limiting and password-reset email won't work without them).
+
 ## User preferences
