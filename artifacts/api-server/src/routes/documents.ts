@@ -38,9 +38,6 @@ router.get("/documents/:id", requireAuth, async (req, res) => {
     if (req.user!.role !== "super_admin" && doc.syndicateId !== req.user!.syndicateId) {
       res.status(403).json({ error: "Accès refusé" }); return;
     }
-    if ((req.user!.role === "member" || req.user!.role === "tenant") && doc.status !== "published") {
-      res.status(403).json({ error: "Accès refusé" }); return;
-    }
     res.json({ data: doc });
   } catch (err) {
     req.log.error(err);
