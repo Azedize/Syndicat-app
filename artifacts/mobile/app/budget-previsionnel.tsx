@@ -1,8 +1,9 @@
 import { Feather } from "@expo/vector-icons";
 import * as Haptics from "expo-haptics";
 import { router } from "expo-router";
-import React, { useState } from "react";
+import React, { useEffect, useState } from "react";
 import {
+  ActivityIndicator,
   Alert,
   Modal,
   Platform,
@@ -12,6 +13,7 @@ import {
   TouchableOpacity,
   View,
 } from "react-native";
+import { apiRequest } from "@/lib/api";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useLanguage } from "@/context/LanguageContext";
 import RoleGuard from "@/components/RoleGuard";
@@ -30,32 +32,8 @@ interface LigneBudget {
   color: string;
 }
 
-const ANNEE = "2026";
-
-const RECETTES: LigneBudget[] = [
-  { id: "r1", categorie: "Cotisations", libelle: "Cotisations membres ordinaires", prevu: 450000, realise: 312000, icon: "users", color: "#3b82f6" },
-  { id: "r2", categorie: "Cotisations", libelle: "Cotisations membres associés", prevu: 48000, realise: 36000, icon: "user-plus", color: "#3b82f6" },
-  { id: "r3", categorie: "Subventions", libelle: "Subvention patronale formation", prevu: 126000, realise: 126000, icon: "briefcase", color: "#10b981" },
-  { id: "r4", categorie: "Subventions", libelle: "Subvention ASC (Œuvres sociales)", prevu: 84000, realise: 84000, icon: "gift", color: "#10b981" },
-  { id: "r5", categorie: "Marketplace", libelle: "Commissions marketplace", prevu: 36000, realise: 22400, icon: "shopping-bag", color: "#f59e0b" },
-  { id: "r6", categorie: "Divers", libelle: "Dons et legs", prevu: 12000, realise: 5000, icon: "heart", color: "#ec4899" },
-  { id: "r7", categorie: "Divers", libelle: "Produits financiers", prevu: 8400, realise: 4100, icon: "trending-up", color: "#6366f1" },
-];
-
-const DEPENSES: LigneBudget[] = [
-  { id: "d1", categorie: "Salaires", libelle: "Rémunération permanents syndicaux", prevu: 192000, realise: 128000, icon: "users", color: "#7c3aed" },
-  { id: "d2", categorie: "Salaires", libelle: "Charges sociales", prevu: 64000, realise: 42000, icon: "percent", color: "#7c3aed" },
-  { id: "d3", categorie: "Formation", libelle: "Formation des délégués", prevu: 48000, realise: 29000, icon: "book-open", color: "#8b5cf6" },
-  { id: "d4", categorie: "Formation", libelle: "Séminaires et congrès", prevu: 36000, realise: 24000, icon: "award", color: "#8b5cf6" },
-  { id: "d5", categorie: "Communication", libelle: "Publications et bulletins", prevu: 24000, realise: 14200, icon: "file-text", color: "#3b82f6" },
-  { id: "d6", categorie: "Communication", libelle: "Site web et outils numériques", prevu: 18000, realise: 9000, icon: "globe", color: "#3b82f6" },
-  { id: "d7", categorie: "Social", libelle: "Fonds de solidarité membres", prevu: 60000, realise: 38000, icon: "heart", color: "#ec4899" },
-  { id: "d8", categorie: "Social", libelle: "Aide scolaire enfants membres", prevu: 36000, realise: 24000, icon: "book", color: "#ec4899" },
-  { id: "d9", categorie: "Fonctionnement", libelle: "Loyer siège social", prevu: 60000, realise: 45000, icon: "home", color: "#6b7280" },
-  { id: "d10", categorie: "Fonctionnement", libelle: "Frais de déplacement", prevu: 24000, realise: 15800, icon: "map-pin", color: "#6b7280" },
-  { id: "d11", categorie: "Fonctionnement", libelle: "Honoraires juridiques", prevu: 30000, realise: 18000, icon: "shield", color: "#6b7280" },
-  { id: "d12", categorie: "Juridique", libelle: "Frais de procédure", prevu: 12000, realise: 6400, icon: "alert-circle", color: "#ef4444" },
-];
+// Income categories used to split budget lines from the API
+const INCOME_CATEGORIES = new Set(["Cotisations", "Subventions", "Marketplace", "Revenus", "Recettes", "cotisation", "subvention", "revenu"]);
 
 const fmt = (n: number) => new Intl.NumberFormat("fr-MA", { style: "decimal", maximumFractionDigits: 0 }).format(n) + " MAD";
 const pct = (realise: number, prevu: number) => Math.min(100, Math.round((realise / prevu) * 100));
@@ -78,6 +56,37 @@ function BudgetPrevisionnelScreenInner() {
 
   const [tab, setTab] = useState<TabType>("vue_ensemble");
   const [selected, setSelected] = useState<LigneBudget | null>(null);
+  const [recettes, setRecettes] = useState<LigneBudget[]>([]);
+  const [depenses, setDepenses] = useState<LigneBudget[]>([]);
+  const [annee, setAnnee] = useState("2026");
+
+  useEffect(() => {
+    apiRequest<{ data: any[] }>("/budgets")
+      .then(({ data }) => {
+        if (!data || data.length === 0) return;
+        const budget = data[0];
+        if (budget.year) setAnnee(String(budget.year));
+        const lines: LigneBudget[] = (budget.lines || []).map((l: any, i: number) => ({
+          id: l.id || `line-${i}`,
+          categorie: l.category || "Divers",
+          libelle: l.label || "",
+          prevu: parseFloat(l.amountAnnual || "0"),
+          realise: 0,
+          icon: "file-text" as any,
+          color: INCOME_CATEGORIES.has(l.category || "") ? "#3b82f6" : "#7c3aed",
+        }));
+        const r = lines.filter((l) => INCOME_CATEGORIES.has(l.categorie));
+        const d = lines.filter((l) => !INCOME_CATEGORIES.has(l.categorie));
+        setRecettes(r.length > 0 ? r : lines.slice(0, Math.ceil(lines.length / 2)));
+        setDepenses(d.length > 0 ? d : lines.slice(Math.ceil(lines.length / 2)));
+      })
+      .catch((e) => console.error("Failed to load budget", e));
+  }, []);
+
+  // Local aliases so existing JSX references still resolve
+  const RECETTES = recettes;
+  const DEPENSES = depenses;
+  const ANNEE = annee;
 
   const totalRecettesPrevu = RECETTES.reduce((s, r) => s + r.prevu, 0);
   const totalRecettesRealise = RECETTES.reduce((s, r) => s + r.realise, 0);

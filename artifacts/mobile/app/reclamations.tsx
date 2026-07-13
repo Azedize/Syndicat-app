@@ -1,7 +1,7 @@
 import { Feather } from "@expo/vector-icons";
 import * as Haptics from "expo-haptics";
 import { router } from "expo-router";
-import React, { useState } from "react";
+import React, { useCallback, useEffect, useState } from "react";
 import {
   Alert,
   Modal,
@@ -18,6 +18,7 @@ import { useLanguage } from "@/context/LanguageContext";
 import { useAuth } from "@/context/AuthContext";
 import { useBreakpoints } from "@/hooks/useBreakpoints";
 import { useColors } from "@/hooks/useColors";
+import { apiRequest } from "@/lib/api";
 
 const STRINGS = {
   salaire: {
@@ -662,7 +663,9 @@ export default function ReclamationsScreen() {
   const [newAnon, setNewAnon] = useState(false);
   const [showEtapes, setShowEtapes] = useState(false);
 
-  const filtered = RECLAMATIONS.filter((r) => {
+  const [reclamations, setReclamations] = useState<Reclamation[]>(RECLAMATIONS);
+
+  const filtered = reclamations.filter((r) => {
     if (filterStatut !== "all" && r.statut !== filterStatut) return false;
     if (filterType !== "all" && r.type !== filterType) return false;
     if (filterPriorite !== "all" && r.priorite !== filterPriorite) return false;
@@ -672,10 +675,10 @@ export default function ReclamationsScreen() {
   });
 
   const stats = {
-    total: RECLAMATIONS.length,
-    enCours: RECLAMATIONS.filter((r) => ["deposee", "en_instruction", "transmise_direction", "en_mediation"].includes(r.statut)).length,
-    resolues: RECLAMATIONS.filter((r) => r.statut === "resolue").length,
-    urgentes: RECLAMATIONS.filter((r) => r.priorite === "urgente" && r.statut !== "resolue" && r.statut !== "classee").length,
+    total: reclamations.length,
+    enCours: reclamations.filter((r) => ["deposee", "en_instruction", "transmise_direction", "en_mediation"].includes(r.statut)).length,
+    resolues: reclamations.filter((r) => r.statut === "resolue").length,
+    urgentes: reclamations.filter((r) => r.priorite === "urgente" && r.statut !== "resolue" && r.statut !== "classee").length,
   };
 
   const handleDeposer = () => {
@@ -948,21 +951,21 @@ export default function ReclamationsScreen() {
                   <View style={s.actionsRow}>
                     <TouchableOpacity
                       style={[s.actionBtn, { backgroundColor: "#10b981" }]}
-                      onPress={() => { Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success); Alert.alert(STRINGS.resolue[lang], STRINGS.resolue[lang]); setSelected(null); }}
+                      onPress={() => { Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success); const upd = { ...selected!, statut: "resolue" as ReclamationStatut }; setReclamations((prev) => prev.map((r) => r.id === selected!.id ? upd : r)); setSelected(upd); }}
                     >
                       <Feather name="check-circle" size={14} color="#fff" />
                       <Text style={s.actionBtnText}>{STRINGS.marquerResolue[lang]}</Text>
                     </TouchableOpacity>
                     <TouchableOpacity
                       style={[s.actionBtn, { backgroundColor: "#7c3aed" }]}
-                      onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium); Alert.alert(STRINGS.mediation[lang], STRINGS.alertMediation[lang]); }}
+                      onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium); const upd = { ...selected!, statut: "en_mediation" as ReclamationStatut }; setReclamations((prev) => prev.map((r) => r.id === selected!.id ? upd : r)); setSelected(upd); }}
                     >
                       <Feather name="users" size={14} color="#fff" />
                       <Text style={s.actionBtnText}>{STRINGS.mediation[lang]}</Text>
                     </TouchableOpacity>
                     <TouchableOpacity
                       style={[s.actionBtn, { backgroundColor: "#ef4444" }]}
-                      onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Heavy); Alert.alert(STRINGS.contentieux[lang], STRINGS.alertContentieux[lang]); }}
+                      onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Heavy); const upd = { ...selected!, statut: "contentieux" as ReclamationStatut }; setReclamations((prev) => prev.map((r) => r.id === selected!.id ? upd : r)); setSelected(upd); }}
                     >
                       <Feather name="alert-triangle" size={14} color="#fff" />
                       <Text style={s.actionBtnText}>{STRINGS.contentieux[lang]}</Text>

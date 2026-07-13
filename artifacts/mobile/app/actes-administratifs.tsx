@@ -1,12 +1,13 @@
 import { Feather } from "@expo/vector-icons";
 import * as Haptics from "expo-haptics";
 import { router } from "expo-router";
-import React, { useState } from "react";
+import React, { useCallback, useEffect, useState } from "react";
 import {
   Alert,
   Modal,
   Platform,
   ScrollView,
+  Share,
   StyleSheet,
   Text,
   TouchableOpacity,
@@ -16,6 +17,7 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useAuth } from "@/context/AuthContext";
 import { useBreakpoints } from "@/hooks/useBreakpoints";
 import { useColors } from "@/hooks/useColors";
+import { apiRequest } from "@/lib/api";
 
 type ActeType = "convocation" | "decision" | "pv" | "proces_verbal_ag" | "resolution" | "mandat" | "attestation" | "courrier_officiel";
 type ActeStatut = "brouillon" | "valide" | "diffuse" | "archive";
@@ -140,8 +142,16 @@ export default function ActesAdministratifsScreen() {
   const [filterStatut, setFilterStatut] = useState<ActeStatut | "all">("all");
   const [filterType, setFilterType] = useState<ActeType | "all">("all");
   const [selected, setSelected] = useState<ActeAdministratif | null>(null);
+  const [actes, setActes] = useState<ActeAdministratif[]>(ACTES);
 
-  const displayed = ACTES
+  useEffect(() => {
+    // Attempt to load from API; fall back to local data if endpoint not yet available
+    apiRequest<{ data: ActeAdministratif[] }>("/actes")
+      .then(({ data }) => { if (data && data.length > 0) setActes(data); })
+      .catch(() => { /* endpoint not yet implemented — local data used */ });
+  }, []);
+
+  const displayed = actes
     .filter((a) => filterStatut === "all" || a.statut === filterStatut)
     .filter((a) => filterType === "all" || a.type === filterType);
 
@@ -153,10 +163,10 @@ export default function ActesAdministratifsScreen() {
         </TouchableOpacity>
         <View style={{ flex: 1 }}>
           <Text style={[styles.title, { color: colors.foreground }]}>Actes Administratifs</Text>
-          <Text style={[styles.subtitle, { color: colors.mutedForeground }]}>{ACTES.length} actes · {ACTES.filter((a) => a.statut === "brouillon").length} brouillon{ACTES.filter((a) => a.statut === "brouillon").length > 1 ? "s" : ""}</Text>
+          <Text style={[styles.subtitle, { color: colors.mutedForeground }]}>{actes.length} actes · {actes.filter((a) => a.statut === "brouillon").length} brouillon{actes.filter((a) => a.statut === "brouillon").length > 1 ? "s" : ""}</Text>
         </View>
         {isAdmin ? (
-          <TouchableOpacity style={[styles.addBtn, { backgroundColor: colors.primary }]} onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); Alert.alert("Nouvel acte", "Créer un nouvel acte administratif syndicale."); }}>
+          <TouchableOpacity style={[styles.addBtn, { backgroundColor: colors.primary }]} onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); Alert.alert("Créer un acte", "La création d'actes administratifs sera disponible dans la prochaine mise à jour."); }}>
             <Feather name="plus" size={18} color="#fff" />
           </TouchableOpacity>
         ) : <View style={{ width: 36 }} />}
@@ -165,10 +175,10 @@ export default function ActesAdministratifsScreen() {
       {/* Status filter */}
       <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ flexShrink: 0 }} contentContainerStyle={styles.filterRow}>
         <TouchableOpacity style={[styles.chip, { backgroundColor: filterStatut === "all" ? colors.primary : colors.card, borderColor: filterStatut === "all" ? colors.primary : colors.border }]} onPress={() => setFilterStatut("all")}>
-          <Text style={[styles.chipText, { color: filterStatut === "all" ? "#fff" : colors.foreground }]}>Tous ({ACTES.length})</Text>
+          <Text style={[styles.chipText, { color: filterStatut === "all" ? "#fff" : colors.foreground }]}>Tous ({actes.length})</Text>
         </TouchableOpacity>
         {(Object.entries(STATUT_CONFIG) as [ActeStatut, typeof STATUT_CONFIG[ActeStatut]][]).map(([key, cfg]) => {
-          const count = ACTES.filter((a) => a.statut === key).length;
+          const count = actes.filter((a) => a.statut === key).length;
           const active = filterStatut === key;
           return (
             <TouchableOpacity key={key} style={[styles.chip, { backgroundColor: active ? cfg.color : colors.card, borderColor: active ? cfg.color : colors.border }]} onPress={() => setFilterStatut(key)}>
@@ -254,7 +264,7 @@ export default function ActesAdministratifsScreen() {
             <View style={[styles.modalHeader, { backgroundColor: colors.card, borderBottomColor: colors.border }]}>
               <TouchableOpacity onPress={() => setSelected(null)}><Feather name="x" size={22} color={colors.foreground} /></TouchableOpacity>
               <Text style={[styles.modalTitle, { color: colors.foreground }]}>Acte administratif</Text>
-              <TouchableOpacity onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); Alert.alert("Télécharger", "Télécharger cet acte en PDF signé."); }}>
+              <TouchableOpacity onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); Share.share({ title: selected?.titre, message: `${selected?.titre}\n\nRéf: ${selected?.numero}\nDate: ${selected?.date}\n\n${selected?.resumeContenu}` }); }}>
                 <Feather name="download" size={20} color={colors.primary} />
               </TouchableOpacity>
             </View>
@@ -328,11 +338,11 @@ export default function ActesAdministratifsScreen() {
                       </View>
                     ) : null}
                     <View style={styles.actionBtns}>
-                      <TouchableOpacity style={[styles.actionBtn, { backgroundColor: colors.primary }]} onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); Alert.alert("PDF", "Télécharger le document officiel en PDF."); }}>
+                      <TouchableOpacity style={[styles.actionBtn, { backgroundColor: colors.primary }]} onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); Share.share({ title: selected.titre, message: `${selected.titre}\n\nRéf: ${selected.numero}\nDate: ${selected.date}\nAuteur: ${selected.auteur}\n\n${selected.resumeContenu}` }); }}>
                         <Feather name="download" size={15} color="#fff" />
                         <Text style={styles.actionBtnText}>Télécharger PDF</Text>
                       </TouchableOpacity>
-                      <TouchableOpacity style={[styles.actionBtn, { backgroundColor: colors.secondary, borderWidth: 1, borderColor: colors.border }]} onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); Alert.alert("Partager", "Partager cet acte administratif."); }}>
+                      <TouchableOpacity style={[styles.actionBtn, { backgroundColor: colors.secondary, borderWidth: 1, borderColor: colors.border }]} onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); Share.share({ title: selected.titre, message: `${selected.titre}\n\nRéf: ${selected.numero} — ${selected.date}\n${selected.resumeContenu}` }); }}>
                         <Feather name="share-2" size={15} color={colors.foreground} />
                         <Text style={[styles.actionBtnText, { color: colors.foreground }]}>Partager</Text>
                       </TouchableOpacity>

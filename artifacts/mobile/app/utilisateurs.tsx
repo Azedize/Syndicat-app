@@ -1,8 +1,9 @@
 import { Feather } from "@expo/vector-icons";
 import * as Haptics from "expo-haptics";
 import { router } from "expo-router";
-import React, { useMemo, useState } from "react";
+import React, { useCallback, useEffect, useMemo, useState } from "react";
 import {
+  ActivityIndicator,
   Alert,
   FlatList,
   Modal,
@@ -19,6 +20,7 @@ import { useBreakpoints } from "@/hooks/useBreakpoints";
 import { useColors } from "@/hooks/useColors";
 import { useRequireRole } from "@/hooks/useRequireRole";
 import { useLanguage } from "@/context/LanguageContext";
+import { apiRequest } from "@/lib/api";
 
 type Role = "super_admin" | "syndicate_admin" | "member";
 type Status = "active" | "inactive" | "suspended" | "pending";
@@ -106,28 +108,6 @@ const STATUS_CONFIG: Record<Status, { labelKey: keyof typeof STRINGS; color: str
   pending: { labelKey: "pending", color: "#f59e0b" },
 };
 
-const SYNDICATES = [
-  "SNE — Syndicat National de l'Éducation",
-  "CDT — Confédération Démocratique du Travail",
-  "UMT — Union Marocaine du Travail",
-  "FNTE — Fédération Nationale des Travailleurs",
-  "Plateforme Globale",
-];
-
-const INITIAL_USERS: User[] = [
-  { id: "u1", name: "Ahmed Benali", email: "admin@syndycat.com", phone: "+212 6 61 11 22 33", role: "super_admin", status: "active", syndicate: "Plateforme Globale", joinDate: "2023-01-01", lastLogin: "lastLogin2m", avatar: "AB" },
-  { id: "u2", name: "Fatima Zahra El Alami", email: "admin@syndicat.com", phone: "+212 6 62 33 44 55", role: "syndicate_admin", status: "active", syndicate: "SNE — Syndicat National de l'Éducation", joinDate: "2023-03-15", lastLogin: "lastLogin1h", avatar: "FZ" },
-  { id: "u3", name: "Mohammed Alaoui", email: "membre@email.com", phone: "+212 6 63 44 55 66", role: "member", status: "active", syndicate: "SNE — Syndicat National de l'Éducation", joinDate: "2023-09-01", lastLogin: "lastLogin3h", avatar: "MA" },
-  { id: "u4", name: "Nadia Benkiran", email: "n.benkiran@cdt.ma", phone: "+212 6 64 55 66 77", role: "syndicate_admin", status: "active", syndicate: "CDT — Confédération Démocratique du Travail", joinDate: "2023-04-20", lastLogin: "lastLoginYesterday", avatar: "NB" },
-  { id: "u5", name: "Omar Slimani", email: "o.slimani@sne.ma", phone: "+212 6 65 66 77 88", role: "member", status: "active", syndicate: "SNE — Syndicat National de l'Éducation", joinDate: "2024-01-10", lastLogin: "lastLogin2j", avatar: "OS" },
-  { id: "u6", name: "Zineb Mansour", email: "z.mansour@umt.ma", phone: "+212 6 66 77 88 99", role: "member", status: "pending", syndicate: "UMT — Union Marocaine du Travail", joinDate: "2026-05-01", lastLogin: "never", avatar: "ZM" },
-  { id: "u7", name: "Rachid Amrani", email: "r.amrani@fnte.ma", phone: "+212 6 67 88 99 00", role: "syndicate_admin", status: "active", syndicate: "FNTE — Fédération Nationale des Travailleurs", joinDate: "2023-06-15", lastLogin: "lastLogin5h", avatar: "RA" },
-  { id: "u8", name: "Sanaa Benchekroun", email: "s.bench@cdt.ma", phone: "+212 6 68 99 00 11", role: "member", status: "suspended", syndicate: "CDT — Confédération Démocratique du Travail", joinDate: "2023-11-20", lastLogin: "lastLogin30j", avatar: "SB" },
-  { id: "u9", name: "Karim Zouheir", email: "k.zouheir@sne.ma", phone: "+212 6 69 00 11 22", role: "member", status: "active", syndicate: "SNE — Syndicat National de l'Éducation", joinDate: "2024-02-14", lastLogin: "lastLogin6h", avatar: "KZ" },
-  { id: "u10", name: "Laila Berrada", email: "l.berrada@umt.ma", phone: "+212 6 70 11 22 33", role: "member", status: "inactive", syndicate: "UMT — Union Marocaine du Travail", joinDate: "2022-08-30", lastLogin: "lastLogin60j", avatar: "LB" },
-  { id: "u11", name: "Hassan Berrada", email: "h.berrada@sne.ma", phone: "+212 6 71 22 33 44", role: "member", status: "active", syndicate: "SNE — Syndicat National de l'Éducation", joinDate: "2024-03-01", lastLogin: "lastLogin1j", avatar: "HB" },
-  { id: "u12", name: "Khadija Tahiri", email: "k.tahiri@fnte.ma", phone: "+212 6 72 33 44 55", role: "member", status: "pending", syndicate: "FNTE — Fédération Nationale des Travailleurs", joinDate: "2026-04-15", lastLogin: "never", avatar: "KT" },
-];
 
 type TabFilter = "all" | Role | "suspended" | "pending";
 
@@ -139,9 +119,8 @@ export default function UtilisateursScreen() {
   const { lang } = useLanguage();
   const topPad = isWide ? 0 : (Platform.OS === "web" ? 67 : insets.top);
 
-  if (!allowed) return null;
-
-  const [users, setUsers] = useState<User[]>(INITIAL_USERS);
+  const [users, setUsers] = useState<User[]>([]);
+  const [loading, setLoading] = useState(true);
   const [tab, setTab] = useState<TabFilter>("all");
   const [search, setSearch] = useState("");
   const [selected, setSelected] = useState<User | null>(null);
@@ -151,9 +130,44 @@ export default function UtilisateursScreen() {
   const [newEmail, setNewEmail] = useState("");
   const [newPhone, setNewPhone] = useState("");
   const [newRole, setNewRole] = useState<Role>("member");
-  const [newSyndicate, setNewSyndicate] = useState(SYNDICATES[0]);
 
-  const filtered = useMemo(() => {
+  const mapApiUser = useCallback((u: any): User => ({
+    id: u.id,
+    name: u.name,
+    email: u.email,
+    phone: u.phone || "",
+    role: u.role as Role,
+    status: u.status as Status,
+    syndicate: u.syndicateName || "Global",
+    joinDate: u.createdAt ? new Date(u.createdAt).toLocaleDateString("fr-MA") : "",
+    lastLogin: "",
+    avatar: u.name.split(" ").filter(Boolean).map((n: string) => n[0]).join("").toUpperCase().slice(0, 2),
+  }), []);
+
+  const fetchUsers = useCallback(async () => {
+    setLoading(true);
+    try {
+      const data = await apiRequest<{ data: any[]; total: number }>("/users");
+      setUsers((data.data || []).map(mapApiUser));
+    } catch (e) {
+      console.error("Failed to fetch users", e);
+    } finally {
+      setLoading(false);
+    }
+  }, [mapApiUser]);
+
+  useEffect(() => { fetchUsers(); }, [fetchUsers]);
+
+  if (!allowed) return null;
+  if (loading) {
+    return (
+      <View style={[styles.root, { backgroundColor: colors.background, alignItems: "center", justifyContent: "center" }]}>
+        <ActivityIndicator size="large" color={colors.primary} />
+      </View>
+    );
+  }
+
+  const filtered = (() => {
     let list = users;
     if (search.trim()) {
       const q = search.toLowerCase();
@@ -163,9 +177,9 @@ export default function UtilisateursScreen() {
     else if (tab === "pending") list = list.filter((u) => u.status === "pending");
     else if (tab !== "all") list = list.filter((u) => u.role === tab);
     return list;
-  }, [users, tab, search]);
+  })();
 
-  const counts = useMemo(() => ({
+  const counts = {
     all: users.length,
     super_admin: users.filter((u) => u.role === "super_admin").length,
     syndicate_admin: users.filter((u) => u.role === "syndicate_admin").length,
@@ -173,12 +187,18 @@ export default function UtilisateursScreen() {
     suspended: users.filter((u) => u.status === "suspended").length,
     pending: users.filter((u) => u.status === "pending").length,
     active: users.filter((u) => u.status === "active").length,
-  }), [users]);
+  };
 
-  const handleStatusChange = (uid: string, status: Status) => {
+  const handleStatusChange = async (uid: string, status: Status) => {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
     setUsers((prev) => prev.map((u) => u.id === uid ? { ...u, status } : u));
     if (selected?.id === uid) setSelected((prev) => prev ? { ...prev, status } : null);
+    try {
+      await apiRequest(`/users/${uid}`, "PUT", { status });
+    } catch (e) {
+      console.error("Failed to update status", e);
+      fetchUsers();
+    }
   };
 
   const handleDelete = (uid: string, name: string) => {
@@ -187,37 +207,42 @@ export default function UtilisateursScreen() {
       {
         text: STRINGS.delete[lang],
         style: "destructive",
-        onPress: () => {
+        onPress: async () => {
           Haptics.notificationAsync(Haptics.NotificationFeedbackType.Warning);
           setUsers((prev) => prev.filter((u) => u.id !== uid));
           setSelected(null);
+          try {
+            await apiRequest(`/users/${uid}`, "DELETE");
+          } catch (e) {
+            console.error("Failed to delete user", e);
+            fetchUsers();
+          }
         },
       },
     ]);
   };
 
-  const handleAdd = () => {
+  const handleAdd = async () => {
     if (!newName.trim() || !newEmail.trim()) {
       Alert.alert(STRINGS.requiredFields[lang], STRINGS.nameEmailRequired[lang]);
       return;
     }
-    const newUser: User = {
-      id: `u${Date.now()}`,
-      name: newName.trim(),
-      email: newEmail.trim(),
-      phone: newPhone.trim(),
-      role: newRole,
-      status: "pending",
-      syndicate: newSyndicate,
-      joinDate: new Date().toISOString().split("T")[0],
-      lastLogin: "never",
-      avatar: newName.trim().split(" ").map((n) => n[0]).join("").slice(0, 2).toUpperCase(),
-    };
-    setUsers((prev) => [newUser, ...prev]);
-    setShowAdd(false);
-    setNewName(""); setNewEmail(""); setNewPhone(""); setNewRole("member");
-    Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-    Alert.alert(STRINGS.userCreated[lang], STRINGS.userAddedPending[lang].replace("{name}", newUser.name));
+    try {
+      const result = await apiRequest<{ data: any }>("/users", "POST", {
+        name: newName.trim(),
+        email: newEmail.trim(),
+        phone: newPhone.trim() || undefined,
+        role: newRole,
+        password: "ChangeMe@2026!",
+      });
+      if (result?.data) setUsers((prev) => [mapApiUser(result.data), ...prev]);
+      setShowAdd(false);
+      setNewName(""); setNewEmail(""); setNewPhone(""); setNewRole("member");
+      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+      Alert.alert(STRINGS.userCreated[lang], STRINGS.userAddedPending[lang].replace("{name}", newName.trim()));
+    } catch (e: any) {
+      Alert.alert(STRINGS.requiredFields[lang], e?.message || "Erreur lors de la création");
+    }
   };
 
   const TABS: { key: TabFilter; label: string; count: number }[] = [
@@ -453,7 +478,7 @@ export default function UtilisateursScreen() {
                 <View style={styles.actionBtns}>
                   <TouchableOpacity
                     style={[styles.actionBtn, { backgroundColor: "#f59e0b15", borderColor: "#f59e0b40" }]}
-                    onPress={() => { Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success); Alert.alert(STRINGS.emailSent[lang], STRINGS.resetEmailSent[lang].replace("{email}", u.email)); }}
+                    onPress={async () => { Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success); try { await apiRequest("/auth/forgot-password", "POST", { email: u.email }); } catch {} Alert.alert(STRINGS.emailSent[lang], STRINGS.resetEmailSent[lang].replace("{email}", u.email)); }}
                   >
                     <Feather name="key" size={15} color="#f59e0b" />
                     <Text style={[styles.actionBtnText, { color: "#f59e0b" }]}>{STRINGS.resetPassword[lang]}</Text>
@@ -521,22 +546,6 @@ export default function UtilisateursScreen() {
               </View>
             </View>
 
-            <View style={{ gap: 6 }}>
-              <Text style={[styles.fieldLabel, { color: colors.mutedForeground }]}>{STRINGS.syndicate[lang]}</Text>
-              {SYNDICATES.map((s) => (
-                <TouchableOpacity
-                  key={s}
-                  style={[styles.syndicateOption, {
-                    backgroundColor: newSyndicate === s ? colors.primary + "12" : colors.card,
-                    borderColor: newSyndicate === s ? colors.primary : colors.border,
-                  }]}
-                  onPress={() => { setNewSyndicate(s); Haptics.selectionAsync(); }}
-                >
-                  <Text style={[styles.syndicateText, { color: newSyndicate === s ? colors.primary : colors.foreground }]} numberOfLines={1}>{s}</Text>
-                  {newSyndicate === s && <Feather name="check" size={16} color={colors.primary} />}
-                </TouchableOpacity>
-              ))}
-            </View>
           </ScrollView>
         </View>
       </Modal>
