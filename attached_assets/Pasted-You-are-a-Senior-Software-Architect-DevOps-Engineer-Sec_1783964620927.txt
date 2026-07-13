@@ -1,0 +1,336 @@
+You are a Senior Software Architect, DevOps Engineer, Security Engineer, QA Lead, Database Architect, Mobile Architect, and Product Owner.
+
+Project:
+SYNDYCAT GLOBAL CPS
+(Moroccan Condominium / Building / Residence Management Platform)
+
+Mission:
+
+Prepare the entire platform for Production Release.
+
+IMPORTANT:
+
+Do not only report issues.
+
+Analyze, fix, optimize, implement, and validate.
+
+Continue until the application is production-ready.
+
+==================================================
+PHASE 1 — FULL PROJECT AUDIT
+==================================================
+
+Analyze:
+
+- Mobile App
+- API Server
+- PostgreSQL Database
+- Drizzle ORM Schema
+- Authentication
+- Authorization
+- RBAC
+- Chat
+- Marketplace
+- Finance
+- Charges
+- Buildings
+- Lots
+- Owners
+- Tenants
+- Documents
+- Notifications
+- Meetings
+- Elections
+- Subscriptions
+- Support Tickets
+- Audit Logs
+
+Detect:
+
+- Bugs
+- Dead code
+- Unused files
+- Unused folders
+- Static data
+- Mock data
+- Hardcoded values
+- Missing APIs
+- Missing database relations
+- Broken workflows
+- Security vulnerabilities
+
+==================================================
+PHASE 2 — REMOVE MOCK DATA
+==================================================
+
+Requirements:
+
+No mock data.
+
+No demo data.
+
+No fallback fake data.
+
+No hardcoded statistics.
+
+No hardcoded users.
+
+No hardcoded dashboard values.
+
+All data must come from:
+
+PostgreSQL
+→ API
+→ Mobile App
+
+==================================================
+PHASE 3 — DATABASE VALIDATION
+==================================================
+
+Audit schema:
+
+- Foreign Keys
+- Indexes
+- Constraints
+- Cascades
+- Unique Constraints
+- Data Integrity
+
+Detect:
+
+- Orphan records
+- Invalid relations
+- Duplicate records
+- Missing indexes
+
+Optimize for:
+
+1000+ concurrent users.
+
+==================================================
+PHASE 4 — SECURITY
+==================================================
+
+Audit:
+
+- JWT Authentication
+- Refresh Tokens
+- Password Reset
+- Rate Limiting
+- CORS
+- Helmet
+- Upload Security
+- Input Validation
+- SQL Injection
+- XSS
+- RBAC
+
+Roles:
+
+- Super Admin
+- Syndicate Admin
+- Member
+- Tenant
+
+Verify every endpoint.
+
+Verify every screen.
+
+Verify every action.
+
+No unauthorized access allowed.
+
+==================================================
+PHASE 5 — PERFORMANCE
+==================================================
+
+Optimize:
+
+- PostgreSQL
+- Redis
+- PM2
+- PgBouncer
+- Compression
+- Caching
+- Pagination
+- Query Performance
+- N+1 Queries
+
+Target:
+
+1000 concurrent users.
+
+==================================================
+PHASE 6 — MOBILE APP
+==================================================
+
+Audit every screen.
+
+Verify:
+
+- Loading states
+- Error states
+- Empty states
+- Search
+- Filters
+- Sorting
+- Pagination
+
+Detect:
+
+- Broken buttons
+- Static buttons
+- Missing navigation
+- Missing actions
+
+Every clickable element must perform a real business action.
+
+==================================================
+PHASE 7 — MULTI LANGUAGE
+==================================================
+
+Languages:
+
+- Arabic
+- French
+- English
+- Spanish
+
+Requirements:
+
+No untranslated text.
+
+No hardcoded strings.
+
+Arabic RTL must work on every screen.
+
+Audit:
+
+- Layout
+- Navigation
+- Cards
+- Forms
+- Tables
+- Charts
+- Icons
+
+==================================================
+PHASE 8 — DOCUMENTS & FILES
+==================================================
+
+Implement real file management:
+
+- Upload
+- Download
+- Preview
+- Share
+
+Support:
+
+- PDF
+- JPG
+- PNG
+- DOCX
+
+Storage must be production-ready.
+
+==================================================
+PHASE 9 — PDF SYSTEM
+==================================================
+
+Implement real PDF generation:
+
+- Invoices
+- Receipts
+- Meeting Minutes
+- Budgets
+- Contracts
+- Reports
+- Member Badges
+
+Include:
+
+- QR Code
+- Signature
+- Stamp
+- Tracking Number
+
+==================================================
+PHASE 10 — CHAT SYSTEM
+==================================================
+
+Audit and complete:
+
+- Conversations
+- Participants
+- Messages
+- Attachments
+- Images
+- Read Status
+- Notifications
+- Unread Counter
+
+Verify all chat scenarios.
+
+==================================================
+PHASE 11 — MARKETPLACE
+==================================================
+
+Complete workflow:
+
+- Product Creation
+- Images Upload
+- Product Approval
+- Product Rejection
+- Ratings
+- Reviews
+- Comments
+- Contact Seller
+- Featured Products
+
+==================================================
+PHASE 12 — PRODUCTION TESTING
+==================================================
+
+Run:
+
+- Functional Testing
+- Security Testing
+- Load Testing
+- API Testing
+- Mobile Testing
+- Database Testing
+- RBAC Testing
+- Multi-language Testing
+
+==================================================
+FINAL DELIVERABLE
+==================================================
+
+Generate:
+
+1. Root Causes
+2. Files Modified
+3. Database Changes
+4. API Changes
+5. Mobile Changes
+6. Security Improvements
+7. Performance Improvements
+8. Scalability Improvements
+9. Remaining Risks
+10. Production Readiness Score
+
+Target:
+
+- Zero Mock Data
+- Zero Dead Code
+- Zero Static Business Data
+- Zero Broken Buttons
+- Zero Security Critical Issues
+- Zero N+1 Queries
+- 1000 Concurrent Users Supported
+- 100% Production Ready
+
+Do not stop after reporting.
+
+Implement fixes and continue until the platform is ready for production deployment.
