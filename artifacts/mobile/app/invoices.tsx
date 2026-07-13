@@ -10,6 +10,7 @@ import {
   Modal,
   Platform,
   ScrollView,
+  Share,
   StyleSheet,
   Text,
   TextInput,
@@ -22,6 +23,7 @@ import { useData, type Invoice } from "@/context/DataContext";
 import { useLanguage } from "@/context/LanguageContext";
 import { useBreakpoints } from "@/hooks/useBreakpoints";
 import { useColors } from "@/hooks/useColors";
+import { apiRequest } from "@/lib/api";
 
 type TabType = "factures" | "devis";
 
@@ -382,14 +384,14 @@ function InvoicesScreenInner() {
               <View style={styles.actionBtns}>
                 <TouchableOpacity
                   style={[styles.actionBtn, { backgroundColor: colors.muted }]}
-                  onPress={() => Alert.alert(t("invPdfExportedTitle"), `${selectedInvoice.reference} — ${t("invPdfExportedMsg")}`)}
+                  onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); Share.share({ title: selectedInvoice.reference, message: `Facture ${selectedInvoice.reference}\nDestinataire: ${selectedInvoice.recipient}\nDate: ${selectedInvoice.date} — Échéance: ${selectedInvoice.dueDate}\nMontant: ${selectedInvoice.amount.toLocaleString()} MAD` }); }}
                 >
                   <Feather name="download" size={16} color={colors.foreground} />
                   <Text style={[styles.actionBtnText, { color: colors.foreground }]}>PDF</Text>
                 </TouchableOpacity>
                 <TouchableOpacity
                   style={[styles.actionBtn, { backgroundColor: colors.primary }]}
-                  onPress={() => Alert.alert(t("invSentTitle"), `${selectedInvoice.reference} — ${t("invSentMsg")}`)}
+                  onPress={async () => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium); try { await apiRequest(`/invoices/${selectedInvoice.id}/send`, "POST"); } catch {} Share.share({ title: selectedInvoice.reference, message: `Facture ${selectedInvoice.reference} envoyée à ${selectedInvoice.recipient} — ${selectedInvoice.amount.toLocaleString()} MAD` }); }}
                 >
                   <Feather name="send" size={16} color="#fff" />
                   <Text style={[styles.actionBtnText, { color: "#fff" }]}>{t("invEnvoyerBtn")}</Text>

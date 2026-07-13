@@ -18,6 +18,7 @@ import { useAuth } from "@/context/AuthContext";
 import { useData } from "@/context/DataContext";
 import { useBreakpoints } from "@/hooks/useBreakpoints";
 import { useColors } from "@/hooks/useColors";
+import { apiRequest } from "@/lib/api";
 
 type EventType = "meeting" | "election" | "echeance";
 
@@ -413,7 +414,7 @@ export default function AgendaScreen() {
                   {!isPast && (
                     <TouchableOpacity
                       style={[styles.modalActionBtn, { backgroundColor: typeCfg.color }]}
-                      onPress={() => { Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success); Alert.alert("Participation confirmée", "Votre présence à cet événement a été enregistrée avec succès."); setSelected(null); }}
+                      onPress={async () => { Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success); if (ev.type === "meeting") { try { await apiRequest(`/meetings/${ev.id}/attend`, "POST"); } catch {} } Alert.alert("Participation confirmée", "Votre présence a été enregistrée."); setSelected(null); }}
                     >
                       <Feather name="check" size={18} color="#fff" />
                       <Text style={styles.modalActionBtnText}>Confirmer ma participation</Text>

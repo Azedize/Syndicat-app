@@ -3,10 +3,10 @@ import * as Haptics from "expo-haptics";
 import { router } from "expo-router";
 import React, { useEffect, useState } from "react";
 import {
-  Alert,
   ActivityIndicator,
   Platform,
   ScrollView,
+  Share,
   StyleSheet,
   Text,
   TouchableOpacity,
@@ -507,7 +507,7 @@ export default function StatistiquesScreen() {
         <Text style={[styles.title, { color: colors.foreground }]}>{STRINGS.title[lang]}</Text>
         <TouchableOpacity
           style={[styles.exportBtn, { borderColor: colors.border }]}
-          onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); Alert.alert(STRINGS.exportTitle[lang], STRINGS.exportSuccess[lang]); }}
+          onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); Share.share({ title: STRINGS.exportTitle[lang], message: `${STRINGS.exportTitle[lang]}\n${new Date().toLocaleDateString("fr-MA")}\nSYNDYCAT GLOBAL CPS` }); }}
         >
           <Feather name="download" size={16} color={colors.primary} />
         </TouchableOpacity>

@@ -1,7 +1,7 @@
 import { Feather } from "@expo/vector-icons";
 import * as Haptics from "expo-haptics";
 import { router } from "expo-router";
-import React, { useState } from "react";
+import React, { useEffect, useState } from "react";
 import {
   Alert,
   FlatList,
@@ -20,6 +20,7 @@ import { useData } from "@/context/DataContext";
 import { useLanguage } from "@/context/LanguageContext";
 import { useBreakpoints } from "@/hooks/useBreakpoints";
 import { useColors } from "@/hooks/useColors";
+import { apiRequest } from "@/lib/api";
 
 const STRINGS = {
   statusPending: { fr: "En attente", en: "Pending", ar: "في الانتظار", es: "Pendiente" },
@@ -261,6 +262,10 @@ export default function WorkflowScreen() {
   const [newCat, setNewCat] = useState("Règlement Intérieur");
   const [newDesc, setNewDesc] = useState("");
   const [newPriority, setNewPriority] = useState<WfPriority>("medium");
+
+  useEffect(() => {
+    apiRequest<{ data: any[] }>("/workflows").then(({ data }) => { if (data?.length) setWorkflows(data); }).catch(() => {});
+  }, []);
 
   const filtered = tab === "all" ? workflows : workflows.filter((w) => w.status === tab);
 

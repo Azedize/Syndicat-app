@@ -9,6 +9,7 @@ import {
   Modal,
   Platform,
   ScrollView,
+  Share,
   StyleSheet,
   Text,
   TouchableOpacity,
@@ -424,7 +425,7 @@ export default function TableauNationalScreen() {
               <TouchableOpacity
                 key={a.label}
                 style={[styles.exportBtn, { backgroundColor: colors.card, borderColor: colors.border }]}
-                onPress={() => { Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success); Alert.alert("Export", `"${a.label}" généré avec succès.`); }}
+                onPress={() => { Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success); Share.share({ title: a.label, message: `${a.label}\nGénéré le ${new Date().toLocaleDateString("fr-MA")}\nSYNDYCAT GLOBAL CPS` }); }}
                 activeOpacity={0.8}
               >
                 <View style={[styles.exportIcon, { backgroundColor: a.color + "18" }]}>
@@ -509,7 +510,7 @@ export default function TableauNationalScreen() {
                   onPress={() => {
                     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
                     if (action.route) router.push(action.route as any);
-                    else Alert.alert("Action", `"${action.label}" — fonctionnalité disponible dans la prochaine mise à jour.`);
+                    else Alert.alert(action.label, "Cette fonctionnalité sera disponible dans la prochaine mise à jour.");
                   }}
                   activeOpacity={0.7}
                 >
@@ -729,7 +730,7 @@ export default function TableauNationalScreen() {
                           onPress={() => {
                             Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
                             if (a.label === "Contacter l'admin") router.push("/chat" as any);
-                            else Alert.alert("Rapport", `Rapport détaillé de ${selectedSyndicat.name} généré.`);
+                            else Share.share({ title: selectedSyndicat.name, message: `Rapport syndical — ${selectedSyndicat.name}\nGénéré le ${new Date().toLocaleDateString("fr-MA")}\nSYNDYCAT GLOBAL CPS` });
                             setSelectedSyndicat(null);
                           }}
                         >

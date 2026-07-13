@@ -3,9 +3,9 @@ import * as Haptics from "expo-haptics";
 import { router } from "expo-router";
 import React, { useState } from "react";
 import {
-  Alert,
   Platform,
   ScrollView,
+  Share,
   StyleSheet,
   Text,
   TouchableOpacity,
@@ -147,7 +147,7 @@ function ReportsScreenInner() {
 
   const handleExport = (label: string) => {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-    Alert.alert("Rapport exporté", `"${label}" a été généré et sauvegardé dans vos fichiers.`);
+    Share.share({ title: label, message: `${label}\nExporté le ${new Date().toLocaleDateString("fr-MA")}\nSYNDYCAT GLOBAL CPS` });
   };
 
   const REPORTS = [

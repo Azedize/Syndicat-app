@@ -48,6 +48,7 @@ channel = "stable-25_05"
 ALLOWED_ORIGINS = ""
 LOG_LEVEL = "info"
 NODE_ENV = "development"
+JWT_SECRET = "faae4aab80cb28341651e6f47ac149ed393727ddc09bd534ccf4926f2e1013cb76515ef808193a463041cb2ca82837b7"
 
 [objectStorage]
 defaultBucketID = "replit-objstore-89a27f97-efed-43a3-a959-1576cb0184d3"

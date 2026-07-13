@@ -1,7 +1,7 @@
 import { Feather } from "@expo/vector-icons";
 import * as Haptics from "expo-haptics";
 import { router } from "expo-router";
-import React, { useState } from "react";
+import React, { useEffect, useState } from "react";
 import {
   Alert,
   FlatList,
@@ -18,6 +18,7 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useAuth } from "@/context/AuthContext";
 import { useBreakpoints } from "@/hooks/useBreakpoints";
 import { useColors } from "@/hooks/useColors";
+import { apiRequest } from "@/lib/api";
 
 type BureauMember = { id: string; name: string; role: string; icon: keyof typeof Feather.glyphMap; since: string; email: string; phone: string };
 type Commission = { id: string; name: string; members: number; status: "active" | "inactive"; chair: string; nextMeeting: string };
@@ -102,6 +103,13 @@ export default function GovernanceScreen() {
   const { isWide } = useBreakpoints();
   const topPad = isWide ? 0 : (Platform.OS === "web" ? 67 : insets.top);
   const isAdmin = user?.role !== "member";
+
+  useEffect(() => {
+    apiRequest<{ data: any[] }>("/governance/bureau").then(({ data }) => { if (data?.length) setBureau(data); }).catch(() => {});
+    apiRequest<{ data: any[] }>("/governance/commissions").then(({ data }) => { if (data?.length) setCommissions(data); }).catch(() => {});
+    apiRequest<{ data: any[] }>("/governance/mandats").then(({ data }) => { if (data?.length) setMandats(data); }).catch(() => {});
+    apiRequest<{ data: any[] }>("/governance/delegations").then(({ data }) => { if (data?.length) setDelegations(data); }).catch(() => {});
+  }, []);
 
   const president = bureau[0]!;
   const vp = bureau[1]!;

@@ -9,6 +9,7 @@ import {
   Platform,
   SectionList,
   ScrollView,
+  Share,
   StyleSheet,
   Text,
   TouchableOpacity,
@@ -204,7 +205,7 @@ export default function ActivityScreen() {
           {isAdmin && (
             <TouchableOpacity
               style={styles.exportBtn}
-              onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); Alert.alert("Journal exporté", "Le journal d'activité complet a été exporté en CSV et envoyé par email."); }}
+              onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); Share.share({ title: "Journal d'activité SYNDYCAT", message: `Journal d'activité complet\nExporté le ${new Date().toLocaleDateString("fr-MA")}\nSYNDYCAT GLOBAL CPS` }); }}
             >
               <Feather name="download" size={18} color="#fff" />
             </TouchableOpacity>
@@ -386,7 +387,7 @@ export default function ActivityScreen() {
                   {isAdmin && (
                     <TouchableOpacity
                       style={[styles.detailBtn, { backgroundColor: colors.primary + "15" }]}
-                      onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); Alert.alert("Entrée exportée", `L'entrée de log ${log.id} a été exportée avec succès.`); }}
+                      onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); Share.share({ title: `Log ${log.id}`, message: `ID: ${log.id}\nActeur: ${log.user}\nAction: ${log.action}\nCible: ${log.target}\nDate: ${log.timestamp}${log.detail ? `\n${log.detail}` : ""}` }); }}
                     >
                       <Feather name="download" size={15} color={colors.primary} />
                       <Text style={[styles.detailBtnText, { color: colors.primary }]}>Exporter</Text>

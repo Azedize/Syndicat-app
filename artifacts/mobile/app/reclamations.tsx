@@ -681,17 +681,36 @@ export default function ReclamationsScreen() {
     urgentes: reclamations.filter((r) => r.priorite === "urgente" && r.statut !== "resolue" && r.statut !== "classee").length,
   };
 
-  const handleDeposer = () => {
+  const handleDeposer = async () => {
     if (!newTitle.trim() || !newDesc.trim()) {
       Alert.alert(STRINGS.champsRequis[lang], STRINGS.veuillezRenseigner[lang]);
       return;
     }
     Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+    const now = new Date().toISOString();
+    const newRec: Reclamation = {
+      id: Date.now().toString(),
+      reference: `REC-${Date.now().toString().slice(-6)}`,
+      titre: newTitle.trim(),
+      description: newDesc.trim(),
+      type: newType,
+      statut: "deposee",
+      priorite: "normale",
+      dateDepot: now,
+      membreId: user?.id ?? "0",
+      membre: newAnon ? "Anonyme" : (user?.name ?? "Anonyme"),
+      service: "",
+      anonymous: newAnon,
+      documentsJoints: [],
+      etapes: [],
+    };
+    setReclamations((prev) => [newRec, ...prev]);
     setShowNew(false);
     setNewTitle("");
     setNewDesc("");
     setNewType("autre");
     setNewAnon(false);
+    try { await apiRequest("/reclamations", "POST", { titre: newRec.titre, description: newRec.description, type: newRec.type, anonymous: newRec.anonymous }); } catch {}
     Alert.alert(STRINGS.reclamationDeposee[lang], STRINGS.reclamationEnregistree[lang]);
   };
 

@@ -8,6 +8,7 @@ import {
   Modal,
   Platform,
   ScrollView,
+  Share,
   StyleSheet,
   Text,
   TouchableOpacity,
@@ -143,7 +144,7 @@ function BudgetPrevisionnelScreenInner() {
         </View>
         <TouchableOpacity
           style={[styles.exportBtn, { backgroundColor: colors.primary }]}
-          onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); Alert.alert("Export budget", "Export PDF ou Excel disponible pour le trésorier."); }}
+          onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); Share.share({ title: `Budget ${ANNEE}`, message: `Budget prévisionnel ${ANNEE}\nRecettes prévues: ${fmt(totalRecettesPrevu)}\nDépenses prévues: ${fmt(totalDepensesPrevu)}\nSolde: ${fmt(soldePrevu)}\nExporté depuis SYNDYCAT GLOBAL CPS` }); }}
         >
           <Feather name="download" size={15} color="#fff" />
         </TouchableOpacity>

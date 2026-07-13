@@ -1,13 +1,14 @@
 import { Feather } from "@expo/vector-icons";
 import * as Haptics from "expo-haptics";
 import { router } from "expo-router";
-import React, { useState } from "react";
+import React, { useEffect, useState } from "react";
 import {
   Alert,
   FlatList,
   Modal,
   Platform,
   ScrollView,
+  Share,
   StyleSheet,
   Text,
   TextInput,
@@ -19,6 +20,7 @@ import { useAuth } from "@/context/AuthContext";
 import { useLanguage } from "@/context/LanguageContext";
 import { useBreakpoints } from "@/hooks/useBreakpoints";
 import { useColors } from "@/hooks/useColors";
+import { apiRequest } from "@/lib/api";
 
 type DocType = "statuts" | "ri" | "circulaire" | "charte" | "accord";
 type DocStatus = "published" | "draft" | "revision" | "archived";
@@ -538,6 +540,10 @@ export default function ReglementsScreen() {
   const [newType, setNewType] = useState<DocType>("ri");
   const [newDesc, setNewDesc] = useState("");
 
+  useEffect(() => {
+    apiRequest<{ data: any[] }>("/documents?type=reglement").then(({ data }) => { if (data?.length) setDocs(data as any); }).catch(() => {});
+  }, []);
+
   const filtered = docs.filter((d) => {
     const q = search.toLowerCase();
     const matchSearch = !search || d.title.toLowerCase().includes(q) || d.description.toLowerCase().includes(q) || d.tags.some((t) => t.includes(q));
@@ -823,7 +829,7 @@ export default function ReglementsScreen() {
                   onPress={(e) => {
                     e.stopPropagation?.();
                     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-                    Alert.alert(STRINGS.downloadAlertTitle[lang], `"${d.title}" ${STRINGS.downloadAlertMsg[lang]}`);
+                    Share.share({ title: d.title, message: `${d.title}\nType: ${d.type} — Statut: ${d.status}\nVersion: ${d.version ?? "1"} · ${d.pages ?? ""} pages` });
                   }}
                 >
                   <Feather name="download" size={14} color={colors.primary} />
@@ -835,7 +841,7 @@ export default function ReglementsScreen() {
                     onPress={(e) => {
                       e.stopPropagation?.();
                       Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-                      Alert.alert(STRINGS.shareAlertTitle[lang], `${STRINGS.shareAlertMsg[lang]} "${d.title}" ${STRINGS.demoSuffix[lang]}`);
+                      Share.share({ title: d.title, message: `${d.title}\n${d.type} — ${d.status}\nPartagé depuis SYNDYCAT GLOBAL CPS` });
                     }}
                   >
                     <Feather name="share-2" size={14} color="#6366f1" />
@@ -929,14 +935,14 @@ export default function ReglementsScreen() {
                 <View style={styles.modalActions}>
                   <TouchableOpacity
                     style={[styles.modalActionBtn, { backgroundColor: colors.primary }]}
-                    onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); Alert.alert("PDF téléchargé", `"${d.title}" (${d.pages} pages) a été sauvegardé dans vos documents.`); }}
+                    onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); Share.share({ title: d.title, message: `${d.title}\nVersion ${d.version ?? "1"} · ${d.pages ?? ""} pages\nStatut: ${d.status}\n\n${d.description ?? ""}` }); }}
                   >
                     <Feather name="download" size={18} color="#fff" />
                     <Text style={styles.modalActionBtnText}>Télécharger PDF</Text>
                   </TouchableOpacity>
                   <TouchableOpacity
                     style={[styles.modalActionBtn, { backgroundColor: colors.muted }]}
-                    onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); Alert.alert("Lien copié", "Le lien de partage du document a été copié dans le presse-papiers."); }}
+                    onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); Share.share({ title: d.title, message: `${d.title} — ${d.type}\nPartagé depuis SYNDYCAT GLOBAL CPS` }); }}
                   >
                     <Feather name="share-2" size={18} color={colors.foreground} />
                     <Text style={[styles.modalActionBtnText, { color: colors.foreground }]}>Partager</Text>
