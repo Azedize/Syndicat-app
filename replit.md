@@ -75,7 +75,7 @@ Pre-filled on the login screen:
 - API routes are mounted under `/api` (e.g. `/api/auth/login`), not at the bare route paths defined in `src/routes/*.ts`.
 - Pre-existing TypeScript errors exist in `api-server` — runtime is unaffected but `tsc` does not pass cleanly.
 
-## Environment setup status (2026-07-13)
+## Environment setup status (2026-07-13, re-verified after zip re-import)
 
 | Step | Status |
 |---|---|
