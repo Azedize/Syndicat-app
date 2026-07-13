@@ -19,17 +19,20 @@ import {
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useAuth } from "@/context/AuthContext";
+import { useLanguage } from "@/context/LanguageContext";
 import { useBreakpoints } from "@/hooks/useBreakpoints";
 import { useColors } from "@/hooks/useColors";
 import { announcements, type ApiAnnouncement } from "@/services/api";
 
 type Priority = ApiAnnouncement["priority"];
 
-const PRIORITY_CONFIG: Record<Priority, { color: string; label: string; icon: keyof typeof Feather.glyphMap; bg: string }> = {
-  urgent: { color: "#ef4444", label: "Urgent", icon: "alert-circle", bg: "#ef444415" },
-  important: { color: "#f59e0b", label: "Important", icon: "alert-triangle", bg: "#f59e0b15" },
-  info: { color: "#3b82f6", label: "Info", icon: "info", bg: "#3b82f615" },
-};
+function getPriorityConfig(t: (key: string) => string): Record<Priority, { color: string; label: string; icon: keyof typeof Feather.glyphMap; bg: string }> {
+  return {
+    urgent: { color: "#ef4444", label: t("priorityUrgent"), icon: "alert-circle", bg: "#ef444415" },
+    important: { color: "#f59e0b", label: t("priorityImportant"), icon: "alert-triangle", bg: "#f59e0b15" },
+    info: { color: "#3b82f6", label: t("priorityInfo"), icon: "info", bg: "#3b82f615" },
+  };
+}
 
 function timeAgo(dateStr: string): string {
   const diff = Date.now() - new Date(dateStr).getTime();
@@ -45,10 +48,13 @@ export default function AnnoncesScreen() {
   const colors = useColors();
   const insets = useSafeAreaInsets();
   const { user } = useAuth();
+  const { t } = useLanguage();
   const { isWide } = useBreakpoints();
   const topPad = isWide ? 0 : (Platform.OS === "web" ? 67 : insets.top);
   const queryClient = useQueryClient();
   const isAdmin = user?.role !== "member";
+
+  const PRIORITY_CONFIG = getPriorityConfig(t);
 
   const [selected, setSelected] = useState<ApiAnnouncement | null>(null);
   const [showCreate, setShowCreate] = useState(false);
@@ -74,7 +80,7 @@ export default function AnnoncesScreen() {
       setNewTitle(""); setNewBody(""); setNewPriority("info");
       setNewAudience("Tous les membres"); setNewPinned(false);
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-      Alert.alert("Annonce publiée ✓", "L'annonce a été publiée et est visible par les membres.");
+      Alert.alert(t("publishAnnouncement"), "L'annonce a été publiée et est visible par les membres.");
     },
     onError: (err: Error) => Alert.alert("Erreur", err.message),
   });
@@ -99,7 +105,7 @@ export default function AnnoncesScreen() {
 
   const handleCreate = () => {
     if (!newTitle.trim() || !newBody.trim()) {
-      Alert.alert("Champs requis", "Le titre et le corps sont obligatoires.");
+      Alert.alert(t("requiredFields"), "Le titre et le corps sont obligatoires.");
       return;
     }
     createMutation.mutate({
@@ -113,11 +119,11 @@ export default function AnnoncesScreen() {
 
   const handleDelete = (a: ApiAnnouncement) => {
     Alert.alert(
-      "Supprimer l'annonce",
-      `Supprimer "${a.title}" définitivement?`,
+      t("confirmDeleteTitle"),
+      `${t("deleteAnnouncement")} "${a.title}"?`,
       [
         { text: "Annuler", style: "cancel" },
-        { text: "Supprimer", style: "destructive", onPress: () => deleteMutation.mutate(a.id) },
+        { text: t("deleteAnnouncement"), style: "destructive", onPress: () => deleteMutation.mutate(a.id) },
       ]
     );
   };
@@ -129,7 +135,7 @@ export default function AnnoncesScreen() {
           <TouchableOpacity onPress={() => router.back()} style={styles.backBtn}>
             <Feather name="arrow-left" size={22} color="#fff" />
           </TouchableOpacity>
-          <Text style={styles.headerTitle}>Annonces</Text>
+          <Text style={styles.headerTitle}>{t("announcesTitle")}</Text>
         </View>
         <View style={styles.centerState}>
           <ActivityIndicator size="large" color={colors.primary} />
@@ -146,7 +152,7 @@ export default function AnnoncesScreen() {
           <TouchableOpacity onPress={() => router.back()} style={styles.backBtn}>
             <Feather name="arrow-left" size={22} color="#fff" />
           </TouchableOpacity>
-          <Text style={styles.headerTitle}>Annonces</Text>
+          <Text style={styles.headerTitle}>{t("announcesTitle")}</Text>
         </View>
         <View style={styles.centerState}>
           <Feather name="wifi-off" size={40} color={colors.destructive} />
@@ -166,7 +172,7 @@ export default function AnnoncesScreen() {
           <Feather name="arrow-left" size={22} color="#fff" />
         </TouchableOpacity>
         <View style={{ flex: 1 }}>
-          <Text style={styles.headerTitle}>Annonces</Text>
+          <Text style={styles.headerTitle}>{t("announcesTitle")}</Text>
           <Text style={styles.headerSub}>{allAnnonces.length} annonce(s)</Text>
         </View>
         {isAdmin ? (
@@ -183,10 +189,10 @@ export default function AnnoncesScreen() {
       <View style={[styles.filterBar, { backgroundColor: colors.card, borderBottomColor: colors.border }]}>
         <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: 8, paddingHorizontal: 16, paddingVertical: 10 }}>
           {([
-            { key: "all", label: "Toutes", color: colors.primary },
-            { key: "urgent", label: "Urgent", color: "#ef4444" },
-            { key: "important", label: "Important", color: "#f59e0b" },
-            { key: "info", label: "Info", color: "#3b82f6" },
+            { key: "all", label: t("filterToutes"), color: colors.primary },
+            { key: "urgent", label: t("priorityUrgent"), color: "#ef4444" },
+            { key: "important", label: t("priorityImportant"), color: "#f59e0b" },
+            { key: "info", label: t("priorityInfo"), color: "#3b82f6" },
           ] as { key: Priority | "all"; label: string; color: string }[]).map((f) => (
             <TouchableOpacity
               key={f.key}
@@ -214,10 +220,10 @@ export default function AnnoncesScreen() {
         ListEmptyComponent={
           <View style={styles.centerState}>
             <Feather name="bell-off" size={40} color={colors.mutedForeground} />
-            <Text style={[styles.stateText, { color: colors.mutedForeground }]}>Aucune annonce pour le moment</Text>
+            <Text style={[styles.stateText, { color: colors.mutedForeground }]}>{t("noAnnouncementsYet")}</Text>
             {isAdmin ? (
               <TouchableOpacity style={[styles.retryBtn, { backgroundColor: colors.primary }]} onPress={() => setShowCreate(true)}>
-                <Text style={styles.retryBtnText}>Créer une annonce</Text>
+                <Text style={styles.retryBtnText}>{t("createAnnouncement")}</Text>
               </TouchableOpacity>
             ) : null}
           </View>
@@ -286,7 +292,7 @@ export default function AnnoncesScreen() {
                 <Feather name={PRIORITY_CONFIG[selected.priority].icon} size={16} color={PRIORITY_CONFIG[selected.priority].color} />
                 <Text style={[styles.priorityBannerText, { color: PRIORITY_CONFIG[selected.priority].color }]}>
                   {PRIORITY_CONFIG[selected.priority].label}
-                  {selected.pinned ? " · Épinglée" : ""}
+                  {selected.pinned ? ` · ${t("announcePinned")}` : ""}
                 </Text>
               </View>
 
@@ -296,10 +302,10 @@ export default function AnnoncesScreen() {
 
               <View style={[styles.metaCard, { backgroundColor: colors.card, borderColor: colors.border }]}>
                 {[
-                  { icon: "user" as const, label: "Auteur", value: selected.author },
-                  { icon: "users" as const, label: "Destinataires", value: selected.audience },
-                  { icon: "clock" as const, label: "Publié", value: new Date(selected.createdAt).toLocaleDateString("fr-MA", { day: "numeric", month: "long", year: "numeric" }) },
-                  ...(selected.expiresAt ? [{ icon: "calendar" as const, label: "Expire le", value: new Date(selected.expiresAt).toLocaleDateString("fr-MA") }] : []),
+                  { icon: "user" as const, label: t("authorLabel"), value: selected.author },
+                  { icon: "users" as const, label: t("audienceLabel"), value: selected.audience },
+                  { icon: "clock" as const, label: t("publishedOn"), value: new Date(selected.createdAt).toLocaleDateString("fr-MA", { day: "numeric", month: "long", year: "numeric" }) },
+                  ...(selected.expiresAt ? [{ icon: "calendar" as const, label: t("expiresOn"), value: new Date(selected.expiresAt).toLocaleDateString("fr-MA") }] : []),
                 ].map((row) => (
                   <View key={row.label} style={[styles.metaRow, { borderBottomColor: colors.border }]}>
                     <Feather name={row.icon} size={14} color={colors.primary} />
@@ -321,7 +327,7 @@ export default function AnnoncesScreen() {
               <Feather name="x" size={22} color={colors.mutedForeground} />
             </TouchableOpacity>
             <View style={{ flex: 1, marginLeft: 12 }}>
-              <Text style={[styles.modalTitle, { color: colors.foreground }]}>Nouvelle annonce</Text>
+              <Text style={[styles.modalTitle, { color: colors.foreground }]}>{t("createAnnouncement")}</Text>
               <Text style={[styles.modalSub, { color: colors.mutedForeground }]}>Publiée immédiatement aux membres</Text>
             </View>
           </View>
@@ -350,7 +356,7 @@ export default function AnnoncesScreen() {
             </View>
 
             <View style={{ gap: 6 }}>
-              <Text style={[styles.fieldLabel, { color: colors.foreground }]}>Titre *</Text>
+              <Text style={[styles.fieldLabel, { color: colors.foreground }]}>{t("annFormTitle")} *</Text>
               <TextInput
                 style={[styles.input, { backgroundColor: colors.card, borderColor: colors.border, color: colors.foreground }]}
                 placeholder="Ex: Assemblée Générale du 15 juillet"
@@ -361,7 +367,7 @@ export default function AnnoncesScreen() {
             </View>
 
             <View style={{ gap: 6 }}>
-              <Text style={[styles.fieldLabel, { color: colors.foreground }]}>Corps du message *</Text>
+              <Text style={[styles.fieldLabel, { color: colors.foreground }]}>{t("annFormContent")} *</Text>
               <TextInput
                 style={[styles.input, { backgroundColor: colors.card, borderColor: colors.border, color: colors.foreground, height: 120, textAlignVertical: "top" }]}
                 placeholder="Rédigez votre annonce..."
@@ -373,7 +379,7 @@ export default function AnnoncesScreen() {
             </View>
 
             <View style={{ gap: 6 }}>
-              <Text style={[styles.fieldLabel, { color: colors.foreground }]}>Destinataires</Text>
+              <Text style={[styles.fieldLabel, { color: colors.foreground }]}>{t("audienceLabel")}</Text>
               <TextInput
                 style={[styles.input, { backgroundColor: colors.card, borderColor: colors.border, color: colors.foreground }]}
                 placeholder="Ex: Tous les membres"
@@ -389,7 +395,7 @@ export default function AnnoncesScreen() {
             >
               <Feather name={newPinned ? "bookmark" : "bookmark"} size={16} color={newPinned ? colors.primary : colors.mutedForeground} />
               <Text style={[styles.pinnedText, { color: newPinned ? colors.primary : colors.foreground }]}>
-                {newPinned ? "Épinglée (visible en premier)" : "Épingler cette annonce"}
+                {newPinned ? t("announcePinned") : t("announcePinned")}
               </Text>
               <Feather name={newPinned ? "toggle-right" : "toggle-left"} size={20} color={newPinned ? colors.primary : colors.mutedForeground} />
             </TouchableOpacity>
@@ -408,7 +414,7 @@ export default function AnnoncesScreen() {
                 <Feather name="send" size={16} color={newTitle.trim() && newBody.trim() ? "#fff" : colors.mutedForeground} />
               )}
               <Text style={[styles.publishBtnText, { color: newTitle.trim() && newBody.trim() ? "#fff" : colors.mutedForeground }]}>
-                {createMutation.isPending ? "Publication..." : "Publier l'annonce"}
+                {createMutation.isPending ? "Publication..." : t("publishAnnouncement")}
               </Text>
             </TouchableOpacity>
           </ScrollView>

@@ -16,29 +16,18 @@ import {
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useAuth } from "@/context/AuthContext";
 import { useData, type SupportTicket } from "@/context/DataContext";
+import { useLanguage } from "@/context/LanguageContext";
 import { useBreakpoints } from "@/hooks/useBreakpoints";
 import { useColors } from "@/hooks/useColors";
 
 type Filter = "all" | "open" | "in_progress" | "resolved";
-
-const PRIORITIES: { key: SupportTicket["priority"]; label: string }[] = [
-  { key: "high", label: "Urgent" },
-  { key: "medium", label: "Moyen" },
-  { key: "low", label: "Faible" },
-];
-
-const CATEGORIES: { key: SupportTicket["category"]; label: string; icon: keyof typeof Feather.glyphMap }[] = [
-  { key: "technique", label: "Technique", icon: "settings" },
-  { key: "financier", label: "Financier", icon: "dollar-sign" },
-  { key: "juridique", label: "Juridique", icon: "shield" },
-  { key: "general", label: "Général", icon: "help-circle" },
-];
 
 export default function SupportScreen() {
   const colors = useColors();
   const insets = useSafeAreaInsets();
   const { user } = useAuth();
   const { supportTickets, addSupportTicket, resolveTicket } = useData();
+  const { t } = useLanguage();
   const [filter, setFilter] = useState<Filter>("all");
   const [selected, setSelected] = useState<SupportTicket | null>(null);
   const [showNew, setShowNew] = useState(false);
@@ -52,20 +41,33 @@ export default function SupportScreen() {
   const [newCategory, setNewCategory] = useState<SupportTicket["category"]>("general");
 
   const isAdmin = user?.role !== "member";
-  const myTickets = isAdmin ? supportTickets : supportTickets.filter((t) => t.submittedBy === user?.name);
-  const filtered = myTickets.filter((t) => filter === "all" || t.status === filter);
+  const myTickets = isAdmin ? supportTickets : supportTickets.filter((tk) => tk.submittedBy === user?.name);
+  const filtered = myTickets.filter((tk) => filter === "all" || tk.status === filter);
+
+  const PRIORITIES: { key: SupportTicket["priority"]; label: string }[] = [
+    { key: "high", label: t("priorityUrgent") },
+    { key: "medium", label: t("priorityNormal") },
+    { key: "low", label: t("priorityLow") },
+  ];
+
+  const CATEGORIES: { key: SupportTicket["category"]; label: string; icon: keyof typeof Feather.glyphMap }[] = [
+    { key: "technique", label: t("catTechnique"), icon: "settings" },
+    { key: "financier", label: t("catFinancial"), icon: "dollar-sign" },
+    { key: "juridique", label: t("catLegal"), icon: "shield" },
+    { key: "general", label: t("catGeneral"), icon: "help-circle" },
+  ];
 
   const priorityConfig = (p: SupportTicket["priority"]) => ({
-    high: { color: colors.destructive, label: "Urgent", icon: "alert-circle" as const },
-    medium: { color: "#f59e0b", label: "Moyen", icon: "alert-triangle" as const },
-    low: { color: "#3b82f6", label: "Faible", icon: "info" as const },
+    high: { color: colors.destructive, label: t("priorityUrgent"), icon: "alert-circle" as const },
+    medium: { color: "#f59e0b", label: t("priorityNormal"), icon: "alert-triangle" as const },
+    low: { color: "#3b82f6", label: t("priorityLow"), icon: "info" as const },
   }[p]);
 
   const statusConfig = (s: SupportTicket["status"]) => ({
-    open: { color: colors.destructive, label: "Ouvert", icon: "alert-circle" as const },
-    in_progress: { color: "#f59e0b", label: "En cours", icon: "clock" as const },
-    resolved: { color: colors.success, label: "Résolu", icon: "check-circle" as const },
-    closed: { color: colors.mutedForeground, label: "Fermé", icon: "x-circle" as const },
+    open: { color: colors.destructive, label: t("ticketOpen"), icon: "alert-circle" as const },
+    in_progress: { color: "#f59e0b", label: t("ticketInProgress"), icon: "clock" as const },
+    resolved: { color: colors.success, label: t("ticketResolved"), icon: "check-circle" as const },
+    closed: { color: colors.mutedForeground, label: t("ticketClosed"), icon: "x-circle" as const },
   }[s]);
 
   const catConfig = (c: SupportTicket["category"]) => ({
@@ -76,10 +78,10 @@ export default function SupportScreen() {
   }[c]);
 
   const FILTERS: { key: Filter; label: string }[] = [
-    { key: "all", label: "Tous" },
-    { key: "open", label: "Ouverts" },
-    { key: "in_progress", label: "En cours" },
-    { key: "resolved", label: "Résolus" },
+    { key: "all", label: t("filterAllTickets") },
+    { key: "open", label: t("filterOpen") },
+    { key: "in_progress", label: t("ticketInProgress") },
+    { key: "resolved", label: t("filterResolved") },
   ];
 
   const handleCreateTicket = () => {
@@ -101,7 +103,7 @@ export default function SupportScreen() {
     Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
   };
 
-  const openCount = myTickets.filter((t) => t.status === "open").length;
+  const openCount = myTickets.filter((tk) => tk.status === "open").length;
 
   return (
     <View style={[styles.root, { backgroundColor: colors.background }]}>
@@ -115,7 +117,7 @@ export default function SupportScreen() {
             {isAdmin ? "Tickets Support" : "Mon Support"}
           </Text>
           <Text style={[styles.subtitle, { color: colors.mutedForeground }]}>
-            {openCount > 0 ? `${openCount} ouvert(s)` : "Tout est résolu"}
+            {openCount > 0 ? `${openCount} ouvert(s)` : t("ticketResolved")}
           </Text>
         </View>
         <TouchableOpacity
@@ -129,9 +131,9 @@ export default function SupportScreen() {
       {/* Stats strip */}
       <View style={[styles.statsStrip, { backgroundColor: colors.card, borderBottomColor: colors.border }]}>
         {[
-          { label: "Ouverts", count: myTickets.filter((t) => t.status === "open").length, color: colors.destructive },
-          { label: "En cours", count: myTickets.filter((t) => t.status === "in_progress").length, color: "#f59e0b" },
-          { label: "Résolus", count: myTickets.filter((t) => t.status === "resolved").length, color: colors.success },
+          { label: t("filterOpen"), count: myTickets.filter((tk) => tk.status === "open").length, color: colors.destructive },
+          { label: t("ticketInProgress"), count: myTickets.filter((tk) => tk.status === "in_progress").length, color: "#f59e0b" },
+          { label: t("filterResolved"), count: myTickets.filter((tk) => tk.status === "resolved").length, color: colors.success },
           { label: "Total", count: myTickets.length, color: colors.primary },
         ].map((s, i) => (
           <React.Fragment key={s.label}>
@@ -161,7 +163,7 @@ export default function SupportScreen() {
 
       <FlatList
         data={filtered}
-        keyExtractor={(t) => t.id}
+        keyExtractor={(tk) => tk.id}
         contentContainerStyle={{ padding: 16, gap: 12, paddingBottom: insets.bottom + 80 }}
         showsVerticalScrollIndicator={false}
         ListEmptyComponent={
@@ -169,11 +171,11 @@ export default function SupportScreen() {
             <View style={[styles.emptyIcon, { backgroundColor: colors.primary + "12" }]}>
               <Feather name="inbox" size={36} color={colors.primary} />
             </View>
-            <Text style={[styles.emptyTitle, { color: colors.foreground }]}>Aucun ticket</Text>
+            <Text style={[styles.emptyTitle, { color: colors.foreground }]}>{t("noTickets")}</Text>
             <Text style={[styles.emptySub, { color: colors.mutedForeground }]}>
               {filter === "all"
-                ? "Créez votre premier ticket pour contacter le support."
-                : `Aucun ticket ${FILTERS.find((f) => f.key === filter)?.label.toLowerCase()}.`}
+                ? t("noTickets")
+                : `${t("noTickets")} ${FILTERS.find((f) => f.key === filter)?.label.toLowerCase()}.`}
             </Text>
             {filter === "all" ? (
               <TouchableOpacity
@@ -181,7 +183,7 @@ export default function SupportScreen() {
                 onPress={() => { setShowNew(true); Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); }}
               >
                 <Feather name="plus" size={14} color="#fff" />
-                <Text style={styles.emptyBtnText}>Nouveau ticket</Text>
+                <Text style={styles.emptyBtnText}>{t("newTicket")}</Text>
               </TouchableOpacity>
             ) : null}
           </View>
@@ -238,7 +240,7 @@ export default function SupportScreen() {
         activeOpacity={0.85}
       >
         <Feather name="plus" size={22} color="#fff" />
-        <Text style={styles.fabText}>Nouveau ticket</Text>
+        <Text style={styles.fabText}>{t("newTicket")}</Text>
       </TouchableOpacity>
 
       {/* Ticket detail modal */}
@@ -250,7 +252,7 @@ export default function SupportScreen() {
                 <Feather name="x" size={22} color={colors.mutedForeground} />
               </TouchableOpacity>
               <Text style={[styles.modalTitle, { color: colors.foreground }]} numberOfLines={1}>
-                Ticket #{selected.id}
+                {`Ticket #${selected.id}`}
               </Text>
               {isAdmin && selected.status !== "resolved" ? (
                 <TouchableOpacity
@@ -262,7 +264,7 @@ export default function SupportScreen() {
                   }}
                 >
                   <Feather name="check" size={13} color="#fff" />
-                  <Text style={styles.resolveBtnText}>Résoudre</Text>
+                  <Text style={styles.resolveBtnText}>{t("ticketResolved")}</Text>
                 </TouchableOpacity>
               ) : <View style={{ width: 80 }} />}
             </View>
@@ -295,7 +297,7 @@ export default function SupportScreen() {
                 {[
                   { label: "Syndicat", value: selected.syndicate },
                   { label: "Soumis par", value: selected.submittedBy },
-                  { label: "Date", value: selected.date },
+                  { label: t("dateLabel") ?? "Date", value: selected.date },
                 ].map((info, i) => (
                   <View key={info.label}>
                     {i > 0 ? <View style={[styles.sep, { backgroundColor: colors.border }]} /> : null}
@@ -309,17 +311,17 @@ export default function SupportScreen() {
 
               {/* Description */}
               <View style={[styles.descBox, { backgroundColor: colors.card, borderColor: colors.border }]}>
-                <Text style={[styles.descLabel, { color: colors.foreground }]}>Description</Text>
+                <Text style={[styles.descLabel, { color: colors.foreground }]}>{t("ticketDescLabel")}</Text>
                 <Text style={[styles.descText, { color: colors.mutedForeground }]}>{selected.description}</Text>
               </View>
 
               {/* Reply (admin only) */}
               {isAdmin && selected.status !== "resolved" ? (
                 <View style={{ gap: 8 }}>
-                  <Text style={[styles.replyLabel, { color: colors.foreground }]}>Réponse</Text>
+                  <Text style={[styles.replyLabel, { color: colors.foreground }]}>{t("replyLabel")}</Text>
                   <TextInput
                     style={[styles.replyInput, { borderColor: colors.border, backgroundColor: colors.card, color: colors.foreground }]}
-                    placeholder="Saisissez votre réponse..."
+                    placeholder={t("replyInputPlaceholder")}
                     placeholderTextColor={colors.mutedForeground}
                     multiline
                     numberOfLines={4}
@@ -336,14 +338,14 @@ export default function SupportScreen() {
                   >
                     <Feather name="send" size={15} color={reply.trim() ? "#fff" : colors.mutedForeground} />
                     <Text style={[styles.sendBtnText, { color: reply.trim() ? "#fff" : colors.mutedForeground }]}>
-                      Envoyer la réponse
+                      {t("sendReply")}
                     </Text>
                   </TouchableOpacity>
                 </View>
               ) : selected.status === "resolved" ? (
                 <View style={[styles.resolvedBanner, { backgroundColor: colors.success + "12", borderColor: colors.success + "30" }]}>
                   <Feather name="check-circle" size={18} color={colors.success} />
-                  <Text style={[styles.resolvedText, { color: colors.success }]}>Ce ticket a été résolu.</Text>
+                  <Text style={[styles.resolvedText, { color: colors.success }]}>{t("ticketResolvedMsg")}</Text>
                 </View>
               ) : null}
             </ScrollView>
@@ -355,7 +357,7 @@ export default function SupportScreen() {
       <Modal visible={showNew} animationType="slide" presentationStyle="pageSheet">
         <View style={[styles.modal, { backgroundColor: colors.background }]}>
           <View style={[styles.modalHeader, { borderBottomColor: colors.border }]}>
-            <Text style={[styles.modalTitle, { color: colors.foreground }]}>Nouveau ticket</Text>
+            <Text style={[styles.modalTitle, { color: colors.foreground }]}>{t("newTicket")}</Text>
             <TouchableOpacity onPress={() => setShowNew(false)}>
               <Feather name="x" size={22} color={colors.mutedForeground} />
             </TouchableOpacity>
@@ -363,7 +365,7 @@ export default function SupportScreen() {
           <ScrollView contentContainerStyle={{ padding: 20, gap: 16, paddingBottom: 40 }} showsVerticalScrollIndicator={false}>
             {/* Title */}
             <View style={{ gap: 6 }}>
-              <Text style={[styles.fieldLabel, { color: colors.foreground }]}>Sujet *</Text>
+              <Text style={[styles.fieldLabel, { color: colors.foreground }]}>{t("ticketTitleLabel")} *</Text>
               <TextInput
                 style={[styles.fieldInput, { borderColor: colors.border, backgroundColor: colors.card, color: colors.foreground }]}
                 value={newTitle}
@@ -375,7 +377,7 @@ export default function SupportScreen() {
 
             {/* Description */}
             <View style={{ gap: 6 }}>
-              <Text style={[styles.fieldLabel, { color: colors.foreground }]}>Description *</Text>
+              <Text style={[styles.fieldLabel, { color: colors.foreground }]}>{t("ticketDescLabel")} *</Text>
               <TextInput
                 style={[styles.fieldInput, styles.textArea, { borderColor: colors.border, backgroundColor: colors.card, color: colors.foreground }]}
                 value={newDesc}
@@ -439,7 +441,7 @@ export default function SupportScreen() {
             <View style={[styles.noteBox, { backgroundColor: colors.primary + "10", borderColor: colors.primary + "30" }]}>
               <Feather name="info" size={14} color={colors.primary} />
               <Text style={[styles.noteText, { color: colors.primary }]}>
-                L'équipe support du syndicat traitera votre demande dans les 24 à 48 heures ouvrées.
+                {t("supportTeamNote")}
               </Text>
             </View>
 
@@ -450,7 +452,7 @@ export default function SupportScreen() {
             >
               <Feather name="send" size={16} color={newTitle.trim() && newDesc.trim() ? "#fff" : colors.mutedForeground} />
               <Text style={[styles.submitBtnText, { color: newTitle.trim() && newDesc.trim() ? "#fff" : colors.mutedForeground }]}>
-                Soumettre le ticket
+                {t("submitTicket")}
               </Text>
             </TouchableOpacity>
           </ScrollView>

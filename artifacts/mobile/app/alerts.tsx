@@ -15,6 +15,7 @@ import {
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useAuth } from "@/context/AuthContext";
 import { useData, type Alert as AppAlert } from "@/context/DataContext";
+import { useLanguage } from "@/context/LanguageContext";
 import { useBreakpoints } from "@/hooks/useBreakpoints";
 import { useColors } from "@/hooks/useColors";
 import FilterChips from "@/components/FilterChips";
@@ -27,6 +28,7 @@ export default function AlertsScreen() {
   const insets = useSafeAreaInsets();
   const { user } = useAuth();
   const { alerts, markAlertRead, markAllAlertsRead } = useData();
+  const { t } = useLanguage();
   const [filter, setFilter] = useState<Filter>("all");
   const [selected, setSelected] = useState<AppAlert | null>(null);
   const { isWide } = useBreakpoints();
@@ -36,10 +38,10 @@ export default function AlertsScreen() {
   const unread = alerts.filter((a) => !a.read).length;
 
   const alertConfig = (type: AppAlert["type"]) => ({
-    info: { color: "#3b82f6", icon: "info" as const, label: "Information", bg: "#3b82f615" },
-    warning: { color: "#f59e0b", icon: "alert-triangle" as const, label: "Avertissement", bg: "#f59e0b15" },
-    success: { color: colors.success, icon: "check-circle" as const, label: "Succès", bg: colors.success + "15" },
-    error: { color: colors.destructive, icon: "alert-circle" as const, label: "Urgent", bg: colors.destructive + "15" },
+    info: { color: "#3b82f6", icon: "info" as const, label: t("info"), bg: "#3b82f615" },
+    warning: { color: "#f59e0b", icon: "alert-triangle" as const, label: t("warning"), bg: "#f59e0b15" },
+    success: { color: colors.success, icon: "check-circle" as const, label: t("success"), bg: colors.success + "15" },
+    error: { color: colors.destructive, icon: "alert-circle" as const, label: t("priorityUrgent"), bg: colors.destructive + "15" },
   }[type]);
 
   const handleMarkAllRead = () => {
@@ -67,12 +69,12 @@ export default function AlertsScreen() {
   });
 
   const FILTERS: { key: Filter; label: string; icon: keyof typeof Feather.glyphMap }[] = [
-    { key: "all", label: "Tous", icon: "bell" },
-    { key: "unread", label: "Non lus", icon: "circle" },
-    { key: "error", label: "Urgents", icon: "alert-circle" },
-    { key: "warning", label: "Avertissements", icon: "alert-triangle" },
-    { key: "info", label: "Infos", icon: "info" },
-    { key: "success", label: "Succès", icon: "check-circle" },
+    { key: "all", label: t("all"), icon: "bell" },
+    { key: "unread", label: t("filterUnread"), icon: "circle" },
+    { key: "error", label: t("filterUrgentAlerts"), icon: "alert-circle" },
+    { key: "warning", label: t("filterWarnings"), icon: "alert-triangle" },
+    { key: "info", label: t("filterInfoAlerts"), icon: "info" },
+    { key: "success", label: t("success"), icon: "check-circle" },
   ];
 
   const TYPE_COLORS: Record<Exclude<Filter, "all" | "unread">, string> = {
@@ -96,9 +98,9 @@ export default function AlertsScreen() {
           <Feather name="arrow-left" size={22} color={colors.foreground} />
         </TouchableOpacity>
         <View style={{ flex: 1 }}>
-          <Text style={[styles.title, { color: colors.foreground }]}>Alertes</Text>
+          <Text style={[styles.title, { color: colors.foreground }]}>{t("alertsTitle")}</Text>
           <Text style={[styles.subtitle, { color: colors.mutedForeground }]}>
-            {unread > 0 ? `${unread} non lue${unread > 1 ? "s" : ""}` : "Tout est lu"}
+            {unread > 0 ? `${unread} non lue${unread > 1 ? "s" : ""}` : t("allReadMsg")}
           </Text>
         </View>
         {unread > 0 ? (
@@ -107,7 +109,7 @@ export default function AlertsScreen() {
             onPress={handleMarkAllRead}
           >
             <Feather name="check-square" size={14} color={colors.primary} />
-            <Text style={[styles.markAllText, { color: colors.primary }]}>Tout lire</Text>
+            <Text style={[styles.markAllText, { color: colors.primary }]}>{t("markAsRead")}</Text>
           </TouchableOpacity>
         ) : null}
       </View>
@@ -115,9 +117,9 @@ export default function AlertsScreen() {
       <StatsStrip
         stats={[
           { label: "Total",    value: alerts.length,                                          color: colors.primary },
-          { label: "Non lus",  value: unread,                                                 color: colors.destructive },
-          { label: "Urgents",  value: alerts.filter((a) => a.type === "error").length,        color: colors.destructive },
-          { label: "Infos",    value: alerts.filter((a) => a.type === "info").length,         color: "#3b82f6" },
+          { label: t("filterUnread"),  value: unread,                                                 color: colors.destructive },
+          { label: t("filterUrgentAlerts"),  value: alerts.filter((a) => a.type === "error").length,        color: colors.destructive },
+          { label: t("filterInfoAlerts"),    value: alerts.filter((a) => a.type === "info").length,         color: "#3b82f6" },
         ]}
       />
 
@@ -139,19 +141,19 @@ export default function AlertsScreen() {
               <Feather name="bell-off" size={36} color={colors.primary} />
             </View>
             <Text style={[styles.emptyTitle, { color: colors.foreground }]}>
-              {filter === "unread" ? "Tout est lu" : "Aucune alerte"}
+              {filter === "unread" ? t("allReadMsg") : t("noAlerts")}
             </Text>
             <Text style={[styles.emptySub, { color: colors.mutedForeground }]}>
               {filter === "all"
-                ? "Aucune alerte pour le moment. Nous vous notifierons des informations importantes."
-                : `Aucune alerte de type "${FILTERS.find((f2) => f2.key === filter)?.label}".`}
+                ? t("noAlertsMsg")
+                : `${t("noAlerts")} "${FILTERS.find((f2) => f2.key === filter)?.label}".`}
             </Text>
             {filter !== "all" ? (
               <TouchableOpacity
                 style={[styles.showAllBtn, { borderColor: colors.border, borderWidth: 1 }]}
                 onPress={() => setFilter("all")}
               >
-                <Text style={[styles.showAllText, { color: colors.foreground }]}>Voir toutes les alertes</Text>
+                <Text style={[styles.showAllText, { color: colors.foreground }]}>{t("seeAllAlerts")}</Text>
               </TouchableOpacity>
             ) : null}
           </View>
@@ -195,7 +197,7 @@ export default function AlertsScreen() {
                   </View>
                   <View style={[styles.targetBadge, { backgroundColor: colors.muted }]}>
                     <Text style={[styles.targetText, { color: colors.mutedForeground }]}>
-                      {alert.target === "all" ? "Tous" : alert.target === "admin" ? "Admins" : "Membres"}
+                      {alert.target === "all" ? t("all") : alert.target === "admin" ? "Admins" : "Membres"}
                     </Text>
                   </View>
                 </View>
@@ -214,7 +216,7 @@ export default function AlertsScreen() {
               <TouchableOpacity onPress={() => setSelected(null)}>
                 <Feather name="x" size={22} color={colors.mutedForeground} />
               </TouchableOpacity>
-              <Text style={[styles.modalTitle, { color: colors.foreground }]}>Détail de l'alerte</Text>
+              <Text style={[styles.modalTitle, { color: colors.foreground }]}>{t("alertDetail")}</Text>
               <View style={{ width: 22 }} />
             </View>
             <ScrollView contentContainerStyle={{ padding: 20, gap: 16, paddingBottom: 40 }} showsVerticalScrollIndicator={false}>
@@ -231,16 +233,16 @@ export default function AlertsScreen() {
 
               {/* Message */}
               <View style={[styles.msgCard, { backgroundColor: colors.card, borderColor: colors.border }]}>
-                <Text style={[styles.msgLabel, { color: colors.foreground }]}>Message</Text>
+                <Text style={[styles.msgLabel, { color: colors.foreground }]}>{t("messageLabel")}</Text>
                 <Text style={[styles.msgText, { color: colors.mutedForeground }]}>{selected.message}</Text>
               </View>
 
               {/* Meta */}
               <View style={[styles.metaCard, { backgroundColor: colors.card, borderColor: colors.border }]}>
                 {[
-                  { label: "Date", value: selected.date },
-                  { label: "Destinataires", value: selected.target === "all" ? "Tous les utilisateurs" : selected.target === "admin" ? "Administrateurs" : "Membres" },
-                  { label: "Statut", value: selected.read ? "Lu" : "Non lu" },
+                  { label: t("dateLabel"), value: selected.date },
+                  { label: t("destinataireLabel"), value: selected.target === "all" ? t("all") : selected.target === "admin" ? "Administrateurs" : "Membres" },
+                  { label: t("statusLabel"), value: selected.read ? "Lu" : "Non lu" },
                 ].map((m, i) => (
                   <View key={m.label}>
                     {i > 0 ? <View style={[styles.sep, { backgroundColor: colors.border }]} /> : null}
@@ -262,7 +264,7 @@ export default function AlertsScreen() {
                   }}
                 >
                   <Feather name="check" size={16} color="#fff" />
-                  <Text style={styles.readBtnText}>Marquer comme lu</Text>
+                  <Text style={styles.readBtnText}>{t("markAsRead")}</Text>
                 </TouchableOpacity>
               ) : null}
             </ScrollView>

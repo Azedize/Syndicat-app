@@ -21,6 +21,7 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useAuth } from "@/context/AuthContext";
 import { useBreakpoints } from "@/hooks/useBreakpoints";
 import { useColors } from "@/hooks/useColors";
+import { useLanguage } from "@/context/LanguageContext";
 import { elections as electionsApi } from "@/services/api";
 
 interface ApiCandidate {
@@ -37,7 +38,7 @@ interface ApiElection {
   syndicateId: string;
   title: string;
   description: string;
-  status: "open" | "upcoming" | "closed";
+  status: "open" | "upcoming" | "closed" | "completed";
   startDate: string;
   endDate: string;
   candidates: ApiCandidate[];
@@ -49,6 +50,7 @@ export default function ElectionsScreen() {
   const colors = useColors();
   const insets = useSafeAreaInsets();
   const { user } = useAuth();
+  const { t } = useLanguage();
   const { isWide } = useBreakpoints();
   const topPad = isWide ? 0 : (Platform.OS === "web" ? 67 : insets.top);
   const queryClient = useQueryClient();
@@ -76,11 +78,11 @@ export default function ElectionsScreen() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["elections"] });
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-      Alert.alert("Vote enregistré ✓", "Votre vote a été enregistré de manière sécurisée et anonyme. Merci pour votre participation!");
+      Alert.alert(t("castVote") + " ✓", t("alreadyVoted"));
     },
     onError: (err: Error) => {
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
-      Alert.alert("Erreur de vote", err.message);
+      Alert.alert(t("electionResults"), err.message);
     },
   });
 
@@ -91,29 +93,30 @@ export default function ElectionsScreen() {
       setShowCreate(false);
       setNewTitle(""); setNewDesc(""); setNewStart("2026-07-01"); setNewEnd("2026-07-31");
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-      Alert.alert("Élection créée", "La nouvelle élection a été créée avec succès.");
+      Alert.alert(t("elections"), t("openElections"));
     },
-    onError: (err: Error) => Alert.alert("Erreur", err.message),
+    onError: (err: Error) => Alert.alert(t("electionClosed"), err.message),
   });
 
   const electionList = data?.data ?? [];
 
   const statusConfig = (status: ApiElection["status"]) => ({
-    open: { color: colors.success, label: "En cours", icon: "unlock" as const, bg: colors.success + "15" },
-    upcoming: { color: "#f59e0b", label: "À venir", icon: "clock" as const, bg: "#f59e0b15" },
-    closed: { color: colors.mutedForeground, label: "Terminée", icon: "lock" as const, bg: colors.muted },
-  }[status]);
+    open: { color: colors.success, label: t("statusOpen"), icon: "unlock" as const, bg: colors.success + "15" },
+    upcoming: { color: "#f59e0b", label: t("statusUpcoming"), icon: "clock" as const, bg: "#f59e0b15" },
+    closed: { color: colors.mutedForeground, label: t("statusClosed"), icon: "lock" as const, bg: colors.muted },
+    completed: { color: colors.mutedForeground, label: t("statusClosed"), icon: "check-circle" as const, bg: colors.muted },
+  }[status] ?? { color: colors.mutedForeground, label: status, icon: "help-circle" as const, bg: colors.muted });
 
   const handleVote = (candidateId: string) => {
     if (!selected) return;
-    const candidateName = selected.candidates.find((c) => c.id === candidateId)?.name ?? "ce candidat";
+    const candidateName = selected.candidates.find((c) => c.id === candidateId)?.name ?? t("candidateList");
     Alert.alert(
-      "Confirmer le vote",
-      `Voulez-vous voter pour ${candidateName}?\n\nAttention: cette action est irréversible.`,
+      t("castVote"),
+      `${t("voteNow")} ${candidateName}?`,
       [
-        { text: "Annuler", style: "cancel" },
+        { text: t("electionClosed"), style: "cancel" },
         {
-          text: "Voter",
+          text: t("castVote"),
           onPress: () => voteMutation.mutate({ electionId: selected.id, candidateId }),
         },
       ]
@@ -123,14 +126,14 @@ export default function ElectionsScreen() {
   const handleCreate = () => {
     if (!newTitle.trim()) return;
     if (!DATE_RE.test(newStart) || !DATE_RE.test(newEnd)) {
-      Alert.alert("Erreur", "Les dates doivent être au format AAAA-MM-JJ."); return;
+      Alert.alert(t("electionClosed"), t("electionClosed")); return;
     }
     if (newEnd <= newStart) {
-      Alert.alert("Erreur", "La date de fin doit être postérieure à la date de début."); return;
+      Alert.alert(t("electionClosed"), t("electionClosed")); return;
     }
     createMutation.mutate({
       title: newTitle.trim(),
-      description: newDesc.trim() || "Élection syndicale.",
+      description: newDesc.trim() || t("elections"),
       startDate: newStart,
       endDate: newEnd,
     } as any);
@@ -141,9 +144,9 @@ export default function ElectionsScreen() {
       <View style={[styles.root, { backgroundColor: colors.background }]}>
         <View style={[styles.header, { paddingTop: topPad + 16, backgroundColor: colors.card, borderBottomColor: colors.border }]}>
           <TouchableOpacity onPress={() => router.back()} style={styles.backBtn}><Feather name="arrow-left" size={22} color={colors.foreground} /></TouchableOpacity>
-          <Text style={[styles.title, { color: colors.foreground }]}>Élections</Text>
+          <Text style={[styles.title, { color: colors.foreground }]}>{t("elections")}</Text>
         </View>
-        <View style={styles.center}><ActivityIndicator size="large" color={colors.primary} /><Text style={[styles.centerText, { color: colors.mutedForeground }]}>Chargement...</Text></View>
+        <View style={styles.center}><ActivityIndicator size="large" color={colors.primary} /></View>
       </View>
     );
   }
@@ -153,12 +156,12 @@ export default function ElectionsScreen() {
       <View style={[styles.root, { backgroundColor: colors.background }]}>
         <View style={[styles.header, { paddingTop: topPad + 16, backgroundColor: colors.card, borderBottomColor: colors.border }]}>
           <TouchableOpacity onPress={() => router.back()} style={styles.backBtn}><Feather name="arrow-left" size={22} color={colors.foreground} /></TouchableOpacity>
-          <Text style={[styles.title, { color: colors.foreground }]}>Élections</Text>
+          <Text style={[styles.title, { color: colors.foreground }]}>{t("elections")}</Text>
         </View>
         <View style={styles.center}>
           <Feather name="wifi-off" size={40} color={colors.destructive} />
-          <Text style={[styles.centerText, { color: colors.mutedForeground }]}>Impossible de charger les élections</Text>
-          <TouchableOpacity style={[styles.retryBtn, { backgroundColor: colors.primary }]} onPress={() => refetch()}><Text style={styles.retryBtnText}>Réessayer</Text></TouchableOpacity>
+          <Text style={[styles.centerText, { color: colors.mutedForeground }]}>{t("noElections")}</Text>
+          <TouchableOpacity style={[styles.retryBtn, { backgroundColor: colors.primary }]} onPress={() => refetch()}><Text style={styles.retryBtnText}>{t("voteNow")}</Text></TouchableOpacity>
         </View>
       </View>
     );
@@ -171,9 +174,9 @@ export default function ElectionsScreen() {
           <Feather name="arrow-left" size={22} color={colors.foreground} />
         </TouchableOpacity>
         <View style={{ flex: 1 }}>
-          <Text style={[styles.title, { color: colors.foreground }]}>Élections</Text>
+          <Text style={[styles.title, { color: colors.foreground }]}>{t("elections")}</Text>
           <Text style={[styles.subtitle, { color: colors.mutedForeground }]}>
-            {electionList.filter((e) => e.status === "open").length} élection(s) en cours
+            {electionList.filter((e) => e.status === "open").length} {t("openElections")}
           </Text>
         </View>
         {isAdmin ? (
@@ -195,7 +198,7 @@ export default function ElectionsScreen() {
         ListEmptyComponent={
           <View style={styles.center}>
             <Feather name="check-square" size={40} color={colors.mutedForeground} />
-            <Text style={[styles.centerText, { color: colors.mutedForeground }]}>Aucune élection pour le moment</Text>
+            <Text style={[styles.centerText, { color: colors.mutedForeground }]}>{t("noElections")}</Text>
           </View>
         }
         renderItem={({ item: e }) => {
@@ -228,37 +231,37 @@ export default function ElectionsScreen() {
               <View style={styles.statsRow}>
                 <View style={styles.stat}>
                   <Feather name="users" size={13} color={colors.mutedForeground} />
-                  <Text style={[styles.statLabel, { color: colors.mutedForeground }]}>{candidateCount} candidats</Text>
+                  <Text style={[styles.statLabel, { color: colors.mutedForeground }]}>{candidateCount} {t("candidateList")}</Text>
                 </View>
                 <View style={styles.stat}>
                   <Feather name="bar-chart-2" size={13} color={colors.mutedForeground} />
-                  <Text style={[styles.statLabel, { color: colors.mutedForeground }]}>{totalVotes} votes</Text>
+                  <Text style={[styles.statLabel, { color: colors.mutedForeground }]}>{totalVotes} {t("votesCount")}</Text>
                 </View>
                 <View style={styles.stat}>
                   <Feather name="calendar" size={13} color={colors.mutedForeground} />
-                  <Text style={[styles.statLabel, { color: colors.mutedForeground }]}>Fin: {e.endDate}</Text>
+                  <Text style={[styles.statLabel, { color: colors.mutedForeground }]}>{e.endDate}</Text>
                 </View>
               </View>
 
               {e.status === "open" && hasVoted ? (
                 <View style={[styles.voteBtn, { backgroundColor: colors.success + "20" }]}>
                   <Feather name="check-circle" size={15} color={colors.success} />
-                  <Text style={[styles.voteBtnText, { color: colors.success }]}>Vote enregistré ✓</Text>
+                  <Text style={[styles.voteBtnText, { color: colors.success }]}>{t("alreadyVoted")} ✓</Text>
                 </View>
               ) : e.status === "open" ? (
                 <View style={[styles.voteBtn, { backgroundColor: colors.primary }]}>
                   <Feather name="check-circle" size={15} color="#fff" />
-                  <Text style={styles.voteBtnText}>Voter — Appuyer pour ouvrir</Text>
+                  <Text style={styles.voteBtnText}>{t("voteNow")}</Text>
                 </View>
               ) : e.status === "closed" ? (
                 <View style={[styles.voteBtn, { backgroundColor: colors.secondary }]}>
                   <Feather name="pie-chart" size={15} color={colors.primary} />
-                  <Text style={[styles.voteBtnText, { color: colors.primary }]}>Voir les résultats</Text>
+                  <Text style={[styles.voteBtnText, { color: colors.primary }]}>{t("electionResults")}</Text>
                 </View>
               ) : (
                 <View style={[styles.voteBtn, { backgroundColor: colors.muted }]}>
                   <Feather name="clock" size={15} color="#f59e0b" />
-                  <Text style={[styles.voteBtnText, { color: "#f59e0b" }]}>Ouverture le {e.startDate}</Text>
+                  <Text style={[styles.voteBtnText, { color: "#f59e0b" }]}>{t("statusUpcoming")} {e.startDate}</Text>
                 </View>
               )}
             </TouchableOpacity>
@@ -277,7 +280,7 @@ export default function ElectionsScreen() {
               <View style={{ flex: 1 }}>
                 <Text style={[styles.modalTitle, { color: colors.foreground }]} numberOfLines={2}>{selected.title}</Text>
                 <Text style={[styles.subtitle, { color: colors.mutedForeground }]}>
-                  {selected.status === "open" ? "Élection en cours" : selected.status === "closed" ? "Résultats finaux" : "À venir"}
+                  {selected.status === "open" ? t("statusOpen") : selected.status === "closed" ? t("electionResults") : t("statusUpcoming")}
                 </Text>
               </View>
               {selected.status === "open" || selected.status === "closed" ? (
@@ -296,7 +299,7 @@ export default function ElectionsScreen() {
                 <View style={styles.datesRow}>
                   <Feather name="calendar" size={13} color={colors.mutedForeground} />
                   <Text style={[styles.datesText, { color: colors.mutedForeground }]}>
-                    Du {selected.startDate} au {selected.endDate}
+                    {selected.startDate} → {selected.endDate}
                   </Text>
                 </View>
               </View>
@@ -317,7 +320,7 @@ export default function ElectionsScreen() {
                           {isVotedFor && (
                             <View style={[styles.myVoteBadge, { backgroundColor: colors.primary + "20" }]}>
                               <Feather name="check" size={10} color={colors.primary} />
-                              <Text style={[styles.myVoteText, { color: colors.primary }]}>Mon vote</Text>
+                              <Text style={[styles.myVoteText, { color: colors.primary }]}>{t("yourVote")}</Text>
                             </View>
                           )}
                         </View>
@@ -337,7 +340,7 @@ export default function ElectionsScreen() {
                         <View style={[styles.progressBg, { backgroundColor: colors.muted }]}>
                           <View style={[styles.progressFill, { width: `${pct}%`, backgroundColor: colors.primary }]} />
                         </View>
-                        <Text style={[styles.votesText, { color: colors.mutedForeground }]}>{c.votes} vote(s)</Text>
+                        <Text style={[styles.votesText, { color: colors.mutedForeground }]}>{c.votes} {t("votesCount")}</Text>
                       </View>
                     )}
 
@@ -352,7 +355,7 @@ export default function ElectionsScreen() {
                         ) : (
                           <>
                             <Feather name="check-circle" size={15} color="#fff" />
-                            <Text style={styles.voteForBtnText}>Voter pour ce candidat</Text>
+                            <Text style={styles.voteForBtnText}>{t("castVote")}</Text>
                           </>
                         )}
                       </TouchableOpacity>
@@ -372,29 +375,29 @@ export default function ElectionsScreen() {
             <TouchableOpacity onPress={() => setShowCreate(false)} style={styles.backBtn}>
               <Feather name="x" size={22} color={colors.foreground} />
             </TouchableOpacity>
-            <Text style={[styles.modalTitle, { color: colors.foreground }]}>Nouvelle Élection</Text>
+            <Text style={[styles.modalTitle, { color: colors.foreground }]}>{t("elections")}</Text>
           </View>
           <ScrollView contentContainerStyle={{ padding: 16, gap: 14 }}>
             <View style={[styles.fieldCard, { backgroundColor: colors.card, borderColor: colors.border }]}>
-              <Text style={[styles.fieldLabel, { color: colors.mutedForeground }]}>Titre *</Text>
+              <Text style={[styles.fieldLabel, { color: colors.mutedForeground }]}>{t("elections")} *</Text>
               <TextInput
                 style={[styles.input, { color: colors.foreground, borderColor: colors.border }]}
-                placeholder="Ex: Élection bureau 2026"
+                placeholder={t("elections")}
                 placeholderTextColor={colors.mutedForeground}
                 value={newTitle}
                 onChangeText={setNewTitle}
               />
-              <Text style={[styles.fieldLabel, { color: colors.mutedForeground, marginTop: 12 }]}>Description</Text>
+              <Text style={[styles.fieldLabel, { color: colors.mutedForeground, marginTop: 12 }]}>{t("openElections")}</Text>
               <TextInput
                 style={[styles.input, styles.textarea, { color: colors.foreground, borderColor: colors.border }]}
-                placeholder="Description de l'élection…"
+                placeholder={t("openElections")}
                 placeholderTextColor={colors.mutedForeground}
                 value={newDesc}
                 onChangeText={setNewDesc}
                 multiline
                 numberOfLines={4}
               />
-              <Text style={[styles.fieldLabel, { color: colors.mutedForeground, marginTop: 12 }]}>Date de début (AAAA-MM-JJ) *</Text>
+              <Text style={[styles.fieldLabel, { color: colors.mutedForeground, marginTop: 12 }]}>{t("statusUpcoming")} *</Text>
               <TextInput
                 style={[styles.input, { color: colors.foreground, borderColor: colors.border }]}
                 placeholder="2026-07-01"
@@ -402,7 +405,7 @@ export default function ElectionsScreen() {
                 value={newStart}
                 onChangeText={setNewStart}
               />
-              <Text style={[styles.fieldLabel, { color: colors.mutedForeground, marginTop: 12 }]}>Date de fin (AAAA-MM-JJ) *</Text>
+              <Text style={[styles.fieldLabel, { color: colors.mutedForeground, marginTop: 12 }]}>{t("statusClosed")} *</Text>
               <TextInput
                 style={[styles.input, { color: colors.foreground, borderColor: colors.border }]}
                 placeholder="2026-07-31"
@@ -421,7 +424,7 @@ export default function ElectionsScreen() {
               ) : (
                 <>
                   <Feather name="check-circle" size={16} color="#fff" />
-                  <Text style={styles.submitBtnText}>Créer l'élection</Text>
+                  <Text style={styles.submitBtnText}>{t("castVote")}</Text>
                 </>
               )}
             </TouchableOpacity>
