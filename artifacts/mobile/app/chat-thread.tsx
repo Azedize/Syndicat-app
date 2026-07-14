@@ -12,6 +12,7 @@ import {
   Image,
   KeyboardAvoidingView,
   Linking,
+  Modal,
   Platform,
   ScrollView,
   StyleSheet,
@@ -98,6 +99,9 @@ export default function ChatThreadScreen() {
 
   // ─── Attachment picker sheet ───────────────────────────────────────────────
   const [showAttachSheet, setShowAttachSheet] = useState(false);
+
+  // ─── Full-screen image viewer ─────────────────────────────────────────────
+  const [imageViewerUrl, setImageViewerUrl] = useState<string | null>(null);
 
   useEffect(() => { setIsBlocked(!!conversation?.isBlocked); }, [conversation?.isBlocked]);
 
@@ -480,7 +484,7 @@ export default function ChatThreadScreen() {
                   >
                     {/* Image attachment */}
                     {isImage && resolvedUrl ? (
-                      <TouchableOpacity onPress={() => Linking.openURL(resolvedUrl).catch(() => {})}>
+                      <TouchableOpacity onPress={() => setImageViewerUrl(resolvedUrl)}>
                         <Image
                           source={{ uri: resolvedUrl }}
                           style={styles.attachmentImage}
@@ -623,6 +627,41 @@ export default function ChatThreadScreen() {
           </ScrollView>
         </View>
       )}
+
+      {/* Full-screen image viewer */}
+      <Modal
+        visible={!!imageViewerUrl}
+        transparent
+        animationType="fade"
+        onRequestClose={() => setImageViewerUrl(null)}
+        statusBarTranslucent
+      >
+        <View style={styles.imgViewerOverlay}>
+          <TouchableOpacity
+            style={styles.imgViewerClose}
+            onPress={() => setImageViewerUrl(null)}
+            hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}
+          >
+            <View style={styles.imgViewerCloseBtn}>
+              <Feather name="x" size={22} color="#fff" />
+            </View>
+          </TouchableOpacity>
+          {imageViewerUrl ? (
+            <Image
+              source={{ uri: imageViewerUrl }}
+              style={styles.imgViewerImage}
+              resizeMode="contain"
+            />
+          ) : null}
+          <TouchableOpacity
+            style={styles.imgViewerDownloadBtn}
+            onPress={() => Linking.openURL(imageViewerUrl!).catch(() => {})}
+          >
+            <Feather name="download" size={18} color="#fff" />
+            <Text style={styles.imgViewerDownloadText}>Télécharger</Text>
+          </TouchableOpacity>
+        </View>
+      </Modal>
 
       {/* Report modal */}
       {reportModalVisible && (
@@ -893,6 +932,49 @@ const styles = StyleSheet.create({
   },
   reportSubmitBtn: { borderRadius: 12, paddingVertical: 12, alignItems: "center" },
   reportSubmitBtnText: { color: "#fff", fontSize: 14, fontFamily: "Inter_700Bold" },
+  // Full-screen image viewer
+  imgViewerOverlay: {
+    flex: 1,
+    backgroundColor: "rgba(0,0,0,0.93)",
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  imgViewerImage: {
+    width: "100%",
+    height: "80%",
+  },
+  imgViewerClose: {
+    position: "absolute",
+    top: 52,
+    right: 20,
+    zIndex: 10,
+  },
+  imgViewerCloseBtn: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: "rgba(255,255,255,0.18)",
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  imgViewerDownloadBtn: {
+    position: "absolute",
+    bottom: 48,
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 8,
+    backgroundColor: "rgba(255,255,255,0.15)",
+    paddingHorizontal: 20,
+    paddingVertical: 10,
+    borderRadius: 24,
+    borderWidth: 1,
+    borderColor: "rgba(255,255,255,0.25)",
+  },
+  imgViewerDownloadText: {
+    color: "#fff",
+    fontSize: 14,
+    fontFamily: "Inter_600SemiBold",
+  },
   // Attachment sheet
   attachSheet: {
     borderTopWidth: 1,

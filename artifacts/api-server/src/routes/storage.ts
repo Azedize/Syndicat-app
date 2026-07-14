@@ -30,24 +30,38 @@ async function ensureUploadsDir() {
   try { await fs.mkdir(LOCAL_UPLOADS_DIR, { recursive: true }); } catch {}
 }
 
+const IMAGE_EXTENSIONS = new Set([".jpg", ".jpeg", ".png", ".gif", ".webp", ".heic", ".heif", ".avif"]);
+
+const CONTENT_TYPE_MAP: Record<string, string> = {
+  ".jpg": "image/jpeg", ".jpeg": "image/jpeg", ".png": "image/png",
+  ".gif": "image/gif", ".webp": "image/webp", ".heic": "image/heic",
+  ".heif": "image/heif", ".avif": "image/avif",
+  ".pdf": "application/pdf",
+  ".doc": "application/msword",
+  ".docx": "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+  ".xlsx": "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+  ".mp4": "video/mp4", ".mov": "video/quicktime",
+  ".txt": "text/plain", ".csv": "text/csv",
+};
+
 /** Serve a file from the local uploads directory. */
 async function serveLocalFile(filename: string, res: Response): Promise<boolean> {
   const filePath = path.join(LOCAL_UPLOADS_DIR, filename);
   try {
     const data = await fs.readFile(filePath);
     const ext = path.extname(filename).toLowerCase();
-    const contentTypeMap: Record<string, string> = {
-      ".jpg": "image/jpeg", ".jpeg": "image/jpeg", ".png": "image/png",
-      ".gif": "image/gif", ".webp": "image/webp", ".heic": "image/heic",
-      ".pdf": "application/pdf",
-      ".doc": "application/msword",
-      ".docx": "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
-      ".mp4": "video/mp4", ".mov": "video/quicktime",
-      ".txt": "text/plain", ".csv": "text/csv",
-    };
-    res.setHeader("Content-Type", contentTypeMap[ext] ?? "application/octet-stream");
+    const contentType = CONTENT_TYPE_MAP[ext] ?? "application/octet-stream";
+    const isImage = IMAGE_EXTENSIONS.has(ext);
+
+    res.setHeader("Content-Type", contentType);
     res.setHeader("Cache-Control", "public, max-age=31536000, immutable");
     res.setHeader("Content-Length", String(data.byteLength));
+    // Images: display inline in browser. Non-images: download with original filename.
+    if (isImage) {
+      res.setHeader("Content-Disposition", "inline");
+    } else {
+      res.setHeader("Content-Disposition", `attachment; filename="${filename}"`);
+    }
     res.send(data);
     return true;
   } catch {
@@ -257,6 +271,11 @@ router.get("/storage/objects/*path", async (req: Request, res: Response) => {
       const response = await storage.downloadObject(objectFile);
       res.status(response.status);
       response.headers.forEach((v, k) => res.setHeader(k, v));
+      // Ensure images display inline (GCS may not set this)
+      const gcsContentType = response.headers.get("content-type") ?? "";
+      if (gcsContentType.startsWith("image/")) {
+        res.setHeader("Content-Disposition", "inline");
+      }
       if (response.body) {
         Readable.fromWeb(response.body as ReadableStream<Uint8Array>).pipe(res);
       } else { res.end(); }

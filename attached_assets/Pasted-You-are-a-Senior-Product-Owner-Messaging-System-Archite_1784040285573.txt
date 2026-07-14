@@ -1,0 +1,165 @@
+You are a Senior Product Owner, Messaging System Architect, UX Architect, Database Architect, and Security Expert.
+
+The chat system already exists.
+
+Before implementing any code changes, analyze and redesign the complete messaging workflow.
+
+Mission:
+
+Define the production-ready business logic for messages.
+
+==================================================
+MESSAGE LIFECYCLE
+==================================================
+
+Analyze and define:
+
+1. Sending messages
+2. Receiving messages
+3. Read status
+4. Delivered status
+5. Typing indicators
+6. Editing messages
+7. Deleting messages
+8. File attachments
+9. Notifications
+10. Conversation history
+
+==================================================
+MESSAGE STATUS
+==================================================
+
+Define statuses:
+
+- Sent
+- Delivered
+- Read
+- Edited
+- Deleted
+
+Explain:
+
+- When status changes
+- Who can see the status
+- Database updates required
+
+==================================================
+MESSAGE EDITING
+==================================================
+
+Define rules:
+
+- Can users edit messages?
+- For how long? (example: 15 minutes)
+- Should "Edited" appear?
+- Should edit history be stored?
+
+Explain the best production approach.
+
+==================================================
+MESSAGE DELETION
+==================================================
+
+Analyze and define two deletion modes:
+
+Option A:
+Delete for me only
+
+Result:
+- Message disappears only for the user who deleted it.
+- Other participants still see the message.
+
+Option B:
+Delete for everyone
+
+Result:
+- Message is removed for all participants.
+- Replace content with:
+  "This message was deleted."
+
+Define:
+
+- Who can use it?
+- Time limits?
+- Audit logging requirements?
+
+==================================================
+READ RECEIPTS
+==================================================
+
+Define:
+
+- Single check
+- Double check
+- Read indicator
+
+Explain:
+
+- When a message becomes "read"
+- How group conversations should work
+
+==================================================
+ATTACHMENTS
+==================================================
+
+Define:
+
+- Images
+- PDFs
+- Documents
+
+What happens when:
+
+- User deletes attachment
+- User edits message with attachment
+- File becomes unavailable
+
+==================================================
+SECURITY
+==================================================
+
+Prevent:
+
+- Access to deleted messages
+- Editing messages of other users
+- Deleting messages of other users
+- Cross-conversation access
+
+==================================================
+DATABASE DESIGN
+==================================================
+
+Review:
+
+- messages table
+- conversations table
+- participants table
+
+Recommend:
+
+- deleted_for_user
+- deleted_for_everyone
+- edited_at
+- read_at
+- delivered_at
+
+if required.
+
+==================================================
+FINAL OUTPUT
+==================================================
+
+Generate:
+
+1. Complete Message Workflow
+2. Message Status Diagram
+3. Delete Logic
+4. Edit Logic
+5. Read Logic
+6. Database Changes
+7. API Changes
+8. Mobile UI Changes
+9. Security Rules
+10. Production Recommendations
+
+The result must be production-ready and comparable to WhatsApp, Messenger, and Telegram messaging standards.
