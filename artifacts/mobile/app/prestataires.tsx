@@ -16,6 +16,7 @@ import { prestataires as prestatairesApi } from "@/services/api";
 import FilterChips from "@/components/FilterChips";
 import ScreenHeader from "@/components/ScreenHeader";
 import StatsStrip from "@/components/StatsStrip";
+import RoleGuard from "@/components/RoleGuard";
 
 const TYPE_CONFIG: Record<string, { label: string; icon: keyof typeof Feather.glyphMap; color: string }> = {
   ascenseur:     { label: "Ascenseur",     icon: "chevrons-up",  color: "#3b82f6" },
@@ -44,6 +45,14 @@ type Prestataire = {
 };
 
 export default function PrestatairesScreen() {
+  return (
+    <RoleGuard allow={["super_admin", "syndicate_admin"]}>
+      <PrestatairesScreenInner />
+    </RoleGuard>
+  );
+}
+
+function PrestatairesScreenInner() {
   const colors = useColors();
   const insets = useSafeAreaInsets();
   const { token, user } = useAuth();

@@ -6,6 +6,7 @@ import { usersTable, syndicatesTable } from "@workspace/db/schema";
 import { eq, ilike, or, and, count, desc } from "drizzle-orm";
 import { requireAuth, requireRole } from "../middleware/auth.js";
 import { getPagination, buildPagedResponse } from "../lib/paginate.js";
+import { serverAuditLog } from "../lib/audit.js";
 
 const router = Router();
 
@@ -145,6 +146,13 @@ router.post(
           createdAt: usersTable.createdAt,
         });
 
+      await serverAuditLog(req, {
+        action: "CREATE",
+        entity: "user",
+        entityId: created.id,
+        details: `${created.email} (${created.role})`,
+      });
+
       res.status(201).json({ data: created });
     } catch (err) {
       req.log.error(err);
@@ -179,6 +187,14 @@ router.put(
         .update(usersTable)
         .set({ status: result.data.status })
         .where(eq(usersTable.id, String(req.params.id) as string));
+
+      await serverAuditLog(req, {
+        action: "UPDATE_STATUS",
+        entity: "user",
+        entityId: String(req.params.id),
+        details: result.data.status,
+      });
+
       res.json({ success: true });
     } catch (err) {
       req.log.error(err);
@@ -203,6 +219,15 @@ router.put(
         .update(usersTable)
         .set({ role: result.data.role })
         .where(eq(usersTable.id, String(req.params.id) as string));
+
+      await serverAuditLog(req, {
+        action: "UPDATE_ROLE",
+        entity: "user",
+        entityId: String(req.params.id),
+        details: result.data.role,
+        platformAction: true,
+      });
+
       res.json({ success: true });
     } catch (err) {
       req.log.error(err);
@@ -218,6 +243,14 @@ router.delete(
   async (req, res) => {
     try {
       await db.delete(usersTable).where(eq(usersTable.id, String(req.params.id) as string));
+
+      await serverAuditLog(req, {
+        action: "DELETE",
+        entity: "user",
+        entityId: String(req.params.id),
+        platformAction: true,
+      });
+
       res.json({ success: true });
     } catch (err) {
       req.log.error(err);

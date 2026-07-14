@@ -16,6 +16,7 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useData, type LegalAlert } from "@/context/DataContext";
 import { useBreakpoints } from "@/hooks/useBreakpoints";
 import { useColors } from "@/hooks/useColors";
+import RoleGuard from "@/components/RoleGuard";
 
 type Tab = "alerts" | "analysis" | "documents";
 
@@ -37,6 +38,14 @@ const LEGAL_DOCS = [
 ];
 
 export default function LegalScreen() {
+  return (
+    <RoleGuard allow={["super_admin", "syndicate_admin"]}>
+      <LegalScreenInner />
+    </RoleGuard>
+  );
+}
+
+function LegalScreenInner() {
   const colors = useColors();
   const insets = useSafeAreaInsets();
   const { legalAlerts, resolveLegalAlert } = useData();

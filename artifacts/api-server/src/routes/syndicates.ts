@@ -189,6 +189,14 @@ router.post("/syndicates", requireAuth, requireRole("super_admin"), async (req, 
       return [s];
     });
 
+    await serverAuditLog(req, {
+      action: "CREATE",
+      entity: "syndicate",
+      entityId: syndicate.id,
+      details: syndicate.name,
+      platformAction: true,
+    });
+
     res.status(201).json({ data: syndicate, message: "Syndicat créé avec succès" });
   } catch (err: any) {
     req.log.error(err);

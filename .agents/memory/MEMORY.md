@@ -14,3 +14,4 @@
 - [Tenant mobile RBAC screens](tenant-mobile-screens.md) — Mon Bail/Documents/Incidents/Travaux now wired to real APIs; recurring gap: list endpoints scope admin branch but forget a personal-scope branch for member/tenant (IDOR).
 - [Language audit key collisions](language-audit-key-conflicts.md) — duplicate/colliding translation keys and `t` variable shadowing pitfalls when migrating screens to the global t()/useLanguage() system.
 - [Drizzle money() vs Zod number type clash](drizzle-money-zod-clash.md) — Drizzle money() columns expect string|SQL|Placeholder; Zod validates amounts as number; fix is `.values({...} as any)` on inserts, `Number(row.balance ?? 0)` before arithmetic on fetched values.
+- [RBAC guard patterns](rbac-guard-patterns.md) — menu hiding isn't access control; use RoleGuard (dominant) for screen self-guarding; reclamationsTable is intentionally platform-wide, not an IDOR; serverAuditLog is opt-in per route.

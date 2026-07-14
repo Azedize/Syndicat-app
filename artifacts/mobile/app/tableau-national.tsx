@@ -24,6 +24,7 @@ import { apiRequest } from "@/lib/api";
 import { useAuth } from "@/context/AuthContext";
 import SyndicateCard, { type SyndicateCardData } from "@/components/SyndicateCard";
 import FilterChips from "@/components/FilterChips";
+import RoleGuard from "@/components/RoleGuard";
 
 interface SyndicateStat {
   id: string;
@@ -97,6 +98,14 @@ function mapEnrichedToStat(e: EnrichedSyndicate): SyndicateStat {
 }
 
 export default function TableauNationalScreen() {
+  return (
+    <RoleGuard allow={["super_admin"]}>
+      <TableauNationalScreenInner />
+    </RoleGuard>
+  );
+}
+
+function TableauNationalScreenInner() {
   const colors = useColors();
   const insets = useSafeAreaInsets();
   const { isWide } = useBreakpoints();

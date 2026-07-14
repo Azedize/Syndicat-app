@@ -23,6 +23,7 @@ import { useBreakpoints } from "@/hooks/useBreakpoints";
 import { useColors } from "@/hooks/useColors";
 import { apiRequest } from "@/lib/api";
 import { getToken } from "@/services/api";
+import RoleGuard from "@/components/RoleGuard";
 
 type ActeType = "convocation" | "decision" | "pv" | "proces_verbal_ag" | "resolution" | "mandat" | "attestation" | "courrier_officiel";
 type ActeStatut = "brouillon" | "valide" | "diffuse" | "archive";
@@ -66,6 +67,14 @@ const TYPES_LIST: ActeType[] = ["convocation", "decision", "pv", "proces_verbal_
 const STATUTS_LIST: ActeStatut[] = ["brouillon", "valide", "diffuse", "archive"];
 
 export default function ActesAdministratifsScreen() {
+  return (
+    <RoleGuard allow={["super_admin", "syndicate_admin"]}>
+      <ActesAdministratifsScreenInner />
+    </RoleGuard>
+  );
+}
+
+function ActesAdministratifsScreenInner() {
   const colors = useColors();
   const insets = useSafeAreaInsets();
   const { user } = useAuth();

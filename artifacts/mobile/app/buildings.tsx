@@ -20,6 +20,7 @@ import { useBreakpoints } from "@/hooks/useBreakpoints";
 import { useColors } from "@/hooks/useColors";
 import { apiRequest } from "@/lib/api";
 import StatCard from "@/components/StatCard";
+import RoleGuard from "@/components/RoleGuard";
 
 type SortKey = "name" | "lots" | "unpaid" | "city";
 
@@ -96,6 +97,14 @@ function aggregateStats(stats: BuildingStats[]) {
 }
 
 export default function BuildingsScreen() {
+  return (
+    <RoleGuard allow={["super_admin", "syndicate_admin"]}>
+      <BuildingsScreenInner />
+    </RoleGuard>
+  );
+}
+
+function BuildingsScreenInner() {
   const colors  = useColors();
   const insets  = useSafeAreaInsets();
   const { user, token } = useAuth();

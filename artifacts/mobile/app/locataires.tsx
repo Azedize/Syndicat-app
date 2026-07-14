@@ -22,6 +22,7 @@ import { useColors } from "@/hooks/useColors";
 import { apiRequest } from "@/lib/api";
 import FilterChips from "@/components/FilterChips";
 import StatisticsHeader from "@/components/StatisticsHeader";
+import RoleGuard from "@/components/RoleGuard";
 
 type Tenant = {
   id: string;
@@ -50,6 +51,14 @@ const STATUS_CONFIG: Record<string, { color: string; label: string; icon: keyof 
 };
 
 export default function LocatairesScreen() {
+  return (
+    <RoleGuard allow={["super_admin", "syndicate_admin"]}>
+      <LocatairesScreenInner />
+    </RoleGuard>
+  );
+}
+
+function LocatairesScreenInner() {
   const colors = useColors();
   const insets = useSafeAreaInsets();
   const { user, token } = useAuth();

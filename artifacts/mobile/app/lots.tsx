@@ -19,6 +19,7 @@ import { useColors } from "@/hooks/useColors";
 import { apiRequest } from "@/lib/api";
 import FilterChips from "@/components/FilterChips";
 import StatisticsHeader from "@/components/StatisticsHeader";
+import RoleGuard from "@/components/RoleGuard";
 
 const LOT_TYPE_ICONS: Record<string, keyof typeof Feather.glyphMap> = {
   appartement: "home",
@@ -67,6 +68,14 @@ type Lot = {
 };
 
 export default function LotsScreen() {
+  return (
+    <RoleGuard allow={["super_admin", "syndicate_admin"]}>
+      <LotsScreenInner />
+    </RoleGuard>
+  );
+}
+
+function LotsScreenInner() {
   const colors = useColors();
   const insets = useSafeAreaInsets();
   const { token } = useAuth();
