@@ -879,6 +879,35 @@ router.get("/conversations/:id/typing", requireAuth, async (req, res) => {
   res.json({ data: getTypingUsers(id, req.user!.userId) });
 });
 
+// ─── Message enrichment helpers ──────────────────────────────────────────────
+
+/**
+ * Filter and mask messages for a specific user:
+ * - Removes messages the user deleted "for themselves" (deletedForUserIds).
+ * - Masks content of "deleted for everyone" messages (keeps tombstone flag).
+ */
+function enrichMessagesForUser(messages: any[], userId: string): any[] {
+  return messages
+    .filter((m) => {
+      try {
+        const deletedFor: string[] = JSON.parse(m.deletedForUserIds ?? "[]");
+        return !deletedFor.includes(userId);
+      } catch {
+        return true;
+      }
+    })
+    .map((m) => {
+      if (!m.isDeletedForEveryone) return m;
+      return {
+        ...m,
+        text: "",
+        attachmentUrl: null,
+        attachmentName: null,
+        attachmentType: null,
+      };
+    });
+}
+
 // ─── Reactions helper ────────────────────────────────────────────────────────
 
 async function loadReactionsByMessage(messageIds: string[], userId: string) {
@@ -934,12 +963,15 @@ router.get("/conversations/:id/messages", requireAuth, async (req, res) => {
     ]);
 
     const reactionMap = await loadReactionsByMessage(messages.map((m) => m.id), req.user!.userId);
-    const enriched = messages.map((m) => ({
-      ...m,
-      isMe: m.senderId === req.user!.userId,
-      senderName: m.senderName ?? "Inconnu",
-      reactions: reactionMap.get(m.id) ?? [],
-    }));
+    const enriched = enrichMessagesForUser(
+      messages.map((m) => ({
+        ...m,
+        isMe: m.senderId === req.user!.userId,
+        senderName: m.senderName ?? "Inconnu",
+        reactions: reactionMap.get(m.id) ?? [],
+      })),
+      req.user!.userId,
+    );
 
     res.json(buildPagedResponse(enriched, Number(total), pagination));
   } catch (err) {
@@ -966,25 +998,37 @@ router.get("/conversations/:id/since", requireAuth, async (req, res) => {
     }
 
     const sinceDate = since ? new Date(since) : new Date(0);
+    // Use an ISO string for raw SQL comparisons — postgres.js does not
+    // accept Date objects inside sql`` template literals.
+    const sinceDateISO = sinceDate.toISOString();
     const messages = await db
       .select()
       .from(messagesTable)
       .where(
         and(
           eq(messagesTable.conversationId, id),
-          gt(messagesTable.createdAt, sinceDate),
+          // Include NEW messages AND recently edited/deleted ones so all
+          // clients see updates without a full refetch.
+          or(
+            gt(messagesTable.createdAt, sinceDate),
+            sql`${messagesTable.editedAt} > ${sinceDateISO}::timestamptz`,
+            sql`${messagesTable.deletedAt} > ${sinceDateISO}::timestamptz`,
+          ),
         ),
       )
       .orderBy(messagesTable.createdAt)
       .limit(50);
 
     const reactionMap = await loadReactionsByMessage(messages.map((m) => m.id), req.user!.userId);
-    const enriched = messages.map((m) => ({
-      ...m,
-      isMe: m.senderId === req.user!.userId,
-      senderName: m.senderName ?? "Inconnu",
-      reactions: reactionMap.get(m.id) ?? [],
-    }));
+    const enriched = enrichMessagesForUser(
+      messages.map((m) => ({
+        ...m,
+        isMe: m.senderId === req.user!.userId,
+        senderName: m.senderName ?? "Inconnu",
+        reactions: reactionMap.get(m.id) ?? [],
+      })),
+      req.user!.userId,
+    );
 
     res.json({ data: enriched, typing: getTypingUsers(id, req.user!.userId) });
   } catch (err) {
@@ -1167,16 +1211,94 @@ router.post("/conversations/:id/messages", requireAuth, async (req, res) => {
   }
 });
 
-// ─── DELETE /messages/:id — soft-delete own message ─────────────────────────
+// ─── DELETE /messages/:id ─────────────────────────────────────────────────────
+// Two modes:
+//   "for_me"       — hides message from the requesting user only (any participant)
+//   "for_everyone" — tombstone visible to all; sender only; 60-minute window
 
 router.delete("/messages/:id", requireAuth, async (req, res) => {
   const id = String(req.params.id);
+  const mode = (req.body?.mode ?? "for_everyone") as "for_me" | "for_everyone";
   try {
     const [msg] = await db.select().from(messagesTable).where(eq(messagesTable.id, id));
     if (!msg) { res.status(404).json({ error: "Message introuvable" }); return; }
-    if (msg.senderId !== req.user!.userId) { res.status(403).json({ error: "Accès refusé" }); return; }
-    await db.update(messagesTable).set({ text: "", deletedAt: new Date(), attachmentUrl: null }).where(eq(messagesTable.id, id));
-    res.json({ message: "Message supprimé" });
+
+    if (mode === "for_me") {
+      // Any conversation participant may hide a message for themselves
+      const canAccess = await canAccessConversation(
+        req.user!.userId, req.user!.syndicateId || "", msg.conversationId,
+      );
+      if (!canAccess) { res.status(403).json({ error: "Accès refusé" }); return; }
+
+      let deletedFor: string[] = [];
+      try { deletedFor = JSON.parse(msg.deletedForUserIds ?? "[]"); } catch { /* ignore */ }
+      if (!deletedFor.includes(req.user!.userId)) deletedFor.push(req.user!.userId);
+
+      await db.update(messagesTable)
+        .set({ deletedForUserIds: JSON.stringify(deletedFor) })
+        .where(eq(messagesTable.id, id));
+      res.json({ message: "Message supprimé pour vous", mode: "for_me" });
+      return;
+    }
+
+    // "for_everyone" — sender only; within 60 minutes
+    if (msg.senderId !== req.user!.userId) {
+      res.status(403).json({ error: "Vous ne pouvez supprimer que vos propres messages" });
+      return;
+    }
+    const ageMins = (Date.now() - new Date(msg.createdAt!).getTime()) / 60_000;
+    if (ageMins > 60) {
+      res.status(400).json({ error: "Délai de suppression dépassé (60 minutes)", code: "EXPIRED" });
+      return;
+    }
+
+    await db.update(messagesTable)
+      .set({
+        text: "",
+        deletedAt: new Date(),
+        isDeletedForEveryone: true,
+        attachmentUrl: null,
+        attachmentName: null,
+        attachmentType: null,
+      })
+      .where(eq(messagesTable.id, id));
+    res.json({ message: "Message supprimé pour tous", mode: "for_everyone" });
+  } catch (err) { req.log.error(err); res.status(500).json({ error: "Erreur serveur" }); }
+});
+
+// ─── PATCH /messages/:id — edit own text message (15-minute window) ──────────
+
+router.patch("/messages/:id", requireAuth, async (req, res) => {
+  const id = String(req.params.id);
+  const schema = z.object({ text: z.string().min(1).max(10_000) });
+  const parsed = schema.safeParse(req.body);
+  if (!parsed.success) { res.status(400).json({ error: "Texte invalide" }); return; }
+  try {
+    const [msg] = await db.select().from(messagesTable).where(eq(messagesTable.id, id));
+    if (!msg) { res.status(404).json({ error: "Message introuvable" }); return; }
+    if (msg.senderId !== req.user!.userId) {
+      res.status(403).json({ error: "Vous ne pouvez modifier que vos propres messages" });
+      return;
+    }
+    if (msg.isDeletedForEveryone) {
+      res.status(400).json({ error: "Ce message a été supprimé" });
+      return;
+    }
+    if (msg.messageType !== "text") {
+      res.status(400).json({ error: "Seuls les messages texte peuvent être modifiés" });
+      return;
+    }
+    const ageMins = (Date.now() - new Date(msg.createdAt!).getTime()) / 60_000;
+    if (ageMins > 15) {
+      res.status(400).json({ error: "Délai de modification dépassé (15 minutes)", code: "EXPIRED" });
+      return;
+    }
+    const [updated] = await db
+      .update(messagesTable)
+      .set({ text: parsed.data.text, editedAt: new Date() })
+      .where(eq(messagesTable.id, id))
+      .returning();
+    res.json({ data: { ...updated, isMe: true, reactions: [] } });
   } catch (err) { req.log.error(err); res.status(500).json({ error: "Erreur serveur" }); }
 });
 

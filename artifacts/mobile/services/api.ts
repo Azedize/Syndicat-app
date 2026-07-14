@@ -648,8 +648,17 @@ export const chat = {
       body: JSON.stringify({ text }),
     }),
 
-  deleteMessage: (messageId: string) =>
-    request<{ message: string }>(`/messages/${messageId}`, { method: "DELETE" }),
+  deleteMessage: (messageId: string, mode: "for_me" | "for_everyone" = "for_everyone") =>
+    request<{ message: string; mode: string }>(`/messages/${messageId}`, {
+      method: "DELETE",
+      body: JSON.stringify({ mode }),
+    }),
+
+  editMessage: (messageId: string, text: string) =>
+    request<{ data: Record<string, unknown> }>(`/messages/${messageId}`, {
+      method: "PATCH",
+      body: JSON.stringify({ text }),
+    }),
 
   react: (messageId: string, emoji: string) =>
     request<{ message: string }>(`/messages/${messageId}/reactions`, {

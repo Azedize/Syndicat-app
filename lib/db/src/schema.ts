@@ -878,6 +878,13 @@ export const messagesTable = pgTable(
     attachmentSize: integer("attachment_size"), // bytes
     durationSeconds: integer("duration_seconds"), // for voice notes
     deletedAt: timestamp("deleted_at"),
+    // Edit support — tracks when sender last modified the message text
+    editedAt: timestamp("edited_at"),
+    // Deletion modes
+    // "Delete for everyone" — tombstone visible to all participants (content cleared)
+    isDeletedForEveryone: boolean("is_deleted_for_everyone").default(false),
+    // "Delete for me" — JSON array of user IDs who hid this message from their own view
+    deletedForUserIds: text("deleted_for_user_ids"),
     createdAt: createdAt(),
   },
   (t) => [

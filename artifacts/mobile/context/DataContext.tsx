@@ -181,6 +181,10 @@ export interface ChatMessage {
   durationSeconds?: number | null;
   reactions?: { emoji: string; count: number; mine: boolean }[];
   createdAt?: string;
+  /** ISO timestamp of last edit; null/undefined = never edited */
+  editedAt?: string | null;
+  /** True when sender deleted for everyone — content cleared, tombstone shown */
+  isDeletedForEveryone?: boolean;
 }
 
 export interface Syndicate {
