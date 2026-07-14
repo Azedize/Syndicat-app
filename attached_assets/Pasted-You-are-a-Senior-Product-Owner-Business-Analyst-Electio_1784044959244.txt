@@ -1,0 +1,268 @@
+You are a Senior Product Owner, Business Analyst, Election System Architect, Security Architect, and Moroccan Condominium Management Expert.
+
+Mission:
+
+Design and implement a complete production-ready Election Management System for a Moroccan Condominium (Syndicat de Copropriété).
+
+Do not create a simple voting screen.
+
+Design the complete election lifecycle.
+
+==================================================
+PHASE 1 — ELECTION CREATION
+==================================================
+
+Only Syndicate Admin can create an election.
+
+Election types:
+
+- Syndicate President
+- Syndicate Board
+- Financial Committee
+- Maintenance Committee
+- Building Representative
+- Special Election
+
+Election configuration:
+
+- Title
+- Description
+- Election Type
+- Building Scope
+- Eligible Voters
+- Start Date
+- End Date
+- Voting Method
+- Required Quorum
+- Required Majority
+
+==================================================
+PHASE 2 — CANDIDATE REGISTRATION
+==================================================
+
+Eligible members can submit candidacies.
+
+Each candidate must provide:
+
+- Full Name
+- Apartment Number
+- Building
+- Biography
+- Motivation Letter
+- Program
+- Photo
+
+Workflow:
+
+Submitted
+→ Pending Validation
+→ Approved
+→ Rejected
+
+Only Syndicate Admin can validate candidates.
+
+==================================================
+PHASE 3 — CAMPAIGN PERIOD
+==================================================
+
+Before voting begins:
+
+Candidates can publish:
+
+- Program
+- Objectives
+- Proposals
+- Messages
+
+Members can:
+
+- View candidates
+- Compare candidates
+- Ask questions
+- Read programs
+
+==================================================
+PHASE 4 — VOTING PROCESS
+==================================================
+
+Eligible voters:
+
+- Owners (Members)
+- Authorized Representatives
+
+Tenants cannot vote unless explicitly authorized.
+
+Voting rules:
+
+- One vote per eligible voter
+- No duplicate votes
+- Anonymous vote
+- Secure vote storage
+
+Vote options:
+
+- Candidate A
+- Candidate B
+- Candidate C
+- Abstention
+
+==================================================
+PHASE 5 — QUORUM MANAGEMENT
+==================================================
+
+System automatically calculates:
+
+- Number of eligible voters
+- Number of participants
+- Participation rate
+- Quorum reached or not
+
+If quorum not reached:
+
+Election status:
+
+- Invalid
+- Requires second round
+
+==================================================
+PHASE 6 — RESULTS
+==================================================
+
+After election closes:
+
+Automatically calculate:
+
+- Total votes
+- Participation rate
+- Invalid votes
+- Abstentions
+- Winner
+
+Display:
+
+- Ranking
+- Statistics
+- Charts
+
+==================================================
+PHASE 7 — ELECTED MEMBERS
+==================================================
+
+After validation:
+
+Automatically create mandates:
+
+- President
+- Vice President
+- Secretary
+- Treasurer
+- Committee Members
+
+Store:
+
+- Start Date
+- End Date
+- Status
+
+==================================================
+PHASE 8 — NOTIFICATIONS
+==================================================
+
+Send notifications:
+
+- Election announced
+- Candidate approved
+- Voting opened
+- Voting closing soon
+- Results published
+
+Support:
+
+- Push Notifications
+- Email
+- In-App Notifications
+
+==================================================
+PHASE 9 — SECURITY
+==================================================
+
+Prevent:
+
+- Double voting
+- Vote modification
+- Vote deletion
+- Unauthorized access
+
+Audit every action.
+
+Store:
+
+- Voter
+- Timestamp
+- Device
+- IP Address (if applicable)
+
+==================================================
+PHASE 10 — MOBILE APP UX
+==================================================
+
+Create screens:
+
+1. Elections List
+2. Election Details
+3. Candidate Profile
+4. Voting Screen
+5. Results Screen
+6. Elected Members Screen
+
+Add:
+
+- Loading States
+- Empty States
+- Error States
+- RTL Support
+- Arabic Support
+- French Support
+- English Support
+- Spanish Support
+
+==================================================
+PHASE 11 — SPECIAL SCENARIOS
+==================================================
+
+Scenario A:
+President resigns before mandate ends.
+
+Scenario B:
+Candidate withdraws.
+
+Scenario C:
+Tie between candidates.
+
+Scenario D:
+Quorum not reached.
+
+Scenario E:
+Election challenged by members.
+
+Scenario F:
+Emergency election.
+
+Implement workflows for all cases.
+
+==================================================
+PHASE 12 — FINAL REPORT
+==================================================
+
+Generate:
+
+1. Election Workflow
+2. Database Design
+3. API Design
+4. Mobile Screens
+5. Security Design
+6. Notification Workflow
+7. Edge Cases
+8. Production Readiness Score
+
+Implement a complete professional election system suitable for Moroccan condominium management.

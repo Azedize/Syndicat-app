@@ -20,6 +20,7 @@ import {
   meetingsTable,
   meetingAttendeesTable,
   membersTable,
+  tenantsTable,
   syndicatesTable,
   usersTable,
   lotsTable,
@@ -57,6 +58,59 @@ function formatMoney(v?: number | string | null): string {
 function getSyndicate(syndicateId?: string | null) {
   if (!syndicateId) return null;
   return db.select().from(syndicatesTable).where(eq(syndicatesTable.id, syndicateId)).then((r) => r[0] ?? null);
+}
+
+const ROLE_LABELS: Record<string, string> = {
+  super_admin: "Super Administrateur",
+  syndicate_admin: "Administrateur du Syndicat",
+  member: "Propriétaire",
+  tenant: "Locataire",
+};
+
+/**
+ * Resolves the real-world identity context for a badge: role, lot/apartment,
+ * building and syndicate — by joining through the member or tenant record
+ * that shares the user's email (there is no direct FK from users to
+ * members/tenants in this schema).
+ */
+async function getBadgeContext(user: typeof usersTable.$inferSelect) {
+  const syndicate = await getSyndicate(user.syndicateId);
+
+  if (user.role === "tenant") {
+    const [tenant] = await db.select().from(tenantsTable).where(eq(tenantsTable.email, user.email));
+    const lot = tenant?.lotId
+      ? await db.select().from(lotsTable).where(eq(lotsTable.id, tenant.lotId)).then((r) => r[0] ?? null)
+      : null;
+    const building = tenant?.buildingId
+      ? await db.select().from(buildingsTable).where(eq(buildingsTable.id, tenant.buildingId)).then((r) => r[0] ?? null)
+      : null;
+    return {
+      syndicate,
+      building,
+      lot,
+      joinDate: tenant?.leaseStart ?? null,
+      emergencyContact: tenant?.emergencyContact ?? null,
+      emergencyPhone: tenant?.emergencyPhone ?? null,
+      phone: tenant?.phone ?? user.phone ?? null,
+    };
+  }
+
+  const [member] = await db.select().from(membersTable).where(eq(membersTable.email, user.email));
+  const lot = member
+    ? await db.select().from(lotsTable).where(eq(lotsTable.ownerId, member.id)).then((r) => r[0] ?? null)
+    : null;
+  const building = lot?.buildingId
+    ? await db.select().from(buildingsTable).where(eq(buildingsTable.id, lot.buildingId)).then((r) => r[0] ?? null)
+    : null;
+  return {
+    syndicate,
+    building,
+    lot,
+    joinDate: member?.joinDate ?? null,
+    emergencyContact: null,
+    emergencyPhone: null,
+    phone: member?.phone ?? user.phone ?? null,
+  };
 }
 
 /**
@@ -533,6 +587,165 @@ router.get("/pdf/membership/:userId", requireAuth, async (req, res) => {
   }
 });
 
+// ─── GET /pdf/badge/:userId ───────────────────────────────────────────────────
+// Digital ID card as a printable PDF — two pages: recto (front) and verso (back),
+// sized like a real ID card, mirroring the front/back faces shown in the mobile
+// app's BadgeCard component.
+
+const CARD_W = 243; // ~85.6mm — standard ID card width in points
+const CARD_H = 153; // ~53.98mm — standard ID card height in points
+
+const CARD_THEMES: Record<string, { bg: string; accent: string; text: string; roleLabel: string }> = {
+  super_admin: { bg: "#111827", accent: "#d4af37", text: "#f5f0e0", roleLabel: "DIRECTION" },
+  syndicate_admin: { bg: "#5b21b6", accent: "#e9d5ff", text: "#ffffff", roleLabel: "GESTION" },
+  member: { bg: "#065f46", accent: "#d1fae5", text: "#ffffff", roleLabel: "RÉSIDENT" },
+  tenant: { bg: "#1e3a8a", accent: "#dbeafe", text: "#ffffff", roleLabel: "LOCATAIRE" },
+};
+
+function badgeVerificationCode(badgeId: string): string {
+  let hash = 0;
+  for (let i = 0; i < badgeId.length; i++) {
+    hash = (hash * 31 + badgeId.charCodeAt(i)) & 0xffffffff;
+  }
+  const code = Math.abs(hash).toString(36).toUpperCase().padStart(6, "0").slice(0, 6);
+  return `${code.slice(0, 3)}-${code.slice(3)}`;
+}
+
+router.get("/pdf/badge/:userId", requireAuth, async (req, res) => {
+  const userId = String(req.params.userId) as string;
+  if (req.user!.role !== "super_admin" && req.user!.role !== "syndicate_admin" && req.user!.userId !== userId) {
+    res.status(403).json({ error: "Accès refusé" }); return;
+  }
+  try {
+    const [user] = await db.select().from(usersTable).where(eq(usersTable.id, userId));
+    if (!user) { res.status(404).json({ error: "Utilisateur introuvable" }); return; }
+    const ctx = await getBadgeContext(user);
+
+    const theme = CARD_THEMES[user.role] ?? CARD_THEMES.member;
+    const rolePrefix = { super_admin: "SA", syndicate_admin: "AD", member: "PR", tenant: "LO" }[user.role] ?? "MB";
+    const badgeId = `SGC-${rolePrefix}-${user.id.slice(-8).toUpperCase()}`;
+    const initials = user.name.split(" ").map((n) => n[0]).join("").slice(0, 2).toUpperCase();
+    const issueDate = ctx.joinDate ?? (user.createdAt ? new Date(user.createdAt as any).toISOString().split("T")[0] : null);
+    const isActive = user.status === "active";
+    const locationLine = [ctx.building?.name, ctx.lot ? `Lot ${ctx.lot.number}` : null].filter(Boolean).join(" · ");
+    const verifyUrl = `${process.env.APP_URL ?? "https://syndycat.app"}/verify/badge/${userId}`;
+    const qrDataUrl = await QRCode.toDataURL(verifyUrl, { width: 200, margin: 0, color: { dark: "#111827", light: "#ffffff" } });
+    const verifCode = badgeVerificationCode(badgeId);
+
+    const bg = (color: string) => ({ canvas: [{ type: "rect", x: 0, y: 0, w: CARD_W, h: CARD_H, color }] });
+
+    // ─ Recto (front) ─
+    const front = [
+      bg(theme.bg),
+      { text: "SYNDYCAT GLOBAL CPS", color: theme.text, bold: true, fontSize: 9.5, absolutePosition: { x: 16, y: 14 } },
+      { text: "Carte d'identité officielle", color: theme.accent, fontSize: 7, absolutePosition: { x: 16, y: 25 } },
+      {
+        canvas: [{ type: "rect", x: 0, y: 0, w: 78, h: 15, r: 8, color: theme.bg, lineColor: theme.accent, lineWidth: 1 }],
+        absolutePosition: { x: 149, y: 13 },
+      },
+      { text: theme.roleLabel, color: theme.accent, bold: true, fontSize: 6.5, absolutePosition: { x: 149, y: 17 }, width: 78, alignment: "center" },
+      {
+        canvas: [{ type: "ellipse", x: 22, y: 22, r1: 22, r2: 22, color: "#ffffff", fillOpacity: 0.15, lineColor: theme.accent, lineWidth: 1 }],
+        absolutePosition: { x: 16, y: 40 },
+      },
+      { text: initials, color: theme.text, bold: true, fontSize: 15, absolutePosition: { x: 22, y: 55 } },
+      { text: user.name, color: theme.text, bold: true, fontSize: 13, absolutePosition: { x: 74, y: 44 }, width: 155 },
+      { text: ROLE_LABELS[user.role] ?? user.role, color: theme.accent, bold: true, fontSize: 9, absolutePosition: { x: 74, y: 60 } },
+      ...(ctx.syndicate?.name ? [{ text: ctx.syndicate.name, color: theme.text, fontSize: 8, absolutePosition: { x: 74, y: 73 }, width: 155 }] : []),
+      ...(locationLine ? [{ text: locationLine, color: theme.text, opacity: 0.85, fontSize: 8, absolutePosition: { x: 74, y: 84 }, width: 155 }] : []),
+      { canvas: [{ type: "line", x1: 0, y1: 0, x2: CARD_W - 32, y2: 0, lineWidth: 0.5, lineColor: theme.accent }], absolutePosition: { x: 16, y: 108 } },
+      {
+        canvas: [{ type: "rect", x: 0, y: 0, w: 60, h: 13, r: 7, color: isActive ? "#4ade8030" : "#f8717130" }],
+        absolutePosition: { x: 16, y: 116 },
+      },
+      { text: isActive ? "● ACTIF" : "● SUSPENDU", color: isActive ? "#4ade80" : "#f87171", bold: true, fontSize: 7, absolutePosition: { x: 22, y: 119 } },
+      { text: badgeId, color: theme.accent, bold: true, fontSize: 9, absolutePosition: { x: 16, y: 131 } },
+      { text: `Délivrée le ${formatDate(issueDate as any)}`, color: theme.text, opacity: 0.7, fontSize: 6.5, absolutePosition: { x: 16, y: 142 } },
+      { image: qrDataUrl, width: 38, height: 38, absolutePosition: { x: 189, y: 105 } },
+    ];
+
+    // ─ Verso (back) ─
+    const back = [
+      bg(theme.bg),
+      { text: "VÉRIFICATION D'IDENTITÉ", color: theme.text, bold: true, fontSize: 10, absolutePosition: { x: 16, y: 14 } },
+      { image: qrDataUrl, width: 58, height: 58, absolutePosition: { x: 16, y: 34 } },
+      { text: "CODE DE VÉRIFICATION", color: theme.accent, fontSize: 6.5, bold: true, absolutePosition: { x: 86, y: 36 } },
+      { text: verifCode, color: theme.text, bold: true, fontSize: 13, absolutePosition: { x: 86, y: 45 } },
+      { text: "SUPPORT", color: theme.accent, fontSize: 6.5, bold: true, absolutePosition: { x: 86, y: 66 } },
+      { text: "support@syndycat.app", color: theme.text, fontSize: 8.5, absolutePosition: { x: 86, y: 75 } },
+      { canvas: [{ type: "line", x1: 0, y1: 0, x2: CARD_W - 32, y2: 0, lineWidth: 0.5, lineColor: theme.accent }], absolutePosition: { x: 16, y: 98 } },
+      ...(ctx.emergencyContact || ctx.emergencyPhone || ctx.phone ? [
+        { text: "CONTACT D'URGENCE", color: theme.accent, fontSize: 6.5, bold: true, absolutePosition: { x: 16, y: 104 } },
+        { text: `${ctx.emergencyContact ?? user.name} · ${ctx.emergencyPhone ?? ctx.phone ?? "—"}`, color: theme.text, fontSize: 7.5, absolutePosition: { x: 16, y: 113 }, width: CARD_W - 32 },
+      ] : []),
+      {
+        text: "Cette carte est la propriété de SYNDYCAT GLOBAL CPS. En cas de perte, merci de la retourner ou de contacter le support. Toute falsification est passible de poursuites.",
+        color: theme.text,
+        opacity: 0.75,
+        fontSize: 5.8,
+        absolutePosition: { x: 16, y: 131 },
+        width: CARD_W - 32,
+      },
+    ];
+
+    const docDef = {
+      pageSize: { width: CARD_W, height: CARD_H },
+      pageMargins: [0, 0, 0, 0],
+      content: [
+        { stack: front },
+        { stack: back, pageBreak: "before" },
+      ],
+    };
+
+    await sendPdf(res, docDef, `carte-identite-${user.name.replace(/\s+/g, "-")}.pdf`);
+  } catch (err) {
+    req.log.error({ err }, "PDF badge error");
+    res.status(500).json({ error: "Erreur de génération PDF" });
+  }
+});
+
+// ─── GET /badge/me ────────────────────────────────────────────────────────────
+// Authenticated — returns the full real-data payload the mobile app renders
+// on the digital identity badge (front + back faces).
+
+router.get("/badge/me", requireAuth, async (req, res) => {
+  try {
+    const [user] = await db.select().from(usersTable).where(eq(usersTable.id, req.user!.userId));
+    if (!user) { res.status(404).json({ error: "Utilisateur introuvable" }); return; }
+    const ctx = await getBadgeContext(user);
+
+    const issueDate = ctx.joinDate ?? (user.createdAt ? new Date(user.createdAt as any).toISOString().split("T")[0] : null);
+    const rolePrefix = { super_admin: "SA", syndicate_admin: "AD", member: "PR", tenant: "LO" }[user.role] ?? "MB";
+    const badgeId = `SGC-${rolePrefix}-${user.id.slice(-8).toUpperCase()}`;
+
+    res.json({
+      data: {
+        badgeId,
+        userId: user.id,
+        name: user.name,
+        role: user.role,
+        roleLabel: ROLE_LABELS[user.role] ?? user.role,
+        avatar: user.avatar ?? null,
+        cin: user.cin ?? null,
+        phone: ctx.phone,
+        email: user.email,
+        status: user.status,
+        syndicateName: ctx.syndicate?.name ?? null,
+        buildingName: ctx.building?.name ?? null,
+        lotNumber: ctx.lot ? `${ctx.lot.number}` : null,
+        lotFloor: ctx.lot?.floor ?? null,
+        issueDate,
+        emergencyContact: ctx.emergencyContact,
+        emergencyPhone: ctx.emergencyPhone,
+        verifyUrl: `${process.env.APP_URL ?? "https://syndycat.app"}/verify/badge/${user.id}`,
+      },
+    });
+  } catch (err) {
+    req.log.error({ err }, "Badge me error");
+    res.status(500).json({ error: "Erreur serveur" });
+  }
+});
+
 // ─── GET /verify/badge/:userId ─────────────────────────────────────────────────
 // Public endpoint — no auth required — for QR code verification
 
@@ -541,20 +754,19 @@ router.get("/verify/badge/:userId", async (req, res) => {
   try {
     const [user] = await db.select().from(usersTable).where(eq(usersTable.id, userId));
     if (!user) { res.status(404).json({ valid: false, error: "Badge introuvable" }); return; }
-    const syndicate = await getSyndicate(user.syndicateId);
-    const [member] = await db.select().from(membersTable).where(eq(membersTable.email, user.email));
-    const lot = member
-      ? await db.select().from(lotsTable).where(eq(lotsTable.ownerId, member.id)).then((r) => r[0] ?? null)
-      : null;
+    const ctx = await getBadgeContext(user);
     // Public endpoint (anyone scanning the QR badge) — must not leak contact PII
-    // such as email; only what's needed to confirm the badge is legitimate.
+    // such as email or phone; only what's needed to confirm the badge is legitimate.
     res.json({
       valid: true,
       name: user.name,
-      syndicateName: syndicate?.name ?? null,
-      lot: lot ? `N° ${lot.number} — Étage ${lot.floor ?? 0}` : null,
-      status: "MEMBRE ACTIF",
-      joinDate: member?.joinDate ?? (user.createdAt ? new Date(user.createdAt as any).toISOString().split("T")[0] : null),
+      role: user.role,
+      roleLabel: ROLE_LABELS[user.role] ?? user.role,
+      syndicateName: ctx.syndicate?.name ?? null,
+      buildingName: ctx.building?.name ?? null,
+      lot: ctx.lot ? `N° ${ctx.lot.number} — Étage ${ctx.lot.floor ?? 0}` : null,
+      status: user.status === "active" ? "ACTIF" : "SUSPENDU",
+      joinDate: ctx.joinDate ?? (user.createdAt ? new Date(user.createdAt as any).toISOString().split("T")[0] : null),
       verifiedAt: new Date().toISOString(),
     });
   } catch (err) {

@@ -1744,6 +1744,29 @@ export const TRANSLATIONS: Translations = {
   demandsTitle:             { fr: "Revendications", en: "Demands", ar: "المطالب", es: "Reivindicaciones" },
   updatesTitle:             { fr: "Mises à jour", en: "Updates", ar: "التحديثات", es: "Actualizaciones" },
   organizerLabel:           { fr: "Organisateur", en: "Organizer", ar: "المنظم", es: "Organizador" },
+
+  // ── Digital identity badge ──────────────────────────────────────────────────
+  badgeModalTitle:          { fr: "Carte d'identité numérique", en: "Digital ID card", ar: "بطاقة الهوية الرقمية", es: "Tarjeta de identidad digital" },
+  badgeLoadError:           { fr: "Impossible de charger votre badge.", en: "Unable to load your badge.", ar: "تعذر تحميل بطاقتك.", es: "No se pudo cargar su tarjeta." },
+  badgeOfficialId:          { fr: "Identité officielle", en: "Official identity", ar: "الهوية الرسمية", es: "Identidad oficial" },
+  badgeStyleExecutive:      { fr: "Direction", en: "Executive", ar: "الإدارة العليا", es: "Dirección" },
+  badgeStyleManagement:     { fr: "Gestion", en: "Management", ar: "الإدارة", es: "Gestión" },
+  badgeStyleResident:       { fr: "Propriétaire", en: "Resident", ar: "مالك", es: "Propietario" },
+  badgeStyleTenant:         { fr: "Locataire", en: "Tenant", ar: "مستأجر", es: "Inquilino" },
+  badgeStatusActive:        { fr: "Actif", en: "Active", ar: "نشط", es: "Activo" },
+  badgeStatusSuspended:     { fr: "Suspendu", en: "Suspended", ar: "معلق", es: "Suspendido" },
+  badgeIssued:              { fr: "Délivré le", en: "Issued", ar: "تاريخ الإصدار", es: "Emitido el" },
+  badgeVerification:        { fr: "Vérification du badge", en: "Badge verification", ar: "التحقق من البطاقة", es: "Verificación de la tarjeta" },
+  badgeVerificationCode:    { fr: "Code de vérification", en: "Verification code", ar: "رمز التحقق", es: "Código de verificación" },
+  badgeSupportContact:      { fr: "Contact support", en: "Support contact", ar: "جهة اتصال الدعم", es: "Contacto de soporte" },
+  badgeEmergencyContact:    { fr: "Contact d'urgence", en: "Emergency contact", ar: "جهة الاتصال في حالات الطوارئ", es: "Contacto de emergencia" },
+  badgeTermsOfUse:          { fr: "Cette carte est la propriété du syndicat et doit être présentée sur demande. Toute falsification est passible de poursuites.", en: "This card remains the property of the syndicate and must be presented on request. Any forgery is subject to legal action.", ar: "هذه البطاقة ملك للنقابة ويجب تقديمها عند الطلب. أي تزوير يعرض صاحبه للمتابعة القانونية.", es: "Esta tarjeta es propiedad del sindicato y debe presentarse cuando se solicite. Cualquier falsificación es objeto de acciones legales." },
+  badgeFlipFront:           { fr: "Voir le recto", en: "View front", ar: "عرض الوجه الأمامي", es: "Ver el frente" },
+  badgeFlipBack:            { fr: "Voir le verso", en: "View back", ar: "عرض الوجه الخلفي", es: "Ver el reverso" },
+  badgeDownloadPdf:         { fr: "Télécharger la carte (PDF recto-verso)", en: "Download ID card (front & back PDF)", ar: "تحميل البطاقة (PDF وجه وظهر)", es: "Descargar la tarjeta (PDF anverso y reverso)" },
+  badgeDownloadCertificate: { fr: "Télécharger l'attestation d'adhésion", en: "Download membership certificate", ar: "تحميل شهادة الانتساب", es: "Descargar el certificado de afiliación" },
+  badgeShareLink:           { fr: "Partager le lien de vérification", en: "Share verification link", ar: "مشاركة رابط التحقق", es: "Compartir enlace de verificación" },
+  badgeHint:                { fr: "Présentez ce badge ou scannez le QR code pour vérifier votre identité.", en: "Present this badge or scan the QR code to verify your identity.", ar: "قدّم هذه البطاقة أو مسح رمز QR للتحقق من هويتك.", es: "Presente esta tarjeta o escanee el código QR para verificar su identidad." },
 };
 
 interface LanguageContextValue {

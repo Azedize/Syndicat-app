@@ -16,7 +16,9 @@ import {
   View,
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
+import BadgeCard from "@/components/BadgeCard";
 import { useAuth } from "@/context/AuthContext";
+import { useLanguage } from "@/context/LanguageContext";
 import { useBreakpoints } from "@/hooks/useBreakpoints";
 import { useColors } from "@/hooks/useColors";
 import { auth as authApi, getToken } from "@/services/api";
@@ -24,7 +26,8 @@ import { auth as authApi, getToken } from "@/services/api";
 export default function ProfileScreen() {
   const colors = useColors();
   const insets = useSafeAreaInsets();
-  const { user, updateUser } = useAuth();
+  const { user, updateUser, token } = useAuth();
+  const { t, isRTL } = useLanguage();
   const [editing, setEditing] = useState(false);
   const [name, setName] = useState(user?.name ?? "");
   const [phone, setPhone] = useState(user?.phone ?? "");
@@ -96,19 +99,36 @@ export default function ProfileScreen() {
     }
   };
 
+  const getApiBase = () => {
+    const domain = process.env.EXPO_PUBLIC_DOMAIN;
+    return domain
+      ? `https://${domain}`
+      : `http://localhost:${process.env.EXPO_PUBLIC_API_PORT ?? "8080"}`;
+  };
+
   const handleAttestation = async () => {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
     try {
       const currentToken = await getToken();
-      const domain = process.env.EXPO_PUBLIC_DOMAIN;
-      const base = domain
-        ? `https://${domain}`
-        : `http://localhost:${process.env.EXPO_PUBLIC_API_PORT ?? "8080"}`;
       const tokenParam = currentToken ? `?token=${encodeURIComponent(currentToken)}` : "";
-      const url = `${base}/api/pdf/membership/${user?.id}${tokenParam}`;
+      const url = `${getApiBase()}/api/pdf/membership/${user?.id}${tokenParam}`;
       await Linking.openURL(url);
     } catch {
       Alert.alert("Erreur", "Impossible de générer l'attestation. Vérifiez votre connexion.");
+    }
+  };
+
+  // Downloads the digital ID card as a 2-page PDF (recto + verso) matching the
+  // BadgeCard preview shown in the modal.
+  const handleDownloadBadgeCard = async () => {
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+    try {
+      const currentToken = await getToken();
+      const tokenParam = currentToken ? `?token=${encodeURIComponent(currentToken)}` : "";
+      const url = `${getApiBase()}/api/pdf/badge/${user?.id}${tokenParam}`;
+      await Linking.openURL(url);
+    } catch {
+      Alert.alert("Erreur", "Impossible de générer la carte. Vérifiez votre connexion.");
     }
   };
 
@@ -311,57 +331,55 @@ export default function ProfileScreen() {
         </View>
       </ScrollView>
 
-      {/* QR Code Membre modal */}
+      {/* Digital identity badge modal */}
       <Modal visible={showQR} transparent animationType="fade">
         <View style={[styles.qrOverlay]}>
           <View style={[styles.qrCard, { backgroundColor: colors.card }]}>
-            <View style={styles.qrHeader}>
-              <Text style={[styles.qrTitle, { color: colors.foreground }]}>QR Code Membre</Text>
+            <View style={[styles.qrHeader, isRTL && { flexDirection: "row-reverse" }]}>
+              <Text style={[styles.qrTitle, { color: colors.foreground }]}>{t("badgeModalTitle")}</Text>
               <TouchableOpacity onPress={() => setShowQR(false)}>
                 <Feather name="x" size={22} color={colors.mutedForeground} />
               </TouchableOpacity>
             </View>
-            <View style={[styles.qrBox, { backgroundColor: colors.background, borderColor: colors.border }]}>
-              {/* Simulated QR code using a grid pattern */}
-              <View style={styles.qrGrid}>
-                {Array.from({ length: 7 }, (_, row) =>
-                  Array.from({ length: 7 }, (_, col) => {
-                    const isCorner = (row < 2 && col < 2) || (row < 2 && col > 4) || (row > 4 && col < 2);
-                    const isBorder = (row === 0 || row === 6 || col === 0 || col === 6) && !isCorner;
-                    const isFilled = isCorner || (row === 3 && col % 2 === 0) || (col === 3 && row % 2 === 0) || Math.random() > 0.6;
-                    return (
-                      <View
-                        key={`${row}-${col}`}
-                        style={[
-                          styles.qrCell,
-                          { backgroundColor: isFilled || isBorder ? colors.foreground : colors.background },
-                        ]}
-                      />
-                    );
-                  })
-                )}
-              </View>
-            </View>
-            <View style={[styles.qrInfoBox, { backgroundColor: colors.primary + "10", borderColor: colors.primary + "30" }]}>
-              <Text style={[styles.qrMemberName, { color: colors.foreground }]}>{user?.name}</Text>
-              <Text style={[styles.qrMemberEmail, { color: colors.mutedForeground }]}>{user?.email}</Text>
-              <View style={[styles.qrMemberIdBox, { backgroundColor: colors.primary }]}>
-                <Text style={styles.qrMemberId}>ID: SNE-{user?.id.slice(0, 6).toUpperCase() ?? "000000"}</Text>
-              </View>
-            </View>
+
+            <BadgeCard />
+
             <Text style={[styles.qrHint, { color: colors.mutedForeground }]}>
-              Présentez ce code pour vérifier votre adhésion
+              {t("badgeHint")}
             </Text>
-            <TouchableOpacity
-              style={[styles.qrShareBtn, { backgroundColor: colors.primary }]}
-              onPress={() => {
-                Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
-                shareContent(`Mon QR Code membre SYNDYCAT\nID: ${user?.id ?? "MBR-001"}\n${user?.name ?? "Membre"}`, "QR Code Membre SYNDYCAT");
-              }}
-            >
-              <Feather name="share-2" size={16} color="#fff" />
-              <Text style={styles.qrShareBtnText}>Partager le QR Code</Text>
-            </TouchableOpacity>
+
+            <View style={{ gap: 8 }}>
+              <TouchableOpacity
+                style={[styles.qrShareBtn, { backgroundColor: colors.primary }]}
+                onPress={handleDownloadBadgeCard}
+              >
+                <Feather name="download" size={16} color="#fff" />
+                <Text style={styles.qrShareBtnText}>{t("badgeDownloadPdf")}</Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={[styles.qrShareBtnOutline, { borderColor: colors.primary }]}
+                onPress={async () => {
+                  Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+                  await handleAttestation();
+                }}
+              >
+                <Feather name="award" size={16} color={colors.primary} />
+                <Text style={[styles.qrShareBtnText, { color: colors.primary }]}>{t("badgeDownloadCertificate")}</Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={[styles.qrShareBtnOutline, { borderColor: colors.primary }]}
+                onPress={() => {
+                  Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+                  shareContent(
+                    `${user?.name ?? ""} — SYNDYCAT GLOBAL CPS\n${t("badgeVerification")}: https://syndycat.app/verify/badge/${user?.id ?? ""}`,
+                    t("badgeModalTitle"),
+                  );
+                }}
+              >
+                <Feather name="share-2" size={16} color={colors.primary} />
+                <Text style={[styles.qrShareBtnText, { color: colors.primary }]}>{t("badgeShareLink")}</Text>
+              </TouchableOpacity>
+            </View>
           </View>
         </View>
       </Modal>
@@ -533,6 +551,7 @@ const styles = StyleSheet.create({
   qrMemberId: { fontSize: 12, fontFamily: "Inter_700Bold", color: "#fff" },
   qrHint: { fontSize: 12, fontFamily: "Inter_400Regular", textAlign: "center" },
   qrShareBtn: { flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 8, paddingVertical: 14, borderRadius: 12 },
+  qrShareBtnOutline: { flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 8, paddingVertical: 14, borderRadius: 12, borderWidth: 1.5 },
   qrShareBtnText: { fontSize: 14, fontFamily: "Inter_700Bold", color: "#fff" },
   modal: { flex: 1 },
   modalHeader: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", padding: 20, borderBottomWidth: 1 },
