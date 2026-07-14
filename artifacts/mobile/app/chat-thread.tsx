@@ -41,6 +41,13 @@ export default function ChatThreadScreen() {
 
   const { conversations, messages, sendMessage, markConversationRead, deleteConversation } = useData();
   const conversation = conversations.find((c) => c.id === id);
+  const [isBlocked, setIsBlocked] = useState(!!conversation?.isBlocked);
+  const [typingUsers, setTypingUsers] = useState<string[]>([]);
+  const [reportModalVisible, setReportModalVisible] = useState(false);
+  const [reportReason, setReportReason] = useState("");
+  const typingSentAtRef = useRef(0);
+
+  useEffect(() => { setIsBlocked(!!conversation?.isBlocked); }, [conversation?.isBlocked]);
 
   function mapApiMessage(r: any): ChatMessage {
     return {
@@ -57,6 +64,8 @@ export default function ChatThreadScreen() {
       attachmentUrl: r.attachmentUrl ?? null,
       attachmentType: r.attachmentType ?? null,
       attachmentName: r.attachmentName ?? null,
+      durationSeconds: r.durationSeconds ?? null,
+      reactions: Array.isArray(r.reactions) ? r.reactions : [],
       createdAt: r.createdAt ? String(r.createdAt) : undefined,
     };
   }
@@ -105,6 +114,7 @@ export default function ChatThreadScreen() {
             return [...prev, ...fresh];
           });
         }
+        setTypingUsers((res as any)?.typing ?? []);
       } catch { /* keep showing stale */ }
     }, 4000);
     return () => clearInterval(timer);
@@ -129,12 +139,73 @@ export default function ChatThreadScreen() {
   }
 
   const handleSend = () => {
-    if (!text.trim() || !id) return;
+    if (!text.trim() || !id || isBlocked) return;
     sendMessage(id, text.trim());
     setText("");
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
     setTimeout(() => listRef.current?.scrollToEnd({ animated: true }), 100);
   };
+
+  const handleTextChange = (value: string) => {
+    setText(value);
+    if (!id || isBlocked) return;
+    const now = Date.now();
+    if (now - typingSentAtRef.current > 2500) {
+      typingSentAtRef.current = now;
+      chatApi.typing(id).catch(() => { /* best-effort */ });
+    }
+  };
+
+  const handleToggleBlock = () => {
+    if (!conversation?.participantId) return;
+    const targetId = conversation.participantId;
+    if (isBlocked) {
+      chatApi.unblockUser(targetId)
+        .then(() => { setIsBlocked(false); Alert.alert(t('userUnblockedTitle')); })
+        .catch(() => Alert.alert(t('error')));
+    } else {
+      Alert.alert(t('blockUser'), t('blockUserConfirm'), [
+        { text: t('cancel'), style: "cancel" },
+        {
+          text: t('blockUser'),
+          style: "destructive",
+          onPress: () => {
+            chatApi.blockUser(targetId)
+              .then(() => { setIsBlocked(true); Alert.alert(t('userBlockedTitle')); })
+              .catch(() => Alert.alert(t('error')));
+          },
+        },
+      ]);
+    }
+  };
+
+  const handleSubmitReport = async () => {
+    if (!id || !reportReason.trim()) return;
+    try {
+      await chatApi.reportAbuse({
+        conversationId: id,
+        reportedUserId: conversation?.participantId ?? undefined,
+        reason: reportReason.trim(),
+      });
+      setReportModalVisible(false);
+      setReportReason("");
+      Alert.alert(t('reportSentTitle'), t('reportSentMsg'));
+    } catch {
+      Alert.alert(t('error'));
+    }
+  };
+
+  const handleToggleReaction = async (messageId: string, emoji: string, alreadyMine: boolean) => {
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    try {
+      if (alreadyMine) await chatApi.unreact(messageId, emoji);
+      else await chatApi.react(messageId, emoji);
+      const res = await chatApi.messages(id!) as any;
+      setApiMessages((res?.data ?? []).map(mapApiMessage));
+    } catch { /* best-effort */ }
+  };
+
+  const REACTION_EMOJIS = ["👍", "❤️", "😂", "😮", "😢", "🙏"];
 
   const handleAttach = async (type: "photo" | "document") => {
     if (!id || uploading) return;
@@ -223,18 +294,25 @@ export default function ChatThreadScreen() {
           style={[styles.headerBtn, { backgroundColor: colors.secondary }]}
           onPress={() => {
             Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-            Alert.alert(t('optionsLabel'), undefined, [
+            const options: any[] = [
               { text: t('cancel'), style: "cancel" },
               { text: t('shareConversation'), onPress: () => shareContent(`Conversation avec ${conversation.participant} sur SYNDYCAT`) },
-              {
-                text: t('deleteConversation'),
-                style: "destructive",
-                onPress: () => {
-                  deleteConversation(id);
-                  router.back();
-                },
+            ];
+            if (!isGroup && conversation.participantId) {
+              options.push({ text: isBlocked ? t('unblockUser') : t('blockUser'), onPress: handleToggleBlock });
+              options.push({ text: t('reportUser'), onPress: () => setReportModalVisible(true) });
+            } else {
+              options.push({ text: t('reportConversation'), onPress: () => setReportModalVisible(true) });
+            }
+            options.push({
+              text: t('deleteConversation'),
+              style: "destructive",
+              onPress: () => {
+                deleteConversation(id);
+                router.back();
               },
-            ]);
+            });
+            Alert.alert(t('optionsLabel'), undefined, options);
           }}
         >
           <Feather name="more-vertical" size={16} color={colors.foreground} />
@@ -259,6 +337,7 @@ export default function ChatThreadScreen() {
         renderItem={({ item: msg, index }) => {
           const prev = threadMessages[index - 1];
           const showSender = !msg.isMe && (!prev || prev.sender !== msg.sender);
+          const reactions: { emoji: string; count: number; mine: boolean }[] = msg.reactions ?? [];
           return (
             <View style={[styles.msgRow, msg.isMe && styles.msgRowMe]}>
               {!msg.isMe && isGroup && (
@@ -272,24 +351,104 @@ export default function ChatThreadScreen() {
                 {showSender && (
                   <Text style={[styles.msgSender, { color: colors.primary }]}>{msg.sender}</Text>
                 )}
-                <View
-                  style={[
-                    styles.bubble,
-                    msg.isMe
-                      ? { backgroundColor: colors.primary }
-                      : { backgroundColor: colors.card, borderColor: colors.border, borderWidth: 1 },
-                  ]}
+                <TouchableOpacity
+                  activeOpacity={0.8}
+                  onLongPress={() => {
+                    if (msg.id.startsWith("m")) return; // optimistic/unsent message, no server id yet
+                    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+                    Alert.alert(t('addReaction'), undefined, [
+                      ...REACTION_EMOJIS.map((emoji) => ({
+                        text: emoji,
+                        onPress: () => {
+                          const mine = reactions.find((r) => r.emoji === emoji)?.mine ?? false;
+                          handleToggleReaction(msg.id, emoji, mine);
+                        },
+                      })),
+                      { text: t('cancel'), style: "cancel" as const },
+                    ]);
+                  }}
                 >
-                  <Text style={[styles.bubbleText, { color: msg.isMe ? "#fff" : colors.foreground }]}>
-                    {msg.text}
-                  </Text>
-                </View>
+                  <View
+                    style={[
+                      styles.bubble,
+                      msg.isMe
+                        ? { backgroundColor: colors.primary }
+                        : { backgroundColor: colors.card, borderColor: colors.border, borderWidth: 1 },
+                    ]}
+                  >
+                    <Text style={[styles.bubbleText, { color: msg.isMe ? "#fff" : colors.foreground }]}>
+                      {msg.text}
+                    </Text>
+                  </View>
+                </TouchableOpacity>
+                {reactions.length > 0 && (
+                  <View style={styles.reactionsRow}>
+                    {reactions.map((r) => (
+                      <TouchableOpacity
+                        key={r.emoji}
+                        style={[
+                          styles.reactionChip,
+                          { backgroundColor: r.mine ? colors.primary + "20" : colors.secondary, borderColor: r.mine ? colors.primary : colors.border },
+                        ]}
+                        onPress={() => handleToggleReaction(msg.id, r.emoji, r.mine)}
+                      >
+                        <Text style={styles.reactionChipText}>{r.emoji} {r.count}</Text>
+                      </TouchableOpacity>
+                    ))}
+                  </View>
+                )}
                 <Text style={[styles.msgTime, { color: colors.mutedForeground }]}>{msg.time}</Text>
               </View>
             </View>
           );
         }}
       />
+
+      {isBlocked ? (
+        <View style={[styles.blockedNotice, { backgroundColor: colors.secondary, borderTopColor: colors.border }]}>
+          <Feather name="slash" size={14} color={colors.mutedForeground} />
+          <Text style={[styles.blockedNoticeText, { color: colors.mutedForeground }]}>{t('conversationBlockedNotice')}</Text>
+        </View>
+      ) : (
+        <>
+          {typingUsers.length > 0 && (
+            <View style={styles.typingRow}>
+              <ActivityIndicator size="small" color={colors.primary} />
+              <Text style={[styles.typingText, { color: colors.mutedForeground }]}>
+                {conversation.participant} {t('isTyping')}
+              </Text>
+            </View>
+          )}
+        </>
+      )}
+
+      {/* Report modal */}
+      {reportModalVisible && (
+        <View style={StyleSheet.absoluteFill}>
+          <TouchableOpacity style={styles.reportOverlay} activeOpacity={1} onPress={() => setReportModalVisible(false)} />
+          <View style={[styles.reportModal, { backgroundColor: colors.card, bottom: insets.bottom + 20 }]}>
+            <Text style={[styles.reportModalTitle, { color: colors.foreground }]}>
+              {isGroup ? t('reportConversation') : t('reportUser')}
+            </Text>
+            <TextInput
+              style={[styles.reportInput, { backgroundColor: colors.background, borderColor: colors.border, color: colors.foreground }]}
+              value={reportReason}
+              onChangeText={setReportReason}
+              placeholder={t('reportReasonPlaceholder')}
+              placeholderTextColor={colors.mutedForeground}
+              multiline
+              maxLength={500}
+            />
+            <TouchableOpacity
+              style={[styles.reportSubmitBtn, { backgroundColor: reportReason.trim() ? colors.primary : colors.muted }]}
+              onPress={handleSubmitReport}
+              disabled={!reportReason.trim()}
+            >
+              <Text style={styles.reportSubmitBtnText}>{t('send')}</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+      )}
 
       {/* Input */}
       <View
@@ -304,7 +463,7 @@ export default function ChatThreadScreen() {
       >
         <TouchableOpacity
           style={[styles.attachBtn, { backgroundColor: colors.secondary }]}
-          disabled={uploading}
+          disabled={uploading || isBlocked}
           onPress={() => {
             Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
             Alert.alert(t('attachmentLabel'), t('chooseFileType'), [
@@ -321,19 +480,20 @@ export default function ChatThreadScreen() {
         <TextInput
           style={[styles.msgInput, { backgroundColor: colors.background, borderColor: colors.border, color: colors.foreground }]}
           value={text}
-          onChangeText={setText}
+          onChangeText={handleTextChange}
           placeholder={t('writeMessagePlaceholder')}
           placeholderTextColor={colors.mutedForeground}
           multiline
           maxLength={500}
+          editable={!isBlocked}
           onSubmitEditing={handleSend}
         />
         <TouchableOpacity
-          style={[styles.sendBtn, { backgroundColor: text.trim() ? colors.primary : colors.muted }]}
+          style={[styles.sendBtn, { backgroundColor: text.trim() && !isBlocked ? colors.primary : colors.muted }]}
           onPress={handleSend}
-          disabled={!text.trim()}
+          disabled={!text.trim() || isBlocked}
         >
-          <Feather name="send" size={18} color={text.trim() ? "#fff" : colors.mutedForeground} />
+          <Feather name="send" size={18} color={text.trim() && !isBlocked ? "#fff" : colors.mutedForeground} />
         </TouchableOpacity>
       </View>
     </KeyboardAvoidingView>
@@ -426,4 +586,47 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "center",
   },
+  reactionsRow: { flexDirection: "row", gap: 4, marginTop: 2, flexWrap: "wrap" },
+  reactionChip: {
+    flexDirection: "row",
+    alignItems: "center",
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+    borderRadius: 12,
+    borderWidth: 1,
+  },
+  reactionChipText: { fontSize: 12 },
+  blockedNotice: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 6,
+    paddingVertical: 8,
+    paddingHorizontal: 16,
+    borderTopWidth: 1,
+  },
+  blockedNoticeText: { fontSize: 12, flex: 1, fontFamily: "Inter_400Regular" },
+  typingRow: { flexDirection: "row", alignItems: "center", gap: 6, paddingHorizontal: 16, paddingVertical: 4 },
+  typingText: { fontSize: 12, fontFamily: "Inter_400Regular" },
+  reportOverlay: { flex: 1, backgroundColor: "rgba(0,0,0,0.4)" },
+  reportModal: {
+    position: "absolute",
+    start: 16,
+    end: 16,
+    borderRadius: 16,
+    padding: 16,
+    gap: 10,
+  },
+  reportModalTitle: { fontSize: 15, fontFamily: "Inter_700Bold" },
+  reportInput: {
+    borderWidth: 1,
+    borderRadius: 12,
+    paddingHorizontal: 12,
+    paddingVertical: 10,
+    fontSize: 13,
+    minHeight: 70,
+    textAlignVertical: "top",
+    fontFamily: "Inter_400Regular",
+  },
+  reportSubmitBtn: { borderRadius: 12, paddingVertical: 12, alignItems: "center" },
+  reportSubmitBtnText: { color: "#fff", fontSize: 14, fontFamily: "Inter_700Bold" },
 });

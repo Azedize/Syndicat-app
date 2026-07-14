@@ -148,6 +148,7 @@ async function request<T>(
   if (!res.ok) {
     const err: any = new Error((json as any).error || `HTTP ${res.status}`);
     err.status = res.status;
+    if ((json as any).code) err.code = (json as any).code;
     throw err;
   }
 
@@ -559,7 +560,7 @@ export const content = {
 
 export interface ApiConversation {
   id: string;
-  convType: "direct" | "group" | "announcement" | "support" | "building";
+  convType: "direct" | "group" | "announcement" | "support" | "building" | "marketplace" | "incident" | "emergency";
   isGroup: boolean;
   participant: string;
   participantId?: string | null;
@@ -569,7 +570,17 @@ export interface ApiConversation {
   unread: number;
   syndicateId?: string | null;
   buildingId?: string | null;
+  productId?: string | null;
+  incidentId?: string | null;
   participantIds?: string[];
+  isArchived?: boolean;
+  isBlocked?: boolean;
+}
+
+export interface ApiMessageReaction {
+  emoji: string;
+  count: number;
+  mine: boolean;
 }
 
 export interface ApiMessage {
@@ -578,35 +589,45 @@ export interface ApiMessage {
   senderId: string;
   senderName: string;
   text: string;
-  messageType: "text" | "image" | "document" | "announcement";
+  messageType: "text" | "image" | "document" | "announcement" | "voice";
   attachmentUrl?: string | null;
   attachmentType?: string | null;
   attachmentName?: string | null;
+  durationSeconds?: number | null;
   isMe: boolean;
   createdAt: string;
+  reactions?: ApiMessageReaction[];
 }
 
 export const chat = {
-  conversations: () =>
-    request<{ data: ApiConversation[]; total: number }>("/conversations"),
+  conversations: (opts?: { archived?: boolean }) =>
+    request<{ data: ApiConversation[]; total: number }>(
+      `/conversations${opts?.archived ? "?archived=true" : ""}`,
+    ),
 
   unreadCount: () =>
     request<{ total: number }>("/conversations/unread-count"),
+
+  search: (q: string) =>
+    request<{ data: { id: string; name: string; matchedInMessages: boolean }[] }>(
+      `/conversations/search?q=${encodeURIComponent(q)}`,
+    ),
 
   messages: (id: string) =>
     request<{ data: ApiMessage[]; total: number }>(`/conversations/${id}/messages`),
 
   since: (id: string, since: string) =>
-    request<{ data: ApiMessage[] }>(`/conversations/${id}/since?since=${encodeURIComponent(since)}`),
+    request<{ data: ApiMessage[]; typing: string[] }>(`/conversations/${id}/since?since=${encodeURIComponent(since)}`),
 
   send: (
     id: string,
     payload: {
       text?: string;
-      messageType?: "text" | "image" | "document" | "announcement";
+      messageType?: "text" | "image" | "document" | "announcement" | "voice";
       attachmentUrl?: string;
       attachmentType?: string;
       attachmentName?: string;
+      durationSeconds?: number;
     },
   ) =>
     request<{ data: ApiMessage }>(`/conversations/${id}/messages`, {
@@ -621,6 +642,26 @@ export const chat = {
       body: JSON.stringify({ text }),
     }),
 
+  deleteMessage: (messageId: string) =>
+    request<{ message: string }>(`/messages/${messageId}`, { method: "DELETE" }),
+
+  react: (messageId: string, emoji: string) =>
+    request<{ message: string }>(`/messages/${messageId}/reactions`, {
+      method: "POST",
+      body: JSON.stringify({ emoji }),
+    }),
+
+  unreact: (messageId: string, emoji: string) =>
+    request<{ message: string }>(`/messages/${messageId}/reactions?emoji=${encodeURIComponent(emoji)}`, {
+      method: "DELETE",
+    }),
+
+  typing: (id: string) =>
+    request<{ message: string }>(`/conversations/${id}/typing`, { method: "PATCH" }),
+
+  typingUsers: (id: string) =>
+    request<{ data: string[] }>(`/conversations/${id}/typing`),
+
   create: (params: {
     participantId?: string;
     isGroup?: boolean;
@@ -634,11 +675,44 @@ export const chat = {
       body: JSON.stringify(params),
     }),
 
+  contactSeller: (productId: string) =>
+    request<{ data: ApiConversation; existing?: boolean }>("/conversations/product", {
+      method: "POST",
+      body: JSON.stringify({ productId }),
+    }),
+
+  openIncidentChat: (incidentId: string) =>
+    request<{ data: ApiConversation; existing?: boolean }>("/conversations/incident", {
+      method: "POST",
+      body: JSON.stringify({ incidentId }),
+    }),
+
   markRead: (id: string) =>
     request<{ message: string }>(`/conversations/${id}/read`, { method: "PATCH" }),
 
+  archive: (id: string) =>
+    request<{ message: string }>(`/conversations/${id}/archive`, { method: "PATCH" }),
+
+  unarchive: (id: string) =>
+    request<{ message: string }>(`/conversations/${id}/unarchive`, { method: "PATCH" }),
+
   delete: (id: string) =>
     request<{ message: string }>(`/conversations/${id}`, { method: "DELETE" }),
+
+  blockedUsers: () =>
+    request<{ data: { id: string; name: string | null }[] }>("/blocked-users"),
+
+  blockUser: (userId: string) =>
+    request<{ message: string }>(`/blocked-users/${userId}`, { method: "POST" }),
+
+  unblockUser: (userId: string) =>
+    request<{ message: string }>(`/blocked-users/${userId}`, { method: "DELETE" }),
+
+  reportAbuse: (payload: { reportedUserId?: string; conversationId?: string; messageId?: string; reason: string }) =>
+    request<{ message: string }>("/chat-reports", {
+      method: "POST",
+      body: JSON.stringify(payload),
+    }),
 };
 
 // ─── Statistics ───────────────────────────────────────────────────────────────

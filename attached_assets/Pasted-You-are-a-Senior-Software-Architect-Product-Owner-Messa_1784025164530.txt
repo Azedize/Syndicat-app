@@ -1,0 +1,171 @@
+You are a Senior Software Architect, Product Owner, Messaging Systems Architect, Security Architect, RBAC Expert, and Moroccan Condominium Management Expert.
+
+The chat system already exists.
+
+Do NOT rebuild it from scratch.
+
+Your mission is to audit, redesign, and complete the existing chat system for production.
+
+==================================================
+STEP 1 — CHAT AUDIT
+==================================================
+
+Analyze:
+
+- conversations table
+- messages table
+- participants
+- users
+- members
+- tenants
+- employees
+- providers
+- syndicates
+
+Analyze:
+
+- API routes
+- Mobile screens
+- Chat navigation
+- Message creation
+- Notifications
+- Attachments
+
+==================================================
+STEP 2 — ROLE COMMUNICATION MATRIX
+==================================================
+
+Automatically determine:
+
+Who can chat with whom.
+
+Validate all scenarios:
+
+1. Super Admin ↔ Syndicate Admin
+2. Syndicate Admin ↔ Member
+3. Syndicate Admin ↔ Tenant
+4. Member ↔ Member (same syndicate only)
+5. Marketplace Buyer ↔ Seller
+6. Tenant ↔ Marketplace Seller
+7. Employee ↔ Syndicate Admin
+8. Provider ↔ Syndicate Admin
+9. Emergency Chat
+
+Block all invalid communications.
+
+==================================================
+STEP 3 — SECURITY
+==================================================
+
+Verify:
+
+- RBAC
+- Conversation ownership
+- Participant validation
+- Cross-syndicate isolation
+- Message authorization
+
+Prevent:
+
+- Unauthorized access
+- Message leaks
+- Cross-syndicate conversations
+
+==================================================
+STEP 4 — FEATURES
+==================================================
+
+Implement:
+
+- Real-time messages
+- Read receipts
+- Delivered status
+- Typing indicators
+- Message reactions
+- Image sharing
+- PDF sharing
+- Voice notes
+- Conversation search
+- Unread counters
+- Archive conversations
+- Block users
+- Report abuse
+
+==================================================
+STEP 5 — MARKETPLACE CHAT
+==================================================
+
+When a user clicks:
+
+"Contact Seller"
+
+Automatically:
+
+- Create conversation
+- Link conversation to product
+- Open product chat
+
+Store:
+
+- Product ID
+- Seller ID
+- Buyer ID
+
+==================================================
+STEP 6 — INCIDENT CHAT
+==================================================
+
+When a resident creates an incident:
+
+- Create dedicated conversation
+- Attach incident ID
+- Include Syndicate Admin
+- Include assigned employee/provider
+
+==================================================
+STEP 7 — NOTIFICATIONS
+==================================================
+
+Implement:
+
+- Push notifications
+- Unread badges
+- Email notifications
+- Critical alerts
+
+==================================================
+STEP 8 — MOBILE UX
+==================================================
+
+Audit all chat screens.
+
+Fix:
+
+- RTL
+- Arabic support
+- Empty states
+- Loading states
+- Error states
+
+Ensure all texts use translations.
+
+==================================================
+STEP 9 — FINAL REPORT
+==================================================
+
+Generate:
+
+1. Existing Chat Analysis
+2. Missing Features
+3. Security Risks
+4. Communication Matrix
+5. API Changes
+6. Database Changes
+7. Mobile Changes
+8. Production Readiness Score
+
+Do not only report.
+
+Implement all required fixes and missing business workflows.
+
+The result must be production-ready for a Moroccan condominium management platform.

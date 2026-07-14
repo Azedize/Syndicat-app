@@ -15,3 +15,5 @@
 - [Language audit key collisions](language-audit-key-conflicts.md) — duplicate/colliding translation keys and `t` variable shadowing pitfalls when migrating screens to the global t()/useLanguage() system.
 - [Drizzle money() vs Zod number type clash](drizzle-money-zod-clash.md) — Drizzle money() columns expect string|SQL|Placeholder; Zod validates amounts as number; fix is `.values({...} as any)` on inserts, `Number(row.balance ?? 0)` before arithmetic on fetched values.
 - [RBAC guard patterns](rbac-guard-patterns.md) — menu hiding isn't access control; use RoleGuard (dominant) for screen self-guarding; reclamationsTable is intentionally platform-wide, not an IDOR; serverAuditLog is opt-in per route.
+- [Chat communication matrix & role gaps](chat-communication-matrix.md) — direct-DM creation must be gated by a role/syndicate matrix, not just membership; Employee/Provider have no JWT identity yet.
+- [reclamationsTable is HR grievances, not incidents](reclamations-is-hr-grievance.md) — type enum is salaire/discrimination/harcelement/etc; not a facility-incident table despite the generic name.

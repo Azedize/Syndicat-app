@@ -835,7 +835,7 @@ export const conversationsTable = pgTable(
     id: id(),
     syndicateId: text("syndicate_id").references(() => syndicatesTable.id, { onDelete: "cascade" }),
     buildingId: text("building_id").references(() => buildingsTable.id, { onDelete: "set null" }),
-    // "direct" | "group" | "announcement" | "support" | "building"
+    // "direct" | "group" | "announcement" | "support" | "building" | "marketplace" | "incident" | "emergency"
     convType: text("conv_type").notNull().default("direct"),
     participant1Id: text("participant1_id").references(() => usersTable.id, { onDelete: "cascade" }),
     participant2Id: text("participant2_id").references(() => usersTable.id, { onDelete: "cascade" }),
@@ -845,6 +845,11 @@ export const conversationsTable = pgTable(
     name: text("name"),
     lastMessage: text("last_message"),
     lastMessageAt: timestamp("last_message_at"),
+    createdBy: text("created_by").references(() => usersTable.id, { onDelete: "set null" }),
+    // Links a "marketplace" conversation back to the product being discussed
+    productId: text("product_id"),
+    // Links an "incident" conversation back to the reclamation/incident it was opened for
+    incidentId: text("incident_id"),
     createdAt: createdAt(),
   },
   (t) => [
@@ -852,6 +857,8 @@ export const conversationsTable = pgTable(
     index("conversations_participant2_id_idx").on(t.participant2Id),
     index("conversations_syndicate_id_idx").on(t.syndicateId),
     index("conversations_conv_type_idx").on(t.convType),
+    index("conversations_product_id_idx").on(t.productId),
+    index("conversations_incident_id_idx").on(t.incidentId),
   ],
 );
 
@@ -863,11 +870,13 @@ export const messagesTable = pgTable(
     senderId: text("sender_id").notNull().references(() => usersTable.id, { onDelete: "cascade" }),
     senderName: text("sender_name"),
     text: text("text").notNull().default(""),
-    // "text" | "image" | "document" | "announcement"
+    // "text" | "image" | "document" | "announcement" | "voice"
     messageType: text("message_type").notNull().default("text"),
     attachmentUrl: text("attachment_url"),
     attachmentType: text("attachment_type"),   // MIME type e.g. "image/jpeg"
     attachmentName: text("attachment_name"),   // original filename
+    durationSeconds: integer("duration_seconds"), // for voice notes
+    deletedAt: timestamp("deleted_at"),
     createdAt: createdAt(),
   },
   (t) => [
@@ -878,7 +887,7 @@ export const messagesTable = pgTable(
   ],
 );
 
-// Tracks the last message each user has read in each conversation (for unread counts)
+// Tracks the last message each user has read in each conversation (for unread + read-receipt/delivered status)
 export const messageReadsTable = pgTable(
   "message_reads",
   {
@@ -886,10 +895,78 @@ export const messageReadsTable = pgTable(
     conversationId: text("conversation_id").notNull().references(() => conversationsTable.id, { onDelete: "cascade" }),
     userId: text("user_id").notNull().references(() => usersTable.id, { onDelete: "cascade" }),
     lastReadAt: timestamp("last_read_at").defaultNow(),
+    lastDeliveredAt: timestamp("last_delivered_at").defaultNow(),
   },
   (t) => [
     index("message_reads_conv_user_idx").on(t.conversationId, t.userId),
     index("message_reads_user_id_idx").on(t.userId),
+  ],
+);
+
+// Emoji reactions on individual messages
+export const messageReactionsTable = pgTable(
+  "message_reactions",
+  {
+    id: id(),
+    messageId: text("message_id").notNull().references(() => messagesTable.id, { onDelete: "cascade" }),
+    userId: text("user_id").notNull().references(() => usersTable.id, { onDelete: "cascade" }),
+    emoji: text("emoji").notNull(),
+    createdAt: createdAt(),
+  },
+  (t) => [
+    index("message_reactions_message_id_idx").on(t.messageId),
+    uniqueIndex("message_reactions_message_user_emoji_uq").on(t.messageId, t.userId, t.emoji),
+  ],
+);
+
+// Per-user block list — blocking is one-directional (blocker → blocked) and checked both ways for chat gating
+export const blockedUsersTable = pgTable(
+  "blocked_users",
+  {
+    id: id(),
+    blockerId: text("blocker_id").notNull().references(() => usersTable.id, { onDelete: "cascade" }),
+    blockedId: text("blocked_id").notNull().references(() => usersTable.id, { onDelete: "cascade" }),
+    createdAt: createdAt(),
+  },
+  (t) => [
+    index("blocked_users_blocker_id_idx").on(t.blockerId),
+    index("blocked_users_blocked_id_idx").on(t.blockedId),
+    uniqueIndex("blocked_users_pair_uq").on(t.blockerId, t.blockedId),
+  ],
+);
+
+// Per-user conversation archiving (does not affect other participants)
+export const conversationArchivesTable = pgTable(
+  "conversation_archives",
+  {
+    id: id(),
+    conversationId: text("conversation_id").notNull().references(() => conversationsTable.id, { onDelete: "cascade" }),
+    userId: text("user_id").notNull().references(() => usersTable.id, { onDelete: "cascade" }),
+    archivedAt: createdAt(),
+  },
+  (t) => [
+    index("conversation_archives_user_id_idx").on(t.userId),
+    uniqueIndex("conversation_archives_conv_user_uq").on(t.conversationId, t.userId),
+  ],
+);
+
+// Abuse reports raised on a user, a conversation, or a specific message
+export const chatReportsTable = pgTable(
+  "chat_reports",
+  {
+    id: id(),
+    reporterId: text("reporter_id").notNull().references(() => usersTable.id, { onDelete: "cascade" }),
+    reportedUserId: text("reported_user_id").references(() => usersTable.id, { onDelete: "set null" }),
+    conversationId: text("conversation_id").references(() => conversationsTable.id, { onDelete: "set null" }),
+    messageId: text("message_id").references(() => messagesTable.id, { onDelete: "set null" }),
+    reason: text("reason").notNull(),
+    // status: pending | reviewed | dismissed
+    status: text("status").default("pending"),
+    createdAt: createdAt(),
+  },
+  (t) => [
+    index("chat_reports_status_idx").on(t.status),
+    index("chat_reports_reported_user_id_idx").on(t.reportedUserId),
   ],
 );
 

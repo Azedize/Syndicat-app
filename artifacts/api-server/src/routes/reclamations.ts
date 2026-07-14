@@ -6,6 +6,7 @@ import { eq, and, desc, or, ilike, count } from "drizzle-orm";
 import { requireAuth, requireAdmin } from "../middleware/auth.js";
 import { getPagination, buildPagedResponse } from "../lib/paginate.js";
 import { serverAuditLog } from "../lib/audit.js";
+import { createIncidentConversation } from "./chat.js";
 
 const router = Router();
 
@@ -108,6 +109,16 @@ router.post("/reclamations", requireAuth, async (req, res) => {
 
     await serverAuditLog(req, { action: "CREATE", entity: "reclamation", entityId: row.id, details: titre, platformAction: true });
     res.status(201).json({ data: serialize(row), message: "Réclamation déposée", reference });
+
+    // Fire-and-forget: open a dedicated incident conversation between the
+    // resident and their syndicate admins so follow-up happens in chat.
+    createIncidentConversation({
+      incidentId: row.id,
+      syndicateId: req.user!.syndicateId ?? null,
+      memberId: anonymous ? null : req.user!.userId,
+      memberName: anonymous ? "Anonyme" : req.user!.name,
+      title: titre,
+    }).catch((err) => req.log.warn({ err }, "Failed to auto-create incident conversation"));
   } catch (err) { req.log.error(err); res.status(500).json({ error: "Erreur serveur" }); }
 });
 

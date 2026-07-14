@@ -19,7 +19,7 @@
 | RTL support | 🔴 Pending | High |
 | Financial attachment enforcement | 🔴 Pending | High |
 | Real file storage | 🔴 Pending | Medium |
-| Chat audit | 🔴 Pending | Medium |
+| Chat audit | ✅ Fixed (see §Chat System Audit) | Medium |
 | Pre-existing TS errors (ag.ts, others) | 🟡 Pre-existing | Medium |
 
 ---
@@ -177,3 +177,74 @@ Required endpoints (missing):
 | **Overall** | **72/100** |
 
 **Target for production:** 90+/100 across all dimensions.
+
+---
+
+## Chat System Audit & Redesign
+**Date:** 2026-07-14
+
+### Existing Chat Analysis (before this pass)
+- Polling-based (no websockets in this stack): `GET /conversations/:id/since` every 4s from `chat-thread.tsx`.
+- Schema: `conversationsTable` (direct/group/announcement/support/building via `participant1Id`/`participant2Id`/`participantIds` JSON), `messagesTable`, `messageReadsTable` (used only for unread counts, not true read receipts).
+- `canAccessConversation()` existed but only checked *membership* in a conversation — **anyone could create a direct conversation with anyone else**, including across syndicates and across incompatible roles (e.g. a tenant in Casablanca messaging a member in Rabat, or a member messaging a random syndicate_admin they have no relationship with).
+- No reactions, no delivered/read-receipt distinction (only aggregate unread counts), no typing indicators, no voice notes, no message deletion, no search, no archive, no block, no report-abuse, no marketplace "Contact Seller" flow, no incident-linked chat.
+
+### Security Risks Found & Fixed
+| Risk | Before | Fix |
+|---|---|---|
+| No cross-role/cross-syndicate isolation on conversation creation | Any authenticated user could `POST /conversations` targeting any other user ID | `canDirectMessage()` communication matrix enforced server-side on every direct/emergency conversation creation |
+| No block enforcement | A reported/abusive user could keep messaging after being blocked | `isBlockedEitherWay()` checked on conversation creation, marketplace contact, and message send |
+| No abuse reporting | No way to escalate harassment to admins | `chat_reports` table + `POST /chat-reports` |
+
+### Role Communication Matrix (implemented in `chat.ts::canDirectMessage`)
+| Actor | Target | Allowed | Constraint |
+|---|---|---|---|
+| super_admin | syndicate_admin | ✅ | Any syndicate (platform supervision) |
+| syndicate_admin | member / tenant | ✅ | Same syndicate only |
+| member | member | ✅ | Same syndicate only |
+| tenant | tenant | ❌ | Not part of approved matrix |
+| tenant | member | ❌ | Not part of approved matrix |
+| super_admin | member / tenant | ❌ | Must go through syndicate_admin |
+| buyer | marketplace seller | ✅ | Dedicated `POST /conversations/product` flow, bypasses syndicate matrix by design |
+| resident (member/tenant) | own syndicate_admin | ✅ (always) | `convType: "emergency"` bypasses the matrix for urgent reports |
+| any | any (blocked pair) | ❌ | `blocked_users` table checked regardless of role |
+
+**Known gap:** the spec's "Employee" and "Provider" roles have no corresponding JWT role today (`prestataires` are data records, not authenticated users). Employee/Provider↔Admin chat is therefore **not implemented** — it would require giving prestataires their own login/JWT identity first. Flagged as a follow-up, not silently dropped.
+
+### Database Changes (`lib/db/src/schema.ts`)
+- `conversationsTable`: added `createdBy`, `productId`, `incidentId` (+ indexes); `convType` now also accepts `marketplace`, `incident`, `emergency`.
+- `messagesTable`: added `durationSeconds` (voice notes), `deletedAt` (soft delete).
+- `messageReadsTable`: added `lastDeliveredAt` for a delivered/read distinction.
+- New tables: `messageReactionsTable`, `blockedUsersTable`, `conversationArchivesTable`, `chatReportsTable`.
+- Pushed via `drizzle-kit push --force` (no migration system in this project).
+
+### API Changes (`artifacts/api-server/src/routes/chat.ts`)
+- `canDirectMessage()` RBAC matrix enforced in `POST /conversations`.
+- New: `POST /conversations/product` (Contact Seller), `POST /conversations/incident` (manual trigger; also auto-invoked from `reclamations.ts` on grievance creation via exported `createIncidentConversation()`).
+- New: `GET /conversations/search`, `PATCH /conversations/:id/archive|unarchive`, `PATCH/GET /conversations/:id/typing` (in-memory TTL map — no websockets, polled alongside `/since`).
+- New: `POST/DELETE /messages/:id/reactions`, `DELETE /messages/:id` (soft delete).
+- New: `GET/POST/DELETE /blocked-users[/:userId]`, `POST /chat-reports`.
+- `GET /conversations` now excludes archived threads by default, returns `isBlocked`/`isArchived`/`productId`/`incidentId`.
+- `POST /conversations/:id/messages` now rejects sends into blocked pairs and supports `messageType: "voice"` with `durationSeconds`.
+
+### Mobile Changes
+- `services/api.ts`: extended `chat` object (contactSeller, openIncidentChat, block/unblock/blockedUsers, react/unreact, typing/typingUsers, archive/unarchive, search, reportAbuse); `request()` now propagates a `code` field from API error bodies (e.g. `USER_BLOCKED`).
+- `product-detail.tsx`: added a "Contacter le vendeur" button that opens/reuses a marketplace conversation.
+- `chat-thread.tsx`: block/unblock and report actions in the options menu, long-press emoji reactions on messages, polled typing indicator, blocked-conversation banner that disables the composer.
+- `LanguageContext.tsx`: added translation keys (fr/en/ar/es) for all new chat UI strings.
+- `reclamations.ts`: filing a grievance now auto-opens an `incident`-type group conversation between the resident and their syndicate's admins.
+
+### Explicitly Out of Scope This Pass
+- Full i18n pass on `messagerie-interne.tsx` (separate announcements system, heavily hardcoded French) — left untouched to bound scope; flagged for a follow-up task.
+- Employee/Provider chat roles (see gap above).
+- Real-time delivery (websockets) — kept the existing polling architecture; typing indicators and reactions are polled, not pushed.
+
+### Chat-Specific Production Readiness
+| Dimension | Score |
+|---|---|
+| RBAC / cross-syndicate isolation | 85/100 |
+| Feature completeness (reactions, block, report, archive, search, voice, typing) | 80/100 |
+| Marketplace & incident integration | 75/100 |
+| Real-time UX (polling, no websockets) | 55/100 |
+| Mobile i18n coverage (core chat screens) | 80/100 |
+| **Overall (chat)** | **75/100** |

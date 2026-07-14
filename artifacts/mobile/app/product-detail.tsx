@@ -19,7 +19,7 @@ import {
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useAuth } from "@/context/AuthContext";
 import { useColors } from "@/hooks/useColors";
-import { marketplace } from "@/services/api";
+import { marketplace, chat } from "@/services/api";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -86,6 +86,7 @@ export default function ProductDetailScreen() {
   const [sendingComment, setSendingComment] = useState(false);
   const [favoriteLoading, setFavoriteLoading] = useState(false);
   const [addingToCart, setAddingToCart] = useState(false);
+  const [contactingSeller, setContactingSeller] = useState(false);
   const [showReportModal, setShowReportModal] = useState(false);
   const [reportReason, setReportReason] = useState("");
   const [reportDetails, setReportDetails] = useState("");
@@ -142,6 +143,24 @@ export default function ProductDetailScreen() {
       Alert.alert("Erreur", e?.message ?? "Impossible d'ajouter au panier");
     } finally {
       setAddingToCart(false);
+    }
+  };
+
+  const handleContactSeller = async () => {
+    if (!product) return;
+    setContactingSeller(true);
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+    try {
+      const res = await chat.contactSeller(product.id);
+      router.push(`/chat-thread?id=${res.data.id}`);
+    } catch (e: any) {
+      if (e?.code === "USER_BLOCKED") {
+        Alert.alert("Indisponible", "Vous ne pouvez pas contacter ce vendeur.");
+      } else {
+        Alert.alert("Erreur", e?.message ?? "Impossible de contacter le vendeur");
+      }
+    } finally {
+      setContactingSeller(false);
     }
   };
 
@@ -486,6 +505,27 @@ export default function ProductDetailScreen() {
         </TouchableOpacity>
       </View>
 
+      {/* Contact Seller FAB — lets a buyer open a marketplace chat with the seller */}
+      {!isSeller && !isAdmin && product.status === "approved" && (
+        <TouchableOpacity
+          style={[
+            styles.contactSellerFab,
+            { backgroundColor: colors.card, borderColor: colors.border, bottom: insets.bottom + 138 },
+          ]}
+          onPress={handleContactSeller}
+          disabled={contactingSeller}
+        >
+          {contactingSeller ? (
+            <ActivityIndicator size="small" color={colors.primary} />
+          ) : (
+            <>
+              <Feather name="message-circle" size={18} color={colors.primary} />
+              <Text style={[styles.contactSellerFabText, { color: colors.primary }]}>Contacter le vendeur</Text>
+            </>
+          )}
+        </TouchableOpacity>
+      )}
+
       {/* Add to cart FAB — show for non-sellers on approved products */}
       {!isSeller && !isAdmin && product.status === "approved" && (
         <TouchableOpacity
@@ -633,6 +673,19 @@ const styles = StyleSheet.create({
     shadowRadius: 6,
   },
   cartFabText: { color: "#fff", fontSize: 15, fontWeight: "700" },
+  contactSellerFab: {
+    position: "absolute",
+    start: 16,
+    end: 16,
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 10,
+    paddingVertical: 14,
+    borderRadius: 14,
+    borderWidth: 1,
+  },
+  contactSellerFabText: { fontSize: 15, fontWeight: "700" },
   modal: {
     position: "absolute",
     start: 0,

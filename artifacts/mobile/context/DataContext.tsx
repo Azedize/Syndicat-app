@@ -150,7 +150,7 @@ export interface CaisseEntry {
 
 export interface ChatConversation {
   id: string;
-  convType: "direct" | "group" | "announcement" | "support" | "building";
+  convType: "direct" | "group" | "announcement" | "support" | "building" | "marketplace" | "incident" | "emergency";
   isGroup: boolean;
   participant: string;
   participantId?: string | null;
@@ -159,7 +159,11 @@ export interface ChatConversation {
   time: string;
   unread: number;
   buildingId?: string | null;
+  productId?: string | null;
+  incidentId?: string | null;
   participantIds?: string[];
+  isArchived?: boolean;
+  isBlocked?: boolean;
 }
 
 export interface ChatMessage {
@@ -170,10 +174,12 @@ export interface ChatMessage {
   text: string;
   time: string;
   isMe: boolean;
-  messageType?: "text" | "image" | "document" | "announcement";
+  messageType?: "text" | "image" | "document" | "announcement" | "voice";
   attachmentUrl?: string | null;
   attachmentType?: string | null;
   attachmentName?: string | null;
+  durationSeconds?: number | null;
+  reactions?: { emoji: string; count: number; mine: boolean }[];
   createdAt?: string;
 }
 
@@ -406,7 +412,16 @@ function mapConversationRow(r: unknown): import("./DataContext").ChatConversatio
   const row = r as Record<string, unknown>;
   return {
     id: String(row.id),
-    convType: (row.convType as "direct" | "group" | "announcement" | "support" | "building") ?? "direct",
+    convType:
+      (row.convType as
+        | "direct"
+        | "group"
+        | "announcement"
+        | "support"
+        | "building"
+        | "marketplace"
+        | "incident"
+        | "emergency") ?? "direct",
     isGroup: Boolean(row.isGroup),
     participant: String(row.participant ?? row.participantName ?? ""),
     participantId: row.participantId ? String(row.participantId) : null,
@@ -415,7 +430,11 @@ function mapConversationRow(r: unknown): import("./DataContext").ChatConversatio
     time: String(row.time ?? row.lastMessageAt ?? ""),
     unread: Number(row.unread ?? row.unreadCount ?? 0),
     buildingId: row.buildingId ? String(row.buildingId) : null,
+    productId: row.productId ? String(row.productId) : null,
+    incidentId: row.incidentId ? String(row.incidentId) : null,
     participantIds: Array.isArray(row.participantIds) ? (row.participantIds as string[]) : [],
+    isArchived: Boolean(row.isArchived),
+    isBlocked: Boolean(row.isBlocked),
   };
 }
 
