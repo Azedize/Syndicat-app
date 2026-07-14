@@ -1,7 +1,7 @@
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import * as Updates from "expo-updates";
 import React, { createContext, useCallback, useContext, useEffect, useState } from "react";
-import { Alert, I18nManager, Platform } from "react-native";
+import { Alert, I18nManager } from "react-native";
 
 export type LangCode = "fr" | "en" | "ar" | "es";
 
@@ -1768,33 +1768,30 @@ export function LanguageProvider({ children }: { children: React.ReactNode }) {
       I18nManager.allowRTL(newIsRTL);
       I18nManager.forceRTL(newIsRTL);
 
-      // Layout mirroring (RTL) only fully takes effect after the app reloads —
-      // several navigation/gesture libraries read I18nManager.isRTL once at
-      // startup and never re-check it, so some screens (tab bar, dashboard,
-      // etc.) stayed LTR even though our own context state updated instantly.
+      // Layout mirroring (RTL) is a native-level flag (Yoga's root layout
+      // direction) — it only takes effect after the native app process
+      // actually restarts. A JS-only refresh is not enough: React Navigation,
+      // gesture-handler, and Reanimated all read I18nManager.isRTL once at
+      // native init and never re-check it, so screens (tab bar, dashboard,
+      // stacks, etc.) stay mirrored to the old direction until a real restart.
       const attemptReload = async () => {
-        if (Platform.OS === "web") {
-          // Wait for the language preference to persist before reloading, or
-          // the fresh page load would read the old value back out of storage.
-          await persist;
-          if (typeof window !== "undefined" && typeof window.location?.reload === "function") {
-            window.location.reload();
-          }
-          return;
-        }
+        // Make sure the new language is on disk before restarting, so the
+        // relaunched app reads the new value back out of storage.
+        await persist;
         try {
-          if (Updates.reloadAsync) {
-            await Updates.reloadAsync();
-            return;
-          }
+          // Works in EAS/production builds and dev clients built with
+          // expo-updates configured — triggers a full native reload.
+          await Updates.reloadAsync();
+          return;
         } catch {
-          // expo-updates is not available in this runtime (e.g. Expo Go) — fall through to manual prompt.
+          // expo-updates reload isn't available in this runtime (e.g. Expo Go) —
+          // fall through and ask the user to restart manually.
         }
         Alert.alert(
           option?.rtl ? "إعادة التشغيل مطلوبة" : "Redémarrage requis",
           option?.rtl
-            ? "الرجاء إغلاق التطبيق وإعادة فتحه لتطبيق اتجاه الكتابة من اليمين إلى اليسار بشكل كامل."
-            : "Veuillez fermer complètement l'application et la rouvrir pour appliquer la mise en page de droite à gauche.",
+            ? "الرجاء إغلاق التطبيق تمامًا (ليس فقط تصغيرها) ثم إعادة فتحها لتطبيق اتجاه الكتابة من اليمين إلى اليسار على كل الشاشات."
+            : "Veuillez fermer complètement l'application (pas seulement la mettre en arrière-plan) puis la rouvrir pour appliquer la mise en page de droite à gauche sur tous les écrans.",
         );
       };
       attemptReload();
