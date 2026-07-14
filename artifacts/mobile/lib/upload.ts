@@ -99,6 +99,22 @@ export async function pickAndUploadInvoice(onProgress?: UploadProgressCallback):
   return uploadUri(asset.uri, asset.name ?? `invoice-${Date.now()}`, ct, onProgress);
 }
 
+/**
+ * Derive a safe image extension from an Expo asset.
+ * On Expo Web the URI is a blob: or data: URL — parsing it gives garbage.
+ * We fall back to the asset.mimeType when that happens.
+ */
+function imageExtFromAsset(asset: { uri: string; mimeType?: string | null }): "jpg" | "png" {
+  // Native: URI is a real file path, extension is reliable.
+  if (!asset.uri.startsWith("blob:") && !asset.uri.startsWith("data:")) {
+    const tail = asset.uri.split("?")[0].split(".").pop()?.toLowerCase();
+    if (tail === "png") return "png";
+  }
+  // Web: use MIME type metadata from the picker.
+  if (asset.mimeType === "image/png") return "png";
+  return "jpg";
+}
+
 /** Prompts the user to pick a photo from the gallery and uploads it. */
 export async function pickAndUploadPhoto(onProgress?: UploadProgressCallback): Promise<UploadResult | undefined> {
   const result = await ImagePicker.launchImageLibraryAsync({
@@ -107,7 +123,7 @@ export async function pickAndUploadPhoto(onProgress?: UploadProgressCallback): P
   });
   if (result.canceled || !result.assets?.[0]) return undefined;
   const asset = result.assets[0];
-  const ext = asset.uri.split(".").pop()?.toLowerCase() ?? "jpg";
+  const ext = imageExtFromAsset(asset);
   const ct = ext === "png" ? "image/png" : "image/jpeg";
   return uploadUri(asset.uri, `photo-${Date.now()}.${ext}`, ct, onProgress);
 }
@@ -122,7 +138,7 @@ export async function captureAndUploadPhoto(onProgress?: UploadProgressCallback)
   });
   if (result.canceled || !result.assets?.[0]) return undefined;
   const asset = result.assets[0];
-  const ext = asset.uri.split(".").pop()?.toLowerCase() ?? "jpg";
+  const ext = imageExtFromAsset(asset);
   const ct = ext === "png" ? "image/png" : "image/jpeg";
   return uploadUri(asset.uri, `camera-${Date.now()}.${ext}`, ct, onProgress);
 }

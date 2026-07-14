@@ -44,24 +44,57 @@ const CONTENT_TYPE_MAP: Record<string, string> = {
   ".txt": "text/plain", ".csv": "text/csv",
 };
 
+/**
+ * Detect image content-type from file magic bytes.
+ * Called when the filename has no recognised extension (e.g. files uploaded
+ * from Expo Web where the blob URI produces no usable extension).
+ */
+function detectImageContentType(buf: Buffer): string | null {
+  // JPEG: FF D8 FF
+  if (buf.length >= 3 && buf[0] === 0xFF && buf[1] === 0xD8 && buf[2] === 0xFF) return "image/jpeg";
+  // PNG: 89 50 4E 47
+  if (buf.length >= 4 && buf[0] === 0x89 && buf[1] === 0x50 && buf[2] === 0x4E && buf[3] === 0x47) return "image/png";
+  // GIF: 47 49 46 38 (GIF8)
+  if (buf.length >= 4 && buf[0] === 0x47 && buf[1] === 0x49 && buf[2] === 0x46 && buf[3] === 0x38) return "image/gif";
+  // WEBP: RIFF????WEBP
+  if (buf.length >= 12 && buf.toString("ascii", 0, 4) === "RIFF" && buf.toString("ascii", 8, 12) === "WEBP") return "image/webp";
+  // HEIC/HEIF: ftyp box at offset 4 with "heic" or "hei" brand
+  if (buf.length >= 12 && buf.toString("ascii", 4, 8) === "ftyp") {
+    const brand = buf.toString("ascii", 8, 12).toLowerCase();
+    if (brand.startsWith("hei") || brand === "mif1" || brand === "avif") return "image/heic";
+  }
+  return null;
+}
+
 /** Serve a file from the local uploads directory. */
 async function serveLocalFile(filename: string, res: Response): Promise<boolean> {
   const filePath = path.join(LOCAL_UPLOADS_DIR, filename);
   try {
     const data = await fs.readFile(filePath);
     const ext = path.extname(filename).toLowerCase();
-    const contentType = CONTENT_TYPE_MAP[ext] ?? "application/octet-stream";
-    const isImage = IMAGE_EXTENSIONS.has(ext);
+    let contentType = CONTENT_TYPE_MAP[ext] ?? "application/octet-stream";
+    let isImage = IMAGE_EXTENSIONS.has(ext);
+
+    // Files uploaded from Expo Web often have no extension because blob URIs
+    // yield no usable suffix. Peek at magic bytes to recover the real type.
+    if (contentType === "application/octet-stream") {
+      const detected = detectImageContentType(data);
+      if (detected) {
+        contentType = detected;
+        isImage = true;
+      }
+    }
 
     res.setHeader("Content-Type", contentType);
-    res.setHeader("Cache-Control", "public, max-age=31536000, immutable");
-    res.setHeader("Content-Length", String(data.byteLength));
-    // Images: display inline in browser. Non-images: download with original filename.
+    // Images: long cache + inline display. Non-images: prompt download.
     if (isImage) {
+      res.setHeader("Cache-Control", "public, max-age=31536000, immutable");
       res.setHeader("Content-Disposition", "inline");
     } else {
-      res.setHeader("Content-Disposition", `attachment; filename="${filename}"`);
+      res.setHeader("Cache-Control", "public, max-age=86400");
+      res.setHeader("Content-Disposition", `attachment; filename="${encodeURIComponent(filename)}"`);
     }
+    res.setHeader("Content-Length", String(data.byteLength));
     res.send(data);
     return true;
   } catch {

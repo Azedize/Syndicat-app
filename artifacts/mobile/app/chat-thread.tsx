@@ -37,17 +37,89 @@ import { useColors } from "@/hooks/useColors";
 
 // ─── Common emojis for the picker panel ──────────────────────────────────────
 const EMOJI_GRID = [
-  "😀","😃","😄","😁","😆","😅","😂","🤣","😊","😇",
-  "🙂","🙃","😉","😌","😍","🥰","😘","😗","😙","😚",
-  "😋","😛","😜","🤪","😝","🤑","🤗","🤭","🤫","🤔",
-  "🤐","🤨","😐","😑","😶","😏","😒","🙄","😬","🤥",
-  "😔","😪","🤤","😴","😷","🤒","🤕","🤢","🤮","🥵",
-  "👍","👎","👏","🙌","🤝","👊","✊","🤜","🤛","🤞",
-  "❤️","🧡","💛","💚","💙","💜","🖤","🤍","💯","🔥",
-  "🎉","🎊","✨","💫","⭐","🌟","💥","🚀","🌈","🍀",
+  "😀",
+  "😃",
+  "😄",
+  "😁",
+  "😆",
+  "😅",
+  "😂",
+  "🤣",
+  "😊",
+  "😇",
+  "🙂",
+  "🙃",
+  "😉",
+  "😌",
+  "😍",
+  "🥰",
+  "😘",
+  "😗",
+  "😙",
+  "😚",
+  "😋",
+  "😛",
+  "😜",
+  "🤪",
+  "😝",
+  "🤑",
+  "🤗",
+  "🤭",
+  "🤫",
+  "🤔",
+  "🤐",
+  "🤨",
+  "😐",
+  "😑",
+  "😶",
+  "😏",
+  "😒",
+  "🙄",
+  "😬",
+  "🤥",
+  "😔",
+  "😪",
+  "🤤",
+  "😴",
+  "😷",
+  "🤒",
+  "🤕",
+  "🤢",
+  "🤮",
+  "🥵",
+  "👍",
+  "👎",
+  "👏",
+  "🙌",
+  "🤝",
+  "👊",
+  "✊",
+  "🤜",
+  "🤛",
+  "🤞",
+  "❤️",
+  "🧡",
+  "💛",
+  "💚",
+  "💙",
+  "💜",
+  "🖤",
+  "🤍",
+  "💯",
+  "🔥",
+  "🎉",
+  "🎊",
+  "✨",
+  "💫",
+  "⭐",
+  "🌟",
+  "💥",
+  "🚀",
+  "🌈",
+  "🍀",
 ];
 
-const REACTION_EMOJIS = ["👍","❤️","😂","😮","😢","🙏"];
+const REACTION_EMOJIS = ["👍", "❤️", "😂", "😮", "😢", "🙏"];
 
 function getAttachmentBaseUrl(): string {
   const domain = process.env.EXPO_PUBLIC_DOMAIN;
@@ -59,7 +131,8 @@ function resolveAttachmentUrl(raw: string | null | undefined): string | null {
   if (!raw) return null;
   if (raw.startsWith("http")) return raw;
   // objectPath starts with /objects/ → serve via /storage/objects/
-  if (raw.startsWith("/objects/")) return `${getAttachmentBaseUrl()}/storage${raw}`;
+  if (raw.startsWith("/objects/"))
+    return `${getAttachmentBaseUrl()}/storage${raw}`;
   return `${getAttachmentBaseUrl()}/storage/public-objects/${raw}`;
 }
 
@@ -79,10 +152,16 @@ export default function ChatThreadScreen() {
   const listRef = useRef<FlatList>(null);
   const lastMessageAtRef = useRef<string | null>(null);
   const { isWide } = useBreakpoints();
-  const topPad = isWide ? 0 : (Platform.OS === "web" ? 67 : insets.top);
+  const topPad = isWide ? 0 : Platform.OS === "web" ? 67 : insets.top;
   const isRTL = I18nManager.isRTL;
 
-  const { conversations, messages, sendMessage, markConversationRead, deleteConversation } = useData();
+  const {
+    conversations,
+    messages,
+    sendMessage,
+    markConversationRead,
+    deleteConversation,
+  } = useData();
   const conversation = conversations.find((c) => c.id === id);
   const [isBlocked, setIsBlocked] = useState(!!conversation?.isBlocked);
   const [typingUsers, setTypingUsers] = useState<string[]>([]);
@@ -107,7 +186,9 @@ export default function ChatThreadScreen() {
   const [editingMessageId, setEditingMessageId] = useState<string | null>(null);
   const [editingText, setEditingText] = useState("");
 
-  useEffect(() => { setIsBlocked(!!conversation?.isBlocked); }, [conversation?.isBlocked]);
+  useEffect(() => {
+    setIsBlocked(!!conversation?.isBlocked);
+  }, [conversation?.isBlocked]);
 
   function mapApiMessage(r: any): ChatMessage {
     return {
@@ -117,7 +198,10 @@ export default function ChatThreadScreen() {
       senderId: String(r.senderId ?? ""),
       text: String(r.text ?? r.content ?? ""),
       time: r.createdAt
-        ? new Date(r.createdAt).toLocaleTimeString("fr-FR", { hour: "2-digit", minute: "2-digit" })
+        ? new Date(r.createdAt).toLocaleTimeString("fr-FR", {
+            hour: "2-digit",
+            minute: "2-digit",
+          })
         : String(r.time ?? ""),
       isMe: Boolean(r.isMe ?? false),
       messageType: r.messageType ?? "text",
@@ -136,19 +220,23 @@ export default function ChatThreadScreen() {
   useEffect(() => {
     if (!id) return;
     let cancelled = false;
-    chatApi.messages(id)
+    chatApi
+      .messages(id)
       .then((res: any) => {
         if (cancelled) return;
         const rows: any[] = res?.data ?? [];
         const mapped = rows.map(mapApiMessage);
         setApiMessages(mapped);
         if (mapped.length > 0) {
-          lastMessageAtRef.current = mapped[mapped.length - 1].createdAt ?? null;
+          lastMessageAtRef.current =
+            mapped[mapped.length - 1].createdAt ?? null;
         }
       })
       .catch(() => {});
     markConversationRead(id);
-    return () => { cancelled = true; };
+    return () => {
+      cancelled = true;
+    };
   }, [id]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // Poll for new messages, edits, deletions, and typing every 4 seconds
@@ -157,7 +245,7 @@ export default function ChatThreadScreen() {
     const timer = setInterval(async () => {
       try {
         const since = lastMessageAtRef.current ?? new Date(0).toISOString();
-        const res = await chatApi.since(id, since) as any;
+        const res = (await chatApi.since(id, since)) as any;
         const rows: any[] = res?.data ?? [];
         if (rows.length > 0) {
           const mapped = rows.map(mapApiMessage);
@@ -166,13 +254,21 @@ export default function ChatThreadScreen() {
             const fresh = mapped.filter((m) => !existingIds.has(m.id));
             // Updated messages (edited / deleted) that already exist locally
             const updated = mapped.filter((m) => existingIds.has(m.id));
-            let result = updated.length > 0
-              ? prev.map((m) => { const u = updated.find((u) => u.id === m.id); return u ?? m; })
-              : prev;
+            let result =
+              updated.length > 0
+                ? prev.map((m) => {
+                    const u = updated.find((u) => u.id === m.id);
+                    return u ?? m;
+                  })
+                : prev;
             if (fresh.length > 0) {
-              lastMessageAtRef.current = fresh[fresh.length - 1].createdAt ?? null;
+              lastMessageAtRef.current =
+                fresh[fresh.length - 1].createdAt ?? null;
               if (fresh.some((m) => !m.isMe)) {
-                setTimeout(() => listRef.current?.scrollToEnd({ animated: true }), 100);
+                setTimeout(
+                  () => listRef.current?.scrollToEnd({ animated: true }),
+                  100,
+                );
                 markConversationRead(id);
               }
               result = [...result, ...fresh];
@@ -181,14 +277,18 @@ export default function ChatThreadScreen() {
           });
         }
         setTypingUsers((res as any)?.typing ?? []);
-      } catch { /* keep showing stale */ }
+      } catch {
+        /* keep showing stale */
+      }
     }, 4000);
     return () => clearInterval(timer);
   }, [id]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // Merge API history + optimistic local messages
   const apiMsgsForThread = apiMessages.filter((m) => m.conversationId === id);
-  const apiTexts = new Set(apiMsgsForThread.filter((m) => m.isMe).map((m) => m.text));
+  const apiTexts = new Set(
+    apiMsgsForThread.filter((m) => m.isMe).map((m) => m.text),
+  );
   const localPending = messages.filter(
     (m) => m.conversationId === id && m.isMe && !apiTexts.has(m.text),
   );
@@ -219,8 +319,12 @@ export default function ChatThreadScreen() {
     if (!conversation?.participantId) return;
     const targetId = conversation.participantId;
     if (isBlocked) {
-      chatApi.unblockUser(targetId)
-        .then(() => { setIsBlocked(false); Alert.alert(t("userUnblockedTitle")); })
+      chatApi
+        .unblockUser(targetId)
+        .then(() => {
+          setIsBlocked(false);
+          Alert.alert(t("userUnblockedTitle"));
+        })
         .catch(() => Alert.alert(t("error")));
     } else {
       Alert.alert(t("blockUser"), t("blockUserConfirm"), [
@@ -229,8 +333,12 @@ export default function ChatThreadScreen() {
           text: t("blockUser"),
           style: "destructive",
           onPress: () => {
-            chatApi.blockUser(targetId)
-              .then(() => { setIsBlocked(true); Alert.alert(t("userBlockedTitle")); })
+            chatApi
+              .blockUser(targetId)
+              .then(() => {
+                setIsBlocked(true);
+                Alert.alert(t("userBlockedTitle"));
+              })
               .catch(() => Alert.alert(t("error")));
           },
         },
@@ -254,14 +362,20 @@ export default function ChatThreadScreen() {
     }
   };
 
-  const handleToggleReaction = async (messageId: string, emoji: string, alreadyMine: boolean) => {
+  const handleToggleReaction = async (
+    messageId: string,
+    emoji: string,
+    alreadyMine: boolean,
+  ) => {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
     try {
       if (alreadyMine) await chatApi.unreact(messageId, emoji);
       else await chatApi.react(messageId, emoji);
-      const res = await chatApi.messages(id!) as any;
+      const res = (await chatApi.messages(id!)) as any;
       setApiMessages((res?.data ?? []).map(mapApiMessage));
-    } catch { /* best-effort */ }
+    } catch {
+      /* best-effort */
+    }
   };
 
   const handleAttach = async (mode: "camera" | "gallery" | "document") => {
@@ -294,7 +408,7 @@ export default function ChatThreadScreen() {
       const sendRes = await chatApi.send(id, {
         text: "",
         messageType: isImage ? "image" : "document",
-        attachmentUrl: result.objectPath,   // e.g. "/objects/uploads/<uuid>"
+        attachmentUrl: result.objectPath, // e.g. "/objects/uploads/<uuid>"
         attachmentType: result.contentType,
         attachmentName: result.fileName,
         attachmentSize: result.size,
@@ -335,9 +449,14 @@ export default function ChatThreadScreen() {
   const handleEditMessage = async () => {
     if (!editingMessageId || !editingText.trim()) return;
     try {
-      const res = await chatApi.editMessage(editingMessageId, editingText.trim()) as any;
+      const res = (await chatApi.editMessage(
+        editingMessageId,
+        editingText.trim(),
+      )) as any;
       const updated = mapApiMessage({ ...res.data, isMe: true });
-      setApiMessages((prev) => prev.map((m) => m.id === editingMessageId ? updated : m));
+      setApiMessages((prev) =>
+        prev.map((m) => (m.id === editingMessageId ? updated : m)),
+      );
       setEditingMessageId(null);
       setEditingText("");
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
@@ -348,17 +467,30 @@ export default function ChatThreadScreen() {
   };
 
   // ─── Delete message handler ───────────────────────────────────────────────
-  const handleDeleteMessage = (msgId: string, mode: "for_me" | "for_everyone") => {
-    chatApi.deleteMessage(msgId, mode)
+  const handleDeleteMessage = (
+    msgId: string,
+    mode: "for_me" | "for_everyone",
+  ) => {
+    chatApi
+      .deleteMessage(msgId, mode)
       .then(() => {
         if (mode === "for_me") {
           setApiMessages((prev) => prev.filter((m) => m.id !== msgId));
         } else {
-          setApiMessages((prev) => prev.map((m) =>
-            m.id === msgId
-              ? { ...m, text: "", isDeletedForEveryone: true, attachmentUrl: null, attachmentName: null, attachmentType: null }
-              : m,
-          ));
+          setApiMessages((prev) =>
+            prev.map((m) =>
+              m.id === msgId
+                ? {
+                    ...m,
+                    text: "",
+                    isDeletedForEveryone: true,
+                    attachmentUrl: null,
+                    attachmentName: null,
+                    attachmentType: null,
+                  }
+                : m,
+            ),
+          );
         }
         Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
       })
@@ -376,8 +508,14 @@ export default function ChatThreadScreen() {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
 
     const reactions = msg.reactions ?? [];
-    const ageMs = msg.createdAt ? Date.now() - new Date(msg.createdAt).getTime() : Infinity;
-    const canEdit = msg.isMe && msg.messageType === "text" && !msg.attachmentUrl && ageMs < 15 * 60 * 1000;
+    const ageMs = msg.createdAt
+      ? Date.now() - new Date(msg.createdAt).getTime()
+      : Infinity;
+    const canEdit =
+      msg.isMe &&
+      msg.messageType === "text" &&
+      !msg.attachmentUrl &&
+      ageMs < 15 * 60 * 1000;
     const canDeleteForAll = msg.isMe && ageMs < 60 * 60 * 1000;
 
     const reactionOptions: any[] = REACTION_EMOJIS.map((emoji) => ({
@@ -393,7 +531,10 @@ export default function ChatThreadScreen() {
     if (canEdit) {
       actionOptions.push({
         text: "✏️  " + (t("editMessage") || "Modifier"),
-        onPress: () => { setEditingMessageId(msg.id); setEditingText(msg.text); },
+        onPress: () => {
+          setEditingMessageId(msg.id);
+          setEditingText(msg.text);
+        },
       });
     }
 
@@ -406,15 +547,20 @@ export default function ChatThreadScreen() {
       actionOptions.push({
         text: "⛔  " + (t("deleteForEveryone") || "Supprimer pour tous"),
         style: "destructive" as const,
-        onPress: () => Alert.alert(
-          t("deleteForEveryone") || "Supprimer pour tous",
-          t("deleteForEveryoneConfirm") || "Ce message sera définitivement supprimé pour tous les participants.",
-          [
-            { text: t("cancel"), style: "cancel" },
-            { text: t("delete") || "Supprimer", style: "destructive",
-              onPress: () => handleDeleteMessage(msg.id, "for_everyone") },
-          ],
-        ),
+        onPress: () =>
+          Alert.alert(
+            t("deleteForEveryone") || "Supprimer pour tous",
+            t("deleteForEveryoneConfirm") ||
+              "Ce message sera définitivement supprimé pour tous les participants.",
+            [
+              { text: t("cancel"), style: "cancel" },
+              {
+                text: t("delete") || "Supprimer",
+                style: "destructive",
+                onPress: () => handleDeleteMessage(msg.id, "for_everyone"),
+              },
+            ],
+          ),
       });
     }
 
@@ -425,12 +571,17 @@ export default function ChatThreadScreen() {
   if (!conversation) {
     return (
       <View style={[styles.root, { backgroundColor: colors.background }]}>
-        <Text style={{ color: colors.foreground, padding: 20 }}>{t("conversationNotFound")}</Text>
+        <Text style={{ color: colors.foreground, padding: 20 }}>
+          {t("conversationNotFound")}
+        </Text>
       </View>
     );
   }
 
-  const isGroup = conversation.isGroup || conversation.convType === "group" || conversation.role === "Groupe";
+  const isGroup =
+    conversation.isGroup ||
+    conversation.convType === "group" ||
+    conversation.role === "Groupe";
 
   // ─── Bubble corner helper (RTL-aware) ─────────────────────────────────────
   // In LTR: "my" bubbles have bottom-right cut (isMe=true → borderBottomRightRadius:4).
@@ -438,9 +589,13 @@ export default function ChatThreadScreen() {
   // In RTL: flip the corners.
   function bubbleCornerStyle(isMe: boolean) {
     if (isRTL) {
-      return isMe ? { borderBottomLeftRadius: 4 } : { borderBottomRightRadius: 4 };
+      return isMe
+        ? { borderBottomLeftRadius: 4 }
+        : { borderBottomRightRadius: 4 };
     }
-    return isMe ? { borderBottomRightRadius: 4 } : { borderBottomLeftRadius: 4 };
+    return isMe
+      ? { borderBottomRightRadius: 4 }
+      : { borderBottomLeftRadius: 4 };
   }
 
   return (
@@ -450,11 +605,22 @@ export default function ChatThreadScreen() {
       keyboardVerticalOffset={0}
     >
       {/* Header */}
-      <View style={[styles.header, { paddingTop: topPad + 12, backgroundColor: colors.card, borderBottomColor: colors.border }]}>
+      <View
+        style={[
+          styles.header,
+          {
+            paddingTop: topPad + 12,
+            backgroundColor: colors.card,
+            borderBottomColor: colors.border,
+          },
+        ]}
+      >
         <TouchableOpacity onPress={() => router.back()} style={styles.backBtn}>
           <Feather name="arrow-left" size={22} color={colors.foreground} />
         </TouchableOpacity>
-        <View style={[styles.avatar, { backgroundColor: colors.primary + "20" }]}>
+        <View
+          style={[styles.avatar, { backgroundColor: colors.primary + "20" }]}
+        >
           {isGroup ? (
             <Feather name="users" size={18} color={colors.primary} />
           ) : (
@@ -464,22 +630,41 @@ export default function ChatThreadScreen() {
           )}
         </View>
         <View style={{ flex: 1 }}>
-          <Text style={[styles.headerName, { color: colors.foreground }]} numberOfLines={1}>
+          <Text
+            style={[styles.headerName, { color: colors.foreground }]}
+            numberOfLines={1}
+          >
             {conversation.participant}
           </Text>
           <View style={styles.onlineRow}>
-            <View style={[styles.onlineDot, { backgroundColor: colors.success }]} />
-            <Text style={[styles.onlineLabel, { color: colors.mutedForeground }]}>{conversation.role}</Text>
+            <View
+              style={[styles.onlineDot, { backgroundColor: colors.success }]}
+            />
+            <Text
+              style={[styles.onlineLabel, { color: colors.mutedForeground }]}
+            >
+              {conversation.role}
+            </Text>
           </View>
         </View>
         <TouchableOpacity
           style={[styles.headerBtn, { backgroundColor: colors.secondary }]}
           onPress={() => {
             Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
-            Alert.alert(t("vocalCallLabel"), `${t("callLabel")} ${conversation.participant}?`, [
-              { text: t("cancel"), style: "cancel" },
-              { text: t("callLabel"), onPress: () => Linking.openURL("tel:").catch(() => Alert.alert(t("error"), t("callUnavailable"))) },
-            ]);
+            Alert.alert(
+              t("vocalCallLabel"),
+              `${t("callLabel")} ${conversation.participant}?`,
+              [
+                { text: t("cancel"), style: "cancel" },
+                {
+                  text: t("callLabel"),
+                  onPress: () =>
+                    Linking.openURL("tel:").catch(() =>
+                      Alert.alert(t("error"), t("callUnavailable")),
+                    ),
+                },
+              ],
+            );
           }}
         >
           <Feather name="phone" size={16} color={colors.primary} />
@@ -490,18 +675,36 @@ export default function ChatThreadScreen() {
             Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
             const options: any[] = [
               { text: t("cancel"), style: "cancel" },
-              { text: t("shareConversation"), onPress: () => shareContent(`Conversation avec ${conversation.participant} sur SYNDYCAT`) },
+              {
+                text: t("shareConversation"),
+                onPress: () =>
+                  shareContent(
+                    `Conversation avec ${conversation.participant} sur SYNDYCAT`,
+                  ),
+              },
             ];
             if (!isGroup && conversation.participantId) {
-              options.push({ text: isBlocked ? t("unblockUser") : t("blockUser"), onPress: handleToggleBlock });
-              options.push({ text: t("reportUser"), onPress: () => setReportModalVisible(true) });
+              options.push({
+                text: isBlocked ? t("unblockUser") : t("blockUser"),
+                onPress: handleToggleBlock,
+              });
+              options.push({
+                text: t("reportUser"),
+                onPress: () => setReportModalVisible(true),
+              });
             } else {
-              options.push({ text: t("reportConversation"), onPress: () => setReportModalVisible(true) });
+              options.push({
+                text: t("reportConversation"),
+                onPress: () => setReportModalVisible(true),
+              });
             }
             options.push({
               text: t("deleteConversation"),
               style: "destructive",
-              onPress: () => { deleteConversation(id); router.back(); },
+              onPress: () => {
+                deleteConversation(id);
+                router.back();
+              },
             });
             Alert.alert(t("optionsLabel"), undefined, options);
           }}
@@ -516,7 +719,10 @@ export default function ChatThreadScreen() {
           <View
             style={[
               styles.progressFill,
-              { backgroundColor: colors.primary, width: `${Math.round(uploadProgress * 100)}%` as any },
+              {
+                backgroundColor: colors.primary,
+                width: `${Math.round(uploadProgress * 100)}%` as any,
+              },
             ]}
           />
         </View>
@@ -540,23 +746,41 @@ export default function ChatThreadScreen() {
         renderItem={({ item: msg, index }) => {
           const prev = threadMessages[index - 1];
           const showSender = !msg.isMe && (!prev || prev.sender !== msg.sender);
-          const reactions: { emoji: string; count: number; mine: boolean }[] = msg.reactions ?? [];
-          const isImage = msg.messageType === "image" || msg.attachmentType?.startsWith("image/");
-          const isDoc = msg.messageType === "document" || (!isImage && !!msg.attachmentUrl);
+          const reactions: { emoji: string; count: number; mine: boolean }[] =
+            msg.reactions ?? [];
+          const isImage =
+            msg.messageType === "image" ||
+            msg.attachmentType?.startsWith("image/");
+          const isDoc =
+            msg.messageType === "document" || (!isImage && !!msg.attachmentUrl);
           const resolvedUrl = resolveAttachmentUrl(msg.attachmentUrl);
 
           return (
             <View style={[styles.msgRow, msg.isMe && styles.msgRowMe]}>
               {!msg.isMe && isGroup && (
-                <View style={[styles.msgAvatar, { backgroundColor: colors.primary + "20" }]}>
-                  <Text style={[styles.msgAvatarText, { color: colors.primary }]}>
+                <View
+                  style={[
+                    styles.msgAvatar,
+                    { backgroundColor: colors.primary + "20" },
+                  ]}
+                >
+                  <Text
+                    style={[styles.msgAvatarText, { color: colors.primary }]}
+                  >
                     {msg.sender.slice(0, 2).toUpperCase()}
                   </Text>
                 </View>
               )}
-              <View style={[styles.msgGroup, msg.isMe && { alignItems: "flex-end" }]}>
+              <View
+                style={[
+                  styles.msgGroup,
+                  msg.isMe && { alignItems: "flex-end" },
+                ]}
+              >
                 {showSender && (
-                  <Text style={[styles.msgSender, { color: colors.primary }]}>{msg.sender}</Text>
+                  <Text style={[styles.msgSender, { color: colors.primary }]}>
+                    {msg.sender}
+                  </Text>
                 )}
                 <TouchableOpacity
                   activeOpacity={0.8}
@@ -568,22 +792,47 @@ export default function ChatThreadScreen() {
                       bubbleCornerStyle(msg.isMe),
                       msg.isMe
                         ? { backgroundColor: colors.primary }
-                        : { backgroundColor: colors.card, borderColor: colors.border, borderWidth: 1 },
+                        : {
+                            backgroundColor: colors.card,
+                            borderColor: colors.border,
+                            borderWidth: 1,
+                          },
                       // Image bubbles have no padding — the image fills to the edge
-                      isImage && resolvedUrl && !msg.isDeletedForEveryone ? { padding: 0, overflow: "hidden" } : {},
+                      isImage && resolvedUrl && !msg.isDeletedForEveryone
+                        ? { padding: 0, overflow: "hidden" }
+                        : {},
                     ]}
                   >
                     {msg.isDeletedForEveryone ? (
                       /* ── Tombstone for "deleted for everyone" ── */
                       <View style={styles.tombstoneBubble}>
-                        <Feather name="slash" size={13} color={msg.isMe ? "rgba(255,255,255,0.5)" : colors.mutedForeground} />
-                        <Text style={[styles.tombstoneText, { color: msg.isMe ? "rgba(255,255,255,0.5)" : colors.mutedForeground }]}>
+                        <Feather
+                          name="slash"
+                          size={13}
+                          color={
+                            msg.isMe
+                              ? "rgba(255,255,255,0.5)"
+                              : colors.mutedForeground
+                          }
+                        />
+                        <Text
+                          style={[
+                            styles.tombstoneText,
+                            {
+                              color: msg.isMe
+                                ? "rgba(255,255,255,0.5)"
+                                : colors.mutedForeground,
+                            },
+                          ]}
+                        >
                           {t("messageDeleted") || "Ce message a été supprimé"}
                         </Text>
                       </View>
                     ) : isImage && resolvedUrl ? (
                       /* ── Image attachment ── */
-                      <TouchableOpacity onPress={() => setImageViewerUrl(resolvedUrl)}>
+                      <TouchableOpacity
+                        onPress={() => setImageViewerUrl(resolvedUrl)}
+                      >
                         <Image
                           source={{ uri: resolvedUrl }}
                           style={styles.attachmentImage}
@@ -594,33 +843,80 @@ export default function ChatThreadScreen() {
                       /* ── Document attachment ── */
                       <TouchableOpacity
                         style={styles.docAttachment}
-                        onPress={() => Linking.openURL(resolvedUrl).catch(() => Alert.alert(t("error"), t("cannotOpenFile")))}
+                        onPress={() =>
+                          Linking.openURL(resolvedUrl).catch(() =>
+                            Alert.alert(t("error"), t("cannotOpenFile")),
+                          )
+                        }
                       >
-                        <View style={[styles.docIcon, { backgroundColor: msg.isMe ? "rgba(255,255,255,0.2)" : colors.primary + "20" }]}>
-                          <Feather name="file" size={20} color={msg.isMe ? "#fff" : colors.primary} />
+                        <View
+                          style={[
+                            styles.docIcon,
+                            {
+                              backgroundColor: msg.isMe
+                                ? "rgba(255,255,255,0.2)"
+                                : colors.primary + "20",
+                            },
+                          ]}
+                        >
+                          <Feather
+                            name="file"
+                            size={20}
+                            color={msg.isMe ? "#fff" : colors.primary}
+                          />
                         </View>
                         <View style={{ flex: 1 }}>
                           <Text
-                            style={[styles.docName, { color: msg.isMe ? "#fff" : colors.foreground }]}
+                            style={[
+                              styles.docName,
+                              { color: msg.isMe ? "#fff" : colors.foreground },
+                            ]}
                             numberOfLines={2}
                           >
                             {msg.attachmentName ?? t("documentLabel")}
                           </Text>
-                          <Text style={[styles.docOpen, { color: msg.isMe ? "rgba(255,255,255,0.7)" : colors.primary }]}>
+                          <Text
+                            style={[
+                              styles.docOpen,
+                              {
+                                color: msg.isMe
+                                  ? "rgba(255,255,255,0.7)"
+                                  : colors.primary,
+                              },
+                            ]}
+                          >
                             {t("openLabel") ?? "Ouvrir"}
                           </Text>
                         </View>
-                        <Feather name="external-link" size={14} color={msg.isMe ? "rgba(255,255,255,0.7)" : colors.mutedForeground} />
+                        <Feather
+                          name="external-link"
+                          size={14}
+                          color={
+                            msg.isMe
+                              ? "rgba(255,255,255,0.7)"
+                              : colors.mutedForeground
+                          }
+                        />
                       </TouchableOpacity>
                     ) : (
                       /* ── Plain text ── */
-                      <Text style={[styles.bubbleText, { color: msg.isMe ? "#fff" : colors.foreground }]}>
+                      <Text
+                        style={[
+                          styles.bubbleText,
+                          { color: msg.isMe ? "#fff" : colors.foreground },
+                        ]}
+                      >
                         {msg.text}
                       </Text>
                     )}
                     {/* Caption for image messages that also have text */}
                     {isImage && !msg.isDeletedForEveryone && msg.text ? (
-                      <Text style={[styles.bubbleCaption, { color: msg.isMe ? "#fff" : colors.foreground }]}>
+                      <Text
+                        style={[
+                          styles.bubbleCaption,
+                          { color: msg.isMe ? "#fff" : colors.foreground },
+                        ]}
+                      >
                         {msg.text}
                       </Text>
                     ) : null}
@@ -633,23 +929,48 @@ export default function ChatThreadScreen() {
                         key={r.emoji}
                         style={[
                           styles.reactionChip,
-                          { backgroundColor: r.mine ? colors.primary + "20" : colors.secondary, borderColor: r.mine ? colors.primary : colors.border },
+                          {
+                            backgroundColor: r.mine
+                              ? colors.primary + "20"
+                              : colors.secondary,
+                            borderColor: r.mine
+                              ? colors.primary
+                              : colors.border,
+                          },
                         ]}
-                        onPress={() => handleToggleReaction(msg.id, r.emoji, r.mine)}
+                        onPress={() =>
+                          handleToggleReaction(msg.id, r.emoji, r.mine)
+                        }
                       >
-                        <Text style={styles.reactionChipText}>{r.emoji} {r.count}</Text>
+                        <Text style={styles.reactionChipText}>
+                          {r.emoji} {r.count}
+                        </Text>
                       </TouchableOpacity>
                     ))}
                   </View>
                 )}
                 {/* Footer: time + "Modifié" + status tick */}
-                <View style={[styles.msgFooter, msg.isMe && { alignSelf: "flex-end" }]}>
+                <View
+                  style={[
+                    styles.msgFooter,
+                    msg.isMe && { alignSelf: "flex-end" },
+                  ]}
+                >
                   {msg.editedAt && !msg.isDeletedForEveryone && (
-                    <Text style={[styles.editedLabel, { color: colors.mutedForeground }]}>
+                    <Text
+                      style={[
+                        styles.editedLabel,
+                        { color: colors.mutedForeground },
+                      ]}
+                    >
                       {t("edited") || "Modifié"}
                     </Text>
                   )}
-                  <Text style={[styles.msgTime, { color: colors.mutedForeground }]}>{msg.time}</Text>
+                  <Text
+                    style={[styles.msgTime, { color: colors.mutedForeground }]}
+                  >
+                    {msg.time}
+                  </Text>
                   {msg.isMe && !msg.id.startsWith("m") && (
                     <Feather
                       name="check"
@@ -667,28 +988,58 @@ export default function ChatThreadScreen() {
 
       {/* Edit indicator bar */}
       {editingMessageId && (
-        <View style={[styles.editIndicator, { backgroundColor: colors.card, borderTopColor: colors.border }]}>
+        <View
+          style={[
+            styles.editIndicator,
+            { backgroundColor: colors.card, borderTopColor: colors.border },
+          ]}
+        >
           <Feather name="edit-2" size={14} color={colors.primary} />
-          <Text style={[styles.editIndicatorText, { color: colors.primary }]} numberOfLines={1}>
+          <Text
+            style={[styles.editIndicatorText, { color: colors.primary }]}
+            numberOfLines={1}
+          >
             {t("editingMessage") || "Modification en cours"}
           </Text>
-          <TouchableOpacity onPress={() => { setEditingMessageId(null); setEditingText(""); }}>
+          <TouchableOpacity
+            onPress={() => {
+              setEditingMessageId(null);
+              setEditingText("");
+            }}
+          >
             <Feather name="x" size={16} color={colors.mutedForeground} />
           </TouchableOpacity>
         </View>
       )}
 
       {isBlocked ? (
-        <View style={[styles.blockedNotice, { backgroundColor: colors.secondary, borderTopColor: colors.border }]}>
+        <View
+          style={[
+            styles.blockedNotice,
+            {
+              backgroundColor: colors.secondary,
+              borderTopColor: colors.border,
+            },
+          ]}
+        >
           <Feather name="slash" size={14} color={colors.mutedForeground} />
-          <Text style={[styles.blockedNoticeText, { color: colors.mutedForeground }]}>{t("conversationBlockedNotice")}</Text>
+          <Text
+            style={[
+              styles.blockedNoticeText,
+              { color: colors.mutedForeground },
+            ]}
+          >
+            {t("conversationBlockedNotice")}
+          </Text>
         </View>
       ) : (
         <>
           {typingUsers.length > 0 && (
             <View style={styles.typingRow}>
               <ActivityIndicator size="small" color={colors.primary} />
-              <Text style={[styles.typingText, { color: colors.mutedForeground }]}>
+              <Text
+                style={[styles.typingText, { color: colors.mutedForeground }]}
+              >
                 {conversation.participant} {t("isTyping")}
               </Text>
             </View>
@@ -698,45 +1049,94 @@ export default function ChatThreadScreen() {
 
       {/* Attachment picker sheet */}
       {showAttachSheet && !isBlocked && (
-        <View style={[styles.attachSheet, { backgroundColor: colors.card, borderTopColor: colors.border }]}>
-          <Text style={[styles.attachSheetTitle, { color: colors.mutedForeground }]}>
+        <View
+          style={[
+            styles.attachSheet,
+            { backgroundColor: colors.card, borderTopColor: colors.border },
+          ]}
+        >
+          <Text
+            style={[styles.attachSheetTitle, { color: colors.mutedForeground }]}
+          >
             {t("chooseFileType")}
           </Text>
           <View style={styles.attachSheetRow}>
             <TouchableOpacity
-              style={[styles.attachOption, { backgroundColor: colors.secondary }]}
-              onPress={() => { setShowAttachSheet(false); handleAttach("camera"); }}
+              style={[
+                styles.attachOption,
+                { backgroundColor: colors.secondary },
+              ]}
+              onPress={() => {
+                setShowAttachSheet(false);
+                handleAttach("camera");
+              }}
             >
               <Feather name="camera" size={24} color={colors.primary} />
-              <Text style={[styles.attachOptionLabel, { color: colors.foreground }]}>{t("cameraLabel")}</Text>
+              <Text
+                style={[styles.attachOptionLabel, { color: colors.foreground }]}
+              >
+                {t("cameraLabel")}
+              </Text>
             </TouchableOpacity>
             <TouchableOpacity
-              style={[styles.attachOption, { backgroundColor: colors.secondary }]}
-              onPress={() => { setShowAttachSheet(false); handleAttach("gallery"); }}
+              style={[
+                styles.attachOption,
+                { backgroundColor: colors.secondary },
+              ]}
+              onPress={() => {
+                setShowAttachSheet(false);
+                handleAttach("gallery");
+              }}
             >
               <Feather name="image" size={24} color={colors.primary} />
-              <Text style={[styles.attachOptionLabel, { color: colors.foreground }]}>{t("photoLabel")}</Text>
+              <Text
+                style={[styles.attachOptionLabel, { color: colors.foreground }]}
+              >
+                {t("photoLabel")}
+              </Text>
             </TouchableOpacity>
             <TouchableOpacity
-              style={[styles.attachOption, { backgroundColor: colors.secondary }]}
-              onPress={() => { setShowAttachSheet(false); handleAttach("document"); }}
+              style={[
+                styles.attachOption,
+                { backgroundColor: colors.secondary },
+              ]}
+              onPress={() => {
+                setShowAttachSheet(false);
+                handleAttach("document");
+              }}
             >
               <Feather name="file-text" size={24} color={colors.primary} />
-              <Text style={[styles.attachOptionLabel, { color: colors.foreground }]}>{t("documentLabel")}</Text>
+              <Text
+                style={[styles.attachOptionLabel, { color: colors.foreground }]}
+              >
+                {t("documentLabel")}
+              </Text>
             </TouchableOpacity>
           </View>
           <TouchableOpacity
             style={[styles.attachCancelBtn, { borderTopColor: colors.border }]}
             onPress={() => setShowAttachSheet(false)}
           >
-            <Text style={[styles.attachCancelText, { color: colors.mutedForeground }]}>{t("cancel")}</Text>
+            <Text
+              style={[
+                styles.attachCancelText,
+                { color: colors.mutedForeground },
+              ]}
+            >
+              {t("cancel")}
+            </Text>
           </TouchableOpacity>
         </View>
       )}
 
       {/* Emoji picker panel */}
       {showEmojiPicker && !isBlocked && (
-        <View style={[styles.emojiPanel, { backgroundColor: colors.card, borderTopColor: colors.border }]}>
+        <View
+          style={[
+            styles.emojiPanel,
+            { backgroundColor: colors.card, borderTopColor: colors.border },
+          ]}
+        >
           <ScrollView horizontal={false} style={{ maxHeight: 160 }}>
             <View style={styles.emojiGrid}>
               {EMOJI_GRID.map((emoji) => (
@@ -794,13 +1194,31 @@ export default function ChatThreadScreen() {
       {/* Report modal */}
       {reportModalVisible && (
         <View style={StyleSheet.absoluteFill}>
-          <TouchableOpacity style={styles.reportOverlay} activeOpacity={1} onPress={() => setReportModalVisible(false)} />
-          <View style={[styles.reportModal, { backgroundColor: colors.card, bottom: insets.bottom + 20 }]}>
-            <Text style={[styles.reportModalTitle, { color: colors.foreground }]}>
+          <TouchableOpacity
+            style={styles.reportOverlay}
+            activeOpacity={1}
+            onPress={() => setReportModalVisible(false)}
+          />
+          <View
+            style={[
+              styles.reportModal,
+              { backgroundColor: colors.card, bottom: insets.bottom + 20 },
+            ]}
+          >
+            <Text
+              style={[styles.reportModalTitle, { color: colors.foreground }]}
+            >
               {isGroup ? t("reportConversation") : t("reportUser")}
             </Text>
             <TextInput
-              style={[styles.reportInput, { backgroundColor: colors.background, borderColor: colors.border, color: colors.foreground }]}
+              style={[
+                styles.reportInput,
+                {
+                  backgroundColor: colors.background,
+                  borderColor: colors.border,
+                  color: colors.foreground,
+                },
+              ]}
               value={reportReason}
               onChangeText={setReportReason}
               placeholder={t("reportReasonPlaceholder")}
@@ -809,7 +1227,14 @@ export default function ChatThreadScreen() {
               maxLength={500}
             />
             <TouchableOpacity
-              style={[styles.reportSubmitBtn, { backgroundColor: reportReason.trim() ? colors.primary : colors.muted }]}
+              style={[
+                styles.reportSubmitBtn,
+                {
+                  backgroundColor: reportReason.trim()
+                    ? colors.primary
+                    : colors.muted,
+                },
+              ]}
               onPress={handleSubmitReport}
               disabled={!reportReason.trim()}
             >
@@ -825,7 +1250,9 @@ export default function ChatThreadScreen() {
           styles.inputRow,
           {
             backgroundColor: colors.card,
-            borderTopColor: editingMessageId ? colors.primary + "40" : colors.border,
+            borderTopColor: editingMessageId
+              ? colors.primary + "40"
+              : colors.border,
             borderTopWidth: editingMessageId ? 2 : 1,
             paddingBottom: Math.max(insets.bottom, 12),
           },
@@ -835,28 +1262,57 @@ export default function ChatThreadScreen() {
           /* ── Edit mode ─────────────────────────────── */
           <>
             <TouchableOpacity
-              style={[styles.inputIconBtn, { backgroundColor: colors.secondary }]}
-              onPress={() => { setEditingMessageId(null); setEditingText(""); }}
+              style={[
+                styles.inputIconBtn,
+                { backgroundColor: colors.secondary },
+              ]}
+              onPress={() => {
+                setEditingMessageId(null);
+                setEditingText("");
+              }}
             >
               <Feather name="x" size={18} color={colors.mutedForeground} />
             </TouchableOpacity>
             <TextInput
-              style={[styles.msgInput, { backgroundColor: colors.background, borderColor: colors.primary + "60", color: colors.foreground }]}
+              style={[
+                styles.msgInput,
+                {
+                  backgroundColor: colors.background,
+                  borderColor: colors.primary + "60",
+                  color: colors.foreground,
+                },
+              ]}
               value={editingText}
               onChangeText={setEditingText}
-              placeholder={t("editMessagePlaceholder") || "Modifier le message…"}
+              placeholder={
+                t("editMessagePlaceholder") || "Modifier le message…"
+              }
               placeholderTextColor={colors.mutedForeground}
               multiline
               maxLength={10000}
               autoFocus
-              onFocus={() => { setShowEmojiPicker(false); setShowAttachSheet(false); }}
+              onFocus={() => {
+                setShowEmojiPicker(false);
+                setShowAttachSheet(false);
+              }}
             />
             <TouchableOpacity
-              style={[styles.sendBtn, { backgroundColor: editingText.trim() ? "#10b981" : colors.muted }]}
+              style={[
+                styles.sendBtn,
+                {
+                  backgroundColor: editingText.trim()
+                    ? "#10b981"
+                    : colors.muted,
+                },
+              ]}
               onPress={handleEditMessage}
               disabled={!editingText.trim()}
             >
-              <Feather name="check" size={18} color={editingText.trim() ? "#fff" : colors.mutedForeground} />
+              <Feather
+                name="check"
+                size={18}
+                color={editingText.trim() ? "#fff" : colors.mutedForeground}
+              />
             </TouchableOpacity>
           </>
         ) : (
@@ -864,21 +1320,46 @@ export default function ChatThreadScreen() {
           <>
             {/* Attach button */}
             <TouchableOpacity
-              style={[styles.inputIconBtn, { backgroundColor: showAttachSheet ? colors.primary + "20" : colors.secondary }]}
+              style={[
+                styles.inputIconBtn,
+                {
+                  backgroundColor: showAttachSheet
+                    ? colors.primary + "20"
+                    : colors.secondary,
+                },
+              ]}
               disabled={uploading || isBlocked}
               onPress={() => {
-                if (showAttachSheet) { setShowAttachSheet(false); return; }
+                if (showAttachSheet) {
+                  setShowAttachSheet(false);
+                  return;
+                }
                 openAttachmentPicker();
               }}
             >
-              {uploading
-                ? <ActivityIndicator size="small" color={colors.primary} />
-                : <Feather name="paperclip" size={18} color={showAttachSheet ? colors.primary : colors.mutedForeground} />}
+              {uploading ? (
+                <ActivityIndicator size="small" color={colors.primary} />
+              ) : (
+                <Feather
+                  name="paperclip"
+                  size={18}
+                  color={
+                    showAttachSheet ? colors.primary : colors.mutedForeground
+                  }
+                />
+              )}
             </TouchableOpacity>
 
             {/* Emoji toggle */}
             <TouchableOpacity
-              style={[styles.inputIconBtn, { backgroundColor: showEmojiPicker ? colors.primary + "20" : colors.secondary }]}
+              style={[
+                styles.inputIconBtn,
+                {
+                  backgroundColor: showEmojiPicker
+                    ? colors.primary + "20"
+                    : colors.secondary,
+                },
+              ]}
               disabled={isBlocked}
               onPress={() => {
                 Haptics.selectionAsync();
@@ -890,7 +1371,14 @@ export default function ChatThreadScreen() {
             </TouchableOpacity>
 
             <TextInput
-              style={[styles.msgInput, { backgroundColor: colors.background, borderColor: colors.border, color: colors.foreground }]}
+              style={[
+                styles.msgInput,
+                {
+                  backgroundColor: colors.background,
+                  borderColor: colors.border,
+                  color: colors.foreground,
+                },
+              ]}
               value={text}
               onChangeText={handleTextChange}
               placeholder={t("writeMessagePlaceholder")}
@@ -902,11 +1390,23 @@ export default function ChatThreadScreen() {
               onFocus={() => setShowEmojiPicker(false)}
             />
             <TouchableOpacity
-              style={[styles.sendBtn, { backgroundColor: text.trim() && !isBlocked ? colors.primary : colors.muted }]}
+              style={[
+                styles.sendBtn,
+                {
+                  backgroundColor:
+                    text.trim() && !isBlocked ? colors.primary : colors.muted,
+                },
+              ]}
               onPress={handleSend}
               disabled={!text.trim() || isBlocked}
             >
-              <Feather name="send" size={18} color={text.trim() && !isBlocked ? "#fff" : colors.mutedForeground} />
+              <Feather
+                name="send"
+                size={18}
+                color={
+                  text.trim() && !isBlocked ? "#fff" : colors.mutedForeground
+                }
+              />
             </TouchableOpacity>
           </>
         )}
@@ -935,7 +1435,12 @@ const styles = StyleSheet.create({
   },
   avatarText: { fontSize: 15, fontFamily: "Inter_700Bold" },
   headerName: { fontSize: 14, fontFamily: "Inter_700Bold" },
-  onlineRow: { flexDirection: "row", alignItems: "center", gap: 5, marginTop: 2 },
+  onlineRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 5,
+    marginTop: 2,
+  },
   onlineDot: { width: 7, height: 7, borderRadius: 4 },
   onlineLabel: { fontSize: 11, fontFamily: "Inter_400Regular" },
   headerBtn: {
@@ -973,7 +1478,12 @@ const styles = StyleSheet.create({
     // Corner is set dynamically via bubbleCornerStyle()
   },
   bubbleText: { fontSize: 14, fontFamily: "Inter_400Regular", lineHeight: 19 },
-  bubbleCaption: { fontSize: 13, fontFamily: "Inter_400Regular", padding: 8, paddingTop: 4 },
+  bubbleCaption: {
+    fontSize: 13,
+    fontFamily: "Inter_400Regular",
+    padding: 8,
+    paddingTop: 4,
+  },
   // Inline image in bubble
   attachmentImage: {
     width: 220,
@@ -1031,7 +1541,12 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "center",
   },
-  reactionsRow: { flexDirection: "row", gap: 4, marginTop: 2, flexWrap: "wrap" },
+  reactionsRow: {
+    flexDirection: "row",
+    gap: 4,
+    marginTop: 2,
+    flexWrap: "wrap",
+  },
   reactionChip: {
     flexDirection: "row",
     alignItems: "center",
@@ -1050,7 +1565,13 @@ const styles = StyleSheet.create({
     borderTopWidth: 1,
   },
   blockedNoticeText: { fontSize: 12, flex: 1, fontFamily: "Inter_400Regular" },
-  typingRow: { flexDirection: "row", alignItems: "center", gap: 6, paddingHorizontal: 16, paddingVertical: 4 },
+  typingRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 6,
+    paddingHorizontal: 16,
+    paddingVertical: 4,
+  },
   typingText: { fontSize: 12, fontFamily: "Inter_400Regular" },
   // Emoji picker
   emojiPanel: {
@@ -1092,8 +1613,16 @@ const styles = StyleSheet.create({
     textAlignVertical: "top",
     fontFamily: "Inter_400Regular",
   },
-  reportSubmitBtn: { borderRadius: 12, paddingVertical: 12, alignItems: "center" },
-  reportSubmitBtnText: { color: "#fff", fontSize: 14, fontFamily: "Inter_700Bold" },
+  reportSubmitBtn: {
+    borderRadius: 12,
+    paddingVertical: 12,
+    alignItems: "center",
+  },
+  reportSubmitBtnText: {
+    color: "#fff",
+    fontSize: 14,
+    fontFamily: "Inter_700Bold",
+  },
   // Full-screen image viewer
   imgViewerOverlay: {
     flex: 1,

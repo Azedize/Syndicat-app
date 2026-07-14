@@ -43,7 +43,19 @@ export default function MembersScreen() {
   const [synRegion, setSynRegion] = useState("");
   const [synAdmin, setSynAdmin] = useState("");
   const [selectedSyndicate, setSelectedSyndicate] = useState<Syndicate | null>(null);
-  const [showSyndicateMembers, setShowSyndicateMembers] = useState(false);
+  const [syndicateModalView, setSyndicateModalView] = useState<"detail" | "members">("detail");
+
+  const closeSyndicateModal = () => {
+    setSelectedSyndicate(null);
+    setSyndicateModalView("detail");
+  };
+
+  const navigateFromSyndicateModal = (path: string) => {
+    closeSyndicateModal();
+    // Wait for the modal's close animation to finish before navigating,
+    // otherwise the navigation can be swallowed while the modal is dismissing.
+    setTimeout(() => router.push(path as any), 300);
+  };
 
   const { isWide } = useBreakpoints();
   const isSuperAdmin = user?.role === "super_admin";
@@ -180,15 +192,15 @@ export default function MembersScreen() {
           )}
         />
 
-        {/* Syndicate detail modal */}
-        <Modal visible={!!selectedSyndicate} animationType="slide" presentationStyle="pageSheet">
-          {selectedSyndicate ? (
+        {/* Syndicate detail / members modal (single modal, switched views to avoid stacking two <Modal>s) */}
+        <Modal visible={!!selectedSyndicate} animationType="slide" presentationStyle="pageSheet" onRequestClose={closeSyndicateModal}>
+          {selectedSyndicate && syndicateModalView === "detail" ? (
             <View style={[styles.modal, { backgroundColor: colors.background }]}>
               <View style={[styles.modalHeader, { borderBottomColor: colors.border }]}>
                 <Text style={[styles.modalTitle, { color: colors.foreground }]} numberOfLines={1}>
                   {selectedSyndicate.name}
                 </Text>
-                <TouchableOpacity onPress={() => setSelectedSyndicate(null)}>
+                <TouchableOpacity onPress={closeSyndicateModal}>
                   <Feather name="x" size={22} color={colors.mutedForeground} />
                 </TouchableOpacity>
               </View>
@@ -222,13 +234,13 @@ export default function MembersScreen() {
                           label: "Voir les membres",
                           icon: "users" as const,
                           color: colors.primary,
-                          onPress: () => { setShowSyndicateMembers(true); Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); },
+                          onPress: () => { setSyndicateModalView("members"); Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); },
                         },
                         {
                           label: "Contacter admin",
                           icon: "message-circle" as const,
                           color: "#3b82f6",
-                          onPress: () => { setSelectedSyndicate(null); Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); router.push("/(tabs)/chat" as any); },
+                          onPress: () => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); navigateFromSyndicateModal("/(tabs)/chat"); },
                         },
                         {
                           label: selectedSyndicate.status === "active" ? "Désactiver" : "Activer",
@@ -260,7 +272,7 @@ export default function MembersScreen() {
                           label: "Voir finances",
                           icon: "bar-chart-2" as const,
                           color: "#f59e0b",
-                          onPress: () => { setSelectedSyndicate(null); Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); router.push("/(tabs)/finance" as any); },
+                          onPress: () => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); navigateFromSyndicateModal("/(tabs)/finance"); },
                         },
                       ].map((action) => (
                         <TouchableOpacity
@@ -278,66 +290,66 @@ export default function MembersScreen() {
                 )}
               />
             </View>
-          ) : null}
-        </Modal>
-
-        {/* Syndicate members modal */}
-        <Modal visible={showSyndicateMembers && !!selectedSyndicate} animationType="slide" presentationStyle="pageSheet">
-          <View style={[styles.modal, { backgroundColor: colors.background }]}>
-            <View style={[styles.modalHeader, { borderBottomColor: colors.border }]}>
-              <Text style={[styles.modalTitle, { color: colors.foreground }]} numberOfLines={1}>
-                Membres — {selectedSyndicate?.name}
-              </Text>
-              <TouchableOpacity onPress={() => setShowSyndicateMembers(false)}>
-                <Feather name="x" size={22} color={colors.mutedForeground} />
-              </TouchableOpacity>
+          ) : selectedSyndicate && syndicateModalView === "members" ? (
+            <View style={[styles.modal, { backgroundColor: colors.background }]}>
+              <View style={[styles.modalHeader, { borderBottomColor: colors.border }]}>
+                <TouchableOpacity onPress={() => setSyndicateModalView("detail")} style={{ flexDirection: "row", alignItems: "center", gap: 6, flex: 1 }}>
+                  <Feather name="chevron-left" size={20} color={colors.foreground} />
+                  <Text style={[styles.modalTitle, { color: colors.foreground }]} numberOfLines={1}>
+                    Membres — {selectedSyndicate.name}
+                  </Text>
+                </TouchableOpacity>
+                <TouchableOpacity onPress={closeSyndicateModal}>
+                  <Feather name="x" size={22} color={colors.mutedForeground} />
+                </TouchableOpacity>
+              </View>
+              {(() => {
+                const synMembers = members.filter((m) =>
+                  m.syndicate.toLowerCase().includes(selectedSyndicate.name.split(" ").pop()?.toLowerCase() ?? "__") ||
+                  selectedSyndicate.name.toLowerCase().includes(m.syndicate.toLowerCase()) ||
+                  m.syndicate === selectedSyndicate.id
+                );
+                const displayMembers = synMembers.length > 0 ? synMembers : members;
+                return (
+                  <FlatList
+                    data={displayMembers}
+                    keyExtractor={(m) => m.id}
+                    contentContainerStyle={{ padding: 16, gap: 10, paddingBottom: 40 }}
+                    showsVerticalScrollIndicator={false}
+                    ListHeaderComponent={
+                      <Text style={{ fontSize: 12, fontFamily: "Inter_400Regular", color: colors.mutedForeground, marginBottom: 4 }}>
+                        {displayMembers.length} membre(s) dans ce syndicat
+                      </Text>
+                    }
+                    renderItem={({ item: m }) => {
+                      const sc = { active: { color: colors.success, label: "Actif" }, inactive: { color: colors.destructive, label: "Inactif" }, pending: { color: "#f59e0b", label: "En attente" } }[m.status];
+                      return (
+                        <TouchableOpacity
+                          style={[styles.memberCard, { backgroundColor: colors.card, borderColor: colors.border }]}
+                          onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); navigateFromSyndicateModal(`/member-detail?id=${m.id}`); }}
+                          activeOpacity={0.8}
+                        >
+                          <View style={[styles.memberAvatar, { backgroundColor: colors.primary + "15" }]}>
+                            <Text style={[styles.memberInitials, { color: colors.primary }]}>
+                              {m.name.split(" ").map((n) => n[0]).join("").slice(0, 2).toUpperCase()}
+                            </Text>
+                          </View>
+                          <View style={{ flex: 1, gap: 3 }}>
+                            <Text style={[styles.memberName, { color: colors.foreground }]}>{m.name}</Text>
+                            <Text style={[styles.memberProfession, { color: colors.mutedForeground }]}>{m.profession}</Text>
+                          </View>
+                          <View style={[styles.statusBadge, { backgroundColor: sc.color + "15" }]}>
+                            <View style={[styles.statusDot, { backgroundColor: sc.color }]} />
+                            <Text style={[styles.statusBadgeText, { color: sc.color }]}>{sc.label}</Text>
+                          </View>
+                        </TouchableOpacity>
+                      );
+                    }}
+                  />
+                );
+              })()}
             </View>
-            {(() => {
-              const synMembers = members.filter((m) =>
-                m.syndicate.toLowerCase().includes(selectedSyndicate?.name?.split(" ").pop()?.toLowerCase() ?? "__") ||
-                selectedSyndicate?.name?.toLowerCase().includes(m.syndicate.toLowerCase()) ||
-                m.syndicate === selectedSyndicate?.id
-              );
-              const displayMembers = synMembers.length > 0 ? synMembers : members;
-              return (
-                <FlatList
-                  data={displayMembers}
-                  keyExtractor={(m) => m.id}
-                  contentContainerStyle={{ padding: 16, gap: 10, paddingBottom: 40 }}
-                  showsVerticalScrollIndicator={false}
-                  ListHeaderComponent={
-                    <Text style={{ fontSize: 12, fontFamily: "Inter_400Regular", color: colors.mutedForeground, marginBottom: 4 }}>
-                      {displayMembers.length} membre(s) dans ce syndicat
-                    </Text>
-                  }
-                  renderItem={({ item: m }) => {
-                    const sc = { active: { color: colors.success, label: "Actif" }, inactive: { color: colors.destructive, label: "Inactif" }, pending: { color: "#f59e0b", label: "En attente" } }[m.status];
-                    return (
-                      <TouchableOpacity
-                        style={[styles.memberCard, { backgroundColor: colors.card, borderColor: colors.border }]}
-                        onPress={() => { setShowSyndicateMembers(false); setSelectedSyndicate(null); Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); router.push({ pathname: "/member-detail", params: { id: m.id } }); }}
-                        activeOpacity={0.8}
-                      >
-                        <View style={[styles.memberAvatar, { backgroundColor: colors.primary + "15" }]}>
-                          <Text style={[styles.memberInitials, { color: colors.primary }]}>
-                            {m.name.split(" ").map((n) => n[0]).join("").slice(0, 2).toUpperCase()}
-                          </Text>
-                        </View>
-                        <View style={{ flex: 1, gap: 3 }}>
-                          <Text style={[styles.memberName, { color: colors.foreground }]}>{m.name}</Text>
-                          <Text style={[styles.memberProfession, { color: colors.mutedForeground }]}>{m.profession}</Text>
-                        </View>
-                        <View style={[styles.statusBadge, { backgroundColor: sc.color + "15" }]}>
-                          <View style={[styles.statusDot, { backgroundColor: sc.color }]} />
-                          <Text style={[styles.statusBadgeText, { color: sc.color }]}>{sc.label}</Text>
-                        </View>
-                      </TouchableOpacity>
-                    );
-                  }}
-                />
-              );
-            })()}
-          </View>
+          ) : null}
         </Modal>
 
         {/* Add syndicate modal */}
