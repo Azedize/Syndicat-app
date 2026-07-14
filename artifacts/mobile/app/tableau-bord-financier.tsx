@@ -1,4 +1,4 @@
-import React, { useEffect, useState, useCallback } from "react";
+import React, { useEffect, useState, useCallback, useMemo } from "react";
 import {
   View,
   Text,
@@ -14,6 +14,9 @@ import { useRouter } from "expo-router";
 import { apiRequest } from "@/lib/api";
 import RoleGuard from "@/components/RoleGuard";
 import { useLanguage } from "@/context/LanguageContext";
+import { useColors } from "@/hooks/useColors";
+
+type Colors = ReturnType<typeof useColors>;
 
 const { width: SCREEN_WIDTH } = Dimensions.get("window");
 const CHART_WIDTH = SCREEN_WIDTH - 48;
@@ -581,12 +584,14 @@ function KpiCard({
   sub,
   color,
   icon,
+  styles,
 }: {
   label: string;
   value: string;
   sub?: string;
   color: string;
   icon: string;
+  styles: ReturnType<typeof createStyles>;
 }) {
   return (
     <View style={[styles.kpiCard, { borderLeftColor: color }]}>
@@ -602,10 +607,18 @@ function KpiCard({
   );
 }
 
-function RecoveryGauge({ rate }: { rate: number }) {
+function RecoveryGauge({
+  rate,
+  colors,
+  styles,
+}: {
+  rate: number;
+  colors: Colors;
+  styles: ReturnType<typeof createStyles>;
+}) {
   const { lang } = useLanguage();
   const color =
-    rate >= 80 ? "#10B981" : rate >= 60 ? "#F59E0B" : "#EF4444";
+    rate >= 80 ? colors.success : rate >= 60 ? colors.warning : colors.destructive;
   const barW = Math.round((CHART_WIDTH - 32) * (rate / 100));
   return (
     <View style={styles.gaugeWrap}>
@@ -627,7 +640,15 @@ function RecoveryGauge({ rate }: { rate: number }) {
   );
 }
 
-function BarChart({ data }: { data: MonthBar[] }) {
+function BarChart({
+  data,
+  colors,
+  styles,
+}: {
+  data: MonthBar[];
+  colors: Colors;
+  styles: ReturnType<typeof createStyles>;
+}) {
   const { lang } = useLanguage();
   const maxVal = Math.max(...data.map((d) => Math.max(d.due, d.paid)), 1);
   const barW = Math.floor((CHART_WIDTH - 32) / data.length - 8);
@@ -635,11 +656,11 @@ function BarChart({ data }: { data: MonthBar[] }) {
     <View style={styles.chartArea}>
       <View style={styles.chartLegend}>
         <View style={styles.legendItem}>
-          <View style={[styles.legendDot, { backgroundColor: "#E5E7EB" }]} />
+          <View style={[styles.legendDot, { backgroundColor: colors.border }]} />
           <Text style={styles.legendLabel}>{STRINGS.called[lang]}</Text>
         </View>
         <View style={styles.legendItem}>
-          <View style={[styles.legendDot, { backgroundColor: "#10B981" }]} />
+          <View style={[styles.legendDot, { backgroundColor: colors.success }]} />
           <Text style={styles.legendLabel}>{STRINGS.collected[lang]}</Text>
         </View>
       </View>
@@ -656,7 +677,7 @@ function BarChart({ data }: { data: MonthBar[] }) {
                     {
                       height: dueH || 2,
                       width: barW,
-                      backgroundColor: "#E5E7EB",
+                      backgroundColor: colors.border,
                       position: "absolute",
                       bottom: 0,
                     },
@@ -668,7 +689,7 @@ function BarChart({ data }: { data: MonthBar[] }) {
                     {
                       height: paidH || 2,
                       width: barW - 6,
-                      backgroundColor: "#10B981",
+                      backgroundColor: colors.success,
                       position: "absolute",
                       bottom: 0,
                       left: 3,
@@ -690,11 +711,13 @@ function CategoryRow({
   amount,
   total,
   color,
+  styles,
 }: {
   label: string;
   amount: number;
   total: number;
   color: string;
+  styles: ReturnType<typeof createStyles>;
 }) {
   const pct = total > 0 ? (amount / total) * 100 : 0;
   const barW = Math.round(((CHART_WIDTH - 32) * pct) / 100);
@@ -720,17 +743,21 @@ function PendingActionsPanel({
   items,
   onReview,
   busyId,
+  colors,
+  styles,
 }: {
   items: PendingItem[];
   onReview: (item: PendingItem, action: "approve" | "reject") => void;
   busyId: string | null;
+  colors: Colors;
+  styles: ReturnType<typeof createStyles>;
 }) {
   const { lang } = useLanguage();
   if (items.length === 0) return null;
   return (
     <View style={styles.card}>
       <View style={styles.pendingHeaderRow}>
-        <Ionicons name="alert-circle" size={18} color="#F97316" />
+        <Ionicons name="alert-circle" size={18} color={colors.warning} />
         <Text style={styles.cardTitle}>{STRINGS.actionRequired[lang]} ({items.length})</Text>
       </View>
       {items.map((item) => {
@@ -747,14 +774,14 @@ function PendingActionsPanel({
                 style={[
                   styles.pendingBadge,
                   {
-                    backgroundColor: isValidation ? "#FEF3C7" : "#FEE2E2",
+                    backgroundColor: isValidation ? colors.warning + "22" : colors.destructive + "22",
                   },
                 ]}
               >
                 <Text
                   style={[
                     styles.pendingBadgeText,
-                    { color: isValidation ? "#B45309" : "#B91C1C" },
+                    { color: isValidation ? colors.warning : colors.destructive },
                   ]}
                 >
                   {isValidation ? STRINGS.proofToValidate[lang] : STRINGS.overdue[lang]}
@@ -766,19 +793,19 @@ function PendingActionsPanel({
                 <TouchableOpacity
                   disabled={isBusy}
                   onPress={() => onReview(item, "reject")}
-                  style={[styles.pendingBtn, styles.pendingBtnReject]}
+                  style={[styles.pendingBtn, { backgroundColor: colors.destructive + "22" }]}
                 >
-                  <Ionicons name="close" size={16} color="#EF4444" />
+                  <Ionicons name="close" size={16} color={colors.destructive} />
                 </TouchableOpacity>
                 <TouchableOpacity
                   disabled={isBusy}
                   onPress={() => onReview(item, "approve")}
-                  style={[styles.pendingBtn, styles.pendingBtnApprove]}
+                  style={[styles.pendingBtn, { backgroundColor: colors.success }]}
                 >
                   {isBusy ? (
-                    <ActivityIndicator size="small" color="#fff" />
+                    <ActivityIndicator size="small" color={colors.successForeground} />
                   ) : (
-                    <Ionicons name="checkmark" size={16} color="#fff" />
+                    <Ionicons name="checkmark" size={16} color={colors.successForeground} />
                   )}
                 </TouchableOpacity>
               </View>
@@ -803,6 +830,8 @@ export default function TableauBordFinancier() {
 function TableauBordFinancierInner() {
   const router = useRouter();
   const { lang } = useLanguage();
+  const colors = useColors();
+  const styles = useMemo(() => createStyles(colors), [colors]);
   const [buildings, setBuildings] = useState<BuildingQuick[]>([]);
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [data, setData] = useState<DashboardData | null>(null);
@@ -882,7 +911,7 @@ function TableauBordFinancierInner() {
   if (loading) {
     return (
       <View style={styles.centered}>
-        <ActivityIndicator size="large" color="#3B82F6" />
+        <ActivityIndicator size="large" color={colors.primary} />
         <Text style={styles.loadingText}>{STRINGS.loading[lang]}</Text>
       </View>
     );
@@ -897,7 +926,7 @@ function TableauBordFinancierInner() {
       {/* ── Header ─────────────────────────────────────────────────────── */}
       <View style={styles.header}>
         <TouchableOpacity onPress={() => router.back()} style={styles.backBtn}>
-          <Ionicons name="arrow-back" size={22} color="#fff" />
+          <Ionicons name="arrow-back" size={22} color={colors.primaryForeground} />
         </TouchableOpacity>
         <View>
           <Text style={styles.headerTitle}>{STRINGS.headerTitle[lang]}</Text>
@@ -912,7 +941,7 @@ function TableauBordFinancierInner() {
       <ScrollView
         showsVerticalScrollIndicator={false}
         refreshControl={
-          <RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor="#3B82F6" />
+          <RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={colors.primary} />
         }
         contentContainerStyle={styles.scroll}
       >
@@ -926,33 +955,33 @@ function TableauBordFinancierInner() {
             const active = b.id === selectedId;
             const rateColor =
               b.tauxRecouvrement >= 80
-                ? "#10B981"
+                ? colors.success
                 : b.tauxRecouvrement >= 60
-                ? "#F59E0B"
-                : "#EF4444";
+                ? colors.warning
+                : colors.destructive;
             return (
               <TouchableOpacity
                 key={b.id}
                 onPress={() => setSelectedId(b.id)}
                 style={[styles.buildingChip, active && styles.buildingChipActive]}
               >
-                <Text style={[styles.chipName, active && { color: "#fff" }]}>
+                <Text style={[styles.chipName, active && { color: colors.primaryForeground }]}>
                   {b.name}
                 </Text>
-                <Text style={[styles.chipCity, active && { color: "#CBD5E1" }]}>
+                <Text style={[styles.chipCity, active && { color: colors.primaryForeground + "CC" }]}>
                   {b.city}
                 </Text>
                 <View style={styles.chipRate}>
                   <View
                     style={[
                       styles.chipRateDot,
-                      { backgroundColor: active ? "#fff" : rateColor },
+                      { backgroundColor: active ? colors.primaryForeground : rateColor },
                     ]}
                   />
                   <Text
                     style={[
                       styles.chipRateText,
-                      { color: active ? "#fff" : rateColor },
+                      { color: active ? colors.primaryForeground : rateColor },
                     ]}
                   >
                     {b.tauxRecouvrement}% recouv.
@@ -965,13 +994,13 @@ function TableauBordFinancierInner() {
 
         {error && (
           <View style={styles.errorBox}>
-            <Ionicons name="alert-circle" size={18} color="#EF4444" />
+            <Ionicons name="alert-circle" size={18} color={colors.destructive} />
             <Text style={styles.errorText}>{error}</Text>
           </View>
         )}
 
         {!data && !error && (
-          <ActivityIndicator style={{ marginTop: 32 }} color="#3B82F6" />
+          <ActivityIndicator style={{ marginTop: 32 }} color={colors.primary} />
         )}
 
         {data && (
@@ -1007,18 +1036,20 @@ function TableauBordFinancierInner() {
                   items={pendingItems}
                   onReview={handleReview}
                   busyId={reviewBusyId}
+                  colors={colors}
+                  styles={styles}
                 />
 
                 {/* Recouvrement gauge */}
                 <View style={styles.card}>
-                  <RecoveryGauge rate={summary.tauxRecouvrement} />
+                  <RecoveryGauge rate={summary.tauxRecouvrement} colors={colors} styles={styles} />
                   <View style={styles.divider} />
                   <View style={styles.triRow}>
                     <View style={styles.triItem}>
                       <Text style={styles.triVal}>
                         {fmt(summary.totalEncaisse)}
                       </Text>
-                      <Text style={[styles.triLab, { color: "#10B981" }]}>
+                      <Text style={[styles.triLab, { color: colors.success }]}>
                         Encaissé
                       </Text>
                     </View>
@@ -1026,7 +1057,7 @@ function TableauBordFinancierInner() {
                       <Text style={styles.triVal}>
                         {fmt(summary.totalImpaye)}
                       </Text>
-                      <Text style={[styles.triLab, { color: "#EF4444" }]}>
+                      <Text style={[styles.triLab, { color: colors.destructive }]}>
                         Impayé
                       </Text>
                     </View>
@@ -1034,7 +1065,7 @@ function TableauBordFinancierInner() {
                       <Text style={styles.triVal}>
                         {fmt(summary.totalEnAttente)}
                       </Text>
-                      <Text style={[styles.triLab, { color: "#F59E0B" }]}>
+                      <Text style={[styles.triLab, { color: colors.warning }]}>
                         En attente
                       </Text>
                     </View>
@@ -1046,29 +1077,33 @@ function TableauBordFinancierInner() {
                   <KpiCard
                     label="Budget annuel"
                     value={fmt(summary.budgetAnnuel) + " MAD"}
-                    color="#3B82F6"
+                    color={colors.info}
                     icon="wallet-outline"
+                    styles={styles}
                   />
                   <KpiCard
                     label="Fonds de réserve"
                     value={fmt(summary.fondsReserveCollecte) + " MAD"}
                     sub={`/${fmt(summary.fondsReserveBudget)} prévu`}
-                    color="#8B5CF6"
+                    color={colors.tint}
                     icon="shield-checkmark-outline"
+                    styles={styles}
                   />
                   <KpiCard
                     label="Lots occupés"
                     value={`${data.lots.occupes}/${data.lots.total}`}
                     sub={`${data.lots.tauxOccupation}% taux`}
-                    color="#10B981"
+                    color={colors.success}
                     icon="home-outline"
+                    styles={styles}
                   />
                   <KpiCard
                     label="Appels de fonds"
                     value={String(data.appelsDeFonds.total)}
                     sub={`${data.appelsDeFonds.paid} payés · ${data.appelsDeFonds.overdue} impayés`}
-                    color="#F97316"
+                    color={colors.warning}
                     icon="cash-outline"
+                    styles={styles}
                   />
                 </View>
 
@@ -1077,7 +1112,7 @@ function TableauBordFinancierInner() {
                   <Text style={styles.cardTitle}>
                     Historique des paiements (6 mois)
                   </Text>
-                  <BarChart data={data.monthlyHistory} />
+                  <BarChart data={data.monthlyHistory} colors={colors} styles={styles} />
                 </View>
 
                 {/* Budget by category */}
@@ -1098,6 +1133,7 @@ function TableauBordFinancierInner() {
                           amount={amt}
                           total={budgetTotal}
                           color={CAT_COLORS[i % CAT_COLORS.length]}
+                          styles={styles}
                         />
                       ))}
                   </View>
@@ -1111,24 +1147,24 @@ function TableauBordFinancierInner() {
                       <Text style={[styles.th, { flex: 2 }]}>Période</Text>
                       <Text style={styles.th}>Payé</Text>
                       <Text style={styles.th}>Impayé</Text>
-                      <Text style={[styles.th, { color: "#3B82F6" }]}>Taux</Text>
+                      <Text style={[styles.th, { color: colors.info }]}>Taux</Text>
                     </View>
                     {data.periodStats.map((ps) => {
                       const rColor =
                         ps.rate >= 80
-                          ? "#10B981"
+                          ? colors.success
                           : ps.rate >= 60
-                          ? "#F59E0B"
-                          : "#EF4444";
+                          ? colors.warning
+                          : colors.destructive;
                       return (
                         <View key={ps.period} style={styles.tableRow}>
                           <Text style={[styles.td, { flex: 2, fontWeight: "600" }]}>
                             {ps.period}
                           </Text>
-                          <Text style={[styles.td, { color: "#10B981" }]}>
+                          <Text style={[styles.td, { color: colors.success }]}>
                             {fmt(ps.paid)}
                           </Text>
-                          <Text style={[styles.td, { color: "#EF4444" }]}>
+                          <Text style={[styles.td, { color: colors.destructive }]}>
                             {fmt(ps.overdue)}
                           </Text>
                           <Text style={[styles.td, { color: rColor, fontWeight: "700" }]}>
@@ -1149,27 +1185,31 @@ function TableauBordFinancierInner() {
                   <KpiCard
                     label="En cours"
                     value={String(data.travaux.enCours)}
-                    color="#F97316"
+                    color={colors.warning}
                     icon="construct-outline"
+                    styles={styles}
                   />
                   <KpiCard
                     label="Terminés"
                     value={String(data.travaux.termines)}
-                    color="#10B981"
+                    color={colors.success}
                     icon="checkmark-circle-outline"
+                    styles={styles}
                   />
                   <KpiCard
                     label="Urgents"
                     value={String(data.travaux.urgents)}
-                    color="#EF4444"
+                    color={colors.destructive}
                     icon="warning-outline"
+                    styles={styles}
                   />
                   <KpiCard
                     label="Budget estimé"
                     value={fmt(data.travaux.budgetEstime) + " MAD"}
                     sub={`Dépensé : ${fmt(data.travaux.depenseReelle)} MAD`}
-                    color="#8B5CF6"
+                    color={colors.tint}
                     icon="bar-chart-outline"
+                    styles={styles}
                   />
                 </View>
 
@@ -1183,7 +1223,7 @@ function TableauBordFinancierInner() {
                             styles.prioTag,
                             {
                               backgroundColor:
-                                (PRIORITY_COLOR[t.priority] ?? "#6B7280") + "20",
+                                (PRIORITY_COLOR[t.priority] ?? colors.mutedForeground) + "20",
                             },
                           ]}
                         >
@@ -1192,7 +1232,7 @@ function TableauBordFinancierInner() {
                               styles.prioText,
                               {
                                 color:
-                                  PRIORITY_COLOR[t.priority] ?? "#6B7280",
+                                  PRIORITY_COLOR[t.priority] ?? colors.mutedForeground,
                               },
                             ]}
                           >
@@ -1207,7 +1247,7 @@ function TableauBordFinancierInner() {
                                 styles.statusDot,
                                 {
                                   backgroundColor:
-                                    STATUS_COLOR[t.status] ?? "#6B7280",
+                                    STATUS_COLOR[t.status] ?? colors.mutedForeground,
                                 },
                               ]}
                             />
@@ -1259,7 +1299,7 @@ function TableauBordFinancierInner() {
                                   1,
                                 ),
                             ),
-                            backgroundColor: "#F97316",
+                            backgroundColor: colors.warning,
                           },
                         ]}
                       />
@@ -1284,15 +1324,17 @@ function TableauBordFinancierInner() {
                   <KpiCard
                     label="Prestataires actifs"
                     value={String(data.prestataires.actifs)}
-                    color="#3B82F6"
+                    color={colors.info}
                     icon="people-outline"
+                    styles={styles}
                   />
                   <KpiCard
                     label="Charges contrats"
                     value={fmt(data.prestataires.chargesContrats) + " MAD"}
                     sub="par an"
-                    color="#F97316"
+                    color={colors.warning}
                     icon="receipt-outline"
+                    styles={styles}
                   />
                 </View>
 
@@ -1357,314 +1399,317 @@ function TableauBordFinancierInner() {
 }
 
 // ─── Styles ───────────────────────────────────────────────────────────────────
-const styles = StyleSheet.create({
-  pendingHeaderRow: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 8,
-    marginBottom: 12,
-  },
-  pendingRow: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "space-between",
-    paddingVertical: 10,
-    borderTopWidth: 1,
-    borderTopColor: "#F1F5F9",
-  },
-  pendingInfo: { flex: 1, gap: 4 },
-  pendingName: { fontSize: 14, fontWeight: "700", color: "#1E293B" },
-  pendingLabel: { fontSize: 12, color: "#64748B" },
-  pendingBadge: {
-    alignSelf: "flex-start",
-    paddingHorizontal: 8,
-    paddingVertical: 3,
-    borderRadius: 6,
-    marginTop: 2,
-  },
-  pendingBadgeText: { fontSize: 11, fontWeight: "600" },
-  pendingActions: { flexDirection: "row", gap: 8, marginStart: 8 },
-  pendingBtn: {
-    width: 32,
-    height: 32,
-    borderRadius: 16,
-    justifyContent: "center",
-    alignItems: "center",
-  },
-  pendingBtnReject: { backgroundColor: "#FEE2E2" },
-  pendingBtnApprove: { backgroundColor: "#10B981" },
+// Built from the app's shared theme (useColors) so this screen follows the
+// same light/dark palette and brand color as the rest of the app, instead of
+// a hardcoded navy/blue palette of its own.
+function createStyles(colors: Colors) {
+  return StyleSheet.create({
+    pendingHeaderRow: {
+      flexDirection: "row",
+      alignItems: "center",
+      gap: 8,
+      marginBottom: 12,
+    },
+    pendingRow: {
+      flexDirection: "row",
+      alignItems: "center",
+      justifyContent: "space-between",
+      paddingVertical: 10,
+      borderTopWidth: 1,
+      borderTopColor: colors.border,
+    },
+    pendingInfo: { flex: 1, gap: 4 },
+    pendingName: { fontSize: 14, fontWeight: "700", color: colors.text },
+    pendingLabel: { fontSize: 12, color: colors.mutedForeground },
+    pendingBadge: {
+      alignSelf: "flex-start",
+      paddingHorizontal: 8,
+      paddingVertical: 3,
+      borderRadius: 6,
+      marginTop: 2,
+    },
+    pendingBadgeText: { fontSize: 11, fontWeight: "600" },
+    pendingActions: { flexDirection: "row", gap: 8, marginStart: 8 },
+    pendingBtn: {
+      width: 32,
+      height: 32,
+      borderRadius: 16,
+      justifyContent: "center",
+      alignItems: "center",
+    },
 
-  root: { flex: 1, backgroundColor: "#F1F5F9" },
-  centered: {
-    flex: 1,
-    justifyContent: "center",
-    alignItems: "center",
-    gap: 12,
-    backgroundColor: "#F1F5F9",
-  },
-  loadingText: { color: "#64748B", fontSize: 14 },
+    root: { flex: 1, backgroundColor: colors.background },
+    centered: {
+      flex: 1,
+      justifyContent: "center",
+      alignItems: "center",
+      gap: 12,
+      backgroundColor: colors.background,
+    },
+    loadingText: { color: colors.mutedForeground, fontSize: 14 },
 
-  header: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 12,
-    backgroundColor: "#1E3A5F",
-    paddingTop: 52,
-    paddingBottom: 16,
-    paddingHorizontal: 16,
-  },
-  backBtn: {
-    width: 36,
-    height: 36,
-    borderRadius: 18,
-    backgroundColor: "rgba(255,255,255,0.15)",
-    justifyContent: "center",
-    alignItems: "center",
-  },
-  headerTitle: { color: "#fff", fontSize: 17, fontWeight: "700" },
-  headerSub: { color: "#93C5FD", fontSize: 12, marginTop: 2 },
+    header: {
+      flexDirection: "row",
+      alignItems: "center",
+      gap: 12,
+      backgroundColor: colors.primary,
+      paddingTop: 52,
+      paddingBottom: 16,
+      paddingHorizontal: 16,
+    },
+    backBtn: {
+      width: 36,
+      height: 36,
+      borderRadius: 18,
+      backgroundColor: "rgba(255,255,255,0.15)",
+      justifyContent: "center",
+      alignItems: "center",
+    },
+    headerTitle: { color: colors.primaryForeground, fontSize: 17, fontWeight: "700" },
+    headerSub: { color: colors.primaryForeground + "CC", fontSize: 12, marginTop: 2 },
 
-  scroll: { paddingBottom: 24 },
+    scroll: { paddingBottom: 24 },
 
-  selectorRow: {
-    paddingHorizontal: 16,
-    paddingVertical: 12,
-    gap: 10,
-  },
-  buildingChip: {
-    backgroundColor: "#fff",
-    borderRadius: 12,
-    paddingVertical: 10,
-    paddingHorizontal: 14,
-    marginEnd: 8,
-    minWidth: 140,
-    shadowColor: "#000",
-    shadowOpacity: 0.06,
-    shadowRadius: 4,
-    elevation: 2,
-  },
-  buildingChipActive: { backgroundColor: "#1E3A5F" },
-  chipName: { fontSize: 13, fontWeight: "700", color: "#1E293B" },
-  chipCity: { fontSize: 11, color: "#64748B", marginTop: 2 },
-  chipRate: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 4,
-    marginTop: 6,
-  },
-  chipRateDot: { width: 6, height: 6, borderRadius: 3 },
-  chipRateText: { fontSize: 11, fontWeight: "600" },
+    selectorRow: {
+      paddingHorizontal: 16,
+      paddingVertical: 12,
+      gap: 10,
+    },
+    buildingChip: {
+      backgroundColor: colors.card,
+      borderRadius: 12,
+      paddingVertical: 10,
+      paddingHorizontal: 14,
+      marginEnd: 8,
+      minWidth: 140,
+      shadowColor: "#000",
+      shadowOpacity: 0.06,
+      shadowRadius: 4,
+      elevation: 2,
+    },
+    buildingChipActive: { backgroundColor: colors.primary },
+    chipName: { fontSize: 13, fontWeight: "700", color: colors.text },
+    chipCity: { fontSize: 11, color: colors.mutedForeground, marginTop: 2 },
+    chipRate: {
+      flexDirection: "row",
+      alignItems: "center",
+      gap: 4,
+      marginTop: 6,
+    },
+    chipRateDot: { width: 6, height: 6, borderRadius: 3 },
+    chipRateText: { fontSize: 11, fontWeight: "600" },
 
-  errorBox: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 8,
-    margin: 16,
-    padding: 12,
-    backgroundColor: "#FEF2F2",
-    borderRadius: 10,
-    borderLeftWidth: 3,
-    borderLeftColor: "#EF4444",
-  },
-  errorText: { color: "#DC2626", fontSize: 13, flex: 1 },
+    errorBox: {
+      flexDirection: "row",
+      alignItems: "center",
+      gap: 8,
+      margin: 16,
+      padding: 12,
+      backgroundColor: colors.destructive + "15",
+      borderRadius: 10,
+      borderLeftWidth: 3,
+      borderLeftColor: colors.destructive,
+    },
+    errorText: { color: colors.destructive, fontSize: 13, flex: 1 },
 
-  tabs: {
-    flexDirection: "row",
-    marginHorizontal: 16,
-    marginBottom: 12,
-    backgroundColor: "#E2E8F0",
-    borderRadius: 10,
-    padding: 3,
-  },
-  tab: {
-    flex: 1,
-    paddingVertical: 8,
-    alignItems: "center",
-    borderRadius: 8,
-  },
-  tabActive: { backgroundColor: "#fff", shadowColor: "#000", shadowOpacity: 0.08, shadowRadius: 3, elevation: 2 },
-  tabText: { fontSize: 13, color: "#64748B", fontWeight: "500" },
-  tabTextActive: { color: "#1E3A5F", fontWeight: "700" },
+    tabs: {
+      flexDirection: "row",
+      marginHorizontal: 16,
+      marginBottom: 12,
+      backgroundColor: colors.muted,
+      borderRadius: 10,
+      padding: 3,
+    },
+    tab: {
+      flex: 1,
+      paddingVertical: 8,
+      alignItems: "center",
+      borderRadius: 8,
+    },
+    tabActive: { backgroundColor: colors.card, shadowColor: "#000", shadowOpacity: 0.08, shadowRadius: 3, elevation: 2 },
+    tabText: { fontSize: 13, color: colors.mutedForeground, fontWeight: "500" },
+    tabTextActive: { color: colors.primary, fontWeight: "700" },
 
-  card: {
-    backgroundColor: "#fff",
-    marginHorizontal: 16,
-    marginBottom: 12,
-    borderRadius: 14,
-    padding: 16,
-    shadowColor: "#000",
-    shadowOpacity: 0.05,
-    shadowRadius: 6,
-    elevation: 2,
-  },
-  cardTitle: {
-    fontSize: 15,
-    fontWeight: "700",
-    color: "#1E293B",
-    marginBottom: 4,
-  },
-  cardSub: { fontSize: 12, color: "#64748B", marginBottom: 12 },
-  divider: { height: 1, backgroundColor: "#F1F5F9", marginVertical: 12 },
+    card: {
+      backgroundColor: colors.card,
+      marginHorizontal: 16,
+      marginBottom: 12,
+      borderRadius: colors.radius,
+      padding: 16,
+      shadowColor: "#000",
+      shadowOpacity: 0.05,
+      shadowRadius: 6,
+      elevation: 2,
+    },
+    cardTitle: {
+      fontSize: 15,
+      fontWeight: "700",
+      color: colors.text,
+      marginBottom: 4,
+    },
+    cardSub: { fontSize: 12, color: colors.mutedForeground, marginBottom: 12 },
+    divider: { height: 1, backgroundColor: colors.border, marginVertical: 12 },
 
-  gaugeWrap: {},
-  gaugeRow: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    alignItems: "center",
-    marginBottom: 8,
-  },
-  gaugeLabel: { fontSize: 14, color: "#64748B", fontWeight: "500" },
-  gaugeValue: { fontSize: 22, fontWeight: "800" },
-  gaugeTrack: {
-    height: 14,
-    backgroundColor: "#E2E8F0",
-    borderRadius: 7,
-    overflow: "hidden",
-  },
-  gaugeBar: { height: 14, borderRadius: 7 },
-  gaugeHints: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    marginTop: 4,
-  },
-  gaugeHint: { fontSize: 10, color: "#94A3B8" },
+    gaugeWrap: {},
+    gaugeRow: {
+      flexDirection: "row",
+      justifyContent: "space-between",
+      alignItems: "center",
+      marginBottom: 8,
+    },
+    gaugeLabel: { fontSize: 14, color: colors.mutedForeground, fontWeight: "500" },
+    gaugeValue: { fontSize: 22, fontWeight: "800", color: colors.text },
+    gaugeTrack: {
+      height: 14,
+      backgroundColor: colors.muted,
+      borderRadius: 7,
+      overflow: "hidden",
+    },
+    gaugeBar: { height: 14, borderRadius: 7 },
+    gaugeHints: {
+      flexDirection: "row",
+      justifyContent: "space-between",
+      marginTop: 4,
+    },
+    gaugeHint: { fontSize: 10, color: colors.mutedForeground },
 
-  triRow: { flexDirection: "row" },
-  triItem: { flex: 1, alignItems: "center" },
-  triMid: {
-    borderLeftWidth: 1,
-    borderRightWidth: 1,
-    borderColor: "#F1F5F9",
-  },
-  triVal: { fontSize: 18, fontWeight: "800", color: "#1E293B" },
-  triLab: { fontSize: 11, fontWeight: "600", marginTop: 2 },
+    triRow: { flexDirection: "row" },
+    triItem: { flex: 1, alignItems: "center" },
+    triMid: {
+      borderLeftWidth: 1,
+      borderRightWidth: 1,
+      borderColor: colors.border,
+    },
+    triVal: { fontSize: 18, fontWeight: "800", color: colors.text },
+    triLab: { fontSize: 11, fontWeight: "600", marginTop: 2 },
 
-  kpiGrid: {
-    flexDirection: "row",
-    flexWrap: "wrap",
-    marginHorizontal: 16,
-    gap: 10,
-    marginBottom: 12,
-  },
-  kpiCard: {
-    backgroundColor: "#fff",
-    borderRadius: 12,
-    padding: 12,
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 10,
-    borderLeftWidth: 4,
-    width: (SCREEN_WIDTH - 48) / 2,
-    shadowColor: "#000",
-    shadowOpacity: 0.04,
-    shadowRadius: 4,
-    elevation: 1,
-  },
-  kpiIcon: {
-    width: 36,
-    height: 36,
-    borderRadius: 10,
-    justifyContent: "center",
-    alignItems: "center",
-  },
-  kpiText: { flex: 1 },
-  kpiValue: { fontSize: 16, fontWeight: "800", color: "#1E293B" },
-  kpiLabel: { fontSize: 10, color: "#64748B", marginTop: 1 },
-  kpiSub: { fontSize: 10, fontWeight: "600", marginTop: 2 },
+    kpiGrid: {
+      flexDirection: "row",
+      flexWrap: "wrap",
+      marginHorizontal: 16,
+      gap: 10,
+      marginBottom: 12,
+    },
+    kpiCard: {
+      backgroundColor: colors.card,
+      borderRadius: 12,
+      padding: 12,
+      flexDirection: "row",
+      alignItems: "center",
+      gap: 10,
+      borderLeftWidth: 4,
+      width: (SCREEN_WIDTH - 48) / 2,
+      shadowColor: "#000",
+      shadowOpacity: 0.04,
+      shadowRadius: 4,
+      elevation: 1,
+    },
+    kpiIcon: {
+      width: 36,
+      height: 36,
+      borderRadius: 10,
+      justifyContent: "center",
+      alignItems: "center",
+    },
+    kpiText: { flex: 1 },
+    kpiValue: { fontSize: 16, fontWeight: "800", color: colors.text },
+    kpiLabel: { fontSize: 10, color: colors.mutedForeground, marginTop: 1 },
+    kpiSub: { fontSize: 10, fontWeight: "600", marginTop: 2 },
 
-  chartArea: {},
-  chartLegend: {
-    flexDirection: "row",
-    gap: 16,
-    marginBottom: 12,
-  },
-  legendItem: { flexDirection: "row", alignItems: "center", gap: 6 },
-  legendDot: { width: 10, height: 10, borderRadius: 5 },
-  legendLabel: { fontSize: 12, color: "#64748B" },
-  bars: {
-    flexDirection: "row",
-    alignItems: "flex-end",
-    height: CHART_HEIGHT + 20,
-  },
-  barGroup: { alignItems: "center" },
-  barsInner: { justifyContent: "flex-end" },
-  bar: { borderTopLeftRadius: 3, borderTopRightRadius: 3 },
-  barLabel: { fontSize: 9, color: "#94A3B8", marginTop: 4, textAlign: "center" },
+    chartArea: {},
+    chartLegend: {
+      flexDirection: "row",
+      gap: 16,
+      marginBottom: 12,
+    },
+    legendItem: { flexDirection: "row", alignItems: "center", gap: 6 },
+    legendDot: { width: 10, height: 10, borderRadius: 5 },
+    legendLabel: { fontSize: 12, color: colors.mutedForeground },
+    bars: {
+      flexDirection: "row",
+      alignItems: "flex-end",
+      height: CHART_HEIGHT + 20,
+    },
+    barGroup: { alignItems: "center" },
+    barsInner: { justifyContent: "flex-end" },
+    bar: { borderTopLeftRadius: 3, borderTopRightRadius: 3 },
+    barLabel: { fontSize: 9, color: colors.mutedForeground, marginTop: 4, textAlign: "center" },
 
-  catRow: { marginBottom: 10 },
-  catHeader: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    marginBottom: 4,
-  },
-  catLabel: { fontSize: 12, color: "#475569", fontWeight: "500" },
-  catAmount: { fontSize: 12, color: "#1E293B", fontWeight: "700" },
-  catTrack: {
-    height: 8,
-    backgroundColor: "#F1F5F9",
-    borderRadius: 4,
-    overflow: "hidden",
-  },
-  catBar: { height: 8, borderRadius: 4 },
+    catRow: { marginBottom: 10 },
+    catHeader: {
+      flexDirection: "row",
+      justifyContent: "space-between",
+      marginBottom: 4,
+    },
+    catLabel: { fontSize: 12, color: colors.mutedForeground, fontWeight: "500" },
+    catAmount: { fontSize: 12, color: colors.text, fontWeight: "700" },
+    catTrack: {
+      height: 8,
+      backgroundColor: colors.muted,
+      borderRadius: 4,
+      overflow: "hidden",
+    },
+    catBar: { height: 8, borderRadius: 4 },
 
-  tableHeader: {
-    flexDirection: "row",
-    paddingBottom: 6,
-    marginBottom: 4,
-    borderBottomWidth: 1,
-    borderColor: "#F1F5F9",
-  },
-  th: { flex: 1, fontSize: 11, fontWeight: "700", color: "#94A3B8" },
-  tableRow: {
-    flexDirection: "row",
-    paddingVertical: 8,
-    borderBottomWidth: 1,
-    borderColor: "#F8FAFC",
-  },
-  td: { flex: 1, fontSize: 12, color: "#475569" },
+    tableHeader: {
+      flexDirection: "row",
+      paddingBottom: 6,
+      marginBottom: 4,
+      borderBottomWidth: 1,
+      borderColor: colors.border,
+    },
+    th: { flex: 1, fontSize: 11, fontWeight: "700", color: colors.mutedForeground },
+    tableRow: {
+      flexDirection: "row",
+      paddingVertical: 8,
+      borderBottomWidth: 1,
+      borderColor: colors.border,
+    },
+    td: { flex: 1, fontSize: 12, color: colors.text },
 
-  travauxItem: {
-    flexDirection: "row",
-    alignItems: "flex-start",
-    gap: 10,
-    paddingVertical: 10,
-    borderBottomWidth: 1,
-    borderColor: "#F8FAFC",
-  },
-  prioTag: {
-    borderRadius: 6,
-    paddingHorizontal: 6,
-    paddingVertical: 3,
-    marginTop: 2,
-  },
-  prioText: { fontSize: 10, fontWeight: "700", textTransform: "uppercase" },
-  travauxTitle: { fontSize: 13, fontWeight: "600", color: "#1E293B" },
-  travauxMeta: { flexDirection: "row", alignItems: "center", marginTop: 3 },
-  statusDot: { width: 7, height: 7, borderRadius: 4, marginEnd: 5 },
-  travauxStatus: { fontSize: 11, color: "#64748B" },
-  travauxAmt: { fontSize: 11, color: "#64748B" },
+    travauxItem: {
+      flexDirection: "row",
+      alignItems: "flex-start",
+      gap: 10,
+      paddingVertical: 10,
+      borderBottomWidth: 1,
+      borderColor: colors.border,
+    },
+    prioTag: {
+      borderRadius: 6,
+      paddingHorizontal: 6,
+      paddingVertical: 3,
+      marginTop: 2,
+    },
+    prioText: { fontSize: 10, fontWeight: "700", textTransform: "uppercase" },
+    travauxTitle: { fontSize: 13, fontWeight: "600", color: colors.text },
+    travauxMeta: { flexDirection: "row", alignItems: "center", marginTop: 3 },
+    statusDot: { width: 7, height: 7, borderRadius: 4, marginEnd: 5 },
+    travauxStatus: { fontSize: 11, color: colors.mutedForeground },
+    travauxAmt: { fontSize: 11, color: colors.mutedForeground },
 
-  contratItem: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    alignItems: "flex-start",
-    paddingVertical: 12,
-    borderBottomWidth: 1,
-    borderColor: "#F8FAFC",
-  },
-  contratLeft: { flexDirection: "row", gap: 10, flex: 1 },
-  contratIcon: {
-    width: 34,
-    height: 34,
-    borderRadius: 8,
-    justifyContent: "center",
-    alignItems: "center",
-  },
-  contratName: { fontSize: 13, fontWeight: "700", color: "#1E293B" },
-  contratTitle: { fontSize: 11, color: "#64748B", marginTop: 1 },
-  contratType: { fontSize: 10, color: "#94A3B8", textTransform: "capitalize" },
-  contratRight: { alignItems: "flex-end" },
-  contratAmt: { fontSize: 13, fontWeight: "700", color: "#1E293B" },
-  contratAnnual: { fontSize: 11, color: "#64748B", marginTop: 1 },
-  contratEnd: { fontSize: 10, color: "#94A3B8", marginTop: 2 },
-});
+    contratItem: {
+      flexDirection: "row",
+      justifyContent: "space-between",
+      alignItems: "flex-start",
+      paddingVertical: 12,
+      borderBottomWidth: 1,
+      borderColor: colors.border,
+    },
+    contratLeft: { flexDirection: "row", gap: 10, flex: 1 },
+    contratIcon: {
+      width: 34,
+      height: 34,
+      borderRadius: 8,
+      justifyContent: "center",
+      alignItems: "center",
+    },
+    contratName: { fontSize: 13, fontWeight: "700", color: colors.text },
+    contratTitle: { fontSize: 11, color: colors.mutedForeground, marginTop: 1 },
+    contratType: { fontSize: 10, color: colors.mutedForeground, textTransform: "capitalize" },
+    contratRight: { alignItems: "flex-end" },
+    contratAmt: { fontSize: 13, fontWeight: "700", color: colors.text },
+    contratAnnual: { fontSize: 11, color: colors.mutedForeground, marginTop: 1 },
+    contratEnd: { fontSize: 10, color: colors.mutedForeground, marginTop: 2 },
+  });
+}
