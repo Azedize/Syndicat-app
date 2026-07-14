@@ -1,8 +1,9 @@
 import { Feather } from "@expo/vector-icons";
 import * as Haptics from "expo-haptics";
 import { router } from "expo-router";
-import React, { useState } from "react";
+import React, { useEffect, useState } from "react";
 import {
+  ActivityIndicator,
   Modal,
   Platform,
   ScrollView,
@@ -15,6 +16,7 @@ import {
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useBreakpoints } from "@/hooks/useBreakpoints";
 import { useColors } from "@/hooks/useColors";
+import { apiRequest } from "@/lib/api";
 
 type ThemeType = "licenciement" | "conges" | "salaire" | "syndicale" | "discrimination" | "contrat" | "sante" | "retraite";
 
@@ -42,60 +44,20 @@ const THEME_CONFIG: Record<ThemeType, { label: string; icon: keyof typeof Feathe
   retraite: { label: "Retraite", icon: "clock", color: "#8b5cf6" },
 };
 
-const FICHES: FicheJuridique[] = [
-  {
-    id: "j1", theme: "licenciement", titre: "Procédure de licenciement pour motif personnel", important: true,
-    resume: "Toute rupture du contrat à l'initiative de l'employeur doit respecter une procédure stricte sous peine de nullité.",
-    contenu: `Le licenciement pour motif personnel repose sur une cause réelle et sérieuse, c'est-à-dire un motif suffisamment grave, objectivement vérifiable et rendant difficile le maintien du salarié dans l'entreprise.\n\nLes étapes obligatoires sont :\n\n1. Convocation à entretien préalable\nL'employeur doit adresser une lettre recommandée ou remise en main propre contre décharge. La convocation doit mentionner l'objet, la date, l'heure et le lieu de l'entretien.\n\n2. Délai de 5 jours ouvrables\nUn délai minimum de 5 jours ouvrables doit séparer la convocation de l'entretien.\n\n3. L'entretien préalable\nLe salarié peut se faire assister d'un membre du personnel ou d'un représentant syndical. L'employeur présente les motifs et le salarié peut s'expliquer.\n\n4. Délai de réflexion\nL'employeur ne peut notifier le licenciement qu'au moins 2 jours ouvrables après l'entretien.\n\n5. Lettre de licenciement\nElle doit être motivée, datée et envoyée en recommandé. Les motifs doivent être précis — une lettre trop vague rend le licenciement sans cause réelle et sérieuse.`,
-    articles: ["Art. L1232-1 Code du Travail", "Art. L1232-2 (convocation)", "Art. L1232-4 (assistance)", "Art. L1232-6 (lettre motivée)"],
-    jurisprudence: ["Cass. Soc. 14 nov. 2018 — lettre de motivation insuffisante", "Cass. Soc. 6 mars 2019 — délai convocation"],
-    conseils: ["Vérifier le respect strict de tous les délais", "Accompagner le salarié à l'entretien", "Conserver une copie de tous les documents", "En cas de doute, consulter immédiatement un délégué"],
-    updated: "2026-04-01",
-  },
-  {
-    id: "j2", theme: "syndicale", titre: "Droits et protections des représentants syndicaux", important: true,
-    resume: "Les délégués syndicaux bénéficient d'une protection spéciale contre le licenciement et d'heures de délégation rémunérées.",
-    contenu: `Les représentants du personnel et délégués syndicaux disposent d'un statut protecteur prévu par le Code du Travail.\n\nHEURES DE DÉLÉGATION\nLes délégués syndicaux bénéficient de crédit d'heures mensuel :\n• DS dans entreprise < 50 salariés : 10h/mois\n• DS dans entreprise 50-150 salariés : 15h/mois\n• DS dans entreprise > 150 salariés : 20h/mois\n\nCes heures sont considérées comme temps de travail et rémunérées normalement. L'employeur ne peut pas les remettre en cause.\n\nPROTECTION CONTRE LE LICENCIEMENT\nLe licenciement d'un représentant du personnel ou syndical nécessite l'autorisation préalable de l'Inspection du Travail. Cette procédure s'applique pendant le mandat et 6 à 12 mois après son terme.\n\nCIRCULATION ET COMMUNICATION\nLes délégués peuvent se déplacer librement dans l'entreprise pendant leurs heures de délégation. Ils peuvent afficher des communications syndicales sur les panneaux prévus à cet effet.`,
-    articles: ["Art. L2143-13 à L2143-17 (heures de délégation)", "Art. L2411-1 à L2414-1 (protection licenciement)", "Art. L2142-10 (affichage syndical)"],
-    jurisprudence: ["Cass. Soc. 26 sept. 2018 — abus heures délégation", "CE 2 mars 2020 — autorisation inspection du travail"],
-    conseils: ["Tenir un registre précis de vos heures de délégation", "Informer l'employeur avant utilisation si accord collectif l'exige", "Toute entrave à l'exercice du mandat est un délit pénal", "En cas de refus d'heures, adresser un courrier RAR immédiatement"],
-    updated: "2026-03-15",
-  },
-  {
-    id: "j3", theme: "conges", titre: "Congés payés — droits et calcul", 
-    resume: "Tout salarié a droit à 2,5 jours ouvrables de congés payés par mois de travail effectif, soit 30 jours ouvrables par an.",
-    contenu: `ACQUISITION\nLes congés s'acquièrent du 1er juin au 31 mai de l'année suivante (période de référence). Tout mois de travail effectif donne droit à 2,5 jours ouvrables.\n\nPLANIFICATION\nL'employeur fixe l'ordre des départs en tenant compte de la situation familiale des salariés. Le salarié doit être informé de ses dates au moins 1 mois à l'avance.\n\nINDEMNITÉ DE CONGÉS PAYÉS\nCalculée selon la méthode la plus avantageuse :\n• 1/10e de la rémunération brute totale perçue pendant la période de référence\n• Ou maintien du salaire habituel\n\nRETENUE POUR ABSENCE\nL'employeur ne peut déduire que les jours ouvrables (lundi au samedi, hors jours fériés) entre le départ et le retour du salarié.\n\nCONGÉS NON PRIS\nLe principe est que les congés non pris sont perdus (pas de report automatique). Des exceptions existent pour maladie ou maternité.`,
-    articles: ["Art. L3141-1 à L3141-24 Code du Travail", "Art. L3141-14 (indemnité de congés)", "Art. L3141-16 (ordre des départs)"],
-    conseils: ["Vérifier votre solde de congés chaque mois", "Poser vos congés par écrit (email ou formulaire)", "Conserver les confirmations de votre employeur", "En cas de refus abusif, saisir le Conseil des Prud'hommes"],
-    updated: "2026-01-10",
-  },
-  {
-    id: "j4", theme: "salaire", titre: "Salaire minimum légal et non-paiement", important: true,
-    resume: "Le non-paiement du salaire constitue une faute grave de l'employeur permettant la prise d'acte de rupture.",
-    contenu: `LE SALAIRE MINIMUM\nTout salarié doit percevoir au minimum le SMIG (Salaire Minimum Interprofessionnel Garanti) fixé annuellement par décret.\n\nOBLIGATION DE PAIEMENT\nL'employeur est tenu de verser le salaire à la date convenue, au plus tard le dernier jour du mois. Tout retard caractérise un manquement grave.\n\nNON-PAIEMENT\nEn cas de non-paiement, le salarié peut :\n1. Mettre en demeure l'employeur par RAR\n2. Saisir le Conseil des Prud'hommes en référé (procédure d'urgence)\n3. Prendre acte de la rupture aux torts de l'employeur\n\nBULLETIN DE PAIE\nL'employeur est tenu de remettre un bulletin de salaire à chaque versement. Il doit être conservé sans limitation de durée.\n\nRETENUES ILLICITES\nL'employeur ne peut pratiquer de retenues sur salaire que pour les cas expressément prévus par la loi (saisies-arrêts, avances sur salaire).`,
-    articles: ["Art. L3221-1 (salaire minimum)", "Art. L3243-1 (bulletin de paie)", "Art. L1237-19 (prise d'acte)"],
-    jurisprudence: ["Cass. Soc. 25 juin 2014 — prise d'acte non-paiement"],
-    conseils: ["Conservez tous vos bulletins de paie", "Signaler tout retard de paiement immédiatement au délégué", "Le non-paiement de 2 mois ouvre droit à la résiliation judiciaire", "Ne jamais signer de décharge de salaire"],
-    updated: "2026-02-20",
-  },
-  {
-    id: "j5", theme: "discrimination", titre: "Discrimination au travail — recours",
-    resume: "La discrimination est définie comme toute distinction fondée sur l'un des 25 critères légaux (origine, sexe, âge, handicap, activité syndicale...).",
-    contenu: `DÉFINITION\nConstitue une discrimination toute distinction, exclusion, restriction ou préférence fondée sur l'un des critères légaux, qui a pour effet de détruire ou altérer l'égalité de traitement en matière d'emploi.\n\nCRITÈRES PROTÉGÉS (liste non exhaustive)\n• Origine, race, appartenance à une ethnie\n• Sexe, grossesse, situation familiale\n• Âge, handicap, état de santé\n• Opinions syndicales ou politiques\n• Religion, mœurs, orientation sexuelle\n\nPREUVE\nEn matière civile, le salarié doit présenter des éléments de fait laissant supposer une discrimination. L'employeur doit ensuite prouver que sa décision est justifiée.\n\nSANCTIONS\n• Civil : dommages et intérêts, réintégration\n• Pénal : jusqu'à 3 ans d'emprisonnement et 45 000 € d'amende\n\nRECOURS\n• Défenseur des Droits (saisine gratuite)\n• Inspection du Travail\n• Conseil des Prud'hommes`,
-    articles: ["Art. L1132-1 (liste des critères)", "Art. L1134-1 (aménagement de la preuve)", "Art. 225-1 Code Pénal (discrimination pénale)"],
-    jurisprudence: ["Cass. Soc. 7 mai 2019 — discrimination syndicale", "CEDH 8 janv. 2020 — liberté syndicale"],
-    conseils: ["Documenter tous les actes discriminatoires (dates, témoins, écrits)", "Saisir le Défenseur des Droits si discrimination caractérisée", "Les représentants syndicaux sont particulièrement exposés — vigilance renforcée"],
-    updated: "2026-03-01",
-  },
-  {
-    id: "j6", theme: "contrat", titre: "CDD — règles et requalification en CDI",
-    resume: "Le CDD est dérogatoire au CDI. Son non-respect ouvre droit à la requalification automatique en contrat à durée indéterminée.",
-    contenu: `CAS DE RECOURS AUTORISÉS\nLe CDD ne peut être conclu que dans des cas précis :\n• Remplacement d'un salarié absent\n• Accroissement temporaire d'activité\n• Emploi saisonnier\n• Contrat d'usage\n\nDURÉE MAXIMALE\nLe CDD, renouvellements compris, ne peut excéder 18 mois (24 mois pour commande exceptionnelle à l'export).\n\nREQUALIFICATION EN CDI\nL'employeur s'expose à la requalification si :\n• Le motif de recours n'est pas légitime\n• La durée maximale est dépassée\n• Les délais de carence ne sont pas respectés\n• Le contrat ne comporte pas les mentions obligatoires\n\nINDEMNITÉ DE PRÉCARITÉ\nÀ l'issue du CDD, le salarié perçoit une indemnité de fin de contrat égale à 10% de la rémunération brute totale perçue.`,
-    articles: ["Art. L1242-1 (cas de recours)", "Art. L1245-1 (requalification)", "Art. L1243-8 (indemnité de précarité)"],
-    conseils: ["Vérifier que le motif de CDD est légitime", "En cas de renouvellement abusif, saisir le CPH en requalification", "L'indemnité de précarité est due dans tous les cas sauf faute grave"],
-    updated: "2026-01-15",
-  },
-];
+function mapApiFiche(row: any): FicheJuridique {
+  return {
+    id: row.id,
+    theme: row.theme,
+    titre: row.titre,
+    resume: row.resume,
+    contenu: row.contenu,
+    articles: Array.isArray(row.articles) ? row.articles : [],
+    jurisprudence: Array.isArray(row.jurisprudence) && row.jurisprudence.length ? row.jurisprudence : undefined,
+    conseils: Array.isArray(row.conseils) ? row.conseils : [],
+    updated: row.updated ?? "",
+    important: !!row.important,
+  };
+}
 
 export default function RepertoireJuridiqueScreen() {
   const colors = useColors();
@@ -106,8 +68,22 @@ export default function RepertoireJuridiqueScreen() {
   const [search, setSearch] = useState("");
   const [filterTheme, setFilterTheme] = useState<ThemeType | "all">("all");
   const [selected, setSelected] = useState<FicheJuridique | null>(null);
+  const [fiches, setFiches] = useState<FicheJuridique[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
 
-  const displayed = FICHES.filter((f) => {
+  const loadFiches = () => {
+    setLoading(true);
+    setError(null);
+    apiRequest<{ data: any[] }>("/fiches-juridiques")
+      .then(({ data }) => setFiches((data ?? []).map(mapApiFiche)))
+      .catch((err) => setError(err instanceof Error ? err.message : "Erreur de chargement"))
+      .finally(() => setLoading(false));
+  };
+
+  useEffect(() => { loadFiches(); }, []);
+
+  const displayed = fiches.filter((f) => {
     if (filterTheme !== "all" && f.theme !== filterTheme) return false;
     if (search && !f.titre.toLowerCase().includes(search.toLowerCase()) && !f.resume.toLowerCase().includes(search.toLowerCase())) return false;
     return true;

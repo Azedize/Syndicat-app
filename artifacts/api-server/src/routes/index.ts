@@ -38,6 +38,9 @@ import actionsRouter from "./actions.js";
 import pdfRouter from "./pdf.js";
 import attachmentsRouter from "./attachments.js";
 import actesRouter from "./actes.js";
+import reclamationsRouter from "./reclamations.js";
+import workflowsRouter from "./workflows.js";
+import fichesJuridiquesRouter from "./fiches-juridiques.js";
 
 const router: IRouter = Router();
 
@@ -80,5 +83,8 @@ router.use(actionsRouter);
 router.use(pdfRouter);
 router.use(attachmentsRouter);
 router.use(actesRouter);
+router.use(reclamationsRouter);
+router.use(workflowsRouter);
+router.use(fichesJuridiquesRouter);
 
 export default router;

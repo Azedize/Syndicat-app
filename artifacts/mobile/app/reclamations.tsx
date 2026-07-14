@@ -3,6 +3,7 @@ import * as Haptics from "expo-haptics";
 import { router } from "expo-router";
 import React, { useCallback, useEffect, useState } from "react";
 import {
+  ActivityIndicator,
   Alert,
   Modal,
   Platform,
@@ -497,147 +498,29 @@ const PRIORITE_CONFIG: Record<ReclamationPriorite, { label: string; color: strin
   basse: { label: "basse", color: "#6b7280" },
 };
 
-const RECLAMATIONS: Reclamation[] = [
-  {
-    id: "r1",
-    reference: "REC-2026-047",
-    type: "salaire",
-    statut: "en_instruction",
-    priorite: "haute",
-    titre: "Non-paiement des heures supplémentaires — Mars à Mai 2026",
-    description: "Depuis mars 2026, mes heures supplémentaires (environ 24h/mois) ne sont pas intégrées dans le bulletin de paie. Malgré deux relances RH restées sans réponse, la situation perdure. Conformément à l'article 201 du Code du Travail, je sollicite le paiement de ces heures majorées à 25%.",
-    membre: "Mohammed Alaoui",
-    membreId: "1",
-    service: "Département Informatique",
-    dateDepot: "2026-06-10",
-    dateEcheance: "2026-06-24",
-    traitePar: "Fatima Zahra El Alami",
-    documentsJoints: ["Relevé heures supplémentaires.pdf", "Bulletins de paie mars-mai.pdf"],
-    etapes: [
-      { date: "2026-06-10", action: "Réclamation déposée auprès du syndicat", auteur: "Mohammed Alaoui" },
-      { date: "2026-06-11", action: "Accusé de réception envoyé au membre", auteur: "Système" },
-      { date: "2026-06-12", action: "Dossier pris en charge — affectation délégué", auteur: "Fatima Zahra El Alami" },
-      { date: "2026-06-15", action: "Courrier de mise en demeure transmis à la RH", auteur: "Fatima Zahra El Alami" },
-    ],
-    anonymous: false,
-  },
-  {
-    id: "r2",
-    reference: "REC-2026-046",
-    type: "condition_travail",
-    statut: "transmise_direction",
-    priorite: "normale",
-    titre: "Locaux de travail insalubres — Bâtiment C",
-    description: "Le bâtiment C présente des problèmes d'humidité et de ventilation depuis octobre 2025. Plusieurs collègues ont développé des pathologies respiratoires. Le médecin du travail a été saisi mais aucune mesure corrective n'a été prise par l'employeur.",
-    membre: "Khadija Tahiri",
-    membreId: "2",
-    service: "Administration",
-    dateDepot: "2026-06-05",
-    dateEcheance: "2026-06-30",
-    traitePar: "Rachid Bennis",
-    commentaireAdmin: "Courrier adressé à la direction le 8 juin. Réunion CHSCT prévue le 25 juin.",
-    documentsJoints: ["Rapport médecin travail.pdf", "Photos locaux.pdf"],
-    etapes: [
-      { date: "2026-06-05", action: "Réclamation déposée", auteur: "Khadija Tahiri" },
-      { date: "2026-06-08", action: "Dossier transmis à la direction", auteur: "Rachid Bennis" },
-      { date: "2026-06-10", action: "Accusé de réception direction reçu", auteur: "Système" },
-    ],
-    anonymous: false,
-  },
-  {
-    id: "r3",
-    reference: "REC-2026-045",
-    type: "harcelement",
-    statut: "en_mediation",
-    priorite: "urgente",
-    titre: "Harcèlement moral — Comportement du chef de service",
-    description: "Déclaration confidentielle relative à un comportement harcelant de la part d'un responsable hiérarchique direct. Pressions constantes, humiliations en public, surcharge de travail délibérée. Témoin disponible.",
-    membre: "Anonyme",
-    membreId: "anon",
-    service: "Non communiqué",
-    dateDepot: "2026-06-08",
-    dateEcheance: "2026-06-22",
-    traitePar: "Amina Tazi",
-    documentsJoints: ["Témoignage écrit.pdf"],
-    etapes: [
-      { date: "2026-06-08", action: "Réclamation anonyme reçue", auteur: "Système" },
-      { date: "2026-06-09", action: "Médiation interne engagée — Désignation médiateur", auteur: "Amina Tazi" },
-      { date: "2026-06-12", action: "Première séance de médiation tenue", auteur: "Amina Tazi" },
-    ],
-    anonymous: true,
-  },
-  {
-    id: "r4",
-    reference: "REC-2026-041",
-    type: "avancement",
-    statut: "resolue",
-    priorite: "normale",
-    titre: "Blocage injustifié d'avancement — Grade A1",
-    description: "Bloqué au même échelon depuis 4 ans sans motif officiel. Les critères d'avancement sont pourtant remplis : évaluations positives, ancienneté, formation professionnelle à jour.",
-    membre: "Omar Lahlou",
-    membreId: "7",
-    service: "Production",
-    dateDepot: "2026-05-15",
-    dateCloture: "2026-06-03",
-    traitePar: "Fatima Zahra El Alami",
-    commentaireAdmin: "Résolu favorablement. La direction a accepté de régulariser l'avancement avec effet rétroactif au 01/01/2026.",
-    documentsJoints: ["Fiche d'avancement.pdf"],
-    etapes: [
-      { date: "2026-05-15", action: "Réclamation déposée", auteur: "Omar Lahlou" },
-      { date: "2026-05-20", action: "Courrier adressé au DRH", auteur: "Fatima Zahra El Alami" },
-      { date: "2026-05-28", action: "Réunion bilatérale avec le DRH", auteur: "Fatima Zahra El Alami" },
-      { date: "2026-06-03", action: "Avancement accordé — Réclamation résolue", auteur: "Fatima Zahra El Alami" },
-    ],
-    anonymous: false,
-  },
-  {
-    id: "r5",
-    reference: "REC-2026-039",
-    type: "licenciement",
-    statut: "contentieux",
-    priorite: "urgente",
-    titre: "Licenciement abusif sans cause réelle — Affaire Benali",
-    description: "Licenciement prononcé sans motif réel ni sérieux le 12 mai 2026, sans respect de la procédure légale (absence d'entretien préalable). Demande de réintégration et/ou indemnités légales conformément aux articles 62 et suivants du Code du Travail.",
-    membre: "Hassan Idrissi",
-    membreId: "5",
-    service: "Commercial",
-    dateDepot: "2026-05-14",
-    dateEcheance: "2026-07-14",
-    traitePar: "Amina Tazi",
-    commentaireAdmin: "Dossier transmis au cabinet d'avocats partenaire. Saisine du Tribunal du Travail de Casablanca prévue.",
-    documentsJoints: ["Lettre de licenciement.pdf", "Contrat de travail.pdf", "Bulletins de paie.pdf"],
-    etapes: [
-      { date: "2026-05-14", action: "Réclamation urgente déposée", auteur: "Hassan Idrissi" },
-      { date: "2026-05-15", action: "Consultation juridique d'urgence organisée", auteur: "Amina Tazi" },
-      { date: "2026-05-20", action: "Mise en demeure transmise à l'employeur", auteur: "Amina Tazi" },
-      { date: "2026-06-01", action: "Échec de la conciliation — Passage en contentieux", auteur: "Amina Tazi" },
-    ],
-    anonymous: false,
-  },
-  {
-    id: "r6",
-    reference: "REC-2026-038",
-    type: "conge",
-    statut: "resolue",
-    priorite: "basse",
-    titre: "Refus de congé de formation syndicale",
-    description: "Demande de congé de 5 jours pour formation syndicale refusée par le responsable direct sans motif valable. L'article 457 du Code du Travail garantit ce droit.",
-    membre: "Zineb Berrada",
-    membreId: "6",
-    service: "Logistique",
-    dateDepot: "2026-05-10",
-    dateCloture: "2026-05-22",
-    traitePar: "Rachid Bennis",
-    commentaireAdmin: "Congé accordé après intervention syndicale. Formation effectuée les 26-30 mai.",
-    documentsJoints: ["Programme formation.pdf"],
-    etapes: [
-      { date: "2026-05-10", action: "Réclamation déposée", auteur: "Zineb Berrada" },
-      { date: "2026-05-14", action: "Intervention auprès du DRH", auteur: "Rachid Bennis" },
-      { date: "2026-05-22", action: "Congé accordé — Réclamation close", auteur: "Rachid Bennis" },
-    ],
-    anonymous: false,
-  },
-];
+function mapApiReclamation(row: any): Reclamation {
+  return {
+    id: row.id,
+    reference: row.reference,
+    type: row.type,
+    statut: row.statut,
+    priorite: row.priorite,
+    titre: row.titre,
+    description: row.description,
+    membre: row.memberName ?? (row.anonymous ? "Anonyme" : ""),
+    membreId: row.memberId ?? "",
+    service: row.service ?? "",
+    dateDepot: row.dateDepot,
+    dateEcheance: row.dateEcheance ?? undefined,
+    dateCloture: row.dateCloture ?? undefined,
+    traitePar: row.traitePar ?? undefined,
+    commentaireAdmin: row.commentaireAdmin ?? undefined,
+    documentsJoints: Array.isArray(row.documentsJoints) ? row.documentsJoints : [],
+    etapes: Array.isArray(row.etapes) ? row.etapes : [],
+    anonymous: !!row.anonymous,
+  };
+}
+
 
 const TYPES_LIST = Object.entries(TYPE_CONFIG) as [ReclamationType, typeof TYPE_CONFIG[ReclamationType]][];
 
@@ -663,14 +546,27 @@ export default function ReclamationsScreen() {
   const [newAnon, setNewAnon] = useState(false);
   const [showEtapes, setShowEtapes] = useState(false);
 
-  const [reclamations, setReclamations] = useState<Reclamation[]>(RECLAMATIONS);
+  const [reclamations, setReclamations] = useState<Reclamation[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  const [depositing, setDepositing] = useState(false);
+
+  const loadReclamations = useCallback(() => {
+    setLoading(true);
+    setError(null);
+    apiRequest<{ data: any[] }>("/reclamations")
+      .then(({ data }) => setReclamations((data ?? []).map(mapApiReclamation)))
+      .catch((err) => setError(err instanceof Error ? err.message : "Erreur de chargement"))
+      .finally(() => setLoading(false));
+  }, []);
+
+  useEffect(() => { loadReclamations(); }, [loadReclamations]);
 
   const filtered = reclamations.filter((r) => {
     if (filterStatut !== "all" && r.statut !== filterStatut) return false;
     if (filterType !== "all" && r.type !== filterType) return false;
     if (filterPriorite !== "all" && r.priorite !== filterPriorite) return false;
     if (searchText && !r.titre.toLowerCase().includes(searchText.toLowerCase()) && !r.reference.toLowerCase().includes(searchText.toLowerCase())) return false;
-    if (!isAdmin && r.membreId !== "0" && r.membreId !== user?.id) return false;
     return true;
   });
 
@@ -686,32 +582,40 @@ export default function ReclamationsScreen() {
       Alert.alert(STRINGS.champsRequis[lang], STRINGS.veuillezRenseigner[lang]);
       return;
     }
-    Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-    const now = new Date().toISOString();
-    const newRec: Reclamation = {
-      id: Date.now().toString(),
-      reference: `REC-${Date.now().toString().slice(-6)}`,
-      titre: newTitle.trim(),
-      description: newDesc.trim(),
-      type: newType,
-      statut: "deposee",
-      priorite: "normale",
-      dateDepot: now,
-      membreId: user?.id ?? "0",
-      membre: newAnon ? "Anonyme" : (user?.name ?? "Anonyme"),
-      service: "",
-      anonymous: newAnon,
-      documentsJoints: [],
-      etapes: [],
-    };
-    setReclamations((prev) => [newRec, ...prev]);
-    setShowNew(false);
-    setNewTitle("");
-    setNewDesc("");
-    setNewType("autre");
-    setNewAnon(false);
-    try { await apiRequest("/reclamations", "POST", { titre: newRec.titre, description: newRec.description, type: newRec.type, anonymous: newRec.anonymous }); } catch {}
-    Alert.alert(STRINGS.reclamationDeposee[lang], STRINGS.reclamationEnregistree[lang]);
+    if (depositing) return;
+    setDepositing(true);
+    try {
+      const { data, reference } = await apiRequest<{ data: any; reference: string }>("/reclamations", "POST", {
+        titre: newTitle.trim(),
+        description: newDesc.trim(),
+        type: newType,
+        anonymous: newAnon,
+      });
+      setReclamations((prev) => [mapApiReclamation(data), ...prev]);
+      setShowNew(false);
+      setNewTitle("");
+      setNewDesc("");
+      setNewType("autre");
+      setNewAnon(false);
+      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+      Alert.alert(STRINGS.reclamationDeposee[lang], STRINGS.reclamationEnregistree[lang].replace("REC-2026-048", reference));
+    } catch (err) {
+      Alert.alert("Erreur", err instanceof Error ? err.message : "Impossible d'enregistrer la réclamation.");
+    } finally {
+      setDepositing(false);
+    }
+  };
+
+  const handleAdminStatusChange = async (statut: ReclamationStatut) => {
+    if (!selected) return;
+    try {
+      const { data } = await apiRequest<{ data: any }>(`/reclamations/${selected.id}`, "PUT", { statut });
+      const mapped = mapApiReclamation(data);
+      setReclamations((prev) => prev.map((r) => (r.id === mapped.id ? mapped : r)));
+      setSelected(mapped);
+    } catch (err) {
+      Alert.alert("Erreur", err instanceof Error ? err.message : "Impossible de mettre à jour la réclamation.");
+    }
   };
 
   return (
@@ -788,6 +692,19 @@ export default function ReclamationsScreen() {
       </ScrollView>
 
       {/* List */}
+      {loading ? (
+        <View style={s.empty}>
+          <ActivityIndicator color={colors.primary} />
+        </View>
+      ) : error ? (
+        <View style={s.empty}>
+          <Feather name="alert-triangle" size={32} color="#ef4444" />
+          <Text style={[s.emptyText, { color: colors.mutedForeground, textAlign: "center" }]}>{error}</Text>
+          <TouchableOpacity style={[s.submitBtn, { backgroundColor: colors.primary, marginTop: 8 }]} onPress={loadReclamations}>
+            <Text style={s.submitText}>Réessayer</Text>
+          </TouchableOpacity>
+        </View>
+      ) : (
       <ScrollView contentContainerStyle={{ padding: 16, gap: 12, paddingBottom: insets.bottom + 40 }} showsVerticalScrollIndicator={false}>
         {filtered.length === 0 && (
           <View style={s.empty}>
@@ -796,7 +713,7 @@ export default function ReclamationsScreen() {
             </View>
             <Text style={[s.emptyTitle, { color: colors.foreground }]}>{STRINGS.aucuneReclamation[lang]}</Text>
             <Text style={[s.emptyText, { color: colors.mutedForeground }]}>
-              {isAdmin ? STRINGS.aucuneMatch[lang] : STRINGS.pasEncoreDepose[lang]}
+              {reclamations.length > 0 ? STRINGS.aucuneMatch[lang] : (isAdmin ? STRINGS.aucuneMatch[lang] : STRINGS.pasEncoreDepose[lang])}
             </Text>
           </View>
         )}
@@ -855,6 +772,7 @@ export default function ReclamationsScreen() {
           );
         })}
       </ScrollView>
+      )}
 
       {/* Detail Modal */}
       <Modal visible={!!selected} animationType="slide" presentationStyle="pageSheet" onRequestClose={() => setSelected(null)}>
@@ -970,21 +888,21 @@ export default function ReclamationsScreen() {
                   <View style={s.actionsRow}>
                     <TouchableOpacity
                       style={[s.actionBtn, { backgroundColor: "#10b981" }]}
-                      onPress={() => { Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success); const upd = { ...selected!, statut: "resolue" as ReclamationStatut }; setReclamations((prev) => prev.map((r) => r.id === selected!.id ? upd : r)); setSelected(upd); }}
+                      onPress={() => { Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success); handleAdminStatusChange("resolue"); }}
                     >
                       <Feather name="check-circle" size={14} color="#fff" />
                       <Text style={s.actionBtnText}>{STRINGS.marquerResolue[lang]}</Text>
                     </TouchableOpacity>
                     <TouchableOpacity
                       style={[s.actionBtn, { backgroundColor: "#7c3aed" }]}
-                      onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium); const upd = { ...selected!, statut: "en_mediation" as ReclamationStatut }; setReclamations((prev) => prev.map((r) => r.id === selected!.id ? upd : r)); setSelected(upd); }}
+                      onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium); handleAdminStatusChange("en_mediation"); }}
                     >
                       <Feather name="users" size={14} color="#fff" />
                       <Text style={s.actionBtnText}>{STRINGS.mediation[lang]}</Text>
                     </TouchableOpacity>
                     <TouchableOpacity
                       style={[s.actionBtn, { backgroundColor: "#ef4444" }]}
-                      onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Heavy); const upd = { ...selected!, statut: "contentieux" as ReclamationStatut }; setReclamations((prev) => prev.map((r) => r.id === selected!.id ? upd : r)); setSelected(upd); }}
+                      onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Heavy); handleAdminStatusChange("contentieux"); }}
                     >
                       <Feather name="alert-triangle" size={14} color="#fff" />
                       <Text style={s.actionBtnText}>{STRINGS.contentieux[lang]}</Text>
@@ -1075,9 +993,8 @@ export default function ReclamationsScreen() {
               </View>
             </TouchableOpacity>
 
-            <TouchableOpacity style={[s.submitBtn, { backgroundColor: colors.primary }]} onPress={handleDeposer} activeOpacity={0.85}>
-              <Feather name="send" size={16} color="#fff" />
-              <Text style={s.submitText}>{STRINGS.deposerLaReclamation[lang]}</Text>
+            <TouchableOpacity style={[s.submitBtn, { backgroundColor: colors.primary, opacity: depositing ? 0.6 : 1 }]} onPress={handleDeposer} activeOpacity={0.85} disabled={depositing}>
+              {depositing ? <ActivityIndicator color="#fff" size="small" /> : <><Feather name="send" size={16} color="#fff" /><Text style={s.submitText}>{STRINGS.deposerLaReclamation[lang]}</Text></>}
             </TouchableOpacity>
           </ScrollView>
         </View>

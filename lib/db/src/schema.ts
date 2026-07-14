@@ -1687,3 +1687,113 @@ export const nationalRankingsTable = pgTable(
     index("national_rankings_score_idx").on(t.totalScore),
   ],
 );
+
+// ─── Réclamations & Griefs (union member grievances) ────────────────────────
+// Platform-wide (not syndicate-scoped): members file personal grievances against
+// their employer, handled by union delegates. Non-admins only ever see their own.
+
+export const reclamationsTable = pgTable(
+  "reclamations",
+  {
+    id: id(),
+    reference: text("reference").notNull(),
+    // type: salaire | condition_travail | discrimination | harcelement | licenciement | conge | avancement | securite | autre
+    type: text("type").notNull(),
+    // statut: deposee | en_instruction | transmise_direction | en_mediation | resolue | classee | contentieux
+    statut: text("statut").default("deposee"),
+    // priorite: urgente | haute | normale | basse
+    priorite: text("priorite").default("normale"),
+    titre: text("titre").notNull(),
+    description: text("description").notNull(),
+    // Not FK'd on purpose: anonymous submissions store null so identity is not
+    // recoverable even from the DB, matching the "protected anonymity" promise.
+    memberId: text("member_id"),
+    memberName: text("member_name"),
+    service: text("service").default(""),
+    dateDepot: text("date_depot").notNull(),
+    dateEcheance: text("date_echeance"),
+    dateCloture: text("date_cloture"),
+    traitePar: text("traite_par"),
+    commentaireAdmin: text("commentaire_admin"),
+    documentsJoints: text("documents_joints").default("[]"),
+    etapes: text("etapes").default("[]"), // JSON array of { date, action, auteur }
+    anonymous: boolean("anonymous").default(false),
+    createdAt: createdAt(),
+  },
+  (t) => [
+    index("reclamations_member_id_idx").on(t.memberId),
+    index("reclamations_statut_idx").on(t.statut),
+    index("reclamations_priorite_idx").on(t.priorite),
+  ],
+);
+
+// ─── Approval Workflows (multi-step national governance processes) ─────────
+// Platform-wide, read-visible to all authenticated users; only admins act on them.
+
+export const workflowsTable = pgTable(
+  "workflows",
+  {
+    id: id(),
+    title: text("title").notNull(),
+    category: text("category").notNull(),
+    description: text("description").default(""),
+    // status: pending | in_progress | approved | rejected | cancelled
+    status: text("status").default("pending"),
+    // priority: low | medium | high | urgent
+    priority: text("priority").default("medium"),
+    initiatorId: text("initiator_id"),
+    initiatorName: text("initiator_name").notNull(),
+    startDate: text("start_date").notNull(),
+    deadline: text("deadline"),
+    currentStep: integer("current_step").default(0),
+    document: text("document"),
+    createdAt: createdAt(),
+  },
+  (t) => [
+    index("workflows_status_idx").on(t.status),
+    index("workflows_category_idx").on(t.category),
+  ],
+);
+
+export const workflowStepsTable = pgTable(
+  "workflow_steps",
+  {
+    id: id(),
+    workflowId: text("workflow_id").notNull().references(() => workflowsTable.id, { onDelete: "cascade" }),
+    stepOrder: integer("step_order").notNull(),
+    title: text("title").notNull(),
+    assignee: text("assignee").notNull(),
+    role: text("role").default(""),
+    // status: done | current | waiting | rejected
+    status: text("status").default("waiting"),
+    comment: text("comment"),
+    date: text("date"),
+  },
+  (t) => [
+    index("workflow_steps_workflow_id_idx").on(t.workflowId),
+  ],
+);
+
+// ─── Répertoire Juridique (legal reference library) ─────────────────────────
+// Platform-wide read-only reference content authored by partner legal counsel.
+
+export const fichesJuridiquesTable = pgTable(
+  "fiches_juridiques",
+  {
+    id: id(),
+    // theme: licenciement | conges | salaire | syndicale | discrimination | contrat | sante | retraite
+    theme: text("theme").notNull(),
+    titre: text("titre").notNull(),
+    resume: text("resume").notNull(),
+    contenu: text("contenu").notNull(),
+    articles: text("articles").default("[]"),
+    jurisprudence: text("jurisprudence").default("[]"),
+    conseils: text("conseils").default("[]"),
+    important: boolean("important").default(false),
+    updated: text("updated"),
+    createdAt: createdAt(),
+  },
+  (t) => [
+    index("fiches_juridiques_theme_idx").on(t.theme),
+  ],
+);

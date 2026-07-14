@@ -3,6 +3,7 @@ import * as Haptics from "expo-haptics";
 import { router } from "expo-router";
 import React, { useEffect, useState } from "react";
 import {
+  ActivityIndicator,
   Alert,
   FlatList,
   Modal,
@@ -112,7 +113,7 @@ interface Workflow {
   description: string;
   status: WfStatus;
   priority: WfPriority;
-  initiator: string;
+  initiatorName: string;
   startDate: string;
   deadline: string;
   steps: WorkflowStep[];
@@ -136,109 +137,24 @@ const PRIORITY_CONFIG: Record<WfPriority, { label: string; color: string }> = {
 };
 
 const CAT_COLORS: Record<string, string> = {
-  "catStatuts": "#7c3aed",
-  "catReglement": "#3b82f6",
-  "catFinance": "#10b981",
-  "catJuridique": "#ef4444",
-  "catElection": "#f59e0b",
-  "catPublication": "#f97316",
-  "catGouvernance": "#8b5cf6",
+  statuts: "#7c3aed",
+  reglement: "#3b82f6",
+  finance: "#10b981",
+  juridique: "#ef4444",
+  election: "#f59e0b",
+  publication: "#f97316",
+  gouvernance: "#8b5cf6",
 };
 
-const INITIAL_WORKFLOWS: Workflow[] = [
-  {
-    id: "wf1",
-    title: "Révision des Statuts 2026",
-    category: "Statuts",
-    description: "Processus d'approbation de la révision complète des statuts syndicaux pour l'AG extraordinaire du 15 juin 2026. Ce workflow requiert la validation juridique, l'approbation du bureau, puis le vote de l'assemblée générale.",
-    status: "in_progress",
-    priority: "urgent",
-    initiator: "Commission Juridique",
-    startDate: "2026-05-10",
-    deadline: "2026-06-10",
-    currentStep: 1,
-    document: "Statuts v5.0-draft.pdf",
-    steps: [
-      { id: "s1", title: "Rédaction & Soumission", assignee: "Commission Juridique", role: "Initiateur", status: "done", comment: "Document soumis pour révision le 10 mai 2026.", date: "2026-05-10" },
-      { id: "s2", title: "Révision Juridique", assignee: "Me. Khalid Mansouri", role: "Juriste externe", status: "current", comment: "", date: "" },
-      { id: "s3", title: "Validation Bureau National", assignee: "Fatima Zahra El Alami", role: "Secrétaire Générale", status: "waiting", comment: "", date: "" },
-      { id: "s4", title: "Vote Assemblée Générale", assignee: "Tous les membres", role: "AG", status: "waiting", comment: "", date: "" },
-      { id: "s5", title: "Publication officielle", assignee: "Secrétariat Général", role: "Admin", status: "waiting", comment: "", date: "" },
-    ],
-  },
-  {
-    id: "wf2",
-    title: "Approbation Budget Annuel 2026-2027",
-    category: "Finance",
-    description: "Validation du budget prévisionnel annuel pour l'exercice 2026-2027. Inclut les dépenses opérationnelles, les formations, les actions syndicales et les frais de négociation.",
-    status: "in_progress",
-    priority: "high",
-    initiator: "Ahmed El Fassi (Trésorier)",
-    startDate: "2026-05-15",
-    deadline: "2026-05-31",
-    currentStep: 2,
-    document: "Budget_2026-2027_v2.xlsx",
-    steps: [
-      { id: "s1", title: "Préparation du budget", assignee: "Ahmed El Fassi", role: "Trésorier", status: "done", comment: "Budget préparé avec 3 scénarios alternatifs.", date: "2026-05-15" },
-      { id: "s2", title: "Révision Commission Financière", assignee: "Sanaa Benchekroun", role: "Présidente Commission", status: "done", comment: "Budget approuvé avec recommandation de réduction de 5% sur les dépenses de fonctionnement.", date: "2026-05-18" },
-      { id: "s3", title: "Approbation Bureau National", assignee: "Fatima Zahra El Alami", role: "Secrétaire Générale", status: "current", comment: "", date: "" },
-      { id: "s4", title: "Notification membres", assignee: "Secrétariat", role: "Admin", status: "waiting", comment: "", date: "" },
-    ],
-  },
-  {
-    id: "wf3",
-    title: "Publication Circulaire — Grille Cotisations 2026",
-    category: "Finance",
-    description: "Approbation et publication de la circulaire officielle définissant les nouvelles grilles de cotisations syndicales pour l'année syndicale 2026-2027.",
-    status: "approved",
-    priority: "medium",
-    initiator: "Secrétariat Général",
-    startDate: "2026-04-20",
-    deadline: "2026-05-01",
-    currentStep: 3,
-    document: "Circulaire_cotisations_2026.pdf",
-    steps: [
-      { id: "s1", title: "Rédaction circulaire", assignee: "Secrétariat", role: "Admin", status: "done", comment: "Circulaire rédigée selon les barèmes approuvés.", date: "2026-04-20" },
-      { id: "s2", title: "Validation trésorerie", assignee: "Ahmed El Fassi", role: "Trésorier", status: "done", comment: "Barèmes conformes aux décisions de l'AG 2025.", date: "2026-04-22" },
-      { id: "s3", title: "Signature & Publication", assignee: "Fatima Zahra El Alami", role: "Secrétaire Générale", status: "done", comment: "Circulaire signée et publiée officiellement.", date: "2026-05-01" },
-    ],
-  },
-  {
-    id: "wf4",
-    title: "Charte Déontologique — Mise à jour",
-    category: "Juridique",
-    description: "Révision et mise à jour de la charte éthique et déontologique suite aux nouvelles recommandations de la Confédération Syndicale Internationale.",
-    status: "pending",
-    priority: "medium",
-    initiator: "Commission Éthique",
-    startDate: "2026-05-22",
-    deadline: "2026-07-15",
-    currentStep: 0,
-    steps: [
-      { id: "s1", title: "Rédaction proposition", assignee: "Commission Éthique", role: "Commission", status: "current", comment: "", date: "" },
-      { id: "s2", title: "Consultation membres", assignee: "Secrétariat", role: "Admin", status: "waiting", comment: "", date: "" },
-      { id: "s3", title: "Approbation Bureau", assignee: "Bureau National", role: "Bureau", status: "waiting", comment: "", date: "" },
-      { id: "s4", title: "Publication", assignee: "Secrétariat", role: "Admin", status: "waiting", comment: "", date: "" },
-    ],
-  },
-  {
-    id: "wf5",
-    title: "Règlement Electoral — Elections 2027",
-    category: "Election",
-    description: "Définition et approbation du règlement électoral pour les prochaines élections du Bureau National prévues en janvier 2027.",
-    status: "rejected",
-    priority: "high",
-    initiator: "Commission Électorale",
-    startDate: "2026-04-01",
-    deadline: "2026-04-30",
-    currentStep: 2,
-    steps: [
-      { id: "s1", title: "Rédaction règlement", assignee: "Commission Électorale", role: "Commission", status: "done", comment: "Règlement basé sur le modèle 2023.", date: "2026-04-01" },
-      { id: "s2", title: "Révision juridique", assignee: "Me. Khalid Mansouri", role: "Juriste", status: "rejected", comment: "Non conforme à l'article 28 des statuts. Révision nécessaire concernant les conditions d'éligibilité.", date: "2026-04-15" },
-      { id: "s3", title: "Correction & resoumission", assignee: "Commission Électorale", role: "Commission", status: "waiting", comment: "", date: "" },
-    ],
-  },
-];
+const CAT_LABEL_KEYS: Record<string, keyof typeof STRINGS> = {
+  statuts: "catStatuts",
+  reglement: "catReglement",
+  finance: "catFinance",
+  juridique: "catJuridique",
+  election: "catElection",
+  publication: "catPublication",
+  gouvernance: "catGouvernance",
+};
 
 type TabFilter = "all" | WfStatus;
 
@@ -251,21 +167,34 @@ export default function WorkflowScreen() {
   const { isWide } = useBreakpoints();
   const topPad = isWide ? 0 : (Platform.OS === "web" ? 67 : insets.top);
 
-  const [workflows, setWorkflows] = useState<Workflow[]>(INITIAL_WORKFLOWS);
+  const isAdmin = user?.role === "super_admin" || user?.role === "syndicate_admin";
+
+  const [workflows, setWorkflows] = useState<Workflow[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
   const [tab, setTab] = useState<TabFilter>("all");
   const [selected, setSelected] = useState<Workflow | null>(null);
   const [showApprove, setShowApprove] = useState(false);
   const [approveComment, setApproveComment] = useState("");
   const [approveAction, setApproveAction] = useState<"approve" | "reject">("approve");
+  const [submittingDecision, setSubmittingDecision] = useState(false);
   const [showCreate, setShowCreate] = useState(false);
+  const [creating, setCreating] = useState(false);
   const [newTitle, setNewTitle] = useState("");
-  const [newCat, setNewCat] = useState("Règlement Intérieur");
+  const [newCat, setNewCat] = useState("reglement");
   const [newDesc, setNewDesc] = useState("");
   const [newPriority, setNewPriority] = useState<WfPriority>("medium");
 
-  useEffect(() => {
-    apiRequest<{ data: any[] }>("/workflows").then(({ data }) => { if (data?.length) setWorkflows(data); }).catch(() => {});
-  }, []);
+  const loadWorkflows = () => {
+    setLoading(true);
+    setError(null);
+    apiRequest<{ data: Workflow[] }>("/workflows")
+      .then(({ data }) => setWorkflows(data ?? []))
+      .catch((err) => setError(err instanceof Error ? err.message : "Erreur de chargement"))
+      .finally(() => setLoading(false));
+  };
+
+  useEffect(() => { loadWorkflows(); }, []);
 
   const filtered = tab === "all" ? workflows : workflows.filter((w) => w.status === tab);
 
@@ -280,58 +209,52 @@ export default function WorkflowScreen() {
 
   const myPending = workflows.filter((w) => w.status === "in_progress").length;
 
-  const handleApprove = () => {
-    if (!selected) return;
+  const handleApprove = async () => {
+    if (!selected || submittingDecision) return;
     const isApprove = approveAction === "approve";
-    Haptics.notificationAsync(isApprove ? Haptics.NotificationFeedbackType.Success : Haptics.NotificationFeedbackType.Error);
-    setWorkflows((prev) => prev.map((w) => {
-      if (w.id !== selected.id) return w;
-      const newSteps = w.steps.map((s, i) => {
-        if (i === w.currentStep) return { ...s, status: isApprove ? "done" as StepStatus : "rejected" as StepStatus, comment: approveComment, date: new Date().toISOString().split("T")[0] };
-        return s;
+    setSubmittingDecision(true);
+    try {
+      const { data } = await apiRequest<{ data: Workflow }>(`/workflows/${selected.id}/decision`, "POST", {
+        action: approveAction,
+        comment: approveComment.trim() || undefined,
       });
-      const nextStep = w.currentStep + 1;
-      const allDone = nextStep >= w.steps.length;
-      return {
-        ...w,
-        steps: newSteps.map((s, i) => i === nextStep && isApprove && !allDone ? { ...s, status: "current" as StepStatus } : s),
-        currentStep: isApprove ? (allDone ? w.currentStep : nextStep) : w.currentStep,
-        status: !isApprove ? "rejected" : allDone ? "approved" : "in_progress",
-      };
-    }));
-    setSelected(null);
-    setShowApprove(false);
-    setApproveComment("");
-    Alert.alert(
-      isApprove ? STRINGS.stepApproveTitle[lang] : STRINGS.stepRejectTitle[lang],
-      isApprove ? STRINGS.stepApproveMsg[lang] : STRINGS.stepRejectMsg[lang]
-    );
+      Haptics.notificationAsync(isApprove ? Haptics.NotificationFeedbackType.Success : Haptics.NotificationFeedbackType.Error);
+      setWorkflows((prev) => prev.map((w) => (w.id === data.id ? data : w)));
+      setSelected(data);
+      setShowApprove(false);
+      setApproveComment("");
+      Alert.alert(
+        isApprove ? STRINGS.stepApproveTitle[lang] : STRINGS.stepRejectTitle[lang],
+        isApprove ? STRINGS.stepApproveMsg[lang] : STRINGS.stepRejectMsg[lang]
+      );
+    } catch (err) {
+      Alert.alert("Erreur", err instanceof Error ? err.message : "Impossible d'enregistrer la décision.");
+    } finally {
+      setSubmittingDecision(false);
+    }
   };
 
-  const handleCreate = () => {
+  const handleCreate = async () => {
     if (!newTitle.trim()) { Alert.alert(STRINGS.titleRequired[lang]); return; }
-    const newWf: Workflow = {
-      id: `wf${Date.now()}`,
-      title: newTitle.trim(),
-      category: newCat,
-      description: newDesc.trim(),
-      status: "pending",
-      priority: newPriority,
-      initiator: user?.name ?? STRINGS.admin[lang],
-      startDate: new Date().toISOString().split("T")[0],
-      deadline: "",
-      currentStep: 0,
-      steps: [
-        { id: "s1", title: STRINGS.initialValidation[lang], assignee: user?.name ?? STRINGS.admin[lang], role: STRINGS.initiator[lang], status: "current" },
-        { id: "s2", title: STRINGS.directionApproval[lang], assignee: STRINGS.direction[lang], role: STRINGS.direction[lang], status: "waiting" },
-        { id: "s3", title: STRINGS.publication[lang], assignee: STRINGS.admin[lang], role: STRINGS.admin[lang], status: "waiting" },
-      ],
-    };
-    setWorkflows((prev) => [newWf, ...prev]);
-    setShowCreate(false);
-    setNewTitle(""); setNewDesc(""); setNewCat("catReglement"); setNewPriority("medium");
-    Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-    Alert.alert(STRINGS.wfCreated[lang], STRINGS.wfCreatedMsg[lang]);
+    if (creating) return;
+    setCreating(true);
+    try {
+      const { data } = await apiRequest<{ data: Workflow }>("/workflows", "POST", {
+        title: newTitle.trim(),
+        category: newCat,
+        description: newDesc.trim(),
+        priority: newPriority,
+      });
+      setWorkflows((prev) => [data, ...prev]);
+      setShowCreate(false);
+      setNewTitle(""); setNewDesc(""); setNewCat("reglement"); setNewPriority("medium");
+      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+      Alert.alert(STRINGS.wfCreated[lang], STRINGS.wfCreatedMsg[lang]);
+    } catch (err) {
+      Alert.alert("Erreur", err instanceof Error ? err.message : "Impossible de créer le workflow.");
+    } finally {
+      setCreating(false);
+    }
   };
 
   const TABS: { key: TabFilter | "all"; label: string; count: number }[] = [
@@ -354,12 +277,14 @@ export default function WorkflowScreen() {
             <Text style={styles.headerTitle}>{STRINGS.headerTitle[lang]}</Text>
             <Text style={styles.headerSub}>{STRINGS.headerSub[lang]}</Text>
           </View>
-          <TouchableOpacity
-            style={styles.addBtn}
-            onPress={() => { setShowCreate(true); Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium); }}
-          >
-            <Feather name="plus" size={20} color="#fff" />
-          </TouchableOpacity>
+          {isAdmin && (
+            <TouchableOpacity
+              style={styles.addBtn}
+              onPress={() => { setShowCreate(true); Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium); }}
+            >
+              <Feather name="plus" size={20} color="#fff" />
+            </TouchableOpacity>
+          )}
         </View>
 
         <View style={styles.statsRow}>
@@ -400,6 +325,19 @@ export default function WorkflowScreen() {
         ))}
       </ScrollView>
 
+      {loading ? (
+        <View style={styles.empty}>
+          <ActivityIndicator color={colors.primary} />
+        </View>
+      ) : error ? (
+        <View style={styles.empty}>
+          <Feather name="alert-triangle" size={40} color="#ef4444" />
+          <Text style={[styles.emptyText, { color: colors.mutedForeground }]}>{error}</Text>
+          <TouchableOpacity style={[styles.retryBtn, { backgroundColor: colors.primary }]} onPress={loadWorkflows}>
+            <Text style={styles.retryBtnText}>Réessayer</Text>
+          </TouchableOpacity>
+        </View>
+      ) : (
       <FlatList
         data={filtered}
         keyExtractor={(w) => w.id}
@@ -408,7 +346,7 @@ export default function WorkflowScreen() {
         ListEmptyComponent={
           <View style={styles.empty}>
             <Feather name="layers" size={40} color={colors.mutedForeground} />
-            <Text style={[styles.emptyText, { color: colors.mutedForeground }]}>Aucun workflow trouvé</Text>
+            <Text style={[styles.emptyText, { color: colors.mutedForeground }]}>{STRINGS.emptyMsg[lang]}</Text>
           </View>
         }
         renderItem={({ item: w }) => {
@@ -433,7 +371,7 @@ export default function WorkflowScreen() {
                 <View style={{ flex: 1, gap: 3 }}>
                   <View style={styles.badgeRow}>
                     <View style={[styles.catBadge, { backgroundColor: catColor + "15" }]}>
-                      <Text style={[styles.catText, { color: catColor }]}>{w.category}</Text>
+                      <Text style={[styles.catText, { color: catColor }]}>{CAT_LABEL_KEYS[w.category] ? STRINGS[CAT_LABEL_KEYS[w.category]][lang] : w.category}</Text>
                     </View>
                     <View style={[styles.statusBadge, { backgroundColor: statusCfg.color + "15" }]}>
                       <Feather name={statusCfg.icon} size={10} color={statusCfg.color} />
@@ -451,7 +389,7 @@ export default function WorkflowScreen() {
               <View style={styles.metaRow}>
                 <View style={styles.metaItem}>
                   <Feather name="user" size={11} color={colors.mutedForeground} />
-                  <Text style={[styles.metaText, { color: colors.mutedForeground }]}>{w.initiator}</Text>
+                  <Text style={[styles.metaText, { color: colors.mutedForeground }]}>{w.initiatorName}</Text>
                 </View>
                 <View style={styles.metaItem}>
                   <Feather name="calendar" size={11} color={colors.mutedForeground} />
@@ -461,7 +399,7 @@ export default function WorkflowScreen() {
                   <View style={styles.metaItem}>
                     <Feather name="clock" size={11} color={daysLeft < 7 ? "#ef4444" : colors.mutedForeground} />
                     <Text style={[styles.metaText, { color: daysLeft < 7 ? "#ef4444" : colors.mutedForeground }]}>
-                      {daysLeft > 0 ? `${daysLeft}j restants` : "Délai dépassé"}
+                      {daysLeft > 0 ? `${daysLeft}${STRINGS.daysLeft[lang]}` : STRINGS.overdue[lang]}
                     </Text>
                   </View>
                 )}
@@ -512,6 +450,7 @@ export default function WorkflowScreen() {
           );
         }}
       />
+      )}
 
       {/* Detail modal */}
       <Modal visible={!!selected} animationType="slide" presentationStyle="pageSheet">
@@ -519,7 +458,7 @@ export default function WorkflowScreen() {
           const w = selected;
           const statusCfg = STATUS_CONFIG[w.status];
           const catColor = CAT_COLORS[w.category] ?? colors.primary;
-          const canAct = w.status === "in_progress";
+          const canAct = isAdmin && w.status === "in_progress";
           return (
             <View style={[styles.modal, { backgroundColor: colors.background }]}>
               <View style={[styles.modalHeader, { backgroundColor: catColor }]}>
@@ -651,10 +590,11 @@ export default function WorkflowScreen() {
                 <Text style={[styles.commentBtnText, { color: colors.foreground }]}>Annuler</Text>
               </TouchableOpacity>
               <TouchableOpacity
-                style={[styles.commentBtn, { backgroundColor: approveAction === "approve" ? "#10b981" : "#ef4444" }]}
+                style={[styles.commentBtn, { backgroundColor: approveAction === "approve" ? "#10b981" : "#ef4444", opacity: submittingDecision ? 0.6 : 1 }]}
                 onPress={handleApprove}
+                disabled={submittingDecision}
               >
-                <Text style={[styles.commentBtnText, { color: "#fff" }]}>Confirmer</Text>
+                {submittingDecision ? <ActivityIndicator color="#fff" size="small" /> : <Text style={[styles.commentBtnText, { color: "#fff" }]}>Confirmer</Text>}
               </TouchableOpacity>
             </View>
           </View>
@@ -669,8 +609,8 @@ export default function WorkflowScreen() {
               <Feather name="x" size={22} color="#fff" />
             </TouchableOpacity>
             <Text style={styles.modalTitle}>Nouveau Workflow</Text>
-            <TouchableOpacity onPress={handleCreate}>
-              <Text style={styles.modalSave}>Créer</Text>
+            <TouchableOpacity onPress={handleCreate} disabled={creating}>
+              {creating ? <ActivityIndicator color="#fff" size="small" /> : <Text style={styles.modalSave}>Créer</Text>}
             </TouchableOpacity>
           </View>
           <ScrollView contentContainerStyle={{ padding: 20, gap: 16, paddingBottom: 40 }}>
@@ -697,7 +637,7 @@ export default function WorkflowScreen() {
                     }]}
                     onPress={() => { setNewCat(cat); Haptics.selectionAsync(); }}
                   >
-                    <Text style={[styles.catOptionText, { color: newCat === cat ? CAT_COLORS[cat] : colors.mutedForeground }]}>{cat}</Text>
+                    <Text style={[styles.catOptionText, { color: newCat === cat ? CAT_COLORS[cat] : colors.mutedForeground }]}>{STRINGS[CAT_LABEL_KEYS[cat]][lang]}</Text>
                   </TouchableOpacity>
                 ))}
               </View>
@@ -784,8 +724,10 @@ const styles = StyleSheet.create({
   stepNum: { fontSize: 8, fontFamily: "Inter_700Bold", color: "#fff" },
   currentStepBox: { flexDirection: "row", alignItems: "center", gap: 6, paddingHorizontal: 10, paddingVertical: 6, borderRadius: 20, borderWidth: 1 },
   currentStepText: { flex: 1, fontSize: 11, fontFamily: "Inter_500Medium" },
-  empty: { alignItems: "center", justifyContent: "center", padding: 60, gap: 12 },
-  emptyText: { fontSize: 14, fontFamily: "Inter_400Regular" },
+  empty: { flex: 1, alignItems: "center", justifyContent: "center", padding: 60, gap: 12 },
+  emptyText: { fontSize: 14, fontFamily: "Inter_400Regular", textAlign: "center" },
+  retryBtn: { paddingHorizontal: 20, paddingVertical: 10, borderRadius: 12 },
+  retryBtnText: { color: "#fff", fontSize: 13, fontFamily: "Inter_600SemiBold" },
 
   modal: { flex: 1 },
   modalHeader: { padding: 20, paddingTop: 50, flexDirection: "row", alignItems: "center", gap: 14 },

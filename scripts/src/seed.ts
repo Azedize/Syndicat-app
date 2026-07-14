@@ -78,6 +78,10 @@ import {
   expenseJustificationsTable,
   expenseVotesTable,
   nationalRankingsTable,
+  reclamationsTable,
+  workflowsTable,
+  workflowStepsTable,
+  fichesJuridiquesTable,
   parkingSpotsTable,
   vehiclesTable,
   parkingViolationsTable,
@@ -804,6 +808,189 @@ async function main() {
   ]).onConflictDoNothing();
 
   // ─────────────────────────────────────────────────────────────────────────
+  // 32. RÉCLAMATIONS
+  // ─────────────────────────────────────────────────────────────────────────
+  await db.insert(reclamationsTable).values([
+    {
+      id: "rec_1", reference: "REC-2026-048", type: "salaire", statut: "en_instruction", priorite: "haute",
+      titre: "Non-versement de la prime d'ancienneté", description: "Prime d'ancienneté due depuis janvier 2026 non versée malgré 12 ans de service.",
+      memberId: "user_member_1", memberName: "Mohammed Alaoui", service: "Maintenance",
+      dateDepot: "2026-06-01", dateEcheance: "2026-06-30", traitePar: "Fatima Zahra El Alami",
+      commentaireAdmin: "Dossier transmis à la RH pour vérification des bulletins de paie.",
+      documentsJoints: JSON.stringify(["Bulletins de paie 2025.pdf", "Attestation ancienneté.pdf"]),
+      etapes: JSON.stringify([
+        { date: "2026-06-01", action: "Réclamation déposée", auteur: "Mohammed Alaoui" },
+        { date: "2026-06-05", action: "Dossier transmis à la RH pour instruction", auteur: "Fatima Zahra El Alami" },
+        { date: "2026-06-15", action: "Courrier de mise en demeure transmis à la RH", auteur: "Fatima Zahra El Alami" },
+      ]),
+      anonymous: false, createdAt: daysAgo(43),
+    },
+    {
+      id: "rec_2", reference: "REC-2026-046", type: "condition_travail", statut: "transmise_direction", priorite: "normale",
+      titre: "Locaux de travail insalubres — Bâtiment C", description: "Problèmes d'humidité et de ventilation depuis octobre 2025, pathologies respiratoires signalées.",
+      memberId: "user_member_2", memberName: "Khadija Tahiri", service: "Administration",
+      dateDepot: "2026-06-05", dateEcheance: "2026-06-30", traitePar: "Rachid Bennis",
+      commentaireAdmin: "Courrier adressé à la direction le 8 juin. Réunion CHSCT prévue le 25 juin.",
+      documentsJoints: JSON.stringify(["Rapport médecin travail.pdf", "Photos locaux.pdf"]),
+      etapes: JSON.stringify([
+        { date: "2026-06-05", action: "Réclamation déposée", auteur: "Khadija Tahiri" },
+        { date: "2026-06-08", action: "Dossier transmis à la direction", auteur: "Rachid Bennis" },
+        { date: "2026-06-10", action: "Accusé de réception direction reçu", auteur: "Système" },
+      ]),
+      anonymous: false, createdAt: daysAgo(39),
+    },
+    {
+      id: "rec_3", reference: "REC-2026-045", type: "harcelement", statut: "en_mediation", priorite: "urgente",
+      titre: "Harcèlement moral — Comportement du chef de service", description: "Comportement harcelant d'un responsable hiérarchique direct : pressions, humiliations, surcharge délibérée.",
+      memberId: null, memberName: "Anonyme", service: "Non communiqué",
+      dateDepot: "2026-06-08", dateEcheance: "2026-06-22", traitePar: "Amina Tazi",
+      documentsJoints: JSON.stringify(["Témoignage écrit.pdf"]),
+      etapes: JSON.stringify([
+        { date: "2026-06-08", action: "Réclamation anonyme reçue", auteur: "Système" },
+        { date: "2026-06-09", action: "Médiation interne engagée — Désignation médiateur", auteur: "Amina Tazi" },
+        { date: "2026-06-12", action: "Première séance de médiation tenue", auteur: "Amina Tazi" },
+      ]),
+      anonymous: true, createdAt: daysAgo(36),
+    },
+    {
+      id: "rec_4", reference: "REC-2026-041", type: "avancement", statut: "resolue", priorite: "normale",
+      titre: "Blocage injustifié d'avancement — Grade A1", description: "Bloqué au même échelon depuis 4 ans malgré évaluations positives et ancienneté.",
+      memberId: "user_member_3", memberName: "Rachid El Amrani", service: "Production",
+      dateDepot: "2026-05-15", dateCloture: "2026-06-03", traitePar: "Fatima Zahra El Alami",
+      commentaireAdmin: "Résolu favorablement, avancement régularisé avec effet rétroactif au 01/01/2026.",
+      documentsJoints: JSON.stringify(["Fiche d'avancement.pdf"]),
+      etapes: JSON.stringify([
+        { date: "2026-05-15", action: "Réclamation déposée", auteur: "Rachid El Amrani" },
+        { date: "2026-05-20", action: "Courrier adressé au DRH", auteur: "Fatima Zahra El Alami" },
+        { date: "2026-05-28", action: "Réunion bilatérale avec le DRH", auteur: "Fatima Zahra El Alami" },
+        { date: "2026-06-03", action: "Avancement accordé — Réclamation résolue", auteur: "Fatima Zahra El Alami" },
+      ]),
+      anonymous: false, createdAt: daysAgo(60),
+    },
+    {
+      id: "rec_5", reference: "REC-2026-039", type: "licenciement", statut: "contentieux", priorite: "urgente",
+      titre: "Licenciement abusif sans cause réelle", description: "Licenciement prononcé sans motif réel ni sérieux, sans respect de la procédure légale.",
+      memberId: "user_member_4", memberName: "Amina Rachidi", service: "Commercial",
+      dateDepot: "2026-05-14", dateEcheance: "2026-07-14", traitePar: "Amina Tazi",
+      commentaireAdmin: "Dossier transmis au cabinet d'avocats partenaire. Saisine du Tribunal du Travail de Casablanca prévue.",
+      documentsJoints: JSON.stringify(["Lettre de licenciement.pdf", "Contrat de travail.pdf", "Bulletins de paie.pdf"]),
+      etapes: JSON.stringify([
+        { date: "2026-05-14", action: "Réclamation urgente déposée", auteur: "Amina Rachidi" },
+        { date: "2026-05-15", action: "Consultation juridique d'urgence organisée", auteur: "Amina Tazi" },
+        { date: "2026-05-20", action: "Mise en demeure transmise à l'employeur", auteur: "Amina Tazi" },
+        { date: "2026-06-01", action: "Échec de la conciliation — Passage en contentieux", auteur: "Amina Tazi" },
+      ]),
+      anonymous: false, createdAt: daysAgo(61),
+    },
+    {
+      id: "rec_6", reference: "REC-2026-038", type: "conge", statut: "resolue", priorite: "basse",
+      titre: "Refus de congé de formation syndicale", description: "Demande de congé de 5 jours pour formation syndicale refusée sans motif valable.",
+      memberId: "user_member_1", memberName: "Mohammed Alaoui", service: "Logistique",
+      dateDepot: "2026-05-10", dateCloture: "2026-05-22", traitePar: "Rachid Bennis",
+      commentaireAdmin: "Congé accordé après intervention syndicale. Formation effectuée les 26-30 mai.",
+      documentsJoints: JSON.stringify(["Programme formation.pdf"]),
+      etapes: JSON.stringify([
+        { date: "2026-05-10", action: "Réclamation déposée", auteur: "Mohammed Alaoui" },
+        { date: "2026-05-14", action: "Intervention auprès du DRH", auteur: "Rachid Bennis" },
+        { date: "2026-05-22", action: "Congé accordé — Réclamation close", auteur: "Rachid Bennis" },
+      ]),
+      anonymous: false, createdAt: daysAgo(65),
+    },
+  ]).onConflictDoNothing();
+
+  // ─────────────────────────────────────────────────────────────────────────
+  // 33. WORKFLOWS & ÉTAPES
+  // ─────────────────────────────────────────────────────────────────────────
+  await db.insert(workflowsTable).values([
+    { id: "wf_1", title: "Modification des statuts du syndicat", category: "statuts", description: "Mise à jour des statuts pour intégrer les nouvelles dispositions légales sur la copropriété.", status: "in_progress", priority: "high", initiatorId: "user_admin_atlas", initiatorName: "Nadia Ouahbi", startDate: "2026-06-10", deadline: "2026-07-20", currentStep: 1, createdAt: daysAgo(34) },
+    { id: "wf_2", title: "Validation budget prévisionnel 2027", category: "finance", description: "Approbation du budget prévisionnel de l'exercice 2027 par le conseil syndical.", status: "in_progress", priority: "urgent", initiatorId: "user_admin_atlas", initiatorName: "Nadia Ouahbi", startDate: "2026-06-25", deadline: "2026-07-25", currentStep: 0, createdAt: daysAgo(19) },
+    { id: "wf_3", title: "Organisation élection conseil syndical", category: "election", description: "Processus d'organisation de l'élection des membres du conseil syndical pour le mandat 2026-2028.", status: "approved", priority: "medium", initiatorId: "user_admin_agdal", initiatorName: "Youssef Idrissi", startDate: "2026-04-01", deadline: "2026-05-15", currentStep: 2, createdAt: daysAgo(104) },
+    { id: "wf_4", title: "Mise en demeure contentieux impayés", category: "juridique", description: "Procédure de mise en demeure pour recouvrement des charges impayées de longue date.", status: "rejected", priority: "high", initiatorId: "user_admin_agdal", initiatorName: "Youssef Idrissi", startDate: "2026-05-05", deadline: "2026-06-05", currentStep: 1, createdAt: daysAgo(70), },
+    { id: "wf_5", title: "Renouvellement contrat gardiennage", category: "finance", description: "Renouvellement du contrat de gardiennage annuel avec le prestataire actuel.", status: "pending", priority: "low", initiatorId: "user_admin_atlas", initiatorName: "Nadia Ouahbi", startDate: "2026-07-08", deadline: "2026-08-01", currentStep: 0, createdAt: daysAgo(6) },
+  ]).onConflictDoNothing();
+  await db.insert(workflowStepsTable).values([
+    { id: "wfstep_1_1", workflowId: "wf_1", stepOrder: 0, title: "Rédaction du projet de modification", assignee: "Nadia Ouahbi", role: "syndicate_admin", status: "done", comment: "Projet rédigé conformément à la nouvelle réglementation.", date: "2026-06-15" },
+    { id: "wfstep_1_2", workflowId: "wf_1", stepOrder: 1, title: "Validation par le conseil syndical", assignee: "Conseil syndical", role: "syndicate_admin", status: "current", date: null },
+    { id: "wfstep_1_3", workflowId: "wf_1", stepOrder: 2, title: "Approbation en assemblée générale", assignee: "Assemblée Générale", role: "syndicate_admin", status: "waiting", date: null },
+
+    { id: "wfstep_2_1", workflowId: "wf_2", stepOrder: 0, title: "Examen du conseil syndical", assignee: "Conseil syndical", role: "syndicate_admin", status: "current", date: null },
+    { id: "wfstep_2_2", workflowId: "wf_2", stepOrder: 1, title: "Vote en assemblée générale", assignee: "Assemblée Générale", role: "syndicate_admin", status: "waiting", date: null },
+    { id: "wfstep_2_3", workflowId: "wf_2", stepOrder: 2, title: "Publication du budget validé", assignee: "Nadia Ouahbi", role: "syndicate_admin", status: "waiting", date: null },
+
+    { id: "wfstep_3_1", workflowId: "wf_3", stepOrder: 0, title: "Appel à candidatures", assignee: "Youssef Idrissi", role: "syndicate_admin", status: "done", date: "2026-04-10" },
+    { id: "wfstep_3_2", workflowId: "wf_3", stepOrder: 1, title: "Tenue du scrutin", assignee: "Youssef Idrissi", role: "syndicate_admin", status: "done", date: "2026-05-10" },
+    { id: "wfstep_3_3", workflowId: "wf_3", stepOrder: 2, title: "Proclamation des résultats", assignee: "Youssef Idrissi", role: "syndicate_admin", status: "done", comment: "Résultats validés et publiés.", date: "2026-05-15" },
+
+    { id: "wfstep_4_1", workflowId: "wf_4", stepOrder: 0, title: "Envoi de la mise en demeure", assignee: "Youssef Idrissi", role: "syndicate_admin", status: "done", date: "2026-05-10" },
+    { id: "wfstep_4_2", workflowId: "wf_4", stepOrder: 1, title: "Validation juridique de la procédure", assignee: "Cabinet juridique", role: "syndicate_admin", status: "rejected", comment: "Procédure suspendue : accord amiable trouvé avec le débiteur.", date: "2026-06-01" },
+    { id: "wfstep_4_3", workflowId: "wf_4", stepOrder: 2, title: "Saisine du tribunal", assignee: "Cabinet juridique", role: "syndicate_admin", status: "waiting", date: null },
+
+    { id: "wfstep_5_1", workflowId: "wf_5", stepOrder: 0, title: "Négociation des conditions", assignee: "Nadia Ouahbi", role: "syndicate_admin", status: "current", date: null },
+    { id: "wfstep_5_2", workflowId: "wf_5", stepOrder: 1, title: "Validation du conseil syndical", assignee: "Conseil syndical", role: "syndicate_admin", status: "waiting", date: null },
+    { id: "wfstep_5_3", workflowId: "wf_5", stepOrder: 2, title: "Signature du contrat", assignee: "Nadia Ouahbi", role: "syndicate_admin", status: "waiting", date: null },
+  ]).onConflictDoNothing();
+
+  // ─────────────────────────────────────────────────────────────────────────
+  // 34. RÉPERTOIRE JURIDIQUE
+  // ─────────────────────────────────────────────────────────────────────────
+  await db.insert(fichesJuridiquesTable).values([
+    {
+      id: "fiche_1", theme: "licenciement", titre: "Licenciement pour faute grave : procédure et droits",
+      resume: "Conditions de validité d'un licenciement pour faute grave et recours possibles du salarié.",
+      contenu: "Le licenciement pour faute grave prive le salarié de préavis et d'indemnité de licenciement, mais la procédure légale (entretien préalable, notification motivée) doit être scrupuleusement respectée sous peine de requalification en licenciement abusif.",
+      articles: JSON.stringify(["Article 39 — Code du Travail", "Article 62 — Code du Travail", "Article 63 — Code du Travail"]),
+      jurisprudence: JSON.stringify(["Cass. Soc. 12/03/2019 — Absence d'entretien préalable = licenciement abusif"]),
+      conseils: JSON.stringify(["Exiger la notification écrite et motivée", "Contester dans les 90 jours devant le tribunal du travail"]),
+      important: true, updated: "2026-05-01", createdAt: daysAgo(200),
+    },
+    {
+      id: "fiche_2", theme: "syndicale", titre: "Protection des représentants syndicaux",
+      resume: "Le représentant syndical bénéficie d'une protection renforcée contre le licenciement et les sanctions disciplinaires.",
+      contenu: "Toute sanction ou licenciement visant un délégué syndical doit être motivé et ne peut être lié à l'exercice de son mandat, sous peine de nullité et de réintégration.",
+      articles: JSON.stringify(["Article 470 — Code du Travail", "Article 457 — Code du Travail"]),
+      jurisprudence: JSON.stringify(["Cass. Soc. 22/09/2020 — Nullité du licenciement d'un délégué syndical sans autorisation"]),
+      conseils: JSON.stringify(["Signaler immédiatement toute pression à l'inspection du travail", "Conserver toute correspondance liée au mandat syndical"]),
+      important: true, updated: "2026-04-18", createdAt: daysAgo(220),
+    },
+    {
+      id: "fiche_3", theme: "conges", titre: "Congé de formation syndicale : conditions et durée",
+      resume: "Droit du salarié à un congé de formation syndicale rémunéré, dans la limite légale annuelle.",
+      contenu: "Le salarié adhérent à une organisation syndicale a droit à un congé de formation syndicale, sur simple demande écrite à l'employeur, sans que ce dernier puisse le refuser sauf nécessité de service dûment justifiée.",
+      articles: JSON.stringify(["Article 457 — Code du Travail"]),
+      jurisprudence: JSON.stringify([]),
+      conseils: JSON.stringify(["Adresser la demande au moins 15 jours à l'avance", "Conserver une copie de la demande et de l'accusé de réception"]),
+      important: false, updated: "2026-03-22", createdAt: daysAgo(240),
+    },
+    {
+      id: "fiche_4", theme: "salaire", titre: "Retard et non-paiement du salaire : recours du salarié",
+      resume: "Sanctions applicables à l'employeur en cas de retard répété ou de non-paiement du salaire.",
+      contenu: "Le non-paiement du salaire à échéance constitue une infraction pénale et peut justifier la prise d'acte de rupture du contrat de travail aux torts de l'employeur, ouvrant droit à indemnités.",
+      articles: JSON.stringify(["Article 371 — Code du Travail", "Article 78 — Code du Travail"]),
+      jurisprudence: JSON.stringify(["Cass. Soc. 05/11/2018 — Prise d'acte justifiée après 3 mois de retard de salaire"]),
+      conseils: JSON.stringify(["Mettre l'employeur en demeure par lettre recommandée", "Saisir l'inspection du travail en cas de récidive"]),
+      important: true, updated: "2026-06-02", createdAt: daysAgo(180),
+    },
+    {
+      id: "fiche_5", theme: "discrimination", titre: "Discrimination au travail : reconnaissance et preuve",
+      resume: "Cadre légal de la discrimination professionnelle et modalités de preuve devant les tribunaux.",
+      contenu: "La charge de la preuve en matière de discrimination est allégée : le salarié doit présenter des éléments de fait laissant supposer une discrimination, à charge pour l'employeur de démontrer que sa décision repose sur des éléments objectifs.",
+      articles: JSON.stringify(["Article 9 — Code du Travail", "Article 346 — Code du Travail"]),
+      jurisprudence: JSON.stringify(["Cass. Soc. 14/02/2021 — Aménagement de la charge de la preuve en matière de discrimination"]),
+      conseils: JSON.stringify(["Rassembler tout document comparatif (évaluations, grilles salariales)", "Solliciter un témoignage de collègues si possible"]),
+      important: false, updated: "2026-02-10", createdAt: daysAgo(260),
+    },
+    {
+      id: "fiche_6", theme: "contrat", titre: "CDD abusif : requalification en CDI",
+      resume: "Conditions dans lesquelles un contrat à durée déterminée peut être requalifié en contrat à durée indéterminée.",
+      contenu: "Le recours répété à des CDD pour pourvoir un poste permanent lié à l'activité normale de l'entreprise expose l'employeur à une requalification judiciaire en CDI, avec effet rétroactif à la date du premier contrat.",
+      articles: JSON.stringify(["Article 16 — Code du Travail", "Article 17 — Code du Travail"]),
+      jurisprudence: JSON.stringify(["Cass. Soc. 30/06/2017 — Requalification après 3 renouvellements successifs de CDD"]),
+      conseils: JSON.stringify(["Conserver tous les contrats et avenants signés", "Saisir le tribunal du travail dans le délai de prescription applicable"]),
+      important: false, updated: "2026-01-15", createdAt: daysAgo(280),
+    },
+  ]).onConflictDoNothing();
+
+  // ─────────────────────────────────────────────────────────────────────────
   // DONE
   // ─────────────────────────────────────────────────────────────────────────
   console.log("\n✅  Seed terminé avec succès.\n");
@@ -855,6 +1042,8 @@ async function main() {
     "visitor_parking_reservations (2)",
     "travaux_privatifs (4)",
     "refresh_tokens (5)",       "password_reset_tokens (2)",
+    "reclamations (6)",         "workflows (5)",             "workflow_steps (15)",
+    "fiches_juridiques (6)",
   ];
   for (let i = 0; i < tables.length; i += 3) {
     const row = tables.slice(i, i + 3).map((t) => `  • ${t.padEnd(35)}`).join("");
