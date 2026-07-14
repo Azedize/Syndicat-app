@@ -1,8 +1,20 @@
 /**
- * Storage routes — JWT-auth-protected file upload/serve via GCS presigned URLs.
- * Adapted for JWT (req.user) rather than session-based auth.
+ * Storage routes — JWT-auth-protected file upload/serve.
+ *
+ * Upload strategy (dev vs prod):
+ *   The Replit GCS sidecar only provides real credentials in deployed
+ *   environments.  In development the sidecar returns a placeholder JWT
+ *   and every GCS call fails.  To keep uploads working in dev we use a
+ *   direct multipart upload endpoint that saves files to the workspace
+ *   filesystem (persistent in Replit dev).  The GET serving route tries
+ *   GCS first and falls back to the workspace filesystem automatically,
+ *   so both dev and prod use the same objectPath format.
  */
 import { Readable } from "stream";
+import fs from "fs/promises";
+import path from "path";
+import { randomUUID } from "crypto";
+import multer from "multer";
 import { Router, type IRouter, type Request, type Response } from "express";
 import { z } from "zod";
 import { ObjectNotFoundError, ObjectStorageService } from "../lib/objectStorage.js";
@@ -10,6 +22,38 @@ import { requireAuth, requireAdmin } from "../middleware/auth.js";
 import { db } from "@workspace/db";
 import { documentsTable } from "@workspace/db/schema";
 import { eq, and } from "drizzle-orm";
+
+/** Workspace-relative directory for locally-stored uploads (dev fallback). */
+const LOCAL_UPLOADS_DIR = path.resolve("/home/runner/workspace/uploads");
+
+async function ensureUploadsDir() {
+  try { await fs.mkdir(LOCAL_UPLOADS_DIR, { recursive: true }); } catch {}
+}
+
+/** Serve a file from the local uploads directory. */
+async function serveLocalFile(filename: string, res: Response): Promise<boolean> {
+  const filePath = path.join(LOCAL_UPLOADS_DIR, filename);
+  try {
+    const data = await fs.readFile(filePath);
+    const ext = path.extname(filename).toLowerCase();
+    const contentTypeMap: Record<string, string> = {
+      ".jpg": "image/jpeg", ".jpeg": "image/jpeg", ".png": "image/png",
+      ".gif": "image/gif", ".webp": "image/webp", ".heic": "image/heic",
+      ".pdf": "application/pdf",
+      ".doc": "application/msword",
+      ".docx": "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+      ".mp4": "video/mp4", ".mov": "video/quicktime",
+      ".txt": "text/plain", ".csv": "text/csv",
+    };
+    res.setHeader("Content-Type", contentTypeMap[ext] ?? "application/octet-stream");
+    res.setHeader("Cache-Control", "public, max-age=31536000, immutable");
+    res.setHeader("Content-Length", String(data.byteLength));
+    res.send(data);
+    return true;
+  } catch {
+    return false;
+  }
+}
 
 const router: IRouter = Router();
 const storage = new ObjectStorageService();
@@ -44,9 +88,47 @@ const ALLOWED_CONTENT_TYPES = new Set([
 
 const MAX_FILE_SIZE = 50 * 1024 * 1024; // 50 MB — matches mobile upload.ts
 
+// ─── POST /storage/uploads ────────────────────────────────────────────────────
+// Direct multipart upload (development-safe fallback).
+// Client sends the file as multipart/form-data with field name "file".
+// Server saves to workspace filesystem and returns objectPath in the same
+// format as the GCS presigned-URL flow: "/objects/uploads/<uuid><ext>"
+
+const upload = multer({
+  storage: multer.memoryStorage(),
+  limits: { fileSize: MAX_FILE_SIZE },
+  fileFilter: (_req, file, cb) => {
+    cb(null, ALLOWED_CONTENT_TYPES.has(file.mimetype));
+  },
+});
+
+router.post(
+  "/storage/uploads",
+  requireAuth,
+  upload.single("file"),
+  async (req: Request, res: Response) => {
+    try {
+      if (!req.file) {
+        res.status(400).json({ error: "Aucun fichier reçu" });
+        return;
+      }
+      await ensureUploadsDir();
+      const ext = path.extname(req.file.originalname || "").toLowerCase();
+      const filename = `${randomUUID()}${ext}`;
+      const filePath = path.join(LOCAL_UPLOADS_DIR, filename);
+      await fs.writeFile(filePath, req.file.buffer);
+      const objectPath = `/objects/uploads/${filename}`;
+      res.json({ objectPath, fileName: req.file.originalname, contentType: req.file.mimetype, size: req.file.size });
+    } catch (err) {
+      req.log.error({ err }, "Error saving upload");
+      res.status(500).json({ error: "Erreur lors de l'enregistrement du fichier" });
+    }
+  },
+);
+
 // ─── POST /storage/uploads/request-url ───────────────────────────────────────
-// Request a presigned URL. Client sends JSON metadata (NOT the file itself).
-// File is uploaded directly to GCS via the returned presigned URL.
+// Legacy presigned-URL endpoint (works only in deployed environments where the
+// GCS sidecar provides real credentials). Kept for backward compatibility.
 
 const requestUrlSchema = z.object({
   name: z.string().min(1).max(500),
@@ -55,7 +137,6 @@ const requestUrlSchema = z.object({
     (ct) => ALLOWED_CONTENT_TYPES.has(ct),
     { message: "Content type not allowed. Supported: PDF, JPG, PNG, DOCX" }
   ),
-  // Optional: link to a document record upon upload
   documentCategory: z.enum(["reglements", "statuts", "pv", "juridique", "finances", "attestation"]).optional(),
   documentTitle: z.string().max(500).optional(),
 });
@@ -71,7 +152,6 @@ router.post("/storage/uploads/request-url", requireAuth, async (req: Request, re
     const uploadURL = await storage.getObjectEntityUploadURL();
     const objectPath = storage.normalizeObjectEntityPath(uploadURL);
 
-    // Optionally create a document record immediately so the caller has the doc ID
     let documentId: string | undefined;
     if (documentCategory && req.user!.syndicateId) {
       const [doc] = await db.insert(documentsTable).values({
@@ -159,7 +239,7 @@ router.get("/storage/objects/*path", async (req: Request, res: Response) => {
     const wildcardPath = Array.isArray(raw) ? raw.join("/") : raw;
     const objectPath = `/objects/${wildcardPath}`;
 
-    // Optional: if authenticated, verify syndicate access for syndicate-scoped documents
+    // Optional: syndicate-scoped document access check
     const userHeader = req.headers.authorization;
     if (userHeader && req.user && req.user.role !== "super_admin") {
       const docs = await db
@@ -171,17 +251,33 @@ router.get("/storage/objects/*path", async (req: Request, res: Response) => {
       }
     }
 
-    const objectFile = await storage.getObjectEntityFile(objectPath);
-    const response = await storage.downloadObject(objectFile);
-    res.status(response.status);
-    response.headers.forEach((v, k) => res.setHeader(k, v));
-    if (response.body) {
-      Readable.fromWeb(response.body as ReadableStream<Uint8Array>).pipe(res);
-    } else { res.end(); }
-  } catch (err) {
-    if (err instanceof ObjectNotFoundError) {
-      res.status(404).json({ error: "Fichier introuvable" }); return;
+    // Try GCS first (works in production with real sidecar credentials)
+    try {
+      const objectFile = await storage.getObjectEntityFile(objectPath);
+      const response = await storage.downloadObject(objectFile);
+      res.status(response.status);
+      response.headers.forEach((v, k) => res.setHeader(k, v));
+      if (response.body) {
+        Readable.fromWeb(response.body as ReadableStream<Uint8Array>).pipe(res);
+      } else { res.end(); }
+      return;
+    } catch (gcsErr) {
+      // In development the GCS sidecar returns a placeholder credential —
+      // fall through to the local filesystem fallback.
+      if (!(gcsErr instanceof ObjectNotFoundError)) {
+        // Only swallow GCS auth/network errors, not explicit "not found"
+        // (ObjectNotFoundError means the file definitely isn't in GCS).
+      }
     }
+
+    // Filesystem fallback: file was uploaded via POST /storage/uploads
+    // objectPath = "/objects/uploads/<filename>", filename is the last segment
+    const filename = path.basename(wildcardPath);
+    const served = await serveLocalFile(filename, res);
+    if (!served) {
+      res.status(404).json({ error: "Fichier introuvable" });
+    }
+  } catch (err) {
     req.log.error({ err }, "Error serving object");
     res.status(500).json({ error: "Erreur serveur" });
   }

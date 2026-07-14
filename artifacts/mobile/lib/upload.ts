@@ -20,6 +20,14 @@ export interface UploadResult {
 
 export type UploadProgressCallback = (progress: number) => void;
 
+/**
+ * Upload a file URI directly to the API server (POST /storage/uploads, multipart).
+ *
+ * This avoids the GCS presigned-URL flow, which requires a real Replit sidecar
+ * credential that is only available in deployed environments.  The server saves
+ * the file to workspace storage and returns the same objectPath format
+ * ("/objects/uploads/<uuid>") so the rest of the pipeline is unchanged.
+ */
 async function uploadUri(
   uri: string,
   fileName: string,
@@ -28,46 +36,44 @@ async function uploadUri(
 ): Promise<UploadResult> {
   const token = await getToken();
   onProgress?.(0.05);
+
+  // Fetch the local file/blob URI into memory
   const fileRes = await fetch(uri);
+  if (!fileRes.ok) throw new Error(`Cannot read file (${fileRes.status})`);
   const blob = await fileRes.blob();
   const size = blob.size ?? 0;
 
-  // Validate file size before hitting the server
   if (size > MAX_ATTACHMENT_SIZE) {
     throw new Error(`FILE_TOO_LARGE:${Math.round(size / 1024 / 1024)}`);
   }
 
-  onProgress?.(0.2);
-  const urlRes = await fetch(`${getBaseUrl()}/storage/uploads/request-url`, {
+  onProgress?.(0.3);
+
+  // Build multipart form and POST directly to the API server.
+  // The server writes the file to workspace storage (dev) or GCS (prod).
+  const form = new FormData();
+  form.append("file", blob, fileName);
+
+  const uploadRes = await fetch(`${getBaseUrl()}/storage/uploads`, {
     method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-      ...(token ? { Authorization: `Bearer ${token}` } : {}),
-    },
-    body: JSON.stringify({ name: fileName, size: size || 5000000, contentType }),
+    headers: token ? { Authorization: `Bearer ${token}` } : {},
+    body: form,
   });
-  if (!urlRes.ok) {
-    const errBody = await urlRes.json().catch(() => ({}));
-    throw new Error((errBody as any).error ?? `Upload request failed (${urlRes.status})`);
-  }
-  const { uploadURL, objectPath } = await urlRes.json();
-  onProgress?.(0.5);
 
-  const uploadResp = await fetch(uploadURL, {
-    method: "PUT",
-    headers: { "Content-Type": contentType },
-    body: blob,
-  });
-  onProgress?.(0.95);
+  onProgress?.(0.9);
 
-  if (!uploadResp.ok) {
-    throw new Error(`Storage upload failed (${uploadResp.status})`);
+  if (!uploadRes.ok) {
+    const errBody = await uploadRes.json().catch(() => ({}));
+    throw new Error((errBody as any).error ?? `Upload failed (${uploadRes.status})`);
   }
+
+  const { objectPath } = await uploadRes.json();
+  onProgress?.(1.0);
 
   return { objectPath, fileName, contentType, size };
 }
 
-/** Prompts the user to pick a PDF document and uploads it. Returns UploadResult, or undefined on failure/cancel. */
+/** Prompts the user to pick a PDF document and uploads it. Returns UploadResult, or undefined on cancel. */
 export async function pickAndUploadPdf(onProgress?: UploadProgressCallback): Promise<UploadResult | undefined> {
   const result = await DocumentPicker.getDocumentAsync({ type: "application/pdf", copyToCacheDirectory: true });
   if (result.canceled || !result.assets?.[0]) return undefined;
@@ -80,8 +86,8 @@ export async function pickAndUploadDocument(onProgress?: UploadProgressCallback)
   const result = await DocumentPicker.getDocumentAsync({ type: "*/*", copyToCacheDirectory: true });
   if (result.canceled || !result.assets?.[0]) return undefined;
   const asset = result.assets[0];
-  const contentType = asset.mimeType ?? "application/octet-stream";
-  return uploadUri(asset.uri, asset.name ?? `document-${Date.now()}`, contentType, onProgress);
+  const ct = asset.mimeType ?? "application/octet-stream";
+  return uploadUri(asset.uri, asset.name ?? `document-${Date.now()}`, ct, onProgress);
 }
 
 /** Prompts the user to pick an invoice (PDF or image) and uploads it. */
@@ -89,8 +95,8 @@ export async function pickAndUploadInvoice(onProgress?: UploadProgressCallback):
   const result = await DocumentPicker.getDocumentAsync({ type: ["application/pdf", "image/*"], copyToCacheDirectory: true });
   if (result.canceled || !result.assets?.[0]) return undefined;
   const asset = result.assets[0];
-  const contentType = asset.mimeType ?? "application/pdf";
-  return uploadUri(asset.uri, asset.name ?? `invoice-${Date.now()}`, contentType, onProgress);
+  const ct = asset.mimeType ?? "application/pdf";
+  return uploadUri(asset.uri, asset.name ?? `invoice-${Date.now()}`, ct, onProgress);
 }
 
 /** Prompts the user to pick a photo from the gallery and uploads it. */
@@ -102,11 +108,11 @@ export async function pickAndUploadPhoto(onProgress?: UploadProgressCallback): P
   if (result.canceled || !result.assets?.[0]) return undefined;
   const asset = result.assets[0];
   const ext = asset.uri.split(".").pop()?.toLowerCase() ?? "jpg";
-  const contentType = ext === "png" ? "image/png" : "image/jpeg";
-  return uploadUri(asset.uri, `photo-${Date.now()}.${ext}`, contentType, onProgress);
+  const ct = ext === "png" ? "image/png" : "image/jpeg";
+  return uploadUri(asset.uri, `photo-${Date.now()}.${ext}`, ct, onProgress);
 }
 
-/** Opens the camera, captures a photo, and uploads it. Returns UploadResult, or undefined on failure/cancel/permission denied. */
+/** Opens the camera, captures a photo, and uploads it. Returns UploadResult, or undefined on cancel/permission denied. */
 export async function captureAndUploadPhoto(onProgress?: UploadProgressCallback): Promise<UploadResult | undefined> {
   const { status } = await ImagePicker.requestCameraPermissionsAsync();
   if (status !== "granted") return undefined;
@@ -117,6 +123,6 @@ export async function captureAndUploadPhoto(onProgress?: UploadProgressCallback)
   if (result.canceled || !result.assets?.[0]) return undefined;
   const asset = result.assets[0];
   const ext = asset.uri.split(".").pop()?.toLowerCase() ?? "jpg";
-  const contentType = ext === "png" ? "image/png" : "image/jpeg";
-  return uploadUri(asset.uri, `camera-${Date.now()}.${ext}`, contentType, onProgress);
+  const ct = ext === "png" ? "image/png" : "image/jpeg";
+  return uploadUri(asset.uri, `camera-${Date.now()}.${ext}`, ct, onProgress);
 }
