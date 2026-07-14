@@ -23,6 +23,7 @@ import { statistics, type EnrichedSyndicate } from "@/services/api";
 import { apiRequest } from "@/lib/api";
 import { useAuth } from "@/context/AuthContext";
 import SyndicateCard, { type SyndicateCardData } from "@/components/SyndicateCard";
+import FilterChips from "@/components/FilterChips";
 
 interface SyndicateStat {
   id: string;
@@ -254,27 +255,18 @@ export default function TableauNationalScreen() {
           </View>
         ) : (
           <>
-            <ScrollView
-              horizontal
-              showsHorizontalScrollIndicator={false}
-              style={{ maxHeight: 50, borderBottomWidth: 1, borderBottomColor: colors.border }}
-              contentContainerStyle={{ paddingHorizontal: 16, gap: 8, alignItems: "center" }}
-            >
-              {(["all", "healthy", "warning", "critical"] as const).map((s) => {
-                const labels = { all: "Tous", healthy: "Sain", warning: "Attention", critical: "Critique" };
-                const c = s === "all" ? colors.primary : HEALTH_CONFIG[s].color;
-                return (
-                  <TouchableOpacity
-                    key={s}
-                    style={[styles.chip, { backgroundColor: filterHealth === s ? c : colors.secondary, borderColor: filterHealth === s ? c : colors.border }]}
-                    onPress={() => { setFilterHealth(s); Haptics.selectionAsync(); }}
-                  >
-                    {s !== "all" ? <Feather name={HEALTH_CONFIG[s].icon} size={11} color={filterHealth === s ? "#fff" : HEALTH_CONFIG[s].color} /> : null}
-                    <Text style={[styles.chipText, { color: filterHealth === s ? "#fff" : colors.foreground }]}>{labels[s]}</Text>
-                  </TouchableOpacity>
-                );
-              })}
-            </ScrollView>
+            <FilterChips
+              options={[
+                { key: "all", label: "Tous" },
+                { key: "healthy", label: "Sain", icon: HEALTH_CONFIG.healthy.icon, color: HEALTH_CONFIG.healthy.color },
+                { key: "warning", label: "Attention", icon: HEALTH_CONFIG.warning.icon, color: HEALTH_CONFIG.warning.color },
+                { key: "critical", label: "Critique", icon: HEALTH_CONFIG.critical.icon, color: HEALTH_CONFIG.critical.color },
+              ]}
+              value={filterHealth}
+              onChange={(k) => setFilterHealth(k as typeof filterHealth)}
+              accentColor={colors.primary}
+              mode="equal"
+            />
             {filteredSyndicats.length === 0 ? (
               <View style={{ flex: 1, alignItems: "center", justifyContent: "center", gap: 10, padding: 24 }}>
                 <Feather name="inbox" size={40} color={colors.mutedForeground} />
@@ -798,8 +790,6 @@ const styles = StyleSheet.create({
   tabLabel: { fontSize: 12, fontFamily: "Inter_600SemiBold" },
   tabBadge: { minWidth: 18, height: 18, borderRadius: 9, alignItems: "center", justifyContent: "center", paddingHorizontal: 4 },
   tabBadgeText: { fontSize: 10, fontFamily: "Inter_700Bold", color: "#fff" },
-  chip: { flexDirection: "row", alignItems: "center", gap: 5, paddingHorizontal: 14, paddingVertical: 8, borderRadius: 20, borderWidth: 1, flexShrink: 0 },
-  chipText: { fontSize: 12, fontFamily: "Inter_500Medium" },
   syndicatCard: { borderRadius: 16, borderWidth: 1, padding: 14, gap: 10 },
   syndicatHeader: { flexDirection: "row", alignItems: "flex-start", gap: 10 },
   syndicatAvatar: { width: 42, height: 42, borderRadius: 12, alignItems: "center", justifyContent: "center" },
