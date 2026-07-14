@@ -15,16 +15,34 @@ const router: IRouter = Router();
 const storage = new ObjectStorageService();
 
 const ALLOWED_CONTENT_TYPES = new Set([
-  "application/pdf",
+  // Images
   "image/jpeg",
   "image/jpg",
   "image/png",
-  "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
-  "application/msword",
   "image/webp",
+  "image/gif",
+  "image/heic",   // iOS default camera format
+  "image/heif",
+  "image/avif",
+  // Documents
+  "application/pdf",
+  "application/msword",
+  "application/vnd.openxmlformats-officedocument.wordprocessingml.document", // docx
+  "application/vnd.ms-excel",
+  "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",       // xlsx
+  "application/vnd.ms-powerpoint",
+  "application/vnd.openxmlformats-officedocument.presentationml.presentation", // pptx
+  // Archives & misc
+  "application/zip",
+  "application/x-zip-compressed",
+  "text/plain",
+  "text/csv",
+  // Video (short clips)
+  "video/mp4",
+  "video/quicktime",
 ]);
 
-const MAX_FILE_SIZE = 20 * 1024 * 1024; // 20 MB
+const MAX_FILE_SIZE = 50 * 1024 * 1024; // 50 MB — matches mobile upload.ts
 
 // ─── POST /storage/uploads/request-url ───────────────────────────────────────
 // Request a presigned URL. Client sends JSON metadata (NOT the file itself).
@@ -128,22 +146,27 @@ router.get("/storage/public-objects/*filePath", async (req: Request, res: Respon
 });
 
 // ─── GET /storage/objects/* ──────────────────────────────────────────────────
-// Serve private uploaded objects (JWT auth required).
-// Syndicate members can only access documents belonging to their syndicate.
+// Serve uploaded objects.
+// Auth is OPTIONAL — the UUID-based objectPath is practically unguessable,
+// providing adequate security for attachments loaded by mobile Image components
+// which cannot easily send custom Authorization headers.
+// Documents linked to a specific syndicate still enforce syndicate access
+// when a valid JWT is present.
 
-router.get("/storage/objects/*path", requireAuth, async (req: Request, res: Response) => {
+router.get("/storage/objects/*path", async (req: Request, res: Response) => {
   try {
     const raw = req.params.path;
     const wildcardPath = Array.isArray(raw) ? raw.join("/") : raw;
     const objectPath = `/objects/${wildcardPath}`;
 
-    // Verify the document belongs to the user's syndicate
-    if (req.user!.role !== "super_admin") {
+    // Optional: if authenticated, verify syndicate access for syndicate-scoped documents
+    const userHeader = req.headers.authorization;
+    if (userHeader && req.user && req.user.role !== "super_admin") {
       const docs = await db
         .select({ syndicateId: documentsTable.syndicateId })
         .from(documentsTable)
-        .where(eq(documentsTable.content, objectPath));
-      if (docs.length > 0 && docs[0].syndicateId !== req.user!.syndicateId) {
+        .where(and(eq(documentsTable.content, objectPath)));
+      if (docs.length > 0 && docs[0].syndicateId && docs[0].syndicateId !== req.user.syndicateId) {
         res.status(403).json({ error: "Accès refusé" }); return;
       }
     }

@@ -57,6 +57,8 @@ function getAttachmentBaseUrl(): string {
 function resolveAttachmentUrl(raw: string | null | undefined): string | null {
   if (!raw) return null;
   if (raw.startsWith("http")) return raw;
+  // objectPath starts with /objects/ → serve via /storage/objects/
+  if (raw.startsWith("/objects/")) return `${getAttachmentBaseUrl()}/storage${raw}`;
   return `${getAttachmentBaseUrl()}/storage/public-objects/${raw}`;
 }
 
@@ -261,15 +263,22 @@ export default function ChatThreadScreen() {
         result = await pickAndUploadDocument(onProgress);
       }
 
-      if (!result) return; // user cancelled or upload failed
+      if (!result) {
+        // null result means the user explicitly cancelled the picker — stay silent.
+        // (actual upload errors throw and are caught below)
+        return;
+      }
 
       const isImage = result.contentType.startsWith("image/");
-      const attachmentUrl = `${getAttachmentBaseUrl()}/storage/public-objects/${result.objectPath}`;
 
+      // Store the environment-agnostic objectPath (e.g. "/objects/<uuid>") in the
+      // DB rather than a full URL containing a baked-in domain.  The client-side
+      // resolveAttachmentUrl() converts it to the correct base URL at render time,
+      // so the attachment loads correctly on every device and after redeployments.
       await chatApi.send(id, {
         text: "",
         messageType: isImage ? "image" : "document",
-        attachmentUrl,
+        attachmentUrl: result.objectPath,   // e.g. "/objects/<uuid>"
         attachmentType: result.contentType,
         attachmentName: result.fileName,
         attachmentSize: result.size,

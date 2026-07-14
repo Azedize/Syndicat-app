@@ -1000,10 +1000,13 @@ router.post("/conversations/:id/messages", requireAuth, async (req, res) => {
   const schema = z.object({
     text: z.string().max(10000).default(""),
     messageType: z.enum(["text", "image", "document", "announcement", "voice"]).default("text"),
-    attachmentUrl: z.string().url().optional(),
+    // Accept both full URLs (https://...) and storage object paths (/objects/<uuid>)
+    // so the mobile client can store an environment-agnostic path instead of a
+    // localhost URL that breaks across devices, refreshes, and deployments.
+    attachmentUrl: z.string().max(2000).optional(),
     attachmentType: z.string().max(100).optional(),
     attachmentName: z.string().max(255).optional(),
-    attachmentSize: z.number().int().positive().max(50 * 1024 * 1024).optional(),
+    attachmentSize: z.number().int().nonnegative().max(50 * 1024 * 1024).optional(),
     durationSeconds: z.number().int().positive().max(600).optional(),
   });
   const result = schema.safeParse(req.body);

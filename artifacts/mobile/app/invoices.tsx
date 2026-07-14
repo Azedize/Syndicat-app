@@ -1,9 +1,9 @@
 import { Feather } from "@expo/vector-icons";
 import * as Haptics from "expo-haptics";
-import * as ImagePicker from "expo-image-picker";
 import { router } from "expo-router";
 import React, { useState } from "react";
 import {
+  ActivityIndicator,
   Alert,
   FlatList,
   Image,
@@ -24,6 +24,24 @@ import { useLanguage } from "@/context/LanguageContext";
 import { useBreakpoints } from "@/hooks/useBreakpoints";
 import { useColors } from "@/hooks/useColors";
 import { apiRequest } from "@/lib/api";
+import {
+  pickAndUploadPhoto,
+  captureAndUploadPhoto,
+  pickAndUploadDocument,
+  type UploadResult,
+} from "@/lib/upload";
+
+/** Converts a storage objectPath to a full retrievable URL.
+ *  objectPath = "/objects/<uuid>" → /api/storage/objects/<uuid>
+ */
+function proofUrlFromResult(result: UploadResult): string {
+  const domain = process.env.EXPO_PUBLIC_DOMAIN;
+  const base = domain
+    ? `https://${domain}/api`
+    : `http://localhost:${process.env.EXPO_PUBLIC_API_PORT ?? "8080"}/api`;
+  // objectPath already has leading slash: "/objects/..."
+  return `${base}/storage${result.objectPath}`;
+}
 
 type TabType = "factures" | "devis";
 
@@ -61,9 +79,12 @@ function InvoicesScreenInner() {
   const [addRecipient, setAddRecipient] = useState("");
   const [addAmount, setAddAmount] = useState("");
   const [addLabel, setAddLabel] = useState("");
-  const [addProofUri, setAddProofUri] = useState("");
   const [addNotes, setAddNotes] = useState("");
+  // Proof attachment — upload happens immediately on pick, before form submission
+  const [proofUpload, setProofUpload] = useState<UploadResult | null>(null);
+  const [proofUploading, setProofUploading] = useState(false);
   const [proofError, setProofError] = useState(false);
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
   const filteredInvoices = invoices.filter(
     (inv) => inv.type === (tab === "factures" ? "facture" : "devis")
@@ -73,58 +94,42 @@ function InvoicesScreenInner() {
   const totalPending = invoices.filter((i) => i.type === "facture" && i.status === "sent").reduce((s, i) => s + i.amount, 0);
   const totalOverdue = invoices.filter((i) => i.type === "facture" && i.status === "overdue").reduce((s, i) => s + i.amount, 0);
 
-  // ─── Proof upload ────────────────────────────────────────────────────────────
+  // ─── Proof upload ─────────────────────────────────────────────────────────────
+  // Files are uploaded to storage immediately on pick (not at form submit).
+  // This ensures we have a real URL before calling the API.
 
-  const pickFromGallery = async () => {
+  const doPickAndUpload = async (mode: "gallery" | "camera" | "document") => {
+    if (proofUploading) return;
+    setProofUploading(true);
+    setProofError(false);
     try {
-      const perm = await ImagePicker.requestMediaLibraryPermissionsAsync();
-      if (!perm.granted) {
-        Alert.alert(t("invPermissionRequired"), t("invPermGallery"));
-        return;
-      }
-      const result = await ImagePicker.launchImageLibraryAsync({
-        mediaTypes: ImagePicker.MediaTypeOptions.Images,
-        allowsEditing: false,
-        quality: 0.85,
-      });
-      if (!result.canceled && result.assets[0]) {
-        setAddProofUri(result.assets[0].uri);
-        setProofError(false);
+      let result: UploadResult | undefined;
+      if (mode === "camera") result = await captureAndUploadPhoto();
+      else if (mode === "gallery") result = await pickAndUploadPhoto();
+      else result = await pickAndUploadDocument();
+
+      if (result) {
+        setProofUpload(result);
         Haptics.selectionAsync();
       }
-    } catch { }
-  };
-
-  const pickFromCamera = async () => {
-    try {
-      const perm = await ImagePicker.requestCameraPermissionsAsync();
-      if (!perm.granted) {
-        Alert.alert(t("invPermissionRequired"), t("invPermCamera"));
-        return;
-      }
-      const result = await ImagePicker.launchCameraAsync({
-        allowsEditing: false,
-        quality: 0.85,
-      });
-      if (!result.canceled && result.assets[0]) {
-        setAddProofUri(result.assets[0].uri);
-        setProofError(false);
-        Haptics.selectionAsync();
-      }
-    } catch { }
+    } catch (err: any) {
+      Alert.alert(t("error"), err?.message?.startsWith("FILE_TOO_LARGE")
+        ? t("uploadErrorSize") ?? "Fichier trop volumineux (max 50 Mo)"
+        : t("uploadError") ?? "Erreur de téléversement");
+    } finally {
+      setProofUploading(false);
+    }
   };
 
   const showPickerOptions = () => {
-    if (Platform.OS === "web") {
-      pickFromGallery();
-      return;
-    }
+    if (Platform.OS === "web") { doPickAndUpload("gallery"); return; }
     Alert.alert(
       t("invJoindreJustif"),
       t("invChoisirSource"),
       [
-        { text: t("invGaleriePhoto"), onPress: pickFromGallery },
-        { text: t("invAppareilPhoto"), onPress: pickFromCamera },
+        { text: t("invGaleriePhoto"), onPress: () => doPickAndUpload("gallery") },
+        { text: t("invAppareilPhoto"), onPress: () => doPickAndUpload("camera") },
+        { text: "📄 PDF / Document", onPress: () => doPickAndUpload("document") },
         { text: t("cancel"), style: "cancel" },
       ]
     );
@@ -134,19 +139,20 @@ function InvoicesScreenInner() {
 
   const resetForm = () => {
     setAddRecipient(""); setAddAmount(""); setAddLabel("");
-    setAddProofUri(""); setAddNotes(""); setProofError(false);
+    setAddNotes(""); setProofUpload(null); setProofError(false);
   };
 
-  const handleAdd = () => {
+  const handleAdd = async () => {
     if (!addRecipient.trim() || !addAmount.trim() || !addLabel.trim()) return;
-    if (!addProofUri) {
+    if (!proofUpload) {
       setProofError(true);
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
       return;
     }
     const count = invoices.filter((i) => i.type === addType).length + 1;
     const pad = String(count).padStart(4, "0");
-    const ref = addType === "facture" ? `FAC-2026-${pad}` : `DEV-2026-${pad}`;
+    const ref = addType === "facture" ? `FAC-${new Date().getFullYear()}-${pad}` : `DEV-${new Date().getFullYear()}-${pad}`;
+    const realProofUrl = proofUrlFromResult(proofUpload);
     const inv: Invoice = {
       id: `inv${Date.now()}`,
       reference: ref,
@@ -158,15 +164,19 @@ function InvoicesScreenInner() {
       amount: parseFloat(addAmount),
       status: "draft",
       items: [{ label: addLabel.trim(), quantity: 1, unitPrice: parseFloat(addAmount) }],
-      proofUri: addProofUri,
+      proofUrl: realProofUrl,  // ← real storage URL, saved to DB
     };
-    addInvoice(inv);
-    Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-    setShowAdd(false);
-    resetForm();
+    setIsSubmitting(true);
+    const success = await addInvoice(inv);
+    setIsSubmitting(false);
+    if (success) {
+      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+      setShowAdd(false);
+      resetForm();
+    }
   };
 
-  const isFormValid = addRecipient.trim() && addAmount.trim() && addLabel.trim() && !!addProofUri;
+  const isFormValid = !!(addRecipient.trim() && addAmount.trim() && addLabel.trim() && proofUpload);
 
   // ─── Render ──────────────────────────────────────────────────────────────────
 
@@ -514,21 +524,32 @@ function InvoicesScreenInner() {
                 </View>
               </View>
 
-              {proofError && !addProofUri && (
+              {proofError && !proofUpload && (
                 <View style={styles.proofErrorBanner}>
                   <Feather name="alert-circle" size={13} color="#ef4444" />
-                  <Text style={styles.proofErrorText}>
-                    {t("invProofErrorBanner")}
-                  </Text>
+                  <Text style={styles.proofErrorText}>{t("invProofErrorBanner")}</Text>
                 </View>
               )}
 
               {/* Preview or upload zone */}
-              {addProofUri ? (
+              {proofUpload ? (
                 <View style={{ gap: 10 }}>
-                  {/* Thumbnail */}
+                  {/* Thumbnail or doc icon */}
                   <View style={styles.proofPreviewWrap}>
-                    <Image source={{ uri: addProofUri }} style={styles.proofPreview} resizeMode="cover" />
+                    {proofUpload.contentType.startsWith("image/") ? (
+                      <Image
+                        source={{ uri: proofUrlFromResult(proofUpload) }}
+                        style={styles.proofPreview}
+                        resizeMode="cover"
+                      />
+                    ) : (
+                      <View style={[styles.proofPreview, { alignItems: "center", justifyContent: "center", backgroundColor: colors.secondary }]}>
+                        <Feather name="file-text" size={40} color={colors.primary} />
+                        <Text style={{ fontSize: 11, fontFamily: "Inter_600SemiBold", color: colors.foreground, marginTop: 8, paddingHorizontal: 8, textAlign: "center" }} numberOfLines={2}>
+                          {proofUpload.fileName}
+                        </Text>
+                      </View>
+                    )}
                     <View style={[styles.proofPreviewBadge, { backgroundColor: "#10b981" }]}>
                       <Feather name="check-circle" size={12} color="#fff" />
                       <Text style={styles.proofPreviewBadgeText}>{t("invJustifJoint")}</Text>
@@ -539,18 +560,27 @@ function InvoicesScreenInner() {
                     <TouchableOpacity
                       style={[styles.proofActionBtn, { flex: 1, backgroundColor: colors.muted, borderColor: colors.border }]}
                       onPress={showPickerOptions}
+                      disabled={proofUploading || isSubmitting}
                     >
                       <Feather name="refresh-cw" size={14} color={colors.foreground} />
                       <Text style={[styles.proofActionBtnText, { color: colors.foreground }]}>{t("invChanger")}</Text>
                     </TouchableOpacity>
                     <TouchableOpacity
                       style={[styles.proofActionBtn, { backgroundColor: "#ef444410", borderColor: "#ef444430" }]}
-                      onPress={() => { setAddProofUri(""); setProofError(false); }}
+                      onPress={() => { setProofUpload(null); setProofError(false); }}
+                      disabled={proofUploading || isSubmitting}
                     >
                       <Feather name="trash-2" size={14} color="#ef4444" />
                       <Text style={[styles.proofActionBtnText, { color: "#ef4444" }]}>{t("invSupprimer")}</Text>
                     </TouchableOpacity>
                   </View>
+                </View>
+              ) : proofUploading ? (
+                <View style={[styles.proofUploadZone, { borderColor: colors.primary + "60", backgroundColor: colors.primary + "06", gap: 12 }]}>
+                  <ActivityIndicator size="large" color={colors.primary} />
+                  <Text style={{ fontSize: 13, fontFamily: "Inter_600SemiBold", color: colors.primary }}>
+                    Téléversement en cours…
+                  </Text>
                 </View>
               ) : (
                 /* Upload zone */
@@ -575,7 +605,7 @@ function InvoicesScreenInner() {
                     {t("invTeleverserSub")}
                   </Text>
                   <View style={[styles.proofUploadFormats, { backgroundColor: colors.muted }]}>
-                    {["JPG", "PNG", "HEIC"].map((fmt) => (
+                    {["JPG", "PNG", "HEIC", "PDF"].map((fmt) => (
                       <View key={fmt} style={[styles.fmtBadge, { backgroundColor: colors.card }]}>
                         <Text style={[styles.fmtText, { color: colors.mutedForeground }]}>{fmt}</Text>
                       </View>
@@ -590,24 +620,31 @@ function InvoicesScreenInner() {
             <TouchableOpacity
               style={[
                 styles.submitBtn,
-                { backgroundColor: isFormValid ? colors.primary : colors.muted },
+                { backgroundColor: isFormValid && !isSubmitting ? colors.primary : colors.muted },
               ]}
               onPress={handleAdd}
+              disabled={isSubmitting || proofUploading}
               activeOpacity={0.85}
             >
-              <Feather
-                name={addType === "facture" ? "file-text" : "clipboard"}
-                size={18}
-                color={isFormValid ? "#fff" : colors.mutedForeground}
-              />
-              <Text style={[styles.submitBtnText, { color: isFormValid ? "#fff" : colors.mutedForeground }]}>
-                {addType === "facture" ? t("invCreerFacture") : t("invCreerDevis")}
+              {isSubmitting ? (
+                <ActivityIndicator size="small" color="#fff" />
+              ) : (
+                <Feather
+                  name={addType === "facture" ? "file-text" : "clipboard"}
+                  size={18}
+                  color={isFormValid ? "#fff" : colors.mutedForeground}
+                />
+              )}
+              <Text style={[styles.submitBtnText, { color: isFormValid && !isSubmitting ? "#fff" : colors.mutedForeground }]}>
+                {isSubmitting
+                  ? "Création en cours…"
+                  : addType === "facture" ? t("invCreerFacture") : t("invCreerDevis")}
               </Text>
             </TouchableOpacity>
 
-            {!isFormValid && (
+            {!isFormValid && !isSubmitting && (
               <Text style={[styles.submitHint, { color: colors.mutedForeground }]}>
-                {!addProofUri
+                {!proofUpload
                   ? t("invHintMissingProof")
                   : t("invHintFillFields")}
               </Text>

@@ -25,43 +25,46 @@ async function uploadUri(
   fileName: string,
   contentType: string,
   onProgress?: UploadProgressCallback,
-): Promise<UploadResult | undefined> {
-  try {
-    const token = await getToken();
-    onProgress?.(0.05);
-    const fileRes = await fetch(uri);
-    const blob = await fileRes.blob();
-    const size = blob.size ?? 0;
+): Promise<UploadResult> {
+  const token = await getToken();
+  onProgress?.(0.05);
+  const fileRes = await fetch(uri);
+  const blob = await fileRes.blob();
+  const size = blob.size ?? 0;
 
-    // Validate file size
-    if (size > MAX_ATTACHMENT_SIZE) {
-      throw new Error(`FILE_TOO_LARGE:${Math.round(size / 1024 / 1024)}`);
-    }
-
-    onProgress?.(0.2);
-    const urlRes = await fetch(`${getBaseUrl()}/storage/uploads/request-url`, {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        ...(token ? { Authorization: `Bearer ${token}` } : {}),
-      },
-      body: JSON.stringify({ name: fileName, size: size || 5000000, contentType }),
-    });
-    if (!urlRes.ok) return undefined;
-    const { uploadURL, objectPath } = await urlRes.json();
-    onProgress?.(0.5);
-
-    const uploadResp = await fetch(uploadURL, {
-      method: "PUT",
-      headers: { "Content-Type": contentType },
-      body: blob,
-    });
-    onProgress?.(0.95);
-    return uploadResp.ok ? { objectPath, fileName, contentType, size } : undefined;
-  } catch (err: any) {
-    if (err?.message?.startsWith("FILE_TOO_LARGE")) throw err;
-    return undefined;
+  // Validate file size before hitting the server
+  if (size > MAX_ATTACHMENT_SIZE) {
+    throw new Error(`FILE_TOO_LARGE:${Math.round(size / 1024 / 1024)}`);
   }
+
+  onProgress?.(0.2);
+  const urlRes = await fetch(`${getBaseUrl()}/storage/uploads/request-url`, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      ...(token ? { Authorization: `Bearer ${token}` } : {}),
+    },
+    body: JSON.stringify({ name: fileName, size: size || 5000000, contentType }),
+  });
+  if (!urlRes.ok) {
+    const errBody = await urlRes.json().catch(() => ({}));
+    throw new Error((errBody as any).error ?? `Upload request failed (${urlRes.status})`);
+  }
+  const { uploadURL, objectPath } = await urlRes.json();
+  onProgress?.(0.5);
+
+  const uploadResp = await fetch(uploadURL, {
+    method: "PUT",
+    headers: { "Content-Type": contentType },
+    body: blob,
+  });
+  onProgress?.(0.95);
+
+  if (!uploadResp.ok) {
+    throw new Error(`Storage upload failed (${uploadResp.status})`);
+  }
+
+  return { objectPath, fileName, contentType, size };
 }
 
 /** Prompts the user to pick a PDF document and uploads it. Returns UploadResult, or undefined on failure/cancel. */

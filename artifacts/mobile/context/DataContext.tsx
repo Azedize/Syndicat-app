@@ -394,7 +394,8 @@ interface DataContextType {
   updateCartQty: (id: string, qty: number) => void;
   clearCart: () => void;
   addReview: (r: Review) => void;
-  addInvoice: (inv: Invoice) => void;
+  addInvoice: (inv: Invoice) => Promise<boolean>;
+  refreshInvoices: () => Promise<void>;
   addBonLivraison: (bl: BonLivraison) => void;
   updateBonLivraisonStatus: (id: string, status: BonLivraison["status"]) => void;
   confirmMeetingAttendance: (id: string) => void;
@@ -823,7 +824,7 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
 
         if (invoicesRes.status === "fulfilled") {
           const rows = (invoicesRes.value as { data: unknown[] }).data;
-          if (rows?.length) setInvoices(rows as Invoice[]);
+          if (rows?.length) setInvoices(rows.map(mapDbInvoice));
         }
 
         if (bonsRes.status === "fulfilled") {
@@ -1152,9 +1153,54 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
     setReviews((p) => [r, ...p]);
     api.marketplace.addReview(r).catch(() => {});
   };
-  const addInvoice = (inv: Invoice) => {
-    setInvoices((p) => [inv, ...p]);
-    api.finance.addInvoice(inv).catch(() => {});
+  // ─── Invoice helpers ──────────────────────────────────────────────────────
+  function mapDbInvoice(r: unknown): Invoice {
+    const row = r as Record<string, unknown>;
+    return {
+      id: String(row.id),
+      reference: String(row.reference ?? ""),
+      type: (row.type as "devis" | "facture") ?? "facture",
+      recipient: String(row.recipient ?? ""),
+      syndicate: String((row as any).syndicate ?? (row as any).syndicateId ?? ""),
+      date: String(row.date ?? ""),
+      dueDate: String(row.dueDate ?? ""),
+      amount: Number(row.amount ?? 0),
+      status: (row.status as Invoice["status"]) ?? "draft",
+      items: Array.isArray(row.items)
+        ? (row.items as Record<string, unknown>[]).map((i) => ({
+            label: String(i.label ?? ""),
+            quantity: Number(i.quantity ?? 1),
+            unitPrice: Number(i.unitPrice ?? 0),
+          }))
+        : [],
+      proofUrl: row.proofUrl ? String(row.proofUrl) : undefined,
+    };
+  }
+
+  const refreshInvoices = async () => {
+    try {
+      const res = await api.finance.invoices() as { data: unknown[] };
+      const rows = res?.data ?? [];
+      setInvoices(rows.map(mapDbInvoice));
+    } catch { /* keep stale */ }
+  };
+
+  const addInvoice = async (inv: Invoice): Promise<boolean> => {
+    const optimisticId = inv.id;
+    setInvoices((p) => [inv, ...p]); // optimistic insert
+    try {
+      await api.finance.addInvoice(inv);
+      // Refresh from DB to replace fake ID with real UUID and pick up server-computed fields
+      await refreshInvoices();
+      notificationBus.emit({ type: "success", message: `${inv.type === "facture" ? "Facture" : "Devis"} ${inv.reference} créé avec succès` });
+      return true;
+    } catch (err: any) {
+      // Rollback optimistic insert on failure
+      setInvoices((p) => p.filter((i) => i.id !== optimisticId));
+      const msg = err?.message ?? "Erreur réseau — vérifiez votre connexion";
+      notificationBus.emit({ type: "error", message: `Échec création : ${msg}` });
+      return false;
+    }
   };
   const addBonLivraison = (bl: BonLivraison) => {
     setBonsLivraison((p) => [bl, ...p]);
@@ -1179,7 +1225,7 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
         markAlertRead, markAllAlertsRead, refreshAlerts, voteForCandidate, sendMessage, addTransaction,
         likePublication, addPublication, createElection,
         addToCart, removeFromCart, updateCartQty, clearCart,
-        addReview, addInvoice, addBonLivraison, updateBonLivraisonStatus,
+        addReview, addInvoice, refreshInvoices, addBonLivraison, updateBonLivraisonStatus,
         updateSubscription, toggleNotificationPref,
         addPartner, updatePartnerStatus, generatePayslip,
         confirmMeetingAttendance,
