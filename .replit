@@ -54,6 +54,7 @@ SMTP_HOST = "smtp.gmail.com"
 SMTP_PORT = "587"
 SMTP_SECURE = "false"
 SMTP_USER = "azedinechentouf0@gmail.com"
+USE_TLS = "true"
 
 [objectStorage]
 defaultBucketID = "replit-objstore-89a27f97-efed-43a3-a959-1576cb0184d3"

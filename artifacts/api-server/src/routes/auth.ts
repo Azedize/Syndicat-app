@@ -6,45 +6,21 @@ import { db } from "@workspace/db";
 import { usersTable, refreshTokensTable, passwordResetTokensTable } from "@workspace/db/schema";
 import { eq, and, gt, isNull } from "drizzle-orm";
 import { requireAuth, signToken, signRefreshToken, type JwtPayload } from "../middleware/auth.js";
+import { sendTransactionalEmail } from "../lib/email/emailService.js";
+import { passwordResetTemplate } from "../lib/email/templates.js";
 
 /**
- * Sends a password reset email.
- * In production: configure SMTP_HOST, SMTP_PORT, SMTP_USER, SMTP_PASS env vars.
- * In development: logs the reset link to the console.
+ * Sends a password reset email via the centralized EmailService (real Gmail SMTP,
+ * retry-on-failure, and email_logs/audit trail — see lib/email/emailService.ts).
  */
 async function sendPasswordResetEmail(email: string, name: string, token: string, req: any) {
   const resetUrl = process.env.APP_URL
     ? `${process.env.APP_URL}/reset-password?token=${token}`
     : `[APP_URL not set] token=${token}`;
 
-  const isProduction = process.env.NODE_ENV === "production";
-
-  if (isProduction && process.env.SMTP_HOST) {
-    // Dynamically import nodemailer only when SMTP is configured
-    const nodemailer = await import("nodemailer");
-    const transporter = nodemailer.createTransport({
-      host: process.env.SMTP_HOST,
-      port: Number(process.env.SMTP_PORT ?? 587),
-      secure: process.env.SMTP_SECURE === "true",
-      auth: { user: process.env.SMTP_USER, pass: process.env.SMTP_PASS },
-    });
-    await transporter.sendMail({
-      from: process.env.SMTP_FROM ?? `SYNDYCAT <noreply@syndycat.ma>`,
-      to: email,
-      subject: "Réinitialisation de votre mot de passe — SYNDYCAT",
-      html: `
-        <p>Bonjour ${name},</p>
-        <p>Vous avez demandé la réinitialisation de votre mot de passe SYNDYCAT.</p>
-        <p><a href="${resetUrl}" style="background:#7c3aed;color:#fff;padding:12px 24px;border-radius:8px;text-decoration:none;">Réinitialiser mon mot de passe</a></p>
-        <p>Ce lien expire dans <strong>1 heure</strong>. Si vous n'avez pas effectué cette demande, ignorez cet email.</p>
-        <p>— L'équipe SYNDYCAT</p>
-      `,
-    });
-  } else {
-    // Development: log to console so devs can test without SMTP
-    req.log.info({ resetUrl }, `[DEV] Password reset link for ${email}`);
-    console.info(`\n🔑 Password reset for ${email}:\n   ${resetUrl}\n`);
-  }
+  const { subject, html } = passwordResetTemplate(name, resetUrl);
+  await sendTransactionalEmail({ to: email, subject, html, template: "password_reset" });
+  req.log.info({ to: email }, "Password reset email dispatched");
 }
 
 const router = Router();

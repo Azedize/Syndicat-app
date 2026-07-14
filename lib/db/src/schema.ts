@@ -1469,6 +1469,39 @@ export const auditLogsTable = pgTable("audit_logs", {
   createdAt: createdAt(),
 });
 
+// ─── Email Logs ─────────────────────────────────────────────────────────────
+// Tracks every transactional email attempted by the EmailService (lib/email),
+// including retries, so delivery can be audited and failed sends re-triggered
+// from the admin Email Center.
+
+export const emailLogsTable = pgTable(
+  "email_logs",
+  {
+    id: id(),
+    recipient: text("recipient").notNull(),
+    subject: text("subject").notNull(),
+    // Template key used to render the email (e.g. "welcome", "password_reset") —
+    // lets the Email Center group/filter by flow.
+    template: text("template").notNull(),
+    // status: pending | sent | failed
+    status: text("status").notNull().default("pending"),
+    errorMessage: text("error_message"),
+    retryCount: integer("retry_count").notNull().default(0),
+    syndicateId: text("syndicate_id"),
+    // Rendered body, kept so a failed email can be retried without recomputing
+    // the template (e.g. after a transient SMTP outage).
+    bodyHtml: text("body_html"),
+    sentAt: timestamp("sent_at"),
+    createdAt: createdAt(),
+  },
+  (t) => [
+    index("email_logs_status_idx").on(t.status),
+    index("email_logs_recipient_idx").on(t.recipient),
+    index("email_logs_created_at_idx").on(t.createdAt),
+    index("email_logs_template_idx").on(t.template),
+  ],
+);
+
 // ─── P6: Improvement Ideas & Voting ─────────────────────────────────────────
 
 export const ideasTable = pgTable(

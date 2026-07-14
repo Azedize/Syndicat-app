@@ -41,6 +41,7 @@ import actesRouter from "./actes.js";
 import reclamationsRouter from "./reclamations.js";
 import workflowsRouter from "./workflows.js";
 import fichesJuridiquesRouter from "./fiches-juridiques.js";
+import emailRouter from "./email.js";
 
 const router: IRouter = Router();
 
@@ -86,5 +87,6 @@ router.use(actesRouter);
 router.use(reclamationsRouter);
 router.use(workflowsRouter);
 router.use(fichesJuridiquesRouter);
+router.use(emailRouter);
 
 export default router;

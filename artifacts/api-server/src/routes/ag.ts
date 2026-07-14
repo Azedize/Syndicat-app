@@ -7,10 +7,13 @@ import {
   agProxiesTable,
   buildingsTable,
   membersTable,
+  usersTable,
 } from "@workspace/db/schema";
-import { eq, and, desc, sql, count, inArray } from "drizzle-orm";
+import { eq, and, desc, sql, count, inArray, ne } from "drizzle-orm";
 import { requireAuth, requireAdmin, requireOperationalAccess, requireNotTenant } from "../middleware/auth.js";
 import { z } from "zod";
+import { sendEmailToMany } from "../lib/notify.js";
+import { agmInvitationTemplate } from "../lib/email/templates.js";
 
 const router = Router();
 
@@ -184,6 +187,17 @@ router.post("/ag-meetings", requireAuth, requireOperationalAccess, async (req, r
         createdBy: user.userId,
       })
       .returning();
+
+    // Convoke every co-owner/tenant-excluded member of the syndicate (Loi 18-00 requires
+    // written convocation for AG meetings).
+    if (meeting.syndicateId) {
+      const recipients = await db
+        .select({ email: usersTable.email })
+        .from(usersTable)
+        .where(and(eq(usersTable.syndicateId, meeting.syndicateId), ne(usersTable.role, "tenant")));
+      const { subject, html } = agmInvitationTemplate(meeting.title, meeting.date, meeting.time, meeting.location, meeting.type ?? "ag_ordinaire");
+      sendEmailToMany(recipients.map((r) => r.email), subject, html, "agm_invitation", meeting.syndicateId).catch(() => {});
+    }
 
     res.status(201).json({ data: meeting, message: "AG planifiée avec succès" });
   } catch (e) {

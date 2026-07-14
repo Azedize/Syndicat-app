@@ -1,10 +1,12 @@
 import { Router } from "express";
 import { z } from "zod";
 import { db } from "@workspace/db";
-import { meetingsTable, meetingAttendeesTable } from "@workspace/db/schema";
-import { eq, and, inArray, asc } from "drizzle-orm";
+import { meetingsTable, meetingAttendeesTable, usersTable } from "@workspace/db/schema";
+import { eq, and, inArray, asc, ne } from "drizzle-orm";
 import { requireAuth, requireRole } from "../middleware/auth.js";
 import { serverAuditLog } from "../lib/audit.js";
+import { sendEmailToMany } from "../lib/notify.js";
+import { meetingInvitationTemplate } from "../lib/email/templates.js";
 
 const router = Router();
 
@@ -98,6 +100,16 @@ router.post("/meetings", requireAuth, requireRole("super_admin", "syndicate_admi
       syndicateId: syndicateId || undefined,
       details: `Réunion créée: ${meeting.title} le ${meeting.date}`,
     });
+
+    // Invite every member of the syndicate (tenants don't attend meetings — see GET guard above)
+    if (syndicateId) {
+      const recipients = await db
+        .select({ email: usersTable.email })
+        .from(usersTable)
+        .where(and(eq(usersTable.syndicateId, syndicateId), ne(usersTable.role, "tenant")));
+      const { subject, html } = meetingInvitationTemplate(meeting.title, meeting.date, meeting.time, meeting.location, meeting.agenda);
+      sendEmailToMany(recipients.map((r) => r.email), subject, html, "meeting_invitation", syndicateId).catch(() => {});
+    }
 
     res.status(201).json({ data: meeting, message: "Réunion créée avec succès" });
   } catch (err) {

@@ -7,6 +7,8 @@ import { eq, ilike, or, and, count, desc } from "drizzle-orm";
 import { requireAuth, requireRole } from "../middleware/auth.js";
 import { getPagination, buildPagedResponse } from "../lib/paginate.js";
 import { serverAuditLog } from "../lib/audit.js";
+import { sendTransactionalEmail } from "../lib/email/emailService.js";
+import { welcomeTemplate } from "../lib/email/templates.js";
 
 const router = Router();
 
@@ -152,6 +154,17 @@ router.post(
         entityId: created.id,
         details: `${created.email} (${created.role})`,
       });
+
+      const loginUrl = process.env.APP_URL ? `${process.env.APP_URL}/login` : undefined;
+      const { subject, html } = welcomeTemplate(created.name, created.role, loginUrl);
+      sendTransactionalEmail({
+        to: created.email,
+        subject,
+        html,
+        template: "welcome",
+        syndicateId: created.syndicateId,
+        req,
+      }).catch(() => {});
 
       res.status(201).json({ data: created });
     } catch (err) {

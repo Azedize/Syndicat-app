@@ -11,9 +11,12 @@ import {
   productReportsTable,
   productCommentsTable,
   marketplacePromotionsTable,
+  usersTable,
 } from "@workspace/db/schema";
 import { eq, and, desc, asc, ilike, or, inArray, count, ne } from "drizzle-orm";
 import { requireAuth, requireRole } from "../middleware/auth.js";
+import { sendEmail } from "../lib/notify.js";
+import { marketplaceModerationTemplate } from "../lib/email/templates.js";
 
 const router = Router();
 
@@ -445,6 +448,22 @@ router.post(
         .set(updates)
         .where(eq(productsTable.id, id))
         .returning();
+
+      if (product.sellerId && (action === "approve" || action === "reject" || action === "request_modification")) {
+        const [seller] = await db
+          .select({ email: usersTable.email })
+          .from(usersTable)
+          .where(eq(usersTable.id, product.sellerId));
+        if (seller) {
+          const { subject, html } = marketplaceModerationTemplate(
+            product.name ?? "Votre annonce",
+            action === "approve" ? "approved" : action === "reject" ? "rejected" : "modification_requested",
+            reason ?? note,
+          );
+          sendEmail(seller.email, subject, html, "marketplace_moderation", null).catch(() => {});
+        }
+      }
+
       res.json({ data: updated, message: `Action "${action}" effectuée avec succès` });
     } catch (err) {
       req.log.error(err);

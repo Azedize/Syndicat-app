@@ -1,0 +1,8 @@
+uploads = []
+generated = []
+
+[[outputs]]
+id = "5GWBv64lJu2ASZMdqdczI"
+uri = "file://PRODUCTION_AUDIT_REPORT.md"
+type = "text"
+title = "Production Audit Report — SYNDYCAT GLOBAL CPS"

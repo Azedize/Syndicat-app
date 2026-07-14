@@ -22,8 +22,9 @@ import {
   usersTable,
 } from "@workspace/db/schema";
 import { eq, and, inArray, ne } from "drizzle-orm";
-import { createAlert, sendPushToUsers } from "./notify.js";
+import { createAlert, sendPushToUsers, sendEmail } from "./notify.js";
 import { logger } from "./logger.js";
+import { paymentReminderTemplate, latePaymentWarningTemplate } from "./email/templates.js";
 
 export type EscalationLevel =
   | "reminder"
@@ -256,7 +257,7 @@ export async function runDailyEscalationScan(): Promise<EscalationScanResult> {
         // Notify the specific debtor (only them — sendPushToUsers targets by userId)
         if (ownerId) {
           const [ownerUser] = await db
-            .select({ id: usersTable.id })
+            .select({ id: usersTable.id, email: usersTable.email })
             .from(usersTable)
             .where(eq(usersTable.id, ownerId));
 
@@ -266,6 +267,20 @@ export async function runDailyEscalationScan(): Promise<EscalationScanResult> {
               "Avis de recouvrement",
               `Votre solde impayé a atteint le niveau: ${levelLabel}. Veuillez régulariser votre situation auprès du syndic.`,
               { escalationLevel: requiredLevel, escalationId: escalation.id },
+            ).catch(() => {});
+
+            // First-level escalation ("reminder") gets a friendly payment reminder;
+            // anything past that is a formal late-payment warning (mise en demeure).
+            const { subject, html } =
+              requiredLevel === "reminder"
+                ? paymentReminderTemplate(memberName, totalUnpaid.toFixed(2), null, new Date().toISOString().slice(0, 7))
+                : latePaymentWarningTemplate(memberName, levelLabel, Math.floor(overdueMonths), totalUnpaid.toFixed(2));
+            sendEmail(
+              ownerUser.email,
+              subject,
+              html,
+              requiredLevel === "reminder" ? "payment_reminder" : "late_payment_warning",
+              syndicateId,
             ).catch(() => {});
           }
         }

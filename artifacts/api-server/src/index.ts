@@ -6,9 +6,14 @@ import { startContractExpiryScheduler } from "./lib/contract-expiry.js";
 import { startEscalationScheduler } from "./lib/debt-escalation.js";
 import { startElectionReminderScheduler } from "./lib/election-reminders.js";
 import { startMandateExpiryScheduler } from "./lib/mandate-expiry.js";
+import { verifySmtpConnection } from "./lib/email/emailService.js";
 
 // Fail fast on missing auth config — do not wait for first request
 validateAuthConfig();
+
+// Non-blocking SMTP health check — logs whether Gmail delivery is ready without
+// preventing the API from starting if the mailbox is down/misconfigured.
+verifySmtpConnection().catch(() => {});
 
 // Periodically checks provider contracts nearing expiry (60/30/7 days) and sends alerts
 startContractExpiryScheduler();

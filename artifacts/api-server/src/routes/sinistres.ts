@@ -1,9 +1,10 @@
 import { Router } from "express";
 import { db } from "@workspace/db";
-import { sinistresTable, lotsTable, buildingsTable } from "@workspace/db/schema";
+import { sinistresTable, lotsTable, buildingsTable, usersTable } from "@workspace/db/schema";
 import { eq, and, desc, inArray } from "drizzle-orm";
 import { requireAuth, requireAdmin, requireOperationalAccess } from "../middleware/auth.js";
-import { createAlert } from "../lib/notify.js";
+import { createAlert, sendEmailToMany } from "../lib/notify.js";
+import { incidentNotificationTemplate } from "../lib/email/templates.js";
 
 const router = Router();
 
@@ -106,6 +107,19 @@ router.post("/sinistres", requireAuth, async (req, res) => {
       syndicateId: building?.syndicateId ?? null,
       target: "admin",
     }).catch(() => {});
+
+    (async () => {
+      const admins = await db
+        .select({ email: usersTable.email })
+        .from(usersTable)
+        .where(
+          building?.syndicateId
+            ? and(eq(usersTable.syndicateId, building.syndicateId), eq(usersTable.role, "syndicate_admin"))
+            : eq(usersTable.role, "super_admin"),
+        );
+      const { subject, html } = incidentNotificationTemplate(type, description, urgency ?? "normal");
+      await sendEmailToMany(admins.map((a) => a.email), subject, html, "incident_notification", building?.syndicateId ?? null);
+    })().catch(() => {});
 
     res.status(201).json({ data: sinistre, message: "Sinistre déclaré avec succès" });
   } catch (e) {

@@ -1,7 +1,8 @@
 import { Router } from "express";
 import { z } from "zod";
 import { db } from "@workspace/db";
-import { createAlert } from "../lib/notify.js";
+import { createAlert, sendEmailToMany } from "../lib/notify.js";
+import { supportTicketTemplate } from "../lib/email/templates.js";
 import {
   legalAlertsTable,
   supportTicketsTable,
@@ -16,6 +17,7 @@ import {
   subscriptionPlansTable,
   syndicateSubscriptionsTable,
   announcementsTable,
+  usersTable,
 } from "@workspace/db/schema";
 import { eq, and, desc, count, inArray, sql } from "drizzle-orm";
 import { requireAuth, requireRole } from "../middleware/auth.js";
@@ -150,6 +152,20 @@ router.post("/support", requireAuth, async (req, res) => {
       syndicateId: req.user!.syndicateId || null,
       target: "admin",
     }).catch(() => {});
+
+    // Email syndicate/platform admins so support tickets aren't only visible in-app.
+    (async () => {
+      const admins = await db
+        .select({ email: usersTable.email })
+        .from(usersTable)
+        .where(
+          req.user!.syndicateId
+            ? and(eq(usersTable.syndicateId, req.user!.syndicateId), eq(usersTable.role, "syndicate_admin"))
+            : eq(usersTable.role, "super_admin"),
+        );
+      const { subject, html } = supportTicketTemplate(result.data.title, req.user!.name, result.data.priority);
+      await sendEmailToMany(admins.map((a) => a.email), subject, html, "support_ticket", req.user!.syndicateId || null);
+    })().catch(() => {});
 
     res.status(201).json({ data: ticket, message: "Ticket créé" });
   } catch (err) { req.log.error(err); res.status(500).json({ error: "Erreur serveur" }); }

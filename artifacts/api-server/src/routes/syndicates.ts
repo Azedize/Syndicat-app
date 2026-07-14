@@ -5,6 +5,8 @@ import { syndicatesTable, usersTable } from "@workspace/db/schema";
 import { eq } from "drizzle-orm";
 import { requireAuth, requireRole, requireAdmin } from "../middleware/auth.js";
 import { serverAuditLog } from "../lib/audit.js";
+import { sendTransactionalEmail } from "../lib/email/emailService.js";
+import { syndicateCreatedTemplate } from "../lib/email/templates.js";
 
 const router = Router();
 
@@ -196,6 +198,24 @@ router.post("/syndicates", requireAuth, requireRole("super_admin"), async (req, 
       details: syndicate.name,
       platformAction: true,
     });
+
+    if (data.adminId) {
+      const [adminUser] = await db
+        .select({ email: usersTable.email, name: usersTable.name })
+        .from(usersTable)
+        .where(eq(usersTable.id, data.adminId));
+      if (adminUser) {
+        const { subject, html } = syndicateCreatedTemplate(syndicate.name, adminUser.name);
+        sendTransactionalEmail({
+          to: adminUser.email,
+          subject,
+          html,
+          template: "syndicate_created",
+          syndicateId: syndicate.id,
+          req,
+        }).catch(() => {});
+      }
+    }
 
     res.status(201).json({ data: syndicate, message: "Syndicat créé avec succès" });
   } catch (err: any) {
