@@ -13,13 +13,14 @@ import {
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useAuth } from "@/context/AuthContext";
 import { useData } from "@/context/DataContext";
+import { useLanguage } from "@/context/LanguageContext";
 import { useBreakpoints } from "@/hooks/useBreakpoints";
 import { useColors } from "@/hooks/useColors";
 
 type AllRoles = "super_admin" | "syndicate_admin" | "member" | "tenant";
 
-interface MenuItem {
-  label: string;
+interface MenuItemDef {
+  labelKey: string;
   icon: keyof typeof Feather.glyphMap;
   route: string;
   badge?: string | number;
@@ -27,117 +28,117 @@ interface MenuItem {
   roles: AllRoles[];
 }
 
-const MENU_SECTIONS: { title: string; items: MenuItem[] }[] = [
+interface SectionDef {
+  titleKey: string;
+  items: MenuItemDef[];
+}
+
+const MENU_SECTIONS_DEF: SectionDef[] = [
   {
-    title: "Gestion de l'Immeuble",
+    titleKey: "menuSectionBuilding",
     items: [
-      { label: "Immeubles & Résidences", icon: "home", route: "/buildings", color: "#7c3aed", roles: ["super_admin", "syndicate_admin"] },
-      { label: "Lots & Unités", icon: "grid", route: "/lots", color: "#3b82f6", roles: ["super_admin", "syndicate_admin"] },
-      { label: "Copropriétaires", icon: "users", route: "/members", color: "#10b981", roles: ["super_admin", "syndicate_admin"] },
-      { label: "Locataires", icon: "user-check", route: "/locataires", color: "#06b6d4", roles: ["super_admin", "syndicate_admin"] },
-      { label: "Mon Appartement", icon: "home", route: "/mon-lot", color: "#7c3aed", roles: ["member"] },
-      // Tenant gets their own dedicated section below
+      { labelKey: "buildingsResidences", icon: "home",       route: "/buildings",   color: "#7c3aed", roles: ["super_admin", "syndicate_admin"] },
+      { labelKey: "lotsUnits",           icon: "grid",       route: "/lots",        color: "#3b82f6", roles: ["super_admin", "syndicate_admin"] },
+      { labelKey: "owners",              icon: "users",      route: "/members",     color: "#10b981", roles: ["super_admin", "syndicate_admin"] },
+      { labelKey: "locataires",          icon: "user-check", route: "/locataires",  color: "#06b6d4", roles: ["super_admin", "syndicate_admin"] },
+      { labelKey: "myApartment",         icon: "home",       route: "/mon-lot",     color: "#7c3aed", roles: ["member"] },
     ],
   },
   {
-    // ── Tenant only: lease & apartment info ──────────────────────────────────
-    title: "Mon Logement",
+    titleKey: "menuSectionMyHome",
     items: [
-      { label: "Mon Appartement", icon: "home", route: "/mon-lot", color: "#7c3aed", roles: ["tenant"] },
-      { label: "Mon Bail & Loyer", icon: "file-text", route: "/mon-bail", color: "#3b82f6", roles: ["tenant"] },
-      { label: "État des Lieux", icon: "clipboard", route: "/etat-des-lieux", color: "#10b981", roles: ["tenant"] },
+      { labelKey: "myApartment",  icon: "home",      route: "/mon-lot",      color: "#7c3aed", roles: ["tenant"] },
+      { labelKey: "monBail",      icon: "file-text", route: "/mon-bail",     color: "#3b82f6", roles: ["tenant"] },
+      { labelKey: "etatDesLieux", icon: "clipboard", route: "/etat-des-lieux", color: "#10b981", roles: ["tenant"] },
     ],
   },
   {
-    title: "Charges & Finance",
+    titleKey: "menuSectionFinance",
     items: [
-      // Tenants CANNOT access copropriété charges — removed from tenant roles
-      { label: "Charges & Appels de Fonds", icon: "credit-card", route: "/charges", color: "#10b981", roles: ["super_admin", "syndicate_admin", "member"] },
-      { label: "Budget Prévisionnel", icon: "pie-chart", route: "/budget-previsionnel", color: "#3b82f6", roles: ["super_admin", "syndicate_admin"] },
-      { label: "Devis & Factures", icon: "file-text", route: "/invoices", color: "#6366f1", roles: ["super_admin", "syndicate_admin"] },
-      { label: "Bons de Livraison", icon: "package", route: "/bon-livraison", color: "#f97316", roles: ["super_admin", "syndicate_admin"] },
-      { label: "Rapports Financiers", icon: "bar-chart-2", route: "/reports", color: "#7c3aed", roles: ["super_admin", "syndicate_admin"] },
-      { label: "Recouvrement & Escalades", icon: "trending-up", route: "/escalation", color: "#ef4444", roles: ["super_admin", "syndicate_admin"] },
+      { labelKey: "chargesAppels",      icon: "credit-card",  route: "/charges",              color: "#10b981", roles: ["super_admin", "syndicate_admin", "member"] },
+      { labelKey: "budgetPrevisionnel", icon: "pie-chart",    route: "/budget-previsionnel",  color: "#3b82f6", roles: ["super_admin", "syndicate_admin"] },
+      { labelKey: "devisFactures",      icon: "file-text",    route: "/invoices",             color: "#6366f1", roles: ["super_admin", "syndicate_admin"] },
+      { labelKey: "bonLivraison",       icon: "package",      route: "/bon-livraison",        color: "#f97316", roles: ["super_admin", "syndicate_admin"] },
+      { labelKey: "rapportsFinanciers", icon: "bar-chart-2",  route: "/reports",              color: "#7c3aed", roles: ["super_admin", "syndicate_admin"] },
+      { labelKey: "escalationLabel",    icon: "trending-up",  route: "/escalation",           color: "#ef4444", roles: ["super_admin", "syndicate_admin"] },
     ],
   },
   {
-    title: "Maintenance & Travaux",
+    titleKey: "menuSectionMaintenance",
     items: [
-      { label: "Travaux & Interventions", icon: "tool", route: "/travaux", color: "#f59e0b", roles: ["super_admin", "syndicate_admin", "member", "tenant"] },
-      { label: "Prestataires", icon: "briefcase", route: "/prestataires", color: "#3b82f6", roles: ["super_admin", "syndicate_admin"] },
-      { label: "Sinistres & Incidents", icon: "alert-triangle", route: "/sinistres", color: "#ef4444", roles: ["super_admin", "syndicate_admin", "member", "tenant"] },
-      { label: "Travaux Privatifs", icon: "edit-2", route: "/travaux-privatifs", color: "#f97316", roles: ["super_admin", "syndicate_admin", "member", "tenant"] },
-      { label: "Parking & Véhicules", icon: "map-pin", route: "/parking", color: "#7c3aed", roles: ["super_admin", "syndicate_admin", "member", "tenant"] },
+      { labelKey: "travaux",          icon: "tool",           route: "/travaux",           color: "#f59e0b", roles: ["super_admin", "syndicate_admin", "member", "tenant"] },
+      { labelKey: "prestataires",     icon: "briefcase",      route: "/prestataires",      color: "#3b82f6", roles: ["super_admin", "syndicate_admin"] },
+      { labelKey: "sinistres",        icon: "alert-triangle", route: "/sinistres",         color: "#ef4444", roles: ["super_admin", "syndicate_admin", "member", "tenant"] },
+      { labelKey: "travauxPrivatifs", icon: "edit-2",         route: "/travaux-privatifs", color: "#f97316", roles: ["super_admin", "syndicate_admin", "member", "tenant"] },
+      { labelKey: "parkingVehicules", icon: "map-pin",        route: "/parking",           color: "#7c3aed", roles: ["super_admin", "syndicate_admin", "member", "tenant"] },
     ],
   },
   {
-    // Tenants CANNOT attend AG — they are not copropriétaires
-    title: "Assemblée Générale",
+    titleKey: "menuSectionAG",
     items: [
-      { label: "Assemblées Générales", icon: "users", route: "/assemblee-generale", color: "#7c3aed", roles: ["super_admin", "syndicate_admin", "member"] },
-      { label: "Réunions & Convocations", icon: "calendar", route: "/meetings", color: "#3b82f6", roles: ["super_admin", "syndicate_admin", "member"] },
-      { label: "Votes & Résolutions", icon: "check-square", route: "/elections", color: "#f59e0b", roles: ["super_admin", "syndicate_admin", "member"] },
-      { label: "Procès-Verbaux", icon: "file-text", route: "/pv", color: "#6366f1", roles: ["super_admin", "syndicate_admin", "member"] },
+      { labelKey: "assembleesGenerales",  icon: "users",       route: "/assemblee-generale", color: "#7c3aed", roles: ["super_admin", "syndicate_admin", "member"] },
+      { labelKey: "reunionsConvocations", icon: "calendar",    route: "/meetings",            color: "#3b82f6", roles: ["super_admin", "syndicate_admin", "member"] },
+      { labelKey: "votesResolutions",     icon: "check-square",route: "/elections",           color: "#f59e0b", roles: ["super_admin", "syndicate_admin", "member"] },
+      { labelKey: "pvLabel",              icon: "file-text",   route: "/pv",                  color: "#6366f1", roles: ["super_admin", "syndicate_admin", "member"] },
     ],
   },
   {
-    title: "Documents Légaux",
+    titleKey: "menuSectionLegal",
     items: [
-      { label: "Documents de Copropriété", icon: "folder", route: "/documents", color: "#6366f1", roles: ["super_admin", "syndicate_admin", "member", "tenant"] },
-      { label: "Règlement de Copropriété", icon: "book", route: "/reglements", color: "#3b82f6", roles: ["super_admin", "syndicate_admin", "member", "tenant"] },
-      { label: "Actes Administratifs", icon: "file-text", route: "/actes-administratifs", color: "#7c3aed", roles: ["super_admin", "syndicate_admin"] },
-      { label: "Alertes Réglementaires", icon: "shield", route: "/legal", color: "#8b5cf6", roles: ["super_admin", "syndicate_admin"] },
+      { labelKey: "documentsCopro",         icon: "folder",    route: "/documents",           color: "#6366f1", roles: ["super_admin", "syndicate_admin", "member", "tenant"] },
+      { labelKey: "reglementsLabel",         icon: "book",      route: "/reglements",          color: "#3b82f6", roles: ["super_admin", "syndicate_admin", "member", "tenant"] },
+      { labelKey: "actesAdministratifs",     icon: "file-text", route: "/actes-administratifs",color: "#7c3aed", roles: ["super_admin", "syndicate_admin"] },
+      { labelKey: "alertesReglementaires",   icon: "shield",    route: "/legal",               color: "#8b5cf6", roles: ["super_admin", "syndicate_admin"] },
     ],
   },
   {
-    title: "Communication",
+    titleKey: "menuSectionCommunication",
     items: [
-      { label: "Avis aux Copropriétaires", icon: "bell", route: "/annonces", color: "#f59e0b", roles: ["super_admin", "syndicate_admin", "member", "tenant"] },
-      { label: "Publications & Actualités", icon: "rss", route: "/publications", color: "#f97316", roles: ["super_admin", "syndicate_admin", "member", "tenant"] },
-      { label: "Chat & Messagerie", icon: "message-circle", route: "/chat", color: "#ec4899", roles: ["super_admin", "syndicate_admin", "member", "tenant"] },
-      { label: "Messagerie Interne", icon: "mail", route: "/messagerie-interne", color: "#3b82f6", roles: ["super_admin", "syndicate_admin", "member", "tenant"] },
-      { label: "Alertes", icon: "bell", route: "/alerts", color: "#ef4444", roles: ["super_admin", "syndicate_admin", "member", "tenant"] },
+      { labelKey: "avisResidents",          icon: "bell",           route: "/annonces",          color: "#f59e0b", roles: ["super_admin", "syndicate_admin", "member", "tenant"] },
+      { labelKey: "publicationsActualites", icon: "rss",            route: "/publications",      color: "#f97316", roles: ["super_admin", "syndicate_admin", "member", "tenant"] },
+      { labelKey: "chatMessagerie",         icon: "message-circle", route: "/chat",              color: "#ec4899", roles: ["super_admin", "syndicate_admin", "member", "tenant"] },
+      { labelKey: "messagerieInterne",      icon: "mail",           route: "/messagerie-interne",color: "#3b82f6", roles: ["super_admin", "syndicate_admin", "member", "tenant"] },
+      { labelKey: "alerts",                 icon: "bell",           route: "/alerts",            color: "#ef4444", roles: ["super_admin", "syndicate_admin", "member", "tenant"] },
     ],
   },
   {
-    title: "Support & Réclamations",
+    titleKey: "menuSectionSupport",
     items: [
-      { label: "Demandes d'Intervention", icon: "headphones", route: "/support", color: "#ef4444", roles: ["super_admin", "syndicate_admin", "member", "tenant"] },
-      { label: "Réclamations", icon: "inbox", route: "/reclamations", color: "#f97316", roles: ["super_admin", "syndicate_admin", "member", "tenant"] },
+      { labelKey: "demandesIntervention", icon: "headphones", route: "/support",      color: "#ef4444", roles: ["super_admin", "syndicate_admin", "member", "tenant"] },
+      { labelKey: "reclamationsLabel",    icon: "inbox",      route: "/reclamations", color: "#f97316", roles: ["super_admin", "syndicate_admin", "member", "tenant"] },
     ],
   },
   {
-    title: "Marketplace Résidence",
+    titleKey: "menuSectionMarketplace",
     items: [
-      { label: "Mon Panier", icon: "shopping-cart", route: "/cart", color: "#f59e0b", roles: ["member", "syndicate_admin"] },
-      { label: "Mes Commandes", icon: "package", route: "/orders", color: "#6366f1", roles: ["member", "syndicate_admin"] },
-      { label: "Ma Boutique", icon: "shopping-bag", route: "/my-shop", color: "#10b981", roles: ["member", "syndicate_admin"] },
+      { labelKey: "monPanier",    icon: "shopping-cart", route: "/cart",     color: "#f59e0b", roles: ["member", "syndicate_admin"] },
+      { labelKey: "mesCommandes", icon: "package",       route: "/orders",   color: "#6366f1", roles: ["member", "syndicate_admin"] },
+      { labelKey: "maBoutique",   icon: "shopping-bag",  route: "/my-shop",  color: "#10b981", roles: ["member", "syndicate_admin"] },
     ],
   },
   {
-    title: "Administration Plateforme",
+    titleKey: "menuSectionAdmin",
     items: [
-      { label: "Gestion des Utilisateurs", icon: "users", route: "/utilisateurs", color: "#7c3aed", roles: ["super_admin"] },
-      { label: "Tableau de Bord National", icon: "globe", route: "/tableau-national", color: "#6366f1", roles: ["super_admin"] },
-      { label: "Créer un Syndicat", icon: "plus-circle", route: "/syndicate-setup", color: "#10b981", roles: ["super_admin"] },
-      // Audit log restricted to super_admin only (super-admin level governance)
-      { label: "Journal d'Audit", icon: "shield", route: "/journal-audit", color: "#ef4444", roles: ["super_admin"] },
-      { label: "Statistiques Globales", icon: "trending-up", route: "/statistiques", color: "#10b981", roles: ["super_admin", "syndicate_admin"] },
+      { labelKey: "gestionUtilisateurs",  icon: "users",       route: "/utilisateurs",   color: "#7c3aed", roles: ["super_admin"] },
+      { labelKey: "tableauNational",      icon: "globe",        route: "/tableau-national",color: "#6366f1", roles: ["super_admin"] },
+      { labelKey: "creerSyndicat",        icon: "plus-circle",  route: "/syndicate-setup", color: "#10b981", roles: ["super_admin"] },
+      { labelKey: "journalAudit",         icon: "shield",       route: "/journal-audit",   color: "#ef4444", roles: ["super_admin"] },
+      { labelKey: "statistiquesGlobales", icon: "trending-up",  route: "/statistiques",    color: "#10b981", roles: ["super_admin", "syndicate_admin"] },
     ],
   },
   {
-    title: "Abonnements",
+    titleKey: "menuSectionSubscriptions",
     items: [
-      { label: "Plans & Abonnements", icon: "star", route: "/abonnements", color: "#f59e0b", roles: ["super_admin", "syndicate_admin", "member"] },
+      { labelKey: "plansAbonnements", icon: "star", route: "/abonnements", color: "#f59e0b", roles: ["super_admin", "syndicate_admin", "member"] },
     ],
   },
   {
-    title: "Mon Compte",
+    titleKey: "menuSectionAccount",
     items: [
-      { label: "Mon Profil", icon: "user", route: "/profile", color: "#6366f1", roles: ["super_admin", "syndicate_admin", "member", "tenant"] },
-      { label: "Notifications", icon: "bell", route: "/notifications", color: "#ec4899", roles: ["super_admin", "syndicate_admin", "member", "tenant"] },
-      { label: "Paramètres", icon: "settings", route: "/settings", color: "#6b7280", roles: ["super_admin", "syndicate_admin", "member", "tenant"] },
-      { label: "CGU & Confidentialité", icon: "file-text", route: "/cgu", color: "#6b7280", roles: ["super_admin", "syndicate_admin", "member", "tenant"] },
+      { labelKey: "monProfil",     icon: "user",     route: "/profile",       color: "#6366f1", roles: ["super_admin", "syndicate_admin", "member", "tenant"] },
+      { labelKey: "notifications", icon: "bell",     route: "/notifications", color: "#ec4899", roles: ["super_admin", "syndicate_admin", "member", "tenant"] },
+      { labelKey: "settings",      icon: "settings", route: "/settings",      color: "#6b7280", roles: ["super_admin", "syndicate_admin", "member", "tenant"] },
+      { labelKey: "cguLabel",      icon: "file-text",route: "/cgu",           color: "#6b7280", roles: ["super_admin", "syndicate_admin", "member", "tenant"] },
     ],
   },
 ];
@@ -148,6 +149,7 @@ export default function MoreScreen() {
   const { user, logout } = useAuth();
   const { alerts, elections, supportTickets, members, cart } = useData();
   const { isWide } = useBreakpoints();
+  const { t } = useLanguage();
   const topPad = isWide ? 0 : Platform.OS === "web" ? 67 : insets.top;
 
   const role = user?.role ?? "member";
@@ -167,47 +169,51 @@ export default function MoreScreen() {
     router.replace("/login");
   };
 
-  const visibleSections = MENU_SECTIONS.map((section) => ({
-    ...section,
-    items: section.items.filter((item) => item.roles.includes(role as any)),
+  // Build translated sections from definitions
+  const visibleSections = MENU_SECTIONS_DEF.map((section) => ({
+    title: t(section.titleKey),
+    titleKey: section.titleKey,
+    items: section.items
+      .filter((item) => item.roles.includes(role as any))
+      .map((item) => ({ ...item, label: t(item.labelKey) })),
   })).filter((s) => s.items.length > 0);
 
-  const getBadge = (item: MenuItem): string | number | undefined => {
-    if (item.route === "/alerts" && unreadAlerts > 0) return unreadAlerts;
-    if (item.route === "/cart" && cartCount > 0) return cartCount;
-    if (item.route === "/charges" && openTickets > 0 && role !== "member") return openTickets;
-    return item.badge;
+  const getBadge = (route: string): string | number | undefined => {
+    if (route === "/alerts" && unreadAlerts > 0) return unreadAlerts;
+    if (route === "/cart" && cartCount > 0) return cartCount;
+    if (route === "/charges" && openTickets > 0 && role !== "member") return openTickets;
+    return undefined;
   };
 
   const roleLabel =
-    role === "super_admin" ? "Super Administrateur" :
-    role === "syndicate_admin" ? "Gestionnaire Syndic" :
-    role === "tenant" ? "Locataire" : "Copropriétaire";
+    role === "super_admin" ? t("superAdministrateur") :
+    role === "syndicate_admin" ? t("gestionnairesSyndic") :
+    role === "tenant" ? t("roleTenant") : t("copropriétaire");
 
   const roleIcon: keyof typeof Feather.glyphMap =
     role === "super_admin" ? "shield" :
     role === "syndicate_admin" ? "briefcase" :
     role === "tenant" ? "key" : "home";
 
-  // Stats strip items — tenant sees a simplified view (no financial counters)
+  // Stats strip items
   const statsItems = role === "tenant"
     ? [
-        { icon: "bell" as const, label: "Alertes", value: unreadAlerts, color: "#ef4444", show: true },
-        { icon: "tool" as const, label: "Travaux", value: openTickets, color: "#8b5cf6", show: true },
-        { icon: "message-circle" as const, label: "Messages", value: 0, color: "#ec4899", show: true },
+        { icon: "bell" as const, label: t("alerts"), value: unreadAlerts, color: "#ef4444", show: true },
+        { icon: "tool" as const, label: t("travaux"), value: openTickets, color: "#8b5cf6", show: true },
+        { icon: "message-circle" as const, label: t("chat"), value: 0, color: "#ec4899", show: true },
       ]
     : [
-        { icon: "bell" as const, label: "Alertes", value: unreadAlerts, color: "#ef4444", show: true },
-        { icon: "check-square" as const, label: "Votes", value: openElections, color: "#f59e0b", show: true },
-        { icon: "tool" as const, label: "Travaux", value: openTickets, color: "#8b5cf6", show: role !== "member" },
-        { icon: "users" as const, label: "Copropriétaires", value: activeOwners, color: colors.primary, show: role !== "member" },
-        { icon: "shopping-cart" as const, label: "Panier", value: cartCount, color: "#f97316", show: role === "member" },
+        { icon: "bell" as const, label: t("alerts"), value: unreadAlerts, color: "#ef4444", show: true },
+        { icon: "check-square" as const, label: t("votes"), value: openElections, color: "#f59e0b", show: true },
+        { icon: "tool" as const, label: t("travaux"), value: openTickets, color: "#8b5cf6", show: role !== "member" },
+        { icon: "users" as const, label: t("owners"), value: activeOwners, color: colors.primary, show: role !== "member" },
+        { icon: "shopping-cart" as const, label: t("panierLabel"), value: cartCount, color: "#f97316", show: role === "member" },
       ];
 
   return (
     <View style={[styles.root, { backgroundColor: colors.background }]}>
       <View style={[styles.header, { paddingTop: topPad + 16, backgroundColor: colors.card, borderBottomColor: colors.border }]}>
-        <Text style={[styles.title, { color: colors.foreground }]}>Menu</Text>
+        <Text style={[styles.title, { color: colors.foreground }]}>{t("menuLabel")}</Text>
         <TouchableOpacity
           style={[styles.searchBtn, { backgroundColor: colors.secondary }]}
           onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); router.push("/search" as any); }}
@@ -259,15 +265,15 @@ export default function MoreScreen() {
         {/* Sections */}
         <View style={isWide ? styles.sectionsGrid : undefined}>
           {visibleSections.map((section) => (
-            <View key={section.title} style={[styles.section, isWide && styles.sectionDesktop]}>
+            <View key={section.titleKey} style={[styles.section, isWide && styles.sectionDesktop]}>
               <Text style={[styles.sectionTitle, { color: colors.mutedForeground }]}>
                 {section.title.toUpperCase()}
               </Text>
               <View style={[styles.sectionCard, { backgroundColor: colors.card, borderColor: colors.border }]}>
                 {section.items.map((item, i) => {
-                  const badge = getBadge(item);
+                  const badge = getBadge(item.route);
                   return (
-                    <View key={item.label}>
+                    <View key={item.labelKey}>
                       {i > 0 ? <View style={[styles.sep, { backgroundColor: colors.border }]} /> : null}
                       <TouchableOpacity
                         style={styles.menuRow}
@@ -323,7 +329,7 @@ export default function MoreScreen() {
           activeOpacity={0.7}
         >
           <Feather name="log-out" size={16} color={colors.destructive} />
-          <Text style={[styles.logoutText, { color: colors.destructive }]}>Se déconnecter</Text>
+          <Text style={[styles.logoutText, { color: colors.destructive }]}>{t("logoutLabel")}</Text>
         </TouchableOpacity>
       </ScrollView>
     </View>

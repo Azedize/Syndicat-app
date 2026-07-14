@@ -24,7 +24,7 @@ import { AuthProvider, useAuth } from "@/context/AuthContext";
 import { ActivityProvider } from "@/context/ActivityContext";
 import { DataProvider } from "@/context/DataContext";
 import { FavoritesProvider } from "@/context/FavoritesContext";
-import { LanguageProvider } from "@/context/LanguageContext";
+import { LanguageProvider, useLanguage } from "@/context/LanguageContext";
 import { SearchProvider } from "@/context/SearchContext";
 import { ThemeProvider } from "@/context/ThemeContext";
 import { ToastProvider } from "@/context/ToastContext";
@@ -46,6 +46,7 @@ function AuthGate() {
   const segments = useSegments();
   const { isWide } = useBreakpoints();
   const colors = useColors();
+  const { isRTL } = useLanguage();
 
   useEffect(() => {
     if (isLoading) return;
@@ -64,9 +65,11 @@ function AuthGate() {
     segments[0] === "reset-password" ||
     !user;
 
+  const direction = isRTL ? "rtl" : "ltr";
+
   if (isWide && user && !inAuthRoute && Platform.OS === "web") {
     return (
-      <View style={{ flex: 1, flexDirection: "row", backgroundColor: colors.background }}>
+      <View style={{ flex: 1, flexDirection: "row", backgroundColor: colors.background, direction } as any}>
         <SidebarNav />
         <View style={{ flex: 1, overflow: "hidden" as any }}>
           <Slot />
@@ -79,7 +82,7 @@ function AuthGate() {
   }
 
   return (
-    <View style={{ flex: 1 }}>
+    <View style={{ flex: 1, direction } as any}>
       <Slot />
       {user && !inAuthRoute && <AIAssistant />}
       {user && !inAuthRoute && <NotificationManager />}

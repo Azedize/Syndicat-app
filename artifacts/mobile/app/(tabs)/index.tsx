@@ -17,48 +17,55 @@ import { useAuth } from "@/context/AuthContext";
 import { useActivity } from "@/context/ActivityContext";
 import { useData } from "@/context/DataContext";
 import { useFavorites } from "@/context/FavoritesContext";
+import { useLanguage } from "@/context/LanguageContext";
 import { SIDEBAR_COMPACT, SIDEBAR_FULL, useBreakpoints } from "@/hooks/useBreakpoints";
 import { useColors } from "@/hooks/useColors";
 
-const QUICK_ACTIONS_SUPER = [
-  { label: "Syndicats", icon: "briefcase" as const, route: "/members" as const, color: "#7c3aed" },
-  { label: "Finance", icon: "bar-chart-2" as const, route: "/finance" as const, color: "#3b82f6" },
-  { label: "Immeubles", icon: "home" as const, route: "/buildings" as const, color: "#10b981" },
-  { label: "Tableau National", icon: "globe" as const, route: "/tableau-national" as const, color: "#7c3aed" },
-  { label: "Rapports", icon: "pie-chart" as const, route: "/reports" as const, color: "#10b981" },
-  { label: "Alertes", icon: "bell" as const, route: "/alerts" as const, color: "#f59e0b" },
-  { label: "Juridique", icon: "shield" as const, route: "/legal" as const, color: "#8b5cf6" },
-  { label: "Audit", icon: "file-text" as const, route: "/journal-audit" as const, color: "#ef4444" },
+type QuickActionKey = {
+  labelKey: string;
+  icon: React.ComponentProps<typeof Feather>["name"];
+  route: string;
+  color: string;
+};
+
+const QUICK_ACTIONS_SUPER: QuickActionKey[] = [
+  { labelKey: "syndicates",    icon: "briefcase",   route: "/members",           color: "#7c3aed" },
+  { labelKey: "finance",       icon: "bar-chart-2", route: "/finance",           color: "#3b82f6" },
+  { labelKey: "buildings",     icon: "home",        route: "/buildings",         color: "#10b981" },
+  { labelKey: "tableauNational",icon: "globe",      route: "/tableau-national",  color: "#7c3aed" },
+  { labelKey: "reports",       icon: "pie-chart",   route: "/reports",           color: "#10b981" },
+  { labelKey: "alerts",        icon: "bell",        route: "/alerts",            color: "#f59e0b" },
+  { labelKey: "legal",         icon: "shield",      route: "/legal",             color: "#8b5cf6" },
+  { labelKey: "auditLog",      icon: "file-text",   route: "/journal-audit",     color: "#ef4444" },
 ];
 
-const QUICK_ACTIONS_ADMIN = [
-  { label: "Copropriétaires", icon: "users" as const, route: "/members" as const, color: "#7c3aed" },
-  { label: "Charges", icon: "credit-card" as const, route: "/charges" as const, color: "#10b981" },
-  { label: "Travaux", icon: "tool" as const, route: "/travaux" as const, color: "#f59e0b" },
-  { label: "Assemblées", icon: "users" as const, route: "/assemblee-generale" as const, color: "#6366f1" },
-  { label: "Tableau Financier", icon: "bar-chart-2" as const, route: "/tableau-bord-financier" as const, color: "#3b82f6" },
-  { label: "Prestataires", icon: "briefcase" as const, route: "/prestataires" as const, color: "#f97316" },
-  { label: "Documents", icon: "folder" as const, route: "/documents" as const, color: "#6366f1" },
-  { label: "Immeubles", icon: "home" as const, route: "/buildings" as const, color: "#10b981" },
+const QUICK_ACTIONS_ADMIN: QuickActionKey[] = [
+  { labelKey: "owners",        icon: "users",       route: "/members",                   color: "#7c3aed" },
+  { labelKey: "charges",       icon: "credit-card", route: "/charges",                   color: "#10b981" },
+  { labelKey: "travaux",       icon: "tool",        route: "/travaux",                   color: "#f59e0b" },
+  { labelKey: "assemblee",     icon: "users",       route: "/assemblee-generale",        color: "#6366f1" },
+  { labelKey: "tableauBord",   icon: "bar-chart-2", route: "/tableau-bord-financier",    color: "#3b82f6" },
+  { labelKey: "prestataires",  icon: "briefcase",   route: "/prestataires",              color: "#f97316" },
+  { labelKey: "documents",     icon: "folder",      route: "/documents",                 color: "#6366f1" },
+  { labelKey: "buildings",     icon: "home",        route: "/buildings",                 color: "#10b981" },
 ];
 
-const QUICK_ACTIONS_MEMBER = [
-  { label: "Mon Appart.", icon: "home" as const, route: "/mon-lot" as const, color: "#7c3aed" },
-  { label: "Charges", icon: "credit-card" as const, route: "/charges" as const, color: "#10b981" },
-  { label: "Travaux", icon: "tool" as const, route: "/travaux" as const, color: "#f59e0b" },
-  { label: "Assemblées", icon: "users" as const, route: "/assemblee-generale" as const, color: "#6366f1" },
-  { label: "Documents", icon: "folder" as const, route: "/documents" as const, color: "#6366f1" },
-  { label: "Chat", icon: "message-circle" as const, route: "/chat" as const, color: "#3b82f6" },
+const QUICK_ACTIONS_MEMBER: QuickActionKey[] = [
+  { labelKey: "myApartment",   icon: "home",           route: "/mon-lot",            color: "#7c3aed" },
+  { labelKey: "charges",       icon: "credit-card",    route: "/charges",            color: "#10b981" },
+  { labelKey: "travaux",       icon: "tool",           route: "/travaux",            color: "#f59e0b" },
+  { labelKey: "assemblee",     icon: "users",          route: "/assemblee-generale", color: "#6366f1" },
+  { labelKey: "documents",     icon: "folder",         route: "/documents",          color: "#6366f1" },
+  { labelKey: "chat",          icon: "message-circle", route: "/chat",               color: "#3b82f6" },
 ];
 
-// Tenants: lease info, maintenance, documents, chat — NO financial/assembly access
-const QUICK_ACTIONS_TENANT = [
-  { label: "Mon Appart.", icon: "home" as const, route: "/mon-lot" as const, color: "#7c3aed" },
-  { label: "Mon Bail", icon: "file-text" as const, route: "/mon-bail" as const, color: "#3b82f6" },
-  { label: "Travaux", icon: "tool" as const, route: "/travaux" as const, color: "#f59e0b" },
-  { label: "Incidents", icon: "alert-triangle" as const, route: "/sinistres" as const, color: "#ef4444" },
-  { label: "Documents", icon: "folder" as const, route: "/documents" as const, color: "#6366f1" },
-  { label: "Chat", icon: "message-circle" as const, route: "/chat" as const, color: "#ec4899" },
+const QUICK_ACTIONS_TENANT: QuickActionKey[] = [
+  { labelKey: "myApartment",   icon: "home",           route: "/mon-lot",    color: "#7c3aed" },
+  { labelKey: "monBail",       icon: "file-text",      route: "/mon-bail",   color: "#3b82f6" },
+  { labelKey: "travaux",       icon: "tool",           route: "/travaux",    color: "#f59e0b" },
+  { labelKey: "incidents",     icon: "alert-triangle", route: "/sinistres",  color: "#ef4444" },
+  { labelKey: "documents",     icon: "folder",         route: "/documents",  color: "#6366f1" },
+  { labelKey: "chat",          icon: "message-circle", route: "/chat",       color: "#ec4899" },
 ];
 
 const ACTION_GAP = 10;
@@ -70,6 +77,7 @@ export default function DashboardScreen() {
   const { members, elections, meetings, transactions, syndicates, alerts, conversations, cotisations, supportTickets } = useData();
   const { favorites } = useFavorites();
   const { activities } = useActivity();
+  const { t } = useLanguage();
   const [dismissedAlerts, setDismissedAlerts] = useState<Set<string>>(new Set());
   const { isWide, isDesktop, isTablet, width: screenWidth } = useBreakpoints();
 
@@ -78,6 +86,7 @@ export default function DashboardScreen() {
   const isSuperAdmin = user.role === "super_admin";
   const isSyndicateAdmin = user.role === "syndicate_admin";
   const isMember = user.role === "member";
+  const isTenant = user.role === "tenant";
   const isAdmin = isSuperAdmin || isSyndicateAdmin;
 
   const activeMembers = members.filter((m) => m.status === "active").length;
@@ -90,8 +99,7 @@ export default function DashboardScreen() {
   const unreadAlerts = alerts.filter((a) => !a.read && !dismissedAlerts.has(a.id));
   const totalUnread = conversations.reduce((s, c) => s + c.unread, 0);
 
-  const isTenant = user.role === "tenant";
-  const quickActions = isSuperAdmin
+  const quickActionsRaw = isSuperAdmin
     ? QUICK_ACTIONS_SUPER
     : isSyndicateAdmin
     ? QUICK_ACTIONS_ADMIN
@@ -99,12 +107,22 @@ export default function DashboardScreen() {
     ? QUICK_ACTIONS_TENANT
     : QUICK_ACTIONS_MEMBER;
 
+  const quickActions = quickActionsRaw.map((a) => ({ ...a, label: t(a.labelKey) }));
+
   const greetingTime = () => {
     const h = new Date().getHours();
-    if (h < 12) return "Bonjour";
-    if (h < 18) return "Bon après-midi";
-    return "Bonsoir";
+    if (h < 12) return t("greetingMorning");
+    if (h < 18) return t("greetingAfternoon");
+    return t("greetingEvening");
   };
+
+  const roleLabel = isSuperAdmin
+    ? t("superAdministrateur")
+    : isSyndicateAdmin
+    ? t("syndicateAdminRole")
+    : isTenant
+    ? t("roleTenant")
+    : t("roleMember");
 
   const topPadding = isWide ? 0 : (Platform.OS === "web" ? 67 : insets.top);
   const topAlert = unreadAlerts[0];
@@ -156,9 +174,7 @@ export default function DashboardScreen() {
         </View>
         <View style={styles.roleBadge}>
           <Feather name={isSuperAdmin ? "shield" : isSyndicateAdmin ? "briefcase" : "user"} size={11} color="rgba(255,255,255,0.9)" />
-          <Text style={styles.roleBadgeText}>
-            {isSuperAdmin ? "Super Administrateur" : isSyndicateAdmin ? "Admin Syndicat" : isTenant ? "Locataire" : "Membre"}
-          </Text>
+          <Text style={styles.roleBadgeText}>{roleLabel}</Text>
         </View>
       </View>
 
@@ -212,9 +228,9 @@ export default function DashboardScreen() {
         {!isTenant && upcomingMeetings.length > 0 && (
           <View style={{ gap: 8 }}>
             <View style={styles.sectionRow}>
-              <Text style={[styles.sectionTitle, { color: colors.foreground }]}>Prochaines réunions</Text>
+              <Text style={[styles.sectionTitle, { color: colors.foreground }]}>{t("nextMeetings")}</Text>
               <TouchableOpacity onPress={() => router.push("/meetings" as any)}>
-                <Text style={[styles.seeAll, { color: colors.primary }]}>Tout voir</Text>
+                <Text style={[styles.seeAll, { color: colors.primary }]}>{t("seeAll")}</Text>
               </TouchableOpacity>
             </View>
             <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: 12, paddingEnd: 4 }}>
@@ -252,8 +268,8 @@ export default function DashboardScreen() {
               <Feather name="check-square" size={20} color="#fff" />
             </View>
             <View style={{ flex: 1 }}>
-              <Text style={styles.electionBannerLabel}>Élection en cours</Text>
-              <Text style={styles.electionBannerTitle}>{openElections} scrutin(s) ouvert(s) — Votez maintenant!</Text>
+              <Text style={styles.electionBannerLabel}>{t("ongoingElection")}</Text>
+              <Text style={styles.electionBannerTitle}>{openElections} {t("electionVoteNow")}</Text>
             </View>
             <Feather name="chevron-right" size={18} color="rgba(255,255,255,0.8)" />
           </TouchableOpacity>
@@ -261,47 +277,47 @@ export default function DashboardScreen() {
 
         {/* Stats */}
         <View style={styles.section}>
-          <Text style={[styles.sectionTitle, { color: colors.foreground }]}>Vue d'ensemble</Text>
+          <Text style={[styles.sectionTitle, { color: colors.foreground }]}>{t("overviewLabel")}</Text>
           {isSuperAdmin ? (
             <>
               <View style={styles.statsRow}>
-                <StatCard label="Syndicats" value={syndicates.length} icon="briefcase" trend="+2 ce mois" trendUp />
-                <StatCard label="Membres total" value={syndicates.reduce((s, sy) => s + sy.members, 0)} icon="users" trend="+12%" trendUp />
+                <StatCard label={t("syndicates")} value={syndicates.length} icon="briefcase" trend="+2" trendUp />
+                <StatCard label={t("totalMembers")} value={syndicates.reduce((s, sy) => s + sy.members, 0)} icon="users" trend="+12%" trendUp />
               </View>
               <View style={styles.statsRow}>
-                <StatCard label="Actifs" value={syndicates.filter((s) => s.status === "active").length} icon="activity" iconColor="#10b981" />
-                <StatCard label="Tickets ouverts" value={supportTickets.filter((t) => t.status === "open").length} icon="headphones" iconColor="#ef4444" subtitle="support" />
+                <StatCard label={t("activeCount")} value={syndicates.filter((s) => s.status === "active").length} icon="activity" iconColor="#10b981" />
+                <StatCard label={t("openTickets")} value={supportTickets.filter((t) => t.status === "open").length} icon="headphones" iconColor="#ef4444" subtitle={t("support")} />
               </View>
             </>
           ) : isSyndicateAdmin ? (
             <>
               <View style={styles.statsRow}>
-                <StatCard label="Membres actifs" value={activeMembers} icon="users" trend="+3 ce mois" trendUp />
-                <StatCard label="Revenus (MAD)" value={`${(totalRevenue / 1000).toFixed(1)}k`} icon="trending-up" trend="+8%" trendUp />
+                <StatCard label={t("activeMembers")} value={activeMembers} icon="users" trend="+3" trendUp />
+                <StatCard label={t("revenue")} value={`${(totalRevenue / 1000).toFixed(1)}k`} icon="trending-up" trend="+8%" trendUp />
               </View>
               <View style={styles.statsRow}>
-                <StatCard label="Cotisations dues" value={pendingCotisations} icon="alert-circle" iconColor="#f59e0b" subtitle="en attente" />
-                <StatCard label="Réunions prévues" value={upcomingMeetings.length} icon="calendar" iconColor="#3b82f6" />
+                <StatCard label={t("dueCotisations")} value={pendingCotisations} icon="alert-circle" iconColor="#f59e0b" subtitle={t("pendingLabel")} />
+                <StatCard label={t("scheduledMeetings")} value={upcomingMeetings.length} icon="calendar" iconColor="#3b82f6" />
               </View>
             </>
           ) : (
             <>
               {(() => {
                 const myCot = cotisations.length > 0 ? cotisations[0] : null;
-                const cotLabel = myCot?.status === "paid" ? "Payée" : myCot?.status === "overdue" ? "En retard" : "En attente";
+                const cotLabel = myCot?.status === "paid" ? t("paid") : myCot?.status === "overdue" ? t("overdue") : t("pendingLabel");
                 const cotColor = myCot?.status === "paid" ? "#10b981" : myCot?.status === "overdue" ? "#ef4444" : "#f59e0b";
                 const myMember = members.find((m) => m.email === user.email);
-                const memberStatus = myMember?.status === "active" ? "Actif" : myMember?.status === "inactive" ? "Inactif" : "En attente";
+                const memberStatus = myMember?.status === "active" ? t("active") : myMember?.status === "inactive" ? t("inactive") : t("pendingLabel");
                 const memberColor = myMember?.status === "active" ? "#10b981" : myMember?.status === "inactive" ? "#ef4444" : "#f59e0b";
                 return (
                   <>
                     <View style={styles.statsRow}>
-                      <StatCard label="Mon statut" value={memberStatus} icon="check-circle" iconColor={memberColor} />
-                      <StatCard label="Cotisation" value={cotLabel} icon="credit-card" iconColor={cotColor} />
+                      <StatCard label={t("myStatus")} value={memberStatus} icon="check-circle" iconColor={memberColor} />
+                      <StatCard label={t("cotisationLabel")} value={cotLabel} icon="credit-card" iconColor={cotColor} />
                     </View>
                     <View style={styles.statsRow}>
-                      <StatCard label="Elections" value={openElections} icon="check-square" iconColor="#f59e0b" />
-                      <StatCard label="Solde dû" value={myCot?.status !== "paid" ? `${myCot?.amount ?? 0} MAD` : "0 MAD"} icon="dollar-sign" iconColor={myCot?.status !== "paid" ? "#ef4444" : "#10b981"} />
+                      <StatCard label={t("elections")} value={openElections} icon="check-square" iconColor="#f59e0b" />
+                      <StatCard label={t("amountDue")} value={myCot?.status !== "paid" ? `${myCot?.amount ?? 0} MAD` : "0 MAD"} icon="dollar-sign" iconColor={myCot?.status !== "paid" ? "#ef4444" : "#10b981"} />
                     </View>
                   </>
                 );
@@ -312,11 +328,11 @@ export default function DashboardScreen() {
 
         {/* Quick actions — responsive grid with exact widths */}
         <View style={styles.section}>
-          <Text style={[styles.sectionTitle, { color: colors.foreground }]}>Accès rapide</Text>
+          <Text style={[styles.sectionTitle, { color: colors.foreground }]}>{t("quickAccess")}</Text>
           <View style={styles.actionsGrid}>
             {quickActions.map((a) => (
               <TouchableOpacity
-                key={a.label}
+                key={a.labelKey}
                 style={[
                   styles.actionBtn,
                   {
@@ -341,9 +357,9 @@ export default function DashboardScreen() {
         {favorites.length > 0 && (
           <View style={styles.section}>
             <View style={styles.sectionRow}>
-              <Text style={[styles.sectionTitle, { color: colors.foreground }]}>Mes favoris</Text>
+              <Text style={[styles.sectionTitle, { color: colors.foreground }]}>{t("myFavorites")}</Text>
               <TouchableOpacity onPress={() => router.push("/favorites" as any)}>
-                <Text style={[styles.seeAll, { color: colors.primary }]}>Voir tout</Text>
+                <Text style={[styles.seeAll, { color: colors.primary }]}>{t("seeAll")}</Text>
               </TouchableOpacity>
             </View>
             <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: 10, paddingEnd: 4 }}>
@@ -367,9 +383,9 @@ export default function DashboardScreen() {
         {/* Recent activity */}
         <View style={styles.section}>
           <View style={styles.sectionRow}>
-            <Text style={[styles.sectionTitle, { color: colors.foreground }]}>Activité récente</Text>
+            <Text style={[styles.sectionTitle, { color: colors.foreground }]}>{t("recentActivity")}</Text>
             <TouchableOpacity onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); router.push("/activity" as any); }}>
-              <Text style={[styles.seeAll, { color: colors.primary }]}>Voir tout</Text>
+              <Text style={[styles.seeAll, { color: colors.primary }]}>{t("seeAll")}</Text>
             </TouchableOpacity>
           </View>
           <View style={[styles.activityCard, { backgroundColor: colors.card, borderColor: colors.border }]}>
@@ -390,24 +406,24 @@ export default function DashboardScreen() {
                 </View>
               ))
             ) : isAdmin ? (
-              transactions.slice(0, 5).map((t, i) => (
+              transactions.slice(0, 5).map((tx, i) => (
                 <View
-                  key={t.id}
+                  key={tx.id}
                   style={[styles.activityItem, i < 4 ? { borderBottomWidth: 1, borderBottomColor: colors.border } : null]}
                 >
-                  <View style={[styles.activityIcon, { backgroundColor: t.type === "cotisation" ? "#7c3aed18" : t.type === "depense" ? "#ef444418" : "#10b98118" }]}>
+                  <View style={[styles.activityIcon, { backgroundColor: tx.type === "cotisation" ? "#7c3aed18" : tx.type === "depense" ? "#ef444418" : "#10b98118" }]}>
                     <Feather
-                      name={t.type === "cotisation" ? "credit-card" : t.type === "depense" ? "arrow-up-circle" : t.type === "salaire" ? "user" : "arrow-down-circle"}
+                      name={tx.type === "cotisation" ? "credit-card" : tx.type === "depense" ? "arrow-up-circle" : tx.type === "salaire" ? "user" : "arrow-down-circle"}
                       size={14}
-                      color={t.type === "cotisation" ? colors.primary : t.type === "depense" ? colors.destructive : "#10b981"}
+                      color={tx.type === "cotisation" ? colors.primary : tx.type === "depense" ? colors.destructive : "#10b981"}
                     />
                   </View>
                   <View style={{ flex: 1 }}>
-                    <Text style={[styles.activityLabel, { color: colors.foreground }]} numberOfLines={1}>{t.label}</Text>
-                    <Text style={[styles.activityDate, { color: colors.mutedForeground }]}>{t.date}</Text>
+                    <Text style={[styles.activityLabel, { color: colors.foreground }]} numberOfLines={1}>{tx.label}</Text>
+                    <Text style={[styles.activityDate, { color: colors.mutedForeground }]}>{tx.date}</Text>
                   </View>
-                  <Text style={[styles.activityAmount, { color: t.type === "depense" || t.type === "salaire" ? colors.destructive : colors.success }]}>
-                    {t.type === "depense" || t.type === "salaire" ? "-" : "+"}{t.amount} MAD
+                  <Text style={[styles.activityAmount, { color: tx.type === "depense" || tx.type === "salaire" ? colors.destructive : colors.success }]}>
+                    {tx.type === "depense" || tx.type === "salaire" ? "-" : "+"}{tx.amount} MAD
                   </Text>
                 </View>
               ))
@@ -420,8 +436,8 @@ export default function DashboardScreen() {
                 <View style={[styles.activityEmptyIcon, { backgroundColor: colors.primary + "15" }]}>
                   <Feather name="activity" size={22} color={colors.primary} />
                 </View>
-                <Text style={[styles.activityEmptyTitle, { color: colors.foreground }]}>Aucune activité récente</Text>
-                <Text style={[styles.activityEmptyText, { color: colors.mutedForeground }]}>Vos actions apparaîtront ici — votez, payez vos cotisations, confirmez vos présences…</Text>
+                <Text style={[styles.activityEmptyTitle, { color: colors.foreground }]}>{t("noRecentActivity")}</Text>
+                <Text style={[styles.activityEmptyText, { color: colors.mutedForeground }]}>{t("noRecentActivityDesc")}</Text>
               </TouchableOpacity>
             )}
           </View>

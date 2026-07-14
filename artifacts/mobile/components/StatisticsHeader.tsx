@@ -23,7 +23,6 @@
  */
 
 import { Feather } from "@expo/vector-icons";
-import { useRouter } from "expo-router";
 import React from "react";
 import {
   Platform,
@@ -35,6 +34,7 @@ import {
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useBreakpoints } from "@/hooks/useBreakpoints";
 import { useColors } from "@/hooks/useColors";
+import { useBackNavigation } from "@/hooks/useBackNavigation";
 import { StatItem } from "@/components/StatsStrip";
 
 interface ActionButton {
@@ -66,12 +66,12 @@ export default function StatisticsHeader({
   stats = [],
 }: Props) {
   const insets = useSafeAreaInsets();
-  const router = useRouter();
   const { isWide } = useBreakpoints();
   const colors = useColors();
+  const goBack = useBackNavigation();
 
   const topPad = isWide ? 0 : Platform.OS === "web" ? 67 : insets.top;
-  const handleBack = onBack ?? (() => router.back());
+  const handleBack = onBack ?? goBack;
 
   return (
     <View>

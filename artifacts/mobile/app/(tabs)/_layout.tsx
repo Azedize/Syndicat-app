@@ -16,6 +16,7 @@ import { useRole } from "@/hooks/usePermission";
 import { useData } from "@/context/DataContext";
 import { useBreakpoints } from "@/hooks/useBreakpoints";
 import { useColors } from "@/hooks/useColors";
+import { useLanguage } from "@/context/LanguageContext";
 
 const ICON_MAP: Record<string, keyof typeof Feather.glyphMap> = {
   index: "home",
@@ -211,6 +212,7 @@ const ts = StyleSheet.create({
 
 export default function TabLayout() {
   const { isSuperAdmin, isSyndicateAdmin, isAdmin, isTenant, role } = useRole();
+  const { t } = useLanguage();
   const hiddenTabStyle = { display: "none" as const };
 
   return (
@@ -219,7 +221,7 @@ export default function TabLayout() {
       screenOptions={{ headerShown: false }}
     >
       {/* Dashboard — all roles */}
-      <Tabs.Screen name="index" options={{ title: "Dashboard" }} />
+      <Tabs.Screen name="index" options={{ title: t("dashboard") }} />
 
       {/* Members / Syndicats — admin only.
           Super Admin sees "Syndicats" (platform list).
@@ -227,7 +229,7 @@ export default function TabLayout() {
       <Tabs.Screen
         name="members"
         options={{
-          title: isSuperAdmin ? "Syndicats" : "Membres",
+          title: isSuperAdmin ? t("syndicates") : t("members"),
           tabBarItemStyle: isAdmin ? undefined : hiddenTabStyle,
         }}
       />
@@ -238,7 +240,7 @@ export default function TabLayout() {
       <Tabs.Screen
         name="finance"
         options={{
-          title: "Finance",
+          title: t("finance"),
           tabBarItemStyle: isAdmin ? undefined : hiddenTabStyle,
         }}
       />
@@ -248,13 +250,13 @@ export default function TabLayout() {
       <Tabs.Screen
         name="marketplace"
         options={{
-          title: "Marketplace",
+          title: t("marketplace"),
           tabBarItemStyle: isTenant ? hiddenTabStyle : undefined,
         }}
       />
 
       {/* More — all roles (content gated per role inside the screen) */}
-      <Tabs.Screen name="more" options={{ title: "Plus" }} />
+      <Tabs.Screen name="more" options={{ title: t("more") }} />
     </Tabs>
   );
 }
