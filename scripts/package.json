@@ -6,16 +6,20 @@
   "scripts": {
     "hello": "tsx ./src/hello.ts",
     "seed": "tsx ./src/seed.ts",
+    "election-audit:seed": "tsx ./src/election-audit-seed.ts",
+    "election-audit:test": "tsx ./src/election-audit-test.ts",
     "typecheck": "tsc -p tsconfig.json --noEmit"
   },
   "dependencies": {
     "@workspace/db": "workspace:*",
     "bcryptjs": "^3.0.3",
-    "drizzle-orm": "catalog:"
+    "drizzle-orm": "catalog:",
+    "jsonwebtoken": "^9.0.3"
   },
   "devDependencies": {
     "@types/node": "catalog:",
     "@types/bcryptjs": "^3.0.0",
+    "@types/jsonwebtoken": "^9.0.10",
     "tsx": "catalog:"
   }
 }

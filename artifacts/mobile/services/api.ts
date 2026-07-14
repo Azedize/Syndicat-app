@@ -306,7 +306,9 @@ export const syndicates = {
 export const elections = {
   list: () => request<{ data: unknown[] }>("/elections"),
   get: (id: string) =>
-    request<{ data: unknown; candidates: unknown[]; questions: unknown[]; hasVoted: boolean; userVotedCandidateId: string | null; userAbstained: boolean; isEligible: boolean; mandates: unknown[] }>(`/elections/${id}`),
+    // Ballots are anonymous by design — the API only confirms participation (hasVoted),
+    // it never reveals which candidate was chosen, even to the voter themselves.
+    request<{ data: unknown; candidates: unknown[]; questions: unknown[]; hasVoted: boolean; isEligible: boolean; mandates: unknown[]; myDelegation: any; delegatedToMe: any[] }>(`/elections/${id}`),
   create: (data: unknown) =>
     request<{ data: unknown }>("/elections", { method: "POST", body: JSON.stringify(data) }),
   update: (id: string, data: unknown) =>
@@ -316,10 +318,24 @@ export const elections = {
       method: "POST",
       body: JSON.stringify({ action, reason, tiebreakWinnerIds }),
     }),
-  vote: (electionId: string, candidateId?: string, abstain?: boolean) =>
+  vote: (electionId: string, candidateId?: string, abstain?: boolean, onBehalfOfUserId?: string) =>
     request<{ message: string }>(`/elections/${electionId}/vote`, {
       method: "POST",
-      body: JSON.stringify({ candidateId, abstain: !!abstain }),
+      body: JSON.stringify({ candidateId, abstain: !!abstain, onBehalfOfUserId }),
+    }),
+  eligibleVoters: (electionId: string) =>
+    request<{ data: { id: string; name: string }[] }>(`/elections/${electionId}/eligible-voters`),
+  delegate: (electionId: string, granteeId: string) =>
+    request<{ data: unknown; message: string }>(`/elections/${electionId}/delegate`, {
+      method: "POST",
+      body: JSON.stringify({ granteeId }),
+    }),
+  revokeDelegation: (electionId: string) =>
+    request<{ data: unknown; message: string }>(`/elections/${electionId}/delegate`, { method: "DELETE" }),
+  setInvalidVotes: (electionId: string, count: number) =>
+    request<{ data: unknown; message: string }>(`/elections/${electionId}/invalid-votes`, {
+      method: "PUT",
+      body: JSON.stringify({ count }),
     }),
   results: (electionId: string) =>
     request<{ data: any }>(`/elections/${electionId}/results`),
@@ -353,6 +369,11 @@ export const elections = {
   mandates: () => request<{ data: unknown[] }>("/elections/mandates"),
   resignMandate: (mandateId: string, reason?: string) =>
     request<{ data: unknown; message: string }>(`/elections/mandates/${mandateId}/resign`, {
+      method: "POST",
+      body: JSON.stringify({ reason }),
+    }),
+  revokeMandate: (mandateId: string, reason: string) =>
+    request<{ data: unknown; message: string }>(`/elections/mandates/${mandateId}/revoke`, {
       method: "POST",
       body: JSON.stringify({ reason }),
     }),

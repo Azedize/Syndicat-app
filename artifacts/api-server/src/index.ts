@@ -4,6 +4,8 @@ import { pool } from "@workspace/db";
 import { validateAuthConfig } from "./middleware/auth.js";
 import { startContractExpiryScheduler } from "./lib/contract-expiry.js";
 import { startEscalationScheduler } from "./lib/debt-escalation.js";
+import { startElectionReminderScheduler } from "./lib/election-reminders.js";
+import { startMandateExpiryScheduler } from "./lib/mandate-expiry.js";
 
 // Fail fast on missing auth config — do not wait for first request
 validateAuthConfig();
@@ -13,6 +15,12 @@ startContractExpiryScheduler();
 
 // Daily scan of unpaid charges — creates escalation records and notifies
 startEscalationScheduler();
+
+// Notifies voters who haven't voted yet as an election's voting window nears its close
+startElectionReminderScheduler();
+
+// Flips fixed-term conseil syndical mandates to "expired" once their term ends
+startMandateExpiryScheduler();
 
 const rawPort = process.env["PORT"];
 

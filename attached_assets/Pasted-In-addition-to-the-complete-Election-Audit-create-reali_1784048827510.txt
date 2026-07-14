@@ -1,0 +1,249 @@
+In addition to the complete Election Audit, create realistic production test scenarios.
+
+==================================================
+TEST SCENARIO — MOROCCAN CONDOMINIUM
+==================================================
+
+Create a realistic condominium test environment.
+
+Syndicate:
+
+- Residence Al Andalous
+- Casablanca
+- 20 apartments
+- 20 owners (members)
+- 5 tenants
+- 1 Syndicate Admin
+
+Election Type:
+
+President Election
+
+==================================================
+TEST DATA
+==================================================
+
+Create:
+
+20 eligible owners
+
+Example:
+
+Owner 1:
+Ahmed Benali
+Apartment A101
+
+Owner 2:
+Sara Tazi
+Apartment A102
+
+...
+
+Owner 20:
+Youssef Alaoui
+Apartment B205
+
+Create:
+
+3 candidates
+
+Candidate A:
+Ahmed Benali
+
+Candidate B:
+Sara Tazi
+
+Candidate C:
+Karim El Mansouri
+
+==================================================
+SCENARIO 1 — NORMAL ELECTION
+==================================================
+
+Verify:
+
+- Election creation
+- Candidate submission
+- Candidate validation
+- Campaign period
+- Voting
+- Quorum calculation
+- Results publication
+
+Example:
+
+Eligible voters = 20
+
+Participants = 17
+
+Participation = 85%
+
+Votes:
+
+Ahmed = 8
+Sara = 6
+Karim = 3
+
+Winner = Ahmed
+
+Verify every step.
+
+==================================================
+SCENARIO 2 — DOUBLE VOTE ATTEMPT
+==================================================
+
+Ahmed votes.
+
+Ahmed attempts to vote again.
+
+Verify:
+
+- Vote rejected
+- Error returned
+- Audit log created
+
+==================================================
+SCENARIO 3 — TENANT ATTEMPTS TO VOTE
+==================================================
+
+Tenant account tries to vote.
+
+Verify:
+
+- Access denied
+- Proper error message
+- Audit trail
+
+==================================================
+SCENARIO 4 — QUORUM NOT REACHED
+==================================================
+
+Eligible voters = 20
+
+Participants = 5
+
+Required quorum = 50%
+
+Verify:
+
+- Election invalid
+- Second round required
+
+==================================================
+SCENARIO 5 — TIE
+==================================================
+
+Ahmed = 8 votes
+
+Sara = 8 votes
+
+Karim = 1 vote
+
+Verify:
+
+- Tie detected
+- No automatic winner
+- Resolution workflow triggered
+
+==================================================
+SCENARIO 6 — CANDIDATE WITHDRAWAL
+==================================================
+
+Sara withdraws before voting.
+
+Verify:
+
+- Status updated
+- Votes blocked
+- Notifications sent
+
+==================================================
+SCENARIO 7 — PRESIDENT RESIGNS
+==================================================
+
+President elected.
+
+After 6 months:
+
+President resigns.
+
+Verify:
+
+- Mandate closed
+- Emergency election workflow triggered
+
+==================================================
+SCENARIO 8 — CROSS-SYNDICATE ACCESS
+==================================================
+
+User from another syndicate attempts to:
+
+- View election
+- Vote
+- Modify election
+
+Verify:
+
+- Access denied
+- No data leakage
+
+==================================================
+SCENARIO 9 — NOTIFICATIONS
+==================================================
+
+Verify notifications:
+
+- Election announced
+- Candidate approved
+- Voting opened
+- Voting closing soon
+- Results published
+
+Check:
+
+- Push notifications
+- In-App notifications
+- Email notifications
+
+==================================================
+SCENARIO 10 — MOBILE APP
+==================================================
+
+Verify screens:
+
+- Election List
+- Election Detail
+- Candidate Profile
+- Voting Screen
+- Results Screen
+- Elected Members Screen
+
+Verify:
+
+- Loading state
+- Empty state
+- Error state
+- Arabic
+- French
+- English
+- Spanish
+- RTL support
+
+==================================================
+FINAL TEST REPORT
+==================================================
+
+Generate:
+
+1. Test Results
+2. Passed Tests
+3. Failed Tests
+4. Security Risks
+5. Missing Features
+6. Critical Bugs
+7. Production Readiness Score
+8. Recommended Fixes Priority (P0, P1, P2)
+
+Do not assume success.
+
+Execute the audit against the actual implementation and verify every workflow using the above condominium scenario.

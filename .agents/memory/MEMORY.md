@@ -19,4 +19,4 @@
 - [reclamationsTable is HR grievances, not incidents](reclamations-is-hr-grievance.md) — type enum is salaire/discrimination/harcelement/etc; not a facility-incident table despite the generic name.
 - [Election management system](election-system.md) — full lifecycle (candidacy/campaign/vote/quorum/results/mandates) built on existing electionsTable; state machine + eligibility rules.
 - [Stale db/lib project-reference builds](stale-project-ref-build.md) — schema.ts edits don't typecheck downstream until `tsc -b lib/db lib/api-zod` rebuilds dist; deleting tsbuildinfo alone isn't enough.
-- [Election management system](election-system.md) — full lifecycle (candidacy/campaign/vote/quorum/results/mandates) built on existing electionsTable; state machine + eligibility rules.
+- [Express route order shadowing](express-route-order-shadowing.md) — an exact-path route registered after a `:id` sibling is silently unreachable; always register exact paths before parameterized ones under the same prefix.

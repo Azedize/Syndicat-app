@@ -597,6 +597,16 @@ export const electionsTable = pgTable(
     contestReason: text("contest_reason"),
     isEmergency: boolean("is_emergency").default(false),
     createdBy: text("created_by").references(() => usersTable.id, { onDelete: "set null" }),
+    // Fixed mandate length for winners of this election (months). Null = indefinite mandate
+    // (no auto-expiry) — matches historical behavior for elections created before this field existed.
+    mandateDurationMonths: integer("mandate_duration_months"),
+    // Manually recorded spoiled/invalid ballots (e.g. from a hybrid paper-assisted tally).
+    // Counted toward participation/quorum but never toward any candidate's vote count.
+    invalidVotesCount: integer("invalid_votes_count").default(0),
+    // Reminder thresholds (in days-before-close) already notified, e.g. ["3","1"] — prevents
+    // the closing-soon scheduler from re-notifying voters on every run. Mirrors the
+    // notifiedThresholds pattern used by contrats_prestataires expiry reminders.
+    remindersSent: text("reminders_sent").default("[]"),
     createdAt: createdAt(),
   },
   (t) => [
@@ -632,24 +642,77 @@ export const candidatesTable = pgTable(
   ],
 );
 
+// Ballot secrecy: "who voted" and "what they voted for" are deliberately split across
+// two tables with no shared key, so no query — not even one run directly against the
+// database by a super_admin — can join a voter's identity to their choice of candidate.
+//
+//   voteReceiptsTable — proof of participation only (no candidateId at all).
+//   votesTable        — the anonymous ballot itself (no voterId at all).
+//
+// Device/IP are kept on the anonymous ballot for fraud-pattern detection (e.g. many
+// ballots from one IP) — this does not deanonymize anyone since it isn't linked to voterId.
+export const voteReceiptsTable = pgTable(
+  "vote_receipts",
+  {
+    id: id(),
+    electionId: text("election_id").notNull().references(() => electionsTable.id, { onDelete: "cascade" }),
+    voterId: text("voter_id").notNull().references(() => usersTable.id, { onDelete: "cascade" }),
+    // Set when a proxy holder cast this vote on the voter's behalf (Loi 18-00 pouvoir).
+    // Still no link to which candidate was chosen — only that a ballot was cast.
+    castByProxyId: text("cast_by_proxy_id").references(() => usersTable.id, { onDelete: "set null" }),
+    createdAt: createdAt(),
+  },
+  (t) => [
+    // Prevent duplicate participation: one receipt per voter per election
+    uniqueIndex("vote_receipts_election_voter_unique_idx").on(t.electionId, t.voterId),
+    index("vote_receipts_election_id_idx").on(t.electionId),
+  ],
+);
+
 export const votesTable = pgTable(
   "votes",
   {
     id: id(),
     electionId: text("election_id").notNull().references(() => electionsTable.id, { onDelete: "cascade" }),
-    voterId: text("voter_id").notNull().references(() => usersTable.id, { onDelete: "cascade" }),
-    // Null candidateId = abstention
+    // Null candidateId = abstention. Intentionally no voterId column — see comment above.
     candidateId: text("candidate_id").references(() => candidatesTable.id, { onDelete: "cascade" }),
     isAbstention: boolean("is_abstention").default(false),
-    // Populated for security/audit purposes only — never exposed to other members (anonymous tally)
+    // Kept for anomaly detection only (e.g. ballot-stuffing patterns) — cannot be
+    // joined back to a specific voter, so this does not compromise ballot secrecy.
     device: text("device"),
     ipAddress: text("ip_address"),
     createdAt: createdAt(),
   },
   (t) => [
-    // Prevent duplicate votes: one voter per election
-    uniqueIndex("votes_election_voter_unique_idx").on(t.electionId, t.voterId),
     index("votes_election_id_idx").on(t.electionId),
+  ],
+);
+
+// ─── Election Proxies (Loi 18-00 — a member may give a written "pouvoir" to
+// another eligible voter for a given election, mirroring ag_proxies for AG meetings) ──
+
+export const electionProxiesTable = pgTable(
+  "election_proxies",
+  {
+    id: id(),
+    electionId: text("election_id").notNull().references(() => electionsTable.id, { onDelete: "cascade" }),
+    syndicateId: text("syndicate_id").references(() => syndicatesTable.id, { onDelete: "cascade" }),
+    // Voter delegating their vote away
+    grantorId: text("grantor_id").notNull().references(() => usersTable.id, { onDelete: "cascade" }),
+    grantorName: text("grantor_name").notNull(),
+    // Voter who will cast the delegated vote
+    granteeId: text("grantee_id").notNull().references(() => usersTable.id, { onDelete: "cascade" }),
+    granteeName: text("grantee_name").notNull(),
+    // status: active | revoked | used (used = the grantee has already cast the delegated vote)
+    status: text("status").notNull().default("active"),
+    documentUrl: text("document_url"),
+    createdAt: createdAt(),
+  },
+  (t) => [
+    index("election_proxies_election_id_idx").on(t.electionId),
+    index("election_proxies_grantee_id_idx").on(t.granteeId),
+    // One active proxy per grantor per election
+    uniqueIndex("election_proxies_election_grantor_idx").on(t.electionId, t.grantorId),
   ],
 );
 
@@ -1712,6 +1775,10 @@ export const conseilSyndicalTable = pgTable(
     candidateId: text("candidate_id").references(() => candidatesTable.id, { onDelete: "set null" }),
     resignedAt: timestamp("resigned_at"),
     resignReason: text("resign_reason"),
+    // Admin-initiated removal-for-cause — distinct from voluntary resignation above.
+    revokedAt: timestamp("revoked_at"),
+    revokedBy: text("revoked_by").references(() => usersTable.id, { onDelete: "set null" }),
+    revokeReason: text("revoke_reason"),
     createdAt: createdAt(),
   },
   (t) => [

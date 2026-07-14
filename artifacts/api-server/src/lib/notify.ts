@@ -5,6 +5,40 @@ import { logger } from "./logger.js";
 
 const ADMIN_ROLES = ["super_admin", "syndicate_admin"];
 
+/**
+ * Sends a transactional email. In production with SMTP_HOST configured, delivers via
+ * nodemailer. Otherwise (dev, or SMTP not configured) logs the email so it can still be
+ * inspected/tested — mirrors the fallback pattern used for password-reset emails in auth.ts.
+ * Never throws — email delivery failures must not block the calling workflow (vote, election
+ * lifecycle transition, etc.); callers should not depend on this succeeding.
+ */
+export async function sendEmail(to: string, subject: string, html: string): Promise<void> {
+  const isProduction = process.env.NODE_ENV === "production";
+  try {
+    if (isProduction && process.env.SMTP_HOST) {
+      const nodemailer = await import("nodemailer");
+      const transporter = nodemailer.createTransport({
+        host: process.env.SMTP_HOST,
+        port: Number(process.env.SMTP_PORT ?? 587),
+        secure: process.env.SMTP_SECURE === "true",
+        auth: { user: process.env.SMTP_USER, pass: process.env.SMTP_PASS },
+      });
+      await transporter.sendMail({ from: process.env.SMTP_FROM ?? "SYNDYCAT <noreply@syndycat.ma>", to, subject, html });
+    } else {
+      logger.info({ to, subject }, "[DEV] Email not sent — SMTP not configured, logging instead");
+      console.info(`\n✉️  Email to ${to}: ${subject}\n`);
+    }
+  } catch (err) {
+    logger.warn({ err }, "sendEmail failed");
+  }
+}
+
+/** Emails every address in `to` individually (skips falsy/empty addresses). Never throws. */
+export async function sendEmailToMany(to: (string | null | undefined)[], subject: string, html: string): Promise<void> {
+  const recipients = to.filter((e): e is string => !!e);
+  await Promise.all(recipients.map((email) => sendEmail(email, subject, html)));
+}
+
 export interface AlertPayload {
   title: string;
   message: string;

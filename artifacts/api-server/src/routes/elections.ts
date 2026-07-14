@@ -6,6 +6,8 @@ import {
   electionsTable,
   candidatesTable,
   votesTable,
+  voteReceiptsTable,
+  electionProxiesTable,
   electionQuestionsTable,
   conseilSyndicalTable,
   membersTable,
@@ -16,7 +18,11 @@ import {
 import { eq, and, or } from "drizzle-orm";
 import { requireAuth, requireNotTenant, requireOperationalAccess } from "../middleware/auth.js";
 import { serverAuditLog } from "../lib/audit.js";
-import { createAlert, sendPushToUsers } from "../lib/notify.js";
+import { createAlert, sendPushToUsers, sendEmailToMany } from "../lib/notify.js";
+
+/** A member may hold at most this many proxies (own vote + delegated votes) — prevents
+ *  concentration of voting power in a single hand (common condo-syndic governance rule). */
+const MAX_PROXIES_PER_GRANTEE = 2;
 
 const router = Router();
 
@@ -100,9 +106,11 @@ async function enrichElections(elections: (typeof electionsTable.$inferSelect)[]
   if (elections.length === 0) return [];
   const electionIds = elections.map((e) => e.id);
 
-  const [allCandidates, allUserVotes] = await Promise.all([
+  // Note: ballots are anonymous (no voterId) by design — see votesTable comment. We can only
+  // know THAT a user voted (via voteReceiptsTable), never what they voted for, even for themselves.
+  const [allCandidates, myReceipts] = await Promise.all([
     db.select().from(candidatesTable).where(inArray(candidatesTable.electionId, electionIds)),
-    db.select().from(votesTable).where(and(inArray(votesTable.electionId, electionIds), eq(votesTable.voterId, userId))),
+    db.select().from(voteReceiptsTable).where(and(inArray(voteReceiptsTable.electionId, electionIds), eq(voteReceiptsTable.voterId, userId))),
   ]);
 
   const candidatesByElection = new Map<string, typeof allCandidates>();
@@ -110,19 +118,32 @@ async function enrichElections(elections: (typeof electionsTable.$inferSelect)[]
     if (!candidatesByElection.has(c.electionId)) candidatesByElection.set(c.electionId, []);
     candidatesByElection.get(c.electionId)!.push(c);
   }
-  const voteByElection = new Map(allUserVotes.map((v) => [v.electionId, v]));
+  const votedElectionIds = new Set(myReceipts.map((r) => r.electionId));
 
-  return elections.map((e) => {
-    const vote = voteByElection.get(e.id);
-    return {
-      ...e,
-      candidates: candidatesByElection.get(e.id) ?? [],
-      userVotedCandidateId: vote?.candidateId ?? null,
-      userAbstained: vote?.isAbstention ?? false,
-      hasVoted: !!vote,
-    };
-  });
+  return elections.map((e) => ({
+    ...e,
+    candidates: candidatesByElection.get(e.id) ?? [],
+    hasVoted: votedElectionIds.has(e.id),
+  }));
 }
+
+// NOTE: this exact-path route MUST stay registered before GET /elections/:id below —
+// Express matches routes in registration order, and ":id" would otherwise greedily
+// match the literal segment "mandates", making this handler permanently unreachable
+// (found during the production election audit: GET /elections/mandates was 404'ing
+// via the wrong handler for every caller, including the mobile elected-members screen).
+router.get("/elections/mandates", requireAuth, async (req, res) => {
+  try {
+    const syndicateId = req.user!.syndicateId;
+    const mandates = syndicateId
+      ? await db.select().from(conseilSyndicalTable).where(eq(conseilSyndicalTable.syndicateId, syndicateId))
+      : await db.select().from(conseilSyndicalTable);
+    res.json({ data: mandates });
+  } catch (err) {
+    req.log.error(err);
+    res.status(500).json({ error: "Erreur serveur" });
+  }
+});
 
 router.get("/elections/:id", requireAuth, async (req, res) => {
   const id = String(req.params.id);
@@ -147,22 +168,36 @@ router.get("/elections/:id", requireAuth, async (req, res) => {
       ? await db.select().from(electionQuestionsTable).where(inArray(electionQuestionsTable.candidateId, [...candidateMap.keys()]))
       : [];
 
-    const [vote] = await db.select().from(votesTable).where(and(eq(votesTable.electionId, id), eq(votesTable.voterId, req.user!.userId)));
+    const [receipt] = await db.select().from(voteReceiptsTable).where(and(eq(voteReceiptsTable.electionId, id), eq(voteReceiptsTable.voterId, req.user!.userId)));
     const eligible = req.user!.role === "super_admin" ? false : await isUserEligible(req.user!.userId, election.syndicateId, election.buildingId, !!election.tenantsCanVote);
 
     const mandates = election.status === "completed"
       ? await db.select().from(conseilSyndicalTable).where(eq(conseilSyndicalTable.electionId, id))
       : [];
 
+    // Proxy delegations involving the current user for this election (as grantor or grantee)
+    const myProxies = await db.select().from(electionProxiesTable).where(
+      and(eq(electionProxiesTable.electionId, id), or(eq(electionProxiesTable.grantorId, req.user!.userId), eq(electionProxiesTable.granteeId, req.user!.userId))),
+    );
+    const delegatedToMe = await Promise.all(
+      myProxies
+        .filter((p) => p.granteeId === req.user!.userId && p.status === "active")
+        .map(async (p) => {
+          const [r] = await db.select().from(voteReceiptsTable).where(and(eq(voteReceiptsTable.electionId, id), eq(voteReceiptsTable.voterId, p.grantorId)));
+          return { ...p, grantorHasVoted: !!r };
+        }),
+    );
+
     res.json({
       data: election,
       candidates: [...candidateMap.values()],
       questions,
-      userVotedCandidateId: vote?.candidateId ?? null,
-      userAbstained: vote?.isAbstention ?? false,
-      hasVoted: !!vote,
+      // Ballots are anonymous — we can confirm participation but never reveal the choice, even to the voter.
+      hasVoted: !!receipt,
       isEligible: eligible,
       mandates,
+      myDelegation: myProxies.find((p) => p.grantorId === req.user!.userId && p.status !== "revoked") ?? null,
+      delegatedToMe,
     });
   } catch (err) {
     req.log.error(err);
@@ -188,6 +223,8 @@ router.post("/elections", requireAuth, requireOperationalAccess, async (req, res
     startDate: z.string(),
     endDate: z.string(),
     isEmergency: z.boolean().default(false),
+    // Fixed mandate length for winners, in months. Omit/null = indefinite mandate (no auto-expiry).
+    mandateDurationMonths: z.number().int().min(1).max(120).nullable().optional(),
   });
   const result = schema.safeParse(req.body);
   if (!result.success) { res.status(400).json({ error: "Données invalides", details: result.error.flatten() }); return; }
@@ -218,6 +255,7 @@ router.post("/elections", requireAuth, requireOperationalAccess, async (req, res
         startDate: d.startDate,
         endDate: d.endDate,
         isEmergency: d.isEmergency,
+        mandateDurationMonths: d.mandateDurationMonths ?? null,
         status: d.isEmergency ? "candidacy_open" : "draft",
         createdBy: req.user!.userId,
       } as any)
@@ -338,6 +376,12 @@ router.post("/elections/:id/transition", requireAuth, requireOperationalAccess, 
       const winners = await publishElectionResults(election, result.data.tiebreakWinnerIds);
       await serverAuditLog(req, { action: "PUBLISH_RESULTS", entity: "election", entityId: id, details: `Résultats publiés, ${winners.length} mandat(s) créé(s)${tie ? " (égalité résolue manuellement)" : ""}` });
       await createAlert({ title: "Résultats publiés", message: `Les résultats de "${election.title}" sont disponibles.`, type: "info", syndicateId: election.syndicateId, target: "all" });
+      const winnerUserIds = winners.map((w) => w.userId).filter((uid): uid is string => !!uid);
+      if (winnerUserIds.length) {
+        await sendPushToUsers(winnerUserIds, "Élu(e) !", `Vous avez été élu(e) suite à "${election.title}". Félicitations.`, { electionId: id });
+        const winnerUsers = await db.select({ email: usersTable.email }).from(usersTable).where(inArray(usersTable.id, winnerUserIds));
+        await sendEmailToMany(winnerUsers.map((u) => u.email), "Résultats — " + election.title, `<p>Vous avez été élu(e) suite à l'élection "${election.title}". Félicitations.</p>`);
+      }
       const [refreshed] = await db.select().from(electionsTable).where(eq(electionsTable.id, id));
       res.json({ data: refreshed, message: "Résultats publiés, mandats créés" });
       return;
@@ -369,10 +413,12 @@ router.post("/elections/:id/transition", requireAuth, requireOperationalAccess, 
 /** Phase 5/6 — Quorum + result computation, run once when voting closes. */
 async function closeElectionVoting(election: typeof electionsTable.$inferSelect) {
   const voterIds = await getEligibleVoterIds(election.syndicateId, election.buildingId, !!election.tenantsCanVote);
-  const votes = await db.select().from(votesTable).where(eq(votesTable.electionId, election.id));
+  // Participation is counted via receipts (proof of "someone voted"), not the anonymous
+  // ballots table — the two tables have no shared key by design (ballot secrecy).
+  const receipts = await db.select().from(voteReceiptsTable).where(eq(voteReceiptsTable.electionId, election.id));
 
   const eligibleCount = voterIds.length;
-  const participantCount = votes.length;
+  const participantCount = receipts.length;
   const participationRate = eligibleCount > 0 ? (participantCount / eligibleCount) * 100 : 0;
   const quorumReached = participationRate >= (election.quorumPercent ?? 50);
 
@@ -408,6 +454,15 @@ async function publishElectionResults(election: typeof electionsTable.$inferSele
     winners = [...aboveCutoff, ...chosen].slice(0, seats);
   }
 
+  // Fixed-term mandates: election.mandateDurationMonths (months) is added to the mandate
+  // start date to compute an expiry the mandate-expiry scheduler will act on. Null = indefinite.
+  let mandateEnd: string | null = null;
+  if (election.mandateDurationMonths) {
+    const start = new Date(election.endDate ?? new Date().toISOString());
+    start.setMonth(start.getMonth() + election.mandateDurationMonths);
+    mandateEnd = start.toISOString().slice(0, 10);
+  }
+
   const roles = MANDATE_ROLE_BY_TYPE[election.electionType ?? "special"] ?? ["committee_member"];
   const mandates = [];
   for (let i = 0; i < winners.length; i++) {
@@ -421,7 +476,7 @@ async function publishElectionResults(election: typeof electionsTable.$inferSele
         role,
         name: winner.name,
         mandateStart: election.endDate,
-        mandateEnd: null,
+        mandateEnd,
         status: "active",
         electionId: election.id,
         candidateId: winner.id,
@@ -514,14 +569,12 @@ router.put("/elections/:id/candidates/:candidateId/validate", requireAuth, requi
       .returning();
 
     if (candidate.userId) {
-      await sendPushToUsers(
-        [candidate.userId],
-        result.data.decision === "approved" ? "Candidature approuvée" : "Candidature rejetée",
-        result.data.decision === "approved"
-          ? `Votre candidature pour "${election.title}" a été approuvée.`
-          : `Votre candidature pour "${election.title}" a été rejetée.${result.data.reason ? " Motif : " + result.data.reason : ""}`,
-        { electionId: id },
-      );
+      const decisionText = result.data.decision === "approved"
+        ? `Votre candidature pour "${election.title}" a été approuvée.`
+        : `Votre candidature pour "${election.title}" a été rejetée.${result.data.reason ? " Motif : " + result.data.reason : ""}`;
+      await sendPushToUsers([candidate.userId], result.data.decision === "approved" ? "Candidature approuvée" : "Candidature rejetée", decisionText, { electionId: id });
+      const [candidateUser] = await db.select({ email: usersTable.email }).from(usersTable).where(eq(usersTable.id, candidate.userId));
+      if (candidateUser?.email) await sendEmailToMany([candidateUser.email], "Candidature — " + election.title, `<p>${decisionText}</p>`);
     }
 
     await serverAuditLog(req, { action: "VALIDATE_CANDIDACY", entity: "election", entityId: id, details: `${candidate.name} → ${result.data.decision}` });
@@ -621,7 +674,13 @@ router.put("/elections/:id/questions/:questionId/answer", requireAuth, async (re
 
 router.post("/elections/:id/vote", requireAuth, async (req, res) => {
   const id = String(req.params.id);
-  const schema = z.object({ candidateId: z.string().min(1).optional(), abstain: z.boolean().default(false) });
+  const schema = z.object({
+    candidateId: z.string().min(1).optional(),
+    abstain: z.boolean().default(false),
+    // Present when the caller is casting a delegated (proxy) vote on behalf of a grantor,
+    // instead of voting for themselves.
+    onBehalfOfUserId: z.string().optional(),
+  });
   const result = schema.safeParse(req.body);
   if (!result.success || (!result.data.candidateId && !result.data.abstain)) {
     res.status(400).json({ error: "Candidat ou abstention requis" });
@@ -635,7 +694,21 @@ router.post("/elections/:id/vote", requireAuth, async (req, res) => {
       if (election.status !== "open") throw Object.assign(new Error("NOT_OPEN"), { status: 400, msg: "Cette élection n'est pas ouverte au vote" });
       if (req.user!.syndicateId && election.syndicateId !== req.user!.syndicateId) throw Object.assign(new Error("FORBIDDEN"), { status: 403, msg: "Accès refusé" });
 
-      const eligible = await isUserEligible(req.user!.userId, election.syndicateId, election.buildingId, !!election.tenantsCanVote);
+      // The voter of record — either the caller, or (for a proxy vote) the person who delegated to them.
+      let voterId = req.user!.userId;
+      let castByProxyId: string | null = null;
+
+      if (result.data.onBehalfOfUserId) {
+        const [proxy] = await tx
+          .select()
+          .from(electionProxiesTable)
+          .where(and(eq(electionProxiesTable.electionId, id), eq(electionProxiesTable.grantorId, result.data.onBehalfOfUserId), eq(electionProxiesTable.granteeId, req.user!.userId), eq(electionProxiesTable.status, "active")));
+        if (!proxy) throw Object.assign(new Error("NO_PROXY"), { status: 403, msg: "Vous ne détenez pas de pouvoir actif pour ce copropriétaire" });
+        voterId = result.data.onBehalfOfUserId;
+        castByProxyId = req.user!.userId;
+      }
+
+      const eligible = await isUserEligible(voterId, election.syndicateId, election.buildingId, !!election.tenantsCanVote);
       if (!eligible) throw Object.assign(new Error("NOT_ELIGIBLE"), { status: 403, msg: "Vous n'êtes pas éligible pour voter à cette élection" });
 
       let candidateId: string | null = null;
@@ -648,13 +721,14 @@ router.post("/elections/:id/vote", requireAuth, async (req, res) => {
         candidateId = candidate.id;
       }
 
-      const existing = await tx.select().from(votesTable).where(and(eq(votesTable.electionId, id), eq(votesTable.voterId, req.user!.userId)));
-      if (existing.length > 0) throw Object.assign(new Error("ALREADY_VOTED"), { status: 400, msg: "Vous avez déjà voté pour cette élection" });
+      const existing = await tx.select().from(voteReceiptsTable).where(and(eq(voteReceiptsTable.electionId, id), eq(voteReceiptsTable.voterId, voterId)));
+      if (existing.length > 0) throw Object.assign(new Error("ALREADY_VOTED"), { status: 400, msg: castByProxyId ? "Ce copropriétaire a déjà voté" : "Vous avez déjà voté pour cette élection" });
 
+      // Receipt proves participation (ties to voterId) — the ballot itself never does.
+      await tx.insert(voteReceiptsTable).values({ electionId: id, voterId, castByProxyId } as any);
       await tx.insert(votesTable).values({
         electionId: id,
         candidateId,
-        voterId: req.user!.userId,
         isAbstention: result.data.abstain,
         device: req.headers["user-agent"]?.toString().slice(0, 200) ?? null,
         ipAddress: req.ip ?? req.socket?.remoteAddress ?? null,
@@ -664,13 +738,110 @@ router.post("/elections/:id/vote", requireAuth, async (req, res) => {
         await tx.update(candidatesTable).set({ votes: sql`${candidatesTable.votes} + 1` }).where(eq(candidatesTable.id, candidateId));
       }
       await tx.update(electionsTable).set({ participantCount: sql`${electionsTable.participantCount} + 1` }).where(eq(electionsTable.id, id));
+
+      if (castByProxyId) {
+        await tx.update(electionProxiesTable).set({ status: "used" } as any).where(and(eq(electionProxiesTable.electionId, id), eq(electionProxiesTable.grantorId, voterId), eq(electionProxiesTable.granteeId, castByProxyId)));
+      }
     });
 
-    await serverAuditLog(req, { action: "VOTE", entity: "election", entityId: id, details: result.data.abstain ? "Abstention" : `Vote pour candidat ${result.data.candidateId}` });
+    if (result.data.onBehalfOfUserId) {
+      await sendPushToUsers([result.data.onBehalfOfUserId], "Vote par pouvoir", "Votre mandataire a voté en votre nom pour cette élection.", { electionId: id });
+    }
+    await serverAuditLog(req, { action: "VOTE", entity: "election", entityId: id, details: result.data.onBehalfOfUserId ? `Vote par pouvoir pour ${result.data.onBehalfOfUserId}` : "Vote enregistré (bulletin anonyme)" });
     res.json({ message: "Vote enregistré avec succès" });
   } catch (err: any) {
     if (err.status) { res.status(err.status).json({ error: err.msg }); return; }
     if (err.code === "23505") { res.status(400).json({ error: "Vous avez déjà voté pour cette élection" }); return; }
+    req.log.error(err);
+    res.status(500).json({ error: "Erreur serveur" });
+  }
+});
+
+// ─── Proxy voting (pouvoirs) ──────────────────────────────────────────────────
+
+router.get("/elections/:id/eligible-voters", requireAuth, async (req, res) => {
+  const id = String(req.params.id);
+  try {
+    const [election] = await db.select().from(electionsTable).where(eq(electionsTable.id, id));
+    if (!election || !assertAccess(req, election)) { res.status(404).json({ error: "Élection introuvable" }); return; }
+    const ids = await getEligibleVoterIds(election.syndicateId, election.buildingId, !!election.tenantsCanVote);
+    if (ids.length === 0) { res.json({ data: [] }); return; }
+    const rows = await db.select({ id: usersTable.id, name: usersTable.name }).from(usersTable).where(inArray(usersTable.id, ids));
+    res.json({ data: rows.filter((u) => u.id !== req.user!.userId) });
+  } catch (err) {
+    req.log.error(err);
+    res.status(500).json({ error: "Erreur serveur" });
+  }
+});
+
+router.post("/elections/:id/delegate", requireAuth, async (req, res) => {
+  const id = String(req.params.id);
+  const schema = z.object({ granteeId: z.string().min(1), documentUrl: z.string().nullable().optional() });
+  const result = schema.safeParse(req.body);
+  if (!result.success) { res.status(400).json({ error: "Mandataire requis" }); return; }
+  try {
+    const [election] = await db.select().from(electionsTable).where(eq(electionsTable.id, id));
+    if (!election) { res.status(404).json({ error: "Élection introuvable" }); return; }
+    if (!assertAccess(req, election)) { res.status(403).json({ error: "Accès refusé" }); return; }
+    if (!["candidacy_open", "campaign", "open"].includes(election.status ?? "")) {
+      res.status(400).json({ error: "Les pouvoirs ne peuvent être donnés qu'avant la clôture du vote" });
+      return;
+    }
+    if (result.data.granteeId === req.user!.userId) { res.status(400).json({ error: "Vous ne pouvez pas vous donner un pouvoir à vous-même" }); return; }
+
+    const eligible = await getEligibleVoterIds(election.syndicateId, election.buildingId, !!election.tenantsCanVote);
+    if (!eligible.includes(req.user!.userId) || !eligible.includes(result.data.granteeId)) {
+      res.status(403).json({ error: "Le mandant et le mandataire doivent tous deux être éligibles pour cette élection" });
+      return;
+    }
+
+    const [[alreadyVoted], activeProxyCount, [grantee]] = await Promise.all([
+      db.select().from(voteReceiptsTable).where(and(eq(voteReceiptsTable.electionId, id), eq(voteReceiptsTable.voterId, req.user!.userId))),
+      db.select({ count: sql<number>`count(*)::int` }).from(electionProxiesTable).where(and(eq(electionProxiesTable.electionId, id), eq(electionProxiesTable.granteeId, result.data.granteeId), eq(electionProxiesTable.status, "active"))),
+      db.select().from(usersTable).where(eq(usersTable.id, result.data.granteeId)),
+    ]);
+    if (alreadyVoted) { res.status(400).json({ error: "Vous avez déjà voté — un pouvoir ne peut plus être donné" }); return; }
+    if ((activeProxyCount[0]?.count ?? 0) >= MAX_PROXIES_PER_GRANTEE) {
+      res.status(400).json({ error: `Ce mandataire détient déjà le nombre maximal de pouvoirs (${MAX_PROXIES_PER_GRANTEE})` });
+      return;
+    }
+    if (!grantee) { res.status(404).json({ error: "Mandataire introuvable" }); return; }
+
+    const [proxy] = await db
+      .insert(electionProxiesTable)
+      .values({
+        electionId: id,
+        syndicateId: election.syndicateId,
+        grantorId: req.user!.userId,
+        grantorName: req.user!.name,
+        granteeId: result.data.granteeId,
+        granteeName: grantee.name,
+        documentUrl: result.data.documentUrl ?? null,
+        status: "active",
+      } as any)
+      .returning();
+
+    await sendPushToUsers([result.data.granteeId], "Pouvoir reçu", `${req.user!.name} vous a donné pouvoir pour voter à sa place à "${election.title}".`, { electionId: id });
+    await serverAuditLog(req, { action: "DELEGATE_VOTE", entity: "election", entityId: id, details: `${req.user!.name} → ${grantee.name}` });
+    res.status(201).json({ data: proxy, message: "Pouvoir donné avec succès" });
+  } catch (err: any) {
+    if (err.code === "23505") { res.status(409).json({ error: "Vous avez déjà donné un pouvoir pour cette élection" }); return; }
+    req.log.error(err);
+    res.status(500).json({ error: "Erreur serveur" });
+  }
+});
+
+router.delete("/elections/:id/delegate", requireAuth, async (req, res) => {
+  const id = String(req.params.id);
+  try {
+    const [proxy] = await db.select().from(electionProxiesTable).where(and(eq(electionProxiesTable.electionId, id), eq(electionProxiesTable.grantorId, req.user!.userId), eq(electionProxiesTable.status, "active")));
+    if (!proxy) { res.status(404).json({ error: "Aucun pouvoir actif à révoquer" }); return; }
+
+    const [updated] = await db.update(electionProxiesTable).set({ status: "revoked" } as any).where(eq(electionProxiesTable.id, proxy.id)).returning();
+    await sendPushToUsers([proxy.granteeId], "Pouvoir révoqué", `${req.user!.name} a révoqué le pouvoir qu'il/elle vous avait donné pour une élection.`, { electionId: id });
+    await serverAuditLog(req, { action: "REVOKE_DELEGATION", entity: "election", entityId: id, details: `${req.user!.name} a révoqué le pouvoir donné à ${proxy.granteeName}` });
+    res.json({ data: updated, message: "Pouvoir révoqué" });
+  } catch (err) {
     req.log.error(err);
     res.status(500).json({ error: "Erreur serveur" });
   }
@@ -694,9 +865,10 @@ router.get("/elections/:id/results", requireAuth, async (req, res) => {
       .select({ abstentions: sql<number>`count(*)::int` })
       .from(votesTable)
       .where(and(eq(votesTable.electionId, id), eq(votesTable.isAbstention, true)));
+    const invalidVotes = election.invalidVotesCount ?? 0;
 
     const totalCandidateVotes = candidates.reduce((s, c) => s + (c.votes ?? 0), 0);
-    const totalVotes = totalCandidateVotes + Number(abstentions ?? 0);
+    const totalVotes = totalCandidateVotes + Number(abstentions ?? 0) + invalidVotes;
     const ranked = [...candidates].sort((a, b) => (b.votes ?? 0) - (a.votes ?? 0)).map((c, i) => ({
       ...c,
       rank: i + 1,
@@ -720,6 +892,7 @@ router.get("/elections/:id/results", requireAuth, async (req, res) => {
         totalVotes,
         totalCandidateVotes,
         abstentions: Number(abstentions ?? 0),
+        invalidVotes,
         participationRate: election.eligibleCount ? Math.round(((election.participantCount ?? 0) / election.eligibleCount) * 1000) / 10 : 0,
         quorumReached: election.quorumReached,
         winners: election.status === "completed" ? winners : quorumMetAndNoTie(election, tie) ? winners : [],
@@ -737,20 +910,30 @@ function quorumMetAndNoTie(election: typeof electionsTable.$inferSelect, tie: bo
   return !!election.quorumReached && !tie;
 }
 
-// ─── Phase 7 — Elected members / mandates ────────────────────────────────────
-
-router.get("/elections/mandates", requireAuth, async (req, res) => {
+// Manually recorded spoiled/invalid ballots (e.g. from a hybrid paper-assisted tally at the
+// physical AG). Editable only while the tally is still open to correction (closed, before
+// results are published) so it cannot be used to retroactively alter a completed election.
+router.put("/elections/:id/invalid-votes", requireAuth, requireOperationalAccess, async (req, res) => {
+  const id = String(req.params.id);
+  const schema = z.object({ count: z.number().int().min(0) });
+  const result = schema.safeParse(req.body);
+  if (!result.success) { res.status(400).json({ error: "Nombre invalide" }); return; }
   try {
-    const syndicateId = req.user!.syndicateId;
-    const mandates = syndicateId
-      ? await db.select().from(conseilSyndicalTable).where(eq(conseilSyndicalTable.syndicateId, syndicateId))
-      : await db.select().from(conseilSyndicalTable);
-    res.json({ data: mandates });
+    const [election] = await db.select().from(electionsTable).where(eq(electionsTable.id, id));
+    if (!election) { res.status(404).json({ error: "Élection introuvable" }); return; }
+    if (!assertAccess(req, election)) { res.status(403).json({ error: "Accès refusé" }); return; }
+    if (election.status !== "closed") { res.status(400).json({ error: "Les bulletins invalides ne peuvent être enregistrés qu'après clôture du vote, avant publication" }); return; }
+
+    const [updated] = await db.update(electionsTable).set({ invalidVotesCount: result.data.count } as any).where(eq(electionsTable.id, id)).returning();
+    await serverAuditLog(req, { action: "UPDATE", entity: "election", entityId: id, details: `Bulletins invalides enregistrés: ${result.data.count}` });
+    res.json({ data: updated, message: "Bulletins invalides enregistrés" });
   } catch (err) {
     req.log.error(err);
     res.status(500).json({ error: "Erreur serveur" });
   }
 });
+
+// ─── Phase 7 — Elected members / mandates ────────────────────────────────────
 
 router.post("/elections/mandates/:mandateId/resign", requireAuth, async (req, res) => {
   const { mandateId } = req.params as { mandateId: string };
@@ -771,6 +954,40 @@ router.post("/elections/mandates/:mandateId/resign", requireAuth, async (req, re
     await createAlert({ title: "Démission", message: `${mandate.name} (${mandate.role}) a démissionné de son mandat.`, type: "warning", syndicateId: mandate.syndicateId, target: "admin" });
     await serverAuditLog(req, { action: "RESIGN_MANDATE", entity: "conseil_syndical", entityId: mandateId, details: result.data?.reason });
     res.json({ data: updated, message: "Démission enregistrée" });
+  } catch (err) {
+    req.log.error(err);
+    res.status(500).json({ error: "Erreur serveur" });
+  }
+});
+
+// Admin-initiated removal-for-cause — distinct from the voluntary resignation above.
+// Always leaves a full audit trail (who revoked, why, when) since this removes an elected
+// mandate against the holder's will.
+router.post("/elections/mandates/:mandateId/revoke", requireAuth, requireOperationalAccess, async (req, res) => {
+  const { mandateId } = req.params as { mandateId: string };
+  const schema = z.object({ reason: z.string().min(1) });
+  const result = schema.safeParse(req.body);
+  if (!result.success) { res.status(400).json({ error: "Motif de révocation requis" }); return; }
+  try {
+    const [mandate] = await db.select().from(conseilSyndicalTable).where(eq(conseilSyndicalTable.id, mandateId));
+    if (!mandate) { res.status(404).json({ error: "Mandat introuvable" }); return; }
+    if (req.user!.role !== "super_admin" && mandate.syndicateId !== req.user!.syndicateId) { res.status(403).json({ error: "Accès refusé" }); return; }
+    if (mandate.status !== "active") { res.status(400).json({ error: "Ce mandat n'est plus actif" }); return; }
+
+    const [updated] = await db
+      .update(conseilSyndicalTable)
+      .set({ status: "revoked", revokedAt: new Date(), revokedBy: req.user!.userId, revokeReason: result.data.reason } as any)
+      .where(eq(conseilSyndicalTable.id, mandateId))
+      .returning();
+
+    if (mandate.userId) {
+      await sendPushToUsers([mandate.userId], "Mandat révoqué", `Votre mandat de ${mandate.role} a été révoqué par l'administration. Motif : ${result.data.reason}`, { mandateId });
+      const [mandateUser] = await db.select({ email: usersTable.email }).from(usersTable).where(eq(usersTable.id, mandate.userId));
+      if (mandateUser?.email) await sendEmailToMany([mandateUser.email], "Mandat révoqué", `<p>Votre mandat de ${mandate.role} a été révoqué par l'administration.</p><p>Motif : ${result.data.reason}</p>`);
+    }
+    await createAlert({ title: "Révocation de mandat", message: `${mandate.name} (${mandate.role}) a été révoqué(e) de son mandat par l'administration.`, type: "warning", syndicateId: mandate.syndicateId, target: "admin" });
+    await serverAuditLog(req, { action: "REVOKE_MANDATE", entity: "conseil_syndical", entityId: mandateId, details: result.data.reason });
+    res.json({ data: updated, message: "Mandat révoqué" });
   } catch (err) {
     req.log.error(err);
     res.status(500).json({ error: "Erreur serveur" });
