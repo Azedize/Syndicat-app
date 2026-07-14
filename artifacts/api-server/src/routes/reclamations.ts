@@ -6,7 +6,7 @@ import { eq, and, desc, or, ilike, count } from "drizzle-orm";
 import { requireAuth, requireAdmin } from "../middleware/auth.js";
 import { getPagination, buildPagedResponse } from "../lib/paginate.js";
 import { serverAuditLog } from "../lib/audit.js";
-import { createIncidentConversation } from "./chat.js";
+import { createIncidentConversation, addResponsibleToIncidentConversation } from "./chat.js";
 
 const router = Router();
 
@@ -159,6 +159,12 @@ router.put("/reclamations/:id", requireAuth, requireAdmin, async (req, res) => {
     const [updated] = await db.update(reclamationsTable).set(updates).where(eq(reclamationsTable.id, id)).returning();
     await serverAuditLog(req, { action: "UPDATE", entity: "reclamation", entityId: id, details: existing.titre, platformAction: true });
     res.json({ data: serialize(updated), message: "Réclamation mise à jour" });
+
+    // A responsible party was newly assigned — pull them into the incident chat thread.
+    if (updates.traitePar && !existing.traitePar) {
+      addResponsibleToIncidentConversation(id, req.user!.userId)
+        .catch((err) => req.log.warn({ err }, "Failed to add responsible party to incident conversation"));
+    }
   } catch (err) { req.log.error(err); res.status(500).json({ error: "Erreur serveur" }); }
 });
 

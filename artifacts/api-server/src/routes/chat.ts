@@ -177,6 +177,91 @@ export async function createIncidentConversation(params: {
   } as any);
 }
 
+/**
+ * When an admin/employee is assigned as responsible for an incident
+ * (reclamation's `traitePar`), add them to the incident's chat thread so
+ * they see the history and can respond directly — implements spec Phase 6
+ * ("assign responsible employee/provider").
+ */
+export async function addResponsibleToIncidentConversation(
+  incidentId: string,
+  responsibleUserId: string,
+): Promise<void> {
+  const [conv] = await db
+    .select()
+    .from(conversationsTable)
+    .where(and(eq(conversationsTable.incidentId, incidentId), eq(conversationsTable.convType, "incident")));
+  if (!conv) return;
+
+  let ids: string[] = [];
+  try { ids = JSON.parse(conv.participantIds ?? "[]"); } catch { /* ignore */ }
+  if (ids.includes(responsibleUserId)) return;
+  ids.push(responsibleUserId);
+
+  await db
+    .update(conversationsTable)
+    .set({ participantIds: JSON.stringify(ids) })
+    .where(eq(conversationsTable.id, conv.id));
+
+  await db.insert(messagesTable).values({
+    conversationId: conv.id,
+    senderId: responsibleUserId,
+    senderName: "Système",
+    text: "Un responsable a été assigné à cet incident.",
+    messageType: "text",
+  } as any);
+}
+
+// ─── GET /conversations/contactable-users ────────────────────────────────────
+// Returns the list of users the current actor is allowed to DM, based on the
+// role communication matrix defined in canDirectMessage(). This drives the
+// "new conversation" contact picker in the mobile app so the UI only shows
+// users who are actually reachable — matching the server-side enforcement.
+
+router.get("/conversations/contactable-users", requireAuth, async (req, res) => {
+  try {
+    const actor = req.user!;
+    const syndicateId = actor.syndicateId || "";
+    let conditions: any;
+
+    if (actor.role === "super_admin") {
+      // Super admins can DM all syndicate admins across the platform
+      conditions = eq(usersTable.role, "syndicate_admin");
+    } else if (actor.role === "syndicate_admin") {
+      // Syndicate admins can DM: members and tenants in their syndicate, + all super_admins
+      conditions = or(
+        eq(usersTable.role, "super_admin"),
+        and(
+          eq(usersTable.syndicateId, syndicateId),
+          or(eq(usersTable.role, "member"), eq(usersTable.role, "tenant")),
+        ),
+      );
+    } else if (actor.role === "member") {
+      // Members can DM: their syndicate admin + other members in same syndicate
+      conditions = and(
+        eq(usersTable.syndicateId, syndicateId),
+        or(eq(usersTable.role, "syndicate_admin"), eq(usersTable.role, "member")),
+      );
+    } else {
+      // Tenants can only DM their syndicate admin
+      conditions = and(
+        eq(usersTable.syndicateId, syndicateId),
+        eq(usersTable.role, "syndicate_admin"),
+      );
+    }
+
+    const rows = await db
+      .select({ id: usersTable.id, name: usersTable.name, email: usersTable.email, role: usersTable.role, syndicateId: usersTable.syndicateId })
+      .from(usersTable)
+      .where(and(conditions, sql`${usersTable.id} != ${actor.userId}`));
+
+    res.json({ data: rows });
+  } catch (err) {
+    req.log.error(err);
+    res.status(500).json({ error: "Erreur serveur" });
+  }
+});
+
 // ─── GET /conversations ───────────────────────────────────────────────────────
 
 router.get("/conversations", requireAuth, async (req, res) => {
@@ -757,34 +842,18 @@ router.patch("/conversations/:id/read", requireAuth, async (req, res) => {
       return;
     }
 
-    // Upsert read record
-    const existing = await db
-      .select()
-      .from(messageReadsTable)
-      .where(
-        and(
-          eq(messageReadsTable.conversationId, id),
-          eq(messageReadsTable.userId, req.user!.userId),
-        ),
-      );
-
-    if (existing.length > 0) {
-      await db
-        .update(messageReadsTable)
-        .set({ lastReadAt: new Date() })
-        .where(
-          and(
-            eq(messageReadsTable.conversationId, id),
-            eq(messageReadsTable.userId, req.user!.userId),
-          ),
-        );
-    } else {
-      await db.insert(messageReadsTable).values({
-        conversationId: id,
-        userId: req.user!.userId,
-        lastReadAt: new Date(),
+    // Atomic upsert — INSERT and update on conflict so there is never a race
+    // condition between a SELECT and a subsequent INSERT from two simultaneous
+    // mark-read calls (e.g. polling + explicit tap). The unique index on
+    // (conversationId, userId) is enforced by the DB; Drizzle surfaces it as
+    // onConflictDoUpdate targeting that composite key.
+    await db
+      .insert(messageReadsTable)
+      .values({ conversationId: id, userId: req.user!.userId, lastReadAt: new Date() })
+      .onConflictDoUpdate({
+        target: [messageReadsTable.conversationId, messageReadsTable.userId],
+        set: { lastReadAt: new Date() },
       });
-    }
 
     res.json({ message: "Marqué comme lu" });
   } catch (err) {
@@ -934,6 +1003,7 @@ router.post("/conversations/:id/messages", requireAuth, async (req, res) => {
     attachmentUrl: z.string().url().optional(),
     attachmentType: z.string().max(100).optional(),
     attachmentName: z.string().max(255).optional(),
+    attachmentSize: z.number().int().positive().max(50 * 1024 * 1024).optional(),
     durationSeconds: z.number().int().positive().max(600).optional(),
   });
   const result = schema.safeParse(req.body);
@@ -982,6 +1052,7 @@ router.post("/conversations/:id/messages", requireAuth, async (req, res) => {
         attachmentUrl: result.data.attachmentUrl,
         attachmentType: result.data.attachmentType,
         attachmentName: result.data.attachmentName,
+        attachmentSize: result.data.attachmentSize,
         durationSeconds: result.data.durationSeconds,
       })
       .returning();
@@ -1031,7 +1102,7 @@ router.post("/conversations/:id/messages", requireAuth, async (req, res) => {
     // ── Fire-and-forget push notifications to other participants ──────────────
     // Runs after response is sent so it never delays the reply to the sender.
     db.select().from(conversationsTable).where(eq(conversationsTable.id, id))
-      .then(([conv]) => {
+      .then(async ([conv]) => {
         if (!conv) return;
         const senderId = req.user!.userId;
         const recipientIds: string[] = [];
@@ -1054,10 +1125,37 @@ router.post("/conversations/:id/messages", requireAuth, async (req, res) => {
           ? `📎 ${result.data.attachmentName}`
           : result.data.text.trim().slice(0, 100) || "Nouveau message";
 
-        return sendPushToUsers(recipientIds, pushTitle, pushBody, {
-          conversationId: id,
-          type: "chat_message",
-        });
+        // ── @mention detection (group chats only) ──────────────────────────
+        // Matches "@FirstName" or "@First Last" tokens against recipient names
+        // so a mentioned resident gets a distinct, higher-attention notification.
+        let mentionedIds: string[] = [];
+        if (conv.isGroup && result.data.text.includes("@") && recipientIds.length > 0) {
+          const recipients = await db
+            .select({ id: usersTable.id, name: usersTable.name })
+            .from(usersTable)
+            .where(inArray(usersTable.id, recipientIds));
+          const normalize = (s: string) => s.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase();
+          const textNorm = normalize(result.data.text);
+          mentionedIds = recipients
+            .filter((r) => r.name && textNorm.includes(`@${normalize(r.name).split(" ")[0]}`))
+            .map((r) => r.id);
+        }
+
+        const nonMentioned = recipientIds.filter((rid) => !mentionedIds.includes(rid));
+        const pushes: Promise<unknown>[] = [];
+        if (mentionedIds.length > 0) {
+          pushes.push(sendPushToUsers(mentionedIds, `${senderName} vous a mentionné`, pushBody, {
+            conversationId: id,
+            type: "chat_mention",
+          }));
+        }
+        if (nonMentioned.length > 0) {
+          pushes.push(sendPushToUsers(nonMentioned, pushTitle, pushBody, {
+            conversationId: id,
+            type: "chat_message",
+          }));
+        }
+        return Promise.all(pushes);
       })
       .catch(() => { /* never let push errors affect the route */ });
   } catch (err) {

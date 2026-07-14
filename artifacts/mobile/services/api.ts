@@ -627,6 +627,7 @@ export const chat = {
       attachmentUrl?: string;
       attachmentType?: string;
       attachmentName?: string;
+      attachmentSize?: number;
       durationSeconds?: number;
     },
   ) =>
@@ -634,6 +635,11 @@ export const chat = {
       method: "POST",
       body: JSON.stringify({ text: payload.text ?? "", ...payload }),
     }),
+
+  contactableUsers: () =>
+    request<{ data: { id: string; name: string; email: string; role: string; syndicateId: string | null }[] }>(
+      "/conversations/contactable-users",
+    ),
 
   // Legacy alias kept for existing callers
   sendMessage: (id: string, text: string) =>

@@ -22,7 +22,6 @@ import { useData, type ChatConversation } from "@/context/DataContext";
 import { useLanguage } from "@/context/LanguageContext";
 import { useBreakpoints } from "@/hooks/useBreakpoints";
 import { useColors } from "@/hooks/useColors";
-import { apiRequest } from "@/lib/api";
 import { chat as chatApi } from "@/services/api";
 import EmptyState from "@/components/EmptyState";
 import FilterChips from "@/components/FilterChips";
@@ -62,7 +61,7 @@ function convAccent(c: ChatConversation, primary: string) {
 export default function ChatScreen() {
   const colors = useColors();
   const insets = useSafeAreaInsets();
-  const { user, token } = useAuth();
+  const { user } = useAuth();
   const { t } = useLanguage();
   const { conversations, refreshConversations, deleteConversation, markConversationRead } = useData();
   const [search, setSearch] = useState("");
@@ -146,9 +145,12 @@ export default function ChatScreen() {
   const loadContacts = async () => {
     setLoadingContacts(true);
     try {
-      const res = await apiRequest<{ data: ContactUser[] }>("/members", "GET", undefined, token);
+      // Use the role-filtered contactable-users endpoint so the picker only
+      // shows users the current actor is actually allowed to message, matching
+      // the server-side communication matrix enforced in canDirectMessage().
+      const res = await chatApi.contactableUsers() as any;
       const rows: ContactUser[] = Array.isArray(res?.data) ? res.data : [];
-      setContacts(rows.filter((c) => c.id !== user?.id && c.id !== (user as any)?.userId));
+      setContacts(rows);
     } catch {
       setContacts([]);
     } finally {

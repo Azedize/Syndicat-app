@@ -59,8 +59,8 @@ export default function PrestataireDetailScreen() {
   const [ctForm, setCtForm] = useState({ title: "", buildingId: "", startDate: "", endDate: "", monthlyAmount: "", documentUrl: "" });
   const [ctFileName, setCtFileName] = useState("");
   const handlePickContractPdf = async () => {
-    const path = await pickAndUploadPdf();
-    if (path) { setCtForm((p) => ({ ...p, documentUrl: path })); setCtFileName("Document PDF joint"); }
+    const result = await pickAndUploadPdf();
+    if (result) { setCtForm((p) => ({ ...p, documentUrl: result.objectPath })); setCtFileName("Document PDF joint"); }
     else Alert.alert("Erreur", "Impossible de téléverser le document");
   };
   const handleCreateContract = async () => {

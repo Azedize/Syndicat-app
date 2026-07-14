@@ -875,6 +875,7 @@ export const messagesTable = pgTable(
     attachmentUrl: text("attachment_url"),
     attachmentType: text("attachment_type"),   // MIME type e.g. "image/jpeg"
     attachmentName: text("attachment_name"),   // original filename
+    attachmentSize: integer("attachment_size"), // bytes
     durationSeconds: integer("duration_seconds"), // for voice notes
     deletedAt: timestamp("deleted_at"),
     createdAt: createdAt(),
@@ -898,7 +899,7 @@ export const messageReadsTable = pgTable(
     lastDeliveredAt: timestamp("last_delivered_at").defaultNow(),
   },
   (t) => [
-    index("message_reads_conv_user_idx").on(t.conversationId, t.userId),
+    uniqueIndex("message_reads_conv_user_idx").on(t.conversationId, t.userId),
     index("message_reads_user_id_idx").on(t.userId),
   ],
 );

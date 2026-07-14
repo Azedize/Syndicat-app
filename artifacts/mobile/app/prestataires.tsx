@@ -84,9 +84,9 @@ function PrestatairesScreenInner() {
   const handlePickJustification = async () => {
     try {
       setUploading(true);
-      const path = await pickAndUploadInvoice();
-      if (path) setDocumentUrl(path);
-      setDocumentName(path ? "Justificatif joint (image/PDF)" : documentName);
+      const result = await pickAndUploadInvoice();
+      if (result) setDocumentUrl(result.objectPath);
+      setDocumentName(result ? "Justificatif joint (image/PDF)" : documentName);
     } catch {
       Alert.alert("Erreur", "Impossible de téléverser le document");
     } finally { setUploading(false); }

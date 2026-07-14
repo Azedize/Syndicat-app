@@ -234,14 +234,14 @@ export default function ParkingScreen() {
   const handleTakePhoto = async () => {
     setUploadingPhoto(true);
     try {
-      const url = await captureAndUploadPhoto();
-      if (url) {
-        setRPhotoUrl(url);
+      const result = await captureAndUploadPhoto();
+      if (result) {
+        setRPhotoUrl(result.objectPath);
         Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
       } else {
         // Fallback to gallery if camera not available or permission denied
-        const galleryUrl = await pickAndUploadPhoto();
-        if (galleryUrl) setRPhotoUrl(galleryUrl);
+        const galleryResult = await pickAndUploadPhoto();
+        if (galleryResult) setRPhotoUrl(galleryResult.objectPath);
       }
     } catch {
       Alert.alert("Erreur", "Impossible de prendre la photo");

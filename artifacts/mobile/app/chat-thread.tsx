@@ -8,23 +8,63 @@ import {
   ActivityIndicator,
   Alert,
   FlatList,
+  I18nManager,
+  Image,
   KeyboardAvoidingView,
   Linking,
   Platform,
+  ScrollView,
   StyleSheet,
   Text,
   TextInput,
   TouchableOpacity,
   View,
 } from "react-native";
-import { pickAndUploadPhoto, pickAndUploadDocument } from "@/lib/upload";
-import { apiRequest } from "@/lib/api";
+import {
+  pickAndUploadPhoto,
+  pickAndUploadDocument,
+  captureAndUploadPhoto,
+  type UploadResult,
+  MAX_ATTACHMENT_SIZE,
+} from "@/lib/upload";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { chat as chatApi } from "@/services/api";
 import { useData, type ChatMessage } from "@/context/DataContext";
 import { useBreakpoints } from "@/hooks/useBreakpoints";
 import EmptyState from "@/components/EmptyState";
 import { useColors } from "@/hooks/useColors";
+
+// ─── Common emojis for the picker panel ──────────────────────────────────────
+const EMOJI_GRID = [
+  "😀","😃","😄","😁","😆","😅","😂","🤣","😊","😇",
+  "🙂","🙃","😉","😌","😍","🥰","😘","😗","😙","😚",
+  "😋","😛","😜","🤪","😝","🤑","🤗","🤭","🤫","🤔",
+  "🤐","🤨","😐","😑","😶","😏","😒","🙄","😬","🤥",
+  "😔","😪","🤤","😴","😷","🤒","🤕","🤢","🤮","🥵",
+  "👍","👎","👏","🙌","🤝","👊","✊","🤜","🤛","🤞",
+  "❤️","🧡","💛","💚","💙","💜","🖤","🤍","💯","🔥",
+  "🎉","🎊","✨","💫","⭐","🌟","💥","🚀","🌈","🍀",
+];
+
+const REACTION_EMOJIS = ["👍","❤️","😂","😮","😢","🙏"];
+
+function getAttachmentBaseUrl(): string {
+  const domain = process.env.EXPO_PUBLIC_DOMAIN;
+  if (domain) return `https://${domain}/api`;
+  return `http://localhost:${process.env.EXPO_PUBLIC_API_PORT ?? "8080"}/api`;
+}
+
+function resolveAttachmentUrl(raw: string | null | undefined): string | null {
+  if (!raw) return null;
+  if (raw.startsWith("http")) return raw;
+  return `${getAttachmentBaseUrl()}/storage/public-objects/${raw}`;
+}
+
+function formatBytes(bytes: number): string {
+  if (bytes < 1024) return `${bytes} B`;
+  if (bytes < 1024 * 1024) return `${Math.round(bytes / 1024)} KB`;
+  return `${(bytes / 1024 / 1024).toFixed(1)} MB`;
+}
 
 export default function ChatThreadScreen() {
   const colors = useColors();
@@ -33,11 +73,11 @@ export default function ChatThreadScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const [text, setText] = useState("");
   const [apiMessages, setApiMessages] = useState<ChatMessage[]>([]);
-  const [typingVisible, setTypingVisible] = useState(false);
   const listRef = useRef<FlatList>(null);
   const lastMessageAtRef = useRef<string | null>(null);
   const { isWide } = useBreakpoints();
   const topPad = isWide ? 0 : (Platform.OS === "web" ? 67 : insets.top);
+  const isRTL = I18nManager.isRTL;
 
   const { conversations, messages, sendMessage, markConversationRead, deleteConversation } = useData();
   const conversation = conversations.find((c) => c.id === id);
@@ -46,6 +86,13 @@ export default function ChatThreadScreen() {
   const [reportModalVisible, setReportModalVisible] = useState(false);
   const [reportReason, setReportReason] = useState("");
   const typingSentAtRef = useRef(0);
+
+  // ─── Upload state ─────────────────────────────────────────────────────────
+  const [uploading, setUploading] = useState(false);
+  const [uploadProgress, setUploadProgress] = useState(0); // 0-1
+
+  // ─── Emoji picker state ───────────────────────────────────────────────────
+  const [showEmojiPicker, setShowEmojiPicker] = useState(false);
 
   useEffect(() => { setIsBlocked(!!conversation?.isBlocked); }, [conversation?.isBlocked]);
 
@@ -81,16 +128,15 @@ export default function ChatThreadScreen() {
         const mapped = rows.map(mapApiMessage);
         setApiMessages(mapped);
         if (mapped.length > 0) {
-          const last = mapped[mapped.length - 1];
-          lastMessageAtRef.current = last.createdAt ?? null;
+          lastMessageAtRef.current = mapped[mapped.length - 1].createdAt ?? null;
         }
       })
-      .catch(() => { /* keep showing optimistic messages on API failure */ });
+      .catch(() => {});
     markConversationRead(id);
     return () => { cancelled = true; };
   }, [id]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  // Poll for new messages every 4 seconds
+  // Poll for new messages and typing every 4 seconds
   useEffect(() => {
     if (!id) return;
     const timer = setInterval(async () => {
@@ -104,9 +150,7 @@ export default function ChatThreadScreen() {
             const existingIds = new Set(prev.map((m) => m.id));
             const fresh = mapped.filter((m) => !existingIds.has(m.id));
             if (fresh.length === 0) return prev;
-            const last = fresh[fresh.length - 1];
-            lastMessageAtRef.current = last.createdAt ?? null;
-            // Scroll to bottom when new messages arrive from others
+            lastMessageAtRef.current = fresh[fresh.length - 1].createdAt ?? null;
             if (fresh.some((m) => !m.isMe)) {
               setTimeout(() => listRef.current?.scrollToEnd({ animated: true }), 100);
               markConversationRead(id);
@@ -120,9 +164,7 @@ export default function ChatThreadScreen() {
     return () => clearInterval(timer);
   }, [id]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  // Merge: show API history + optimistic "isMe" messages not yet echoed by server.
-  // Optimistic messages use temp IDs (m<timestamp>) that won't match server UUIDs, so
-  // we deduplicate by matching text+sender instead of ID to avoid double-rendering.
+  // Merge API history + optimistic local messages
   const apiMsgsForThread = apiMessages.filter((m) => m.conversationId === id);
   const apiTexts = new Set(apiMsgsForThread.filter((m) => m.isMe).map((m) => m.text));
   const localPending = messages.filter(
@@ -130,18 +172,13 @@ export default function ChatThreadScreen() {
   );
   const threadMessages = [...apiMsgsForThread, ...localPending];
 
-  const [uploading, setUploading] = useState(false);
-
-  function getAttachmentBaseUrl(): string {
-    const domain = process.env.EXPO_PUBLIC_DOMAIN;
-    if (domain) return `https://${domain}/api`;
-    return `http://localhost:${process.env.EXPO_PUBLIC_API_PORT ?? "8080"}/api`;
-  }
+  // ─── Handlers ─────────────────────────────────────────────────────────────
 
   const handleSend = () => {
     if (!text.trim() || !id || isBlocked) return;
     sendMessage(id, text.trim());
     setText("");
+    setShowEmojiPicker(false);
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
     setTimeout(() => listRef.current?.scrollToEnd({ animated: true }), 100);
   };
@@ -152,7 +189,7 @@ export default function ChatThreadScreen() {
     const now = Date.now();
     if (now - typingSentAtRef.current > 2500) {
       typingSentAtRef.current = now;
-      chatApi.typing(id).catch(() => { /* best-effort */ });
+      chatApi.typing(id).catch(() => {});
     }
   };
 
@@ -161,18 +198,18 @@ export default function ChatThreadScreen() {
     const targetId = conversation.participantId;
     if (isBlocked) {
       chatApi.unblockUser(targetId)
-        .then(() => { setIsBlocked(false); Alert.alert(t('userUnblockedTitle')); })
-        .catch(() => Alert.alert(t('error')));
+        .then(() => { setIsBlocked(false); Alert.alert(t("userUnblockedTitle")); })
+        .catch(() => Alert.alert(t("error")));
     } else {
-      Alert.alert(t('blockUser'), t('blockUserConfirm'), [
-        { text: t('cancel'), style: "cancel" },
+      Alert.alert(t("blockUser"), t("blockUserConfirm"), [
+        { text: t("cancel"), style: "cancel" },
         {
-          text: t('blockUser'),
+          text: t("blockUser"),
           style: "destructive",
           onPress: () => {
             chatApi.blockUser(targetId)
-              .then(() => { setIsBlocked(true); Alert.alert(t('userBlockedTitle')); })
-              .catch(() => Alert.alert(t('error')));
+              .then(() => { setIsBlocked(true); Alert.alert(t("userBlockedTitle")); })
+              .catch(() => Alert.alert(t("error")));
           },
         },
       ]);
@@ -189,9 +226,9 @@ export default function ChatThreadScreen() {
       });
       setReportModalVisible(false);
       setReportReason("");
-      Alert.alert(t('reportSentTitle'), t('reportSentMsg'));
+      Alert.alert(t("reportSentTitle"), t("reportSentMsg"));
     } catch {
-      Alert.alert(t('error'));
+      Alert.alert(t("error"));
     }
   };
 
@@ -205,49 +242,83 @@ export default function ChatThreadScreen() {
     } catch { /* best-effort */ }
   };
 
-  const REACTION_EMOJIS = ["👍", "❤️", "😂", "😮", "😢", "🙏"];
-
-  const handleAttach = async (type: "photo" | "document") => {
+  const handleAttach = async (mode: "camera" | "gallery" | "document") => {
     if (!id || uploading) return;
     setUploading(true);
+    setUploadProgress(0);
     try {
-      const objectPath = type === "photo"
-        ? await pickAndUploadPhoto()
-        : await pickAndUploadDocument();
-      if (!objectPath) return; // user cancelled or upload failed silently
+      let result: UploadResult | undefined;
+      const onProgress = (p: number) => setUploadProgress(p);
 
-      const attachmentUrl = `${getAttachmentBaseUrl()}/storage/public-objects/${objectPath}`;
-      const isImage = type === "photo";
+      if (mode === "camera") {
+        result = await captureAndUploadPhoto(onProgress);
+      } else if (mode === "gallery") {
+        result = await pickAndUploadPhoto(onProgress);
+      } else {
+        result = await pickAndUploadDocument(onProgress);
+      }
 
-      await apiRequest(`/conversations/${id}/messages`, "POST", {
+      if (!result) return; // user cancelled or upload failed
+
+      const isImage = result.contentType.startsWith("image/");
+      const attachmentUrl = `${getAttachmentBaseUrl()}/storage/public-objects/${result.objectPath}`;
+
+      await chatApi.send(id, {
         text: "",
         messageType: isImage ? "image" : "document",
         attachmentUrl,
-        attachmentType: isImage ? "image/jpeg" : "application/octet-stream",
-        attachmentName: objectPath.split("/").pop() ?? (isImage ? "photo.jpg" : "document"),
+        attachmentType: result.contentType,
+        attachmentName: result.fileName,
+        attachmentSize: result.size,
       });
 
       // Refresh message list
-      const res = await (await import("@/services/api")).chat.messages(id) as any;
+      const res = await chatApi.messages(id) as any;
       setApiMessages((res?.data ?? []).map(mapApiMessage));
       setTimeout(() => listRef.current?.scrollToEnd({ animated: true }), 100);
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-    } catch {
-      Alert.alert(t('error'), t('uploadError'));
+    } catch (err: any) {
+      const msg = err?.message?.startsWith("FILE_TOO_LARGE")
+        ? `Fichier trop volumineux (max ${formatBytes(MAX_ATTACHMENT_SIZE)})`
+        : t("uploadError");
+      Alert.alert(t("error"), msg);
     } finally {
       setUploading(false);
+      setUploadProgress(0);
     }
+  };
+
+  const openAttachmentPicker = () => {
+    if (isBlocked) return;
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    Alert.alert(t("attachmentLabel"), t("chooseFileType"), [
+      { text: t("cancel"), style: "cancel" },
+      { text: "📷 " + t("cameraLabel"), onPress: () => handleAttach("camera") },
+      { text: "🖼 " + t("photoLabel"), onPress: () => handleAttach("gallery") },
+      { text: "📄 " + t("documentLabel"), onPress: () => handleAttach("document") },
+    ]);
   };
 
   if (!conversation) {
     return (
       <View style={[styles.root, { backgroundColor: colors.background }]}>
-        <Text style={{ color: colors.foreground, padding: 20 }}>{t('conversationNotFound')}</Text>
+        <Text style={{ color: colors.foreground, padding: 20 }}>{t("conversationNotFound")}</Text>
       </View>
     );
   }
 
   const isGroup = conversation.isGroup || conversation.convType === "group" || conversation.role === "Groupe";
+
+  // ─── Bubble corner helper (RTL-aware) ─────────────────────────────────────
+  // In LTR: "my" bubbles have bottom-right cut (isMe=true → borderBottomRightRadius:4).
+  //         "their" bubbles have bottom-left cut (isMe=false → borderBottomLeftRadius:4).
+  // In RTL: flip the corners.
+  function bubbleCornerStyle(isMe: boolean) {
+    if (isRTL) {
+      return isMe ? { borderBottomLeftRadius: 4 } : { borderBottomRightRadius: 4 };
+    }
+    return isMe ? { borderBottomRightRadius: 4 } : { borderBottomLeftRadius: 4 };
+  }
 
   return (
     <KeyboardAvoidingView
@@ -282,9 +353,9 @@ export default function ChatThreadScreen() {
           style={[styles.headerBtn, { backgroundColor: colors.secondary }]}
           onPress={() => {
             Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
-            Alert.alert(t('vocalCallLabel'), `${t('callLabel')} ${conversation.participant}?`, [
-              { text: t('cancel'), style: "cancel" },
-              { text: t('callLabel'), onPress: () => Linking.openURL("tel:").catch(() => Alert.alert(t('error'), t('callUnavailable'))) },
+            Alert.alert(t("vocalCallLabel"), `${t("callLabel")} ${conversation.participant}?`, [
+              { text: t("cancel"), style: "cancel" },
+              { text: t("callLabel"), onPress: () => Linking.openURL("tel:").catch(() => Alert.alert(t("error"), t("callUnavailable"))) },
             ]);
           }}
         >
@@ -295,29 +366,38 @@ export default function ChatThreadScreen() {
           onPress={() => {
             Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
             const options: any[] = [
-              { text: t('cancel'), style: "cancel" },
-              { text: t('shareConversation'), onPress: () => shareContent(`Conversation avec ${conversation.participant} sur SYNDYCAT`) },
+              { text: t("cancel"), style: "cancel" },
+              { text: t("shareConversation"), onPress: () => shareContent(`Conversation avec ${conversation.participant} sur SYNDYCAT`) },
             ];
             if (!isGroup && conversation.participantId) {
-              options.push({ text: isBlocked ? t('unblockUser') : t('blockUser'), onPress: handleToggleBlock });
-              options.push({ text: t('reportUser'), onPress: () => setReportModalVisible(true) });
+              options.push({ text: isBlocked ? t("unblockUser") : t("blockUser"), onPress: handleToggleBlock });
+              options.push({ text: t("reportUser"), onPress: () => setReportModalVisible(true) });
             } else {
-              options.push({ text: t('reportConversation'), onPress: () => setReportModalVisible(true) });
+              options.push({ text: t("reportConversation"), onPress: () => setReportModalVisible(true) });
             }
             options.push({
-              text: t('deleteConversation'),
+              text: t("deleteConversation"),
               style: "destructive",
-              onPress: () => {
-                deleteConversation(id);
-                router.back();
-              },
+              onPress: () => { deleteConversation(id); router.back(); },
             });
-            Alert.alert(t('optionsLabel'), undefined, options);
+            Alert.alert(t("optionsLabel"), undefined, options);
           }}
         >
           <Feather name="more-vertical" size={16} color={colors.foreground} />
         </TouchableOpacity>
       </View>
+
+      {/* Upload progress bar */}
+      {uploading && (
+        <View style={[styles.progressBar, { backgroundColor: colors.border }]}>
+          <View
+            style={[
+              styles.progressFill,
+              { backgroundColor: colors.primary, width: `${Math.round(uploadProgress * 100)}%` as any },
+            ]}
+          />
+        </View>
+      )}
 
       {/* Messages */}
       <FlatList
@@ -332,12 +412,16 @@ export default function ChatThreadScreen() {
         showsVerticalScrollIndicator={false}
         onLayout={() => listRef.current?.scrollToEnd({ animated: false })}
         ListEmptyComponent={
-          <EmptyState icon="message-circle" title={t('startConversation')} />
+          <EmptyState icon="message-circle" title={t("startConversation")} />
         }
         renderItem={({ item: msg, index }) => {
           const prev = threadMessages[index - 1];
           const showSender = !msg.isMe && (!prev || prev.sender !== msg.sender);
           const reactions: { emoji: string; count: number; mine: boolean }[] = msg.reactions ?? [];
+          const isImage = msg.messageType === "image" || msg.attachmentType?.startsWith("image/");
+          const isDoc = msg.messageType === "document" || (!isImage && !!msg.attachmentUrl);
+          const resolvedUrl = resolveAttachmentUrl(msg.attachmentUrl);
+
           return (
             <View style={[styles.msgRow, msg.isMe && styles.msgRowMe]}>
               {!msg.isMe && isGroup && (
@@ -354,9 +438,9 @@ export default function ChatThreadScreen() {
                 <TouchableOpacity
                   activeOpacity={0.8}
                   onLongPress={() => {
-                    if (msg.id.startsWith("m")) return; // optimistic/unsent message, no server id yet
+                    if (msg.id.startsWith("m")) return; // optimistic message
                     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
-                    Alert.alert(t('addReaction'), undefined, [
+                    Alert.alert(t("addReaction"), undefined, [
                       ...REACTION_EMOJIS.map((emoji) => ({
                         text: emoji,
                         onPress: () => {
@@ -364,21 +448,64 @@ export default function ChatThreadScreen() {
                           handleToggleReaction(msg.id, emoji, mine);
                         },
                       })),
-                      { text: t('cancel'), style: "cancel" as const },
+                      { text: t("cancel"), style: "cancel" as const },
                     ]);
                   }}
                 >
                   <View
                     style={[
                       styles.bubble,
+                      bubbleCornerStyle(msg.isMe),
                       msg.isMe
                         ? { backgroundColor: colors.primary }
                         : { backgroundColor: colors.card, borderColor: colors.border, borderWidth: 1 },
+                      // Image bubbles have no padding — the image fills to the edge
+                      isImage && resolvedUrl ? { padding: 0, overflow: "hidden" } : {},
                     ]}
                   >
-                    <Text style={[styles.bubbleText, { color: msg.isMe ? "#fff" : colors.foreground }]}>
-                      {msg.text}
-                    </Text>
+                    {/* Image attachment */}
+                    {isImage && resolvedUrl ? (
+                      <TouchableOpacity onPress={() => Linking.openURL(resolvedUrl).catch(() => {})}>
+                        <Image
+                          source={{ uri: resolvedUrl }}
+                          style={styles.attachmentImage}
+                          resizeMode="cover"
+                        />
+                      </TouchableOpacity>
+                    ) : isDoc && resolvedUrl ? (
+                      /* Document attachment */
+                      <TouchableOpacity
+                        style={styles.docAttachment}
+                        onPress={() => Linking.openURL(resolvedUrl).catch(() => Alert.alert(t("error"), t("cannotOpenFile")))}
+                      >
+                        <View style={[styles.docIcon, { backgroundColor: msg.isMe ? "rgba(255,255,255,0.2)" : colors.primary + "20" }]}>
+                          <Feather name="file" size={20} color={msg.isMe ? "#fff" : colors.primary} />
+                        </View>
+                        <View style={{ flex: 1 }}>
+                          <Text
+                            style={[styles.docName, { color: msg.isMe ? "#fff" : colors.foreground }]}
+                            numberOfLines={2}
+                          >
+                            {msg.attachmentName ?? t("documentLabel")}
+                          </Text>
+                          <Text style={[styles.docOpen, { color: msg.isMe ? "rgba(255,255,255,0.7)" : colors.primary }]}>
+                            {t("openLabel") ?? "Ouvrir"}
+                          </Text>
+                        </View>
+                        <Feather name="external-link" size={14} color={msg.isMe ? "rgba(255,255,255,0.7)" : colors.mutedForeground} />
+                      </TouchableOpacity>
+                    ) : (
+                      /* Plain text */
+                      <Text style={[styles.bubbleText, { color: msg.isMe ? "#fff" : colors.foreground }]}>
+                        {msg.text}
+                      </Text>
+                    )}
+                    {/* Caption for image messages that also have text */}
+                    {isImage && msg.text ? (
+                      <Text style={[styles.bubbleCaption, { color: msg.isMe ? "#fff" : colors.foreground }]}>
+                        {msg.text}
+                      </Text>
+                    ) : null}
                   </View>
                 </TouchableOpacity>
                 {reactions.length > 0 && (
@@ -407,7 +534,7 @@ export default function ChatThreadScreen() {
       {isBlocked ? (
         <View style={[styles.blockedNotice, { backgroundColor: colors.secondary, borderTopColor: colors.border }]}>
           <Feather name="slash" size={14} color={colors.mutedForeground} />
-          <Text style={[styles.blockedNoticeText, { color: colors.mutedForeground }]}>{t('conversationBlockedNotice')}</Text>
+          <Text style={[styles.blockedNoticeText, { color: colors.mutedForeground }]}>{t("conversationBlockedNotice")}</Text>
         </View>
       ) : (
         <>
@@ -415,11 +542,33 @@ export default function ChatThreadScreen() {
             <View style={styles.typingRow}>
               <ActivityIndicator size="small" color={colors.primary} />
               <Text style={[styles.typingText, { color: colors.mutedForeground }]}>
-                {conversation.participant} {t('isTyping')}
+                {conversation.participant} {t("isTyping")}
               </Text>
             </View>
           )}
         </>
+      )}
+
+      {/* Emoji picker panel */}
+      {showEmojiPicker && !isBlocked && (
+        <View style={[styles.emojiPanel, { backgroundColor: colors.card, borderTopColor: colors.border }]}>
+          <ScrollView horizontal={false} style={{ maxHeight: 160 }}>
+            <View style={styles.emojiGrid}>
+              {EMOJI_GRID.map((emoji) => (
+                <TouchableOpacity
+                  key={emoji}
+                  style={styles.emojiBtn}
+                  onPress={() => {
+                    setText((prev) => prev + emoji);
+                    Haptics.selectionAsync();
+                  }}
+                >
+                  <Text style={styles.emojiChar}>{emoji}</Text>
+                </TouchableOpacity>
+              ))}
+            </View>
+          </ScrollView>
+        </View>
       )}
 
       {/* Report modal */}
@@ -428,13 +577,13 @@ export default function ChatThreadScreen() {
           <TouchableOpacity style={styles.reportOverlay} activeOpacity={1} onPress={() => setReportModalVisible(false)} />
           <View style={[styles.reportModal, { backgroundColor: colors.card, bottom: insets.bottom + 20 }]}>
             <Text style={[styles.reportModalTitle, { color: colors.foreground }]}>
-              {isGroup ? t('reportConversation') : t('reportUser')}
+              {isGroup ? t("reportConversation") : t("reportUser")}
             </Text>
             <TextInput
               style={[styles.reportInput, { backgroundColor: colors.background, borderColor: colors.border, color: colors.foreground }]}
               value={reportReason}
               onChangeText={setReportReason}
-              placeholder={t('reportReasonPlaceholder')}
+              placeholder={t("reportReasonPlaceholder")}
               placeholderTextColor={colors.mutedForeground}
               multiline
               maxLength={500}
@@ -444,13 +593,13 @@ export default function ChatThreadScreen() {
               onPress={handleSubmitReport}
               disabled={!reportReason.trim()}
             >
-              <Text style={styles.reportSubmitBtnText}>{t('send')}</Text>
+              <Text style={styles.reportSubmitBtnText}>{t("send")}</Text>
             </TouchableOpacity>
           </View>
         </View>
       )}
 
-      {/* Input */}
+      {/* Input bar */}
       <View
         style={[
           styles.inputRow,
@@ -461,32 +610,40 @@ export default function ChatThreadScreen() {
           },
         ]}
       >
+        {/* Attach button */}
         <TouchableOpacity
-          style={[styles.attachBtn, { backgroundColor: colors.secondary }]}
+          style={[styles.inputIconBtn, { backgroundColor: colors.secondary }]}
           disabled={uploading || isBlocked}
-          onPress={() => {
-            Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-            Alert.alert(t('attachmentLabel'), t('chooseFileType'), [
-              { text: t('cancel'), style: "cancel" },
-              { text: t('photoLabel'), onPress: () => handleAttach("photo") },
-              { text: t('documentLabel'), onPress: () => handleAttach("document") },
-            ]);
-          }}
+          onPress={openAttachmentPicker}
         >
           {uploading
             ? <ActivityIndicator size="small" color={colors.primary} />
             : <Feather name="paperclip" size={18} color={colors.mutedForeground} />}
         </TouchableOpacity>
+
+        {/* Emoji toggle */}
+        <TouchableOpacity
+          style={[styles.inputIconBtn, { backgroundColor: showEmojiPicker ? colors.primary + "20" : colors.secondary }]}
+          disabled={isBlocked}
+          onPress={() => {
+            Haptics.selectionAsync();
+            setShowEmojiPicker((v) => !v);
+          }}
+        >
+          <Text style={styles.emojiToggle}>😊</Text>
+        </TouchableOpacity>
+
         <TextInput
           style={[styles.msgInput, { backgroundColor: colors.background, borderColor: colors.border, color: colors.foreground }]}
           value={text}
           onChangeText={handleTextChange}
-          placeholder={t('writeMessagePlaceholder')}
+          placeholder={t("writeMessagePlaceholder")}
           placeholderTextColor={colors.mutedForeground}
           multiline
           maxLength={500}
           editable={!isBlocked}
           onSubmitEditing={handleSend}
+          onFocus={() => setShowEmojiPicker(false)}
         />
         <TouchableOpacity
           style={[styles.sendBtn, { backgroundColor: text.trim() && !isBlocked ? colors.primary : colors.muted }]}
@@ -530,8 +687,13 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "center",
   },
-  // Fills the space below the header so EmptyState can center itself
-  // there without the FlatList adding its own scrollable padding/gaps.
+  progressBar: {
+    height: 3,
+    width: "100%",
+  },
+  progressFill: {
+    height: 3,
+  },
   listEmptyContainer: { flexGrow: 1 },
   msgRow: { flexDirection: "row", alignItems: "flex-end", gap: 8 },
   msgRowMe: { justifyContent: "flex-end" },
@@ -550,25 +712,50 @@ const styles = StyleSheet.create({
     paddingHorizontal: 14,
     paddingVertical: 10,
     borderRadius: 18,
-    borderBottomLeftRadius: 4,
+    // Corner is set dynamically via bubbleCornerStyle()
   },
   bubbleText: { fontSize: 14, fontFamily: "Inter_400Regular", lineHeight: 19 },
+  bubbleCaption: { fontSize: 13, fontFamily: "Inter_400Regular", padding: 8, paddingTop: 4 },
+  // Inline image in bubble
+  attachmentImage: {
+    width: 220,
+    height: 160,
+    borderRadius: 14,
+  },
+  // Document attachment row
+  docAttachment: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 10,
+    paddingVertical: 6,
+    maxWidth: 240,
+  },
+  docIcon: {
+    width: 40,
+    height: 40,
+    borderRadius: 10,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  docName: { fontSize: 13, fontFamily: "Inter_600SemiBold", flexShrink: 1 },
+  docOpen: { fontSize: 11, fontFamily: "Inter_400Regular", marginTop: 2 },
   msgTime: { fontSize: 10, fontFamily: "Inter_400Regular", marginStart: 4 },
   inputRow: {
     flexDirection: "row",
     alignItems: "flex-end",
     paddingHorizontal: 12,
-    paddingTop: 12,
-    gap: 8,
+    paddingTop: 10,
+    gap: 6,
     borderTopWidth: 1,
   },
-  attachBtn: {
-    width: 40,
-    height: 40,
+  inputIconBtn: {
+    width: 38,
+    height: 38,
     borderRadius: 12,
     alignItems: "center",
     justifyContent: "center",
   },
+  emojiToggle: { fontSize: 20 },
   msgInput: {
     flex: 1,
     borderWidth: 1,
@@ -607,6 +794,26 @@ const styles = StyleSheet.create({
   blockedNoticeText: { fontSize: 12, flex: 1, fontFamily: "Inter_400Regular" },
   typingRow: { flexDirection: "row", alignItems: "center", gap: 6, paddingHorizontal: 16, paddingVertical: 4 },
   typingText: { fontSize: 12, fontFamily: "Inter_400Regular" },
+  // Emoji picker
+  emojiPanel: {
+    borderTopWidth: 1,
+    paddingVertical: 8,
+    paddingHorizontal: 8,
+  },
+  emojiGrid: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    gap: 2,
+  },
+  emojiBtn: {
+    width: 40,
+    height: 40,
+    alignItems: "center",
+    justifyContent: "center",
+    borderRadius: 8,
+  },
+  emojiChar: { fontSize: 22 },
+  // Report modal
   reportOverlay: { flex: 1, backgroundColor: "rgba(0,0,0,0.4)" },
   reportModal: {
     position: "absolute",

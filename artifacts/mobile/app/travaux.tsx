@@ -280,16 +280,16 @@ export default function TravauxScreen() {
   };
 
   const handlePickReport = async () => {
-    const path = await pickAndUploadPdf();
-    if (path) setReportUrl(path); else Alert.alert(STRINGS.errorTitle[lang], "Échec du téléversement");
+    const r = await pickAndUploadPdf();
+    if (r) setReportUrl(r.objectPath); else Alert.alert(STRINGS.errorTitle[lang], "Échec du téléversement");
   };
   const handlePickPhoto = async () => {
-    const path = await pickAndUploadPhoto();
-    if (path) setPhotoUrl(path); else Alert.alert(STRINGS.errorTitle[lang], "Échec du téléversement");
+    const r = await pickAndUploadPhoto();
+    if (r) setPhotoUrl(r.objectPath); else Alert.alert(STRINGS.errorTitle[lang], "Échec du téléversement");
   };
   const handlePickInvoice = async () => {
-    const path = await pickAndUploadInvoice();
-    if (path) setInvoiceUrl(path); else Alert.alert(STRINGS.errorTitle[lang], "Échec du téléversement");
+    const r = await pickAndUploadInvoice();
+    if (r) setInvoiceUrl(r.objectPath); else Alert.alert(STRINGS.errorTitle[lang], "Échec du téléversement");
   };
 
   const handleSubmitReport = async () => {
