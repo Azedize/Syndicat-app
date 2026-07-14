@@ -1,7 +1,7 @@
 import { Feather } from "@expo/vector-icons";
 import * as Haptics from "expo-haptics";
 import { router } from "expo-router";
-import React, { useState } from "react";
+import React, { useMemo, useState } from "react";
 import {
   ActivityIndicator,
   Alert,
@@ -25,13 +25,43 @@ import { useColors } from "@/hooks/useColors";
 import { useLanguage } from "@/context/LanguageContext";
 import { elections as electionsApi } from "@/services/api";
 
+type ElectionStatus =
+  | "draft" | "candidacy_open" | "campaign" | "open" | "closed"
+  | "quorum_failed" | "contested" | "cancelled" | "completed";
+
+type CandidateStatus = "submitted" | "pending_validation" | "approved" | "rejected" | "withdrawn";
+
 interface ApiCandidate {
   id: string;
   electionId: string;
+  userId: string | null;
   name: string;
   post: string;
+  apartmentNumber: string | null;
   bio: string;
+  motivationLetter: string;
+  program: string;
+  status: CandidateStatus;
+  rejectionReason: string | null;
   votes: number;
+}
+
+interface ApiQuestion {
+  id: string;
+  candidateId: string;
+  askedBy: string;
+  askedByName: string;
+  question: string;
+  answer: string | null;
+}
+
+interface ApiMandate {
+  id: string;
+  userId: string | null;
+  role: string;
+  name: string;
+  mandateStart: string | null;
+  status: string;
 }
 
 interface ApiElection {
@@ -39,15 +69,26 @@ interface ApiElection {
   syndicateId: string;
   title: string;
   description: string;
-  status: "open" | "upcoming" | "closed" | "completed";
+  electionType: string;
+  status: ElectionStatus;
+  votingMethod: string;
+  quorumPercent: number;
+  majorityPercent: number;
+  seatsCount: number;
+  tenantsCanVote: boolean;
+  isEmergency: boolean;
+  candidacyStart: string;
+  candidacyEnd: string;
   startDate: string;
   endDate: string;
+  eligibleCount: number | null;
+  participantCount: number;
+  quorumReached: boolean | null;
   candidates: ApiCandidate[];
-  userVotedCandidateId: string | null;
   createdAt: string;
 }
 
-// Elections (candidature, vote) sont un droit de copropriétaire (Loi 18-00) ; exclu aux locataires.
+// Elections (candidature, vote) sont un droit de copropriétaire (Loi 18-00) ; exclu aux locataires sauf autorisation.
 export default function ElectionsScreen() {
   return (
     <RoleGuard allow={["super_admin", "syndicate_admin", "member"]}>
@@ -55,6 +96,18 @@ export default function ElectionsScreen() {
     </RoleGuard>
   );
 }
+
+const NEXT_ACTIONS: Record<ElectionStatus, { action: string; labelKey: string; icon: keyof typeof Feather.glyphMap; destructive?: boolean }[]> = {
+  draft: [{ action: "open_candidacy", labelKey: "openCandidacy", icon: "user-plus" }, { action: "cancel", labelKey: "cancelElection", icon: "x-circle", destructive: true }],
+  candidacy_open: [{ action: "start_campaign", labelKey: "startCampaign", icon: "megaphone" as any }, { action: "cancel", labelKey: "cancelElection", icon: "x-circle", destructive: true }],
+  campaign: [{ action: "open_voting", labelKey: "openVoting", icon: "unlock" }, { action: "cancel", labelKey: "cancelElection", icon: "x-circle", destructive: true }],
+  open: [{ action: "close_voting", labelKey: "closeVoting", icon: "lock" }],
+  closed: [{ action: "publish_results", labelKey: "publishResults", icon: "award" }, { action: "contest", labelKey: "contestElection", icon: "alert-triangle", destructive: true }],
+  quorum_failed: [{ action: "reopen_round", labelKey: "reopenRound", icon: "refresh-cw" }],
+  contested: [{ action: "reopen_round", labelKey: "reopenRound", icon: "refresh-cw" }],
+  cancelled: [{ action: "reopen_round", labelKey: "reopenRound", icon: "refresh-cw" }],
+  completed: [{ action: "contest", labelKey: "contestElection", icon: "alert-triangle", destructive: true }],
+};
 
 function ElectionsScreenInner() {
   const colors = useColors();
@@ -64,98 +117,216 @@ function ElectionsScreenInner() {
   const { isWide } = useBreakpoints();
   const topPad = isWide ? 0 : (Platform.OS === "web" ? 67 : insets.top);
   const queryClient = useQueryClient();
-  const isAdmin = user?.role !== "member";
+  const isAdmin = user?.role === "super_admin" || user?.role === "syndicate_admin";
 
-  const [selected, setSelected] = useState<ApiElection | null>(null);
-  const [showResults, setShowResults] = useState(false);
+  const [selectedId, setSelectedId] = useState<string | null>(null);
+  const [activeTab, setActiveTab] = useState<"info" | "candidates" | "vote" | "results">("info");
   const [showCreate, setShowCreate] = useState(false);
+  const [showCandidacyForm, setShowCandidacyForm] = useState(false);
+
   const [newTitle, setNewTitle] = useState("");
   const [newDesc, setNewDesc] = useState("");
-  const [newStart, setNewStart] = useState("2026-07-01");
-  const [newEnd, setNewEnd] = useState("2026-07-31");
+  const [newType, setNewType] = useState("special");
+  const [newQuorum, setNewQuorum] = useState("50");
+  const [newMajority, setNewMajority] = useState("50");
+  const [newSeats, setNewSeats] = useState("1");
+  const [newTenantsVote, setNewTenantsVote] = useState(false);
+  const [newEmergency, setNewEmergency] = useState(false);
+  const [candStart, setCandStart] = useState("2026-07-15");
+  const [candEnd, setCandEnd] = useState("2026-07-20");
+  const [newStart, setNewStart] = useState("2026-07-21");
+  const [newEnd, setNewEnd] = useState("2026-07-28");
+
+  const [candBio, setCandBio] = useState("");
+  const [candMotivation, setCandMotivation] = useState("");
+  const [candProgram, setCandProgram] = useState("");
+  const [questionDraft, setQuestionDraft] = useState<Record<string, string>>({});
+  const [answerDraft, setAnswerDraft] = useState<Record<string, string>>({});
 
   const DATE_RE = /^\d{4}-\d{2}-\d{2}$/;
+  const ELECTION_TYPES = [
+    { value: "president", key: "electionTypePresident" },
+    { value: "board", key: "electionTypeBoard" },
+    { value: "financial_committee", key: "electionTypeFinancial" },
+    { value: "maintenance_committee", key: "electionTypeMaintenance" },
+    { value: "building_representative", key: "electionTypeRepresentative" },
+    { value: "special", key: "electionTypeSpecial" },
+  ];
 
   const { data, isLoading, isError, refetch } = useQuery({
     queryKey: ["elections"],
     queryFn: () => electionsApi.list() as Promise<{ data: ApiElection[] }>,
-    staleTime: 30_000,
+    staleTime: 15_000,
   });
 
+  const { data: detail, refetch: refetchDetail } = useQuery({
+    queryKey: ["election", selectedId],
+    queryFn: () => electionsApi.get(selectedId!),
+    enabled: !!selectedId,
+  });
+
+  const { data: resultsData } = useQuery({
+    queryKey: ["election-results", selectedId],
+    queryFn: () => electionsApi.results(selectedId!),
+    enabled: !!selectedId && ["closed", "completed", "contested"].includes((detail?.data as any)?.status),
+  });
+
+  const invalidate = () => {
+    queryClient.invalidateQueries({ queryKey: ["elections"] });
+    queryClient.invalidateQueries({ queryKey: ["election", selectedId] });
+    queryClient.invalidateQueries({ queryKey: ["election-results", selectedId] });
+  };
+
   const voteMutation = useMutation({
-    mutationFn: ({ electionId, candidateId }: { electionId: string; candidateId: string }) =>
-      electionsApi.vote(electionId, candidateId),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["elections"] });
-      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-      Alert.alert(t("castVote") + " ✓", t("alreadyVoted"));
-    },
-    onError: (err: Error) => {
-      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
-      Alert.alert(t("electionResults"), err.message);
-    },
+    mutationFn: ({ candidateId, abstain }: { candidateId?: string; abstain?: boolean }) =>
+      electionsApi.vote(selectedId!, candidateId, abstain),
+    onSuccess: () => { invalidate(); Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success); Alert.alert(t("castVote") + " ✓"); },
+    onError: (err: Error) => { Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error); Alert.alert(t("elections"), err.message); },
   });
 
   const createMutation = useMutation({
     mutationFn: (d: Parameters<typeof electionsApi.create>[0]) => electionsApi.create(d),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["elections"] });
+      invalidate();
       setShowCreate(false);
-      setNewTitle(""); setNewDesc(""); setNewStart("2026-07-01"); setNewEnd("2026-07-31");
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-      Alert.alert(t("elections"), t("openElections"));
     },
-    onError: (err: Error) => Alert.alert(t("electionClosed"), err.message),
+    onError: (err: Error) => Alert.alert(t("elections"), err.message),
+  });
+
+  const transitionMutation = useMutation({
+    mutationFn: ({ action, reason }: { action: string; reason?: string }) => electionsApi.transition(selectedId!, action, reason),
+    onSuccess: (res) => { invalidate(); refetchDetail(); Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success); Alert.alert(t("elections"), res.message); },
+    onError: (err: Error) => Alert.alert(t("elections"), err.message),
+  });
+
+  const submitCandidacyMutation = useMutation({
+    mutationFn: () => electionsApi.submitCandidacy(selectedId!, { bio: candBio, motivationLetter: candMotivation, program: candProgram }),
+    onSuccess: () => {
+      invalidate(); refetchDetail(); setShowCandidacyForm(false);
+      setCandBio(""); setCandMotivation(""); setCandProgram("");
+      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+    },
+    onError: (err: Error) => Alert.alert(t("elections"), err.message),
+  });
+
+  const validateMutation = useMutation({
+    mutationFn: ({ candidateId, decision }: { candidateId: string; decision: "approved" | "rejected" }) =>
+      electionsApi.validateCandidacy(selectedId!, candidateId, decision),
+    onSuccess: () => { invalidate(); refetchDetail(); },
+    onError: (err: Error) => Alert.alert(t("elections"), err.message),
+  });
+
+  const withdrawMutation = useMutation({
+    mutationFn: (candidateId: string) => electionsApi.withdrawCandidacy(selectedId!, candidateId),
+    onSuccess: () => { invalidate(); refetchDetail(); },
+    onError: (err: Error) => Alert.alert(t("elections"), err.message),
+  });
+
+  const askMutation = useMutation({
+    mutationFn: ({ candidateId, question }: { candidateId: string; question: string }) => electionsApi.askQuestion(selectedId!, candidateId, question),
+    onSuccess: (_r, vars) => { refetchDetail(); setQuestionDraft((p) => ({ ...p, [vars.candidateId]: "" })); },
+    onError: (err: Error) => Alert.alert(t("elections"), err.message),
+  });
+
+  const answerMutation = useMutation({
+    mutationFn: ({ questionId, answer }: { questionId: string; answer: string }) => electionsApi.answerQuestion(selectedId!, questionId, answer),
+    onSuccess: (_r, vars) => { refetchDetail(); setAnswerDraft((p) => ({ ...p, [vars.questionId]: "" })); },
+    onError: (err: Error) => Alert.alert(t("elections"), err.message),
+  });
+
+  const resignMutation = useMutation({
+    mutationFn: (mandateId: string) => electionsApi.resignMandate(mandateId),
+    onSuccess: () => { invalidate(); refetchDetail(); },
+    onError: (err: Error) => Alert.alert(t("elections"), err.message),
   });
 
   const electionList = data?.data ?? [];
+  const selected = (detail?.data as ApiElection | undefined) ?? null;
+  const candidates = (detail?.candidates as ApiCandidate[] | undefined) ?? [];
+  const questions = (detail?.questions as ApiQuestion[] | undefined) ?? [];
+  const mandates = (detail?.mandates as ApiMandate[] | undefined) ?? [];
+  const myCandidacy = candidates.find((c) => c.userId === user?.id) ?? null;
+  const isEligible = detail?.isEligible ?? false;
+  const hasVoted = detail?.hasVoted ?? false;
 
-  const statusConfig = (status: ApiElection["status"]) => ({
+  const statusConfig = (status: ElectionStatus) => ({
+    draft: { color: colors.mutedForeground, label: t("statusDraft"), icon: "edit-3" as const, bg: colors.muted },
+    candidacy_open: { color: "#3b82f6", label: t("statusCandidacyOpen"), icon: "user-plus" as const, bg: "#3b82f615" },
+    campaign: { color: "#8b5cf6", label: t("statusCampaign"), icon: "flag" as const, bg: "#8b5cf615" },
     open: { color: colors.success, label: t("statusOpen"), icon: "unlock" as const, bg: colors.success + "15" },
-    upcoming: { color: "#f59e0b", label: t("statusUpcoming"), icon: "clock" as const, bg: "#f59e0b15" },
     closed: { color: colors.mutedForeground, label: t("statusClosed"), icon: "lock" as const, bg: colors.muted },
-    completed: { color: colors.mutedForeground, label: t("statusClosed"), icon: "check-circle" as const, bg: colors.muted },
+    quorum_failed: { color: "#f59e0b", label: t("statusQuorumFailed"), icon: "alert-triangle" as const, bg: "#f59e0b15" },
+    contested: { color: colors.destructive, label: t("statusContested"), icon: "alert-octagon" as const, bg: colors.destructive + "15" },
+    cancelled: { color: colors.destructive, label: t("statusCancelled"), icon: "x-circle" as const, bg: colors.destructive + "15" },
+    completed: { color: colors.primary, label: t("statusCompleted"), icon: "check-circle" as const, bg: colors.primary + "15" },
   }[status] ?? { color: colors.mutedForeground, label: status, icon: "help-circle" as const, bg: colors.muted });
 
+  const candidateStatusLabel = (status: CandidateStatus) => ({
+    submitted: t("candidacyPending"),
+    pending_validation: t("candidacyPending"),
+    approved: t("candidacyApproved"),
+    rejected: t("candidacyRejected"),
+    withdrawn: t("candidacyWithdrawn"),
+  }[status]);
+
   const handleVote = (candidateId: string) => {
-    if (!selected) return;
-    const candidateName = selected.candidates.find((c) => c.id === candidateId)?.name ?? t("candidateList");
-    Alert.alert(
-      t("castVote"),
-      `${t("voteNow")} ${candidateName}?`,
-      [
-        { text: t("electionClosed"), style: "cancel" },
-        {
-          text: t("castVote"),
-          onPress: () => voteMutation.mutate({ electionId: selected.id, candidateId }),
-        },
-      ]
-    );
+    const name = candidates.find((c) => c.id === candidateId)?.name ?? "";
+    Alert.alert(t("castVote"), name, [
+      { text: t("electionClosed"), style: "cancel" },
+      { text: t("castVote"), onPress: () => voteMutation.mutate({ candidateId }) },
+    ]);
+  };
+
+  const handleAbstain = () => {
+    Alert.alert(t("abstain"), "", [
+      { text: t("electionClosed"), style: "cancel" },
+      { text: t("abstain"), onPress: () => voteMutation.mutate({ abstain: true }) },
+    ]);
+  };
+
+  const handleTransition = (action: string, destructive?: boolean) => {
+    if (destructive) {
+      Alert.prompt
+        ? Alert.prompt(t("cancelReasonPrompt"), undefined, (reason) => transitionMutation.mutate({ action, reason: reason || undefined }))
+        : Alert.alert(t("actionConfirm"), action, [
+            { text: t("electionClosed"), style: "cancel" },
+            { text: t("actionConfirm"), style: "destructive", onPress: () => transitionMutation.mutate({ action }) },
+          ]);
+      return;
+    }
+    Alert.alert(t("actionConfirm"), action, [
+      { text: t("electionClosed"), style: "cancel" },
+      { text: t("actionConfirm"), onPress: () => transitionMutation.mutate({ action }) },
+    ]);
   };
 
   const handleCreate = () => {
     if (!newTitle.trim()) return;
-    if (!DATE_RE.test(newStart) || !DATE_RE.test(newEnd)) {
-      Alert.alert(t("electionClosed"), t("electionClosed")); return;
-    }
-    if (newEnd <= newStart) {
-      Alert.alert(t("electionClosed"), t("electionClosed")); return;
+    for (const v of [candStart, candEnd, newStart, newEnd]) {
+      if (!DATE_RE.test(v)) { Alert.alert(t("elections"), "Format de date invalide (AAAA-MM-JJ)"); return; }
     }
     createMutation.mutate({
       title: newTitle.trim(),
-      description: newDesc.trim() || t("elections"),
+      description: newDesc.trim(),
+      electionType: newType,
+      quorumPercent: parseInt(newQuorum, 10) || 50,
+      majorityPercent: parseInt(newMajority, 10) || 50,
+      seatsCount: parseInt(newSeats, 10) || 1,
+      tenantsCanVote: newTenantsVote,
+      isEmergency: newEmergency,
+      candidacyStart: candStart,
+      candidacyEnd: candEnd,
       startDate: newStart,
       endDate: newEnd,
+      votingMethod: "simple_majority",
     } as any);
   };
 
   if (isLoading) {
     return (
       <View style={[styles.root, { backgroundColor: colors.background }]}>
-        <View style={[styles.header, { paddingTop: topPad + 16, backgroundColor: colors.card, borderBottomColor: colors.border }]}>
-          <TouchableOpacity onPress={() => router.back()} style={styles.backBtn}><Feather name="arrow-left" size={22} color={colors.foreground} /></TouchableOpacity>
-          <Text style={[styles.title, { color: colors.foreground }]}>{t("elections")}</Text>
-        </View>
+        <Header colors={colors} topPad={topPad} title={t("elections")} onBack={() => router.back()} />
         <View style={styles.center}><ActivityIndicator size="large" color={colors.primary} /></View>
       </View>
     );
@@ -164,10 +335,7 @@ function ElectionsScreenInner() {
   if (isError) {
     return (
       <View style={[styles.root, { backgroundColor: colors.background }]}>
-        <View style={[styles.header, { paddingTop: topPad + 16, backgroundColor: colors.card, borderBottomColor: colors.border }]}>
-          <TouchableOpacity onPress={() => router.back()} style={styles.backBtn}><Feather name="arrow-left" size={22} color={colors.foreground} /></TouchableOpacity>
-          <Text style={[styles.title, { color: colors.foreground }]}>{t("elections")}</Text>
-        </View>
+        <Header colors={colors} topPad={topPad} title={t("elections")} onBack={() => router.back()} />
         <View style={styles.center}>
           <Feather name="wifi-off" size={40} color={colors.destructive} />
           <Text style={[styles.centerText, { color: colors.mutedForeground }]}>{t("noElections")}</Text>
@@ -189,6 +357,12 @@ function ElectionsScreenInner() {
             {electionList.filter((e) => e.status === "open").length} {t("openElections")}
           </Text>
         </View>
+        <TouchableOpacity
+          style={[styles.addBtn, { backgroundColor: colors.secondary }]}
+          onPress={() => router.push("/elected-members" as any)}
+        >
+          <Feather name="award" size={18} color={colors.primary} />
+        </TouchableOpacity>
         {isAdmin ? (
           <TouchableOpacity
             style={[styles.addBtn, { backgroundColor: colors.primary }]}
@@ -213,13 +387,12 @@ function ElectionsScreenInner() {
         }
         renderItem={({ item: e }) => {
           const sc = statusConfig(e.status);
-          const candidateCount = e.candidates.length;
-          const totalVotes = e.candidates.reduce((s, c) => s + c.votes, 0);
-          const hasVoted = e.userVotedCandidateId !== null;
+          const candidateCount = e.candidates?.filter((c) => c.status === "approved").length ?? 0;
+          const totalVotes = e.candidates?.reduce((s, c) => s + (c.votes ?? 0), 0) ?? 0;
           return (
             <TouchableOpacity
               style={[styles.card, { backgroundColor: colors.card, borderColor: colors.border }]}
-              onPress={() => { setSelected(e); setShowResults(e.status === "closed"); }}
+              onPress={() => { setSelectedId(e.id); setActiveTab("info"); }}
               activeOpacity={0.8}
             >
               <View style={styles.cardTop}>
@@ -252,195 +425,405 @@ function ElectionsScreenInner() {
                   <Text style={[styles.statLabel, { color: colors.mutedForeground }]}>{e.endDate}</Text>
                 </View>
               </View>
-
-              {e.status === "open" && hasVoted ? (
-                <View style={[styles.voteBtn, { backgroundColor: colors.success + "20" }]}>
-                  <Feather name="check-circle" size={15} color={colors.success} />
-                  <Text style={[styles.voteBtnText, { color: colors.success }]}>{t("alreadyVoted")} ✓</Text>
-                </View>
-              ) : e.status === "open" ? (
-                <View style={[styles.voteBtn, { backgroundColor: colors.primary }]}>
-                  <Feather name="check-circle" size={15} color="#fff" />
-                  <Text style={styles.voteBtnText}>{t("voteNow")}</Text>
-                </View>
-              ) : e.status === "closed" ? (
-                <View style={[styles.voteBtn, { backgroundColor: colors.secondary }]}>
-                  <Feather name="pie-chart" size={15} color={colors.primary} />
-                  <Text style={[styles.voteBtnText, { color: colors.primary }]}>{t("electionResults")}</Text>
-                </View>
-              ) : (
-                <View style={[styles.voteBtn, { backgroundColor: colors.muted }]}>
-                  <Feather name="clock" size={15} color="#f59e0b" />
-                  <Text style={[styles.voteBtnText, { color: "#f59e0b" }]}>{t("statusUpcoming")} {e.startDate}</Text>
-                </View>
-              )}
             </TouchableOpacity>
           );
         }}
       />
 
-      {/* ─── Detail / Vote Modal ─── */}
-      <Modal visible={!!selected} animationType="slide" presentationStyle="pageSheet" onRequestClose={() => { setSelected(null); setShowResults(false); }}>
+      {/* ─── Detail Modal ─── */}
+      <Modal visible={!!selectedId} animationType="slide" presentationStyle="pageSheet" onRequestClose={() => setSelectedId(null)}>
         {selected ? (
           <View style={[styles.modalRoot, { backgroundColor: colors.background }]}>
             <View style={[styles.modalHeader, { backgroundColor: colors.card, borderBottomColor: colors.border }]}>
-              <TouchableOpacity onPress={() => { setSelected(null); setShowResults(false); }} style={styles.backBtn}>
+              <TouchableOpacity onPress={() => setSelectedId(null)} style={styles.backBtn}>
                 <Feather name="x" size={22} color={colors.foreground} />
               </TouchableOpacity>
               <View style={{ flex: 1 }}>
                 <Text style={[styles.modalTitle, { color: colors.foreground }]} numberOfLines={2}>{selected.title}</Text>
-                <Text style={[styles.subtitle, { color: colors.mutedForeground }]}>
-                  {selected.status === "open" ? t("statusOpen") : selected.status === "closed" ? t("electionResults") : t("statusUpcoming")}
-                </Text>
+                <Text style={[styles.subtitle, { color: statusConfig(selected.status).color }]}>{statusConfig(selected.status).label}</Text>
               </View>
-              {selected.status === "open" || selected.status === "closed" ? (
-                <TouchableOpacity
-                  style={[styles.toggleBtn, { backgroundColor: showResults ? colors.primary : colors.muted }]}
-                  onPress={() => setShowResults((p) => !p)}
-                >
-                  <Feather name={showResults ? "list" : "pie-chart"} size={15} color={showResults ? "#fff" : colors.foreground} />
+            </View>
+
+            <View style={[styles.tabBar, { borderBottomColor: colors.border }]}>
+              {(["info", "candidates", selected.status === "open" ? "vote" : "results"] as const).map((tab) => (
+                <TouchableOpacity key={tab} style={[styles.tabBtn, activeTab === tab && { borderBottomColor: colors.primary, borderBottomWidth: 2 }]} onPress={() => setActiveTab(tab)}>
+                  <Text style={[styles.tabText, { color: activeTab === tab ? colors.primary : colors.mutedForeground }]}>
+                    {tab === "info" ? t("tabInfo") : tab === "candidates" ? t("tabCandidates") : tab === "vote" ? t("tabVote") : t("tabResults")}
+                  </Text>
                 </TouchableOpacity>
-              ) : null}
+              ))}
             </View>
 
             <ScrollView contentContainerStyle={{ padding: 16, gap: 14, paddingBottom: 40 }} showsVerticalScrollIndicator={false}>
-              <View style={[styles.descCard, { backgroundColor: colors.card, borderColor: colors.border }]}>
-                <Text style={[styles.descText, { color: colors.mutedForeground }]}>{selected.description}</Text>
-                <View style={styles.datesRow}>
-                  <Feather name="calendar" size={13} color={colors.mutedForeground} />
-                  <Text style={[styles.datesText, { color: colors.mutedForeground }]}>
-                    {selected.startDate} → {selected.endDate}
-                  </Text>
+              {isAdmin && NEXT_ACTIONS[selected.status]?.length ? (
+                <View style={styles.actionsRow}>
+                  {NEXT_ACTIONS[selected.status].map((a) => (
+                    <TouchableOpacity
+                      key={a.action}
+                      style={[styles.actionChip, { backgroundColor: a.destructive ? colors.destructive + "15" : colors.primary + "15" }]}
+                      onPress={() => handleTransition(a.action, a.destructive)}
+                      disabled={transitionMutation.isPending}
+                    >
+                      <Feather name={a.icon} size={13} color={a.destructive ? colors.destructive : colors.primary} />
+                      <Text style={[styles.actionChipText, { color: a.destructive ? colors.destructive : colors.primary }]}>{t(a.labelKey)}</Text>
+                    </TouchableOpacity>
+                  ))}
                 </View>
-              </View>
+              ) : null}
 
-              {selected.candidates.map((c) => {
-                const totalVotes = selected.candidates.reduce((s, x) => s + x.votes, 0);
-                const pct = totalVotes > 0 ? Math.round((c.votes / totalVotes) * 100) : 0;
-                const isVotedFor = selected.userVotedCandidateId === c.id;
-                return (
-                  <View key={c.id} style={[styles.candidateCard, { backgroundColor: colors.card, borderColor: isVotedFor ? colors.primary : colors.border }]}>
-                    <View style={styles.candidateTop}>
-                      <View style={[styles.avatar, { backgroundColor: colors.primary + "20" }]}>
-                        <Text style={[styles.avatarText, { color: colors.primary }]}>{c.name.charAt(0)}</Text>
-                      </View>
-                      <View style={{ flex: 1 }}>
-                        <View style={styles.candidateNameRow}>
-                          <Text style={[styles.candidateName, { color: colors.foreground }]}>{c.name}</Text>
-                          {isVotedFor && (
-                            <View style={[styles.myVoteBadge, { backgroundColor: colors.primary + "20" }]}>
-                              <Feather name="check" size={10} color={colors.primary} />
-                              <Text style={[styles.myVoteText, { color: colors.primary }]}>{t("yourVote")}</Text>
-                            </View>
-                          )}
-                        </View>
-                        <Text style={[styles.candidatePost, { color: colors.mutedForeground }]}>{c.post}</Text>
-                      </View>
-                      {showResults && (
-                        <Text style={[styles.pctText, { color: colors.primary }]}>{pct}%</Text>
-                      )}
+              {activeTab === "info" && (
+                <View style={[styles.descCard, { backgroundColor: colors.card, borderColor: colors.border }]}>
+                  <Text style={[styles.descText, { color: colors.mutedForeground }]}>{selected.description}</Text>
+                  <InfoRow icon="tag" label={t("electionType")} value={t(ELECTION_TYPES.find((x) => x.value === selected.electionType)?.key ?? "electionTypeSpecial")} colors={colors} />
+                  <InfoRow icon="calendar" label={t("candidacyPeriod")} value={`${selected.candidacyStart} → ${selected.candidacyEnd}`} colors={colors} />
+                  <InfoRow icon="calendar" label={t("votingPeriod")} value={`${selected.startDate} → ${selected.endDate}`} colors={colors} />
+                  <InfoRow icon="percent" label={t("quorumRequired")} value={`${selected.quorumPercent}%`} colors={colors} />
+                  <InfoRow icon="percent" label={t("majorityRequired")} value={`${selected.majorityPercent}%`} colors={colors} />
+                  <InfoRow icon="users" label={t("seatsToFill")} value={String(selected.seatsCount)} colors={colors} />
+                  {selected.tenantsCanVote ? <InfoRow icon="key" label={t("allowTenantsVote")} value="✓" colors={colors} /> : null}
+                </View>
+              )}
+
+              {activeTab === "candidates" && (
+                <>
+                  {selected.status === "candidacy_open" && !isAdmin && (!myCandidacy || myCandidacy.status === "withdrawn" || myCandidacy.status === "rejected") ? (
+                    <TouchableOpacity style={[styles.submitBtn, { backgroundColor: colors.primary }]} onPress={() => setShowCandidacyForm(true)}>
+                      <Feather name="user-plus" size={16} color="#fff" />
+                      <Text style={styles.submitBtnText}>{t("submitCandidacy")}</Text>
+                    </TouchableOpacity>
+                  ) : null}
+                  {candidates.length === 0 ? (
+                    <View style={styles.center}>
+                      <Feather name="users" size={32} color={colors.mutedForeground} />
+                      <Text style={[styles.centerText, { color: colors.mutedForeground }]}>{t("noElections")}</Text>
                     </View>
+                  ) : candidates.map((c) => (
+                    <CandidateCard
+                      key={c.id}
+                      candidate={c}
+                      colors={colors}
+                      t={t}
+                      isAdmin={isAdmin}
+                      isMine={c.userId === user?.id}
+                      isCampaignPhase={selected.status === "campaign" || selected.status === "open"}
+                      questions={questions.filter((q) => q.candidateId === c.id)}
+                      questionDraft={questionDraft[c.id] ?? ""}
+                      onQuestionChange={(v: string) => setQuestionDraft((p) => ({ ...p, [c.id]: v }))}
+                      onAsk={() => questionDraft[c.id]?.trim() && askMutation.mutate({ candidateId: c.id, question: questionDraft[c.id].trim() })}
+                      answerDraft={answerDraft}
+                      onAnswerChange={(qId: string, v: string) => setAnswerDraft((p) => ({ ...p, [qId]: v }))}
+                      onAnswer={(qId: string) => answerDraft[qId]?.trim() && answerMutation.mutate({ questionId: qId, answer: answerDraft[qId].trim() })}
+                      onApprove={() => validateMutation.mutate({ candidateId: c.id, decision: "approved" })}
+                      onReject={() => validateMutation.mutate({ candidateId: c.id, decision: "rejected" })}
+                      onWithdraw={() => withdrawMutation.mutate(c.id)}
+                    />
+                  ))}
+                </>
+              )}
 
-                    {c.bio ? (
-                      <Text style={[styles.bioText, { color: colors.mutedForeground }]}>{c.bio}</Text>
-                    ) : null}
-
-                    {showResults && (
-                      <View style={{ marginTop: 10, gap: 4 }}>
-                        <View style={[styles.progressBg, { backgroundColor: colors.muted }]}>
-                          <View style={[styles.progressFill, { width: `${pct}%`, backgroundColor: colors.primary }]} />
+              {activeTab === "vote" && (
+                <>
+                  {hasVoted ? (
+                    <View style={[styles.voteBtn, { backgroundColor: colors.success + "20" }]}>
+                      <Feather name="check-circle" size={15} color={colors.success} />
+                      <Text style={[styles.voteBtnText, { color: colors.success }]}>{detail?.userAbstained ? t("abstained") : t("alreadyVoted")} ✓</Text>
+                    </View>
+                  ) : !isEligible ? (
+                    <View style={[styles.voteBtn, { backgroundColor: colors.muted }]}>
+                      <Feather name="slash" size={15} color={colors.mutedForeground} />
+                      <Text style={[styles.voteBtnText, { color: colors.mutedForeground }]}>{t("notEligible")}</Text>
+                    </View>
+                  ) : (
+                    <>
+                      {candidates.filter((c) => c.status === "approved").map((c) => (
+                        <View key={c.id} style={[styles.candidateCard, { backgroundColor: colors.card, borderColor: colors.border }]}>
+                          <View style={styles.candidateTop}>
+                            <View style={[styles.avatar, { backgroundColor: colors.primary + "20" }]}>
+                              <Text style={[styles.avatarText, { color: colors.primary }]}>{c.name.charAt(0)}</Text>
+                            </View>
+                            <View style={{ flex: 1 }}>
+                              <Text style={[styles.candidateName, { color: colors.foreground }]}>{c.name}</Text>
+                              <Text style={[styles.candidatePost, { color: colors.mutedForeground }]}>{c.post}</Text>
+                            </View>
+                          </View>
+                          <TouchableOpacity style={[styles.voteForBtn, { backgroundColor: colors.primary }]} onPress={() => handleVote(c.id)} disabled={voteMutation.isPending}>
+                            {voteMutation.isPending ? <ActivityIndicator size="small" color="#fff" /> : (<><Feather name="check-circle" size={15} color="#fff" /><Text style={styles.voteForBtnText}>{t("castVote")}</Text></>)}
+                          </TouchableOpacity>
                         </View>
-                        <Text style={[styles.votesText, { color: colors.mutedForeground }]}>{c.votes} {t("votesCount")}</Text>
-                      </View>
-                    )}
-
-                    {selected.status === "open" && !selected.userVotedCandidateId && (
-                      <TouchableOpacity
-                        style={[styles.voteForBtn, { backgroundColor: colors.primary }]}
-                        onPress={() => handleVote(c.id)}
-                        disabled={voteMutation.isPending}
-                      >
-                        {voteMutation.isPending ? (
-                          <ActivityIndicator size="small" color="#fff" />
-                        ) : (
-                          <>
-                            <Feather name="check-circle" size={15} color="#fff" />
-                            <Text style={styles.voteForBtnText}>{t("castVote")}</Text>
-                          </>
-                        )}
+                      ))}
+                      <TouchableOpacity style={[styles.voteBtn, { backgroundColor: colors.muted, marginTop: 4 }]} onPress={handleAbstain} disabled={voteMutation.isPending}>
+                        <Feather name="minus-circle" size={15} color={colors.mutedForeground} />
+                        <Text style={[styles.voteBtnText, { color: colors.mutedForeground }]}>{t("abstain")}</Text>
                       </TouchableOpacity>
-                    )}
-                  </View>
-                );
-              })}
+                    </>
+                  )}
+                </>
+              )}
+
+              {activeTab === "results" && (
+                <ResultsPanel resultsData={resultsData?.data} colors={colors} t={t} mandates={mandates} isAdmin={isAdmin} currentUserId={user?.id} onResign={(id: string) => resignMutation.mutate(id)} />
+              )}
             </ScrollView>
           </View>
-        ) : null}
+        ) : (
+          <View style={styles.center}><ActivityIndicator size="large" color={colors.primary} /></View>
+        )}
+      </Modal>
+
+      {/* ─── Candidacy Form Modal ─── */}
+      <Modal visible={showCandidacyForm} animationType="slide" presentationStyle="pageSheet" onRequestClose={() => setShowCandidacyForm(false)}>
+        <View style={[styles.modalRoot, { backgroundColor: colors.background }]}>
+          <View style={[styles.modalHeader, { backgroundColor: colors.card, borderBottomColor: colors.border }]}>
+            <TouchableOpacity onPress={() => setShowCandidacyForm(false)} style={styles.backBtn}><Feather name="x" size={22} color={colors.foreground} /></TouchableOpacity>
+            <Text style={[styles.modalTitle, { color: colors.foreground }]}>{t("submitCandidacy")}</Text>
+          </View>
+          <ScrollView contentContainerStyle={{ padding: 16, gap: 14 }}>
+            <View style={[styles.fieldCard, { backgroundColor: colors.card, borderColor: colors.border }]}>
+              <Text style={[styles.fieldLabel, { color: colors.mutedForeground }]}>Bio</Text>
+              <TextInput style={[styles.input, styles.textarea, { color: colors.foreground, borderColor: colors.border }]} value={candBio} onChangeText={setCandBio} multiline numberOfLines={3} placeholder="Bio" placeholderTextColor={colors.mutedForeground} />
+              <Text style={[styles.fieldLabel, { color: colors.mutedForeground, marginTop: 12 }]}>{t("motivationLetter")} *</Text>
+              <TextInput style={[styles.input, styles.textarea, { color: colors.foreground, borderColor: colors.border }]} value={candMotivation} onChangeText={setCandMotivation} multiline numberOfLines={4} placeholderTextColor={colors.mutedForeground} />
+              <Text style={[styles.fieldLabel, { color: colors.mutedForeground, marginTop: 12 }]}>{t("candidateProgram")} *</Text>
+              <TextInput style={[styles.input, styles.textarea, { color: colors.foreground, borderColor: colors.border }]} value={candProgram} onChangeText={setCandProgram} multiline numberOfLines={5} placeholderTextColor={colors.mutedForeground} />
+            </View>
+            <TouchableOpacity
+              style={[styles.submitBtn, { backgroundColor: !candMotivation.trim() || !candProgram.trim() ? colors.muted : colors.primary }]}
+              onPress={() => submitCandidacyMutation.mutate()}
+              disabled={!candMotivation.trim() || !candProgram.trim() || submitCandidacyMutation.isPending}
+            >
+              {submitCandidacyMutation.isPending ? <ActivityIndicator size="small" color="#fff" /> : (<><Feather name="check-circle" size={16} color="#fff" /><Text style={styles.submitBtnText}>{t("submitCandidacy")}</Text></>)}
+            </TouchableOpacity>
+          </ScrollView>
+        </View>
       </Modal>
 
       {/* ─── Create Election Modal ─── */}
       <Modal visible={showCreate} animationType="slide" presentationStyle="pageSheet" onRequestClose={() => setShowCreate(false)}>
         <View style={[styles.modalRoot, { backgroundColor: colors.background }]}>
           <View style={[styles.modalHeader, { backgroundColor: colors.card, borderBottomColor: colors.border }]}>
-            <TouchableOpacity onPress={() => setShowCreate(false)} style={styles.backBtn}>
-              <Feather name="x" size={22} color={colors.foreground} />
-            </TouchableOpacity>
-            <Text style={[styles.modalTitle, { color: colors.foreground }]}>{t("elections")}</Text>
+            <TouchableOpacity onPress={() => setShowCreate(false)} style={styles.backBtn}><Feather name="x" size={22} color={colors.foreground} /></TouchableOpacity>
+            <Text style={[styles.modalTitle, { color: colors.foreground }]}>{t("electionCreate")}</Text>
           </View>
           <ScrollView contentContainerStyle={{ padding: 16, gap: 14 }}>
             <View style={[styles.fieldCard, { backgroundColor: colors.card, borderColor: colors.border }]}>
               <Text style={[styles.fieldLabel, { color: colors.mutedForeground }]}>{t("elections")} *</Text>
-              <TextInput
-                style={[styles.input, { color: colors.foreground, borderColor: colors.border }]}
-                placeholder={t("elections")}
-                placeholderTextColor={colors.mutedForeground}
-                value={newTitle}
-                onChangeText={setNewTitle}
-              />
+              <TextInput style={[styles.input, { color: colors.foreground, borderColor: colors.border }]} value={newTitle} onChangeText={setNewTitle} placeholderTextColor={colors.mutedForeground} />
+
               <Text style={[styles.fieldLabel, { color: colors.mutedForeground, marginTop: 12 }]}>{t("openElections")}</Text>
-              <TextInput
-                style={[styles.input, styles.textarea, { color: colors.foreground, borderColor: colors.border }]}
-                placeholder={t("openElections")}
-                placeholderTextColor={colors.mutedForeground}
-                value={newDesc}
-                onChangeText={setNewDesc}
-                multiline
-                numberOfLines={4}
-              />
-              <Text style={[styles.fieldLabel, { color: colors.mutedForeground, marginTop: 12 }]}>{t("statusUpcoming")} *</Text>
-              <TextInput
-                style={[styles.input, { color: colors.foreground, borderColor: colors.border }]}
-                placeholder="2026-07-01"
-                placeholderTextColor={colors.mutedForeground}
-                value={newStart}
-                onChangeText={setNewStart}
-              />
-              <Text style={[styles.fieldLabel, { color: colors.mutedForeground, marginTop: 12 }]}>{t("statusClosed")} *</Text>
-              <TextInput
-                style={[styles.input, { color: colors.foreground, borderColor: colors.border }]}
-                placeholder="2026-07-31"
-                placeholderTextColor={colors.mutedForeground}
-                value={newEnd}
-                onChangeText={setNewEnd}
-              />
+              <TextInput style={[styles.input, styles.textarea, { color: colors.foreground, borderColor: colors.border }]} value={newDesc} onChangeText={setNewDesc} multiline numberOfLines={3} placeholderTextColor={colors.mutedForeground} />
+
+              <Text style={[styles.fieldLabel, { color: colors.mutedForeground, marginTop: 12 }]}>{t("electionType")}</Text>
+              <View style={styles.chipRow}>
+                {ELECTION_TYPES.map((type) => (
+                  <TouchableOpacity key={type.value} style={[styles.typeChip, { backgroundColor: newType === type.value ? colors.primary : colors.muted }]} onPress={() => setNewType(type.value)}>
+                    <Text style={{ color: newType === type.value ? "#fff" : colors.foreground, fontSize: 12, fontWeight: "600" }}>{t(type.key)}</Text>
+                  </TouchableOpacity>
+                ))}
+              </View>
+
+              <View style={styles.rowFields}>
+                <View style={{ flex: 1 }}>
+                  <Text style={[styles.fieldLabel, { color: colors.mutedForeground, marginTop: 12 }]}>{t("quorumRequired")}</Text>
+                  <TextInput style={[styles.input, { color: colors.foreground, borderColor: colors.border }]} value={newQuorum} onChangeText={setNewQuorum} keyboardType="numeric" />
+                </View>
+                <View style={{ flex: 1 }}>
+                  <Text style={[styles.fieldLabel, { color: colors.mutedForeground, marginTop: 12 }]}>{t("majorityRequired")}</Text>
+                  <TextInput style={[styles.input, { color: colors.foreground, borderColor: colors.border }]} value={newMajority} onChangeText={setNewMajority} keyboardType="numeric" />
+                </View>
+                <View style={{ flex: 1 }}>
+                  <Text style={[styles.fieldLabel, { color: colors.mutedForeground, marginTop: 12 }]}>{t("seatsToFill")}</Text>
+                  <TextInput style={[styles.input, { color: colors.foreground, borderColor: colors.border }]} value={newSeats} onChangeText={setNewSeats} keyboardType="numeric" />
+                </View>
+              </View>
+
+              <Text style={[styles.fieldLabel, { color: colors.mutedForeground, marginTop: 12 }]}>{t("candidacyPeriod")} *</Text>
+              <View style={styles.rowFields}>
+                <TextInput style={[styles.input, { flex: 1, color: colors.foreground, borderColor: colors.border }]} value={candStart} onChangeText={setCandStart} placeholder="2026-07-15" placeholderTextColor={colors.mutedForeground} />
+                <TextInput style={[styles.input, { flex: 1, color: colors.foreground, borderColor: colors.border }]} value={candEnd} onChangeText={setCandEnd} placeholder="2026-07-20" placeholderTextColor={colors.mutedForeground} />
+              </View>
+
+              <Text style={[styles.fieldLabel, { color: colors.mutedForeground, marginTop: 12 }]}>{t("votingPeriod")} *</Text>
+              <View style={styles.rowFields}>
+                <TextInput style={[styles.input, { flex: 1, color: colors.foreground, borderColor: colors.border }]} value={newStart} onChangeText={setNewStart} placeholder="2026-07-21" placeholderTextColor={colors.mutedForeground} />
+                <TextInput style={[styles.input, { flex: 1, color: colors.foreground, borderColor: colors.border }]} value={newEnd} onChangeText={setNewEnd} placeholder="2026-07-28" placeholderTextColor={colors.mutedForeground} />
+              </View>
+
+              <TouchableOpacity style={styles.toggleRow} onPress={() => setNewTenantsVote((p) => !p)}>
+                <Feather name={newTenantsVote ? "check-square" : "square"} size={18} color={colors.primary} />
+                <Text style={[styles.toggleLabel, { color: colors.foreground }]}>{t("allowTenantsVote")}</Text>
+              </TouchableOpacity>
+              <TouchableOpacity style={styles.toggleRow} onPress={() => setNewEmergency((p) => !p)}>
+                <Feather name={newEmergency ? "check-square" : "square"} size={18} color={colors.destructive} />
+                <Text style={[styles.toggleLabel, { color: colors.foreground }]}>{t("emergencyElection")}</Text>
+              </TouchableOpacity>
             </View>
-            <TouchableOpacity
-              style={[styles.submitBtn, { backgroundColor: !newTitle.trim() ? colors.muted : colors.primary }]}
-              onPress={handleCreate}
-              disabled={!newTitle.trim() || createMutation.isPending}
-            >
-              {createMutation.isPending ? (
-                <ActivityIndicator size="small" color="#fff" />
-              ) : (
-                <>
-                  <Feather name="check-circle" size={16} color="#fff" />
-                  <Text style={styles.submitBtnText}>{t("castVote")}</Text>
-                </>
-              )}
+            <TouchableOpacity style={[styles.submitBtn, { backgroundColor: !newTitle.trim() ? colors.muted : colors.primary }]} onPress={handleCreate} disabled={!newTitle.trim() || createMutation.isPending}>
+              {createMutation.isPending ? <ActivityIndicator size="small" color="#fff" /> : (<><Feather name="check-circle" size={16} color="#fff" /><Text style={styles.submitBtnText}>{t("electionCreate")}</Text></>)}
             </TouchableOpacity>
           </ScrollView>
         </View>
       </Modal>
+    </View>
+  );
+}
+
+function Header({ colors, topPad, title, onBack }: any) {
+  return (
+    <View style={[styles.header, { paddingTop: topPad + 16, backgroundColor: colors.card, borderBottomColor: colors.border }]}>
+      <TouchableOpacity onPress={onBack} style={styles.backBtn}><Feather name="arrow-left" size={22} color={colors.foreground} /></TouchableOpacity>
+      <Text style={[styles.title, { color: colors.foreground }]}>{title}</Text>
+    </View>
+  );
+}
+
+function InfoRow({ icon, label, value, colors }: { icon: keyof typeof Feather.glyphMap; label: string; value: string; colors: any }) {
+  return (
+    <View style={styles.infoRow}>
+      <Feather name={icon} size={13} color={colors.mutedForeground} />
+      <Text style={[styles.infoLabel, { color: colors.mutedForeground }]}>{label}</Text>
+      <Text style={[styles.infoValue, { color: colors.foreground }]}>{value}</Text>
+    </View>
+  );
+}
+
+function CandidateCard({
+  candidate: c, colors, t, isAdmin, isMine, isCampaignPhase, questions, questionDraft, onQuestionChange, onAsk,
+  answerDraft, onAnswerChange, onAnswer, onApprove, onReject, onWithdraw,
+}: any) {
+  const [expanded, setExpanded] = useState(false);
+  const statusColor = c.status === "approved" ? colors.success : c.status === "rejected" ? colors.destructive : c.status === "withdrawn" ? colors.mutedForeground : "#f59e0b";
+  return (
+    <View style={[styles.candidateCard, { backgroundColor: colors.card, borderColor: colors.border }]}>
+      <TouchableOpacity style={styles.candidateTop} onPress={() => setExpanded((p) => !p)}>
+        <View style={[styles.avatar, { backgroundColor: colors.primary + "20" }]}>
+          <Text style={[styles.avatarText, { color: colors.primary }]}>{c.name.charAt(0)}</Text>
+        </View>
+        <View style={{ flex: 1 }}>
+          <Text style={[styles.candidateName, { color: colors.foreground }]}>{c.name}{isMine ? ` (${t("yourVote")})` : ""}</Text>
+          <Text style={[styles.candidatePost, { color: colors.mutedForeground }]}>{c.post}</Text>
+        </View>
+        <View style={[styles.statusBadge, { backgroundColor: statusColor + "15" }]}>
+          <Text style={[styles.statusText, { color: statusColor }]}>{c.status === "approved" ? "✓" : c.status === "rejected" ? "✕" : c.status === "withdrawn" ? "–" : "…"}</Text>
+        </View>
+        <Feather name={expanded ? "chevron-up" : "chevron-down"} size={16} color={colors.mutedForeground} />
+      </TouchableOpacity>
+
+      {expanded && (
+        <View style={{ gap: 8, marginTop: 6 }}>
+          {c.motivationLetter ? <Text style={[styles.bioText, { color: colors.mutedForeground }]}>💬 {c.motivationLetter}</Text> : null}
+          {c.program ? <Text style={[styles.bioText, { color: colors.mutedForeground }]}>📋 {c.program}</Text> : null}
+          {c.rejectionReason ? <Text style={[styles.bioText, { color: colors.destructive }]}>{c.rejectionReason}</Text> : null}
+
+          {isCampaignPhase && c.status === "approved" ? (
+            <View style={{ gap: 6, marginTop: 4 }}>
+              {questions.map((q: ApiQuestion) => (
+                <View key={q.id} style={[styles.qaBox, { borderColor: colors.border }]}>
+                  <Text style={[styles.qaQuestion, { color: colors.foreground }]}>{q.askedByName}: {q.question}</Text>
+                  {q.answer ? (
+                    <Text style={[styles.qaAnswer, { color: colors.primary }]}>→ {q.answer}</Text>
+                  ) : isMine ? (
+                    <View style={styles.qaAnswerRow}>
+                      <TextInput style={[styles.qaInput, { color: colors.foreground, borderColor: colors.border }]} value={answerDraft[q.id] ?? ""} onChangeText={(v) => onAnswerChange(q.id, v)} placeholder={t("answerQuestion")} placeholderTextColor={colors.mutedForeground} />
+                      <TouchableOpacity onPress={() => onAnswer(q.id)}><Feather name="send" size={16} color={colors.primary} /></TouchableOpacity>
+                    </View>
+                  ) : null}
+                </View>
+              ))}
+              {questions.length === 0 ? <Text style={[styles.bioText, { color: colors.mutedForeground }]}>{t("noQuestions")}</Text> : null}
+              {!isMine ? (
+                <View style={styles.qaAnswerRow}>
+                  <TextInput style={[styles.qaInput, { color: colors.foreground, borderColor: colors.border }]} value={questionDraft} onChangeText={onQuestionChange} placeholder={t("yourQuestion")} placeholderTextColor={colors.mutedForeground} />
+                  <TouchableOpacity onPress={onAsk}><Feather name="send" size={16} color={colors.primary} /></TouchableOpacity>
+                </View>
+              ) : null}
+            </View>
+          ) : null}
+
+          <View style={styles.chipRow}>
+            {isAdmin && (c.status === "submitted" || c.status === "pending_validation") ? (
+              <>
+                <TouchableOpacity style={[styles.smallBtn, { backgroundColor: colors.success + "20" }]} onPress={onApprove}><Text style={{ color: colors.success, fontSize: 12, fontWeight: "700" }}>{t("approveCandidacy")}</Text></TouchableOpacity>
+                <TouchableOpacity style={[styles.smallBtn, { backgroundColor: colors.destructive + "20" }]} onPress={onReject}><Text style={{ color: colors.destructive, fontSize: 12, fontWeight: "700" }}>{t("rejectCandidacy")}</Text></TouchableOpacity>
+              </>
+            ) : null}
+            {(isMine || isAdmin) && c.status === "approved" ? (
+              <TouchableOpacity style={[styles.smallBtn, { backgroundColor: colors.destructive + "20" }]} onPress={onWithdraw}><Text style={{ color: colors.destructive, fontSize: 12, fontWeight: "700" }}>{t("withdrawCandidacy")}</Text></TouchableOpacity>
+            ) : null}
+          </View>
+        </View>
+      )}
+    </View>
+  );
+}
+
+function ResultsPanel({ resultsData, colors, t, mandates, isAdmin, currentUserId, onResign }: any) {
+  if (!resultsData) {
+    return (
+      <View style={styles.center}>
+        <Feather name="pie-chart" size={32} color={colors.mutedForeground} />
+        <Text style={[styles.centerText, { color: colors.mutedForeground }]}>{t("electionClosed")}</Text>
+      </View>
+    );
+  }
+  const { ranking, totalVotes, abstentions, participationRate, quorumReached, winners, tie } = resultsData;
+  const winnerIds = new Set((winners ?? []).map((w: any) => w.id));
+
+  return (
+    <View style={{ gap: 12 }}>
+      <View style={[styles.statsGrid, { backgroundColor: colors.card, borderColor: colors.border }]}>
+        <View style={styles.statCell}>
+          <Text style={[styles.statCellValue, { color: quorumReached ? colors.success : colors.destructive }]}>{quorumReached ? t("quorumReached") : t("quorumNotReached")}</Text>
+        </View>
+        <View style={styles.statCell}><Text style={[styles.statCellValue, { color: colors.foreground }]}>{participationRate}%</Text><Text style={[styles.statCellLabel, { color: colors.mutedForeground }]}>{t("participationRate")}</Text></View>
+        <View style={styles.statCell}><Text style={[styles.statCellValue, { color: colors.foreground }]}>{totalVotes}</Text><Text style={[styles.statCellLabel, { color: colors.mutedForeground }]}>{t("votesCount")}</Text></View>
+        <View style={styles.statCell}><Text style={[styles.statCellValue, { color: colors.foreground }]}>{abstentions}</Text><Text style={[styles.statCellLabel, { color: colors.mutedForeground }]}>{t("abstentions")}</Text></View>
+      </View>
+
+      {tie ? (
+        <View style={[styles.warnBox, { backgroundColor: colors.destructive + "15" }]}>
+          <Feather name="alert-triangle" size={14} color={colors.destructive} />
+          <Text style={[styles.warnText, { color: colors.destructive }]}>{t("tieDetected")}</Text>
+        </View>
+      ) : null}
+
+      {(ranking ?? []).map((c: any) => (
+        <View key={c.id} style={[styles.candidateCard, { backgroundColor: colors.card, borderColor: winnerIds.has(c.id) ? colors.primary : colors.border }]}>
+          <View style={styles.candidateTop}>
+            <View style={[styles.avatar, { backgroundColor: colors.primary + "20" }]}><Text style={[styles.avatarText, { color: colors.primary }]}>{c.name.charAt(0)}</Text></View>
+            <View style={{ flex: 1 }}>
+              <View style={styles.candidateNameRow}>
+                <Text style={[styles.candidateName, { color: colors.foreground }]}>#{c.rank} {c.name}</Text>
+                {winnerIds.has(c.id) ? (
+                  <View style={[styles.myVoteBadge, { backgroundColor: colors.primary + "20" }]}><Feather name="award" size={10} color={colors.primary} /><Text style={[styles.myVoteText, { color: colors.primary }]}>{t("winner")}</Text></View>
+                ) : null}
+              </View>
+              <Text style={[styles.candidatePost, { color: colors.mutedForeground }]}>{c.post}</Text>
+            </View>
+            <Text style={[styles.pctText, { color: colors.primary }]}>{c.pct}%</Text>
+          </View>
+          <View style={{ marginTop: 8, gap: 4 }}>
+            <View style={[styles.progressBg, { backgroundColor: colors.muted }]}><View style={[styles.progressFill, { width: `${c.pct}%`, backgroundColor: colors.primary }]} /></View>
+            <Text style={[styles.votesText, { color: colors.mutedForeground }]}>{c.votes} {t("votesCount")}</Text>
+          </View>
+        </View>
+      ))}
+
+      {mandates.length > 0 ? (
+        <View style={{ gap: 8, marginTop: 8 }}>
+          <Text style={[styles.fieldLabel, { color: colors.mutedForeground }]}>{t("electedMembers")}</Text>
+          {mandates.map((m: ApiMandate) => (
+            <View key={m.id} style={[styles.mandateRow, { backgroundColor: colors.card, borderColor: colors.border }]}>
+              <Feather name="award" size={14} color={m.status === "active" ? colors.success : colors.mutedForeground} />
+              <Text style={[styles.candidateName, { color: colors.foreground, fontSize: 13 }]}>{m.name} — {m.role}</Text>
+              {(isAdmin || m.userId === currentUserId) && m.status === "active" ? (
+                <TouchableOpacity onPress={() => onResign(m.id)}><Text style={{ color: colors.destructive, fontSize: 11, fontWeight: "700" }}>{t("resignMandate")}</Text></TouchableOpacity>
+              ) : (
+                <Text style={{ color: colors.mutedForeground, fontSize: 11 }}>{m.status === "active" ? t("mandateActive") : t("mandateResigned")}</Text>
+              )}
+            </View>
+          ))}
+        </View>
+      ) : null}
     </View>
   );
 }
@@ -472,11 +855,17 @@ const styles = StyleSheet.create({
   modalRoot: { flex: 1 },
   modalHeader: { flexDirection: "row", alignItems: "center", padding: 16, borderBottomWidth: 1, gap: 12 },
   modalTitle: { fontSize: 17, fontWeight: "700", flex: 1 },
-  toggleBtn: { width: 34, height: 34, borderRadius: 17, alignItems: "center", justifyContent: "center" },
+  tabBar: { flexDirection: "row", borderBottomWidth: 1 },
+  tabBtn: { flex: 1, alignItems: "center", paddingVertical: 12 },
+  tabText: { fontSize: 13, fontWeight: "600" },
+  actionsRow: { flexDirection: "row", gap: 8, flexWrap: "wrap" },
+  actionChip: { flexDirection: "row", alignItems: "center", gap: 6, paddingHorizontal: 10, paddingVertical: 8, borderRadius: 10 },
+  actionChipText: { fontSize: 12, fontWeight: "700" },
   descCard: { borderRadius: 12, borderWidth: 1, padding: 14, gap: 10 },
   descText: { fontSize: 14, lineHeight: 20 },
-  datesRow: { flexDirection: "row", alignItems: "center", gap: 6 },
-  datesText: { fontSize: 12 },
+  infoRow: { flexDirection: "row", alignItems: "center", gap: 8 },
+  infoLabel: { fontSize: 12, flex: 1 },
+  infoValue: { fontSize: 12, fontWeight: "700" },
   candidateCard: { borderRadius: 14, borderWidth: 1.5, padding: 14, gap: 8 },
   candidateTop: { flexDirection: "row", alignItems: "center", gap: 12 },
   avatar: { width: 44, height: 44, borderRadius: 22, alignItems: "center", justifyContent: "center" },
@@ -499,4 +888,22 @@ const styles = StyleSheet.create({
   textarea: { minHeight: 80, textAlignVertical: "top" },
   submitBtn: { flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 8, paddingVertical: 14, borderRadius: 12 },
   submitBtnText: { color: "#fff", fontSize: 15, fontWeight: "700" },
+  chipRow: { flexDirection: "row", gap: 8, flexWrap: "wrap", marginTop: 4 },
+  typeChip: { paddingHorizontal: 10, paddingVertical: 7, borderRadius: 20 },
+  rowFields: { flexDirection: "row", gap: 8 },
+  toggleRow: { flexDirection: "row", alignItems: "center", gap: 8, marginTop: 12 },
+  toggleLabel: { fontSize: 13, fontWeight: "600" },
+  smallBtn: { paddingHorizontal: 10, paddingVertical: 6, borderRadius: 8 },
+  qaBox: { borderWidth: 1, borderRadius: 8, padding: 8, gap: 4 },
+  qaQuestion: { fontSize: 12, fontWeight: "600" },
+  qaAnswer: { fontSize: 12 },
+  qaAnswerRow: { flexDirection: "row", alignItems: "center", gap: 8 },
+  qaInput: { flex: 1, borderWidth: 1, borderRadius: 8, paddingHorizontal: 10, paddingVertical: 6, fontSize: 12 },
+  statsGrid: { flexDirection: "row", flexWrap: "wrap", borderRadius: 12, borderWidth: 1, padding: 12, gap: 8 },
+  statCell: { flex: 1, minWidth: "45%", alignItems: "center", gap: 2 },
+  statCellValue: { fontSize: 15, fontWeight: "800" },
+  statCellLabel: { fontSize: 11 },
+  warnBox: { flexDirection: "row", alignItems: "center", gap: 8, padding: 10, borderRadius: 10 },
+  warnText: { fontSize: 12, fontWeight: "600", flex: 1 },
+  mandateRow: { flexDirection: "row", alignItems: "center", gap: 8, borderWidth: 1, borderRadius: 10, padding: 10 },
 });

@@ -570,9 +570,32 @@ export const electionsTable = pgTable(
     syndicateId: text("syndicate_id").references(() => syndicatesTable.id, { onDelete: "cascade" }),
     title: text("title").notNull(),
     description: text("description").default(""),
-    status: text("status").default("upcoming"),
+    // election_type: president | board | financial_committee | maintenance_committee | building_representative | special
+    electionType: text("election_type").default("special"),
+    // Scope: null = whole syndicate, set = single building
+    buildingId: text("building_id").references(() => buildingsTable.id, { onDelete: "set null" }),
+    // voting_method: simple_majority | absolute_majority
+    votingMethod: text("voting_method").default("simple_majority"),
+    quorumPercent: integer("quorum_percent").default(50),
+    majorityPercent: integer("majority_percent").default(50),
+    // Number of seats to fill (board/committee elections can elect several winners)
+    seatsCount: integer("seats_count").default(1),
+    // Tenants normally cannot vote (Loi 18-00) unless explicitly authorized for this election
+    tenantsCanVote: boolean("tenants_can_vote").default(false),
+    // status: draft | candidacy_open | campaign | open | closed | quorum_failed | contested | cancelled | completed
+    status: text("status").default("draft"),
     startDate: text("start_date"),
     endDate: text("end_date"),
+    candidacyStart: text("candidacy_start"),
+    candidacyEnd: text("candidacy_end"),
+    // Cached at close time — snapshot of eligible/participant counts used for the quorum calc
+    eligibleCount: integer("eligible_count"),
+    participantCount: integer("participant_count").default(0),
+    quorumReached: boolean("quorum_reached"),
+    resultsPublishedAt: timestamp("results_published_at"),
+    cancelReason: text("cancel_reason"),
+    contestReason: text("contest_reason"),
+    isEmergency: boolean("is_emergency").default(false),
     createdBy: text("created_by").references(() => usersTable.id, { onDelete: "set null" }),
     createdAt: createdAt(),
   },
@@ -587,12 +610,26 @@ export const candidatesTable = pgTable(
   {
     id: id(),
     electionId: text("election_id").notNull().references(() => electionsTable.id, { onDelete: "cascade" }),
+    userId: text("user_id").references(() => usersTable.id, { onDelete: "set null" }),
     name: text("name").notNull(),
     post: text("post").notNull(),
+    apartmentNumber: text("apartment_number"),
+    buildingId: text("building_id").references(() => buildingsTable.id, { onDelete: "set null" }),
+    photo: text("photo"),
     bio: text("bio").default(""),
+    motivationLetter: text("motivation_letter").default(""),
+    program: text("program").default(""),
+    // status: submitted | pending_validation | approved | rejected | withdrawn
+    status: text("status").default("approved"),
+    rejectionReason: text("rejection_reason"),
+    withdrawnAt: timestamp("withdrawn_at"),
     votes: integer("votes").default(0),
+    createdAt: createdAt(),
   },
-  (t) => [index("candidates_election_id_idx").on(t.electionId)],
+  (t) => [
+    index("candidates_election_id_idx").on(t.electionId),
+    index("candidates_status_idx").on(t.status),
+  ],
 );
 
 export const votesTable = pgTable(
@@ -601,13 +638,37 @@ export const votesTable = pgTable(
     id: id(),
     electionId: text("election_id").notNull().references(() => electionsTable.id, { onDelete: "cascade" }),
     voterId: text("voter_id").notNull().references(() => usersTable.id, { onDelete: "cascade" }),
-    candidateId: text("candidate_id").notNull().references(() => candidatesTable.id, { onDelete: "cascade" }),
+    // Null candidateId = abstention
+    candidateId: text("candidate_id").references(() => candidatesTable.id, { onDelete: "cascade" }),
+    isAbstention: boolean("is_abstention").default(false),
+    // Populated for security/audit purposes only — never exposed to other members (anonymous tally)
+    device: text("device"),
+    ipAddress: text("ip_address"),
     createdAt: createdAt(),
   },
   (t) => [
     // Prevent duplicate votes: one voter per election
     uniqueIndex("votes_election_voter_unique_idx").on(t.electionId, t.voterId),
     index("votes_election_id_idx").on(t.electionId),
+  ],
+);
+
+export const electionQuestionsTable = pgTable(
+  "election_questions",
+  {
+    id: id(),
+    electionId: text("election_id").notNull().references(() => electionsTable.id, { onDelete: "cascade" }),
+    candidateId: text("candidate_id").notNull().references(() => candidatesTable.id, { onDelete: "cascade" }),
+    askedBy: text("asked_by").notNull().references(() => usersTable.id, { onDelete: "cascade" }),
+    askedByName: text("asked_by_name").notNull(),
+    question: text("question").notNull(),
+    answer: text("answer"),
+    answeredAt: timestamp("answered_at"),
+    createdAt: createdAt(),
+  },
+  (t) => [
+    index("election_questions_election_id_idx").on(t.electionId),
+    index("election_questions_candidate_id_idx").on(t.candidateId),
   ],
 );
 
@@ -1636,7 +1697,7 @@ export const conseilSyndicalTable = pgTable(
     syndicateId: text("syndicate_id").notNull().references(() => syndicatesTable.id, { onDelete: "cascade" }),
     userId: text("user_id").references(() => usersTable.id, { onDelete: "set null" }),
     memberId: text("member_id").references(() => membersTable.id, { onDelete: "set null" }),
-    // role: president | secretary | treasurer | member
+    // role: president | vice_president | secretary | treasurer | committee_member | building_representative | member
     role: text("role").notNull().default("member"),
     name: text("name").notNull(),
     email: text("email"),
@@ -1646,12 +1707,18 @@ export const conseilSyndicalTable = pgTable(
     // status: active | expired | resigned | revoked
     status: text("status").notNull().default("active"),
     notes: text("notes"),
+    // Traceability to the election that produced this mandate (manual appointments leave these null)
+    electionId: text("election_id").references(() => electionsTable.id, { onDelete: "set null" }),
+    candidateId: text("candidate_id").references(() => candidatesTable.id, { onDelete: "set null" }),
+    resignedAt: timestamp("resigned_at"),
+    resignReason: text("resign_reason"),
     createdAt: createdAt(),
   },
   (t) => [
     index("conseil_syndical_syndicate_id_idx").on(t.syndicateId),
     index("conseil_syndical_user_id_idx").on(t.userId),
     index("conseil_syndical_status_idx").on(t.status),
+    index("conseil_syndical_election_id_idx").on(t.electionId),
   ],
 );
 

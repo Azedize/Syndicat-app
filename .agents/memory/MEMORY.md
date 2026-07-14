@@ -17,3 +17,6 @@
 - [RBAC guard patterns](rbac-guard-patterns.md) — menu hiding isn't access control; use RoleGuard (dominant) for screen self-guarding; reclamationsTable is intentionally platform-wide, not an IDOR; serverAuditLog is opt-in per route.
 - [Chat communication matrix & role gaps](chat-communication-matrix.md) — direct-DM creation must be gated by a role/syndicate matrix, not just membership; Employee/Provider have no JWT identity yet.
 - [reclamationsTable is HR grievances, not incidents](reclamations-is-hr-grievance.md) — type enum is salaire/discrimination/harcelement/etc; not a facility-incident table despite the generic name.
+- [Election management system](election-system.md) — full lifecycle (candidacy/campaign/vote/quorum/results/mandates) built on existing electionsTable; state machine + eligibility rules.
+- [Stale db/lib project-reference builds](stale-project-ref-build.md) — schema.ts edits don't typecheck downstream until `tsc -b lib/db lib/api-zod` rebuilds dist; deleting tsbuildinfo alone isn't enough.
+- [Election management system](election-system.md) — full lifecycle (candidacy/campaign/vote/quorum/results/mandates) built on existing electionsTable; state machine + eligibility rules.

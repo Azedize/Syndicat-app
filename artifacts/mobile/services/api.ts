@@ -302,13 +302,56 @@ export const syndicates = {
 
 export const elections = {
   list: () => request<{ data: unknown[] }>("/elections"),
-  get: (id: string) => request<{ data: unknown; candidates: unknown[] }>(`/elections/${id}`),
+  get: (id: string) =>
+    request<{ data: unknown; candidates: unknown[]; questions: unknown[]; hasVoted: boolean; userVotedCandidateId: string | null; userAbstained: boolean; isEligible: boolean; mandates: unknown[] }>(`/elections/${id}`),
   create: (data: unknown) =>
     request<{ data: unknown }>("/elections", { method: "POST", body: JSON.stringify(data) }),
-  vote: (electionId: string, candidateId: string) =>
+  update: (id: string, data: unknown) =>
+    request<{ data: unknown }>(`/elections/${id}`, { method: "PUT", body: JSON.stringify(data) }),
+  transition: (id: string, action: string, reason?: string) =>
+    request<{ data: unknown; message: string }>(`/elections/${id}/transition`, {
+      method: "POST",
+      body: JSON.stringify({ action, reason }),
+    }),
+  vote: (electionId: string, candidateId?: string, abstain?: boolean) =>
     request<{ message: string }>(`/elections/${electionId}/vote`, {
       method: "POST",
-      body: JSON.stringify({ candidateId }),
+      body: JSON.stringify({ candidateId, abstain: !!abstain }),
+    }),
+  results: (electionId: string) =>
+    request<{ data: any }>(`/elections/${electionId}/results`),
+  submitCandidacy: (electionId: string, data: unknown) =>
+    request<{ data: unknown; message: string }>(`/elections/${electionId}/candidates`, {
+      method: "POST",
+      body: JSON.stringify(data),
+    }),
+  validateCandidacy: (electionId: string, candidateId: string, decision: "approved" | "rejected", reason?: string) =>
+    request<{ data: unknown; message: string }>(`/elections/${electionId}/candidates/${candidateId}/validate`, {
+      method: "PUT",
+      body: JSON.stringify({ decision, reason }),
+    }),
+  withdrawCandidacy: (electionId: string, candidateId: string) =>
+    request<{ data: unknown; message: string }>(`/elections/${electionId}/candidates/${candidateId}/withdraw`, { method: "POST" }),
+  updateProgram: (electionId: string, candidateId: string, data: unknown) =>
+    request<{ data: unknown; message: string }>(`/elections/${electionId}/candidates/${candidateId}/program`, {
+      method: "PUT",
+      body: JSON.stringify(data),
+    }),
+  askQuestion: (electionId: string, candidateId: string, question: string) =>
+    request<{ data: unknown; message: string }>(`/elections/${electionId}/candidates/${candidateId}/questions`, {
+      method: "POST",
+      body: JSON.stringify({ question }),
+    }),
+  answerQuestion: (electionId: string, questionId: string, answer: string) =>
+    request<{ data: unknown; message: string }>(`/elections/${electionId}/questions/${questionId}/answer`, {
+      method: "PUT",
+      body: JSON.stringify({ answer }),
+    }),
+  mandates: () => request<{ data: unknown[] }>("/elections/mandates"),
+  resignMandate: (mandateId: string, reason?: string) =>
+    request<{ data: unknown; message: string }>(`/elections/mandates/${mandateId}/resign`, {
+      method: "POST",
+      body: JSON.stringify({ reason }),
     }),
 };
 
