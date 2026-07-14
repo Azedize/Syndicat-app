@@ -4,6 +4,7 @@ import { router } from "expo-router";
 import React, { useState } from "react";
 import {
   ActivityIndicator,
+  Image,
   KeyboardAvoidingView,
   Platform,
   ScrollView,
@@ -113,9 +114,11 @@ export default function LoginScreen() {
         >
           {/* Logo */}
           <View style={styles.logoSection}>
-            <View style={[styles.logoIcon, { backgroundColor: colors.primary }]}>
-              <Feather name="shield" size={32} color="#fff" />
-            </View>
+            <Image
+              source={require("../assets/images/icon.png")}
+              style={styles.logoIcon}
+              resizeMode="contain"
+            />
             <Text style={[styles.logoTitle, { color: colors.primary }]}>{t("appName")}</Text>
             <Text style={[styles.logoSub, { color: colors.mutedForeground }]}>
               {t("appTagline")}
@@ -280,11 +283,8 @@ const styles = StyleSheet.create({
     gap: 8,
   },
   logoIcon: {
-    width: 72,
-    height: 72,
-    borderRadius: 20,
-    alignItems: "center",
-    justifyContent: "center",
+    width: 90,
+    height: 90,
     marginBottom: 4,
   },
   logoTitle: {
