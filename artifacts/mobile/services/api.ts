@@ -146,9 +146,12 @@ async function request<T>(
   const json = await res.json().catch(() => ({}));
 
   if (!res.ok) {
-    const err: any = new Error((json as any).error || `HTTP ${res.status}`);
+    const err: any = new Error((json as any).message || (json as any).error || `HTTP ${res.status}`);
     err.status = res.status;
     if ((json as any).code) err.code = (json as any).code;
+    // Carry the full error payload so callers can react to structured fields
+    // (e.g. tie-detection candidate lists) without re-parsing the response.
+    err.body = json;
     throw err;
   }
 
@@ -308,10 +311,10 @@ export const elections = {
     request<{ data: unknown }>("/elections", { method: "POST", body: JSON.stringify(data) }),
   update: (id: string, data: unknown) =>
     request<{ data: unknown }>(`/elections/${id}`, { method: "PUT", body: JSON.stringify(data) }),
-  transition: (id: string, action: string, reason?: string) =>
+  transition: (id: string, action: string, reason?: string, tiebreakWinnerIds?: string[]) =>
     request<{ data: unknown; message: string }>(`/elections/${id}/transition`, {
       method: "POST",
-      body: JSON.stringify({ action, reason }),
+      body: JSON.stringify({ action, reason, tiebreakWinnerIds }),
     }),
   vote: (electionId: string, candidateId?: string, abstain?: boolean) =>
     request<{ message: string }>(`/elections/${electionId}/vote`, {

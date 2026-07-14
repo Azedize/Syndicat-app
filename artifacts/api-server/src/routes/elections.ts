@@ -277,7 +277,13 @@ const TRANSITIONS: Record<string, { from: string[]; to: string }> = {
 
 router.post("/elections/:id/transition", requireAuth, requireOperationalAccess, async (req, res) => {
   const id = String(req.params.id);
-  const schema = z.object({ action: z.enum(Object.keys(TRANSITIONS) as [string, ...string[]]), reason: z.string().optional() });
+  const schema = z.object({
+    action: z.enum(Object.keys(TRANSITIONS) as [string, ...string[]]),
+    reason: z.string().optional(),
+    // Required only when publish_results hits a tie at the seat cutoff — the admin
+    // must explicitly pick which tied candidate(s) take the remaining seat(s).
+    tiebreakWinnerIds: z.array(z.string()).optional(),
+  });
   const result = schema.safeParse(req.body);
   if (!result.success) { res.status(400).json({ error: "Action invalide" }); return; }
 
@@ -301,8 +307,36 @@ router.post("/elections/:id/transition", requireAuth, requireOperationalAccess, 
     }
 
     if (result.data.action === "publish_results") {
-      const winners = await publishElectionResults(election);
-      await serverAuditLog(req, { action: "PUBLISH_RESULTS", entity: "election", entityId: id, details: `Résultats publiés, ${winners.length} mandat(s) créé(s)` });
+      const candidates = await db
+        .select()
+        .from(candidatesTable)
+        .where(and(eq(candidatesTable.electionId, election.id), eq(candidatesTable.status, "approved")));
+      const ranked = [...candidates].sort((a, b) => (b.votes ?? 0) - (a.votes ?? 0));
+      const seats = election.seatsCount ?? 1;
+      const cutoffVotes = ranked[seats - 1]?.votes ?? -1;
+      const tie = ranked.length > seats && ranked[seats]?.votes === cutoffVotes;
+
+      if (tie) {
+        // Candidates tied exactly at the seat cutoff — the admin must explicitly
+        // choose who fills the remaining seat(s) instead of silently picking by
+        // array order. Return the tied group so the client can render a chooser.
+        const tiedGroup = ranked.filter((c) => (c.votes ?? 0) === cutoffVotes);
+        const confirmedIds = result.data.tiebreakWinnerIds ?? [];
+        const remainingSeats = seats - ranked.filter((c) => (c.votes ?? 0) > cutoffVotes).length;
+        const validSelection = confirmedIds.length === remainingSeats && confirmedIds.every((cid) => tiedGroup.some((c) => c.id === cid));
+        if (!validSelection) {
+          res.status(409).json({
+            error: `Égalité détectée pour ${remainingSeats} siège(s) restant(s) — sélection manuelle requise`,
+            code: "TIE_DETECTED",
+            tiedCandidates: tiedGroup.map((c) => ({ id: c.id, name: c.name, votes: c.votes })),
+            remainingSeats,
+          });
+          return;
+        }
+      }
+
+      const winners = await publishElectionResults(election, result.data.tiebreakWinnerIds);
+      await serverAuditLog(req, { action: "PUBLISH_RESULTS", entity: "election", entityId: id, details: `Résultats publiés, ${winners.length} mandat(s) créé(s)${tie ? " (égalité résolue manuellement)" : ""}` });
       await createAlert({ title: "Résultats publiés", message: `Les résultats de "${election.title}" sont disponibles.`, type: "info", syndicateId: election.syndicateId, target: "all" });
       const [refreshed] = await db.select().from(electionsTable).where(eq(electionsTable.id, id));
       res.json({ data: refreshed, message: "Résultats publiés, mandats créés" });
@@ -354,7 +388,7 @@ async function closeElectionVoting(election: typeof electionsTable.$inferSelect)
 }
 
 /** Phase 7 — Elected members: promotes winning candidates into conseil_syndical mandates. */
-async function publishElectionResults(election: typeof electionsTable.$inferSelect) {
+async function publishElectionResults(election: typeof electionsTable.$inferSelect, tiebreakWinnerIds?: string[]) {
   const candidates = await db
     .select()
     .from(candidatesTable)
@@ -362,7 +396,17 @@ async function publishElectionResults(election: typeof electionsTable.$inferSele
 
   const ranked = [...candidates].sort((a, b) => (b.votes ?? 0) - (a.votes ?? 0));
   const seats = election.seatsCount ?? 1;
-  const winners = ranked.slice(0, seats);
+  let winners = ranked.slice(0, seats);
+
+  // When the caller already resolved a tie at the cutoff (validated by the
+  // transition route before this function is invoked), swap in the admin's
+  // explicit picks instead of the raw array-order slice.
+  if (tiebreakWinnerIds?.length) {
+    const cutoffVotes = ranked[seats - 1]?.votes ?? -1;
+    const aboveCutoff = ranked.filter((c) => (c.votes ?? 0) > cutoffVotes);
+    const chosen = ranked.filter((c) => tiebreakWinnerIds.includes(c.id));
+    winners = [...aboveCutoff, ...chosen].slice(0, seats);
+  }
 
   const roles = MANDATE_ROLE_BY_TYPE[election.electionType ?? "special"] ?? ["committee_member"];
   const mandates = [];

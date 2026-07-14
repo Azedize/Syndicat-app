@@ -195,10 +195,39 @@ function ElectionsScreenInner() {
   });
 
   const transitionMutation = useMutation({
-    mutationFn: ({ action, reason }: { action: string; reason?: string }) => electionsApi.transition(selectedId!, action, reason),
+    mutationFn: ({ action, reason, tiebreakWinnerIds }: { action: string; reason?: string; tiebreakWinnerIds?: string[] }) =>
+      electionsApi.transition(selectedId!, action, reason, tiebreakWinnerIds),
     onSuccess: (res) => { invalidate(); refetchDetail(); Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success); Alert.alert(t("elections"), res.message); },
-    onError: (err: Error) => Alert.alert(t("elections"), err.message),
+    onError: (err: any) => {
+      if (err.code === "TIE_DETECTED" && err.body?.tiedCandidates) {
+        promptTieResolution(err.body.tiedCandidates, err.body.remainingSeats, []);
+        return;
+      }
+      Alert.alert(t("elections"), err.message);
+    },
   });
+
+  // A tie at the seat cutoff requires the admin to explicitly pick the
+  // winner(s) instead of the backend silently resolving it by array order.
+  // Prompts one seat at a time, accumulating picks, then re-submits publish_results.
+  const promptTieResolution = (tiedCandidates: { id: string; name: string; votes: number }[], remainingSeats: number, picked: string[]) => {
+    const remaining = tiedCandidates.filter((c) => !picked.includes(c.id));
+    if (picked.length >= remainingSeats) {
+      transitionMutation.mutate({ action: "publish_results", tiebreakWinnerIds: picked });
+      return;
+    }
+    Alert.alert(
+      t("tieDetected"),
+      `${remainingSeats - picked.length} ${t("seatsToFill")}`,
+      [
+        ...remaining.map((c) => ({
+          text: `${c.name} (${c.votes})`,
+          onPress: () => promptTieResolution(tiedCandidates, remainingSeats, [...picked, c.id]),
+        })),
+        { text: t("electionClosed"), style: "cancel" as const },
+      ],
+    );
+  };
 
   const submitCandidacyMutation = useMutation({
     mutationFn: () => electionsApi.submitCandidacy(selectedId!, { bio: candBio, motivationLetter: candMotivation, program: candProgram }),
