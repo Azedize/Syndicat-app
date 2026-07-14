@@ -94,6 +94,9 @@ export default function ChatThreadScreen() {
   // ─── Emoji picker state ───────────────────────────────────────────────────
   const [showEmojiPicker, setShowEmojiPicker] = useState(false);
 
+  // ─── Attachment picker sheet ───────────────────────────────────────────────
+  const [showAttachSheet, setShowAttachSheet] = useState(false);
+
   useEffect(() => { setIsBlocked(!!conversation?.isBlocked); }, [conversation?.isBlocked]);
 
   function mapApiMessage(r: any): ChatMessage {
@@ -289,14 +292,10 @@ export default function ChatThreadScreen() {
   };
 
   const openAttachmentPicker = () => {
-    if (isBlocked) return;
+    if (isBlocked || uploading) return;
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-    Alert.alert(t("attachmentLabel"), t("chooseFileType"), [
-      { text: t("cancel"), style: "cancel" },
-      { text: "📷 " + t("cameraLabel"), onPress: () => handleAttach("camera") },
-      { text: "🖼 " + t("photoLabel"), onPress: () => handleAttach("gallery") },
-      { text: "📄 " + t("documentLabel"), onPress: () => handleAttach("document") },
-    ]);
+    setShowEmojiPicker(false);
+    setShowAttachSheet(true);
   };
 
   if (!conversation) {
@@ -549,6 +548,44 @@ export default function ChatThreadScreen() {
         </>
       )}
 
+      {/* Attachment picker sheet */}
+      {showAttachSheet && !isBlocked && (
+        <View style={[styles.attachSheet, { backgroundColor: colors.card, borderTopColor: colors.border }]}>
+          <Text style={[styles.attachSheetTitle, { color: colors.mutedForeground }]}>
+            {t("chooseFileType")}
+          </Text>
+          <View style={styles.attachSheetRow}>
+            <TouchableOpacity
+              style={[styles.attachOption, { backgroundColor: colors.secondary }]}
+              onPress={() => { setShowAttachSheet(false); handleAttach("camera"); }}
+            >
+              <Feather name="camera" size={24} color={colors.primary} />
+              <Text style={[styles.attachOptionLabel, { color: colors.foreground }]}>{t("cameraLabel")}</Text>
+            </TouchableOpacity>
+            <TouchableOpacity
+              style={[styles.attachOption, { backgroundColor: colors.secondary }]}
+              onPress={() => { setShowAttachSheet(false); handleAttach("gallery"); }}
+            >
+              <Feather name="image" size={24} color={colors.primary} />
+              <Text style={[styles.attachOptionLabel, { color: colors.foreground }]}>{t("photoLabel")}</Text>
+            </TouchableOpacity>
+            <TouchableOpacity
+              style={[styles.attachOption, { backgroundColor: colors.secondary }]}
+              onPress={() => { setShowAttachSheet(false); handleAttach("document"); }}
+            >
+              <Feather name="file-text" size={24} color={colors.primary} />
+              <Text style={[styles.attachOptionLabel, { color: colors.foreground }]}>{t("documentLabel")}</Text>
+            </TouchableOpacity>
+          </View>
+          <TouchableOpacity
+            style={[styles.attachCancelBtn, { borderTopColor: colors.border }]}
+            onPress={() => setShowAttachSheet(false)}
+          >
+            <Text style={[styles.attachCancelText, { color: colors.mutedForeground }]}>{t("cancel")}</Text>
+          </TouchableOpacity>
+        </View>
+      )}
+
       {/* Emoji picker panel */}
       {showEmojiPicker && !isBlocked && (
         <View style={[styles.emojiPanel, { backgroundColor: colors.card, borderTopColor: colors.border }]}>
@@ -612,13 +649,16 @@ export default function ChatThreadScreen() {
       >
         {/* Attach button */}
         <TouchableOpacity
-          style={[styles.inputIconBtn, { backgroundColor: colors.secondary }]}
+          style={[styles.inputIconBtn, { backgroundColor: showAttachSheet ? colors.primary + "20" : colors.secondary }]}
           disabled={uploading || isBlocked}
-          onPress={openAttachmentPicker}
+          onPress={() => {
+            if (showAttachSheet) { setShowAttachSheet(false); return; }
+            openAttachmentPicker();
+          }}
         >
           {uploading
             ? <ActivityIndicator size="small" color={colors.primary} />
-            : <Feather name="paperclip" size={18} color={colors.mutedForeground} />}
+            : <Feather name="paperclip" size={18} color={showAttachSheet ? colors.primary : colors.mutedForeground} />}
         </TouchableOpacity>
 
         {/* Emoji toggle */}
@@ -627,6 +667,7 @@ export default function ChatThreadScreen() {
           disabled={isBlocked}
           onPress={() => {
             Haptics.selectionAsync();
+            setShowAttachSheet(false);
             setShowEmojiPicker((v) => !v);
           }}
         >
@@ -836,4 +877,46 @@ const styles = StyleSheet.create({
   },
   reportSubmitBtn: { borderRadius: 12, paddingVertical: 12, alignItems: "center" },
   reportSubmitBtnText: { color: "#fff", fontSize: 14, fontFamily: "Inter_700Bold" },
+  // Attachment sheet
+  attachSheet: {
+    borderTopWidth: 1,
+    paddingTop: 14,
+    paddingBottom: 8,
+    paddingHorizontal: 16,
+  },
+  attachSheetTitle: {
+    fontSize: 12,
+    fontFamily: "Inter_400Regular",
+    textAlign: "center",
+    marginBottom: 14,
+  },
+  attachSheetRow: {
+    flexDirection: "row",
+    justifyContent: "space-around",
+    gap: 10,
+    marginBottom: 10,
+  },
+  attachOption: {
+    flex: 1,
+    alignItems: "center",
+    justifyContent: "center",
+    paddingVertical: 18,
+    borderRadius: 14,
+    gap: 8,
+  },
+  attachOptionLabel: {
+    fontSize: 12,
+    fontFamily: "Inter_600SemiBold",
+    textAlign: "center",
+  },
+  attachCancelBtn: {
+    borderTopWidth: 1,
+    paddingTop: 10,
+    paddingBottom: 4,
+    alignItems: "center",
+  },
+  attachCancelText: {
+    fontSize: 13,
+    fontFamily: "Inter_400Regular",
+  },
 });
