@@ -1,0 +1,224 @@
+You are a Senior Product Owner, UX/UI Designer, Identity Management Expert, Security Architect, and Moroccan Condominium Management Expert.
+
+Mission:
+
+Design a complete professional Badge & Digital Identity System for SYNDYCAT GLOBAL CPS.
+
+The current badges are not professional enough.
+
+Redesign everything.
+
+==================================================
+OBJECTIVE
+==================================================
+
+Create premium-quality badges comparable to:
+
+- Corporate employee cards
+- Government access cards
+- Professional membership cards
+- Smart residence cards
+
+The badge must reinforce trust, identity verification, and condominium security.
+
+==================================================
+BADGE TYPES
+==================================================
+
+Create dedicated badge designs for:
+
+1. Super Admin
+2. Syndicate Admin
+3. Building Manager
+4. Employee
+5. Security Guard
+6. Owner (Member)
+7. Tenant
+8. Contractor
+9. Service Provider
+
+Each role must have a unique visual identity.
+
+==================================================
+BADGE FRONT SIDE
+==================================================
+
+Display:
+
+- User Photo
+- Full Name
+- Badge ID
+- QR Code
+- Role
+- Syndicate Name
+- Building Name
+- Apartment / Lot Number
+- Status (Active / Suspended)
+- Issue Date
+- Expiration Date
+- Official Logo
+
+==================================================
+BADGE BACK SIDE
+==================================================
+
+Display:
+
+- Emergency Contact
+- Verification QR
+- Digital Signature
+- Security Code
+- Terms of Use
+- Support Contact
+
+==================================================
+QR CODE SYSTEM
+==================================================
+
+Generate a secure QR code.
+
+When scanned:
+
+Show:
+
+- User identity
+- Role
+- Syndicate
+- Apartment
+- Status
+- Validity
+
+Prevent forgery.
+
+==================================================
+BADGE SECURITY
+==================================================
+
+Implement:
+
+- Unique badge number
+- Verification token
+- Anti-fraud validation
+- Expiration date
+- Revocation system
+- Audit logs
+
+If a badge is revoked:
+
+Immediately invalidate QR verification.
+
+==================================================
+MOBILE BADGE
+==================================================
+
+Create a digital badge screen.
+
+Features:
+
+- Full-screen badge
+- Animated QR code
+- Verification status
+- Offline access
+- Download PDF
+- Wallet-style display
+
+==================================================
+MEETING ACCESS
+==================================================
+
+General Assembly access must require badge validation.
+
+When entering:
+
+- Scan QR
+- Verify identity
+- Record attendance
+- Prevent duplicate entry
+
+==================================================
+PDF GENERATION
+==================================================
+
+Generate professional PDF badges.
+
+Include:
+
+- High-resolution design
+- QR code
+- Logo
+- Security watermark
+- Signature
+
+Ready for printing.
+
+==================================================
+ADMIN PANEL
+==================================================
+
+Allow Syndicate Admin to:
+
+- Create badges
+- Suspend badges
+- Renew badges
+- Print badges
+- Export badges
+
+Allow Super Admin to:
+
+- Audit all badges
+- Verify badges
+- Revoke badges
+
+==================================================
+UI/UX
+==================================================
+
+Create a premium Moroccan condominium style.
+
+Modern design.
+
+Professional typography.
+
+High-quality layout.
+
+Support:
+
+- Arabic RTL
+- French
+- English
+- Spanish
+
+==================================================
+DATABASE
+==================================================
+
+Design badge management tables:
+
+- badges
+- badge_verifications
+- badge_audit_logs
+
+Track:
+
+- Creation
+- Renewal
+- Suspension
+- Verification history
+
+==================================================
+FINAL DELIVERABLE
+==================================================
+
+Generate:
+
+1. Badge Workflow
+2. Database Design
+3. API Design
+4. Mobile Screens
+5. Admin Screens
+6. Security Architecture
+7. QR Verification Flow
+8. PDF Generation Flow
+9. Production Readiness Report
+
+Implement the system as a production-ready identity solution for Moroccan condominium management.
