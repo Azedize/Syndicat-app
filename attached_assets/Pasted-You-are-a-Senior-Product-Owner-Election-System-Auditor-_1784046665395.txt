@@ -1,0 +1,302 @@
+You are a Senior Product Owner, Election System Auditor, QA Lead, Security Architect, and Moroccan Condominium Management Expert.
+
+The Election module already exists in the application.
+
+DO NOT create a new election system.
+
+Your mission is to perform a complete audit of the existing Election module and verify whether it satisfies a production-ready Moroccan Condominium Election System.
+
+==================================================
+AUDIT OBJECTIVE
+==================================================
+
+Analyze:
+
+- Database schema
+- Election tables
+- Candidate tables
+- Vote tables
+- API routes
+- Mobile screens
+- Permissions
+- Notifications
+- Election workflows
+
+Compare the current implementation against the requirements below.
+
+Do not assume.
+
+Inspect actual code and actual database structure.
+
+==================================================
+PHASE 1 — ELECTION CREATION AUDIT
+==================================================
+
+Verify:
+
+Can only Syndicate Admin create elections?
+
+Check whether elections support:
+
+- Title
+- Description
+- Election Type
+- Building Scope
+- Eligible Voters
+- Start Date
+- End Date
+- Voting Method
+- Required Quorum
+- Required Majority
+
+Detect missing fields.
+
+Detect missing validations.
+
+==================================================
+PHASE 2 — CANDIDATE REGISTRATION AUDIT
+==================================================
+
+Verify whether candidates contain:
+
+- Full Name
+- Apartment Number
+- Building
+- Biography
+- Motivation Letter
+- Program
+- Photo
+
+Check workflow:
+
+Submitted
+→ Pending Validation
+→ Approved
+→ Rejected
+
+Verify:
+
+Can only Syndicate Admin approve candidates?
+
+Detect bypasses.
+
+==================================================
+PHASE 3 — CAMPAIGN PERIOD AUDIT
+==================================================
+
+Verify whether candidates can publish:
+
+- Program
+- Objectives
+- Proposals
+- Messages
+
+Verify whether members can:
+
+- View candidates
+- Compare candidates
+- Ask questions
+- Read programs
+
+Detect missing functionality.
+
+==================================================
+PHASE 4 — VOTING AUDIT
+==================================================
+
+Verify:
+
+Who can vote?
+
+Check:
+
+- Owners
+- Members
+- Tenants
+- Representatives
+
+Verify:
+
+- One vote per voter
+- No duplicate votes
+- Anonymous voting
+- Vote encryption
+- Vote integrity
+
+Detect all security weaknesses.
+
+==================================================
+PHASE 5 — QUORUM AUDIT
+==================================================
+
+Verify whether system automatically calculates:
+
+- Eligible voters
+- Participants
+- Participation rate
+- Quorum
+
+Verify:
+
+What happens if quorum is not reached?
+
+Check:
+
+- Election invalidation
+- Second round workflow
+
+==================================================
+PHASE 6 — RESULTS AUDIT
+==================================================
+
+Verify:
+
+Automatic calculation of:
+
+- Total votes
+- Participation rate
+- Abstentions
+- Invalid votes
+- Winner
+
+Verify:
+
+- Rankings
+- Statistics
+- Charts
+
+Detect missing metrics.
+
+==================================================
+PHASE 7 — ELECTED MEMBERS AUDIT
+==================================================
+
+Verify whether elected mandates are automatically created.
+
+Check:
+
+- President
+- Vice President
+- Treasurer
+- Secretary
+- Committee Members
+
+Verify:
+
+- Start Date
+- End Date
+- Status
+
+Detect missing lifecycle management.
+
+==================================================
+PHASE 8 — NOTIFICATIONS AUDIT
+==================================================
+
+Verify notifications:
+
+- Election announced
+- Candidate approved
+- Voting opened
+- Voting closing soon
+- Results published
+
+Check:
+
+- Push notifications
+- Email
+- In-App notifications
+
+==================================================
+PHASE 9 — SECURITY AUDIT
+==================================================
+
+Verify protection against:
+
+- Double voting
+- Vote modification
+- Vote deletion
+- Unauthorized voting
+- Cross-syndicate voting
+
+Verify audit logs:
+
+Store:
+
+- User
+- Role
+- Election
+- Timestamp
+- Device
+- IP Address
+
+==================================================
+PHASE 10 — MOBILE APP AUDIT
+==================================================
+
+Verify existence and completeness of:
+
+- Elections List
+- Election Details
+- Candidate Profile
+- Voting Screen
+- Results Screen
+- Elected Members Screen
+
+Verify:
+
+- Loading states
+- Error states
+- Empty states
+- RTL support
+- Arabic
+- French
+- English
+- Spanish
+
+==================================================
+PHASE 11 — SPECIAL CASES AUDIT
+==================================================
+
+Verify support for:
+
+A. President resignation
+
+B. Candidate withdrawal
+
+C. Election tie
+
+D. Quorum not reached
+
+E. Election challenge
+
+F. Emergency election
+
+Detect all missing scenarios.
+
+==================================================
+PHASE 12 — FINAL GAP ANALYSIS
+==================================================
+
+Generate a table:
+
+Requirement | Exists | Partially Exists | Missing | Risk Level
+
+For every requirement.
+
+Then generate:
+
+1. Election Workflow Analysis
+2. Database Analysis
+3. API Analysis
+4. Mobile Screen Analysis
+5. Security Analysis
+6. Missing Features
+7. Critical Bugs
+8. Production Readiness Score (%)
+
+Do not redesign immediately.
+
+First understand the existing election system.
+
+Then compare it against production requirements and provide a complete gap analysis.
