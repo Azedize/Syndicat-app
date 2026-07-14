@@ -101,6 +101,17 @@ async function buildAll() {
       "puppeteer",
       "puppeteer-core",
       "electron",
+      // pdfmake (and its font/PDF-rendering deps) reads binary asset files
+      // (e.g. fontkit's data.trie) via path-relative fs.readFileSync calls
+      // that break when bundled by esbuild — externalize so they resolve
+      // normally through node_modules at runtime instead.
+      "pdfmake",
+      "pdfkit",
+      "@foliojs-fork/*",
+      "fontkit",
+      "brotli",
+      "linebreak",
+      "xmldoc",
     ],
     sourcemap: "linked",
     plugins: [

@@ -1,5 +1,6 @@
 import { Feather } from "@expo/vector-icons";
 import * as Haptics from "expo-haptics";
+import * as Linking from "expo-linking";
 import { router } from "expo-router";
 import React, { useEffect, useState } from "react";
 import {
@@ -8,7 +9,6 @@ import {
   Modal,
   Platform,
   ScrollView,
-  Share,
   StyleSheet,
   Text,
   TouchableOpacity,
@@ -16,6 +16,7 @@ import {
 } from "react-native";
 import { apiRequest } from "@/lib/api";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
+import { useAuth } from "@/context/AuthContext";
 import { useLanguage } from "@/context/LanguageContext";
 import RoleGuard from "@/components/RoleGuard";
 import { useBreakpoints } from "@/hooks/useBreakpoints";
@@ -53,6 +54,7 @@ function BudgetPrevisionnelScreenInner() {
   const insets = useSafeAreaInsets();
   const { isWide } = useBreakpoints();
   const { t } = useLanguage();
+  const { token } = useAuth();
   const topPad = isWide ? 0 : (Platform.OS === "web" ? 67 : insets.top);
 
   const [tab, setTab] = useState<TabType>("vue_ensemble");
@@ -60,12 +62,15 @@ function BudgetPrevisionnelScreenInner() {
   const [recettes, setRecettes] = useState<LigneBudget[]>([]);
   const [depenses, setDepenses] = useState<LigneBudget[]>([]);
   const [annee, setAnnee] = useState("2026");
+  const [budgetId, setBudgetId] = useState<string | null>(null);
+  const [downloading, setDownloading] = useState(false);
 
   useEffect(() => {
     apiRequest<{ data: any[] }>("/budgets")
       .then(({ data }) => {
         if (!data || data.length === 0) return;
         const budget = data[0];
+        setBudgetId(budget.id ?? null);
         if (budget.year) setAnnee(String(budget.year));
         const lines: LigneBudget[] = (budget.lines || []).map((l: any, i: number) => ({
           id: l.id || `line-${i}`,
@@ -144,9 +149,31 @@ function BudgetPrevisionnelScreenInner() {
         </View>
         <TouchableOpacity
           style={[styles.exportBtn, { backgroundColor: colors.primary }]}
-          onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); Share.share({ title: `Budget ${ANNEE}`, message: `Budget prévisionnel ${ANNEE}\nRecettes prévues: ${fmt(totalRecettesPrevu)}\nDépenses prévues: ${fmt(totalDepensesPrevu)}\nSolde: ${fmt(soldePrevu)}\nExporté depuis SYNDYCAT GLOBAL CPS` }); }}
+          disabled={downloading || !budgetId}
+          onPress={async () => {
+            Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+            if (!budgetId) return;
+            try {
+              setDownloading(true);
+              const domain = process.env.EXPO_PUBLIC_DOMAIN;
+              const base = domain
+                ? `https://${domain}`
+                : `http://localhost:${process.env.EXPO_PUBLIC_API_PORT ?? "8080"}`;
+              const tokenParam = token ? `?token=${encodeURIComponent(token)}` : "";
+              const url = `${base}/api/pdf/budget/${budgetId}${tokenParam}`;
+              await Linking.openURL(url);
+            } catch {
+              Alert.alert(t("error"), "Impossible de générer le PDF du budget. Vérifiez votre connexion.");
+            } finally {
+              setDownloading(false);
+            }
+          }}
         >
-          <Feather name="download" size={15} color="#fff" />
+          {downloading ? (
+            <ActivityIndicator size="small" color="#fff" />
+          ) : (
+            <Feather name="download" size={15} color="#fff" />
+          )}
         </TouchableOpacity>
       </View>
 

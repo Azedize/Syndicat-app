@@ -1,5 +1,6 @@
 import { Feather } from "@expo/vector-icons";
 import * as Haptics from "expo-haptics";
+import * as Linking from "expo-linking";
 import { router } from "expo-router";
 import React, { useState } from "react";
 import {
@@ -19,6 +20,7 @@ import {
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import RoleGuard from "@/components/RoleGuard";
+import { useAuth } from "@/context/AuthContext";
 import { useData, type Invoice } from "@/context/DataContext";
 import { useLanguage } from "@/context/LanguageContext";
 import { useBreakpoints } from "@/hooks/useBreakpoints";
@@ -67,12 +69,32 @@ function InvoicesScreenInner() {
   const { invoices, addInvoice } = useData();
   const { t } = useLanguage();
   const { isWide } = useBreakpoints();
+  const { token } = useAuth();
   const topPad = isWide ? 0 : (Platform.OS === "web" ? 67 : insets.top);
 
   const [tab, setTab] = useState<TabType>("factures");
   const [showAdd, setShowAdd] = useState(false);
   const [selectedInvoice, setSelectedInvoice] = useState<Invoice | null>(null);
   const [proofModalUri, setProofModalUri] = useState<string | null>(null);
+  const [downloadingPdf, setDownloadingPdf] = useState(false);
+
+  const downloadInvoicePdf = async (invoiceId: string) => {
+    try {
+      setDownloadingPdf(true);
+      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+      const domain = process.env.EXPO_PUBLIC_DOMAIN;
+      const base = domain
+        ? `https://${domain}`
+        : `http://localhost:${process.env.EXPO_PUBLIC_API_PORT ?? "8080"}`;
+      const tokenParam = token ? `?token=${encodeURIComponent(token)}` : "";
+      const url = `${base}/api/pdf/invoice/${invoiceId}${tokenParam}`;
+      await Linking.openURL(url);
+    } catch {
+      Alert.alert(t("error"), "Impossible de générer le PDF. Vérifiez votre connexion.");
+    } finally {
+      setDownloadingPdf(false);
+    }
+  };
 
   // Form state
   const [addType, setAddType] = useState<"devis" | "facture">("facture");
@@ -394,9 +416,14 @@ function InvoicesScreenInner() {
               <View style={styles.actionBtns}>
                 <TouchableOpacity
                   style={[styles.actionBtn, { backgroundColor: colors.muted }]}
-                  onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); Share.share({ title: selectedInvoice.reference, message: `Facture ${selectedInvoice.reference}\nDestinataire: ${selectedInvoice.recipient}\nDate: ${selectedInvoice.date} — Échéance: ${selectedInvoice.dueDate}\nMontant: ${selectedInvoice.amount.toLocaleString()} MAD` }); }}
+                  disabled={downloadingPdf}
+                  onPress={() => downloadInvoicePdf(selectedInvoice.id)}
                 >
-                  <Feather name="download" size={16} color={colors.foreground} />
+                  {downloadingPdf ? (
+                    <ActivityIndicator size="small" color={colors.foreground} />
+                  ) : (
+                    <Feather name="download" size={16} color={colors.foreground} />
+                  )}
                   <Text style={[styles.actionBtnText, { color: colors.foreground }]}>PDF</Text>
                 </TouchableOpacity>
                 <TouchableOpacity
