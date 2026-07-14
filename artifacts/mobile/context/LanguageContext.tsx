@@ -1579,6 +1579,153 @@ export const TRANSLATIONS: Translations = {
   votes:                    { fr: "Votes", en: "Votes", ar: "الأصوات", es: "Votos" },
   panierLabel:              { fr: "Panier", en: "Cart", ar: "السلة", es: "Carrito" },
   logoutLabel:              { fr: "Se déconnecter", en: "Log out", ar: "تسجيل الخروج", es: "Cerrar sesión" },
+
+  // ── Chat thread ──────────────────────────────────────────────────────────────
+  writeMessagePlaceholder:  { fr: "Écrire un message...", en: "Write a message...", ar: "اكتب رسالة...", es: "Escribe un mensaje..." },
+  startConversation:        { fr: "Commencez la conversation", en: "Start the conversation", ar: "ابدأ المحادثة", es: "Inicia la conversación" },
+  conversationNotFound:     { fr: "Conversation introuvable", en: "Conversation not found", ar: "المحادثة غير موجودة", es: "Conversación no encontrada" },
+  vocalCallLabel:           { fr: "Appel vocal", en: "Voice call", ar: "مكالمة صوتية", es: "Llamada de voz" },
+  callLabel:                { fr: "Appeler", en: "Call", ar: "اتصال", es: "Llamar" },
+  callUnavailable:          { fr: "Numéro non disponible.", en: "Number not available.", ar: "الرقم غير متاح.", es: "Número no disponible." },
+  optionsLabel:             { fr: "Options", en: "Options", ar: "خيارات", es: "Opciones" },
+  shareConversation:        { fr: "Partager la conversation", en: "Share conversation", ar: "مشاركة المحادثة", es: "Compartir conversación" },
+  deleteConversation:       { fr: "Supprimer la conversation", en: "Delete conversation", ar: "حذف المحادثة", es: "Eliminar conversación" },
+  attachmentLabel:          { fr: "Pièce jointe", en: "Attachment", ar: "مرفق", es: "Adjunto" },
+  chooseFileType:           { fr: "Choisissez le type de fichier à envoyer:", en: "Choose the file type to send:", ar: "اختر نوع الملف للإرسال:", es: "Elige el tipo de archivo a enviar:" },
+  photoLabel:               { fr: "📷 Photo", en: "📷 Photo", ar: "📷 صورة", es: "📷 Foto" },
+  documentLabel:            { fr: "📄 Document", en: "📄 Document", ar: "📄 وثيقة", es: "📄 Documento" },
+  uploadError:              { fr: "Impossible d'envoyer le fichier. Vérifiez votre connexion.", en: "Unable to send file. Check your connection.", ar: "تعذر إرسال الملف. تحقق من اتصالك.", es: "No se puede enviar el archivo. Verifica tu conexión." },
+
+  // ── Messagerie interne ───────────────────────────────────────────────────────
+  messagerieTitle:          { fr: "Messagerie Interne", en: "Internal Messaging", ar: "المراسلة الداخلية", es: "Mensajería Interna" },
+  messagerieSubtitle:       { fr: "Communications officielles du syndicat", en: "Official syndicate communications", ar: "الاتصالات الرسمية للنقابة", es: "Comunicaciones oficiales del sindicato" },
+  composeLabel:             { fr: "Rédiger", en: "Compose", ar: "إنشاء", es: "Redactar" },
+  searchMessagePlaceholder: { fr: "Rechercher un message...", en: "Search a message...", ar: "البحث عن رسالة...", es: "Buscar un mensaje..." },
+  inboxLabel:               { fr: "Boîte de réception", en: "Inbox", ar: "صندوق الوارد", es: "Bandeja de entrada" },
+  sentLabel:                { fr: "Envoyés", en: "Sent", ar: "المُرسَل", es: "Enviados" },
+  inboxEmptyTitle:          { fr: "Boîte vide", en: "Empty inbox", ar: "صندوق فارغ", es: "Bandeja vacía" },
+  inboxEmptyText:           { fr: "Aucune communication officielle du syndicat pour le moment.", en: "No official syndicate communications for now.", ar: "لا توجد اتصالات رسمية من النقابة في الوقت الحالي.", es: "No hay comunicaciones oficiales del sindicato por ahora." },
+  sentEmptyTitle:           { fr: "Aucun message envoyé", en: "No sent messages", ar: "لا توجد رسائل مُرسَلة", es: "Sin mensajes enviados" },
+  sentEmptyText:            { fr: "Les messages que vous rédigez apparaîtront ici.", en: "Messages you compose will appear here.", ar: "ستظهر هنا الرسائل التي ترسلها.", es: "Los mensajes que redactes aparecerán aquí." },
+  urgentBadge:              { fr: "Urgent", en: "Urgent", ar: "عاجل", es: "Urgente" },
+  ackRequired:              { fr: "AR requis", en: "ACK required", ar: "مطلوب إقرار", es: "AR requerido" },
+  ackSent:                  { fr: "Accusé de réception envoyé", en: "Acknowledgment sent", ar: "تم إرسال الإقرار", es: "Acuse de recibo enviado" },
+  ackPending:               { fr: "Ce message requiert un accusé de réception", en: "This message requires an acknowledgment", ar: "تتطلب هذه الرسالة إقراراً", es: "Este mensaje requiere un acuse de recibo" },
+  ackSuccessTitle:          { fr: "Accusé de réception", en: "Acknowledgment", ar: "إقرار الاستلام", es: "Acuse de recibo" },
+  ackSuccessMsg:            { fr: "Votre accusé de réception a été enregistré.", en: "Your acknowledgment has been recorded.", ar: "تم تسجيل إقرارك.", es: "Su acuse de recibo ha sido registrado." },
+  fillSubjectBody:          { fr: "Veuillez remplir l'objet et le corps du message.", en: "Please fill in the subject and message body.", ar: "يرجى ملء الموضوع ونص الرسالة.", es: "Por favor complete el asunto y el cuerpo del mensaje." },
+  messageSentTitle:         { fr: "Message envoyé", en: "Message sent", ar: "تم إرسال الرسالة", es: "Mensaje enviado" },
+  messageSentText:          { fr: "Votre message a été transmis avec succès.", en: "Your message was sent successfully.", ar: "تم إرسال رسالتك بنجاح.", es: "Su mensaje fue enviado exitosamente." },
+  sendErrorMsg:             { fr: "Impossible d'envoyer le message. Réessayez.", en: "Unable to send the message. Please try again.", ar: "تعذر إرسال الرسالة. حاول مجدداً.", es: "No se puede enviar el mensaje. Inténtalo de nuevo." },
+  msgTypeLabel:             { fr: "Type de message *", en: "Message type *", ar: "نوع الرسالة *", es: "Tipo de mensaje *" },
+  urgentePriority:          { fr: "Urgente", en: "Urgent", ar: "عاجل", es: "Urgente" },
+  normalePriority:          { fr: "Normale", en: "Normal", ar: "عادي", es: "Normal" },
+  faibleePriority:          { fr: "Faible", en: "Low", ar: "منخفض", es: "Baja" },
+  subjectLabel:             { fr: "Objet *", en: "Subject *", ar: "الموضوع *", es: "Asunto *" },
+  subjectPlaceholder:       { fr: "Objet du message", en: "Message subject", ar: "موضوع الرسالة", es: "Asunto del mensaje" },
+  bodyLabel:                { fr: "Corps du message *", en: "Message body *", ar: "نص الرسالة *", es: "Cuerpo del mensaje *" },
+  bodyPlaceholder:          { fr: "Rédigez votre message ici...", en: "Write your message here...", ar: "اكتب رسالتك هنا...", es: "Escribe tu mensaje aquí..." },
+  sendMessageLabel:         { fr: "Envoyer le message", en: "Send message", ar: "إرسال الرسالة", es: "Enviar mensaje" },
+  composeModalTitle:        { fr: "Rédiger un message", en: "Compose a message", ar: "إنشاء رسالة", es: "Redactar un mensaje" },
+  replyBtnLabel:            { fr: "Répondre", en: "Reply", ar: "رد", es: "Responder" },
+  accuReceptionBtn:         { fr: "Accuser réception", en: "Acknowledge", ar: "تأكيد الاستلام", es: "Acusar recibo" },
+  fromLabel:                { fr: "De", en: "From", ar: "من", es: "De" },
+  toLabel:                  { fr: "À", en: "To", ar: "إلى", es: "Para" },
+
+  // ── Publications ─────────────────────────────────────────────────────────────
+  allCategoriesLabel:       { fr: "Toutes", en: "All", ar: "الكل", es: "Todas" },
+  pinnedLabel:              { fr: "Épinglé", en: "Pinned", ar: "مثبت", es: "Fijado" },
+  readMoreLabel:            { fr: "Lire →", en: "Read →", ar: "اقرأ →", es: "Leer →" },
+  pubCreatedTitle:          { fr: "Publication créée", en: "Publication created", ar: "تم إنشاء المنشور", es: "Publicación creada" },
+  pubCreatedText:           { fr: "Votre publication a été publiée avec succès.", en: "Your publication was published successfully.", ar: "تم نشر منشورك بنجاح.", es: "Tu publicación fue publicada exitosamente." },
+  contentLabel:             { fr: "Contenu *", en: "Content *", ar: "المحتوى *", es: "Contenido *" },
+  contentPlaceholder:       { fr: "Rédigez le contenu de votre publication...", en: "Write the content of your publication...", ar: "اكتب محتوى منشورك...", es: "Redacta el contenido de tu publicación..." },
+  pubTitleLabel:            { fr: "Titre *", en: "Title *", ar: "العنوان *", es: "Título *" },
+  pubTitlePlaceholder:      { fr: "Titre de la publication", en: "Publication title", ar: "عنوان المنشور", es: "Título de la publicación" },
+  publishNowBtn:            { fr: "Publier maintenant", en: "Publish now", ar: "نشر الآن", es: "Publicar ahora" },
+  editPubTitle:             { fr: "Modifier la publication", en: "Edit publication", ar: "تعديل المنشور", es: "Editar publicación" },
+  pubUpdatedTitle:          { fr: "Publication mise à jour", en: "Publication updated", ar: "تم تحديث المنشور", es: "Publicación actualizada" },
+  pubUpdatedText:           { fr: "Les modifications ont été enregistrées.", en: "Changes have been saved.", ar: "تم حفظ التغييرات.", es: "Los cambios han sido guardados." },
+  deletePubTitle:           { fr: "Supprimer la publication", en: "Delete publication", ar: "حذف المنشور", es: "Eliminar publicación" },
+  deletePubConfirm:         { fr: "Cette action est irréversible.", en: "This action is irreversible.", ar: "هذا الإجراء لا يمكن التراجع عنه.", es: "Esta acción es irreversible." },
+  deleteBtn:                { fr: "Supprimer", en: "Delete", ar: "حذف", es: "Eliminar" },
+  editBtn:                  { fr: "Modifier", en: "Edit", ar: "تعديل", es: "Modificar" },
+  pinBtn:                   { fr: "Épingler", en: "Pin", ar: "تثبيت", es: "Fijar" },
+  pubPinnedTitle:           { fr: "Publication épinglée", en: "Publication pinned", ar: "تم تثبيت المنشور", es: "Publicación fijada" },
+  pubPinnedText:            { fr: "a été épinglée en haut de la liste.", en: "has been pinned to the top of the list.", ar: "تم تثبيته في أعلى القائمة.", es: "ha sido fijada en la parte superior de la lista." },
+  commentsTitle:            { fr: "Commentaires", en: "Comments", ar: "التعليقات", es: "Comentarios" },
+  firstCommentLabel:        { fr: "Soyez le premier à commenter", en: "Be the first to comment", ar: "كن أول من يعلق", es: "Sé el primero en comentar" },
+  addCommentPlaceholder:    { fr: "Ajouter un commentaire...", en: "Add a comment...", ar: "أضف تعليقاً...", es: "Agregar un comentario..." },
+  justNowLabel:             { fr: "À l'instant", en: "Just now", ar: "الآن", es: "Ahora mismo" },
+  myLabel:                  { fr: "Moi", en: "Me", ar: "أنا", es: "Yo" },
+
+  // ── Notifications ────────────────────────────────────────────────────────────
+  preferencesTab:           { fr: "Préférences", en: "Preferences", ar: "التفضيلات", es: "Preferencias" },
+  historyTab:               { fr: "Historique", en: "History", ar: "السجل", es: "Historial" },
+  globalSettingsLabel:      { fr: "PARAMÈTRES GLOBAUX", en: "GLOBAL SETTINGS", ar: "الإعدادات العامة", es: "CONFIGURACIÓN GLOBAL" },
+  pushNotifsLabel:          { fr: "Notifications push", en: "Push notifications", ar: "إشعارات الدفع", es: "Notificaciones push" },
+  pushNotifsSub:            { fr: "Recevoir des notifications sur l'appareil", en: "Receive notifications on the device", ar: "استقبال الإشعارات على الجهاز", es: "Recibir notificaciones en el dispositivo" },
+  emailNotifsLabel:         { fr: "Notifications email", en: "Email notifications", ar: "إشعارات البريد الإلكتروني", es: "Notificaciones de correo" },
+  emailNotifsSub:           { fr: "Recevoir des emails de notification", en: "Receive notification emails", ar: "استقبال رسائل الإشعارات", es: "Recibir correos de notificación" },
+  doNotDisturbLabel:        { fr: "Ne pas déranger", en: "Do not disturb", ar: "لا تزعج", es: "No molestar" },
+  doNotDisturbSub:          { fr: "Désactiver toutes les notifications", en: "Disable all notifications", ar: "تعطيل جميع الإشعارات", es: "Desactivar todas las notificaciones" },
+  perCategoryLabel:         { fr: "PAR CATÉGORIE", en: "BY CATEGORY", ar: "حسب الفئة", es: "POR CATEGORÍA" },
+  soundVibrationLabel:      { fr: "SON & VIBRATION", en: "SOUND & VIBRATION", ar: "الصوت والاهتزاز", es: "SONIDO Y VIBRACIÓN" },
+  soundNotifsLabel:         { fr: "Son des notifications", en: "Notification sound", ar: "صوت الإشعارات", es: "Sonido de notificaciones" },
+  soundNotifsSub:           { fr: "Jouer un son à chaque notification", en: "Play a sound for each notification", ar: "تشغيل صوت لكل إشعار", es: "Reproducir un sonido por notificación" },
+  vibrationLabel:           { fr: "Vibration", en: "Vibration", ar: "الاهتزاز", es: "Vibración" },
+  vibrationSub:             { fr: "Vibrer à chaque notification", en: "Vibrate for each notification", ar: "الاهتزاز لكل إشعار", es: "Vibrar por cada notificación" },
+  msgPreviewLabel:          { fr: "Aperçu des messages", en: "Message preview", ar: "معاينة الرسائل", es: "Vista previa de mensajes" },
+  msgPreviewSub:            { fr: "Afficher le contenu sur l'écran verrouillé", en: "Show content on the lock screen", ar: "عرض المحتوى على شاشة القفل", es: "Mostrar contenido en la pantalla bloqueada" },
+  markAllReadBtn:           { fr: "Tout marquer comme lu", en: "Mark all as read", ar: "وضع علامة مقروء للكل", es: "Marcar todo como leído" },
+  alertInfo:                { fr: "Info", en: "Info", ar: "معلومة", es: "Info" },
+  alertWarning:             { fr: "Alerte", en: "Alert", ar: "تنبيه", es: "Alerta" },
+  alertSuccess:             { fr: "Succès", en: "Success", ar: "نجاح", es: "Éxito" },
+  alertError:               { fr: "Erreur", en: "Error", ar: "خطأ", es: "Error" },
+
+  // ── Search ───────────────────────────────────────────────────────────────────
+  cancelLabel:              { fr: "Annuler", en: "Cancel", ar: "إلغاء", es: "Cancelar" },
+  allResultsLabel:          { fr: "Tout", en: "All", ar: "الكل", es: "Todo" },
+  quickSuggestionsLabel:    { fr: "SUGGESTIONS RAPIDES", en: "QUICK SUGGESTIONS", ar: "اقتراحات سريعة", es: "SUGERENCIAS RÁPIDAS" },
+  quickAccessLabel:         { fr: "ACCÈS RAPIDE", en: "QUICK ACCESS", ar: "وصول سريع", es: "ACCESO RÁPIDO" },
+  noResultsTitle:           { fr: "Aucun résultat", en: "No results", ar: "لا توجد نتائج", es: "Sin resultados" },
+  noResultsFor:             { fr: "Aucun résultat pour", en: "No results for", ar: "لا توجد نتائج لـ", es: "Sin resultados para" },
+  tryOtherSearch:           { fr: "Essayez un autre terme de recherche.", en: "Try another search term.", ar: "جرب مصطلح بحث آخر.", es: "Prueba otro término de búsqueda." },
+  clearHistoryLabel:        { fr: "Tout effacer", en: "Clear all", ar: "مسح الكل", es: "Borrar todo" },
+
+  // ── Favorites ────────────────────────────────────────────────────────────────
+  myFavoritesTitle:         { fr: "Mes Favoris", en: "My Favorites", ar: "مفضلتي", es: "Mis Favoritos" },
+  clearFavoritesLabel:      { fr: "Tout effacer", en: "Clear all", ar: "مسح الكل", es: "Borrar todo" },
+  favEmptyTitle:            { fr: "Aucun favori", en: "No favorites", ar: "لا توجد مفضلة", es: "Sin favoritos" },
+  favEmptyText:             { fr: "Appuyez sur l'étoile ★ dans n'importe quel écran pour ajouter des pages ou éléments à vos favoris.", en: "Tap the star ★ on any screen to add pages or items to your favorites.", ar: "اضغط على النجمة ★ في أي شاشة لإضافة صفحات أو عناصر إلى مفضلتك.", es: "Toca la estrella ★ en cualquier pantalla para añadir páginas o elementos a tus favoritos." },
+  exploreAppLabel:          { fr: "Explorer l'application", en: "Explore the app", ar: "استكشف التطبيق", es: "Explorar la aplicación" },
+  suggestionsLabel:         { fr: "SUGGESTIONS", en: "SUGGESTIONS", ar: "اقتراحات", es: "SUGERENCIAS" },
+
+  // ── Actions ──────────────────────────────────────────────────────────────────
+  syndicateActionsTitle:    { fr: "Actions Syndicales", en: "Union Actions", ar: "الإجراءات النقابية", es: "Acciones Sindicales" },
+  mobilizationLabel:        { fr: "Mobilisation & Revendications", en: "Mobilization & Demands", ar: "التعبئة والمطالب", es: "Movilización y Reivindicaciones" },
+  activeActionsLabel:       { fr: "actives", en: "active", ar: "نشطة", es: "activas" },
+  myActionsLabel:           { fr: "Mes actions", en: "My actions", ar: "إجراءاتي", es: "Mis acciones" },
+  supportsLabel:            { fr: "Soutiens", en: "Supports", ar: "الدعم", es: "Apoyos" },
+  inProgressLabel:          { fr: "En cours", en: "In progress", ar: "جارٍ", es: "En curso" },
+  allTypesLabel:            { fr: "Tous", en: "All", ar: "الكل", es: "Todos" },
+  allStatusesLabel:         { fr: "Tous les statuts", en: "All statuses", ar: "جميع الحالات", es: "Todos los estados" },
+  loadingActionsLabel:      { fr: "Chargement des actions…", en: "Loading actions…", ar: "جارٍ تحميل الإجراءات…", es: "Cargando acciones…" },
+  loadingActionsError:      { fr: "Impossible de charger les actions.", en: "Unable to load actions.", ar: "تعذر تحميل الإجراءات.", es: "No se pueden cargar las acciones." },
+  noActionsLabel:           { fr: "Aucune action syndicale trouvée.", en: "No union actions found.", ar: "لم يتم العثور على إجراءات نقابية.", es: "No se encontraron acciones sindicales." },
+  createFirstActionHint:    { fr: "Créez la première action depuis le tableau de bord.", en: "Create the first action from the dashboard.", ar: "أنشئ أول إجراء من لوحة التحكم.", es: "Crea la primera acción desde el panel." },
+  retryLabel:               { fr: "Réessayer", en: "Retry", ar: "حاول مجدداً", es: "Reintentar" },
+  supportedLabel:           { fr: "Soutenu ♥", en: "Supported ♥", ar: "مدعوم ♥", es: "Apoyado ♥" },
+  supportBtn:               { fr: "Soutenir", en: "Support", ar: "دعم", es: "Apoyar" },
+  participateBtn:           { fr: "Participer", en: "Participate", ar: "شارك", es: "Participar" },
+  confirmedBtn:             { fr: "Confirmé", en: "Confirmed", ar: "مؤكد", es: "Confirmado" },
+  participateConfirmedBtn:  { fr: "Je participe", en: "I'm participating", ar: "أنا مشارك", es: "Participo" },
+  confirmParticipTitle:     { fr: "Participation confirmée ✓", en: "Participation confirmed ✓", ar: "تم تأكيد المشاركة ✓", es: "Participación confirmada ✓" },
+  supportError:             { fr: "Impossible d'enregistrer votre soutien.", en: "Unable to record your support.", ar: "تعذر تسجيل دعمك.", es: "No se puede registrar tu apoyo." },
+  participateError:         { fr: "Impossible d'enregistrer votre participation.", en: "Unable to record your participation.", ar: "تعذر تسجيل مشاركتك.", es: "No se puede registrar tu participación." },
+  demandsTitle:             { fr: "Revendications", en: "Demands", ar: "المطالب", es: "Reivindicaciones" },
+  updatesTitle:             { fr: "Mises à jour", en: "Updates", ar: "التحديثات", es: "Actualizaciones" },
+  organizerLabel:           { fr: "Organisateur", en: "Organizer", ar: "المنظم", es: "Organizador" },
 };
 
 interface LanguageContextValue {
@@ -1615,18 +1762,28 @@ export function LanguageProvider({ children }: { children: React.ReactNode }) {
     const newIsRTL = option?.rtl ?? false;
     const currentIsRTL = I18nManager.isRTL;
     setLangState(code);
-    AsyncStorage.setItem(STORAGE_KEY, code).catch(() => {});
+    const persist = AsyncStorage.setItem(STORAGE_KEY, code).catch(() => {});
 
     if (newIsRTL !== currentIsRTL) {
       I18nManager.allowRTL(newIsRTL);
       I18nManager.forceRTL(newIsRTL);
 
-      // Layout mirroring (RTL) only takes effect after the native app restarts.
-      // Try to reload automatically (works in production/EAS builds using expo-updates);
-      // fall back to prompting the user to restart manually (e.g. in Expo Go / dev client).
+      // Layout mirroring (RTL) only fully takes effect after the app reloads —
+      // several navigation/gesture libraries read I18nManager.isRTL once at
+      // startup and never re-check it, so some screens (tab bar, dashboard,
+      // etc.) stayed LTR even though our own context state updated instantly.
       const attemptReload = async () => {
+        if (Platform.OS === "web") {
+          // Wait for the language preference to persist before reloading, or
+          // the fresh page load would read the old value back out of storage.
+          await persist;
+          if (typeof window !== "undefined" && typeof window.location?.reload === "function") {
+            window.location.reload();
+          }
+          return;
+        }
         try {
-          if (Platform.OS !== "web" && Updates.reloadAsync) {
+          if (Updates.reloadAsync) {
             await Updates.reloadAsync();
             return;
           }

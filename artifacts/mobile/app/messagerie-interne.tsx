@@ -21,6 +21,7 @@ import { useAuth } from "@/context/AuthContext";
 import { useBreakpoints } from "@/hooks/useBreakpoints";
 import { useColors } from "@/hooks/useColors";
 import { announcements as announcementsApi, type ApiAnnouncement } from "@/services/api";
+import { useLanguage } from "@/context/LanguageContext";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -92,6 +93,7 @@ function mapApiAnnouncement(a: ApiAnnouncement, currentUserId?: string): Interna
 
 export default function MessagerieInterneScreen() {
   const colors = useColors();
+  const { t } = useLanguage();
   const insets = useSafeAreaInsets();
   const { user } = useAuth();
   const { isWide } = useBreakpoints();
@@ -163,12 +165,12 @@ export default function MessagerieInterneScreen() {
   const handleAcknowledge = (id: string) => {
     setAcknowledgedIds((prev) => new Set([...prev, id]));
     Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-    Alert.alert("Accusé de réception", "Votre accusé de réception a été enregistré.");
+    Alert.alert(t('ackSuccessTitle'), t('ackSuccessMsg'));
   };
 
   const handleSend = async () => {
     if (!newSubject.trim() || !newBody.trim()) {
-      Alert.alert("Champs requis", "Veuillez remplir l'objet et le corps du message.");
+      Alert.alert(t('requiredFields'), t('fillSubjectBody'));
       return;
     }
     setSending(true);
@@ -191,10 +193,10 @@ export default function MessagerieInterneScreen() {
       setNewType("note");
       setNewPriority("normal");
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-      Alert.alert("Message envoyé", "Votre message a été transmis avec succès.");
+      Alert.alert(t('messageSentTitle'), t('messageSentText'));
       await loadMessages();
     } catch {
-      Alert.alert("Erreur", "Impossible d'envoyer le message. Réessayez.");
+      Alert.alert(t('error'), t('sendErrorMsg'));
     } finally {
       setSending(false);
     }

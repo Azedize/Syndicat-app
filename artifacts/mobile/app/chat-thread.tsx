@@ -3,6 +3,7 @@ import * as Haptics from "expo-haptics";
 import { router, useLocalSearchParams } from "expo-router";
 import React, { useEffect, useRef, useState } from "react";
 import { shareContent } from "@/hooks/useShare";
+import { useLanguage } from "@/context/LanguageContext";
 import {
   ActivityIndicator,
   Alert,
@@ -26,6 +27,7 @@ import { useColors } from "@/hooks/useColors";
 
 export default function ChatThreadScreen() {
   const colors = useColors();
+  const { t } = useLanguage();
   const insets = useSafeAreaInsets();
   const { id } = useLocalSearchParams<{ id: string }>();
   const [text, setText] = useState("");
@@ -159,7 +161,7 @@ export default function ChatThreadScreen() {
       setTimeout(() => listRef.current?.scrollToEnd({ animated: true }), 100);
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
     } catch {
-      Alert.alert("Erreur", "Impossible d'envoyer le fichier. Vérifiez votre connexion.");
+      Alert.alert(t('error'), t('uploadError'));
     } finally {
       setUploading(false);
     }
@@ -168,7 +170,7 @@ export default function ChatThreadScreen() {
   if (!conversation) {
     return (
       <View style={[styles.root, { backgroundColor: colors.background }]}>
-        <Text style={{ color: colors.foreground, padding: 20 }}>Conversation introuvable</Text>
+        <Text style={{ color: colors.foreground, padding: 20 }}>{t('conversationNotFound')}</Text>
       </View>
     );
   }
@@ -208,9 +210,9 @@ export default function ChatThreadScreen() {
           style={[styles.headerBtn, { backgroundColor: colors.secondary }]}
           onPress={() => {
             Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
-            Alert.alert("Appel vocal", `Appeler ${conversation.participant}?`, [
-              { text: "Annuler", style: "cancel" },
-              { text: "Appeler", onPress: () => Linking.openURL("tel:").catch(() => Alert.alert("Indisponible", "Numéro non disponible.")) },
+            Alert.alert(t('vocalCallLabel'), `${t('callLabel')} ${conversation.participant}?`, [
+              { text: t('cancel'), style: "cancel" },
+              { text: t('callLabel'), onPress: () => Linking.openURL("tel:").catch(() => Alert.alert(t('error'), t('callUnavailable'))) },
             ]);
           }}
         >
@@ -220,11 +222,11 @@ export default function ChatThreadScreen() {
           style={[styles.headerBtn, { backgroundColor: colors.secondary }]}
           onPress={() => {
             Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-            Alert.alert("Options", undefined, [
-              { text: "Annuler", style: "cancel" },
-              { text: "Partager la conversation", onPress: () => shareContent(`Conversation avec ${conversation.participant} sur SYNDYCAT`) },
+            Alert.alert(t('optionsLabel'), undefined, [
+              { text: t('cancel'), style: "cancel" },
+              { text: t('shareConversation'), onPress: () => shareContent(`Conversation avec ${conversation.participant} sur SYNDYCAT`) },
               {
-                text: "Supprimer la conversation",
+                text: t('deleteConversation'),
                 style: "destructive",
                 onPress: () => {
                   deleteConversation(id);
@@ -252,7 +254,7 @@ export default function ChatThreadScreen() {
               <Feather name="message-circle" size={32} color={colors.primary} />
             </View>
             <Text style={[styles.emptyChatText, { color: colors.mutedForeground }]}>
-              Commencez la conversation
+              {t('startConversation')}
             </Text>
           </View>
         }
@@ -307,10 +309,10 @@ export default function ChatThreadScreen() {
           disabled={uploading}
           onPress={() => {
             Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-            Alert.alert("Pièce jointe", "Choisissez le type de fichier à envoyer:", [
-              { text: "Annuler", style: "cancel" },
-              { text: "📷 Photo", onPress: () => handleAttach("photo") },
-              { text: "📄 Document", onPress: () => handleAttach("document") },
+            Alert.alert(t('attachmentLabel'), t('chooseFileType'), [
+              { text: t('cancel'), style: "cancel" },
+              { text: t('photoLabel'), onPress: () => handleAttach("photo") },
+              { text: t('documentLabel'), onPress: () => handleAttach("document") },
             ]);
           }}
         >
@@ -322,7 +324,7 @@ export default function ChatThreadScreen() {
           style={[styles.msgInput, { backgroundColor: colors.background, borderColor: colors.border, color: colors.foreground }]}
           value={text}
           onChangeText={setText}
-          placeholder="Écrire un message..."
+          placeholder={t('writeMessagePlaceholder')}
           placeholderTextColor={colors.mutedForeground}
           multiline
           maxLength={500}
