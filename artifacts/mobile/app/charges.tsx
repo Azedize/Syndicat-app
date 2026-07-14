@@ -90,7 +90,7 @@ function ChargesScreenInner() {
       if (!silent) setLoading(true);
       const qs = filter !== "all" ? `?status=${filter}` : "";
       const data = await apiRequest(`/appels-de-fonds${qs}`, "GET", undefined, token);
-      setAppels(data.data ?? []);
+      setAppels((data.data ?? []).map((a: any) => ({ ...a, amount: Number(a.amount) || 0 })));
     } catch (e) { console.error(e); }
     finally { setLoading(false); setRefreshing(false); }
   }, [token, filter]);

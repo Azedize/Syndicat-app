@@ -743,7 +743,12 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
 
         if (subsRes.status === "fulfilled") {
           const rows = (subsRes.value as { data: unknown[] }).data;
-          if (rows?.length) setSyndicateSubscriptions(rows as SyndicateSubscription[]);
+          if (rows?.length) {
+            setSyndicateSubscriptions(rows.map((r: unknown) => {
+              const row = r as Record<string, unknown>;
+              return { ...(row as unknown as SyndicateSubscription), amount: Number(row.amount ?? 0) };
+            }));
+          }
         }
 
         if (plansRes.status === "fulfilled") {
