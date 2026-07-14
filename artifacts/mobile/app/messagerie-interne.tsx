@@ -22,6 +22,7 @@ import { useBreakpoints } from "@/hooks/useBreakpoints";
 import { useColors } from "@/hooks/useColors";
 import { announcements as announcementsApi, type ApiAnnouncement } from "@/services/api";
 import { useLanguage } from "@/context/LanguageContext";
+import EmptyState from "@/components/EmptyState";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -334,7 +335,11 @@ export default function MessagerieInterneScreen() {
           data={filtered}
           keyExtractor={(i) => i.id}
           renderItem={renderMessage}
-          contentContainerStyle={{ padding: 12, gap: 8, paddingBottom: insets.bottom + 80 }}
+          contentContainerStyle={
+            filtered.length === 0
+              ? styles.listEmptyContainer
+              : { padding: 12, gap: 8, paddingBottom: insets.bottom + 80 }
+          }
           showsVerticalScrollIndicator={false}
           refreshControl={
             <RefreshControl
@@ -345,19 +350,15 @@ export default function MessagerieInterneScreen() {
             />
           }
           ListEmptyComponent={
-            <View style={styles.empty}>
-              <View style={[styles.emptyIcon, { backgroundColor: colors.secondary }]}>
-                <Feather name="inbox" size={36} color={colors.primary} />
-              </View>
-              <Text style={[styles.emptyTitle, { color: colors.foreground }]}>
-                {tab === "inbox" ? "Boîte vide" : "Aucun message envoyé"}
-              </Text>
-              <Text style={[styles.emptyText, { color: colors.mutedForeground }]}>
-                {tab === "inbox"
+            <EmptyState
+              icon="inbox"
+              title={tab === "inbox" ? "Boîte vide" : "Aucun message envoyé"}
+              description={
+                tab === "inbox"
                   ? "Aucune communication officielle du syndicat pour le moment."
-                  : "Les messages que vous rédigez apparaîtront ici."}
-              </Text>
-            </View>
+                  : "Les messages que vous rédigez apparaîtront ici."
+              }
+            />
           }
         />
       )}
@@ -707,10 +708,9 @@ const styles = StyleSheet.create({
   },
   ackText: { fontSize: 10, fontFamily: "Inter_600SemiBold" },
   loadingWrap: { flex: 1, alignItems: "center", justifyContent: "center" },
-  empty: { alignItems: "center", gap: 12, marginTop: 48, paddingHorizontal: 32 },
-  emptyIcon: { width: 72, height: 72, borderRadius: 36, alignItems: "center", justifyContent: "center" },
-  emptyTitle: { fontSize: 16, fontFamily: "Inter_700Bold" },
-  emptyText: { fontSize: 13, fontFamily: "Inter_400Regular", textAlign: "center", lineHeight: 20 },
+  // Fills the space below the tabs bar so EmptyState can center itself
+  // there without the FlatList adding its own scrollable padding/gaps.
+  listEmptyContainer: { flexGrow: 1 },
   modal: { flex: 1 },
   modalHeader: {
     flexDirection: "row",

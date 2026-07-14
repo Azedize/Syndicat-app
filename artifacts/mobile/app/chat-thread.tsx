@@ -23,6 +23,7 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { chat as chatApi } from "@/services/api";
 import { useData, type ChatMessage } from "@/context/DataContext";
 import { useBreakpoints } from "@/hooks/useBreakpoints";
+import EmptyState from "@/components/EmptyState";
 import { useColors } from "@/hooks/useColors";
 
 export default function ChatThreadScreen() {
@@ -245,18 +246,15 @@ export default function ChatThreadScreen() {
         ref={listRef}
         data={threadMessages}
         keyExtractor={(m) => m.id}
-        contentContainerStyle={{ padding: 16, gap: 8, paddingBottom: 12 }}
+        contentContainerStyle={
+          threadMessages.length === 0
+            ? styles.listEmptyContainer
+            : { padding: 16, gap: 8, paddingBottom: 12 }
+        }
         showsVerticalScrollIndicator={false}
         onLayout={() => listRef.current?.scrollToEnd({ animated: false })}
         ListEmptyComponent={
-          <View style={styles.emptyChat}>
-            <View style={[styles.emptyChatIcon, { backgroundColor: colors.primary + "15" }]}>
-              <Feather name="message-circle" size={32} color={colors.primary} />
-            </View>
-            <Text style={[styles.emptyChatText, { color: colors.mutedForeground }]}>
-              {t('startConversation')}
-            </Text>
-          </View>
+          <EmptyState icon="message-circle" title={t('startConversation')} />
         }
         renderItem={({ item: msg, index }) => {
           const prev = threadMessages[index - 1];
@@ -372,15 +370,9 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "center",
   },
-  emptyChat: { alignItems: "center", gap: 12, marginTop: 60 },
-  emptyChatIcon: {
-    width: 70,
-    height: 70,
-    borderRadius: 20,
-    alignItems: "center",
-    justifyContent: "center",
-  },
-  emptyChatText: { fontSize: 14, fontFamily: "Inter_400Regular" },
+  // Fills the space below the header so EmptyState can center itself
+  // there without the FlatList adding its own scrollable padding/gaps.
+  listEmptyContainer: { flexGrow: 1 },
   msgRow: { flexDirection: "row", alignItems: "flex-end", gap: 8 },
   msgRowMe: { justifyContent: "flex-end" },
   msgAvatar: {

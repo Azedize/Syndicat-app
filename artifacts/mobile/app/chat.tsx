@@ -24,6 +24,8 @@ import { useBreakpoints } from "@/hooks/useBreakpoints";
 import { useColors } from "@/hooks/useColors";
 import { apiRequest } from "@/lib/api";
 import { chat as chatApi } from "@/services/api";
+import EmptyState from "@/components/EmptyState";
+import FilterChips from "@/components/FilterChips";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -221,11 +223,23 @@ export default function ChatScreen() {
 
   // ─── Render ────────────────────────────────────────────────────────────────
 
-  const FILTER_TABS: { key: FilterTab; label: string }[] = [
-    { key: "all", label: t("all") },
-    { key: "direct", label: t("chat") },
-    { key: "group", label: t("members") },
-    { key: "announcement", label: t("announcements") },
+  const unreadFor = (key: FilterTab) => {
+    if (key === "all") return totalUnread;
+    return conversations
+      .filter((c) => {
+        if (key === "direct") return c.convType === "direct" && !c.isGroup;
+        if (key === "group") return c.isGroup || c.convType === "group";
+        if (key === "announcement") return c.convType === "announcement";
+        return false;
+      })
+      .reduce((s, c) => s + c.unread, 0);
+  };
+
+  const FILTER_TABS: { key: FilterTab; label: string; unread: number }[] = [
+    { key: "all", label: t("all"), unread: unreadFor("all") },
+    { key: "direct", label: t("chat"), unread: unreadFor("direct") },
+    { key: "group", label: t("members"), unread: unreadFor("group") },
+    { key: "announcement", label: t("announcements"), unread: unreadFor("announcement") },
   ];
 
   return (
@@ -285,55 +299,33 @@ export default function ChatScreen() {
         ) : null}
       </View>
 
-      {/* Filter tabs */}
-      <ScrollView
-        horizontal
-        showsHorizontalScrollIndicator={false}
-        contentContainerStyle={{ paddingHorizontal: 12, paddingVertical: 10, gap: 8 }}
-      >
-        {FILTER_TABS.map((tab) => {
-          const active = filterTab === tab.key;
-          const tabUnread =
-            tab.key === "all"
-              ? totalUnread
-              : conversations
-                  .filter((c) => {
-                    if (tab.key === "direct") return c.convType === "direct" && !c.isGroup;
-                    if (tab.key === "group") return c.isGroup || c.convType === "group";
-                    if (tab.key === "announcement") return c.convType === "announcement";
-                    return false;
-                  })
-                  .reduce((s, c) => s + c.unread, 0);
-          return (
-            <TouchableOpacity
-              key={tab.key}
-              style={[
-                styles.filterTab,
-                {
-                  backgroundColor: active ? colors.primary : colors.card,
-                  borderColor: active ? colors.primary : colors.border,
-                },
-              ]}
-              onPress={() => { setFilterTab(tab.key); Haptics.selectionAsync(); }}
-            >
-              <Text style={[styles.filterTabText, { color: active ? "#fff" : colors.foreground }]}>
-                {tab.label}
-              </Text>
-              {tabUnread > 0 && (
-                <View style={[styles.tabBadge, { backgroundColor: active ? "#ffffff40" : colors.primary }]}>
-                  <Text style={styles.tabBadgeText}>{tabUnread > 99 ? "99+" : tabUnread}</Text>
-                </View>
-              )}
-            </TouchableOpacity>
-          );
-        })}
-      </ScrollView>
+      {/* Filter tabs — fixed-height bar; never resizes when the active
+          filter's data (or lack of it) changes. Counts still update, but
+          the bar's own height/spacing/scroll behavior stays constant. */}
+      <FilterChips
+        options={FILTER_TABS.map((tab) => ({
+          key: tab.key,
+          label: tab.label,
+          count: tab.unread > 0 ? tab.unread : undefined,
+        }))}
+        value={filterTab}
+        onChange={(key) => setFilterTab(key as FilterTab)}
+        accentColor={colors.primary}
+      />
 
-      {/* Conversation list */}
+      {/* Conversation list — the only part of this screen that scrolls.
+          When the active filter has no results, contentContainerStyle
+          switches to flexGrow: 1 so the EmptyState fills the remaining
+          space below the filter bar instead of leaving a stray gap or
+          pushing the filter bar around. */}
       <FlatList
         data={filtered}
         keyExtractor={(c) => c.id}
-        contentContainerStyle={{ paddingHorizontal: 12, gap: 2, paddingBottom: insets.bottom + 40 }}
+        contentContainerStyle={
+          filtered.length === 0
+            ? styles.listEmptyContainer
+            : { paddingHorizontal: 12, gap: 2, paddingBottom: insets.bottom + 40 }
+        }
         showsVerticalScrollIndicator={false}
         refreshControl={
           <RefreshControl
@@ -398,28 +390,13 @@ export default function ChatScreen() {
           );
         }}
         ListEmptyComponent={
-          <View style={styles.empty}>
-            <View style={[styles.emptyIcon, { backgroundColor: colors.primary + "15" }]}>
-              <Feather name="message-circle" size={32} color={colors.primary} />
-            </View>
-            <Text style={[styles.emptyTitle, { color: colors.foreground }]}>
-              {search ? t("noData") : t("noConversations")}
-            </Text>
-            <Text style={[styles.emptyText, { color: colors.mutedForeground }]}>
-              {search
-                ? `${t("noData")} "${search}"`
-                : t("noConversations")}
-            </Text>
-            {!search && (
-              <TouchableOpacity
-                style={[styles.emptyBtn, { backgroundColor: colors.primary }]}
-                onPress={handleOpenNew}
-              >
-                <Feather name="edit" size={16} color="#fff" />
-                <Text style={styles.emptyBtnText}>{t("newConversation")}</Text>
-              </TouchableOpacity>
-            )}
-          </View>
+          <EmptyState
+            icon="message-circle"
+            title={search ? t("noData") : t("noConversations")}
+            description={search ? `${t("noData")} "${search}"` : t("noConversations")}
+            actionLabel={!search ? t("newConversation") : undefined}
+            onAction={!search ? handleOpenNew : undefined}
+          />
         }
       />
 
@@ -654,25 +631,9 @@ const styles = StyleSheet.create({
     gap: 8,
   },
   searchInput: { flex: 1, fontSize: 14, fontFamily: "Inter_400Regular" },
-  filterTab: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 6,
-    paddingHorizontal: 14,
-    paddingVertical: 7,
-    borderRadius: 20,
-    borderWidth: 1,
-  },
-  filterTabText: { fontSize: 13, fontFamily: "Inter_600SemiBold" },
-  tabBadge: {
-    minWidth: 18,
-    height: 18,
-    borderRadius: 9,
-    alignItems: "center",
-    justifyContent: "center",
-    paddingHorizontal: 4,
-  },
-  tabBadgeText: { fontSize: 9, fontFamily: "Inter_700Bold", color: "#fff" },
+  // Fills the space below the filter bar so EmptyState can center itself
+  // there without the FlatList adding its own scrollable padding/gaps.
+  listEmptyContainer: { flexGrow: 1 },
   convRow: {
     flexDirection: "row",
     alignItems: "center",
@@ -709,19 +670,7 @@ const styles = StyleSheet.create({
   convMsg: { fontSize: 12, fontFamily: "Inter_400Regular" },
   sectionLabel: { fontSize: 11, fontFamily: "Inter_600SemiBold", letterSpacing: 0.5 },
   empty: { alignItems: "center", gap: 12, marginTop: 48, paddingHorizontal: 32 },
-  emptyIcon: { width: 68, height: 68, borderRadius: 34, alignItems: "center", justifyContent: "center" },
-  emptyTitle: { fontSize: 16, fontFamily: "Inter_700Bold" },
   emptyText: { fontSize: 13, fontFamily: "Inter_400Regular", textAlign: "center", lineHeight: 20 },
-  emptyBtn: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 8,
-    paddingHorizontal: 20,
-    paddingVertical: 11,
-    borderRadius: 12,
-    marginTop: 4,
-  },
-  emptyBtnText: { fontSize: 14, fontFamily: "Inter_600SemiBold", color: "#fff" },
   modal: { flex: 1 },
   modalHeader: {
     flexDirection: "row",
