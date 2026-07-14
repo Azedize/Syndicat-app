@@ -1,4 +1,5 @@
 import { Router } from "express";
+import bcrypt from "bcryptjs";
 import { z } from "zod";
 import { db } from "@workspace/db";
 import { usersTable, syndicatesTable } from "@workspace/db/schema";
@@ -7,6 +8,8 @@ import { requireAuth, requireRole } from "../middleware/auth.js";
 import { getPagination, buildPagedResponse } from "../lib/paginate.js";
 
 const router = Router();
+
+const ROLE_VALUES = ["super_admin", "syndicate_admin", "member", "tenant"] as const;
 
 router.get(
   "/users",
@@ -83,6 +86,73 @@ router.get(
   },
 );
 
+router.post(
+  "/users",
+  requireAuth,
+  requireRole("super_admin", "syndicate_admin"),
+  async (req, res) => {
+    const schema = z.object({
+      name: z.string().min(1),
+      email: z.string().email(),
+      phone: z.string().optional(),
+      role: z.enum(ROLE_VALUES).default("member"),
+      password: z.string().min(6),
+    });
+    const result = schema.safeParse(req.body);
+    if (!result.success) {
+      res.status(400).json({ error: "Données invalides" });
+      return;
+    }
+    try {
+      const { name, email, phone, role, password } = result.data;
+
+      // syndicate_admin can only create users scoped to their own syndicate,
+      // and cannot create other admins.
+      if (req.user!.role === "syndicate_admin" && (role === "super_admin" || role === "syndicate_admin")) {
+        res.status(403).json({ error: "Accès refusé" });
+        return;
+      }
+
+      const [existing] = await db
+        .select({ id: usersTable.id })
+        .from(usersTable)
+        .where(eq(usersTable.email, email));
+      if (existing) {
+        res.status(400).json({ error: "Cet email est déjà utilisé" });
+        return;
+      }
+
+      const passwordHash = await bcrypt.hash(password, 10);
+      const [created] = await db
+        .insert(usersTable)
+        .values({
+          name,
+          email,
+          phone: phone || null,
+          role,
+          status: "pending",
+          passwordHash,
+          syndicateId: req.user!.role === "syndicate_admin" ? req.user!.syndicateId ?? null : null,
+        } as any)
+        .returning({
+          id: usersTable.id,
+          name: usersTable.name,
+          email: usersTable.email,
+          phone: usersTable.phone,
+          role: usersTable.role,
+          status: usersTable.status,
+          syndicateId: usersTable.syndicateId,
+          createdAt: usersTable.createdAt,
+        });
+
+      res.status(201).json({ data: created });
+    } catch (err) {
+      req.log.error(err);
+      res.status(500).json({ error: "Erreur serveur" });
+    }
+  },
+);
+
 router.put(
   "/users/:id/status",
   requireAuth,
@@ -122,7 +192,7 @@ router.put(
   requireAuth,
   requireRole("super_admin"),
   async (req, res) => {
-    const schema = z.object({ role: z.enum(["super_admin", "syndicate_admin", "member"]) });
+    const schema = z.object({ role: z.enum(ROLE_VALUES) });
     const result = schema.safeParse(req.body);
     if (!result.success) {
       res.status(400).json({ error: "Rôle invalide" });

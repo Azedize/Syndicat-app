@@ -22,7 +22,7 @@ import { useRequireRole } from "@/hooks/useRequireRole";
 import { useLanguage } from "@/context/LanguageContext";
 import { apiRequest } from "@/lib/api";
 
-type Role = "super_admin" | "syndicate_admin" | "member";
+type Role = "super_admin" | "syndicate_admin" | "member" | "tenant";
 type Status = "active" | "inactive" | "suspended" | "pending";
 
 interface User {
@@ -42,6 +42,7 @@ const STRINGS = {
   superAdmin: { fr: "Super Admin", en: "Super Admin", ar: "مدير عام", es: "Super Admin" },
   syndicateAdmin: { fr: "Admin Syndicat", en: "Syndicate Admin", ar: "مدير النقابة", es: "Admin Sindicato" },
   member: { fr: "Membre", en: "Member", ar: "عضو", es: "Miembro" },
+  tenant: { fr: "Locataire", en: "Tenant", ar: "مستأجر", es: "Inquilino" },
   active: { fr: "Actif", en: "Active", ar: "نشط", es: "Activo" },
   inactive: { fr: "Inactif", en: "Inactive", ar: "غير نشط", es: "Inactivo" },
   suspended: { fr: "Suspendu", en: "Suspended", ar: "موقوف", es: "Suspendido" },
@@ -59,6 +60,7 @@ const STRINGS = {
   superAdmins: { fr: "Super Admins", en: "Super Admins", ar: "المديرون العامون", es: "Super Admins" },
   admins: { fr: "Admins", en: "Admins", ar: "المديرون", es: "Admins" },
   members: { fr: "Membres", en: "Members", ar: "الأعضاء", es: "Miembros" },
+  tenants: { fr: "Locataires", en: "Tenants", ar: "المستأجرون", es: "Inquilinos" },
   suspendedPlural: { fr: "Suspendus", en: "Suspended", ar: "الموقوفون", es: "Suspendidos" },
   userManagement: { fr: "Gestion des Utilisateurs", en: "User Management", ar: "إدارة المستخدمين", es: "Gestión de usuarios" },
   globalAdmin: { fr: "Administration globale de la plateforme", en: "Global platform administration", ar: "الإدارة العامة للمنصة", es: "Administración global de la plataforma" },
@@ -99,6 +101,7 @@ const ROLE_CONFIG: Record<Role, { labelKey: keyof typeof STRINGS; color: string;
   super_admin: { labelKey: "superAdmin", color: "#7c3aed", icon: "shield" },
   syndicate_admin: { labelKey: "syndicateAdmin", color: "#3b82f6", icon: "briefcase" },
   member: { labelKey: "member", color: "#10b981", icon: "user" },
+  tenant: { labelKey: "tenant", color: "#f97316", icon: "key" },
 };
 
 const STATUS_CONFIG: Record<Status, { labelKey: keyof typeof STRINGS; color: string }> = {
@@ -184,6 +187,7 @@ export default function UtilisateursScreen() {
     super_admin: users.filter((u) => u.role === "super_admin").length,
     syndicate_admin: users.filter((u) => u.role === "syndicate_admin").length,
     member: users.filter((u) => u.role === "member").length,
+    tenant: users.filter((u) => u.role === "tenant").length,
     suspended: users.filter((u) => u.status === "suspended").length,
     pending: users.filter((u) => u.status === "pending").length,
     active: users.filter((u) => u.status === "active").length,
@@ -194,7 +198,7 @@ export default function UtilisateursScreen() {
     setUsers((prev) => prev.map((u) => u.id === uid ? { ...u, status } : u));
     if (selected?.id === uid) setSelected((prev) => prev ? { ...prev, status } : null);
     try {
-      await apiRequest(`/users/${uid}`, "PUT", { status });
+      await apiRequest(`/users/${uid}/status`, "PUT", { status });
     } catch (e) {
       console.error("Failed to update status", e);
       fetchUsers();
@@ -250,6 +254,7 @@ export default function UtilisateursScreen() {
     { key: "super_admin", label: STRINGS.superAdmins[lang], count: counts.super_admin },
     { key: "syndicate_admin", label: STRINGS.admins[lang], count: counts.syndicate_admin },
     { key: "member", label: STRINGS.members[lang], count: counts.member },
+    { key: "tenant", label: STRINGS.tenants[lang], count: counts.tenant },
     { key: "pending", label: STRINGS.pending[lang], count: counts.pending },
     { key: "suspended", label: STRINGS.suspendedPlural[lang], count: counts.suspended },
   ];
@@ -451,7 +456,7 @@ export default function UtilisateursScreen() {
                 <View style={{ gap: 8 }}>
                   <Text style={[styles.sectionTitle, { color: colors.foreground }]}>{STRINGS.role[lang]}</Text>
                   <View style={styles.roleActions}>
-                    {(["super_admin", "syndicate_admin", "member"] as Role[]).map((r) => {
+                    {(["super_admin", "syndicate_admin", "member", "tenant"] as Role[]).map((r) => {
                       const cfg = ROLE_CONFIG[r];
                       return (
                         <TouchableOpacity
@@ -460,10 +465,18 @@ export default function UtilisateursScreen() {
                             backgroundColor: u.role === r ? cfg.color + "15" : colors.muted,
                             borderColor: u.role === r ? cfg.color : colors.border,
                           }]}
-                          onPress={() => {
+                          onPress={async () => {
                             Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+                            const prevRole = u.role;
                             setUsers((prev) => prev.map((usr) => usr.id === u.id ? { ...usr, role: r } : usr));
                             setSelected((prev) => prev ? { ...prev, role: r } : null);
+                            try {
+                              await apiRequest(`/users/${u.id}/role`, "PUT", { role: r });
+                            } catch (e) {
+                              console.error("Failed to update role", e);
+                              setUsers((prev) => prev.map((usr) => usr.id === u.id ? { ...usr, role: prevRole } : usr));
+                              setSelected((prev) => prev ? { ...prev, role: prevRole } : null);
+                            }
                           }}
                         >
                           <Feather name={cfg.icon} size={14} color={u.role === r ? cfg.color : colors.mutedForeground} />
@@ -530,7 +543,7 @@ export default function UtilisateursScreen() {
             <View style={{ gap: 6 }}>
               <Text style={[styles.fieldLabel, { color: colors.mutedForeground }]}>{STRINGS.role[lang]}</Text>
               <View style={styles.roleActions}>
-                {(["super_admin", "syndicate_admin", "member"] as Role[]).map((r) => {
+                {(["super_admin", "syndicate_admin", "member", "tenant"] as Role[]).map((r) => {
                   const cfg = ROLE_CONFIG[r];
                   return (
                     <TouchableOpacity
