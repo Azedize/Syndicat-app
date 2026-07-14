@@ -263,30 +263,37 @@ export default function ChatThreadScreen() {
         result = await pickAndUploadDocument(onProgress);
       }
 
-      if (!result) {
-        // null result means the user explicitly cancelled the picker — stay silent.
-        // (actual upload errors throw and are caught below)
-        return;
-      }
+      // undefined means user cancelled the picker — stay silent
+      // real upload errors now throw (from uploadUri) and are caught below
+      if (!result) return;
 
       const isImage = result.contentType.startsWith("image/");
 
-      // Store the environment-agnostic objectPath (e.g. "/objects/<uuid>") in the
-      // DB rather than a full URL containing a baked-in domain.  The client-side
-      // resolveAttachmentUrl() converts it to the correct base URL at render time,
-      // so the attachment loads correctly on every device and after redeployments.
-      await chatApi.send(id, {
+      // Store the environment-agnostic objectPath ("/objects/uploads/<uuid>") in
+      // the DB, NOT a full URL. resolveAttachmentUrl() reconstructs the correct
+      // base URL at render time, so the attachment works on every device and after
+      // redeployments. Full URLs built with localhost or the current domain would
+      // break whenever the environment changes.
+      const sendRes = await chatApi.send(id, {
         text: "",
         messageType: isImage ? "image" : "document",
-        attachmentUrl: result.objectPath,   // e.g. "/objects/<uuid>"
+        attachmentUrl: result.objectPath,   // e.g. "/objects/uploads/<uuid>"
         attachmentType: result.contentType,
         attachmentName: result.fileName,
         attachmentSize: result.size,
       });
 
-      // Refresh message list
-      const res = await chatApi.messages(id) as any;
-      setApiMessages((res?.data ?? []).map(mapApiMessage));
+      // Use the API response directly instead of a full GET /messages refetch.
+      // A refetch can return HTTP 304 (Not Modified) when the ETag hasn't changed
+      // yet, giving back stale data that lacks the new message. The send response
+      // always contains the canonical message row with the server-assigned ID.
+      const newMsg = mapApiMessage({ ...(sendRes as any).data, isMe: true });
+      setApiMessages((prev) => {
+        if (prev.some((m) => m.id === newMsg.id)) return prev;
+        const updated = [...prev, newMsg];
+        lastMessageAtRef.current = newMsg.createdAt ?? lastMessageAtRef.current;
+        return updated;
+      });
       setTimeout(() => listRef.current?.scrollToEnd({ animated: true }), 100);
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
     } catch (err: any) {
