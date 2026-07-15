@@ -198,6 +198,26 @@ router.get("/products/my-listings", requireAuth, async (req, res) => {
   }
 });
 
+// GET /products/my-promotions — seller views their own sponsorship requests/history
+router.get("/products/my-promotions", requireAuth, async (req, res) => {
+  try {
+    const user = req.user!;
+    const rows = await db
+      .select({
+        promo: marketplacePromotionsTable,
+        productName: productsTable.name,
+      })
+      .from(marketplacePromotionsTable)
+      .innerJoin(productsTable, eq(marketplacePromotionsTable.productId, productsTable.id))
+      .where(eq(marketplacePromotionsTable.sellerId, user.userId))
+      .orderBy(desc(marketplacePromotionsTable.createdAt));
+    res.json({ data: rows.map((r) => ({ ...r.promo, productName: r.productName })) });
+  } catch (err) {
+    req.log.error(err);
+    res.status(500).json({ error: "Erreur serveur" });
+  }
+});
+
 // ─── GET /products/:id — detail + view count increment ───────────────────────
 
 router.get("/products/:id", requireAuth, async (req, res) => {
@@ -672,6 +692,190 @@ router.post(
         .where(eq(productsTable.id, productId));
 
       res.status(201).json({ data: promo, message: "Promotion activée avec succès" });
+    } catch (err) {
+      req.log.error(err);
+      res.status(500).json({ error: "Erreur serveur" });
+    }
+  },
+);
+
+// ─── Sponsored-listing purchase flow (seller-initiated) ────────────────────────
+// Product → seller requests a promotion + uploads payment proof → admin
+// validates the proof → listing becomes sponsored (boosted/featured).
+// Mirrors the appels-de-fonds "submit payment / admin validates" convention.
+
+const PROMO_RATE_PER_DAY: Record<"featured" | "top_search" | "homepage", number> = {
+  top_search: 15,
+  featured: 25,
+  homepage: 40,
+};
+
+// POST /products/:id/promotions/request — seller submits a sponsorship request with proof of payment
+router.post("/products/:id/promotions/request", requireAuth, async (req, res) => {
+  const productId = String(req.params.id) as string;
+  const schema = z.object({
+    type: z.enum(["featured", "top_search", "homepage"]),
+    durationDays: z.number().int().min(1).max(90),
+    paymentMethod: z.string().min(1),
+    proofUrl: z.string().min(1).optional(),
+  });
+  const result = schema.safeParse(req.body);
+  if (!result.success) {
+    res.status(400).json({ error: "Données invalides" });
+    return;
+  }
+  try {
+    const user = req.user!;
+    const [product] = await db.select().from(productsTable).where(eq(productsTable.id, productId));
+    if (!product) { res.status(404).json({ error: "Produit introuvable" }); return; }
+    if (!isAdmin(user.role) && product.sellerId !== user.userId) {
+      res.status(403).json({ error: "Vous ne pouvez promouvoir que vos propres annonces" });
+      return;
+    }
+
+    const { type, durationDays, paymentMethod, proofUrl } = result.data;
+
+    // Reject local device URIs — they are not accessible from the server
+    if (proofUrl && (proofUrl.startsWith("file://") || proofUrl.startsWith("content://"))) {
+      res.status(400).json({
+        error: "Le justificatif doit être téléchargé sur le serveur avant la soumission. URI local non accepté.",
+        code: "LOCAL_URI_REJECTED",
+      });
+      return;
+    }
+
+    const now = new Date();
+    const endDate = new Date(now.getTime() + durationDays * 86_400_000);
+    const amount = PROMO_RATE_PER_DAY[type] * durationDays;
+
+    const [promo] = await db
+      .insert(marketplacePromotionsTable)
+      .values({
+        productId,
+        sellerId: product.sellerId ?? user.userId,
+        type,
+        startDate: now,
+        endDate,
+        amount: String(amount),
+        status: "pending_payment",
+        paymentMethod,
+        proofUrl: proofUrl ?? null,
+      })
+      .returning();
+
+    res.status(201).json({ data: promo, message: "Demande de sponsorisation envoyée, en attente de validation du paiement" });
+  } catch (err) {
+    req.log.error(err);
+    res.status(500).json({ error: "Erreur serveur" });
+  }
+});
+
+// GET /products/promotions/pending — admin queue of sponsorship requests awaiting payment validation
+router.get(
+  "/products/promotions/pending",
+  requireAuth,
+  requireRole("super_admin", "syndicate_admin"),
+  async (req, res) => {
+    try {
+      const rows = await db
+        .select({
+          promo: marketplacePromotionsTable,
+          productName: productsTable.name,
+          sellerName: productsTable.sellerName,
+        })
+        .from(marketplacePromotionsTable)
+        .innerJoin(productsTable, eq(marketplacePromotionsTable.productId, productsTable.id))
+        .where(eq(marketplacePromotionsTable.status, "pending_payment"))
+        .orderBy(desc(marketplacePromotionsTable.createdAt));
+      res.json({ data: rows.map((r) => ({ ...r.promo, productName: r.productName, sellerName: r.sellerName })) });
+    } catch (err) {
+      req.log.error(err);
+      res.status(500).json({ error: "Erreur serveur" });
+    }
+  },
+);
+
+// PUT /products/promotions/:id/validate — admin approves or rejects a sponsorship payment
+router.put(
+  "/products/promotions/:id/validate",
+  requireAuth,
+  requireRole("super_admin", "syndicate_admin"),
+  async (req, res) => {
+    const promoId = String(req.params.id) as string;
+    const schema = z.object({
+      approve: z.boolean(),
+      rejectionReason: z.string().optional(),
+    });
+    const result = schema.safeParse(req.body);
+    if (!result.success) { res.status(400).json({ error: "Données invalides" }); return; }
+    try {
+      const user = req.user!;
+      const [promo] = await db
+        .select()
+        .from(marketplacePromotionsTable)
+        .where(eq(marketplacePromotionsTable.id, promoId));
+      if (!promo) { res.status(404).json({ error: "Demande introuvable" }); return; }
+      if (promo.status !== "pending_payment") {
+        res.status(400).json({ error: "Cette demande n'est pas en attente de validation" });
+        return;
+      }
+      if (!result.data.approve && !result.data.rejectionReason) {
+        res.status(400).json({ error: "Un motif de rejet est obligatoire" });
+        return;
+      }
+      // Enforce: admin cannot approve a sponsorship without proof of payment
+      if (result.data.approve && !promo.proofUrl) {
+        res.status(400).json({
+          error: "Validation refusée : une pièce justificative (proofUrl) est obligatoire avant d'approuver le paiement.",
+          code: "PROOF_REQUIRED",
+        });
+        return;
+      }
+
+      const now = new Date();
+      if (result.data.approve) {
+        // Sponsorship window starts now, not at request time, so the seller
+        // gets the full duration they paid for.
+        const originalDurationMs = promo.endDate.getTime() - promo.startDate.getTime();
+        const newEndDate = new Date(now.getTime() + originalDurationMs);
+
+        const [updated] = await db
+          .update(marketplacePromotionsTable)
+          .set({
+            status: "active",
+            startDate: now,
+            endDate: newEndDate,
+            approvedBy: user.userId,
+            validatedAt: now,
+            rejectionReason: null,
+          })
+          .where(eq(marketplacePromotionsTable.id, promoId))
+          .returning();
+
+        await db
+          .update(productsTable)
+          .set({
+            boosted: true,
+            boostType: promo.type,
+            boostExpiresAt: newEndDate,
+            featured: promo.type === "featured" || promo.type === "homepage" ? true : undefined,
+          })
+          .where(eq(productsTable.id, promo.productId));
+
+        res.json({ data: updated, message: "Paiement validé — annonce sponsorisée activée" });
+      } else {
+        const [updated] = await db
+          .update(marketplacePromotionsTable)
+          .set({
+            status: "rejected",
+            rejectionReason: result.data.rejectionReason,
+            approvedBy: user.userId,
+            validatedAt: now,
+          })
+          .where(eq(marketplacePromotionsTable.id, promoId))
+          .returning();
+        res.json({ data: updated, message: "Demande de sponsorisation rejetée" });
+      }
     } catch (err) {
       req.log.error(err);
       res.status(500).json({ error: "Erreur serveur" });

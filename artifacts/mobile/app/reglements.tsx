@@ -1,5 +1,6 @@
 import { Feather } from "@expo/vector-icons";
 import * as Haptics from "expo-haptics";
+import * as Linking from "expo-linking";
 import { router } from "expo-router";
 import React, { useEffect, useState } from "react";
 import {
@@ -544,6 +545,19 @@ export default function ReglementsScreen() {
     apiRequest<{ data: any[] }>("/documents?type=reglement").then(({ data }) => { if (data?.length) setDocs(data as any); }).catch(() => {});
   }, []);
 
+  // Opens the real generated PDF via a short-lived signed download URL when the
+  // document was created through the API. Seed/demo entries (no real backing
+  // file yet) fall back to sharing the document's metadata as text.
+  const handleDownload = async (d: ReglementDoc) => {
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    try {
+      const { url } = await apiRequest<{ url: string }>(`/documents/${d.id}/download-url`);
+      await Linking.openURL(url);
+    } catch {
+      Share.share({ title: d.title, message: `${d.title}\nType: ${d.type} — Statut: ${d.status}\nVersion: ${d.version ?? "1"} · ${d.pages ?? ""} pages` });
+    }
+  };
+
   const filtered = docs.filter((d) => {
     const q = search.toLowerCase();
     const matchSearch = !search || d.title.toLowerCase().includes(q) || d.description.toLowerCase().includes(q) || d.tags.some((t) => t.includes(q));
@@ -828,8 +842,7 @@ export default function ReglementsScreen() {
                   style={[styles.docActionBtn, { backgroundColor: colors.muted }]}
                   onPress={(e) => {
                     e.stopPropagation?.();
-                    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-                    Share.share({ title: d.title, message: `${d.title}\nType: ${d.type} — Statut: ${d.status}\nVersion: ${d.version ?? "1"} · ${d.pages ?? ""} pages` });
+                    handleDownload(d);
                   }}
                 >
                   <Feather name="download" size={14} color={colors.primary} />
@@ -935,7 +948,7 @@ export default function ReglementsScreen() {
                 <View style={styles.modalActions}>
                   <TouchableOpacity
                     style={[styles.modalActionBtn, { backgroundColor: colors.primary }]}
-                    onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); Share.share({ title: d.title, message: `${d.title}\nVersion ${d.version ?? "1"} · ${d.pages ?? ""} pages\nStatut: ${d.status}\n\n${d.description ?? ""}` }); }}
+                    onPress={() => handleDownload(d)}
                   >
                     <Feather name="download" size={18} color="#fff" />
                     <Text style={styles.modalActionBtnText}>Télécharger PDF</Text>

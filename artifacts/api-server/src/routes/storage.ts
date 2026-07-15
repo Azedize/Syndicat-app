@@ -346,7 +346,21 @@ router.delete("/storage/documents/:id", requireAuth, async (req: Request, res: R
     const isAdmin = req.user!.role === "super_admin" || req.user!.role === "syndicate_admin";
     const isOwner = doc.createdBy === req.user!.userId;
     if (!isAdmin && !isOwner) { res.status(403).json({ error: "Accès refusé" }); return; }
-    // Delete from DB (GCS object remains but becomes orphaned — acceptable for now)
+
+    // Delete the underlying file (GCS in prod, local filesystem in dev fallback)
+    // before removing the DB row, so we never leave an orphaned blob behind.
+    const objectPath = doc.content ?? "";
+    if (objectPath.startsWith("/objects/")) {
+      try {
+        await storage.deleteObjectEntity(objectPath);
+      } catch (err) {
+        req.log.warn({ err, objectPath }, "GCS delete failed, trying local fallback");
+      }
+      const filename = path.basename(objectPath);
+      const localPath = path.join(LOCAL_UPLOADS_DIR, filename);
+      await fs.unlink(localPath).catch(() => {});
+    }
+
     await db.delete(documentsTable).where(eq(documentsTable.id, id));
     res.json({ message: "Document supprimé" });
   } catch (err) {

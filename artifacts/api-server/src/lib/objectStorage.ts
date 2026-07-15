@@ -194,6 +194,23 @@ export class ObjectStorageService {
     return normalizedPath;
   }
 
+  /**
+   * Permanently deletes an object entity from GCS given its `/objects/...` path.
+   * No-ops (rather than throwing) when the object is already gone, so callers
+   * can safely fire-and-forget alongside a DB delete.
+   */
+  async deleteObjectEntity(objectPath: string): Promise<void> {
+    if (!objectPath.startsWith('/objects/')) return;
+    const parts = objectPath.slice(1).split('/');
+    if (parts.length < 2) return;
+    const entityId = parts.slice(1).join('/');
+    let entityDir = this.getPrivateObjectDir();
+    if (!entityDir.endsWith('/')) entityDir = `${entityDir}/`;
+    const objectEntityPath = `${entityDir}${entityId}`;
+    const { bucketName, objectName } = parseObjectPath(objectEntityPath);
+    await objectStorageClient.bucket(bucketName).file(objectName).delete({ ignoreNotFound: true });
+  }
+
   async canAccessObjectEntity({
     userId,
     objectFile,

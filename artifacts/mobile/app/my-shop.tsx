@@ -40,7 +40,27 @@ type Product = {
   rejectionReason: string | null;
   viewCount: number;
   createdAt: string;
+  boosted?: boolean;
+  boostType?: string | null;
+  boostExpiresAt?: string | null;
 };
+
+type Promotion = {
+  id: string;
+  productId: string;
+  type: string;
+  status: string;
+  amount: string;
+  startDate: string;
+  endDate: string;
+  rejectionReason?: string | null;
+};
+
+const PROMO_TYPES = [
+  { value: "top_search", label: "Priorité recherche", ratePerDay: 15 },
+  { value: "featured", label: "En vedette", ratePerDay: 25 },
+  { value: "homepage", label: "Page d'accueil", ratePerDay: 40 },
+];
 
 /** Safe French price formatter — never crashes on null/NaN */
 function formatMAD(price: string | number | null | undefined): string {
@@ -95,12 +115,27 @@ export default function MyShopScreen() {
   const [imageObjectPaths, setImageObjectPaths] = useState<string[]>([]);
   const [uploadingImages, setUploadingImages] = useState(false);
 
+  // Sponsored-listing request state
+  const [promotions, setPromotions] = useState<Promotion[]>([]);
+  const [sponsorProduct, setSponsorProduct] = useState<Product | null>(null);
+  const [sponsorType, setSponsorType] = useState(PROMO_TYPES[0]!.value);
+  const [sponsorDays, setSponsorDays] = useState("7");
+  const [sponsorPaymentMethod, setSponsorPaymentMethod] = useState("virement");
+  const [sponsorProofLocalUri, setSponsorProofLocalUri] = useState<string | null>(null);
+  const [sponsorProofObjectPath, setSponsorProofObjectPath] = useState<string | null>(null);
+  const [uploadingProof, setUploadingProof] = useState(false);
+  const [submittingPromo, setSubmittingPromo] = useState(false);
+
   // ─── Fetch ───────────────────────────────────────────────────────────
 
   const fetchListings = useCallback(async () => {
     try {
-      const res = await marketplace.myListings();
-      setProducts((res.data as Product[]) ?? []);
+      const [listingsRes, promoRes] = await Promise.all([
+        marketplace.myListings(),
+        marketplace.myPromotions().catch(() => ({ data: [] })),
+      ]);
+      setProducts((listingsRes.data as Product[]) ?? []);
+      setPromotions((promoRes.data as Promotion[]) ?? []);
     } catch {
       // keep stale
     } finally {
@@ -111,6 +146,80 @@ export default function MyShopScreen() {
 
   useEffect(() => { fetchListings(); }, [fetchListings]);
   const onRefresh = () => { setRefreshing(true); fetchListings(); };
+
+  const latestPromoForProduct = (productId: string): Promotion | undefined =>
+    promotions
+      .filter((pr) => pr.productId === productId)
+      .sort((a, b) => new Date(b.startDate).getTime() - new Date(a.startDate).getTime())[0];
+
+  const openSponsor = (p: Product) => {
+    setSponsorProduct(p);
+    setSponsorType(PROMO_TYPES[0]!.value);
+    setSponsorDays("7");
+    setSponsorPaymentMethod("virement");
+    setSponsorProofLocalUri(null);
+    setSponsorProofObjectPath(null);
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+  };
+
+  const pickSponsorProof = async () => {
+    const perm = await ImagePicker.requestMediaLibraryPermissionsAsync();
+    if (!perm.granted) return;
+    const result = await ImagePicker.launchImageLibraryAsync({
+      mediaTypes: ImagePicker.MediaTypeOptions.Images,
+      allowsEditing: false,
+      quality: 0.8,
+    });
+    if (result.canceled || !result.assets[0]) return;
+    const uri = result.assets[0].uri;
+    setSponsorProofLocalUri(uri);
+    setUploadingProof(true);
+    const objectPath = await uploadImageUri(uri, user?.token);
+    setUploadingProof(false);
+    if (objectPath) {
+      setSponsorProofObjectPath(objectPath);
+    } else {
+      setSponsorProofLocalUri(null);
+      Alert.alert("Erreur", "Impossible de télécharger le justificatif. Réessayez.");
+    }
+  };
+
+  const submitSponsorRequest = async () => {
+    if (!sponsorProduct) return;
+    const days = parseInt(sponsorDays, 10);
+    if (!days || days < 1 || days > 90) {
+      Alert.alert("Erreur", "La durée doit être comprise entre 1 et 90 jours.");
+      return;
+    }
+    if (!sponsorPaymentMethod.trim()) {
+      Alert.alert("Erreur", "Indiquez le mode de paiement utilisé.");
+      return;
+    }
+    if (!sponsorProofObjectPath) {
+      Alert.alert("Justificatif requis", "Ajoutez une capture ou une photo du paiement effectué.");
+      return;
+    }
+    setSubmittingPromo(true);
+    try {
+      await marketplace.requestPromotion(sponsorProduct.id, {
+        type: sponsorType,
+        durationDays: days,
+        paymentMethod: sponsorPaymentMethod.trim(),
+        proofUrl: sponsorProofObjectPath,
+      });
+      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+      Alert.alert("Demande envoyée", "Votre demande de sponsorisation est en attente de validation du paiement par l'administration.");
+      setSponsorProduct(null);
+      await fetchListings();
+    } catch (e: any) {
+      Alert.alert("Erreur", e?.message ?? "Impossible d'envoyer la demande.");
+    } finally {
+      setSubmittingPromo(false);
+    }
+  };
+
+  const selectedPromoType = PROMO_TYPES.find((p) => p.value === sponsorType) ?? PROMO_TYPES[0]!;
+  const sponsorEstimatedAmount = (parseInt(sponsorDays, 10) || 0) * selectedPromoType.ratePerDay;
 
   // ─── Form helpers ─────────────────────────────────────────────────────
 
@@ -271,8 +380,16 @@ export default function MyShopScreen() {
 
   // ─── Render ───────────────────────────────────────────────────────────
 
+  const PROMO_STATUS_CONFIG: Record<string, { color: string; label: string }> = {
+    pending_payment: { color: "#f59e0b", label: "Sponsorisation en attente de validation" },
+    active:          { color: "#8b5cf6", label: "Sponsorisé" },
+    rejected:        { color: "#ef4444", label: "Sponsorisation rejetée" },
+  };
+
   const renderItem = ({ item: p }: { item: Product }) => {
     const sc = STATUS_CONFIG[p.status] ?? { color: colors.mutedForeground, label: p.status };
+    const promo = latestPromoForProduct(p.id);
+    const promoSc = promo ? PROMO_STATUS_CONFIG[promo.status] : undefined;
     return (
       <View style={[styles.productCard, { backgroundColor: colors.card, borderColor: colors.border }]}>
         <View style={styles.cardTop}>
@@ -297,6 +414,17 @@ export default function MyShopScreen() {
           </View>
         )}
 
+        {promoSc && (
+          <View style={[styles.rejectionBox, { backgroundColor: promoSc.color + "10", borderColor: promoSc.color + "30" }]}>
+            <Feather name="zap" size={12} color={promoSc.color} />
+            <Text style={[styles.rejectionText, { color: promoSc.color }]}>
+              {promoSc.label}
+              {promo?.status === "active" ? ` jusqu'au ${new Date(promo.endDate).toLocaleDateString("fr-MA")}` : ""}
+              {promo?.status === "rejected" && promo.rejectionReason ? ` — ${promo.rejectionReason}` : ""}
+            </Text>
+          </View>
+        )}
+
         <View style={styles.cardActions}>
           <TouchableOpacity
             style={[styles.actionBtn, { backgroundColor: colors.primary + "12" }]}
@@ -312,6 +440,15 @@ export default function MyShopScreen() {
             <Feather name="eye" size={14} color={colors.foreground} />
             <Text style={[styles.actionBtnText, { color: colors.foreground }]}>{t("viewDetails")}</Text>
           </TouchableOpacity>
+          {p.status === "approved" && promo?.status !== "pending_payment" && promo?.status !== "active" && (
+            <TouchableOpacity
+              style={[styles.actionBtn, { backgroundColor: "#8b5cf612" }]}
+              onPress={() => openSponsor(p)}
+            >
+              <Feather name="zap" size={14} color="#8b5cf6" />
+              <Text style={[styles.actionBtnText, { color: "#8b5cf6" }]}>Sponsoriser</Text>
+            </TouchableOpacity>
+          )}
           <TouchableOpacity
             style={[styles.actionBtn, { backgroundColor: colors.destructive + "12" }]}
             onPress={() => handleDelete(p.id, p.name)}
@@ -552,6 +689,103 @@ export default function MyShopScreen() {
                   Votre annonce sera soumise à validation avant d'être publiée sur le marketplace.
                 </Text>
               </View>
+            )}
+          </ScrollView>
+        </View>
+      </Modal>
+
+      {/* Sponsor / boost listing modal */}
+      <Modal visible={!!sponsorProduct} animationType="slide" onRequestClose={() => setSponsorProduct(null)}>
+        <View style={[styles.modalRoot, { backgroundColor: colors.background, paddingTop: topPad }]}>
+          <View style={[styles.modalHeader, { borderBottomColor: colors.border }]}>
+            <TouchableOpacity onPress={() => setSponsorProduct(null)} style={{ padding: 4 }}>
+              <Feather name="x" size={22} color={colors.foreground} />
+            </TouchableOpacity>
+            <Text style={[styles.modalTitle, { color: colors.foreground }]}>Sponsoriser l'annonce</Text>
+            <TouchableOpacity
+              style={[styles.saveBtn, { backgroundColor: "#8b5cf6" }, (submittingPromo || uploadingProof) && { opacity: 0.6 }]}
+              onPress={submitSponsorRequest}
+              disabled={submittingPromo || uploadingProof}
+            >
+              {submittingPromo ? <ActivityIndicator size="small" color="#fff" /> : <Text style={styles.saveBtnText}>Envoyer</Text>}
+            </TouchableOpacity>
+          </View>
+
+          <ScrollView contentContainerStyle={styles.modalBody}>
+            <Text style={[styles.fieldLabel, { color: colors.foreground, marginTop: 0 }]}>{sponsorProduct?.name}</Text>
+            <Text style={{ fontSize: 12, color: colors.mutedForeground, marginBottom: 8 }}>
+              Choisissez le type de mise en avant, réglez le montant par le mode de paiement indiqué, puis téléchargez le justificatif. Votre annonce sera sponsorisée dès validation par l'administration.
+            </Text>
+
+            <Text style={[styles.fieldLabel, { color: colors.foreground }]}>Type de sponsorisation</Text>
+            <View style={styles.conditionRow}>
+              {PROMO_TYPES.map((pt) => (
+                <TouchableOpacity
+                  key={pt.value}
+                  style={[
+                    styles.conditionChip,
+                    { borderColor: sponsorType === pt.value ? "#8b5cf6" : colors.border },
+                    sponsorType === pt.value && { backgroundColor: "#8b5cf615" },
+                  ]}
+                  onPress={() => setSponsorType(pt.value)}
+                >
+                  <Text style={[styles.conditionChipText, { color: sponsorType === pt.value ? "#8b5cf6" : colors.foreground }]}>
+                    {pt.label} · {pt.ratePerDay} MAD/j
+                  </Text>
+                </TouchableOpacity>
+              ))}
+            </View>
+
+            <Text style={[styles.fieldLabel, { color: colors.foreground }]}>Durée (jours)</Text>
+            <TextInput
+              style={[styles.input, { borderColor: colors.border, color: colors.foreground, backgroundColor: colors.card }]}
+              keyboardType="number-pad"
+              value={sponsorDays}
+              onChangeText={setSponsorDays}
+              maxLength={2}
+            />
+
+            <View style={[styles.infoBox, { backgroundColor: "#8b5cf610", borderColor: "#8b5cf630" }]}>
+              <Feather name="tag" size={14} color="#8b5cf6" />
+              <Text style={[styles.infoText, { color: "#8b5cf6" }]}>
+                Montant à régler : {sponsorEstimatedAmount} MAD
+              </Text>
+            </View>
+
+            <Text style={[styles.fieldLabel, { color: colors.foreground }]}>Mode de paiement</Text>
+            <TextInput
+              style={[styles.input, { borderColor: colors.border, color: colors.foreground, backgroundColor: colors.card }]}
+              placeholder="Ex : Virement bancaire, espèces à l'accueil..."
+              placeholderTextColor={colors.mutedForeground}
+              value={sponsorPaymentMethod}
+              onChangeText={setSponsorPaymentMethod}
+              maxLength={200}
+            />
+
+            <Text style={[styles.fieldLabel, { color: colors.foreground }]}>Justificatif de paiement</Text>
+            {sponsorProofLocalUri ? (
+              <View style={{ position: "relative", alignSelf: "flex-start" }}>
+                <Image source={{ uri: sponsorProofLocalUri }} style={{ width: 100, height: 100, borderRadius: 10, resizeMode: "cover" }} />
+                {uploadingProof && (
+                  <View style={{ position: "absolute", inset: 0, alignItems: "center", justifyContent: "center", backgroundColor: "rgba(0,0,0,0.3)", borderRadius: 10 }}>
+                    <ActivityIndicator size="small" color="#fff" />
+                  </View>
+                )}
+                <TouchableOpacity
+                  style={{ position: "absolute", top: -6, right: -6, backgroundColor: "#ef4444", borderRadius: 10, width: 20, height: 20, alignItems: "center", justifyContent: "center" }}
+                  onPress={() => { setSponsorProofLocalUri(null); setSponsorProofObjectPath(null); }}
+                >
+                  <Feather name="x" size={12} color="#fff" />
+                </TouchableOpacity>
+              </View>
+            ) : (
+              <TouchableOpacity
+                style={{ width: 100, height: 100, borderRadius: 10, borderWidth: 1.5, borderStyle: "dashed", borderColor: colors.border, alignItems: "center", justifyContent: "center", gap: 4 }}
+                onPress={pickSponsorProof}
+              >
+                <Feather name="upload" size={20} color={colors.mutedForeground} />
+                <Text style={{ fontSize: 10, color: colors.mutedForeground, fontFamily: "Inter_400Regular" }}>Ajouter</Text>
+              </TouchableOpacity>
             )}
           </ScrollView>
         </View>

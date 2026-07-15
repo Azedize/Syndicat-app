@@ -24,3 +24,6 @@
 - [expo-file-system v19 cacheDirectory type](expo-file-system-v19.md) — cacheDirectory not in types for expo-file-system@19; cast: (FileSystem as any).cacheDirectory ?? "" to avoid TS2339 without breaking runtime.
 - [GCS sidecar "no allowed resources" auth failure](gcs-sidecar-no-allowed-resources.md) — object storage uploads 401 at sidecar token exchange even with env vars set; environment issue, not app code.
 - [Document dynamic-data architecture](document-dynamic-data-arch.md) — property/office-holder injection + sequential numbering added to the documents module; real DB tables and helpers to reuse.
+- [Marketplace sponsorship payment flow](marketplace-sponsorship-flow.md) — seller-initiated paid promotion uses proof-of-payment convention; schema columns added; route order critical.
+- [Avatar upload validator & URL resolution](avatar-upload-pattern.md) — PUT /profile avatar validator must accept /objects/… paths; display resolves via /api/storage/objects/… helper; same pattern as chat attachments.
+- [Document download URL vs Share fallback](document-download-fallback.md) — GET /documents/:id/download-url returns {url} (signed 1h GCS URL); mobile falls back to Share.share when endpoint 404s (seed/demo docs have no fileUrl).

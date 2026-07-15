@@ -5,7 +5,9 @@ import { router } from "expo-router";
 import React, { useState } from "react";
 import { shareContent } from "@/hooks/useShare";
 import {
+  ActivityIndicator,
   Alert,
+  Image,
   Modal,
   Platform,
   ScrollView,
@@ -22,6 +24,21 @@ import { useLanguage } from "@/context/LanguageContext";
 import { useBreakpoints } from "@/hooks/useBreakpoints";
 import { useColors } from "@/hooks/useColors";
 import { auth as authApi, getToken } from "@/services/api";
+import { pickAndUploadPhoto } from "@/lib/upload";
+
+function getAvatarBaseUrl(): string {
+  const domain = process.env.EXPO_PUBLIC_DOMAIN;
+  if (domain) return `https://${domain}/api`;
+  return `http://localhost:${process.env.EXPO_PUBLIC_API_PORT ?? "8080"}/api`;
+}
+
+/** Server-hosted avatars are stored as "/objects/uploads/<uuid>" object paths. */
+function resolveAvatarUrl(raw: string | null | undefined): string | null {
+  if (!raw) return null;
+  if (raw.startsWith("http")) return raw;
+  if (raw.startsWith("/objects/")) return `${getAvatarBaseUrl()}/storage${raw}`;
+  return null;
+}
 
 export default function ProfileScreen() {
   const colors = useColors();
@@ -37,6 +54,7 @@ export default function ProfileScreen() {
   const [confirmPwd, setConfirmPwd] = useState("");
   const [showOld, setShowOld] = useState(false);
   const [showNew, setShowNew] = useState(false);
+  const [avatarUploading, setAvatarUploading] = useState(false);
   const { isWide, isTablet, isDesktop, width: screenWidth, sidebarWidth } = useBreakpoints();
   const topPad = isWide ? 0 : (Platform.OS === "web" ? 67 : insets.top);
 
@@ -74,6 +92,23 @@ export default function ProfileScreen() {
       updateUser({ name: name.trim(), phone });
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
       Alert.alert("Profil mis à jour", "Vos modifications ont été enregistrées.");
+    }
+  };
+
+  const handleAvatarPick = async () => {
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    try {
+      setAvatarUploading(true);
+      const result = await pickAndUploadPhoto();
+      if (!result) return;
+      const res = await authApi.updateProfile({ avatar: result.objectPath });
+      updateUser({ avatar: res.data.avatar ?? undefined });
+      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : "Impossible de mettre à jour la photo de profil.";
+      Alert.alert("Erreur", msg);
+    } finally {
+      setAvatarUploading(false);
     }
   };
 
@@ -167,9 +202,27 @@ export default function ProfileScreen() {
       <ScrollView contentContainerStyle={{ paddingBottom: insets.bottom + 40 }} showsVerticalScrollIndicator={false}>
         {/* Hero */}
         <View style={[styles.hero, { backgroundColor: colors.primary }]}>
-          <View style={styles.heroAvatar}>
-            <Text style={styles.heroAvatarText}>{initials}</Text>
-          </View>
+          <TouchableOpacity
+            style={styles.heroAvatar}
+            onPress={editing ? handleAvatarPick : undefined}
+            disabled={!editing || avatarUploading}
+            activeOpacity={editing ? 0.7 : 1}
+          >
+            {resolveAvatarUrl(user?.avatar) ? (
+              <Image source={{ uri: resolveAvatarUrl(user?.avatar)! }} style={styles.heroAvatarImage} />
+            ) : (
+              <Text style={styles.heroAvatarText}>{initials}</Text>
+            )}
+            {editing ? (
+              <View style={styles.heroAvatarEditBadge}>
+                {avatarUploading ? (
+                  <ActivityIndicator size="small" color="#fff" />
+                ) : (
+                  <Feather name="camera" size={13} color="#fff" />
+                )}
+              </View>
+            ) : null}
+          </TouchableOpacity>
           {editing ? (
             <TextInput
               style={[styles.heroNameInput, { color: "#fff", borderColor: "rgba(255,255,255,0.4)" }]}
@@ -499,8 +552,10 @@ const styles = StyleSheet.create({
   title: { fontSize: 20, fontFamily: "Inter_700Bold", flex: 1 },
   editBtn: { width: 36, height: 36, borderRadius: 10, alignItems: "center", justifyContent: "center" },
   hero: { paddingTop: 36, paddingBottom: 30, alignItems: "center", gap: 8 },
-  heroAvatar: { width: 80, height: 80, borderRadius: 40, backgroundColor: "rgba(255,255,255,0.2)", alignItems: "center", justifyContent: "center", marginBottom: 4 },
+  heroAvatar: { width: 80, height: 80, borderRadius: 40, backgroundColor: "rgba(255,255,255,0.2)", alignItems: "center", justifyContent: "center", marginBottom: 4, overflow: "visible" },
+  heroAvatarImage: { width: 80, height: 80, borderRadius: 40 },
   heroAvatarText: { fontSize: 28, fontFamily: "Inter_700Bold", color: "#fff" },
+  heroAvatarEditBadge: { position: "absolute", bottom: -2, right: -2, width: 26, height: 26, borderRadius: 13, backgroundColor: "#1e293b", alignItems: "center", justifyContent: "center", borderWidth: 2, borderColor: "#fff" },
   heroName: { fontSize: 22, fontFamily: "Inter_700Bold", color: "#fff" },
   heroNameInput: { fontSize: 20, fontFamily: "Inter_700Bold", color: "#fff", borderBottomWidth: 1, paddingHorizontal: 12, paddingVertical: 4, textAlign: "center" },
   heroBadge: { flexDirection: "row", alignItems: "center", gap: 5, backgroundColor: "rgba(255,255,255,0.2)", paddingHorizontal: 12, paddingVertical: 4, borderRadius: 20 },

@@ -1398,8 +1398,12 @@ export const marketplacePromotionsTable = pgTable(
     startDate: timestamp("start_date").notNull(),
     endDate: timestamp("end_date").notNull(),
     amount: money("amount").notNull(),
-    status: text("status").default("active"), // active | expired | cancelled
+    status: text("status").default("pending_payment"), // pending_payment | active | rejected | expired | cancelled
+    paymentMethod: text("payment_method"),
+    proofUrl: text("proof_url"),
+    rejectionReason: text("rejection_reason"),
     approvedBy: text("approved_by"),
+    validatedAt: timestamp("validated_at"),
     notes: text("notes"),
     createdAt: createdAt(),
   },

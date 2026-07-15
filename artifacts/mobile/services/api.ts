@@ -473,6 +473,20 @@ export const marketplace = {
       body: JSON.stringify(payload),
     }),
 
+  // ── Sponsored-listing purchase flow (seller submits proof, admin validates) ─
+  requestPromotion: (id: string, payload: { type: string; durationDays: number; paymentMethod: string; proofUrl?: string }) =>
+    request<{ data: unknown; message: string }>(`/products/${id}/promotions/request`, {
+      method: "POST",
+      body: JSON.stringify(payload),
+    }),
+  myPromotions: () => request<{ data: any[] }>("/products/my-promotions"),
+  pendingPromotions: () => request<{ data: any[] }>("/products/promotions/pending"),
+  validatePromotion: (id: string, payload: { approve: boolean; rejectionReason?: string }) =>
+    request<{ data: unknown; message: string }>(`/products/promotions/${id}/validate`, {
+      method: "PUT",
+      body: JSON.stringify(payload),
+    }),
+
   // ── Cart ──────────────────────────────────────────────────────────────────
   cart: () => request<{ data: unknown[] }>("/cart"),
   addToCart: (productId: string, quantity = 1) =>

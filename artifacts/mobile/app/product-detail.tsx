@@ -102,6 +102,11 @@ export default function ProductDetailScreen() {
   const isAdmin = user?.role === "super_admin" || user?.role === "syndicate_admin";
   const isSeller = product?.sellerId === user?.id;
 
+  const [pendingPromo, setPendingPromo] = useState<{ id: string; type: string; amount: string; paymentMethod: string | null; proofUrl: string | null } | null>(null);
+  const [validatingPromo, setValidatingPromo] = useState(false);
+  const [showRejectPromo, setShowRejectPromo] = useState(false);
+  const [rejectPromoReason, setRejectPromoReason] = useState("");
+
   const fetchAll = useCallback(async () => {
     if (!id) return;
     try {
@@ -118,6 +123,59 @@ export default function ProductDetailScreen() {
       setRefreshing(false);
     }
   }, [id]);
+
+  useEffect(() => {
+    if (!isAdmin || !id) return;
+    marketplace.pendingPromotions()
+      .then((res) => {
+        const match = (res.data ?? []).find((pr: any) => pr.productId === id);
+        setPendingPromo(match ?? null);
+      })
+      .catch(() => {});
+  }, [isAdmin, id, product?.boosted]);
+
+  const handleValidatePromotion = (approve: boolean) => {
+    if (!pendingPromo) return;
+    if (approve) {
+      Alert.alert("Valider la sponsorisation", "Confirmez avoir vérifié le justificatif de paiement avant d'approuver.", [
+        { text: "Annuler", style: "cancel" },
+        {
+          text: "Approuver",
+          onPress: async () => {
+            setValidatingPromo(true);
+            try {
+              await marketplace.validatePromotion(pendingPromo.id, { approve: true });
+              Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+              setPendingPromo(null);
+              fetchAll();
+            } catch (e: any) {
+              Alert.alert("Erreur", e?.message ?? "Impossible de valider la sponsorisation");
+            } finally {
+              setValidatingPromo(false);
+            }
+          },
+        },
+      ]);
+    } else {
+      setRejectPromoReason("");
+      setShowRejectPromo(true);
+    }
+  };
+
+  const submitRejectPromotion = async () => {
+    if (!pendingPromo || !rejectPromoReason.trim()) return;
+    setValidatingPromo(true);
+    try {
+      await marketplace.validatePromotion(pendingPromo.id, { approve: false, rejectionReason: rejectPromoReason.trim() });
+      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+      setPendingPromo(null);
+      setShowRejectPromo(false);
+    } catch (e: any) {
+      Alert.alert("Erreur", e?.message ?? "Impossible de rejeter la demande");
+    } finally {
+      setValidatingPromo(false);
+    }
+  };
 
   useEffect(() => { fetchAll(); }, [fetchAll]);
 
@@ -430,6 +488,40 @@ export default function ProductDetailScreen() {
                 </TouchableOpacity>
               )}
             </View>
+
+            {pendingPromo && (
+              <View style={{ marginTop: 12, gap: 8 }}>
+                <Text style={[styles.sectionTitle, { color: colors.foreground, fontSize: 13 }]}>
+                  Demande de sponsorisation en attente
+                </Text>
+                <Text style={{ fontSize: 12, color: colors.mutedForeground }}>
+                  Type : {pendingPromo.type} · Montant : {formatMAD(pendingPromo.amount)} MAD · Paiement : {pendingPromo.paymentMethod ?? "—"}
+                </Text>
+                {pendingPromo.proofUrl ? (
+                  <Text style={{ fontSize: 12, color: colors.primary }}>Justificatif fourni ✓</Text>
+                ) : (
+                  <Text style={{ fontSize: 12, color: colors.destructive }}>Aucun justificatif fourni</Text>
+                )}
+                <View style={styles.moderationRow}>
+                  <TouchableOpacity
+                    style={[styles.modBtn, { backgroundColor: colors.success + "15" }]}
+                    onPress={() => handleValidatePromotion(true)}
+                    disabled={validatingPromo}
+                  >
+                    <Feather name="check" size={16} color={colors.success} />
+                    <Text style={[styles.modBtnText, { color: colors.success }]}>Approuver le paiement</Text>
+                  </TouchableOpacity>
+                  <TouchableOpacity
+                    style={[styles.modBtn, { backgroundColor: colors.destructive + "15" }]}
+                    onPress={() => handleValidatePromotion(false)}
+                    disabled={validatingPromo}
+                  >
+                    <Feather name="x" size={16} color={colors.destructive} />
+                    <Text style={[styles.modBtnText, { color: colors.destructive }]}>Rejeter</Text>
+                  </TouchableOpacity>
+                </View>
+              </View>
+            )}
           </View>
         )}
 
@@ -594,6 +686,39 @@ export default function ProductDetailScreen() {
                 <ActivityIndicator size="small" color="#fff" />
               ) : (
                 <Text style={styles.reportSubmitText}>Envoyer le signalement</Text>
+              )}
+            </TouchableOpacity>
+          </View>
+        </View>
+      )}
+
+      {/* Reject sponsorship modal */}
+      {showRejectPromo && (
+        <View style={StyleSheet.absoluteFill}>
+          <TouchableOpacity
+            style={[StyleSheet.absoluteFill, { backgroundColor: "rgba(0,0,0,0.5)" }]}
+            onPress={() => setShowRejectPromo(false)}
+          />
+          <View style={[styles.modal, { backgroundColor: colors.card, bottom: insets.bottom + 16 }]}>
+            <Text style={[styles.modalTitle, { color: colors.foreground }]}>Rejeter la sponsorisation</Text>
+            <TextInput
+              style={[styles.reportDetailsInput, { borderColor: colors.border, color: colors.foreground, backgroundColor: colors.background }]}
+              placeholder="Motif du rejet (obligatoire)"
+              placeholderTextColor={colors.mutedForeground}
+              value={rejectPromoReason}
+              onChangeText={setRejectPromoReason}
+              multiline
+              maxLength={500}
+            />
+            <TouchableOpacity
+              style={[styles.reportSubmitBtn, { backgroundColor: !rejectPromoReason.trim() ? colors.secondary : colors.destructive }]}
+              onPress={submitRejectPromotion}
+              disabled={!rejectPromoReason.trim() || validatingPromo}
+            >
+              {validatingPromo ? (
+                <ActivityIndicator size="small" color="#fff" />
+              ) : (
+                <Text style={styles.reportSubmitText}>Confirmer le rejet</Text>
               )}
             </TouchableOpacity>
           </View>

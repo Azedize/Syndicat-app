@@ -226,8 +226,16 @@ router.put("/profile", requireAuth, async (req, res) => {
     name: z.string().min(1).max(100).optional(),
     phone: z.string().max(30).optional(),
     profession: z.string().max(100).optional(),
-    // Avatar must be a valid https URL or a relative path (no arbitrary protocol)
-    avatar: z.string().url().startsWith("https://").optional(),
+    // Avatar is either a server-hosted object path ("/objects/uploads/<uuid>.jpg",
+    // returned by POST /storage/uploads) or a full https URL — never an arbitrary
+    // protocol or a local device URI (file://, content://, blob:).
+    avatar: z
+      .string()
+      .max(500)
+      .refine((v) => v.startsWith("/objects/") || v.startsWith("https://"), {
+        message: "L'avatar doit être une image téléchargée sur le serveur",
+      })
+      .optional(),
   });
   const result = schema.safeParse(req.body);
   if (!result.success) {
