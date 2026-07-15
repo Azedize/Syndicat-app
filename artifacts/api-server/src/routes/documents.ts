@@ -541,9 +541,13 @@ router.post(
       // aggregates across all buildings of the syndicate.
       buildingId: z.string().optional(),
       // Optional direct template override — bypasses CATEGORY_TO_TEMPLATE lookup
+      // Includes all 21 templates: 9 original + 11 new enterprise + reglement
       templateId: z.enum([
         "attestation", "pv", "convocation", "contrat", "rapport",
         "decision", "certificat", "circulaire", "mise_en_demeure", "reglement",
+        "demande_administrative", "autorisation", "ordre_de_mission", "lettre_officielle",
+        "note_interne", "rapport_financier", "rapport_audit", "convention_partenariat",
+        "accord_collectif", "compte_rendu", "rapport_activite",
       ] as const).optional(),
       // Output language — the mobile UI always presents an explicit choice; "fr" is
       // only used as a server-side fallback for callers that omit it entirely.
@@ -572,6 +576,63 @@ router.post(
       synthese:          z.string().optional(),
       president:         z.string().optional(),
       secretaire:        z.string().optional(),
+      // ── New enterprise template fields ──────────────────────────────────────
+      // demande_administrative
+      expose:            z.string().optional(),
+      justificatifs:     z.string().optional(),
+      piecesJointes:     z.string().optional(),
+      // autorisation
+      texteAutorisation: z.string().optional(),
+      conditions:        z.string().optional(),
+      dateDebut:         z.string().optional(),
+      dateFin:           z.string().optional(),
+      // ordre_de_mission
+      poste:             z.string().optional(),
+      destination:       z.string().optional(),
+      dateDepart:        z.string().optional(),
+      dateRetour:        z.string().optional(),
+      objetMission:      z.string().optional(),
+      frais:             z.string().optional(),
+      // lettre_officielle / note_interne
+      corps:             z.string().optional(),
+      de:                z.string().optional(),
+      actionRequise:     z.string().optional(),
+      // rapport_financier
+      etabliPar:         z.string().optional(),
+      approuvePar:       z.string().optional(),
+      exercice:          z.string().optional(),
+      observations:      z.string().optional(),
+      totalPrevu:        z.string().optional(),
+      totalRealise:      z.string().optional(),
+      // rapport_audit
+      auditeurs:         z.string().optional(),
+      perimetre:         z.string().optional(),
+      periodeAuditee:    z.string().optional(),
+      opinion:           z.string().optional(),
+      contexte:          z.string().optional(),
+      constats:          z.string().optional(),
+      recommandations:   z.string().optional(),
+      conclusion:        z.string().optional(),
+      // convention_partenariat / accord_collectif
+      partieB:           z.string().optional(),
+      duree:             z.string().optional(),
+      preambule:         z.string().optional(),
+      article1:          z.string().optional(),
+      article2:          z.string().optional(),
+      article3:          z.string().optional(),
+      employeur:         z.string().optional(),
+      dispositions:      z.string().optional(),
+      champApplication:  z.string().optional(),
+      entreeVigueur:     z.string().optional(),
+      dateApplication:   z.string().optional(),
+      // compte_rendu
+      dateMeeting:       z.string().optional(),
+      presidentSeance:   z.string().optional(),
+      participants:      z.string().optional(),
+      ordreJour:         z.string().optional(),
+      deroulement:       z.string().optional(),
+      decisions:         z.string().optional(),
+      prochaineReunion:  z.string().optional(),
     });
 
     const result = schema.safeParse(req.body);
@@ -982,12 +1043,12 @@ router.delete(
 );
 
 // ─── POST /documents/:id/restore ──────────────────────────────────────────────
-// Restore a soft-deleted document (super_admin only).
+// Restore a soft-deleted document (super_admin or syndicate_admin).
 
 router.post(
   "/documents/:id/restore",
   requireAuth,
-  requireRole("super_admin"),
+  requireRole("super_admin", "syndicate_admin"),
   async (req, res) => {
     const id = String(req.params.id);
     try {

@@ -147,6 +147,19 @@ export default function DocumentsScreen() {
   const sigPadRef = useRef<SignaturePadHandle>(null);
   const sigSvgRef = useRef<string>("");
 
+  // Workflow actions
+  const [workflowBusy,     setWorkflowBusy]     = useState(false);
+  const [showRejectModal,  setShowRejectModal]   = useState(false);
+  const [rejectReason,     setRejectReason]      = useState("");
+
+  // Version history
+  const [showVersions,     setShowVersions]      = useState(false);
+  const [versions,         setVersions]          = useState<Array<{
+    id: string; versionNumber: number; title: string; createdAt: string; createdByName: string | null;
+  }>>([]);
+  const [versionsLoading,  setVersionsLoading]   = useState(false);
+  const [restoringVersion, setRestoringVersion]  = useState<string | null>(null);
+
   // Download progress
   const [dlState, setDlState] = useState<DownloadState>(INIT_DL);
   const dlRef = useRef<ReturnType<typeof FileSystem.createDownloadResumable> | null>(null);
@@ -439,6 +452,144 @@ export default function DocumentsScreen() {
     }
   };
 
+  // ─── Workflow actions ─────────────────────────────────────────────────────────
+
+  const applyStatusUpdate = async (newStatus: string, successTitle: string, successMsg: string) => {
+    if (!selected || workflowBusy) return;
+    setWorkflowBusy(true);
+    try {
+      const { documents: docsApi } = await import("@/services/api");
+      await docsApi.update(selected.id, { status: newStatus });
+      updateDocument(selected.id, { status: newStatus as Document["status"] });
+      setSelected((s) => s ? { ...s, status: newStatus as Document["status"] } : s);
+      await refreshDocuments().catch(() => {});
+      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+      Alert.alert(successTitle, successMsg);
+    } catch (err: any) {
+      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
+      Alert.alert("Erreur", err?.message && !err.message.startsWith("HTTP") ? err.message : "Action impossible. Vérifiez la connexion.");
+    } finally {
+      setWorkflowBusy(false);
+    }
+  };
+
+  const handleSubmitForReview = () =>
+    applyStatusUpdate("pending_review", "Envoyé en révision", "Le document a été soumis pour révision et approbation.");
+
+  const handleApproveDoc = () =>
+    applyStatusUpdate("validated", "Document validé", "Le document a été approuvé et validé.");
+
+  const handlePublishDoc = () =>
+    applyStatusUpdate("published", "Document publié", "Le document est maintenant publié et accessible aux membres.");
+
+  const handleArchiveDoc = () => {
+    if (!selected) return;
+    Alert.alert(
+      "Archiver le document",
+      "Ce document sera archivé et ne sera plus affiché dans les listes actives.",
+      [
+        { text: "Annuler", style: "cancel" },
+        { text: "Archiver", onPress: () => applyStatusUpdate("archived", "Archivé", "Le document a été archivé.") },
+      ],
+    );
+  };
+
+  const handleRejectDoc = async () => {
+    if (!selected || workflowBusy || !rejectReason.trim()) return;
+    setWorkflowBusy(true);
+    try {
+      const { documents: docsApi } = await import("@/services/api");
+      await docsApi.update(selected.id, { status: "rejected", rejectionReason: rejectReason.trim() } as any);
+      updateDocument(selected.id, { status: "rejected" as Document["status"] });
+      setSelected((s) => s ? { ...s, status: "rejected" as Document["status"] } : s);
+      await refreshDocuments().catch(() => {});
+      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
+      setShowRejectModal(false);
+      setRejectReason("");
+      Alert.alert("Document rejeté", "Le document a été rejeté. L'initiateur sera notifié.");
+    } catch (err: any) {
+      Alert.alert("Erreur", err?.message ?? "Impossible de rejeter le document.");
+    } finally {
+      setWorkflowBusy(false);
+    }
+  };
+
+  // ─── Soft-delete ──────────────────────────────────────────────────────────────
+
+  const handleDelete = () => {
+    if (!selected) return;
+    Alert.alert(
+      "Supprimer le document",
+      `"${selected.title}" sera déplacé dans la corbeille. Vous pouvez le restaurer ultérieurement.`,
+      [
+        { text: "Annuler", style: "cancel" },
+        {
+          text: "Supprimer",
+          style: "destructive",
+          onPress: async () => {
+            try {
+              const { documents: docsApi } = await import("@/services/api");
+              await docsApi.delete(selected.id);
+              Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+              await refreshDocuments().catch(() => {});
+              setSelected(null);
+            } catch (err: any) {
+              Alert.alert("Erreur", err?.message ?? "Impossible de supprimer ce document.");
+            }
+          },
+        },
+      ],
+    );
+  };
+
+  // ─── Version history ──────────────────────────────────────────────────────────
+
+  const handleShowVersions = async () => {
+    if (!selected) return;
+    setVersions([]);
+    setShowVersions(true);
+    setVersionsLoading(true);
+    try {
+      const { documents: docsApi } = await import("@/services/api");
+      const res = (await docsApi.versions(selected.id)) as { data: typeof versions };
+      setVersions(res.data ?? []);
+    } catch {
+      setVersions([]);
+    } finally {
+      setVersionsLoading(false);
+    }
+  };
+
+  const handleRestoreVersion = (versionId: string, versionNum: number) => {
+    if (!selected || restoringVersion) return;
+    Alert.alert(
+      `Restaurer la version ${versionNum}`,
+      "La version actuelle sera sauvegardée en historique et le document sera remplacé par cette version.",
+      [
+        { text: "Annuler", style: "cancel" },
+        {
+          text: "Restaurer",
+          onPress: async () => {
+            setRestoringVersion(versionId);
+            try {
+              const { documents: docsApi } = await import("@/services/api");
+              await docsApi.restoreVersion(selected.id, versionId);
+              Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+              await refreshDocuments().catch(() => {});
+              setShowVersions(false);
+              setSelected(null);
+              Alert.alert("Version restaurée", `Le document a été restauré à la version ${versionNum}.`);
+            } catch (err: any) {
+              Alert.alert("Erreur", err?.message ?? "Impossible de restaurer cette version.");
+            } finally {
+              setRestoringVersion(null);
+            }
+          },
+        },
+      ],
+    );
+  };
+
   // ─── Render ───────────────────────────────────────────────────────────────────
 
   return (
@@ -703,6 +854,8 @@ export default function DocumentsScreen() {
                   <Feather name="download" size={18} color="#fff" />
                   <Text style={styles.primaryActionText}>Télécharger ({selected.size})</Text>
                 </TouchableOpacity>
+
+                {/* Standard actions row */}
                 <View style={styles.secondaryActions}>
                   <TouchableOpacity
                     style={[styles.secBtn, { borderColor: colors.border, backgroundColor: colors.card }]}
@@ -737,6 +890,85 @@ export default function DocumentsScreen() {
                     </TouchableOpacity>
                   ) : null}
                 </View>
+
+                {/* Workflow actions — admin only, context-sensitive */}
+                {isAdmin ? (
+                  <View style={{ gap: 8 }}>
+                    {/* Submit for review: draft or generated */}
+                    {["draft", "generated"].includes(selected.status) ? (
+                      <TouchableOpacity
+                        style={[styles.primaryAction, { backgroundColor: "#f59e0b", opacity: workflowBusy ? 0.6 : 1 }]}
+                        onPress={handleSubmitForReview}
+                        disabled={workflowBusy}
+                      >
+                        {workflowBusy ? <ActivityIndicator color="#fff" size="small" /> : <Feather name="send" size={17} color="#fff" />}
+                        <Text style={styles.primaryActionText}>Soumettre pour révision</Text>
+                      </TouchableOpacity>
+                    ) : null}
+
+                    {/* Approve / Reject: pending_review */}
+                    {selected.status === "pending_review" ? (
+                      <View style={{ flexDirection: "row", gap: 10 }}>
+                        <TouchableOpacity
+                          style={[styles.primaryAction, { flex: 1, backgroundColor: "#10b981", opacity: workflowBusy ? 0.6 : 1 }]}
+                          onPress={handleApproveDoc}
+                          disabled={workflowBusy}
+                        >
+                          {workflowBusy ? <ActivityIndicator color="#fff" size="small" /> : <Feather name="check" size={17} color="#fff" />}
+                          <Text style={styles.primaryActionText}>Approuver</Text>
+                        </TouchableOpacity>
+                        <TouchableOpacity
+                          style={[styles.primaryAction, { flex: 1, backgroundColor: "#ef4444", opacity: workflowBusy ? 0.6 : 1 }]}
+                          onPress={() => { setRejectReason(""); setShowRejectModal(true); }}
+                          disabled={workflowBusy}
+                        >
+                          <Feather name="x" size={17} color="#fff" />
+                          <Text style={styles.primaryActionText}>Rejeter</Text>
+                        </TouchableOpacity>
+                      </View>
+                    ) : null}
+
+                    {/* Publish: validated or signed */}
+                    {["validated", "signed"].includes(selected.status) ? (
+                      <TouchableOpacity
+                        style={[styles.primaryAction, { backgroundColor: "#10b981", opacity: workflowBusy ? 0.6 : 1 }]}
+                        onPress={handlePublishDoc}
+                        disabled={workflowBusy}
+                      >
+                        {workflowBusy ? <ActivityIndicator color="#fff" size="small" /> : <Feather name="globe" size={17} color="#fff" />}
+                        <Text style={styles.primaryActionText}>Publier</Text>
+                      </TouchableOpacity>
+                    ) : null}
+
+                    {/* Archive + Version history + Delete row */}
+                    <View style={{ flexDirection: "row", gap: 8 }}>
+                      {selected.status === "published" ? (
+                        <TouchableOpacity
+                          style={[styles.secBtn, { flex: 1, borderColor: "#64748b50", backgroundColor: "#64748b08", opacity: workflowBusy ? 0.6 : 1 }]}
+                          onPress={handleArchiveDoc}
+                          disabled={workflowBusy}
+                        >
+                          <Feather name="archive" size={15} color="#64748b" />
+                          <Text style={[styles.secBtnText, { color: "#64748b" }]}>Archiver</Text>
+                        </TouchableOpacity>
+                      ) : null}
+                      <TouchableOpacity
+                        style={[styles.secBtn, { flex: 1, borderColor: colors.border, backgroundColor: colors.card }]}
+                        onPress={handleShowVersions}
+                      >
+                        <Feather name="clock" size={15} color={colors.foreground} />
+                        <Text style={[styles.secBtnText, { color: colors.foreground }]}>Historique</Text>
+                      </TouchableOpacity>
+                      <TouchableOpacity
+                        style={[styles.secBtn, { flex: 1, borderColor: "#ef444450", backgroundColor: "#ef444408" }]}
+                        onPress={handleDelete}
+                      >
+                        <Feather name="trash-2" size={15} color="#ef4444" />
+                        <Text style={[styles.secBtnText, { color: "#ef4444" }]}>Supprimer</Text>
+                      </TouchableOpacity>
+                    </View>
+                  </View>
+                ) : null}
               </View>
             </ScrollView>
           </View>
@@ -948,6 +1180,95 @@ export default function DocumentsScreen() {
           </ScrollView>
         </View>
       </Modal>
+
+      {/* ── Reject reason modal ── */}
+      <Modal visible={showRejectModal} transparent animationType="fade">
+        <View style={styles.overlay}>
+          <View style={[styles.overlayCard, { backgroundColor: colors.card }]}>
+            <Text style={[styles.overlayTitle, { color: colors.foreground }]}>✗ Rejeter le document</Text>
+            <Text style={[styles.overlaySub, { color: colors.mutedForeground }]}>
+              Indiquez la raison du rejet. L'initiateur sera notifié.
+            </Text>
+            <TextInput
+              style={[styles.fieldInput, styles.fieldTextArea, { borderColor: colors.border, backgroundColor: colors.background, color: colors.foreground, minHeight: 100, textAlignVertical: "top" }]}
+              placeholder="Motif de rejet (requis)..."
+              placeholderTextColor={colors.mutedForeground}
+              value={rejectReason}
+              onChangeText={setRejectReason}
+              multiline
+              autoFocus
+            />
+            <View style={{ flexDirection: "row", gap: 10, marginTop: 4 }}>
+              <TouchableOpacity
+                style={[styles.overlayBtn, { backgroundColor: colors.muted, flex: 1 }]}
+                onPress={() => { setShowRejectModal(false); setRejectReason(""); }}
+              >
+                <Text style={[styles.overlayBtnText, { color: colors.foreground }]}>Annuler</Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={[styles.overlayBtn, { backgroundColor: rejectReason.trim() ? "#ef4444" : "#ef444460", flex: 1, opacity: workflowBusy ? 0.6 : 1 }]}
+                onPress={handleRejectDoc}
+                disabled={!rejectReason.trim() || workflowBusy}
+              >
+                {workflowBusy ? <ActivityIndicator color="#fff" size="small" /> : <Text style={[styles.overlayBtnText, { color: "#fff" }]}>Confirmer le rejet</Text>}
+              </TouchableOpacity>
+            </View>
+          </View>
+        </View>
+      </Modal>
+
+      {/* ── Version history modal ── */}
+      <Modal visible={showVersions} animationType="slide" presentationStyle="pageSheet">
+        <View style={[styles.modal, { backgroundColor: colors.background }]}>
+          <View style={[styles.modalHeader, { borderBottomColor: colors.border }]}>
+            <TouchableOpacity onPress={() => setShowVersions(false)}>
+              <Feather name="arrow-left" size={22} color={colors.mutedForeground} />
+            </TouchableOpacity>
+            <View style={{ flex: 1, marginStart: 12 }}>
+              <Text style={[styles.modalTitle, { color: colors.foreground }]}>Historique des versions</Text>
+            </View>
+            <Feather name="clock" size={20} color={colors.mutedForeground} />
+          </View>
+          {versionsLoading ? (
+            <View style={styles.empty}><ActivityIndicator color={colors.primary} /></View>
+          ) : versions.length === 0 ? (
+            <View style={styles.empty}>
+              <Feather name="clock" size={36} color={colors.mutedForeground} />
+              <Text style={[styles.emptyText, { color: colors.mutedForeground }]}>Aucune version précédente</Text>
+            </View>
+          ) : (
+            <FlatList
+              data={versions}
+              keyExtractor={(v) => v.id}
+              contentContainerStyle={{ padding: 16, gap: 10, paddingBottom: 40 }}
+              renderItem={({ item: v }) => (
+                <View style={[styles.versionCard, { backgroundColor: colors.card, borderColor: colors.border }]}>
+                  <View style={[styles.versionBadge, { backgroundColor: colors.primary + "15" }]}>
+                    <Text style={[styles.versionBadgeText, { color: colors.primary }]}>v{v.versionNumber}</Text>
+                  </View>
+                  <View style={{ flex: 1, gap: 3 }}>
+                    <Text style={[styles.versionTitle, { color: colors.foreground }]} numberOfLines={1}>{v.title}</Text>
+                    <Text style={[styles.versionMeta, { color: colors.mutedForeground }]}>
+                      {new Date(v.createdAt).toLocaleDateString("fr-FR", { day: "2-digit", month: "short", year: "numeric" })}
+                      {v.createdByName ? `  ·  ${v.createdByName}` : ""}
+                    </Text>
+                  </View>
+                  <TouchableOpacity
+                    style={[styles.versionRestoreBtn, { backgroundColor: colors.primary, opacity: restoringVersion === v.id ? 0.6 : 1 }]}
+                    disabled={restoringVersion !== null}
+                    onPress={() => handleRestoreVersion(v.id, v.versionNumber)}
+                  >
+                    {restoringVersion === v.id
+                      ? <ActivityIndicator size="small" color="#fff" />
+                      : <Feather name="rotate-ccw" size={14} color="#fff" />
+                    }
+                  </TouchableOpacity>
+                </View>
+              )}
+            />
+          )}
+        </View>
+      </Modal>
     </View>
   );
 }
@@ -1023,4 +1344,18 @@ const styles = StyleSheet.create({
   langChip:         { flex: 1, paddingVertical: 10, borderRadius: 10, borderWidth: 1, alignItems: "center" },
   genHint:          { flexDirection: "row", alignItems: "center", gap: 10, padding: 16 },
   genHintText:      { flex: 1, fontSize: 13, fontFamily: "Inter_400Regular" },
+  // Reject / overlay modals
+  overlay:          { flex: 1, backgroundColor: "rgba(0,0,0,0.5)", justifyContent: "flex-end" },
+  overlayCard:      { borderTopLeftRadius: 24, borderTopRightRadius: 24, padding: 24, gap: 14 },
+  overlayTitle:     { fontSize: 17, fontFamily: "Inter_700Bold" },
+  overlaySub:       { fontSize: 13, fontFamily: "Inter_400Regular" },
+  overlayBtn:       { paddingVertical: 14, borderRadius: 14, alignItems: "center", justifyContent: "center" },
+  overlayBtnText:   { fontSize: 14, fontFamily: "Inter_700Bold" },
+  // Version history
+  versionCard:      { flexDirection: "row", alignItems: "center", gap: 12, padding: 14, borderRadius: 14, borderWidth: 1 },
+  versionBadge:     { width: 42, height: 42, borderRadius: 12, alignItems: "center", justifyContent: "center" },
+  versionBadgeText: { fontSize: 12, fontFamily: "Inter_700Bold" },
+  versionTitle:     { fontSize: 13, fontFamily: "Inter_600SemiBold" },
+  versionMeta:      { fontSize: 11, fontFamily: "Inter_400Regular" },
+  versionRestoreBtn:{ width: 36, height: 36, borderRadius: 10, alignItems: "center", justifyContent: "center" },
 });
