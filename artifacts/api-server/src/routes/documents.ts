@@ -36,6 +36,7 @@ import {
   signDocumentDownloadUrl,
   deleteDocumentFromGcs,
   appendSignaturesToPdf,
+  readLocalDocFile,
   roleLabel,
   CATEGORY_TO_TEMPLATE,
   TEMPLATE_NUMBER_PREFIX,
@@ -494,6 +495,25 @@ router.get("/documents/:id", requireAuth, async (req, res) => {
   } catch (err) {
     req.log.error(err);
     res.status(500).json({ error: "Erreur serveur" });
+  }
+});
+
+// ─── GET /documents/local-docs/:uuid/:filename — serve local-disk fallback PDFs
+
+router.get("/documents/local-docs/:uuid/:filename", requireAuth, async (req, res) => {
+  const uuid     = String(req.params.uuid);
+  const filename = String(req.params.filename);
+  if (!uuid || !filename || /[/\\]/.test(uuid) || /[/\\]/.test(filename)) {
+    res.status(400).json({ error: "Chemin invalide" }); return;
+  }
+  try {
+    const buffer = await readLocalDocFile(uuid, filename);
+    res.setHeader("Content-Type", "application/pdf");
+    res.setHeader("Content-Disposition", `attachment; filename="${filename}"`);
+    res.setHeader("Cache-Control", "private, max-age=3600");
+    res.send(buffer);
+  } catch {
+    res.status(404).json({ error: "Fichier introuvable — il a peut-être expiré après un redémarrage du serveur." });
   }
 });
 

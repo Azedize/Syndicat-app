@@ -12,10 +12,30 @@
  *    artifacts/api-server/fonts/ to enable Arabic/RTL support
  */
 import { existsSync } from "fs";
+import fs from "fs/promises";
+import path from "path";
+import os from "os";
 import { randomUUID } from "crypto";
 import QRCode from "qrcode";
 import { objectStorageClient } from "./objectStorage.js";
 import { logger } from "./logger.js";
+
+// ─── Local-disk temp storage (fallback when GCS not configured) ───────────────
+const LOCAL_DOCS_TMP = path.join(os.tmpdir(), "syndycat-docs");
+
+async function saveToLocalDisk(buffer: Buffer, filename: string): Promise<string> {
+  const objectId = randomUUID();
+  const dir = path.join(LOCAL_DOCS_TMP, objectId);
+  await fs.mkdir(dir, { recursive: true });
+  await fs.writeFile(path.join(dir, filename), buffer);
+  return `/local-docs/${objectId}/${filename}`;
+}
+
+/** Read a file that was saved by saveToLocalDisk. */
+export async function readLocalDocFile(uuid: string, filename: string): Promise<Buffer> {
+  const filepath = path.join(LOCAL_DOCS_TMP, uuid, filename);
+  return fs.readFile(filepath);
+}
 
 const SIDECAR = "http://127.0.0.1:1106";
 
@@ -634,7 +654,11 @@ function parseGcsPath(fullPath: string): { bucketName: string; objectName: strin
 
 async function uploadBufferToGcs(buffer: Buffer, filename: string): Promise<string> {
   const privateDir = process.env.PRIVATE_OBJECT_DIR || "";
-  if (!privateDir) throw new Error("PRIVATE_OBJECT_DIR not set — configure Replit Object Storage");
+  if (!privateDir) {
+    // GCS not configured — fall back to local temp disk so generation still works.
+    logger.warn("PRIVATE_OBJECT_DIR not set — saving PDF to local temp disk (development fallback)");
+    return saveToLocalDisk(buffer, filename);
+  }
   const objectId = randomUUID();
   const sep = privateDir.endsWith("/") ? "" : "/";
   const fullPath = `${privateDir}${sep}documents/${objectId}/${filename}`;
@@ -648,6 +672,15 @@ async function uploadBufferToGcs(buffer: Buffer, filename: string): Promise<stri
 }
 
 export async function signDocumentDownloadUrl(internalPath: string, ttlSec = 3600): Promise<string> {
+  // Local-disk fallback: return a direct API route instead of a signed GCS URL
+  if (internalPath.startsWith("/local-docs/")) {
+    const rest = internalPath.replace(/^\/local-docs\//, "");
+    const devDomain = process.env.REPLIT_DEV_DOMAIN ?? "";
+    const base = devDomain
+      ? `https://${devDomain}`
+      : `http://localhost:${process.env.PORT ?? 8080}`;
+    return `${base}/api/documents/local-docs/${rest}`;
+  }
   const privateDir = process.env.PRIVATE_OBJECT_DIR || "";
   if (!privateDir) throw new Error("PRIVATE_OBJECT_DIR not set");
   const entityId = internalPath.replace(/^\/objects\//, "");
