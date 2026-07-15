@@ -960,6 +960,10 @@ export const documentsTable = pgTable(
     // Publication & archival timestamps
     publishedAt: timestamp("published_at"),
     archivedAt: timestamp("archived_at"),
+    // Soft delete — documents are NEVER hard-deleted for legal retention
+    isDeleted: boolean("is_deleted").default(false).notNull(),
+    deletedAt: timestamp("deleted_at"),
+    deletedBy: text("deleted_by").references(() => usersTable.id, { onDelete: "set null" }),
   },
   (t) => [
     index("documents_syndicate_id_idx").on(t.syndicateId),

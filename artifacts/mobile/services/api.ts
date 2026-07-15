@@ -515,10 +515,10 @@ export const documents = {
     if (params?.status) qs.set("status", params.status);
     return request<{ data: unknown[] }>(`/documents?${qs}`);
   },
-  generate: (title: string, category: string, content?: string) =>
+  generate: (title: string, category: string, content?: string, templateId?: string, memberName?: string) =>
     request<{ data: unknown }>("/documents", {
       method: "POST",
-      body: JSON.stringify({ title, category, content }),
+      body: JSON.stringify({ title, category, content, templateId, memberName }),
     }),
   get: (id: string) => request<{ data: unknown }>(`/documents/${id}`),
   update: (id: string, data: { title?: string; category?: string; content?: string; status?: string }) =>

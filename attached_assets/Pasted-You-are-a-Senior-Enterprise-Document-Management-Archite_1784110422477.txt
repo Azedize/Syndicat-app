@@ -1,0 +1,239 @@
+You are a Senior Enterprise Document Management Architect, UX Designer, PDF Expert, Legal Compliance Consultant, and Product Owner.
+
+Your mission is to redesign and professionalize the entire Documents Module to production-grade standards.
+
+CURRENT PRIORITIES
+
+1. PDF Preview
+2. Download Experience
+3. Soft Delete & Legal Retention
+4. Document Template Quality
+5. Syndicate Branding
+6. Professional Document Layouts
+
+═══════════════════════════════
+PDF PREVIEW
+═══════════════════════════════
+
+Audit and redesign the PDF preview experience.
+
+Requirements:
+
+* Users must preview documents before downloading.
+* PDF must open directly from signed URL.
+* Mobile-friendly preview.
+* Android support.
+* iOS support.
+* Loading indicator.
+* Error handling.
+* Offline handling.
+* Retry mechanism.
+
+Analyze:
+
+* Current implementation.
+* Why preview fails.
+* Exact code fixes required.
+
+═══════════════════════════════
+DOWNLOAD EXPERIENCE
+═══════════════════════════════
+
+Redesign the download workflow.
+
+Requirements:
+
+* Real-time download progress.
+* Percentage indicator.
+* Download speed.
+* Remaining time estimate.
+* Cancel download.
+* Retry failed download.
+* Success confirmation.
+* Open file after download.
+* Share file after download.
+
+Audit:
+
+* Expo FileSystem implementation.
+* Signed URL handling.
+* Error scenarios.
+* Large PDF behavior (>20MB).
+
+═══════════════════════════════
+SOFT DELETE & LEGAL RETENTION
+═══════════════════════════════
+
+Current hard-delete implementation is unacceptable.
+
+Implement:
+
+documents.deleted_at
+documents.deleted_by
+documents.is_deleted
+
+Requirements:
+
+* No permanent deletion by default.
+* Preserve signatures.
+* Preserve audit logs.
+* Preserve workflow history.
+* Restore deleted documents.
+* Legal archive retention.
+* Admin recovery panel.
+
+Analyze all affected APIs and screens.
+
+═══════════════════════════════
+PROFESSIONAL DOCUMENT TEMPLATES
+═══════════════════════════════
+
+All templates must be redesigned.
+
+Current templates must be audited for:
+
+* Visual quality.
+* Professional appearance.
+* Consistency.
+* Branding.
+* Typography.
+* Arabic rendering.
+* French rendering.
+* RTL support.
+* Print quality.
+
+For every template:
+
+* Attestation
+* Convocation
+* Contrat
+* Rapport
+* Décision
+* Certificat
+* Procès-verbal
+* Circulaire
+* Mise en demeure
+
+Provide:
+
+* Weaknesses.
+* Visual problems.
+* Missing elements.
+* New design proposal.
+
+═══════════════════════════════
+SYNDICATE BRANDING SYSTEM
+═══════════════════════════════
+
+Every generated document must automatically include:
+
+HEADER
+
+* Syndicate Logo
+* Syndicate Name
+* Registration Number
+* Tax Number (if applicable)
+* Address
+* Phone
+* Email
+* Website
+* QR Code (optional)
+
+BODY
+
+* Document title
+* Unique document number
+* Creation date
+* Author
+* Department
+* Main content
+
+FOOTER
+
+* Official seal area
+* Signature area
+* Verification code
+* Page numbering
+* Copyright notice
+
+═══════════════════════════════
+MULTI-TENANT BRANDING
+═══════════════════════════════
+
+Each organization must generate documents using its own branding.
+
+Example:
+
+Organization A
+→ Logo A
+→ Name A
+
+Organization B
+→ Logo B
+→ Name B
+
+No hardcoded branding.
+
+Verify branding isolation.
+
+═══════════════════════════════
+DOCUMENT QUALITY STANDARD
+═══════════════════════════════
+
+Generated PDFs must look equivalent to:
+
+* Government documents
+* Legal documents
+* Enterprise reports
+* Official certificates
+
+Evaluate:
+
+* Margins
+* Typography
+* Header spacing
+* Footer spacing
+* Tables
+* Signatures
+* Stamps
+* Watermarks
+* QR codes
+
+═══════════════════════════════
+ARABIC SUPPORT
+═══════════════════════════════
+
+Verify:
+
+* Arabic fonts.
+* RTL rendering.
+* Mixed Arabic/French documents.
+* Arabic tables.
+* Arabic signatures.
+* Arabic headers.
+
+No broken glyphs.
+No disconnected letters.
+
+═══════════════════════════════
+FINAL REPORT
+═══════════════════════════════
+
+Provide:
+
+1. Current Template Score (/100)
+2. Branding Score (/100)
+3. PDF Quality Score (/100)
+4. UX Score (/100)
+5. Legal Compliance Score (/100)
+6. Missing Features
+7. Exact Code Fixes
+8. Database Changes
+9. API Changes
+10. Mobile Changes
+11. PDF Template Redesign Plan
+12. Production Readiness Score
+13. Final Recommendation
+
+Be extremely strict and enterprise-grade.
+Assume all templates are inadequate until proven otherwise.
