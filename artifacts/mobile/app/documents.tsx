@@ -24,6 +24,7 @@ import { useActivity } from "@/context/ActivityContext";
 import { useAuth } from "@/context/AuthContext";
 import { useData, type Document } from "@/context/DataContext";
 import { useFavorites } from "@/context/FavoritesContext";
+import { useToast } from "@/context/ToastContext";
 import { useBreakpoints } from "@/hooks/useBreakpoints";
 import { useColors } from "@/hooks/useColors";
 import FilterChips from "@/components/FilterChips";
@@ -109,9 +110,10 @@ const INIT_DL: DownloadState = {
 // ─── Screen ───────────────────────────────────────────────────────────────────
 
 export default function DocumentsScreen() {
-  const colors     = useColors();
-  const insets     = useSafeAreaInsets();
-  const { user }   = useAuth();
+  const colors          = useColors();
+  const insets          = useSafeAreaInsets();
+  const { showToast }   = useToast();
+  const { user }        = useAuth();
   const { documents, updateDocument, refreshDocuments } = useData();
   const { logActivity } = useActivity();
   const { toggleFavorite, isFavorite } = useFavorites();
@@ -227,7 +229,7 @@ export default function DocumentsScreen() {
       logActivity({ action: "Document généré", target: selectedTemplate.name, route: "/documents", icon: "file-text", color: "#6366f1" });
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
       await refreshDocuments().catch(() => {});
-      Alert.alert("Succès", `Le document "${selectedTemplate.name}" a été généré.`);
+      showToast({ type: "success", title: "Document généré", message: `"${selectedTemplate.name}" a été créé avec succès.` });
       setShowGenerate(false);
       setSelectedTemplate(null);
       setGenMember("");
@@ -235,12 +237,13 @@ export default function DocumentsScreen() {
       setGenLanguage("fr");
     } catch (err: any) {
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
-      Alert.alert(
-        "Erreur de génération",
-        err?.message && !err.message.startsWith("HTTP")
+      showToast({
+        type: "error",
+        title: "Erreur de génération",
+        message: err?.message && !err.message.startsWith("HTTP")
           ? err.message
           : "Impossible de générer le document. Vérifiez la connexion et réessayez.",
-      );
+      });
     } finally {
       setGenerating(false);
     }
@@ -261,14 +264,15 @@ export default function DocumentsScreen() {
         });
         return;
       }
-      Alert.alert("Aperçu indisponible", "Le PDF n'est pas encore disponible pour ce document. Il est peut-être encore en cours de génération.");
+      showToast({ type: "warning", title: "Aperçu indisponible", message: "Le PDF n'est pas encore disponible. Il est peut-être encore en cours de génération." });
     } catch (err: any) {
-      Alert.alert(
-        "Aperçu impossible",
-        err?.message?.includes("404")
+      showToast({
+        type: "error",
+        title: "Aperçu impossible",
+        message: err?.message?.includes("404")
           ? "Ce document n'a pas encore de fichier PDF associé."
           : "Impossible d'ouvrir l'aperçu. Vérifiez votre connexion.",
-      );
+      });
     }
   };
 
@@ -426,17 +430,18 @@ export default function DocumentsScreen() {
       await refreshDocuments().catch(() => {});
       setShowSign(false);
       setSelected((s) => (s ? { ...s, status: "signed" as Document["status"] } : s));
-      Alert.alert("Document signé", "Votre signature a été enregistrée avec succès.");
+      showToast({ type: "success", title: "Document signé", message: "Votre signature électronique a été enregistrée avec succès." });
     } catch (err: any) {
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
-      Alert.alert(
-        "Erreur de signature",
-        err?.message?.includes("409")
+      showToast({
+        type: "error",
+        title: "Erreur de signature",
+        message: err?.message?.includes("409")
           ? "Vous avez déjà signé ce document."
           : err?.message && !err.message.startsWith("HTTP")
             ? err.message
-            : "Impossible d'enregistrer la signature. Vérifiez la connexion et réessayez.",
-      );
+            : "Impossible d'enregistrer la signature. Vérifiez la connexion.",
+      });
     } finally {
       setSigning(false);
     }
@@ -444,7 +449,7 @@ export default function DocumentsScreen() {
 
   const handleSaveEdit = async () => {
     if (!selected) return;
-    if (!editTitle.trim()) { Alert.alert("Titre requis", "Le titre ne peut pas être vide."); return; }
+    if (!editTitle.trim()) { showToast({ type: "warning", title: "Titre requis", message: "Le titre du document ne peut pas être vide." }); return; }
     setSavingEdit(true);
     try {
       const { documents: docsApi } = await import("@/services/api");
@@ -454,14 +459,16 @@ export default function DocumentsScreen() {
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
       setShowEdit(false);
       setSelected((s) => (s ? { ...s, title: editTitle.trim(), content: editContent } : s));
+      showToast({ type: "success", title: "Modifications enregistrées", message: `"${editTitle.trim()}" a été mis à jour avec succès.` });
     } catch (err: any) {
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
-      Alert.alert(
-        "Erreur",
-        err?.message && !err.message.startsWith("HTTP")
+      showToast({
+        type: "error",
+        title: "Échec de la sauvegarde",
+        message: err?.message && !err.message.startsWith("HTTP")
           ? err.message
           : "Impossible d'enregistrer les modifications.",
-      );
+      });
     } finally {
       setSavingEdit(false);
     }
@@ -479,10 +486,10 @@ export default function DocumentsScreen() {
       setSelected((s) => s ? { ...s, status: newStatus as Document["status"] } : s);
       await refreshDocuments().catch(() => {});
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-      Alert.alert(successTitle, successMsg);
+      showToast({ type: "success", title: successTitle, message: successMsg });
     } catch (err: any) {
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
-      Alert.alert("Erreur", err?.message && !err.message.startsWith("HTTP") ? err.message : "Action impossible. Vérifiez la connexion.");
+      showToast({ type: "error", title: "Action échouée", message: err?.message && !err.message.startsWith("HTTP") ? err.message : "Action impossible. Vérifiez la connexion." });
     } finally {
       setWorkflowBusy(false);
     }
@@ -521,9 +528,9 @@ export default function DocumentsScreen() {
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
       setShowRejectModal(false);
       setRejectReason("");
-      Alert.alert("Document rejeté", "Le document a été rejeté. L'initiateur sera notifié.");
+      showToast({ type: "warning", title: "Document rejeté", message: "Le document a été rejeté. L'initiateur sera notifié par notification." });
     } catch (err: any) {
-      Alert.alert("Erreur", err?.message ?? "Impossible de rejeter le document.");
+      showToast({ type: "error", title: "Rejet échoué", message: err?.message ?? "Impossible de rejeter le document." });
     } finally {
       setWorkflowBusy(false);
     }
@@ -548,8 +555,9 @@ export default function DocumentsScreen() {
               Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
               await refreshDocuments().catch(() => {});
               setSelected(null);
+              showToast({ type: "success", title: "Document supprimé", message: "Le document a été déplacé dans la corbeille." });
             } catch (err: any) {
-              Alert.alert("Erreur", err?.message ?? "Impossible de supprimer ce document.");
+              showToast({ type: "error", title: "Suppression échouée", message: err?.message ?? "Impossible de supprimer ce document." });
             }
           },
         },
@@ -603,8 +611,9 @@ export default function DocumentsScreen() {
       setCommentText("");
       const res = await docsApi.comments(selected.id);
       setComments((res.data ?? []).filter((c) => !c.isDeleted));
+      showToast({ type: "success", title: "Commentaire ajouté", message: "Votre commentaire a été publié avec succès." });
     } catch (err: any) {
-      Alert.alert("Erreur", err?.message ?? "Impossible d'ajouter le commentaire.");
+      showToast({ type: "error", title: "Envoi échoué", message: err?.message ?? "Impossible d'ajouter le commentaire." });
     } finally {
       setPostingComment(false);
     }
@@ -622,8 +631,9 @@ export default function DocumentsScreen() {
             const { documents: docsApi } = await import("@/services/api");
             await docsApi.deleteComment(selected.id, commentId);
             setComments((prev) => prev.filter((c) => c.id !== commentId));
+            showToast({ type: "success", title: "Commentaire supprimé", message: "Le commentaire a été retiré." });
           } catch (err: any) {
-            Alert.alert("Erreur", err?.message ?? "Impossible de supprimer le commentaire.");
+            showToast({ type: "error", title: "Suppression échouée", message: err?.message ?? "Impossible de supprimer le commentaire." });
           } finally {
             setDeletingComment(null);
           }
@@ -668,9 +678,9 @@ export default function DocumentsScreen() {
               await refreshDocuments().catch(() => {});
               setShowVersions(false);
               setSelected(null);
-              Alert.alert("Version restaurée", `Le document a été restauré à la version ${versionNum}.`);
+              showToast({ type: "success", title: `Version ${versionNum} restaurée`, message: "Le document a été remplacé par cette version avec succès." });
             } catch (err: any) {
-              Alert.alert("Erreur", err?.message ?? "Impossible de restaurer cette version.");
+              showToast({ type: "error", title: "Restauration échouée", message: err?.message ?? "Impossible de restaurer cette version." });
             } finally {
               setRestoringVersion(null);
             }
