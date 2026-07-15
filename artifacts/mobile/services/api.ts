@@ -529,6 +529,18 @@ export const documents = {
   // FIX BUG-07: delete a document (admin only)
   delete: (id: string) =>
     request<{ message: string }>(`/documents/${id}`, { method: "DELETE" }),
+  // Get a signed 1-hour download URL for a document's PDF
+  downloadUrl: (id: string) =>
+    request<{ url: string; expiresIn: number }>(`/documents/${id}/download-url`),
+  // Record a signature on a document
+  sign: (id: string, signatureData?: string) =>
+    request<{ data: unknown }>(`/documents/${id}/sign`, {
+      method: "POST",
+      body: JSON.stringify({ signatureData }),
+    }),
+  // Get signature history for a document
+  signatures: (id: string) =>
+    request<{ data: unknown[] }>(`/documents/${id}/signatures`),
 };
 
 // ─── Publications ─────────────────────────────────────────────────────────────

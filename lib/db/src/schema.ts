@@ -939,15 +939,53 @@ export const documentsTable = pgTable(
     title: text("title").notNull(),
     category: text("category").notNull(),
     content: text("content"),
-    status: text("status").default("published"),
+    // Lifecycle status — must progress through the workflow state machine
+    status: text("status").default("draft"),
     syndicateId: text("syndicate_id").references(() => syndicatesTable.id, { onDelete: "cascade" }),
     size: text("size"),
     createdBy: text("created_by").references(() => usersTable.id, { onDelete: "set null" }),
     createdAt: createdAt(),
+    updatedAt: timestamp("updated_at").defaultNow(),
+    // Storage — path returned by GCS upload (/objects/documents/<uuid>/<file>)
+    fileUrl: text("file_url"),
+    // Sequential document reference number
+    documentNumber: text("document_number"),
+    // Which template was used to generate this doc
+    templateId: text("template_id"),
+    // Document version counter (incremented on each PUT update)
+    version: integer("version").default(1),
+    // Signature tracking
+    signedAt: timestamp("signed_at"),
+    signedBy: text("signed_by").references(() => usersTable.id, { onDelete: "set null" }),
+    // Publication & archival timestamps
+    publishedAt: timestamp("published_at"),
+    archivedAt: timestamp("archived_at"),
   },
   (t) => [
     index("documents_syndicate_id_idx").on(t.syndicateId),
     index("documents_category_idx").on(t.category),
+    index("documents_status_idx").on(t.status),
+    index("documents_document_number_idx").on(t.documentNumber),
+  ],
+);
+
+export const documentSignaturesTable = pgTable(
+  "document_signatures",
+  {
+    id: id(),
+    documentId: text("document_id").notNull().references(() => documentsTable.id, { onDelete: "cascade" }),
+    signedBy: text("signed_by").notNull().references(() => usersTable.id, { onDelete: "set null" }),
+    signedAt: timestamp("signed_at").notNull().defaultNow(),
+    signerRole: text("signer_role").notNull(),
+    syndicateId: text("syndicate_id"),
+    ipAddress: text("ip_address"),
+    // Raw signature pad data (base64 PNG or SVG paths) for handwritten signatures
+    signatureData: text("signature_data"),
+    createdAt: createdAt(),
+  },
+  (t) => [
+    index("doc_signatures_document_id_idx").on(t.documentId),
+    index("doc_signatures_signed_by_idx").on(t.signedBy),
   ],
 );
 

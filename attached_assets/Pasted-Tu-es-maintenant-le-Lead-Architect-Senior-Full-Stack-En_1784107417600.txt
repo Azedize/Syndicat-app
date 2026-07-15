@@ -1,0 +1,216 @@
+Tu es maintenant le Lead Architect, Senior Full-Stack Engineer, Product Owner, QA Lead et Expert Mobile Expo React Native du projet SYNDYCAT GLOBAL CPS.
+
+Contexte :
+
+Le module Documents a été audité.
+
+Score actuel : 41/100 (NOT READY).
+
+Les bugs P0 et P1 ont déjà été corrigés :
+
+* Refresh liste documents après génération
+* Catégories de templates
+* Permissions Tenant/Admin
+* Audit Logs
+* Route DELETE
+* Isolation multi-tenant
+
+Je veux maintenant terminer complètement le module Documents jusqu'au niveau PRODUCTION READY.
+
+Mission :
+
+Faire un audit technique complet du code existant puis implémenter toutes les fonctionnalités manquantes.
+
+---
+
+PHASE 1 — ANALYSE DU CODE
+
+Analyser :
+
+* Frontend Mobile Expo
+* Services API
+* Backend Routes
+* Controllers
+* Database Schema
+* Storage Layer
+* PDF Services
+* Permissions
+* Audit Logs
+
+Identifier précisément :
+
+* Ce qui existe
+* Ce qui manque
+* Ce qui est cassé
+* Ce qui est simulé
+* Ce qui est incomplet
+
+---
+
+PHASE 2 — GÉNÉRATION PDF RÉELLE
+
+Implémenter :
+
+* Génération PDF réelle
+* Templates dynamiques
+* En-têtes
+* Logos
+* QR Codes
+* Signatures
+* Numérotation automatique
+
+Documents supportés :
+
+* Attestation
+* Procès-verbal
+* Convocation
+* Contrat
+* Facture
+* Reçu
+* Rapport
+* Décision
+* Certificat
+
+Chaque génération doit produire un vrai fichier PDF.
+
+---
+
+PHASE 3 — STOCKAGE FICHIERS
+
+Implémenter :
+
+* Google Cloud Storage ou équivalent
+* Upload PDF
+* URL sécurisée
+* Permissions accès
+* Versioning
+* Archivage
+
+Vérifier :
+
+* Suppression
+* Téléchargement
+* Historique
+
+---
+
+PHASE 4 — MOBILE
+
+Implémenter :
+
+* Téléchargement PDF
+* Prévisualisation PDF
+* Partage PDF
+* Ouverture PDF
+* Cache local
+* Gestion offline
+
+Tester Android et iOS.
+
+---
+
+PHASE 5 — WORKFLOW DOCUMENTAIRE
+
+Créer le workflow complet :
+
+Brouillon
+↓
+Généré
+↓
+En validation
+↓
+Validé
+↓
+Signé
+↓
+Publié
+↓
+Archivé
+
+Vérifier les transitions autorisées.
+
+---
+
+PHASE 6 — SIGNATURES
+
+Implémenter :
+
+* Signature électronique
+* Signature manuscrite mobile
+* Signature multiple
+* Horodatage
+* Historique
+
+---
+
+PHASE 7 — NOTIFICATIONS
+
+Ajouter :
+
+* Push Notifications
+* Email
+* Historique notifications
+* Notifications lors de :
+
+  * Génération
+  * Validation
+  * Signature
+  * Publication
+
+---
+
+PHASE 8 — SÉCURITÉ
+
+Vérifier :
+
+* RBAC
+* Multi-Tenant Isolation
+* Audit Logs
+* Téléchargement sécurisé
+* URL temporaires
+* Contrôle ownership
+
+---
+
+PHASE 9 — TESTS
+
+Créer :
+
+* 50 tests fonctionnels
+* 20 tests sécurité
+* 20 tests mobile
+* 20 tests multi-tenant
+* 20 tests génération PDF
+
+---
+
+PHASE 10 — LIVRABLES
+
+Produire :
+
+1. Liste complète des fichiers modifiés.
+2. Code réellement implémenté.
+3. Migrations base de données.
+4. APIs créées.
+5. Écrans mobiles modifiés.
+6. Résultats des tests.
+7. Score final.
+8. Pourcentage de progression.
+9. Estimation du temps restant.
+10. Décision finale :
+
+* Production Ready
+* Conditional
+* Not Ready
+
+Ne jamais faire d'analyse théorique uniquement.
+
+Toujours :
+
+* Modifier le code réel.
+* Tester.
+* Vérifier.
+* Fournir les preuves.
+* Fournir les fichiers modifiés.
+* Fournir les résultats avant/après.
+* Continuer jusqu'à obtenir un score supérieur à 90/100.

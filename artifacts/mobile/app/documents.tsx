@@ -2,14 +2,15 @@ import { Feather } from "@expo/vector-icons";
 import * as Haptics from "expo-haptics";
 import { router } from "expo-router";
 import React, { useState } from "react";
-import { shareContent } from "@/hooks/useShare";
+import * as FileSystem from "expo-file-system";
+import * as Sharing from "expo-sharing";
 import {
   Alert,
   FlatList,
-  Linking,
   Modal,
   Platform,
   ScrollView,
+  Share,
   StyleSheet,
   Text,
   TextInput,
@@ -134,20 +135,70 @@ export default function DocumentsScreen() {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
     try {
       const { documents: docsApi } = await import("@/services/api");
-      const res = (await docsApi.get(doc.id)) as { data: Record<string, unknown> };
-      const content = String(res.data.content ?? "");
-      const body = content
-        ? `${doc.title}\n\n${content}`
-        : `${doc.title}\n\n(Ce document ne contient pas de contenu textuel enregistré.)`;
-      await shareContent(body, doc.title);
-      logActivity({ action: "Document partagé", target: doc.title, route: "/documents", icon: "download", color: "#6366f1" });
+      const res = await docsApi.downloadUrl(doc.id);
+      const signedUrl = (res as any).url as string | undefined;
+
+      if (signedUrl) {
+        // Download the real PDF and open native share sheet
+        const safeName = doc.title.replace(/[^a-zA-Z0-9-]/g, "_");
+        const cacheDir: string = (FileSystem as any).cacheDirectory ?? "";
+        const localPath = `${cacheDir}${safeName}.pdf`;
+        const dl = FileSystem.createDownloadResumable(signedUrl, localPath, {});
+        const result = await dl.downloadAsync();
+        if (result?.uri) {
+          const canShare = await Sharing.isAvailableAsync();
+          if (canShare) {
+            await Sharing.shareAsync(result.uri, {
+              mimeType: "application/pdf",
+              dialogTitle: doc.title,
+              UTI: "com.adobe.pdf",
+            });
+          } else {
+            Alert.alert("Téléchargé", `PDF enregistré : ${result.uri}`);
+          }
+          logActivity({ action: "Document téléchargé", target: doc.title, route: "/documents", icon: "download", color: "#6366f1" });
+          return;
+        }
+      }
+      // Fallback: no PDF yet — share text content
+      const fallback = await docsApi.get(doc.id) as { data: Record<string, unknown> };
+      const text = String(fallback.data.content ?? "");
+      Alert.alert(doc.title, text || "Ce document ne contient pas encore de fichier PDF.");
     } catch (err: any) {
       Alert.alert(
         "Erreur",
         err?.message && !err.message.startsWith("HTTP")
           ? err.message
-          : "Impossible de récupérer le document pour l'instant.",
+          : "Impossible de télécharger le document pour l'instant.",
       );
+    }
+  };
+
+  const handleShare = async (doc: Document) => {
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    try {
+      const { documents: docsApi } = await import("@/services/api");
+      const res = await docsApi.downloadUrl(doc.id);
+      const signedUrl = (res as any).url as string | undefined;
+
+      if (signedUrl) {
+        const safeName = doc.title.replace(/[^a-zA-Z0-9-]/g, "_");
+        const cacheDir2: string = (FileSystem as any).cacheDirectory ?? "";
+        const localPath = `${cacheDir2}${safeName}.pdf`;
+        const dl = FileSystem.createDownloadResumable(signedUrl, localPath, {});
+        const result = await dl.downloadAsync();
+        if (result?.uri) {
+          await Sharing.shareAsync(result.uri, {
+            mimeType: "application/pdf",
+            UTI: "com.adobe.pdf",
+          });
+          return;
+        }
+      }
+      // Fallback: share link / title as text
+      await Share.share({ title: doc.title, message: `${doc.title} — SYNDYCAT` });
+    } catch {
+      /* ignore cancelled shares */
     }
   };
 
@@ -373,7 +424,7 @@ export default function DocumentsScreen() {
                     style={[styles.secBtn, { borderColor: colors.border, backgroundColor: colors.card }]}
                     onPress={() => {
                       Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-                      shareContent(`${selected.title}\n\nDocument disponible sur SYNDYCAT`, selected.title);
+                      handleShare(selected);
                     }}
                   >
                     <Feather name="share-2" size={16} color={colors.foreground} />
