@@ -11,6 +11,8 @@ import {
   debtEscalationsTable,
   syndicatesTable,
   alertsTable,
+  caisseEntriesTable,
+  usersTable,
 } from "@workspace/db/schema";
 import { eq, and, desc, sql, sum, or, inArray } from "drizzle-orm";
 import { requireAuth, requireAdmin, requireOperationalAccess } from "../middleware/auth.js";
@@ -504,6 +506,15 @@ router.put("/appels-de-fonds/:id/pay", requireAuth, async (req, res) => {
     if (!paymentMethod) {
       return void res.status(400).json({ error: "Le mode de paiement est obligatoire" });
     }
+
+    // Reject local device URIs — they are not accessible from the server
+    if (proofUrl && (String(proofUrl).startsWith("file://") || String(proofUrl).startsWith("content://"))) {
+      return void res.status(400).json({
+        error: "Le justificatif doit être téléchargé sur le serveur avant la soumission. URI local non accepté.",
+        code: "LOCAL_URI_REJECTED",
+      });
+    }
+
     const [updated] = await db
       .update(appelsDeFondsTable)
       .set({
@@ -594,17 +605,45 @@ router.put("/appels-de-fonds/:id/validate", requireAuth, requireAdmin, async (re
       }),
     });
 
-    // On approval: create a transaction record for accounting
+    // On approval: create a transaction record for accounting + sync caisse
     if (approve) {
+      const syndicateId = building?.syndicateId ?? null;
+      const dateStr = now.toISOString().split("T")[0];
+      const amountNum = Number(appel.amount ?? 0);
+
+      // Fire-and-forget: insert transaction for the member's payment record
       db.insert(transactionsTable).values({
         type: "cotisation",
         amount: appel.amount,
         label: `Cotisation ${appel.period} — Reçu ${receiptNum}`,
-        date: now.toISOString().split("T")[0],
+        date: dateStr,
         status: "paid",
         memberId: appel.ownerId ?? null,
-        syndicateId: building?.syndicateId ?? null,
-      }).catch(() => {});
+        syndicateId,
+      } as any).catch(() => {});
+
+      // Sync caisse: add an "encaissement" entry so the running balance is updated
+      if (syndicateId) {
+        db.transaction(async (tx) => {
+          await tx.execute(sql`SELECT pg_advisory_xact_lock(hashtext(${syndicateId}))`);
+          const [last] = await tx
+            .select({ balance: caisseEntriesTable.balance })
+            .from(caisseEntriesTable)
+            .where(eq(caisseEntriesTable.syndicateId, syndicateId))
+            .orderBy(desc(caisseEntriesTable.createdAt))
+            .limit(1);
+          const prevBalance = Number(last?.balance ?? 0);
+          await tx.insert(caisseEntriesTable).values({
+            label: `Appel de fonds ${appel.period} — ${receiptNum}`,
+            amount: String(amountNum),
+            type: "encaissement",
+            date: dateStr,
+            category: "charges_copropriete",
+            syndicateId,
+            balance: String(prevBalance + amountNum),
+          } as any);
+        }).catch(() => {});
+      }
     }
 
     res.json({
@@ -616,6 +655,202 @@ router.put("/appels-de-fonds/:id/validate", requireAuth, requireAdmin, async (re
   } catch (e) {
     req.log.error(e);
     res.status(500).json({ error: "Server error" });
+  }
+});
+
+// GET /appels-de-fonds/:id/receipt — Generate and stream a PDF payment receipt
+// Access: admin (any) or the owner of the appel. Also accepts a ?token= query param
+// so mobile apps can open the URL directly in Linking.openURL without CORS issues.
+router.get("/appels-de-fonds/:id/receipt", requireAuth, async (req, res) => {
+  try {
+    const user = req.user!;
+
+    const [appel] = await db
+      .select()
+      .from(appelsDeFondsTable)
+      .where(eq(appelsDeFondsTable.id, String(req.params.id)));
+    if (!appel) return void res.status(404).json({ error: "Not found" });
+
+    // Access check: admin in same syndicate, or the owner
+    const isAdmin = user.role === "super_admin" || user.role === "syndicate_admin";
+    if (!isAdmin) {
+      const [member] = await db
+        .select({ id: membersTable.id })
+        .from(membersTable)
+        .where(eq(membersTable.email, user.email))
+        .limit(1);
+      const isOwner =
+        appel.ownerId === user.userId || (member && appel.ownerId === member.id);
+      if (!isOwner) return void res.status(403).json({ error: "Accès refusé" });
+    }
+
+    if (appel.status !== "paid" || !appel.receiptNumber) {
+      return void res.status(400).json({ error: "Reçu disponible uniquement pour les paiements validés" });
+    }
+
+    // Fetch enrichment data
+    const [[building], [lot]] = await Promise.all([
+      db
+        .select({ address: buildingsTable.address, name: buildingsTable.name, syndicateId: buildingsTable.syndicateId })
+        .from(buildingsTable)
+        .where(eq(buildingsTable.id, appel.buildingId))
+        .limit(1),
+      db
+        .select({ number: lotsTable.number })
+        .from(lotsTable)
+        .where(eq(lotsTable.id, appel.lotId))
+        .limit(1),
+    ]);
+
+    const [syndicate] = building?.syndicateId
+      ? await db.select({ name: syndicatesTable.name }).from(syndicatesTable).where(eq(syndicatesTable.id, building.syndicateId)).limit(1)
+      : [undefined];
+
+    // Dynamic pdfmake import (same pattern as documentPdf.ts)
+    const PdfPrinter = (await import("pdfmake")).default as any;
+    const DEJAVU_DIR = "/usr/share/fonts/truetype/dejavu";
+    const { existsSync } = await import("fs");
+    const fonts: Record<string, unknown> = {
+      Helvetica: { normal: "Helvetica", bold: "Helvetica-Bold", italics: "Helvetica-Oblique", bolditalics: "Helvetica-BoldOblique" },
+    };
+    if (existsSync(`${DEJAVU_DIR}/DejaVuSans.ttf`)) {
+      fonts.DejaVu = {
+        normal: `${DEJAVU_DIR}/DejaVuSans.ttf`,
+        bold: existsSync(`${DEJAVU_DIR}/DejaVuSans-Bold.ttf`) ? `${DEJAVU_DIR}/DejaVuSans-Bold.ttf` : `${DEJAVU_DIR}/DejaVuSans.ttf`,
+        italics: `${DEJAVU_DIR}/DejaVuSans.ttf`,
+        bolditalics: existsSync(`${DEJAVU_DIR}/DejaVuSans-Bold.ttf`) ? `${DEJAVU_DIR}/DejaVuSans-Bold.ttf` : `${DEJAVU_DIR}/DejaVuSans.ttf`,
+      };
+    }
+    const FONT = fonts.DejaVu ? "DejaVu" : "Helvetica";
+    const printer = new PdfPrinter(fonts);
+
+    const amountFmt = Number(appel.amount ?? 0).toLocaleString("fr-MA", { minimumFractionDigits: 2 });
+    const payMethodLabels: Record<string, string> = {
+      virement: "Virement bancaire", cheque: "Chèque", especes: "Espèces", online: "Paiement en ligne",
+    };
+    const typeLabels: Record<string, string> = {
+      charges_courantes: "Charges courantes", fonds_reserve: "Fonds de réserve", appel_special: "Appel spécial",
+    };
+
+    const docDef = {
+      pageSize: "A4",
+      pageMargins: [40, 60, 40, 60],
+      defaultStyle: { font: FONT, fontSize: 10 },
+      content: [
+        // Header band
+        {
+          canvas: [{ type: "rect", x: -40, y: -60, w: 595, h: 80, color: "#1e40af" }],
+          absolutePosition: { x: 0, y: 0 },
+        },
+        {
+          text: syndicate?.name ?? "Syndicat de Copropriété",
+          style: { font: FONT, fontSize: 16, bold: true, color: "#ffffff" },
+          margin: [0, 0, 0, 4],
+        },
+        {
+          text: "REÇU DE PAIEMENT",
+          style: { font: FONT, fontSize: 12, color: "#bfdbfe" },
+          margin: [0, 0, 0, 30],
+        },
+        // Receipt number + date
+        {
+          columns: [
+            {
+              stack: [
+                { text: "Référence du reçu", style: { font: FONT, fontSize: 8, color: "#64748b" } },
+                { text: appel.receiptNumber!, style: { font: FONT, fontSize: 14, bold: true, color: "#1e40af" } },
+              ],
+            },
+            {
+              stack: [
+                { text: "Date de paiement", style: { font: FONT, fontSize: 8, color: "#64748b" }, alignment: "right" },
+                { text: appel.paidDate ?? new Date().toISOString().split("T")[0], style: { font: FONT, fontSize: 12, bold: true }, alignment: "right" },
+              ],
+            },
+          ],
+          margin: [0, 0, 0, 20],
+        },
+        // Amount box
+        {
+          table: {
+            widths: ["*"],
+            body: [[{
+              stack: [
+                { text: "Montant payé", style: { font: FONT, fontSize: 9, color: "#64748b", alignment: "center" } },
+                { text: `${amountFmt} MAD`, style: { font: FONT, fontSize: 26, bold: true, color: "#1e40af", alignment: "center" } },
+              ],
+              fillColor: "#eff6ff",
+              margin: [0, 16, 0, 16],
+              border: [false, false, false, false],
+            }]],
+          },
+          margin: [0, 0, 0, 20],
+        },
+        // Details table
+        {
+          table: {
+            widths: [160, "*"],
+            body: [
+              [
+                { text: "Période", style: { font: FONT, fontSize: 9, bold: true, color: "#475569" }, border: [false, false, false, true], borderColor: ["", "", "", "#e2e8f0"] },
+                { text: appel.period, border: [false, false, false, true], borderColor: ["", "", "", "#e2e8f0"] },
+              ],
+              [
+                { text: "Type de charge", style: { font: FONT, fontSize: 9, bold: true, color: "#475569" }, border: [false, false, false, true], borderColor: ["", "", "", "#e2e8f0"] },
+                { text: typeLabels[appel.type] ?? appel.type, border: [false, false, false, true], borderColor: ["", "", "", "#e2e8f0"] },
+              ],
+              [
+                { text: "Mode de paiement", style: { font: FONT, fontSize: 9, bold: true, color: "#475569" }, border: [false, false, false, true], borderColor: ["", "", "", "#e2e8f0"] },
+                { text: payMethodLabels[appel.paymentMethod ?? ""] ?? (appel.paymentMethod ?? "—"), border: [false, false, false, true], borderColor: ["", "", "", "#e2e8f0"] },
+              ],
+              [
+                { text: "Lot", style: { font: FONT, fontSize: 9, bold: true, color: "#475569" }, border: [false, false, false, true], borderColor: ["", "", "", "#e2e8f0"] },
+                { text: lot?.number ? `Lot ${lot.number}` : appel.lotId, border: [false, false, false, true], borderColor: ["", "", "", "#e2e8f0"] },
+              ],
+              [
+                { text: "Immeuble", style: { font: FONT, fontSize: 9, bold: true, color: "#475569" }, border: [false, false, false, false] },
+                { text: building?.name ? `${building.name}${building.address ? ` — ${building.address}` : ""}` : "—", border: [false, false, false, false] },
+              ],
+            ],
+          },
+          layout: { paddingTop: () => 8, paddingBottom: () => 8, paddingLeft: () => 4, paddingRight: () => 4 },
+          margin: [0, 0, 0, 24],
+        },
+        // Footer
+        {
+          text: "Ce reçu constitue la preuve du paiement de votre appel de fonds. Conservez-le pour vos archives.",
+          style: { font: FONT, fontSize: 8, color: "#94a3b8", italics: true },
+          alignment: "center",
+        },
+        {
+          text: `Généré le ${new Date().toLocaleDateString("fr-MA")} — Syndycat Global CPS`,
+          style: { font: FONT, fontSize: 7, color: "#cbd5e1" },
+          alignment: "center",
+          margin: [0, 4, 0, 0],
+        },
+      ],
+    };
+
+    const pdfDoc = printer.createPdfKitDocument(docDef);
+    const chunks: Buffer[] = [];
+    pdfDoc.on("data", (chunk: Buffer) => chunks.push(chunk));
+    pdfDoc.on("end", () => {
+      const pdfBuffer = Buffer.concat(chunks);
+      res.setHeader("Content-Type", "application/pdf");
+      res.setHeader(
+        "Content-Disposition",
+        `attachment; filename="recu-${appel.receiptNumber}.pdf"`,
+      );
+      res.send(pdfBuffer);
+    });
+    pdfDoc.on("error", (err: Error) => {
+      req.log.error(err);
+      if (!res.headersSent) res.status(500).json({ error: "Erreur génération PDF" });
+    });
+    pdfDoc.end();
+  } catch (e) {
+    req.log.error(e);
+    if (!res.headersSent) res.status(500).json({ error: "Server error" });
   }
 });
 

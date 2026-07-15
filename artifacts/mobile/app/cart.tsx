@@ -1,8 +1,9 @@
 import { Feather } from "@expo/vector-icons";
 import * as Haptics from "expo-haptics";
 import { router } from "expo-router";
-import React, { useState } from "react";
+import React, { useCallback, useEffect, useState } from "react";
 import {
+  ActivityIndicator,
   Alert,
   FlatList,
   Modal,
@@ -13,35 +14,127 @@ import {
   View,
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
-import { useData } from "@/context/DataContext";
 import { useBreakpoints } from "@/hooks/useBreakpoints";
 import { useColors } from "@/hooks/useColors";
+import { marketplace } from "@/services/api";
+
+type CartItem = {
+  id: string;
+  productId: string;
+  productName: string;
+  price: string;
+  sellerName: string;
+  quantity: number;
+};
 
 export default function CartScreen() {
   const colors = useColors();
   const insets = useSafeAreaInsets();
-  const { cart, removeFromCart, updateCartQty, clearCart } = useData();
-  const [showCheckout, setShowCheckout] = useState(false);
-  const [checkoutDone, setCheckoutDone] = useState(false);
   const { isWide } = useBreakpoints();
   const topPad = isWide ? 0 : (Platform.OS === "web" ? 67 : insets.top);
 
-  const total = cart.reduce((sum, item) => sum + item.price * item.quantity, 0);
+  const [cart, setCart] = useState<CartItem[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [showCheckout, setShowCheckout] = useState(false);
+  const [checkoutDone, setCheckoutDone] = useState(false);
+  const [checkingOut, setCheckingOut] = useState(false);
+  const [updatingId, setUpdatingId] = useState<string | null>(null);
+
+  const loadCart = useCallback(async () => {
+    try {
+      const res = await marketplace.cart();
+      setCart((res.data as CartItem[]) ?? []);
+    } catch { /* keep stale */ }
+    finally { setLoading(false); }
+  }, []);
+
+  useEffect(() => { loadCart(); }, [loadCart]);
+
+  const total = cart.reduce((sum, item) => sum + Number(item.price) * item.quantity, 0);
   const itemCount = cart.reduce((sum, item) => sum + item.quantity, 0);
 
-  const handleCheckout = () => {
-    Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-    setCheckoutDone(true);
-    clearCart();
-    setTimeout(() => {
-      setShowCheckout(false);
-      setCheckoutDone(false);
-      Alert.alert("Commande confirmée!", "Votre commande a été passée avec succès. Le vendeur sera notifié.", [
-        { text: "Voir mes commandes", onPress: () => router.push("/orders") },
-        { text: "Continuer", style: "cancel" },
-      ]);
-    }, 2000);
+  const handleUpdateQty = async (item: CartItem, newQty: number) => {
+    setUpdatingId(item.id);
+    try {
+      if (newQty <= 0) {
+        await marketplace.removeFromCart(item.id);
+        setCart((prev) => prev.filter((i) => i.id !== item.id));
+      } else {
+        await marketplace.updateCartItem(item.id, newQty);
+        setCart((prev) => prev.map((i) => i.id === item.id ? { ...i, quantity: newQty } : i));
+      }
+      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    } catch {
+      Alert.alert("Erreur", "Impossible de mettre à jour le panier");
+    } finally {
+      setUpdatingId(null);
+    }
   };
+
+  const handleRemove = (item: CartItem) => {
+    Alert.alert("Retirer", `Retirer "${item.productName}" du panier ?`, [
+      { text: "Annuler", style: "cancel" },
+      {
+        text: "Retirer",
+        style: "destructive",
+        onPress: async () => {
+          try {
+            await marketplace.removeFromCart(item.id);
+            setCart((prev) => prev.filter((i) => i.id !== item.id));
+            Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+          } catch { Alert.alert("Erreur", "Impossible de retirer l'article"); }
+        },
+      },
+    ]);
+  };
+
+  const handleClearCart = () => {
+    Alert.alert("Vider le panier", "Supprimer tous les articles?", [
+      { text: "Annuler", style: "cancel" },
+      {
+        text: "Vider",
+        style: "destructive",
+        onPress: async () => {
+          try {
+            await marketplace.clearCart();
+            setCart([]);
+            Haptics.notificationAsync(Haptics.NotificationFeedbackType.Warning);
+          } catch { Alert.alert("Erreur", "Impossible de vider le panier"); }
+        },
+      },
+    ]);
+  };
+
+  const handleCheckout = async () => {
+    if (cart.length === 0) return;
+    setCheckingOut(true);
+    try {
+      await marketplace.placeOrder(cart.map((i) => i.id));
+      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+      setCart([]);
+      setCheckoutDone(true);
+      setTimeout(() => {
+        setShowCheckout(false);
+        setCheckoutDone(false);
+        setCheckingOut(false);
+        Alert.alert("Commande confirmée!", "Votre commande a été passée avec succès. Le vendeur sera notifié.", [
+          { text: "Voir mes commandes", onPress: () => router.push("/orders") },
+          { text: "Continuer", style: "cancel" },
+        ]);
+      }, 1800);
+    } catch (e: any) {
+      setCheckingOut(false);
+      Alert.alert("Erreur", e?.message ?? "Impossible de passer la commande. Vérifiez la disponibilité des articles.");
+    }
+  };
+
+  if (loading) {
+    return (
+      <View style={[styles.root, { backgroundColor: colors.background, alignItems: "center", justifyContent: "center" }]}>
+        <ActivityIndicator size="large" color={colors.primary} />
+      </View>
+    );
+  }
 
   return (
     <View style={[styles.root, { backgroundColor: colors.background }]}>
@@ -56,14 +149,7 @@ export default function CartScreen() {
           </Text>
         </View>
         {cart.length > 0 && (
-          <TouchableOpacity
-            onPress={() => {
-              Alert.alert("Vider le panier", "Supprimer tous les articles?", [
-                { text: "Annuler", style: "cancel" },
-                { text: "Vider", style: "destructive", onPress: () => { clearCart(); Haptics.notificationAsync(Haptics.NotificationFeedbackType.Warning); } },
-              ]);
-            }}
-          >
+          <TouchableOpacity onPress={handleClearCart}>
             <Feather name="trash-2" size={20} color={colors.destructive} />
           </TouchableOpacity>
         )}
@@ -100,35 +186,41 @@ export default function CartScreen() {
                 </View>
                 <View style={{ flex: 1, gap: 2 }}>
                   <Text style={[styles.productName, { color: colors.foreground }]} numberOfLines={2}>
-                    {item.name}
+                    {item.productName}
                   </Text>
                   <Text style={[styles.sellerName, { color: colors.mutedForeground }]}>
-                    Vendeur: {item.seller}
+                    Vendeur: {item.sellerName}
                   </Text>
                   <Text style={[styles.unitPrice, { color: colors.primary }]}>
-                    {item.price} MAD / unité
+                    {Number(item.price).toLocaleString("fr-MA")} MAD / unité
                   </Text>
                 </View>
                 <View style={styles.qtyControl}>
                   <TouchableOpacity
                     style={[styles.qtyBtn, { borderColor: colors.border }]}
-                    onPress={() => { updateCartQty(item.id, item.quantity - 1); Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); }}
+                    onPress={() => handleUpdateQty(item, item.quantity - 1)}
+                    disabled={updatingId === item.id}
                   >
                     <Feather name="minus" size={14} color={colors.foreground} />
                   </TouchableOpacity>
-                  <Text style={[styles.qtyText, { color: colors.foreground }]}>{item.quantity}</Text>
+                  {updatingId === item.id ? (
+                    <ActivityIndicator size="small" color={colors.primary} style={{ width: 20 }} />
+                  ) : (
+                    <Text style={[styles.qtyText, { color: colors.foreground }]}>{item.quantity}</Text>
+                  )}
                   <TouchableOpacity
                     style={[styles.qtyBtn, { borderColor: colors.border }]}
-                    onPress={() => { updateCartQty(item.id, item.quantity + 1); Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); }}
+                    onPress={() => handleUpdateQty(item, item.quantity + 1)}
+                    disabled={updatingId === item.id}
                   >
                     <Feather name="plus" size={14} color={colors.foreground} />
                   </TouchableOpacity>
                 </View>
                 <View style={{ alignItems: "flex-end", gap: 8 }}>
                   <Text style={[styles.itemTotal, { color: colors.foreground }]}>
-                    {(item.price * item.quantity).toLocaleString()} MAD
+                    {(Number(item.price) * item.quantity).toLocaleString("fr-MA")} MAD
                   </Text>
-                  <TouchableOpacity onPress={() => { removeFromCart(item.id); Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium); }}>
+                  <TouchableOpacity onPress={() => handleRemove(item)}>
                     <Feather name="x" size={18} color={colors.destructive} />
                   </TouchableOpacity>
                 </View>
@@ -140,17 +232,17 @@ export default function CartScreen() {
                 {cart.map((item) => (
                   <View key={item.id} style={styles.summaryRow}>
                     <Text style={[styles.summaryLabel, { color: colors.mutedForeground }]} numberOfLines={1}>
-                      {item.name} × {item.quantity}
+                      {item.productName} × {item.quantity}
                     </Text>
                     <Text style={[styles.summaryValue, { color: colors.foreground }]}>
-                      {(item.price * item.quantity)} MAD
+                      {(Number(item.price) * item.quantity).toLocaleString("fr-MA")} MAD
                     </Text>
                   </View>
                 ))}
                 <View style={[styles.summaryDivider, { backgroundColor: colors.border }]} />
                 <View style={styles.summaryRow}>
                   <Text style={[styles.totalLabel, { color: colors.foreground }]}>Total</Text>
-                  <Text style={[styles.totalValue, { color: colors.primary }]}>{total.toLocaleString()} MAD</Text>
+                  <Text style={[styles.totalValue, { color: colors.primary }]}>{total.toLocaleString("fr-MA")} MAD</Text>
                 </View>
               </View>
             }
@@ -159,7 +251,7 @@ export default function CartScreen() {
           <View style={[styles.bottomBar, { backgroundColor: colors.card, borderTopColor: colors.border, paddingBottom: insets.bottom + 16 }]}>
             <View style={{ flex: 1 }}>
               <Text style={[styles.bottomLabel, { color: colors.mutedForeground }]}>Total à payer</Text>
-              <Text style={[styles.bottomTotal, { color: colors.primary }]}>{total.toLocaleString()} MAD</Text>
+              <Text style={[styles.bottomTotal, { color: colors.primary }]}>{total.toLocaleString("fr-MA")} MAD</Text>
             </View>
             <TouchableOpacity
               style={[styles.checkoutBtn, { backgroundColor: colors.primary }]}
@@ -205,14 +297,14 @@ export default function CartScreen() {
                   <View style={[styles.orderDivider, { backgroundColor: colors.border }]} />
                   <View style={styles.orderRow}>
                     <Text style={[styles.orderTotalLabel, { color: colors.foreground }]}>Total</Text>
-                    <Text style={[styles.orderTotalValue, { color: colors.primary }]}>{total.toLocaleString()} MAD</Text>
+                    <Text style={[styles.orderTotalValue, { color: colors.primary }]}>{total.toLocaleString("fr-MA")} MAD</Text>
                   </View>
                 </View>
                 <View style={[styles.payMethod, { backgroundColor: colors.background, borderColor: colors.border }]}>
                   <Feather name="credit-card" size={20} color={colors.primary} />
                   <View style={{ flex: 1 }}>
                     <Text style={[styles.payMethodLabel, { color: colors.foreground }]}>Paiement à la livraison</Text>
-                    <Text style={[styles.payMethodSub, { color: colors.mutedForeground }]}>Mode démo — Aucun prélèvement réel</Text>
+                    <Text style={[styles.payMethodSub, { color: colors.mutedForeground }]}>Paiement à régler directement au vendeur</Text>
                   </View>
                   <Feather name="check-circle" size={18} color={colors.primary} />
                 </View>
@@ -224,10 +316,13 @@ export default function CartScreen() {
                     <Text style={[styles.cancelBtnText, { color: colors.mutedForeground }]}>Annuler</Text>
                   </TouchableOpacity>
                   <TouchableOpacity
-                    style={[styles.confirmBtn, { backgroundColor: colors.primary }]}
+                    style={[styles.confirmBtn, { backgroundColor: checkingOut ? colors.secondary : colors.primary }]}
                     onPress={handleCheckout}
+                    disabled={checkingOut}
                   >
-                    <Text style={styles.confirmBtnText}>Confirmer</Text>
+                    {checkingOut
+                      ? <ActivityIndicator size="small" color="#fff" />
+                      : <Text style={styles.confirmBtnText}>Confirmer</Text>}
                   </TouchableOpacity>
                 </View>
               </>

@@ -270,6 +270,13 @@ router.get("/documents", requireAuth, async (req, res) => {
       conditions.push(eq(documentsTable.status, "published"));
     }
 
+    // Tenants are not co-owners — restrict to documents relevant to their lease only
+    if (req.user!.role === "tenant") {
+      conditions.push(
+        sql`${documentsTable.category} IN ('bail', 'reglement', 'reglement_interieur')`,
+      );
+    }
+
     const rows = await db
       .select()
       .from(documentsTable)

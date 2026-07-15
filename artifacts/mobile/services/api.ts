@@ -496,6 +496,11 @@ export const marketplace = {
       method: "POST",
       body: JSON.stringify({ cartItemIds }),
     }),
+  updateOrderStatus: (id: string, status: string) =>
+    request<{ data: unknown; message: string }>(`/orders/${id}`, {
+      method: "PUT",
+      body: JSON.stringify({ status }),
+    }),
 
   // ── Reviews ───────────────────────────────────────────────────────────────
   reviews: (productId?: string) => {

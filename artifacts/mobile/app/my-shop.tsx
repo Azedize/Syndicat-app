@@ -1,11 +1,13 @@
 import { Feather } from "@expo/vector-icons";
 import * as Haptics from "expo-haptics";
+import * as ImagePicker from "expo-image-picker";
 import { router } from "expo-router";
 import React, { useCallback, useEffect, useState } from "react";
 import {
   ActivityIndicator,
   Alert,
   FlatList,
+  Image,
   Modal,
   Platform,
   RefreshControl,
@@ -89,6 +91,9 @@ export default function MyShopScreen() {
   const [category, setCategory] = useState(CATS[0]!);
   const [condition, setCondition] = useState("bon");
   const [location, setLocation] = useState("");
+  const [imageLocalUris, setImageLocalUris] = useState<string[]>([]);
+  const [imageObjectPaths, setImageObjectPaths] = useState<string[]>([]);
+  const [uploadingImages, setUploadingImages] = useState(false);
 
   // ─── Fetch ───────────────────────────────────────────────────────────
 
@@ -112,6 +117,7 @@ export default function MyShopScreen() {
   const resetForm = () => {
     setName(""); setDesc(""); setPrice(""); setStock("1");
     setCategory(CATS[0]!); setCondition("bon"); setLocation("");
+    setImageLocalUris([]); setImageObjectPaths([]);
     setEditingId(null);
   };
 
@@ -130,8 +136,68 @@ export default function MyShopScreen() {
     setCategory(p.category);
     setCondition(p.condition);
     setLocation(p.location ?? "");
+    setImageLocalUris([]); setImageObjectPaths([]);
     setShowForm(true);
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+  };
+
+  // ─── Image picker ──────────────────────────────────────────────────────
+
+  const uploadImageUri = async (uri: string, token?: string): Promise<string | null> => {
+    const domain = process.env.EXPO_PUBLIC_DOMAIN;
+    const baseUrl = domain
+      ? `https://${domain}/api`
+      : `http://localhost:${process.env.EXPO_PUBLIC_API_PORT ?? "8080"}/api`;
+    try {
+      const fileRes = await fetch(uri);
+      if (!fileRes.ok) return null;
+      const blob = await fileRes.blob();
+      const ext = uri.split("?")[0].split(".").pop()?.toLowerCase();
+      const ct = ext === "png" ? "image/png" : "image/jpeg";
+      const form = new FormData();
+      form.append("file", blob, `product-${Date.now()}.${ext === "png" ? "png" : "jpg"}`);
+      const res = await fetch(`${baseUrl}/storage/uploads`, {
+        method: "POST",
+        headers: token ? { Authorization: `Bearer ${token}` } : {},
+        body: form,
+      });
+      if (!res.ok) return null;
+      const { objectPath } = await res.json();
+      return objectPath as string;
+    } catch { return null; }
+  };
+
+  const pickProductImage = async () => {
+    if (imageLocalUris.length >= 5) {
+      Alert.alert("Maximum", "Vous pouvez ajouter au maximum 5 photos.");
+      return;
+    }
+    const perm = await ImagePicker.requestMediaLibraryPermissionsAsync();
+    if (!perm.granted) return;
+    const result = await ImagePicker.launchImageLibraryAsync({
+      mediaTypes: ImagePicker.MediaTypeOptions.Images,
+      allowsEditing: true,
+      quality: 0.75,
+    });
+    if (result.canceled || !result.assets[0]) return;
+    const uri = result.assets[0].uri;
+    setImageLocalUris((prev) => [...prev, uri]);
+    Haptics.selectionAsync();
+    setUploadingImages(true);
+    const objectPath = await uploadImageUri(uri, user?.token);
+    setUploadingImages(false);
+    if (objectPath) {
+      setImageObjectPaths((prev) => [...prev, objectPath]);
+    } else {
+      // Remove the local uri if upload failed
+      setImageLocalUris((prev) => prev.filter((u) => u !== uri));
+      Alert.alert("Erreur", "Impossible de télécharger l'image. Réessayez.");
+    }
+  };
+
+  const removeImage = (idx: number) => {
+    setImageLocalUris((prev) => prev.filter((_, i) => i !== idx));
+    setImageObjectPaths((prev) => prev.filter((_, i) => i !== idx));
   };
 
   const handleSave = async () => {
@@ -144,6 +210,10 @@ export default function MyShopScreen() {
       Alert.alert(t("error"), t("error"));
       return;
     }
+    if (uploadingImages) {
+      Alert.alert("Images", "Attendez la fin du téléchargement des images.");
+      return;
+    }
     setSaving(true);
     try {
       const payload = {
@@ -154,7 +224,7 @@ export default function MyShopScreen() {
         category,
         condition,
         location: location.trim(),
-        imageUrls: [],
+        imageUrls: imageObjectPaths,
       };
       if (editingId) {
         await marketplace.updateProduct(editingId, payload);
@@ -444,6 +514,36 @@ export default function MyShopScreen() {
               maxLength={2000}
               textAlignVertical="top"
             />
+
+            {/* Photos */}
+            <Text style={[styles.fieldLabel, { color: colors.foreground }]}>Photos (optionnel, max 5)</Text>
+            <View style={{ flexDirection: "row", flexWrap: "wrap", gap: 8 }}>
+              {imageLocalUris.map((uri, idx) => (
+                <View key={uri} style={{ position: "relative" }}>
+                  <Image
+                    source={{ uri }}
+                    style={{ width: 76, height: 76, borderRadius: 10, resizeMode: "cover" }}
+                  />
+                  <TouchableOpacity
+                    style={{ position: "absolute", top: -6, right: -6, backgroundColor: "#ef4444", borderRadius: 10, width: 20, height: 20, alignItems: "center", justifyContent: "center" }}
+                    onPress={() => removeImage(idx)}
+                  >
+                    <Feather name="x" size={12} color="#fff" />
+                  </TouchableOpacity>
+                </View>
+              ))}
+              {imageLocalUris.length < 5 && (
+                <TouchableOpacity
+                  style={{ width: 76, height: 76, borderRadius: 10, borderWidth: 1.5, borderStyle: "dashed", borderColor: colors.border, alignItems: "center", justifyContent: "center", gap: 4 }}
+                  onPress={pickProductImage}
+                  disabled={uploadingImages}
+                >
+                  {uploadingImages
+                    ? <ActivityIndicator size="small" color={colors.primary} />
+                    : <><Feather name="camera" size={20} color={colors.mutedForeground} /><Text style={{ fontSize: 10, color: colors.mutedForeground, fontFamily: "Inter_400Regular" }}>Ajouter</Text></>}
+                </TouchableOpacity>
+              )}
+            </View>
 
             {!editingId && (
               <View style={[styles.infoBox, { backgroundColor: colors.primary + "10", borderColor: colors.primary + "30" }]}>

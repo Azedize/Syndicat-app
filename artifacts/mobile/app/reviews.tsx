@@ -1,11 +1,14 @@
 import { Feather } from "@expo/vector-icons";
 import * as Haptics from "expo-haptics";
 import { router } from "expo-router";
-import React, { useState } from "react";
+import React, { useCallback, useEffect, useState } from "react";
 import {
+  ActivityIndicator,
+  Alert,
   FlatList,
   Modal,
   Platform,
+  RefreshControl,
   ScrollView,
   StyleSheet,
   Text,
@@ -14,9 +17,32 @@ import {
   View,
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
-import { useData, type Review } from "@/context/DataContext";
 import { useBreakpoints } from "@/hooks/useBreakpoints";
 import { useColors } from "@/hooks/useColors";
+import { marketplace } from "@/services/api";
+
+type ApiReview = {
+  id: string;
+  productId: string;
+  productName: string;
+  orderId?: string;
+  reviewerId?: string;
+  reviewerName?: string;
+  rating: number;
+  comment: string;
+  createdAt?: string;
+  sellerName?: string;
+};
+
+type ApiOrder = {
+  id: string;
+  productId: string;
+  productName: string;
+  buyerId: string;
+  sellerName: string;
+  status: string;
+  createdAt?: string;
+};
 
 function StarRow({ rating, onRate, size = 20 }: { rating: number; onRate?: (n: number) => void; size?: number }) {
   const colors = useColors();
@@ -38,20 +64,39 @@ function StarRow({ rating, onRate, size = 20 }: { rating: number; onRate?: (n: n
 export default function ReviewsScreen() {
   const colors = useColors();
   const insets = useSafeAreaInsets();
-  const { reviews, orders, products, addReview } = useData();
   const { isWide } = useBreakpoints();
   const topPad = isWide ? 0 : (Platform.OS === "web" ? 67 : insets.top);
 
+  const [reviews, setReviews] = useState<ApiReview[]>([]);
+  const [orders, setOrders] = useState<ApiOrder[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
+  const [submitting, setSubmitting] = useState(false);
   const [showAdd, setShowAdd] = useState(false);
   const [selectedOrderId, setSelectedOrderId] = useState("");
   const [rating, setRating] = useState(5);
   const [comment, setComment] = useState("");
   const [filterProduct, setFilterProduct] = useState<string>("Tous");
 
+  const loadData = useCallback(async () => {
+    try {
+      const [reviewsRes, ordersRes] = await Promise.all([
+        marketplace.reviews(),
+        marketplace.orders(),
+      ]);
+      setReviews((reviewsRes.data as ApiReview[]) ?? []);
+      setOrders((ordersRes.data as ApiOrder[]) ?? []);
+    } catch { /* keep stale */ }
+    finally { setLoading(false); setRefreshing(false); }
+  }, []);
+
+  useEffect(() => { loadData(); }, [loadData]);
+  const onRefresh = () => { setRefreshing(true); loadData(); };
+
   const avgRating = reviews.length > 0 ? (reviews.reduce((s, r) => s + r.rating, 0) / reviews.length).toFixed(1) : "0.0";
 
-  const deliveredOrders = orders.filter((o) => o.status === "delivered" && o.type === "purchase");
-  const reviewedOrderIds = reviews.map((r) => r.orderId);
+  const deliveredOrders = orders.filter((o) => o.status === "delivered");
+  const reviewedOrderIds = reviews.map((r) => r.orderId).filter(Boolean);
   const pendingReviewOrders = deliveredOrders.filter((o) => !reviewedOrderIds.includes(o.id));
 
   const productNames = ["Tous", ...Array.from(new Set(reviews.map((r) => r.productName)))];
@@ -63,28 +108,49 @@ export default function ReviewsScreen() {
     pct: reviews.length > 0 ? (reviews.filter((r) => r.rating === star).length / reviews.length) * 100 : 0,
   }));
 
-  const handleSubmit = () => {
+  const handleSubmit = async () => {
     if (!selectedOrderId || !comment.trim()) return;
     const order = orders.find((o) => o.id === selectedOrderId);
     if (!order) return;
-    const review: Review = {
-      id: `r${Date.now()}`,
-      productId: selectedOrderId,
-      productName: order.product,
-      orderId: selectedOrderId,
-      reviewer: "Moi",
-      rating,
-      comment: comment.trim(),
-      date: new Date().toLocaleDateString("fr-FR", { day: "numeric", month: "long", year: "numeric" }),
-      seller: order.seller,
-    };
-    addReview(review);
-    Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-    setShowAdd(false);
-    setComment("");
-    setRating(5);
-    setSelectedOrderId("");
+    setSubmitting(true);
+    try {
+      const res = await marketplace.addReview({
+        productId: order.productId,
+        orderId: order.id,
+        rating,
+        comment: comment.trim(),
+      });
+      const newReview: ApiReview = {
+        ...((res.data as Partial<ApiReview>) ?? {}),
+        id: (res.data as any)?.id ?? `r${Date.now()}`,
+        productId: order.productId,
+        productName: order.productName,
+        orderId: order.id,
+        rating,
+        comment: comment.trim(),
+        reviewerName: "Moi",
+      };
+      setReviews((prev) => [newReview, ...prev]);
+      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+      setShowAdd(false);
+      setComment("");
+      setRating(5);
+      setSelectedOrderId("");
+      Alert.alert("Avis publié", "Merci! Votre avis aide la communauté.");
+    } catch (e: any) {
+      Alert.alert("Erreur", e?.message ?? "Impossible de publier l'avis. Réessayez.");
+    } finally {
+      setSubmitting(false);
+    }
   };
+
+  if (loading) {
+    return (
+      <View style={[styles.root, { backgroundColor: colors.background, alignItems: "center", justifyContent: "center" }]}>
+        <ActivityIndicator size="large" color={colors.primary} />
+      </View>
+    );
+  }
 
   return (
     <View style={[styles.root, { backgroundColor: colors.background }]}>
@@ -112,6 +178,7 @@ export default function ReviewsScreen() {
         keyExtractor={(r) => r.id}
         showsVerticalScrollIndicator={false}
         contentContainerStyle={{ padding: 16, gap: 12, paddingBottom: insets.bottom + 32 }}
+        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} />}
         ListHeaderComponent={
           <>
             {/* Global rating summary */}
@@ -179,34 +246,35 @@ export default function ReviewsScreen() {
             )}
           </>
         }
-        renderItem={({ item: r }) => (
-          <View style={[styles.reviewCard, { backgroundColor: colors.card, borderColor: colors.border }]}>
-            <View style={styles.reviewHeader}>
-              <View style={[styles.avatar, { backgroundColor: colors.primary + "18" }]}>
-                <Text style={[styles.avatarText, { color: colors.primary }]}>
-                  {r.reviewer.split(" ").map((n) => n[0]).join("").slice(0, 2).toUpperCase()}
-                </Text>
+        renderItem={({ item: r }) => {
+          const reviewerName = r.reviewerName ?? "Anonyme";
+          const dateStr = r.createdAt ? r.createdAt.split("T")[0] : "";
+          const initials = reviewerName.split(" ").map((n: string) => n[0]).join("").slice(0, 2).toUpperCase();
+          return (
+            <View style={[styles.reviewCard, { backgroundColor: colors.card, borderColor: colors.border }]}>
+              <View style={styles.reviewHeader}>
+                <View style={[styles.avatar, { backgroundColor: colors.primary + "18" }]}>
+                  <Text style={[styles.avatarText, { color: colors.primary }]}>{initials}</Text>
+                </View>
+                <View style={{ flex: 1 }}>
+                  <Text style={[styles.reviewerName, { color: colors.foreground }]}>{reviewerName}</Text>
+                  <Text style={[styles.reviewDate, { color: colors.mutedForeground }]}>{dateStr}</Text>
+                </View>
+                <StarRow rating={r.rating} size={14} />
               </View>
-              <View style={{ flex: 1 }}>
-                <Text style={[styles.reviewerName, { color: colors.foreground }]}>{r.reviewer}</Text>
-                <Text style={[styles.reviewDate, { color: colors.mutedForeground }]}>{r.date}</Text>
+              <View style={[styles.productTag, { backgroundColor: colors.muted }]}>
+                <Feather name="package" size={11} color={colors.mutedForeground} />
+                <Text style={[styles.productTagText, { color: colors.mutedForeground }]}>{r.productName}</Text>
               </View>
-              <StarRow rating={r.rating} size={14} />
+              <Text style={[styles.reviewComment, { color: colors.foreground }]}>{r.comment}</Text>
+              {r.sellerName && (
+                <View style={styles.reviewFooter}>
+                  <Text style={[styles.sellerLabel, { color: colors.mutedForeground }]}>Vendeur: {r.sellerName}</Text>
+                </View>
+              )}
             </View>
-            <View style={[styles.productTag, { backgroundColor: colors.muted }]}>
-              <Feather name="package" size={11} color={colors.mutedForeground} />
-              <Text style={[styles.productTagText, { color: colors.mutedForeground }]}>{r.productName}</Text>
-            </View>
-            <Text style={[styles.reviewComment, { color: colors.foreground }]}>{r.comment}</Text>
-            <View style={styles.reviewFooter}>
-              <Text style={[styles.sellerLabel, { color: colors.mutedForeground }]}>Vendeur: {r.seller}</Text>
-              <TouchableOpacity style={styles.likeBtn}>
-                <Feather name="thumbs-up" size={13} color={colors.mutedForeground} />
-                <Text style={[styles.likeText, { color: colors.mutedForeground }]}>Utile</Text>
-              </TouchableOpacity>
-            </View>
-          </View>
-        )}
+          );
+        }}
       />
 
       <Modal visible={showAdd} transparent animationType="slide">
@@ -230,8 +298,10 @@ export default function ReviewsScreen() {
               >
                 <Feather name="package" size={16} color={selectedOrderId === o.id ? colors.primary : colors.mutedForeground} />
                 <View style={{ flex: 1 }}>
-                  <Text style={[styles.orderOptionTitle, { color: colors.foreground }]}>{o.product}</Text>
-                  <Text style={[styles.orderOptionSub, { color: colors.mutedForeground }]}>Vendeur: {o.seller} • {o.date}</Text>
+                  <Text style={[styles.orderOptionTitle, { color: colors.foreground }]}>{o.productName}</Text>
+                  <Text style={[styles.orderOptionSub, { color: colors.mutedForeground }]}>
+                    Vendeur: {o.sellerName} • {o.createdAt?.split("T")[0] ?? ""}
+                  </Text>
                 </View>
                 {selectedOrderId === o.id && <Feather name="check-circle" size={18} color={colors.primary} />}
               </TouchableOpacity>
@@ -261,19 +331,22 @@ export default function ReviewsScreen() {
               <TouchableOpacity
                 style={[styles.cancelBtn, { borderColor: colors.border }]}
                 onPress={() => setShowAdd(false)}
+                disabled={submitting}
               >
                 <Text style={[styles.cancelText, { color: colors.mutedForeground }]}>Annuler</Text>
               </TouchableOpacity>
               <TouchableOpacity
                 style={[styles.submitBtn, {
-                  backgroundColor: selectedOrderId && comment.trim() ? colors.primary : colors.muted,
+                  backgroundColor: (selectedOrderId && comment.trim() && !submitting) ? colors.primary : colors.muted,
                 }]}
                 onPress={handleSubmit}
-                disabled={!selectedOrderId || !comment.trim()}
+                disabled={!selectedOrderId || !comment.trim() || submitting}
               >
-                <Text style={[styles.submitText, { color: selectedOrderId && comment.trim() ? "#fff" : colors.mutedForeground }]}>
-                  Publier
-                </Text>
+                {submitting
+                  ? <ActivityIndicator size="small" color="#fff" />
+                  : <Text style={[styles.submitText, { color: selectedOrderId && comment.trim() ? "#fff" : colors.mutedForeground }]}>
+                      Publier
+                    </Text>}
               </TouchableOpacity>
             </View>
           </View>

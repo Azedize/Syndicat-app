@@ -98,6 +98,38 @@ function ChargesScreenInner() {
   useEffect(() => { load(); }, [load]);
   const onRefresh = () => { setRefreshing(true); load(true); };
 
+  const [uploadingProof, setUploadingProof] = useState(false);
+
+  /**
+   * Upload a local image URI to the API server via multipart POST.
+   * Uses the /storage/uploads endpoint which works in dev (local filesystem)
+   * and prod (GCS). Never stores a local file:// URI in the database.
+   */
+  const uploadProofImage = async (uri: string): Promise<string | undefined> => {
+    const domain = process.env.EXPO_PUBLIC_DOMAIN;
+    const baseUrl = domain
+      ? `https://${domain}/api`
+      : `http://localhost:${process.env.EXPO_PUBLIC_API_PORT ?? "8080"}/api`;
+    try {
+      const fileRes = await fetch(uri);
+      if (!fileRes.ok) return undefined;
+      const blob = await fileRes.blob();
+      const tail = uri.split("?")[0].split(".").pop()?.toLowerCase();
+      const ext = tail === "png" ? "png" : "jpg";
+      const ct = ext === "png" ? "image/png" : "image/jpeg";
+      const form = new FormData();
+      form.append("file", blob, `proof-${Date.now()}.${ext}`);
+      const uploadRes = await fetch(`${baseUrl}/storage/uploads`, {
+        method: "POST",
+        headers: token ? { Authorization: `Bearer ${token}` } : {},
+        body: form,
+      });
+      if (!uploadRes.ok) return undefined;
+      const { objectPath } = await uploadRes.json();
+      return objectPath as string;
+    } catch { return undefined; }
+  };
+
   const pickProofImage = async () => {
     try {
       const perm = await ImagePicker.requestMediaLibraryPermissionsAsync();
@@ -105,7 +137,10 @@ function ChargesScreenInner() {
         const cam = await ImagePicker.requestCameraPermissionsAsync();
         if (!cam.granted) return;
         const result = await ImagePicker.launchCameraAsync({ allowsEditing: true, quality: 0.7 });
-        if (!result.canceled && result.assets[0]) setPayProofUri(result.assets[0].uri);
+        if (!result.canceled && result.assets[0]) {
+          setPayProofUri(result.assets[0].uri);
+          Haptics.selectionAsync();
+        }
         return;
       }
       const result = await ImagePicker.launchImageLibraryAsync({
@@ -120,25 +155,19 @@ function ChargesScreenInner() {
     } catch { /* silently ignore */ }
   };
 
-  const uploadProofImage = async (uri: string): Promise<string | undefined> => {
+  const downloadReceipt = async (appel: Appel) => {
     try {
-      const ext = uri.split(".").pop() ?? "jpg";
-      const contentType = ext === "png" ? "image/png" : "image/jpeg";
-      const fileName = `proof-${Date.now()}.${ext}`;
+      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
       const domain = process.env.EXPO_PUBLIC_DOMAIN;
-      const baseUrl = domain ? `https://${domain}/api` : `http://localhost:${process.env.EXPO_PUBLIC_API_PORT ?? "8080"}/api`;
-      const urlRes = await fetch(`${baseUrl}/storage/uploads/request-url`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ name: fileName, size: 500000, contentType }),
-      });
-      if (!urlRes.ok) return undefined;
-      const { uploadURL, objectPath } = await urlRes.json();
-      const imgRes = await fetch(uri);
-      const blob = await imgRes.blob();
-      const uploadResp = await fetch(uploadURL, { method: "PUT", headers: { "Content-Type": contentType }, body: blob });
-      return uploadResp.ok ? objectPath : undefined;
-    } catch { return undefined; }
+      const baseUrl = domain
+        ? `https://${domain}/api`
+        : `http://localhost:${process.env.EXPO_PUBLIC_API_PORT ?? "8080"}/api`;
+      const receiptUrl = `${baseUrl}/appels-de-fonds/${appel.id}/receipt?token=${token}`;
+      const { Linking } = await import("react-native");
+      await Linking.openURL(receiptUrl);
+    } catch {
+      Alert.alert("Erreur", "Impossible d'ouvrir le reçu");
+    }
   };
 
   const handlePay = async () => {
@@ -147,9 +176,14 @@ function ChargesScreenInner() {
       setSubmitting(true);
       let proofUrl: string | undefined;
       if (payProofUri) {
+        setUploadingProof(true);
         proofUrl = await uploadProofImage(payProofUri);
-        // fall back to local URI if upload failed (non-blocking)
-        if (!proofUrl) proofUrl = payProofUri;
+        setUploadingProof(false);
+        if (!proofUrl) {
+          Alert.alert("Erreur d'upload", "Le téléchargement du justificatif a échoué. Vérifiez votre connexion et réessayez.");
+          setSubmitting(false);
+          return;
+        }
       }
       await apiRequest(`/appels-de-fonds/${payModal.id}/pay`, "PUT", {
         paymentMethod: payMethod,
@@ -282,12 +316,16 @@ function ChargesScreenInner() {
                   </View>
 
                   {appel.status === "paid" && appel.receiptNumber ? (
-                    <View style={[styles.receiptRow, { borderTopColor: colors.border }]}>
+                    <TouchableOpacity
+                      style={[styles.receiptRow, { borderTopColor: colors.border }]}
+                      onPress={() => downloadReceipt(appel)}
+                    >
                       <Feather name="check-circle" size={12} color="#10b981" />
-                      <Text style={[styles.receiptText, { color: "#10b981" }]}>
+                      <Text style={[styles.receiptText, { color: "#10b981", flex: 1 }]}>
                         Reçu {appel.receiptNumber} — {appel.paidDate} via {appel.paymentMethod}
                       </Text>
-                    </View>
+                      <Feather name="download" size={12} color="#10b981" />
+                    </TouchableOpacity>
                   ) : null}
 
                   {appel.status === "rejected" && appel.rejectionReason ? (
@@ -423,6 +461,12 @@ function ChargesScreenInner() {
             {payProofUri ? (
               <View style={{ gap: 8 }}>
                 <Image source={{ uri: payProofUri }} style={{ width: "100%", height: 160, borderRadius: 12, resizeMode: "cover" }} />
+                {uploadingProof && (
+                  <View style={{ flexDirection: "row", alignItems: "center", gap: 8 }}>
+                    <ActivityIndicator size="small" color="#3b82f6" />
+                    <Text style={{ fontSize: 12, fontFamily: "Inter_400Regular", color: "#3b82f6" }}>Téléchargement en cours...</Text>
+                  </View>
+                )}
                 <TouchableOpacity
                   style={[styles.input, { backgroundColor: "#ef444410", borderColor: "#ef444430", alignItems: "center", paddingVertical: 10 }]}
                   onPress={() => setPayProofUri("")}
@@ -448,9 +492,9 @@ function ChargesScreenInner() {
             )}
 
             <TouchableOpacity
-              style={[styles.submitBtn, { backgroundColor: "#10b981", opacity: submitting ? 0.7 : 1 }]}
+              style={[styles.submitBtn, { backgroundColor: "#10b981", opacity: (submitting || uploadingProof) ? 0.7 : 1 }]}
               onPress={handlePay}
-              disabled={submitting}
+              disabled={submitting || uploadingProof}
             >
               {submitting ? <ActivityIndicator color="#fff" size="small" /> :
                 <><Feather name="send" size={16} color="#fff" /><Text style={styles.submitText}>Soumettre le paiement</Text></>}
