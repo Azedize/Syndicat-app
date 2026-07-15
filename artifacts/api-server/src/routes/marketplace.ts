@@ -1011,4 +1011,43 @@ router.post("/reviews", requireAuth, async (req, res) => {
   }
 });
 
+// ─── Alias /marketplace → /products (backward-compat) ──────────────────────
+// Some older client versions hit /marketplace instead of /products.
+// Forward the request so they get a real response instead of a 404.
+
+router.get("/marketplace", requireAuth, async (req, res) => {
+  const q = req.query as Record<string, string>;
+  const { page, limit, offset } = parsePage(q);
+  const user = req.user!;
+
+  try {
+    const conds: ReturnType<typeof eq>[] = [];
+    if (isAdmin(user.role)) {
+      if (q.status) conds.push(eq(productsTable.status, q.status));
+    } else {
+      conds.push(eq(productsTable.status, "approved"));
+    }
+    if (q.category && q.category !== "Tous") conds.push(eq(productsTable.category, q.category));
+    if (q.search) {
+      conds.push(
+        or(
+          ilike(productsTable.name, `%${q.search}%`),
+          ilike(productsTable.description, `%${q.search}%`),
+        ) as ReturnType<typeof eq>,
+      );
+    }
+    const where = conds.length ? and(...conds) : undefined;
+    const [rows, [{ total }]] = await Promise.all([
+      db.select().from(productsTable).where(where)
+        .orderBy(desc(productsTable.boosted), desc(productsTable.featured), desc(productsTable.createdAt))
+        .limit(limit).offset(offset),
+      db.select({ total: count() }).from(productsTable).where(where),
+    ]);
+    res.json({ data: rows, pagination: { page, limit, total, pages: Math.ceil(total / limit) } });
+  } catch (err) {
+    req.log.error(err);
+    res.status(500).json({ error: "Erreur serveur" });
+  }
+});
+
 export default router;

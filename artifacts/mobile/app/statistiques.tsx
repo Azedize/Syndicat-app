@@ -687,12 +687,12 @@ export default function StatistiquesScreen() {
         {tab === "marketplace" && (
           <>
             <View style={styles.kpiGrid}>
-              <KpiCard label={STRINGS.activeProducts[lang]} value={`${products.filter((p) => p.status === "available").length}`} icon="shopping-bag" color="#f97316" />
+              <KpiCard label={STRINGS.activeProducts[lang]} value={`${products.filter((p) => p.status === "approved").length}`} icon="shopping-bag" color="#f97316" />
               <KpiCard label={STRINGS.totalOrders[lang]} value={`${totalOrders}`} icon="package" color="#3b82f6" />
             </View>
             <View style={styles.kpiGrid}>
               <KpiCard label={STRINGS.delivered[lang]} value={`${deliveredOrders}`} icon="check-circle" color="#10b981" />
-              <KpiCard label={STRINGS.pendingValidation[lang]} value={`${products.filter((p) => p.status === "pending").length}`} icon="clock" color="#f59e0b" />
+              <KpiCard label={STRINGS.pendingValidation[lang]} value={`${products.filter((p) => p.status === "pending_review").length}`} icon="clock" color="#f59e0b" />
             </View>
 
             <View style={[styles.chartCard, { backgroundColor: colors.card, borderColor: colors.border }]}>

@@ -67,7 +67,7 @@ export interface Product {
   price: number;
   seller: string;
   category: string;
-  status: "available" | "sold_out" | "pending";
+  status: "approved" | "pending_review" | "rejected" | "modification_requested" | "sold_out";
   stock: number;
 }
 
@@ -638,7 +638,7 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
                 price: Number(row.price ?? 0),
                 seller: String(row.seller ?? row.sellerName ?? ""),
                 category: String(row.category ?? ""),
-                status: (row.status as Product["status"]) ?? "available",
+                status: (row.status as Product["status"]) ?? "approved",
                 stock: Number(row.stock ?? 0),
               };
             }));
@@ -1015,8 +1015,8 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
     api.marketplace.deleteProduct(id).catch(() => {});
   };
   const validateProduct = (id: string) => {
-    setProducts((p) => p.map((pr) => (pr.id === id ? { ...pr, status: "available" } : pr)));
-    api.marketplace.updateProduct(id, { status: "available" }).catch(() => {});
+    setProducts((p) => p.map((pr) => (pr.id === id ? { ...pr, status: "approved" } : pr)));
+    api.marketplace.updateProduct(id, { status: "approved" }).catch(() => {});
     notificationBus.emit({ type: "success", message: "Produit validé et publié sur le marketplace" });
   };
   const addSyndicate = (s: Syndicate) => {
