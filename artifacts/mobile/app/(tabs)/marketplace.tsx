@@ -22,6 +22,19 @@ import FilterChips from "@/components/FilterChips";
 import FilterTabs from "@/components/FilterTabs";
 import { marketplace } from "@/services/api";
 
+// ─── Helpers ──────────────────────────────────────────────────────────────────
+
+/** Format a price as French locale MAD string without crashing on null/NaN */
+function formatMAD(price: string | number | null | undefined): string {
+  const n = Number(price ?? 0);
+  if (isNaN(n)) return "0";
+  try {
+    return n.toLocaleString("fr-FR");
+  } catch {
+    return String(Math.round(n));
+  }
+}
+
 // ─── Types ────────────────────────────────────────────────────────────────────
 
 type Product = {
@@ -134,7 +147,7 @@ export default function MarketplaceScreen() {
   // ─── Render helpers ────────────────────────────────────────────────────
 
   const renderProductCard = ({ item: p }: { item: Product }) => {
-    const price = Number(p.price).toLocaleString("fr-MA") + " MAD";
+    const price = formatMAD(p.price) + " MAD";
     return (
       <TouchableOpacity
         style={[styles.card, { backgroundColor: colors.card, borderColor: colors.border }]}
@@ -151,12 +164,12 @@ export default function MarketplaceScreen() {
           <Feather name="shopping-bag" size={28} color={colors.mutedForeground} />
         </View>
         <View style={styles.cardBody}>
-          <Text style={[styles.cardName, { color: colors.foreground }]} numberOfLines={2}>{p.name}</Text>
+          <Text style={[styles.cardName, { color: colors.foreground }]} numberOfLines={2}>{p.name ?? ""}</Text>
           <Text style={[styles.cardPrice, { color: colors.primary }]}>{price}</Text>
           <View style={styles.cardMeta}>
             <View style={[styles.conditionBadge, { backgroundColor: colors.secondary }]}>
               <Text style={[styles.conditionText, { color: colors.mutedForeground }]}>
-                {CONDITION_LABELS[p.condition] ?? p.condition}
+                {CONDITION_LABELS[p.condition] ?? p.condition ?? ""}
               </Text>
             </View>
             {p.location ? (
@@ -166,9 +179,13 @@ export default function MarketplaceScreen() {
               </View>
             ) : null}
           </View>
-          <Text style={[styles.sellerText, { color: colors.mutedForeground }]}>
-            <Feather name="user" size={11} /> {p.sellerName}
-          </Text>
+          {/* ⚠️ Feather must NOT be inside <Text> — use a View row instead */}
+          <View style={styles.sellerRow}>
+            <Feather name="user" size={11} color={colors.mutedForeground} />
+            <Text style={[styles.sellerText, { color: colors.mutedForeground }]} numberOfLines={1}>
+              {p.sellerName ?? ""}
+            </Text>
+          </View>
         </View>
       </TouchableOpacity>
     );
@@ -177,9 +194,9 @@ export default function MarketplaceScreen() {
   const renderPendingCard = ({ item: p }: { item: Product }) => (
     <View style={[styles.pendingCard, { backgroundColor: colors.card, borderColor: "#f59e0b40", borderLeftColor: "#f59e0b" }]}>
       <View style={{ flex: 1 }}>
-        <Text style={[styles.pendingName, { color: colors.foreground }]}>{p.name}</Text>
+        <Text style={[styles.pendingName, { color: colors.foreground }]}>{p.name ?? ""}</Text>
         <Text style={[styles.pendingMeta, { color: colors.mutedForeground }]}>
-          {Number(p.price).toLocaleString("fr-MA")} MAD · {p.category} · {CONDITION_LABELS[p.condition] ?? p.condition}
+          {formatMAD(p.price)} MAD · {p.category ?? ""} · {CONDITION_LABELS[p.condition] ?? p.condition ?? ""}
         </Text>
         <Text style={[styles.pendingMeta, { color: colors.mutedForeground }]}>
           Vendeur : {p.sellerName}
@@ -432,7 +449,7 @@ function OrdersAdminView({
               {o.buyerName} → {o.sellerName}
             </Text>
             <Text style={[styles.orderAmount, { color: colors.primary }]}>
-              {Number(o.amount).toLocaleString("fr-MA")} MAD
+              {formatMAD(o.amount)} MAD
             </Text>
           </View>
           <View style={[styles.orderStatus, { backgroundColor: (statusColors[o.status] ?? colors.mutedForeground) + "20" }]}>
@@ -477,6 +494,7 @@ const styles = StyleSheet.create({
   conditionText: { fontSize: 10, fontWeight: "600" },
   locationRow: { flexDirection: "row", alignItems: "center", gap: 2 },
   locationText: { fontSize: 10, maxWidth: 80 },
+  sellerRow: { flexDirection: "row", alignItems: "center", gap: 4, marginTop: 4 },
   sellerText: { fontSize: 11 },
   pendingCard: { borderRadius: 10, borderWidth: 1, borderStartWidth: 4, padding: 14, gap: 10 },
   pendingName: { fontSize: 15, fontWeight: "700" },

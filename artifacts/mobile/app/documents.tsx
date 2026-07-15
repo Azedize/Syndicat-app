@@ -54,19 +54,19 @@ const CAT_COLORS: Record<string, string> = {
 };
 
 const DOC_TEMPLATES = [
-  { id: "t1", name: "Attestation d'adhésion", icon: "award" as const, color: "#8b5cf6", desc: "Certifie l'appartenance d'un membre au syndicat" },
-  { id: "t2", name: "Mise en demeure", icon: "alert-circle" as const, color: "#ef4444", desc: "Document de mise en demeure officielle" },
-  { id: "t3", name: "Convocation réunion", icon: "calendar" as const, color: "#3b82f6", desc: "Convocation officielle pour une réunion" },
-  { id: "t4", name: "PV de réunion", icon: "clipboard" as const, color: "#10b981", desc: "Procès-verbal de réunion du bureau" },
-  { id: "t5", name: "Circulaire interne", icon: "mail" as const, color: "#f59e0b", desc: "Communication officielle aux membres" },
-  { id: "t6", name: "Rapport d'activité", icon: "bar-chart-2" as const, color: "#06b6d4", desc: "Rapport mensuel ou annuel d'activité" },
+  { id: "t1", name: "Attestation d'adhésion", icon: "award" as const, color: "#8b5cf6", desc: "Certifie l'appartenance d'un membre au syndicat", category: "attestation" as const },
+  { id: "t2", name: "Mise en demeure", icon: "alert-circle" as const, color: "#ef4444", desc: "Document de mise en demeure officielle", category: "juridique" as const },
+  { id: "t3", name: "Convocation réunion", icon: "calendar" as const, color: "#3b82f6", desc: "Convocation officielle pour une réunion", category: "pv" as const },
+  { id: "t4", name: "PV de réunion", icon: "clipboard" as const, color: "#10b981", desc: "Procès-verbal de réunion du bureau", category: "pv" as const },
+  { id: "t5", name: "Circulaire interne", icon: "mail" as const, color: "#f59e0b", desc: "Communication officielle aux membres", category: "reglements" as const },
+  { id: "t6", name: "Rapport d'activité", icon: "bar-chart-2" as const, color: "#06b6d4", desc: "Rapport mensuel ou annuel d'activité", category: "finances" as const },
 ];
 
 export default function DocumentsScreen() {
   const colors = useColors();
   const insets = useSafeAreaInsets();
   const { user } = useAuth();
-  const { documents, updateDocument } = useData();
+  const { documents, updateDocument, refreshDocuments } = useData();
   const { logActivity } = useActivity();
   const { toggleFavorite, isFavorite } = useFavorites();
   const FAV_ID = "screen-documents";
@@ -86,7 +86,9 @@ export default function DocumentsScreen() {
   const [savingEdit, setSavingEdit] = useState(false);
   const { isWide } = useBreakpoints();
   const topPad = isWide ? 0 : (Platform.OS === "web" ? 67 : insets.top);
-  const isAdmin = user?.role !== "member";
+  // Only syndicate_admin and super_admin can create/edit documents.
+  // Tenants are excluded — the API enforces requireRole("super_admin","syndicate_admin").
+  const isAdmin = user?.role === "super_admin" || user?.role === "syndicate_admin";
 
   const filtered = documents.filter((d) => {
     const matchCat = category === "all" || d.category === category;
@@ -105,9 +107,12 @@ export default function DocumentsScreen() {
     const content = [genMember && `Destinataire: ${genMember}`, genNote].filter(Boolean).join("\n");
     try {
       const { documents: docsApi } = await import("@/services/api");
-      await docsApi.generate(selectedTemplate.name, "statuts", content || undefined);
+      // FIX BUG-02: use the template's own category, not "statuts" hardcoded
+      await docsApi.generate(selectedTemplate.name, selectedTemplate.category, content || undefined);
       logActivity({ action: "Document généré", target: selectedTemplate.name, route: "/documents", icon: "file-text", color: "#6366f1" });
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+      // FIX BUG-01: refresh the documents list so the new document appears immediately
+      await refreshDocuments().catch(() => {});
       Alert.alert("Succès", `Le document "${selectedTemplate.name}" a été généré et ajouté à votre espace documents.`);
       setShowGenerate(false);
       setSelectedTemplate(null);

@@ -4,6 +4,7 @@ import { db } from "@workspace/db";
 import { documentsTable } from "@workspace/db/schema";
 import { eq, and, desc } from "drizzle-orm";
 import { requireAuth, requireRole } from "../middleware/auth.js";
+import { serverAuditLog } from "../lib/audit.js";
 
 const router = Router();
 
@@ -50,6 +51,10 @@ router.post(
   requireAuth,
   requireRole("super_admin", "syndicate_admin"),
   async (req, res) => {
+    // FIX BUG-11: syndicate_admin must have a syndicateId in their JWT
+    if (req.user!.role === "syndicate_admin" && !req.user!.syndicateId) {
+      res.status(403).json({ error: "Accès refusé : syndicateId manquant dans le jeton" }); return;
+    }
     const schema = z.object({
       title: z.string().min(1).max(500),
       category: z.enum(["reglements", "statuts", "pv", "juridique", "finances", "attestation"]),
@@ -71,6 +76,7 @@ router.post(
           createdBy: req.user!.userId,
         })
         .returning();
+      await serverAuditLog(req, { action: "DOCUMENT_GENERATED", entity: "document", entityId: doc.id, details: `Titre: ${doc.title}, Catégorie: ${doc.category}` });
       res.status(201).json({ data: doc, message: "Document généré avec succès" });
     } catch (err) {
       req.log.error(err);
@@ -108,7 +114,31 @@ router.put(
         .set(updates)
         .where(eq(documentsTable.id, id))
         .returning();
+      await serverAuditLog(req, { action: "DOCUMENT_UPDATED", entity: "document", entityId: id, details: Object.keys(result.data).join(", ") });
       res.json({ data: doc, message: "Document mis à jour avec succès" });
+    } catch (err) {
+      req.log.error(err);
+      res.status(500).json({ error: "Erreur serveur" });
+    }
+  },
+);
+
+// FIX BUG-07: DELETE /documents/:id
+router.delete(
+  "/documents/:id",
+  requireAuth,
+  requireRole("super_admin", "syndicate_admin"),
+  async (req, res) => {
+    const id = String(req.params.id) as string;
+    try {
+      const [existing] = await db.select().from(documentsTable).where(eq(documentsTable.id, id));
+      if (!existing) { res.status(404).json({ error: "Document introuvable" }); return; }
+      if (req.user!.role !== "super_admin" && existing.syndicateId !== req.user!.syndicateId) {
+        res.status(403).json({ error: "Accès refusé" }); return;
+      }
+      await db.delete(documentsTable).where(eq(documentsTable.id, id));
+      await serverAuditLog(req, { action: "DOCUMENT_DELETED", entity: "document", entityId: id, details: `Titre: ${existing.title}` });
+      res.json({ message: "Document supprimé avec succès" });
     } catch (err) {
       req.log.error(err);
       res.status(500).json({ error: "Erreur serveur" });

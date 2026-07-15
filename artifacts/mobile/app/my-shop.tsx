@@ -40,6 +40,13 @@ type Product = {
   createdAt: string;
 };
 
+/** Safe French price formatter — never crashes on null/NaN */
+function formatMAD(price: string | number | null | undefined): string {
+  const n = Number(price ?? 0);
+  if (isNaN(n)) return "0";
+  try { return n.toLocaleString("fr-FR"); } catch { return String(Math.round(n)); }
+}
+
 const CATS = ["Électroménager", "Meubles", "Vêtements", "Électronique", "Sport", "Livres", "Autre"];
 const CONDITIONS = [
   { value: "neuf", label: "Neuf" },
@@ -202,7 +209,7 @@ export default function MyShopScreen() {
           <View style={{ flex: 1 }}>
             <Text style={[styles.productName, { color: colors.foreground }]}>{p.name}</Text>
             <Text style={[styles.productPrice, { color: colors.primary }]}>
-              {Number(p.price).toLocaleString("fr-MA")} MAD
+              {formatMAD(p.price)} MAD
             </Text>
             <Text style={[styles.productMeta, { color: colors.mutedForeground }]}>
               {p.category} · Stock: {p.stock} · {p.viewCount ?? 0} vue(s)

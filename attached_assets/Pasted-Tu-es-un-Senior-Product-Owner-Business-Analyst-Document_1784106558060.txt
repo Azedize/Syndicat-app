@@ -1,0 +1,233 @@
+Tu es un Senior Product Owner, Business Analyst, Document Management Expert (DMS), QA Lead, UX Expert et Architecte Logiciel spécialisé dans les applications de gestion des syndicats, copropriétés, associations et organisations.
+
+Mission :
+
+Effectuer un audit complet du module "Gestion des Documents" de l'application SYNDYCAT GLOBAL CPS et analyser pourquoi le bouton "Générer un document" ne fonctionne pas.
+
+Je veux une analyse fonctionnelle, métier, technique et UX complète.
+
+PARTIE 1 — AUDIT FONCTIONNEL
+
+Analyser le cycle de vie complet d'un document :
+
+* Création
+* Import
+* Génération automatique
+* Validation
+* Signature
+* Publication
+* Consultation
+* Téléchargement
+* Archivage
+* Suppression
+
+Identifier les scénarios manquants.
+
+---
+
+PARTIE 2 — BOUTON "GÉNÉRER UN DOCUMENT"
+
+Vérifier en détail :
+
+1. Le bouton est-il visible ?
+2. Le bouton déclenche-t-il un onPress ?
+3. Le onPress appelle-t-il une API ?
+4. L'API existe-t-elle réellement ?
+5. L'API retourne-t-elle un document ?
+6. Le document est-il enregistré ?
+7. Le document apparaît-il dans la liste ?
+8. Une notification est-elle affichée ?
+9. Les erreurs sont-elles gérées ?
+10. Les permissions sont-elles correctes ?
+
+Pour chaque problème trouvé :
+
+* Cause racine
+* Impact utilisateur
+* Niveau de criticité
+* Correctif recommandé
+
+---
+
+PARTIE 3 — TYPES DE DOCUMENTS
+
+Vérifier la gestion complète de :
+
+* Procès-verbal
+* Convocation
+* Rapport financier
+* Rapport d'activité
+* Contrat
+* Facture
+* Reçu
+* Attestation
+* Règlement intérieur
+* Décision du bureau
+* Résolution d'assemblée
+* Rapport d'intervention
+* Rapport d'élection
+* Certificat
+* Documents personnalisés
+
+---
+
+PARTIE 4 — SCÉNARIO COMPLET DE GÉNÉRATION
+
+Exemple :
+
+Admin
+↓
+Clique sur "Générer un document"
+↓
+Choisit un modèle
+↓
+Le système récupère les données
+↓
+Fusion des données
+↓
+Prévisualisation
+↓
+Validation
+↓
+Génération PDF
+↓
+Enregistrement base de données
+↓
+Stockage fichier
+↓
+Notification utilisateur
+↓
+Téléchargement
+↓
+Archivage
+
+Décrire toutes les étapes métier.
+
+---
+
+PARTIE 5 — MODÈLES DE DOCUMENTS
+
+Vérifier :
+
+* Templates disponibles
+* Variables dynamiques
+* Logos
+* Signatures
+* QR Code
+* Numéro de document
+* Numérotation automatique
+* Multi-langue
+* RTL arabe
+
+---
+
+PARTIE 6 — STOCKAGE DES FICHIERS
+
+Analyser :
+
+* Où le PDF est stocké
+* URL de téléchargement
+* Permissions d'accès
+* Taille maximale
+* Versioning
+* Sauvegarde
+
+---
+
+PARTIE 7 — SIGNATURES
+
+Contrôler :
+
+* Signature électronique
+* Signature manuscrite
+* Signature multiple
+* Validation hiérarchique
+* Horodatage
+* Audit trail
+
+---
+
+PARTIE 8 — NOTIFICATIONS
+
+Vérifier :
+
+* Push notification
+* Email
+* SMS
+* Historique des notifications
+
+---
+
+PARTIE 9 — SÉCURITÉ
+
+Tester :
+
+* RBAC
+* Multi-tenant isolation
+* Téléchargement non autorisé
+* Documents privés
+* Audit logs
+* Historique des modifications
+
+---
+
+PARTIE 10 — APPLICATION MOBILE
+
+Tester :
+
+* Liste documents
+* Recherche
+* Filtres
+* Prévisualisation PDF
+* Téléchargement
+* Partage
+* Génération document
+* Upload document
+* Mode hors ligne
+
+---
+
+PARTIE 11 — BASE DE DONNÉES
+
+Vérifier :
+
+* Table documents
+* Relations
+* Métadonnées
+* Statuts
+* Historique
+* Versioning
+
+---
+
+PARTIE 12 — TESTS QA
+
+Créer :
+
+* 50 tests fonctionnels
+* 20 tests sécurité
+* 20 tests mobile
+* 20 tests multi-tenant
+
+---
+
+PARTIE 13 — LIVRABLE FINAL
+
+Produire :
+
+1. Cartographie complète du module Documents.
+2. Scénario métier complet de bout en bout.
+3. Diagnostic précis du bouton "Générer un document".
+4. Liste des bugs.
+5. Fonctionnalités manquantes.
+6. Priorités P0 / P1 / P2 / P3.
+7. Risques de production.
+8. Recommandations UX.
+9. Score sur 100.
+10. Décision finale :
+
+* Production Ready
+* Conditional
+* Not Ready
+
+Fournir des preuves précises écran par écran, API par API, base de données par base de données et workflow par workflow.

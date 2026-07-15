@@ -406,6 +406,9 @@ interface DataContextType {
   addMeeting: (m: Meeting) => void;
   updateMeeting: (m: Meeting) => void;
   updateDocument: (id: string, changes: Partial<Pick<Document, "title" | "content" | "category" | "status">>) => void;
+  addDocument: (doc: Document) => void;
+  refreshDocuments: () => Promise<void>;
+  deleteDocument: (id: string) => void;
   markAllAlertsRead: () => void;
 }
 
@@ -1010,6 +1013,35 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
   const updateDocument = (id: string, changes: Partial<Pick<Document, "title" | "content" | "category" | "status">>) => {
     setDocuments((prev) => prev.map((d) => (d.id === id ? { ...d, ...changes } : d)));
   };
+
+  const addDocument = (doc: Document) => {
+    setDocuments((prev) => [doc, ...prev]);
+  };
+
+  const deleteDocument = (id: string) => {
+    setDocuments((prev) => prev.filter((d) => d.id !== id));
+  };
+
+  const refreshDocuments = async () => {
+    try {
+      const res = await api.documents.list();
+      const rows = (res as { data: unknown[] }).data ?? [];
+      setDocuments(rows.map((r: unknown) => {
+        const row = r as Record<string, unknown>;
+        return {
+          id: String(row.id),
+          title: String(row.title ?? ""),
+          category: (row.category as Document["category"]) ?? "statuts",
+          date: String(row.date ?? row.createdAt ?? ""),
+          size: String(row.size ?? ""),
+          status: (row.status as Document["status"]) ?? "published",
+          content: row.content != null ? String(row.content) : undefined,
+        };
+      }));
+    } catch {
+      // Silently keep existing list on refresh failure
+    }
+  };
   const deleteProduct = (id: string) => {
     setProducts((prev) => prev.filter((pr) => pr.id !== id));
     api.marketplace.deleteProduct(id).catch(() => {});
@@ -1233,7 +1265,7 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
         updateSubscription, toggleNotificationPref,
         addPartner, updatePartnerStatus, generatePayslip,
         confirmMeetingAttendance,
-        addMeeting, updateMeeting, updateDocument,
+        addMeeting, updateMeeting, updateDocument, addDocument, deleteDocument, refreshDocuments,
         markConversationRead, deleteConversation, refreshConversations,
       }}
     >

@@ -11,8 +11,8 @@ interface ProductCardProps {
 
 export default function ProductCard({ product, onPress }: ProductCardProps) {
   const colors = useColors();
-  const isAvailable = product.status === "available";
-  const isPending = product.status === "pending";
+  const isAvailable = product.status === "approved";
+  const isPending = product.status === "pending_review";
 
   return (
     <TouchableOpacity
@@ -59,7 +59,7 @@ export default function ProductCard({ product, onPress }: ProductCardProps) {
                 },
               ]}
             >
-              {isPending ? "En attente" : isAvailable ? "Disponible" : "Épuisé"}
+              {isPending ? "En validation" : isAvailable ? "Disponible" : "Épuisé"}
             </Text>
           </View>
         </View>

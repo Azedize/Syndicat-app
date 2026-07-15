@@ -526,6 +526,9 @@ export const documents = {
       method: "PUT",
       body: JSON.stringify(data),
     }),
+  // FIX BUG-07: delete a document (admin only)
+  delete: (id: string) =>
+    request<{ message: string }>(`/documents/${id}`, { method: "DELETE" }),
 };
 
 // ─── Publications ─────────────────────────────────────────────────────────────

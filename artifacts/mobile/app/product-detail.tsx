@@ -55,6 +55,13 @@ type Comment = {
   createdAt: string;
 };
 
+/** Safe French price formatter — never crashes on null/NaN */
+function formatMAD(price: string | number | null | undefined): string {
+  const n = Number(price ?? 0);
+  if (isNaN(n)) return "0";
+  try { return n.toLocaleString("fr-FR"); } catch { return String(Math.round(n)); }
+}
+
 const CONDITION_LABELS: Record<string, string> = {
   neuf: "Neuf",
   bon: "Bon état",
@@ -260,7 +267,7 @@ export default function ProductDetailScreen() {
   }
 
   const parsedImages: string[] = (() => { try { return JSON.parse(product.imageUrls ?? "[]"); } catch { return []; } })();
-  const price = Number(product.price).toLocaleString("fr-MA") + " MAD";
+  const price = formatMAD(product.price) + " MAD";
 
   const statusColors: Record<string, string> = {
     approved: colors.success,
