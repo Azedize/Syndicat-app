@@ -15,8 +15,18 @@
 import { Router } from "express";
 import { z } from "zod";
 import { db } from "@workspace/db";
-import { documentsTable, documentSignaturesTable, documentCommentsTable, syndicatesTable, usersTable } from "@workspace/db/schema";
-import { eq, and, desc, sql, isNull } from "drizzle-orm";
+import {
+  documentsTable,
+  documentSignaturesTable,
+  documentCommentsTable,
+  documentSequencesTable,
+  syndicatesTable,
+  usersTable,
+  buildingsTable,
+  lotsTable,
+  conseilSyndicalTable,
+} from "@workspace/db/schema";
+import { eq, and, desc, sql, isNull, inArray } from "drizzle-orm";
 import { requireAuth, requireRole } from "../middleware/auth.js";
 import { serverAuditLog } from "../lib/audit.js";
 import {
@@ -24,10 +34,14 @@ import {
   signDocumentDownloadUrl,
   deleteDocumentFromGcs,
   CATEGORY_TO_TEMPLATE,
+  TEMPLATE_NUMBER_PREFIX,
   type DocumentTemplate,
   type SyndicateInfo,
+  type PropertyInfo,
+  type OfficeHolders,
 } from "../lib/documentPdf.js";
 import { createAlert } from "../lib/notify.js";
+import { computeRetentionUntil, expiryBucket } from "../lib/retention.js";
 
 const router = Router();
 
@@ -62,6 +76,8 @@ async function getSyndicateInfo(syndicateId?: string | null): Promise<SyndicateI
     website: "",
     registrationNumber: "",
     logoColor: "#7c3aed",
+    logoUrl: null,
+    abbreviation: null,
   };
   if (!syndicateId) return defaults;
 
@@ -75,6 +91,8 @@ async function getSyndicateInfo(syndicateId?: string | null): Promise<SyndicateI
       website:            syndicatesTable.website,
       registrationNumber: syndicatesTable.registrationNumber,
       logoColor:          syndicatesTable.logoColor,
+      logoUrl:            syndicatesTable.logoUrl,
+      abbreviation:       syndicatesTable.abbreviation,
     })
     .from(syndicatesTable)
     .where(eq(syndicatesTable.id, syndicateId));
@@ -88,7 +106,122 @@ async function getSyndicateInfo(syndicateId?: string | null): Promise<SyndicateI
     website:            s?.website            ?? defaults.website,
     registrationNumber: s?.registrationNumber ?? defaults.registrationNumber,
     logoColor:          s?.logoColor          ?? defaults.logoColor,
+    logoUrl:            s?.logoUrl            ?? defaults.logoUrl,
+    abbreviation:       s?.abbreviation       ?? defaults.abbreviation,
   };
+}
+
+// ─── Helper: fetch real property/residence data for PDF injection ────────────
+// Pulls the syndicate's building(s) + lots to populate {{property.*}} variables
+// (name, address, city, totalBuildings, totalFloors, totalLots, totalSurfaceM2,
+// landRegistryReference). When buildingId is given, scopes to that building only;
+// otherwise aggregates across all buildings of the syndicate.
+
+async function getPropertyInfo(syndicateId?: string | null, buildingId?: string | null): Promise<PropertyInfo | undefined> {
+  if (!syndicateId && !buildingId) return undefined;
+
+  const buildingConditions = buildingId
+    ? [eq(buildingsTable.id, buildingId)]
+    : syndicateId
+    ? [eq(buildingsTable.syndicateId, syndicateId)]
+    : [];
+  if (buildingConditions.length === 0) return undefined;
+
+  const buildings = await db
+    .select({
+      id: buildingsTable.id,
+      name: buildingsTable.name,
+      address: buildingsTable.address,
+      city: buildingsTable.city,
+      totalFloors: buildingsTable.totalFloors,
+      totalLots: buildingsTable.totalLots,
+      registrationNumber: buildingsTable.registrationNumber,
+      createdAt: buildingsTable.createdAt,
+    })
+    .from(buildingsTable)
+    .where(and(...buildingConditions));
+
+  if (buildings.length === 0) return undefined;
+
+  const buildingIds = buildings.map((b) => b.id);
+  const lots = buildingIds.length
+    ? await db
+        .select({ surfaceM2: lotsTable.surfaceM2, titreFoncier: lotsTable.titreFoncier })
+        .from(lotsTable)
+        .where(inArray(lotsTable.buildingId, buildingIds))
+    : [];
+
+  const totalSurfaceM2 = lots.reduce((sum, l) => sum + (l.surfaceM2 ? Number(l.surfaceM2) : 0), 0);
+  const landRegistryReference = lots.find((l) => l.titreFoncier)?.titreFoncier ?? buildings[0].registrationNumber ?? null;
+
+  const primary = buildings[0];
+  return {
+    name: buildings.length > 1 ? (primary.name ?? "") : (primary.name ?? ""),
+    address: primary.address ?? "",
+    city: primary.city ?? "",
+    totalBuildings: buildings.length,
+    totalFloors: buildings.reduce((sum, b) => sum + (b.totalFloors ?? 0), 0),
+    totalLots: buildings.reduce((sum, b) => sum + (b.totalLots ?? 0), 0),
+    totalSurfaceM2: totalSurfaceM2 > 0 ? totalSurfaceM2 : null,
+    landRegistryReference,
+    createdAt: primary.createdAt ? primary.createdAt.toISOString() : null,
+  };
+}
+
+// ─── Helper: fetch real office-holder identities for PDF injection ───────────
+// Pulls active conseil syndical members (président, vice-président, secrétaire,
+// trésorier) plus the syndicate_admin acting as gestionnaire, for
+// {{president.fullName}}, {{manager.phone}}, etc.
+
+async function getOfficeHolders(syndicateId?: string | null): Promise<OfficeHolders | undefined> {
+  if (!syndicateId) return undefined;
+
+  const [council, [manager]] = await Promise.all([
+    db
+      .select({ role: conseilSyndicalTable.role, name: conseilSyndicalTable.name, email: conseilSyndicalTable.email, phone: conseilSyndicalTable.phone })
+      .from(conseilSyndicalTable)
+      .where(and(eq(conseilSyndicalTable.syndicateId, syndicateId), eq(conseilSyndicalTable.status, "active"))),
+    db
+      .select({ name: usersTable.name, email: usersTable.email, phone: usersTable.phone })
+      .from(usersTable)
+      .where(and(eq(usersTable.syndicateId, syndicateId), eq(usersTable.role, "syndicate_admin")))
+      .limit(1),
+  ]);
+
+  const byRole = (role: string) => {
+    const row = council.find((c) => c.role === role);
+    return row ? { fullName: row.name, email: row.email ?? null, phone: row.phone ?? null } : undefined;
+  };
+
+  const holders: OfficeHolders = {
+    president: byRole("president"),
+    vicePresident: byRole("vice_president"),
+    secretary: byRole("secretary"),
+    treasurer: byRole("treasurer"),
+    manager: manager ? { fullName: manager.name, email: manager.email ?? null, phone: manager.phone ?? null } : undefined,
+  };
+  return Object.values(holders).some(Boolean) ? holders : undefined;
+}
+
+// ─── Helper: atomic sequential document numbering (REG-2026-0001, PV-2026-0001…) ──
+// One counter row per (syndicateId, prefix, year); increments atomically via
+// INSERT ... ON CONFLICT DO UPDATE so concurrent generations never collide.
+
+async function generateSequentialDocumentNumber(syndicateId: string | null | undefined, template: DocumentTemplate): Promise<string> {
+  const prefix = TEMPLATE_NUMBER_PREFIX[template] ?? template.toUpperCase();
+  const year = new Date().getFullYear();
+  const scopeId = syndicateId || "global";
+
+  const [row] = await db
+    .insert(documentSequencesTable)
+    .values({ syndicateId: scopeId, prefix, year, currentValue: 1 } as any)
+    .onConflictDoUpdate({
+      target: [documentSequencesTable.syndicateId, documentSequencesTable.prefix, documentSequencesTable.year],
+      set: { currentValue: sql`${documentSequencesTable.currentValue} + 1` },
+    })
+    .returning({ currentValue: documentSequencesTable.currentValue });
+
+  return `${prefix}-${year}-${String(row.currentValue).padStart(4, "0")}`;
 }
 
 // ─── GET /documents ────────────────────────────────────────────────────────────
@@ -120,6 +253,108 @@ router.get("/documents", requireAuth, async (req, res) => {
       .orderBy(desc(documentsTable.createdAt));
 
     res.json({ data: rows });
+  } catch (err) {
+    req.log.error(err);
+    res.status(500).json({ error: "Erreur serveur" });
+  }
+});
+
+// ─── GET /documents/deleted — RECYCLE BIN ─────────────────────────────────────
+// Lists soft-deleted documents (super_admin / syndicate_admin only), with
+// search + category filter. Registered before "/:id" so it isn't shadowed.
+
+router.get(
+  "/documents/deleted",
+  requireAuth,
+  requireRole("super_admin", "syndicate_admin"),
+  async (req, res) => {
+    const { search, category } = req.query as Record<string, string>;
+    try {
+      const conditions = [eq(documentsTable.isDeleted, true)];
+      const syndicateId = req.user!.syndicateId;
+      if (req.user!.role !== "super_admin") {
+        if (!syndicateId) { res.status(403).json({ error: "Accès refusé : syndicateId manquant" }); return; }
+        conditions.push(eq(documentsTable.syndicateId, syndicateId));
+      } else if (syndicateId) {
+        conditions.push(eq(documentsTable.syndicateId, syndicateId));
+      }
+      if (category) conditions.push(eq(documentsTable.category, category as any));
+      if (search) conditions.push(sql`${documentsTable.title} ILIKE ${"%" + search + "%"}`);
+
+      const rows = await db
+        .select({
+          id: documentsTable.id,
+          title: documentsTable.title,
+          category: documentsTable.category,
+          status: documentsTable.status,
+          size: documentsTable.size,
+          documentNumber: documentsTable.documentNumber,
+          deletedAt: documentsTable.deletedAt,
+          deletedBy: documentsTable.deletedBy,
+          deletedByName: usersTable.name,
+          retentionUntil: documentsTable.retentionUntil,
+        })
+        .from(documentsTable)
+        .leftJoin(usersTable, eq(documentsTable.deletedBy, usersTable.id))
+        .where(and(...conditions))
+        .orderBy(desc(documentsTable.deletedAt));
+
+      res.json({ data: rows });
+    } catch (err) {
+      req.log.error(err);
+      res.status(500).json({ error: "Erreur serveur" });
+    }
+  },
+);
+
+// ─── GET /documents/summary — dashboard aggregate ─────────────────────────────
+// Real backend-computed counts by status + expiring-soon buckets (30/60/90 days),
+// replacing the client-side heuristic previously used by the mobile dashboard.
+
+router.get("/documents/summary", requireAuth, async (req, res) => {
+  try {
+    const syndicateId = req.user!.syndicateId;
+    const conditions = [eq(documentsTable.isDeleted, false)];
+    if (syndicateId) conditions.push(eq(documentsTable.syndicateId, syndicateId));
+    if (req.user!.role === "member" || req.user!.role === "tenant") {
+      conditions.push(eq(documentsTable.status, "published"));
+    }
+
+    const rows = await db
+      .select({
+        id: documentsTable.id,
+        title: documentsTable.title,
+        status: documentsTable.status,
+        retentionUntil: documentsTable.retentionUntil,
+      })
+      .from(documentsTable)
+      .where(and(...conditions));
+
+    const byStatus: Record<string, number> = {};
+    const expiring: { in30: typeof rows; in60: typeof rows; in90: typeof rows } = { in30: [], in60: [], in90: [] };
+    const now = new Date();
+
+    for (const row of rows) {
+      const st = row.status ?? "draft";
+      byStatus[st] = (byStatus[st] ?? 0) + 1;
+      const bucket = expiryBucket(row.retentionUntil, now);
+      if (bucket === 30) expiring.in30.push(row);
+      else if (bucket === 60) expiring.in60.push(row);
+      else if (bucket === 90) expiring.in90.push(row);
+    }
+
+    res.json({
+      data: {
+        total: rows.length,
+        byStatus,
+        expiring: {
+          in30: expiring.in30.length,
+          in60: expiring.in60.length,
+          in90: expiring.in90.length,
+          documents30: expiring.in30.slice(0, 10),
+        },
+      },
+    });
   } catch (err) {
     req.log.error(err);
     res.status(500).json({ error: "Erreur serveur" });
@@ -186,10 +421,13 @@ router.post(
       category:   z.enum(["reglements", "statuts", "pv", "juridique", "finances", "attestation"]),
       content:    z.string().max(500_000).optional(),
       memberName: z.string().optional(),
+      // Scopes {{property.*}} injection to a specific residence; otherwise
+      // aggregates across all buildings of the syndicate.
+      buildingId: z.string().optional(),
       // Optional direct template override — bypasses CATEGORY_TO_TEMPLATE lookup
       templateId: z.enum([
         "attestation", "pv", "convocation", "contrat", "rapport",
-        "decision", "certificat", "circulaire", "mise_en_demeure",
+        "decision", "certificat", "circulaire", "mise_en_demeure", "reglement",
       ] as const).optional(),
       // Extra fields passed through to the template
       lieu:              z.string().optional(),
@@ -220,26 +458,37 @@ router.post(
     }
 
     try {
-      const { title, category, content, memberName, templateId, ...extraFields } = result.data;
+      const { title, category, content, memberName, templateId, buildingId, ...extraFields } = result.data;
       const syndicateId = req.user!.syndicateId || "";
 
-      // 1. Fetch full syndicate branding
-      const syndInfo = await getSyndicateInfo(syndicateId);
+      // 1. Fetch full syndicate branding + real residence/office-holder data
+      const [syndInfo, property, officeHolders] = await Promise.all([
+        getSyndicateInfo(syndicateId),
+        getPropertyInfo(syndicateId, buildingId),
+        getOfficeHolders(syndicateId),
+      ]);
 
       // 2. Determine template (direct override > category mapping > fallback)
       const template: DocumentTemplate = templateId ?? CATEGORY_TO_TEMPLATE[category] ?? "certificat";
 
-      // 3. Generate PDF + upload to GCS
+      // 3. Mint a real sequential document number (REG-2026-0001, PV-2026-0001, …)
+      const documentNumber = await generateSequentialDocumentNumber(syndicateId, template);
+
+      // 4. Generate PDF + upload to GCS
       const generated = await generateAndUploadDocument(template, {
         title,
         content,
         syndicate: syndInfo,
+        property,
+        officeHolders,
         memberName,
+        documentNumber,
         docStatus: "generated",
         ...extraFields,
       });
 
-      // 4. Insert document record
+      // 5. Insert document record
+      const createdAt = new Date();
       const [doc] = await db
         .insert(documentsTable)
         .values({
@@ -255,16 +504,18 @@ router.post(
           version: 1,
           isDeleted: false,
           createdBy: req.user!.userId,
-          updatedAt: new Date(),
+          updatedAt: createdAt,
+          // Legal retention — computed from category/template, see lib/retention.ts
+          retentionUntil: computeRetentionUntil(category, template, createdAt),
         } as any)
         .returning();
 
-      // 5. Audit log
+      // 6. Audit log
       await serverAuditLog(req, {
         action: "DOCUMENT_GENERATED",
         entity: "document",
         entityId: doc.id,
-        details: `Titre: ${doc.title}, Modèle: ${template}, Catégorie: ${doc.category}`,
+        details: `Titre: ${doc.title}, Modèle: ${template}, Réf: ${doc.documentNumber}, Catégorie: ${doc.category}`,
       });
 
       // 6. Push notification (fire-and-forget)
@@ -516,6 +767,23 @@ router.post(
         res.status(422).json({ error: `Le document au statut "${doc.status}" ne peut pas être signé` }); return;
       }
 
+      // Prevent the same user signing the same document twice (also enforced by
+      // a unique index at the DB level as defense-in-depth).
+      const [alreadySigned] = await db
+        .select({ id: documentSignaturesTable.id })
+        .from(documentSignaturesTable)
+        .where(and(eq(documentSignaturesTable.documentId, id), eq(documentSignaturesTable.signedBy, req.user!.userId)));
+      if (alreadySigned) {
+        res.status(409).json({ error: "Vous avez déjà signé ce document" }); return;
+      }
+
+      // Next signature order = count of existing signatures + 1
+      const [{ count }] = await db
+        .select({ count: sql<number>`count(*)::int` })
+        .from(documentSignaturesTable)
+        .where(eq(documentSignaturesTable.documentId, id));
+      const nextOrder = (count ?? 0) + 1;
+
       const [sig] = await db
         .insert(documentSignaturesTable)
         .values({
@@ -525,6 +793,7 @@ router.post(
           syndicateId:   req.user!.syndicateId,
           ipAddress:     req.ip ?? req.socket?.remoteAddress,
           signatureData: result.data.signatureData,
+          signatureOrder: nextOrder,
         } as any)
         .returning();
 
@@ -594,7 +863,7 @@ router.get(
   "/:id/comments",
   requireAuth,
   async (req, res) => {
-    const { id } = req.params;
+    const id = String(req.params.id);
     try {
       const [doc] = await db.select({ id: documentsTable.id, syndicateId: documentsTable.syndicateId, status: documentsTable.status })
         .from(documentsTable)
@@ -645,7 +914,7 @@ router.post(
   "/:id/comments",
   requireAuth,
   async (req, res) => {
-    const { id } = req.params;
+    const id = String(req.params.id);
     const parsed = CommentCreateSchema.safeParse(req.body);
     if (!parsed.success) { res.status(400).json({ error: parsed.error.flatten() }); return; }
 
@@ -670,7 +939,7 @@ router.post(
         parentId:   parsed.data.parentId ?? null,
       } as any).returning();
 
-      serverAuditLog(req, "document_comment_added", { documentId: id, commentId: comment.id });
+      serverAuditLog(req, { action: "document_comment_added", entity: "document", entityId: id, details: `commentId: ${comment.id}` });
       res.status(201).json({ data: comment });
     } catch (err) {
       req.log.error(err);
@@ -685,17 +954,25 @@ router.delete(
   "/:id/comments/:commentId",
   requireAuth,
   async (req, res) => {
-    const { id, commentId } = req.params;
+    const id = String(req.params.id);
+    const commentId = String(req.params.commentId);
     try {
       const [comment] = await db.select().from(documentCommentsTable)
         .where(and(eq(documentCommentsTable.id, commentId), eq(documentCommentsTable.documentId, id)));
       if (!comment) { res.status(404).json({ error: "Commentaire introuvable" }); return; }
 
+      const [doc] = await db.select({ syndicateId: documentsTable.syndicateId })
+        .from(documentsTable)
+        .where(eq(documentsTable.id, id));
+      if (!doc) { res.status(404).json({ error: "Document introuvable" }); return; }
+
       const user = req.user!;
       const isOwner = comment.authorId === user.userId;
       const isSuperAdmin = user.role === "super_admin";
-      const isSyndicateAdmin = user.role === "syndicate_admin";
-      if (!isOwner && !isSuperAdmin && !isSyndicateAdmin) {
+      // IDOR fix: a syndicate_admin may only moderate comments on documents
+      // belonging to THEIR OWN syndicate, never a global "any syndicate_admin" bypass.
+      const isSyndicateAdminOfDoc = user.role === "syndicate_admin" && doc.syndicateId === user.syndicateId;
+      if (!isOwner && !isSuperAdmin && !isSyndicateAdminOfDoc) {
         res.status(403).json({ error: "Accès refusé" }); return;
       }
 
@@ -703,7 +980,7 @@ router.delete(
         .set({ isDeleted: true })
         .where(eq(documentCommentsTable.id, commentId));
 
-      serverAuditLog(req, "document_comment_deleted", { documentId: id, commentId });
+      serverAuditLog(req, { action: "document_comment_deleted", entity: "document", entityId: id, details: `commentId: ${commentId}` });
       res.json({ message: "Commentaire supprimé" });
     } catch (err) {
       req.log.error(err);

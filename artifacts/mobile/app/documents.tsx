@@ -26,6 +26,7 @@ import { useFavorites } from "@/context/FavoritesContext";
 import { useBreakpoints } from "@/hooks/useBreakpoints";
 import { useColors } from "@/hooks/useColors";
 import FilterChips from "@/components/FilterChips";
+import SignaturePad, { type SignaturePadHandle } from "@/components/SignaturePad";
 
 // ─── Constants ────────────────────────────────────────────────────────────────
 
@@ -137,6 +138,13 @@ export default function DocumentsScreen() {
   const [editTitle,   setEditTitle]   = useState("");
   const [editContent, setEditContent] = useState("");
   const [savingEdit,  setSavingEdit]  = useState(false);
+
+  // Signature modal
+  const [showSign,   setShowSign]   = useState(false);
+  const [signing,    setSigning]    = useState(false);
+  const [sigEmpty,   setSigEmpty]   = useState(true);
+  const sigPadRef = useRef<SignaturePadHandle>(null);
+  const sigSvgRef = useRef<string>("");
 
   // Download progress
   const [dlState, setDlState] = useState<DownloadState>(INIT_DL);
@@ -364,6 +372,43 @@ export default function DocumentsScreen() {
     }
   };
 
+  // ─── Sign ────────────────────────────────────────────────────────────────────
+
+  const openSign = () => {
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    sigSvgRef.current = "";
+    setSigEmpty(true);
+    setShowSign(true);
+  };
+
+  const handleConfirmSign = async () => {
+    if (!selected || sigEmpty || signing) return;
+    setSigning(true);
+    try {
+      const { documents: docsApi } = await import("@/services/api");
+      await docsApi.sign(selected.id, sigSvgRef.current || undefined);
+      updateDocument(selected.id, { status: "signed" as Document["status"] });
+      logActivity({ action: "Document signé", target: selected.title, route: "/documents", icon: "edit-3", color: "#8b5cf6" });
+      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+      await refreshDocuments().catch(() => {});
+      setShowSign(false);
+      setSelected((s) => (s ? { ...s, status: "signed" as Document["status"] } : s));
+      Alert.alert("Document signé", "Votre signature a été enregistrée avec succès.");
+    } catch (err: any) {
+      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
+      Alert.alert(
+        "Erreur de signature",
+        err?.message?.includes("409")
+          ? "Vous avez déjà signé ce document."
+          : err?.message && !err.message.startsWith("HTTP")
+            ? err.message
+            : "Impossible d'enregistrer la signature. Vérifiez la connexion et réessayez.",
+      );
+    } finally {
+      setSigning(false);
+    }
+  };
+
   const handleSaveEdit = async () => {
     if (!selected) return;
     if (!editTitle.trim()) { Alert.alert("Titre requis", "Le titre ne peut pas être vide."); return; }
@@ -410,6 +455,15 @@ export default function DocumentsScreen() {
         >
           <Feather name="star" size={20} color={isFavorite(FAV_ID) ? "#f59e0b" : colors.mutedForeground} />
         </TouchableOpacity>
+        {isAdmin ? (
+          <TouchableOpacity
+            style={{ padding: 6, marginRight: 4 }}
+            hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+            onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); router.push("/documents-recycle-bin"); }}
+          >
+            <Feather name="trash-2" size={20} color={colors.mutedForeground} />
+          </TouchableOpacity>
+        ) : null}
         {isAdmin ? (
           <TouchableOpacity
             style={[styles.generateBtn, { backgroundColor: colors.primary }]}
@@ -668,11 +722,64 @@ export default function DocumentsScreen() {
                       <Text style={[styles.secBtnText, { color: colors.primary }]}>Modifier</Text>
                     </TouchableOpacity>
                   ) : null}
+                  {isAdmin && ["generated", "validated"].includes(selected.status) ? (
+                    <TouchableOpacity
+                      style={[styles.secBtn, { borderColor: "#8b5cf650", backgroundColor: "#8b5cf608" }]}
+                      onPress={openSign}
+                    >
+                      <Feather name="edit-3" size={16} color="#8b5cf6" />
+                      <Text style={[styles.secBtnText, { color: "#8b5cf6" }]}>Signer</Text>
+                    </TouchableOpacity>
+                  ) : null}
                 </View>
               </View>
             </ScrollView>
           </View>
         ) : null}
+      </Modal>
+
+      {/* ── Signature modal ── */}
+      <Modal visible={showSign} animationType="slide" presentationStyle="pageSheet">
+        <View style={[styles.modal, { backgroundColor: colors.background }]}>
+          <View style={[styles.modalHeader, { borderBottomColor: colors.border }]}>
+            <TouchableOpacity onPress={() => setShowSign(false)}>
+              <Feather name="x" size={22} color={colors.mutedForeground} />
+            </TouchableOpacity>
+            <View style={{ flex: 1, marginStart: 12 }}>
+              <Text style={[styles.modalTitle, { color: colors.foreground }]}>Signature manuscrite</Text>
+            </View>
+          </View>
+          <ScrollView contentContainerStyle={{ padding: 20, gap: 16, paddingBottom: 40 }}>
+            <Text style={{ color: colors.mutedForeground, fontSize: 13 }}>
+              Signez avec votre doigt dans la zone ci-dessous. Cette signature sera intégrée au document et horodatée.
+            </Text>
+            <View style={{ borderWidth: 1, borderColor: colors.border, borderRadius: 12, alignSelf: "center" }}>
+              <SignaturePad
+                ref={sigPadRef}
+                width={320}
+                height={180}
+                onChange={(svg, isEmpty) => { sigSvgRef.current = svg; setSigEmpty(isEmpty); }}
+              />
+            </View>
+            <View style={{ flexDirection: "row", gap: 10 }}>
+              <TouchableOpacity
+                style={[styles.secBtn, { flex: 1, borderColor: colors.border, backgroundColor: colors.card }]}
+                onPress={() => { sigPadRef.current?.clear(); }}
+              >
+                <Feather name="rotate-ccw" size={16} color={colors.foreground} />
+                <Text style={[styles.secBtnText, { color: colors.foreground }]}>Effacer</Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={[styles.primaryAction, { flex: 1, backgroundColor: sigEmpty ? colors.mutedForeground : "#8b5cf6", opacity: signing ? 0.7 : 1 }]}
+                disabled={sigEmpty || signing}
+                onPress={handleConfirmSign}
+              >
+                {signing ? <ActivityIndicator color="#fff" /> : <Feather name="check" size={18} color="#fff" />}
+                <Text style={styles.primaryActionText}>{signing ? "Envoi..." : "Confirmer la signature"}</Text>
+              </TouchableOpacity>
+            </View>
+          </ScrollView>
+        </View>
       </Modal>
 
       {/* ── Generate modal ── */}

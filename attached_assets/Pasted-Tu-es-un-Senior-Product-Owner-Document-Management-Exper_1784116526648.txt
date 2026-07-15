@@ -1,0 +1,275 @@
+Tu es un Senior Product Owner, Document Management Expert, PDF Generation Architect, Full Stack Engineer et Expert en gestion de copropriétés marocaines.
+
+Contexte :
+
+Le projet SYNDYCAT GLOBAL CPS possède déjà un module Documents avec génération de documents.
+
+Je veux transformer tous les modèles PDF statiques en modèles dynamiques alimentés automatiquement par la base de données.
+
+Exemple :
+
+Le modèle "Règlement de Copropriété" contient aujourd'hui :
+
+* Logo statique
+* Nom statique
+* Résidence vide
+* Adresse vide
+* Ville vide
+* Nombre de lots vide
+* Nombre d'étages vide
+
+Je veux que tout soit rempli automatiquement.
+
+---
+
+MISSION
+
+Créer un système complet de génération documentaire intelligente.
+
+---
+
+PARTIE 1 — DONNÉES DU SYNDICAT
+
+Insérer automatiquement :
+
+* Logo du syndicat
+* Nom du syndicat
+* Adresse
+* Téléphone
+* Email
+* Site web
+* Ville
+* Région
+* Numéro d'enregistrement
+* Date de création
+
+Exemple :
+
+{{syndicate.logo}}
+{{syndicate.name}}
+{{syndicate.address}}
+{{syndicate.phone}}
+{{syndicate.email}}
+
+---
+
+PARTIE 2 — DONNÉES DE LA COPROPRIÉTÉ
+
+Injecter automatiquement :
+
+* Nom résidence
+* Adresse résidence
+* Ville
+* Nombre bâtiments
+* Nombre étages
+* Nombre lots
+* Surface totale
+* Référence foncière
+* Date création
+
+Variables :
+
+{{property.name}}
+{{property.address}}
+{{property.city}}
+{{property.totalLots}}
+{{property.totalFloors}}
+
+---
+
+PARTIE 3 — DONNÉES UTILISATEURS
+
+Insérer automatiquement :
+
+Président
+Vice-président
+Secrétaire
+Trésorier
+Gestionnaire
+Membres
+
+Variables :
+
+{{president.fullName}}
+{{president.email}}
+
+{{manager.fullName}}
+{{manager.phone}}
+
+---
+
+PARTIE 4 — DOCUMENTS JURIDIQUES
+
+Pour le document :
+
+Règlement de copropriété
+
+Ajouter automatiquement :
+
+* Nom résidence
+* Référence foncière
+* Nombre lots
+* Nombre étages
+* Président actuel
+* Date génération
+* Numéro document
+
+---
+
+PARTIE 5 — WORKFLOW COMPLET
+
+Décrire le scénario complet :
+
+Syndicate Admin
+↓
+Clique Générer Document
+↓
+Choisit Modèle
+↓
+Système charge données DB
+↓
+Injection variables
+↓
+Prévisualisation PDF
+↓
+Validation
+↓
+Génération PDF
+↓
+Stockage Cloud
+↓
+Création Audit Log
+↓
+Notification
+↓
+Téléchargement
+
+---
+
+PARTIE 6 — RÔLES ET AUTORISATIONS
+
+SUPER ADMIN
+
+Peut :
+
+* Créer modèles
+* Modifier modèles
+* Supprimer modèles
+* Générer documents
+
+SYNDICATE ADMIN
+
+Peut :
+
+* Générer documents
+* Télécharger
+* Publier
+
+MANAGER
+
+Peut :
+
+* Prévisualiser
+* Télécharger
+
+MEMBER
+
+Peut :
+
+* Consulter
+* Télécharger documents publics
+
+TENANT
+
+Peut :
+
+* Consulter uniquement documents autorisés
+
+---
+
+PARTIE 7 — NUMÉROTATION
+
+Créer automatiquement :
+
+REG-2026-0001
+PV-2026-0001
+FIN-2026-0001
+ATT-2026-0001
+
+---
+
+PARTIE 8 — SIGNATURES
+
+Ajouter :
+
+* Signature Président
+* Signature Gestionnaire
+* Signature Syndicat
+
+Variables :
+
+{{president.signature}}
+{{manager.signature}}
+
+---
+
+PARTIE 9 — QR CODE
+
+Ajouter automatiquement :
+
+QR contenant :
+
+* ID document
+* Syndicat
+* Date génération
+* URL vérification
+
+---
+
+PARTIE 10 — MULTILINGUE
+
+Support :
+
+* Français
+* Arabe RTL
+* Anglais
+* Espagnol
+
+Le document doit s'adapter automatiquement à la langue sélectionnée.
+
+---
+
+PARTIE 11 — AUDIT
+
+Tracer :
+
+Qui a généré ?
+Quand ?
+Depuis quel rôle ?
+Pour quel syndicat ?
+
+Créer audit log complet.
+
+---
+
+PARTIE 12 — LIVRABLES
+
+Produire :
+
+1. Architecture complète.
+2. Variables dynamiques nécessaires.
+3. Tables DB nécessaires.
+4. APIs nécessaires.
+5. Workflow complet.
+6. Permissions.
+7. Templates supportés.
+8. Exemple PDF final rempli.
+9. Score de maturité.
+10. Plan de mise en production.
+
+Ne pas faire une analyse théorique.
+
+Analyser le code existant.
+Identifier les tables réelles.
+Identifier les APIs réelles.
+Implémenter la génération dynamique basée sur les données réelles du système.

@@ -17,6 +17,27 @@ interface AuditPayload {
   platformAction?: boolean;
 }
 
+/** For background jobs / schedulers with no HTTP request context (e.g. the
+ *  retention purge job). Always recorded as a platform-level "system" action. */
+export async function systemAuditLog(payload: AuditPayload): Promise<void> {
+  try {
+    await db.insert(auditLogsTable).values({
+      userId: "system",
+      userName: "Système (tâche planifiée)",
+      actorRole: "system",
+      syndicateId: payload.syndicateId ?? null,
+      isSupervision: false,
+      action: payload.action,
+      entity: payload.entity,
+      entityId: payload.entityId,
+      details: payload.details,
+      ipAddress: null,
+    });
+  } catch {
+    // Non-blocking — audit log failure must never break the scheduled job
+  }
+}
+
 export async function serverAuditLog(req: Request, payload: AuditPayload): Promise<void> {
   try {
     const role = req.user!.role;

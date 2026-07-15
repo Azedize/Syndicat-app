@@ -541,6 +541,24 @@ export const documents = {
   // Get signature history for a document
   signatures: (id: string) =>
     request<{ data: unknown[] }>(`/documents/${id}/signatures`),
+  // Real dashboard aggregates: counts by status + 30/60/90-day retention-expiry buckets
+  summary: () =>
+    request<{ data: { total: number; byStatus: Record<string, number>; expiring: { in30: number; in60: number; in90: number; documents30: { id: string; title: string }[] } } }>(
+      "/documents/summary",
+    ),
+  // Recycle bin — admin-only, lists soft-deleted documents
+  deleted: (params?: { search?: string; category?: string }) => {
+    const qs = new URLSearchParams();
+    if (params?.search) qs.set("search", params.search);
+    if (params?.category) qs.set("category", params.category);
+    return request<{ data: unknown[] }>(`/documents/deleted?${qs}`);
+  },
+  // Restore a soft-deleted document (super_admin / syndicate_admin)
+  restore: (id: string) =>
+    request<{ data: unknown; message: string }>(`/documents/${id}/restore`, { method: "POST" }),
+  // Permanently purge a soft-deleted document (super_admin only)
+  purge: (id: string) =>
+    request<{ message: string }>(`/documents/${id}/purge`, { method: "POST" }),
 };
 
 // ─── Publications ─────────────────────────────────────────────────────────────

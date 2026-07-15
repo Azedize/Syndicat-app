@@ -964,12 +964,36 @@ export const documentsTable = pgTable(
     isDeleted: boolean("is_deleted").default(false).notNull(),
     deletedAt: timestamp("deleted_at"),
     deletedBy: text("deleted_by").references(() => usersTable.id, { onDelete: "set null" }),
+    // Legal retention — computed at creation from category/template (see lib/retention.ts).
+    // Purge job never deletes a document before this date.
+    retentionUntil: timestamp("retention_until"),
+    // Set by the automatic purge job when it archives an expired-but-published document.
+    autoArchived: boolean("auto_archived").default(false).notNull(),
   },
   (t) => [
     index("documents_syndicate_id_idx").on(t.syndicateId),
     index("documents_category_idx").on(t.category),
     index("documents_status_idx").on(t.status),
     index("documents_document_number_idx").on(t.documentNumber),
+    index("documents_retention_until_idx").on(t.retentionUntil),
+    index("documents_is_deleted_idx").on(t.isDeleted),
+  ],
+);
+
+// Atomic per-syndicate/prefix/year counters backing sequential document numbers
+// like REG-2026-0001, PV-2026-0001, FIN-2026-0001. One row per (syndicateId, prefix, year);
+// `currentValue` is incremented via INSERT ... ON CONFLICT DO UPDATE for atomicity.
+export const documentSequencesTable = pgTable(
+  "document_sequences",
+  {
+    id: id(),
+    syndicateId: text("syndicate_id").notNull(),
+    prefix: text("prefix").notNull(),
+    year: integer("year").notNull(),
+    currentValue: integer("current_value").notNull().default(0),
+  },
+  (t) => [
+    uniqueIndex("document_sequences_syndicate_prefix_year_uq").on(t.syndicateId, t.prefix, t.year),
   ],
 );
 
@@ -983,13 +1007,18 @@ export const documentSignaturesTable = pgTable(
     signerRole: text("signer_role").notNull(),
     syndicateId: text("syndicate_id"),
     ipAddress: text("ip_address"),
-    // Raw signature pad data (base64 PNG or SVG paths) for handwritten signatures
+    // Raw signature pad data (SVG markup produced by the mobile signature pad,
+    // embeddable directly in generated PDFs via pdfmake's `svg` node)
     signatureData: text("signature_data"),
+    // Position in the multi-signature sequence for this document (1-based).
+    signatureOrder: integer("signature_order").notNull().default(1),
     createdAt: createdAt(),
   },
   (t) => [
     index("doc_signatures_document_id_idx").on(t.documentId),
     index("doc_signatures_signed_by_idx").on(t.signedBy),
+    // A given user can only sign a given document once — prevents duplicate signature rows.
+    uniqueIndex("doc_signatures_document_signer_uq").on(t.documentId, t.signedBy),
   ],
 );
 

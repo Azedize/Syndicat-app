@@ -6,6 +6,7 @@ import { startContractExpiryScheduler } from "./lib/contract-expiry.js";
 import { startEscalationScheduler } from "./lib/debt-escalation.js";
 import { startElectionReminderScheduler } from "./lib/election-reminders.js";
 import { startMandateExpiryScheduler } from "./lib/mandate-expiry.js";
+import { startDocumentRetentionScheduler } from "./lib/document-retention-job.js";
 import { verifySmtpConnection } from "./lib/email/emailService.js";
 
 // Fail fast on missing auth config — do not wait for first request
@@ -26,6 +27,11 @@ startElectionReminderScheduler();
 
 // Flips fixed-term conseil syndical mandates to "expired" once their term ends
 startMandateExpiryScheduler();
+
+// Daily retention-policy scan: notifies admins of documents nearing their legal
+// retention expiry, and purges recycle-bin documents once retention + grace period
+// have both elapsed. Dry-run by default (DOCUMENT_PURGE_DRY_RUN=false to enable).
+startDocumentRetentionScheduler();
 
 const rawPort = process.env["PORT"];
 

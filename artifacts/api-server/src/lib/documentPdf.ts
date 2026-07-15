@@ -47,15 +47,20 @@ if (existsSync(`${DEJAVU_DIR}/DejaVuSans.ttf`)) {
   };
 }
 
-// Arabic (Amiri) — place TTF files in artifacts/api-server/fonts/ to enable
+// Arabic (Amiri) — TTF files live in artifacts/api-server/fonts/ (Amiri Regular/Bold/
+// Italic/BoldItalic, from the Amiri Project — https://github.com/aliftype/amiri).
 if (existsSync(`${FONTS_DIR}/Amiri-Regular.ttf`)) {
   FONTS.Amiri = {
     normal: `${FONTS_DIR}/Amiri-Regular.ttf`,
     bold: existsSync(`${FONTS_DIR}/Amiri-Bold.ttf`)
       ? `${FONTS_DIR}/Amiri-Bold.ttf`
       : `${FONTS_DIR}/Amiri-Regular.ttf`,
-    italics: `${FONTS_DIR}/Amiri-Regular.ttf`,
-    bolditalics: `${FONTS_DIR}/Amiri-Regular.ttf`,
+    italics: existsSync(`${FONTS_DIR}/Amiri-Italic.ttf`)
+      ? `${FONTS_DIR}/Amiri-Italic.ttf`
+      : `${FONTS_DIR}/Amiri-Regular.ttf`,
+    bolditalics: existsSync(`${FONTS_DIR}/Amiri-BoldItalic.ttf`)
+      ? `${FONTS_DIR}/Amiri-BoldItalic.ttf`
+      : `${FONTS_DIR}/Amiri-Regular.ttf`,
   };
 }
 
@@ -115,6 +120,7 @@ function buildHeaderBand(
   qrDataUrl: string,
   accentColor: string,
   today: string,
+  logoDataUrl: string | null = null,
 ): object[] {
   const contactParts: string[] = [];
   if (syndInfo.phone)   contactParts.push(`Tél : ${syndInfo.phone}`);
@@ -129,13 +135,34 @@ function buildHeaderBand(
     ? { image: qrDataUrl, width: 58, alignment: "center" as const, margin: [4, 6, 6, 6] }
     : { text: "", margin: [4, 6, 6, 6] };
 
+  // Acronym fallback when no logo image is available (initials in a circle)
+  const acronym = (syndInfo.abbreviation ||
+    syndInfo.name.split(/\s+/).map((w) => w[0]).join("").slice(0, 3)
+  ).toUpperCase();
+
+  const logoCell = logoDataUrl
+    ? { image: logoDataUrl, width: 40, height: 40, fit: [40, 40] as [number, number] }
+    : {
+        table: {
+          widths: [40],
+          heights: [40],
+          body: [[{ text: acronym, fontSize: 13, bold: true, color: "#ffffff", alignment: "center" as const, margin: [0, 13, 0, 0] }]],
+        },
+        layout: {
+          hLineWidth: () => 0, vLineWidth: () => 0,
+          paddingLeft: () => 0, paddingRight: () => 0, paddingTop: () => 0, paddingBottom: () => 0,
+          fillColor: () => "#ffffff25",
+        },
+      };
+
   return [
     // ── Syndicate identity band (colored)
     {
       table: {
-        widths: ["*", 70],
+        widths: [44, "*", 70],
         body: [
           [
+            { ...logoCell, fillColor: accentColor, margin: [12, 12, 0, 12] },
             {
               stack: [
                 { text: syndInfo.name.toUpperCase(), style: "headerOrgName", margin: [0, 0, 0, 3] },
@@ -150,7 +177,7 @@ function buildHeaderBand(
                   : null,
               ].filter(Boolean),
               fillColor: accentColor,
-              margin: [14, 12, 8, 12],
+              margin: [10, 12, 8, 12],
             },
             { ...qrCell, fillColor: "#ffffff" },
           ],
@@ -376,6 +403,181 @@ export async function signDocumentDownloadUrl(internalPath: string, ttlSec = 360
   return signed_url;
 }
 
+// ─── Syndicate Logo ───────────────────────────────────────────────────────────
+// Fetches the syndicate logo (PNG/JPG uploaded via /objects/... internal path, or a
+// plain https URL) and returns a base64 data URI pdfmake can embed as an `image` node.
+// SVG logos are not rasterized (pdfmake/PDFKit cannot embed raw SVG as an image node)
+// — for those we skip embedding and fall back to the text/initial header.
+
+const LOGO_CACHE_TTL_MS = 5 * 60 * 1000;
+const logoCache = new Map<string, { dataUrl: string | null; expires: number }>();
+
+function detectImageMime(buf: Buffer): string | null {
+  if (buf.length >= 8 && buf[0] === 0x89 && buf[1] === 0x50 && buf[2] === 0x4e && buf[3] === 0x47) return "image/png";
+  if (buf.length >= 3 && buf[0] === 0xff && buf[1] === 0xd8 && buf[2] === 0xff) return "image/jpeg";
+  return null; // covers SVG and any other unsupported format
+}
+
+export async function fetchLogoDataUrl(logoUrl: string | null | undefined): Promise<string | null> {
+  if (!logoUrl) return null;
+
+  const cached = logoCache.get(logoUrl);
+  if (cached && cached.expires > Date.now()) return cached.dataUrl;
+
+  try {
+    let buf: Buffer;
+    if (/^https?:\/\//i.test(logoUrl)) {
+      const resp = await fetch(logoUrl, { signal: AbortSignal.timeout(10_000) });
+      if (!resp.ok) throw new Error(`logo fetch failed: ${resp.status}`);
+      buf = Buffer.from(await resp.arrayBuffer());
+    } else {
+      // Internal object-storage path, e.g. "/objects/uploads/<uuid>"
+      const privateDir = process.env.PRIVATE_OBJECT_DIR || "";
+      if (!privateDir) throw new Error("PRIVATE_OBJECT_DIR not set");
+      const entityId = logoUrl.replace(/^\/objects\//, "");
+      const sep = privateDir.endsWith("/") ? "" : "/";
+      const fullPath = `${privateDir}${sep}${entityId}`;
+      const { bucketName, objectName } = parseGcsPath(fullPath);
+      [buf] = await objectStorageClient.bucket(bucketName).file(objectName).download();
+    }
+
+    const mime = detectImageMime(buf);
+    const dataUrl = mime ? `data:${mime};base64,${buf.toString("base64")}` : null;
+    logoCache.set(logoUrl, { dataUrl, expires: Date.now() + LOGO_CACHE_TTL_MS });
+    return dataUrl;
+  } catch (err) {
+    logger.warn({ err, logoUrl }, "fetchLogoDataUrl: non-fatal failure, falling back to text header");
+    logoCache.set(logoUrl, { dataUrl: null, expires: Date.now() + LOGO_CACHE_TTL_MS });
+    return null;
+  }
+}
+
+// ─── Signature Embedding (post-generation) ────────────────────────────────────
+// Documents are generated once at creation time; signatures are captured later
+// (mobile SignaturePad → SVG markup) and must be visually embedded into the
+// already-uploaded PDF. Rather than regenerating the whole document (the
+// original render inputs aren't persisted), we append a dedicated signature
+// page to the existing PDF using pdf-lib, which can load/edit PDFs without the
+// original pdfmake document definition.
+
+async function downloadPdfFromGcs(internalPath: string): Promise<Buffer> {
+  const privateDir = process.env.PRIVATE_OBJECT_DIR || "";
+  if (!privateDir) throw new Error("PRIVATE_OBJECT_DIR not set");
+  const entityId = internalPath.replace(/^\/objects\//, "");
+  const sep = privateDir.endsWith("/") ? "" : "/";
+  const fullPath = `${privateDir}${sep}${entityId}`;
+  const { bucketName, objectName } = parseGcsPath(fullPath);
+  const [buf] = await objectStorageClient.bucket(bucketName).file(objectName).download();
+  return buf;
+}
+
+async function overwritePdfInGcs(internalPath: string, buffer: Buffer): Promise<void> {
+  const privateDir = process.env.PRIVATE_OBJECT_DIR || "";
+  if (!privateDir) throw new Error("PRIVATE_OBJECT_DIR not set");
+  const entityId = internalPath.replace(/^\/objects\//, "");
+  const sep = privateDir.endsWith("/") ? "" : "/";
+  const fullPath = `${privateDir}${sep}${entityId}`;
+  const { bucketName, objectName } = parseGcsPath(fullPath);
+  await objectStorageClient.bucket(bucketName).file(objectName).save(buffer, {
+    contentType: "application/pdf",
+    metadata: { cacheControl: "private, max-age=3600" },
+  });
+}
+
+export interface SignatureToEmbed {
+  signerName: string;
+  signerRole: string;
+  signedAt: Date;
+  /** Raw SVG markup produced by the mobile SignaturePad component (may be empty for a stamp-only signature). */
+  signatureSvg?: string | null;
+}
+
+/** Extracts `d="..."` path data from simple single-color <path> elements (our SignaturePad output). */
+function extractSvgPaths(svg: string): string[] {
+  const matches = [...svg.matchAll(/<path\s+d="([^"]+)"/g)];
+  return matches.map((m) => m[1]);
+}
+
+/**
+ * Appends a "Signatures électroniques" page to an existing generated document PDF,
+ * rendering each signer's handwritten signature (from SVG path data) plus their
+ * name, role, and timestamp. Overwrites the PDF in-place at `internalPath`.
+ * Best-effort: throws on failure so the caller can log/audit without blocking
+ * the underlying signature record, which is already durably stored in the DB.
+ */
+export async function appendSignaturesToPdf(internalPath: string, signatures: SignatureToEmbed[]): Promise<void> {
+  if (signatures.length === 0) return;
+  const { PDFDocument, rgb, StandardFonts } = await import("pdf-lib");
+
+  const existingBytes = await downloadPdfFromGcs(internalPath);
+  const pdfDoc = await PDFDocument.load(existingBytes, { ignoreEncryption: true });
+  const font = await pdfDoc.embedFont(StandardFonts.Helvetica);
+  const boldFont = await pdfDoc.embedFont(StandardFonts.HelveticaBold);
+
+  const PAGE_W = 595.28; // A4 pt
+  const PAGE_H = 841.89;
+  const ROW_H = 130;
+  const MARGIN = 40;
+
+  let page = pdfDoc.addPage([PAGE_W, PAGE_H]);
+  let cursorY = PAGE_H - MARGIN;
+
+  page.drawText("Signatures électroniques", {
+    x: MARGIN, y: cursorY, size: 16, font: boldFont, color: rgb(0.1, 0.1, 0.2),
+  });
+  cursorY -= 30;
+
+  for (const sig of signatures) {
+    if (cursorY - ROW_H < MARGIN) {
+      page = pdfDoc.addPage([PAGE_W, PAGE_H]);
+      cursorY = PAGE_H - MARGIN;
+    }
+
+    const boxTop = cursorY;
+    const boxBottom = cursorY - ROW_H + 20;
+    page.drawRectangle({
+      x: MARGIN, y: boxBottom, width: PAGE_W - 2 * MARGIN, height: boxTop - boxBottom,
+      borderColor: rgb(0.85, 0.85, 0.88), borderWidth: 1,
+    });
+
+    page.drawText(sig.signerName, { x: MARGIN + 12, y: boxTop - 20, size: 12, font: boldFont, color: rgb(0.1, 0.1, 0.2) });
+    page.drawText(
+      `${sig.signerRole === "super_admin" ? "Super administrateur" : "Administrateur du syndicat"} — signé le ${sig.signedAt.toLocaleString("fr-FR")}`,
+      { x: MARGIN + 12, y: boxTop - 36, size: 9, font, color: rgb(0.4, 0.4, 0.45) },
+    );
+
+    const paths = sig.signatureSvg ? extractSvgPaths(sig.signatureSvg) : [];
+    if (paths.length > 0) {
+      // SignaturePad canvas is 320x180 — scale/translate into the signature box
+      const scale = 0.55;
+      const originX = MARGIN + 12;
+      const originY = boxBottom + 15 + 180 * scale; // flip Y (SVG y-down → PDF y-up)
+      for (const d of paths) {
+        try {
+          page.drawSvgPath(d, {
+            x: originX,
+            y: originY,
+            scale,
+            borderColor: rgb(0.12, 0.16, 0.35),
+            borderWidth: 1.5,
+          });
+        } catch {
+          // Malformed path data — skip this stroke rather than failing the whole embed
+        }
+      }
+    } else {
+      page.drawText("(signature électronique enregistrée sans tracé manuscrit)", {
+        x: MARGIN + 12, y: boxTop - 60, size: 9, font, color: rgb(0.55, 0.55, 0.6),
+      });
+    }
+
+    cursorY -= ROW_H;
+  }
+
+  const outBytes = await pdfDoc.save();
+  await overwritePdfInGcs(internalPath, Buffer.from(outBytes));
+}
+
 export async function deleteDocumentFromGcs(internalPath: string): Promise<void> {
   try {
     const privateDir = process.env.PRIVATE_OBJECT_DIR || "";
@@ -413,7 +615,62 @@ export type DocumentTemplate =
   | "convention_partenariat"
   | "accord_collectif"
   | "compte_rendu"
-  | "rapport_activite";
+  | "rapport_activite"
+  | "reglement";
+
+/** Sequential-numbering prefix per template — used by the API route to mint REG-2026-0001 style refs. */
+export const TEMPLATE_NUMBER_PREFIX: Record<DocumentTemplate, string> = {
+  attestation: "ATT",
+  pv: "PV",
+  convocation: "CONV",
+  contrat: "CTR",
+  rapport: "RAP",
+  decision: "DEC",
+  certificat: "CERT",
+  circulaire: "CIRC",
+  mise_en_demeure: "MED",
+  demande_administrative: "DEM",
+  autorisation: "AUT",
+  ordre_de_mission: "OM",
+  lettre_officielle: "LO",
+  note_interne: "NI",
+  rapport_financier: "FIN",
+  rapport_audit: "AUD",
+  convention_partenariat: "CONV-P",
+  accord_collectif: "AC",
+  compte_rendu: "CR",
+  rapport_activite: "RA",
+  reglement: "REG",
+};
+
+/** Real co-ownership property/residence data — fetched from `buildingsTable` + `lotsTable`. */
+export interface PropertyInfo {
+  name: string;
+  address: string;
+  city: string;
+  totalBuildings: number;
+  totalFloors: number;
+  totalLots: number;
+  totalSurfaceM2: number | null;
+  /** Cadastral / land-registry reference (titre foncier), when available. */
+  landRegistryReference: string | null;
+  createdAt: string | null;
+}
+
+/** A syndicate office-holder (élu du conseil syndical) or staff role, for signature/identity blocks. */
+export interface OfficeHolder {
+  fullName: string;
+  email: string | null;
+  phone: string | null;
+}
+
+export interface OfficeHolders {
+  president?: OfficeHolder;
+  vicePresident?: OfficeHolder;
+  secretary?: OfficeHolder;
+  treasurer?: OfficeHolder;
+  manager?: OfficeHolder;
+}
 
 export interface SyndicateInfo {
   name: string;
@@ -424,6 +681,10 @@ export interface SyndicateInfo {
   website: string;
   registrationNumber: string;
   logoColor: string;
+  /** Object-storage path ("/objects/...") or https URL to the syndicate's logo (PNG/JPG). */
+  logoUrl?: string | null;
+  /** Short acronym shown next to/instead of the logo (e.g. "SCA"). Falls back to initials. */
+  abbreviation?: string | null;
 }
 
 export interface DocumentInput {
@@ -438,6 +699,10 @@ export interface DocumentInput {
   date?: string;
   /** Document lifecycle status — used to add watermark for non-final docs */
   docStatus?: string;
+  /** Real residence/co-ownership data, fetched from buildingsTable + lotsTable. */
+  property?: PropertyInfo;
+  /** Real office-holder identities, fetched from conseilSyndicalTable. */
+  officeHolders?: OfficeHolders;
   [key: string]: unknown;
 }
 
@@ -461,8 +726,11 @@ async function buildDocDef(template: DocumentTemplate, input: DocumentInput): Pr
   const body = input.content ?? "";
   const styles = buildStyles(accentColor);
 
-  // QR code — non-blocking
-  const qrDataUrl = await generateQrDataUrl(docNum);
+  // QR code + logo — both non-blocking / best-effort
+  const [qrDataUrl, logoDataUrl] = await Promise.all([
+    generateQrDataUrl(docNum),
+    fetchLogoDataUrl(syndInfo.logoUrl),
+  ]);
 
   // Watermark for draft/generated documents
   const watermark =
@@ -487,7 +755,7 @@ async function buildDocDef(template: DocumentTemplate, input: DocumentInput): Pr
     margin: [0, 10, 0, 0],
   });
 
-  const header = buildHeaderBand(syndInfo, getDocTypeLabel(template), docNum, qrDataUrl, accentColor, today);
+  const header = buildHeaderBand(syndInfo, getDocTypeLabel(template), docNum, qrDataUrl, accentColor, today, logoDataUrl);
 
   // ── Template content ────────────────────────────────────────────────────────
 
@@ -1215,6 +1483,59 @@ async function buildDocDef(template: DocumentTemplate, input: DocumentInput): Pr
       ];
       break;
 
+    // ── Template 21: Règlement de Copropriété (dynamic, DB-fed) ─────────────────
+    case "reglement": {
+      const prop = input.property as PropertyInfo | undefined;
+      const officeHolders = input.officeHolders as OfficeHolders | undefined;
+      const president = officeHolders?.president;
+      content = [
+        ...header,
+        { text: input.title || "RÈGLEMENT DE COPROPRIÉTÉ", style: "docTitle", alignment: "center" as const, margin: [0, 0, 0, 16] },
+        metaTable([
+          ["Résidence :", prop?.name || syndInfo.name],
+          ["Adresse :", [prop?.address, prop?.city].filter(Boolean).join(", ") || [syndInfo.address, syndInfo.city].filter(Boolean).join(", ") || "—"],
+          ["Référence foncière :", prop?.landRegistryReference || "—"],
+          ["Nombre de bâtiments :", prop ? String(prop.totalBuildings) : "—"],
+          ["Nombre d'étages :", prop ? String(prop.totalFloors) : "—"],
+          ["Nombre de lots :", prop ? String(prop.totalLots) : "—"],
+          ["Surface totale :", prop?.totalSurfaceM2 != null ? `${prop.totalSurfaceM2} m²` : "—"],
+          ["Président du syndicat :", president?.fullName || input.president as string || "—"],
+          ["Date de génération :", today],
+          ["N° de document :", docNum],
+        ], accentColor),
+        contentSection(
+          "Objet du règlement",
+          body ||
+            `Le présent règlement de copropriété fixe les règles de jouissance, d'usage et d'administration des parties privatives et communes ` +
+            `de la résidence "${prop?.name || syndInfo.name}", conformément à la loi 18-00 relative au statut de la copropriété des immeubles bâtis.`,
+          accentColor,
+        ),
+        contentSection(
+          "Description de l'immeuble",
+          `La résidence "${prop?.name || syndInfo.name}" comprend ${prop ? prop.totalBuildings : "—"} bâtiment(s), ${prop ? prop.totalFloors : "—"} étage(s) ` +
+            `et ${prop ? prop.totalLots : "—"} lot(s), pour une surface totale de ${prop?.totalSurfaceM2 != null ? `${prop.totalSurfaceM2} m²` : "non renseignée"}. ` +
+            `Référence foncière : ${prop?.landRegistryReference || "non renseignée"}.`,
+          accentColor,
+        ),
+        contentSection(
+          "Répartition des charges",
+          input.chargesText as string ||
+            "La répartition des charges communes est établie proportionnellement aux tantièmes de copropriété attribués à chaque lot, conformément au tableau de répartition annexé au présent règlement.",
+          accentColor,
+        ),
+        contentSection(
+          "Administration du syndicat",
+          `Le syndicat de la résidence est administré par ${president?.fullName || "le Président du conseil syndical"}` +
+            (officeHolders?.manager?.fullName ? ` et géré par ${officeHolders.manager.fullName}` : "") + `.`,
+          accentColor,
+        ),
+        { text: "\n" },
+        signatureBlock(president?.fullName ? `Le Président — ${president.fullName}` : "Le Président du Syndicat", syndInfo.name, accentColor),
+        legalFooterNote(docNum),
+      ];
+      break;
+    }
+
     default:
       content = [
         ...header,
@@ -1256,6 +1577,7 @@ function getDocTypeLabel(template: DocumentTemplate): string {
     accord_collectif:         "ACCORD COLLECTIF",
     compte_rendu:             "COMPTE-RENDU DE RÉUNION",
     rapport_activite:         "RAPPORT D'ACTIVITÉ",
+    reglement:                "RÈGLEMENT DE COPROPRIÉTÉ",
   };
   return labels[template] ?? template.toUpperCase().replace(/_/g, " ");
 }
@@ -1298,7 +1620,7 @@ export const CATEGORY_TO_TEMPLATE: Record<string, DocumentTemplate> = {
   attestation: "attestation",
   pv:          "pv",
   juridique:   "mise_en_demeure",
-  reglements:  "circulaire",
+  reglements:  "reglement",
   finances:    "rapport_financier",
   statuts:     "certificat",
 };

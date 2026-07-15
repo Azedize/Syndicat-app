@@ -6,7 +6,7 @@
 
 import { Feather } from "@expo/vector-icons";
 import { router } from "expo-router";
-import React, { useMemo, useState } from "react";
+import React, { useEffect, useMemo, useState } from "react";
 import {
   FlatList,
   Platform,
@@ -46,12 +46,34 @@ export default function DocumentsDashboard() {
 
   const isAdmin = user?.role === "super_admin" || user?.role === "syndicate_admin";
 
+  // ── Real expiring-documents summary (30/60/90-day retention buckets) ───────
+  // Replaces the previous client-side "published > 345 days ago" heuristic
+  // with the backend's actual retentionUntil-based computation.
+  interface SummaryDoc { id: string; title: string }
+  interface Summary {
+    total: number;
+    byStatus: Record<string, number>;
+    expiring: { in30: number; in60: number; in90: number; documents30: SummaryDoc[] };
+  }
+  const [summary, setSummary] = useState<Summary | null>(null);
+
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      try {
+        const { documents: docsApi } = await import("@/services/api");
+        const res = (await (docsApi as any).summary?.()) as { data: Summary } | undefined;
+        if (!cancelled && res?.data) setSummary(res.data);
+      } catch {
+        // Non-fatal — dashboard falls back to local counts if the summary endpoint is unavailable
+      }
+    })();
+    return () => { cancelled = true; };
+  }, []);
+
   // ── Compute metrics ─────────────────────────────────────────────────────────
 
   const metrics = useMemo(() => {
-    const now = Date.now();
-    const thirtyDays = 30 * 24 * 60 * 60 * 1000;
-
     const byStatus = (st: string | string[]) =>
       documents.filter((d) => (Array.isArray(st) ? st.includes(d.status) : d.status === st)).length;
 
@@ -60,17 +82,19 @@ export default function DocumentsDashboard() {
       .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())
       .slice(0, 8);
 
-    const expiring = documents.filter((d) => {
-      // Approximation: docs published > 355 days ago "expire" in the next 10 days
-      if (!d.date || d.status !== "published") return false;
-      const age = now - new Date(d.date).getTime();
-      return age > 345 * 24 * 60 * 60 * 1000 && age < 365 * 24 * 60 * 60 * 1000;
-    });
-
     const recentlyModified = [...documents]
       .filter((d) => d.date)
       .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())
       .slice(0, 5);
+
+    // Real 30-day retention-expiry bucket from the backend; falls back to 0/empty
+    // (not a fabricated estimate) while the summary request is in flight.
+    const expiringCount = summary?.expiring.in30 ?? 0;
+    const expiringDocs = (summary?.expiring.documents30 ?? []).map((sd) => ({
+      id: sd.id,
+      title: sd.title,
+      date: "Conservation légale bientôt échue",
+    }));
 
     return {
       draft:          byStatus("draft"),
@@ -82,12 +106,12 @@ export default function DocumentsDashboard() {
       published:      byStatus("published"),
       archived:       byStatus("archived"),
       total:          documents.length,
-      expiring:       expiring.length,
+      expiring:       expiringCount,
       recentDocs,
       recentlyModified,
-      expiringDocs:   expiring.slice(0, 5),
+      expiringDocs,
     };
-  }, [documents]);
+  }, [documents, summary]);
 
   // ── Widgets ─────────────────────────────────────────────────────────────────
 
