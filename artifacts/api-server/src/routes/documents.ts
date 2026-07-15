@@ -15,7 +15,7 @@
 import { Router } from "express";
 import { z } from "zod";
 import { db } from "@workspace/db";
-import { documentsTable, documentSignaturesTable, syndicatesTable } from "@workspace/db/schema";
+import { documentsTable, documentSignaturesTable, documentCommentsTable, syndicatesTable, usersTable } from "@workspace/db/schema";
 import { eq, and, desc, sql, isNull } from "drizzle-orm";
 import { requireAuth, requireRole } from "../middleware/auth.js";
 import { serverAuditLog } from "../lib/audit.js";
@@ -581,6 +581,130 @@ router.get(
         .where(eq(documentSignaturesTable.documentId, id))
         .orderBy(desc(documentSignaturesTable.signedAt));
       res.json({ data: sigs });
+    } catch (err) {
+      req.log.error(err);
+      res.status(500).json({ error: "Erreur serveur" });
+    }
+  },
+);
+
+// ─── Comments: GET /documents/:id/comments ───────────────────────────────────
+
+router.get(
+  "/:id/comments",
+  requireAuth,
+  async (req, res) => {
+    const { id } = req.params;
+    try {
+      const [doc] = await db.select({ id: documentsTable.id, syndicateId: documentsTable.syndicateId, status: documentsTable.status })
+        .from(documentsTable)
+        .where(and(eq(documentsTable.id, id), eq(documentsTable.isDeleted, false)));
+      if (!doc) { res.status(404).json({ error: "Document introuvable" }); return; }
+
+      const user = req.user!;
+      const isSuperAdmin = user.role === "super_admin";
+      const isAdminOfSyndicate = (user.role === "syndicate_admin") && doc.syndicateId === user.syndicateId;
+      const isMemberOfSyndicate = (user.role === "member") && doc.syndicateId === user.syndicateId;
+      if (!isSuperAdmin && !isAdminOfSyndicate && !isMemberOfSyndicate) {
+        res.status(403).json({ error: "Accès refusé" }); return;
+      }
+
+      const comments = await db
+        .select({
+          id:        documentCommentsTable.id,
+          content:   documentCommentsTable.content,
+          parentId:  documentCommentsTable.parentId,
+          isDeleted: documentCommentsTable.isDeleted,
+          editedAt:  documentCommentsTable.editedAt,
+          createdAt: documentCommentsTable.createdAt,
+          authorId:  documentCommentsTable.authorId,
+          authorName: usersTable.name,
+          authorRole: usersTable.role,
+        })
+        .from(documentCommentsTable)
+        .leftJoin(usersTable, eq(documentCommentsTable.authorId, usersTable.id))
+        .where(eq(documentCommentsTable.documentId, id))
+        .orderBy(documentCommentsTable.createdAt);
+
+      res.json({ data: comments });
+    } catch (err) {
+      req.log.error(err);
+      res.status(500).json({ error: "Erreur serveur" });
+    }
+  },
+);
+
+// ─── Comments: POST /documents/:id/comments ──────────────────────────────────
+
+const CommentCreateSchema = z.object({
+  content:  z.string().min(1).max(2000),
+  parentId: z.string().optional(),
+});
+
+router.post(
+  "/:id/comments",
+  requireAuth,
+  async (req, res) => {
+    const { id } = req.params;
+    const parsed = CommentCreateSchema.safeParse(req.body);
+    if (!parsed.success) { res.status(400).json({ error: parsed.error.flatten() }); return; }
+
+    try {
+      const [doc] = await db.select({ id: documentsTable.id, syndicateId: documentsTable.syndicateId })
+        .from(documentsTable)
+        .where(and(eq(documentsTable.id, id), eq(documentsTable.isDeleted, false)));
+      if (!doc) { res.status(404).json({ error: "Document introuvable" }); return; }
+
+      const user = req.user!;
+      const isSuperAdmin = user.role === "super_admin";
+      const isAdminOfSyndicate = (user.role === "syndicate_admin") && doc.syndicateId === user.syndicateId;
+      const isMemberOfSyndicate = (user.role === "member") && doc.syndicateId === user.syndicateId;
+      if (!isSuperAdmin && !isAdminOfSyndicate && !isMemberOfSyndicate) {
+        res.status(403).json({ error: "Accès refusé" }); return;
+      }
+
+      const [comment] = await db.insert(documentCommentsTable).values({
+        documentId: id,
+        authorId:   user.userId,
+        content:    parsed.data.content,
+        parentId:   parsed.data.parentId ?? null,
+      } as any).returning();
+
+      serverAuditLog(req, "document_comment_added", { documentId: id, commentId: comment.id });
+      res.status(201).json({ data: comment });
+    } catch (err) {
+      req.log.error(err);
+      res.status(500).json({ error: "Erreur serveur" });
+    }
+  },
+);
+
+// ─── Comments: DELETE /documents/:id/comments/:commentId ─────────────────────
+
+router.delete(
+  "/:id/comments/:commentId",
+  requireAuth,
+  async (req, res) => {
+    const { id, commentId } = req.params;
+    try {
+      const [comment] = await db.select().from(documentCommentsTable)
+        .where(and(eq(documentCommentsTable.id, commentId), eq(documentCommentsTable.documentId, id)));
+      if (!comment) { res.status(404).json({ error: "Commentaire introuvable" }); return; }
+
+      const user = req.user!;
+      const isOwner = comment.authorId === user.userId;
+      const isSuperAdmin = user.role === "super_admin";
+      const isSyndicateAdmin = user.role === "syndicate_admin";
+      if (!isOwner && !isSuperAdmin && !isSyndicateAdmin) {
+        res.status(403).json({ error: "Accès refusé" }); return;
+      }
+
+      await db.update(documentCommentsTable)
+        .set({ isDeleted: true })
+        .where(eq(documentCommentsTable.id, commentId));
+
+      serverAuditLog(req, "document_comment_deleted", { documentId: id, commentId });
+      res.json({ message: "Commentaire supprimé" });
     } catch (err) {
       req.log.error(err);
       res.status(500).json({ error: "Erreur serveur" });

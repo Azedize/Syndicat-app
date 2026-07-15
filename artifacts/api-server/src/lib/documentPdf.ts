@@ -401,7 +401,19 @@ export type DocumentTemplate =
   | "decision"
   | "certificat"
   | "circulaire"
-  | "mise_en_demeure";
+  | "mise_en_demeure"
+  // ── 11 new enterprise templates ─────────────────────
+  | "demande_administrative"
+  | "autorisation"
+  | "ordre_de_mission"
+  | "lettre_officielle"
+  | "note_interne"
+  | "rapport_financier"
+  | "rapport_audit"
+  | "convention_partenariat"
+  | "accord_collectif"
+  | "compte_rendu"
+  | "rapport_activite";
 
 export interface SyndicateInfo {
   name: string;
@@ -796,6 +808,413 @@ async function buildDocDef(template: DocumentTemplate, input: DocumentInput): Pr
       ];
       break;
 
+    // ── Template 10: Demande Administrative ─────────────────────────────────────
+    case "demande_administrative":
+      content = [
+        ...header,
+        { text: input.title, style: "docTitle", margin: [0, 0, 0, 16] },
+        metaTable([
+          ["Demandeur :",       member || "[NOM DU DEMANDEUR]"],
+          ["Objet de la demande :", input.objet as string || body || "—"],
+          ["Date de la demande :", today],
+          ["Pièces jointes :",  input.piecesJointes as string || "À préciser"],
+          ["Référence :",       docNum],
+        ], accentColor),
+        contentSection(
+          "Exposé de la demande",
+          input.expose as string || body ||
+            `Le soussigné(e), ${member || "[NOM]"}, soumet la présente demande auprès de ${syndInfo.name} ` +
+            "et sollicite une réponse favorable dans les meilleurs délais.",
+          accentColor,
+        ),
+        contentSection(
+          "Pièces justificatives",
+          input.justificatifs as string || "• Document d'identité\n• Tout document pertinent à la demande",
+          accentColor,
+        ),
+        {
+          text: `Fait à ${syndInfo.city || "—"}, le ${today}`,
+          style: "body",
+          alignment: "right" as const,
+          margin: [0, 16, 0, 0],
+        },
+        signatureBlock("Le Demandeur", member || "[NOM DU DEMANDEUR]", accentColor),
+        legalFooterNote(docNum),
+      ];
+      break;
+
+    // ── Template 11: Autorisation ────────────────────────────────────────────────
+    case "autorisation":
+      content = [
+        ...header,
+        { text: input.title, style: "docTitle", margin: [0, 0, 0, 16] },
+        metaTable([
+          ["Bénéficiaire :",    member || "[NOM DU BÉNÉFICIAIRE]"],
+          ["Objet :",           input.objet as string || body || "—"],
+          ["Valable du :",      input.dateDebut as string || today],
+          ["Au :",              input.dateFin as string || "À préciser"],
+          ["Référence :",       docNum],
+        ], accentColor),
+        contentSection(
+          "Autorisation accordée",
+          input.texteAutorisation as string || body ||
+            `Par la présente, ${syndInfo.name} autorise ${member || "[NOM]"} à procéder à l'action décrite ci-dessous, ` +
+            "sous réserve du respect des règles en vigueur au sein de la structure.",
+          accentColor,
+        ),
+        contentSection(
+          "Conditions et restrictions",
+          input.conditions as string || "Cette autorisation est strictement personnelle et non transférable. Elle ne vaut que pour l'objet précisé ci-dessus.",
+          accentColor,
+        ),
+        {
+          table: {
+            widths: ["*"],
+            body: [[{
+              stack: [
+                { text: "✓  AUTORISATION VALIDE", fontSize: 10, bold: true, color: "#16a34a", margin: [0, 0, 0, 4] },
+                { text: `Délivrée par ${syndInfo.name} — ${today}`, fontSize: 9, color: "#16a34a" },
+              ],
+              fillColor: "#f0fdf4",
+              margin: [12, 10, 12, 10],
+            }]],
+          },
+          layout: { hLineWidth: () => 1, vLineWidth: () => 1, hLineColor: () => "#86efac", vLineColor: () => "#86efac" },
+          margin: [0, 0, 0, 16],
+        },
+        signatureBlock("Le Président du Syndicat", syndInfo.name, accentColor),
+        legalFooterNote(docNum),
+      ];
+      break;
+
+    // ── Template 12: Ordre de Mission ────────────────────────────────────────────
+    case "ordre_de_mission":
+      content = [
+        ...header,
+        { text: input.title, style: "docTitle", margin: [0, 0, 0, 16] },
+        metaTable([
+          ["Missionnaire :",    member || "[NOM DU MISSIONNAIRE]"],
+          ["Qualité / Poste :", input.poste as string || "—"],
+          ["Destination :",     input.destination as string || "—"],
+          ["Date de départ :",  input.dateDepart as string || today],
+          ["Date de retour :",  input.dateRetour as string || "À préciser"],
+          ["Objet de la mission :", input.objetMission as string || body || "—"],
+          ["Référence :",       docNum],
+        ], accentColor),
+        contentSection(
+          "Description de la mission",
+          input.description as string || body ||
+            `${member || "[NOM]"} est chargé(e) de la mission décrite ci-dessus au nom de ${syndInfo.name}. ` +
+            "Il/Elle est habilité(e) à représenter l'organisation et à effectuer toutes les démarches nécessaires.",
+          accentColor,
+        ),
+        contentSection(
+          "Frais et remboursements",
+          input.frais as string || "Les frais de déplacement et d'hébergement seront remboursés sur présentation de justificatifs originaux, conformément au barème en vigueur.",
+          accentColor,
+        ),
+        signatureBlock("Le Président du Syndicat", syndInfo.name, accentColor),
+        legalFooterNote(docNum),
+      ];
+      break;
+
+    // ── Template 13: Lettre Officielle ───────────────────────────────────────────
+    case "lettre_officielle":
+      content = [
+        ...header,
+        {
+          columns: [
+            {
+              stack: [
+                { text: syndInfo.name, fontSize: 11, bold: true, color: "#1e293b" },
+                { text: [syndInfo.address, syndInfo.city].filter(Boolean).join(", "), fontSize: 9, color: "#64748b" },
+                { text: syndInfo.phone || "", fontSize: 9, color: "#64748b" },
+                { text: syndInfo.email || "", fontSize: 9, color: "#64748b" },
+              ],
+            },
+            {
+              stack: [
+                { text: `À l'attention de :`, fontSize: 9, color: "#64748b" },
+                { text: member || "[DESTINATAIRE]", fontSize: 11, bold: true, color: "#1e293b", margin: [0, 4, 0, 0] },
+                { text: `Le ${today}`, fontSize: 9, color: "#64748b", margin: [0, 16, 0, 0] },
+                { text: `Réf : ${docNum}`, fontSize: 9, color: "#64748b" },
+              ],
+              alignment: "right" as const,
+            },
+          ],
+          margin: [0, 0, 0, 24],
+        },
+        {
+          text: `Objet : ${input.objet as string || body || input.title}`,
+          fontSize: 10,
+          bold: true,
+          color: "#1e293b",
+          margin: [0, 0, 0, 16],
+          decoration: "underline" as const,
+        },
+        { text: `Monsieur / Madame,`, style: "body", margin: [0, 0, 0, 12] },
+        { text: input.corps as string || body || "Nous vous prions de bien vouloir trouver ci-joint les éléments relatifs à l'objet mentionné en référence.", style: "body", margin: [0, 0, 0, 12] },
+        { text: "Veuillez agréer, Monsieur / Madame, l'expression de nos salutations distinguées.", style: "body", margin: [0, 0, 0, 0] },
+        signatureBlock("Le Président du Syndicat", syndInfo.name, accentColor),
+        legalFooterNote(docNum),
+      ];
+      break;
+
+    // ── Template 14: Note Interne ────────────────────────────────────────────────
+    case "note_interne":
+      content = [
+        ...header,
+        {
+          table: {
+            widths: [120, "*"],
+            body: [
+              [{ text: "À :", style: "metaKey", fillColor: "#f8fafc", margin: [8, 6, 8, 6] }, { text: member || "Tous les membres du bureau", style: "metaVal", margin: [8, 6, 8, 6] }],
+              [{ text: "De :", style: "metaKey", fillColor: "#f8fafc", margin: [8, 6, 8, 6] }, { text: input.de as string || "La Présidence", style: "metaVal", margin: [8, 6, 8, 6] }],
+              [{ text: "Date :", style: "metaKey", fillColor: "#f8fafc", margin: [8, 6, 8, 6] }, { text: today, style: "metaVal", margin: [8, 6, 8, 6] }],
+              [{ text: "Objet :", style: "metaKey", fillColor: "#f8fafc", margin: [8, 6, 8, 6] }, { text: input.objet as string || input.title, style: "metaVal", bold: true, margin: [8, 6, 8, 6] }],
+              [{ text: "Priorité :", style: "metaKey", fillColor: "#f8fafc", margin: [8, 6, 8, 6] }, { text: input.priorite as string || "Normale", style: "metaVal", margin: [8, 6, 8, 6] }],
+            ],
+          },
+          layout: { hLineWidth: (i: number, n: { table: { body: unknown[] } }) => i === 0 || i === n.table.body.length ? 1 : 0.5, vLineWidth: () => 0.5, hLineColor: () => "#e2e8f0", vLineColor: () => "#e2e8f0" },
+          margin: [0, 0, 0, 20],
+        },
+        contentSection("Message", body || input.corps as string || "Veuillez prendre connaissance des informations ci-dessous et agir en conséquence.", accentColor),
+        input.actionRequise
+          ? {
+              table: {
+                widths: ["*"],
+                body: [[{ stack: [
+                  { text: "ACTION REQUISE", fontSize: 9, bold: true, color: accentColor, margin: [0, 0, 0, 4] },
+                  { text: input.actionRequise as string, fontSize: 10, color: "#1e293b" },
+                ], fillColor: accentColor + "12", margin: [12, 10, 12, 10] }]],
+              },
+              layout: { hLineWidth: () => 1, vLineWidth: () => 0, hLineColor: () => accentColor + "50" },
+              margin: [0, 0, 0, 16],
+            }
+          : null,
+        { text: `${syndInfo.name} — Note interne n° ${docNum}`, style: "notice", alignment: "center" as const, margin: [0, 30, 0, 0] },
+        legalFooterNote(docNum),
+      ].filter(Boolean);
+      break;
+
+    // ── Template 15: Rapport Financier ───────────────────────────────────────────
+    case "rapport_financier":
+      content = [
+        ...header,
+        { text: input.title, style: "docTitle", margin: [0, 0, 0, 8] },
+        { text: input.periode as string || `Période : ${today}`, style: "docRef", margin: [0, 0, 0, 16] },
+        metaTable([
+          ["Établi par :",     input.etabliPar as string || "Le Trésorier"],
+          ["Approuvé par :",   input.approuvePar as string || "Le Président"],
+          ["Exercice :",       input.exercice as string || new Date().getFullYear().toString()],
+          ["Date :",           today],
+          ["Référence :",      docNum],
+        ], accentColor),
+        contentSection(
+          "Synthèse financière",
+          body || input.synthese as string || "Voir tableaux ci-dessous pour le détail des recettes et dépenses de la période.",
+          accentColor,
+        ),
+        {
+          table: {
+            widths: ["*", 120, 120],
+            body: [
+              [
+                { text: "Rubrique", style: "tableHeader", fillColor: accentColor, margin: [8, 6, 8, 6] },
+                { text: "Prévu (MAD)", style: "tableHeader", fillColor: accentColor, margin: [8, 6, 8, 6], alignment: "right" as const },
+                { text: "Réalisé (MAD)", style: "tableHeader", fillColor: accentColor, margin: [8, 6, 8, 6], alignment: "right" as const },
+              ],
+              ...(input.lignesFinancieres as Array<[string, string, string]> || [
+                ["Cotisations membres", "—", "—"],
+                ["Charges communes", "—", "—"],
+                ["Dépenses d'entretien", "—", "—"],
+                ["Autres recettes", "—", "—"],
+              ]).map(([label, prevu, realise]: [string, string, string], i: number) => [
+                { text: label, style: "tableCell", fillColor: i % 2 === 0 ? "#f8fafc" : "#ffffff", margin: [8, 5, 8, 5] },
+                { text: prevu, style: "tableCell", fillColor: i % 2 === 0 ? "#f8fafc" : "#ffffff", alignment: "right" as const, margin: [8, 5, 8, 5] },
+                { text: realise, style: "tableCell", fillColor: i % 2 === 0 ? "#f8fafc" : "#ffffff", alignment: "right" as const, margin: [8, 5, 8, 5] },
+              ]),
+              [
+                { text: "TOTAL", bold: true, fontSize: 10, fillColor: accentColor + "20", margin: [8, 6, 8, 6] },
+                { text: input.totalPrevu as string || "—", bold: true, fontSize: 10, fillColor: accentColor + "20", alignment: "right" as const, margin: [8, 6, 8, 6] },
+                { text: input.totalRealise as string || "—", bold: true, fontSize: 10, fillColor: accentColor + "20", alignment: "right" as const, margin: [8, 6, 8, 6] },
+              ],
+            ],
+          },
+          layout: { hLineWidth: (i: number) => i === 0 || i === 1 ? 1 : 0.3, vLineWidth: () => 0.3, hLineColor: () => "#e2e8f0", vLineColor: () => "#e2e8f0" },
+          margin: [0, 0, 0, 16],
+        },
+        contentSection("Observations et recommandations", input.observations as string || "Aucune observation particulière pour la période.", accentColor),
+        {
+          columns: [
+            signatureBlock("Le Trésorier", syndInfo.name, accentColor, false),
+            signatureBlock("Le Président", syndInfo.name, accentColor, true),
+          ],
+        } as unknown,
+        legalFooterNote(docNum),
+      ];
+      break;
+
+    // ── Template 16: Rapport d'Audit ─────────────────────────────────────────────
+    case "rapport_audit":
+      content = [
+        ...header,
+        { text: input.title, style: "docTitle", margin: [0, 0, 0, 8] },
+        metaTable([
+          ["Auditeur(s) :",     input.auditeurs as string || "Commissaire aux comptes"],
+          ["Périmètre :",       input.perimetre as string || syndInfo.name],
+          ["Période auditée :", input.periodeAuditee as string || `Exercice ${new Date().getFullYear()}`],
+          ["Date du rapport :", today],
+          ["Opinion :",         input.opinion as string || "Sans réserve"],
+          ["Référence :",       docNum],
+        ], accentColor),
+        contentSection("Contexte et objectifs", input.contexte as string || body || "Le présent rapport présente les conclusions de l'audit réalisé conformément aux normes d'audit applicables.", accentColor),
+        contentSection("Constats et observations", input.constats as string || "Voir annexes détaillées.", accentColor),
+        contentSection("Recommandations", input.recommandations as string || "Les recommandations issues de cet audit seront présentées lors de la prochaine réunion du bureau.", accentColor),
+        {
+          table: {
+            widths: ["*"],
+            body: [[{
+              stack: [
+                { text: "CONCLUSION DE L'AUDIT", fontSize: 10, bold: true, color: accentColor, margin: [0, 0, 0, 6] },
+                { text: input.conclusion as string || "Audit réalisé conformément aux standards professionnels. Aucune irrégularité majeure constatée.", fontSize: 10, color: "#334155" },
+              ],
+              fillColor: accentColor + "0a",
+              margin: [14, 12, 14, 12],
+            }]],
+          },
+          layout: { hLineWidth: () => 1, vLineWidth: () => 1, hLineColor: () => accentColor + "40", vLineColor: () => accentColor + "40" },
+          margin: [0, 0, 0, 16],
+        },
+        signatureBlock("L'Auditeur", input.auditeurs as string || syndInfo.name, accentColor),
+        legalFooterNote(docNum),
+      ];
+      break;
+
+    // ── Template 17: Convention de Partenariat ───────────────────────────────────
+    case "convention_partenariat":
+      content = [
+        ...header,
+        { text: input.title, style: "docTitle", margin: [0, 0, 0, 16] },
+        metaTable([
+          ["Partie A :",        syndInfo.name],
+          ["Partie B :",        input.partieB as string || member || "[PARTENAIRE]"],
+          ["Objet :",           input.objet as string || body || "—"],
+          ["Durée :",           input.duree as string || "1 an renouvelable"],
+          ["Date d'effet :",    today],
+          ["Référence :",       docNum],
+        ], accentColor),
+        contentSection("Préambule", input.preambule as string || `${syndInfo.name} et ${input.partieB as string || "[PARTENAIRE]"} souhaitent formaliser leur collaboration par la présente convention de partenariat.`, accentColor),
+        contentSection("Article 1 — Objet de la convention", input.article1 as string || body || "La présente convention a pour objet de définir les modalités de coopération entre les deux parties.", accentColor),
+        contentSection("Article 2 — Engagements des parties", input.article2 as string || "Chaque partie s'engage à respecter ses obligations telles que définies dans les annexes jointes.", accentColor),
+        contentSection("Article 3 — Durée et résiliation", input.article3 as string || `La convention prend effet à la date de signature et est conclue pour une durée de ${input.duree as string || "12 mois"}.`, accentColor),
+        {
+          columns: [
+            signatureBlock(`Pour ${syndInfo.name}`, "Le Président", accentColor, true),
+            signatureBlock("Pour le partenaire", input.partieB as string || "[PARTENAIRE]", accentColor, false),
+          ],
+        } as unknown,
+        legalFooterNote(docNum),
+      ];
+      break;
+
+    // ── Template 18: Accord Collectif ────────────────────────────────────────────
+    case "accord_collectif":
+      content = [
+        ...header,
+        { text: input.title, style: "docTitle", margin: [0, 0, 0, 16] },
+        metaTable([
+          ["Syndicat signataire :", syndInfo.name],
+          ["Employeur / Org :",     input.employeur as string || "[EMPLOYEUR]"],
+          ["Objet :",               input.objet as string || body || "—"],
+          ["Date d'application :",  input.dateApplication as string || today],
+          ["Durée :",               input.duree as string || "Accord à durée indéterminée"],
+          ["Référence :",           docNum],
+        ], accentColor),
+        contentSection("Préambule", input.preambule as string || `Le présent accord collectif est conclu entre ${syndInfo.name} et ${input.employeur as string || "[EMPLOYEUR]"} dans le respect des dispositions légales.`, accentColor),
+        contentSection("Dispositions générales", input.dispositions as string || body || "Les dispositions du présent accord s'appliquent à l'ensemble des membres couverts par son champ d'application.", accentColor),
+        contentSection("Champ d'application", input.champApplication as string || "Le présent accord s'applique à tous les salariés de l'établissement concerné.", accentColor),
+        contentSection("Modalités d'entrée en vigueur", input.entreeVigueur as string || `L'accord entre en vigueur le ${input.dateApplication as string || today} après dépôt auprès des autorités compétentes.`, accentColor),
+        {
+          columns: [
+            signatureBlock(`Pour ${syndInfo.name}`, "Le Délégué Syndical", accentColor, true),
+            signatureBlock("Pour l'employeur", input.employeur as string || "[EMPLOYEUR]", accentColor, false),
+          ],
+        } as unknown,
+        legalFooterNote(docNum),
+      ];
+      break;
+
+    // ── Template 19: Compte-Rendu de Réunion ─────────────────────────────────────
+    case "compte_rendu":
+      content = [
+        ...header,
+        { text: input.title, style: "docTitle", margin: [0, 0, 0, 16] },
+        metaTable([
+          ["Date de la réunion :", input.dateMeeting as string || today],
+          ["Lieu :",               input.lieu as string || syndInfo.city || "—"],
+          ["Président de séance :", input.presidentSeance as string || "Le Président du Syndicat"],
+          ["Secrétaire de séance :", input.secretaire as string || "—"],
+          ["Participants :",        input.participants as string || "—"],
+          ["Référence :",           docNum],
+        ], accentColor),
+        contentSection("Ordre du jour", input.ordreJour as string || "1. Approbation du précédent compte-rendu\n2. Points divers", accentColor),
+        contentSection("Déroulement de la réunion", body || input.deroulement as string || "La séance est ouverte à l'heure convoquée. Les points de l'ordre du jour sont traités successivement.", accentColor),
+        contentSection("Décisions prises", input.decisions as string || "Les décisions adoptées lors de cette séance feront l'objet d'un suivi lors de la prochaine réunion.", accentColor),
+        contentSection("Prochaine réunion", input.prochaineReunion as string || "Date et lieu à définir.", accentColor),
+        {
+          table: {
+            widths: ["*", "*", "*"],
+            body: [
+              [
+                { text: "Le Président", style: "metaKey", alignment: "center" as const, margin: [0, 6, 0, 6] },
+                { text: "Le Secrétaire", style: "metaKey", alignment: "center" as const, margin: [0, 6, 0, 6] },
+                { text: "CACHET", style: "metaKey", alignment: "center" as const, margin: [0, 6, 0, 6] },
+              ],
+              [
+                { text: "\n\n________________________\n" + (input.presidentSeance as string || ""), fontSize: 8, alignment: "center" as const, color: "#64748b", margin: [4, 8, 4, 8] },
+                { text: "\n\n________________________\n" + (input.secretaire as string || ""), fontSize: 8, alignment: "center" as const, color: "#64748b", margin: [4, 8, 4, 8] },
+                {
+                  stack: [{
+                    canvas: [
+                      { type: "ellipse", x: 50, y: 30, r1: 28, r2: 28, lineColor: accentColor, lineWidth: 1, dash: { length: 3 } },
+                    ],
+                  }],
+                  margin: [4, 8, 4, 8],
+                  alignment: "center" as const,
+                },
+              ],
+            ],
+          },
+          layout: { hLineWidth: () => 0.5, vLineWidth: () => 0.5, hLineColor: () => "#e2e8f0", vLineColor: () => "#e2e8f0" },
+          margin: [0, 30, 0, 0],
+        },
+        legalFooterNote(docNum),
+      ];
+      break;
+
+    // ── Template 20: Rapport d'Activité ──────────────────────────────────────────
+    case "rapport_activite":
+      content = [
+        ...header,
+        { text: input.title, style: "docTitle", margin: [0, 0, 0, 8] },
+        { text: input.periode as string || `Rapport annuel ${new Date().getFullYear()}`, style: "docRef", margin: [0, 0, 0, 16] },
+        metaTable([
+          ["Établi par :",   input.etabliPar as string || "Le Secrétaire Général"],
+          ["Approuvé par :", input.approuvePar as string || "L'Assemblée Générale"],
+          ["Période :",      input.periode as string || `Exercice ${new Date().getFullYear()}`],
+          ["Référence :",    docNum],
+        ], accentColor),
+        contentSection("Synthèse exécutive", input.synthese as string || body || "Le présent rapport dresse le bilan des activités menées au cours de la période et présente les perspectives à venir.", accentColor),
+        contentSection("Activités réalisées", input.activites as string || "1. Actions menées\n2. Événements organisés\n3. Partenariats développés\n4. Formation et sensibilisation", accentColor),
+        contentSection("Indicateurs clés", input.indicateurs as string || "Les indicateurs de performance seront détaillés en annexe au présent rapport.", accentColor),
+        contentSection("Difficultés rencontrées", input.difficultes as string || "Les obstacles rencontrés ont été surmontés grâce à la mobilisation des équipes.", accentColor),
+        contentSection("Perspectives et orientations", input.perspectives as string || "Les priorités pour la prochaine période seront définies lors de l'assemblée générale.", accentColor),
+        signatureBlock("Le Secrétaire Général", syndInfo.name, accentColor),
+        legalFooterNote(docNum),
+      ];
+      break;
+
     default:
       content = [
         ...header,
@@ -817,17 +1236,28 @@ async function buildDocDef(template: DocumentTemplate, input: DocumentInput): Pr
 
 function getDocTypeLabel(template: DocumentTemplate): string {
   const labels: Record<DocumentTemplate, string> = {
-    attestation:    "ATTESTATION D'ADHÉSION",
-    pv:             "PROCÈS-VERBAL DE RÉUNION",
-    convocation:    "CONVOCATION OFFICIELLE",
-    contrat:        "CONTRAT",
-    rapport:        "RAPPORT D'ACTIVITÉ",
-    decision:       "DÉCISION SYNDICALE",
-    certificat:     "CERTIFICAT OFFICIEL",
-    circulaire:     "CIRCULAIRE INTERNE",
-    mise_en_demeure: "MISE EN DEMEURE OFFICIELLE",
+    attestation:              "ATTESTATION D'ADHÉSION",
+    pv:                       "PROCÈS-VERBAL DE RÉUNION",
+    convocation:              "CONVOCATION OFFICIELLE",
+    contrat:                  "CONTRAT",
+    rapport:                  "RAPPORT D'ACTIVITÉ",
+    decision:                 "DÉCISION SYNDICALE",
+    certificat:               "CERTIFICAT OFFICIEL",
+    circulaire:               "CIRCULAIRE INTERNE",
+    mise_en_demeure:          "MISE EN DEMEURE OFFICIELLE",
+    demande_administrative:   "DEMANDE ADMINISTRATIVE",
+    autorisation:             "AUTORISATION OFFICIELLE",
+    ordre_de_mission:         "ORDRE DE MISSION",
+    lettre_officielle:        "LETTRE OFFICIELLE",
+    note_interne:             "NOTE INTERNE",
+    rapport_financier:        "RAPPORT FINANCIER",
+    rapport_audit:            "RAPPORT D'AUDIT",
+    convention_partenariat:   "CONVENTION DE PARTENARIAT",
+    accord_collectif:         "ACCORD COLLECTIF",
+    compte_rendu:             "COMPTE-RENDU DE RÉUNION",
+    rapport_activite:         "RAPPORT D'ACTIVITÉ",
   };
-  return labels[template] ?? template.toUpperCase();
+  return labels[template] ?? template.toUpperCase().replace(/_/g, " ");
 }
 
 // ─── Public API ───────────────────────────────────────────────────────────────
@@ -869,6 +1299,6 @@ export const CATEGORY_TO_TEMPLATE: Record<string, DocumentTemplate> = {
   pv:          "pv",
   juridique:   "mise_en_demeure",
   reglements:  "circulaire",
-  finances:    "rapport",
+  finances:    "rapport_financier",
   statuts:     "certificat",
 };

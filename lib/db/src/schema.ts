@@ -2091,3 +2091,24 @@ export const fichesJuridiquesTable = pgTable(
     index("fiches_juridiques_theme_idx").on(t.theme),
   ],
 );
+
+// ─── Document Comments ────────────────────────────────────────────────────────
+// Threaded comments on documents for review collaboration and notes.
+
+export const documentCommentsTable = pgTable(
+  "document_comments",
+  {
+    id: id(),
+    documentId: text("document_id").notNull().references(() => documentsTable.id, { onDelete: "cascade" }),
+    authorId: text("author_id").notNull().references(() => usersTable.id, { onDelete: "restrict" }),
+    content: text("content").notNull(),
+    parentId: text("parent_id"),   // for threaded replies — no FK to avoid recursive constraint
+    isDeleted: boolean("is_deleted").default(false).notNull(),
+    editedAt: timestamp("edited_at"),
+    createdAt: createdAt(),
+  },
+  (t) => [
+    index("document_comments_document_id_idx").on(t.documentId),
+    index("document_comments_author_id_idx").on(t.authorId),
+  ],
+);

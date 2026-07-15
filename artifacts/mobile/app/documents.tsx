@@ -1,6 +1,5 @@
 import { Feather } from "@expo/vector-icons";
 import * as Haptics from "expo-haptics";
-import * as Linking from "expo-linking";
 import { router } from "expo-router";
 import React, { useRef, useState } from "react";
 import * as FileSystem from "expo-file-system";
@@ -58,17 +57,30 @@ const CAT_COLORS: Record<string, string> = {
   attestation: "#8b5cf6",
 };
 
-// ── All 9 enterprise document templates ──────────────────────────────────────
+// ── All 20 enterprise document templates ─────────────────────────────────────
 const DOC_TEMPLATES = [
-  { id: "t1", name: "Attestation d'adhésion",   icon: "award"       as const, color: "#8b5cf6", desc: "Certifie l'appartenance d'un membre",          category: "attestation" as const, templateId: "attestation"    },
-  { id: "t2", name: "Procès-verbal de réunion",  icon: "clipboard"   as const, color: "#10b981", desc: "Procès-verbal officiel de réunion",              category: "pv"          as const, templateId: "pv"             },
-  { id: "t3", name: "Convocation officielle",    icon: "calendar"    as const, color: "#3b82f6", desc: "Convocation officielle à une réunion",           category: "pv"          as const, templateId: "convocation"    },
-  { id: "t4", name: "Contrat",                   icon: "file-text"   as const, color: "#0891b2", desc: "Contrat entre le syndicat et un tiers",          category: "juridique"   as const, templateId: "contrat"        },
-  { id: "t5", name: "Circulaire interne",         icon: "mail"        as const, color: "#f59e0b", desc: "Communication officielle aux membres",           category: "reglements"  as const, templateId: "circulaire"     },
-  { id: "t6", name: "Rapport d'activité",         icon: "bar-chart-2" as const, color: "#06b6d4", desc: "Rapport mensuel ou annuel d'activité",           category: "finances"    as const, templateId: "rapport"        },
-  { id: "t7", name: "Décision syndicale",         icon: "check-circle" as const, color: "#16a34a", desc: "Décision officielle du bureau syndical",        category: "juridique"   as const, templateId: "decision"       },
-  { id: "t8", name: "Certificat officiel",        icon: "star"        as const, color: "#7c3aed", desc: "Certificat délivré à un membre ou partenaire",  category: "statuts"     as const, templateId: "certificat"     },
-  { id: "t9", name: "Mise en demeure",            icon: "alert-circle" as const, color: "#ef4444", desc: "Document de mise en demeure officielle",        category: "juridique"   as const, templateId: "mise_en_demeure"},
+  // ── Existing 9 ──────────────────────────────────────────────────────────────
+  { id: "t1",  name: "Attestation d'adhésion",      icon: "award"        as const, color: "#8b5cf6", desc: "Certifie l'appartenance d'un membre",           category: "attestation" as const, templateId: "attestation"           },
+  { id: "t2",  name: "Procès-verbal de réunion",    icon: "clipboard"    as const, color: "#10b981", desc: "Procès-verbal officiel de réunion",              category: "pv"          as const, templateId: "pv"                    },
+  { id: "t3",  name: "Convocation officielle",      icon: "calendar"     as const, color: "#3b82f6", desc: "Convocation officielle à une réunion",           category: "pv"          as const, templateId: "convocation"           },
+  { id: "t4",  name: "Contrat",                     icon: "file-text"    as const, color: "#0891b2", desc: "Contrat entre le syndicat et un tiers",          category: "juridique"   as const, templateId: "contrat"               },
+  { id: "t5",  name: "Circulaire interne",          icon: "mail"         as const, color: "#f59e0b", desc: "Communication officielle aux membres",           category: "reglements"  as const, templateId: "circulaire"            },
+  { id: "t6",  name: "Rapport d'activité",          icon: "bar-chart-2"  as const, color: "#06b6d4", desc: "Rapport mensuel ou annuel d'activité",           category: "finances"    as const, templateId: "rapport_activite"      },
+  { id: "t7",  name: "Décision syndicale",          icon: "check-circle" as const, color: "#16a34a", desc: "Décision officielle du bureau syndical",         category: "juridique"   as const, templateId: "decision"              },
+  { id: "t8",  name: "Certificat officiel",         icon: "star"         as const, color: "#7c3aed", desc: "Certificat délivré à un membre ou partenaire",  category: "statuts"     as const, templateId: "certificat"            },
+  { id: "t9",  name: "Mise en demeure",             icon: "alert-circle" as const, color: "#ef4444", desc: "Document de mise en demeure officielle",         category: "juridique"   as const, templateId: "mise_en_demeure"       },
+  // ── 11 new templates ────────────────────────────────────────────────────────
+  { id: "t10", name: "Demande administrative",      icon: "send"         as const, color: "#0284c7", desc: "Demande formelle adressée au syndicat",          category: "reglements"  as const, templateId: "demande_administrative" },
+  { id: "t11", name: "Autorisation officielle",     icon: "unlock"       as const, color: "#16a34a", desc: "Autorisation délivrée par le bureau",            category: "juridique"   as const, templateId: "autorisation"          },
+  { id: "t12", name: "Ordre de mission",            icon: "navigation"   as const, color: "#7c3aed", desc: "Mandat officiel pour une mission externe",       category: "reglements"  as const, templateId: "ordre_de_mission"      },
+  { id: "t13", name: "Lettre officielle",           icon: "mail"         as const, color: "#0891b2", desc: "Courrier officiel à un tiers ou partenaire",     category: "juridique"   as const, templateId: "lettre_officielle"     },
+  { id: "t14", name: "Note interne",               icon: "message-square" as const, color: "#64748b", desc: "Communication interne entre membres du bureau", category: "reglements"  as const, templateId: "note_interne"          },
+  { id: "t15", name: "Rapport financier",           icon: "dollar-sign"  as const, color: "#f59e0b", desc: "Bilan financier de la période",                  category: "finances"    as const, templateId: "rapport_financier"     },
+  { id: "t16", name: "Rapport d'audit",             icon: "search"       as const, color: "#dc2626", desc: "Résultats de l'audit interne ou externe",        category: "finances"    as const, templateId: "rapport_audit"         },
+  { id: "t17", name: "Convention de partenariat",  icon: "link"         as const, color: "#2563eb", desc: "Convention formelle avec un partenaire",          category: "juridique"   as const, templateId: "convention_partenariat"},
+  { id: "t18", name: "Accord collectif",            icon: "users"        as const, color: "#059669", desc: "Accord signé avec l'employeur ou les membres",   category: "juridique"   as const, templateId: "accord_collectif"      },
+  { id: "t19", name: "Compte-rendu de réunion",    icon: "list"         as const, color: "#7c3aed", desc: "Résumé des délibérations d'une réunion",         category: "pv"          as const, templateId: "compte_rendu"          },
+  { id: "t20", name: "Rapport d'activité annuel",  icon: "trending-up"  as const, color: "#0284c7", desc: "Rapport annuel complet des activités du syndicat",category: "finances"    as const, templateId: "rapport_activite"      },
 ];
 
 // ─── Download progress state ──────────────────────────────────────────────────
@@ -193,7 +205,7 @@ export default function DocumentsScreen() {
     }
   };
 
-  // ─── Preview — opens PDF in native viewer ────────────────────────────────────
+  // ─── Preview — opens in-app PDF viewer ──────────────────────────────────────
 
   const handlePreview = async (doc: Document) => {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
@@ -202,13 +214,13 @@ export default function DocumentsScreen() {
       const res = await docsApi.downloadUrl(doc.id);
       const signedUrl = (res as any).url as string | undefined;
       if (signedUrl) {
-        const canOpen = await Linking.canOpenURL(signedUrl);
-        if (canOpen) {
-          await Linking.openURL(signedUrl);
-          return;
-        }
+        router.push({
+          pathname: "/pdf-viewer",
+          params: { url: signedUrl, title: doc.title, docId: doc.id },
+        });
+        return;
       }
-      Alert.alert("Aperçu indisponible", "Le PDF n'est pas encore disponible pour cet document. Il est peut-être encore en cours de génération.");
+      Alert.alert("Aperçu indisponible", "Le PDF n'est pas encore disponible pour ce document. Il est peut-être encore en cours de génération.");
     } catch (err: any) {
       Alert.alert(
         "Aperçu impossible",
