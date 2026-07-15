@@ -9,6 +9,7 @@ import {
   Alert,
   Animated,
   FlatList,
+  Image,
   Modal,
   Platform,
   ScrollView,
@@ -159,6 +160,20 @@ export default function DocumentsScreen() {
   }>>([]);
   const [versionsLoading,  setVersionsLoading]   = useState(false);
   const [restoringVersion, setRestoringVersion]  = useState<string | null>(null);
+
+  // Comments
+  type DocComment = { id: string; content: string; parentId: string | null; isDeleted: boolean; createdAt: string; authorId: string; authorName: string | null; authorRole: string | null };
+  const [showComments,    setShowComments]    = useState(false);
+  const [comments,        setComments]        = useState<DocComment[]>([]);
+  const [commentsLoading, setCommentsLoading] = useState(false);
+  const [commentText,     setCommentText]     = useState("");
+  const [postingComment,  setPostingComment]  = useState(false);
+  const [deletingComment, setDeletingComment] = useState<string | null>(null);
+
+  // QR code
+  const [showQR,    setShowQR]    = useState(false);
+  const [qrLoading, setQrLoading] = useState(false);
+  const [qrDataUrl, setQrDataUrl] = useState<string | null>(null);
 
   // Download progress
   const [dlState, setDlState] = useState<DownloadState>(INIT_DL);
@@ -560,6 +575,81 @@ export default function DocumentsScreen() {
     }
   };
 
+  // ─── Comments ─────────────────────────────────────────────────────────────────
+
+  const handleShowComments = async () => {
+    if (!selected) return;
+    setComments([]);
+    setShowComments(true);
+    setCommentsLoading(true);
+    try {
+      const { documents: docsApi } = await import("@/services/api");
+      const res = await docsApi.comments(selected.id);
+      setComments((res.data ?? []).filter((c) => !c.isDeleted));
+    } catch {
+      setComments([]);
+    } finally {
+      setCommentsLoading(false);
+    }
+  };
+
+  const handlePostComment = async () => {
+    if (!selected || !commentText.trim() || postingComment) return;
+    setPostingComment(true);
+    try {
+      const { documents: docsApi } = await import("@/services/api");
+      await docsApi.addComment(selected.id, commentText.trim());
+      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+      setCommentText("");
+      const res = await docsApi.comments(selected.id);
+      setComments((res.data ?? []).filter((c) => !c.isDeleted));
+    } catch (err: any) {
+      Alert.alert("Erreur", err?.message ?? "Impossible d'ajouter le commentaire.");
+    } finally {
+      setPostingComment(false);
+    }
+  };
+
+  const handleDeleteComment = (commentId: string) => {
+    if (!selected) return;
+    Alert.alert("Supprimer le commentaire", "Cette action est irréversible.", [
+      { text: "Annuler", style: "cancel" },
+      {
+        text: "Supprimer", style: "destructive",
+        onPress: async () => {
+          setDeletingComment(commentId);
+          try {
+            const { documents: docsApi } = await import("@/services/api");
+            await docsApi.deleteComment(selected.id, commentId);
+            setComments((prev) => prev.filter((c) => c.id !== commentId));
+          } catch (err: any) {
+            Alert.alert("Erreur", err?.message ?? "Impossible de supprimer le commentaire.");
+          } finally {
+            setDeletingComment(null);
+          }
+        },
+      },
+    ]);
+  };
+
+  // ─── QR code ──────────────────────────────────────────────────────────────────
+
+  const handleShowQR = async () => {
+    if (!selected) return;
+    setQrDataUrl(null);
+    setShowQR(true);
+    setQrLoading(true);
+    try {
+      const { documents: docsApi } = await import("@/services/api");
+      const res = await docsApi.qrCode(selected.id);
+      setQrDataUrl(res.qrDataUrl ?? null);
+    } catch {
+      setQrDataUrl(null);
+    } finally {
+      setQrLoading(false);
+    }
+  };
+
   const handleRestoreVersion = (versionId: string, versionNum: number) => {
     if (!selected || restoringVersion) return;
     Alert.alert(
@@ -870,6 +960,20 @@ export default function DocumentsScreen() {
                   >
                     <Feather name="eye" size={16} color={colors.foreground} />
                     <Text style={[styles.secBtnText, { color: colors.foreground }]}>Aperçu PDF</Text>
+                  </TouchableOpacity>
+                  <TouchableOpacity
+                    style={[styles.secBtn, { borderColor: "#06b6d450", backgroundColor: "#06b6d408" }]}
+                    onPress={handleShowQR}
+                  >
+                    <Feather name="grid" size={16} color="#06b6d4" />
+                    <Text style={[styles.secBtnText, { color: "#06b6d4" }]}>QR Code</Text>
+                  </TouchableOpacity>
+                  <TouchableOpacity
+                    style={[styles.secBtn, { borderColor: "#f59e0b50", backgroundColor: "#f59e0b08" }]}
+                    onPress={handleShowComments}
+                  >
+                    <Feather name="message-square" size={16} color="#f59e0b" />
+                    <Text style={[styles.secBtnText, { color: "#f59e0b" }]}>Commentaires</Text>
                   </TouchableOpacity>
                   {isAdmin ? (
                     <TouchableOpacity
@@ -1269,6 +1373,126 @@ export default function DocumentsScreen() {
           )}
         </View>
       </Modal>
+
+      {/* ── QR Code modal ── */}
+      <Modal visible={showQR} transparent animationType="fade">
+        <View style={styles.overlay}>
+          <View style={[styles.overlayCard, { backgroundColor: colors.card, alignItems: "center" }]}>
+            <View style={{ flexDirection: "row", alignItems: "center", gap: 10, width: "100%" }}>
+              <Feather name="grid" size={20} color="#06b6d4" />
+              <Text style={[styles.overlayTitle, { color: colors.foreground, flex: 1 }]}>QR Code de vérification</Text>
+              <TouchableOpacity onPress={() => setShowQR(false)}>
+                <Feather name="x" size={20} color={colors.mutedForeground} />
+              </TouchableOpacity>
+            </View>
+            <Text style={[styles.overlaySub, { color: colors.mutedForeground, textAlign: "center" }]}>
+              Scannez ce code pour vérifier l'authenticité du document
+            </Text>
+            {qrLoading ? (
+              <View style={{ height: 200, alignItems: "center", justifyContent: "center" }}>
+                <ActivityIndicator color="#06b6d4" size="large" />
+              </View>
+            ) : qrDataUrl ? (
+              <View style={[styles.qrContainer, { backgroundColor: "#fff", borderColor: colors.border }]}>
+                {/* eslint-disable-next-line @typescript-eslint/no-require-imports */}
+                <Image source={{ uri: qrDataUrl }} style={{ width: 200, height: 200 }} resizeMode="contain" />
+              </View>
+            ) : (
+              <View style={{ height: 160, alignItems: "center", justifyContent: "center", gap: 8 }}>
+                <Feather name="alert-circle" size={32} color={colors.mutedForeground} />
+                <Text style={[styles.overlaySub, { color: colors.mutedForeground }]}>QR code indisponible</Text>
+              </View>
+            )}
+            <Text style={[styles.versionMeta, { color: colors.mutedForeground, textAlign: "center" }]}>
+              {selected?.id.slice(0, 12).toUpperCase()}
+            </Text>
+          </View>
+        </View>
+      </Modal>
+
+      {/* ── Comments modal ── */}
+      <Modal visible={showComments} animationType="slide" presentationStyle="pageSheet">
+        <View style={[styles.modal, { backgroundColor: colors.background }]}>
+          <View style={[styles.modalHeader, { borderBottomColor: colors.border }]}>
+            <TouchableOpacity onPress={() => setShowComments(false)}>
+              <Feather name="arrow-left" size={22} color={colors.mutedForeground} />
+            </TouchableOpacity>
+            <View style={{ flex: 1, marginStart: 12 }}>
+              <Text style={[styles.modalTitle, { color: colors.foreground }]}>Commentaires</Text>
+            </View>
+            <Feather name="message-square" size={20} color="#f59e0b" />
+          </View>
+
+          {/* Comment input */}
+          <View style={[styles.commentInputRow, { borderBottomColor: colors.border, backgroundColor: colors.card }]}>
+            <TextInput
+              style={[styles.commentInput, { color: colors.foreground, backgroundColor: colors.background, borderColor: colors.border }]}
+              placeholder="Ajouter un commentaire..."
+              placeholderTextColor={colors.mutedForeground}
+              value={commentText}
+              onChangeText={setCommentText}
+              multiline
+              maxLength={2000}
+            />
+            <TouchableOpacity
+              style={[styles.commentSendBtn, { backgroundColor: commentText.trim() ? "#f59e0b" : colors.muted, opacity: postingComment ? 0.6 : 1 }]}
+              onPress={handlePostComment}
+              disabled={!commentText.trim() || postingComment}
+            >
+              {postingComment
+                ? <ActivityIndicator size="small" color="#fff" />
+                : <Feather name="send" size={16} color="#fff" />
+              }
+            </TouchableOpacity>
+          </View>
+
+          {commentsLoading ? (
+            <View style={styles.empty}><ActivityIndicator color="#f59e0b" /></View>
+          ) : comments.length === 0 ? (
+            <View style={styles.empty}>
+              <Feather name="message-square" size={36} color={colors.mutedForeground} />
+              <Text style={[styles.emptyText, { color: colors.mutedForeground }]}>Aucun commentaire</Text>
+              <Text style={[styles.versionMeta, { color: colors.mutedForeground }]}>Soyez le premier à commenter</Text>
+            </View>
+          ) : (
+            <FlatList
+              data={comments}
+              keyExtractor={(c) => c.id}
+              contentContainerStyle={{ padding: 16, gap: 10, paddingBottom: 40 }}
+              renderItem={({ item: c }) => (
+                <View style={[styles.commentCard, { backgroundColor: colors.card, borderColor: colors.border }]}>
+                  <View style={{ flexDirection: "row", alignItems: "center", gap: 8, marginBottom: 6 }}>
+                    <View style={[styles.commentAvatar, { backgroundColor: colors.primary + "20" }]}>
+                      <Text style={[styles.commentAvatarText, { color: colors.primary }]}>
+                        {(c.authorName ?? "?")[0].toUpperCase()}
+                      </Text>
+                    </View>
+                    <View style={{ flex: 1 }}>
+                      <Text style={[styles.commentAuthor, { color: colors.foreground }]}>{c.authorName ?? "Inconnu"}</Text>
+                      <Text style={[styles.versionMeta, { color: colors.mutedForeground }]}>
+                        {new Date(c.createdAt).toLocaleDateString("fr-FR", { day: "2-digit", month: "short", year: "numeric", hour: "2-digit", minute: "2-digit" })}
+                      </Text>
+                    </View>
+                    {isAdmin ? (
+                      <TouchableOpacity
+                        onPress={() => handleDeleteComment(c.id)}
+                        disabled={deletingComment === c.id}
+                        style={{ padding: 4 }}
+                      >
+                        {deletingComment === c.id
+                          ? <ActivityIndicator size="small" color="#ef4444" />
+                          : <Feather name="trash-2" size={14} color="#ef4444" />
+                        }
+                      </TouchableOpacity>
+                    ) : null}
+                  </View>
+                  <Text style={[styles.commentContent, { color: colors.foreground }]}>{c.content}</Text>
+                </View>
+              )}
+            />
+          )}
+        </View>
+      </Modal>
     </View>
   );
 }
@@ -1358,4 +1582,15 @@ const styles = StyleSheet.create({
   versionTitle:     { fontSize: 13, fontFamily: "Inter_600SemiBold" },
   versionMeta:      { fontSize: 11, fontFamily: "Inter_400Regular" },
   versionRestoreBtn:{ width: 36, height: 36, borderRadius: 10, alignItems: "center", justifyContent: "center" },
+  // QR Code
+  qrContainer:      { width: 224, height: 224, borderRadius: 16, borderWidth: 1, alignItems: "center", justifyContent: "center", padding: 12 },
+  // Comments
+  commentInputRow:  { flexDirection: "row", alignItems: "flex-end", gap: 10, padding: 12, borderBottomWidth: 1 },
+  commentInput:     { flex: 1, borderWidth: 1, borderRadius: 12, paddingHorizontal: 12, paddingVertical: 10, fontSize: 13, fontFamily: "Inter_400Regular", maxHeight: 100 },
+  commentSendBtn:   { width: 40, height: 40, borderRadius: 12, alignItems: "center", justifyContent: "center" },
+  commentCard:      { borderRadius: 14, borderWidth: 1, padding: 14, gap: 4 },
+  commentAvatar:    { width: 34, height: 34, borderRadius: 17, alignItems: "center", justifyContent: "center" },
+  commentAvatarText:{ fontSize: 13, fontFamily: "Inter_700Bold" },
+  commentAuthor:    { fontSize: 12, fontFamily: "Inter_600SemiBold" },
+  commentContent:   { fontSize: 13, fontFamily: "Inter_400Regular", lineHeight: 19 },
 });

@@ -593,6 +593,19 @@ export const documents = {
   // Permanently purge a soft-deleted document (super_admin only)
   purge: (id: string) =>
     request<{ message: string }>(`/documents/${id}/purge`, { method: "POST" }),
+  // Comments
+  comments: (id: string) =>
+    request<{ data: Array<{ id: string; content: string; parentId: string | null; isDeleted: boolean; editedAt: string | null; createdAt: string; authorId: string; authorName: string | null; authorRole: string | null }> }>(`/documents/${id}/comments`),
+  addComment: (id: string, content: string, parentId?: string) =>
+    request<{ data: unknown; message: string }>(`/documents/${id}/comments`, {
+      method: "POST",
+      body: JSON.stringify({ content, parentId }),
+    }),
+  deleteComment: (id: string, commentId: string) =>
+    request<{ message: string }>(`/documents/${id}/comments/${commentId}`, { method: "DELETE" }),
+  // QR code image (returns { qrDataUrl })
+  qrCode: (id: string) =>
+    request<{ qrDataUrl: string; verifyUrl: string }>(`/documents/${id}/qr`),
 };
 
 // ─── Publications ─────────────────────────────────────────────────────────────

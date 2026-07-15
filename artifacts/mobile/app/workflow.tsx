@@ -65,7 +65,6 @@ const STRINGS = {
   waitingOn: { fr: "En attente:", en: "Waiting for:", ar: "في انتظار:", es: "Esperando a:" },
   workflowSteps: { fr: "Étapes du workflow", en: "Workflow steps", ar: "خطوات سير العمل", es: "Pasos del flujo de trabajo" },
   openDoc: { fr: "Ouverture du document", en: "Opening document", ar: "فتح الوثيقة", es: "Abriendo documento" },
-  openDocMsg: { fr: "\"{{doc}}\" sera ouvert dans le visualiseur.\n\nFonctionnalité bientôt disponible dans la prochaine version.", en: "\"{{doc}}\" will be opened in the viewer.\n\nFeature coming soon in the next version.", ar: "سيتم فتح \"{{doc}}\" في العارض.\n\nستتوفر هذه الميزة قريبًا في الإصدار القادم.", es: "\"{{doc}}\" se abrirá en el visor.\n\nFunción próximamente disponible en la próxima versión." },
   actionRequired: { fr: "Action requise", en: "Action required", ar: "إجراء مطلوب", es: "Acción requerida" },
   waitingForValidation: { fr: "En attente de validation par:", en: "Waiting for validation by:", ar: "في انتظار التحقق من قبل:", es: "Esperando validación por:" },
   approve: { fr: "Approuver", en: "Approve", ar: "موافقة", es: "Aprobar" },
