@@ -58,12 +58,30 @@ export interface EmailTemplate {
 }
 
 export function passwordResetTemplate(name: string, resetUrl: string): EmailTemplate {
+  // Extract the raw token from the URL for display as a fallback code
+  let rawToken = "";
+  try {
+    const url = new URL(resetUrl);
+    rawToken = url.searchParams.get("token") ?? "";
+  } catch {
+    // resetUrl may not be a valid URL (e.g. APP_URL not set) — token won't be extracted
+  }
+
+  const tokenBlock = rawToken
+    ? `<div style="margin:20px 0;padding:16px 20px;background:#f4f4f5;border-radius:10px;border:1px solid #e4e4e7;">
+        <p style="margin:0 0 8px 0;font-size:12px;color:#71717a;font-family:monospace;">CODE DE RÉINITIALISATION (64 caractères)</p>
+        <p style="margin:0;font-size:11px;color:#18181b;font-family:monospace;word-break:break-all;letter-spacing:0.5px;">${rawToken}</p>
+        <p style="margin:8px 0 0 0;font-size:11px;color:#71717a;">Collez ce code dans l'application si le bouton ne fonctionne pas.</p>
+      </div>`
+    : "";
+
   return {
     subject: "Réinitialisation de votre mot de passe — SYNDYCAT",
     html: `
       <p>Bonjour ${escapeHtml(name)},</p>
       <p>Vous avez demandé la réinitialisation de votre mot de passe SYNDYCAT.</p>
       ${button(resetUrl, "Réinitialiser mon mot de passe")}
+      ${tokenBlock}
       <p>Ce lien expire dans <strong>1 heure</strong>. Si vous n'avez pas effectué cette demande, ignorez cet email.</p>
       <p>— L'équipe SYNDYCAT</p>`,
   };

@@ -55,6 +55,7 @@ SMTP_PORT = "587"
 SMTP_SECURE = "false"
 SMTP_USER = "azedinechentouf0@gmail.com"
 USE_TLS = "true"
+APP_URL = "https://ef3ce2f4-a117-4440-935f-672a646e2aa2-00-3evijzmn78o5n.kirk.replit.dev/mobile"
 
 [objectStorage]
 defaultBucketID = "replit-objstore-89a27f97-efed-43a3-a959-1576cb0184d3"
