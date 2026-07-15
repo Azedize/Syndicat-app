@@ -12,6 +12,7 @@
  *  • Push + alert notifications on key lifecycle events
  *  • Full audit trail on every write
  */
+import { randomUUID } from "node:crypto";
 import { Router } from "express";
 import { z } from "zod";
 import { db } from "@workspace/db";
@@ -20,6 +21,7 @@ import {
   documentSignaturesTable,
   documentCommentsTable,
   documentSequencesTable,
+  documentVersionsTable,
   syndicatesTable,
   usersTable,
   buildingsTable,
@@ -33,35 +35,57 @@ import {
   generateAndUploadDocument,
   signDocumentDownloadUrl,
   deleteDocumentFromGcs,
+  appendSignaturesToPdf,
+  roleLabel,
   CATEGORY_TO_TEMPLATE,
   TEMPLATE_NUMBER_PREFIX,
   type DocumentTemplate,
+  type DocumentLanguage,
   type SyndicateInfo,
   type PropertyInfo,
   type OfficeHolders,
 } from "../lib/documentPdf.js";
-import { createAlert } from "../lib/notify.js";
+import { createAlert, sendEmail, sendEmailToMany } from "../lib/notify.js";
 import { computeRetentionUntil, expiryBucket } from "../lib/retention.js";
 
 const router = Router();
 
 // ─── Workflow state machine ────────────────────────────────────────────────────
+// "rejected" and "expired" added on top of the original 7-state machine.
+// Spec's "Approved" state maps onto the pre-existing "validated" status —
+// kept as-is (not renamed) to avoid breaking existing consumers; approvedAt/
+// approvedBy are populated whenever a document transitions into "validated".
 
-const VALID_STATUSES = ["draft", "generated", "pending_review", "validated", "signed", "published", "archived"] as const;
+const VALID_STATUSES = ["draft", "generated", "pending_review", "validated", "signed", "published", "archived", "rejected", "expired"] as const;
 type DocStatus = typeof VALID_STATUSES[number];
 
 const ALLOWED_TRANSITIONS: Record<DocStatus, DocStatus[]> = {
   draft:          ["generated", "pending_review", "published"],
-  generated:      ["pending_review", "validated"],
-  pending_review: ["generated", "validated", "draft"],
-  validated:      ["signed", "published"],
-  signed:         ["published"],
-  published:      ["archived"],
+  generated:      ["pending_review", "validated", "rejected"],
+  pending_review: ["generated", "validated", "draft", "rejected"],
+  validated:      ["signed", "published", "rejected"],
+  signed:         ["published", "expired"],
+  published:      ["archived", "expired"],
   archived:       [],
+  rejected:       ["draft", "pending_review"],
+  expired:        ["archived"],
 };
 
 function isTransitionAllowed(from: DocStatus, to: DocStatus): boolean {
   return ALLOWED_TRANSITIONS[from]?.includes(to) ?? false;
+}
+
+/**
+ * Builds the real, environment-portable public verification URL for a document's
+ * QR code and footer note — read from $REPLIT_DOMAINS at runtime (never a
+ * hardcoded domain). Falls back to PUBLIC_APP_URL if explicitly configured, and
+ * to undefined (caller then falls back to a bare documentNumber QR) if neither
+ * is available, e.g. in an environment with no public domain at all.
+ */
+function buildVerifyUrl(token: string): string | undefined {
+  const base = process.env.PUBLIC_APP_URL || (process.env.REPLIT_DOMAINS ? `https://${process.env.REPLIT_DOMAINS.split(",")[0]}` : undefined);
+  if (!base) return undefined;
+  return `${base.replace(/\/$/, "")}/api/documents/verify/${token}`;
 }
 
 // ─── Helper: fetch full syndicate branding for PDF ────────────────────────────
@@ -361,6 +385,91 @@ router.get("/documents/summary", requireAuth, async (req, res) => {
   }
 });
 
+// ─── GET /documents/verify/:token — PUBLIC QR verification endpoint ──────────
+// No auth required — this is the destination of the QR code printed on every
+// generated PDF. Registered before "/documents/:id" so "verify" is never
+// swallowed by the :id param (see memory: express route order shadowing).
+// Never leaks document content — only the minimal authenticity signal a
+// verifier needs: title, reference, status, syndicate name, and signature list.
+
+router.get("/documents/verify/:token", async (req, res) => {
+  const token = String(req.params.token);
+  try {
+    const [doc] = await db
+      .select({
+        id: documentsTable.id,
+        title: documentsTable.title,
+        documentNumber: documentsTable.documentNumber,
+        status: documentsTable.status,
+        isDeleted: documentsTable.isDeleted,
+        expiresAt: documentsTable.expiresAt,
+        supersededByDocumentId: documentsTable.supersededByDocumentId,
+        syndicateId: documentsTable.syndicateId,
+        createdAt: documentsTable.createdAt,
+        rejectionReason: documentsTable.rejectionReason,
+      })
+      .from(documentsTable)
+      .where(eq(documentsTable.verificationToken, token));
+
+    if (!doc) {
+      if (req.accepts(["html", "json"]) === "html") {
+        res.status(404).send("<html><body><h1>Document introuvable</h1><p>Ce code de vérification ne correspond à aucun document connu.</p></body></html>");
+      } else {
+        res.status(404).json({ error: "Document introuvable", verified: false });
+      }
+      return;
+    }
+
+    const now = new Date();
+    let verificationStatus: "valid" | "pending" | "revoked" | "expired" | "replaced";
+    if (doc.isDeleted || doc.status === "rejected") verificationStatus = "revoked";
+    else if (doc.status === "expired" || (doc.expiresAt && doc.expiresAt < now)) verificationStatus = "expired";
+    else if (doc.supersededByDocumentId) verificationStatus = "replaced";
+    else if (doc.status === "signed" || doc.status === "published" || doc.status === "archived") verificationStatus = "valid";
+    else verificationStatus = "pending";
+
+    const [syndInfo] = await db.select({ name: syndicatesTable.name }).from(syndicatesTable).where(eq(syndicatesTable.id, doc.syndicateId ?? ""));
+    const sigs = await db
+      .select({ signerName: documentSignaturesTable.signerName, signerRole: documentSignaturesTable.signerRole, signedAt: documentSignaturesTable.signedAt, isValid: documentSignaturesTable.isValid })
+      .from(documentSignaturesTable)
+      .where(eq(documentSignaturesTable.documentId, doc.id))
+      .orderBy(documentSignaturesTable.signatureOrder);
+
+    const payload = {
+      verified: verificationStatus === "valid",
+      status: verificationStatus,
+      title: doc.title,
+      documentNumber: doc.documentNumber,
+      issuedBy: syndInfo?.name ?? null,
+      issuedAt: doc.createdAt,
+      rejectionReason: verificationStatus === "revoked" ? doc.rejectionReason : undefined,
+      signatures: sigs.map((s) => ({ signerName: s.signerName, signerRole: s.signerRole, signedAt: s.signedAt, isValid: s.isValid })),
+    };
+
+    if (req.accepts(["html", "json"]) === "html") {
+      const statusLabel: Record<typeof verificationStatus, string> = {
+        valid: "✅ Document authentique et valide",
+        pending: "⏳ Document en attente de validation finale",
+        revoked: "❌ Document révoqué ou rejeté",
+        expired: "⚠️ Document expiré",
+        replaced: "🔄 Document remplacé par une version plus récente",
+      };
+      res.status(200).send(`<html><head><meta charset="utf-8"><title>Vérification de document</title></head><body style="font-family:sans-serif;max-width:480px;margin:40px auto;">
+        <h2>${statusLabel[verificationStatus]}</h2>
+        <p><strong>${payload.title}</strong></p>
+        <p>Réf. : ${payload.documentNumber}</p>
+        <p>Émis par : ${payload.issuedBy ?? "N/A"}</p>
+        ${payload.signatures.length ? `<p>Signatures : ${payload.signatures.map((s) => `${s.signerName} (${s.isValid ? "valide" : "invalidée"})`).join(", ")}</p>` : ""}
+      </body></html>`);
+    } else {
+      res.json(payload);
+    }
+  } catch (err) {
+    req.log.error(err);
+    res.status(500).json({ error: "Erreur serveur", verified: false });
+  }
+});
+
 // ─── GET /documents/:id ────────────────────────────────────────────────────────
 
 router.get("/documents/:id", requireAuth, async (req, res) => {
@@ -429,9 +538,12 @@ router.post(
         "attestation", "pv", "convocation", "contrat", "rapport",
         "decision", "certificat", "circulaire", "mise_en_demeure", "reglement",
       ] as const).optional(),
-      // Output language — defaults to "fr". Fully covers header/meta/signature/footer
-      // chrome + the "reglement" template's content; other templates stay French.
+      // Output language — the mobile UI always presents an explicit choice; "fr" is
+      // only used as a server-side fallback for callers that omit it entirely.
       language: z.enum(["fr", "ar", "en", "es"] as const).optional(),
+      // Business expiration date (distinct from legal retentionUntil) — e.g. a
+      // contract/mandate/authorization validity end date. ISO date/datetime string.
+      expiresAt: z.string().optional(),
       // Extra fields passed through to the template
       lieu:              z.string().optional(),
       meetingDate:       z.string().optional(),
@@ -461,8 +573,9 @@ router.post(
     }
 
     try {
-      const { title, category, content, memberName, templateId, buildingId, language, ...extraFields } = result.data;
+      const { title, category, content, memberName, templateId, buildingId, language, expiresAt, ...extraFields } = result.data;
       const syndicateId = req.user!.syndicateId || "";
+      const docLanguage: DocumentLanguage = (language as DocumentLanguage) ?? "fr";
 
       // 1. Fetch full syndicate branding + real residence/office-holder data
       const [syndInfo, property, officeHolders] = await Promise.all([
@@ -477,6 +590,10 @@ router.post(
       // 3. Mint a real sequential document number (REG-2026-0001, PV-2026-0001, …)
       const documentNumber = await generateSequentialDocumentNumber(syndicateId, template);
 
+      // 3b. Mint the QR verification token + its real, environment-portable public URL
+      const verificationToken = randomUUID();
+      const verificationUrl = buildVerifyUrl(verificationToken);
+
       // 4. Generate PDF + upload to GCS
       const generated = await generateAndUploadDocument(template, {
         title,
@@ -487,12 +604,14 @@ router.post(
         memberName,
         documentNumber,
         docStatus: "generated",
-        language,
+        language: docLanguage,
+        verificationUrl,
         ...extraFields,
       });
 
       // 5. Insert document record
       const createdAt = new Date();
+      const parsedExpiresAt = expiresAt ? new Date(expiresAt) : null;
       const [doc] = await db
         .insert(documentsTable)
         .values({
@@ -509,6 +628,9 @@ router.post(
           isDeleted: false,
           createdBy: req.user!.userId,
           updatedAt: createdAt,
+          language: docLanguage,
+          verificationToken,
+          expiresAt: parsedExpiresAt && !Number.isNaN(parsedExpiresAt.getTime()) ? parsedExpiresAt : null,
           // Legal retention — computed from category/template, see lib/retention.ts
           retentionUntil: computeRetentionUntil(category, template, createdAt),
         } as any)
@@ -519,10 +641,10 @@ router.post(
         action: "DOCUMENT_GENERATED",
         entity: "document",
         entityId: doc.id,
-        details: `Titre: ${doc.title}, Modèle: ${template}, Réf: ${doc.documentNumber}, Catégorie: ${doc.category}`,
+        details: `Titre: ${doc.title}, Modèle: ${template}, Réf: ${doc.documentNumber}, Catégorie: ${doc.category}, Langue: ${docLanguage}`,
       });
 
-      // 6. Push notification (fire-and-forget)
+      // 7. Push + email notification (fire-and-forget)
       if (syndicateId) {
         createAlert({
           title: "Nouveau document généré",
@@ -531,6 +653,20 @@ router.post(
           syndicateId,
           target: "admin",
         }).catch(() => {});
+
+        db.select({ email: usersTable.email })
+          .from(usersTable)
+          .where(and(eq(usersTable.syndicateId, syndicateId), eq(usersTable.role, "syndicate_admin")))
+          .then((admins) =>
+            sendEmailToMany(
+              admins.map((a) => a.email),
+              "Nouveau document généré",
+              `<p>Le document <strong>${title}</strong> (réf. ${doc.documentNumber}) vient d'être généré.</p>`,
+              "document_created",
+              syndicateId,
+            ),
+          )
+          .catch(() => {});
       }
 
       res.status(201).json({ data: doc, message: "Document généré avec succès" });
@@ -554,6 +690,12 @@ router.put(
       category: z.enum(["reglements", "statuts", "pv", "juridique", "finances", "attestation"]).optional(),
       content:  z.string().max(500_000).optional(),
       status:   z.enum(VALID_STATUSES).optional(),
+      language: z.enum(["fr", "ar", "en", "es"] as const).optional(),
+      expiresAt: z.string().optional(),
+      // Required when status is set to "rejected" — legal traceability of why.
+      rejectionReason: z.string().min(1).max(2000).optional(),
+      // Free-text audit note for the version snapshot (optional).
+      changeReason: z.string().max(500).optional(),
     });
     const result = schema.safeParse(req.body);
     if (!result.success) { res.status(400).json({ error: "Données invalides" }); return; }
@@ -575,9 +717,35 @@ router.put(
             allowed: ALLOWED_TRANSITIONS[from],
           }); return;
         }
+        if (to === "rejected" && !result.data.rejectionReason) {
+          res.status(400).json({ error: "Un motif de rejet est requis" }); return;
+        }
       }
 
-      const updates: Record<string, unknown> = { ...result.data, updatedAt: new Date() };
+      // Snapshot the pre-update state into version history BEFORE applying any
+      // content/status change — never lost, even if this specific PUT fails partway.
+      const { changeReason, rejectionReason, ...fieldUpdates } = result.data;
+      const isMeaningfulChange = fieldUpdates.content !== undefined || fieldUpdates.title !== undefined || fieldUpdates.status !== undefined;
+      if (isMeaningfulChange) {
+        await db.insert(documentVersionsTable).values({
+          documentId: id,
+          versionNumber: existing.version ?? 1,
+          title: existing.title,
+          content: existing.content,
+          status: existing.status,
+          fileUrl: existing.fileUrl,
+          language: existing.language,
+          modifiedBy: req.user!.userId,
+          changeReason: changeReason ?? (fieldUpdates.status ? `Transition ${existing.status} → ${fieldUpdates.status}` : "Modification du contenu"),
+        } as any);
+      }
+
+      const updates: Record<string, unknown> = { ...fieldUpdates, updatedAt: new Date() };
+      if (result.data.expiresAt !== undefined) {
+        const parsed = new Date(result.data.expiresAt);
+        updates.expiresAt = Number.isNaN(parsed.getTime()) ? null : parsed;
+        updates.expiryNotifiedBucket = null; // reset reminder tracking if the date changed
+      }
       if (result.data.content !== undefined) {
         updates.size = `${Math.round(result.data.content.length / 1024)}Ko`;
       }
@@ -589,12 +757,26 @@ router.put(
       if (result.data.status === "published") updates.publishedAt = new Date();
       if (result.data.status === "archived")  updates.archivedAt  = new Date();
       if (result.data.status === "signed")    updates.signedAt    = new Date();
+      if (result.data.status === "validated") {
+        updates.approvedAt = new Date();
+        updates.approvedBy = req.user!.userId;
+      }
+      if (result.data.status === "rejected") {
+        updates.rejectedAt = new Date();
+        updates.rejectedBy = req.user!.userId;
+        updates.rejectionReason = rejectionReason;
+      }
 
       const [doc] = await db
         .update(documentsTable)
         .set(updates)
         .where(eq(documentsTable.id, id))
         .returning();
+
+      // A rejected document's existing signatures no longer certify anything valid.
+      if (result.data.status === "rejected") {
+        await db.update(documentSignaturesTable).set({ isValid: false } as any).where(eq(documentSignaturesTable.documentId, id));
+      }
 
       await serverAuditLog(req, {
         action: "DOCUMENT_UPDATED",
@@ -614,7 +796,132 @@ router.put(
         }).catch(() => {});
       }
 
+      // Approval / rejection email + in-app notifications to the document's author
+      if ((result.data.status === "validated" || result.data.status === "rejected") && existing.createdBy) {
+        const [author] = await db.select({ email: usersTable.email }).from(usersTable).where(eq(usersTable.id, existing.createdBy));
+        const approved = result.data.status === "validated";
+        createAlert({
+          title: approved ? "Document approuvé" : "Document rejeté",
+          message: approved
+            ? `"${doc.title}" a été approuvé.`
+            : `"${doc.title}" a été rejeté. Motif : ${rejectionReason}`,
+          type: approved ? "success" : "error",
+          syndicateId: existing.syndicateId,
+          target: "admin",
+        }).catch(() => {});
+        if (author?.email) {
+          sendEmail(
+            author.email,
+            approved ? "Votre document a été approuvé" : "Votre document a été rejeté",
+            approved
+              ? `<p>Le document <strong>${doc.title}</strong> a été approuvé.</p>`
+              : `<p>Le document <strong>${doc.title}</strong> a été rejeté.</p><p>Motif : ${rejectionReason}</p>`,
+            approved ? "document_approved" : "document_rejected",
+            existing.syndicateId,
+          ).catch(() => {});
+        }
+      }
+
       res.json({ data: doc, message: "Document mis à jour avec succès" });
+    } catch (err) {
+      req.log.error(err);
+      res.status(500).json({ error: "Erreur serveur" });
+    }
+  },
+);
+
+// ─── GET /documents/:id/versions — version history ────────────────────────────
+
+router.get(
+  "/documents/:id/versions",
+  requireAuth,
+  async (req, res) => {
+    const id = String(req.params.id);
+    try {
+      const [doc] = await db.select({ syndicateId: documentsTable.syndicateId }).from(documentsTable).where(eq(documentsTable.id, id));
+      if (!doc) { res.status(404).json({ error: "Document introuvable" }); return; }
+      if (req.user!.role !== "super_admin" && doc.syndicateId !== req.user!.syndicateId) {
+        res.status(403).json({ error: "Accès refusé" }); return;
+      }
+      const versions = await db
+        .select({
+          id: documentVersionsTable.id,
+          versionNumber: documentVersionsTable.versionNumber,
+          title: documentVersionsTable.title,
+          status: documentVersionsTable.status,
+          language: documentVersionsTable.language,
+          modifiedBy: documentVersionsTable.modifiedBy,
+          modifiedByName: usersTable.name,
+          modifiedAt: documentVersionsTable.modifiedAt,
+          changeReason: documentVersionsTable.changeReason,
+        })
+        .from(documentVersionsTable)
+        .leftJoin(usersTable, eq(documentVersionsTable.modifiedBy, usersTable.id))
+        .where(eq(documentVersionsTable.documentId, id))
+        .orderBy(desc(documentVersionsTable.versionNumber));
+      res.json({ data: versions });
+    } catch (err) {
+      req.log.error(err);
+      res.status(500).json({ error: "Erreur serveur" });
+    }
+  },
+);
+
+// ─── POST /documents/:id/versions/:versionId/restore ──────────────────────────
+// Restores a document's title/content/status/language from a past snapshot.
+// The CURRENT state is itself snapshotted first, so a restore is never a
+// one-way, irreversible action.
+
+router.post(
+  "/documents/:id/versions/:versionId/restore",
+  requireAuth,
+  requireRole("super_admin", "syndicate_admin"),
+  async (req, res) => {
+    const id = String(req.params.id);
+    const versionId = String(req.params.versionId);
+    try {
+      const [existing] = await db.select().from(documentsTable).where(eq(documentsTable.id, id));
+      if (!existing || existing.isDeleted) { res.status(404).json({ error: "Document introuvable" }); return; }
+      if (req.user!.role !== "super_admin" && existing.syndicateId !== req.user!.syndicateId) {
+        res.status(403).json({ error: "Accès refusé" }); return;
+      }
+      const [version] = await db.select().from(documentVersionsTable).where(and(eq(documentVersionsTable.id, versionId), eq(documentVersionsTable.documentId, id)));
+      if (!version) { res.status(404).json({ error: "Version introuvable" }); return; }
+
+      // Snapshot the current state before overwriting it, so restoring is reversible.
+      await db.insert(documentVersionsTable).values({
+        documentId: id,
+        versionNumber: existing.version ?? 1,
+        title: existing.title,
+        content: existing.content,
+        status: existing.status,
+        fileUrl: existing.fileUrl,
+        language: existing.language,
+        modifiedBy: req.user!.userId,
+        changeReason: `Snapshot automatique avant restauration de la version ${version.versionNumber}`,
+      } as any);
+
+      const [doc] = await db
+        .update(documentsTable)
+        .set({
+          title: version.title,
+          content: version.content,
+          status: version.status ?? existing.status,
+          language: version.language ?? existing.language,
+          version: sql`COALESCE(${documentsTable.version}, 1) + 1`,
+          updatedAt: new Date(),
+        } as any)
+        .where(eq(documentsTable.id, id))
+        .returning();
+
+      await serverAuditLog(req, {
+        action: "DOCUMENT_VERSION_RESTORED",
+        entity: "document",
+        entityId: id,
+        details: `Restauré depuis la version ${version.versionNumber}`,
+      });
+
+      res.json({ data: doc, message: "Version restaurée avec succès" });
     } catch (err) {
       req.log.error(err);
       res.status(500).json({ error: "Erreur serveur" });
@@ -788,20 +1095,24 @@ router.post(
         .where(eq(documentSignaturesTable.documentId, id));
       const nextOrder = (count ?? 0) + 1;
 
+      const signerName = req.user!.name ?? req.user!.userId;
+      const now = new Date();
+
       const [sig] = await db
         .insert(documentSignaturesTable)
         .values({
           documentId:    id,
           signedBy:      req.user!.userId,
           signerRole:    req.user!.role,
+          signerName,
           syndicateId:   req.user!.syndicateId,
           ipAddress:     req.ip ?? req.socket?.remoteAddress,
           signatureData: result.data.signatureData,
           signatureOrder: nextOrder,
+          isValid: true,
         } as any)
         .returning();
 
-      const now = new Date();
       await db.update(documentsTable).set({
         status:    "signed",
         signedAt:  now,
@@ -809,21 +1120,54 @@ router.post(
         updatedAt: now,
       } as any).where(eq(documentsTable.id, id));
 
+      // Append the real signature (name/role/date/handwritten trace/validity) to
+      // the PDF as an authoritative signature page — best-effort, never blocks
+      // the already-durable DB signature record if PDF embedding fails.
+      if (doc.fileUrl) {
+        appendSignaturesToPdf(
+          doc.fileUrl,
+          [{
+            signerName,
+            signerRole: req.user!.role,
+            signedAt: now,
+            signatureSvg: result.data.signatureData,
+            isValid: true,
+          }],
+          (doc.language as DocumentLanguage) ?? "fr",
+        ).catch((err) => req.log.error({ err, docId: id }, "Signature PDF embed failed"));
+      }
+
       await serverAuditLog(req, {
         action: "DOCUMENT_SIGNED",
         entity: "document",
         entityId: id,
-        details: `Signataire: ${req.user!.name ?? req.user!.userId}, Rôle: ${req.user!.role}`,
+        details: `Signataire: ${signerName}, Rôle: ${req.user!.role}`,
       });
 
       if (doc.syndicateId) {
         createAlert({
           title: "Document signé",
-          message: `"${doc.title}" a été signé électroniquement.`,
+          message: `"${doc.title}" a été signé électroniquement par ${signerName}.`,
           type: "success",
           syndicateId: doc.syndicateId,
           target: "admin",
         }).catch(() => {});
+
+        if (doc.createdBy && doc.createdBy !== req.user!.userId) {
+          db.select({ email: usersTable.email }).from(usersTable).where(eq(usersTable.id, doc.createdBy))
+            .then(([author]) => {
+              if (author?.email) {
+                sendEmail(
+                  author.email,
+                  "Document signé",
+                  `<p>Le document <strong>${doc.title}</strong> a été signé par ${roleLabel(req.user!.role, (doc.language as DocumentLanguage) ?? "fr")} ${signerName}.</p>`,
+                  "document_signed",
+                  doc.syndicateId,
+                );
+              }
+            })
+            .catch(() => {});
+        }
       }
 
       res.status(201).json({ data: sig, message: "Document signé avec succès" });

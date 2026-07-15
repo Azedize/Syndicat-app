@@ -168,7 +168,150 @@ const I18N: Record<string, Record<DocumentLanguage, string>> = {
   },
   reglementPresidentFallback: { fr: "le Président du conseil syndical", ar: "رئيس مجلس النقابة", en: "the syndical board president", es: "el Presidente del consejo sindical" },
   reglementPresidentSignPrefix: { fr: "Le Président — {name}", ar: "الرئيس — {name}", en: "The President — {name}", es: "El Presidente — {name}" },
+
+  // ── Shared meta labels reused across every template's meta table ──────────
+  metaDeliveredTo: { fr: "Délivré à :", ar: ":سُلمت إلى", en: "Delivered to:", es: "Entregado a:" },
+  metaIssueDate: { fr: "Date d'émission :", ar: ":تاريخ الإصدار", en: "Issue date:", es: "Fecha de emisión:" },
+  metaIssuer: { fr: "Organisme émetteur :", ar: ":الجهة المصدرة", en: "Issuing body:", es: "Organismo emisor:" },
+  metaRegRef: { fr: "N° d'enregistrement :", ar: ":رقم التسجيل", en: "Registration no.:", es: "N.º de registro:" },
+  metaMeetingDate: { fr: "Date de réunion :", ar: ":تاريخ الاجتماع", en: "Meeting date:", es: "Fecha de la reunión:" },
+  metaSyndicate: { fr: "Syndicat :", ar: ":النقابة", en: "Syndicate:", es: "Sindicato:" },
+  metaLocation: { fr: "Lieu :", ar: ":المكان", en: "Location:", es: "Lugar:" },
+  metaSeatOfSyndicate: { fr: "Siège du syndicat", ar: "مقر النقابة", en: "Syndicate headquarters", es: "Sede del sindicato" },
+  metaChairperson: { fr: "Président de séance :", ar: ":رئيس الجلسة", en: "Meeting chair:", es: "Presidente de la sesión:" },
+  metaSecretarySession: { fr: "Secrétaire de séance :", ar: ":كاتب الجلسة", en: "Meeting secretary:", es: "Secretario de la sesión:" },
+  metaRecipient: { fr: "Destinataire :", ar: ":المرسل إليه", en: "Recipient:", es: "Destinatario:" },
+  metaSender: { fr: "Expéditeur :", ar: ":المرسل", en: "Sender:", es: "Remitente:" },
+  metaSendDate: { fr: "Date d'envoi :", ar: ":تاريخ الإرسال", en: "Send date:", es: "Fecha de envío:" },
+  metaObjet: { fr: "Objet :", ar: ":الموضوع", en: "Subject:", es: "Asunto:" },
+  metaTime: { fr: "Heure :", ar: ":الوقت", en: "Time:", es: "Hora:" },
+  metaContractRef: { fr: "Référence du contrat :", ar: ":مرجع العقد", en: "Contract ref.:", es: "Referencia del contrato:" },
+  metaParty1: { fr: "Partie 1 :", ar: ":الطرف الأول", en: "Party 1:", es: "Parte 1:" },
+  metaParty2: { fr: "Partie 2 :", ar: ":الطرف الثاني", en: "Party 2:", es: "Parte 2:" },
+  metaPeriod: { fr: "Période couverte :", ar: ":الفترة المشمولة", en: "Period covered:", es: "Período cubierto:" },
+  metaAuthor: { fr: "Auteur :", ar: ":المُعِدّ", en: "Author:", es: "Autor:" },
+  metaDraftDate: { fr: "Date de rédaction :", ar: ":تاريخ التحرير", en: "Drafting date:", es: "Fecha de redacción:" },
+  metaReference: { fr: "Référence :", ar: ":المرجع", en: "Reference:", es: "Referencia:" },
+  metaDecisionDate: { fr: "Date de la décision :", ar: ":تاريخ القرار", en: "Decision date:", es: "Fecha de la decisión:" },
+  metaDecisionBody: { fr: "Organe décisionnel :", ar: ":الجهة المقررة", en: "Decision-making body:", es: "Órgano decisorio:" },
+  metaTo: { fr: "À :", ar: ":إلى", en: "To:", es: "Para:" },
+  metaFrom: { fr: "De :", ar: ":من", en: "From:", es: "De:" },
+  metaDateLabel: { fr: "Date :", ar: ":التاريخ", en: "Date:", es: "Fecha:" },
+  metaPriority: { fr: "Priorité :", ar: ":الأولوية", en: "Priority:", es: "Prioridad:" },
+  metaSendMode: { fr: "Mode d'envoi :", ar: ":طريقة الإرسال", en: "Delivery method:", es: "Modo de envío:" },
+  allMembers: { fr: "Tous les membres du syndicat", ar: "جميع أعضاء النقابة", en: "All syndicate members", es: "Todos los miembros del sindicato" },
+  syndicateOffice: { fr: "Bureau Syndical", ar: "المكتب النقابي", en: "Syndicate Board", es: "Junta Sindical" },
+  registeredMailNotice: { fr: "Recommandé avec accusé de réception", ar: "بريد مضمون مع إشعار بالاستلام", en: "Registered mail with acknowledgment of receipt", es: "Correo certificado con acuse de recibo" },
+  normalPriority: { fr: "Normale", ar: "عادية", en: "Normal", es: "Normal" },
+  awaitingSignature: { fr: "En attente de signature", ar: "في انتظار التوقيع", en: "Awaiting signature", es: "Pendiente de firma" },
+  signedByLabel: { fr: "Signé par :", ar: ":وقّع عليه", en: "Signed by:", es: "Firmado por:" },
+  signedOnLabel: { fr: "Le :", ar: ":بتاريخ", en: "On:", es: "El:" },
+  signatureValidLabel: { fr: "✓ Signature valide et vérifiée", ar: "✓ توقيع صالح وموثّق", en: "✓ Valid, verified signature", es: "✓ Firma válida y verificada" },
+  signatureInvalidLabel: { fr: "✗ Signature invalidée (document rejeté ou remplacé)", ar: "✗ توقيع ملغى (تم رفض الوثيقة أو استبدالها)", en: "✗ Invalidated signature (document rejected or replaced)", es: "✗ Firma invalidada (documento rechazado o reemplazado)" },
+  electronicSignaturesTitle: { fr: "Signatures électroniques", ar: "التوقيعات الإلكترونية", en: "Electronic signatures", es: "Firmas electrónicas" },
+  noHandwrittenTrace: { fr: "(signature électronique enregistrée sans tracé manuscrit)", ar: "(توقيع إلكتروني مسجل دون خط يدوي)", en: "(electronic signature recorded without a handwritten trace)", es: "(firma electrónica registrada sin trazo manuscrito)" },
+  roleSuperAdmin: { fr: "Super Administrateur", ar: "المسؤول العام", en: "Super Admin", es: "Superadministrador" },
+  roleSyndicateAdmin: { fr: "Administrateur du Syndicat", ar: "مسؤول النقابة", en: "Syndicate Admin", es: "Administrador del Sindicato" },
+  rolePresident: { fr: "Président", ar: "الرئيس", en: "President", es: "Presidente" },
+  roleVicePresident: { fr: "Vice-Président", ar: "نائب الرئيس", en: "Vice President", es: "Vicepresidente" },
+  roleTreasurer: { fr: "Trésorier", ar: "أمين المال", en: "Treasurer", es: "Tesorero" },
+  roleSecretary: { fr: "Secrétaire", ar: "كاتب الضبط", en: "Secretary", es: "Secretario" },
+  roleCommitteeMember: { fr: "Membre du Conseil Syndical", ar: "عضو المجلس النقابي", en: "Committee Member", es: "Miembro del Consejo Sindical" },
+  roleBuildingRep: { fr: "Représentant d'immeuble", ar: "ممثل العمارة", en: "Building Representative", es: "Representante del edificio" },
+  roleMember: { fr: "Membre", ar: "عضو", en: "Member", es: "Miembro" },
+  roleTenant: { fr: "Locataire", ar: "مستأجر", en: "Tenant", es: "Inquilino" },
+
+  // ── Attestation ─────────────────────────────────────────────────────────
+  attestationSectionTitle: { fr: "Attestation", ar: "شهادة", en: "Attestation", es: "Certificación" },
+  attestationBody: {
+    fr: "Le syndicat {syndicate} atteste par la présente que {member} est membre en règle de notre organisation à la date du {date}. Cette attestation est délivrée à l'intéressé(e) pour faire valoir ce que de droit.",
+    ar: "تشهد النقابة {syndicate} بموجب هذه الوثيقة أن {member} عضو في وضعية قانونية سليمة في منظمتنا بتاريخ {date}. تُسلَّم هذه الشهادة للمعني بالأمر لإثبات ما يلزم إثباته.",
+    en: "The syndicate {syndicate} hereby attests that {member} is a member in good standing of our organization as of {date}. This attestation is issued to the party concerned for whatever purpose it may serve.",
+    es: "El sindicato {syndicate} certifica por la presente que {member} es miembro en regla de nuestra organización a fecha de {date}. Esta certificación se entrega al interesado para los fines que estime oportunos.",
+  },
+  attestationMemberFallback: { fr: "[NOM DU MEMBRE]", ar: "[اسم العضو]", en: "[MEMBER NAME]", es: "[NOMBRE DEL MIEMBRO]" },
+
+  // ── Procès-verbal ────────────────────────────────────────────────────────
+  pvAgendaTitle: { fr: "Ordre du jour", ar: "جدول الأعمال", en: "Agenda", es: "Orden del día" },
+  pvAgendaText: { fr: "Points inscrits à l'ordre du jour de la réunion.", ar: "النقاط المدرجة في جدول أعمال الاجتماع.", en: "Items listed on the meeting agenda.", es: "Puntos incluidos en el orden del día de la reunión." },
+  pvDeliberationsTitle: { fr: "Délibérations", ar: "المداولات", en: "Deliberations", es: "Deliberaciones" },
+  pvDeliberationsText: {
+    fr: "Les membres présents ont délibéré sur les points inscrits à l'ordre du jour. Les décisions adoptées font l'objet d'un enregistrement dans le registre officiel du syndicat.",
+    ar: "تداول الأعضاء الحاضرون في النقاط المدرجة في جدول الأعمال. تُسجَّل القرارات المعتمدة في السجل الرسمي للنقابة.",
+    en: "The members present deliberated on the items listed on the agenda. Decisions adopted are recorded in the syndicate's official register.",
+    es: "Los miembros presentes deliberaron sobre los puntos del orden del día. Las decisiones adoptadas se registran en el registro oficial del sindicato.",
+  },
+  pvResolutionsTitle: { fr: "Résolutions", ar: "القرارات", en: "Resolutions", es: "Resoluciones" },
+  pvResolutionsText: { fr: "Les résolutions adoptées ont été consignées.", ar: "تم تدوين القرارات المعتمدة.", en: "The resolutions adopted have been recorded.", es: "Las resoluciones adoptadas quedaron registradas." },
+
+  // ── Convocation ──────────────────────────────────────────────────────────
+  convocationRecipientFallback: { fr: "[DESTINATAIRE]", ar: "[المرسل إليه]", en: "[RECIPIENT]", es: "[DESTINATARIO]" },
+  convocationObjetTitle: { fr: "Objet de la convocation", ar: "موضوع الاستدعاء", en: "Purpose of the summons", es: "Objeto de la convocatoria" },
+  convocationBody: {
+    fr: "Vous êtes convoqué(e) à assister à la réunion organisée par {syndicate}.",
+    ar: "أنتم مدعوون لحضور الاجتماع الذي تنظمه {syndicate}.",
+    en: "You are summoned to attend the meeting organized by {syndicate}.",
+    es: "Se le convoca a asistir a la reunión organizada por {syndicate}.",
+  },
+  convocationNotice: {
+    fr: "Votre présence est obligatoire. En cas d'impossibilité, veuillez en informer le secrétariat avant la date de la réunion.",
+    ar: "حضوركم إلزامي. في حال تعذّر ذلك، يرجى إخبار الكتابة قبل تاريخ الاجتماع.",
+    en: "Your attendance is mandatory. If you are unable to attend, please inform the secretariat before the meeting date.",
+    es: "Su asistencia es obligatoria. En caso de no poder asistir, informe a la secretaría antes de la fecha de la reunión.",
+  },
+
+  // ── Certificat ───────────────────────────────────────────────────────────
+  certificateWord: { fr: "CERTIFICAT", ar: "شهادة", en: "CERTIFICATE", es: "CERTIFICADO" },
+  certificatDeliveryDate: { fr: "Date de délivrance :", ar: ":تاريخ الإصدار", en: "Issue date:", es: "Fecha de expedición:" },
+  certificatSectionTitle: { fr: "Certifie et atteste", ar: "يشهد ويؤكد", en: "Certifies and attests", es: "Certifica y atestigua" },
+  certificatBody: {
+    fr: "Le syndicat {syndicate} certifie par la présente que {member} satisfait à l'ensemble des conditions requises pour l'obtention du présent certificat.",
+    ar: "تشهد النقابة {syndicate} بموجب هذه الوثيقة أن {member} يستوفي جميع الشروط المطلوبة للحصول على هذه الشهادة.",
+    en: "The syndicate {syndicate} hereby certifies that {member} satisfies all the conditions required for the issuance of this certificate.",
+    es: "El sindicato {syndicate} certifica por la presente que {member} cumple todas las condiciones requeridas para la obtención de este certificado.",
+  },
+  certificatBeneficiaryFallback: { fr: "[BÉNÉFICIAIRE]", ar: "[المستفيد]", en: "[BENEFICIARY]", es: "[BENEFICIARIO]" },
+
+  // ── Mise en demeure ──────────────────────────────────────────────────────
+  miseEnDemeureObjetTitle: { fr: "Objet de la mise en demeure", ar: "موضوع الإعذار", en: "Purpose of the formal notice", es: "Objeto del requerimiento" },
+  miseEnDemeureBody: {
+    fr: "Par la présente lettre recommandée, {syndicate} met formellement en demeure {recipient} de s'acquitter de ses obligations dans le délai imparti ci-dessous.",
+    ar: "بموجب هذه الرسالة المضمونة، تُعذر {syndicate} رسمياً {recipient} للوفاء بالتزاماته في غضون المدة المحددة أدناه.",
+    en: "By this registered letter, {syndicate} formally gives notice to {recipient} to fulfill its obligations within the deadline set out below.",
+    es: "Mediante la presente carta certificada, {syndicate} requiere formalmente a {recipient} para que cumpla sus obligaciones en el plazo indicado a continuación.",
+  },
+  mandatoryDeadlineTitle: { fr: "DÉLAI DE RÉPONSE IMPÉRATIF", ar: "أجل الرد الإلزامي", en: "MANDATORY RESPONSE DEADLINE", es: "PLAZO DE RESPUESTA OBLIGATORIO" },
+  defaultDeadline: {
+    fr: "15 (QUINZE) JOURS à compter de la réception de la présente",
+    ar: "15 (خمسة عشر) يوماً من تاريخ استلام هذه الوثيقة",
+    en: "15 (FIFTEEN) DAYS from receipt of this notice",
+    es: "15 (QUINCE) DÍAS a partir de la recepción de la presente",
+  },
+  miseEnDemeureConsequencesTitle: { fr: "Conséquences en cas de non-réponse", ar: "العواقب في حال عدم الرد", en: "Consequences of non-response", es: "Consecuencias en caso de no respuesta" },
+  miseEnDemeureConsequencesText: {
+    fr: "À défaut de réponse dans le délai imparti, nous nous réservons le droit d'engager toutes les procédures légales et judiciaires appropriées sans autre préavis.",
+    ar: "في حال عدم الرد ضمن المدة المحددة، نحتفظ بحقنا في اتخاذ كل الإجراءات القانونية والقضائية المناسبة دون سابق إنذار آخر.",
+    en: "Failing a response within the allotted time, we reserve the right to initiate all appropriate legal and judicial proceedings without further notice.",
+    es: "En caso de no obtener respuesta en el plazo indicado, nos reservamos el derecho de iniciar todos los procedimientos legales y judiciales pertinentes sin previo aviso adicional.",
+  },
 };
+
+/** Human-readable, translated label for any signer/office-holder role in the system. */
+export function roleLabel(role: string | null | undefined, lang: DocumentLanguage = "fr"): string {
+  const map: Record<string, string> = {
+    super_admin: t("roleSuperAdmin", lang),
+    syndicate_admin: t("roleSyndicateAdmin", lang),
+    president: t("rolePresident", lang),
+    vice_president: t("roleVicePresident", lang),
+    treasurer: t("roleTreasurer", lang),
+    secretary: t("roleSecretary", lang),
+    committee_member: t("roleCommitteeMember", lang),
+    building_representative: t("roleBuildingRep", lang),
+    member: t("roleMember", lang),
+    tenant: t("roleTenant", lang),
+  };
+  return map[role ?? ""] ?? (role || "—");
+}
 
 function fmt(text: string, vars: Record<string, string>): string {
   return Object.entries(vars).reduce((acc, [k, v]) => acc.replace(new RegExp(`\\{${k}\\}`, "g"), v), text);
@@ -180,9 +323,16 @@ function t(key: string, lang: DocumentLanguage): string {
 
 // ─── QR Code ──────────────────────────────────────────────────────────────────
 
-async function generateQrDataUrl(documentNumber: string): Promise<string> {
+/**
+ * Encodes a QR pointing at the real, environment-portable public verification URL
+ * built by the caller (routes/documents.ts) from the document's verificationToken —
+ * never a hardcoded domain. Falls back to a bare documentNumber-based marker only
+ * when no verification URL could be constructed (e.g. no domain available at all),
+ * so the QR still communicates the reference rather than silently disappearing.
+ */
+async function generateQrDataUrl(verifyUrlOrDocNumber: string): Promise<string> {
   try {
-    return await QRCode.toDataURL(`https://syndycat.ma/verify/${encodeURIComponent(documentNumber)}`, {
+    return await QRCode.toDataURL(verifyUrlOrDocNumber, {
       errorCorrectionLevel: "M",
       width: 160,
       margin: 1,
@@ -369,21 +519,49 @@ function contentSection(title: string, text: string, accentColor: string, isRtl 
   };
 }
 
+/** Real signer info threaded into the primary signature block from `documentSignaturesTable`. */
+export interface InlineSignatureInfo {
+  signerName: string;
+  signerRole: string;
+  signedAt: Date;
+  isValid: boolean;
+}
+
 function signatureBlock(
   signatoryTitle: string,
   syndName: string,
   accentColor: string,
   showStampCircle = true,
   lang: DocumentLanguage = "fr",
+  signatures: InlineSignatureInfo[] = [],
 ): unknown {
+  const dateLocale = lang === "ar" ? "ar-MA" : lang === "en" ? "en-US" : lang === "es" ? "es-ES" : "fr-FR";
+
+  // When real signatures exist, show who actually signed — never a generic stamp.
+  const signerStack =
+    signatures.length > 0
+      ? signatures.map((sig, i) => ({
+          stack: [
+            { text: `${t("signedByLabel", lang)} ${sig.signerName}`, style: "signName", margin: [0, i === 0 ? 0 : 10, 0, 1] },
+            { text: roleLabel(sig.signerRole, lang), style: "signLabel", margin: [0, 0, 0, 1] },
+            { text: `${t("signedOnLabel", lang)} ${sig.signedAt.toLocaleString(dateLocale)}`, style: "signLabel", margin: [0, 0, 0, 1] },
+            {
+              text: sig.isValid ? t("signatureValidLabel", lang) : t("signatureInvalidLabel", lang),
+              style: "notice",
+              color: sig.isValid ? "#16a34a" : "#dc2626",
+              margin: [0, 0, 0, 0],
+            },
+          ],
+        }))
+      : [{ text: t("awaitingSignature", lang), style: "signLabel", italics: true }];
+
   return {
     columns: [
       {
         stack: [
-          { text: t("signAndStamp", lang), style: "metaKey", margin: [0, 0, 0, 40] },
-          { canvas: [{ type: "line", x1: 0, y1: 0, x2: 160, y2: 0, lineWidth: 0.8, lineColor: "#cbd5e1" }] },
-          { text: signatoryTitle, style: "signLabel", margin: [0, 4, 0, 2] },
-          { text: syndName, style: "signName" },
+          { text: t("signAndStamp", lang), style: "metaKey", margin: [0, 0, 0, signatures.length > 0 ? 8 : 40] },
+          ...(signatures.length > 0 ? [] : [{ canvas: [{ type: "line", x1: 0, y1: 0, x2: 160, y2: 0, lineWidth: 0.8, lineColor: "#cbd5e1" }] }]),
+          ...(signatures.length > 0 ? signerStack : [{ text: signatoryTitle, style: "signLabel", margin: [0, 4, 0, 2] }, { text: syndName, style: "signName" }, ...signerStack]),
         ],
         width: "*",
       },
@@ -408,9 +586,14 @@ function signatureBlock(
   };
 }
 
-function legalFooterNote(docNumber: string, lang: DocumentLanguage = "fr"): unknown {
+function legalFooterNote(docNumber: string, lang: DocumentLanguage = "fr", verifyUrl?: string): unknown {
+  // Swap in the real, environment-portable verify URL when available instead of the
+  // static "syndycat.ma/verify/{ref}" wording baked into the translation string —
+  // done BEFORE the {ref} substitution below so the domain placeholder is still intact.
+  const template = verifyUrl ? t("legalFooterNote", lang).replace(/syndycat\.ma\/verify\/\{ref\}/g, verifyUrl) : t("legalFooterNote", lang);
+  const text = template.replace(/\{ref\}/g, docNumber);
   return {
-    text: t("legalFooterNote", lang).replace(/\{ref\}/g, docNumber),
+    text,
     style: "notice",
     margin: [0, 20, 0, 0],
     alignment: "center" as const,
@@ -574,6 +757,8 @@ export interface SignatureToEmbed {
   signedAt: Date;
   /** Raw SVG markup produced by the mobile SignaturePad component (may be empty for a stamp-only signature). */
   signatureSvg?: string | null;
+  /** Legal validation status of this signature — false once the document is rejected/superseded. */
+  isValid?: boolean;
 }
 
 /** Extracts `d="..."` path data from simple single-color <path> elements (our SignaturePad output). */
@@ -589,9 +774,14 @@ function extractSvgPaths(svg: string): string[] {
  * Best-effort: throws on failure so the caller can log/audit without blocking
  * the underlying signature record, which is already durably stored in the DB.
  */
-export async function appendSignaturesToPdf(internalPath: string, signatures: SignatureToEmbed[]): Promise<void> {
+export async function appendSignaturesToPdf(
+  internalPath: string,
+  signatures: SignatureToEmbed[],
+  lang: DocumentLanguage = "fr",
+): Promise<void> {
   if (signatures.length === 0) return;
   const { PDFDocument, rgb, StandardFonts } = await import("pdf-lib");
+  const dateLocale = lang === "ar" ? "ar-MA" : lang === "en" ? "en-US" : lang === "es" ? "es-ES" : "fr-FR";
 
   const existingBytes = await downloadPdfFromGcs(internalPath);
   const pdfDoc = await PDFDocument.load(existingBytes, { ignoreEncryption: true });
@@ -600,13 +790,13 @@ export async function appendSignaturesToPdf(internalPath: string, signatures: Si
 
   const PAGE_W = 595.28; // A4 pt
   const PAGE_H = 841.89;
-  const ROW_H = 130;
+  const ROW_H = 140;
   const MARGIN = 40;
 
   let page = pdfDoc.addPage([PAGE_W, PAGE_H]);
   let cursorY = PAGE_H - MARGIN;
 
-  page.drawText("Signatures électroniques", {
+  page.drawText(t("electronicSignaturesTitle", lang), {
     x: MARGIN, y: cursorY, size: 16, font: boldFont, color: rgb(0.1, 0.1, 0.2),
   });
   cursorY -= 30;
@@ -619,16 +809,20 @@ export async function appendSignaturesToPdf(internalPath: string, signatures: Si
 
     const boxTop = cursorY;
     const boxBottom = cursorY - ROW_H + 20;
+    const isValid = sig.isValid !== false;
     page.drawRectangle({
       x: MARGIN, y: boxBottom, width: PAGE_W - 2 * MARGIN, height: boxTop - boxBottom,
-      borderColor: rgb(0.85, 0.85, 0.88), borderWidth: 1,
+      borderColor: isValid ? rgb(0.85, 0.85, 0.88) : rgb(0.86, 0.2, 0.2), borderWidth: isValid ? 1 : 1.5,
     });
 
     page.drawText(sig.signerName, { x: MARGIN + 12, y: boxTop - 20, size: 12, font: boldFont, color: rgb(0.1, 0.1, 0.2) });
     page.drawText(
-      `${sig.signerRole === "super_admin" ? "Super administrateur" : "Administrateur du syndicat"} — signé le ${sig.signedAt.toLocaleString("fr-FR")}`,
+      `${roleLabel(sig.signerRole, lang)} — ${t("signedOnLabel", lang)} ${sig.signedAt.toLocaleString(dateLocale)}`,
       { x: MARGIN + 12, y: boxTop - 36, size: 9, font, color: rgb(0.4, 0.4, 0.45) },
     );
+    page.drawText(isValid ? t("signatureValidLabel", lang) : t("signatureInvalidLabel", lang), {
+      x: MARGIN + 12, y: boxTop - 50, size: 9, font: boldFont, color: isValid ? rgb(0.09, 0.64, 0.29) : rgb(0.86, 0.15, 0.15),
+    });
 
     const paths = sig.signatureSvg ? extractSvgPaths(sig.signatureSvg) : [];
     if (paths.length > 0) {
@@ -650,8 +844,8 @@ export async function appendSignaturesToPdf(internalPath: string, signatures: Si
         }
       }
     } else {
-      page.drawText("(signature électronique enregistrée sans tracé manuscrit)", {
-        x: MARGIN + 12, y: boxTop - 60, size: 9, font, color: rgb(0.55, 0.55, 0.6),
+      page.drawText(t("noHandwrittenTrace", lang), {
+        x: MARGIN + 12, y: boxTop - 70, size: 9, font, color: rgb(0.55, 0.55, 0.6),
       });
     }
 
@@ -787,9 +981,18 @@ export interface DocumentInput {
   property?: PropertyInfo;
   /** Real office-holder identities, fetched from conseilSyndicalTable. */
   officeHolders?: OfficeHolders;
-  /** Output language — defaults to "fr". Fully covers the "reglement" template + shared
-   *  chrome (header/meta/signature/footer); other templates' body content stays French. */
+  /** Output language — defaults to "fr". Full body-prose translation covers "reglement",
+   *  "attestation", "pv", "convocation", "certificat" and "mise_en_demeure"; other templates'
+   *  shared chrome (header/meta labels/signature/footer/QR) is translated, but body prose
+   *  stays French — disclosed in DOCUMENT_MODULE_REVIEW. */
   language?: DocumentLanguage;
+  /** Real, environment-portable public verification URL for the QR code + footer note,
+   *  built by the caller from documentsTable.verificationToken. Falls back to a
+   *  documentNumber-based QR payload when absent (no domain available). */
+  verificationUrl?: string;
+  /** Real signatures already recorded for this document (from documentSignaturesTable),
+   *  used to render actual signer name/role/date/validity in the primary signature block. */
+  signatures?: InlineSignatureInfo[];
   [key: string]: unknown;
 }
 
@@ -814,10 +1017,14 @@ async function buildDocDef(template: DocumentTemplate, input: DocumentInput): Pr
   const styles = buildStyles(accentColor);
   const lang: DocumentLanguage = (input.language as DocumentLanguage) ?? "fr";
   const isArabic = lang === "ar";
+  const verifyUrl = input.verificationUrl as string | undefined;
+  const signatures = (input.signatures as InlineSignatureInfo[] | undefined) ?? [];
 
-  // QR code + logo — both non-blocking / best-effort
+  // QR code + logo — both non-blocking / best-effort. Points at the real public
+  // verification URL when available; otherwise falls back to encoding the bare
+  // document number so the QR still communicates a reference.
   const [qrDataUrl, logoDataUrl] = await Promise.all([
-    generateQrDataUrl(docNum),
+    generateQrDataUrl(verifyUrl || docNum),
     fetchLogoDataUrl(syndInfo.logoUrl),
   ]);
 
@@ -856,21 +1063,19 @@ async function buildDocDef(template: DocumentTemplate, input: DocumentInput): Pr
         ...header,
         { text: input.title, style: "docTitle", alignment: "center" as const, margin: [0, 0, 0, 16] },
         metaTable([
-          ["Délivré à :", member || "N/A"],
-          ["Date d'émission :", today],
-          ["Organisme émetteur :", syndInfo.name],
-          ...(syndInfo.registrationNumber ? [["N° d'enregistrement :", syndInfo.registrationNumber] as [string, string]] : []),
+          [t("metaDeliveredTo", lang), member || t("notRenseigne", lang)],
+          [t("metaIssueDate", lang), today],
+          [t("metaIssuer", lang), syndInfo.name],
+          ...(syndInfo.registrationNumber ? [[t("metaRegRef", lang), syndInfo.registrationNumber] as [string, string]] : []),
         ], accentColor),
         contentSection(
-          "Attestation",
-          body ||
-            `Le syndicat ${syndInfo.name} atteste par la présente que ${member || "[NOM DU MEMBRE]"} est membre en règle de notre organisation à la date du ${today}. ` +
-            `Cette attestation est délivrée à l'intéressé(e) pour faire valoir ce que de droit.`,
+          t("attestationSectionTitle", lang),
+          body || fmt(t("attestationBody", lang), { syndicate: syndInfo.name, member: member || t("attestationMemberFallback", lang), date: today }),
           accentColor,
         ),
         { text: "\n" },
-        signatureBlock("Le Président du Syndicat", syndInfo.name, accentColor),
-        legalFooterNote(docNum),
+        signatureBlock(t("presidentTitle", lang), syndInfo.name, accentColor, true, lang, signatures),
+        legalFooterNote(docNum, lang, verifyUrl),
       ];
       break;
 
@@ -879,46 +1084,43 @@ async function buildDocDef(template: DocumentTemplate, input: DocumentInput): Pr
         ...header,
         { text: input.title, style: "docTitle", alignment: "center" as const, margin: [0, 0, 0, 16] },
         metaTable([
-          ["Date de réunion :", today],
-          ["Syndicat :", syndInfo.name],
-          ["Lieu :", input.lieu as string || "Siège du syndicat"],
-          ["Président de séance :", input.president as string || syndInfo.name],
-          ["Secrétaire de séance :", input.secretaire as string || "—"],
+          [t("metaMeetingDate", lang), today],
+          [t("metaSyndicate", lang), syndInfo.name],
+          [t("metaLocation", lang), input.lieu as string || t("metaSeatOfSyndicate", lang)],
+          [t("metaChairperson", lang), input.president as string || syndInfo.name],
+          [t("metaSecretarySession", lang), input.secretaire as string || "—"],
         ], accentColor),
-        contentSection("Ordre du jour", input.agendaText as string || body || "Points inscrits à l'ordre du jour de la réunion.", accentColor),
-        contentSection(
-          "Délibérations",
-          input.deliberationsText as string ||
-            "Les membres présents ont délibéré sur les points inscrits à l'ordre du jour. Les décisions adoptées font l'objet d'un enregistrement dans le registre officiel du syndicat.",
-          accentColor,
-        ),
-        contentSection("Résolutions", input.resolutionsText as string || "Les résolutions adoptées ont été consignées.", accentColor),
+        contentSection(t("pvAgendaTitle", lang), input.agendaText as string || body || t("pvAgendaText", lang), accentColor, isArabic),
+        contentSection(t("pvDeliberationsTitle", lang), input.deliberationsText as string || t("pvDeliberationsText", lang), accentColor, isArabic),
+        contentSection(t("pvResolutionsTitle", lang), input.resolutionsText as string || t("pvResolutionsText", lang), accentColor, isArabic),
         { text: "\n" },
-        {
-          columns: [
-            {
-              stack: [
-                { canvas: [{ type: "line", x1: 0, y1: 0, x2: 130, y2: 0, lineWidth: 0.8, lineColor: "#cbd5e1" }] },
-                { text: "Le Président", style: "signLabel", margin: [0, 4, 0, 0] },
+        signatures.length > 0
+          ? signatureBlock(t("presidentTitle", lang), syndInfo.name, accentColor, true, lang, signatures)
+          : {
+              columns: [
+                {
+                  stack: [
+                    { canvas: [{ type: "line", x1: 0, y1: 0, x2: 130, y2: 0, lineWidth: 0.8, lineColor: "#cbd5e1" }] },
+                    { text: t("rolePresident", lang), style: "signLabel", margin: [0, 4, 0, 0] },
+                  ],
+                },
+                {
+                  stack: [
+                    { canvas: [{ type: "line", x1: 0, y1: 0, x2: 130, y2: 0, lineWidth: 0.8, lineColor: "#cbd5e1" }] },
+                    { text: t("roleSecretary", lang), style: "signLabel", margin: [0, 4, 0, 0] },
+                  ],
+                },
+                {
+                  stack: [
+                    { canvas: [{ type: "line", x1: 0, y1: 0, x2: 130, y2: 0, lineWidth: 0.8, lineColor: "#cbd5e1" }] },
+                    { text: t("officialStamp", lang), style: "signLabel", margin: [0, 4, 0, 0] },
+                  ],
+                },
               ],
+              margin: [0, 30, 0, 0],
+              columnGap: 10,
             },
-            {
-              stack: [
-                { canvas: [{ type: "line", x1: 0, y1: 0, x2: 130, y2: 0, lineWidth: 0.8, lineColor: "#cbd5e1" }] },
-                { text: "Le Secrétaire", style: "signLabel", margin: [0, 4, 0, 0] },
-              ],
-            },
-            {
-              stack: [
-                { canvas: [{ type: "line", x1: 0, y1: 0, x2: 130, y2: 0, lineWidth: 0.8, lineColor: "#cbd5e1" }] },
-                { text: "Cachet du Syndicat", style: "signLabel", margin: [0, 4, 0, 0] },
-              ],
-            },
-          ],
-          margin: [0, 30, 0, 0],
-          columnGap: 10,
-        },
-        legalFooterNote(docNum),
+        legalFooterNote(docNum, lang, verifyUrl),
       ];
       break;
 
@@ -927,20 +1129,20 @@ async function buildDocDef(template: DocumentTemplate, input: DocumentInput): Pr
         ...header,
         { text: input.title, style: "docTitle", alignment: "center" as const, margin: [0, 0, 0, 16] },
         metaTable([
-          ["Destinataire :", member || "[DESTINATAIRE]"],
-          ["Expéditeur :", syndInfo.name],
-          ["Date d'envoi :", today],
-          ["Objet :", input.title],
-          ["Date de réunion :", input.meetingDate as string || "—"],
-          ["Lieu :", input.lieu as string || "Siège du syndicat"],
-          ["Heure :", input.heure as string || "—"],
+          [t("metaRecipient", lang), member || t("convocationRecipientFallback", lang)],
+          [t("metaSender", lang), syndInfo.name],
+          [t("metaSendDate", lang), today],
+          [t("metaObjet", lang), input.title],
+          [t("metaMeetingDate", lang), input.meetingDate as string || "—"],
+          [t("metaLocation", lang), input.lieu as string || t("metaSeatOfSyndicate", lang)],
+          [t("metaTime", lang), input.heure as string || "—"],
         ], accentColor),
-        contentSection("Objet de la convocation", body || `Vous êtes convoqué(e) à assister à la réunion organisée par ${syndInfo.name}.`, accentColor),
+        contentSection(t("convocationObjetTitle", lang), body || fmt(t("convocationBody", lang), { syndicate: syndInfo.name }), accentColor, isArabic),
         {
           table: {
             widths: ["*"],
             body: [[{
-              text: "Votre présence est obligatoire. En cas d'impossibilité, veuillez en informer le secrétariat avant la date de la réunion.",
+              text: t("convocationNotice", lang),
               style: "notice",
               fillColor: "#fff7ed",
               margin: [10, 8, 10, 8],
@@ -954,8 +1156,8 @@ async function buildDocDef(template: DocumentTemplate, input: DocumentInput): Pr
           },
           margin: [0, 0, 0, 16],
         },
-        signatureBlock("Le Président du Syndicat", syndInfo.name, accentColor),
-        legalFooterNote(docNum),
+        signatureBlock(t("presidentTitle", lang), syndInfo.name, accentColor, true, lang, signatures),
+        legalFooterNote(docNum, lang, verifyUrl),
       ];
       break;
 
@@ -996,7 +1198,7 @@ async function buildDocDef(template: DocumentTemplate, input: DocumentInput): Pr
           margin: [0, 24, 0, 0],
           columnGap: 20,
         },
-        legalFooterNote(docNum),
+        legalFooterNote(docNum, lang, verifyUrl),
       ];
       break;
 
@@ -1015,7 +1217,7 @@ async function buildDocDef(template: DocumentTemplate, input: DocumentInput): Pr
         contentSection("Indicateurs clés", input.indicateurs as string || "—", accentColor),
         contentSection("Perspectives et recommandations", input.perspectives as string || "—", accentColor),
         signatureBlock("L'Auteur du rapport", syndInfo.name, accentColor),
-        legalFooterNote(docNum),
+        legalFooterNote(docNum, lang, verifyUrl),
       ];
       break;
 
@@ -1055,7 +1257,7 @@ async function buildDocDef(template: DocumentTemplate, input: DocumentInput): Pr
           margin: [0, 0, 0, 16],
         },
         signatureBlock("Le Président du Syndicat", syndInfo.name, accentColor),
-        legalFooterNote(docNum),
+        legalFooterNote(docNum, lang, verifyUrl),
       ];
       break;
 
@@ -1069,18 +1271,19 @@ async function buildDocDef(template: DocumentTemplate, input: DocumentInput): Pr
           ],
           margin: [0, 0, 0, 16],
         },
-        { text: "CERTIFICAT", fontSize: 22, bold: true, color: accentColor, alignment: "center" as const, margin: [0, 0, 0, 4] },
+        { text: t("certificateWord", lang), fontSize: 22, bold: true, color: accentColor, alignment: "center" as const, margin: [0, 0, 0, 4] },
         { text: input.title, style: "docTitle", alignment: "center" as const, margin: [0, 0, 0, 20] },
         metaTable([
-          ["Délivré à :", member || "[BÉNÉFICIAIRE]"],
-          ["Date de délivrance :", today],
-          ["Organisme émetteur :", syndInfo.name],
-          ...(syndInfo.registrationNumber ? [["Réf. d'enregistrement :", syndInfo.registrationNumber] as [string, string]] : []),
+          [t("metaDeliveredTo", lang), member || t("certificatBeneficiaryFallback", lang)],
+          [t("certificatDeliveryDate", lang), today],
+          [t("metaIssuer", lang), syndInfo.name],
+          ...(syndInfo.registrationNumber ? [[t("metaRegRef", lang), syndInfo.registrationNumber] as [string, string]] : []),
         ], accentColor),
         contentSection(
-          "Certifie et atteste",
-          body || `Le syndicat ${syndInfo.name} certifie par la présente que ${member || "[BÉNÉFICIAIRE]"} satisfait à l'ensemble des conditions requises pour l'obtention du présent certificat.`,
+          t("certificatSectionTitle", lang),
+          body || fmt(t("certificatBody", lang), { syndicate: syndInfo.name, member: member || t("certificatBeneficiaryFallback", lang) }),
           accentColor,
+          isArabic,
         ),
         {
           canvas: [
@@ -1088,8 +1291,8 @@ async function buildDocDef(template: DocumentTemplate, input: DocumentInput): Pr
           ],
           margin: [0, 8, 0, 16],
         },
-        signatureBlock("Le Président du Syndicat", syndInfo.name, accentColor),
-        legalFooterNote(docNum),
+        signatureBlock(t("presidentTitle", lang), syndInfo.name, accentColor, true, lang, signatures),
+        legalFooterNote(docNum, lang, verifyUrl),
       ];
       break;
 
@@ -1112,7 +1315,7 @@ async function buildDocDef(template: DocumentTemplate, input: DocumentInput): Pr
           margin: [0, 0, 0, 16],
         },
         signatureBlock("Le Président du Syndicat", syndInfo.name, accentColor, false),
-        legalFooterNote(docNum),
+        legalFooterNote(docNum, lang, verifyUrl),
       ];
       break;
 
@@ -1121,26 +1324,25 @@ async function buildDocDef(template: DocumentTemplate, input: DocumentInput): Pr
         ...header,
         { text: input.title, style: "docTitle", margin: [0, 0, 0, 16] },
         metaTable([
-          ["Destinataire :", member || "[DESTINATAIRE]"],
-          ["Émetteur :", syndInfo.name],
-          ["Date d'émission :", today],
-          ["Référence :", docNum],
-          ["Mode d'envoi :", input.modeEnvoi as string || "Recommandé avec accusé de réception"],
+          [t("metaRecipient", lang), member || t("convocationRecipientFallback", lang)],
+          [t("metaSender", lang), syndInfo.name],
+          [t("metaIssueDate", lang), today],
+          [t("metaReference", lang), docNum],
+          [t("metaSendMode", lang), input.modeEnvoi as string || t("registeredMailNotice", lang)],
         ], accentColor),
         contentSection(
-          "Objet de la mise en demeure",
-          body ||
-            `Par la présente lettre recommandée, ${syndInfo.name} met formellement en demeure ${member || "[DESTINATAIRE]"} de ` +
-            "s'acquitter de ses obligations dans le délai imparti ci-dessous.",
+          t("miseEnDemeureObjetTitle", lang),
+          body || fmt(t("miseEnDemeureBody", lang), { syndicate: syndInfo.name, recipient: member || t("convocationRecipientFallback", lang) }),
           accentColor,
+          isArabic,
         ),
         {
           table: {
             widths: ["*"],
             body: [[{
               stack: [
-                { text: "⚠  DÉLAI DE RÉPONSE IMPÉRATIF", fontSize: 10, bold: true, color: "#dc2626", margin: [0, 0, 0, 4] },
-                { text: input.delai as string || "15 (QUINZE) JOURS à compter de la réception de la présente", fontSize: 10, color: "#dc2626" },
+                { text: `⚠  ${t("mandatoryDeadlineTitle", lang)}`, fontSize: 10, bold: true, color: "#dc2626", margin: [0, 0, 0, 4] },
+                { text: input.delai as string || t("defaultDeadline", lang), fontSize: 10, color: "#dc2626" },
               ],
               fillColor: "#fef2f2",
               margin: [12, 10, 12, 10],
@@ -1155,13 +1357,13 @@ async function buildDocDef(template: DocumentTemplate, input: DocumentInput): Pr
           margin: [0, 0, 0, 16],
         },
         contentSection(
-          "Conséquences en cas de non-réponse",
-          input.consequences as string ||
-            "À défaut de réponse dans le délai imparti, nous nous réservons le droit d'engager toutes les procédures légales et judiciaires appropriées sans autre préavis.",
+          t("miseEnDemeureConsequencesTitle", lang),
+          input.consequences as string || t("miseEnDemeureConsequencesText", lang),
           accentColor,
+          isArabic,
         ),
-        signatureBlock("Le Président du Syndicat", syndInfo.name, accentColor),
-        legalFooterNote(docNum),
+        signatureBlock(t("presidentTitle", lang), syndInfo.name, accentColor, true, lang, signatures),
+        legalFooterNote(docNum, lang, verifyUrl),
       ];
       break;
 
@@ -1196,7 +1398,7 @@ async function buildDocDef(template: DocumentTemplate, input: DocumentInput): Pr
           margin: [0, 16, 0, 0],
         },
         signatureBlock("Le Demandeur", member || "[NOM DU DEMANDEUR]", accentColor),
-        legalFooterNote(docNum),
+        legalFooterNote(docNum, lang, verifyUrl),
       ];
       break;
 
@@ -1240,7 +1442,7 @@ async function buildDocDef(template: DocumentTemplate, input: DocumentInput): Pr
           margin: [0, 0, 0, 16],
         },
         signatureBlock("Le Président du Syndicat", syndInfo.name, accentColor),
-        legalFooterNote(docNum),
+        legalFooterNote(docNum, lang, verifyUrl),
       ];
       break;
 
@@ -1271,7 +1473,7 @@ async function buildDocDef(template: DocumentTemplate, input: DocumentInput): Pr
           accentColor,
         ),
         signatureBlock("Le Président du Syndicat", syndInfo.name, accentColor),
-        legalFooterNote(docNum),
+        legalFooterNote(docNum, lang, verifyUrl),
       ];
       break;
 
@@ -1313,7 +1515,7 @@ async function buildDocDef(template: DocumentTemplate, input: DocumentInput): Pr
         { text: input.corps as string || body || "Nous vous prions de bien vouloir trouver ci-joint les éléments relatifs à l'objet mentionné en référence.", style: "body", margin: [0, 0, 0, 12] },
         { text: "Veuillez agréer, Monsieur / Madame, l'expression de nos salutations distinguées.", style: "body", margin: [0, 0, 0, 0] },
         signatureBlock("Le Président du Syndicat", syndInfo.name, accentColor),
-        legalFooterNote(docNum),
+        legalFooterNote(docNum, lang, verifyUrl),
       ];
       break;
 
@@ -1350,7 +1552,7 @@ async function buildDocDef(template: DocumentTemplate, input: DocumentInput): Pr
             }
           : null,
         { text: `${syndInfo.name} — Note interne n° ${docNum}`, style: "notice", alignment: "center" as const, margin: [0, 30, 0, 0] },
-        legalFooterNote(docNum),
+        legalFooterNote(docNum, lang, verifyUrl),
       ].filter(Boolean);
       break;
 
@@ -1408,7 +1610,7 @@ async function buildDocDef(template: DocumentTemplate, input: DocumentInput): Pr
             signatureBlock("Le Président", syndInfo.name, accentColor, true),
           ],
         } as unknown,
-        legalFooterNote(docNum),
+        legalFooterNote(docNum, lang, verifyUrl),
       ];
       break;
 
@@ -1444,7 +1646,7 @@ async function buildDocDef(template: DocumentTemplate, input: DocumentInput): Pr
           margin: [0, 0, 0, 16],
         },
         signatureBlock("L'Auditeur", input.auditeurs as string || syndInfo.name, accentColor),
-        legalFooterNote(docNum),
+        legalFooterNote(docNum, lang, verifyUrl),
       ];
       break;
 
@@ -1471,7 +1673,7 @@ async function buildDocDef(template: DocumentTemplate, input: DocumentInput): Pr
             signatureBlock("Pour le partenaire", input.partieB as string || "[PARTENAIRE]", accentColor, false),
           ],
         } as unknown,
-        legalFooterNote(docNum),
+        legalFooterNote(docNum, lang, verifyUrl),
       ];
       break;
 
@@ -1498,7 +1700,7 @@ async function buildDocDef(template: DocumentTemplate, input: DocumentInput): Pr
             signatureBlock("Pour l'employeur", input.employeur as string || "[EMPLOYEUR]", accentColor, false),
           ],
         } as unknown,
-        legalFooterNote(docNum),
+        legalFooterNote(docNum, lang, verifyUrl),
       ];
       break;
 
@@ -1546,7 +1748,7 @@ async function buildDocDef(template: DocumentTemplate, input: DocumentInput): Pr
           layout: { hLineWidth: () => 0.5, vLineWidth: () => 0.5, hLineColor: () => "#e2e8f0", vLineColor: () => "#e2e8f0" },
           margin: [0, 30, 0, 0],
         },
-        legalFooterNote(docNum),
+        legalFooterNote(docNum, lang, verifyUrl),
       ];
       break;
 
@@ -1568,7 +1770,7 @@ async function buildDocDef(template: DocumentTemplate, input: DocumentInput): Pr
         contentSection("Difficultés rencontrées", input.difficultes as string || "Les obstacles rencontrés ont été surmontés grâce à la mobilisation des équipes.", accentColor),
         contentSection("Perspectives et orientations", input.perspectives as string || "Les priorités pour la prochaine période seront définies lors de l'assemblée générale.", accentColor),
         signatureBlock("Le Secrétaire Général", syndInfo.name, accentColor),
-        legalFooterNote(docNum),
+        legalFooterNote(docNum, lang, verifyUrl),
       ];
       break;
 
@@ -1639,7 +1841,7 @@ async function buildDocDef(template: DocumentTemplate, input: DocumentInput): Pr
           true,
           lang,
         ),
-        legalFooterNote(docNum, lang),
+        legalFooterNote(docNum, lang, verifyUrl),
       ];
       break;
     }
@@ -1650,7 +1852,7 @@ async function buildDocDef(template: DocumentTemplate, input: DocumentInput): Pr
         { text: input.title, style: "docTitle", margin: [0, 0, 0, 16] },
         contentSection(t("sectionContent", lang), body || "—", accentColor, isArabic),
         signatureBlock(t("presidentTitle", lang), syndInfo.name, accentColor, true, lang),
-        legalFooterNote(docNum, lang),
+        legalFooterNote(docNum, lang, verifyUrl),
       ];
   }
 

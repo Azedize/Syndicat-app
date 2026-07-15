@@ -515,17 +515,32 @@ export const documents = {
     if (params?.status) qs.set("status", params.status);
     return request<{ data: unknown[] }>(`/documents?${qs}`);
   },
-  generate: (title: string, category: string, content?: string, templateId?: string, memberName?: string) =>
+  generate: (
+    title: string,
+    category: string,
+    content?: string,
+    templateId?: string,
+    memberName?: string,
+    language?: "fr" | "ar" | "en" | "es",
+    expiresAt?: string,
+  ) =>
     request<{ data: unknown }>("/documents", {
       method: "POST",
-      body: JSON.stringify({ title, category, content, templateId, memberName }),
+      body: JSON.stringify({ title, category, content, templateId, memberName, language, expiresAt }),
     }),
   get: (id: string) => request<{ data: unknown }>(`/documents/${id}`),
-  update: (id: string, data: { title?: string; category?: string; content?: string; status?: string }) =>
+  update: (
+    id: string,
+    data: { title?: string; category?: string; content?: string; status?: string; rejectionReason?: string; expiresAt?: string; language?: string },
+  ) =>
     request<{ data: unknown }>(`/documents/${id}`, {
       method: "PUT",
       body: JSON.stringify(data),
     }),
+  // Version history — list past snapshots and restore one
+  versions: (id: string) => request<{ data: unknown[] }>(`/documents/${id}/versions`),
+  restoreVersion: (id: string, versionId: string) =>
+    request<{ data: unknown; message: string }>(`/documents/${id}/versions/${versionId}/restore`, { method: "POST" }),
   // FIX BUG-07: delete a document (admin only)
   delete: (id: string) =>
     request<{ message: string }>(`/documents/${id}`, { method: "DELETE" }),

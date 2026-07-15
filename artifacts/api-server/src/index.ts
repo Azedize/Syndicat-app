@@ -7,6 +7,7 @@ import { startEscalationScheduler } from "./lib/debt-escalation.js";
 import { startElectionReminderScheduler } from "./lib/election-reminders.js";
 import { startMandateExpiryScheduler } from "./lib/mandate-expiry.js";
 import { startDocumentRetentionScheduler } from "./lib/document-retention-job.js";
+import { startDocumentExpiryScheduler } from "./lib/document-expiry-job.js";
 import { verifySmtpConnection } from "./lib/email/emailService.js";
 
 // Fail fast on missing auth config — do not wait for first request
@@ -32,6 +33,10 @@ startMandateExpiryScheduler();
 // retention expiry, and purges recycle-bin documents once retention + grace period
 // have both elapsed. Dry-run by default (DOCUMENT_PURGE_DRY_RUN=false to enable).
 startDocumentRetentionScheduler();
+
+// Business-expiration scan: sends 30/15/7/1-day reminders and auto-flips
+// documents to "expired" once their expiresAt date has passed.
+startDocumentExpiryScheduler();
 
 const rawPort = process.env["PORT"];
 

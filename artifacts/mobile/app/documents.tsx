@@ -132,6 +132,7 @@ export default function DocumentsScreen() {
   const [selectedTemplate, setSelectedTemplate] = useState<typeof DOC_TEMPLATES[0] | null>(null);
   const [genMember,        setGenMember]        = useState("");
   const [genNote,          setGenNote]          = useState("");
+  const [genLanguage,      setGenLanguage]      = useState<"fr" | "ar" | "en" | "es">("fr");
 
   // Edit modal
   const [showEdit,    setShowEdit]    = useState(false);
@@ -174,6 +175,8 @@ export default function DocumentsScreen() {
       validated:      { label: "Validé",        color: "#10b981" },
       signed:         { label: "Signé",         color: "#8b5cf6" },
       archived:       { label: "Archivé",       color: colors.mutedForeground },
+      rejected:       { label: "Rejeté",        color: "#ef4444" },
+      expired:        { label: "Expiré",        color: "#dc2626" },
     } as Record<string, { label: string; color: string }>)[status]
     ?? { label: status, color: colors.mutedForeground };
 
@@ -191,6 +194,7 @@ export default function DocumentsScreen() {
         content || undefined,
         selectedTemplate.templateId,
         genMember || undefined,
+        genLanguage,
       );
       logActivity({ action: "Document généré", target: selectedTemplate.name, route: "/documents", icon: "file-text", color: "#6366f1" });
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
@@ -200,6 +204,7 @@ export default function DocumentsScreen() {
       setSelectedTemplate(null);
       setGenMember("");
       setGenNote("");
+      setGenLanguage("fr");
     } catch (err: any) {
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
       Alert.alert(
@@ -850,6 +855,33 @@ export default function DocumentsScreen() {
                     multiline
                   />
                 </View>
+                <View style={{ gap: 8 }}>
+                  <Text style={[styles.fieldLabel, { color: colors.foreground }]}>Langue du document</Text>
+                  <View style={{ flexDirection: "row", gap: 8 }}>
+                    {([
+                      { code: "fr" as const, label: "Français" },
+                      { code: "ar" as const, label: "العربية" },
+                      { code: "en" as const, label: "English" },
+                      { code: "es" as const, label: "Español" },
+                    ]).map((l) => (
+                      <TouchableOpacity
+                        key={l.code}
+                        onPress={() => setGenLanguage(l.code)}
+                        style={[
+                          styles.langChip,
+                          {
+                            borderColor: genLanguage === l.code ? selectedTemplate.color : colors.border,
+                            backgroundColor: genLanguage === l.code ? selectedTemplate.color + "15" : colors.card,
+                          },
+                        ]}
+                      >
+                        <Text style={{ color: genLanguage === l.code ? selectedTemplate.color : colors.mutedForeground, fontWeight: genLanguage === l.code ? "700" : "500", fontSize: 13 }}>
+                          {l.label}
+                        </Text>
+                      </TouchableOpacity>
+                    ))}
+                  </View>
+                </View>
                 <TouchableOpacity
                   style={[styles.primaryAction, { backgroundColor: selectedTemplate.color, opacity: generating ? 0.6 : 1 }]}
                   onPress={handleGenerate}
@@ -988,6 +1020,7 @@ const styles = StyleSheet.create({
   fieldLabel:       { fontSize: 13, fontFamily: "Inter_500Medium" },
   fieldInput:       { borderWidth: 1, borderRadius: 12, paddingHorizontal: 14, paddingVertical: 12, fontSize: 14, fontFamily: "Inter_400Regular" },
   fieldTextArea:    { minHeight: 80, textAlignVertical: "top" },
+  langChip:         { flex: 1, paddingVertical: 10, borderRadius: 10, borderWidth: 1, alignItems: "center" },
   genHint:          { flexDirection: "row", alignItems: "center", gap: 10, padding: 16 },
   genHintText:      { flex: 1, fontSize: 13, fontFamily: "Inter_400Regular" },
 });

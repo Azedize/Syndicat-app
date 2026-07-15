@@ -969,6 +969,32 @@ export const documentsTable = pgTable(
     retentionUntil: timestamp("retention_until"),
     // Set by the automatic purge job when it archives an expired-but-published document.
     autoArchived: boolean("auto_archived").default(false).notNull(),
+    // ── Multilingual documents ──────────────────────────────────────────────
+    // Language the PDF was generated in. Chosen explicitly by the requester —
+    // never silently defaulted without a user choice at the API boundary.
+    language: text("language").default("fr").notNull(),
+    // ── Rejection workflow ──────────────────────────────────────────────────
+    rejectedAt: timestamp("rejected_at"),
+    rejectedBy: text("rejected_by").references(() => usersTable.id, { onDelete: "set null" }),
+    rejectionReason: text("rejection_reason"),
+    // ── Approval workflow (spec's "Approved" state == internal "validated") ──
+    approvedAt: timestamp("approved_at"),
+    approvedBy: text("approved_by").references(() => usersTable.id, { onDelete: "set null" }),
+    // ── Business expiration (distinct from legal retentionUntil) ────────────
+    // e.g. contract/mandate validity end date. When passed, the expiry job
+    // auto-transitions status to "expired" and fires notifications.
+    expiresAt: timestamp("expires_at"),
+    // Smallest reminder bucket (30/15/7/1) already notified for, so the expiry
+    // job never re-sends the same threshold notification twice.
+    expiryNotifiedBucket: integer("expiry_notified_bucket"),
+    // ── QR verification ──────────────────────────────────────────────────────
+    // Opaque public token embedded in the QR code — distinct from documentNumber
+    // so the sequential ref isn't exposed/guessable via the public verify page.
+    verificationToken: text("verification_token"),
+    // When a new version supersedes this exact document (see documentVersionsTable
+    // for full history), this points at the replacement so verification can report
+    // status "replaced" instead of "valid".
+    supersededByDocumentId: text("superseded_by_document_id"),
   },
   (t) => [
     index("documents_syndicate_id_idx").on(t.syndicateId),
@@ -977,6 +1003,33 @@ export const documentsTable = pgTable(
     index("documents_document_number_idx").on(t.documentNumber),
     index("documents_retention_until_idx").on(t.retentionUntil),
     index("documents_is_deleted_idx").on(t.isDeleted),
+    index("documents_expires_at_idx").on(t.expiresAt),
+    uniqueIndex("documents_verification_token_uq").on(t.verificationToken),
+  ],
+);
+
+// Full version history for documents — snapshotted BEFORE every content/status-changing
+// update so old content/files are never lost. Enables version compare + restore + audit trail.
+export const documentVersionsTable = pgTable(
+  "document_versions",
+  {
+    id: id(),
+    documentId: text("document_id").notNull().references(() => documentsTable.id, { onDelete: "cascade" }),
+    versionNumber: integer("version_number").notNull(),
+    title: text("title").notNull(),
+    content: text("content"),
+    status: text("status"),
+    fileUrl: text("file_url"),
+    language: text("language"),
+    modifiedBy: text("modified_by").references(() => usersTable.id, { onDelete: "set null" }),
+    modifiedAt: timestamp("modified_at").defaultNow().notNull(),
+    // Why this version was created (e.g. "Correction du montant", "Restauration v2")
+    changeReason: text("change_reason"),
+    createdAt: createdAt(),
+  },
+  (t) => [
+    index("document_versions_document_id_idx").on(t.documentId),
+    uniqueIndex("document_versions_document_version_uq").on(t.documentId, t.versionNumber),
   ],
 );
 
@@ -1012,6 +1065,13 @@ export const documentSignaturesTable = pgTable(
     signatureData: text("signature_data"),
     // Position in the multi-signature sequence for this document (1-based).
     signatureOrder: integer("signature_order").notNull().default(1),
+    // Denormalized name snapshot at signing time — the PDF must keep showing who
+    // signed even if the user's account is later renamed or deleted.
+    signerName: text("signer_name"),
+    // Legal validation status of this specific signature. Flipped to false if the
+    // document is later rejected/superseded — the PDF must then show it as invalidated
+    // rather than silently keep displaying a signature that no longer certifies anything.
+    isValid: boolean("is_valid").default(true).notNull(),
     createdAt: createdAt(),
   },
   (t) => [
