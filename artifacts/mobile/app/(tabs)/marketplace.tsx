@@ -329,6 +329,7 @@ export default function MarketplaceScreen() {
         </View>
       ) : isAdmin && adminTab === "validation" ? (
         <FlatList
+          key="validation-list"
           data={pending}
           keyExtractor={(p) => p.id}
           renderItem={renderPendingCard}
@@ -349,6 +350,7 @@ export default function MarketplaceScreen() {
         <OrdersAdminView colors={colors} insets={insets} isWide={isWide} refreshing={refreshing} onRefresh={onRefresh} />
       ) : (
         <FlatList
+          key="catalogue-list"
           data={listData}
           keyExtractor={(p) => p.id}
           renderItem={renderProductCard}
