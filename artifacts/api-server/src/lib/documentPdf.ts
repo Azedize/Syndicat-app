@@ -95,6 +95,89 @@ function buildStyles(accentColor: string) {
   };
 }
 
+// ─── i18n (FR / AR / EN / ES) ──────────────────────────────────────────────────
+// Multilingual support covers the shared document chrome (header, meta labels,
+// signature block, footer/legal note) plus the flagship "reglement" template's
+// section content. Other templates' body content remains French-only for now —
+// a known, disclosed gap, not a silent omission.
+
+export type DocumentLanguage = "fr" | "ar" | "en" | "es";
+
+const I18N: Record<string, Record<DocumentLanguage, string>> = {
+  docTypeLabel_reglement: {
+    fr: "RÈGLEMENT DE COPROPRIÉTÉ",
+    ar: "نظام الملكية المشتركة",
+    en: "CONDOMINIUM BYLAWS",
+    es: "REGLAMENTO DE COPROPIEDAD",
+  },
+  docTypeLabel_default: { fr: "DOCUMENT OFFICIEL", ar: "وثيقة رسمية", en: "OFFICIAL DOCUMENT", es: "DOCUMENTO OFICIAL" },
+  metaResidence: { fr: "Résidence :", ar: ":العقار", en: "Residence:", es: "Residencia:" },
+  metaAddress: { fr: "Adresse :", ar: ":العنوان", en: "Address:", es: "Dirección:" },
+  metaLandRegistry: { fr: "Référence foncière :", ar: ":المرجع العقاري", en: "Land registry ref.:", es: "Referencia catastral:" },
+  metaBuildings: { fr: "Nombre de bâtiments :", ar: ":عدد المباني", en: "Number of buildings:", es: "Número de edificios:" },
+  metaFloors: { fr: "Nombre d'étages :", ar: ":عدد الطوابق", en: "Number of floors:", es: "Número de plantas:" },
+  metaLots: { fr: "Nombre de lots :", ar: ":عدد الوحدات", en: "Number of units:", es: "Número de unidades:" },
+  metaSurface: { fr: "Surface totale :", ar: ":المساحة الإجمالية", en: "Total surface:", es: "Superficie total:" },
+  metaPresident: { fr: "Président du syndicat :", ar: ":رئيس النقابة", en: "Syndicate president:", es: "Presidente del sindicato:" },
+  metaDate: { fr: "Date de génération :", ar: ":تاريخ الإنشاء", en: "Generated on:", es: "Fecha de generación:" },
+  metaDocNumber: { fr: "N° de document :", ar: ":رقم الوثيقة", en: "Document no.:", es: "N.º de documento:" },
+  sectionObjet: { fr: "Objet du règlement", ar: "موضوع النظام", en: "Purpose of the bylaws", es: "Objeto del reglamento" },
+  sectionDescription: { fr: "Description de l'immeuble", ar: "وصف العقار", en: "Building description", es: "Descripción del inmueble" },
+  sectionCharges: { fr: "Répartition des charges", ar: "توزيع التكاليف", en: "Charge allocation", es: "Distribución de gastos" },
+  sectionAdministration: { fr: "Administration du syndicat", ar: "إدارة النقابة", en: "Syndicate administration", es: "Administración del sindicato" },
+  sectionContent: { fr: "Contenu", ar: "المحتوى", en: "Content", es: "Contenido" },
+  signAndStamp: { fr: "Signature et cachet :", ar: ":التوقيع والختم", en: "Signature and stamp:", es: "Firma y sello:" },
+  officialStamp: { fr: "CACHET OFFICIEL", ar: "ختم رسمي", en: "OFFICIAL STAMP", es: "SELLO OFICIAL" },
+  presidentTitle: { fr: "Le Président du Syndicat", ar: "رئيس النقابة", en: "The Syndicate President", es: "El Presidente del Sindicato" },
+  legalFooterNote: {
+    fr: "Ce document officiel porte la référence {ref}. Toute modification non autorisée est passible de poursuites. Vérification : syndycat.ma/verify/{ref}",
+    ar: "تحمل هذه الوثيقة الرسمية المرجع {ref}. كل تعديل غير مصرح به يعرض صاحبه للمتابعة القانونية. التحقق: syndycat.ma/verify/{ref}",
+    en: "This official document bears reference {ref}. Any unauthorized alteration may lead to legal action. Verify at: syndycat.ma/verify/{ref}",
+    es: "Este documento oficial lleva la referencia {ref}. Toda modificación no autorizada puede dar lugar a acciones legales. Verificación: syndycat.ma/verify/{ref}",
+  },
+  notRenseigne: { fr: "non renseignée", ar: "غير محدد", en: "not provided", es: "no especificada" },
+  reglementObjetText: {
+    fr: `Le présent règlement de copropriété fixe les règles de jouissance, d'usage et d'administration des parties privatives et communes de la résidence "{name}", conformément à la loi 18-00 relative au statut de la copropriété des immeubles bâtis.`,
+    ar: `يحدد هذا النظام قواعد التمتع والاستخدام والإدارة للأجزاء الخاصة والمشتركة لعقار "{name}"، وفقًا للقانون 18.00 المتعلق بنظام الملكية المشتركة للعقارات المبنية.`,
+    en: `These bylaws establish the rules of use, enjoyment, and administration of the private and common areas of the "{name}" residence, in accordance with Law 18-00 on condominium ownership of built properties.`,
+    es: `El presente reglamento de copropiedad establece las reglas de uso, goce y administración de las partes privativas y comunes de la residencia "{name}", conforme a la Ley 18-00 relativa al estatuto de la copropiedad de inmuebles construidos.`,
+  },
+  reglementDescriptionText: {
+    fr: `La résidence "{name}" comprend {buildings} bâtiment(s), {floors} étage(s) et {lots} lot(s), pour une surface totale de {surface}. Référence foncière : {landRef}.`,
+    ar: `يتكون عقار "{name}" من {buildings} مبنى/مباني، {floors} طابق/طوابق و {lots} وحدة/وحدات، بمساحة إجمالية تبلغ {surface}. المرجع العقاري: {landRef}.`,
+    en: `The "{name}" residence comprises {buildings} building(s), {floors} floor(s) and {lots} unit(s), for a total surface of {surface}. Land registry ref.: {landRef}.`,
+    es: `La residencia "{name}" comprende {buildings} edificio(s), {floors} planta(s) y {lots} unidad(es), con una superficie total de {surface}. Referencia catastral: {landRef}.`,
+  },
+  reglementChargesText: {
+    fr: "La répartition des charges communes est établie proportionnellement aux tantièmes de copropriété attribués à chaque lot, conformément au tableau de répartition annexé au présent règlement.",
+    ar: "يتم توزيع التكاليف المشتركة بشكل يتناسب مع الحصص التناسبية المخصصة لكل وحدة، وفقًا لجدول التوزيع المرفق بهذا النظام.",
+    en: "Common charges are allocated proportionally to the co-ownership shares assigned to each unit, in accordance with the allocation table appended to these bylaws.",
+    es: "El reparto de los gastos comunes se establece proporcionalmente a las cuotas de copropiedad atribuidas a cada unidad, conforme a la tabla de reparto anexa al presente reglamento.",
+  },
+  reglementAdminText: {
+    fr: "Le syndicat de la résidence est administré par {president}{managerPart}.",
+    ar: "تدار نقابة العقار من طرف {president}{managerPart}.",
+    en: "The residence's syndicate is administered by {president}{managerPart}.",
+    es: "El sindicato de la residencia está administrado por {president}{managerPart}.",
+  },
+  reglementAdminManagerPart: {
+    fr: " et géré par {manager}",
+    ar: " وتديره {manager}",
+    en: " and managed by {manager}",
+    es: " y gestionado por {manager}",
+  },
+  reglementPresidentFallback: { fr: "le Président du conseil syndical", ar: "رئيس مجلس النقابة", en: "the syndical board president", es: "el Presidente del consejo sindical" },
+  reglementPresidentSignPrefix: { fr: "Le Président — {name}", ar: "الرئيس — {name}", en: "The President — {name}", es: "El Presidente — {name}" },
+};
+
+function fmt(text: string, vars: Record<string, string>): string {
+  return Object.entries(vars).reduce((acc, [k, v]) => acc.replace(new RegExp(`\\{${k}\\}`, "g"), v), text);
+}
+
+function t(key: string, lang: DocumentLanguage): string {
+  return I18N[key]?.[lang] ?? I18N[key]?.fr ?? key;
+}
+
 // ─── QR Code ──────────────────────────────────────────────────────────────────
 
 async function generateQrDataUrl(documentNumber: string): Promise<string> {
@@ -291,12 +374,13 @@ function signatureBlock(
   syndName: string,
   accentColor: string,
   showStampCircle = true,
+  lang: DocumentLanguage = "fr",
 ): unknown {
   return {
     columns: [
       {
         stack: [
-          { text: "Signature et cachet :", style: "metaKey", margin: [0, 0, 0, 40] },
+          { text: t("signAndStamp", lang), style: "metaKey", margin: [0, 0, 0, 40] },
           { canvas: [{ type: "line", x1: 0, y1: 0, x2: 160, y2: 0, lineWidth: 0.8, lineColor: "#cbd5e1" }] },
           { text: signatoryTitle, style: "signLabel", margin: [0, 4, 0, 2] },
           { text: syndName, style: "signName" },
@@ -313,7 +397,7 @@ function signatureBlock(
                 ],
                 margin: [0, 0, 0, 4],
               },
-              { text: "CACHET OFFICIEL", style: "notice", alignment: "center" as const, margin: [0, 0, 0, 0] },
+              { text: t("officialStamp", lang), style: "notice", alignment: "center" as const, margin: [0, 0, 0, 0] },
             ],
             width: 100,
             alignment: "center" as const,
@@ -324,9 +408,9 @@ function signatureBlock(
   };
 }
 
-function legalFooterNote(docNumber: string): unknown {
+function legalFooterNote(docNumber: string, lang: DocumentLanguage = "fr"): unknown {
   return {
-    text: `Ce document officiel porte la référence ${docNumber}. Toute modification non autorisée est passible de poursuites. Vérification : syndycat.ma/verify/${encodeURIComponent(docNumber)}`,
+    text: t("legalFooterNote", lang).replace(/\{ref\}/g, docNumber),
     style: "notice",
     margin: [0, 20, 0, 0],
     alignment: "center" as const,
@@ -703,6 +787,9 @@ export interface DocumentInput {
   property?: PropertyInfo;
   /** Real office-holder identities, fetched from conseilSyndicalTable. */
   officeHolders?: OfficeHolders;
+  /** Output language — defaults to "fr". Fully covers the "reglement" template + shared
+   *  chrome (header/meta/signature/footer); other templates' body content stays French. */
+  language?: DocumentLanguage;
   [key: string]: unknown;
 }
 
@@ -725,6 +812,8 @@ async function buildDocDef(template: DocumentTemplate, input: DocumentInput): Pr
   const member = input.memberName ?? "";
   const body = input.content ?? "";
   const styles = buildStyles(accentColor);
+  const lang: DocumentLanguage = (input.language as DocumentLanguage) ?? "fr";
+  const isArabic = lang === "ar";
 
   // QR code + logo — both non-blocking / best-effort
   const [qrDataUrl, logoDataUrl] = await Promise.all([
@@ -755,7 +844,7 @@ async function buildDocDef(template: DocumentTemplate, input: DocumentInput): Pr
     margin: [0, 10, 0, 0],
   });
 
-  const header = buildHeaderBand(syndInfo, getDocTypeLabel(template), docNum, qrDataUrl, accentColor, today, logoDataUrl);
+  const header = buildHeaderBand(syndInfo, getDocTypeLabel(template, lang), docNum, qrDataUrl, accentColor, today, logoDataUrl);
 
   // ── Template content ────────────────────────────────────────────────────────
 
@@ -1488,50 +1577,69 @@ async function buildDocDef(template: DocumentTemplate, input: DocumentInput): Pr
       const prop = input.property as PropertyInfo | undefined;
       const officeHolders = input.officeHolders as OfficeHolders | undefined;
       const president = officeHolders?.president;
+      const residenceName = prop?.name || syndInfo.name;
+      const surfaceText = prop?.totalSurfaceM2 != null ? `${prop.totalSurfaceM2} m²` : t("notRenseigne", lang);
+      const managerPart = officeHolders?.manager?.fullName
+        ? fmt(t("reglementAdminManagerPart", lang), { manager: officeHolders.manager.fullName })
+        : "";
       content = [
         ...header,
-        { text: input.title || "RÈGLEMENT DE COPROPRIÉTÉ", style: "docTitle", alignment: "center" as const, margin: [0, 0, 0, 16] },
+        { text: input.title || t("docTypeLabel_reglement", lang), style: "docTitle", alignment: "center" as const, margin: [0, 0, 0, 16] },
         metaTable([
-          ["Résidence :", prop?.name || syndInfo.name],
-          ["Adresse :", [prop?.address, prop?.city].filter(Boolean).join(", ") || [syndInfo.address, syndInfo.city].filter(Boolean).join(", ") || "—"],
-          ["Référence foncière :", prop?.landRegistryReference || "—"],
-          ["Nombre de bâtiments :", prop ? String(prop.totalBuildings) : "—"],
-          ["Nombre d'étages :", prop ? String(prop.totalFloors) : "—"],
-          ["Nombre de lots :", prop ? String(prop.totalLots) : "—"],
-          ["Surface totale :", prop?.totalSurfaceM2 != null ? `${prop.totalSurfaceM2} m²` : "—"],
-          ["Président du syndicat :", president?.fullName || input.president as string || "—"],
-          ["Date de génération :", today],
-          ["N° de document :", docNum],
+          [t("metaResidence", lang), residenceName],
+          [t("metaAddress", lang), [prop?.address, prop?.city].filter(Boolean).join(", ") || [syndInfo.address, syndInfo.city].filter(Boolean).join(", ") || "—"],
+          [t("metaLandRegistry", lang), prop?.landRegistryReference || "—"],
+          [t("metaBuildings", lang), prop ? String(prop.totalBuildings) : "—"],
+          [t("metaFloors", lang), prop ? String(prop.totalFloors) : "—"],
+          [t("metaLots", lang), prop ? String(prop.totalLots) : "—"],
+          [t("metaSurface", lang), surfaceText],
+          [t("metaPresident", lang), president?.fullName || input.president as string || "—"],
+          [t("metaDate", lang), today],
+          [t("metaDocNumber", lang), docNum],
         ], accentColor),
         contentSection(
-          "Objet du règlement",
-          body ||
-            `Le présent règlement de copropriété fixe les règles de jouissance, d'usage et d'administration des parties privatives et communes ` +
-            `de la résidence "${prop?.name || syndInfo.name}", conformément à la loi 18-00 relative au statut de la copropriété des immeubles bâtis.`,
+          t("sectionObjet", lang),
+          body || fmt(t("reglementObjetText", lang), { name: residenceName }),
           accentColor,
+          isArabic,
         ),
         contentSection(
-          "Description de l'immeuble",
-          `La résidence "${prop?.name || syndInfo.name}" comprend ${prop ? prop.totalBuildings : "—"} bâtiment(s), ${prop ? prop.totalFloors : "—"} étage(s) ` +
-            `et ${prop ? prop.totalLots : "—"} lot(s), pour une surface totale de ${prop?.totalSurfaceM2 != null ? `${prop.totalSurfaceM2} m²` : "non renseignée"}. ` +
-            `Référence foncière : ${prop?.landRegistryReference || "non renseignée"}.`,
+          t("sectionDescription", lang),
+          fmt(t("reglementDescriptionText", lang), {
+            name: residenceName,
+            buildings: prop ? String(prop.totalBuildings) : "—",
+            floors: prop ? String(prop.totalFloors) : "—",
+            lots: prop ? String(prop.totalLots) : "—",
+            surface: surfaceText,
+            landRef: prop?.landRegistryReference || t("notRenseigne", lang),
+          }),
           accentColor,
+          isArabic,
         ),
         contentSection(
-          "Répartition des charges",
-          input.chargesText as string ||
-            "La répartition des charges communes est établie proportionnellement aux tantièmes de copropriété attribués à chaque lot, conformément au tableau de répartition annexé au présent règlement.",
+          t("sectionCharges", lang),
+          (input.chargesText as string) || t("reglementChargesText", lang),
           accentColor,
+          isArabic,
         ),
         contentSection(
-          "Administration du syndicat",
-          `Le syndicat de la résidence est administré par ${president?.fullName || "le Président du conseil syndical"}` +
-            (officeHolders?.manager?.fullName ? ` et géré par ${officeHolders.manager.fullName}` : "") + `.`,
+          t("sectionAdministration", lang),
+          fmt(t("reglementAdminText", lang), {
+            president: president?.fullName || t("reglementPresidentFallback", lang),
+            managerPart,
+          }),
           accentColor,
+          isArabic,
         ),
         { text: "\n" },
-        signatureBlock(president?.fullName ? `Le Président — ${president.fullName}` : "Le Président du Syndicat", syndInfo.name, accentColor),
-        legalFooterNote(docNum),
+        signatureBlock(
+          president?.fullName ? fmt(t("reglementPresidentSignPrefix", lang), { name: president.fullName }) : t("presidentTitle", lang),
+          syndInfo.name,
+          accentColor,
+          true,
+          lang,
+        ),
+        legalFooterNote(docNum, lang),
       ];
       break;
     }
@@ -1540,9 +1648,9 @@ async function buildDocDef(template: DocumentTemplate, input: DocumentInput): Pr
       content = [
         ...header,
         { text: input.title, style: "docTitle", margin: [0, 0, 0, 16] },
-        contentSection("Contenu", body || "—", accentColor),
-        signatureBlock("Le Président du Syndicat", syndInfo.name, accentColor),
-        legalFooterNote(docNum),
+        contentSection(t("sectionContent", lang), body || "—", accentColor, isArabic),
+        signatureBlock(t("presidentTitle", lang), syndInfo.name, accentColor, true, lang),
+        legalFooterNote(docNum, lang),
       ];
   }
 
@@ -1555,7 +1663,9 @@ async function buildDocDef(template: DocumentTemplate, input: DocumentInput): Pr
   };
 }
 
-function getDocTypeLabel(template: DocumentTemplate): string {
+function getDocTypeLabel(template: DocumentTemplate, lang: DocumentLanguage = "fr"): string {
+  if (template === "reglement") return t("docTypeLabel_reglement", lang);
+  if (lang !== "fr") return t("docTypeLabel_default", lang);
   const labels: Record<DocumentTemplate, string> = {
     attestation:              "ATTESTATION D'ADHÉSION",
     pv:                       "PROCÈS-VERBAL DE RÉUNION",

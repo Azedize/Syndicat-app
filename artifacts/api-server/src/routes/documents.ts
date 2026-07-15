@@ -429,6 +429,9 @@ router.post(
         "attestation", "pv", "convocation", "contrat", "rapport",
         "decision", "certificat", "circulaire", "mise_en_demeure", "reglement",
       ] as const).optional(),
+      // Output language — defaults to "fr". Fully covers header/meta/signature/footer
+      // chrome + the "reglement" template's content; other templates stay French.
+      language: z.enum(["fr", "ar", "en", "es"] as const).optional(),
       // Extra fields passed through to the template
       lieu:              z.string().optional(),
       meetingDate:       z.string().optional(),
@@ -458,7 +461,7 @@ router.post(
     }
 
     try {
-      const { title, category, content, memberName, templateId, buildingId, ...extraFields } = result.data;
+      const { title, category, content, memberName, templateId, buildingId, language, ...extraFields } = result.data;
       const syndicateId = req.user!.syndicateId || "";
 
       // 1. Fetch full syndicate branding + real residence/office-holder data
@@ -484,6 +487,7 @@ router.post(
         memberName,
         documentNumber,
         docStatus: "generated",
+        language,
         ...extraFields,
       });
 
