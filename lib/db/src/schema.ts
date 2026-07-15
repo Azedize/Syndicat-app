@@ -974,7 +974,7 @@ export const documentSignaturesTable = pgTable(
   {
     id: id(),
     documentId: text("document_id").notNull().references(() => documentsTable.id, { onDelete: "cascade" }),
-    signedBy: text("signed_by").notNull().references(() => usersTable.id, { onDelete: "set null" }),
+    signedBy: text("signed_by").notNull().references(() => usersTable.id, { onDelete: "restrict" }),
     signedAt: timestamp("signed_at").notNull().defaultNow(),
     signerRole: text("signer_role").notNull(),
     syndicateId: text("syndicate_id"),

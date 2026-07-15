@@ -518,7 +518,7 @@ export const documents = {
   generate: (title: string, category: string, content?: string) =>
     request<{ data: unknown }>("/documents", {
       method: "POST",
-      body: JSON.stringify({ title, category, content, status: "published" }),
+      body: JSON.stringify({ title, category, content }),
     }),
   get: (id: string) => request<{ data: unknown }>(`/documents/${id}`),
   update: (id: string, data: { title?: string; category?: string; content?: string; status?: string }) =>

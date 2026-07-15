@@ -75,6 +75,7 @@ export default function DocumentsScreen() {
   const [search, setSearch] = useState("");
   const [selected, setSelected] = useState<Document | null>(null);
   const [showGenerate, setShowGenerate] = useState(false);
+  const [generating, setGenerating] = useState(false);
   const [selectedTemplate, setSelectedTemplate] = useState<typeof DOC_TEMPLATES[0] | null>(null);
   const [genMember, setGenMember] = useState("");
   const [genNote, setGenNote] = useState("");
@@ -97,22 +98,28 @@ export default function DocumentsScreen() {
     return matchCat && matchSearch;
   });
 
-  const statusConfig = (status: Document["status"]) => ({
-    published: { label: "Publié", color: colors.success },
-    draft: { label: "Brouillon", color: colors.mutedForeground },
-    pending: { label: "En attente", color: "#f59e0b" },
-  }[status]);
+  const statusConfig = (status: string): { label: string; color: string } =>
+    ({
+      published:      { label: "Publié",       color: colors.success },
+      draft:          { label: "Brouillon",     color: colors.mutedForeground },
+      pending:        { label: "En attente",    color: "#f59e0b" },
+      generated:      { label: "Généré",        color: "#3b82f6" },
+      pending_review: { label: "En révision",   color: "#f59e0b" },
+      validated:      { label: "Validé",        color: "#10b981" },
+      signed:         { label: "Signé",         color: "#8b5cf6" },
+      archived:       { label: "Archivé",       color: colors.mutedForeground },
+    } as Record<string, { label: string; color: string }>)[status]
+    ?? { label: status, color: colors.mutedForeground };
 
   const handleGenerate = async () => {
-    if (!selectedTemplate) return;
+    if (!selectedTemplate || generating) return;
     const content = [genMember && `Destinataire: ${genMember}`, genNote].filter(Boolean).join("\n");
+    setGenerating(true);
     try {
       const { documents: docsApi } = await import("@/services/api");
-      // FIX BUG-02: use the template's own category, not "statuts" hardcoded
       await docsApi.generate(selectedTemplate.name, selectedTemplate.category, content || undefined);
       logActivity({ action: "Document généré", target: selectedTemplate.name, route: "/documents", icon: "file-text", color: "#6366f1" });
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-      // FIX BUG-01: refresh the documents list so the new document appears immediately
       await refreshDocuments().catch(() => {});
       Alert.alert("Succès", `Le document "${selectedTemplate.name}" a été généré et ajouté à votre espace documents.`);
       setShowGenerate(false);
@@ -120,7 +127,6 @@ export default function DocumentsScreen() {
       setGenMember("");
       setGenNote("");
     } catch (err: any) {
-      // Show explicit failure — do not silently claim success
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
       Alert.alert(
         "Erreur de génération",
@@ -128,6 +134,8 @@ export default function DocumentsScreen() {
           ? err.message
           : "Impossible de générer le document pour l'instant. Vérifiez la connexion et réessayez.",
       );
+    } finally {
+      setGenerating(false);
     }
   };
 
@@ -312,7 +320,7 @@ export default function DocumentsScreen() {
         {[
           { label: "Publiés", count: documents.filter((d) => d.status === "published").length, color: colors.success },
           { label: "Brouillons", count: documents.filter((d) => d.status === "draft").length, color: colors.mutedForeground },
-          { label: "En attente", count: documents.filter((d) => d.status === "pending").length, color: "#f59e0b" },
+          { label: "En attente", count: documents.filter((d) => d.status === "pending" || d.status === "pending_review").length, color: "#f59e0b" },
         ].map((s) => (
           <View key={s.label} style={styles.statItem}>
             <Text style={[styles.statCount, { color: s.color }]}>{s.count}</Text>
@@ -522,11 +530,12 @@ export default function DocumentsScreen() {
                   />
                 </View>
                 <TouchableOpacity
-                  style={[styles.primaryAction, { backgroundColor: selectedTemplate.color }]}
+                  style={[styles.primaryAction, { backgroundColor: selectedTemplate.color, opacity: generating ? 0.6 : 1 }]}
                   onPress={handleGenerate}
+                  disabled={generating}
                 >
-                  <Feather name="file-plus" size={18} color="#fff" />
-                  <Text style={styles.primaryActionText}>Générer le document</Text>
+                  <Feather name={generating ? "loader" : "file-plus"} size={18} color="#fff" />
+                  <Text style={styles.primaryActionText}>{generating ? "Génération en cours…" : "Générer le document"}</Text>
                 </TouchableOpacity>
               </View>
             ) : (

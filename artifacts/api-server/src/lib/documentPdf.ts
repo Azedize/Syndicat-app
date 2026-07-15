@@ -341,13 +341,8 @@ export async function generateAndUploadDocument(
   const filename = `${template}-${docNumber.replace(/[^a-zA-Z0-9-]/g, "-")}.pdf`;
   const fileSizeKo = `${Math.round(buffer.length / 1024)}Ko`;
 
-  try {
-    const fileUrl = await uploadBufferToGcs(buffer, filename);
-    return { fileUrl, fileSizeKo, documentNumber: docNumber };
-  } catch (err) {
-    logger.warn({ err }, "generateAndUploadDocument: GCS upload failed — document saved without PDF");
-    return { fileUrl: "", fileSizeKo, documentNumber: docNumber };
-  }
+  const fileUrl = await uploadBufferToGcs(buffer, filename);
+  return { fileUrl, fileSizeKo, documentNumber: docNumber };
 }
 
 // ─── Category → template mapping ─────────────────────────────────────────────

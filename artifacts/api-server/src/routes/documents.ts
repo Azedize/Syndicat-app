@@ -408,7 +408,7 @@ router.post(
 
 // ─── GET /documents/:id/signatures ────────────────────────────────────────────
 
-router.get("/documents/:id/signatures", requireAuth, async (req, res) => {
+router.get("/documents/:id/signatures", requireAuth, requireRole("super_admin", "syndicate_admin"), async (req, res) => {
   const id = String(req.params.id);
   try {
     const [doc] = await db.select().from(documentsTable).where(eq(documentsTable.id, id));

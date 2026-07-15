@@ -56,7 +56,7 @@ export interface Document {
   category: "reglements" | "statuts" | "pv" | "juridique" | "finances" | "attestation";
   date: string;
   size: string;
-  status: "published" | "draft" | "pending";
+  status: "published" | "draft" | "pending" | "generated" | "pending_review" | "validated" | "signed" | "archived";
   content?: string;
 }
 
@@ -1033,8 +1033,8 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
           title: String(row.title ?? ""),
           category: (row.category as Document["category"]) ?? "statuts",
           date: String(row.date ?? row.createdAt ?? ""),
-          size: String(row.size ?? ""),
-          status: (row.status as Document["status"]) ?? "published",
+          size: String(row.size ?? "—"),
+          status: (row.status as Document["status"]) ?? "draft",
           content: row.content != null ? String(row.content) : undefined,
         };
       }));
