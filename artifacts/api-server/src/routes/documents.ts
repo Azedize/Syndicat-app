@@ -42,6 +42,10 @@ import {
   caisseEntriesTable,
   transactionsTable,
   fondsTravauxTable,
+  tenantsTable,
+  sinistresTable,
+  travauxTable,
+  prestatairesTable,
 } from "@workspace/db/schema";
 import { eq, and, desc, sql, isNull, inArray } from "drizzle-orm";
 import { requireAuth, requireRole } from "../middleware/auth.js";
@@ -621,6 +625,230 @@ async function getInvoiceData(invoiceId: string): Promise<Record<string, string>
   };
 }
 
+// ─── Attestation de Paiement — auto-calculate paid charges for a lot ─────────────
+
+async function getAttestationPaiementData(
+  lotId: string,
+  periode?: string | null,
+  syndicateId?: string | null,
+): Promise<Record<string, string>> {
+  try {
+    const [lotRow] = await db
+      .select({
+        number:      lotsTable.number,
+        floor:       lotsTable.floor,
+        tantiemes:   lotsTable.tantiemes,
+        titreFoncier:lotsTable.titreFoncier,
+        ownerId:     lotsTable.ownerId,
+      })
+      .from(lotsTable)
+      .where(eq(lotsTable.id, lotId));
+    if (!lotRow) return {};
+
+    let memberName = "";
+    if (lotRow.ownerId) {
+      const [m] = await db.select({ name: membersTable.name }).from(membersTable).where(eq(membersTable.id, lotRow.ownerId));
+      memberName = m?.name ?? "";
+    }
+
+    // All appels for this lot
+    const allAppels = await db.select({
+      amount:   appelsDeFondsTable.amount,
+      status:   appelsDeFondsTable.status,
+      period:   appelsDeFondsTable.period,
+      paidDate: appelsDeFondsTable.paidDate,
+    }).from(appelsDeFondsTable).where(eq(appelsDeFondsTable.lotId, lotId));
+
+    const periodeAppels = periode
+      ? allAppels.filter((a) => a.period?.includes(periode))
+      : allAppels;
+    const useAppels = periodeAppels.length > 0 ? periodeAppels : allAppels;
+
+    const totalPaid    = useAppels.filter((a) => a.status === "paid").reduce((s, a) => s + Number(a.amount ?? 0), 0);
+    const totalCharged = useAppels.reduce((s, a) => s + Number(a.amount ?? 0), 0);
+    const hasOverdue   = useAppels.some((a) => a.status === "overdue");
+    const inGoodStanding = !hasOverdue && totalCharged <= totalPaid;
+    const lastPaid = useAppels
+      .filter((a) => a.status === "paid" && a.paidDate)
+      .sort((a, b) => (b.paidDate ?? "").localeCompare(a.paidDate ?? ""))[0]?.paidDate;
+
+    const fmt = (n: number) => n.toLocaleString("fr-MA");
+    return {
+      memberName,
+      _lotNumber:      lotRow.number ?? "",
+      _lotFloor:       lotRow.floor != null ? String(lotRow.floor) : "",
+      _lotTantiemes:   lotRow.tantiemes ? `${Number(lotRow.tantiemes)} / 10 000` : "",
+      _lotTitreFoncier:lotRow.titreFoncier ?? "",
+      montant:         fmt(totalPaid),
+      _totalCharged:   fmt(totalCharged),
+      _paiementStatus: inGoodStanding ? "EN RÈGLE" : "ATTENTION — CHARGES EN COURS",
+      _lastPaidDate:   lastPaid ?? "",
+      _appelCount:     String(useAppels.length),
+    };
+  } catch {
+    return {};
+  }
+}
+
+// ─── Entity loader: tenantsTable → contrat_bail ──────────────────────────────
+
+async function getTenantData(tenantId: string): Promise<Record<string, string>> {
+  try {
+    const [row] = await db
+      .select({
+        name:          tenantsTable.name,
+        email:         tenantsTable.email,
+        phone:         tenantsTable.phone,
+        leaseStart:    tenantsTable.leaseStart,
+        leaseEnd:      tenantsTable.leaseEnd,
+        monthlyRent:   tenantsTable.monthlyRent,
+        depositAmount: tenantsTable.depositAmount,
+        status:        tenantsTable.status,
+        lotNumber:     lotsTable.number,
+        lotFloor:      lotsTable.floor,
+        lotSurface:    lotsTable.surfaceM2,
+        buildingName:  buildingsTable.name,
+        buildingAddress: buildingsTable.address,
+      })
+      .from(tenantsTable)
+      .leftJoin(lotsTable,      eq(tenantsTable.lotId,      lotsTable.id))
+      .leftJoin(buildingsTable, eq(tenantsTable.buildingId, buildingsTable.id))
+      .where(eq(tenantsTable.id, tenantId));
+
+    if (!row) return {};
+    return {
+      memberName:       row.name ?? "",
+      _tenantName:      row.name ?? "",
+      _tenantEmail:     row.email ?? "",
+      _tenantPhone:     row.phone ?? "",
+      _leaseStart:      row.leaseStart ?? "",
+      _leaseEnd:        row.leaseEnd ?? "",
+      _monthlyRent:     row.monthlyRent ? String(Number(row.monthlyRent)) : "",
+      _depositAmount:   row.depositAmount ? String(Number(row.depositAmount)) : "",
+      _leaseStatus:     row.status ?? "active",
+      _lotNumber:       row.lotNumber ?? "",
+      _lotFloor:        row.lotFloor != null ? String(row.lotFloor) : "",
+      _lotSurface:      row.lotSurface ? String(Number(row.lotSurface)) : "",
+      _buildingName:    row.buildingName ?? "",
+      _buildingAddress: row.buildingAddress ?? "",
+    };
+  } catch {
+    return {};
+  }
+}
+
+// ─── Entity loader: sinistresTable → sinistre ─────────────────────────────────
+
+async function getSinistreData(sinistreId: string): Promise<Record<string, string>> {
+  try {
+    const [row] = await db
+      .select({
+        type:            sinistresTable.type,
+        description:     sinistresTable.description,
+        date:            sinistresTable.date,
+        status:          sinistresTable.status,
+        urgency:         sinistresTable.urgency,
+        claimNumber:     sinistresTable.claimNumber,
+        estimatedAmount: sinistresTable.estimatedAmount,
+        indemnisedAmount:sinistresTable.indemnisedAmount,
+        reportedByName:  sinistresTable.reportedByName,
+        resolutionNote:  sinistresTable.resolutionNote,
+        lotId:           sinistresTable.lotId,
+        buildingName:    buildingsTable.name,
+        buildingAddress: buildingsTable.address,
+      })
+      .from(sinistresTable)
+      .innerJoin(buildingsTable, eq(sinistresTable.buildingId, buildingsTable.id))
+      .where(eq(sinistresTable.id, sinistreId));
+
+    if (!row) return {};
+    let lotNumber = "";
+    if (row.lotId) {
+      const [lot] = await db.select({ number: lotsTable.number }).from(lotsTable).where(eq(lotsTable.id, row.lotId));
+      lotNumber = lot?.number ?? "";
+    }
+    return {
+      _sinistreType:        row.type ?? "",
+      _sinistreDescription: row.description ?? "",
+      _sinistreDate:        row.date ?? "",
+      _sinistreStatus:      row.status ?? "declared",
+      _sinistreUrgency:     row.urgency ?? "normal",
+      _claimNumber:         row.claimNumber ?? "",
+      _estimatedAmount:     row.estimatedAmount ? String(Number(row.estimatedAmount)) : "",
+      _indemnisedAmount:    row.indemnisedAmount ? String(Number(row.indemnisedAmount)) : "",
+      _reportedByName:      row.reportedByName ?? "",
+      _resolutionNote:      row.resolutionNote ?? "",
+      _buildingName:        row.buildingName ?? "",
+      _buildingAddress:     row.buildingAddress ?? "",
+      _lotNumber:           lotNumber,
+    };
+  } catch {
+    return {};
+  }
+}
+
+// ─── Entity loader: travauxTable → travaux ────────────────────────────────────
+
+async function getTravauxData(travauxId: string): Promise<Record<string, string>> {
+  try {
+    const [row] = await db
+      .select({
+        title:           travauxTable.title,
+        description:     travauxTable.description,
+        type:            travauxTable.type,
+        priority:        travauxTable.priority,
+        status:          travauxTable.status,
+        startDate:       travauxTable.startDate,
+        endDate:         travauxTable.endDate,
+        estimatedAmount: travauxTable.estimatedAmount,
+        actualAmount:    travauxTable.actualAmount,
+        invoiceAmount:   travauxTable.invoiceAmount,
+        reportedByName:  travauxTable.reportedByName,
+        validatedByName: travauxTable.validatedByName,
+        notes:           travauxTable.notes,
+        lotId:           travauxTable.lotId,
+        buildingName:    buildingsTable.name,
+        buildingAddress: buildingsTable.address,
+        prestataireName: prestatairesTable.name,
+        prestatairePhone:prestatairesTable.phone,
+        prestataireEmail:prestatairesTable.email,
+      })
+      .from(travauxTable)
+      .innerJoin(buildingsTable,   eq(travauxTable.buildingId,    buildingsTable.id))
+      .leftJoin(prestatairesTable, eq(travauxTable.prestataireId, prestatairesTable.id))
+      .where(eq(travauxTable.id, travauxId));
+
+    if (!row) return {};
+    let lotNumber = "";
+    if (row.lotId) {
+      const [lot] = await db.select({ number: lotsTable.number }).from(lotsTable).where(eq(lotsTable.id, row.lotId));
+      lotNumber = lot?.number ?? "";
+    }
+    return {
+      _travauxTitle:       row.title ?? "",
+      _travauxDescription: row.description ?? "",
+      _travauxType:        row.type ?? "entretien",
+      _travauxPriority:    row.priority ?? "normal",
+      _travauxStatus:      row.status ?? "reported",
+      _startDate:          row.startDate ?? "",
+      _endDate:            row.endDate ?? "",
+      _estimatedAmount:    row.estimatedAmount ? String(Number(row.estimatedAmount)) : "",
+      _actualAmount:       row.actualAmount ? String(Number(row.actualAmount)) : "",
+      _invoiceAmount:      row.invoiceAmount ? String(Number(row.invoiceAmount)) : "",
+      _reportedByName:     row.reportedByName ?? "",
+      _validatedByName:    row.validatedByName ?? "",
+      _buildingName:       row.buildingName ?? "",
+      _buildingAddress:    row.buildingAddress ?? "",
+      _lotNumber:          lotNumber,
+      _prestataireNom:     row.prestataireName ?? "",
+      _prestatairePhone:   row.prestatairePhone ?? "",
+      _prestataireEmail:   row.prestataireEmail ?? "",
+    };
+  } catch {
+    return {};
+  }
+}
+
 // ─── Helper: atomic sequential document numbering (REG-2026-0001, PV-2026-0001…) ──
 // One counter row per (syndicateId, prefix, year); increments atomically via
 // INSERT ... ON CONFLICT DO UPDATE so concurrent generations never collide.
@@ -787,7 +1015,7 @@ router.get("/documents/summary", requireAuth, async (req, res) => {
 });
 
 // ─── GET /documents/templates — Static template catalog ─────────────────────
-// Returns all 21 enterprise templates with full metadata: sections, variables,
+// Returns all 30+ enterprise templates with full metadata: sections, variables,
 // data sources. No auth required for super_admin; requireAuth for others.
 
 router.get("/documents/templates", requireAuth, async (_req, res) => {
@@ -1355,6 +1583,80 @@ router.get("/documents/templates", requireAuth, async (_req, res) => {
       ],
       requiredInputs: ["memberName", "periode"],
     },
+    // ── 3 operational templates (entity-driven) ───────────────────────────────
+    {
+      id: "contrat_bail", name: "Contrat de bail", category: "juridique",
+      description: "Contrat de bail résidentiel entre le syndicat (bailleur) et un locataire. Le nom du locataire, les dates de bail, le loyer et les données du lot sont injectés automatiquement.",
+      icon: "home", color: "#1d4ed8", version: "1.0", author: "SYNDYCAT", updatedAt: "2026-01-01",
+      sections: [
+        { title: "En-tête professionnel", description: "Logo et identité du syndicat", source: "syndicatesTable" },
+        { title: "Parties contractantes", description: "Bailleur (syndicat) et Locataire", source: "syndicatesTable + tenantsTable" },
+        { title: "Bien loué", description: "Résidence, N° lot, surface, adresse", source: "lotsTable + buildingsTable" },
+        { title: "Durée et loyer", description: "Dates de bail, loyer mensuel, dépôt de garantie", source: "tenantsTable (auto)" },
+        { title: "Obligations des parties", description: "Engagements bailleur et locataire", source: "généré + input" },
+        { title: "Signatures", description: "Les deux parties", source: "input" },
+        { title: "QR de vérification", description: "Code QR d'authenticité", source: "généré" },
+      ],
+      variables: [
+        { name: "syndicateName",   label: "Bailleur (syndicat)",       source: "syndicatesTable.name",          required: true  },
+        { name: "memberName",      label: "Nom du locataire",          source: "tenantsTable.name (auto)",      required: true  },
+        { name: "_lotNumber",      label: "N° de lot / appartement",   source: "lotsTable.number (auto)",       required: false },
+        { name: "_leaseStart",     label: "Début du bail",             source: "tenantsTable.leaseStart (auto)",required: false },
+        { name: "_leaseEnd",       label: "Fin du bail",               source: "tenantsTable.leaseEnd (auto)",  required: false },
+        { name: "_monthlyRent",    label: "Loyer mensuel (MAD)",       source: "tenantsTable.monthlyRent (auto)",required: false },
+        { name: "_depositAmount",  label: "Dépôt de garantie (MAD)",   source: "tenantsTable.depositAmount (auto)",required: false },
+        { name: "documentNumber",  label: "N° de document",            source: "documentSequencesTable (BAIL)", required: true  },
+      ],
+      requiredInputs: [],
+    },
+    {
+      id: "sinistre", name: "Déclaration de sinistre", category: "juridique",
+      description: "Rapport officiel de déclaration de sinistre (dégât des eaux, incendie, effraction…). Toutes les données de l'incident sont importées automatiquement depuis la base.",
+      icon: "alert-triangle", color: "#b45309", version: "1.0", author: "SYNDYCAT", updatedAt: "2026-01-01",
+      sections: [
+        { title: "En-tête professionnel", description: "Logo et identité du syndicat", source: "syndicatesTable" },
+        { title: "Statut et urgence", description: "Badges statut + niveau d'urgence", source: "sinistresTable (auto)" },
+        { title: "Détails du sinistre", description: "Type, date, immeuble, lot, montants", source: "sinistresTable (auto)" },
+        { title: "Description", description: "Description détaillée du sinistre", source: "sinistresTable (auto)" },
+        { title: "Démarches et suivi", description: "Étapes de traitement du dossier", source: "généré + input" },
+        { title: "Signatures", description: "Bureau syndical", source: "conseilSyndicalTable" },
+        { title: "QR de vérification", description: "Code QR d'authenticité", source: "généré" },
+      ],
+      variables: [
+        { name: "syndicateName",          label: "Syndicat déclarant",       source: "syndicatesTable.name",           required: true  },
+        { name: "_sinistreType",          label: "Type de sinistre",          source: "sinistresTable.type (auto)",     required: false },
+        { name: "_sinistreDate",          label: "Date du sinistre",          source: "sinistresTable.date (auto)",     required: false },
+        { name: "_sinistreDescription",   label: "Description",               source: "sinistresTable.description (auto)",required: false },
+        { name: "_estimatedAmount",       label: "Montant estimé (MAD)",      source: "sinistresTable.estimatedAmount (auto)",required: false },
+        { name: "_claimNumber",           label: "N° de dossier assurance",   source: "sinistresTable.claimNumber (auto)",required: false },
+        { name: "documentNumber",         label: "N° de document",            source: "documentSequencesTable (SIN)",   required: true  },
+      ],
+      requiredInputs: [],
+    },
+    {
+      id: "travaux", name: "Ordre de travaux", category: "finances",
+      description: "Rapport officiel de travaux (entretien, réparation, rénovation…). Les données du prestataire, des montants et du planning sont importées automatiquement.",
+      icon: "tool", color: "#065f46", version: "1.0", author: "SYNDYCAT", updatedAt: "2026-01-01",
+      sections: [
+        { title: "En-tête professionnel", description: "Logo et identité du syndicat", source: "syndicatesTable" },
+        { title: "Statut et priorité", description: "Badges statut + niveau de priorité", source: "travauxTable (auto)" },
+        { title: "Détails des travaux", description: "Type, immeuble, prestataire, dates, montants", source: "travauxTable (auto)" },
+        { title: "Description des travaux", description: "Description détaillée de l'intervention", source: "travauxTable (auto)" },
+        { title: "Bilan financier", description: "Montant estimé / réel / facturé", source: "travauxTable (auto)" },
+        { title: "Signatures", description: "Bureau syndical", source: "conseilSyndicalTable" },
+        { title: "QR de vérification", description: "Code QR d'authenticité", source: "généré" },
+      ],
+      variables: [
+        { name: "syndicateName",       label: "Syndicat",               source: "syndicatesTable.name",              required: true  },
+        { name: "_travauxTitle",       label: "Titre des travaux",       source: "travauxTable.title (auto)",         required: false },
+        { name: "_travauxType",        label: "Type de travaux",         source: "travauxTable.type (auto)",          required: false },
+        { name: "_prestataireName",    label: "Prestataire",             source: "prestatairesTable.name (auto)",     required: false },
+        { name: "_estimatedAmount",    label: "Montant estimé (MAD)",    source: "travauxTable.estimatedAmount (auto)",required: false },
+        { name: "_actualAmount",       label: "Montant réel (MAD)",      source: "travauxTable.actualAmount (auto)",  required: false },
+        { name: "documentNumber",      label: "N° de document",          source: "documentSequencesTable (TRX)",      required: true  },
+      ],
+      requiredInputs: [],
+    },
   ];
 
   res.json({ data: catalog });
@@ -1605,6 +1907,251 @@ router.get("/documents/autofill", requireAuth, async (req, res) => {
   }
 });
 
+// ─── GET /documents/entities ──────────────────────────────────────────────────
+// Returns selectable entity lists for smart document generation.
+// The mobile wizard calls this to populate entity pickers (meeting selector,
+// lot selector, invoice selector, etc.) so users never re-type data that exists in DB.
+//
+//   ?type = meetings | lots | members | elections | invoices | appels | budgets
+
+router.get("/documents/entities", requireAuth, async (req, res) => {
+  try {
+    const user        = req.user!;
+    const syndicateId = user.syndicateId;
+    const type        = String(req.query.type ?? "meetings");
+
+    if (!syndicateId) { res.json({ data: [] }); return; }
+
+    type EntityItem = { id: string; label: string; sublabel: string };
+    let data: EntityItem[] = [];
+
+    switch (type) {
+      case "meetings": {
+        const rows = await db.select({
+          id:       meetingsTable.id,
+          title:    meetingsTable.title,
+          date:     meetingsTable.date,
+          type:     meetingsTable.type,
+          location: meetingsTable.location,
+        }).from(meetingsTable)
+          .where(eq(meetingsTable.syndicateId, syndicateId))
+          .orderBy(desc(meetingsTable.date))
+          .limit(50);
+        data = rows.map((r) => ({
+          id:       r.id,
+          label:    r.title,
+          sublabel: [r.date, r.type, r.location].filter(Boolean).join("  •  "),
+        }));
+        break;
+      }
+      case "lots": {
+        const rows = await db.select({
+          id:           lotsTable.id,
+          number:       lotsTable.number,
+          floor:        lotsTable.floor,
+          buildingName: buildingsTable.name,
+          ownerName:    membersTable.name,
+        }).from(lotsTable)
+          .leftJoin(buildingsTable, eq(lotsTable.buildingId, buildingsTable.id))
+          .leftJoin(membersTable, eq(lotsTable.ownerId, membersTable.id))
+          .where(eq(buildingsTable.syndicateId, syndicateId))
+          .orderBy(lotsTable.number)
+          .limit(200);
+        data = rows.map((r) => ({
+          id:       r.id,
+          label:    `Lot ${r.number ?? "—"}${r.floor != null ? ` — Étage ${r.floor}` : ""}`,
+          sublabel: [r.buildingName, r.ownerName].filter(Boolean).join("  •  "),
+        }));
+        break;
+      }
+      case "members": {
+        const rows = await db.select({
+          id:    membersTable.id,
+          name:  membersTable.name,
+          email: membersTable.email,
+          phone: membersTable.phone,
+        }).from(membersTable)
+          .where(eq(membersTable.syndicateId, syndicateId))
+          .orderBy(membersTable.name)
+          .limit(200);
+        data = rows.map((r) => ({
+          id:       r.id,
+          label:    r.name,
+          sublabel: [r.email, r.phone].filter(Boolean).join("  •  "),
+        }));
+        break;
+      }
+      case "elections": {
+        const rows = await db.select({
+          id:           electionsTable.id,
+          title:        electionsTable.title,
+          status:       electionsTable.status,
+          startDate:    electionsTable.startDate,
+          electionType: electionsTable.electionType,
+        }).from(electionsTable)
+          .where(eq(electionsTable.syndicateId, syndicateId))
+          .orderBy(desc(electionsTable.startDate))
+          .limit(50);
+        data = rows.map((r) => ({
+          id:       r.id,
+          label:    r.title,
+          sublabel: [r.startDate, r.electionType, r.status].filter(Boolean).join("  •  "),
+        }));
+        break;
+      }
+      case "invoices": {
+        const rows = await db.select({
+          id:        invoicesTable.id,
+          reference: invoicesTable.reference,
+          recipient: invoicesTable.recipient,
+          amount:    invoicesTable.amount,
+          status:    invoicesTable.status,
+          dueDate:   invoicesTable.dueDate,
+        }).from(invoicesTable)
+          .where(eq(invoicesTable.syndicateId, syndicateId))
+          .orderBy(desc(invoicesTable.createdAt))
+          .limit(100);
+        data = rows.map((r) => ({
+          id:       r.id,
+          label:    [r.reference, r.recipient].filter(Boolean).join(" — "),
+          sublabel: [`${Number(r.amount ?? 0).toLocaleString("fr-MA")} MAD`, r.status, r.dueDate].filter(Boolean).join("  •  "),
+        }));
+        break;
+      }
+      case "appels": {
+        // appelsDeFondsTable has no syndicateId; scope via buildingId → buildingsTable
+        const rows = await db.select({
+          id:        appelsDeFondsTable.id,
+          period:    appelsDeFondsTable.period,
+          amount:    appelsDeFondsTable.amount,
+          status:    appelsDeFondsTable.status,
+          type:      appelsDeFondsTable.type,
+          ownerName: membersTable.name,
+          lotNumber: lotsTable.number,
+        }).from(appelsDeFondsTable)
+          .innerJoin(buildingsTable, eq(appelsDeFondsTable.buildingId, buildingsTable.id))
+          .leftJoin(membersTable,   eq(appelsDeFondsTable.ownerId,     membersTable.id))
+          .leftJoin(lotsTable,      eq(appelsDeFondsTable.lotId,       lotsTable.id))
+          .where(eq(buildingsTable.syndicateId, syndicateId))
+          .orderBy(desc(appelsDeFondsTable.createdAt))
+          .limit(200);
+        data = rows.map((r) => ({
+          id:       r.id,
+          label:    `${r.period ?? "—"} — ${Number(r.amount ?? 0).toLocaleString("fr-MA")} MAD`,
+          sublabel: [r.ownerName, r.lotNumber ? `Lot ${r.lotNumber}` : "", r.status].filter(Boolean).join("  •  "),
+        }));
+        break;
+      }
+      case "budgets": {
+        const rows = await db.select({
+          id:           budgetsTable.id,
+          year:         budgetsTable.year,
+          totalAmount:  budgetsTable.totalAmount,
+          status:       budgetsTable.status,
+          buildingName: buildingsTable.name,
+        }).from(budgetsTable)
+          .leftJoin(buildingsTable, eq(budgetsTable.buildingId, buildingsTable.id))
+          .where(eq(buildingsTable.syndicateId, syndicateId))
+          .orderBy(desc(budgetsTable.year))
+          .limit(50);
+        data = rows.map((r) => ({
+          id:       r.id,
+          label:    `Budget ${r.year} — ${r.buildingName ?? "—"}`,
+          sublabel: [`${Number(r.totalAmount ?? 0).toLocaleString("fr-MA")} MAD`, r.status].filter(Boolean).join("  •  "),
+        }));
+        break;
+      }
+      case "tenants": {
+        const rows = await db.select({
+          id:           tenantsTable.id,
+          name:         tenantsTable.name,
+          phone:        tenantsTable.phone,
+          email:        tenantsTable.email,
+          leaseStart:   tenantsTable.leaseStart,
+          leaseEnd:     tenantsTable.leaseEnd,
+          monthlyRent:  tenantsTable.monthlyRent,
+          status:       tenantsTable.status,
+          lotNumber:    lotsTable.number,
+          buildingName: buildingsTable.name,
+        }).from(tenantsTable)
+          .leftJoin(lotsTable,      eq(tenantsTable.lotId,      lotsTable.id))
+          .leftJoin(buildingsTable, eq(tenantsTable.buildingId, buildingsTable.id))
+          .where(eq(tenantsTable.syndicateId, syndicateId))
+          .orderBy(tenantsTable.name)
+          .limit(200);
+        data = rows.map((r) => ({
+          id:       r.id,
+          label:    r.name,
+          sublabel: [
+            r.lotNumber ? `Lot ${r.lotNumber}` : null,
+            r.buildingName,
+            r.monthlyRent ? `${Number(r.monthlyRent).toLocaleString("fr-MA")} MAD/mois` : null,
+            r.status,
+          ].filter(Boolean).join("  •  "),
+        }));
+        break;
+      }
+      case "sinistres": {
+        const rows = await db.select({
+          id:           sinistresTable.id,
+          type:         sinistresTable.type,
+          description:  sinistresTable.description,
+          date:         sinistresTable.date,
+          status:       sinistresTable.status,
+          urgency:      sinistresTable.urgency,
+          claimNumber:  sinistresTable.claimNumber,
+          buildingName: buildingsTable.name,
+        }).from(sinistresTable)
+          .innerJoin(buildingsTable, eq(sinistresTable.buildingId, buildingsTable.id))
+          .where(eq(buildingsTable.syndicateId, syndicateId))
+          .orderBy(desc(sinistresTable.createdAt))
+          .limit(100);
+        data = rows.map((r) => ({
+          id:       r.id,
+          label:    `${r.type} — ${r.buildingName ?? "—"}`,
+          sublabel: [r.date, r.status, r.urgency !== "normal" ? `⚡ ${r.urgency}` : null, r.claimNumber].filter(Boolean).join("  •  "),
+        }));
+        break;
+      }
+      case "travaux": {
+        const rows = await db.select({
+          id:              travauxTable.id,
+          title:           travauxTable.title,
+          type:            travauxTable.type,
+          status:          travauxTable.status,
+          priority:        travauxTable.priority,
+          startDate:       travauxTable.startDate,
+          estimatedAmount: travauxTable.estimatedAmount,
+          buildingName:    buildingsTable.name,
+          prestataireName: prestatairesTable.name,
+        }).from(travauxTable)
+          .innerJoin(buildingsTable,  eq(travauxTable.buildingId,    buildingsTable.id))
+          .leftJoin(prestatairesTable,eq(travauxTable.prestataireId, prestatairesTable.id))
+          .where(eq(buildingsTable.syndicateId, syndicateId))
+          .orderBy(desc(travauxTable.createdAt))
+          .limit(100);
+        data = rows.map((r) => ({
+          id:       r.id,
+          label:    r.title,
+          sublabel: [
+            r.type, r.status, r.prestataireName,
+            r.estimatedAmount ? `${Number(r.estimatedAmount).toLocaleString("fr-MA")} MAD` : null,
+            r.startDate,
+          ].filter(Boolean).join("  •  "),
+        }));
+        break;
+      }
+      default:
+        data = [];
+    }
+
+    res.json({ data });
+  } catch (err) {
+    req.log.error(err);
+    res.status(500).json({ error: "Erreur lors de la récupération des entités" });
+  }
+});
+
 // ─── GET /documents/:id ────────────────────────────────────────────────────────
 
 router.get("/documents/:id", requireAuth, async (req, res) => {
@@ -1698,6 +2245,7 @@ router.post(
         "attestation_residence", "attestation_propriete", "attestation_paiement",
         "appel_de_fonds", "recu_paiement", "facture", "budget_previsionnel",
         "decompte_charges", "rapport_election",
+        "contrat_bail", "sinistre", "travaux",
       ] as const).optional(),
       // ── Entity IDs — auto-load data from DB instead of manual entry ───────────
       meetingId:        z.string().optional(),
@@ -1707,6 +2255,11 @@ router.post(
       budgetId:         z.string().optional(),
       electionId:       z.string().optional(),
       invoiceId:        z.string().optional(),
+      tenantId:               z.string().optional(),
+      sinistreId:             z.string().optional(),
+      travauxId:              z.string().optional(),
+      // Internal: pass when re-generating a signed document so existing signatures load
+      _existingDocumentId:    z.string().optional(),
       // Output language — the mobile UI always presents an explicit choice; "fr" is
       // only used as a server-side fallback for callers that omit it entirely.
       language: z.enum(["fr", "ar", "en", "es"] as const).optional(),
@@ -1833,8 +2386,26 @@ router.post(
       if (extraFields.invoiceId) {
         entityLoads.push(getInvoiceData(extraFields.invoiceId as string));
       }
-      // Financial KPI dashboard — loaded for all financial templates
-      const isFinancialTemplate = ["appel_de_fonds","recu_paiement","facture","budget_previsionnel","decompte_charges"].includes(template);
+      // Operational entity loaders (contrat_bail / sinistre / travaux)
+      if (extraFields.tenantId) {
+        entityLoads.push(getTenantData(extraFields.tenantId as string));
+      }
+      if (extraFields.sinistreId) {
+        entityLoads.push(getSinistreData(extraFields.sinistreId as string));
+      }
+      if (extraFields.travauxId) {
+        entityLoads.push(getTravauxData(extraFields.travauxId as string));
+      }
+      // Attestation paiement — auto-calculate paid charges for the lot
+      if (template === "attestation_paiement" && extraFields.lotId) {
+        entityLoads.push(getAttestationPaiementData(
+          extraFields.lotId as string,
+          extraFields.periode as string | undefined ?? null,
+          syndicateId,
+        ));
+      }
+      // Financial KPI dashboard — loaded for all financial templates + rapport_financier
+      const isFinancialTemplate = ["appel_de_fonds","recu_paiement","facture","budget_previsionnel","decompte_charges","rapport_financier"].includes(template);
       if (isFinancialTemplate) {
         const kpiBuildingId = buildingId ?? null;
         const kpiYear = extraFields.exercice ? parseInt(extraFields.exercice as string) : null;

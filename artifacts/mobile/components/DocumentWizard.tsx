@@ -86,6 +86,34 @@ const CATEGORIES = [
   { key: "statuts",     label: "Statuts",          icon: "book-open" as const, color: "#7c3aed", desc: "Statuts et certifications officielles" },
 ];
 
+// ─── Entity type → document template mapping ─────────────────────────────────
+// Each entry tells the wizard which DB entity to load for a given template ID
+// so the user picks from a list instead of typing data that already exists.
+const ENTITY_TYPE_MAP: Record<string, {
+  type: string;
+  idField: string;
+  label: string;
+  icon: keyof typeof Feather.glyphMap;
+  hint: string;
+}> = {
+  pv:                    { type: "meetings",  idField: "meetingId",      label: "Réunion AG",         icon: "users",       hint: "Les données de réunion (date, lieu, ordre du jour, résolutions) seront chargées automatiquement." },
+  convocation:           { type: "meetings",  idField: "meetingId",      label: "Réunion à convoquer",icon: "calendar",    hint: "Sélectionnez la réunion — date, lieu et heure seront pré-remplis." },
+  compte_rendu:          { type: "meetings",  idField: "meetingId",      label: "Réunion",            icon: "clipboard",   hint: "Sélectionnez la réunion dont vous rédigez le compte-rendu." },
+  attestation_residence: { type: "lots",      idField: "lotId",          label: "Lot / Appartement",  icon: "home",        hint: "Le nom du résident, l'adresse et le numéro de lot seront chargés depuis la base." },
+  attestation_propriete: { type: "lots",      idField: "lotId",          label: "Lot / Appartement",  icon: "home",        hint: "Le titre foncier, les tantièmes et les données du propriétaire seront chargés automatiquement." },
+  attestation_paiement:  { type: "lots",      idField: "lotId",          label: "Lot / Appartement",  icon: "home",        hint: "Le total des charges payées sera calculé automatiquement depuis les appels de fonds." },
+  decompte_charges:      { type: "lots",      idField: "lotId",          label: "Lot / Appartement",  icon: "home",        hint: "Le décompte sera calculé depuis les appels de fonds réels du lot." },
+  appel_de_fonds:        { type: "appels",    idField: "appelDeFondsId", label: "Appel de fonds",     icon: "file-text",   hint: "Toutes les données financières (montant, échéance, lot, copropriétaire) seront chargées." },
+  recu_paiement:         { type: "appels",    idField: "appelDeFondsId", label: "Appel de fonds réglé",icon: "check-circle",hint: "Sélectionnez l'appel de fonds qui a été réglé pour générer le reçu." },
+  facture:               { type: "invoices",  idField: "invoiceId",      label: "Facture",            icon: "file-minus",  hint: "Les lignes de facture, le montant et le destinataire seront importés depuis la comptabilité." },
+  budget_previsionnel:   { type: "budgets",   idField: "budgetId",       label: "Budget",             icon: "bar-chart-2", hint: "Le budget complet avec toutes ses lignes budgétaires sera importé." },
+  rapport_election:      { type: "elections", idField: "electionId",     label: "Élection",           icon: "award",       hint: "Les résultats, candidats et statistiques d'élection seront chargés automatiquement." },
+  rapport_financier:     { type: "budgets",   idField: "budgetId",       label: "Budget (optionnel)", icon: "trending-up", hint: "Sélectionnez un budget pour pré-remplir les indicateurs financiers." },
+  contrat_bail:          { type: "tenants",   idField: "tenantId",       label: "Locataire",          icon: "home",        hint: "Le nom du locataire, les dates de bail, le loyer mensuel et le dépôt de garantie seront chargés automatiquement." },
+  sinistre:              { type: "sinistres", idField: "sinistreId",     label: "Sinistre déclaré",   icon: "alert-triangle", hint: "Toutes les données du sinistre (type, date, description, montant, statut) seront importées automatiquement." },
+  travaux:               { type: "travaux",   idField: "travauxId",      label: "Chantier / Travaux", icon: "tool",        hint: "Les données du chantier (type, prestataire, montants, planning, statut) seront importées automatiquement." },
+};
+
 // ─── Source color helper ──────────────────────────────────────────────────────
 function sourceColor(source: string): string {
   if (source.includes("syndicatesTable"))  return "#7c3aed";
@@ -132,6 +160,12 @@ export default function DocumentWizard({ visible, onClose, onComplete }: Props) 
   } | null>(null);
   const [autofillLoading, setAutofillLoading] = useState(false);
 
+  // Entity picker state
+  const [entityItems,       setEntityItems]      = useState<Array<{ id: string; label: string; sublabel: string }>>([]);
+  const [entityLoading,     setEntityLoading]    = useState(false);
+  const [selectedEntityId,  setSelectedEntityId] = useState<string | null>(null);
+  const [entityExpanded,    setEntityExpanded]   = useState(false);
+
   // Reset when wizard opens
   useEffect(() => {
     if (visible) {
@@ -148,6 +182,10 @@ export default function DocumentWizard({ visible, onClose, onComplete }: Props) 
       sigSvgRef.current = "";
       setAutofillData(null);
       setAutofillLoading(false);
+      setEntityItems([]);
+      setEntityLoading(false);
+      setSelectedEntityId(null);
+      setEntityExpanded(false);
     }
   }, [visible]);
 
@@ -182,37 +220,59 @@ export default function DocumentWizard({ visible, onClose, onComplete }: Props) 
     goToStep(2);
   };
 
-  // ── Step 2 → 3: select template + load autofill ──────────────────────────────
+  // ── Step 2 → 3: select template + load autofill + load entity list ───────────
   const handleSelectTemplate = async (tpl: TemplateCatalog) => {
     setSelectedTpl(tpl);
     setFields({});
+    // Reset entity selection for new template
+    setEntityItems([]);
+    setSelectedEntityId(null);
+    setEntityExpanded(false);
     goToStep(3);
-    // Load DB-resolved values in background so step 3 shows real data
-    setAutofillLoading(true);
-    try {
-      const { documents: docsApi } = await import("@/services/api");
-      const res = await docsApi.autofill();
-      setAutofillData(res.data);
 
-      // Pre-populate fields that can be resolved from autofill so validation passes.
-      // Fields remain editable — user can override them (e.g. attestation for a different member).
-      const mi = res.data.memberInfo;
-      const oh = res.data.officeHolders;
-      setFields((prev) => {
-        const prefilled: Record<string, string> = {};
-        // memberName: use logged-in user's name by default; user can change it
-        if (mi.member_name) prefilled.memberName = mi.member_name;
-        // president / secretary auto-fill if template uses those keys
-        if (oh?.president_name)  prefilled.president  = oh.president_name;
-        if (oh?.secretary_name)  prefilled.secretaire = oh.secretary_name;
-        // Merge: existing manual entries win over autofill
-        return { ...prefilled, ...prev };
-      });
-    } catch {
-      setAutofillData(null); // non-fatal — step 3 still works without it
-    } finally {
-      setAutofillLoading(false);
-    }
+    // Load autofill + entity list in parallel (both non-blocking)
+    const entityConfig = ENTITY_TYPE_MAP[tpl.id];
+
+    const [, entityRes] = await Promise.allSettled([
+      // 1. Autofill (syndicate/property/office holders)
+      (async () => {
+        setAutofillLoading(true);
+        try {
+          const { documents: docsApi } = await import("@/services/api");
+          const res = await docsApi.autofill();
+          setAutofillData(res.data);
+          const mi = res.data.memberInfo;
+          const oh = res.data.officeHolders;
+          setFields((prev) => {
+            const prefilled: Record<string, string> = {};
+            if (mi.member_name)      prefilled.memberName  = mi.member_name;
+            if (oh?.president_name)  prefilled.president   = oh.president_name;
+            if (oh?.secretary_name)  prefilled.secretaire  = oh.secretary_name;
+            return { ...prefilled, ...prev };
+          });
+        } catch {
+          setAutofillData(null);
+        } finally {
+          setAutofillLoading(false);
+        }
+      })(),
+      // 2. Entity list (meeting/lot/invoice/etc.) — only if template needs it
+      entityConfig
+        ? (async () => {
+            setEntityLoading(true);
+            try {
+              const { documents: docsApi } = await import("@/services/api");
+              const res = await docsApi.entities(entityConfig.type);
+              setEntityItems(res.data);
+            } catch {
+              setEntityItems([]);
+            } finally {
+              setEntityLoading(false);
+            }
+          })()
+        : Promise.resolve(),
+    ]);
+    void entityRes; // result not needed directly — state already updated
   };
 
   // ── Step 3 → 4: load preview from API ────────────────────────────────────────
@@ -326,6 +386,18 @@ export default function DocumentWizard({ visible, onClose, onComplete }: Props) 
         deroulement:    fields["deroulement"]    || undefined,
         decisions:      fields["decisions"]      || undefined,
         prochaineReunion: fields["prochaineReunion"] || undefined,
+        // ── Entity IDs — the server uses these to auto-populate all DB-backed data,
+        //    replacing manual field entry entirely for entity-backed templates.
+        meetingId:      fields["meetingId"]      || undefined,
+        lotId:          fields["lotId"]          || undefined,
+        memberId:       fields["memberId"]       || undefined,
+        appelDeFondsId: fields["appelDeFondsId"] || undefined,
+        budgetId:       fields["budgetId"]       || undefined,
+        electionId:     fields["electionId"]     || undefined,
+        invoiceId:      fields["invoiceId"]      || undefined,
+        tenantId:       fields["tenantId"]       || undefined,
+        sinistreId:     fields["sinistreId"]     || undefined,
+        travauxId:      fields["travauxId"]      || undefined,
       };
       const res = await docsApi.generateFull(body);
       const doc = (res as any).data as { id: string; title: string } | undefined;
@@ -378,6 +450,18 @@ export default function DocumentWizard({ visible, onClose, onComplete }: Props) 
 
   const handleSkipSign = () => goToStep(7);
 
+  // ── Entity selection ──────────────────────────────────────────────────────────
+  const handleSelectEntity = (id: string) => {
+    if (!selectedTpl) return;
+    const cfg = ENTITY_TYPE_MAP[selectedTpl.id];
+    if (!cfg) return;
+    setSelectedEntityId(id);
+    setEntityExpanded(false);
+    // Store the entity ID under its API field name so it travels to the server
+    setFields((prev) => ({ ...prev, [cfg.idField]: id }));
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+  };
+
   // ── Helpers ────────────────────────────────────────────────────────────────────
   function getFieldLabel(name: string, tpl: TemplateCatalog): string {
     return tpl.variables.find((v) => v.name === name)?.label ?? name;
@@ -397,19 +481,21 @@ export default function DocumentWizard({ visible, onClose, onComplete }: Props) 
       ],
       pv: [
         ...common,
-        { name: "meetingDate",         label: "Date de réunion",     source: "input utilisateur", placeholder: "15/07/2026" },
-        { name: "lieu",                label: "Lieu",                source: "input utilisateur", placeholder: "Salle de réunion, Résidence..." },
-        { name: "heure",               label: "Heure",               source: "input utilisateur", placeholder: "10h00" },
-        { name: "agendaText",          label: "Ordre du jour",       source: "input utilisateur", multiline: true, placeholder: "1. Approbation du budget\n2. Travaux..." },
-        { name: "deliberationsText",   label: "Délibérations",       source: "input utilisateur", multiline: true, placeholder: "Résumé des discussions..." },
-        { name: "resolutionsText",     label: "Résolutions adoptées",source: "input utilisateur", multiline: true, placeholder: "Résolution 1: ..." },
+        // meetingsTable fields — auto-populated when meetingId is provided; keep for manual override
+        { name: "meetingDate",         label: "Date de réunion",     source: "meetingsTable",     placeholder: "15/07/2026 — auto si réunion sélectionnée" },
+        { name: "lieu",                label: "Lieu",                source: "meetingsTable",     placeholder: "Salle de réunion, Résidence… — auto si réunion sélectionnée" },
+        { name: "heure",               label: "Heure",               source: "meetingsTable",     placeholder: "10h00 — auto si réunion sélectionnée" },
+        { name: "agendaText",          label: "Ordre du jour",       source: "meetingsTable",     multiline: true, placeholder: "1. Approbation du budget\n2. Travaux…" },
+        { name: "deliberationsText",   label: "Délibérations",       source: "input utilisateur", multiline: true, placeholder: "Résumé des discussions…" },
+        { name: "resolutionsText",     label: "Résolutions adoptées",source: "meetingsTable",     multiline: true, placeholder: "Résolution 1: …" },
       ],
       convocation: [
         ...common,
         { name: "memberName",  label: "Destinataire",  source: "input / usersTable",  placeholder: "Tous les membres" },
-        { name: "meetingDate", label: "Date",          source: "input utilisateur",   placeholder: "15/07/2026" },
-        { name: "lieu",        label: "Lieu",          source: "input utilisateur",   placeholder: "Résidence Al Fath, Salle..." },
-        { name: "heure",       label: "Heure",         source: "input utilisateur",   placeholder: "10h00" },
+        // auto-populated from meeting when meetingId is provided
+        { name: "meetingDate", label: "Date",          source: "meetingsTable",       placeholder: "15/07/2026 — auto si réunion sélectionnée" },
+        { name: "lieu",        label: "Lieu",          source: "meetingsTable",       placeholder: "Résidence Al Fath, Salle… — auto si réunion sélectionnée" },
+        { name: "heure",       label: "Heure",         source: "meetingsTable",       placeholder: "10h00 — auto si réunion sélectionnée" },
         { name: "objet",       label: "Objet",         source: "input utilisateur",   placeholder: "Assemblée Générale Ordinaire" },
       ],
       contrat: [
@@ -497,12 +583,12 @@ export default function DocumentWizard({ visible, onClose, onComplete }: Props) 
       ],
       rapport_financier: [
         ...common,
-        { name: "exercice",     label: "Exercice comptable", source: "input utilisateur", placeholder: "2026" },
-        { name: "totalPrevu",   label: "Budget prévu",       source: "input utilisateur", placeholder: "250 000 MAD" },
-        { name: "totalRealise", label: "Réalisé",            source: "input utilisateur", placeholder: "240 000 MAD" },
+        { name: "exercice",     label: "Exercice comptable", source: "budgetsTable",      placeholder: "Auto si budget sélectionné" },
+        { name: "totalPrevu",   label: "Budget prévu (MAD)", source: "budgetsTable",      placeholder: "Auto si budget sélectionné" },
+        { name: "totalRealise", label: "Réalisé (MAD)",      source: "budgetsTable",      placeholder: "Auto si budget sélectionné" },
         { name: "observations", label: "Observations",       source: "input utilisateur", multiline: true },
-        { name: "etabliPar",    label: "Établi par",         source: "input utilisateur" },
-        { name: "approuvePar",  label: "Approuvé par",       source: "input utilisateur" },
+        { name: "etabliPar",    label: "Établi par",         source: "conseilSyndical",   placeholder: "Auto — Trésorier" },
+        { name: "approuvePar",  label: "Approuvé par",       source: "conseilSyndical",   placeholder: "Auto — Président" },
       ],
       rapport_audit: [
         ...common,
@@ -532,14 +618,89 @@ export default function DocumentWizard({ visible, onClose, onComplete }: Props) 
       ],
       compte_rendu: [
         ...common,
-        { name: "dateMeeting",     label: "Date",               source: "input utilisateur" },
-        { name: "lieu",            label: "Lieu",               source: "input utilisateur" },
-        { name: "presidentSeance", label: "Président de séance",source: "input utilisateur" },
-        { name: "participants",    label: "Participants",        source: "input utilisateur", multiline: true },
-        { name: "ordreJour",       label: "Ordre du jour",      source: "input utilisateur", multiline: true },
+        // auto-populated from meeting when meetingId is provided
+        { name: "dateMeeting",     label: "Date",               source: "meetingsTable",     placeholder: "Auto si réunion sélectionnée" },
+        { name: "lieu",            label: "Lieu",               source: "meetingsTable",     placeholder: "Auto si réunion sélectionnée" },
+        { name: "presidentSeance", label: "Président de séance",source: "meetingsTable",     placeholder: "Auto si réunion sélectionnée" },
+        { name: "participants",    label: "Participants",        source: "meetingsTable",     multiline: true },
+        { name: "ordreJour",       label: "Ordre du jour",      source: "meetingsTable",     multiline: true },
         { name: "deroulement",     label: "Déroulement",        source: "input utilisateur", multiline: true },
-        { name: "decisions",       label: "Décisions prises",   source: "input utilisateur", multiline: true },
+        { name: "decisions",       label: "Décisions prises",   source: "meetingsTable",     multiline: true },
         { name: "prochaineReunion",label: "Prochaine réunion",  source: "input utilisateur" },
+      ],
+      // ── Attestations — DB data auto-populated when lotId is provided ──────────
+      attestation_residence: [
+        ...common,
+        { name: "memberName", label: "Nom du résident",    source: "lotsTable / membersTable", placeholder: "Auto si lot sélectionné" },
+        { name: "periode",    label: "Période",            source: "input utilisateur",        placeholder: "Du 01/01/2026 au 31/12/2026" },
+      ],
+      attestation_propriete: [
+        ...common,
+        { name: "memberName",    label: "Nom du propriétaire", source: "lotsTable / membersTable", placeholder: "Auto si lot sélectionné" },
+        { name: "titreFoncier",  label: "Titre foncier",       source: "lotsTable",                placeholder: "Auto si lot sélectionné" },
+        { name: "tantiemes",     label: "Tantièmes",           source: "lotsTable",                placeholder: "Auto si lot sélectionné (/ 10 000)" },
+      ],
+      attestation_paiement: [
+        ...common,
+        { name: "memberName", label: "Nom du copropriétaire", source: "lotsTable / membersTable", placeholder: "Auto si lot sélectionné" },
+        { name: "periode",    label: "Période couverte",      source: "input utilisateur",        placeholder: "Exercice 2026" },
+        { name: "montant",    label: "Montant total réglé",   source: "appelsDeFondsTable",       placeholder: "Auto calculé si lot sélectionné (MAD)" },
+      ],
+      // ── Financial templates — DB data auto-populated from entity loader ────────
+      appel_de_fonds: [
+        ...common,
+        { name: "memberName", label: "Copropriétaire",  source: "appelsDeFondsTable", placeholder: "Auto si appel sélectionné" },
+        { name: "montant",    label: "Montant",         source: "appelsDeFondsTable", placeholder: "Auto si appel sélectionné" },
+        { name: "periode",    label: "Période",         source: "appelsDeFondsTable", placeholder: "Auto si appel sélectionné" },
+        { name: "objet",      label: "Objet spécifique",source: "input utilisateur",  placeholder: "Charges communes trimestrielles…" },
+      ],
+      recu_paiement: [
+        ...common,
+        { name: "memberName", label: "Payeur",          source: "appelsDeFondsTable", placeholder: "Auto si appel sélectionné" },
+        { name: "montant",    label: "Montant reçu",    source: "appelsDeFondsTable", placeholder: "Auto si appel sélectionné" },
+        { name: "periode",    label: "Période",         source: "appelsDeFondsTable", placeholder: "Auto si appel sélectionné" },
+        { name: "modeEnvoi",  label: "Mode de paiement",source: "input utilisateur",  placeholder: "Virement / Chèque / Espèces" },
+      ],
+      facture: [
+        ...common,
+        { name: "memberName", label: "Destinataire",      source: "invoicesTable", placeholder: "Auto si facture sélectionnée" },
+        { name: "montant",    label: "Montant total",     source: "invoicesTable", placeholder: "Auto si facture sélectionnée" },
+        { name: "objet",      label: "Objet additionnel", source: "input utilisateur", placeholder: "Précisions…" },
+      ],
+      budget_previsionnel: [
+        ...common,
+        { name: "exercice",   label: "Exercice",          source: "budgetsTable",    placeholder: "Auto si budget sélectionné" },
+        { name: "observations",label: "Observations",     source: "input utilisateur", multiline: true },
+      ],
+      decompte_charges: [
+        ...common,
+        { name: "memberName", label: "Copropriétaire",    source: "lotsTable / membersTable", placeholder: "Auto si lot sélectionné" },
+        { name: "exercice",   label: "Exercice",          source: "input utilisateur", placeholder: "2026" },
+        { name: "observations",label: "Observations",     source: "input utilisateur", multiline: true },
+      ],
+      rapport_election: [
+        ...common,
+        { name: "organe",    label: "Organe électoral",  source: "electionsTable",    placeholder: "Auto si élection sélectionnée" },
+        { name: "observations",label: "Observations",    source: "input utilisateur", multiline: true },
+      ],
+      // ── Operational templates (entity-driven) ─────────────────────────────
+      contrat_bail: [
+        ...common,
+        { name: "memberName",  label: "Nom du locataire",   source: "tenantsTable",    placeholder: "Auto si locataire sélectionné" },
+        { name: "dateDebut",   label: "Début du bail",      source: "tenantsTable",    placeholder: "Auto si locataire sélectionné" },
+        { name: "dateFin",     label: "Fin du bail",        source: "tenantsTable",    placeholder: "Auto si locataire sélectionné" },
+        { name: "montant",     label: "Loyer mensuel (MAD)",source: "tenantsTable",    placeholder: "Auto si locataire sélectionné" },
+        { name: "conditions",  label: "Clauses spécifiques",source: "input utilisateur", multiline: true, placeholder: "Clauses additionnelles…" },
+        { name: "preamble",    label: "Préambule",          source: "input utilisateur", multiline: true },
+      ],
+      sinistre: [
+        ...common,
+        { name: "constats",    label: "Constats supplémentaires", source: "input utilisateur", multiline: true, placeholder: "Observations de l'expert…" },
+        { name: "observations",label: "Démarches entreprises",    source: "input utilisateur", multiline: true, placeholder: "1. Déclaration faite le…\n2. Expert mandaté…" },
+      ],
+      travaux: [
+        ...common,
+        { name: "observations",label: "Observations",    source: "input utilisateur", multiline: true, placeholder: "Notes sur l'avancement des travaux…" },
       ],
     };
     return maps[tplId] ?? common;
@@ -672,6 +833,108 @@ export default function DocumentWizard({ visible, onClose, onComplete }: Props) 
                 <Text style={[s.tplMeta, { color: colors.mutedForeground }]}>{selectedTpl.description}</Text>
               </View>
             </View>
+
+            {/* ── Entity Picker — shown when template has a DB entity backing ─ */}
+            {(() => {
+              const entityCfg = ENTITY_TYPE_MAP[selectedTpl.id];
+              if (!entityCfg) return null;
+              const selectedItem = entityItems.find((e) => e.id === selectedEntityId);
+              const displayItems = entityExpanded ? entityItems : entityItems.slice(0, 5);
+              return (
+                <View style={[s.sectionBox, { borderColor: selectedEntityId ? selectedTpl.color + "60" : colors.border, backgroundColor: colors.card }]}>
+                  {/* Header */}
+                  <View style={{ flexDirection: "row", alignItems: "center", gap: 8, padding: 14, paddingBottom: 10 }}>
+                    <View style={[s.catIcon, { width: 36, height: 36, borderRadius: 10, backgroundColor: selectedTpl.color + "18" }]}>
+                      <Feather name={entityCfg.icon} size={18} color={selectedTpl.color} />
+                    </View>
+                    <View style={{ flex: 1 }}>
+                      <Text style={[s.boxTitle, { color: colors.foreground, padding: 0 }]}>
+                        {entityCfg.label}
+                      </Text>
+                      <Text style={[s.varSource, { color: colors.mutedForeground, marginTop: 1 }]}>
+                        {entityCfg.hint}
+                      </Text>
+                    </View>
+                    {entityLoading && <ActivityIndicator size="small" color={selectedTpl.color} />}
+                    {selectedEntityId && !entityLoading && (
+                      <View style={[s.autoChip, { backgroundColor: "#10b98115" }]}>
+                        <Feather name="check" size={10} color="#10b981" />
+                        <Text style={[s.autoChipText, { color: "#10b981" }]}>Sélectionné</Text>
+                      </View>
+                    )}
+                  </View>
+
+                  {/* Selected entity summary pill */}
+                  {selectedItem && (
+                    <View style={{ marginHorizontal: 14, marginBottom: 8, padding: 10, borderRadius: 10, backgroundColor: selectedTpl.color + "10", flexDirection: "row", alignItems: "center", gap: 8 }}>
+                      <Feather name="check-circle" size={14} color={selectedTpl.color} />
+                      <View style={{ flex: 1 }}>
+                        <Text style={[s.varLabel, { color: selectedTpl.color }]} numberOfLines={1}>{selectedItem.label}</Text>
+                        {selectedItem.sublabel ? <Text style={[s.varSource, { color: colors.mutedForeground }]} numberOfLines={1}>{selectedItem.sublabel}</Text> : null}
+                      </View>
+                      <TouchableOpacity onPress={() => { setSelectedEntityId(null); setFields((p) => { const n = { ...p }; delete n[entityCfg.idField]; return n; }); }}>
+                        <Feather name="x" size={14} color={colors.mutedForeground} />
+                      </TouchableOpacity>
+                    </View>
+                  )}
+
+                  {/* Entity list */}
+                  {entityLoading ? (
+                    <View style={{ alignItems: "center", paddingVertical: 16, paddingBottom: 14 }}>
+                      <Text style={[s.stepSubtitle, { color: colors.mutedForeground }]}>Chargement…</Text>
+                    </View>
+                  ) : entityItems.length === 0 ? (
+                    <View style={{ alignItems: "center", paddingVertical: 14, paddingBottom: 16, gap: 6 }}>
+                      <Feather name="inbox" size={22} color={colors.mutedForeground} />
+                      <Text style={[s.stepSubtitle, { color: colors.mutedForeground }]}>Aucune donnée disponible</Text>
+                    </View>
+                  ) : (
+                    <View style={{ paddingHorizontal: 14, paddingBottom: 14, gap: 6 }}>
+                      {displayItems.map((item) => {
+                        const isSelected = selectedEntityId === item.id;
+                        return (
+                          <TouchableOpacity
+                            key={item.id}
+                            style={[s.entityCard, {
+                              borderColor: isSelected ? selectedTpl.color : colors.border,
+                              backgroundColor: isSelected ? selectedTpl.color + "0f" : colors.background,
+                            }]}
+                            onPress={() => handleSelectEntity(item.id)}
+                            activeOpacity={0.75}
+                          >
+                            <View style={{ flex: 1 }}>
+                              <Text style={[s.varLabel, { color: isSelected ? selectedTpl.color : colors.foreground }]} numberOfLines={1}>
+                                {item.label}
+                              </Text>
+                              {item.sublabel ? (
+                                <Text style={[s.varSource, { color: colors.mutedForeground }]} numberOfLines={1}>
+                                  {item.sublabel}
+                                </Text>
+                              ) : null}
+                            </View>
+                            <Feather
+                              name={isSelected ? "check-circle" : "circle"}
+                              size={18}
+                              color={isSelected ? selectedTpl.color : colors.border}
+                            />
+                          </TouchableOpacity>
+                        );
+                      })}
+                      {!entityExpanded && entityItems.length > 5 && (
+                        <TouchableOpacity
+                          style={{ alignItems: "center", paddingVertical: 8 }}
+                          onPress={() => setEntityExpanded(true)}
+                        >
+                          <Text style={{ color: selectedTpl.color, fontSize: 13, fontFamily: "Inter_600SemiBold" }}>
+                            Voir {entityItems.length - 5} de plus…
+                          </Text>
+                        </TouchableOpacity>
+                      )}
+                    </View>
+                  )}
+                </View>
+              );
+            })()}
 
             {/* Document structure */}
             <View style={[s.sectionBox, { backgroundColor: colors.card, borderColor: colors.border }]}>
@@ -1284,6 +1547,8 @@ const s = StyleSheet.create({
   secBtnText:      { fontSize: 13, fontFamily: "Inter_600SemiBold" },
   errorBox:        { flexDirection: "row", alignItems: "flex-start", gap: 8, borderRadius: 10, borderWidth: 1, padding: 10 },
   errorText:       { fontSize: 12, fontFamily: "Inter_400Regular", flex: 1, lineHeight: 17 },
+  // Entity picker card in step 3
+  entityCard:      { flexDirection: "row", alignItems: "center", gap: 10, borderWidth: 1, borderRadius: 10, paddingHorizontal: 12, paddingVertical: 10 },
 });
 
 const st = StyleSheet.create({

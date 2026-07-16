@@ -643,6 +643,12 @@ export const documents = {
       memberInfo:     Record<string, string | null>;
       generated:      Record<string, string | null>;
     } }>("/documents/autofill"),
+  // Entity lists for smart document generation — replaces manual text entry with DB pickers.
+  // type = meetings | lots | members | elections | invoices | appels | budgets
+  entities: (type: string) =>
+    request<{ data: Array<{ id: string; label: string; sublabel: string }> }>(
+      `/documents/entities?type=${encodeURIComponent(type)}`
+    ),
 };
 
 // ─── Publications ─────────────────────────────────────────────────────────────

@@ -151,6 +151,11 @@ function getDocumentTheme(template: string, fallbackColor?: string): DocumentThe
     demande_administrative:{ primary: "#374151", secondary: "#1f2937", light: "#f9fafb", icon: "→", categoryLabel: "DEMANDE ADMINISTRATIVE" },
     autorisation:          { primary: "#374151", secondary: "#1f2937", light: "#f9fafb", icon: "→", categoryLabel: "AUTORISATION" },
     ordre_de_mission:      { primary: "#374151", secondary: "#1f2937", light: "#f9fafb", icon: "→", categoryLabel: "ORDRE DE MISSION" },
+
+    // ── Operational & Incident ────────────────────────────────────────────────
+    contrat_bail:          { primary: "#1d4ed8", secondary: "#1e3a8a", light: "#eff6ff", icon: "⌂", categoryLabel: "CONTRAT DE BAIL" },
+    sinistre:              { primary: "#b45309", secondary: "#92400e", light: "#fffbeb", icon: "⚡", categoryLabel: "DÉCLARATION DE SINISTRE" },
+    travaux:               { primary: "#065f46", secondary: "#044b38", light: "#ecfdf5", icon: "⚙", categoryLabel: "ORDRE DE TRAVAUX" },
   };
 
   const found = themes[template];
@@ -1784,7 +1789,11 @@ export type DocumentTemplate =
   | "facture"
   | "budget_previsionnel"
   | "decompte_charges"
-  | "rapport_election";
+  | "rapport_election"
+  // ── 3 operational templates (entity-driven) ──────────────
+  | "contrat_bail"
+  | "sinistre"
+  | "travaux";
 
 /** Sequential-numbering prefix per template — used by the API route to mint REG-2026-0001 style refs. */
 export const TEMPLATE_NUMBER_PREFIX: Record<DocumentTemplate, string> = {
@@ -1818,6 +1827,9 @@ export const TEMPLATE_NUMBER_PREFIX: Record<DocumentTemplate, string> = {
   budget_previsionnel:   "BUD",
   decompte_charges:      "DEC-CH",
   rapport_election:      "ELEC",
+  contrat_bail:          "BAIL",
+  sinistre:              "SIN",
+  travaux:               "TRX",
 };
 
 /** Real co-ownership property/residence data — fetched from `buildingsTable` + `lotsTable`. */
@@ -2793,13 +2805,13 @@ async function buildDocDef(template: DocumentTemplate, input: DocumentInput): Pr
 
     // ── Template 22: Attestation de Résidence (auto-fills lot/building from DB) ──
     case "attestation_residence": {
-      const lot = input.lotNumber as string || "—";
-      const buildingName = (input.officeHolders as unknown as undefined) // officeHolders not used here
-        ? undefined : undefined;
-      const propertyName = (input.property as PropertyInfo | undefined)?.name || syndInfo.name;
-      const propertyAddress = (input.property as PropertyInfo | undefined)?.address || syndInfo.address;
+      // Entity-backed: prefer data from getLotMemberData (_lotNumber, _lotFloor, _buildingName)
+      // over manual entry so no re-typing is needed when lotId is provided.
+      const lot          = (input.lotNumber as string) || (input._lotNumber as string) || "—";
+      const propertyName = (input._buildingName as string) || (input.property as PropertyInfo | undefined)?.name || syndInfo.name;
+      const propertyAddress = (input._buildingAddress as string) || (input.property as PropertyInfo | undefined)?.address || syndInfo.address;
       const propertyCity = (input.property as PropertyInfo | undefined)?.city || syndInfo.city;
-      const lotFloor = input.lotFloor as string | undefined;
+      const lotFloor = (input.lotFloor as string | undefined) || (input._lotFloor as string | undefined);
       content = [
         ...header,
         // Accent bar
@@ -2841,10 +2853,11 @@ async function buildDocDef(template: DocumentTemplate, input: DocumentInput): Pr
     // ── Template 23: Attestation de Propriété (auto-fills TF / tantiemes) ────────
     case "attestation_propriete": {
       const prop = input.property as PropertyInfo | undefined;
-      const titreFoncier = input.titreFoncier as string || prop?.landRegistryReference || "—";
-      const tantiemes = input.tantiemes as string || "—";
-      const lotNum = input.lotNumber as string || "—";
-      const propName = prop?.name || syndInfo.name;
+      // Auto-filled from getLotMemberData when lotId is provided
+      const titreFoncier = (input.titreFoncier as string) || (input._lotTitreFoncier as string) || prop?.landRegistryReference || "—";
+      const tantiemes    = (input.tantiemes as string) || (input._lotTantiemes as string) || "—";
+      const lotNum       = (input.lotNumber as string) || (input._lotNumber as string) || "—";
+      const propName     = (input._buildingName as string) || prop?.name || syndInfo.name;
       content = [
         ...header,
         { canvas: [{ type: "rect", x: 0, y: 0, w: 515, h: 4, color: accentColor }], margin: [0, 0, 0, 12] },
@@ -2895,9 +2908,12 @@ async function buildDocDef(template: DocumentTemplate, input: DocumentInput): Pr
 
     // ── Template 24: Attestation de Paiement des Charges ─────────────────────────
     case "attestation_paiement": {
-      const periode = input.periode as string || `Exercice ${new Date().getFullYear()}`;
-      const montant = input.montant as string || "—";
-      const lotNum = input.lotNumber as string || "—";
+      const periode = (input.periode as string) || `Exercice ${new Date().getFullYear()}`;
+      // Auto-calculated by getAttestationPaiementData when lotId provided
+      const montant = (input.montant as string) || "—";
+      const statusPaiement = (input._paiementStatus as string) || "";
+      const lotNum = (input.lotNumber as string) || (input._lotNumber as string) || "—";
+      const lastPaid = (input._lastPaidDate as string) || "";
       content = [
         ...header,
         { canvas: [{ type: "rect", x: 0, y: 0, w: 515, h: 4, color: accentColor }], margin: [0, 0, 0, 12] },
@@ -2917,10 +2933,14 @@ async function buildDocDef(template: DocumentTemplate, input: DocumentInput): Pr
           body || (
             `Le Syndicat de Copropriété ${syndInfo.name} certifie que :\n\n` +
             `${member || "[NOM DU MEMBRE]"}, copropriétaire du lot N° ${lotNum},\n\n` +
-            `est en règle de paiement de ses charges de copropriété pour la période : ${periode}.\n\n` +
-            `À la date de délivrance de la présente attestation, aucune somme n'est due au titre des charges ` +
-            `communes exigibles pour la période mentionnée ci-dessus.\n\n` +
-            `Cette attestation est établie sur la base des écritures comptables du syndicat et est délivrée ` +
+            (statusPaiement && statusPaiement !== "EN RÈGLE"
+              ? `est en cours de régularisation de ses charges de copropriété pour la période : ${periode}.\n\n` +
+                `Montant total réglé à ce jour : ${montant !== "—" ? montant + " MAD" : "[montant]"}.\n\n` +
+                `Veuillez régulariser votre situation dans les plus brefs délais.`
+              : `est en règle de paiement de ses charges de copropriété pour la période : ${periode}.\n\n` +
+                `Montant total réglé : ${montant !== "—" ? montant + " MAD" : "[montant]"}.\n\n` +
+                `À la date de délivrance de la présente attestation, aucune somme n'est due au titre des charges communes exigibles pour la période mentionnée ci-dessus.`) +
+            `\n\nCette attestation est établie sur la base des écritures comptables du syndicat et est délivrée ` +
             `à la demande de l'intéressé(e) pour servir et valoir ce que de droit.`
           ),
           accentColor,
@@ -2931,14 +2951,32 @@ async function buildDocDef(template: DocumentTemplate, input: DocumentInput): Pr
             widths: ["*"],
             body: [[{
               stack: [
-                { text: "✓  Situation comptable vérifiée à la date de délivrance", fontSize: 9, color: "#15803d", bold: true, margin: [0, 0, 0, 2] },
-                { text: "Cette attestation n'engage pas le syndicat pour les charges futures.", fontSize: 8, color: "#166534" },
+                {
+                  text: statusPaiement && statusPaiement !== "EN RÈGLE"
+                    ? `⚠  ${statusPaiement}`
+                    : "✓  Situation comptable vérifiée à la date de délivrance",
+                  fontSize: 9,
+                  color: statusPaiement && statusPaiement !== "EN RÈGLE" ? "#92400e" : "#15803d",
+                  bold: true,
+                  margin: [0, 0, 0, 2],
+                },
+                {
+                  text: lastPaid
+                    ? `Dernier paiement enregistré le : ${lastPaid}`
+                    : "Cette attestation n'engage pas le syndicat pour les charges futures.",
+                  fontSize: 8,
+                  color: statusPaiement && statusPaiement !== "EN RÈGLE" ? "#78350f" : "#166534",
+                },
               ],
-              fillColor: "#f0fdf4",
+              fillColor: statusPaiement && statusPaiement !== "EN RÈGLE" ? "#fef3c7" : "#f0fdf4",
               margin: [12, 8, 12, 8],
             }]],
           },
-          layout: { hLineWidth: () => 1, vLineWidth: () => 1, hLineColor: () => "#86efac", vLineColor: () => "#86efac" },
+          layout: {
+            hLineWidth: () => 1, vLineWidth: () => 1,
+            hLineColor: () => statusPaiement && statusPaiement !== "EN RÈGLE" ? "#fcd34d" : "#86efac",
+            vLineColor: () => statusPaiement && statusPaiement !== "EN RÈGLE" ? "#fcd34d" : "#86efac",
+          },
           margin: [0, 0, 0, 16],
         },
         { canvas: [{ type: "rect", x: 0, y: 0, w: 515, h: 4, color: accentColor }], margin: [0, 8, 0, 16] },
@@ -3530,6 +3568,358 @@ async function buildDocDef(template: DocumentTemplate, input: DocumentInput): Pr
       break;
     }
 
+    // ── Contrat de Bail (Rental/Lease Contract — entity-driven from tenantsTable) ─
+    case "contrat_bail": {
+      const tenantName      = (input._tenantName as string)       || member || "[LOCATAIRE]";
+      const tenantEmail     = (input._tenantEmail as string)      || "—";
+      const tenantPhone     = (input._tenantPhone as string)      || "—";
+      const lotNum          = (input._lotNumber as string)        || (input.lotNumber as string) || "—";
+      const lotFloor        = (input._lotFloor as string)         || "—";
+      const lotSurface      = (input._lotSurface as string)       || "—";
+      const buildingName_   = (input._buildingName as string)     || (input.property as PropertyInfo | undefined)?.name || syndInfo.name;
+      const buildingAddress_= (input._buildingAddress as string)  || syndInfo.address || "—";
+      const leaseStart      = (input._leaseStart as string)       || (input.dateDebut as string) || today;
+      const leaseEnd        = (input._leaseEnd as string)         || (input.dateFin as string)   || "À préciser";
+      const monthlyRent     = (input._monthlyRent as string)      || (input.montant as string)   || "—";
+      const depositAmount   = (input._depositAmount as string)    || "—";
+      const leaseStatus     = (input._leaseStatus as string)      || "active";
+      const statusLabel     = ({ active: "EN COURS", expired: "EXPIRÉ", terminated: "RÉSILIÉ" } as Record<string, string>)[leaseStatus] || leaseStatus.toUpperCase();
+      const accentIsBlue    = "#1d4ed8";
+
+      content = [
+        ...header,
+        // Premium title block
+        { canvas: [{ type: "rect", x: 0, y: 0, w: 515, h: 4, color: accentColor }], margin: [0, 0, 0, 12] },
+        { text: "CONTRAT DE BAIL RÉSIDENTIEL", fontSize: 20, bold: true, color: accentColor, alignment: "center" as const, margin: [0, 0, 0, 4] },
+        { text: input.title, style: "docTitle", alignment: "center" as const, margin: [0, 0, 0, 16] },
+        // Status badge
+        {
+          table: {
+            widths: ["*"],
+            body: [[{
+              columns: [
+                { text: `Statut : ${statusLabel}`, fontSize: 9, bold: true, color: leaseStatus === "active" ? "#16a34a" : "#dc2626", width: "*" },
+                { text: `Réf : ${docNum}  •  ${today}`, fontSize: 8, color: "#6b7280", alignment: "right" as const, width: "auto" },
+              ],
+              fillColor: leaseStatus === "active" ? "#f0fdf4" : "#fef2f2",
+              margin: [14, 9, 14, 9],
+              border: [false, false, false, false] as [boolean, boolean, boolean, boolean],
+            }]],
+          },
+          layout: { hLineWidth: () => 0.8, vLineWidth: () => 0, hLineColor: () => leaseStatus === "active" ? "#86efac" : "#fca5a5" },
+          margin: [0, 0, 0, 16],
+        },
+        // Two-column parties block
+        {
+          columns: [
+            {
+              stack: [
+                { text: "LE BAILLEUR", fontSize: 8, bold: true, color: accentColor, margin: [0, 0, 0, 4] },
+                { canvas: [{ type: "line", x1: 0, y1: 0, x2: 220, y2: 0, lineWidth: 1, lineColor: accentColor }], margin: [0, 0, 0, 8] },
+                { text: syndInfo.name, fontSize: 11, bold: true, color: "#111827", margin: [0, 0, 0, 3] },
+                { text: [syndInfo.address, syndInfo.city].filter(Boolean).join(", ") || "—", fontSize: 8.5, color: "#6b7280" },
+                { text: syndInfo.phone || "", fontSize: 8.5, color: "#6b7280" },
+                { text: syndInfo.email || "", fontSize: 8.5, color: "#6b7280" },
+                ...(syndInfo.registrationNumber ? [{ text: `N° Reg. : ${syndInfo.registrationNumber}`, fontSize: 8, color: "#9ca3af", margin: [0, 4, 0, 0] }] : []),
+              ],
+              width: "50%",
+            },
+            {
+              stack: [
+                { text: "LE LOCATAIRE", fontSize: 8, bold: true, color: accentColor, margin: [0, 0, 0, 4] },
+                { canvas: [{ type: "line", x1: 0, y1: 0, x2: 220, y2: 0, lineWidth: 1, lineColor: accentColor }], margin: [0, 0, 0, 8] },
+                { text: tenantName, fontSize: 11, bold: true, color: "#111827", margin: [0, 0, 0, 3] },
+                { text: tenantEmail !== "—" ? tenantEmail : "", fontSize: 8.5, color: "#6b7280" },
+                { text: tenantPhone !== "—" ? tenantPhone : "", fontSize: 8.5, color: "#6b7280" },
+              ],
+              width: "50%",
+            },
+          ],
+          columnGap: 20,
+          margin: [0, 0, 0, 16],
+        },
+        // Leased property details
+        metaTable([
+          ["BIEN LOUÉ — RÉSIDENCE",  buildingName_],
+          ["ADRESSE",                buildingAddress_],
+          ["N° APPARTEMENT / LOT",   `Lot ${lotNum}${lotFloor !== "—" ? ` — Étage ${lotFloor}` : ""}`],
+          ["SURFACE HABITABLE",      lotSurface !== "—" ? `${lotSurface} m²` : "—"],
+          ["LOYER MENSUEL",          `${monthlyRent} MAD`],
+          ["DÉPÔT DE GARANTIE",      depositAmount !== "—" ? `${depositAmount} MAD` : "—"],
+          ["DURÉE DU BAIL",          `Du ${leaseStart} au ${leaseEnd}`],
+        ], accentColor),
+        // Contract clauses
+        contentSection(
+          "Article 1 — Désignation des lieux",
+          body || input.content as string ||
+            `Le bailleur ${syndInfo.name} donne à bail au locataire ${tenantName} l'appartement ` +
+            `N° ${lotNum} sis dans la résidence ${buildingName_}, sise à ${buildingAddress_}.`,
+          accentColor,
+        ),
+        contentSection(
+          "Article 2 — Durée et loyer",
+          input.conditions as string ||
+            `Le présent bail est conclu pour une durée déterminée du ${leaseStart} au ${leaseEnd}.\n\n` +
+            `Le loyer mensuel est fixé à ${monthlyRent} MAD, payable le 1er de chaque mois.\n\n` +
+            `Un dépôt de garantie de ${depositAmount !== "—" ? depositAmount + " MAD" : "[montant]"} est versé à la signature du présent contrat.`,
+          accentColor,
+        ),
+        contentSection(
+          "Article 3 — Obligations des parties",
+          input.preamble as string ||
+            `Le locataire s'engage à :\n• Payer régulièrement le loyer\n• Entretenir le bien loué\n• Respecter le règlement de copropriété\n• Ne pas sous-louer sans accord écrit du bailleur\n\n` +
+            `Le bailleur s'engage à :\n• Garantir la jouissance paisible des lieux\n• Effectuer les réparations urgentes\n• Délivrer un logement en bon état`,
+          accentColor,
+        ),
+        {
+          table: {
+            widths: ["*"],
+            body: [[{
+              text: "Ce contrat est établi conformément aux dispositions légales en vigueur. Toute modification doit faire l'objet d'un avenant signé des deux parties.",
+              style: "notice",
+              fillColor: "#eff6ff",
+              margin: [12, 9, 12, 9],
+            }]],
+          },
+          layout: { hLineWidth: () => 1, vLineWidth: () => 1, hLineColor: () => "#bfdbfe", vLineColor: () => "#bfdbfe" },
+          margin: [0, 0, 0, 16],
+        },
+        {
+          columns: [
+            {
+              stack: [
+                { text: "Pour le Bailleur :", style: "metaKey", margin: [0, 0, 0, 28] },
+                { canvas: [{ type: "line", x1: 0, y1: 0, x2: 160, y2: 0, lineWidth: 0.8, lineColor: "#cbd5e1" }] },
+                { text: syndInfo.name, style: "signName", margin: [0, 4, 0, 0] },
+              ],
+            },
+            {
+              stack: [
+                { text: "Pour le Locataire :", style: "metaKey", margin: [0, 0, 0, 28] },
+                { canvas: [{ type: "line", x1: 0, y1: 0, x2: 160, y2: 0, lineWidth: 0.8, lineColor: "#cbd5e1" }] },
+                { text: tenantName, style: "signName", margin: [0, 4, 0, 0] },
+              ],
+            },
+          ],
+          margin: [0, 24, 0, 0],
+          columnGap: 20,
+        },
+        legalFooterNote(docNum, lang, verifyUrl),
+      ];
+      break;
+    }
+
+    // ── Déclaration de Sinistre (entity-driven from sinistresTable) ──────────────
+    case "sinistre": {
+      const sinistreType     = (input._sinistreType as string)      || "—";
+      const sinistreDate     = (input._sinistreDate as string)      || today;
+      const sinistreDesc     = (input._sinistreDescription as string) || body || "—";
+      const sinistreStatus   = (input._sinistreStatus as string)    || "declared";
+      const sinistreUrgency  = (input._sinistreUrgency as string)   || "normal";
+      const claimNumber      = (input._claimNumber as string)       || docNum;
+      const estimatedAmt     = (input._estimatedAmount as string)   || "—";
+      const indemnisedAmt    = (input._indemnisedAmount as string)  || "—";
+      const reportedBy       = (input._reportedByName as string)    || member || "—";
+      const resolutionNote   = (input._resolutionNote as string)    || "—";
+      const buildingName_    = (input._buildingName as string)      || (input.property as PropertyInfo | undefined)?.name || syndInfo.name;
+      const lotNum           = (input._lotNumber as string)         || "—";
+
+      const statusColors: Record<string, { bg: string; border: string; text: string; label: string }> = {
+        declared:     { bg: "#eff6ff", border: "#bfdbfe", text: "#1d4ed8", label: "DÉCLARÉ" },
+        under_review: { bg: "#fffbeb", border: "#fde68a", text: "#b45309", label: "EN EXAMEN" },
+        assigned:     { bg: "#f0fdf4", border: "#86efac", text: "#16a34a", label: "ASSIGNÉ" },
+        in_progress:  { bg: "#fef3c7", border: "#fcd34d", text: "#d97706", label: "EN COURS" },
+        resolved:     { bg: "#f0fdf4", border: "#86efac", text: "#16a34a", label: "RÉSOLU" },
+        closed:       { bg: "#f9fafb", border: "#e5e7eb", text: "#6b7280", label: "CLÔTURÉ" },
+      };
+      const urgencyColors: Record<string, { color: string; label: string }> = {
+        low:      { color: "#6b7280", label: "FAIBLE" },
+        normal:   { color: "#2563eb", label: "NORMALE" },
+        high:     { color: "#d97706", label: "ÉLEVÉE" },
+        critical: { color: "#dc2626", label: "CRITIQUE" },
+      };
+      const sc = statusColors[sinistreStatus] || statusColors.declared;
+      const uc = urgencyColors[sinistreUrgency] || urgencyColors.normal;
+
+      const typeLabels: Record<string, string> = {
+        dégât_des_eaux: "Dégât des eaux", incendie: "Incendie", effraction: "Effraction / Vol",
+        vandalisme: "Vandalisme", catastrophe_naturelle: "Catastrophe naturelle",
+        ascenseur: "Panne ascenseur", structure: "Problème structurel", autre: "Autre",
+      };
+
+      content = [
+        ...header,
+        { canvas: [{ type: "rect", x: 0, y: 0, w: 515, h: 4, color: accentColor }], margin: [0, 0, 0, 12] },
+        { text: "DÉCLARATION DE SINISTRE", fontSize: 20, bold: true, color: accentColor, alignment: "center" as const, margin: [0, 0, 0, 4] },
+        { text: `N° de dossier : ${claimNumber}`, fontSize: 9, color: "#6b7280", alignment: "center" as const, margin: [0, 0, 0, 16] },
+        // Status + Urgency badges
+        {
+          columns: [
+            {
+              table: {
+                widths: ["*"],
+                body: [[{ text: `Statut : ${sc.label}`, fontSize: 9, bold: true, color: sc.text, fillColor: sc.bg, margin: [12, 8, 12, 8], border: [false, false, false, false] as [boolean, boolean, boolean, boolean] }]],
+              },
+              layout: { hLineWidth: (i: number, n: any) => i === 0 || i === n.table.body.length ? 0.8 : 0, vLineWidth: () => 0, hLineColor: () => sc.border },
+              width: "*",
+            },
+            { width: 12, text: "" },
+            {
+              table: {
+                widths: ["*"],
+                body: [[{ text: `⚡ Urgence : ${uc.label}`, fontSize: 9, bold: true, color: uc.color, fillColor: "#f9fafb", margin: [12, 8, 12, 8], border: [false, false, false, false] as [boolean, boolean, boolean, boolean] }]],
+              },
+              layout: { hLineWidth: (i: number, n: any) => i === 0 || i === n.table.body.length ? 0.8 : 0, vLineWidth: () => 0, hLineColor: () => "#e5e7eb" },
+              width: "*",
+            },
+          ],
+          margin: [0, 0, 0, 16],
+        },
+        metaTable([
+          ["TYPE DE SINISTRE",        typeLabels[sinistreType] || sinistreType],
+          ["DATE DU SINISTRE",        sinistreDate],
+          ["IMMEUBLE",                buildingName_],
+          ["LOT / APPARTEMENT",       lotNum !== "—" ? `Lot ${lotNum}` : "—"],
+          ["DÉCLARANT",               reportedBy],
+          ["MONTANT ESTIMÉ",          estimatedAmt !== "—" ? `${estimatedAmt} MAD` : "Non évalué"],
+          ["MONTANT INDEMNISÉ",       indemnisedAmt !== "—" ? `${indemnisedAmt} MAD` : "En attente"],
+          ["N° DE DOSSIER ASSURANCE", claimNumber],
+        ], accentColor),
+        contentSection("DESCRIPTION DU SINISTRE", sinistreDesc, accentColor),
+        ...(input.constats as string ? [contentSection("CONSTATS ET OBSERVATIONS", input.constats as string, accentColor)] : []),
+        ...(resolutionNote !== "—" ? [contentSection("NOTE DE RÉSOLUTION", resolutionNote, accentColor)] : []),
+        contentSection(
+          "DÉMARCHES ET SUIVI",
+          input.observations as string ||
+            `1. Déclaration déposée auprès du bureau syndical le ${sinistreDate}\n` +
+            `2. Inspection du sinistre par le prestataire mandaté\n` +
+            `3. Transmission du dossier à la compagnie d'assurance\n` +
+            `4. Suivi et réparation en cours selon priorité ${uc.label}`,
+          accentColor,
+        ),
+        { text: "\n" },
+        multiSignatoryBlock(input.officeHolders as OfficeHolders | undefined, accentColor, lang, signatures, syndInfo.name),
+        legalFooterNote(docNum, lang, verifyUrl),
+      ];
+      break;
+    }
+
+    // ── Ordre de Travaux (entity-driven from travauxTable) ───────────────────────
+    case "travaux": {
+      const travauxTitle     = (input._travauxTitle as string)      || input.title || "Travaux";
+      const travauxType      = (input._travauxType as string)       || "entretien";
+      const travauxPriority  = (input._travauxPriority as string)   || "normal";
+      const travauxStatus    = (input._travauxStatus as string)     || "reported";
+      const travauxDesc      = (input._travauxDescription as string) || body || "—";
+      const prestataireNom   = (input._prestataireNom as string)    || "—";
+      const prestatairePhone = (input._prestatairePhone as string)  || "—";
+      const reportedBy_      = (input._reportedByName as string)    || "—";
+      const validatedBy_     = (input._validatedByName as string)   || "—";
+      const startDate_       = (input._startDate as string)         || (input.dateDebut as string) || "—";
+      const endDate_         = (input._endDate as string)           || (input.dateFin as string) || "—";
+      const estimatedAmt_    = (input._estimatedAmount as string)   || "—";
+      const actualAmt        = (input._actualAmount as string)      || "—";
+      const invoiceAmt       = (input._invoiceAmount as string)     || "—";
+      const buildingName_    = (input._buildingName as string)      || (input.property as PropertyInfo | undefined)?.name || syndInfo.name;
+      const lotNum_          = (input._lotNumber as string)         || "—";
+
+      const typeLabels: Record<string, string> = {
+        entretien: "Entretien courant", reparation: "Réparation", renovation: "Rénovation",
+        installation: "Installation", inspection: "Inspection / Contrôle", urgence: "Urgence",
+      };
+      const priorityConfig: Record<string, { color: string; label: string }> = {
+        low:      { color: "#6b7280", label: "FAIBLE" },
+        normal:   { color: "#2563eb", label: "NORMALE" },
+        high:     { color: "#d97706", label: "ÉLEVÉE" },
+        critical: { color: "#dc2626", label: "CRITIQUE" },
+      };
+      const statusConfig: Record<string, { bg: string; text: string; label: string }> = {
+        reported:            { bg: "#eff6ff", text: "#1d4ed8", label: "SIGNALÉ" },
+        assigned:            { bg: "#fffbeb", text: "#d97706", label: "ASSIGNÉ" },
+        in_progress:         { bg: "#fef3c7", text: "#b45309", label: "EN COURS" },
+        pending_validation:  { bg: "#f5f3ff", text: "#7c3aed", label: "EN VALIDATION" },
+        completed:           { bg: "#f0fdf4", text: "#16a34a", label: "TERMINÉ" },
+        cancelled:           { bg: "#fef2f2", text: "#dc2626", label: "ANNULÉ" },
+      };
+      const pc = priorityConfig[travauxPriority] || priorityConfig.normal;
+      const sc = statusConfig[travauxStatus] || statusConfig.reported;
+      const financialAmt = Number(invoiceAmt !== "—" ? invoiceAmt : actualAmt !== "—" ? actualAmt : estimatedAmt_ !== "—" ? estimatedAmt_ : "0");
+
+      content = [
+        ...header,
+        { canvas: [{ type: "rect", x: 0, y: 0, w: 515, h: 4, color: accentColor }], margin: [0, 0, 0, 12] },
+        { text: "ORDRE DE TRAVAUX", fontSize: 20, bold: true, color: accentColor, alignment: "center" as const, margin: [0, 0, 0, 4] },
+        { text: travauxTitle, style: "docTitle", alignment: "center" as const, margin: [0, 0, 0, 16] },
+        // Status + Priority badges
+        {
+          columns: [
+            {
+              table: {
+                widths: ["*"],
+                body: [[{ text: `Statut : ${sc.label}`, fontSize: 9, bold: true, color: sc.text, fillColor: sc.bg, margin: [12, 8, 12, 8], border: [false, false, false, false] as [boolean, boolean, boolean, boolean] }]],
+              },
+              layout: { hLineWidth: (i: number, n: any) => i === 0 || i === n.table.body.length ? 0.8 : 0, vLineWidth: () => 0, hLineColor: () => "#e5e7eb" },
+              width: "*",
+            },
+            { width: 12, text: "" },
+            {
+              table: {
+                widths: ["*"],
+                body: [[{ text: `Priorité : ${pc.label}`, fontSize: 9, bold: true, color: pc.color, fillColor: "#f9fafb", margin: [12, 8, 12, 8], border: [false, false, false, false] as [boolean, boolean, boolean, boolean] }]],
+              },
+              layout: { hLineWidth: (i: number, n: any) => i === 0 || i === n.table.body.length ? 0.8 : 0, vLineWidth: () => 0, hLineColor: () => "#e5e7eb" },
+              width: "*",
+            },
+          ],
+          margin: [0, 0, 0, 16],
+        },
+        metaTable([
+          ["TYPE DE TRAVAUX",   typeLabels[travauxType] || travauxType],
+          ["IMMEUBLE",          buildingName_],
+          ["LOT CONCERNÉ",      lotNum_ !== "—" ? `Lot ${lotNum_}` : "Parties communes"],
+          ["PRESTATAIRE",       prestataireNom],
+          ["TÉL. PRESTATAIRE",  prestatairePhone !== "—" ? prestatairePhone : "—"],
+          ["SIGNALÉ PAR",       reportedBy_],
+          ["DATE DÉBUT",        startDate_],
+          ["DATE FIN PRÉVUE",   endDate_],
+          ["MONTANT ESTIMÉ",    estimatedAmt_ !== "—" ? `${estimatedAmt_} MAD` : "—"],
+          ["MONTANT RÉEL",      actualAmt !== "—" ? `${actualAmt} MAD` : "—"],
+          ["MONTANT FACTURÉ",   invoiceAmt !== "—" ? `${invoiceAmt} MAD` : "—"],
+          ["VALIDÉ PAR",        validatedBy_ !== "—" ? validatedBy_ : "En attente"],
+        ], accentColor),
+        contentSection("DESCRIPTION DES TRAVAUX", travauxDesc, accentColor),
+        ...(input.observations as string ? [contentSection("OBSERVATIONS ET NOTES", input.observations as string, accentColor)] : []),
+        // Financial summary box
+        ...(financialAmt > 0 ? [{
+          table: {
+            widths: ["*", "auto"],
+            body: [[
+              { text: "MONTANT TOTAL TRAVAUX", fontSize: 11, bold: true, color: "#374151", margin: [16, 14, 8, 14], border: [false, false, false, false] as [boolean, boolean, boolean, boolean] },
+              {
+                text: `${financialAmt.toLocaleString("fr-MA")} MAD`,
+                fontSize: 18, bold: true, color: "#ffffff",
+                fillColor: accentColor,
+                alignment: "right" as const,
+                margin: [16, 10, 16, 10],
+                border: [false, false, false, false] as [boolean, boolean, boolean, boolean],
+              },
+            ]],
+          },
+          layout: {
+            hLineWidth: (i: number, node: any) => i === 0 || i === node.table.body.length ? 0.8 : 0,
+            vLineWidth: () => 0,
+            hLineColor: () => "#e5e7eb",
+            fillColor: (_: number, __: unknown, col: number) => col === 0 ? "#f8fafc" : null,
+            paddingLeft: () => 0, paddingRight: () => 0, paddingTop: () => 0, paddingBottom: () => 0,
+          },
+          margin: [0, 16, 0, 24],
+        }] : []),
+        multiSignatoryBlock(input.officeHolders as OfficeHolders | undefined, accentColor, lang, signatures, syndInfo.name),
+        legalFooterNote(docNum, lang, verifyUrl),
+      ];
+      break;
+    }
+
     default:
       content = [
         ...header,
@@ -3583,6 +3973,9 @@ function getDocTypeLabel(template: DocumentTemplate, lang: DocumentLanguage = "f
     budget_previsionnel:      "BUDGET PRÉVISIONNEL",
     decompte_charges:         "DÉCOMPTE DES CHARGES",
     rapport_election:         "RAPPORT D'ÉLECTION",
+    contrat_bail:             "CONTRAT DE BAIL",
+    sinistre:                 "DÉCLARATION DE SINISTRE",
+    travaux:                  "ORDRE DE TRAVAUX",
   };
   return labels[template] ?? template.toUpperCase().replace(/_/g, " ");
 }
