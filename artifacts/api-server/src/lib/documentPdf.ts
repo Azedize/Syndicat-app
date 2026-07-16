@@ -809,9 +809,7 @@ function financialDashboard(input: Record<string, unknown>, accentColor: string)
   const kpiNetBalance    = (input._kpiNetBalance    as string) || "0";
   const kpiYear          = (input._kpiYear          as string) || String(new Date().getFullYear());
 
-  // Only render if we have real data
-  const hasData = kpiTotalCharged !== "0" || kpiCashBalance !== "0" || kpiRevenue !== "0";
-  if (!hasData) return [];
+  // Always render — zero values are valid and informative (empty DB is better than invisible dashboard)
 
   const outstandingNum = parseFloat((input._kpiOutstanding as string || "0").replace(/\s/g, "").replace(",", "."));
   const outstandingColor = outstandingNum > 0 ? "#dc2626" : "#16a34a";
@@ -2495,62 +2493,161 @@ async function buildDocDef(template: DocumentTemplate, input: DocumentInput): Pr
       break;
 
     // ── Template 15: Rapport Financier ───────────────────────────────────────────
-    case "rapport_financier":
+    case "rapport_financier": {
+      // Auto-derive names from officeHolders when user hasn't typed them
+      const oh = input.officeHolders as OfficeHolders | undefined;
+      const rapportEtabliPar   = (input.etabliPar   as string) || oh?.treasurer?.fullName  || "Le Trésorier";
+      const rapportApprouvePar = (input.approuvePar  as string) || oh?.president?.fullName  || "Le Président";
+      const rapportExercice    = (input.exercice     as string) || (input._kpiYear as string) || String(new Date().getFullYear());
+      const rapportBuilding    = (input._buildingName as string) || buildingName || syndInfo.name;
+
+      // Bind KPI totals for the summary row — prefer user-provided, fall back to DB values
+      const rapportTotalPrevu    = (input.totalPrevu    as string)
+        || (input._kpiBudgetTotal as string)
+        || (input._kpiTotalCharged as string)
+        || "—";
+      const rapportTotalRealise  = (input.totalRealise  as string)
+        || (input._kpiTotalPaid   as string)
+        || "—";
+      const rapportNetBalance    = (input._kpiNetBalance    as string) || "—";
+      const rapportOutstanding   = (input._kpiOutstanding   as string) || "0";
+      const rapportCollRate      = parseInt((input._kpiCollectionRate as string) || "0");
+      const rapportCashBalance   = (input._kpiCashBalance   as string) || "—";
+      const rapportRevenue       = (input._kpiTotalRevenue  as string) || "—";
+      const rapportExpenses      = (input._kpiTotalExpenses as string) || "—";
+      const outstandingNum       = parseFloat(rapportOutstanding.replace(/\s/g, "").replace(",", "."));
+
       content = [
         ...header,
-        { text: input.title, style: "docTitle", margin: [0, 0, 0, 8] },
-        { text: input.periode as string || `Période : ${today}`, style: "docRef", margin: [0, 0, 0, 16] },
+        // Premium title band
+        { canvas: [{ type: "rect", x: 0, y: 0, w: 515, h: 4, color: accentColor }], margin: [0, 0, 0, 12] },
+        { text: "RAPPORT FINANCIER", fontSize: 20, bold: true, color: accentColor, alignment: "center" as const, margin: [0, 0, 0, 4] },
+        { text: input.title, style: "docTitle", alignment: "center" as const, margin: [0, 0, 0, 16] },
+
+        // ── Identification card ───────────────────────────────────────────────
         metaTable([
-          ["Établi par :",     input.etabliPar as string || "Le Trésorier"],
-          ["Approuvé par :",   input.approuvePar as string || "Le Président"],
-          ["Exercice :",       input.exercice as string || new Date().getFullYear().toString()],
-          ["Date :",           today],
-          ["Référence :",      docNum],
+          ["EXERCICE",         rapportExercice],
+          ["IMMEUBLE / SYNDICAT", rapportBuilding],
+          ["PÉRIODE",          (input.periode as string) || `${rapportExercice}`],
+          ["DATE D'ÉMISSION",  today],
+          ["ÉTABLI PAR",       rapportEtabliPar],
+          ["APPROUVÉ PAR",     rapportApprouvePar],
+          ["RÉFÉRENCE",        docNum],
         ], accentColor),
-        contentSection(
-          "Synthèse financière",
-          body || input.synthese as string || "Voir tableaux ci-dessous pour le détail des recettes et dépenses de la période.",
-          accentColor,
-        ),
+
+        // ── Enterprise financial dashboard (KPI cards + progress bars) ────────
+        ...financialDashboard(input as Record<string, unknown>, accentColor),
+
+        // ── Top-line financial summary ────────────────────────────────────────
         {
           table: {
-            widths: ["*", 120, 120],
+            widths: ["*", "*", "*"],
+            body: [[
+              {
+                stack: [
+                  { text: "TOTAL REVENUS",    fontSize: 7, bold: true, color: "#9ca3af", margin: [0, 0, 0, 4] },
+                  { text: `${rapportRevenue} MAD`, fontSize: 15, bold: true, color: "#16a34a" },
+                  { text: "Encaissements caisse", fontSize: 6.5, color: "#6b7280", margin: [0, 3, 0, 0] },
+                ],
+                fillColor: "#f0fdf4",
+                margin: [12, 14, 12, 14],
+                border: [false, false, false, false] as [boolean, boolean, boolean, boolean],
+              },
+              {
+                stack: [
+                  { text: "TOTAL DÉPENSES",  fontSize: 7, bold: true, color: "#9ca3af", margin: [0, 0, 0, 4] },
+                  { text: `${rapportExpenses} MAD`, fontSize: 15, bold: true, color: "#dc2626" },
+                  { text: "Décaissements caisse", fontSize: 6.5, color: "#6b7280", margin: [0, 3, 0, 0] },
+                ],
+                fillColor: "#fef2f2",
+                margin: [12, 14, 12, 14],
+                border: [false, false, false, false] as [boolean, boolean, boolean, boolean],
+              },
+              {
+                stack: [
+                  { text: "SOLDE NET",        fontSize: 7, bold: true, color: "#9ca3af", margin: [0, 0, 0, 4] },
+                  { text: `${rapportNetBalance} MAD`, fontSize: 15, bold: true, color: "#1e3a8a" },
+                  { text: "Trésorerie nette", fontSize: 6.5, color: "#6b7280", margin: [0, 3, 0, 0] },
+                ],
+                fillColor: "#eff6ff",
+                margin: [12, 14, 12, 14],
+                border: [false, false, false, false] as [boolean, boolean, boolean, boolean],
+              },
+            ]],
+          },
+          layout: {
+            hLineWidth: (i: number, node: { table: { body: unknown[] } }) => i === 0 || i === node.table.body.length ? 0.6 : 0,
+            vLineWidth: () => 0,
+            hLineColor: () => "#e2e8f0",
+            paddingLeft: () => 0, paddingRight: () => 0, paddingTop: () => 0, paddingBottom: () => 0,
+          },
+          margin: [0, 0, 0, 16],
+        },
+
+        // ── Charges vs Budget comparison table ───────────────────────────────
+        {
+          table: {
+            widths: ["*", 130, 130],
             body: [
               [
-                { text: "Rubrique", style: "tableHeader", fillColor: accentColor, margin: [8, 6, 8, 6] },
-                { text: "Prévu (MAD)", style: "tableHeader", fillColor: accentColor, margin: [8, 6, 8, 6], alignment: "right" as const },
-                { text: "Réalisé (MAD)", style: "tableHeader", fillColor: accentColor, margin: [8, 6, 8, 6], alignment: "right" as const },
+                { text: "Rubrique", style: "tableHeader", fillColor: accentColor, color: "#ffffff", bold: true, fontSize: 8.5, margin: [10, 6, 8, 6], border: [false, false, false, false] as [boolean, boolean, boolean, boolean] },
+                { text: "Budget Prévu (MAD)", style: "tableHeader", fillColor: accentColor, color: "#ffffff", bold: true, fontSize: 8.5, margin: [8, 6, 10, 6], alignment: "right" as const, border: [false, false, false, false] as [boolean, boolean, boolean, boolean] },
+                { text: "Réalisé (MAD)", style: "tableHeader", fillColor: accentColor, color: "#ffffff", bold: true, fontSize: 8.5, margin: [8, 6, 10, 6], alignment: "right" as const, border: [false, false, false, false] as [boolean, boolean, boolean, boolean] },
               ],
               ...(input.lignesFinancieres as Array<[string, string, string]> || [
-                ["Cotisations membres", "—", "—"],
-                ["Charges communes", "—", "—"],
-                ["Dépenses d'entretien", "—", "—"],
-                ["Autres recettes", "—", "—"],
+                ["Appels de fonds émis",  (input._kpiTotalCharged as string) || "—", (input._kpiYearCharged as string) || "—"],
+                ["Encaissements",         (input._kpiTotalPaid    as string) || "—", (input._kpiYearPaid    as string) || "—"],
+                ["Dépenses d'entretien",  (input._kpiTotalExpenses as string) || "—", (input._kpiTotalExpenses as string) || "—"],
+                ["Fonds de réserve",      (input._kpiFondsTravauxTgt as string) || "—", (input._kpiFondsTravauxBal as string) || "—"],
               ]).map(([label, prevu, realise]: [string, string, string], i: number) => [
-                { text: label, style: "tableCell", fillColor: i % 2 === 0 ? "#f8fafc" : "#ffffff", margin: [8, 5, 8, 5] },
-                { text: prevu, style: "tableCell", fillColor: i % 2 === 0 ? "#f8fafc" : "#ffffff", alignment: "right" as const, margin: [8, 5, 8, 5] },
-                { text: realise, style: "tableCell", fillColor: i % 2 === 0 ? "#f8fafc" : "#ffffff", alignment: "right" as const, margin: [8, 5, 8, 5] },
+                { text: label, fontSize: 8.5, color: "#374151", fillColor: i % 2 === 0 ? "#f8fafc" : "#ffffff", margin: [10, 5, 8, 5], border: [false, false, false, false] as [boolean, boolean, boolean, boolean] },
+                { text: prevu, fontSize: 8.5, color: "#374151", fillColor: i % 2 === 0 ? "#f8fafc" : "#ffffff", alignment: "right" as const, margin: [8, 5, 10, 5], border: [false, false, false, false] as [boolean, boolean, boolean, boolean] },
+                { text: realise, fontSize: 8.5, color: "#374151", fillColor: i % 2 === 0 ? "#f8fafc" : "#ffffff", alignment: "right" as const, margin: [8, 5, 10, 5], border: [false, false, false, false] as [boolean, boolean, boolean, boolean] },
               ]),
               [
-                { text: "TOTAL", style: "financialTotal", fillColor: adjustColorBrightness(accentColor, 82), margin: [8, 8, 8, 8] },
-                { text: input.totalPrevu as string || "—", style: "financialTotal", fillColor: adjustColorBrightness(accentColor, 82), alignment: "right" as const, margin: [8, 8, 8, 8] },
-                { text: input.totalRealise as string || "—", style: "financialTotal", fillColor: adjustColorBrightness(accentColor, 82), alignment: "right" as const, margin: [8, 8, 8, 8] },
+                { text: "TOTAL GÉNÉRAL", fontSize: 9, bold: true, color: "#ffffff", fillColor: accentColor, margin: [10, 8, 8, 8], border: [false, false, false, false] as [boolean, boolean, boolean, boolean] },
+                { text: rapportTotalPrevu, fontSize: 9, bold: true, color: "#ffffff", fillColor: accentColor, alignment: "right" as const, margin: [8, 8, 10, 8], border: [false, false, false, false] as [boolean, boolean, boolean, boolean] },
+                { text: rapportTotalRealise, fontSize: 9, bold: true, color: "#ffffff", fillColor: accentColor, alignment: "right" as const, margin: [8, 8, 10, 8], border: [false, false, false, false] as [boolean, boolean, boolean, boolean] },
               ],
             ],
           },
-          layout: { hLineWidth: (i: number) => i === 0 || i === 1 ? 1 : 0.3, vLineWidth: () => 0.3, hLineColor: () => "#e2e8f0", vLineColor: () => "#e2e8f0" },
+          layout: {
+            hLineWidth: (i: number, node: { table: { body: unknown[] } }) => i === 0 || i === 1 || i === node.table.body.length ? 0.8 : 0.3,
+            vLineWidth: () => 0,
+            hLineColor: (i: number, node: { table: { body: unknown[] } }) => i === 0 || i === 1 || i === node.table.body.length ? accentColor : "#e5e7eb",
+            paddingLeft: () => 0, paddingRight: () => 0, paddingTop: () => 0, paddingBottom: () => 0,
+          },
           margin: [0, 0, 0, 16],
         },
-        contentSection("Observations et recommandations", input.observations as string || "Aucune observation particulière pour la période.", accentColor),
-        {
-          columns: [
-            signatureBlock("Le Trésorier", syndInfo.name, accentColor, false),
-            signatureBlock("Le Président", syndInfo.name, accentColor, true),
-          ],
-        } as unknown,
+
+        // ── Outstanding debt alert (if any) ─────────────────────────────────
+        ...(outstandingNum > 0 ? [{
+          table: {
+            widths: ["*"],
+            body: [[{
+              columns: [
+                { text: "⚠", fontSize: 16, color: "#dc2626", width: 24, margin: [0, 2, 0, 0] },
+                { stack: [
+                  { text: "IMPAYÉS EN COURS", fontSize: 9, bold: true, color: "#991b1b", margin: [0, 0, 0, 2] },
+                  { text: `Montant total des impayés : ${rapportOutstanding} MAD  •  Taux de recouvrement : ${rapportCollRate}%`, fontSize: 8.5, color: "#7f1d1d" },
+                ], width: "*" },
+              ],
+              fillColor: "#fef2f2",
+              margin: [14, 10, 14, 10],
+              border: [true, true, true, true] as [boolean, boolean, boolean, boolean],
+              borderColor: ["#fca5a5", "#fca5a5", "#fca5a5", "#fca5a5"],
+            }]],
+          },
+          layout: { hLineWidth: () => 1, vLineWidth: () => 1, hLineColor: () => "#fca5a5", vLineColor: () => "#fca5a5", paddingLeft: () => 0, paddingRight: () => 0, paddingTop: () => 0, paddingBottom: () => 0 },
+          margin: [0, 0, 0, 16],
+        }] as unknown[] : []),
+
+        contentSection("OBSERVATIONS ET RECOMMANDATIONS", input.observations as string || "Aucune observation particulière pour la période concernée.", accentColor),
+        multiSignatoryBlock(oh, accentColor, lang, signatures, syndInfo.name),
         legalFooterNote(docNum, lang, verifyUrl),
       ];
       break;
+    }
 
     // ── Template 16: Rapport d'Audit ─────────────────────────────────────────────
     case "rapport_audit":

@@ -413,14 +413,26 @@ async function getFinancialDashboardData(
   const currentYear = year || new Date().getFullYear();
   try {
     // ── 1. Appels de fonds ────────────────────────────────────────────────────
-    const appels = buildingId
-      ? await db.select({
-          amount: appelsDeFondsTable.amount,
-          status: appelsDeFondsTable.status,
-          period: appelsDeFondsTable.period,
-        }).from(appelsDeFondsTable)
-          .where(eq(appelsDeFondsTable.buildingId, buildingId))
-      : [];
+    //    Prefer building-scoped query; fall back to ALL buildings in the syndicate
+    //    so KPI values are never silently zero when no buildingId is provided.
+    let appels: Array<{ amount: unknown; status: string | null; period: string | null }> = [];
+    if (buildingId) {
+      appels = await db.select({
+        amount: appelsDeFondsTable.amount,
+        status: appelsDeFondsTable.status,
+        period: appelsDeFondsTable.period,
+      }).from(appelsDeFondsTable)
+        .where(eq(appelsDeFondsTable.buildingId, buildingId));
+    } else if (syndicateId) {
+      // Syndicate-wide: join through buildings to scope by syndicateId
+      appels = await db.select({
+        amount: appelsDeFondsTable.amount,
+        status: appelsDeFondsTable.status,
+        period: appelsDeFondsTable.period,
+      }).from(appelsDeFondsTable)
+        .innerJoin(buildingsTable, eq(appelsDeFondsTable.buildingId, buildingsTable.id))
+        .where(eq(buildingsTable.syndicateId, syndicateId));
+    }
 
     const totalCharged = appels.reduce((s, a) => s + Number(a.amount ?? 0), 0);
     const totalPaid    = appels.filter((a) => a.status === "paid").reduce((s, a) => s + Number(a.amount ?? 0), 0);
@@ -2421,6 +2433,16 @@ router.post(
       }
       const entityResults = await Promise.all(entityLoads);
       const entityData: Record<string, string> = Object.assign({}, ...entityResults);
+
+      // ── Auto-inject établiPar / approuvePar from office-holders ────────────
+      // Only set when not already supplied by the user or an entity loader,
+      // so explicit user input always wins.
+      if (officeHolders?.treasurer?.fullName && !extraFields.etabliPar && !entityData.etabliPar) {
+        entityData.etabliPar  = officeHolders.treasurer.fullName;
+      }
+      if (officeHolders?.president?.fullName && !extraFields.approuvePar && !entityData.approuvePar) {
+        entityData.approuvePar = officeHolders.president.fullName;
+      }
 
       // Also load existing signatures for documents being regenerated after signing
       const existingDocId = extraFields._existingDocumentId as string | undefined;
