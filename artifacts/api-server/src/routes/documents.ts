@@ -300,6 +300,17 @@ async function getLotMemberData(lotId?: string, memberId?: string): Promise<Reco
     const [m] = await db.select().from(membersTable).where(eq(membersTable.id, lot.ownerId));
     member = m ?? null;
   }
+  // When only memberId was supplied (no lotId), auto-resolve the member's lot as owner
+  // so that _lotNumber / _buildingName are populated without requiring a separate lotId.
+  if (member && !lot) {
+    const [row] = await db
+      .select()
+      .from(lotsTable)
+      .leftJoin(buildingsTable, eq(lotsTable.buildingId, buildingsTable.id))
+      .where(eq(lotsTable.ownerId, member.id))
+      .limit(1);
+    if (row) { lot = row.lots; building = row.buildings ?? null; }
+  }
   return {
     memberName:         member?.name ?? "",
     _lotNumber:         lot?.number ?? "",

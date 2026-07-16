@@ -109,9 +109,19 @@ const ENTITY_TYPE_MAP: Record<string, {
   budget_previsionnel:   { type: "budgets",   idField: "budgetId",       label: "Budget",             icon: "bar-chart-2", hint: "Le budget complet avec toutes ses lignes budgétaires sera importé." },
   rapport_election:      { type: "elections", idField: "electionId",     label: "Élection",           icon: "award",       hint: "Les résultats, candidats et statistiques d'élection seront chargés automatiquement." },
   rapport_financier:     { type: "budgets",   idField: "budgetId",       label: "Budget (optionnel)", icon: "trending-up", hint: "Sélectionnez un budget pour pré-remplir les indicateurs financiers." },
-  contrat_bail:          { type: "tenants",   idField: "tenantId",       label: "Locataire",          icon: "home",        hint: "Le nom du locataire, les dates de bail, le loyer mensuel et le dépôt de garantie seront chargés automatiquement." },
-  sinistre:              { type: "sinistres", idField: "sinistreId",     label: "Sinistre déclaré",   icon: "alert-triangle", hint: "Toutes les données du sinistre (type, date, description, montant, statut) seront importées automatiquement." },
-  travaux:               { type: "travaux",   idField: "travauxId",      label: "Chantier / Travaux", icon: "tool",        hint: "Les données du chantier (type, prestataire, montants, planning, statut) seront importées automatiquement." },
+  contrat_bail:          { type: "tenants",   idField: "tenantId",       label: "Locataire",              icon: "home",           hint: "Le nom du locataire, les dates de bail, le loyer mensuel et le dépôt de garantie seront chargés automatiquement." },
+  sinistre:              { type: "sinistres", idField: "sinistreId",     label: "Sinistre déclaré",       icon: "alert-triangle", hint: "Toutes les données du sinistre (type, date, description, montant, statut) seront importées automatiquement." },
+  travaux:               { type: "travaux",   idField: "travauxId",      label: "Chantier / Travaux",     icon: "tool",           hint: "Les données du chantier (type, prestataire, montants, planning, statut) seront importées automatiquement." },
+  // ── Member-backed templates — previously 100% manual entry ─────────────────
+  attestation:           { type: "members",  idField: "memberId",       label: "Copropriétaire / Membre", icon: "user",          hint: "Le nom, le lot et les coordonnées du membre seront chargés automatiquement depuis la base de données." },
+  certificat:            { type: "members",  idField: "memberId",       label: "Bénéficiaire",            icon: "user",          hint: "Le nom du bénéficiaire sera chargé automatiquement depuis la base de données." },
+  mise_en_demeure:       { type: "members",  idField: "memberId",       label: "Membre mis en demeure",   icon: "user-x",        hint: "Le nom, le lot et les coordonnées seront chargés — précisez seulement l'objet et le délai." },
+  demande_administrative:{ type: "members",  idField: "memberId",       label: "Membre demandeur",        icon: "user",          hint: "Le nom du demandeur sera chargé automatiquement depuis son profil membre." },
+  autorisation:          { type: "members",  idField: "memberId",       label: "Bénéficiaire",            icon: "user",          hint: "Le nom du bénéficiaire sera chargé automatiquement depuis la base de données." },
+  ordre_de_mission:      { type: "members",  idField: "memberId",       label: "Agent / Membre",          icon: "user",          hint: "Le nom de l'agent sera chargé automatiquement depuis la base de données." },
+  lettre_officielle:     { type: "members",  idField: "memberId",       label: "Destinataire",            icon: "user",          hint: "Le nom et les coordonnées du destinataire seront chargés depuis la base de données." },
+  // ── Optional meeting link for governance decisions ──────────────────────────
+  decision:              { type: "meetings", idField: "meetingId",      label: "Réunion liée (optionnel)", icon: "calendar",      hint: "Optionnel — liez cette décision à une réunion pour pré-remplir la date et le contexte." },
 };
 
 // ─── Source color helper ──────────────────────────────────────────────────────
@@ -526,12 +536,12 @@ export default function DocumentWizard({ visible, onClose, onComplete }: Props) 
       ],
       certificat: [
         ...common,
-        { name: "memberName", label: "Bénéficiaire",        source: "input / usersTable", placeholder: "Mohammed Alaoui" },
-        { name: "content",    label: "Objet du certificat", source: "input utilisateur",  multiline: true },
+        { name: "memberName", label: "Bénéficiaire",        source: "membersTable",      placeholder: "Auto — sélectionnez un membre" },
+        { name: "content",    label: "Objet du certificat", source: "input utilisateur", multiline: true },
       ],
       mise_en_demeure: [
         ...common,
-        { name: "memberName",   label: "Mis en demeure",  source: "input utilisateur", placeholder: "M. / Mme Alaoui" },
+        { name: "memberName",   label: "Mis en demeure",  source: "membersTable",      placeholder: "Auto — sélectionnez un membre" },
         { name: "objet",        label: "Objet",           source: "input utilisateur", placeholder: "Impayés de charges — 3 mois" },
         { name: "delai",        label: "Délai imparti",   source: "input utilisateur", placeholder: "15 jours à compter de la réception" },
         { name: "consequences", label: "Conséquences",    source: "input utilisateur", multiline: true },
@@ -543,14 +553,14 @@ export default function DocumentWizard({ visible, onClose, onComplete }: Props) 
       ],
       demande_administrative: [
         ...common,
-        { name: "memberName",   label: "Demandeur",         source: "input utilisateur" },
+        { name: "memberName",   label: "Demandeur",           source: "membersTable",      placeholder: "Auto — sélectionnez un membre" },
         { name: "objet",        label: "Objet de la demande", source: "input utilisateur" },
-        { name: "expose",       label: "Exposé des motifs",  source: "input utilisateur", multiline: true },
-        { name: "justificatifs",label: "Justificatifs",      source: "input utilisateur", multiline: true },
+        { name: "expose",       label: "Exposé des motifs",   source: "input utilisateur", multiline: true },
+        { name: "justificatifs",label: "Justificatifs",       source: "input utilisateur", multiline: true },
       ],
       autorisation: [
         ...common,
-        { name: "memberName",        label: "Bénéficiaire",         source: "input utilisateur" },
+        { name: "memberName",        label: "Bénéficiaire",         source: "membersTable",      placeholder: "Auto — sélectionnez un membre" },
         { name: "texteAutorisation", label: "Texte d'autorisation", source: "input utilisateur", multiline: true },
         { name: "conditions",        label: "Conditions",           source: "input utilisateur", multiline: true },
         { name: "dateDebut",         label: "Date de début",        source: "input utilisateur", placeholder: "01/07/2026" },
@@ -558,7 +568,7 @@ export default function DocumentWizard({ visible, onClose, onComplete }: Props) 
       ],
       ordre_de_mission: [
         ...common,
-        { name: "memberName",  label: "Agent",               source: "input utilisateur" },
+        { name: "memberName",  label: "Agent / Membre",      source: "membersTable",      placeholder: "Auto — sélectionnez un membre" },
         { name: "poste",       label: "Poste",               source: "input utilisateur" },
         { name: "destination", label: "Destination",         source: "input utilisateur" },
         { name: "dateDepart",  label: "Date de départ",      source: "input utilisateur" },
@@ -568,7 +578,7 @@ export default function DocumentWizard({ visible, onClose, onComplete }: Props) 
       ],
       lettre_officielle: [
         ...common,
-        { name: "memberName", label: "Destinataire",         source: "input utilisateur" },
+        { name: "memberName", label: "Destinataire",         source: "membersTable",      placeholder: "Auto — sélectionnez un membre" },
         { name: "objet",      label: "Objet",                source: "input utilisateur" },
         { name: "corps",      label: "Corps de la lettre",   source: "input utilisateur", multiline: true },
       ],

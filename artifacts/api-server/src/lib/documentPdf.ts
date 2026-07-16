@@ -2123,6 +2123,8 @@ async function buildDocDef(template: DocumentTemplate, input: DocumentInput): Pr
         { text: input.title, style: "docTitle", alignment: "center" as const, margin: [0, 0, 0, 16] },
         metaTable([
           [t("metaRecipient", lang), member || t("convocationRecipientFallback", lang)],
+          ...(input._lotNumber    ? [["Lot N\u00b0 :",   input._lotNumber    as string] as [string, string]] : []),
+          ...(input._buildingName ? [["R\u00e9sidence :", input._buildingName as string] as [string, string]] : []),
           [t("metaSender", lang), syndInfo.name],
           [t("metaSendDate", lang), today],
           [t("metaObjet", lang), input.title],
@@ -2367,6 +2369,8 @@ async function buildDocDef(template: DocumentTemplate, input: DocumentInput): Pr
         { text: input.title, style: "docTitle", margin: [0, 0, 0, 16] },
         metaTable([
           ["Demandeur :",       member || "[NOM DU DEMANDEUR]"],
+          ...(input._lotNumber    ? [["Lot N\u00b0 :",   input._lotNumber    as string] as [string, string]] : []),
+          ...(input._buildingName ? [["R\u00e9sidence :", input._buildingName as string] as [string, string]] : []),
           ["Objet de la demande :", input.objet as string || body || "—"],
           ["Date de la demande :", today],
           ["Pièces jointes :",  input.piecesJointes as string || "À préciser"],
@@ -2402,6 +2406,8 @@ async function buildDocDef(template: DocumentTemplate, input: DocumentInput): Pr
         { text: input.title, style: "docTitle", margin: [0, 0, 0, 16] },
         metaTable([
           ["Bénéficiaire :",    member || "[NOM DU BÉNÉFICIAIRE]"],
+          ...(input._lotNumber    ? [["Lot N\u00b0 :",   input._lotNumber    as string] as [string, string]] : []),
+          ...(input._buildingName ? [["R\u00e9sidence :", input._buildingName as string] as [string, string]] : []),
           ["Objet :",           input.objet as string || body || "—"],
           ["Valable du :",      input.dateDebut as string || today],
           ["Au :",              input.dateFin as string || "À préciser"],
@@ -2446,6 +2452,7 @@ async function buildDocDef(template: DocumentTemplate, input: DocumentInput): Pr
         { text: input.title, style: "docTitle", margin: [0, 0, 0, 16] },
         metaTable([
           ["Missionnaire :",    member || "[NOM DU MISSIONNAIRE]"],
+          ...(input._buildingName ? [["R\u00e9sidence :", input._buildingName as string] as [string, string]] : []),
           ["Qualité / Poste :", input.poste as string || "—"],
           ["Destination :",     input.destination as string || "—"],
           ["Date de départ :",  input.dateDepart as string || today],
