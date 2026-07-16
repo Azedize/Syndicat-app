@@ -105,62 +105,64 @@ interface DocumentTheme {
 }
 
 function getDocumentTheme(template: string, fallbackColor?: string): DocumentTheme {
+  // Brand palette derived from artifacts/mobile/constants/colors.ts
+  // Primary: #7c3aed  Success: #10b981  Error: #ef4444  Text: #1e1b4b
   const themes: Record<string, DocumentTheme> = {
-    // ── Contracts & Partnerships ──────────────────────────────────────────────
-    contrat:               { primary: "#0f2d52", secondary: "#091e3a", light: "#eff6ff", icon: "⚖", categoryLabel: "CONTRAT" },
-    convention_partenariat:{ primary: "#0f2d52", secondary: "#091e3a", light: "#eff6ff", icon: "⚖", categoryLabel: "CONVENTION DE PARTENARIAT" },
-    accord_collectif:      { primary: "#0f2d52", secondary: "#091e3a", light: "#eff6ff", icon: "⚖", categoryLabel: "ACCORD COLLECTIF" },
+    // ── Contracts & Partnerships — deep indigo (authoritative / legal) ──────────
+    contrat:               { primary: "#1e1b4b", secondary: "#130f36", light: "#ede9fe", icon: "\u2696", categoryLabel: "CONTRAT" },
+    convention_partenariat:{ primary: "#1e1b4b", secondary: "#130f36", light: "#ede9fe", icon: "\u2696", categoryLabel: "CONVENTION DE PARTENARIAT" },
+    accord_collectif:      { primary: "#1e1b4b", secondary: "#130f36", light: "#ede9fe", icon: "\u2696", categoryLabel: "ACCORD COLLECTIF" },
 
-    // ── Financial Documents ───────────────────────────────────────────────────
-    rapport_financier:     { primary: "#064e3b", secondary: "#043a2c", light: "#ecfdf5", icon: "₪", categoryLabel: "RAPPORT FINANCIER" },
-    rapport_audit:         { primary: "#064e3b", secondary: "#043a2c", light: "#ecfdf5", icon: "₪", categoryLabel: "RAPPORT D'AUDIT" },
-    rapport_activite:      { primary: "#064e3b", secondary: "#043a2c", light: "#ecfdf5", icon: "₪", categoryLabel: "RAPPORT D'ACTIVITÉ" },
-    rapport:               { primary: "#064e3b", secondary: "#043a2c", light: "#ecfdf5", icon: "₪", categoryLabel: "RAPPORT" },
-    appel_de_fonds:        { primary: "#064e3b", secondary: "#043a2c", light: "#ecfdf5", icon: "₪", categoryLabel: "APPEL DE FONDS" },
-    facture:               { primary: "#064e3b", secondary: "#043a2c", light: "#ecfdf5", icon: "₪", categoryLabel: "FACTURE" },
-    budget_previsionnel:   { primary: "#064e3b", secondary: "#043a2c", light: "#ecfdf5", icon: "₪", categoryLabel: "BUDGET PRÉVISIONNEL" },
-    decompte_charges:      { primary: "#064e3b", secondary: "#043a2c", light: "#ecfdf5", icon: "₪", categoryLabel: "DÉCOMPTE DES CHARGES" },
+    // ── Financial Documents — emerald (brand success #10b981 darkened) ──────────
+    rapport_financier:     { primary: "#047857", secondary: "#065f46", light: "#ecfdf5", icon: "\u20aa", categoryLabel: "RAPPORT FINANCIER" },
+    rapport_audit:         { primary: "#047857", secondary: "#065f46", light: "#ecfdf5", icon: "\u20aa", categoryLabel: "RAPPORT D'AUDIT" },
+    rapport_activite:      { primary: "#047857", secondary: "#065f46", light: "#ecfdf5", icon: "\u20aa", categoryLabel: "RAPPORT D'ACTIVIT\u00c9" },
+    rapport:               { primary: "#047857", secondary: "#065f46", light: "#ecfdf5", icon: "\u20aa", categoryLabel: "RAPPORT" },
+    appel_de_fonds:        { primary: "#047857", secondary: "#065f46", light: "#ecfdf5", icon: "\u20aa", categoryLabel: "APPEL DE FONDS" },
+    facture:               { primary: "#047857", secondary: "#065f46", light: "#ecfdf5", icon: "\u20aa", categoryLabel: "FACTURE" },
+    budget_previsionnel:   { primary: "#047857", secondary: "#065f46", light: "#ecfdf5", icon: "\u20aa", categoryLabel: "BUDGET PR\u00c9VISIONNEL" },
+    decompte_charges:      { primary: "#047857", secondary: "#065f46", light: "#ecfdf5", icon: "\u20aa", categoryLabel: "D\u00c9COMPTE DES CHARGES" },
 
-    // ── Meeting & Deliberation ────────────────────────────────────────────────
-    pv:                    { primary: "#1e3a8a", secondary: "#152b6e", light: "#eff6ff", icon: "◆", categoryLabel: "PROCÈS-VERBAL" },
-    compte_rendu:          { primary: "#1e3a8a", secondary: "#152b6e", light: "#eff6ff", icon: "◆", categoryLabel: "COMPTE-RENDU" },
-    convocation:           { primary: "#1e3a8a", secondary: "#152b6e", light: "#eff6ff", icon: "◆", categoryLabel: "CONVOCATION" },
-    circulaire:            { primary: "#1e3a8a", secondary: "#152b6e", light: "#eff6ff", icon: "◆", categoryLabel: "CIRCULAIRE" },
-    note_interne:          { primary: "#1e3a8a", secondary: "#152b6e", light: "#eff6ff", icon: "◆", categoryLabel: "NOTE INTERNE" },
+    // ── Meeting & Deliberation — violet-700 (brand primary family) ───────────────
+    pv:                    { primary: "#5b21b6", secondary: "#4c1d95", light: "#f5f3ff", icon: "\u25c6", categoryLabel: "PROC\u00c8S-VERBAL" },
+    compte_rendu:          { primary: "#5b21b6", secondary: "#4c1d95", light: "#f5f3ff", icon: "\u25c6", categoryLabel: "COMPTE-RENDU" },
+    convocation:           { primary: "#5b21b6", secondary: "#4c1d95", light: "#f5f3ff", icon: "\u25c6", categoryLabel: "CONVOCATION" },
+    circulaire:            { primary: "#5b21b6", secondary: "#4c1d95", light: "#f5f3ff", icon: "\u25c6", categoryLabel: "CIRCULAIRE" },
+    note_interne:          { primary: "#5b21b6", secondary: "#4c1d95", light: "#f5f3ff", icon: "\u25c6", categoryLabel: "NOTE INTERNE" },
 
-    // ── Electoral & Governance ────────────────────────────────────────────────
-    decision:              { primary: "#881337", secondary: "#6b0f2c", light: "#fff1f2", icon: "★", categoryLabel: "DÉCISION OFFICIELLE" },
-    rapport_election:      { primary: "#881337", secondary: "#6b0f2c", light: "#fff1f2", icon: "★", categoryLabel: "RAPPORT D'ÉLECTION" },
+    // ── Electoral & Governance — brand primary #7c3aed ───────────────────────────
+    decision:              { primary: "#7c3aed", secondary: "#6d28d9", light: "#ede9fe", icon: "\u2605", categoryLabel: "D\u00c9CISION OFFICIELLE" },
+    rapport_election:      { primary: "#7c3aed", secondary: "#6d28d9", light: "#ede9fe", icon: "\u2605", categoryLabel: "RAPPORT D'\u00c9LECTION" },
 
-    // ── Regulatory & Statutory ────────────────────────────────────────────────
-    reglement:             { primary: "#312e81", secondary: "#25236a", light: "#eef2ff", icon: "§", categoryLabel: "RÈGLEMENT DE COPROPRIÉTÉ" },
+    // ── Regulatory & Statutory — violet-900 (deepest brand tone) ─────────────────
+    reglement:             { primary: "#4c1d95", secondary: "#3b0764", light: "#f5f3ff", icon: "\u00a7", categoryLabel: "R\u00c8GLEMENT DE COPROPRI\u00c9T\u00c9" },
 
-    // ── Certificates & Attestations ───────────────────────────────────────────
-    attestation:           { primary: "#065f46", secondary: "#044b38", light: "#f0fdf4", icon: "✓", categoryLabel: "ATTESTATION" },
-    attestation_residence: { primary: "#065f46", secondary: "#044b38", light: "#f0fdf4", icon: "✓", categoryLabel: "ATTESTATION DE RÉSIDENCE" },
-    attestation_propriete: { primary: "#065f46", secondary: "#044b38", light: "#f0fdf4", icon: "✓", categoryLabel: "ATTESTATION DE PROPRIÉTÉ" },
-    attestation_paiement:  { primary: "#065f46", secondary: "#044b38", light: "#f0fdf4", icon: "✓", categoryLabel: "ATTESTATION DE PAIEMENT" },
-    recu_paiement:         { primary: "#065f46", secondary: "#044b38", light: "#f0fdf4", icon: "✓", categoryLabel: "REÇU DE PAIEMENT" },
-    certificat:            { primary: "#065f46", secondary: "#044b38", light: "#f0fdf4", icon: "✓", categoryLabel: "CERTIFICAT OFFICIEL" },
+    // ── Certificates & Attestations — emerald-600 (official / verified) ──────────
+    attestation:           { primary: "#059669", secondary: "#047857", light: "#f0fdf4", icon: "\u2713", categoryLabel: "ATTESTATION" },
+    attestation_residence: { primary: "#059669", secondary: "#047857", light: "#f0fdf4", icon: "\u2713", categoryLabel: "ATTESTATION DE R\u00c9SIDENCE" },
+    attestation_propriete: { primary: "#059669", secondary: "#047857", light: "#f0fdf4", icon: "\u2713", categoryLabel: "ATTESTATION DE PROPRI\u00c9T\u00c9" },
+    attestation_paiement:  { primary: "#059669", secondary: "#047857", light: "#f0fdf4", icon: "\u2713", categoryLabel: "ATTESTATION DE PAIEMENT" },
+    recu_paiement:         { primary: "#059669", secondary: "#047857", light: "#f0fdf4", icon: "\u2713", categoryLabel: "RE\u00c7U DE PAIEMENT" },
+    certificat:            { primary: "#059669", secondary: "#047857", light: "#f0fdf4", icon: "\u2713", categoryLabel: "CERTIFICAT OFFICIEL" },
 
-    // ── Legal & Enforcement ───────────────────────────────────────────────────
-    mise_en_demeure:       { primary: "#7c2d12", secondary: "#5e2009", light: "#fff7ed", icon: "!", categoryLabel: "MISE EN DEMEURE" },
-    lettre_officielle:     { primary: "#7c2d12", secondary: "#5e2009", light: "#fff7ed", icon: "!", categoryLabel: "LETTRE OFFICIELLE" },
+    // ── Legal & Enforcement — brand error red (#ef4444 darkened) ─────────────────
+    mise_en_demeure:       { primary: "#b91c1c", secondary: "#991b1b", light: "#fef2f2", icon: "!", categoryLabel: "MISE EN DEMEURE" },
+    lettre_officielle:     { primary: "#b91c1c", secondary: "#991b1b", light: "#fef2f2", icon: "!", categoryLabel: "LETTRE OFFICIELLE" },
 
-    // ── Administrative ────────────────────────────────────────────────────────
-    demande_administrative:{ primary: "#374151", secondary: "#1f2937", light: "#f9fafb", icon: "→", categoryLabel: "DEMANDE ADMINISTRATIVE" },
-    autorisation:          { primary: "#374151", secondary: "#1f2937", light: "#f9fafb", icon: "→", categoryLabel: "AUTORISATION" },
-    ordre_de_mission:      { primary: "#374151", secondary: "#1f2937", light: "#f9fafb", icon: "→", categoryLabel: "ORDRE DE MISSION" },
+    // ── Administrative — slate neutral ────────────────────────────────────────────
+    demande_administrative:{ primary: "#374151", secondary: "#1f2937", light: "#f9fafb", icon: "\u2192", categoryLabel: "DEMANDE ADMINISTRATIVE" },
+    autorisation:          { primary: "#374151", secondary: "#1f2937", light: "#f9fafb", icon: "\u2192", categoryLabel: "AUTORISATION" },
+    ordre_de_mission:      { primary: "#374151", secondary: "#1f2937", light: "#f9fafb", icon: "\u2192", categoryLabel: "ORDRE DE MISSION" },
 
-    // ── Operational & Incident ────────────────────────────────────────────────
-    contrat_bail:          { primary: "#1d4ed8", secondary: "#1e3a8a", light: "#eff6ff", icon: "⌂", categoryLabel: "CONTRAT DE BAIL" },
-    sinistre:              { primary: "#b45309", secondary: "#92400e", light: "#fffbeb", icon: "⚡", categoryLabel: "DÉCLARATION DE SINISTRE" },
-    travaux:               { primary: "#065f46", secondary: "#044b38", light: "#ecfdf5", icon: "⚙", categoryLabel: "ORDRE DE TRAVAUX" },
+    // ── Operational & Incident — brand-derived tones ──────────────────────────
+    contrat_bail:          { primary: "#2d2540", secondary: "#1a1825", light: "#f5f3ff", icon: "\u2302", categoryLabel: "CONTRAT DE BAIL" },
+    sinistre:              { primary: "#b91c1c", secondary: "#991b1b", light: "#fef2f2", icon: "\u26a1", categoryLabel: "D\u00c9CLARATION DE SINISTRE" },
+    travaux:               { primary: "#047857", secondary: "#065f46", light: "#ecfdf5", icon: "\u2699", categoryLabel: "ORDRE DE TRAVAUX" },
   };
 
   const found = themes[template];
   if (found) return found;
-  const primary = fallbackColor || "#1e3a5f";
+  const primary = fallbackColor || "#7c3aed";
   return {
     primary,
     secondary: adjustColorBrightness(primary, -20),
@@ -186,7 +188,7 @@ function buildStyles(accentColor: string) {
 
     // ── Document titles — full 7-level hierarchy ────────────────────────────────
     displayTitle:     { font: PRIMARY_FONT, fontSize: 26,   bold: true,  color: "#ffffff" },
-    docTitle:         { font: PRIMARY_FONT, fontSize: 18,   bold: true,  color: "#0f172a" },
+    docTitle:         { font: PRIMARY_FONT, fontSize: 24,   bold: true,  color: "#0f172a" },
     docSubtitle:      { font: PRIMARY_FONT, fontSize: 11,   color: "#475569", italics: true },
     docRef:           { font: PRIMARY_FONT, fontSize: 8.5,  color: "#64748b" },
     subsectionTitle:  { font: PRIMARY_FONT, fontSize: 9,    bold: true,  color: "#1e293b" },
@@ -199,7 +201,7 @@ function buildStyles(accentColor: string) {
     metaVal:          { font: PRIMARY_FONT, fontSize: 10,   bold: true,  color: "#1e293b" },
 
     // ── Body text ──────────────────────────────────────────────────────────────
-    body:             { font: PRIMARY_FONT, fontSize: 10,   color: "#374151", lineHeight: 1.75 },
+    body:             { font: PRIMARY_FONT, fontSize: 10,   color: "#374151", lineHeight: 1.6 },
     bodyArabic:       { font: ARABIC_FONT,  fontSize: 11.5, color: "#374151", lineHeight: 1.85, alignment: "right" as const },
 
     // ── Signature area ─────────────────────────────────────────────────────────
@@ -495,79 +497,79 @@ function buildHeaderBand(
   _categoryIcon = "■",
 ): object[] {
   // Color tokens
-  const dark = adjustColorBrightness(accentColor, -32);
+  const dark = adjustColorBrightness(accentColor, -28);
 
   // Identity text
   const acronym = (syndInfo.abbreviation ||
     syndInfo.name.split(/\s+/).map((w: string) => w[0]).join("").slice(0, 3)
   ).toUpperCase();
-  const regLine = syndInfo.registrationNumber ? `ICE / Réf : ${syndInfo.registrationNumber}` : null;
+  const regLine = syndInfo.registrationNumber ? `ICE / Ref : ${syndInfo.registrationNumber}` : null;
   const contactParts: string[] = [];
-  if (syndInfo.phone) contactParts.push(`Tél : ${syndInfo.phone}`);
+  if (syndInfo.phone) contactParts.push(`Tel : ${syndInfo.phone}`);
   if (syndInfo.email) contactParts.push(syndInfo.email);
-  const contactLine = contactParts.join("   ·   ");
+  const contactLine = contactParts.join("  |  ");
   const addressLine = [syndInfo.address, syndInfo.city].filter(Boolean).join(", ");
 
   // Document status indicator
   const statusDotMap: Record<string, { label: string; color: string }> = {
-    published: { label: "● PUBLIÉ",     color: "#4ade80" },
-    signed:    { label: "● SIGNÉ",      color: "#93c5fd" },
-    validated: { label: "● VALIDÉ",     color: "#c4b5fd" },
-    archived:  { label: "◉ ARCHIVÉ",   color: "#cbd5e1" },
-    generated: { label: "◎ GÉNÉRÉ",    color: "#fcd34d" },
-    draft:     { label: "○ BROUILLON", color: "#cbd5e1" },
+    published: { label: "PUBLIE",    color: "#10b981" },
+    signed:    { label: "SIGNE",     color: "#7c3aed" },
+    validated: { label: "VALIDE",    color: "#6d28d9" },
+    archived:  { label: "ARCHIVE",  color: "#9ca3af" },
+    generated: { label: "GENERE",   color: "#f59e0b" },
+    draft:     { label: "BROUILLON",color: "#9ca3af" },
   };
   const statusDot = docStatus ? (statusDotMap[docStatus] ?? null) : null;
 
-  // Logo / monogram tile
+  // Logo / monogram tile — compact 34px
   const logoContent: unknown = logoDataUrl
-    ? { image: logoDataUrl, width: 52, height: 52, fit: [52, 52] as [number, number], alignment: "center" as const }
-    : { text: acronym, fontSize: 22, bold: true, color: "#ffffff", alignment: "center" as const };
+    ? { image: logoDataUrl, width: 34, height: 34, fit: [34, 34] as [number, number], alignment: "center" as const }
+    : { text: acronym, fontSize: 14, bold: true, color: "#ffffff", alignment: "center" as const };
 
-  // 4px premium accent stripe at page top
+  // 3px brand stripe at page top
   const topStripe: unknown = {
-    canvas: [{ type: "rect", x: 0, y: 0, w: 515, h: 4, color: accentColor }],
+    canvas: [{ type: "rect", x: 0, y: 0, w: 515, h: 3, color: accentColor }],
     margin: [0, 0, 0, 0],
   };
 
-  // Main header band — 3 clean columns
+  // Main header band — compact 3-column layout
   const band: unknown = {
     table: {
-      widths: [68, "*", 114],
+      widths: [52, "*", 88],
       body: [[
-        // COL 1 — Logo tile on accent background (brand anchor)
+        // COL 1 — Logo / monogram on accent background
         {
           stack: [logoContent],
           fillColor: accentColor,
           alignment: "center" as const,
-          margin: [8, 14, 8, 14],
+          margin: [6, 8, 6, 8],
           border: [false, false, false, false] as [boolean, boolean, boolean, boolean],
         },
 
-        // COL 2 — Organisation identity on dark background (purely informational)
+        // COL 2 — Organisation identity on dark background
         {
           stack: [
             {
               text: syndInfo.name.toUpperCase(),
-              fontSize: 13, bold: true,
+              fontSize: 11, bold: true,
               color: "#ffffff",
-              characterSpacing: 0.4,
-              margin: [0, 0, 0, 5],
+              characterSpacing: 0.3,
+              margin: [0, 0, 0, 3],
             },
             ...(buildingName ? [{
               text: buildingName,
-              fontSize: 8, color: "#ffffffdd",
-              margin: [0, 0, 0, 2],
+              fontSize: 7.5, color: "#ffffffdd",
+              margin: [0, 0, 0, 1],
             }] : []),
-            ...(addressLine  ? [{
+            ...(addressLine ? [{
               text: addressLine,
-              fontSize: 7, color: "#ffffffbb",
-              margin: [0, 0, 0, 2],
+              fontSize: 6.5, color: "#ffffffbb",
+              margin: [0, 0, 0, 1],
             }] : []),
             ...(regLine ? [{
               text: regLine,
               fontSize: 6, color: "#ffffff99",
-              margin: [0, 0, 0, 2],
+              margin: [0, 0, 0, 1],
             }] : []),
             ...(contactLine ? [{
               text: contactLine,
@@ -576,62 +578,45 @@ function buildHeaderBand(
             }] : []),
           ],
           fillColor: dark,
-          margin: [14, 12, 14, 12],
+          margin: [10, 8, 10, 8],
           border: [false, false, false, false] as [boolean, boolean, boolean, boolean],
         },
 
-        // COL 3 — Document classification + QR on white (primary doc identity)
+        // COL 3 — Document classification + QR (compact, non-competing)
         {
           stack: [
-            // Document type — prominent label
             {
               text: docTypeLabel,
-              fontSize: 8, bold: true,
+              fontSize: 7, bold: true,
               color: accentColor,
               characterSpacing: 0.3,
-              margin: [0, 0, 0, 5],
+              margin: [0, 0, 0, 3],
             },
-            // Reference number — large and bold
             {
-              text: `N° ${docNumber}`,
-              fontSize: 9.5, bold: true,
+              text: `N\u00b0 ${docNumber}`,
+              fontSize: 8.5, bold: true,
               color: "#1e293b",
-              margin: [0, 0, 0, 2],
+              margin: [0, 0, 0, 1],
             },
-            // Date
             {
               text: today,
-              fontSize: 7, color: "#64748b",
-              margin: [0, 0, 0, 4],
+              fontSize: 6.5, color: "#64748b",
+              margin: [0, 0, 0, 2],
             },
-            // Status dot
             ...(statusDot ? [{
               text: statusDot.label,
-              fontSize: 6, bold: true,
+              fontSize: 5.5, bold: true,
               color: statusDot.color,
-              margin: [0, 0, 0, 4],
-            }] : [{ text: "", margin: [0, 0, 0, 4] }]),
-            // Version tag
-            ...(version ? [{
-              text: `Rev. ${version}`,
-              fontSize: 5.5, color: "#94a3b8",
-              margin: [0, 0, 0, 5],
-            }] : [{ text: "", margin: [0, 0, 0, 5] }]),
-            // QR code — compact (44px), non-competing
+              margin: [0, 0, 0, 3],
+            }] : [{ text: "", margin: [0, 0, 0, 3] }]),
+            // QR code — 28px, verification-only
             ...(qrDataUrl
-              ? [{ image: qrDataUrl, width: 44, height: 44, alignment: "center" as const, margin: [0, 0, 0, 3] }]
-              : [{ canvas: [{ type: "rect", x: 0, y: 0, w: 44, h: 44, color: "#f1f5f9", r: 3 }], alignment: "center" as const, margin: [0, 0, 0, 3] }]
+              ? [{ image: qrDataUrl, width: 28, height: 28, alignment: "center" as const, margin: [0, 0, 0, 0] }]
+              : [{ canvas: [{ type: "rect", x: 0, y: 0, w: 28, h: 28, color: "#f1f5f9", r: 2 }], alignment: "center" as const, margin: [0, 0, 0, 0] }]
             ),
-            {
-              text: "VÉRIFIER",
-              fontSize: 4.5, bold: true,
-              color: accentColor,
-              alignment: "center" as const,
-              characterSpacing: 1,
-            },
           ],
           fillColor: "#ffffff",
-          margin: [10, 10, 10, 8],
+          margin: [8, 6, 8, 6],
           border: [false, false, false, false] as [boolean, boolean, boolean, boolean],
         },
       ]],
@@ -642,13 +627,13 @@ function buildHeaderBand(
     },
   };
 
-  // Separator: full-width hairline + accent underline aligned to logo column width
+  // Separator: hairline + 2px accent underline flush to logo column
   const separator: unknown = {
     canvas: [
-      { type: "line", x1: 0, y1: 0, x2: 515, y2: 0, lineWidth: 0.5, lineColor: "#e2e8f0" },
-      { type: "rect", x: 0, y: -0.5, w: 68, h: 2, color: accentColor },
+      { type: "line", x1: 0, y1: 0, x2: 515, y2: 0, lineWidth: 0.4, lineColor: "#e2e8f0" },
+      { type: "rect", x: 0, y: -0.4, w: 52, h: 2, color: accentColor },
     ],
-    margin: [0, 0, 0, 22],
+    margin: [0, 0, 0, 14],
   };
 
   return [topStripe, band, separator] as object[];
@@ -692,7 +677,7 @@ function metaTable(rows: Array<[string, string]>, accentColor: string): unknown 
             { text: row[1] || "—", fontSize: 10, bold: true, color: "#1e293b", lineHeight: 1.2 },
           ],
           fillColor: bg,
-          margin: [14, 10, 14, 10],
+          margin: [10, 7, 10, 7],
           border: [true, false, false, false] as [boolean, boolean, boolean, boolean],
         }]],
       },
