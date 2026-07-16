@@ -225,6 +225,43 @@ export default function PdfViewerScreen() {
     );
   }
 
+  // ── Web platform: WebView unsupported — use a native <iframe> via DOM ────────
+  if (Platform.OS === "web") {
+    return (
+      <View style={[styles.root, { backgroundColor: "#1a1a2e" }]}>
+        <StatusBar barStyle="light-content" />
+        {/* Toolbar */}
+        <View style={[styles.toolbar, { paddingTop: insets.top + 8 }]}>
+          <TouchableOpacity onPress={() => router.back()} style={styles.toolBtn} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
+            <Feather name="arrow-left" size={20} color="#fff" />
+          </TouchableOpacity>
+          <View style={{ flex: 1, marginHorizontal: 12 }}>
+            <Text style={styles.toolTitle} numberOfLines={1}>{title}</Text>
+          </View>
+          <TouchableOpacity
+            style={styles.toolBtn}
+            hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+            onPress={() => { if (typeof window !== "undefined") window.open(pdfUrl, "_blank"); }}
+          >
+            <Feather name="external-link" size={20} color="#fff" />
+          </TouchableOpacity>
+        </View>
+        {/* iframe — only works in a DOM environment */}
+        {React.createElement("iframe", {
+          src: pdfUrl,
+          style: {
+            flex: 1,
+            border: "none",
+            width: "100%",
+            height: "100%",
+            backgroundColor: "#404040",
+          } as any,
+          title: title,
+        })}
+      </View>
+    );
+  }
+
   return (
     <View style={[styles.root, { backgroundColor: "#1a1a2e" }]}>
       <StatusBar barStyle="light-content" />
