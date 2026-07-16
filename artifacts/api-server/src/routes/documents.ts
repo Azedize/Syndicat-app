@@ -1244,7 +1244,7 @@ router.post(
 
     try {
       const { title, category, content, memberName, templateId, buildingId, language, expiresAt, ...extraFields } = result.data;
-      const syndicateId = req.user!.syndicateId || "";
+      const syndicateId = req.user!.syndicateId || null;
       const docLanguage: DocumentLanguage = (language as DocumentLanguage) ?? "fr";
 
       // 1. Fetch full syndicate branding + real residence/office-holder data
