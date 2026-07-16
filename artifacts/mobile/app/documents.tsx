@@ -1,6 +1,7 @@
 import { Feather } from "@expo/vector-icons";
 import * as Haptics from "expo-haptics";
 import { router } from "expo-router";
+import { getToken } from "@/services/api";
 import React, { useRef, useState } from "react";
 import * as FileSystem from "expo-file-system";
 import * as Sharing from "expo-sharing";
@@ -156,7 +157,7 @@ export default function DocumentsScreen() {
   const insets          = useSafeAreaInsets();
   const { showToast }   = useToast();
   const { user }        = useAuth();
-  const { documents, updateDocument, refreshDocuments } = useData();
+  const { documents, updateDocument, refreshDocuments, deleteDocument } = useData();
   const { logActivity } = useActivity();
   const { toggleFavorite, isFavorite } = useFavorites();
   const FAV_ID = "screen-documents";
@@ -299,8 +300,18 @@ export default function DocumentsScreen() {
     try {
       const { documents: docsApi } = await import("@/services/api");
       const res = await docsApi.downloadUrl(doc.id);
-      const signedUrl = (res as any).url as string | undefined;
+      let signedUrl = (res as any).url as string | undefined;
       if (signedUrl) {
+        // local-docs URLs go through requireAuth which can't receive the
+        // Authorization header from a WebView — append the JWT as ?token=…
+        if (signedUrl.includes("/local-docs/")) {
+          const jwt = await getToken();
+          if (jwt) {
+            signedUrl = signedUrl.includes("?")
+              ? `${signedUrl}&token=${encodeURIComponent(jwt)}`
+              : `${signedUrl}?token=${encodeURIComponent(jwt)}`;
+          }
+        }
         router.push({
           pathname: "/pdf-viewer",
           params: { url: signedUrl, title: doc.title, docId: doc.id },
@@ -592,14 +603,20 @@ export default function DocumentsScreen() {
           text: "Supprimer",
           style: "destructive",
           onPress: async () => {
+            // Optimistic: close modal + remove from list immediately
+            const docId = selected.id;
+            const docTitle = selected.title;
+            setSelected(null);
+            deleteDocument(docId);
             try {
               const { documents: docsApi } = await import("@/services/api");
-              await docsApi.delete(selected.id);
+              await docsApi.delete(docId);
               Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-              await refreshDocuments().catch(() => {});
-              setSelected(null);
-              showToast({ type: "success", title: "Document supprimé", message: "Le document a été déplacé dans la corbeille." });
+              showToast({ type: "success", title: "Document supprimé", message: `"${docTitle}" a été déplacé dans la corbeille.` });
+              refreshDocuments().catch(() => {});
             } catch (err: any) {
+              // Rollback: re-fetch list to restore the document
+              refreshDocuments().catch(() => {});
               showToast({ type: "error", title: "Suppression échouée", message: err?.message ?? "Impossible de supprimer ce document." });
             }
           },
