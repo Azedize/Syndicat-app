@@ -181,28 +181,29 @@ function buildStyles(accentColor: string) {
     headerBuilding:   { font: PRIMARY_FONT, fontSize: 8.5,  bold: true,  color: "#ffffffee" },
     headerMeta:       { font: PRIMARY_FONT, fontSize: 7,    color: "#ffffffcc" },
     headerContact:    { font: PRIMARY_FONT, fontSize: 6.5,  color: "#ffffffaa" },
-    headerDocNum:     { font: PRIMARY_FONT, fontSize: 8,    bold: true,  color: "#1e293b" },
+    headerDocNum:     { font: PRIMARY_FONT, fontSize: 8,    bold: true,  color: "#1e1b4b" },
     headerDocDate:    { font: PRIMARY_FONT, fontSize: 7,    color: "#475569" },
     docTypeLabel:     { font: PRIMARY_FONT, fontSize: 11.5, bold: true,  color: "#ffffff" },
     docCategoryBadge: { font: PRIMARY_FONT, fontSize: 6,    bold: true,  color: "#ffffff" },
 
     // ── Document titles — full 7-level hierarchy ────────────────────────────────
+    // docTitle is the PRIMARY VISUAL ANCHOR of each document — must dominate the page
     displayTitle:     { font: PRIMARY_FONT, fontSize: 26,   bold: true,  color: "#ffffff" },
-    docTitle:         { font: PRIMARY_FONT, fontSize: 24,   bold: true,  color: "#0f172a" },
-    docSubtitle:      { font: PRIMARY_FONT, fontSize: 11,   color: "#475569", italics: true },
-    docRef:           { font: PRIMARY_FONT, fontSize: 8.5,  color: "#64748b" },
-    subsectionTitle:  { font: PRIMARY_FONT, fontSize: 9,    bold: true,  color: "#1e293b" },
+    docTitle:         { font: PRIMARY_FONT, fontSize: 30,   bold: true,  color: "#1e1b4b", characterSpacing: 0.3 },
+    docSubtitle:      { font: PRIMARY_FONT, fontSize: 11,   color: "#6b7280", italics: true },
+    docRef:           { font: PRIMARY_FONT, fontSize: 8.5,  color: "#6b7280" },
+    subsectionTitle:  { font: PRIMARY_FONT, fontSize: 9,    bold: true,  color: "#1e1b4b" },
 
     // ── Section headings ────────────────────────────────────────────────────────
     sectionTitle:     { font: PRIMARY_FONT, fontSize: 9,    bold: true,  color: "#ffffff" },
 
     // ── Metadata cards ─────────────────────────────────────────────────────────
     metaKey:          { font: PRIMARY_FONT, fontSize: 6.5,  color: "#6b7280", bold: true },
-    metaVal:          { font: PRIMARY_FONT, fontSize: 10,   bold: true,  color: "#1e293b" },
+    metaVal:          { font: PRIMARY_FONT, fontSize: 10,   bold: true,  color: "#1e1b4b" },
 
-    // ── Body text ──────────────────────────────────────────────────────────────
-    body:             { font: PRIMARY_FONT, fontSize: 10,   color: "#374151", lineHeight: 1.6 },
-    bodyArabic:       { font: ARABIC_FONT,  fontSize: 11.5, color: "#374151", lineHeight: 1.85, alignment: "right" as const },
+    // ── Body text — brand-aligned text color ───────────────────────────────────
+    body:             { font: PRIMARY_FONT, fontSize: 10,   color: "#374151", lineHeight: 1.55 },
+    bodyArabic:       { font: ARABIC_FONT,  fontSize: 11.5, color: "#374151", lineHeight: 1.75, alignment: "right" as const },
 
     // ── Signature area ─────────────────────────────────────────────────────────
     signLabel:        { font: PRIMARY_FONT, fontSize: 8,    color: "#6b7280", italics: true },
@@ -473,7 +474,7 @@ async function generateQrDataUrl(verifyUrlOrDocNumber: string): Promise<string> 
       errorCorrectionLevel: "M",
       width: 160,
       margin: 1,
-      color: { dark: "#1e293b", light: "#ffffff" },
+      color: { dark: "#1e1b4b", light: "#ffffff" },
     });
   } catch {
     // QR generation failure is non-fatal — return empty placeholder
@@ -521,102 +522,103 @@ function buildHeaderBand(
   };
   const statusDot = docStatus ? (statusDotMap[docStatus] ?? null) : null;
 
-  // Logo / monogram tile — compact 34px
+  // Logo / monogram tile — compact 26px (matches slimmer 36px column)
   const logoContent: unknown = logoDataUrl
-    ? { image: logoDataUrl, width: 34, height: 34, fit: [34, 34] as [number, number], alignment: "center" as const }
-    : { text: acronym, fontSize: 14, bold: true, color: "#ffffff", alignment: "center" as const };
+    ? { image: logoDataUrl, width: 26, height: 26, fit: [26, 26] as [number, number], alignment: "center" as const }
+    : { text: acronym, fontSize: 11, bold: true, color: "#ffffff", alignment: "center" as const };
 
   // 3px brand stripe at page top
+  // 2px brand stripe — ultra-slim, non-consuming
   const topStripe: unknown = {
-    canvas: [{ type: "rect", x: 0, y: 0, w: 515, h: 3, color: accentColor }],
+    canvas: [{ type: "rect", x: 0, y: 0, w: 515, h: 2, color: accentColor }],
     margin: [0, 0, 0, 0],
   };
 
-  // Main header band — compact 3-column layout
+  // Main header band — ultra-compact 3-column layout (target ≤10% of A4 height)
   const band: unknown = {
     table: {
-      widths: [52, "*", 88],
+      widths: [36, "*", 72],
       body: [[
-        // COL 1 — Logo / monogram on accent background
+        // COL 1 — Logo / monogram on accent background (36px tile)
         {
           stack: [logoContent],
           fillColor: accentColor,
           alignment: "center" as const,
-          margin: [6, 8, 6, 8],
+          margin: [4, 5, 4, 5],
           border: [false, false, false, false] as [boolean, boolean, boolean, boolean],
         },
 
-        // COL 2 — Organisation identity on dark background
+        // COL 2 — Organisation identity on dark background (compact text)
         {
           stack: [
             {
               text: syndInfo.name.toUpperCase(),
-              fontSize: 11, bold: true,
+              fontSize: 9.5, bold: true,
               color: "#ffffff",
-              characterSpacing: 0.3,
-              margin: [0, 0, 0, 3],
+              characterSpacing: 0.2,
+              margin: [0, 0, 0, 2],
             },
             ...(buildingName ? [{
               text: buildingName,
-              fontSize: 7.5, color: "#ffffffdd",
+              fontSize: 6.5, color: "#ffffffdd",
               margin: [0, 0, 0, 1],
             }] : []),
             ...(addressLine ? [{
               text: addressLine,
-              fontSize: 6.5, color: "#ffffffbb",
+              fontSize: 6, color: "#ffffffbb",
               margin: [0, 0, 0, 1],
             }] : []),
             ...(regLine ? [{
               text: regLine,
-              fontSize: 6, color: "#ffffff99",
+              fontSize: 5.5, color: "#ffffff99",
               margin: [0, 0, 0, 1],
             }] : []),
             ...(contactLine ? [{
               text: contactLine,
-              fontSize: 6, color: "#ffffff88",
+              fontSize: 5.5, color: "#ffffff88",
               margin: [0, 0, 0, 0],
             }] : []),
           ],
           fillColor: dark,
-          margin: [10, 8, 10, 8],
+          margin: [8, 5, 8, 5],
           border: [false, false, false, false] as [boolean, boolean, boolean, boolean],
         },
 
-        // COL 3 — Document classification + QR (compact, non-competing)
+        // COL 3 — Document ref + QR (verification-only, visually subordinate)
         {
           stack: [
             {
               text: docTypeLabel,
-              fontSize: 7, bold: true,
+              fontSize: 6, bold: true,
               color: accentColor,
-              characterSpacing: 0.3,
-              margin: [0, 0, 0, 3],
+              characterSpacing: 0.2,
+              margin: [0, 0, 0, 2],
             },
             {
               text: `N\u00b0 ${docNumber}`,
-              fontSize: 8.5, bold: true,
-              color: "#1e293b",
+              fontSize: 7.5, bold: true,
+              color: "#1e1b4b",
               margin: [0, 0, 0, 1],
             },
             {
               text: today,
-              fontSize: 6.5, color: "#64748b",
-              margin: [0, 0, 0, 2],
+              fontSize: 6, color: "#6b7280",
+              margin: [0, 0, 0, 1],
             },
             ...(statusDot ? [{
               text: statusDot.label,
-              fontSize: 5.5, bold: true,
+              fontSize: 5, bold: true,
               color: statusDot.color,
-              margin: [0, 0, 0, 3],
-            }] : [{ text: "", margin: [0, 0, 0, 3] }]),
-            // QR code — 28px, verification-only
+              margin: [0, 0, 0, 2],
+            }] : [{ text: "", margin: [0, 0, 0, 2] }]),
+            // QR code — 18px, verification-only (not the star of the show)
             ...(qrDataUrl
-              ? [{ image: qrDataUrl, width: 28, height: 28, alignment: "center" as const, margin: [0, 0, 0, 0] }]
-              : [{ canvas: [{ type: "rect", x: 0, y: 0, w: 28, h: 28, color: "#f1f5f9", r: 2 }], alignment: "center" as const, margin: [0, 0, 0, 0] }]
+              ? [{ image: qrDataUrl, width: 18, height: 18, alignment: "center" as const, margin: [0, 0, 0, 0] }]
+              : [{ canvas: [{ type: "rect", x: 0, y: 0, w: 18, h: 18, color: "#f3f4f6", r: 2 }], alignment: "center" as const, margin: [0, 0, 0, 0] }]
             ),
           ],
           fillColor: "#ffffff",
-          margin: [8, 6, 8, 6],
+          margin: [6, 5, 6, 5],
           border: [false, false, false, false] as [boolean, boolean, boolean, boolean],
         },
       ]],
@@ -627,13 +629,13 @@ function buildHeaderBand(
     },
   };
 
-  // Separator: hairline + 2px accent underline flush to logo column
+  // Separator: hairline + 1.5px accent underline — subtle, not decorative
   const separator: unknown = {
     canvas: [
-      { type: "line", x1: 0, y1: 0, x2: 515, y2: 0, lineWidth: 0.4, lineColor: "#e2e8f0" },
-      { type: "rect", x: 0, y: -0.4, w: 52, h: 2, color: accentColor },
+      { type: "line", x1: 0, y1: 0, x2: 515, y2: 0, lineWidth: 0.3, lineColor: "#e5e7eb" },
+      { type: "rect", x: 0, y: -0.3, w: 36, h: 1.5, color: accentColor },
     ],
-    margin: [0, 0, 0, 14],
+    margin: [0, 0, 0, 10],
   };
 
   return [topStripe, band, separator] as object[];
@@ -673,17 +675,17 @@ function metaTable(rows: Array<[string, string]>, accentColor: string): unknown 
         widths: ["*"],
         body: [[{
           stack: [
-            { text: row[0].toUpperCase(), fontSize: 6, bold: true, color: "#9ca3af", characterSpacing: 0.5, margin: [0, 0, 0, 3] },
-            { text: row[1] || "—", fontSize: 10, bold: true, color: "#1e293b", lineHeight: 1.2 },
+            { text: row[0].toUpperCase(), fontSize: 5.5, bold: true, color: "#9ca3af", characterSpacing: 0.4, margin: [0, 0, 0, 2] },
+            { text: row[1] || "—", fontSize: 9.5, bold: true, color: "#1e1b4b", lineHeight: 1.2 },
           ],
           fillColor: bg,
-          margin: [10, 7, 10, 7],
+          margin: [8, 5, 8, 5],
           border: [true, false, false, false] as [boolean, boolean, boolean, boolean],
         }]],
       },
       layout: {
         hLineWidth: () => 0,
-        vLineWidth: (i: number) => i === 0 ? 3 : 0,
+        vLineWidth: (i: number) => i === 0 ? 2.5 : 0,
         vLineColor: () => accentColor,
         paddingLeft: () => 0, paddingRight: () => 0, paddingTop: () => 0, paddingBottom: () => 0,
       },
@@ -692,8 +694,8 @@ function metaTable(rows: Array<[string, string]>, accentColor: string): unknown 
   };
 
   const cardRows = pairs.map((pair, i) => {
-    const bg0 = i % 2 === 0 ? "#f8fafc" : "#f1f5f9";
-    const bg1 = i % 2 === 0 ? "#f1f5f9" : "#f8fafc";
+    const bg0 = i % 2 === 0 ? "#f8f7ff" : "#ede9fe";
+    const bg1 = i % 2 === 0 ? "#ede9fe" : "#f8f7ff";
     return {
       table: {
         widths: ["*", "*"],
@@ -711,13 +713,13 @@ function metaTable(rows: Array<[string, string]>, accentColor: string): unknown 
   });
 
   const topRule: unknown = {
-    canvas: [{ type: "rect", x: 0, y: 0, w: 515, h: 2.5, color: accentColor }],
+    canvas: [{ type: "rect", x: 0, y: 0, w: 515, h: 2, color: accentColor }],
     margin: [0, 0, 0, 0],
   };
 
   return {
     stack: [topRule, ...cardRows],
-    margin: [0, 0, 0, 20],
+    margin: [0, 0, 0, 12],
   };
 }
 
@@ -726,22 +728,22 @@ function contentSection(title: string, text: string, accentColor: string, isRtl 
   const darkText = adjustColorBrightness(accentColor, -20);
   return {
     stack: [
-      // Section header — 3px left accent bar + light-tinted band
+      // Section header — 2.5px left accent bar + light-tinted band (space-optimized)
       {
         table: {
-          widths: [3, "*"],
+          widths: [2.5, "*"],
           body: [[
             {
-              canvas: [{ type: "rect", x: 0, y: 0, w: 3, h: 26, color: accentColor }],
+              canvas: [{ type: "rect", x: 0, y: 0, w: 2.5, h: 22, color: accentColor }],
               border: [false, false, false, false] as [boolean, boolean, boolean, boolean],
               margin: [0, 0, 0, 0],
             },
             {
               text: title.toUpperCase(),
-              fontSize: 8, bold: true,
+              fontSize: 7.5, bold: true,
               color: darkText,
-              characterSpacing: 0.5,
-              margin: [10, 7, 14, 7],
+              characterSpacing: 0.4,
+              margin: [9, 6, 12, 6],
               fillColor: lightBg,
               border: [false, false, false, false] as [boolean, boolean, boolean, boolean],
             },
@@ -751,13 +753,13 @@ function contentSection(title: string, text: string, accentColor: string, isRtl 
           hLineWidth: () => 0, vLineWidth: () => 0,
           paddingLeft: () => 0, paddingRight: () => 0, paddingTop: () => 0, paddingBottom: () => 0,
         },
-        margin: [0, 12, 0, 0],
+        margin: [0, 8, 0, 0],
       },
       // Content body — clean, no heavy tint
       {
         ...(isRtl
-          ? { text, style: "bodyArabic", margin: [14, 10, 14, 12] }
-          : { text, style: "body", margin: [14, 10, 14, 12] }),
+          ? { text, style: "bodyArabic", margin: [12, 8, 12, 10] }
+          : { text, style: "body", margin: [12, 8, 12, 10] }),
       },
     ],
   };
@@ -784,7 +786,7 @@ function kpiRow(
           { text: c.value, fontSize: 18, bold: true, color: c.valueColor || accentColor, lineHeight: 1, margin: [0, 0, 0, 3] },
           ...(c.sublabel ? [{ text: c.sublabel, fontSize: 6.5, color: "#6b7280" }] : []),
         ],
-        fillColor: c.bgColor || "#f8fafc",
+        fillColor: c.bgColor || "#f8f7ff",
         margin: [12, 12, 12, 12],
       }]],
     },
@@ -823,7 +825,7 @@ function progressBar(
     stack: [
       {
         columns: [
-          { text: label, fontSize: 8.5, bold: true, color: "#1e293b", width: "*" },
+          { text: label, fontSize: 8.5, bold: true, color: "#1e1b4b", width: "*" },
           { text: `${clamped}%`, fontSize: 8.5, bold: true, color: barColor, width: "auto" },
           { text: `   ${value} / ${total}`, fontSize: 7, color: "#6b7280", width: "auto", margin: [0, 1, 0, 0] },
         ],
@@ -889,15 +891,15 @@ function financialDashboard(input: Record<string, unknown>, accentColor: string)
     ], accentColor),
     // Row 2 — Charged / Paid / Outstanding
     kpiRow([
-      { label: "Total Appelé",   value: `${kpiTotalCharged} MAD`, bgColor: "#f8fafc" },
+      { label: "Total Appelé",   value: `${kpiTotalCharged} MAD`, bgColor: "#f8f7ff" },
       { label: "Total Encaissé", value: `${kpiTotalPaid} MAD`,    valueColor: "#16a34a", bgColor: "#f0fdf4" },
       { label: "Impayés",        value: `${kpiOutstanding} MAD`,  valueColor: outstandingColor, bgColor: outstandingNum > 0 ? "#fef2f2" : "#f0fdf4" },
     ], accentColor),
     // Row 3 — Cash Balance / Budget Total
     kpiRow([
       { label: "Trésorerie",      value: `${kpiCashBalance} MAD`, valueColor: "#065f46", bgColor: "#ecfdf5" },
-      { label: "Budget Prévisionnel", value: `${kpiBudgetTotal} MAD`, bgColor: "#f8fafc" },
-      { label: "Taux de Recouvrement", value: `${kpiCollRate}%`, valueColor: kpiCollRate >= 90 ? "#16a34a" : kpiCollRate >= 60 ? "#d97706" : "#dc2626", bgColor: "#f8fafc" },
+      { label: "Budget Prévisionnel", value: `${kpiBudgetTotal} MAD`, bgColor: "#f8f7ff" },
+      { label: "Taux de Recouvrement", value: `${kpiCollRate}%`, valueColor: kpiCollRate >= 90 ? "#16a34a" : kpiCollRate >= 60 ? "#d97706" : "#dc2626", bgColor: "#f8f7ff" },
     ], accentColor),
     // Progress bars
     {
@@ -938,7 +940,7 @@ function budgetLinesTable(
   lines.forEach((line) => {
     const isNewCategory = line.category !== lastCategory;
     lastCategory = line.category;
-    const bg = rowIdx % 2 === 0 ? "#f8fafc" : "#ffffff";
+    const bg = rowIdx % 2 === 0 ? "#f8f7ff" : "#ffffff";
     rowIdx++;
 
     bodyRows.push([
@@ -949,7 +951,7 @@ function budgetLinesTable(
         border: [false, false, false, false] as [boolean, boolean, boolean, boolean],
       },
       { text: line.label, fontSize: 8.5, color: "#374151", fillColor: bg, margin: [4, 5, 4, 5], border: [false, false, false, false] as [boolean, boolean, boolean, boolean] },
-      { text: line.amountAnnual.toLocaleString("fr-MA"), fontSize: 8.5, bold: true, color: "#1e293b", fillColor: bg, alignment: "right" as const, margin: [4, 5, 8, 5], border: [false, false, false, false] as [boolean, boolean, boolean, boolean] },
+      { text: line.amountAnnual.toLocaleString("fr-MA"), fontSize: 8.5, bold: true, color: "#1e1b4b", fillColor: bg, alignment: "right" as const, margin: [4, 5, 8, 5], border: [false, false, false, false] as [boolean, boolean, boolean, boolean] },
     ]);
   });
 
@@ -1256,7 +1258,7 @@ function signatureBlock(
           { canvas: [{ type: "line", x1: 10, y1: 0, x2: 92, y2: 0, lineWidth: 0.5, lineColor: "#e2e8f0" }] },
           { text: signatures.length > 0 ? signatures[0].signedAt.toLocaleDateString(dateLocale) : new Date().toLocaleDateString(dateLocale), fontSize: 4.5, color: "#64748b", alignment: "center" as const, margin: [0, 4, 0, 10] },
         ],
-        fillColor: "#f8fafc",
+        fillColor: "#f8f7ff",
       }]],
     },
     layout: {
@@ -1339,7 +1341,7 @@ function legalFooterNote(docNumber: string, lang: DocumentLanguage = "fr", verif
             },
             { text, fontSize: 6.5, color: "#94a3b8", lineHeight: 1.4 },
           ],
-          fillColor: "#f8fafc",
+          fillColor: "#f8f7ff",
           margin: [8, 8, 12, 8],
           border: [false, false, false, false] as [boolean, boolean, boolean, boolean],
         },
@@ -2005,10 +2007,10 @@ async function buildDocDef(template: DocumentTemplate, input: DocumentInput): Pr
       ? { text: "SPECIMEN", opacity: 0.04, bold: true, color: accentColor, angle: 45 }
       : undefined;
 
-  // ── A4 page layout with generous professional margins ─────────────────────
+  // ── A4 page layout — tighter margins maximize usable content area (P7) ──────
   const pageSetup = {
     pageSize: "A4" as const,
-    pageMargins: [44, 36, 44, 70] as [number, number, number, number],
+    pageMargins: [40, 22, 40, 58] as [number, number, number, number],
   };
 
   // ── Premium enterprise footer ─────────────────────────────────────────────
@@ -2039,7 +2041,7 @@ async function buildDocDef(template: DocumentTemplate, input: DocumentInput): Pr
           // Left: org + ref + verify URL
           {
             stack: [
-              { text: syndInfo.name, fontSize: 6.5, bold: true, color: "#374151" },
+              { text: syndInfo.name, fontSize: 6.5, bold: true, color: "#1e1b4b" },
               { text: `Réf. : ${docNum}   ·   ${today}`, fontSize: 5.5, color: "#9ca3af", margin: [0, 1, 0, 0] },
               ...(verifyUrl ? [{ text: verifyUrl, fontSize: 5, color: accentColor, margin: [0, 1, 0, 0] }] : []),
             ],
@@ -2058,7 +2060,7 @@ async function buildDocDef(template: DocumentTemplate, input: DocumentInput): Pr
           // Right: page number + brand
           {
             stack: [
-              { text: `${page}  /  ${pages}`, fontSize: 8, bold: true, color: "#374151", alignment: "right" as const },
+              { text: `${page}  /  ${pages}`, fontSize: 8, bold: true, color: "#1e1b4b", alignment: "right" as const },
               { text: "SYNDYCAT GLOBAL CPS", fontSize: 5.5, bold: true, color: accentColor, alignment: "right" as const, margin: [0, 2, 0, 0] },
             ],
             width: 120,
@@ -2485,7 +2487,7 @@ async function buildDocDef(template: DocumentTemplate, input: DocumentInput): Pr
           columns: [
             {
               stack: [
-                { text: syndInfo.name, fontSize: 11, bold: true, color: "#1e293b" },
+                { text: syndInfo.name, fontSize: 11, bold: true, color: "#1e1b4b" },
                 { text: [syndInfo.address, syndInfo.city].filter(Boolean).join(", "), fontSize: 9, color: "#64748b" },
                 { text: syndInfo.phone || "", fontSize: 9, color: "#64748b" },
                 { text: syndInfo.email || "", fontSize: 9, color: "#64748b" },
@@ -2494,7 +2496,7 @@ async function buildDocDef(template: DocumentTemplate, input: DocumentInput): Pr
             {
               stack: [
                 { text: `À l'attention de :`, fontSize: 9, color: "#64748b" },
-                { text: member || "[DESTINATAIRE]", fontSize: 11, bold: true, color: "#1e293b", margin: [0, 4, 0, 0] },
+                { text: member || "[DESTINATAIRE]", fontSize: 11, bold: true, color: "#1e1b4b", margin: [0, 4, 0, 0] },
                 { text: `Le ${today}`, fontSize: 9, color: "#64748b", margin: [0, 16, 0, 0] },
                 { text: `Réf : ${docNum}`, fontSize: 9, color: "#64748b" },
               ],
@@ -2507,7 +2509,7 @@ async function buildDocDef(template: DocumentTemplate, input: DocumentInput): Pr
           text: `Objet : ${input.objet as string || body || input.title}`,
           fontSize: 10,
           bold: true,
-          color: "#1e293b",
+          color: "#1e1b4b",
           margin: [0, 0, 0, 16],
           decoration: "underline" as const,
         },
@@ -2537,7 +2539,7 @@ async function buildDocDef(template: DocumentTemplate, input: DocumentInput): Pr
                 widths: ["*"],
                 body: [[{ stack: [
                   { text: "ACTION REQUISE", fontSize: 9, bold: true, color: accentColor, margin: [0, 0, 0, 4] },
-                  { text: input.actionRequise as string, fontSize: 10, color: "#1e293b" },
+                  { text: input.actionRequise as string, fontSize: 10, color: "#1e1b4b" },
                 ], fillColor: adjustColorBrightness(accentColor, 92), margin: [12, 10, 12, 10] }]],
               },
               layout: { hLineWidth: () => 1, vLineWidth: () => 0, hLineColor: () => adjustColorBrightness(accentColor, 55) },
@@ -2657,9 +2659,9 @@ async function buildDocDef(template: DocumentTemplate, input: DocumentInput): Pr
                 ["Dépenses d'entretien",  (input._kpiTotalExpenses as string) || "—", (input._kpiTotalExpenses as string) || "—"],
                 ["Fonds de réserve",      (input._kpiFondsTravauxTgt as string) || "—", (input._kpiFondsTravauxBal as string) || "—"],
               ]).map(([label, prevu, realise]: [string, string, string], i: number) => [
-                { text: label, fontSize: 8.5, color: "#374151", fillColor: i % 2 === 0 ? "#f8fafc" : "#ffffff", margin: [10, 5, 8, 5], border: [false, false, false, false] as [boolean, boolean, boolean, boolean] },
-                { text: prevu, fontSize: 8.5, color: "#374151", fillColor: i % 2 === 0 ? "#f8fafc" : "#ffffff", alignment: "right" as const, margin: [8, 5, 10, 5], border: [false, false, false, false] as [boolean, boolean, boolean, boolean] },
-                { text: realise, fontSize: 8.5, color: "#374151", fillColor: i % 2 === 0 ? "#f8fafc" : "#ffffff", alignment: "right" as const, margin: [8, 5, 10, 5], border: [false, false, false, false] as [boolean, boolean, boolean, boolean] },
+                { text: label, fontSize: 8.5, color: "#374151", fillColor: i % 2 === 0 ? "#f8f7ff" : "#ffffff", margin: [10, 5, 8, 5], border: [false, false, false, false] as [boolean, boolean, boolean, boolean] },
+                { text: prevu, fontSize: 8.5, color: "#374151", fillColor: i % 2 === 0 ? "#f8f7ff" : "#ffffff", alignment: "right" as const, margin: [8, 5, 10, 5], border: [false, false, false, false] as [boolean, boolean, boolean, boolean] },
+                { text: realise, fontSize: 8.5, color: "#374151", fillColor: i % 2 === 0 ? "#f8f7ff" : "#ffffff", alignment: "right" as const, margin: [8, 5, 10, 5], border: [false, false, false, false] as [boolean, boolean, boolean, boolean] },
               ]),
               [
                 { text: "TOTAL GÉNÉRAL", fontSize: 9, bold: true, color: "#ffffff", fillColor: accentColor, margin: [10, 8, 8, 8], border: [false, false, false, false] as [boolean, boolean, boolean, boolean] },
@@ -3184,9 +3186,9 @@ async function buildDocDef(template: DocumentTemplate, input: DocumentInput): Pr
           if (!outstanding && !collRate) return [];
           return [kpiRow([
             { label: "Taux de Recouvrement (Immeuble)", value: collRate ? `${collRate}%` : "—",
-              valueColor: parseInt(collRate || "0") >= 90 ? "#16a34a" : "#dc2626", bgColor: "#f8fafc" },
+              valueColor: parseInt(collRate || "0") >= 90 ? "#16a34a" : "#dc2626", bgColor: "#f8f7ff" },
             { label: "Impayés Totaux (Immeuble)",       value: outstanding ? `${outstanding} MAD` : "—",
-              valueColor: outstanding && outstanding !== "0" ? "#dc2626" : "#16a34a", bgColor: "#f8fafc" },
+              valueColor: outstanding && outstanding !== "0" ? "#dc2626" : "#16a34a", bgColor: "#f8f7ff" },
             { label: "Trésorerie",                      value: (input._kpiCashBalance as string) ? `${input._kpiCashBalance} MAD` : "—",
               bgColor: "#ecfdf5" },
           ], accentColor)];
@@ -3231,7 +3233,7 @@ async function buildDocDef(template: DocumentTemplate, input: DocumentInput): Pr
             hLineWidth: (i: number, node: { table: { body: unknown[] } }) => i === 0 || i === node.table.body.length ? 0.8 : 0,
             vLineWidth: () => 0,
             hLineColor: () => "#e5e7eb",
-            fillColor: (_: number, __: unknown, col: number) => col === 0 ? "#f8fafc" : null,
+            fillColor: (_: number, __: unknown, col: number) => col === 0 ? "#f8f7ff" : null,
             paddingLeft: () => 0, paddingRight: () => 0, paddingTop: () => 0, paddingBottom: () => 0,
           },
           margin: [0, 16, 0, 24],
@@ -3331,22 +3333,22 @@ async function buildDocDef(template: DocumentTemplate, input: DocumentInput): Pr
       const lineRows = invoiceLines.map((l, i) => [
         {
           text: l.label, fontSize: 9, margin: [8, 6, 4, 6],
-          fillColor: i % 2 === 0 ? "#f8fafc" : "#ffffff",
+          fillColor: i % 2 === 0 ? "#f8f7ff" : "#ffffff",
           border: [false, false, false, false] as [boolean, boolean, boolean, boolean],
         },
         {
           text: l.qty.toLocaleString("fr-MA"), fontSize: 9, alignment: "center" as const, margin: [4, 6, 4, 6],
-          fillColor: i % 2 === 0 ? "#f8fafc" : "#ffffff",
+          fillColor: i % 2 === 0 ? "#f8f7ff" : "#ffffff",
           border: [false, false, false, false] as [boolean, boolean, boolean, boolean],
         },
         {
           text: `${l.unitPrice.toLocaleString("fr-MA")} MAD`, fontSize: 9, alignment: "right" as const, margin: [4, 6, 8, 6],
-          fillColor: i % 2 === 0 ? "#f8fafc" : "#ffffff",
+          fillColor: i % 2 === 0 ? "#f8f7ff" : "#ffffff",
           border: [false, false, false, false] as [boolean, boolean, boolean, boolean],
         },
         {
           text: `${l.total.toLocaleString("fr-MA")} MAD`, fontSize: 9, bold: true, alignment: "right" as const, margin: [4, 6, 8, 6],
-          fillColor: i % 2 === 0 ? "#f8fafc" : "#ffffff",
+          fillColor: i % 2 === 0 ? "#f8f7ff" : "#ffffff",
           border: [false, false, false, false] as [boolean, boolean, boolean, boolean],
         },
       ]);
@@ -3405,7 +3407,7 @@ async function buildDocDef(template: DocumentTemplate, input: DocumentInput): Pr
                       margin: [12, 8, 12, 10],
                     },
                   ],
-                  fillColor: "#f8fafc",
+                  fillColor: "#f8f7ff",
                   border: [true, true, true, true] as [boolean, boolean, boolean, boolean],
                   borderColor: ["#e5e7eb", "#e5e7eb", "#e5e7eb", "#e5e7eb"],
                 },
@@ -3510,7 +3512,7 @@ async function buildDocDef(template: DocumentTemplate, input: DocumentInput): Pr
                   { text: `${totalAmount} MAD`, fontSize: 15, bold: true, color: "#111827" },
                   { text: `Statut : ${statusLabel}`, fontSize: 6.5, color: statusColor, bold: true, margin: [0, 3, 0, 0] },
                 ],
-                fillColor: "#f8fafc",
+                fillColor: "#f8f7ff",
                 margin: [12, 14, 12, 14],
                 border: [false, false, false, false] as [boolean, boolean, boolean, boolean],
               },
@@ -3597,8 +3599,8 @@ async function buildDocDef(template: DocumentTemplate, input: DocumentInput): Pr
 
         // ── Charge comparison KPIs ───────────────────────────────────────────
         kpiRow([
-          { label: "Provisions Versées",  value: `${totalProvisioned.toLocaleString("fr-MA")} MAD`,  bgColor: "#f8fafc" },
-          { label: "Charges Réelles",     value: `${totalActual.toLocaleString("fr-MA")} MAD`,        bgColor: "#f8fafc" },
+          { label: "Provisions Versées",  value: `${totalProvisioned.toLocaleString("fr-MA")} MAD`,  bgColor: "#f8f7ff" },
+          { label: "Charges Réelles",     value: `${totalActual.toLocaleString("fr-MA")} MAD`,        bgColor: "#f8f7ff" },
           { label: difference >= 0 ? "Rappel Dû" : "Avoir", value: `${Math.abs(difference).toLocaleString("fr-MA")} MAD`,
             valueColor: difference >= 0 ? "#dc2626" : "#16a34a",
             bgColor: difference >= 0 ? "#fef2f2" : "#f0fdf4" },
@@ -3606,7 +3608,7 @@ async function buildDocDef(template: DocumentTemplate, input: DocumentInput): Pr
         kpiRow([
           { label: "Total Payé",          value: `${totalPaid.toLocaleString("fr-MA")} MAD`,         valueColor: "#16a34a", bgColor: "#f0fdf4" },
           { label: "Impayés / Retard",    value: `${totalOverdue.toLocaleString("fr-MA")} MAD`,      valueColor: totalOverdue > 0 ? "#dc2626" : "#16a34a", bgColor: totalOverdue > 0 ? "#fef2f2" : "#f0fdf4" },
-          { label: "Taux de Paiement",    value: `${collRate}%`,                                     valueColor: collRate >= 90 ? "#16a34a" : "#dc2626", bgColor: "#f8fafc" },
+          { label: "Taux de Paiement",    value: `${collRate}%`,                                     valueColor: collRate >= 90 ? "#16a34a" : "#dc2626", bgColor: "#f8f7ff" },
         ], accentColor),
 
         // Progress bar — payment rate
@@ -4063,7 +4065,7 @@ async function buildDocDef(template: DocumentTemplate, input: DocumentInput): Pr
             hLineWidth: (i: number, node: any) => i === 0 || i === node.table.body.length ? 0.8 : 0,
             vLineWidth: () => 0,
             hLineColor: () => "#e5e7eb",
-            fillColor: (_: number, __: unknown, col: number) => col === 0 ? "#f8fafc" : null,
+            fillColor: (_: number, __: unknown, col: number) => col === 0 ? "#f8f7ff" : null,
             paddingLeft: () => 0, paddingRight: () => 0, paddingTop: () => 0, paddingBottom: () => 0,
           },
           margin: [0, 16, 0, 24],
