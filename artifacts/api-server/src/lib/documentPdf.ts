@@ -495,84 +495,95 @@ function buildHeaderBand(
   buildingName: string | null = null,
   version: string | null = null,
   docStatus: string | null = null,
-  _categoryIcon = "■",
+  categoryIcon = "■",
 ): object[] {
   // Color tokens
-  const dark = adjustColorBrightness(accentColor, -28);
+  const dark = adjustColorBrightness(accentColor, -30);
+  const mid  = adjustColorBrightness(accentColor, -14);
 
   // Identity text
   const acronym = (syndInfo.abbreviation ||
     syndInfo.name.split(/\s+/).map((w: string) => w[0]).join("").slice(0, 3)
   ).toUpperCase();
-  const regLine = syndInfo.registrationNumber ? `ICE / Ref : ${syndInfo.registrationNumber}` : null;
+  const regLine = syndInfo.registrationNumber ? `ICE / Réf : ${syndInfo.registrationNumber}` : null;
   const contactParts: string[] = [];
-  if (syndInfo.phone) contactParts.push(`Tel : ${syndInfo.phone}`);
+  if (syndInfo.phone) contactParts.push(`Tél : ${syndInfo.phone}`);
   if (syndInfo.email) contactParts.push(syndInfo.email);
-  const contactLine = contactParts.join("  |  ");
+  const contactLine = contactParts.join("  ·  ");
   const addressLine = [syndInfo.address, syndInfo.city].filter(Boolean).join(", ");
 
   // Document status indicator
   const statusDotMap: Record<string, { label: string; color: string }> = {
-    published: { label: "PUBLIE",    color: "#10b981" },
-    signed:    { label: "SIGNE",     color: "#7c3aed" },
-    validated: { label: "VALIDE",    color: "#6d28d9" },
-    archived:  { label: "ARCHIVE",  color: "#9ca3af" },
-    generated: { label: "GENERE",   color: "#f59e0b" },
-    draft:     { label: "BROUILLON",color: "#9ca3af" },
+    published: { label: "PUBLIÉ",    color: "#10b981" },
+    signed:    { label: "SIGNÉ",     color: "#7c3aed" },
+    validated: { label: "VALIDÉ",    color: "#6d28d9" },
+    archived:  { label: "ARCHIVÉ",   color: "#9ca3af" },
+    generated: { label: "GÉNÉRÉ",   color: "#f59e0b" },
+    draft:     { label: "BROUILLON", color: "#9ca3af" },
   };
   const statusDot = docStatus ? (statusDotMap[docStatus] ?? null) : null;
 
-  // Logo / monogram tile — compact 26px (matches slimmer 36px column)
+  // Logo / monogram tile — 36px rendered inside the 46px column
   const logoContent: unknown = logoDataUrl
-    ? { image: logoDataUrl, width: 26, height: 26, fit: [26, 26] as [number, number], alignment: "center" as const }
-    : { text: acronym, fontSize: 11, bold: true, color: "#ffffff", alignment: "center" as const };
+    ? { image: logoDataUrl, width: 36, height: 36, fit: [36, 36] as [number, number], alignment: "center" as const }
+    : {
+        stack: [
+          { text: acronym, fontSize: 13, bold: true, color: "#ffffff", alignment: "center" as const },
+        ],
+      };
 
-  // 3px brand stripe at page top
-  // 2px brand stripe — ultra-slim, non-consuming
+  // 2px brand stripe at page top
   const topStripe: unknown = {
     canvas: [{ type: "rect", x: 0, y: 0, w: 515, h: 2, color: accentColor }],
     margin: [0, 0, 0, 0],
   };
 
-  // Main header band — ultra-compact 3-column layout (target ≤10% of A4 height)
+  // Main header band — 3-column layout: [Logo | Syndicate identity | Doc ref + QR]
   const band: unknown = {
     table: {
-      widths: [36, "*", 72],
+      widths: [46, "*", 80],
       body: [[
-        // COL 1 — Logo / monogram on accent background (36px tile)
+        // COL 1 — Logo / monogram on accent background
         {
           stack: [logoContent],
           fillColor: accentColor,
           alignment: "center" as const,
-          margin: [4, 5, 4, 5],
+          margin: [5, 6, 5, 6],
           border: [false, false, false, false] as [boolean, boolean, boolean, boolean],
         },
 
-        // COL 2 — Organisation identity on dark background (compact text)
+        // COL 2 — Syndicate identity on dark background (primary branding column)
         {
           stack: [
+            // Syndicate name — dominant, large, bold
             {
               text: syndInfo.name.toUpperCase(),
-              fontSize: 9.5, bold: true,
+              fontSize: 11, bold: true,
               color: "#ffffff",
-              characterSpacing: 0.2,
-              margin: [0, 0, 0, 2],
+              characterSpacing: 0.3,
+              margin: [0, 0, 0, 3],
             },
+            // Building / residence — prominent subtitle
             ...(buildingName ? [{
-              text: buildingName,
-              fontSize: 6.5, color: "#ffffffdd",
-              margin: [0, 0, 0, 1],
+              text: buildingName.toUpperCase(),
+              fontSize: 7.5, bold: true,
+              color: "#ffffffee",
+              characterSpacing: 0.1,
+              margin: [0, 0, 0, 3],
             }] : []),
+            // Address
             ...(addressLine ? [{
               text: addressLine,
               fontSize: 6, color: "#ffffffbb",
               margin: [0, 0, 0, 1],
             }] : []),
+            // ICE / Registration
             ...(regLine ? [{
               text: regLine,
               fontSize: 5.5, color: "#ffffff99",
               margin: [0, 0, 0, 1],
             }] : []),
+            // Contact line
             ...(contactLine ? [{
               text: contactLine,
               fontSize: 5.5, color: "#ffffff88",
@@ -580,45 +591,45 @@ function buildHeaderBand(
             }] : []),
           ],
           fillColor: dark,
-          margin: [8, 5, 8, 5],
+          margin: [10, 6, 8, 6],
           border: [false, false, false, false] as [boolean, boolean, boolean, boolean],
         },
 
-        // COL 3 — Document ref + QR (verification-only, visually subordinate)
+        // COL 3 — Document ref + status + QR (verification reference)
         {
           stack: [
             {
               text: docTypeLabel,
               fontSize: 6, bold: true,
-              color: accentColor,
-              characterSpacing: 0.2,
-              margin: [0, 0, 0, 2],
+              color: mid,
+              characterSpacing: 0.3,
+              margin: [0, 0, 0, 3],
             },
             {
-              text: `N\u00b0 ${docNumber}`,
-              fontSize: 7.5, bold: true,
+              text: `N° ${docNumber}`,
+              fontSize: 8, bold: true,
               color: "#1e1b4b",
               margin: [0, 0, 0, 1],
             },
             {
               text: today,
               fontSize: 6, color: "#6b7280",
-              margin: [0, 0, 0, 1],
+              margin: [0, 0, 0, 2],
             },
             ...(statusDot ? [{
-              text: statusDot.label,
-              fontSize: 5, bold: true,
+              text: `● ${statusDot.label}`,
+              fontSize: 5.5, bold: true,
               color: statusDot.color,
-              margin: [0, 0, 0, 2],
-            }] : [{ text: "", margin: [0, 0, 0, 2] }]),
-            // QR code — 18px, verification-only (not the star of the show)
+              margin: [0, 0, 0, 3],
+            }] : [{ text: "", margin: [0, 0, 0, 3] }]),
+            // QR code — 20px, verification reference
             ...(qrDataUrl
-              ? [{ image: qrDataUrl, width: 18, height: 18, alignment: "center" as const, margin: [0, 0, 0, 0] }]
-              : [{ canvas: [{ type: "rect", x: 0, y: 0, w: 18, h: 18, color: "#f3f4f6", r: 2 }], alignment: "center" as const, margin: [0, 0, 0, 0] }]
+              ? [{ image: qrDataUrl, width: 20, height: 20, alignment: "center" as const, margin: [0, 0, 0, 0] }]
+              : [{ canvas: [{ type: "rect", x: 0, y: 0, w: 20, h: 20, color: "#f3f4f6", r: 2 }], alignment: "center" as const, margin: [0, 0, 0, 0] }]
             ),
           ],
-          fillColor: "#ffffff",
-          margin: [6, 5, 6, 5],
+          fillColor: "#fafafa",
+          margin: [7, 6, 7, 6],
           border: [false, false, false, false] as [boolean, boolean, boolean, boolean],
         },
       ]],
@@ -629,16 +640,137 @@ function buildHeaderBand(
     },
   };
 
-  // Separator: hairline + 1.5px accent underline — subtle, not decorative
-  const separator: unknown = {
-    canvas: [
-      { type: "line", x1: 0, y1: 0, x2: 515, y2: 0, lineWidth: 0.3, lineColor: "#e5e7eb" },
-      { type: "rect", x: 0, y: -0.3, w: 36, h: 1.5, color: accentColor },
-    ],
+  // Category identity strip — document family label, bold, on accent tint background
+  // This makes the document type immediately obvious and differentiates families visually.
+  const categoryStrip: unknown = {
+    table: {
+      widths: ["auto", "*"],
+      body: [[
+        {
+          text: `${categoryIcon}`,
+          fontSize: 9, bold: true,
+          color: accentColor,
+          fillColor: adjustColorBrightness(accentColor, 88),
+          margin: [10, 4, 8, 4],
+          border: [false, false, false, false] as [boolean, boolean, boolean, boolean],
+        },
+        {
+          stack: [
+            {
+              columns: [
+                {
+                  text: docTypeLabel,
+                  fontSize: 7, bold: true,
+                  color: accentColor,
+                  characterSpacing: 0.5,
+                  width: "*",
+                },
+                ...(buildingName ? [{
+                  text: buildingName,
+                  fontSize: 6.5, color: adjustColorBrightness(accentColor, -10),
+                  alignment: "right" as const,
+                  width: "auto",
+                }] : []),
+              ],
+            },
+          ],
+          fillColor: adjustColorBrightness(accentColor, 88),
+          margin: [0, 4, 10, 4],
+          border: [false, false, false, false] as [boolean, boolean, boolean, boolean],
+        },
+      ]],
+    },
+    layout: {
+      hLineWidth: () => 0, vLineWidth: () => 0,
+      paddingLeft: () => 0, paddingRight: () => 0, paddingTop: () => 0, paddingBottom: () => 0,
+    },
     margin: [0, 0, 0, 10],
   };
 
-  return [topStripe, band, separator] as object[];
+  return [topStripe, band, categoryStrip] as object[];
+}
+
+// ─── Official Seal ─────────────────────────────────────────────────────────────
+// Professional circular seal using pdfmake canvas ellipses + the negative-margin
+// overlay trick so text sits inside the circle. Replaces the plain rectangle stamp.
+
+function buildOfficialSeal(
+  syndName: string,
+  accentColor: string,
+  signerName?: string,
+  stampDate?: string,
+): unknown {
+  const W    = 116;  // seal container width
+  const cx   = 58;   // center x
+  const cy   = 55;   // center y
+  const rOuter = 52; // outer radius
+  const canvasH = cy + rOuter + 3; // total canvas bounding height ≈ 110
+
+  const truncate = (s: string, n: number) =>
+    s.length > n ? s.slice(0, n - 1) + "…" : s;
+
+  const dark = adjustColorBrightness(accentColor, -25);
+
+  return {
+    stack: [
+      // ── Layer 1: concentric ellipse rings (background) ────────────────────
+      {
+        canvas: [
+          // Outer filled circle (accent color)
+          { type: "ellipse", x: cx, y: cy, r1: rOuter, r2: rOuter, color: accentColor },
+          // Thin white ring — gives the classic stamp double-border look
+          { type: "ellipse", x: cx, y: cy, r1: rOuter - 5, r2: rOuter - 5, lineWidth: 1.2, lineColor: "#ffffff55" },
+          // Inner emblem ring
+          { type: "ellipse", x: cx, y: cy, r1: rOuter - 14, r2: rOuter - 14, lineWidth: 0.5, lineColor: "#ffffff30" },
+        ],
+        margin: [0, 0, 0, -(canvasH)], // pull subsequent elements up into the circle
+      },
+
+      // ── Layer 2: text content, centered within the circle ─────────────────
+      // "CACHET OFFICIEL" arc-simulated by top-aligned centered text
+      {
+        text: "★  CACHET OFFICIEL  ★",
+        fontSize: 5.5, bold: true, color: "#ffffff",
+        alignment: "center" as const, characterSpacing: 0.5,
+        margin: [0, 12, 0, 2],
+      },
+      // Thin divider inside circle
+      {
+        canvas: [
+          { type: "line", x1: cx - 30, y1: 0, x2: cx + 30, y2: 0, lineWidth: 0.4, lineColor: "#ffffff45" },
+        ],
+      },
+      // Syndicate name — the main identifier
+      {
+        text: truncate(syndName.toUpperCase(), 24),
+        fontSize: 5.5, bold: true, color: "#ffffffee",
+        alignment: "center" as const, lineHeight: 1.3,
+        margin: [10, 5, 10, 3],
+      },
+      // Signer name (when document is signed)
+      ...(signerName ? [{
+        text: truncate(signerName, 24),
+        fontSize: 4.5, italics: true, color: "#ffffffcc",
+        alignment: "center" as const,
+        margin: [0, 0, 0, 2] as [number, number, number, number],
+      }] : []),
+      // Bottom divider
+      {
+        canvas: [
+          { type: "line", x1: cx - 30, y1: 0, x2: cx + 30, y2: 0, lineWidth: 0.4, lineColor: "#ffffff45" },
+        ],
+      },
+      // Date
+      {
+        text: stampDate ?? new Date().toLocaleDateString("fr-FR"),
+        fontSize: 4.5, color: "#ffffffdd",
+        alignment: "center" as const,
+        margin: [0, 5, 0, 14],
+      },
+    ],
+    width: W,
+    alignment: "center" as const,
+  };
 }
 
 // Adjust a hex color's brightness (delta: positive = lighter, negative = darker)
@@ -651,6 +783,218 @@ function adjustColorBrightness(hex: string, delta: number): string {
 }
 
 // ─── Shared building blocks ───────────────────────────────────────────────────
+
+// ─── Document-Family Visual Openers ──────────────────────────────────────────
+// Each document family has a distinct visual treatment that appears between
+// the header and the document title — making the category immediately obvious
+// at a glance and distinguishing financial reports from certificates, PVs, etc.
+
+/**
+ * Certificate / Attestation frame — ornate double-border with emblem.
+ * Wraps the title in a formal official-document visual container.
+ * Used for: certificat, attestation*, recu_paiement.
+ */
+function buildCertificateFrame(accentColor: string, lang: DocumentLanguage = "fr"): unknown {
+  const light = adjustColorBrightness(accentColor, 88);
+  const emblemChar = lang === "ar" ? "✦" : "✦";
+  return {
+    stack: [
+      // Outer frame: thick top + bottom bars with corner ticks
+      {
+        canvas: [
+          // Top bar
+          { type: "rect", x: 0, y: 0, w: 515, h: 3.5, color: accentColor },
+          // Bottom bar
+          { type: "rect", x: 0, y: 12, w: 515, h: 3.5, color: accentColor },
+          // Left tick
+          { type: "rect", x: 0, y: 0, w: 3.5, h: 16, color: accentColor },
+          // Right tick
+          { type: "rect", x: 511.5, y: 0, w: 3.5, h: 16, color: accentColor },
+        ],
+        margin: [0, 4, 0, 0],
+      },
+      // Inner accent row — tinted, with centered emblem
+      {
+        table: {
+          widths: ["*"],
+          body: [[{
+            columns: [
+              { text: emblemChar, fontSize: 8, bold: true, color: accentColor, width: "auto", margin: [0, 1, 6, 0] },
+              { text: lang === "ar" ? "وثيقة رسمية معتمدة" : lang === "en" ? "OFFICIAL CERTIFIED DOCUMENT" : "DOCUMENT OFFICIEL CERTIFIÉ", fontSize: 7, bold: true, color: accentColor, characterSpacing: 0.8, width: "*" },
+              { text: emblemChar, fontSize: 8, bold: true, color: accentColor, width: "auto", margin: [6, 1, 0, 0] },
+            ],
+            fillColor: light,
+            alignment: "center" as const,
+            margin: [0, 6, 0, 6],
+            border: [false, false, false, false] as [boolean, boolean, boolean, boolean],
+          }]],
+        },
+        layout: { hLineWidth: () => 0, vLineWidth: () => 0, paddingLeft: () => 0, paddingRight: () => 0, paddingTop: () => 0, paddingBottom: () => 0 },
+      },
+      // Bottom frame: mirror of top
+      {
+        canvas: [
+          { type: "rect", x: 0, y: 0, w: 515, h: 3.5, color: accentColor },
+          { type: "rect", x: 0, y: -12.5, w: 515, h: 3.5, color: accentColor },
+          { type: "rect", x: 0, y: -12.5, w: 3.5, h: 16, color: accentColor },
+          { type: "rect", x: 511.5, y: -12.5, w: 3.5, h: 16, color: accentColor },
+        ],
+        margin: [0, 0, 0, 16],
+      },
+    ],
+  };
+}
+
+/**
+ * Governance authority banner — shown on election and decision documents.
+ * Establishes the legal/governing nature of the document immediately.
+ * Used for: rapport_election, decision.
+ */
+function buildGovernanceBanner(
+  accentColor: string,
+  categoryLabel: string,
+  entityRef?: string,
+): unknown {
+  const dark = adjustColorBrightness(accentColor, -20);
+  return {
+    table: {
+      widths: ["auto", "*", "auto"],
+      body: [[
+        // Left: star emblem
+        {
+          text: "★",
+          fontSize: 18, bold: true, color: "#ffffff",
+          fillColor: dark,
+          alignment: "center" as const,
+          margin: [14, 10, 14, 10],
+          border: [false, false, false, false] as [boolean, boolean, boolean, boolean],
+        },
+        // Center: category label + ref
+        {
+          stack: [
+            { text: categoryLabel, fontSize: 9, bold: true, color: "#ffffff", characterSpacing: 0.6, margin: [0, 0, 0, 2] },
+            ...(entityRef ? [{ text: entityRef, fontSize: 7, color: "#ffffffcc" }] : []),
+          ],
+          fillColor: accentColor,
+          margin: [0, 10, 0, 10],
+          border: [false, false, false, false] as [boolean, boolean, boolean, boolean],
+        },
+        // Right: mirror star
+        {
+          text: "★",
+          fontSize: 18, bold: true, color: "#ffffff",
+          fillColor: dark,
+          alignment: "center" as const,
+          margin: [14, 10, 14, 10],
+          border: [false, false, false, false] as [boolean, boolean, boolean, false],
+        },
+      ]],
+    },
+    layout: {
+      hLineWidth: () => 0, vLineWidth: () => 0,
+      paddingLeft: () => 0, paddingRight: () => 0, paddingTop: () => 0, paddingBottom: () => 0,
+    },
+    margin: [0, 0, 0, 16],
+  };
+}
+
+/**
+ * Legal alert banner — prominent visual warning for enforcement documents.
+ * The red-background band makes the document's urgency unambiguous.
+ * Used for: mise_en_demeure, lettre_officielle (enforcement context).
+ */
+function buildLegalAlertBanner(accentColor: string, lang: DocumentLanguage = "fr"): unknown {
+  const alertLabel = lang === "ar" ? "وثيقة قانونية رسمية — الرد الإلزامي" : "ACTE JURIDIQUE OFFICIEL — RÉPONSE OBLIGATOIRE";
+  const sublabel   = lang === "ar" ? "يجب الرد خلال المهلة المحددة أدناه" : "Toute inaction dans le délai imparti engage la responsabilité du destinataire.";
+  return {
+    table: {
+      widths: ["auto", "*"],
+      body: [[
+        {
+          text: "⚠",
+          fontSize: 22, bold: true, color: "#ffffff",
+          fillColor: accentColor,
+          alignment: "center" as const,
+          margin: [14, 12, 14, 12],
+          border: [false, false, false, false] as [boolean, boolean, boolean, boolean],
+        },
+        {
+          stack: [
+            { text: alertLabel, fontSize: 8.5, bold: true, color: "#ffffff", characterSpacing: 0.3, margin: [0, 0, 0, 3] },
+            { text: sublabel, fontSize: 7, color: "#ffffffcc", lineHeight: 1.3 },
+          ],
+          fillColor: adjustColorBrightness(accentColor, -15),
+          margin: [6, 12, 12, 12],
+          border: [false, false, false, false] as [boolean, boolean, boolean, boolean],
+        },
+      ]],
+    },
+    layout: {
+      hLineWidth: () => 0, vLineWidth: () => 0,
+      paddingLeft: () => 0, paddingRight: () => 0, paddingTop: () => 0, paddingBottom: () => 0,
+    },
+    margin: [0, 0, 0, 16],
+  };
+}
+
+/**
+ * Meeting session identity banner — shown on PV, convocation, compte_rendu.
+ * Provides a visual "meeting room" identity: meeting type, quorum, participants.
+ * Used for: pv, convocation, compte_rendu.
+ */
+function buildMeetingBanner(
+  accentColor: string,
+  meetingType?: string,
+  location?: string,
+  date?: string,
+  lang: DocumentLanguage = "fr",
+): unknown {
+  const light = adjustColorBrightness(accentColor, 86);
+  const dark  = adjustColorBrightness(accentColor, -20);
+  const typeLabel = meetingType || (lang === "ar" ? "جمعية عامة" : "ASSEMBLÉE GÉNÉRALE");
+  return {
+    table: {
+      widths: ["auto", "*", "auto"],
+      body: [[
+        {
+          text: "◆",
+          fontSize: 16, bold: true, color: accentColor,
+          fillColor: light,
+          alignment: "center" as const,
+          margin: [12, 8, 12, 8],
+          border: [false, false, false, false] as [boolean, boolean, boolean, boolean],
+        },
+        {
+          stack: [
+            { text: typeLabel.toUpperCase(), fontSize: 8, bold: true, color: dark, characterSpacing: 0.5, margin: [0, 0, 0, 2] },
+            {
+              columns: [
+                ...(location ? [{ text: `📍 ${location}`, fontSize: 6.5, color: "#6b7280", width: "*" }] : []),
+                ...(date ? [{ text: date, fontSize: 6.5, color: "#6b7280", width: "auto" }] : []),
+              ],
+            },
+          ],
+          fillColor: light,
+          margin: [0, 8, 0, 8],
+          border: [false, false, false, false] as [boolean, boolean, boolean, boolean],
+        },
+        {
+          text: "◆",
+          fontSize: 16, bold: true, color: accentColor,
+          fillColor: light,
+          alignment: "center" as const,
+          margin: [12, 8, 12, 8],
+          border: [false, false, false, false] as [boolean, boolean, boolean, boolean],
+        },
+      ]],
+    },
+    layout: {
+      hLineWidth: () => 0, vLineWidth: () => 0,
+      paddingLeft: () => 0, paddingRight: () => 0, paddingTop: () => 0, paddingBottom: () => 0,
+    },
+    margin: [0, 0, 0, 14],
+  };
+}
 
 // ─── Professional Information Cards ──────────────────────────────────────────
 // Replaces the old Excel-style table with a 2-column card grid.
@@ -993,6 +1337,10 @@ export interface InlineSignatureInfo {
   signerRole: string;
   signedAt: Date;
   isValid: boolean;
+  /** Raw SVG markup from the signature pad (signatureData column). When present
+   *  this is rendered inline in the PDF so the handwritten trace is visible
+   *  directly in the document body — not only on the appended signature page. */
+  signatureData?: string;
 }
 
 /**
@@ -1074,6 +1422,22 @@ function multiSignatoryBlock(
     }
 
     if (sig) {
+      // Render handwritten SVG trace inline when available — the signer's actual mark
+      if (sig.signatureData && sig.signatureData.trim().startsWith("<svg")) {
+        colStack.push({
+          svg: sig.signatureData,
+          width: 120,
+          height: 50,
+          alignment: "center" as const,
+          margin: [0, 6, 0, 4],
+        });
+      } else {
+        // Blank signature line — placeholder until SVG is available
+        colStack.push({
+          canvas: [{ type: "line", x1: 8, y1: 0, x2: 120, y2: 0, lineWidth: 0.6, lineColor: "#d1d5db" }],
+          margin: [0, 24, 0, 4],
+        });
+      }
       colStack.push(
         { text: sig.signedAt.toLocaleString(dateLocale), style: "signLabel", alignment: "center" as const, margin: [0, 0, 0, 2] },
         validityBadge(sig.isValid),
@@ -1087,34 +1451,17 @@ function multiSignatoryBlock(
     return { stack: colStack };
   };
 
-  // Official stamp — accent-color background
+  // Official circular seal — placed below the Secretary column
   const presidentSigForStamp = findSig(["president", "syndicate_admin", "super_admin"]);
   const stampDate = presidentSigForStamp
     ? presidentSigForStamp.signedAt.toLocaleDateString(dateLocale)
     : new Date().toLocaleDateString(dateLocale);
-  const premiumStamp: unknown = {
-    table: {
-      widths: [108],
-      body: [[{
-        stack: [
-          { text: "CACHET OFFICIEL", fontSize: 6, bold: true, color: "#ffffff", alignment: "center" as const, characterSpacing: 0.5, margin: [0, 9, 0, 3] },
-          { canvas: [{ type: "line", x1: 8, y1: 0, x2: 96, y2: 0, lineWidth: 0.4, lineColor: "#ffffff44" }] },
-          { text: syndName.length > 22 ? syndName.slice(0, 22).toUpperCase() + "." : syndName.toUpperCase(), fontSize: 5, bold: true, color: "#ffffffee", alignment: "center" as const, margin: [6, 5, 6, 3], lineHeight: 1.3 },
-          ...(presidentSigForStamp ? [{ text: presidentSigForStamp.signerName.length > 20 ? presidentSigForStamp.signerName.slice(0, 20) + "." : presidentSigForStamp.signerName, fontSize: 4.5, color: "#ffffffcc", italics: true, alignment: "center" as const, margin: [0, 0, 0, 2] }] : []),
-          { canvas: [{ type: "line", x1: 8, y1: 0, x2: 96, y2: 0, lineWidth: 0.4, lineColor: "#ffffff44" }] },
-          { text: stampDate, fontSize: 5, color: "#ffffffdd", alignment: "center" as const, margin: [0, 4, 0, 9] },
-        ],
-        fillColor: accentColor,
-      }]],
-    },
-    layout: {
-      hLineWidth: (i: number, node: any) => (i === 0 || i === node.table.body.length) ? 1.5 : 0,
-      vLineWidth: (i: number, node: any) => (i === 0 || i === node.table.widths.length) ? 1.5 : 0,
-      hLineColor: () => adjustColorBrightness(accentColor, -22),
-      vLineColor: () => adjustColorBrightness(accentColor, -22),
-      paddingLeft: () => 0, paddingRight: () => 0, paddingTop: () => 0, paddingBottom: () => 0,
-    },
-  };
+  const officialSeal = buildOfficialSeal(
+    syndName,
+    accentColor,
+    presidentSigForStamp?.signerName,
+    stampDate,
+  );
 
   const presidentSig = findSig(["president", "syndicate_admin", "super_admin"]);
   const treasurerSig = findSig(["treasurer"]);
@@ -1139,7 +1486,7 @@ function multiSignatoryBlock(
           {
             stack: [
               makeSignerCol(t("roleSecretary", lang), officeHolders?.secretary?.fullName, secretarySig),
-              { stack: [premiumStamp], alignment: "center" as const, margin: [0, 14, 0, 0] },
+              { stack: [officialSeal], alignment: "center" as const, margin: [0, 14, 0, 0] },
             ],
             width: "*",
           },
@@ -1178,32 +1525,6 @@ function signatureBlock(
         }))
       : [{ text: t("awaitingSignature", lang), style: "signLabel", italics: true }];
 
-  // Official stamp — accent-color background for maximum authority
-  const realSig = signatures[0] ?? null;
-  const premiumStampBlock: unknown = {
-    table: {
-      widths: [100],
-      body: [[{
-        stack: [
-          { text: "CACHET OFFICIEL", fontSize: 6, bold: true, color: "#ffffff", alignment: "center" as const, characterSpacing: 0.5, margin: [0, 9, 0, 3] },
-          { canvas: [{ type: "line", x1: 8, y1: 0, x2: 88, y2: 0, lineWidth: 0.4, lineColor: "#ffffff44" }] },
-          { text: syndName.length > 20 ? syndName.slice(0, 20).toUpperCase() + "." : syndName.toUpperCase(), fontSize: 5, bold: true, color: "#ffffffee", alignment: "center" as const, margin: [4, 5, 4, 3], lineHeight: 1.3 },
-          ...(realSig ? [{ text: realSig.signerName.length > 18 ? realSig.signerName.slice(0, 18) + "." : realSig.signerName, fontSize: 4.5, color: "#ffffffcc", italics: true, alignment: "center" as const, margin: [0, 0, 0, 2] }] : []),
-          { canvas: [{ type: "line", x1: 8, y1: 0, x2: 88, y2: 0, lineWidth: 0.4, lineColor: "#ffffff44" }] },
-          { text: realSig ? realSig.signedAt.toLocaleDateString(dateLocale) : new Date().toLocaleDateString(dateLocale), fontSize: 5, color: "#ffffffdd", alignment: "center" as const, margin: [0, 4, 0, 9] },
-        ],
-        fillColor: accentColor,
-      }]],
-    },
-    layout: {
-      hLineWidth: (i: number, node: any) => (i === 0 || i === node.table.body.length) ? 1.5 : 0,
-      vLineWidth: (i: number, node: any) => (i === 0 || i === node.table.widths.length) ? 1.5 : 0,
-      hLineColor: () => adjustColorBrightness(accentColor, -22),
-      vLineColor: () => adjustColorBrightness(accentColor, -22),
-      paddingLeft: () => 0, paddingRight: () => 0, paddingTop: () => 0, paddingBottom: () => 0,
-    },
-  };
-
   // ── Validity badge ────────────────────────────────────────────────────────
   const makeValidityBadge = (isValid: boolean): unknown => ({
     table: {
@@ -1232,8 +1553,13 @@ function signatureBlock(
   const signerRows: unknown[] = signatures.length > 0
     ? signatures.map((sig, i) => ({
         stack: [
-          { text: sig.signerName, style: "signName", margin: [0, i === 0 ? 0 : 10, 0, 1] },
-          { text: roleLabel(sig.signerRole, lang), style: "signLabel", margin: [0, 0, 0, 1] },
+          { text: sig.signerName, style: "signName", margin: [0, i === 0 ? 0 : 12, 0, 1] },
+          { text: roleLabel(sig.signerRole, lang), style: "signLabel", margin: [0, 0, 0, 2] },
+          // Handwritten SVG trace — rendered inline when available
+          ...(sig.signatureData && sig.signatureData.trim().startsWith("<svg")
+            ? [{ svg: sig.signatureData, width: 160, height: 55, alignment: "center" as const, margin: [0, 4, 0, 4] as [number, number, number, number] }]
+            : [{ canvas: [{ type: "line", x1: 0, y1: 0, x2: 180, y2: 0, lineWidth: 0.7, lineColor: "#d1d5db" }], margin: [0, 22, 0, 4] as [number, number, number, number] }]
+          ),
           { text: `${t("signedOnLabel", lang)} ${sig.signedAt.toLocaleString(dateLocale)}`, style: "signLabel", margin: [0, 0, 0, 3] },
           makeValidityBadge(sig.isValid),
         ],
@@ -1245,30 +1571,17 @@ function signatureBlock(
         { text: t("awaitingSignature", lang), style: "notice", italics: true },
       ];
 
-  // ── Official stamp — clean bordered box, reliable rendering ─────────────────
-  const premiumStampFinal: unknown = {
-    table: {
-      widths: [106],
-      body: [[{
-        stack: [
-          { text: "CACHET OFFICIEL", fontSize: 5.5, bold: true, color: accentColor, alignment: "center" as const, margin: [0, 10, 0, 4] },
-          { canvas: [{ type: "line", x1: 10, y1: 0, x2: 92, y2: 0, lineWidth: 0.5, lineColor: "#e2e8f0" }] },
-          { text: syndName.slice(0, 22).toUpperCase(), fontSize: 5, bold: true, color: "#374151", alignment: "center" as const, margin: [4, 5, 4, 3], lineHeight: 1.3 },
-          ...(signatures.length > 0 ? [{ text: signatures[0].signerName.slice(0, 22), fontSize: 4.5, color: "#64748b", italics: true, alignment: "center" as const, margin: [0, 0, 0, 2] }] : []),
-          { canvas: [{ type: "line", x1: 10, y1: 0, x2: 92, y2: 0, lineWidth: 0.5, lineColor: "#e2e8f0" }] },
-          { text: signatures.length > 0 ? signatures[0].signedAt.toLocaleDateString(dateLocale) : new Date().toLocaleDateString(dateLocale), fontSize: 4.5, color: "#64748b", alignment: "center" as const, margin: [0, 4, 0, 10] },
-        ],
-        fillColor: "#f8f7ff",
-      }]],
-    },
-    layout: {
-      hLineWidth: (i: number, node: any) => (i === 0 || i === node.table.body.length) ? 1.2 : 0,
-      vLineWidth: (i: number, node: any) => (i === 0 || i === node.table.widths.length) ? 1.2 : 0,
-      hLineColor: () => accentColor,
-      vLineColor: () => accentColor,
-      paddingLeft: () => 0, paddingRight: () => 0, paddingTop: () => 0, paddingBottom: () => 0,
-    },
-  };
+  // Official circular seal — renders signed or unsigned state
+  const firstSig = signatures[0] ?? null;
+  const sealDate = firstSig
+    ? firstSig.signedAt.toLocaleDateString(dateLocale)
+    : new Date().toLocaleDateString(dateLocale);
+  const officialSealFinal = buildOfficialSeal(
+    syndName,
+    accentColor,
+    firstSig?.signerName,
+    sealDate,
+  );
 
   return {
     stack: [
@@ -1282,7 +1595,7 @@ function signatureBlock(
       },
       {
         table: {
-          widths: ["*", showStampCircle ? 114 : 0],
+          widths: ["*", showStampCircle ? 120 : 0],
           body: [[
             {
               stack: [
@@ -1293,10 +1606,10 @@ function signatureBlock(
             },
             showStampCircle
               ? {
-                  stack: [premiumStampFinal],
+                  stack: [officialSealFinal],
                   border: [false, false, false, false] as [boolean, boolean, boolean, boolean],
                   alignment: "center" as const,
-                  margin: [4, 0, 0, 0],
+                  margin: [4, 20, 0, 0],
                 }
               : { text: "", border: [false, false, false, false] as [boolean, boolean, boolean, boolean] },
           ]],
@@ -2081,6 +2394,7 @@ async function buildDocDef(template: DocumentTemplate, input: DocumentInput): Pr
     case "attestation":
       content = [
         ...header,
+        buildCertificateFrame(accentColor, lang),
         { text: input.title, style: "docTitle", alignment: "center" as const, margin: [0, 0, 0, 16] },
         metaTable([
           [t("metaDeliveredTo", lang), member || t("notRenseigne", lang)],
@@ -2102,6 +2416,7 @@ async function buildDocDef(template: DocumentTemplate, input: DocumentInput): Pr
     case "pv":
       content = [
         ...header,
+        buildMeetingBanner(accentColor, input.meetingType as string || "ASSEMBLÉE GÉNÉRALE", input.lieu as string, today, lang),
         { text: input.title, style: "docTitle", alignment: "center" as const, margin: [0, 0, 0, 16] },
         metaTable([
           [t("metaMeetingDate", lang), today],
@@ -2122,6 +2437,7 @@ async function buildDocDef(template: DocumentTemplate, input: DocumentInput): Pr
     case "convocation":
       content = [
         ...header,
+        buildMeetingBanner(accentColor, input.meetingType as string || "ASSEMBLÉE GÉNÉRALE", input.lieu as string, input.meetingDate as string || today, lang),
         { text: input.title, style: "docTitle", alignment: "center" as const, margin: [0, 0, 0, 16] },
         metaTable([
           [t("metaRecipient", lang), member || t("convocationRecipientFallback", lang)],
@@ -2221,6 +2537,7 @@ async function buildDocDef(template: DocumentTemplate, input: DocumentInput): Pr
     case "decision":
       content = [
         ...header,
+        buildGovernanceBanner(accentColor, theme.categoryLabel, `Réf. ${docNum} — ${today}`),
         { text: input.title, style: "docTitle", alignment: "center" as const, margin: [0, 0, 0, 16] },
         metaTable([
           ["Référence :", docNum],
@@ -2261,14 +2578,8 @@ async function buildDocDef(template: DocumentTemplate, input: DocumentInput): Pr
     case "certificat":
       content = [
         ...header,
-        // Decorative border
-        {
-          canvas: [
-            { type: "rect", x: 0, y: 0, w: 515, h: 4, color: accentColor },
-          ],
-          margin: [0, 0, 0, 16],
-        },
-        { text: t("certificateWord", lang), fontSize: 26, bold: true, color: accentColor, alignment: "center" as const, margin: [0, 0, 0, 4] },
+        buildCertificateFrame(accentColor, lang),
+        { text: t("certificateWord", lang), fontSize: 26, bold: true, color: accentColor, alignment: "center" as const, margin: [0, 8, 0, 4] },
         { text: input.title, style: "docTitle", alignment: "center" as const, margin: [0, 0, 0, 20] },
         metaTable([
           [t("metaDeliveredTo", lang), member || t("certificatBeneficiaryFallback", lang)],
@@ -2282,12 +2593,7 @@ async function buildDocDef(template: DocumentTemplate, input: DocumentInput): Pr
           accentColor,
           isArabic,
         ),
-        {
-          canvas: [
-            { type: "rect", x: 0, y: 0, w: 515, h: 4, color: accentColor },
-          ],
-          margin: [0, 8, 0, 16],
-        },
+        buildCertificateFrame(accentColor, lang),
         signatureBlock(t("presidentTitle", lang), syndInfo.name, accentColor, true, lang, signatures),
         legalFooterNote(docNum, lang, verifyUrl),
       ];
@@ -2319,6 +2625,7 @@ async function buildDocDef(template: DocumentTemplate, input: DocumentInput): Pr
     case "mise_en_demeure":
       content = [
         ...header,
+        buildLegalAlertBanner(accentColor, lang),
         { text: input.title, style: "docTitle", margin: [0, 0, 0, 16] },
         metaTable([
           [t("metaRecipient", lang), member || t("convocationRecipientFallback", lang)],
@@ -3664,8 +3971,9 @@ async function buildDocDef(template: DocumentTemplate, input: DocumentInput): Pr
 
       content = [
         ...header,
+        buildGovernanceBanner(accentColor, theme.categoryLabel, electionTitle),
         { text: "PROCÈS-VERBAL D'ÉLECTION", style: "docTitle", alignment: "center" as const, margin: [0, 0, 0, 4] },
-        { text: electionTitle, fontSize: 11, bold: true, color: "#374151", alignment: "center" as const, margin: [0, 0, 0, 20] },
+        { text: electionTitle, fontSize: 11, bold: true, color: "#374151", alignment: "center" as const, margin: [0, 0, 0, 14] },
         metaTable([
           ["TYPE D'ÉLECTION", electionTypeLabel[electionType] || electionType],
           ["PÉRIODE DE VOTE", `Du ${startDate} au ${endDate}`],

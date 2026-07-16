@@ -2471,6 +2471,8 @@ router.post(
             signerRole: s.signerRole ?? "syndicate_admin",
             signedAt: new Date(s.signedAt!),
             isValid: s.isValid ?? true,
+            // Include the handwritten SVG trace so it renders inline in the regenerated PDF
+            signatureData: s.signatureData ?? undefined,
           }));
       }
 
