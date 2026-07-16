@@ -27,3 +27,4 @@
 - [Marketplace sponsorship payment flow](marketplace-sponsorship-flow.md) — seller-initiated paid promotion uses proof-of-payment convention; schema columns added; route order critical.
 - [Avatar upload validator & URL resolution](avatar-upload-pattern.md) — PUT /profile avatar validator must accept /objects/… paths; display resolves via /api/storage/objects/… helper; same pattern as chat attachments.
 - [Document download URL vs Share fallback](document-download-fallback.md) — GET /documents/:id/download-url returns {url} (signed 1h GCS URL); mobile falls back to Share.share when endpoint 404s (seed/demo docs have no fileUrl).
+- [PDF header/stamp/footer redesign](pdf-engine-redesign.md) — buildHeaderBand now takes buildingName/version/docStatus; premium rectangular stamps replace dashed circles; footer embeds QR image + SYNDYCAT branding.

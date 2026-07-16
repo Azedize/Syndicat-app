@@ -93,25 +93,31 @@ const ARABIC_FONT = FONTS.Amiri ? "Amiri" : PRIMARY_FONT;
 
 function buildStyles(accentColor: string) {
   return {
-    headerOrgName: { font: PRIMARY_FONT, fontSize: 15, bold: true, color: "#ffffff" },
-    headerMeta:    { font: PRIMARY_FONT, fontSize: 7.5, color: "#ffffffcc" },
-    headerContact: { font: PRIMARY_FONT, fontSize: 7.5, color: "#ffffffaa" },
-    docTypeLabel:  { font: PRIMARY_FONT, fontSize: 14, bold: true, color: "#ffffff" },
-    docTitle:      { font: PRIMARY_FONT, fontSize: 13, bold: true, color: "#1e293b" },
-    docRef:        { font: PRIMARY_FONT, fontSize: 9,  color: "#64748b"  },
-    sectionTitle:  { font: PRIMARY_FONT, fontSize: 10, bold: true, color: accentColor, margin: [0, 12, 0, 5] },
-    metaKey:       { font: PRIMARY_FONT, fontSize: 9,  color: "#64748b" },
-    metaVal:       { font: PRIMARY_FONT, fontSize: 9.5, color: "#1e293b", bold: true },
-    body:          { font: PRIMARY_FONT, fontSize: 10, color: "#334155", lineHeight: 1.55 },
-    bodyArabic:    { font: ARABIC_FONT,  fontSize: 11, color: "#334155", lineHeight: 1.6, alignment: "right" as const },
-    signLabel:     { font: PRIMARY_FONT, fontSize: 9,  color: "#64748b", italics: true },
-    signName:      { font: PRIMARY_FONT, fontSize: 9,  bold: true, color: "#1e293b" },
-    notice:        { font: PRIMARY_FONT, fontSize: 8,  color: "#94a3b8", italics: true },
-    footer:        { font: PRIMARY_FONT, fontSize: 7.5, color: "#94a3b8" },
-    watermark:     { font: PRIMARY_FONT, fontSize: 72, bold: true, color: "#e2e8f0", opacity: 0.12 },
-    pageNumber:    { font: PRIMARY_FONT, fontSize: 8,  color: "#94a3b8" },
-    tableHeader:   { font: PRIMARY_FONT, fontSize: 9,  bold: true, color: "#ffffff", fillColor: accentColor },
-    tableCell:     { font: PRIMARY_FONT, fontSize: 9,  color: "#334155" },
+    headerOrgName:   { font: PRIMARY_FONT, fontSize: 14, bold: true, color: "#ffffff", letterSpacing: 0.5 },
+    headerBuilding:  { font: PRIMARY_FONT, fontSize: 9.5, bold: true, color: "#ffffffee", margin: [0, 2, 0, 0] },
+    headerMeta:      { font: PRIMARY_FONT, fontSize: 7.5, color: "#ffffffcc" },
+    headerContact:   { font: PRIMARY_FONT, fontSize: 7.5, color: "#ffffffaa" },
+    headerDocNum:    { font: PRIMARY_FONT, fontSize: 9,   bold: true, color: "#ffffff" },
+    headerDocDate:   { font: PRIMARY_FONT, fontSize: 7.5, color: "#ffffffcc" },
+    docTypeLabel:    { font: PRIMARY_FONT, fontSize: 13, bold: true, color: "#ffffff" },
+    docCategoryBadge:{ font: PRIMARY_FONT, fontSize: 8,  bold: true, color: "#ffffff" },
+    docTitle:        { font: PRIMARY_FONT, fontSize: 13, bold: true, color: "#1e293b" },
+    docRef:          { font: PRIMARY_FONT, fontSize: 9,  color: "#64748b" },
+    sectionTitle:    { font: PRIMARY_FONT, fontSize: 10, bold: true, color: accentColor, margin: [0, 12, 0, 5] },
+    metaKey:         { font: PRIMARY_FONT, fontSize: 9,  color: "#64748b" },
+    metaVal:         { font: PRIMARY_FONT, fontSize: 9.5, color: "#1e293b", bold: true },
+    body:            { font: PRIMARY_FONT, fontSize: 10, color: "#334155", lineHeight: 1.55 },
+    bodyArabic:      { font: ARABIC_FONT,  fontSize: 11, color: "#334155", lineHeight: 1.6, alignment: "right" as const },
+    signLabel:       { font: PRIMARY_FONT, fontSize: 9,  color: "#64748b", italics: true },
+    signName:        { font: PRIMARY_FONT, fontSize: 9,  bold: true, color: "#1e293b" },
+    notice:          { font: PRIMARY_FONT, fontSize: 8,  color: "#94a3b8", italics: true },
+    footer:          { font: PRIMARY_FONT, fontSize: 7.5, color: "#94a3b8" },
+    footerBrand:     { font: PRIMARY_FONT, fontSize: 7,  color: "#7c3aed", bold: true },
+    watermark:       { font: PRIMARY_FONT, fontSize: 72, bold: true, color: "#e2e8f0", opacity: 0.12 },
+    pageNumber:      { font: PRIMARY_FONT, fontSize: 8,  color: "#94a3b8" },
+    tableHeader:     { font: PRIMARY_FONT, fontSize: 9,  bold: true, color: "#ffffff", fillColor: accentColor },
+    tableCell:       { font: PRIMARY_FONT, fontSize: 9,  color: "#334155" },
+    stampText:       { font: PRIMARY_FONT, fontSize: 5.5, bold: true, color: "#ffffff" },
   };
 }
 
@@ -374,6 +380,9 @@ function buildHeaderBand(
   accentColor: string,
   today: string,
   logoDataUrl: string | null = null,
+  buildingName: string | null = null,
+  version: string | null = null,
+  docStatus: string | null = null,
 ): object[] {
   const contactParts: string[] = [];
   if (syndInfo.phone)   contactParts.push(`Tél : ${syndInfo.phone}`);
@@ -385,52 +394,57 @@ function buildHeaderBand(
   if (syndInfo.registrationNumber) regParts.push(`N° Syndicale : ${syndInfo.registrationNumber}`);
 
   const qrCell = qrDataUrl
-    ? { image: qrDataUrl, width: 58, alignment: "center" as const, margin: [4, 6, 6, 6] }
-    : { text: "", margin: [4, 6, 6, 6] };
+    ? { image: qrDataUrl, width: 54, alignment: "center" as const, margin: [4, 8, 6, 8] }
+    : { text: "", margin: [4, 8, 6, 8] };
 
-  // Acronym fallback when no logo image is available (initials in a circle)
+  // Acronym fallback when no logo image is available (initials in a styled tile)
   const acronym = (syndInfo.abbreviation ||
     syndInfo.name.split(/\s+/).map((w) => w[0]).join("").slice(0, 3)
   ).toUpperCase();
 
   const logoCell = logoDataUrl
-    ? { image: logoDataUrl, width: 40, height: 40, fit: [40, 40] as [number, number] }
+    ? { image: logoDataUrl, width: 44, height: 44, fit: [44, 44] as [number, number] }
     : {
         table: {
-          widths: [40],
-          heights: [40],
-          body: [[{ text: acronym, fontSize: 13, bold: true, color: "#ffffff", alignment: "center" as const, margin: [0, 13, 0, 0] }]],
+          widths: [44],
+          heights: [44],
+          body: [[{
+            stack: [
+              { text: acronym, fontSize: 12, bold: true, color: "#ffffff", alignment: "center" as const },
+              { canvas: [{ type: "line", x1: 4, y1: 0, x2: 40, y2: 0, lineWidth: 0.5, lineColor: "#ffffff55" }] },
+            ],
+            margin: [0, 10, 0, 0],
+          }]],
         },
         layout: {
           hLineWidth: () => 0, vLineWidth: () => 0,
           paddingLeft: () => 0, paddingRight: () => 0, paddingTop: () => 0, paddingBottom: () => 0,
-          fillColor: () => "#ffffff25",
+          fillColor: () => "#ffffff20",
         },
       };
 
+  // Status badge for right column
+  const statusLabel = docStatus === "published" ? "PUBLIÉ" : docStatus === "signed" ? "SIGNÉ" : docStatus === "validated" ? "VALIDÉ" : docStatus === "archived" ? "ARCHIVÉ" : null;
+  const versionStr = version || "v1.0";
+
   return [
-    // ── Syndicate identity band (colored)
+    // ── Main identity band: Logo | Syndicate Info | QR Code ───────────────────
     {
       table: {
-        widths: [44, "*", 70],
+        widths: [48, "*", 66],
         body: [
           [
-            { ...logoCell, fillColor: accentColor, margin: [12, 12, 0, 12] },
+            { ...logoCell, fillColor: accentColor, margin: [10, 12, 2, 12] },
             {
               stack: [
-                { text: syndInfo.name.toUpperCase(), style: "headerOrgName", margin: [0, 0, 0, 3] },
-                regParts.length
-                  ? { text: regParts.join("   |   "), style: "headerMeta", margin: [0, 0, 0, 2] }
-                  : null,
-                syndInfo.address
-                  ? { text: [syndInfo.address, syndInfo.city].filter(Boolean).join(", "), style: "headerMeta", margin: [0, 0, 0, 2] }
-                  : null,
-                contactLine
-                  ? { text: contactLine, style: "headerContact" }
-                  : null,
-              ].filter(Boolean),
+                { text: syndInfo.name.toUpperCase(), style: "headerOrgName", margin: [0, 0, 0, 2] },
+                ...(buildingName ? [{ text: buildingName, style: "headerBuilding", margin: [0, 0, 0, 2] }] : []),
+                ...(regParts.length ? [{ text: regParts.join("   |   "), style: "headerMeta", margin: [0, 0, 0, 1] }] : []),
+                ...(syndInfo.address ? [{ text: [syndInfo.address, syndInfo.city].filter(Boolean).join(", "), style: "headerMeta", margin: [0, 0, 0, 1] }] : []),
+                ...(contactLine ? [{ text: contactLine, style: "headerContact" }] : []),
+              ],
               fillColor: accentColor,
-              margin: [10, 12, 8, 12],
+              margin: [10, 10, 8, 10],
             },
             { ...qrCell, fillColor: "#ffffff" },
           ],
@@ -445,26 +459,34 @@ function buildHeaderBand(
         paddingBottom: () => 0,
       },
     },
-    // ── Document type label (colored band, slimmer)
+    // ── Document type + metadata band ─────────────────────────────────────────
     {
       table: {
         widths: ["*", "auto"],
         body: [
           [
             {
-              text: docTypeLabel,
-              style: "docTypeLabel",
-              fillColor: adjustColorBrightness(accentColor, -18),
-              margin: [14, 8, 8, 8],
+              stack: [
+                { text: docTypeLabel, style: "docTypeLabel", margin: [0, 0, 0, 0] },
+                { text: "SYNDICAT DE COPROPRIÉTÉ  •  DOCUMENT OFFICIEL", fontSize: 6.5, color: "#ffffffaa", margin: [0, 2, 0, 0] },
+              ],
+              fillColor: adjustColorBrightness(accentColor, -22),
+              margin: [14, 9, 8, 9],
             },
             {
               stack: [
-                { text: `Réf : ${docNumber}`, style: "docRef", color: "#ffffffcc", margin: [0, 0, 0, 2] },
-                { text: today,                style: "docRef", color: "#ffffffaa" },
+                { text: `Réf : ${docNumber}`, style: "headerDocNum", margin: [0, 0, 0, 2] },
+                { text: today, style: "headerDocDate", margin: [0, 0, 0, 2] },
+                {
+                  columns: [
+                    { text: versionStr, fontSize: 6.5, bold: true, color: "#ffffffee", background: "#ffffff25" },
+                    ...(statusLabel ? [{ text: statusLabel, fontSize: 6, bold: true, color: "#ffffff", margin: [4, 0, 0, 0] }] : []),
+                  ],
+                },
               ],
-              fillColor: adjustColorBrightness(accentColor, -18),
+              fillColor: adjustColorBrightness(accentColor, -22),
               alignment: "right" as const,
-              margin: [8, 8, 14, 8],
+              margin: [8, 9, 14, 9],
             },
           ],
         ],
@@ -496,29 +518,32 @@ function adjustColorBrightness(hex: string, delta: number): string {
 function metaTable(rows: Array<[string, string]>, accentColor: string): unknown {
   return {
     table: {
-      widths: [140, "*"],
-      body: rows.map(([k, v]) => [
-        { text: k, style: "metaKey", fillColor: "#f8fafc", margin: [8, 6, 8, 6] },
-        { text: v, style: "metaVal", margin: [8, 6, 8, 6] },
+      widths: [148, "*"],
+      body: rows.map(([k, v], i) => [
+        {
+          text: k,
+          style: "metaKey",
+          fillColor: i % 2 === 0 ? "#f8fafc" : "#ffffff",
+          margin: [10, 6, 8, 6],
+          border: [true, false, false, false] as [boolean, boolean, boolean, boolean],
+          borderColor: [accentColor + "40", "", "", ""],
+        },
+        {
+          text: v,
+          style: "metaVal",
+          fillColor: i % 2 === 0 ? "#f8fafc" : "#ffffff",
+          margin: [8, 6, 10, 6],
+        },
       ]),
     },
     layout: {
       hLineWidth: (i: number, node: { table: { body: unknown[] } }) =>
-        i === 0 || i === node.table.body.length ? 1 : 0.5,
-      vLineWidth: () => 0.5,
+        i === 0 || i === node.table.body.length ? 1 : 0.4,
+      vLineWidth: (i: number) => (i === 0 ? 3 : i === 1 ? 0.4 : 0.4),
       hLineColor: () => "#e2e8f0",
-      vLineColor: () => "#e2e8f0",
+      vLineColor: (i: number) => (i === 0 ? accentColor : "#e2e8f0"),
     },
     margin: [0, 0, 0, 16],
-  };
-}
-
-function sectionHeader(label: string, accentColor: string): unknown {
-  return {
-    canvas: [
-      { type: "rect", x: 0, y: 0, w: 4, h: 16, r: 2, color: accentColor },
-    ],
-    absolutePosition: { x: 40, y: 0 },  // positioned relatively via stack
   };
 }
 
@@ -526,10 +551,29 @@ function contentSection(title: string, text: string, accentColor: string, isRtl 
   return {
     stack: [
       {
-        columns: [
-          { canvas: [{ type: "rect", x: 0, y: 2, w: 3, h: 13, r: 1, color: accentColor }], width: 10 },
-          { text: title.toUpperCase(), fontSize: 9, bold: true, color: accentColor, margin: [2, 0, 0, 0] },
-        ],
+        table: {
+          widths: [3, "*"],
+          body: [[
+            { canvas: [{ type: "rect", x: 0, y: 0, w: 3, h: 18, color: accentColor }], border: [false, false, false, false] as [boolean, boolean, boolean, boolean] },
+            {
+              text: title.toUpperCase(),
+              fontSize: 8.5,
+              bold: true,
+              color: accentColor,
+              margin: [6, 2, 0, 1],
+              border: [false, false, false, false] as [boolean, boolean, boolean, boolean],
+            },
+          ]],
+        },
+        layout: {
+          hLineWidth: () => 0,
+          vLineWidth: () => 0,
+          paddingLeft: () => 0,
+          paddingRight: () => 0,
+          paddingTop: () => 0,
+          paddingBottom: () => 0,
+          fillColor: () => accentColor + "0d",
+        },
         margin: [0, 0, 0, 6],
       },
       isRtl
@@ -603,6 +647,36 @@ function multiSignatoryBlock(
 
   const secretaryColContent = makeCol(t("roleSecretary", lang), officeHolders?.secretary?.fullName, secretarySig) as { stack: unknown[] };
 
+  // Premium official stamp — rectangular colored block with syndicate identity
+  const abbrev = "SYND.";
+  const premiumStamp: unknown = {
+    table: {
+      widths: [88],
+      body: [[{
+        stack: [
+          { text: "✦", fontSize: 11, color: "#ffffff", alignment: "center" as const, margin: [0, 5, 0, 1] },
+          { canvas: [{ type: "line", x1: 6, y1: 0, x2: 78, y2: 0, lineWidth: 0.4, lineColor: "#ffffff55" }] },
+          { text: "CACHET OFFICIEL", fontSize: 5, bold: true, color: "#ffffff", alignment: "center" as const, margin: [2, 2, 2, 0] },
+          { text: "SYNDICAT DE COPROPRIÉTÉ", fontSize: 4, color: "#ffffffaa", alignment: "center" as const, margin: [0, 1, 0, 0] },
+          { canvas: [{ type: "line", x1: 6, y1: 0, x2: 78, y2: 0, lineWidth: 0.4, lineColor: "#ffffff55" }], margin: [0, 1, 0, 1] },
+          { text: t("officialStamp", lang), fontSize: 4.5, color: "#ffffffcc", alignment: "center" as const, margin: [0, 0, 0, 5] },
+        ],
+        fillColor: accentColor,
+      }]],
+    },
+    layout: {
+      hLineWidth: (i: number, node: any) => (i === 0 || i === node.table.body.length) ? 2 : 0,
+      vLineWidth: (i: number, node: any) => (i === 0 || i === node.table.widths.length) ? 2 : 0,
+      hLineColor: () => adjustColorBrightness(accentColor, -25),
+      vLineColor: () => adjustColorBrightness(accentColor, -25),
+      paddingLeft: () => 0,
+      paddingRight: () => 0,
+      paddingTop: () => 0,
+      paddingBottom: () => 0,
+    },
+    margin: [0, 10, 0, 0],
+  };
+
   return {
     columns: [
       makeCol(t("rolePresident", lang), officeHolders?.president?.fullName, presidentSig),
@@ -610,15 +684,7 @@ function multiSignatoryBlock(
       {
         stack: [
           ...secretaryColContent.stack,
-          // Stamp circle below secretary slot
-          {
-            canvas: [
-              { type: "ellipse", x: 50, y: 32, r1: 28, r2: 28, lineColor: accentColor, lineWidth: 1, dash: { length: 4 } },
-              { type: "ellipse", x: 50, y: 32, r1: 22, r2: 22, lineColor: accentColor, lineWidth: 0.5, dash: { length: 2 } },
-            ],
-            margin: [6, 14, 0, 0],
-          },
-          { text: t("officialStamp", lang), style: "notice", alignment: "center" as const, margin: [0, 2, 0, 0] },
+          premiumStamp,
         ],
       },
     ],
@@ -655,6 +721,34 @@ function signatureBlock(
         }))
       : [{ text: t("awaitingSignature", lang), style: "signLabel", italics: true }];
 
+  // Premium official stamp block
+  const premiumStampBlock: unknown = {
+    table: {
+      widths: [92],
+      body: [[{
+        stack: [
+          { text: "✦", fontSize: 12, color: "#ffffff", alignment: "center" as const, margin: [0, 6, 0, 1] },
+          { canvas: [{ type: "line", x1: 6, y1: 0, x2: 82, y2: 0, lineWidth: 0.4, lineColor: "#ffffff55" }] },
+          { text: "CACHET OFFICIEL", fontSize: 5.5, bold: true, color: "#ffffff", alignment: "center" as const, margin: [2, 2, 2, 0] },
+          { text: "SYNDICAT DE COPROPRIÉTÉ", fontSize: 4.5, color: "#ffffffaa", alignment: "center" as const, margin: [0, 1, 0, 0] },
+          { canvas: [{ type: "line", x1: 6, y1: 0, x2: 82, y2: 0, lineWidth: 0.4, lineColor: "#ffffff55" }], margin: [0, 1, 0, 1] },
+          { text: t("officialStamp", lang), fontSize: 4.5, color: "#ffffffcc", alignment: "center" as const, margin: [0, 0, 0, 6] },
+        ],
+        fillColor: accentColor,
+      }]],
+    },
+    layout: {
+      hLineWidth: (i: number, node: any) => (i === 0 || i === node.table.body.length) ? 2 : 0,
+      vLineWidth: (i: number, node: any) => (i === 0 || i === node.table.widths.length) ? 2 : 0,
+      hLineColor: () => adjustColorBrightness(accentColor, -25),
+      vLineColor: () => adjustColorBrightness(accentColor, -25),
+      paddingLeft: () => 0,
+      paddingRight: () => 0,
+      paddingTop: () => 0,
+      paddingBottom: () => 0,
+    },
+  };
+
   return {
     columns: [
       {
@@ -667,16 +761,7 @@ function signatureBlock(
       },
       showStampCircle
         ? {
-            stack: [
-              {
-                canvas: [
-                  { type: "ellipse", x: 45, y: 35, r1: 40, r2: 40, lineColor: accentColor, lineWidth: 1.2, dash: { length: 4 } },
-                  { type: "ellipse", x: 45, y: 35, r1: 32, r2: 32, lineColor: accentColor, lineWidth: 0.5, dash: { length: 2 } },
-                ],
-                margin: [0, 0, 0, 4],
-              },
-              { text: t("officialStamp", lang), style: "notice", alignment: "center" as const, margin: [0, 0, 0, 0] },
-            ],
+            stack: [premiumStampBlock],
             width: 100,
             alignment: "center" as const,
           }
@@ -693,10 +778,23 @@ function legalFooterNote(docNumber: string, lang: DocumentLanguage = "fr", verif
   const template = verifyUrl ? t("legalFooterNote", lang).replace(/syndycat\.ma\/verify\/\{ref\}/g, verifyUrl) : t("legalFooterNote", lang);
   const text = template.replace(/\{ref\}/g, docNumber);
   return {
-    text,
-    style: "notice",
+    table: {
+      widths: ["*"],
+      body: [[{
+        stack: [
+          { canvas: [{ type: "line", x1: 0, y1: 0, x2: 515, y2: 0, lineWidth: 0.5, lineColor: "#e2e8f0" }] },
+          {
+            columns: [
+              { text: "🔒", fontSize: 8, width: 14, margin: [0, 4, 0, 0] },
+              { text, style: "notice", margin: [4, 4, 0, 0], width: "*" },
+            ],
+          },
+        ],
+        margin: [0, 8, 0, 0],
+      }]],
+    },
+    layout: { hLineWidth: () => 0, vLineWidth: () => 0, paddingLeft: () => 0, paddingRight: () => 0, paddingTop: () => 0, paddingBottom: () => 0 },
     margin: [0, 20, 0, 0],
-    alignment: "center" as const,
   };
 }
 
@@ -880,93 +978,256 @@ function extractSvgPaths(svg: string): string[] {
   return matches.map((m) => m[1]);
 }
 
+// ─── Local-disk PDF read/write (dev fallback) ─────────────────────────────────
+
+async function downloadPdfBuffer(internalPath: string): Promise<Buffer> {
+  if (internalPath.startsWith("/local-docs/")) {
+    const rest  = internalPath.replace("/local-docs/", "");
+    const slash = rest.indexOf("/");
+    const uuid  = rest.slice(0, slash);
+    const file  = rest.slice(slash + 1);
+    return readLocalDocFile(uuid, file);
+  }
+  return downloadPdfFromGcs(internalPath);
+}
+
+async function overwritePdfBuffer(internalPath: string, buffer: Buffer): Promise<void> {
+  if (internalPath.startsWith("/local-docs/")) {
+    const rest  = internalPath.replace("/local-docs/", "");
+    const slash = rest.indexOf("/");
+    const uuid  = rest.slice(0, slash);
+    const file  = rest.slice(slash + 1);
+    const dir   = path.join(LOCAL_DOCS_TMP, uuid);
+    await fs.mkdir(dir, { recursive: true });
+    await fs.writeFile(path.join(dir, file), buffer);
+    return;
+  }
+  return overwritePdfInGcs(internalPath, buffer);
+}
+
 /**
- * Appends a "Signatures électroniques" page to an existing generated document PDF,
- * rendering each signer's handwritten signature (from SVG path data) plus their
- * name, role, and timestamp. Overwrites the PDF in-place at `internalPath`.
+ * Appends a professional branded "Signatures électroniques" page to an existing
+ * generated document PDF, rendering each signer's handwritten trace, name, role,
+ * date, and validity badge using the syndicate accent color.
+ *
+ * Supports local-disk (dev) and GCS (prod) storage.
  * Best-effort: throws on failure so the caller can log/audit without blocking
- * the underlying signature record, which is already durably stored in the DB.
+ * the already-durable DB signature record.
  */
 export async function appendSignaturesToPdf(
   internalPath: string,
   signatures: SignatureToEmbed[],
   lang: DocumentLanguage = "fr",
+  accentColor = "#7c3aed",
+  syndicateName = "",
+  docRef = "",
 ): Promise<void> {
   if (signatures.length === 0) return;
   const { PDFDocument, rgb, StandardFonts } = await import("pdf-lib");
   const dateLocale = lang === "ar" ? "ar-MA" : lang === "en" ? "en-US" : lang === "es" ? "es-ES" : "fr-FR";
 
-  const existingBytes = await downloadPdfFromGcs(internalPath);
-  const pdfDoc = await PDFDocument.load(existingBytes, { ignoreEncryption: true });
-  const font = await pdfDoc.embedFont(StandardFonts.Helvetica);
+  // Hex string → pdf-lib rgb() (0-1 scale)
+  const hexRgb = (hex: string, alpha?: number) => {
+    const n = parseInt(hex.replace("#", ""), 16);
+    const r = (n >> 16) / 255;
+    const g = ((n >> 8) & 0xff) / 255;
+    const b = (n & 0xff) / 255;
+    if (alpha !== undefined) return rgb(r * alpha + (1 - alpha), g * alpha + (1 - alpha), b * alpha + (1 - alpha));
+    return rgb(r, g, b);
+  };
+
+  const accentRgb    = hexRgb(accentColor);
+  const accentDimRgb = hexRgb(adjustColorBrightness(accentColor, -22));
+
+  const existingBytes = await downloadPdfBuffer(internalPath);
+  const pdfDoc   = await PDFDocument.load(existingBytes, { ignoreEncryption: true });
+  const font     = await pdfDoc.embedFont(StandardFonts.Helvetica);
   const boldFont = await pdfDoc.embedFont(StandardFonts.HelveticaBold);
 
-  const PAGE_W = 595.28; // A4 pt
-  const PAGE_H = 841.89;
-  const ROW_H = 140;
-  const MARGIN = 40;
+  // ─── A4 layout constants ────────────────────────────────────────────────────
+  const PAGE_W    = 595.28;
+  const PAGE_H    = 841.89;
+  const ML        = 36;                         // margin left
+  const MR        = 36;                         // margin right
+  const CW        = PAGE_W - ML - MR;           // content width
+  const HEADER_H  = 66;
+  const FOOTER_H  = 26;
+  const CARD_PAD  = 12;
+  const SIG_BOX_H = 70;                         // handwritten trace area height
+  const CARD_TXT  = 74;                         // name + role + date + badge
+  const CARD_GAP  = 12;
 
-  let page = pdfDoc.addPage([PAGE_W, PAGE_H]);
-  let cursorY = PAGE_H - MARGIN;
+  const cardHeight = (sig: SignatureToEmbed) => {
+    const hasPaths = (sig.signatureSvg ?? "").length > 0 && extractSvgPaths(sig.signatureSvg!).length > 0;
+    return hasPaths
+      ? CARD_PAD * 3 + CARD_TXT + SIG_BOX_H
+      : CARD_PAD * 2 + CARD_TXT;
+  };
 
-  page.drawText(t("electronicSignaturesTitle", lang), {
-    x: MARGIN, y: cursorY, size: 16, font: boldFont, color: rgb(0.1, 0.1, 0.2),
-  });
-  cursorY -= 30;
+  // ─── Translated labels ──────────────────────────────────────────────────────
+  const sigTitle  = lang === "ar" ? "التوقيعات الإلكترونية" : lang === "en" ? "ELECTRONIC SIGNATURES" : lang === "es" ? "FIRMAS ELECTRÓNICAS" : "SIGNATURES ÉLECTRONIQUES";
+  const countSuffix = signatures.length > 1
+    ? (lang === "ar" ? "توقيعات" : lang === "en" ? "signatures" : "signatures")
+    : (lang === "ar" ? "توقيع" : lang === "en" ? "signature" : "signature");
+  const traceLabel = lang === "ar" ? "الخط اليدوي" : lang === "en" ? "Handwritten trace" : lang === "es" ? "Trazo manuscrito" : "Tracé manuscrit certifié";
 
-  for (const sig of signatures) {
-    if (cursorY - ROW_H < MARGIN) {
-      page = pdfDoc.addPage([PAGE_W, PAGE_H]);
-      cursorY = PAGE_H - MARGIN;
+  // ─── Page factory: draws header band + footer bar ───────────────────────────
+  let page!: ReturnType<typeof pdfDoc.addPage>;
+
+  const newPage = (): number => {
+    page = pdfDoc.addPage([PAGE_W, PAGE_H]);
+
+    // ── Header band (full width)
+    page.drawRectangle({ x: 0, y: PAGE_H - HEADER_H, width: PAGE_W, height: HEADER_H, color: accentRgb });
+    // Darker lower strip for depth
+    page.drawRectangle({ x: 0, y: PAGE_H - HEADER_H, width: PAGE_W, height: 3, color: accentDimRgb });
+    // Left vertical accent bar
+    page.drawRectangle({ x: ML, y: PAGE_H - HEADER_H + 14, width: 3, height: HEADER_H - 28, color: rgb(1, 1, 1) });
+
+    // Title
+    page.drawText(sigTitle, { x: ML + 12, y: PAGE_H - HEADER_H + 36, size: 13, font: boldFont, color: rgb(1, 1, 1) });
+
+    // Syndicate name (below title)
+    if (syndicateName) {
+      const sn = syndicateName.length > 55 ? syndicateName.slice(0, 52) + "..." : syndicateName;
+      page.drawText(sn.toUpperCase(), { x: ML + 12, y: PAGE_H - HEADER_H + 18, size: 7.5, font, color: rgb(1, 1, 1) });
     }
 
-    const boxTop = cursorY;
-    const boxBottom = cursorY - ROW_H + 20;
+    // Signature count badge (right side)
+    const countText = `${signatures.length} ${countSuffix}`;
+    const ctW = boldFont.widthOfTextAtSize(countText, 10);
+    page.drawText(countText, { x: PAGE_W - MR - ctW, y: PAGE_H - HEADER_H + 36, size: 10, font: boldFont, color: rgb(1, 1, 1) });
+
+    // Doc ref (right, below count)
+    if (docRef) {
+      const refText = `Réf : ${docRef}`;
+      const rfW = font.widthOfTextAtSize(refText, 8);
+      page.drawText(refText, { x: PAGE_W - MR - rfW, y: PAGE_H - HEADER_H + 18, size: 8, font, color: rgb(1, 1, 1) });
+    }
+
+    // ── Footer bar
+    page.drawRectangle({ x: 0, y: 0, width: PAGE_W, height: FOOTER_H, color: rgb(0.970, 0.980, 0.992) });
+    page.drawLine({ start: { x: 0, y: FOOTER_H }, end: { x: PAGE_W, y: FOOTER_H }, thickness: 0.5, color: rgb(0.878, 0.902, 0.925) });
+    const footerLeft = lang === "ar" ? "موثّق بواسطة Syndycat.ma" : "Document certifié — Syndycat.ma";
+    page.drawText(footerLeft, { x: ML, y: 8, size: 7.5, font, color: rgb(0.576, 0.620, 0.659) });
+    if (docRef) {
+      const refLabel = `Réf : ${docRef}`;
+      const rlW = font.widthOfTextAtSize(refLabel, 7.5);
+      page.drawText(refLabel, { x: PAGE_W - MR - rlW, y: 8, size: 7.5, font, color: rgb(0.576, 0.620, 0.659) });
+    }
+
+    // Return Y cursor starting just below the header band
+    return PAGE_H - HEADER_H - CARD_GAP;
+  };
+
+  let cursorY = newPage();
+
+  // ─── Render each signature card ─────────────────────────────────────────────
+  for (const sig of signatures) {
+    const ch = cardHeight(sig);
+
+    if (cursorY - ch < FOOTER_H + CARD_GAP) {
+      cursorY = newPage();
+    }
+
+    const cardTop = cursorY;
+    const cardBot = cursorY - ch;
     const isValid = sig.isValid !== false;
+
+    // Card background (light slate)
     page.drawRectangle({
-      x: MARGIN, y: boxBottom, width: PAGE_W - 2 * MARGIN, height: boxTop - boxBottom,
-      borderColor: isValid ? rgb(0.85, 0.85, 0.88) : rgb(0.86, 0.2, 0.2), borderWidth: isValid ? 1 : 1.5,
+      x: ML, y: cardBot, width: CW, height: ch,
+      color: rgb(0.972, 0.980, 0.992),
+      borderColor: rgb(0.882, 0.902, 0.929),
+      borderWidth: 0.8,
     });
 
-    page.drawText(sig.signerName, { x: MARGIN + 12, y: boxTop - 20, size: 12, font: boldFont, color: rgb(0.1, 0.1, 0.2) });
-    page.drawText(
-      `${roleLabel(sig.signerRole, lang)} — ${t("signedOnLabel", lang)} ${sig.signedAt.toLocaleString(dateLocale)}`,
-      { x: MARGIN + 12, y: boxTop - 36, size: 9, font, color: rgb(0.4, 0.4, 0.45) },
-    );
-    page.drawText(isValid ? t("signatureValidLabel", lang) : t("signatureInvalidLabel", lang), {
-      x: MARGIN + 12, y: boxTop - 50, size: 9, font: boldFont, color: isValid ? rgb(0.09, 0.64, 0.29) : rgb(0.86, 0.15, 0.15),
-    });
+    // Left accent bar
+    page.drawRectangle({ x: ML, y: cardBot, width: 4, height: ch, color: accentRgb });
 
+    // ── Text block ─────────────────────────────────────────────────────────
+    const textX   = ML + 16;
+    const nameY   = cardTop - CARD_PAD - 14;
+
+    // Signer name (bold)
+    const displayName = sig.signerName.length > 52 ? sig.signerName.slice(0, 49) + "..." : sig.signerName;
+    page.drawText(displayName, { x: textX, y: nameY, size: 12, font: boldFont, color: rgb(0.122, 0.157, 0.235) });
+
+    // Role
+    const role = roleLabel(sig.signerRole, lang);
+    page.drawText(role, { x: textX, y: nameY - 16, size: 9, font, color: rgb(0.392, 0.455, 0.545) });
+
+    // Date
+    const dateTxt = `${t("signedOnLabel", lang)} ${sig.signedAt.toLocaleString(dateLocale)}`;
+    page.drawText(dateTxt, { x: textX, y: nameY - 30, size: 9, font, color: rgb(0.392, 0.455, 0.545) });
+
+    // Validity badge (colored rectangle + text)
+    const isValidLabel  = isValid ? t("signatureValidLabel", lang) : t("signatureInvalidLabel", lang);
+    const badgeFg       = isValid ? rgb(0.047, 0.635, 0.271) : rgb(0.863, 0.149, 0.149);
+    const badgeBg       = isValid ? rgb(0.875, 0.980, 0.906) : rgb(0.988, 0.898, 0.898);
+    const badgeBorder   = isValid ? rgb(0.188, 0.831, 0.451) : rgb(0.988, 0.600, 0.600);
+    const badgeW        = boldFont.widthOfTextAtSize(isValidLabel, 8) + 14;
+    page.drawRectangle({ x: textX, y: nameY - 58, width: badgeW, height: 15, color: badgeBg, borderColor: badgeBorder, borderWidth: 0.6 });
+    page.drawText(isValidLabel, { x: textX + 7, y: nameY - 51, size: 8, font: boldFont, color: badgeFg });
+
+    // ── Handwritten signature area ──────────────────────────────────────────
     const paths = sig.signatureSvg ? extractSvgPaths(sig.signatureSvg) : [];
+
     if (paths.length > 0) {
-      // SignaturePad canvas is 320x180 — scale/translate into the signature box
-      const scale = 0.55;
-      const originX = MARGIN + 12;
-      const originY = boxBottom + 15 + 180 * scale; // flip Y (SVG y-down → PDF y-up)
+      const sigAreaY = cardBot + CARD_PAD;
+      const sigAreaX = textX;
+      const sigAreaW = CW - 32;
+
+      // White drawing box
+      page.drawRectangle({
+        x: sigAreaX, y: sigAreaY, width: sigAreaW, height: SIG_BOX_H,
+        color: rgb(1, 1, 1),
+        borderColor: rgb(0.851, 0.871, 0.902),
+        borderWidth: 0.8,
+      });
+
+      // "Tracé manuscrit" watermark label in the box
+      page.drawText(traceLabel, { x: sigAreaX + 6, y: sigAreaY + 5, size: 6.5, font, color: rgb(0.729, 0.761, 0.796) });
+
+      // Draw SVG paths — SignaturePad canvas ~320×160 → scale to fit
+      const drawW   = sigAreaW - 16;
+      const drawH   = SIG_BOX_H - 18;
+      const scale   = Math.min(drawW / 320, drawH / 160);
+      const originX = sigAreaX + 8;
+      const originY = sigAreaY + 8 + 160 * scale; // pdf-lib y-up: translate origin to top-left of drawing area
+
       for (const d of paths) {
         try {
-          page.drawSvgPath(d, {
-            x: originX,
-            y: originY,
-            scale,
-            borderColor: rgb(0.12, 0.16, 0.35),
-            borderWidth: 1.5,
-          });
-        } catch {
-          // Malformed path data — skip this stroke rather than failing the whole embed
-        }
+          page.drawSvgPath(d, { x: originX, y: originY, scale, borderColor: rgb(0.078, 0.122, 0.275), borderWidth: 1.6 });
+        } catch { /* malformed path — skip */ }
       }
-    } else {
-      page.drawText(t("noHandwrittenTrace", lang), {
-        x: MARGIN + 12, y: boxTop - 70, size: 9, font, color: rgb(0.55, 0.55, 0.6),
+    } else if (sig.signatureSvg !== undefined) {
+      // SVG provided but no drawable paths (empty pad)
+      const noTraceY = cardBot + CARD_PAD + SIG_BOX_H / 2 + 4;
+      page.drawRectangle({
+        x: textX, y: cardBot + CARD_PAD, width: CW - 32, height: SIG_BOX_H,
+        color: rgb(0.984, 0.988, 0.996),
+        borderColor: rgb(0.878, 0.902, 0.925),
+        borderWidth: 0.5,
       });
+      const noTrace = t("noHandwrittenTrace", lang);
+      const ntW = font.widthOfTextAtSize(noTrace, 8.5);
+      page.drawText(noTrace, { x: textX + (CW - 32) / 2 - ntW / 2, y: noTraceY, size: 8.5, font, color: rgb(0.6, 0.635, 0.671) });
     }
 
-    cursorY -= ROW_H;
+    // Thin separator line below card
+    page.drawLine({
+      start: { x: ML + 4, y: cardBot - 6 },
+      end:   { x: ML + CW - 4, y: cardBot - 6 },
+      thickness: 0.4,
+      color: rgb(0.878, 0.902, 0.925),
+    });
+
+    cursorY = cardBot - CARD_GAP;
   }
 
   const outBytes = await pdfDoc.save();
-  await overwritePdfInGcs(internalPath, Buffer.from(outBytes));
+  await overwritePdfBuffer(internalPath, Buffer.from(outBytes));
 }
 
 export async function deleteDocumentFromGcs(internalPath: string): Promise<void> {
@@ -1095,8 +1356,10 @@ export interface DocumentInput {
   memberName?: string;
   documentNumber?: string;
   date?: string;
-  /** Document lifecycle status — used to add watermark for non-final docs */
+  /** Document lifecycle status — used to add watermark and status badge */
   docStatus?: string;
+  /** Document version string shown in the header band, e.g. "v1.0", "v2.3" */
+  version?: string | null;
   /** Real residence/co-ownership data, fetched from buildingsTable + lotsTable. */
   property?: PropertyInfo;
   /** Real office-holder identities, fetched from conseilSyndicalTable. */
@@ -1148,6 +1411,12 @@ async function buildDocDef(template: DocumentTemplate, input: DocumentInput): Pr
     fetchLogoDataUrl(syndInfo.logoUrl),
   ]);
 
+  // Building name for header — from property info (primary building)
+  const buildingName = (input.property as PropertyInfo | undefined)?.name ?? null;
+
+  // Document version — explicit field or default
+  const version = (input.version as string | null | undefined) ?? "v1.0";
+
   // Watermark for draft/generated documents
   const watermark =
     !input.docStatus || input.docStatus === "draft"
@@ -1159,19 +1428,39 @@ async function buildDocDef(template: DocumentTemplate, input: DocumentInput): Pr
   // Standard page setup (A4)
   const pageSetup = {
     pageSize: "A4" as const,
-    pageMargins: [40, 40, 40, 55] as [number, number, number, number],
+    pageMargins: [40, 40, 40, 62] as [number, number, number, number],
   };
 
-  // Footer function
-  const footer = (page: number, pages: number) => ({
-    columns: [
-      { text: `${syndInfo.name}  •  Réf : ${docNum}`, style: "footer", margin: [40, 0, 0, 0] },
-      { text: `Page ${page} / ${pages}  •  ${today}`, style: "footer", alignment: "right" as const, margin: [0, 0, 40, 0] },
-    ],
-    margin: [0, 10, 0, 0],
-  });
+  // Footer function — premium branded footer with QR + verification URL
+  const footer = (page: number, pages: number) => {
+    const leftStack: unknown[] = [
+      { text: syndInfo.name.toUpperCase(), style: "footer", bold: true, color: "#64748b", margin: [0, 0, 0, 1] },
+      { text: `Réf : ${docNum}  •  ${today}`, style: "footer" },
+    ];
+    if (verifyUrl) {
+      leftStack.push({ text: `Vérification : ${verifyUrl}`, style: "footer", color: "#94a3b8", margin: [0, 1, 0, 0] });
+    }
+    const cols: unknown[] = [
+      { stack: leftStack, width: "*", margin: [40, 6, 0, 0] },
+    ];
+    if (qrDataUrl) {
+      cols.push({ image: qrDataUrl, width: 30, height: 30, alignment: "center" as const, margin: [0, 2, 0, 0] });
+    }
+    cols.push({
+      stack: [
+        { text: `Page ${page} / ${pages}`, style: "footer", alignment: "right" as const },
+        { text: "SYNDYCAT GLOBAL CPS", style: "footerBrand", alignment: "right" as const, margin: [0, 1, 0, 0] },
+      ],
+      width: 130,
+      margin: [0, 6, 40, 0],
+    });
+    return {
+      columns: cols,
+      margin: [0, 4, 0, 0],
+    };
+  };
 
-  const header = buildHeaderBand(syndInfo, getDocTypeLabel(template, lang), docNum, qrDataUrl, accentColor, today, logoDataUrl);
+  const header = buildHeaderBand(syndInfo, getDocTypeLabel(template, lang), docNum, qrDataUrl, accentColor, today, logoDataUrl, buildingName, version, input.docStatus as string | null ?? null);
 
   // ── Template content ────────────────────────────────────────────────────────
 

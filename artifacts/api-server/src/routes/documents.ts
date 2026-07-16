@@ -1428,6 +1428,7 @@ router.post(
         memberName,
         documentNumber,
         docStatus: "generated",
+        version: "v1.0",
         language: docLanguage,
         verificationUrl,
         ...extraFields,
@@ -1948,6 +1949,17 @@ router.post(
       // the PDF as an authoritative signature page — best-effort, never blocks
       // the already-durable DB signature record if PDF embedding fails.
       if (doc.fileUrl) {
+        // Fetch syndicate branding for the signature page header (best-effort).
+        const syndBranding = doc.syndicateId
+          ? await db
+              .select({ name: syndicatesTable.name, logoColor: syndicatesTable.logoColor })
+              .from(syndicatesTable)
+              .where(eq(syndicatesTable.id, doc.syndicateId))
+              .limit(1)
+              .then((r) => r[0] ?? null)
+              .catch(() => null)
+          : null;
+
         appendSignaturesToPdf(
           doc.fileUrl,
           [{
@@ -1958,6 +1970,9 @@ router.post(
             isValid: true,
           }],
           (doc.language as DocumentLanguage) ?? "fr",
+          (syndBranding?.logoColor as string | undefined) ?? "#7c3aed",
+          syndBranding?.name ?? "",
+          doc.documentNumber ?? "",
         ).catch((err) => req.log.error({ err, docId: id }, "Signature PDF embed failed"));
       }
 
