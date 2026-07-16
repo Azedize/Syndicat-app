@@ -13,8 +13,10 @@ import {
   templateDefinitionsTable,
   templateDefinitionVersionsTable,
   templateDefinitionPermissionsTable,
+  templateRequestsTable,
   documentsTable,
   usersTable,
+  syndicatesTable,
 } from "@workspace/db/schema";
 import { eq, and, desc, count, sql, or, isNull } from "drizzle-orm";
 import { requireAuth, requireRole } from "../middleware/auth.js";
@@ -802,6 +804,144 @@ router.get("/verify/:token", async (req, res) => {
     res.status(500).send("<h1>Erreur serveur</h1>");
   }
 });
+
+// ─── Template Requests ────────────────────────────────────────────────────────
+// Workflow: syndicate_admin submits → super_admin reviews → approved/rejected.
+
+const REQUEST_CATEGORIES = [
+  "meeting_minutes", "financial", "legal", "elections", "contracts",
+  "certificates", "regulations", "administrative", "maintenance", "insurance",
+] as const;
+
+const requestCreateSchema = z.object({
+  title:           z.string().min(3),
+  category:        z.enum(REQUEST_CATEGORIES),
+  description:     z.string().optional(),
+  businessPurpose: z.string().optional(),
+  requiredFields:  z.string().optional(), // JSON array of {name, type, required}
+  legalNotes:      z.string().optional(),
+  priority:        z.enum(["low", "normal", "high", "urgent"]).default("normal"),
+  publishScope:    z.enum(["global", "private"]).default("private"),
+});
+
+const requestReviewSchema = z.object({
+  status:           z.enum(["pending", "in_review", "approved", "rejected", "need_more_info"]),
+  reviewNotes:      z.string().optional(),
+  rejectionReason:  z.string().optional(),
+});
+
+// GET /template-studio/requests — super_admin sees all, syndicate_admin sees own
+router.get(
+  "/template-studio/requests",
+  requireAuth,
+  requireRole("super_admin", "syndicate_admin"),
+  async (req, res) => {
+    try {
+      const user = req.user!;
+      const isSuperAdmin = user.role === "super_admin";
+
+      const rows = await db
+        .select({
+          id:               templateRequestsTable.id,
+          title:            templateRequestsTable.title,
+          category:         templateRequestsTable.category,
+          description:      templateRequestsTable.description,
+          businessPurpose:  templateRequestsTable.businessPurpose,
+          requiredFields:   templateRequestsTable.requiredFields,
+          legalNotes:       templateRequestsTable.legalNotes,
+          status:           templateRequestsTable.status,
+          priority:         templateRequestsTable.priority,
+          publishScope:     templateRequestsTable.publishScope,
+          reviewNotes:      templateRequestsTable.reviewNotes,
+          rejectionReason:  templateRequestsTable.rejectionReason,
+          reviewedAt:       templateRequestsTable.reviewedAt,
+          createdAt:        templateRequestsTable.createdAt,
+          updatedAt:        templateRequestsTable.updatedAt,
+          requestedBy:      templateRequestsTable.requestedBy,
+          syndicateId:      templateRequestsTable.syndicateId,
+          requesterName:    usersTable.name,
+          syndicateName:    syndicatesTable.name,
+        })
+        .from(templateRequestsTable)
+        .leftJoin(usersTable,     eq(templateRequestsTable.requestedBy, usersTable.id))
+        .leftJoin(syndicatesTable, eq(templateRequestsTable.syndicateId, syndicatesTable.id))
+        .where(
+          isSuperAdmin
+            ? undefined
+            : eq(templateRequestsTable.syndicateId, user.syndicateId ?? "")
+        )
+        .orderBy(desc(templateRequestsTable.createdAt));
+
+      res.json({ data: rows });
+    } catch (err) {
+      req.log.error(err);
+      res.status(500).json({ error: "Erreur serveur" });
+    }
+  },
+);
+
+// POST /template-studio/requests — syndicate admin submits a new request
+router.post(
+  "/template-studio/requests",
+  requireAuth,
+  requireRole("syndicate_admin"),
+  async (req, res) => {
+    if (!req.user!.syndicateId) {
+      res.status(403).json({ error: "Syndicat introuvable dans votre compte" }); return;
+    }
+    const parsed = requestCreateSchema.safeParse(req.body);
+    if (!parsed.success) {
+      res.status(400).json({ error: "Données invalides", details: parsed.error.flatten() }); return;
+    }
+    try {
+      const [row] = await db
+        .insert(templateRequestsTable)
+        .values({
+          ...parsed.data,
+          requestedBy: req.user!.userId,
+          syndicateId: req.user!.syndicateId,
+          status: "pending",
+        } as any)
+        .returning();
+      res.status(201).json({ data: row, message: "Demande soumise avec succès" });
+    } catch (err) {
+      req.log.error(err);
+      res.status(500).json({ error: "Erreur serveur" });
+    }
+  },
+);
+
+// PUT /template-studio/requests/:id — super admin reviews (status change + notes)
+router.put(
+  "/template-studio/requests/:id",
+  requireAuth,
+  requireRole("super_admin"),
+  async (req, res) => {
+    const parsed = requestReviewSchema.safeParse(req.body);
+    if (!parsed.success) {
+      res.status(400).json({ error: "Données invalides", details: parsed.error.flatten() }); return;
+    }
+    try {
+      const [updated] = await db
+        .update(templateRequestsTable)
+        .set({
+          status:          parsed.data.status,
+          reviewNotes:     parsed.data.reviewNotes    ?? null,
+          rejectionReason: parsed.data.rejectionReason ?? null,
+          reviewedBy:      req.user!.userId,
+          reviewedAt:      new Date(),
+          updatedAt:       new Date(),
+        })
+        .where(eq(templateRequestsTable.id, req.params.id))
+        .returning();
+      if (!updated) { res.status(404).json({ error: "Demande introuvable" }); return; }
+      res.json({ data: updated, message: "Demande mise à jour" });
+    } catch (err) {
+      req.log.error(err);
+      res.status(500).json({ error: "Erreur serveur" });
+    }
+  },
+);
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 

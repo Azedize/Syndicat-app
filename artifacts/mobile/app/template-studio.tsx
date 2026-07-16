@@ -28,6 +28,7 @@ import { useAuth } from "@/context/AuthContext";
 import { useToast } from "@/context/ToastContext";
 import { useColors } from "@/hooks/useColors";
 import RoleGuard from "@/components/RoleGuard";
+import { templateRequests as requestsApi, type ApiTemplateRequest } from "@/services/api";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -258,6 +259,16 @@ function TemplateStudioContent() {
   const [selectedCat, setSelectedCat] = useState("all");
   const [search, setSearch] = useState("");
   const [actionLoading, setActionLoading] = useState<string | null>(null);
+  // ── Template Requests ──
+  const [showRequests,      setShowRequests]      = useState(false);
+  const [requests,          setRequests]          = useState<ApiTemplateRequest[]>([]);
+  const [reqLoading,        setReqLoading]        = useState(false);
+  const [pendingCount,      setPendingCount]      = useState(0);
+  const [selectedReq,       setSelectedReq]       = useState<ApiTemplateRequest | null>(null);
+  const [reviewStatus,      setReviewStatus]      = useState<ApiTemplateRequest["status"]>("in_review");
+  const [reviewNotes,       setReviewNotes]       = useState("");
+  const [reviewReason,      setReviewReason]      = useState("");
+  const [reviewSubmitting,  setReviewSubmitting]  = useState(false);
 
   const fabAnim = useRef(new Animated.Value(1)).current;
 
@@ -276,6 +287,22 @@ function TemplateStudioContent() {
       setRefreshing(false);
     }
   }, []);
+
+  const loadRequests = useCallback(async () => {
+    setReqLoading(true);
+    try {
+      const res = await requestsApi.list();
+      setRequests(res.data ?? []);
+      setPendingCount((res.data ?? []).filter((r) => r.status === "pending" || r.status === "in_review").length);
+    } catch {
+      showToast("Erreur chargement des demandes", "error");
+    } finally {
+      setReqLoading(false);
+    }
+  }, []);
+
+  // Load pending count on mount
+  useEffect(() => { loadRequests(); }, [loadRequests]);
 
   useEffect(() => { loadData(); }, [loadData]);
 
@@ -378,6 +405,17 @@ function TemplateStudioContent() {
           <Feather name="layers" size={14} color="#a78bfa" />
           <Text style={styles.headerBadgeText}>{stats?.total ?? "—"}</Text>
         </View>
+        <TouchableOpacity
+          style={styles.requestsBtn}
+          onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); setShowRequests(true); }}
+        >
+          <Feather name="inbox" size={17} color="#a78bfa" />
+          {pendingCount > 0 && (
+            <View style={styles.requestsBadge}>
+              <Text style={styles.requestsBadgeText}>{pendingCount}</Text>
+            </View>
+          )}
+        </TouchableOpacity>
       </View>
 
       <ScrollView
@@ -485,6 +523,202 @@ function TemplateStudioContent() {
           <Feather name="plus" size={24} color="#fff" />
         </TouchableOpacity>
       </Animated.View>
+
+      {/* ── Requests List Modal ── */}
+      <Modal visible={showRequests} animationType="slide" onRequestClose={() => { setShowRequests(false); setSelectedReq(null); }}>
+        <View style={[styles.root, { backgroundColor: "#0f172a" }]}>
+          <View style={[styles.header, { paddingTop: insets.top + 12 }]}>
+            <TouchableOpacity onPress={() => { setShowRequests(false); setSelectedReq(null); }} style={styles.backBtn}>
+              <Feather name="arrow-left" size={22} color="#e2e8f0" />
+            </TouchableOpacity>
+            <View style={styles.headerCenter}>
+              <Text style={styles.headerTitle}>Demandes de modèles</Text>
+              <Text style={styles.headerSub}>{requests.length} demande{requests.length !== 1 ? "s" : ""}</Text>
+            </View>
+            <TouchableOpacity onPress={loadRequests} style={styles.backBtn}>
+              <Feather name="refresh-cw" size={17} color="#a78bfa" />
+            </TouchableOpacity>
+          </View>
+
+          {reqLoading ? (
+            <View style={styles.loadingWrap}>
+              <ActivityIndicator size="large" color="#7c3aed" />
+            </View>
+          ) : requests.length === 0 ? (
+            <View style={styles.emptyWrap}>
+              <View style={styles.emptyIcon}><Feather name="inbox" size={36} color="#7c3aed" /></View>
+              <Text style={styles.emptyTitle}>Aucune demande</Text>
+              <Text style={styles.emptyDesc}>Les demandes de modèles des administrateurs de syndicat apparaîtront ici.</Text>
+            </View>
+          ) : (
+            <ScrollView contentContainerStyle={{ padding: 16, gap: 12, paddingBottom: insets.bottom + 40 }}>
+              {(() => {
+                const STATUS_CFG: Record<string, { label: string; color: string; icon: keyof typeof Feather.glyphMap }> = {
+                  pending:       { label: "En attente",          color: "#f59e0b", icon: "clock" },
+                  in_review:     { label: "En cours d'examen",   color: "#3b82f6", icon: "eye" },
+                  approved:      { label: "Approuvé",            color: "#10b981", icon: "check-circle" },
+                  rejected:      { label: "Refusé",              color: "#ef4444", icon: "x-circle" },
+                  need_more_info:{ label: "Infos supplémentaires",color: "#8b5cf6", icon: "info" },
+                };
+                return requests.map((req) => {
+                  const sc = STATUS_CFG[req.status] ?? STATUS_CFG.pending;
+                  return (
+                    <TouchableOpacity
+                      key={req.id}
+                      style={[styles.card, { flexDirection: "column" }]}
+                      onPress={() => {
+                        setSelectedReq(req);
+                        setReviewStatus(req.status);
+                        setReviewNotes(req.reviewNotes ?? "");
+                        setReviewReason(req.rejectionReason ?? "");
+                      }}
+                      activeOpacity={0.8}
+                    >
+                      <View style={{ flexDirection: "row", alignItems: "center", padding: 14, gap: 10 }}>
+                        <View style={[{ width: 32, height: 32, borderRadius: 10, alignItems: "center", justifyContent: "center", backgroundColor: sc.color + "20" }]}>
+                          <Feather name={sc.icon} size={15} color={sc.color} />
+                        </View>
+                        <View style={{ flex: 1 }}>
+                          <Text style={[styles.cardName, { fontSize: 13, marginBottom: 2 }]} numberOfLines={1}>{req.title}</Text>
+                          <Text style={[styles.cardMeta, { color: "#64748b" }]}>{req.syndicateName ?? req.syndicateId ?? "—"}  ·  {req.requesterName ?? "—"}</Text>
+                        </View>
+                        <View style={[styles.statusBadge, { backgroundColor: sc.color + "15", borderColor: sc.color + "40" }]}>
+                          <Text style={[styles.statusText, { color: sc.color }]}>{sc.label}</Text>
+                        </View>
+                        <Feather name="chevron-right" size={15} color="#475569" />
+                      </View>
+                      {req.description ? (
+                        <Text style={[styles.cardMeta, { paddingHorizontal: 14, paddingBottom: 12 }]} numberOfLines={2}>{req.description}</Text>
+                      ) : null}
+                    </TouchableOpacity>
+                  );
+                });
+              })()}
+            </ScrollView>
+          )}
+        </View>
+      </Modal>
+
+      {/* ── Review Single Request Modal ── */}
+      {selectedReq && (
+        <Modal visible={!!selectedReq && showRequests} animationType="slide" transparent onRequestClose={() => setSelectedReq(null)}>
+          <View style={{ flex: 1, backgroundColor: "rgba(0,0,0,0.75)", justifyContent: "flex-end" }}>
+            <View style={[styles.reviewSheet, { paddingBottom: insets.bottom + 16 }]}>
+              <View style={styles.reviewHandle} />
+              <View style={{ flexDirection: "row", alignItems: "flex-start", marginBottom: 16 }}>
+                <Text style={[styles.headerTitle, { flex: 1, fontSize: 16 }]}>{selectedReq.title}</Text>
+                <TouchableOpacity onPress={() => setSelectedReq(null)}>
+                  <Feather name="x" size={20} color="#64748b" />
+                </TouchableOpacity>
+              </View>
+
+              <ScrollView style={{ flex: 1 }} showsVerticalScrollIndicator={false}>
+                {/* Info rows */}
+                {[
+                  { k: "Syndicat", v: selectedReq.syndicateName },
+                  { k: "Demandeur", v: selectedReq.requesterName },
+                  { k: "Catégorie", v: selectedReq.category },
+                  { k: "Priorité",  v: selectedReq.priority },
+                  { k: "Soumis le", v: new Date(selectedReq.createdAt).toLocaleDateString("fr-MA", { dateStyle: "long" }) },
+                  selectedReq.businessPurpose ? { k: "Contexte", v: selectedReq.businessPurpose } : null,
+                  selectedReq.requiredFields   ? { k: "Champs requis", v: selectedReq.requiredFields } : null,
+                  selectedReq.legalNotes       ? { k: "Références légales", v: selectedReq.legalNotes } : null,
+                ].filter(Boolean).map((row: any) => (
+                  <View key={row.k} style={styles.reviewInfoRow}>
+                    <Text style={styles.reviewInfoKey}>{row.k}</Text>
+                    <Text style={styles.reviewInfoVal}>{row.v ?? "—"}</Text>
+                  </View>
+                ))}
+
+                {selectedReq.description ? (
+                  <View style={styles.reviewDescBox}>
+                    <Text style={styles.reviewDescLabel}>Description</Text>
+                    <Text style={styles.reviewDescText}>{selectedReq.description}</Text>
+                  </View>
+                ) : null}
+
+                {/* Review form */}
+                <Text style={[styles.headerSub, { marginTop: 20, marginBottom: 10, color: "#94a3b8", fontSize: 12, fontWeight: "700", textTransform: "uppercase", letterSpacing: 0.5 }]}>
+                  Décision
+                </Text>
+
+                {/* Status chips */}
+                <View style={{ flexDirection: "row", flexWrap: "wrap", gap: 8, marginBottom: 14 }}>
+                  {(["in_review", "approved", "rejected", "need_more_info"] as const).map((s) => {
+                    const labels: Record<string, string> = { in_review: "En examen", approved: "Approuver", rejected: "Refuser", need_more_info: "Infos requises" };
+                    const colors: Record<string, string> = { in_review: "#3b82f6", approved: "#10b981", rejected: "#ef4444", need_more_info: "#8b5cf6" };
+                    const active = reviewStatus === s;
+                    return (
+                      <TouchableOpacity
+                        key={s}
+                        style={[styles.reviewChip, active && { backgroundColor: colors[s] + "22", borderColor: colors[s] }]}
+                        onPress={() => setReviewStatus(s)}
+                      >
+                        <Text style={[styles.reviewChipText, active && { color: colors[s] }]}>{labels[s]}</Text>
+                      </TouchableOpacity>
+                    );
+                  })}
+                </View>
+
+                <TextInput
+                  style={styles.reviewInput}
+                  value={reviewNotes}
+                  onChangeText={setReviewNotes}
+                  placeholder="Notes de révision (visible par le demandeur)…"
+                  placeholderTextColor="#475569"
+                  multiline
+                  numberOfLines={3}
+                  textAlignVertical="top"
+                />
+                {reviewStatus === "rejected" && (
+                  <TextInput
+                    style={[styles.reviewInput, { marginTop: 10 }]}
+                    value={reviewReason}
+                    onChangeText={setReviewReason}
+                    placeholder="Motif de refus (requis pour un refus)…"
+                    placeholderTextColor="#475569"
+                    multiline
+                    numberOfLines={2}
+                    textAlignVertical="top"
+                  />
+                )}
+
+                <View style={{ height: 20 }} />
+              </ScrollView>
+
+              <TouchableOpacity
+                style={[styles.reviewSubmitBtn, reviewSubmitting && { opacity: 0.6 }]}
+                disabled={reviewSubmitting}
+                onPress={async () => {
+                  if (!selectedReq) return;
+                  setReviewSubmitting(true);
+                  try {
+                    await requestsApi.review(selectedReq.id, {
+                      status: reviewStatus,
+                      reviewNotes: reviewNotes.trim() || undefined,
+                      rejectionReason: reviewReason.trim() || undefined,
+                    });
+                    showToast("Décision enregistrée", "success");
+                    setSelectedReq(null);
+                    loadRequests();
+                  } catch {
+                    showToast("Erreur lors de l'enregistrement", "error");
+                  } finally {
+                    setReviewSubmitting(false);
+                  }
+                }}
+              >
+                {reviewSubmitting
+                  ? <ActivityIndicator size="small" color="#fff" />
+                  : <Feather name="check" size={17} color="#fff" />}
+                <Text style={styles.reviewSubmitText}>
+                  {reviewSubmitting ? "Enregistrement…" : "Enregistrer la décision"}
+                </Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        </Modal>
+      )}
     </View>
   );
 }
@@ -613,4 +847,36 @@ const styles = StyleSheet.create({
                     alignItems: "center", justifyContent: "center",
                     shadowColor: "#7c3aed", shadowOffset: { width: 0, height: 8 },
                     shadowOpacity: 0.5, shadowRadius: 16, elevation: 12 },
+
+  // Requests button (header)
+  requestsBtn:        { width: 38, height: 38, borderRadius: 19, backgroundColor: "#1e293b",
+                        alignItems: "center", justifyContent: "center" },
+  requestsBadge:      { position: "absolute", top: -2, right: -2, minWidth: 16, height: 16,
+                        borderRadius: 8, backgroundColor: "#ef4444", alignItems: "center",
+                        justifyContent: "center", paddingHorizontal: 3 },
+  requestsBadgeText:  { fontSize: 9, fontWeight: "800", color: "#fff" },
+
+  // Review sheet (bottom modal)
+  reviewSheet:        { backgroundColor: "#1e293b", borderTopLeftRadius: 28, borderTopRightRadius: 28,
+                        paddingHorizontal: 20, paddingTop: 12, maxHeight: "90%", flex: 0 },
+  reviewHandle:       { width: 36, height: 4, borderRadius: 2, backgroundColor: "#334155",
+                        alignSelf: "center", marginBottom: 16 },
+  reviewInfoRow:      { flexDirection: "row", justifyContent: "space-between", paddingVertical: 9,
+                        borderBottomWidth: 1, borderBottomColor: "#1e293b30" },
+  reviewInfoKey:      { fontSize: 11, color: "#64748b", fontWeight: "500" },
+  reviewInfoVal:      { fontSize: 11, color: "#e2e8f0", fontWeight: "600", maxWidth: "60%", textAlign: "right" },
+  reviewDescBox:      { backgroundColor: "#0f172a", borderRadius: 12, padding: 14, marginTop: 14,
+                        borderWidth: 1, borderColor: "#334155" },
+  reviewDescLabel:    { fontSize: 11, fontWeight: "700", color: "#64748b", textTransform: "uppercase",
+                        letterSpacing: 0.5, marginBottom: 8 },
+  reviewDescText:     { fontSize: 13, color: "#94a3b8", lineHeight: 20 },
+  reviewChip:         { paddingHorizontal: 12, paddingVertical: 8, borderRadius: 100, borderWidth: 1.5,
+                        borderColor: "#334155", backgroundColor: "#0f172a" },
+  reviewChipText:     { fontSize: 12, fontWeight: "600", color: "#64748b" },
+  reviewInput:        { backgroundColor: "#0f172a", borderWidth: 1, borderColor: "#334155", borderRadius: 12,
+                        paddingHorizontal: 14, paddingVertical: 12, color: "#f1f5f9", fontSize: 13,
+                        minHeight: 80, textAlignVertical: "top" },
+  reviewSubmitBtn:    { flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 8,
+                        backgroundColor: "#7c3aed", paddingVertical: 14, borderRadius: 14, marginTop: 16 },
+  reviewSubmitText:   { fontSize: 14, fontWeight: "700", color: "#fff" },
 });

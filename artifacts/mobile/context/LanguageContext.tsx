@@ -1622,6 +1622,7 @@ export const TRANSLATIONS: Translations = {
   reglementsLabel:          { fr: "Règlement de Copropriété", en: "Co-ownership Rules", ar: "نظام الملكية المشتركة", es: "Reglamento de Copropiedad" },
   actesAdministratifs:      { fr: "Actes Administratifs", en: "Administrative Acts", ar: "الأعمال الإدارية", es: "Actos Administrativos" },
   alertesReglementaires:    { fr: "Alertes Réglementaires", en: "Regulatory Alerts", ar: "تنبيهات تنظيمية", es: "Alertas Reglamentarias" },
+  demandesModeles:          { fr: "Demandes de Modèles", en: "Template Requests", ar: "طلبات النماذج", es: "Solicitudes de Plantillas" },
   avisResidents:            { fr: "Avis aux Copropriétaires", en: "Notices to Owners", ar: "إشعارات للملاك", es: "Avisos a Copropietarios" },
   publicationsActualites:   { fr: "Publications & Actualités", en: "Publications & News", ar: "المنشورات والأخبار", es: "Publicaciones y Noticias" },
   chatMessagerie:           { fr: "Chat & Messagerie", en: "Chat & Messaging", ar: "المحادثة والرسائل", es: "Chat y Mensajería" },

@@ -634,6 +634,15 @@ export const documents = {
       method: "POST",
       body: JSON.stringify(body),
     }),
+  // Auto-fill — resolve DB variables (syndicate, property, office holders, member) for current user
+  autofill: () =>
+    request<{ data: {
+      syndicateInfo:  Record<string, string | null>;
+      propertyInfo:   Record<string, string | null> | null;
+      officeHolders:  Record<string, string | null> | null;
+      memberInfo:     Record<string, string | null>;
+      generated:      Record<string, string | null>;
+    } }>("/documents/autofill"),
 };
 
 // ─── Publications ─────────────────────────────────────────────────────────────
@@ -1529,4 +1538,55 @@ export const travaux = {
     request<{ data: ApiTravail; message: string }>(`/travaux/${id}/report`, { method: "POST", body: JSON.stringify(data) }),
   validate: (id: string) =>
     request<{ data: ApiTravail; message: string }>(`/travaux/${id}/validate`, { method: "POST" }),
+};
+
+// ─── Template Requests ────────────────────────────────────────────────────────
+
+export interface ApiTemplateRequest {
+  id: string;
+  title: string;
+  category: string;
+  description: string | null;
+  businessPurpose: string | null;
+  requiredFields: string | null;
+  legalNotes: string | null;
+  status: "pending" | "in_review" | "approved" | "rejected" | "need_more_info";
+  priority: "low" | "normal" | "high" | "urgent";
+  publishScope: "global" | "private";
+  reviewNotes: string | null;
+  rejectionReason: string | null;
+  reviewedAt: string | null;
+  createdAt: string;
+  updatedAt: string;
+  requestedBy: string;
+  syndicateId: string | null;
+  requesterName: string | null;
+  syndicateName: string | null;
+}
+
+export const templateRequests = {
+  list: () => request<{ data: ApiTemplateRequest[] }>("/template-studio/requests"),
+  create: (data: {
+    title: string;
+    category: string;
+    description?: string;
+    businessPurpose?: string;
+    requiredFields?: string;
+    legalNotes?: string;
+    priority?: string;
+    publishScope?: string;
+  }) =>
+    request<{ data: ApiTemplateRequest; message: string }>("/template-studio/requests", {
+      method: "POST",
+      body: JSON.stringify(data),
+    }),
+  review: (id: string, data: {
+    status: "pending" | "in_review" | "approved" | "rejected" | "need_more_info";
+    reviewNotes?: string;
+    rejectionReason?: string;
+  }) =>
+    request<{ data: ApiTemplateRequest; message: string }>(`/template-studio/requests/${id}`, {
+      method: "PUT",
+      body: JSON.stringify(data),
+    }),
 };

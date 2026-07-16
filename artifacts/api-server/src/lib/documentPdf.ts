@@ -547,6 +547,86 @@ export interface InlineSignatureInfo {
   isValid: boolean;
 }
 
+/**
+ * multiSignatoryBlock — 3-column professional signature block.
+ * Always shows named slots for Président / Trésorier / Secrétaire, each with
+ * the person's real name (from conseilSyndicalTable) and either the actual
+ * recorded signature or an "En attente de signature" placeholder with a blank line.
+ * The stamp circle appears below the Secretary column.
+ */
+function multiSignatoryBlock(
+  officeHolders: OfficeHolders | undefined,
+  accentColor: string,
+  lang: DocumentLanguage,
+  signatures: InlineSignatureInfo[],
+): unknown {
+  const dateLocale = lang === "ar" ? "ar-MA" : lang === "en" ? "en-US" : lang === "es" ? "es-ES" : "fr-FR";
+
+  const findSig = (roles: string[]) =>
+    signatures.find((s) => roles.some((r) => s.signerRole === r));
+
+  const makeCol = (
+    titleLabel: string,
+    personName: string | null | undefined,
+    sig: InlineSignatureInfo | undefined,
+  ) => {
+    if (sig) {
+      return {
+        stack: [
+          { text: titleLabel.toUpperCase(), fontSize: 8, bold: true, color: accentColor, margin: [0, 0, 0, 4] },
+          personName ? { text: personName, style: "signName", margin: [0, 0, 0, 4] } : null,
+          { text: `${t("signedByLabel", lang)} ${sig.signerName}`, style: "signLabel", margin: [0, 0, 0, 1] },
+          { text: `${t("signedOnLabel", lang)} ${sig.signedAt.toLocaleString(dateLocale)}`, style: "signLabel", margin: [0, 0, 0, 2] },
+          {
+            text: sig.isValid ? t("signatureValidLabel", lang) : t("signatureInvalidLabel", lang),
+            style: "notice",
+            color: sig.isValid ? "#16a34a" : "#dc2626",
+          },
+        ].filter(Boolean),
+      };
+    }
+    return {
+      stack: [
+        { text: titleLabel.toUpperCase(), fontSize: 8, bold: true, color: accentColor, margin: [0, 0, 0, 4] },
+        personName
+          ? { text: personName, style: "signName", margin: [0, 0, 0, 12] }
+          : { text: "—", style: "signLabel", color: "#94a3b8", margin: [0, 0, 0, 12] },
+        { canvas: [{ type: "line", x1: 0, y1: 0, x2: 110, y2: 0, lineWidth: 0.8, lineColor: "#cbd5e1" }] },
+        { text: t("awaitingSignature", lang), style: "signLabel", italics: true, margin: [0, 4, 0, 0] },
+      ],
+    };
+  };
+
+  const presidentSig = findSig(["president", "syndicate_admin", "super_admin"]);
+  const treasurerSig = findSig(["treasurer"]);
+  const secretarySig = findSig(["secretary"]);
+
+  const secretaryColContent = makeCol(t("roleSecretary", lang), officeHolders?.secretary?.fullName, secretarySig) as { stack: unknown[] };
+
+  return {
+    columns: [
+      makeCol(t("rolePresident", lang), officeHolders?.president?.fullName, presidentSig),
+      makeCol(t("roleTreasurer", lang), officeHolders?.treasurer?.fullName, treasurerSig),
+      {
+        stack: [
+          ...secretaryColContent.stack,
+          // Stamp circle below secretary slot
+          {
+            canvas: [
+              { type: "ellipse", x: 50, y: 32, r1: 28, r2: 28, lineColor: accentColor, lineWidth: 1, dash: { length: 4 } },
+              { type: "ellipse", x: 50, y: 32, r1: 22, r2: 22, lineColor: accentColor, lineWidth: 0.5, dash: { length: 2 } },
+            ],
+            margin: [6, 14, 0, 0],
+          },
+          { text: t("officialStamp", lang), style: "notice", alignment: "center" as const, margin: [0, 2, 0, 0] },
+        ],
+      },
+    ],
+    columnGap: 16,
+    margin: [0, 30, 0, 0],
+  };
+}
+
 function signatureBlock(
   signatoryTitle: string,
   syndName: string,
@@ -927,7 +1007,11 @@ export type DocumentTemplate =
   | "accord_collectif"
   | "compte_rendu"
   | "rapport_activite"
-  | "reglement";
+  | "reglement"
+  // ── 3 new smart certificate templates (auto-fills DB data) ──
+  | "attestation_residence"
+  | "attestation_propriete"
+  | "attestation_paiement";
 
 /** Sequential-numbering prefix per template — used by the API route to mint REG-2026-0001 style refs. */
 export const TEMPLATE_NUMBER_PREFIX: Record<DocumentTemplate, string> = {
@@ -952,6 +1036,9 @@ export const TEMPLATE_NUMBER_PREFIX: Record<DocumentTemplate, string> = {
   compte_rendu: "CR",
   rapport_activite: "RA",
   reglement: "REG",
+  attestation_residence: "ATT-RES",
+  attestation_propriete: "ATT-PRO",
+  attestation_paiement: "ATT-PAI",
 };
 
 /** Real co-ownership property/residence data — fetched from `buildingsTable` + `lotsTable`. */
@@ -1120,39 +1207,14 @@ async function buildDocDef(template: DocumentTemplate, input: DocumentInput): Pr
           [t("metaMeetingDate", lang), today],
           [t("metaSyndicate", lang), syndInfo.name],
           [t("metaLocation", lang), input.lieu as string || t("metaSeatOfSyndicate", lang)],
-          [t("metaChairperson", lang), input.president as string || syndInfo.name],
-          [t("metaSecretarySession", lang), input.secretaire as string || "—"],
+          [t("metaChairperson", lang), input.president as string || (input.officeHolders as OfficeHolders | undefined)?.president?.fullName || syndInfo.name],
+          [t("metaSecretarySession", lang), input.secretaire as string || (input.officeHolders as OfficeHolders | undefined)?.secretary?.fullName || "—"],
         ], accentColor),
         contentSection(t("pvAgendaTitle", lang), input.agendaText as string || body || t("pvAgendaText", lang), accentColor, isArabic),
         contentSection(t("pvDeliberationsTitle", lang), input.deliberationsText as string || t("pvDeliberationsText", lang), accentColor, isArabic),
         contentSection(t("pvResolutionsTitle", lang), input.resolutionsText as string || t("pvResolutionsText", lang), accentColor, isArabic),
         { text: "\n" },
-        signatures.length > 0
-          ? signatureBlock(t("presidentTitle", lang), syndInfo.name, accentColor, true, lang, signatures)
-          : {
-              columns: [
-                {
-                  stack: [
-                    { canvas: [{ type: "line", x1: 0, y1: 0, x2: 130, y2: 0, lineWidth: 0.8, lineColor: "#cbd5e1" }] },
-                    { text: t("rolePresident", lang), style: "signLabel", margin: [0, 4, 0, 0] },
-                  ],
-                },
-                {
-                  stack: [
-                    { canvas: [{ type: "line", x1: 0, y1: 0, x2: 130, y2: 0, lineWidth: 0.8, lineColor: "#cbd5e1" }] },
-                    { text: t("roleSecretary", lang), style: "signLabel", margin: [0, 4, 0, 0] },
-                  ],
-                },
-                {
-                  stack: [
-                    { canvas: [{ type: "line", x1: 0, y1: 0, x2: 130, y2: 0, lineWidth: 0.8, lineColor: "#cbd5e1" }] },
-                    { text: t("officialStamp", lang), style: "signLabel", margin: [0, 4, 0, 0] },
-                  ],
-                },
-              ],
-              margin: [0, 30, 0, 0],
-              columnGap: 10,
-            },
+        multiSignatoryBlock(input.officeHolders as OfficeHolders | undefined, accentColor, lang, signatures),
         legalFooterNote(docNum, lang, verifyUrl),
       ];
       break;
@@ -1879,6 +1941,163 @@ async function buildDocDef(template: DocumentTemplate, input: DocumentInput): Pr
       break;
     }
 
+    // ── Template 22: Attestation de Résidence (auto-fills lot/building from DB) ──
+    case "attestation_residence": {
+      const lot = input.lotNumber as string || "—";
+      const buildingName = (input.officeHolders as unknown as undefined) // officeHolders not used here
+        ? undefined : undefined;
+      const propertyName = (input.property as PropertyInfo | undefined)?.name || syndInfo.name;
+      const propertyAddress = (input.property as PropertyInfo | undefined)?.address || syndInfo.address;
+      const propertyCity = (input.property as PropertyInfo | undefined)?.city || syndInfo.city;
+      const lotFloor = input.lotFloor as string | undefined;
+      content = [
+        ...header,
+        // Accent bar
+        { canvas: [{ type: "rect", x: 0, y: 0, w: 515, h: 4, color: accentColor }], margin: [0, 0, 0, 12] },
+        { text: "ATTESTATION DE RÉSIDENCE", fontSize: 16, bold: true, color: accentColor, alignment: "center" as const, margin: [0, 0, 0, 4] },
+        { text: input.title, style: "docTitle", alignment: "center" as const, margin: [0, 0, 0, 16] },
+        metaTable([
+          [t("metaDeliveredTo", lang), member || t("notRenseigne", lang)],
+          [t("metaIssueDate", lang), today],
+          [t("metaIssuer", lang), syndInfo.name],
+          ...(syndInfo.registrationNumber ? [[t("metaRegRef", lang), syndInfo.registrationNumber] as [string, string]] : []),
+          ["Résidence / Immeuble :", propertyName],
+          ["Adresse :", [propertyAddress, propertyCity].filter(Boolean).join(", ") || "—"],
+          ...(lot !== "—" ? [["N° d'appartement :", lot] as [string, string]] : []),
+          ...(lotFloor ? [["Étage :", lotFloor] as [string, string]] : []),
+        ], accentColor),
+        contentSection(
+          t("attestationSectionTitle", lang),
+          body || (
+            `Le Syndicat de Copropriété ${syndInfo.name}, dont le siège social est situé à ` +
+            `${[syndInfo.address, syndInfo.city].filter(Boolean).join(", ") || "l'adresse du syndicat"}, ` +
+            `certifie par la présente attestation que :\n\n` +
+            `${member || "[NOM DU MEMBRE]"}\n\n` +
+            `réside à l'appartement N° ${lot} de la résidence ${propertyName}` +
+            `${lotFloor ? `, ${lotFloor}` : ""}` +
+            `, sise à ${[propertyAddress, propertyCity].filter(Boolean).join(", ") || "l'adresse de la résidence"}.\n\n` +
+            `Cette attestation est délivrée à la demande de l'intéressé(e) pour servir et valoir ce que de droit.`
+          ),
+          accentColor,
+          isArabic,
+        ),
+        { canvas: [{ type: "rect", x: 0, y: 0, w: 515, h: 4, color: accentColor }], margin: [0, 8, 0, 16] },
+        signatureBlock(t("presidentTitle", lang), syndInfo.name, accentColor, true, lang, signatures),
+        legalFooterNote(docNum, lang, verifyUrl),
+      ];
+      break;
+    }
+
+    // ── Template 23: Attestation de Propriété (auto-fills TF / tantiemes) ────────
+    case "attestation_propriete": {
+      const prop = input.property as PropertyInfo | undefined;
+      const titreFoncier = input.titreFoncier as string || prop?.landRegistryReference || "—";
+      const tantiemes = input.tantiemes as string || "—";
+      const lotNum = input.lotNumber as string || "—";
+      const propName = prop?.name || syndInfo.name;
+      content = [
+        ...header,
+        { canvas: [{ type: "rect", x: 0, y: 0, w: 515, h: 4, color: accentColor }], margin: [0, 0, 0, 12] },
+        { text: "ATTESTATION DE PROPRIÉTÉ", fontSize: 16, bold: true, color: accentColor, alignment: "center" as const, margin: [0, 0, 0, 4] },
+        { text: input.title, style: "docTitle", alignment: "center" as const, margin: [0, 0, 0, 16] },
+        metaTable([
+          [t("metaDeliveredTo", lang), member || t("notRenseigne", lang)],
+          [t("metaIssueDate", lang), today],
+          [t("metaIssuer", lang), syndInfo.name],
+          ["Titre Foncier :", titreFoncier],
+          ["N° de lot / appartement :", lotNum],
+          ["Quote-part / Tantiièmes :", tantiemes],
+          ["Résidence :", propName],
+          ...(syndInfo.registrationNumber ? [[t("metaRegRef", lang), syndInfo.registrationNumber] as [string, string]] : []),
+        ], accentColor),
+        contentSection(
+          "Attestation de Propriété Immobilière",
+          body || (
+            `Le Syndicat de Copropriété ${syndInfo.name} atteste par la présente que :\n\n` +
+            `${member || "[NOM DU PROPRIÉTAIRE]"}\n\n` +
+            `est propriétaire du lot N° ${lotNum} (appartement/local) ` +
+            `de la résidence ${propName}, inscrit sous le Titre Foncier N° ${titreFoncier}, ` +
+            `avec une quote-part de ${tantiemes} tantiièmes.\n\n` +
+            `Cette attestation est délivrée sur la base des documents détenus par le syndicat et est valable uniquement pour la situation connue à ce jour.`
+          ),
+          accentColor,
+          isArabic,
+        ),
+        {
+          table: {
+            widths: ["*"],
+            body: [[{
+              text: "⚠  Ce document ne constitue pas un titre de propriété au sens du droit foncier. Pour tout acte juridique, veuillez vous référer au registre foncier compétent.",
+              style: "notice",
+              fillColor: "#fffbeb",
+              margin: [10, 8, 10, 8],
+            }]],
+          },
+          layout: { hLineWidth: () => 1, vLineWidth: () => 1, hLineColor: () => "#fcd34d", vLineColor: () => "#fcd34d" },
+          margin: [0, 0, 0, 16],
+        },
+        { canvas: [{ type: "rect", x: 0, y: 0, w: 515, h: 4, color: accentColor }], margin: [0, 8, 0, 16] },
+        signatureBlock(t("presidentTitle", lang), syndInfo.name, accentColor, true, lang, signatures),
+        legalFooterNote(docNum, lang, verifyUrl),
+      ];
+      break;
+    }
+
+    // ── Template 24: Attestation de Paiement des Charges ─────────────────────────
+    case "attestation_paiement": {
+      const periode = input.periode as string || `Exercice ${new Date().getFullYear()}`;
+      const montant = input.montant as string || "—";
+      const lotNum = input.lotNumber as string || "—";
+      content = [
+        ...header,
+        { canvas: [{ type: "rect", x: 0, y: 0, w: 515, h: 4, color: accentColor }], margin: [0, 0, 0, 12] },
+        { text: "ATTESTATION DE PAIEMENT DES CHARGES", fontSize: 14, bold: true, color: accentColor, alignment: "center" as const, margin: [0, 0, 0, 4] },
+        { text: input.title, style: "docTitle", alignment: "center" as const, margin: [0, 0, 0, 16] },
+        metaTable([
+          [t("metaDeliveredTo", lang), member || t("notRenseigne", lang)],
+          [t("metaIssueDate", lang), today],
+          [t("metaIssuer", lang), syndInfo.name],
+          ["Période couverte :", periode],
+          ...(lotNum !== "—" ? [["N° de lot :", lotNum] as [string, string]] : []),
+          ...(montant !== "—" ? [["Montant total réglé :", `${montant} MAD`] as [string, string]] : []),
+          ...(syndInfo.registrationNumber ? [[t("metaRegRef", lang), syndInfo.registrationNumber] as [string, string]] : []),
+        ], accentColor),
+        contentSection(
+          "Attestation de Bonne Foi de Paiement",
+          body || (
+            `Le Syndicat de Copropriété ${syndInfo.name} certifie que :\n\n` +
+            `${member || "[NOM DU MEMBRE]"}, copropriétaire du lot N° ${lotNum},\n\n` +
+            `est en règle de paiement de ses charges de copropriété pour la période : ${periode}.\n\n` +
+            `À la date de délivrance de la présente attestation, aucune somme n'est due au titre des charges ` +
+            `communes exigibles pour la période mentionnée ci-dessus.\n\n` +
+            `Cette attestation est établie sur la base des écritures comptables du syndicat et est délivrée ` +
+            `à la demande de l'intéressé(e) pour servir et valoir ce que de droit.`
+          ),
+          accentColor,
+          isArabic,
+        ),
+        {
+          table: {
+            widths: ["*"],
+            body: [[{
+              stack: [
+                { text: "✓  Situation comptable vérifiée à la date de délivrance", fontSize: 9, color: "#15803d", bold: true, margin: [0, 0, 0, 2] },
+                { text: "Cette attestation n'engage pas le syndicat pour les charges futures.", fontSize: 8, color: "#166534" },
+              ],
+              fillColor: "#f0fdf4",
+              margin: [12, 8, 12, 8],
+            }]],
+          },
+          layout: { hLineWidth: () => 1, vLineWidth: () => 1, hLineColor: () => "#86efac", vLineColor: () => "#86efac" },
+          margin: [0, 0, 0, 16],
+        },
+        { canvas: [{ type: "rect", x: 0, y: 0, w: 515, h: 4, color: accentColor }], margin: [0, 8, 0, 16] },
+        signatureBlock(t("presidentTitle", lang), syndInfo.name, accentColor, true, lang, signatures),
+        legalFooterNote(docNum, lang, verifyUrl),
+      ];
+      break;
+    }
+
     default:
       content = [
         ...header,
@@ -1923,6 +2142,9 @@ function getDocTypeLabel(template: DocumentTemplate, lang: DocumentLanguage = "f
     compte_rendu:             "COMPTE-RENDU DE RÉUNION",
     rapport_activite:         "RAPPORT D'ACTIVITÉ",
     reglement:                "RÈGLEMENT DE COPROPRIÉTÉ",
+    attestation_residence:    "ATTESTATION DE RÉSIDENCE",
+    attestation_propriete:    "ATTESTATION DE PROPRIÉTÉ",
+    attestation_paiement:     "ATTESTATION DE PAIEMENT",
   };
   return labels[template] ?? template.toUpperCase().replace(/_/g, " ");
 }

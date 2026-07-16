@@ -2261,6 +2261,47 @@ export const templateDefinitionPermissionsTable = pgTable(
   ],
 );
 
+// ─── Template Request Workflow ────────────────────────────────────────────────
+// A syndicate admin can request a new document template from the platform team.
+// The request goes through a 5-step review pipeline: pending → in_review →
+// approved (design phase) → published globally or per-syndicate, or rejected.
+
+export const templateRequestsTable = pgTable(
+  "template_requests",
+  {
+    id: id(),
+    // Syndicate admin who submitted the request
+    requestedBy: text("requested_by").notNull().references(() => usersTable.id, { onDelete: "cascade" }),
+    syndicateId: text("syndicate_id").references(() => syndicatesTable.id, { onDelete: "cascade" }),
+    // Template description
+    title: text("title").notNull(),
+    category: text("category").notNull(),
+    description: text("description"),
+    businessPurpose: text("business_purpose"),
+    // JSON array of { name, type, required } objects describing each field
+    requiredFields: text("required_fields").default("[]"),
+    legalNotes: text("legal_notes"),
+    // status: pending | in_review | approved | rejected | published
+    status: text("status").notNull().default("pending"),
+    // Platform admin review
+    reviewedBy: text("reviewed_by").references(() => usersTable.id, { onDelete: "set null" }),
+    reviewedAt: timestamp("reviewed_at"),
+    reviewNotes: text("review_notes"),
+    rejectionReason: text("rejection_reason"),
+    // "global" = available to all syndicates, "private" = requesting syndicate only
+    publishScope: text("publish_scope").default("private"),
+    // Priority: low | normal | high | urgent
+    priority: text("priority").default("normal"),
+    createdAt: createdAt(),
+    updatedAt: timestamp("updated_at").defaultNow(),
+  },
+  (t) => [
+    index("template_requests_syndicate_id_idx").on(t.syndicateId),
+    index("template_requests_status_idx").on(t.status),
+    index("template_requests_requested_by_idx").on(t.requestedBy),
+  ],
+);
+
 // ─── Document Comments ────────────────────────────────────────────────────────
 // Threaded comments on documents for review collaboration and notes.
 

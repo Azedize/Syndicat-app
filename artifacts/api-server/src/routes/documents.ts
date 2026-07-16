@@ -27,6 +27,8 @@ import {
   buildingsTable,
   lotsTable,
   conseilSyndicalTable,
+  membersTable,
+  templateRequestsTable,
 } from "@workspace/db/schema";
 import { eq, and, desc, sql, isNull, inArray } from "drizzle-orm";
 import { requireAuth, requireRole } from "../middleware/auth.js";
@@ -887,6 +889,81 @@ router.get("/documents/templates", requireAuth, async (_req, res) => {
       ],
       requiredInputs: [],
     },
+    // ── 3 new smart certificate templates (auto-fills member + lot + building) ──
+    {
+      id: "attestation_residence", name: "Attestation de résidence", category: "attestation",
+      description: "Certifie officiellement la résidence d'un copropriétaire dans l'immeuble. Le nom, le bâtiment et le numéro d'appartement sont injectés automatiquement.",
+      icon: "home", color: "#0891b2", version: "2.0", author: "SYNDYCAT", updatedAt: "2026-01-01",
+      sections: [
+        { title: "En-tête professionnel", description: "Logo, coordonnées et accréditation du syndicat", source: "syndicatesTable" },
+        { title: "Identité du résident", description: "Nom complet du copropriétaire / locataire", source: "usersTable + membersTable" },
+        { title: "Détails de la résidence", description: "N° d'appartement, résidence, adresse, étage", source: "buildingsTable + lotsTable" },
+        { title: "Corps de l'attestation", description: "Texte certifiant la résidence", source: "généré automatiquement" },
+        { title: "Signature officielle", description: "Président du syndicat", source: "conseilSyndicalTable" },
+        { title: "QR de vérification", description: "Code QR d'authenticité avec URL publique", source: "documents (généré)" },
+      ],
+      variables: [
+        { name: "syndicateName",   label: "Nom du syndicat",         source: "syndicatesTable.name",             required: true  },
+        { name: "memberName",      label: "Nom du résident",         source: "membersTable.name (auto-rempli)",  required: true  },
+        { name: "lotNumber",       label: "N° d'appartement",        source: "lotsTable.number (auto-rempli)",   required: false },
+        { name: "lotFloor",        label: "Étage",                   source: "lotsTable.floor (auto-rempli)",    required: false },
+        { name: "buildingName",    label: "Résidence / Immeuble",    source: "buildingsTable.name (auto-rempli)",required: false },
+        { name: "documentDate",    label: "Date d'émission",         source: "généré automatiquement",           required: true  },
+        { name: "documentNumber",  label: "N° de document",          source: "documentSequencesTable (ATT-RES)", required: true  },
+        { name: "verificationQR",  label: "QR de vérification",      source: "généré automatiquement",           required: true  },
+      ],
+      requiredInputs: ["memberName"],
+    },
+    {
+      id: "attestation_propriete", name: "Attestation de propriété", category: "attestation",
+      description: "Certifie officiellement la propriété d'un lot de copropriété. Le titre foncier et les tantiièmes sont injectés depuis la base de données.",
+      icon: "key", color: "#7c3aed", version: "2.0", author: "SYNDYCAT", updatedAt: "2026-01-01",
+      sections: [
+        { title: "En-tête professionnel", description: "Logo, coordonnées et accréditation du syndicat", source: "syndicatesTable" },
+        { title: "Identité du propriétaire", description: "Nom complet du copropriétaire", source: "membersTable" },
+        { title: "Détails du lot", description: "N° de lot, titre foncier, tantiièmes", source: "lotsTable" },
+        { title: "Corps de l'attestation", description: "Texte certifiant la propriété", source: "généré automatiquement" },
+        { title: "Avertissement légal", description: "Note : ne constitue pas un titre de propriété", source: "généré" },
+        { title: "Signature officielle", description: "Président du syndicat", source: "conseilSyndicalTable" },
+        { title: "QR de vérification", description: "Code QR d'authenticité avec URL publique", source: "documents (généré)" },
+      ],
+      variables: [
+        { name: "syndicateName",   label: "Nom du syndicat",         source: "syndicatesTable.name",                   required: true  },
+        { name: "memberName",      label: "Nom du propriétaire",     source: "membersTable.name (auto-rempli)",        required: true  },
+        { name: "lotNumber",       label: "N° de lot",               source: "lotsTable.number (auto-rempli)",         required: false },
+        { name: "titreFoncier",    label: "Titre Foncier",           source: "lotsTable.titreFoncier (auto-rempli)",   required: false },
+        { name: "tantiemes",       label: "Quote-part / Tantiièmes", source: "lotsTable.tantiemes (auto-rempli)",      required: false },
+        { name: "documentDate",    label: "Date d'émission",         source: "généré automatiquement",                 required: true  },
+        { name: "documentNumber",  label: "N° de document",          source: "documentSequencesTable (ATT-PRO)",       required: true  },
+        { name: "verificationQR",  label: "QR de vérification",      source: "généré automatiquement",                 required: true  },
+      ],
+      requiredInputs: ["memberName"],
+    },
+    {
+      id: "attestation_paiement", name: "Attestation de paiement des charges", category: "attestation",
+      description: "Certifie que le copropriétaire est en règle de paiement de ses charges pour la période indiquée.",
+      icon: "check-circle", color: "#16a34a", version: "2.0", author: "SYNDYCAT", updatedAt: "2026-01-01",
+      sections: [
+        { title: "En-tête professionnel", description: "Logo, coordonnées et accréditation du syndicat", source: "syndicatesTable" },
+        { title: "Identité du payeur", description: "Nom et N° de lot du copropriétaire", source: "membersTable + lotsTable" },
+        { title: "Période et montant", description: "Période couverte et total des charges réglées", source: "input" },
+        { title: "Corps de l'attestation", description: "Texte certifiant le paiement", source: "généré automatiquement" },
+        { title: "Confirmation comptable", description: "Note de vérification comptable à la date de délivrance", source: "généré" },
+        { title: "Signature officielle", description: "Président du syndicat", source: "conseilSyndicalTable" },
+        { title: "QR de vérification", description: "Code QR d'authenticité avec URL publique", source: "documents (généré)" },
+      ],
+      variables: [
+        { name: "syndicateName",  label: "Nom du syndicat",         source: "syndicatesTable.name",           required: true  },
+        { name: "memberName",     label: "Nom du copropriétaire",   source: "membersTable.name (auto-rempli)",required: true  },
+        { name: "lotNumber",      label: "N° de lot",               source: "lotsTable.number (auto-rempli)", required: false },
+        { name: "periode",        label: "Période couverte",        source: "input utilisateur",              required: true  },
+        { name: "montant",        label: "Montant total réglé (MAD)", source: "input utilisateur",            required: false },
+        { name: "documentDate",   label: "Date d'émission",         source: "généré automatiquement",         required: true  },
+        { name: "documentNumber", label: "N° de document",          source: "documentSequencesTable (ATT-PAI)", required: true  },
+        { name: "verificationQR", label: "QR de vérification",      source: "généré automatiquement",         required: true  },
+      ],
+      requiredInputs: ["memberName", "periode"],
+    },
   ];
 
   res.json({ data: catalog });
@@ -1057,6 +1134,83 @@ router.get("/documents/verify/:token", async (req, res) => {
   } catch (err) {
     req.log.error(err);
     res.status(500).json({ error: "Erreur serveur", verified: false });
+  }
+});
+
+// ─── GET /documents/autofill ──────────────────────────────────────────────────
+// Returns pre-resolved DB variable values for the authenticated user.
+// Registered before /:id so the literal "autofill" path is not captured by the param.
+
+router.get("/documents/autofill", requireAuth, async (req, res) => {
+  try {
+    const user = req.user!;
+    const syndicateId = user.syndicateId || "";
+
+    const [syndInfo, property, officeHolders] = await Promise.all([
+      getSyndicateInfo(syndicateId),
+      getPropertyInfo(syndicateId),
+      getOfficeHolders(syndicateId),
+    ]);
+
+    // Fetch the first lot owned by a member matching this user's email
+    // (members table has no direct userId FK — match by email)
+    const lotRows = syndicateId
+      ? await db
+          .select({ number: lotsTable.number, floor: lotsTable.floor })
+          .from(lotsTable)
+          .innerJoin(membersTable, eq(lotsTable.ownerId, membersTable.id))
+          .where(and(eq(membersTable.syndicateId, syndicateId), eq(membersTable.email, user.email ?? "")))
+          .limit(1)
+      : [];
+    const memberRow = lotRows[0];
+
+    const today = new Date().toLocaleDateString("fr-FR");
+    const year  = new Date().getFullYear();
+
+    res.json({
+      data: {
+        syndicateInfo: {
+          syndicate_name:       syndInfo.name            || null,
+          syndicate_address:    syndInfo.address         || null,
+          syndicate_city:       syndInfo.city            || null,
+          syndicate_phone:      syndInfo.phone           || null,
+          syndicate_email:      syndInfo.email           || null,
+          registration_number:  syndInfo.registrationNumber || null,
+          syndicate_color:      syndInfo.logoColor       || null,
+        },
+        propertyInfo: property ? {
+          building_name:    property.name    || null,
+          building_address: property.address || null,
+          building_city:    property.city    || null,
+          total_lots:       property.totalLots    != null ? String(property.totalLots)    : null,
+          total_floors:     property.totalFloors  != null ? String(property.totalFloors)  : null,
+          total_buildings:  String(property.totalBuildings),
+        } : null,
+        officeHolders: officeHolders ? {
+          president_name:      officeHolders.president?.fullName   ?? null,
+          president_email:     officeHolders.president?.email      ?? null,
+          vice_president_name: officeHolders.vicePresident?.fullName ?? null,
+          secretary_name:      officeHolders.secretary?.fullName   ?? null,
+          treasurer_name:      officeHolders.treasurer?.fullName   ?? null,
+          manager_name:        officeHolders.manager?.fullName     ?? null,
+          manager_phone:       officeHolders.manager?.phone        ?? null,
+        } : null,
+        memberInfo: {
+          member_name:  user.name  || null,
+          member_email: user.email || null,
+          lot_number:   (memberRow as any)?.number ?? null,
+          floor:        (memberRow as any)?.floor != null ? String((memberRow as any).floor) : null,
+        },
+        generated: {
+          issue_date:      today,
+          document_year:   String(year),
+          document_number: `[Généré automatiquement]`,
+        },
+      },
+    });
+  } catch (err) {
+    req.log.error(err);
+    res.status(500).json({ error: "Erreur lors de la résolution des variables" });
   }
 });
 

@@ -85,10 +85,11 @@ const MENU_SECTIONS_DEF: SectionDef[] = [
   {
     titleKey: "menuSectionLegal",
     items: [
-      { labelKey: "documentsCopro",         icon: "folder",    route: "/documents",           color: "#6366f1", roles: ["super_admin", "syndicate_admin", "member", "tenant"] },
-      { labelKey: "reglementsLabel",         icon: "book",      route: "/reglements",          color: "#3b82f6", roles: ["super_admin", "syndicate_admin", "member", "tenant"] },
-      { labelKey: "actesAdministratifs",     icon: "file-text", route: "/actes-administratifs",color: "#7c3aed", roles: ["super_admin", "syndicate_admin"] },
-      { labelKey: "alertesReglementaires",   icon: "shield",    route: "/legal",               color: "#8b5cf6", roles: ["super_admin", "syndicate_admin"] },
+      { labelKey: "documentsCopro",         icon: "folder",    route: "/documents",            color: "#6366f1", roles: ["super_admin", "syndicate_admin", "member", "tenant"] },
+      { labelKey: "reglementsLabel",         icon: "book",      route: "/reglements",           color: "#3b82f6", roles: ["super_admin", "syndicate_admin", "member", "tenant"] },
+      { labelKey: "actesAdministratifs",     icon: "file-text", route: "/actes-administratifs", color: "#7c3aed", roles: ["super_admin", "syndicate_admin"] },
+      { labelKey: "alertesReglementaires",   icon: "shield",    route: "/legal",                color: "#8b5cf6", roles: ["super_admin", "syndicate_admin"] },
+      { labelKey: "demandesModeles",         icon: "inbox",     route: "/template-request",     color: "#a78bfa", roles: ["syndicate_admin"] },
     ],
   },
   {

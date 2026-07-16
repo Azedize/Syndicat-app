@@ -123,6 +123,14 @@ export default function DocumentWizard({ visible, onClose, onComplete }: Props) 
   const sigSvgRef  = useRef<string>("");
   const stepAnim   = useRef(new Animated.Value(1)).current;
   const [error,   setError]   = useState<string | null>(null);
+  const [autofillData, setAutofillData] = useState<{
+    syndicateInfo: Record<string, string | null>;
+    propertyInfo: Record<string, string | null> | null;
+    officeHolders: Record<string, string | null> | null;
+    memberInfo: Record<string, string | null>;
+    generated: Record<string, string | null>;
+  } | null>(null);
+  const [autofillLoading, setAutofillLoading] = useState(false);
 
   // Reset when wizard opens
   useEffect(() => {
@@ -138,6 +146,8 @@ export default function DocumentWizard({ visible, onClose, onComplete }: Props) 
       setError(null);
       setSigEmpty(true);
       sigSvgRef.current = "";
+      setAutofillData(null);
+      setAutofillLoading(false);
     }
   }, [visible]);
 
@@ -172,11 +182,22 @@ export default function DocumentWizard({ visible, onClose, onComplete }: Props) 
     goToStep(2);
   };
 
-  // ── Step 2 → 3: select template ───────────────────────────────────────────────
-  const handleSelectTemplate = (tpl: TemplateCatalog) => {
+  // ── Step 2 → 3: select template + load autofill ──────────────────────────────
+  const handleSelectTemplate = async (tpl: TemplateCatalog) => {
     setSelectedTpl(tpl);
     setFields({});
     goToStep(3);
+    // Load DB-resolved values in background so step 3 shows real data
+    setAutofillLoading(true);
+    try {
+      const { documents: docsApi } = await import("@/services/api");
+      const res = await docsApi.autofill();
+      setAutofillData(res.data);
+    } catch {
+      setAutofillData(null); // non-fatal — step 3 still works without it
+    } finally {
+      setAutofillLoading(false);
+    }
   };
 
   // ── Step 3 → 4: load preview from API ────────────────────────────────────────
@@ -658,24 +679,80 @@ export default function DocumentWizard({ visible, onClose, onComplete }: Props) 
               ))}
             </View>
 
-            {/* Variable data sources */}
+            {/* Auto-resolved DB variables — real values from autofill */}
             <View style={[s.sectionBox, { backgroundColor: colors.card, borderColor: colors.border }]}>
-              <Text style={[s.boxTitle, { color: colors.foreground }]}>Sources des données automatiques</Text>
-              <Text style={[s.stepSubtitle, { color: colors.mutedForeground, marginBottom: 8 }]}>
-                Ces variables seront remplies automatiquement depuis votre base de données.
+              <View style={{ flexDirection: "row", alignItems: "center", gap: 8, marginBottom: 10 }}>
+                <Text style={[s.boxTitle, { color: colors.foreground }]}>Données automatiques</Text>
+                {autofillLoading && <ActivityIndicator size="small" color={selectedTpl.color} />}
+                {!autofillLoading && autofillData && (
+                  <View style={[s.autoChip, { backgroundColor: "#10b98115" }]}>
+                    <Feather name="check-circle" size={10} color="#10b981" />
+                    <Text style={[s.autoChipText, { color: "#10b981" }]}>Résolu</Text>
+                  </View>
+                )}
+              </View>
+              <Text style={[s.stepSubtitle, { color: colors.mutedForeground, marginBottom: 10 }]}>
+                Ces informations sont récupérées automatiquement depuis votre profil et syndicat.
               </Text>
-              {selectedTpl.variables.filter((v) => !v.source.includes("input utilisateur")).map((v, i) => (
-                <View key={v.name} style={[s.varRow, { borderTopColor: i > 0 ? colors.border : "transparent" }]}>
-                  <View style={{ flex: 1 }}>
-                    <Text style={[s.varLabel, { color: colors.foreground }]}>{v.label}</Text>
-                    <Text style={[s.varSource, { color: sourceColor(v.source) }]}>{v.source}</Text>
-                  </View>
-                  <View style={[s.autoChip, { backgroundColor: sourceColor(v.source) + "12" }]}>
-                    <Feather name="cpu" size={10} color={sourceColor(v.source)} />
-                    <Text style={[s.autoChipText, { color: sourceColor(v.source) }]}>Auto</Text>
-                  </View>
+              {autofillLoading ? (
+                <View style={{ alignItems: "center", paddingVertical: 16 }}>
+                  <Text style={[s.stepSubtitle, { color: colors.mutedForeground }]}>Récupération des données…</Text>
                 </View>
-              ))}
+              ) : autofillData ? (() => {
+                // Flatten all resolved values into display rows
+                const rows: { label: string; value: string; color: string }[] = [];
+                const add = (label: string, value: string | null | undefined, color: string) => {
+                  if (value) rows.push({ label, value, color });
+                };
+                const si = autofillData.syndicateInfo;
+                const pi = autofillData.propertyInfo;
+                const oh = autofillData.officeHolders;
+                const mi = autofillData.memberInfo;
+                add("Syndicat", si.syndicate_name, "#7c3aed");
+                add("Adresse", si.syndicate_address ? `${si.syndicate_address}, ${si.syndicate_city ?? ""}`.trim().replace(/,$/, "") : null, "#7c3aed");
+                add("Immeuble", pi?.building_name, "#3b82f6");
+                add("Lots", pi?.total_lots ? `${pi.total_lots} lots` : null, "#3b82f6");
+                add("Président", oh?.president_name, "#f59e0b");
+                add("Vice-Président", oh?.vice_president_name, "#f59e0b");
+                add("Trésorier", oh?.treasurer_name, "#10b981");
+                add("Secrétaire", oh?.secretary_name, "#10b981");
+                add("Gestionnaire", oh?.manager_name, "#0891b2");
+                add("Membre", mi.member_name, "#ec4899");
+                add("Lot", mi.lot_number ? `Lot ${mi.lot_number}` : null, "#ec4899");
+                return rows.length === 0 ? (
+                  <Text style={[s.stepSubtitle, { color: colors.mutedForeground }]}>
+                    Aucune donnée syndicat trouvée. Complétez le profil de votre syndicat.
+                  </Text>
+                ) : (
+                  <View style={{ gap: 0 }}>
+                    {rows.map((row, i) => (
+                      <View key={row.label} style={[s.varRow, { borderTopColor: i > 0 ? colors.border : "transparent" }]}>
+                        <Text style={[s.varLabel, { color: colors.foreground, flex: 1 }]}>{row.label}</Text>
+                        <View style={{ flexDirection: "row", alignItems: "center", gap: 6, flex: 2, justifyContent: "flex-end" }}>
+                          <Text style={[s.varSource, { color: row.color, fontSize: 12 }]} numberOfLines={1}>{row.value}</Text>
+                          <View style={[s.autoChip, { backgroundColor: row.color + "12" }]}>
+                            <Feather name="cpu" size={9} color={row.color} />
+                            <Text style={[s.autoChipText, { color: row.color }]}>Auto</Text>
+                          </View>
+                        </View>
+                      </View>
+                    ))}
+                  </View>
+                );
+              })() : (
+                selectedTpl.variables.filter((v) => !v.source.includes("input utilisateur")).map((v, i) => (
+                  <View key={v.name} style={[s.varRow, { borderTopColor: i > 0 ? colors.border : "transparent" }]}>
+                    <View style={{ flex: 1 }}>
+                      <Text style={[s.varLabel, { color: colors.foreground }]}>{v.label}</Text>
+                      <Text style={[s.varSource, { color: sourceColor(v.source) }]}>{v.source}</Text>
+                    </View>
+                    <View style={[s.autoChip, { backgroundColor: sourceColor(v.source) + "12" }]}>
+                      <Feather name="cpu" size={10} color={sourceColor(v.source)} />
+                      <Text style={[s.autoChipText, { color: sourceColor(v.source) }]}>Auto</Text>
+                    </View>
+                  </View>
+                ))
+              )}
             </View>
 
             {/* User input fields */}
