@@ -39,6 +39,9 @@ import {
   meetingsTable,
   meetingAttendeesTable,
   agResolutionsTable,
+  caisseEntriesTable,
+  transactionsTable,
+  fondsTravauxTable,
 } from "@workspace/db/schema";
 import { eq, and, desc, sql, isNull, inArray } from "drizzle-orm";
 import { requireAuth, requireRole } from "../middleware/auth.js";
@@ -389,6 +392,232 @@ async function getElectionData(electionId: string): Promise<Record<string, strin
     _candidatesCount:    String(candidates.length),
     _electionStatus:     election.status ?? "draft",
     _electionId:         electionId,
+  };
+}
+
+// ─── Financial dashboard KPI aggregator ────────────────────────────────────────
+// Pulls live aggregated metrics from appelsDeFondsTable, caisseEntriesTable,
+// budgetsTable and transactionsTable and returns them as _kpi* keys so the PDF
+// template can render a real enterprise financial dashboard.
+
+async function getFinancialDashboardData(
+  syndicateId: string | null | undefined,
+  buildingId?: string | null,
+  year?: number | null,
+): Promise<Record<string, string>> {
+  if (!syndicateId && !buildingId) return {};
+  const currentYear = year || new Date().getFullYear();
+  try {
+    // ── 1. Appels de fonds ────────────────────────────────────────────────────
+    const appels = buildingId
+      ? await db.select({
+          amount: appelsDeFondsTable.amount,
+          status: appelsDeFondsTable.status,
+          period: appelsDeFondsTable.period,
+        }).from(appelsDeFondsTable)
+          .where(eq(appelsDeFondsTable.buildingId, buildingId))
+      : [];
+
+    const totalCharged = appels.reduce((s, a) => s + Number(a.amount ?? 0), 0);
+    const totalPaid    = appels.filter((a) => a.status === "paid").reduce((s, a) => s + Number(a.amount ?? 0), 0);
+    const outstanding  = totalCharged - totalPaid;
+    const collectionRate = totalCharged > 0 ? Math.round((totalPaid / totalCharged) * 100) : 0;
+
+    // Year-scoped subsets for monthly / annual breakdown
+    const yearAppels = appels.filter((a) => a.period?.startsWith(String(currentYear)));
+    const yearCharged = yearAppels.reduce((s, a) => s + Number(a.amount ?? 0), 0);
+    const yearPaid    = yearAppels.filter((a) => a.status === "paid").reduce((s, a) => s + Number(a.amount ?? 0), 0);
+
+    // ── 2. Caisse entries (revenue / expenses / cash balance) ─────────────────
+    let totalRevenue = 0;
+    let totalExpenses = 0;
+    if (syndicateId) {
+      const caisse = await db.select({
+        amount: caisseEntriesTable.amount,
+        type:   caisseEntriesTable.type,
+      }).from(caisseEntriesTable).where(eq(caisseEntriesTable.syndicateId, syndicateId));
+
+      totalRevenue  = caisse.filter((e) => e.type === "credit").reduce((s, e) => s + Number(e.amount ?? 0), 0);
+      totalExpenses = caisse.filter((e) => e.type === "debit").reduce((s, e) => s + Number(e.amount ?? 0), 0);
+    }
+    const cashBalance = totalRevenue - totalExpenses;
+    const netBalance  = totalPaid + totalRevenue - totalExpenses;
+
+    // ── 3. Budget consumption ─────────────────────────────────────────────────
+    let budgetTotal = 0;
+    let budgetStatusVal = "draft";
+    let budgetCharges = 0;
+    let budgetReserve = 0;
+    if (buildingId) {
+      const budgets = await db.select({
+        totalAmount:   budgetsTable.totalAmount,
+        chargesAmount: budgetsTable.chargesAmount,
+        fondsReserve:  budgetsTable.fondsReserve,
+        status:        budgetsTable.status,
+      }).from(budgetsTable)
+        .where(and(eq(budgetsTable.buildingId, buildingId), eq(budgetsTable.year, currentYear)));
+      if (budgets[0]) {
+        budgetTotal   = Number(budgets[0].totalAmount   ?? 0);
+        budgetCharges = Number(budgets[0].chargesAmount ?? 0);
+        budgetReserve = Number(budgets[0].fondsReserve  ?? 0);
+        budgetStatusVal = budgets[0].status ?? "draft";
+      }
+    }
+    const budgetConsumed = budgetTotal > 0 ? Math.round((yearCharged / budgetTotal) * 100) : 0;
+
+    // ── 4. Fonds de travaux balance ───────────────────────────────────────────
+    let fondsTravauxBalance = 0;
+    let fondsTravauxTarget  = 0;
+    if (syndicateId) {
+      const ft = await db.select({
+        currentBalance: fondsTravauxTable.currentBalance,
+        targetAmount:   fondsTravauxTable.targetAmount,
+      }).from(fondsTravauxTable)
+        .where(and(eq(fondsTravauxTable.syndicateId, syndicateId), eq(fondsTravauxTable.year, currentYear)));
+      if (ft[0]) {
+        fondsTravauxBalance = Number(ft[0].currentBalance ?? 0);
+        fondsTravauxTarget  = Number(ft[0].targetAmount   ?? 0);
+      }
+    }
+
+    const fmt = (n: number) => n.toLocaleString("fr-MA");
+    return {
+      _kpiTotalCharged:     fmt(totalCharged),
+      _kpiTotalPaid:        fmt(totalPaid),
+      _kpiOutstanding:      fmt(outstanding),
+      _kpiCollectionRate:   String(collectionRate),
+      _kpiCashBalance:      fmt(cashBalance),
+      _kpiBudgetTotal:      fmt(budgetTotal),
+      _kpiBudgetCharges:    fmt(budgetCharges),
+      _kpiBudgetReserve:    fmt(budgetReserve),
+      _kpiBudgetConsumed:   String(budgetConsumed),
+      _kpiBudgetStatus:     budgetStatusVal,
+      _kpiTotalRevenue:     fmt(totalRevenue),
+      _kpiTotalExpenses:    fmt(totalExpenses),
+      _kpiNetBalance:       fmt(netBalance),
+      _kpiYearCharged:      fmt(yearCharged),
+      _kpiYearPaid:         fmt(yearPaid),
+      _kpiFondsTravauxBal:  fmt(fondsTravauxBalance),
+      _kpiFondsTravauxTgt:  fmt(fondsTravauxTarget),
+      _kpiYear:             String(currentYear),
+    };
+  } catch (err) {
+    return {};
+  }
+}
+
+// ─── Per-lot charge aggregation for décompte des charges ──────────────────────
+// Sums actual appels de fonds for a specific lot (provisions versées) and
+// computes a per-lot share of building expenses from caisseEntriesTable using
+// the lot's tantièmes ratio.
+
+async function getDecompteChargesData(
+  lotId: string,
+  year?: string | null,
+  syndicateId?: string | null,
+): Promise<Record<string, string>> {
+  const targetYear = year || String(new Date().getFullYear());
+  try {
+    // All appels for this lot
+    const appels = await db.select({
+      amount:  appelsDeFondsTable.amount,
+      status:  appelsDeFondsTable.status,
+      period:  appelsDeFondsTable.period,
+      type:    appelsDeFondsTable.type,
+      buildingId: appelsDeFondsTable.buildingId,
+    }).from(appelsDeFondsTable).where(eq(appelsDeFondsTable.lotId, lotId));
+
+    // Prefer year-scoped; fall back to all
+    const scopedAppels = appels.filter((a) => a.period?.startsWith(targetYear));
+    const useAppels = scopedAppels.length > 0 ? scopedAppels : appels;
+
+    const totalProvisioned = useAppels.reduce((s, a) => s + Number(a.amount ?? 0), 0);
+    const totalPaid        = useAppels.filter((a) => a.status === "paid").reduce((s, a) => s + Number(a.amount ?? 0), 0);
+    const totalOverdue     = useAppels.filter((a) => a.status === "overdue").reduce((s, a) => s + Number(a.amount ?? 0), 0);
+
+    // Group by type for breakdown
+    const byType: Record<string, number> = {};
+    useAppels.forEach((a) => {
+      const key = a.type ?? "charges_courantes";
+      byType[key] = (byType[key] ?? 0) + Number(a.amount ?? 0);
+    });
+
+    const typeLabels: Record<string, string> = {
+      charges_courantes: "Charges courantes",
+      fonds_de_reserve: "Fonds de réserve",
+      travaux: "Travaux",
+      charges_exceptionnelles: "Charges exceptionnelles",
+      eau: "Eau",
+      electricite: "Électricité",
+      ascenseur: "Ascenseur",
+    };
+    const breakdownLines = Object.entries(byType)
+      .map(([type, amount]) => `${typeLabels[type] ?? type}: ${amount.toLocaleString("fr-MA")} MAD`)
+      .join("\n");
+
+    // Lot info for tantièmes ratio → estimated real charges
+    const buildingId = useAppels[0]?.buildingId;
+    let estimatedRealCharges = totalProvisioned;
+    if (buildingId) {
+      const [lotRow] = await db.select({ tantiemes: lotsTable.tantiemes })
+        .from(lotsTable)
+        .where(eq(lotsTable.id, lotId));
+      const tantiemes = Number(lotRow?.tantiemes ?? 0);
+
+      if (syndicateId && tantiemes > 0) {
+        const caisse = await db.select({
+          amount: caisseEntriesTable.amount,
+          type:   caisseEntriesTable.type,
+        }).from(caisseEntriesTable).where(eq(caisseEntriesTable.syndicateId, syndicateId));
+        const totalBldgExpenses = caisse
+          .filter((e) => e.type === "debit")
+          .reduce((s, e) => s + Number(e.amount ?? 0), 0);
+        estimatedRealCharges = Math.round(totalBldgExpenses * (tantiemes / 10000));
+      }
+    }
+
+    const fmt = (n: number) => n.toLocaleString("fr-MA");
+    return {
+      totalPrevu:           String(totalProvisioned),
+      totalRealise:         String(estimatedRealCharges),
+      _decompteYear:        targetYear,
+      _decompteTotalPaid:   fmt(totalPaid),
+      _decompteTotalOverdue: fmt(totalOverdue),
+      _decompteBreakdown:   breakdownLines,
+      _decompteAppelCount:  String(useAppels.length),
+    };
+  } catch (err) {
+    return {};
+  }
+}
+
+// ─── Real invoice loader for facture template ──────────────────────────────────
+
+async function getInvoiceData(invoiceId: string): Promise<Record<string, string>> {
+  const [invoice] = await db.select().from(invoicesTable).where(eq(invoicesTable.id, invoiceId));
+  if (!invoice) return {};
+
+  const items = await db.select().from(invoiceItemsTable).where(eq(invoiceItemsTable.invoiceId, invoiceId));
+  const invoiceLines = items.map((item) => ({
+    label:     item.label,
+    qty:       Number(item.quantity ?? 1),
+    unitPrice: Number(item.unitPrice ?? 0),
+    total:     Number(item.quantity ?? 1) * Number(item.unitPrice ?? 0),
+  }));
+
+  const totalHT = invoiceLines.reduce((s, l) => s + l.total, 0) || Number(invoice.amount ?? 0);
+  if (invoiceLines.length === 0) {
+    invoiceLines.push({ label: "Prestation de service", qty: 1, unitPrice: totalHT, total: totalHT });
+  }
+
+  return {
+    _invoiceRef:    invoice.reference,
+    _recipient:     invoice.recipient,
+    amount:         String(Number(invoice.amount ?? 0)),
+    dueDate:        invoice.dueDate,
+    _invoiceDate:   invoice.date,
+    _invoiceStatus: invoice.status ?? "draft",
+    _invoiceLines:  JSON.stringify(invoiceLines),
   };
 }
 
@@ -1599,6 +1828,25 @@ router.post(
       if (extraFields.electionId)     entityLoads.push(getElectionData(extraFields.electionId as string));
       if (extraFields.lotId || extraFields.memberId) {
         entityLoads.push(getLotMemberData(extraFields.lotId as string | undefined, extraFields.memberId as string | undefined));
+      }
+      // ── NEW: real financial data loaders ────────────────────────────────────
+      if (extraFields.invoiceId) {
+        entityLoads.push(getInvoiceData(extraFields.invoiceId as string));
+      }
+      // Financial KPI dashboard — loaded for all financial templates
+      const isFinancialTemplate = ["appel_de_fonds","recu_paiement","facture","budget_previsionnel","decompte_charges"].includes(template);
+      if (isFinancialTemplate) {
+        const kpiBuildingId = buildingId ?? null;
+        const kpiYear = extraFields.exercice ? parseInt(extraFields.exercice as string) : null;
+        entityLoads.push(getFinancialDashboardData(syndicateId, kpiBuildingId, kpiYear));
+      }
+      // Décompte des charges — real per-lot aggregation
+      if (template === "decompte_charges" && extraFields.lotId) {
+        entityLoads.push(getDecompteChargesData(
+          extraFields.lotId as string,
+          extraFields.exercice as string | undefined ?? null,
+          syndicateId,
+        ));
       }
       const entityResults = await Promise.all(entityLoads);
       const entityData: Record<string, string> = Object.assign({}, ...entityResults);

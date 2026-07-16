@@ -719,6 +719,220 @@ function contentSection(title: string, text: string, accentColor: string, isRtl 
   };
 }
 
+// ─── Financial Dashboard Helpers ──────────────────────────────────────────────
+// Enterprise-grade SAP/Oracle-style KPI cards, progress bars, and data tables
+// for financial PDF templates.
+
+/**
+ * Renders a 3-column row of KPI metric cards.
+ * Each card: small label on top, large bold value, optional sub-label.
+ */
+function kpiRow(
+  cards: Array<{ label: string; value: string; sublabel?: string; valueColor?: string; bgColor?: string }>,
+  accentColor: string,
+): unknown {
+  const makeCard = (c: (typeof cards)[0]) => ({
+    stack: [
+      { text: c.label.toUpperCase(), fontSize: 6, bold: true, color: "#9ca3af", margin: [0, 0, 0, 5] },
+      { text: c.value, fontSize: 15, bold: true, color: c.valueColor || accentColor, margin: [0, 0, 0, 2] },
+      ...(c.sublabel ? [{ text: c.sublabel, fontSize: 7, color: "#6b7280" }] : []),
+    ],
+    fillColor: c.bgColor || "#f8fafc",
+    margin: [12, 12, 12, 12],
+  });
+  return {
+    columns: cards.map(makeCard),
+    columnGap: 6,
+    margin: [0, 0, 0, 4],
+  };
+}
+
+/**
+ * Renders a horizontal progress bar with label, percentage fill, and value text.
+ * Used for Collection Rate, Budget Consumption, etc.
+ */
+function progressBar(
+  label: string,
+  percent: number,        // 0-100
+  value: string,
+  total: string,
+  accentColor: string,
+): unknown {
+  const clamped = Math.min(100, Math.max(0, percent));
+  const barW = 370; // total bar width in pts
+  const fillW = Math.round((clamped / 100) * barW);
+  const emptyW = barW - fillW;
+  const barColor = percent >= 90 ? "#16a34a" : percent >= 60 ? accentColor : "#dc2626";
+
+  return {
+    stack: [
+      {
+        columns: [
+          { text: label, fontSize: 8, bold: true, color: "#374151", width: "*" },
+          { text: `${clamped}%  •  ${value} / ${total}`, fontSize: 8, color: "#6b7280", width: "auto", alignment: "right" as const },
+        ],
+        margin: [0, 0, 0, 3],
+      },
+      {
+        canvas: [
+          // Background track
+          { type: "rect", x: 0, y: 0, w: barW, h: 8, r: 3, color: "#e5e7eb" },
+          // Fill
+          ...(fillW > 0 ? [{ type: "rect" as const, x: 0, y: 0, w: fillW, h: 8, r: 3, color: barColor }] : []),
+        ],
+        margin: [0, 0, 0, 6],
+      },
+    ],
+  };
+}
+
+/**
+ * Renders an enterprise-grade financial summary dashboard section.
+ * Shows 6 KPI cards (2 rows of 3) + 2 progress bars.
+ * All values come from _kpi* keys populated by getFinancialDashboardData().
+ */
+function financialDashboard(input: Record<string, unknown>, accentColor: string): unknown[] {
+  const kpiTotalCharged  = (input._kpiTotalCharged  as string) || "0";
+  const kpiTotalPaid     = (input._kpiTotalPaid     as string) || "0";
+  const kpiOutstanding   = (input._kpiOutstanding   as string) || "0";
+  const kpiCollRate      = parseInt((input._kpiCollectionRate as string) || "0");
+  const kpiCashBalance   = (input._kpiCashBalance   as string) || "0";
+  const kpiBudgetTotal   = (input._kpiBudgetTotal   as string) || "0";
+  const kpiBudgetConsumed = parseInt((input._kpiBudgetConsumed as string) || "0");
+  const kpiRevenue       = (input._kpiTotalRevenue  as string) || "0";
+  const kpiExpenses      = (input._kpiTotalExpenses as string) || "0";
+  const kpiNetBalance    = (input._kpiNetBalance    as string) || "0";
+  const kpiYear          = (input._kpiYear          as string) || String(new Date().getFullYear());
+
+  // Only render if we have real data
+  const hasData = kpiTotalCharged !== "0" || kpiCashBalance !== "0" || kpiRevenue !== "0";
+  if (!hasData) return [];
+
+  const outstandingNum = parseFloat((input._kpiOutstanding as string || "0").replace(/\s/g, "").replace(",", "."));
+  const outstandingColor = outstandingNum > 0 ? "#dc2626" : "#16a34a";
+
+  return [
+    // Section header
+    {
+      table: {
+        widths: ["*"],
+        body: [[{
+          columns: [
+            { text: "TABLEAU DE BORD FINANCIER", fontSize: 9, bold: true, color: "#ffffff", width: "*", margin: [0, 1, 0, 0] },
+            { text: `Exercice ${kpiYear}`, fontSize: 7.5, color: "#ffffffcc", width: "auto", alignment: "right" as const },
+          ],
+          fillColor: accentColor,
+          margin: [14, 7, 14, 7],
+          border: [false, false, false, false] as [boolean, boolean, boolean, boolean],
+        }]],
+      },
+      layout: { hLineWidth: () => 0, vLineWidth: () => 0, paddingLeft: () => 0, paddingRight: () => 0, paddingTop: () => 0, paddingBottom: () => 0 },
+      margin: [0, 12, 0, 0],
+    },
+    // Row 1 — Revenue / Expenses / Net Balance
+    kpiRow([
+      { label: "Total Revenus",   value: `${kpiRevenue} MAD`,  valueColor: "#16a34a", bgColor: "#f0fdf4" },
+      { label: "Total Dépenses",  value: `${kpiExpenses} MAD`, valueColor: "#dc2626", bgColor: "#fef2f2" },
+      { label: "Solde Net",       value: `${kpiNetBalance} MAD`, valueColor: "#1e3a8a", bgColor: "#eff6ff" },
+    ], accentColor),
+    // Row 2 — Charged / Paid / Outstanding
+    kpiRow([
+      { label: "Total Appelé",   value: `${kpiTotalCharged} MAD`, bgColor: "#f8fafc" },
+      { label: "Total Encaissé", value: `${kpiTotalPaid} MAD`,    valueColor: "#16a34a", bgColor: "#f0fdf4" },
+      { label: "Impayés",        value: `${kpiOutstanding} MAD`,  valueColor: outstandingColor, bgColor: outstandingNum > 0 ? "#fef2f2" : "#f0fdf4" },
+    ], accentColor),
+    // Row 3 — Cash Balance / Budget Total
+    kpiRow([
+      { label: "Trésorerie",      value: `${kpiCashBalance} MAD`, valueColor: "#065f46", bgColor: "#ecfdf5" },
+      { label: "Budget Prévisionnel", value: `${kpiBudgetTotal} MAD`, bgColor: "#f8fafc" },
+      { label: "Taux de Recouvrement", value: `${kpiCollRate}%`, valueColor: kpiCollRate >= 90 ? "#16a34a" : kpiCollRate >= 60 ? "#d97706" : "#dc2626", bgColor: "#f8fafc" },
+    ], accentColor),
+    // Progress bars
+    {
+      stack: [
+        progressBar("Taux de Recouvrement des Charges", kpiCollRate, `${kpiTotalPaid} MAD`, `${kpiTotalCharged} MAD`, accentColor),
+        progressBar("Consommation Budgétaire", kpiBudgetConsumed, `${kpiTotalCharged} MAD`, `${kpiBudgetTotal} MAD`, accentColor),
+      ],
+      margin: [0, 4, 0, 16],
+    },
+  ];
+}
+
+/**
+ * Renders a professional alternating-row data table for budget lines.
+ * Parses the text-formatted budget lines from getBudgetData() and renders them
+ * as a proper ERP-style table with category grouping and highlighted totals.
+ */
+function budgetLinesTable(
+  lines: Array<{ category: string; label: string; amountAnnual: number }>,
+  accentColor: string,
+): unknown {
+  if (lines.length === 0) return { text: "Aucune ligne budgétaire disponible.", fontSize: 9, color: "#9ca3af", margin: [0, 8, 0, 8] };
+
+  const categoryTotals: Record<string, number> = {};
+  lines.forEach((l) => { categoryTotals[l.category] = (categoryTotals[l.category] ?? 0) + l.amountAnnual; });
+
+  let lastCategory = "";
+  let rowIdx = 0;
+  const bodyRows: unknown[] = [
+    // Header row
+    [
+      { text: "CATÉGORIE",    fontSize: 8, bold: true, color: "#ffffff", fillColor: accentColor, margin: [8, 6, 4, 6], border: [false, false, false, false] as [boolean, boolean, boolean, boolean] },
+      { text: "DÉSIGNATION",  fontSize: 8, bold: true, color: "#ffffff", fillColor: accentColor, margin: [4, 6, 4, 6], border: [false, false, false, false] as [boolean, boolean, boolean, boolean] },
+      { text: "ANNUEL (MAD)", fontSize: 8, bold: true, color: "#ffffff", fillColor: accentColor, margin: [4, 6, 8, 6], alignment: "right" as const, border: [false, false, false, false] as [boolean, boolean, boolean, boolean] },
+    ],
+  ];
+
+  lines.forEach((line) => {
+    const isNewCategory = line.category !== lastCategory;
+    lastCategory = line.category;
+    const bg = rowIdx % 2 === 0 ? "#f8fafc" : "#ffffff";
+    rowIdx++;
+
+    bodyRows.push([
+      {
+        text: isNewCategory ? line.category : "",
+        fontSize: 8, bold: true, color: isNewCategory ? accentColor : "transparent",
+        fillColor: bg, margin: [8, 5, 4, 5],
+        border: [false, false, false, false] as [boolean, boolean, boolean, boolean],
+      },
+      { text: line.label, fontSize: 8.5, color: "#374151", fillColor: bg, margin: [4, 5, 4, 5], border: [false, false, false, false] as [boolean, boolean, boolean, boolean] },
+      { text: line.amountAnnual.toLocaleString("fr-MA"), fontSize: 8.5, bold: true, color: "#1e293b", fillColor: bg, alignment: "right" as const, margin: [4, 5, 8, 5], border: [false, false, false, false] as [boolean, boolean, boolean, boolean] },
+    ]);
+  });
+
+  // Category subtotals
+  Object.entries(categoryTotals).forEach(([cat, total]) => {
+    bodyRows.push([
+      { text: `Sous-total ${cat}`, fontSize: 8, bold: true, color: "#374151", fillColor: "#e2e8f0", margin: [8, 4, 4, 4], border: [false, false, false, false] as [boolean, boolean, boolean, boolean] },
+      { text: "", fillColor: "#e2e8f0", border: [false, false, false, false] as [boolean, boolean, boolean, boolean] },
+      { text: total.toLocaleString("fr-MA"), fontSize: 8, bold: true, color: accentColor, fillColor: "#e2e8f0", alignment: "right" as const, margin: [4, 4, 8, 4], border: [false, false, false, false] as [boolean, boolean, boolean, boolean] },
+    ]);
+  });
+
+  // Grand total
+  const grandTotal = lines.reduce((s, l) => s + l.amountAnnual, 0);
+  bodyRows.push([
+    { text: "TOTAL GÉNÉRAL", fontSize: 9, bold: true, color: "#ffffff", fillColor: accentColor, margin: [8, 7, 4, 7], border: [false, false, false, false] as [boolean, boolean, boolean, boolean] },
+    { text: "", fillColor: accentColor, border: [false, false, false, false] as [boolean, boolean, boolean, boolean] },
+    { text: `${grandTotal.toLocaleString("fr-MA")} MAD`, fontSize: 9, bold: true, color: "#ffffff", fillColor: accentColor, alignment: "right" as const, margin: [4, 7, 8, 7], border: [false, false, false, false] as [boolean, boolean, boolean, boolean] },
+  ]);
+
+  return {
+    table: {
+      widths: [100, "*", 100],
+      body: bodyRows,
+    },
+    layout: {
+      hLineWidth: (i: number, node: { table: { body: unknown[] } }) => i === 0 || i === node.table.body.length ? 0.8 : 0.3,
+      vLineWidth: () => 0,
+      hLineColor: () => "#e5e7eb",
+      paddingLeft: () => 0, paddingRight: () => 0, paddingTop: () => 0, paddingBottom: () => 0,
+    },
+    margin: [0, 0, 0, 20],
+  };
+}
+
 /** Real signer info threaded into the primary signature block from `documentSignaturesTable`. */
 export interface InlineSignatureInfo {
   signerName: string;
@@ -2771,6 +2985,21 @@ async function buildDocDef(template: DocumentTemplate, input: DocumentInput): Pr
           ["TITRE FONCIER", titreFoncier],
           ["TANTIEMES", tantiemes],
         ], accentColor),
+        // ── Building-level financial context (from _kpi* keys) ──────────────
+        ...(() => {
+          const outstanding = (input._kpiOutstanding as string) || "";
+          const collRate    = (input._kpiCollectionRate as string) || "";
+          if (!outstanding && !collRate) return [];
+          return [kpiRow([
+            { label: "Taux de Recouvrement (Immeuble)", value: collRate ? `${collRate}%` : "—",
+              valueColor: parseInt(collRate || "0") >= 90 ? "#16a34a" : "#dc2626", bgColor: "#f8fafc" },
+            { label: "Impayés Totaux (Immeuble)",       value: outstanding ? `${outstanding} MAD` : "—",
+              valueColor: outstanding && outstanding !== "0" ? "#dc2626" : "#16a34a", bgColor: "#f8fafc" },
+            { label: "Trésorerie",                      value: (input._kpiCashBalance as string) ? `${input._kpiCashBalance} MAD` : "—",
+              bgColor: "#ecfdf5" },
+          ], accentColor)];
+        })(),
+
         // Charge details
         contentSection("DÉTAILS DE L'APPEL DE FONDS", [
           `Nature des charges : ${chargeType}`,
@@ -2886,10 +3115,23 @@ async function buildDocDef(template: DocumentTemplate, input: DocumentInput): Pr
       const invoiceDue = (input.dueDate as string) || "—";
       const recipient = (input.memberName as string) || member || (input._recipient as string) || "—";
       const invoiceRef = (input._invoiceRef as string) || docNum;
-      const invoiceLines: Array<{ label: string; qty: number; unitPrice: number; total: number }> =
-        (input._invoiceLines as Array<{ label: string; qty: number; unitPrice: number; total: number }>) ?? [
-          { label: input.title || "Prestation", qty: 1, unitPrice: invoiceAmount, total: invoiceAmount },
-        ];
+      const invoiceStatus = (input._invoiceStatus as string) || "draft";
+      const invoiceStatusLabel = ({ draft: "BROUILLON", sent: "ENVOYÉE", paid: "PAYÉE", overdue: "EN RETARD", cancelled: "ANNULÉE" } as Record<string, string>)[invoiceStatus] || invoiceStatus.toUpperCase();
+
+      // Parse lines — may come from DB (JSON string) or be passed directly
+      let invoiceLines: Array<{ label: string; qty: number; unitPrice: number; total: number }>;
+      const rawLines = input._invoiceLines;
+      if (typeof rawLines === "string" && rawLines.startsWith("[")) {
+        try {
+          invoiceLines = JSON.parse(rawLines);
+        } catch {
+          invoiceLines = [{ label: input.title || "Prestation", qty: 1, unitPrice: invoiceAmount, total: invoiceAmount }];
+        }
+      } else if (Array.isArray(rawLines)) {
+        invoiceLines = rawLines as Array<{ label: string; qty: number; unitPrice: number; total: number }>;
+      } else {
+        invoiceLines = [{ label: input.title || "Prestation", qty: 1, unitPrice: invoiceAmount, total: invoiceAmount }];
+      }
       const totalHT = invoiceLines.reduce((s, l) => s + l.total, 0);
       const tva = totalHT * 0.20;
       const totalTTC = totalHT + tva;
@@ -2922,10 +3164,12 @@ async function buildDocDef(template: DocumentTemplate, input: DocumentInput): Pr
         { text: `FACTURE N° ${invoiceRef}`, style: "docTitle", alignment: "center" as const, margin: [0, 0, 0, 4] },
         { text: `Date : ${today}  •  Échéance : ${invoiceDue}`, fontSize: 8, color: "#6b7280", alignment: "center" as const, margin: [0, 0, 0, 20] },
         metaTable([
-          ["FACTURÉ À", recipient],
-          ["ICE SYNDICAT", syndInfo.registrationNumber || "—"],
-          ["DATE FACTURE", today],
-          ["DATE ÉCHÉANCE", invoiceDue],
+          ["FACTURÉ À",       recipient],
+          ["RÉFÉRENCE",       invoiceRef],
+          ["ICE SYNDICAT",    syndInfo.registrationNumber || "—"],
+          ["STATUT",          invoiceStatusLabel],
+          ["DATE FACTURE",    (input._invoiceDate as string) || today],
+          ["DATE ÉCHÉANCE",   invoiceDue],
         ], accentColor),
         // Lines table header
         {
@@ -2987,59 +3231,120 @@ async function buildDocDef(template: DocumentTemplate, input: DocumentInput): Pr
 
     // ── Budget Prévisionnel ───────────────────────────────────────────────────
     case "budget_previsionnel": {
-      const budgetYear = (input.exercice as string) || today.split(" ").slice(-1)[0] || "—";
-      const totalAmount = (input._totalAmount as string) || "0";
-      const chargesAmount = (input._chargesAmount as string) || "0";
-      const fondsReserve = (input._fondsReserve as string) || "0";
+      const budgetYear    = (input.exercice as string) || (input._kpiYear as string) || String(new Date().getFullYear());
+      const totalAmount   = (input._totalAmount   as string) || (input._kpiBudgetTotal   as string) || "0";
+      const chargesAmount = (input._chargesAmount as string) || (input._kpiBudgetCharges as string) || "0";
+      const fondsReserve  = (input._fondsReserve  as string) || (input._kpiBudgetReserve as string) || "0";
       const budgetBuilding = (input._buildingName as string) || buildingName || "—";
-      const budgetLines = (input._budgetLines as string) || "";
-      const budgetStatus = (input._budgetStatus as string) || "draft";
-      const statusLabel = { draft: "BROUILLON", voted: "VOTÉ", approved: "APPROUVÉ", archived: "ARCHIVÉ" }[budgetStatus] || budgetStatus.toUpperCase();
+      const rawBudgetLines = (input._budgetLines as string) || "";
+      const budgetStatus  = (input._budgetStatus as string) || (input._kpiBudgetStatus as string) || "draft";
+      const statusLabel   = ({ draft: "BROUILLON", voted: "VOTÉ", approved: "APPROUVÉ", archived: "ARCHIVÉ" } as Record<string, string>)[budgetStatus] || budgetStatus.toUpperCase();
+      const statusColor   = ({ voted: "#16a34a", approved: "#7c3aed", archived: "#6b7280", draft: "#d97706" } as Record<string, string>)[budgetStatus] || "#d97706";
+
+      // Parse budget lines from text format into structured data
+      const parsedLines: Array<{ category: string; label: string; amountAnnual: number }> = rawBudgetLines
+        .split("\n")
+        .filter((l) => l.trim())
+        .map((l) => {
+          const parts = l.trim().split(/\s{2,}/);
+          if (parts.length >= 3) {
+            const amountStr = parts[parts.length - 1].replace(/\s|MAD/g, "").replace(",", ".");
+            return {
+              category: parts[0].trim(),
+              label:    parts.slice(1, -1).join(" ").trim() || parts[0].trim(),
+              amountAnnual: parseFloat(amountStr) || 0,
+            };
+          }
+          return null;
+        })
+        .filter(Boolean) as Array<{ category: string; label: string; amountAnnual: number }>;
 
       content = [
         ...header,
         { text: "BUDGET PRÉVISIONNEL", style: "docTitle", alignment: "center" as const, margin: [0, 0, 0, 4] },
-        { text: `Exercice ${budgetYear}  •  ${budgetBuilding}  •  ${statusLabel}`, fontSize: 8.5, color: "#6b7280", alignment: "center" as const, margin: [0, 0, 0, 20] },
-        metaTable([
-          ["EXERCICE BUDGÉTAIRE", budgetYear],
-          ["IMMEUBLE", budgetBuilding],
-          ["STATUT", statusLabel],
-          ["ÉTABLI PAR", (input.etabliPar as string) || (input.officeHolders as OfficeHolders | undefined)?.treasurer?.fullName || syndInfo.name],
-        ], accentColor),
-        // Summary cards
         {
           columns: [
-            {
-              stack: [
-                { text: "CHARGES TOTALES", fontSize: 7, bold: true, color: "#9ca3af", margin: [0, 0, 0, 4] },
-                { text: `${chargesAmount} MAD`, fontSize: 14, bold: true, color: accentColor, margin: [0, 0, 0, 2] },
-              ],
-              fillColor: "#f0fdf4",
-              margin: [12, 14, 12, 14],
-            },
-            {
-              stack: [
-                { text: "FONDS DE RÉSERVE", fontSize: 7, bold: true, color: "#9ca3af", margin: [0, 0, 0, 4] },
-                { text: `${fondsReserve} MAD`, fontSize: 14, bold: true, color: accentColor, margin: [0, 0, 0, 2] },
-              ],
-              fillColor: "#eff6ff",
-              margin: [12, 14, 12, 14],
-            },
-            {
-              stack: [
-                { text: "BUDGET TOTAL", fontSize: 7, bold: true, color: "#9ca3af", margin: [0, 0, 0, 4] },
-                { text: `${totalAmount} MAD`, fontSize: 14, bold: true, color: "#111827", margin: [0, 0, 0, 2] },
-              ],
-              fillColor: "#f8fafc",
-              margin: [12, 14, 12, 14],
+            { text: `Exercice ${budgetYear}  •  ${budgetBuilding}`, fontSize: 8.5, color: "#6b7280", width: "*" },
+            { text: statusLabel, fontSize: 8, bold: true, color: "#ffffff", background: statusColor, margin: [0, 0, 0, 0], width: "auto",
+              // pdfmake doesn't have background on text; use inline table
             },
           ],
-          columnGap: 8,
-          margin: [0, 0, 0, 20],
+          alignment: "center" as const,
+          margin: [0, 0, 0, 4],
         },
-        ...(budgetLines ? [contentSection("DÉTAIL DES POSTES BUDGÉTAIRES", budgetLines, accentColor)] : []),
-        contentSection("RÉPARTITION", "La répartition des charges entre copropriétaires s'effectue selon les tantièmes définis dans le règlement de copropriété.", accentColor),
-        contentSection("MODALITÉS D'APPEL", (input.synthese as string) || "Les appels de fonds seront émis trimestriellement conformément au présent budget.", accentColor),
+        { text: statusLabel, fontSize: 8, bold: true, color: statusColor, alignment: "center" as const, margin: [0, 0, 0, 20] },
+
+        // ── Identification card ──────────────────────────────────────────────
+        metaTable([
+          ["EXERCICE BUDGÉTAIRE",  budgetYear],
+          ["IMMEUBLE",             budgetBuilding],
+          ["STATUT BUDGET",        statusLabel],
+          ["ÉTABLI PAR",           (input.etabliPar as string) || (input.officeHolders as OfficeHolders | undefined)?.treasurer?.fullName || syndInfo.name],
+          ["CHARGES COURANTES",    `${chargesAmount} MAD`],
+          ["FONDS DE RÉSERVE",     `${fondsReserve} MAD`],
+        ], accentColor),
+
+        // ── Enterprise financial dashboard ──────────────────────────────────
+        ...financialDashboard(input as Record<string, unknown>, accentColor),
+
+        // ── Top-line budget summary ──────────────────────────────────────────
+        {
+          table: {
+            widths: ["*", "*", "*"],
+            body: [[
+              {
+                stack: [
+                  { text: "CHARGES TOTALES",  fontSize: 7, bold: true, color: "#9ca3af", margin: [0, 0, 0, 4] },
+                  { text: `${chargesAmount} MAD`, fontSize: 15, bold: true, color: accentColor },
+                  { text: "Charges communes + services", fontSize: 6.5, color: "#6b7280", margin: [0, 3, 0, 0] },
+                ],
+                fillColor: "#f0fdf4",
+                margin: [12, 14, 12, 14],
+                border: [false, false, false, false] as [boolean, boolean, boolean, boolean],
+              },
+              {
+                stack: [
+                  { text: "FONDS DE RÉSERVE",  fontSize: 7, bold: true, color: "#9ca3af", margin: [0, 0, 0, 4] },
+                  { text: `${fondsReserve} MAD`, fontSize: 15, bold: true, color: "#1e3a8a" },
+                  { text: "Fonds de travaux légal", fontSize: 6.5, color: "#6b7280", margin: [0, 3, 0, 0] },
+                ],
+                fillColor: "#eff6ff",
+                margin: [12, 14, 12, 14],
+                border: [false, false, false, false] as [boolean, boolean, boolean, boolean],
+              },
+              {
+                stack: [
+                  { text: "BUDGET TOTAL",       fontSize: 7, bold: true, color: "#9ca3af", margin: [0, 0, 0, 4] },
+                  { text: `${totalAmount} MAD`, fontSize: 15, bold: true, color: "#111827" },
+                  { text: `Statut : ${statusLabel}`, fontSize: 6.5, color: statusColor, bold: true, margin: [0, 3, 0, 0] },
+                ],
+                fillColor: "#f8fafc",
+                margin: [12, 14, 12, 14],
+                border: [false, false, false, false] as [boolean, boolean, boolean, boolean],
+              },
+            ]],
+          },
+          layout: {
+            hLineWidth: (i: number, node: { table: { body: unknown[] } }) => i === 0 || i === node.table.body.length ? 0.6 : 0,
+            vLineWidth: () => 0,
+            hLineColor: () => "#e2e8f0",
+            paddingLeft: () => 0, paddingRight: () => 0, paddingTop: () => 0, paddingBottom: () => 0,
+          },
+          margin: [0, 0, 0, 16],
+        },
+
+        // ── Budget lines table ───────────────────────────────────────────────
+        ...(parsedLines.length > 0 ? [
+          {
+            table: { widths: ["*"], body: [[{ text: "DÉTAIL DES POSTES BUDGÉTAIRES", fontSize: 8.5, bold: true, color: "#ffffff", fillColor: accentColor, margin: [14, 6, 14, 6], border: [false, false, false, false] as [boolean, boolean, boolean, boolean] }]] },
+            layout: { hLineWidth: () => 0, vLineWidth: () => 0, paddingLeft: () => 0, paddingRight: () => 0, paddingTop: () => 0, paddingBottom: () => 0 },
+            margin: [0, 4, 0, 4],
+          },
+          budgetLinesTable(parsedLines, accentColor),
+        ] : rawBudgetLines ? [contentSection("DÉTAIL DES POSTES BUDGÉTAIRES", rawBudgetLines, accentColor)] : []),
+
+        contentSection("RÉPARTITION DES CHARGES", "La répartition des charges entre copropriétaires s'effectue selon les tantièmes définis dans le règlement de copropriété. Chaque lot contribue proportionnellement à sa quote-part.", accentColor),
+        contentSection("MODALITÉS D'APPEL DE FONDS", (input.synthese as string) || "Les appels de fonds seront émis trimestriellement conformément au présent budget prévisionnel voté par l'Assemblée Générale.", accentColor),
         multiSignatoryBlock(input.officeHolders as OfficeHolders | undefined, accentColor, lang, signatures, syndInfo.name),
         legalFooterNote(docNum, lang, verifyUrl),
       ];
@@ -3048,61 +3353,91 @@ async function buildDocDef(template: DocumentTemplate, input: DocumentInput): Pr
 
     // ── Décompte des Charges ──────────────────────────────────────────────────
     case "decompte_charges": {
-      const decompteYear = (input.exercice as string) || today.split(" ").slice(-1)[0] || "—";
-      const totalProvisioned = Number(input.totalPrevu as string ?? 0);
-      const totalActual = Number(input.totalRealise as string ?? 0);
-      const difference = totalActual - totalProvisioned;
+      const decompteYear     = (input.exercice as string) || (input._decompteYear as string) || String(new Date().getFullYear());
+      const totalProvisioned = Number((input.totalPrevu   as string) || "0");
+      const totalActual      = Number((input.totalRealise as string) || "0");
+      const totalPaid        = Number((input._decompteTotalPaid as string) || "0");
+      const totalOverdue     = Number((input._decompteTotalOverdue as string) || "0");
+      const difference       = totalActual - totalProvisioned;
+      const appelCount       = (input._decompteAppelCount as string) || "0";
+      const breakdownText    = (input._decompteBreakdown as string) || "";
+      const collRate         = totalProvisioned > 0 ? Math.round((totalPaid / totalProvisioned) * 100) : 0;
+
+      // Data validation — warn if no real data available
+      const hasRealData = totalProvisioned > 0 || totalActual > 0;
 
       content = [
         ...header,
         { text: "DÉCOMPTE ANNUEL DES CHARGES", style: "docTitle", alignment: "center" as const, margin: [0, 0, 0, 4] },
         { text: `Exercice ${decompteYear}  •  Copropriétaire : ${(input.memberName as string) || member || "—"}`, fontSize: 8.5, color: "#6b7280", alignment: "center" as const, margin: [0, 0, 0, 20] },
+
+        // ── Identification ───────────────────────────────────────────────────
         metaTable([
-          ["COPROPRIÉTAIRE", (input.memberName as string) || member || "—"],
-          ["LOT / APPARTEMENT", `Lot ${(input._lotNumber as string) || "—"} — Étage ${(input._lotFloor as string) || "—"}`],
-          ["TANTIEMES", (input._lotTantiemes as string) || "—"],
-          ["EXERCICE", decompteYear],
+          ["COPROPRIÉTAIRE",      (input.memberName as string) || member || "—"],
+          ["LOT / APPARTEMENT",   `Lot ${(input._lotNumber as string) || "—"} — Étage ${(input._lotFloor as string) || "—"}`],
+          ["TANTIEMES",           (input._lotTantiemes as string) || "—"],
+          ["EXERCICE",            decompteYear],
+          ["APPELS DE FONDS",     `${appelCount} appel(s) émis`],
+          ["TITRE FONCIER",       (input._lotTitreFoncier as string) || "—"],
         ], accentColor),
-        // Summary
+
+        // ── Data warning if no real data ────────────────────────────────────
+        ...(!hasRealData ? [{
+          table: {
+            widths: ["*"],
+            body: [[{
+              stack: [
+                { text: "⚠  DONNÉES INSUFFISANTES", fontSize: 9, bold: true, color: "#92400e", margin: [0, 0, 0, 3] },
+                { text: "Aucun appel de fonds trouvé pour ce lot et cet exercice. Veuillez vérifier le lotId et l'exercice fournis.", fontSize: 8, color: "#78350f" },
+              ],
+              fillColor: "#fef3c7",
+              margin: [14, 10, 14, 10],
+              border: [true, true, true, true] as [boolean, boolean, boolean, boolean],
+              borderColor: ["#fcd34d", "#fcd34d", "#fcd34d", "#fcd34d"],
+            }]],
+          },
+          layout: { hLineWidth: () => 1, vLineWidth: () => 1, hLineColor: () => "#fcd34d", vLineColor: () => "#fcd34d", paddingLeft: () => 0, paddingRight: () => 0, paddingTop: () => 0, paddingBottom: () => 0 },
+          margin: [0, 0, 0, 16],
+        }] : []),
+
+        // ── Financial dashboard ──────────────────────────────────────────────
+        ...financialDashboard(input as Record<string, unknown>, accentColor),
+
+        // ── Charge comparison KPIs ───────────────────────────────────────────
+        kpiRow([
+          { label: "Provisions Versées",  value: `${totalProvisioned.toLocaleString("fr-MA")} MAD`,  bgColor: "#f8fafc" },
+          { label: "Charges Réelles",     value: `${totalActual.toLocaleString("fr-MA")} MAD`,        bgColor: "#f8fafc" },
+          { label: difference >= 0 ? "Rappel Dû" : "Avoir", value: `${Math.abs(difference).toLocaleString("fr-MA")} MAD`,
+            valueColor: difference >= 0 ? "#dc2626" : "#16a34a",
+            bgColor: difference >= 0 ? "#fef2f2" : "#f0fdf4" },
+        ], accentColor),
+        kpiRow([
+          { label: "Total Payé",          value: `${totalPaid.toLocaleString("fr-MA")} MAD`,         valueColor: "#16a34a", bgColor: "#f0fdf4" },
+          { label: "Impayés / Retard",    value: `${totalOverdue.toLocaleString("fr-MA")} MAD`,      valueColor: totalOverdue > 0 ? "#dc2626" : "#16a34a", bgColor: totalOverdue > 0 ? "#fef2f2" : "#f0fdf4" },
+          { label: "Taux de Paiement",    value: `${collRate}%`,                                     valueColor: collRate >= 90 ? "#16a34a" : "#dc2626", bgColor: "#f8fafc" },
+        ], accentColor),
+
+        // Progress bar — payment rate
         {
-          columns: [
-            {
-              stack: [
-                { text: "PROVISIONS VERSÉES", fontSize: 7, bold: true, color: "#9ca3af", margin: [0, 0, 0, 4] },
-                { text: `${totalProvisioned.toLocaleString("fr-MA")} MAD`, fontSize: 13, bold: true, color: "#374151" },
-              ],
-              fillColor: "#f8fafc", margin: [12, 12, 12, 12],
-            },
-            {
-              stack: [
-                { text: "CHARGES RÉELLES", fontSize: 7, bold: true, color: "#9ca3af", margin: [0, 0, 0, 4] },
-                { text: `${totalActual.toLocaleString("fr-MA")} MAD`, fontSize: 13, bold: true, color: "#374151" },
-              ],
-              fillColor: "#f8fafc", margin: [12, 12, 12, 12],
-            },
-            {
-              stack: [
-                { text: difference >= 0 ? "RAPPEL DÛ" : "AVOIR", fontSize: 7, bold: true, color: "#9ca3af", margin: [0, 0, 0, 4] },
-                {
-                  text: `${Math.abs(difference).toLocaleString("fr-MA")} MAD`,
-                  fontSize: 13, bold: true,
-                  color: difference >= 0 ? "#dc2626" : "#16a34a",
-                },
-              ],
-              fillColor: difference >= 0 ? "#fef2f2" : "#f0fdf4",
-              margin: [12, 12, 12, 12],
-            },
+          stack: [
+            progressBar("Taux de Paiement des Provisions", collRate,
+              `${totalPaid.toLocaleString("fr-MA")} MAD payé`, `${totalProvisioned.toLocaleString("fr-MA")} MAD prévu`, accentColor),
           ],
-          columnGap: 8,
-          margin: [0, 0, 0, 20],
+          margin: [0, 4, 0, 16],
         },
+
+        // ── Breakdown by charge type ─────────────────────────────────────────
+        ...(breakdownText ? [contentSection("RÉPARTITION PAR NATURE DE CHARGE", breakdownText, accentColor)] : []),
+
+        // ── Balance explanation ──────────────────────────────────────────────
         contentSection(
           difference >= 0 ? "SOLDE : RAPPEL DE CHARGES" : "SOLDE : AVOIR EN VOTRE FAVEUR",
           difference >= 0
-            ? `Un rappel de charges d'un montant de ${Math.abs(difference).toLocaleString("fr-MA")} MAD vous sera facturé.\n\nCe rappel correspond à la différence entre les charges réelles supportées par le syndicat et les provisions que vous avez versées au cours de l'exercice ${decompteYear}.`
+            ? `Un rappel de charges d'un montant de ${Math.abs(difference).toLocaleString("fr-MA")} MAD vous sera facturé.\n\nCe rappel correspond à la différence entre les charges réelles supportées par le syndicat et les provisions versées au cours de l'exercice ${decompteYear}.\n\nNombre d'appels de fonds émis : ${appelCount}.`
             : `Un avoir de ${Math.abs(difference).toLocaleString("fr-MA")} MAD sera reporté sur votre prochain appel de fonds ou remboursé sur demande.\n\nCet avoir correspond à l'excédent de vos provisions par rapport aux charges réelles de l'exercice ${decompteYear}.`,
           accentColor,
         ),
+
         ...(input.observations as string ? [contentSection("OBSERVATIONS", input.observations as string, accentColor)] : []),
         signatureBlock("Le Trésorier du Syndicat", syndInfo.name, accentColor, true, lang, signatures),
         legalFooterNote(docNum, lang, verifyUrl),
