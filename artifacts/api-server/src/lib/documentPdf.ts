@@ -93,31 +93,54 @@ const ARABIC_FONT = FONTS.Amiri ? "Amiri" : PRIMARY_FONT;
 
 function buildStyles(accentColor: string) {
   return {
-    headerOrgName:   { font: PRIMARY_FONT, fontSize: 14, bold: true, color: "#ffffff", letterSpacing: 0.5 },
-    headerBuilding:  { font: PRIMARY_FONT, fontSize: 9.5, bold: true, color: "#ffffffee", margin: [0, 2, 0, 0] },
-    headerMeta:      { font: PRIMARY_FONT, fontSize: 7.5, color: "#ffffffcc" },
-    headerContact:   { font: PRIMARY_FONT, fontSize: 7.5, color: "#ffffffaa" },
-    headerDocNum:    { font: PRIMARY_FONT, fontSize: 9,   bold: true, color: "#ffffff" },
-    headerDocDate:   { font: PRIMARY_FONT, fontSize: 7.5, color: "#ffffffcc" },
-    docTypeLabel:    { font: PRIMARY_FONT, fontSize: 13, bold: true, color: "#ffffff" },
-    docCategoryBadge:{ font: PRIMARY_FONT, fontSize: 8,  bold: true, color: "#ffffff" },
-    docTitle:        { font: PRIMARY_FONT, fontSize: 13, bold: true, color: "#1e293b" },
-    docRef:          { font: PRIMARY_FONT, fontSize: 9,  color: "#64748b" },
-    sectionTitle:    { font: PRIMARY_FONT, fontSize: 10, bold: true, color: accentColor, margin: [0, 12, 0, 5] },
-    metaKey:         { font: PRIMARY_FONT, fontSize: 9,  color: "#64748b" },
-    metaVal:         { font: PRIMARY_FONT, fontSize: 9.5, color: "#1e293b", bold: true },
-    body:            { font: PRIMARY_FONT, fontSize: 10, color: "#334155", lineHeight: 1.55 },
-    bodyArabic:      { font: ARABIC_FONT,  fontSize: 11, color: "#334155", lineHeight: 1.6, alignment: "right" as const },
-    signLabel:       { font: PRIMARY_FONT, fontSize: 9,  color: "#64748b", italics: true },
-    signName:        { font: PRIMARY_FONT, fontSize: 9,  bold: true, color: "#1e293b" },
-    notice:          { font: PRIMARY_FONT, fontSize: 8,  color: "#94a3b8", italics: true },
-    footer:          { font: PRIMARY_FONT, fontSize: 7.5, color: "#94a3b8" },
-    footerBrand:     { font: PRIMARY_FONT, fontSize: 7,  color: "#7c3aed", bold: true },
-    watermark:       { font: PRIMARY_FONT, fontSize: 72, bold: true, color: "#e2e8f0", opacity: 0.12 },
-    pageNumber:      { font: PRIMARY_FONT, fontSize: 8,  color: "#94a3b8" },
-    tableHeader:     { font: PRIMARY_FONT, fontSize: 9,  bold: true, color: "#ffffff", fillColor: accentColor },
-    tableCell:       { font: PRIMARY_FONT, fontSize: 9,  color: "#334155" },
-    stampText:       { font: PRIMARY_FONT, fontSize: 5.5, bold: true, color: "#ffffff" },
+    // ── Header band ────────────────────────────────────────────────────────────
+    headerOrgName:   { font: PRIMARY_FONT, fontSize: 13.5, bold: true,  color: "#ffffff" },
+    headerBuilding:  { font: PRIMARY_FONT, fontSize: 9,    bold: true,  color: "#ffffffee" },
+    headerMeta:      { font: PRIMARY_FONT, fontSize: 7.5,  color: "#ffffffcc" },
+    headerContact:   { font: PRIMARY_FONT, fontSize: 7,    color: "#ffffffaa" },
+    headerDocNum:    { font: PRIMARY_FONT, fontSize: 8.5,  bold: true,  color: "#ffffff" },
+    headerDocDate:   { font: PRIMARY_FONT, fontSize: 7.5,  color: "#ffffffcc" },
+    docTypeLabel:    { font: PRIMARY_FONT, fontSize: 12.5, bold: true,  color: "#ffffff" },
+    docCategoryBadge:{ font: PRIMARY_FONT, fontSize: 7.5,  bold: true,  color: "#ffffff" },
+
+    // ── Document titles ────────────────────────────────────────────────────────
+    // docTitle deliberately large so it dominates the page immediately
+    docTitle:        { font: PRIMARY_FONT, fontSize: 17,   bold: true,  color: "#0f172a" },
+    docSubtitle:     { font: PRIMARY_FONT, fontSize: 11,   color: "#64748b", italics: true },
+    docRef:          { font: PRIMARY_FONT, fontSize: 9,    color: "#64748b" },
+
+    // ── Section headings ────────────────────────────────────────────────────────
+    sectionTitle:    { font: PRIMARY_FONT, fontSize: 11,   bold: true,  color: accentColor },
+
+    // ── Metadata table ─────────────────────────────────────────────────────────
+    metaKey:         { font: PRIMARY_FONT, fontSize: 9,    color: "#475569" },
+    metaVal:         { font: PRIMARY_FONT, fontSize: 9.5,  bold: true,  color: "#0f172a" },
+
+    // ── Body text ──────────────────────────────────────────────────────────────
+    body:            { font: PRIMARY_FONT, fontSize: 10.5, color: "#334155", lineHeight: 1.65 },
+    bodyArabic:      { font: ARABIC_FONT,  fontSize: 12,   color: "#334155", lineHeight: 1.7, alignment: "right" as const },
+
+    // ── Signature area ─────────────────────────────────────────────────────────
+    signLabel:       { font: PRIMARY_FONT, fontSize: 9,    color: "#64748b", italics: true },
+    signName:        { font: PRIMARY_FONT, fontSize: 9.5,  bold: true,  color: "#0f172a" },
+    stampText:       { font: PRIMARY_FONT, fontSize: 5.5,  bold: true,  color: "#ffffff" },
+
+    // ── Status/notice badges ───────────────────────────────────────────────────
+    notice:          { font: PRIMARY_FONT, fontSize: 8.5,  color: "#94a3b8", italics: true },
+
+    // ── Data tables (financial, audit, etc.) ───────────────────────────────────
+    // tableHeader deliberately 0.5pt larger than tableCell for clear dominance
+    tableHeader:     { font: PRIMARY_FONT, fontSize: 10,   bold: true,  color: "#ffffff" },
+    tableCell:       { font: PRIMARY_FONT, fontSize: 9.5,  color: "#334155" },
+    financialTotal:  { font: PRIMARY_FONT, fontSize: 10.5, bold: true,  color: "#0f172a" },
+
+    // ── Footer ────────────────────────────────────────────────────────────────
+    footer:          { font: PRIMARY_FONT, fontSize: 7.5,  color: "#94a3b8" },
+    footerBrand:     { font: PRIMARY_FONT, fontSize: 7,    color: accentColor, bold: true },
+
+    // ── Watermark ─────────────────────────────────────────────────────────────
+    watermark:       { font: PRIMARY_FONT, fontSize: 72,   bold: true,  color: "#d1d5db", opacity: 0.10 },
+    pageNumber:      { font: PRIMARY_FONT, fontSize: 8,    color: "#94a3b8" },
   };
 }
 
@@ -516,51 +539,57 @@ function adjustColorBrightness(hex: string, delta: number): string {
 // ─── Shared building blocks ───────────────────────────────────────────────────
 
 function metaTable(rows: Array<[string, string]>, accentColor: string): unknown {
+  const accentLight = adjustColorBrightness(accentColor, 90);
   return {
     table: {
-      widths: [148, "*"],
+      widths: [152, "*"],
       body: rows.map(([k, v], i) => [
         {
           text: k,
           style: "metaKey",
           fillColor: i % 2 === 0 ? "#f8fafc" : "#ffffff",
-          margin: [10, 6, 8, 6],
+          margin: [12, 8, 8, 8],
           border: [true, false, false, false] as [boolean, boolean, boolean, boolean],
-          borderColor: [accentColor + "40", "", "", ""],
+          borderColor: [accentColor, "", "", ""],
         },
         {
           text: v,
           style: "metaVal",
           fillColor: i % 2 === 0 ? "#f8fafc" : "#ffffff",
-          margin: [8, 6, 10, 6],
+          margin: [10, 8, 12, 8],
         },
       ]),
     },
     layout: {
       hLineWidth: (i: number, node: { table: { body: unknown[] } }) =>
-        i === 0 || i === node.table.body.length ? 1 : 0.4,
-      vLineWidth: (i: number) => (i === 0 ? 3 : i === 1 ? 0.4 : 0.4),
+        i === 0 || i === node.table.body.length ? 1.2 : 0.4,
+      vLineWidth: (i: number) => (i === 0 ? 4 : 0.4),
       hLineColor: () => "#e2e8f0",
       vLineColor: (i: number) => (i === 0 ? accentColor : "#e2e8f0"),
     },
-    margin: [0, 0, 0, 16],
+    margin: [0, 0, 0, 20],
   };
 }
 
 function contentSection(title: string, text: string, accentColor: string, isRtl = false): unknown {
   return {
     stack: [
+      // Title banner — taller, more prominent, clearer visual hierarchy
       {
         table: {
-          widths: [3, "*"],
+          widths: [4, "*"],
           body: [[
-            { canvas: [{ type: "rect", x: 0, y: 0, w: 3, h: 18, color: accentColor }], border: [false, false, false, false] as [boolean, boolean, boolean, boolean] },
+            {
+              canvas: [{ type: "rect", x: 0, y: 0, w: 4, h: 28, color: accentColor }],
+              border: [false, false, false, false] as [boolean, boolean, boolean, boolean],
+              margin: [0, 0, 0, 0],
+            },
             {
               text: title.toUpperCase(),
-              fontSize: 8.5,
+              fontSize: 10,
               bold: true,
               color: accentColor,
-              margin: [6, 2, 0, 1],
+              margin: [10, 6, 12, 6],
               border: [false, false, false, false] as [boolean, boolean, boolean, boolean],
             },
           ]],
@@ -572,13 +601,13 @@ function contentSection(title: string, text: string, accentColor: string, isRtl 
           paddingRight: () => 0,
           paddingTop: () => 0,
           paddingBottom: () => 0,
-          fillColor: () => accentColor + "0d",
+          fillColor: () => adjustColorBrightness(accentColor, 80),
         },
-        margin: [0, 0, 0, 6],
+        margin: [0, 14, 0, 8],
       },
       isRtl
-        ? { text, style: "bodyArabic", margin: [0, 0, 0, 16] }
-        : { text, style: "body", margin: [0, 0, 0, 16] },
+        ? { text, style: "bodyArabic", margin: [2, 0, 2, 18] }
+        : { text, style: "body", margin: [2, 0, 2, 18] },
     ],
   };
 }
@@ -678,18 +707,30 @@ function multiSignatoryBlock(
   };
 
   return {
-    columns: [
-      makeCol(t("rolePresident", lang), officeHolders?.president?.fullName, presidentSig),
-      makeCol(t("roleTreasurer", lang), officeHolders?.treasurer?.fullName, treasurerSig),
+    stack: [
+      // Separator rule before the 3-column signature zone
       {
-        stack: [
-          ...secretaryColContent.stack,
-          premiumStamp,
+        canvas: [
+          { type: "line", x1: 0, y1: 0, x2: 515, y2: 0, lineWidth: 0.6, lineColor: "#e2e8f0" },
+          { type: "line", x1: 0, y1: 2, x2: 60, y2: 2, lineWidth: 1.5, lineColor: accentColor },
         ],
+        margin: [0, 0, 0, 14],
+      },
+      {
+        columns: [
+          makeCol(t("rolePresident", lang), officeHolders?.president?.fullName, presidentSig),
+          makeCol(t("roleTreasurer", lang), officeHolders?.treasurer?.fullName, treasurerSig),
+          {
+            stack: [
+              ...secretaryColContent.stack,
+              premiumStamp,
+            ],
+          },
+        ],
+        columnGap: 18,
       },
     ],
-    columnGap: 16,
-    margin: [0, 30, 0, 0],
+    margin: [0, 28, 0, 0],
   };
 }
 
@@ -750,24 +791,36 @@ function signatureBlock(
   };
 
   return {
-    columns: [
+    stack: [
+      // Separator rule before signature zone — clearer visual break
       {
-        stack: [
-          { text: t("signAndStamp", lang), style: "metaKey", margin: [0, 0, 0, signatures.length > 0 ? 8 : 40] },
-          ...(signatures.length > 0 ? [] : [{ canvas: [{ type: "line", x1: 0, y1: 0, x2: 160, y2: 0, lineWidth: 0.8, lineColor: "#cbd5e1" }] }]),
-          ...(signatures.length > 0 ? signerStack : [{ text: signatoryTitle, style: "signLabel", margin: [0, 4, 0, 2] }, { text: syndName, style: "signName" }, ...signerStack]),
+        canvas: [
+          { type: "line", x1: 0, y1: 0, x2: 515, y2: 0, lineWidth: 0.6, lineColor: "#e2e8f0" },
+          { type: "line", x1: 0, y1: 2, x2: 60, y2: 2, lineWidth: 1.5, lineColor: accentColor },
         ],
-        width: "*",
+        margin: [0, 0, 0, 14],
       },
-      showStampCircle
-        ? {
-            stack: [premiumStampBlock],
-            width: 100,
-            alignment: "center" as const,
-          }
-        : { text: "", width: 100 },
+      {
+        columns: [
+          {
+            stack: [
+              { text: t("signAndStamp", lang), style: "metaKey", margin: [0, 0, 0, signatures.length > 0 ? 8 : 36] },
+              ...(signatures.length > 0 ? [] : [{ canvas: [{ type: "line", x1: 0, y1: 0, x2: 160, y2: 0, lineWidth: 0.8, lineColor: "#cbd5e1" }] }]),
+              ...(signatures.length > 0 ? signerStack : [{ text: signatoryTitle, style: "signLabel", margin: [0, 4, 0, 2] }, { text: syndName, style: "signName" }, ...signerStack]),
+            ],
+            width: "*",
+          },
+          showStampCircle
+            ? {
+                stack: [premiumStampBlock],
+                width: 104,
+                alignment: "center" as const,
+              }
+            : { text: "", width: 104 },
+        ],
+      },
     ],
-    margin: [0, 30, 0, 0],
+    margin: [0, 28, 0, 0],
   };
 }
 
@@ -804,7 +857,7 @@ async function buildPdfBuffer(docDef: unknown): Promise<Buffer> {
   const PdfPrinter = (await import("pdfmake")).default as any;
   const printer = new PdfPrinter(FONTS);
   const pdfDoc = printer.createPdfKitDocument({
-    defaultStyle: { font: PRIMARY_FONT, fontSize: 10, lineHeight: 1.4 },
+    defaultStyle: { font: PRIMARY_FONT, fontSize: 10.5, lineHeight: 1.6 },
     ...(docDef as object),
   });
   return new Promise<Buffer>((resolve, reject) => {
@@ -1655,7 +1708,7 @@ async function buildDocDef(template: DocumentTemplate, input: DocumentInput): Pr
           ],
           margin: [0, 0, 0, 16],
         },
-        { text: t("certificateWord", lang), fontSize: 22, bold: true, color: accentColor, alignment: "center" as const, margin: [0, 0, 0, 4] },
+        { text: t("certificateWord", lang), fontSize: 26, bold: true, color: accentColor, alignment: "center" as const, margin: [0, 0, 0, 4] },
         { text: input.title, style: "docTitle", alignment: "center" as const, margin: [0, 0, 0, 20] },
         metaTable([
           [t("metaDeliveredTo", lang), member || t("certificatBeneficiaryFallback", lang)],
@@ -1907,20 +1960,13 @@ async function buildDocDef(template: DocumentTemplate, input: DocumentInput): Pr
     case "note_interne":
       content = [
         ...header,
-        {
-          table: {
-            widths: [120, "*"],
-            body: [
-              [{ text: "À :", style: "metaKey", fillColor: "#f8fafc", margin: [8, 6, 8, 6] }, { text: member || "Tous les membres du bureau", style: "metaVal", margin: [8, 6, 8, 6] }],
-              [{ text: "De :", style: "metaKey", fillColor: "#f8fafc", margin: [8, 6, 8, 6] }, { text: input.de as string || "La Présidence", style: "metaVal", margin: [8, 6, 8, 6] }],
-              [{ text: "Date :", style: "metaKey", fillColor: "#f8fafc", margin: [8, 6, 8, 6] }, { text: today, style: "metaVal", margin: [8, 6, 8, 6] }],
-              [{ text: "Objet :", style: "metaKey", fillColor: "#f8fafc", margin: [8, 6, 8, 6] }, { text: input.objet as string || input.title, style: "metaVal", bold: true, margin: [8, 6, 8, 6] }],
-              [{ text: "Priorité :", style: "metaKey", fillColor: "#f8fafc", margin: [8, 6, 8, 6] }, { text: input.priorite as string || "Normale", style: "metaVal", margin: [8, 6, 8, 6] }],
-            ],
-          },
-          layout: { hLineWidth: (i: number, n: { table: { body: unknown[] } }) => i === 0 || i === n.table.body.length ? 1 : 0.5, vLineWidth: () => 0.5, hLineColor: () => "#e2e8f0", vLineColor: () => "#e2e8f0" },
-          margin: [0, 0, 0, 20],
-        },
+        metaTable([
+          ["À :",       member || "Tous les membres du bureau"],
+          ["De :",      input.de as string || "La Présidence"],
+          ["Date :",    today],
+          ["Objet :",   input.objet as string || input.title],
+          ["Priorité :", input.priorite as string || "Normale"],
+        ], accentColor),
         contentSection("Message", body || input.corps as string || "Veuillez prendre connaissance des informations ci-dessous et agir en conséquence.", accentColor),
         input.actionRequise
           ? {
@@ -1978,9 +2024,9 @@ async function buildDocDef(template: DocumentTemplate, input: DocumentInput): Pr
                 { text: realise, style: "tableCell", fillColor: i % 2 === 0 ? "#f8fafc" : "#ffffff", alignment: "right" as const, margin: [8, 5, 8, 5] },
               ]),
               [
-                { text: "TOTAL", bold: true, fontSize: 10, fillColor: accentColor + "20", margin: [8, 6, 8, 6] },
-                { text: input.totalPrevu as string || "—", bold: true, fontSize: 10, fillColor: accentColor + "20", alignment: "right" as const, margin: [8, 6, 8, 6] },
-                { text: input.totalRealise as string || "—", bold: true, fontSize: 10, fillColor: accentColor + "20", alignment: "right" as const, margin: [8, 6, 8, 6] },
+                { text: "TOTAL", style: "financialTotal", fillColor: adjustColorBrightness(accentColor, 82), margin: [8, 8, 8, 8] },
+                { text: input.totalPrevu as string || "—", style: "financialTotal", fillColor: adjustColorBrightness(accentColor, 82), alignment: "right" as const, margin: [8, 8, 8, 8] },
+                { text: input.totalRealise as string || "—", style: "financialTotal", fillColor: adjustColorBrightness(accentColor, 82), alignment: "right" as const, margin: [8, 8, 8, 8] },
               ],
             ],
           },
@@ -2119,11 +2165,30 @@ async function buildDocDef(template: DocumentTemplate, input: DocumentInput): Pr
                 { text: "\n\n________________________\n" + (input.secretaire as string || ""), fontSize: 8, alignment: "center" as const, color: "#64748b", margin: [4, 8, 4, 8] },
                 {
                   stack: [{
-                    canvas: [
-                      { type: "ellipse", x: 50, y: 30, r1: 28, r2: 28, lineColor: accentColor, lineWidth: 1, dash: { length: 3 } },
-                    ],
+                    table: {
+                      widths: [88],
+                      body: [[{
+                        stack: [
+                          { text: "✦", fontSize: 11, color: "#ffffff", alignment: "center" as const, margin: [0, 5, 0, 1] },
+                          { canvas: [{ type: "line", x1: 6, y1: 0, x2: 78, y2: 0, lineWidth: 0.4, lineColor: "#ffffff55" }] },
+                          { text: "CACHET OFFICIEL", fontSize: 5, bold: true, color: "#ffffff", alignment: "center" as const, margin: [2, 2, 2, 0] },
+                          { text: "SYNDICAT DE COPROPRIÉTÉ", fontSize: 4, color: "#ffffffaa", alignment: "center" as const, margin: [0, 1, 0, 0] },
+                          { canvas: [{ type: "line", x1: 6, y1: 0, x2: 78, y2: 0, lineWidth: 0.4, lineColor: "#ffffff55" }], margin: [0, 1, 0, 1] },
+                          { text: "OFFICIAL STAMP", fontSize: 4.5, color: "#ffffffcc", alignment: "center" as const, margin: [0, 0, 0, 5] },
+                        ],
+                        fillColor: accentColor,
+                      }]],
+                    },
+                    layout: {
+                      hLineWidth: (i: number, node: any) => (i === 0 || i === node.table.body.length) ? 2 : 0,
+                      vLineWidth: (i: number, node: any) => (i === 0 || i === node.table.widths.length) ? 2 : 0,
+                      hLineColor: () => adjustColorBrightness(accentColor, -25),
+                      vLineColor: () => adjustColorBrightness(accentColor, -25),
+                      paddingLeft: () => 0, paddingRight: () => 0,
+                      paddingTop: () => 0, paddingBottom: () => 0,
+                    },
+                    margin: [4, 4, 4, 4],
                   }],
-                  margin: [4, 8, 4, 8],
                   alignment: "center" as const,
                 },
               ],
@@ -2243,7 +2308,7 @@ async function buildDocDef(template: DocumentTemplate, input: DocumentInput): Pr
         ...header,
         // Accent bar
         { canvas: [{ type: "rect", x: 0, y: 0, w: 515, h: 4, color: accentColor }], margin: [0, 0, 0, 12] },
-        { text: "ATTESTATION DE RÉSIDENCE", fontSize: 16, bold: true, color: accentColor, alignment: "center" as const, margin: [0, 0, 0, 4] },
+        { text: "ATTESTATION DE RÉSIDENCE", fontSize: 20, bold: true, color: accentColor, alignment: "center" as const, margin: [0, 0, 0, 4] },
         { text: input.title, style: "docTitle", alignment: "center" as const, margin: [0, 0, 0, 16] },
         metaTable([
           [t("metaDeliveredTo", lang), member || t("notRenseigne", lang)],
@@ -2287,7 +2352,7 @@ async function buildDocDef(template: DocumentTemplate, input: DocumentInput): Pr
       content = [
         ...header,
         { canvas: [{ type: "rect", x: 0, y: 0, w: 515, h: 4, color: accentColor }], margin: [0, 0, 0, 12] },
-        { text: "ATTESTATION DE PROPRIÉTÉ", fontSize: 16, bold: true, color: accentColor, alignment: "center" as const, margin: [0, 0, 0, 4] },
+        { text: "ATTESTATION DE PROPRIÉTÉ", fontSize: 20, bold: true, color: accentColor, alignment: "center" as const, margin: [0, 0, 0, 4] },
         { text: input.title, style: "docTitle", alignment: "center" as const, margin: [0, 0, 0, 16] },
         metaTable([
           [t("metaDeliveredTo", lang), member || t("notRenseigne", lang)],
@@ -2340,7 +2405,7 @@ async function buildDocDef(template: DocumentTemplate, input: DocumentInput): Pr
       content = [
         ...header,
         { canvas: [{ type: "rect", x: 0, y: 0, w: 515, h: 4, color: accentColor }], margin: [0, 0, 0, 12] },
-        { text: "ATTESTATION DE PAIEMENT DES CHARGES", fontSize: 14, bold: true, color: accentColor, alignment: "center" as const, margin: [0, 0, 0, 4] },
+        { text: "ATTESTATION DE PAIEMENT DES CHARGES", fontSize: 18, bold: true, color: accentColor, alignment: "center" as const, margin: [0, 0, 0, 4] },
         { text: input.title, style: "docTitle", alignment: "center" as const, margin: [0, 0, 0, 16] },
         metaTable([
           [t("metaDeliveredTo", lang), member || t("notRenseigne", lang)],
