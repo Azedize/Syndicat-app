@@ -29,6 +29,16 @@ import {
   conseilSyndicalTable,
   membersTable,
   templateRequestsTable,
+  appelsDeFondsTable,
+  invoicesTable,
+  invoiceItemsTable,
+  budgetsTable,
+  budgetLinesTable,
+  electionsTable,
+  candidatesTable,
+  meetingsTable,
+  meetingAttendeesTable,
+  agResolutionsTable,
 } from "@workspace/db/schema";
 import { eq, and, desc, sql, isNull, inArray } from "drizzle-orm";
 import { requireAuth, requireRole } from "../middleware/auth.js";
@@ -228,6 +238,158 @@ async function getOfficeHolders(syndicateId?: string | null): Promise<OfficeHold
     manager: manager ? { fullName: manager.name, email: manager.email ?? null, phone: manager.phone ?? null } : undefined,
   };
   return Object.values(holders).some(Boolean) ? holders : undefined;
+}
+
+// ─── Entity loaders — load real DB data for entity-driven templates ────────────
+
+async function getMeetingData(meetingId: string): Promise<Record<string, string>> {
+  const [meeting] = await db.select().from(meetingsTable).where(eq(meetingsTable.id, meetingId));
+  if (!meeting) return {};
+  const attendees = await db
+    .select({ name: usersTable.name })
+    .from(meetingAttendeesTable)
+    .leftJoin(usersTable, eq(meetingAttendeesTable.userId, usersTable.id))
+    .where(eq(meetingAttendeesTable.meetingId, meetingId));
+  const resolutions = await db
+    .select()
+    .from(agResolutionsTable)
+    .where(eq(agResolutionsTable.meetingId, meetingId))
+    .orderBy(agResolutionsTable.number);
+  const resolutionsText = resolutions.map((r) =>
+    `${r.number}. ${r.title}\n   ${r.description ?? ""}\n   ${r.result === "approved" ? "✓ ADOPTÉ" : r.result === "rejected" ? "✗ REJETÉ" : "EN ATTENTE"}` +
+    (r.tantiemesFor ? ` — Pour: ${r.tantiemesFor} / Contre: ${r.tantiemesAgainst} / Abs.: ${r.tantiemesAbstain}` : "")
+  ).join("\n\n");
+  return {
+    meetingDate:        meeting.date,
+    heure:              meeting.time ?? "",
+    lieu:               meeting.location ?? "",
+    agendaText:         meeting.agenda ?? "",
+    deliberationsText:  meeting.description ?? "",
+    resolutionsText,
+    participants:       attendees.map((a) => a.name ?? "—").filter(Boolean).join(", "),
+    dateMeeting:        meeting.date,
+    _meetingTitle:      meeting.title,
+    _meetingType:       meeting.type ?? "general",
+  };
+}
+
+async function getLotMemberData(lotId?: string, memberId?: string): Promise<Record<string, string>> {
+  let lot: typeof lotsTable.$inferSelect | null = null;
+  let building: typeof buildingsTable.$inferSelect | null = null;
+  let member: typeof membersTable.$inferSelect | null = null;
+  if (lotId) {
+    const [row] = await db
+      .select()
+      .from(lotsTable)
+      .leftJoin(buildingsTable, eq(lotsTable.buildingId, buildingsTable.id))
+      .where(eq(lotsTable.id, lotId));
+    if (row) { lot = row.lots; building = row.buildings ?? null; }
+  }
+  if (memberId) {
+    const [m] = await db.select().from(membersTable).where(eq(membersTable.id, memberId));
+    member = m ?? null;
+  }
+  if (lot?.ownerId && !member) {
+    const [m] = await db.select().from(membersTable).where(eq(membersTable.id, lot.ownerId));
+    member = m ?? null;
+  }
+  return {
+    memberName:         member?.name ?? "",
+    _lotNumber:         lot?.number ?? "",
+    _lotFloor:          lot?.floor != null ? String(lot.floor) : "",
+    _lotSurface:        lot?.surfaceM2 ? `${Number(lot.surfaceM2)} m²` : "",
+    _lotTantiemes:      lot?.tantiemes ? `${Number(lot.tantiemes)} / 10 000` : "",
+    _lotTitreFoncier:   lot?.titreFoncier ?? "",
+    _lotType:           lot?.type ?? "",
+    _buildingName:      building?.name ?? "",
+    _buildingAddress:   [building?.address, building?.city].filter(Boolean).join(", "),
+  };
+}
+
+async function getAppelDeFondsData(appelId: string): Promise<Record<string, string>> {
+  const [row] = await db
+    .select()
+    .from(appelsDeFondsTable)
+    .leftJoin(lotsTable, eq(appelsDeFondsTable.lotId, lotsTable.id))
+    .leftJoin(buildingsTable, eq(appelsDeFondsTable.buildingId, buildingsTable.id))
+    .leftJoin(membersTable, eq(appelsDeFondsTable.ownerId, membersTable.id))
+    .where(eq(appelsDeFondsTable.id, appelId));
+  if (!row) return {};
+  const a = row.appels_de_fonds; const lot = row.lots; const building = row.buildings; const member = row.members;
+  return {
+    memberName:       member?.name ?? "",
+    _lotNumber:       lot?.number ?? "",
+    _lotFloor:        lot?.floor != null ? String(lot.floor) : "",
+    _lotSurface:      lot?.surfaceM2 ? `${Number(lot.surfaceM2)} m²` : "",
+    _lotTantiemes:    lot?.tantiemes ? `${Number(lot.tantiemes)} / 10 000` : "",
+    _lotTitreFoncier: lot?.titreFoncier ?? "",
+    _buildingName:    building?.name ?? "",
+    _buildingAddress: [building?.address, building?.city].filter(Boolean).join(", "),
+    periode:          a.period,
+    _chargeType:      a.type ?? "charges_courantes",
+    amount:           String(Number(a.amount ?? 0)),
+    dueDate:          a.dueDate ?? "",
+    _status:          a.status ?? "pending",
+    _receiptNumber:   a.receiptNumber ?? "",
+    _paidDate:        a.paidDate ?? "",
+    _paymentMethod:   a.paymentMethod ?? "",
+    _appelId:         appelId,
+  };
+}
+
+async function getBudgetData(budgetId: string): Promise<Record<string, string>> {
+  const [row] = await db
+    .select()
+    .from(budgetsTable)
+    .leftJoin(buildingsTable, eq(budgetsTable.buildingId, buildingsTable.id))
+    .where(eq(budgetsTable.id, budgetId));
+  if (!row) return {};
+  const b = row.budgets; const building = row.buildings;
+  const lines = await db.select().from(budgetLinesTable).where(eq(budgetLinesTable.budgetId, budgetId));
+  const linesText = lines.map((l) =>
+    `${l.category.padEnd(20)} ${l.label.padEnd(28)} ${Number(l.amountAnnual ?? 0).toLocaleString("fr-MA")} MAD`
+  ).join("\n");
+  return {
+    exercice:         String(b.year),
+    _totalAmount:     Number(b.totalAmount ?? 0).toLocaleString("fr-MA"),
+    _chargesAmount:   Number(b.chargesAmount ?? 0).toLocaleString("fr-MA"),
+    _fondsReserve:    Number(b.fondsReserve ?? 0).toLocaleString("fr-MA"),
+    _budgetStatus:    b.status ?? "draft",
+    _buildingName:    building?.name ?? "",
+    _budgetLines:     linesText,
+    _linesCount:      String(lines.length),
+    _budgetId:        budgetId,
+  };
+}
+
+async function getElectionData(electionId: string): Promise<Record<string, string>> {
+  const [election] = await db.select().from(electionsTable).where(eq(electionsTable.id, electionId));
+  if (!election) return {};
+  const candidates = await db.select().from(candidatesTable).where(eq(candidatesTable.electionId, electionId));
+  const quorumOk = election.quorumReached ??
+    ((election.participantCount ?? 0) >= ((election.eligibleCount ?? 0) * (election.quorumPercent ?? 50) / 100));
+  const participationRate = election.eligibleCount
+    ? Math.round(((election.participantCount ?? 0) / election.eligibleCount) * 100) : 0;
+  const candidatesText = candidates.map((c: any) =>
+    `• ${c.name ?? c.userId ?? "—"} — ${c.voteCount ?? 0} vote(s)${c.isWinner ? " ✓ ÉLU" : ""}`
+  ).join("\n");
+  return {
+    _electionTitle:      election.title,
+    _electionType:       election.electionType ?? "special",
+    _startDate:          election.startDate ?? "",
+    _endDate:            election.endDate ?? "",
+    _eligibleCount:      String(election.eligibleCount ?? 0),
+    _participantCount:   String(election.participantCount ?? 0),
+    _quorumPercent:      String(election.quorumPercent ?? 50),
+    _quorumReached:      quorumOk ? "OUI" : "NON",
+    _participationRate:  `${participationRate}%`,
+    _invalidVotes:       String(election.invalidVotesCount ?? 0),
+    _mandateDuration:    election.mandateDurationMonths ? `${election.mandateDurationMonths} mois` : "Indéfini",
+    _candidates:         candidatesText,
+    _candidatesCount:    String(candidates.length),
+    _electionStatus:     election.status ?? "draft",
+    _electionId:         electionId,
+  };
 }
 
 // ─── Helper: atomic sequential document numbering (REG-2026-0001, PV-2026-0001…) ──
@@ -1304,7 +1466,18 @@ router.post(
         "demande_administrative", "autorisation", "ordre_de_mission", "lettre_officielle",
         "note_interne", "rapport_financier", "rapport_audit", "convention_partenariat",
         "accord_collectif", "compte_rendu", "rapport_activite",
+        "attestation_residence", "attestation_propriete", "attestation_paiement",
+        "appel_de_fonds", "recu_paiement", "facture", "budget_previsionnel",
+        "decompte_charges", "rapport_election",
       ] as const).optional(),
+      // ── Entity IDs — auto-load data from DB instead of manual entry ───────────
+      meetingId:        z.string().optional(),
+      lotId:            z.string().optional(),
+      memberId:         z.string().optional(),
+      appelDeFondsId:   z.string().optional(),
+      budgetId:         z.string().optional(),
+      electionId:       z.string().optional(),
+      invoiceId:        z.string().optional(),
       // Output language — the mobile UI always presents an explicit choice; "fr" is
       // only used as a server-side fallback for callers that omit it entirely.
       language: z.enum(["fr", "ar", "en", "es"] as const).optional(),
@@ -1418,20 +1591,53 @@ router.post(
       const verificationToken = randomUUID();
       const verificationUrl = buildVerifyUrl(verificationToken);
 
-      // 4. Generate PDF + upload to GCS
+      // 4. Load entity-specific data from DB (entity-driven generation)
+      const entityLoads: Promise<Record<string, string>>[] = [];
+      if (extraFields.meetingId)      entityLoads.push(getMeetingData(extraFields.meetingId as string));
+      if (extraFields.appelDeFondsId) entityLoads.push(getAppelDeFondsData(extraFields.appelDeFondsId as string));
+      if (extraFields.budgetId)       entityLoads.push(getBudgetData(extraFields.budgetId as string));
+      if (extraFields.electionId)     entityLoads.push(getElectionData(extraFields.electionId as string));
+      if (extraFields.lotId || extraFields.memberId) {
+        entityLoads.push(getLotMemberData(extraFields.lotId as string | undefined, extraFields.memberId as string | undefined));
+      }
+      const entityResults = await Promise.all(entityLoads);
+      const entityData: Record<string, string> = Object.assign({}, ...entityResults);
+
+      // Also load existing signatures for documents being regenerated after signing
+      const existingDocId = extraFields._existingDocumentId as string | undefined;
+      let loadedSignatures: import("../lib/documentPdf.js").InlineSignatureInfo[] = [];
+      if (existingDocId) {
+        const sigRows = await db
+          .select()
+          .from(documentSignaturesTable)
+          .where(eq(documentSignaturesTable.documentId, existingDocId))
+          .orderBy(documentSignaturesTable.signatureOrder);
+        loadedSignatures = sigRows
+          .filter((s) => s.signedAt && s.signerName)
+          .map((s) => ({
+            signerName: s.signerName ?? "",
+            signerRole: s.signerRole ?? "syndicate_admin",
+            signedAt: new Date(s.signedAt!),
+            isValid: s.isValid ?? true,
+          }));
+      }
+
+      // 5. Generate PDF + upload to GCS
       const generated = await generateAndUploadDocument(template, {
         title,
         content,
         syndicate: syndInfo,
         property,
         officeHolders,
-        memberName,
+        memberName: entityData.memberName || memberName,
         documentNumber,
         docStatus: "generated",
         version: "v1.0",
         language: docLanguage,
         verificationUrl,
-        ...extraFields,
+        signatures: loadedSignatures,
+        ...entityData,   // entity DB data first (auto-populated)
+        ...extraFields,  // user-provided fields override auto-populated ones
       });
 
       // 5. Insert document record

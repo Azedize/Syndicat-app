@@ -116,6 +116,10 @@ function getDocumentTheme(template: string, fallbackColor?: string): DocumentThe
     rapport_audit:         { primary: "#064e3b", secondary: "#043a2c", light: "#ecfdf5", icon: "₪", categoryLabel: "RAPPORT D'AUDIT" },
     rapport_activite:      { primary: "#064e3b", secondary: "#043a2c", light: "#ecfdf5", icon: "₪", categoryLabel: "RAPPORT D'ACTIVITÉ" },
     rapport:               { primary: "#064e3b", secondary: "#043a2c", light: "#ecfdf5", icon: "₪", categoryLabel: "RAPPORT" },
+    appel_de_fonds:        { primary: "#064e3b", secondary: "#043a2c", light: "#ecfdf5", icon: "₪", categoryLabel: "APPEL DE FONDS" },
+    facture:               { primary: "#064e3b", secondary: "#043a2c", light: "#ecfdf5", icon: "₪", categoryLabel: "FACTURE" },
+    budget_previsionnel:   { primary: "#064e3b", secondary: "#043a2c", light: "#ecfdf5", icon: "₪", categoryLabel: "BUDGET PRÉVISIONNEL" },
+    decompte_charges:      { primary: "#064e3b", secondary: "#043a2c", light: "#ecfdf5", icon: "₪", categoryLabel: "DÉCOMPTE DES CHARGES" },
 
     // ── Meeting & Deliberation ────────────────────────────────────────────────
     pv:                    { primary: "#1e3a8a", secondary: "#152b6e", light: "#eff6ff", icon: "◆", categoryLabel: "PROCÈS-VERBAL" },
@@ -126,6 +130,7 @@ function getDocumentTheme(template: string, fallbackColor?: string): DocumentThe
 
     // ── Electoral & Governance ────────────────────────────────────────────────
     decision:              { primary: "#881337", secondary: "#6b0f2c", light: "#fff1f2", icon: "★", categoryLabel: "DÉCISION OFFICIELLE" },
+    rapport_election:      { primary: "#881337", secondary: "#6b0f2c", light: "#fff1f2", icon: "★", categoryLabel: "RAPPORT D'ÉLECTION" },
 
     // ── Regulatory & Statutory ────────────────────────────────────────────────
     reglement:             { primary: "#312e81", secondary: "#25236a", light: "#eef2ff", icon: "§", categoryLabel: "RÈGLEMENT DE COPROPRIÉTÉ" },
@@ -135,6 +140,7 @@ function getDocumentTheme(template: string, fallbackColor?: string): DocumentThe
     attestation_residence: { primary: "#065f46", secondary: "#044b38", light: "#f0fdf4", icon: "✓", categoryLabel: "ATTESTATION DE RÉSIDENCE" },
     attestation_propriete: { primary: "#065f46", secondary: "#044b38", light: "#f0fdf4", icon: "✓", categoryLabel: "ATTESTATION DE PROPRIÉTÉ" },
     attestation_paiement:  { primary: "#065f46", secondary: "#044b38", light: "#f0fdf4", icon: "✓", categoryLabel: "ATTESTATION DE PAIEMENT" },
+    recu_paiement:         { primary: "#065f46", secondary: "#044b38", light: "#f0fdf4", icon: "✓", categoryLabel: "REÇU DE PAIEMENT" },
     certificat:            { primary: "#065f46", secondary: "#044b38", light: "#f0fdf4", icon: "✓", categoryLabel: "CERTIFICAT OFFICIEL" },
 
     // ── Legal & Enforcement ───────────────────────────────────────────────────
@@ -794,6 +800,7 @@ function multiSignatoryBlock(
   accentColor: string,
   lang: DocumentLanguage,
   signatures: InlineSignatureInfo[],
+  syndName: string = "SYNDICAT DE COPROPRIÉTÉ",
 ): unknown {
   const dateLocale = lang === "ar" ? "ar-MA" : lang === "en" ? "en-US" : lang === "es" ? "es-ES" : "fr-FR";
   const secondary = adjustColorBrightness(accentColor, -20);
@@ -882,7 +889,7 @@ function multiSignatoryBlock(
           { text: "✦", fontSize: 14, color: "#ffffff", alignment: "center" as const, margin: [0, 7, 0, 1] },
           { canvas: [{ type: "line", x1: 10, y1: 0, x2: 82, y2: 0, lineWidth: 0.4, lineColor: "#ffffff40" }] },
           { text: t("officialStamp", lang), fontSize: 5.5, bold: true, color: "#ffffff", alignment: "center" as const, margin: [2, 3, 2, 1] },
-          { text: "SYNDICAT DE COPROPRIÉTÉ", fontSize: 4, color: "#ffffffbb", alignment: "center" as const, margin: [0, 0, 0, 1] },
+          { text: syndName.toUpperCase(), fontSize: 4, color: "#ffffffbb", alignment: "center" as const, margin: [0, 0, 0, 1] },
           { canvas: [{ type: "line", x1: 10, y1: 0, x2: 82, y2: 0, lineWidth: 0.4, lineColor: "#ffffff40" }] },
           { text: "SYNDYCAT.MA", fontSize: 4.5, color: "#ffffffcc", alignment: "center" as const, margin: [0, 2, 0, 7] },
         ],
@@ -1039,7 +1046,7 @@ function signatureBlock(
           { text: "✦", fontSize: 14, color: "#ffffff", alignment: "center" as const, margin: [0, 7, 0, 1] },
           { canvas: [{ type: "line", x1: 10, y1: 0, x2: 84, y2: 0, lineWidth: 0.4, lineColor: "#ffffff40" }] },
           { text: t("officialStamp", lang), fontSize: 5.5, bold: true, color: "#ffffff", alignment: "center" as const, margin: [2, 3, 2, 1] },
-          { text: "SYNDICAT DE COPROPRIÉTÉ", fontSize: 4, color: "#ffffffbb", alignment: "center" as const, margin: [0, 0, 0, 1] },
+          { text: syndName.toUpperCase(), fontSize: 4, color: "#ffffffbb", alignment: "center" as const, margin: [0, 0, 0, 1] },
           { canvas: [{ type: "line", x1: 10, y1: 0, x2: 84, y2: 0, lineWidth: 0.4, lineColor: "#ffffff40" }] },
           { text: "SYNDYCAT.MA", fontSize: 4.5, color: "#ffffffcc", alignment: "center" as const, margin: [0, 2, 0, 7] },
         ],
@@ -1600,7 +1607,7 @@ export type DocumentTemplate =
   | "certificat"
   | "circulaire"
   | "mise_en_demeure"
-  // ── 11 new enterprise templates ─────────────────────
+  // ── 11 enterprise templates ──────────────────────────
   | "demande_administrative"
   | "autorisation"
   | "ordre_de_mission"
@@ -1613,10 +1620,17 @@ export type DocumentTemplate =
   | "compte_rendu"
   | "rapport_activite"
   | "reglement"
-  // ── 3 new smart certificate templates (auto-fills DB data) ──
+  // ── 3 smart certificate templates (auto-fills DB) ────
   | "attestation_residence"
   | "attestation_propriete"
-  | "attestation_paiement";
+  | "attestation_paiement"
+  // ── 6 financial & election templates (entity-driven) ─
+  | "appel_de_fonds"
+  | "recu_paiement"
+  | "facture"
+  | "budget_previsionnel"
+  | "decompte_charges"
+  | "rapport_election";
 
 /** Sequential-numbering prefix per template — used by the API route to mint REG-2026-0001 style refs. */
 export const TEMPLATE_NUMBER_PREFIX: Record<DocumentTemplate, string> = {
@@ -1643,7 +1657,13 @@ export const TEMPLATE_NUMBER_PREFIX: Record<DocumentTemplate, string> = {
   reglement: "REG",
   attestation_residence: "ATT-RES",
   attestation_propriete: "ATT-PRO",
-  attestation_paiement: "ATT-PAI",
+  attestation_paiement:  "ATT-PAI",
+  appel_de_fonds:        "ADF",
+  recu_paiement:         "REC",
+  facture:               "FAC",
+  budget_previsionnel:   "BUD",
+  decompte_charges:      "DEC-CH",
+  rapport_election:      "ELEC",
 };
 
 /** Real co-ownership property/residence data — fetched from `buildingsTable` + `lotsTable`. */
@@ -1895,7 +1915,7 @@ async function buildDocDef(template: DocumentTemplate, input: DocumentInput): Pr
         contentSection(t("pvDeliberationsTitle", lang), input.deliberationsText as string || t("pvDeliberationsText", lang), accentColor, isArabic),
         contentSection(t("pvResolutionsTitle", lang), input.resolutionsText as string || t("pvResolutionsText", lang), accentColor, isArabic),
         { text: "\n" },
-        multiSignatoryBlock(input.officeHolders as OfficeHolders | undefined, accentColor, lang, signatures),
+        multiSignatoryBlock(input.officeHolders as OfficeHolders | undefined, accentColor, lang, signatures, syndInfo.name),
         legalFooterNote(docNum, lang, verifyUrl),
       ];
       break;
@@ -2791,6 +2811,467 @@ async function buildDocDef(template: DocumentTemplate, input: DocumentInput): Pr
       break;
     }
 
+    // ── Appel de Fonds ────────────────────────────────────────────────────────
+    case "appel_de_fonds": {
+      const chargeTypeMap: Record<string, string> = {
+        charges_courantes: "Charges courantes",
+        fonds_de_reserve: "Fonds de réserve",
+        travaux: "Travaux",
+        charges_exceptionnelles: "Charges exceptionnelles",
+        eau: "Eau",
+        electricite: "Électricité",
+        ascenseur: "Ascenseur",
+      };
+      const chargeType = chargeTypeMap[(input._chargeType as string) ?? "charges_courantes"] ?? (input._chargeType as string) ?? "Charges courantes";
+      const amount = Number(input.amount as string ?? 0);
+      const dueDate = (input.dueDate as string) || (input._dueDate as string) || "—";
+      const receiptNum = (input._receiptNumber as string) || docNum;
+      const lotNumber = (input._lotNumber as string) || "—";
+      const floor = (input._lotFloor as string) || "—";
+      const surface = (input._lotSurface as string) || "—";
+      const tantiemes = (input._lotTantiemes as string) || "—";
+      const titreFoncier = (input._lotTitreFoncier as string) || "—";
+      const buildingName2 = (input._buildingName as string) || (input.property as PropertyInfo | undefined)?.name || "—";
+      const buildingAddress = (input._buildingAddress as string) || "";
+      const periode = (input.periode as string) || today;
+
+      content = [
+        ...header,
+        { text: input.title || "APPEL DE FONDS", style: "docTitle", alignment: "center" as const, margin: [0, 0, 0, 4] },
+        { text: `Période : ${periode}  •  Réf. : ${receiptNum}`, fontSize: 8, color: "#6b7280", alignment: "center" as const, margin: [0, 0, 0, 20] },
+        // Copropriétaire info card
+        metaTable([
+          ["COPROPRIÉTAIRE", (input.memberName as string) || member || "—"],
+          ["IMMEUBLE", buildingName2],
+          ["N° LOT / APPARTEMENT", `Lot ${lotNumber} — Étage ${floor}`],
+          ["SURFACE", surface],
+          ["TITRE FONCIER", titreFoncier],
+          ["TANTIEMES", tantiemes],
+        ], accentColor),
+        // Charge details
+        contentSection("DÉTAILS DE L'APPEL DE FONDS", [
+          `Nature des charges : ${chargeType}`,
+          `Période : ${periode}`,
+          `Montant appelé : ${amount.toLocaleString("fr-MA", { style: "currency", currency: "MAD" })}`,
+          `Date d'échéance : ${dueDate}`,
+          `Numéro de référence : ${receiptNum}`,
+        ].join("\n"), accentColor),
+        // Payment instructions
+        contentSection("MODALITÉS DE PAIEMENT", [
+          "Modes de paiement acceptés :",
+          "  • Virement bancaire au compte du syndicat",
+          "  • Chèque libellé à l'ordre du syndicat de copropriété",
+          "  • Remise en espèces au bureau syndical (contre reçu)",
+          "",
+          `Veuillez mentionner la référence ${receiptNum} sur tout virement.`,
+          "",
+          "Passé la date d'échéance, des pénalités de retard pourront être appliquées conformément au règlement de copropriété.",
+        ].join("\n"), accentColor),
+        // Amount box
+        {
+          table: {
+            widths: ["*", "auto"],
+            body: [[
+              { text: "MONTANT DÛ", fontSize: 11, bold: true, color: "#374151", margin: [16, 14, 8, 14], border: [false, false, false, false] as [boolean, boolean, boolean, boolean] },
+              {
+                text: amount.toLocaleString("fr-MA") + " MAD",
+                fontSize: 18, bold: true, color: "#ffffff",
+                fillColor: accentColor,
+                alignment: "right" as const,
+                margin: [16, 10, 16, 10],
+                border: [false, false, false, false] as [boolean, boolean, boolean, boolean],
+              },
+            ]],
+          },
+          layout: {
+            hLineWidth: (i: number, node: { table: { body: unknown[] } }) => i === 0 || i === node.table.body.length ? 0.8 : 0,
+            vLineWidth: () => 0,
+            hLineColor: () => "#e5e7eb",
+            fillColor: (_: number, __: unknown, col: number) => col === 0 ? "#f8fafc" : null,
+            paddingLeft: () => 0, paddingRight: () => 0, paddingTop: () => 0, paddingBottom: () => 0,
+          },
+          margin: [0, 16, 0, 24],
+        },
+        signatureBlock("Le Président du Syndicat", syndInfo.name, accentColor, true, lang, signatures),
+        legalFooterNote(docNum, lang, verifyUrl),
+      ];
+      break;
+    }
+
+    // ── Reçu de Paiement ─────────────────────────────────────────────────────
+    case "recu_paiement": {
+      const paidAmount = Number(input.amount as string ?? 0);
+      const paidDate = (input._paidDate as string) || today;
+      const paymentMethod = (input._paymentMethod as string) || "—";
+      const receiptRef = (input._receiptNumber as string) || docNum;
+      const appelRef = (input._appelId as string) || "—";
+      const periodeRec = (input.periode as string) || today;
+
+      content = [
+        ...header,
+        { text: "REÇU DE PAIEMENT", style: "docTitle", alignment: "center" as const, margin: [0, 0, 0, 4] },
+        { text: `N° ${receiptRef}`, fontSize: 10, bold: true, color: "#6b7280", alignment: "center" as const, margin: [0, 0, 0, 20] },
+        // Receipt box
+        {
+          table: {
+            widths: ["*"],
+            body: [[{
+              stack: [
+                { text: "NOUS SOUSSIGNÉS", fontSize: 8, color: "#9ca3af", margin: [0, 0, 0, 4] },
+                { text: syndInfo.name.toUpperCase(), fontSize: 13, bold: true, color: "#111827", margin: [0, 0, 0, 2] },
+                { text: [syndInfo.address, syndInfo.city].filter(Boolean).join(", "), fontSize: 8.5, color: "#6b7280", margin: [0, 0, 0, 10] },
+                { canvas: [{ type: "line", x1: 0, y1: 0, x2: 467, y2: 0, lineWidth: 0.5, lineColor: "#e5e7eb" }] },
+                { text: "DÉCLARONS AVOIR REÇU DE", fontSize: 8, color: "#9ca3af", margin: [0, 10, 0, 4] },
+                { text: (input.memberName as string) || member || "—", fontSize: 13, bold: true, color: "#111827", margin: [0, 0, 0, 2] },
+                { text: `Lot ${(input._lotNumber as string) || "—"} — ${(input._buildingName as string) || "—"}`, fontSize: 8.5, color: "#6b7280", margin: [0, 0, 0, 10] },
+                { canvas: [{ type: "line", x1: 0, y1: 0, x2: 467, y2: 0, lineWidth: 0.5, lineColor: "#e5e7eb" }] },
+                { text: "LA SOMME DE", fontSize: 8, color: "#9ca3af", margin: [0, 10, 0, 6] },
+                { text: `${paidAmount.toLocaleString("fr-MA")} MAD`, fontSize: 22, bold: true, color: accentColor, margin: [0, 0, 0, 2] },
+                {
+                  columns: [
+                    { text: `Période : ${periodeRec}`, fontSize: 8.5, color: "#6b7280" },
+                    { text: `Mode : ${paymentMethod}`, fontSize: 8.5, color: "#6b7280", alignment: "right" as const },
+                  ],
+                  margin: [0, 0, 0, 10],
+                },
+                { canvas: [{ type: "line", x1: 0, y1: 0, x2: 467, y2: 0, lineWidth: 0.5, lineColor: "#e5e7eb" }] },
+                { text: `Référence appel : ${appelRef}  •  Date de paiement : ${paidDate}`, fontSize: 7.5, color: "#9ca3af", margin: [0, 8, 0, 0] },
+              ],
+              fillColor: "#f9fafb",
+              margin: [24, 20, 24, 20],
+              border: [true, true, true, true] as [boolean, boolean, boolean, boolean],
+              borderColor: ["#e5e7eb", "#e5e7eb", "#e5e7eb", "#e5e7eb"],
+            }]],
+          },
+          layout: {
+            hLineWidth: (i: number, node: { table: { body: unknown[] } }) => i === 0 || i === node.table.body.length ? 0.8 : 0,
+            vLineWidth: (i: number, node: { table: { widths: unknown[] } }) => i === 0 || i === node.table.widths.length ? 0.8 : 0,
+            hLineColor: () => "#e5e7eb", vLineColor: () => "#e5e7eb",
+            paddingLeft: () => 0, paddingRight: () => 0, paddingTop: () => 0, paddingBottom: () => 0,
+          },
+          margin: [0, 0, 0, 24],
+        },
+        signatureBlock("Le Trésorier du Syndicat", syndInfo.name, accentColor, true, lang, signatures),
+        legalFooterNote(docNum, lang, verifyUrl),
+      ];
+      break;
+    }
+
+    // ── Facture ──────────────────────────────────────────────────────────────
+    case "facture": {
+      const invoiceAmount = Number(input.amount as string ?? 0);
+      const invoiceDue = (input.dueDate as string) || "—";
+      const recipient = (input.memberName as string) || member || (input._recipient as string) || "—";
+      const invoiceRef = (input._invoiceRef as string) || docNum;
+      const invoiceLines: Array<{ label: string; qty: number; unitPrice: number; total: number }> =
+        (input._invoiceLines as Array<{ label: string; qty: number; unitPrice: number; total: number }>) ?? [
+          { label: input.title || "Prestation", qty: 1, unitPrice: invoiceAmount, total: invoiceAmount },
+        ];
+      const totalHT = invoiceLines.reduce((s, l) => s + l.total, 0);
+      const tva = totalHT * 0.20;
+      const totalTTC = totalHT + tva;
+
+      const lineRows = invoiceLines.map((l, i) => [
+        {
+          text: l.label, fontSize: 9, margin: [8, 6, 4, 6],
+          fillColor: i % 2 === 0 ? "#f8fafc" : "#ffffff",
+          border: [false, false, false, false] as [boolean, boolean, boolean, boolean],
+        },
+        {
+          text: l.qty.toLocaleString("fr-MA"), fontSize: 9, alignment: "center" as const, margin: [4, 6, 4, 6],
+          fillColor: i % 2 === 0 ? "#f8fafc" : "#ffffff",
+          border: [false, false, false, false] as [boolean, boolean, boolean, boolean],
+        },
+        {
+          text: `${l.unitPrice.toLocaleString("fr-MA")} MAD`, fontSize: 9, alignment: "right" as const, margin: [4, 6, 8, 6],
+          fillColor: i % 2 === 0 ? "#f8fafc" : "#ffffff",
+          border: [false, false, false, false] as [boolean, boolean, boolean, boolean],
+        },
+        {
+          text: `${l.total.toLocaleString("fr-MA")} MAD`, fontSize: 9, bold: true, alignment: "right" as const, margin: [4, 6, 8, 6],
+          fillColor: i % 2 === 0 ? "#f8fafc" : "#ffffff",
+          border: [false, false, false, false] as [boolean, boolean, boolean, boolean],
+        },
+      ]);
+
+      content = [
+        ...header,
+        { text: `FACTURE N° ${invoiceRef}`, style: "docTitle", alignment: "center" as const, margin: [0, 0, 0, 4] },
+        { text: `Date : ${today}  •  Échéance : ${invoiceDue}`, fontSize: 8, color: "#6b7280", alignment: "center" as const, margin: [0, 0, 0, 20] },
+        metaTable([
+          ["FACTURÉ À", recipient],
+          ["ICE SYNDICAT", syndInfo.registrationNumber || "—"],
+          ["DATE FACTURE", today],
+          ["DATE ÉCHÉANCE", invoiceDue],
+        ], accentColor),
+        // Lines table header
+        {
+          table: {
+            widths: ["*", 50, 80, 80],
+            body: [
+              [
+                { text: "DÉSIGNATION", fontSize: 8, bold: true, color: "#ffffff", fillColor: accentColor, margin: [8, 6, 4, 6], border: [false, false, false, false] as [boolean, boolean, boolean, boolean] },
+                { text: "QTÉ", fontSize: 8, bold: true, color: "#ffffff", fillColor: accentColor, alignment: "center" as const, margin: [4, 6, 4, 6], border: [false, false, false, false] as [boolean, boolean, boolean, boolean] },
+                { text: "P.U.", fontSize: 8, bold: true, color: "#ffffff", fillColor: accentColor, alignment: "right" as const, margin: [4, 6, 8, 6], border: [false, false, false, false] as [boolean, boolean, boolean, boolean] },
+                { text: "TOTAL", fontSize: 8, bold: true, color: "#ffffff", fillColor: accentColor, alignment: "right" as const, margin: [4, 6, 8, 6], border: [false, false, false, false] as [boolean, boolean, boolean, boolean] },
+              ],
+              ...lineRows,
+            ],
+          },
+          layout: {
+            hLineWidth: (i: number, node: { table: { body: unknown[] } }) => i === 0 || i === node.table.body.length ? 0.8 : 0.4,
+            vLineWidth: () => 0,
+            hLineColor: () => "#e5e7eb",
+            paddingLeft: () => 0, paddingRight: () => 0, paddingTop: () => 0, paddingBottom: () => 0,
+          },
+          margin: [0, 0, 0, 0],
+        },
+        // Totals
+        {
+          table: {
+            widths: ["*", 150],
+            body: [
+              [
+                { text: "", border: [false, false, false, false] as [boolean, boolean, boolean, boolean] },
+                {
+                  stack: [
+                    { columns: [{ text: "Total HT", fontSize: 9, color: "#6b7280", width: "*" }, { text: `${totalHT.toLocaleString("fr-MA")} MAD`, fontSize: 9, width: "auto", alignment: "right" as const }], margin: [12, 8, 12, 2] },
+                    { columns: [{ text: "TVA (20%)", fontSize: 9, color: "#6b7280", width: "*" }, { text: `${tva.toLocaleString("fr-MA")} MAD`, fontSize: 9, width: "auto", alignment: "right" as const }], margin: [12, 2, 12, 6] },
+                    { canvas: [{ type: "line", x1: 12, y1: 0, x2: 138, y2: 0, lineWidth: 0.5, lineColor: "#e5e7eb" }] },
+                    {
+                      columns: [
+                        { text: "TOTAL TTC", fontSize: 11, bold: true, color: "#111827", width: "*" },
+                        { text: `${totalTTC.toLocaleString("fr-MA")} MAD`, fontSize: 11, bold: true, color: accentColor, width: "auto", alignment: "right" as const },
+                      ],
+                      margin: [12, 8, 12, 10],
+                    },
+                  ],
+                  fillColor: "#f8fafc",
+                  border: [true, true, true, true] as [boolean, boolean, boolean, boolean],
+                  borderColor: ["#e5e7eb", "#e5e7eb", "#e5e7eb", "#e5e7eb"],
+                },
+              ],
+            ],
+          },
+          layout: { hLineWidth: () => 0, vLineWidth: () => 0, paddingLeft: () => 0, paddingRight: () => 0, paddingTop: () => 0, paddingBottom: () => 0 },
+          margin: [0, 0, 0, 24],
+        },
+        signatureBlock("Le Trésorier du Syndicat", syndInfo.name, accentColor, true, lang, signatures),
+        legalFooterNote(docNum, lang, verifyUrl),
+      ];
+      break;
+    }
+
+    // ── Budget Prévisionnel ───────────────────────────────────────────────────
+    case "budget_previsionnel": {
+      const budgetYear = (input.exercice as string) || today.split(" ").slice(-1)[0] || "—";
+      const totalAmount = (input._totalAmount as string) || "0";
+      const chargesAmount = (input._chargesAmount as string) || "0";
+      const fondsReserve = (input._fondsReserve as string) || "0";
+      const budgetBuilding = (input._buildingName as string) || buildingName || "—";
+      const budgetLines = (input._budgetLines as string) || "";
+      const budgetStatus = (input._budgetStatus as string) || "draft";
+      const statusLabel = { draft: "BROUILLON", voted: "VOTÉ", approved: "APPROUVÉ", archived: "ARCHIVÉ" }[budgetStatus] || budgetStatus.toUpperCase();
+
+      content = [
+        ...header,
+        { text: "BUDGET PRÉVISIONNEL", style: "docTitle", alignment: "center" as const, margin: [0, 0, 0, 4] },
+        { text: `Exercice ${budgetYear}  •  ${budgetBuilding}  •  ${statusLabel}`, fontSize: 8.5, color: "#6b7280", alignment: "center" as const, margin: [0, 0, 0, 20] },
+        metaTable([
+          ["EXERCICE BUDGÉTAIRE", budgetYear],
+          ["IMMEUBLE", budgetBuilding],
+          ["STATUT", statusLabel],
+          ["ÉTABLI PAR", (input.etabliPar as string) || (input.officeHolders as OfficeHolders | undefined)?.treasurer?.fullName || syndInfo.name],
+        ], accentColor),
+        // Summary cards
+        {
+          columns: [
+            {
+              stack: [
+                { text: "CHARGES TOTALES", fontSize: 7, bold: true, color: "#9ca3af", margin: [0, 0, 0, 4] },
+                { text: `${chargesAmount} MAD`, fontSize: 14, bold: true, color: accentColor, margin: [0, 0, 0, 2] },
+              ],
+              fillColor: "#f0fdf4",
+              margin: [12, 14, 12, 14],
+            },
+            {
+              stack: [
+                { text: "FONDS DE RÉSERVE", fontSize: 7, bold: true, color: "#9ca3af", margin: [0, 0, 0, 4] },
+                { text: `${fondsReserve} MAD`, fontSize: 14, bold: true, color: accentColor, margin: [0, 0, 0, 2] },
+              ],
+              fillColor: "#eff6ff",
+              margin: [12, 14, 12, 14],
+            },
+            {
+              stack: [
+                { text: "BUDGET TOTAL", fontSize: 7, bold: true, color: "#9ca3af", margin: [0, 0, 0, 4] },
+                { text: `${totalAmount} MAD`, fontSize: 14, bold: true, color: "#111827", margin: [0, 0, 0, 2] },
+              ],
+              fillColor: "#f8fafc",
+              margin: [12, 14, 12, 14],
+            },
+          ],
+          columnGap: 8,
+          margin: [0, 0, 0, 20],
+        },
+        ...(budgetLines ? [contentSection("DÉTAIL DES POSTES BUDGÉTAIRES", budgetLines, accentColor)] : []),
+        contentSection("RÉPARTITION", "La répartition des charges entre copropriétaires s'effectue selon les tantièmes définis dans le règlement de copropriété.", accentColor),
+        contentSection("MODALITÉS D'APPEL", (input.synthese as string) || "Les appels de fonds seront émis trimestriellement conformément au présent budget.", accentColor),
+        multiSignatoryBlock(input.officeHolders as OfficeHolders | undefined, accentColor, lang, signatures, syndInfo.name),
+        legalFooterNote(docNum, lang, verifyUrl),
+      ];
+      break;
+    }
+
+    // ── Décompte des Charges ──────────────────────────────────────────────────
+    case "decompte_charges": {
+      const decompteYear = (input.exercice as string) || today.split(" ").slice(-1)[0] || "—";
+      const totalProvisioned = Number(input.totalPrevu as string ?? 0);
+      const totalActual = Number(input.totalRealise as string ?? 0);
+      const difference = totalActual - totalProvisioned;
+
+      content = [
+        ...header,
+        { text: "DÉCOMPTE ANNUEL DES CHARGES", style: "docTitle", alignment: "center" as const, margin: [0, 0, 0, 4] },
+        { text: `Exercice ${decompteYear}  •  Copropriétaire : ${(input.memberName as string) || member || "—"}`, fontSize: 8.5, color: "#6b7280", alignment: "center" as const, margin: [0, 0, 0, 20] },
+        metaTable([
+          ["COPROPRIÉTAIRE", (input.memberName as string) || member || "—"],
+          ["LOT / APPARTEMENT", `Lot ${(input._lotNumber as string) || "—"} — Étage ${(input._lotFloor as string) || "—"}`],
+          ["TANTIEMES", (input._lotTantiemes as string) || "—"],
+          ["EXERCICE", decompteYear],
+        ], accentColor),
+        // Summary
+        {
+          columns: [
+            {
+              stack: [
+                { text: "PROVISIONS VERSÉES", fontSize: 7, bold: true, color: "#9ca3af", margin: [0, 0, 0, 4] },
+                { text: `${totalProvisioned.toLocaleString("fr-MA")} MAD`, fontSize: 13, bold: true, color: "#374151" },
+              ],
+              fillColor: "#f8fafc", margin: [12, 12, 12, 12],
+            },
+            {
+              stack: [
+                { text: "CHARGES RÉELLES", fontSize: 7, bold: true, color: "#9ca3af", margin: [0, 0, 0, 4] },
+                { text: `${totalActual.toLocaleString("fr-MA")} MAD`, fontSize: 13, bold: true, color: "#374151" },
+              ],
+              fillColor: "#f8fafc", margin: [12, 12, 12, 12],
+            },
+            {
+              stack: [
+                { text: difference >= 0 ? "RAPPEL DÛ" : "AVOIR", fontSize: 7, bold: true, color: "#9ca3af", margin: [0, 0, 0, 4] },
+                {
+                  text: `${Math.abs(difference).toLocaleString("fr-MA")} MAD`,
+                  fontSize: 13, bold: true,
+                  color: difference >= 0 ? "#dc2626" : "#16a34a",
+                },
+              ],
+              fillColor: difference >= 0 ? "#fef2f2" : "#f0fdf4",
+              margin: [12, 12, 12, 12],
+            },
+          ],
+          columnGap: 8,
+          margin: [0, 0, 0, 20],
+        },
+        contentSection(
+          difference >= 0 ? "SOLDE : RAPPEL DE CHARGES" : "SOLDE : AVOIR EN VOTRE FAVEUR",
+          difference >= 0
+            ? `Un rappel de charges d'un montant de ${Math.abs(difference).toLocaleString("fr-MA")} MAD vous sera facturé.\n\nCe rappel correspond à la différence entre les charges réelles supportées par le syndicat et les provisions que vous avez versées au cours de l'exercice ${decompteYear}.`
+            : `Un avoir de ${Math.abs(difference).toLocaleString("fr-MA")} MAD sera reporté sur votre prochain appel de fonds ou remboursé sur demande.\n\nCet avoir correspond à l'excédent de vos provisions par rapport aux charges réelles de l'exercice ${decompteYear}.`,
+          accentColor,
+        ),
+        ...(input.observations as string ? [contentSection("OBSERVATIONS", input.observations as string, accentColor)] : []),
+        signatureBlock("Le Trésorier du Syndicat", syndInfo.name, accentColor, true, lang, signatures),
+        legalFooterNote(docNum, lang, verifyUrl),
+      ];
+      break;
+    }
+
+    // ── Rapport d'Élection ────────────────────────────────────────────────────
+    case "rapport_election": {
+      const electionTitle = (input._electionTitle as string) || input.title || "Élection du Conseil Syndical";
+      const electionType = (input._electionType as string) || "board";
+      const electionTypeLabel: Record<string, string> = {
+        president: "Président du Syndicat",
+        board: "Conseil Syndical",
+        financial_committee: "Comité Financier",
+        maintenance_committee: "Comité d'Entretien",
+        building_representative: "Représentant d'Immeuble",
+        special: "Élection Spéciale",
+      };
+      const startDate = (input._startDate as string) || today;
+      const endDate = (input._endDate as string) || today;
+      const eligibleCount = (input._eligibleCount as string) || "—";
+      const participantCount = (input._participantCount as string) || "—";
+      const quorumPercent = (input._quorumPercent as string) || "50";
+      const quorumReached = (input._quorumReached as string) || "NON";
+      const participationRate = (input._participationRate as string) || "—";
+      const mandateDuration = (input._mandateDuration as string) || "—";
+      const candidatesText = (input._candidates as string) || "Aucun candidat enregistré.";
+      const invalidVotes = (input._invalidVotes as string) || "0";
+
+      content = [
+        ...header,
+        { text: "PROCÈS-VERBAL D'ÉLECTION", style: "docTitle", alignment: "center" as const, margin: [0, 0, 0, 4] },
+        { text: electionTitle, fontSize: 11, bold: true, color: "#374151", alignment: "center" as const, margin: [0, 0, 0, 20] },
+        metaTable([
+          ["TYPE D'ÉLECTION", electionTypeLabel[electionType] || electionType],
+          ["PÉRIODE DE VOTE", `Du ${startDate} au ${endDate}`],
+          ["ÉLECTEURS INSCRITS", eligibleCount],
+          ["VOTES EXPRIMÉS", participantCount],
+          ["TAUX DE PARTICIPATION", participationRate],
+          ["BULLETINS NULS", invalidVotes],
+        ], accentColor),
+        // Quorum status
+        {
+          table: {
+            widths: ["*"],
+            body: [[{
+              columns: [
+                {
+                  text: quorumReached === "OUI" ? "✓" : "✗",
+                  fontSize: 20, bold: true,
+                  color: quorumReached === "OUI" ? "#16a34a" : "#dc2626",
+                  width: 30, margin: [0, 4, 0, 0],
+                },
+                {
+                  stack: [
+                    {
+                      text: quorumReached === "OUI" ? "QUORUM ATTEINT" : "QUORUM NON ATTEINT",
+                      fontSize: 11, bold: true,
+                      color: quorumReached === "OUI" ? "#15803d" : "#dc2626",
+                      margin: [0, 0, 0, 2],
+                    },
+                    {
+                      text: `Quorum requis : ${quorumPercent}%  •  Participation : ${participationRate}`,
+                      fontSize: 8.5, color: "#6b7280",
+                    },
+                  ],
+                  width: "*",
+                },
+              ],
+              fillColor: quorumReached === "OUI" ? "#f0fdf4" : "#fef2f2",
+              margin: [16, 14, 16, 14],
+              border: [false, false, false, false] as [boolean, boolean, boolean, boolean],
+            }]],
+          },
+          layout: {
+            hLineWidth: (i: number, node: { table: { body: unknown[] } }) => i === 0 || i === node.table.body.length ? 0.8 : 0,
+            vLineWidth: () => 0,
+            hLineColor: () => quorumReached === "OUI" ? "#bbf7d0" : "#fecaca",
+            paddingLeft: () => 0, paddingRight: () => 0, paddingTop: () => 0, paddingBottom: () => 0,
+          },
+          margin: [0, 0, 0, 16],
+        },
+        contentSection("RÉSULTATS PAR CANDIDAT", candidatesText, accentColor),
+        ...(mandateDuration !== "—" ? [contentSection("MANDATS", `Durée des mandats des candidats élus : ${mandateDuration}\n\nLes membres élus entrent en fonction à la date de publication du présent procès-verbal.`, accentColor)] : []),
+        ...(input.observations as string ? [contentSection("OBSERVATIONS ET RÉSERVES", input.observations as string, accentColor)] : []),
+        multiSignatoryBlock(input.officeHolders as OfficeHolders | undefined, accentColor, lang, signatures, syndInfo.name),
+        legalFooterNote(docNum, lang, verifyUrl),
+      ];
+      break;
+    }
+
     default:
       content = [
         ...header,
@@ -2838,6 +3319,12 @@ function getDocTypeLabel(template: DocumentTemplate, lang: DocumentLanguage = "f
     attestation_residence:    "ATTESTATION DE RÉSIDENCE",
     attestation_propriete:    "ATTESTATION DE PROPRIÉTÉ",
     attestation_paiement:     "ATTESTATION DE PAIEMENT",
+    appel_de_fonds:           "APPEL DE FONDS",
+    recu_paiement:            "REÇU DE PAIEMENT",
+    facture:                  "FACTURE",
+    budget_previsionnel:      "BUDGET PRÉVISIONNEL",
+    decompte_charges:         "DÉCOMPTE DES CHARGES",
+    rapport_election:         "RAPPORT D'ÉLECTION",
   };
   return labels[template] ?? template.toUpperCase().replace(/_/g, " ");
 }

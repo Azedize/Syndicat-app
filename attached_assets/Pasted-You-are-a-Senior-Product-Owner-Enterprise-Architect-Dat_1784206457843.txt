@@ -1,0 +1,308 @@
+You are a Senior Product Owner, Enterprise Architect, Database Architect, PDF Workflow Expert, and Moroccan Condominium Management Expert.
+
+Mission:
+
+Perform a complete correction of the Document Generation System.
+
+The PDF engine itself is already functional.
+
+The problem is not the PDF rendering layer.
+
+The problem is that templates are not properly connected to the application's real business entities and database records.
+
+Do not create fake data.
+
+Do not request information already stored in PostgreSQL.
+
+Implement a fully automated document generation workflow.
+
+==================================================
+PHASE 1 — DOCUMENT INTELLIGENCE AUDIT
+=====================================
+
+Analyze all existing templates.
+
+For each template:
+
+Identify:
+
+* Business purpose
+* Related entity
+* Database tables
+* Required fields
+* Auto-generated fields
+* User-entered fields
+
+Generate a mapping table:
+
+Template
+→ Entity
+→ Database Source
+→ User Inputs
+
+==================================================
+PHASE 2 — ENTITY-DRIVEN DOCUMENT GENERATION
+===========================================
+
+Documents must never be generated from empty forms.
+
+Documents must be generated from existing entities.
+
+Examples:
+
+Meeting Minutes
+→ linked to meetingId
+
+Election Report
+→ linked to electionId
+
+Residence Certificate
+→ linked to lotId
+
+Ownership Certificate
+→ linked to lotId
+
+Payment Certificate
+→ linked to paymentId
+
+Invoice
+→ linked to invoiceId
+
+Budget Report
+→ linked to budgetId
+
+Contract
+→ linked to contractId
+
+Incident Report
+→ linked to incidentId
+
+Work Order
+→ linked to workId
+
+==================================================
+PHASE 3 — AUTO POPULATE DATA
+============================
+
+When a user selects a template:
+
+The system automatically loads:
+
+Syndicate Data
+
+* Logo
+* Name
+* Address
+* ICE
+* RC
+* Email
+* Phone
+
+Building Data
+
+* Building Name
+* Building Address
+
+Member Data
+
+* Full Name
+* Apartment Number
+* Lot Number
+* Ownership Status
+
+Financial Data
+
+* Charges
+* Payments
+* Debts
+* Budgets
+
+Meeting Data
+
+* Participants
+* Agenda
+* Decisions
+* Votes
+
+Election Data
+
+* Candidates
+* Quorum
+* Results
+* Winner
+
+Contract Data
+
+* Contractor
+* Amount
+* Duration
+
+==================================================
+PHASE 4 — REMOVE MANUAL DATA ENTRY
+==================================
+
+Detect all templates asking users to manually enter data that already exists.
+
+Examples:
+
+❌ Enter Member Name
+
+If member already exists in database.
+
+❌ Enter Meeting Date
+
+If meeting already exists.
+
+❌ Enter Budget Totals
+
+If budget already exists.
+
+Replace with automatic retrieval.
+
+==================================================
+PHASE 5 — MISSING TEMPLATES
+===========================
+
+Create production-ready versions of:
+
+P0
+
+* Appel de Fonds
+* Reçu de Paiement
+* Facture
+* Budget Prévisionnel
+
+P1
+
+* Décompte des Charges
+* Rapport d'Élection
+
+These templates must use real database data.
+
+No manual typing.
+
+==================================================
+PHASE 6 — MEETING DOCUMENTS
+===========================
+
+Current issue:
+
+PV, Convocation and Compte Rendu are disconnected from meetings.
+
+Fix:
+
+User selects:
+
+Meeting
+
+System automatically retrieves:
+
+* Date
+* Location
+* Participants
+* Agenda
+* Decisions
+* Voting Results
+
+Generate complete document automatically.
+
+==================================================
+PHASE 7 — FINANCIAL DOCUMENTS
+=============================
+
+Current issue:
+
+Financial documents are manually filled.
+
+Fix:
+
+Use:
+
+* appelsDeFondsTable
+* paymentsTable
+* invoicesTable
+* budgetsTable
+
+Generate:
+
+* Payment Receipts
+* Calls for Funds
+* Financial Reports
+* Annual Statements
+
+Automatically.
+
+==================================================
+PHASE 8 — PROPERTY DOCUMENTS
+============================
+
+Current issue:
+
+Property certificates ignore lot data.
+
+Automatically retrieve:
+
+* titreFoncier
+* surfaceM2
+* tantiemes
+* lotNumber
+* building
+
+From lotsTable.
+
+==================================================
+PHASE 9 — DOCUMENT GENERATION WIZARD
+====================================
+
+Redesign generation workflow:
+
+Old Flow:
+
+Template
+→ Manual Form
+→ PDF
+
+New Flow:
+
+Template
+→ Select Entity
+→ Auto Load Data
+→ Detect Missing Data
+→ Ask Only Missing Fields
+→ Preview
+→ Generate PDF
+
+==================================================
+PHASE 10 — VALIDATION
+=====================
+
+Before generation:
+
+Verify:
+
+* Entity exists
+* User has access
+* Required data exists
+* Related records exist
+
+Prevent incomplete documents.
+
+==================================================
+PHASE 11 — FINAL AUDIT
+======================
+
+Generate:
+
+1. Templates Fixed
+2. Missing Templates Added
+3. Database Relations Added
+4. API Changes
+5. Mobile Changes
+6. Removed Manual Fields
+7. Auto-Populated Fields
+8. Remaining Risks
+9. Production Readiness Score
+
+Goal:
+
+Create a fully automated, enterprise-grade document generation system where every document is generated from real application data and linked to the business entities it represents.
