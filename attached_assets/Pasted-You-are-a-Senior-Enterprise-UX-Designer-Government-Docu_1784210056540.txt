@@ -1,0 +1,322 @@
+You are a Senior Enterprise UX Designer, Government Document Designer, SaaS Product Designer, PDF Architect, Brand Identity Expert, and Legal Document Specialist.
+
+Mission:
+
+Perform a complete redesign of the entire Document Generation System.
+
+Current Design Score:
+
+15/100
+
+The current generated documents look like basic exported reports and do not meet professional, legal, enterprise, or government standards.
+
+Do not perform small cosmetic changes.
+
+Perform a complete redesign.
+
+==================================================
+CURRENT PROBLEMS
+================
+
+The current documents suffer from:
+
+* Weak visual hierarchy
+* Poor typography
+* Excel-like tables
+* Generic layouts
+* Weak branding
+* No premium appearance
+* Signatures not visible
+* Static stamps
+* Poor QR integration
+* Large empty spaces
+* Inconsistent spacing
+* Outdated visual style
+* Weak footer
+* Weak header
+* Poor information organization
+* No document identity system
+* No category-specific layouts
+
+The documents currently look like prototypes instead of production documents.
+
+==================================================
+DESIGN OBJECTIVE
+================
+
+The generated documents must visually compete with:
+
+* DocuSign Enterprise
+* Adobe Acrobat Enterprise
+* PandaDoc
+* SAP ERP Documents
+* Oracle ERP
+* Government Administrative Documents
+* Banking Documents
+* Insurance Contracts
+
+The final result must immediately inspire:
+
+* Trust
+* Professionalism
+* Legal validity
+* Authority
+* Premium quality
+
+==================================================
+PHASE 1 — DOCUMENT DESIGN AUDIT
+===============================
+
+Analyze every existing template.
+
+Examples:
+
+* Contracts
+* Invoices
+* Payment Receipts
+* Calls For Funds
+* Budgets
+* Election Reports
+* Meeting Minutes
+* Internal Regulations
+* Ownership Certificates
+* Residence Certificates
+* Financial Reports
+
+For each template:
+
+Identify:
+
+* Design weaknesses
+* Missing information
+* Layout issues
+* Branding issues
+
+==================================================
+PHASE 2 — COMPLETE VISUAL IDENTITY
+==================================
+
+Build a real visual identity system.
+
+Every generated document must display:
+
+* Syndicate Logo
+* Syndicate Name
+* Building Name
+* Address
+* Contact Information
+* Registration Information
+* ICE
+* RC
+* Creation Date
+
+No generic "SYNDYCAT" branding.
+
+Everything must come from the actual syndicate.
+
+==================================================
+PHASE 3 — HEADER REDESIGN
+=========================
+
+Redesign the entire header.
+
+Create:
+
+Left Area:
+
+* Syndicate Logo
+* Syndicate Name
+* Building Name
+
+Center Area:
+
+* Document Title
+* Document Number
+* Status Badge
+
+Right Area:
+
+* QR Verification
+* Issue Date
+* Version
+
+Use professional spacing.
+
+==================================================
+PHASE 4 — TYPOGRAPHY SYSTEM
+===========================
+
+Replace the current typography.
+
+Create:
+
+* Display Title
+* Section Title
+* Subsection Title
+* Labels
+* Body Text
+* Legal Text
+
+Improve readability.
+
+==================================================
+PHASE 5 — INFORMATION CARDS
+===========================
+
+Remove Excel-style tables.
+
+Replace with:
+
+* Information Cards
+* Summary Blocks
+* Professional Layout Sections
+
+==================================================
+PHASE 6 — SIGNATURE SYSTEM
+==========================
+
+Current score: 0/10
+
+Implement:
+
+* Real Signature Image
+* Signatory Name
+* Position
+* Signature Date
+* Validation Status
+
+Display visually.
+
+Do not show:
+
+"En attente de signature"
+
+if a signature exists.
+
+==================================================
+PHASE 7 — OFFICIAL STAMP SYSTEM
+===============================
+
+Current stamp is static.
+
+Create dynamic official stamps.
+
+Display:
+
+* Syndicate Name
+* Official Validation
+* Signatory
+* Date
+
+==================================================
+PHASE 8 — QR VERIFICATION
+=========================
+
+Create professional QR sections.
+
+Display:
+
+* QR Code
+* Verification URL
+* Verification Status
+
+==================================================
+PHASE 9 — CATEGORY-SPECIFIC DESIGNS
+===================================
+
+Create different layouts.
+
+Financial Documents:
+
+* Accounting style
+
+Meeting Documents:
+
+* Administrative style
+
+Election Documents:
+
+* Institutional style
+
+Contracts:
+
+* Legal style
+
+Certificates:
+
+* Official certification style
+
+Each category must have:
+
+* Unique colors
+* Unique icons
+* Unique layout
+
+==================================================
+PHASE 10 — FOOTER REDESIGN
+==========================
+
+Create a professional footer.
+
+Display:
+
+* QR Verification
+* Legal Disclaimer
+* Version
+* Document Status
+* Page Numbers
+
+==================================================
+PHASE 11 — PREMIUM ENTERPRISE FEATURES
+======================================
+
+Add:
+
+* Watermark Logo
+* Verification Badges
+* Security Indicators
+* Digital Signature Indicators
+* Multi-language Layout Support
+* Arabic RTL Optimization
+* French Layout
+* English Layout
+* Spanish Layout
+
+==================================================
+PHASE 12 — FINAL OBJECTIVE
+==========================
+
+When a user opens a generated PDF, the document must look like:
+
+* A government-issued document
+* A banking contract
+* A legal document
+* A premium enterprise document
+
+It must never look like:
+
+* An exported HTML page
+* An Excel report
+* A prototype
+* A simple PDF printout
+
+==================================================
+FINAL REPORT
+============
+
+Generate:
+
+1. Design Audit Score
+2. Design Problems
+3. Header Improvements
+4. Footer Improvements
+5. Signature Improvements
+6. QR Improvements
+7. Branding Improvements
+8. Template Improvements
+9. Screenshots Comparison
+10. New Production Readiness Score
+
+Do not stop at recommendations.
+
+Implement the redesign and transform the document system into a premium enterprise-grade document platform.
