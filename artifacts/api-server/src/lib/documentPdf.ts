@@ -487,222 +487,102 @@ function buildHeaderBand(
   buildingName: string | null = null,
   version: string | null = null,
   docStatus: string | null = null,
-  categoryIcon = "■",
+  _categoryIcon = "■",
 ): object[] {
-  // Contact / registration lines
-  const contactParts: string[] = [];
-  if (syndInfo.phone)   contactParts.push(`Tél : ${syndInfo.phone}`);
-  if (syndInfo.email)   contactParts.push(syndInfo.email);
-  if (syndInfo.website) contactParts.push(syndInfo.website);
-  const contactLine = contactParts.join("   ·   ");
-  const regLine = syndInfo.registrationNumber
-    ? `Réf. Syndicale : ${syndInfo.registrationNumber}`
-    : null;
-  const addressLine = [syndInfo.address, syndInfo.city].filter(Boolean).join(", ");
+  // ── Color tokens (max 5 per document system) ─────────────────────────────────
+  // primary = accentColor, dark = one darker variant, everything else is neutral
+  const dark = adjustColorBrightness(accentColor, -28);
 
+  // ── Identity text lines ──────────────────────────────────────────────────────
   const acronym = (syndInfo.abbreviation ||
     syndInfo.name.split(/\s+/).map((w: string) => w[0]).join("").slice(0, 3)
   ).toUpperCase();
+  const regLine = syndInfo.registrationNumber ? `Réf. ${syndInfo.registrationNumber}` : null;
+  const contactParts: string[] = [];
+  if (syndInfo.phone) contactParts.push(`Tél : ${syndInfo.phone}`);
+  if (syndInfo.email) contactParts.push(syndInfo.email);
+  const contactLine = contactParts.slice(0, 2).join("  ·  ");
+  const addressLine = [syndInfo.address, syndInfo.city].filter(Boolean).join(", ");
 
-  const secondary = adjustColorBrightness(accentColor, -22);
-  const dark      = adjustColorBrightness(accentColor, -38);
-  const versionStr = version || "v1.0";
-
-  // ── Premium status badge system ──────────────────────────────────────────────
-  const statusMap: Record<string, { label: string; fg: string; bg: string; border: string }> = {
-    published: { label: "● PUBLIÉ",     fg: "#15803d", bg: "#dcfce7", border: "#86efac" },
-    signed:    { label: "● SIGNÉ",      fg: "#1d4ed8", bg: "#dbeafe", border: "#93c5fd" },
-    validated: { label: "● VALIDÉ",     fg: "#6d28d9", bg: "#ede9fe", border: "#c4b5fd" },
-    archived:  { label: "◉ ARCHIVÉ",   fg: "#374151", bg: "#f3f4f6", border: "#d1d5db" },
-    generated: { label: "◎ GÉNÉRÉ",    fg: "#92400e", bg: "#fef3c7", border: "#fde68a" },
-    draft:     { label: "○ BROUILLON", fg: "#6b7280", bg: "#f9fafb", border: "#e5e7eb" },
+  // ── Status — simple colored dot text only (no badge widget) ─────────────────
+  const statusDotMap: Record<string, { label: string; color: string }> = {
+    published: { label: "● PUBLIÉ",    color: "#16a34a" },
+    signed:    { label: "● SIGNÉ",     color: "#2563eb" },
+    validated: { label: "● VALIDÉ",    color: "#7c3aed" },
+    archived:  { label: "◉ ARCHIVÉ",  color: "#6b7280" },
+    generated: { label: "◎ GÉNÉRÉ",   color: "#d97706" },
+    draft:     { label: "○ BROUILLON", color: "#9ca3af" },
   };
-  const statusEntry = docStatus ? statusMap[docStatus] : null;
+  const statusDot = docStatus ? (statusDotMap[docStatus] ?? null) : null;
 
-  // ── Security top stripe (3-line micro-pattern) ───────────────────────────────
-  const securityStripe: unknown = {
-    canvas: [
-      { type: "rect", x: 0, y: 0, w: 515, h: 3.5, color: dark },
-      { type: "rect", x: 0, y: 3.5, w: 515, h: 1, color: accentColor },
-      // Micro tick marks for security texture
-      ...Array.from({ length: 26 }, (_, i) => ({
-        type: "rect" as const,
-        x: i * 20,
-        y: 0,
-        w: 2,
-        h: 4.5,
-        color: "#ffffff18",
-      })),
-    ],
+  // ── Logo tile content ────────────────────────────────────────────────────────
+  const logoContent: unknown = logoDataUrl
+    ? { image: logoDataUrl, width: 44, height: 44, fit: [44, 44] as [number, number], alignment: "center" as const }
+    : { text: acronym, fontSize: 18, bold: true, color: "#ffffff", alignment: "center" as const };
+
+  // ── 3px accent top stripe ─────────────────────────────────────────────────────
+  const topStripe: unknown = {
+    canvas: [{ type: "rect", x: 0, y: 0, w: 515, h: 3, color: accentColor }],
     margin: [0, 0, 0, 0],
   };
 
-  // ── Logo / acronym tile ───────────────────────────────────────────────────────
-  const logoInner: unknown = logoDataUrl
-    ? {
-        stack: [
-          { canvas: [{ type: "rect", x: 5, y: 5, w: 56, h: 56, color: "#ffffff1a", r: 5 }] },
-          {
-            image: logoDataUrl,
-            width: 50, height: 50,
-            fit: [50, 50] as [number, number],
-            alignment: "center" as const,
-            margin: [0, -57, 0, 0],
-          },
-        ],
-      }
-    : {
-        stack: [
-          { canvas: [{ type: "rect", x: 5, y: 5, w: 56, h: 56, color: "#ffffff15", r: 5 }] },
-          { text: acronym, fontSize: 21, bold: true, color: "#ffffff", alignment: "center" as const, margin: [0, -45, 0, 0] },
-          { text: "SYNDIC", fontSize: 5, color: "#ffffff66", alignment: "center" as const, margin: [0, 10, 0, 0] },
-        ],
-      };
-
-  // ── QR verification tile ─────────────────────────────────────────────────────
-  const qrTile: unknown = {
-    stack: [
-      qrDataUrl
-        ? { image: qrDataUrl, width: 54, height: 54, alignment: "center" as const, margin: [6, 4, 6, 2] }
-        : { canvas: [{ type: "rect", x: 6, y: 4, w: 54, h: 54, color: "#f0f4f8", r: 3 }], margin: [0, 0, 0, 2] },
-      { text: "SCAN & VÉRIFIER", fontSize: 4.5, bold: true, color: "#64748b", alignment: "center" as const },
-      {
-        canvas: [{ type: "line", x1: 8, y1: 0, x2: 60, y2: 0, lineWidth: 0.4, lineColor: "#cbd5e1" }],
-        margin: [0, 2, 0, 2],
-      },
-      { text: today, fontSize: 5.5, bold: true, color: "#374151", alignment: "center" as const },
-      { text: versionStr, fontSize: 4.5, color: "#94a3b8", alignment: "center" as const, margin: [0, 1, 0, 4] },
-    ],
-  };
-
-  // ── Status badge block (for type band) ───────────────────────────────────────
-  const statusBlock: unknown = statusEntry
-    ? {
-        table: {
-          widths: ["auto"],
-          body: [[{
-            text: statusEntry.label,
-            fontSize: 6.5,
-            bold: true,
-            color: statusEntry.fg,
-            fillColor: statusEntry.bg,
-            margin: [7, 3, 7, 3],
-          }]],
-        },
-        layout: {
-          hLineWidth: (i: number, node: any) => (i === 0 || i === node.table.body.length) ? 0.7 : 0,
-          vLineWidth: (i: number, node: any) => (i === 0 || i === node.table.widths.length) ? 0.7 : 0,
-          hLineColor: () => statusEntry.border,
-          vLineColor: () => statusEntry.border,
-          paddingLeft: () => 0, paddingRight: () => 0, paddingTop: () => 0, paddingBottom: () => 0,
-        },
-      }
-    : { text: versionStr, fontSize: 6.5, color: "#ffffffbb", margin: [0, 3, 0, 0] };
-
-  // ── Band 1 — Premium identity band ───────────────────────────────────────────
-  const identityBand: unknown = {
+  // ── Main band — single row, 3 clean columns ───────────────────────────────────
+  const band: unknown = {
     table: {
-      widths: [74, "*", 80],
+      widths: [64, "*", 70],
       body: [[
-        // Logo cell (dark secondary bg)
+        // LEFT: Logo on accent background
         {
-          stack: [logoInner],
-          fillColor: secondary,
-          alignment: "center" as const,
-          margin: [4, 8, 4, 8],
-          border: [false, false, false, false] as [boolean, boolean, boolean, boolean],
-        },
-        // Syndicate identity (primary accent bg)
-        {
-          stack: [
-            // Left accent bar
-            { canvas: [{ type: "rect", x: 0, y: 0, w: 3, h: 72, color: "#ffffff22", r: 1 }] },
-            { text: syndInfo.name.toUpperCase(), style: "headerOrgName", margin: [0, -68, 0, 4] },
-            ...(buildingName ? [{ text: `▸  ${buildingName}`, style: "headerBuilding", margin: [0, 0, 0, 3] }] : []),
-            ...(regLine ? [{ text: `◆  ${regLine}`, style: "headerMeta", margin: [0, 0, 0, 2] }] : []),
-            ...(addressLine ? [{ text: `⌖  ${addressLine}`, style: "headerMeta", margin: [0, 0, 0, 2] }] : []),
-            ...(contactLine ? [{ text: contactLine, style: "headerContact" }] : []),
-          ],
+          stack: [logoContent],
           fillColor: accentColor,
-          margin: [12, 10, 8, 10],
-          border: [false, false, false, false] as [boolean, boolean, boolean, boolean],
-        },
-        // QR verification tile (white bg)
-        {
-          stack: [qrTile],
-          fillColor: "#ffffff",
           alignment: "center" as const,
-          margin: [0, 2, 0, 2],
+          margin: [10, 12, 10, 12],
           border: [false, false, false, false] as [boolean, boolean, boolean, boolean],
         },
-      ]],
-    },
-    layout: {
-      hLineWidth: () => 0, vLineWidth: () => 0,
-      paddingLeft: () => 0, paddingRight: () => 0, paddingTop: () => 0, paddingBottom: () => 0,
-    },
-    margin: [0, 0, 0, 0],
-  };
-
-  // ── Band 2 — Document type band ───────────────────────────────────────────────
-  const typeBand: unknown = {
-    table: {
-      widths: [32, "*", "auto", 112],
-      body: [[
-        // Category icon cell
+        // CENTER: Org identity + separator + document info (on darker bg)
         {
           stack: [
-            { text: categoryIcon, fontSize: 14, color: "#ffffff80", alignment: "center" as const, margin: [0, 6, 0, 4] },
+            // Organisation name — large, bold, white
+            { text: syndInfo.name, fontSize: 11.5, bold: true, color: "#ffffff", margin: [0, 0, 0, 2] },
+            // Secondary identity — subtle, smaller
+            ...(buildingName ? [{ text: buildingName, fontSize: 7.5, color: "#ffffffcc", margin: [0, 0, 0, 1] }] : []),
+            ...(addressLine  ? [{ text: addressLine,  fontSize: 6.5, color: "#ffffffaa", margin: [0, 0, 0, 1] }] : []),
+            ...(regLine      ? [{ text: regLine,      fontSize: 6.5, color: "#ffffffaa", margin: [0, 0, 0, 1] }] : []),
+            ...(contactLine  ? [{ text: contactLine,  fontSize: 6,   color: "#ffffff88" }] : []),
+            // Separator
+            { canvas: [{ type: "line", x1: 0, y1: 0, x2: 380, y2: 0, lineWidth: 0.4, lineColor: "#ffffff28" }], margin: [0, 8, 0, 8] },
+            // Document type — key readability element
+            { text: docTypeLabel, fontSize: 10, bold: true, color: "#ffffff", margin: [0, 0, 0, 4] },
+            // Reference + date on same line
+            {
+              columns: [
+                { text: `N°  ${docNumber}`, fontSize: 7.5, bold: true, color: "#ffffffdd", width: "*" },
+                { text: today, fontSize: 6.5, color: "#ffffffaa", width: "auto", margin: [8, 1, 0, 0] },
+              ],
+            },
+            // Status dot (text only — no badge widget)
+            ...(statusDot ? [{
+              text: statusDot.label,
+              fontSize: 6, bold: true,
+              color: statusDot.color,
+              margin: [0, 4, 0, 0],
+            }] : []),
           ],
           fillColor: dark,
-          alignment: "center" as const,
+          margin: [14, 11, 14, 11],
           border: [false, false, false, false] as [boolean, boolean, boolean, boolean],
         },
-        // Document type label
-        {
-          text: docTypeLabel,
-          style: "docTypeLabel",
-          margin: [10, 7, 8, 7],
-          fillColor: secondary,
-          border: [false, false, false, false] as [boolean, boolean, boolean, boolean],
-        },
-        // Status badge
-        {
-          stack: [statusBlock],
-          fillColor: secondary,
-          alignment: "center" as const,
-          margin: [8, 5, 8, 5],
-          border: [false, false, false, false] as [boolean, boolean, boolean, boolean],
-        },
-        // Doc number badge + date
+        // RIGHT: QR code — non-competing, white background
         {
           stack: [
-            {
-              table: {
-                widths: ["*"],
-                body: [[{
-                  text: `N°  ${docNumber}`,
-                  fontSize: 7.5,
-                  bold: true,
-                  color: "#1e293b",
-                  fillColor: "#f8fafc",
-                  alignment: "right" as const,
-                  margin: [8, 3, 8, 3],
-                }]],
-              },
-              layout: {
-                hLineWidth: (i: number, node: any) => (i === 0 || i === node.table.body.length) ? 0.5 : 0,
-                vLineWidth: (i: number, node: any) => (i === 0 || i === node.table.widths.length) ? 0.5 : 0,
-                hLineColor: () => "#e2e8f0",
-                vLineColor: () => "#e2e8f0",
-                paddingLeft: () => 0, paddingRight: () => 0, paddingTop: () => 0, paddingBottom: () => 0,
-              },
-              margin: [0, 0, 0, 3],
-            },
-            { text: today, fontSize: 6.5, color: "#ffffffcc", alignment: "right" as const },
+            qrDataUrl
+              ? { image: qrDataUrl, width: 52, height: 52, alignment: "center" as const, margin: [6, 6, 6, 3] }
+              : { canvas: [{ type: "rect", x: 8, y: 6, w: 50, h: 50, color: "#f1f5f9", r: 2 }], margin: [0, 0, 0, 3] },
+            { text: "Vérifier", fontSize: 5, color: "#94a3b8", alignment: "center" as const },
           ],
-          fillColor: secondary,
-          margin: [4, 4, 10, 4],
+          fillColor: "#ffffff",
+          alignment: "center" as const,
+          margin: [0, 0, 0, 0],
           border: [false, false, false, false] as [boolean, boolean, boolean, boolean],
         },
       ]],
@@ -711,20 +591,15 @@ function buildHeaderBand(
       hLineWidth: () => 0, vLineWidth: () => 0,
       paddingLeft: () => 0, paddingRight: () => 0, paddingTop: () => 0, paddingBottom: () => 0,
     },
-    margin: [0, 0, 0, 0],
   };
 
-  // ── Bottom double-line accent divider ────────────────────────────────────────
-  const divider: unknown = {
-    canvas: [
-      { type: "rect", x: 0, y: 0, w: 515, h: 2, color: secondary },
-      { type: "rect", x: 0, y: 2, w: 515, h: 1.5, color: accentColor },
-      { type: "rect", x: 0, y: 3.5, w: 80, h: 0.8, color: dark },
-    ],
-    margin: [0, 0, 0, 22],
+  // ── Thin bottom separator (light gray — separates header from body) ───────────
+  const separator: unknown = {
+    canvas: [{ type: "line", x1: 0, y1: 0, x2: 515, y2: 0, lineWidth: 0.8, lineColor: "#e2e8f0" }],
+    margin: [0, 0, 0, 20],
   };
 
-  return [securityStripe, identityBand, typeBand, divider] as object[];
+  return [topStripe, band, separator] as object[];
 }
 
 // Adjust a hex color's brightness (delta: positive = lighter, negative = darker)
@@ -749,104 +624,69 @@ function metaTable(rows: Array<[string, string]>, accentColor: string): unknown 
     pairs.push([rows[i], rows[i + 1] ?? null]);
   }
 
-  const noPad = { hLineWidth: () => 0, vLineWidth: () => 0, paddingLeft: () => 0, paddingRight: () => 0, paddingTop: () => 0, paddingBottom: () => 0 };
-  const dimAccent = adjustColorBrightness(accentColor, -18);
-
-  const makeCard = (row: [string, string] | null, isLeft: boolean): unknown => {
-    if (!row) {
-      return {
-        text: "",
-        fillColor: "#f9fafb",
-        border: [false, false, false, false] as [boolean, boolean, boolean, boolean],
-        margin: [6, 10, 0, 10],
-      };
-    }
+  // Clean card — label above value, consistent spacing, alternating neutral bg
+  const makeCard = (row: [string, string] | null, bg: string): unknown => {
+    if (!row) return {
+      text: "",
+      fillColor: bg,
+      border: [false, false, false, false] as [boolean, boolean, boolean, boolean],
+    };
     return {
       stack: [
-        // Thin top accent rule per card
-        { canvas: [{ type: "rect", x: 0, y: 0, w: isLeft ? 245 : 245, h: 1.5, color: accentColor + "40" }] },
-        // Label — uppercase small caps style
-        { text: row[0].toUpperCase(), fontSize: 6.5, bold: true, color: "#9ca3af", margin: [0, 5, 0, 4] },
-        // Value — prominent bold
-        { text: row[1] || "—", fontSize: 10, bold: true, color: "#1e293b", lineHeight: 1.25 },
+        { text: row[0].toUpperCase(), fontSize: 6.5, bold: true, color: "#9ca3af", margin: [0, 0, 0, 3] },
+        { text: row[1] || "—", fontSize: 10, bold: true, color: "#1e293b", lineHeight: 1.2 },
       ],
-      fillColor: isLeft ? "#f8fafc" : "#f3f6fb",
-      margin: [13, 0, 13, 10],
+      fillColor: bg,
+      margin: [14, 10, 14, 10],
       border: [false, false, false, false] as [boolean, boolean, boolean, boolean],
     };
   };
 
-  const cardRows = pairs.map((pair) => ({
-    table: {
-      widths: ["*", "*"],
-      body: [[makeCard(pair[0], true), makeCard(pair[1], false)]],
-    },
-    layout: {
-      hLineWidth: (j: number, node: { table: { body: unknown[] } }) =>
-        j === 0 || j === node.table.body.length ? 0.5 : 0,
-      vLineWidth: (j: number, node: { table: { widths: unknown[] } }) =>
-        j === node.table.widths.length ? 0.5 : 0,
-      hLineColor: () => "#e2e8f0",
-      vLineColor: () => "#e2e8f0",
-      paddingLeft: () => 0, paddingRight: () => 0, paddingTop: () => 0, paddingBottom: () => 0,
-    },
-    margin: [0, 0, 0, 2],
-  }));
+  const cardRows = pairs.map((pair, i) => {
+    const bg0 = i % 2 === 0 ? "#f8fafc" : "#f1f5f9";
+    const bg1 = i % 2 === 0 ? "#f1f5f9" : "#f8fafc";
+    return {
+      table: {
+        widths: ["*", "*"],
+        body: [[makeCard(pair[0], bg0), makeCard(pair[1], bg1)]],
+      },
+      layout: {
+        hLineWidth: (j: number, node: { table: { body: unknown[] } }) =>
+          j === 0 || j === node.table.body.length ? 0.5 : 0,
+        vLineWidth: () => 0,
+        hLineColor: () => "#e2e8f0",
+        paddingLeft: () => 0, paddingRight: () => 0, paddingTop: () => 0, paddingBottom: () => 0,
+      },
+      margin: [0, 0, 0, 1],
+    };
+  });
 
-  // Header label band + top accent rule
+  // Single 2px accent rule — simple, unambiguous top boundary
   const topRule: unknown = {
-    canvas: [
-      { type: "rect", x: 0, y: 0, w: 515, h: 2.5, color: accentColor },
-      { type: "rect", x: 0, y: 2.5, w: 515, h: 1, color: adjustColorBrightness(accentColor, 35) },
-    ],
-    margin: [0, 0, 0, 0],
-  };
-
-  const headerLabel: unknown = {
-    table: {
-      widths: ["*"],
-      body: [[{
-        columns: [
-          { canvas: [{ type: "rect", x: 0, y: 0, w: 3, h: 16, color: accentColor, r: 1 }], width: 10 },
-          { text: "INFORMATIONS DU DOCUMENT", fontSize: 6.5, bold: true, color: dimAccent, width: "*", margin: [4, 2, 0, 2] },
-        ],
-        fillColor: "#eff6ff",
-        border: [false, false, false, false] as [boolean, false, false, false],
-      }]],
-    },
-    layout: noPad,
+    canvas: [{ type: "rect", x: 0, y: 0, w: 515, h: 2, color: accentColor }],
     margin: [0, 0, 0, 0],
   };
 
   return {
-    stack: [topRule, headerLabel, ...cardRows],
+    stack: [topRule, ...cardRows],
     margin: [0, 0, 0, 20],
   };
 }
 
 function contentSection(title: string, text: string, accentColor: string, isRtl = false): unknown {
-  const lightBg = adjustColorBrightness(accentColor, 88);
-  const darkAccent = adjustColorBrightness(accentColor, -18);
+  const lightBg = adjustColorBrightness(accentColor, 90);
   return {
     stack: [
-      // ── Section header — premium colored band with left accent bar ─────────────
+      // Section header — flat colored band, no nested widgets
       {
         table: {
           widths: ["*"],
           body: [[{
-            columns: [
-              // Left accent indicator bar
-              { canvas: [{ type: "rect", x: 0, y: 0, w: 4, h: 22, color: darkAccent, r: 1 }], width: 10 },
-              // Section title
-              {
-                text: title.toUpperCase(),
-                fontSize: 8.5,
-                bold: true,
-                color: "#ffffff",
-                width: "*",
-                margin: [4, 5, 12, 5],
-              },
-            ],
+            text: title.toUpperCase(),
+            fontSize: 8.5,
+            bold: true,
+            color: "#ffffff",
+            margin: [14, 6, 14, 6],
             fillColor: accentColor,
             border: [false, false, false, false] as [boolean, boolean, boolean, boolean],
           }]],
@@ -855,30 +695,25 @@ function contentSection(title: string, text: string, accentColor: string, isRtl 
           hLineWidth: () => 0, vLineWidth: () => 0,
           paddingLeft: () => 0, paddingRight: () => 0, paddingTop: () => 0, paddingBottom: () => 0,
         },
-        margin: [0, 14, 0, 0],
+        margin: [0, 12, 0, 0],
       },
-      // ── Content area — light tinted card with bottom border ──────────────────
+      // Content area — light tinted card, clean
       {
         table: {
           widths: ["*"],
           body: [[{
             ...(isRtl
-              ? { text, style: "bodyArabic", margin: [14, 11, 14, 11] }
-              : { text, style: "body", margin: [14, 11, 14, 11] }),
+              ? { text, style: "bodyArabic", margin: [14, 12, 14, 12] }
+              : { text, style: "body", margin: [14, 12, 14, 12] }),
             fillColor: lightBg,
             border: [false, false, false, false] as [boolean, boolean, boolean, boolean],
           }]],
         },
         layout: {
-          hLineWidth: (i: number, node: { table: { body: unknown[] } }) =>
-            i === node.table.body.length ? 0.6 : 0,
-          vLineWidth: (i: number, node: { table: { widths: unknown[] } }) =>
-            i === node.table.widths.length ? 0.6 : 0,
-          hLineColor: () => accentColor + "35",
-          vLineColor: () => accentColor + "35",
+          hLineWidth: () => 0, vLineWidth: () => 0,
           paddingLeft: () => 0, paddingRight: () => 0, paddingTop: () => 0, paddingBottom: () => 0,
         },
-        margin: [0, 0, 0, 14],
+        margin: [0, 0, 0, 12],
       },
     ],
   };
@@ -984,35 +819,33 @@ function multiSignatoryBlock(
     return { stack: colStack };
   };
 
-  // ── Official round stamp — ellipse-based circle design ──────────────────────
-  const stampDark = adjustColorBrightness(accentColor, -38);
+  // ── Official stamp — clean bordered box, no canvas overlay tricks ──────────
   const presidentSigForStamp = findSig(["president", "syndicate_admin", "super_admin"]);
+  const stampDate = presidentSigForStamp
+    ? presidentSigForStamp.signedAt.toLocaleDateString(dateLocale)
+    : new Date().toLocaleDateString(dateLocale);
   const premiumStamp: unknown = {
-    stack: [
-      // Concentric ellipse canvas — creates real round stamp appearance
-      {
-        canvas: [
-          { type: "ellipse", x: 48, y: 48, r1: 47, r2: 47, color: secondary },
-          { type: "ellipse", x: 48, y: 48, r1: 40, r2: 40, color: accentColor },
-          { type: "ellipse", x: 48, y: 48, r1: 47, r2: 47, lineColor: stampDark, lineWidth: 1.2 },
-          { type: "ellipse", x: 48, y: 48, r1: 40, r2: 40, lineColor: "#ffffff25", lineWidth: 0.6 },
-          { type: "line", x1: 12, y1: 37, x2: 84, y2: 37, lineColor: "#ffffff40", lineWidth: 0.5 },
-          { type: "line", x1: 12, y1: 59, x2: 84, y2: 59, lineColor: "#ffffff40", lineWidth: 0.5 },
+    table: {
+      widths: [108],
+      body: [[{
+        stack: [
+          { text: "CACHET OFFICIEL", fontSize: 5.5, bold: true, color: accentColor, alignment: "center" as const, margin: [0, 10, 0, 4] },
+          { canvas: [{ type: "line", x1: 10, y1: 0, x2: 94, y2: 0, lineWidth: 0.5, lineColor: "#e2e8f0" }] },
+          { text: syndName.slice(0, 22).toUpperCase(), fontSize: 5, bold: true, color: "#374151", alignment: "center" as const, margin: [4, 5, 4, 3], lineHeight: 1.3 },
+          ...(presidentSigForStamp ? [{ text: presidentSigForStamp.signerName.slice(0, 22), fontSize: 4.5, color: "#64748b", italics: true, alignment: "center" as const, margin: [0, 0, 0, 2] }] : []),
+          { canvas: [{ type: "line", x1: 10, y1: 0, x2: 94, y2: 0, lineWidth: 0.5, lineColor: "#e2e8f0" }] },
+          { text: stampDate, fontSize: 4.5, color: "#64748b", alignment: "center" as const, margin: [0, 4, 0, 10] },
         ],
-        width: 96,
-        height: 96,
-      },
-      // Overlay text: negative top margin moves each item up to overlay the canvas
-      { text: "✦", fontSize: 12, bold: true, color: "#ffffff", alignment: "center" as const, margin: [0, -74, 0, 1] },
-      { text: t("officialStamp", lang), fontSize: 5, bold: true, color: "#ffffff", alignment: "center" as const, characterSpacing: 0.4 },
-      { text: syndName.slice(0, 20).toUpperCase(), fontSize: 3.8, color: "#ffffffcc", alignment: "center" as const, margin: [2, 1, 2, 1] },
-      ...(presidentSigForStamp ? [
-        { text: presidentSigForStamp.signerName.slice(0, 20), fontSize: 3.8, color: "#ffffffaa", italics: true, alignment: "center" as const, margin: [0, 0, 0, 1] },
-      ] : []),
-      { text: "syndycat.ma", fontSize: 4, color: "#ffffff80", alignment: "center" as const },
-    ],
-    width: 96,
-    alignment: "center" as const,
+        fillColor: "#f8fafc",
+      }]],
+    },
+    layout: {
+      hLineWidth: (i: number, node: any) => (i === 0 || i === node.table.body.length) ? 1.2 : 0,
+      vLineWidth: (i: number, node: any) => (i === 0 || i === node.table.widths.length) ? 1.2 : 0,
+      hLineColor: () => accentColor,
+      vLineColor: () => accentColor,
+      paddingLeft: () => 0, paddingRight: () => 0, paddingTop: () => 0, paddingBottom: () => 0,
+    },
   };
 
   const presidentSig = findSig(["president", "syndicate_admin", "super_admin"]);
@@ -1077,32 +910,30 @@ function signatureBlock(
         }))
       : [{ text: t("awaitingSignature", lang), style: "signLabel", italics: true }];
 
-  // ── Official round stamp — ellipse-based circle design ──────────────────────
-  const stampBlockDark = adjustColorBrightness(accentColor, -38);
-  const stampBlockSecondary = adjustColorBrightness(accentColor, -22);
+  // ── Official stamp — clean bordered box, no canvas overlay ──────────────────
   const realSig = signatures[0] ?? null;
   const premiumStampBlock: unknown = {
-    stack: [
-      {
-        canvas: [
-          { type: "ellipse", x: 46, y: 46, r1: 45, r2: 45, color: stampBlockSecondary },
-          { type: "ellipse", x: 46, y: 46, r1: 38, r2: 38, color: accentColor },
-          { type: "ellipse", x: 46, y: 46, r1: 45, r2: 45, lineColor: stampBlockDark, lineWidth: 1.2 },
-          { type: "ellipse", x: 46, y: 46, r1: 38, r2: 38, lineColor: "#ffffff25", lineWidth: 0.6 },
-          { type: "line", x1: 10, y1: 36, x2: 82, y2: 36, lineColor: "#ffffff40", lineWidth: 0.5 },
-          { type: "line", x1: 10, y1: 56, x2: 82, y2: 56, lineColor: "#ffffff40", lineWidth: 0.5 },
+    table: {
+      widths: [100],
+      body: [[{
+        stack: [
+          { text: "CACHET OFFICIEL", fontSize: 5.5, bold: true, color: accentColor, alignment: "center" as const, margin: [0, 10, 0, 4] },
+          { canvas: [{ type: "line", x1: 10, y1: 0, x2: 86, y2: 0, lineWidth: 0.5, lineColor: "#e2e8f0" }] },
+          { text: syndName.slice(0, 20).toUpperCase(), fontSize: 5, bold: true, color: "#374151", alignment: "center" as const, margin: [4, 5, 4, 3], lineHeight: 1.3 },
+          ...(realSig ? [{ text: realSig.signerName.slice(0, 20), fontSize: 4.5, color: "#64748b", italics: true, alignment: "center" as const, margin: [0, 0, 0, 2] }] : []),
+          { canvas: [{ type: "line", x1: 10, y1: 0, x2: 86, y2: 0, lineWidth: 0.5, lineColor: "#e2e8f0" }] },
+          { text: realSig ? realSig.signedAt.toLocaleDateString(dateLocale) : new Date().toLocaleDateString(dateLocale), fontSize: 4.5, color: "#64748b", alignment: "center" as const, margin: [0, 4, 0, 10] },
         ],
-        width: 92,
-        height: 92,
-      },
-      { text: "✦", fontSize: 12, bold: true, color: "#ffffff", alignment: "center" as const, margin: [0, -71, 0, 1] },
-      { text: "CACHET OFFICIEL", fontSize: 5, bold: true, color: "#ffffff", alignment: "center" as const, characterSpacing: 0.4 },
-      { text: syndName.slice(0, 20).toUpperCase(), fontSize: 3.8, color: "#ffffffcc", alignment: "center" as const, margin: [2, 1, 2, 1] },
-      ...(realSig ? [{ text: realSig.signerName.slice(0, 20), fontSize: 3.8, italics: true, color: "#ffffffaa", alignment: "center" as const, margin: [0, 0, 0, 1] }] : []),
-      { text: "syndycat.ma", fontSize: 4, color: "#ffffff80", alignment: "center" as const },
-    ],
-    width: 92,
-    alignment: "center" as const,
+        fillColor: "#f8fafc",
+      }]],
+    },
+    layout: {
+      hLineWidth: (i: number, node: any) => (i === 0 || i === node.table.body.length) ? 1.2 : 0,
+      vLineWidth: (i: number, node: any) => (i === 0 || i === node.table.widths.length) ? 1.2 : 0,
+      hLineColor: () => accentColor,
+      vLineColor: () => accentColor,
+      paddingLeft: () => 0, paddingRight: () => 0, paddingTop: () => 0, paddingBottom: () => 0,
+    },
   };
 
   // ── Validity badge ────────────────────────────────────────────────────────
@@ -1146,31 +977,29 @@ function signatureBlock(
         { text: t("awaitingSignature", lang), style: "notice", italics: true },
       ];
 
-  // ── Official round stamp — final single-signatory version ───────────────────
-  const secondary = adjustColorBrightness(accentColor, -22);
-  const stampFinalDark = adjustColorBrightness(accentColor, -38);
+  // ── Official stamp — clean bordered box, reliable rendering ─────────────────
   const premiumStampFinal: unknown = {
-    stack: [
-      {
-        canvas: [
-          { type: "ellipse", x: 49, y: 49, r1: 48, r2: 48, color: secondary },
-          { type: "ellipse", x: 49, y: 49, r1: 41, r2: 41, color: accentColor },
-          { type: "ellipse", x: 49, y: 49, r1: 48, r2: 48, lineColor: stampFinalDark, lineWidth: 1.2 },
-          { type: "ellipse", x: 49, y: 49, r1: 41, r2: 41, lineColor: "#ffffff25", lineWidth: 0.6 },
-          { type: "line", x1: 12, y1: 38, x2: 86, y2: 38, lineColor: "#ffffff40", lineWidth: 0.5 },
-          { type: "line", x1: 12, y1: 60, x2: 86, y2: 60, lineColor: "#ffffff40", lineWidth: 0.5 },
+    table: {
+      widths: [106],
+      body: [[{
+        stack: [
+          { text: "CACHET OFFICIEL", fontSize: 5.5, bold: true, color: accentColor, alignment: "center" as const, margin: [0, 10, 0, 4] },
+          { canvas: [{ type: "line", x1: 10, y1: 0, x2: 92, y2: 0, lineWidth: 0.5, lineColor: "#e2e8f0" }] },
+          { text: syndName.slice(0, 22).toUpperCase(), fontSize: 5, bold: true, color: "#374151", alignment: "center" as const, margin: [4, 5, 4, 3], lineHeight: 1.3 },
+          ...(signatures.length > 0 ? [{ text: signatures[0].signerName.slice(0, 22), fontSize: 4.5, color: "#64748b", italics: true, alignment: "center" as const, margin: [0, 0, 0, 2] }] : []),
+          { canvas: [{ type: "line", x1: 10, y1: 0, x2: 92, y2: 0, lineWidth: 0.5, lineColor: "#e2e8f0" }] },
+          { text: signatures.length > 0 ? signatures[0].signedAt.toLocaleDateString(dateLocale) : new Date().toLocaleDateString(dateLocale), fontSize: 4.5, color: "#64748b", alignment: "center" as const, margin: [0, 4, 0, 10] },
         ],
-        width: 98,
-        height: 98,
-      },
-      { text: "✦", fontSize: 12, bold: true, color: "#ffffff", alignment: "center" as const, margin: [0, -76, 0, 1] },
-      { text: t("officialStamp", lang), fontSize: 5, bold: true, color: "#ffffff", alignment: "center" as const, characterSpacing: 0.4 },
-      { text: syndName.slice(0, 22).toUpperCase(), fontSize: 3.8, color: "#ffffffcc", alignment: "center" as const, margin: [2, 1, 2, 1] },
-      ...(signatures.length > 0 ? [{ text: signatures[0].signerName.slice(0, 22), fontSize: 3.8, italics: true, color: "#ffffffaa", alignment: "center" as const, margin: [0, 0, 0, 1] }] : []),
-      { text: "syndycat.ma", fontSize: 4, color: "#ffffff80", alignment: "center" as const },
-    ],
-    width: 98,
-    alignment: "center" as const,
+        fillColor: "#f8fafc",
+      }]],
+    },
+    layout: {
+      hLineWidth: (i: number, node: any) => (i === 0 || i === node.table.body.length) ? 1.2 : 0,
+      vLineWidth: (i: number, node: any) => (i === 0 || i === node.table.widths.length) ? 1.2 : 0,
+      hLineColor: () => accentColor,
+      vLineColor: () => accentColor,
+      paddingLeft: () => 0, paddingRight: () => 0, paddingTop: () => 0, paddingBottom: () => 0,
+    },
   };
 
   return {
@@ -1217,66 +1046,46 @@ function legalFooterNote(docNumber: string, lang: DocumentLanguage = "fr", verif
     : t("legalFooterNote", lang);
   const text = tmpl.replace(/\{ref\}/g, docNumber);
   const titleLabel =
-    lang === "ar" ? "ملاحظة قانونية رسمية"
-    : lang === "en" ? "LEGAL CERTIFICATION NOTE"
-    : lang === "es" ? "NOTA LEGAL DE CERTIFICACIÓN"
-    : "NOTE LÉGALE DE CERTIFICATION OFFICIELLE";
-
-  // Short doc reference (max 20 chars for badge display)
-  const shortRef = docNumber.length > 18 ? docNumber.slice(0, 15) + "…" : docNumber;
+    lang === "ar" ? "ملاحظة قانونية"
+    : lang === "en" ? "LEGAL CERTIFICATION"
+    : lang === "es" ? "NOTA LEGAL"
+    : "NOTE LÉGALE DE CERTIFICATION";
 
   return {
     table: {
-      widths: [38, "*", 66],
+      widths: [28, "*"],
       body: [[
-        // Left: security icon column (dark blue bg)
+        // Left: lock icon — simple, no canvas tricks
         {
-          stack: [
-            { canvas: [
-              { type: "rect", x: 3, y: 3, w: 28, h: 36, color: "#1e3a5f", r: 3 },
-              { type: "ellipse", x: 17, y: 16, r1: 8, r2: 8, color: "#ffffff18" },
-            ]},
-            { text: "🔐", fontSize: 15, alignment: "center" as const, margin: [0, -32, 0, 4] },
-            { text: "SEC.", fontSize: 4.5, bold: true, color: "#ffffffaa", alignment: "center" as const },
-          ],
-          fillColor: "#0f2d52",
-          border: [false, false, false, false] as [boolean, boolean, boolean, boolean],
-          margin: [0, 0, 0, 0],
-        },
-        // Center: Legal certification text
-        {
-          stack: [
-            { text: titleLabel, fontSize: 7, bold: true, color: "#1e3a5f", margin: [0, 0, 0, 4] },
-            { text, fontSize: 7, color: "#6b7280", lineHeight: 1.45 },
-          ],
-          fillColor: "#eef2ff",
-          margin: [10, 8, 10, 8],
-          border: [false, false, false, false] as [boolean, boolean, boolean, boolean],
-        },
-        // Right: Reference badge column
-        {
-          stack: [
-            { text: "RÉFÉRENCE", fontSize: 5, bold: true, color: "#6b7280", alignment: "center" as const, margin: [0, 0, 0, 2] },
-            { text: shortRef, fontSize: 6.5, bold: true, color: "#1e3a5f", alignment: "center" as const, margin: [0, 0, 0, 4] },
-            { canvas: [{ type: "line", x1: 4, y1: 0, x2: 58, y2: 0, lineWidth: 0.7, lineColor: "#1e3a5f50" }] },
-            { text: "DOCUMENT\nOFFICIEL", fontSize: 5, bold: true, color: "#1e3a5f", alignment: "center" as const, margin: [0, 4, 0, 0], lineHeight: 1.35 },
-          ],
-          fillColor: "#eef2ff",
+          text: "🔒",
+          fontSize: 13,
+          alignment: "center" as const,
           margin: [6, 8, 6, 8],
+          fillColor: "#f8fafc",
+          border: [false, false, false, false] as [boolean, boolean, boolean, boolean],
+        },
+        // Right: title + legal text
+        {
+          stack: [
+            { text: `${titleLabel}  ·  ${docNumber}`, fontSize: 7, bold: true, color: "#374151", margin: [0, 0, 0, 4] },
+            { text, fontSize: 7, color: "#6b7280", lineHeight: 1.4 },
+          ],
+          fillColor: "#f8fafc",
+          margin: [0, 8, 14, 8],
           border: [false, false, false, false] as [boolean, boolean, boolean, boolean],
         },
       ]],
     },
     layout: {
       hLineWidth: (i: number, node: { table: { body: unknown[] } }) =>
-        i === 0 || i === node.table.body.length ? 1 : 0,
+        i === 0 || i === node.table.body.length ? 0.7 : 0,
       vLineWidth: (i: number, node: { table: { widths: unknown[] } }) =>
-        i === 0 || i === node.table.widths.length ? 1 : 0,
-      hLineColor: () => "#c7d2fe",
-      vLineColor: () => "#c7d2fe",
+        i === 0 || i === node.table.widths.length ? 0.7 : 0,
+      hLineColor: () => "#e2e8f0",
+      vLineColor: () => "#e2e8f0",
       paddingLeft: () => 0, paddingRight: () => 0, paddingTop: () => 0, paddingBottom: () => 0,
     },
-    margin: [0, 22, 0, 0],
+    margin: [0, 20, 0, 0],
   };
 }
 
@@ -1943,76 +1752,43 @@ async function buildDocDef(template: DocumentTemplate, input: DocumentInput): Pr
 
   const footer = (page: number, pages: number) => ({
     stack: [
-      // ── Top footer separator — double accent rule ─────────────────────────────
+      // Single thin line + short accent stripe — no duplicate QR (QR is in header)
       {
         canvas: [
           { type: "line", x1: 44, y1: 0, x2: 551, y2: 0, lineWidth: 0.5, lineColor: "#e2e8f0" },
-          { type: "rect", x: 44, y: 0.5, w: 60, h: 1.8, color: accentColor },
-          { type: "rect", x: 44, y: 2.3, w: 515, h: 0.6, color: adjustColorBrightness(accentColor, 50) },
+          { type: "rect", x: 44, y: 0, w: 36, h: 1.5, color: accentColor },
         ],
         margin: [0, 0, 0, 0],
       },
       {
         columns: [
-          // ── Left: Syndicate ID + ref + verify URL (optionally with mini QR) ────
+          // Left: org + ref + verify URL
           {
-            columns: [
-              ...(qrDataUrl ? [{
-                image: qrDataUrl,
-                width: 24,
-                height: 24,
-                margin: [0, 2, 6, 0],
-              }] : []),
-              {
-                stack: [
-                  { text: syndInfo.name.toUpperCase(), fontSize: 6.5, bold: true, color: "#374151", margin: [0, 0, 0, 1] },
-                  { text: `Réf. : ${docNum}   ·   ${today}`, fontSize: 5.5, color: "#9ca3af" },
-                  ...(verifyUrl
-                    ? [{ text: verifyUrl, fontSize: 5, color: accentColor, margin: [0, 1, 0, 0] }]
-                    : []),
-                ],
-                width: "*",
-              },
+            stack: [
+              { text: syndInfo.name, fontSize: 6.5, bold: true, color: "#374151" },
+              { text: `Réf. : ${docNum}   ·   ${today}`, fontSize: 5.5, color: "#9ca3af", margin: [0, 1, 0, 0] },
+              ...(verifyUrl ? [{ text: verifyUrl, fontSize: 5, color: accentColor, margin: [0, 1, 0, 0] }] : []),
             ],
-            columnGap: 0,
             width: "*",
             margin: [44, 5, 0, 4],
           },
-          // ── Center: Status badge + certification label ─────────────────────────
+          // Center: status dot + certification label
           {
             stack: [
-              ...(footerStatus
-                ? [{
-                    table: {
-                      widths: ["auto"],
-                      body: [[{
-                        text: footerStatus.label,
-                        fontSize: 5.5,
-                        bold: true,
-                        color: "#ffffff",
-                        fillColor: footerStatus.color,
-                        alignment: "center" as const,
-                        margin: [7, 2, 7, 2],
-                      }]],
-                    },
-                    layout: { hLineWidth: () => 0, vLineWidth: () => 0, paddingLeft: () => 0, paddingRight: () => 0, paddingTop: () => 0, paddingBottom: () => 0 },
-                  }]
-                : []),
+              ...(footerStatus ? [{ text: footerStatus.label, fontSize: 6, bold: true, color: footerStatus.color, alignment: "center" as const }] : []),
               { text: "Document certifié", fontSize: 5.5, color: "#9ca3af", alignment: "center" as const, margin: [0, 2, 0, 0] },
             ],
             width: 80,
-            alignment: "center" as const,
-            margin: [0, 5, 0, 4],
+            margin: [0, 6, 0, 4],
           },
-          // ── Right: Page number + brand + platform ────────────────────────────
+          // Right: page number + brand
           {
             stack: [
-              { text: `Page  ${page}  /  ${pages}`, fontSize: 7.5, bold: true, color: "#374151", alignment: "right" as const, margin: [0, 0, 0, 2] },
-              { text: "SYNDYCAT GLOBAL CPS", fontSize: 5.5, bold: true, color: accentColor, alignment: "right" as const },
-              { text: "syndycat.ma", fontSize: 5, color: "#9ca3af", alignment: "right" as const, margin: [0, 1, 0, 0] },
+              { text: `${page}  /  ${pages}`, fontSize: 8, bold: true, color: "#374151", alignment: "right" as const },
+              { text: "SYNDYCAT GLOBAL CPS", fontSize: 5.5, bold: true, color: accentColor, alignment: "right" as const, margin: [0, 2, 0, 0] },
             ],
             width: 120,
-            margin: [0, 4, 44, 4],
+            margin: [0, 5, 44, 4],
           },
         ],
       },
