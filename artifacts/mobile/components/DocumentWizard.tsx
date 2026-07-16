@@ -193,6 +193,21 @@ export default function DocumentWizard({ visible, onClose, onComplete }: Props) 
       const { documents: docsApi } = await import("@/services/api");
       const res = await docsApi.autofill();
       setAutofillData(res.data);
+
+      // Pre-populate fields that can be resolved from autofill so validation passes.
+      // Fields remain editable — user can override them (e.g. attestation for a different member).
+      const mi = res.data.memberInfo;
+      const oh = res.data.officeHolders;
+      setFields((prev) => {
+        const prefilled: Record<string, string> = {};
+        // memberName: use logged-in user's name by default; user can change it
+        if (mi.member_name) prefilled.memberName = mi.member_name;
+        // president / secretary auto-fill if template uses those keys
+        if (oh?.president_name)  prefilled.president  = oh.president_name;
+        if (oh?.secretary_name)  prefilled.secretaire = oh.secretary_name;
+        // Merge: existing manual entries win over autofill
+        return { ...prefilled, ...prev };
+      });
     } catch {
       setAutofillData(null); // non-fatal — step 3 still works without it
     } finally {
