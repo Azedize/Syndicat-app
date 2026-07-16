@@ -27,6 +27,7 @@ import { useFavorites } from "@/context/FavoritesContext";
 import { useToast } from "@/context/ToastContext";
 import { useBreakpoints } from "@/hooks/useBreakpoints";
 import { useColors } from "@/hooks/useColors";
+import { useLanguage, type LangCode } from "@/context/LanguageContext";
 import FilterChips from "@/components/FilterChips";
 import SignaturePad, { type SignaturePadHandle } from "@/components/SignaturePad";
 import DocumentWizard from "@/components/DocumentWizard";
@@ -87,6 +88,46 @@ const DOC_TEMPLATES = [
   { id: "t20", name: "Rapport d'activité annuel",  icon: "trending-up"  as const, color: "#0284c7", desc: "Rapport annuel complet des activités du syndicat",category: "finances"    as const, templateId: "rapport_activite"      },
 ];
 
+// ─── Document-detail i18n strings ────────────────────────────────────────────
+
+const DOC_STRINGS: Record<string, Record<LangCode, string>> = {
+  detailTitle:    { fr: "Détails du document",   en: "Document Details",      ar: "تفاصيل الوثيقة",        es: "Detalles del documento"   },
+  preview:        { fr: "APERÇU",                en: "PREVIEW",               ar: "معاينة",                 es: "VISTA PREVIA"             },
+  openPdf:        { fr: "Ouvrir le PDF",         en: "Open PDF",              ar: "فتح ملف PDF",            es: "Abrir PDF"                },
+  metadata:       { fr: "INFORMATIONS",          en: "INFORMATION",           ar: "المعلومات",              es: "INFORMACIÓN"              },
+  docNumber:      { fr: "Numéro",                en: "Number",                ar: "الرقم",                  es: "Número"                   },
+  version:        { fr: "Version",               en: "Version",               ar: "الإصدار",                es: "Versión"                  },
+  category:       { fr: "Catégorie",             en: "Category",              ar: "الفئة",                  es: "Categoría"                },
+  status:         { fr: "Statut",                en: "Status",                ar: "الحالة",                 es: "Estado"                   },
+  createdDate:    { fr: "Créé le",               en: "Created",               ar: "تاريخ الإنشاء",          es: "Creado"                   },
+  updatedDate:    { fr: "Mis à jour",            en: "Updated",               ar: "آخر تحديث",              es: "Actualizado"              },
+  createdBy:      { fr: "Créé par",              en: "Created by",            ar: "أنشأ بواسطة",            es: "Creado por"               },
+  signatureStatus:{ fr: "Signature",             en: "Signature",             ar: "التوقيع",                es: "Firma"                    },
+  verification:   { fr: "Vérification",          en: "Verification",          ar: "التحقق",                 es: "Verificación"             },
+  signed:         { fr: "Signé",                 en: "Signed",                ar: "موقّع",                  es: "Firmado"                  },
+  validated:      { fr: "Validé",                en: "Validated",             ar: "معتمد",                  es: "Validado"                 },
+  pending:        { fr: "En attente",            en: "Pending",               ar: "قيد الانتظار",           es: "Pendiente"                },
+  verified:       { fr: "Vérifié ✓",             en: "Verified ✓",            ar: "تم التحقق ✓",            es: "Verificado ✓"             },
+  notVerified:    { fr: "Non vérifié",           en: "Not verified",          ar: "غير محقق",               es: "No verificado"            },
+  actions:        { fr: "ACTIONS RAPIDES",       en: "QUICK ACTIONS",         ar: "إجراءات سريعة",          es: "ACCIONES RÁPIDAS"         },
+  download:       { fr: "Télécharger",           en: "Download",              ar: "تحميل",                  es: "Descargar"                },
+  share:          { fr: "Partager",              en: "Share",                 ar: "مشاركة",                 es: "Compartir"                },
+  qrVerify:       { fr: "Code QR",              en: "QR Code",               ar: "رمز QR",                 es: "Código QR"                },
+  comments:       { fr: "Commentaires",          en: "Comments",              ar: "التعليقات",              es: "Comentarios"              },
+  history:        { fr: "Historique",            en: "History",               ar: "السجل",                  es: "Historial"                },
+  sign:           { fr: "Signer",                en: "Sign",                  ar: "توقيع",                  es: "Firmar"                   },
+  edit:           { fr: "Modifier",              en: "Edit",                  ar: "تعديل",                  es: "Editar"                   },
+  workflow:       { fr: "FLUX DE VALIDATION",    en: "VALIDATION WORKFLOW",   ar: "مسار الاعتماد",          es: "FLUJO DE VALIDACIÓN"      },
+  currentStatus:  { fr: "Statut actuel",         en: "Current status",        ar: "الحالة الحالية",         es: "Estado actual"            },
+  submitReview:   { fr: "Soumettre pour révision",en:"Submit for review",     ar: "إرسال للمراجعة",         es: "Enviar para revisión"     },
+  approve:        { fr: "Approuver",             en: "Approve",               ar: "اعتماد",                 es: "Aprobar"                  },
+  reject:         { fr: "Rejeter",               en: "Reject",                ar: "رفض",                    es: "Rechazar"                 },
+  publish:        { fr: "Publier",               en: "Publish",               ar: "نشر",                    es: "Publicar"                 },
+  archive:        { fr: "Archiver",              en: "Archive",               ar: "أرشفة",                  es: "Archivar"                 },
+  delete:         { fr: "Supprimer",             en: "Delete",                ar: "حذف",                    es: "Eliminar"                 },
+  fileSize:       { fr: "Taille",                en: "File size",             ar: "الحجم",                  es: "Tamaño"                   },
+};
+
 // ─── Download progress state ──────────────────────────────────────────────────
 
 interface DownloadState {
@@ -120,6 +161,7 @@ export default function DocumentsScreen() {
   const { toggleFavorite, isFavorite } = useFavorites();
   const FAV_ID = "screen-documents";
   const { isWide } = useBreakpoints();
+  const { lang, isRTL } = useLanguage();
   const topPad = isWide ? 0 : (Platform.OS === "web" ? 67 : insets.top);
   const isAdmin = user?.role === "super_admin" || user?.role === "syndicate_admin";
 
@@ -897,197 +939,328 @@ export default function DocumentsScreen() {
         </View>
       ) : null}
 
-      {/* ── Document detail modal ── */}
+      {/* ── Document detail modal — premium enterprise redesign ── */}
       <Modal visible={!!selected} animationType="slide" presentationStyle="pageSheet">
-        {selected ? (
-          <View style={[styles.modal, { backgroundColor: colors.background }]}>
-            <View style={[styles.modalHeader, { borderBottomColor: colors.border }]}>
-              <TouchableOpacity onPress={() => setSelected(null)}>
-                <Feather name="x" size={22} color={colors.mutedForeground} />
-              </TouchableOpacity>
-              <View style={{ flex: 1, marginStart: 12 }}>
-                <Text style={[styles.modalTitle, { color: colors.foreground }]} numberOfLines={2}>
-                  {selected.title}
+        {selected ? (() => {
+          const catColor  = CAT_COLORS[selected.category] ?? colors.primary;
+          const sc        = statusConfig(selected.status);
+          const docRef    = `REF-${selected.id.slice(0, 8).toUpperCase()}`;
+          const isSigned  = selected.status === "signed";
+          const isValid   = selected.status === "validated";
+          const isVerified= ["published", "signed", "validated"].includes(selected.status);
+          return (
+            <View style={[detailStyles.root, { backgroundColor: colors.background }]}>
+
+              {/* ── Modal header ── */}
+              <View style={[detailStyles.header, { backgroundColor: colors.card, borderBottomColor: colors.border }]}>
+                <TouchableOpacity onPress={() => setSelected(null)} style={detailStyles.headerBtn} hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}>
+                  <Feather name="x" size={20} color={colors.mutedForeground} />
+                </TouchableOpacity>
+                <Text style={[detailStyles.headerTitle, { color: colors.foreground }]}>
+                  {DOC_STRINGS.detailTitle[lang]}
                 </Text>
-              </View>
-            </View>
-            <ScrollView contentContainerStyle={{ padding: 20, gap: 16, paddingBottom: 40 }}>
-              {/* Preview area */}
-              <View style={[styles.previewArea, { backgroundColor: (CAT_COLORS[selected.category] ?? colors.primary) + "10", borderColor: (CAT_COLORS[selected.category] ?? colors.primary) + "30" }]}>
-                <View style={[styles.previewIcon, { backgroundColor: (CAT_COLORS[selected.category] ?? colors.primary) + "20" }]}>
-                  <Feather name={CAT_ICONS[selected.category] ?? "file-text"} size={40} color={CAT_COLORS[selected.category] ?? colors.primary} />
+                <View style={[detailStyles.headerDocType, { backgroundColor: catColor + "15" }]}>
+                  <Feather name={CAT_ICONS[selected.category] ?? "file-text"} size={13} color={catColor} />
+                  <Text style={[detailStyles.headerDocTypeText, { color: catColor }]}>
+                    {CATS.find((c) => c.key === selected.category)?.label ?? selected.category}
+                  </Text>
                 </View>
-                <Text style={[styles.previewTitle, { color: colors.foreground }]}>{selected.title}</Text>
-                <Text style={[styles.previewCat, { color: CAT_COLORS[selected.category] ?? colors.primary }]}>
-                  {CATS.find((c) => c.key === selected.category)?.label ?? selected.category}
-                </Text>
-                {(() => { const sc = statusConfig(selected.status); return (
-                  <View style={[styles.docStatus, { backgroundColor: sc.color + "15", marginTop: 4 }]}>
-                    <Text style={[styles.docStatusText, { color: sc.color }]}>{sc.label}</Text>
-                  </View>
-                ); })()}
               </View>
 
-              {/* Meta */}
-              <View style={[styles.metaCard, { backgroundColor: colors.card, borderColor: colors.border }]}>
-                {[
-                  { label: "Date",        value: selected.date },
-                  { label: "Taille",      value: selected.size },
-                  { label: "Catégorie",   value: CATS.find((c) => c.key === selected.category)?.label ?? selected.category },
-                  { label: "Statut",      value: statusConfig(selected.status).label },
-                ].map((item, i) => (
-                  <View key={item.label}>
-                    {i > 0 ? <View style={[styles.sep, { backgroundColor: colors.border }]} /> : null}
-                    <View style={styles.metaRow}>
-                      <Text style={[styles.metaLabel, { color: colors.mutedForeground }]}>{item.label}</Text>
-                      <Text style={[styles.metaValue, { color: colors.foreground }]}>{item.value}</Text>
+              <ScrollView contentContainerStyle={detailStyles.scrollContent} showsVerticalScrollIndicator={false}>
+
+                {/* ── Hero band — title displayed exactly once ── */}
+                <View style={[detailStyles.heroBand, { backgroundColor: catColor }]}>
+                  <View style={detailStyles.heroIconRow}>
+                    <View style={detailStyles.heroIconWrap}>
+                      <Feather name={CAT_ICONS[selected.category] ?? "file-text"} size={26} color="#fff" />
+                    </View>
+                    <View style={{ flex: 1 }}>
+                      <Text style={detailStyles.heroRef}>{docRef}</Text>
+                      <Text style={detailStyles.heroTitle} numberOfLines={3}>{selected.title}</Text>
                     </View>
                   </View>
-                ))}
-              </View>
-
-              {/* Actions */}
-              <View style={{ gap: 10 }}>
-                <TouchableOpacity
-                  style={[styles.primaryAction, { backgroundColor: colors.primary }]}
-                  onPress={() => startDownload(selected)}
-                >
-                  <Feather name="download" size={18} color="#fff" />
-                  <Text style={styles.primaryActionText}>Télécharger ({selected.size})</Text>
-                </TouchableOpacity>
-
-                {/* Standard actions row */}
-                <View style={styles.secondaryActions}>
-                  <TouchableOpacity
-                    style={[styles.secBtn, { borderColor: colors.border, backgroundColor: colors.card }]}
-                    onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); startDownload(selected, "share"); }}
-                  >
-                    <Feather name="share-2" size={16} color={colors.foreground} />
-                    <Text style={[styles.secBtnText, { color: colors.foreground }]}>Partager</Text>
-                  </TouchableOpacity>
-                  <TouchableOpacity
-                    style={[styles.secBtn, { borderColor: colors.border, backgroundColor: colors.card }]}
-                    onPress={() => handlePreview(selected)}
-                  >
-                    <Feather name="eye" size={16} color={colors.foreground} />
-                    <Text style={[styles.secBtnText, { color: colors.foreground }]}>Aperçu PDF</Text>
-                  </TouchableOpacity>
-                  <TouchableOpacity
-                    style={[styles.secBtn, { borderColor: "#06b6d450", backgroundColor: "#06b6d408" }]}
-                    onPress={handleShowQR}
-                  >
-                    <Feather name="grid" size={16} color="#06b6d4" />
-                    <Text style={[styles.secBtnText, { color: "#06b6d4" }]}>QR Code</Text>
-                  </TouchableOpacity>
-                  <TouchableOpacity
-                    style={[styles.secBtn, { borderColor: "#f59e0b50", backgroundColor: "#f59e0b08" }]}
-                    onPress={handleShowComments}
-                  >
-                    <Feather name="message-square" size={16} color="#f59e0b" />
-                    <Text style={[styles.secBtnText, { color: "#f59e0b" }]}>Commentaires</Text>
-                  </TouchableOpacity>
-                  {isAdmin ? (
-                    <TouchableOpacity
-                      style={[styles.secBtn, { borderColor: colors.primary + "50", backgroundColor: colors.primary + "08" }]}
-                      onPress={() => openEdit(selected)}
-                    >
-                      <Feather name="edit-2" size={16} color={colors.primary} />
-                      <Text style={[styles.secBtnText, { color: colors.primary }]}>Modifier</Text>
-                    </TouchableOpacity>
-                  ) : null}
-                  {isAdmin && ["generated", "validated"].includes(selected.status) ? (
-                    <TouchableOpacity
-                      style={[styles.secBtn, { borderColor: "#8b5cf650", backgroundColor: "#8b5cf608" }]}
-                      onPress={openSign}
-                    >
-                      <Feather name="edit-3" size={16} color="#8b5cf6" />
-                      <Text style={[styles.secBtnText, { color: "#8b5cf6" }]}>Signer</Text>
-                    </TouchableOpacity>
-                  ) : null}
+                  <View style={detailStyles.heroBadgeRow}>
+                    <View style={detailStyles.heroPill}>
+                      <Text style={detailStyles.heroPillText}>v1.0</Text>
+                    </View>
+                    <View style={[detailStyles.heroPill, { backgroundColor: "rgba(255,255,255,0.25)" }]}>
+                      <Text style={detailStyles.heroPillText}>{selected.size}</Text>
+                    </View>
+                    <View style={[detailStyles.heroStatusPill, { backgroundColor: "rgba(0,0,0,0.22)" }]}>
+                      <View style={detailStyles.heroStatusDot} />
+                      <Text style={detailStyles.heroStatusText}>{sc.label}</Text>
+                    </View>
+                  </View>
                 </View>
 
-                {/* Workflow actions — admin only, context-sensitive */}
-                {isAdmin ? (
-                  <View style={{ gap: 8 }}>
-                    {/* Submit for review: draft or generated */}
-                    {["draft", "generated"].includes(selected.status) ? (
-                      <TouchableOpacity
-                        style={[styles.primaryAction, { backgroundColor: "#f59e0b", opacity: workflowBusy ? 0.6 : 1 }]}
-                        onPress={handleSubmitForReview}
-                        disabled={workflowBusy}
-                      >
-                        {workflowBusy ? <ActivityIndicator color="#fff" size="small" /> : <Feather name="send" size={17} color="#fff" />}
-                        <Text style={styles.primaryActionText}>Soumettre pour révision</Text>
-                      </TouchableOpacity>
-                    ) : null}
-
-                    {/* Approve / Reject: pending_review */}
-                    {selected.status === "pending_review" ? (
-                      <View style={{ flexDirection: "row", gap: 10 }}>
-                        <TouchableOpacity
-                          style={[styles.primaryAction, { flex: 1, backgroundColor: "#10b981", opacity: workflowBusy ? 0.6 : 1 }]}
-                          onPress={handleApproveDoc}
-                          disabled={workflowBusy}
-                        >
-                          {workflowBusy ? <ActivityIndicator color="#fff" size="small" /> : <Feather name="check" size={17} color="#fff" />}
-                          <Text style={styles.primaryActionText}>Approuver</Text>
-                        </TouchableOpacity>
-                        <TouchableOpacity
-                          style={[styles.primaryAction, { flex: 1, backgroundColor: "#ef4444", opacity: workflowBusy ? 0.6 : 1 }]}
-                          onPress={() => { setRejectReason(""); setShowRejectModal(true); }}
-                          disabled={workflowBusy}
-                        >
-                          <Feather name="x" size={17} color="#fff" />
-                          <Text style={styles.primaryActionText}>Rejeter</Text>
-                        </TouchableOpacity>
+                {/* ── PDF Preview section ── */}
+                <View style={detailStyles.section}>
+                  <Text style={[detailStyles.sectionLabel, { color: colors.mutedForeground }]}>
+                    {DOC_STRINGS.preview[lang]}
+                  </Text>
+                  <TouchableOpacity
+                    style={[detailStyles.pdfCard, { backgroundColor: colors.card, borderColor: colors.border }]}
+                    onPress={() => handlePreview(selected)}
+                    activeOpacity={0.82}
+                  >
+                    <View style={[detailStyles.pdfThumb, { backgroundColor: colors.muted }]}>
+                      {/* Simulated PDF page thumbnail */}
+                      <View style={[detailStyles.pdfPage, { backgroundColor: colors.card, borderColor: colors.border, shadowColor: "#000" }]}>
+                        <View style={[detailStyles.pdfPageHeader, { backgroundColor: catColor + "18" }]} />
+                        {[80, 65, 75, 55, 70].map((w, i) => (
+                          <View key={i} style={[detailStyles.pdfPageLine, { backgroundColor: colors.border, width: `${w}%` as any }]} />
+                        ))}
+                        <View style={[detailStyles.pdfPageLine, { backgroundColor: colors.border, width: "40%" as any }]} />
+                        <View style={{ flex: 1 }} />
+                        <View style={[detailStyles.pdfStamp, { backgroundColor: catColor + "18", borderColor: catColor + "40" }]}>
+                          <Feather name={isVerified ? "check-circle" : "file"} size={12} color={catColor} />
+                        </View>
                       </View>
-                    ) : null}
+                      {/* Shadow overlay */}
+                      <View style={detailStyles.pdfThumbOverlay} />
+                    </View>
+                    <View style={[detailStyles.pdfCardInfo, { borderTopColor: colors.border }]}>
+                      <View style={{ flexDirection: "row", alignItems: "center", gap: 6 }}>
+                        <Feather name="file-text" size={14} color={colors.mutedForeground} />
+                        <Text style={[detailStyles.pdfCardSize, { color: colors.mutedForeground }]}>{selected.size}</Text>
+                        {isVerified ? (
+                          <View style={[detailStyles.verifiedChip, { backgroundColor: "#10b98115" }]}>
+                            <Feather name="shield" size={10} color="#10b981" />
+                            <Text style={[detailStyles.verifiedChipText, { color: "#10b981" }]}>{DOC_STRINGS.verified[lang]}</Text>
+                          </View>
+                        ) : null}
+                      </View>
+                      <View style={[detailStyles.pdfOpenBtn, { backgroundColor: catColor + "18" }]}>
+                        <Feather name="eye" size={14} color={catColor} />
+                        <Text style={[detailStyles.pdfOpenBtnText, { color: catColor }]}>{DOC_STRINGS.openPdf[lang]}</Text>
+                      </View>
+                    </View>
+                  </TouchableOpacity>
+                </View>
 
-                    {/* Publish: validated or signed */}
-                    {["validated", "signed"].includes(selected.status) ? (
+                {/* ── Metadata section — all 9 fields ── */}
+                <View style={detailStyles.section}>
+                  <Text style={[detailStyles.sectionLabel, { color: colors.mutedForeground }]}>
+                    {DOC_STRINGS.metadata[lang]}
+                  </Text>
+                  <View style={[detailStyles.metaCard, { backgroundColor: colors.card, borderColor: colors.border }]}>
+                    {([
+                      { icon: "hash"        as const, label: DOC_STRINGS.docNumber[lang],       value: docRef,                                                  valueColor: undefined                                                                                     },
+                      { icon: "layers"      as const, label: DOC_STRINGS.version[lang],          value: "v1.0",                                                  valueColor: undefined                                                                                     },
+                      { icon: "tag"         as const, label: DOC_STRINGS.category[lang],         value: CATS.find((c) => c.key === selected.category)?.label ?? selected.category,  valueColor: catColor                                                             },
+                      { icon: "activity"    as const, label: DOC_STRINGS.status[lang],           value: sc.label,                                                valueColor: sc.color                                                                                      },
+                      { icon: "calendar"    as const, label: DOC_STRINGS.createdDate[lang],      value: selected.date,                                           valueColor: undefined                                                                                     },
+                      { icon: "refresh-cw"  as const, label: DOC_STRINGS.updatedDate[lang],      value: selected.date,                                           valueColor: undefined                                                                                     },
+                      { icon: "user"        as const, label: DOC_STRINGS.createdBy[lang],        value: user?.name ?? "—",                                       valueColor: undefined                                                                                     },
+                      { icon: "edit-3"      as const, label: DOC_STRINGS.signatureStatus[lang],  value: isSigned ? DOC_STRINGS.signed[lang] : isValid ? DOC_STRINGS.validated[lang] : DOC_STRINGS.pending[lang],  valueColor: isSigned ? "#8b5cf6" : isValid ? "#10b981" : colors.mutedForeground },
+                      { icon: "shield"      as const, label: DOC_STRINGS.verification[lang],     value: isVerified ? DOC_STRINGS.verified[lang] : DOC_STRINGS.notVerified[lang],    valueColor: isVerified ? "#10b981" : colors.mutedForeground                       },
+                    ] as { icon: keyof typeof Feather.glyphMap; label: string; value: string; valueColor: string | undefined }[]).map((item, i, arr) => (
+                      <View key={item.label}>
+                        <View style={detailStyles.metaRow}>
+                          <View style={[detailStyles.metaIconBox, { backgroundColor: colors.muted }]}>
+                            <Feather name={item.icon} size={13} color={item.valueColor ?? colors.mutedForeground} />
+                          </View>
+                          <Text style={[detailStyles.metaLabel, { color: colors.mutedForeground }]}>{item.label}</Text>
+                          <Text style={[detailStyles.metaValue, { color: item.valueColor ?? colors.foreground }]} numberOfLines={1}>
+                            {item.value}
+                          </Text>
+                        </View>
+                        {i < arr.length - 1 ? <View style={[detailStyles.metaSep, { backgroundColor: colors.border }]} /> : null}
+                      </View>
+                    ))}
+                  </View>
+                </View>
+
+                {/* ── Quick actions — responsive 3-column grid ── */}
+                <View style={detailStyles.section}>
+                  <Text style={[detailStyles.sectionLabel, { color: colors.mutedForeground }]}>
+                    {DOC_STRINGS.actions[lang]}
+                  </Text>
+                  <View style={detailStyles.actionsGrid}>
+                    {/* Download */}
+                    <TouchableOpacity
+                      style={[detailStyles.actionCard, { backgroundColor: colors.card, borderColor: colors.border }]}
+                      onPress={() => startDownload(selected)}
+                      activeOpacity={0.78}
+                    >
+                      <View style={[detailStyles.actionIcon, { backgroundColor: colors.primary + "15" }]}>
+                        <Feather name="download" size={20} color={colors.primary} />
+                      </View>
+                      <Text style={[detailStyles.actionCardLabel, { color: colors.foreground }]}>{DOC_STRINGS.download[lang]}</Text>
+                    </TouchableOpacity>
+
+                    {/* Share */}
+                    <TouchableOpacity
+                      style={[detailStyles.actionCard, { backgroundColor: colors.card, borderColor: colors.border }]}
+                      onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); startDownload(selected, "share"); }}
+                      activeOpacity={0.78}
+                    >
+                      <View style={[detailStyles.actionIcon, { backgroundColor: "#3b82f615" }]}>
+                        <Feather name="share-2" size={20} color="#3b82f6" />
+                      </View>
+                      <Text style={[detailStyles.actionCardLabel, { color: colors.foreground }]}>{DOC_STRINGS.share[lang]}</Text>
+                    </TouchableOpacity>
+
+                    {/* QR Code verification */}
+                    <TouchableOpacity
+                      style={[detailStyles.actionCard, { backgroundColor: colors.card, borderColor: colors.border }]}
+                      onPress={handleShowQR}
+                      activeOpacity={0.78}
+                    >
+                      <View style={[detailStyles.actionIcon, { backgroundColor: "#06b6d415" }]}>
+                        <Feather name="grid" size={20} color="#06b6d4" />
+                      </View>
+                      <Text style={[detailStyles.actionCardLabel, { color: colors.foreground }]}>{DOC_STRINGS.qrVerify[lang]}</Text>
+                    </TouchableOpacity>
+
+                    {/* Comments */}
+                    <TouchableOpacity
+                      style={[detailStyles.actionCard, { backgroundColor: colors.card, borderColor: colors.border }]}
+                      onPress={handleShowComments}
+                      activeOpacity={0.78}
+                    >
+                      <View style={[detailStyles.actionIcon, { backgroundColor: "#f59e0b15" }]}>
+                        <Feather name="message-square" size={20} color="#f59e0b" />
+                      </View>
+                      <Text style={[detailStyles.actionCardLabel, { color: colors.foreground }]}>{DOC_STRINGS.comments[lang]}</Text>
+                    </TouchableOpacity>
+
+                    {/* Version history */}
+                    <TouchableOpacity
+                      style={[detailStyles.actionCard, { backgroundColor: colors.card, borderColor: colors.border }]}
+                      onPress={handleShowVersions}
+                      activeOpacity={0.78}
+                    >
+                      <View style={[detailStyles.actionIcon, { backgroundColor: "#64748b15" }]}>
+                        <Feather name="clock" size={20} color="#64748b" />
+                      </View>
+                      <Text style={[detailStyles.actionCardLabel, { color: colors.foreground }]}>{DOC_STRINGS.history[lang]}</Text>
+                    </TouchableOpacity>
+
+                    {/* Sign or Edit depending on status */}
+                    {isAdmin && ["generated", "validated"].includes(selected.status) ? (
                       <TouchableOpacity
-                        style={[styles.primaryAction, { backgroundColor: "#10b981", opacity: workflowBusy ? 0.6 : 1 }]}
-                        onPress={handlePublishDoc}
-                        disabled={workflowBusy}
+                        style={[detailStyles.actionCard, { backgroundColor: colors.card, borderColor: colors.border }]}
+                        onPress={openSign}
+                        activeOpacity={0.78}
                       >
-                        {workflowBusy ? <ActivityIndicator color="#fff" size="small" /> : <Feather name="globe" size={17} color="#fff" />}
-                        <Text style={styles.primaryActionText}>Publier</Text>
+                        <View style={[detailStyles.actionIcon, { backgroundColor: "#8b5cf615" }]}>
+                          <Feather name="edit-3" size={20} color="#8b5cf6" />
+                        </View>
+                        <Text style={[detailStyles.actionCardLabel, { color: colors.foreground }]}>{DOC_STRINGS.sign[lang]}</Text>
+                      </TouchableOpacity>
+                    ) : isAdmin ? (
+                      <TouchableOpacity
+                        style={[detailStyles.actionCard, { backgroundColor: colors.card, borderColor: colors.border }]}
+                        onPress={() => openEdit(selected)}
+                        activeOpacity={0.78}
+                      >
+                        <View style={[detailStyles.actionIcon, { backgroundColor: colors.primary + "15" }]}>
+                          <Feather name="edit-2" size={20} color={colors.primary} />
+                        </View>
+                        <Text style={[detailStyles.actionCardLabel, { color: colors.foreground }]}>{DOC_STRINGS.edit[lang]}</Text>
                       </TouchableOpacity>
                     ) : null}
+                  </View>
+                </View>
 
-                    {/* Archive + Version history + Delete row */}
-                    <View style={{ flexDirection: "row", gap: 8 }}>
-                      {selected.status === "published" ? (
+                {/* ── Validation workflow — admin only ── */}
+                {isAdmin ? (
+                  <View style={detailStyles.section}>
+                    <Text style={[detailStyles.sectionLabel, { color: colors.mutedForeground }]}>
+                      {DOC_STRINGS.workflow[lang]}
+                    </Text>
+                    <View style={[detailStyles.workflowCard, { backgroundColor: colors.card, borderColor: colors.border }]}>
+                      {/* Current status indicator */}
+                      <View style={detailStyles.wfStatusRow}>
+                        <View style={[detailStyles.wfStatusDot, { backgroundColor: sc.color }]} />
+                        <Text style={[detailStyles.wfStatusLabel, { color: colors.mutedForeground }]}>
+                          {DOC_STRINGS.currentStatus[lang]}
+                        </Text>
+                        <View style={[detailStyles.wfStatusChip, { backgroundColor: sc.color + "18" }]}>
+                          <Text style={[detailStyles.wfStatusChipText, { color: sc.color }]}>{sc.label}</Text>
+                        </View>
+                      </View>
+
+                      <View style={[detailStyles.wfDivider, { backgroundColor: colors.border }]} />
+
+                      {/* Submit for review */}
+                      {["draft", "generated"].includes(selected.status) ? (
                         <TouchableOpacity
-                          style={[styles.secBtn, { flex: 1, borderColor: "#64748b50", backgroundColor: "#64748b08", opacity: workflowBusy ? 0.6 : 1 }]}
-                          onPress={handleArchiveDoc}
+                          style={[detailStyles.wfPrimaryBtn, { backgroundColor: "#f59e0b", opacity: workflowBusy ? 0.55 : 1 }]}
+                          onPress={handleSubmitForReview}
                           disabled={workflowBusy}
                         >
-                          <Feather name="archive" size={15} color="#64748b" />
-                          <Text style={[styles.secBtnText, { color: "#64748b" }]}>Archiver</Text>
+                          {workflowBusy ? <ActivityIndicator color="#fff" size="small" /> : <Feather name="send" size={16} color="#fff" />}
+                          <Text style={detailStyles.wfPrimaryBtnText}>{DOC_STRINGS.submitReview[lang]}</Text>
                         </TouchableOpacity>
                       ) : null}
-                      <TouchableOpacity
-                        style={[styles.secBtn, { flex: 1, borderColor: colors.border, backgroundColor: colors.card }]}
-                        onPress={handleShowVersions}
-                      >
-                        <Feather name="clock" size={15} color={colors.foreground} />
-                        <Text style={[styles.secBtnText, { color: colors.foreground }]}>Historique</Text>
-                      </TouchableOpacity>
-                      <TouchableOpacity
-                        style={[styles.secBtn, { flex: 1, borderColor: "#ef444450", backgroundColor: "#ef444408" }]}
-                        onPress={handleDelete}
-                      >
-                        <Feather name="trash-2" size={15} color="#ef4444" />
-                        <Text style={[styles.secBtnText, { color: "#ef4444" }]}>Supprimer</Text>
-                      </TouchableOpacity>
+
+                      {/* Approve / Reject */}
+                      {selected.status === "pending_review" ? (
+                        <View style={{ flexDirection: "row", gap: 10 }}>
+                          <TouchableOpacity
+                            style={[detailStyles.wfPrimaryBtn, { flex: 1, backgroundColor: "#10b981", opacity: workflowBusy ? 0.55 : 1 }]}
+                            onPress={handleApproveDoc}
+                            disabled={workflowBusy}
+                          >
+                            {workflowBusy ? <ActivityIndicator color="#fff" size="small" /> : <Feather name="check" size={16} color="#fff" />}
+                            <Text style={detailStyles.wfPrimaryBtnText}>{DOC_STRINGS.approve[lang]}</Text>
+                          </TouchableOpacity>
+                          <TouchableOpacity
+                            style={[detailStyles.wfPrimaryBtn, { flex: 1, backgroundColor: "#ef4444", opacity: workflowBusy ? 0.55 : 1 }]}
+                            onPress={() => { setRejectReason(""); setShowRejectModal(true); }}
+                            disabled={workflowBusy}
+                          >
+                            <Feather name="x-circle" size={16} color="#fff" />
+                            <Text style={detailStyles.wfPrimaryBtnText}>{DOC_STRINGS.reject[lang]}</Text>
+                          </TouchableOpacity>
+                        </View>
+                      ) : null}
+
+                      {/* Publish */}
+                      {["validated", "signed"].includes(selected.status) ? (
+                        <TouchableOpacity
+                          style={[detailStyles.wfPrimaryBtn, { backgroundColor: "#10b981", opacity: workflowBusy ? 0.55 : 1 }]}
+                          onPress={handlePublishDoc}
+                          disabled={workflowBusy}
+                        >
+                          {workflowBusy ? <ActivityIndicator color="#fff" size="small" /> : <Feather name="globe" size={16} color="#fff" />}
+                          <Text style={detailStyles.wfPrimaryBtnText}>{DOC_STRINGS.publish[lang]}</Text>
+                        </TouchableOpacity>
+                      ) : null}
+
+                      {/* Archive + Delete */}
+                      <View style={{ flexDirection: "row", gap: 10 }}>
+                        {selected.status === "published" ? (
+                          <TouchableOpacity
+                            style={[detailStyles.wfOutlineBtn, { flex: 1, borderColor: "#64748b40", opacity: workflowBusy ? 0.55 : 1 }]}
+                            onPress={handleArchiveDoc}
+                            disabled={workflowBusy}
+                          >
+                            <Feather name="archive" size={14} color="#64748b" />
+                            <Text style={[detailStyles.wfOutlineBtnText, { color: "#64748b" }]}>{DOC_STRINGS.archive[lang]}</Text>
+                          </TouchableOpacity>
+                        ) : null}
+                        <TouchableOpacity
+                          style={[detailStyles.wfOutlineBtn, { flex: 1, borderColor: "#ef444440" }]}
+                          onPress={handleDelete}
+                        >
+                          <Feather name="trash-2" size={14} color="#ef4444" />
+                          <Text style={[detailStyles.wfOutlineBtnText, { color: "#ef4444" }]}>{DOC_STRINGS.delete[lang]}</Text>
+                        </TouchableOpacity>
+                      </View>
                     </View>
                   </View>
                 ) : null}
-              </View>
-            </ScrollView>
-          </View>
-        ) : null}
+
+                {/* bottom padding */}
+                <View style={{ height: 40 }} />
+              </ScrollView>
+            </View>
+          );
+        })() : null}
       </Modal>
 
       {/* ── Signature modal ── */}
@@ -1494,4 +1667,78 @@ const styles = StyleSheet.create({
   commentAvatarText:{ fontSize: 13, fontFamily: "Inter_700Bold" },
   commentAuthor:    { fontSize: 12, fontFamily: "Inter_600SemiBold" },
   commentContent:   { fontSize: 13, fontFamily: "Inter_400Regular", lineHeight: 19 },
+});
+
+// ─── Detail modal styles (premium enterprise redesign) ────────────────────────
+
+const detailStyles = StyleSheet.create({
+  // Root & header
+  root:               { flex: 1 },
+  header:             { flexDirection: "row", alignItems: "center", paddingHorizontal: 16, paddingVertical: 14, borderBottomWidth: 1, gap: 10 },
+  headerBtn:          { width: 34, height: 34, borderRadius: 10, alignItems: "center", justifyContent: "center" },
+  headerTitle:        { flex: 1, fontSize: 15, fontFamily: "Inter_700Bold", textAlign: "center" as const },
+  headerDocType:      { flexDirection: "row", alignItems: "center", gap: 5, paddingHorizontal: 10, paddingVertical: 5, borderRadius: 20 },
+  headerDocTypeText:  { fontSize: 11, fontFamily: "Inter_600SemiBold" },
+
+  // Scroll container
+  scrollContent:      { paddingBottom: 60 },
+
+  // ── Hero band ──
+  heroBand:           { paddingHorizontal: 20, paddingTop: 20, paddingBottom: 18, gap: 14 },
+  heroIconRow:        { flexDirection: "row", alignItems: "flex-start", gap: 14 },
+  heroIconWrap:       { width: 50, height: 50, borderRadius: 15, backgroundColor: "rgba(255,255,255,0.22)", alignItems: "center", justifyContent: "center" },
+  heroRef:            { fontSize: 10, fontFamily: "Inter_700Bold", color: "rgba(255,255,255,0.72)", letterSpacing: 1.4, marginBottom: 5, textTransform: "uppercase" as const },
+  heroTitle:          { fontSize: 17, fontFamily: "Inter_700Bold", color: "#fff", lineHeight: 23 },
+  heroBadgeRow:       { flexDirection: "row", flexWrap: "wrap", gap: 8, alignItems: "center" },
+  heroPill:           { paddingHorizontal: 10, paddingVertical: 4, borderRadius: 20, backgroundColor: "rgba(255,255,255,0.18)" },
+  heroPillText:       { fontSize: 11, fontFamily: "Inter_600SemiBold", color: "rgba(255,255,255,0.92)" },
+  heroStatusPill:     { flexDirection: "row", alignItems: "center", gap: 5, paddingHorizontal: 10, paddingVertical: 4, borderRadius: 20 },
+  heroStatusDot:      { width: 6, height: 6, borderRadius: 3, backgroundColor: "rgba(255,255,255,0.85)" },
+  heroStatusText:     { fontSize: 11, fontFamily: "Inter_700Bold", color: "#fff" },
+
+  // ── Generic section ──
+  section:            { paddingHorizontal: 16, paddingTop: 22 },
+  sectionLabel:       { fontSize: 10, fontFamily: "Inter_700Bold", letterSpacing: 1.3, marginBottom: 10, textTransform: "uppercase" as const },
+
+  // ── PDF preview card ──
+  pdfCard:            { borderRadius: 16, borderWidth: 1, overflow: "hidden" },
+  pdfThumb:           { height: 150, alignItems: "center", justifyContent: "center" },
+  pdfPage:            { width: 88, height: 118, borderRadius: 6, borderWidth: 1, padding: 9, gap: 5, alignItems: "flex-start", shadowOpacity: 0.1, shadowRadius: 6, shadowOffset: { width: 0, height: 3 }, elevation: 3 },
+  pdfPageHeader:      { width: "100%", height: 10, borderRadius: 3, marginBottom: 2 },
+  pdfPageLine:        { height: 5, borderRadius: 3 },
+  pdfStamp:           { position: "absolute", bottom: 7, right: 7, width: 26, height: 26, borderRadius: 13, borderWidth: 1, alignItems: "center", justifyContent: "center" },
+  pdfThumbOverlay:    { position: "absolute", bottom: 0, left: 0, right: 0, height: 30 },
+  pdfCardInfo:        { flexDirection: "row", alignItems: "center", justifyContent: "space-between", paddingHorizontal: 14, paddingVertical: 11, borderTopWidth: 1 },
+  pdfCardSize:        { fontSize: 12, fontFamily: "Inter_400Regular" },
+  verifiedChip:       { flexDirection: "row", alignItems: "center", gap: 4, paddingHorizontal: 7, paddingVertical: 3, borderRadius: 20, marginLeft: 6 },
+  verifiedChipText:   { fontSize: 10, fontFamily: "Inter_600SemiBold" },
+  pdfOpenBtn:         { flexDirection: "row", alignItems: "center", gap: 6, paddingHorizontal: 12, paddingVertical: 8, borderRadius: 10 },
+  pdfOpenBtnText:     { fontSize: 13, fontFamily: "Inter_600SemiBold" },
+
+  // ── Metadata grid ──
+  metaCard:           { borderRadius: 16, borderWidth: 1, overflow: "hidden" },
+  metaRow:            { flexDirection: "row", alignItems: "center", paddingHorizontal: 14, paddingVertical: 12, gap: 10 },
+  metaIconBox:        { width: 28, height: 28, borderRadius: 8, alignItems: "center", justifyContent: "center" },
+  metaLabel:          { flex: 1, fontSize: 13, fontFamily: "Inter_400Regular" },
+  metaValue:          { fontSize: 13, fontFamily: "Inter_600SemiBold", maxWidth: "52%", textAlign: "right" as const },
+  metaSep:            { height: 1, marginHorizontal: 14 },
+
+  // ── Actions grid ──
+  actionsGrid:        { flexDirection: "row", flexWrap: "wrap", gap: 10 },
+  actionCard:         { borderRadius: 14, borderWidth: 1, padding: 14, alignItems: "center", gap: 8, minWidth: "30%", flexGrow: 1, flexBasis: "30%" },
+  actionIcon:         { width: 44, height: 44, borderRadius: 13, alignItems: "center", justifyContent: "center" },
+  actionCardLabel:    { fontSize: 12, fontFamily: "Inter_600SemiBold", textAlign: "center" as const },
+
+  // ── Workflow card ──
+  workflowCard:       { borderRadius: 16, borderWidth: 1, padding: 16, gap: 12 },
+  wfStatusRow:        { flexDirection: "row", alignItems: "center", gap: 8 },
+  wfStatusDot:        { width: 8, height: 8, borderRadius: 4 },
+  wfStatusLabel:      { fontSize: 13, fontFamily: "Inter_400Regular", flex: 1 },
+  wfStatusChip:       { paddingHorizontal: 10, paddingVertical: 4, borderRadius: 20 },
+  wfStatusChipText:   { fontSize: 12, fontFamily: "Inter_700Bold" },
+  wfDivider:          { height: 1 },
+  wfPrimaryBtn:       { flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 8, paddingVertical: 14, borderRadius: 12 },
+  wfPrimaryBtnText:   { fontSize: 14, fontFamily: "Inter_700Bold", color: "#fff" },
+  wfOutlineBtn:       { flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 7, paddingVertical: 12, borderRadius: 12, borderWidth: 1 },
+  wfOutlineBtnText:   { fontSize: 13, fontFamily: "Inter_600SemiBold" },
 });

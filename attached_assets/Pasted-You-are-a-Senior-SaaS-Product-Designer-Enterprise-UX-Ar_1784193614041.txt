@@ -1,0 +1,271 @@
+You are a Senior SaaS Product Designer, Enterprise UX Architect, Document Management Expert, PDF Generation Expert, and Moroccan Condominium Management Expert.
+
+Mission:
+
+Redesign the entire Document Template System of SYNDYCAT GLOBAL CPS into a world-class enterprise-grade document platform.
+
+Do not make small UI improvements.
+
+Create a complete professional Template Management Studio similar to DocuSign, PandaDoc, Odoo Documents, Microsoft Word Online, and Adobe Acrobat.
+
+==================================================
+TEMPLATE MANAGEMENT CENTER
+==========================
+
+Create a dedicated Super Admin module:
+
+Template Studio
+
+The Super Admin must be able to:
+
+* Create Template
+* Edit Template
+* Duplicate Template
+* Archive Template
+* Publish Template
+* Disable Template
+* Restore Template
+* Preview Template
+* Manage Versions
+* Manage Permissions
+
+Display templates by categories:
+
+* Meeting Minutes
+* Financial Documents
+* Legal Documents
+* Elections
+* Contracts
+* Certificates
+* Internal Regulations
+* Administrative Documents
+* Maintenance Documents
+* Insurance Documents
+
+==================================================
+PROFESSIONAL TEMPLATE DESIGNER
+==============================
+
+Create a visual drag-and-drop designer.
+
+No coding required.
+
+Components:
+
+* Logo
+* Header
+* Footer
+* Text Block
+* Table
+* Signature Block
+* Stamp Block
+* QR Code
+* Images
+* Charts
+* Page Break
+* Dynamic Variables
+
+Support:
+
+* Drag & Drop
+* Resize
+* Alignment Guides
+* Grid System
+* Multi-column Layout
+* Responsive Preview
+
+==================================================
+VARIABLE SYSTEM
+===============
+
+Create a variable explorer.
+
+Examples:
+
+{{syndicate_name}}
+{{syndicate_address}}
+{{president_name}}
+{{treasurer_name}}
+{{member_name}}
+{{building_name}}
+{{lot_number}}
+{{document_number}}
+{{issue_date}}
+
+Allow:
+
+* Search Variables
+* Group Variables
+* Preview Values
+
+==================================================
+LIVE PREVIEW
+============
+
+Create real-time preview.
+
+When a user changes:
+
+* Logo
+* Colors
+* Variables
+* Signatures
+* Layout
+
+The preview updates instantly.
+
+Preview modes:
+
+* Desktop
+* A4 PDF
+* Mobile
+
+==================================================
+MULTI-LANGUAGE SYSTEM
+=====================
+
+Every template must support:
+
+* Arabic
+* French
+* English
+* Spanish
+
+Allow language switching instantly.
+
+Support:
+
+* RTL Arabic
+* LTR Languages
+
+Fonts:
+
+Arabic:
+
+* Amiri
+* Cairo
+* Noto Sans Arabic
+
+French/English/Spanish:
+
+* Inter
+* Roboto
+
+==================================================
+SIGNATURE MANAGEMENT
+====================
+
+Support:
+
+* Syndicate President Signature
+* Vice President Signature
+* Treasurer Signature
+* Secretary Signature
+* Syndicate Admin Signature
+
+Display:
+
+* Signatory Name
+* Position
+* Signature Date
+* Digital Signature ID
+
+==================================================
+STAMP MANAGEMENT
+================
+
+Create Official Stamp Manager.
+
+Support:
+
+* Syndicate Stamp
+* Building Stamp
+* Committee Stamp
+
+Display:
+
+* Stamp Image
+* Validation Date
+* Authority
+
+==================================================
+QR VERIFICATION SYSTEM
+======================
+
+Every generated document must contain a QR Code.
+
+When scanned:
+
+Open a public verification page displaying:
+
+* Document Number
+* Document Type
+* Document Status
+* Creation Date
+* Signature Status
+* Verification Status
+* Issuing Syndicate
+
+Possible statuses:
+
+* Valid
+* Signed
+* Pending Signature
+* Archived
+* Cancelled
+* Expired
+* Rejected
+
+==================================================
+VERSION MANAGEMENT
+==================
+
+Every template change creates a new version.
+
+Store:
+
+* Version Number
+* Author
+* Change Description
+* Creation Date
+
+Allow:
+
+* Compare Versions
+* Restore Previous Version
+
+==================================================
+SUPERSTAR DESIGN
+================
+
+Design style:
+
+* Premium SaaS
+* Enterprise Dashboard
+* Glassmorphism
+* Professional Cards
+* Elegant Typography
+* Moroccan Corporate Identity
+* Modern Icons
+* Advanced Statistics
+
+The interface must look worthy of a large national platform managing thousands of syndicates across Morocco.
+
+==================================================
+FINAL DELIVERABLE
+=================
+
+Generate:
+
+1. UX Architecture
+2. Database Design
+3. API Design
+4. Template Studio Design
+5. QR Verification Design
+6. Signature Workflow
+7. Versioning Workflow
+8. Multi-language Workflow
+9. Security Design
+10. Production Readiness Plan
+
+Design a world-class document platform, not a basic PDF generator.

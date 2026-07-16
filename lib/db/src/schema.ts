@@ -2185,6 +2185,82 @@ export const fichesJuridiquesTable = pgTable(
   ],
 );
 
+// ─── Template Definition System ──────────────────────────────────────────────
+// Stores document template metadata, variables, sections, and layout config.
+// Platform-wide templates have syndicateId = null; tenant overrides are scoped.
+
+export const templateDefinitionsTable = pgTable(
+  "template_definitions",
+  {
+    id: id(),
+    // Slug ties this record back to the pdfmake switch (e.g. "attestation", "pv")
+    slug: text("slug").notNull(),
+    // category: meeting_minutes | financial | legal | elections | contracts |
+    //           certificates | regulations | administrative | maintenance | insurance
+    category: text("category").notNull(),
+    name: text("name").notNull(),               // JSON: { fr, ar, en, es }
+    description: text("description"),           // JSON: { fr, ar, en, es }
+    // Structured content (JSON arrays)
+    variables: text("variables").default("[]"), // JSON: VariableDef[]
+    sections: text("sections").default("[]"),   // JSON: SectionDef[]
+    layoutConfig: text("layout_config").default("{}"), // JSON: LayoutConfig
+    // status: draft | published | archived | disabled
+    status: text("status").notNull().default("draft"),
+    // null = platform-wide; set = tenant-specific override
+    syndicateId: text("syndicate_id").references(() => syndicatesTable.id, { onDelete: "cascade" }),
+    languages: text("languages").default('["fr"]'), // JSON: string[]
+    currentVersion: integer("current_version").default(1),
+    usageCount: integer("usage_count").default(0),
+    createdBy: text("created_by").notNull().references(() => usersTable.id, { onDelete: "restrict" }),
+    updatedBy: text("updated_by"),
+    publishedAt: timestamp("published_at"),
+    archivedAt: timestamp("archived_at"),
+    disabledAt: timestamp("disabled_at"),
+    createdAt: createdAt(),
+    updatedAt: timestamp("updated_at").defaultNow(),
+  },
+  (t) => [
+    index("template_definitions_category_idx").on(t.category),
+    index("template_definitions_status_idx").on(t.status),
+    index("template_definitions_syndicate_id_idx").on(t.syndicateId),
+  ],
+);
+
+// Full snapshot of every template save — allows compare & restore
+export const templateDefinitionVersionsTable = pgTable(
+  "template_definition_versions",
+  {
+    id: id(),
+    templateId: text("template_id").notNull().references(() => templateDefinitionsTable.id, { onDelete: "cascade" }),
+    version: integer("version").notNull(),
+    snapshot: text("snapshot").notNull(),           // JSON: complete template at this version
+    changeDescription: text("change_description"),
+    createdBy: text("created_by").notNull().references(() => usersTable.id, { onDelete: "restrict" }),
+    createdAt: createdAt(),
+  },
+  (t) => [
+    index("template_def_versions_template_id_idx").on(t.templateId),
+  ],
+);
+
+// Per-role access control for each template
+export const templateDefinitionPermissionsTable = pgTable(
+  "template_definition_permissions",
+  {
+    id: id(),
+    templateId: text("template_id").notNull().references(() => templateDefinitionsTable.id, { onDelete: "cascade" }),
+    // role: super_admin | syndicate_admin | member | tenant | all
+    role: text("role").notNull(),
+    canUse: boolean("can_use").default(true),
+    canEdit: boolean("can_edit").default(false),
+    canPublish: boolean("can_publish").default(false),
+    createdAt: createdAt(),
+  },
+  (t) => [
+    index("template_def_perms_template_id_idx").on(t.templateId),
+  ],
+);
+
 // ─── Document Comments ────────────────────────────────────────────────────────
 // Threaded comments on documents for review collaboration and notes.
 

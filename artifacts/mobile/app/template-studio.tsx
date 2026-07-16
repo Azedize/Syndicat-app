@@ -1,0 +1,616 @@
+/**
+ * template-studio.tsx — Template Management Studio
+ *
+ * Super-admin-only screen for managing all document template definitions.
+ * Features: stats dashboard, category filter, template cards with lifecycle actions.
+ */
+import { Feather } from "@expo/vector-icons";
+import * as Haptics from "expo-haptics";
+import { router } from "expo-router";
+import React, { useCallback, useEffect, useRef, useState } from "react";
+import {
+  ActivityIndicator,
+  Alert,
+  Animated,
+  FlatList,
+  Modal,
+  Platform,
+  RefreshControl,
+  ScrollView,
+  StyleSheet,
+  Text,
+  TextInput,
+  TouchableOpacity,
+  View,
+} from "react-native";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
+import { useAuth } from "@/context/AuthContext";
+import { useToast } from "@/context/ToastContext";
+import { useColors } from "@/hooks/useColors";
+import RoleGuard from "@/components/RoleGuard";
+
+// ─── Types ────────────────────────────────────────────────────────────────────
+
+interface TemplateDefinition {
+  id: string;
+  slug: string;
+  category: string;
+  name: string | Record<string, string>;
+  description?: string | Record<string, string>;
+  status: "draft" | "published" | "archived" | "disabled";
+  languages: string | string[];
+  currentVersion: number;
+  usageCount: number;
+  syndicateId: string | null;
+  publishedAt: string | null;
+  archivedAt: string | null;
+  createdAt: string;
+  updatedAt: string;
+}
+
+interface StudioStats {
+  total: number;
+  published: number;
+  draft: number;
+  archived: number;
+  disabled: number;
+  totalUsage: number;
+  byCategory: Record<string, number>;
+}
+
+// ─── Constants ────────────────────────────────────────────────────────────────
+
+const CATEGORIES = [
+  { key: "all",             label: "Tous",            icon: "grid"          as const, color: "#7c3aed" },
+  { key: "meeting_minutes", label: "Réunions",        icon: "clipboard"     as const, color: "#3b82f6" },
+  { key: "financial",       label: "Finance",         icon: "dollar-sign"   as const, color: "#10b981" },
+  { key: "legal",           label: "Juridique",       icon: "shield"        as const, color: "#ef4444" },
+  { key: "elections",       label: "Élections",       icon: "check-circle"  as const, color: "#f59e0b" },
+  { key: "contracts",       label: "Contrats",        icon: "file-text"     as const, color: "#0891b2" },
+  { key: "certificates",    label: "Certificats",     icon: "award"         as const, color: "#8b5cf6" },
+  { key: "regulations",     label: "Règlements",      icon: "book"          as const, color: "#06b6d4" },
+  { key: "administrative",  label: "Administratif",   icon: "briefcase"     as const, color: "#16a34a" },
+  { key: "maintenance",     label: "Maintenance",     icon: "tool"          as const, color: "#f97316" },
+  { key: "insurance",       label: "Assurance",       icon: "umbrella"      as const, color: "#ec4899" },
+];
+
+const STATUS_CONFIG = {
+  draft:     { label: "Brouillon",  color: "#f59e0b", bg: "#fef3c720", icon: "edit-2"      as const },
+  published: { label: "Publié",     color: "#16a34a", bg: "#dcfce720", icon: "check-circle" as const },
+  archived:  { label: "Archivé",   color: "#6b7280", bg: "#f3f4f620", icon: "archive"      as const },
+  disabled:  { label: "Désactivé", color: "#dc2626", bg: "#fee2e220", icon: "slash"        as const },
+};
+
+const LANG_FLAGS: Record<string, string> = { fr: "🇫🇷", ar: "🇲🇦", en: "🇬🇧", es: "🇪🇸" };
+
+// ─── Helpers ──────────────────────────────────────────────────────────────────
+
+function parseName(raw: string | Record<string, string> | undefined, lang = "fr"): string {
+  if (!raw) return "—";
+  if (typeof raw === "object") return raw[lang] ?? raw.fr ?? Object.values(raw)[0] ?? "—";
+  try { const p = JSON.parse(raw); return p[lang] ?? p.fr ?? Object.values(p)[0] ?? raw; }
+  catch { return raw as string; }
+}
+
+function parseLangs(raw: string | string[] | undefined): string[] {
+  if (!raw) return ["fr"];
+  if (Array.isArray(raw)) return raw;
+  try { return JSON.parse(raw as string); } catch { return ["fr"]; }
+}
+
+function relativeDate(iso: string): string {
+  const diff = Date.now() - new Date(iso).getTime();
+  const minutes = Math.floor(diff / 60000);
+  if (minutes < 60) return `il y a ${minutes}m`;
+  const hours = Math.floor(minutes / 60);
+  if (hours < 24) return `il y a ${hours}h`;
+  const days = Math.floor(hours / 24);
+  if (days < 30) return `il y a ${days}j`;
+  return new Date(iso).toLocaleDateString("fr-MA");
+}
+
+// ─── API ──────────────────────────────────────────────────────────────────────
+
+async function apiRequest(path: string, method = "GET", body?: object) {
+  const { default: api } = await import("@/services/api");
+  const token = await (api as any).getToken?.();
+  const base = (api as any).baseUrl ?? "";
+  const res = await fetch(`${base}${path}`, {
+    method,
+    headers: { "Content-Type": "application/json", ...(token ? { Authorization: `Bearer ${token}` } : {}) },
+    body: body ? JSON.stringify(body) : undefined,
+  });
+  if (!res.ok) throw new Error(await res.text());
+  return res.json();
+}
+
+// ─── Stat Card ────────────────────────────────────────────────────────────────
+
+function StatCard({ label, value, icon, color }: { label: string; value: number | string; icon: keyof typeof Feather.glyphMap; color: string }) {
+  return (
+    <View style={[styles.statCard, { borderLeftColor: color }]}>
+      <View style={[styles.statIcon, { backgroundColor: color + "22" }]}>
+        <Feather name={icon} size={16} color={color} />
+      </View>
+      <Text style={styles.statValue}>{value}</Text>
+      <Text style={styles.statLabel}>{label}</Text>
+    </View>
+  );
+}
+
+// ─── Template Card ────────────────────────────────────────────────────────────
+
+function TemplateCard({
+  template,
+  onAction,
+}: {
+  template: TemplateDefinition;
+  onAction: (action: string, template: TemplateDefinition) => void;
+}) {
+  const [menuOpen, setMenuOpen] = useState(false);
+  const sc = STATUS_CONFIG[template.status] ?? STATUS_CONFIG.draft;
+  const name = parseName(template.name);
+  const langs = parseLangs(template.languages);
+  const cat = CATEGORIES.find((c) => c.key === template.category);
+
+  return (
+    <View style={styles.card}>
+      {/* Category accent bar */}
+      <View style={[styles.cardAccentBar, { backgroundColor: cat?.color ?? "#7c3aed" }]} />
+
+      <View style={styles.cardInner}>
+        {/* Header */}
+        <View style={styles.cardHeader}>
+          <View style={[styles.cardCatPill, { backgroundColor: (cat?.color ?? "#7c3aed") + "20" }]}>
+            <Feather name={cat?.icon ?? "file"} size={11} color={cat?.color ?? "#7c3aed"} />
+            <Text style={[styles.cardCatText, { color: cat?.color ?? "#7c3aed" }]}>{cat?.label ?? template.category}</Text>
+          </View>
+
+          <View style={styles.cardHeaderRight}>
+            <View style={[styles.statusBadge, { backgroundColor: sc.bg, borderColor: sc.color + "44" }]}>
+              <Feather name={sc.icon} size={10} color={sc.color} />
+              <Text style={[styles.statusText, { color: sc.color }]}>{sc.label}</Text>
+            </View>
+
+            <TouchableOpacity
+              onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); setMenuOpen(true); }}
+              style={styles.menuBtn}
+            >
+              <Feather name="more-vertical" size={17} color="#94a3b8" />
+            </TouchableOpacity>
+          </View>
+        </View>
+
+        {/* Name + slug */}
+        <Text style={styles.cardName} numberOfLines={2}>{name}</Text>
+        <Text style={styles.cardSlug}>slug: {template.slug}</Text>
+
+        {/* Footer */}
+        <View style={styles.cardFooter}>
+          <View style={styles.cardFooterLeft}>
+            <Feather name="layers" size={12} color="#64748b" />
+            <Text style={styles.cardMeta}>v{template.currentVersion}</Text>
+            <View style={styles.dot} />
+            <Feather name="file-text" size={12} color="#64748b" />
+            <Text style={styles.cardMeta}>{template.usageCount} utilisations</Text>
+          </View>
+
+          <View style={styles.langRow}>
+            {langs.slice(0, 4).map((l) => (
+              <Text key={l} style={styles.langFlag}>{LANG_FLAGS[l] ?? l}</Text>
+            ))}
+          </View>
+        </View>
+
+        <Text style={styles.cardDate}>Modifié {relativeDate(template.updatedAt)}</Text>
+      </View>
+
+      {/* Action Sheet Modal */}
+      <Modal visible={menuOpen} transparent animationType="fade" onRequestClose={() => setMenuOpen(false)}>
+        <TouchableOpacity style={styles.menuOverlay} activeOpacity={1} onPress={() => setMenuOpen(false)}>
+          <View style={styles.menuSheet}>
+            <View style={styles.menuHandle} />
+            <Text style={styles.menuTitle}>{name}</Text>
+
+            {[
+              { icon: "edit-2" as const,      label: "Modifier",     action: "edit",      always: true },
+              { icon: "eye" as const,          label: "Prévisualiser", action: "preview",  always: true },
+              { icon: "copy" as const,         label: "Dupliquer",    action: "duplicate", always: true },
+              { icon: "clock" as const,        label: "Versions",     action: "versions",  always: true },
+              { icon: "key" as const,          label: "Permissions",  action: "permissions", always: true },
+              ...(template.status !== "published" ? [{ icon: "globe" as const, label: "Publier", action: "publish", always: false }] : []),
+              ...(template.status === "published" ? [{ icon: "slash" as const, label: "Désactiver", action: "disable", always: false }] : []),
+              ...(template.status !== "archived" ? [{ icon: "archive" as const, label: "Archiver", action: "archive", always: false }] : []),
+              ...(["archived", "disabled"].includes(template.status) ? [{ icon: "refresh-cw" as const, label: "Restaurer", action: "restore", always: false }] : []),
+            ].map((item) => (
+              <TouchableOpacity
+                key={item.action}
+                style={styles.menuItem}
+                onPress={() => {
+                  setMenuOpen(false);
+                  setTimeout(() => onAction(item.action, template), 150);
+                }}
+              >
+                <Feather name={item.icon} size={17} color={item.action === "archive" || item.action === "disable" ? "#ef4444" : "#e2e8f0"} />
+                <Text style={[styles.menuItemText, (item.action === "archive" || item.action === "disable") && { color: "#ef4444" }]}>{item.label}</Text>
+                <Feather name="chevron-right" size={14} color="#475569" />
+              </TouchableOpacity>
+            ))}
+          </View>
+        </TouchableOpacity>
+      </Modal>
+    </View>
+  );
+}
+
+// ─── Main Screen ──────────────────────────────────────────────────────────────
+
+function TemplateStudioContent() {
+  const { user, getAuthHeader } = useAuth();
+  const { showToast } = useToast();
+  const colors = useColors();
+  const insets = useSafeAreaInsets();
+
+  const [templates, setTemplates] = useState<TemplateDefinition[]>([]);
+  const [stats, setStats] = useState<StudioStats | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
+  const [selectedCat, setSelectedCat] = useState("all");
+  const [search, setSearch] = useState("");
+  const [actionLoading, setActionLoading] = useState<string | null>(null);
+
+  const fabAnim = useRef(new Animated.Value(1)).current;
+
+  const loadData = useCallback(async () => {
+    try {
+      const [tmplRes, statsRes] = await Promise.all([
+        apiRequest("/api/template-studio/templates"),
+        apiRequest("/api/template-studio/stats"),
+      ]);
+      setTemplates(tmplRes.data ?? []);
+      setStats(statsRes.data ?? null);
+    } catch (err: any) {
+      showToast("Erreur lors du chargement des templates", "error");
+    } finally {
+      setLoading(false);
+      setRefreshing(false);
+    }
+  }, []);
+
+  useEffect(() => { loadData(); }, [loadData]);
+
+  const onRefresh = () => { setRefreshing(true); loadData(); };
+
+  const filteredTemplates = templates.filter((t) => {
+    if (selectedCat !== "all" && t.category !== selectedCat) return false;
+    if (search.trim()) {
+      const q = search.toLowerCase();
+      const name = parseName(t.name).toLowerCase();
+      return name.includes(q) || t.slug.includes(q) || t.category.includes(q);
+    }
+    return true;
+  });
+
+  const handleAction = async (action: string, template: TemplateDefinition) => {
+    if (action === "edit") {
+      router.push({ pathname: "/template-editor", params: { id: template.id } });
+      return;
+    }
+    if (action === "versions" || action === "permissions" || action === "preview") {
+      router.push({ pathname: "/template-editor", params: { id: template.id, tab: action } });
+      return;
+    }
+    if (action === "duplicate") {
+      Alert.prompt(
+        "Dupliquer le template",
+        "Entrez le slug du nouveau template (ex: attestation_v2) :",
+        async (newSlug) => {
+          if (!newSlug?.trim()) return;
+          try {
+            setActionLoading(template.id);
+            await apiRequest(`/api/template-studio/templates/${template.id}/duplicate`, "POST", { newSlug: newSlug.trim() });
+            showToast("Template dupliqué avec succès", "success");
+            loadData();
+          } catch {
+            showToast("Erreur lors de la duplication", "error");
+          } finally {
+            setActionLoading(null);
+          }
+        },
+        "plain-text",
+        `${template.slug}_copie`,
+      );
+      return;
+    }
+
+    const actionMap: Record<string, { label: string; confirm: string; successMsg: string }> = {
+      publish:  { label: "Publier",    confirm: `Publier "${parseName(template.name)}" ? Il sera accessible à tous les utilisateurs autorisés.`, successMsg: "Template publié" },
+      archive:  { label: "Archiver",   confirm: `Archiver "${parseName(template.name)}" ? Il ne pourra plus être utilisé.`,                       successMsg: "Template archivé" },
+      restore:  { label: "Restaurer",  confirm: `Restaurer "${parseName(template.name)}" en brouillon ?`,                                          successMsg: "Template restauré" },
+      disable:  { label: "Désactiver", confirm: `Désactiver "${parseName(template.name)}" ?`,                                                      successMsg: "Template désactivé" },
+    };
+
+    const cfg = actionMap[action];
+    if (!cfg) return;
+
+    Alert.alert(cfg.label, cfg.confirm, [
+      { text: "Annuler", style: "cancel" },
+      {
+        text: cfg.label,
+        style: action === "archive" || action === "disable" ? "destructive" : "default",
+        onPress: async () => {
+          try {
+            setActionLoading(template.id);
+            await apiRequest(`/api/template-studio/templates/${template.id}/${action}`, "POST");
+            showToast(cfg.successMsg, "success");
+            loadData();
+          } catch {
+            showToast("Erreur lors de l'action", "error");
+          } finally {
+            setActionLoading(null);
+          }
+        },
+      },
+    ]);
+  };
+
+  const handleCreate = () => {
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+    Animated.sequence([
+      Animated.timing(fabAnim, { toValue: 0.9, duration: 100, useNativeDriver: true }),
+      Animated.spring(fabAnim, { toValue: 1, useNativeDriver: true }),
+    ]).start();
+    router.push({ pathname: "/template-editor", params: { mode: "create" } });
+  };
+
+  return (
+    <View style={[styles.root, { backgroundColor: "#0f172a" }]}>
+      {/* Header */}
+      <View style={[styles.header, { paddingTop: insets.top + 12 }]}>
+        <TouchableOpacity onPress={() => router.back()} style={styles.backBtn}>
+          <Feather name="arrow-left" size={22} color="#e2e8f0" />
+        </TouchableOpacity>
+        <View style={styles.headerCenter}>
+          <Text style={styles.headerTitle}>Template Studio</Text>
+          <Text style={styles.headerSub}>Gestionnaire de modèles de documents</Text>
+        </View>
+        <View style={[styles.headerBadge, { backgroundColor: "#7c3aed22" }]}>
+          <Feather name="layers" size={14} color="#a78bfa" />
+          <Text style={styles.headerBadgeText}>{stats?.total ?? "—"}</Text>
+        </View>
+      </View>
+
+      <ScrollView
+        style={styles.scroll}
+        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor="#7c3aed" />}
+        showsVerticalScrollIndicator={false}
+      >
+        {/* Stats Strip */}
+        {stats && (
+          <View style={styles.statsStrip}>
+            <StatCard label="Publiés"      value={stats.published}  icon="check-circle" color="#16a34a" />
+            <StatCard label="Brouillons"   value={stats.draft}      icon="edit-2"       color="#f59e0b" />
+            <StatCard label="Archivés"     value={stats.archived}   icon="archive"      color="#6b7280" />
+            <StatCard label="Utilisations" value={stats.totalUsage} icon="bar-chart-2"  color="#7c3aed" />
+          </View>
+        )}
+
+        {/* Search */}
+        <View style={styles.searchWrap}>
+          <Feather name="search" size={16} color="#64748b" style={styles.searchIcon} />
+          <TextInput
+            style={styles.searchInput}
+            value={search}
+            onChangeText={setSearch}
+            placeholder="Rechercher un template..."
+            placeholderTextColor="#475569"
+          />
+          {search.length > 0 && (
+            <TouchableOpacity onPress={() => setSearch("")}>
+              <Feather name="x" size={16} color="#64748b" />
+            </TouchableOpacity>
+          )}
+        </View>
+
+        {/* Category Tabs */}
+        <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.catScroll} contentContainerStyle={styles.catContent}>
+          {CATEGORIES.map((cat) => {
+            const active = selectedCat === cat.key;
+            const count = cat.key === "all" ? templates.length : templates.filter((t) => t.category === cat.key).length;
+            return (
+              <TouchableOpacity
+                key={cat.key}
+                style={[styles.catChip, active && { backgroundColor: cat.color, borderColor: cat.color }]}
+                onPress={() => { Haptics.selectionAsync(); setSelectedCat(cat.key); }}
+              >
+                <Feather name={cat.icon} size={13} color={active ? "#fff" : cat.color} />
+                <Text style={[styles.catLabel, active && { color: "#fff" }]}>{cat.label}</Text>
+                <View style={[styles.catCount, { backgroundColor: active ? "#ffffff33" : cat.color + "22" }]}>
+                  <Text style={[styles.catCountText, { color: active ? "#fff" : cat.color }]}>{count}</Text>
+                </View>
+              </TouchableOpacity>
+            );
+          })}
+        </ScrollView>
+
+        {/* Results header */}
+        <View style={styles.resultsHeader}>
+          <Text style={styles.resultsCount}>
+            {filteredTemplates.length} template{filteredTemplates.length !== 1 ? "s" : ""}
+          </Text>
+          <TouchableOpacity onPress={handleCreate} style={styles.addInlineBtn}>
+            <Feather name="plus" size={14} color="#a78bfa" />
+            <Text style={styles.addInlineText}>Nouveau</Text>
+          </TouchableOpacity>
+        </View>
+
+        {/* Template List */}
+        {loading ? (
+          <View style={styles.loadingWrap}>
+            <ActivityIndicator size="large" color="#7c3aed" />
+            <Text style={styles.loadingText}>Chargement des templates...</Text>
+          </View>
+        ) : filteredTemplates.length === 0 ? (
+          <View style={styles.emptyWrap}>
+            <View style={styles.emptyIcon}>
+              <Feather name="layers" size={36} color="#7c3aed" />
+            </View>
+            <Text style={styles.emptyTitle}>Aucun template trouvé</Text>
+            <Text style={styles.emptyDesc}>
+              {search ? `Aucun résultat pour "${search}"` : "Créez votre premier template pour cette catégorie."}
+            </Text>
+            {!search && (
+              <TouchableOpacity style={styles.emptyBtn} onPress={handleCreate}>
+                <Feather name="plus" size={16} color="#fff" />
+                <Text style={styles.emptyBtnText}>Créer un template</Text>
+              </TouchableOpacity>
+            )}
+          </View>
+        ) : (
+          <View style={styles.listWrap}>
+            {filteredTemplates.map((t) => (
+              <View key={t.id} style={actionLoading === t.id ? { opacity: 0.5 } : undefined}>
+                <TemplateCard template={t} onAction={handleAction} />
+              </View>
+            ))}
+          </View>
+        )}
+
+        <View style={{ height: insets.bottom + 100 }} />
+      </ScrollView>
+
+      {/* Floating Action Button */}
+      <Animated.View style={[styles.fabWrap, { bottom: insets.bottom + 24, transform: [{ scale: fabAnim }] }]}>
+        <TouchableOpacity style={styles.fab} onPress={handleCreate} activeOpacity={0.85}>
+          <Feather name="plus" size={24} color="#fff" />
+        </TouchableOpacity>
+      </Animated.View>
+    </View>
+  );
+}
+
+export default function TemplateStudio() {
+  return (
+    <RoleGuard roles={["super_admin"]} fallback={
+      <View style={{ flex: 1, alignItems: "center", justifyContent: "center", backgroundColor: "#0f172a" }}>
+        <Feather name="lock" size={40} color="#ef4444" />
+        <Text style={{ color: "#e2e8f0", marginTop: 16, fontSize: 16 }}>Accès réservé au Super Administrateur</Text>
+      </View>
+    }>
+      <TemplateStudioContent />
+    </RoleGuard>
+  );
+}
+
+// ─── Styles ───────────────────────────────────────────────────────────────────
+
+const styles = StyleSheet.create({
+  root:           { flex: 1 },
+  scroll:         { flex: 1 },
+
+  // Header
+  header:         { flexDirection: "row", alignItems: "center", paddingHorizontal: 20, paddingBottom: 16,
+                    borderBottomWidth: 1, borderBottomColor: "#1e293b", gap: 12 },
+  backBtn:        { width: 38, height: 38, borderRadius: 19, backgroundColor: "#1e293b",
+                    alignItems: "center", justifyContent: "center" },
+  headerCenter:   { flex: 1 },
+  headerTitle:    { fontSize: 18, fontWeight: "700", color: "#f1f5f9", letterSpacing: -0.3 },
+  headerSub:      { fontSize: 11, color: "#64748b", marginTop: 1 },
+  headerBadge:    { flexDirection: "row", alignItems: "center", gap: 5, paddingHorizontal: 10,
+                    paddingVertical: 6, borderRadius: 20, borderWidth: 1, borderColor: "#7c3aed33" },
+  headerBadgeText:{ fontSize: 13, fontWeight: "700", color: "#a78bfa" },
+
+  // Stats
+  statsStrip:     { flexDirection: "row", paddingHorizontal: 16, paddingVertical: 16, gap: 10 },
+  statCard:       { flex: 1, backgroundColor: "#1e293b", borderRadius: 14, padding: 12,
+                    borderLeftWidth: 3, alignItems: "flex-start" },
+  statIcon:       { width: 28, height: 28, borderRadius: 8, alignItems: "center", justifyContent: "center",
+                    marginBottom: 8 },
+  statValue:      { fontSize: 20, fontWeight: "800", color: "#f1f5f9", letterSpacing: -0.5 },
+  statLabel:      { fontSize: 10, color: "#64748b", marginTop: 2, fontWeight: "500" },
+
+  // Search
+  searchWrap:     { flexDirection: "row", alignItems: "center", marginHorizontal: 16, marginBottom: 12,
+                    backgroundColor: "#1e293b", borderRadius: 14, paddingHorizontal: 14,
+                    borderWidth: 1, borderColor: "#334155" },
+  searchIcon:     { marginRight: 8 },
+  searchInput:    { flex: 1, height: 44, color: "#f1f5f9", fontSize: 14 },
+
+  // Category chips
+  catScroll:      { marginBottom: 4 },
+  catContent:     { paddingHorizontal: 16, paddingVertical: 8, gap: 8, flexDirection: "row" },
+  catChip:        { flexDirection: "row", alignItems: "center", gap: 6, paddingHorizontal: 12,
+                    paddingVertical: 8, borderRadius: 100, borderWidth: 1.5, borderColor: "#334155",
+                    backgroundColor: "#1e293b" },
+  catLabel:       { fontSize: 12, fontWeight: "600", color: "#94a3b8" },
+  catCount:       { minWidth: 20, height: 18, borderRadius: 9, alignItems: "center",
+                    justifyContent: "center", paddingHorizontal: 5 },
+  catCountText:   { fontSize: 10, fontWeight: "700" },
+
+  // Results header
+  resultsHeader:  { flexDirection: "row", alignItems: "center", justifyContent: "space-between",
+                    paddingHorizontal: 16, marginBottom: 4, marginTop: 4 },
+  resultsCount:   { fontSize: 12, color: "#64748b", fontWeight: "500" },
+  addInlineBtn:   { flexDirection: "row", alignItems: "center", gap: 4, paddingHorizontal: 10,
+                    paddingVertical: 5, borderRadius: 8, backgroundColor: "#7c3aed22" },
+  addInlineText:  { fontSize: 12, color: "#a78bfa", fontWeight: "600" },
+
+  // Template list
+  listWrap:       { paddingHorizontal: 16, gap: 12, paddingTop: 8 },
+  card:           { backgroundColor: "#1e293b", borderRadius: 18, overflow: "hidden",
+                    borderWidth: 1, borderColor: "#334155", flexDirection: "row" },
+  cardAccentBar:  { width: 4, borderRadius: 2 },
+  cardInner:      { flex: 1, padding: 16 },
+  cardHeader:     { flexDirection: "row", alignItems: "center", justifyContent: "space-between", marginBottom: 10 },
+  cardCatPill:    { flexDirection: "row", alignItems: "center", gap: 4, paddingHorizontal: 8,
+                    paddingVertical: 4, borderRadius: 20 },
+  cardCatText:    { fontSize: 10, fontWeight: "600" },
+  cardHeaderRight:{ flexDirection: "row", alignItems: "center", gap: 8 },
+  statusBadge:    { flexDirection: "row", alignItems: "center", gap: 4, paddingHorizontal: 8,
+                    paddingVertical: 4, borderRadius: 20, borderWidth: 1 },
+  statusText:     { fontSize: 10, fontWeight: "700" },
+  menuBtn:        { width: 30, height: 30, alignItems: "center", justifyContent: "center" },
+  cardName:       { fontSize: 15, fontWeight: "700", color: "#f1f5f9", lineHeight: 21, marginBottom: 4 },
+  cardSlug:       { fontSize: 11, color: "#475569", fontFamily: Platform.OS === "ios" ? "Menlo" : "monospace",
+                    marginBottom: 12 },
+  cardFooter:     { flexDirection: "row", alignItems: "center", justifyContent: "space-between" },
+  cardFooterLeft: { flexDirection: "row", alignItems: "center", gap: 4 },
+  cardMeta:       { fontSize: 11, color: "#64748b" },
+  dot:            { width: 3, height: 3, borderRadius: 1.5, backgroundColor: "#334155", marginHorizontal: 2 },
+  langRow:        { flexDirection: "row", gap: 3 },
+  langFlag:       { fontSize: 14 },
+  cardDate:       { fontSize: 10, color: "#475569", marginTop: 8 },
+
+  // Action menu
+  menuOverlay:    { flex: 1, backgroundColor: "rgba(0,0,0,0.6)", justifyContent: "flex-end" },
+  menuSheet:      { backgroundColor: "#1e293b", borderTopLeftRadius: 28, borderTopRightRadius: 28,
+                    paddingHorizontal: 20, paddingBottom: 32, paddingTop: 12,
+                    borderWidth: 1, borderBottomWidth: 0, borderColor: "#334155" },
+  menuHandle:     { width: 36, height: 4, borderRadius: 2, backgroundColor: "#334155",
+                    alignSelf: "center", marginBottom: 16 },
+  menuTitle:      { fontSize: 16, fontWeight: "700", color: "#f1f5f9", marginBottom: 16, textAlign: "center" },
+  menuItem:       { flexDirection: "row", alignItems: "center", gap: 14, paddingVertical: 14,
+                    borderBottomWidth: 1, borderBottomColor: "#1e293b" },
+  menuItemText:   { flex: 1, fontSize: 15, color: "#e2e8f0", fontWeight: "500" },
+
+  // Loading / empty
+  loadingWrap:    { alignItems: "center", justifyContent: "center", paddingVertical: 60 },
+  loadingText:    { color: "#64748b", marginTop: 12, fontSize: 14 },
+  emptyWrap:      { alignItems: "center", justifyContent: "center", paddingVertical: 60, paddingHorizontal: 40 },
+  emptyIcon:      { width: 80, height: 80, borderRadius: 24, backgroundColor: "#7c3aed11",
+                    alignItems: "center", justifyContent: "center", marginBottom: 20,
+                    borderWidth: 1, borderColor: "#7c3aed33" },
+  emptyTitle:     { fontSize: 18, fontWeight: "700", color: "#f1f5f9", marginBottom: 8 },
+  emptyDesc:      { fontSize: 13, color: "#64748b", textAlign: "center", lineHeight: 20 },
+  emptyBtn:       { flexDirection: "row", alignItems: "center", gap: 8, marginTop: 24,
+                    backgroundColor: "#7c3aed", paddingHorizontal: 20, paddingVertical: 12,
+                    borderRadius: 12 },
+  emptyBtnText:   { color: "#fff", fontWeight: "700", fontSize: 14 },
+
+  // FAB
+  fabWrap:        { position: "absolute", right: 24 },
+  fab:            { width: 56, height: 56, borderRadius: 28, backgroundColor: "#7c3aed",
+                    alignItems: "center", justifyContent: "center",
+                    shadowColor: "#7c3aed", shadowOffset: { width: 0, height: 8 },
+                    shadowOpacity: 0.5, shadowRadius: 16, elevation: 12 },
+});
