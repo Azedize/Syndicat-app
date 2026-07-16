@@ -186,11 +186,12 @@ function buildStyles(accentColor: string) {
     docTypeLabel:     { font: PRIMARY_FONT, fontSize: 11.5, bold: true,  color: "#ffffff" },
     docCategoryBadge: { font: PRIMARY_FONT, fontSize: 6,    bold: true,  color: "#ffffff" },
 
-    // ── Document titles — full 7-level hierarchy ────────────────────────────────
-    // docTitle is the PRIMARY VISUAL ANCHOR of each document — must dominate the page
-    displayTitle:     { font: PRIMARY_FONT, fontSize: 26,   bold: true,  color: "#ffffff" },
-    docTitle:         { font: PRIMARY_FONT, fontSize: 30,   bold: true,  color: "#1e1b4b", characterSpacing: 0.3 },
-    docSubtitle:      { font: PRIMARY_FONT, fontSize: 11,   color: "#6b7280", italics: true },
+    // ── Document titles — 6-level clear hierarchy ───────────────────────────────
+    // ONE primary title per document — the category strip in the header handles
+    // "what kind", docTitle handles "this specific instance". Never both at large size.
+    displayTitle:     { font: PRIMARY_FONT, fontSize: 22,   bold: true,  color: "#ffffff" },
+    docTitle:         { font: PRIMARY_FONT, fontSize: 17,   bold: true,  color: "#1e1b4b", characterSpacing: 0.2 },
+    docSubtitle:      { font: PRIMARY_FONT, fontSize: 10,   color: "#6b7280", italics: true },
     docRef:           { font: PRIMARY_FONT, fontSize: 8.5,  color: "#6b7280" },
     subsectionTitle:  { font: PRIMARY_FONT, fontSize: 9,    bold: true,  color: "#1e1b4b" },
 

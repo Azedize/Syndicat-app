@@ -1,0 +1,126 @@
+The current PDF redesign is not sufficient.
+
+After visual inspection of generated documents, the templates still look like generic reports rather than enterprise-grade official documents.
+
+The problem is not only colors.
+
+The entire visual system must be audited.
+
+Currently only text colors are changing while layouts, cards, tables, sections, signatures, and visual hierarchy remain almost identical.
+
+First audit the generated PDF shown in the screenshots.
+
+Identify every visual inconsistency.
+
+The document title hierarchy is broken.
+
+For example:
+
+"ATTESTATION DE RÉSIDENCE"
+
+and
+
+"PV Réunion"
+
+appear together and compete visually.
+
+Only one primary title should exist.
+
+Redesign the complete typography hierarchy.
+
+Implement:
+
+* Main Title
+* Subtitle
+* Metadata Labels
+* Section Titles
+* Body Content
+* Legal Notes
+
+Each level must have clear visual separation.
+
+The signature system is not working correctly.
+
+The PDF currently displays:
+
+"En attente de signature"
+
+instead of the real signature.
+
+Audit the complete signature pipeline:
+
+* database
+* API
+* storage
+* PDF renderer
+
+Display:
+
+* real signature image
+* signer name
+* signer role
+* signing date
+
+The official stamp is visually weak.
+
+Replace the current simple green circle.
+
+Design a realistic administrative seal.
+
+Include:
+
+* syndicate name
+* validation status
+* official appearance
+* professional layout
+
+The document tables currently look like exported spreadsheets.
+
+Redesign all tables.
+
+Financial documents should resemble ERP reports.
+
+Certificates should resemble government certificates.
+
+Meeting reports should resemble governance reports.
+
+Contracts should resemble legal documents.
+
+The current layout wastes vertical space.
+
+Optimize spacing.
+
+Reduce unnecessary margins.
+
+Increase useful content area.
+
+The PDF must not look like a template generated from a form.
+
+It must look like an official document issued by a professional organization.
+
+Audit every template individually.
+
+Do not apply one design to all templates.
+
+Create dedicated layouts for:
+
+* Certificates
+* Financial Reports
+* Contracts
+* Elections
+* Meetings
+* Legal Documents
+* Administrative Documents
+
+The final objective is to reach the visual quality of:
+
+* SAP
+* Oracle
+* Microsoft Dynamics
+* Government Administration
+* Banking Documents
+
+Implement the redesign.
+
+Do not only modify colors.
+Redesign the entire visual structure.
