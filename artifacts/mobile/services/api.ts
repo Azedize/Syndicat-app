@@ -606,6 +606,34 @@ export const documents = {
   // QR code image (returns { qrDataUrl })
   qrCode: (id: string) =>
     request<{ qrDataUrl: string; verifyUrl: string }>(`/documents/${id}/qr`),
+  // Template catalog — all 21 templates with sections + variables + data sources
+  templates: () =>
+    request<{ data: Array<{
+      id: string; name: string; category: string; description: string;
+      icon: string; color: string; version: string; author: string; updatedAt: string;
+      sections: Array<{ title: string; description: string; source: string }>;
+      variables: Array<{ name: string; label: string; source: string; required: boolean }>;
+      requiredInputs: string[];
+    }> }>("/documents/templates"),
+  // Preview — resolve DB variable values without generating a PDF
+  preview: (params: { templateId: string; buildingId?: string; memberName?: string; language?: string }) =>
+    request<{ data: {
+      templateId: string;
+      syndicateInfo: Record<string, string | null>;
+      propertyInfo: Record<string, unknown> | null;
+      officeHolders: Record<string, unknown> | null;
+      resolvedVariables: Record<string, string | null>;
+      resolvedAt: string;
+    } }>("/documents/preview", {
+      method: "POST",
+      body: JSON.stringify(params),
+    }),
+  // Full generate with all extra fields
+  generateFull: (body: Record<string, unknown>) =>
+    request<{ data: unknown }>("/documents", {
+      method: "POST",
+      body: JSON.stringify(body),
+    }),
 };
 
 // ─── Publications ─────────────────────────────────────────────────────────────

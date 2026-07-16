@@ -29,6 +29,7 @@ import { useBreakpoints } from "@/hooks/useBreakpoints";
 import { useColors } from "@/hooks/useColors";
 import FilterChips from "@/components/FilterChips";
 import SignaturePad, { type SignaturePadHandle } from "@/components/SignaturePad";
+import DocumentWizard from "@/components/DocumentWizard";
 
 // ─── Constants ────────────────────────────────────────────────────────────────
 
@@ -1133,125 +1134,15 @@ export default function DocumentsScreen() {
         </View>
       </Modal>
 
-      {/* ── Generate modal ── */}
-      <Modal visible={showGenerate} animationType="slide" presentationStyle="pageSheet">
-        <View style={[styles.modal, { backgroundColor: colors.background }]}>
-          <View style={[styles.modalHeader, { borderBottomColor: colors.border }]}>
-            <Text style={[styles.modalTitle, { color: colors.foreground }]}>Générer un document</Text>
-            <TouchableOpacity onPress={() => { setShowGenerate(false); setSelectedTemplate(null); }}>
-              <Feather name="x" size={22} color={colors.mutedForeground} />
-            </TouchableOpacity>
-          </View>
-          <ScrollView contentContainerStyle={{ padding: 20, gap: 16, paddingBottom: 40 }}>
-            <Text style={[styles.genSectionLabel, { color: colors.mutedForeground }]}>CHOISIR UN MODÈLE</Text>
-            <View style={styles.templatesGrid}>
-              {DOC_TEMPLATES.map((t) => (
-                <TouchableOpacity
-                  key={t.id}
-                  style={[
-                    styles.templateCard,
-                    {
-                      backgroundColor: colors.card,
-                      borderColor:     selectedTemplate?.id === t.id ? t.color : colors.border,
-                      borderWidth:     selectedTemplate?.id === t.id ? 2 : 1,
-                    },
-                  ]}
-                  onPress={() => setSelectedTemplate(t)}
-                >
-                  <View style={[styles.templateIcon, { backgroundColor: t.color + "15" }]}>
-                    <Feather name={t.icon} size={22} color={t.color} />
-                  </View>
-                  <Text style={[styles.templateName, { color: colors.foreground }]}>{t.name}</Text>
-                  <Text style={[styles.templateDesc, { color: colors.mutedForeground }]} numberOfLines={2}>{t.desc}</Text>
-                  {selectedTemplate?.id === t.id ? (
-                    <View style={[styles.selectedCheck, { backgroundColor: t.color }]}>
-                      <Feather name="check" size={12} color="#fff" />
-                    </View>
-                  ) : null}
-                </TouchableOpacity>
-              ))}
-            </View>
-
-            {selectedTemplate ? (
-              <View style={{ gap: 14 }}>
-                <View style={[styles.genPreviewBanner, { backgroundColor: selectedTemplate.color + "10", borderColor: selectedTemplate.color + "30" }]}>
-                  <Feather name={selectedTemplate.icon} size={16} color={selectedTemplate.color} />
-                  <Text style={[styles.genPreviewText, { color: selectedTemplate.color }]}>
-                    {selectedTemplate.name}
-                  </Text>
-                </View>
-                <View style={{ gap: 8 }}>
-                  <Text style={[styles.fieldLabel, { color: colors.foreground }]}>Nom du membre / Destinataire</Text>
-                  <TextInput
-                    style={[styles.fieldInput, { borderColor: colors.border, backgroundColor: colors.card, color: colors.foreground }]}
-                    value={genMember}
-                    onChangeText={setGenMember}
-                    placeholder="Mohammed Alaoui"
-                    placeholderTextColor={colors.mutedForeground}
-                  />
-                </View>
-                <View style={{ gap: 8 }}>
-                  <Text style={[styles.fieldLabel, { color: colors.foreground }]}>Objet / Notes</Text>
-                  <TextInput
-                    style={[styles.fieldInput, styles.fieldTextArea, { borderColor: colors.border, backgroundColor: colors.card, color: colors.foreground }]}
-                    value={genNote}
-                    onChangeText={setGenNote}
-                    placeholder="Détails additionnels pour ce document..."
-                    placeholderTextColor={colors.mutedForeground}
-                    multiline
-                  />
-                </View>
-                <View style={{ gap: 8 }}>
-                  <Text style={[styles.fieldLabel, { color: colors.foreground }]}>Langue du document</Text>
-                  <View style={{ flexDirection: "row", gap: 8 }}>
-                    {([
-                      { code: "fr" as const, label: "Français" },
-                      { code: "ar" as const, label: "العربية" },
-                      { code: "en" as const, label: "English" },
-                      { code: "es" as const, label: "Español" },
-                    ]).map((l) => (
-                      <TouchableOpacity
-                        key={l.code}
-                        onPress={() => setGenLanguage(l.code)}
-                        style={[
-                          styles.langChip,
-                          {
-                            borderColor: genLanguage === l.code ? selectedTemplate.color : colors.border,
-                            backgroundColor: genLanguage === l.code ? selectedTemplate.color + "15" : colors.card,
-                          },
-                        ]}
-                      >
-                        <Text style={{ color: genLanguage === l.code ? selectedTemplate.color : colors.mutedForeground, fontWeight: genLanguage === l.code ? "700" : "500", fontSize: 13 }}>
-                          {l.label}
-                        </Text>
-                      </TouchableOpacity>
-                    ))}
-                  </View>
-                </View>
-                <TouchableOpacity
-                  style={[styles.primaryAction, { backgroundColor: selectedTemplate.color, opacity: generating ? 0.6 : 1 }]}
-                  onPress={handleGenerate}
-                  disabled={generating}
-                >
-                  {generating ? (
-                    <ActivityIndicator color="#fff" size="small" />
-                  ) : (
-                    <Feather name="file-plus" size={18} color="#fff" />
-                  )}
-                  <Text style={styles.primaryActionText}>{generating ? "Génération en cours…" : "Générer le document"}</Text>
-                </TouchableOpacity>
-              </View>
-            ) : (
-              <View style={[styles.genHint, { backgroundColor: colors.muted, borderRadius: 14 }]}>
-                <Feather name="arrow-up" size={16} color={colors.mutedForeground} />
-                <Text style={[styles.genHintText, { color: colors.mutedForeground }]}>
-                  Sélectionnez un modèle ci-dessus pour continuer
-                </Text>
-              </View>
-            )}
-          </ScrollView>
-        </View>
-      </Modal>
+      {/* ── Document Wizard (7-step generate modal) ── */}
+      <DocumentWizard
+        visible={showGenerate}
+        onClose={() => { setShowGenerate(false); }}
+        onComplete={(_docId) => {
+          setShowGenerate(false);
+          refreshDocuments();
+        }}
+      />
 
       {/* ── Edit modal ── */}
       <Modal visible={showEdit} animationType="slide" presentationStyle="pageSheet">

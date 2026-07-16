@@ -1,0 +1,250 @@
+You are a Senior Product Owner, Enterprise Document Management Expert, UX Architect, SaaS Architect, and Moroccan Condominium Management Expert.
+
+Mission:
+
+Analyze and redesign the complete Document Creation Workflow.
+
+Current Problem:
+
+The current document module behaves like a "black box".
+
+When a user creates a document:
+
+* The system automatically fills information.
+* The user does not know where the data comes from.
+* The user cannot see the template structure.
+* The user cannot see which fields are dynamic.
+* The user cannot preview the document before generation.
+* The user cannot understand how the document is built.
+
+This creates confusion and reduces trust in the system.
+
+==================================================
+STEP 1 — ANALYZE CURRENT DOCUMENT CREATION FLOW
+===============================================
+
+Audit the complete process:
+
+User
+→ Select Module
+→ Select Document Type
+→ Generate Document
+→ Save PDF
+
+Identify:
+
+* Where data comes from
+* Which database tables are queried
+* Which APIs are called
+* Which template is used
+* Which variables are injected
+
+Generate a complete flow diagram.
+
+==================================================
+STEP 2 — TEMPLATE TRANSPARENCY
+==============================
+
+Users must be able to see the template before generating a document.
+
+Add:
+
+Template Preview
+
+Show:
+
+* Template Name
+* Template Category
+* Template Description
+* Last Updated Date
+* Template Version
+* Author
+
+Users must understand what template is being used.
+
+==================================================
+STEP 3 — TEMPLATE STRUCTURE VIEW
+================================
+
+Before generating a document, display:
+
+Document Structure
+
+Example:
+
+Header
+↓
+Syndicate Information
+↓
+Building Information
+↓
+Owner Information
+↓
+Financial Information
+↓
+Signatures
+↓
+QR Verification
+↓
+Footer
+
+The user must understand the composition of the document.
+
+==================================================
+STEP 4 — DATA SOURCE EXPLANATION
+================================
+
+For every section display:
+
+Source Information
+
+Example:
+
+Owner Name
+→ usersTable.fullName
+
+Building Name
+→ buildingsTable.name
+
+Apartment Number
+→ lotsTable.number
+
+Syndicate Name
+→ syndicatesTable.name
+
+The user must know where each piece of information comes from.
+
+==================================================
+STEP 5 — DYNAMIC VARIABLES VIEW
+===============================
+
+Display all variables used by the template.
+
+Example:
+
+{{ownerName}}
+{{buildingName}}
+{{lotNumber}}
+{{syndicateName}}
+{{invoiceAmount}}
+{{meetingDate}}
+
+Show:
+
+* Variable name
+* Description
+* Data source
+* Current value
+
+==================================================
+STEP 6 — PREVIEW BEFORE GENERATION
+==================================
+
+Before generating the PDF:
+
+Show a complete preview.
+
+User can verify:
+
+* Data
+* Layout
+* Signatures
+* Logo
+* QR Code
+
+No PDF should be generated blindly.
+
+==================================================
+STEP 7 — TEMPLATE MANAGEMENT
+============================
+
+Create a professional Template Manager.
+
+Super Admin can:
+
+* Create Template
+* Edit Template
+* Duplicate Template
+* Archive Template
+* Restore Template
+* Version Template
+
+Display:
+
+* Active Templates
+* Archived Templates
+* Draft Templates
+
+==================================================
+STEP 8 — DOCUMENT GENERATION LOGIC
+==================================
+
+Verify:
+
+Template
++
+Database Data
++
+User Inputs
++
+Signatures
++
+QR
++
+PDF Engine
+
+↓
+
+Final PDF
+
+Audit every step.
+
+Detect missing logic.
+
+==================================================
+STEP 9 — USER EXPERIENCE REDESIGN
+=================================
+
+Redesign the creation wizard.
+
+Step 1:
+Choose Document Type
+
+Step 2:
+Choose Template
+
+Step 3:
+Review Variables
+
+Step 4:
+Preview Document
+
+Step 5:
+Generate PDF
+
+Step 6:
+Validate & Sign
+
+Step 7:
+Publish
+
+==================================================
+STEP 10 — FINAL REPORT
+======================
+
+Generate:
+
+1. Current Workflow Analysis
+2. Template Analysis
+3. Data Source Analysis
+4. Missing Features
+5. UX Problems
+6. Database Relations
+7. API Relations
+8. Template Management Design
+9. Production Improvements
+10. Production Readiness Score
+
+Do not only report.
+
+Implement the complete redesign so that users fully understand how documents are generated, which templates are used, where the data comes from, and how the final document is constructed.
