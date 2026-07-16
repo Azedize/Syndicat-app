@@ -121,7 +121,7 @@ export default function DocumentWizard({ visible, onClose, onComplete }: Props) 
   const [signing,         setSigning]         = useState(false);
   const sigPadRef  = useRef<SignaturePadHandle>(null);
   const sigSvgRef  = useRef<string>("");
-  const stepAnim   = useRef(new Animated.Value(0)).current;
+  const stepAnim   = useRef(new Animated.Value(1)).current;
   const [error,   setError]   = useState<string | null>(null);
 
   // Reset when wizard opens
