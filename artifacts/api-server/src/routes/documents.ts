@@ -123,6 +123,9 @@ async function getSyndicateInfo(syndicateId?: string | null): Promise<SyndicateI
     logoColor: "#7c3aed",
     logoUrl: null,
     abbreviation: null,
+    bankName: null,
+    bankIban: null,
+    bankBic: null,
   };
   if (!syndicateId) return defaults;
 
@@ -138,6 +141,9 @@ async function getSyndicateInfo(syndicateId?: string | null): Promise<SyndicateI
       logoColor:          syndicatesTable.logoColor,
       logoUrl:            syndicatesTable.logoUrl,
       abbreviation:       syndicatesTable.abbreviation,
+      bankName:           syndicatesTable.bankName,
+      bankIban:           syndicatesTable.bankIban,
+      bankBic:            syndicatesTable.bankBic,
     })
     .from(syndicatesTable)
     .where(eq(syndicatesTable.id, syndicateId));
@@ -153,6 +159,9 @@ async function getSyndicateInfo(syndicateId?: string | null): Promise<SyndicateI
     logoColor:          s?.logoColor          ?? defaults.logoColor,
     logoUrl:            s?.logoUrl            ?? defaults.logoUrl,
     abbreviation:       s?.abbreviation       ?? defaults.abbreviation,
+    bankName:           s?.bankName           ?? defaults.bankName,
+    bankIban:           s?.bankIban           ?? defaults.bankIban,
+    bankBic:            s?.bankBic            ?? defaults.bankBic,
   };
 }
 
@@ -267,6 +276,19 @@ async function getMeetingData(meetingId: string): Promise<Record<string, string>
     `${r.number}. ${r.title}\n   ${r.description ?? ""}\n   ${r.result === "approved" ? "✓ ADOPTÉ" : r.result === "rejected" ? "✗ REJETÉ" : "EN ATTENTE"}` +
     (r.tantiemesFor ? ` — Pour: ${r.tantiemesFor} / Contre: ${r.tantiemesAgainst} / Abs.: ${r.tantiemesAbstain}` : "")
   ).join("\n\n");
+  // Structured JSON for the PV template to render resolution cards with vote badges
+  const resolutionsJson = JSON.stringify(
+    resolutions.map((r) => ({
+      number:      r.number,
+      title:       r.title,
+      description: r.description ?? "",
+      result:      r.result ?? "pending",
+      pour:        r.tantiemesFor        ? Number(r.tantiemesFor)        : null,
+      contre:      r.tantiemesAgainst    ? Number(r.tantiemesAgainst)    : null,
+      abstention:  r.tantiemesAbstain    ? Number(r.tantiemesAbstain)    : null,
+    }))
+  );
+  const attendeeNames = attendees.map((a) => a.name ?? "—").filter(Boolean);
   return {
     meetingDate:        meeting.date,
     heure:              meeting.time ?? "",
@@ -274,7 +296,9 @@ async function getMeetingData(meetingId: string): Promise<Record<string, string>
     agendaText:         meeting.agenda ?? "",
     deliberationsText:  meeting.description ?? "",
     resolutionsText,
-    participants:       attendees.map((a) => a.name ?? "—").filter(Boolean).join(", "),
+    _resolutionsJson:   resolutionsJson,
+    participants:       attendeeNames.join(", "),
+    _attendeesCount:    String(attendeeNames.length),
     dateMeeting:        meeting.date,
     _meetingTitle:      meeting.title,
     _meetingType:       meeting.type ?? "general",
@@ -403,9 +427,23 @@ async function getElectionData(electionId: string): Promise<Record<string, strin
     ((election.participantCount ?? 0) >= ((election.eligibleCount ?? 0) * (election.quorumPercent ?? 50) / 100));
   const participationRate = election.eligibleCount
     ? Math.round(((election.participantCount ?? 0) / election.eligibleCount) * 100) : 0;
-  const candidatesText = candidates.map((c: any) =>
+  const totalVotes = candidates.reduce((s: number, c: any) => s + (c.voteCount ?? 0), 0);
+  const sortedCandidates = [...candidates].sort((a: any, b: any) => (b.voteCount ?? 0) - (a.voteCount ?? 0));
+  const candidatesText = sortedCandidates.map((c: any) =>
     `• ${c.name ?? c.userId ?? "—"} — ${c.voteCount ?? 0} vote(s)${c.isWinner ? " ✓ ÉLU" : ""}`
   ).join("\n");
+  // Structured JSON for template to render a proper results table
+  const candidatesJson = JSON.stringify(
+    sortedCandidates.map((c: any, i: number) => ({
+      rank:     i + 1,
+      name:     c.name ?? c.userId ?? "—",
+      votes:    c.voteCount ?? 0,
+      pct:      totalVotes > 0 ? Math.round(((c.voteCount ?? 0) / totalVotes) * 100) : 0,
+      isWinner: c.isWinner ?? false,
+    }))
+  );
+  const winners = sortedCandidates.filter((c: any) => c.isWinner);
+  const winnersText = winners.map((c: any) => `• ${c.name ?? c.userId ?? "—"}`).join("\n") || "—";
   return {
     _electionTitle:      election.title,
     _electionType:       election.electionType ?? "special",
@@ -419,7 +457,9 @@ async function getElectionData(electionId: string): Promise<Record<string, strin
     _invalidVotes:       String(election.invalidVotesCount ?? 0),
     _mandateDuration:    election.mandateDurationMonths ? `${election.mandateDurationMonths} mois` : "Indéfini",
     _candidates:         candidatesText,
+    _candidatesJson:     candidatesJson,
     _candidatesCount:    String(candidates.length),
+    _winnersText:        winnersText,
     _electionStatus:     election.status ?? "draft",
     _electionId:         electionId,
   };
@@ -711,17 +751,29 @@ async function getAttestationPaiementData(
       .sort((a, b) => (b.paidDate ?? "").localeCompare(a.paidDate ?? ""))[0]?.paidDate;
 
     const fmt = (n: number) => n.toLocaleString("fr-MA");
+    // Structured payment history JSON — used by the attestation PDF template
+    const paymentHistoryJson = JSON.stringify(
+      useAppels
+        .sort((a, b) => (a.period ?? "").localeCompare(b.period ?? ""))
+        .map((a) => ({
+          period:  a.period  ?? "—",
+          amount:  Number(a.amount ?? 0),
+          status:  a.status  ?? "pending",
+          paidDate: a.paidDate ?? null,
+        }))
+    );
     return {
       memberName,
-      _lotNumber:      lotRow.number ?? "",
-      _lotFloor:       lotRow.floor != null ? String(lotRow.floor) : "",
-      _lotTantiemes:   lotRow.tantiemes ? `${Number(lotRow.tantiemes)} / 10 000` : "",
-      _lotTitreFoncier:lotRow.titreFoncier ?? "",
-      montant:         fmt(totalPaid),
-      _totalCharged:   fmt(totalCharged),
-      _paiementStatus: inGoodStanding ? "EN RÈGLE" : "ATTENTION — CHARGES EN COURS",
-      _lastPaidDate:   lastPaid ?? "",
-      _appelCount:     String(useAppels.length),
+      _lotNumber:          lotRow.number ?? "",
+      _lotFloor:           lotRow.floor != null ? String(lotRow.floor) : "",
+      _lotTantiemes:       lotRow.tantiemes ? `${Number(lotRow.tantiemes)} / 10 000` : "",
+      _lotTitreFoncier:    lotRow.titreFoncier ?? "",
+      montant:             fmt(totalPaid),
+      _totalCharged:       fmt(totalCharged),
+      _paiementStatus:     inGoodStanding ? "EN RÈGLE" : "ATTENTION — CHARGES EN COURS",
+      _lastPaidDate:       lastPaid ?? "",
+      _appelCount:         String(useAppels.length),
+      _paymentHistoryJson: paymentHistoryJson,
     };
   } catch {
     return {};
@@ -1764,6 +1816,9 @@ router.post(
         documentYear:           String(year),
         documentNumber:         `[GÉNÉRÉ — ex: ATT-${year}-0001]`,
         verificationQR:         "[QR généré automatiquement à la création]",
+        bankName:               syndInfo.bankName  || null,
+        bankIban:               syndInfo.bankIban  || null,
+        bankBic:                syndInfo.bankBic   || null,
       };
 
       res.json({
@@ -2168,6 +2223,9 @@ router.get("/documents/autofill", requireAuth, async (req, res) => {
           syndicate_email:      syndInfo.email           || null,
           registration_number:  syndInfo.registrationNumber || null,
           syndicate_color:      syndInfo.logoColor       || null,
+          bank_name:            syndInfo.bankName        || null,
+          bank_iban:            syndInfo.bankIban        || null,
+          bank_bic:             syndInfo.bankBic         || null,
         },
         propertyInfo: property ? {
           building_name:    property.name    || null,
@@ -3769,14 +3827,25 @@ router.post(
     const result = schema.safeParse(req.body);
     if (!result.success) { res.status(400).json({ error: "Données invalides" }); return; }
 
+    // Reject non-SVG signature data up-front — empty/missing is allowed (text-only signature)
+    const rawSig = result.data.signatureData;
+    if (rawSig && rawSig.trim().length > 0) {
+      const looksLikeSvg = /^\s*(?:<\?xml[^>]*>\s*)?<svg/i.test(rawSig.trim());
+      if (!looksLikeSvg) {
+        res.status(422).json({ error: "Les données de signature ne sont pas un SVG valide" }); return;
+      }
+    }
+
     try {
       const [doc] = await db.select().from(documentsTable).where(eq(documentsTable.id, id));
       if (!doc || doc.isDeleted) { res.status(404).json({ error: "Document introuvable" }); return; }
       if (req.user!.role !== "super_admin" && doc.syndicateId !== req.user!.syndicateId) {
         res.status(403).json({ error: "Accès refusé" }); return;
       }
-      // Only generated or validated documents can be signed — NOT published
-      const signable: DocStatus[] = ["generated", "validated"];
+      // generated, pending_review, validated, AND signed documents may be signed
+      // "signed" must be included so multi-signature workflows allow a second/third signer
+      // after the first signer has already changed the status to "signed".
+      const signable: DocStatus[] = ["generated", "pending_review", "validated", "signed"];
       if (!signable.includes((doc.status ?? "draft") as DocStatus)) {
         res.status(422).json({ error: `Le document au statut "${doc.status}" ne peut pas être signé` }); return;
       }
@@ -3823,8 +3892,10 @@ router.post(
         updatedAt: now,
       } as any).where(eq(documentsTable.id, id));
 
-      // Embed signatures in the PDF body — full regeneration when generationParams available,
-      // replace-append signature page otherwise. Best-effort: never blocks the DB record.
+      // Embed signatures in the PDF body — awaited synchronously so the response
+      // reflects the true PDF state. Full regeneration when generationParams is available;
+      // replace-append signature page otherwise.
+      let pdfReady = false;
       if (doc.fileUrl) {
         // Load ALL recorded signatures (including the one just inserted above)
         const allSigRows = await db
@@ -3845,49 +3916,58 @@ router.post(
 
         const storedParams = (doc as any).generationParams as GenerationParams | null;
 
-        if (storedParams) {
-          // Full regeneration — SVG traces appear inline in the document body
-          regenerateDocumentWithSignatures(doc, storedParams, allInlineSigs)
-            .then(async (newFileUrl) => {
-              if (newFileUrl) {
-                await db.update(documentsTable).set({
-                  fileUrl: newFileUrl,
-                  appendedSignaturePages: 0,
-                  updatedAt: new Date(),
-                } as any).where(eq(documentsTable.id, id));
-              }
-            })
-            .catch((err) => req.log.error({ err, docId: id }, "PDF inline signature regeneration failed"));
-        } else {
-          // Legacy fallback: strip old sig page then append fresh one with all sigs
-          const prevCount = ((doc as any).appendedSignaturePages as number | null) ?? 0;
-          const syndBranding = doc.syndicateId
-            ? await db
-                .select({ name: syndicatesTable.name, logoColor: syndicatesTable.logoColor })
-                .from(syndicatesTable)
-                .where(eq(syndicatesTable.id, doc.syndicateId))
-                .limit(1)
-                .then((r) => r[0] ?? null)
-                .catch(() => null)
-            : null;
-          appendSignaturesToPdf(
-            doc.fileUrl,
-            allInlineSigs.map((s) => ({
-              signerName: s.signerName,
-              signerRole: s.signerRole,
-              signedAt: s.signedAt,
-              signatureSvg: s.signatureData,
-              isValid: s.isValid,
-            })),
-            (doc.language as DocumentLanguage) ?? "fr",
-            (syndBranding?.logoColor as string | undefined) ?? "#7c3aed",
-            syndBranding?.name ?? "",
-            doc.documentNumber ?? "",
-            prevCount,
-          ).then(async () => {
-            await db.update(documentsTable).set({ appendedSignaturePages: 1, updatedAt: new Date() } as any)
-              .where(eq(documentsTable.id, id));
-          }).catch((err) => req.log.error({ err, docId: id }, "Signature page replace-append failed"));
+        try {
+          if (storedParams) {
+            // Full regeneration — SVG traces appear inline in the document body
+            const newFileUrl = await regenerateDocumentWithSignatures(doc, storedParams, allInlineSigs);
+            if (newFileUrl) {
+              await db.update(documentsTable).set({
+                fileUrl: newFileUrl,
+                appendedSignaturePages: 0,
+                regenerationFailed: false,
+                updatedAt: new Date(),
+              } as any).where(eq(documentsTable.id, id));
+              pdfReady = true;
+            }
+          } else {
+            // Legacy fallback: strip old sig page then append fresh one with all sigs
+            const prevCount = ((doc as any).appendedSignaturePages as number | null) ?? 0;
+            const syndBranding = doc.syndicateId
+              ? await db
+                  .select({ name: syndicatesTable.name, logoColor: syndicatesTable.logoColor })
+                  .from(syndicatesTable)
+                  .where(eq(syndicatesTable.id, doc.syndicateId))
+                  .limit(1)
+                  .then((r) => r[0] ?? null)
+                  .catch(() => null)
+              : null;
+            await appendSignaturesToPdf(
+              doc.fileUrl,
+              allInlineSigs.map((s) => ({
+                signerName: s.signerName,
+                signerRole: s.signerRole,
+                signedAt: s.signedAt,
+                signatureSvg: s.signatureData,
+                isValid: s.isValid,
+              })),
+              (doc.language as DocumentLanguage) ?? "fr",
+              (syndBranding?.logoColor as string | undefined) ?? "#7c3aed",
+              syndBranding?.name ?? "",
+              doc.documentNumber ?? "",
+              prevCount,
+            );
+            await db.update(documentsTable).set({
+              appendedSignaturePages: 1,
+              regenerationFailed: false,
+              updatedAt: new Date(),
+            } as any).where(eq(documentsTable.id, id));
+            pdfReady = true;
+          }
+        } catch (err) {
+          req.log.error({ err, docId: id }, "PDF signature embedding failed — document signed but PDF not updated");
+          // Mark the document so admins can identify stale PDFs needing manual regeneration
+          await db.update(documentsTable).set({ regenerationFailed: true, updatedAt: new Date() } as any)
+            .where(eq(documentsTable.id, id));
         }
       }
 
@@ -3924,7 +4004,7 @@ router.post(
         }
       }
 
-      res.status(201).json({ data: sig, message: "Document signé avec succès" });
+      res.status(201).json({ data: sig, pdfReady, message: "Document signé avec succès" });
     } catch (err) {
       req.log.error(err);
       res.status(500).json({ error: "Erreur serveur" });

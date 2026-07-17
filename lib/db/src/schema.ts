@@ -50,6 +50,10 @@ export const syndicatesTable = pgTable("syndicates", {
   // Branding
   logoColor: text("logo_color").default("#7c3aed"),
   logoUrl: text("logo_url"),
+  // Banking — used by payment-demand (appel de fonds), invoices, and legal enforcement letters
+  bankName: text("bank_name"),
+  bankIban: text("bank_iban"),
+  bankBic: text("bank_bic"),
   // Finance defaults
   cotisationAmount: money("cotisation_amount"),
   cotisationCycle: text("cotisation_cycle").default("monthly"),
@@ -1001,6 +1005,9 @@ export const documentsTable = pgTable(
     generationParams: jsonb("generation_params"),
     // Count of signature pages previously appended — used to strip+replace on re-sign.
     appendedSignaturePages: integer("appended_signature_pages").default(0).notNull(),
+    // Set to true when PDF embedding after signing fails (GCS unavailable, etc.)
+    // so admins can identify documents whose PDF still shows "En attente de signature".
+    regenerationFailed: boolean("regeneration_failed").default(false).notNull(),
   },
   (t) => [
     index("documents_syndicate_id_idx").on(t.syndicateId),

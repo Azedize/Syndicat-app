@@ -598,22 +598,46 @@ function buildHeaderBand(
   const statusChip = docStatus ? (statusChipMap[docStatus] ?? null) : null;
 
   // ── COL 1: Logo / monogram — 58pt wide, full accent background ────────────
+  // When a real PNG/JPG logo is present it's shown at 42×42 with letterbox.
+  // When no logo exists we render a professional typographic monogram:
+  //   - 2 concentric circles (outer thin ring + inner solid fill at 18% opacity)
+  //   - 1–3 letter acronym in 14–18pt bold, slight character spacing
+  //   - Subtle bottom text line: "®" marker when registrationNumber is set
+  // This mirrors the Adobe Sign / Salesforce header monogram convention.
+  const monoFontSize = acronym.length === 1 ? 20 : acronym.length === 2 ? 17 : 14;
   const logoContent: unknown = logoDataUrl
     ? { image: logoDataUrl, width: 42, height: 42, fit: [42, 42] as [number, number], alignment: "center" as const }
     : {
         stack: [
+          // Outer hairline ring
           {
             canvas: [
-              { type: "ellipse", x: 20, y: 20, r1: 20, r2: 20, color: `${BRAND.surfaceCard}22` },
+              { type: "ellipse", x: 22, y: 22, r1: 22, r2: 22, color: `${BRAND.surfaceCard}00`, lineWidth: 0.8, lineColor: `${BRAND.surfaceCard}50` },
             ],
-            margin: [0, 0, 0, -40],
+            margin: [0, 0, 0, -44],
           },
+          // Inner filled circle (18% opacity white)
+          {
+            canvas: [
+              { type: "ellipse", x: 22, y: 22, r1: 17, r2: 17, color: `${BRAND.surfaceCard}2e` },
+            ],
+            margin: [0, 0, 0, -44],
+          },
+          // Acronym lettering — centered, tracked, enterprise-weight
           {
             text: acronym,
-            fontSize: 16, bold: true,
+            fontSize: monoFontSize, bold: true,
             color: BRAND.surfaceCard,
+            characterSpacing: acronym.length > 1 ? 1.5 : 0,
             alignment: "center" as const,
-            margin: [0, 12, 0, 0],
+            margin: [0, monoFontSize === 20 ? 13 : monoFontSize === 17 ? 14 : 15, 0, 0],
+          },
+          // Thin bottom line under acronym — mimics professional brand mark underline
+          {
+            canvas: [
+              { type: "line", x1: 12, y1: 0, x2: 32, y2: 0, lineWidth: 0.5, lineColor: `${BRAND.surfaceCard}55` },
+            ],
+            margin: [0, 3, 0, 0],
           },
         ],
       };
@@ -2025,18 +2049,33 @@ export async function signDocumentDownloadUrl(internalPath: string, ttlSec = 360
 }
 
 // ─── Syndicate Logo ───────────────────────────────────────────────────────────
-// Fetches the syndicate logo (PNG/JPG uploaded via /objects/... internal path, or a
-// plain https URL) and returns a base64 data URI pdfmake can embed as an `image` node.
-// SVG logos are not rasterized (pdfmake/PDFKit cannot embed raw SVG as an image node)
-// — for those we skip embedding and fall back to the text/initial header.
+// Fetches the syndicate logo (PNG/JPG/WebP uploaded via /objects/... internal path,
+// or a plain https URL) and returns a base64 data URI pdfmake can embed as an `image`
+// node. SVG logos are not supported by pdfmake/PDFKit — reject silently and fall back
+// to the initials header, logging a WARN so admins can re-upload in PNG/JPG format.
 
-const LOGO_CACHE_TTL_MS = 5 * 60 * 1000;
+const LOGO_CACHE_TTL_MS     = 5 * 60 * 1000;  // 5 min — success cache
+const LOGO_FAIL_CACHE_TTL_MS = 60 * 1000;      // 1 min — failure cache (retry sooner)
 const logoCache = new Map<string, { dataUrl: string | null; expires: number }>();
 
+/** Bust the cache for a specific logo URL (call after upload/update). */
+export function bustLogoCache(logoUrl: string): void {
+  logoCache.delete(logoUrl);
+}
+
 function detectImageMime(buf: Buffer): string | null {
-  if (buf.length >= 8 && buf[0] === 0x89 && buf[1] === 0x50 && buf[2] === 0x4e && buf[3] === 0x47) return "image/png";
+  // PNG: 89 50 4E 47
+  if (buf.length >= 4 && buf[0] === 0x89 && buf[1] === 0x50 && buf[2] === 0x4e && buf[3] === 0x47) return "image/png";
+  // JPEG: FF D8 FF
   if (buf.length >= 3 && buf[0] === 0xff && buf[1] === 0xd8 && buf[2] === 0xff) return "image/jpeg";
-  return null; // covers SVG and any other unsupported format
+  // WebP: RIFF????WEBP
+  if (
+    buf.length >= 12 &&
+    buf[0] === 0x52 && buf[1] === 0x49 && buf[2] === 0x46 && buf[3] === 0x46 &&
+    buf[8] === 0x57 && buf[9] === 0x45 && buf[10] === 0x42 && buf[11] === 0x50
+  ) return "image/webp";
+  // SVG or any other unsupported format
+  return null;
 }
 
 export async function fetchLogoDataUrl(logoUrl: string | null | undefined): Promise<string | null> {
@@ -2049,12 +2088,12 @@ export async function fetchLogoDataUrl(logoUrl: string | null | undefined): Prom
     let buf: Buffer;
     if (/^https?:\/\//i.test(logoUrl)) {
       const resp = await fetch(logoUrl, { signal: AbortSignal.timeout(10_000) });
-      if (!resp.ok) throw new Error(`logo fetch failed: ${resp.status}`);
+      if (!resp.ok) throw new Error(`logo fetch failed: HTTP ${resp.status}`);
       buf = Buffer.from(await resp.arrayBuffer());
     } else {
       // Internal object-storage path, e.g. "/objects/uploads/<uuid>"
       const privateDir = process.env.PRIVATE_OBJECT_DIR || "";
-      if (!privateDir) throw new Error("PRIVATE_OBJECT_DIR not set");
+      if (!privateDir) throw new Error("PRIVATE_OBJECT_DIR env var not set — cannot resolve logo path");
       const entityId = logoUrl.replace(/^\/objects\//, "");
       // Local filesystem fallback — PRIVATE_OBJECT_DIR is a local path in dev (not gs://)
       if (!privateDir.startsWith("gs://")) {
@@ -2069,12 +2108,25 @@ export async function fetchLogoDataUrl(logoUrl: string | null | undefined): Prom
     }
 
     const mime = detectImageMime(buf);
-    const dataUrl = mime ? `data:${mime};base64,${buf.toString("base64")}` : null;
+    if (!mime) {
+      // Likely an SVG — pdfmake cannot embed it; log so admin knows to re-upload as PNG
+      logger.warn(
+        { logoUrl, bufferHead: buf.slice(0, 16).toString("hex") },
+        "fetchLogoDataUrl: unsupported image format (SVG/GIF?), falling back to initials — re-upload logo as PNG or JPEG",
+      );
+      logoCache.set(logoUrl, { dataUrl: null, expires: Date.now() + LOGO_FAIL_CACHE_TTL_MS });
+      return null;
+    }
+
+    const dataUrl = `data:${mime};base64,${buf.toString("base64")}`;
     logoCache.set(logoUrl, { dataUrl, expires: Date.now() + LOGO_CACHE_TTL_MS });
     return dataUrl;
   } catch (err) {
-    logger.warn({ err, logoUrl }, "fetchLogoDataUrl: non-fatal failure, falling back to text header");
-    logoCache.set(logoUrl, { dataUrl: null, expires: Date.now() + LOGO_CACHE_TTL_MS });
+    logger.warn(
+      { err: (err as Error).message, logoUrl },
+      "fetchLogoDataUrl: fetch/read failure, falling back to initials header",
+    );
+    logoCache.set(logoUrl, { dataUrl: null, expires: Date.now() + LOGO_FAIL_CACHE_TTL_MS });
     return null;
   }
 }
@@ -2524,6 +2576,12 @@ export interface SyndicateInfo {
   logoUrl?: string | null;
   /** Short acronym shown next to/instead of the logo (e.g. "SCA"). Falls back to initials. */
   abbreviation?: string | null;
+  /** Bank name for payment instructions (e.g. CIH, Attijariwafa). */
+  bankName?: string | null;
+  /** IBAN for wire transfers — shown on payment demands, invoices, and legal enforcement letters. */
+  bankIban?: string | null;
+  /** BIC/SWIFT code for the syndicate's bank account. */
+  bankBic?: string | null;
 }
 
 export interface DocumentInput {
@@ -3232,26 +3290,104 @@ async function buildDocDef(template: DocumentTemplate, input: DocumentInput): Pr
       break;
     }
 
-    case "pv":
+    case "pv": {
+      // ── Parse structured resolution data from DB ───────────────────────────
+      type ResolutionCard = { number: number; title: string; description: string; result: string; pour: number | null; contre: number | null; abstention: number | null };
+      let structuredResolutions: ResolutionCard[] = [];
+      const rawResJson = input._resolutionsJson as string | undefined;
+      if (rawResJson) {
+        try { structuredResolutions = JSON.parse(rawResJson); } catch { /* fall back to text */ }
+      }
+      const attendeesCount = (input._attendeesCount as string) || "0";
+      const attendeesList = (input.participants as string) || "";
+      const hasResolutions = structuredResolutions.length > 0;
+
+      const resolutionCards: unknown[] = hasResolutions ? structuredResolutions.map((r) => {
+        const adopted  = r.result === "approved";
+        const rejected = r.result === "rejected";
+        const badgeColor = adopted ? BRAND.successDark : rejected ? BRAND.destructiveDark : BRAND.warningDark;
+        const badgeBg    = adopted ? BRAND.successLight : rejected ? BRAND.destructiveLight : BRAND.warningLight;
+        const badgeText  = adopted ? "✓ ADOPTÉ" : rejected ? "✗ REJETÉ" : "⏳ EN ATTENTE";
+        const hasTally   = r.pour != null || r.contre != null || r.abstention != null;
+        return {
+          stack: [
+            {
+              columns: [
+                { text: `Résolution ${r.number}`, fontSize: 8.5, bold: true, color: accentColor, width: "*", margin: [0, 0, 0, 2] },
+                { text: badgeText, fontSize: 7.5, bold: true, color: badgeColor, fillColor: badgeBg, margin: [6, 1, 6, 1], alignment: "right" as const, width: "auto" },
+              ],
+              margin: [0, 0, 0, 3],
+            },
+            { text: r.title, fontSize: 9.5, bold: true, color: BRAND.ink, margin: [0, 0, 0, 2] },
+            ...(r.description ? [{ text: r.description, fontSize: 9, color: BRAND.inkMid, lineHeight: 1.5, margin: [0, 0, 0, 3] }] : []),
+            ...(hasTally ? [{
+              text: [
+                { text: `Pour : ${r.pour ?? "—"} `, fontSize: 8, color: BRAND.successDark, bold: true },
+                { text: `  Contre : ${r.contre ?? "—"} `, fontSize: 8, color: BRAND.destructiveDark, bold: true },
+                { text: `  Abstention : ${r.abstention ?? "—"}`, fontSize: 8, color: BRAND.muted, bold: true },
+              ],
+              margin: [0, 0, 0, 0],
+            }] : []),
+          ],
+          fillColor: BRAND.surfaceAlt,
+          margin: [0, 0, 0, 6],
+          // pdfmake doesn't support per-stack border — render as table row
+        };
+      }) : [];
+
+      const resolutionsContent: unknown = hasResolutions ? {
+        stack: [
+          {
+            canvas: [
+              { type: "rect", x: 0, y: 0, w: 515, h: 20, color: accentColor },
+            ],
+            margin: [0, 0, 0, 0],
+          },
+          { text: "RÉSOLUTIONS ADOPTÉES", fontSize: 8.5, bold: true, color: BRAND.surfaceCard, margin: [0, -17, 0, 10] },
+          ...resolutionCards.map((card) => ({
+            table: {
+              widths: ["*"],
+              body: [[{ ...(card as object), border: [true, true, true, true] as [boolean, boolean, boolean, boolean], borderColor: [BRAND.border, BRAND.border, BRAND.border, BRAND.border] }]],
+            },
+            layout: {
+              hLineWidth: () => 0.6, vLineWidth: () => 0.6,
+              hLineColor: () => BRAND.border, vLineColor: () => BRAND.border,
+              fillColor: () => BRAND.surfaceAlt,
+              paddingLeft: () => 10, paddingRight: () => 10, paddingTop: () => 8, paddingBottom: () => 8,
+            },
+            margin: [0, 0, 0, 6],
+          })),
+        ],
+        margin: [0, 0, 0, 16],
+      } : contentSection(t("pvResolutionsTitle", lang), input.resolutionsText as string || t("pvResolutionsText", lang), accentColor, isArabic);
+
       content = [
         ...header,
-        buildMeetingBanner(accentColor, input.meetingType as string || "ASSEMBLÉE GÉNÉRALE", input.lieu as string, today, lang),
+        buildMeetingBanner(accentColor, input.meetingType as string || input._meetingType as string || "ASSEMBLÉE GÉNÉRALE", input.lieu as string, today, lang),
         { text: input.title, style: "docTitle", alignment: "center" as const, margin: [0, 0, 0, 16] },
         metaTable([
-          [t("metaMeetingDate", lang), today],
+          [t("metaMeetingDate", lang), (input.meetingDate as string) || today],
           [t("metaSyndicate", lang), syndInfo.name],
           [t("metaLocation", lang), input.lieu as string || t("metaSeatOfSyndicate", lang)],
           [t("metaChairperson", lang), input.president as string || (input.officeHolders as OfficeHolders | undefined)?.president?.fullName || syndInfo.name],
           [t("metaSecretarySession", lang), input.secretaire as string || (input.officeHolders as OfficeHolders | undefined)?.secretary?.fullName || "—"],
         ], accentColor),
+        // Attendance summary — shows count chip + names when available
+        ...(attendeesCount !== "0" ? [kpiRow([
+          { label: "Membres présents", value: attendeesCount, bgColor: BRAND.successLight, valueColor: BRAND.successDeep },
+          { label: "Résolutions soumises", value: String(structuredResolutions.length || "—"), bgColor: BRAND.surface },
+          { label: "Résolutions adoptées", value: String(structuredResolutions.filter(r => r.result === "approved").length || "—"), bgColor: BRAND.successLight, valueColor: BRAND.successDeep },
+        ], accentColor)] : []),
+        ...(attendeesList ? [contentSection("MEMBRES PRÉSENTS", attendeesList, accentColor, isArabic)] : []),
         contentSection(t("pvAgendaTitle", lang), input.agendaText as string || body || t("pvAgendaText", lang), accentColor, isArabic),
         contentSection(t("pvDeliberationsTitle", lang), input.deliberationsText as string || t("pvDeliberationsText", lang), accentColor, isArabic),
-        contentSection(t("pvResolutionsTitle", lang), input.resolutionsText as string || t("pvResolutionsText", lang), accentColor, isArabic),
+        resolutionsContent,
         { text: "\n" },
         multiSignatoryBlock(input.officeHolders as OfficeHolders | undefined, accentColor, lang, signatures, syndInfo.name),
         legalFooterNote(docNum, lang, verifyUrl),
       ];
       break;
+    }
 
     case "convocation":
       content = [
@@ -3290,41 +3426,156 @@ async function buildDocDef(template: DocumentTemplate, input: DocumentInput): Pr
         },
         signatureBlock(t("presidentTitle", lang), syndInfo.name, accentColor, true, lang, signatures),
         legalFooterNote(docNum, lang, verifyUrl),
+        // ── Détachable vote-proxy slip ──────────────────────────────────────────
+        // Dashed cut line
+        {
+          canvas: [
+            { type: "line", x1: 0, y1: 0, x2: 515, y2: 0, lineWidth: 0.6, dash: { length: 3, space: 4 }, lineColor: BRAND.border },
+          ],
+          margin: [0, 24, 0, 8],
+        },
+        { text: "✂  COUPON-RÉPONSE / POUVOIR — À RETOURNER AU BUREAU DU SYNDICAT AVANT LA RÉUNION", fontSize: 7, color: BRAND.mutedLight, alignment: "center" as const, margin: [0, 0, 0, 10] },
+        {
+          table: {
+            widths: ["*"],
+            body: [[{
+              stack: [
+                { text: "POUVOIR EN BLANC", fontSize: 9.5, bold: true, color: accentColor, margin: [0, 0, 0, 8] },
+                {
+                  columns: [
+                    { text: "Je soussigné(e) :", fontSize: 8.5, color: BRAND.inkMid, width: 100 },
+                    { canvas: [{ type: "line", x1: 0, y1: 0, x2: 280, y2: 0, lineWidth: 0.5, lineColor: BRAND.border }], width: "*", margin: [0, 5, 0, 0] },
+                  ],
+                  margin: [0, 0, 0, 6],
+                },
+                {
+                  columns: [
+                    { text: "Copropriétaire du Lot N° :", fontSize: 8.5, color: BRAND.inkMid, width: 140 },
+                    { text: (input._lotNumber as string) || "________", fontSize: 8.5, bold: true, color: BRAND.ink, width: "auto" },
+                    { text: "  Résidence :", fontSize: 8.5, color: BRAND.inkMid, width: "auto" },
+                    { text: (input._buildingName as string) || "________", fontSize: 8.5, bold: true, color: BRAND.ink, width: "*" },
+                  ],
+                  margin: [0, 0, 0, 6],
+                },
+                {
+                  text: "Déclare :  ☐ Être présent(e)   ☐ Donner pouvoir à :",
+                  fontSize: 8.5, color: BRAND.inkMid, margin: [0, 0, 0, 6],
+                },
+                {
+                  columns: [
+                    { text: "Nom du mandataire :", fontSize: 8.5, color: BRAND.inkMid, width: 120 },
+                    { canvas: [{ type: "line", x1: 0, y1: 0, x2: 260, y2: 0, lineWidth: 0.5, lineColor: BRAND.border }], width: "*", margin: [0, 5, 0, 0] },
+                  ],
+                  margin: [0, 0, 0, 14],
+                },
+                {
+                  columns: [
+                    {
+                      stack: [
+                        { text: "Date et Signature :", fontSize: 8, color: BRAND.muted, margin: [0, 0, 0, 2] },
+                        { canvas: [{ type: "rect", x: 0, y: 0, w: 200, h: 36, color: BRAND.surfaceAlt }] },
+                      ],
+                      width: "50%",
+                    },
+                    {
+                      stack: [
+                        { text: `Réunion du : ${input.meetingDate as string || "—"}  •  ${syndInfo.name}`, fontSize: 7.5, color: BRAND.mutedLight, margin: [0, 0, 0, 2] },
+                        { text: `Réf. convocation : ${docNum}`, fontSize: 7, color: BRAND.mutedLight },
+                      ],
+                      width: "50%",
+                      alignment: "right" as const,
+                    },
+                  ],
+                },
+              ],
+              fillColor: BRAND.surfaceAlt,
+              margin: [20, 16, 20, 16],
+              border: [true, true, true, true] as [boolean, boolean, boolean, boolean],
+              borderColor: [BRAND.border, BRAND.border, BRAND.border, BRAND.border],
+            }]],
+          },
+          layout: {
+            hLineWidth: (i: number, node: { table: { body: unknown[] } }) => i === 0 || i === node.table.body.length ? 0.8 : 0,
+            vLineWidth: (i: number, node: { table: { widths: unknown[] } }) => i === 0 || i === node.table.widths.length ? 0.8 : 0,
+            hLineColor: () => BRAND.border, vLineColor: () => BRAND.border,
+            paddingLeft: () => 0, paddingRight: () => 0, paddingTop: () => 0, paddingBottom: () => 0,
+          },
+        },
       ];
       break;
 
     case "contrat":
       content = [
         ...header,
-        { text: input.title, style: "docTitle", alignment: "center" as const, margin: [0, 0, 0, 16] },
+        buildGovernanceBanner(accentColor, theme.categoryLabel, `Réf. ${docNum} — ${today}`),
+        { text: "CONTRAT", fontSize: 18, bold: true, color: accentColor, alignment: "center" as const, margin: [0, 0, 0, 4] },
+        { text: input.title, style: "docTitle", alignment: "center" as const, margin: [0, 0, 0, 4] },
+        { text: `Réf. ${docNum}  •  ${today}`, fontSize: 8, color: BRAND.muted, alignment: "center" as const, margin: [0, 0, 0, 16] },
+        // Two-column party strip
+        {
+          columns: [
+            {
+              stack: [
+                { text: "PARTIE 1 — SYNDICAT", fontSize: 8, bold: true, color: accentColor, margin: [0, 0, 0, 4] },
+                { canvas: [{ type: "line", x1: 0, y1: 0, x2: 220, y2: 0, lineWidth: 1, lineColor: accentColor }], margin: [0, 0, 0, 8] },
+                { text: syndInfo.name, fontSize: 11, bold: true, color: BRAND.ink, margin: [0, 0, 0, 3] },
+                { text: [syndInfo.address, syndInfo.city].filter(Boolean).join(", ") || "—", fontSize: 8.5, color: BRAND.muted },
+                { text: syndInfo.phone || "", fontSize: 8.5, color: BRAND.muted },
+                { text: syndInfo.email || "", fontSize: 8.5, color: BRAND.muted },
+                ...(syndInfo.registrationNumber ? [{ text: `N° Reg. : ${syndInfo.registrationNumber}`, fontSize: 8, color: BRAND.mutedLight, margin: [0, 4, 0, 0] }] : []),
+              ],
+              width: "50%",
+            },
+            {
+              stack: [
+                { text: "PARTIE 2 — COCONTRACTANT", fontSize: 8, bold: true, color: accentColor, margin: [0, 0, 0, 4] },
+                { canvas: [{ type: "line", x1: 0, y1: 0, x2: 220, y2: 0, lineWidth: 1, lineColor: accentColor }], margin: [0, 0, 0, 8] },
+                { text: member || (input.partie2 as string) || "[COCONTRACTANT]", fontSize: 11, bold: true, color: BRAND.ink, margin: [0, 0, 0, 3] },
+                ...(input._memberEmail ? [{ text: input._memberEmail as string, fontSize: 8.5, color: BRAND.muted }] : []),
+                ...(input._memberPhone ? [{ text: input._memberPhone as string, fontSize: 8.5, color: BRAND.muted }] : []),
+                ...(input._lotNumber   ? [{ text: `Lot N° ${input._lotNumber as string}${input._buildingName ? ` — ${input._buildingName as string}` : ""}`, fontSize: 8, color: BRAND.mutedLight, margin: [0, 4, 0, 0] }] : []),
+              ],
+              width: "50%",
+            },
+          ],
+          columnGap: 20,
+          margin: [0, 0, 0, 16],
+        },
         metaTable([
-          ["Référence du contrat :", docNum],
-          ["Date :", today],
-          ["Partie 1 :", syndInfo.name],
-          ["Partie 2 :", member || "[COCONTRACTANT]"],
-          ["Objet :", input.objet as string || input.title],
+          ["Objet du contrat :", input.objet as string || input.title],
+          ["Date d'entrée en vigueur :", input.dateDebut as string || today],
+          ...(input.dateFin ? [["Date d'expiration :", input.dateFin as string] as [string, string]] : []),
         ], accentColor),
-        contentSection("Préambule", input.preamble as string || `Le présent contrat est conclu entre ${syndInfo.name} et ${member || "[COCONTRACTANT]"}.`, accentColor),
+        contentSection("Préambule", input.preamble as string || `Le présent contrat est conclu entre ${syndInfo.name} (Partie 1) et ${member || "[COCONTRACTANT]"} (Partie 2) et définit les droits et obligations des parties pour la durée convenue.`, accentColor),
         contentSection(
           "Clauses et conditions",
-          body || "Les parties conviennent des clauses et conditions détaillées ci-après. Tout différend relatif à l'interprétation ou à l'exécution du présent contrat sera soumis à la juridiction compétente.",
+          body || "Les parties conviennent des clauses et conditions détaillées ci-après. Tout différend relatif à l'interprétation ou à l'exécution du présent contrat sera soumis à la juridiction compétente de Casablanca.",
           accentColor,
         ),
+        ...(input.modalitesResiliation as string ? [contentSection("Modalités de résiliation", input.modalitesResiliation as string, accentColor)] : []),
         signatureBlock("Le Président du Syndicat", syndInfo.name, accentColor, true, lang, signatures),
         legalFooterNote(docNum, lang, verifyUrl),
       ];
       break;
 
-    case "rapport":
+    case "rapport": {
+      const rapportPeriode = (input.periode as string) || today;
+      const rapportAuteur  = member || syndInfo.name;
+      const hasKpiData     = !!(input._kpiTotalPaid || input._kpiTotalCharged || input._kpiOutstanding || input._kpiCollectionRate);
       content = [
         ...header,
-        { text: input.title, style: "docTitle", alignment: "center" as const, margin: [0, 0, 0, 16] },
+        buildGovernanceBanner(accentColor, theme.categoryLabel, `Période : ${rapportPeriode}  •  Réf. ${docNum}`),
+        { text: "RAPPORT D'ACTIVITÉ", fontSize: 18, bold: true, color: accentColor, alignment: "center" as const, margin: [0, 0, 0, 4] },
+        { text: input.title, style: "docTitle", alignment: "center" as const, margin: [0, 0, 0, 4] },
+        { text: `Syndicat : ${syndInfo.name}  •  ${today}`, fontSize: 8, color: BRAND.muted, alignment: "center" as const, margin: [0, 0, 0, 16] },
         metaTable([
-          ["Période couverte :", input.periode as string || today],
-          ["Auteur :", member || syndInfo.name],
+          ["Période couverte :", rapportPeriode],
+          ["Établi par :", rapportAuteur],
           ["Date de rédaction :", today],
-          ["Syndicat :", syndInfo.name],
+          ["Référence :", docNum],
         ], accentColor),
+        // Financial KPI strip — only shown when real data is available
+        ...(hasKpiData ? financialDashboard(input as Record<string, unknown>, accentColor) : []),
         contentSection("Synthèse exécutive", input.synthese as string || body || "Ce rapport présente les activités et résultats du syndicat pour la période indiquée.", accentColor),
         contentSection("Activités réalisées", input.activites as string || "Voir détails en annexe.", accentColor),
         contentSection("Indicateurs clés", input.indicateurs as string || "—", accentColor),
@@ -3333,8 +3584,14 @@ async function buildDocDef(template: DocumentTemplate, input: DocumentInput): Pr
         legalFooterNote(docNum, lang, verifyUrl),
       ];
       break;
+    }
 
-    case "decision":
+    case "decision": {
+      const voteFor      = (input._voteFor      as string) || (input.votePour     as string) || "";
+      const voteAgainst  = (input._voteAgainst  as string) || (input.voteContre   as string) || "";
+      const voteAbstain  = (input._voteAbstain  as string) || (input.voteAbstention as string) || "";
+      const hasVoteData  = !!(voteFor || voteAgainst || voteAbstain);
+      const effectDate   = (input.datePriseEffet as string) || today;
       content = [
         ...header,
         buildGovernanceBanner(accentColor, theme.categoryLabel, `Réf. ${docNum} — ${today}`),
@@ -3343,6 +3600,7 @@ async function buildDocDef(template: DocumentTemplate, input: DocumentInput): Pr
           ["Référence :", docNum],
           ["Date de la décision :", today],
           ["Organe décisionnel :", input.organe as string || "Bureau Syndical"],
+          ["Date de prise d'effet :", effectDate],
           ["Syndicat :", syndInfo.name],
         ], accentColor),
         contentSection(
@@ -3352,21 +3610,25 @@ async function buildDocDef(template: DocumentTemplate, input: DocumentInput): Pr
           accentColor,
         ),
         contentSection("Décide", body || "La présente décision est adoptée à l'unanimité des membres présents.", accentColor),
+        // Vote tally — shown when pour/contre/abstention data is provided
+        ...(hasVoteData ? [kpiRow([
+          { label: "Votes POUR",        value: voteFor      || "—", bgColor: BRAND.successLight, valueColor: BRAND.successDeep },
+          { label: "Votes CONTRE",      value: voteAgainst  || "—", bgColor: BRAND.destructiveLight, valueColor: BRAND.destructiveDark },
+          { label: "Abstentions",        value: voteAbstain  || "—", bgColor: BRAND.surface, valueColor: BRAND.muted },
+        ], accentColor)] : []),
         {
           table: {
             widths: ["*"],
             body: [[{
-              text: "La présente décision entre en vigueur à compter de la date de sa signature et est opposable à tous les membres.",
+              text: `La présente décision entre en vigueur à compter du ${effectDate} et est opposable à tous les membres du syndicat.`,
               style: "notice",
               fillColor: BRAND.successLight,
               margin: [10, 8, 10, 8],
             }]],
           },
           layout: {
-            hLineWidth: () => 1,
-            vLineWidth: () => 1,
-            hLineColor: () => BRAND.success,
-            vLineColor: () => BRAND.success,
+            hLineWidth: () => 1, vLineWidth: () => 1,
+            hLineColor: () => BRAND.success, vLineColor: () => BRAND.success,
           },
           margin: [0, 0, 0, 16],
         },
@@ -3374,6 +3636,7 @@ async function buildDocDef(template: DocumentTemplate, input: DocumentInput): Pr
         legalFooterNote(docNum, lang, verifyUrl),
       ];
       break;
+    }
 
     case "certificat":
       content = [
@@ -3401,6 +3664,7 @@ async function buildDocDef(template: DocumentTemplate, input: DocumentInput): Pr
     case "circulaire":
       content = [
         ...header,
+        buildGovernanceBanner(accentColor, theme.categoryLabel, `Réf. ${docNum} — ${today}`),
         { text: input.title, style: "docTitle", margin: [0, 0, 0, 16] },
         metaTable([
           ["À :", "Tous les membres du syndicat"],
@@ -3465,6 +3729,20 @@ async function buildDocDef(template: DocumentTemplate, input: DocumentInput): Pr
           accentColor,
           isArabic,
         ),
+        // Bank payment coordinates — shown only when configured, to facilitate debt settlement
+        ...(syndInfo.bankName || syndInfo.bankIban ? [
+          contentSection(
+            "COORDONNÉES BANCAIRES POUR RÈGLEMENT",
+            [
+              "Pour procéder au règlement de votre dette, vous pouvez effectuer un virement bancaire :",
+              ...(syndInfo.bankName ? [`  • Banque : ${syndInfo.bankName}`] : []),
+              ...(syndInfo.bankIban ? [`  • IBAN   : ${syndInfo.bankIban}`] : []),
+              ...(syndInfo.bankBic  ? [`  • BIC    : ${syndInfo.bankBic}`]  : []),
+              `  • Référence : ${docNum}`,
+            ].join("\n"),
+            accentColor,
+          ),
+        ] : []),
         signatureBlock(t("presidentTitle", lang), syndInfo.name, accentColor, true, lang, signatures),
         legalFooterNote(docNum, lang, verifyUrl),
       ];
@@ -3474,6 +3752,7 @@ async function buildDocDef(template: DocumentTemplate, input: DocumentInput): Pr
     case "demande_administrative":
       content = [
         ...header,
+        buildGovernanceBanner(accentColor, theme.categoryLabel, `Demandeur : ${member || "[NOM DU DEMANDEUR]"}  •  Réf. ${docNum}`),
         { text: input.title, style: "docTitle", margin: [0, 0, 0, 16] },
         metaTable([
           ["Demandeur :",       member || "[NOM DU DEMANDEUR]"],
@@ -3511,6 +3790,7 @@ async function buildDocDef(template: DocumentTemplate, input: DocumentInput): Pr
     case "autorisation":
       content = [
         ...header,
+        buildGovernanceBanner(accentColor, theme.categoryLabel, `Bénéficiaire : ${member || "[NOM]"}  •  Réf. ${docNum}`),
         { text: input.title, style: "docTitle", margin: [0, 0, 0, 16] },
         metaTable([
           ["Bénéficiaire :",    member || "[NOM DU BÉNÉFICIAIRE]"],
@@ -3557,6 +3837,7 @@ async function buildDocDef(template: DocumentTemplate, input: DocumentInput): Pr
     case "ordre_de_mission":
       content = [
         ...header,
+        buildGovernanceBanner(accentColor, theme.categoryLabel, `Mission : ${member || "[NOM]"}  •  Réf. ${docNum}`),
         { text: input.title, style: "docTitle", margin: [0, 0, 0, 16] },
         metaTable([
           ["Missionnaire :",    member || "[NOM DU MISSIONNAIRE]"],
@@ -3631,6 +3912,7 @@ async function buildDocDef(template: DocumentTemplate, input: DocumentInput): Pr
     case "note_interne":
       content = [
         ...header,
+        buildGovernanceBanner(accentColor, theme.categoryLabel, `De : ${input.de as string || "La Présidence"}  •  Réf. ${docNum}`),
         metaTable([
           ["À :",       member || "Tous les membres du bureau"],
           ["De :",      input.de as string || "La Présidence"],
@@ -3684,8 +3966,7 @@ async function buildDocDef(template: DocumentTemplate, input: DocumentInput): Pr
 
       content = [
         ...header,
-        // Premium title band
-        { canvas: [{ type: "rect", x: 0, y: 0, w: 515, h: 4, color: accentColor }], margin: [0, 0, 0, 12] },
+        buildGovernanceBanner(accentColor, theme.categoryLabel, `Exercice ${rapportExercice}  •  Réf. ${docNum}`),
         { text: "RAPPORT FINANCIER", fontSize: 20, bold: true, color: accentColor, alignment: "center" as const, margin: [0, 0, 0, 4] },
         { text: input.title, style: "docTitle", alignment: "center" as const, margin: [0, 0, 0, 16] },
 
@@ -3818,6 +4099,7 @@ async function buildDocDef(template: DocumentTemplate, input: DocumentInput): Pr
     case "rapport_audit":
       content = [
         ...header,
+        buildGovernanceBanner(accentColor, theme.categoryLabel, `Auditeur : ${input.auditeurs as string || "Commissaire aux comptes"}  •  Réf. ${docNum}`),
         { text: input.title, style: "docTitle", margin: [0, 0, 0, 8] },
         metaTable([
           ["Auditeur(s) :",     input.auditeurs as string || "Commissaire aux comptes"],
@@ -3854,6 +4136,7 @@ async function buildDocDef(template: DocumentTemplate, input: DocumentInput): Pr
     case "convention_partenariat":
       content = [
         ...header,
+        buildGovernanceBanner(accentColor, theme.categoryLabel, `${syndInfo.name}  ↔  ${input.partieB as string || "[PARTENAIRE]"}  •  Réf. ${docNum}`),
         { text: input.title, style: "docTitle", margin: [0, 0, 0, 16] },
         metaTable([
           ["Partie A :",        syndInfo.name],
@@ -3881,6 +4164,7 @@ async function buildDocDef(template: DocumentTemplate, input: DocumentInput): Pr
     case "accord_collectif":
       content = [
         ...header,
+        buildGovernanceBanner(accentColor, theme.categoryLabel, `${syndInfo.name}  ↔  ${input.employeur as string || "[EMPLOYEUR]"}  •  Réf. ${docNum}`),
         { text: input.title, style: "docTitle", margin: [0, 0, 0, 16] },
         metaTable([
           ["Syndicat signataire :", syndInfo.name],
@@ -3982,6 +4266,7 @@ async function buildDocDef(template: DocumentTemplate, input: DocumentInput): Pr
     case "rapport_activite":
       content = [
         ...header,
+        buildGovernanceBanner(accentColor, theme.categoryLabel, `${input.periode as string || `Exercice ${new Date().getFullYear()}`}  •  Réf. ${docNum}`),
         { text: input.title, style: "docTitle", margin: [0, 0, 0, 8] },
         { text: input.periode as string || `Rapport annuel ${new Date().getFullYear()}`, style: "docRef", margin: [0, 0, 0, 16] },
         metaTable([
@@ -4175,16 +4460,60 @@ async function buildDocDef(template: DocumentTemplate, input: DocumentInput): Pr
     // ── Template 24: Attestation de Paiement des Charges ─────────────────────────
     case "attestation_paiement": {
       const periode = (input.periode as string) || `Exercice ${new Date().getFullYear()}`;
-      // Auto-calculated by getAttestationPaiementData when lotId provided
       const montant = (input.montant as string) || "—";
+      const totalCharged = (input._totalCharged as string) || "—";
       const statusPaiement = (input._paiementStatus as string) || "";
+      const inGoodStanding = !statusPaiement || statusPaiement === "EN RÈGLE";
       const lotNum = (input.lotNumber as string) || (input._lotNumber as string) || "—";
       const lastPaid = (input._lastPaidDate as string) || "";
+      const appelCount = (input._appelCount as string) || "";
+
+      // Parse payment history when coming from DB entity loader
+      type AppelHistoryRow = { period: string; amount: number; status: string; paidDate: string | null };
+      let paymentHistory: AppelHistoryRow[] = [];
+      const rawHist = input._paymentHistoryJson as string | undefined;
+      if (rawHist) { try { paymentHistory = JSON.parse(rawHist); } catch { /* ignore */ } }
+
+      const statusColor = inGoodStanding ? BRAND.success : BRAND.warning;
+      const statusBg    = inGoodStanding ? BRAND.successLight : BRAND.warningLight;
+      const statusText  = inGoodStanding
+        ? "✓  EN RÈGLE — Situation comptable vérifiée à la date de délivrance"
+        : `⚠  ${statusPaiement || "ATTENTION — CHARGES EN COURS"}`;
+
       content = [
         ...header,
         buildCertificateFrame(accentColor, lang),
         { text: "ATTESTATION DE PAIEMENT DES CHARGES", fontSize: 18, bold: true, color: accentColor, alignment: "center" as const, margin: [0, 0, 0, 4] },
         { text: input.title, style: "docTitle", alignment: "center" as const, margin: [0, 0, 0, 16] },
+        // Status badge — shown prominently before the identity table
+        {
+          table: {
+            widths: ["*"],
+            body: [[{
+              columns: [
+                {
+                  text: statusText,
+                  fontSize: 10, bold: true, color: inGoodStanding ? BRAND.successDeep : BRAND.warningDark, width: "*",
+                  margin: [0, 0, 0, 0],
+                },
+                ...(lastPaid ? [{
+                  text: `Dernier paiement : ${lastPaid}`,
+                  fontSize: 8, color: BRAND.muted, alignment: "right" as const, width: "auto",
+                }] : []),
+              ],
+              fillColor: statusBg,
+              margin: [14, 10, 14, 10],
+              border: [false, false, false, false] as [boolean, boolean, boolean, boolean],
+            }]],
+          },
+          layout: {
+            hLineWidth: (i: number, node: { table: { body: unknown[] } }) => i === 0 || i === node.table.body.length ? 1.5 : 0,
+            vLineWidth: () => 0,
+            hLineColor: () => statusColor,
+            paddingLeft: () => 0, paddingRight: () => 0, paddingTop: () => 0, paddingBottom: () => 0,
+          },
+          margin: [0, 0, 0, 16],
+        },
         metaTable([
           [t("metaDeliveredTo", lang), member || t("notRenseigne", lang)],
           [t("metaIssueDate", lang), today],
@@ -4192,6 +4521,8 @@ async function buildDocDef(template: DocumentTemplate, input: DocumentInput): Pr
           ["Période couverte :", periode],
           ...(lotNum !== "—" ? [["N° de lot :", lotNum] as [string, string]] : []),
           ...(montant !== "—" ? [["Montant total réglé :", `${montant} MAD`] as [string, string]] : []),
+          ...(totalCharged !== "—" ? [["Montant total appelé :", `${totalCharged} MAD`] as [string, string]] : []),
+          ...(appelCount ? [["Nombre d'appels :", `${appelCount} appel(s) de fonds`] as [string, string]] : []),
           ...(syndInfo.registrationNumber ? [[t("metaRegRef", lang), syndInfo.registrationNumber] as [string, string]] : []),
         ], accentColor),
         contentSection(
@@ -4199,52 +4530,59 @@ async function buildDocDef(template: DocumentTemplate, input: DocumentInput): Pr
           body || (
             `Le Syndicat de Copropriété ${syndInfo.name} certifie que :\n\n` +
             `${member || "[NOM DU MEMBRE]"}, copropriétaire du lot N° ${lotNum},\n\n` +
-            (statusPaiement && statusPaiement !== "EN RÈGLE"
-              ? `est en cours de régularisation de ses charges de copropriété pour la période : ${periode}.\n\n` +
-                `Montant total réglé à ce jour : ${montant !== "—" ? montant + " MAD" : "[montant]"}.\n\n` +
-                `Veuillez régulariser votre situation dans les plus brefs délais.`
-              : `est en règle de paiement de ses charges de copropriété pour la période : ${periode}.\n\n` +
+            (inGoodStanding
+              ? `est en règle de paiement de ses charges de copropriété pour la période : ${periode}.\n\n` +
                 `Montant total réglé : ${montant !== "—" ? montant + " MAD" : "[montant]"}.\n\n` +
-                `À la date de délivrance de la présente attestation, aucune somme n'est due au titre des charges communes exigibles pour la période mentionnée ci-dessus.`) +
+                `À la date de délivrance de la présente attestation, aucune somme n'est due au titre des charges communes exigibles pour la période mentionnée ci-dessus.`
+              : `est en cours de régularisation de ses charges de copropriété pour la période : ${periode}.\n\n` +
+                `Montant total réglé à ce jour : ${montant !== "—" ? montant + " MAD" : "[montant]"}.\n\n` +
+                `Veuillez régulariser votre situation dans les plus brefs délais.`) +
             `\n\nCette attestation est établie sur la base des écritures comptables du syndicat et est délivrée ` +
             `à la demande de l'intéressé(e) pour servir et valoir ce que de droit.`
           ),
           accentColor,
           isArabic,
         ),
-        {
-          table: {
-            widths: ["*"],
-            body: [[{
-              stack: [
-                {
-                  text: statusPaiement && statusPaiement !== "EN RÈGLE"
-                    ? `⚠  ${statusPaiement}`
-                    : "✓  Situation comptable vérifiée à la date de délivrance",
-                  fontSize: 9,
-                  color: statusPaiement && statusPaiement !== "EN RÈGLE" ? BRAND.warningDark : BRAND.successDeep,
-                  bold: true,
-                  margin: [0, 0, 0, 2],
-                },
-                {
-                  text: lastPaid
-                    ? `Dernier paiement enregistré le : ${lastPaid}`
-                    : "Cette attestation n'engage pas le syndicat pour les charges futures.",
-                  fontSize: 8,
-                  color: statusPaiement && statusPaiement !== "EN RÈGLE" ? BRAND.warningDark : BRAND.successDeep,
-                },
-              ],
-              fillColor: statusPaiement && statusPaiement !== "EN RÈGLE" ? BRAND.warningLight : BRAND.successLight,
-              margin: [12, 8, 12, 8],
-            }]],
-          },
-          layout: {
-            hLineWidth: () => 1, vLineWidth: () => 1,
-            hLineColor: () => statusPaiement && statusPaiement !== "EN RÈGLE" ? BRAND.warning : BRAND.success,
-            vLineColor: () => statusPaiement && statusPaiement !== "EN RÈGLE" ? BRAND.warning : BRAND.success,
-          },
+        // Payment history table — only rendered when real DB data is available
+        ...(paymentHistory.length > 0 ? [{
+          stack: [
+            { canvas: [{ type: "rect", x: 0, y: 0, w: 515, h: 20, color: accentColor }], margin: [0, 0, 0, 0] },
+            { text: "HISTORIQUE DES APPELS DE FONDS", fontSize: 8.5, bold: true, color: BRAND.surfaceCard, margin: [0, -17, 0, 10] },
+            {
+              table: {
+                widths: ["*", 80, 80, 70],
+                body: [
+                  [
+                    { text: "PÉRIODE", fontSize: 7.5, bold: true, color: BRAND.surfaceCard, fillColor: accentColor, margin: [8, 5, 8, 5], border: [false, false, false, false] as [boolean, boolean, boolean, boolean] },
+                    { text: "MONTANT", fontSize: 7.5, bold: true, color: BRAND.surfaceCard, fillColor: accentColor, alignment: "right" as const, margin: [4, 5, 8, 5], border: [false, false, false, false] as [boolean, boolean, boolean, boolean] },
+                    { text: "DATE PAIEMENT", fontSize: 7.5, bold: true, color: BRAND.surfaceCard, fillColor: accentColor, alignment: "center" as const, margin: [4, 5, 4, 5], border: [false, false, false, false] as [boolean, boolean, boolean, boolean] },
+                    { text: "STATUT", fontSize: 7.5, bold: true, color: BRAND.surfaceCard, fillColor: accentColor, alignment: "center" as const, margin: [4, 5, 8, 5], border: [false, false, false, false] as [boolean, boolean, boolean, boolean] },
+                  ],
+                  ...paymentHistory.map((a, i) => {
+                    const isPaid = a.status === "paid";
+                    const isOverdue = a.status === "overdue";
+                    const bg = i % 2 === 0 ? BRAND.surface : BRAND.surfaceCard;
+                    const statusLabel = isPaid ? "PAYÉ" : isOverdue ? "EN RETARD" : "EN ATTENTE";
+                    const statusColor2 = isPaid ? BRAND.successDark : isOverdue ? BRAND.destructiveDark : BRAND.warningDark;
+                    return [
+                      { text: a.period, fontSize: 8, color: BRAND.inkMid, fillColor: bg, margin: [8, 5, 8, 5], border: [false, false, false, false] as [boolean, boolean, boolean, boolean] },
+                      { text: `${a.amount.toLocaleString("fr-MA")} MAD`, fontSize: 8, bold: true, color: BRAND.ink, fillColor: bg, alignment: "right" as const, margin: [4, 5, 8, 5], border: [false, false, false, false] as [boolean, boolean, boolean, boolean] },
+                      { text: a.paidDate || "—", fontSize: 8, color: BRAND.muted, fillColor: bg, alignment: "center" as const, margin: [4, 5, 4, 5], border: [false, false, false, false] as [boolean, boolean, boolean, boolean] },
+                      { text: statusLabel, fontSize: 7.5, bold: true, color: statusColor2, fillColor: bg, alignment: "center" as const, margin: [4, 5, 8, 5], border: [false, false, false, false] as [boolean, boolean, boolean, boolean] },
+                    ];
+                  }),
+                ],
+              },
+              layout: {
+                hLineWidth: (i: number, node: { table: { body: unknown[] } }) => i === 0 || i === node.table.body.length ? 0.8 : 0.3,
+                vLineWidth: () => 0,
+                hLineColor: () => BRAND.border,
+                paddingLeft: () => 0, paddingRight: () => 0, paddingTop: () => 0, paddingBottom: () => 0,
+              },
+            },
+          ],
           margin: [0, 0, 0, 16],
-        },
+        }] : []),
         signatureBlock(t("presidentTitle", lang), syndInfo.name, accentColor, true, lang, signatures),
         legalFooterNote(docNum, lang, verifyUrl),
       ];
@@ -4311,12 +4649,19 @@ async function buildDocDef(template: DocumentTemplate, input: DocumentInput): Pr
           `Date d'échéance : ${dueDate}`,
           `Numéro de référence : ${receiptNum}`,
         ].join("\n"), accentColor),
-        // Payment instructions
+        // Payment instructions — include real bank details when configured
         contentSection("MODALITÉS DE PAIEMENT", [
           "Modes de paiement acceptés :",
           "  • Virement bancaire au compte du syndicat",
           "  • Chèque libellé à l'ordre du syndicat de copropriété",
           "  • Remise en espèces au bureau syndical (contre reçu)",
+          ...(syndInfo.bankName || syndInfo.bankIban ? [
+            "",
+            "Coordonnées bancaires :",
+            ...(syndInfo.bankName ? [`  • Banque : ${syndInfo.bankName}`] : []),
+            ...(syndInfo.bankIban ? [`  • IBAN   : ${syndInfo.bankIban}`] : []),
+            ...(syndInfo.bankBic  ? [`  • BIC    : ${syndInfo.bankBic}`]  : []),
+          ] : []),
           "",
           `Veuillez mentionner la référence ${receiptNum} sur tout virement.`,
           "",
@@ -4526,6 +4871,38 @@ async function buildDocDef(template: DocumentTemplate, input: DocumentInput): Pr
           layout: { hLineWidth: () => 0, vLineWidth: () => 0, paddingLeft: () => 0, paddingRight: () => 0, paddingTop: () => 0, paddingBottom: () => 0 },
           margin: [0, 0, 0, 24],
         },
+        // Bank payment details (below totals) — shown only when bank info is configured
+        ...(syndInfo.bankName || syndInfo.bankIban ? [{
+          table: {
+            widths: ["auto", "*"],
+            body: [
+              [
+                { text: "COORDONNÉES BANCAIRES", fontSize: 7.5, bold: true, color: BRAND.surfaceCard, fillColor: accentColor, margin: [10, 6, 10, 6], colSpan: 2, border: [false, false, false, false] as [boolean, boolean, boolean, boolean] },
+                {},
+              ],
+              ...(syndInfo.bankName ? [[
+                { text: "Banque :", fontSize: 8, color: BRAND.muted, margin: [10, 4, 6, 4], border: [false, false, false, false] as [boolean, boolean, boolean, boolean] },
+                { text: syndInfo.bankName, fontSize: 8.5, bold: true, color: BRAND.ink, margin: [0, 4, 10, 4], border: [false, false, false, false] as [boolean, boolean, boolean, boolean] },
+              ]] : []),
+              ...(syndInfo.bankIban ? [[
+                { text: "IBAN :", fontSize: 8, color: BRAND.muted, margin: [10, 4, 6, 4], border: [false, false, false, false] as [boolean, boolean, boolean, boolean] },
+                { text: syndInfo.bankIban, fontSize: 8.5, bold: true, color: BRAND.ink, font: "monospace" as any, margin: [0, 4, 10, 4], border: [false, false, false, false] as [boolean, boolean, boolean, boolean] },
+              ]] : []),
+              ...(syndInfo.bankBic ? [[
+                { text: "BIC :", fontSize: 8, color: BRAND.muted, margin: [10, 4, 6, 6], border: [false, false, false, false] as [boolean, boolean, boolean, boolean] },
+                { text: syndInfo.bankBic, fontSize: 8.5, bold: true, color: BRAND.ink, margin: [0, 4, 10, 6], border: [false, false, false, false] as [boolean, boolean, boolean, boolean] },
+              ]] : []),
+            ],
+          },
+          layout: {
+            hLineWidth: (i: number, node: { table: { body: unknown[] } }) => i === 0 || i === node.table.body.length ? 0.8 : 0.4,
+            vLineWidth: () => 0,
+            hLineColor: () => BRAND.border,
+            fillColor: (_: number, __: unknown, col: number) => col === 0 ? BRAND.surface : BRAND.surfaceCard,
+            paddingLeft: () => 0, paddingRight: () => 0, paddingTop: () => 0, paddingBottom: () => 0,
+          },
+          margin: [0, 0, 0, 24],
+        }] : [{ text: "", margin: [0, 0, 0, 24] }]),
         signatureBlock("Le Trésorier du Syndicat", syndInfo.name, accentColor, true, lang, signatures),
         legalFooterNote(docNum, lang, verifyUrl),
       ];
@@ -4825,8 +5202,69 @@ async function buildDocDef(template: DocumentTemplate, input: DocumentInput): Pr
           },
           margin: [0, 0, 0, 16],
         },
-        contentSection("RÉSULTATS PAR CANDIDAT", candidatesText, accentColor),
-        ...(mandateDuration !== "—" ? [contentSection("MANDATS", `Durée des mandats des candidats élus : ${mandateDuration}\n\nLes membres élus entrent en fonction à la date de publication du présent procès-verbal.`, accentColor)] : []),
+        // ── Candidate results — structured table when JSON available, text fallback ──
+        ...(() => {
+          type CandidateRow = { rank: number; name: string; votes: number; pct: number; isWinner: boolean };
+          let rows: CandidateRow[] = [];
+          const rawJson = input._candidatesJson as string | undefined;
+          if (rawJson) { try { rows = JSON.parse(rawJson); } catch { /* fall through to text */ } }
+
+          if (rows.length === 0) {
+            return [contentSection("RÉSULTATS PAR CANDIDAT", candidatesText, accentColor)];
+          }
+
+          const tableBody: unknown[][] = [
+            [
+              { text: "#", fontSize: 8, bold: true, color: BRAND.surfaceCard, fillColor: accentColor, margin: [6, 6, 6, 6], border: [false, false, false, false] as [boolean, boolean, boolean, boolean] },
+              { text: "CANDIDAT", fontSize: 8, bold: true, color: BRAND.surfaceCard, fillColor: accentColor, margin: [8, 6, 8, 6], border: [false, false, false, false] as [boolean, boolean, boolean, boolean] },
+              { text: "VOTES", fontSize: 8, bold: true, color: BRAND.surfaceCard, fillColor: accentColor, alignment: "center" as const, margin: [4, 6, 4, 6], border: [false, false, false, false] as [boolean, boolean, boolean, boolean] },
+              { text: "%", fontSize: 8, bold: true, color: BRAND.surfaceCard, fillColor: accentColor, alignment: "center" as const, margin: [4, 6, 4, 6], border: [false, false, false, false] as [boolean, boolean, boolean, boolean] },
+              { text: "STATUT", fontSize: 8, bold: true, color: BRAND.surfaceCard, fillColor: accentColor, alignment: "center" as const, margin: [8, 6, 8, 6], border: [false, false, false, false] as [boolean, boolean, boolean, boolean] },
+            ],
+            ...rows.map((c, i) => {
+              const bg = i % 2 === 0 ? BRAND.surface : BRAND.surfaceCard;
+              return [
+                { text: String(c.rank), fontSize: 9, bold: true, color: BRAND.muted, alignment: "center" as const, fillColor: bg, margin: [6, 7, 6, 7], border: [false, false, false, false] as [boolean, boolean, boolean, boolean] },
+                { text: c.name, fontSize: 9.5, bold: c.isWinner, color: c.isWinner ? BRAND.ink : BRAND.inkMid, fillColor: bg, margin: [8, 7, 8, 7], border: [false, false, false, false] as [boolean, boolean, boolean, boolean] },
+                { text: String(c.votes), fontSize: 9.5, bold: true, alignment: "center" as const, color: BRAND.ink, fillColor: bg, margin: [4, 7, 4, 7], border: [false, false, false, false] as [boolean, boolean, boolean, boolean] },
+                { text: `${c.pct}%`, fontSize: 9, alignment: "center" as const, color: BRAND.inkMid, fillColor: bg, margin: [4, 7, 4, 7], border: [false, false, false, false] as [boolean, boolean, boolean, boolean] },
+                {
+                  text: c.isWinner ? "✓ ÉLU" : "—",
+                  fontSize: 8.5, bold: c.isWinner,
+                  color: c.isWinner ? BRAND.successDark : BRAND.muted,
+                  fillColor: c.isWinner ? BRAND.successLight : bg,
+                  alignment: "center" as const,
+                  margin: [8, 7, 8, 7],
+                  border: [false, false, false, false] as [boolean, boolean, boolean, boolean],
+                },
+              ];
+            }),
+          ];
+
+          return [{
+            stack: [
+              {
+                canvas: [{ type: "rect", x: 0, y: 0, w: 515, h: 20, color: accentColor }],
+                margin: [0, 0, 0, 0],
+              },
+              { text: "RÉSULTATS PAR CANDIDAT", fontSize: 8.5, bold: true, color: BRAND.surfaceCard, margin: [0, -17, 0, 10] },
+              {
+                table: { widths: [24, "*", 50, 40, 70], body: tableBody },
+                layout: {
+                  hLineWidth: (i: number, node: { table: { body: unknown[] } }) => i === 0 || i === node.table.body.length ? 0.8 : 0.4,
+                  vLineWidth: () => 0,
+                  hLineColor: () => BRAND.border,
+                  paddingLeft: () => 0, paddingRight: () => 0, paddingTop: () => 0, paddingBottom: () => 0,
+                },
+              },
+            ],
+            margin: [0, 0, 0, 16],
+          }];
+        })(),
+        // ── Elected members summary ────────────────────────────────────────────
+        ...((input._winnersText as string) && (input._winnersText as string) !== "—" ? [
+          contentSection("MEMBRES ÉLUS AU CONSEIL SYNDICAL", `${input._winnersText as string}\n\nLes membres élus entrent en fonction à la date de publication du présent procès-verbal.${mandateDuration !== "—" ? `\nDurée des mandats : ${mandateDuration}.` : ""}`, accentColor),
+        ] : mandateDuration !== "—" ? [contentSection("MANDATS", `Durée des mandats des candidats élus : ${mandateDuration}\n\nLes membres élus entrent en fonction à la date de publication du présent procès-verbal.`, accentColor)] : []),
         ...(input.observations as string ? [contentSection("OBSERVATIONS ET RÉSERVES", input.observations as string, accentColor)] : []),
         multiSignatoryBlock(input.officeHolders as OfficeHolders | undefined, accentColor, lang, signatures, syndInfo.name),
         legalFooterNote(docNum, lang, verifyUrl),

@@ -7,6 +7,7 @@ import { requireAuth, requireRole, requireAdmin } from "../middleware/auth.js";
 import { serverAuditLog } from "../lib/audit.js";
 import { sendTransactionalEmail } from "../lib/email/emailService.js";
 import { syndicateCreatedTemplate } from "../lib/email/templates.js";
+import { bustLogoCache } from "../lib/documentPdf.js";
 
 const router = Router();
 
@@ -124,6 +125,10 @@ export const createSyndicateSchema = z.object({
   // Branding
   logoColor: z.string().regex(/^#[0-9a-fA-F]{6}$/).default("#7c3aed"),
   logoUrl: z.string().optional().or(z.literal("")),
+  // Banking
+  bankName: z.string().max(100).optional(),
+  bankIban: z.string().max(50).optional(),
+  bankBic:  z.string().max(20).optional(),
   // Optional: initial member count
   membersCount: z.number().int().min(0).default(0),
   // Optional: designate an existing user as admin
@@ -171,6 +176,9 @@ router.post("/syndicates", requireAuth, requireRole("super_admin"), async (req, 
         cotisationCycle: data.cotisationCycle,
         logoColor: data.logoColor,
         logoUrl: data.logoUrl || undefined,
+        bankName: data.bankName || undefined,
+        bankIban: data.bankIban || undefined,
+        bankBic:  data.bankBic  || undefined,
         membersCount: data.membersCount,
         adminId: data.adminId,
         status: "active",
@@ -250,6 +258,10 @@ const updateSchema = z.object({
   logoUrl: z.string().optional().or(z.literal("")),
   status: z.enum(["active", "inactive"]).optional(),
   adminId: z.string().optional(),
+  // Banking — used on payment demands, invoices, and legal enforcement letters
+  bankName: z.string().max(100).optional(),
+  bankIban: z.string().max(50).optional(),
+  bankBic:  z.string().max(20).optional(),
 });
 
 router.put("/syndicates/:id", requireAuth, requireAdmin, async (req, res) => {
@@ -270,6 +282,10 @@ router.put("/syndicates/:id", requireAuth, requireAdmin, async (req, res) => {
       .where(eq(syndicatesTable.id, id))
       .returning();
     if (!updated) { res.status(404).json({ error: "Syndicat introuvable" }); return; }
+    // Bust logo cache so next PDF generation picks up the new logo immediately
+    if (result.data.logoUrl !== undefined && updated.logoUrl) {
+      bustLogoCache(updated.logoUrl);
+    }
     // Managing syndicate settings/lifecycle is a normal Super Admin platform duty,
     // not supervision of a syndicate_admin's day-to-day operations.
     await serverAuditLog(req, { action: "UPDATE", entity: "syndicate", entityId: id, syndicateId: id, platformAction: user.role === "super_admin" });

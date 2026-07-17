@@ -92,7 +92,7 @@ router.put("/team/syndicate", requireAuth, requireAdmin, async (req, res) => {
     const user = req.user!;
     if (!user.syndicateId) return void res.status(400).json({ error: "Pas de syndicat associé" });
 
-    const allowed = ["email", "phone", "address", "officeHours", "website"];
+    const allowed = ["email", "phone", "address", "officeHours", "website", "bankName", "bankIban", "bankBic"];
     const updates: Record<string, any> = {};
     for (const k of allowed) {
       if (req.body[k] !== undefined) updates[k] = req.body[k];
