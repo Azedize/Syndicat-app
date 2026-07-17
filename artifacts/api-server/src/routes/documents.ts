@@ -1797,8 +1797,15 @@ function buildVerificationHtml(opts: {
   signatures: SigRow[];
   rejectionReason?: string | null;
   token: string;
+  accentColor?: string;
+  docVersion?: number;
 }): string {
-  const { status, title, documentNumber, issuedBy, issuedAt, signatures, rejectionReason, token } = opts;
+  const { status, title, documentNumber, issuedBy, issuedAt, signatures, rejectionReason, token, accentColor, docVersion } = opts;
+  // Derive gradient stops from syndicate accent color
+  const ac = accentColor ?? "#4338ca";
+  const _dk = (h: string, a: number) => "#" + h.replace("#", "").match(/../g)!.map(x => Math.max(0, parseInt(x, 16) - a).toString(16).padStart(2, "0")).join("");
+  const acDark = _dk(ac, 68);
+  const acMid  = _dk(ac, 36);
 
   const cfg: Record<VerifStatus, { bg: string; accent: string; icon: string; badge: string; label: string; sub: string }> = {
     valid:    { bg: "#f0fdf4", accent: "#16a34a", icon: "✓", badge: "#dcfce7", label: "DOCUMENT AUTHENTIQUE", sub: "Ce document a été vérifié et est valide." },
@@ -1826,6 +1833,36 @@ function buildVerificationHtml(opts: {
         }
       </td>
     </tr>`).join("");
+
+  // Build chronological event timeline from available dates
+  const timelineEvents: Array<{ date: Date | null; label: string; detail: string | null; color: string }> = [
+    { date: issuedAt, label: "Document créé", detail: issuedBy ? `par ${issuedBy}` : null, color: ac },
+    ...signatures.map(s => ({
+      date: s.signedAt,
+      label: `Signé — ${s.signerName || "—"}`,
+      detail: s.signerRole ? `Rôle : ${s.signerRole}` : null,
+      color: s.isValid ? "#16a34a" : "#dc2626",
+    })),
+  ].filter(e => e.date != null).sort((a, b) => (a.date!.getTime() - b.date!.getTime()));
+
+  const timelineRows = timelineEvents.map(e => `
+    <div style="position:relative;margin-bottom:12px;padding-left:0;">
+      <div style="position:absolute;left:-22px;top:4px;width:8px;height:8px;background:${e.color};border-radius:50%;border:2px solid #fff;outline:1px solid ${e.color};"></div>
+      <div style="font-size:11px;font-weight:700;color:#1e293b;">${escHtml(e.label)}</div>
+      <div style="font-size:10px;color:#64748b;">${fmtDateTime(e.date)}</div>
+      ${e.detail ? `<div style="font-size:10px;color:#94a3b8;margin-top:1px;">${escHtml(e.detail)}</div>` : ""}
+    </div>`).join("");
+
+  const timelineSection = timelineEvents.length > 0 ? `
+    <div style="background:#fff;border-radius:12px;box-shadow:0 1px 3px rgba(0,0,0,.08);padding:16px;margin-bottom:16px;">
+      <div style="display:flex;align-items:center;gap:8px;margin-bottom:14px;">
+        <span style="font-size:14px;">📋</span>
+        <span style="font-weight:700;font-size:12px;color:#1e293b;letter-spacing:.4px;text-transform:uppercase;">Chronologie du document</span>
+      </div>
+      <div style="border-left:2px solid ${ac};margin-left:4px;padding-left:18px;">
+        ${timelineRows}
+      </div>
+    </div>` : "";
 
   const sigSection = signatures.length > 0 ? `
     <div style="background:#fff;border-radius:12px;box-shadow:0 1px 3px rgba(0,0,0,.08);overflow:hidden;margin-bottom:16px;">
@@ -1863,7 +1900,7 @@ function buildVerificationHtml(opts: {
 <body>
 
   <!-- ── Header band ─────────────────────────────────────────────────────── -->
-  <div style="background:linear-gradient(135deg,#1e1b4b 0%,#312e81 60%,#4338ca 100%);padding:28px 20px 80px;text-align:center;">
+  <div style="background:linear-gradient(135deg,${acDark} 0%,${acMid} 55%,${ac} 100%);padding:28px 20px 80px;text-align:center;">
     <div style="display:inline-flex;align-items:center;gap:8px;margin-bottom:6px;">
       <div style="width:28px;height:28px;background:rgba(255,255,255,.15);border-radius:6px;display:flex;align-items:center;justify-content:center;">
         <span style="color:#fff;font-size:15px;">🏛</span>
@@ -1910,12 +1947,19 @@ function buildVerificationHtml(opts: {
             <td style="padding:7px 0;font-size:12px;color:#64748b;font-weight:500;border-top:1px solid #f8fafc;">Signatures</td>
             <td style="padding:7px 0;font-size:12px;color:#1e293b;border-top:1px solid #f8fafc;">${signatures.length} signature${signatures.length !== 1 ? "s" : ""}</td>
           </tr>
+          <tr>
+            <td style="padding:7px 0;font-size:12px;color:#64748b;font-weight:500;border-top:1px solid #f8fafc;">Version</td>
+            <td style="padding:7px 0;font-size:12px;color:#1e293b;border-top:1px solid #f8fafc;">${docVersion ? `v${docVersion}` : "v1"}</td>
+          </tr>
         </table>
       </div>
     </div>
 
     <!-- Signatures -->
     ${sigSection}
+
+    <!-- Document timeline -->
+    ${timelineSection}
 
     <!-- Security fingerprint -->
     <div style="background:#fff;border-radius:12px;box-shadow:0 1px 3px rgba(0,0,0,.08);padding:16px;margin-bottom:16px;">
@@ -2007,6 +2051,7 @@ router.get("/documents/verify/:token", async (req, res) => {
         syndicateId: documentsTable.syndicateId,
         createdAt: documentsTable.createdAt,
         rejectionReason: documentsTable.rejectionReason,
+        version: documentsTable.version,
       })
       .from(documentsTable)
       .where(eq(documentsTable.verificationToken, token));
@@ -2028,7 +2073,7 @@ router.get("/documents/verify/:token", async (req, res) => {
     else if (doc.status === "signed" || doc.status === "published" || doc.status === "archived") verificationStatus = "valid";
     else verificationStatus = "pending";
 
-    const [syndInfo] = await db.select({ name: syndicatesTable.name }).from(syndicatesTable).where(eq(syndicatesTable.id, doc.syndicateId ?? ""));
+    const [syndInfo] = await db.select({ name: syndicatesTable.name, logoColor: syndicatesTable.logoColor }).from(syndicatesTable).where(eq(syndicatesTable.id, doc.syndicateId ?? ""));
     const sigs = await db
       .select({ signerName: documentSignaturesTable.signerName, signerRole: documentSignaturesTable.signerRole, signedAt: documentSignaturesTable.signedAt, isValid: documentSignaturesTable.isValid })
       .from(documentSignaturesTable)
@@ -2056,6 +2101,8 @@ router.get("/documents/verify/:token", async (req, res) => {
         signatures: sigs,
         rejectionReason: payload.rejectionReason,
         token,
+        accentColor: syndInfo?.logoColor ?? undefined,
+        docVersion: (doc as any).version ?? undefined,
       }));
     } else {
       res.json(payload);

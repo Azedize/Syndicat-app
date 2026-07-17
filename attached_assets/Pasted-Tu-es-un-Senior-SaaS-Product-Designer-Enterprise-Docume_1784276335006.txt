@@ -1,0 +1,201 @@
+Tu es un Senior SaaS Product Designer, Enterprise Document Architect, PDF UX Expert, Compliance Expert, et spécialiste des plateformes de gestion de copropriété.
+
+L'objectif n'est plus de corriger uniquement quelques bugs visuels.
+
+Ta mission est de transformer complètement le module Documents afin qu'il atteigne un niveau Enterprise SaaS comparable à DocuSign, Adobe Sign, PandaDoc, Odoo Enterprise, Microsoft Dynamics ou SAP Document Management.
+
+Analyse d'abord l'existant puis améliore chaque template, chaque écran et chaque workflow.
+
+Je constate encore plusieurs problèmes majeurs :
+
+Le design des PDF reste très simple et peu professionnel. Les documents ressemblent encore à des formulaires techniques plutôt qu'à des documents officiels produits par une grande plateforme SaaS.
+
+Les couleurs changent principalement au niveau des textes mais pas réellement au niveau de l'identité visuelle globale du document.
+
+Le header continue à occuper trop d'espace vertical et réduit inutilement la surface utile du document.
+
+Le logo du syndicat n'est pas suffisamment mis en valeur.
+
+Les signatures réelles ne s'affichent pas correctement alors qu'elles existent dans la base de données.
+
+Les cachets officiels ne ressemblent pas à de véritables cachets institutionnels.
+
+Les documents ne donnent pas une impression de confiance, de légalité et d'autorité.
+
+Pour chaque template existant, effectue une analyse complète :
+
+* quelles données sont saisies manuellement
+* quelles données existent déjà dans la base
+* quelles données devraient être récupérées automatiquement
+* quelles données sont répétées inutilement
+* quelles données manquent dans le PDF final
+
+Supprime toute saisie manuelle lorsqu'une donnée existe déjà dans la base.
+
+L'utilisateur ne doit saisir que les informations réellement absentes du système.
+
+Analyse les tables suivantes et toutes leurs relations :
+
+syndicates
+buildings
+lots
+members
+tenants
+meetings
+elections
+candidates
+votes
+appels_de_fonds
+budgets
+budget_lines
+invoices
+invoice_items
+transactions
+caisse_entries
+fonds_travaux
+documents
+document_signatures
+document_versions
+travaux
+prestataires
+sinistres
+conseil_syndical
+
+Pour chaque template, identifie automatiquement les entités concernées et charge leurs données réelles.
+
+Exemples :
+
+Attestation de résidence :
+
+* membre
+* lot
+* immeuble
+* syndicat
+
+Attestation de propriété :
+
+* propriétaire
+* lot
+* titre foncier
+* surface
+* tantièmes
+
+PV de réunion :
+
+* réunion
+* participants
+* résolutions
+* votes
+* décisions
+
+Rapport financier :
+
+* budgets
+* budget_lines
+* appels_de_fonds
+* transactions
+* caisse_entries
+* fonds_travaux
+
+Rapport d'élection :
+
+* élection
+* candidats
+* résultats
+* quorum
+* participation
+
+Facture :
+
+* invoice
+* invoice_items
+* prestataire
+
+Contrat :
+
+* membre
+* locataire
+* lot
+* immeuble
+* syndicat
+
+Aucune information financière, juridique ou administrative ne doit être ressaisie si elle existe déjà dans les tables.
+
+Améliore ensuite complètement le design des PDF.
+
+Objectifs visuels :
+
+* style Premium Enterprise
+* identité visuelle cohérente
+* branding du syndicat visible
+* hiérarchie typographique moderne
+* couleurs harmonisées avec l'application mobile
+* design comparable à une banque, une assurance ou une administration moderne
+
+Chaque document doit contenir :
+
+* logo réel du syndicat
+* nom du syndicat
+* coordonnées complètes
+* référence unique
+* numéro séquentiel
+* date d'émission
+* statut du document
+* QR de vérification
+* empreinte de sécurité
+* signataires réels
+* cachet officiel réel
+
+Les signatures doivent afficher :
+
+* nom complet
+* fonction
+* date de signature
+* image de signature si disponible
+
+Le cachet doit afficher :
+
+* nom réel du syndicat
+* nom du signataire
+* statut de validation
+
+Le portail de vérification QR doit également être amélioré :
+
+* branding du syndicat
+* aperçu PDF
+* historique des versions
+* historique des signatures
+* historique de vérification
+* statut détaillé
+* timeline complète du document
+
+Analyse aussi tous les templates existants.
+
+Pour chaque template :
+
+1. Évaluer la qualité du design
+2. Évaluer la qualité des données
+3. Vérifier les relations base de données
+4. Vérifier les champs inutiles
+5. Vérifier les données manquantes
+6. Vérifier les signatures
+7. Vérifier les cachets
+8. Vérifier le QR
+9. Vérifier le branding
+10. Proposer automatiquement les améliorations
+
+Produis ensuite un rapport détaillé :
+
+* Templates conformes
+* Templates partiellement conformes
+* Templates non conformes
+* Données manquantes
+* Relations manquantes
+* Problèmes UX
+* Problèmes visuels
+* Problèmes juridiques
+* Problèmes de confiance utilisateur
+* Score de chaque template
+* Score global du module Documents
+
+Puis implémente les corrections directement template par template jusqu'à atteindre un niveau Enterprise SaaS supérieur à 95/100.

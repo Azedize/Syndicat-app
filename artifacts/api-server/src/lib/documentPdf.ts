@@ -498,11 +498,9 @@ function buildHeaderBand(
   docStatus: string | null = null,
   categoryIcon = "■",
 ): object[] {
-  // Color tokens
-  const dark = adjustColorBrightness(accentColor, -30);
-  const mid  = adjustColorBrightness(accentColor, -14);
+  const dark = adjustColorBrightness(accentColor, -32);
+  const lite = adjustColorBrightness(accentColor, 88);
 
-  // Identity text
   const acronym = (syndInfo.abbreviation ||
     syndInfo.name.split(/\s+/).map((w: string) => w[0]).join("").slice(0, 3)
   ).toUpperCase();
@@ -513,64 +511,85 @@ function buildHeaderBand(
   const contactLine = contactParts.join("  ·  ");
   const addressLine = [syndInfo.address, syndInfo.city].filter(Boolean).join(", ");
 
-  // Document status indicator
   const statusDotMap: Record<string, { label: string; color: string }> = {
     published: { label: "PUBLIÉ",    color: "#10b981" },
     signed:    { label: "SIGNÉ",     color: "#7c3aed" },
     validated: { label: "VALIDÉ",    color: "#6d28d9" },
     archived:  { label: "ARCHIVÉ",   color: "#9ca3af" },
-    generated: { label: "GÉNÉRÉ",   color: "#f59e0b" },
+    generated: { label: "GÉNÉRÉ",    color: "#f59e0b" },
     draft:     { label: "BROUILLON", color: "#9ca3af" },
   };
   const statusDot = docStatus ? (statusDotMap[docStatus] ?? null) : null;
 
-  // Logo / monogram tile — 36px rendered inside the 46px column
+  // Logo / monogram — 52px for strong brand presence (was 36px)
   const logoContent: unknown = logoDataUrl
-    ? { image: logoDataUrl, width: 36, height: 36, fit: [36, 36] as [number, number], alignment: "center" as const }
+    ? { image: logoDataUrl, width: 52, height: 52, fit: [52, 52] as [number, number], alignment: "center" as const }
     : {
         stack: [
-          { text: acronym, fontSize: 13, bold: true, color: "#ffffff", alignment: "center" as const },
+          { text: acronym, fontSize: 18, bold: true, color: "#ffffff", alignment: "center" as const },
         ],
       };
 
-  // 2px brand stripe at page top
+  // 4px accent stripe — thicker for stronger top-of-page identity signal
   const topStripe: unknown = {
-    canvas: [{ type: "rect", x: 0, y: 0, w: 515, h: 2, color: accentColor }],
+    canvas: [{ type: "rect", x: 0, y: 0, w: 515, h: 4, color: accentColor }],
     margin: [0, 0, 0, 0],
   };
 
-  // Main header band — 3-column layout: [Logo | Syndicate identity | Doc ref + QR]
+  // ── Main band — 3 columns: [Logo(66) | Identity(*) | Ref+QR(86)] ─────────────
+  // The category strip is now an INLINE BADGE inside COL2, removing the separate
+  // strip row entirely — saves ~26 px of vertical space, keeping the header compact.
   const band: unknown = {
     table: {
-      widths: [46, "*", 80],
+      widths: [66, "*", 86],
       body: [[
-        // COL 1 — Logo / monogram on accent background
+        // COL 1 — Logo / monogram on full-height accent background
         {
-          stack: [logoContent],
+          stack: [
+            logoContent,
+            // Category icon below logo — small, atmospheric
+            { text: categoryIcon, fontSize: 12, bold: true, color: "#ffffff55", alignment: "center" as const, margin: [0, 6, 0, 0] },
+          ],
           fillColor: accentColor,
           alignment: "center" as const,
-          margin: [5, 6, 5, 6],
+          margin: [7, 10, 7, 10],
           border: [false, false, false, false] as [boolean, boolean, boolean, boolean],
         },
 
-        // COL 2 — Syndicate identity on dark background (primary branding column)
+        // COL 2 — Syndicate identity on dark accent background
         {
           stack: [
-            // Syndicate name — dominant, large, bold
+            // Syndicate name — dominant
             {
               text: syndInfo.name.toUpperCase(),
-              fontSize: 11, bold: true,
+              fontSize: 11.5, bold: true,
               color: "#ffffff",
-              characterSpacing: 0.3,
-              margin: [0, 0, 0, 3],
+              characterSpacing: 0.4,
+              margin: [0, 0, 0, 4],
             },
-            // Building / residence — prominent subtitle
+            // Category badge — replaces the old separate strip; saves vertical space
+            {
+              table: {
+                widths: ["auto"],
+                body: [[{
+                  text: `${categoryIcon}  ${docTypeLabel}`,
+                  fontSize: 5.5, bold: true,
+                  color: accentColor,
+                  fillColor: lite,
+                  margin: [5, 2, 5, 2],
+                }]],
+              },
+              layout: {
+                hLineWidth: () => 0, vLineWidth: () => 0,
+                paddingLeft: () => 0, paddingRight: () => 0, paddingTop: () => 0, paddingBottom: () => 0,
+              },
+              margin: [0, 0, 0, 5],
+            },
+            // Building / residence
             ...(buildingName ? [{
               text: buildingName.toUpperCase(),
-              fontSize: 7.5, bold: true,
-              color: "#ffffffee",
-              characterSpacing: 0.1,
-              margin: [0, 0, 0, 3],
+              fontSize: 7, bold: true, color: "#ffffffdd",
+              margin: [0, 0, 0, 2],
             }] : []),
             // Address
             ...(addressLine ? [{
@@ -584,53 +603,57 @@ function buildHeaderBand(
               fontSize: 5.5, color: "#ffffff99",
               margin: [0, 0, 0, 1],
             }] : []),
-            // Contact line
+            // Contact
             ...(contactLine ? [{
               text: contactLine,
               fontSize: 5.5, color: "#ffffff88",
-              margin: [0, 0, 0, 0],
             }] : []),
           ],
           fillColor: dark,
-          margin: [10, 6, 8, 6],
+          margin: [10, 10, 8, 10],
           border: [false, false, false, false] as [boolean, boolean, boolean, boolean],
         },
 
-        // COL 3 — Document ref + status + QR (verification reference)
+        // COL 3 — Document reference + status + QR
         {
           stack: [
             {
-              text: docTypeLabel,
-              fontSize: 6, bold: true,
-              color: mid,
-              characterSpacing: 0.3,
-              margin: [0, 0, 0, 3],
-            },
-            {
               text: `N° ${docNumber}`,
-              fontSize: 8, bold: true,
-              color: "#1e1b4b",
-              margin: [0, 0, 0, 1],
+              fontSize: 8.5, bold: true, color: "#1e1b4b",
+              margin: [0, 0, 0, 2],
             },
             {
               text: today,
               fontSize: 6, color: "#6b7280",
-              margin: [0, 0, 0, 2],
-            },
-            ...(statusDot ? [{
-              text: `● ${statusDot.label}`,
-              fontSize: 5.5, bold: true,
-              color: statusDot.color,
               margin: [0, 0, 0, 3],
-            }] : [{ text: "", margin: [0, 0, 0, 3] }]),
-            // QR code — 20px, verification reference
+            },
+            ...(statusDot
+              ? [{
+                  table: {
+                    widths: ["auto"],
+                    body: [[{
+                      text: `● ${statusDot.label}`,
+                      fontSize: 5.5, bold: true, color: statusDot.color,
+                      fillColor: "#f8fafc",
+                      margin: [4, 2, 4, 2],
+                    }]],
+                  },
+                  layout: {
+                    hLineWidth: () => 0, vLineWidth: () => 0,
+                    paddingLeft: () => 0, paddingRight: () => 0, paddingTop: () => 0, paddingBottom: () => 0,
+                  },
+                  margin: [0, 0, 0, 5],
+                }]
+              : [{ text: "", margin: [0, 0, 0, 8] }]
+            ),
+            // QR — 28px for better scannability (was 20px)
             ...(qrDataUrl
-              ? [{ image: qrDataUrl, width: 20, height: 20, alignment: "center" as const, margin: [0, 0, 0, 0] }]
-              : [{ canvas: [{ type: "rect", x: 0, y: 0, w: 20, h: 20, color: "#f3f4f6", r: 2 }], alignment: "center" as const, margin: [0, 0, 0, 0] }]
+              ? [{ image: qrDataUrl, width: 28, height: 28, alignment: "center" as const }]
+              : [{ canvas: [{ type: "rect", x: 0, y: 0, w: 28, h: 28, color: "#f3f4f6", r: 3 }], alignment: "center" as const }]
             ),
           ],
-          fillColor: "#fafafa",
-          margin: [7, 6, 7, 6],
+          fillColor: "#f9fafb",
+          margin: [7, 10, 7, 10],
           border: [false, false, false, false] as [boolean, boolean, boolean, boolean],
         },
       ]],
@@ -639,56 +662,10 @@ function buildHeaderBand(
       hLineWidth: () => 0, vLineWidth: () => 0,
       paddingLeft: () => 0, paddingRight: () => 0, paddingTop: () => 0, paddingBottom: () => 0,
     },
+    margin: [0, 0, 0, 12],
   };
 
-  // Category identity strip — document family label, bold, on accent tint background
-  // This makes the document type immediately obvious and differentiates families visually.
-  const categoryStrip: unknown = {
-    table: {
-      widths: ["auto", "*"],
-      body: [[
-        {
-          text: `${categoryIcon}`,
-          fontSize: 9, bold: true,
-          color: accentColor,
-          fillColor: adjustColorBrightness(accentColor, 88),
-          margin: [10, 4, 8, 4],
-          border: [false, false, false, false] as [boolean, boolean, boolean, boolean],
-        },
-        {
-          stack: [
-            {
-              columns: [
-                {
-                  text: docTypeLabel,
-                  fontSize: 7, bold: true,
-                  color: accentColor,
-                  characterSpacing: 0.5,
-                  width: "*",
-                },
-                ...(buildingName ? [{
-                  text: buildingName,
-                  fontSize: 6.5, color: adjustColorBrightness(accentColor, -10),
-                  alignment: "right" as const,
-                  width: "auto",
-                }] : []),
-              ],
-            },
-          ],
-          fillColor: adjustColorBrightness(accentColor, 88),
-          margin: [0, 4, 10, 4],
-          border: [false, false, false, false] as [boolean, boolean, boolean, boolean],
-        },
-      ]],
-    },
-    layout: {
-      hLineWidth: () => 0, vLineWidth: () => 0,
-      paddingLeft: () => 0, paddingRight: () => 0, paddingTop: () => 0, paddingBottom: () => 0,
-    },
-    margin: [0, 0, 0, 10],
-  };
-
-  return [topStripe, band, categoryStrip] as object[];
+  return [topStripe, band] as object[];
 }
 
 // ─── Official Seal ─────────────────────────────────────────────────────────────
@@ -714,39 +691,48 @@ function buildOfficialSeal(
 
   return {
     stack: [
-      // ── Layer 1: concentric ellipse rings (background) ────────────────────
+      // ── Layer 1: institutional seal body — four concentric rings ────────────
       {
         canvas: [
-          // Outer filled circle (accent color)
+          // Outer filled circle (accent fill)
           { type: "ellipse", x: cx, y: cy, r1: rOuter, r2: rOuter, color: accentColor },
-          // Thin white ring — gives the classic stamp double-border look
+          // Dark authoritative outer border ring
+          { type: "ellipse", x: cx, y: cy, r1: rOuter, r2: rOuter, lineWidth: 2.2, lineColor: dark },
+          // White separation ring
           { type: "ellipse", x: cx, y: cy, r1: rOuter - 5, r2: rOuter - 5, lineWidth: 1.2, lineColor: "#ffffff55" },
-          // Inner emblem ring
-          { type: "ellipse", x: cx, y: cy, r1: rOuter - 14, r2: rOuter - 14, lineWidth: 0.5, lineColor: "#ffffff30" },
+          // Inner text-zone ring
+          { type: "ellipse", x: cx, y: cy, r1: rOuter - 14, r2: rOuter - 14, lineWidth: 0.6, lineColor: "#ffffff35" },
+          // Center emblem highlight dot
+          { type: "ellipse", x: cx, y: cy, r1: 7, r2: 7, color: "#ffffff18" },
         ],
         margin: [0, 0, 0, -(canvasH)], // pull subsequent elements up into the circle
       },
 
-      // ── Layer 2: text content, centered within the circle ─────────────────
-      // "CACHET OFFICIEL" arc-simulated by top-aligned centered text
+      // ── Layer 2: text content centered within the circle ──────────────────
       {
         text: "★  CACHET OFFICIEL  ★",
         fontSize: 5.5, bold: true, color: "#ffffff",
         alignment: "center" as const, characterSpacing: 0.5,
         margin: [0, 12, 0, 2],
       },
-      // Thin divider inside circle
       {
         canvas: [
           { type: "line", x1: cx - 30, y1: 0, x2: cx + 30, y2: 0, lineWidth: 0.4, lineColor: "#ffffff45" },
         ],
       },
-      // Syndicate name — the main identifier
+      // Syndicate name — main identifier
       {
         text: truncate(syndName.toUpperCase(), 24),
         fontSize: 5.5, bold: true, color: "#ffffffee",
         alignment: "center" as const, lineHeight: 1.3,
-        margin: [10, 5, 10, 3],
+        margin: [10, 5, 10, 1],
+      },
+      // Center emblem star — institutional focal point
+      {
+        text: "✦",
+        fontSize: 6.5, color: "#ffffff66",
+        alignment: "center" as const,
+        margin: [0, 1, 0, 1],
       },
       // Signer name (when document is signed)
       ...(signerName ? [{
@@ -755,7 +741,6 @@ function buildOfficialSeal(
         alignment: "center" as const,
         margin: [0, 0, 0, 2] as [number, number, number, number],
       }] : []),
-      // Bottom divider
       {
         canvas: [
           { type: "line", x1: cx - 30, y1: 0, x2: cx + 30, y2: 0, lineWidth: 0.4, lineColor: "#ffffff45" },
@@ -2492,26 +2477,7 @@ async function buildDocDef(template: DocumentTemplate, input: DocumentInput): Pr
           body || "Les parties conviennent des clauses et conditions détaillées ci-après. Tout différend relatif à l'interprétation ou à l'exécution du présent contrat sera soumis à la juridiction compétente.",
           accentColor,
         ),
-        {
-          columns: [
-            {
-              stack: [
-                { text: "Pour le Syndicat :", style: "metaKey", margin: [0, 0, 0, 30] },
-                { canvas: [{ type: "line", x1: 0, y1: 0, x2: 160, y2: 0, lineWidth: 0.8, lineColor: "#cbd5e1" }] },
-                { text: syndInfo.name, style: "signName", margin: [0, 4, 0, 0] },
-              ],
-            },
-            {
-              stack: [
-                { text: "Pour le Cocontractant :", style: "metaKey", margin: [0, 0, 0, 30] },
-                { canvas: [{ type: "line", x1: 0, y1: 0, x2: 160, y2: 0, lineWidth: 0.8, lineColor: "#cbd5e1" }] },
-                { text: member || "[COCONTRACTANT]", style: "signName", margin: [0, 4, 0, 0] },
-              ],
-            },
-          ],
-          margin: [0, 24, 0, 0],
-          columnGap: 20,
-        },
+        signatureBlock("Le Président du Syndicat", syndInfo.name, accentColor, true, lang, signatures),
         legalFooterNote(docNum, lang, verifyUrl),
       ];
       break;
@@ -2530,7 +2496,7 @@ async function buildDocDef(template: DocumentTemplate, input: DocumentInput): Pr
         contentSection("Activités réalisées", input.activites as string || "Voir détails en annexe.", accentColor),
         contentSection("Indicateurs clés", input.indicateurs as string || "—", accentColor),
         contentSection("Perspectives et recommandations", input.perspectives as string || "—", accentColor),
-        signatureBlock("L'Auteur du rapport", syndInfo.name, accentColor),
+        signatureBlock("L'Auteur du rapport", syndInfo.name, accentColor, true, lang, signatures),
         legalFooterNote(docNum, lang, verifyUrl),
       ];
       break;
@@ -2571,7 +2537,7 @@ async function buildDocDef(template: DocumentTemplate, input: DocumentInput): Pr
           },
           margin: [0, 0, 0, 16],
         },
-        signatureBlock("Le Président du Syndicat", syndInfo.name, accentColor),
+        signatureBlock("Le Président du Syndicat", syndInfo.name, accentColor, true, lang, signatures),
         legalFooterNote(docNum, lang, verifyUrl),
       ];
       break;
@@ -2618,7 +2584,7 @@ async function buildDocDef(template: DocumentTemplate, input: DocumentInput): Pr
           style: "notice",
           margin: [0, 0, 0, 16],
         },
-        signatureBlock("Le Président du Syndicat", syndInfo.name, accentColor, false),
+        signatureBlock("Le Président du Syndicat", syndInfo.name, accentColor, false, lang, signatures),
         legalFooterNote(docNum, lang, verifyUrl),
       ];
       break;
@@ -2704,7 +2670,7 @@ async function buildDocDef(template: DocumentTemplate, input: DocumentInput): Pr
           alignment: "right" as const,
           margin: [0, 16, 0, 0],
         },
-        signatureBlock("Le Demandeur", member || "[NOM DU DEMANDEUR]", accentColor),
+        signatureBlock("Le Demandeur", member || "[NOM DU DEMANDEUR]", accentColor, true, lang, signatures),
         legalFooterNote(docNum, lang, verifyUrl),
       ];
       break;
@@ -2750,7 +2716,7 @@ async function buildDocDef(template: DocumentTemplate, input: DocumentInput): Pr
           layout: { hLineWidth: () => 1, vLineWidth: () => 1, hLineColor: () => "#86efac", vLineColor: () => "#86efac" },
           margin: [0, 0, 0, 16],
         },
-        signatureBlock("Le Président du Syndicat", syndInfo.name, accentColor),
+        signatureBlock("Le Président du Syndicat", syndInfo.name, accentColor, true, lang, signatures),
         legalFooterNote(docNum, lang, verifyUrl),
       ];
       break;
@@ -2782,7 +2748,7 @@ async function buildDocDef(template: DocumentTemplate, input: DocumentInput): Pr
           input.frais as string || "Les frais de déplacement et d'hébergement seront remboursés sur présentation de justificatifs originaux, conformément au barème en vigueur.",
           accentColor,
         ),
-        signatureBlock("Le Président du Syndicat", syndInfo.name, accentColor),
+        signatureBlock("Le Président du Syndicat", syndInfo.name, accentColor, true, lang, signatures),
         legalFooterNote(docNum, lang, verifyUrl),
       ];
       break;
@@ -2824,7 +2790,7 @@ async function buildDocDef(template: DocumentTemplate, input: DocumentInput): Pr
         { text: `Monsieur / Madame,`, style: "body", margin: [0, 0, 0, 12] },
         { text: input.corps as string || body || "Nous vous prions de bien vouloir trouver ci-joint les éléments relatifs à l'objet mentionné en référence.", style: "body", margin: [0, 0, 0, 12] },
         { text: "Veuillez agréer, Monsieur / Madame, l'expression de nos salutations distinguées.", style: "body", margin: [0, 0, 0, 0] },
-        signatureBlock("Le Président du Syndicat", syndInfo.name, accentColor),
+        signatureBlock("Le Président du Syndicat", syndInfo.name, accentColor, true, lang, signatures),
         legalFooterNote(docNum, lang, verifyUrl),
       ];
       break;
@@ -3047,7 +3013,7 @@ async function buildDocDef(template: DocumentTemplate, input: DocumentInput): Pr
           layout: { hLineWidth: () => 1, vLineWidth: () => 1, hLineColor: () => adjustColorBrightness(accentColor, 60), vLineColor: () => adjustColorBrightness(accentColor, 60) },
           margin: [0, 0, 0, 16],
         },
-        signatureBlock("L'Auditeur", input.auditeurs as string || syndInfo.name, accentColor),
+        signatureBlock("L'Auditeur", input.auditeurs as string || syndInfo.name, accentColor, true, lang, signatures),
         legalFooterNote(docNum, lang, verifyUrl),
       ];
       break;
@@ -3071,8 +3037,8 @@ async function buildDocDef(template: DocumentTemplate, input: DocumentInput): Pr
         contentSection("Article 3 — Durée et résiliation", input.article3 as string || `La convention prend effet à la date de signature et est conclue pour une durée de ${input.duree as string || "12 mois"}.`, accentColor),
         {
           columns: [
-            signatureBlock(`Pour ${syndInfo.name}`, "Le Président", accentColor, true),
-            signatureBlock("Pour le partenaire", input.partieB as string || "[PARTENAIRE]", accentColor, false),
+            signatureBlock(`Pour ${syndInfo.name}`, "Le Président", accentColor, true, lang, signatures),
+            signatureBlock("Pour le partenaire", input.partieB as string || "[PARTENAIRE]", accentColor, false, lang, signatures),
           ],
         } as unknown,
         legalFooterNote(docNum, lang, verifyUrl),
@@ -3098,8 +3064,8 @@ async function buildDocDef(template: DocumentTemplate, input: DocumentInput): Pr
         contentSection("Modalités d'entrée en vigueur", input.entreeVigueur as string || `L'accord entre en vigueur le ${input.dateApplication as string || today} après dépôt auprès des autorités compétentes.`, accentColor),
         {
           columns: [
-            signatureBlock(`Pour ${syndInfo.name}`, "Le Délégué Syndical", accentColor, true),
-            signatureBlock("Pour l'employeur", input.employeur as string || "[EMPLOYEUR]", accentColor, false),
+            signatureBlock(`Pour ${syndInfo.name}`, "Le Délégué Syndical", accentColor, true, lang, signatures),
+            signatureBlock("Pour l'employeur", input.employeur as string || "[EMPLOYEUR]", accentColor, false, lang, signatures),
           ],
         } as unknown,
         legalFooterNote(docNum, lang, verifyUrl),
@@ -3190,7 +3156,7 @@ async function buildDocDef(template: DocumentTemplate, input: DocumentInput): Pr
         contentSection("Indicateurs clés", input.indicateurs as string || "Les indicateurs de performance seront détaillés en annexe au présent rapport.", accentColor),
         contentSection("Difficultés rencontrées", input.difficultes as string || "Les obstacles rencontrés ont été surmontés grâce à la mobilisation des équipes.", accentColor),
         contentSection("Perspectives et orientations", input.perspectives as string || "Les priorités pour la prochaine période seront définies lors de l'assemblée générale.", accentColor),
-        signatureBlock("Le Secrétaire Général", syndInfo.name, accentColor),
+        signatureBlock("Le Secrétaire Général", syndInfo.name, accentColor, true, lang, signatures),
         legalFooterNote(docNum, lang, verifyUrl),
       ];
       break;
@@ -4390,7 +4356,7 @@ async function buildDocDef(template: DocumentTemplate, input: DocumentInput): Pr
         ...header,
         { text: input.title, style: "docTitle", margin: [0, 0, 0, 16] },
         contentSection(t("sectionContent", lang), body || "—", accentColor, isArabic),
-        signatureBlock(t("presidentTitle", lang), syndInfo.name, accentColor, true, lang),
+        signatureBlock(t("presidentTitle", lang), syndInfo.name, accentColor, true, lang, signatures),
         legalFooterNote(docNum, lang, verifyUrl),
       ];
   }
