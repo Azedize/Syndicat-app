@@ -2204,6 +2204,416 @@ router.get("/documents/autofill", requireAuth, async (req, res) => {
   }
 });
 
+// ─── POST /documents/request — Self-service document request ─────────────────
+// ANY authenticated user (member, tenant, syndicate_admin, super_admin) can
+// submit a document request. Syndicate / property / member data is resolved
+// automatically from the DB — the requester only provides: templateId,
+// category, and an optional note. The document lands in "pending_review"
+// and notifies the syndicate admin(s).
+
+// Canonical signing order per template — defines who must sign and in
+// which order. Used by both GET /documents/:id/signers and the sign endpoint
+// to surface "who's turn is it?" without requiring a per-document config.
+const TEMPLATE_SIGNING_ORDER: Record<string, Array<{ order: number; role: string; label: string }>> = {
+  pv:                    [{ order: 1, role: "syndicate_admin", label: "Secrétaire de séance" }, { order: 2, role: "syndicate_admin", label: "Président" }],
+  convocation:           [{ order: 1, role: "syndicate_admin", label: "Secrétaire" }],
+  compte_rendu:          [{ order: 1, role: "syndicate_admin", label: "Secrétaire" }, { order: 2, role: "syndicate_admin", label: "Président" }],
+  attestation:           [{ order: 1, role: "syndicate_admin", label: "Président" }, { order: 2, role: "syndicate_admin", label: "Secrétaire" }],
+  certificat:            [{ order: 1, role: "syndicate_admin", label: "Président" }],
+  attestation_paiement:  [{ order: 1, role: "syndicate_admin", label: "Trésorier" }, { order: 2, role: "syndicate_admin", label: "Président" }],
+  attestation_residence: [{ order: 1, role: "syndicate_admin", label: "Président" }],
+  attestation_propriete: [{ order: 1, role: "syndicate_admin", label: "Président" }, { order: 2, role: "syndicate_admin", label: "Secrétaire" }],
+  mise_en_demeure:       [{ order: 1, role: "syndicate_admin", label: "Président" }, { order: 2, role: "syndicate_admin", label: "Secrétaire" }],
+  appel_de_fonds:        [{ order: 1, role: "syndicate_admin", label: "Trésorier" }, { order: 2, role: "syndicate_admin", label: "Président" }],
+  recu_paiement:         [{ order: 1, role: "syndicate_admin", label: "Trésorier" }],
+  facture:               [{ order: 1, role: "syndicate_admin", label: "Trésorier" }],
+  budget_previsionnel:   [{ order: 1, role: "syndicate_admin", label: "Trésorier" }, { order: 2, role: "syndicate_admin", label: "Président" }],
+  decompte_charges:      [{ order: 1, role: "syndicate_admin", label: "Trésorier" }],
+  rapport_financier:     [{ order: 1, role: "syndicate_admin", label: "Trésorier" }, { order: 2, role: "syndicate_admin", label: "Président" }],
+  rapport_audit:         [{ order: 1, role: "syndicate_admin", label: "Auditeur" }, { order: 2, role: "syndicate_admin", label: "Président" }],
+  rapport_election:      [{ order: 1, role: "syndicate_admin", label: "Secrétaire" }, { order: 2, role: "syndicate_admin", label: "Président" }],
+  contrat:               [{ order: 1, role: "syndicate_admin", label: "Président" }, { order: 2, role: "syndicate_admin", label: "Secrétaire" }],
+  contrat_bail:          [{ order: 1, role: "syndicate_admin", label: "Gestionnaire" }, { order: 2, role: "tenant",         label: "Locataire" }],
+  convention_partenariat:[{ order: 1, role: "syndicate_admin", label: "Président" }, { order: 2, role: "syndicate_admin", label: "Partie B" }],
+  accord_collectif:      [{ order: 1, role: "syndicate_admin", label: "Président" }, { order: 2, role: "syndicate_admin", label: "Délégué syndical" }],
+  decision:              [{ order: 1, role: "syndicate_admin", label: "Président" }],
+  autorisation:          [{ order: 1, role: "syndicate_admin", label: "Président" }],
+  lettre_officielle:     [{ order: 1, role: "syndicate_admin", label: "Président" }],
+  circulaire:            [{ order: 1, role: "syndicate_admin", label: "Secrétaire" }, { order: 2, role: "syndicate_admin", label: "Président" }],
+  reglement:             [{ order: 1, role: "syndicate_admin", label: "Président" }, { order: 2, role: "syndicate_admin", label: "Secrétaire" }, { order: 3, role: "syndicate_admin", label: "Trésorier" }],
+};
+
+router.post(
+  "/documents/request",
+  requireAuth,
+  async (req, res) => {
+    const schema = z.object({
+      templateId: z.string().min(1),
+      category:   z.enum(["reglements", "statuts", "pv", "juridique", "finances", "attestation"]),
+      title:      z.string().min(1).max(500).optional(),
+      note:       z.string().max(2000).optional(),
+      language:   z.enum(["fr", "ar", "en", "es"] as const).optional(),
+      // Free-text context fields the requester can optionally add
+      objet:      z.string().max(500).optional(),
+      periode:    z.string().max(200).optional(),
+    });
+    const result = schema.safeParse(req.body);
+    if (!result.success) {
+      res.status(400).json({ error: "Données invalides", details: result.error.flatten() }); return;
+    }
+
+    try {
+      const user = req.user!;
+      const syndicateId = user.syndicateId ?? null;
+      const { templateId, category, note, language, ...extras } = result.data;
+      const docLanguage: DocumentLanguage = (language as DocumentLanguage) ?? "fr";
+
+      // 1. Load syndicate/property/office-holders + member's own lot in parallel
+      const [syndInfo, property, officeHolders, memberRows] = await Promise.all([
+        getSyndicateInfo(syndicateId),
+        getPropertyInfo(syndicateId),
+        getOfficeHolders(syndicateId),
+        syndicateId && user.email
+          ? db.select({
+              memberId:     membersTable.id,
+              name:         membersTable.name,
+              email:        membersTable.email,
+              phone:        membersTable.phone,
+              lotNumber:    lotsTable.number,
+              lotId:        lotsTable.id,
+              floor:        lotsTable.floor,
+              buildingName: buildingsTable.name,
+            })
+            .from(membersTable)
+            .leftJoin(lotsTable,      eq(lotsTable.ownerId,       membersTable.id))
+            .leftJoin(buildingsTable, eq(lotsTable.buildingId,    buildingsTable.id))
+            .where(and(
+              eq(membersTable.syndicateId, syndicateId),
+              eq(membersTable.email, user.email),
+            ))
+            .limit(1)
+          : Promise.resolve([] as any[]),
+      ]);
+
+      const member = memberRows?.[0] ?? null;
+      const memberName = member?.name ?? user.name ?? null;
+      const docTitle = result.data.title
+        ?? `${templateId.replace(/_/g, " ")} — ${memberName ?? user.email ?? "Membre"}`;
+
+      // 2. Sequential number + QR token
+      const template = templateId as DocumentTemplate;
+      const documentNumber = await generateSequentialDocumentNumber(syndicateId, template);
+      const verificationToken = randomUUID();
+      const verificationUrl = buildVerifyUrl(verificationToken);
+
+      // 3. Auto-load lot/member entity data
+      let entityData: Record<string, string> = {};
+      if (member?.lotId) {
+        const lotData = await getLotMemberData(member.lotId, undefined);
+        entityData = { ...entityData, ...lotData };
+      }
+      if (member?.name) entityData.memberName = member.name;
+      if (member?.phone) entityData.memberPhone = member.phone;
+      if (member?.lotNumber != null) entityData.lotNumber = String(member.lotNumber);
+      if (member?.buildingName) entityData.buildingName = member.buildingName;
+
+      // 4. Generate PDF in pending_review status
+      const generated = await generateAndUploadDocument(template, {
+        title: docTitle,
+        syndicate: syndInfo,
+        property,
+        officeHolders,
+        memberName: entityData.memberName ?? memberName ?? "",
+        documentNumber,
+        docStatus: "pending_review",
+        version: "v1.0",
+        language: docLanguage,
+        verificationUrl,
+        signatures: [],
+        ...entityData,
+        ...extras,
+        ...(note ? { observations: note } : {}),
+      });
+
+      // 5. Insert document record in pending_review
+      const createdAt = new Date();
+      const [doc] = await db
+        .insert(documentsTable)
+        .values({
+          title:           docTitle,
+          category,
+          status:          "pending_review",
+          syndicateId,
+          size:            generated.fileSizeKo,
+          fileUrl:         generated.fileUrl || null,
+          documentNumber:  generated.documentNumber,
+          templateId:      template,
+          version:         1,
+          isDeleted:       false,
+          createdBy:       user.userId,
+          updatedAt:       createdAt,
+          language:        docLanguage,
+          verificationToken,
+          retentionUntil:  computeRetentionUntil(category, template, createdAt),
+        } as any)
+        .returning();
+
+      // 6. Audit + notify admins
+      await serverAuditLog(req, {
+        action: "DOCUMENT_REQUESTED",
+        entity: "document",
+        entityId: doc.id,
+        details: `Demande de ${memberName ?? user.email} : ${docTitle} (${template})`,
+      });
+
+      if (syndicateId) {
+        createAlert({
+          title: "Nouvelle demande de document",
+          message: `${memberName ?? user.email} a demandé : "${docTitle}".`,
+          type: "info",
+          syndicateId,
+          target: "admin",
+        }).catch(() => {});
+
+        db.select({ email: usersTable.email })
+          .from(usersTable)
+          .where(and(eq(usersTable.syndicateId, syndicateId), eq(usersTable.role, "syndicate_admin")))
+          .then((admins) =>
+            sendEmailToMany(
+              admins.map((a) => a.email),
+              "Nouvelle demande de document",
+              `<p><strong>${memberName ?? user.email}</strong> a soumis une demande de document :</p><p><strong>${docTitle}</strong></p><p>Veuillez valider depuis l'espace Documents → En attente de validation.</p>`,
+              "document_requested",
+              syndicateId,
+            ),
+          )
+          .catch(() => {});
+      }
+
+      res.status(201).json({
+        data: doc,
+        message: "Votre demande a été soumise. L'administrateur du syndicat en sera informé.",
+      });
+    } catch (err) {
+      req.log.error(err);
+      res.status(500).json({ error: "Erreur serveur lors de la soumission de la demande" });
+    }
+  },
+);
+
+// ─── GET /documents/template-requests — List template requests ────────────────
+// super_admin sees ALL requests; syndicate_admin sees their syndicate's;
+// member/tenant sees only their own submissions.
+
+router.get(
+  "/documents/template-requests",
+  requireAuth,
+  async (req, res) => {
+    try {
+      const user = req.user!;
+      let rows: unknown[];
+
+      if (user.role === "super_admin") {
+        rows = await db
+          .select({
+            id:              templateRequestsTable.id,
+            title:           templateRequestsTable.title,
+            category:        templateRequestsTable.category,
+            description:     templateRequestsTable.description,
+            businessPurpose: templateRequestsTable.businessPurpose,
+            requiredFields:  templateRequestsTable.requiredFields,
+            legalNotes:      templateRequestsTable.legalNotes,
+            status:          templateRequestsTable.status,
+            priority:        templateRequestsTable.priority,
+            publishScope:    templateRequestsTable.publishScope,
+            reviewNotes:     templateRequestsTable.reviewNotes,
+            rejectionReason: templateRequestsTable.rejectionReason,
+            reviewedAt:      templateRequestsTable.reviewedAt,
+            createdAt:       templateRequestsTable.createdAt,
+            updatedAt:       templateRequestsTable.updatedAt,
+            requestedByName:  usersTable.name,
+            requestedByEmail: usersTable.email,
+            syndicateName:   syndicatesTable.name,
+          })
+          .from(templateRequestsTable)
+          .leftJoin(usersTable,    eq(templateRequestsTable.requestedBy,  usersTable.id))
+          .leftJoin(syndicatesTable, eq(templateRequestsTable.syndicateId, syndicatesTable.id))
+          .orderBy(desc(templateRequestsTable.createdAt))
+          .limit(200);
+      } else {
+        const where = (user.role === "syndicate_admin" && user.syndicateId)
+          ? eq(templateRequestsTable.syndicateId, user.syndicateId)
+          : eq(templateRequestsTable.requestedBy, user.userId);
+
+        rows = await db
+          .select({
+            id:              templateRequestsTable.id,
+            title:           templateRequestsTable.title,
+            category:        templateRequestsTable.category,
+            description:     templateRequestsTable.description,
+            businessPurpose: templateRequestsTable.businessPurpose,
+            status:          templateRequestsTable.status,
+            priority:        templateRequestsTable.priority,
+            reviewNotes:     templateRequestsTable.reviewNotes,
+            rejectionReason: templateRequestsTable.rejectionReason,
+            createdAt:       templateRequestsTable.createdAt,
+            updatedAt:       templateRequestsTable.updatedAt,
+          })
+          .from(templateRequestsTable)
+          .where(where)
+          .orderBy(desc(templateRequestsTable.createdAt))
+          .limit(100);
+      }
+
+      res.json({ data: rows });
+    } catch (err) {
+      req.log.error(err);
+      res.status(500).json({ error: "Erreur serveur" });
+    }
+  },
+);
+
+// ─── POST /documents/template-requests — Submit template request ──────────────
+
+router.post(
+  "/documents/template-requests",
+  requireAuth,
+  async (req, res) => {
+    const schema = z.object({
+      title:           z.string().min(2).max(300),
+      category:        z.string().min(1).max(100),
+      description:     z.string().max(2000).optional(),
+      businessPurpose: z.string().max(2000).optional(),
+      requiredFields:  z.array(z.object({
+        name:     z.string(),
+        type:     z.enum(["text", "date", "number", "boolean", "select"] as const),
+        required: z.boolean().default(false),
+      })).optional(),
+      legalNotes:      z.string().max(2000).optional(),
+      priority:        z.enum(["low", "normal", "high", "urgent"] as const).optional(),
+      publishScope:    z.enum(["global", "private"] as const).optional(),
+    });
+
+    const result = schema.safeParse(req.body);
+    if (!result.success) {
+      res.status(400).json({ error: "Données invalides", details: result.error.flatten() }); return;
+    }
+
+    try {
+      const user = req.user!;
+      const { requiredFields, ...rest } = result.data;
+
+      const [newReq] = await db
+        .insert(templateRequestsTable)
+        .values({
+          requestedBy:    user.userId,
+          syndicateId:    user.syndicateId ?? null,
+          requiredFields: JSON.stringify(requiredFields ?? []),
+          status:         "pending",
+          ...rest,
+        } as any)
+        .returning();
+
+      await serverAuditLog(req, {
+        action: "TEMPLATE_REQUEST_SUBMITTED",
+        entity: "template_request",
+        entityId: newReq.id,
+        details: `Titre : ${result.data.title}, Catégorie : ${result.data.category}`,
+      });
+
+      // Notify super_admin(s) (fire-and-forget)
+      db.select({ email: usersTable.email })
+        .from(usersTable).where(eq(usersTable.role, "super_admin"))
+        .then((admins) =>
+          sendEmailToMany(
+            admins.map((a) => a.email),
+            "Nouvelle demande de modèle de document",
+            `<p><strong>${user.name ?? user.email}</strong> a soumis une demande de nouveau modèle :</p><p><strong>${result.data.title}</strong> — ${result.data.category}</p>`,
+            "template_request_submitted",
+            user.syndicateId ?? undefined,
+          ),
+        )
+        .catch(() => {});
+
+      res.status(201).json({ data: newReq, message: "Demande de modèle soumise avec succès" });
+    } catch (err) {
+      req.log.error(err);
+      res.status(500).json({ error: "Erreur serveur" });
+    }
+  },
+);
+
+// ─── PUT /documents/template-requests/:trId — Admin review ───────────────────
+// super_admin only — approves, rejects, or updates a template request.
+
+router.put(
+  "/documents/template-requests/:trId",
+  requireAuth,
+  requireRole("super_admin"),
+  async (req, res) => {
+    const trId = String(req.params.trId);
+    const schema = z.object({
+      status:          z.enum(["pending", "in_review", "approved", "rejected", "published"] as const).optional(),
+      reviewNotes:     z.string().max(2000).optional(),
+      rejectionReason: z.string().max(2000).optional(),
+      publishScope:    z.enum(["global", "private"] as const).optional(),
+    });
+
+    const result = schema.safeParse(req.body);
+    if (!result.success) {
+      res.status(400).json({ error: "Données invalides" }); return;
+    }
+
+    try {
+      const [existing] = await db.select().from(templateRequestsTable).where(eq(templateRequestsTable.id, trId));
+      if (!existing) { res.status(404).json({ error: "Demande introuvable" }); return; }
+
+      const updates: Record<string, unknown> = { ...result.data, updatedAt: new Date() };
+      if (result.data.status && ["approved", "rejected", "in_review"].includes(result.data.status)) {
+        updates.reviewedBy = req.user!.userId;
+        updates.reviewedAt = new Date();
+      }
+
+      const [updated] = await db
+        .update(templateRequestsTable)
+        .set(updates)
+        .where(eq(templateRequestsTable.id, trId))
+        .returning();
+
+      await serverAuditLog(req, {
+        action: "TEMPLATE_REQUEST_REVIEWED",
+        entity: "template_request",
+        entityId: trId,
+        details: `Nouveau statut : ${result.data.status}, Motif : ${result.data.rejectionReason ?? "—"}`,
+      });
+
+      // Email the requester on final decision
+      if (result.data.status === "approved" || result.data.status === "rejected") {
+        const [requester] = await db
+          .select({ email: usersTable.email, name: usersTable.name })
+          .from(usersTable).where(eq(usersTable.id, existing.requestedBy));
+        const approved = result.data.status === "approved";
+        if (requester?.email) {
+          sendEmail(
+            requester.email,
+            approved ? "Votre demande de modèle a été approuvée" : "Votre demande de modèle a été rejetée",
+            approved
+              ? `<p>Bonne nouvelle ! Votre demande de modèle <strong>${existing.title}</strong> a été approuvée et sera prochainement disponible dans la bibliothèque de documents.</p>${result.data.reviewNotes ? `<p>Note de l'équipe : ${result.data.reviewNotes}</p>` : ""}`
+              : `<p>Votre demande de modèle <strong>${existing.title}</strong> n'a pas pu être approuvée.</p><p>Motif : ${result.data.rejectionReason ?? "—"}</p>`,
+            approved ? "template_request_approved" : "template_request_rejected",
+            existing.syndicateId ?? undefined,
+          ).catch(() => {});
+        }
+      }
+
+      res.json({ data: updated, message: "Demande mise à jour avec succès" });
+    } catch (err) {
+      req.log.error(err);
+      res.status(500).json({ error: "Erreur serveur" });
+    }
+  },
+);
+
 // ─── GET /documents/entities ──────────────────────────────────────────────────
 // Returns selectable entity lists for smart document generation.
 // The mobile wizard calls this to populate entity pickers (meeting selector,
@@ -3344,6 +3754,92 @@ router.post(
       }
 
       res.status(201).json({ data: sig, message: "Document signé avec succès" });
+    } catch (err) {
+      req.log.error(err);
+      res.status(500).json({ error: "Erreur serveur" });
+    }
+  },
+);
+
+// ─── GET /documents/:id/signers — Signing order status ───────────────────────
+// Returns:
+//  - completedSignatures: sigs already recorded (ordered by signatureOrder)
+//  - requiredSigners:     template-default signing chain
+//  - nextSigner:          next required signer not yet completed (null if all done)
+//  - isMyTurn:            whether the calling user is the next expected signer
+//  - allSigned:           true when every required step is complete
+
+router.get(
+  "/documents/:id/signers",
+  requireAuth,
+  async (req, res) => {
+    const id = String(req.params.id);
+    try {
+      const [doc] = await db
+        .select({
+          id:         documentsTable.id,
+          title:      documentsTable.title,
+          status:     documentsTable.status,
+          syndicateId:documentsTable.syndicateId,
+          templateId: documentsTable.templateId,
+        })
+        .from(documentsTable)
+        .where(eq(documentsTable.id, id));
+
+      if (!doc) { res.status(404).json({ error: "Document introuvable" }); return; }
+      if (req.user!.role !== "super_admin" && doc.syndicateId !== req.user!.syndicateId) {
+        res.status(403).json({ error: "Accès refusé" }); return;
+      }
+
+      const completedSigs = await db
+        .select({
+          id:             documentSignaturesTable.id,
+          signedBy:       documentSignaturesTable.signedBy,
+          signerName:     documentSignaturesTable.signerName,
+          signerRole:     documentSignaturesTable.signerRole,
+          signedAt:       documentSignaturesTable.signedAt,
+          signatureOrder: documentSignaturesTable.signatureOrder,
+          isValid:        documentSignaturesTable.isValid,
+        })
+        .from(documentSignaturesTable)
+        .where(eq(documentSignaturesTable.documentId, id))
+        .orderBy(documentSignaturesTable.signatureOrder);
+
+      // Look up template-default signing chain
+      const templateKey = (doc.templateId ?? "").replace(/-/g, "_");
+      const requiredSigners: Array<{ order: number; role: string; label: string }> =
+        TEMPLATE_SIGNING_ORDER[templateKey] ?? [];
+
+      // Which orders have been completed?
+      const completedOrders = new Set(completedSigs.map((s) => s.signatureOrder ?? 0));
+      const nextSigner = requiredSigners.find((r) => !completedOrders.has(r.order)) ?? null;
+
+      // Is it the calling user's turn?
+      const isMyTurn = nextSigner != null
+        ? (nextSigner.role === req.user!.role || nextSigner.role === "syndicate_admin" && req.user!.role === "syndicate_admin")
+        : false;
+
+      const allSigned = requiredSigners.length > 0
+        ? requiredSigners.every((r) => completedOrders.has(r.order))
+        : false;
+
+      res.json({
+        data: {
+          documentId:          id,
+          title:               doc.title,
+          status:              doc.status,
+          requiredSigners,
+          completedSignatures: completedSigs,
+          nextSigner,
+          isMyTurn,
+          allSigned,
+          totalRequired:  requiredSigners.length,
+          totalCompleted: completedSigs.length,
+          percentage:     requiredSigners.length > 0
+            ? Math.round((completedSigs.length / requiredSigners.length) * 100)
+            : (completedSigs.length > 0 ? 100 : 0),
+        },
+      });
     } catch (err) {
       req.log.error(err);
       res.status(500).json({ error: "Erreur serveur" });

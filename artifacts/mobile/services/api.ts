@@ -649,6 +649,51 @@ export const documents = {
     request<{ data: Array<{ id: string; label: string; sublabel: string }> }>(
       `/documents/entities?type=${encodeURIComponent(type)}`
     ),
+
+  // Self-service document request (member/tenant) — auto-fills all DB data, creates pending_review
+  request: (body: { templateId: string; category: string; title?: string; note?: string; language?: string; objet?: string; periode?: string }) =>
+    request<{ data: unknown; message: string }>("/documents/request", {
+      method: "POST",
+      body: JSON.stringify(body),
+    }),
+
+  // Signature order status for a document
+  signers: (id: string) =>
+    request<{ data: {
+      documentId: string;
+      title: string;
+      status: string;
+      requiredSigners: Array<{ order: number; role: string; label: string }>;
+      completedSignatures: Array<{ id: string; signedBy: string; signerName: string | null; signerRole: string | null; signedAt: string | null; signatureOrder: number | null; isValid: boolean | null }>;
+      nextSigner: { order: number; role: string; label: string } | null;
+      isMyTurn: boolean;
+      allSigned: boolean;
+      totalRequired: number;
+      totalCompleted: number;
+      percentage: number;
+    } }>(`/documents/${id}/signers`),
+
+  // Template requests
+  templateRequests: {
+    list: () =>
+      request<{ data: Array<{
+        id: string; title: string; category: string; description: string | null;
+        businessPurpose: string | null; status: string; priority: string;
+        reviewNotes: string | null; rejectionReason: string | null;
+        createdAt: string; updatedAt: string;
+        requestedByName?: string | null; requestedByEmail?: string | null; syndicateName?: string | null;
+      }> }>("/documents/template-requests"),
+    create: (body: { title: string; category: string; description?: string; businessPurpose?: string; requiredFields?: Array<{ name: string; type: string; required: boolean }>; legalNotes?: string; priority?: string; publishScope?: string }) =>
+      request<{ data: unknown; message: string }>("/documents/template-requests", {
+        method: "POST",
+        body: JSON.stringify(body),
+      }),
+    update: (id: string, body: { status?: string; reviewNotes?: string; rejectionReason?: string; publishScope?: string }) =>
+      request<{ data: unknown; message: string }>(`/documents/template-requests/${id}`, {
+        method: "PUT",
+        body: JSON.stringify(body),
+      }),
+  },
 };
 
 // ─── Publications ─────────────────────────────────────────────────────────────

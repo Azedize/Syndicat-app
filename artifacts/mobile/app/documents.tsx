@@ -32,6 +32,9 @@ import { useLanguage, type LangCode } from "@/context/LanguageContext";
 import FilterChips from "@/components/FilterChips";
 import SignaturePad, { type SignaturePadHandle } from "@/components/SignaturePad";
 import DocumentWizard from "@/components/DocumentWizard";
+import MemberDocumentRequest from "@/components/MemberDocumentRequest";
+import TemplateRequestModal from "@/components/TemplateRequestModal";
+import SignatureOrderPanel from "@/components/SignatureOrderPanel";
 
 // ─── Constants ────────────────────────────────────────────────────────────────
 
@@ -193,6 +196,10 @@ export default function DocumentsScreen() {
   const [sigEmpty,   setSigEmpty]   = useState(true);
   const sigPadRef = useRef<SignaturePadHandle>(null);
   const sigSvgRef = useRef<string>("");
+
+  // Member document request + template request modals
+  const [showMemberRequest,  setShowMemberRequest]  = useState(false);
+  const [showTemplateRequest, setShowTemplateRequest] = useState(false);
 
   // Workflow actions
   const [workflowBusy,     setWorkflowBusy]     = useState(false);
@@ -781,13 +788,31 @@ export default function DocumentsScreen() {
           </TouchableOpacity>
         ) : null}
         {isAdmin ? (
+          <>
+            {/* Demander un nouveau modèle (admin) */}
+            <TouchableOpacity
+              style={{ padding: 6, marginRight: 2 }}
+              hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+              onPress={() => { setShowTemplateRequest(true); Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); }}
+            >
+              <Feather name="layout" size={20} color={colors.mutedForeground} />
+            </TouchableOpacity>
+            <TouchableOpacity
+              style={[styles.generateBtn, { backgroundColor: colors.primary }]}
+              onPress={() => { setShowGenerate(true); Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); }}
+            >
+              <Feather name="file-plus" size={16} color="#fff" />
+            </TouchableOpacity>
+          </>
+        ) : (
+          /* Demander un document (member / tenant) */
           <TouchableOpacity
-            style={[styles.generateBtn, { backgroundColor: colors.primary }]}
-            onPress={() => { setShowGenerate(true); Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); }}
+            style={[styles.generateBtn, { backgroundColor: "#8b5cf6" }]}
+            onPress={() => { setShowMemberRequest(true); Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); }}
           >
-            <Feather name="file-plus" size={16} color="#fff" />
+            <Feather name="send" size={16} color="#fff" />
           </TouchableOpacity>
-        ) : null}
+        )}
       </View>
 
       {/* ── Search ── */}
@@ -864,6 +889,24 @@ export default function DocumentsScreen() {
             </TouchableOpacity>
           );
         }}
+      />
+
+      {/* ── Member document request modal ── */}
+      <MemberDocumentRequest
+        visible={showMemberRequest}
+        onClose={() => setShowMemberRequest(false)}
+        onComplete={(docId) => {
+          setShowMemberRequest(false);
+          refreshDocuments().catch(() => {});
+          showToast({ type: "success", title: "Demande soumise", message: "Votre demande de document a été envoyée à l'administrateur." });
+        }}
+      />
+
+      {/* ── Template request modal ── */}
+      <TemplateRequestModal
+        visible={showTemplateRequest}
+        onClose={() => setShowTemplateRequest(false)}
+        onSubmitted={() => { setShowTemplateRequest(false); }}
       />
 
       {/* ── Download progress overlay ── */}
@@ -1180,6 +1223,17 @@ export default function DocumentsScreen() {
                       </TouchableOpacity>
                     ) : null}
                   </View>
+                </View>
+
+                {/* ── Signature order panel ── */}
+                <View style={detailStyles.section}>
+                  <Text style={[detailStyles.sectionLabel, { color: colors.mutedForeground }]}>
+                    SIGNATURES ÉLECTRONIQUES
+                  </Text>
+                  <SignatureOrderPanel
+                    documentId={selected.id}
+                    onSignPress={["generated", "validated"].includes(selected.status) ? openSign : undefined}
+                  />
                 </View>
 
                 {/* ── Validation workflow — admin only ── */}
