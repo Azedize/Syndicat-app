@@ -1,0 +1,179 @@
+You are a Senior PDF Engine Auditor, Full Stack Architect, SaaS Design Expert, and Enterprise QA Lead.
+
+Do not trust previous reports.
+
+Do not trust implementation claims.
+
+Verify the REAL rendered PDF output.
+
+Current evidence shows:
+
+1. The PDF colors are NOT using the mobile application's design system.
+2. Real signatures are NOT appearing in generated documents.
+3. The rendered output does NOT match the claimed implementation.
+
+==================================================
+PHASE 1 — BRAND COLOR AUDIT
+===========================
+
+Audit:
+
+artifacts/mobile/constants/colors.ts
+
+Extract all official colors.
+
+Then inspect:
+
+documentPdf.ts
+
+Verify every color actually used in:
+
+* Header
+* Footer
+* Meta cards
+* Tables
+* Titles
+* Status badges
+* Stamp
+* Signature blocks
+
+Generate a report:
+
+Color Used In PDF
+Color From App
+Match?
+Yes / No
+
+Detect:
+
+* hardcoded colors
+* legacy colors
+* unused theme colors
+
+Replace ALL hardcoded colors.
+
+PDF must use only:
+
+Primary
+Secondary
+Success
+Warning
+Danger
+Neutral
+
+coming from the mobile app.
+
+==================================================
+PHASE 2 — SIGNATURE RENDERING AUDIT
+===================================
+
+Inspect:
+
+document_signatures table
+
+Verify:
+
+* rows exist
+* SVG data exists
+* signature paths exist
+
+Then inspect:
+
+documentPdf.ts
+
+Verify:
+
+* signatures are loaded
+* signatures are passed to templates
+* signatures are rendered
+
+Generate proof.
+
+For every template:
+
+Attestation
+PV
+Contrat
+Facture
+Rapport Financier
+Convocation
+Election
+Mise en demeure
+
+Answer:
+
+Does the real signature appear?
+
+YES or NO
+
+If NO:
+
+identify exact reason.
+
+==================================================
+PHASE 3 — PDF OUTPUT AUDIT
+==========================
+
+Do not audit source code only.
+
+Generate test PDFs.
+
+Compare:
+
+Expected Output
+Actual Output
+
+Verify:
+
+* logo displayed
+* colors displayed
+* signatures displayed
+* cachet displayed
+* QR displayed
+
+If implementation says:
+
+"signature rendered"
+
+but generated PDF shows:
+
+"En attente de signature"
+
+then classify as:
+
+FALSE POSITIVE IMPLEMENTATION
+
+==================================================
+PHASE 4 — LOGO AUDIT
+====================
+
+Verify:
+
+syndicates.logo
+
+Is actually loaded.
+
+If PDF still displays:
+
+SRA
+
+instead of the real logo
+
+identify:
+
+where the logo loading pipeline fails.
+
+==================================================
+PHASE 5 — FINAL REPORT
+======================
+
+Generate:
+
+1. Brand Color Compliance %
+2. Signature Rendering Compliance %
+3. Logo Rendering Compliance %
+4. PDF Reality vs Code Claims %
+
+Do not report what code intends to do.
+
+Report ONLY what the final generated PDF actually displays.

@@ -2434,146 +2434,103 @@ async function buildDocDef(template: DocumentTemplate, input: DocumentInput): Pr
 
   switch (template) {
     case "attestation": {
-      // ── Pull extended member + lot data (injected by getLotMemberData) ──────
+      // ── DB-injected member + lot fields (from getLotMemberData) ───────────
       const attMemberName   = member || (input._memberRef ? "—" : t("notRenseigne", lang));
-      const attMemberRef    = (input._memberRef        as string) || "";
+      const attMemberRef    = (input._memberRef        as string) || "";   // ADH-XXXXXXXX = membership number
       const attMemberEmail  = (input._memberEmail      as string) || "";
       const attMemberPhone  = (input._memberPhone      as string) || "";
-      const attProfession   = (input._memberProfession as string) || "";
+      const attMemberCIN    = (input._memberCIN        as string) || "";
       const attJoinDate     = (input._memberJoinDate   as string) || "";
       const attStatus       = (input._memberStatus     as string) || "active";
       const attCotisation   = (input._memberCotisation as string) || "";
       const attLotNum       = (input._lotNumber        as string) || "";
       const attLotFloor     = (input._lotFloor         as string) || "";
       const attLotSurface   = (input._lotSurface       as string) || "";
-      const attLotType      = (input._lotType          as string) || "";
       const attBuilding     = (input._buildingName     as string) || (input.property as PropertyInfo | undefined)?.name || "";
       const attBuildAddr    = (input._buildingAddress  as string) || [syndInfo.address, syndInfo.city].filter(Boolean).join(", ");
       const attOffice       = input.officeHolders as OfficeHolders | undefined;
 
-      const attLite  = adjustColorBrightness(accentColor, 88);
-      const attDark  = adjustColorBrightness(accentColor, -28);
+      const attLite = adjustColorBrightness(accentColor, 92);
+      const attDark = adjustColorBrightness(accentColor, -30);
 
-      // ── Member initials avatar (negative-margin overlay) ─────────────────
-      const attNameParts = attMemberName.trim().split(/\s+/).filter(Boolean);
-      const attInitials  = ((attNameParts[0]?.[0] ?? "M") + (attNameParts[1]?.[0] ?? "")).toUpperCase();
-      const attAvatarR   = 36;
-      const memberAvatar = {
+      // ── Computed display values ─────────────────────────────────────────────
+      const attFloorLabel = attLotFloor === "" ? "—"
+        : attLotFloor === "0" ? "Rez-de-chaussée"
+        : `Étage ${attLotFloor}`;
+
+      const attDocStatus = (input.docStatus as string) || "generated";
+      const attDocStatusMap: Record<string, { label: string; color: string }> = {
+        signed:    { label: "SIGNÉ",     color: "#7c3aed" },
+        validated: { label: "VALIDÉ",    color: "#2563eb" },
+        published: { label: "PUBLIÉ",    color: "#059669" },
+        archived:  { label: "ARCHIVÉ",   color: "#64748b" },
+        generated: { label: "GÉNÉRÉ",    color: "#d97706" },
+        draft:     { label: "BROUILLON", color: "#9ca3af" },
+      };
+      const attDocStatusInfo = attDocStatusMap[attDocStatus] ?? { label: attDocStatus.toUpperCase(), color: "#6b7280" };
+
+      const attStatusLabel = attStatus === "active"   ? "MEMBRE ACTIF"
+                           : attStatus === "inactive" ? "INACTIF"
+                           : attStatus.toUpperCase();
+      const attStatusColor  = attStatus === "active"   ? "#059669"
+                            : attStatus === "inactive" ? "#dc2626" : "#64748b";
+      const attStatusBg     = attStatus === "active"   ? "#ecfdf5"
+                            : attStatus === "inactive" ? "#fef2f2" : "#f8fafc";
+      const attStatusBorder = attStatus === "active"   ? "#a7f3d0"
+                            : attStatus === "inactive" ? "#fecaca" : "#e2e8f0";
+
+      // ── Section divider ─────────────────────────────────────────────────────
+      // Thin left accent bar + small-caps label + hairline. No filled bands.
+      const attDiv = (label: string): unknown => ({
         stack: [
           {
-            canvas: [
-              { type: "ellipse", x: attAvatarR, y: attAvatarR, r1: attAvatarR,     r2: attAvatarR,     color: accentColor },
-              { type: "ellipse", x: attAvatarR, y: attAvatarR, r1: attAvatarR - 3, r2: attAvatarR - 3, lineWidth: 1.2, lineColor: "#ffffff30" },
-              { type: "ellipse", x: attAvatarR, y: attAvatarR, r1: 7,              r2: 7,              color: "#ffffff18" },
-            ],
-            margin: [0, 0, 0, -(attAvatarR * 2)],
+            table: {
+              widths: [3, "*"],
+              body: [[
+                {
+                  canvas: [{ type: "rect", x: 0, y: 0, w: 3, h: 16, color: accentColor }],
+                  border: [false, false, false, false] as [boolean, boolean, boolean, boolean],
+                  margin: [0, 0, 0, 0],
+                },
+                {
+                  text: label,
+                  fontSize: 7, bold: true, color: attDark, characterSpacing: 0.8,
+                  margin: [10, 3, 0, 3],
+                  border: [false, false, false, false] as [boolean, boolean, boolean, boolean],
+                },
+              ]],
+            },
+            layout: {
+              hLineWidth: () => 0, vLineWidth: () => 0,
+              paddingLeft: () => 0, paddingRight: () => 0, paddingTop: () => 0, paddingBottom: () => 0,
+            },
           },
           {
-            text: attInitials,
-            fontSize: 21, bold: true,
-            color: "#ffffff",
-            alignment: "center" as const,
-            margin: [0, 21, 0, 0],
+            canvas: [{ type: "line", x1: 0, y1: 0, x2: 515, y2: 0, lineWidth: 0.4, lineColor: "#e5e7eb" }],
+            margin: [0, 3, 0, 0],
           },
         ],
-        width: attAvatarR * 2,
-        alignment: "center" as const,
-        margin: [0, 0, 0, 10],
-      };
-
-      // ── Status + cotisation helpers ───────────────────────────────────────
-      const attStatusLabel = attStatus === "active" ? "MEMBRE ACTIF" : attStatus === "inactive" ? "INACTIF" : attStatus.toUpperCase();
-      const attStatusColor = attStatus === "active" ? "#16a34a" : attStatus === "inactive" ? "#dc2626" : "#64748b";
-      const attStatusBg    = attStatus === "active" ? "#f0fdf4" : attStatus === "inactive" ? "#fef2f2" : "#f8fafc";
-      const attCotisLabel  = attCotisation === "paid"    ? "Cotisation à jour ✓"
-                           : attCotisation === "overdue" ? "Cotisation en retard ✗"
-                           : attCotisation === "pending" ? "Cotisation en attente"
-                           : attCotisation ? attCotisation : "—";
-      const attCotisColor  = attCotisation === "paid"    ? "#15803d"
-                           : attCotisation === "overdue" ? "#dc2626" : "#6b7280";
-
-      const memberStatusBadge = {
-        table: {
-          widths: ["auto"],
-          body: [[{
-            text: `● ${attStatusLabel}`,
-            fontSize: 7, bold: true,
-            color: attStatusColor,
-            fillColor: attStatusBg,
-            margin: [7, 3, 7, 3],
-            border: [false, false, false, false] as [boolean, boolean, boolean, boolean],
-          }]],
-        },
-        layout: {
-          hLineWidth: (i: number, node: { table: { body: unknown[] } }) => i === 0 || i === node.table.body.length ? 0.6 : 0,
-          vLineWidth: (i: number, node: { table: { widths: unknown[] } }) => i === 0 || i === node.table.widths.length ? 0.6 : 0,
-          hLineColor: () => `${attStatusColor}55`,
-          vLineColor: () => `${attStatusColor}55`,
-          paddingLeft: () => 0, paddingRight: () => 0, paddingTop: () => 0, paddingBottom: () => 0,
-        },
-        alignment: "center" as const,
-        margin: [0, 5, 0, 0],
-      };
-
-      // ── Section divider (label + accent bar + rule) ───────────────────────
-      const attSectionDiv = (label: string) => ({
-        table: {
-          widths: [3, "auto", "*"],
-          body: [[
-            {
-              canvas: [{ type: "rect", x: 0, y: 0, w: 3, h: 20, color: accentColor }],
-              border: [false, false, false, false] as [boolean, boolean, boolean, boolean],
-              margin: [0, 0, 0, 0],
-            },
-            {
-              text: label,
-              fontSize: 7.5, bold: true,
-              color: attDark, characterSpacing: 0.6,
-              fillColor: attLite,
-              margin: [10, 5, 14, 5],
-              border: [false, false, false, false] as [boolean, boolean, boolean, boolean],
-            },
-            {
-              canvas: [{ type: "line", x1: 0, y1: 10, x2: 420, y2: 10, lineWidth: 0.4, lineColor: "#e2e8f0" }],
-              border: [false, false, false, false] as [boolean, boolean, boolean, boolean],
-            },
-          ]],
-        },
-        layout: {
-          hLineWidth: () => 0, vLineWidth: () => 0,
-          paddingLeft: () => 0, paddingRight: () => 0, paddingTop: () => 0, paddingBottom: () => 0,
-        },
-        margin: [0, 14, 0, 9],
+        margin: [0, 14, 0, 10],
       });
 
-      // ── Document Identity Strip (4 cells) ─────────────────────────────────
-      const attDocStatus      = (input.docStatus as string) || "generated";
-      const attDocStatusLabel = attDocStatus === "signed"     ? "SIGNÉ"
-                              : attDocStatus === "validated"  ? "VALIDÉ"
-                              : attDocStatus === "published"  ? "PUBLIÉ"
-                              : attDocStatus === "archived"   ? "ARCHIVÉ" : "GÉNÉRÉ";
-      const attDocStatusColor = attDocStatus === "signed"     ? "#7c3aed"
-                              : attDocStatus === "validated"  ? "#2563eb"
-                              : attDocStatus === "published"  ? "#16a34a"
-                              : attDocStatus === "archived"   ? "#6b7280" : "#d97706";
-
-      const attIdentCell = (label: string, value: string, vc?: string, ac2?: string): unknown => ({
+      // ── Document Identity Strip — 4 cells ──────────────────────────────────
+      const attIdentCell = (label: string, value: string, vc?: string): unknown => ({
         table: {
           widths: ["*"],
           body: [[{
             stack: [
-              { text: label, fontSize: 5.5, bold: true, color: "#9ca3af", characterSpacing: 0.4, margin: [0, 0, 0, 2] },
-              { text: value || "—", fontSize: 9.5, bold: true, color: vc || "#1e293b", lineHeight: 1.2 },
+              { text: label, fontSize: 5.5, bold: true, color: "#9ca3af", characterSpacing: 0.5, margin: [0, 0, 0, 3] },
+              { text: value || "—", fontSize: 9, bold: true, color: vc || "#1e293b", lineHeight: 1.2 },
             ],
             fillColor: "#f8f9fc",
-            margin: [10, 7, 10, 7],
+            margin: [12, 9, 12, 9],
             border: [true, false, false, false] as [boolean, boolean, boolean, boolean],
           }]],
         },
         layout: {
           hLineWidth: () => 0,
           vLineWidth: (i: number) => (i === 0 ? 2.5 : 0),
-          vLineColor: () => ac2 || accentColor,
+          vLineColor: () => vc || accentColor,
           paddingLeft: () => 0, paddingRight: () => 0, paddingTop: () => 0, paddingBottom: () => 0,
         },
         border: [false, false, false, false] as [boolean, boolean, boolean, boolean],
@@ -2583,265 +2540,418 @@ async function buildDocDef(template: DocumentTemplate, input: DocumentInput): Pr
         table: {
           widths: ["*", "*", "*", "*"],
           body: [[
-            attIdentCell("TYPE DE DOCUMENT", "Attestation d'Adhésion", accentColor),
-            attIdentCell("RÉFÉRENCE",        docNum),
-            attIdentCell("DATE D'ÉMISSION",  today),
-            attIdentCell("STATUT",           attDocStatusLabel, attDocStatusColor, attDocStatusColor),
+            attIdentCell("TYPE DE DOCUMENT",  "Attestation d'Adhésion",    accentColor),
+            attIdentCell("N° DE RÉFÉRENCE",   docNum),
+            attIdentCell("DATE D'ÉMISSION",   today),
+            attIdentCell("STATUT",            attDocStatusInfo.label,      attDocStatusInfo.color),
           ]],
         },
         layout: {
           hLineWidth: (i: number, node: { table: { body: unknown[] } }) => i === 0 || i === node.table.body.length ? 0.6 : 0,
-          vLineWidth: (i: number, node: { table: { widths: unknown[] } }) => i > 0 && i < node.table.widths.length ? 0.5 : 0,
+          vLineWidth: (i: number, node: { table: { widths: unknown[] } }) => i > 0 && i < node.table.widths.length ? 0.4 : 0,
           hLineColor: () => "#e2e8f0",
           vLineColor: () => "#e2e8f0",
           paddingLeft: () => 0, paddingRight: () => 4, paddingTop: () => 0, paddingBottom: () => 0,
         },
-        margin: [0, 0, 0, 16],
+        margin: [0, 0, 0, 18],
       };
 
-      // ── Main Title Block ──────────────────────────────────────────────────
+      // ── Grand Title Block ──────────────────────────────────────────────────
+      // Centered display — single top rule (1pt) + document type + subtitle + thin bottom rule.
       const titleBlock = {
         stack: [
           {
-            canvas: [
-              { type: "rect", x: 80, y:  0,  w: 355, h: 1,   color: accentColor },
-              { type: "rect", x: 82, y:  4,  w: 351, h: 0.4, color: `${accentColor}66` },
-            ],
-            margin: [0, 0, 0, 8],
+            canvas: [{ type: "line", x1: 56, y1: 0, x2: 459, y2: 0, lineWidth: 1, lineColor: accentColor }],
+            margin: [0, 0, 0, 0],
           },
           {
             text: "ATTESTATION D'ADHÉSION",
-            fontSize: 22, bold: true,
-            alignment: "center" as const,
-            color: attDark, characterSpacing: 1.4,
-            margin: [0, 0, 0, 5],
+            fontSize: 20, bold: true, alignment: "center" as const,
+            color: attDark, characterSpacing: 2,
+            margin: [0, 10, 0, 4],
           },
           {
             text: "Syndicat de Copropriété  ·  Délivrée à l'intéressé(e) pour valoir ce que de droit",
-            fontSize: 7.5, italics: true,
-            alignment: "center" as const,
-            color: "#6b7280",
-            margin: [0, 0, 0, 8],
+            fontSize: 7.5, italics: true, alignment: "center" as const, color: "#6b7280",
+            margin: [0, 0, 0, 10],
           },
           {
-            canvas: [
-              { type: "rect", x: 82, y: 4,  w: 351, h: 0.4, color: `${accentColor}66` },
-              { type: "rect", x: 80, y: 8,  w: 355, h: 1,   color: accentColor },
-            ],
+            canvas: [{ type: "line", x1: 56, y1: 0, x2: 459, y2: 0, lineWidth: 0.5, lineColor: `${accentColor}66` }],
             margin: [0, 0, 0, 0],
           },
         ],
-        margin: [0, 4, 0, 14],
+        margin: [0, 2, 0, 18],
       };
 
-      // ── Member Profile Card ───────────────────────────────────────────────
-      // LEFT column — avatar + identity
+      // ── Member Avatar — circular initials badge ────────────────────────────
+      const attNameParts = attMemberName.trim().split(/\s+/).filter(Boolean);
+      const attInitials  = ((attNameParts[0]?.[0] ?? "M") + (attNameParts[1]?.[0] ?? "")).toUpperCase();
+      const AV_R = 30; // 60px diameter
+
+      const memberAvatar = {
+        stack: [
+          {
+            canvas: [{ type: "ellipse", x: AV_R, y: AV_R, r1: AV_R, r2: AV_R, color: accentColor }],
+            margin: [0, 0, 0, -(AV_R * 2)],
+          },
+          {
+            text: attInitials,
+            fontSize: 19, bold: true, color: "#ffffff",
+            alignment: "center" as const,
+            margin: [0, AV_R - 8, 0, 0],
+          },
+        ],
+        width: AV_R * 2,
+        alignment: "center" as const,
+        margin: [0, 0, 0, 12],
+      };
+
+      // ── Membership number pill ─────────────────────────────────────────────
+      const membershipPill: unknown = attMemberRef ? {
+        table: {
+          widths: ["auto"],
+          body: [[{
+            text: attMemberRef,
+            fontSize: 7.5, bold: true, color: accentColor, fillColor: attLite,
+            margin: [10, 3, 10, 3],
+            border: [false, false, false, false] as [boolean, boolean, boolean, boolean],
+          }]],
+        },
+        layout: {
+          hLineWidth: (i: number, n: { table: { body: unknown[] } }) => i === 0 || i === n.table.body.length ? 0.5 : 0,
+          vLineWidth: (i: number, n: { table: { widths: unknown[] } }) => i === 0 || i === n.table.widths.length ? 0.5 : 0,
+          hLineColor: () => `${accentColor}55`,
+          vLineColor: () => `${accentColor}55`,
+          paddingLeft: () => 0, paddingRight: () => 0, paddingTop: () => 0, paddingBottom: () => 0,
+        },
+        alignment: "center" as const,
+        margin: [0, 3, 0, 0],
+      } : { text: "" };
+
+      // ── Member status badge ────────────────────────────────────────────────
+      const attStatusBadge: unknown = {
+        table: {
+          widths: ["auto"],
+          body: [[{
+            text: `● ${attStatusLabel}`,
+            fontSize: 6.5, bold: true, color: attStatusColor, fillColor: attStatusBg,
+            margin: [9, 3, 9, 3],
+            border: [false, false, false, false] as [boolean, boolean, boolean, boolean],
+          }]],
+        },
+        layout: {
+          hLineWidth: (i: number, n: { table: { body: unknown[] } }) => i === 0 || i === n.table.body.length ? 0.5 : 0,
+          vLineWidth: (i: number, n: { table: { widths: unknown[] } }) => i === 0 || i === n.table.widths.length ? 0.5 : 0,
+          hLineColor: () => attStatusBorder,
+          vLineColor: () => attStatusBorder,
+          paddingLeft: () => 0, paddingRight: () => 0, paddingTop: () => 0, paddingBottom: () => 0,
+        },
+        alignment: "center" as const,
+        margin: [0, 6, 0, 0],
+      };
+
+      // ── LEFT column — avatar + identity + contact ─────────────────────────
       const leftStack: unknown[] = [
         memberAvatar,
-        { text: attMemberName, fontSize: 13, bold: true, color: attDark, alignment: "center" as const, margin: [0, 2, 0, 2] },
+        {
+          text: attMemberName,
+          fontSize: 12.5, bold: true, color: attDark,
+          alignment: "center" as const, lineHeight: 1.2,
+          margin: [0, 0, 0, 2],
+        },
+        membershipPill,
+        attStatusBadge,
+        {
+          canvas: [{ type: "line", x1: 6, y1: 0, x2: 158, y2: 0, lineWidth: 0.4, lineColor: "#e2e8f0" }],
+          margin: [0, 12, 0, 10],
+        },
       ];
-      if (attMemberRef) {
-        leftStack.push({
-          table: {
-            widths: ["auto"],
-            body: [[{
-              text: attMemberRef,
-              fontSize: 7.5, bold: true, color: accentColor,
-              fillColor: attLite,
-              margin: [9, 3, 9, 3],
-              border: [false, false, false, false] as [boolean, boolean, boolean, boolean],
-            }]],
-          },
-          layout: {
-            hLineWidth: (i: number, n: { table: { body: unknown[] } }) => i === 0 || i === n.table.body.length ? 0.6 : 0,
-            vLineWidth: (i: number, n: { table: { widths: unknown[] } }) => i === 0 || i === n.table.widths.length ? 0.6 : 0,
-            hLineColor: () => `${accentColor}55`,
-            vLineColor: () => `${accentColor}55`,
-            paddingLeft: () => 0, paddingRight: () => 0, paddingTop: () => 0, paddingBottom: () => 0,
-          },
-          alignment: "center" as const,
-          margin: [0, 2, 0, 0],
-        });
-      }
-      leftStack.push(memberStatusBadge);
-      leftStack.push({
-        canvas: [{ type: "line", x1: 0, y1: 0, x2: 150, y2: 0, lineWidth: 0.4, lineColor: "#e2e8f0" }],
-        margin: [0, 10, 0, 9],
+      if (attMemberEmail) leftStack.push({ text: `✉  ${attMemberEmail}`, fontSize: 7.5, color: "#475569", margin: [0, 0, 0, 5] });
+      if (attMemberPhone) leftStack.push({ text: `☎  ${attMemberPhone}`, fontSize: 7.5, color: "#475569", margin: [0, 0, 0, 5] });
+      if (attMemberCIN)   leftStack.push({
+        stack: [
+          { text: "CARTE D'IDENTITÉ (CIN)", fontSize: 5.5, bold: true, color: "#9ca3af", characterSpacing: 0.3, margin: [0, 6, 0, 1] },
+          { text: attMemberCIN, fontSize: 10, bold: true, color: "#1e293b" },
+        ],
       });
-      if (attMemberEmail) leftStack.push({ text: `✉  ${attMemberEmail}`, fontSize: 7.5, color: "#475569", margin: [0, 0, 0, 3] });
-      if (attMemberPhone) leftStack.push({ text: `☎  ${attMemberPhone}`, fontSize: 7.5, color: "#475569", margin: [0, 0, 0, 3] });
-      if (attProfession)  leftStack.push({ text: `◆  ${attProfession}`,  fontSize: 7.5, color: "#475569", margin: [0, 0, 0, 3] });
-      if (attCotisation)  leftStack.push({ text: attCotisLabel, fontSize: 7, color: attCotisColor, margin: [0, 4, 0, 0], italics: true });
 
-      // RIGHT column — property data pairs
-      type PropPair = [string, string];
-      const propRows: PropPair[][] = [
-        [["RÉSIDENCE / IMMEUBLE", attBuilding  || "—"], ["N° DE LOT",   attLotNum    || "—"]],
-        [["ÉTAGE",               attLotFloor !== "" ? (attLotFloor === "0" ? "Rez-de-chaussée" : `Étage ${attLotFloor}`) : "—"], ["SURFACE",    attLotSurface || "—"]],
-        [["TYPE DE BIEN",        attLotType   || "—"], ["DATE D'ADHÉSION", attJoinDate || "—"]],
-        [["ADRESSE",             attBuildAddr || "—"], ["SYNDICAT",   syndInfo.name]],
+      // ── RIGHT column — property data grid ────────────────────────────────
+      // Helper that renders a label + value pair inline
+      const rCell = (label: string, value: string, color?: string): unknown => ({
+        stack: [
+          { text: label, fontSize: 5, bold: true, color: "#9ca3af", characterSpacing: 0.5, margin: [0, 0, 0, 1] },
+          { text: value || "—", fontSize: 9.5, bold: true, color: color || "#1e293b", lineHeight: 1.2 },
+        ],
+      });
+
+      const rSep = (): unknown => ({
+        canvas: [{ type: "line", x1: 0, y1: 0, x2: 350, y2: 0, lineWidth: 0.4, lineColor: "#f0f0f7" }],
+      });
+
+      const rightStack: unknown[] = [
+        // Row 1: N° Lot  |  CIN
+        {
+          columns: [
+            { ...rCell("N° DE LOT", attLotNum, accentColor) as object, width: 70 },
+            {
+              canvas: [{ type: "line", x1: 0, y1: 0, x2: 0, y2: 32, lineWidth: 0.4, lineColor: "#e2e8f0" }],
+              width: 1, margin: [0, 0, 0, 0],
+            },
+            { ...rCell("CARTE D'IDENTITÉ NATIONALE (CIN)", attMemberCIN || "—") as object, width: "*", margin: [10, 0, 0, 0] as [number, number, number, number] },
+          ],
+          margin: [14, 12, 14, 10],
+        },
+        rSep(),
+        // Row 2: Résidence / Immeuble (full width)
+        {
+          stack: [
+            { text: "RÉSIDENCE / IMMEUBLE", fontSize: 5, bold: true, color: "#9ca3af", characterSpacing: 0.5, margin: [0, 0, 0, 1] },
+            { text: attBuilding || syndInfo.name || "—", fontSize: 9.5, bold: true, color: "#1e293b", lineHeight: 1.2 },
+            ...(attBuildAddr ? [{ text: attBuildAddr, fontSize: 7, color: "#6b7280", margin: [0, 2, 0, 0] }] : []),
+          ],
+          margin: [14, 10, 14, 10],
+        },
+        rSep(),
+        // Row 3: Surface  |  Étage
+        {
+          columns: [
+            { ...rCell("SURFACE PRIVATIVE", attLotSurface || "—") as object, width: "*" },
+            {
+              canvas: [{ type: "line", x1: 0, y1: 0, x2: 0, y2: 32, lineWidth: 0.4, lineColor: "#e2e8f0" }],
+              width: 1,
+            },
+            { ...rCell("ÉTAGE", attFloorLabel) as object, width: 90, margin: [10, 0, 0, 0] as [number, number, number, number] },
+          ],
+          margin: [14, 10, 14, 10],
+        },
+        rSep(),
+        // Row 4: Date d'adhésion (full width)
+        {
+          ...rCell("DATE D'ADHÉSION AU SYNDICAT", attJoinDate || today) as object,
+          margin: [14, 10, 14, 16],
+        },
       ];
 
-      const propGrid: unknown[] = [
-        { text: "INFORMATIONS SUR LE BIEN", fontSize: 6.5, bold: true, color: accentColor, characterSpacing: 0.5, margin: [0, 0, 0, 8] },
-      ];
-      for (const row of propRows) {
-        propGrid.push({
-          columns: row.map(([lbl, val]) => ({
-            stack: [
-              { text: lbl, fontSize: 5.5, bold: true, color: "#9ca3af", characterSpacing: 0.3, margin: [0, 0, 0, 1] },
-              { text: val, fontSize: 9,   bold: true, color: "#1e293b", lineHeight: 1.2 },
-            ],
-            width: "*",
-            margin: [0, 6, 12, 6],
-          })),
-        });
-        propGrid.push({
-          canvas: [{ type: "line", x1: 0, y1: 0, x2: 310, y2: 0, lineWidth: 0.4, lineColor: "#f1f5f9" }],
-        });
-      }
-
+      // ── Member Profile Card ────────────────────────────────────────────────
       const memberProfileCard = {
         table: {
           widths: ["37%", "*"],
           body: [[
             {
               stack: leftStack,
-              fillColor: "#fafbff",
-              margin: [14, 14, 14, 16],
+              fillColor: "#f8f9fc",
+              margin: [14, 16, 14, 18],
               border: [true, true, true, true] as [boolean, boolean, boolean, boolean],
             },
             {
-              stack: propGrid,
+              stack: rightStack,
               fillColor: "#ffffff",
-              margin: [16, 14, 14, 14],
-              border: [true, true, true, true] as [boolean, boolean, boolean, boolean],
+              margin: [0, 0, 0, 0],
+              border: [false, true, true, true] as [boolean, boolean, boolean, boolean],
             },
           ]],
         },
         layout: {
-          hLineWidth: (i: number, node: { table: { body: unknown[] } }) => i === 0 || i === node.table.body.length ? 0.8 : 0,
-          vLineWidth: (i: number) => 0.8,
+          hLineWidth: (i: number, node: { table: { body: unknown[] } }) => i === 0 || i === node.table.body.length ? 0.7 : 0,
+          vLineWidth: (i: number) => i === 0 || i === 2 ? 0.7 : (i === 1 ? 0.7 : 0),
           hLineColor: () => "#e2e8f0",
           vLineColor: () => "#e2e8f0",
           paddingLeft: () => 0, paddingRight: () => 0, paddingTop: () => 0, paddingBottom: () => 0,
         },
-        margin: [0, 0, 0, 4],
+        margin: [0, 0, 0, 6],
       };
 
-      // ── Certification legal paragraph (auto-generated) ────────────────────
-      const attCertText = body || [
-        `Le syndicat de copropriété ${syndInfo.name},` +
-        (syndInfo.registrationNumber ? ` immatriculé sous le N° ${syndInfo.registrationNumber},` : "") +
-        ` régulièrement constitué conformément à la Loi 18-00 relative à la copropriété des immeubles bâtis au Maroc,`,
-        ``,
-        `ATTESTE ET CERTIFIE`,
-        ``,
+      // ── Certification Legal Paragraph ──────────────────────────────────────
+      const certPreamble =
+        `Le syndicat de copropriété ${syndInfo.name}` +
+        (syndInfo.registrationNumber ? `, immatriculé sous le N° ${syndInfo.registrationNumber},` : `,`) +
+        ` régulièrement constitué conformément à la Loi 18-00 relative à la copropriété des immeubles bâtis au Maroc,`;
+
+      const certMain =
         `que ${attMemberName}` +
-        (attLotNum    ? `, propriétaire du lot N° ${attLotNum}` : "") +
-        (attBuilding  ? ` au sein de la résidence ${attBuilding}` : "") +
-        `, est membre en règle du syndicat de copropriété à la date du ${today}.`,
-        ``,
-        (attJoinDate  ? `L'intéressé(e) est enregistré(e) en qualité de membre depuis le ${attJoinDate}.` : "") +
-        (attCotisation === "paid"    ? " À ce jour, l'ensemble des obligations financières vis-à-vis du syndicat sont intégralement honorées."
-        : attCotisation === "overdue" ? " Note : des charges demeurent impayées au syndicat à la date de délivrance du présent document."
-        : ""),
-        ``,
-        `La présente attestation est délivrée à la demande de l'intéressé(e) pour servir et valoir ce que de droit. Elle est établie sur la base des informations disponibles dans le registre du syndicat à la date d'émission figurant en en-tête et ne saurait être utilisée à des fins autres que celles pour lesquelles elle a été produite.`,
-      ].filter(Boolean).join("\n");
+        (attMemberCIN  ? `, titulaire de la CIN N° ${attMemberCIN},` : "") +
+        (attLotNum     ? ` propriétaire du lot N° ${attLotNum}` : "") +
+        (attBuilding   ? ` au sein de la résidence ${attBuilding}` : "") +
+        `, est membre en règle du syndicat de copropriété à la date du ${today}.`;
 
-      const certBlock = contentSection("CERTIFICATION OFFICIELLE", attCertText, accentColor, isArabic);
+      const certJoin = attJoinDate
+        ? `L'intéressé(e) est enregistré(e) en qualité de copropriétaire depuis le ${attJoinDate}.` +
+          (attCotisation === "paid"
+            ? " À ce jour, l'ensemble des obligations financières vis-à-vis du syndicat sont intégralement honorées."
+            : attCotisation === "overdue"
+            ? " Note : des charges demeurent impayées au syndicat à la date de délivrance."
+            : "")
+        : "";
 
-      // ── Custom 2-col Signature Area (President | Seal | Secretary) ───────
-      const findAttSig = (roles: string[]) =>
-        signatures.find((s) => roles.some((r) => s.signerRole === r));
+      const certDisclaimer =
+        `La présente attestation est délivrée à la demande de l'intéressé(e) pour servir et valoir ce que de droit. ` +
+        `Elle est établie sur la base des informations figurant au registre du syndicat à la date d'émission ` +
+        `ci-dessus et ne saurait être utilisée à des fins autres que celles pour lesquelles elle a été produite.`;
+
+      const certificationBlock: unknown = {
+        stack: [
+          // Preamble text
+          { text: body || certPreamble, style: "body", margin: [0, 0, 0, 12] },
+          // "ATTESTE ET CERTIFIE" — centered, prominent, with hairlines
+          {
+            canvas: [{ type: "line", x1: 80, y1: 0, x2: 435, y2: 0, lineWidth: 0.5, lineColor: `${accentColor}44` }],
+            margin: [0, 0, 0, 8],
+          },
+          {
+            text: "ATTESTE  ET  CERTIFIE",
+            fontSize: 11, bold: true, alignment: "center" as const,
+            color: accentColor, characterSpacing: 2.5,
+            margin: [0, 0, 0, 8],
+          },
+          {
+            canvas: [{ type: "line", x1: 80, y1: 0, x2: 435, y2: 0, lineWidth: 0.5, lineColor: `${accentColor}44` }],
+            margin: [0, 0, 0, 12],
+          },
+          // Main certification statement (only when body not overridden)
+          ...(!body ? [
+            { text: certMain, style: "body", margin: [0, 0, 0, 8] },
+            ...(certJoin ? [{ text: certJoin, style: "body", margin: [0, 0, 0, 8] }] : []),
+          ] : []),
+          // Legal disclaimer
+          { text: certDisclaimer, fontSize: 8, color: "#6b7280", lineHeight: 1.5, italics: true },
+        ],
+      };
+
+      // ── Signature Area ─────────────────────────────────────────────────────
+      const findAttSig = (roles: string[]) => signatures.find((s) => roles.some((r) => s.signerRole === r));
       const attPresidentSig = findAttSig(["president", "syndicate_admin", "super_admin"]);
       const attSecretarySig = findAttSig(["secretary"]);
 
-      const makeAttSigCol = (
+      const attSealDate   = attPresidentSig?.signedAt.toLocaleDateString("fr-FR") ?? today;
+      const attSealStatus = attPresidentSig ? (attPresidentSig.isValid ? "VALID" : "REVOKED") : "PENDING";
+      const attSeal = buildOfficialSeal(syndInfo.name, accentColor, attPresidentSig?.signerName, attSealDate, attSealStatus);
+
+      // DocuSign-style column builder — never shows "En attente" when a real sig exists
+      const makeAttCol = (
         colLabel: string,
         holderName: string | undefined,
         sig: InlineSignatureInfo | undefined,
       ): unknown => {
+        const hasSig  = !!sig;
+        const hasTrace = sig?.signatureData?.trim().startsWith("<svg");
+        const sigDateStr = sig?.signedAt.toLocaleString("fr-FR") ?? "";
+
         const cs: unknown[] = [
-          {
+          // Role label
+          { text: colLabel.toUpperCase(), fontSize: 6.5, bold: true, color: "#9ca3af", characterSpacing: 0.6, margin: [0, 0, 0, 4] },
+          // Name
+          { text: holderName || "—", fontSize: 10.5, bold: true, color: "#111827", margin: [0, 0, 0, 10] },
+        ];
+
+        if (hasSig) {
+          // DocuSign validation badge with ✓/✗ prefix
+          cs.push({
+            table: {
+              widths: ["auto", "*"],
+              body: [[
+                {
+                  text: sig!.isValid ? "✓" : "✗",
+                  fontSize: 7, bold: true,
+                  color: sig!.isValid ? "#059669" : "#dc2626",
+                  fillColor: sig!.isValid ? "#f0fdf4" : "#fef2f2",
+                  margin: [5, 2, 4, 2],
+                  border: [false, false, false, false] as [boolean, boolean, boolean, boolean],
+                },
+                {
+                  text: "SIGNÉ ÉLECTRONIQUEMENT",
+                  fontSize: 5.5, bold: true,
+                  color: sig!.isValid ? "#059669" : "#dc2626",
+                  characterSpacing: 0.4, margin: [2, 3, 8, 3],
+                  border: [false, false, false, false] as [boolean, boolean, boolean, boolean],
+                },
+              ]],
+            },
+            layout: {
+              hLineWidth: (ii: number, n: { table: { body: unknown[] } }) => ii === 0 || ii === n.table.body.length ? 0.5 : 0,
+              vLineWidth: (ii: number, n: { table: { widths: unknown[] } }) => ii === 0 || ii === n.table.widths.length ? 0.5 : 0,
+              hLineColor: () => sig!.isValid ? "#a7f3d0" : "#fecaca",
+              vLineColor: () => sig!.isValid ? "#a7f3d0" : "#fecaca",
+              paddingLeft: () => 0, paddingRight: () => 0, paddingTop: () => 0, paddingBottom: () => 0,
+            },
+            margin: [0, 0, 0, 8],
+          });
+
+          // Handwritten SVG trace — always shown when available (legal evidence)
+          if (hasTrace) {
+            cs.push({
+              stack: [
+                { svg: sig!.signatureData!, width: 185, height: 60, alignment: "center" as const },
+                { canvas: [{ type: "line", x1: 0, y1: 0, x2: 215, y2: 0, lineWidth: 0.4, lineColor: "#d1d5db" }], margin: [0, 2, 0, 0] },
+              ],
+              margin: [0, 2, 0, 6],
+            });
+          } else {
+            cs.push({
+              canvas: [{ type: "line", x1: 0, y1: 0, x2: 215, y2: 0, lineWidth: 0.5, lineColor: "#94a3b8" }],
+              margin: [0, 30, 0, 8],
+            });
+          }
+
+          cs.push({ text: sigDateStr, fontSize: 7, color: "#6b7280", margin: [0, 0, 0, 4] });
+
+          // Validity badge
+          cs.push({
             table: {
               widths: ["*"],
               body: [[{
-                text: colLabel.toUpperCase(),
-                fontSize: 7.5, bold: true, color: "#ffffff",
-                fillColor: accentColor,
-                alignment: "center" as const,
-                margin: [4, 5, 4, 5],
+                text: sig!.isValid ? "✓  Signature cryptographiquement valide" : "✗  Signature invalide",
+                fontSize: 6.5, bold: true,
+                color: sig!.isValid ? "#059669" : "#dc2626",
+                fillColor: sig!.isValid ? "#f0fdf4" : "#fef2f2",
+                alignment: "center" as const, margin: [4, 3, 4, 3],
               }]],
             },
-            layout: { hLineWidth: () => 0, vLineWidth: () => 0, paddingLeft: () => 0, paddingRight: () => 0, paddingTop: () => 0, paddingBottom: () => 0 },
-            margin: [0, 0, 0, 8],
-          },
-        ];
-        if (holderName) {
-          cs.push({ text: holderName, fontSize: 9.5, bold: true, color: "#111827", alignment: "center" as const, margin: [0, 0, 0, 6] });
-        }
-        if (sig) {
-          if (sig.signatureData?.trim().startsWith("<svg")) {
-            cs.push({ svg: sig.signatureData, width: 120, height: 50, alignment: "center" as const, margin: [0, 4, 0, 4] });
-          } else {
-            cs.push({ canvas: [{ type: "line", x1: 8, y1: 0, x2: 120, y2: 0, lineWidth: 0.6, lineColor: "#d1d5db" }], margin: [0, 28, 0, 4] });
-          }
-          cs.push(
-            { text: sig.signedAt.toLocaleString("fr-FR"), fontSize: 7, color: "#6b7280", alignment: "center" as const, margin: [0, 0, 0, 3] },
-            {
-              table: {
-                widths: ["*"],
-                body: [[{
-                  text: sig.isValid ? "✓  Signature valide" : "✗  Signature invalide",
-                  fontSize: 7.5, bold: true,
-                  color: sig.isValid ? "#15803d" : "#dc2626",
-                  fillColor: sig.isValid ? "#f0fdf4" : "#fef2f2",
-                  alignment: "center" as const, margin: [4, 3, 4, 3],
-                }]],
-              },
-              layout: {
-                hLineWidth: (i: number, n: { table: { body: unknown[] } }) => i === 0 || i === n.table.body.length ? 0.6 : 0,
-                vLineWidth: (i: number, n: { table: { widths: unknown[] } }) => i === 0 || i === n.table.widths.length ? 0.6 : 0,
-                hLineColor: () => sig.isValid ? "#bbf7d0" : "#fecaca",
-                vLineColor: () => sig.isValid ? "#bbf7d0" : "#fecaca",
-                paddingLeft: () => 0, paddingRight: () => 0, paddingTop: () => 0, paddingBottom: () => 0,
-              },
-              margin: [0, 3, 0, 0],
+            layout: {
+              hLineWidth: (ii: number, n: { table: { body: unknown[] } }) => ii === 0 || ii === n.table.body.length ? 0.5 : 0,
+              vLineWidth: (ii: number, n: { table: { widths: unknown[] } }) => ii === 0 || ii === n.table.widths.length ? 0.5 : 0,
+              hLineColor: () => sig!.isValid ? "#a7f3d0" : "#fecaca",
+              vLineColor: () => sig!.isValid ? "#a7f3d0" : "#fecaca",
+              paddingLeft: () => 0, paddingRight: () => 0, paddingTop: () => 0, paddingBottom: () => 0,
             },
-          );
+          });
         } else {
-          cs.push(
-            { canvas: [{ type: "line", x1: 8, y1: 0, x2: 120, y2: 0, lineWidth: 0.6, lineColor: "#d1d5db" }], margin: [0, 28, 0, 4] },
-            { text: t("awaitingSignature", lang), fontSize: 7.5, color: "#9ca3af", italics: true, alignment: "center" as const },
-          );
+          // Placeholder — ONLY rendered when no real signature exists
+          cs.push({
+            canvas: [{ type: "line", x1: 0, y1: 0, x2: 215, y2: 0, lineWidth: 0.5, lineColor: "#e2e8f0" }],
+            margin: [0, 34, 0, 8],
+          });
+          cs.push({ text: t("awaitingSignature", lang), fontSize: 7, color: "#9ca3af", italics: true });
         }
+
         return { stack: cs };
       };
 
-      const attSealDate = attPresidentSig
-        ? attPresidentSig.signedAt.toLocaleDateString("fr-FR")
-        : today;
-      const attSealStatus = attPresidentSig ? (attPresidentSig.isValid ? "VALID" : "REVOKED") : "PENDING";
-      const attSeal = buildOfficialSeal(syndInfo.name, accentColor, attPresidentSig?.signerName, attSealDate, attSealStatus);
-
       const signatureArea = {
         stack: [
+          // Thin separator rule
           {
-            canvas: [
-              { type: "line", x1: 0, y1: 0, x2: 515, y2: 0, lineWidth: 0.5, lineColor: "#e5e7eb" },
-              { type: "rect", x: 0, y: -0.5, w: 52, h: 2, color: accentColor },
+            canvas: [{ type: "line", x1: 0, y1: 0, x2: 515, y2: 0, lineWidth: 0.5, lineColor: "#e5e7eb" }],
+            margin: [0, 0, 0, 12],
+          },
+          // Header row: section label + institutional stamp (right-aligned)
+          {
+            columns: [
+              {
+                text: "SIGNATURES OFFICIELLES",
+                fontSize: 7, bold: true, color: accentColor, characterSpacing: 0.6,
+                width: "*",
+              },
+              { stack: [attSeal], width: 114, alignment: "right" as const },
             ],
             margin: [0, 0, 0, 16],
           },
+          // Two-column signer grid
           {
             columns: [
-              { ...makeAttSigCol(t("rolePresident", lang), attOffice?.president?.fullName, attPresidentSig) as object, width: "*" },
-              { stack: [attSeal], width: 114, alignment: "center" as const, margin: [0, 18, 0, 0] },
-              { ...makeAttSigCol(t("roleSecretary", lang), attOffice?.secretary?.fullName, attSecretarySig) as object, width: "*" },
+              { ...makeAttCol(t("rolePresident", lang), attOffice?.president?.fullName, attPresidentSig) as object, width: "*" },
+              { width: 24, text: "" },
+              { ...makeAttCol(t("roleSecretary", lang), attOffice?.secretary?.fullName, attSecretarySig) as object, width: "*" },
             ],
-            columnGap: 10,
           },
         ],
         margin: [0, 28, 0, 0],
@@ -2851,10 +2961,10 @@ async function buildDocDef(template: DocumentTemplate, input: DocumentInput): Pr
         ...header,
         identityStrip,
         titleBlock,
-        attSectionDiv("PROFIL DU MEMBRE"),
+        attDiv("PROFIL DU MEMBRE"),
         memberProfileCard,
-        attSectionDiv("CERTIFICATION OFFICIELLE"),
-        certBlock,
+        attDiv("CERTIFICATION OFFICIELLE"),
+        certificationBlock,
         signatureArea,
         legalFooterNote(docNum, lang, verifyUrl),
       ];
