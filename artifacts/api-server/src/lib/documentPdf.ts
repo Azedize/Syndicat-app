@@ -247,69 +247,71 @@ function getDocumentTheme(template: string, fallbackColor?: string): DocumentThe
 // ─── Typography & Style System ────────────────────────────────────────────────
 
 function buildStyles(accentColor: string) {
+  // ── Generation 3 Enterprise Typography System ─────────────────────────────────
+  // Designed around a 5-level hierarchy with maximum contrast between levels.
+  // Every jump between levels is meaningful: 5.5pt label → 11pt value is a 2× gap.
+  // Inspired by Adobe Sign, Oracle ERP, and SAP Fiori design systems.
   return {
-    // ── Header band ────────────────────────────────────────────────────────────
-    headerOrgName:    { font: PRIMARY_FONT, fontSize: 12,   bold: true,  color: BRAND.surfaceCard, characterSpacing: 0.3 },
-    headerBuilding:   { font: PRIMARY_FONT, fontSize: 7.5,  bold: false, color: BRAND.surfaceCard, opacity: 0.82 },
-    headerMeta:       { font: PRIMARY_FONT, fontSize: 7,    color: BRAND.surfaceCard, opacity: 0.72 },
-    headerContact:    { font: PRIMARY_FONT, fontSize: 6.5,  color: BRAND.surfaceCard, opacity: 0.60 },
-    headerDocNum:     { font: PRIMARY_FONT, fontSize: 9,    bold: true,  color: BRAND.ink },
-    headerDocDate:    { font: PRIMARY_FONT, fontSize: 7,    color: BRAND.inkLight },
-    docTypeLabel:     { font: PRIMARY_FONT, fontSize: 6.5,  bold: true,  color: BRAND.surfaceCard, characterSpacing: 1.0 },
-    docCategoryBadge: { font: PRIMARY_FONT, fontSize: 6,    bold: true,  color: BRAND.surfaceCard, characterSpacing: 0.6 },
+    // ── Header — clean, minimal, no competition with document title ───────────
+    headerOrgName:    { font: PRIMARY_FONT, fontSize: 10,   bold: true,  color: BRAND.ink, characterSpacing: 0.2 },
+    headerBuilding:   { font: PRIMARY_FONT, fontSize: 6.5,  bold: false, color: BRAND.muted },
+    headerMeta:       { font: PRIMARY_FONT, fontSize: 6.5,  color: BRAND.muted },
+    headerContact:    { font: PRIMARY_FONT, fontSize: 6,    color: BRAND.mutedLight },
+    headerDocNum:     { font: PRIMARY_FONT, fontSize: 8.5,  bold: true,  color: BRAND.ink },
+    headerDocDate:    { font: PRIMARY_FONT, fontSize: 6,    color: BRAND.muted },
+    docTypeLabel:     { font: PRIMARY_FONT, fontSize: 5.5,  bold: true,  color: accentColor, characterSpacing: 0.8 },
+    docCategoryBadge: { font: PRIMARY_FONT, fontSize: 5.5,  bold: true,  color: BRAND.muted, characterSpacing: 0.5 },
 
-    // ── Document titles — clear 5-level hierarchy ───────────────────────────────
-    // display: certificate/attestation hero title (white on dark band)
-    // docTitle: primary document title (ink, top of body)
-    // docSubtitle: subtitle / subject line
-    // docRef: reference number / document code
-    // subsectionTitle: second-level section within a section
-    displayTitle:     { font: PRIMARY_FONT, fontSize: 23,   bold: true,  color: BRAND.surfaceCard },
-    docTitle:         { font: PRIMARY_FONT, fontSize: 19,   bold: true,  color: BRAND.ink,         characterSpacing: 0.2 },
-    docSubtitle:      { font: PRIMARY_FONT, fontSize: 10,   color: BRAND.muted, italics: true },
-    docRef:           { font: PRIMARY_FONT, fontSize: 8.5,  color: BRAND.muted },
+    // ── Document titles — 5-level hierarchy, strong visual jumps ────────────────
+    // L1: displayTitle (28pt) — hero credential title, white on dark
+    // L2: docTitle (22pt)     — primary document title, max ink
+    // L3: sectionTitle (8.5pt)— section labels, tracked caps
+    // L4: metaKey (5.5pt)     — data labels, pure label
+    // L5: body (10pt)         — content text
+    displayTitle:     { font: PRIMARY_FONT, fontSize: 28,   bold: true,  color: BRAND.surfaceCard },
+    docTitle:         { font: PRIMARY_FONT, fontSize: 22,   bold: true,  color: BRAND.ink,  characterSpacing: 0.3 },
+    docSubtitle:      { font: PRIMARY_FONT, fontSize: 9.5,  color: BRAND.muted, italics: true },
+    docRef:           { font: PRIMARY_FONT, fontSize: 7.5,  color: BRAND.muted },
     subsectionTitle:  { font: PRIMARY_FONT, fontSize: 9.5,  bold: true,  color: BRAND.ink },
 
-    // ── Section headings ────────────────────────────────────────────────────────
-    // Increased from 7.5 → 9pt for SAP/Oracle-grade legibility at the section level.
-    sectionTitle:     { font: PRIMARY_FONT, fontSize: 9,    bold: true,  color: BRAND.ink, characterSpacing: 0.5 },
+    // ── Section headings — tracked caps, accent-derived color ─────────────────
+    sectionTitle:     { font: PRIMARY_FONT, fontSize: 8.5,  bold: true,  color: BRAND.ink, characterSpacing: 0.8 },
 
-    // ── Metadata cards ─────────────────────────────────────────────────────────
-    // Label raised from 6 → 6.5pt; value raised from 9.5 → 11pt for stronger data presence.
-    metaKey:          { font: PRIMARY_FONT, fontSize: 6.5,  color: BRAND.muted,     bold: true,  characterSpacing: 0.5 },
-    metaVal:          { font: PRIMARY_FONT, fontSize: 11,   bold: true,  color: BRAND.ink },
+    // ── Metadata grid — maximum label/value contrast ──────────────────────────
+    // Label: 5.5pt tracked all-caps → visually recedes, purely functional
+    // Value: 12pt bold            → stands out as a data point at a glance
+    metaKey:          { font: PRIMARY_FONT, fontSize: 5.5,  color: BRAND.muted, bold: true, characterSpacing: 0.7 },
+    metaVal:          { font: PRIMARY_FONT, fontSize: 12,   bold: true,  color: BRAND.ink },
 
-    // ── Body text ─────────────────────────────────────────────────────────────
-    // Raised from 9.5 → 10.5pt; lineHeight 1.6 → 1.7 for more breathing room.
-    body:             { font: PRIMARY_FONT, fontSize: 10.5, color: BRAND.inkMid,    lineHeight: 1.7 },
-    bodyArabic:       { font: ARABIC_FONT,  fontSize: 12,   color: BRAND.inkMid,    lineHeight: 1.9, alignment: "right" as const },
+    // ── Body text — comfortable reading at 10pt ────────────────────────────────
+    body:             { font: PRIMARY_FONT, fontSize: 10,   color: BRAND.inkMid, lineHeight: 1.75 },
+    bodyArabic:       { font: ARABIC_FONT,  fontSize: 12,   color: BRAND.inkMid, lineHeight: 1.9, alignment: "right" as const },
 
-    // ── Signature area ─────────────────────────────────────────────────────────
-    signLabel:        { font: PRIMARY_FONT, fontSize: 8,    color: BRAND.muted,     italics: true },
+    // ── Signature area ──────────────────────────────────────────────────────────
+    signLabel:        { font: PRIMARY_FONT, fontSize: 7.5,  color: BRAND.muted,  italics: true },
     signName:         { font: PRIMARY_FONT, fontSize: 11,   bold: true,  color: BRAND.ink },
-    stampText:        { font: PRIMARY_FONT, fontSize: 5.5,  bold: true,  color: BRAND.surfaceCard },
+    stampText:        { font: PRIMARY_FONT, fontSize: 5,    bold: true,  color: BRAND.surfaceCard },
 
-    // ── Status / notice ───────────────────────────────────────────────────────
+    // ── Status / notice ─────────────────────────────────────────────────────────
     notice:           { font: PRIMARY_FONT, fontSize: 8.5,  color: BRAND.mutedLight, italics: true },
 
-    // ── Data tables ───────────────────────────────────────────────────────────
-    // Header raised from 8 → 9pt; cell from 8.5 → 9.5pt for enterprise density.
-    tableHeader:      { font: PRIMARY_FONT, fontSize: 9,    bold: true,  color: BRAND.surfaceCard },
+    // ── Data tables ─────────────────────────────────────────────────────────────
+    tableHeader:      { font: PRIMARY_FONT, fontSize: 8.5,  bold: true,  color: BRAND.surfaceCard },
     tableCell:        { font: PRIMARY_FONT, fontSize: 9.5,  color: BRAND.inkMid },
     financialTotal:   { font: PRIMARY_FONT, fontSize: 11,   bold: true,  color: BRAND.ink },
 
-    // ── Footer ───────────────────────────────────────────────────────────────
+    // ── Footer ─────────────────────────────────────────────────────────────────
     footer:           { font: PRIMARY_FONT, fontSize: 6.5,  color: BRAND.mutedLight },
     footerBrand:      { font: PRIMARY_FONT, fontSize: 6.5,  color: accentColor, bold: true },
 
-    // ── Watermark ─────────────────────────────────────────────────────────────
+    // ── Watermark ───────────────────────────────────────────────────────────────
     watermark:        { font: PRIMARY_FONT, fontSize: 80,   bold: true,  color: BRAND.border, opacity: 0.04 },
     pageNumber:       { font: PRIMARY_FONT, fontSize: 9.5,  bold: true,  color: BRAND.ink },
 
-    // ── Legal / security ──────────────────────────────────────────────────────
-    legalNote:        { font: PRIMARY_FONT, fontSize: 7,    color: BRAND.muted,     lineHeight: 1.5 },
+    // ── Legal / security ────────────────────────────────────────────────────────
+    legalNote:        { font: PRIMARY_FONT, fontSize: 6.5,  color: BRAND.muted, lineHeight: 1.5 },
     securityBadge:    { font: PRIMARY_FONT, fontSize: 6,    bold: true,  color: BRAND.ink },
-    certTitle:        { font: PRIMARY_FONT, fontSize: 24,   bold: true,  color: BRAND.surfaceCard },
+    certTitle:        { font: PRIMARY_FONT, fontSize: 26,   bold: true,  color: BRAND.surfaceCard },
   };
 }
 
@@ -577,209 +579,115 @@ function buildHeaderBand(
   docStatus: string | null = null,
   categoryIcon = "■",
 ): object[] {
-  // Deep shade for center identity column — consistent with app primaryDark
-  const centerBg = adjustColorBrightness(accentColor, -32);
+  // ── Generation 3 compact header ───────────────────────────────────────────
+  // Adobe Sign / DocuSign approach: single white row, no heavy color fills.
+  // Only the 2pt accent top stripe carries color — everything else is ink on white.
+  // Total height: ~44pt (was ~70pt). Leaves maximum vertical space for content.
 
   const acronym = (syndInfo.abbreviation ||
     syndInfo.name.split(/\s+/).map((w: string) => w[0]).join("").slice(0, 3)
   ).toUpperCase();
 
-  // Status chip map — brand colors only
   const statusChipMap: Record<string, { label: string; color: string }> = {
-    published:     { label: "PUBLIÉ",    color: BRAND.success },
-    signed:        { label: "SIGNÉ",     color: BRAND.primary },
-    validated:     { label: "VALIDÉ",    color: BRAND.primaryDark },
-    archived:      { label: "ARCHIVÉ",   color: BRAND.mutedLight },
-    generated:     { label: "GÉNÉRÉ",    color: BRAND.warning },
-    draft:         { label: "BROUILLON", color: BRAND.mutedLight },
-    pending_review:{ label: "EN RÉVISION",color: BRAND.warning },
-    rejected:      { label: "REJETÉ",    color: BRAND.destructive },
+    published:     { label: "PUBLIÉ",      color: BRAND.success },
+    signed:        { label: "SIGNÉ",       color: BRAND.primary },
+    validated:     { label: "VALIDÉ",      color: BRAND.primaryDark },
+    archived:      { label: "ARCHIVÉ",     color: BRAND.mutedLight },
+    generated:     { label: "GÉNÉRÉ",      color: BRAND.warning },
+    draft:         { label: "BROUILLON",   color: BRAND.mutedLight },
+    pending_review:{ label: "EN RÉVISION", color: BRAND.warning },
+    rejected:      { label: "REJETÉ",      color: BRAND.destructive },
   };
   const statusChip = docStatus ? (statusChipMap[docStatus] ?? null) : null;
 
-  // ── COL 1: Logo / monogram — 58pt wide, full accent background ────────────
-  // When a real PNG/JPG logo is present it's shown at 42×42 with letterbox.
-  // When no logo exists we render a professional typographic monogram:
-  //   - 2 concentric circles (outer thin ring + inner solid fill at 18% opacity)
-  //   - 1–3 letter acronym in 14–18pt bold, slight character spacing
-  //   - Subtle bottom text line: "®" marker when registrationNumber is set
-  // This mirrors the Adobe Sign / Salesforce header monogram convention.
-  const monoFontSize = acronym.length === 1 ? 20 : acronym.length === 2 ? 17 : 14;
+  // ── Monogram / logo — 40pt, accent-filled circle on white background ──────
+  const monoFontSize = acronym.length === 1 ? 16 : acronym.length === 2 ? 13 : 11;
   const logoContent: unknown = logoDataUrl
-    ? { image: logoDataUrl, width: 42, height: 42, fit: [42, 42] as [number, number], alignment: "center" as const }
+    ? {
+        image: logoDataUrl, width: 34, height: 34,
+        fit: [34, 34] as [number, number],
+        alignment: "center" as const,
+        margin: [0, 4, 0, 4],
+      }
     : {
         stack: [
-          // Outer hairline ring
-          {
-            canvas: [
-              { type: "ellipse", x: 22, y: 22, r1: 22, r2: 22, color: `${BRAND.surfaceCard}00`, lineWidth: 0.8, lineColor: `${BRAND.surfaceCard}50` },
-            ],
-            margin: [0, 0, 0, -44],
-          },
-          // Inner filled circle (18% opacity white)
-          {
-            canvas: [
-              { type: "ellipse", x: 22, y: 22, r1: 17, r2: 17, color: `${BRAND.surfaceCard}2e` },
-            ],
-            margin: [0, 0, 0, -44],
-          },
-          // Acronym lettering — centered, tracked, enterprise-weight
+          // Solid accent circle
+          { canvas: [{ type: "ellipse", x: 18, y: 18, r1: 18, r2: 18, color: accentColor }], margin: [0, 0, 0, -36] },
           {
             text: acronym,
             fontSize: monoFontSize, bold: true,
             color: BRAND.surfaceCard,
-            characterSpacing: acronym.length > 1 ? 1.5 : 0,
+            characterSpacing: acronym.length > 1 ? 1.2 : 0,
             alignment: "center" as const,
-            margin: [0, monoFontSize === 20 ? 13 : monoFontSize === 17 ? 14 : 15, 0, 0],
-          },
-          // Thin bottom line under acronym — mimics professional brand mark underline
-          {
-            canvas: [
-              { type: "line", x1: 12, y1: 0, x2: 32, y2: 0, lineWidth: 0.5, lineColor: `${BRAND.surfaceCard}55` },
-            ],
-            margin: [0, 3, 0, 0],
+            margin: [0, monoFontSize === 16 ? 11 : monoFontSize === 13 ? 12 : 13, 0, 0],
           },
         ],
+        margin: [0, 5, 0, 5],
       };
 
-  // ── 4px top stripe — full bleed accent, no margin ─────────────────────────
+  // ── 2pt accent top stripe — only color in the header ─────────────────────
   const topStripe: unknown = {
-    canvas: [{ type: "rect", x: 0, y: 0, w: 515, h: 4, color: accentColor }],
+    canvas: [{ type: "rect", x: 0, y: 0, w: 515, h: 2, color: accentColor }],
     margin: [0, 0, 0, 0],
   };
 
-  // ── COL 3 stack — doc reference + status chip + QR ───────────────────────
+  // ── COL 3: doc reference + tiny QR ───────────────────────────────────────
   const col3Stack: unknown[] = [
-    // Doc number — 9pt bold for stronger presence
-    {
-      text: `N°  ${docNumber}`,
-      fontSize: 9, bold: true,
-      color: BRAND.ink,
-      characterSpacing: 0.3,
-      margin: [0, 0, 0, 2],
-    },
-    // Date
-    {
-      text: today,
-      fontSize: 6.5, color: BRAND.inkLight,
-      margin: [0, 0, 0, 4],
-    },
-    // Status chip
-    ...(statusChip ? [{
-      table: {
-        widths: ["auto"],
-        body: [[{
-          text: `● ${statusChip.label}`,
-          fontSize: 5.5, bold: true,
-          color: statusChip.color,
-          fillColor: `${statusChip.color}1a`,
-          margin: [5, 3, 5, 3],
-          border: [false, false, false, false] as [boolean, boolean, boolean, boolean],
-        }]],
-      },
-      layout: {
-        hLineWidth: (i: number, n: { table: { body: unknown[] } }) => i === 0 || i === n.table.body.length ? 0.5 : 0,
-        vLineWidth: (i: number, n: { table: { widths: unknown[] } }) => i === 0 || i === n.table.widths.length ? 0.5 : 0,
-        hLineColor: () => `${statusChip.color}55`,
-        vLineColor: () => `${statusChip.color}55`,
-        paddingLeft: () => 0, paddingRight: () => 0, paddingTop: () => 0, paddingBottom: () => 0,
-      },
-      margin: [0, 0, 0, 6] as [number, number, number, number],
-    }] : [{ text: "", margin: [0, 0, 0, 6] as [number, number, number, number] }]),
-    // QR code — 34×34: slightly larger for easier mobile scanning
+    { text: `N° ${docNumber}`, fontSize: 7.5, bold: true, color: BRAND.ink, characterSpacing: 0.2, margin: [0, 0, 0, 1] },
+    { text: today, fontSize: 6, color: BRAND.muted, margin: [0, 0, 0, 3] },
+    ...(statusChip
+      ? [{ text: `● ${statusChip.label}`, fontSize: 5.5, bold: true, color: statusChip.color, margin: [0, 0, 0, 4] as [number, number, number, number] }]
+      : []),
     ...(qrDataUrl
-      ? [{ image: qrDataUrl, width: 34, height: 34, alignment: "center" as const }]
-      : [{ canvas: [{ type: "rect", x: 0, y: 0, w: 34, h: 34, r: 4, color: BRAND.border }], alignment: "center" as const }]
+      ? [{ image: qrDataUrl, width: 28, height: 28, alignment: "center" as const }]
+      : [{ canvas: [{ type: "rect", x: 0, y: 0, w: 28, h: 28, r: 2, color: BRAND.border }], alignment: "center" as const }]
     ),
-    // "Scan pour vérifier" micro-label
-    {
-      text: "SCAN · VÉRIFIER",
-      fontSize: 5, bold: true,
-      color: BRAND.mutedLight,
-      characterSpacing: 0.6,
-      alignment: "center" as const,
-      margin: [0, 3, 0, 0],
-    },
+    { text: "SCAN · VÉRIFIER", fontSize: 4.5, bold: true, color: BRAND.mutedLight, characterSpacing: 0.4, alignment: "center" as const, margin: [0, 2, 0, 0] },
   ];
 
-  // Proper 3-column band using a real table without closure issues
-  // Widths: [64: logo | *: identity | 92: ref+QR] — logo/ref cols widened for premium balance
-  const bandFinal: unknown = {
+  // ── Single-row band — white background throughout ────────────────────────
+  const bandRow: unknown = {
     table: {
-      widths: [64, "*", 92],
+      widths: [42, "*", 82],
       body: [[
-        // COL 1 — Logo on accent bg, extra padding for visual weight
+        // COL 1 — Monogram on white
         {
           stack: [logoContent],
-          fillColor: accentColor,
           alignment: "center" as const,
-          margin: [10, 12, 10, 12],
-          border: [false, false, false, false] as [boolean, boolean, boolean, false],
+          margin: [4, 5, 4, 5],
+          border: [false, false, true, false] as [boolean, boolean, boolean, boolean],
+          borderColor: [BRAND.border, BRAND.border, BRAND.border, BRAND.border],
         },
-        // COL 2 — Syndicate identity on deep accent bg
+        // COL 2 — Syndicate identity, white
         {
           stack: [
-            // Org name — 11pt bold, slightly more tracked for authority
+            { text: syndInfo.name, fontSize: 10, bold: true, color: BRAND.ink, lineHeight: 1.2, margin: [0, 0, 0, 2] },
+            ...(buildingName ? [{ text: buildingName, fontSize: 6.5, color: BRAND.muted, margin: [0, 0, 0, 2] as [number, number, number, number] }] : []),
             {
-              text: syndInfo.name.toUpperCase(),
-              fontSize: 11, bold: true,
-              color: BRAND.surfaceCard,
-              characterSpacing: 0.5,
-              lineHeight: 1.15,
-              margin: [0, 0, 0, 5],
+              text: `${categoryIcon}  ${docTypeLabel.toUpperCase()}`,
+              fontSize: 5.5, bold: true, color: accentColor, characterSpacing: 0.7,
+              margin: [0, 2, 0, 0] as [number, number, number, number],
             },
-            // Building sub-label (if available)
-            ...(buildingName ? [{
-              text: buildingName,
-              fontSize: 7,
-              color: BRAND.surfaceCard,
-              opacity: 0.76,
-              margin: [0, 0, 0, 5] as [number, number, number, number],
-            }] : []),
-            // Category pill — more opaque, slightly larger, more prominent
-            {
-              table: {
-                widths: ["auto"],
-                body: [[{
-                  text: `${categoryIcon}  ${docTypeLabel.toUpperCase()}`,
-                  fontSize: 6, bold: true,
-                  color: BRAND.surfaceCard,
-                  characterSpacing: 0.9,
-                  fillColor: `${BRAND.surfaceCard}2a`,
-                  margin: [9, 4, 9, 4],
-                  border: [false, false, false, false] as [boolean, boolean, boolean, false],
-                }]],
-              },
-              layout: {
-                hLineWidth: (i: number, n: { table: { body: unknown[] } }) => i === 0 || i === n.table.body.length ? 0.6 : 0,
-                vLineWidth: (i: number, n: { table: { widths: unknown[] } }) => i === 0 || i === n.table.widths.length ? 0.6 : 0,
-                hLineColor: () => `${BRAND.surfaceCard}55`,
-                vLineColor: () => `${BRAND.surfaceCard}55`,
-                paddingLeft: () => 0, paddingRight: () => 0, paddingTop: () => 0, paddingBottom: () => 0,
-              },
-            },
-            // Registration / contact micro-line
             ...(syndInfo.registrationNumber || syndInfo.phone ? [{
               text: [
                 ...(syndInfo.registrationNumber ? [`Imm. ${syndInfo.registrationNumber}`] : []),
                 ...(syndInfo.phone ? [`  ·  ${syndInfo.phone}`] : []),
               ].join(""),
-              fontSize: 6,
-              color: BRAND.surfaceCard,
-              opacity: 0.52,
-              margin: [0, 5, 0, 0] as [number, number, number, number],
+              fontSize: 5.5, color: BRAND.mutedLight,
+              margin: [0, 2, 0, 0] as [number, number, number, number],
             }] : []),
           ],
-          fillColor: centerBg,
-          margin: [14, 12, 12, 12],
-          border: [false, false, false, false] as [boolean, boolean, boolean, false],
+          fillColor: BRAND.surfaceCard,
+          margin: [10, 6, 10, 6],
+          border: [false, false, false, false] as [boolean, boolean, boolean, boolean],
         },
-        // COL 3 — Reference + QR — clean surface, stronger doc number
+        // COL 3 — Reference + QR, light surface
         {
           stack: col3Stack,
-          fillColor: BRAND.surfaceAlt,
-          margin: [10, 10, 10, 10],
-          border: [false, false, false, false] as [boolean, boolean, boolean, false],
+          fillColor: BRAND.surface,
+          margin: [8, 7, 8, 7],
+          border: [true, false, false, false] as [boolean, boolean, boolean, boolean],
+          borderColor: [BRAND.border, BRAND.border, BRAND.border, BRAND.border],
         },
       ]],
     },
@@ -787,14 +695,20 @@ function buildHeaderBand(
       hLineWidth: () => 0, vLineWidth: () => 0,
       paddingLeft: () => 0, paddingRight: () => 0, paddingTop: () => 0, paddingBottom: () => 0,
     },
-    margin: [0, 0, 0, 12],
+    margin: [0, 0, 0, 0],
   };
 
-  return [topStripe, bandFinal] as object[];
+  // Bottom separator hairline
+  const bottomRule: unknown = {
+    canvas: [{ type: "line", x1: 0, y1: 0, x2: 515, y2: 0, lineWidth: 0.5, lineColor: BRAND.border }],
+    margin: [0, 0, 0, 14],
+  };
+
+  return [topStripe, bandRow, bottomRule] as object[];
 }
 
 // ─── Official Seal ─────────────────────────────────────────────────────────────
-// Rectangular institutional stamp. Replaces the decorative circular stamp.
+// Institutional stamp. Premium redesign: circular emblem + status bar.
 
 function buildOfficialSeal(
   syndName: string,
@@ -803,100 +717,80 @@ function buildOfficialSeal(
   stampDate?: string,
   status?: "VALID" | "PENDING" | "REVOKED" | "EXPIRED",
 ): unknown {
-  // Institutional rectangular stamp — resembles a real administrative cachet.
-  // Desaturated, compact, professional. Not decorative.
   const truncate = (s: string, n: number) =>
     s.length > n ? s.slice(0, n - 1) + "…" : s;
 
-  const borderColor = adjustColorBrightness(accentColor, -18);
-  const acronym = truncate(syndName.split(/\s+/).map((w: string) => w[0]).join("").slice(0, 4).toUpperCase(), 4);
-
-  // Status config — brand tokens only
-  const statusConfig: Record<string, { label: string; color: string; bg: string }> = {
-    VALID:   { label: "✓  VALIDÉ ET CERTIFIÉ",  color: BRAND.successDeep,     bg: BRAND.successLight },
-    PENDING: { label: "◉  EN ATTENTE",           color: BRAND.warningDark,     bg: BRAND.warningLight },
-    REVOKED: { label: "✗  ANNULÉ",               color: BRAND.destructiveDark, bg: BRAND.destructiveLight },
-    EXPIRED: { label: "⊘  EXPIRÉ",               color: BRAND.muted,           bg: BRAND.surfaceAlt },
-  };
+  const acronym = syndName.split(/\s+/).map((w: string) => w[0]).join("").slice(0, 4).toUpperCase();
   const resolvedStatus = status ?? (signerName ? "VALID" : "PENDING");
+  const dark = adjustColorBrightness(accentColor, -22);
+
+  const statusConfig: Record<string, { label: string; color: string; bg: string }> = {
+    VALID:   { label: "✓  CERTIFIÉ",   color: BRAND.successDeep,     bg: BRAND.successLight },
+    PENDING: { label: "◉  EN ATTENTE", color: BRAND.warningDark,     bg: BRAND.warningLight },
+    REVOKED: { label: "✗  ANNULÉ",     color: BRAND.destructiveDark, bg: BRAND.destructiveLight },
+    EXPIRED: { label: "⊘  EXPIRÉ",     color: BRAND.muted,           bg: BRAND.surfaceAlt },
+  };
   const si = statusConfig[resolvedStatus];
 
-  // Enterprise institutional stamp — premium redesign.
-  // Outer double border (1.6pt outer + 0.5pt inner inset) for institutional authority.
-  // Taller body (84pt vs 72pt) gives acronym more visual prominence.
-  // Header bar: deep accent fill, tracked all-caps.
-  // Center body: 24pt acronym (was 18pt), hairline rule, org name, date.
-  // Status bar: taller (was 4pt margin → 6pt) with matched semantic colors.
+  // Premium institutional stamp: double outer border + inner inset ring.
+  // Acronym at 22pt is the visual anchor; org name at 5pt below hairline.
   return {
     stack: [
-      // Outer border canvas (128×84pt) — double rule for institutional depth
-      {
-        canvas: [
-          // Outer rectangle — 1.6pt solid accent
-          { type: "rect", x: 0, y: 0, w: 128, h: 84, r: 2, color: BRAND.surfaceCard, lineWidth: 1.6, lineColor: borderColor },
-          // Inner inset rectangle — 0.5pt at 8% opacity
-          { type: "rect", x: 4, y: 4, w: 120, h: 76, r: 1, color: BRAND.surfaceCard, lineWidth: 0.5, lineColor: `${accentColor}45` },
-        ],
-        margin: [0, 0, 0, -84],
-      },
-      // Content table overlaying the canvas
       {
         table: {
-          widths: [128],
+          widths: [120],
           body: [
-            // Header bar — deep accent fill, tight tracked caps
+            // Header bar
             [{
-              text: "CACHET OFFICIEL NUMÉRIQUE",
-              fontSize: 5, bold: true,
-              color: BRAND.surfaceCard,
-              characterSpacing: 1.0,
-              alignment: "center" as const,
-              fillColor: borderColor,
-              margin: [0, 6, 0, 6],
+              text: "CACHET OFFICIEL",
+              fontSize: 4.5, bold: true, color: BRAND.surfaceCard,
+              characterSpacing: 1.2, alignment: "center" as const,
+              fillColor: dark,
+              margin: [0, 5, 0, 5],
               border: [false, false, false, false] as [boolean, boolean, boolean, boolean],
             }],
-            // Center body — acronym (24pt) + divider + org name + date
+            // Center — emblem circle + acronym + org name + date
             [{
               stack: [
-                // Acronym: 24pt bold — the dominant visual element of the stamp
-                { text: acronym, fontSize: 24, bold: true, color: accentColor, alignment: "center" as const, characterSpacing: 2, margin: [0, 6, 0, 3] },
-                // Hairline rule under acronym
-                { canvas: [{ type: "line", x1: 16, y1: 0, x2: 112, y2: 0, lineWidth: 0.5, lineColor: `${accentColor}35` }] },
-                // Organization name — 5.5pt, more tracking
+                // Outer ring behind acronym
+                { canvas: [{ type: "ellipse", x: 58, y: 20, r1: 20, r2: 20, lineWidth: 0.8, lineColor: `${accentColor}40`, color: BRAND.surfaceCard }], margin: [0, 4, 0, -44] },
+                { text: acronym, fontSize: 22, bold: true, color: accentColor, alignment: "center" as const, characterSpacing: 2, margin: [0, 6, 0, 2] },
+                { canvas: [{ type: "line", x1: 18, y1: 0, x2: 102, y2: 0, lineWidth: 0.4, lineColor: `${accentColor}30` }] },
                 {
-                  text: truncate(syndName.toUpperCase(), 26),
-                  fontSize: 5.5, bold: true, color: BRAND.inkMid,
-                  alignment: "center" as const, characterSpacing: 0.5,
-                  lineHeight: 1.35, margin: [6, 5, 6, 2],
+                  text: truncate(syndName.toUpperCase(), 24),
+                  fontSize: 5, bold: true, color: BRAND.inkMid,
+                  alignment: "center" as const, characterSpacing: 0.4,
+                  lineHeight: 1.3, margin: [4, 4, 4, 1],
                 },
-                // Date — 5.5pt muted
                 {
                   text: stampDate ?? new Date().toLocaleDateString("fr-FR"),
-                  fontSize: 5.5, color: BRAND.muted,
-                  alignment: "center" as const, margin: [0, 2, 0, 5],
+                  fontSize: 5, color: BRAND.muted,
+                  alignment: "center" as const, margin: [0, 0, 0, 4],
                 },
               ],
               fillColor: BRAND.surfaceCard,
               border: [false, false, false, false] as [boolean, boolean, boolean, boolean],
             }],
-            // Status bar — taller, stronger semantic contrast
+            // Status bar
             [{
               text: si.label,
-              fontSize: 6, bold: true, color: si.color,
-              alignment: "center" as const, characterSpacing: 0.4,
+              fontSize: 5.5, bold: true, color: si.color,
+              alignment: "center" as const, characterSpacing: 0.3,
               fillColor: si.bg,
-              margin: [0, 6, 0, 6],
+              margin: [0, 5, 0, 5],
               border: [false, false, false, false] as [boolean, boolean, boolean, boolean],
             }],
           ],
         },
         layout: {
-          hLineWidth: () => 0, vLineWidth: () => 0,
+          hLineWidth: (i: number, node: { table: { body: unknown[] } }) => i === 0 || i === node.table.body.length ? 1.4 : 0,
+          vLineWidth: (i: number, node: { table: { widths: unknown[] } }) => i === 0 || i === node.table.widths.length ? 1.4 : 0,
+          hLineColor: () => dark, vLineColor: () => dark,
           paddingLeft: () => 0, paddingRight: () => 0, paddingTop: () => 0, paddingBottom: () => 0,
         },
       },
     ],
-    width: 128,
+    width: 120,
     alignment: "center" as const,
   };
 }
@@ -923,37 +817,34 @@ function adjustColorBrightness(hex: string, delta: number): string {
  * Used for: certificat, attestation*, recu_paiement.
  */
 function buildCertificateFrame(accentColor: string, lang: DocumentLanguage = "fr"): unknown {
-  // Certification identity strip: double rule framing the category label.
-  // Signals "official certified document" without decorative noise.
+  // Premium credential frame: double rule + emblem dots + tracked label.
+  // The ornate double-rule signals "official certified document" at a glance —
+  // the same visual grammar used on official civil and commercial certificates.
   const certLabel = lang === "ar" ? "وثيقة رسمية معتمدة" : lang === "en" ? "OFFICIAL CERTIFIED DOCUMENT" : "DOCUMENT OFFICIEL CERTIFIÉ";
+  const dark = adjustColorBrightness(accentColor, -18);
   return {
     stack: [
-      // Heavy top rule
+      // Outer rule — 2pt solid accent
+      { canvas: [{ type: "line", x1: 0, y1: 0, x2: 515, y2: 0, lineWidth: 2, lineColor: accentColor }] },
+      // Inner rule — 0.5pt tinted inset
+      { canvas: [{ type: "line", x1: 10, y1: 0, x2: 505, y2: 0, lineWidth: 0.5, lineColor: `${accentColor}40` }], margin: [0, 3, 0, 0] },
+      // Emblem dots + label
       {
-        canvas: [{ type: "line", x1: 0, y1: 0, x2: 515, y2: 0, lineWidth: 1.5, lineColor: accentColor }],
-        margin: [0, 0, 0, 0],
+        columns: [
+          { canvas: [{ type: "ellipse", x: 6, y: 4, r1: 4, r2: 4, color: accentColor }], width: 16 },
+          {
+            text: certLabel,
+            fontSize: 6.5, bold: true, color: dark,
+            alignment: "center" as const, characterSpacing: 1.6, width: "*", margin: [0, 1, 0, 0],
+          },
+          { canvas: [{ type: "ellipse", x: 2, y: 4, r1: 4, r2: 4, color: accentColor }], width: 16 },
+        ],
+        margin: [0, 8, 0, 8],
       },
-      // Thin tint rule offset by 3pt
-      {
-        canvas: [{ type: "line", x1: 0, y1: 0, x2: 515, y2: 0, lineWidth: 0.4, lineColor: `${accentColor}44` }],
-        margin: [0, 3, 0, 8],
-      },
-      // Category label — centered, tracked, accent
-      {
-        text: `⊕  ${certLabel}  ⊕`,
-        fontSize: 6, bold: true, color: accentColor,
-        alignment: "center" as const, characterSpacing: 1.2,
-        margin: [0, 0, 0, 8],
-      },
-      // Bottom tint + heavy rule
-      {
-        canvas: [{ type: "line", x1: 0, y1: 0, x2: 515, y2: 0, lineWidth: 0.4, lineColor: `${accentColor}44` }],
-        margin: [0, 0, 0, 3],
-      },
-      {
-        canvas: [{ type: "line", x1: 0, y1: 0, x2: 515, y2: 0, lineWidth: 1.5, lineColor: accentColor }],
-        margin: [0, 0, 0, 14],
-      },
+      // Inner inset rule
+      { canvas: [{ type: "line", x1: 10, y1: 0, x2: 505, y2: 0, lineWidth: 0.5, lineColor: `${accentColor}40` }] },
+      // Outer rule — 2pt solid accent, with bottom margin before title
+      { canvas: [{ type: "line", x1: 0, y1: 0, x2: 515, y2: 0, lineWidth: 2, lineColor: accentColor }], margin: [0, 3, 0, 16] },
     ],
   };
 }
@@ -968,41 +859,55 @@ function buildGovernanceBanner(
   categoryLabel: string,
   entityRef?: string,
 ): unknown {
-  // Governance identity strip: light tinted panel with 3px accent left bar.
-  // The left bar anchors the eye; the pale tint signals authority without noise.
-  const dark = adjustColorBrightness(accentColor, -20);
+  // Authority panel — 5pt solid left bar + tinted surface + concentric emblem circles.
+  // The left bar is intentionally thicker (5pt vs 3pt) to project institutional weight.
+  // Emblem circles on the right echo the official seal motif.
+  const dark = adjustColorBrightness(accentColor, -18);
+  const ht = entityRef ? 36 : 24;
   return {
     stack: [
       {
         table: {
-          widths: [3, "*"],
+          widths: [5, "*", 28],
           body: [[
+            // Heavy left bar
             {
-              canvas: [{ type: "rect", x: 0, y: 0, w: 3, h: entityRef ? 34 : 22, color: accentColor }],
+              canvas: [{ type: "rect", x: 0, y: 0, w: 5, h: ht, color: accentColor }],
               border: [false, false, false, false] as [boolean, boolean, boolean, boolean],
               margin: [0, 0, 0, 0],
             },
+            // Identity text
             {
               stack: [
-                { text: categoryLabel.toUpperCase(), fontSize: 9, bold: true, color: dark, characterSpacing: 0.5, margin: [0, 0, 0, entityRef ? 3 : 0] },
+                { text: categoryLabel.toUpperCase(), fontSize: 9, bold: true, color: dark, characterSpacing: 0.6, margin: [0, 0, 0, entityRef ? 3 : 0] },
                 ...(entityRef ? [{ text: entityRef, fontSize: 6.5, color: BRAND.inkLight, lineHeight: 1.3 }] : []),
               ],
-              fillColor: `${accentColor}0d`,
+              fillColor: `${accentColor}0e`,
               border: [false, false, false, false] as [boolean, boolean, boolean, boolean],
-              margin: [12, 6, 12, 6],
+              margin: [12, entityRef ? 7 : 5, 0, entityRef ? 7 : 5],
+            },
+            // Emblem circles
+            {
+              canvas: [
+                { type: "ellipse", x: 12, y: ht / 2, r1: 11, r2: 11, color: `${accentColor}14` },
+                { type: "ellipse", x: 12, y: ht / 2, r1: 7,  r2: 7,  color: `${accentColor}28` },
+                { type: "ellipse", x: 12, y: ht / 2, r1: 3,  r2: 3,  color: accentColor },
+              ],
+              fillColor: `${accentColor}0e`,
+              border: [false, false, false, false] as [boolean, boolean, boolean, boolean],
+              margin: [0, 0, 8, 0],
             },
           ]],
         },
         layout: {
-          hLineWidth: () => 0, vLineWidth: () => 0,
+          hLineWidth: (i: number, node: { table: { body: unknown[] } }) => i === 0 || i === node.table.body.length ? 0.5 : 0,
+          vLineWidth: () => 0,
+          hLineColor: () => `${accentColor}30`,
           paddingLeft: () => 0, paddingRight: () => 0, paddingTop: () => 0, paddingBottom: () => 0,
         },
       },
-      {
-        canvas: [{ type: "line", x1: 0, y1: 0, x2: 515, y2: 0, lineWidth: 0.4, lineColor: BRAND.border }],
-        margin: [0, 4, 0, 14],
-      },
     ],
+    margin: [0, 0, 0, 14],
   };
 }
 
@@ -1012,43 +917,41 @@ function buildGovernanceBanner(
  * Used for: mise_en_demeure, lettre_officielle (enforcement context).
  */
 function buildLegalAlertBanner(accentColor: string, lang: DocumentLanguage = "fr"): unknown {
-  // Legal enforcement alert: 3px red left bar + alert label on destructive-tinted bg.
-  // Top and bottom hairlines in destructive tint signal urgency without screaming.
+  // Full-bleed enforcement panel: thick red left bar + destructive-tinted surface.
+  // The 7pt bar signals urgency in the strongest possible way without using all-red.
+  // This is how DocuSign and Adobe Sign render "action required" notices.
   const alertLabel = lang === "ar" ? "وثيقة قانونية رسمية — الرد الإلزامي" : "⚠  ACTE JURIDIQUE OFFICIEL — RÉPONSE OBLIGATOIRE";
   const sublabel   = lang === "ar" ? "يجب الرد خلال المهلة المحددة أدناه" : "Toute inaction dans le délai imparti engage la responsabilité du destinataire de plein droit.";
   return {
     stack: [
       {
         table: {
-          widths: [3, "*"],
+          widths: [7, "*"],
           body: [[
+            // Heavy red bar — 7pt (was 3pt) for strong enforcement signal
             {
-              canvas: [{ type: "rect", x: 0, y: 0, w: 3, h: 36, color: BRAND.destructiveDark }],
+              canvas: [{ type: "rect", x: 0, y: 0, w: 7, h: 44, color: BRAND.destructiveDark }],
               border: [false, false, false, false] as [boolean, boolean, boolean, boolean],
               margin: [0, 0, 0, 0],
             },
             {
               stack: [
-                { text: alertLabel, fontSize: 8, bold: true, color: BRAND.destructiveDark, characterSpacing: 0.3, margin: [0, 0, 0, 3] },
-                { text: sublabel, fontSize: 6.5, color: BRAND.inkLight, lineHeight: 1.4 },
+                { text: alertLabel, fontSize: 8.5, bold: true, color: BRAND.destructiveDark, characterSpacing: 0.3, margin: [0, 0, 0, 4] },
+                { text: sublabel, fontSize: 6.5, color: BRAND.inkLight, lineHeight: 1.5 },
               ],
               fillColor: BRAND.destructiveLight,
               border: [false, false, false, false] as [boolean, boolean, boolean, boolean],
-              margin: [12, 8, 12, 8],
+              margin: [12, 10, 12, 10],
             },
           ]],
         },
         layout: {
           hLineWidth: (i: number, node: { table: { body: unknown[] } }) =>
-            i === 0 || i === node.table.body.length ? 0.5 : 0,
+            i === 0 || i === node.table.body.length ? 0.8 : 0,
           vLineWidth: () => 0,
-          hLineColor: () => `${BRAND.destructive}55`,
+          hLineColor: () => BRAND.destructive,
           paddingLeft: () => 0, paddingRight: () => 0, paddingTop: () => 0, paddingBottom: () => 0,
         },
-      },
-      {
-        canvas: [{ type: "line", x1: 0, y1: 0, x2: 515, y2: 0, lineWidth: 0.4, lineColor: BRAND.border }],
-        margin: [0, 6, 0, 0],
       },
     ],
     margin: [0, 0, 0, 14],
@@ -1067,40 +970,44 @@ function buildMeetingBanner(
   date?: string,
   lang: DocumentLanguage = "fr",
 ): unknown {
-  // Meeting session identity: 2-column pill strip [session type chip | location · date]
-  // Tinted bg with accent left bar makes the session identity instantly scannable.
-  const dark = adjustColorBrightness(accentColor, -20);
+  // Meeting session strip: type pill on the left + location/date on the right.
+  // Top+bottom rules enclose the strip giving it a "session header" feel.
+  // The accent-tinted background ties it visually to the document family.
+  const dark = adjustColorBrightness(accentColor, -18);
   const typeLabel = meetingType || (lang === "ar" ? "جمعية عامة" : "ASSEMBLÉE GÉNÉRALE");
   const hasDetails = !!(location || date);
   return {
     stack: [
+      // Top rule in accent — gives the strip a strong top anchor
+      { canvas: [{ type: "line", x1: 0, y1: 0, x2: 515, y2: 0, lineWidth: 1.5, lineColor: accentColor }] },
       {
         table: {
-          widths: [3, "auto", "*"],
+          widths: [5, "auto", "*"],
           body: [[
-            // Left accent bar
+            // Left accent bar — 5pt matches governance banner for family consistency
             {
-              canvas: [{ type: "rect", x: 0, y: 0, w: 3, h: hasDetails ? 36 : 24, color: accentColor }],
+              canvas: [{ type: "rect", x: 0, y: 0, w: 5, h: hasDetails ? 38 : 26, color: accentColor }],
               border: [false, false, false, false] as [boolean, boolean, boolean, boolean],
               margin: [0, 0, 0, 0],
             },
-            // Session type chip
+            // Session type label — 9pt bold
             {
-              text: typeLabel.toUpperCase(),
-              fontSize: 8.5, bold: true, color: dark,
-              characterSpacing: 0.5,
+              stack: [
+                { text: "SESSION", fontSize: 5, bold: true, color: BRAND.muted, characterSpacing: 0.8, margin: [0, 0, 0, 2] },
+                { text: typeLabel.toUpperCase(), fontSize: 9, bold: true, color: dark, characterSpacing: 0.4 },
+              ],
               border: [false, false, false, false] as [boolean, boolean, boolean, boolean],
-              margin: [12, hasDetails ? 6 : 8, 0, hasDetails ? 4 : 8],
+              margin: [12, hasDetails ? 6 : 7, 20, hasDetails ? 6 : 7],
             },
             // Location + date (right-aligned)
             ...(hasDetails ? [{
               stack: [
-                ...(location ? [{ text: `◆  ${location}`, fontSize: 6.5, color: BRAND.inkLight, margin: [0, 0, 0, 2] as [number,number,number,number] }] : []),
-                ...(date    ? [{ text: `⏱  ${date}`,       fontSize: 6.5, color: BRAND.inkLight }] : []),
+                ...(location ? [{ text: `📍  ${location}`, fontSize: 6.5, color: BRAND.inkLight, margin: [0, 0, 0, 3] as [number,number,number,number] }] : []),
+                ...(date    ? [{ text: `📅  ${date}`,      fontSize: 6.5, color: BRAND.inkLight }] : []),
               ],
               border: [false, false, false, false] as [boolean, boolean, boolean, boolean],
               alignment: "right" as const,
-              margin: [0, 6, 12, 6] as [number, number, number, number],
+              margin: [0, 7, 12, 7] as [number, number, number, number],
             }] : [{ text: "", border: [false, false, false, false] as [boolean, boolean, boolean, boolean] }]),
           ]],
         },
@@ -1110,12 +1017,9 @@ function buildMeetingBanner(
         },
         fillColor: `${accentColor}0d`,
       },
-      {
-        canvas: [{ type: "line", x1: 0, y1: 0, x2: 515, y2: 0, lineWidth: 0.4, lineColor: BRAND.border }],
-        margin: [0, 4, 0, 12],
-      },
+      // Bottom rule in border — closes the strip
+      { canvas: [{ type: "line", x1: 0, y1: 0, x2: 515, y2: 0, lineWidth: 0.5, lineColor: BRAND.border }], margin: [0, 0, 0, 14] },
     ],
-    margin: [0, 0, 0, 4],
   };
 }
 
@@ -1126,126 +1030,94 @@ function buildMeetingBanner(
 // spacious, and visually distinct from body text.
 
 function metaTable(rows: Array<[string, string]>, accentColor: string): unknown {
-  // Enterprise information card grid — DocuSign/SAP grade.
-  // Layout: 2pt top accent rule + hairline → 2-column card pairs → bottom hairline.
-  // Each card: 4px accent left bar | 6.5pt tracked ALL-CAPS label | 11pt bold value.
-  // Alternating row background uses brand surface / surfaceAlt tokens.
-  // Card height raised to 40pt (was 30pt) for premium feel with more breathing room.
-  const pairs: Array<[[string, string], [string, string] | null]> = [];
-  for (let i = 0; i < rows.length; i += 2) {
-    pairs.push([rows[i], rows[i + 1] ?? null]);
-  }
+  // Generation 3 enterprise data grid — clean 2-column label | value list.
+  // Replaces the 2-column card-pair grid with a simpler, more scalable layout.
+  // Design principles (from SAP Fiori and Oracle ERP data grids):
+  //   • Label: 5.5pt tracked all-caps, muted — purely functional, doesn't compete
+  //   • Value: 12pt bold, ink — the dominant data point at a glance
+  //   • Alternating row tints for scannability without card overhead
+  //   • Top 2pt accent bar + bottom hairline as the only structural rules
+  //   • Vertical mid-rule separates label from value column
 
-  const makeCard = (row: [string, string] | null, isEven: boolean): unknown => {
-    const bg = isEven ? BRAND.surface : BRAND.surfaceCard;
-    if (!row) return {
-      text: "", fillColor: bg,
-      border: [false, false, false, false] as [boolean, boolean, boolean, boolean],
-    };
-    return {
-      table: {
-        // 4px accent bar (was 3px) + content column
-        widths: [4, "*"],
-        body: [[
-          {
-            // Taller bar (40pt) to fill the increased card height
-            canvas: [{ type: "rect", x: 0, y: 0, w: 4, h: 40, color: accentColor }],
-            border: [false, false, false, false] as [boolean, boolean, boolean, boolean],
-          },
-          {
-            stack: [
-              // Label: 6.5pt bold tracked caps (was 5pt) — more legible in enterprise context
-              { text: row[0].toUpperCase(), fontSize: 6.5, bold: true, color: BRAND.muted, characterSpacing: 0.6, margin: [0, 0, 0, 3] },
-              // Value: 11pt bold (was 9.5pt) — stands out as a data point
-              { text: row[1] || "—", fontSize: 11, bold: true, color: BRAND.ink, lineHeight: 1.25 },
-            ],
-            fillColor: bg,
-            margin: [10, 8, 10, 8],
-            border: [false, false, false, false] as [boolean, boolean, boolean, boolean],
-          },
-        ]],
+  const bodyRows = rows.map((row, i) => {
+    const bg = i % 2 === 0 ? BRAND.surface : BRAND.surfaceCard;
+    return [
+      {
+        text: (row[0] || "").toUpperCase(),
+        fontSize: 5.5, bold: true, color: BRAND.muted, characterSpacing: 0.7,
+        fillColor: bg,
+        margin: [12, 8, 10, 8],
+        border: [false, false, false, false] as [boolean, boolean, boolean, boolean],
       },
-      layout: {
-        hLineWidth: () => 0, vLineWidth: () => 0,
-        paddingLeft: () => 0, paddingRight: () => 0, paddingTop: () => 0, paddingBottom: () => 0,
+      {
+        text: row[1] || "—",
+        fontSize: 12, bold: true, color: BRAND.ink, lineHeight: 1.2,
+        fillColor: bg,
+        margin: [10, 5, 12, 5],
+        border: [false, false, false, false] as [boolean, boolean, boolean, boolean],
       },
-      fillColor: bg,
-      border: [false, false, false, false] as [boolean, boolean, boolean, boolean],
-    };
-  };
-
-  const cardRows = pairs.map((pair, i) => ({
-    table: {
-      widths: ["*", "*"],
-      body: [[makeCard(pair[0], i % 2 === 0), makeCard(pair[1], i % 2 !== 0)]],
-    },
-    layout: {
-      hLineWidth: (j: number, node: { table: { body: unknown[] } }) =>
-        j === 0 || j === node.table.body.length ? 0.4 : 0,
-      vLineWidth: (j: number) => j === 1 ? 0.4 : 0,
-      hLineColor: () => BRAND.border,
-      vLineColor: () => BRAND.border,
-      paddingLeft: () => 0, paddingRight: () => 0, paddingTop: () => 0, paddingBottom: () => 0,
-    },
-    margin: [0, 0, 0, 0],
-  }));
+    ];
+  });
 
   return {
     stack: [
-      // Top accent rule (2pt solid) + hairline (0.3pt) offset — stronger visual anchor
-      { canvas: [{ type: "line", x1: 0, y1: 0, x2: 515, y2: 0, lineWidth: 2, lineColor: accentColor }] },
-      { canvas: [{ type: "line", x1: 0, y1: 0, x2: 515, y2: 0, lineWidth: 0.3, lineColor: `${accentColor}44` }], margin: [0, 2, 0, 0] },
-      ...cardRows,
-      // Bottom hairline
-      { canvas: [{ type: "line", x1: 0, y1: 0, x2: 515, y2: 0, lineWidth: 0.4, lineColor: BRAND.border }] },
+      // Top 2pt accent rule — strong visual anchor
+      { canvas: [{ type: "rect", x: 0, y: 0, w: 515, h: 2, color: accentColor }] },
+      {
+        table: {
+          widths: ["32%", "*"],
+          body: bodyRows,
+        },
+        layout: {
+          hLineWidth: (i: number, node: { table: { body: unknown[] } }) => i === 0 || i === node.table.body.length ? 0 : 0.4,
+          vLineWidth: (j: number) => j === 1 ? 0.4 : 0,
+          hLineColor: () => BRAND.border,
+          vLineColor: () => BRAND.border,
+          paddingLeft: () => 0, paddingRight: () => 0, paddingTop: () => 0, paddingBottom: () => 0,
+        },
+        margin: [0, 0, 0, 0],
+      },
+      // Bottom hairline — closes the grid
+      { canvas: [{ type: "line", x1: 0, y1: 0, x2: 515, y2: 0, lineWidth: 0.5, lineColor: BRAND.border }] },
     ],
     margin: [0, 0, 0, 16],
   };
 }
 
 function contentSection(title: string, text: string, accentColor: string, isRtl = false): unknown {
-  // SAP/Oracle enterprise section header:
-  //   4px solid accent left bar | light tinted band (accent ~8% opacity) | 9pt tracked bold title
-  //   Hairline separator | body text with proper line-height
-  // This is a full-width tinted band, not just a thin side rule.
-  // The filled band gives each section clear visual weight and instant scannability.
+  // Generation 3 section — 3pt left bar only, NO filled color band.
+  // This mirrors Workday/Odoo Enterprise section dividers:
+  //   • 3pt solid accent left bar — the eye anchor
+  //   • 8.5pt tracked bold label — clean, no background fill
+  //   • 0.4pt hairline — thin, non-competing separator before body
+  // The absence of a tinted band means body content has maximum visual weight.
+  const dark = adjustColorBrightness(accentColor, -14);
   return {
     stack: [
-      // ── Section header: tinted band with 4px left accent bar ─────────────────
+      // Section heading — left bar + tracked label
       {
-        table: {
-          widths: [4, "*"],
-          body: [[
-            // 4px accent bar — slightly taller (20pt) to fill the tinted band
-            {
-              canvas: [{ type: "rect", x: 0, y: 0, w: 4, h: 20, color: accentColor }],
-              border: [false, false, false, false] as [boolean, boolean, boolean, boolean],
-              margin: [0, 0, 0, 0],
-            },
-            // Title text on light tinted background
-            {
-              text: title.toUpperCase(),
-              fontSize: 9, bold: true,
-              color: adjustColorBrightness(accentColor, -22),
-              characterSpacing: 0.5,
-              fillColor: `${accentColor}12`,
-              margin: [12, 4, 12, 4],
-              border: [false, false, false, false] as [boolean, boolean, boolean, boolean],
-            },
-          ]],
-        },
-        layout: {
-          hLineWidth: () => 0, vLineWidth: () => 0,
-          paddingLeft: () => 0, paddingRight: () => 0, paddingTop: () => 0, paddingBottom: () => 0,
-        },
-        margin: [0, 14, 0, 0],
+        columns: [
+          {
+            canvas: [{ type: "rect", x: 0, y: 2, w: 3, h: 14, color: accentColor }],
+            width: 3,
+          },
+          {
+            text: title.toUpperCase(),
+            fontSize: 8.5, bold: true,
+            color: dark,
+            characterSpacing: 0.9,
+            width: "*",
+            margin: [10, 0, 0, 0],
+          },
+        ],
+        margin: [0, 14, 0, 6],
       },
-      // Hairline below tinted header — thin separator before body content
+      // Hairline separator
       {
-        canvas: [{ type: "line", x1: 0, y1: 0, x2: 515, y2: 0, lineWidth: 0.4, lineColor: `${accentColor}30` }],
+        canvas: [{ type: "line", x1: 0, y1: 0, x2: 515, y2: 0, lineWidth: 0.4, lineColor: BRAND.border }],
         margin: [0, 0, 0, 8],
       },
-      // Section body text
+      // Body text
       {
         ...(isRtl
           ? { text, style: "bodyArabic", margin: [0, 0, 0, 10] }
@@ -1267,30 +1139,37 @@ function kpiRow(
   cards: Array<{ label: string; value: string; sublabel?: string; valueColor?: string; bgColor?: string }>,
   accentColor: string,
 ): unknown {
-  // SAP/Oracle enterprise KPI card — premium redesign:
-  // • Label: 6.5pt tracked caps (was 5.5pt) — instantly readable category identifier
-  // • Value: 22pt bold (was 18pt) — dominant metric, cannot be missed
-  // • Sublabel: 7pt (was 6.5pt)
-  // • Padding: 14pt all sides (was 12pt) — more generous breathing room
-  // • Border: 1pt (was 0.6pt) — stronger card edge for printed documents
+  // Generation 3 KPI card — dominant metric at 28pt.
+  // Design: 3pt left accent bar + pale fill tint. No border box.
+  // • Label: 5.5pt tracked all-caps — recedes, purely functional
+  // • Value: 28pt bold — the number IS the card; cannot be missed
+  // • Sublabel: 7pt muted — supporting context below value
+  // This mirrors Workday and Oracle Fusion financial widget style.
   const makeCard = (c: (typeof cards)[0]) => ({
     table: {
-      widths: ["*"],
-      body: [[{
-        stack: [
-          { text: c.label.toUpperCase(), fontSize: 6.5, bold: true, color: BRAND.mutedLight, characterSpacing: 0.9, margin: [0, 0, 0, 5] },
-          { text: c.value, fontSize: 22, bold: true, color: c.valueColor || accentColor, lineHeight: 1, margin: [0, 0, 0, 4] },
-          ...(c.sublabel ? [{ text: c.sublabel, fontSize: 7, color: BRAND.muted }] : []),
-        ],
-        fillColor: c.bgColor || BRAND.surface,
-        margin: [14, 14, 14, 14],
-      }]],
+      widths: [3, "*"],
+      body: [[
+        {
+          canvas: [{ type: "rect", x: 0, y: 0, w: 3, h: 64, color: c.valueColor || accentColor }],
+          border: [false, false, false, false] as [boolean, boolean, boolean, boolean],
+          margin: [0, 0, 0, 0],
+        },
+        {
+          stack: [
+            { text: c.label.toUpperCase(), fontSize: 5.5, bold: true, color: BRAND.muted, characterSpacing: 0.9, margin: [0, 0, 0, 5] },
+            { text: c.value, fontSize: 28, bold: true, color: c.valueColor || accentColor, lineHeight: 1, margin: [0, 0, 0, 4] },
+            ...(c.sublabel ? [{ text: c.sublabel, fontSize: 7, color: BRAND.muted }] : []),
+          ],
+          fillColor: c.bgColor || BRAND.surface,
+          margin: [12, 12, 12, 12],
+          border: [false, false, false, false] as [boolean, boolean, boolean, boolean],
+        },
+      ]],
     },
     layout: {
-      hLineWidth: (i: number, node: { table: { body: unknown[] } }) => i === 0 || i === node.table.body.length ? 1 : 0,
-      vLineWidth: (i: number, node: { table: { widths: unknown[] } }) => i === 0 || i === node.table.widths.length ? 1 : 0,
+      hLineWidth: (i: number, node: { table: { body: unknown[] } }) => i === 0 || i === node.table.body.length ? 0.5 : 0,
+      vLineWidth: () => 0,
       hLineColor: () => BRAND.border,
-      vLineColor: () => BRAND.border,
       paddingLeft: () => 0, paddingRight: () => 0, paddingTop: () => 0, paddingBottom: () => 0,
     },
   });
@@ -1312,11 +1191,11 @@ function progressBar(
   total: string,
   accentColor: string,
 ): unknown {
-  // Premium progress bar — 12pt tall (was 10pt), 9pt label, better value display.
-  // Semantic color: ≥90% green, 60-89% accent, <60% red — same as before.
-  // Bar width 430pt (uses full page width, was 370pt — more imposing for financial docs).
+  // Enterprise progress bar — full-width (515pt), 8pt tall pill shape.
+  // Semantic color: ≥90% green, 60-89% accent, <60% red.
+  // Label row: 8.5pt bold label + percentage badge right-aligned + value context.
   const clamped = Math.min(100, Math.max(0, percent));
-  const barW = 430;
+  const barW = 515;
   const fillW = Math.round((clamped / 100) * barW);
   const barColor = percent >= 90 ? BRAND.successDark : percent >= 60 ? accentColor : BRAND.destructiveDark;
 
@@ -1324,18 +1203,18 @@ function progressBar(
     stack: [
       {
         columns: [
-          { text: label, fontSize: 9, bold: true, color: BRAND.ink, width: "*" },
-          { text: `${clamped}%`, fontSize: 9, bold: true, color: barColor, width: "auto" },
-          { text: `   ${value} / ${total}`, fontSize: 7.5, color: BRAND.muted, width: "auto", margin: [0, 1, 0, 0] },
+          { text: label, fontSize: 8.5, bold: true, color: BRAND.ink, width: "*" },
+          { text: `${clamped}%`, fontSize: 8.5, bold: true, color: barColor, width: "auto" },
+          { text: `  ${value} / ${total}`, fontSize: 7, color: BRAND.muted, width: "auto", margin: [0, 1, 0, 0] },
         ],
-        margin: [0, 0, 0, 5],
+        margin: [0, 0, 0, 4],
       },
       {
         canvas: [
-          // Track
-          { type: "rect", x: 0, y: 0, w: barW, h: 12, r: 4, color: BRAND.border },
-          // Fill — 12pt tall with rounded ends
-          ...(fillW > 0 ? [{ type: "rect" as const, x: 0, y: 0, w: fillW, h: 12, r: 4, color: barColor }] : []),
+          // Track — full page width, 8pt tall pill
+          { type: "rect", x: 0, y: 0, w: barW, h: 8, r: 4, color: BRAND.border },
+          // Fill
+          ...(fillW > 0 ? [{ type: "rect" as const, x: 0, y: 0, w: fillW, h: 8, r: 4, color: barColor }] : []),
         ],
         margin: [0, 0, 0, 10],
       },
@@ -1366,29 +1245,26 @@ function financialDashboard(input: Record<string, unknown>, accentColor: string)
   const outstandingNum = parseFloat((input._kpiOutstanding as string || "0").replace(/\s/g, "").replace(",", "."));
   const outstandingColor = outstandingNum > 0 ? BRAND.destructiveDark : BRAND.successDark;
 
+  // ── Dashboard section header — full-width accent band ───────────────────────
+  // More prominent than a left-bar style: the financial dashboard IS the document.
+  // Dark fill with white text signals "this is the executive summary panel."
+  const dashboardDark = adjustColorBrightness(accentColor, -18);
   return [
-    // Section header — lean left-bar style, no full-width color band
     {
       table: {
-        widths: [3, "*"],
-        body: [[
-          {
-            canvas: [{ type: "rect", x: 0, y: 0, w: 3, h: 18, color: accentColor }],
-            border: [false, false, false, false] as [boolean, boolean, boolean, boolean],
-            margin: [0, 0, 0, 0],
-          },
-          {
-            columns: [
-              { text: "TABLEAU DE BORD FINANCIER", fontSize: 8.5, bold: true, color: BRAND.ink, width: "*", margin: [0, 2, 0, 0] },
-              { text: `Exercice ${kpiYear}`, fontSize: 7, color: BRAND.muted, width: "auto", alignment: "right" as const, margin: [0, 3, 0, 0] },
-            ],
-            border: [false, false, false, false] as [boolean, boolean, boolean, boolean],
-            margin: [10, 3, 0, 3],
-          },
-        ]],
+        widths: ["*"],
+        body: [[{
+          columns: [
+            { text: "TABLEAU DE BORD FINANCIER", fontSize: 8.5, bold: true, color: BRAND.surfaceCard, characterSpacing: 0.4, width: "*", margin: [0, 2, 0, 0] },
+            { text: `Exercice ${kpiYear}`, fontSize: 7, bold: true, color: `${BRAND.surfaceCard}bb`, width: "auto", alignment: "right" as const, margin: [0, 3, 0, 0] },
+          ],
+          fillColor: dashboardDark,
+          margin: [12, 9, 12, 9],
+          border: [false, false, false, false] as [boolean, boolean, boolean, boolean],
+        }]],
       },
       layout: { hLineWidth: () => 0, vLineWidth: () => 0, paddingLeft: () => 0, paddingRight: () => 0, paddingTop: () => 0, paddingBottom: () => 0 },
-      margin: [0, 12, 0, 6],
+      margin: [0, 14, 0, 10],
     },
     // Row 1 — Revenue / Expenses / Net Balance
     kpiRow([
@@ -1704,31 +1580,40 @@ function multiSignatoryBlock(
   // Section label
   const sigSectionLabel = lang === "ar" ? "التوقيعات الرسمية" : lang === "en" ? "OFFICIAL SIGNATURES" : "SIGNATURES OFFICIELLES";
 
+  const panelLabel = lang === "ar" ? "لوحة التحقق الرقمي" : lang === "en" ? "DIGITAL VALIDATION PANEL" : "PANNEAU DE VALIDATION NUMÉRIQUE";
+  const validationDark = adjustColorBrightness(accentColor, -22);
+
   return {
     stack: [
-      // Thin rule separator — no colored decorative block
+      // ── PANNEAU DE VALIDATION NUMÉRIQUE ─────────────────────────────────────
+      // Full-width dark header band — DocuSign/Adobe Sign grade validation panel.
+      // Replaces the thin separator + small label with an executive-weight header.
       {
-        canvas: [
-          { type: "line", x1: 0, y1: 0, x2: 515, y2: 0, lineWidth: 0.5, lineColor: BRAND.border },
-        ],
-        margin: [0, 0, 0, 12],
-      },
-      // Section header
-      {
-        columns: [
-          {
-            text: sigSectionLabel,
-            fontSize: 7, bold: true, color: accentColor,
-            characterSpacing: 0.6,
-            width: "*",
-          },
-          {
-            stack: [officialSeal],
-            width: 114,
-            alignment: "right" as const,
-          },
-        ],
-        margin: [0, 0, 0, 10],
+        table: {
+          widths: ["*", 128],
+          body: [[
+            // Left: validation panel label + signature count context
+            {
+              stack: [
+                { text: "● " + panelLabel, fontSize: 8.5, bold: true, color: BRAND.surfaceCard, characterSpacing: 0.4, margin: [0, 0, 0, 3] },
+                { text: sigSectionLabel.toUpperCase(), fontSize: 5.5, color: `${BRAND.surfaceCard}88`, characterSpacing: 0.8 },
+              ],
+              fillColor: validationDark,
+              margin: [14, 10, 14, 10],
+              border: [false, false, false, false] as [boolean, boolean, boolean, boolean],
+            },
+            // Right: official seal
+            {
+              stack: [officialSeal],
+              fillColor: validationDark,
+              alignment: "center" as const,
+              margin: [4, 6, 4, 6],
+              border: [false, false, false, false] as [boolean, boolean, boolean, boolean],
+            },
+          ]],
+        },
+        layout: { hLineWidth: () => 0, vLineWidth: () => 0, paddingLeft: () => 0, paddingRight: () => 0, paddingTop: () => 0, paddingBottom: () => 0 },
+        margin: [0, 24, 0, 12],
       },
       // 3-column signer grid
       {
@@ -1741,7 +1626,6 @@ function multiSignatoryBlock(
         ],
       },
     ],
-    margin: [0, 24, 0, 0],
   };
 }
 
@@ -1895,23 +1779,40 @@ function signatureBlock(
         },
       ];
 
+  const panelLabelSingle = lang === "ar" ? "لوحة التحقق الرقمي" : lang === "en" ? "DIGITAL VALIDATION PANEL" : "PANNEAU DE VALIDATION NUMÉRIQUE";
+  const validationDarkSingle = adjustColorBrightness(accentColor, -22);
+
   return {
     stack: [
-      // Section separator — 1.2pt rule + hairline below
-      { canvas: [{ type: "line", x1: 0, y1: 0, x2: 515, y2: 0, lineWidth: 1, lineColor: `${accentColor}55` }], margin: [0, 0, 0, 2] },
-      { canvas: [{ type: "line", x1: 0, y1: 0, x2: 515, y2: 0, lineWidth: 0.3, lineColor: BRAND.border }], margin: [0, 0, 0, 12] },
-      // Header row: section label + seal
+      // ── PANNEAU DE VALIDATION — single signer edition ──────────────────────
       {
-        columns: [
-          { text: sigSectionLabel, fontSize: 7.5, bold: true, color: accentColor, characterSpacing: 0.7, width: "*" },
-          ...(showStampCircle ? [{ stack: [officialSealFinal], width: 118, alignment: "right" as const }] : []),
-        ],
-        margin: [0, 0, 0, 12],
+        table: {
+          widths: ["*", ...(showStampCircle ? [128] : [])],
+          body: [[
+            {
+              stack: [
+                { text: "● " + panelLabelSingle, fontSize: 8.5, bold: true, color: BRAND.surfaceCard, characterSpacing: 0.4, margin: [0, 0, 0, 3] },
+                { text: sigSectionLabel.toUpperCase(), fontSize: 5.5, color: `${BRAND.surfaceCard}88`, characterSpacing: 0.8 },
+              ],
+              fillColor: validationDarkSingle,
+              margin: [14, 10, 14, 10],
+              border: [false, false, false, false] as [boolean, boolean, boolean, boolean],
+            },
+            ...(showStampCircle ? [{
+              stack: [officialSealFinal],
+              fillColor: validationDarkSingle,
+              alignment: "center" as const,
+              margin: [4, 6, 4, 6],
+              border: [false, false, false, false] as [boolean, boolean, boolean, boolean],
+            }] : []),
+          ]],
+        },
+        layout: { hLineWidth: () => 0, vLineWidth: () => 0, paddingLeft: () => 0, paddingRight: () => 0, paddingTop: () => 0, paddingBottom: () => 0 },
+        margin: [0, 28, 0, 12],
       },
       // Signer content
       ...signerRows as object[],
     ],
-    margin: [0, 28, 0, 0],
   };
 }
 
@@ -1926,42 +1827,44 @@ function legalFooterNote(docNumber: string, lang: DocumentLanguage = "fr", verif
     : lang === "es" ? "NOTA LEGAL"
     : "NOTE LÉGALE";
 
-  // Premium legal footer: 4px bar (was 3px), 7pt label/text (was 6.5pt),
-  // deeper padding [10, 10, 14, 10] (was [8, 8, 12, 8]) for a less cramped feel.
+  // Minimal legal footer: 3pt grey bar + flat surface, no decorative rules.
+  // 6.5pt label/text keeps it clearly secondary to document content.
   return {
-    table: {
-      widths: [4, "*"],
-      body: [[
-        {
-          canvas: [{ type: "rect", x: 0, y: 0, w: 4, h: 38, color: BRAND.mutedLight }],
-          border: [false, false, false, false] as [boolean, boolean, boolean, boolean],
-          margin: [0, 0, 0, 0],
-        },
-        {
-          stack: [
+    stack: [
+      { canvas: [{ type: "line", x1: 0, y1: 0, x2: 515, y2: 0, lineWidth: 0.4, lineColor: BRAND.border }], margin: [0, 0, 0, 0] },
+      {
+        table: {
+          widths: [3, "*"],
+          body: [[
             {
-              columns: [
-                { text: titleLabel, fontSize: 7, bold: true, color: BRAND.inkLight, characterSpacing: 0.4, width: "*" },
-                { text: docNumber,  fontSize: 6.5, bold: true, color: BRAND.muted, width: "auto", alignment: "right" as const },
-              ],
-              margin: [0, 0, 0, 4],
+              canvas: [{ type: "rect", x: 0, y: 0, w: 3, h: 34, color: BRAND.border }],
+              border: [false, false, false, false] as [boolean, boolean, boolean, boolean],
+              margin: [0, 0, 0, 0],
             },
-            { text, fontSize: 7, color: BRAND.mutedLight, lineHeight: 1.5 },
-          ],
-          fillColor: BRAND.surface,
-          margin: [10, 10, 14, 10],
-          border: [false, false, false, false] as [boolean, boolean, boolean, boolean],
+            {
+              stack: [
+                {
+                  columns: [
+                    { text: titleLabel.toUpperCase(), fontSize: 6, bold: true, color: BRAND.muted, characterSpacing: 0.6, width: "*" },
+                    { text: docNumber, fontSize: 6, bold: true, color: BRAND.mutedLight, width: "auto", alignment: "right" as const },
+                  ],
+                  margin: [0, 0, 0, 3],
+                },
+                { text, fontSize: 6.5, color: BRAND.mutedLight, lineHeight: 1.5 },
+              ],
+              fillColor: BRAND.surface,
+              margin: [10, 8, 12, 8],
+              border: [false, false, false, false] as [boolean, boolean, boolean, boolean],
+            },
+          ]],
         },
-      ]],
-    },
-    layout: {
-      hLineWidth: (i: number, node: { table: { body: unknown[] } }) =>
-        i === 0 || i === node.table.body.length ? 0.7 : 0,
-      vLineWidth: () => 0,
-      hLineColor: () => BRAND.border,
-      paddingLeft: () => 0, paddingRight: () => 0, paddingTop: () => 0, paddingBottom: () => 0,
-    },
-    margin: [0, 22, 0, 0],
+        layout: {
+          hLineWidth: () => 0, vLineWidth: () => 0,
+          paddingLeft: () => 0, paddingRight: () => 0, paddingTop: () => 0, paddingBottom: () => 0,
+        },
+      },
+    ],
+    margin: [0, 20, 0, 0],
   };
 }
 
@@ -3638,28 +3541,125 @@ async function buildDocDef(template: DocumentTemplate, input: DocumentInput): Pr
       break;
     }
 
-    case "certificat":
+    case "certificat": {
+      // ── Enterprise credential certificate — authority issuer top, recipient hero center ──
+      // Visual concept: DocuSign/Adobe Sign "Certificate of Completion" —
+      // issuer band at top, ornamental title block, beneficiary name at 20pt,
+      // certification panel with left accent bar, official seal + signature.
+      // NO buildCertificateFrame — every element is purpose-built for this template.
+      const certDark = adjustColorBrightness(accentColor, -22);
+      const beneficiary = member || t("certificatBeneficiaryFallback", lang);
       content = [
         ...header,
-        buildCertificateFrame(accentColor, lang),
-        { text: t("certificateWord", lang), fontSize: 26, bold: true, color: accentColor, alignment: "center" as const, margin: [0, 8, 0, 4] },
-        { text: input.title, style: "docTitle", alignment: "center" as const, margin: [0, 0, 0, 20] },
-        metaTable([
-          [t("metaDeliveredTo", lang), member || t("certificatBeneficiaryFallback", lang)],
-          [t("certificatDeliveryDate", lang), today],
-          [t("metaIssuer", lang), syndInfo.name],
-          ...(syndInfo.registrationNumber ? [[t("metaRegRef", lang), syndInfo.registrationNumber] as [string, string]] : []),
-        ], accentColor),
-        contentSection(
-          t("certificatSectionTitle", lang),
-          body || fmt(t("certificatBody", lang), { syndicate: syndInfo.name, member: member || t("certificatBeneficiaryFallback", lang) }),
-          accentColor,
-          isArabic,
-        ),
-        signatureBlock(t("presidentTitle", lang), syndInfo.name, accentColor, true, lang, signatures),
+        // ── Authority declaration band — issuer identity on accent bg ──────────
+        {
+          table: {
+            widths: ["*", "auto"],
+            body: [[
+              {
+                stack: [
+                  { text: "CERTIFIÉ PAR", fontSize: 5.5, bold: true, color: `${BRAND.surfaceCard}88`, characterSpacing: 1.2, margin: [0, 0, 0, 3] },
+                  { text: syndInfo.name.toUpperCase(), fontSize: 13, bold: true, color: BRAND.surfaceCard, characterSpacing: 0.4, lineHeight: 1.2 },
+                  ...(syndInfo.registrationNumber ? [{ text: `Réf. imm. ${syndInfo.registrationNumber}`, fontSize: 6.5, color: `${BRAND.surfaceCard}88`, margin: [0, 3, 0, 0] as [number, number, number, number] }] : []),
+                ],
+                fillColor: accentColor,
+                margin: [16, 13, 12, 13],
+                border: [false, false, false, false] as [boolean, boolean, boolean, boolean],
+              },
+              {
+                stack: [
+                  { text: "N° DE CERTIFICAT", fontSize: 5, bold: true, color: `${BRAND.surfaceCard}88`, characterSpacing: 0.8, alignment: "right" as const, margin: [0, 0, 0, 3] },
+                  { text: docNum, fontSize: 10, bold: true, color: BRAND.surfaceCard, alignment: "right" as const },
+                  { text: today, fontSize: 7, color: `${BRAND.surfaceCard}88`, alignment: "right" as const, margin: [0, 3, 0, 0] },
+                ],
+                fillColor: adjustColorBrightness(accentColor, -18),
+                margin: [12, 13, 16, 13],
+                border: [false, false, false, false] as [boolean, boolean, boolean, boolean],
+              },
+            ]],
+          },
+          layout: {
+            hLineWidth: () => 0, vLineWidth: () => 0,
+            paddingLeft: () => 0, paddingRight: () => 0, paddingTop: () => 0, paddingBottom: () => 0,
+          },
+          margin: [0, 0, 0, 0],
+        },
+        // ── Title block — ornamental double-rule framing ──────────────────────
+        {
+          stack: [
+            { canvas: [{ type: "line", x1: 36, y1: 0, x2: 479, y2: 0, lineWidth: 1.4, lineColor: accentColor }], margin: [0, 14, 0, 0] },
+            { canvas: [{ type: "line", x1: 54, y1: 0, x2: 461, y2: 0, lineWidth: 0.4, lineColor: `${accentColor}55` }], margin: [0, 3, 0, 0] },
+            { text: t("certificateWord", lang).toUpperCase(), fontSize: 28, bold: true, color: accentColor, alignment: "center" as const, characterSpacing: 4, margin: [0, 12, 0, 4] },
+            { text: input.title, fontSize: 11, color: BRAND.inkLight, alignment: "center" as const, italics: true, margin: [0, 0, 0, 12] },
+            { canvas: [{ type: "line", x1: 54, y1: 0, x2: 461, y2: 0, lineWidth: 0.4, lineColor: `${accentColor}55` }], margin: [0, 0, 0, 3] },
+            { canvas: [{ type: "line", x1: 36, y1: 0, x2: 479, y2: 0, lineWidth: 1.4, lineColor: accentColor }], margin: [0, 0, 0, 0] },
+          ],
+          margin: [0, 0, 0, 18],
+        },
+        // ── Beneficiary hero — name at maximum prominence ─────────────────────
+        // Flanked by ornamental hairlines + accent dot center. Makes the recipient
+        // the visual focal point of the document — mandatory for a certificate.
+        {
+          stack: [
+            { text: "DÉCERNÉ À", fontSize: 6.5, bold: true, color: BRAND.mutedLight, characterSpacing: 1.4, alignment: "center" as const, margin: [0, 0, 0, 10] },
+            { text: beneficiary, fontSize: 22, bold: true, color: BRAND.ink, alignment: "center" as const, characterSpacing: 1.2, margin: [0, 0, 0, 10] },
+            {
+              columns: [
+                { canvas: [{ type: "line", x1: 0, y1: 0, x2: 170, y2: 0, lineWidth: 0.5, lineColor: `${accentColor}55` }], width: "*", margin: [0, 5, 0, 0] },
+                { canvas: [{ type: "ellipse", x: 5, y: 5, r1: 5, r2: 5, color: accentColor }], width: 10 },
+                { canvas: [{ type: "line", x1: 0, y1: 0, x2: 170, y2: 0, lineWidth: 0.5, lineColor: `${accentColor}55` }], width: "*", margin: [0, 5, 0, 0] },
+              ],
+              margin: [0, 0, 0, 18],
+            },
+          ],
+        },
+        // ── Certification content panel — left accent bar + tinted bg ─────────
+        {
+          table: {
+            widths: [3, "*"],
+            body: [[
+              {
+                canvas: [{ type: "rect", x: 0, y: 0, w: 3, h: 80, color: accentColor }],
+                border: [false, false, false, false] as [boolean, boolean, boolean, boolean],
+              },
+              {
+                stack: [
+                  { text: t("certificatSectionTitle", lang).toUpperCase(), fontSize: 6, bold: true, color: BRAND.muted, characterSpacing: 0.8, margin: [0, 0, 0, 8] },
+                  {
+                    text: body || fmt(t("certificatBody", lang), { syndicate: syndInfo.name, member: beneficiary }),
+                    fontSize: 10, color: BRAND.inkMid, lineHeight: 1.75,
+                  },
+                ],
+                fillColor: `${accentColor}09`,
+                margin: [16, 14, 16, 14],
+                border: [false, false, false, false] as [boolean, boolean, boolean, boolean],
+              },
+            ]],
+          },
+          layout: {
+            hLineWidth: () => 0, vLineWidth: () => 0,
+            paddingLeft: () => 0, paddingRight: () => 0, paddingTop: () => 0, paddingBottom: () => 0,
+          },
+          margin: [0, 0, 0, 20],
+        },
+        // ── Signature + official seal — side by side ──────────────────────────
+        {
+          columns: [
+            { ...signatureBlock(t("presidentTitle", lang), syndInfo.name, accentColor, true, lang, signatures) as object, width: "*" },
+            {
+              stack: [buildOfficialSeal(syndInfo.name, accentColor, syndInfo.name, today, signatures.length > 0 ? "VALID" : "PENDING") as object],
+              width: 128,
+              alignment: "center" as const,
+              margin: [0, 24, 0, 0],
+            },
+          ],
+          columnGap: 20,
+          margin: [0, 0, 0, 0],
+        },
         legalFooterNote(docNum, lang, verifyUrl),
       ];
       break;
+    }
 
     case "circulaire":
       content = [
@@ -4357,99 +4357,381 @@ async function buildDocDef(template: DocumentTemplate, input: DocumentInput): Pr
       break;
     }
 
-    // ── Template 22: Attestation de Résidence (auto-fills lot/building from DB) ──
+    // ── Template 22: Attestation de Résidence ────────────────────────────────────
+    // Visual concept: Official address proof / domicile certificate.
+    // The ADDRESS is the primary fact — it occupies the most prominent visual real estate.
+    // Instantly distinguishable from attestation_propriete: residence = address hero,
+    // propriete = land registry title strip. No shared layout elements.
     case "attestation_residence": {
-      // Entity-backed: prefer data from getLotMemberData (_lotNumber, _lotFloor, _buildingName)
-      // over manual entry so no re-typing is needed when lotId is provided.
       const lot          = (input.lotNumber as string) || (input._lotNumber as string) || "—";
       const propertyName = (input._buildingName as string) || (input.property as PropertyInfo | undefined)?.name || syndInfo.name;
       const propertyAddress = (input._buildingAddress as string) || (input.property as PropertyInfo | undefined)?.address || syndInfo.address;
       const propertyCity = (input.property as PropertyInfo | undefined)?.city || syndInfo.city;
-      const lotFloor = (input.lotFloor as string | undefined) || (input._lotFloor as string | undefined);
+      const lotFloor     = (input.lotFloor as string | undefined) || (input._lotFloor as string | undefined);
+      const fullAddress  = [propertyAddress, propertyCity].filter(Boolean).join(", ") || "—";
+      const resDark      = adjustColorBrightness(accentColor, -20);
       content = [
         ...header,
-        buildCertificateFrame(accentColor, lang),
-        { text: "ATTESTATION DE RÉSIDENCE", fontSize: 20, bold: true, color: accentColor, alignment: "center" as const, margin: [0, 0, 0, 4] },
-        { text: input.title, style: "docTitle", alignment: "center" as const, margin: [0, 0, 0, 16] },
-        metaTable([
-          [t("metaDeliveredTo", lang), member || t("notRenseigne", lang)],
-          [t("metaIssueDate", lang), today],
-          [t("metaIssuer", lang), syndInfo.name],
-          ...(syndInfo.registrationNumber ? [[t("metaRegRef", lang), syndInfo.registrationNumber] as [string, string]] : []),
-          ["Résidence / Immeuble :", propertyName],
-          ["Adresse :", [propertyAddress, propertyCity].filter(Boolean).join(", ") || "—"],
-          ...(lot !== "—" ? [["N° d'appartement :", lot] as [string, string]] : []),
-          ...(lotFloor ? [["Étage :", lotFloor] as [string, string]] : []),
-        ], accentColor),
-        contentSection(
-          t("attestationSectionTitle", lang),
-          body || (
-            `Le Syndicat de Copropriété ${syndInfo.name}, dont le siège social est situé à ` +
-            `${[syndInfo.address, syndInfo.city].filter(Boolean).join(", ") || "l'adresse du syndicat"}, ` +
-            `certifie par la présente attestation que :\n\n` +
-            `${member || "[NOM DU MEMBRE]"}\n\n` +
-            `réside à l'appartement N° ${lot} de la résidence ${propertyName}` +
-            `${lotFloor ? `, ${lotFloor}` : ""}` +
-            `, sise à ${[propertyAddress, propertyCity].filter(Boolean).join(", ") || "l'adresse de la résidence"}.\n\n` +
-            `Cette attestation est délivrée à la demande de l'intéressé(e) pour servir et valoir ce que de droit.`
-          ),
-          accentColor,
-          isArabic,
-        ),
+        // ── Identity bar — 3-segment: document type / ref / date ─────────────
+        {
+          table: {
+            widths: ["*", "auto", "auto"],
+            body: [[
+              {
+                text: "ATTESTATION DE RÉSIDENCE",
+                fontSize: 10, bold: true, color: BRAND.surfaceCard, characterSpacing: 0.5,
+                fillColor: accentColor, margin: [14, 10, 8, 10],
+                border: [false, false, false, false] as [boolean, boolean, boolean, boolean],
+              },
+              {
+                stack: [
+                  { text: "RÉFÉRENCE", fontSize: 4.5, bold: true, color: `${BRAND.surfaceCard}88`, characterSpacing: 0.6, margin: [0, 0, 0, 2] },
+                  { text: docNum, fontSize: 8, bold: true, color: BRAND.surfaceCard },
+                ],
+                fillColor: adjustColorBrightness(accentColor, -14),
+                margin: [12, 8, 12, 8],
+                border: [false, false, false, false] as [boolean, boolean, boolean, boolean],
+              },
+              {
+                stack: [
+                  { text: "DATE", fontSize: 4.5, bold: true, color: `${BRAND.surfaceCard}88`, characterSpacing: 0.6, margin: [0, 0, 0, 2] },
+                  { text: today, fontSize: 8, bold: true, color: BRAND.surfaceCard },
+                ],
+                fillColor: adjustColorBrightness(accentColor, -22),
+                margin: [12, 8, 14, 8],
+                border: [false, false, false, false] as [boolean, boolean, boolean, boolean],
+              },
+            ]],
+          },
+          layout: {
+            hLineWidth: () => 0, vLineWidth: () => 0,
+            paddingLeft: () => 0, paddingRight: () => 0, paddingTop: () => 0, paddingBottom: () => 0,
+          },
+          margin: [0, 0, 0, 0],
+        },
+        // ── Address hero — the dominant visual block ──────────────────────────
+        // A location pin motif (circle + inner circle) identifies this as an
+        // address document before the reader has processed any text.
+        {
+          table: {
+            widths: ["auto", "*"],
+            body: [[
+              {
+                stack: [
+                  {
+                    canvas: [
+                      { type: "ellipse", x: 18, y: 18, r1: 18, r2: 18, color: accentColor },
+                      { type: "ellipse", x: 18, y: 18, r1: 9, r2: 9, color: BRAND.surfaceCard },
+                    ],
+                  },
+                ],
+                border: [false, false, false, false] as [boolean, boolean, boolean, boolean],
+                margin: [16, 17, 8, 17],
+              },
+              {
+                stack: [
+                  { text: "ADRESSE DE RÉSIDENCE CERTIFIÉE", fontSize: 5.5, bold: true, color: BRAND.muted, characterSpacing: 0.8, margin: [0, 0, 0, 5] },
+                  { text: propertyName, fontSize: 15, bold: true, color: BRAND.ink, lineHeight: 1.2, margin: [0, 0, 0, 5] },
+                  { text: fullAddress, fontSize: 10, color: BRAND.inkMid, margin: [0, 0, 0, 4] },
+                  ...(lot !== "—"
+                    ? [{ text: `Appartement N° ${lot}${lotFloor ? `  ·  Étage ${lotFloor === "0" ? "Rez-de-chaussée" : lotFloor}` : ""}`, fontSize: 9, color: BRAND.muted }]
+                    : []),
+                ],
+                border: [false, false, false, false] as [boolean, boolean, boolean, boolean],
+                margin: [0, 15, 16, 15],
+              },
+            ]],
+          },
+          layout: {
+            hLineWidth: (i: number, node: { table: { body: unknown[] } }) => i === 0 || i === node.table.body.length ? 0.8 : 0,
+            vLineWidth: (i: number, node: { table: { widths: unknown[] } }) => i === 0 || i === node.table.widths.length ? 0.8 : 0,
+            hLineColor: () => BRAND.border, vLineColor: () => BRAND.border,
+            paddingLeft: () => 0, paddingRight: () => 0, paddingTop: () => 0, paddingBottom: () => 0,
+          },
+          margin: [0, 8, 0, 16],
+        },
+        // ── Resident identity row — 3 equal cells ────────────────────────────
+        {
+          table: {
+            widths: ["*", "*", "*"],
+            body: [[
+              {
+                stack: [
+                  { text: "RÉSIDENT(E)", fontSize: 5.5, bold: true, color: BRAND.mutedLight, characterSpacing: 0.6, margin: [0, 0, 0, 5] },
+                  { text: member || t("notRenseigne", lang), fontSize: 12, bold: true, color: BRAND.ink, lineHeight: 1.2 },
+                ],
+                fillColor: BRAND.surface,
+                margin: [14, 12, 14, 12],
+                border: [true, true, false, true] as [boolean, boolean, boolean, boolean],
+                borderColor: [BRAND.border, BRAND.border, BRAND.border, BRAND.border],
+              },
+              {
+                stack: [
+                  { text: "ÉMETTEUR", fontSize: 5.5, bold: true, color: BRAND.mutedLight, characterSpacing: 0.6, margin: [0, 0, 0, 5] },
+                  { text: syndInfo.name, fontSize: 10, bold: true, color: BRAND.ink, lineHeight: 1.2 },
+                ],
+                fillColor: BRAND.surfaceCard,
+                margin: [14, 12, 14, 12],
+                border: [true, true, false, true] as [boolean, boolean, boolean, boolean],
+                borderColor: [BRAND.border, BRAND.border, BRAND.border, BRAND.border],
+              },
+              {
+                stack: [
+                  { text: "VALIDE À CE JOUR", fontSize: 5.5, bold: true, color: BRAND.mutedLight, characterSpacing: 0.6, margin: [0, 0, 0, 5] },
+                  { text: today, fontSize: 10, bold: true, color: BRAND.ink },
+                  { text: "Situation à la date d'émission", fontSize: 7, color: BRAND.muted, margin: [0, 3, 0, 0] },
+                ],
+                fillColor: BRAND.surface,
+                margin: [14, 12, 14, 12],
+                border: [true, true, true, true] as [boolean, boolean, boolean, boolean],
+                borderColor: [BRAND.border, BRAND.border, BRAND.border, BRAND.border],
+              },
+            ]],
+          },
+          layout: {
+            hLineWidth: () => 0.6, vLineWidth: (i: number, node: { table: { widths: unknown[] } }) => i === 0 || i === node.table.widths.length ? 0.6 : 0.4,
+            hLineColor: () => BRAND.border, vLineColor: () => BRAND.border,
+            paddingLeft: () => 0, paddingRight: () => 0, paddingTop: () => 0, paddingBottom: () => 0,
+          },
+          margin: [0, 0, 0, 18],
+        },
+        // ── Certification statement — left accent bar + pale tinted bg ────────
+        {
+          table: {
+            widths: [3, "*"],
+            body: [[
+              {
+                canvas: [{ type: "rect", x: 0, y: 0, w: 3, h: 80, color: accentColor }],
+                border: [false, false, false, false] as [boolean, boolean, boolean, boolean],
+              },
+              {
+                stack: [
+                  { text: "ATTESTATION OFFICIELLE DE RÉSIDENCE", fontSize: 6, bold: true, color: BRAND.muted, characterSpacing: 0.8, margin: [0, 0, 0, 8] },
+                  {
+                    text: body || (
+                      `Le Syndicat de Copropriété ${syndInfo.name}` +
+                      (syndInfo.registrationNumber ? `, immatriculé sous le N° ${syndInfo.registrationNumber},` : `,`) +
+                      ` certifie que ${member || "[NOM DU MEMBRE]"} réside à l'appartement N° ${lot} de la résidence ${propertyName}` +
+                      `${lotFloor ? `, Étage ${lotFloor === "0" ? "Rez-de-chaussée" : lotFloor}` : ""}` +
+                      `, sise à ${fullAddress}.\n\n` +
+                      `Cette attestation est délivrée à la demande de l'intéressé(e) et établie sur la base des informations figurant au registre du syndicat à la date indiquée. Elle est valable uniquement pour la situation connue à ce jour.`
+                    ),
+                    fontSize: 9.5, color: BRAND.inkMid, lineHeight: 1.75,
+                  },
+                ],
+                fillColor: `${accentColor}08`,
+                margin: [16, 14, 16, 14],
+                border: [false, false, false, false] as [boolean, boolean, boolean, boolean],
+              },
+            ]],
+          },
+          layout: {
+            hLineWidth: () => 0, vLineWidth: () => 0,
+            paddingLeft: () => 0, paddingRight: () => 0, paddingTop: () => 0, paddingBottom: () => 0,
+          },
+          margin: [0, 0, 0, 20],
+        },
         signatureBlock(t("presidentTitle", lang), syndInfo.name, accentColor, true, lang, signatures),
         legalFooterNote(docNum, lang, verifyUrl),
       ];
       break;
     }
 
-    // ── Template 23: Attestation de Propriété (auto-fills TF / tantiemes) ────────
+    // ── Template 23: Attestation de Propriété ────────────────────────────────────
+    // Visual concept: Land registry title extract.
+    // The TITRE FONCIER reference and OWNERSHIP FRACTION (tantiemes) are the primary facts.
+    // Instantly distinguishable from attestation_residence: propriete = TF number strip + ownership
+    // fraction cells. No shared layout with any other attestation template.
     case "attestation_propriete": {
-      const prop = input.property as PropertyInfo | undefined;
-      // Auto-filled from getLotMemberData when lotId is provided
+      const prop         = input.property as PropertyInfo | undefined;
       const titreFoncier = (input.titreFoncier as string) || (input._lotTitreFoncier as string) || prop?.landRegistryReference || "—";
       const tantiemes    = (input.tantiemes as string) || (input._lotTantiemes as string) || "—";
       const lotNum       = (input.lotNumber as string) || (input._lotNumber as string) || "—";
       const propName     = (input._buildingName as string) || prop?.name || syndInfo.name;
+      const propAddress  = (input._buildingAddress as string) || prop?.address || syndInfo.address;
+      const propCity     = prop?.city || syndInfo.city;
+      const attMemberCIN = (input._memberCIN as string) || "";
+      const attLotSurface = (input._lotSurface as string) || "—";
+      const attLotFloor  = (input._lotFloor as string) || "";
+      const propDark     = adjustColorBrightness(accentColor, -20);
       content = [
         ...header,
-        buildCertificateFrame(accentColor, lang),
-        { text: "ATTESTATION DE PROPRIÉTÉ", fontSize: 20, bold: true, color: accentColor, alignment: "center" as const, margin: [0, 0, 0, 4] },
-        { text: input.title, style: "docTitle", alignment: "center" as const, margin: [0, 0, 0, 16] },
-        metaTable([
-          [t("metaDeliveredTo", lang), member || t("notRenseigne", lang)],
-          [t("metaIssueDate", lang), today],
-          [t("metaIssuer", lang), syndInfo.name],
-          ["Titre Foncier :", titreFoncier],
-          ["N° de lot / appartement :", lotNum],
-          ["Quote-part / Tantiièmes :", tantiemes],
-          ["Résidence :", propName],
-          ...(syndInfo.registrationNumber ? [[t("metaRegRef", lang), syndInfo.registrationNumber] as [string, string]] : []),
-        ], accentColor),
-        contentSection(
-          "Attestation de Propriété Immobilière",
-          body || (
-            `Le Syndicat de Copropriété ${syndInfo.name} atteste par la présente que :\n\n` +
-            `${member || "[NOM DU PROPRIÉTAIRE]"}\n\n` +
-            `est propriétaire du lot N° ${lotNum} (appartement/local) ` +
-            `de la résidence ${propName}, inscrit sous le Titre Foncier N° ${titreFoncier}, ` +
-            `avec une quote-part de ${tantiemes} tantiièmes.\n\n` +
-            `Cette attestation est délivrée sur la base des documents détenus par le syndicat et est valable uniquement pour la situation connue à ce jour.`
-          ),
-          accentColor,
-          isArabic,
-        ),
+        // ── Land-registry-style authority band ───────────────────────────────
+        // Two segments: document title (accent bg) + TF reference (deep accent bg)
+        // The TF number is the document's unique identifier — equivalent to a case number.
         {
           table: {
-            widths: ["*"],
-            body: [[{
-              text: "⚠  Ce document ne constitue pas un titre de propriété au sens du droit foncier. Pour tout acte juridique, veuillez vous référer au registre foncier compétent.",
-              style: "notice",
-              fillColor: BRAND.warningLight,
-              margin: [10, 8, 10, 8],
-            }]],
+            widths: ["*", "auto"],
+            body: [[
+              {
+                stack: [
+                  { text: "ATTESTATION DE PROPRIÉTÉ IMMOBILIÈRE", fontSize: 9, bold: true, color: BRAND.surfaceCard, characterSpacing: 0.4, margin: [0, 0, 0, 4] },
+                  { text: `${syndInfo.name}  ·  Syndicat de Copropriété`, fontSize: 7, color: `${BRAND.surfaceCard}99` },
+                ],
+                fillColor: accentColor,
+                margin: [16, 12, 12, 12],
+                border: [false, false, false, false] as [boolean, boolean, boolean, boolean],
+              },
+              {
+                stack: [
+                  { text: "TITRE FONCIER", fontSize: 5, bold: true, color: `${BRAND.surfaceCard}99`, characterSpacing: 0.8, alignment: "right" as const, margin: [0, 0, 0, 3] },
+                  { text: titreFoncier !== "—" ? titreFoncier : docNum, fontSize: 11, bold: true, color: BRAND.surfaceCard, alignment: "right" as const },
+                  { text: today, fontSize: 6.5, color: `${BRAND.surfaceCard}99`, alignment: "right" as const, margin: [0, 3, 0, 0] },
+                ],
+                fillColor: adjustColorBrightness(accentColor, -20),
+                margin: [12, 12, 14, 12],
+                border: [false, false, false, false] as [boolean, boolean, boolean, boolean],
+              },
+            ]],
           },
-          layout: { hLineWidth: () => 1, vLineWidth: () => 1, hLineColor: () => BRAND.warning, vLineColor: () => BRAND.warning },
+          layout: {
+            hLineWidth: () => 0, vLineWidth: () => 0,
+            paddingLeft: () => 0, paddingRight: () => 0, paddingTop: () => 0, paddingBottom: () => 0,
+          },
+          margin: [0, 0, 0, 0],
+        },
+        // ── 4-cell ownership facts strip ─────────────────────────────────────
+        // The lot number at 16pt is the visual anchor — this is the FIRST thing
+        // an administrator's eye finds when scanning for ownership information.
+        {
+          table: {
+            widths: ["*", "*", "*", "*"],
+            body: [[
+              {
+                stack: [
+                  { text: "N° DE LOT", fontSize: 5.5, bold: true, color: BRAND.mutedLight, characterSpacing: 0.6, margin: [0, 0, 0, 5] },
+                  { text: lotNum, fontSize: 18, bold: true, color: accentColor, characterSpacing: 1 },
+                ],
+                fillColor: BRAND.surface,
+                margin: [14, 12, 14, 12],
+                border: [false, false, false, false] as [boolean, boolean, boolean, boolean],
+              },
+              {
+                stack: [
+                  { text: "TITRE FONCIER", fontSize: 5.5, bold: true, color: BRAND.mutedLight, characterSpacing: 0.6, margin: [0, 0, 0, 5] },
+                  { text: titreFoncier, fontSize: 10, bold: true, color: BRAND.ink, lineHeight: 1.2 },
+                ],
+                fillColor: BRAND.surfaceCard,
+                margin: [14, 12, 14, 12],
+                border: [false, false, false, false] as [boolean, boolean, boolean, boolean],
+              },
+              {
+                stack: [
+                  { text: "QUOTE-PART (‰)", fontSize: 5.5, bold: true, color: BRAND.mutedLight, characterSpacing: 0.6, margin: [0, 0, 0, 5] },
+                  { text: tantiemes !== "—" ? `${tantiemes} ‰` : "—", fontSize: 10, bold: true, color: BRAND.ink },
+                ],
+                fillColor: BRAND.surface,
+                margin: [14, 12, 14, 12],
+                border: [false, false, false, false] as [boolean, boolean, boolean, boolean],
+              },
+              {
+                stack: [
+                  { text: "SURFACE PRIVATIVE", fontSize: 5.5, bold: true, color: BRAND.mutedLight, characterSpacing: 0.6, margin: [0, 0, 0, 5] },
+                  { text: attLotSurface !== "—" ? attLotSurface : "—", fontSize: 10, bold: true, color: BRAND.ink },
+                  ...(attLotFloor ? [{ text: `Étage ${attLotFloor === "0" ? "RDC" : attLotFloor}`, fontSize: 7.5, color: BRAND.muted, margin: [0, 3, 0, 0] as [number, number, number, number] }] : []),
+                ],
+                fillColor: BRAND.surfaceCard,
+                margin: [14, 12, 14, 12],
+                border: [false, false, false, false] as [boolean, boolean, boolean, boolean],
+              },
+            ]],
+          },
+          layout: {
+            hLineWidth: (i: number, node: { table: { body: unknown[] } }) => i === 0 || i === node.table.body.length ? 0.7 : 0,
+            vLineWidth: (i: number, node: { table: { widths: unknown[] } }) => i > 0 && i < node.table.widths.length ? 0.4 : 0.7,
+            hLineColor: () => BRAND.border, vLineColor: () => BRAND.border,
+            paddingLeft: () => 0, paddingRight: () => 0, paddingTop: () => 0, paddingBottom: () => 0,
+          },
+          margin: [0, 8, 0, 18],
+        },
+        // ── Property + Owner 2-column identification ──────────────────────────
+        {
+          columns: [
+            {
+              stack: [
+                { text: "BIEN IMMOBILIER", fontSize: 6, bold: true, color: propDark, characterSpacing: 0.8, margin: [0, 0, 0, 8] },
+                { canvas: [{ type: "line", x1: 0, y1: 0, x2: 230, y2: 0, lineWidth: 1, lineColor: accentColor }], margin: [0, 0, 0, 10] },
+                { text: propName, fontSize: 12, bold: true, color: BRAND.ink, margin: [0, 0, 0, 4] },
+                { text: [propAddress, propCity].filter(Boolean).join(", ") || "—", fontSize: 9, color: BRAND.muted },
+              ],
+              width: "50%",
+            },
+            {
+              stack: [
+                { text: "PROPRIÉTAIRE ATTESTÉ(E)", fontSize: 6, bold: true, color: propDark, characterSpacing: 0.8, margin: [0, 0, 0, 8] },
+                { canvas: [{ type: "line", x1: 0, y1: 0, x2: 230, y2: 0, lineWidth: 1, lineColor: accentColor }], margin: [0, 0, 0, 10] },
+                { text: member || t("notRenseigne", lang), fontSize: 12, bold: true, color: BRAND.ink, margin: [0, 0, 0, 4] },
+                ...(attMemberCIN ? [{ text: `CIN : ${attMemberCIN}`, fontSize: 9, color: BRAND.muted }] : []),
+                { text: `Réf. doc. : ${docNum}`, fontSize: 8, color: BRAND.mutedLight, margin: [0, 6, 0, 0] },
+              ],
+              width: "50%",
+            },
+          ],
+          columnGap: 28,
+          margin: [0, 0, 0, 20],
+        },
+        // ── Ownership certification text ──────────────────────────────────────
+        {
+          table: {
+            widths: [3, "*"],
+            body: [[
+              {
+                canvas: [{ type: "rect", x: 0, y: 0, w: 3, h: 80, color: accentColor }],
+                border: [false, false, false, false] as [boolean, boolean, boolean, boolean],
+              },
+              {
+                stack: [
+                  { text: "ATTESTATION DE PROPRIÉTÉ IMMOBILIÈRE", fontSize: 6, bold: true, color: BRAND.muted, characterSpacing: 0.8, margin: [0, 0, 0, 8] },
+                  {
+                    text: body || (
+                      `Le Syndicat de Copropriété ${syndInfo.name} atteste que ${member || "[NOM DU PROPRIÉTAIRE]"}` +
+                      (attMemberCIN ? `, titulaire de la CIN N° ${attMemberCIN},` : "") +
+                      ` est propriétaire du lot N° ${lotNum} de la résidence ${propName}, inscrit au Titre Foncier N° ${titreFoncier}, ` +
+                      `avec une quote-part de ${tantiemes !== "—" ? `${tantiemes} ‰` : "[tantiemes]"} tantiièmes.\n\n` +
+                      `Cette attestation est établie sur la base des documents figurant au registre du syndicat et est valable pour la situation connue à ce jour.`
+                    ),
+                    fontSize: 9.5, color: BRAND.inkMid, lineHeight: 1.75,
+                  },
+                ],
+                fillColor: `${accentColor}08`,
+                margin: [16, 14, 16, 14],
+                border: [false, false, false, false] as [boolean, boolean, boolean, boolean],
+              },
+            ]],
+          },
+          layout: {
+            hLineWidth: () => 0, vLineWidth: () => 0,
+            paddingLeft: () => 0, paddingRight: () => 0, paddingTop: () => 0, paddingBottom: () => 0,
+          },
           margin: [0, 0, 0, 16],
+        },
+        // ── Legal disclaimer — regulatory notice style ────────────────────────
+        {
+          table: {
+            widths: ["auto", "*"],
+            body: [[
+              {
+                text: "⚠",
+                fontSize: 13, color: BRAND.warningDark,
+                border: [false, false, false, false] as [boolean, boolean, boolean, boolean],
+                margin: [12, 10, 8, 10],
+              },
+              {
+                text: "Ce document ne constitue pas un titre de propriété au sens du droit foncier marocain. Pour tout acte de disposition juridique (vente, hypothèque, donation), veuillez vous référer au registre foncier compétent.",
+                fontSize: 8, color: BRAND.warningDark, lineHeight: 1.5,
+                border: [false, false, false, false] as [boolean, boolean, boolean, boolean],
+                margin: [0, 10, 14, 10],
+              },
+            ]],
+          },
+          layout: {
+            hLineWidth: (i: number, node: { table: { body: unknown[] } }) => i === 0 || i === node.table.body.length ? 0.8 : 0,
+            vLineWidth: (i: number, node: { table: { widths: unknown[] } }) => i === 0 || i === node.table.widths.length ? 0.8 : 0,
+            hLineColor: () => BRAND.warning, vLineColor: () => BRAND.warning,
+            fillColor: () => BRAND.warningLight,
+            paddingLeft: () => 0, paddingRight: () => 0, paddingTop: () => 0, paddingBottom: () => 0,
+          },
+          margin: [0, 0, 0, 20],
         },
         signatureBlock(t("presidentTitle", lang), syndInfo.name, accentColor, true, lang, signatures),
         legalFooterNote(docNum, lang, verifyUrl),

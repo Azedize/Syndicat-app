@@ -1,0 +1,114 @@
+Le problème actuel est que plusieurs templates utilisent encore une logique de design héritée ("old design") qui ne correspond pas au niveau attendu d'une plateforme SaaS Enterprise moderne.
+
+Je ne veux plus conserver aucun ancien design pour les familles suivantes :
+
+* Attestation d'adhésion
+* Attestation de résidence
+* Attestation de propriété
+* Attestation de paiement
+* Certificat
+* Certificat administratif
+* Certificat de conformité
+* Certificat de présence
+* Tous les documents assimilés aux attestations et certificats
+
+Je ne veux pas améliorer légèrement le design existant.
+
+Je veux supprimer totalement l'ancien design et reconstruire ces templates depuis zéro.
+
+L'objectif est que ces documents ressemblent à des documents officiels générés par :
+
+* Adobe Sign
+* DocuSign
+* Salesforce
+* Microsoft Dynamics
+* SAP
+* Oracle
+* Administration numérique moderne
+
+Le design actuel présente encore plusieurs problèmes :
+
+* Structure héritée trop simple.
+* Aspect formulaire PDF classique.
+* Hiérarchie visuelle faible.
+* Zones d'information mal organisées.
+* Header trop administratif.
+* Signatures mal intégrées.
+* Cachet peu crédible.
+* Absence d'identité institutionnelle forte.
+* Trop d'éléments génériques réutilisés entre plusieurs templates.
+* Certaines attestations utilisent pratiquement le même layout alors que leur objectif métier est totalement différent.
+
+Je veux qu'avant toute modification, chaque template soit analysé individuellement.
+
+Pour chaque template :
+
+* Identifier les composants hérités de l'ancien design.
+* Identifier les blocs réutilisés qui dégradent l'identité du document.
+* Identifier les sections inutiles.
+* Identifier les éléments qui provoquent une impression de document amateur.
+
+Puis reconstruire complètement le template.
+
+Je veux une architecture documentaire moderne :
+
+1. Header institutionnel compact.
+2. Bloc identité du document.
+3. Bloc identité du bénéficiaire.
+4. Bloc principal métier.
+5. Bloc de certification.
+6. Bloc signatures.
+7. Bloc vérification QR.
+8. Footer institutionnel.
+
+Je ne veux plus de simples titres suivis d'un paragraphe.
+
+Je veux une vraie structure documentaire professionnelle.
+
+Pour les Attestations :
+
+* Mettre le bénéficiaire au centre du document.
+* Afficher les informations importantes sous forme de cartes professionnelles.
+* Mettre en avant le statut.
+* Mettre en avant la référence.
+* Mettre en avant la date.
+* Mettre en avant la validité.
+
+Pour les Certificats :
+
+* Donner une apparence officielle.
+* Renforcer la crédibilité visuelle.
+* Utiliser une structure proche d'un document administratif certifié.
+* Mettre en avant l'autorité émettrice.
+* Mettre en avant la certification accordée.
+
+Je veux que chaque template ait :
+
+* sa propre personnalité visuelle,
+* sa propre structure,
+* sa propre hiérarchie,
+* sa propre logique métier.
+
+Je refuse tout copier-coller entre Attestation de résidence, Attestation de propriété et Attestation de paiement.
+
+Chaque document doit pouvoir être reconnu immédiatement sans lire son titre.
+
+Je veux également supprimer toute trace de l'ancien design :
+
+* anciens encadrés,
+* anciennes cartes,
+* anciens bandeaux,
+* anciennes sections,
+* anciennes marges,
+* anciens blocs de signature,
+* anciens layouts.
+
+Remplacer par un Design System Enterprise cohérent basé sur les composants modernes de l'application.
+
+Ne pas créer de documentation.
+
+Ne pas créer de rapport.
+
+Ne pas expliquer les modifications.
+
+Analyser le template actuel, supprimer les composants hérités, puis reconstruire le document directement dans le code avec une nouvelle architecture visuelle Enterprise SaaS.

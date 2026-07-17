@@ -1,0 +1,219 @@
+Tu es un Senior Enterprise UX Designer, Senior SaaS Product Designer, PDF Architect, Adobe Sign Designer, DocuSign Designer, SAP Fiori Designer et Oracle ERP Designer.
+
+Je ne veux plus de corrections mineures.
+
+Je ne veux plus :
+
+* changer quelques tailles de police,
+* agrandir un logo,
+* modifier une couleur,
+* ajouter un bandeau,
+* ajouter une bordure,
+* déplacer un QR code.
+
+Je considère que le problème actuel est beaucoup plus profond.
+
+Le problème est architectural.
+
+Le moteur PDF produit encore des documents qui ressemblent à des formulaires administratifs classiques ou à des PDF générés automatiquement par un petit système interne.
+
+Mon objectif est d'atteindre un niveau comparable à :
+
+* Adobe Sign
+* DocuSign
+* Salesforce
+* Microsoft Dynamics 365
+* SAP Fiori
+* Oracle ERP
+* Workday
+* Odoo Enterprise
+
+Analyse tous les templates existants et identifie les problèmes suivants.
+
+PROBLÈME 1 — ABSENCE D'IDENTITÉ VISUELLE FORTE
+
+Aujourd'hui, lorsque j'ouvre un document :
+
+* Attestation
+* Rapport financier
+* PV
+* Convocation
+* Contrat
+* Décision
+
+j'ai l'impression de voir presque la même structure.
+
+Seules quelques couleurs changent.
+
+Je veux que chaque famille documentaire possède sa propre identité visuelle.
+
+Un rapport financier doit immédiatement être identifiable comme un document financier.
+
+Un PV doit immédiatement être identifiable comme un document de gouvernance.
+
+Une attestation doit immédiatement être identifiable comme un document officiel de certification.
+
+Je ne veux plus de templates génériques.
+
+PROBLÈME 2 — LE HEADER RESTE TROP LOURD
+
+Le Header continue à consommer une partie importante de la page.
+
+Le lecteur regarde le Header au lieu de regarder le contenu métier.
+
+Le Header doit devenir un élément de branding compact.
+
+Je veux :
+
+* moins de hauteur,
+* moins de blocs,
+* moins d'éléments décoratifs,
+* plus de place pour le contenu.
+
+PROBLÈME 3 — TYPOGRAPHIE NON ENTERPRISE
+
+La hiérarchie visuelle actuelle est faible.
+
+Les titres, sous-titres, valeurs et textes descriptifs sont trop proches visuellement.
+
+Je veux :
+
+* une hiérarchie forte,
+* des contrastes visuels clairs,
+* des tailles cohérentes,
+* des poids de police cohérents,
+* une lecture immédiate.
+
+Le document doit paraître conçu par une équipe produit professionnelle.
+
+PROBLÈME 4 — KPI ET TABLEAUX TROP SIMPLES
+
+Les KPI ressemblent encore à de simples cartes HTML.
+
+Les tableaux ressemblent encore à des tableaux techniques.
+
+Je veux des composants dignes d'un ERP.
+
+Les chiffres importants doivent dominer visuellement la page.
+
+Les données doivent être plus faciles à scanner.
+
+PROBLÈME 5 — ZONES DE SIGNATURES FAIBLES
+
+C'est actuellement la partie la moins professionnelle du système.
+
+Les blocs de signatures ressemblent à des formulaires.
+
+Les signatures réelles ne sont pas suffisamment mises en valeur.
+
+Les cachets ne donnent pas une impression institutionnelle.
+
+Je veux un système de signatures inspiré de :
+
+* Adobe Sign
+* DocuSign
+* SignNow
+
+avec :
+
+* signataires clairement identifiés,
+* statut de validation,
+* date,
+* rôle,
+* cachet institutionnel crédible.
+
+PROBLÈME 6 — TROP DE DÉCORATIONS INUTILES
+
+Le système utilise encore :
+
+* des lignes décoratives,
+* des bandeaux,
+* des séparateurs,
+* des cadres,
+* des éléments graphiques qui n'apportent aucune information.
+
+Je veux supprimer tout bruit visuel.
+
+Chaque élément doit avoir une fonction métier.
+
+PROBLÈME 7 — MAUVAISE UTILISATION DE L'ESPACE
+
+Plusieurs documents occupent :
+
+* 2 pages au lieu d'1,
+* 3 pages au lieu de 2.
+
+Je veux optimiser :
+
+* marges,
+* espacements,
+* hauteurs des composants,
+* zones de signatures,
+* blocs de métadonnées.
+
+L'objectif est de réduire la pagination inutile.
+
+PROBLÈME 8 — DESIGN NON ALIGNÉ AVEC L'APPLICATION
+
+Les documents doivent donner l'impression d'appartenir à la même plateforme que l'application mobile.
+
+Je veux que :
+
+* les composants,
+* les couleurs,
+* les espacements,
+* les cartes,
+* les badges,
+* les statuts,
+
+soient dérivés du Design System réel de l'application.
+
+Aucune couleur arbitraire.
+
+Aucun composant inventé localement.
+
+PROBLÈME 9 — ABSENCE DE NIVEAU ENTERPRISE
+
+Quand je regarde les PDF actuels, je vois encore :
+
+* un PDF généré,
+* un formulaire amélioré,
+* un template.
+
+Je ne vois pas :
+
+* un document exécutif,
+* un document institutionnel,
+* un document de gouvernance,
+* un document financier professionnel.
+
+Je veux que chaque document inspire immédiatement :
+
+* confiance,
+* crédibilité,
+* professionnalisme,
+* autorité.
+
+MISSION
+
+Ne pas faire de petites corrections.
+
+Ne pas améliorer l'ancien design.
+
+Supprimer la logique héritée.
+
+Analyser template par template.
+
+Reconstruire les composants.
+
+Reconstruire la hiérarchie visuelle.
+
+Reconstruire les layouts.
+
+Reconstruire les signatures.
+
+Reconstruire les familles documentaires.
+
+Objectif final :
+
+Passer d'un niveau estimé de 5/10–6/10 à un niveau Enterprise SaaS de 9/10 minimum sur les 32 templates.
