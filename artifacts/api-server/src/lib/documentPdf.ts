@@ -631,16 +631,18 @@ function buildHeaderBand(
     margin: [0, 0, 0, 0],
   };
 
-  // ── COL 3: doc reference + tiny QR ───────────────────────────────────────
+  // ── COL 3: doc reference + large QR (Gen4 — 50pt) ───────────────────────
   const col3Stack: unknown[] = [
-    { text: `N° ${docNumber}`, fontSize: 7.5, bold: true, color: BRAND.ink, characterSpacing: 0.2, margin: [0, 0, 0, 1] },
-    { text: today, fontSize: 6, color: BRAND.muted, margin: [0, 0, 0, 3] },
+    { text: "DOCUMENT NO.", fontSize: 4.5, bold: true, color: BRAND.muted, characterSpacing: 0.8, margin: [0, 0, 0, 1] },
+    { text: `N° ${docNumber}`, fontSize: 7.5, bold: true, color: BRAND.ink, characterSpacing: 0.2, margin: [0, 0, 0, 3] },
+    { text: "ISSUE DATE", fontSize: 4.5, bold: true, color: BRAND.muted, characterSpacing: 0.8, margin: [0, 0, 0, 1] },
+    { text: today, fontSize: 6, color: BRAND.muted, margin: [0, 0, 0, 4] },
     ...(statusChip
       ? [{ text: `● ${statusChip.label}`, fontSize: 5.5, bold: true, color: statusChip.color, margin: [0, 0, 0, 4] as [number, number, number, number] }]
       : []),
     ...(qrDataUrl
-      ? [{ image: qrDataUrl, width: 28, height: 28, alignment: "center" as const }]
-      : [{ canvas: [{ type: "rect", x: 0, y: 0, w: 28, h: 28, r: 2, color: BRAND.border }], alignment: "center" as const }]
+      ? [{ image: qrDataUrl, width: 50, height: 50, alignment: "center" as const }]
+      : [{ canvas: [{ type: "rect", x: 0, y: 0, w: 50, h: 50, r: 2, color: BRAND.border }], alignment: "center" as const }]
     ),
     { text: "SCAN · VÉRIFIER", fontSize: 4.5, bold: true, color: BRAND.mutedLight, characterSpacing: 0.4, alignment: "center" as const, margin: [0, 2, 0, 0] },
   ];
@@ -648,7 +650,7 @@ function buildHeaderBand(
   // ── Single-row band — white background throughout ────────────────────────
   const bandRow: unknown = {
     table: {
-      widths: [42, "*", 82],
+      widths: [42, "*", 108],
       body: [[
         // COL 1 — Monogram on white
         {
@@ -802,6 +804,241 @@ function adjustColorBrightness(hex: string, delta: number): string {
   const g = Math.min(255, Math.max(0, ((n >> 8) & 0xff) + delta));
   const b = Math.min(255, Math.max(0, (n & 0xff) + delta));
   return `#${((r << 16) | (g << 8) | b).toString(16).padStart(6, "0")}`;
+}
+
+// ─── Gen4 Sidebar Info Panel ─────────────────────────────────────────────────
+/**
+ * buildSidebarInfoPanel — bordered info panel matching "SUPPLIER INFORMATION" in Image 1.
+ * Header row: accent bg + white bold title left + icon circle right.
+ * Body: each row has label (5.5pt muted caps) + value (9pt bold ink).
+ * Alternating row backgrounds. Border: 1pt accent on top and sides.
+ */
+function buildSidebarInfoPanel(
+  title: string,
+  iconLabel: string,
+  rows: Array<[string, string]>,
+  accentColor: string,
+): unknown {
+  const bodyRows = rows.map((row, i) => {
+    const bg = i % 2 === 0 ? BRAND.surface : BRAND.surfaceCard;
+    return [
+      {
+        stack: [
+          { text: (row[0] || "").toUpperCase(), fontSize: 5.5, bold: true, color: BRAND.muted, characterSpacing: 0.7, margin: [0, 0, 0, 2] },
+          { text: row[1] || "—", fontSize: 9, bold: true, color: BRAND.ink, lineHeight: 1.2 },
+        ],
+        fillColor: bg,
+        margin: [10, 7, 10, 7],
+        border: [false, false, false, false] as [boolean, boolean, boolean, boolean],
+        colSpan: 1,
+      },
+    ];
+  });
+
+  return {
+    stack: [
+      // Header
+      {
+        table: {
+          widths: ["*", 26],
+          body: [[
+            {
+              text: title.toUpperCase(),
+              fontSize: 7, bold: true, color: BRAND.surfaceCard, characterSpacing: 0.6,
+              fillColor: accentColor,
+              margin: [10, 8, 6, 8],
+              border: [false, false, false, false] as [boolean, boolean, boolean, boolean],
+            },
+            {
+              stack: [
+                { canvas: [{ type: "ellipse", x: 10, y: 10, r1: 10, r2: 10, color: `${BRAND.surfaceCard}33` }], margin: [0, 0, 0, -22] },
+                { text: iconLabel, fontSize: 10, bold: true, color: BRAND.surfaceCard, alignment: "center" as const, margin: [0, 4, 0, 0] },
+              ],
+              fillColor: accentColor,
+              margin: [0, 4, 4, 4],
+              border: [false, false, false, false] as [boolean, boolean, boolean, boolean],
+            },
+          ]],
+        },
+        layout: { hLineWidth: () => 0, vLineWidth: () => 0, paddingLeft: () => 0, paddingRight: () => 0, paddingTop: () => 0, paddingBottom: () => 0 },
+      },
+      // Body rows
+      {
+        table: {
+          widths: ["*"],
+          body: bodyRows.map(r => r),
+        },
+        layout: {
+          hLineWidth: (i: number, node: { table: { body: unknown[] } }) => i === 0 || i === node.table.body.length ? 0 : 0.4,
+          vLineWidth: () => 0,
+          hLineColor: () => BRAND.border,
+          paddingLeft: () => 0, paddingRight: () => 0, paddingTop: () => 0, paddingBottom: () => 0,
+        },
+      },
+    ],
+    margin: [0, 0, 0, 10],
+  };
+}
+
+// ─── Gen4 Validation Status Panel ────────────────────────────────────────────
+/**
+ * buildValidationStatusPanel — matches the "VALIDATION STATUS" panel in Image 1.
+ * Status badge with icon + label + sublabel.
+ */
+function buildValidationStatusPanel(
+  status: string,
+  accentColor: string,
+  _lang: DocumentLanguage,
+): unknown {
+  type StatusConfig = { icon: string; label: string; sublabel: string; color: string; bg: string };
+  const statusMap: Record<string, StatusConfig> = {
+    validated:      { icon: "✓", label: "VALIDÉ",                    sublabel: "Document approuvé",         color: BRAND.successDeep, bg: BRAND.successLight },
+    published:      { icon: "✓", label: "PUBLIÉ",                    sublabel: "Document publié",            color: BRAND.successDeep, bg: BRAND.successLight },
+    signed:         { icon: "✓", label: "SIGNÉ",                     sublabel: "Signature enregistrée",      color: BRAND.primary,     bg: BRAND.primaryLighter },
+    pending_review: { icon: "▲", label: "EN ATTENTE D'APPROBATION",  sublabel: "Approbation requise",        color: BRAND.warningDark, bg: BRAND.warningLight },
+    generated:      { icon: "▲", label: "EN ATTENTE D'APPROBATION",  sublabel: "Approbation requise",        color: BRAND.warningDark, bg: BRAND.warningLight },
+    draft:          { icon: "▲", label: "BROUILLON",                  sublabel: "Non finalisé",               color: BRAND.muted,       bg: BRAND.surfaceAlt },
+    rejected:       { icon: "✗", label: "REJETÉ",                    sublabel: "Document rejeté",            color: BRAND.destructiveDark, bg: BRAND.destructiveLight },
+    archived:       { icon: "◉", label: "ARCHIVÉ",                   sublabel: "Archivé",                    color: BRAND.muted,       bg: BRAND.surfaceAlt },
+  };
+  const cfg = statusMap[status] ?? statusMap["generated"];
+
+  return {
+    stack: [
+      // Header
+      {
+        table: {
+          widths: ["*"],
+          body: [[{
+            text: "STATUT DE VALIDATION",
+            fontSize: 6.5, bold: true, color: BRAND.surfaceCard, characterSpacing: 0.8,
+            fillColor: BRAND.ink,
+            margin: [10, 7, 10, 7],
+            border: [false, false, false, false] as [boolean, boolean, boolean, boolean],
+          }]],
+        },
+        layout: { hLineWidth: () => 0, vLineWidth: () => 0, paddingLeft: () => 0, paddingRight: () => 0, paddingTop: () => 0, paddingBottom: () => 0 },
+      },
+      // Status body
+      {
+        table: {
+          widths: ["*"],
+          body: [[{
+            stack: [
+              {
+                columns: [
+                  { text: cfg.icon, fontSize: 14, bold: true, color: cfg.color, width: 20, margin: [0, 2, 0, 0] },
+                  {
+                    stack: [
+                      { text: cfg.label, fontSize: 7.5, bold: true, color: cfg.color, characterSpacing: 0.3, margin: [0, 0, 0, 2] },
+                      { text: cfg.sublabel, fontSize: 6, color: BRAND.muted },
+                    ],
+                    width: "*",
+                  },
+                ],
+              },
+            ],
+            fillColor: cfg.bg,
+            margin: [10, 10, 10, 10],
+            border: [false, false, false, false] as [boolean, boolean, boolean, boolean],
+          }]],
+        },
+        layout: {
+          hLineWidth: (i: number, node: { table: { body: unknown[] } }) => i === 0 || i === node.table.body.length ? 0.5 : 0,
+          vLineWidth: () => 0,
+          hLineColor: () => BRAND.border,
+          paddingLeft: () => 0, paddingRight: () => 0, paddingTop: () => 0, paddingBottom: () => 0,
+        },
+      },
+    ],
+    margin: [0, 0, 0, 10],
+  };
+}
+
+// ─── Gen4 Digital Verification Panel ─────────────────────────────────────────
+/**
+ * buildDigitalVerificationPanel — "VÉRIFICATION NUMÉRIQUE" sidebar panel from Image 1.
+ * QR code (40pt) left + descriptive text right + verification ID + URL.
+ */
+function buildDigitalVerificationPanel(
+  qrDataUrl: string,
+  docNumber: string,
+  verifyUrl: string | undefined,
+  accentColor: string,
+  _lang: DocumentLanguage,
+): unknown {
+  const displayUrl = verifyUrl || `syndycat.ma/verify/${docNumber}`;
+  const shortUrl = displayUrl.length > 40 ? displayUrl.slice(0, 37) + "..." : displayUrl;
+  const verId = `VER-${docNumber.replace(/[^A-Z0-9]/gi, "").slice(-6).toUpperCase()}`;
+
+  return {
+    stack: [
+      // Header
+      {
+        table: {
+          widths: ["*"],
+          body: [[{
+            text: "VÉRIFICATION NUMÉRIQUE",
+            fontSize: 6.5, bold: true, color: BRAND.surfaceCard, characterSpacing: 0.8,
+            fillColor: accentColor,
+            margin: [10, 7, 10, 7],
+            border: [false, false, false, false] as [boolean, boolean, boolean, boolean],
+          }]],
+        },
+        layout: { hLineWidth: () => 0, vLineWidth: () => 0, paddingLeft: () => 0, paddingRight: () => 0, paddingTop: () => 0, paddingBottom: () => 0 },
+      },
+      // QR + text body
+      {
+        table: {
+          widths: ["*"],
+          body: [[{
+            stack: [
+              {
+                columns: [
+                  qrDataUrl
+                    ? { image: qrDataUrl, width: 40, height: 40, margin: [0, 0, 8, 0] }
+                    : { canvas: [{ type: "rect", x: 0, y: 0, w: 40, h: 40, r: 2, color: BRAND.border }], width: 40, margin: [0, 0, 8, 0] },
+                  {
+                    stack: [
+                      { text: "Scannez ce QR code pour vérifier l'authenticité du document.", fontSize: 6.5, color: BRAND.inkLight, lineHeight: 1.4, margin: [0, 0, 0, 6] },
+                      { text: `ID de vérification : ${verId}`, fontSize: 6.5, bold: true, color: accentColor, margin: [0, 0, 0, 3] },
+                      { text: `Vérifiez sur : ${shortUrl}`, fontSize: 5.5, color: BRAND.muted, lineHeight: 1.3 },
+                    ],
+                    width: "*",
+                  },
+                ],
+              },
+            ],
+            fillColor: BRAND.surface,
+            margin: [10, 10, 10, 10],
+            border: [false, false, false, false] as [boolean, boolean, boolean, boolean],
+          }]],
+        },
+        layout: {
+          hLineWidth: (i: number, node: { table: { body: unknown[] } }) => i === 0 || i === node.table.body.length ? 0.5 : 0,
+          vLineWidth: () => 0,
+          hLineColor: () => BRAND.border,
+          paddingLeft: () => 0, paddingRight: () => 0, paddingTop: () => 0, paddingBottom: () => 0,
+        },
+      },
+    ],
+    margin: [0, 0, 0, 10],
+  };
+}
+
+// ─── Gen4 Two-Column Layout Helper ───────────────────────────────────────────
+/**
+ * buildTwoColumnLayout — financial doc two-column layout: 62% main + 38% sidebar.
+ */
+function buildTwoColumnLayout(mainContent: unknown[], sidebarContent: unknown[]): unknown {
+  return {
+    columns: [
+      { stack: mainContent, width: "62%" },
+      { stack: sidebarContent, width: "38%" },
+    ],
+    columnGap: 14,
+    margin: [0, 0, 0, 0],
+  };
 }
 
 // ─── Shared building blocks ───────────────────────────────────────────────────
@@ -1132,44 +1369,53 @@ function contentSection(title: string, text: string, accentColor: string, isRtl 
 // for financial PDF templates.
 
 /**
- * Renders a 3-column row of KPI metric cards.
- * Each card: small label on top, large bold value, optional sub-label.
+ * Renders a row of KPI metric cards (Gen4 design).
+ * Each card: optional icon circle + label (5.5pt caps) + value (26pt bold) + sublabel.
+ * All 4 sides bordered (0.5pt), supports any number of cards.
  */
 function kpiRow(
-  cards: Array<{ label: string; value: string; sublabel?: string; valueColor?: string; bgColor?: string }>,
+  cards: Array<{ label: string; value: string; sublabel?: string; valueColor?: string; bgColor?: string; icon?: string }>,
   accentColor: string,
 ): unknown {
-  // Generation 3 KPI card — dominant metric at 28pt.
-  // Design: 3pt left accent bar + pale fill tint. No border box.
-  // • Label: 5.5pt tracked all-caps — recedes, purely functional
-  // • Value: 28pt bold — the number IS the card; cannot be missed
-  // • Sublabel: 7pt muted — supporting context below value
-  // This mirrors Workday and Oracle Fusion financial widget style.
+  // Generation 4 KPI card — icon circle above label + 4-side border.
+  // Design mirrors Image 1: colored circle icon + small label + 26pt bold value + sublabel.
+  const cardColor = (c: (typeof cards)[0]) => c.valueColor || accentColor;
   const makeCard = (c: (typeof cards)[0]) => ({
     table: {
-      widths: [3, "*"],
-      body: [[
-        {
-          canvas: [{ type: "rect", x: 0, y: 0, w: 3, h: 64, color: c.valueColor || accentColor }],
-          border: [false, false, false, false] as [boolean, boolean, boolean, boolean],
-          margin: [0, 0, 0, 0],
-        },
-        {
-          stack: [
-            { text: c.label.toUpperCase(), fontSize: 5.5, bold: true, color: BRAND.muted, characterSpacing: 0.9, margin: [0, 0, 0, 5] },
-            { text: c.value, fontSize: 28, bold: true, color: c.valueColor || accentColor, lineHeight: 1, margin: [0, 0, 0, 4] },
-            ...(c.sublabel ? [{ text: c.sublabel, fontSize: 7, color: BRAND.muted }] : []),
-          ],
-          fillColor: c.bgColor || BRAND.surface,
-          margin: [12, 12, 12, 12],
-          border: [false, false, false, false] as [boolean, boolean, boolean, boolean],
-        },
-      ]],
+      widths: ["*"],
+      body: [[{
+        stack: [
+          // Icon circle (if icon provided)
+          ...(c.icon ? [
+            {
+              columns: [
+                {
+                  stack: [
+                    { canvas: [{ type: "ellipse", x: 9, y: 9, r1: 9, r2: 9, color: cardColor(c) }], margin: [0, 0, 0, -20] },
+                    { text: c.icon, fontSize: 9, bold: true, color: BRAND.surfaceCard, alignment: "center" as const, margin: [0, 3, 0, 0] },
+                  ],
+                  width: 18,
+                  margin: [0, 0, 6, 0],
+                },
+                { text: "", width: "*" },
+              ],
+              margin: [0, 0, 0, 6],
+            },
+          ] : []),
+          { text: c.label.toUpperCase(), fontSize: 5.5, bold: true, color: BRAND.muted, characterSpacing: 0.9, margin: [0, 0, 0, 4] },
+          { text: c.value, fontSize: 26, bold: true, color: cardColor(c), lineHeight: 1, margin: [0, 0, 0, 4] },
+          ...(c.sublabel ? [{ text: c.sublabel, fontSize: 6.5, color: BRAND.muted }] : []),
+        ],
+        fillColor: c.bgColor || BRAND.surface,
+        margin: [12, 12, 12, 12],
+        border: [true, true, true, true] as [boolean, boolean, boolean, boolean],
+      }]],
     },
     layout: {
       hLineWidth: (i: number, node: { table: { body: unknown[] } }) => i === 0 || i === node.table.body.length ? 0.5 : 0,
-      vLineWidth: () => 0,
+      vLineWidth: (i: number, node: { table: { widths: unknown[] } }) => i === 0 || i === node.table.widths.length ? 0.5 : 0,
       hLineColor: () => BRAND.border,
+      vLineColor: () => BRAND.border,
       paddingLeft: () => 0, paddingRight: () => 0, paddingTop: () => 0, paddingBottom: () => 0,
     },
   });
@@ -1459,13 +1705,16 @@ function multiSignatoryBlock(
         margin: [0, 0, 0, 6],
       });
 
-      // SVG trace in a framed tinted box, or empty trace area
+      // SVG trace in a framed tinted box, or empty trace area — Gen4: 60pt tall + DocuSign label
       if (hasTrace) {
         signerCardContents.push({
           table: {
             widths: ["*"],
             body: [[{
-              stack: [{ svg: sig.signatureData, width: 110, height: 46, alignment: "center" as const }],
+              stack: [
+                { text: "DocuSigned par :", fontSize: 7, italics: true, color: BRAND.muted, margin: [4, 4, 0, 2] },
+                { svg: sig.signatureData, width: 110, height: 48, alignment: "center" as const },
+              ],
               fillColor: BRAND.primaryLighter,
               margin: [6, 4, 6, 4],
               border: [true, true, true, true] as [boolean, boolean, boolean, boolean],
@@ -1481,13 +1730,18 @@ function multiSignatoryBlock(
           margin: [0, 0, 0, 5],
         });
       } else {
-        // Trace area — solid accent line (handwriting not available)
+        // Trace area — DocuSign-style 60pt tall box with label + dash line
         signerCardContents.push({
           canvas: [
-            { type: "rect", x: 4, y: 0, w: 120, h: 44, r: 3, color: BRAND.primaryLighter, lineWidth: 0.5, lineColor: `${accentColor}44` },
-            { type: "line", x1: 16, y1: 30, x2: 116, y2: 30, lineWidth: 1.2, lineColor: `${accentColor}55` },
+            { type: "rect", x: 4, y: 0, w: 120, h: 60, r: 3, color: BRAND.primaryLighter, lineWidth: 0.5, lineColor: `${accentColor}44` },
+            { type: "line", x1: 16, y1: 46, x2: 116, y2: 46, lineWidth: 1.2, lineColor: `${accentColor}55` },
           ],
-          margin: [0, 0, 0, 5],
+          margin: [0, 0, 0, 0],
+        });
+        signerCardContents.push({
+          text: "DocuSigned par :",
+          fontSize: 7, italics: true, color: BRAND.muted,
+          margin: [8, -55, 0, 38],
         });
       }
 
@@ -1685,15 +1939,18 @@ function signatureBlock(
                 // Name + role
                 { text: sig.signerName, fontSize: 11, bold: true, color: BRAND.ink, alignment: "center" as const, margin: [0, 0, 0, 2] },
                 { text: roleLabel(sig.signerRole, lang), fontSize: 7.5, color: accentColor, alignment: "center" as const, margin: [0, 0, 0, 8] },
-                // SVG trace in framed tinted box, or solid line placeholder
+                // SVG trace — Gen4: DocuSign-style label + 60pt tall trace box
                 hasTrace
                   ? {
                       table: {
                         widths: ["*"],
                         body: [[{
-                          stack: [{ svg: sig.signatureData, width: 180, height: 60, alignment: "center" as const }],
+                          stack: [
+                            { text: "DocuSigned par :", fontSize: 7, italics: true, color: BRAND.muted, margin: [6, 4, 0, 2] },
+                            { svg: sig.signatureData, width: 180, height: 50, alignment: "center" as const },
+                          ],
                           fillColor: BRAND.primaryLighter,
-                          margin: [8, 6, 8, 6],
+                          margin: [8, 4, 8, 6],
                           border: [true, true, true, true] as [boolean, boolean, boolean, boolean],
                         }]],
                       },
@@ -1706,9 +1963,16 @@ function signatureBlock(
                       margin: [0, 0, 0, 6],
                     }
                   : {
-                      canvas: [
-                        { type: "rect" as const, x: 0, y: 0, w: 240, h: 56, r: 3, color: BRAND.primaryLighter, lineWidth: 0.5, lineColor: `${accentColor}44` },
-                        { type: "line" as const, x1: 20, y1: 40, x2: 220, y2: 40, lineWidth: 1.2, lineColor: `${accentColor}55` },
+                      stack: [
+                        {
+                          canvas: [
+                            { type: "rect" as const, x: 0, y: 0, w: 240, h: 60, r: 3, color: BRAND.primaryLighter, lineWidth: 0.5, lineColor: `${accentColor}44` },
+                            { type: "line" as const, x1: 20, y1: 46, x2: 220, y2: 46, lineWidth: 1.2, lineColor: `${accentColor}55` },
+                          ],
+                          margin: [0, 0, 0, 0],
+                        },
+                        { text: "DocuSigned par :", fontSize: 7, italics: true, color: BRAND.muted, margin: [6, -56, 0, 38] },
+                        { text: "—", fontSize: 14, color: `${accentColor}44`, margin: [80, 0, 0, 0] },
                       ],
                       margin: [0, 0, 0, 6],
                     },

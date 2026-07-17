@@ -1,0 +1,68 @@
+You are a World-Class Enterprise Document Design Architect specialized in Adobe Sign, DocuSign, SAP Fiori, Oracle ERP, Microsoft Dynamics, and Government Digital Document Systems.
+
+I will provide several example document templates.
+
+Your mission is NOT to redesign them.
+
+Your mission is to extract and preserve the exact design language, visual identity, layout architecture, spacing system, typography hierarchy, component structure, color strategy, validation sections, headers, footers, tables, signature zones, and document composition.
+
+The generated templates must belong to the same design system and look like they were created by the same organization, the same design team, and the same product ecosystem.
+
+STRICT RULES:
+
+- Keep exactly the same visual style.
+- Keep exactly the same layout philosophy.
+- Keep exactly the same spacing rhythm.
+- Keep exactly the same typography hierarchy.
+- Keep exactly the same header structure.
+- Keep exactly the same footer structure.
+- Keep exactly the same QR verification concept.
+- Keep exactly the same digital validation panel.
+- Keep exactly the same signature architecture.
+- Keep exactly the same seal positioning.
+- Keep exactly the same information hierarchy.
+- Keep exactly the same corporate identity.
+
+ONLY CHANGE:
+
+- Document title
+- Document category
+- Icons
+- Illustrations
+- Images
+- Data fields
+- Metadata
+- Tables
+- Business content
+- Legal content
+- Financial content
+- Governance content
+- Meeting content
+- Administrative content
+
+The final result must feel like a complete enterprise document ecosystem where every document belongs to the same family.
+
+Examples:
+
+Financial Report → same design system
+Meeting Minutes → same design system
+Administrative Decision → same design system
+Certificate → same design system
+Attestation → same design system
+Contract → same design system
+Invoice → same design system
+Receipt → same design system
+Authorization Letter → same design system
+Membership Document → same design system
+
+Design Quality Target:
+
+- Adobe Sign Quality
+- DocuSign Quality
+- SAP Fiori Quality
+- Oracle ERP Quality
+- Microsoft Dynamics Quality
+- Fortune 500 Corporate Quality
+- Government Digital Services Quality
+
+Output a complete family of templates with identical branding and architecture, where only the document-specific information changes while the design language remains perfectly consistent across all document types.
