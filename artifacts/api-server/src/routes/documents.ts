@@ -64,6 +64,7 @@ import {
   type SyndicateInfo,
   type PropertyInfo,
   type OfficeHolders,
+  type InlineSignatureInfo,
 } from "../lib/documentPdf.js";
 import { createAlert, sendEmail, sendEmailToMany } from "../lib/notify.js";
 import { computeRetentionUntil, expiryBucket } from "../lib/retention.js";
@@ -3202,6 +3203,28 @@ router.post(
           expiresAt: parsedExpiresAt && !Number.isNaN(parsedExpiresAt.getTime()) ? parsedExpiresAt : null,
           // Legal retention — computed from category/template, see lib/retention.ts
           retentionUntil: computeRetentionUntil(category, template, createdAt),
+          // Store entity IDs + form fields to enable full PDF regeneration with inline signatures
+          generationParams: {
+            buildingId: buildingId ?? null,
+            meetingId:        (extraFields.meetingId        as string | undefined) ?? null,
+            lotId:            (extraFields.lotId            as string | undefined) ?? null,
+            memberId:         (extraFields.memberId         as string | undefined) ?? null,
+            appelDeFondsId:   (extraFields.appelDeFondsId   as string | undefined) ?? null,
+            budgetId:         (extraFields.budgetId         as string | undefined) ?? null,
+            electionId:       (extraFields.electionId       as string | undefined) ?? null,
+            invoiceId:        (extraFields.invoiceId        as string | undefined) ?? null,
+            tenantId:         (extraFields.tenantId         as string | undefined) ?? null,
+            sinistreId:       (extraFields.sinistreId       as string | undefined) ?? null,
+            travauxId:        (extraFields.travauxId        as string | undefined) ?? null,
+            memberName:       memberName ?? null,
+            formFields: Object.fromEntries(
+              Object.entries(extraFields).filter(([k]) =>
+                !["meetingId","lotId","memberId","appelDeFondsId","budgetId",
+                  "electionId","invoiceId","tenantId","sinistreId","travauxId",
+                  "_existingDocumentId"].includes(k)
+              )
+            ),
+          },
         } as any)
         .returning();
 
@@ -3621,6 +3644,117 @@ router.post(
   },
 );
 
+// ─── Document regeneration with inline signatures ─────────────────────────────
+// Called after signing so every signer's SVG trace appears inline in the document
+// body — not just on an appended page. Requires generationParams saved at creation.
+
+interface GenerationParams {
+  buildingId?: string | null;
+  meetingId?: string | null;
+  lotId?: string | null;
+  memberId?: string | null;
+  appelDeFondsId?: string | null;
+  budgetId?: string | null;
+  electionId?: string | null;
+  invoiceId?: string | null;
+  tenantId?: string | null;
+  sinistreId?: string | null;
+  travauxId?: string | null;
+  memberName?: string | null;
+  formFields?: Record<string, string>;
+}
+
+async function regenerateDocumentWithSignatures(
+  doc: {
+    title: string;
+    content: string | null;
+    templateId: string | null;
+    syndicateId: string | null;
+    documentNumber: string | null;
+    language: string;
+    version: number | null;
+    verificationToken: string | null;
+  },
+  params: GenerationParams,
+  signatures: InlineSignatureInfo[],
+): Promise<string | null> {
+  const template = doc.templateId as DocumentTemplate;
+  if (!template) return null;
+
+  const syndicateId = doc.syndicateId ?? null;
+  const docLanguage = (doc.language as DocumentLanguage) ?? "fr";
+
+  const [syndInfo, property, officeHolders] = await Promise.all([
+    getSyndicateInfo(syndicateId),
+    getPropertyInfo(syndicateId, params.buildingId ?? null),
+    getOfficeHolders(syndicateId),
+  ]);
+
+  const entityLoads: Promise<Record<string, string>>[] = [];
+  if (params.meetingId)      entityLoads.push(getMeetingData(params.meetingId));
+  if (params.appelDeFondsId) entityLoads.push(getAppelDeFondsData(params.appelDeFondsId));
+  if (params.budgetId)       entityLoads.push(getBudgetData(params.budgetId));
+  if (params.electionId)     entityLoads.push(getElectionData(params.electionId));
+  if (params.lotId || params.memberId) {
+    entityLoads.push(getLotMemberData(params.lotId ?? undefined, params.memberId ?? undefined));
+  }
+  if (params.invoiceId)  entityLoads.push(getInvoiceData(params.invoiceId));
+  if (params.tenantId)   entityLoads.push(getTenantData(params.tenantId));
+  if (params.sinistreId) entityLoads.push(getSinistreData(params.sinistreId));
+  if (params.travauxId)  entityLoads.push(getTravauxData(params.travauxId));
+  if (template === "attestation_paiement" && params.lotId) {
+    entityLoads.push(getAttestationPaiementData(
+      params.lotId,
+      params.formFields?.periode ?? null,
+      syndicateId,
+    ));
+  }
+  const isFinancialTemplate = ["appel_de_fonds","recu_paiement","facture",
+    "budget_previsionnel","decompte_charges","rapport_financier"].includes(template);
+  if (isFinancialTemplate) {
+    const kpiYear = params.formFields?.exercice ? parseInt(params.formFields.exercice) : null;
+    entityLoads.push(getFinancialDashboardData(syndicateId, params.buildingId ?? null, kpiYear));
+  }
+  if (template === "decompte_charges" && params.lotId) {
+    entityLoads.push(getDecompteChargesData(
+      params.lotId,
+      params.formFields?.exercice ?? null,
+      syndicateId,
+    ));
+  }
+
+  const entityResults = await Promise.all(entityLoads);
+  const entityData: Record<string, string> = Object.assign({}, ...entityResults);
+
+  if (officeHolders?.treasurer?.fullName && !entityData.etabliPar) {
+    entityData.etabliPar = officeHolders.treasurer.fullName;
+  }
+  if (officeHolders?.president?.fullName && !entityData.approuvePar) {
+    entityData.approuvePar = officeHolders.president.fullName;
+  }
+
+  const verificationUrl = doc.verificationToken ? buildVerifyUrl(doc.verificationToken) : undefined;
+
+  const generated = await generateAndUploadDocument(template, {
+    title: doc.title,
+    content: doc.content ?? undefined,
+    syndicate: syndInfo,
+    property,
+    officeHolders,
+    memberName: entityData.memberName || params.memberName || undefined,
+    documentNumber: doc.documentNumber ?? undefined,
+    docStatus: "signed",
+    version: `v${doc.version ?? 1}.0`,
+    language: docLanguage,
+    verificationUrl,
+    signatures,
+    ...entityData,
+    ...(params.formFields ?? {}),
+  });
+
+  return generated.fileUrl ?? null;
+}
+
 // ─── POST /documents/:id/sign ──────────────────────────────────────────────────
 
 router.post(
@@ -3689,35 +3823,72 @@ router.post(
         updatedAt: now,
       } as any).where(eq(documentsTable.id, id));
 
-      // Append the real signature (name/role/date/handwritten trace/validity) to
-      // the PDF as an authoritative signature page — best-effort, never blocks
-      // the already-durable DB signature record if PDF embedding fails.
+      // Embed signatures in the PDF body — full regeneration when generationParams available,
+      // replace-append signature page otherwise. Best-effort: never blocks the DB record.
       if (doc.fileUrl) {
-        // Fetch syndicate branding for the signature page header (best-effort).
-        const syndBranding = doc.syndicateId
-          ? await db
-              .select({ name: syndicatesTable.name, logoColor: syndicatesTable.logoColor })
-              .from(syndicatesTable)
-              .where(eq(syndicatesTable.id, doc.syndicateId))
-              .limit(1)
-              .then((r) => r[0] ?? null)
-              .catch(() => null)
-          : null;
+        // Load ALL recorded signatures (including the one just inserted above)
+        const allSigRows = await db
+          .select()
+          .from(documentSignaturesTable)
+          .where(eq(documentSignaturesTable.documentId, id))
+          .orderBy(documentSignaturesTable.signatureOrder);
 
-        appendSignaturesToPdf(
-          doc.fileUrl,
-          [{
-            signerName,
-            signerRole: req.user!.role,
-            signedAt: now,
-            signatureSvg: result.data.signatureData,
-            isValid: true,
-          }],
-          (doc.language as DocumentLanguage) ?? "fr",
-          (syndBranding?.logoColor as string | undefined) ?? "#7c3aed",
-          syndBranding?.name ?? "",
-          doc.documentNumber ?? "",
-        ).catch((err) => req.log.error({ err, docId: id }, "Signature PDF embed failed"));
+        const allInlineSigs: InlineSignatureInfo[] = allSigRows
+          .filter((s) => s.signedAt && s.signerName)
+          .map((s) => ({
+            signerName: s.signerName ?? "",
+            signerRole: s.signerRole ?? "syndicate_admin",
+            signedAt: new Date(s.signedAt!),
+            isValid: s.isValid ?? true,
+            signatureData: s.signatureData ?? undefined,
+          }));
+
+        const storedParams = (doc as any).generationParams as GenerationParams | null;
+
+        if (storedParams) {
+          // Full regeneration — SVG traces appear inline in the document body
+          regenerateDocumentWithSignatures(doc, storedParams, allInlineSigs)
+            .then(async (newFileUrl) => {
+              if (newFileUrl) {
+                await db.update(documentsTable).set({
+                  fileUrl: newFileUrl,
+                  appendedSignaturePages: 0,
+                  updatedAt: new Date(),
+                } as any).where(eq(documentsTable.id, id));
+              }
+            })
+            .catch((err) => req.log.error({ err, docId: id }, "PDF inline signature regeneration failed"));
+        } else {
+          // Legacy fallback: strip old sig page then append fresh one with all sigs
+          const prevCount = ((doc as any).appendedSignaturePages as number | null) ?? 0;
+          const syndBranding = doc.syndicateId
+            ? await db
+                .select({ name: syndicatesTable.name, logoColor: syndicatesTable.logoColor })
+                .from(syndicatesTable)
+                .where(eq(syndicatesTable.id, doc.syndicateId))
+                .limit(1)
+                .then((r) => r[0] ?? null)
+                .catch(() => null)
+            : null;
+          appendSignaturesToPdf(
+            doc.fileUrl,
+            allInlineSigs.map((s) => ({
+              signerName: s.signerName,
+              signerRole: s.signerRole,
+              signedAt: s.signedAt,
+              signatureSvg: s.signatureData,
+              isValid: s.isValid,
+            })),
+            (doc.language as DocumentLanguage) ?? "fr",
+            (syndBranding?.logoColor as string | undefined) ?? "#7c3aed",
+            syndBranding?.name ?? "",
+            doc.documentNumber ?? "",
+            prevCount,
+          ).then(async () => {
+            await db.update(documentsTable).set({ appendedSignaturePages: 1, updatedAt: new Date() } as any)
+              .where(eq(documentsTable.id, id));
+          }).catch((err) => req.log.error({ err, docId: id }, "Signature page replace-append failed"));
+        }
       }
 
       await serverAuditLog(req, {

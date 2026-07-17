@@ -8,6 +8,7 @@ import {
   primaryKey,
   index,
   uniqueIndex,
+  jsonb,
 } from "drizzle-orm/pg-core";
 import { sql } from "drizzle-orm";
 
@@ -995,6 +996,11 @@ export const documentsTable = pgTable(
     // for full history), this points at the replacement so verification can report
     // status "replaced" instead of "valid".
     supersededByDocumentId: text("superseded_by_document_id"),
+    // Stored generation parameters (entity IDs + form fields) — enables full PDF
+    // regeneration with inline signatures after signing without losing entity data.
+    generationParams: jsonb("generation_params"),
+    // Count of signature pages previously appended — used to strip+replace on re-sign.
+    appendedSignaturePages: integer("appended_signature_pages").default(0).notNull(),
   },
   (t) => [
     index("documents_syndicate_id_idx").on(t.syndicateId),

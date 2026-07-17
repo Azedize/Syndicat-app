@@ -23,6 +23,12 @@ import { logger } from "./logger.js";
 // ─── Local-disk temp storage (fallback when GCS not configured) ───────────────
 const LOCAL_DOCS_TMP = path.join(os.tmpdir(), "syndycat-docs");
 
+/** Safely detect SVG content from SignaturePad — handles optional XML declaration prefix. */
+function isSvgData(data: string | null | undefined): boolean {
+  if (!data) return false;
+  return /^\s*(?:<\?xml[^>]*>\s*)?<svg/i.test(data.trim());
+}
+
 async function saveToLocalDisk(buffer: Buffer, filename: string): Promise<string> {
   const objectId = randomUUID();
   const dir = path.join(LOCAL_DOCS_TMP, objectId);
@@ -1502,7 +1508,7 @@ function multiSignatoryBlock(
     sig: InlineSignatureInfo | undefined,
   ): unknown => {
     const hasSig   = !!sig;
-    const hasTrace = hasSig && sig.signatureData?.trim().startsWith("<svg");
+    const hasTrace = hasSig && isSvgData(sig.signatureData);
     const isValid  = hasSig && sig.isValid;
 
     // ── Signed state card ─────────────────────────────────────────────────
@@ -1737,7 +1743,7 @@ function signatureBlock(
   const signerRows: unknown[] = signatures.length > 0
     ? signatures.map((sig, i) => {
         const isValid  = sig.isValid;
-        const hasTrace = sig.signatureData?.trim().startsWith("<svg");
+        const hasTrace = isSvgData(sig.signatureData);
         return {
           table: {
             widths: ["*"],
@@ -2050,10 +2056,16 @@ export async function fetchLogoDataUrl(logoUrl: string | null | undefined): Prom
       const privateDir = process.env.PRIVATE_OBJECT_DIR || "";
       if (!privateDir) throw new Error("PRIVATE_OBJECT_DIR not set");
       const entityId = logoUrl.replace(/^\/objects\//, "");
-      const sep = privateDir.endsWith("/") ? "" : "/";
-      const fullPath = `${privateDir}${sep}${entityId}`;
-      const { bucketName, objectName } = parseGcsPath(fullPath);
-      [buf] = await objectStorageClient.bucket(bucketName).file(objectName).download();
+      // Local filesystem fallback — PRIVATE_OBJECT_DIR is a local path in dev (not gs://)
+      if (!privateDir.startsWith("gs://")) {
+        const fullPath = path.join(privateDir, entityId);
+        buf = await fs.readFile(fullPath);
+      } else {
+        const sep = privateDir.endsWith("/") ? "" : "/";
+        const fullPath = `${privateDir}${sep}${entityId}`;
+        const { bucketName, objectName } = parseGcsPath(fullPath);
+        [buf] = await objectStorageClient.bucket(bucketName).file(objectName).download();
+      }
     }
 
     const mime = detectImageMime(buf);
@@ -2158,6 +2170,7 @@ export async function appendSignaturesToPdf(
   accentColor: string = BRAND.primary,
   syndicateName = "",
   docRef = "",
+  stripLastN = 0,
 ): Promise<void> {
   if (signatures.length === 0) return;
   const { PDFDocument, rgb, StandardFonts } = await import("pdf-lib");
@@ -2178,6 +2191,16 @@ export async function appendSignaturesToPdf(
 
   const existingBytes = await downloadPdfBuffer(internalPath);
   const pdfDoc   = await PDFDocument.load(existingBytes, { ignoreEncryption: true });
+
+  // Strip previously-appended signature pages so re-signing replaces instead of accumulates
+  if (stripLastN > 0) {
+    const pageCount = pdfDoc.getPageCount();
+    const toRemove = Math.min(stripLastN, pageCount - 1); // always preserve at least 1 original page
+    for (let i = 0; i < toRemove; i++) {
+      pdfDoc.removePage(pdfDoc.getPageCount() - 1);
+    }
+  }
+
   const font     = await pdfDoc.embedFont(StandardFonts.Helvetica);
   const boldFont = await pdfDoc.embedFont(StandardFonts.HelveticaBold);
 
@@ -3071,7 +3094,7 @@ async function buildDocDef(template: DocumentTemplate, input: DocumentInput): Pr
         sig: InlineSignatureInfo | undefined,
       ): unknown => {
         const hasSig  = !!sig;
-        const hasTrace = sig?.signatureData?.trim().startsWith("<svg");
+        const hasTrace = isSvgData(sig?.signatureData);
         const sigDateStr = sig?.signedAt.toLocaleString("fr-FR") ?? "";
 
         const cs: unknown[] = [
