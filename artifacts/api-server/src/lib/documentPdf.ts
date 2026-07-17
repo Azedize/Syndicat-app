@@ -1,15 +1,15 @@
 /**
- * documentPdf.ts — Enterprise-Grade Document Generation Engine
+ * documentPdf.ts — Generation 2 Enterprise Document Engine
  *
- * Features:
- *  • Full multi-tenant syndicate branding (name, registration, contact, accent color)
- *  • QR code verification embedded in every document
- *  • Professional A4 layout with colored header band, meta table, signature block
- *  • Watermark for draft / non-published documents
- *  • 9 fully redesigned templates
- *  • DejaVu Sans TrueType font (system) for superior glyph rendering
- *  • Arabic font infrastructure: place Amiri-Regular.ttf + Amiri-Bold.ttf in
- *    artifacts/api-server/fonts/ to enable Arabic/RTL support
+ * Architecture:
+ *  • Single-source BRAND token system — zero raw hex outside the BRAND block
+ *  • 10 document families × distinct visual identity (theme system)
+ *  • Design System (DS) components: Header, Seal, Frames, InfoGrid, Section,
+ *    Financial (KPI/Progress/Dashboard/BudgetTable), Signature, Footer
+ *  • 32 templates rebuilt around their business domain
+ *  • DejaVu Sans TrueType + Amiri Arabic fallback
+ *  • Multi-tenant: accent color, logo, registration, contact per syndicate
+ *  • QR verification code + watermark for draft/specimen status
  */
 import { existsSync } from "fs";
 import fs from "fs/promises";
@@ -548,7 +548,7 @@ async function generateQrDataUrl(verifyUrlOrDocNumber: string): Promise<string> 
       errorCorrectionLevel: "M",
       width: 160,
       margin: 1,
-      color: { dark: "#1e1b4b", light: "#ffffff" },
+      color: { dark: BRAND.ink, light: BRAND.surfaceCard },
     });
   } catch {
     // QR generation failure is non-fatal — return empty placeholder
@@ -618,106 +618,7 @@ function buildHeaderBand(
     margin: [0, 0, 0, 0],
   };
 
-  // ── Main header band — 3 columns ─────────────────────────────────────────
-  // [58: Logo | *: Identity | 82: Ref+QR]
-  // Compact target: ≤58pt total height (≈9% A4)
-  const band: unknown = {
-    table: {
-      widths: [58, "*", 82],
-      body: [[
-        // COL 1 — Logo on accent bg
-        {
-          stack: [logoContent],
-          fillColor: accentColor,
-          alignment: "center" as const,
-          margin: [8, 8, 8, 8],
-          border: [false, false, false, false] as [boolean, boolean, boolean, boolean],
-        },
-
-        // COL 2 — Syndicate identity on deep accent bg
-        {
-          stack: [
-            // Org name — prominent, white, tracked
-            {
-              text: syndInfo.name.toUpperCase(),
-              fontSize: 10, bold: true,
-              color: BRAND.surfaceCard,
-              characterSpacing: 0.4,
-              lineHeight: 1.1,
-              margin: [0, 0, 0, 4],
-            },
-            // Building sub-label (if available)
-            ...(buildingName ? [{
-              text: buildingName,
-              fontSize: 6.5, bold: false,
-              color: BRAND.surfaceCard,
-              opacity: 0.72,
-              margin: [0, 0, 0, 4] as [number, number, number, number],
-            }] : []),
-            // Category + icon pill
-            {
-              table: {
-                widths: ["auto"],
-                body: [[{
-                  text: `${categoryIcon}  ${docTypeLabel.toUpperCase()}`,
-                  fontSize: 5.5, bold: true,
-                  color: BRAND.surfaceCard,
-                  characterSpacing: 0.7,
-                  opacity: 0.88,
-                  fillColor: `${BRAND.surfaceCard}1a`,
-                  margin: [7, 3, 7, 3],
-                  border: [false, false, false, false] as [boolean, boolean, boolean, boolean],
-                }]],
-              },
-              layout: {
-                hLineWidth: (i: number, n: { table: { body: unknown[] } }) => i === 0 || i === n.table.body.length ? 0.4 : 0,
-                vLineWidth: (i: number, n: { table: { widths: unknown[] } }) => i === 0 || i === n.table.widths.length ? 0.4 : 0,
-                hLineColor: () => `${BRAND.surfaceCard}33`,
-                vLineColor: () => `${BRAND.surfaceCard}33`,
-                paddingLeft: () => 0, paddingRight: () => 0, paddingTop: () => 0, paddingBottom: () => 0,
-              },
-            },
-            // Registration / contact row
-            ...(syndInfo.registrationNumber || syndInfo.phone ? [{
-              text: [
-                ...(syndInfo.registrationNumber ? [`Imm. ${syndInfo.registrationNumber}`] : []),
-                ...(syndInfo.phone ? [`  ·  ${syndInfo.phone}`] : []),
-              ].join(""),
-              fontSize: 5.5,
-              color: BRAND.surfaceCard,
-              opacity: 0.55,
-              margin: [0, 4, 0, 0] as [number, number, number, number],
-            }] : []),
-          ],
-          fillColor: centerBg,
-          margin: [12, 10, 10, 10],
-          border: [false, false, false, false] as [boolean, boolean, boolean, boolean],
-        },
-
-        // COL 3 — Document reference + QR on clean white/near-white
-        {
-          stack: [
-            // Doc number — largest element on this panel
-            {
-              text: docNum => `N° ${docNum}`,
-              // We pass docNumber directly since we can't call closures in pdfmake stacks
-            },
-            // Override: actual content
-          ],
-          fillColor: BRAND.surfaceAlt,
-          margin: [8, 0, 8, 0],
-          border: [false, false, false, false] as [boolean, boolean, boolean, boolean],
-        },
-      ]],
-    },
-    layout: {
-      hLineWidth: () => 0, vLineWidth: () => 0,
-      paddingLeft: () => 0, paddingRight: () => 0, paddingTop: () => 0, paddingBottom: () => 0,
-    },
-    margin: [0, 0, 0, 8],
-  };
-
-  // ── Rebuild COL 3 properly (no closures) ──────────────────────────────────
+  // ── COL 3 stack — doc reference + status chip + QR ───────────────────────
   const col3Stack: unknown[] = [
     // Doc number — 9pt bold for stronger presence
     {
@@ -1347,19 +1248,19 @@ function kpiRow(
       widths: ["*"],
       body: [[{
         stack: [
-          { text: c.label.toUpperCase(), fontSize: 6.5, bold: true, color: "#9ca3af", characterSpacing: 0.9, margin: [0, 0, 0, 5] },
+          { text: c.label.toUpperCase(), fontSize: 6.5, bold: true, color: BRAND.mutedLight, characterSpacing: 0.9, margin: [0, 0, 0, 5] },
           { text: c.value, fontSize: 22, bold: true, color: c.valueColor || accentColor, lineHeight: 1, margin: [0, 0, 0, 4] },
-          ...(c.sublabel ? [{ text: c.sublabel, fontSize: 7, color: "#6b7280" }] : []),
+          ...(c.sublabel ? [{ text: c.sublabel, fontSize: 7, color: BRAND.muted }] : []),
         ],
-        fillColor: c.bgColor || "#f8f7ff",
+        fillColor: c.bgColor || BRAND.surface,
         margin: [14, 14, 14, 14],
       }]],
     },
     layout: {
       hLineWidth: (i: number, node: { table: { body: unknown[] } }) => i === 0 || i === node.table.body.length ? 1 : 0,
       vLineWidth: (i: number, node: { table: { widths: unknown[] } }) => i === 0 || i === node.table.widths.length ? 1 : 0,
-      hLineColor: () => "#e2e8f0",
-      vLineColor: () => "#e2e8f0",
+      hLineColor: () => BRAND.border,
+      vLineColor: () => BRAND.border,
       paddingLeft: () => 0, paddingRight: () => 0, paddingTop: () => 0, paddingBottom: () => 0,
     },
   });
@@ -1387,22 +1288,22 @@ function progressBar(
   const clamped = Math.min(100, Math.max(0, percent));
   const barW = 430;
   const fillW = Math.round((clamped / 100) * barW);
-  const barColor = percent >= 90 ? "#16a34a" : percent >= 60 ? accentColor : "#dc2626";
+  const barColor = percent >= 90 ? BRAND.successDark : percent >= 60 ? accentColor : BRAND.destructiveDark;
 
   return {
     stack: [
       {
         columns: [
-          { text: label, fontSize: 9, bold: true, color: "#1e1b4b", width: "*" },
+          { text: label, fontSize: 9, bold: true, color: BRAND.ink, width: "*" },
           { text: `${clamped}%`, fontSize: 9, bold: true, color: barColor, width: "auto" },
-          { text: `   ${value} / ${total}`, fontSize: 7.5, color: "#6b7280", width: "auto", margin: [0, 1, 0, 0] },
+          { text: `   ${value} / ${total}`, fontSize: 7.5, color: BRAND.muted, width: "auto", margin: [0, 1, 0, 0] },
         ],
         margin: [0, 0, 0, 5],
       },
       {
         canvas: [
-          // Track — slightly darker for more contrast
-          { type: "rect", x: 0, y: 0, w: barW, h: 12, r: 4, color: "#dde1e7" },
+          // Track
+          { type: "rect", x: 0, y: 0, w: barW, h: 12, r: 4, color: BRAND.border },
           // Fill — 12pt tall with rounded ends
           ...(fillW > 0 ? [{ type: "rect" as const, x: 0, y: 0, w: fillW, h: 12, r: 4, color: barColor }] : []),
         ],
@@ -1433,7 +1334,7 @@ function financialDashboard(input: Record<string, unknown>, accentColor: string)
   // Always render — zero values are valid and informative (empty DB is better than invisible dashboard)
 
   const outstandingNum = parseFloat((input._kpiOutstanding as string || "0").replace(/\s/g, "").replace(",", "."));
-  const outstandingColor = outstandingNum > 0 ? "#dc2626" : "#16a34a";
+  const outstandingColor = outstandingNum > 0 ? BRAND.destructiveDark : BRAND.successDark;
 
   return [
     // Section header — lean left-bar style, no full-width color band
@@ -1448,8 +1349,8 @@ function financialDashboard(input: Record<string, unknown>, accentColor: string)
           },
           {
             columns: [
-              { text: "TABLEAU DE BORD FINANCIER", fontSize: 8.5, bold: true, color: "#1e1b4b", width: "*", margin: [0, 2, 0, 0] },
-              { text: `Exercice ${kpiYear}`, fontSize: 7, color: "#6b7280", width: "auto", alignment: "right" as const, margin: [0, 3, 0, 0] },
+              { text: "TABLEAU DE BORD FINANCIER", fontSize: 8.5, bold: true, color: BRAND.ink, width: "*", margin: [0, 2, 0, 0] },
+              { text: `Exercice ${kpiYear}`, fontSize: 7, color: BRAND.muted, width: "auto", alignment: "right" as const, margin: [0, 3, 0, 0] },
             ],
             border: [false, false, false, false] as [boolean, boolean, boolean, boolean],
             margin: [10, 3, 0, 3],
@@ -1461,21 +1362,21 @@ function financialDashboard(input: Record<string, unknown>, accentColor: string)
     },
     // Row 1 — Revenue / Expenses / Net Balance
     kpiRow([
-      { label: "Total Revenus",   value: `${kpiRevenue} MAD`,  valueColor: "#16a34a", bgColor: "#f0fdf4" },
-      { label: "Total Dépenses",  value: `${kpiExpenses} MAD`, valueColor: "#dc2626", bgColor: "#fef2f2" },
-      { label: "Solde Net",       value: `${kpiNetBalance} MAD`, valueColor: "#1e3a8a", bgColor: "#eff6ff" },
+      { label: "Total Revenus",   value: `${kpiRevenue} MAD`,    valueColor: BRAND.successDark,     bgColor: BRAND.successLight },
+      { label: "Total Dépenses",  value: `${kpiExpenses} MAD`,   valueColor: BRAND.destructiveDark, bgColor: BRAND.destructiveLight },
+      { label: "Solde Net",       value: `${kpiNetBalance} MAD`, valueColor: BRAND.info,            bgColor: BRAND.infoLight },
     ], accentColor),
     // Row 2 — Charged / Paid / Outstanding
     kpiRow([
-      { label: "Total Appelé",   value: `${kpiTotalCharged} MAD`, bgColor: "#f8f7ff" },
-      { label: "Total Encaissé", value: `${kpiTotalPaid} MAD`,    valueColor: "#16a34a", bgColor: "#f0fdf4" },
-      { label: "Impayés",        value: `${kpiOutstanding} MAD`,  valueColor: outstandingColor, bgColor: outstandingNum > 0 ? "#fef2f2" : "#f0fdf4" },
+      { label: "Total Appelé",   value: `${kpiTotalCharged} MAD`, bgColor: BRAND.surface },
+      { label: "Total Encaissé", value: `${kpiTotalPaid} MAD`,    valueColor: BRAND.successDark,     bgColor: BRAND.successLight },
+      { label: "Impayés",        value: `${kpiOutstanding} MAD`,  valueColor: outstandingColor, bgColor: outstandingNum > 0 ? BRAND.destructiveLight : BRAND.successLight },
     ], accentColor),
     // Row 3 — Cash Balance / Budget Total
     kpiRow([
-      { label: "Trésorerie",      value: `${kpiCashBalance} MAD`, valueColor: "#065f46", bgColor: "#ecfdf5" },
-      { label: "Budget Prévisionnel", value: `${kpiBudgetTotal} MAD`, bgColor: "#f8f7ff" },
-      { label: "Taux de Recouvrement", value: `${kpiCollRate}%`, valueColor: kpiCollRate >= 90 ? "#16a34a" : kpiCollRate >= 60 ? "#d97706" : "#dc2626", bgColor: "#f8f7ff" },
+      { label: "Trésorerie",           value: `${kpiCashBalance} MAD`, valueColor: BRAND.successDeep, bgColor: BRAND.successLight },
+      { label: "Budget Prévisionnel",  value: `${kpiBudgetTotal} MAD`, bgColor: BRAND.surface },
+      { label: "Taux de Recouvrement", value: `${kpiCollRate}%`,       valueColor: kpiCollRate >= 90 ? BRAND.successDark : kpiCollRate >= 60 ? BRAND.warningDark : BRAND.destructiveDark, bgColor: BRAND.surface },
     ], accentColor),
     // Progress bars
     {
@@ -1497,7 +1398,7 @@ function budgetLinesTable(
   lines: Array<{ category: string; label: string; amountAnnual: number }>,
   accentColor: string,
 ): unknown {
-  if (lines.length === 0) return { text: "Aucune ligne budgétaire disponible.", fontSize: 9, color: "#9ca3af", margin: [0, 8, 0, 8] };
+  if (lines.length === 0) return { text: "Aucune ligne budgétaire disponible.", fontSize: 9, color: BRAND.mutedLight, margin: [0, 8, 0, 8] };
 
   const categoryTotals: Record<string, number> = {};
   lines.forEach((l) => { categoryTotals[l.category] = (categoryTotals[l.category] ?? 0) + l.amountAnnual; });
@@ -1505,18 +1406,17 @@ function budgetLinesTable(
   let lastCategory = "";
   let rowIdx = 0;
   const bodyRows: unknown[] = [
-    // Header row — 9pt (was 8pt), thicker padding, stronger visual weight
     [
-      { text: "CATÉGORIE",    fontSize: 9, bold: true, color: "#ffffff", fillColor: accentColor, margin: [10, 8, 5, 8], border: [false, false, false, false] as [boolean, boolean, boolean, boolean] },
-      { text: "DÉSIGNATION",  fontSize: 9, bold: true, color: "#ffffff", fillColor: accentColor, margin: [5, 8, 5, 8], border: [false, false, false, false] as [boolean, boolean, boolean, boolean] },
-      { text: "ANNUEL (MAD)", fontSize: 9, bold: true, color: "#ffffff", fillColor: accentColor, margin: [5, 8, 10, 8], alignment: "right" as const, border: [false, false, false, false] as [boolean, boolean, boolean, boolean] },
+      { text: "CATÉGORIE",    fontSize: 9, bold: true, color: BRAND.surfaceCard, fillColor: accentColor, margin: [10, 8, 5, 8], border: [false, false, false, false] as [boolean, boolean, boolean, boolean] },
+      { text: "DÉSIGNATION",  fontSize: 9, bold: true, color: BRAND.surfaceCard, fillColor: accentColor, margin: [5, 8, 5, 8], border: [false, false, false, false] as [boolean, boolean, boolean, boolean] },
+      { text: "ANNUEL (MAD)", fontSize: 9, bold: true, color: BRAND.surfaceCard, fillColor: accentColor, margin: [5, 8, 10, 8], alignment: "right" as const, border: [false, false, false, false] as [boolean, boolean, boolean, boolean] },
     ],
   ];
 
   lines.forEach((line) => {
     const isNewCategory = line.category !== lastCategory;
     lastCategory = line.category;
-    const bg = rowIdx % 2 === 0 ? "#f8f7ff" : "#ffffff";
+    const bg = rowIdx % 2 === 0 ? BRAND.surface : BRAND.surfaceCard;
     rowIdx++;
 
     bodyRows.push([
@@ -1526,28 +1426,26 @@ function budgetLinesTable(
         fillColor: bg, margin: [10, 6, 5, 6],
         border: [false, false, false, false] as [boolean, boolean, boolean, boolean],
       },
-      // Designation: 9.5pt (was 8.5pt) for enterprise data density
-      { text: line.label, fontSize: 9.5, color: "#374151", fillColor: bg, margin: [5, 6, 5, 6], border: [false, false, false, false] as [boolean, boolean, boolean, boolean] },
-      // Amount: 9.5pt bold (was 8.5pt) — numbers must be large enough to read at a glance
-      { text: line.amountAnnual.toLocaleString("fr-MA"), fontSize: 9.5, bold: true, color: "#1e1b4b", fillColor: bg, alignment: "right" as const, margin: [5, 6, 10, 6], border: [false, false, false, false] as [boolean, boolean, boolean, boolean] },
+      { text: line.label, fontSize: 9.5, color: BRAND.inkMid, fillColor: bg, margin: [5, 6, 5, 6], border: [false, false, false, false] as [boolean, boolean, boolean, boolean] },
+      { text: line.amountAnnual.toLocaleString("fr-MA"), fontSize: 9.5, bold: true, color: BRAND.ink, fillColor: bg, alignment: "right" as const, margin: [5, 6, 10, 6], border: [false, false, false, false] as [boolean, boolean, boolean, boolean] },
     ]);
   });
 
-  // Category subtotals — slightly more padding
+  // Category subtotals
   Object.entries(categoryTotals).forEach(([cat, total]) => {
     bodyRows.push([
-      { text: `Sous-total ${cat}`, fontSize: 8.5, bold: true, color: "#374151", fillColor: "#e2e8f0", margin: [10, 5, 5, 5], border: [false, false, false, false] as [boolean, boolean, boolean, boolean] },
-      { text: "", fillColor: "#e2e8f0", border: [false, false, false, false] as [boolean, boolean, boolean, boolean] },
-      { text: total.toLocaleString("fr-MA"), fontSize: 8.5, bold: true, color: accentColor, fillColor: "#e2e8f0", alignment: "right" as const, margin: [5, 5, 10, 5], border: [false, false, false, false] as [boolean, boolean, boolean, boolean] },
+      { text: `Sous-total ${cat}`, fontSize: 8.5, bold: true, color: BRAND.inkMid, fillColor: BRAND.borderLight, margin: [10, 5, 5, 5], border: [false, false, false, false] as [boolean, boolean, boolean, boolean] },
+      { text: "", fillColor: BRAND.borderLight, border: [false, false, false, false] as [boolean, boolean, boolean, boolean] },
+      { text: total.toLocaleString("fr-MA"), fontSize: 8.5, bold: true, color: accentColor, fillColor: BRAND.borderLight, alignment: "right" as const, margin: [5, 5, 10, 5], border: [false, false, false, false] as [boolean, boolean, boolean, boolean] },
     ]);
   });
 
-  // Grand total — 10pt (was 9pt), taller padding
+  // Grand total
   const grandTotal = lines.reduce((s, l) => s + l.amountAnnual, 0);
   bodyRows.push([
-    { text: "TOTAL GÉNÉRAL", fontSize: 10, bold: true, color: "#ffffff", fillColor: accentColor, margin: [10, 9, 5, 9], border: [false, false, false, false] as [boolean, boolean, boolean, boolean] },
+    { text: "TOTAL GÉNÉRAL", fontSize: 10, bold: true, color: BRAND.surfaceCard, fillColor: accentColor, margin: [10, 9, 5, 9], border: [false, false, false, false] as [boolean, boolean, boolean, boolean] },
     { text: "", fillColor: accentColor, border: [false, false, false, false] as [boolean, boolean, boolean, boolean] },
-    { text: `${grandTotal.toLocaleString("fr-MA")} MAD`, fontSize: 10, bold: true, color: "#ffffff", fillColor: accentColor, alignment: "right" as const, margin: [5, 9, 10, 9], border: [false, false, false, false] as [boolean, boolean, boolean, boolean] },
+    { text: `${grandTotal.toLocaleString("fr-MA")} MAD`, fontSize: 10, bold: true, color: BRAND.surfaceCard, fillColor: accentColor, alignment: "right" as const, margin: [5, 9, 10, 9], border: [false, false, false, false] as [boolean, boolean, boolean, boolean] },
   ]);
 
   return {
@@ -1559,7 +1457,7 @@ function budgetLinesTable(
       // Top/bottom rules: 1pt; internal hairlines: 0.4pt (was 0.3pt)
       hLineWidth: (i: number, node: { table: { body: unknown[] } }) => i === 0 || i === node.table.body.length ? 1 : 0.4,
       vLineWidth: () => 0,
-      hLineColor: () => "#e5e7eb",
+      hLineColor: () => BRAND.border,
       paddingLeft: () => 0, paddingRight: () => 0, paddingTop: () => 0, paddingBottom: () => 0,
     },
     margin: [0, 0, 0, 20],
@@ -1597,32 +1495,6 @@ function multiSignatoryBlock(
 
   const findSig = (roles: string[]) =>
     signatures.find((s) => roles.some((r) => s.signerRole === r));
-
-  // ── Shared badge builder for valid/invalid status ──────────────────────────
-  const validityBadge = (isValid: boolean): unknown => ({
-    table: {
-      widths: ["*"],
-      body: [[{
-        text: isValid ? `✓  ${t("signatureValidLabel", lang)}` : `✗  ${t("signatureInvalidLabel", lang)}`,
-        fontSize: 7.5,
-        bold: true,
-        color: isValid ? "#15803d" : "#dc2626",
-        fillColor: isValid ? "#f0fdf4" : "#fef2f2",
-        alignment: "center" as const,
-        margin: [4, 4, 4, 4],
-      }]],
-    },
-    layout: {
-      hLineWidth: (i: number, node: { table: { body: unknown[] } }) =>
-        i === 0 || i === node.table.body.length ? 0.6 : 0,
-      vLineWidth: (i: number, node: { table: { widths: unknown[] } }) =>
-        i === 0 || i === node.table.widths.length ? 0.6 : 0,
-      hLineColor: () => isValid ? "#bbf7d0" : "#fecaca",
-      vLineColor: () => isValid ? "#bbf7d0" : "#fecaca",
-      paddingLeft: () => 0, paddingRight: () => 0, paddingTop: () => 0, paddingBottom: () => 0,
-    },
-    margin: [0, 4, 0, 0],
-  });
 
   const makeSignerCol = (
     titleLabel: string,
@@ -1807,7 +1679,7 @@ function multiSignatoryBlock(
       // Thin rule separator — no colored decorative block
       {
         canvas: [
-          { type: "line", x1: 0, y1: 0, x2: 515, y2: 0, lineWidth: 0.5, lineColor: "#e5e7eb" },
+          { type: "line", x1: 0, y1: 0, x2: 515, y2: 0, lineWidth: 0.5, lineColor: BRAND.border },
         ],
         margin: [0, 0, 0, 12],
       },
@@ -1885,7 +1757,7 @@ function signatureBlock(
                       border: [false, false, false, false] as [boolean, boolean, boolean, boolean],
                     }]],
                   },
-                  layout: { hLineWidth: () => 0, vLineWidth: () => 0, paddingLeft: () => 0, paddingRight: () => 0, paddingTop: () => 0, paddingBottom: () => 0 },
+                  layout: { hLineWidth: () => 0, vLineWidth: () => 0, paddingLeft: (): number => 0, paddingRight: (): number => 0, paddingTop: (): number => 0, paddingBottom: (): number => 0 },
                   margin: [0, 0, 0, 8],
                 },
                 // Name + role
@@ -1907,7 +1779,7 @@ function signatureBlock(
                         hLineWidth: (ii: number, n: { table: { body: unknown[] } }) => ii === 0 || ii === n.table.body.length ? 0.5 : 0,
                         vLineWidth: (ii: number, n: { table: { widths: unknown[] } }) => ii === 0 || ii === n.table.widths.length ? 0.5 : 0,
                         hLineColor: () => `${accentColor}44`, vLineColor: () => `${accentColor}44`,
-                        paddingLeft: () => 0, paddingRight: () => 0, paddingTop: () => 0, paddingBottom: () => 0,
+                        paddingLeft: (): number => 0, paddingRight: (): number => 0, paddingTop: (): number => 0, paddingBottom: (): number => 0,
                       },
                       margin: [0, 0, 0, 6],
                     }
@@ -2030,25 +1902,23 @@ function legalFooterNote(docNumber: string, lang: DocumentLanguage = "fr", verif
     table: {
       widths: [4, "*"],
       body: [[
-        // 4px accent bar
         {
-          canvas: [{ type: "rect", x: 0, y: 0, w: 4, h: 38, color: "#94a3b8" }],
+          canvas: [{ type: "rect", x: 0, y: 0, w: 4, h: 38, color: BRAND.mutedLight }],
           border: [false, false, false, false] as [boolean, boolean, boolean, boolean],
           margin: [0, 0, 0, 0],
         },
-        // Title + text
         {
           stack: [
             {
               columns: [
-                { text: titleLabel, fontSize: 7, bold: true, color: "#475569", characterSpacing: 0.4, width: "*" },
-                { text: docNumber,  fontSize: 6.5, bold: true, color: "#64748b", width: "auto", alignment: "right" as const },
+                { text: titleLabel, fontSize: 7, bold: true, color: BRAND.inkLight, characterSpacing: 0.4, width: "*" },
+                { text: docNumber,  fontSize: 6.5, bold: true, color: BRAND.muted, width: "auto", alignment: "right" as const },
               ],
               margin: [0, 0, 0, 4],
             },
-            { text, fontSize: 7, color: "#94a3b8", lineHeight: 1.5 },
+            { text, fontSize: 7, color: BRAND.mutedLight, lineHeight: 1.5 },
           ],
-          fillColor: "#f8fafc",
+          fillColor: BRAND.surface,
           margin: [10, 10, 14, 10],
           border: [false, false, false, false] as [boolean, boolean, boolean, boolean],
         },
@@ -2058,7 +1928,7 @@ function legalFooterNote(docNumber: string, lang: DocumentLanguage = "fr", verif
       hLineWidth: (i: number, node: { table: { body: unknown[] } }) =>
         i === 0 || i === node.table.body.length ? 0.7 : 0,
       vLineWidth: () => 0,
-      hLineColor: () => "#e2e8f0",
+      hLineColor: () => BRAND.border,
       paddingLeft: () => 0, paddingRight: () => 0, paddingTop: () => 0, paddingBottom: () => 0,
     },
     margin: [0, 22, 0, 0],
@@ -2285,7 +2155,7 @@ export async function appendSignaturesToPdf(
   internalPath: string,
   signatures: SignatureToEmbed[],
   lang: DocumentLanguage = "fr",
-  accentColor = "#7c3aed",
+  accentColor: string = BRAND.primary,
   syndicateName = "",
   docRef = "",
 ): Promise<void> {
@@ -2678,7 +2548,7 @@ async function buildDocDef(template: DocumentTemplate, input: DocumentInput): Pr
     email: "",
     website: "",
     registrationNumber: "",
-    logoColor: "#7c3aed",
+    logoColor: BRAND.primary,
   };
   // ── Category-based visual identity — 7 distinct document themes ──────────────
   const theme = getDocumentTheme(template, syndInfo.logoColor || undefined);
@@ -2829,24 +2699,24 @@ async function buildDocDef(template: DocumentTemplate, input: DocumentInput): Pr
 
       const attDocStatus = (input.docStatus as string) || "generated";
       const attDocStatusMap: Record<string, { label: string; color: string }> = {
-        signed:    { label: "SIGNÉ",     color: "#7c3aed" },
-        validated: { label: "VALIDÉ",    color: "#2563eb" },
-        published: { label: "PUBLIÉ",    color: "#059669" },
-        archived:  { label: "ARCHIVÉ",   color: "#64748b" },
-        generated: { label: "GÉNÉRÉ",    color: "#d97706" },
-        draft:     { label: "BROUILLON", color: "#9ca3af" },
+        signed:    { label: "SIGNÉ",     color: BRAND.primary },
+        validated: { label: "VALIDÉ",    color: BRAND.info },
+        published: { label: "PUBLIÉ",    color: BRAND.successDark },
+        archived:  { label: "ARCHIVÉ",   color: BRAND.muted },
+        generated: { label: "GÉNÉRÉ",    color: BRAND.warningDark },
+        draft:     { label: "BROUILLON", color: BRAND.mutedLight },
       };
-      const attDocStatusInfo = attDocStatusMap[attDocStatus] ?? { label: attDocStatus.toUpperCase(), color: "#6b7280" };
+      const attDocStatusInfo = attDocStatusMap[attDocStatus] ?? { label: attDocStatus.toUpperCase(), color: BRAND.muted };
 
       const attStatusLabel = attStatus === "active"   ? "MEMBRE ACTIF"
                            : attStatus === "inactive" ? "INACTIF"
                            : attStatus.toUpperCase();
-      const attStatusColor  = attStatus === "active"   ? "#059669"
-                            : attStatus === "inactive" ? "#dc2626" : "#64748b";
-      const attStatusBg     = attStatus === "active"   ? "#ecfdf5"
-                            : attStatus === "inactive" ? "#fef2f2" : "#f8fafc";
-      const attStatusBorder = attStatus === "active"   ? "#a7f3d0"
-                            : attStatus === "inactive" ? "#fecaca" : "#e2e8f0";
+      const attStatusColor  = attStatus === "active"   ? BRAND.successDark
+                            : attStatus === "inactive" ? BRAND.destructiveDark : BRAND.muted;
+      const attStatusBg     = attStatus === "active"   ? BRAND.successLight
+                            : attStatus === "inactive" ? BRAND.destructiveLight : BRAND.surface;
+      const attStatusBorder = attStatus === "active"   ? BRAND.success
+                            : attStatus === "inactive" ? BRAND.destructive : BRAND.border;
 
       // ── Section divider ─────────────────────────────────────────────────────
       // Thin left accent bar + small-caps label + hairline. No filled bands.
@@ -2875,7 +2745,7 @@ async function buildDocDef(template: DocumentTemplate, input: DocumentInput): Pr
             },
           },
           {
-            canvas: [{ type: "line", x1: 0, y1: 0, x2: 515, y2: 0, lineWidth: 0.4, lineColor: "#e5e7eb" }],
+            canvas: [{ type: "line", x1: 0, y1: 0, x2: 515, y2: 0, lineWidth: 0.4, lineColor: BRAND.border }],
             margin: [0, 3, 0, 0],
           },
         ],
@@ -2888,10 +2758,10 @@ async function buildDocDef(template: DocumentTemplate, input: DocumentInput): Pr
           widths: ["*"],
           body: [[{
             stack: [
-              { text: label, fontSize: 5.5, bold: true, color: "#9ca3af", characterSpacing: 0.5, margin: [0, 0, 0, 3] },
-              { text: value || "—", fontSize: 9, bold: true, color: vc || "#1e293b", lineHeight: 1.2 },
+              { text: label, fontSize: 5.5, bold: true, color: BRAND.mutedLight, characterSpacing: 0.5, margin: [0, 0, 0, 3] },
+              { text: value || "—", fontSize: 9, bold: true, color: vc || BRAND.ink, lineHeight: 1.2 },
             ],
-            fillColor: "#f8f9fc",
+            fillColor: BRAND.surface,
             margin: [12, 9, 12, 9],
             border: [true, false, false, false] as [boolean, boolean, boolean, boolean],
           }]],
@@ -2918,8 +2788,8 @@ async function buildDocDef(template: DocumentTemplate, input: DocumentInput): Pr
         layout: {
           hLineWidth: (i: number, node: { table: { body: unknown[] } }) => i === 0 || i === node.table.body.length ? 0.6 : 0,
           vLineWidth: (i: number, node: { table: { widths: unknown[] } }) => i > 0 && i < node.table.widths.length ? 0.4 : 0,
-          hLineColor: () => "#e2e8f0",
-          vLineColor: () => "#e2e8f0",
+          hLineColor: () => BRAND.border,
+          vLineColor: () => BRAND.border,
           paddingLeft: () => 0, paddingRight: () => 4, paddingTop: () => 0, paddingBottom: () => 0,
         },
         margin: [0, 0, 0, 18],
@@ -2941,7 +2811,7 @@ async function buildDocDef(template: DocumentTemplate, input: DocumentInput): Pr
           },
           {
             text: "Syndicat de Copropriété  ·  Délivrée à l'intéressé(e) pour valoir ce que de droit",
-            fontSize: 7.5, italics: true, alignment: "center" as const, color: "#6b7280",
+            fontSize: 7.5, italics: true, alignment: "center" as const, color: BRAND.muted,
             margin: [0, 0, 0, 10],
           },
           {
@@ -2965,7 +2835,7 @@ async function buildDocDef(template: DocumentTemplate, input: DocumentInput): Pr
           },
           {
             text: attInitials,
-            fontSize: 19, bold: true, color: "#ffffff",
+            fontSize: 19, bold: true, color: BRAND.surfaceCard,
             alignment: "center" as const,
             margin: [0, AV_R - 8, 0, 0],
           },
@@ -3031,30 +2901,29 @@ async function buildDocDef(template: DocumentTemplate, input: DocumentInput): Pr
         membershipPill,
         attStatusBadge,
         {
-          canvas: [{ type: "line", x1: 6, y1: 0, x2: 158, y2: 0, lineWidth: 0.4, lineColor: "#e2e8f0" }],
+          canvas: [{ type: "line", x1: 6, y1: 0, x2: 158, y2: 0, lineWidth: 0.4, lineColor: BRAND.border }],
           margin: [0, 12, 0, 10],
         },
       ];
-      if (attMemberEmail) leftStack.push({ text: `✉  ${attMemberEmail}`, fontSize: 7.5, color: "#475569", margin: [0, 0, 0, 5] });
-      if (attMemberPhone) leftStack.push({ text: `☎  ${attMemberPhone}`, fontSize: 7.5, color: "#475569", margin: [0, 0, 0, 5] });
+      if (attMemberEmail) leftStack.push({ text: `✉  ${attMemberEmail}`, fontSize: 7.5, color: BRAND.inkLight, margin: [0, 0, 0, 5] });
+      if (attMemberPhone) leftStack.push({ text: `☎  ${attMemberPhone}`, fontSize: 7.5, color: BRAND.inkLight, margin: [0, 0, 0, 5] });
       if (attMemberCIN)   leftStack.push({
         stack: [
-          { text: "CARTE D'IDENTITÉ (CIN)", fontSize: 5.5, bold: true, color: "#9ca3af", characterSpacing: 0.3, margin: [0, 6, 0, 1] },
-          { text: attMemberCIN, fontSize: 10, bold: true, color: "#1e293b" },
+          { text: "CARTE D'IDENTITÉ (CIN)", fontSize: 5.5, bold: true, color: BRAND.mutedLight, characterSpacing: 0.3, margin: [0, 6, 0, 1] },
+          { text: attMemberCIN, fontSize: 10, bold: true, color: BRAND.ink },
         ],
       });
 
       // ── RIGHT column — property data grid ────────────────────────────────
-      // Helper that renders a label + value pair inline
       const rCell = (label: string, value: string, color?: string): unknown => ({
         stack: [
-          { text: label, fontSize: 5, bold: true, color: "#9ca3af", characterSpacing: 0.5, margin: [0, 0, 0, 1] },
-          { text: value || "—", fontSize: 9.5, bold: true, color: color || "#1e293b", lineHeight: 1.2 },
+          { text: label, fontSize: 5, bold: true, color: BRAND.mutedLight, characterSpacing: 0.5, margin: [0, 0, 0, 1] },
+          { text: value || "—", fontSize: 9.5, bold: true, color: color || BRAND.ink, lineHeight: 1.2 },
         ],
       });
 
       const rSep = (): unknown => ({
-        canvas: [{ type: "line", x1: 0, y1: 0, x2: 350, y2: 0, lineWidth: 0.4, lineColor: "#f0f0f7" }],
+        canvas: [{ type: "line", x1: 0, y1: 0, x2: 350, y2: 0, lineWidth: 0.4, lineColor: BRAND.borderLight }],
       });
 
       const rightStack: unknown[] = [
@@ -3063,7 +2932,7 @@ async function buildDocDef(template: DocumentTemplate, input: DocumentInput): Pr
           columns: [
             { ...rCell("N° DE LOT", attLotNum, accentColor) as object, width: 70 },
             {
-              canvas: [{ type: "line", x1: 0, y1: 0, x2: 0, y2: 32, lineWidth: 0.4, lineColor: "#e2e8f0" }],
+              canvas: [{ type: "line", x1: 0, y1: 0, x2: 0, y2: 32, lineWidth: 0.4, lineColor: BRAND.border }],
               width: 1, margin: [0, 0, 0, 0],
             },
             { ...rCell("CARTE D'IDENTITÉ NATIONALE (CIN)", attMemberCIN || "—") as object, width: "*", margin: [10, 0, 0, 0] as [number, number, number, number] },
@@ -3074,9 +2943,9 @@ async function buildDocDef(template: DocumentTemplate, input: DocumentInput): Pr
         // Row 2: Résidence / Immeuble (full width)
         {
           stack: [
-            { text: "RÉSIDENCE / IMMEUBLE", fontSize: 5, bold: true, color: "#9ca3af", characterSpacing: 0.5, margin: [0, 0, 0, 1] },
-            { text: attBuilding || syndInfo.name || "—", fontSize: 9.5, bold: true, color: "#1e293b", lineHeight: 1.2 },
-            ...(attBuildAddr ? [{ text: attBuildAddr, fontSize: 7, color: "#6b7280", margin: [0, 2, 0, 0] }] : []),
+            { text: "RÉSIDENCE / IMMEUBLE", fontSize: 5, bold: true, color: BRAND.mutedLight, characterSpacing: 0.5, margin: [0, 0, 0, 1] },
+            { text: attBuilding || syndInfo.name || "—", fontSize: 9.5, bold: true, color: BRAND.ink, lineHeight: 1.2 },
+            ...(attBuildAddr ? [{ text: attBuildAddr, fontSize: 7, color: BRAND.muted, margin: [0, 2, 0, 0] }] : []),
           ],
           margin: [14, 10, 14, 10],
         },
@@ -3086,7 +2955,7 @@ async function buildDocDef(template: DocumentTemplate, input: DocumentInput): Pr
           columns: [
             { ...rCell("SURFACE PRIVATIVE", attLotSurface || "—") as object, width: "*" },
             {
-              canvas: [{ type: "line", x1: 0, y1: 0, x2: 0, y2: 32, lineWidth: 0.4, lineColor: "#e2e8f0" }],
+              canvas: [{ type: "line", x1: 0, y1: 0, x2: 0, y2: 32, lineWidth: 0.4, lineColor: BRAND.border }],
               width: 1,
             },
             { ...rCell("ÉTAGE", attFloorLabel) as object, width: 90, margin: [10, 0, 0, 0] as [number, number, number, number] },
@@ -3108,13 +2977,13 @@ async function buildDocDef(template: DocumentTemplate, input: DocumentInput): Pr
           body: [[
             {
               stack: leftStack,
-              fillColor: "#f8f9fc",
+              fillColor: BRAND.surface,
               margin: [14, 16, 14, 18],
               border: [true, true, true, true] as [boolean, boolean, boolean, boolean],
             },
             {
               stack: rightStack,
-              fillColor: "#ffffff",
+              fillColor: BRAND.surfaceCard,
               margin: [0, 0, 0, 0],
               border: [false, true, true, true] as [boolean, boolean, boolean, boolean],
             },
@@ -3123,8 +2992,8 @@ async function buildDocDef(template: DocumentTemplate, input: DocumentInput): Pr
         layout: {
           hLineWidth: (i: number, node: { table: { body: unknown[] } }) => i === 0 || i === node.table.body.length ? 0.7 : 0,
           vLineWidth: (i: number) => i === 0 || i === 2 ? 0.7 : (i === 1 ? 0.7 : 0),
-          hLineColor: () => "#e2e8f0",
-          vLineColor: () => "#e2e8f0",
+          hLineColor: () => BRAND.border,
+          vLineColor: () => BRAND.border,
           paddingLeft: () => 0, paddingRight: () => 0, paddingTop: () => 0, paddingBottom: () => 0,
         },
         margin: [0, 0, 0, 6],
@@ -3182,7 +3051,7 @@ async function buildDocDef(template: DocumentTemplate, input: DocumentInput): Pr
             ...(certJoin ? [{ text: certJoin, style: "body", margin: [0, 0, 0, 8] }] : []),
           ] : []),
           // Legal disclaimer
-          { text: certDisclaimer, fontSize: 8, color: "#6b7280", lineHeight: 1.5, italics: true },
+          { text: certDisclaimer, fontSize: 8, color: BRAND.muted, lineHeight: 1.5, italics: true },
         ],
       };
 
@@ -3207,9 +3076,9 @@ async function buildDocDef(template: DocumentTemplate, input: DocumentInput): Pr
 
         const cs: unknown[] = [
           // Role label
-          { text: colLabel.toUpperCase(), fontSize: 6.5, bold: true, color: "#9ca3af", characterSpacing: 0.6, margin: [0, 0, 0, 4] },
+          { text: colLabel.toUpperCase(), fontSize: 6.5, bold: true, color: BRAND.mutedLight, characterSpacing: 0.6, margin: [0, 0, 0, 4] },
           // Name
-          { text: holderName || "—", fontSize: 10.5, bold: true, color: "#111827", margin: [0, 0, 0, 10] },
+          { text: holderName || "—", fontSize: 10.5, bold: true, color: BRAND.ink, margin: [0, 0, 0, 10] },
         ];
 
         if (hasSig) {
@@ -3221,15 +3090,15 @@ async function buildDocDef(template: DocumentTemplate, input: DocumentInput): Pr
                 {
                   text: sig!.isValid ? "✓" : "✗",
                   fontSize: 7, bold: true,
-                  color: sig!.isValid ? "#059669" : "#dc2626",
-                  fillColor: sig!.isValid ? "#f0fdf4" : "#fef2f2",
+                  color: sig!.isValid ? BRAND.successDark : BRAND.destructiveDark,
+                  fillColor: sig!.isValid ? BRAND.successLight : BRAND.destructiveLight,
                   margin: [5, 2, 4, 2],
                   border: [false, false, false, false] as [boolean, boolean, boolean, boolean],
                 },
                 {
                   text: "SIGNÉ ÉLECTRONIQUEMENT",
                   fontSize: 5.5, bold: true,
-                  color: sig!.isValid ? "#059669" : "#dc2626",
+                  color: sig!.isValid ? BRAND.successDark : BRAND.destructiveDark,
                   characterSpacing: 0.4, margin: [2, 3, 8, 3],
                   border: [false, false, false, false] as [boolean, boolean, boolean, boolean],
                 },
@@ -3238,8 +3107,8 @@ async function buildDocDef(template: DocumentTemplate, input: DocumentInput): Pr
             layout: {
               hLineWidth: (ii: number, n: { table: { body: unknown[] } }) => ii === 0 || ii === n.table.body.length ? 0.5 : 0,
               vLineWidth: (ii: number, n: { table: { widths: unknown[] } }) => ii === 0 || ii === n.table.widths.length ? 0.5 : 0,
-              hLineColor: () => sig!.isValid ? "#a7f3d0" : "#fecaca",
-              vLineColor: () => sig!.isValid ? "#a7f3d0" : "#fecaca",
+              hLineColor: () => sig!.isValid ? BRAND.success : BRAND.destructive,
+              vLineColor: () => sig!.isValid ? BRAND.success : BRAND.destructive,
               paddingLeft: () => 0, paddingRight: () => 0, paddingTop: () => 0, paddingBottom: () => 0,
             },
             margin: [0, 0, 0, 8],
@@ -3250,18 +3119,18 @@ async function buildDocDef(template: DocumentTemplate, input: DocumentInput): Pr
             cs.push({
               stack: [
                 { svg: sig!.signatureData!, width: 185, height: 60, alignment: "center" as const },
-                { canvas: [{ type: "line", x1: 0, y1: 0, x2: 215, y2: 0, lineWidth: 0.4, lineColor: "#d1d5db" }], margin: [0, 2, 0, 0] },
+                { canvas: [{ type: "line", x1: 0, y1: 0, x2: 215, y2: 0, lineWidth: 0.4, lineColor: BRAND.border }], margin: [0, 2, 0, 0] },
               ],
               margin: [0, 2, 0, 6],
             });
           } else {
             cs.push({
-              canvas: [{ type: "line", x1: 0, y1: 0, x2: 215, y2: 0, lineWidth: 0.5, lineColor: "#94a3b8" }],
+              canvas: [{ type: "line", x1: 0, y1: 0, x2: 215, y2: 0, lineWidth: 0.5, lineColor: BRAND.mutedLight }],
               margin: [0, 30, 0, 8],
             });
           }
 
-          cs.push({ text: sigDateStr, fontSize: 7, color: "#6b7280", margin: [0, 0, 0, 4] });
+          cs.push({ text: sigDateStr, fontSize: 7, color: BRAND.muted, margin: [0, 0, 0, 4] });
 
           // Validity badge
           cs.push({
@@ -3270,26 +3139,26 @@ async function buildDocDef(template: DocumentTemplate, input: DocumentInput): Pr
               body: [[{
                 text: sig!.isValid ? "✓  Signature cryptographiquement valide" : "✗  Signature invalide",
                 fontSize: 6.5, bold: true,
-                color: sig!.isValid ? "#059669" : "#dc2626",
-                fillColor: sig!.isValid ? "#f0fdf4" : "#fef2f2",
+                color: sig!.isValid ? BRAND.successDark : BRAND.destructiveDark,
+                fillColor: sig!.isValid ? BRAND.successLight : BRAND.destructiveLight,
                 alignment: "center" as const, margin: [4, 3, 4, 3],
               }]],
             },
             layout: {
               hLineWidth: (ii: number, n: { table: { body: unknown[] } }) => ii === 0 || ii === n.table.body.length ? 0.5 : 0,
               vLineWidth: (ii: number, n: { table: { widths: unknown[] } }) => ii === 0 || ii === n.table.widths.length ? 0.5 : 0,
-              hLineColor: () => sig!.isValid ? "#a7f3d0" : "#fecaca",
-              vLineColor: () => sig!.isValid ? "#a7f3d0" : "#fecaca",
+              hLineColor: () => sig!.isValid ? BRAND.success : BRAND.destructive,
+              vLineColor: () => sig!.isValid ? BRAND.success : BRAND.destructive,
               paddingLeft: () => 0, paddingRight: () => 0, paddingTop: () => 0, paddingBottom: () => 0,
             },
           });
         } else {
           // Placeholder — ONLY rendered when no real signature exists
           cs.push({
-            canvas: [{ type: "line", x1: 0, y1: 0, x2: 215, y2: 0, lineWidth: 0.5, lineColor: "#e2e8f0" }],
+            canvas: [{ type: "line", x1: 0, y1: 0, x2: 215, y2: 0, lineWidth: 0.5, lineColor: BRAND.border }],
             margin: [0, 34, 0, 8],
           });
-          cs.push({ text: t("awaitingSignature", lang), fontSize: 7, color: "#9ca3af", italics: true });
+          cs.push({ text: t("awaitingSignature", lang), fontSize: 7, color: BRAND.mutedLight, italics: true });
         }
 
         return { stack: cs };
@@ -3299,7 +3168,7 @@ async function buildDocDef(template: DocumentTemplate, input: DocumentInput): Pr
         stack: [
           // Thin separator rule
           {
-            canvas: [{ type: "line", x1: 0, y1: 0, x2: 515, y2: 0, lineWidth: 0.5, lineColor: "#e5e7eb" }],
+            canvas: [{ type: "line", x1: 0, y1: 0, x2: 515, y2: 0, lineWidth: 0.5, lineColor: BRAND.border }],
             margin: [0, 0, 0, 12],
           },
           // Header row: section label + institutional stamp (right-aligned)
@@ -3384,15 +3253,15 @@ async function buildDocDef(template: DocumentTemplate, input: DocumentInput): Pr
             body: [[{
               text: t("convocationNotice", lang),
               style: "notice",
-              fillColor: "#fff7ed",
+              fillColor: BRAND.warningLight,
               margin: [10, 8, 10, 8],
             }]],
           },
           layout: {
             hLineWidth: () => 1,
             vLineWidth: () => 1,
-            hLineColor: () => "#fed7aa",
-            vLineColor: () => "#fed7aa",
+            hLineColor: () => BRAND.warning,
+            vLineColor: () => BRAND.warning,
           },
           margin: [0, 0, 0, 16],
         },
@@ -3466,15 +3335,15 @@ async function buildDocDef(template: DocumentTemplate, input: DocumentInput): Pr
             body: [[{
               text: "La présente décision entre en vigueur à compter de la date de sa signature et est opposable à tous les membres.",
               style: "notice",
-              fillColor: "#f0fdf4",
+              fillColor: BRAND.successLight,
               margin: [10, 8, 10, 8],
             }]],
           },
           layout: {
             hLineWidth: () => 1,
             vLineWidth: () => 1,
-            hLineColor: () => "#bbf7d0",
-            vLineColor: () => "#bbf7d0",
+            hLineColor: () => BRAND.success,
+            vLineColor: () => BRAND.success,
           },
           margin: [0, 0, 0, 16],
         },
@@ -3552,18 +3421,18 @@ async function buildDocDef(template: DocumentTemplate, input: DocumentInput): Pr
             widths: ["*"],
             body: [[{
               stack: [
-                { text: `⚠  ${t("mandatoryDeadlineTitle", lang)}`, fontSize: 10, bold: true, color: "#dc2626", margin: [0, 0, 0, 4] },
-                { text: input.delai as string || t("defaultDeadline", lang), fontSize: 10, color: "#dc2626" },
+                { text: `⚠  ${t("mandatoryDeadlineTitle", lang)}`, fontSize: 10, bold: true, color: BRAND.destructiveDark, margin: [0, 0, 0, 4] },
+                { text: input.delai as string || t("defaultDeadline", lang), fontSize: 10, color: BRAND.destructiveDark },
               ],
-              fillColor: "#fef2f2",
+              fillColor: BRAND.destructiveLight,
               margin: [12, 10, 12, 10],
             }]],
           },
           layout: {
             hLineWidth: () => 1.5,
             vLineWidth: () => 1.5,
-            hLineColor: () => "#fca5a5",
-            vLineColor: () => "#fca5a5",
+            hLineColor: () => BRAND.destructive,
+            vLineColor: () => BRAND.destructive,
           },
           margin: [0, 0, 0, 16],
         },
@@ -3646,14 +3515,14 @@ async function buildDocDef(template: DocumentTemplate, input: DocumentInput): Pr
             widths: ["*"],
             body: [[{
               stack: [
-                { text: "✓  AUTORISATION VALIDE", fontSize: 10, bold: true, color: "#16a34a", margin: [0, 0, 0, 4] },
-                { text: `Délivrée par ${syndInfo.name} — ${today}`, fontSize: 9, color: "#16a34a" },
+                { text: "✓  AUTORISATION VALIDE", fontSize: 10, bold: true, color: BRAND.successDark, margin: [0, 0, 0, 4] },
+                { text: `Délivrée par ${syndInfo.name} — ${today}`, fontSize: 9, color: BRAND.successDark },
               ],
-              fillColor: "#f0fdf4",
+              fillColor: BRAND.successLight,
               margin: [12, 10, 12, 10],
             }]],
           },
-          layout: { hLineWidth: () => 1, vLineWidth: () => 1, hLineColor: () => "#86efac", vLineColor: () => "#86efac" },
+          layout: { hLineWidth: () => 1, vLineWidth: () => 1, hLineColor: () => BRAND.success, vLineColor: () => BRAND.success },
           margin: [0, 0, 0, 16],
         },
         signatureBlock("Le Président du Syndicat", syndInfo.name, accentColor, true, lang, signatures),
@@ -3701,18 +3570,18 @@ async function buildDocDef(template: DocumentTemplate, input: DocumentInput): Pr
           columns: [
             {
               stack: [
-                { text: syndInfo.name, fontSize: 11, bold: true, color: "#1e1b4b" },
-                { text: [syndInfo.address, syndInfo.city].filter(Boolean).join(", "), fontSize: 9, color: "#64748b" },
-                { text: syndInfo.phone || "", fontSize: 9, color: "#64748b" },
-                { text: syndInfo.email || "", fontSize: 9, color: "#64748b" },
+                { text: syndInfo.name, fontSize: 11, bold: true, color: BRAND.ink },
+                { text: [syndInfo.address, syndInfo.city].filter(Boolean).join(", "), fontSize: 9, color: BRAND.muted },
+                { text: syndInfo.phone || "", fontSize: 9, color: BRAND.muted },
+                { text: syndInfo.email || "", fontSize: 9, color: BRAND.muted },
               ],
             },
             {
               stack: [
-                { text: `À l'attention de :`, fontSize: 9, color: "#64748b" },
-                { text: member || "[DESTINATAIRE]", fontSize: 11, bold: true, color: "#1e1b4b", margin: [0, 4, 0, 0] },
-                { text: `Le ${today}`, fontSize: 9, color: "#64748b", margin: [0, 16, 0, 0] },
-                { text: `Réf : ${docNum}`, fontSize: 9, color: "#64748b" },
+                { text: `À l'attention de :`, fontSize: 9, color: BRAND.muted },
+                { text: member || "[DESTINATAIRE]", fontSize: 11, bold: true, color: BRAND.ink, margin: [0, 4, 0, 0] },
+                { text: `Le ${today}`, fontSize: 9, color: BRAND.muted, margin: [0, 16, 0, 0] },
+                { text: `Réf : ${docNum}`, fontSize: 9, color: BRAND.muted },
               ],
               alignment: "right" as const,
             },
@@ -3723,7 +3592,7 @@ async function buildDocDef(template: DocumentTemplate, input: DocumentInput): Pr
           text: `Objet : ${input.objet as string || body || input.title}`,
           fontSize: 10,
           bold: true,
-          color: "#1e1b4b",
+          color: BRAND.ink,
           margin: [0, 0, 0, 16],
           decoration: "underline" as const,
         },
@@ -3753,7 +3622,7 @@ async function buildDocDef(template: DocumentTemplate, input: DocumentInput): Pr
                 widths: ["*"],
                 body: [[{ stack: [
                   { text: "ACTION REQUISE", fontSize: 9, bold: true, color: accentColor, margin: [0, 0, 0, 4] },
-                  { text: input.actionRequise as string, fontSize: 10, color: "#1e1b4b" },
+                  { text: input.actionRequise as string, fontSize: 10, color: BRAND.ink },
                 ], fillColor: adjustColorBrightness(accentColor, 92), margin: [12, 10, 12, 10] }]],
               },
               layout: { hLineWidth: () => 1, vLineWidth: () => 0, hLineColor: () => adjustColorBrightness(accentColor, 55) },
@@ -3818,31 +3687,31 @@ async function buildDocDef(template: DocumentTemplate, input: DocumentInput): Pr
             body: [[
               {
                 stack: [
-                  { text: "TOTAL REVENUS",    fontSize: 7, bold: true, color: "#9ca3af", margin: [0, 0, 0, 4] },
-                  { text: `${rapportRevenue} MAD`, fontSize: 15, bold: true, color: "#16a34a" },
-                  { text: "Encaissements caisse", fontSize: 6.5, color: "#6b7280", margin: [0, 3, 0, 0] },
+                  { text: "TOTAL REVENUS",    fontSize: 7, bold: true, color: BRAND.mutedLight, margin: [0, 0, 0, 4] },
+                  { text: `${rapportRevenue} MAD`, fontSize: 15, bold: true, color: BRAND.successDark },
+                  { text: "Encaissements caisse", fontSize: 6.5, color: BRAND.muted, margin: [0, 3, 0, 0] },
                 ],
-                fillColor: "#f0fdf4",
+                fillColor: BRAND.successLight,
                 margin: [12, 14, 12, 14],
                 border: [false, false, false, false] as [boolean, boolean, boolean, boolean],
               },
               {
                 stack: [
-                  { text: "TOTAL DÉPENSES",  fontSize: 7, bold: true, color: "#9ca3af", margin: [0, 0, 0, 4] },
-                  { text: `${rapportExpenses} MAD`, fontSize: 15, bold: true, color: "#dc2626" },
-                  { text: "Décaissements caisse", fontSize: 6.5, color: "#6b7280", margin: [0, 3, 0, 0] },
+                  { text: "TOTAL DÉPENSES",  fontSize: 7, bold: true, color: BRAND.mutedLight, margin: [0, 0, 0, 4] },
+                  { text: `${rapportExpenses} MAD`, fontSize: 15, bold: true, color: BRAND.destructiveDark },
+                  { text: "Décaissements caisse", fontSize: 6.5, color: BRAND.muted, margin: [0, 3, 0, 0] },
                 ],
-                fillColor: "#fef2f2",
+                fillColor: BRAND.destructiveLight,
                 margin: [12, 14, 12, 14],
                 border: [false, false, false, false] as [boolean, boolean, boolean, boolean],
               },
               {
                 stack: [
-                  { text: "SOLDE NET",        fontSize: 7, bold: true, color: "#9ca3af", margin: [0, 0, 0, 4] },
-                  { text: `${rapportNetBalance} MAD`, fontSize: 15, bold: true, color: "#1e3a8a" },
-                  { text: "Trésorerie nette", fontSize: 6.5, color: "#6b7280", margin: [0, 3, 0, 0] },
+                  { text: "SOLDE NET",        fontSize: 7, bold: true, color: BRAND.mutedLight, margin: [0, 0, 0, 4] },
+                  { text: `${rapportNetBalance} MAD`, fontSize: 15, bold: true, color: BRAND.info },
+                  { text: "Trésorerie nette", fontSize: 6.5, color: BRAND.muted, margin: [0, 3, 0, 0] },
                 ],
-                fillColor: "#eff6ff",
+                fillColor: BRAND.infoLight,
                 margin: [12, 14, 12, 14],
                 border: [false, false, false, false] as [boolean, boolean, boolean, boolean],
               },
@@ -3851,7 +3720,7 @@ async function buildDocDef(template: DocumentTemplate, input: DocumentInput): Pr
           layout: {
             hLineWidth: (i: number, node: { table: { body: unknown[] } }) => i === 0 || i === node.table.body.length ? 0.6 : 0,
             vLineWidth: () => 0,
-            hLineColor: () => "#e2e8f0",
+            hLineColor: () => BRAND.border,
             paddingLeft: () => 0, paddingRight: () => 0, paddingTop: () => 0, paddingBottom: () => 0,
           },
           margin: [0, 0, 0, 16],
@@ -3863,9 +3732,9 @@ async function buildDocDef(template: DocumentTemplate, input: DocumentInput): Pr
             widths: ["*", 130, 130],
             body: [
               [
-                { text: "Rubrique", style: "tableHeader", fillColor: accentColor, color: "#ffffff", bold: true, fontSize: 8.5, margin: [10, 6, 8, 6], border: [false, false, false, false] as [boolean, boolean, boolean, boolean] },
-                { text: "Budget Prévu (MAD)", style: "tableHeader", fillColor: accentColor, color: "#ffffff", bold: true, fontSize: 8.5, margin: [8, 6, 10, 6], alignment: "right" as const, border: [false, false, false, false] as [boolean, boolean, boolean, boolean] },
-                { text: "Réalisé (MAD)", style: "tableHeader", fillColor: accentColor, color: "#ffffff", bold: true, fontSize: 8.5, margin: [8, 6, 10, 6], alignment: "right" as const, border: [false, false, false, false] as [boolean, boolean, boolean, boolean] },
+                { text: "Rubrique", style: "tableHeader", fillColor: accentColor, color: BRAND.surfaceCard, bold: true, fontSize: 8.5, margin: [10, 6, 8, 6], border: [false, false, false, false] as [boolean, boolean, boolean, boolean] },
+                { text: "Budget Prévu (MAD)", style: "tableHeader", fillColor: accentColor, color: BRAND.surfaceCard, bold: true, fontSize: 8.5, margin: [8, 6, 10, 6], alignment: "right" as const, border: [false, false, false, false] as [boolean, boolean, boolean, boolean] },
+                { text: "Réalisé (MAD)", style: "tableHeader", fillColor: accentColor, color: BRAND.surfaceCard, bold: true, fontSize: 8.5, margin: [8, 6, 10, 6], alignment: "right" as const, border: [false, false, false, false] as [boolean, boolean, boolean, boolean] },
               ],
               ...(input.lignesFinancieres as Array<[string, string, string]> || [
                 ["Appels de fonds émis",  (input._kpiTotalCharged as string) || "—", (input._kpiYearCharged as string) || "—"],
@@ -3873,21 +3742,21 @@ async function buildDocDef(template: DocumentTemplate, input: DocumentInput): Pr
                 ["Dépenses d'entretien",  (input._kpiTotalExpenses as string) || "—", (input._kpiTotalExpenses as string) || "—"],
                 ["Fonds de réserve",      (input._kpiFondsTravauxTgt as string) || "—", (input._kpiFondsTravauxBal as string) || "—"],
               ]).map(([label, prevu, realise]: [string, string, string], i: number) => [
-                { text: label, fontSize: 8.5, color: "#374151", fillColor: i % 2 === 0 ? "#f8f7ff" : "#ffffff", margin: [10, 5, 8, 5], border: [false, false, false, false] as [boolean, boolean, boolean, boolean] },
-                { text: prevu, fontSize: 8.5, color: "#374151", fillColor: i % 2 === 0 ? "#f8f7ff" : "#ffffff", alignment: "right" as const, margin: [8, 5, 10, 5], border: [false, false, false, false] as [boolean, boolean, boolean, boolean] },
-                { text: realise, fontSize: 8.5, color: "#374151", fillColor: i % 2 === 0 ? "#f8f7ff" : "#ffffff", alignment: "right" as const, margin: [8, 5, 10, 5], border: [false, false, false, false] as [boolean, boolean, boolean, boolean] },
+                { text: label, fontSize: 8.5, color: BRAND.inkMid, fillColor: i % 2 === 0 ? BRAND.surface : BRAND.surfaceCard, margin: [10, 5, 8, 5], border: [false, false, false, false] as [boolean, boolean, boolean, boolean] },
+                { text: prevu, fontSize: 8.5, color: BRAND.inkMid, fillColor: i % 2 === 0 ? BRAND.surface : BRAND.surfaceCard, alignment: "right" as const, margin: [8, 5, 10, 5], border: [false, false, false, false] as [boolean, boolean, boolean, boolean] },
+                { text: realise, fontSize: 8.5, color: BRAND.inkMid, fillColor: i % 2 === 0 ? BRAND.surface : BRAND.surfaceCard, alignment: "right" as const, margin: [8, 5, 10, 5], border: [false, false, false, false] as [boolean, boolean, boolean, boolean] },
               ]),
               [
-                { text: "TOTAL GÉNÉRAL", fontSize: 9, bold: true, color: "#ffffff", fillColor: accentColor, margin: [10, 8, 8, 8], border: [false, false, false, false] as [boolean, boolean, boolean, boolean] },
-                { text: rapportTotalPrevu, fontSize: 9, bold: true, color: "#ffffff", fillColor: accentColor, alignment: "right" as const, margin: [8, 8, 10, 8], border: [false, false, false, false] as [boolean, boolean, boolean, boolean] },
-                { text: rapportTotalRealise, fontSize: 9, bold: true, color: "#ffffff", fillColor: accentColor, alignment: "right" as const, margin: [8, 8, 10, 8], border: [false, false, false, false] as [boolean, boolean, boolean, boolean] },
+                { text: "TOTAL GÉNÉRAL", fontSize: 9, bold: true, color: BRAND.surfaceCard, fillColor: accentColor, margin: [10, 8, 8, 8], border: [false, false, false, false] as [boolean, boolean, boolean, boolean] },
+                { text: rapportTotalPrevu, fontSize: 9, bold: true, color: BRAND.surfaceCard, fillColor: accentColor, alignment: "right" as const, margin: [8, 8, 10, 8], border: [false, false, false, false] as [boolean, boolean, boolean, boolean] },
+                { text: rapportTotalRealise, fontSize: 9, bold: true, color: BRAND.surfaceCard, fillColor: accentColor, alignment: "right" as const, margin: [8, 8, 10, 8], border: [false, false, false, false] as [boolean, boolean, boolean, boolean] },
               ],
             ],
           },
           layout: {
             hLineWidth: (i: number, node: { table: { body: unknown[] } }) => i === 0 || i === 1 || i === node.table.body.length ? 0.8 : 0.3,
             vLineWidth: () => 0,
-            hLineColor: (i: number, node: { table: { body: unknown[] } }) => i === 0 || i === 1 || i === node.table.body.length ? accentColor : "#e5e7eb",
+            hLineColor: (i: number, node: { table: { body: unknown[] } }) => i === 0 || i === 1 || i === node.table.body.length ? accentColor : BRAND.border,
             paddingLeft: () => 0, paddingRight: () => 0, paddingTop: () => 0, paddingBottom: () => 0,
           },
           margin: [0, 0, 0, 16],
@@ -3899,19 +3768,19 @@ async function buildDocDef(template: DocumentTemplate, input: DocumentInput): Pr
             widths: ["*"],
             body: [[{
               columns: [
-                { text: "⚠", fontSize: 16, color: "#dc2626", width: 24, margin: [0, 2, 0, 0] },
+                { text: "⚠", fontSize: 16, color: BRAND.destructiveDark, width: 24, margin: [0, 2, 0, 0] },
                 { stack: [
-                  { text: "IMPAYÉS EN COURS", fontSize: 9, bold: true, color: "#991b1b", margin: [0, 0, 0, 2] },
-                  { text: `Montant total des impayés : ${rapportOutstanding} MAD  •  Taux de recouvrement : ${rapportCollRate}%`, fontSize: 8.5, color: "#7f1d1d" },
+                  { text: "IMPAYÉS EN COURS", fontSize: 9, bold: true, color: BRAND.destructiveDeep, margin: [0, 0, 0, 2] },
+                  { text: `Montant total des impayés : ${rapportOutstanding} MAD  •  Taux de recouvrement : ${rapportCollRate}%`, fontSize: 8.5, color: BRAND.destructiveDeep },
                 ], width: "*" },
               ],
-              fillColor: "#fef2f2",
+              fillColor: BRAND.destructiveLight,
               margin: [14, 10, 14, 10],
               border: [true, true, true, true] as [boolean, boolean, boolean, boolean],
-              borderColor: ["#fca5a5", "#fca5a5", "#fca5a5", "#fca5a5"],
+              borderColor: [BRAND.destructive, BRAND.destructive, BRAND.destructive, BRAND.destructive],
             }]],
           },
-          layout: { hLineWidth: () => 1, vLineWidth: () => 1, hLineColor: () => "#fca5a5", vLineColor: () => "#fca5a5", paddingLeft: () => 0, paddingRight: () => 0, paddingTop: () => 0, paddingBottom: () => 0 },
+          layout: { hLineWidth: () => 1, vLineWidth: () => 1, hLineColor: () => BRAND.destructive, vLineColor: () => BRAND.destructive, paddingLeft: () => 0, paddingRight: () => 0, paddingTop: () => 0, paddingBottom: () => 0 },
           margin: [0, 0, 0, 16],
         }] as unknown[] : []),
 
@@ -3944,7 +3813,7 @@ async function buildDocDef(template: DocumentTemplate, input: DocumentInput): Pr
             body: [[{
               stack: [
                 { text: "CONCLUSION DE L'AUDIT", fontSize: 10, bold: true, color: accentColor, margin: [0, 0, 0, 6] },
-                { text: input.conclusion as string || "Audit réalisé conformément aux standards professionnels. Aucune irrégularité majeure constatée.", fontSize: 10, color: "#334155" },
+                { text: input.conclusion as string || "Audit réalisé conformément aux standards professionnels. Aucune irrégularité majeure constatée.", fontSize: 10, color: BRAND.inkLight },
               ],
               fillColor: adjustColorBrightness(accentColor, 94),
               margin: [14, 12, 14, 12],
@@ -4039,17 +3908,17 @@ async function buildDocDef(template: DocumentTemplate, input: DocumentInput): Pr
                 { text: "CACHET", style: "metaKey", alignment: "center" as const, margin: [0, 6, 0, 6] },
               ],
               [
-                { text: "\n\n________________________\n" + (input.presidentSeance as string || ""), fontSize: 8, alignment: "center" as const, color: "#64748b", margin: [4, 8, 4, 8] },
-                { text: "\n\n________________________\n" + (input.secretaire as string || ""), fontSize: 8, alignment: "center" as const, color: "#64748b", margin: [4, 8, 4, 8] },
+                { text: "\n\n________________________\n" + (input.presidentSeance as string || ""), fontSize: 8, alignment: "center" as const, color: BRAND.muted, margin: [4, 8, 4, 8] },
+                { text: "\n\n________________________\n" + (input.secretaire as string || ""), fontSize: 8, alignment: "center" as const, color: BRAND.muted, margin: [4, 8, 4, 8] },
                 {
                   stack: [{
                     table: {
                       widths: [88],
                       body: [[{
                         stack: [
-                          { text: "✦", fontSize: 11, color: "#ffffff", alignment: "center" as const, margin: [0, 5, 0, 1] },
+                          { text: "✦", fontSize: 11, color: BRAND.surfaceCard, alignment: "center" as const, margin: [0, 5, 0, 1] },
                           { canvas: [{ type: "line", x1: 6, y1: 0, x2: 78, y2: 0, lineWidth: 0.4, lineColor: "#ffffff55" }] },
-                          { text: "CACHET OFFICIEL", fontSize: 5, bold: true, color: "#ffffff", alignment: "center" as const, margin: [2, 2, 2, 0] },
+                          { text: "CACHET OFFICIEL", fontSize: 5, bold: true, color: BRAND.surfaceCard, alignment: "center" as const, margin: [2, 2, 2, 0] },
                           { text: "SYNDICAT DE COPROPRIÉTÉ", fontSize: 4, color: "#ffffffaa", alignment: "center" as const, margin: [0, 1, 0, 0] },
                           { canvas: [{ type: "line", x1: 6, y1: 0, x2: 78, y2: 0, lineWidth: 0.4, lineColor: "#ffffff55" }], margin: [0, 1, 0, 1] },
                           { text: "OFFICIAL STAMP", fontSize: 4.5, color: "#ffffffcc", alignment: "center" as const, margin: [0, 0, 0, 5] },
@@ -4072,7 +3941,7 @@ async function buildDocDef(template: DocumentTemplate, input: DocumentInput): Pr
               ],
             ],
           },
-          layout: { hLineWidth: () => 0.5, vLineWidth: () => 0.5, hLineColor: () => "#e2e8f0", vLineColor: () => "#e2e8f0" },
+          layout: { hLineWidth: () => 0.5, vLineWidth: () => 0.5, hLineColor: () => BRAND.border, vLineColor: () => BRAND.border },
           margin: [0, 30, 0, 0],
         },
         legalFooterNote(docNum, lang, verifyUrl),
@@ -4262,11 +4131,11 @@ async function buildDocDef(template: DocumentTemplate, input: DocumentInput): Pr
             body: [[{
               text: "⚠  Ce document ne constitue pas un titre de propriété au sens du droit foncier. Pour tout acte juridique, veuillez vous référer au registre foncier compétent.",
               style: "notice",
-              fillColor: "#fffbeb",
+              fillColor: BRAND.warningLight,
               margin: [10, 8, 10, 8],
             }]],
           },
-          layout: { hLineWidth: () => 1, vLineWidth: () => 1, hLineColor: () => "#fcd34d", vLineColor: () => "#fcd34d" },
+          layout: { hLineWidth: () => 1, vLineWidth: () => 1, hLineColor: () => BRAND.warning, vLineColor: () => BRAND.warning },
           margin: [0, 0, 0, 16],
         },
         { canvas: [{ type: "rect", x: 0, y: 0, w: 515, h: 4, color: accentColor }], margin: [0, 8, 0, 16] },
@@ -4326,7 +4195,7 @@ async function buildDocDef(template: DocumentTemplate, input: DocumentInput): Pr
                     ? `⚠  ${statusPaiement}`
                     : "✓  Situation comptable vérifiée à la date de délivrance",
                   fontSize: 9,
-                  color: statusPaiement && statusPaiement !== "EN RÈGLE" ? "#92400e" : "#15803d",
+                  color: statusPaiement && statusPaiement !== "EN RÈGLE" ? BRAND.warningDark : BRAND.successDeep,
                   bold: true,
                   margin: [0, 0, 0, 2],
                 },
@@ -4335,17 +4204,17 @@ async function buildDocDef(template: DocumentTemplate, input: DocumentInput): Pr
                     ? `Dernier paiement enregistré le : ${lastPaid}`
                     : "Cette attestation n'engage pas le syndicat pour les charges futures.",
                   fontSize: 8,
-                  color: statusPaiement && statusPaiement !== "EN RÈGLE" ? "#78350f" : "#166534",
+                  color: statusPaiement && statusPaiement !== "EN RÈGLE" ? BRAND.warningDark : BRAND.successDeep,
                 },
               ],
-              fillColor: statusPaiement && statusPaiement !== "EN RÈGLE" ? "#fef3c7" : "#f0fdf4",
+              fillColor: statusPaiement && statusPaiement !== "EN RÈGLE" ? BRAND.warningLight : BRAND.successLight,
               margin: [12, 8, 12, 8],
             }]],
           },
           layout: {
             hLineWidth: () => 1, vLineWidth: () => 1,
-            hLineColor: () => statusPaiement && statusPaiement !== "EN RÈGLE" ? "#fcd34d" : "#86efac",
-            vLineColor: () => statusPaiement && statusPaiement !== "EN RÈGLE" ? "#fcd34d" : "#86efac",
+            hLineColor: () => statusPaiement && statusPaiement !== "EN RÈGLE" ? BRAND.warning : BRAND.success,
+            vLineColor: () => statusPaiement && statusPaiement !== "EN RÈGLE" ? BRAND.warning : BRAND.success,
           },
           margin: [0, 0, 0, 16],
         },
@@ -4383,7 +4252,7 @@ async function buildDocDef(template: DocumentTemplate, input: DocumentInput): Pr
       content = [
         ...header,
         { text: input.title || "APPEL DE FONDS", style: "docTitle", alignment: "center" as const, margin: [0, 0, 0, 4] },
-        { text: `Période : ${periode}  •  Réf. : ${receiptNum}`, fontSize: 8, color: "#6b7280", alignment: "center" as const, margin: [0, 0, 0, 20] },
+        { text: `Période : ${periode}  •  Réf. : ${receiptNum}`, fontSize: 8, color: BRAND.muted, alignment: "center" as const, margin: [0, 0, 0, 20] },
         // Copropriétaire info card
         metaTable([
           ["COPROPRIÉTAIRE", (input.memberName as string) || member || "—"],
@@ -4400,11 +4269,11 @@ async function buildDocDef(template: DocumentTemplate, input: DocumentInput): Pr
           if (!outstanding && !collRate) return [];
           return [kpiRow([
             { label: "Taux de Recouvrement (Immeuble)", value: collRate ? `${collRate}%` : "—",
-              valueColor: parseInt(collRate || "0") >= 90 ? "#16a34a" : "#dc2626", bgColor: "#f8f7ff" },
+              valueColor: parseInt(collRate || "0") >= 90 ? BRAND.successDark : BRAND.destructiveDark, bgColor: BRAND.surface },
             { label: "Impayés Totaux (Immeuble)",       value: outstanding ? `${outstanding} MAD` : "—",
-              valueColor: outstanding && outstanding !== "0" ? "#dc2626" : "#16a34a", bgColor: "#f8f7ff" },
+              valueColor: outstanding && outstanding !== "0" ? BRAND.destructiveDark : BRAND.successDark, bgColor: BRAND.surface },
             { label: "Trésorerie",                      value: (input._kpiCashBalance as string) ? `${input._kpiCashBalance} MAD` : "—",
-              bgColor: "#ecfdf5" },
+              bgColor: BRAND.successLight },
           ], accentColor)];
         })(),
 
@@ -4432,10 +4301,10 @@ async function buildDocDef(template: DocumentTemplate, input: DocumentInput): Pr
           table: {
             widths: ["*", "auto"],
             body: [[
-              { text: "MONTANT DÛ", fontSize: 11, bold: true, color: "#374151", margin: [16, 14, 8, 14], border: [false, false, false, false] as [boolean, boolean, boolean, boolean] },
+              { text: "MONTANT DÛ", fontSize: 11, bold: true, color: BRAND.inkMid, margin: [16, 14, 8, 14], border: [false, false, false, false] as [boolean, boolean, boolean, boolean] },
               {
                 text: amount.toLocaleString("fr-MA") + " MAD",
-                fontSize: 18, bold: true, color: "#ffffff",
+                fontSize: 18, bold: true, color: BRAND.surfaceCard,
                 fillColor: accentColor,
                 alignment: "right" as const,
                 margin: [16, 10, 16, 10],
@@ -4446,8 +4315,8 @@ async function buildDocDef(template: DocumentTemplate, input: DocumentInput): Pr
           layout: {
             hLineWidth: (i: number, node: { table: { body: unknown[] } }) => i === 0 || i === node.table.body.length ? 0.8 : 0,
             vLineWidth: () => 0,
-            hLineColor: () => "#e5e7eb",
-            fillColor: (_: number, __: unknown, col: number) => col === 0 ? "#f8f7ff" : null,
+            hLineColor: () => BRAND.border,
+            fillColor: (_: number, __: unknown, col: number) => col === 0 ? BRAND.surface : null,
             paddingLeft: () => 0, paddingRight: () => 0, paddingTop: () => 0, paddingBottom: () => 0,
           },
           margin: [0, 16, 0, 24],
@@ -4470,43 +4339,43 @@ async function buildDocDef(template: DocumentTemplate, input: DocumentInput): Pr
       content = [
         ...header,
         { text: "REÇU DE PAIEMENT", style: "docTitle", alignment: "center" as const, margin: [0, 0, 0, 4] },
-        { text: `N° ${receiptRef}`, fontSize: 10, bold: true, color: "#6b7280", alignment: "center" as const, margin: [0, 0, 0, 20] },
+        { text: `N° ${receiptRef}`, fontSize: 10, bold: true, color: BRAND.muted, alignment: "center" as const, margin: [0, 0, 0, 20] },
         // Receipt box
         {
           table: {
             widths: ["*"],
             body: [[{
               stack: [
-                { text: "NOUS SOUSSIGNÉS", fontSize: 8, color: "#9ca3af", margin: [0, 0, 0, 4] },
-                { text: syndInfo.name.toUpperCase(), fontSize: 13, bold: true, color: "#111827", margin: [0, 0, 0, 2] },
-                { text: [syndInfo.address, syndInfo.city].filter(Boolean).join(", "), fontSize: 8.5, color: "#6b7280", margin: [0, 0, 0, 10] },
-                { canvas: [{ type: "line", x1: 0, y1: 0, x2: 467, y2: 0, lineWidth: 0.5, lineColor: "#e5e7eb" }] },
-                { text: "DÉCLARONS AVOIR REÇU DE", fontSize: 8, color: "#9ca3af", margin: [0, 10, 0, 4] },
-                { text: (input.memberName as string) || member || "—", fontSize: 13, bold: true, color: "#111827", margin: [0, 0, 0, 2] },
-                { text: `Lot ${(input._lotNumber as string) || "—"} — ${(input._buildingName as string) || "—"}`, fontSize: 8.5, color: "#6b7280", margin: [0, 0, 0, 10] },
-                { canvas: [{ type: "line", x1: 0, y1: 0, x2: 467, y2: 0, lineWidth: 0.5, lineColor: "#e5e7eb" }] },
-                { text: "LA SOMME DE", fontSize: 8, color: "#9ca3af", margin: [0, 10, 0, 6] },
+                { text: "NOUS SOUSSIGNÉS", fontSize: 8, color: BRAND.mutedLight, margin: [0, 0, 0, 4] },
+                { text: syndInfo.name.toUpperCase(), fontSize: 13, bold: true, color: BRAND.ink, margin: [0, 0, 0, 2] },
+                { text: [syndInfo.address, syndInfo.city].filter(Boolean).join(", "), fontSize: 8.5, color: BRAND.muted, margin: [0, 0, 0, 10] },
+                { canvas: [{ type: "line", x1: 0, y1: 0, x2: 467, y2: 0, lineWidth: 0.5, lineColor: BRAND.border }] },
+                { text: "DÉCLARONS AVOIR REÇU DE", fontSize: 8, color: BRAND.mutedLight, margin: [0, 10, 0, 4] },
+                { text: (input.memberName as string) || member || "—", fontSize: 13, bold: true, color: BRAND.ink, margin: [0, 0, 0, 2] },
+                { text: `Lot ${(input._lotNumber as string) || "—"} — ${(input._buildingName as string) || "—"}`, fontSize: 8.5, color: BRAND.muted, margin: [0, 0, 0, 10] },
+                { canvas: [{ type: "line", x1: 0, y1: 0, x2: 467, y2: 0, lineWidth: 0.5, lineColor: BRAND.border }] },
+                { text: "LA SOMME DE", fontSize: 8, color: BRAND.mutedLight, margin: [0, 10, 0, 6] },
                 { text: `${paidAmount.toLocaleString("fr-MA")} MAD`, fontSize: 22, bold: true, color: accentColor, margin: [0, 0, 0, 2] },
                 {
                   columns: [
-                    { text: `Période : ${periodeRec}`, fontSize: 8.5, color: "#6b7280" },
-                    { text: `Mode : ${paymentMethod}`, fontSize: 8.5, color: "#6b7280", alignment: "right" as const },
+                    { text: `Période : ${periodeRec}`, fontSize: 8.5, color: BRAND.muted },
+                    { text: `Mode : ${paymentMethod}`, fontSize: 8.5, color: BRAND.muted, alignment: "right" as const },
                   ],
                   margin: [0, 0, 0, 10],
                 },
-                { canvas: [{ type: "line", x1: 0, y1: 0, x2: 467, y2: 0, lineWidth: 0.5, lineColor: "#e5e7eb" }] },
-                { text: `Référence appel : ${appelRef}  •  Date de paiement : ${paidDate}`, fontSize: 7.5, color: "#9ca3af", margin: [0, 8, 0, 0] },
+                { canvas: [{ type: "line", x1: 0, y1: 0, x2: 467, y2: 0, lineWidth: 0.5, lineColor: BRAND.border }] },
+                { text: `Référence appel : ${appelRef}  •  Date de paiement : ${paidDate}`, fontSize: 7.5, color: BRAND.mutedLight, margin: [0, 8, 0, 0] },
               ],
-              fillColor: "#f9fafb",
+              fillColor: BRAND.surfaceAlt,
               margin: [24, 20, 24, 20],
               border: [true, true, true, true] as [boolean, boolean, boolean, boolean],
-              borderColor: ["#e5e7eb", "#e5e7eb", "#e5e7eb", "#e5e7eb"],
+              borderColor: [BRAND.border, BRAND.border, BRAND.border, BRAND.border],
             }]],
           },
           layout: {
             hLineWidth: (i: number, node: { table: { body: unknown[] } }) => i === 0 || i === node.table.body.length ? 0.8 : 0,
             vLineWidth: (i: number, node: { table: { widths: unknown[] } }) => i === 0 || i === node.table.widths.length ? 0.8 : 0,
-            hLineColor: () => "#e5e7eb", vLineColor: () => "#e5e7eb",
+            hLineColor: () => BRAND.border, vLineColor: () => BRAND.border,
             paddingLeft: () => 0, paddingRight: () => 0, paddingTop: () => 0, paddingBottom: () => 0,
           },
           margin: [0, 0, 0, 24],
@@ -4547,22 +4416,22 @@ async function buildDocDef(template: DocumentTemplate, input: DocumentInput): Pr
       const lineRows = invoiceLines.map((l, i) => [
         {
           text: l.label, fontSize: 9, margin: [8, 6, 4, 6],
-          fillColor: i % 2 === 0 ? "#f8f7ff" : "#ffffff",
+          fillColor: i % 2 === 0 ? BRAND.surface : BRAND.surfaceCard,
           border: [false, false, false, false] as [boolean, boolean, boolean, boolean],
         },
         {
           text: l.qty.toLocaleString("fr-MA"), fontSize: 9, alignment: "center" as const, margin: [4, 6, 4, 6],
-          fillColor: i % 2 === 0 ? "#f8f7ff" : "#ffffff",
+          fillColor: i % 2 === 0 ? BRAND.surface : BRAND.surfaceCard,
           border: [false, false, false, false] as [boolean, boolean, boolean, boolean],
         },
         {
           text: `${l.unitPrice.toLocaleString("fr-MA")} MAD`, fontSize: 9, alignment: "right" as const, margin: [4, 6, 8, 6],
-          fillColor: i % 2 === 0 ? "#f8f7ff" : "#ffffff",
+          fillColor: i % 2 === 0 ? BRAND.surface : BRAND.surfaceCard,
           border: [false, false, false, false] as [boolean, boolean, boolean, boolean],
         },
         {
           text: `${l.total.toLocaleString("fr-MA")} MAD`, fontSize: 9, bold: true, alignment: "right" as const, margin: [4, 6, 8, 6],
-          fillColor: i % 2 === 0 ? "#f8f7ff" : "#ffffff",
+          fillColor: i % 2 === 0 ? BRAND.surface : BRAND.surfaceCard,
           border: [false, false, false, false] as [boolean, boolean, boolean, boolean],
         },
       ]);
@@ -4570,7 +4439,7 @@ async function buildDocDef(template: DocumentTemplate, input: DocumentInput): Pr
       content = [
         ...header,
         { text: `FACTURE N° ${invoiceRef}`, style: "docTitle", alignment: "center" as const, margin: [0, 0, 0, 4] },
-        { text: `Date : ${today}  •  Échéance : ${invoiceDue}`, fontSize: 8, color: "#6b7280", alignment: "center" as const, margin: [0, 0, 0, 20] },
+        { text: `Date : ${today}  •  Échéance : ${invoiceDue}`, fontSize: 8, color: BRAND.muted, alignment: "center" as const, margin: [0, 0, 0, 20] },
         metaTable([
           ["FACTURÉ À",       recipient],
           ["RÉFÉRENCE",       invoiceRef],
@@ -4585,10 +4454,10 @@ async function buildDocDef(template: DocumentTemplate, input: DocumentInput): Pr
             widths: ["*", 50, 80, 80],
             body: [
               [
-                { text: "DÉSIGNATION", fontSize: 8, bold: true, color: "#ffffff", fillColor: accentColor, margin: [8, 6, 4, 6], border: [false, false, false, false] as [boolean, boolean, boolean, boolean] },
-                { text: "QTÉ", fontSize: 8, bold: true, color: "#ffffff", fillColor: accentColor, alignment: "center" as const, margin: [4, 6, 4, 6], border: [false, false, false, false] as [boolean, boolean, boolean, boolean] },
-                { text: "P.U.", fontSize: 8, bold: true, color: "#ffffff", fillColor: accentColor, alignment: "right" as const, margin: [4, 6, 8, 6], border: [false, false, false, false] as [boolean, boolean, boolean, boolean] },
-                { text: "TOTAL", fontSize: 8, bold: true, color: "#ffffff", fillColor: accentColor, alignment: "right" as const, margin: [4, 6, 8, 6], border: [false, false, false, false] as [boolean, boolean, boolean, boolean] },
+                { text: "DÉSIGNATION", fontSize: 8, bold: true, color: BRAND.surfaceCard, fillColor: accentColor, margin: [8, 6, 4, 6], border: [false, false, false, false] as [boolean, boolean, boolean, boolean] },
+                { text: "QTÉ", fontSize: 8, bold: true, color: BRAND.surfaceCard, fillColor: accentColor, alignment: "center" as const, margin: [4, 6, 4, 6], border: [false, false, false, false] as [boolean, boolean, boolean, boolean] },
+                { text: "P.U.", fontSize: 8, bold: true, color: BRAND.surfaceCard, fillColor: accentColor, alignment: "right" as const, margin: [4, 6, 8, 6], border: [false, false, false, false] as [boolean, boolean, boolean, boolean] },
+                { text: "TOTAL", fontSize: 8, bold: true, color: BRAND.surfaceCard, fillColor: accentColor, alignment: "right" as const, margin: [4, 6, 8, 6], border: [false, false, false, false] as [boolean, boolean, boolean, boolean] },
               ],
               ...lineRows,
             ],
@@ -4596,7 +4465,7 @@ async function buildDocDef(template: DocumentTemplate, input: DocumentInput): Pr
           layout: {
             hLineWidth: (i: number, node: { table: { body: unknown[] } }) => i === 0 || i === node.table.body.length ? 0.8 : 0.4,
             vLineWidth: () => 0,
-            hLineColor: () => "#e5e7eb",
+            hLineColor: () => BRAND.border,
             paddingLeft: () => 0, paddingRight: () => 0, paddingTop: () => 0, paddingBottom: () => 0,
           },
           margin: [0, 0, 0, 0],
@@ -4610,20 +4479,20 @@ async function buildDocDef(template: DocumentTemplate, input: DocumentInput): Pr
                 { text: "", border: [false, false, false, false] as [boolean, boolean, boolean, boolean] },
                 {
                   stack: [
-                    { columns: [{ text: "Total HT", fontSize: 9, color: "#6b7280", width: "*" }, { text: `${totalHT.toLocaleString("fr-MA")} MAD`, fontSize: 9, width: "auto", alignment: "right" as const }], margin: [12, 8, 12, 2] },
-                    { columns: [{ text: "TVA (20%)", fontSize: 9, color: "#6b7280", width: "*" }, { text: `${tva.toLocaleString("fr-MA")} MAD`, fontSize: 9, width: "auto", alignment: "right" as const }], margin: [12, 2, 12, 6] },
-                    { canvas: [{ type: "line", x1: 12, y1: 0, x2: 138, y2: 0, lineWidth: 0.5, lineColor: "#e5e7eb" }] },
+                    { columns: [{ text: "Total HT", fontSize: 9, color: BRAND.muted, width: "*" }, { text: `${totalHT.toLocaleString("fr-MA")} MAD`, fontSize: 9, width: "auto", alignment: "right" as const }], margin: [12, 8, 12, 2] },
+                    { columns: [{ text: "TVA (20%)", fontSize: 9, color: BRAND.muted, width: "*" }, { text: `${tva.toLocaleString("fr-MA")} MAD`, fontSize: 9, width: "auto", alignment: "right" as const }], margin: [12, 2, 12, 6] },
+                    { canvas: [{ type: "line", x1: 12, y1: 0, x2: 138, y2: 0, lineWidth: 0.5, lineColor: BRAND.border }] },
                     {
                       columns: [
-                        { text: "TOTAL TTC", fontSize: 11, bold: true, color: "#111827", width: "*" },
+                        { text: "TOTAL TTC", fontSize: 11, bold: true, color: BRAND.ink, width: "*" },
                         { text: `${totalTTC.toLocaleString("fr-MA")} MAD`, fontSize: 11, bold: true, color: accentColor, width: "auto", alignment: "right" as const },
                       ],
                       margin: [12, 8, 12, 10],
                     },
                   ],
-                  fillColor: "#f8f7ff",
+                  fillColor: BRAND.surface,
                   border: [true, true, true, true] as [boolean, boolean, boolean, boolean],
-                  borderColor: ["#e5e7eb", "#e5e7eb", "#e5e7eb", "#e5e7eb"],
+                  borderColor: [BRAND.border, BRAND.border, BRAND.border, BRAND.border],
                 },
               ],
             ],
@@ -4647,7 +4516,7 @@ async function buildDocDef(template: DocumentTemplate, input: DocumentInput): Pr
       const rawBudgetLines = (input._budgetLines as string) || "";
       const budgetStatus  = (input._budgetStatus as string) || (input._kpiBudgetStatus as string) || "draft";
       const statusLabel   = ({ draft: "BROUILLON", voted: "VOTÉ", approved: "APPROUVÉ", archived: "ARCHIVÉ" } as Record<string, string>)[budgetStatus] || budgetStatus.toUpperCase();
-      const statusColor   = ({ voted: "#16a34a", approved: "#7c3aed", archived: "#6b7280", draft: "#d97706" } as Record<string, string>)[budgetStatus] || "#d97706";
+      const statusColor   = ({ voted: BRAND.successDark, approved: BRAND.primary, archived: BRAND.muted, draft: BRAND.warningDark } as Record<string, string>)[budgetStatus] || BRAND.warningDark;
 
       // Parse budget lines from text format into structured data
       const parsedLines: Array<{ category: string; label: string; amountAnnual: number }> = rawBudgetLines
@@ -4672,8 +4541,8 @@ async function buildDocDef(template: DocumentTemplate, input: DocumentInput): Pr
         { text: "BUDGET PRÉVISIONNEL", style: "docTitle", alignment: "center" as const, margin: [0, 0, 0, 4] },
         {
           columns: [
-            { text: `Exercice ${budgetYear}  •  ${budgetBuilding}`, fontSize: 8.5, color: "#6b7280", width: "*" },
-            { text: statusLabel, fontSize: 8, bold: true, color: "#ffffff", background: statusColor, margin: [0, 0, 0, 0], width: "auto",
+            { text: `Exercice ${budgetYear}  •  ${budgetBuilding}`, fontSize: 8.5, color: BRAND.muted, width: "*" },
+            { text: statusLabel, fontSize: 8, bold: true, color: BRAND.surfaceCard, background: statusColor, margin: [0, 0, 0, 0], width: "auto",
               // pdfmake doesn't have background on text; use inline table
             },
           ],
@@ -4702,31 +4571,31 @@ async function buildDocDef(template: DocumentTemplate, input: DocumentInput): Pr
             body: [[
               {
                 stack: [
-                  { text: "CHARGES TOTALES",  fontSize: 7, bold: true, color: "#9ca3af", margin: [0, 0, 0, 4] },
+                  { text: "CHARGES TOTALES",  fontSize: 7, bold: true, color: BRAND.mutedLight, margin: [0, 0, 0, 4] },
                   { text: `${chargesAmount} MAD`, fontSize: 15, bold: true, color: accentColor },
-                  { text: "Charges communes + services", fontSize: 6.5, color: "#6b7280", margin: [0, 3, 0, 0] },
+                  { text: "Charges communes + services", fontSize: 6.5, color: BRAND.muted, margin: [0, 3, 0, 0] },
                 ],
-                fillColor: "#f0fdf4",
+                fillColor: BRAND.successLight,
                 margin: [12, 14, 12, 14],
                 border: [false, false, false, false] as [boolean, boolean, boolean, boolean],
               },
               {
                 stack: [
-                  { text: "FONDS DE RÉSERVE",  fontSize: 7, bold: true, color: "#9ca3af", margin: [0, 0, 0, 4] },
-                  { text: `${fondsReserve} MAD`, fontSize: 15, bold: true, color: "#1e3a8a" },
-                  { text: "Fonds de travaux légal", fontSize: 6.5, color: "#6b7280", margin: [0, 3, 0, 0] },
+                  { text: "FONDS DE RÉSERVE",  fontSize: 7, bold: true, color: BRAND.mutedLight, margin: [0, 0, 0, 4] },
+                  { text: `${fondsReserve} MAD`, fontSize: 15, bold: true, color: BRAND.info },
+                  { text: "Fonds de travaux légal", fontSize: 6.5, color: BRAND.muted, margin: [0, 3, 0, 0] },
                 ],
-                fillColor: "#eff6ff",
+                fillColor: BRAND.infoLight,
                 margin: [12, 14, 12, 14],
                 border: [false, false, false, false] as [boolean, boolean, boolean, boolean],
               },
               {
                 stack: [
-                  { text: "BUDGET TOTAL",       fontSize: 7, bold: true, color: "#9ca3af", margin: [0, 0, 0, 4] },
-                  { text: `${totalAmount} MAD`, fontSize: 15, bold: true, color: "#111827" },
+                  { text: "BUDGET TOTAL",       fontSize: 7, bold: true, color: BRAND.mutedLight, margin: [0, 0, 0, 4] },
+                  { text: `${totalAmount} MAD`, fontSize: 15, bold: true, color: BRAND.ink },
                   { text: `Statut : ${statusLabel}`, fontSize: 6.5, color: statusColor, bold: true, margin: [0, 3, 0, 0] },
                 ],
-                fillColor: "#f8f7ff",
+                fillColor: BRAND.surface,
                 margin: [12, 14, 12, 14],
                 border: [false, false, false, false] as [boolean, boolean, boolean, boolean],
               },
@@ -4735,7 +4604,7 @@ async function buildDocDef(template: DocumentTemplate, input: DocumentInput): Pr
           layout: {
             hLineWidth: (i: number, node: { table: { body: unknown[] } }) => i === 0 || i === node.table.body.length ? 0.6 : 0,
             vLineWidth: () => 0,
-            hLineColor: () => "#e2e8f0",
+            hLineColor: () => BRAND.border,
             paddingLeft: () => 0, paddingRight: () => 0, paddingTop: () => 0, paddingBottom: () => 0,
           },
           margin: [0, 0, 0, 16],
@@ -4744,7 +4613,7 @@ async function buildDocDef(template: DocumentTemplate, input: DocumentInput): Pr
         // ── Budget lines table ───────────────────────────────────────────────
         ...(parsedLines.length > 0 ? [
           {
-            table: { widths: ["*"], body: [[{ text: "DÉTAIL DES POSTES BUDGÉTAIRES", fontSize: 8.5, bold: true, color: "#ffffff", fillColor: accentColor, margin: [14, 6, 14, 6], border: [false, false, false, false] as [boolean, boolean, boolean, boolean] }]] },
+            table: { widths: ["*"], body: [[{ text: "DÉTAIL DES POSTES BUDGÉTAIRES", fontSize: 8.5, bold: true, color: BRAND.surfaceCard, fillColor: accentColor, margin: [14, 6, 14, 6], border: [false, false, false, false] as [boolean, boolean, boolean, boolean] }]] },
             layout: { hLineWidth: () => 0, vLineWidth: () => 0, paddingLeft: () => 0, paddingRight: () => 0, paddingTop: () => 0, paddingBottom: () => 0 },
             margin: [0, 4, 0, 4],
           },
@@ -4777,7 +4646,7 @@ async function buildDocDef(template: DocumentTemplate, input: DocumentInput): Pr
       content = [
         ...header,
         { text: "DÉCOMPTE ANNUEL DES CHARGES", style: "docTitle", alignment: "center" as const, margin: [0, 0, 0, 4] },
-        { text: `Exercice ${decompteYear}  •  Copropriétaire : ${(input.memberName as string) || member || "—"}`, fontSize: 8.5, color: "#6b7280", alignment: "center" as const, margin: [0, 0, 0, 20] },
+        { text: `Exercice ${decompteYear}  •  Copropriétaire : ${(input.memberName as string) || member || "—"}`, fontSize: 8.5, color: BRAND.muted, alignment: "center" as const, margin: [0, 0, 0, 20] },
 
         // ── Identification ───────────────────────────────────────────────────
         metaTable([
@@ -4795,16 +4664,16 @@ async function buildDocDef(template: DocumentTemplate, input: DocumentInput): Pr
             widths: ["*"],
             body: [[{
               stack: [
-                { text: "⚠  DONNÉES INSUFFISANTES", fontSize: 9, bold: true, color: "#92400e", margin: [0, 0, 0, 3] },
-                { text: "Aucun appel de fonds trouvé pour ce lot et cet exercice. Veuillez vérifier le lotId et l'exercice fournis.", fontSize: 8, color: "#78350f" },
+                { text: "⚠  DONNÉES INSUFFISANTES", fontSize: 9, bold: true, color: BRAND.warningDark, margin: [0, 0, 0, 3] },
+                { text: "Aucun appel de fonds trouvé pour ce lot et cet exercice. Veuillez vérifier le lotId et l'exercice fournis.", fontSize: 8, color: BRAND.warningDark },
               ],
-              fillColor: "#fef3c7",
+              fillColor: BRAND.warningLight,
               margin: [14, 10, 14, 10],
               border: [true, true, true, true] as [boolean, boolean, boolean, boolean],
-              borderColor: ["#fcd34d", "#fcd34d", "#fcd34d", "#fcd34d"],
+              borderColor: [BRAND.warning, BRAND.warning, BRAND.warning, BRAND.warning],
             }]],
           },
-          layout: { hLineWidth: () => 1, vLineWidth: () => 1, hLineColor: () => "#fcd34d", vLineColor: () => "#fcd34d", paddingLeft: () => 0, paddingRight: () => 0, paddingTop: () => 0, paddingBottom: () => 0 },
+          layout: { hLineWidth: () => 1, vLineWidth: () => 1, hLineColor: () => BRAND.warning, vLineColor: () => BRAND.warning, paddingLeft: () => 0, paddingRight: () => 0, paddingTop: () => 0, paddingBottom: () => 0 },
           margin: [0, 0, 0, 16],
         }] : []),
 
@@ -4813,16 +4682,16 @@ async function buildDocDef(template: DocumentTemplate, input: DocumentInput): Pr
 
         // ── Charge comparison KPIs ───────────────────────────────────────────
         kpiRow([
-          { label: "Provisions Versées",  value: `${totalProvisioned.toLocaleString("fr-MA")} MAD`,  bgColor: "#f8f7ff" },
-          { label: "Charges Réelles",     value: `${totalActual.toLocaleString("fr-MA")} MAD`,        bgColor: "#f8f7ff" },
+          { label: "Provisions Versées",  value: `${totalProvisioned.toLocaleString("fr-MA")} MAD`,  bgColor: BRAND.surface },
+          { label: "Charges Réelles",     value: `${totalActual.toLocaleString("fr-MA")} MAD`,        bgColor: BRAND.surface },
           { label: difference >= 0 ? "Rappel Dû" : "Avoir", value: `${Math.abs(difference).toLocaleString("fr-MA")} MAD`,
-            valueColor: difference >= 0 ? "#dc2626" : "#16a34a",
-            bgColor: difference >= 0 ? "#fef2f2" : "#f0fdf4" },
+            valueColor: difference >= 0 ? BRAND.destructiveDark : BRAND.successDark,
+            bgColor: difference >= 0 ? BRAND.destructiveLight : BRAND.successLight },
         ], accentColor),
         kpiRow([
-          { label: "Total Payé",          value: `${totalPaid.toLocaleString("fr-MA")} MAD`,         valueColor: "#16a34a", bgColor: "#f0fdf4" },
-          { label: "Impayés / Retard",    value: `${totalOverdue.toLocaleString("fr-MA")} MAD`,      valueColor: totalOverdue > 0 ? "#dc2626" : "#16a34a", bgColor: totalOverdue > 0 ? "#fef2f2" : "#f0fdf4" },
-          { label: "Taux de Paiement",    value: `${collRate}%`,                                     valueColor: collRate >= 90 ? "#16a34a" : "#dc2626", bgColor: "#f8f7ff" },
+          { label: "Total Payé",          value: `${totalPaid.toLocaleString("fr-MA")} MAD`,         valueColor: BRAND.successDark, bgColor: BRAND.successLight },
+          { label: "Impayés / Retard",    value: `${totalOverdue.toLocaleString("fr-MA")} MAD`,      valueColor: totalOverdue > 0 ? BRAND.destructiveDark : BRAND.successDark, bgColor: totalOverdue > 0 ? BRAND.destructiveLight : BRAND.successLight },
+          { label: "Taux de Paiement",    value: `${collRate}%`,                                     valueColor: collRate >= 90 ? BRAND.successDark : BRAND.destructiveDark, bgColor: BRAND.surface },
         ], accentColor),
 
         // Progress bar — payment rate
@@ -4880,7 +4749,7 @@ async function buildDocDef(template: DocumentTemplate, input: DocumentInput): Pr
         ...header,
         buildGovernanceBanner(accentColor, theme.categoryLabel, electionTitle),
         { text: "PROCÈS-VERBAL D'ÉLECTION", style: "docTitle", alignment: "center" as const, margin: [0, 0, 0, 4] },
-        { text: electionTitle, fontSize: 11, bold: true, color: "#374151", alignment: "center" as const, margin: [0, 0, 0, 14] },
+        { text: electionTitle, fontSize: 11, bold: true, color: BRAND.inkMid, alignment: "center" as const, margin: [0, 0, 0, 14] },
         metaTable([
           ["TYPE D'ÉLECTION", electionTypeLabel[electionType] || electionType],
           ["PÉRIODE DE VOTE", `Du ${startDate} au ${endDate}`],
@@ -4898,7 +4767,7 @@ async function buildDocDef(template: DocumentTemplate, input: DocumentInput): Pr
                 {
                   text: quorumReached === "OUI" ? "✓" : "✗",
                   fontSize: 20, bold: true,
-                  color: quorumReached === "OUI" ? "#16a34a" : "#dc2626",
+                  color: quorumReached === "OUI" ? BRAND.successDark : BRAND.destructiveDark,
                   width: 30, margin: [0, 4, 0, 0],
                 },
                 {
@@ -4906,18 +4775,18 @@ async function buildDocDef(template: DocumentTemplate, input: DocumentInput): Pr
                     {
                       text: quorumReached === "OUI" ? "QUORUM ATTEINT" : "QUORUM NON ATTEINT",
                       fontSize: 11, bold: true,
-                      color: quorumReached === "OUI" ? "#15803d" : "#dc2626",
+                      color: quorumReached === "OUI" ? BRAND.successDeep : BRAND.destructiveDark,
                       margin: [0, 0, 0, 2],
                     },
                     {
                       text: `Quorum requis : ${quorumPercent}%  •  Participation : ${participationRate}`,
-                      fontSize: 8.5, color: "#6b7280",
+                      fontSize: 8.5, color: BRAND.muted,
                     },
                   ],
                   width: "*",
                 },
               ],
-              fillColor: quorumReached === "OUI" ? "#f0fdf4" : "#fef2f2",
+              fillColor: quorumReached === "OUI" ? BRAND.successLight : BRAND.destructiveLight,
               margin: [16, 14, 16, 14],
               border: [false, false, false, false] as [boolean, boolean, boolean, boolean],
             }]],
@@ -4925,7 +4794,7 @@ async function buildDocDef(template: DocumentTemplate, input: DocumentInput): Pr
           layout: {
             hLineWidth: (i: number, node: { table: { body: unknown[] } }) => i === 0 || i === node.table.body.length ? 0.8 : 0,
             vLineWidth: () => 0,
-            hLineColor: () => quorumReached === "OUI" ? "#bbf7d0" : "#fecaca",
+            hLineColor: () => quorumReached === "OUI" ? BRAND.success : BRAND.destructive,
             paddingLeft: () => 0, paddingRight: () => 0, paddingTop: () => 0, paddingBottom: () => 0,
           },
           margin: [0, 0, 0, 16],
@@ -4955,7 +4824,7 @@ async function buildDocDef(template: DocumentTemplate, input: DocumentInput): Pr
       const depositAmount   = (input._depositAmount as string)    || "—";
       const leaseStatus     = (input._leaseStatus as string)      || "active";
       const statusLabel     = ({ active: "EN COURS", expired: "EXPIRÉ", terminated: "RÉSILIÉ" } as Record<string, string>)[leaseStatus] || leaseStatus.toUpperCase();
-      const accentIsBlue    = "#1d4ed8";
+      const accentIsBlue    = BRAND.info;
 
       content = [
         ...header,
@@ -4969,15 +4838,15 @@ async function buildDocDef(template: DocumentTemplate, input: DocumentInput): Pr
             widths: ["*"],
             body: [[{
               columns: [
-                { text: `Statut : ${statusLabel}`, fontSize: 9, bold: true, color: leaseStatus === "active" ? "#16a34a" : "#dc2626", width: "*" },
-                { text: `Réf : ${docNum}  •  ${today}`, fontSize: 8, color: "#6b7280", alignment: "right" as const, width: "auto" },
+                { text: `Statut : ${statusLabel}`, fontSize: 9, bold: true, color: leaseStatus === "active" ? BRAND.successDark : BRAND.destructiveDark, width: "*" },
+                { text: `Réf : ${docNum}  •  ${today}`, fontSize: 8, color: BRAND.muted, alignment: "right" as const, width: "auto" },
               ],
-              fillColor: leaseStatus === "active" ? "#f0fdf4" : "#fef2f2",
+              fillColor: leaseStatus === "active" ? BRAND.successLight : BRAND.destructiveLight,
               margin: [14, 9, 14, 9],
               border: [false, false, false, false] as [boolean, boolean, boolean, boolean],
             }]],
           },
-          layout: { hLineWidth: () => 0.8, vLineWidth: () => 0, hLineColor: () => leaseStatus === "active" ? "#86efac" : "#fca5a5" },
+          layout: { hLineWidth: () => 0.8, vLineWidth: () => 0, hLineColor: () => leaseStatus === "active" ? BRAND.success : BRAND.destructive },
           margin: [0, 0, 0, 16],
         },
         // Two-column parties block
@@ -4987,11 +4856,11 @@ async function buildDocDef(template: DocumentTemplate, input: DocumentInput): Pr
               stack: [
                 { text: "LE BAILLEUR", fontSize: 8, bold: true, color: accentColor, margin: [0, 0, 0, 4] },
                 { canvas: [{ type: "line", x1: 0, y1: 0, x2: 220, y2: 0, lineWidth: 1, lineColor: accentColor }], margin: [0, 0, 0, 8] },
-                { text: syndInfo.name, fontSize: 11, bold: true, color: "#111827", margin: [0, 0, 0, 3] },
-                { text: [syndInfo.address, syndInfo.city].filter(Boolean).join(", ") || "—", fontSize: 8.5, color: "#6b7280" },
-                { text: syndInfo.phone || "", fontSize: 8.5, color: "#6b7280" },
-                { text: syndInfo.email || "", fontSize: 8.5, color: "#6b7280" },
-                ...(syndInfo.registrationNumber ? [{ text: `N° Reg. : ${syndInfo.registrationNumber}`, fontSize: 8, color: "#9ca3af", margin: [0, 4, 0, 0] }] : []),
+                { text: syndInfo.name, fontSize: 11, bold: true, color: BRAND.ink, margin: [0, 0, 0, 3] },
+                { text: [syndInfo.address, syndInfo.city].filter(Boolean).join(", ") || "—", fontSize: 8.5, color: BRAND.muted },
+                { text: syndInfo.phone || "", fontSize: 8.5, color: BRAND.muted },
+                { text: syndInfo.email || "", fontSize: 8.5, color: BRAND.muted },
+                ...(syndInfo.registrationNumber ? [{ text: `N° Reg. : ${syndInfo.registrationNumber}`, fontSize: 8, color: BRAND.mutedLight, margin: [0, 4, 0, 0] }] : []),
               ],
               width: "50%",
             },
@@ -4999,9 +4868,9 @@ async function buildDocDef(template: DocumentTemplate, input: DocumentInput): Pr
               stack: [
                 { text: "LE LOCATAIRE", fontSize: 8, bold: true, color: accentColor, margin: [0, 0, 0, 4] },
                 { canvas: [{ type: "line", x1: 0, y1: 0, x2: 220, y2: 0, lineWidth: 1, lineColor: accentColor }], margin: [0, 0, 0, 8] },
-                { text: tenantName, fontSize: 11, bold: true, color: "#111827", margin: [0, 0, 0, 3] },
-                { text: tenantEmail !== "—" ? tenantEmail : "", fontSize: 8.5, color: "#6b7280" },
-                { text: tenantPhone !== "—" ? tenantPhone : "", fontSize: 8.5, color: "#6b7280" },
+                { text: tenantName, fontSize: 11, bold: true, color: BRAND.ink, margin: [0, 0, 0, 3] },
+                { text: tenantEmail !== "—" ? tenantEmail : "", fontSize: 8.5, color: BRAND.muted },
+                { text: tenantPhone !== "—" ? tenantPhone : "", fontSize: 8.5, color: BRAND.muted },
               ],
               width: "50%",
             },
@@ -5048,11 +4917,11 @@ async function buildDocDef(template: DocumentTemplate, input: DocumentInput): Pr
             body: [[{
               text: "Ce contrat est établi conformément aux dispositions légales en vigueur. Toute modification doit faire l'objet d'un avenant signé des deux parties.",
               style: "notice",
-              fillColor: "#eff6ff",
+              fillColor: BRAND.infoLight,
               margin: [12, 9, 12, 9],
             }]],
           },
-          layout: { hLineWidth: () => 1, vLineWidth: () => 1, hLineColor: () => "#bfdbfe", vLineColor: () => "#bfdbfe" },
+          layout: { hLineWidth: () => 1, vLineWidth: () => 1, hLineColor: () => BRAND.info, vLineColor: () => BRAND.info },
           margin: [0, 0, 0, 16],
         },
         {
@@ -5060,14 +4929,14 @@ async function buildDocDef(template: DocumentTemplate, input: DocumentInput): Pr
             {
               stack: [
                 { text: "Pour le Bailleur :", style: "metaKey", margin: [0, 0, 0, 28] },
-                { canvas: [{ type: "line", x1: 0, y1: 0, x2: 160, y2: 0, lineWidth: 0.8, lineColor: "#cbd5e1" }] },
+                { canvas: [{ type: "line", x1: 0, y1: 0, x2: 160, y2: 0, lineWidth: 0.8, lineColor: BRAND.mutedLight }] },
                 { text: syndInfo.name, style: "signName", margin: [0, 4, 0, 0] },
               ],
             },
             {
               stack: [
                 { text: "Pour le Locataire :", style: "metaKey", margin: [0, 0, 0, 28] },
-                { canvas: [{ type: "line", x1: 0, y1: 0, x2: 160, y2: 0, lineWidth: 0.8, lineColor: "#cbd5e1" }] },
+                { canvas: [{ type: "line", x1: 0, y1: 0, x2: 160, y2: 0, lineWidth: 0.8, lineColor: BRAND.mutedLight }] },
                 { text: tenantName, style: "signName", margin: [0, 4, 0, 0] },
               ],
             },
@@ -5096,18 +4965,18 @@ async function buildDocDef(template: DocumentTemplate, input: DocumentInput): Pr
       const lotNum           = (input._lotNumber as string)         || "—";
 
       const statusColors: Record<string, { bg: string; border: string; text: string; label: string }> = {
-        declared:     { bg: "#eff6ff", border: "#bfdbfe", text: "#1d4ed8", label: "DÉCLARÉ" },
-        under_review: { bg: "#fffbeb", border: "#fde68a", text: "#b45309", label: "EN EXAMEN" },
-        assigned:     { bg: "#f0fdf4", border: "#86efac", text: "#16a34a", label: "ASSIGNÉ" },
-        in_progress:  { bg: "#fef3c7", border: "#fcd34d", text: "#d97706", label: "EN COURS" },
-        resolved:     { bg: "#f0fdf4", border: "#86efac", text: "#16a34a", label: "RÉSOLU" },
-        closed:       { bg: "#f9fafb", border: "#e5e7eb", text: "#6b7280", label: "CLÔTURÉ" },
+        declared:     { bg: BRAND.infoLight, border: BRAND.info, text: BRAND.info, label: "DÉCLARÉ" },
+        under_review: { bg: BRAND.warningLight, border: BRAND.warning, text: BRAND.warningDark, label: "EN EXAMEN" },
+        assigned:     { bg: BRAND.successLight, border: BRAND.success, text: BRAND.successDark, label: "ASSIGNÉ" },
+        in_progress:  { bg: BRAND.warningLight, border: BRAND.warning, text: BRAND.warningDark, label: "EN COURS" },
+        resolved:     { bg: BRAND.successLight, border: BRAND.success, text: BRAND.successDark, label: "RÉSOLU" },
+        closed:       { bg: BRAND.surfaceAlt, border: BRAND.border, text: BRAND.muted, label: "CLÔTURÉ" },
       };
       const urgencyColors: Record<string, { color: string; label: string }> = {
-        low:      { color: "#6b7280", label: "FAIBLE" },
-        normal:   { color: "#2563eb", label: "NORMALE" },
-        high:     { color: "#d97706", label: "ÉLEVÉE" },
-        critical: { color: "#dc2626", label: "CRITIQUE" },
+        low:      { color: BRAND.muted, label: "FAIBLE" },
+        normal:   { color: BRAND.info, label: "NORMALE" },
+        high:     { color: BRAND.warningDark, label: "ÉLEVÉE" },
+        critical: { color: BRAND.destructiveDark, label: "CRITIQUE" },
       };
       const sc = statusColors[sinistreStatus] || statusColors.declared;
       const uc = urgencyColors[sinistreUrgency] || urgencyColors.normal;
@@ -5122,7 +4991,7 @@ async function buildDocDef(template: DocumentTemplate, input: DocumentInput): Pr
         ...header,
         { canvas: [{ type: "rect", x: 0, y: 0, w: 515, h: 4, color: accentColor }], margin: [0, 0, 0, 12] },
         { text: "DÉCLARATION DE SINISTRE", fontSize: 20, bold: true, color: accentColor, alignment: "center" as const, margin: [0, 0, 0, 4] },
-        { text: `N° de dossier : ${claimNumber}`, fontSize: 9, color: "#6b7280", alignment: "center" as const, margin: [0, 0, 0, 16] },
+        { text: `N° de dossier : ${claimNumber}`, fontSize: 9, color: BRAND.muted, alignment: "center" as const, margin: [0, 0, 0, 16] },
         // Status + Urgency badges
         {
           columns: [
@@ -5138,9 +5007,9 @@ async function buildDocDef(template: DocumentTemplate, input: DocumentInput): Pr
             {
               table: {
                 widths: ["*"],
-                body: [[{ text: `⚡ Urgence : ${uc.label}`, fontSize: 9, bold: true, color: uc.color, fillColor: "#f9fafb", margin: [12, 8, 12, 8], border: [false, false, false, false] as [boolean, boolean, boolean, boolean] }]],
+                body: [[{ text: `⚡ Urgence : ${uc.label}`, fontSize: 9, bold: true, color: uc.color, fillColor: BRAND.surfaceAlt, margin: [12, 8, 12, 8], border: [false, false, false, false] as [boolean, boolean, boolean, boolean] }]],
               },
-              layout: { hLineWidth: (i: number, n: any) => i === 0 || i === n.table.body.length ? 0.8 : 0, vLineWidth: () => 0, hLineColor: () => "#e5e7eb" },
+              layout: { hLineWidth: (i: number, n: any) => i === 0 || i === n.table.body.length ? 0.8 : 0, vLineWidth: () => 0, hLineColor: () => BRAND.border },
               width: "*",
             },
           ],
@@ -5199,18 +5068,18 @@ async function buildDocDef(template: DocumentTemplate, input: DocumentInput): Pr
         installation: "Installation", inspection: "Inspection / Contrôle", urgence: "Urgence",
       };
       const priorityConfig: Record<string, { color: string; label: string }> = {
-        low:      { color: "#6b7280", label: "FAIBLE" },
-        normal:   { color: "#2563eb", label: "NORMALE" },
-        high:     { color: "#d97706", label: "ÉLEVÉE" },
-        critical: { color: "#dc2626", label: "CRITIQUE" },
+        low:      { color: BRAND.muted, label: "FAIBLE" },
+        normal:   { color: BRAND.info, label: "NORMALE" },
+        high:     { color: BRAND.warningDark, label: "ÉLEVÉE" },
+        critical: { color: BRAND.destructiveDark, label: "CRITIQUE" },
       };
       const statusConfig: Record<string, { bg: string; text: string; label: string }> = {
-        reported:            { bg: "#eff6ff", text: "#1d4ed8", label: "SIGNALÉ" },
-        assigned:            { bg: "#fffbeb", text: "#d97706", label: "ASSIGNÉ" },
-        in_progress:         { bg: "#fef3c7", text: "#b45309", label: "EN COURS" },
-        pending_validation:  { bg: "#f5f3ff", text: "#7c3aed", label: "EN VALIDATION" },
-        completed:           { bg: "#f0fdf4", text: "#16a34a", label: "TERMINÉ" },
-        cancelled:           { bg: "#fef2f2", text: "#dc2626", label: "ANNULÉ" },
+        reported:            { bg: BRAND.infoLight, text: BRAND.info, label: "SIGNALÉ" },
+        assigned:            { bg: BRAND.warningLight, text: BRAND.warningDark, label: "ASSIGNÉ" },
+        in_progress:         { bg: BRAND.warningLight, text: BRAND.warningDark, label: "EN COURS" },
+        pending_validation:  { bg: BRAND.primaryLighter, text: BRAND.primary, label: "EN VALIDATION" },
+        completed:           { bg: BRAND.successLight, text: BRAND.successDark, label: "TERMINÉ" },
+        cancelled:           { bg: BRAND.destructiveLight, text: BRAND.destructiveDark, label: "ANNULÉ" },
       };
       const pc = priorityConfig[travauxPriority] || priorityConfig.normal;
       const sc = statusConfig[travauxStatus] || statusConfig.reported;
@@ -5229,16 +5098,16 @@ async function buildDocDef(template: DocumentTemplate, input: DocumentInput): Pr
                 widths: ["*"],
                 body: [[{ text: `Statut : ${sc.label}`, fontSize: 9, bold: true, color: sc.text, fillColor: sc.bg, margin: [12, 8, 12, 8], border: [false, false, false, false] as [boolean, boolean, boolean, boolean] }]],
               },
-              layout: { hLineWidth: (i: number, n: any) => i === 0 || i === n.table.body.length ? 0.8 : 0, vLineWidth: () => 0, hLineColor: () => "#e5e7eb" },
+              layout: { hLineWidth: (i: number, n: any) => i === 0 || i === n.table.body.length ? 0.8 : 0, vLineWidth: () => 0, hLineColor: () => BRAND.border },
               width: "*",
             },
             { width: 12, text: "" },
             {
               table: {
                 widths: ["*"],
-                body: [[{ text: `Priorité : ${pc.label}`, fontSize: 9, bold: true, color: pc.color, fillColor: "#f9fafb", margin: [12, 8, 12, 8], border: [false, false, false, false] as [boolean, boolean, boolean, boolean] }]],
+                body: [[{ text: `Priorité : ${pc.label}`, fontSize: 9, bold: true, color: pc.color, fillColor: BRAND.surfaceAlt, margin: [12, 8, 12, 8], border: [false, false, false, false] as [boolean, boolean, boolean, boolean] }]],
               },
-              layout: { hLineWidth: (i: number, n: any) => i === 0 || i === n.table.body.length ? 0.8 : 0, vLineWidth: () => 0, hLineColor: () => "#e5e7eb" },
+              layout: { hLineWidth: (i: number, n: any) => i === 0 || i === n.table.body.length ? 0.8 : 0, vLineWidth: () => 0, hLineColor: () => BRAND.border },
               width: "*",
             },
           ],
@@ -5265,10 +5134,10 @@ async function buildDocDef(template: DocumentTemplate, input: DocumentInput): Pr
           table: {
             widths: ["*", "auto"],
             body: [[
-              { text: "MONTANT TOTAL TRAVAUX", fontSize: 11, bold: true, color: "#374151", margin: [16, 14, 8, 14], border: [false, false, false, false] as [boolean, boolean, boolean, boolean] },
+              { text: "MONTANT TOTAL TRAVAUX", fontSize: 11, bold: true, color: BRAND.inkMid, margin: [16, 14, 8, 14], border: [false, false, false, false] as [boolean, boolean, boolean, boolean] },
               {
                 text: `${financialAmt.toLocaleString("fr-MA")} MAD`,
-                fontSize: 18, bold: true, color: "#ffffff",
+                fontSize: 18, bold: true, color: BRAND.surfaceCard,
                 fillColor: accentColor,
                 alignment: "right" as const,
                 margin: [16, 10, 16, 10],
@@ -5279,8 +5148,8 @@ async function buildDocDef(template: DocumentTemplate, input: DocumentInput): Pr
           layout: {
             hLineWidth: (i: number, node: any) => i === 0 || i === node.table.body.length ? 0.8 : 0,
             vLineWidth: () => 0,
-            hLineColor: () => "#e5e7eb",
-            fillColor: (_: number, __: unknown, col: number) => col === 0 ? "#f8f7ff" : null,
+            hLineColor: () => BRAND.border,
+            fillColor: (_: number, __: unknown, col: number) => col === 0 ? BRAND.surface : null,
             paddingLeft: () => 0, paddingRight: () => 0, paddingTop: () => 0, paddingBottom: () => 0,
           },
           margin: [0, 16, 0, 24],

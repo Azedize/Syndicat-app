@@ -1,0 +1,104 @@
+Je ne veux plus d'amélioration incrémentale.
+
+Je considère que l'architecture actuelle des templates PDF est obsolète.
+
+Avant toute nouvelle implémentation, réalise un audit complet de documentPdf.ts et identifie :
+
+* tous les anciens helpers hérités
+* tous les anciens composants visuels
+* tous les anciens templates
+* toutes les anciennes structures réutilisées
+* tous les anciens switch cases
+* tous les anciens layouts génériques
+* toutes les fonctions devenues inutiles après la refonte
+
+Je veux supprimer totalement l'ancienne génération de documents.
+
+Ne conserve pas du code uniquement par sécurité ou compatibilité visuelle.
+
+Si un ancien composant n'est plus utilisé dans la nouvelle architecture, supprime-le.
+
+Si un ancien template possède encore une logique historique, remplace-la par la nouvelle logique.
+
+Je veux un moteur PDF entièrement reconstruit et non une coexistence entre ancien et nouveau système.
+
+Objectifs :
+
+1. Éliminer toute dette technique liée aux anciens templates.
+
+2. Éliminer les anciennes structures :
+
+   * buildHeaderBand historique
+   * anciens metaTable
+   * anciennes contentSection
+   * anciens layouts génériques
+   * anciens blocs de signatures
+   * anciens blocs de cachets
+   * anciens footers
+
+3. Créer un nouveau Design System documentaire unique :
+
+   * Header Enterprise
+   * Signature System
+   * Validation System
+   * Legal Blocks
+   * Financial Blocks
+   * Meeting Blocks
+   * Property Blocks
+   * Identity Blocks
+
+4. Chaque template doit être reconstruit selon son métier :
+
+Attestations :
+
+* orientées certification
+* une seule page lorsque possible
+
+Factures :
+
+* orientées comptabilité
+* priorité aux montants et lignes de facturation
+
+Rapports financiers :
+
+* orientés gestion et indicateurs
+* style ERP moderne
+
+PV et Convocations :
+
+* orientés gouvernance et réunions
+
+Contrats :
+
+* orientés juridique
+
+Sinistres et Travaux :
+
+* orientés suivi opérationnel
+
+5. Supprimer tous les anciens composants non utilisés après migration.
+
+6. Supprimer tous les switch cases morts.
+
+7. Supprimer toutes les fonctions orphelines.
+
+8. Supprimer tous les styles non utilisés.
+
+9. Supprimer les couleurs hardcodées non utilisées.
+
+10. Supprimer les anciennes structures de pages qui provoquent :
+
+* gaspillage d'espace
+* doubles pages inutiles
+* répétition d'informations
+* sections décoratives sans valeur métier
+
+Je veux un rapport final indiquant :
+
+* quelles fonctions ont été supprimées
+* quels composants ont été supprimés
+* quels templates ont été reconstruits
+* quelles dépendances ont été éliminées
+* combien de lignes de code obsolètes ont été retirées
+
+L'objectif est une vraie refonte de génération 2 du moteur PDF, pas une amélioration de génération 1.
