@@ -3885,6 +3885,13 @@ async function buildDocDef(template: DocumentTemplate, input: DocumentInput): Pr
     case "compte_rendu":
       content = [
         ...header,
+        buildMeetingBanner(
+          accentColor,
+          input.meetingType as string | undefined,
+          input.lieu as string | undefined,
+          input.dateMeeting as string || today,
+          lang,
+        ),
         { text: input.title, style: "docTitle", margin: [0, 0, 0, 16] },
         metaTable([
           ["Date de la réunion :", input.dateMeeting as string || today],
@@ -4053,8 +4060,7 @@ async function buildDocDef(template: DocumentTemplate, input: DocumentInput): Pr
       const lotFloor = (input.lotFloor as string | undefined) || (input._lotFloor as string | undefined);
       content = [
         ...header,
-        // Accent bar
-        { canvas: [{ type: "rect", x: 0, y: 0, w: 515, h: 4, color: accentColor }], margin: [0, 0, 0, 12] },
+        buildCertificateFrame(accentColor, lang),
         { text: "ATTESTATION DE RÉSIDENCE", fontSize: 20, bold: true, color: accentColor, alignment: "center" as const, margin: [0, 0, 0, 4] },
         { text: input.title, style: "docTitle", alignment: "center" as const, margin: [0, 0, 0, 16] },
         metaTable([
@@ -4082,7 +4088,6 @@ async function buildDocDef(template: DocumentTemplate, input: DocumentInput): Pr
           accentColor,
           isArabic,
         ),
-        { canvas: [{ type: "rect", x: 0, y: 0, w: 515, h: 4, color: accentColor }], margin: [0, 8, 0, 16] },
         signatureBlock(t("presidentTitle", lang), syndInfo.name, accentColor, true, lang, signatures),
         legalFooterNote(docNum, lang, verifyUrl),
       ];
@@ -4099,7 +4104,7 @@ async function buildDocDef(template: DocumentTemplate, input: DocumentInput): Pr
       const propName     = (input._buildingName as string) || prop?.name || syndInfo.name;
       content = [
         ...header,
-        { canvas: [{ type: "rect", x: 0, y: 0, w: 515, h: 4, color: accentColor }], margin: [0, 0, 0, 12] },
+        buildCertificateFrame(accentColor, lang),
         { text: "ATTESTATION DE PROPRIÉTÉ", fontSize: 20, bold: true, color: accentColor, alignment: "center" as const, margin: [0, 0, 0, 4] },
         { text: input.title, style: "docTitle", alignment: "center" as const, margin: [0, 0, 0, 16] },
         metaTable([
@@ -4138,7 +4143,6 @@ async function buildDocDef(template: DocumentTemplate, input: DocumentInput): Pr
           layout: { hLineWidth: () => 1, vLineWidth: () => 1, hLineColor: () => BRAND.warning, vLineColor: () => BRAND.warning },
           margin: [0, 0, 0, 16],
         },
-        { canvas: [{ type: "rect", x: 0, y: 0, w: 515, h: 4, color: accentColor }], margin: [0, 8, 0, 16] },
         signatureBlock(t("presidentTitle", lang), syndInfo.name, accentColor, true, lang, signatures),
         legalFooterNote(docNum, lang, verifyUrl),
       ];
@@ -4155,7 +4159,7 @@ async function buildDocDef(template: DocumentTemplate, input: DocumentInput): Pr
       const lastPaid = (input._lastPaidDate as string) || "";
       content = [
         ...header,
-        { canvas: [{ type: "rect", x: 0, y: 0, w: 515, h: 4, color: accentColor }], margin: [0, 0, 0, 12] },
+        buildCertificateFrame(accentColor, lang),
         { text: "ATTESTATION DE PAIEMENT DES CHARGES", fontSize: 18, bold: true, color: accentColor, alignment: "center" as const, margin: [0, 0, 0, 4] },
         { text: input.title, style: "docTitle", alignment: "center" as const, margin: [0, 0, 0, 16] },
         metaTable([
@@ -4218,7 +4222,6 @@ async function buildDocDef(template: DocumentTemplate, input: DocumentInput): Pr
           },
           margin: [0, 0, 0, 16],
         },
-        { canvas: [{ type: "rect", x: 0, y: 0, w: 515, h: 4, color: accentColor }], margin: [0, 8, 0, 16] },
         signatureBlock(t("presidentTitle", lang), syndInfo.name, accentColor, true, lang, signatures),
         legalFooterNote(docNum, lang, verifyUrl),
       ];
