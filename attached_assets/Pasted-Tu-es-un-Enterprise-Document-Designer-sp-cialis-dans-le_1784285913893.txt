@@ -1,0 +1,174 @@
+Tu es un Enterprise Document Designer spécialisé dans les plateformes SaaS premium, les ERP, les banques, les administrations gouvernementales et les solutions de signature électronique.
+
+Je ne veux PAS une simple correction de couleurs.
+
+Je veux une refonte complète de l'expérience visuelle de tous les templates.
+
+Considère que le problème principal n'est pas la couleur mais la conception globale du document.
+
+Analyse chaque template comme si tu étais designer chez Adobe Sign, DocuSign, SAP, Oracle ou Microsoft.
+
+Je veux que tu audites et reconstruises :
+
+La Font Family.
+
+La hiérarchie typographique.
+
+La structure du template.
+
+Les espacements.
+
+Les marges.
+
+Les colonnes.
+
+Les blocs d'informations.
+
+Les tableaux.
+
+Les sections.
+
+Les signatures.
+
+Les cachets.
+
+Les QR Codes.
+
+Les backgrounds.
+
+Les bordures.
+
+Les séparateurs.
+
+Les cartes d'informations.
+
+Les indicateurs visuels.
+
+Les statuts.
+
+Les badges.
+
+Les en-têtes.
+
+Les pieds de page.
+
+Je considère que les problèmes actuels sont les suivants :
+
+Les polices utilisées ne donnent pas une impression premium.
+
+Les tailles de texte ne créent aucune hiérarchie claire.
+
+Les titres, sous-titres et contenus se ressemblent.
+
+Les blocs sont visuellement plats.
+
+Les tableaux ressemblent à des exports Excel.
+
+Les documents manquent totalement de personnalité.
+
+Les backgrounds sont incohérents.
+
+Les signatures ne sont pas mises en valeur.
+
+Les cachets ne ressemblent pas à des cachets institutionnels.
+
+Les informations importantes sont noyées dans le contenu.
+
+Les espaces sont mal répartis.
+
+Certaines zones sont vides alors que d'autres sont surchargées.
+
+Les documents n'ont pas l'apparence d'un produit SaaS moderne.
+
+Je veux que chaque template soit reconstruit autour d'une grille professionnelle.
+
+Je veux que chaque document possède :
+
+Une structure éditoriale claire.
+
+Une lecture naturelle.
+
+Une hiérarchie visuelle forte.
+
+Une cohérence parfaite avec la marque.
+
+Une expérience proche d'Adobe PDF Services ou DocuSign.
+
+Je veux que les templates utilisent une véritable architecture documentaire :
+
+Zone identité du syndicat.
+
+Zone informations du document.
+
+Zone informations métier.
+
+Zone contenu principal.
+
+Zone validation.
+
+Zone signatures.
+
+Zone traçabilité.
+
+Zone vérification.
+
+Chaque zone doit avoir sa propre logique visuelle.
+
+Les documents financiers doivent ressembler à des rapports financiers professionnels.
+
+Les attestations doivent ressembler à des documents officiels.
+
+Les contrats doivent ressembler à des contrats juridiques.
+
+Les procès-verbaux doivent ressembler à des comptes-rendus d'entreprise.
+
+Les rapports doivent ressembler à des rapports exécutifs.
+
+Je veux également une refonte complète des polices.
+
+Analyse les polices actuelles.
+
+Détermine si elles sont adaptées.
+
+Si elles ne le sont pas, propose une nouvelle combinaison professionnelle.
+
+Exemple :
+
+Titre :
+Font premium
+
+Sous-titres :
+Font semi-bold
+
+Contenu :
+Font optimisée lecture longue
+
+Tableaux :
+Font adaptée aux données
+
+Je veux que le document reste professionnel même lorsqu'il contient :
+
+1 page
+5 pages
+20 pages
+50 pages
+
+Je veux que chaque template atteigne un niveau visuel comparable aux documents générés par :
+
+Adobe Sign
+DocuSign
+Microsoft 365
+SAP
+Oracle
+Stripe
+Notion Enterprise
+
+Pour chaque template :
+
+Analyse les défauts actuels.
+
+Explique pourquoi le rendu paraît amateur.
+
+Décris la nouvelle structure idéale.
+
+Puis implémente directement cette nouvelle architecture visuelle dans le moteur PDF.
