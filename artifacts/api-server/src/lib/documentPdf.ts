@@ -1249,6 +1249,10 @@ function financialDashboard(input: Record<string, unknown>, accentColor: string)
   // More prominent than a left-bar style: the financial dashboard IS the document.
   // Dark fill with white text signals "this is the executive summary panel."
   const dashboardDark = adjustColorBrightness(accentColor, -18);
+  // Net balance semantic color: positive → accent, negative → destructive
+  const netBalanceNum = parseFloat((input._kpiNetBalance as string || "0").replace(/\s/g, "").replace(",", "."));
+  const netBalanceColor = netBalanceNum >= 0 ? accentColor : BRAND.destructiveDark;
+
   return [
     {
       table: {
@@ -1256,9 +1260,9 @@ function financialDashboard(input: Record<string, unknown>, accentColor: string)
         body: [[{
           columns: [
             { text: "TABLEAU DE BORD FINANCIER", fontSize: 8.5, bold: true, color: BRAND.surfaceCard, characterSpacing: 0.4, width: "*", margin: [0, 2, 0, 0] },
-            { text: `Exercice ${kpiYear}`, fontSize: 7, bold: true, color: `${BRAND.surfaceCard}bb`, width: "auto", alignment: "right" as const, margin: [0, 3, 0, 0] },
+            { text: `Exercice ${kpiYear}`, fontSize: 7, bold: true, color: `${BRAND.surfaceCard}aa`, width: "auto", alignment: "right" as const, margin: [0, 3, 0, 0] },
           ],
-          fillColor: dashboardDark,
+          fillColor: BRAND.ink,
           margin: [12, 9, 12, 9],
           border: [false, false, false, false] as [boolean, boolean, boolean, boolean],
         }]],
@@ -1267,22 +1271,24 @@ function financialDashboard(input: Record<string, unknown>, accentColor: string)
       margin: [0, 14, 0, 10],
     },
     // Row 1 — Revenue / Expenses / Net Balance
+    // All cards share the same neutral background — numbers lead, not color chaos.
+    // Semantic color applies ONLY to text: accent for income, red for expenses.
     kpiRow([
-      { label: "Total Revenus",   value: `${kpiRevenue} MAD`,    valueColor: BRAND.successDark,     bgColor: BRAND.successLight },
-      { label: "Total Dépenses",  value: `${kpiExpenses} MAD`,   valueColor: BRAND.destructiveDark, bgColor: BRAND.destructiveLight },
-      { label: "Solde Net",       value: `${kpiNetBalance} MAD`, valueColor: BRAND.info,            bgColor: BRAND.infoLight },
+      { label: "Total Revenus",   value: `${kpiRevenue} MAD`,    valueColor: accentColor,           bgColor: BRAND.surface },
+      { label: "Total Dépenses",  value: `${kpiExpenses} MAD`,   valueColor: BRAND.destructiveDark, bgColor: BRAND.surface },
+      { label: "Solde Net",       value: `${kpiNetBalance} MAD`, valueColor: netBalanceColor,       bgColor: BRAND.surface },
     ], accentColor),
     // Row 2 — Charged / Paid / Outstanding
     kpiRow([
-      { label: "Total Appelé",   value: `${kpiTotalCharged} MAD`, bgColor: BRAND.surface },
-      { label: "Total Encaissé", value: `${kpiTotalPaid} MAD`,    valueColor: BRAND.successDark,     bgColor: BRAND.successLight },
-      { label: "Impayés",        value: `${kpiOutstanding} MAD`,  valueColor: outstandingColor, bgColor: outstandingNum > 0 ? BRAND.destructiveLight : BRAND.successLight },
+      { label: "Total Appelé",   value: `${kpiTotalCharged} MAD`, valueColor: BRAND.inkLight,  bgColor: BRAND.surface },
+      { label: "Total Encaissé", value: `${kpiTotalPaid} MAD`,    valueColor: accentColor,     bgColor: BRAND.surface },
+      { label: "Impayés",        value: `${kpiOutstanding} MAD`,  valueColor: outstandingColor, bgColor: BRAND.surface },
     ], accentColor),
-    // Row 3 — Cash Balance / Budget Total
+    // Row 3 — Cash Balance / Budget Total / Collection Rate
     kpiRow([
-      { label: "Trésorerie",           value: `${kpiCashBalance} MAD`, valueColor: BRAND.successDeep, bgColor: BRAND.successLight },
-      { label: "Budget Prévisionnel",  value: `${kpiBudgetTotal} MAD`, bgColor: BRAND.surface },
-      { label: "Taux de Recouvrement", value: `${kpiCollRate}%`,       valueColor: kpiCollRate >= 90 ? BRAND.successDark : kpiCollRate >= 60 ? BRAND.warningDark : BRAND.destructiveDark, bgColor: BRAND.surface },
+      { label: "Trésorerie",           value: `${kpiCashBalance} MAD`, valueColor: accentColor,    bgColor: BRAND.surface },
+      { label: "Budget Prévisionnel",  value: `${kpiBudgetTotal} MAD`, valueColor: BRAND.inkLight, bgColor: BRAND.surface },
+      { label: "Taux de Recouvrement", value: `${kpiCollRate}%`,       valueColor: kpiCollRate >= 90 ? BRAND.successDark : kpiCollRate >= 60 ? accentColor : BRAND.destructiveDark, bgColor: BRAND.surface },
     ], accentColor),
     // Progress bars
     {
@@ -1444,7 +1450,7 @@ function multiSignatoryBlock(
             fontSize: 6.5, bold: true,
             color: BRAND.surfaceCard,
             alignment: "center" as const,
-            fillColor: isValid ? BRAND.successDeep : BRAND.destructiveDark,
+            fillColor: isValid ? accentColor : BRAND.destructiveDark,
             margin: [4, 4, 4, 4],
             border: [false, false, false, false] as [boolean, boolean, boolean, boolean],
           }]],
@@ -1581,7 +1587,9 @@ function multiSignatoryBlock(
   const sigSectionLabel = lang === "ar" ? "التوقيعات الرسمية" : lang === "en" ? "OFFICIAL SIGNATURES" : "SIGNATURES OFFICIELLES";
 
   const panelLabel = lang === "ar" ? "لوحة التحقق الرقمي" : lang === "en" ? "DIGITAL VALIDATION PANEL" : "PANNEAU DE VALIDATION NUMÉRIQUE";
-  const validationDark = adjustColorBrightness(accentColor, -22);
+  // Use app ink (#1e1b4b) — consistent authoritative dark across all document families.
+  // avoids a garish darkened-accent (e.g. near-black forest green for financial docs).
+  const validationDark = BRAND.ink;
 
   return {
     stack: [
@@ -1666,7 +1674,7 @@ function signatureBlock(
                       fontSize: 7, bold: true,
                       color: BRAND.surfaceCard,
                       alignment: "center" as const,
-                      fillColor: isValid ? BRAND.successDeep : BRAND.destructiveDark,
+                      fillColor: isValid ? accentColor : BRAND.destructiveDark,
                       margin: [6, 5, 6, 5],
                       border: [false, false, false, false] as [boolean, boolean, boolean, boolean],
                     }]],
@@ -1780,7 +1788,8 @@ function signatureBlock(
       ];
 
   const panelLabelSingle = lang === "ar" ? "لوحة التحقق الرقمي" : lang === "en" ? "DIGITAL VALIDATION PANEL" : "PANNEAU DE VALIDATION NUMÉRIQUE";
-  const validationDarkSingle = adjustColorBrightness(accentColor, -22);
+  // Same ink-dark approach as multiSignatoryBlock — consistent across all families.
+  const validationDarkSingle = BRAND.ink;
 
   return {
     stack: [
