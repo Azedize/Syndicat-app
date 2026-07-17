@@ -1,0 +1,156 @@
+Merci pour l'analyse complète.
+
+Avant de continuer l'implémentation, je veux corriger les problèmes fondamentaux du module Documents.
+
+Le problème principal n'est plus la logique métier ou les données. Le problème principal est la qualité visuelle et l'expérience documentaire.
+
+Aujourd'hui les documents restent très loin du niveau attendu pour un SaaS Enterprise.
+
+Même après plusieurs améliorations, les PDF ressemblent encore à des formulaires administratifs simples et non à des documents professionnels de grande plateforme.
+
+Je veux maintenant une refonte Design First.
+
+=== PROBLÈMES À CORRIGER ===
+
+Les templates ont encore beaucoup de faiblesses :
+
+* Les documents se ressemblent tous.
+* Les familles documentaires n'ont pas une identité visuelle forte.
+* Le Header prend encore trop de place par rapport au contenu métier.
+* Les signatures réelles ne sont pas suffisamment visibles.
+* Les cachets ne donnent pas une impression institutionnelle.
+* Les logos syndicaux ne sont pas intégrés correctement.
+* Certaines pages contiennent beaucoup d'espace vide.
+* Certaines informations sont répétées plusieurs fois.
+* Certains documents prennent 2 pages alors qu'une seule page devrait suffire.
+* Les couleurs utilisées ne reflètent pas réellement le Design System de l'application.
+* Les sections manquent de hiérarchie visuelle.
+* Les tableaux financiers ne ressemblent pas à des ERP modernes.
+* Les attestations ne ressemblent pas à des certificats officiels.
+* Les contrats ne ressemblent pas à des documents juridiques professionnels.
+* Les PV ne ressemblent pas à des documents de gouvernance.
+
+=== OBJECTIF ===
+
+Je veux un niveau comparable à :
+
+* DocuSign
+* Adobe Sign
+* SAP
+* Oracle
+* Microsoft Dynamics
+* Odoo Enterprise
+* Notion Enterprise
+* Salesforce Documents
+
+=== DESIGN SYSTEM DOCUMENTAIRE ===
+
+Je veux créer un système documentaire unique pour toute l'application.
+
+Chaque famille doit avoir son propre langage visuel :
+
+1. Attestations / Certificats
+   Style institutionnel haut de gamme.
+   Aspect officiel.
+   Document compact.
+   Lecture immédiate.
+
+2. Finances
+   Style ERP.
+   Tableaux professionnels.
+   KPI modernes.
+   Lisibilité maximale.
+
+3. Réunions / Gouvernance
+   Style conseil d'administration.
+   Décisions et votes mis en valeur.
+   Chronologie claire.
+
+4. Juridique
+   Style cabinet juridique.
+   Mise en page sérieuse.
+   Priorité au contenu légal.
+
+5. Opérations
+   Style gestion de projet.
+   Statuts visibles.
+   Suivi des actions.
+
+6. Administratif
+   Style corporate moderne.
+   Simple mais premium.
+
+=== DONNÉES ===
+
+Je veux que chaque template soit audité individuellement.
+
+Pour chaque template :
+
+* identifier les données déjà présentes en base
+* supprimer les champs inutiles
+* détecter automatiquement les données récupérables
+* charger automatiquement les informations du membre
+* charger automatiquement les informations du lot
+* charger automatiquement les informations du bâtiment
+* charger automatiquement les informations financières
+* charger automatiquement les informations de réunion
+* charger automatiquement les informations électorales
+
+L'utilisateur ne doit saisir que les données réellement absentes de la base.
+
+=== SIGNATURES ===
+
+Je veux auditer complètement le workflow de signature.
+
+Vérifier :
+
+* création du document
+* signature électronique
+* stockage SVG
+* chargement SVG
+* affichage PDF
+* affichage portail QR
+
+Je veux identifier exactement pourquoi les signatures réelles ne sont pas visibles dans les documents générés.
+
+=== LOGOS ===
+
+Je veux auditer complètement le workflow des logos.
+
+Vérifier :
+
+* upload logo
+* stockage logo
+* syndicates.logoUrl
+* récupération logo
+* rendu PDF
+* rendu portail QR
+
+Je veux identifier pourquoi les logos réels ne s'affichent pas.
+
+=== MISSION SUIVANTE ===
+
+Prendre les 32 templates un par un.
+
+Pour chaque template :
+
+* analyser le design actuel
+* calculer un score qualité /100
+* identifier les défauts
+* identifier les données manquantes
+* identifier les données récupérables
+* proposer un redesign complet
+* proposer la structure finale cible
+
+Commencer par :
+
+1. Attestation d'adhésion
+2. Attestation de résidence
+3. Attestation de propriété
+4. Attestation de paiement
+
+Puis continuer famille par famille jusqu'à couvrir les 32 templates.
+
+Ne pas coder immédiatement.
+
+Commencer par produire un audit détaillé template par template avec recommandations de redesign niveau SaaS Enterprise.
