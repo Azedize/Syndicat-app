@@ -321,6 +321,14 @@ async function getLotMemberData(lotId?: string, memberId?: string): Promise<Reco
     _lotType:           lot?.type ?? "",
     _buildingName:      building?.name ?? "",
     _buildingAddress:   [building?.address, building?.city].filter(Boolean).join(", "),
+    // ── Extended member fields for attestation + profile documents ────────────
+    _memberEmail:       member?.email ?? "",
+    _memberPhone:       member?.phone ?? "",
+    _memberProfession:  (member as any)?.profession ?? "",
+    _memberJoinDate:    member?.joinDate ?? "",
+    _memberStatus:      member?.status ?? "",
+    _memberCotisation:  member?.cotisationStatus ?? "",
+    _memberRef:         member ? `ADH-${member.id.slice(-8).toUpperCase()}` : "",
   };
 }
 
