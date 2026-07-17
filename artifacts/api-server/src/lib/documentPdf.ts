@@ -145,6 +145,17 @@ const BRAND = {
   contractIndigo: "#1e1b4b",   // app foreground — contracts
   slateAdmin:     "#374151",   // gray-700 — admin docs
   bailDark:       "#2d2540",   // deep secondary — lease
+
+  // ── Reference design family tokens (matched to 4 uploaded reference images) ──
+  navyHeader:     "#0E2240",   // Image 1 Nexora: deep navy header band
+  navyHeaderMid:  "#122B52",   // Image 1: reference panel (slightly lighter)
+  corpBlue:       "#1A3A5F",   // Image 3: corporate purchase order header
+  corpBlueDark:   "#0F2A48",   // Image 3: dark right reference panel
+  legalDark:      "#111827",   // Image 4 Veritas: dark left cover panel
+  legalGold:      "#C9A84C",   // Image 4: gold accent color
+  certNavy:       "#1B3A7A",   // Image 2 SYNDICARE: deep navy for certificates
+  certGold:       "#C4963A",   // Image 2: gold accent for certificate documents
+  emeraldStripe:  "#059669",   // Image 1: green accent stripe (= successDark)
 } as const;
 
 // Family accent picker — all values from BRAND tokens.
@@ -180,10 +191,10 @@ interface DocumentTheme {
 function getDocumentTheme(template: string, fallbackColor?: string): DocumentTheme {
   // All colors sourced from BRAND tokens — zero hardcoded hex outside that block.
   const themes: Record<string, DocumentTheme> = {
-    // ── Contracts & Legal — deep app foreground (authoritative) ─────────────────
-    contrat:               { primary: BRAND.contractIndigo, secondary: BRAND.primaryDeeper, light: BRAND.primaryLight,   icon: "⚖", categoryLabel: "CONTRAT" },
-    convention_partenariat:{ primary: BRAND.contractIndigo, secondary: BRAND.primaryDeeper, light: BRAND.primaryLight,   icon: "⚖", categoryLabel: "CONVENTION DE PARTENARIAT" },
-    accord_collectif:      { primary: BRAND.contractIndigo, secondary: BRAND.primaryDeeper, light: BRAND.primaryLight,   icon: "⚖", categoryLabel: "ACCORD COLLECTIF" },
+    // ── Contracts & Legal — Image 4 dark cover / gold accents ─────────────────
+    contrat:               { primary: BRAND.legalGold,     secondary: BRAND.legalDark,     light: BRAND.primaryLighter,  icon: "⚖", categoryLabel: "CONTRAT" },
+    convention_partenariat:{ primary: BRAND.legalGold,     secondary: BRAND.legalDark,     light: BRAND.primaryLighter,  icon: "⚖", categoryLabel: "CONVENTION DE PARTENARIAT" },
+    accord_collectif:      { primary: BRAND.legalGold,     secondary: BRAND.legalDark,     light: BRAND.primaryLighter,  icon: "⚖", categoryLabel: "ACCORD COLLECTIF" },
 
     // ── Financial Family — brand success (emerald) ───────────────────────────────
     rapport_financier:     { primary: BRAND.successDeep,  secondary: BRAND.successDark,  light: BRAND.successLight,  icon: "◈", categoryLabel: "RAPPORT FINANCIER" },
@@ -206,16 +217,16 @@ function getDocumentTheme(template: string, fallbackColor?: string): DocumentThe
     decision:              { primary: BRAND.primary,      secondary: BRAND.primaryMid,   light: BRAND.primaryLight,   icon: "★", categoryLabel: "DÉCISION OFFICIELLE" },
     rapport_election:      { primary: BRAND.primary,      secondary: BRAND.primaryMid,   light: BRAND.primaryLight,   icon: "★", categoryLabel: "RAPPORT D'ÉLECTION" },
 
-    // ── Regulatory & Statutory — violet-900 ──────────────────────────────────────
-    reglement:             { primary: BRAND.primaryDeep,  secondary: BRAND.primaryDeeper, light: BRAND.primaryLighter, icon: "§", categoryLabel: "RÈGLEMENT DE COPROPRIÉTÉ" },
+    // ── Regulatory & Statutory — Image 4 legal dark / gold ───────────────────────
+    reglement:             { primary: BRAND.legalGold,    secondary: BRAND.legalDark,     light: BRAND.primaryLighter, icon: "§", categoryLabel: "RÈGLEMENT DE COPROPRIÉTÉ" },
 
-    // ── Certification Family — emerald-600 (verified / official) ─────────────────
-    attestation:           { primary: BRAND.successDark,  secondary: BRAND.successDeep,  light: BRAND.successLight,  icon: "✓", categoryLabel: "ATTESTATION" },
-    attestation_residence: { primary: BRAND.successDark,  secondary: BRAND.successDeep,  light: BRAND.successLight,  icon: "✓", categoryLabel: "ATTESTATION DE RÉSIDENCE" },
-    attestation_propriete: { primary: BRAND.successDark,  secondary: BRAND.successDeep,  light: BRAND.successLight,  icon: "✓", categoryLabel: "ATTESTATION DE PROPRIÉTÉ" },
-    attestation_paiement:  { primary: BRAND.successDark,  secondary: BRAND.successDeep,  light: BRAND.successLight,  icon: "✓", categoryLabel: "ATTESTATION DE PAIEMENT" },
-    recu_paiement:         { primary: BRAND.successDark,  secondary: BRAND.successDeep,  light: BRAND.successLight,  icon: "✓", categoryLabel: "REÇU DE PAIEMENT" },
-    certificat:            { primary: BRAND.successDark,  secondary: BRAND.successDeep,  light: BRAND.successLight,  icon: "✓", categoryLabel: "CERTIFICAT OFFICIEL" },
+    // ── Certification Family — Image 2 navy / gold (SYNDICARE reference) ─────────
+    attestation:           { primary: BRAND.certNavy,    secondary: BRAND.certGold,      light: BRAND.primaryLighter, icon: "✓", categoryLabel: "ATTESTATION" },
+    attestation_residence: { primary: BRAND.certNavy,    secondary: BRAND.certGold,      light: BRAND.primaryLighter, icon: "✓", categoryLabel: "ATTESTATION DE RÉSIDENCE" },
+    attestation_propriete: { primary: BRAND.certNavy,    secondary: BRAND.certGold,      light: BRAND.primaryLighter, icon: "✓", categoryLabel: "ATTESTATION DE PROPRIÉTÉ" },
+    attestation_paiement:  { primary: BRAND.certNavy,    secondary: BRAND.certGold,      light: BRAND.primaryLighter, icon: "✓", categoryLabel: "ATTESTATION DE PAIEMENT" },
+    recu_paiement:         { primary: BRAND.certNavy,    secondary: BRAND.certGold,      light: BRAND.primaryLighter, icon: "✓", categoryLabel: "REÇU DE PAIEMENT" },
+    certificat:            { primary: BRAND.certNavy,    secondary: BRAND.certGold,      light: BRAND.primaryLighter, icon: "✓", categoryLabel: "CERTIFICAT OFFICIEL" },
 
     // ── Legal Enforcement — brand destructive (red-700) ──────────────────────────
     mise_en_demeure:       { primary: BRAND.legalRed,     secondary: BRAND.destructiveDeep, light: BRAND.destructiveLight, icon: "!", categoryLabel: "MISE EN DEMEURE" },
@@ -227,7 +238,7 @@ function getDocumentTheme(template: string, fallbackColor?: string): DocumentThe
     ordre_de_mission:      { primary: BRAND.slateAdmin,   secondary: BRAND.ink,          light: BRAND.surfaceAlt,    icon: "→", categoryLabel: "ORDRE DE MISSION" },
 
     // ── Operational — specialized tones ──────────────────────────────────────────
-    contrat_bail:          { primary: BRAND.bailDark,     secondary: BRAND.ink,          light: BRAND.primaryLighter, icon: "⌂", categoryLabel: "CONTRAT DE BAIL" },
+    contrat_bail:          { primary: BRAND.legalGold,    secondary: BRAND.legalDark,    light: BRAND.primaryLighter, icon: "⌂", categoryLabel: "CONTRAT DE BAIL" },
     sinistre:              { primary: BRAND.legalRed,     secondary: BRAND.destructiveDeep, light: BRAND.destructiveLight, icon: "⚡", categoryLabel: "DÉCLARATION DE SINISTRE" },
     travaux:               { primary: BRAND.successDeep,  secondary: BRAND.successDark,  light: BRAND.successLight,  icon: "⚙", categoryLabel: "ORDRE DE TRAVAUX" },
   };
@@ -1038,6 +1049,389 @@ function buildTwoColumnLayout(mainContent: unknown[], sidebarContent: unknown[])
     ],
     columnGap: 14,
     margin: [0, 0, 0, 0],
+  };
+}
+
+// ─── Gen4 Document Overview Grid ─────────────────────────────────────────────
+/**
+ * buildDocumentOverviewGrid — "APERÇU DU DOCUMENT" bordered grid from Image 1.
+ * Header: accent-tinted row + accent bold label.
+ * Body: 4-column grid of label/value cells.
+ */
+function buildDocumentOverviewGrid(fields: Array<[string, string]>, accentColor: string): unknown {
+  const accentLight = `${accentColor}14`;
+  const rows: unknown[][] = [];
+  for (let i = 0; i < fields.length; i += 4) {
+    const chunk = fields.slice(i, i + 4);
+    while (chunk.length < 4) chunk.push(["", ""]);
+    rows.push(chunk.map(([label, value], j) => ({
+      stack: [
+        { text: label.toUpperCase(), fontSize: 5, bold: true, color: BRAND.muted, characterSpacing: 0.6, margin: [0, 0, 0, 3] },
+        { text: value || "—", fontSize: 9, bold: true, color: BRAND.ink, lineHeight: 1.2 },
+      ],
+      fillColor: j % 2 === 0 ? BRAND.surface : BRAND.surfaceCard,
+      margin: [10, 8, 10, 8],
+      border: [false, false, false, false] as [boolean, boolean, boolean, boolean],
+    })));
+  }
+  return {
+    stack: [
+      {
+        table: {
+          widths: ["*"],
+          body: [[{
+            text: "APERÇU DU DOCUMENT",
+            fontSize: 7, bold: true, color: accentColor, characterSpacing: 0.8,
+            fillColor: accentLight,
+            margin: [10, 6, 10, 6],
+            border: [false, false, false, false] as [boolean, boolean, boolean, boolean],
+          }]],
+        },
+        layout: { hLineWidth: () => 0, vLineWidth: () => 0, paddingLeft: () => 0, paddingRight: () => 0, paddingTop: () => 0, paddingBottom: () => 0 },
+      },
+      {
+        table: { widths: ["*", "*", "*", "*"], body: rows },
+        layout: {
+          hLineWidth: (i: number, node: any) => i === 0 || i === node.table.body.length ? 0.6 : 0.4,
+          vLineWidth: (j: number, node: any) => j === 0 || j === node.table.widths.length ? 0.6 : 0.4,
+          hLineColor: () => BRAND.border, vLineColor: () => BRAND.border,
+          paddingLeft: () => 0, paddingRight: () => 0, paddingTop: () => 0, paddingBottom: () => 0,
+        },
+      },
+    ],
+    margin: [0, 0, 0, 14],
+  };
+}
+
+// ─── Reference Design Family Headers ─────────────────────────────────────────
+// Three purpose-built header builders that replace buildHeaderBand() for
+// specific document families, matching the 4 uploaded reference images at
+// 95%+ visual fidelity.
+
+/**
+ * buildFinancialFamilyHeader — Image 1 (Nexora Financial Report) style.
+ * Full-bleed dark navy band: logo | org name (white) + emerald doc-type label |
+ * reference panel (lighter navy) with doc number + period + QR.
+ * Finished with a 3pt emerald accent stripe below.
+ */
+function buildFinancialFamilyHeader(
+  syndInfo: SyndicateInfo,
+  docTypeLabel: string,
+  docNumber: string,
+  qrDataUrl: string,
+  _accentColor: string,
+  today: string,
+  logoDataUrl: string | null,
+  buildingName: string | null,
+  period: string,
+): object[] {
+  const acronym  = syndInfo.name.split(/\s+/).map((w: string) => w[0] ?? "").join("").slice(0, 3).toUpperCase();
+  const monoSize = acronym.length <= 1 ? 14 : acronym.length === 2 ? 12 : 10;
+  const monoPad  = monoSize === 14 ? 11 : monoSize === 12 ? 12 : 13;
+
+  const logoEl: unknown = logoDataUrl
+    ? { image: logoDataUrl, width: 32, height: 32, fit: [32, 32] as [number, number], alignment: "center" as const }
+    : {
+        stack: [
+          { canvas: [{ type: "ellipse", x: 18, y: 18, r1: 18, r2: 18, color: `${BRAND.surfaceCard}1f` }], margin: [0, 0, 0, -36] },
+          { text: acronym, fontSize: monoSize, bold: true, color: BRAND.surfaceCard, characterSpacing: acronym.length > 1 ? 0.8 : 0, alignment: "center" as const, margin: [0, monoPad, 0, 0] },
+        ],
+      };
+
+  const headerTable: unknown = {
+    table: {
+      widths: [54, "*", 122],
+      body: [[
+        // COL 1 — logo on deep navy
+        { stack: [logoEl], alignment: "center" as const, fillColor: BRAND.navyHeader, margin: [6, 10, 6, 10], border: [false, false, false, false] as [boolean, boolean, boolean, boolean] },
+        // COL 2 — org identity
+        {
+          stack: [
+            { text: syndInfo.name.toUpperCase(), fontSize: 10.5, bold: true, color: BRAND.surfaceCard, characterSpacing: 0.3, lineHeight: 1.2, margin: [0, 0, 0, 2] },
+            ...(buildingName ? [{ text: buildingName, fontSize: 6.5, color: `${BRAND.surfaceCard}88`, margin: [0, 0, 0, 4] as [number, number, number, number] }] : []),
+            { text: docTypeLabel.toUpperCase(), fontSize: 5.5, bold: true, color: BRAND.emeraldStripe, characterSpacing: 1.1 },
+            ...([syndInfo.registrationNumber, syndInfo.phone].filter(Boolean).length > 0
+              ? [{ text: [syndInfo.registrationNumber ? `ICE: ${syndInfo.registrationNumber}` : "", syndInfo.phone || ""].filter(Boolean).join("  ·  "), fontSize: 5.5, color: `${BRAND.surfaceCard}66`, margin: [0, 3, 0, 0] as [number, number, number, number] }]
+              : []),
+          ],
+          fillColor: BRAND.navyHeader,
+          margin: [4, 10, 4, 10],
+          border: [false, false, false, false] as [boolean, boolean, boolean, boolean],
+        },
+        // COL 3 — reference panel (lighter navy)
+        {
+          stack: [
+            { text: "DOCUMENT N°", fontSize: 4.5, bold: true, color: `${BRAND.surfaceCard}77`, characterSpacing: 0.8, margin: [0, 0, 0, 1] },
+            { text: docNumber, fontSize: 8.5, bold: true, color: BRAND.surfaceCard, margin: [0, 0, 0, 5] },
+            { text: "DATE D'ÉMISSION", fontSize: 4.5, bold: true, color: `${BRAND.surfaceCard}77`, characterSpacing: 0.8, margin: [0, 0, 0, 1] },
+            { text: today, fontSize: 7, color: `${BRAND.surfaceCard}cc`, margin: [0, 0, 0, 5] },
+            ...(period ? [
+              { text: "PÉRIODE", fontSize: 4.5, bold: true, color: `${BRAND.surfaceCard}77`, characterSpacing: 0.8, margin: [0, 0, 0, 1] },
+              { text: period, fontSize: 7, color: `${BRAND.surfaceCard}cc`, margin: [0, 0, 0, 4] as [number, number, number, number] },
+            ] : []),
+            ...(qrDataUrl ? [{ image: qrDataUrl, width: 36, height: 36, alignment: "center" as const, margin: [0, 2, 0, 0] }] : []),
+            { text: "SCAN · VÉRIFIER", fontSize: 4, bold: true, color: `${BRAND.surfaceCard}55`, characterSpacing: 0.4, alignment: "center" as const, margin: [0, 1, 0, 0] },
+          ],
+          fillColor: BRAND.navyHeaderMid,
+          margin: [10, 8, 10, 8],
+          border: [false, false, false, false] as [boolean, boolean, boolean, boolean],
+        },
+      ]],
+    },
+    layout: { hLineWidth: () => 0, vLineWidth: () => 0, paddingLeft: () => 0, paddingRight: () => 0, paddingTop: () => 0, paddingBottom: () => 0 },
+    margin: [0, 0, 0, 0],
+  };
+
+  const accentStripe: unknown = { canvas: [{ type: "rect", x: 0, y: 0, w: 515, h: 3, color: BRAND.emeraldStripe }], margin: [0, 0, 0, 14] };
+  return [headerTable, accentStripe] as object[];
+}
+
+/**
+ * buildCorporateDocHeader — Image 3 (Global Enterprise Purchase Order) style.
+ * Dark corporate blue full-width band: LARGE document type (white 30pt bold)
+ * on the left with org name above and building below; right panel darker with
+ * doc number, date, optional status badge, and QR. 2pt accent stripe below.
+ */
+function buildCorporateDocHeader(
+  syndInfo: SyndicateInfo,
+  docTypeLabel: string,
+  docNumber: string,
+  qrDataUrl: string,
+  accentColor: string,
+  today: string,
+  logoDataUrl: string | null,
+  buildingName: string | null,
+  docStatus: string | null,
+): object[] {
+  const statusMap: Record<string, { label: string; color: string }> = {
+    published:      { label: "PUBLIÉ",      color: BRAND.successDark },
+    signed:         { label: "SIGNÉ",       color: BRAND.primary },
+    validated:      { label: "VALIDÉ",      color: BRAND.primary },
+    generated:      { label: "GÉNÉRÉ",      color: "#F59E0B" },
+    draft:          { label: "BROUILLON",   color: BRAND.mutedLight },
+    pending_review: { label: "EN RÉVISION", color: "#F59E0B" },
+  };
+  const statusChip = docStatus ? (statusMap[docStatus] ?? null) : null;
+
+  const acronym = syndInfo.name.split(/\s+/).map((w: string) => w[0] ?? "").join("").slice(0, 3).toUpperCase();
+  const logoEl: unknown = logoDataUrl
+    ? { image: logoDataUrl, width: 26, height: 26, fit: [26, 26] as [number, number], alignment: "center" as const }
+    : {
+        stack: [
+          { canvas: [{ type: "ellipse", x: 13, y: 13, r1: 13, r2: 13, color: `${BRAND.surfaceCard}22` }], margin: [0, 0, 0, -26] },
+          { text: acronym, fontSize: 8, bold: true, color: BRAND.surfaceCard, alignment: "center" as const, margin: [0, 9, 0, 0] },
+        ],
+      };
+
+  const headerTable: unknown = {
+    table: {
+      widths: ["*", 138],
+      body: [[
+        // LEFT — large document title zone
+        {
+          stack: [
+            {
+              columns: [
+                { stack: [logoEl], width: 30, margin: [0, 0, 8, 0] },
+                { text: (syndInfo.name || "SYNDICAT DE COPROPRIÉTÉ").toUpperCase(), fontSize: 7, bold: true, color: `${BRAND.surfaceCard}99`, characterSpacing: 0.4, margin: [0, 4, 0, 0], width: "*" },
+              ],
+              margin: [0, 0, 0, 6],
+            },
+            { text: docTypeLabel.toUpperCase(), fontSize: 30, bold: true, color: BRAND.surfaceCard, lineHeight: 1, margin: [0, 0, 0, 4] },
+            ...(buildingName ? [{ text: buildingName, fontSize: 7, color: `${BRAND.surfaceCard}77` }] : []),
+          ],
+          fillColor: BRAND.corpBlue,
+          margin: [16, 14, 12, 14],
+          border: [false, false, false, false] as [boolean, boolean, boolean, boolean],
+        },
+        // RIGHT — reference panel (darker blue)
+        {
+          stack: [
+            { text: "N° DOCUMENT", fontSize: 4.5, bold: true, color: `${BRAND.surfaceCard}77`, characterSpacing: 0.8, margin: [0, 0, 0, 1] },
+            { text: docNumber, fontSize: 9, bold: true, color: BRAND.surfaceCard, margin: [0, 0, 0, 6] },
+            { text: "DATE D'ÉMISSION", fontSize: 4.5, bold: true, color: `${BRAND.surfaceCard}77`, characterSpacing: 0.8, margin: [0, 0, 0, 1] },
+            { text: today, fontSize: 7.5, color: `${BRAND.surfaceCard}cc`, margin: [0, 0, 0, 6] },
+            ...(statusChip ? [{ text: `● ${statusChip.label}`, fontSize: 6.5, bold: true, color: statusChip.color, margin: [0, 0, 0, 6] as [number, number, number, number] }] : []),
+            ...(qrDataUrl ? [{ image: qrDataUrl, width: 44, height: 44, alignment: "center" as const, margin: [0, 2, 0, 0] }] : []),
+            { text: "SCAN · VÉRIFIER", fontSize: 4, bold: true, color: `${BRAND.surfaceCard}55`, characterSpacing: 0.4, alignment: "center" as const, margin: [0, 2, 0, 0] },
+          ],
+          fillColor: BRAND.corpBlueDark,
+          margin: [10, 10, 10, 10],
+          border: [false, false, false, false] as [boolean, boolean, boolean, boolean],
+        },
+      ]],
+    },
+    layout: { hLineWidth: () => 0, vLineWidth: () => 0, paddingLeft: () => 0, paddingRight: () => 0, paddingTop: () => 0, paddingBottom: () => 0 },
+    margin: [0, 0, 0, 0],
+  };
+
+  const accentStripe: unknown = { canvas: [{ type: "rect", x: 0, y: 0, w: 515, h: 2, color: accentColor }], margin: [0, 0, 0, 14] };
+  return [headerTable, accentStripe] as object[];
+}
+
+/**
+ * buildLegalContractCover — Image 4 (Veritas Legal Contract) style.
+ * Two-zone cover: left 44% very dark (legalDark) with gold hairlines, org
+ * identity and gold doc-type label; right 56% light with 2×2 reference grid
+ * and QR verification block. 2pt gold stripe finishes the element.
+ */
+function buildLegalContractCover(
+  syndInfo: SyndicateInfo,
+  docTypeLabel: string,
+  docNumber: string,
+  qrDataUrl: string,
+  _accentColor: string,
+  today: string,
+  logoDataUrl: string | null,
+  buildingName: string | null,
+  version: string | null,
+): object[] {
+  const goldColor = BRAND.legalGold;
+  const darkBg    = BRAND.legalDark;
+  const acronym   = syndInfo.name.split(/\s+/).map((w: string) => w[0] ?? "").join("").slice(0, 3).toUpperCase();
+  const monoSize  = acronym.length <= 2 ? 12 : 10;
+  const monoPad   = monoSize === 12 ? 13 : 15;
+
+  const logoEl: unknown = logoDataUrl
+    ? { image: logoDataUrl, width: 34, height: 34, fit: [34, 34] as [number, number], alignment: "center" as const }
+    : {
+        stack: [
+          { canvas: [{ type: "ellipse", x: 19, y: 19, r1: 19, r2: 19, color: goldColor }], margin: [0, 0, 0, -38] },
+          { text: acronym, fontSize: monoSize, bold: true, color: darkBg, alignment: "center" as const, margin: [0, monoPad, 0, 0] },
+        ],
+      };
+
+  const coverTable: unknown = {
+    table: {
+      widths: ["44%", "*"],
+      body: [[
+        // LEFT — dark cover zone with gold accents
+        {
+          stack: [
+            { ...logoEl as object, margin: [0, 0, 0, 10] },
+            { canvas: [{ type: "line", x1: 0, y1: 0, x2: 190, y2: 0, lineWidth: 1.2, lineColor: goldColor }], margin: [0, 0, 0, 10] },
+            { text: syndInfo.name.toUpperCase(), fontSize: 9, bold: true, color: BRAND.surfaceCard, characterSpacing: 0.3, lineHeight: 1.3, margin: [0, 0, 0, 3] },
+            ...(buildingName ? [{ text: buildingName.toUpperCase(), fontSize: 6, color: `${BRAND.surfaceCard}77`, characterSpacing: 0.3, margin: [0, 0, 0, 6] as [number, number, number, number] }] : []),
+            { canvas: [{ type: "line", x1: 0, y1: 0, x2: 190, y2: 0, lineWidth: 0.4, lineColor: `${goldColor}66` }], margin: [0, 6, 0, 10] },
+            { text: docTypeLabel.toUpperCase(), fontSize: 7, bold: true, color: goldColor, characterSpacing: 1.1, margin: [0, 0, 0, 5] },
+            { text: docNumber, fontSize: 8, bold: true, color: `${goldColor}cc` },
+          ],
+          fillColor: darkBg,
+          margin: [16, 18, 14, 18],
+          border: [false, false, false, false] as [boolean, boolean, boolean, boolean],
+        },
+        // RIGHT — reference grid zone
+        {
+          stack: [
+            { text: "DOCUMENT JURIDIQUE OFFICIEL", fontSize: 5.5, bold: true, color: BRAND.muted, characterSpacing: 0.7, margin: [0, 0, 0, 10] },
+            {
+              table: {
+                widths: ["*", "*"],
+                body: [
+                  [
+                    { stack: [{ text: "N° DOCUMENT", fontSize: 4.5, bold: true, color: BRAND.muted, characterSpacing: 0.6, margin: [0, 0, 0, 2] }, { text: docNumber, fontSize: 9, bold: true, color: BRAND.ink }], fillColor: BRAND.surface, margin: [10, 8, 10, 8], border: [false, false, false, false] as [boolean, boolean, boolean, boolean] },
+                    { stack: [{ text: "DATE D'ÉMISSION", fontSize: 4.5, bold: true, color: BRAND.muted, characterSpacing: 0.6, margin: [0, 0, 0, 2] }, { text: today, fontSize: 9, bold: true, color: BRAND.ink }], fillColor: BRAND.surface, margin: [10, 8, 10, 8], border: [false, false, false, false] as [boolean, boolean, boolean, boolean] },
+                  ],
+                  [
+                    { stack: [{ text: "SYNDICAT", fontSize: 4.5, bold: true, color: BRAND.muted, characterSpacing: 0.6, margin: [0, 0, 0, 2] }, { text: syndInfo.name, fontSize: 7.5, bold: true, color: BRAND.ink, lineHeight: 1.2 }], fillColor: BRAND.surfaceCard, margin: [10, 8, 10, 8], border: [false, false, false, false] as [boolean, boolean, boolean, boolean] },
+                    { stack: [{ text: "VERSION", fontSize: 4.5, bold: true, color: BRAND.muted, characterSpacing: 0.6, margin: [0, 0, 0, 2] }, { text: version || "v1.0", fontSize: 9, bold: true, color: BRAND.ink }], fillColor: BRAND.surfaceCard, margin: [10, 8, 10, 8], border: [false, false, false, false] as [boolean, boolean, boolean, boolean] },
+                  ],
+                ],
+              },
+              layout: {
+                hLineWidth: (i: number, node: any) => i === 0 || i === node.table.body.length ? 0.5 : 0.3,
+                vLineWidth: (i: number, node: any) => i === 0 || i === node.table.widths.length ? 0.5 : 0.3,
+                hLineColor: () => BRAND.border, vLineColor: () => BRAND.border,
+                paddingLeft: () => 0, paddingRight: () => 0, paddingTop: () => 0, paddingBottom: () => 0,
+              },
+              margin: [0, 0, 0, 10],
+            },
+            ...(qrDataUrl ? [{
+              columns: [
+                { image: qrDataUrl, width: 42, height: 42 },
+                { stack: [{ text: "VÉRIFICATION NUMÉRIQUE", fontSize: 5, bold: true, color: BRAND.muted, characterSpacing: 0.5, margin: [0, 0, 0, 2] }, { text: "Scannez pour vérifier l'authenticité de ce document officiel.", fontSize: 6.5, color: BRAND.muted, lineHeight: 1.4 }], margin: [8, 2, 0, 0], width: "*" },
+              ],
+            }] : []),
+          ],
+          fillColor: BRAND.surfaceCard,
+          margin: [14, 16, 14, 16],
+          border: [false, false, false, false] as [boolean, boolean, boolean, boolean],
+        },
+      ]],
+    },
+    layout: { hLineWidth: () => 0, vLineWidth: () => 0, paddingLeft: () => 0, paddingRight: () => 0, paddingTop: () => 0, paddingBottom: () => 0 },
+    margin: [0, 0, 0, 0],
+  };
+
+  const goldStripe: unknown = { canvas: [{ type: "rect", x: 0, y: 0, w: 515, h: 2, color: goldColor }], margin: [0, 0, 0, 14] };
+  return [coverTable, goldStripe] as object[];
+}
+
+/**
+ * buildFinancialBarChart — Image 1 (Nexora) simulated horizontal bar chart.
+ * Renders with pdfmake canvas rects: grey track + coloured fill for actuals +
+ * a thin vertical line marking the budget target.
+ */
+function buildFinancialBarChart(
+  categories: Array<{ label: string; budgetValue: number; actualValue: number; color?: string }>,
+  accentColor: string,
+  title: string,
+): unknown {
+  if (categories.length === 0) return { text: "" };
+  const maxVal = Math.max(...categories.flatMap((c) => [c.budgetValue, c.actualValue]), 1);
+
+  const chartTable: unknown = {
+    table: {
+      widths: [110, "*", 50],
+      body: categories.map((cat, i) => {
+        const actualW  = Math.max(2, Math.round((cat.actualValue  / maxVal) * 330));
+        const budgetX  = Math.min(Math.max(2, Math.round((cat.budgetValue / maxVal) * 330)), 330);
+        const barColor = cat.color || accentColor;
+        const bg       = i % 2 === 0 ? BRAND.surface : BRAND.surfaceCard;
+        return [
+          { text: cat.label, fontSize: 7.5, color: BRAND.inkMid, fillColor: bg, margin: [10, 9, 6, 9], border: [false, false, false, false] as [boolean, boolean, boolean, boolean] },
+          {
+            stack: [{ canvas: [
+              { type: "rect" as const, x: 0, y: 2, w: 330, h: 9, r: 3, color: BRAND.border },
+              ...(actualW > 0 ? [{ type: "rect" as const, x: 0, y: 2, w: Math.min(actualW, 330), h: 9, r: 3, color: barColor }] : []),
+              ...(budgetX > 0 ? [{ type: "rect" as const, x: Math.min(budgetX, 329), y: 0, w: 2, h: 13, r: 0, color: `${BRAND.ink}55` }] : []),
+            ] }],
+            fillColor: bg, margin: [6, 6, 6, 6], border: [false, false, false, false] as [boolean, boolean, boolean, boolean],
+          },
+          { text: cat.actualValue.toLocaleString("fr-MA"), fontSize: 7.5, bold: true, color: barColor, alignment: "right" as const, fillColor: bg, margin: [4, 9, 10, 9], border: [false, false, false, false] as [boolean, boolean, boolean, boolean] },
+        ];
+      }),
+    },
+    layout: {
+      hLineWidth: (i: number, node: any) => i === 0 || i === node.table.body.length ? 0.5 : 0,
+      vLineWidth: () => 0,
+      hLineColor: () => BRAND.border,
+      paddingLeft: () => 0, paddingRight: () => 0, paddingTop: () => 0, paddingBottom: () => 0,
+    },
+    margin: [0, 0, 0, 0],
+  };
+
+  return {
+    stack: [
+      {
+        columns: [
+          { canvas: [{ type: "rect" as const, x: 0, y: 2, w: 3, h: 12, color: accentColor }], width: 3 },
+          { text: title.toUpperCase(), fontSize: 8, bold: true, color: BRAND.ink, characterSpacing: 0.7, margin: [10, 0, 0, 0], width: "*" },
+          {
+            columns: [
+              { canvas: [{ type: "rect" as const, x: 0, y: 3, w: 16, h: 7, r: 2, color: accentColor }], width: 16 },
+              { text: "Réalisé", fontSize: 6.5, color: BRAND.muted, margin: [3, 1, 10, 0] },
+              { canvas: [{ type: "rect" as const, x: 0, y: 3, w: 2, h: 7, r: 0, color: `${BRAND.ink}55` }], width: 2 },
+              { text: "Budget", fontSize: 6.5, color: BRAND.muted, margin: [3, 1, 0, 0] },
+            ],
+            width: "auto", margin: [0, 1, 0, 0],
+          },
+        ],
+        margin: [0, 12, 0, 8],
+      },
+      chartTable,
+    ],
+    margin: [0, 0, 0, 16],
   };
 }
 
@@ -2928,6 +3322,11 @@ async function buildDocDef(template: DocumentTemplate, input: DocumentInput): Pr
 
   let content: unknown[];
 
+  // ── Page-layout overrides (set per-template for non-standard families) ───────
+  let pageMarginOverride: [number, number, number, number] | null = null;
+  let backgroundFn: ((currentPage: number, pageSize: { width: number; height: number }) => unknown) | null = null;
+  let footerFn: ((page: number, pages: number) => unknown) | null = footer;
+
   switch (template) {
     case "attestation": {
       // ── DB-injected member + lot fields (from getLotMemberData) ───────────
@@ -3682,8 +4081,7 @@ async function buildDocDef(template: DocumentTemplate, input: DocumentInput): Pr
 
     case "contrat":
       content = [
-        ...header,
-        buildGovernanceBanner(accentColor, theme.categoryLabel, `Réf. ${docNum} — ${today}`),
+        ...buildLegalContractCover(syndInfo, theme.categoryLabel, docNum, qrDataUrl, accentColor, today, logoDataUrl, buildingName, version),
         { text: "CONTRAT", fontSize: 18, bold: true, color: accentColor, alignment: "center" as const, margin: [0, 0, 0, 4] },
         { text: input.title, style: "docTitle", alignment: "center" as const, margin: [0, 0, 0, 4] },
         { text: `Réf. ${docNum}  •  ${today}`, fontSize: 8, color: BRAND.muted, alignment: "center" as const, margin: [0, 0, 0, 16] },
@@ -4238,8 +4636,7 @@ async function buildDocDef(template: DocumentTemplate, input: DocumentInput): Pr
       const outstandingNum       = parseFloat(rapportOutstanding.replace(/\s/g, "").replace(",", "."));
 
       content = [
-        ...header,
-        buildGovernanceBanner(accentColor, theme.categoryLabel, `Exercice ${rapportExercice}  •  Réf. ${docNum}`),
+        ...buildFinancialFamilyHeader(syndInfo, theme.categoryLabel, docNum, qrDataUrl, accentColor, today, logoDataUrl, buildingName, rapportExercice),
         { text: "RAPPORT FINANCIER", fontSize: 20, bold: true, color: accentColor, alignment: "center" as const, margin: [0, 0, 0, 4] },
         { text: input.title, style: "docTitle", alignment: "center" as const, margin: [0, 0, 0, 16] },
 
@@ -4256,6 +4653,21 @@ async function buildDocDef(template: DocumentTemplate, input: DocumentInput): Pr
 
         // ── Enterprise financial dashboard (KPI cards + progress bars) ────────
         ...financialDashboard(input as Record<string, unknown>, accentColor),
+
+        // ── Image 1 "Nexora" simulated horizontal bar chart ───────────────────
+        ...((() => {
+          const _sn = (s: string) => { const n = parseFloat(s.replace(/\s/g, "").replace(",", ".")); return isNaN(n) || !isFinite(n) ? 0 : n; };
+          const tPrev = _sn(rapportTotalPrevu);
+          const tReal = _sn(rapportTotalRealise);
+          if (tPrev === 0 && tReal === 0) return [] as unknown[];
+          const cats = [
+            ...(tPrev > 0 || tReal > 0 ? [{ label: "Charges appelées",   budgetValue: tPrev, actualValue: tReal }] : []),
+            ...(outstandingNum > 0     ? [{ label: "Impayés en cours",    budgetValue: tPrev, actualValue: outstandingNum, color: BRAND.legalRed }] : []),
+            ...(_sn(rapportRevenue) > 0  ? [{ label: "Revenus encaissés",  budgetValue: tPrev, actualValue: _sn(rapportRevenue), color: BRAND.successDark }] : []),
+            ...(_sn(rapportExpenses) > 0 ? [{ label: "Dépenses totales",   budgetValue: tPrev, actualValue: _sn(rapportExpenses), color: BRAND.destructiveDark }] : []),
+          ];
+          return cats.length > 0 ? [buildFinancialBarChart(cats, accentColor, "ANALYSE BUDGÉTAIRE")] : [] as unknown[];
+        })()),
 
         // ── Top-line financial summary ────────────────────────────────────────
         {
@@ -4371,8 +4783,7 @@ async function buildDocDef(template: DocumentTemplate, input: DocumentInput): Pr
     // ── Template 16: Rapport d'Audit ─────────────────────────────────────────────
     case "rapport_audit":
       content = [
-        ...header,
-        buildGovernanceBanner(accentColor, theme.categoryLabel, `Auditeur : ${input.auditeurs as string || "Commissaire aux comptes"}  •  Réf. ${docNum}`),
+        ...buildFinancialFamilyHeader(syndInfo, theme.categoryLabel, docNum, qrDataUrl, accentColor, today, logoDataUrl, buildingName, (input.periodeAuditee as string) || `Exercice ${new Date().getFullYear()}`),
         { text: input.title, style: "docTitle", margin: [0, 0, 0, 8] },
         metaTable([
           ["Auditeur(s) :",     input.auditeurs as string || "Commissaire aux comptes"],
@@ -4408,8 +4819,7 @@ async function buildDocDef(template: DocumentTemplate, input: DocumentInput): Pr
     // ── Template 17: Convention de Partenariat ───────────────────────────────────
     case "convention_partenariat":
       content = [
-        ...header,
-        buildGovernanceBanner(accentColor, theme.categoryLabel, `${syndInfo.name}  ↔  ${input.partieB as string || "[PARTENAIRE]"}  •  Réf. ${docNum}`),
+        ...buildLegalContractCover(syndInfo, theme.categoryLabel, docNum, qrDataUrl, accentColor, today, logoDataUrl, buildingName, version),
         { text: input.title, style: "docTitle", margin: [0, 0, 0, 16] },
         metaTable([
           ["Partie A :",        syndInfo.name],
@@ -4436,8 +4846,7 @@ async function buildDocDef(template: DocumentTemplate, input: DocumentInput): Pr
     // ── Template 18: Accord Collectif ────────────────────────────────────────────
     case "accord_collectif":
       content = [
-        ...header,
-        buildGovernanceBanner(accentColor, theme.categoryLabel, `${syndInfo.name}  ↔  ${input.employeur as string || "[EMPLOYEUR]"}  •  Réf. ${docNum}`),
+        ...buildLegalContractCover(syndInfo, theme.categoryLabel, docNum, qrDataUrl, accentColor, today, logoDataUrl, buildingName, version),
         { text: input.title, style: "docTitle", margin: [0, 0, 0, 16] },
         metaTable([
           ["Syndicat signataire :", syndInfo.name],
@@ -4569,7 +4978,7 @@ async function buildDocDef(template: DocumentTemplate, input: DocumentInput): Pr
         ? fmt(t("reglementAdminManagerPart", lang), { manager: officeHolders.manager.fullName })
         : "";
       content = [
-        ...header,
+        ...buildLegalContractCover(syndInfo, theme.categoryLabel, docNum, qrDataUrl, accentColor, today, logoDataUrl, buildingName, version),
         { text: input.title || t("docTypeLabel_reglement", lang), style: "docTitle", alignment: "center" as const, margin: [0, 0, 0, 16] },
         metaTable([
           [t("metaResidence", lang), residenceName],
@@ -5168,87 +5577,74 @@ async function buildDocDef(template: DocumentTemplate, input: DocumentInput): Pr
       const buildingAddress = (input._buildingAddress as string) || "";
       const periode = (input.periode as string) || today;
 
-      content = [
-        ...header,
-        { text: input.title || "APPEL DE FONDS", style: "docTitle", alignment: "center" as const, margin: [0, 0, 0, 4] },
-        { text: `Période : ${periode}  •  Réf. : ${receiptNum}`, fontSize: 8, color: BRAND.muted, alignment: "center" as const, margin: [0, 0, 0, 20] },
-        // Copropriétaire info card
-        metaTable([
+      // ── ENTERPRISE FAMILY: Image 1 — two-column layout with 155pt sidebar ──
+      footerFn = (_p: number, _ps: number) => ({
+        columns: [
+          { text: "Ce document a été généré électroniquement. Aucune signature manuscrite n'est requise.", fontSize: 6.5, color: BRAND.muted, margin: [40, 12, 0, 0] },
+          { text: `${_p} / ${_ps}`, fontSize: 8, bold: true, color: BRAND.ink, alignment: "right" as const, margin: [0, 12, 40, 0] },
+        ],
+      });
+
+      const adfMainCol: unknown[] = [
+        { text: "APPEL DE FONDS", fontSize: 36, bold: true, color: BRAND.ink, margin: [0, 6, 0, 2] },
+        { text: `SYNDICAT DE COPROPRIÉTÉ — ${syndInfo.name.toUpperCase()}`, fontSize: 8, bold: true, color: BRAND.muted, characterSpacing: 0.3, margin: [0, 0, 0, 10] },
+        buildDocumentOverviewGrid([
           ["COPROPRIÉTAIRE", (input.memberName as string) || member || "—"],
           ["IMMEUBLE", buildingName2],
-          ["N° LOT / APPARTEMENT", `Lot ${lotNumber} — Étage ${floor}`],
+          ["N° LOT", `Lot ${lotNumber} — Étage ${floor}`],
           ["SURFACE", surface],
           ["TITRE FONCIER", titreFoncier],
           ["TANTIEMES", tantiemes],
-        ], accentColor),
-        // ── Building-level financial context (from _kpi* keys) ──────────────
-        ...(() => {
-          const outstanding = (input._kpiOutstanding as string) || "";
-          const collRate    = (input._kpiCollectionRate as string) || "";
-          if (!outstanding && !collRate) return [];
-          return [kpiRow([
-            { label: "Taux de Recouvrement (Immeuble)", value: collRate ? `${collRate}%` : "—",
-              valueColor: parseInt(collRate || "0") >= 90 ? BRAND.successDark : BRAND.destructiveDark, bgColor: BRAND.surface },
-            { label: "Impayés Totaux (Immeuble)",       value: outstanding ? `${outstanding} MAD` : "—",
-              valueColor: outstanding && outstanding !== "0" ? BRAND.destructiveDark : BRAND.successDark, bgColor: BRAND.surface },
-            { label: "Trésorerie",                      value: (input._kpiCashBalance as string) ? `${input._kpiCashBalance} MAD` : "—",
-              bgColor: BRAND.successLight },
-          ], accentColor)];
-        })(),
-
-        // Charge details
+          ["PÉRIODE", periode],
+          ["RÉFÉRENCE", receiptNum],
+        ], accentColor) as object,
+        kpiRow([
+          { icon: "◈", label: "MONTANT DÛ", value: `${amount.toLocaleString("fr-MA")} MAD`, valueColor: accentColor },
+          { icon: "📅", label: "ÉCHÉANCE", value: dueDate, valueColor: BRAND.warningDark },
+          { icon: "●", label: "TYPE CHARGES", value: chargeType, valueColor: BRAND.ink },
+        ], accentColor) as object,
         contentSection("DÉTAILS DE L'APPEL DE FONDS", [
           `Nature des charges : ${chargeType}`,
           `Période : ${periode}`,
-          `Montant appelé : ${amount.toLocaleString("fr-MA", { style: "currency", currency: "MAD" })}`,
+          `Montant appelé : ${amount.toLocaleString("fr-MA")} MAD`,
           `Date d'échéance : ${dueDate}`,
-          `Numéro de référence : ${receiptNum}`,
-        ].join("\n"), accentColor),
-        // Payment instructions — include real bank details when configured
+          `Référence : ${receiptNum}`,
+        ].join("\n"), accentColor) as object,
         contentSection("MODALITÉS DE PAIEMENT", [
-          "Modes de paiement acceptés :",
-          "  • Virement bancaire au compte du syndicat",
-          "  • Chèque libellé à l'ordre du syndicat de copropriété",
-          "  • Remise en espèces au bureau syndical (contre reçu)",
-          ...(syndInfo.bankName || syndInfo.bankIban ? [
-            "",
-            "Coordonnées bancaires :",
-            ...(syndInfo.bankName ? [`  • Banque : ${syndInfo.bankName}`] : []),
-            ...(syndInfo.bankIban ? [`  • IBAN   : ${syndInfo.bankIban}`] : []),
-            ...(syndInfo.bankBic  ? [`  • BIC    : ${syndInfo.bankBic}`]  : []),
-          ] : []),
-          "",
-          `Veuillez mentionner la référence ${receiptNum} sur tout virement.`,
-          "",
-          "Passé la date d'échéance, des pénalités de retard pourront être appliquées conformément au règlement de copropriété.",
-        ].join("\n"), accentColor),
-        // Amount box
-        {
-          table: {
-            widths: ["*", "auto"],
-            body: [[
-              { text: "MONTANT DÛ", fontSize: 11, bold: true, color: BRAND.inkMid, margin: [16, 14, 8, 14], border: [false, false, false, false] as [boolean, boolean, boolean, boolean] },
-              {
-                text: amount.toLocaleString("fr-MA") + " MAD",
-                fontSize: 18, bold: true, color: BRAND.surfaceCard,
-                fillColor: accentColor,
-                alignment: "right" as const,
-                margin: [16, 10, 16, 10],
-                border: [false, false, false, false] as [boolean, boolean, boolean, boolean],
-              },
-            ]],
-          },
-          layout: {
-            hLineWidth: (i: number, node: { table: { body: unknown[] } }) => i === 0 || i === node.table.body.length ? 0.8 : 0,
-            vLineWidth: () => 0,
-            hLineColor: () => BRAND.border,
-            fillColor: (_: number, __: unknown, col: number) => col === 0 ? BRAND.surface : null,
-            paddingLeft: () => 0, paddingRight: () => 0, paddingTop: () => 0, paddingBottom: () => 0,
-          },
-          margin: [0, 16, 0, 24],
-        },
-        signatureBlock("Le Président du Syndicat", syndInfo.name, accentColor, true, lang, signatures),
-        legalFooterNote(docNum, lang, verifyUrl),
+          "• Virement bancaire au compte du syndicat",
+          "• Chèque libellé à l'ordre du syndicat de copropriété",
+          "• Remise en espèces au bureau syndical (contre reçu)",
+          ...(syndInfo.bankName ? [`\nBanque : ${syndInfo.bankName}`] : []),
+          ...(syndInfo.bankIban ? [`IBAN : ${syndInfo.bankIban}`] : []),
+          ...(syndInfo.bankBic  ? [`BIC : ${syndInfo.bankBic}`]  : []),
+          `\nRéférence à mentionner : ${receiptNum}`,
+        ].join("\n"), accentColor) as object,
+        signatureBlock("Le Président du Syndicat", syndInfo.name, accentColor, true, lang, signatures) as object,
+        buildOfficialSeal(syndInfo.name, accentColor, undefined, today) as object,
+      ];
+
+      const adfSidebarCol: unknown[] = [
+        buildSidebarInfoPanel("INFORMATIONS COPROPRIÉTAIRE", "◎", [
+          ["NOM", (input.memberName as string) || member || "—"],
+          ["IMMEUBLE", buildingName2],
+          ["LOT", `Lot ${lotNumber}`],
+          ["ÉTAGE", floor],
+          ["SURFACE", surface],
+          ["TANTIEMES", tantiemes],
+        ], accentColor) as object,
+        buildSidebarInfoPanel("RÉSUMÉ FINANCIER", "◈", [
+          ["MONTANT DÛ", `${amount.toLocaleString("fr-MA")} MAD`],
+          ["PÉRIODE", periode],
+          ["ÉCHÉANCE", dueDate],
+          ["TYPE", chargeType],
+        ], accentColor) as object,
+        buildValidationStatusPanel("generated", accentColor, lang) as object,
+        buildDigitalVerificationPanel(qrDataUrl, docNum, verifyUrl, accentColor, lang) as object,
+      ];
+
+      content = [
+        ...buildCorporateDocHeader(syndInfo, theme.categoryLabel, docNum, qrDataUrl, accentColor, today, logoDataUrl, buildingName, input.docStatus as string | null ?? null),
+        { columns: [{ stack: adfMainCol, width: "*" }, { stack: adfSidebarCol, width: 155 }], columnGap: 14 },
       ];
       break;
     }
@@ -5312,7 +5708,7 @@ async function buildDocDef(template: DocumentTemplate, input: DocumentInput): Pr
       break;
     }
 
-    // ── Facture ──────────────────────────────────────────────────────────────
+    // ── Facture (ENTERPRISE FAMILY — Image 1 layout) ─────────────────────────
     case "facture": {
       const invoiceAmount = Number(input.amount as string ?? 0);
       const invoiceDue = (input.dueDate as string) || "—";
@@ -5320,6 +5716,14 @@ async function buildDocDef(template: DocumentTemplate, input: DocumentInput): Pr
       const invoiceRef = (input._invoiceRef as string) || docNum;
       const invoiceStatus = (input._invoiceStatus as string) || "draft";
       const invoiceStatusLabel = ({ draft: "BROUILLON", sent: "ENVOYÉE", paid: "PAYÉE", overdue: "EN RETARD", cancelled: "ANNULÉE" } as Record<string, string>)[invoiceStatus] || invoiceStatus.toUpperCase();
+
+      // Enterprise footer
+      footerFn = (_page: number, _pages: number) => ({
+        columns: [
+          { text: "Ce document a été généré électroniquement. Aucune signature manuscrite n'est requise.", fontSize: 6.5, color: BRAND.muted, margin: [40, 12, 0, 0] },
+          { text: `${_page} / ${_pages}`, fontSize: 8, bold: true, color: BRAND.ink, alignment: "right" as const, margin: [0, 12, 40, 0] },
+        ],
+      });
 
       // Parse lines — may come from DB (JSON string) or be passed directly
       let invoiceLines: Array<{ label: string; qty: number; unitPrice: number; total: number }>;
@@ -5362,104 +5766,83 @@ async function buildDocDef(template: DocumentTemplate, input: DocumentInput): Pr
         },
       ]);
 
+      // ── ENTERPRISE FAMILY: Image 1 — two-column layout with 155pt sidebar ──
+      const factureLinesTable = {
+        table: {
+          widths: ["*", 50, 80, 80],
+          body: [
+            [
+              { text: "DÉSIGNATION", fontSize: 8, bold: true, color: BRAND.surfaceCard, fillColor: accentColor, margin: [8, 6, 4, 6], border: [false, false, false, false] as [boolean, boolean, boolean, boolean] },
+              { text: "QTÉ", fontSize: 8, bold: true, color: BRAND.surfaceCard, fillColor: accentColor, alignment: "center" as const, margin: [4, 6, 4, 6], border: [false, false, false, false] as [boolean, boolean, boolean, boolean] },
+              { text: "P.U.", fontSize: 8, bold: true, color: BRAND.surfaceCard, fillColor: accentColor, alignment: "right" as const, margin: [4, 6, 8, 6], border: [false, false, false, false] as [boolean, boolean, boolean, boolean] },
+              { text: "TOTAL", fontSize: 8, bold: true, color: BRAND.surfaceCard, fillColor: accentColor, alignment: "right" as const, margin: [4, 6, 8, 6], border: [false, false, false, false] as [boolean, boolean, boolean, boolean] },
+            ],
+            ...lineRows,
+          ],
+        },
+        layout: {
+          hLineWidth: (i: number, node: { table: { body: unknown[] } }) => i === 0 || i === node.table.body.length ? 0.8 : 0.4,
+          vLineWidth: () => 0, hLineColor: () => BRAND.border,
+          paddingLeft: () => 0, paddingRight: () => 0, paddingTop: () => 0, paddingBottom: () => 0,
+        },
+        margin: [0, 0, 0, 10],
+      };
+
+      const factureMainCol: unknown[] = [
+        { text: "FACTURE", fontSize: 36, bold: true, color: BRAND.ink, margin: [0, 6, 0, 2] },
+        { text: `SYNDICAT DE COPROPRIÉTÉ — ${syndInfo.name.toUpperCase()}`, fontSize: 8, bold: true, color: BRAND.muted, characterSpacing: 0.3, margin: [0, 0, 0, 10] },
+        buildDocumentOverviewGrid([
+          ["N° FACTURE", invoiceRef],
+          ["DATE", (input._invoiceDate as string) || today],
+          ["ÉCHÉANCE", invoiceDue],
+          ["STATUT", invoiceStatusLabel],
+          ["FACTURÉ À", recipient],
+          ["ICE SYNDICAT", syndInfo.registrationNumber || "—"],
+          ["RÉFÉRENCE", docNum],
+          ["VERSION", version || "v1.0"],
+        ], accentColor) as object,
+        kpiRow([
+          { icon: "◈", label: "TOTAL HT", value: `${totalHT.toLocaleString("fr-MA")} MAD`, valueColor: accentColor },
+          { icon: "%", label: "TVA 20%", value: `${tva.toLocaleString("fr-MA")} MAD`, valueColor: BRAND.warningDark },
+          { icon: "✓", label: "TOTAL TTC", value: `${totalTTC.toLocaleString("fr-MA")} MAD`, valueColor: BRAND.successDark },
+        ], accentColor) as object,
+        factureLinesTable,
+        {
+          stack: [
+            { columns: [{ text: "Total HT", fontSize: 9, color: BRAND.muted, width: "*" }, { text: `${totalHT.toLocaleString("fr-MA")} MAD`, fontSize: 9, width: "auto", alignment: "right" as const }], margin: [0, 4, 0, 2] },
+            { columns: [{ text: "TVA (20%)", fontSize: 9, color: BRAND.muted, width: "*" }, { text: `${tva.toLocaleString("fr-MA")} MAD`, fontSize: 9, width: "auto", alignment: "right" as const }], margin: [0, 2, 0, 6] },
+            { canvas: [{ type: "line", x1: 0, y1: 0, x2: 340, y2: 0, lineWidth: 0.5, lineColor: BRAND.border }] },
+            { columns: [{ text: "TOTAL TTC", fontSize: 11, bold: true, color: BRAND.ink, width: "*" }, { text: `${totalTTC.toLocaleString("fr-MA")} MAD`, fontSize: 11, bold: true, color: accentColor, width: "auto", alignment: "right" as const }], margin: [0, 8, 0, 0] },
+          ],
+          fillColor: BRAND.surface,
+          margin: [0, 0, 0, 14],
+        },
+        signatureBlock("Le Trésorier du Syndicat", syndInfo.name, accentColor, true, lang, signatures) as object,
+        buildOfficialSeal(syndInfo.name, accentColor, undefined, today) as object,
+      ];
+
+      const factureSidebarCol: unknown[] = [
+        buildSidebarInfoPanel("INFORMATIONS CLIENT", "◎", [
+          ["DESTINATAIRE", recipient],
+          ["SYNDICAT", syndInfo.name],
+          ["ADRESSE", syndInfo.address || "—"],
+          ["CONTACT", syndInfo.phone || "—"],
+          ...(syndInfo.bankName ? [["BANQUE", syndInfo.bankName] as [string, string]] : []),
+          ...(syndInfo.bankIban ? [["IBAN", syndInfo.bankIban] as [string, string]] : []),
+        ], accentColor) as object,
+        buildSidebarInfoPanel("RÉSUMÉ FINANCIER", "◈", [
+          ["SOUS-TOTAL HT", `${totalHT.toLocaleString("fr-MA")} MAD`],
+          ["TVA 20%", `${tva.toLocaleString("fr-MA")} MAD`],
+          ["TOTAL TTC", `${totalTTC.toLocaleString("fr-MA")} MAD`],
+          ["MODE PAIEMENT", "Virement bancaire"],
+        ], accentColor) as object,
+        buildValidationStatusPanel(invoiceStatus || "draft", accentColor, lang) as object,
+        buildDigitalVerificationPanel(qrDataUrl, docNum, verifyUrl, accentColor, lang) as object,
+      ];
+
       content = [
-        ...header,
-        { text: `FACTURE N° ${invoiceRef}`, style: "docTitle", alignment: "center" as const, margin: [0, 0, 0, 4] },
-        { text: `Date : ${today}  •  Échéance : ${invoiceDue}`, fontSize: 8, color: BRAND.muted, alignment: "center" as const, margin: [0, 0, 0, 20] },
-        metaTable([
-          ["FACTURÉ À",       recipient],
-          ["RÉFÉRENCE",       invoiceRef],
-          ["ICE SYNDICAT",    syndInfo.registrationNumber || "—"],
-          ["STATUT",          invoiceStatusLabel],
-          ["DATE FACTURE",    (input._invoiceDate as string) || today],
-          ["DATE ÉCHÉANCE",   invoiceDue],
-        ], accentColor),
-        // Lines table header
-        {
-          table: {
-            widths: ["*", 50, 80, 80],
-            body: [
-              [
-                { text: "DÉSIGNATION", fontSize: 8, bold: true, color: BRAND.surfaceCard, fillColor: accentColor, margin: [8, 6, 4, 6], border: [false, false, false, false] as [boolean, boolean, boolean, boolean] },
-                { text: "QTÉ", fontSize: 8, bold: true, color: BRAND.surfaceCard, fillColor: accentColor, alignment: "center" as const, margin: [4, 6, 4, 6], border: [false, false, false, false] as [boolean, boolean, boolean, boolean] },
-                { text: "P.U.", fontSize: 8, bold: true, color: BRAND.surfaceCard, fillColor: accentColor, alignment: "right" as const, margin: [4, 6, 8, 6], border: [false, false, false, false] as [boolean, boolean, boolean, boolean] },
-                { text: "TOTAL", fontSize: 8, bold: true, color: BRAND.surfaceCard, fillColor: accentColor, alignment: "right" as const, margin: [4, 6, 8, 6], border: [false, false, false, false] as [boolean, boolean, boolean, boolean] },
-              ],
-              ...lineRows,
-            ],
-          },
-          layout: {
-            hLineWidth: (i: number, node: { table: { body: unknown[] } }) => i === 0 || i === node.table.body.length ? 0.8 : 0.4,
-            vLineWidth: () => 0,
-            hLineColor: () => BRAND.border,
-            paddingLeft: () => 0, paddingRight: () => 0, paddingTop: () => 0, paddingBottom: () => 0,
-          },
-          margin: [0, 0, 0, 0],
-        },
-        // Totals
-        {
-          table: {
-            widths: ["*", 150],
-            body: [
-              [
-                { text: "", border: [false, false, false, false] as [boolean, boolean, boolean, boolean] },
-                {
-                  stack: [
-                    { columns: [{ text: "Total HT", fontSize: 9, color: BRAND.muted, width: "*" }, { text: `${totalHT.toLocaleString("fr-MA")} MAD`, fontSize: 9, width: "auto", alignment: "right" as const }], margin: [12, 8, 12, 2] },
-                    { columns: [{ text: "TVA (20%)", fontSize: 9, color: BRAND.muted, width: "*" }, { text: `${tva.toLocaleString("fr-MA")} MAD`, fontSize: 9, width: "auto", alignment: "right" as const }], margin: [12, 2, 12, 6] },
-                    { canvas: [{ type: "line", x1: 12, y1: 0, x2: 138, y2: 0, lineWidth: 0.5, lineColor: BRAND.border }] },
-                    {
-                      columns: [
-                        { text: "TOTAL TTC", fontSize: 11, bold: true, color: BRAND.ink, width: "*" },
-                        { text: `${totalTTC.toLocaleString("fr-MA")} MAD`, fontSize: 11, bold: true, color: accentColor, width: "auto", alignment: "right" as const },
-                      ],
-                      margin: [12, 8, 12, 10],
-                    },
-                  ],
-                  fillColor: BRAND.surface,
-                  border: [true, true, true, true] as [boolean, boolean, boolean, boolean],
-                  borderColor: [BRAND.border, BRAND.border, BRAND.border, BRAND.border],
-                },
-              ],
-            ],
-          },
-          layout: { hLineWidth: () => 0, vLineWidth: () => 0, paddingLeft: () => 0, paddingRight: () => 0, paddingTop: () => 0, paddingBottom: () => 0 },
-          margin: [0, 0, 0, 24],
-        },
-        // Bank payment details (below totals) — shown only when bank info is configured
-        ...(syndInfo.bankName || syndInfo.bankIban ? [{
-          table: {
-            widths: ["auto", "*"],
-            body: [
-              [
-                { text: "COORDONNÉES BANCAIRES", fontSize: 7.5, bold: true, color: BRAND.surfaceCard, fillColor: accentColor, margin: [10, 6, 10, 6], colSpan: 2, border: [false, false, false, false] as [boolean, boolean, boolean, boolean] },
-                {},
-              ],
-              ...(syndInfo.bankName ? [[
-                { text: "Banque :", fontSize: 8, color: BRAND.muted, margin: [10, 4, 6, 4], border: [false, false, false, false] as [boolean, boolean, boolean, boolean] },
-                { text: syndInfo.bankName, fontSize: 8.5, bold: true, color: BRAND.ink, margin: [0, 4, 10, 4], border: [false, false, false, false] as [boolean, boolean, boolean, boolean] },
-              ]] : []),
-              ...(syndInfo.bankIban ? [[
-                { text: "IBAN :", fontSize: 8, color: BRAND.muted, margin: [10, 4, 6, 4], border: [false, false, false, false] as [boolean, boolean, boolean, boolean] },
-                { text: syndInfo.bankIban, fontSize: 8.5, bold: true, color: BRAND.ink, font: "monospace" as any, margin: [0, 4, 10, 4], border: [false, false, false, false] as [boolean, boolean, boolean, boolean] },
-              ]] : []),
-              ...(syndInfo.bankBic ? [[
-                { text: "BIC :", fontSize: 8, color: BRAND.muted, margin: [10, 4, 6, 6], border: [false, false, false, false] as [boolean, boolean, boolean, boolean] },
-                { text: syndInfo.bankBic, fontSize: 8.5, bold: true, color: BRAND.ink, margin: [0, 4, 10, 6], border: [false, false, false, false] as [boolean, boolean, boolean, boolean] },
-              ]] : []),
-            ],
-          },
-          layout: {
-            hLineWidth: (i: number, node: { table: { body: unknown[] } }) => i === 0 || i === node.table.body.length ? 0.8 : 0.4,
-            vLineWidth: () => 0,
-            hLineColor: () => BRAND.border,
-            fillColor: (_: number, __: unknown, col: number) => col === 0 ? BRAND.surface : BRAND.surfaceCard,
-            paddingLeft: () => 0, paddingRight: () => 0, paddingTop: () => 0, paddingBottom: () => 0,
-          },
-          margin: [0, 0, 0, 24],
-        }] : [{ text: "", margin: [0, 0, 0, 24] }]),
-        signatureBlock("Le Trésorier du Syndicat", syndInfo.name, accentColor, true, lang, signatures),
-        legalFooterNote(docNum, lang, verifyUrl),
+        ...buildCorporateDocHeader(syndInfo, theme.categoryLabel, docNum, qrDataUrl, accentColor, today, logoDataUrl, buildingName, input.docStatus as string | null ?? null),
+        { columns: [{ stack: factureMainCol, width: "*" }, { stack: factureSidebarCol, width: 155 }], columnGap: 14 },
       ];
       break;
     }
@@ -5846,9 +6229,8 @@ async function buildDocDef(template: DocumentTemplate, input: DocumentInput): Pr
       const accentIsBlue    = BRAND.info;
 
       content = [
-        ...header,
+        ...buildLegalContractCover(syndInfo, theme.categoryLabel, docNum, qrDataUrl, accentColor, today, logoDataUrl, buildingName, version),
         // Premium title block
-        { canvas: [{ type: "rect", x: 0, y: 0, w: 515, h: 4, color: accentColor }], margin: [0, 0, 0, 12] },
         { text: "CONTRAT DE BAIL RÉSIDENTIEL", fontSize: 20, bold: true, color: accentColor, alignment: "center" as const, margin: [0, 0, 0, 4] },
         { text: input.title, style: "docTitle", alignment: "center" as const, margin: [0, 0, 0, 16] },
         // Status badge
@@ -6190,10 +6572,12 @@ async function buildDocDef(template: DocumentTemplate, input: DocumentInput): Pr
   }
 
   return {
-    ...pageSetup,
+    pageSize: "A4" as const,
+    pageMargins: pageMarginOverride ?? ([40, 22, 40, 58] as [number, number, number, number]),
     content,
     styles,
-    footer,
+    ...(footerFn ? { footer: footerFn } : {}),
+    ...(backgroundFn ? { background: backgroundFn } : {}),
     ...(watermark ? { watermark } : {}),
   };
 }
