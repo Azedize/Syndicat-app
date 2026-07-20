@@ -5760,203 +5760,671 @@ async function buildDocDef(template: DocumentTemplate, input: DocumentInput): Pr
       break;
     }
 
-    // ── Template 23: Attestation de Propriété ────────────────────────────────────
-    // Visual concept: Land registry title extract.
-    // The TITRE FONCIER reference and OWNERSHIP FRACTION (tantiemes) are the primary facts.
-    // Instantly distinguishable from attestation_residence: propriete = TF number strip + ownership
-    // fraction cells. No shared layout with any other attestation template.
+    // ── Template 23: Attestation de Propriété ─────────────────────────────────────
+    // Visual concept: Premium two-page land-registry certificate.
+    // Page 1 — Identity: navy institution banner, owner identity card with photo,
+    //          property grid (6 cells), ownership declaration box (gold border).
+    // Page 2 — Certification: reference bar, land-registry table, valuation strip,
+    //          legal text box, 3-signatory grid, QR verification.
+    // Design language: navy #0b1e30 / gold #b89a61 / paper #fbf8f1 (from HTML reference).
     case "attestation_propriete": {
-      const prop         = input.property as PropertyInfo | undefined;
-      const titreFoncier = (input.titreFoncier as string) || (input._lotTitreFoncier as string) || prop?.landRegistryReference || "—";
-      const tantiemes    = (input.tantiemes as string) || (input._lotTantiemes as string) || "—";
-      const lotNum       = (input.lotNumber as string) || (input._lotNumber as string) || "—";
-      const propName     = (input._buildingName as string) || prop?.name || syndInfo.name;
-      const propAddress  = (input._buildingAddress as string) || prop?.address || syndInfo.address;
-      const propCity     = prop?.city || syndInfo.city;
-      const attMemberCIN = (input._memberCIN as string) || "";
-      const attLotSurface = (input._lotSurface as string) || "—";
-      const attLotFloor  = (input._lotFloor as string) || "";
-      const propDark     = adjustColorBrightness(accentColor, -20);
+      // ── Design tokens (matched to uploaded HTML reference template) ────────────
+      const pNavy      = "#0b1e30";
+      const pGold      = "#b89a61";
+      const pGoldDk    = "#8f713d";
+      const pGoldSoft  = "#e4d8bf";
+      const pInk       = "#20272e";
+      const pMuted     = "#687078";
+      const pLine      = "#d9d2c5";
+      const pSuccess   = "#198754";
+      const pSuccessBg = "#e8f5ed";
+      const pWarnDk    = BRAND.warningDark;
+      const pWarnBg    = BRAND.warningLight;
+
+      // ── Data extraction ─────────────────────────────────────────────────────────
+      const prop              = input.property as PropertyInfo | undefined;
+      const titreFoncier      = (input.titreFoncier as string) || (input._lotTitreFoncier as string) || prop?.landRegistryReference || "—";
+      const tantiemes         = (input.tantiemes as string) || (input._lotTantiemes as string) || "—";
+      const lotNum            = (input.lotNumber as string) || (input._lotNumber as string) || "—";
+      const propName          = (input._buildingName as string) || prop?.name || syndInfo.name;
+      const propAddress       = (input._buildingAddress as string) || prop?.address || syndInfo.address;
+      const propCity          = prop?.city || syndInfo.city || "";
+      const attMemberCIN      = (input._memberCIN as string) || "—";
+      const attLotSurface     = (input._lotSurface as string) || "—";
+      const attLotFloor       = (input._lotFloor as string) || "";
+      const attLotType        = (input._lotType as string) || "Appartement";
+      const attOccupancy      = (input.occupancyStatus as string) || "Propriétaire occupant";
+      const attBirthDate      = (input._memberBirthDate as string) || "—";
+      const attNationality    = (input._memberNationality as string) || "Marocaine";
+      const attPhone          = (input._memberPhone as string) || "—";
+      const attMemberAddress  = (input._memberAddress as string) || [propAddress, propCity].filter(Boolean).join(", ") || "—";
+      const attOwnershipShare = tantiemes !== "—" ? `${tantiemes} ‰` : "—";
+      const attAvatarUrl      = (input._memberAvatarUrl as string) || "";
+
+      // Land registry / page-2 fields
+      const attRegistryOffice    = (input.landRegistryOffice as string) || "Conservation Foncière";
+      const attLandRef           = (input.landRef as string) || titreFoncier;
+      const attAcquisitionDate   = (input.acquisitionDate as string) || "—";
+      const attAcquisitionMethod = (input.acquisitionMethod as string) || "Achat";
+      const attCharges           = (input.charges as string) || "Aucune charge déclarée";
+      const attEstimatedValue    = (input.estimatedValue as string) || "—";
+      const attPropertyUse       = (input.propertyUse as string) || "Résidentiel";
+      const attLegalStatus       = (input.legalStatus as string) || "Pleine propriété";
+      const attLegalCertText     = (input.legalCertText as string) || (
+        `Le Syndicat de Copropriété ${syndInfo.name}, représenté par son Président, certifie que les ` +
+        `informations contenues dans la présente attestation sont exactes et conformes aux documents officiels ` +
+        `détenus dans ses archives. Cette attestation a été établie à la demande du propriétaire, pour faire ` +
+        `valoir ses droits auprès de tout organisme qui en ferait la demande.`
+      );
+
+      // Validity date (1 year from today)
+      const attValidityDate = (() => {
+        try {
+          const d = new Date();
+          d.setFullYear(d.getFullYear() + 1);
+          return d.toLocaleDateString("fr-FR", { day: "2-digit", month: "long", year: "numeric" });
+        } catch { return "—"; }
+      })();
+
+      // ── Avatar ───────────────────────────────────────────────────────────────────
+      const attAvatarB64 = await fetchAvatarAsBase64(attAvatarUrl);
+      const attNameParts  = (member || "P").trim().split(/\s+/).filter(Boolean);
+      const attInitials   = ((attNameParts[0]?.[0] ?? "P") + (attNameParts[1]?.[0] ?? "")).toUpperCase();
+      const attAvatarSvg  = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 62 77">` +
+        `<rect width="62" height="77" fill="${pGoldSoft}"/>` +
+        `<circle cx="31" cy="24" r="12" fill="${pGoldDk}" opacity="0.35"/>` +
+        `<path d="M4,77 Q4,48 31,48 Q58,48 58,77Z" fill="${pGoldDk}" opacity="0.35"/>` +
+        `<text x="31" y="30" text-anchor="middle" font-family="Helvetica,Arial,sans-serif" font-size="13" font-weight="bold" fill="${pNavy}">${attInitials}</text>` +
+        `</svg>`;
+      const attAvatarEl: unknown = attAvatarB64
+        ? { image: attAvatarB64, width: 64, height: 79, fit: [64, 79] as [number, number] }
+        : { svg: attAvatarSvg, width: 64, height: 79 };
+
+      // ── Logo / acronym fallback ───────────────────────────────────────────────────
+      const attAcronym = (syndInfo.abbreviation || syndInfo.name.split(/\s+/).map((w: string) => w[0]).join("").slice(0, 3)).toUpperCase();
+      const attLogoEl: unknown = logoDataUrl
+        ? { image: logoDataUrl, width: 34, height: 34, fit: [34, 34] as [number, number], margin: [0, 2, 0, 2] }
+        : {
+            stack: [
+              { canvas: [{ type: "ellipse", x: 17, y: 17, r1: 17, r2: 17, color: pGoldSoft, lineColor: pGold, lineWidth: 1.2 }], margin: [0, 0, 0, -36] },
+              { text: attAcronym, fontSize: attAcronym.length > 2 ? 9 : 11, bold: true, color: pNavy, alignment: "center" as const, margin: [0, attAcronym.length > 2 ? 12 : 11, 0, 0] },
+            ],
+          };
+
+      // ── Helper: section heading band ─────────────────────────────────────────────
+      const sectionHeading = (txt: string): unknown => ({
+        table: {
+          widths: ["*"],
+          body: [[{
+            text: `  ${txt.toUpperCase()}`,
+            fontSize: 7.5, bold: true, color: "#ffffff", characterSpacing: 0.05,
+            border: [false, false, false, false] as [boolean, boolean, boolean, boolean],
+            margin: [8, 6, 8, 6],
+          }]],
+        },
+        layout: {
+          hLineWidth: () => 0, vLineWidth: () => 0,
+          fillColor: () => pNavy,
+          paddingLeft: () => 0, paddingRight: () => 0, paddingTop: () => 0, paddingBottom: () => 0,
+        },
+        margin: [0, 0, 0, 5],
+      });
+
+      // ── Helper: data cell label + value ──────────────────────────────────────────
+      const dc = (label: string, val: string): unknown => ({
+        stack: [
+          { text: label.toUpperCase(), fontSize: 5.5, bold: true, color: pGoldDk, characterSpacing: 0.075, margin: [0, 0, 0, 2] as [number, number, number, number] },
+          { text: val || "—", fontSize: 8.5, bold: true, color: pNavy },
+        ],
+        margin: [10, 8, 8, 8] as [number, number, number, number],
+      });
+
+      // ── Attestation body text ─────────────────────────────────────────────────────
+      const attBodyText = body || (
+        `Le Syndicat de Copropriété ${syndInfo.name} atteste que ${member || "[NOM DU PROPRIÉTAIRE]"}` +
+        (attMemberCIN !== "—" ? `, titulaire de la CIN N° ${attMemberCIN},` : "") +
+        ` est propriétaire du lot N° ${lotNum} de la résidence ${propName},` +
+        ` inscrit au Titre Foncier N° ${titreFoncier},` +
+        ` avec une quote-part de ${tantiemes !== "—" ? `${tantiemes} ‰` : "[tantièmes]"} tantièmes.` +
+        ` Cette attestation est établie sur la base des documents figurant au registre du syndicat` +
+        ` et est valable pour la situation connue à ce jour.`
+      );
+
+      // ── Syndicate president from officeHolders or signatures ─────────────────────
+      const attOfficeHolders = input.officeHolders as OfficeHolders | undefined;
+      const attPresidentName = attOfficeHolders?.president?.fullName
+        || signatures.find((s) => ["president", "syndicate_admin"].includes(s.signerRole ?? ""))?.signerName
+        || "—";
+
       content = [
-        ...header,
-        // ── Land-registry-style authority band ───────────────────────────────
-        // Two segments: document title (accent bg) + TF reference (deep accent bg)
-        // The TF number is the document's unique identifier — equivalent to a case number.
+        // ══════════════════════════════════════════════════════════════════════
+        // PAGE 1 — IDENTITY
+        // ══════════════════════════════════════════════════════════════════════
+
+        // ── Institution banner (full-bleed navy with gold chip) ─────────────────
         {
           table: {
-            widths: ["*", "auto"],
+            widths: [48, "*", "auto"],
             body: [[
+              // Logo
               {
-                stack: [
-                  { text: "ATTESTATION DE PROPRIÉTÉ IMMOBILIÈRE", fontSize: 9, bold: true, color: BRAND.surfaceCard, characterSpacing: 0.4, margin: [0, 0, 0, 4] },
-                  { text: `${syndInfo.name}  ·  Syndicat de Copropriété`, fontSize: 7, color: `${BRAND.surfaceCard}99` },
-                ],
-                fillColor: accentColor,
-                margin: [16, 12, 12, 12],
+                stack: [attLogoEl],
+                alignment: "center" as const,
+                margin: [4, 10, 4, 10],
                 border: [false, false, false, false] as [boolean, boolean, boolean, boolean],
               },
+              // Institution name + tagline
               {
                 stack: [
-                  { text: "TITRE FONCIER", fontSize: 5, bold: true, color: `${BRAND.surfaceCard}99`, characterSpacing: 0.8, alignment: "right" as const, margin: [0, 0, 0, 3] },
-                  { text: titreFoncier !== "—" ? titreFoncier : docNum, fontSize: 11, bold: true, color: BRAND.surfaceCard, alignment: "right" as const },
-                  { text: today, fontSize: 6.5, color: `${BRAND.surfaceCard}99`, alignment: "right" as const, margin: [0, 3, 0, 0] },
+                  { text: syndInfo.name.toUpperCase(), fontSize: 11, bold: true, color: "#ffffff", characterSpacing: 0.08, lineHeight: 1.2 },
+                  { text: syndInfo.address || "Syndicat de Copropriété", fontSize: 7, color: pGold, characterSpacing: 0.09, margin: [0, 3, 0, 0] as [number, number, number, number] },
                 ],
-                fillColor: adjustColorBrightness(accentColor, -20),
-                margin: [12, 12, 14, 12],
+                margin: [8, 12, 8, 12],
+                border: [false, false, false, false] as [boolean, boolean, boolean, boolean],
+              },
+              // Certificate chip
+              {
+                stack: [
+                  { text: "ATTESTATION", fontSize: 5.5, bold: true, color: pGoldSoft, characterSpacing: 0.075, alignment: "right" as const },
+                  { text: docNum, fontSize: 9, bold: true, color: "#ffffff", margin: [0, 2, 0, 0] as [number, number, number, number], alignment: "right" as const },
+                ],
+                margin: [8, 12, 14, 12],
                 border: [false, false, false, false] as [boolean, boolean, boolean, boolean],
               },
             ]],
           },
           layout: {
             hLineWidth: () => 0, vLineWidth: () => 0,
+            fillColor: () => pNavy,
             paddingLeft: () => 0, paddingRight: () => 0, paddingTop: () => 0, paddingBottom: () => 0,
           },
           margin: [0, 0, 0, 0],
         },
-        // ── 4-cell ownership facts strip ─────────────────────────────────────
-        // The lot number at 16pt is the visual anchor — this is the FIRST thing
-        // an administrator's eye finds when scanning for ownership information.
+        // Gold hairline under banner
+        { canvas: [{ type: "line", x1: 0, y1: 0, x2: 515, y2: 0, lineWidth: 1.5, lineColor: pGold }], margin: [0, 0, 0, 0] },
+
+        // ── Document title ───────────────────────────────────────────────────────
+        { text: "ATTESTATION DE PROPRIÉTÉ IMMOBILIÈRE", fontSize: 17, bold: true, color: pNavy, characterSpacing: 0.035, alignment: "center" as const, margin: [0, 14, 0, 0] },
+        { text: "SYNDICAT DE COPROPRIÉTÉ", fontSize: 8, color: pMuted, characterSpacing: 0.1, alignment: "center" as const, margin: [0, 4, 0, 0] },
+        // Ornamental gold divider (centered lines + diamond)
+        {
+          columns: [
+            { canvas: [{ type: "line", x1: 0, y1: 0.5, x2: 46, y2: 0.5, lineWidth: 0.8, lineColor: pGoldSoft }], width: 46 },
+            { canvas: [{ type: "rect", x: 0, y: 0, w: 7, h: 7, color: pGoldSoft, lineColor: pGold, lineWidth: 0.8 }], width: 11, margin: [2, -3, 2, 0] },
+            { canvas: [{ type: "line", x1: 0, y1: 0.5, x2: 46, y2: 0.5, lineWidth: 0.8, lineColor: pGoldSoft }], width: 46 },
+          ],
+          alignment: "center" as const,
+          columnGap: 0,
+          margin: [0, 8, 0, 8],
+        },
+        {
+          text: `Le Syndicat de Copropriété ${syndInfo.name} certifie que le bénéficiaire ci-dessous est propriétaire du bien immobilier désigné, conformément au registre du syndicat.`,
+          fontSize: 9, color: pMuted, alignment: "center" as const, lineHeight: 1.55,
+          margin: [28, 0, 28, 14],
+        },
+
+        // ── Meta strip (3 cells: issue date | status | validity) ─────────────────
         {
           table: {
-            widths: ["*", "*", "*", "*"],
+            widths: ["*", "*", "*"],
             body: [[
               {
                 stack: [
-                  { text: "N° DE LOT", fontSize: 5.5, bold: true, color: BRAND.mutedLight, characterSpacing: 0.6, margin: [0, 0, 0, 5] },
-                  { text: lotNum, fontSize: 18, bold: true, color: accentColor, characterSpacing: 1 },
+                  { text: "DATE D'ÉMISSION", fontSize: 5.5, bold: true, color: pMuted, characterSpacing: 0.075, alignment: "center" as const },
+                  { text: today, fontSize: 8.5, bold: true, color: pNavy, alignment: "center" as const, margin: [0, 3, 0, 0] as [number, number, number, number] },
                 ],
-                fillColor: BRAND.surface,
-                margin: [14, 12, 14, 12],
-                border: [false, false, false, false] as [boolean, boolean, boolean, boolean],
+                margin: [8, 9, 8, 9],
+                border: [true, true, true, true] as [boolean, boolean, boolean, boolean],
               },
               {
                 stack: [
-                  { text: "TITRE FONCIER", fontSize: 5.5, bold: true, color: BRAND.mutedLight, characterSpacing: 0.6, margin: [0, 0, 0, 5] },
-                  { text: titreFoncier, fontSize: 10, bold: true, color: BRAND.ink, lineHeight: 1.2 },
+                  { text: "STATUT", fontSize: 5.5, bold: true, color: pMuted, characterSpacing: 0.075, alignment: "center" as const },
+                  { text: "VALIDE", fontSize: 8.5, bold: true, color: pSuccess, alignment: "center" as const, margin: [0, 3, 0, 0] as [number, number, number, number] },
                 ],
-                fillColor: BRAND.surfaceCard,
-                margin: [14, 12, 14, 12],
-                border: [false, false, false, false] as [boolean, boolean, boolean, boolean],
+                margin: [8, 9, 8, 9],
+                border: [true, true, true, true] as [boolean, boolean, boolean, boolean],
               },
               {
                 stack: [
-                  { text: "QUOTE-PART (‰)", fontSize: 5.5, bold: true, color: BRAND.mutedLight, characterSpacing: 0.6, margin: [0, 0, 0, 5] },
-                  { text: tantiemes !== "—" ? `${tantiemes} ‰` : "—", fontSize: 10, bold: true, color: BRAND.ink },
+                  { text: "VALIDITÉ", fontSize: 5.5, bold: true, color: pMuted, characterSpacing: 0.075, alignment: "center" as const },
+                  { text: attValidityDate, fontSize: 8.5, bold: true, color: pNavy, alignment: "center" as const, margin: [0, 3, 0, 0] as [number, number, number, number] },
                 ],
-                fillColor: BRAND.surface,
-                margin: [14, 12, 14, 12],
-                border: [false, false, false, false] as [boolean, boolean, boolean, boolean],
-              },
-              {
-                stack: [
-                  { text: "SURFACE PRIVATIVE", fontSize: 5.5, bold: true, color: BRAND.mutedLight, characterSpacing: 0.6, margin: [0, 0, 0, 5] },
-                  { text: attLotSurface !== "—" ? attLotSurface : "—", fontSize: 10, bold: true, color: BRAND.ink },
-                  ...(attLotFloor ? [{ text: `Étage ${attLotFloor === "0" ? "RDC" : attLotFloor}`, fontSize: 7.5, color: BRAND.muted, margin: [0, 3, 0, 0] as [number, number, number, number] }] : []),
-                ],
-                fillColor: BRAND.surfaceCard,
-                margin: [14, 12, 14, 12],
-                border: [false, false, false, false] as [boolean, boolean, boolean, boolean],
+                margin: [8, 9, 8, 9],
+                border: [true, true, true, true] as [boolean, boolean, boolean, boolean],
               },
             ]],
           },
           layout: {
-            hLineWidth: (i: number, node: { table: { body: unknown[] } }) => i === 0 || i === node.table.body.length ? 0.7 : 0,
-            vLineWidth: (i: number, node: { table: { widths: unknown[] } }) => i > 0 && i < node.table.widths.length ? 0.4 : 0.7,
-            hLineColor: () => BRAND.border, vLineColor: () => BRAND.border,
+            hLineWidth: () => 0.5, vLineWidth: (i: number) => (i === 1 || i === 2) ? 0.5 : 0,
+            hLineColor: () => pLine, vLineColor: () => pLine,
+            fillColor: () => "rgba(255,255,255,0.55)",
             paddingLeft: () => 0, paddingRight: () => 0, paddingTop: () => 0, paddingBottom: () => 0,
           },
-          margin: [0, 8, 0, 18],
+          margin: [0, 0, 0, 14],
         },
-        // ── Property + Owner 2-column identification ──────────────────────────
+
+        // ── Owner section heading ─────────────────────────────────────────────────
+        sectionHeading("Identité du Propriétaire"),
+
+        // ── Owner grid: photo | name + data fields ───────────────────────────────
+        {
+          table: {
+            widths: [72, "*"],
+            body: [[
+              // Photo column
+              {
+                stack: [attAvatarEl],
+                alignment: "center" as const,
+                margin: [6, 8, 6, 8],
+                border: [true, true, true, true] as [boolean, boolean, boolean, boolean],
+              },
+              // Data column
+              {
+                stack: [
+                  { text: "COPROPRIÉTAIRE", fontSize: 5.5, bold: true, color: pMuted, characterSpacing: 0.075, margin: [0, 0, 0, 2] as [number, number, number, number] },
+                  { text: member || "—", fontSize: 12, bold: true, color: pNavy, lineHeight: 1.2, margin: [0, 0, 0, 7] as [number, number, number, number] },
+                  {
+                    columns: [
+                      {
+                        stack: [
+                          { text: "CIN", fontSize: 5.5, bold: true, color: pMuted, characterSpacing: 0.075, margin: [0, 0, 0, 1] as [number, number, number, number] },
+                          { text: attMemberCIN, fontSize: 8.5, bold: true, color: pNavy, margin: [0, 0, 0, 4] as [number, number, number, number] },
+                          { canvas: [{ type: "line", x1: 0, y1: 0, x2: 105, y2: 0, lineWidth: 0.5, lineColor: pLine }], margin: [0, 0, 0, 4] },
+                          { text: "DATE DE NAISSANCE", fontSize: 5.5, bold: true, color: pMuted, characterSpacing: 0.075, margin: [0, 0, 0, 1] as [number, number, number, number] },
+                          { text: attBirthDate, fontSize: 8.5, bold: true, color: pNavy, margin: [0, 0, 0, 4] as [number, number, number, number] },
+                          { canvas: [{ type: "line", x1: 0, y1: 0, x2: 105, y2: 0, lineWidth: 0.5, lineColor: pLine }], margin: [0, 0, 0, 4] },
+                          { text: "ADRESSE", fontSize: 5.5, bold: true, color: pMuted, characterSpacing: 0.075, margin: [0, 0, 0, 1] as [number, number, number, number] },
+                          { text: attMemberAddress, fontSize: 8, bold: true, color: pNavy, lineHeight: 1.2 },
+                        ],
+                        width: "50%",
+                      },
+                      {
+                        stack: [
+                          { text: "NATIONALITÉ", fontSize: 5.5, bold: true, color: pMuted, characterSpacing: 0.075, margin: [0, 0, 0, 1] as [number, number, number, number] },
+                          { text: attNationality, fontSize: 8.5, bold: true, color: pNavy, margin: [0, 0, 0, 4] as [number, number, number, number] },
+                          { canvas: [{ type: "line", x1: 0, y1: 0, x2: 105, y2: 0, lineWidth: 0.5, lineColor: pLine }], margin: [0, 0, 0, 4] },
+                          { text: "TÉLÉPHONE", fontSize: 5.5, bold: true, color: pMuted, characterSpacing: 0.075, margin: [0, 0, 0, 1] as [number, number, number, number] },
+                          { text: attPhone, fontSize: 8.5, bold: true, color: pNavy, margin: [0, 0, 0, 4] as [number, number, number, number] },
+                          { canvas: [{ type: "line", x1: 0, y1: 0, x2: 105, y2: 0, lineWidth: 0.5, lineColor: pLine }], margin: [0, 0, 0, 4] },
+                          { text: "QUOTE-PART", fontSize: 5.5, bold: true, color: pMuted, characterSpacing: 0.075, margin: [0, 0, 0, 1] as [number, number, number, number] },
+                          { text: attOwnershipShare, fontSize: 8.5, bold: true, color: pNavy },
+                        ],
+                        width: "50%",
+                      },
+                    ],
+                    columnGap: 10,
+                  },
+                ],
+                margin: [10, 8, 8, 8],
+                border: [true, true, true, true] as [boolean, boolean, boolean, boolean],
+              },
+            ]],
+          },
+          layout: {
+            hLineWidth: () => 0.5, vLineWidth: () => 0.5,
+            hLineColor: () => pLine, vLineColor: () => pLine,
+            fillColor: () => "rgba(255,255,255,0.58)",
+            paddingLeft: () => 0, paddingRight: () => 0, paddingTop: () => 0, paddingBottom: () => 0,
+          },
+          margin: [0, 0, 0, 10],
+        },
+
+        // ── Property section heading ──────────────────────────────────────────────
+        sectionHeading("Description du Bien Immobilier"),
+
+        // ── Property grid (2×3 cells) ────────────────────────────────────────────
+        {
+          table: {
+            widths: ["*", "*"],
+            body: [
+              [
+                {
+                  stack: [
+                    { text: "ADRESSE DU BIEN", fontSize: 5.5, bold: true, color: pGoldDk, characterSpacing: 0.075, margin: [0, 0, 0, 2] as [number, number, number, number] },
+                    { text: [propAddress, propCity].filter(Boolean).join(", ") || "—", fontSize: 8.5, bold: true, color: pNavy },
+                  ],
+                  margin: [10, 8, 8, 8] as [number, number, number, number],
+                  border: [true, true, false, true] as [boolean, boolean, boolean, boolean],
+                },
+                {
+                  stack: [
+                    { text: "N° TITRE FONCIER", fontSize: 5.5, bold: true, color: pGoldDk, characterSpacing: 0.075, margin: [0, 0, 0, 2] as [number, number, number, number] },
+                    { text: titreFoncier || "—", fontSize: 8.5, bold: true, color: pNavy },
+                  ],
+                  margin: [10, 8, 8, 8] as [number, number, number, number],
+                  border: [true, true, true, true] as [boolean, boolean, boolean, boolean],
+                },
+              ],
+              [
+                {
+                  stack: [
+                    { text: "SURFACE PRIVATIVE", fontSize: 5.5, bold: true, color: pGoldDk, characterSpacing: 0.075, margin: [0, 0, 0, 2] as [number, number, number, number] },
+                    { text: attLotSurface || "—", fontSize: 8.5, bold: true, color: pNavy },
+                  ],
+                  margin: [10, 8, 8, 8] as [number, number, number, number],
+                  border: [true, true, false, true] as [boolean, boolean, boolean, boolean],
+                },
+                {
+                  stack: [
+                    { text: "TYPE DE BIEN", fontSize: 5.5, bold: true, color: pGoldDk, characterSpacing: 0.075, margin: [0, 0, 0, 2] as [number, number, number, number] },
+                    { text: attLotType || "—", fontSize: 8.5, bold: true, color: pNavy },
+                  ],
+                  margin: [10, 8, 8, 8] as [number, number, number, number],
+                  border: [true, true, true, true] as [boolean, boolean, boolean, boolean],
+                },
+              ],
+              [
+                {
+                  stack: [
+                    { text: "ÉTAGE", fontSize: 5.5, bold: true, color: pGoldDk, characterSpacing: 0.075, margin: [0, 0, 0, 2] as [number, number, number, number] },
+                    { text: attLotFloor === "" || attLotFloor === "—" ? "—" : attLotFloor === "0" ? "Rez-de-chaussée" : `Étage ${attLotFloor}`, fontSize: 8.5, bold: true, color: pNavy },
+                  ],
+                  margin: [10, 8, 8, 8] as [number, number, number, number],
+                  border: [true, true, false, true] as [boolean, boolean, boolean, boolean],
+                },
+                {
+                  stack: [
+                    { text: "OCCUPATION", fontSize: 5.5, bold: true, color: pGoldDk, characterSpacing: 0.075, margin: [0, 0, 0, 2] as [number, number, number, number] },
+                    { text: attOccupancy || "—", fontSize: 8.5, bold: true, color: pNavy },
+                  ],
+                  margin: [10, 8, 8, 8] as [number, number, number, number],
+                  border: [true, true, true, true] as [boolean, boolean, boolean, boolean],
+                },
+              ],
+            ],
+          },
+          layout: {
+            hLineWidth: () => 0.5, vLineWidth: () => 0.5,
+            hLineColor: () => pLine, vLineColor: () => pLine,
+            fillColor: () => "rgba(255,255,255,0.55)",
+            paddingLeft: () => 0, paddingRight: () => 0, paddingTop: () => 0, paddingBottom: () => 0,
+          },
+          margin: [0, 0, 0, 12],
+        },
+
+        // ── Ownership declaration box (gold border) ───────────────────────────────
+        {
+          table: {
+            widths: ["*"],
+            body: [[{
+              stack: [
+                { text: "DÉCLARATION DE PROPRIÉTÉ", fontSize: 7, bold: true, color: pGoldDk, characterSpacing: 0.08, margin: [0, 0, 0, 6] as [number, number, number, number] },
+                { text: attBodyText, fontSize: 9, color: pInk, lineHeight: 1.55 },
+              ],
+              margin: [14, 12, 14, 12],
+              border: [true, true, true, true] as [boolean, boolean, boolean, boolean],
+              borderColor: [pGold, pGold, pGold, pGold] as [string, string, string, string],
+            }]],
+          },
+          layout: {
+            hLineWidth: () => 0.8, vLineWidth: () => 0.8,
+            hLineColor: () => pGold, vLineColor: () => pGold,
+            fillColor: () => "#ffffff",
+            paddingLeft: () => 0, paddingRight: () => 0, paddingTop: () => 0, paddingBottom: () => 0,
+          },
+          margin: [0, 0, 0, 0],
+        },
+
+        // ══════════════════════════════════════════════════════════════════════
+        // PAGE 2 — CERTIFICATION (pageBreak forces new page)
+        // ══════════════════════════════════════════════════════════════════════
+
+        // ── Reference bar + CERTIFIÉ badge ───────────────────────────────────────
         {
           columns: [
             {
               stack: [
-                { text: "BIEN IMMOBILIER", fontSize: 6, bold: true, color: propDark, characterSpacing: 0.8, margin: [0, 0, 0, 8] },
-                { canvas: [{ type: "line", x1: 0, y1: 0, x2: 230, y2: 0, lineWidth: 1, lineColor: accentColor }], margin: [0, 0, 0, 10] },
-                { text: propName, fontSize: 12, bold: true, color: BRAND.ink, margin: [0, 0, 0, 4] },
-                { text: [propAddress, propCity].filter(Boolean).join(", ") || "—", fontSize: 9, color: BRAND.muted },
+                { text: "RÉFÉRENCE DU DOCUMENT", fontSize: 5.5, bold: true, color: pMuted, characterSpacing: 0.075 },
+                { text: docNum, fontSize: 11, bold: true, color: pNavy, margin: [0, 2, 0, 0] as [number, number, number, number] },
               ],
-              width: "50%",
+              width: "*",
             },
             {
-              stack: [
-                { text: "PROPRIÉTAIRE ATTESTÉ(E)", fontSize: 6, bold: true, color: propDark, characterSpacing: 0.8, margin: [0, 0, 0, 8] },
-                { canvas: [{ type: "line", x1: 0, y1: 0, x2: 230, y2: 0, lineWidth: 1, lineColor: accentColor }], margin: [0, 0, 0, 10] },
-                { text: member || t("notRenseigne", lang), fontSize: 12, bold: true, color: BRAND.ink, margin: [0, 0, 0, 4] },
-                ...(attMemberCIN ? [{ text: `CIN : ${attMemberCIN}`, fontSize: 9, color: BRAND.muted }] : []),
-                { text: `Réf. doc. : ${docNum}`, fontSize: 8, color: BRAND.mutedLight, margin: [0, 6, 0, 0] },
-              ],
-              width: "50%",
+              table: {
+                widths: ["auto"],
+                body: [[{
+                  text: "CERTIFIÉ",
+                  fontSize: 8, bold: true, color: pSuccess, characterSpacing: 0.04,
+                  margin: [9, 5, 9, 5],
+                  border: [true, true, true, true] as [boolean, boolean, boolean, boolean],
+                  borderColor: [pSuccess, pSuccess, pSuccess, pSuccess] as [string, string, string, string],
+                  fillColor: pSuccessBg,
+                }]],
+              },
+              layout: {
+                hLineWidth: () => 0.8, vLineWidth: () => 0.8,
+                hLineColor: () => pSuccess, vLineColor: () => pSuccess,
+                paddingLeft: () => 0, paddingRight: () => 0, paddingTop: () => 0, paddingBottom: () => 0,
+              },
+              width: "auto",
             },
           ],
-          columnGap: 28,
-          margin: [0, 0, 0, 20],
+          columnGap: 12,
+          pageBreak: "before" as const,
+          margin: [0, 0, 0, 6],
         },
-        // ── Ownership certification text ──────────────────────────────────────
+        // Bold underline rule
+        { canvas: [{ type: "line", x1: 0, y1: 0, x2: 515, y2: 0, lineWidth: 2, lineColor: pNavy }], margin: [0, 0, 0, 16] },
+
+        // ── Land-registry section ─────────────────────────────────────────────────
+        sectionHeading("Informations du Registre Foncier"),
         {
           table: {
-            widths: [3, "*"],
+            widths: ["37%", "63%"],
+            body: [
+              [
+                { text: "Bureau de la conservation foncière", fontSize: 7.5, color: pMuted, border: [true, true, true, true] as [boolean, boolean, boolean, boolean], margin: [8, 6, 8, 6] },
+                { text: attRegistryOffice, fontSize: 8.5, bold: true, color: pNavy, border: [true, true, true, true] as [boolean, boolean, boolean, boolean], margin: [8, 6, 8, 6] },
+              ],
+              [
+                { text: "Référence foncière / TF", fontSize: 7.5, color: pMuted, border: [true, true, true, true] as [boolean, boolean, boolean, boolean], margin: [8, 6, 8, 6], fillColor: "#fdfcf9" },
+                { text: attLandRef, fontSize: 8.5, bold: true, color: pNavy, border: [true, true, true, true] as [boolean, boolean, boolean, boolean], margin: [8, 6, 8, 6], fillColor: "#fdfcf9" },
+              ],
+              [
+                { text: "Date d'acquisition", fontSize: 7.5, color: pMuted, border: [true, true, true, true] as [boolean, boolean, boolean, boolean], margin: [8, 6, 8, 6] },
+                { text: attAcquisitionDate, fontSize: 8.5, bold: true, color: pNavy, border: [true, true, true, true] as [boolean, boolean, boolean, boolean], margin: [8, 6, 8, 6] },
+              ],
+              [
+                { text: "Mode d'acquisition", fontSize: 7.5, color: pMuted, border: [true, true, true, true] as [boolean, boolean, boolean, boolean], margin: [8, 6, 8, 6], fillColor: "#fdfcf9" },
+                { text: attAcquisitionMethod, fontSize: 8.5, bold: true, color: pNavy, border: [true, true, true, true] as [boolean, boolean, boolean, boolean], margin: [8, 6, 8, 6], fillColor: "#fdfcf9" },
+              ],
+              [
+                { text: "Charges & hypothèques", fontSize: 7.5, color: pMuted, border: [true, true, true, true] as [boolean, boolean, boolean, boolean], margin: [8, 6, 8, 6] },
+                { text: attCharges, fontSize: 8.5, bold: true, color: pNavy, border: [true, true, true, true] as [boolean, boolean, boolean, boolean], margin: [8, 6, 8, 6] },
+              ],
+            ],
+          },
+          layout: {
+            hLineWidth: () => 0.5, vLineWidth: () => 0.5,
+            hLineColor: () => pLine, vLineColor: () => pLine,
+            fillColor: (row: number) => row % 2 === 0 ? "#ffffff" : "#fdfcf9",
+            paddingLeft: () => 0, paddingRight: () => 0, paddingTop: () => 0, paddingBottom: () => 0,
+          },
+          margin: [0, 0, 0, 14],
+        },
+
+        // ── Valuation + status strip ──────────────────────────────────────────────
+        sectionHeading("Valeurs & Statuts"),
+        {
+          table: {
+            widths: ["1.4fr", "1fr", "1fr"] as unknown as string[],
             body: [[
               {
-                canvas: [{ type: "rect", x: 0, y: 0, w: 3, h: 80, color: accentColor }],
-                border: [false, false, false, false] as [boolean, boolean, boolean, boolean],
+                stack: [
+                  { text: "VALEUR ESTIMÉE", fontSize: 5.5, bold: true, color: pMuted, characterSpacing: 0.075, margin: [0, 0, 0, 4] as [number, number, number, number] },
+                  { text: attEstimatedValue, fontSize: 14, bold: true, color: pNavy, lineHeight: 1.2 },
+                ],
+                margin: [10, 10, 10, 10],
+                border: [true, true, false, true] as [boolean, boolean, boolean, boolean],
               },
               {
                 stack: [
-                  { text: "ATTESTATION DE PROPRIÉTÉ IMMOBILIÈRE", fontSize: 6, bold: true, color: BRAND.muted, characterSpacing: 0.8, margin: [0, 0, 0, 8] },
-                  {
-                    text: body || (
-                      `Le Syndicat de Copropriété ${syndInfo.name} atteste que ${member || "[NOM DU PROPRIÉTAIRE]"}` +
-                      (attMemberCIN ? `, titulaire de la CIN N° ${attMemberCIN},` : "") +
-                      ` est propriétaire du lot N° ${lotNum} de la résidence ${propName}, inscrit au Titre Foncier N° ${titreFoncier}, ` +
-                      `avec une quote-part de ${tantiemes !== "—" ? `${tantiemes} ‰` : "[tantiemes]"} tantiièmes.\n\n` +
-                      `Cette attestation est établie sur la base des documents figurant au registre du syndicat et est valable pour la situation connue à ce jour.`
-                    ),
-                    fontSize: 9.5, color: BRAND.inkMid, lineHeight: 1.75,
-                  },
+                  { text: "USAGE DU BIEN", fontSize: 5.5, bold: true, color: pMuted, characterSpacing: 0.075, margin: [0, 0, 0, 7] as [number, number, number, number] },
+                  { text: attPropertyUse, fontSize: 9, bold: true, color: pNavy },
                 ],
-                fillColor: `${accentColor}08`,
-                margin: [16, 14, 16, 14],
-                border: [false, false, false, false] as [boolean, boolean, boolean, boolean],
+                margin: [10, 10, 10, 10],
+                border: [true, true, false, true] as [boolean, boolean, boolean, boolean],
+              },
+              {
+                stack: [
+                  { text: "STATUT JURIDIQUE", fontSize: 5.5, bold: true, color: pMuted, characterSpacing: 0.075, margin: [0, 0, 0, 7] as [number, number, number, number] },
+                  { text: attLegalStatus, fontSize: 9, bold: true, color: pNavy },
+                ],
+                margin: [10, 10, 10, 10],
+                border: [true, true, true, true] as [boolean, boolean, boolean, boolean],
               },
             ]],
           },
           layout: {
-            hLineWidth: () => 0, vLineWidth: () => 0,
+            hLineWidth: () => 0.5, vLineWidth: () => 0.5,
+            hLineColor: () => pLine, vLineColor: () => pLine,
+            fillColor: () => "rgba(255,255,255,0.55)",
             paddingLeft: () => 0, paddingRight: () => 0, paddingTop: () => 0, paddingBottom: () => 0,
           },
-          margin: [0, 0, 0, 16],
+          margin: [0, 0, 0, 14],
         },
-        // ── Legal disclaimer — regulatory notice style ────────────────────────
+
+        // ── Legal certification box (gold border) ─────────────────────────────────
+        {
+          table: {
+            widths: ["*"],
+            body: [[{
+              stack: [
+                { text: "CERTIFICATION LÉGALE", fontSize: 7, bold: true, color: pGoldDk, characterSpacing: 0.08, margin: [0, 0, 0, 6] as [number, number, number, number] },
+                { text: attLegalCertText, fontSize: 8.5, color: pInk, lineHeight: 1.5 },
+              ],
+              margin: [14, 12, 14, 12],
+              border: [true, true, true, true] as [boolean, boolean, boolean, boolean],
+              borderColor: [pGold, pGold, pGold, pGold] as [string, string, string, string],
+            }]],
+          },
+          layout: {
+            hLineWidth: () => 0.8, vLineWidth: () => 0.8,
+            hLineColor: () => pGold, vLineColor: () => pGold,
+            fillColor: () => "#ffffff",
+            paddingLeft: () => 0, paddingRight: () => 0, paddingTop: () => 0, paddingBottom: () => 0,
+          },
+          margin: [0, 0, 0, 14],
+        },
+
+        // ── Signatures heading + 3-column grid ────────────────────────────────────
+        sectionHeading("Signatures Autorisées"),
+        {
+          table: {
+            widths: ["*", "*", "*"],
+            body: [[
+              // Conservateur foncier
+              {
+                stack: [
+                  { text: "CONSERVATEUR FONCIER", fontSize: 5.5, bold: true, color: pMuted, characterSpacing: 0.075, alignment: "center" as const },
+                  { canvas: [{ type: "line", x1: 10, y1: 0, x2: 100, y2: 0, lineWidth: 0.6, lineColor: pLine }], margin: [0, 28, 0, 6] },
+                  { text: signatures[0]?.signerName ?? "—", fontSize: 8.5, bold: true, color: pNavy, alignment: "center" as const },
+                  { text: "Conservateur", fontSize: 7, color: pMuted, margin: [0, 2, 0, 0] as [number, number, number, number], alignment: "center" as const },
+                ],
+                alignment: "center" as const,
+                margin: [8, 10, 8, 10],
+                border: [true, true, false, true] as [boolean, boolean, boolean, boolean],
+              },
+              // Notaire
+              {
+                stack: [
+                  { text: "NOTAIRE", fontSize: 5.5, bold: true, color: pMuted, characterSpacing: 0.075, alignment: "center" as const },
+                  { canvas: [{ type: "line", x1: 10, y1: 0, x2: 100, y2: 0, lineWidth: 0.6, lineColor: pLine }], margin: [0, 28, 0, 6] },
+                  { text: signatures[1]?.signerName ?? "—", fontSize: 8.5, bold: true, color: pNavy, alignment: "center" as const },
+                  { text: "Notaire", fontSize: 7, color: pMuted, margin: [0, 2, 0, 0] as [number, number, number, number], alignment: "center" as const },
+                ],
+                alignment: "center" as const,
+                margin: [8, 10, 8, 10],
+                border: [true, true, false, true] as [boolean, boolean, boolean, boolean],
+              },
+              // Président du syndicat
+              {
+                stack: [
+                  { text: "PRÉSIDENT DU SYNDICAT", fontSize: 5.5, bold: true, color: pMuted, characterSpacing: 0.075, alignment: "center" as const },
+                  { canvas: [{ type: "line", x1: 10, y1: 0, x2: 100, y2: 0, lineWidth: 0.6, lineColor: pLine }], margin: [0, 28, 0, 6] },
+                  { text: signatures[2]?.signerName ?? attPresidentName, fontSize: 8.5, bold: true, color: pNavy, alignment: "center" as const },
+                  { text: "Président du Syndicat", fontSize: 7, color: pMuted, margin: [0, 2, 0, 0] as [number, number, number, number], alignment: "center" as const },
+                ],
+                alignment: "center" as const,
+                margin: [8, 10, 8, 10],
+                border: [true, true, true, true] as [boolean, boolean, boolean, boolean],
+              },
+            ]],
+          },
+          layout: {
+            hLineWidth: () => 0.5, vLineWidth: () => 0.5,
+            hLineColor: () => pLine, vLineColor: () => pLine,
+            fillColor: () => "rgba(255,255,255,0.55)",
+            paddingLeft: () => 0, paddingRight: () => 0, paddingTop: () => 0, paddingBottom: () => 0,
+          },
+          margin: [0, 0, 0, 14],
+        },
+
+        // ── Verification box (QR + text) ──────────────────────────────────────────
+        {
+          table: {
+            widths: [68, "*"],
+            body: [[
+              // QR code
+              {
+                stack: qrDataUrl
+                  ? [{ image: qrDataUrl, width: 56, height: 56, fit: [56, 56] as [number, number] }]
+                  : [{ canvas: [{ type: "rect", x: 0, y: 0, w: 56, h: 56, r: 2, color: BRAND.border }] }],
+                alignment: "center" as const,
+                margin: [6, 6, 6, 6],
+                border: [true, true, true, true] as [boolean, boolean, boolean, boolean],
+              },
+              // Text
+              {
+                stack: [
+                  { text: "VÉRIFICATION D'AUTHENTICITÉ", fontSize: 7, bold: true, color: pNavy, characterSpacing: 0.08 },
+                  { text: "Scannez le QR code ou visitez le portail de vérification pour confirmer l'authenticité de ce document.", fontSize: 7.5, color: pMuted, lineHeight: 1.45, margin: [0, 4, 0, 4] as [number, number, number, number] },
+                  { text: `ID : ${docNum}`, fontSize: 8, bold: true, color: pNavy },
+                  ...(verifyUrl ? [{ text: verifyUrl, fontSize: 6.5, color: pGoldDk, margin: [0, 3, 0, 0] as [number, number, number, number] }] : []),
+                ],
+                margin: [10, 8, 8, 8],
+                border: [true, true, true, true] as [boolean, boolean, boolean, boolean],
+              },
+            ]],
+          },
+          layout: {
+            hLineWidth: () => 0.5, vLineWidth: () => 0.5,
+            hLineColor: () => pLine, vLineColor: () => pLine,
+            fillColor: () => "rgba(255,255,255,0.58)",
+            paddingLeft: () => 0, paddingRight: () => 0, paddingTop: () => 0, paddingBottom: () => 0,
+          },
+          margin: [0, 0, 0, 10],
+        },
+
+        // ── Legal disclaimer notice ───────────────────────────────────────────────
         {
           table: {
             widths: ["auto", "*"],
             body: [[
               {
                 text: "⚠",
-                fontSize: 13, color: BRAND.warningDark,
+                fontSize: 12, color: pWarnDk,
                 border: [false, false, false, false] as [boolean, boolean, boolean, boolean],
-                margin: [12, 10, 8, 10],
+                margin: [12, 9, 8, 9],
               },
               {
                 text: "Ce document ne constitue pas un titre de propriété au sens du droit foncier marocain. Pour tout acte de disposition juridique (vente, hypothèque, donation), veuillez vous référer au registre foncier compétent.",
-                fontSize: 8, color: BRAND.warningDark, lineHeight: 1.5,
+                fontSize: 7.5, color: pWarnDk, lineHeight: 1.5,
                 border: [false, false, false, false] as [boolean, boolean, boolean, boolean],
-                margin: [0, 10, 14, 10],
+                margin: [0, 9, 14, 9],
               },
             ]],
           },
           layout: {
-            hLineWidth: (i: number, node: { table: { body: unknown[] } }) => i === 0 || i === node.table.body.length ? 0.8 : 0,
-            vLineWidth: (i: number, node: { table: { widths: unknown[] } }) => i === 0 || i === node.table.widths.length ? 0.8 : 0,
-            hLineColor: () => BRAND.warning, vLineColor: () => BRAND.warning,
-            fillColor: () => BRAND.warningLight,
+            hLineWidth: (i: number, node: { table: { body: unknown[] } }) => i === 0 || i === node.table.body.length ? 0.7 : 0,
+            vLineWidth: (i: number, node: { table: { widths: unknown[] } }) => i === 0 || i === node.table.widths.length ? 0.7 : 0,
+            hLineColor: () => pWarnDk, vLineColor: () => pWarnDk,
+            fillColor: () => pWarnBg,
             paddingLeft: () => 0, paddingRight: () => 0, paddingTop: () => 0, paddingBottom: () => 0,
           },
-          margin: [0, 0, 0, 20],
+          margin: [0, 0, 0, 16],
         },
-        signatureBlock(t("presidentTitle", lang), syndInfo.name, accentColor, true, lang, signatures),
+
         legalFooterNote(docNum, lang, verifyUrl),
       ];
       break;
