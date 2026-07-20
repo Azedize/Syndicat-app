@@ -5762,11 +5762,13 @@ async function buildDocDef(template: DocumentTemplate, input: DocumentInput): Pr
 
     // ── Template 23: Attestation de Propriété ─────────────────────────────────────
     // Visual concept: Premium two-page land-registry certificate.
-    // Page 1 — Identity: navy institution banner, owner identity card with photo,
-    //          property grid (6 cells), ownership declaration box (gold border).
-    // Page 2 — Certification: reference bar, land-registry table, valuation strip,
-    //          legal text box, 3-signatory grid, QR verification.
-    // Design language: navy #0b1e30 / gold #b89a61 / paper #fbf8f1 (from HTML reference).
+    // Source: attached_assets/Pasted--doctype-html..._1784551170914.txt
+    // Page 1 — Identity: navy banner (clip-v bottom approximated), owner card + photo,
+    //          property 2×3 grid with icon column, ownership declaration box.
+    // Page 2 — Certification: reference bar + CERTIFIÉ badge, registry table,
+    //          valuation grid (1.35:1:1), legal box, 3-signatory grid, QR verification.
+    // CSS tokens: --navy #0b1e30 / --navy-2 #15344f / --gold #b89a61 /
+    //             --gold-dark #8f713d / --gold-soft #e4d8bf / --paper #fbf8f1
     case "attestation_propriete": {
       // ── Design tokens (matched to uploaded HTML reference template) ────────────
       const pNavy      = "#0b1e30";
@@ -5836,38 +5838,57 @@ async function buildDocDef(template: DocumentTemplate, input: DocumentInput): Pr
         `<path d="M4,77 Q4,48 31,48 Q58,48 58,77Z" fill="${pGoldDk}" opacity="0.35"/>` +
         `<text x="31" y="30" text-anchor="middle" font-family="Helvetica,Arial,sans-serif" font-size="13" font-weight="bold" fill="${pNavy}">${attInitials}</text>` +
         `</svg>`;
+      // HTML: owner-photo = 94px × 116px, object-fit: cover, border: 1px solid var(--gold-soft)
       const attAvatarEl: unknown = attAvatarB64
-        ? { image: attAvatarB64, width: 64, height: 79, fit: [64, 79] as [number, number] }
-        : { svg: attAvatarSvg, width: 64, height: 79 };
+        ? { image: attAvatarB64, width: 88, height: 108, fit: [88, 108] as [number, number] }
+        : { svg: attAvatarSvg, width: 88, height: 108 };
 
       // ── Logo / acronym fallback ───────────────────────────────────────────────────
+      // HTML: institution-logo = circular, border: 2px solid var(--gold), filter: grayscale+contrast
       const attAcronym = (syndInfo.abbreviation || syndInfo.name.split(/\s+/).map((w: string) => w[0]).join("").slice(0, 3)).toUpperCase();
+      const pNavy2 = "#15344f"; // --navy-2 (banner background)
       const attLogoEl: unknown = logoDataUrl
-        ? { image: logoDataUrl, width: 34, height: 34, fit: [34, 34] as [number, number], margin: [0, 2, 0, 2] }
+        ? {
+            // Circular gold-ring wrapper: ellipse behind, image on top
+            stack: [
+              { canvas: [{ type: "ellipse", x: 19, y: 19, r1: 19, r2: 19, color: pNavy2, lineColor: pGold, lineWidth: 1.5 }], margin: [0, 0, 0, -42] },
+              { image: logoDataUrl, width: 34, height: 34, fit: [34, 34] as [number, number], margin: [2, 2, 2, 2] },
+            ],
+          }
         : {
             stack: [
-              { canvas: [{ type: "ellipse", x: 17, y: 17, r1: 17, r2: 17, color: pGoldSoft, lineColor: pGold, lineWidth: 1.2 }], margin: [0, 0, 0, -36] },
-              { text: attAcronym, fontSize: attAcronym.length > 2 ? 9 : 11, bold: true, color: pNavy, alignment: "center" as const, margin: [0, attAcronym.length > 2 ? 12 : 11, 0, 0] },
+              { canvas: [{ type: "ellipse", x: 19, y: 19, r1: 19, r2: 19, color: pNavy2, lineColor: pGold, lineWidth: 1.5 }], margin: [0, 0, 0, -42] },
+              { text: attAcronym, fontSize: attAcronym.length > 2 ? 9 : 11, bold: true, color: "#ffffff", alignment: "center" as const, margin: [0, attAcronym.length > 2 ? 14 : 13, 0, 0] },
             ],
           };
 
       // ── Helper: section heading band ─────────────────────────────────────────────
+      // HTML: padding 7px 10px, margin 17px 0 8px, flex + gap 8px, icon in gold-soft
       const sectionHeading = (txt: string): unknown => ({
         table: {
-          widths: ["*"],
-          body: [[{
-            text: `  ${txt.toUpperCase()}`,
-            fontSize: 7.5, bold: true, color: "#ffffff", characterSpacing: 0.05,
-            border: [false, false, false, false] as [boolean, boolean, boolean, boolean],
-            margin: [8, 6, 8, 6],
-          }]],
+          widths: ["auto", "*"],
+          body: [[
+            // Gold-soft diamond bullet (approximates Lucide icon in gold-soft)
+            {
+              text: "◆",
+              fontSize: 7, color: pGoldSoft,
+              margin: [10, 6, 4, 6],
+              border: [false, false, false, false] as [boolean, boolean, boolean, boolean],
+            },
+            {
+              text: txt.toUpperCase(),
+              fontSize: 7.5, bold: true, color: "#ffffff", characterSpacing: 0.05,
+              margin: [0, 6, 10, 6],
+              border: [false, false, false, false] as [boolean, boolean, boolean, boolean],
+            },
+          ]],
         },
         layout: {
           hLineWidth: () => 0, vLineWidth: () => 0,
           fillColor: () => pNavy,
           paddingLeft: () => 0, paddingRight: () => 0, paddingTop: () => 0, paddingBottom: () => 0,
         },
-        margin: [0, 0, 0, 5],
+        margin: [0, 12, 0, 6], // matches HTML margin: 17px 0 8px (compressed for PDF)
       });
 
       // ── Helper: data cell label + value ──────────────────────────────────────────
@@ -5935,12 +5956,12 @@ async function buildDocDef(template: DocumentTemplate, input: DocumentInput): Pr
           },
           layout: {
             hLineWidth: () => 0, vLineWidth: () => 0,
-            fillColor: () => pNavy,
+            fillColor: () => pNavy2, // --navy-2 #15344f matches HTML institution-banner bg
             paddingLeft: () => 0, paddingRight: () => 0, paddingTop: () => 0, paddingBottom: () => 0,
           },
           margin: [0, 0, 0, 0],
         },
-        // Gold hairline under banner
+        // Gold hairline under banner (approximates HTML clip-path chevron bottom edge)
         { canvas: [{ type: "line", x1: 0, y1: 0, x2: 515, y2: 0, lineWidth: 1.5, lineColor: pGold }], margin: [0, 0, 0, 0] },
 
         // ── Document title ───────────────────────────────────────────────────────
@@ -6006,17 +6027,19 @@ async function buildDocDef(template: DocumentTemplate, input: DocumentInput): Pr
         // ── Owner section heading ─────────────────────────────────────────────────
         sectionHeading("Identité du Propriétaire"),
 
-        // ── Owner grid: photo | name + data fields ───────────────────────────────
+        // ── Owner grid: photo (94×116 portrait) | name + data fields ────────────
+        // HTML: owner-grid = grid-template-columns: 94px 1fr, gap: 15px, padding: 13px
         {
           table: {
-            widths: [72, "*"],
+            widths: [96, "*"],
             body: [[
-              // Photo column
+              // Photo column — portrait ratio matching HTML 94px × 116px
               {
                 stack: [attAvatarEl],
                 alignment: "center" as const,
-                margin: [6, 8, 6, 8],
+                margin: [4, 8, 4, 8],
                 border: [true, true, true, true] as [boolean, boolean, boolean, boolean],
+                borderColor: [pGoldSoft, pGoldSoft, pGoldSoft, pGoldSoft] as [string, string, string, string],
               },
               // Data column
               {
@@ -6073,65 +6096,41 @@ async function buildDocDef(template: DocumentTemplate, input: DocumentInput): Pr
         sectionHeading("Description du Bien Immobilier"),
 
         // ── Property grid (2×3 cells) ────────────────────────────────────────────
+        // HTML: property-cell = grid-template-columns: 20px 1fr, gold-dark icon on left
         {
           table: {
             widths: ["*", "*"],
-            body: [
-              [
-                {
-                  stack: [
-                    { text: "ADRESSE DU BIEN", fontSize: 5.5, bold: true, color: pGoldDk, characterSpacing: 0.075, margin: [0, 0, 0, 2] as [number, number, number, number] },
-                    { text: [propAddress, propCity].filter(Boolean).join(", ") || "—", fontSize: 8.5, bold: true, color: pNavy },
-                  ],
-                  margin: [10, 8, 8, 8] as [number, number, number, number],
-                  border: [true, true, false, true] as [boolean, boolean, boolean, boolean],
-                },
-                {
-                  stack: [
-                    { text: "N° TITRE FONCIER", fontSize: 5.5, bold: true, color: pGoldDk, characterSpacing: 0.075, margin: [0, 0, 0, 2] as [number, number, number, number] },
-                    { text: titreFoncier || "—", fontSize: 8.5, bold: true, color: pNavy },
-                  ],
-                  margin: [10, 8, 8, 8] as [number, number, number, number],
-                  border: [true, true, true, true] as [boolean, boolean, boolean, boolean],
-                },
-              ],
-              [
-                {
-                  stack: [
-                    { text: "SURFACE PRIVATIVE", fontSize: 5.5, bold: true, color: pGoldDk, characterSpacing: 0.075, margin: [0, 0, 0, 2] as [number, number, number, number] },
-                    { text: attLotSurface || "—", fontSize: 8.5, bold: true, color: pNavy },
-                  ],
-                  margin: [10, 8, 8, 8] as [number, number, number, number],
-                  border: [true, true, false, true] as [boolean, boolean, boolean, boolean],
-                },
-                {
-                  stack: [
-                    { text: "TYPE DE BIEN", fontSize: 5.5, bold: true, color: pGoldDk, characterSpacing: 0.075, margin: [0, 0, 0, 2] as [number, number, number, number] },
-                    { text: attLotType || "—", fontSize: 8.5, bold: true, color: pNavy },
-                  ],
-                  margin: [10, 8, 8, 8] as [number, number, number, number],
-                  border: [true, true, true, true] as [boolean, boolean, boolean, boolean],
-                },
-              ],
-              [
-                {
-                  stack: [
-                    { text: "ÉTAGE", fontSize: 5.5, bold: true, color: pGoldDk, characterSpacing: 0.075, margin: [0, 0, 0, 2] as [number, number, number, number] },
-                    { text: attLotFloor === "" || attLotFloor === "—" ? "—" : attLotFloor === "0" ? "Rez-de-chaussée" : `Étage ${attLotFloor}`, fontSize: 8.5, bold: true, color: pNavy },
-                  ],
-                  margin: [10, 8, 8, 8] as [number, number, number, number],
-                  border: [true, true, false, true] as [boolean, boolean, boolean, boolean],
-                },
-                {
-                  stack: [
-                    { text: "OCCUPATION", fontSize: 5.5, bold: true, color: pGoldDk, characterSpacing: 0.075, margin: [0, 0, 0, 2] as [number, number, number, number] },
-                    { text: attOccupancy || "—", fontSize: 8.5, bold: true, color: pNavy },
-                  ],
-                  margin: [10, 8, 8, 8] as [number, number, number, number],
-                  border: [true, true, true, true] as [boolean, boolean, boolean, boolean],
-                },
-              ],
-            ],
+            body: (() => {
+              // Helper: one property cell with icon column
+              const pCell = (icon: string, label: string, value: string, borderRight: boolean): unknown => ({
+                columns: [
+                  { text: icon, fontSize: 9, color: pGoldDk, width: 16, margin: [0, 2, 0, 0] as [number, number, number, number] },
+                  {
+                    stack: [
+                      { text: label.toUpperCase(), fontSize: 5.5, bold: true, color: pMuted, characterSpacing: 0.075, margin: [0, 0, 0, 2] as [number, number, number, number] },
+                      { text: value || "—", fontSize: 8.5, bold: true, color: pNavy },
+                    ],
+                  },
+                ],
+                columnGap: 5,
+                margin: [9, 8, 9, 8] as [number, number, number, number],
+                border: [true, true, borderRight, true] as [boolean, boolean, boolean, boolean],
+              });
+              return [
+                [
+                  pCell("📍", "Adresse du bien", [propAddress, propCity].filter(Boolean).join(", ") || "—", false),
+                  pCell("#", "N° Titre Foncier", titreFoncier, true),
+                ],
+                [
+                  pCell("□", "Surface privative", attLotSurface, false),
+                  pCell("⌂", "Type de bien", attLotType, true),
+                ],
+                [
+                  pCell("≡", "Étage", attLotFloor === "" || attLotFloor === "—" ? "—" : attLotFloor === "0" ? "Rez-de-chaussée" : `Étage ${attLotFloor}`, false),
+                  pCell("⚷", "Occupation", attOccupancy, true),
+                ],
+              ] as unknown[][];
+            })(),
           },
           layout: {
             hLineWidth: () => 0.5, vLineWidth: () => 0.5,
@@ -6143,15 +6142,29 @@ async function buildDocDef(template: DocumentTemplate, input: DocumentInput): Pr
         },
 
         // ── Ownership declaration box (gold border) ───────────────────────────────
+        // HTML: declaration-box = grid-template-columns: 27px 1fr, badge-check icon left
         {
           table: {
             widths: ["*"],
             body: [[{
-              stack: [
-                { text: "DÉCLARATION DE PROPRIÉTÉ", fontSize: 7, bold: true, color: pGoldDk, characterSpacing: 0.08, margin: [0, 0, 0, 6] as [number, number, number, number] },
-                { text: attBodyText, fontSize: 9, color: pInk, lineHeight: 1.55 },
+              columns: [
+                // Badge-check icon column (27px in HTML)
+                {
+                  stack: [
+                    { text: "✓", fontSize: 16, bold: true, color: pGold, margin: [0, 2, 0, 0] as [number, number, number, number] },
+                  ],
+                  width: 22,
+                },
+                // Title + text column
+                {
+                  stack: [
+                    { text: "DÉCLARATION DE PROPRIÉTÉ", fontSize: 7, bold: true, color: pGoldDk, characterSpacing: 0.08, margin: [0, 0, 0, 5] as [number, number, number, number] },
+                    { text: attBodyText, fontSize: 8.5, color: pInk, lineHeight: 1.55 },
+                  ],
+                },
               ],
-              margin: [14, 12, 14, 12],
+              columnGap: 8,
+              margin: [12, 11, 13, 11],
               border: [true, true, true, true] as [boolean, boolean, boolean, boolean],
               borderColor: [pGold, pGold, pGold, pGold] as [string, string, string, string],
             }]],
@@ -6164,6 +6177,17 @@ async function buildDocDef(template: DocumentTemplate, input: DocumentInput): Pr
           },
           margin: [0, 0, 0, 0],
         },
+
+        // ── Page 1 footer (HTML: .page-footer, justify-content: space-between) ──────
+        {
+          columns: [
+            { text: `Réf. ${docNum}  ·  ${syndInfo.name}`, fontSize: 6.5, color: pMuted, width: "*" },
+            { text: "Page 1 / 2", fontSize: 6.5, color: pMuted, alignment: "right" as const, width: "auto" },
+          ],
+          columnGap: 12,
+          margin: [0, 12, 0, 0],
+        },
+        { canvas: [{ type: "line", x1: 0, y1: 0, x2: 515, y2: 0, lineWidth: 0.5, lineColor: pLine }], margin: [0, 0, 0, 0] },
 
         // ══════════════════════════════════════════════════════════════════════
         // PAGE 2 — CERTIFICATION (pageBreak forces new page)
@@ -6244,15 +6268,16 @@ async function buildDocDef(template: DocumentTemplate, input: DocumentInput): Pr
         },
 
         // ── Valuation + status strip ──────────────────────────────────────────────
+        // HTML: valuation-grid = grid-template-columns: 1.35fr 1fr 1fr → ~40% 30% 30%
         sectionHeading("Valeurs & Statuts"),
         {
           table: {
-            widths: ["1.4fr", "1fr", "1fr"] as unknown as string[],
+            widths: ["40%", "30%", "30%"],
             body: [[
               {
                 stack: [
                   { text: "VALEUR ESTIMÉE", fontSize: 5.5, bold: true, color: pMuted, characterSpacing: 0.075, margin: [0, 0, 0, 4] as [number, number, number, number] },
-                  { text: attEstimatedValue, fontSize: 14, bold: true, color: pNavy, lineHeight: 1.2 },
+                  { text: attEstimatedValue || "—", fontSize: 14, bold: true, color: pNavy, lineHeight: 1.2 },
                 ],
                 margin: [10, 10, 10, 10],
                 border: [true, true, false, true] as [boolean, boolean, boolean, boolean],
@@ -6260,7 +6285,7 @@ async function buildDocDef(template: DocumentTemplate, input: DocumentInput): Pr
               {
                 stack: [
                   { text: "USAGE DU BIEN", fontSize: 5.5, bold: true, color: pMuted, characterSpacing: 0.075, margin: [0, 0, 0, 7] as [number, number, number, number] },
-                  { text: attPropertyUse, fontSize: 9, bold: true, color: pNavy },
+                  { text: attPropertyUse || "—", fontSize: 9, bold: true, color: pNavy },
                 ],
                 margin: [10, 10, 10, 10],
                 border: [true, true, false, true] as [boolean, boolean, boolean, boolean],
@@ -6268,7 +6293,7 @@ async function buildDocDef(template: DocumentTemplate, input: DocumentInput): Pr
               {
                 stack: [
                   { text: "STATUT JURIDIQUE", fontSize: 5.5, bold: true, color: pMuted, characterSpacing: 0.075, margin: [0, 0, 0, 7] as [number, number, number, number] },
-                  { text: attLegalStatus, fontSize: 9, bold: true, color: pNavy },
+                  { text: attLegalStatus || "—", fontSize: 9, bold: true, color: pNavy },
                 ],
                 margin: [10, 10, 10, 10],
                 border: [true, true, true, true] as [boolean, boolean, boolean, boolean],
@@ -6281,10 +6306,12 @@ async function buildDocDef(template: DocumentTemplate, input: DocumentInput): Pr
             fillColor: () => "rgba(255,255,255,0.55)",
             paddingLeft: () => 0, paddingRight: () => 0, paddingTop: () => 0, paddingBottom: () => 0,
           },
-          margin: [0, 0, 0, 14],
+          margin: [0, 0, 0, 12],
         },
 
         // ── Legal certification box (gold border) ─────────────────────────────────
+        // HTML: legal-box = border: 1px solid var(--gold), line-height: 1.5
+        // Heading is "CERTIFICATION LÉGALE" (bold uppercase), then body text
         {
           table: {
             widths: ["*"],
@@ -6293,7 +6320,7 @@ async function buildDocDef(template: DocumentTemplate, input: DocumentInput): Pr
                 { text: "CERTIFICATION LÉGALE", fontSize: 7, bold: true, color: pGoldDk, characterSpacing: 0.08, margin: [0, 0, 0, 6] as [number, number, number, number] },
                 { text: attLegalCertText, fontSize: 8.5, color: pInk, lineHeight: 1.5 },
               ],
-              margin: [14, 12, 14, 12],
+              margin: [13, 11, 13, 11],
               border: [true, true, true, true] as [boolean, boolean, boolean, boolean],
               borderColor: [pGold, pGold, pGold, pGold] as [string, string, string, string],
             }]],
@@ -6304,10 +6331,12 @@ async function buildDocDef(template: DocumentTemplate, input: DocumentInput): Pr
             fillColor: () => "#ffffff",
             paddingLeft: () => 0, paddingRight: () => 0, paddingTop: () => 0, paddingBottom: () => 0,
           },
-          margin: [0, 0, 0, 14],
+          margin: [0, 0, 0, 12],
         },
 
         // ── Signatures heading + 3-column grid ────────────────────────────────────
+        // HTML: signature-card = micro-label → signature-mark (italic, bottom-border)
+        //       → strong name → span role. min-height: 137px.
         sectionHeading("Signatures Autorisées"),
         {
           table: {
@@ -6317,9 +6346,16 @@ async function buildDocDef(template: DocumentTemplate, input: DocumentInput): Pr
               {
                 stack: [
                   { text: "CONSERVATEUR FONCIER", fontSize: 5.5, bold: true, color: pMuted, characterSpacing: 0.075, alignment: "center" as const },
-                  { canvas: [{ type: "line", x1: 10, y1: 0, x2: 100, y2: 0, lineWidth: 0.6, lineColor: pLine }], margin: [0, 28, 0, 6] },
-                  { text: signatures[0]?.signerName ?? "—", fontSize: 8.5, bold: true, color: pNavy, alignment: "center" as const },
-                  { text: "Conservateur", fontSize: 7, color: pMuted, margin: [0, 2, 0, 0] as [number, number, number, number], alignment: "center" as const },
+                  // signature-mark: italic serif name in the signing area
+                  {
+                    stack: [
+                      { text: signatures[0]?.signerName ?? " ", fontSize: 9, italics: true, color: pNavy, alignment: "center" as const, lineHeight: 1.3, margin: [4, 10, 4, 0] as [number, number, number, number] },
+                      { canvas: [{ type: "line", x1: 0, y1: 0, x2: 115, y2: 0, lineWidth: 0.6, lineColor: pLine }], margin: [0, 10, 0, 5] },
+                    ],
+                    margin: [0, 8, 0, 0] as [number, number, number, number],
+                  },
+                  { text: signatures[0]?.signerName ?? "—", fontSize: 8, bold: true, color: pNavy, alignment: "center" as const },
+                  { text: "Conservateur Foncier", fontSize: 6.5, color: pMuted, alignment: "center" as const, margin: [0, 2, 0, 0] as [number, number, number, number] },
                 ],
                 alignment: "center" as const,
                 margin: [8, 10, 8, 10],
@@ -6329,9 +6365,15 @@ async function buildDocDef(template: DocumentTemplate, input: DocumentInput): Pr
               {
                 stack: [
                   { text: "NOTAIRE", fontSize: 5.5, bold: true, color: pMuted, characterSpacing: 0.075, alignment: "center" as const },
-                  { canvas: [{ type: "line", x1: 10, y1: 0, x2: 100, y2: 0, lineWidth: 0.6, lineColor: pLine }], margin: [0, 28, 0, 6] },
-                  { text: signatures[1]?.signerName ?? "—", fontSize: 8.5, bold: true, color: pNavy, alignment: "center" as const },
-                  { text: "Notaire", fontSize: 7, color: pMuted, margin: [0, 2, 0, 0] as [number, number, number, number], alignment: "center" as const },
+                  {
+                    stack: [
+                      { text: signatures[1]?.signerName ?? " ", fontSize: 9, italics: true, color: pNavy, alignment: "center" as const, lineHeight: 1.3, margin: [4, 10, 4, 0] as [number, number, number, number] },
+                      { canvas: [{ type: "line", x1: 0, y1: 0, x2: 115, y2: 0, lineWidth: 0.6, lineColor: pLine }], margin: [0, 10, 0, 5] },
+                    ],
+                    margin: [0, 8, 0, 0] as [number, number, number, number],
+                  },
+                  { text: signatures[1]?.signerName ?? "—", fontSize: 8, bold: true, color: pNavy, alignment: "center" as const },
+                  { text: "Notaire", fontSize: 6.5, color: pMuted, alignment: "center" as const, margin: [0, 2, 0, 0] as [number, number, number, number] },
                 ],
                 alignment: "center" as const,
                 margin: [8, 10, 8, 10],
@@ -6341,9 +6383,15 @@ async function buildDocDef(template: DocumentTemplate, input: DocumentInput): Pr
               {
                 stack: [
                   { text: "PRÉSIDENT DU SYNDICAT", fontSize: 5.5, bold: true, color: pMuted, characterSpacing: 0.075, alignment: "center" as const },
-                  { canvas: [{ type: "line", x1: 10, y1: 0, x2: 100, y2: 0, lineWidth: 0.6, lineColor: pLine }], margin: [0, 28, 0, 6] },
-                  { text: signatures[2]?.signerName ?? attPresidentName, fontSize: 8.5, bold: true, color: pNavy, alignment: "center" as const },
-                  { text: "Président du Syndicat", fontSize: 7, color: pMuted, margin: [0, 2, 0, 0] as [number, number, number, number], alignment: "center" as const },
+                  {
+                    stack: [
+                      { text: (signatures[2]?.signerName ?? attPresidentName) || " ", fontSize: 9, italics: true, color: pNavy, alignment: "center" as const, lineHeight: 1.3, margin: [4, 10, 4, 0] as [number, number, number, number] },
+                      { canvas: [{ type: "line", x1: 0, y1: 0, x2: 115, y2: 0, lineWidth: 0.6, lineColor: pLine }], margin: [0, 10, 0, 5] },
+                    ],
+                    margin: [0, 8, 0, 0] as [number, number, number, number],
+                  },
+                  { text: signatures[2]?.signerName ?? attPresidentName, fontSize: 8, bold: true, color: pNavy, alignment: "center" as const },
+                  { text: "Président du Syndicat", fontSize: 6.5, color: pMuted, alignment: "center" as const, margin: [0, 2, 0, 0] as [number, number, number, number] },
                 ],
                 alignment: "center" as const,
                 margin: [8, 10, 8, 10],
@@ -6425,7 +6473,22 @@ async function buildDocDef(template: DocumentTemplate, input: DocumentInput): Pr
           margin: [0, 0, 0, 16],
         },
 
-        legalFooterNote(docNum, lang, verifyUrl),
+        // ── Page 2 footer (HTML: .page-footer, border-top, space-between) ──────────
+        { canvas: [{ type: "line", x1: 0, y1: 0, x2: 515, y2: 0, lineWidth: 0.5, lineColor: pLine }], margin: [0, 10, 0, 0] },
+        {
+          columns: [
+            {
+              stack: [
+                { text: `Ce document a été généré électroniquement par ${syndInfo.name}.`, fontSize: 6.5, color: pMuted },
+                ...(verifyUrl ? [{ text: `Vérification : ${verifyUrl}`, fontSize: 6, color: pGoldDk, margin: [0, 2, 0, 0] as [number, number, number, number] }] : []),
+              ],
+              width: "*",
+            },
+            { text: "Page 2 / 2", fontSize: 6.5, color: pMuted, alignment: "right" as const, width: "auto" },
+          ],
+          columnGap: 12,
+          margin: [0, 6, 0, 0],
+        },
       ];
       break;
     }
