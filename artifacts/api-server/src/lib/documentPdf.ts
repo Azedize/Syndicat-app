@@ -5775,6 +5775,7 @@ async function buildDocDef(template: DocumentTemplate, input: DocumentInput): Pr
       const pGold      = "#b89a61";
       const pGoldDk    = "#8f713d";
       const pGoldSoft  = "#e4d8bf";
+      const pPaper     = "#fbf8f1"; // --paper background (HTML body)
       const pInk       = "#20272e";
       const pMuted     = "#687078";
       const pLine      = "#d9d2c5";
@@ -5782,6 +5783,11 @@ async function buildDocDef(template: DocumentTemplate, input: DocumentInput): Pr
       const pSuccessBg = "#e8f5ed";
       const pWarnDk    = BRAND.warningDark;
       const pWarnBg    = BRAND.warningLight;
+
+      // Set cream paper background for entire document (HTML: background: var(--paper))
+      backgroundFn = (_page: number, pageSize: { width: number; height: number }) => [
+        { canvas: [{ type: "rect" as const, x: 0, y: 0, w: pageSize.width, h: pageSize.height, color: pPaper }] },
+      ];
 
       // ── Data extraction ─────────────────────────────────────────────────────────
       const prop              = input.property as PropertyInfo | undefined;
@@ -5832,16 +5838,19 @@ async function buildDocDef(template: DocumentTemplate, input: DocumentInput): Pr
       const attAvatarB64 = await fetchAvatarAsBase64(attAvatarUrl);
       const attNameParts  = (member || "P").trim().split(/\s+/).filter(Boolean);
       const attInitials   = ((attNameParts[0]?.[0] ?? "P") + (attNameParts[1]?.[0] ?? "")).toUpperCase();
-      const attAvatarSvg  = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 62 77">` +
-        `<rect width="62" height="77" fill="${pGoldSoft}"/>` +
-        `<circle cx="31" cy="24" r="12" fill="${pGoldDk}" opacity="0.35"/>` +
-        `<path d="M4,77 Q4,48 31,48 Q58,48 58,77Z" fill="${pGoldDk}" opacity="0.35"/>` +
-        `<text x="31" y="30" text-anchor="middle" font-family="Helvetica,Arial,sans-serif" font-size="13" font-weight="bold" fill="${pNavy}">${attInitials}</text>` +
+      // HTML: owner-photo has filter: saturate(.85), border: 1px solid var(--gold-soft)
+      // Fallback SVG uses paper background (#fbf8f1) matching the page background
+      const attAvatarSvg  = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 94 116">` +
+        `<rect width="94" height="116" fill="${pPaper}"/>` +
+        `<rect width="94" height="116" fill="${pGoldSoft}" opacity="0.55"/>` +
+        `<circle cx="47" cy="40" r="20" fill="${pGoldDk}" opacity="0.3"/>` +
+        `<path d="M4,116 Q4,74 47,74 Q90,74 90,116Z" fill="${pGoldDk}" opacity="0.3"/>` +
+        `<text x="47" y="48" text-anchor="middle" font-family="Helvetica,Arial,sans-serif" font-size="18" font-weight="bold" fill="${pNavy}" opacity="0.7">${attInitials}</text>` +
         `</svg>`;
       // HTML: owner-photo = 94px × 116px, object-fit: cover, border: 1px solid var(--gold-soft)
       const attAvatarEl: unknown = attAvatarB64
-        ? { image: attAvatarB64, width: 88, height: 108, fit: [88, 108] as [number, number] }
-        : { svg: attAvatarSvg, width: 88, height: 108 };
+        ? { image: attAvatarB64, width: 94, height: 116, fit: [94, 116] as [number, number] }
+        : { svg: attAvatarSvg, width: 94, height: 116 };
 
       // ── Logo / acronym fallback ───────────────────────────────────────────────────
       // HTML: institution-logo = circular, border: 2px solid var(--gold), filter: grayscale+contrast
@@ -5863,22 +5872,24 @@ async function buildDocDef(template: DocumentTemplate, input: DocumentInput): Pr
           };
 
       // ── Helper: section heading band ─────────────────────────────────────────────
-      // HTML: padding 7px 10px, margin 17px 0 8px, flex + gap 8px, icon in gold-soft
-      const sectionHeading = (txt: string): unknown => ({
+      // HTML: padding 7px 10px, margin 17px 0 8px, flex+gap 8px, Lucide icon gold-soft
+      // Icon map — closest Unicode approximations to each Lucide glyph used in HTML:
+      //   user-round → 👤  building-2 → 🏛  landmark → ⚖  chart → ▲  pen-line → ✍
+      const sectionHeading = (txt: string, icon = "◆"): unknown => ({
         table: {
           widths: ["auto", "*"],
           body: [[
-            // Gold-soft diamond bullet (approximates Lucide icon in gold-soft)
             {
-              text: "◆",
-              fontSize: 7, color: pGoldSoft,
-              margin: [10, 6, 4, 6],
+              text: icon,
+              fontSize: icon.length === 1 && icon.charCodeAt(0) < 256 ? 9 : 10,
+              color: pGoldSoft,
+              margin: [10, 5, 4, 5],
               border: [false, false, false, false] as [boolean, boolean, boolean, boolean],
             },
             {
               text: txt.toUpperCase(),
               fontSize: 7.5, bold: true, color: "#ffffff", characterSpacing: 0.05,
-              margin: [0, 6, 10, 6],
+              margin: [2, 6, 10, 6],
               border: [false, false, false, false] as [boolean, boolean, boolean, boolean],
             },
           ]],
@@ -5888,7 +5899,7 @@ async function buildDocDef(template: DocumentTemplate, input: DocumentInput): Pr
           fillColor: () => pNavy,
           paddingLeft: () => 0, paddingRight: () => 0, paddingTop: () => 0, paddingBottom: () => 0,
         },
-        margin: [0, 12, 0, 6], // matches HTML margin: 17px 0 8px (compressed for PDF)
+        margin: [0, 12, 0, 6], // matches HTML margin: 17px 0 8px
       });
 
       // ── Helper: data cell label + value ──────────────────────────────────────────
@@ -5984,7 +5995,8 @@ async function buildDocDef(template: DocumentTemplate, input: DocumentInput): Pr
           margin: [28, 0, 28, 14],
         },
 
-        // ── Meta strip (3 cells: issue date | status | validity) ─────────────────
+        // ── Meta strip — HTML: border:1px solid var(--line) outer + left-border dividers
+        // pdfmake: hLine top+bottom only, vLine all (left edge + 2 dividers + right edge)
         {
           table: {
             widths: ["*", "*", "*"],
@@ -5995,7 +6007,7 @@ async function buildDocDef(template: DocumentTemplate, input: DocumentInput): Pr
                   { text: today, fontSize: 8.5, bold: true, color: pNavy, alignment: "center" as const, margin: [0, 3, 0, 0] as [number, number, number, number] },
                 ],
                 margin: [8, 9, 8, 9],
-                border: [true, true, true, true] as [boolean, boolean, boolean, boolean],
+                border: [false, false, false, false] as [boolean, boolean, boolean, boolean],
               },
               {
                 stack: [
@@ -6003,7 +6015,7 @@ async function buildDocDef(template: DocumentTemplate, input: DocumentInput): Pr
                   { text: "VALIDE", fontSize: 8.5, bold: true, color: pSuccess, alignment: "center" as const, margin: [0, 3, 0, 0] as [number, number, number, number] },
                 ],
                 margin: [8, 9, 8, 9],
-                border: [true, true, true, true] as [boolean, boolean, boolean, boolean],
+                border: [false, false, false, false] as [boolean, boolean, boolean, boolean],
               },
               {
                 stack: [
@@ -6011,12 +6023,15 @@ async function buildDocDef(template: DocumentTemplate, input: DocumentInput): Pr
                   { text: attValidityDate, fontSize: 8.5, bold: true, color: pNavy, alignment: "center" as const, margin: [0, 3, 0, 0] as [number, number, number, number] },
                 ],
                 margin: [8, 9, 8, 9],
-                border: [true, true, true, true] as [boolean, boolean, boolean, boolean],
+                border: [false, false, false, false] as [boolean, boolean, boolean, boolean],
               },
             ]],
           },
           layout: {
-            hLineWidth: () => 0.5, vLineWidth: (i: number) => (i === 1 || i === 2) ? 0.5 : 0,
+            // top row (i=0) + bottom row (i=1) = outer border top and bottom
+            hLineWidth: (i: number) => (i === 0 || i === 1) ? 0.5 : 0,
+            // all 4 vertical lines: left=0, divider1=1, divider2=2, right=3
+            vLineWidth: () => 0.5,
             hLineColor: () => pLine, vLineColor: () => pLine,
             fillColor: () => "rgba(255,255,255,0.55)",
             paddingLeft: () => 0, paddingRight: () => 0, paddingTop: () => 0, paddingBottom: () => 0,
@@ -6024,8 +6039,8 @@ async function buildDocDef(template: DocumentTemplate, input: DocumentInput): Pr
           margin: [0, 0, 0, 14],
         },
 
-        // ── Owner section heading ─────────────────────────────────────────────────
-        sectionHeading("Identité du Propriétaire"),
+        // ── Owner section heading — HTML: data-lucide="user-round" ──────────────
+        sectionHeading("Identité du Propriétaire", "●"),
 
         // ── Owner grid: photo (94×116 portrait) | name + data fields ────────────
         // HTML: owner-grid = grid-template-columns: 94px 1fr, gap: 15px, padding: 13px
@@ -6092,8 +6107,8 @@ async function buildDocDef(template: DocumentTemplate, input: DocumentInput): Pr
           margin: [0, 0, 0, 10],
         },
 
-        // ── Property section heading ──────────────────────────────────────────────
-        sectionHeading("Description du Bien Immobilier"),
+        // ── Property section heading — HTML: data-lucide="building-2" ───────────
+        sectionHeading("Description du Bien Immobilier", "■"),
 
         // ── Property grid (2×3 cells) ────────────────────────────────────────────
         // HTML: property-cell = grid-template-columns: 20px 1fr, gold-dark icon on left
@@ -6230,8 +6245,8 @@ async function buildDocDef(template: DocumentTemplate, input: DocumentInput): Pr
         // Bold underline rule
         { canvas: [{ type: "line", x1: 0, y1: 0, x2: 515, y2: 0, lineWidth: 2, lineColor: pNavy }], margin: [0, 0, 0, 16] },
 
-        // ── Land-registry section ─────────────────────────────────────────────────
-        sectionHeading("Informations du Registre Foncier"),
+        // ── Land-registry section — HTML: data-lucide="landmark" ─────────────────
+        sectionHeading("Informations du Registre Foncier", "⊞"),
         {
           table: {
             widths: ["37%", "63%"],
@@ -6269,7 +6284,8 @@ async function buildDocDef(template: DocumentTemplate, input: DocumentInput): Pr
 
         // ── Valuation + status strip ──────────────────────────────────────────────
         // HTML: valuation-grid = grid-template-columns: 1.35fr 1fr 1fr → ~40% 30% 30%
-        sectionHeading("Valeurs & Statuts"),
+        // HTML: data-lucide="chart-no-axes-combined"
+        sectionHeading("Valeurs & Statuts", "▲"),
         {
           table: {
             widths: ["40%", "30%", "30%"],
@@ -6337,7 +6353,8 @@ async function buildDocDef(template: DocumentTemplate, input: DocumentInput): Pr
         // ── Signatures heading + 3-column grid ────────────────────────────────────
         // HTML: signature-card = micro-label → signature-mark (italic, bottom-border)
         //       → strong name → span role. min-height: 137px.
-        sectionHeading("Signatures Autorisées"),
+        // HTML: data-lucide="pen-line"
+        sectionHeading("Signatures Autorisées", "✎"),
         {
           table: {
             widths: ["*", "*", "*"],
