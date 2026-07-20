@@ -3585,12 +3585,12 @@ async function buildDocDef(template: DocumentTemplate, input: DocumentInput): Pr
           {
             // Small-caps simulation: first letter of each word at 35pt, rest at 23pt
             text: [
-              { text: "A", fontSize: 35, bold: true, color: BRAND.certNavy },
-              { text: "TTESTATION ", fontSize: 23, bold: true, color: BRAND.certNavy, characterSpacing: 1.8 },
-              { text: "D", fontSize: 35, bold: true, color: BRAND.certNavy },
-              { text: "'", fontSize: 23, bold: true, color: BRAND.certNavy },
-              { text: "A", fontSize: 35, bold: true, color: BRAND.certNavy },
-              { text: "DHÉSION", fontSize: 23, bold: true, color: BRAND.certNavy, characterSpacing: 1.8 },
+              { text: "A", fontSize: 43, bold: true, color: BRAND.certNavy },
+              { text: "TTESTATION ", fontSize: 28, bold: true, color: BRAND.certNavy, characterSpacing: 1.8 },
+              { text: "D", fontSize: 43, bold: true, color: BRAND.certNavy },
+              { text: "'", fontSize: 28, bold: true, color: BRAND.certNavy },
+              { text: "A", fontSize: 43, bold: true, color: BRAND.certNavy },
+              { text: "DHÉSION", fontSize: 28, bold: true, color: BRAND.certNavy, characterSpacing: 1.8 },
             ],
             alignment: "center" as const,
             margin: [0, 0, 0, 6],
@@ -3625,17 +3625,20 @@ async function buildDocDef(template: DocumentTemplate, input: DocumentInput): Pr
       const attNameParts = attMemberName.trim().split(/\s+/).filter(Boolean);
       const attInitials  = ((attNameParts[0]?.[0] ?? "M") + (attNameParts[1]?.[0] ?? "")).toUpperCase();
 
-      // Photo: real avatar when available; else a single SVG circle-avatar (no canvas tricks)
-      // Single SVG avoids the canvas+negative-margin overlap bug.
-      const avatarSize = 78;
-      const attAvatarSvg = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 78 78">
-        <circle cx="39" cy="39" r="38.5" fill="#1B3A7A" stroke="#C4963A" stroke-width="2.5"/>
-        <circle cx="39" cy="39" r="34" fill="#172E62"/>
-        <text x="39" y="50" text-anchor="middle" font-family="Helvetica,Arial,sans-serif" font-size="25" font-weight="bold" fill="white" letter-spacing="3">${attInitials}</text>
+      // Photo: rectangular area matching reference design.
+      // Real photo: fit into photoW×photoH bounding box maintaining aspect ratio.
+      // Fallback: grey rectangle with navy+gold circle avatar centered inside (no canvas tricks).
+      const photoW = 112;
+      const photoH = 138;
+      const attPhotoFallbackSvg = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 112 138">
+        <rect width="112" height="138" fill="#EDF0F5" rx="3"/>
+        <circle cx="56" cy="66" r="46" fill="#1B3A7A" stroke="#C4963A" stroke-width="2.5"/>
+        <circle cx="56" cy="66" r="40" fill="#172E62"/>
+        <text x="56" y="80" text-anchor="middle" font-family="Helvetica,Arial,sans-serif" font-size="30" font-weight="bold" fill="white" letter-spacing="4">${attInitials}</text>
       </svg>`;
       const photoCell: unknown = attAvatarBase64
-        ? { image: attAvatarBase64, width: avatarSize, height: avatarSize, fit: [avatarSize, avatarSize] }
-        : { svg: attAvatarSvg, width: avatarSize, height: avatarSize };
+        ? { image: attAvatarBase64, width: photoW, height: photoH, fit: [photoW, photoH] }
+        : { svg: attPhotoFallbackSvg, width: photoW, height: photoH };
 
       // Mini SVG icons for contact rows (navy fill/stroke, 13×13 viewport)
       const icnStatus = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 13 13"><circle cx="6.5" cy="4" r="2.8" fill="#1B3A7A"/><path d="M1,12.5 C1,8.5 12,8.5 12,12.5Z" fill="#1B3A7A"/></svg>`;
@@ -3682,21 +3685,14 @@ async function buildDocDef(template: DocumentTemplate, input: DocumentInput): Pr
 
       const memberCard: unknown = {
         table: {
-          widths: [108, "*", 152],
+          widths: [130, "*", 145],
           body: [[
-            // Col 1: Photo — centred horizontally with * spacers
+            // Col 1: Rectangular photo / avatar — fills full column width edge-to-edge
             {
-              stack: [{
-                columns: [
-                  { width: "*", text: "" },
-                  photoCell as object,
-                  { width: "*", text: "" },
-                ],
-                columnGap: 0,
-              }],
+              stack: [photoCell],
               fillColor: BRAND.surface,
               border: [true, true, false, true] as [boolean, boolean, boolean, boolean],
-              margin: [6, 8, 6, 8],
+              margin: [6, 6, 6, 6],
             },
             // Col 2: Name + contact rows
             {
@@ -3903,7 +3899,7 @@ async function buildDocDef(template: DocumentTemplate, input: DocumentInput): Pr
         // Shadow wrapper: light-gray offset rect drawn first, card overlaid via negative margin
         {
           stack: [
-            { canvas: [{ type: "rect" as const, x: 4, y: 4, w: 513, h: 108, color: "#DCDCDC", r: 4 }], margin: [0, 0, 0, -112] },
+            { canvas: [{ type: "rect" as const, x: 4, y: 4, w: 513, h: 155, color: "#DCDCDC", r: 4 }], margin: [0, 0, 0, -159] },
             memberCard,
           ],
           margin: [0, 0, 0, 4],
