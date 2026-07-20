@@ -15,6 +15,7 @@
 import { randomUUID } from "node:crypto";
 import { Router } from "express";
 import { z } from "zod";
+import { logger } from "../lib/logger.js";
 import { db } from "@workspace/db";
 import {
   documentsTable,
@@ -356,11 +357,33 @@ async function getLotMemberData(lotId?: string, memberId?: string): Promise<Reco
     _memberRef:         member ? `ADH-${member.id.slice(-8).toUpperCase()}` : "",
     // CIN + avatar — stored on usersTable (matched by email), not on membersTable directly
     ...await (async () => {
-      if (!member?.email) return { _memberCIN: "", _memberAvatarUrl: "" };
+      if (!member?.email) {
+        logger.warn(
+          { memberId: member?.id ?? null },
+          "[getLotMemberData] member has no email — cannot resolve CIN/avatar from usersTable",
+        );
+        return { _memberCIN: "", _memberAvatarUrl: "" };
+      }
       const [uRow] = await db
         .select({ cin: usersTable.cin, avatar: usersTable.avatar })
         .from(usersTable)
         .where(eq(usersTable.email, member.email));
+      if (!uRow) {
+        logger.warn(
+          { memberEmail: member.email, memberId: member.id },
+          "[getLotMemberData] no usersTable row found for member email — CIN/avatar will be empty",
+        );
+      } else {
+        logger.info(
+          {
+            memberEmail: member.email,
+            cinFound: !!uRow.cin,
+            avatarFound: !!uRow.avatar,
+            avatarValue: uRow.avatar ?? null,
+          },
+          "[getLotMemberData] usersTable row resolved",
+        );
+      }
       return {
         _memberCIN:       uRow?.cin    ?? "",
         _memberAvatarUrl: uRow?.avatar ?? "",
