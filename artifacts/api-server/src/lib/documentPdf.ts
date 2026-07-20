@@ -3381,41 +3381,66 @@ async function buildDocDef(template: DocumentTemplate, input: DocumentInput): Pr
       // ── Signature helpers ──────────────────────────────────────────────────
       const findAttSig = (roles: string[]) => signatures.find((s) => roles.some((r) => s.signerRole === r));
       const attPresidentSig = findAttSig(["president", "syndicate_admin", "super_admin"]);
-      const attSealDate     = attPresidentSig?.signedAt.toLocaleDateString("fr-FR") ?? today;
-      const attSealStatus   = attPresidentSig ? (attPresidentSig.isValid ? "VALID" : "REVOKED") : "PENDING";
-      const attSeal         = buildOfficialSeal(syndInfo.name, BRAND.certGold, attPresidentSig?.signerName, attSealDate, attSealStatus);
+      // SVG circular gold stamp — matches reference ornate seal
+      const attSealSvg = `<svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" viewBox="0 0 95 95">
+        <circle cx="47.5" cy="47.5" r="46"   fill="#FFF8E8"/>
+        <circle cx="47.5" cy="47.5" r="45.5" fill="none" stroke="#C4963A" stroke-width="2.5"/>
+        <circle cx="47.5" cy="47.5" r="41"   fill="none" stroke="#C4963A" stroke-width="0.4" stroke-dasharray="2 2"/>
+        <circle cx="47.5" cy="47.5" r="37.5" fill="none" stroke="#C4963A" stroke-width="0.7"/>
+        <defs>
+          <path id="att_ta" d="M11.5,47.5 A36,36 0 0,1 83.5,47.5"/>
+          <path id="att_ba" d="M9,53   A38.5,38.5 0 0,0 86,53"/>
+        </defs>
+        <text font-family="Helvetica,Arial,sans-serif" font-size="7.5" font-weight="bold" fill="#C4963A" letter-spacing="3">
+          <textPath xlink:href="#att_ta" href="#att_ta" startOffset="50%" text-anchor="middle">SYNDICAT</textPath>
+        </text>
+        <text x="15"  y="53" font-family="Helvetica,Arial" font-size="8"   fill="#C4963A" text-anchor="middle">★</text>
+        <text x="80"  y="53" font-family="Helvetica,Arial" font-size="8"   fill="#C4963A" text-anchor="middle">★</text>
+        <text x="19"  y="63" font-family="Helvetica,Arial" font-size="5.5" fill="#C4963A" text-anchor="middle">★</text>
+        <text x="76"  y="63" font-family="Helvetica,Arial" font-size="5.5" fill="#C4963A" text-anchor="middle">★</text>
+        <polygon points="47.5,26 61,36 34,36" fill="#C4963A"/>
+        <rect x="35" y="36" width="25" height="18" fill="none" stroke="#C4963A" stroke-width="1.3"/>
+        <rect x="38" y="39" width="5"  height="4" fill="#C4963A" opacity="0.75"/>
+        <rect x="45" y="39" width="5"  height="4" fill="#C4963A" opacity="0.75"/>
+        <rect x="52" y="39" width="4"  height="4" fill="#C4963A" opacity="0.75"/>
+        <rect x="43" y="45" width="10" height="9" fill="#C4963A" opacity="0.55"/>
+        <text font-family="Helvetica,Arial,sans-serif" font-size="5.8" font-weight="bold" fill="#C4963A" letter-spacing="1.2">
+          <textPath xlink:href="#att_ba" href="#att_ba" startOffset="50%" text-anchor="middle">COPROPRIÉTAIRE</textPath>
+        </text>
+      </svg>`;
+      const attSeal = { svg: attSealSvg, width: 90, height: 90 };
 
       // ── 1. Certificate white header ─────────────────────────────────────────
-      // Matches reference: logo | vertical divider | tagline | security badge
+      // Cap to 2 words max so the first column never wraps beyond 1 line
+      const hdrSyndName = (syndInfo.name || "SYNDICARE")
+        .trim().split(/\s+/).slice(0, 2).join(" ").toUpperCase();
+
       const certHdr: unknown = {
         table: {
-          widths: [152, 1, "*", 100],
+          widths: [140, 1, "*", 108],
           body: [[
-            // Logo block: icon + syndicate name + tagline
+            // Logo block: icon + compact name (≤2 words) + sub-label
             {
               columns: [
                 {
                   text: "⌂",
-                  fontSize: 22, bold: true, color: BRAND.certNavy,
-                  width: 26, margin: [0, 3, 0, 0],
+                  fontSize: 18, bold: true, color: BRAND.certNavy,
+                  width: 22, margin: [0, 1, 0, 0],
                 },
                 {
                   stack: [
-                    {
-                      text: (syndInfo.name || "SYNDICARE").toUpperCase(),
-                      fontSize: 11, bold: true, color: BRAND.certNavy, characterSpacing: 0.3,
-                    },
-                    { text: "SYNDICATE MANAGEMENT", fontSize: 5.5, bold: true, color: BRAND.certGold, characterSpacing: 0.8 },
+                    { text: hdrSyndName, fontSize: 9, bold: true, color: BRAND.certNavy, characterSpacing: 0.2, lineHeight: 1.15 },
+                    { text: "SYNDICATE MANAGEMENT", fontSize: 5, bold: true, color: BRAND.certGold, characterSpacing: 0.8 },
                   ],
-                  width: "*", margin: [5, 0, 0, 0],
+                  width: "*", margin: [4, 0, 0, 0],
                 },
               ],
               border: [false, false, false, false] as [boolean, boolean, boolean, boolean],
-              margin: [0, 10, 10, 10],
+              margin: [0, 8, 8, 8],
             },
             // Vertical separator
             {
-              canvas: [{ type: "line", x1: 0.5, y1: 6, x2: 0.5, y2: 40, lineWidth: 0.7, lineColor: BRAND.border }],
+              canvas: [{ type: "line", x1: 0.5, y1: 4, x2: 0.5, y2: 32, lineWidth: 0.7, lineColor: BRAND.border }],
               border: [false, false, false, false] as [boolean, boolean, boolean, boolean],
               margin: [0, 0, 0, 0],
             },
@@ -3427,7 +3452,7 @@ async function buildDocDef(template: DocumentTemplate, input: DocumentInput): Pr
               ],
               alignment: "center" as const,
               border: [false, false, false, false] as [boolean, boolean, boolean, boolean],
-              margin: [14, 14, 14, 10],
+              margin: [12, 10, 12, 8],
             },
             // Right: security badge
             {
@@ -3436,7 +3461,7 @@ async function buildDocDef(template: DocumentTemplate, input: DocumentInput): Pr
                 { text: "CONFORME.", fontSize: 6, bold: true, color: BRAND.certNavy, alignment: "right" as const },
               ],
               border: [false, false, false, false] as [boolean, boolean, boolean, boolean],
-              margin: [0, 14, 0, 0],
+              margin: [0, 10, 0, 0],
             },
           ]],
         },
@@ -3450,43 +3475,40 @@ async function buildDocDef(template: DocumentTemplate, input: DocumentInput): Pr
       // Navy rule under header
       const certHeaderRule: unknown = {
         canvas: [{ type: "line", x1: 0, y1: 0, x2: 515, y2: 0, lineWidth: 1.2, lineColor: BRAND.certNavy }],
-        margin: [0, 0, 0, 18],
+        margin: [0, 0, 0, 12],
       };
 
       // ── 2. Big certificate title ────────────────────────────────────────────
-      // Large navy title + gold flanking lines with center icon + navy subtitle
       const bigCertTitle: unknown = {
         stack: [
           {
             text: "ATTESTATION D'ADHÉSION",
-            fontSize: 27, bold: true, color: BRAND.certNavy,
+            fontSize: 25, bold: true, color: BRAND.certNavy,
             alignment: "center" as const, characterSpacing: 1.5,
-            margin: [0, 0, 0, 10],
+            margin: [0, 0, 0, 8],
           },
-          // Gold horizontal rule flanking a center building icon
           {
             columns: [
               {
-                canvas: [{ type: "line", x1: 0, y1: 1, x2: 202, y2: 1, lineWidth: 0.9, lineColor: BRAND.certGold }],
-                width: 210, margin: [0, 4, 0, 0],
+                canvas: [{ type: "line", x1: 0, y1: 1, x2: 200, y2: 1, lineWidth: 0.9, lineColor: BRAND.certGold }],
+                width: 208, margin: [0, 4, 0, 0],
               },
-              { text: "⌂", fontSize: 12, bold: true, color: BRAND.certGold, width: "auto" as const, alignment: "center" as const },
+              { text: "⌂", fontSize: 11, bold: true, color: BRAND.certGold, width: "auto" as const, alignment: "center" as const },
               {
-                canvas: [{ type: "line", x1: 0, y1: 1, x2: 202, y2: 1, lineWidth: 0.9, lineColor: BRAND.certGold }],
-                width: 210, margin: [0, 4, 0, 0],
+                canvas: [{ type: "line", x1: 0, y1: 1, x2: 200, y2: 1, lineWidth: 0.9, lineColor: BRAND.certGold }],
+                width: 208, margin: [0, 4, 0, 0],
               },
             ],
             columnGap: 6,
-            margin: [0, 0, 0, 8],
+            margin: [0, 0, 0, 6],
           },
-          // Subtitle
           {
             text: "CERTIFICAT OFFICIEL DE MEMBRE DU SYNDICAT",
             fontSize: 8.5, bold: true, color: BRAND.certNavy,
             alignment: "center" as const, characterSpacing: 1.2,
           },
         ],
-        margin: [0, 0, 0, 18],
+        margin: [0, 0, 0, 14],
       };
 
       // ── 3. Member profile card — 3 columns ─────────────────────────────────
@@ -3494,14 +3516,14 @@ async function buildDocDef(template: DocumentTemplate, input: DocumentInput): Pr
       const attNameParts = attMemberName.trim().split(/\s+/).filter(Boolean);
       const attInitials  = ((attNameParts[0]?.[0] ?? "M") + (attNameParts[1]?.[0] ?? "")).toUpperCase();
 
-      // Photo area: grey rect + initials overlay
+      // Photo area: grey rect + initials overlay (88×88, centred initials)
       const photoCell: unknown = {
         stack: [
-          { canvas: [{ type: "rect", x: 0, y: 0, w: 88, h: 108, color: "#E5EAF3" }], margin: [0, 0, 0, -108] },
+          { canvas: [{ type: "rect", x: 0, y: 0, w: 86, h: 86, color: "#E5EAF3" }], margin: [0, 0, 0, -86] },
           {
-            text: attInitials, fontSize: 28, bold: true, color: BRAND.certNavy,
+            text: attInitials, fontSize: 26, bold: true, color: BRAND.certNavy,
             alignment: "center" as const,
-            margin: [0, 38, 0, 0],
+            margin: [0, 28, 0, 0],
           },
         ],
       };
@@ -3518,7 +3540,7 @@ async function buildDocDef(template: DocumentTemplate, input: DocumentInput): Pr
             width: "*",
           },
         ],
-        margin: [0, 0, 0, 8],
+        margin: [0, 0, 0, 6],
       });
 
       // Green pill status badge: "✓ MEMBRE ACTIF"
@@ -3540,27 +3562,27 @@ async function buildDocDef(template: DocumentTemplate, input: DocumentInput): Pr
           vLineColor: () => attStatusBorder,
           paddingLeft: () => 0, paddingRight: () => 0, paddingTop: () => 0, paddingBottom: () => 0,
         },
-        margin: [0, 6, 0, 12],
+        margin: [0, 4, 0, 8],
       };
 
       const memberCard: unknown = {
         table: {
-          widths: [110, "*", 155],
+          widths: [108, "*", 152],
           body: [[
             // Col 1: Photo
             {
               stack: [photoCell],
               fillColor: BRAND.surface,
               border: [true, true, false, true] as [boolean, boolean, boolean, boolean],
-              margin: [14, 16, 10, 16],
+              margin: [12, 12, 8, 12],
             },
             // Col 2: Name + contact rows
             {
               stack: [
                 {
                   text: attMemberName,
-                  fontSize: 15, bold: true, color: BRAND.certNavy,
-                  margin: [0, 0, 0, 14],
+                  fontSize: 14, bold: true, color: BRAND.certNavy,
+                  margin: [0, 0, 0, 10],
                 },
                 ...(attStatus ? [attContactRow("◉", "STATUT", attStatusLabel)] : []),
                 ...(attMemberEmail ? [attContactRow("✉", "EMAIL", attMemberEmail)] : []),
@@ -3569,21 +3591,21 @@ async function buildDocDef(template: DocumentTemplate, input: DocumentInput): Pr
               ],
               fillColor: BRAND.surfaceCard,
               border: [false, true, false, true] as [boolean, boolean, boolean, boolean],
-              margin: [14, 16, 14, 16],
+              margin: [12, 12, 12, 12],
             },
             // Col 3: Reference + status badge + join date
             {
               stack: [
-                { text: "RÉFÉRENCE MEMBRE", fontSize: 5.5, bold: true, color: BRAND.muted, characterSpacing: 0.4, margin: [0, 0, 0, 3] },
-                { text: attMemberRef || docNum, fontSize: 11, bold: true, color: BRAND.certNavy, margin: [0, 0, 0, 12] },
-                { text: "STATUT D'ADHÉSION", fontSize: 5.5, bold: true, color: BRAND.muted, characterSpacing: 0.4, margin: [0, 0, 0, 3] },
+                { text: "RÉFÉRENCE MEMBRE", fontSize: 5.5, bold: true, color: BRAND.muted, characterSpacing: 0.4, margin: [0, 0, 0, 2] },
+                { text: attMemberRef || docNum, fontSize: 10.5, bold: true, color: BRAND.certNavy, margin: [0, 0, 0, 9] },
+                { text: "STATUT D'ADHÉSION", fontSize: 5.5, bold: true, color: BRAND.muted, characterSpacing: 0.4, margin: [0, 0, 0, 2] },
                 attMemberStatusBadge,
-                { text: "DATE D'ADHÉSION", fontSize: 5.5, bold: true, color: BRAND.muted, characterSpacing: 0.4, margin: [0, 0, 0, 3] },
-                { text: `⊞  ${attJoinDate || today}`, fontSize: 10, bold: true, color: BRAND.certNavy },
+                { text: "DATE D'ADHÉSION", fontSize: 5.5, bold: true, color: BRAND.muted, characterSpacing: 0.4, margin: [0, 0, 0, 2] },
+                { text: `⊞  ${attJoinDate || today}`, fontSize: 9.5, bold: true, color: BRAND.certNavy },
               ],
               fillColor: BRAND.surfaceCard,
               border: [false, true, true, true] as [boolean, boolean, boolean, boolean],
-              margin: [14, 16, 14, 16],
+              margin: [12, 12, 12, 12],
             },
           ]],
         },
@@ -3594,21 +3616,25 @@ async function buildDocDef(template: DocumentTemplate, input: DocumentInput): Pr
           vLineColor: () => BRAND.border,
           paddingLeft: () => 0, paddingRight: () => 0, paddingTop: () => 0, paddingBottom: () => 0,
         },
-        margin: [0, 0, 0, 12],
+        margin: [0, 0, 0, 10],
       };
 
       // ── 4. Property info card — 2 columns ──────────────────────────────────
       // Left: gold circle icon + "RÉSIDENCE PRINCIPALE" + address
       // Right: gold circle icon + "INFORMATIONS DE LA PROPRIÉTÉ" + data rows
+      // Gold circle icon: fixed-height canvas + text lifted into it via negative margin
       const goldCircleIcon = (inner: string): unknown => ({
         stack: [
-          { canvas: [{ type: "ellipse", x: 14, y: 14, r1: 14, r2: 14, color: "#F5EDD6", lineColor: BRAND.certGold, lineWidth: 1.5 }] },
           {
-            text: inner, fontSize: 11, color: BRAND.certGold, bold: true,
-            alignment: "center" as const, margin: [0, -23, 0, 0],
+            canvas: [{ type: "ellipse", x: 16, y: 16, r1: 16, r2: 16, color: "#F5EDD6", lineColor: BRAND.certGold, lineWidth: 1.5 }],
+            margin: [0, 0, 0, -32],   // canvas height = 2*r = 32; pull next element up
+          },
+          {
+            text: inner, fontSize: 13, color: BRAND.certGold, bold: true,
+            alignment: "center" as const, margin: [0, 10, 0, 0],
           },
         ],
-        width: 30,
+        width: 34,
         margin: [0, 0, 0, 0],
       });
 
@@ -3667,7 +3693,7 @@ async function buildDocDef(template: DocumentTemplate, input: DocumentInput): Pr
           vLineColor: () => BRAND.border,
           paddingLeft: () => 0, paddingRight: () => 0, paddingTop: () => 0, paddingBottom: () => 0,
         },
-        margin: [0, 0, 0, 16],
+        margin: [0, 0, 0, 10],
       };
 
       // ── 5. Certification paragraph (centered, matches reference image) ──────
@@ -3679,7 +3705,7 @@ async function buildDocDef(template: DocumentTemplate, input: DocumentInput): Pr
         ],
         fontSize: 8.5, color: BRAND.inkMid,
         alignment: "center" as const, lineHeight: 1.65,
-        margin: [20, 0, 20, 20],
+        margin: [20, 0, 20, 14],
       };
 
       // ── 6. Footer: signature | gold seal | QR + verify ─────────────────────
@@ -3692,7 +3718,7 @@ async function buildDocDef(template: DocumentTemplate, input: DocumentInput): Pr
           // Signature trace or empty line
           ...(attHasSigTrace
             ? [{ svg: attPresidentSig!.signatureData!, width: 120, height: 44, alignment: "left" as const }]
-            : [{ canvas: [{ type: "line", x1: 0, y1: 0, x2: 145, y2: 0, lineWidth: 0.5, lineColor: BRAND.border }], margin: [0, 40, 0, 0] }]
+            : [{ canvas: [{ type: "line", x1: 0, y1: 0, x2: 145, y2: 0, lineWidth: 0.5, lineColor: BRAND.border }], margin: [0, 28, 0, 0] }]
           ),
           { text: "Le Syndic", fontSize: 8.5, bold: true, color: BRAND.ink, margin: [0, 6, 0, 1] },
           { text: attSignerName, fontSize: 7.5, color: BRAND.inkLight, margin: [0, 0, 0, 1] },
@@ -3703,7 +3729,7 @@ async function buildDocDef(template: DocumentTemplate, input: DocumentInput): Pr
 
       const sealColumn: unknown = {
         stack: [attSeal],
-        width: 110,
+        width: 95,
         alignment: "center" as const,
         margin: [0, 0, 0, 0],
       };
@@ -3724,16 +3750,16 @@ async function buildDocDef(template: DocumentTemplate, input: DocumentInput): Pr
       };
 
       const certFooterRow: unknown = {
-        columns: [sigColumn, { text: "", width: 8 }, sealColumn, { text: "", width: 8 }, qrColumn],
-        margin: [0, 0, 0, 14],
+        columns: [sigColumn, { text: "", width: 6 }, sealColumn, { text: "", width: 6 }, qrColumn],
+        margin: [0, 0, 0, 10],
       };
 
       // ── 7. eIDAS disclaimer ────────────────────────────────────────────────
       const eidasNote: unknown = {
         stack: [
-          { canvas: [{ type: "line", x1: 0, y1: 0, x2: 515, y2: 0, lineWidth: 0.4, lineColor: BRAND.border }], margin: [0, 0, 0, 8] },
-          { text: "Ce certificat est émis électroniquement et est valable sans signature manuscrite.", fontSize: 7, color: BRAND.muted, alignment: "center" as const },
-          { text: "Conformément au règlement européen eIDAS (UE) n°910/2014.", fontSize: 7, color: BRAND.muted, alignment: "center" as const },
+          { canvas: [{ type: "line", x1: 0, y1: 0, x2: 515, y2: 0, lineWidth: 0.4, lineColor: BRAND.border }], margin: [0, 0, 0, 6] },
+          { text: "Ce certificat est émis électroniquement et est valable sans signature manuscrite.", fontSize: 6.5, color: BRAND.muted, alignment: "center" as const },
+          { text: "Conformément au règlement européen eIDAS (UE) n°910/2014.", fontSize: 6.5, color: BRAND.muted, alignment: "center" as const },
         ],
       };
 
@@ -3746,7 +3772,6 @@ async function buildDocDef(template: DocumentTemplate, input: DocumentInput): Pr
         certParagraph,
         certFooterRow,
         eidasNote,
-        legalFooterNote(docNum, lang, verifyUrl),
       ];
       break;
     }
