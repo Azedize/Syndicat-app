@@ -35,25 +35,38 @@ function isSvgData(data: string | null | undefined): boolean {
  * so callers can fall back to an initials placeholder.
  */
 async function fetchAvatarAsBase64(avatarPath: string): Promise<string | null> {
-  if (!avatarPath) return null;
+  if (!avatarPath) {
+    logger.info({ avatarPath }, "[PDF avatar] no avatarPath provided — using initials fallback");
+    return null;
+  }
+  logger.info({ avatarPath }, "[PDF avatar] attempting to load avatar");
   try {
     if (avatarPath.startsWith("/objects/")) {
+      logger.info({ avatarPath }, "[PDF avatar] loading from object storage");
       const svc = new ObjectStorageService();
       const file = await svc.getObjectEntityFile(avatarPath);
       const [buffer] = await file.download();
       const [meta]   = await file.getMetadata();
       const mime = (meta.contentType as string | undefined) ?? "image/jpeg";
-      return `data:${mime};base64,${buffer.toString("base64")}`;
+      const result = `data:${mime};base64,${buffer.toString("base64")}`;
+      logger.info({ avatarPath, mime, bytes: buffer.length }, "[PDF avatar] object storage load OK");
+      return result;
     }
     if (avatarPath.startsWith("http://") || avatarPath.startsWith("https://")) {
+      logger.info({ avatarPath }, "[PDF avatar] loading from HTTP URL");
       const resp = await fetch(avatarPath, { signal: AbortSignal.timeout(4000) });
-      if (!resp.ok) return null;
+      if (!resp.ok) {
+        logger.warn({ avatarPath, status: resp.status }, "[PDF avatar] HTTP fetch failed — using initials fallback");
+        return null;
+      }
       const buf = Buffer.from(await resp.arrayBuffer());
       const ct  = resp.headers.get("content-type") ?? "image/jpeg";
+      logger.info({ avatarPath, ct, bytes: buf.length }, "[PDF avatar] HTTP load OK");
       return `data:${ct.split(";")[0]};base64,${buf.toString("base64")}`;
     }
-  } catch {
-    // network / storage errors — fall through
+    logger.warn({ avatarPath }, "[PDF avatar] unrecognised avatarPath scheme — using initials fallback");
+  } catch (err) {
+    logger.warn({ avatarPath, err }, "[PDF avatar] exception while loading avatar — using initials fallback");
   }
   return null;
 }
@@ -3427,10 +3440,28 @@ async function buildDocDef(template: DocumentTemplate, input: DocumentInput): Pr
 
       // Try to load the member's avatar as a base64 data-URI (graceful fallback to null)
       const attAvatarBase64 = await fetchAvatarAsBase64(attMemberAvatarUrl);
+      logger.info(
+        { avatarUrl: attMemberAvatarUrl, loaded: !!attAvatarBase64 },
+        "[PDF attestation] avatar load result",
+      );
 
       // ── Signature helpers ──────────────────────────────────────────────────
       const findAttSig = (roles: string[]) => signatures.find((s) => roles.some((r) => s.signerRole === r));
       const attPresidentSig = findAttSig(["president", "syndicate_admin", "super_admin"]);
+      logger.info(
+        {
+          signaturesCount: signatures.length,
+          signerRoles: signatures.map((s) => s.signerRole),
+          presidentSigFound: !!attPresidentSig,
+          presidentSigRole: attPresidentSig?.signerRole ?? null,
+          hasSignatureData: !!attPresidentSig?.signatureData,
+          signatureDataPreview: attPresidentSig?.signatureData
+            ? attPresidentSig.signatureData.trim().slice(0, 80)
+            : null,
+          isSvg: isSvgData(attPresidentSig?.signatureData),
+        },
+        "[PDF attestation] signature detection",
+      );
       // SVG circular gold stamp — matches reference ornate seal
       const attSealSvg = `<svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" viewBox="0 0 95 95">
         <circle cx="47.5" cy="47.5" r="46"   fill="#FFF8E8"/>
@@ -3918,9 +3949,16 @@ async function buildDocDef(template: DocumentTemplate, input: DocumentInput): Pr
         width: "*",
       };
 
+      // In pdfmake, alignment on a column wrapper does NOT centre SVG/image content.
+      // The alignment must be set on the element itself, and the column width must
+      // be fixed so pdfmake knows exactly how much space to centre within.
       const sealColumn: unknown = {
-        stack: [{ ...attSeal, margin: [0, -5, 0, 0] }],
-        width: 96,
+        stack: [{
+          ...attSeal,
+          alignment: "center" as const,
+          margin: [0, 0, 0, 0],
+        }],
+        width: 100,
         alignment: "center" as const,
       };
 
