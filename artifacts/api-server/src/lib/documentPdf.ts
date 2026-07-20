@@ -3583,9 +3583,16 @@ async function buildDocDef(template: DocumentTemplate, input: DocumentInput): Pr
             margin: [0, 0, 0, 8],
           },
           {
-            text: "ATTESTATION D'ADHÉSION",
-            fontSize: 28, bold: true, color: BRAND.certNavy,
-            alignment: "center" as const, characterSpacing: 2,
+            // Small-caps simulation: first letter of each word at 35pt, rest at 23pt
+            text: [
+              { text: "A", fontSize: 35, bold: true, color: BRAND.certNavy },
+              { text: "TTESTATION ", fontSize: 23, bold: true, color: BRAND.certNavy, characterSpacing: 1.8 },
+              { text: "D", fontSize: 35, bold: true, color: BRAND.certNavy },
+              { text: "'", fontSize: 23, bold: true, color: BRAND.certNavy },
+              { text: "A", fontSize: 35, bold: true, color: BRAND.certNavy },
+              { text: "DHÉSION", fontSize: 23, bold: true, color: BRAND.certNavy, characterSpacing: 1.8 },
+            ],
+            alignment: "center" as const,
             margin: [0, 0, 0, 6],
           },
           {
@@ -3663,19 +3670,25 @@ async function buildDocDef(template: DocumentTemplate, input: DocumentInput): Pr
             ],
           };
 
-      // Icon + label + value contact row
-      const attContactRow = (icon: string, label: string, value: string): unknown => ({
+      // Mini SVG icons for contact rows (navy fill/stroke, 13×13 viewport)
+      const icnStatus = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 13 13"><circle cx="6.5" cy="4" r="2.8" fill="#1B3A7A"/><path d="M1,12.5 C1,8.5 12,8.5 12,12.5Z" fill="#1B3A7A"/></svg>`;
+      const icnEmail  = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 13 13"><rect x="1" y="3" width="11" height="7.5" rx="1.2" fill="none" stroke="#1B3A7A" stroke-width="1"/><polyline points="1,4 6.5,8 12,4" stroke="#1B3A7A" stroke-width="0.9" fill="none"/></svg>`;
+      const icnPhone  = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 13 13"><path d="M3.5,1.5 L5.5,1.5 L6.5,5 L5,6 Q5.5,8.5 8,10 L9,8.5 L12.5,9.5 L12.5,11.5 Q8.5,13.5 2,6.5 Q1.5,2 3.5,1.5 Z" fill="#1B3A7A"/></svg>`;
+      const icnCin    = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 13 13"><rect x="1" y="2.5" width="11" height="8" rx="1" fill="none" stroke="#1B3A7A" stroke-width="1"/><line x1="3" y1="6.5" x2="7.5" y2="6.5" stroke="#1B3A7A" stroke-width="0.9"/><line x1="3" y1="8.5" x2="6" y2="8.5" stroke="#1B3A7A" stroke-width="0.9"/><circle cx="10" cy="6.5" r="2" fill="#C4963A" opacity="0.35"/></svg>`;
+
+      // Icon + label + value contact row — SVG icon version
+      const attContactRow = (iconSvg: string, label: string, value: string): unknown => ({
         columns: [
-          { text: icon, fontSize: 9, color: BRAND.certNavy, width: 16, margin: [0, 1, 0, 0] },
+          { svg: iconSvg, width: 13, height: 13, margin: [0, 4, 0, 0] },
           {
             stack: [
-              { text: label, fontSize: 5.5, bold: true, color: BRAND.muted, characterSpacing: 0.4, margin: [0, 0, 0, 1] },
+              { text: label, fontSize: 5.5, bold: true, color: BRAND.muted, characterSpacing: 0.5, margin: [0, 0, 0, 1] },
               { text: value || "—", fontSize: 8.5, color: BRAND.ink },
             ],
-            width: "*",
+            width: "*", margin: [6, 0, 0, 0],
           },
         ],
-        margin: [0, 0, 0, 6],
+        margin: [0, 0, 0, 7],
       });
 
       // Green pill status badge: "✓ MEMBRE ACTIF"
@@ -3704,12 +3717,19 @@ async function buildDocDef(template: DocumentTemplate, input: DocumentInput): Pr
         table: {
           widths: [108, "*", 152],
           body: [[
-            // Col 1: Photo
+            // Col 1: Photo — centred horizontally with * spacers
             {
-              stack: [photoCell],
+              stack: [{
+                columns: [
+                  { width: "*", text: "" },
+                  photoCell as object,
+                  { width: "*", text: "" },
+                ],
+                columnGap: 0,
+              }],
               fillColor: BRAND.surface,
               border: [true, true, false, true] as [boolean, boolean, boolean, boolean],
-              margin: [12, 12, 8, 12],
+              margin: [6, 14, 6, 14],
             },
             // Col 2: Name + contact rows
             {
@@ -3720,16 +3740,20 @@ async function buildDocDef(template: DocumentTemplate, input: DocumentInput): Pr
                     const prefixes = ["m.", "mme.", "dr.", "pr.", "m ", "mme ", "dr ", "mr."];
                     const nameLower = attMemberName.trim().toLowerCase();
                     const hasPrefix = prefixes.some(p => nameLower.startsWith(p));
-                    // Default to "M." — simple heuristic (can be overridden by stored prefix)
                     return hasPrefix ? attMemberName : `M. ${attMemberName}`;
                   })(),
                   fontSize: 16, bold: true, color: BRAND.certNavy,
-                  margin: [0, 0, 0, 10],
+                  margin: [0, 0, 0, 4],
                 },
-                ...(attStatus ? [attContactRow("◉", "STATUT", attStatusLabel)] : []),
-                ...(attMemberEmail ? [attContactRow("✉", "EMAIL", attMemberEmail)] : []),
-                ...(attMemberPhone ? [attContactRow("☎", "TÉLÉPHONE", attMemberPhone)] : []),
-                ...(attMemberCIN   ? [attContactRow("▣", "CIN", attMemberCIN)] : []),
+                // Thin gold accent rule under the name
+                {
+                  canvas: [{ type: "line" as const, x1: 0, y1: 0, x2: 170, y2: 0, lineWidth: 0.7, lineColor: BRAND.certGold }],
+                  margin: [0, 0, 0, 9],
+                },
+                ...(attStatus ? [attContactRow(icnStatus, "STATUT", attStatusLabel)] : []),
+                ...(attMemberEmail ? [attContactRow(icnEmail, "EMAIL", attMemberEmail)] : []),
+                ...(attMemberPhone ? [attContactRow(icnPhone, "TÉLÉPHONE", attMemberPhone)] : []),
+                ...(attMemberCIN   ? [attContactRow(icnCin, "CIN", attMemberCIN)] : []),
               ],
               fillColor: BRAND.surfaceCard,
               border: [false, true, false, true] as [boolean, boolean, boolean, boolean],
@@ -3909,8 +3933,21 @@ async function buildDocDef(template: DocumentTemplate, input: DocumentInput): Pr
         certHdr,
         certHeaderRule,
         bigCertTitle,
-        memberCard,
-        propertyCard,
+        // Shadow wrapper: light-gray offset rect drawn first, card overlaid via negative margin
+        {
+          stack: [
+            { canvas: [{ type: "rect" as const, x: 4, y: 4, w: 513, h: 128, color: "#DCDCDC", r: 4 }], margin: [0, 0, 0, -132] },
+            memberCard,
+          ],
+          margin: [0, 0, 0, 4],
+        },
+        {
+          stack: [
+            { canvas: [{ type: "rect" as const, x: 4, y: 4, w: 513, h: 110, color: "#DCDCDC", r: 4 }], margin: [0, 0, 0, -114] },
+            propertyCard,
+          ],
+          margin: [0, 0, 0, 4],
+        },
         certParagraph,
         certFooterRow,
         eidasNote,
