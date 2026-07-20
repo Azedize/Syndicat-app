@@ -354,11 +354,17 @@ async function getLotMemberData(lotId?: string, memberId?: string): Promise<Reco
     _memberStatus:      member?.status ?? "",
     _memberCotisation:  member?.cotisationStatus ?? "",
     _memberRef:         member ? `ADH-${member.id.slice(-8).toUpperCase()}` : "",
-    // CIN — stored on usersTable (matched by email), not on membersTable directly
-    _memberCIN:         await (async () => {
-      if (!member?.email) return "";
-      const [uRow] = await db.select({ cin: usersTable.cin }).from(usersTable).where(eq(usersTable.email, member.email));
-      return uRow?.cin ?? "";
+    // CIN + avatar — stored on usersTable (matched by email), not on membersTable directly
+    ...await (async () => {
+      if (!member?.email) return { _memberCIN: "", _memberAvatarUrl: "" };
+      const [uRow] = await db
+        .select({ cin: usersTable.cin, avatar: usersTable.avatar })
+        .from(usersTable)
+        .where(eq(usersTable.email, member.email));
+      return {
+        _memberCIN:       uRow?.cin    ?? "",
+        _memberAvatarUrl: uRow?.avatar ?? "",
+      };
     })(),
   };
 }

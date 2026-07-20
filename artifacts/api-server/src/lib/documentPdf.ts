@@ -17,7 +17,7 @@ import path from "path";
 import os from "os";
 import { randomUUID } from "crypto";
 import QRCode from "qrcode";
-import { objectStorageClient } from "./objectStorage.js";
+import { objectStorageClient, ObjectStorageService } from "./objectStorage.js";
 import { logger } from "./logger.js";
 
 // ─── Local-disk temp storage (fallback when GCS not configured) ───────────────
@@ -27,6 +27,35 @@ const LOCAL_DOCS_TMP = path.join(os.tmpdir(), "syndycat-docs");
 function isSvgData(data: string | null | undefined): boolean {
   if (!data) return false;
   return /^\s*(?:<\?xml[^>]*>\s*)?<svg/i.test(data.trim());
+}
+
+/**
+ * Fetch an avatar URL (object-storage path or http URL) and return a base64
+ * data-URI suitable for pdfmake `{ image: ... }`. Returns null on any error
+ * so callers can fall back to an initials placeholder.
+ */
+async function fetchAvatarAsBase64(avatarPath: string): Promise<string | null> {
+  if (!avatarPath) return null;
+  try {
+    if (avatarPath.startsWith("/objects/")) {
+      const svc = new ObjectStorageService();
+      const file = await svc.getObjectEntityFile(avatarPath);
+      const [buffer] = await file.download();
+      const [meta]   = await file.getMetadata();
+      const mime = (meta.contentType as string | undefined) ?? "image/jpeg";
+      return `data:${mime};base64,${buffer.toString("base64")}`;
+    }
+    if (avatarPath.startsWith("http://") || avatarPath.startsWith("https://")) {
+      const resp = await fetch(avatarPath, { signal: AbortSignal.timeout(4000) });
+      if (!resp.ok) return null;
+      const buf = Buffer.from(await resp.arrayBuffer());
+      const ct  = resp.headers.get("content-type") ?? "image/jpeg";
+      return `data:${ct.split(";")[0]};base64,${buf.toString("base64")}`;
+    }
+  } catch {
+    // network / storage errors — fall through
+  }
+  return null;
 }
 
 async function saveToLocalDisk(buffer: Buffer, filename: string): Promise<string> {
@@ -3375,8 +3404,12 @@ async function buildDocDef(template: DocumentTemplate, input: DocumentInput): Pr
                             : attStatus === "inactive" ? BRAND.destructive : BRAND.border;
 
       // ── Extra property fields ──────────────────────────────────────────────
-      const attLotQuotePart = (input._lotQuotePart   as string) || (input._lotShareValue as string) || "";
-      const attLotUsage     = (input._lotUsage       as string) || "Habitation principale";
+      const attLotQuotePart    = (input._lotQuotePart    as string) || (input._lotShareValue as string) || "";
+      const attLotUsage        = (input._lotUsage        as string) || "Habitation principale";
+      const attMemberAvatarUrl = (input._memberAvatarUrl as string) || "";
+
+      // Try to load the member's avatar as a base64 data-URI (graceful fallback to null)
+      const attAvatarBase64 = await fetchAvatarAsBase64(attMemberAvatarUrl);
 
       // ── Signature helpers ──────────────────────────────────────────────────
       const findAttSig = (roles: string[]) => signatures.find((s) => roles.some((r) => s.signerRole === r));
@@ -3528,54 +3561,107 @@ async function buildDocDef(template: DocumentTemplate, input: DocumentInput): Pr
       };
 
       // ── 2. Big certificate title ────────────────────────────────────────────
+      // SVG building icon centred between gold rule lines (premium reference look)
+      const titleBuildingSvg = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 22 22">
+        <rect x="7"  y="5"  width="8"  height="17" fill="none" stroke="#C4963A" stroke-width="1.2"/>
+        <rect x="9"  y="8"  width="2"  height="2"  fill="#C4963A" opacity="0.85"/>
+        <rect x="11.3" y="8" width="2" height="2"  fill="#C4963A" opacity="0.55"/>
+        <rect x="9"  y="12" width="2"  height="2"  fill="#C4963A" opacity="0.65"/>
+        <rect x="11.3" y="12" width="2" height="2" fill="#C4963A" opacity="0.45"/>
+        <rect x="9.5" y="18" width="3"  height="4" fill="#C4963A"/>
+        <rect x="1"  y="10" width="5.5" height="12" fill="none" stroke="#C4963A" stroke-width="1"/>
+        <rect x="2.3" y="12.5" width="1.8" height="1.8" fill="#C4963A" opacity="0.7"/>
+        <rect x="15.5" y="10" width="5.5" height="12" fill="none" stroke="#C4963A" stroke-width="1"/>
+        <rect x="16.8" y="12.5" width="1.8" height="1.8" fill="#C4963A" opacity="0.7"/>
+      </svg>`;
+
       const bigCertTitle: unknown = {
         stack: [
+          // Thin gold top rule
           {
-            text: "ATTESTATION D'ADHÉSION",
-            fontSize: 25, bold: true, color: BRAND.certNavy,
-            alignment: "center" as const, characterSpacing: 1.5,
+            canvas: [{ type: "line", x1: 40, y1: 0, x2: 475, y2: 0, lineWidth: 0.6, lineColor: BRAND.certGold }],
             margin: [0, 0, 0, 8],
           },
           {
+            text: "ATTESTATION D'ADHÉSION",
+            fontSize: 28, bold: true, color: BRAND.certNavy,
+            alignment: "center" as const, characterSpacing: 2,
+            margin: [0, 0, 0, 6],
+          },
+          {
+            // Gold lines flanking building SVG icon
             columns: [
               {
-                canvas: [{ type: "line", x1: 0, y1: 1, x2: 200, y2: 1, lineWidth: 0.9, lineColor: BRAND.certGold }],
-                width: 208, margin: [0, 4, 0, 0],
+                canvas: [{ type: "line", x1: 0, y1: 1, x2: 195, y2: 1, lineWidth: 1, lineColor: BRAND.certGold }],
+                width: 200, margin: [0, 8, 0, 0],
               },
-              { text: "⌂", fontSize: 11, bold: true, color: BRAND.certGold, width: "auto" as const, alignment: "center" as const },
+              { svg: titleBuildingSvg, width: 18, height: 18, margin: [0, 0, 0, 0] },
               {
-                canvas: [{ type: "line", x1: 0, y1: 1, x2: 200, y2: 1, lineWidth: 0.9, lineColor: BRAND.certGold }],
-                width: 208, margin: [0, 4, 0, 0],
+                canvas: [{ type: "line", x1: 0, y1: 1, x2: 195, y2: 1, lineWidth: 1, lineColor: BRAND.certGold }],
+                width: 200, margin: [0, 8, 0, 0],
               },
             ],
-            columnGap: 6,
-            margin: [0, 0, 0, 6],
+            columnGap: 4,
+            margin: [0, 0, 0, 8],
           },
           {
             text: "CERTIFICAT OFFICIEL DE MEMBRE DU SYNDICAT",
             fontSize: 8.5, bold: true, color: BRAND.certNavy,
-            alignment: "center" as const, characterSpacing: 1.2,
+            alignment: "center" as const, characterSpacing: 1.5,
           },
         ],
-        margin: [0, 0, 0, 14],
+        margin: [0, 8, 0, 14],
       };
 
       // ── 3. Member profile card — 3 columns ─────────────────────────────────
-      // [photo placeholder | name + contact rows | ref + status badge + date]
+      // [photo / avatar | name + contact rows | ref + status badge + date]
       const attNameParts = attMemberName.trim().split(/\s+/).filter(Boolean);
       const attInitials  = ((attNameParts[0]?.[0] ?? "M") + (attNameParts[1]?.[0] ?? "")).toUpperCase();
 
-      // Photo area: grey rect + initials overlay (88×88, centred initials)
-      const photoCell: unknown = {
-        stack: [
-          { canvas: [{ type: "rect", x: 0, y: 0, w: 86, h: 86, color: "#E5EAF3" }], margin: [0, 0, 0, -86] },
-          {
-            text: attInitials, fontSize: 26, bold: true, color: BRAND.certNavy,
-            alignment: "center" as const,
-            margin: [0, 28, 0, 0],
-          },
-        ],
-      };
+      // Photo area: real image when available, else premium circle-avatar fallback
+      // Circle avatar: navy disc + gold ring + white bold initials (88×88 bounding box)
+      const avatarSize = 86;
+      const photoCell: unknown = attAvatarBase64
+        ? {
+            // Real member photo — clipped to a square with slight rounding
+            image: attAvatarBase64,
+            width: avatarSize,
+            height: avatarSize,
+            fit: [avatarSize, avatarSize],
+          }
+        : {
+            // Premium circle avatar fallback: navy circle + gold halo ring + white initials
+            stack: [
+              {
+                canvas: [
+                  // Outer gold ring
+                  {
+                    type: "ellipse" as const,
+                    x: avatarSize / 2, y: avatarSize / 2,
+                    r1: avatarSize / 2 - 0.5, r2: avatarSize / 2 - 0.5,
+                    lineColor: BRAND.certGold, lineWidth: 2,
+                  },
+                  // Navy filled circle
+                  {
+                    type: "ellipse" as const,
+                    x: avatarSize / 2, y: avatarSize / 2,
+                    r1: avatarSize / 2 - 3, r2: avatarSize / 2 - 3,
+                    color: BRAND.certNavy,
+                  },
+                ],
+                // canvas height = avatarSize; pull next element up to overlay
+                margin: [0, 0, 0, -avatarSize],
+              },
+              // White initials centred in the circle
+              {
+                text: attInitials,
+                fontSize: 29, bold: true, color: "#FFFFFF",
+                alignment: "center" as const,
+                // vertical centering: (avatarSize - fontSize*1.2) / 2 ≈ (86-35)/2 ≈ 25
+                margin: [0, 25, 0, 0],
+              },
+            ],
+          };
 
       // Icon + label + value contact row
       const attContactRow = (icon: string, label: string, value: string): unknown => ({
@@ -3629,8 +3715,15 @@ async function buildDocDef(template: DocumentTemplate, input: DocumentInput): Pr
             {
               stack: [
                 {
-                  text: attMemberName,
-                  fontSize: 14, bold: true, color: BRAND.certNavy,
+                  // Display name with smart civility prefix if not already present
+                  text: (() => {
+                    const prefixes = ["m.", "mme.", "dr.", "pr.", "m ", "mme ", "dr ", "mr."];
+                    const nameLower = attMemberName.trim().toLowerCase();
+                    const hasPrefix = prefixes.some(p => nameLower.startsWith(p));
+                    // Default to "M." — simple heuristic (can be overridden by stored prefix)
+                    return hasPrefix ? attMemberName : `M. ${attMemberName}`;
+                  })(),
+                  fontSize: 16, bold: true, color: BRAND.certNavy,
                   margin: [0, 0, 0, 10],
                 },
                 ...(attStatus ? [attContactRow("◉", "STATUT", attStatusLabel)] : []),
