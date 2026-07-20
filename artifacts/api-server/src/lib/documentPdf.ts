@@ -3714,8 +3714,8 @@ async function buildDocDef(template: DocumentTemplate, input: DocumentInput): Pr
       // -- Title block (centered) --
       const coverTitle: unknown = {
         stack: [
-          { text: ctTitle.toUpperCase(), fontSize: 21, bold: true, color: ctNavy, alignment: "center" as const, lineHeight: 1.05 },
-          { text: ctSubtitle.toUpperCase(), fontSize: 7.5, color: ctMuted, alignment: "center" as const, characterSpacing: 1.0, margin: [0, 6, 0, 0] },
+          { text: ctTitle.toUpperCase(), fontSize: 34, bold: true, color: ctNavy, alignment: "center" as const, lineHeight: 1.05 },
+          { text: ctSubtitle.toUpperCase(), fontSize: 7.5, color: ctGold, alignment: "center" as const, characterSpacing: 1.2, margin: [0, 6, 0, 0] },
           goldDivider,
           { text: ctIntro, fontSize: 8.5, color: ctInk, alignment: "center" as const, lineHeight: 1.65, margin: [30, 0, 30, 0] },
           // Date block
@@ -3891,6 +3891,9 @@ async function buildDocDef(template: DocumentTemplate, input: DocumentInput): Pr
       // -- Signature panel (2-column grid) --
       const ctSealObj = buildOfficialSeal(syndInfo.name, ctGold, ctPresSig?.signerName, today);
 
+      // Deterministic hash fragment from doc number for DocuSign-style footer
+      const ctDocuHash = docNum.replace(/[^A-Z0-9]/gi, "").slice(0, 8).padEnd(8, "0").toUpperCase();
+
       const sigCard = (
         label: string, company: string, role: string,
         hasSig: boolean, sigData: string | null | undefined,
@@ -3898,17 +3901,36 @@ async function buildDocDef(template: DocumentTemplate, input: DocumentInput): Pr
       ): unknown => ({
         stack: [
           ctMicroLbl(label),
-          { text: company, fontSize: 9, bold: true, color: ctNavy, margin: [0, 4, 0, 0] },
-          // Signature mark area (min 48pt)
+          { text: company, fontSize: 9, bold: true, color: ctNavy, margin: [0, 4, 0, 8] },
+          // DocuSign-style bordered signature box
           {
-            stack: hasSig && sigData
-              ? [{ svg: sigData, width: 160, height: 46, alignment: "left" as const, margin: [0, 8, 0, 4] }]
-              : [{ canvas: [{ type: "line", x1: 0, y1: 24, x2: 200, y2: 24, lineWidth: 0.6, lineColor: ctLine }], margin: [0, 0, 0, 4] }],
-            height: 54,
+            table: {
+              widths: ["*"],
+              body: [[{
+                stack: [
+                  { text: "DocuSigned by:", fontSize: 6, color: "#2F6AED", italics: true, margin: [0, 0, 0, 2] },
+                  ...(hasSig && sigData
+                    ? [{ svg: sigData, width: 150, height: 44, alignment: "left" as const, margin: [0, 2, 0, 2] }]
+                    : [{ text: signerName ?? "—", fontSize: 14, italics: true, color: ctInk, margin: [0, 4, 0, 8] }]),
+                  { canvas: [{ type: "line", x1: 0, y1: 0, x2: 220, y2: 0, lineWidth: 0.5, lineColor: "#2F6AED" }] },
+                  { text: `${ctDocuHash}A4E1…`, fontSize: 5.5, color: "#2F6AED", margin: [0, 2, 0, 0] },
+                ],
+                border: [true, true, true, true] as [boolean, boolean, boolean, boolean],
+                margin: [6, 5, 6, 5],
+              }]],
+            },
+            layout: {
+              hLineWidth: () => 0.6,
+              vLineWidth: () => 0.6,
+              hLineColor: () => "#2F6AED",
+              vLineColor: () => "#2F6AED",
+              paddingLeft: () => 0, paddingRight: () => 0, paddingTop: () => 0, paddingBottom: () => 0,
+            },
+            margin: [0, 0, 0, 6],
           },
-          { text: signerName || "—", fontSize: 8.5, bold: true, color: ctInk, margin: [0, 0, 0, 1] },
+          { text: signerName ?? "—", fontSize: 8.5, bold: true, color: ctInk, margin: [0, 0, 0, 1] },
           { text: role, fontSize: 7, color: ctMuted },
-          { text: today, fontSize: 7, color: ctMuted },
+          { text: `Date: ${today}`, fontSize: 7, color: ctMuted },
         ],
         margin: [12, 10, 12, 12],
         border: [false, false, false, false] as [boolean, boolean, boolean, boolean],
@@ -3977,8 +3999,32 @@ async function buildDocDef(template: DocumentTemplate, input: DocumentInput): Pr
         margin: [0, 6, 0, 0],
       };
 
+      // ── Gold accent line below the chevron notch ────────────────────────
+      const ctGoldAccent: unknown = {
+        canvas: [{ type: "line", x1: 0, y1: 0, x2: 515, y2: 0, lineWidth: 1.5, lineColor: ctGold }],
+        margin: [0, 0, 0, 20],
+      };
+
       // ── Assemble cover + terms ──────────────────────────────────────────
-      content = reconstructionPlaceholder("contrat", docNum, syndInfo);
+      footerFn = null;   // template has its own page-footer baked into content
+      content = [
+        // ─── PAGE 1 : Cover ───────────────────────────────────────────────
+        coverBanner,
+        chevron,
+        ctGoldAccent,
+        coverTitle,
+        partiesSection,
+        confidentialBox,
+        // ─── PAGE 2 : Clauses, Signatures & Verification ─────────────────
+        docRefHeader,          // pageBreak: "before" is baked in
+        scopeSection,
+        obligationsSection,
+        conditionsSection,
+        generalSection,
+        signaturesPanel,
+        ctVerifyBox,
+        ctPageFooter,
+      ];
       break;
     }
 
