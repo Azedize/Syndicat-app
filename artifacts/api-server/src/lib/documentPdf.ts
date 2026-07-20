@@ -102,6 +102,20 @@ if (existsSync(`${DEJAVU_DIR}/DejaVuSans.ttf`)) {
   };
 }
 
+// DejaVu Serif — used for premium certificate titles (matches reference serif display style)
+if (existsSync(`${DEJAVU_DIR}/DejaVuSerif.ttf`)) {
+  FONTS.DejaVuSerif = {
+    normal: `${DEJAVU_DIR}/DejaVuSerif.ttf`,
+    bold: existsSync(`${DEJAVU_DIR}/DejaVuSerif-Bold.ttf`)
+      ? `${DEJAVU_DIR}/DejaVuSerif-Bold.ttf`
+      : `${DEJAVU_DIR}/DejaVuSerif.ttf`,
+    italics: `${DEJAVU_DIR}/DejaVuSerif.ttf`,
+    bolditalics: existsSync(`${DEJAVU_DIR}/DejaVuSerif-Bold.ttf`)
+      ? `${DEJAVU_DIR}/DejaVuSerif-Bold.ttf`
+      : `${DEJAVU_DIR}/DejaVuSerif.ttf`,
+  };
+}
+
 // Arabic (Amiri) — TTF files live in artifacts/api-server/fonts/ (Amiri Regular/Bold/
 // Italic/BoldItalic, from the Amiri Project — https://github.com/aliftype/amiri).
 if (existsSync(`${FONTS_DIR}/Amiri-Regular.ttf`)) {
@@ -3454,13 +3468,13 @@ async function buildDocDef(template: DocumentTemplate, input: DocumentInput): Pr
             // Inner thin navy border
             { type: "rect" as const, x: m+5, y: m+5, w: W - 2*(m+5), h: H - 2*(m+5), lineColor: BRAND.certNavy, lineWidth: 0.5, r: 1 },
             // Gold corner ornaments — top-left
-            { type: "rect" as const, x: m+9,     y: m+9,     w: 15, h: 15, lineColor: BRAND.certGold, lineWidth: 0.9 },
+            { type: "rect" as const, x: m+8,     y: m+8,     w: 18, h: 18, lineColor: BRAND.certGold, lineWidth: 1.5 },
             // top-right
-            { type: "rect" as const, x: W-m-24,  y: m+9,     w: 15, h: 15, lineColor: BRAND.certGold, lineWidth: 0.9 },
+            { type: "rect" as const, x: W-m-26,  y: m+8,     w: 18, h: 18, lineColor: BRAND.certGold, lineWidth: 1.5 },
             // bottom-left
-            { type: "rect" as const, x: m+9,     y: H-m-24,  w: 15, h: 15, lineColor: BRAND.certGold, lineWidth: 0.9 },
+            { type: "rect" as const, x: m+8,     y: H-m-26,  w: 18, h: 18, lineColor: BRAND.certGold, lineWidth: 1.5 },
             // bottom-right
-            { type: "rect" as const, x: W-m-24,  y: H-m-24,  w: 15, h: 15, lineColor: BRAND.certGold, lineWidth: 0.9 },
+            { type: "rect" as const, x: W-m-26,  y: H-m-26,  w: 18, h: 18, lineColor: BRAND.certGold, lineWidth: 1.5 },
           ],
         };
       };
@@ -3585,12 +3599,12 @@ async function buildDocDef(template: DocumentTemplate, input: DocumentInput): Pr
           {
             // Small-caps simulation: first letter of each word at 35pt, rest at 23pt
             text: [
-              { text: "A", fontSize: 43, bold: true, color: BRAND.certNavy },
-              { text: "TTESTATION ", fontSize: 28, bold: true, color: BRAND.certNavy, characterSpacing: 1.8 },
-              { text: "D", fontSize: 43, bold: true, color: BRAND.certNavy },
-              { text: "'", fontSize: 28, bold: true, color: BRAND.certNavy },
-              { text: "A", fontSize: 43, bold: true, color: BRAND.certNavy },
-              { text: "DHÉSION", fontSize: 28, bold: true, color: BRAND.certNavy, characterSpacing: 1.8 },
+              { text: "A", fontSize: 42, bold: true, color: BRAND.certNavy, font: "DejaVuSerif" },
+              { text: "TTESTATION ", fontSize: 30, bold: true, color: BRAND.certNavy, font: "DejaVuSerif", characterSpacing: 2.5 },
+              { text: "D", fontSize: 42, bold: true, color: BRAND.certNavy, font: "DejaVuSerif" },
+              { text: "'", fontSize: 30, bold: true, color: BRAND.certNavy, font: "DejaVuSerif" },
+              { text: "A", fontSize: 42, bold: true, color: BRAND.certNavy, font: "DejaVuSerif" },
+              { text: "DHÉSION", fontSize: 30, bold: true, color: BRAND.certNavy, font: "DejaVuSerif", characterSpacing: 2.5 },
             ],
             alignment: "center" as const,
             margin: [0, 0, 0, 6],
@@ -3632,9 +3646,9 @@ async function buildDocDef(template: DocumentTemplate, input: DocumentInput): Pr
       const photoH = 138;
       const attPhotoFallbackSvg = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 112 138">
         <rect width="112" height="138" fill="#EDF0F5" rx="3"/>
-        <circle cx="56" cy="66" r="46" fill="#1B3A7A" stroke="#C4963A" stroke-width="2.5"/>
-        <circle cx="56" cy="66" r="40" fill="#172E62"/>
-        <text x="56" y="80" text-anchor="middle" font-family="Helvetica,Arial,sans-serif" font-size="30" font-weight="bold" fill="white" letter-spacing="4">${attInitials}</text>
+        <circle cx="56" cy="69" r="50" fill="#1B3A7A" stroke="#C4963A" stroke-width="2.5"/>
+        <circle cx="56" cy="69" r="44" fill="#172E62"/>
+        <text x="56" y="84" text-anchor="middle" font-family="Helvetica,Arial,sans-serif" font-size="32" font-weight="bold" fill="white" letter-spacing="4">${attInitials}</text>
       </svg>`;
       const photoCell: unknown = attAvatarBase64
         ? { image: attAvatarBase64, width: photoW, height: photoH, fit: [photoW, photoH] }
