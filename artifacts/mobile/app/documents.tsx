@@ -194,6 +194,8 @@ export default function DocumentsScreen() {
   const [showSign,   setShowSign]   = useState(false);
   const [signing,    setSigning]    = useState(false);
   const [sigEmpty,   setSigEmpty]   = useState(true);
+  // Bumped after a successful sign to force SignatureOrderPanel to remount + re-fetch
+  const [sigPanelKey, setSigPanelKey] = useState(0);
   const sigPadRef = useRef<SignaturePadHandle>(null);
   const sigSvgRef = useRef<string>("");
 
@@ -490,6 +492,7 @@ export default function DocumentsScreen() {
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
       await refreshDocuments().catch(() => {});
       setShowSign(false);
+      setSigPanelKey((k) => k + 1);   // forces SignatureOrderPanel to re-fetch
       setSelected((s) => (s ? { ...s, status: "signed" as Document["status"] } : s));
       showToast({ type: "success", title: "Document signé", message: "Votre signature électronique a été enregistrée avec succès." });
     } catch (err: any) {
@@ -1231,6 +1234,7 @@ export default function DocumentsScreen() {
                     SIGNATURES ÉLECTRONIQUES
                   </Text>
                   <SignatureOrderPanel
+                    key={sigPanelKey}
                     documentId={selected.id}
                     onSignPress={["generated", "validated"].includes(selected.status) ? openSign : undefined}
                   />

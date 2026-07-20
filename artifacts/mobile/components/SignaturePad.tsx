@@ -1,4 +1,4 @@
-import React, { useCallback, useMemo, useRef, useState } from "react";
+import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { PanResponder, StyleSheet, View } from "react-native";
 import Svg, { Path } from "react-native-svg";
 
@@ -31,6 +31,12 @@ const SignaturePad = React.forwardRef<SignaturePadHandle, SignaturePadProps>(
     const currentPath = useRef<string>("");
     const [, forceRender] = useState(0);
 
+    // Keep onChange in a ref so the panResponder is never recreated when the
+    // parent re-renders (inline onChange would change ref every render, causing
+    // useMemo to rebuild PanResponder and interrupt an active touch/stroke).
+    const onChangeRef = useRef(onChange);
+    useEffect(() => { onChangeRef.current = onChange; }, [onChange]);
+
     const buildSvg = useCallback(
       (allPaths: string[]) => {
         const pathTags = allPaths
@@ -61,14 +67,18 @@ const SignaturePad = React.forwardRef<SignaturePadHandle, SignaturePadProps>(
             if (currentPath.current) {
               setPaths((prev) => {
                 const next = [...prev, currentPath.current];
-                onChange?.(buildSvg(next), next.length === 0);
+                onChangeRef.current?.(buildSvg(next), next.length === 0);
                 return next;
               });
               currentPath.current = "";
             }
           },
         }),
-      [buildSvg, onChange],
+      // onChange intentionally excluded — we use onChangeRef to avoid
+      // recreating the PanResponder (and interrupting an active stroke) on
+      // every parent re-render.
+      // eslint-disable-next-line react-hooks/exhaustive-deps
+      [buildSvg],
     );
 
     React.useImperativeHandle(ref, () => ({

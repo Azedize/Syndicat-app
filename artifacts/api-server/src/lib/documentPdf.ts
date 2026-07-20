@@ -3410,29 +3410,71 @@ async function buildDocDef(template: DocumentTemplate, input: DocumentInput): Pr
       </svg>`;
       const attSeal = { svg: attSealSvg, width: 90, height: 90 };
 
+      // ── Decorative certificate border (drawn behind all content) ────────────
+      backgroundFn = (_page: number, ps: { width: number; height: number }) => {
+        const { width: W, height: H } = ps;
+        const m = 10;
+        return {
+          canvas: [
+            // Outer navy border
+            { type: "rect" as const, x: m, y: m, w: W - 2*m, h: H - 2*m, lineColor: BRAND.certNavy, lineWidth: 2, r: 2 },
+            // Inner thin navy border
+            { type: "rect" as const, x: m+5, y: m+5, w: W - 2*(m+5), h: H - 2*(m+5), lineColor: BRAND.certNavy, lineWidth: 0.5, r: 1 },
+            // Gold corner ornaments — top-left
+            { type: "rect" as const, x: m+9,     y: m+9,     w: 15, h: 15, lineColor: BRAND.certGold, lineWidth: 0.9 },
+            // top-right
+            { type: "rect" as const, x: W-m-24,  y: m+9,     w: 15, h: 15, lineColor: BRAND.certGold, lineWidth: 0.9 },
+            // bottom-left
+            { type: "rect" as const, x: m+9,     y: H-m-24,  w: 15, h: 15, lineColor: BRAND.certGold, lineWidth: 0.9 },
+            // bottom-right
+            { type: "rect" as const, x: W-m-24,  y: H-m-24,  w: 15, h: 15, lineColor: BRAND.certGold, lineWidth: 0.9 },
+          ],
+        };
+      };
+
       // ── 1. Certificate white header ─────────────────────────────────────────
       // Cap to 2 words max so the first column never wraps beyond 1 line
       const hdrSyndName = (syndInfo.name || "SYNDICARE")
         .trim().split(/\s+/).slice(0, 2).join(" ").toUpperCase();
 
+      // SVG multi-building logo (matches SYNDICARE brand icon)
+      const hdrLogoSvg = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24">
+        <rect x="8" y="6"  width="8"  height="18" fill="none" stroke="#1B3A7A" stroke-width="1.3"/>
+        <rect x="10" y="9"  width="2"  height="2"  fill="#1B3A7A"/>
+        <rect x="12.2" y="9"  width="2"  height="2"  fill="#C4963A"/>
+        <rect x="10" y="13" width="2"  height="2"  fill="#1B3A7A"/>
+        <rect x="12.2" y="13" width="2"  height="2"  fill="#1B3A7A"/>
+        <rect x="10.5" y="20" width="3"  height="4"  fill="#1B3A7A"/>
+        <rect x="1"  y="11" width="6"  height="13" fill="none" stroke="#1B3A7A" stroke-width="1.1"/>
+        <rect x="2.5" y="13.5" width="1.8" height="1.8" fill="#C4963A"/>
+        <rect x="2.5" y="17.5" width="1.8" height="1.8" fill="#1B3A7A"/>
+        <rect x="17" y="11" width="6"  height="13" fill="none" stroke="#1B3A7A" stroke-width="1.1"/>
+        <rect x="18.5" y="13.5" width="1.8" height="1.8" fill="#C4963A"/>
+        <rect x="18.5" y="17.5" width="1.8" height="1.8" fill="#1B3A7A"/>
+      </svg>`;
+
+      // SVG shield icon for security badge
+      const hdrShieldSvg = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 16 19">
+        <path d="M8,1.2 L14.5,4 L14.5,9.5 Q14.5,14.5 8,17.5 Q1.5,14.5 1.5,9.5 L1.5,4 Z"
+              fill="none" stroke="#1B3A7A" stroke-width="1.3" stroke-linejoin="round"/>
+        <polyline points="5.5,9.5 7.2,11.5 10.8,7" stroke="#1B3A7A" stroke-width="1.3"
+                  fill="none" stroke-linecap="round" stroke-linejoin="round"/>
+      </svg>`;
+
       const certHdr: unknown = {
         table: {
           widths: [140, 1, "*", 108],
           body: [[
-            // Logo block: icon + compact name (≤2 words) + sub-label
+            // Logo block: SVG building icon + compact name (≤2 words) + sub-label
             {
               columns: [
-                {
-                  text: "⌂",
-                  fontSize: 18, bold: true, color: BRAND.certNavy,
-                  width: 22, margin: [0, 1, 0, 0],
-                },
+                { svg: hdrLogoSvg, width: 24, height: 24, margin: [0, 0, 0, 0] },
                 {
                   stack: [
                     { text: hdrSyndName, fontSize: 9, bold: true, color: BRAND.certNavy, characterSpacing: 0.2, lineHeight: 1.15 },
                     { text: "SYNDICATE MANAGEMENT", fontSize: 5, bold: true, color: BRAND.certGold, characterSpacing: 0.8 },
                   ],
-                  width: "*", margin: [4, 0, 0, 0],
+                  width: "*", margin: [5, 0, 0, 0],
                 },
               ],
               border: [false, false, false, false] as [boolean, boolean, boolean, boolean],
@@ -3454,12 +3496,19 @@ async function buildDocDef(template: DocumentTemplate, input: DocumentInput): Pr
               border: [false, false, false, false] as [boolean, boolean, boolean, boolean],
               margin: [12, 10, 12, 8],
             },
-            // Right: security badge
+            // Right: shield icon + security badge text
             {
-              stack: [
-                { text: "◉  SÉCURISÉ. CERTIFIÉ.", fontSize: 6, bold: true, color: BRAND.certNavy, alignment: "right" as const },
-                { text: "CONFORME.", fontSize: 6, bold: true, color: BRAND.certNavy, alignment: "right" as const },
+              columns: [
+                { svg: hdrShieldSvg, width: 14, height: 17, margin: [0, 0, 4, 0] },
+                {
+                  stack: [
+                    { text: "SÉCURISÉ. CERTIFIÉ.", fontSize: 6, bold: true, color: BRAND.certNavy },
+                    { text: "CONFORME.", fontSize: 6, bold: true, color: BRAND.certNavy },
+                  ],
+                  margin: [0, 0, 0, 0],
+                },
               ],
+              alignment: "right" as const,
               border: [false, false, false, false] as [boolean, boolean, boolean, boolean],
               margin: [0, 10, 0, 0],
             },
