@@ -4242,58 +4242,436 @@ async function buildDocDef(template: DocumentTemplate, input: DocumentInput): Pr
       ];
       break;
 
-    case "contrat":
-      content = [
-        ...buildLegalContractCover(syndInfo, theme.categoryLabel, docNum, qrDataUrl, accentColor, today, logoDataUrl, buildingName, version),
-        { text: "CONTRAT", fontSize: 18, bold: true, color: accentColor, alignment: "center" as const, margin: [0, 0, 0, 4] },
-        { text: input.title, style: "docTitle", alignment: "center" as const, margin: [0, 0, 0, 4] },
-        { text: `Réf. ${docNum}  •  ${today}`, fontSize: 8, color: BRAND.muted, alignment: "center" as const, margin: [0, 0, 0, 16] },
-        // Two-column party strip
-        {
-          columns: [
-            {
-              stack: [
-                { text: "PARTIE 1 — SYNDICAT", fontSize: 8, bold: true, color: accentColor, margin: [0, 0, 0, 4] },
-                { canvas: [{ type: "line", x1: 0, y1: 0, x2: 220, y2: 0, lineWidth: 1, lineColor: accentColor }], margin: [0, 0, 0, 8] },
-                { text: syndInfo.name, fontSize: 11, bold: true, color: BRAND.ink, margin: [0, 0, 0, 3] },
-                { text: [syndInfo.address, syndInfo.city].filter(Boolean).join(", ") || "—", fontSize: 8.5, color: BRAND.muted },
-                { text: syndInfo.phone || "", fontSize: 8.5, color: BRAND.muted },
-                { text: syndInfo.email || "", fontSize: 8.5, color: BRAND.muted },
-                ...(syndInfo.registrationNumber ? [{ text: `N° Reg. : ${syndInfo.registrationNumber}`, fontSize: 8, color: BRAND.mutedLight, margin: [0, 4, 0, 0] }] : []),
-              ],
-              width: "50%",
-            },
-            {
-              stack: [
-                { text: "PARTIE 2 — COCONTRACTANT", fontSize: 8, bold: true, color: accentColor, margin: [0, 0, 0, 4] },
-                { canvas: [{ type: "line", x1: 0, y1: 0, x2: 220, y2: 0, lineWidth: 1, lineColor: accentColor }], margin: [0, 0, 0, 8] },
-                { text: member || (input.partie2 as string) || "[COCONTRACTANT]", fontSize: 11, bold: true, color: BRAND.ink, margin: [0, 0, 0, 3] },
-                ...(input._memberEmail ? [{ text: input._memberEmail as string, fontSize: 8.5, color: BRAND.muted }] : []),
-                ...(input._memberPhone ? [{ text: input._memberPhone as string, fontSize: 8.5, color: BRAND.muted }] : []),
-                ...(input._lotNumber   ? [{ text: `Lot N° ${input._lotNumber as string}${input._buildingName ? ` — ${input._buildingName as string}` : ""}`, fontSize: 8, color: BRAND.mutedLight, margin: [0, 4, 0, 0] }] : []),
-              ],
-              width: "50%",
-            },
-          ],
-          columnGap: 20,
-          margin: [0, 0, 0, 16],
+    case "contrat": {
+      // ── Color tokens matching HTML template palette ─────────────────────
+      const ctNavy     = "#0b1e30";
+      const ctGold     = accentColor;   // BRAND.legalGold ≈ #C9A84C
+      const ctGoldSoft = "#e1d4b8";
+      const ctInk      = BRAND.ink;
+      const ctMuted    = BRAND.muted;
+      const ctLine     = "#d9d2c5";
+
+      // ── Data extraction ─────────────────────────────────────────────────
+      const ctTitle      = (input.title as string) || "CONTRAT DE SERVICES";
+      const ctSubtitle   = (input._contractSubtitle as string) || "ENGAGEMENT RÉCIPROQUE & CONDITIONS GÉNÉRALES";
+      const ctIntro      = (input._introText as string)
+        || `Le présent contrat de services est conclu de bonne foi entre les parties ci-dessous désignées. ` +
+           `Il définit l'ensemble des droits, obligations et engagements réciproques pour la durée convenue.`;
+      const ctVersion    = version || (input._version as string) || "v1.0";
+      const ctEffDate    = (input.dateDebut as string) || today;
+      const ctEndDate    = (input.dateFin  as string) || "";
+      const ctObjet      = (input.objet    as string) || ctTitle;
+      const ctConfTitle  = (input._confidentialTitle as string) || "DOCUMENT CONFIDENTIEL";
+      const ctConfText   = (input._confidentialText as string)
+        || "Ce document contient des informations confidentielles destinées exclusivement aux parties signataires. Toute reproduction ou divulgation non autorisée est strictement interdite.";
+
+      const ctParty2Name  = member || (input.partie2 as string) || "[COCONTRACTANT]";
+      const ctParty2Addr  = (input._memberAddress as string) || (input._buildingAddress as string) || "";
+      const ctParty2Phone = (input._memberPhone as string) || "";
+      const ctParty2Email = (input._memberEmail as string) || "";
+      const ctParty2Lot   = (input._lotNumber   as string) || "";
+      const ctParty2Bldg  = (input._buildingName as string) || "";
+
+      // Parse clause arrays from JSON input (with sensible defaults)
+      const parseClauses = (key: string, defaults: string[]): string[] => {
+        try { const raw = input[key] as string | undefined; if (raw) return JSON.parse(raw); } catch { /* ok */ }
+        return defaults;
+      };
+      const scopeClauses = parseClauses("_scopeClauses", [
+        `Le présent contrat a pour objet : ${ctObjet}. Les prestations sont réalisées selon les conditions définies ci-après et conformément à la réglementation en vigueur.`,
+        `Toute prestation supplémentaire non prévue au présent contrat devra faire l'objet d'un avenant écrit signé par les deux parties.`,
+      ]);
+      const obligationClauses = parseClauses("_obligationClauses", [
+        `Le Prestataire s'engage à exécuter les prestations dans le respect des règles de l'art, de la réglementation en vigueur et des délais convenus.`,
+        `Le Client s'engage à régler les prestations dans les délais contractuels et à fournir les informations et accès nécessaires à leur bonne exécution.`,
+        `Les deux parties s'engagent à respecter la confidentialité des informations échangées dans le cadre du présent contrat, pendant toute sa durée et au-delà.`,
+      ]);
+      const conditionClauses = parseClauses("_conditionClauses", [
+        ctEndDate
+          ? `Le présent contrat est conclu pour une durée déterminée du ${ctEffDate} au ${ctEndDate}, sauf résiliation anticipée par l'une des parties.`
+          : `Le présent contrat prend effet à compter du ${ctEffDate} et est conclu pour une durée indéterminée, résiliable selon les conditions ci-après.`,
+        `Toute résiliation anticipée doit être notifiée par lettre recommandée avec accusé de réception, dans un délai de trente (30) jours.`,
+        `En cas de manquement grave ou répété à l'une des obligations contractuelles, la partie lésée peut résilier de plein droit, sans indemnité.`,
+      ]);
+      const generalClauses = parseClauses("_generalClauses", [
+        `Tout différend relatif à l'interprétation ou à l'exécution du présent contrat sera soumis à la médiation, puis, à défaut d'accord, à la juridiction compétente de Casablanca.`,
+        `Le présent contrat annule et remplace tout accord antérieur entre les parties portant sur le même objet et constitue l'intégralité de leurs engagements réciproques.`,
+      ]);
+
+      // Signature detection
+      const ctPresSig   = signatures.find((s) => ["president", "syndicate_admin", "super_admin"].includes(s.signerRole));
+      const ctClientSig = signatures.find((s) => ["tenant", "member"].includes(s.signerRole));
+      const ctHasPres   = isSvgData(ctPresSig?.signatureData);
+      const ctHasClient = isSvgData(ctClientSig?.signatureData);
+
+      // ── HELPERS ─────────────────────────────────────────────────────────
+      const ctMicroLbl = (txt: string): unknown => ({
+        text: txt.toUpperCase(), fontSize: 6, bold: true, color: ctMuted,
+        characterSpacing: 0.7, margin: [0, 0, 0, 2] as [number, number, number, number],
+      });
+
+      // Gold diamond divider: ——◇——
+      const goldDivider: unknown = {
+        columns: [
+          { canvas: [{ type: "line", x1: 0, y1: 3, x2: 190, y2: 3, lineWidth: 0.8, lineColor: ctGoldSoft }], width: "*" },
+          { canvas: [{ type: "polyline", points: [{x:5,y:0},{x:10,y:5},{x:5,y:10},{x:0,y:5}], closePath: true, color: ctGold }], width: 12, margin: [0, -2, 0, 0] },
+          { canvas: [{ type: "line", x1: 0, y1: 3, x2: 190, y2: 3, lineWidth: 0.8, lineColor: ctGoldSoft }], width: "*" },
+        ],
+        columnGap: 8, margin: [0, 10, 0, 10],
+      };
+
+      // Clause section heading (gold square icon + navy tracked text)
+      const clauseHd = (title: string): unknown => ({
+        columns: [
+          { canvas: [{ type: "rect", x: 0, y: 1, w: 15, h: 15, color: ctGold }], width: 18 },
+          { text: title.toUpperCase(), fontSize: 8.5, bold: true, color: ctNavy, characterSpacing: 0.4, width: "*", margin: [4, 1, 0, 0] },
+        ],
+        margin: [0, 14, 0, 7],
+      });
+
+      // Numbered clause row
+      const clauseRow = (num: string, txt: string): unknown => ({
+        columns: [
+          { text: num, fontSize: 9, bold: true, color: ctNavy, width: 28 },
+          { text: txt, fontSize: 8.5, color: ctInk, lineHeight: 1.48, width: "*" },
+        ],
+        margin: [0, 6, 0, 0],
+      });
+
+      // ═══════════════════════════════════════════════════════════════════
+      // PAGE 1 — COVER PAGE
+      // ═══════════════════════════════════════════════════════════════════
+
+      // -- Cover banner: navy background with chevron bottom --
+      const ctAcronym  = syndInfo.name.split(/\s+/).map((w: string) => w[0] ?? "").join("").slice(0, 3).toUpperCase();
+      const ctLogoEl: unknown = logoDataUrl
+        ? { image: logoDataUrl, width: 52, height: 52, fit: [52, 52] as [number, number] }
+        : {
+            stack: [
+              { canvas: [{ type: "ellipse", x: 26, y: 26, r1: 26, r2: 26, color: `${ctGold}33`, lineWidth: 1.5, lineColor: ctGold }] },
+              { text: ctAcronym, fontSize: 12, bold: true, color: "#fff", alignment: "center" as const, margin: [0, -42, 0, 0] },
+            ],
+          };
+
+      // Navy banner cell (fillColor approach = most reliable in pdfmake)
+      const coverBanner: unknown = {
+        table: {
+          widths: ["*"],
+          body: [[{
+            stack: [
+              { stack: [ctLogoEl], alignment: "center" as const, margin: [0, 0, 0, 8] },
+              { text: syndInfo.name.toUpperCase(), fontSize: 9.5, bold: true, color: "#ffffff", alignment: "center" as const, characterSpacing: 1.4, margin: [0, 0, 0, 3] },
+              { text: syndInfo.address || "Syndicat de Copropriété", fontSize: 7, color: `${ctGold}cc`, alignment: "center" as const, margin: [0, 0, 0, 7] },
+              { canvas: [{ type: "line", x1: 185, y1: 0, x2: 330, y2: 0, lineWidth: 0.8, lineColor: ctGold }] },
+            ],
+            fillColor: ctNavy,
+            margin: [0, 22, 0, 22],
+            border: [false, false, false, false] as [boolean, boolean, boolean, boolean],
+          }]],
         },
-        metaTable([
-          ["Objet du contrat :", input.objet as string || input.title],
-          ["Date d'entrée en vigueur :", input.dateDebut as string || today],
-          ...(input.dateFin ? [["Date d'expiration :", input.dateFin as string] as [string, string]] : []),
-        ], accentColor),
-        contentSection("Préambule", input.preamble as string || `Le présent contrat est conclu entre ${syndInfo.name} (Partie 1) et ${member || "[COCONTRACTANT]"} (Partie 2) et définit les droits et obligations des parties pour la durée convenue.`, accentColor),
-        contentSection(
-          "Clauses et conditions",
-          body || "Les parties conviennent des clauses et conditions détaillées ci-après. Tout différend relatif à l'interprétation ou à l'exécution du présent contrat sera soumis à la juridiction compétente de Casablanca.",
-          accentColor,
-        ),
-        ...(input.modalitesResiliation as string ? [contentSection("Modalités de résiliation", input.modalitesResiliation as string, accentColor)] : []),
-        signatureBlock("Le Président du Syndicat", syndInfo.name, accentColor, true, lang, signatures),
-        legalFooterNote(docNum, lang, verifyUrl),
+        layout: { hLineWidth: () => 0, vLineWidth: () => 0, paddingLeft: () => 0, paddingRight: () => 0, paddingTop: () => 0, paddingBottom: () => 0 },
+        margin: [0, 0, 0, 0],
+      };
+
+      // Chevron (V-shaped notch pointing down) below the banner — simulates CSS clip-path
+      const chevron: unknown = {
+        canvas: [{
+          type: "polyline",
+          points: [{ x: 0, y: 0 }, { x: 515, y: 0 }, { x: 515, y: 24 }, { x: 257, y: 38 }, { x: 0, y: 24 }],
+          closePath: true,
+          color: ctNavy,
+        }],
+        margin: [0, 0, 0, 30],
+      };
+
+      // -- Title block (centered) --
+      const coverTitle: unknown = {
+        stack: [
+          { text: ctTitle.toUpperCase(), fontSize: 21, bold: true, color: ctNavy, alignment: "center" as const, lineHeight: 1.05 },
+          { text: ctSubtitle.toUpperCase(), fontSize: 7.5, color: ctMuted, alignment: "center" as const, characterSpacing: 1.0, margin: [0, 6, 0, 0] },
+          goldDivider,
+          { text: ctIntro, fontSize: 8.5, color: ctInk, alignment: "center" as const, lineHeight: 1.65, margin: [30, 0, 30, 0] },
+          // Date block
+          {
+            stack: [
+              ctMicroLbl("DATE D'ENTRÉE EN VIGUEUR"),
+              { text: ctEffDate, fontSize: 12, bold: true, color: ctNavy, alignment: "center" as const, margin: [0, 4, 0, 6] },
+            ],
+            alignment: "center" as const,
+            margin: [0, 14, 0, 0],
+          },
+          { canvas: [{ type: "line", x1: 160, y1: 0, x2: 355, y2: 0, lineWidth: 0.6, lineColor: ctLine }] },
+        ],
+        margin: [0, 0, 0, 20],
+      };
+
+      // -- Parties section --
+      const ctParty1Details = [
+        [syndInfo.address, syndInfo.city].filter(Boolean).join(", ") || null,
+        syndInfo.phone || null,
+        syndInfo.email || null,
+        syndInfo.registrationNumber ? `N° Reg. : ${syndInfo.registrationNumber}` : null,
+      ].filter(Boolean) as string[];
+
+      const ctParty2Details = [
+        ctParty2Addr    || null,
+        ctParty2Phone   || null,
+        ctParty2Email   || null,
+        ctParty2Lot     ? `Lot N° ${ctParty2Lot}${ctParty2Bldg ? ` — ${ctParty2Bldg}` : ""}` : null,
+      ].filter(Boolean) as string[];
+
+      const partyCard = (num: string, label: string, name: string, details: string[]): unknown => ({
+        columns: [
+          { text: num, fontSize: 12, bold: true, color: ctGold, width: 24, margin: [0, 1, 0, 0] },
+          {
+            stack: [
+              ctMicroLbl(label),
+              { text: name, fontSize: 11, bold: true, color: ctNavy, margin: [0, 3, 0, 2] },
+              ...details.map((d) => ({ text: d, fontSize: 8, color: "#4e5962", lineHeight: 1.45 } as unknown)),
+            ],
+            width: "*",
+          },
+        ],
+        columnGap: 6,
+        margin: [0, 8, 0, 0],
+      });
+
+      const partiesSection: unknown = {
+        stack: [
+          // Heading with centered text
+          {
+            columns: [
+              { canvas: [{ type: "line", x1: 0, y1: 6, x2: 130, y2: 6, lineWidth: 0.5, lineColor: ctLine }], width: "*" },
+              { text: "LES PARTIES AU CONTRAT", fontSize: 8.5, bold: true, color: ctNavy, characterSpacing: 0.5, width: "auto", margin: [0, 0, 0, 0] },
+              { canvas: [{ type: "line", x1: 0, y1: 6, x2: 130, y2: 6, lineWidth: 0.5, lineColor: ctLine }], width: "*" },
+            ],
+            columnGap: 10, margin: [0, 0, 0, 4],
+          },
+          partyCard("01", "PRESTATAIRE — SYNDICAT", syndInfo.name, ctParty1Details),
+          { canvas: [{ type: "line", x1: 0, y1: 0, x2: 515, y2: 0, lineWidth: 0.4, lineColor: ctLine }], margin: [0, 8, 0, 0] },
+          partyCard("02", "CLIENT — COCONTRACTANT",  ctParty2Name, ctParty2Details),
+          { canvas: [{ type: "line", x1: 0, y1: 0, x2: 515, y2: 0, lineWidth: 0.4, lineColor: ctLine }], margin: [0, 8, 0, 0] },
+        ],
+        margin: [0, 0, 0, 18],
+      };
+
+      // -- Confidential box (gold border + lock icon + text) --
+      const confidentialBox: unknown = {
+        table: {
+          widths: [26, "*"],
+          body: [[
+            {
+              canvas: [
+                { type: "rect", x: 0, y: 0, w: 18, h: 18, color: `${ctGold}22`, lineWidth: 1, lineColor: ctGold },
+                { type: "rect", x: 3, y: 5, w: 12, h: 9, r: 2, color: ctGold },
+                { type: "ellipse", x: 9, y: 5, r1: 5, r2: 5, color: `${ctGold}00`, lineWidth: 1.5, lineColor: ctGold },
+              ],
+              margin: [0, 4, 0, 0],
+              border: [false, false, false, false] as [boolean, boolean, boolean, boolean],
+            },
+            {
+              stack: [
+                { text: ctConfTitle.toUpperCase(), fontSize: 7.5, bold: true, color: ctNavy, margin: [0, 0, 0, 3] },
+                { text: ctConfText, fontSize: 7.5, color: ctInk, lineHeight: 1.5 },
+              ],
+              border: [false, false, false, false] as [boolean, boolean, boolean, boolean],
+              margin: [0, 4, 0, 6],
+            },
+          ]],
+        },
+        layout: {
+          hLineWidth: (i: number, n: { table: { body: unknown[] } }) => i === 0 || i === n.table.body.length ? 1 : 0,
+          vLineWidth: (i: number) => i === 0 || i === 2 ? 1 : 0,
+          hLineColor: () => ctGold, vLineColor: () => ctGold,
+          paddingLeft: () => 0, paddingRight: () => 0, paddingTop: () => 0, paddingBottom: () => 0,
+        },
+      };
+
+      // ═══════════════════════════════════════════════════════════════════
+      // PAGE 2 — TERMS PAGE
+      // ═══════════════════════════════════════════════════════════════════
+
+      // -- Document reference header --
+      const docRefHeader: unknown = {
+        stack: [
+          {
+            columns: [
+              {
+                stack: [
+                  ctMicroLbl("RÉFÉRENCE DU CONTRAT"),
+                  { text: docNum, fontSize: 11, bold: true, color: ctNavy, margin: [0, 3, 0, 0] },
+                ],
+                width: "*",
+              },
+              {
+                stack: [
+                  ctMicroLbl("VERSION DU DOCUMENT"),
+                  { text: ctVersion, fontSize: 11, bold: true, color: ctNavy, alignment: "right" as const, margin: [0, 3, 0, 0] },
+                ],
+                width: "auto",
+              },
+            ],
+            margin: [0, 0, 0, 10],
+          },
+          { canvas: [{ type: "rect", x: 0, y: 0, w: 515, h: 2, color: ctNavy }] },
+        ],
+        margin: [0, 0, 0, 6],
+        pageBreak: "before" as const,
+      };
+
+      // -- Clause sections --
+      const clauseSeparator: unknown = { canvas: [{ type: "line", x1: 0, y1: 0, x2: 515, y2: 0, lineWidth: 0.4, lineColor: ctLine }], margin: [0, 0, 0, 0] };
+
+      const scopeSection: unknown = {
+        stack: [
+          clauseHd("OBJET ET PÉRIMÈTRE DU CONTRAT"),
+          ...scopeClauses.map((txt, i) => clauseRow(`${i + 1}.${i + 1}`, txt)),
+          clauseSeparator,
+        ],
+        margin: [0, 0, 0, 4],
+      };
+
+      const obligationsSection: unknown = {
+        stack: [
+          clauseHd("OBLIGATIONS DES PARTIES"),
+          ...obligationClauses.map((txt, i) => clauseRow(`${i + 2}.${i + 1}`, txt)),
+          clauseSeparator,
+        ],
+        margin: [0, 0, 0, 4],
+      };
+
+      const conditionsSection: unknown = {
+        stack: [
+          clauseHd("CONDITIONS FINANCIÈRES & RÉSILIATION"),
+          ...conditionClauses.map((txt, i) => clauseRow(`${i + 3}.${i + 1}`, txt)),
+          ...(input.modalitesResiliation as string
+            ? [clauseRow("3.4", input.modalitesResiliation as string)]
+            : []),
+          clauseSeparator,
+        ],
+        margin: [0, 0, 0, 4],
+      };
+
+      const generalSection: unknown = {
+        stack: [
+          clauseHd("DISPOSITIONS GÉNÉRALES"),
+          ...generalClauses.map((txt, i) => clauseRow(`${i + 4}.${i + 1}`, txt)),
+          clauseSeparator,
+        ],
+        margin: [0, 0, 0, 4],
+      };
+
+      // -- Signature panel (2-column grid) --
+      const ctSealObj = buildOfficialSeal(syndInfo.name, ctGold, ctPresSig?.signerName, today);
+
+      const sigCard = (
+        label: string, company: string, role: string,
+        hasSig: boolean, sigData: string | null | undefined,
+        signerName: string | undefined,
+      ): unknown => ({
+        stack: [
+          ctMicroLbl(label),
+          { text: company, fontSize: 9, bold: true, color: ctNavy, margin: [0, 4, 0, 0] },
+          // Signature mark area (min 48pt)
+          {
+            stack: hasSig && sigData
+              ? [{ svg: sigData, width: 160, height: 46, alignment: "left" as const, margin: [0, 8, 0, 4] }]
+              : [{ canvas: [{ type: "line", x1: 0, y1: 24, x2: 200, y2: 24, lineWidth: 0.6, lineColor: ctLine }], margin: [0, 0, 0, 4] }],
+            height: 54,
+          },
+          { text: signerName || "—", fontSize: 8.5, bold: true, color: ctInk, margin: [0, 0, 0, 1] },
+          { text: role, fontSize: 7, color: ctMuted },
+          { text: today, fontSize: 7, color: ctMuted },
+        ],
+        margin: [12, 10, 12, 12],
+        border: [false, false, false, false] as [boolean, boolean, boolean, boolean],
+      });
+
+      const signaturesPanel: unknown = {
+        stack: [
+          clauseHd("SIGNATURES DES PARTIES"),
+          {
+            table: {
+              widths: ["50%", "50%"],
+              body: [[
+                sigCard("LE PRESTATAIRE", syndInfo.name, "Président du Syndicat", ctHasPres, ctPresSig?.signatureData, ctPresSig?.signerName),
+                sigCard("LE CLIENT", ctParty2Name, "Cocontractant", ctHasClient, ctClientSig?.signatureData, ctClientSig?.signerName ?? ctParty2Name),
+              ]],
+            },
+            layout: {
+              hLineWidth: (i: number, n: { table: { body: unknown[] } }) => i === 0 || i === n.table.body.length ? 0.6 : 0,
+              vLineWidth: (i: number) => i === 0 || i === 2 ? 0.6 : 0.4,
+              hLineColor: () => ctLine, vLineColor: () => ctLine,
+              paddingLeft: () => 0, paddingRight: () => 0, paddingTop: () => 0, paddingBottom: () => 0,
+            },
+          },
+        ],
+        margin: [0, 8, 0, 12],
+      };
+
+      // -- Verification box (QR + cert info) --
+      const ctVerifyBox: unknown = {
+        table: {
+          widths: [76, "*"],
+          body: [[
+            {
+              stack: qrDataUrl
+                ? [{ image: qrDataUrl, width: 60, height: 60, margin: [6, 8, 6, 8] }]
+                : [{ canvas: [{ type: "rect", x: 6, y: 8, w: 60, h: 60, color: BRAND.surface }] }],
+              border: [false, false, false, false] as [boolean, boolean, boolean, boolean],
+            },
+            {
+              stack: [
+                { text: "VÉRIFICATION NUMÉRIQUE", fontSize: 7, bold: true, color: ctNavy, characterSpacing: 0.4, margin: [0, 0, 0, 4] },
+                { text: "Scannez le QR code pour vérifier l'authenticité de ce document officiel.", fontSize: 7.5, color: ctMuted, lineHeight: 1.45, margin: [0, 0, 0, 5] },
+                { text: `ID CERTIFICAT : ${docNum}`, fontSize: 7, bold: true, color: ctNavy, margin: [0, 0, 0, 3] },
+                { text: verifyUrl || `Réf. ${docNum} — ${syndInfo.name}`, fontSize: 6.5, color: ctMuted },
+              ],
+              margin: [0, 8, 12, 8],
+              border: [false, false, false, false] as [boolean, boolean, boolean, boolean],
+            },
+          ]],
+        },
+        layout: {
+          hLineWidth: (i: number, n: { table: { body: unknown[] } }) => i === 0 || i === n.table.body.length ? 0.6 : 0,
+          vLineWidth: (i: number) => i === 0 || i === 2 ? 0.6 : 0,
+          hLineColor: () => ctLine, vLineColor: () => ctLine,
+          paddingLeft: () => 0, paddingRight: () => 0, paddingTop: () => 0, paddingBottom: () => 0,
+        },
+        margin: [0, 0, 0, 10],
+      };
+
+      // -- Page footer --
+      const ctPageFooter: unknown = {
+        columns: [
+          { text: `Document confidentiel — ${syndInfo.name} — ${today}`, fontSize: 7, color: ctMuted, width: "*" },
+          { text: `Réf. ${docNum} — Page 2 / 2`, fontSize: 7, color: ctMuted, alignment: "right" as const, width: "auto" },
+        ],
+        margin: [0, 6, 0, 0],
+      };
+
+      // ── Assemble cover + terms ──────────────────────────────────────────
+      content = [
+        // PAGE 1 — cover
+        coverBanner as object,
+        chevron as object,
+        coverTitle as object,
+        partiesSection as object,
+        confidentialBox as object,
+        // PAGE 2 — terms
+        docRefHeader as object,
+        scopeSection as object,
+        obligationsSection as object,
+        conditionsSection as object,
+        generalSection as object,
+        signaturesPanel as object,
+        ctVerifyBox as object,
+        // Seal (centered below verification)
+        { stack: [{ ...(ctSealObj as object), alignment: "center" as const, margin: [0, 6, 0, 0] }], alignment: "center" as const },
+        ctPageFooter as object,
       ];
       break;
+    }
 
     case "rapport": {
       const rapportPeriode = (input.periode as string) || today;
