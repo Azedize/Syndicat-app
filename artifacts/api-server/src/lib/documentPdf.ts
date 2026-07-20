@@ -3557,7 +3557,7 @@ async function buildDocDef(template: DocumentTemplate, input: DocumentInput): Pr
       // Navy rule under header
       const certHeaderRule: unknown = {
         canvas: [{ type: "line", x1: 0, y1: 0, x2: 515, y2: 0, lineWidth: 1.2, lineColor: BRAND.certNavy }],
-        margin: [0, 0, 0, 12],
+        margin: [0, 0, 0, 6],
       };
 
       // ── 2. Big certificate title ────────────────────────────────────────────
@@ -3617,7 +3617,7 @@ async function buildDocDef(template: DocumentTemplate, input: DocumentInput): Pr
             alignment: "center" as const, characterSpacing: 1.5,
           },
         ],
-        margin: [0, 8, 0, 14],
+        margin: [0, 4, 0, 8],
       };
 
       // ── 3. Member profile card — 3 columns ─────────────────────────────────
@@ -3625,50 +3625,17 @@ async function buildDocDef(template: DocumentTemplate, input: DocumentInput): Pr
       const attNameParts = attMemberName.trim().split(/\s+/).filter(Boolean);
       const attInitials  = ((attNameParts[0]?.[0] ?? "M") + (attNameParts[1]?.[0] ?? "")).toUpperCase();
 
-      // Photo area: real image when available, else premium circle-avatar fallback
-      // Circle avatar: navy disc + gold ring + white bold initials (88×88 bounding box)
-      const avatarSize = 86;
+      // Photo: real avatar when available; else a single SVG circle-avatar (no canvas tricks)
+      // Single SVG avoids the canvas+negative-margin overlap bug.
+      const avatarSize = 78;
+      const attAvatarSvg = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 78 78">
+        <circle cx="39" cy="39" r="38.5" fill="#1B3A7A" stroke="#C4963A" stroke-width="2.5"/>
+        <circle cx="39" cy="39" r="34" fill="#172E62"/>
+        <text x="39" y="50" text-anchor="middle" font-family="Helvetica,Arial,sans-serif" font-size="25" font-weight="bold" fill="white" letter-spacing="3">${attInitials}</text>
+      </svg>`;
       const photoCell: unknown = attAvatarBase64
-        ? {
-            // Real member photo — clipped to a square with slight rounding
-            image: attAvatarBase64,
-            width: avatarSize,
-            height: avatarSize,
-            fit: [avatarSize, avatarSize],
-          }
-        : {
-            // Premium circle avatar fallback: navy circle + gold halo ring + white initials
-            stack: [
-              {
-                canvas: [
-                  // Outer gold ring
-                  {
-                    type: "ellipse" as const,
-                    x: avatarSize / 2, y: avatarSize / 2,
-                    r1: avatarSize / 2 - 0.5, r2: avatarSize / 2 - 0.5,
-                    lineColor: BRAND.certGold, lineWidth: 2,
-                  },
-                  // Navy filled circle
-                  {
-                    type: "ellipse" as const,
-                    x: avatarSize / 2, y: avatarSize / 2,
-                    r1: avatarSize / 2 - 3, r2: avatarSize / 2 - 3,
-                    color: BRAND.certNavy,
-                  },
-                ],
-                // canvas height = avatarSize; pull next element up to overlay
-                margin: [0, 0, 0, -avatarSize],
-              },
-              // White initials centred in the circle
-              {
-                text: attInitials,
-                fontSize: 29, bold: true, color: "#FFFFFF",
-                alignment: "center" as const,
-                // vertical centering: (avatarSize - fontSize*1.2) / 2 ≈ (86-35)/2 ≈ 25
-                margin: [0, 25, 0, 0],
-              },
-            ],
-          };
+        ? { image: attAvatarBase64, width: avatarSize, height: avatarSize, fit: [avatarSize, avatarSize] }
+        : { svg: attAvatarSvg, width: avatarSize, height: avatarSize };
 
       // Mini SVG icons for contact rows (navy fill/stroke, 13×13 viewport)
       const icnStatus = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 13 13"><circle cx="6.5" cy="4" r="2.8" fill="#1B3A7A"/><path d="M1,12.5 C1,8.5 12,8.5 12,12.5Z" fill="#1B3A7A"/></svg>`;
@@ -3729,7 +3696,7 @@ async function buildDocDef(template: DocumentTemplate, input: DocumentInput): Pr
               }],
               fillColor: BRAND.surface,
               border: [true, true, false, true] as [boolean, boolean, boolean, boolean],
-              margin: [6, 14, 6, 14],
+              margin: [6, 8, 6, 8],
             },
             // Col 2: Name + contact rows
             {
@@ -3757,7 +3724,7 @@ async function buildDocDef(template: DocumentTemplate, input: DocumentInput): Pr
               ],
               fillColor: BRAND.surfaceCard,
               border: [false, true, false, true] as [boolean, boolean, boolean, boolean],
-              margin: [12, 12, 12, 12],
+              margin: [12, 8, 12, 8],
             },
             // Col 3: Reference + status badge + join date
             {
@@ -3771,7 +3738,7 @@ async function buildDocDef(template: DocumentTemplate, input: DocumentInput): Pr
               ],
               fillColor: BRAND.surfaceCard,
               border: [false, true, true, true] as [boolean, boolean, boolean, boolean],
-              margin: [12, 12, 12, 12],
+              margin: [12, 8, 12, 8],
             },
           ]],
         },
@@ -3782,7 +3749,7 @@ async function buildDocDef(template: DocumentTemplate, input: DocumentInput): Pr
           vLineColor: () => BRAND.border,
           paddingLeft: () => 0, paddingRight: () => 0, paddingTop: () => 0, paddingBottom: () => 0,
         },
-        margin: [0, 0, 0, 10],
+        margin: [0, 0, 0, 4],
       };
 
       // ── 4. Property info card — 2 columns ──────────────────────────────────
@@ -3830,7 +3797,7 @@ async function buildDocDef(template: DocumentTemplate, input: DocumentInput): Pr
                 },
               ],
               border: [true, true, false, true] as [boolean, boolean, boolean, boolean],
-              margin: [14, 14, 14, 14],
+              margin: [14, 10, 14, 10],
             },
             // Right: property info
             {
@@ -3848,7 +3815,7 @@ async function buildDocDef(template: DocumentTemplate, input: DocumentInput): Pr
                 },
               ],
               border: [false, true, true, true] as [boolean, boolean, boolean, boolean],
-              margin: [14, 14, 14, 14],
+              margin: [14, 10, 14, 10],
             },
           ]],
         },
@@ -3859,7 +3826,7 @@ async function buildDocDef(template: DocumentTemplate, input: DocumentInput): Pr
           vLineColor: () => BRAND.border,
           paddingLeft: () => 0, paddingRight: () => 0, paddingTop: () => 0, paddingBottom: () => 0,
         },
-        margin: [0, 0, 0, 10],
+        margin: [0, 0, 0, 4],
       };
 
       // ── 5. Certification paragraph (centered, matches reference image) ──────
@@ -3871,7 +3838,7 @@ async function buildDocDef(template: DocumentTemplate, input: DocumentInput): Pr
         ],
         fontSize: 8.5, color: BRAND.inkMid,
         alignment: "center" as const, lineHeight: 1.65,
-        margin: [20, 0, 20, 14],
+        margin: [20, 2, 20, 8],
       };
 
       // ── 6. Footer: signature | gold seal | QR + verify ─────────────────────
@@ -3917,7 +3884,7 @@ async function buildDocDef(template: DocumentTemplate, input: DocumentInput): Pr
 
       const certFooterRow: unknown = {
         columns: [sigColumn, { text: "", width: 6 }, sealColumn, { text: "", width: 6 }, qrColumn],
-        margin: [0, 0, 0, 10],
+        margin: [0, 0, 0, 6],
       };
 
       // ── 7. eIDAS disclaimer ────────────────────────────────────────────────
@@ -3936,14 +3903,14 @@ async function buildDocDef(template: DocumentTemplate, input: DocumentInput): Pr
         // Shadow wrapper: light-gray offset rect drawn first, card overlaid via negative margin
         {
           stack: [
-            { canvas: [{ type: "rect" as const, x: 4, y: 4, w: 513, h: 128, color: "#DCDCDC", r: 4 }], margin: [0, 0, 0, -132] },
+            { canvas: [{ type: "rect" as const, x: 4, y: 4, w: 513, h: 108, color: "#DCDCDC", r: 4 }], margin: [0, 0, 0, -112] },
             memberCard,
           ],
           margin: [0, 0, 0, 4],
         },
         {
           stack: [
-            { canvas: [{ type: "rect" as const, x: 4, y: 4, w: 513, h: 110, color: "#DCDCDC", r: 4 }], margin: [0, 0, 0, -114] },
+            { canvas: [{ type: "rect" as const, x: 4, y: 4, w: 513, h: 90, color: "#DCDCDC", r: 4 }], margin: [0, 0, 0, -94] },
             propertyCard,
           ],
           margin: [0, 0, 0, 4],
@@ -3952,6 +3919,8 @@ async function buildDocDef(template: DocumentTemplate, input: DocumentInput): Pr
         certFooterRow,
         eidasNote,
       ];
+      // Tighter page margins so all content fits on one page
+      pageMarginOverride = [35, 18, 35, 36];
       break;
     }
 
