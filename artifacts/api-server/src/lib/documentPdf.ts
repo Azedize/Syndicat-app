@@ -3457,24 +3457,34 @@ async function buildDocDef(template: DocumentTemplate, input: DocumentInput): Pr
       </svg>`;
       const attSeal = { svg: attSealSvg, width: 90, height: 90 };
 
-      // ── Decorative certificate border (drawn behind all content) ────────────
+      // ── Decorative certificate border — matches reference image exactly ────────
       backgroundFn = (_page: number, ps: { width: number; height: number }) => {
         const { width: W, height: H } = ps;
         const m = 10;
+        const L = 20;  // corner arm length
+        const o = m + 8;  // corner ornament offset from outer border
         return {
           canvas: [
             // Outer navy border
-            { type: "rect" as const, x: m, y: m, w: W - 2*m, h: H - 2*m, lineColor: BRAND.certNavy, lineWidth: 2, r: 2 },
-            // Inner thin navy border
-            { type: "rect" as const, x: m+5, y: m+5, w: W - 2*(m+5), h: H - 2*(m+5), lineColor: BRAND.certNavy, lineWidth: 0.5, r: 1 },
-            // Gold corner ornaments — top-left
-            { type: "rect" as const, x: m+8,     y: m+8,     w: 18, h: 18, lineColor: BRAND.certGold, lineWidth: 1.5 },
-            // top-right
-            { type: "rect" as const, x: W-m-26,  y: m+8,     w: 18, h: 18, lineColor: BRAND.certGold, lineWidth: 1.5 },
-            // bottom-left
-            { type: "rect" as const, x: m+8,     y: H-m-26,  w: 18, h: 18, lineColor: BRAND.certGold, lineWidth: 1.5 },
-            // bottom-right
-            { type: "rect" as const, x: W-m-26,  y: H-m-26,  w: 18, h: 18, lineColor: BRAND.certGold, lineWidth: 1.5 },
+            { type: "rect" as const, x: m, y: m, w: W - 2*m, h: H - 2*m, lineColor: BRAND.certNavy, lineWidth: 2 },
+            // Inner thin navy border (inset 5px)
+            { type: "rect" as const, x: m+5, y: m+5, w: W - 2*(m+5), h: H - 2*(m+5), lineColor: BRAND.certNavy, lineWidth: 0.6 },
+            // Gold L-corner ornaments — top-left horizontal arm
+            { type: "line" as const, x1: o,   y1: o,   x2: o+L, y2: o,   lineWidth: 1.8, lineColor: BRAND.certGold },
+            // top-left vertical arm
+            { type: "line" as const, x1: o,   y1: o,   x2: o,   y2: o+L, lineWidth: 1.8, lineColor: BRAND.certGold },
+            // top-right horizontal arm
+            { type: "line" as const, x1: W-o-L, y1: o,   x2: W-o, y2: o,   lineWidth: 1.8, lineColor: BRAND.certGold },
+            // top-right vertical arm
+            { type: "line" as const, x1: W-o,   y1: o,   x2: W-o, y2: o+L, lineWidth: 1.8, lineColor: BRAND.certGold },
+            // bottom-left horizontal arm
+            { type: "line" as const, x1: o,   y1: H-o,   x2: o+L, y2: H-o,   lineWidth: 1.8, lineColor: BRAND.certGold },
+            // bottom-left vertical arm
+            { type: "line" as const, x1: o,   y1: H-o-L, x2: o,   y2: H-o,   lineWidth: 1.8, lineColor: BRAND.certGold },
+            // bottom-right horizontal arm
+            { type: "line" as const, x1: W-o-L, y1: H-o,   x2: W-o, y2: H-o,   lineWidth: 1.8, lineColor: BRAND.certGold },
+            // bottom-right vertical arm
+            { type: "line" as const, x1: W-o,   y1: H-o-L, x2: W-o, y2: H-o,   lineWidth: 1.8, lineColor: BRAND.certGold },
           ],
         };
       };
@@ -3639,51 +3649,54 @@ async function buildDocDef(template: DocumentTemplate, input: DocumentInput): Pr
       const attNameParts = attMemberName.trim().split(/\s+/).filter(Boolean);
       const attInitials  = ((attNameParts[0]?.[0] ?? "M") + (attNameParts[1]?.[0] ?? "")).toUpperCase();
 
-      // Photo: rectangular area matching reference design.
-      // Real photo: fit into photoW×photoH bounding box maintaining aspect ratio.
-      // Fallback: grey rectangle with navy+gold circle avatar centered inside (no canvas tricks).
-      const photoW = 112;
-      const photoH = 138;
-      const attPhotoFallbackSvg = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 112 138">
-        <rect width="112" height="138" fill="#EDF0F5" rx="3"/>
-        <circle cx="56" cy="69" r="50" fill="#1B3A7A" stroke="#C4963A" stroke-width="2.5"/>
-        <circle cx="56" cy="69" r="44" fill="#172E62"/>
-        <text x="56" y="84" text-anchor="middle" font-family="Helvetica,Arial,sans-serif" font-size="32" font-weight="bold" fill="white" letter-spacing="4">${attInitials}</text>
+      // Photo: 118×148 matching reference portrait proportions
+      const photoW = 118;
+      const photoH = 148;
+      const attPhotoFallbackSvg = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 118 148">
+        <rect width="118" height="148" fill="#EEF1F6" rx="4"/>
+        <circle cx="59" cy="54" r="26" fill="#1B3A7A" opacity="0.18"/>
+        <circle cx="59" cy="50" r="20" fill="#1B3A7A"/>
+        <path d="M20,148 Q20,100 59,100 Q98,100 98,148Z" fill="#1B3A7A"/>
+        <text x="59" y="58" text-anchor="middle" font-family="Helvetica,Arial,sans-serif" font-size="22" font-weight="bold" fill="white" letter-spacing="3">${attInitials}</text>
       </svg>`;
       const photoCell: unknown = attAvatarBase64
         ? { image: attAvatarBase64, width: photoW, height: photoH, fit: [photoW, photoH] }
         : { svg: attPhotoFallbackSvg, width: photoW, height: photoH };
 
-      // Mini SVG icons for contact rows (navy fill/stroke, 13×13 viewport)
-      const icnStatus = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 13 13"><circle cx="6.5" cy="4" r="2.8" fill="#1B3A7A"/><path d="M1,12.5 C1,8.5 12,8.5 12,12.5Z" fill="#1B3A7A"/></svg>`;
-      const icnEmail  = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 13 13"><rect x="1" y="3" width="11" height="7.5" rx="1.2" fill="none" stroke="#1B3A7A" stroke-width="1"/><polyline points="1,4 6.5,8 12,4" stroke="#1B3A7A" stroke-width="0.9" fill="none"/></svg>`;
-      const icnPhone  = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 13 13"><path d="M3.5,1.5 L5.5,1.5 L6.5,5 L5,6 Q5.5,8.5 8,10 L9,8.5 L12.5,9.5 L12.5,11.5 Q8.5,13.5 2,6.5 Q1.5,2 3.5,1.5 Z" fill="#1B3A7A"/></svg>`;
-      const icnCin    = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 13 13"><rect x="1" y="2.5" width="11" height="8" rx="1" fill="none" stroke="#1B3A7A" stroke-width="1"/><line x1="3" y1="6.5" x2="7.5" y2="6.5" stroke="#1B3A7A" stroke-width="0.9"/><line x1="3" y1="8.5" x2="6" y2="8.5" stroke="#1B3A7A" stroke-width="0.9"/><circle cx="10" cy="6.5" r="2" fill="#C4963A" opacity="0.35"/></svg>`;
+      // Mini SVG icons for contact rows (navy fill/stroke, 13×13 viewport) — matching reference
+      const icnStatus = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 13 13"><circle cx="6.5" cy="4.2" r="2.6" fill="none" stroke="#1B3A7A" stroke-width="1"/><path d="M1.5,13 C1.5,9 11.5,9 11.5,13Z" fill="none" stroke="#1B3A7A" stroke-width="1"/></svg>`;
+      const icnEmail  = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 13 13"><rect x="1" y="3" width="11" height="7.5" rx="1" fill="none" stroke="#1B3A7A" stroke-width="0.9"/><polyline points="1,3.5 6.5,7.5 12,3.5" stroke="#1B3A7A" stroke-width="0.9" fill="none"/></svg>`;
+      const icnPhone  = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 13 13"><path d="M3.5,1.5 L5.2,1.5 L6.2,4.8 L4.8,5.8 Q5.5,8.8 7.8,10.2 L8.8,8.8 L12,9.8 L12,11.5 Q8.5,13.5 2,6.5 Q1.5,2 3.5,1.5Z" fill="none" stroke="#1B3A7A" stroke-width="0.9" stroke-linejoin="round"/></svg>`;
+      const icnCin    = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 13 13"><rect x="1" y="2.5" width="11" height="8" rx="1" fill="none" stroke="#1B3A7A" stroke-width="0.9"/><line x1="3" y1="6" x2="7" y2="6" stroke="#1B3A7A" stroke-width="0.8"/><line x1="3" y1="8" x2="5.5" y2="8" stroke="#1B3A7A" stroke-width="0.8"/><rect x="8.5" y="4.8" width="2" height="3" rx="1" fill="#C4963A" opacity="0.6"/></svg>`;
+      // Calendar icon for date field
+      const icnCal    = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 13 13"><rect x="1" y="2" width="11" height="10" rx="1" fill="none" stroke="#1B3A7A" stroke-width="0.9"/><line x1="4" y1="1" x2="4" y2="4" stroke="#1B3A7A" stroke-width="0.9"/><line x1="9" y1="1" x2="9" y2="4" stroke="#1B3A7A" stroke-width="0.9"/><line x1="1" y1="5" x2="12" y2="5" stroke="#1B3A7A" stroke-width="0.7"/><rect x="3" y="7" width="2" height="1.5" rx="0.3" fill="#1B3A7A"/><rect x="7" y="7" width="2" height="1.5" rx="0.3" fill="#1B3A7A"/></svg>`;
 
-      // Icon + label + value contact row — SVG icon version
+      // Icon + label + value contact row
       const attContactRow = (iconSvg: string, label: string, value: string): unknown => ({
         columns: [
-          { svg: iconSvg, width: 13, height: 13, margin: [0, 4, 0, 0] },
+          { svg: iconSvg, width: 13, height: 13, margin: [0, 5, 0, 0] },
           {
             stack: [
               { text: label, fontSize: 5.5, bold: true, color: BRAND.muted, characterSpacing: 0.5, margin: [0, 0, 0, 1] },
-              { text: value || "—", fontSize: 8.5, color: BRAND.ink },
+              { text: value || "—", fontSize: 8.5, color: BRAND.ink, lineHeight: 1.2 },
             ],
-            width: "*", margin: [6, 0, 0, 0],
+            width: "*", margin: [7, 0, 0, 0],
           },
         ],
-        margin: [0, 0, 0, 7],
+        margin: [0, 0, 0, 8],
       });
 
-      // Green pill status badge: "✓ MEMBRE ACTIF"
+      // Green pill status badge: "✓ MEMBRE ACTIF" — exact reference pill style
       const attMemberStatusBadge: unknown = {
         table: {
           widths: ["auto"],
           body: [[{
-            text: `✓ ${attStatusLabel}`,
-            fontSize: 8, bold: true, color: attStatusColor,
+            columns: [
+              { text: "✓", fontSize: 9, bold: true, color: attStatusColor, width: "auto", margin: [0, 0, 3, 0] },
+              { text: attStatusLabel, fontSize: 8, bold: true, color: attStatusColor, width: "auto" },
+            ],
             fillColor: attStatusBg,
-            margin: [10, 4, 10, 4],
+            margin: [9, 5, 9, 5],
             border: [false, false, false, false] as [boolean, boolean, boolean, boolean],
           }]],
         },
@@ -3694,17 +3707,32 @@ async function buildDocDef(template: DocumentTemplate, input: DocumentInput): Pr
           vLineColor: () => attStatusBorder,
           paddingLeft: () => 0, paddingRight: () => 0, paddingTop: () => 0, paddingBottom: () => 0,
         },
-        margin: [0, 4, 0, 8],
+        margin: [0, 4, 0, 10],
       };
+
+      // Format join date in French long format: "15 mai 2024"
+      const attJoinDateFr = (() => {
+        const raw = attJoinDate || today;
+        try {
+          const parts = raw.split(/[\/\-\.]/);
+          if (parts.length >= 3) {
+            const [d, m, y] = raw.includes("-") ? [parts[2], parts[1], parts[0]] : parts;
+            const months = ["janvier","février","mars","avril","mai","juin","juillet","août","septembre","octobre","novembre","décembre"];
+            const mi = parseInt(m, 10) - 1;
+            if (mi >= 0 && mi < 12) return `${parseInt(d, 10)} ${months[mi]} ${y}`;
+          }
+        } catch { /* fallback */ }
+        return raw;
+      })();
 
       const memberCard: unknown = {
         table: {
-          widths: [130, "*", 145],
+          widths: [132, "*", 148],
           body: [[
-            // Col 1: Rectangular photo / avatar — fills full column width edge-to-edge
+            // Col 1: Photo / avatar — fills column
             {
               stack: [photoCell],
-              fillColor: BRAND.surface,
+              fillColor: "#F4F6FA",
               border: [true, true, false, true] as [boolean, boolean, boolean, boolean],
               margin: [6, 6, 6, 6],
             },
@@ -3712,7 +3740,6 @@ async function buildDocDef(template: DocumentTemplate, input: DocumentInput): Pr
             {
               stack: [
                 {
-                  // Display name with smart civility prefix if not already present
                   text: (() => {
                     const prefixes = ["m.", "mme.", "dr.", "pr.", "m ", "mme ", "dr ", "mr."];
                     const nameLower = attMemberName.trim().toLowerCase();
@@ -3720,31 +3747,35 @@ async function buildDocDef(template: DocumentTemplate, input: DocumentInput): Pr
                     return hasPrefix ? attMemberName : `M. ${attMemberName}`;
                   })(),
                   fontSize: 16, bold: true, color: BRAND.certNavy,
-                  margin: [0, 0, 0, 4],
+                  margin: [0, 4, 0, 4],
                 },
-                // Thin gold accent rule under the name
                 {
-                  canvas: [{ type: "line" as const, x1: 0, y1: 0, x2: 170, y2: 0, lineWidth: 0.7, lineColor: BRAND.certGold }],
-                  margin: [0, 0, 0, 9],
+                  canvas: [{ type: "line" as const, x1: 0, y1: 0, x2: 175, y2: 0, lineWidth: 0.8, lineColor: BRAND.certGold }],
+                  margin: [0, 0, 0, 10],
                 },
-                ...(attStatus ? [attContactRow(icnStatus, "STATUT", attStatusLabel)] : []),
-                ...(attMemberEmail ? [attContactRow(icnEmail, "EMAIL", attMemberEmail)] : []),
-                ...(attMemberPhone ? [attContactRow(icnPhone, "TÉLÉPHONE", attMemberPhone)] : []),
-                ...(attMemberCIN   ? [attContactRow(icnCin, "CIN", attMemberCIN)] : []),
+                ...(attStatus      ? [attContactRow(icnStatus, "STATUT",    attStatusLabel)]   : []),
+                ...(attMemberEmail ? [attContactRow(icnEmail,  "EMAIL",     attMemberEmail)]   : []),
+                ...(attMemberPhone ? [attContactRow(icnPhone,  "TÉLÉPHONE", attMemberPhone)]   : []),
+                ...(attMemberCIN   ? [attContactRow(icnCin,    "CIN",       attMemberCIN)]     : []),
               ],
               fillColor: BRAND.surfaceCard,
               border: [false, true, false, true] as [boolean, boolean, boolean, boolean],
-              margin: [12, 8, 12, 8],
+              margin: [14, 8, 10, 8],
             },
-            // Col 3: Reference + status badge + join date
+            // Col 3: Reference + status badge + join date — right panel matches reference exactly
             {
               stack: [
-                { text: "RÉFÉRENCE MEMBRE", fontSize: 5.5, bold: true, color: BRAND.muted, characterSpacing: 0.4, margin: [0, 0, 0, 2] },
-                { text: attMemberRef || docNum, fontSize: 10.5, bold: true, color: BRAND.certNavy, margin: [0, 0, 0, 9] },
-                { text: "STATUT D'ADHÉSION", fontSize: 5.5, bold: true, color: BRAND.muted, characterSpacing: 0.4, margin: [0, 0, 0, 2] },
+                { text: "RÉFÉRENCE MEMBRE", fontSize: 5.5, bold: true, color: BRAND.muted, characterSpacing: 0.5, margin: [0, 4, 0, 2] },
+                { text: attMemberRef || docNum, fontSize: 10, bold: true, color: BRAND.certNavy, margin: [0, 0, 0, 10] },
+                { text: "STATUT D'ADHÉSION", fontSize: 5.5, bold: true, color: BRAND.muted, characterSpacing: 0.5, margin: [0, 0, 0, 2] },
                 attMemberStatusBadge,
-                { text: "DATE D'ADHÉSION", fontSize: 5.5, bold: true, color: BRAND.muted, characterSpacing: 0.4, margin: [0, 0, 0, 2] },
-                { text: `⊞  ${attJoinDate || today}`, fontSize: 9.5, bold: true, color: BRAND.certNavy },
+                { text: "DATE D'ADHÉSION", fontSize: 5.5, bold: true, color: BRAND.muted, characterSpacing: 0.5, margin: [0, 0, 0, 4] },
+                {
+                  columns: [
+                    { svg: icnCal, width: 13, height: 13, margin: [0, 1, 0, 0] },
+                    { text: attJoinDateFr, fontSize: 9.5, bold: true, color: BRAND.certNavy, margin: [5, 0, 0, 0] },
+                  ],
+                },
               ],
               fillColor: BRAND.surfaceCard,
               border: [false, true, true, true] as [boolean, boolean, boolean, boolean],
@@ -3753,8 +3784,8 @@ async function buildDocDef(template: DocumentTemplate, input: DocumentInput): Pr
           ]],
         },
         layout: {
-          hLineWidth: (i: number, node: { table: { body: unknown[] } }) => i === 0 || i === node.table.body.length ? 0.7 : 0,
-          vLineWidth: (i: number) => i === 0 || i === 3 ? 0.7 : 0,
+          hLineWidth: (i: number, node: { table: { body: unknown[] } }) => i === 0 || i === node.table.body.length ? 0.8 : 0,
+          vLineWidth: (i: number) => i === 0 || i === 3 ? 0.8 : 0,
           hLineColor: () => BRAND.border,
           vLineColor: () => BRAND.border,
           paddingLeft: () => 0, paddingRight: () => 0, paddingTop: () => 0, paddingBottom: () => 0,
@@ -3763,30 +3794,49 @@ async function buildDocDef(template: DocumentTemplate, input: DocumentInput): Pr
       };
 
       // ── 4. Property info card — 2 columns ──────────────────────────────────
-      // Left: gold circle icon + "RÉSIDENCE PRINCIPALE" + address
-      // Right: gold circle icon + "INFORMATIONS DE LA PROPRIÉTÉ" + data rows
-      // Gold circle icon: fixed-height canvas + text lifted into it via negative margin
-      const goldCircleIcon = (inner: string): unknown => ({
+      // SVG building icon for gold circle (Résidence Principale)
+      const goldCircleBuildingSvg = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20">
+        <rect x="5.5" y="4" width="9" height="15" fill="none" stroke="#C4963A" stroke-width="1.1"/>
+        <rect x="7" y="6.5" width="2" height="2" fill="#C4963A" opacity="0.8"/>
+        <rect x="10.5" y="6.5" width="2" height="2" fill="#C4963A" opacity="0.8"/>
+        <rect x="7" y="10.5" width="2" height="2" fill="#C4963A" opacity="0.8"/>
+        <rect x="10.5" y="10.5" width="2" height="2" fill="#C4963A" opacity="0.8"/>
+        <rect x="8.3" y="15" width="3.3" height="4" fill="#C4963A"/>
+        <rect x="1" y="9" width="4" height="10" fill="none" stroke="#C4963A" stroke-width="0.9"/>
+        <rect x="2" y="11" width="1.5" height="1.5" fill="#C4963A" opacity="0.6"/>
+        <rect x="15" y="9" width="4" height="10" fill="none" stroke="#C4963A" stroke-width="0.9"/>
+        <rect x="16.5" y="11" width="1.5" height="1.5" fill="#C4963A" opacity="0.6"/>
+      </svg>`;
+
+      // SVG document/list icon for gold circle (Informations Propriété)
+      const goldCircleDocSvg = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20">
+        <rect x="3" y="2" width="14" height="17" rx="1" fill="none" stroke="#C4963A" stroke-width="1.1"/>
+        <line x1="6" y1="7" x2="14" y2="7" stroke="#C4963A" stroke-width="0.9"/>
+        <line x1="6" y1="10.5" x2="14" y2="10.5" stroke="#C4963A" stroke-width="0.9"/>
+        <line x1="6" y1="14" x2="10.5" y2="14" stroke="#C4963A" stroke-width="0.9"/>
+      </svg>`;
+
+      // Gold circle icon: SVG inside a gold-outlined cream circle
+      const goldCircleIcon = (innerSvg: string): unknown => ({
         stack: [
           {
-            canvas: [{ type: "ellipse", x: 16, y: 16, r1: 16, r2: 16, color: "#F5EDD6", lineColor: BRAND.certGold, lineWidth: 1.5 }],
-            margin: [0, 0, 0, -32],   // canvas height = 2*r = 32; pull next element up
+            // Gold-outlined cream circle as background
+            canvas: [{ type: "ellipse", x: 17, y: 17, r1: 17, r2: 17, color: "#FBF4E0", lineColor: BRAND.certGold, lineWidth: 1.5 }],
+            margin: [0, 0, 0, -34],
           },
-          {
-            text: inner, fontSize: 13, color: BRAND.certGold, bold: true,
-            alignment: "center" as const, margin: [0, 10, 0, 0],
-          },
+          // SVG icon centered inside circle
+          { svg: innerSvg, width: 18, height: 18, margin: [8, 8, 0, 0] },
         ],
-        width: 34,
-        margin: [0, 0, 0, 0],
+        width: 36,
+        margin: [0, 2, 0, 0],
       });
 
       const propInfoRow = (label: string, value: string): unknown => ({
         columns: [
-          { text: label, fontSize: 7.5, color: BRAND.muted, width: 80 },
+          { text: label, fontSize: 7.5, color: BRAND.muted, width: 85 },
           { text: value || "—", fontSize: 7.5, bold: true, color: BRAND.ink, width: "*" },
         ],
-        margin: [0, 0, 0, 3],
+        margin: [0, 0, 0, 4],
       });
 
       const propertyCard: unknown = {
@@ -3796,59 +3846,59 @@ async function buildDocDef(template: DocumentTemplate, input: DocumentInput): Pr
             // Left: Résidence principale
             {
               columns: [
-                goldCircleIcon("⌂") as object,
+                goldCircleIcon(goldCircleBuildingSvg) as object,
                 {
                   stack: [
-                    { text: "RÉSIDENCE PRINCIPALE", fontSize: 6.5, bold: true, color: BRAND.certNavy, characterSpacing: 0.4, margin: [0, 0, 0, 5] },
+                    { text: "RÉSIDENCE PRINCIPALE", fontSize: 6.5, bold: true, color: BRAND.certNavy, characterSpacing: 0.5, margin: [0, 2, 0, 5] },
                     { text: attBuilding || syndInfo.name || "—", fontSize: 8.5, bold: true, color: BRAND.ink, margin: [0, 0, 0, 2] },
-                    ...(attBuildAddr ? [{ text: attBuildAddr, fontSize: 7.5, color: BRAND.inkLight, lineHeight: 1.4 }] : []),
+                    ...(attBuildAddr ? [{ text: attBuildAddr, fontSize: 7.5, color: BRAND.inkLight, lineHeight: 1.5 }] : []),
                   ],
-                  width: "*", margin: [8, 0, 0, 0],
+                  width: "*", margin: [10, 0, 0, 0],
                 },
               ],
               border: [true, true, false, true] as [boolean, boolean, boolean, boolean],
-              margin: [14, 10, 14, 10],
+              margin: [14, 12, 14, 12],
             },
             // Right: property info
             {
               columns: [
-                goldCircleIcon("≡") as object,
+                goldCircleIcon(goldCircleDocSvg) as object,
                 {
                   stack: [
-                    { text: "INFORMATIONS DE LA PROPRIÉTÉ", fontSize: 6.5, bold: true, color: BRAND.certNavy, characterSpacing: 0.4, margin: [0, 0, 0, 6] },
+                    { text: "INFORMATIONS DE LA PROPRIÉTÉ", fontSize: 6.5, bold: true, color: BRAND.certNavy, characterSpacing: 0.5, margin: [0, 2, 0, 7] },
                     ...(attLotNum       ? [propInfoRow("Lots détenus", `Lot n° ${attLotNum}`) as object] : []),
                     ...(attLotQuotePart ? [propInfoRow("Quote-part",   attLotQuotePart) as object] : []),
                     propInfoRow("Usage", attLotUsage) as object,
                     ...(attLotSurface  ? [propInfoRow("Surface",       `${attLotSurface} m²`) as object] : []),
                   ],
-                  width: "*", margin: [8, 0, 0, 0],
+                  width: "*", margin: [10, 0, 0, 0],
                 },
               ],
               border: [false, true, true, true] as [boolean, boolean, boolean, boolean],
-              margin: [14, 10, 14, 10],
+              margin: [14, 12, 14, 12],
             },
           ]],
         },
         layout: {
-          hLineWidth: (i: number, node: { table: { body: unknown[] } }) => i === 0 || i === node.table.body.length ? 0.7 : 0,
-          vLineWidth: (i: number) => i === 0 || i === 2 ? 0.7 : 0,
+          hLineWidth: (i: number, node: { table: { body: unknown[] } }) => i === 0 || i === node.table.body.length ? 0.8 : 0,
+          vLineWidth: (i: number) => i === 0 || i === 2 ? 0.8 : 0,
           hLineColor: () => BRAND.border,
           vLineColor: () => BRAND.border,
           paddingLeft: () => 0, paddingRight: () => 0, paddingTop: () => 0, paddingBottom: () => 0,
         },
-        margin: [0, 0, 0, 4],
+        margin: [0, 0, 0, 6],
       };
 
-      // ── 5. Certification paragraph (centered, matches reference image) ──────
+      // ── 5. Certification paragraph ──────────────────────────────────────────
       const certParagraph: unknown = {
         text: [
           `Le présent document certifie que le bénéficiaire mentionné ci-dessus\n`,
           `est officiellement enregistré en tant que membre du syndicat de copropriétaires\n`,
           `de la résidence indiquée, conformément aux dispositions légales et réglementaires en vigueur.`,
         ],
-        fontSize: 8.5, color: BRAND.inkMid,
-        alignment: "center" as const, lineHeight: 1.65,
-        margin: [20, 2, 20, 8],
+        fontSize: 8.5, color: BRAND.inkMid, italics: true,
+        alignment: "center" as const, lineHeight: 1.7,
+        margin: [20, 2, 20, 10],
       };
 
       // ── 6. Footer: signature | gold seal | QR + verify ─────────────────────
@@ -3858,12 +3908,17 @@ async function buildDocDef(template: DocumentTemplate, input: DocumentInput): Pr
 
       const sigColumn: unknown = {
         stack: [
-          // Signature trace or empty line
+          // Signature trace or long blank line (handwriting suggestion)
           ...(attHasSigTrace
-            ? [{ svg: attPresidentSig!.signatureData!, width: 120, height: 44, alignment: "left" as const }]
-            : [{ canvas: [{ type: "line", x1: 0, y1: 0, x2: 145, y2: 0, lineWidth: 0.5, lineColor: BRAND.border }], margin: [0, 28, 0, 0] }]
+            ? [{ svg: attPresidentSig!.signatureData!, width: 130, height: 48, alignment: "left" as const }]
+            : [{
+                stack: [
+                  // Simulate a handwriting blank space
+                  { canvas: [{ type: "line", x1: 0, y1: 0, x2: 140, y2: 0, lineWidth: 0.4, lineColor: BRAND.border }], margin: [0, 38, 0, 0] },
+                ],
+              }]
           ),
-          { text: "Le Syndic", fontSize: 8.5, bold: true, color: BRAND.ink, margin: [0, 6, 0, 1] },
+          { text: "Le Syndic", fontSize: 8.5, bold: true, color: BRAND.ink, margin: [0, 5, 0, 1] },
           { text: attSignerName, fontSize: 7.5, color: BRAND.inkLight, margin: [0, 0, 0, 1] },
           { text: attSigDate,    fontSize: 7.5, color: BRAND.inkLight },
         ],
@@ -3871,10 +3926,9 @@ async function buildDocDef(template: DocumentTemplate, input: DocumentInput): Pr
       };
 
       const sealColumn: unknown = {
-        stack: [attSeal],
-        width: 95,
+        stack: [{ ...attSeal, margin: [0, -5, 0, 0] }],
+        width: 96,
         alignment: "center" as const,
-        margin: [0, 0, 0, 0],
       };
 
       const attVerifyId = `VER-${today.replace(/\//g, "")}-${(docNum || attMemberRef || "ABCD").split("-").pop()}`;
@@ -3882,45 +3936,66 @@ async function buildDocDef(template: DocumentTemplate, input: DocumentInput): Pr
         stack: [
           { text: "VÉRIFICATION NUMÉRIQUE", fontSize: 7, bold: true, color: BRAND.certNavy, characterSpacing: 0.5, margin: [0, 0, 0, 6] },
           ...(qrDataUrl
-            ? [{ image: qrDataUrl, width: 60, height: 60, margin: [0, 0, 0, 6] }]
-            : [{ canvas: [{ type: "rect", x: 0, y: 0, w: 60, h: 60, color: BRAND.surface }], margin: [0, 0, 0, 6] }]
+            ? [{
+                columns: [
+                  { image: qrDataUrl, width: 58, height: 58 },
+                  {
+                    stack: [
+                      { text: "Scannez ce QR code pour\nvérifier l'authenticité de\nce certificat.", fontSize: 6.5, color: BRAND.muted, lineHeight: 1.4, margin: [0, 0, 0, 5] },
+                      { text: "ID de vérification :", fontSize: 6, color: BRAND.muted, margin: [0, 0, 0, 1] },
+                      { text: attVerifyId, fontSize: 6.5, bold: true, color: BRAND.certNavy },
+                    ],
+                    margin: [8, 0, 0, 0],
+                    width: "*",
+                  },
+                ],
+              }]
+            : [
+                { canvas: [{ type: "rect", x: 0, y: 0, w: 58, h: 58, color: BRAND.surface }], margin: [0, 0, 0, 6] },
+                { text: "Scannez ce QR code pour\nvérifier l'authenticité de\nce certificat.", fontSize: 6.5, color: BRAND.muted, lineHeight: 1.4, margin: [0, 0, 0, 4] },
+                { text: "ID de vérification :", fontSize: 6, color: BRAND.muted, margin: [0, 0, 0, 2] },
+                { text: attVerifyId, fontSize: 6.5, bold: true, color: BRAND.certNavy },
+              ]
           ),
-          { text: "Scannez ce QR code pour\nvérifier l'authenticité de\nce certificat.", fontSize: 6.5, color: BRAND.muted, lineHeight: 1.4, margin: [0, 0, 0, 4] },
-          { text: "ID de vérification :", fontSize: 6, color: BRAND.muted, margin: [0, 0, 0, 2] },
-          { text: attVerifyId, fontSize: 6.5, bold: true, color: BRAND.certNavy },
         ],
-        width: 130,
+        width: 155,
       };
 
       const certFooterRow: unknown = {
-        columns: [sigColumn, { text: "", width: 6 }, sealColumn, { text: "", width: 6 }, qrColumn],
-        margin: [0, 0, 0, 6],
+        columns: [sigColumn, sealColumn, qrColumn],
+        columnGap: 4,
+        margin: [0, 0, 0, 8],
       };
 
       // ── 7. eIDAS disclaimer ────────────────────────────────────────────────
       const eidasNote: unknown = {
         stack: [
-          { canvas: [{ type: "line", x1: 0, y1: 0, x2: 515, y2: 0, lineWidth: 0.4, lineColor: BRAND.border }], margin: [0, 0, 0, 6] },
+          { canvas: [{ type: "line", x1: 0, y1: 0, x2: 515, y2: 0, lineWidth: 0.4, lineColor: BRAND.border }], margin: [0, 0, 0, 5] },
           { text: "Ce certificat est émis électroniquement et est valable sans signature manuscrite.", fontSize: 6.5, color: BRAND.muted, alignment: "center" as const },
           { text: "Conformément au règlement européen eIDAS (UE) n°910/2014.", fontSize: 6.5, color: BRAND.muted, alignment: "center" as const },
         ],
       };
 
+      // Member card height: photo = 148 + 12 padding = 160; shadow offset = 4
+      const memberCardH = 162;
+      // Property card height: ~100px with icons and address lines
+      const propertyCardH = 104;
+
       content = [
         certHdr,
         certHeaderRule,
         bigCertTitle,
-        // Shadow wrapper: light-gray offset rect drawn first, card overlaid via negative margin
+        // Drop-shadow wrapper: offset gray rect, then card overlaid via negative margin
         {
           stack: [
-            { canvas: [{ type: "rect" as const, x: 4, y: 4, w: 513, h: 155, color: "#DCDCDC", r: 4 }], margin: [0, 0, 0, -159] },
+            { canvas: [{ type: "rect" as const, x: 4, y: 4, w: 513, h: memberCardH, color: "#D8DADE", r: 4 }], margin: [0, 0, 0, -(memberCardH + 4)] },
             memberCard,
           ],
-          margin: [0, 0, 0, 4],
+          margin: [0, 0, 0, 6],
         },
         {
           stack: [
-            { canvas: [{ type: "rect" as const, x: 4, y: 4, w: 513, h: 90, color: "#DCDCDC", r: 4 }], margin: [0, 0, 0, -94] },
+            { canvas: [{ type: "rect" as const, x: 4, y: 4, w: 513, h: propertyCardH, color: "#D8DADE", r: 4 }], margin: [0, 0, 0, -(propertyCardH + 4)] },
             propertyCard,
           ],
           margin: [0, 0, 0, 4],
@@ -3930,7 +4005,7 @@ async function buildDocDef(template: DocumentTemplate, input: DocumentInput): Pr
         eidasNote,
       ];
       // Tighter page margins so all content fits on one page
-      pageMarginOverride = [35, 18, 35, 36];
+      pageMarginOverride = [35, 16, 35, 30];
       break;
     }
 
