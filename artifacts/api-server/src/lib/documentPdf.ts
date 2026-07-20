@@ -3271,8 +3271,11 @@ async function buildDocDef(template: DocumentTemplate, input: DocumentInput): Pr
   const version = (input.version as string | null | undefined) ?? "v1.0";
 
   // ── Elegant diagonal watermark — very low opacity, non-intrusive ────────────
-  const watermark =
-    !input.docStatus || input.docStatus === "draft"
+  // Attestation certificates never show a watermark (they are official credential docs)
+  const _isAttestationType = (template as string).startsWith("attestation");
+  const watermark = _isAttestationType
+    ? undefined
+    : !input.docStatus || input.docStatus === "draft"
       ? { text: "BROUILLON", opacity: 0.04, bold: true, color: accentColor, angle: 45 }
       : input.docStatus === "generated"
       ? { text: "SPECIMEN", opacity: 0.04, bold: true, color: accentColor, angle: 45 }
@@ -3418,7 +3421,7 @@ async function buildDocDef(template: DocumentTemplate, input: DocumentInput): Pr
                             : attStatus === "inactive" ? BRAND.destructive : BRAND.border;
 
       // ── Extra property fields ──────────────────────────────────────────────
-      const attLotQuotePart    = (input._lotQuotePart    as string) || (input._lotShareValue as string) || "";
+      const attLotQuotePart    = (input._lotQuotePart    as string) || (input._lotShareValue as string) || (input._lotTantiemes as string) || "";
       const attLotUsage        = (input._lotUsage        as string) || "Habitation principale";
       const attMemberAvatarUrl = (input._memberAvatarUrl as string) || "";
 
@@ -3457,34 +3460,33 @@ async function buildDocDef(template: DocumentTemplate, input: DocumentInput): Pr
       </svg>`;
       const attSeal = { svg: attSealSvg, width: 90, height: 90 };
 
-      // ── Decorative certificate border — matches reference image exactly ────────
+      // ── Decorative certificate border — matches HTML reference design ────────
+      // Outer thick navy border (3px) + inner thin navy border (1px) + 8×8 navy
+      // filled corner squares at each corner of the inner border — matching the
+      // HTML .certificate-container / .certificate__inner-border / .corner pattern.
       backgroundFn = (_page: number, ps: { width: number; height: number }) => {
         const { width: W, height: H } = ps;
-        const m = 10;
-        const L = 20;  // corner arm length
-        const o = m + 8;  // corner ornament offset from outer border
+        const m  = 10;   // outer border inset from page edge
+        const g  = 8;    // gap between outer and inner border (padding: 8px in HTML)
+        const cs = 8;    // corner square size (8×8 px in HTML)
+        const co = 4;    // half corner size — corners straddle the inner border
+        const ib = m + g; // inner border inset
         return {
           canvas: [
-            // Outer navy border
-            { type: "rect" as const, x: m, y: m, w: W - 2*m, h: H - 2*m, lineColor: BRAND.certNavy, lineWidth: 2 },
-            // Inner thin navy border (inset 5px)
-            { type: "rect" as const, x: m+5, y: m+5, w: W - 2*(m+5), h: H - 2*(m+5), lineColor: BRAND.certNavy, lineWidth: 0.6 },
-            // Gold L-corner ornaments — top-left horizontal arm
-            { type: "line" as const, x1: o,   y1: o,   x2: o+L, y2: o,   lineWidth: 1.8, lineColor: BRAND.certGold },
-            // top-left vertical arm
-            { type: "line" as const, x1: o,   y1: o,   x2: o,   y2: o+L, lineWidth: 1.8, lineColor: BRAND.certGold },
-            // top-right horizontal arm
-            { type: "line" as const, x1: W-o-L, y1: o,   x2: W-o, y2: o,   lineWidth: 1.8, lineColor: BRAND.certGold },
-            // top-right vertical arm
-            { type: "line" as const, x1: W-o,   y1: o,   x2: W-o, y2: o+L, lineWidth: 1.8, lineColor: BRAND.certGold },
-            // bottom-left horizontal arm
-            { type: "line" as const, x1: o,   y1: H-o,   x2: o+L, y2: H-o,   lineWidth: 1.8, lineColor: BRAND.certGold },
-            // bottom-left vertical arm
-            { type: "line" as const, x1: o,   y1: H-o-L, x2: o,   y2: H-o,   lineWidth: 1.8, lineColor: BRAND.certGold },
-            // bottom-right horizontal arm
-            { type: "line" as const, x1: W-o-L, y1: H-o,   x2: W-o, y2: H-o,   lineWidth: 1.8, lineColor: BRAND.certGold },
-            // bottom-right vertical arm
-            { type: "line" as const, x1: W-o,   y1: H-o-L, x2: W-o, y2: H-o,   lineWidth: 1.8, lineColor: BRAND.certGold },
+            // Outer thick navy border (3px — matches HTML `border: 3px solid #1a2b4c`)
+            { type: "rect" as const, x: m, y: m, w: W - 2*m, h: H - 2*m, lineColor: BRAND.certNavy, lineWidth: 3 },
+            // Inner thin navy border (1px — matches HTML `.certificate__inner-border border: 1px`)
+            { type: "rect" as const, x: ib, y: ib, w: W - 2*ib, h: H - 2*ib, lineColor: BRAND.certNavy, lineWidth: 1 },
+            // Corner accent squares — navy filled, straddling the inner border corners
+            // (matches HTML `.corner` elements: 8×8 background-color: #1a2b4c, offset -4px)
+            // top-left
+            { type: "rect" as const, x: ib - co, y: ib - co, w: cs, h: cs, color: BRAND.certNavy, lineWidth: 0 },
+            // top-right
+            { type: "rect" as const, x: W - ib - co, y: ib - co, w: cs, h: cs, color: BRAND.certNavy, lineWidth: 0 },
+            // bottom-left
+            { type: "rect" as const, x: ib - co, y: H - ib - co, w: cs, h: cs, color: BRAND.certNavy, lineWidth: 0 },
+            // bottom-right
+            { type: "rect" as const, x: W - ib - co, y: H - ib - co, w: cs, h: cs, color: BRAND.certNavy, lineWidth: 0 },
           ],
         };
       };
@@ -3581,7 +3583,7 @@ async function buildDocDef(template: DocumentTemplate, input: DocumentInput): Pr
       // Navy rule under header
       const certHeaderRule: unknown = {
         canvas: [{ type: "line", x1: 0, y1: 0, x2: 515, y2: 0, lineWidth: 1.2, lineColor: BRAND.certNavy }],
-        margin: [0, 0, 0, 6],
+        margin: [0, 0, 0, 2],
       };
 
       // ── 2. Big certificate title ────────────────────────────────────────────
@@ -3601,23 +3603,18 @@ async function buildDocDef(template: DocumentTemplate, input: DocumentInput): Pr
 
       const bigCertTitle: unknown = {
         stack: [
-          // Thin gold top rule
           {
-            canvas: [{ type: "line", x1: 40, y1: 0, x2: 475, y2: 0, lineWidth: 0.6, lineColor: BRAND.certGold }],
-            margin: [0, 0, 0, 8],
-          },
-          {
-            // Small-caps simulation: first letter of each word at 35pt, rest at 23pt
+            // Small-caps: capitals 42pt, rest 28pt, characterSpacing 1 (keeps on 1 line)
             text: [
               { text: "A", fontSize: 42, bold: true, color: BRAND.certNavy, font: "DejaVuSerif" },
-              { text: "TTESTATION ", fontSize: 30, bold: true, color: BRAND.certNavy, font: "DejaVuSerif", characterSpacing: 2.5 },
+              { text: "TTESTATION\u00A0", fontSize: 28, bold: true, color: BRAND.certNavy, font: "DejaVuSerif", characterSpacing: 1 },
               { text: "D", fontSize: 42, bold: true, color: BRAND.certNavy, font: "DejaVuSerif" },
-              { text: "'", fontSize: 30, bold: true, color: BRAND.certNavy, font: "DejaVuSerif" },
+              { text: "'", fontSize: 28, bold: true, color: BRAND.certNavy, font: "DejaVuSerif" },
               { text: "A", fontSize: 42, bold: true, color: BRAND.certNavy, font: "DejaVuSerif" },
-              { text: "DHÉSION", fontSize: 30, bold: true, color: BRAND.certNavy, font: "DejaVuSerif", characterSpacing: 2.5 },
+              { text: "DHÉSION", fontSize: 28, bold: true, color: BRAND.certNavy, font: "DejaVuSerif", characterSpacing: 1 },
             ],
             alignment: "center" as const,
-            margin: [0, 0, 0, 6],
+            margin: [0, 0, 0, 4],
           },
           {
             // Gold lines flanking building SVG icon
@@ -3633,7 +3630,7 @@ async function buildDocDef(template: DocumentTemplate, input: DocumentInput): Pr
               },
             ],
             columnGap: 4,
-            margin: [0, 0, 0, 8],
+            margin: [0, 0, 0, 6],
           },
           {
             text: "CERTIFICAT OFFICIEL DE MEMBRE DU SYNDICAT",
@@ -3641,7 +3638,7 @@ async function buildDocDef(template: DocumentTemplate, input: DocumentInput): Pr
             alignment: "center" as const, characterSpacing: 1.5,
           },
         ],
-        margin: [0, 4, 0, 8],
+        margin: [0, 8, 0, 12],
       };
 
       // ── 3. Member profile card — 3 columns ─────────────────────────────────
@@ -3649,9 +3646,9 @@ async function buildDocDef(template: DocumentTemplate, input: DocumentInput): Pr
       const attNameParts = attMemberName.trim().split(/\s+/).filter(Boolean);
       const attInitials  = ((attNameParts[0]?.[0] ?? "M") + (attNameParts[1]?.[0] ?? "")).toUpperCase();
 
-      // Photo: 118×148 matching reference portrait proportions
-      const photoW = 118;
-      const photoH = 148;
+      // Photo: 124×155 matching reference portrait proportions
+      const photoW = 124;
+      const photoH = 155;
       const attPhotoFallbackSvg = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 118 148">
         <rect width="118" height="148" fill="#EEF1F6" rx="4"/>
         <circle cx="59" cy="54" r="26" fill="#1B3A7A" opacity="0.18"/>
@@ -3674,16 +3671,16 @@ async function buildDocDef(template: DocumentTemplate, input: DocumentInput): Pr
       // Icon + label + value contact row
       const attContactRow = (iconSvg: string, label: string, value: string): unknown => ({
         columns: [
-          { svg: iconSvg, width: 13, height: 13, margin: [0, 5, 0, 0] },
+          { svg: iconSvg, width: 13, height: 13, margin: [0, 6, 0, 0] },
           {
             stack: [
               { text: label, fontSize: 5.5, bold: true, color: BRAND.muted, characterSpacing: 0.5, margin: [0, 0, 0, 1] },
-              { text: value || "—", fontSize: 8.5, color: BRAND.ink, lineHeight: 1.2 },
+              { text: value || "—", fontSize: 8.5, color: BRAND.ink, lineHeight: 1.25 },
             ],
             width: "*", margin: [7, 0, 0, 0],
           },
         ],
-        margin: [0, 0, 0, 8],
+        margin: [0, 0, 0, 11],
       });
 
       // Green pill status badge: "✓ MEMBRE ACTIF" — exact reference pill style
@@ -3756,7 +3753,6 @@ async function buildDocDef(template: DocumentTemplate, input: DocumentInput): Pr
                 ...(attStatus      ? [attContactRow(icnStatus, "STATUT",    attStatusLabel)]   : []),
                 ...(attMemberEmail ? [attContactRow(icnEmail,  "EMAIL",     attMemberEmail)]   : []),
                 ...(attMemberPhone ? [attContactRow(icnPhone,  "TÉLÉPHONE", attMemberPhone)]   : []),
-                ...(attMemberCIN   ? [attContactRow(icnCin,    "CIN",       attMemberCIN)]     : []),
               ],
               fillColor: BRAND.surfaceCard,
               border: [false, true, false, true] as [boolean, boolean, boolean, boolean],
@@ -3869,7 +3865,6 @@ async function buildDocDef(template: DocumentTemplate, input: DocumentInput): Pr
                     ...(attLotNum       ? [propInfoRow("Lots détenus", `Lot n° ${attLotNum}`) as object] : []),
                     ...(attLotQuotePart ? [propInfoRow("Quote-part",   attLotQuotePart) as object] : []),
                     propInfoRow("Usage", attLotUsage) as object,
-                    ...(attLotSurface  ? [propInfoRow("Surface",       `${attLotSurface} m²`) as object] : []),
                   ],
                   width: "*", margin: [10, 0, 0, 0],
                 },
@@ -3897,8 +3892,8 @@ async function buildDocDef(template: DocumentTemplate, input: DocumentInput): Pr
           `de la résidence indiquée, conformément aux dispositions légales et réglementaires en vigueur.`,
         ],
         fontSize: 8.5, color: BRAND.inkMid, italics: true,
-        alignment: "center" as const, lineHeight: 1.7,
-        margin: [20, 2, 20, 10],
+        alignment: "center" as const, lineHeight: 1.9,
+        margin: [20, 6, 20, 6],
       };
 
       // ── 6. Footer: signature | gold seal | QR + verify ─────────────────────
@@ -3908,17 +3903,15 @@ async function buildDocDef(template: DocumentTemplate, input: DocumentInput): Pr
 
       const sigColumn: unknown = {
         stack: [
-          // Signature trace or long blank line (handwriting suggestion)
+          // Signature trace or blank handwriting area
           ...(attHasSigTrace
             ? [{ svg: attPresidentSig!.signatureData!, width: 130, height: 48, alignment: "left" as const }]
             : [{
-                stack: [
-                  // Simulate a handwriting blank space
-                  { canvas: [{ type: "line", x1: 0, y1: 0, x2: 140, y2: 0, lineWidth: 0.4, lineColor: BRAND.border }], margin: [0, 38, 0, 0] },
-                ],
+                canvas: [{ type: "line", x1: 0, y1: 0, x2: 140, y2: 0, lineWidth: 0.5, lineColor: BRAND.border }],
+                margin: [0, 44, 0, 4],
               }]
           ),
-          { text: "Le Syndic", fontSize: 8.5, bold: true, color: BRAND.ink, margin: [0, 5, 0, 1] },
+          { text: "Le Syndic", fontSize: 8.5, bold: true, color: BRAND.ink, margin: [0, 4, 0, 1] },
           { text: attSignerName, fontSize: 7.5, color: BRAND.inkLight, margin: [0, 0, 0, 1] },
           { text: attSigDate,    fontSize: 7.5, color: BRAND.inkLight },
         ],
@@ -3976,36 +3969,24 @@ async function buildDocDef(template: DocumentTemplate, input: DocumentInput): Pr
         ],
       };
 
-      // Member card height: photo = 148 + 12 padding = 160; shadow offset = 4
-      const memberCardH = 162;
-      // Property card height: ~100px with icons and address lines
-      const propertyCardH = 104;
+      // memberCardH / propertyCardH kept for legacy reference; shadow rects removed
+      const memberCardH = 168;   // photo 155 + 13 padding
+      const propertyCardH = 104; // 3 rows + icon + padding
 
       content = [
         certHdr,
         certHeaderRule,
         bigCertTitle,
-        // Drop-shadow wrapper: offset gray rect, then card overlaid via negative margin
-        {
-          stack: [
-            { canvas: [{ type: "rect" as const, x: 4, y: 4, w: 513, h: memberCardH, color: "#D8DADE", r: 4 }], margin: [0, 0, 0, -(memberCardH + 4)] },
-            memberCard,
-          ],
-          margin: [0, 0, 0, 6],
-        },
-        {
-          stack: [
-            { canvas: [{ type: "rect" as const, x: 4, y: 4, w: 513, h: propertyCardH, color: "#D8DADE", r: 4 }], margin: [0, 0, 0, -(propertyCardH + 4)] },
-            propertyCard,
-          ],
-          margin: [0, 0, 0, 4],
-        },
+        // Cards rendered without offset-rect shadow (which causes bleed artifacts in pdfmake)
+        { ...memberCard as object, margin: [0, 0, 0, 10] },
+        { ...propertyCard as object, margin: [0, 0, 0, 10] },
         certParagraph,
+        { canvas: [{ type: "line" as const, x1: 0, y1: 0, x2: 515, y2: 0, lineWidth: 0.3, lineColor: BRAND.border }], margin: [0, 0, 0, 12] },
         certFooterRow,
         eidasNote,
       ];
-      // Tighter page margins so all content fits on one page
-      pageMarginOverride = [35, 16, 35, 30];
+      // Page margins matching reference density
+      pageMarginOverride = [35, 18, 35, 52];
       break;
     }
 
