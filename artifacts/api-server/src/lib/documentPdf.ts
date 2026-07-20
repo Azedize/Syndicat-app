@@ -5584,134 +5584,621 @@ async function buildDocDef(template: DocumentTemplate, input: DocumentInput): Pr
       break;
     }
 
-    // ── Template 24: Attestation de Paiement des Charges ─────────────────────────
+    // ── Template 24: Attestation de Paiement (redesign — matches HTML reference) ──
     case "attestation_paiement": {
-      const periode = (input.periode as string) || `Exercice ${new Date().getFullYear()}`;
-      const montant = (input.montant as string) || "—";
-      const totalCharged = (input._totalCharged as string) || "—";
-      const statusPaiement = (input._paiementStatus as string) || "";
-      const inGoodStanding = !statusPaiement || statusPaiement === "EN RÈGLE";
-      const lotNum = (input.lotNumber as string) || (input._lotNumber as string) || "—";
-      const lastPaid = (input._lastPaidDate as string) || "";
-      const appelCount = (input._appelCount as string) || "";
+      const paiNavy   = accentColor;                   // #1B3A7A from theme
+      const paiGreen  = "#18a55b";                     // template --green
+      const paiGreenS = "#e7f7ed";                     // template --green-soft
 
-      // Parse payment history when coming from DB entity loader
-      type AppelHistoryRow = { period: string; amount: number; status: string; paidDate: string | null };
-      let paymentHistory: AppelHistoryRow[] = [];
-      const rawHist = input._paymentHistoryJson as string | undefined;
-      if (rawHist) { try { paymentHistory = JSON.parse(rawHist); } catch { /* ignore */ } }
+      // ── Data extraction ─────────────────────────────────────────────────────
+      const paiMemberName   = (input.memberName as string) || member || "—";
+      const paiLotNumber    = (input._lotNumber as string) || (input.lotNumber as string) || "—";
+      const paiFloor        = (input._lotFloor as string) || "";
+      const paiSurface      = (input._lotSurface as string) || "—";
+      const paiBuilding     = (input._buildingName as string) || "—";
+      const paiBuildingAddr = (input._buildingAddress as string) || "—";
+      const paiPhone        = (input._memberPhone as string) || "";
+      const paiEmail        = (input._memberEmail as string) || "";
+      const paiRef          = (input._memberRef as string) || docNum;
+      const paiStatus       = (input._memberStatus as string) || "actif";
+      const paiJoinDate     = (input._memberJoinDate as string) || "";
+      const paiAvatarUrl    = (input._memberAvatarUrl as string) || "";
 
-      const statusColor = inGoodStanding ? BRAND.success : BRAND.warning;
-      const statusBg    = inGoodStanding ? BRAND.successLight : BRAND.warningLight;
-      const statusText  = inGoodStanding
-        ? "✓  EN RÈGLE — Situation comptable vérifiée à la date de délivrance"
-        : `⚠  ${statusPaiement || "ATTENTION — CHARGES EN COURS"}`;
+      const periode      = (input.periode as string) || `Exercice ${new Date().getFullYear()}`;
+      const totalDueRaw  = (input._totalCharged as string) || "0";
+      const totalPaidRaw = (input.montant as string) || "0";
+      const totalDueNum  = Number(totalDueRaw) || 0;
+      const totalPaidNum = Number(totalPaidRaw) || 0;
+      const balanceNum   = totalDueNum - totalPaidNum;
+      const lastPaid     = (input._lastPaidDate as string) || "";
+      const appelCount   = Number((input._appelCount as string) || 0);
+      const recoveryPct  = totalDueNum > 0
+        ? Math.min(100, Math.round((totalPaidNum / totalDueNum) * 100))
+        : totalPaidNum > 0 ? 100 : 0;
+      const inGoodStanding = balanceNum <= 0;
 
-      content = [
-        ...header,
-        buildCertificateFrame(accentColor, lang),
-        { text: "ATTESTATION DE PAIEMENT DES CHARGES", fontSize: 18, bold: true, color: accentColor, alignment: "center" as const, margin: [0, 0, 0, 4] },
-        { text: input.title, style: "docTitle", alignment: "center" as const, margin: [0, 0, 0, 16] },
-        // Status badge — shown prominently before the identity table
+      // Payment history JSON
+      type APHistRow = { period: string; amount: number; status: string; paidDate: string | null; method?: string; ref?: string };
+      let payHist: APHistRow[] = [];
+      try { const raw = input._paymentHistoryJson as string | undefined; if (raw) payHist = JSON.parse(raw); } catch { /* ok */ }
+
+      // Avatar
+      const paiAvatarB64  = await fetchAvatarAsBase64(paiAvatarUrl);
+      const paiNameParts  = paiMemberName.trim().split(/\s+/).filter(Boolean);
+      const paiInitials   = ((paiNameParts[0]?.[0] ?? "M") + (paiNameParts[1]?.[0] ?? "")).toUpperCase();
+      const paiAvatarFSvg = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 60 60">
+        <circle cx="30" cy="30" r="30" fill="#EDF2F5"/>
+        <circle cx="30" cy="23" r="11" fill="${paiNavy}"/>
+        <path d="M7,60 Q7,42 30,42 Q53,42 53,60Z" fill="${paiNavy}"/>
+        <text x="30" y="28" text-anchor="middle" font-family="Helvetica,Arial,sans-serif" font-size="13" font-weight="bold" fill="white" letter-spacing="2">${paiInitials}</text>
+      </svg>`;
+      const paiAvatarEl: unknown = paiAvatarB64
+        ? { image: paiAvatarB64, width: 54, height: 54, fit: [54, 54] as [number, number] }
+        : { svg: paiAvatarFSvg, width: 54, height: 54 };
+
+      // ── Helpers ─────────────────────────────────────────────────────────────
+      const microLbl = (txt: string): unknown => ({
+        text: txt.toUpperCase(), fontSize: 5.5, bold: true, color: BRAND.muted,
+        characterSpacing: 0.6, margin: [0, 0, 0, 1] as [number, number, number, number],
+      });
+      const fieldVal = (txt: string): unknown => ({
+        text: txt || "—", fontSize: 8.5, bold: true, color: BRAND.inkMid,
+      });
+      const secHead = (icon: string, txt: string): unknown => ({
+        columns: [
+          { canvas: [{ type: "rect", x: 0, y: 0, w: 3, h: 10, color: paiNavy }], width: 7, margin: [0, 0, 0, 0] },
+          { text: `${icon}  ${txt.toUpperCase()}`, fontSize: 8, bold: true, color: paiNavy, characterSpacing: 0.3, width: "*" },
+        ],
+        margin: [0, 10, 0, 5],
+      });
+
+      // ── HEADER — 4-column top-grid ──────────────────────────────────────────
+      const paiAcronym = syndInfo.name.split(/\s+/).map((w: string) => w[0] ?? "").join("").slice(0, 3).toUpperCase();
+      const paiLogoEl: unknown = logoDataUrl
+        ? { image: logoDataUrl, width: 38, height: 50, fit: [38, 50] as [number, number] }
+        : {
+            stack: [
+              { canvas: [{ type: "ellipse", x: 19, y: 19, r1: 19, r2: 19, color: `${paiNavy}1a` }], margin: [0, 0, 0, -38] },
+              { text: paiAcronym, fontSize: 10, bold: true, color: paiNavy, alignment: "center" as const, margin: [0, 12, 0, 0] },
+            ],
+          };
+
+      const paiDocStatusMap: Record<string, { label: string; color: string }> = {
+        published: { label: "PUBLIÉ",   color: paiGreen },
+        signed:    { label: "SIGNÉ",    color: paiNavy },
+        validated: { label: "VALIDÉ",   color: paiNavy },
+        generated: { label: "GÉNÉRÉ",   color: BRAND.warningDark },
+        draft:     { label: "BROUILLON",color: BRAND.muted },
+      };
+      const paiDocStatus = (input.docStatus as string | null) ?? null;
+      const paiStatusChip = paiDocStatus ? (paiDocStatusMap[paiDocStatus] ?? null) : null;
+
+      // Valid status pill (green dot + VALIDE)
+      const validPill: unknown = {
+        columns: [
+          { canvas: [{ type: "ellipse", x: 4, y: 4, r1: 4, r2: 4, color: paiGreen }], width: 10, margin: [0, 1, 0, 0] },
+          { text: "VALIDE", fontSize: 7, bold: true, color: paiGreen, width: "auto" },
+        ],
+        columnGap: 3, margin: [0, 4, 0, 0],
+      };
+
+      const paiHeader: unknown = {
+        table: {
+          widths: ["22%", "29%", "27%", "22%"],
+          body: [[
+            // Col 1 — Brand lockup
+            {
+              stack: [{
+                columns: [
+                  { stack: [paiLogoEl], width: 42, margin: [0, 0, 0, 0] },
+                  {
+                    stack: [
+                      { text: syndInfo.name.toUpperCase(), fontSize: 9, bold: true, color: paiNavy, lineHeight: 1.25 },
+                      { text: syndInfo.address || "Syndicat de Copropriété", fontSize: 6.5, color: BRAND.muted, margin: [0, 2, 0, 0] },
+                    ],
+                    width: "*", margin: [8, 4, 0, 0],
+                  },
+                ],
+              }],
+              margin: [0, 8, 10, 8],
+              border: [false, false, true, true] as [boolean, boolean, boolean, boolean],
+              borderColor: [BRAND.border, BRAND.border, BRAND.border, paiNavy] as [string, string, string, string],
+            },
+            // Col 2 — Legal info
+            {
+              stack: [
+                { text: syndInfo.name, fontSize: 8, bold: true, color: BRAND.ink, margin: [0, 0, 0, 3] },
+                ...(syndInfo.registrationNumber ? [{ text: `Reg. : ${syndInfo.registrationNumber}`, fontSize: 6.5, color: BRAND.muted, margin: [0, 0, 0, 2] as [number, number, number, number] }] : []),
+                ...(syndInfo.address ? [{ text: syndInfo.address, fontSize: 6.5, color: BRAND.muted, margin: [0, 0, 0, 2] as [number, number, number, number] }] : []),
+                ...(syndInfo.phone ? [{ text: syndInfo.phone, fontSize: 6.5, color: BRAND.muted }] : []),
+              ],
+              margin: [0, 8, 10, 8],
+              border: [false, false, true, true] as [boolean, boolean, boolean, boolean],
+              borderColor: [BRAND.border, BRAND.border, BRAND.border, paiNavy] as [string, string, string, string],
+            },
+            // Col 3 — Document title (centered)
+            {
+              stack: [
+                { text: "ATTESTATION DE PAIEMENT", fontSize: 12.5, bold: true, color: paiNavy, alignment: "center" as const, lineHeight: 1.2 },
+                { text: "CERTIFICATION DE BONNE FOI", fontSize: 6.5, color: BRAND.muted, alignment: "center" as const, characterSpacing: 0.4, margin: [0, 3, 0, 0] },
+                ...(paiStatusChip ? [{ text: `● ${paiStatusChip.label}`, fontSize: 7, bold: true, color: paiStatusChip.color, alignment: "center" as const, margin: [0, 3, 0, 0] as [number, number, number, number] }] : [validPill]),
+              ],
+              alignment: "center" as const,
+              margin: [0, 8, 10, 8],
+              border: [false, false, true, true] as [boolean, boolean, boolean, boolean],
+              borderColor: [BRAND.border, BRAND.border, BRAND.border, paiNavy] as [string, string, string, string],
+            },
+            // Col 4 — Reference + date + QR
+            {
+              stack: [
+                { text: "RÉFÉRENCE", fontSize: 5, bold: true, color: BRAND.muted, characterSpacing: 0.8 },
+                { text: docNum, fontSize: 8, bold: true, color: BRAND.ink, margin: [0, 1, 0, 5] },
+                { text: "DATE D'ÉMISSION", fontSize: 5, bold: true, color: BRAND.muted, characterSpacing: 0.8 },
+                { text: today, fontSize: 7.5, bold: true, color: BRAND.ink, margin: [0, 1, 0, 4] },
+                ...(qrDataUrl ? [{ image: qrDataUrl, width: 34, height: 34, alignment: "center" as const, margin: [0, 2, 0, 1] as [number, number, number, number] }] : []),
+                { text: "SCAN · VÉRIFIER", fontSize: 4, bold: true, color: BRAND.muted, characterSpacing: 0.4, alignment: "center" as const },
+              ],
+              margin: [0, 8, 0, 8],
+              border: [false, false, false, true] as [boolean, boolean, boolean, boolean],
+              borderColor: [BRAND.border, BRAND.border, BRAND.border, paiNavy] as [string, string, string, string],
+            },
+          ]],
+        },
+        layout: {
+          hLineWidth: (i: number) => i === 0 ? 0 : 0,
+          vLineWidth: (i: number) => (i >= 1 && i <= 3) ? 0.5 : 0,
+          hLineColor: () => BRAND.border,
+          vLineColor: () => BRAND.border,
+          paddingLeft: () => 0, paddingRight: () => 0, paddingTop: () => 0, paddingBottom: () => 0,
+        },
+        margin: [0, 0, 0, 0],
+      };
+
+      const paiHdrBorder: unknown = { canvas: [{ type: "rect", x: 0, y: 0, w: 515, h: 2, color: paiNavy }], margin: [0, 0, 0, 10] };
+
+      // ── PROFILE PANEL ──────────────────────────────────────────────────────
+      const memberStatusLabel = paiStatus === "actif" ? "ACTIF" : paiStatus.toUpperCase();
+      const memberStatusColor = paiStatus === "actif" ? paiGreen : BRAND.warningDark;
+
+      const profilePanel: unknown = {
+        table: {
+          widths: [62, "*"],
+          body: [[
+            {
+              stack: [paiAvatarEl],
+              margin: [8, 8, 6, 8],
+              border: [false, false, false, false] as [boolean, boolean, boolean, boolean],
+            },
+            {
+              stack: [
+                {
+                  columns: [
+                    { stack: [microLbl("NOM COMPLET"), fieldVal(paiMemberName)], width: "*" },
+                    { stack: [microLbl("N° MEMBRE"), fieldVal(paiRef)], width: 76 },
+                  ], margin: [0, 0, 0, 7],
+                },
+                {
+                  columns: [
+                    { stack: [microLbl("IMMEUBLE"), fieldVal(paiBuilding)], width: "*" },
+                    {
+                      stack: [
+                        microLbl("N° LOT"),
+                        fieldVal(`Lot ${paiLotNumber}${paiFloor ? ` — Étg ${paiFloor}` : ""}`),
+                      ],
+                      width: 76,
+                    },
+                  ], margin: [0, 0, 0, 7],
+                },
+                {
+                  columns: [
+                    { stack: [microLbl("SURFACE"), fieldVal(paiSurface)], width: "*" },
+                    {
+                      stack: [
+                        microLbl("STATUT COMPTE"),
+                        {
+                          columns: [
+                            { canvas: [{ type: "ellipse", x: 4, y: 4, r1: 4, r2: 4, color: memberStatusColor }], width: 10, margin: [0, 1, 0, 0] },
+                            { text: memberStatusLabel, fontSize: 7, bold: true, color: memberStatusColor, width: "auto" },
+                          ],
+                          columnGap: 3, margin: [0, 1, 0, 0],
+                        },
+                      ],
+                      width: 76,
+                    },
+                  ], margin: [0, 0, 0, 5],
+                },
+                { stack: [microLbl("ADRESSE"), fieldVal(paiBuildingAddr)], margin: [0, 0, 0, 5] },
+                {
+                  columns: [
+                    ...(paiPhone ? [{ text: `✆ ${paiPhone}`, fontSize: 7.5, bold: true, color: BRAND.inkMid, width: "auto" }] : []),
+                    ...(paiEmail ? [{ text: `✉ ${paiEmail}`, fontSize: 7, color: BRAND.inkMid, width: "*" }] : []),
+                  ],
+                  columnGap: 10,
+                },
+              ],
+              margin: [0, 8, 8, 8],
+              border: [false, false, false, false] as [boolean, boolean, boolean, boolean],
+            },
+          ]],
+        },
+        layout: {
+          hLineWidth: (i: number, n: { table: { body: unknown[] } }) => i === 0 || i === n.table.body.length ? 0.6 : 0,
+          vLineWidth: (i: number) => i === 1 ? 0.4 : 0,
+          hLineColor: () => BRAND.border, vLineColor: () => BRAND.border,
+          paddingLeft: () => 0, paddingRight: () => 0, paddingTop: () => 0, paddingBottom: () => 0,
+        },
+      };
+
+      // ── FINANCIAL METRICS PANEL — 3×2 grid ────────────────────────────────
+      const fmtNum = (n: number) => n.toLocaleString("fr-MA");
+      const metricC = (lbl: string, val: string, color: string): unknown => ({
+        stack: [
+          { text: lbl.toUpperCase(), fontSize: 5, bold: true, color: BRAND.muted, characterSpacing: 0.5, alignment: "center" as const },
+          { text: val, fontSize: 15, bold: true, color, alignment: "center" as const, margin: [0, 4, 0, 1] },
+          { text: "MAD", fontSize: 5, bold: true, color: BRAND.muted, alignment: "center" as const },
+        ],
+        margin: [2, 7, 2, 7],
+        border: [false, false, false, false] as [boolean, boolean, boolean, boolean],
+      });
+
+      // Progress ring cell (recovery rate)
+      const recoveryC: unknown = {
+        stack: [
+          { text: "TAUX RECOUVREMENT", fontSize: 5, bold: true, color: BRAND.muted, characterSpacing: 0.4, alignment: "center" as const },
+          {
+            canvas: [
+              { type: "ellipse", x: 17, y: 17, r1: 17, r2: 17, color: BRAND.border },
+              { type: "ellipse", x: 17, y: 17, r1: 17, r2: 17, color: paiGreen },
+              { type: "ellipse", x: 17, y: 17, r1: 12, r2: 12, color: BRAND.surfaceCard },
+            ],
+            margin: [0, 4, 0, 0], alignment: "center" as const, height: 36,
+          },
+          { text: `${recoveryPct}%`, fontSize: 9, bold: true, color: paiGreen, alignment: "center" as const, margin: [0, -27, 0, 4] },
+        ],
+        margin: [2, 7, 2, 7],
+        border: [false, false, false, false] as [boolean, boolean, boolean, boolean],
+      };
+
+      const payStatusC: unknown = {
+        stack: [
+          { text: "STATUT", fontSize: 5, bold: true, color: BRAND.muted, characterSpacing: 0.5, alignment: "center" as const },
+          { text: inGoodStanding ? "SOLDÉ" : "EN COURS", fontSize: 9, bold: true, color: inGoodStanding ? paiGreen : BRAND.warningDark, alignment: "center" as const, margin: [0, 7, 0, 0] },
+        ],
+        margin: [2, 7, 2, 7],
+        border: [false, false, false, false] as [boolean, boolean, boolean, boolean],
+      };
+
+      const financialPanel: unknown = {
+        table: {
+          widths: ["33.33%", "33.33%", "33.34%"],
+          body: [
+            [
+              metricC("TOTAL DÛ",    totalDueNum > 0 ? fmtNum(totalDueNum) : "—", paiNavy),
+              metricC("TOTAL PAYÉ",  totalPaidNum > 0 ? fmtNum(totalPaidNum) : "—", paiGreen),
+              metricC("SOLDE",       fmtNum(Math.abs(balanceNum)), balanceNum > 0 ? BRAND.warningDark : paiNavy),
+            ],
+            [
+              metricC("NB PAIEMENTS", String(appelCount || payHist.length || 0), paiNavy),
+              recoveryC,
+              payStatusC,
+            ],
+          ],
+        },
+        layout: {
+          hLineWidth: (i: number) => i === 0 || i === 2 ? 0.6 : 0.4,
+          vLineWidth: (i: number) => i === 0 || i === 3 ? 0.6 : 0.4,
+          hLineColor: () => BRAND.border, vLineColor: () => BRAND.border,
+          paddingLeft: () => 0, paddingRight: () => 0, paddingTop: () => 0, paddingBottom: () => 0,
+        },
+      };
+
+      // Beneficiary row: profile left + financial right
+      const beneficiaryRow: unknown = {
+        columns: [
+          { stack: [profilePanel], width: "56%" },
+          { stack: [financialPanel], width: "44%" },
+        ],
+        columnGap: 10, margin: [0, 0, 0, 10],
+      };
+
+      // ── PAYMENT HISTORY TABLE ──────────────────────────────────────────────
+      const tblHd = (txt: string, align: "left" | "right" | "center" = "left"): unknown => ({
+        text: txt, fontSize: 6.5, bold: true, color: BRAND.surfaceCard,
+        fillColor: paiNavy, alignment: align,
+        margin: [5, 4, 5, 4],
+        border: [false, false, false, false] as [boolean, boolean, boolean, boolean],
+      });
+
+      const histBodyRows: unknown[] = payHist.length > 0
+        ? payHist.slice(0, 5).map((a, i) => {
+            const isPaid    = a.status === "paid";
+            const isOverdue = a.status === "overdue";
+            const bg        = i % 2 === 1 ? BRAND.surfaceAlt : BRAND.surfaceCard;
+            const stLabel   = isPaid ? "PAYÉ" : isOverdue ? "EN RETARD" : "EN ATTENTE";
+            const stColor   = isPaid ? paiGreen : isOverdue ? BRAND.destructiveDark : BRAND.warningDark;
+            const tc = (txt: string, opts: object = {}): unknown => ({
+              text: txt, fontSize: 7.5, color: BRAND.inkMid, fillColor: bg,
+              margin: [5, 4, 5, 4],
+              border: [false, false, false, false] as [boolean, boolean, boolean, boolean],
+              ...opts,
+            });
+            return [
+              tc(a.ref ?? `REF-${String(i + 1).padStart(3, "0")}`),
+              tc(a.paidDate ?? "—"),
+              tc(a.method ?? "—"),
+              tc("Charges de copropriété"),
+              { text: `${fmtNum(a.amount)} MAD`, fontSize: 7.5, bold: true, color: BRAND.ink, fillColor: bg, alignment: "right" as const, margin: [5, 4, 5, 4], border: [false, false, false, false] as [boolean, boolean, boolean, boolean] },
+              { text: stLabel, fontSize: 6.5, bold: true, color: stColor, fillColor: bg, margin: [5, 4, 5, 4], border: [false, false, false, false] as [boolean, boolean, boolean, boolean] },
+            ];
+          })
+        : [[
+            { text: "Aucune donnée de paiement disponible", fontSize: 7.5, color: BRAND.muted, colSpan: 6, alignment: "center" as const, fillColor: BRAND.surfaceAlt, margin: [5, 10, 5, 10], border: [false, false, false, false] as [boolean, boolean, boolean, boolean] },
+            {}, {}, {}, {}, {},
+          ]];
+
+      const histTable: unknown = {
+        table: {
+          widths: [56, 48, 44, "*", 66, 42],
+          body: [
+            [tblHd("RÉFÉRENCE"), tblHd("DATE"), tblHd("MOYEN"), tblHd("DESCRIPTION"), tblHd("MONTANT", "right"), tblHd("STATUT")],
+            ...histBodyRows,
+            [
+              { text: "TOTAL", fontSize: 7.5, bold: true, colSpan: 4, fillColor: BRAND.surfaceAlt, margin: [5, 5, 5, 5], border: [false, false, false, false] as [boolean, boolean, boolean, boolean] },
+              {}, {}, {},
+              { text: `${fmtNum(totalPaidNum)} MAD`, fontSize: 8, bold: true, color: paiNavy, fillColor: BRAND.surfaceAlt, alignment: "right" as const, margin: [5, 5, 5, 5], border: [false, false, false, false] as [boolean, boolean, boolean, boolean] },
+              { text: "", fillColor: BRAND.surfaceAlt, border: [false, false, false, false] as [boolean, boolean, boolean, boolean] },
+            ],
+          ],
+        },
+        layout: {
+          hLineWidth: (i: number, n: { table: { body: unknown[] } }) => i === 0 || i === n.table.body.length ? 0.6 : 0.3,
+          vLineWidth: () => 0,
+          hLineColor: () => BRAND.border,
+          paddingLeft: () => 0, paddingRight: () => 0, paddingTop: () => 0, paddingBottom: () => 0,
+        },
+      };
+
+      // ── ANALYSIS GRID — 6 cells ────────────────────────────────────────────
+      const montantMensuel = appelCount > 0 && totalDueNum > 0
+        ? fmtNum(Math.round(totalDueNum / appelCount))
+        : "—";
+      const anItem = (lbl: string, val: string, color: string = paiNavy): unknown => ({
+        stack: [
+          { text: lbl.toUpperCase(), fontSize: 5, bold: true, color: BRAND.muted, characterSpacing: 0.5, alignment: "center" as const },
+          { text: val, fontSize: 12, bold: true, color, alignment: "center" as const, margin: [0, 4, 0, 0] },
+        ],
+        margin: [4, 7, 4, 7],
+        border: [false, false, false, false] as [boolean, boolean, boolean, boolean],
+      });
+      const analysisPanel: unknown = {
+        table: {
+          widths: ["16.66%", "16.67%", "16.67%", "16.67%", "16.66%", "16.67%"],
+          body: [[
+            anItem("DÛ ANNUEL",     totalDueNum  > 0 ? fmtNum(totalDueNum)  : "—"),
+            anItem("MENS. CHARGES", montantMensuel),
+            anItem("ANNUEL CHARG.", totalDueNum  > 0 ? fmtNum(totalDueNum)  : "—"),
+            anItem("PÉNALITÉS",     "0 MAD"),
+            anItem("CRÉDIT",        balanceNum < 0 ? fmtNum(Math.abs(balanceNum)) : "0", paiGreen),
+            anItem("AJUSTEMENTS",   "0"),
+          ]],
+        },
+        layout: {
+          hLineWidth: (i: number, n: { table: { body: unknown[] } }) => i === 0 || i === n.table.body.length ? 0.6 : 0,
+          vLineWidth: (i: number) => i > 0 && i < 6 ? 0.4 : 0,
+          hLineColor: () => BRAND.border, vLineColor: () => BRAND.border,
+          paddingLeft: () => 0, paddingRight: () => 0, paddingTop: () => 0, paddingBottom: () => 0,
+        },
+      };
+
+      // ── CERTIFICATION & SIGNATURE PANEL ───────────────────────────────────
+      const certTxt = body || (
+        `Le Syndicat de Copropriété ${syndInfo.name} certifie que ${paiMemberName}, ` +
+        `copropriétaire du lot N° ${paiLotNumber}, ` +
+        (inGoodStanding
+          ? `est en règle de paiement de ses charges de copropriété pour la période ${periode}. ` +
+            `Montant total réglé : ${fmtNum(totalPaidNum)} MAD. ` +
+            `À la date de délivrance, aucune somme n'est due au titre des charges communes.`
+          : `est en cours de régularisation de ses charges pour la période ${periode}. ` +
+            `Montant réglé à ce jour : ${fmtNum(totalPaidNum)} MAD sur ${fmtNum(totalDueNum)} MAD appelés.`) +
+        ` Cette attestation est établie sur la base des écritures comptables du syndicat et est délivrée à la demande de l'intéressé(e) pour servir et valoir ce que de droit.`
+      );
+
+      // Signature detection
+      const paiPresSig  = signatures.find((s) => ["president", "syndicate_admin", "super_admin"].some((r) => s.signerRole === r));
+      const paiTreasSig = signatures.find((s) => s.signerRole === "treasurer");
+      const paiHasPres  = isSvgData(paiPresSig?.signatureData);
+      const paiHasTreas = isSvgData(paiTreasSig?.signatureData);
+
+      // Seal (official stamp object, width 120 from buildOfficialSeal)
+      const paiSeal = buildOfficialSeal(syndInfo.name, BRAND.certGold, paiPresSig?.signerName, today);
+
+      const sigColCell = (label: string, name: string, role: string, hasSig: boolean, sigData?: string | null): unknown => ({
+        stack: [
+          { text: label.toUpperCase(), fontSize: 5.5, bold: true, color: BRAND.muted, characterSpacing: 0.5, alignment: "center" as const },
+          {
+            stack: hasSig && sigData
+              ? [{ svg: sigData, width: 80, height: 28, alignment: "center" as const, margin: [0, 2, 0, 0] }]
+              : [{ canvas: [{ type: "line", x1: 8, y1: 14, x2: 90, y2: 14, lineWidth: 0.5, lineColor: BRAND.border }] }],
+            height: 34,
+          },
+          { text: name || "—", fontSize: 7.5, bold: true, color: BRAND.ink, alignment: "center" as const, margin: [0, 2, 0, 0] },
+          { text: role, fontSize: 6.5, color: BRAND.muted, alignment: "center" as const },
+        ],
+        margin: [4, 5, 4, 5],
+        border: [false, false, false, false] as [boolean, boolean, boolean, boolean],
+      });
+
+      // Seal column
+      const sealSigCell: unknown = {
+        stack: [
+          { text: "CACHET", fontSize: 5.5, bold: true, color: BRAND.muted, characterSpacing: 0.5, alignment: "center" as const },
+          { ...(paiSeal as object), alignment: "center" as const, margin: [0, 0, 0, 0], width: 90 },
+        ],
+        margin: [4, 5, 4, 5],
+        border: [false, false, false, false] as [boolean, boolean, boolean, boolean],
+      };
+
+      // Electronic validation column
+      const elecValCell: unknown = {
+        stack: [
+          { text: "VALIDATION ÉLECTRONIQUE", fontSize: 5, bold: true, color: BRAND.muted, characterSpacing: 0.3, alignment: "center" as const },
+          {
+            svg: `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="${paiNavy}" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M9 12l2 2 4-4M7.835 4.697a3.42 3.42 0 001.946-.806 3.42 3.42 0 014.438 0 3.42 3.42 0 001.946.806 3.42 3.42 0 013.138 3.138 3.42 3.42 0 00.806 1.946 3.42 3.42 0 010 4.438 3.42 3.42 0 00-.806 1.946 3.42 3.42 0 01-3.138 3.138 3.42 3.42 0 00-1.946.806 3.42 3.42 0 01-4.438 0 3.42 3.42 0 00-1.946-.806 3.42 3.42 0 01-3.138-3.138 3.42 3.42 0 00-.806-1.946 3.42 3.42 0 010-4.438 3.42 3.42 0 00.806-1.946 3.42 3.42 0 013.138-3.138z"/></svg>`,
+            width: 26, height: 26, alignment: "center" as const, margin: [0, 4, 0, 2],
+          },
+          { text: "CERTIFIÉ CONFORME", fontSize: 6.5, bold: true, color: paiNavy, alignment: "center" as const, margin: [0, 1, 0, 0] },
+          { text: today, fontSize: 6, color: BRAND.muted, alignment: "center" as const },
+        ],
+        margin: [4, 5, 4, 5],
+        border: [false, false, false, false] as [boolean, boolean, boolean, boolean],
+      };
+
+      const certPanel: unknown = {
+        stack: [
+          { text: certTxt, fontSize: 8, color: BRAND.ink, lineHeight: 1.55, margin: [10, 8, 10, 0] },
+          {
+            table: {
+              widths: ["25%", "25%", "25%", "25%"],
+              body: [[
+                sigColCell("LE TRÉSORIER",   paiTreasSig?.signerName ?? syndInfo.name, "Trésorier",              paiHasTreas, paiTreasSig?.signatureData),
+                sigColCell("LE PRÉSIDENT",   paiPresSig?.signerName  ?? syndInfo.name, "Syndic de Copropriété",  paiHasPres,  paiPresSig?.signatureData),
+                sealSigCell,
+                elecValCell,
+              ]],
+            },
+            layout: {
+              hLineWidth: () => 0,
+              vLineWidth: (i: number) => i > 0 && i < 4 ? 0.4 : 0,
+              vLineColor: () => BRAND.border,
+              paddingLeft: () => 0, paddingRight: () => 0, paddingTop: () => 0, paddingBottom: () => 0,
+            },
+            margin: [0, 8, 0, 0],
+          },
+        ],
+      };
+
+      // ── LEFT MAIN COLUMN ───────────────────────────────────────────────────
+      const paiMain: unknown[] = [
+        secHead("◉", "BÉNÉFICIAIRE"),
+        beneficiaryRow,
+        secHead("◈", "HISTORIQUE DES PAIEMENTS"),
+        histTable,
+        secHead("◎", "ANALYSE FINANCIÈRE"),
+        analysisPanel,
+        { text: `Période couverte : ${periode}`, fontSize: 6.5, color: BRAND.muted, alignment: "center" as const, margin: [0, 3, 0, 0] },
+        secHead("✓", "CERTIFICATION & SIGNATURES"),
         {
           table: {
             widths: ["*"],
             body: [[{
-              columns: [
-                {
-                  text: statusText,
-                  fontSize: 10, bold: true, color: inGoodStanding ? BRAND.successDeep : BRAND.warningDark, width: "*",
-                  margin: [0, 0, 0, 0],
-                },
-                ...(lastPaid ? [{
-                  text: `Dernier paiement : ${lastPaid}`,
-                  fontSize: 8, color: BRAND.muted, alignment: "right" as const, width: "auto",
-                }] : []),
-              ],
-              fillColor: statusBg,
-              margin: [14, 10, 14, 10],
-              border: [false, false, false, false] as [boolean, boolean, boolean, boolean],
+              stack: [certPanel],
+              border: [true, true, true, true] as [boolean, boolean, boolean, boolean],
+              borderColor: [BRAND.border, BRAND.border, BRAND.border, BRAND.border] as [string, string, string, string],
+              margin: [0, 0, 0, 0],
             }]],
           },
           layout: {
-            hLineWidth: (i: number, node: { table: { body: unknown[] } }) => i === 0 || i === node.table.body.length ? 1.5 : 0,
-            vLineWidth: () => 0,
-            hLineColor: () => statusColor,
+            hLineWidth: (i: number, n: { table: { body: unknown[] } }) => i === 0 || i === n.table.body.length ? 0.6 : 0,
+            vLineWidth: (i: number) => i === 0 || i === 1 ? 0.6 : 0,
+            hLineColor: () => BRAND.border, vLineColor: () => BRAND.border,
             paddingLeft: () => 0, paddingRight: () => 0, paddingTop: () => 0, paddingBottom: () => 0,
           },
-          margin: [0, 0, 0, 16],
         },
-        metaTable([
-          [t("metaDeliveredTo", lang), member || t("notRenseigne", lang)],
-          [t("metaIssueDate", lang), today],
-          [t("metaIssuer", lang), syndInfo.name],
-          ["Période couverte :", periode],
-          ...(lotNum !== "—" ? [["N° de lot :", lotNum] as [string, string]] : []),
-          ...(montant !== "—" ? [["Montant total réglé :", `${montant} MAD`] as [string, string]] : []),
-          ...(totalCharged !== "—" ? [["Montant total appelé :", `${totalCharged} MAD`] as [string, string]] : []),
-          ...(appelCount ? [["Nombre d'appels :", `${appelCount} appel(s) de fonds`] as [string, string]] : []),
-          ...(syndInfo.registrationNumber ? [[t("metaRegRef", lang), syndInfo.registrationNumber] as [string, string]] : []),
-        ], accentColor),
-        contentSection(
-          "Attestation de Bonne Foi de Paiement",
-          body || (
-            `Le Syndicat de Copropriété ${syndInfo.name} certifie que :\n\n` +
-            `${member || "[NOM DU MEMBRE]"}, copropriétaire du lot N° ${lotNum},\n\n` +
-            (inGoodStanding
-              ? `est en règle de paiement de ses charges de copropriété pour la période : ${periode}.\n\n` +
-                `Montant total réglé : ${montant !== "—" ? montant + " MAD" : "[montant]"}.\n\n` +
-                `À la date de délivrance de la présente attestation, aucune somme n'est due au titre des charges communes exigibles pour la période mentionnée ci-dessus.`
-              : `est en cours de régularisation de ses charges de copropriété pour la période : ${periode}.\n\n` +
-                `Montant total réglé à ce jour : ${montant !== "—" ? montant + " MAD" : "[montant]"}.\n\n` +
-                `Veuillez régulariser votre situation dans les plus brefs délais.`) +
-            `\n\nCette attestation est établie sur la base des écritures comptables du syndicat et est délivrée ` +
-            `à la demande de l'intéressé(e) pour servir et valoir ce que de droit.`
-          ),
-          accentColor,
-          isArabic,
-        ),
-        // Payment history table — only rendered when real DB data is available
-        ...(paymentHistory.length > 0 ? [{
-          stack: [
-            { canvas: [{ type: "rect", x: 0, y: 0, w: 515, h: 20, color: accentColor }], margin: [0, 0, 0, 0] },
-            { text: "HISTORIQUE DES APPELS DE FONDS", fontSize: 8.5, bold: true, color: BRAND.surfaceCard, margin: [0, -17, 0, 10] },
-            {
-              table: {
-                widths: ["*", 80, 80, 70],
-                body: [
-                  [
-                    { text: "PÉRIODE", fontSize: 7.5, bold: true, color: BRAND.surfaceCard, fillColor: accentColor, margin: [8, 5, 8, 5], border: [false, false, false, false] as [boolean, boolean, boolean, boolean] },
-                    { text: "MONTANT", fontSize: 7.5, bold: true, color: BRAND.surfaceCard, fillColor: accentColor, alignment: "right" as const, margin: [4, 5, 8, 5], border: [false, false, false, false] as [boolean, boolean, boolean, boolean] },
-                    { text: "DATE PAIEMENT", fontSize: 7.5, bold: true, color: BRAND.surfaceCard, fillColor: accentColor, alignment: "center" as const, margin: [4, 5, 4, 5], border: [false, false, false, false] as [boolean, boolean, boolean, boolean] },
-                    { text: "STATUT", fontSize: 7.5, bold: true, color: BRAND.surfaceCard, fillColor: accentColor, alignment: "center" as const, margin: [4, 5, 8, 5], border: [false, false, false, false] as [boolean, boolean, boolean, boolean] },
-                  ],
-                  ...paymentHistory.map((a, i) => {
-                    const isPaid = a.status === "paid";
-                    const isOverdue = a.status === "overdue";
-                    const bg = i % 2 === 0 ? BRAND.surface : BRAND.surfaceCard;
-                    const statusLabel = isPaid ? "PAYÉ" : isOverdue ? "EN RETARD" : "EN ATTENTE";
-                    const statusColor2 = isPaid ? BRAND.successDark : isOverdue ? BRAND.destructiveDark : BRAND.warningDark;
-                    return [
-                      { text: a.period, fontSize: 8, color: BRAND.inkMid, fillColor: bg, margin: [8, 5, 8, 5], border: [false, false, false, false] as [boolean, boolean, boolean, boolean] },
-                      { text: `${a.amount.toLocaleString("fr-MA")} MAD`, fontSize: 8, bold: true, color: BRAND.ink, fillColor: bg, alignment: "right" as const, margin: [4, 5, 8, 5], border: [false, false, false, false] as [boolean, boolean, boolean, boolean] },
-                      { text: a.paidDate || "—", fontSize: 8, color: BRAND.muted, fillColor: bg, alignment: "center" as const, margin: [4, 5, 4, 5], border: [false, false, false, false] as [boolean, boolean, boolean, boolean] },
-                      { text: statusLabel, fontSize: 7.5, bold: true, color: statusColor2, fillColor: bg, alignment: "center" as const, margin: [4, 5, 8, 5], border: [false, false, false, false] as [boolean, boolean, boolean, boolean] },
-                    ];
-                  }),
-                ],
-              },
-              layout: {
-                hLineWidth: (i: number, node: { table: { body: unknown[] } }) => i === 0 || i === node.table.body.length ? 0.8 : 0.3,
-                vLineWidth: () => 0,
-                hLineColor: () => BRAND.border,
-                paddingLeft: () => 0, paddingRight: () => 0, paddingTop: () => 0, paddingBottom: () => 0,
-              },
-            },
-          ],
-          margin: [0, 0, 0, 16],
-        }] : []),
-        signatureBlock(t("presidentTitle", lang), syndInfo.name, accentColor, true, lang, signatures),
-        legalFooterNote(docNum, lang, verifyUrl),
+      ];
+
+      // ── RIGHT SIDEBAR ──────────────────────────────────────────────────────
+      const shieldSvg = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path fill="${paiGreen}" d="M12 1L3 5v6c0 5.55 3.84 10.74 9 12 5.16-1.26 9-6.45 9-12V5l-9-4zm-2 16l-4-4 1.41-1.41L10 14.17l6.59-6.59L18 9l-8 8z"/></svg>`;
+
+      const accountStatusPanel: unknown = {
+        table: {
+          widths: ["*"],
+          body: [[{
+            stack: [
+              { svg: shieldSvg, width: 32, height: 32, alignment: "center" as const, margin: [0, 4, 0, 3] },
+              { text: inGoodStanding ? "COMPTE EN RÈGLE" : "RÉGULARISATION", fontSize: 8.5, bold: true, color: inGoodStanding ? paiGreen : BRAND.warningDark, alignment: "center" as const },
+              { text: inGoodStanding ? "Aucune charge impayée à ce jour" : "Des charges restent à régler", fontSize: 6.5, color: BRAND.muted, alignment: "center" as const, margin: [0, 3, 0, 0] },
+              { text: "PROCHAINE ÉCHÉANCE", fontSize: 5, bold: true, color: BRAND.muted, characterSpacing: 0.6, alignment: "center" as const, margin: [0, 8, 0, 2] },
+              { text: lastPaid ? "En règle à la date d'émission" : "—", fontSize: 7.5, bold: true, color: BRAND.ink, alignment: "center" as const },
+            ],
+            margin: [6, 8, 6, 10],
+            border: [false, false, false, false] as [boolean, boolean, boolean, boolean],
+          }]],
+        },
+        layout: {
+          hLineWidth: (i: number, n: { table: { body: unknown[] } }) => i === 0 || i === n.table.body.length ? 0.6 : 0,
+          vLineWidth: (i: number) => i === 0 || i === 1 ? 0.6 : 0,
+          hLineColor: () => BRAND.border, vLineColor: () => BRAND.border,
+          paddingLeft: () => 0, paddingRight: () => 0, paddingTop: () => 0, paddingBottom: () => 0,
+        },
+        margin: [0, 0, 0, 10],
+      };
+
+      const paiSidebar: unknown[] = [
+        secHead("✓", "STATUT COMPTE"),
+        accountStatusPanel,
+        buildSidebarInfoPanel("DÉTAILS DU COMPTE", "◎", [
+          ["N° DE COMPTE",   paiRef],
+          ["DATE ADHÉSION",  paiJoinDate || "—"],
+          ["TYPE COMPTE",    "Copropriétaire"],
+          ["GESTIONNAIRE",   syndInfo.name],
+          ["CENTRE GESTION", paiBuilding],
+        ], paiNavy) as object,
+        buildDigitalVerificationPanel(qrDataUrl, docNum, verifyUrl, paiNavy, lang) as object,
+      ];
+
+      // ── FOOTER ─────────────────────────────────────────────────────────────
+      const paiFooter: unknown = {
+        columns: [
+          {
+            stack: [
+              { text: "VALEUR LÉGALE", fontSize: 6, bold: true, color: BRAND.ink, margin: [0, 0, 0, 2] },
+              { text: "Document officiel du syndicat de copropriété. Peut être présenté à toute autorité administrative ou judiciaire.", fontSize: 5.5, color: BRAND.muted, lineHeight: 1.4 },
+            ],
+            width: "*",
+          },
+          {
+            stack: [
+              { text: "INSTRUCTIONS", fontSize: 6, bold: true, color: BRAND.ink, margin: [0, 0, 0, 2] },
+              { text: "• Conservez ce document en lieu sûr", fontSize: 5.5, color: BRAND.muted },
+              { text: "• Vérifiez l'authenticité via le QR code", fontSize: 5.5, color: BRAND.muted },
+              { text: "• Valable à la date d'émission uniquement", fontSize: 5.5, color: BRAND.muted },
+            ],
+            width: 138,
+          },
+          {
+            stack: [
+              { text: "CONTACT SYNDICAT", fontSize: 6, bold: true, color: BRAND.ink, margin: [0, 0, 0, 2] },
+              ...(syndInfo.phone   ? [{ text: `✆ ${syndInfo.phone}`,   fontSize: 5.5, color: BRAND.muted }] : []),
+              ...(syndInfo.email   ? [{ text: `✉ ${syndInfo.email}`,   fontSize: 5.5, color: BRAND.muted }] : []),
+              ...(syndInfo.website ? [{ text: syndInfo.website,         fontSize: 5.5, color: BRAND.muted }] : []),
+            ],
+            width: 110,
+          },
+          {
+            stack: [
+              { canvas: [{ type: "ellipse", x: 26, y: 26, r1: 26, r2: 26, lineWidth: 2, lineColor: paiNavy }], margin: [0, 0, 0, -52] },
+              { text: "SYNDICAT\nCOPRO\nCERTIFIÉ", fontSize: 5, bold: true, color: paiNavy, alignment: "center" as const, lineHeight: 1.3, margin: [0, 13, 0, 0] },
+            ],
+            width: 54,
+          },
+        ],
+        columnGap: 10, margin: [0, 8, 0, 0],
+      };
+
+      // Custom page footer
+      footerFn = (_p: number, _ps: number) => ({
+        columns: [
+          { text: `${syndInfo.name}  ·  ${today}  ·  Réf. ${docNum}`, fontSize: 6, color: BRAND.muted, margin: [40, 14, 0, 0] },
+          { text: `${_p} / ${_ps}`, fontSize: 8, bold: true, color: BRAND.ink, alignment: "right" as const, margin: [0, 12, 40, 0] },
+        ],
+      });
+
+      content = [
+        paiHeader as object,
+        paiHdrBorder as object,
+        { columns: [{ stack: paiMain, width: "*" }, { stack: paiSidebar, width: 146 }], columnGap: 14 },
+        { canvas: [{ type: "line", x1: 0, y1: 0, x2: 515, y2: 0, lineWidth: 0.5, lineColor: BRAND.border }], margin: [0, 8, 0, 0] },
+        paiFooter as object,
       ];
       break;
     }
