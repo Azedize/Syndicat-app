@@ -276,8 +276,8 @@ function ActesAdministratifsScreenInner() {
 
       {/* Type filter */}
       <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={[styles.filterRow, { paddingTop: 0 }]}>
-        <TouchableOpacity style={[styles.chip, { backgroundColor: filterType === "all" ? colors.foreground : colors.card, borderColor: filterType === "all" ? colors.foreground : colors.border }]} onPress={() => setFilterType("all")}>
-          <Text style={[styles.chipText, { color: filterType === "all" ? colors.background : colors.foreground }]}>Tous types</Text>
+        <TouchableOpacity style={[styles.chip, { backgroundColor: filterType === "all" ? colors.primary : colors.card, borderColor: filterType === "all" ? colors.primary : colors.border }]} onPress={() => setFilterType("all")}>
+          <Text style={[styles.chipText, { color: filterType === "all" ? "#fff" : colors.foreground }]}>Tous types</Text>
         </TouchableOpacity>
         {TYPES_LIST.map((key) => {
           const cfg = TYPE_CONFIG[key];
