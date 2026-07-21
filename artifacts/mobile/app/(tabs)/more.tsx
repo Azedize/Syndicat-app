@@ -55,12 +55,15 @@ const MENU_SECTIONS_DEF: SectionDef[] = [
   {
     titleKey: "menuSectionFinance",
     items: [
-      { labelKey: "chargesAppels",      icon: "credit-card",  route: "/charges",              color: "#10b981", roles: ["super_admin", "syndicate_admin", "member"] },
-      { labelKey: "budgetPrevisionnel", icon: "pie-chart",    route: "/budget-previsionnel",  color: "#3b82f6", roles: ["super_admin", "syndicate_admin"] },
-      { labelKey: "devisFactures",      icon: "file-text",    route: "/invoices",             color: "#6366f1", roles: ["super_admin", "syndicate_admin"] },
-      { labelKey: "bonLivraison",       icon: "package",      route: "/bon-livraison",        color: "#f97316", roles: ["super_admin", "syndicate_admin"] },
-      { labelKey: "rapportsFinanciers", icon: "bar-chart-2",  route: "/reports",              color: "#7c3aed", roles: ["super_admin", "syndicate_admin"] },
-      { labelKey: "escalationLabel",    icon: "trending-up",  route: "/escalation",           color: "#ef4444", roles: ["super_admin", "syndicate_admin"] },
+      { labelKey: "tableauBord",        icon: "bar-chart-2",  route: "/tableau-bord-financier", color: "#3b82f6", roles: ["super_admin", "syndicate_admin"] },
+      { labelKey: "chargesAppels",      icon: "credit-card",  route: "/charges",                color: "#10b981", roles: ["super_admin", "syndicate_admin", "member"] },
+      { labelKey: "paymentHistory",     icon: "dollar-sign",  route: "/paiements",              color: "#10b981", roles: ["member", "tenant"] },
+      { labelKey: "budgetPrevisionnel", icon: "pie-chart",    route: "/budget-previsionnel",    color: "#8b5cf6", roles: ["super_admin", "syndicate_admin"] },
+      { labelKey: "devisFactures",      icon: "file-text",    route: "/invoices",               color: "#6366f1", roles: ["super_admin", "syndicate_admin"] },
+      { labelKey: "bonLivraison",       icon: "package",      route: "/bon-livraison",          color: "#f97316", roles: ["super_admin", "syndicate_admin"] },
+      { labelKey: "rapportsFinanciers", icon: "bar-chart-2",  route: "/reports",                color: "#7c3aed", roles: ["super_admin", "syndicate_admin"] },
+      { labelKey: "fichesPaie",         icon: "file-text",    route: "/fiches-paie",            color: "#6366f1", roles: ["super_admin", "syndicate_admin"] },
+      { labelKey: "escalationLabel",    icon: "trending-up",  route: "/escalation",             color: "#ef4444", roles: ["super_admin", "syndicate_admin"] },
     ],
   },
   {
@@ -80,6 +83,7 @@ const MENU_SECTIONS_DEF: SectionDef[] = [
       { labelKey: "reunionsConvocations", icon: "calendar",    route: "/meetings",            color: "#3b82f6", roles: ["super_admin", "syndicate_admin", "member"] },
       { labelKey: "votesResolutions",     icon: "check-square",route: "/elections",           color: "#f59e0b", roles: ["super_admin", "syndicate_admin", "member"] },
       { labelKey: "pvLabel",              icon: "file-text",   route: "/pv",                  color: "#6366f1", roles: ["super_admin", "syndicate_admin", "member"] },
+      { labelKey: "governance",           icon: "award",       route: "/governance",          color: "#8b5cf6", roles: ["super_admin", "syndicate_admin"] },
     ],
   },
   {
@@ -95,18 +99,21 @@ const MENU_SECTIONS_DEF: SectionDef[] = [
   {
     titleKey: "menuSectionCommunication",
     items: [
-      { labelKey: "avisResidents",          icon: "bell",           route: "/annonces",          color: "#f59e0b", roles: ["super_admin", "syndicate_admin", "member", "tenant"] },
-      { labelKey: "publicationsActualites", icon: "rss",            route: "/publications",      color: "#f97316", roles: ["super_admin", "syndicate_admin", "member", "tenant"] },
-      { labelKey: "chatMessagerie",         icon: "message-circle", route: "/chat",              color: "#ec4899", roles: ["super_admin", "syndicate_admin", "member", "tenant"] },
-      { labelKey: "messagerieInterne",      icon: "mail",           route: "/messagerie-interne",color: "#3b82f6", roles: ["super_admin", "syndicate_admin", "member", "tenant"] },
-      { labelKey: "alerts",                 icon: "bell",           route: "/notifications",     color: "#ef4444", roles: ["super_admin", "syndicate_admin", "member", "tenant"] },
+      { labelKey: "avisResidents",          icon: "bell",           route: "/annonces",           color: "#f59e0b", roles: ["super_admin", "syndicate_admin", "member", "tenant"] },
+      { labelKey: "publicationsActualites", icon: "rss",            route: "/publications",       color: "#f97316", roles: ["super_admin", "syndicate_admin", "member", "tenant"] },
+      { labelKey: "chatMessagerie",         icon: "message-circle", route: "/chat",               color: "#ec4899", roles: ["super_admin", "syndicate_admin", "member", "tenant"] },
+      { labelKey: "messagerieInterne",      icon: "mail",           route: "/messagerie-interne", color: "#3b82f6", roles: ["super_admin", "syndicate_admin", "member", "tenant"] },
+      { labelKey: "ideas",                  icon: "zap",            route: "/ideas",              color: "#f59e0b", roles: ["super_admin", "syndicate_admin", "member", "tenant"] },
     ],
   },
   {
     titleKey: "menuSectionSupport",
     items: [
+      // Support tickets — all roles (anyone can submit a helpdesk request)
       { labelKey: "demandesIntervention", icon: "headphones", route: "/support",      color: "#ef4444", roles: ["super_admin", "syndicate_admin", "member", "tenant"] },
-      { labelKey: "reclamationsLabel",    icon: "inbox",      route: "/reclamations", color: "#f97316", roles: ["super_admin", "syndicate_admin", "member", "tenant"] },
+      // Réclamations = HR grievances module (salaire, discrimination, harcèlement)
+      // Restricted to internal staff roles only — NOT for tenants (locataires)
+      { labelKey: "reclamationsLabel",    icon: "inbox",      route: "/reclamations", color: "#f97316", roles: ["super_admin", "syndicate_admin", "member"] },
     ],
   },
   {
