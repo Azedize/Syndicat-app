@@ -33,7 +33,7 @@ const NAV_ITEMS: NavItem[] = [
 ];
 
 const QUICK_LINKS: NavItem[] = [
-  { label: "Alertes", icon: "bell", route: "/alerts", match: ["/alerts"] },
+  { label: "Notifications", icon: "bell", route: "/alerts", match: ["/alerts"] },
   { label: "Chat", icon: "message-circle", route: "/chat", match: ["/chat", "/chat-thread"] },
   { label: "Élections", icon: "check-square", route: "/elections", match: ["/elections"] },
   { label: "Réunions", icon: "calendar", route: "/meetings", match: ["/meetings"] },

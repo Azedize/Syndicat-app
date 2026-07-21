@@ -14,11 +14,13 @@ import {
   TouchableOpacity,
   View,
 } from "react-native";
+import { shareContent } from "@/hooks/useShare";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useAuth } from "@/context/AuthContext";
 import { useBreakpoints } from "@/hooks/useBreakpoints";
 import { useColors } from "@/hooks/useColors";
 import { apiRequest } from "@/lib/api";
+import { useToast } from "@/context/ToastContext";
 
 type BureauMember = { id: string; name: string; role: string; icon: keyof typeof Feather.glyphMap; since: string; email: string; phone: string };
 type Commission = { id: string; name: string; members: number; status: "active" | "inactive"; chair: string; nextMeeting: string };
@@ -82,6 +84,7 @@ export default function GovernanceScreen() {
   const colors = useColors();
   const insets = useSafeAreaInsets();
   const { user } = useAuth();
+  const { showToast } = useToast();
   const [tab, setTab] = useState<TabType>("organigramme");
   const [bureau, setBureau] = useState(INITIAL_BUREAU);
   const [commissions, setCommissions] = useState(INITIAL_COMMISSIONS);
@@ -499,7 +502,7 @@ export default function GovernanceScreen() {
               activeOpacity={0.8}
               onPress={() => {
                 Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-                Alert.alert(doc.title, `Version ${doc.version} — ${doc.date}\n\nAppuyez sur "Télécharger" pour obtenir ce document.`);
+                router.push("/documents");
               }}
             >
               <View style={[styles.docIcon, { backgroundColor: colors.primary + "15" }]}>
@@ -513,7 +516,7 @@ export default function GovernanceScreen() {
                 style={[styles.docDownload, { backgroundColor: colors.primary + "15" }]}
                 onPress={() => {
                   Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-                  Alert.alert("Document téléchargé", `"${doc.title}" (${doc.version}) a été téléchargé avec succès.`);
+                  shareContent(`${doc.title} — ${doc.version} (${doc.date})`, doc.title);
                 }}
               >
                 <Feather name="download" size={15} color={colors.primary} />
@@ -727,7 +730,7 @@ export default function GovernanceScreen() {
                             const nomme = nomineeInput.trim();
                             setNomineeInput("");
                             setSelectedMandat(null);
-                            Alert.alert("Nomination confirmée", `${nomme} a été nommé(e) titulaire du poste "${selectedMandat.poste}".`);
+                            showToast({ type: "success", title: "Nomination confirmée", message: `${nomme} a été nommé(e) titulaire du poste "${selectedMandat.poste}".` });
                           }}
                         >
                           <Text style={[styles.saveBtnText, { color: "#fff" }]}>Confirmer la nomination</Text>

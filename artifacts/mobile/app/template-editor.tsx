@@ -23,6 +23,7 @@ import {
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useToast } from "@/context/ToastContext";
 import RoleGuard from "@/components/RoleGuard";
+import { apiRequest as libApiRequest } from "@/lib/api";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -158,17 +159,9 @@ const defaultForm = (): TemplateForm => ({
 
 // ─── API helper ───────────────────────────────────────────────────────────────
 
-async function apiReq(path: string, method = "GET", body?: object) {
-  const { default: api } = await import("@/services/api");
-  const token = await (api as any).getToken?.();
-  const base = (api as any).baseUrl ?? "";
-  const res = await fetch(`${base}${path}`, {
-    method,
-    headers: { "Content-Type": "application/json", ...(token ? { Authorization: `Bearer ${token}` } : {}) },
-    body: body ? JSON.stringify(body) : undefined,
-  });
-  if (!res.ok) { const t = await res.text(); throw new Error(t); }
-  return res.json();
+async function apiReq(path: string, method: "GET" | "POST" | "PUT" | "PATCH" | "DELETE" = "GET", body?: object) {
+  // Strip leading /api prefix — libApiRequest already prepends /api internally
+  return libApiRequest(path.replace(/^\/api/, ""), method, body);
 }
 
 // ─── Sub-components ───────────────────────────────────────────────────────────
@@ -508,7 +501,7 @@ function VersionsTab({ templateId }: { templateId: string }) {
   useEffect(() => {
     apiReq(`/api/template-studio/templates/${templateId}/versions`)
       .then((r) => setVersions(r.data ?? []))
-      .catch(() => showToast("Erreur chargement versions", "error"))
+      .catch(() => showToast({ type: "error", message: "Erreur chargement versions" }))
       .finally(() => setLoading(false));
   }, [templateId]);
 
@@ -522,10 +515,10 @@ function VersionsTab({ templateId }: { templateId: string }) {
           text: "Restaurer", onPress: async () => {
             try {
               await apiReq(`/api/template-studio/templates/${templateId}/versions/${ver.id}/restore`, "POST");
-              showToast("Version restaurée", "success");
+              showToast({ type: "success", message: "Version restaurée" });
               const r = await apiReq(`/api/template-studio/templates/${templateId}/versions`);
               setVersions(r.data ?? []);
-            } catch { showToast("Erreur", "error"); }
+            } catch { showToast({ type: "error", message: "Erreur" }); }
           },
         },
       ],
@@ -579,7 +572,7 @@ function PermissionsTab({ templateId }: { templateId: string }) {
         });
         setPerms(merged);
       })
-      .catch(() => showToast("Erreur chargement permissions", "error"))
+      .catch(() => showToast({ type: "error", message: "Erreur chargement permissions" }))
       .finally(() => setLoading(false));
   }, [templateId]);
 
@@ -593,8 +586,8 @@ function PermissionsTab({ templateId }: { templateId: string }) {
     try {
       setSaving(true);
       await apiReq(`/api/template-studio/templates/${templateId}/permissions`, "PUT", { permissions: perms });
-      showToast("Permissions mises à jour", "success");
-    } catch { showToast("Erreur", "error"); }
+      showToast({ type: "success", message: "Permissions mises à jour" });
+    } catch { showToast({ type: "error", message: "Erreur" }); }
     finally { setSaving(false); }
   };
 
@@ -619,7 +612,7 @@ function PermissionsTab({ templateId }: { templateId: string }) {
               <View key={field} style={s.permColView}>
                 <Switch
                   value={perm[field]}
-                  onValueChange={() => !isSuperAdmin && toggle(idx, field)}
+                  onValueChange={() => { if (!isSuperAdmin) toggle(idx, field); }}
                   disabled={isSuperAdmin}
                   trackColor={{ false: "#334155", true: "#7c3aed" }}
                   thumbColor={perm[field] ? "#a78bfa" : "#64748b"}
@@ -732,27 +725,27 @@ function TemplateEditorContent() {
             : defaultForm().layoutConfig,
         });
       })
-      .catch(() => showToast("Erreur chargement du template", "error"))
+      .catch(() => showToast({ type: "error", message: "Erreur chargement du template" }))
       .finally(() => setLoading(false));
   }, [params.id]);
 
   const doSave = async (desc: string) => {
     if (!form.slug.trim() || !form.name.fr.trim()) {
-      showToast("Le slug et le nom (FR) sont requis", "error"); return;
+      showToast({ type: "error", message: "Le slug et le nom (FR) sont requis" }); return;
     }
     try {
       setSaving(true);
       const payload = { ...form, changeDescription: desc || undefined };
       if (isNew) {
         await apiReq("/api/template-studio/templates", "POST", payload);
-        showToast("Template créé avec succès", "success");
+        showToast({ type: "success", message: "Template créé avec succès" });
         router.back();
       } else {
         await apiReq(`/api/template-studio/templates/${params.id}`, "PUT", payload);
-        showToast("Template mis à jour", "success");
+        showToast({ type: "success", message: "Template mis à jour" });
       }
     } catch (err: any) {
-      showToast(err?.message?.includes("slug") ? "Ce slug existe déjà" : "Erreur lors de la sauvegarde", "error");
+      showToast({ type: "error", message: err?.message?.includes("slug") ? "Ce slug existe déjà" : "Erreur lors de la sauvegarde" });
     } finally {
       setSaving(false);
     }
@@ -907,7 +900,7 @@ function TemplateEditorContent() {
 
 export default function TemplateEditor() {
   return (
-    <RoleGuard roles={["super_admin"]}>
+    <RoleGuard allow={["super_admin"]}>
       <TemplateEditorContent />
     </RoleGuard>
   );

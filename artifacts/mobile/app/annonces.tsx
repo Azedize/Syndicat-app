@@ -23,6 +23,7 @@ import { useLanguage } from "@/context/LanguageContext";
 import { useBreakpoints } from "@/hooks/useBreakpoints";
 import { useColors } from "@/hooks/useColors";
 import { announcements, type ApiAnnouncement } from "@/services/api";
+import { useToast } from "@/context/ToastContext";
 
 type Priority = ApiAnnouncement["priority"];
 
@@ -53,6 +54,7 @@ export default function AnnoncesScreen() {
   const topPad = isWide ? 0 : (Platform.OS === "web" ? 67 : insets.top);
   const queryClient = useQueryClient();
   const isAdmin = user?.role !== "member";
+  const { showToast } = useToast();
 
   const PRIORITY_CONFIG = getPriorityConfig(t);
 
@@ -80,9 +82,9 @@ export default function AnnoncesScreen() {
       setNewTitle(""); setNewBody(""); setNewPriority("info");
       setNewAudience("Tous les membres"); setNewPinned(false);
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-      Alert.alert(t("publishAnnouncement"), "L'annonce a été publiée et est visible par les membres.");
+      showToast({ type: "success", title: t("publishAnnouncement"), message: "L'annonce a été publiée et est visible par les membres." });
     },
-    onError: (err: Error) => Alert.alert("Erreur", err.message),
+    onError: (err: Error) => showToast({ type: "error", title: "Erreur", message: err.message }),
   });
 
   const deleteMutation = useMutation({
@@ -92,7 +94,7 @@ export default function AnnoncesScreen() {
       setSelected(null);
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
     },
-    onError: (err: Error) => Alert.alert("Erreur", err.message),
+    onError: (err: Error) => showToast({ type: "error", title: "Erreur", message: err.message }),
   });
 
   const allAnnonces = data?.data ?? [];
@@ -105,7 +107,7 @@ export default function AnnoncesScreen() {
 
   const handleCreate = () => {
     if (!newTitle.trim() || !newBody.trim()) {
-      Alert.alert(t("requiredFields"), "Le titre et le corps sont obligatoires.");
+      showToast({ type: "warning", title: t("requiredFields"), message: "Le titre et le corps sont obligatoires." });
       return;
     }
     createMutation.mutate({

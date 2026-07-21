@@ -374,12 +374,68 @@ export default function MemberDetailScreen() {
           <View style={[styles.actionsDrag, { backgroundColor: colors.border }]} />
           <Text style={[styles.actionsSheetTitle, { color: colors.foreground }]}>{t("memberDetail")} — {member?.name}</Text>
           {[
-            { icon: "download" as const, label: t("download"), color: "#6366f1", action: () => { Alert.alert(t("download"), `${member?.name}`); logActivity({ action: t("download"), target: member?.name ?? "", route: "/member-detail", icon: "download", color: "#6366f1" }); } },
-            { icon: "send" as const, label: t("send"), color: "#3b82f6", action: () => { Alert.alert(t("send"), `${member?.name}`); logActivity({ action: t("send"), target: member?.name ?? "", route: "/member-detail", icon: "send", color: "#3b82f6" }); } },
-            { icon: "mail" as const, label: "Email", color: "#10b981", action: () => Alert.alert("Email", `${member?.email}`) },
-            { icon: "award" as const, label: t("download"), color: "#8b5cf6", action: () => { Alert.alert(t("download"), `${member?.name}`); logActivity({ action: t("download"), target: member?.name ?? "", route: "/documents", icon: "award", color: "#8b5cf6" }); } },
-            { icon: "copy" as const, label: t("memberDetail"), color: "#f59e0b", action: () => Alert.alert(t("memberDetail"), `ID : ${member?.id}`) },
-            { icon: "share-2" as const, label: t("share"), color: "#ec4899", action: () => Alert.alert(t("share"), `${member?.name}`) },
+            {
+              icon: "download" as const,
+              label: t("download"),
+              color: "#6366f1",
+              action: () => {
+                logActivity({ action: t("download"), target: member?.name ?? "", route: "/member-detail", icon: "download", color: "#6366f1" });
+                router.push({ pathname: "/documents", params: { memberId: member?.id, memberName: member?.name } });
+              },
+            },
+            {
+              icon: "send" as const,
+              label: t("send"),
+              color: "#3b82f6",
+              action: () => {
+                const info = `${member?.name}\n${member?.phone ?? ""}\n${member?.profession ?? ""}`;
+                logActivity({ action: t("send"), target: member?.name ?? "", route: "/member-detail", icon: "send", color: "#3b82f6" });
+                shareContent(info, member?.name);
+              },
+            },
+            {
+              icon: "mail" as const,
+              label: "Email",
+              color: "#10b981",
+              action: () => {
+                if (member?.email) {
+                  Linking.openURL(`mailto:${member.email}`).catch(() =>
+                    Alert.alert("Email", member?.email ?? "")
+                  );
+                }
+              },
+            },
+            {
+              icon: "award" as const,
+              label: "Attestation",
+              color: "#8b5cf6",
+              action: () => {
+                logActivity({ action: "attestation", target: member?.name ?? "", route: "/documents", icon: "award", color: "#8b5cf6" });
+                router.push({ pathname: "/documents", params: { templateId: "attestation_adhesion", memberId: member?.id } });
+              },
+            },
+            {
+              icon: "copy" as const,
+              label: "Copier ID",
+              color: "#f59e0b",
+              action: () => {
+                shareContent(`ID Membre : ${member?.id ?? ""}`, member?.name);
+              },
+            },
+            {
+              icon: "share-2" as const,
+              label: t("share"),
+              color: "#ec4899",
+              action: () => {
+                const card =
+                  `👤 ${member?.name}\n` +
+                  `📧 ${member?.email}\n` +
+                  `📞 ${member?.phone ?? "—"}\n` +
+                  `💼 ${member?.profession ?? "—"}\n` +
+                  `📅 Membre depuis ${member?.joinDate ?? "—"}`;
+                shareContent(card, member?.name);
+              },
+            },
           ].map((item, i) => (
             <TouchableOpacity
               key={item.label + i}

@@ -4,7 +4,6 @@ import { router } from "expo-router";
 import React, { useCallback, useEffect, useState } from "react";
 import {
   ActivityIndicator,
-  Alert,
   Modal,
   Platform,
   ScrollView,
@@ -19,7 +18,10 @@ import { useLanguage } from "@/context/LanguageContext";
 import { useAuth } from "@/context/AuthContext";
 import { useBreakpoints } from "@/hooks/useBreakpoints";
 import { useColors } from "@/hooks/useColors";
+import { useToast } from "@/context/ToastContext";
 import { apiRequest } from "@/lib/api";
+import EmptyState from "@/components/EmptyState";
+import FilterChips from "@/components/FilterChips";
 
 const STRINGS = {
   salaire: {
@@ -532,6 +534,7 @@ export default function ReclamationsScreen() {
   const { lang } = useLanguage();
   const topPad = isWide ? 0 : (Platform.OS === "web" ? 67 : insets.top);
 
+  const { showToast } = useToast();
   const isAdmin = user?.role === "super_admin" || user?.role === "syndicate_admin";
 
   const [filterStatut, setFilterStatut] = useState<ReclamationStatut | "all">("all");
@@ -579,7 +582,7 @@ export default function ReclamationsScreen() {
 
   const handleDeposer = async () => {
     if (!newTitle.trim() || !newDesc.trim()) {
-      Alert.alert(STRINGS.champsRequis[lang], STRINGS.veuillezRenseigner[lang]);
+      showToast({ type: "warning", title: STRINGS.champsRequis[lang], message: STRINGS.veuillezRenseigner[lang] });
       return;
     }
     if (depositing) return;
@@ -598,9 +601,9 @@ export default function ReclamationsScreen() {
       setNewType("autre");
       setNewAnon(false);
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-      Alert.alert(STRINGS.reclamationDeposee[lang], STRINGS.reclamationEnregistree[lang].replace("REC-2026-048", reference));
+      showToast({ type: "success", title: STRINGS.reclamationDeposee[lang], message: STRINGS.reclamationEnregistree[lang].replace("REC-2026-048", reference) });
     } catch (err) {
-      Alert.alert("Erreur", err instanceof Error ? err.message : "Impossible d'enregistrer la réclamation.");
+      showToast({ type: "error", title: "Erreur", message: err instanceof Error ? err.message : "Impossible d'enregistrer la réclamation." });
     } finally {
       setDepositing(false);
     }
@@ -614,7 +617,7 @@ export default function ReclamationsScreen() {
       setReclamations((prev) => prev.map((r) => (r.id === mapped.id ? mapped : r)));
       setSelected(mapped);
     } catch (err) {
-      Alert.alert("Erreur", err instanceof Error ? err.message : "Impossible de mettre à jour la réclamation.");
+      showToast({ type: "error", title: "Erreur", message: err instanceof Error ? err.message : "Impossible de mettre à jour la réclamation." });
     }
   };
 
@@ -672,24 +675,21 @@ export default function ReclamationsScreen() {
       </View>
 
       {/* Filters */}
-      <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ flexShrink: 0 }} contentContainerStyle={s.filterRow}>
-        {(["all", "deposee", "en_instruction", "transmise_direction", "en_mediation", "resolue", "contentieux"] as (ReclamationStatut | "all")[]).map((st) => {
+      <FilterChips
+        options={(["all", "deposee", "en_instruction", "transmise_direction", "en_mediation", "resolue", "contentieux"] as (ReclamationStatut | "all")[]).map((st) => {
           const cfg = st === "all" ? null : STATUT_CONFIG[st];
-          const active = filterStatut === st;
-          const count = st === "all" ? filtered.length : filtered.filter((r) => r.statut === st).length;
-          return (
-            <TouchableOpacity
-              key={st}
-              style={[s.chip, { backgroundColor: active ? (cfg?.color ?? colors.primary) : colors.card, borderColor: active ? (cfg?.color ?? colors.primary) : colors.border }]}
-              onPress={() => { setFilterStatut(st); Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); }}
-            >
-              <Text style={[s.chipText, { color: active ? "#fff" : colors.foreground }]}>
-                {st === "all" ? `${STRINGS.toutes[lang]} (${count})` : `${STRINGS[cfg?.label as keyof typeof STRINGS][lang]} (${count})`}
-              </Text>
-            </TouchableOpacity>
-          );
+          const count = st === "all" ? reclamations.length : reclamations.filter((r) => r.statut === st).length;
+          return {
+            key: st,
+            label: st === "all" ? STRINGS.toutes[lang] : STRINGS[cfg!.label as keyof typeof STRINGS][lang],
+            count,
+            color: cfg?.color,
+          };
         })}
-      </ScrollView>
+        value={filterStatut}
+        onChange={(k) => setFilterStatut(k as ReclamationStatut | "all")}
+        mode="scroll"
+      />
 
       {/* List */}
       {loading ? (
@@ -707,15 +707,13 @@ export default function ReclamationsScreen() {
       ) : (
       <ScrollView contentContainerStyle={{ padding: 16, gap: 12, paddingBottom: insets.bottom + 40 }} showsVerticalScrollIndicator={false}>
         {filtered.length === 0 && (
-          <View style={s.empty}>
-            <View style={[s.emptyIcon, { backgroundColor: colors.secondary }]}>
-              <Feather name="inbox" size={32} color={colors.primary} />
-            </View>
-            <Text style={[s.emptyTitle, { color: colors.foreground }]}>{STRINGS.aucuneReclamation[lang]}</Text>
-            <Text style={[s.emptyText, { color: colors.mutedForeground }]}>
-              {reclamations.length > 0 ? STRINGS.aucuneMatch[lang] : (isAdmin ? STRINGS.aucuneMatch[lang] : STRINGS.pasEncoreDepose[lang])}
-            </Text>
-          </View>
+          <EmptyState
+            icon="inbox"
+            title={STRINGS.aucuneReclamation[lang]}
+            description={reclamations.length > 0 ? STRINGS.aucuneMatch[lang] : (isAdmin ? STRINGS.aucuneMatch[lang] : STRINGS.pasEncoreDepose[lang])}
+            actionLabel={STRINGS.deposer[lang]}
+            onAction={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium); setShowNew(true); }}
+          />
         )}
 
         {filtered.map((rec) => {
@@ -851,10 +849,10 @@ export default function ReclamationsScreen() {
                   <View style={[s.section, { backgroundColor: colors.card, borderColor: colors.border }]}>
                     <Text style={[s.sectionTitle, { color: colors.foreground }]}>{STRINGS.documentsJoints[lang]} ({selected.documentsJoints.length})</Text>
                     {selected.documentsJoints.map((doc, i) => (
-                      <TouchableOpacity key={i} style={[s.docRow, { borderTopColor: colors.border }]} onPress={() => Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light)}>
+                      <TouchableOpacity key={i} style={[s.docRow, { borderTopColor: colors.border }]} onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); router.push({ pathname: "/pdf-viewer", params: { uri: doc, title: doc.split("/").pop() ?? "Document" } } as any); }}>
                         <Feather name="file-text" size={14} color="#6366f1" />
                         <Text style={[s.docName, { color: "#6366f1" }]}>{doc}</Text>
-                        <Feather name="download" size={14} color="#6366f1" />
+                        <Feather name="external-link" size={14} color="#6366f1" />
                       </TouchableOpacity>
                     ))}
                   </View>

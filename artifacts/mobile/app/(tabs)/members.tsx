@@ -19,6 +19,7 @@ import { useData, type Member, type Syndicate } from "@/context/DataContext";
 import { useBreakpoints } from "@/hooks/useBreakpoints";
 import { useColors } from "@/hooks/useColors";
 import FilterTabs from "@/components/FilterTabs";
+import { useToast } from "@/context/ToastContext";
 
 type MemberFilter = "all" | "active" | "inactive" | "pending";
 
@@ -58,6 +59,7 @@ export default function MembersScreen() {
   };
 
   const { isWide } = useBreakpoints();
+  const { showToast } = useToast();
   const isSuperAdmin = user?.role === "super_admin";
   const topPad = isWide ? 0 : (Platform.OS === "web" ? 67 : insets.top);
 
@@ -261,7 +263,7 @@ export default function MembersScreen() {
                                     updateSyndicateStatus(selectedSyndicate.id, newStatus);
                                     setSelectedSyndicate({ ...selectedSyndicate, status: newStatus });
                                     Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-                                    Alert.alert("Mise à jour", `Le syndicat a été ${label} avec succès.`);
+                                    showToast({ type: "success", title: "Mise à jour", message: `Le syndicat a été ${label} avec succès.` });
                                   },
                                 },
                               ]

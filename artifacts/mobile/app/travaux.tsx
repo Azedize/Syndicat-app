@@ -11,6 +11,7 @@ import { useAuth } from "@/context/AuthContext";
 import { useLanguage } from "@/context/LanguageContext";
 import { useBreakpoints } from "@/hooks/useBreakpoints";
 import { useColors } from "@/hooks/useColors";
+import { useToast } from "@/context/ToastContext";
 import { apiRequest } from "@/lib/api";
 import { pickAndUploadInvoice, pickAndUploadPdf, pickAndUploadPhoto } from "@/lib/upload";
 import { prestataires as prestatairesApi, travaux as travauxApi } from "@/services/api";
@@ -238,6 +239,8 @@ export default function TravauxScreen() {
   const { lang } = useLanguage();
   const { isWide } = useBreakpoints();
 
+  const { showToast } = useToast();
+
   const [travaux, setTravaux] = useState<Travail[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
@@ -275,26 +278,26 @@ export default function TravauxScreen() {
       await travauxApi.assign(actionTravail.id, assignPrestataireId.trim());
       closeActionModal();
       load(true);
-    } catch (e: any) { Alert.alert(STRINGS.errorTitle[lang], e.message ?? "Erreur"); }
+    } catch (e: any) { showToast({ type: "error", title: STRINGS.errorTitle[lang], message: e?.message ?? "Erreur lors de l'assignation." }); }
     finally { setActionBusy(false); }
   };
 
   const handlePickReport = async () => {
     const r = await pickAndUploadPdf();
-    if (r) setReportUrl(r.objectPath); else Alert.alert(STRINGS.errorTitle[lang], "Échec du téléversement");
+    if (r) setReportUrl(r.objectPath); else showToast({ type: "error", title: STRINGS.errorTitle[lang], message: "Échec du téléversement du rapport." });
   };
   const handlePickPhoto = async () => {
     const r = await pickAndUploadPhoto();
-    if (r) setPhotoUrl(r.objectPath); else Alert.alert(STRINGS.errorTitle[lang], "Échec du téléversement");
+    if (r) setPhotoUrl(r.objectPath); else showToast({ type: "error", title: STRINGS.errorTitle[lang], message: "Échec du téléversement de la photo." });
   };
   const handlePickInvoice = async () => {
     const r = await pickAndUploadInvoice();
-    if (r) setInvoiceUrl(r.objectPath); else Alert.alert(STRINGS.errorTitle[lang], "Échec du téléversement");
+    if (r) setInvoiceUrl(r.objectPath); else showToast({ type: "error", title: STRINGS.errorTitle[lang], message: "Échec du téléversement de la facture." });
   };
 
   const handleSubmitReport = async () => {
     if (!actionTravail || !reportUrl || !photoUrl || !invoiceUrl) {
-      Alert.alert(STRINGS.errorTitle[lang], STRINGS.missingDocs[lang]);
+      showToast({ type: "warning", title: STRINGS.errorTitle[lang], message: STRINGS.missingDocs[lang] });
       return;
     }
     try {
@@ -304,8 +307,9 @@ export default function TravauxScreen() {
         invoiceAmount: invoiceAmount ? Number(invoiceAmount) : undefined,
       });
       closeActionModal();
+      showToast({ type: "success", title: "Rapport soumis", message: "Le rapport d'intervention a été envoyé." });
       load(true);
-    } catch (e: any) { Alert.alert(STRINGS.errorTitle[lang], e.message ?? "Erreur"); }
+    } catch (e: any) { showToast({ type: "error", title: STRINGS.errorTitle[lang], message: e?.message ?? "Erreur lors de la soumission." }); }
     finally { setActionBusy(false); }
   };
 
@@ -317,9 +321,10 @@ export default function TravauxScreen() {
         onPress: async () => {
           try {
             await travauxApi.validate(t.id);
+            showToast({ type: "success", title: "Travaux validés", message: "L'intervention a été validée avec succès." });
             load(true);
           } catch (e: any) {
-            Alert.alert(STRINGS.errorTitle[lang], e.message ?? "Erreur");
+            showToast({ type: "error", title: STRINGS.errorTitle[lang], message: e?.message ?? "Erreur lors de la validation." });
           }
         },
       },
@@ -331,7 +336,7 @@ export default function TravauxScreen() {
       const qs = filter !== "all" ? `?status=${filter}` : "";
       const data = await apiRequest(`/travaux${qs}`, "GET", undefined, token);
       setTravaux(data.data ?? []);
-    } catch (e) { console.error(e); }
+    } catch (e: any) { if (!silent) showToast({ type: "error", title: "Erreur de chargement", message: e?.message ?? "Impossible de charger les travaux." }); }
     finally { setLoading(false); setRefreshing(false); }
   }, [token, filter]);
 
@@ -340,7 +345,7 @@ export default function TravauxScreen() {
 
   const handleSubmit = async () => {
     if (!form.title.trim()) {
-      Alert.alert(STRINGS.errorTitle[lang], STRINGS.titleRequired[lang]);
+      showToast({ type: "warning", title: STRINGS.errorTitle[lang], message: STRINGS.titleRequired[lang] });
       return;
     }
     try {
@@ -348,9 +353,10 @@ export default function TravauxScreen() {
       await apiRequest("/travaux", "POST", form, token);
       setShowModal(false);
       setForm({ title: "", description: "", type: "entretien", priority: "normal", buildingId: "" });
+      showToast({ type: "success", title: "Travaux créés", message: "La demande d'intervention a été enregistrée." });
       load(true);
     } catch (e: any) {
-      Alert.alert(STRINGS.errorTitle[lang], e.message ?? STRINGS.createError[lang]);
+      showToast({ type: "error", title: STRINGS.errorTitle[lang], message: e?.message ?? STRINGS.createError[lang] });
     } finally { setSubmitting(false); }
   };
 

@@ -801,7 +801,7 @@ router.get("/appels-de-fonds/:id/receipt", requireAuth, async (req, res) => {
               ],
               [
                 { text: "Mode de paiement", style: { font: FONT, fontSize: 9, bold: true, color: "#475569" }, border: [false, false, false, true], borderColor: ["", "", "", "#e2e8f0"] },
-                { text: payMethodLabels[appel.paymentMethod ?? ""] ?? (appel.paymentMethod ?? "—"), border: [false, false, false, true], borderColor: ["", "", "", "#e2e8f0"] },
+                { text: payMethodLabels[String(appel.paymentMethod ?? "")] ?? (appel.paymentMethod ?? "—"), border: [false, false, false, true], borderColor: ["", "", "", "#e2e8f0"] },
               ],
               [
                 { text: "Lot", style: { font: FONT, fontSize: 9, bold: true, color: "#475569" }, border: [false, false, false, true], borderColor: ["", "", "", "#e2e8f0"] },

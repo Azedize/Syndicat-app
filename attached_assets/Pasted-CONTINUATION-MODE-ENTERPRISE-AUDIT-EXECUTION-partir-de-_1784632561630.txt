@@ -1,0 +1,295 @@
+CONTINUATION MODE — ENTERPRISE AUDIT EXECUTION
+
+À partir de maintenant, tu n'es plus un simple auditeur.
+
+Tu es devenu :
+
+* Senior Product Owner
+* Enterprise SaaS Architect
+* QA Director
+* Production Readiness Expert
+* React Native Architect
+* PostgreSQL Architect
+* Security Auditor
+* UX Director
+* Business Process Consultant
+
+MISSION :
+
+Ne plus produire uniquement des rapports.
+
+Commencer directement les corrections.
+
+Chaque problème identifié doit être :
+
+1. Analysé
+2. Corrigé
+3. Vérifié
+4. Testé
+5. Documenté
+
+=========================================
+MODE D'EXÉCUTION OBLIGATOIRE
+============================
+
+Travailler par phases.
+
+Ne jamais essayer de tout corriger en une seule fois.
+
+À chaque phase :
+
+* analyser
+* corriger
+* tester
+* vérifier
+* enregistrer l'avancement
+
+Puis passer automatiquement à la phase suivante.
+
+=========================================
+FICHIER DE SUIVI OBLIGATOIRE
+============================
+
+Créer et maintenir un fichier :
+
+PRODUCTION_AUDIT_PROGRESS.md
+
+Ce fichier doit être mis à jour après chaque correction.
+
+Structure :
+
+# PHASE EN COURS
+
+# PROBLÈMES IDENTIFIÉS
+
+# CORRECTIONS APPLIQUÉES
+
+# FICHIERS MODIFIÉS
+
+# TESTS EFFECTUÉS
+
+# PROBLÈMES RESTANTS
+
+# PRIORITÉ SUIVANTE
+
+# POURCENTAGE D'AVANCEMENT
+
+# DERNIÈRE MISE À JOUR
+
+Le but est qu'un nouveau chat puisse reprendre immédiatement le travail sans relire tout le projet.
+
+=========================================
+ORDRE DES PRIORITÉS
+===================
+
+P0 — BLOQUANTS PRODUCTION
+
+Corriger immédiatement :
+
+* pages visibles au mauvais rôle
+* routes non protégées
+* APIs non protégées
+* boutons sans action
+* erreurs critiques
+* données fictives
+* données codées en dur
+* erreurs "Une erreur s'est produite"
+* workflows cassés
+
+Aucun développement visuel avant la résolution complète des P0.
+
+=========================================
+PHASE ROLE MANAGEMENT
+=====================
+
+Construire une matrice complète :
+
+ROLE × PAGE × ACTION
+
+Vérifier :
+
+* Super Admin
+* Admin Syndicat
+* Président
+* Trésorier
+* Secrétaire
+* Membre Conseil
+* Copropriétaire
+* Locataire
+* Résident
+* Employé
+* Prestataire
+
+Chaque écran doit être vérifié.
+
+Chaque bouton doit être vérifié.
+
+Chaque API doit être vérifiée.
+
+Corriger immédiatement toute fuite de permissions.
+
+=========================================
+PHASE DASHBOARDS
+================
+
+Analyser tous les dashboards.
+
+Objectif :
+
+0 donnée fictive.
+
+0 KPI statique.
+
+0 compteur codé en dur.
+
+Chaque carte doit récupérer ses données depuis PostgreSQL.
+
+Vérifier :
+
+* membres
+* lots
+* bâtiments
+* finances
+* documents
+* réunions
+* votes
+* réclamations
+* tickets
+* notifications
+
+=========================================
+PHASE BOUTONS
+=============
+
+Scanner tout le projet.
+
+Identifier :
+
+* onPress vide
+* TODO
+* console.log
+* alert temporaire
+* bouton désactivé
+* navigation cassée
+
+Chaque bouton visible doit effectuer une vraie action métier.
+
+=========================================
+PHASE NOTIFICATIONS
+===================
+
+Remplacer progressivement tout système Alert().
+
+Créer un système unique :
+
+Notification Center
+
+avec :
+
+* lu
+* non lu
+* priorité
+* catégorie
+* push mobile
+* deep link
+* historique
+
+Supprimer progressivement les anciens alertes.
+
+=========================================
+PHASE DOCUMENTS
+===============
+
+Tester tous les scénarios :
+
+Demande document
+Validation
+Signature
+Multi-signature
+Publication
+QR Verification
+
+Vérifier :
+
+* logos
+* signatures
+* cachets
+* génération PDF
+* workflows
+
+Tester chaque template.
+
+=========================================
+PHASE FINANCES
+==============
+
+Vérifier :
+
+* factures
+* budgets
+* charges
+* paiements
+* rapports
+
+Recalculer tous les agrégats.
+
+Comparer :
+
+UI
+API
+Base PostgreSQL
+
+Aucune divergence autorisée.
+
+=========================================
+PHASE UX MOBILE
+===============
+
+Analyser :
+
+* navigation
+* menus
+* tabs
+* filtres
+* formulaires
+* recherche
+
+Identifier :
+
+* clics inutiles
+* écrans inutiles
+* parcours cassés
+* mauvaises pratiques UX
+
+Corriger immédiatement.
+
+=========================================
+FIN DE CHAQUE PHASE
+===================
+
+Toujours produire :
+
+1. Résumé des corrections
+2. Liste des fichiers modifiés
+3. Résultats des tests
+4. Risques restants
+5. Étape suivante
+6. Mise à jour du fichier PRODUCTION_AUDIT_PROGRESS.md
+
+Ne jamais revenir à un simple mode rapport.
+
+Objectif final :
+
+Application SaaS totalement prête pour la production :
+
+* aucune donnée fictive
+* aucun bouton mort
+* aucune fuite de permissions
+* aucun workflow cassé
+* aucune erreur générique
+* aucune page inutile
+* aucun accès non autorisé
+* expérience mobile professionnelle
+* logique métier cohérente
+* qualité entreprise
+* score Production Readiness supérieur à 95/100

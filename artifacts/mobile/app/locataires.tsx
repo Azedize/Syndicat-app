@@ -19,6 +19,7 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useAuth } from "@/context/AuthContext";
 import { useBreakpoints } from "@/hooks/useBreakpoints";
 import { useColors } from "@/hooks/useColors";
+import { useToast } from "@/context/ToastContext";
 import { apiRequest } from "@/lib/api";
 import FilterChips from "@/components/FilterChips";
 import StatisticsHeader from "@/components/StatisticsHeader";
@@ -63,6 +64,7 @@ function LocatairesScreenInner() {
   const insets = useSafeAreaInsets();
   const { user, token } = useAuth();
   const { isWide } = useBreakpoints();
+  const { showToast } = useToast();
   const [tenants, setTenants] = useState<Tenant[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
@@ -120,7 +122,7 @@ function LocatairesScreenInner() {
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
       load(true);
     } catch (e: any) {
-      Alert.alert("Erreur", e.message ?? "Impossible d'ajouter le locataire");
+      showToast({ type: "error", title: "Erreur", message: e.message ?? "Impossible d'ajouter le locataire" });
     } finally {
       setSubmitting(false);
     }
@@ -131,7 +133,7 @@ function LocatairesScreenInner() {
       await apiRequest(`/locataires/${id}`, "PUT", { status }, token);
       load(true);
     } catch (e: any) {
-      Alert.alert("Erreur", e.message ?? "Impossible de mettre à jour");
+      showToast({ type: "error", title: "Erreur", message: e.message ?? "Impossible de mettre à jour" });
     }
   };
 

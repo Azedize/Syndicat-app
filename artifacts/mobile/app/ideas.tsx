@@ -10,6 +10,7 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useAuth } from "@/context/AuthContext";
 import { useBreakpoints } from "@/hooks/useBreakpoints";
 import { useColors } from "@/hooks/useColors";
+import { useToast } from "@/context/ToastContext";
 import { apiRequest } from "@/lib/api";
 
 const CATEGORY_CONFIG: Record<string, { label: string; color: string; icon: keyof typeof Feather.glyphMap }> = {
@@ -54,6 +55,7 @@ export default function IdeasScreen() {
   const topPad = isWide ? 0 : Platform.OS === "web" ? 67 : insets.top;
 
   const isAdmin = user?.role === "syndicate_admin" || user?.role === "super_admin";
+  const { showToast } = useToast();
 
   const [ideas, setIdeas] = useState<Idea[]>([]);
   const [loading, setLoading] = useState(true);
@@ -79,8 +81,8 @@ export default function IdeasScreen() {
   const onRefresh = () => { setRefreshing(true); load(true); };
 
   const handleSubmit = async () => {
-    if (!form.title.trim()) { Alert.alert("Erreur", "Le titre est obligatoire"); return; }
-    if (!form.description.trim()) { Alert.alert("Erreur", "La description est obligatoire"); return; }
+    if (!form.title.trim()) { showToast({ type: "warning", message: "Le titre est obligatoire" }); return; }
+    if (!form.description.trim()) { showToast({ type: "warning", message: "La description est obligatoire" }); return; }
     try {
       setSubmitting(true);
       await apiRequest("/ideas", "POST", form, token);
@@ -88,7 +90,7 @@ export default function IdeasScreen() {
       setForm({ title: "", description: "", category: "infrastructure" });
       load(true);
     } catch (e: any) {
-      Alert.alert("Erreur", e.message ?? "Impossible de soumettre l'idée");
+      showToast({ type: "error", title: "Erreur", message: e.message ?? "Impossible de soumettre l'idée" });
     } finally { setSubmitting(false); }
   };
 
@@ -99,7 +101,7 @@ export default function IdeasScreen() {
       await apiRequest(`/ideas/${id}/vote`, "POST", {}, token);
       load(true);
     } catch (e: any) {
-      Alert.alert("Erreur", e.message ?? "Impossible de voter");
+      showToast({ type: "error", title: "Erreur", message: e.message ?? "Impossible de voter" });
     } finally { setVotingId(null); }
   };
 
@@ -112,7 +114,7 @@ export default function IdeasScreen() {
       setAdminNote("");
       load(true);
     } catch (e: any) {
-      Alert.alert("Erreur", e.message ?? "Impossible de mettre à jour");
+      showToast({ type: "error", title: "Erreur", message: e.message ?? "Impossible de mettre à jour" });
     } finally { setSubmitting(false); }
   };
 

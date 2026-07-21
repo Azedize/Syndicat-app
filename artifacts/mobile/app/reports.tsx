@@ -1,8 +1,9 @@
 import { Feather } from "@expo/vector-icons";
 import * as Haptics from "expo-haptics";
 import { router } from "expo-router";
-import React, { useState } from "react";
+import React, { useCallback, useEffect, useState } from "react";
 import {
+  ActivityIndicator,
   Platform,
   ScrollView,
   Share,
@@ -17,8 +18,15 @@ import { useAuth } from "@/context/AuthContext";
 import { useData } from "@/context/DataContext";
 import { useBreakpoints } from "@/hooks/useBreakpoints";
 import { useColors } from "@/hooks/useColors";
+import * as statisticsApi from "@/services/api";
 
 type Period = "month" | "quarter" | "year";
+
+interface ReportData {
+  revenueChart: { label: string; value: number }[];
+  membersChart: { label: string; value: number }[];
+  kpi: { revenues: number; expenses: number; memberGrowth: number; cotisationRate: number };
+}
 
 function BarChart({ data, maxVal, color }: { data: { label: string; value: number }[]; maxVal: number; color: string }) {
   const colors = useColors();
@@ -56,64 +64,21 @@ const barStyles = StyleSheet.create({
   barVal: { fontSize: 8, fontFamily: "Inter_700Bold" },
 });
 
-const PERIOD_DATA: Record<Period, {
-  revenue: { label: string; value: number }[];
-  members: { label: string; value: number }[];
-  kpi: { revenues: number; expenses: number; memberGrowth: number; cotisationRate: number };
-}> = {
-  month: {
-    revenue: [
-      { label: "S1", value: 12600 },
-      { label: "S2", value: 18400 },
-      { label: "S3", value: 15200 },
-      { label: "S4", value: 21100 },
-    ],
-    members: [
-      { label: "S1", value: 342 },
-      { label: "S2", value: 345 },
-      { label: "S3", value: 347 },
-      { label: "S4", value: 349 },
-    ],
-    kpi: { revenues: 67300, expenses: 24800, memberGrowth: 7, cotisationRate: 87 },
-  },
-  quarter: {
-    revenue: [
-      { label: "Mar", value: 58200 },
-      { label: "Avr", value: 61400 },
-      { label: "Mai", value: 67300 },
-    ],
-    members: [
-      { label: "Mar", value: 328 },
-      { label: "Avr", value: 338 },
-      { label: "Mai", value: 349 },
-    ],
-    kpi: { revenues: 186900, expenses: 71200, memberGrowth: 21, cotisationRate: 85 },
-  },
-  year: {
-    revenue: [
-      { label: "Jan", value: 45100 },
-      { label: "Fév", value: 48300 },
-      { label: "Mar", value: 58200 },
-      { label: "Avr", value: 61400 },
-      { label: "Mai", value: 67300 },
-      { label: "Jui", value: 0 },
-    ],
-    members: [
-      { label: "Jan", value: 310 },
-      { label: "Fév", value: 318 },
-      { label: "Mar", value: 328 },
-      { label: "Avr", value: 338 },
-      { label: "Mai", value: 349 },
-      { label: "Jui", value: 0 },
-    ],
-    kpi: { revenues: 280300, expenses: 108500, memberGrowth: 39, cotisationRate: 84 },
-  },
-};
+function periodLabel(period: Period): string {
+  const now = new Date();
+  const FR_MONTHS = ["Jan", "Fév", "Mar", "Avr", "Mai", "Jun", "Jul", "Aoû", "Sep", "Oct", "Nov", "Déc"];
+  if (period === "month") return `${FR_MONTHS[now.getMonth()]} ${now.getFullYear()}`;
+  if (period === "quarter") {
+    const q = Math.floor(now.getMonth() / 3) + 1;
+    return `T${q} ${now.getFullYear()}`;
+  }
+  return `${now.getFullYear()}`;
+}
 
-const PERIOD_LABELS: Record<Period, string> = {
-  month: "Mai 2026",
-  quarter: "T2 2026",
-  year: "2026",
+const EMPTY_REPORT: ReportData = {
+  revenueChart: [],
+  membersChart: [],
+  kpi: { revenues: 0, expenses: 0, memberGrowth: 0, cotisationRate: 0 },
 };
 
 // Financial reports — administrators only.
@@ -129,29 +94,58 @@ function ReportsScreenInner() {
   const colors = useColors();
   const insets = useSafeAreaInsets();
   const { user } = useAuth();
-  const { members, syndicates, cotisations } = useData();
+  const { cotisations } = useData();
   const [period, setPeriod] = useState<Period>("month");
+  const [reportData, setReportData] = useState<ReportData>(EMPTY_REPORT);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
   const { isWide } = useBreakpoints();
   const topPad = isWide ? 0 : (Platform.OS === "web" ? 67 : insets.top);
 
-  const pd = PERIOD_DATA[period];
-  const maxRevenue = Math.max(...pd.revenue.map((d) => d.value), 1);
-  const maxMembers = Math.max(...pd.members.map((d) => d.value), 1);
+  const fetchReports = useCallback(async (p: Period) => {
+    setLoading(true);
+    setError(null);
+    try {
+      const res = await statisticsApi.statistics.reports(p);
+      setReportData(res.data);
+    } catch (err: any) {
+      setError(err?.message ?? "Erreur de chargement");
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
+  useEffect(() => { fetchReports(period); }, [period, fetchReports]);
+
+  const pd = reportData;
+  const maxRevenue = Math.max(...pd.revenueChart.map((d) => d.value), 1);
+  const maxMembers = Math.max(...pd.membersChart.map((d) => d.value), 1);
 
   const paidCount = cotisations.filter((c) => c.status === "paid").length;
   const pendingCount = cotisations.filter((c) => c.status === "pending").length;
   const overdueCount = cotisations.filter((c) => c.status === "overdue").length;
   const totalCot = cotisations.length;
 
-  const activeSyndicates = syndicates.filter((s) => s.status === "active").length;
+  const label = periodLabel(period);
 
-  const handleExport = (label: string) => {
+  const handleExport = (reportLabel: string) => {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-    Share.share({ title: label, message: `${label}\nExporté le ${new Date().toLocaleDateString("fr-MA")}\nSYNDYCAT GLOBAL CPS` });
+    const kpi = pd.kpi;
+    const summary =
+      `${reportLabel}\n` +
+      `Période : ${label}\n` +
+      `Revenus : ${kpi.revenues.toLocaleString()} MAD\n` +
+      `Dépenses : ${kpi.expenses.toLocaleString()} MAD\n` +
+      `Excédent : ${(kpi.revenues - kpi.expenses).toLocaleString()} MAD\n` +
+      `Croissance membres : +${kpi.memberGrowth}\n` +
+      `Taux cotisations : ${kpi.cotisationRate}%\n` +
+      `Exporté le ${new Date().toLocaleDateString("fr-MA")}\n` +
+      `SYNDYCAT GLOBAL CPS`;
+    Share.share({ title: reportLabel, message: summary });
   };
 
   const REPORTS = [
-    { label: "Rapport financier — " + PERIOD_LABELS[period], icon: "file-text" as const },
+    { label: `Rapport financier — ${label}`, icon: "file-text" as const },
     { label: "Liste des membres actifs", icon: "users" as const },
     { label: "Rapport de cotisations", icon: "credit-card" as const },
     { label: "Bilan des activités syndicales", icon: "activity" as const },
@@ -167,11 +161,11 @@ function ReportsScreenInner() {
         </TouchableOpacity>
         <View style={{ flex: 1 }}>
           <Text style={[styles.title, { color: colors.foreground }]}>Rapports & Analytics</Text>
-          <Text style={[styles.subtitle, { color: colors.mutedForeground }]}>{PERIOD_LABELS[period]}</Text>
+          <Text style={[styles.subtitle, { color: colors.mutedForeground }]}>{label}</Text>
         </View>
         <TouchableOpacity
           style={[styles.exportBtn, { backgroundColor: colors.primary + "15" }]}
-          onPress={() => handleExport("Rapport général " + PERIOD_LABELS[period])}
+          onPress={() => handleExport(`Rapport général — ${label}`)}
         >
           <Feather name="download" size={16} color={colors.primary} />
         </TouchableOpacity>
@@ -197,169 +191,191 @@ function ReportsScreenInner() {
         ))}
       </View>
 
-      <ScrollView
-        contentContainerStyle={{ padding: 20, gap: 16, paddingBottom: insets.bottom + 40 }}
-        showsVerticalScrollIndicator={false}
-      >
-        {/* KPI Cards */}
-        <View style={styles.kpiGrid}>
-          {[
-            {
-              label: "Revenus",
-              value: pd.kpi.revenues > 999 ? `${(pd.kpi.revenues / 1000).toFixed(0)}k MAD` : `${pd.kpi.revenues} MAD`,
-              icon: "trending-up" as const,
-              color: colors.success,
-              change: "+8%",
-              up: true,
-            },
-            {
-              label: "Dépenses",
-              value: pd.kpi.expenses > 999 ? `${(pd.kpi.expenses / 1000).toFixed(0)}k MAD` : `${pd.kpi.expenses} MAD`,
-              icon: "trending-down" as const,
-              color: colors.destructive,
-              change: "+3%",
-              up: false,
-            },
-            {
-              label: "Croissance",
-              value: `+${pd.kpi.memberGrowth} membres`,
-              icon: "users" as const,
-              color: colors.primary,
-              change: `+${Math.round((pd.kpi.memberGrowth / 310) * 100)}%`,
-              up: true,
-            },
-            {
-              label: "Taux cotis.",
-              value: `${pd.kpi.cotisationRate}%`,
-              icon: "credit-card" as const,
-              color: "#f59e0b",
-              change: pd.kpi.cotisationRate >= 85 ? "Bon" : "Faible",
-              up: pd.kpi.cotisationRate >= 85,
-            },
-          ].map((kpi) => (
-            <View key={kpi.label} style={[styles.kpiCard, { backgroundColor: colors.card, borderColor: colors.border }]}>
-              <View style={[styles.kpiIcon, { backgroundColor: kpi.color + "15" }]}>
-                <Feather name={kpi.icon} size={18} color={kpi.color} />
-              </View>
-              <Text style={[styles.kpiValue, { color: colors.foreground }]} numberOfLines={1} adjustsFontSizeToFit>{kpi.value}</Text>
-              <Text style={[styles.kpiLabel, { color: colors.mutedForeground }]}>{kpi.label}</Text>
-              <View style={[styles.changeBadge, { backgroundColor: kpi.color + "15" }]}>
-                <Feather name={kpi.up ? "arrow-up-right" : "arrow-down-right"} size={10} color={kpi.color} />
-                <Text style={[styles.changeText, { color: kpi.color }]}>{kpi.change}</Text>
-              </View>
-            </View>
-          ))}
+      {loading ? (
+        <View style={{ flex: 1, alignItems: "center", justifyContent: "center", gap: 12 }}>
+          <ActivityIndicator size="large" color={colors.primary} />
+          <Text style={{ color: colors.mutedForeground, fontSize: 13 }}>Chargement des données...</Text>
         </View>
-
-        {/* Revenue chart */}
-        <View style={[styles.chartCard, { backgroundColor: colors.card, borderColor: colors.border }]}>
-          <View style={styles.chartHeader}>
-            <View style={{ gap: 2 }}>
-              <Text style={[styles.chartTitle, { color: colors.foreground }]}>Évolution des revenus</Text>
-              <Text style={[styles.chartSub, { color: colors.mutedForeground }]}>{PERIOD_LABELS[period]}</Text>
-            </View>
-            <View style={[styles.legendDot, { backgroundColor: colors.primary }]} />
-            <Text style={[styles.chartUnit, { color: colors.mutedForeground }]}>MAD</Text>
-          </View>
-          <BarChart data={pd.revenue} maxVal={maxRevenue} color={colors.primary} />
+      ) : error ? (
+        <View style={{ flex: 1, alignItems: "center", justifyContent: "center", gap: 12, padding: 24 }}>
+          <Feather name="alert-circle" size={36} color={colors.destructive} />
+          <Text style={{ color: colors.destructive, fontSize: 14, textAlign: "center" }}>{error}</Text>
+          <TouchableOpacity
+            style={{ backgroundColor: colors.primary, paddingHorizontal: 20, paddingVertical: 10, borderRadius: 10 }}
+            onPress={() => fetchReports(period)}
+          >
+            <Text style={{ color: "#fff", fontSize: 13, fontFamily: "Inter_600SemiBold" }}>Réessayer</Text>
+          </TouchableOpacity>
         </View>
-
-        {/* Member growth chart */}
-        <View style={[styles.chartCard, { backgroundColor: colors.card, borderColor: colors.border }]}>
-          <View style={styles.chartHeader}>
-            <View style={{ gap: 2 }}>
-              <Text style={[styles.chartTitle, { color: colors.foreground }]}>Croissance des membres</Text>
-              <Text style={[styles.chartSub, { color: colors.mutedForeground }]}>{PERIOD_LABELS[period]}</Text>
-            </View>
-            <View style={[styles.legendDot, { backgroundColor: colors.success }]} />
-            <Text style={[styles.chartUnit, { color: colors.mutedForeground }]}>Membres</Text>
-          </View>
-          <BarChart data={pd.members} maxVal={maxMembers} color={colors.success} />
-        </View>
-
-        {/* Cotisations breakdown */}
-        <View style={[styles.breakdownCard, { backgroundColor: colors.card, borderColor: colors.border }]}>
-          <View style={styles.chartHeader}>
-            <Text style={[styles.chartTitle, { color: colors.foreground }]}>Recouvrement des cotisations</Text>
-            <Text style={[styles.chartUnit, { color: colors.mutedForeground }]}>{totalCot} total</Text>
-          </View>
-          {[
-            { label: "Payées", count: paidCount, color: colors.success },
-            { label: "En attente", count: pendingCount, color: "#f59e0b" },
-            { label: "En retard", count: overdueCount, color: colors.destructive },
-          ].map((row) => {
-            const pct = totalCot > 0 ? Math.round((row.count / totalCot) * 100) : 0;
-            return (
-              <View key={row.label} style={styles.breakdownRow}>
-                <Text style={[styles.breakdownLabel, { color: colors.foreground }]}>{row.label}</Text>
-                <View style={[styles.progressBg, { backgroundColor: colors.muted }]}>
-                  <View style={[styles.progressFill, {
-                    width: `${pct}%` as any,
-                    backgroundColor: row.color,
-                  }]} />
+      ) : (
+        <ScrollView
+          contentContainerStyle={{ padding: 20, gap: 16, paddingBottom: insets.bottom + 40 }}
+          showsVerticalScrollIndicator={false}
+        >
+          {/* KPI Cards */}
+          <View style={styles.kpiGrid}>
+            {[
+              {
+                label: "Revenus",
+                value: pd.kpi.revenues > 999 ? `${(pd.kpi.revenues / 1000).toFixed(0)}k MAD` : `${pd.kpi.revenues} MAD`,
+                icon: "trending-up" as const,
+                color: colors.success,
+                change: pd.kpi.revenues > 0 ? `${(pd.kpi.revenues / 1000).toFixed(0)}k` : "—",
+                up: true,
+              },
+              {
+                label: "Dépenses",
+                value: pd.kpi.expenses > 999 ? `${(pd.kpi.expenses / 1000).toFixed(0)}k MAD` : `${pd.kpi.expenses} MAD`,
+                icon: "trending-down" as const,
+                color: colors.destructive,
+                change: pd.kpi.expenses > 0 ? `${(pd.kpi.expenses / 1000).toFixed(0)}k` : "—",
+                up: false,
+              },
+              {
+                label: "Croissance",
+                value: `+${pd.kpi.memberGrowth} membres`,
+                icon: "users" as const,
+                color: colors.primary,
+                change: pd.kpi.memberGrowth > 0 ? `+${pd.kpi.memberGrowth}` : "—",
+                up: pd.kpi.memberGrowth > 0,
+              },
+              {
+                label: "Taux cotis.",
+                value: `${pd.kpi.cotisationRate}%`,
+                icon: "credit-card" as const,
+                color: "#f59e0b",
+                change: pd.kpi.cotisationRate >= 85 ? "Bon" : pd.kpi.cotisationRate > 0 ? "Faible" : "—",
+                up: pd.kpi.cotisationRate >= 85,
+              },
+            ].map((kpi) => (
+              <View key={kpi.label} style={[styles.kpiCard, { backgroundColor: colors.card, borderColor: colors.border }]}>
+                <View style={[styles.kpiIcon, { backgroundColor: kpi.color + "15" }]}>
+                  <Feather name={kpi.icon} size={18} color={kpi.color} />
                 </View>
-                <Text style={[styles.breakdownPct, { color: row.color }]}>{pct}%</Text>
-                <View style={[styles.countBadge, { backgroundColor: row.color + "15" }]}>
-                  <Text style={[styles.breakdownCount, { color: row.color }]}>{row.count}</Text>
+                <Text style={[styles.kpiValue, { color: colors.foreground }]} numberOfLines={1} adjustsFontSizeToFit>{kpi.value}</Text>
+                <Text style={[styles.kpiLabel, { color: colors.mutedForeground }]}>{kpi.label}</Text>
+                <View style={[styles.changeBadge, { backgroundColor: kpi.color + "15" }]}>
+                  <Feather name={kpi.up ? "arrow-up-right" : "arrow-down-right"} size={10} color={kpi.color} />
+                  <Text style={[styles.changeText, { color: kpi.color }]}>{kpi.change}</Text>
                 </View>
               </View>
-            );
-          })}
-        </View>
+            ))}
+          </View>
 
-        {/* Financial balance */}
-        <View style={[styles.balanceCard, { backgroundColor: colors.card, borderColor: colors.border }]}>
-          <Text style={[styles.chartTitle, { color: colors.foreground }]}>Solde financier</Text>
-          <View style={styles.balanceRow}>
-            <View style={[styles.balanceItem, { backgroundColor: colors.success + "10", borderColor: colors.success + "25" }]}>
-              <Feather name="arrow-up-circle" size={22} color={colors.success} />
-              <Text style={[styles.balanceVal, { color: colors.success }]}>
-                +{(pd.kpi.revenues / 1000).toFixed(0)}k
-              </Text>
-              <Text style={[styles.balanceLab, { color: colors.mutedForeground }]}>Revenus</Text>
+          {/* Revenue chart */}
+          {pd.revenueChart.length > 0 && (
+            <View style={[styles.chartCard, { backgroundColor: colors.card, borderColor: colors.border }]}>
+              <View style={styles.chartHeader}>
+                <View style={{ gap: 2 }}>
+                  <Text style={[styles.chartTitle, { color: colors.foreground }]}>Évolution des revenus</Text>
+                  <Text style={[styles.chartSub, { color: colors.mutedForeground }]}>{label}</Text>
+                </View>
+                <View style={[styles.legendDot, { backgroundColor: colors.primary }]} />
+                <Text style={[styles.chartUnit, { color: colors.mutedForeground }]}>MAD</Text>
+              </View>
+              <BarChart data={pd.revenueChart} maxVal={maxRevenue} color={colors.primary} />
             </View>
-            <View style={[styles.balanceMid, { backgroundColor: colors.border }]} />
-            <View style={[styles.balanceItem, { backgroundColor: colors.destructive + "10", borderColor: colors.destructive + "25" }]}>
-              <Feather name="arrow-down-circle" size={22} color={colors.destructive} />
-              <Text style={[styles.balanceVal, { color: colors.destructive }]}>
-                -{(pd.kpi.expenses / 1000).toFixed(0)}k
-              </Text>
-              <Text style={[styles.balanceLab, { color: colors.mutedForeground }]}>Dépenses</Text>
+          )}
+
+          {/* Member growth chart */}
+          {pd.membersChart.length > 0 && (
+            <View style={[styles.chartCard, { backgroundColor: colors.card, borderColor: colors.border }]}>
+              <View style={styles.chartHeader}>
+                <View style={{ gap: 2 }}>
+                  <Text style={[styles.chartTitle, { color: colors.foreground }]}>Nouveaux membres</Text>
+                  <Text style={[styles.chartSub, { color: colors.mutedForeground }]}>{label}</Text>
+                </View>
+                <View style={[styles.legendDot, { backgroundColor: colors.success }]} />
+                <Text style={[styles.chartUnit, { color: colors.mutedForeground }]}>Membres</Text>
+              </View>
+              <BarChart data={pd.membersChart} maxVal={maxMembers} color={colors.success} />
             </View>
-            <View style={[styles.balanceMid, { backgroundColor: colors.border }]} />
-            <View style={[styles.balanceItem, { backgroundColor: colors.primary + "10", borderColor: colors.primary + "25" }]}>
-              <Feather name="trending-up" size={22} color={colors.primary} />
-              <Text style={[styles.balanceVal, { color: colors.primary }]}>
-                +{((pd.kpi.revenues - pd.kpi.expenses) / 1000).toFixed(0)}k
-              </Text>
-              <Text style={[styles.balanceLab, { color: colors.mutedForeground }]}>Excédent</Text>
+          )}
+
+          {/* Cotisations breakdown — from real DataContext */}
+          <View style={[styles.breakdownCard, { backgroundColor: colors.card, borderColor: colors.border }]}>
+            <View style={styles.chartHeader}>
+              <Text style={[styles.chartTitle, { color: colors.foreground }]}>Recouvrement des cotisations</Text>
+              <Text style={[styles.chartUnit, { color: colors.mutedForeground }]}>{totalCot} total</Text>
+            </View>
+            {[
+              { label: "Payées", count: paidCount, color: colors.success },
+              { label: "En attente", count: pendingCount, color: "#f59e0b" },
+              { label: "En retard", count: overdueCount, color: colors.destructive },
+            ].map((row) => {
+              const pct = totalCot > 0 ? Math.round((row.count / totalCot) * 100) : 0;
+              return (
+                <View key={row.label} style={styles.breakdownRow}>
+                  <Text style={[styles.breakdownLabel, { color: colors.foreground }]}>{row.label}</Text>
+                  <View style={[styles.progressBg, { backgroundColor: colors.muted }]}>
+                    <View style={[styles.progressFill, { width: `${pct}%` as any, backgroundColor: row.color }]} />
+                  </View>
+                  <Text style={[styles.breakdownPct, { color: row.color }]}>{pct}%</Text>
+                  <View style={[styles.countBadge, { backgroundColor: row.color + "15" }]}>
+                    <Text style={[styles.breakdownCount, { color: row.color }]}>{row.count}</Text>
+                  </View>
+                </View>
+              );
+            })}
+          </View>
+
+          {/* Financial balance */}
+          <View style={[styles.balanceCard, { backgroundColor: colors.card, borderColor: colors.border }]}>
+            <Text style={[styles.chartTitle, { color: colors.foreground }]}>Solde financier</Text>
+            <View style={styles.balanceRow}>
+              <View style={[styles.balanceItem, { backgroundColor: colors.success + "10", borderColor: colors.success + "25" }]}>
+                <Feather name="arrow-up-circle" size={22} color={colors.success} />
+                <Text style={[styles.balanceVal, { color: colors.success }]}>
+                  +{pd.kpi.revenues > 999 ? `${(pd.kpi.revenues / 1000).toFixed(0)}k` : pd.kpi.revenues}
+                </Text>
+                <Text style={[styles.balanceLab, { color: colors.mutedForeground }]}>Revenus</Text>
+              </View>
+              <View style={[styles.balanceMid, { backgroundColor: colors.border }]} />
+              <View style={[styles.balanceItem, { backgroundColor: colors.destructive + "10", borderColor: colors.destructive + "25" }]}>
+                <Feather name="arrow-down-circle" size={22} color={colors.destructive} />
+                <Text style={[styles.balanceVal, { color: colors.destructive }]}>
+                  -{pd.kpi.expenses > 999 ? `${(pd.kpi.expenses / 1000).toFixed(0)}k` : pd.kpi.expenses}
+                </Text>
+                <Text style={[styles.balanceLab, { color: colors.mutedForeground }]}>Dépenses</Text>
+              </View>
+              <View style={[styles.balanceMid, { backgroundColor: colors.border }]} />
+              <View style={[styles.balanceItem, { backgroundColor: colors.primary + "10", borderColor: colors.primary + "25" }]}>
+                <Feather name="trending-up" size={22} color={colors.primary} />
+                <Text style={[styles.balanceVal, { color: colors.primary }]}>
+                  {pd.kpi.revenues - pd.kpi.expenses >= 0 ? "+" : ""}
+                  {Math.abs(pd.kpi.revenues - pd.kpi.expenses) > 999
+                    ? `${((pd.kpi.revenues - pd.kpi.expenses) / 1000).toFixed(0)}k`
+                    : pd.kpi.revenues - pd.kpi.expenses}
+                </Text>
+                <Text style={[styles.balanceLab, { color: colors.mutedForeground }]}>Excédent</Text>
+              </View>
             </View>
           </View>
-        </View>
 
-        {/* Export reports */}
-        <View style={[styles.reportsCard, { backgroundColor: colors.card, borderColor: colors.border }]}>
-          <Text style={[styles.reportsTitle, { color: colors.foreground }]}>Exporter des rapports</Text>
-          {REPORTS.map((r, i) => (
-            <View key={r.label}>
-              {i > 0 ? <View style={[styles.sep, { backgroundColor: colors.border }]} /> : null}
-              <TouchableOpacity
-                style={styles.reportRow}
-                activeOpacity={0.7}
-                onPress={() => handleExport(r.label)}
-              >
-                <View style={[styles.reportIcon, { backgroundColor: colors.primary + "15" }]}>
-                  <Feather name={r.icon} size={16} color={colors.primary} />
-                </View>
-                <Text style={[styles.reportLabel, { color: colors.foreground }]}>{r.label}</Text>
-                <View style={[styles.dlBtn, { backgroundColor: colors.muted }]}>
-                  <Feather name="download" size={13} color={colors.mutedForeground} />
-                </View>
-              </TouchableOpacity>
-            </View>
-          ))}
-        </View>
-      </ScrollView>
+          {/* Export reports */}
+          <View style={[styles.reportsCard, { backgroundColor: colors.card, borderColor: colors.border }]}>
+            <Text style={[styles.reportsTitle, { color: colors.foreground }]}>Exporter des rapports</Text>
+            {REPORTS.map((r, i) => (
+              <View key={r.label}>
+                {i > 0 ? <View style={[styles.sep, { backgroundColor: colors.border }]} /> : null}
+                <TouchableOpacity
+                  style={styles.reportRow}
+                  activeOpacity={0.7}
+                  onPress={() => handleExport(r.label)}
+                >
+                  <View style={[styles.reportIcon, { backgroundColor: colors.primary + "15" }]}>
+                    <Feather name={r.icon} size={16} color={colors.primary} />
+                  </View>
+                  <Text style={[styles.reportLabel, { color: colors.foreground }]}>{r.label}</Text>
+                  <View style={[styles.dlBtn, { backgroundColor: colors.muted }]}>
+                    <Feather name="download" size={13} color={colors.mutedForeground} />
+                  </View>
+                </TouchableOpacity>
+              </View>
+            ))}
+          </View>
+        </ScrollView>
+      )}
     </View>
   );
 }

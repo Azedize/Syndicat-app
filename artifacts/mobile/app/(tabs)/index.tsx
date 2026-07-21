@@ -281,8 +281,8 @@ export default function DashboardScreen() {
           {isSuperAdmin ? (
             <>
               <View style={styles.statsRow}>
-                <StatCard label={t("syndicates")} value={syndicates.length} icon="briefcase" trend="+2" trendUp />
-                <StatCard label={t("totalMembers")} value={syndicates.reduce((s, sy) => s + sy.members, 0)} icon="users" trend="+12%" trendUp />
+                <StatCard label={t("syndicates")} value={syndicates.length} icon="briefcase" />
+                <StatCard label={t("totalMembers")} value={syndicates.reduce((s, sy) => s + sy.members, 0)} icon="users" />
               </View>
               <View style={styles.statsRow}>
                 <StatCard label={t("activeCount")} value={syndicates.filter((s) => s.status === "active").length} icon="activity" iconColor="#10b981" />
@@ -292,8 +292,8 @@ export default function DashboardScreen() {
           ) : isSyndicateAdmin ? (
             <>
               <View style={styles.statsRow}>
-                <StatCard label={t("activeMembers")} value={activeMembers} icon="users" trend="+3" trendUp />
-                <StatCard label={t("revenue")} value={`${(totalRevenue / 1000).toFixed(1)}k`} icon="trending-up" trend="+8%" trendUp />
+                <StatCard label={t("activeMembers")} value={activeMembers} icon="users" />
+                <StatCard label={t("revenue")} value={`${(totalRevenue / 1000).toFixed(1)}k`} icon="trending-up" />
               </View>
               <View style={styles.statsRow}>
                 <StatCard label={t("dueCotisations")} value={pendingCotisations} icon="alert-circle" iconColor="#f59e0b" subtitle={t("pendingLabel")} />
@@ -317,7 +317,23 @@ export default function DashboardScreen() {
                     </View>
                     <View style={styles.statsRow}>
                       <StatCard label={t("elections")} value={openElections} icon="check-square" iconColor="#f59e0b" />
-                      <StatCard label={t("amountDue")} value={myCot?.status !== "paid" ? `${myCot?.amount ?? 0} MAD` : "0 MAD"} icon="dollar-sign" iconColor={myCot?.status !== "paid" ? "#ef4444" : "#10b981"} />
+                      <StatCard
+                        label={t("amountDue")}
+                        value={
+                          myCot?.status !== "paid"
+                            ? (() => {
+                                const amt = Number(myCot?.amount ?? 0);
+                                try {
+                                  return new Intl.NumberFormat("fr-FR", { maximumFractionDigits: 0 }).format(Math.round(amt)) + " MAD";
+                                } catch {
+                                  return `${Math.round(amt)} MAD`;
+                                }
+                              })()
+                            : "0 MAD"
+                        }
+                        icon="dollar-sign"
+                        iconColor={myCot?.status !== "paid" ? "#ef4444" : "#10b981"}
+                      />
                     </View>
                   </>
                 );

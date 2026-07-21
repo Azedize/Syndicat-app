@@ -25,6 +25,7 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useAuth } from "@/context/AuthContext";
 import { useBreakpoints } from "@/hooks/useBreakpoints";
 import { useColors } from "@/hooks/useColors";
+import { useToast } from "@/context/ToastContext";
 import { apiRequest } from "@/lib/api";
 
 const ACCENT = "#f97316";
@@ -225,6 +226,7 @@ export default function TravauxPrivatifsScreen() {
   const { isWide } = useBreakpoints();
   const topPad = isWide ? 0 : Platform.OS === "web" ? 67 : insets.top;
 
+  const { showToast } = useToast();
   const isAdmin = user?.role === "syndicate_admin" || user?.role === "super_admin";
 
   const [rows, setRows] = useState<TravauxPrivatif[]>([]);
@@ -278,7 +280,7 @@ export default function TravauxPrivatifsScreen() {
       if (!silent) setLoading(true);
       const data = await apiRequest("/travaux-privatifs", "GET", undefined, token);
       setRows(data.data ?? []);
-    } catch (e) { console.error(e); }
+    } catch (e: any) { if (!silent) showToast({ type: "error", title: "Erreur de chargement", message: e?.message ?? "Impossible de charger les travaux privatifs." }); }
     finally { setLoading(false); setRefreshing(false); }
   }, [token]);
 
@@ -290,7 +292,7 @@ export default function TravauxPrivatifsScreen() {
       setBuildings(list);
       // Pre-select first building so the form is valid on first open
       if (list.length > 0) setForm((p) => ({ ...p, buildingId: p.buildingId || list[0].id }));
-    } catch (e) { console.error(e); }
+    } catch (e: any) { showToast({ type: "error", title: "Erreur", message: e?.message ?? "Impossible de charger les immeubles." }); }
     finally { setBuildingsLoading(false); }
   }, [token]);
 
@@ -300,17 +302,18 @@ export default function TravauxPrivatifsScreen() {
   // ── Submit ────────────────────────────────────────────────────────────────
 
   const handleSubmit = async () => {
-    if (!form.buildingId) return Alert.alert("Erreur", "Veuillez sélectionner un immeuble");
-    if (!form.title.trim()) return Alert.alert("Erreur", "Le titre est obligatoire");
-    if (!form.description.trim()) return Alert.alert("Erreur", "La description est obligatoire");
+    if (!form.buildingId) { showToast({ type: "warning", title: "Champ requis", message: "Veuillez sélectionner un immeuble." }); return; }
+    if (!form.title.trim()) { showToast({ type: "warning", title: "Champ requis", message: "Le titre est obligatoire." }); return; }
+    if (!form.description.trim()) { showToast({ type: "warning", title: "Champ requis", message: "La description est obligatoire." }); return; }
     try {
       setSubmitting(true);
       await apiRequest("/travaux-privatifs", "POST", form, token);
       setShowSubmit(false);
       setForm({ title: "", description: "", workType: "ac_unit", buildingId: "" });
+      showToast({ type: "success", title: "Demande soumise", message: "Votre demande a été transmise au syndic." });
       load(true);
     } catch (e: any) {
-      Alert.alert("Erreur", e.message ?? "Impossible de soumettre la demande");
+      showToast({ type: "error", title: "Erreur", message: e?.message ?? "Impossible de soumettre la demande." });
     } finally { setSubmitting(false); }
   };
 
@@ -318,14 +321,15 @@ export default function TravauxPrivatifsScreen() {
 
   const handleSyndicReview = async () => {
     if (!showSyndicReview) return;
-    if (!syndicForm.reviewNote.trim()) return Alert.alert("Erreur", "La note de revue est obligatoire");
+    if (!syndicForm.reviewNote.trim()) { showToast({ type: "warning", title: "Champ requis", message: "La note de revue est obligatoire." }); return; }
     try {
       setSubmitting(true);
       await apiRequest(`/travaux-privatifs/${showSyndicReview.id}/syndic-review`, "POST", syndicForm, token);
       setShowSyndicReview(null);
       setSyndicForm({ reviewNote: "", bylawReference: "", requiresCommitteeReview: false, requiresGAVote: false });
+      showToast({ type: "success", title: "Revue transmise", message: "La revue syndicale a été enregistrée." });
       load(true);
-    } catch (e: any) { Alert.alert("Erreur", e.message); }
+    } catch (e: any) { showToast({ type: "error", title: "Erreur", message: e?.message ?? "Impossible de soumettre la revue." }); }
     finally { setSubmitting(false); }
   };
 
@@ -333,14 +337,15 @@ export default function TravauxPrivatifsScreen() {
 
   const handleCommitteeReview = async () => {
     if (!showCommitteeReview) return;
-    if (!committeeForm.committeeNote.trim()) return Alert.alert("Erreur", "L'avis du comité est obligatoire");
+    if (!committeeForm.committeeNote.trim()) { showToast({ type: "warning", title: "Champ requis", message: "L'avis du comité est obligatoire." }); return; }
     try {
       setSubmitting(true);
       await apiRequest(`/travaux-privatifs/${showCommitteeReview.id}/committee-review`, "POST", committeeForm, token);
       setShowCommitteeReview(null);
       setCommitteeForm({ committeeNote: "", recommendation: "approve" });
+      showToast({ type: "success", title: "Avis enregistré", message: "L'avis du comité a été transmis." });
       load(true);
-    } catch (e: any) { Alert.alert("Erreur", e.message); }
+    } catch (e: any) { showToast({ type: "error", title: "Erreur", message: e?.message ?? "Impossible de soumettre l'avis." }); }
     finally { setSubmitting(false); }
   };
 
@@ -348,14 +353,15 @@ export default function TravauxPrivatifsScreen() {
 
   const handleVote = async () => {
     if (!showVote) return;
-    if (!voteForm.voteSummary.trim()) return Alert.alert("Erreur", "Le résumé du vote est obligatoire");
+    if (!voteForm.voteSummary.trim()) { showToast({ type: "warning", title: "Champ requis", message: "Le résumé du vote est obligatoire." }); return; }
     try {
       setSubmitting(true);
       await apiRequest(`/travaux-privatifs/${showVote.id}/vote`, "POST", voteForm, token);
       setShowVote(null);
       setVoteForm({ voteOutcome: "approved", voteDate: new Date().toISOString().split("T")[0], voteSummary: "" });
+      showToast({ type: "success", title: "Vote enregistré", message: "Le résultat du vote a été transmis." });
       load(true);
-    } catch (e: any) { Alert.alert("Erreur", e.message); }
+    } catch (e: any) { showToast({ type: "error", title: "Erreur", message: e?.message ?? "Impossible d'enregistrer le vote." }); }
     finally { setSubmitting(false); }
   };
 
@@ -364,7 +370,8 @@ export default function TravauxPrivatifsScreen() {
   const handleDecision = async () => {
     if (!showDecision) return;
     if (!decisionForm.justification.trim() || decisionForm.justification.trim().length < 10) {
-      return Alert.alert("Erreur", "La justification doit comporter au moins 10 caractères");
+      showToast({ type: "warning", title: "Justification insuffisante", message: "La justification doit comporter au moins 10 caractères." });
+      return;
     }
     Alert.alert(
       "Confirmer la décision",
@@ -383,8 +390,9 @@ export default function TravauxPrivatifsScreen() {
               }, token);
               setShowDecision(null);
               setDecisionForm({ decision: "approved", justification: "" });
+              showToast({ type: "success", title: "Décision enregistrée", message: `La demande a été ${decisionForm.decision === "approved" ? "approuvée" : "refusée"}.` });
               load(true);
-            } catch (e: any) { Alert.alert("Erreur", e.message); }
+            } catch (e: any) { showToast({ type: "error", title: "Erreur", message: e?.message ?? "Impossible d'enregistrer la décision." }); }
             finally { setSubmitting(false); }
           },
         },
@@ -404,7 +412,7 @@ export default function TravauxPrivatifsScreen() {
           try {
             await apiRequest(`/travaux-privatifs/${row.id}/withdraw`, "PUT", {}, token);
             load(true);
-          } catch (e: any) { Alert.alert("Erreur", e.message); }
+          } catch (e: any) { showToast({ type: "error", title: "Erreur", message: e.message ?? "Impossible de retirer la demande" }); }
         },
       },
     ]);

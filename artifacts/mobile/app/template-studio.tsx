@@ -28,6 +28,7 @@ import { useAuth } from "@/context/AuthContext";
 import { useToast } from "@/context/ToastContext";
 import { useColors } from "@/hooks/useColors";
 import RoleGuard from "@/components/RoleGuard";
+import { apiRequest as libApiRequest } from "@/lib/api";
 import { templateRequests as requestsApi, type ApiTemplateRequest } from "@/services/api";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
@@ -112,17 +113,8 @@ function relativeDate(iso: string): string {
 
 // ─── API ──────────────────────────────────────────────────────────────────────
 
-async function apiRequest(path: string, method = "GET", body?: object) {
-  const { default: api } = await import("@/services/api");
-  const token = await (api as any).getToken?.();
-  const base = (api as any).baseUrl ?? "";
-  const res = await fetch(`${base}${path}`, {
-    method,
-    headers: { "Content-Type": "application/json", ...(token ? { Authorization: `Bearer ${token}` } : {}) },
-    body: body ? JSON.stringify(body) : undefined,
-  });
-  if (!res.ok) throw new Error(await res.text());
-  return res.json();
+async function apiRequest(path: string, method: "GET" | "POST" | "PUT" | "PATCH" | "DELETE" = "GET", body?: object) {
+  return libApiRequest(path.replace(/^\/api/, ""), method, body);
 }
 
 // ─── Stat Card ────────────────────────────────────────────────────────────────
@@ -247,7 +239,7 @@ function TemplateCard({
 // ─── Main Screen ──────────────────────────────────────────────────────────────
 
 function TemplateStudioContent() {
-  const { user, getAuthHeader } = useAuth();
+  const { user } = useAuth();
   const { showToast } = useToast();
   const colors = useColors();
   const insets = useSafeAreaInsets();
@@ -281,7 +273,7 @@ function TemplateStudioContent() {
       setTemplates(tmplRes.data ?? []);
       setStats(statsRes.data ?? null);
     } catch (err: any) {
-      showToast("Erreur lors du chargement des templates", "error");
+      showToast({ type: "error", message: "Erreur lors du chargement des templates" });
     } finally {
       setLoading(false);
       setRefreshing(false);
@@ -295,7 +287,7 @@ function TemplateStudioContent() {
       setRequests(res.data ?? []);
       setPendingCount((res.data ?? []).filter((r) => r.status === "pending" || r.status === "in_review").length);
     } catch {
-      showToast("Erreur chargement des demandes", "error");
+      showToast({ type: "error", message: "Erreur chargement des demandes" });
     } finally {
       setReqLoading(false);
     }
@@ -336,10 +328,10 @@ function TemplateStudioContent() {
           try {
             setActionLoading(template.id);
             await apiRequest(`/api/template-studio/templates/${template.id}/duplicate`, "POST", { newSlug: newSlug.trim() });
-            showToast("Template dupliqué avec succès", "success");
+            showToast({ type: "success", message: "Template dupliqué avec succès" });
             loadData();
           } catch {
-            showToast("Erreur lors de la duplication", "error");
+            showToast({ type: "error", message: "Erreur lors de la duplication" });
           } finally {
             setActionLoading(null);
           }
@@ -369,10 +361,10 @@ function TemplateStudioContent() {
           try {
             setActionLoading(template.id);
             await apiRequest(`/api/template-studio/templates/${template.id}/${action}`, "POST");
-            showToast(cfg.successMsg, "success");
+            showToast({ type: "success", message: cfg.successMsg });
             loadData();
           } catch {
-            showToast("Erreur lors de l'action", "error");
+            showToast({ type: "error", message: "Erreur lors de l'action" });
           } finally {
             setActionLoading(null);
           }
@@ -698,11 +690,11 @@ function TemplateStudioContent() {
                       reviewNotes: reviewNotes.trim() || undefined,
                       rejectionReason: reviewReason.trim() || undefined,
                     });
-                    showToast("Décision enregistrée", "success");
+                    showToast({ type: "success", message: "Décision enregistrée" });
                     setSelectedReq(null);
                     loadRequests();
                   } catch {
-                    showToast("Erreur lors de l'enregistrement", "error");
+                    showToast({ type: "error", message: "Erreur lors de l'enregistrement" });
                   } finally {
                     setReviewSubmitting(false);
                   }
@@ -725,12 +717,7 @@ function TemplateStudioContent() {
 
 export default function TemplateStudio() {
   return (
-    <RoleGuard roles={["super_admin"]} fallback={
-      <View style={{ flex: 1, alignItems: "center", justifyContent: "center", backgroundColor: "#0f172a" }}>
-        <Feather name="lock" size={40} color="#ef4444" />
-        <Text style={{ color: "#e2e8f0", marginTop: 16, fontSize: 16 }}>Accès réservé au Super Administrateur</Text>
-      </View>
-    }>
+    <RoleGuard allow={["super_admin"]}>
       <TemplateStudioContent />
     </RoleGuard>
   );

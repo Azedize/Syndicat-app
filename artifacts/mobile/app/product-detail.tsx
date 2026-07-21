@@ -19,6 +19,7 @@ import {
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useAuth } from "@/context/AuthContext";
 import { useColors } from "@/hooks/useColors";
+import { useToast } from "@/context/ToastContext";
 import { marketplace, chat } from "@/services/api";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
@@ -80,6 +81,7 @@ const REPORT_REASONS = [
 // ─── Screen ───────────────────────────────────────────────────────────────────
 
 export default function ProductDetailScreen() {
+  const { showToast } = useToast();
   const colors = useColors();
   const insets = useSafeAreaInsets();
   const { user } = useAuth();
@@ -203,7 +205,7 @@ export default function ProductDetailScreen() {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
     try {
       await marketplace.addToCart(product.id, 1);
-      Alert.alert("✓ Ajouté", `${product.name} ajouté au panier`);
+      showToast({ type: "success", title: "Ajouté au panier", message: `${product.name} a été ajouté à votre panier.` });
     } catch (e: any) {
       Alert.alert("Erreur", e?.message ?? "Impossible d'ajouter au panier");
     } finally {
@@ -294,7 +296,7 @@ export default function ProductDetailScreen() {
       setShowReportModal(false);
       setReportReason("");
       setReportDetails("");
-      Alert.alert("Signalement envoyé", "Merci pour votre vigilance. Notre équipe examinera ce produit.");
+      showToast({ type: "success", title: "Signalement envoyé", message: "Merci pour votre vigilance. Notre équipe examinera ce produit." });
     } catch {
       Alert.alert("Erreur", "Impossible d'envoyer le signalement");
     } finally {

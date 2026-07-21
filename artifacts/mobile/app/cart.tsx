@@ -16,6 +16,7 @@ import {
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useBreakpoints } from "@/hooks/useBreakpoints";
 import { useColors } from "@/hooks/useColors";
+import { useToast } from "@/context/ToastContext";
 import { marketplace } from "@/services/api";
 
 type CartItem = {
@@ -31,6 +32,7 @@ export default function CartScreen() {
   const colors = useColors();
   const insets = useSafeAreaInsets();
   const { isWide } = useBreakpoints();
+  const { showToast } = useToast();
   const topPad = isWide ? 0 : (Platform.OS === "web" ? 67 : insets.top);
 
   const [cart, setCart] = useState<CartItem[]>([]);
@@ -65,7 +67,7 @@ export default function CartScreen() {
       }
       Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
     } catch {
-      Alert.alert("Erreur", "Impossible de mettre à jour le panier");
+      showToast({ type: "error", title: "Erreur", message: "Impossible de mettre à jour le panier" });
     } finally {
       setUpdatingId(null);
     }
@@ -82,7 +84,7 @@ export default function CartScreen() {
             await marketplace.removeFromCart(item.id);
             setCart((prev) => prev.filter((i) => i.id !== item.id));
             Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
-          } catch { Alert.alert("Erreur", "Impossible de retirer l'article"); }
+          } catch { showToast({ type: "error", title: "Erreur", message: "Impossible de retirer l'article" }); }
         },
       },
     ]);
@@ -99,7 +101,7 @@ export default function CartScreen() {
             await marketplace.clearCart();
             setCart([]);
             Haptics.notificationAsync(Haptics.NotificationFeedbackType.Warning);
-          } catch { Alert.alert("Erreur", "Impossible de vider le panier"); }
+          } catch { showToast({ type: "error", title: "Erreur", message: "Impossible de vider le panier" }); }
         },
       },
     ]);
@@ -117,14 +119,12 @@ export default function CartScreen() {
         setShowCheckout(false);
         setCheckoutDone(false);
         setCheckingOut(false);
-        Alert.alert("Commande confirmée!", "Votre commande a été passée avec succès. Le vendeur sera notifié.", [
-          { text: "Voir mes commandes", onPress: () => router.push("/orders") },
-          { text: "Continuer", style: "cancel" },
-        ]);
+        showToast({ type: "success", title: "Commande confirmée !", message: "Votre commande a été passée. Le vendeur sera notifié." });
+        router.push("/orders" as any);
       }, 1800);
     } catch (e: any) {
       setCheckingOut(false);
-      Alert.alert("Erreur", e?.message ?? "Impossible de passer la commande. Vérifiez la disponibilité des articles.");
+      showToast({ type: "error", title: "Erreur commande", message: e?.message ?? "Impossible de passer la commande. Vérifiez la disponibilité des articles." });
     }
   };
 

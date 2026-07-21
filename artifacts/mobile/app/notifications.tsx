@@ -43,6 +43,9 @@ export default function NotificationsScreen() {
   const [globalPush, setGlobalPush] = useState(true);
   const [globalEmail, setGlobalEmail] = useState(true);
   const [doNotDisturb, setDoNotDisturb] = useState(false);
+  const [soundEnabled, setSoundEnabled] = useState(true);
+  const [vibrationEnabled, setVibrationEnabled] = useState(true);
+  const [previewEnabled, setPreviewEnabled] = useState(true);
 
   const unread = alerts.filter((a) => !a.read).length;
 
@@ -182,10 +185,10 @@ export default function NotificationsScreen() {
             <View style={[styles.sectionCard, { backgroundColor: colors.card, borderColor: colors.border }]}>
               <Text style={[styles.sectionLabel, { color: colors.mutedForeground }]}>SON & VIBRATION</Text>
               {[
-                { icon: "volume-2" as const, color: "#10b981", label: "Son des notifications", sub: "Jouer un son à chaque notification" },
-                { icon: "activity" as const, color: "#f59e0b", label: "Vibration", sub: "Vibrer à chaque notification" },
-                { icon: "eye" as const, color: "#6366f1", label: "Aperçu des messages", sub: "Afficher le contenu sur l'écran verrouillé" },
-              ].map((item, i, arr) => (
+                { icon: "volume-2" as const, color: "#10b981", label: "Son des notifications", sub: "Jouer un son à chaque notification", value: soundEnabled, onChange: (v: boolean) => { Haptics.selectionAsync(); setSoundEnabled(v); } },
+                { icon: "activity" as const, color: "#f59e0b", label: "Vibration", sub: "Vibrer à chaque notification", value: vibrationEnabled, onChange: (v: boolean) => { Haptics.selectionAsync(); setVibrationEnabled(v); } },
+                { icon: "eye" as const, color: "#6366f1", label: "Aperçu des messages", sub: "Afficher le contenu sur l'écran verrouillé", value: previewEnabled, onChange: (v: boolean) => { Haptics.selectionAsync(); setPreviewEnabled(v); } },
+              ].map((item, i) => (
                 <View key={item.label}>
                   {i > 0 && <View style={[styles.sep, { backgroundColor: colors.border }]} />}
                   <View style={styles.switchRow}>
@@ -197,10 +200,10 @@ export default function NotificationsScreen() {
                       <Text style={[styles.rowSub, { color: colors.mutedForeground }]}>{item.sub}</Text>
                     </View>
                     <Switch
-                      value={true}
-                      onValueChange={() => Haptics.selectionAsync()}
+                      value={item.value}
+                      onValueChange={item.onChange}
                       trackColor={{ false: colors.border, true: item.color + "60" }}
-                      thumbColor={item.color}
+                      thumbColor={item.value ? item.color : "#f4f3f4"}
                     />
                   </View>
                 </View>

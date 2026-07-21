@@ -139,7 +139,7 @@ export default function TemplateRequestModal({ visible, onClose, onSubmitted }: 
       });
       setSubmitted(true);
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-      toast.show("Demande de modèle soumise avec succès !", "success");
+      toast.showToast({ type: "success", message: "Demande de modèle soumise avec succès !" });
       onSubmitted?.();
     } catch {
       setError("Impossible de soumettre la demande. Veuillez réessayer.");

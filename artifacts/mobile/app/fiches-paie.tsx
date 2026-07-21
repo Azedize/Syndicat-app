@@ -11,6 +11,7 @@ import { useAuth } from "@/context/AuthContext";
 import { useBreakpoints } from "@/hooks/useBreakpoints";
 import { useColors } from "@/hooks/useColors";
 import { apiRequest } from "@/lib/api";
+import { useToast } from "@/context/ToastContext";
 
 const STATUS_CFG: Record<string, { label: string; color: string; bg: string }> = {
   paid:    { label: "Payé",       color: "#10b981", bg: "#10b98118" },
@@ -40,6 +41,7 @@ export default function FichesPaieScreen() {
   const { isWide } = useBreakpoints();
   const topPad = isWide ? 0 : (Platform.OS === "web" ? 67 : insets.top);
   const isAdmin = user?.role === "syndicate_admin" || user?.role === "super_admin";
+  const { showToast } = useToast();
 
   const [records, setRecords] = useState<SalaryRecord[]>([]);
   const [loading, setLoading] = useState(true);
@@ -68,9 +70,9 @@ export default function FichesPaieScreen() {
   const onRefresh = () => { setRefreshing(true); load(true); };
 
   const handleAdd = async () => {
-    if (!form.role.trim()) { Alert.alert("Erreur", "Le poste est obligatoire"); return; }
-    if (!form.amount) { Alert.alert("Erreur", "Le montant est obligatoire"); return; }
-    if (!form.month) { Alert.alert("Erreur", "Le mois est obligatoire"); return; }
+    if (!form.role.trim()) { showToast({ type: "error", title: "Erreur", message: "Le poste est obligatoire" }); return; }
+    if (!form.amount) { showToast({ type: "error", title: "Erreur", message: "Le montant est obligatoire" }); return; }
+    if (!form.month) { showToast({ type: "error", title: "Erreur", message: "Le mois est obligatoire" }); return; }
     try {
       setSubmitting(true);
       await apiRequest("/finance/salaries", "POST", {
@@ -82,8 +84,9 @@ export default function FichesPaieScreen() {
       setShowAdd(false);
       setForm({ role: "", amount: "", month: new Date().toISOString().slice(0, 7) });
       load(true);
+      showToast({ type: "success", message: "Fiche de paie ajoutée." });
     } catch (e: any) {
-      Alert.alert("Erreur", e.message ?? "Impossible d'ajouter la fiche de paie");
+      showToast({ type: "error", title: "Erreur", message: e.message ?? "Impossible d'ajouter la fiche de paie" });
     } finally { setSubmitting(false); }
   };
 
@@ -94,8 +97,9 @@ export default function FichesPaieScreen() {
         paidDate: new Date().toISOString().split("T")[0],
       }, token);
       load(true);
+      showToast({ type: "success", message: "Fiche de paie marquée comme payée." });
     } catch (e: any) {
-      Alert.alert("Erreur", e.message ?? "Impossible de mettre à jour");
+      showToast({ type: "error", title: "Erreur", message: e.message ?? "Impossible de mettre à jour" });
     }
   };
 

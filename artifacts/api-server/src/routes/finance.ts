@@ -84,6 +84,38 @@ router.post(
   },
 );
 
+// ─── Update transaction status ────────────────────────────────────────────────
+
+router.patch(
+  "/finance/transactions/:id/status",
+  requireAuth,
+  requireRole("super_admin", "syndicate_admin"),
+  async (req, res) => {
+    const id = String(req.params.id);
+    const schema = z.object({
+      status: z.enum(["paid", "pending", "overdue"]),
+    });
+    const result = schema.safeParse(req.body);
+    if (!result.success) { res.status(400).json({ error: "Statut invalide" }); return; }
+    try {
+      const [tx] = await db.select().from(transactionsTable).where(eq(transactionsTable.id, id));
+      if (!tx) { res.status(404).json({ error: "Transaction introuvable" }); return; }
+      if (req.user!.role !== "super_admin" && tx.syndicateId !== req.user!.syndicateId) {
+        res.status(403).json({ error: "Accès refusé" }); return;
+      }
+      const [updated] = await db
+        .update(transactionsTable)
+        .set({ status: result.data.status })
+        .where(eq(transactionsTable.id, id))
+        .returning();
+      res.json({ data: updated, message: "Statut mis à jour" });
+    } catch (err) {
+      req.log.error(err);
+      res.status(500).json({ error: "Erreur serveur" });
+    }
+  },
+);
+
 // ─── Salaries ─────────────────────────────────────────────────────────────────
 
 router.get(

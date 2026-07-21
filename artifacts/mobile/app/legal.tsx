@@ -3,7 +3,6 @@ import * as Haptics from "expo-haptics";
 import { router } from "expo-router";
 import React, { useState } from "react";
 import {
-  Alert,
   FlatList,
   Platform,
   ScrollView,
@@ -29,12 +28,12 @@ const AI_RISKS = [
 ];
 
 const LEGAL_DOCS = [
-  { id: "1", title: "Mise en demeure - Cotisations impayées", icon: "file-text" as const, category: "Recouvrement" },
-  { id: "2", title: "Convocation Assemblée Générale", icon: "users" as const, category: "AG" },
-  { id: "3", title: "Procès-verbal d'élection", icon: "check-square" as const, category: "Elections" },
-  { id: "4", title: "Contrat de travail syndicat", icon: "briefcase" as const, category: "RH" },
-  { id: "5", title: "Recours administratif", icon: "shield" as const, category: "Juridique" },
-  { id: "6", title: "Accord de partenariat", icon: "link" as const, category: "Partenariat" },
+  { id: "1", title: "Mise en demeure - Cotisations impayées", icon: "file-text" as const, category: "Recouvrement", template: "mise_en_demeure" },
+  { id: "2", title: "Convocation Assemblée Générale", icon: "users" as const, category: "AG", template: "convocation" },
+  { id: "3", title: "Procès-verbal d'élection", icon: "check-square" as const, category: "Elections", template: "pv" },
+  { id: "4", title: "Contrat de travail syndicat", icon: "briefcase" as const, category: "RH", template: "contrat" },
+  { id: "5", title: "Recours administratif", icon: "shield" as const, category: "Juridique", template: "acte_administratif" },
+  { id: "6", title: "Accord de partenariat", icon: "link" as const, category: "Partenariat", template: "contrat" },
 ];
 
 export default function LegalScreen() {
@@ -220,7 +219,7 @@ function LegalScreenInner() {
               activeOpacity={0.7}
               onPress={() => {
                 Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-                Alert.alert(doc.title, `Catégorie: ${doc.category}\n\nCe document peut être généré automatiquement à partir des données du syndicat.`);
+                router.push(`/documents?template=${doc.template}` as any);
               }}
             >
               <View style={[styles.docIcon, { backgroundColor: colors.primary + "15" }]}>
@@ -234,7 +233,7 @@ function LegalScreenInner() {
                 style={[styles.generateBtn, { backgroundColor: colors.primary }]}
                 onPress={() => {
                   Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-                  Alert.alert("Document généré", `"${doc.title}" a été généré avec succès. Il sera disponible dans votre espace Documents.`);
+                  router.push(`/documents?template=${doc.template}` as any);
                 }}
               >
                 <Feather name="download" size={14} color="#fff" />

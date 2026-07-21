@@ -22,6 +22,7 @@ import { useBreakpoints } from "@/hooks/useBreakpoints";
 import { useColors } from "@/hooks/useColors";
 import { announcements as announcementsApi, type ApiAnnouncement } from "@/services/api";
 import { useLanguage } from "@/context/LanguageContext";
+import { useToast } from "@/context/ToastContext";
 import EmptyState from "@/components/EmptyState";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
@@ -98,6 +99,7 @@ export default function MessagerieInterneScreen() {
   const insets = useSafeAreaInsets();
   const { user } = useAuth();
   const { isWide } = useBreakpoints();
+  const { showToast } = useToast();
   const topPad = isWide ? 0 : (Platform.OS === "web" ? 67 : insets.top);
 
   const [tab, setTab] = useState<TabType>("inbox");
@@ -166,12 +168,12 @@ export default function MessagerieInterneScreen() {
   const handleAcknowledge = (id: string) => {
     setAcknowledgedIds((prev) => new Set([...prev, id]));
     Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-    Alert.alert(t('ackSuccessTitle'), t('ackSuccessMsg'));
+    showToast({ type: "success", title: t('ackSuccessTitle'), message: t('ackSuccessMsg') });
   };
 
   const handleSend = async () => {
     if (!newSubject.trim() || !newBody.trim()) {
-      Alert.alert(t('requiredFields'), t('fillSubjectBody'));
+      showToast({ type: "warning", title: t('requiredFields'), message: t('fillSubjectBody') });
       return;
     }
     setSending(true);
@@ -194,10 +196,10 @@ export default function MessagerieInterneScreen() {
       setNewType("note");
       setNewPriority("normal");
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-      Alert.alert(t('messageSentTitle'), t('messageSentText'));
+      showToast({ type: "success", title: t('messageSentTitle'), message: t('messageSentText') });
       await loadMessages();
     } catch {
-      Alert.alert(t('error'), t('sendErrorMsg'));
+      showToast({ type: "error", title: t('error'), message: t('sendErrorMsg') });
     } finally {
       setSending(false);
     }

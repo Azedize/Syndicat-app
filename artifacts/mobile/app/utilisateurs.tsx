@@ -20,6 +20,7 @@ import { useBreakpoints } from "@/hooks/useBreakpoints";
 import { useColors } from "@/hooks/useColors";
 import { useRequireRole } from "@/hooks/useRequireRole";
 import { useLanguage } from "@/context/LanguageContext";
+import { useToast } from "@/context/ToastContext";
 import { apiRequest } from "@/lib/api";
 
 type Role = "super_admin" | "syndicate_admin" | "member" | "tenant";
@@ -117,6 +118,7 @@ type TabFilter = "all" | Role | "suspended" | "pending";
 export default function UtilisateursScreen() {
   const { allowed } = useRequireRole(["super_admin", "syndicate_admin"]);
   const colors = useColors();
+  const { showToast } = useToast();
   const insets = useSafeAreaInsets();
   const { isWide } = useBreakpoints();
   const { lang } = useLanguage();
@@ -228,7 +230,7 @@ export default function UtilisateursScreen() {
 
   const handleAdd = async () => {
     if (!newName.trim() || !newEmail.trim()) {
-      Alert.alert(STRINGS.requiredFields[lang], STRINGS.nameEmailRequired[lang]);
+      showToast({ type: "warning", title: STRINGS.requiredFields[lang], message: STRINGS.nameEmailRequired[lang] });
       return;
     }
     try {
@@ -243,9 +245,9 @@ export default function UtilisateursScreen() {
       setShowAdd(false);
       setNewName(""); setNewEmail(""); setNewPhone(""); setNewRole("member");
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-      Alert.alert(STRINGS.userCreated[lang], STRINGS.userAddedPending[lang].replace("{name}", newName.trim()));
+      showToast({ type: "success", title: STRINGS.userCreated[lang], message: STRINGS.userAddedPending[lang].replace("{name}", newName.trim()) });
     } catch (e: any) {
-      Alert.alert(STRINGS.requiredFields[lang], e?.message || "Erreur lors de la création");
+      showToast({ type: "error", title: STRINGS.requiredFields[lang], message: e?.message || "Erreur lors de la création" });
     }
   };
 
@@ -491,7 +493,7 @@ export default function UtilisateursScreen() {
                 <View style={styles.actionBtns}>
                   <TouchableOpacity
                     style={[styles.actionBtn, { backgroundColor: "#f59e0b15", borderColor: "#f59e0b40" }]}
-                    onPress={async () => { Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success); try { await apiRequest("/auth/forgot-password", "POST", { email: u.email }); } catch {} Alert.alert(STRINGS.emailSent[lang], STRINGS.resetEmailSent[lang].replace("{email}", u.email)); }}
+                    onPress={async () => { Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success); try { await apiRequest("/auth/forgot-password", "POST", { email: u.email }); } catch {} showToast({ type: "info", title: STRINGS.emailSent[lang], message: STRINGS.resetEmailSent[lang].replace("{email}", u.email) }); }}
                   >
                     <Feather name="key" size={15} color="#f59e0b" />
                     <Text style={[styles.actionBtnText, { color: "#f59e0b" }]}>{STRINGS.resetPassword[lang]}</Text>

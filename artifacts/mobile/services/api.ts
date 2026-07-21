@@ -406,6 +406,8 @@ export const finance = {
     request<{ data: unknown }>("/bons-livraison", { method: "POST", body: JSON.stringify(data) }),
   updateBon: (id: string, data: unknown) =>
     request<{ data: unknown }>(`/bons-livraison/${id}/status`, { method: "PUT", body: JSON.stringify(data) }),
+  updateTransactionStatus: (id: string, status: string) =>
+    request<{ data: unknown }>(`/finance/transactions/${id}/status`, { method: "PATCH", body: JSON.stringify({ status }) }),
 };
 
 // ─── Marketplace ──────────────────────────────────────────────────────────────
@@ -1024,6 +1026,8 @@ export const statistics = {
   platform: () => request<{ data: PlatformStats }>("/statistics/platform"),
   hr: () => request<{ data: HRStats }>("/statistics/hr"),
   financeSummary: () => request<{ data: FinanceSummary }>("/statistics/finance/summary"),
+  reports: (period: "month" | "quarter" | "year") =>
+    request<{ data: { revenueChart: { label: string; value: number }[]; membersChart: { label: string; value: number }[]; kpi: { revenues: number; expenses: number; memberGrowth: number; cotisationRate: number } } }>(`/statistics/reports?period=${period}`),
   syndicates: () => request<{ data: EnrichedSyndicate[] }>("/statistics/syndicates"),
 };
 

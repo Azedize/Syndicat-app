@@ -25,6 +25,7 @@ import { useData, type Invoice } from "@/context/DataContext";
 import { useLanguage } from "@/context/LanguageContext";
 import { useBreakpoints } from "@/hooks/useBreakpoints";
 import { useColors } from "@/hooks/useColors";
+import { useToast } from "@/context/ToastContext";
 import { apiRequest } from "@/lib/api";
 import {
   pickAndUploadPhoto,
@@ -70,6 +71,7 @@ function InvoicesScreenInner() {
   const { t } = useLanguage();
   const { isWide } = useBreakpoints();
   const { token } = useAuth();
+  const { showToast } = useToast();
   const topPad = isWide ? 0 : (Platform.OS === "web" ? 67 : insets.top);
 
   const [tab, setTab] = useState<TabType>("factures");
@@ -90,7 +92,7 @@ function InvoicesScreenInner() {
       const url = `${base}/api/pdf/invoice/${invoiceId}${tokenParam}`;
       await Linking.openURL(url);
     } catch {
-      Alert.alert(t("error"), "Impossible de générer le PDF. Vérifiez votre connexion.");
+      showToast({ type: "error", title: t("error"), message: "Impossible de générer le PDF. Vérifiez votre connexion." });
     } finally {
       setDownloadingPdf(false);
     }
@@ -135,9 +137,9 @@ function InvoicesScreenInner() {
         Haptics.selectionAsync();
       }
     } catch (err: any) {
-      Alert.alert(t("error"), err?.message?.startsWith("FILE_TOO_LARGE")
+      showToast({ type: "error", title: t("error"), message: err?.message?.startsWith("FILE_TOO_LARGE")
         ? t("uploadErrorSize") ?? "Fichier trop volumineux (max 50 Mo)"
-        : t("uploadError") ?? "Erreur de téléversement");
+        : t("uploadError") ?? "Erreur de téléversement" });
     } finally {
       setProofUploading(false);
     }

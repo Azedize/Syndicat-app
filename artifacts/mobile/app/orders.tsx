@@ -74,7 +74,7 @@ export default function OrdersScreen() {
   useEffect(() => { loadOrders(); }, [loadOrders]);
   const onRefresh = () => { setRefreshing(true); loadOrders(); };
 
-  const userId = user?.id ?? user?.userId;
+  const userId = user?.id;
   const purchases = orders.filter((o) => o.buyerId === userId);
   const sales = orders.filter((o) => o.sellerId === userId);
   const data = tab === "purchases" ? purchases : sales;

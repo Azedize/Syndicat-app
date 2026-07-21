@@ -19,6 +19,7 @@ import { useAuth } from "@/context/AuthContext";
 import { useData, type BonLivraison } from "@/context/DataContext";
 import { useBreakpoints } from "@/hooks/useBreakpoints";
 import { useColors } from "@/hooks/useColors";
+import { useToast } from "@/context/ToastContext";
 
 type FilterType = "all" | "sortie" | "entree";
 
@@ -48,6 +49,7 @@ export default function BonLivraisonScreen() {
   const [newItemPrice, setNewItemPrice] = useState("");
 
   const isAdmin = user?.role !== "member";
+  const { showToast } = useToast();
 
   const filtered = bonsLivraison.filter((bl) => filter === "all" || bl.type === filter);
   const totalSortie = bonsLivraison.filter((b) => b.type === "sortie" && b.status === "delivered").reduce((s, b) => s + b.total, 0);
@@ -74,7 +76,7 @@ export default function BonLivraisonScreen() {
     Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
     setShowAdd(false);
     setNewRecipient(""); setNewItemLabel(""); setNewItemQty("1"); setNewItemPrice("");
-    Alert.alert("Créé!", `Bon de livraison ${newBl.reference} créé avec succès.`);
+    showToast({ type: "success", title: "Créé !", message: `Bon de livraison ${newBl.reference} créé avec succès.` });
   };
 
   const handleStatusChange = (bl: BonLivraison) => {
@@ -291,7 +293,7 @@ export default function BonLivraisonScreen() {
                   style={[styles.actionBtn, { backgroundColor: colors.muted }]}
                   onPress={() => {
                     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-                    Alert.alert("PDF généré", `Le bon de livraison ${selected.reference} a été exporté en PDF et sauvegardé dans vos documents.`);
+                    showToast({ type: "info", title: "PDF généré", message: `Le bon de livraison ${selected.reference} a été exporté en PDF et sauvegardé dans vos documents.` });
                   }}
                 >
                   <Feather name="download" size={15} color={colors.foreground} />

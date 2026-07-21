@@ -270,7 +270,7 @@ export const TRANSLATIONS: Translations = {
   governance:   { fr: "Gouvernance", en: "Governance", ar: "الحوكمة", es: "Gobernanza" },
   legal:        { fr: "Juridique", en: "Legal", ar: "قانوني", es: "Legal" },
   reports:      { fr: "Rapports", en: "Reports", ar: "التقارير", es: "Informes" },
-  alerts:       { fr: "Alertes", en: "Alerts", ar: "التنبيهات", es: "Alertas" },
+  alerts:       { fr: "Notifications", en: "Notifications", ar: "الإشعارات", es: "Notificaciones" },
   announcements:{ fr: "Annonces", en: "Announcements", ar: "الإعلانات", es: "Anuncios" },
   calendar:     { fr: "Calendrier", en: "Calendar", ar: "التقويم", es: "Calendario" },
   ideas:        { fr: "Idées", en: "Ideas", ar: "الأفكار", es: "Ideas" },
@@ -574,7 +574,7 @@ export const TRANSLATIONS: Translations = {
   newAlertReceived:  { fr: "Nouvelle alerte", en: "New alert", ar: "تنبيه جديد", es: "Nueva alerta" },
 
   // ─── Alerts ────────────────────────────────────────────────────────────────
-  alertsTitle:     { fr: "Alertes", en: "Alerts", ar: "التنبيهات", es: "Alertas" },
+  alertsTitle:     { fr: "Notifications", en: "Notifications", ar: "الإشعارات", es: "Notificaciones" },
   noAlerts:        { fr: "Aucune alerte", en: "No alerts", ar: "لا توجد تنبيهات", es: "Sin alertas" },
   alertLegal:      { fr: "Juridique", en: "Legal", ar: "قانوني", es: "Legal" },
   alertFinance:    { fr: "Finance", en: "Finance", ar: "المالية", es: "Finanzas" },

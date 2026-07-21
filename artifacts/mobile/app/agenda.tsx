@@ -20,6 +20,7 @@ import { useBreakpoints } from "@/hooks/useBreakpoints";
 import { useColors } from "@/hooks/useColors";
 import { apiRequest } from "@/lib/api";
 import { Share } from "react-native";
+import { useToast } from "@/context/ToastContext";
 
 type EventType = "meeting" | "election" | "echeance";
 
@@ -58,6 +59,7 @@ export default function AgendaScreen() {
   const { isWide } = useBreakpoints();
   const topPad = isWide ? 0 : (Platform.OS === "web" ? 67 : insets.top);
 
+  const { showToast } = useToast();
   const [filter, setFilter] = useState<FilterType>("all");
   const [viewMode, setViewMode] = useState<ViewMode>("list");
   const [selected, setSelected] = useState<AgendaEvent | null>(null);
@@ -201,12 +203,12 @@ export default function AgendaScreen() {
               Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
               const upcoming = allEvents.filter((ev) => ev.status === "upcoming");
               if (upcoming.length === 0) {
-                Alert.alert("Aucun événement", "Il n'y a pas d'événements à venir à exporter.");
+                showToast({ type: "warning", message: "Il n'y a pas d'événements à venir à exporter." });
                 return;
               }
               const ics = buildICS(upcoming);
               Share.share({ message: ics, title: "Agenda Syndical SYNDYCAT" }).catch(() =>
-                Alert.alert("Erreur", "Impossible d'exporter l'agenda.")
+                showToast({ type: "error", title: "Erreur", message: "Impossible d'exporter l'agenda." })
               );
             }}
           >
@@ -458,7 +460,7 @@ export default function AgendaScreen() {
                   {!isPast && (
                     <TouchableOpacity
                       style={[styles.modalActionBtn, { backgroundColor: typeCfg.color }]}
-                      onPress={async () => { Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success); if (ev.type === "meeting") { try { await apiRequest(`/meetings/${ev.id}/attend`, "POST"); } catch {} } Alert.alert("Participation confirmée", "Votre présence a été enregistrée."); setSelected(null); }}
+                      onPress={async () => { Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success); if (ev.type === "meeting") { try { await apiRequest(`/meetings/${ev.id}/attend`, "POST"); } catch {} } showToast({ type: "success", title: "Participation confirmée", message: "Votre présence a été enregistrée." }); setSelected(null); }}
                     >
                       <Feather name="check" size={18} color="#fff" />
                       <Text style={styles.modalActionBtnText}>Confirmer ma participation</Text>
@@ -470,7 +472,7 @@ export default function AgendaScreen() {
                       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
                       const ics = buildICS([ev]);
                       Share.share({ message: ics, title: ev.title }).catch(() =>
-                        Alert.alert("Erreur", "Impossible d'exporter l'événement.")
+                        showToast({ type: "error", title: "Erreur", message: "Impossible d'exporter l'événement." })
                       );
                     }}
                   >

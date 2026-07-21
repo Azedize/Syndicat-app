@@ -24,6 +24,7 @@ import { useColors } from "@/hooks/useColors";
 import { apiRequest } from "@/lib/api";
 import FilterChips from "@/components/FilterChips";
 import StatisticsHeader from "@/components/StatisticsHeader";
+import { useToast } from "@/context/ToastContext";
 
 type AGType = "ag_ordinaire" | "ag_extraordinaire" | "ag_constitutive" | "ag_elective" | "general";
 type AGStatus = "scheduled" | "in_progress" | "completed" | "cancelled";
@@ -97,6 +98,7 @@ function AssembleeGeneraleScreenInner() {
   const { user, token } = useAuth();
   const { isWide } = useBreakpoints();
   const isAdmin = user?.role === "super_admin" || user?.role === "syndicate_admin";
+  const { showToast } = useToast();
 
   const [ags, setAgs] = useState<AG[]>([]);
   const [loading, setLoading] = useState(true);
@@ -158,13 +160,13 @@ function AssembleeGeneraleScreenInner() {
     try {
       const result = await apiRequest(`/ag-meetings/${ag.id}/attend`, "POST", undefined, token);
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-      Alert.alert("Présence", result.message ?? "Statut de présence mis à jour");
+      showToast({ type: "success", title: "Présence", message: result.message ?? "Statut de présence mis à jour" });
       load(true);
       if (selected?.id === ag.id) {
         setSelected((prev) => prev ? { ...prev, userAttending: result.attending ?? !prev.userAttending } : null);
       }
     } catch (e: any) {
-      Alert.alert("Erreur", e.message ?? "Impossible de confirmer la présence");
+      showToast({ type: "error", title: "Erreur", message: e.message ?? "Impossible de confirmer la présence" });
     }
   };
 
@@ -185,9 +187,10 @@ function AssembleeGeneraleScreenInner() {
       setShowCreate(false);
       setForm({ title: "", date: "", time: "10:00", location: "", type: "ag_ordinaire", agenda: "", quorumRequis: "50", membresConvoques: "" });
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+      showToast({ type: "success", message: "AG créée avec succès." });
       load(true);
     } catch (e: any) {
-      Alert.alert("Erreur", e.message ?? "Impossible de créer l'AG");
+      showToast({ type: "error", title: "Erreur", message: e.message ?? "Impossible de créer l'AG" });
     } finally {
       setSubmitting(false);
     }
@@ -211,7 +214,7 @@ function AssembleeGeneraleScreenInner() {
               load(true);
               setSelected(null);
             } catch (e: any) {
-              Alert.alert("Erreur", e.message);
+              showToast({ type: "error", title: "Erreur", message: e.message });
             }
           },
         },
@@ -231,12 +234,13 @@ function AssembleeGeneraleScreenInner() {
       setShowAddResolution(false);
       setResForm({ title: "", description: "", requiredMajority: "simple" });
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+      showToast({ type: "success", message: "Résolution ajoutée." });
       // Reload selected AG detail
       const refreshed = await apiRequest(`/ag-meetings/${selected.id}`, "GET", undefined, token);
       setSelected(refreshed.data);
       load(true);
     } catch (e: any) {
-      Alert.alert("Erreur", e.message ?? "Impossible d'ajouter la résolution");
+      showToast({ type: "error", title: "Erreur", message: e.message ?? "Impossible d'ajouter la résolution" });
     } finally {
       setSubmitting(false);
     }
@@ -259,12 +263,12 @@ function AssembleeGeneraleScreenInner() {
       );
       setShowVoteModal(null);
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-      Alert.alert("Vote enregistré", result.message ?? "Résultat de vote enregistré");
+      showToast({ type: "success", title: "Vote enregistré", message: result.message ?? "Résultat de vote enregistré" });
       const refreshed = await apiRequest(`/ag-meetings/${selected.id}`, "GET", undefined, token);
       setSelected(refreshed.data);
       load(true);
     } catch (e: any) {
-      Alert.alert("Erreur", e.message ?? "Impossible d'enregistrer le vote");
+      showToast({ type: "error", title: "Erreur", message: e.message ?? "Impossible d'enregistrer le vote" });
     } finally {
       setSubmitting(false);
     }
@@ -276,7 +280,7 @@ function AssembleeGeneraleScreenInner() {
       setPvText(result.data?.pvText ?? "");
       setShowPv(true);
     } catch (e: any) {
-      Alert.alert("Erreur", e.message ?? "Impossible de générer le PV");
+      showToast({ type: "error", title: "Erreur", message: e.message ?? "Impossible de générer le PV" });
     }
   };
 

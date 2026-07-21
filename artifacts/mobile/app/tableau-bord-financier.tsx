@@ -7,7 +7,7 @@ import {
   ActivityIndicator,
   RefreshControl,
   StyleSheet,
-  Dimensions,
+  useWindowDimensions,
 } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { useRouter } from "expo-router";
@@ -18,8 +18,8 @@ import { useColors } from "@/hooks/useColors";
 
 type Colors = ReturnType<typeof useColors>;
 
-const { width: SCREEN_WIDTH } = Dimensions.get("window");
-const CHART_WIDTH = SCREEN_WIDTH - 48;
+// Dynamic screen width is resolved via useWindowDimensions inside components.
+// A fallback constant is kept only for static bar-chart sizing.
 const CHART_HEIGHT = 140;
 
 // ─── Translations ─────────────────────────────────────────────────────────────
@@ -516,13 +516,44 @@ interface DashboardData {
 }
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
-function fmt(n: number): string {
-  if (n >= 1_000_000) return `${(n / 1_000_000).toFixed(1)}M`;
-  if (n >= 1_000) return `${(n / 1_000).toFixed(0)}k`;
-  return String(n);
-}
+
+/**
+ * Format a number with French thousands-separator and MAD suffix.
+ * Uses fr-FR (widely supported on Android/iOS) instead of fr-MA to avoid
+ * missing-locale fallbacks that produce unformatted numbers like "25000 MAD".
+ * Output: "450 MAD", "1 250 MAD", "25 000 MAD"
+ */
 function fmtMAD(n: number): string {
-  return `${n.toLocaleString("fr-MA")} MAD`;
+  if (!Number.isFinite(n) || isNaN(n)) return "0 MAD";
+  try {
+    return (
+      new Intl.NumberFormat("fr-FR", { maximumFractionDigits: 0 }).format(
+        Math.round(n),
+      ) + " MAD"
+    );
+  } catch {
+    // Absolute fallback — manual thousands grouping
+    return String(Math.round(n)).replace(/\B(?=(\d{3})+(?!\d))/g, " ") + " MAD";
+  }
+}
+
+/**
+ * Compact display for axis labels / tiny spaces.
+ * "25 000" → "25k", "1 200 000" → "1.2M"
+ */
+function fmt(n: number): string {
+  if (!Number.isFinite(n) || isNaN(n)) return "0";
+  if (n >= 1_000_000) return `${(n / 1_000_000).toFixed(1)}M`;
+  if (n >= 1_000) return `${Math.round(n / 1_000)}k`;
+  return String(Math.round(n));
+}
+
+/**
+ * Full MAD value for KPI cards — shows "25 000 MAD" not "25k MAD".
+ * Uses fmtMAD to guarantee proper thousands grouping on every device.
+ */
+function kpiFmtMAD(n: number): string {
+  return fmtMAD(n);
 }
 
 const CATEGORY_LABELS: Record<string, string> = {
@@ -578,12 +609,32 @@ const STATUS_COLOR: Record<string, string> = {
 };
 
 // ─── Sub-components ────────────────────────────────────────────────────────────
+
+/**
+ * Enterprise KPI card — Revolut / Stripe / SAP Mobile quality.
+ *
+ * Layout (vertical, centered):
+ *   ┌──────────────────────┐
+ *   │  ╔═══════╗            │  ← accent top border
+ *   │  ║  icon ║            │
+ *   │  ╚═══════╝            │
+ *   │   25 000 MAD          │  ← large value, centered, auto-shrink
+ *   │   Budget annuel       │  ← label, centered, 2-line max
+ *   │  ┌──────────────┐     │  ← optional sub-badge
+ *   │  │ /15k prévu   │     │
+ *   │  └──────────────┘     │
+ *   └──────────────────────┘
+ *
+ * Responsive: cardWidth prop is computed from useWindowDimensions so the
+ * layout is correct on 320 px, 360 px, 390 px, and tablets.
+ */
 function KpiCard({
   label,
   value,
   sub,
   color,
   icon,
+  cardWidth,
   styles,
 }: {
   label: string;
@@ -591,18 +642,35 @@ function KpiCard({
   sub?: string;
   color: string;
   icon: string;
+  cardWidth: number;
   styles: ReturnType<typeof createStyles>;
 }) {
   return (
-    <View style={[styles.kpiCard, { borderLeftColor: color }]}>
-      <View style={[styles.kpiIcon, { backgroundColor: color + "20" }]}>
-        <Ionicons name={icon as any} size={18} color={color} />
+    <View style={[styles.kpiCard, { width: cardWidth, borderTopColor: color }]}>
+      <View style={[styles.kpiIcon, { backgroundColor: color + "1A" }]}>
+        <Ionicons name={icon as any} size={20} color={color} />
       </View>
-      <View style={styles.kpiText}>
-        <Text style={styles.kpiValue}>{value}</Text>
-        <Text style={styles.kpiLabel}>{label}</Text>
-        {sub ? <Text style={[styles.kpiSub, { color }]}>{sub}</Text> : null}
-      </View>
+      {/* Value — largest text, auto-scales to prevent overflow */}
+      <Text
+        style={styles.kpiValue}
+        numberOfLines={1}
+        adjustsFontSizeToFit
+        minimumFontScale={0.65}
+      >
+        {value}
+      </Text>
+      {/* Label — up to 2 lines so long labels never clip */}
+      <Text style={styles.kpiLabel} numberOfLines={2}>
+        {label}
+      </Text>
+      {/* Optional sub-info pill */}
+      {sub ? (
+        <View style={[styles.kpiSubBadge, { backgroundColor: color + "18" }]}>
+          <Text style={[styles.kpiSub, { color }]} numberOfLines={1}>
+            {sub}
+          </Text>
+        </View>
+      ) : null}
     </View>
   );
 }
@@ -619,7 +687,7 @@ function RecoveryGauge({
   const { lang } = useLanguage();
   const color =
     rate >= 80 ? colors.success : rate >= 60 ? colors.warning : colors.destructive;
-  const barW = Math.round((CHART_WIDTH - 32) * (rate / 100));
+  // Gauge bar fills a percentage of the available card inner width
   return (
     <View style={styles.gaugeWrap}>
       <View style={styles.gaugeRow}>
@@ -627,8 +695,12 @@ function RecoveryGauge({
         <Text style={[styles.gaugeValue, { color }]}>{rate}%</Text>
       </View>
       <View style={styles.gaugeTrack}>
+        {/* Use percentage-based width so the bar is fully responsive */}
         <View
-          style={[styles.gaugeBar, { width: barW, backgroundColor: color }]}
+          style={[
+            styles.gaugeBar,
+            { width: `${Math.max(0, Math.min(rate, 100))}%` as any, backgroundColor: color },
+          ]}
         />
       </View>
       <View style={styles.gaugeHints}>
@@ -650,8 +722,11 @@ function BarChart({
   styles: ReturnType<typeof createStyles>;
 }) {
   const { lang } = useLanguage();
+  const { width: windowW } = useWindowDimensions();
+  // Chart width = screen - horizontal card padding (16 outer + 16 padding each side)
+  const chartInnerW = windowW - 64;
   const maxVal = Math.max(...data.map((d) => Math.max(d.due, d.paid)), 1);
-  const barW = Math.floor((CHART_WIDTH - 32) / data.length - 8);
+  const barW = Math.max(4, Math.floor(chartInnerW / Math.max(data.length, 1) - 8));
   return (
     <View style={styles.chartArea}>
       <View style={styles.chartLegend}>
@@ -720,7 +795,6 @@ function CategoryRow({
   styles: ReturnType<typeof createStyles>;
 }) {
   const pct = total > 0 ? (amount / total) * 100 : 0;
-  const barW = Math.round(((CHART_WIDTH - 32) * pct) / 100);
   return (
     <View style={styles.catRow}>
       <View style={styles.catHeader}>
@@ -728,7 +802,8 @@ function CategoryRow({
         <Text style={styles.catAmount}>{fmtMAD(amount)}</Text>
       </View>
       <View style={styles.catTrack}>
-        <View style={[styles.catBar, { width: Math.max(barW, 4), backgroundColor: color }]} />
+        {/* Percentage-based bar — fully responsive on all screen widths */}
+        <View style={[styles.catBar, { width: `${Math.max(pct, 1)}%` as any, backgroundColor: color }]} />
       </View>
     </View>
   );
@@ -832,6 +907,10 @@ function TableauBordFinancierInner() {
   const { lang } = useLanguage();
   const colors = useColors();
   const styles = useMemo(() => createStyles(colors), [colors]);
+  // Responsive KPI card width — recalculated on every orientation/resize event.
+  // Formula: (screenWidth - 32px margins - 10px gap) / 2 columns
+  const { width: windowWidth } = useWindowDimensions();
+  const kpiCardWidth = Math.floor((windowWidth - 42) / 2);
   const [buildings, setBuildings] = useState<BuildingQuick[]>([]);
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [data, setData] = useState<DashboardData | null>(null);
@@ -1072,29 +1151,32 @@ function TableauBordFinancierInner() {
                   </View>
                 </View>
 
-                {/* KPI cards */}
+                {/* KPI cards — 2×2 responsive grid */}
                 <View style={styles.kpiGrid}>
                   <KpiCard
                     label="Budget annuel"
-                    value={fmt(summary.budgetAnnuel) + " MAD"}
+                    value={kpiFmtMAD(summary.budgetAnnuel)}
                     color={colors.info}
                     icon="wallet-outline"
+                    cardWidth={kpiCardWidth}
                     styles={styles}
                   />
                   <KpiCard
                     label="Fonds de réserve"
-                    value={fmt(summary.fondsReserveCollecte) + " MAD"}
-                    sub={`/${fmt(summary.fondsReserveBudget)} prévu`}
+                    value={kpiFmtMAD(summary.fondsReserveCollecte)}
+                    sub={`/ ${fmt(summary.fondsReserveBudget)} prévu`}
                     color={colors.tint}
                     icon="shield-checkmark-outline"
+                    cardWidth={kpiCardWidth}
                     styles={styles}
                   />
                   <KpiCard
                     label="Lots occupés"
-                    value={`${data.lots.occupes}/${data.lots.total}`}
+                    value={`${data.lots.occupes} / ${data.lots.total}`}
                     sub={`${data.lots.tauxOccupation}% taux`}
                     color={colors.success}
                     icon="home-outline"
+                    cardWidth={kpiCardWidth}
                     styles={styles}
                   />
                   <KpiCard
@@ -1103,6 +1185,7 @@ function TableauBordFinancierInner() {
                     sub={`${data.appelsDeFonds.paid} payés · ${data.appelsDeFonds.overdue} impayés`}
                     color={colors.warning}
                     icon="cash-outline"
+                    cardWidth={kpiCardWidth}
                     styles={styles}
                   />
                 </View>
@@ -1187,6 +1270,7 @@ function TableauBordFinancierInner() {
                     value={String(data.travaux.enCours)}
                     color={colors.warning}
                     icon="construct-outline"
+                    cardWidth={kpiCardWidth}
                     styles={styles}
                   />
                   <KpiCard
@@ -1194,6 +1278,7 @@ function TableauBordFinancierInner() {
                     value={String(data.travaux.termines)}
                     color={colors.success}
                     icon="checkmark-circle-outline"
+                    cardWidth={kpiCardWidth}
                     styles={styles}
                   />
                   <KpiCard
@@ -1201,14 +1286,16 @@ function TableauBordFinancierInner() {
                     value={String(data.travaux.urgents)}
                     color={colors.destructive}
                     icon="warning-outline"
+                    cardWidth={kpiCardWidth}
                     styles={styles}
                   />
                   <KpiCard
                     label="Budget estimé"
-                    value={fmt(data.travaux.budgetEstime) + " MAD"}
+                    value={kpiFmtMAD(data.travaux.budgetEstime)}
                     sub={`Dépensé : ${fmt(data.travaux.depenseReelle)} MAD`}
                     color={colors.tint}
                     icon="bar-chart-outline"
+                    cardWidth={kpiCardWidth}
                     styles={styles}
                   />
                 </View>
@@ -1291,14 +1378,8 @@ function TableauBordFinancierInner() {
                         style={[
                           styles.gaugeBar,
                           {
-                            width: Math.round(
-                              (CHART_WIDTH - 32) *
-                                Math.min(
-                                  data.travaux.depenseReelle /
-                                    data.travaux.budgetEstime,
-                                  1,
-                                ),
-                            ),
+                            // Percentage-based so this bar adapts to all screen sizes
+                            width: `${Math.round(Math.min((data.travaux.depenseReelle / data.travaux.budgetEstime) * 100, 100))}%` as any,
                             backgroundColor: colors.warning,
                           },
                         ]}
@@ -1326,14 +1407,16 @@ function TableauBordFinancierInner() {
                     value={String(data.prestataires.actifs)}
                     color={colors.info}
                     icon="people-outline"
+                    cardWidth={kpiCardWidth}
                     styles={styles}
                   />
                   <KpiCard
                     label="Charges contrats"
-                    value={fmt(data.prestataires.chargesContrats) + " MAD"}
+                    value={kpiFmtMAD(data.prestataires.chargesContrats)}
                     sub="par an"
                     color={colors.warning}
                     icon="receipt-outline"
+                    cardWidth={kpiCardWidth}
                     styles={styles}
                   />
                 </View>
@@ -1590,31 +1673,64 @@ function createStyles(colors: Colors) {
       gap: 10,
       marginBottom: 12,
     },
+    // ── Enterprise KPI card — vertical, centered, Revolut/Stripe quality ──
     kpiCard: {
       backgroundColor: colors.card,
-      borderRadius: 12,
-      padding: 12,
-      flexDirection: "row",
+      borderRadius: 14,
+      padding: 14,
+      // Vertical layout: icon → value → label → optional sub-badge
       alignItems: "center",
-      gap: 10,
-      borderLeftWidth: 4,
-      width: (SCREEN_WIDTH - 48) / 2,
+      // Top accent bar instead of left border — no left-border width subtraction needed
+      borderTopWidth: 3,
       shadowColor: "#000",
-      shadowOpacity: 0.04,
-      shadowRadius: 4,
-      elevation: 1,
+      shadowOpacity: 0.06,
+      shadowRadius: 8,
+      elevation: 2,
+      gap: 4,
+      overflow: "hidden",
     },
     kpiIcon: {
-      width: 36,
-      height: 36,
-      borderRadius: 10,
+      width: 40,
+      height: 40,
+      borderRadius: 12,
       justifyContent: "center",
       alignItems: "center",
+      marginBottom: 6,
     },
-    kpiText: { flex: 1 },
-    kpiValue: { fontSize: 16, fontWeight: "800", color: colors.text },
-    kpiLabel: { fontSize: 10, color: colors.mutedForeground, marginTop: 1 },
-    kpiSub: { fontSize: 10, fontWeight: "600", marginTop: 2 },
+    // Value is the hero element — large, bold, centered, auto-scales with adjustsFontSizeToFit
+    kpiValue: {
+      fontSize: 18,
+      fontWeight: "800",
+      color: colors.text,
+      textAlign: "center",
+      // Critical overflow guards — never let the value clip the card
+      minWidth: 0,
+      width: "100%" as any,
+      letterSpacing: -0.3,
+    },
+    // Label sits below the value — up to 2 lines, centered
+    kpiLabel: {
+      fontSize: 11,
+      color: colors.mutedForeground,
+      textAlign: "center",
+      fontWeight: "500",
+      lineHeight: 15,
+      minWidth: 0,
+      width: "100%" as any,
+    },
+    // Sub-info rendered in a pill badge so it never bleeds into surrounding text
+    kpiSubBadge: {
+      paddingHorizontal: 8,
+      paddingVertical: 3,
+      borderRadius: 20,
+      marginTop: 4,
+      maxWidth: "100%" as any,
+    },
+    kpiSub: {
+      fontSize: 10,
+      fontWeight: "600",
+      textAlign: "center",
+    },
 
     chartArea: {},
     chartLegend: {

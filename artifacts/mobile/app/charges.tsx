@@ -12,6 +12,7 @@ import { useAuth } from "@/context/AuthContext";
 import { useBreakpoints } from "@/hooks/useBreakpoints";
 import { useColors } from "@/hooks/useColors";
 import { apiRequest } from "@/lib/api";
+import { useToast } from "@/context/ToastContext";
 import FilterChips from "@/components/FilterChips";
 import RoleGuard from "@/components/RoleGuard";
 import ScreenHeader from "@/components/ScreenHeader";
@@ -71,6 +72,7 @@ function ChargesScreenInner() {
   const insets = useSafeAreaInsets();
   const { user, token } = useAuth();
   const { isWide } = useBreakpoints();
+  const { showToast } = useToast();
 
   const [appels, setAppels] = useState<Appel[]>([]);
   const [loading, setLoading] = useState(true);
@@ -166,7 +168,7 @@ function ChargesScreenInner() {
       const { Linking } = await import("react-native");
       await Linking.openURL(receiptUrl);
     } catch {
-      Alert.alert("Erreur", "Impossible d'ouvrir le reçu");
+      showToast({ type: "error", title: "Erreur", message: "Impossible d'ouvrir le reçu" });
     }
   };
 
@@ -180,7 +182,7 @@ function ChargesScreenInner() {
         proofUrl = await uploadProofImage(payProofUri);
         setUploadingProof(false);
         if (!proofUrl) {
-          Alert.alert("Erreur d'upload", "Le téléchargement du justificatif a échoué. Vérifiez votre connexion et réessayez.");
+          showToast({ type: "error", title: "Erreur d'upload", message: "Le téléchargement du justificatif a échoué. Vérifiez votre connexion et réessayez." });
           setSubmitting(false);
           return;
         }

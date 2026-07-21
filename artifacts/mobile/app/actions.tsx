@@ -21,6 +21,7 @@ import { useAuth } from "@/context/AuthContext";
 import { useBreakpoints } from "@/hooks/useBreakpoints";
 import { useColors } from "@/hooks/useColors";
 import { actions as actionsApi, type ApiUnionAction } from "@/services/api";
+import { useToast } from "@/context/ToastContext";
 
 type ActionType = ApiUnionAction["type"];
 type ActionStatus = ApiUnionAction["status"];
@@ -53,6 +54,7 @@ export default function ActionsScreen() {
   const [filterStatus, setFilterStatus] = useState<ActionStatus | "all">("all");
 
   const isAdmin = user?.role === "super_admin" || user?.role === "syndicate_admin";
+  const { showToast } = useToast();
 
   // ── Fetch actions ────────────────────────────────────────────────────────────
   const { data, isLoading, isError, refetch, isRefetching } = useQuery({
@@ -90,7 +92,7 @@ export default function ActionsScreen() {
     },
     onError: (_err, _id, context) => {
       if (context?.previous) queryClient.setQueryData(["actions", filterType, filterStatus], context.previous);
-      Alert.alert("Erreur", "Impossible d'enregistrer votre soutien.");
+      showToast({ type: "error", title: "Erreur", message: "Impossible d'enregistrer votre soutien." });
     },
     onSettled: () => queryClient.invalidateQueries({ queryKey: ["actions"] }),
   });
@@ -122,14 +124,14 @@ export default function ActionsScreen() {
       const action = actionList.find((a) => a.id === id) ?? selectedAction;
       if (result.participating && action) {
         Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-        Alert.alert("Participation confirmée ✓", `Votre participation à "${action.title}" a été enregistrée.`);
+        showToast({ type: "success", title: "Participation confirmée ✓", message: `Votre participation à "${action.title}" a été enregistrée.` });
       } else {
         Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
       }
     },
     onError: (_err, _id, context) => {
       if (context?.previous) queryClient.setQueryData(["actions", filterType, filterStatus], context.previous);
-      Alert.alert("Erreur", "Impossible d'enregistrer votre participation.");
+      showToast({ type: "error", title: "Erreur", message: "Impossible d'enregistrer votre participation." });
     },
     onSettled: () => queryClient.invalidateQueries({ queryKey: ["actions"] }),
   });

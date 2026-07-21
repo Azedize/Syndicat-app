@@ -18,6 +18,7 @@ import {
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useAuth } from "@/context/AuthContext";
 import { useColors } from "@/hooks/useColors";
+import { useToast } from "@/context/ToastContext";
 import { captureAndUploadPhoto, pickAndUploadPhoto } from "@/lib/upload";
 import { parking } from "@/services/api";
 
@@ -114,6 +115,7 @@ export default function ParkingScreen() {
   const colors = useColors();
   const insets = useSafeAreaInsets();
   const { user } = useAuth();
+  const { showToast } = useToast();
   const isAdmin = user?.role === "super_admin" || user?.role === "syndicate_admin";
 
   const [activeTab, setActiveTab] = useState<Tab>("vehicles");
@@ -190,7 +192,8 @@ export default function ParkingScreen() {
   // ─── Add vehicle ──────────────────────────────────────────────────────────
   const handleAddVehicle = async () => {
     if (!vPlate.trim()) {
-      return Alert.alert("Erreur", "La plaque d'immatriculation est obligatoire");
+      showToast({ type: "warning", title: "Champ requis", message: "La plaque d'immatriculation est obligatoire" });
+      return;
     }
     setSavingVehicle(true);
     try {
@@ -203,9 +206,10 @@ export default function ParkingScreen() {
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
       setShowAddVehicle(false);
       setVPlate(""); setVBrand(""); setVModel(""); setVColor("");
+      showToast({ type: "success", title: "Véhicule enregistré", message: "Le véhicule a été ajouté avec succès." });
       load(true);
     } catch (e: any) {
-      Alert.alert("Erreur", e.message ?? "Impossible d'enregistrer le véhicule");
+      showToast({ type: "error", title: "Erreur", message: e.message ?? "Impossible d'enregistrer le véhicule" });
     } finally {
       setSavingVehicle(false);
     }
@@ -221,9 +225,10 @@ export default function ParkingScreen() {
           try {
             await parking.deleteVehicle(id);
             Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+            showToast({ type: "success", title: "Véhicule supprimé", message: `${plate} a été retiré.` });
             load(true);
           } catch (e: any) {
-            Alert.alert("Erreur", e.message ?? "Erreur lors de la suppression");
+            showToast({ type: "error", title: "Erreur", message: e.message ?? "Erreur lors de la suppression" });
           }
         },
       },

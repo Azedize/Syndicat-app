@@ -90,7 +90,7 @@ const STATUS_CONFIG: Record<string, { color: string; label: string }> = {
 export default function MyShopScreen() {
   const colors = useColors();
   const insets = useSafeAreaInsets();
-  const { user } = useAuth();
+  const { user, token } = useAuth();
   const { t } = useLanguage();
   const { isWide } = useBreakpoints();
   const topPad = isWide ? 0 : (Platform.OS === "web" ? 67 : insets.top);
@@ -174,7 +174,7 @@ export default function MyShopScreen() {
     const uri = result.assets[0].uri;
     setSponsorProofLocalUri(uri);
     setUploadingProof(true);
-    const objectPath = await uploadImageUri(uri, user?.token);
+    const objectPath = await uploadImageUri(uri, token ?? undefined);
     setUploadingProof(false);
     if (objectPath) {
       setSponsorProofObjectPath(objectPath);
@@ -293,7 +293,7 @@ export default function MyShopScreen() {
     setImageLocalUris((prev) => [...prev, uri]);
     Haptics.selectionAsync();
     setUploadingImages(true);
-    const objectPath = await uploadImageUri(uri, user?.token);
+    const objectPath = await uploadImageUri(uri, token ?? undefined);
     setUploadingImages(false);
     if (objectPath) {
       setImageObjectPaths((prev) => [...prev, objectPath]);

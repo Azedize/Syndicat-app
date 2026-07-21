@@ -78,12 +78,10 @@ interface Props {
 // ─── Category config ──────────────────────────────────────────────────────────
 
 const CATEGORIES = [
-  { key: "attestation", label: "Attestations",   icon: "award"     as const, color: "#8b5cf6", desc: "Certifications et attestations officielles" },
-  { key: "pv",          label: "PV & Comptes-rendus", icon: "clipboard" as const, color: "#10b981", desc: "Procès-verbaux de réunions" },
-  { key: "reglements",  label: "Règlements",      icon: "book"      as const, color: "#3b82f6", desc: "Règlements et circulaires" },
-  { key: "juridique",   label: "Juridique",        icon: "shield"    as const, color: "#ef4444", desc: "Documents légaux et contractuels" },
-  { key: "finances",    label: "Finances",         icon: "dollar-sign" as const, color: "#f59e0b", desc: "Rapports et documents financiers" },
-  { key: "statuts",     label: "Statuts",          icon: "book-open" as const, color: "#7c3aed", desc: "Statuts et certifications officielles" },
+  { key: "attestation", label: "Attestations",   icon: "award"       as const, color: "#8b5cf6", desc: "Attestations d'adhésion, résidence, propriété, paiement" },
+  { key: "pv",          label: "PV & Décisions", icon: "clipboard"   as const, color: "#10b981", desc: "Procès-verbaux, convocations et décisions syndicales" },
+  { key: "finances",    label: "Finances",        icon: "dollar-sign" as const, color: "#f59e0b", desc: "Rapports financiers, appels de fonds et factures" },
+  { key: "juridique",   label: "Juridique",       icon: "shield"      as const, color: "#ef4444", desc: "Contrats et mises en demeure officielles" },
 ];
 
 // ─── Entity type → document template mapping ─────────────────────────────────
@@ -96,32 +94,21 @@ const ENTITY_TYPE_MAP: Record<string, {
   icon: keyof typeof Feather.glyphMap;
   hint: string;
 }> = {
-  pv:                    { type: "meetings",  idField: "meetingId",      label: "Réunion AG",         icon: "users",       hint: "Les données de réunion (date, lieu, ordre du jour, résolutions) seront chargées automatiquement." },
-  convocation:           { type: "meetings",  idField: "meetingId",      label: "Réunion à convoquer",icon: "calendar",    hint: "Sélectionnez la réunion — date, lieu et heure seront pré-remplis." },
-  compte_rendu:          { type: "meetings",  idField: "meetingId",      label: "Réunion",            icon: "clipboard",   hint: "Sélectionnez la réunion dont vous rédigez le compte-rendu." },
-  attestation_residence: { type: "lots",      idField: "lotId",          label: "Lot / Appartement",  icon: "home",        hint: "Le nom du résident, l'adresse et le numéro de lot seront chargés depuis la base." },
-  attestation_propriete: { type: "lots",      idField: "lotId",          label: "Lot / Appartement",  icon: "home",        hint: "Le titre foncier, les tantièmes et les données du propriétaire seront chargés automatiquement." },
-  attestation_paiement:  { type: "lots",      idField: "lotId",          label: "Lot / Appartement",  icon: "home",        hint: "Le total des charges payées sera calculé automatiquement depuis les appels de fonds." },
-  decompte_charges:      { type: "lots",      idField: "lotId",          label: "Lot / Appartement",  icon: "home",        hint: "Le décompte sera calculé depuis les appels de fonds réels du lot." },
-  appel_de_fonds:        { type: "appels",    idField: "appelDeFondsId", label: "Appel de fonds",     icon: "file-text",   hint: "Toutes les données financières (montant, échéance, lot, copropriétaire) seront chargées." },
-  recu_paiement:         { type: "appels",    idField: "appelDeFondsId", label: "Appel de fonds réglé",icon: "check-circle",hint: "Sélectionnez l'appel de fonds qui a été réglé pour générer le reçu." },
-  facture:               { type: "invoices",  idField: "invoiceId",      label: "Facture",            icon: "file-minus",  hint: "Les lignes de facture, le montant et le destinataire seront importés depuis la comptabilité." },
-  budget_previsionnel:   { type: "budgets",   idField: "budgetId",       label: "Budget",             icon: "bar-chart-2", hint: "Le budget complet avec toutes ses lignes budgétaires sera importé." },
-  rapport_election:      { type: "elections", idField: "electionId",     label: "Élection",           icon: "award",       hint: "Les résultats, candidats et statistiques d'élection seront chargés automatiquement." },
-  rapport_financier:     { type: "budgets",   idField: "budgetId",       label: "Budget (optionnel)", icon: "trending-up", hint: "Sélectionnez un budget pour pré-remplir les indicateurs financiers." },
-  contrat_bail:          { type: "tenants",   idField: "tenantId",       label: "Locataire",              icon: "home",           hint: "Le nom du locataire, les dates de bail, le loyer mensuel et le dépôt de garantie seront chargés automatiquement." },
-  sinistre:              { type: "sinistres", idField: "sinistreId",     label: "Sinistre déclaré",       icon: "alert-triangle", hint: "Toutes les données du sinistre (type, date, description, montant, statut) seront importées automatiquement." },
-  travaux:               { type: "travaux",   idField: "travauxId",      label: "Chantier / Travaux",     icon: "tool",           hint: "Les données du chantier (type, prestataire, montants, planning, statut) seront importées automatiquement." },
-  // ── Member-backed templates — previously 100% manual entry ─────────────────
-  attestation:           { type: "members",  idField: "memberId",       label: "Copropriétaire / Membre", icon: "user",          hint: "Le nom, le lot et les coordonnées du membre seront chargés automatiquement depuis la base de données." },
-  certificat:            { type: "members",  idField: "memberId",       label: "Bénéficiaire",            icon: "user",          hint: "Le nom du bénéficiaire sera chargé automatiquement depuis la base de données." },
-  mise_en_demeure:       { type: "members",  idField: "memberId",       label: "Membre mis en demeure",   icon: "user-x",        hint: "Le nom, le lot et les coordonnées seront chargés — précisez seulement l'objet et le délai." },
-  demande_administrative:{ type: "members",  idField: "memberId",       label: "Membre demandeur",        icon: "user",          hint: "Le nom du demandeur sera chargé automatiquement depuis son profil membre." },
-  autorisation:          { type: "members",  idField: "memberId",       label: "Bénéficiaire",            icon: "user",          hint: "Le nom du bénéficiaire sera chargé automatiquement depuis la base de données." },
-  ordre_de_mission:      { type: "members",  idField: "memberId",       label: "Agent / Membre",          icon: "user",          hint: "Le nom de l'agent sera chargé automatiquement depuis la base de données." },
-  lettre_officielle:     { type: "members",  idField: "memberId",       label: "Destinataire",            icon: "user",          hint: "Le nom et les coordonnées du destinataire seront chargés depuis la base de données." },
-  // ── Optional meeting link for governance decisions ──────────────────────────
-  decision:              { type: "meetings", idField: "meetingId",      label: "Réunion liée (optionnel)", icon: "calendar",      hint: "Optionnel — liez cette décision à une réunion pour pré-remplir la date et le contexte." },
+  // ── PV & Décisions — Meeting entity ─────────────────────────────────────────
+  pv:                    { type: "meetings",  idField: "meetingId",      label: "Réunion AG",          icon: "users",       hint: "Les données de réunion (date, lieu, ordre du jour, résolutions) seront chargées automatiquement." },
+  convocation:           { type: "meetings",  idField: "meetingId",      label: "Réunion à convoquer", icon: "calendar",    hint: "Sélectionnez la réunion — date, lieu et heure seront pré-remplis." },
+  decision:              { type: "meetings",  idField: "meetingId",      label: "Réunion liée (optionnel)", icon: "calendar", hint: "Optionnel — liez cette décision à une réunion pour pré-remplir la date et le contexte." },
+  // ── Attestations — Lot entity ────────────────────────────────────────────────
+  attestation_residence: { type: "lots",      idField: "lotId",          label: "Lot / Appartement",   icon: "home",        hint: "Le nom du résident, l'adresse et le numéro de lot seront chargés depuis la base." },
+  attestation_propriete: { type: "lots",      idField: "lotId",          label: "Lot / Appartement",   icon: "home",        hint: "Le titre foncier, les tantièmes et les données du propriétaire seront chargés automatiquement." },
+  attestation_paiement:  { type: "lots",      idField: "lotId",          label: "Lot / Appartement",   icon: "home",        hint: "Le total des charges payées sera calculé automatiquement depuis les appels de fonds." },
+  // ── Attestation d'adhésion — Member entity ──────────────────────────────────
+  attestation:           { type: "members",   idField: "memberId",       label: "Copropriétaire / Membre", icon: "user",    hint: "Le nom, le lot et les coordonnées du membre seront chargés automatiquement depuis la base de données." },
+  mise_en_demeure:       { type: "members",   idField: "memberId",       label: "Membre mis en demeure",   icon: "user-x",  hint: "Le nom, le lot et les coordonnées seront chargés — précisez seulement l'objet et le délai." },
+  // ── Finances — Financial entity ──────────────────────────────────────────────
+  appel_de_fonds:        { type: "appels",    idField: "appelDeFondsId", label: "Appel de fonds",      icon: "file-text",   hint: "Toutes les données financières (montant, échéance, lot, copropriétaire) seront chargées." },
+  facture:               { type: "invoices",  idField: "invoiceId",      label: "Facture",             icon: "file-minus",  hint: "Les lignes de facture, le montant et le destinataire seront importés depuis la comptabilité." },
+  rapport_financier:     { type: "budgets",   idField: "budgetId",       label: "Budget (optionnel)",  icon: "trending-up", hint: "Sélectionnez un budget pour pré-remplir les indicateurs financiers." },
 };
 
 // ─── Source color helper ──────────────────────────────────────────────────────
@@ -514,30 +501,11 @@ export default function DocumentWizard({ visible, onClose, onComplete }: Props) 
         { name: "objet",    label: "Objet du contrat", source: "input utilisateur", placeholder: "Prestation de gardiennage..." },
         { name: "content",  label: "Clauses du contrat", source: "input utilisateur", multiline: true, placeholder: "Article 1 : ..." },
       ],
-      circulaire: [
-        ...common,
-        { name: "objet",    label: "Objet", source: "input utilisateur", placeholder: "Information importante..." },
-        { name: "content",  label: "Corps du message", source: "input utilisateur", multiline: true, placeholder: "Chers copropriétaires..." },
-        { name: "modeEnvoi",label: "Mode d'envoi", source: "input utilisateur", placeholder: "Email + Affichage" },
-      ],
-      rapport_activite: [
-        ...common,
-        { name: "periode",      label: "Période couverte",  source: "input utilisateur", placeholder: "Janvier – Juin 2026" },
-        { name: "activites",    label: "Activités réalisées", source: "input utilisateur", multiline: true, placeholder: "1. Réfection des parties communes\n2. ..." },
-        { name: "indicateurs",  label: "Indicateurs",       source: "input utilisateur", multiline: true, placeholder: "Taux d'occupation: 97%\n..." },
-        { name: "perspectives", label: "Perspectives",      source: "input utilisateur", multiline: true },
-        { name: "synthese",     label: "Synthèse",          source: "input utilisateur", multiline: true },
-      ],
       decision: [
         ...common,
         { name: "organe",   label: "Organe décisionnel", source: "input utilisateur", placeholder: "Bureau syndical" },
         { name: "objet",    label: "Objet de la décision", source: "input utilisateur", placeholder: "Approbation du budget..." },
         { name: "content",  label: "Corps de la décision", source: "input utilisateur", multiline: true },
-      ],
-      certificat: [
-        ...common,
-        { name: "memberName", label: "Bénéficiaire",        source: "membersTable",      placeholder: "Auto — sélectionnez un membre" },
-        { name: "content",    label: "Objet du certificat", source: "input utilisateur", multiline: true },
       ],
       mise_en_demeure: [
         ...common,
@@ -547,50 +515,6 @@ export default function DocumentWizard({ visible, onClose, onComplete }: Props) 
         { name: "consequences", label: "Conséquences",    source: "input utilisateur", multiline: true },
         { name: "preamble",     label: "Préambule",       source: "input utilisateur", multiline: true },
       ],
-      reglement: [
-        ...common,
-        { name: "content", label: "Clauses additionnelles", source: "input utilisateur", multiline: true, placeholder: "Article supplémentaire..." },
-      ],
-      demande_administrative: [
-        ...common,
-        { name: "memberName",   label: "Demandeur",           source: "membersTable",      placeholder: "Auto — sélectionnez un membre" },
-        { name: "objet",        label: "Objet de la demande", source: "input utilisateur" },
-        { name: "expose",       label: "Exposé des motifs",   source: "input utilisateur", multiline: true },
-        { name: "justificatifs",label: "Justificatifs",       source: "input utilisateur", multiline: true },
-      ],
-      autorisation: [
-        ...common,
-        { name: "memberName",        label: "Bénéficiaire",         source: "membersTable",      placeholder: "Auto — sélectionnez un membre" },
-        { name: "texteAutorisation", label: "Texte d'autorisation", source: "input utilisateur", multiline: true },
-        { name: "conditions",        label: "Conditions",           source: "input utilisateur", multiline: true },
-        { name: "dateDebut",         label: "Date de début",        source: "input utilisateur", placeholder: "01/07/2026" },
-        { name: "dateFin",           label: "Date de fin",          source: "input utilisateur", placeholder: "31/12/2026" },
-      ],
-      ordre_de_mission: [
-        ...common,
-        { name: "memberName",  label: "Agent / Membre",      source: "membersTable",      placeholder: "Auto — sélectionnez un membre" },
-        { name: "poste",       label: "Poste",               source: "input utilisateur" },
-        { name: "destination", label: "Destination",         source: "input utilisateur" },
-        { name: "dateDepart",  label: "Date de départ",      source: "input utilisateur" },
-        { name: "dateRetour",  label: "Date de retour",      source: "input utilisateur" },
-        { name: "objetMission",label: "Objet de la mission", source: "input utilisateur", multiline: true },
-        { name: "frais",       label: "Frais pris en charge",source: "input utilisateur" },
-      ],
-      lettre_officielle: [
-        ...common,
-        { name: "memberName", label: "Destinataire",         source: "membersTable",      placeholder: "Auto — sélectionnez un membre" },
-        { name: "objet",      label: "Objet",                source: "input utilisateur" },
-        { name: "corps",      label: "Corps de la lettre",   source: "input utilisateur", multiline: true },
-      ],
-      note_interne: [
-        ...common,
-        { name: "memberName",  label: "À (destinataire)",  source: "input utilisateur" },
-        { name: "de",          label: "De (émetteur)",     source: "input utilisateur" },
-        { name: "objet",       label: "Objet",             source: "input utilisateur" },
-        { name: "priorite",    label: "Priorité",          source: "input utilisateur", placeholder: "Normale / Urgente" },
-        { name: "corps",       label: "Corps de la note",  source: "input utilisateur", multiline: true },
-        { name: "actionRequise",label: "Action requise",   source: "input utilisateur" },
-      ],
       rapport_financier: [
         ...common,
         { name: "exercice",     label: "Exercice comptable", source: "budgetsTable",      placeholder: "Auto si budget sélectionné" },
@@ -599,44 +523,6 @@ export default function DocumentWizard({ visible, onClose, onComplete }: Props) 
         { name: "observations", label: "Observations",       source: "input utilisateur", multiline: true },
         { name: "etabliPar",    label: "Établi par",         source: "conseilSyndical",   placeholder: "Auto — Trésorier" },
         { name: "approuvePar",  label: "Approuvé par",       source: "conseilSyndical",   placeholder: "Auto — Président" },
-      ],
-      rapport_audit: [
-        ...common,
-        { name: "auditeurs",       label: "Auditeurs",         source: "input utilisateur" },
-        { name: "perimetre",       label: "Périmètre",         source: "input utilisateur" },
-        { name: "periodeAuditee",  label: "Période auditée",   source: "input utilisateur", placeholder: "01/01/2026 — 30/06/2026" },
-        { name: "opinion",         label: "Opinion d'audit",   source: "input utilisateur" },
-        { name: "constats",        label: "Constats",          source: "input utilisateur", multiline: true },
-        { name: "recommandations", label: "Recommandations",   source: "input utilisateur", multiline: true },
-        { name: "conclusion",      label: "Conclusion",        source: "input utilisateur", multiline: true },
-      ],
-      convention_partenariat: [
-        ...common,
-        { name: "partieB",   label: "Partie B (Partenaire)", source: "input utilisateur" },
-        { name: "preambule", label: "Préambule",             source: "input utilisateur", multiline: true },
-        { name: "article1",  label: "Article 1 — Objet",    source: "input utilisateur", multiline: true },
-        { name: "article2",  label: "Article 2 — Engagements", source: "input utilisateur", multiline: true },
-        { name: "article3",  label: "Article 3 — Durée",    source: "input utilisateur", multiline: true },
-        { name: "duree",     label: "Durée totale",         source: "input utilisateur", placeholder: "1 an renouvelable" },
-      ],
-      accord_collectif: [
-        ...common,
-        { name: "employeur",      label: "Employeur / Partie B", source: "input utilisateur" },
-        { name: "champApplication", label: "Champ d'application", source: "input utilisateur", multiline: true },
-        { name: "dispositions",   label: "Dispositions",         source: "input utilisateur", multiline: true },
-        { name: "entreeVigueur",  label: "Entrée en vigueur",    source: "input utilisateur" },
-      ],
-      compte_rendu: [
-        ...common,
-        // auto-populated from meeting when meetingId is provided
-        { name: "dateMeeting",     label: "Date",               source: "meetingsTable",     placeholder: "Auto si réunion sélectionnée" },
-        { name: "lieu",            label: "Lieu",               source: "meetingsTable",     placeholder: "Auto si réunion sélectionnée" },
-        { name: "presidentSeance", label: "Président de séance",source: "meetingsTable",     placeholder: "Auto si réunion sélectionnée" },
-        { name: "participants",    label: "Participants",        source: "meetingsTable",     multiline: true },
-        { name: "ordreJour",       label: "Ordre du jour",      source: "meetingsTable",     multiline: true },
-        { name: "deroulement",     label: "Déroulement",        source: "input utilisateur", multiline: true },
-        { name: "decisions",       label: "Décisions prises",   source: "meetingsTable",     multiline: true },
-        { name: "prochaineReunion",label: "Prochaine réunion",  source: "input utilisateur" },
       ],
       // ── Attestations — DB data auto-populated when lotId is provided ──────────
       attestation_residence: [
@@ -664,53 +550,11 @@ export default function DocumentWizard({ visible, onClose, onComplete }: Props) 
         { name: "periode",    label: "Période",         source: "appelsDeFondsTable", placeholder: "Auto si appel sélectionné" },
         { name: "objet",      label: "Objet spécifique",source: "input utilisateur",  placeholder: "Charges communes trimestrielles…" },
       ],
-      recu_paiement: [
-        ...common,
-        { name: "memberName", label: "Payeur",          source: "appelsDeFondsTable", placeholder: "Auto si appel sélectionné" },
-        { name: "montant",    label: "Montant reçu",    source: "appelsDeFondsTable", placeholder: "Auto si appel sélectionné" },
-        { name: "periode",    label: "Période",         source: "appelsDeFondsTable", placeholder: "Auto si appel sélectionné" },
-        { name: "modeEnvoi",  label: "Mode de paiement",source: "input utilisateur",  placeholder: "Virement / Chèque / Espèces" },
-      ],
       facture: [
         ...common,
         { name: "memberName", label: "Destinataire",      source: "invoicesTable", placeholder: "Auto si facture sélectionnée" },
         { name: "montant",    label: "Montant total",     source: "invoicesTable", placeholder: "Auto si facture sélectionnée" },
         { name: "objet",      label: "Objet additionnel", source: "input utilisateur", placeholder: "Précisions…" },
-      ],
-      budget_previsionnel: [
-        ...common,
-        { name: "exercice",   label: "Exercice",          source: "budgetsTable",    placeholder: "Auto si budget sélectionné" },
-        { name: "observations",label: "Observations",     source: "input utilisateur", multiline: true },
-      ],
-      decompte_charges: [
-        ...common,
-        { name: "memberName", label: "Copropriétaire",    source: "lotsTable / membersTable", placeholder: "Auto si lot sélectionné" },
-        { name: "exercice",   label: "Exercice",          source: "input utilisateur", placeholder: "2026" },
-        { name: "observations",label: "Observations",     source: "input utilisateur", multiline: true },
-      ],
-      rapport_election: [
-        ...common,
-        { name: "organe",    label: "Organe électoral",  source: "electionsTable",    placeholder: "Auto si élection sélectionnée" },
-        { name: "observations",label: "Observations",    source: "input utilisateur", multiline: true },
-      ],
-      // ── Operational templates (entity-driven) ─────────────────────────────
-      contrat_bail: [
-        ...common,
-        { name: "memberName",  label: "Nom du locataire",   source: "tenantsTable",    placeholder: "Auto si locataire sélectionné" },
-        { name: "dateDebut",   label: "Début du bail",      source: "tenantsTable",    placeholder: "Auto si locataire sélectionné" },
-        { name: "dateFin",     label: "Fin du bail",        source: "tenantsTable",    placeholder: "Auto si locataire sélectionné" },
-        { name: "montant",     label: "Loyer mensuel (MAD)",source: "tenantsTable",    placeholder: "Auto si locataire sélectionné" },
-        { name: "conditions",  label: "Clauses spécifiques",source: "input utilisateur", multiline: true, placeholder: "Clauses additionnelles…" },
-        { name: "preamble",    label: "Préambule",          source: "input utilisateur", multiline: true },
-      ],
-      sinistre: [
-        ...common,
-        { name: "constats",    label: "Constats supplémentaires", source: "input utilisateur", multiline: true, placeholder: "Observations de l'expert…" },
-        { name: "observations",label: "Démarches entreprises",    source: "input utilisateur", multiline: true, placeholder: "1. Déclaration faite le…\n2. Expert mandaté…" },
-      ],
-      travaux: [
-        ...common,
-        { name: "observations",label: "Observations",    source: "input utilisateur", multiline: true, placeholder: "Notes sur l'avancement des travaux…" },
       ],
     };
     return maps[tplId] ?? common;

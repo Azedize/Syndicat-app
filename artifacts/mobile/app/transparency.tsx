@@ -3,13 +3,14 @@ import * as Haptics from "expo-haptics";
 import { router } from "expo-router";
 import React, { useCallback, useEffect, useState } from "react";
 import {
-  ActivityIndicator, Alert, Modal, Platform, RefreshControl,
+  ActivityIndicator, Modal, Platform, RefreshControl,
   ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, View,
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useAuth } from "@/context/AuthContext";
 import { useBreakpoints } from "@/hooks/useBreakpoints";
 import { useColors } from "@/hooks/useColors";
+import { useToast } from "@/context/ToastContext";
 import { apiRequest } from "@/lib/api";
 
 const STATUS_CONFIG: Record<string, { label: string; color: string; bg: string }> = {
@@ -52,6 +53,7 @@ export default function TransparencyScreen() {
   const { isWide } = useBreakpoints();
   const topPad = isWide ? 0 : Platform.OS === "web" ? 67 : insets.top;
 
+  const { showToast } = useToast();
   const isAdmin = user?.role === "syndicate_admin" || user?.role === "super_admin";
 
   const [items, setItems] = useState<Justification[]>([]);
@@ -69,7 +71,7 @@ export default function TransparencyScreen() {
       if (!silent) setLoading(true);
       const data = await apiRequest("/expense-justifications", "GET", undefined, token);
       setItems(data.data ?? []);
-    } catch (e) { console.error(e); }
+    } catch (e: any) { if (!silent) showToast({ type: "error", title: "Erreur de chargement", message: e?.message ?? "Impossible de charger les justificatifs." }); }
     finally { setLoading(false); setRefreshing(false); }
   }, [token]);
 
@@ -77,8 +79,8 @@ export default function TransparencyScreen() {
   const onRefresh = () => { setRefreshing(true); load(true); };
 
   const handleAdd = async () => {
-    if (!form.title.trim()) { Alert.alert("Erreur", "Le titre est obligatoire"); return; }
-    if (!form.amount) { Alert.alert("Erreur", "Le montant est obligatoire"); return; }
+    if (!form.title.trim()) { showToast({ type: "warning", title: "Champ requis", message: "Le titre est obligatoire." }); return; }
+    if (!form.amount) { showToast({ type: "warning", title: "Champ requis", message: "Le montant est obligatoire." }); return; }
     try {
       setSubmitting(true);
       await apiRequest("/expense-justifications", "POST", {
@@ -87,23 +89,25 @@ export default function TransparencyScreen() {
       }, token);
       setShowAdd(false);
       setForm({ title: "", description: "", amount: "", category: "maintenance", receiptUrl: "" });
+      showToast({ type: "success", title: "Dépense publiée", message: "La justification a été enregistrée." });
       load(true);
     } catch (e: any) {
-      Alert.alert("Erreur", e.message ?? "Impossible d'ajouter");
+      showToast({ type: "error", title: "Erreur", message: e?.message ?? "Impossible d'ajouter la justification." });
     } finally { setSubmitting(false); }
   };
 
   const handleChallenge = async () => {
     if (!showChallenge) return;
-    if (!challengeReason.trim()) { Alert.alert("Erreur", "La raison de contestation est obligatoire"); return; }
+    if (!challengeReason.trim()) { showToast({ type: "warning", title: "Champ requis", message: "La raison de contestation est obligatoire." }); return; }
     try {
       setSubmitting(true);
       await apiRequest(`/expense-justifications/${showChallenge.id}/challenge`, "POST", { reason: challengeReason }, token);
       setShowChallenge(null);
       setChallengeReason("");
+      showToast({ type: "success", title: "Contestation envoyée", message: "Votre contestation a été transmise." });
       load(true);
     } catch (e: any) {
-      Alert.alert("Erreur", e.message ?? "Impossible de contester");
+      showToast({ type: "error", title: "Erreur", message: e?.message ?? "Impossible de contester." });
     } finally { setSubmitting(false); }
   };
 
@@ -112,9 +116,10 @@ export default function TransparencyScreen() {
       setVotingId(id);
       Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
       await apiRequest(`/expense-justifications/${id}/vote`, "POST", { vote }, token);
+      showToast({ type: "success", title: "Vote enregistré", message: `Vous avez voté ${vote === "for" ? "pour" : "contre"} cette dépense.` });
       load(true);
     } catch (e: any) {
-      Alert.alert("Erreur", e.message ?? "Impossible de voter");
+      showToast({ type: "error", title: "Erreur", message: e?.message ?? "Impossible de voter." });
     } finally { setVotingId(null); }
   };
 

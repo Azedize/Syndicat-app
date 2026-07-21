@@ -1234,55 +1234,6 @@ router.get("/documents/templates", requireAuth, async (_req, res) => {
       requiredInputs: ["partieB"],
     },
     {
-      id: "circulaire", name: "Circulaire interne", category: "reglements",
-      description: "Communication officielle adressée à tous les membres du syndicat.",
-      icon: "mail", color: "#f59e0b", version: "2.0", author: "SYNDYCAT", updatedAt: "2026-01-01",
-      sections: [
-        { title: "En-tête", description: "Logo et identité du syndicat", source: "syndicatesTable" },
-        { title: "Expéditeur / Destinataire", description: "Bureau syndical → Membres", source: "syndicatesTable" },
-        { title: "Objet", description: "Sujet de la circulaire", source: "input" },
-        { title: "Corps du message", description: "Contenu de la communication", source: "input" },
-        { title: "Signatures", description: "Signature du président", source: "conseilSyndicalTable" },
-        { title: "QR de vérification", description: "Code QR d'authenticité", source: "généré" },
-      ],
-      variables: [
-        { name: "syndicateName",  label: "Émetteur",          source: "syndicatesTable.name", required: true  },
-        { name: "objet",          label: "Objet",             source: "input utilisateur",    required: false },
-        { name: "content",        label: "Corps du message",  source: "input utilisateur",    required: false },
-        { name: "modeEnvoi",      label: "Mode d'envoi",      source: "input utilisateur",    required: false },
-        { name: "priorite",       label: "Priorité",          source: "input utilisateur",    required: false },
-        { name: "documentNumber", label: "N° de document",    source: "documentSequencesTable", required: true },
-      ],
-      requiredInputs: [],
-    },
-    {
-      id: "rapport_activite", name: "Rapport d'activité", category: "finances",
-      description: "Rapport mensuel ou annuel présentant les activités et réalisations du syndicat.",
-      icon: "bar-chart-2", color: "#06b6d4", version: "2.0", author: "SYNDYCAT", updatedAt: "2026-01-01",
-      sections: [
-        { title: "En-tête", description: "Logo et identité du syndicat", source: "syndicatesTable" },
-        { title: "Informations de l'immeuble", description: "Nom, adresse, bâtiments, lots", source: "buildingsTable + lotsTable" },
-        { title: "Période couverte", description: "Période du rapport", source: "input" },
-        { title: "Activités réalisées", description: "Liste des activités de la période", source: "input" },
-        { title: "Indicateurs de performance", description: "Indicateurs clés", source: "input" },
-        { title: "Perspectives", description: "Objectifs pour la prochaine période", source: "input" },
-        { title: "Synthèse", description: "Conclusion et résumé exécutif", source: "input" },
-        { title: "Signatures", description: "Président et gestionnaire", source: "conseilSyndicalTable" },
-        { title: "QR de vérification", description: "Code QR d'authenticité", source: "généré" },
-      ],
-      variables: [
-        { name: "syndicateName",  label: "Syndicat",          source: "syndicatesTable.name",   required: true  },
-        { name: "propertyName",   label: "Résidence",         source: "buildingsTable.name",    required: false },
-        { name: "periode",        label: "Période couverte",  source: "input utilisateur",      required: false },
-        { name: "activites",      label: "Activités",         source: "input utilisateur",      required: false },
-        { name: "indicateurs",    label: "Indicateurs",       source: "input utilisateur",      required: false },
-        { name: "perspectives",   label: "Perspectives",      source: "input utilisateur",      required: false },
-        { name: "synthese",       label: "Synthèse",          source: "input utilisateur",      required: false },
-        { name: "documentNumber", label: "N° de document",    source: "documentSequencesTable", required: true  },
-      ],
-      requiredInputs: [],
-    },
-    {
       id: "decision", name: "Décision syndicale", category: "juridique",
       description: "Décision officielle prise par le bureau syndical.",
       icon: "check-circle", color: "#16a34a", version: "2.0", author: "SYNDYCAT", updatedAt: "2026-01-01",
@@ -1299,25 +1250,6 @@ router.get("/documents/templates", requireAuth, async (_req, res) => {
         { name: "objet",          label: "Objet de la décision",source: "input utilisateur",      required: false },
         { name: "content",        label: "Corps de la décision",source: "input utilisateur",      required: false },
         { name: "documentNumber", label: "N° de document",      source: "documentSequencesTable", required: true  },
-      ],
-      requiredInputs: [],
-    },
-    {
-      id: "certificat", name: "Certificat officiel", category: "statuts",
-      description: "Certificat officiel délivré à un membre ou partenaire.",
-      icon: "star", color: "#7c3aed", version: "2.0", author: "SYNDYCAT", updatedAt: "2026-01-01",
-      sections: [
-        { title: "En-tête", description: "Logo et identité du syndicat", source: "syndicatesTable" },
-        { title: "Destinataire", description: "Bénéficiaire du certificat", source: "input / usersTable" },
-        { title: "Corps du certificat", description: "Texte officiel de certification", source: "syndicatesTable + input" },
-        { title: "Signatures", description: "Président du syndicat", source: "conseilSyndicalTable" },
-        { title: "QR de vérification", description: "Code QR d'authenticité", source: "généré" },
-      ],
-      variables: [
-        { name: "syndicateName",  label: "Syndicat émetteur",  source: "syndicatesTable.name",   required: true  },
-        { name: "memberName",     label: "Bénéficiaire",       source: "input / usersTable",      required: false },
-        { name: "content",        label: "Objet du certificat",source: "input utilisateur",      required: false },
-        { name: "documentNumber", label: "N° de document",     source: "documentSequencesTable", required: true  },
       ],
       requiredInputs: [],
     },
@@ -1346,154 +1278,6 @@ router.get("/documents/templates", requireAuth, async (_req, res) => {
       requiredInputs: ["memberName"],
     },
     {
-      id: "reglement", name: "Règlement de copropriété", category: "reglements",
-      description: "Règlement intérieur fixant les règles de jouissance et d'administration de la copropriété.",
-      icon: "book", color: "#3b82f6", version: "2.0", author: "SYNDYCAT", updatedAt: "2026-01-01",
-      sections: [
-        { title: "En-tête", description: "Logo et identité du syndicat", source: "syndicatesTable" },
-        { title: "Informations de l'immeuble", description: "Nom, adresse, N° de bâtiments, d'étages, de lots, surface totale", source: "buildingsTable + lotsTable" },
-        { title: "Objet du règlement", description: "Cadre légal (Loi 18-00)", source: "généré automatiquement" },
-        { title: "Description de l'immeuble", description: "Composition détaillée de la résidence", source: "buildingsTable + lotsTable" },
-        { title: "Répartition des charges", description: "Proportions de copropriété par lot", source: "lotsTable" },
-        { title: "Administration du syndicat", description: "Gouvernance et responsables", source: "conseilSyndicalTable + usersTable" },
-        { title: "Contenu personnalisé", description: "Clauses additionnelles saisies par l'admin", source: "input" },
-        { title: "Signatures", description: "Président du syndicat", source: "conseilSyndicalTable" },
-        { title: "QR de vérification", description: "Code QR d'authenticité", source: "généré" },
-      ],
-      variables: [
-        { name: "propertyName",           label: "Nom de la résidence",         source: "buildingsTable.name",                  required: true  },
-        { name: "propertyAddress",        label: "Adresse",                     source: "buildingsTable.address",               required: false },
-        { name: "totalBuildings",         label: "Nombre de bâtiments",         source: "buildingsTable (COUNT)",               required: false },
-        { name: "totalFloors",            label: "Nombre d'étages",             source: "buildingsTable.totalFloors (SUM)",     required: false },
-        { name: "totalLots",              label: "Nombre de lots",              source: "buildingsTable.totalLots (SUM)",       required: false },
-        { name: "totalSurfaceM2",         label: "Surface totale (m²)",         source: "lotsTable.surfaceM2 (SUM)",            required: false },
-        { name: "landRegistryReference",  label: "Référence foncière",          source: "lotsTable.titreFoncier",               required: false },
-        { name: "presidentName",          label: "Président du syndicat",       source: "conseilSyndicalTable.name",            required: false },
-        { name: "managerName",            label: "Gestionnaire",                source: "usersTable.name (syndicate_admin)",    required: false },
-        { name: "syndicateName",          label: "Nom du syndicat",             source: "syndicatesTable.name",                 required: true  },
-        { name: "documentNumber",         label: "N° de document",              source: "documentSequencesTable",               required: true  },
-      ],
-      requiredInputs: [],
-    },
-    {
-      id: "demande_administrative", name: "Demande administrative", category: "reglements",
-      description: "Demande formelle adressée au syndicat pour une autorisation ou une démarche administrative.",
-      icon: "send", color: "#0284c7", version: "2.0", author: "SYNDYCAT", updatedAt: "2026-01-01",
-      sections: [
-        { title: "En-tête", description: "Logo et identité du syndicat", source: "syndicatesTable" },
-        { title: "Demandeur", description: "Identité du demandeur", source: "input" },
-        { title: "Objet de la demande", description: "Description de la demande", source: "input" },
-        { title: "Exposé des motifs", description: "Justification et contexte de la demande", source: "input" },
-        { title: "Justificatifs et pièces jointes", description: "Liste des documents joints", source: "input" },
-        { title: "Signatures", description: "Président et demandeur", source: "conseilSyndicalTable + input" },
-        { title: "QR de vérification", description: "Code QR d'authenticité", source: "généré" },
-      ],
-      variables: [
-        { name: "syndicateName",  label: "Syndicat destinataire",  source: "syndicatesTable.name", required: true  },
-        { name: "memberName",     label: "Demandeur",              source: "input utilisateur",    required: false },
-        { name: "objet",          label: "Objet de la demande",    source: "input utilisateur",    required: false },
-        { name: "expose",         label: "Exposé des motifs",      source: "input utilisateur",    required: false },
-        { name: "justificatifs",  label: "Justificatifs",          source: "input utilisateur",    required: false },
-        { name: "piecesJointes",  label: "Pièces jointes",         source: "input utilisateur",    required: false },
-        { name: "documentNumber", label: "N° de document",         source: "documentSequencesTable", required: true },
-      ],
-      requiredInputs: [],
-    },
-    {
-      id: "autorisation", name: "Autorisation officielle", category: "juridique",
-      description: "Autorisation officielle délivrée par le bureau syndical pour une action spécifique.",
-      icon: "unlock", color: "#16a34a", version: "2.0", author: "SYNDYCAT", updatedAt: "2026-01-01",
-      sections: [
-        { title: "En-tête", description: "Logo et identité du syndicat", source: "syndicatesTable" },
-        { title: "Bénéficiaire", description: "Personne ou entité autorisée", source: "input" },
-        { title: "Texte d'autorisation", description: "Description de l'autorisation accordée", source: "input" },
-        { title: "Conditions et durée", description: "Conditions d'application et validité", source: "input" },
-        { title: "Signatures", description: "Président du syndicat", source: "conseilSyndicalTable" },
-        { title: "QR de vérification", description: "Code QR d'authenticité", source: "généré" },
-      ],
-      variables: [
-        { name: "syndicateName",     label: "Syndicat émetteur",        source: "syndicatesTable.name", required: true  },
-        { name: "memberName",        label: "Bénéficiaire",             source: "input utilisateur",    required: false },
-        { name: "texteAutorisation", label: "Texte d'autorisation",     source: "input utilisateur",    required: false },
-        { name: "conditions",        label: "Conditions",               source: "input utilisateur",    required: false },
-        { name: "dateDebut",         label: "Date de début",            source: "input utilisateur",    required: false },
-        { name: "dateFin",           label: "Date de fin",              source: "input utilisateur",    required: false },
-        { name: "documentNumber",    label: "N° de document",           source: "documentSequencesTable", required: true },
-      ],
-      requiredInputs: [],
-    },
-    {
-      id: "ordre_de_mission", name: "Ordre de mission", category: "reglements",
-      description: "Mandat officiel autorisant un agent à effectuer une mission externe.",
-      icon: "navigation", color: "#7c3aed", version: "2.0", author: "SYNDYCAT", updatedAt: "2026-01-01",
-      sections: [
-        { title: "En-tête", description: "Logo et identité du syndicat", source: "syndicatesTable" },
-        { title: "Agent missionnaire", description: "Identité et poste de l'agent", source: "input" },
-        { title: "Objet de la mission", description: "Description et lieu de la mission", source: "input" },
-        { title: "Période et frais", description: "Dates de départ/retour et frais pris en charge", source: "input" },
-        { title: "Signatures", description: "Président du syndicat", source: "conseilSyndicalTable" },
-        { title: "QR de vérification", description: "Code QR d'authenticité", source: "généré" },
-      ],
-      variables: [
-        { name: "syndicateName",  label: "Syndicat",               source: "syndicatesTable.name", required: true  },
-        { name: "memberName",     label: "Agent",                  source: "input utilisateur",    required: false },
-        { name: "poste",          label: "Poste",                  source: "input utilisateur",    required: false },
-        { name: "destination",    label: "Destination",            source: "input utilisateur",    required: false },
-        { name: "dateDepart",     label: "Date de départ",         source: "input utilisateur",    required: false },
-        { name: "dateRetour",     label: "Date de retour",         source: "input utilisateur",    required: false },
-        { name: "objetMission",   label: "Objet de la mission",    source: "input utilisateur",    required: false },
-        { name: "frais",          label: "Frais pris en charge",   source: "input utilisateur",    required: false },
-        { name: "documentNumber", label: "N° de document",         source: "documentSequencesTable", required: true },
-      ],
-      requiredInputs: [],
-    },
-    {
-      id: "lettre_officielle", name: "Lettre officielle", category: "juridique",
-      description: "Courrier officiel adressé à un tiers, partenaire ou institution.",
-      icon: "mail", color: "#0891b2", version: "2.0", author: "SYNDYCAT", updatedAt: "2026-01-01",
-      sections: [
-        { title: "En-tête", description: "Logo et identité du syndicat", source: "syndicatesTable" },
-        { title: "Expéditeur / Destinataire", description: "Coordonnées des deux parties", source: "syndicatesTable + input" },
-        { title: "Objet", description: "Sujet de la lettre", source: "input" },
-        { title: "Corps de la lettre", description: "Contenu principal de la correspondance", source: "input" },
-        { title: "Signatures", description: "Président du syndicat", source: "conseilSyndicalTable" },
-        { title: "QR de vérification", description: "Code QR d'authenticité", source: "généré" },
-      ],
-      variables: [
-        { name: "syndicateName",  label: "Expéditeur",        source: "syndicatesTable.name", required: true  },
-        { name: "memberName",     label: "Destinataire",      source: "input utilisateur",    required: false },
-        { name: "objet",          label: "Objet",             source: "input utilisateur",    required: false },
-        { name: "corps",          label: "Corps de la lettre",source: "input utilisateur",    required: false },
-        { name: "documentNumber", label: "N° de document",    source: "documentSequencesTable", required: true },
-      ],
-      requiredInputs: [],
-    },
-    {
-      id: "note_interne", name: "Note interne", category: "reglements",
-      description: "Communication interne confidentielle entre membres du bureau syndical.",
-      icon: "message-square", color: "#64748b", version: "2.0", author: "SYNDYCAT", updatedAt: "2026-01-01",
-      sections: [
-        { title: "En-tête", description: "Logo et identité du syndicat", source: "syndicatesTable" },
-        { title: "À / De", description: "Émetteur et destinataire internes", source: "input" },
-        { title: "Objet et priorité", description: "Sujet et niveau de priorité", source: "input" },
-        { title: "Corps de la note", description: "Contenu de la note interne", source: "input" },
-        { title: "Action requise", description: "Actions attendues du destinataire", source: "input" },
-        { title: "Signatures", description: "Auteur de la note", source: "input" },
-        { title: "QR de vérification", description: "Code QR d'authenticité", source: "généré" },
-      ],
-      variables: [
-        { name: "syndicateName",  label: "Syndicat",          source: "syndicatesTable.name", required: true  },
-        { name: "memberName",     label: "À (destinataire)",  source: "input utilisateur",    required: false },
-        { name: "de",             label: "De (émetteur)",     source: "input utilisateur",    required: false },
-        { name: "objet",          label: "Objet",             source: "input utilisateur",    required: false },
-        { name: "priorite",       label: "Priorité",          source: "input utilisateur",    required: false },
-        { name: "corps",          label: "Corps de la note",  source: "input utilisateur",    required: false },
-        { name: "actionRequise",  label: "Action requise",    source: "input utilisateur",    required: false },
-        { name: "documentNumber", label: "N° de document",    source: "documentSequencesTable", required: true },
-      ],
-      requiredInputs: [],
-    },
-    {
       id: "rapport_financier", name: "Rapport financier", category: "finances",
       description: "Bilan financier de la période avec prévisions et réalisations.",
       icon: "dollar-sign", color: "#f59e0b", version: "2.0", author: "SYNDYCAT", updatedAt: "2026-01-01",
@@ -1520,114 +1304,7 @@ router.get("/documents/templates", requireAuth, async (_req, res) => {
       ],
       requiredInputs: [],
     },
-    {
-      id: "rapport_audit", name: "Rapport d'audit", category: "finances",
-      description: "Résultats d'un audit interne ou externe de la gestion du syndicat.",
-      icon: "search", color: "#dc2626", version: "2.0", author: "SYNDYCAT", updatedAt: "2026-01-01",
-      sections: [
-        { title: "En-tête", description: "Logo et identité du syndicat", source: "syndicatesTable" },
-        { title: "Informations de l'audit", description: "Auditeurs, périmètre, période auditée", source: "input" },
-        { title: "Opinion d'audit", description: "Conclusion générale de l'audit", source: "input" },
-        { title: "Contexte et objectifs", description: "Cadre et périmètre de l'intervention", source: "input" },
-        { title: "Constats", description: "Observations et anomalies détectées", source: "input" },
-        { title: "Recommandations", description: "Actions correctives préconisées", source: "input" },
-        { title: "Conclusion", description: "Synthèse et clôture de l'audit", source: "input" },
-        { title: "Signatures", description: "Auditeurs et président", source: "input + conseilSyndicalTable" },
-        { title: "QR de vérification", description: "Code QR d'authenticité", source: "généré" },
-      ],
-      variables: [
-        { name: "syndicateName",    label: "Syndicat",            source: "syndicatesTable.name", required: true  },
-        { name: "auditeurs",        label: "Auditeurs",           source: "input utilisateur",    required: false },
-        { name: "perimetre",        label: "Périmètre",           source: "input utilisateur",    required: false },
-        { name: "periodeAuditee",   label: "Période auditée",     source: "input utilisateur",    required: false },
-        { name: "opinion",          label: "Opinion d'audit",     source: "input utilisateur",    required: false },
-        { name: "contexte",         label: "Contexte",            source: "input utilisateur",    required: false },
-        { name: "constats",         label: "Constats",            source: "input utilisateur",    required: false },
-        { name: "recommandations",  label: "Recommandations",     source: "input utilisateur",    required: false },
-        { name: "conclusion",       label: "Conclusion",          source: "input utilisateur",    required: false },
-        { name: "documentNumber",   label: "N° de document",      source: "documentSequencesTable", required: true },
-      ],
-      requiredInputs: [],
-    },
-    {
-      id: "convention_partenariat", name: "Convention de partenariat", category: "juridique",
-      description: "Convention formelle établissant un partenariat entre le syndicat et une entité tierce.",
-      icon: "link", color: "#2563eb", version: "2.0", author: "SYNDYCAT", updatedAt: "2026-01-01",
-      sections: [
-        { title: "En-tête", description: "Logo et identité du syndicat", source: "syndicatesTable" },
-        { title: "Parties à la convention", description: "Syndicat (Partie A) et Partenaire (Partie B)", source: "syndicatesTable + input" },
-        { title: "Préambule", description: "Contexte et objectifs du partenariat", source: "input" },
-        { title: "Article 1 — Objet", description: "Objet de la convention", source: "input" },
-        { title: "Article 2 — Engagements", description: "Obligations des deux parties", source: "input" },
-        { title: "Article 3 — Durée", description: "Durée et conditions de renouvellement", source: "input" },
-        { title: "Signatures", description: "Représentants des deux parties", source: "conseilSyndicalTable + input" },
-        { title: "QR de vérification", description: "Code QR d'authenticité", source: "généré" },
-      ],
-      variables: [
-        { name: "syndicateName",  label: "Partie A (Syndicat)",   source: "syndicatesTable.name", required: true  },
-        { name: "partieB",        label: "Partie B (Partenaire)", source: "input utilisateur",    required: true  },
-        { name: "preambule",      label: "Préambule",             source: "input utilisateur",    required: false },
-        { name: "article1",       label: "Article 1 — Objet",     source: "input utilisateur",    required: false },
-        { name: "article2",       label: "Article 2 — Engagements",source: "input utilisateur",  required: false },
-        { name: "article3",       label: "Article 3 — Durée",     source: "input utilisateur",   required: false },
-        { name: "duree",          label: "Durée",                 source: "input utilisateur",    required: false },
-        { name: "documentNumber", label: "N° de document",        source: "documentSequencesTable", required: true },
-      ],
-      requiredInputs: ["partieB"],
-    },
-    {
-      id: "accord_collectif", name: "Accord collectif", category: "juridique",
-      description: "Accord signé entre le syndicat et les membres ou l'employeur.",
-      icon: "users", color: "#059669", version: "2.0", author: "SYNDYCAT", updatedAt: "2026-01-01",
-      sections: [
-        { title: "En-tête", description: "Logo et identité du syndicat", source: "syndicatesTable" },
-        { title: "Parties à l'accord", description: "Syndicat et employeur/membres", source: "syndicatesTable + input" },
-        { title: "Champ d'application", description: "Périmètre de l'accord", source: "input" },
-        { title: "Dispositions", description: "Clauses et termes de l'accord", source: "input" },
-        { title: "Entrée en vigueur", description: "Date d'application et durée", source: "input" },
-        { title: "Signatures", description: "Représentants des parties", source: "conseilSyndicalTable + input" },
-        { title: "QR de vérification", description: "Code QR d'authenticité", source: "généré" },
-      ],
-      variables: [
-        { name: "syndicateName",    label: "Syndicat",              source: "syndicatesTable.name", required: true  },
-        { name: "employeur",        label: "Employeur / Partie B",  source: "input utilisateur",    required: false },
-        { name: "champApplication", label: "Champ d'application",  source: "input utilisateur",    required: false },
-        { name: "dispositions",     label: "Dispositions",          source: "input utilisateur",    required: false },
-        { name: "entreeVigueur",    label: "Entrée en vigueur",     source: "input utilisateur",    required: false },
-        { name: "dateApplication",  label: "Date d'application",    source: "input utilisateur",    required: false },
-        { name: "documentNumber",   label: "N° de document",        source: "documentSequencesTable", required: true },
-      ],
-      requiredInputs: [],
-    },
-    {
-      id: "compte_rendu", name: "Compte-rendu de réunion", category: "pv",
-      description: "Résumé détaillé des délibérations et décisions prises lors d'une réunion.",
-      icon: "list", color: "#7c3aed", version: "2.0", author: "SYNDYCAT", updatedAt: "2026-01-01",
-      sections: [
-        { title: "En-tête", description: "Logo et identité du syndicat", source: "syndicatesTable" },
-        { title: "Informations de la réunion", description: "Date, lieu, président de séance, participants", source: "input" },
-        { title: "Ordre du jour", description: "Points abordés", source: "input" },
-        { title: "Déroulement", description: "Résumé chronologique des échanges", source: "input" },
-        { title: "Décisions prises", description: "Résolutions et actions décidées", source: "input" },
-        { title: "Prochaine réunion", description: "Date et lieu de la prochaine réunion", source: "input" },
-        { title: "Signatures", description: "Président et secrétaire", source: "conseilSyndicalTable + input" },
-        { title: "QR de vérification", description: "Code QR d'authenticité", source: "généré" },
-      ],
-      variables: [
-        { name: "syndicateName",     label: "Syndicat",             source: "syndicatesTable.name", required: true  },
-        { name: "dateMeeting",       label: "Date de la réunion",   source: "input utilisateur",    required: false },
-        { name: "lieu",              label: "Lieu",                  source: "input utilisateur",   required: false },
-        { name: "presidentSeance",   label: "Président de séance",  source: "input utilisateur",    required: false },
-        { name: "participants",      label: "Participants",          source: "input utilisateur",    required: false },
-        { name: "ordreJour",         label: "Ordre du jour",        source: "input utilisateur",    required: false },
-        { name: "deroulement",       label: "Déroulement",          source: "input utilisateur",    required: false },
-        { name: "decisions",         label: "Décisions prises",     source: "input utilisateur",    required: false },
-        { name: "prochaineReunion",  label: "Prochaine réunion",    source: "input utilisateur",    required: false },
-        { name: "documentNumber",    label: "N° de document",       source: "documentSequencesTable", required: true },
-      ],
-      requiredInputs: [],
-    },
-    // ── 3 new smart certificate templates (auto-fills member + lot + building) ──
+    // ── 3 smart certificate templates (auto-fills member + lot + building) ──────
     {
       id: "attestation_residence", name: "Attestation de résidence", category: "attestation",
       description: "Certifie officiellement la résidence d'un copropriétaire dans l'immeuble. Le nom, le bâtiment et le numéro d'appartement sont injectés automatiquement.",
@@ -1701,80 +1378,6 @@ router.get("/documents/templates", requireAuth, async (_req, res) => {
         { name: "verificationQR", label: "QR de vérification",      source: "généré automatiquement",         required: true  },
       ],
       requiredInputs: ["memberName", "periode"],
-    },
-    // ── 3 operational templates (entity-driven) ───────────────────────────────
-    {
-      id: "contrat_bail", name: "Contrat de bail", category: "juridique",
-      description: "Contrat de bail résidentiel entre le syndicat (bailleur) et un locataire. Le nom du locataire, les dates de bail, le loyer et les données du lot sont injectés automatiquement.",
-      icon: "home", color: "#1d4ed8", version: "1.0", author: "SYNDYCAT", updatedAt: "2026-01-01",
-      sections: [
-        { title: "En-tête professionnel", description: "Logo et identité du syndicat", source: "syndicatesTable" },
-        { title: "Parties contractantes", description: "Bailleur (syndicat) et Locataire", source: "syndicatesTable + tenantsTable" },
-        { title: "Bien loué", description: "Résidence, N° lot, surface, adresse", source: "lotsTable + buildingsTable" },
-        { title: "Durée et loyer", description: "Dates de bail, loyer mensuel, dépôt de garantie", source: "tenantsTable (auto)" },
-        { title: "Obligations des parties", description: "Engagements bailleur et locataire", source: "généré + input" },
-        { title: "Signatures", description: "Les deux parties", source: "input" },
-        { title: "QR de vérification", description: "Code QR d'authenticité", source: "généré" },
-      ],
-      variables: [
-        { name: "syndicateName",   label: "Bailleur (syndicat)",       source: "syndicatesTable.name",          required: true  },
-        { name: "memberName",      label: "Nom du locataire",          source: "tenantsTable.name (auto)",      required: true  },
-        { name: "_lotNumber",      label: "N° de lot / appartement",   source: "lotsTable.number (auto)",       required: false },
-        { name: "_leaseStart",     label: "Début du bail",             source: "tenantsTable.leaseStart (auto)",required: false },
-        { name: "_leaseEnd",       label: "Fin du bail",               source: "tenantsTable.leaseEnd (auto)",  required: false },
-        { name: "_monthlyRent",    label: "Loyer mensuel (MAD)",       source: "tenantsTable.monthlyRent (auto)",required: false },
-        { name: "_depositAmount",  label: "Dépôt de garantie (MAD)",   source: "tenantsTable.depositAmount (auto)",required: false },
-        { name: "documentNumber",  label: "N° de document",            source: "documentSequencesTable (BAIL)", required: true  },
-      ],
-      requiredInputs: [],
-    },
-    {
-      id: "sinistre", name: "Déclaration de sinistre", category: "juridique",
-      description: "Rapport officiel de déclaration de sinistre (dégât des eaux, incendie, effraction…). Toutes les données de l'incident sont importées automatiquement depuis la base.",
-      icon: "alert-triangle", color: "#b45309", version: "1.0", author: "SYNDYCAT", updatedAt: "2026-01-01",
-      sections: [
-        { title: "En-tête professionnel", description: "Logo et identité du syndicat", source: "syndicatesTable" },
-        { title: "Statut et urgence", description: "Badges statut + niveau d'urgence", source: "sinistresTable (auto)" },
-        { title: "Détails du sinistre", description: "Type, date, immeuble, lot, montants", source: "sinistresTable (auto)" },
-        { title: "Description", description: "Description détaillée du sinistre", source: "sinistresTable (auto)" },
-        { title: "Démarches et suivi", description: "Étapes de traitement du dossier", source: "généré + input" },
-        { title: "Signatures", description: "Bureau syndical", source: "conseilSyndicalTable" },
-        { title: "QR de vérification", description: "Code QR d'authenticité", source: "généré" },
-      ],
-      variables: [
-        { name: "syndicateName",          label: "Syndicat déclarant",       source: "syndicatesTable.name",           required: true  },
-        { name: "_sinistreType",          label: "Type de sinistre",          source: "sinistresTable.type (auto)",     required: false },
-        { name: "_sinistreDate",          label: "Date du sinistre",          source: "sinistresTable.date (auto)",     required: false },
-        { name: "_sinistreDescription",   label: "Description",               source: "sinistresTable.description (auto)",required: false },
-        { name: "_estimatedAmount",       label: "Montant estimé (MAD)",      source: "sinistresTable.estimatedAmount (auto)",required: false },
-        { name: "_claimNumber",           label: "N° de dossier assurance",   source: "sinistresTable.claimNumber (auto)",required: false },
-        { name: "documentNumber",         label: "N° de document",            source: "documentSequencesTable (SIN)",   required: true  },
-      ],
-      requiredInputs: [],
-    },
-    {
-      id: "travaux", name: "Ordre de travaux", category: "finances",
-      description: "Rapport officiel de travaux (entretien, réparation, rénovation…). Les données du prestataire, des montants et du planning sont importées automatiquement.",
-      icon: "tool", color: "#065f46", version: "1.0", author: "SYNDYCAT", updatedAt: "2026-01-01",
-      sections: [
-        { title: "En-tête professionnel", description: "Logo et identité du syndicat", source: "syndicatesTable" },
-        { title: "Statut et priorité", description: "Badges statut + niveau de priorité", source: "travauxTable (auto)" },
-        { title: "Détails des travaux", description: "Type, immeuble, prestataire, dates, montants", source: "travauxTable (auto)" },
-        { title: "Description des travaux", description: "Description détaillée de l'intervention", source: "travauxTable (auto)" },
-        { title: "Bilan financier", description: "Montant estimé / réel / facturé", source: "travauxTable (auto)" },
-        { title: "Signatures", description: "Bureau syndical", source: "conseilSyndicalTable" },
-        { title: "QR de vérification", description: "Code QR d'authenticité", source: "généré" },
-      ],
-      variables: [
-        { name: "syndicateName",       label: "Syndicat",               source: "syndicatesTable.name",              required: true  },
-        { name: "_travauxTitle",       label: "Titre des travaux",       source: "travauxTable.title (auto)",         required: false },
-        { name: "_travauxType",        label: "Type de travaux",         source: "travauxTable.type (auto)",          required: false },
-        { name: "_prestataireName",    label: "Prestataire",             source: "prestatairesTable.name (auto)",     required: false },
-        { name: "_estimatedAmount",    label: "Montant estimé (MAD)",    source: "travauxTable.estimatedAmount (auto)",required: false },
-        { name: "_actualAmount",       label: "Montant réel (MAD)",      source: "travauxTable.actualAmount (auto)",  required: false },
-        { name: "documentNumber",      label: "N° de document",          source: "documentSequencesTable (TRX)",      required: true  },
-      ],
-      requiredInputs: [],
     },
   ];
 
@@ -2305,30 +1908,17 @@ router.get("/documents/autofill", requireAuth, async (req, res) => {
 const TEMPLATE_SIGNING_ORDER: Record<string, Array<{ order: number; role: string; label: string }>> = {
   pv:                    [{ order: 1, role: "syndicate_admin", label: "Secrétaire de séance" }, { order: 2, role: "syndicate_admin", label: "Président" }],
   convocation:           [{ order: 1, role: "syndicate_admin", label: "Secrétaire" }],
-  compte_rendu:          [{ order: 1, role: "syndicate_admin", label: "Secrétaire" }, { order: 2, role: "syndicate_admin", label: "Président" }],
+  // ── V1 production templates ──────────────────────────────────────────────────
   attestation:           [{ order: 1, role: "syndicate_admin", label: "Président" }, { order: 2, role: "syndicate_admin", label: "Secrétaire" }],
-  certificat:            [{ order: 1, role: "syndicate_admin", label: "Président" }],
   attestation_paiement:  [{ order: 1, role: "syndicate_admin", label: "Trésorier" }, { order: 2, role: "syndicate_admin", label: "Président" }],
   attestation_residence: [{ order: 1, role: "syndicate_admin", label: "Président" }],
   attestation_propriete: [{ order: 1, role: "syndicate_admin", label: "Président" }, { order: 2, role: "syndicate_admin", label: "Secrétaire" }],
   mise_en_demeure:       [{ order: 1, role: "syndicate_admin", label: "Président" }, { order: 2, role: "syndicate_admin", label: "Secrétaire" }],
   appel_de_fonds:        [{ order: 1, role: "syndicate_admin", label: "Trésorier" }, { order: 2, role: "syndicate_admin", label: "Président" }],
-  recu_paiement:         [{ order: 1, role: "syndicate_admin", label: "Trésorier" }],
   facture:               [{ order: 1, role: "syndicate_admin", label: "Trésorier" }],
-  budget_previsionnel:   [{ order: 1, role: "syndicate_admin", label: "Trésorier" }, { order: 2, role: "syndicate_admin", label: "Président" }],
-  decompte_charges:      [{ order: 1, role: "syndicate_admin", label: "Trésorier" }],
   rapport_financier:     [{ order: 1, role: "syndicate_admin", label: "Trésorier" }, { order: 2, role: "syndicate_admin", label: "Président" }],
-  rapport_audit:         [{ order: 1, role: "syndicate_admin", label: "Auditeur" }, { order: 2, role: "syndicate_admin", label: "Président" }],
-  rapport_election:      [{ order: 1, role: "syndicate_admin", label: "Secrétaire" }, { order: 2, role: "syndicate_admin", label: "Président" }],
   contrat:               [{ order: 1, role: "syndicate_admin", label: "Président" }, { order: 2, role: "syndicate_admin", label: "Secrétaire" }],
-  contrat_bail:          [{ order: 1, role: "syndicate_admin", label: "Gestionnaire" }, { order: 2, role: "tenant",         label: "Locataire" }],
-  convention_partenariat:[{ order: 1, role: "syndicate_admin", label: "Président" }, { order: 2, role: "syndicate_admin", label: "Partie B" }],
-  accord_collectif:      [{ order: 1, role: "syndicate_admin", label: "Président" }, { order: 2, role: "syndicate_admin", label: "Délégué syndical" }],
   decision:              [{ order: 1, role: "syndicate_admin", label: "Président" }],
-  autorisation:          [{ order: 1, role: "syndicate_admin", label: "Président" }],
-  lettre_officielle:     [{ order: 1, role: "syndicate_admin", label: "Président" }],
-  circulaire:            [{ order: 1, role: "syndicate_admin", label: "Secrétaire" }, { order: 2, role: "syndicate_admin", label: "Président" }],
-  reglement:             [{ order: 1, role: "syndicate_admin", label: "Président" }, { order: 2, role: "syndicate_admin", label: "Secrétaire" }, { order: 3, role: "syndicate_admin", label: "Trésorier" }],
 };
 
 router.post(
@@ -3031,16 +2621,20 @@ router.post(
       buildingId: z.string().optional(),
       // Optional direct template override — bypasses CATEGORY_TO_TEMPLATE lookup
       // Includes all 21 templates: 9 original + 11 new enterprise + reglement
+      // V1 — 12 essential production templates
       templateId: z.enum([
-        "attestation", "pv", "convocation", "contrat", "rapport",
-        "decision", "certificat", "circulaire", "mise_en_demeure", "reglement",
-        "demande_administrative", "autorisation", "ordre_de_mission", "lettre_officielle",
-        "note_interne", "rapport_financier", "rapport_audit", "convention_partenariat",
-        "accord_collectif", "compte_rendu", "rapport_activite",
-        "attestation_residence", "attestation_propriete", "attestation_paiement",
-        "appel_de_fonds", "recu_paiement", "facture", "budget_previsionnel",
-        "decompte_charges", "rapport_election",
-        "contrat_bail", "sinistre", "travaux",
+        "attestation",
+        "attestation_residence",
+        "attestation_propriete",
+        "attestation_paiement",
+        "convocation",
+        "pv",
+        "decision",
+        "rapport_financier",
+        "appel_de_fonds",
+        "facture",
+        "contrat",
+        "mise_en_demeure",
       ] as const).optional(),
       // ── Entity IDs — auto-load data from DB instead of manual entry ───────────
       meetingId:        z.string().optional(),
@@ -3048,11 +2642,7 @@ router.post(
       memberId:         z.string().optional(),
       appelDeFondsId:   z.string().optional(),
       budgetId:         z.string().optional(),
-      electionId:       z.string().optional(),
       invoiceId:        z.string().optional(),
-      tenantId:               z.string().optional(),
-      sinistreId:             z.string().optional(),
-      travauxId:              z.string().optional(),
       // Internal: pass when re-generating a signed document so existing signatures load
       _existingDocumentId:    z.string().optional(),
       // Output language — the mobile UI always presents an explicit choice; "fr" is
@@ -3082,56 +2672,20 @@ router.post(
       synthese:          z.string().optional(),
       president:         z.string().optional(),
       secretaire:        z.string().optional(),
-      // ── New enterprise template fields ──────────────────────────────────────
-      // demande_administrative
-      expose:            z.string().optional(),
-      justificatifs:     z.string().optional(),
-      piecesJointes:     z.string().optional(),
-      // autorisation
-      texteAutorisation: z.string().optional(),
-      conditions:        z.string().optional(),
-      dateDebut:         z.string().optional(),
-      dateFin:           z.string().optional(),
-      // ordre_de_mission
-      poste:             z.string().optional(),
-      destination:       z.string().optional(),
-      dateDepart:        z.string().optional(),
-      dateRetour:        z.string().optional(),
-      objetMission:      z.string().optional(),
-      frais:             z.string().optional(),
-      // lettre_officielle / note_interne
-      corps:             z.string().optional(),
-      de:                z.string().optional(),
-      actionRequise:     z.string().optional(),
-      // rapport_financier
+      // ── Template-specific optional fields ───────────────────────────────────
+      // rapport_financier / contrat / mise_en_demeure
       etabliPar:         z.string().optional(),
       approuvePar:       z.string().optional(),
       exercice:          z.string().optional(),
       observations:      z.string().optional(),
       totalPrevu:        z.string().optional(),
       totalRealise:      z.string().optional(),
-      // rapport_audit
-      auditeurs:         z.string().optional(),
-      perimetre:         z.string().optional(),
-      periodeAuditee:    z.string().optional(),
-      opinion:           z.string().optional(),
-      contexte:          z.string().optional(),
-      constats:          z.string().optional(),
-      recommandations:   z.string().optional(),
-      conclusion:        z.string().optional(),
-      // convention_partenariat / accord_collectif
-      partieB:           z.string().optional(),
-      duree:             z.string().optional(),
-      preambule:         z.string().optional(),
-      article1:          z.string().optional(),
-      article2:          z.string().optional(),
-      article3:          z.string().optional(),
-      employeur:         z.string().optional(),
-      dispositions:      z.string().optional(),
-      champApplication:  z.string().optional(),
-      entreeVigueur:     z.string().optional(),
-      dateApplication:   z.string().optional(),
-      // compte_rendu
+      // contrat
+      conditions:        z.string().optional(),
+      dateDebut:         z.string().optional(),
+      dateFin:           z.string().optional(),
+      preamble:          z.string().optional(),
+      // pv / convocation / decision
       dateMeeting:       z.string().optional(),
       presidentSeance:   z.string().optional(),
       participants:      z.string().optional(),
@@ -3159,7 +2713,7 @@ router.post(
       ]);
 
       // 2. Determine template (direct override > category mapping > fallback)
-      const template: DocumentTemplate = templateId ?? CATEGORY_TO_TEMPLATE[category] ?? "certificat";
+      const template: DocumentTemplate = templateId ?? CATEGORY_TO_TEMPLATE[category] ?? "attestation";
 
       // 3. Mint a real sequential document number (REG-2026-0001, PV-2026-0001, …)
       const documentNumber = await generateSequentialDocumentNumber(syndicateId, template);
@@ -3173,23 +2727,11 @@ router.post(
       if (extraFields.meetingId)      entityLoads.push(getMeetingData(extraFields.meetingId as string));
       if (extraFields.appelDeFondsId) entityLoads.push(getAppelDeFondsData(extraFields.appelDeFondsId as string));
       if (extraFields.budgetId)       entityLoads.push(getBudgetData(extraFields.budgetId as string));
-      if (extraFields.electionId)     entityLoads.push(getElectionData(extraFields.electionId as string));
       if (extraFields.lotId || extraFields.memberId) {
         entityLoads.push(getLotMemberData(extraFields.lotId as string | undefined, extraFields.memberId as string | undefined));
       }
-      // ── NEW: real financial data loaders ────────────────────────────────────
       if (extraFields.invoiceId) {
         entityLoads.push(getInvoiceData(extraFields.invoiceId as string));
-      }
-      // Operational entity loaders (contrat_bail / sinistre / travaux)
-      if (extraFields.tenantId) {
-        entityLoads.push(getTenantData(extraFields.tenantId as string));
-      }
-      if (extraFields.sinistreId) {
-        entityLoads.push(getSinistreData(extraFields.sinistreId as string));
-      }
-      if (extraFields.travauxId) {
-        entityLoads.push(getTravauxData(extraFields.travauxId as string));
       }
       // Attestation paiement — auto-calculate paid charges for the lot
       if (template === "attestation_paiement" && extraFields.lotId) {
@@ -3200,19 +2742,11 @@ router.post(
         ));
       }
       // Financial KPI dashboard — loaded for all financial templates + rapport_financier
-      const isFinancialTemplate = ["appel_de_fonds","recu_paiement","facture","budget_previsionnel","decompte_charges","rapport_financier"].includes(template);
+      const isFinancialTemplate = ["appel_de_fonds", "facture", "rapport_financier"].includes(template);
       if (isFinancialTemplate) {
         const kpiBuildingId = buildingId ?? null;
         const kpiYear = extraFields.exercice ? parseInt(extraFields.exercice as string) : null;
         entityLoads.push(getFinancialDashboardData(syndicateId, kpiBuildingId, kpiYear));
-      }
-      // Décompte des charges — real per-lot aggregation
-      if (template === "decompte_charges" && extraFields.lotId) {
-        entityLoads.push(getDecompteChargesData(
-          extraFields.lotId as string,
-          extraFields.exercice as string | undefined ?? null,
-          syndicateId,
-        ));
       }
       const entityResults = await Promise.all(entityLoads);
       const entityData: Record<string, string> = Object.assign({}, ...entityResults);
@@ -3292,23 +2826,18 @@ router.post(
           retentionUntil: computeRetentionUntil(category, template, createdAt),
           // Store entity IDs + form fields to enable full PDF regeneration with inline signatures
           generationParams: {
-            buildingId: buildingId ?? null,
-            meetingId:        (extraFields.meetingId        as string | undefined) ?? null,
-            lotId:            (extraFields.lotId            as string | undefined) ?? null,
-            memberId:         (extraFields.memberId         as string | undefined) ?? null,
-            appelDeFondsId:   (extraFields.appelDeFondsId   as string | undefined) ?? null,
-            budgetId:         (extraFields.budgetId         as string | undefined) ?? null,
-            electionId:       (extraFields.electionId       as string | undefined) ?? null,
-            invoiceId:        (extraFields.invoiceId        as string | undefined) ?? null,
-            tenantId:         (extraFields.tenantId         as string | undefined) ?? null,
-            sinistreId:       (extraFields.sinistreId       as string | undefined) ?? null,
-            travauxId:        (extraFields.travauxId        as string | undefined) ?? null,
-            memberName:       memberName ?? null,
+            buildingId:     buildingId ?? null,
+            meetingId:      (extraFields.meetingId        as string | undefined) ?? null,
+            lotId:          (extraFields.lotId            as string | undefined) ?? null,
+            memberId:       (extraFields.memberId         as string | undefined) ?? null,
+            appelDeFondsId: (extraFields.appelDeFondsId   as string | undefined) ?? null,
+            budgetId:       (extraFields.budgetId         as string | undefined) ?? null,
+            invoiceId:      (extraFields.invoiceId        as string | undefined) ?? null,
+            memberName:     memberName ?? null,
             formFields: Object.fromEntries(
               Object.entries(extraFields).filter(([k]) =>
                 !["meetingId","lotId","memberId","appelDeFondsId","budgetId",
-                  "electionId","invoiceId","tenantId","sinistreId","travauxId",
-                  "_existingDocumentId"].includes(k)
+                  "invoiceId","_existingDocumentId"].includes(k)
               )
             ),
           },
@@ -3742,11 +3271,7 @@ interface GenerationParams {
   memberId?: string | null;
   appelDeFondsId?: string | null;
   budgetId?: string | null;
-  electionId?: string | null;
   invoiceId?: string | null;
-  tenantId?: string | null;
-  sinistreId?: string | null;
-  travauxId?: string | null;
   memberName?: string | null;
   formFields?: Record<string, string>;
 }
@@ -3781,14 +3306,10 @@ async function regenerateDocumentWithSignatures(
   if (params.meetingId)      entityLoads.push(getMeetingData(params.meetingId));
   if (params.appelDeFondsId) entityLoads.push(getAppelDeFondsData(params.appelDeFondsId));
   if (params.budgetId)       entityLoads.push(getBudgetData(params.budgetId));
-  if (params.electionId)     entityLoads.push(getElectionData(params.electionId));
   if (params.lotId || params.memberId) {
     entityLoads.push(getLotMemberData(params.lotId ?? undefined, params.memberId ?? undefined));
   }
   if (params.invoiceId)  entityLoads.push(getInvoiceData(params.invoiceId));
-  if (params.tenantId)   entityLoads.push(getTenantData(params.tenantId));
-  if (params.sinistreId) entityLoads.push(getSinistreData(params.sinistreId));
-  if (params.travauxId)  entityLoads.push(getTravauxData(params.travauxId));
   if (template === "attestation_paiement" && params.lotId) {
     entityLoads.push(getAttestationPaiementData(
       params.lotId,
@@ -3796,18 +3317,10 @@ async function regenerateDocumentWithSignatures(
       syndicateId,
     ));
   }
-  const isFinancialTemplate = ["appel_de_fonds","recu_paiement","facture",
-    "budget_previsionnel","decompte_charges","rapport_financier"].includes(template);
+  const isFinancialTemplate = ["appel_de_fonds", "facture", "rapport_financier"].includes(template);
   if (isFinancialTemplate) {
     const kpiYear = params.formFields?.exercice ? parseInt(params.formFields.exercice) : null;
     entityLoads.push(getFinancialDashboardData(syndicateId, params.buildingId ?? null, kpiYear));
-  }
-  if (template === "decompte_charges" && params.lotId) {
-    entityLoads.push(getDecompteChargesData(
-      params.lotId,
-      params.formFields?.exercice ?? null,
-      syndicateId,
-    ));
   }
 
   const entityResults = await Promise.all(entityLoads);

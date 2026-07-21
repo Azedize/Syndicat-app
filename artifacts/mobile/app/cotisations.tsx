@@ -19,6 +19,7 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useBreakpoints } from "@/hooks/useBreakpoints";
 import { useColors } from "@/hooks/useColors";
 import { content } from "@/services/api";
+import { useToast } from "@/context/ToastContext";
 
 interface ApiCotisation {
   id: string;
@@ -41,6 +42,7 @@ export default function CotisationsScreen() {
   const topPad = isWide ? 0 : (Platform.OS === "web" ? 67 : insets.top);
   const queryClient = useQueryClient();
 
+  const { showToast } = useToast();
   const [payModal, setPayModal] = useState(false);
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [payMethod, setPayMethod] = useState<number | null>(null);
@@ -59,11 +61,11 @@ export default function CotisationsScreen() {
       setPayMethod(null);
       setSelectedId(null);
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-      Alert.alert("Paiement enregistré ✓", "Votre cotisation a été soumise pour validation. Un reçu vous sera envoyé par email après approbation.");
+      showToast({ type: "success", title: "Paiement enregistré ✓", message: "Votre cotisation a été soumise pour validation. Un reçu vous sera envoyé par email après approbation." });
     },
     onError: (err: Error) => {
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
-      Alert.alert("Erreur de paiement", err.message);
+      showToast({ type: "error", title: "Erreur de paiement", message: err.message });
     },
   });
 
@@ -239,7 +241,7 @@ export default function CotisationsScreen() {
                   style={[styles.receiptBtn, { backgroundColor: colors.secondary, borderColor: colors.border }]}
                   onPress={() => {
                     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-                    Alert.alert("Reçu", `Le reçu ${c.receipt ?? c.label} est disponible dans votre espace Documents.`);
+                    showToast({ type: "info", title: "Reçu", message: `Le reçu ${c.receipt ?? c.label} est disponible dans votre espace Documents.` });
                   }}
                 >
                   <Feather name="download" size={14} color={colors.primary} />

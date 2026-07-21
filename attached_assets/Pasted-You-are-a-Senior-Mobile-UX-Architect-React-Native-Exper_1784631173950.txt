@@ -1,0 +1,277 @@
+You are a Senior Mobile UX Architect, React Native Expert, Design System Architect, SaaS Product Designer, Animation Specialist, and Enterprise Application Auditor.
+
+Analyze the attached screenshots carefully.
+
+Do not only fix the UI.
+
+Redesign the entire user experience and loading experience.
+
+The current implementation has serious visual, responsive, interaction, and loading-state problems.
+
+==================================================
+SCREEN 1 — RÉCLAMATIONS & GRIEFS
+================================
+
+Problems detected:
+
+* Status columns consume too much vertical space.
+* Status cards look broken and unfinished.
+* Grey selected column destroys visual hierarchy.
+* Horizontal workflow cards are too tall.
+* Content density is poor.
+* Too much empty space.
+* The complaint list starts too late.
+* Search bar and filters feel disconnected.
+* Workflow visualization looks like a prototype rather than a production SaaS.
+
+Requirements:
+
+Replace the large workflow columns with compact enterprise status chips.
+
+Example:
+
+Tous (7)
+Déposée (1)
+Instruction (0)
+Transmise (0)
+Résolue (2)
+
+Single horizontal scroll row.
+
+Do not use large vertical blocks.
+
+The complaint list must appear immediately below filters.
+
+Reduce wasted vertical space by at least 50%.
+
+Complaint cards must display:
+
+* Title
+* Priority
+* Status
+* Category
+* Creator
+* Date
+* Progress
+* Assigned person
+
+in a compact enterprise layout.
+
+Inspired by:
+
+* Jira Service Management
+* Zendesk
+* Freshdesk
+* Linear
+* ClickUp
+
+==================================================
+SCREEN 2 — ACTES ADMINISTRATIFS
+===============================
+
+Problems detected:
+
+* Massive empty space.
+* Filters floating without visual structure.
+* Empty state appears disconnected from page.
+* Two different filter systems compete visually.
+* Header area too large.
+* Content area feels unfinished.
+* Empty state starts too low on screen.
+
+Requirements:
+
+Rebuild page structure.
+
+Header
+Statistics
+Primary Filters
+Secondary Filters
+Content
+
+Everything must be visually connected.
+
+Create a premium empty state.
+
+The empty state must include:
+
+* Illustration
+* Explanation
+* Action button
+* Helpful onboarding text
+
+Do not leave large black empty zones.
+
+Make the screen feel complete even when database contains zero records.
+
+==================================================
+FILTER SYSTEM REDESIGN
+======================
+
+Current problems:
+
+* Multiple filter styles.
+* Different heights.
+* Different paddings.
+* Different colors.
+* Different spacing.
+* Different interaction states.
+
+Requirements:
+
+Create ONE global filtering component.
+
+Must be reused everywhere:
+
+* Documents
+* Publications
+* Complaints
+* Meetings
+* Administrative Acts
+* Providers
+* Contracts
+
+Features:
+
+* Active state
+* Hover state
+* Press state
+* Badge count
+* Horizontal scroll
+* Dynamic width
+* Safe margins
+
+Every filter must use the same design language.
+
+==================================================
+LOADING EXPERIENCE AUDIT
+========================
+
+Current problem:
+
+Data suddenly appears after API response.
+
+This feels cheap and unfinished.
+
+Requirements:
+
+When loading data from database:
+
+Never show blank screens.
+
+Implement skeleton loaders.
+
+Examples:
+
+Complaint Card Skeleton
+Publication Card Skeleton
+Document Card Skeleton
+Meeting Card Skeleton
+Provider Card Skeleton
+
+Skeletons must match the real layout.
+
+==================================================
+ANIMATION SYSTEM
+================
+
+When data loads from database:
+
+Show:
+
+1. Skeleton Loader
+2. Fade-in Animation
+3. Slide-up Animation
+4. Progressive content reveal
+
+Examples:
+
+Header loads
+↓
+Statistics load
+↓
+Filters load
+↓
+Cards load
+
+Use enterprise-grade animations.
+
+Inspired by:
+
+* Stripe
+* Revolut
+* Linear
+* Notion
+* Airbnb
+
+Animation rules:
+
+Duration:
+200–350ms
+
+No bouncing.
+
+No flashy effects.
+
+Only premium micro-interactions.
+
+==================================================
+DATABASE LOADING STATES
+=======================
+
+Audit every screen.
+
+For each API request:
+
+Implement:
+
+Loading
+Success
+Empty
+Error
+Retry
+
+No screen should directly jump from blank to loaded.
+
+==================================================
+RESPONSIVE AUDIT
+================
+
+Test on:
+
+320px
+360px
+375px
+390px
+414px
+Tablet
+
+Verify:
+
+* No clipping
+* No overflow
+* No hidden filters
+* No broken cards
+* No wasted space
+
+==================================================
+FINAL OBJECTIVE
+===============
+
+Transform these screens from prototype quality to enterprise SaaS quality.
+
+Target quality:
+
+* Linear
+* Jira
+* Zendesk
+* Stripe
+* Revolut
+* Salesforce Mobile
+* Microsoft Dynamics
+
+Every screen must feel polished, responsive, animated, data-driven, and production-ready.
+
+Do not stop at recommendations.
+
+Implement fixes screen by screen until visual consistency, loading experience, responsiveness, and enterprise quality are achieved.

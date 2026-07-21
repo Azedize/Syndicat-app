@@ -18,6 +18,7 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useAuth } from "@/context/AuthContext";
 import { useBreakpoints } from "@/hooks/useBreakpoints";
 import { useColors } from "@/hooks/useColors";
+import { useToast } from "@/context/ToastContext";
 import FilterChips from "@/components/FilterChips";
 import FilterTabs from "@/components/FilterTabs";
 import { marketplace } from "@/services/api";
@@ -67,6 +68,7 @@ export default function MarketplaceScreen() {
   const insets = useSafeAreaInsets();
   const { user } = useAuth();
   const { isWide } = useBreakpoints();
+  const { showToast } = useToast();
   const topPad = isWide ? 0 : (Platform.OS === "web" ? 67 : insets.top);
 
   const [products, setProducts] = useState<Product[]>([]);
@@ -134,7 +136,7 @@ export default function MarketplaceScreen() {
               // refresh both lists
               await Promise.all([fetchProducts(), fetchPending()]);
             } catch {
-              Alert.alert("Erreur", "Action impossible");
+              showToast({ type: "error", title: "Erreur", message: "Action de modération impossible" });
             } finally {
               setModerating(null);
             }

@@ -10,9 +10,11 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useAuth } from "@/context/AuthContext";
 import { useBreakpoints } from "@/hooks/useBreakpoints";
 import { useColors } from "@/hooks/useColors";
+import { useToast } from "@/context/ToastContext";
 import { apiRequest } from "@/lib/api";
 import { pickAndUploadInvoice } from "@/lib/upload";
 import { prestataires as prestatairesApi } from "@/services/api";
+import EmptyState from "@/components/EmptyState";
 import FilterChips from "@/components/FilterChips";
 import ScreenHeader from "@/components/ScreenHeader";
 import StatsStrip from "@/components/StatsStrip";
@@ -56,6 +58,7 @@ function PrestatairesScreenInner() {
   const colors = useColors();
   const insets = useSafeAreaInsets();
   const { token, user } = useAuth();
+  const { showToast } = useToast();
   const isAdmin = user?.role === "super_admin" || user?.role === "syndicate_admin";
   const { isWide } = useBreakpoints();
 
@@ -88,13 +91,13 @@ function PrestatairesScreenInner() {
       if (result) setDocumentUrl(result.objectPath);
       setDocumentName(result ? "Justificatif joint (image/PDF)" : documentName);
     } catch {
-      Alert.alert("Erreur", "Impossible de téléverser le document");
+      showToast({ type: "error", title: "Erreur d'upload", message: "Impossible de téléverser le document." });
     } finally { setUploading(false); }
   };
 
   const handleCreatePrestataire = async () => {
     if (!form.name.trim() || !form.type.trim()) {
-      Alert.alert("Champs requis", "Le nom et le type du prestataire sont obligatoires");
+      showToast({ type: "warning", title: "Champs requis", message: "Le nom et le type du prestataire sont obligatoires." });
       return;
     }
     if (!documentUrl) {
@@ -118,9 +121,10 @@ function PrestatairesScreenInner() {
       setShowAdd(false);
       resetForm();
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+      showToast({ type: "success", title: "Prestataire ajouté", message: `${form.name} a été enregistré avec succès.` });
       load();
     } catch (e: any) {
-      Alert.alert("Erreur", e.message ?? "Impossible de créer le prestataire");
+      showToast({ type: "error", title: "Erreur", message: e?.message ?? "Impossible de créer le prestataire." });
     } finally { setSubmitting(false); }
   };
 
@@ -130,7 +134,7 @@ function PrestatairesScreenInner() {
       const qs = filterType !== "all" ? `?type=${filterType}` : "";
       const data = await apiRequest(`/prestataires${qs}`, "GET", undefined, token);
       setPrestataires(data.data ?? []);
-    } catch (e) { console.error(e); }
+    } catch (e: any) { if (!silent) showToast({ type: "error", title: "Erreur de chargement", message: e?.message ?? "Impossible de charger les prestataires." }); }
     finally { setLoading(false); setRefreshing(false); }
   }, [token, filterType]);
 
@@ -193,17 +197,13 @@ function PrestatairesScreenInner() {
         ))}
       </View>
 
-      {/* Filter by type */}
-      <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ maxHeight: 50, backgroundColor: colors.card }}
-        contentContainerStyle={{ paddingHorizontal: 12, paddingVertical: 8, gap: 8 }}>
-        {FILTERS.map((f) => (
-          <TouchableOpacity key={f.key}
-            style={[styles.chip, { backgroundColor: filterType === f.key ? "#3b82f6" : colors.secondary, borderColor: filterType === f.key ? "#3b82f6" : colors.border }]}
-            onPress={() => { Haptics.selectionAsync(); setFilterType(f.key); }}>
-            <Text style={[styles.chipText, { color: filterType === f.key ? "#fff" : colors.foreground }]}>{f.label}</Text>
-          </TouchableOpacity>
-        ))}
-      </ScrollView>
+      <FilterChips
+        options={FILTERS}
+        value={filterType}
+        onChange={(key) => setFilterType(key)}
+        accentColor="#3b82f6"
+        mode="scroll"
+      />
 
       {loading ? (
         <View style={styles.center}><ActivityIndicator color="#3b82f6" size="large" /></View>
@@ -214,10 +214,14 @@ function PrestatairesScreenInner() {
           showsVerticalScrollIndicator={false}
         >
           {prestataires.length === 0 ? (
-            <View style={styles.empty}>
-              <Feather name="briefcase" size={36} color={colors.mutedForeground} />
-              <Text style={[styles.emptyText, { color: colors.mutedForeground }]}>Aucun prestataire</Text>
-            </View>
+            <EmptyState
+              icon="briefcase"
+              title="Aucun prestataire"
+              description="Aucun prestataire enregistré. Ajoutez votre premier prestataire de services."
+              actionLabel="Ajouter un prestataire"
+              onAction={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); setShowAdd(true); }}
+              accentColor="#3b82f6"
+            />
           ) : (
             prestataires.map((p) => {
               const tc = TYPE_CONFIG[p.type] ?? TYPE_CONFIG.autre;

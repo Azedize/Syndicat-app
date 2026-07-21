@@ -19,7 +19,6 @@ import * as Sharing from "expo-sharing";
 import React, { useRef, useState } from "react";
 import {
   ActivityIndicator,
-  Alert,
   Animated,
   Platform,
   StatusBar,
@@ -149,7 +148,7 @@ export default function PdfViewerScreen() {
 
   // ── WebView source ──────────────────────────────────────────────────────────
 
-  const webSource = isIos
+  const webSource: { uri: string } | { html: string; baseUrl: string } = isIos
     ? { uri: buildIosViewerUrl(pdfUrl) }
     : { html: buildPdfJsHtml(pdfUrl), baseUrl: "https://syndycat.ma" };
 
@@ -178,7 +177,9 @@ export default function PdfViewerScreen() {
           setPhase("error");
           break;
       }
-    } catch (_) {}
+    } catch {
+      setPhase("error");
+    }
   };
 
   // ── iOS native load events ──────────────────────────────────────────────────
@@ -203,8 +204,8 @@ export default function PdfViewerScreen() {
           await Sharing.shareAsync(res.uri, { mimeType: "application/pdf", UTI: "com.adobe.pdf" });
         }
       }
-    } catch (err: any) {
-      Alert.alert("Erreur", err?.message ?? "Impossible de partager le document.");
+    } catch {
+      setPhase("error");
     } finally {
       setDownloading(false);
     }
@@ -332,8 +333,8 @@ export default function PdfViewerScreen() {
 
       {/* ── WebView ── */}
       <WebView
-        ref={webRef}
-        source={webSource}
+        ref={webRef as any}
+        source={webSource as any}
         style={styles.webview}
         onLoadStart={() => setPhase("loading")}
         onLoadEnd={() => { if (isIos) { setPhase("ready"); } }}

@@ -24,6 +24,7 @@ import { useColors } from "@/hooks/useColors";
 import { apiRequest } from "@/lib/api";
 import { getToken } from "@/services/api";
 import RoleGuard from "@/components/RoleGuard";
+import { useToast } from "@/context/ToastContext";
 
 type ActeType = "convocation" | "decision" | "pv" | "proces_verbal_ag" | "resolution" | "mandat" | "attestation" | "courrier_officiel";
 type ActeStatut = "brouillon" | "valide" | "diffuse" | "archive";
@@ -79,6 +80,7 @@ function ActesAdministratifsScreenInner() {
   const insets = useSafeAreaInsets();
   const { user } = useAuth();
   const { isWide } = useBreakpoints();
+  const { showToast } = useToast();
   const topPad = isWide ? 0 : (Platform.OS === "web" ? 67 : insets.top);
   const isAdmin = user?.role === "syndicate_admin" || user?.role === "super_admin";
 
@@ -171,7 +173,7 @@ function ActesAdministratifsScreenInner() {
       setCreating(false);
       resetForm();
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-      Alert.alert("Acte créé", `L'acte ${created.numero} a été créé avec succès.`);
+      showToast({ type: "success", title: "Acte créé", message: `L'acte ${created.numero} a été créé avec succès.` });
     } catch (err: any) {
       Alert.alert("Erreur", err?.message ?? "Impossible de créer l'acte.");
     } finally {

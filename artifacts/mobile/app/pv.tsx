@@ -16,6 +16,9 @@ import {
   TouchableOpacity,
   View,
 } from "react-native";
+import EmptyState from "@/components/EmptyState";
+import FilterChips from "@/components/FilterChips";
+import StatisticsHeader from "@/components/StatisticsHeader";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import RoleGuard from "@/components/RoleGuard";
 import { useAuth } from "@/context/AuthContext";
@@ -116,10 +119,10 @@ function PVScreenInner() {
   const insets = useSafeAreaInsets();
   const { user } = useAuth();
   const { t } = useLanguage();
-  const { isWide } = useBreakpoints();
-  const topPad = isWide ? 0 : (Platform.OS === "web" ? 67 : insets.top);
-
   const isAdmin = user?.role === "super_admin" || user?.role === "syndicate_admin";
+
+  const { isWide } = useBreakpoints();
+  const topPad = isWide ? 0 : Platform.OS === "web" ? 67 : insets.top;
 
   const [pvList, setPVList] = useState<PV[]>([]);
   const [loading, setLoading] = useState(true);
@@ -239,36 +242,23 @@ function PVScreenInner() {
         ) : null}
       </View>
 
-      {/* Type filters */}
-      <ScrollView
-        horizontal
-        showsHorizontalScrollIndicator={false}
-        style={[styles.filtersRow, { borderBottomColor: colors.border }]}
-        contentContainerStyle={{ paddingHorizontal: 16, gap: 8, alignItems: "center" }}
-      >
-        {FILTER_TYPES.map((f) => (
-          <TouchableOpacity
-            key={f.key}
-            style={[styles.chip, { backgroundColor: filterType === f.key ? colors.primary : colors.secondary, borderColor: filterType === f.key ? colors.primary : colors.border }]}
-            onPress={() => { setFilterType(f.key); Haptics.selectionAsync(); }}
-          >
-            <Text style={[styles.chipText, { color: filterType === f.key ? "#fff" : colors.foreground }]}>{t(f.labelKey)}</Text>
-          </TouchableOpacity>
-        ))}
-        <View style={[styles.chipDivider, { backgroundColor: colors.border }]} />
-        {(["all", "published", "draft"] as const).map((s) => {
-          const labelKeys = { all: "pvFilterAllStatus", published: "pvFilterPublished", draft: "pvFilterDraft" };
-          return (
-            <TouchableOpacity
-              key={s}
-              style={[styles.chip, { backgroundColor: filterStatus === s ? "#6b7280" : colors.secondary, borderColor: filterStatus === s ? "#6b7280" : colors.border }]}
-              onPress={() => { setFilterStatus(s); Haptics.selectionAsync(); }}
-            >
-              <Text style={[styles.chipText, { color: filterStatus === s ? "#fff" : colors.foreground }]}>{t(labelKeys[s])}</Text>
-            </TouchableOpacity>
-          );
-        })}
-      </ScrollView>
+      <FilterChips
+        options={FILTER_TYPES.map((f) => ({ key: f.key, label: t(f.labelKey) }))}
+        value={filterType}
+        onChange={(k) => setFilterType(k as "all" | PVType)}
+        mode="scroll"
+      />
+      <FilterChips
+        options={[
+          { key: "all", label: t("pvFilterAllStatus"), color: "#6b7280" },
+          { key: "published", label: t("pvFilterPublished"), color: "#10b981" },
+          { key: "draft", label: t("pvFilterDraft"), color: "#6b7280" },
+        ]}
+        value={filterStatus}
+        onChange={(k) => setFilterStatus(k as "all" | PVStatus)}
+        accentColor="#6b7280"
+        mode="equal"
+      />
 
       {/* List */}
       <FlatList
@@ -277,16 +267,19 @@ function PVScreenInner() {
         contentContainerStyle={{ padding: 16, gap: 12, paddingBottom: insets.bottom + 80 }}
         showsVerticalScrollIndicator={false}
         ListEmptyComponent={
-          <View style={styles.empty}>
-            {loading ? (
+          loading ? (
+            <View style={styles.center}>
               <ActivityIndicator size="large" color={colors.primary} />
-            ) : (
-              <>
-                <Feather name="file-text" size={40} color={colors.mutedForeground} />
-                <Text style={[styles.emptyText, { color: colors.mutedForeground }]}>{t("pvNoneMatching")}</Text>
-              </>
-            )}
-          </View>
+            </View>
+          ) : (
+            <EmptyState
+              icon="file-text"
+              title={t("pvNoneMatching")}
+              description={isAdmin ? "Créez un nouveau procès-verbal pour commencer." : "Aucun procès-verbal disponible pour le moment."}
+              actionLabel={isAdmin ? t("pvNewTitle") : undefined}
+              onAction={isAdmin ? () => { setShowCreate(true); Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); } : undefined}
+            />
+          )
         }
         renderItem={({ item: pv }) => {
           const tc = TYPE_CONFIG_META[pv.type];
@@ -568,8 +561,7 @@ const styles = StyleSheet.create({
   typeBadgeText: { fontSize: 10, fontFamily: "Inter_600SemiBold" },
   statusBadge: { paddingHorizontal: 8, paddingVertical: 3, borderRadius: 20 },
   statusBadgeText: { fontSize: 10, fontFamily: "Inter_600SemiBold" },
-  empty: { alignItems: "center", justifyContent: "center", paddingVertical: 60, gap: 12 },
-  emptyText: { fontSize: 14, fontFamily: "Inter_400Regular" },
+  center: { flex: 1, alignItems: "center", justifyContent: "center", paddingVertical: 60 },
   modal: { flex: 1 },
   modalHeader: { flexDirection: "row", alignItems: "center", padding: 20, borderBottomWidth: 1 },
   modalTitle: { fontSize: 17, fontFamily: "Inter_700Bold", lineHeight: 22 },

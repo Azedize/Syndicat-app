@@ -25,6 +25,7 @@ import { useAuth } from "@/context/AuthContext";
 import { useData } from "@/context/DataContext";
 import { useBreakpoints } from "@/hooks/useBreakpoints";
 import { useColors } from "@/hooks/useColors";
+import { useToast } from "@/context/ToastContext";
 
 interface DeletedDoc {
   id: string;
@@ -44,6 +45,7 @@ const CAT_LABELS: Record<string, string> = {
 };
 
 export default function DocumentsRecycleBin() {
+  const { showToast } = useToast();
   const colors = useColors();
   const insets = useSafeAreaInsets();
   const { user } = useAuth();
@@ -64,7 +66,7 @@ export default function DocumentsRecycleBin() {
       const res = (await docsApi.deleted({ search: q })) as { data: DeletedDoc[] };
       setItems(res.data ?? []);
     } catch {
-      Alert.alert("Erreur", "Impossible de charger la corbeille.");
+      showToast({ type: "error", title: "Erreur", message: "Impossible de charger la corbeille." });
     } finally {
       setLoading(false);
     }
@@ -81,10 +83,10 @@ export default function DocumentsRecycleBin() {
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
       setItems((prev) => prev.filter((d) => d.id !== doc.id));
       await refreshDocuments().catch(() => {});
-      Alert.alert("Document restauré", `"${doc.title}" a été restauré.`);
+      showToast({ type: "success", title: "Document restauré", message: `"${doc.title}" a été restauré avec succès.` });
     } catch (err: any) {
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
-      Alert.alert("Erreur", err?.message ?? "Impossible de restaurer ce document.");
+      showToast({ type: "error", title: "Erreur", message: err?.message ?? "Impossible de restaurer ce document." });
     } finally {
       setBusyId(null);
     }
@@ -108,7 +110,7 @@ export default function DocumentsRecycleBin() {
               setItems((prev) => prev.filter((d) => d.id !== doc.id));
             } catch (err: any) {
               Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
-              Alert.alert("Erreur", err?.message ?? "Impossible de purger ce document.");
+              showToast({ type: "error", title: "Erreur", message: err?.message ?? "Impossible de purger ce document." });
             } finally {
               setBusyId(null);
             }

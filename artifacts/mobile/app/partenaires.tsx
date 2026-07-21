@@ -16,6 +16,7 @@ import {
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useAuth } from "@/context/AuthContext";
 import { useData, type Partner } from "@/context/DataContext";
+import { useToast } from "@/context/ToastContext";
 import { useBreakpoints } from "@/hooks/useBreakpoints";
 import { useColors } from "@/hooks/useColors";
 
@@ -37,6 +38,7 @@ const STATUS_CFG = {
 
 export default function PartenairesScreen() {
   const colors = useColors();
+  const { showToast } = useToast();
   const insets = useSafeAreaInsets();
   const { user } = useAuth();
   const { partners, addPartner, updatePartnerStatus } = useData();
@@ -69,7 +71,7 @@ export default function PartenairesScreen() {
 
   const handleAdd = () => {
     if (!newName.trim() || !newBenefit.trim()) {
-      Alert.alert("Erreur", "Veuillez renseigner le nom et les avantages.");
+      showToast({ type: "warning", message: "Veuillez renseigner le nom et les avantages." });
       return;
     }
     Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
@@ -95,7 +97,7 @@ export default function PartenairesScreen() {
     Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
     updatePartnerStatus(id, "active");
     setShowDetail(false);
-    Alert.alert("Partenariat activé", "Le partenariat est maintenant actif.");
+    showToast({ type: "success", title: "Partenariat activé", message: "Le partenariat est maintenant actif." });
   };
 
   return (

@@ -11,6 +11,7 @@ import { useAuth } from "@/context/AuthContext";
 import { useBreakpoints } from "@/hooks/useBreakpoints";
 import { useColors } from "@/hooks/useColors";
 import { apiRequest } from "@/lib/api";
+import { useToast } from "@/context/ToastContext";
 
 type TabType = "plans" | "abonnements";
 
@@ -72,6 +73,7 @@ export default function AbonnementsScreen() {
   const isSuper = role === "super_admin";
   const isAdmin = role === "syndicate_admin" || isSuper;
 
+  const { showToast } = useToast();
   const [tab, setTab] = useState<TabType>(isSuper ? "abonnements" : "plans");
   const [plans, setPlans] = useState<SubscriptionPlan[]>([]);
   const [subscriptions, setSubscriptions] = useState<SyndicateSub[]>([]);
@@ -107,11 +109,11 @@ export default function AbonnementsScreen() {
     try {
       setSaving(true);
       await apiRequest("/subscriptions", "POST", { planId }, token);
-      Alert.alert("Succès", "Abonnement activé avec succès.");
+      showToast({ type: "success", title: "Succès", message: "Abonnement activé avec succès." });
       setShowManage(null);
       load(true);
     } catch (e: any) {
-      Alert.alert("Erreur", e.message ?? "Impossible de modifier l'abonnement");
+      showToast({ type: "error", title: "Erreur", message: e.message ?? "Impossible de modifier l'abonnement" });
     } finally { setSaving(false); }
   };
 
@@ -119,10 +121,11 @@ export default function AbonnementsScreen() {
     try {
       setSaving(true);
       await apiRequest(`/subscriptions/${subId}`, "PUT", { status }, token);
+      showToast({ type: "success", message: "Abonnement mis à jour." });
       setShowManage(null);
       load(true);
     } catch (e: any) {
-      Alert.alert("Erreur", e.message ?? "Impossible de mettre à jour");
+      showToast({ type: "error", title: "Erreur", message: e.message ?? "Impossible de mettre à jour" });
     } finally { setSaving(false); }
   };
 

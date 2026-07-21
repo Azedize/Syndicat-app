@@ -392,6 +392,7 @@ interface DataContextType {
   deleteConversation: (conversationId: string) => void;
   refreshConversations: () => Promise<void>;
   addTransaction: (t: Transaction) => void;
+  updateTransactionStatus: (id: string, status: Transaction["status"]) => Promise<void>;
   createElection: (e: Election) => void;
   addToCart: (item: Omit<CartItem, "id">) => void;
   removeFromCart: (id: string) => void;
@@ -1155,6 +1156,28 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
     setTransactions((p) => [t, ...p]);
     api.finance.addTransaction(t).catch(() => {});
   };
+  const updateTransactionStatus = async (id: string, status: Transaction["status"]) => {
+    // Capture original status for rollback
+    let originalStatus: Transaction["status"] | undefined;
+    setTransactions((p) => {
+      const original = p.find((tx) => tx.id === id);
+      if (original) originalStatus = original.status;
+      return p.map((tx) => (tx.id === id ? { ...tx, status } : tx));
+    });
+    try {
+      await api.finance.updateTransactionStatus(id, status);
+    } catch (err: any) {
+      // Rollback to original status
+      if (originalStatus !== undefined) {
+        const prev = originalStatus;
+        setTransactions((p) =>
+          p.map((tx) => (tx.id === id ? { ...tx, status: prev } : tx))
+        );
+      }
+      notificationBus.emit({ type: "error", message: err?.message ?? "Échec mise à jour du statut" });
+      throw err;
+    }
+  };
   const likePublication = (id: string) => {
     setPublications((p) => p.map((pub) => (pub.id === id ? { ...pub, likes: pub.likes + 1 } : pub)));
     api.publications.like(id).catch(() => {});
@@ -1258,7 +1281,7 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
         partners, payslips,
         addMember, updateMemberStatus, addProduct, updateProduct, deleteProduct, validateProduct,
         addSyndicate, updateSyndicateStatus, resolveLegalAlert, addSupportTicket, resolveTicket, payOrder, payCotisation,
-        markAlertRead, markAllAlertsRead, refreshAlerts, voteForCandidate, sendMessage, addTransaction,
+        markAlertRead, markAllAlertsRead, refreshAlerts, voteForCandidate, sendMessage, addTransaction, updateTransactionStatus,
         likePublication, addPublication, createElection,
         addToCart, removeFromCart, updateCartQty, clearCart,
         addReview, addInvoice, refreshInvoices, addBonLivraison, updateBonLivraisonStatus,

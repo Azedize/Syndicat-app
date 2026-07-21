@@ -19,8 +19,12 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useAuth } from "@/context/AuthContext";
 import { useData, type Publication } from "@/context/DataContext";
 import { useFavorites } from "@/context/FavoritesContext";
+import { useToast } from "@/context/ToastContext";
 import { useBreakpoints } from "@/hooks/useBreakpoints";
 import { useColors } from "@/hooks/useColors";
+import EmptyState from "@/components/EmptyState";
+import FilterChips from "@/components/FilterChips";
+import StatisticsHeader from "@/components/StatisticsHeader";
 
 const CAT_COLORS: Record<string, string> = {
   communiqué: "#ef4444",
@@ -33,11 +37,14 @@ const CAT_COLORS: Record<string, string> = {
 
 export default function PublicationsScreen() {
   const colors = useColors();
+  const { showToast } = useToast();
   const insets = useSafeAreaInsets();
   const { user } = useAuth();
   const { publications, likePublication, addPublication } = useData();
   const { toggleFavorite, isFavorite } = useFavorites();
   const FAV_ID = "screen-publications";
+  const { isWide } = useBreakpoints();
+  const topPad = isWide ? 0 : Platform.OS === "web" ? 67 : insets.top;
   const [selected, setSelected] = useState<Publication | null>(null);
   const [showCreate, setShowCreate] = useState(false);
   const [liked, setLiked] = useState<Set<string>>(new Set());
@@ -45,8 +52,6 @@ export default function PublicationsScreen() {
   const [newTitle, setNewTitle] = useState("");
   const [newContent, setNewContent] = useState("");
   const [newCategory, setNewCategory] = useState("actualité");
-  const { isWide } = useBreakpoints();
-  const topPad = isWide ? 0 : (Platform.OS === "web" ? 67 : insets.top);
   const isAdmin = user?.role !== "member";
 
   // Edit publication state
@@ -89,7 +94,7 @@ export default function PublicationsScreen() {
     setShowCreate(false);
     setNewTitle(""); setNewContent("");
     Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-    Alert.alert("Publication créée", "Votre publication a été publiée avec succès.");
+    showToast({ type: "success", title: "Publication créée", message: "Votre publication a été publiée avec succès." });
   };
 
   return (
@@ -122,45 +127,30 @@ export default function PublicationsScreen() {
         ) : null}
       </View>
 
-      {/* Category filter pills */}
-      <ScrollView
-        horizontal
-        showsHorizontalScrollIndicator={false}
-        style={[styles.catBar, { backgroundColor: colors.card, borderBottomColor: colors.border }]}
-        contentContainerStyle={styles.catRow}
-      >
-        {categories.map((cat) => {
-          const isActive = filterCat === cat;
-          const activeColor = cat === "all" ? colors.primary : (CAT_COLORS[cat] ?? colors.primary);
-          return (
-            <TouchableOpacity
-              key={cat}
-              style={[
-                styles.catChip,
-                {
-                  backgroundColor: isActive ? activeColor : colors.muted,
-                  borderColor: isActive ? activeColor : "transparent",
-                },
-              ]}
-              onPress={() => { setFilterCat(cat); Haptics.selectionAsync(); }}
-              activeOpacity={0.75}
-            >
-              {cat !== "all" && (
-                <View style={[styles.catDot, { backgroundColor: isActive ? "rgba(255,255,255,0.65)" : activeColor }]} />
-              )}
-              <Text style={[styles.catLabel, { color: isActive ? "#fff" : colors.mutedForeground }]}>
-                {cat === "all" ? "Toutes" : cat}
-              </Text>
-            </TouchableOpacity>
-          );
-        })}
-      </ScrollView>
+      <FilterChips
+        options={[
+          { key: "all", label: "Toutes" },
+          ...Object.entries(CAT_COLORS).map(([cat, color]) => ({ key: cat, label: cat.charAt(0).toUpperCase() + cat.slice(1), color })),
+        ]}
+        value={filterCat}
+        onChange={setFilterCat}
+        mode="scroll"
+      />
 
       <FlatList
         data={filtered}
         keyExtractor={(p) => p.id}
-        contentContainerStyle={{ padding: 16, gap: 14, paddingBottom: insets.bottom + 40 }}
+        contentContainerStyle={filtered.length === 0 ? { flexGrow: 1 } : { padding: 16, gap: 14, paddingBottom: insets.bottom + 40 }}
         showsVerticalScrollIndicator={false}
+        ListEmptyComponent={
+          <EmptyState
+            icon="rss"
+            title="Aucune publication"
+            description="Aucune publication disponible pour cette catégorie."
+            actionLabel={isAdmin ? "Créer une publication" : undefined}
+            onAction={isAdmin ? () => { setShowCreate(true); Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); } : undefined}
+          />
+        }
         renderItem={({ item: pub }) => {
           const catColor = CAT_COLORS[pub.category] ?? colors.primary;
           const isLiked = liked.has(pub.id);
@@ -332,7 +322,7 @@ export default function PublicationsScreen() {
                       style={[styles.adminBtn, { borderColor: "#f59e0b40", backgroundColor: "#f59e0b08" }]}
                       onPress={() => {
                         Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-                        Alert.alert("Publication épinglée", `"${selected.title}" a été épinglée en haut de la liste.`);
+                        showToast({ type: "info", title: "Publication épinglée", message: `"${selected.title}" a été épinglée en haut de la liste.` });
                         setSelected(null);
                       }}
                     >
@@ -460,7 +450,7 @@ export default function PublicationsScreen() {
                     Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
                     setShowEditPub(false);
                     setSelected(null);
-                    Alert.alert("Publication mise à jour", "Les modifications ont été enregistrées.");
+                    showToast({ type: "success", title: "Publication mise à jour", message: "Les modifications ont été enregistrées." });
                   }}
                 >
                   <Feather name="check" size={15} color="#fff" />

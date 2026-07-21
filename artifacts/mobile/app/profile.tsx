@@ -6,7 +6,6 @@ import React, { useState } from "react";
 import { shareContent } from "@/hooks/useShare";
 import {
   ActivityIndicator,
-  Alert,
   Image,
   Modal,
   Platform,
@@ -20,11 +19,13 @@ import {
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import BadgeCard from "@/components/BadgeCard";
 import { useAuth } from "@/context/AuthContext";
+import { useData } from "@/context/DataContext";
 import { useLanguage } from "@/context/LanguageContext";
 import { useBreakpoints } from "@/hooks/useBreakpoints";
 import { useColors } from "@/hooks/useColors";
 import { auth as authApi, getToken } from "@/services/api";
 import { pickAndUploadPhoto } from "@/lib/upload";
+import { useToast } from "@/context/ToastContext";
 
 function getAvatarBaseUrl(): string {
   const domain = process.env.EXPO_PUBLIC_DOMAIN;
@@ -44,6 +45,7 @@ export default function ProfileScreen() {
   const colors = useColors();
   const insets = useSafeAreaInsets();
   const { user, updateUser, token } = useAuth();
+  const { cotisations, transactions, elections } = useData();
   const { t, isRTL } = useLanguage();
   const [editing, setEditing] = useState(false);
   const [name, setName] = useState(user?.name ?? "");
@@ -64,6 +66,7 @@ export default function ProfileScreen() {
   const numCols = isDesktop ? 7 : isTablet ? 5 : 4;
   const actionItemWidth = Math.floor((contentWidth - ACTION_GAP * (numCols - 1)) / numCols);
 
+  const { showToast } = useToast();
   const initials = user?.name.split(" ").map((n) => n[0]).join("").slice(0, 2).toUpperCase() ?? "";
   const roleLabel = user?.role === "super_admin" ? "Super Administrateur" : user?.role === "syndicate_admin" ? "Admin Syndicat" : "Membre";
   const roleIcon = user?.role === "super_admin" ? "shield" as const : user?.role === "syndicate_admin" ? "briefcase" as const : "user" as const;
@@ -79,7 +82,7 @@ export default function ProfileScreen() {
 
   const handleSave = async () => {
     if (!name.trim()) {
-      Alert.alert("Erreur", "Le nom ne peut pas être vide.");
+      showToast({ type: "error", title: "Erreur", message: "Le nom ne peut pas être vide." });
       return;
     }
     setEditing(false);
@@ -87,11 +90,11 @@ export default function ProfileScreen() {
       const res = await authApi.updateProfile({ name: name.trim(), phone });
       updateUser({ name: res.data.name, phone: res.data.phone ?? undefined });
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-      Alert.alert("Profil mis à jour", "Vos modifications ont été enregistrées.");
+      showToast({ type: "success", title: "Profil mis à jour", message: "Vos modifications ont été enregistrées." });
     } catch {
       updateUser({ name: name.trim(), phone });
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-      Alert.alert("Profil mis à jour", "Vos modifications ont été enregistrées.");
+      showToast({ type: "success", title: "Profil mis à jour", message: "Vos modifications ont été enregistrées." });
     }
   };
 
@@ -104,9 +107,10 @@ export default function ProfileScreen() {
       const res = await authApi.updateProfile({ avatar: result.objectPath });
       updateUser({ avatar: res.data.avatar ?? undefined });
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+      showToast({ type: "success", message: "Photo de profil mise à jour." });
     } catch (err: unknown) {
       const msg = err instanceof Error ? err.message : "Impossible de mettre à jour la photo de profil.";
-      Alert.alert("Erreur", msg);
+      showToast({ type: "error", title: "Erreur", message: msg });
     } finally {
       setAvatarUploading(false);
     }
@@ -115,11 +119,11 @@ export default function ProfileScreen() {
   const handleChangePassword = async () => {
     if (!oldPwd || !newPwd || !confirmPwd) return;
     if (newPwd !== confirmPwd) {
-      Alert.alert("Erreur", "Les mots de passe ne correspondent pas.");
+      showToast({ type: "error", title: "Erreur", message: "Les mots de passe ne correspondent pas." });
       return;
     }
     if (newPwd.length < 8) {
-      Alert.alert("Erreur", "Le mot de passe doit contenir au moins 8 caractères.");
+      showToast({ type: "error", title: "Erreur", message: "Le mot de passe doit contenir au moins 8 caractères." });
       return;
     }
     try {
@@ -127,10 +131,10 @@ export default function ProfileScreen() {
       setShowPwd(false);
       setOldPwd(""); setNewPwd(""); setConfirmPwd("");
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-      Alert.alert("Mot de passe changé", "Votre mot de passe a été modifié avec succès.");
+      showToast({ type: "success", title: "Mot de passe changé", message: "Votre mot de passe a été modifié avec succès." });
     } catch (err: unknown) {
       const msg = err instanceof Error ? err.message : "Erreur lors du changement de mot de passe.";
-      Alert.alert("Erreur", msg);
+      showToast({ type: "error", title: "Erreur", message: msg });
     }
   };
 
@@ -149,7 +153,7 @@ export default function ProfileScreen() {
       const url = `${getApiBase()}/api/pdf/membership/${user?.id}${tokenParam}`;
       await Linking.openURL(url);
     } catch {
-      Alert.alert("Erreur", "Impossible de générer l'attestation. Vérifiez votre connexion.");
+      showToast({ type: "error", title: "Erreur", message: "Impossible de générer l'attestation. Vérifiez votre connexion." });
     }
   };
 
@@ -163,7 +167,7 @@ export default function ProfileScreen() {
       const url = `${getApiBase()}/api/pdf/badge/${user?.id}${tokenParam}`;
       await Linking.openURL(url);
     } catch {
-      Alert.alert("Erreur", "Impossible de générer la carte. Vérifiez votre connexion.");
+      showToast({ type: "error", title: "Erreur", message: "Impossible de générer la carte. Vérifiez votre connexion." });
     }
   };
 
@@ -245,12 +249,12 @@ export default function ProfileScreen() {
         </View>
 
         <View style={{ padding: 20, gap: 20 }}>
-          {/* Stats */}
+          {/* Stats — real data from context */}
           <View style={styles.statsRow}>
             {[
-              { label: "Cotisations", value: "12", icon: "credit-card" as const, color: colors.primary },
-              { label: "Documents", value: "8", icon: "file-text" as const, color: "#3b82f6" },
-              { label: "Votes", value: "3", icon: "check-square" as const, color: "#10b981" },
+              { label: "Cotisations", value: String(cotisations.length), icon: "credit-card" as const, color: colors.primary },
+              { label: "Transactions", value: String(transactions.length), icon: "file-text" as const, color: "#3b82f6" },
+              { label: "Élections", value: String(elections.filter((e) => e.status === "open" || e.status === "closed").length), icon: "check-square" as const, color: "#10b981" },
             ].map((s) => (
               <View key={s.label} style={[styles.statCard, { backgroundColor: colors.card, borderColor: colors.border }]}>
                 <View style={[styles.statIcon, { backgroundColor: s.color + "15" }]}>

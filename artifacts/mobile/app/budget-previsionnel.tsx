@@ -18,6 +18,7 @@ import { apiRequest } from "@/lib/api";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useAuth } from "@/context/AuthContext";
 import { useLanguage } from "@/context/LanguageContext";
+import { useToast } from "@/context/ToastContext";
 import RoleGuard from "@/components/RoleGuard";
 import { useBreakpoints } from "@/hooks/useBreakpoints";
 import { useColors } from "@/hooks/useColors";
@@ -55,6 +56,7 @@ function BudgetPrevisionnelScreenInner() {
   const { isWide } = useBreakpoints();
   const { t } = useLanguage();
   const { token } = useAuth();
+  const { showToast } = useToast();
   const topPad = isWide ? 0 : (Platform.OS === "web" ? 67 : insets.top);
 
   const [tab, setTab] = useState<TabType>("vue_ensemble");
@@ -163,7 +165,7 @@ function BudgetPrevisionnelScreenInner() {
               const url = `${base}/api/pdf/budget/${budgetId}${tokenParam}`;
               await Linking.openURL(url);
             } catch {
-              Alert.alert(t("error"), "Impossible de générer le PDF du budget. Vérifiez votre connexion.");
+              showToast({ type: "error", title: t("error"), message: "Impossible de générer le PDF du budget. Vérifiez votre connexion." });
             } finally {
               setDownloading(false);
             }

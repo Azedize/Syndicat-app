@@ -4,7 +4,6 @@ import { router } from "expo-router";
 import React, { useState } from "react";
 import {
   ActivityIndicator,
-  Alert,
   FlatList,
   Linking,
   Modal,
@@ -26,6 +25,7 @@ import { useBreakpoints } from "@/hooks/useBreakpoints";
 import { useColors } from "@/hooks/useColors";
 import { apiRequest } from "@/lib/api";
 import FilterTabs from "@/components/FilterTabs";
+import { useToast } from "@/context/ToastContext";
 
 const TYPE_CONFIG: Record<string, { icon: keyof typeof Feather.glyphMap; color: string }> = {
   board:             { icon: "briefcase",      color: "#7c3aed" },
@@ -63,6 +63,7 @@ export default function MeetingsScreen() {
   const { isWide } = useBreakpoints();
   const isAdmin = user?.role !== "member";
   const [saving, setSaving] = useState(false);
+  const { showToast } = useToast();
 
   // Create form state
   const [newTitle, setNewTitle] = useState("");
@@ -111,18 +112,11 @@ export default function MeetingsScreen() {
 
   const handleConfirm = (id: string, title: string) => {
     if (confirmed.has(id)) return;
-    Alert.alert(t("confirmAttendanceTitle"), `${t("confirmAttendanceMsg")} "${title}"?`, [
-      { text: t("cancel"), style: "cancel" },
-      {
-        text: t("confirm"),
-        onPress: () => {
-          setConfirmed((prev) => new Set(prev).add(id));
-          confirmMeetingAttendance(id);
-          Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-          logActivity({ action: t("attendanceConfirmedLabel"), target: title, route: "/meetings", icon: "calendar", color: "#3b82f6" });
-        },
-      },
-    ]);
+    setConfirmed((prev) => new Set(prev).add(id));
+    confirmMeetingAttendance(id);
+    Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+    showToast({ type: "success", title: t("confirmAttendanceTitle"), message: `Présence confirmée pour "${title}".` });
+    logActivity({ action: t("attendanceConfirmedLabel"), target: title, route: "/meetings", icon: "calendar", color: "#3b82f6" });
   };
 
   const handleCreate = async () => {
@@ -157,7 +151,7 @@ export default function MeetingsScreen() {
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
       logActivity({ action: t("meetingCreatedLog"), target: newTitle, route: "/meetings", icon: "calendar", color: "#3b82f6" });
     } catch (e: any) {
-      Alert.alert(t("error"), e?.message ?? t("cannotCreateMeeting"));
+      showToast({ type: "error", title: t("error"), message: e?.message ?? t("cannotCreateMeeting") });
     } finally {
       setSaving(false);
     }
@@ -188,8 +182,9 @@ export default function MeetingsScreen() {
       setShowEditMeeting(false);
       setEditMeeting(null);
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+      showToast({ type: "success", message: t("meetingUpdatedSuccess") || "Réunion mise à jour avec succès." });
     } catch (e: any) {
-      Alert.alert(t("error"), e?.message ?? t("cannotEditMeeting"));
+      showToast({ type: "error", title: t("error"), message: e?.message ?? t("cannotEditMeeting") });
     } finally {
       setSaving(false);
     }
@@ -363,8 +358,8 @@ export default function MeetingsScreen() {
                 <TouchableOpacity
                   style={[styles.pvBtn, { borderColor: colors.primary + "40", backgroundColor: colors.primary + "08" }]}
                   onPress={() => {
-                    Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-                    Alert.alert(t("pvDownloadedTitle"), t("pvDownloadedMsg"));
+                    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+                    router.push({ pathname: "/documents", params: { template: "pv", meetingId: m.id } } as any);
                   }}
                 >
                   <Feather name="file-text" size={14} color={colors.primary} />
@@ -438,7 +433,7 @@ export default function MeetingsScreen() {
                   onPress={() => {
                     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
                     Linking.openURL(`https://maps.google.com/?q=${encodeURIComponent(selected?.location ?? "")}`).catch(() =>
-                      Alert.alert(t("error"), "Impossible d'ouvrir l'application Cartes.")
+                      showToast({ type: "error", title: "Navigation impossible", message: "Impossible d'ouvrir l'application Cartes." })
                     );
                   }}
                 >
@@ -514,7 +509,7 @@ export default function MeetingsScreen() {
                       const [d, m2, y] = (selected?.date ?? "01/01/2026").split("/");
                       const isoDate = `${y}${m2}${d}`;
                       Linking.openURL(`https://calendar.google.com/calendar/r/eventedit?text=${encodeURIComponent(selected?.title ?? "")}&dates=${isoDate}/${isoDate}&details=${encodeURIComponent(selected?.description ?? "")}&location=${encodeURIComponent(selected?.location ?? "")}`).catch(() =>
-                        Alert.alert(t("calendarTitle"), `"${selected?.title}" ${selected?.date} ${selected?.time}.`)
+                        showToast({ type: "info", title: t("calendarTitle"), message: `"${selected?.title}" ${selected?.date} ${selected?.time}.` })
                       );
                     }}
                   >
@@ -526,8 +521,9 @@ export default function MeetingsScreen() {
                 <TouchableOpacity
                   style={[styles.confirmBtn, { backgroundColor: colors.primary }]}
                   onPress={() => {
-                    Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-                    Alert.alert(t("pvDownloadedTitle"), t("pvDownloadedMsg"));
+                    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+                    setSelected(null);
+                    router.push({ pathname: "/documents", params: { template: "pv", meetingId: selected.id } } as any);
                   }}
                 >
                   <Feather name="file-text" size={16} color="#fff" />

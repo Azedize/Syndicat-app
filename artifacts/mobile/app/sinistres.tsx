@@ -3,14 +3,18 @@ import * as Haptics from "expo-haptics";
 import { router } from "expo-router";
 import React, { useCallback, useEffect, useState } from "react";
 import {
-  ActivityIndicator, Alert, Modal, Platform, RefreshControl,
+  ActivityIndicator, Modal, Platform, RefreshControl,
   ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, View,
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useAuth } from "@/context/AuthContext";
 import { useBreakpoints } from "@/hooks/useBreakpoints";
 import { useColors } from "@/hooks/useColors";
+import { useToast } from "@/context/ToastContext";
 import { apiRequest } from "@/lib/api";
+import EmptyState from "@/components/EmptyState";
+import FilterChips from "@/components/FilterChips";
+import StatisticsHeader from "@/components/StatisticsHeader";
 
 const TYPE_CONFIG: Record<string, { label: string; icon: keyof typeof Feather.glyphMap; color: string }> = {
   degat_eau:        { label: "Dégât des eaux",     icon: "droplet",       color: "#3b82f6" },
@@ -57,6 +61,9 @@ export default function SinistresScreen() {
   const insets = useSafeAreaInsets();
   const { user, token } = useAuth();
   const { isWide } = useBreakpoints();
+  const topPad = isWide ? 0 : Platform.OS === "web" ? 67 : insets.top;
+
+  const { showToast } = useToast();
 
   const [sinistres, setSinistres] = useState<Sinistre[]>([]);
   const [loading, setLoading] = useState(true);
@@ -66,14 +73,14 @@ export default function SinistresScreen() {
   const [form, setForm] = useState({ type: "degat_eau", urgency: "medium", description: "", date: new Date().toISOString().split("T")[0], buildingId: "", estimatedAmount: "" });
   const [submitting, setSubmitting] = useState(false);
 
-  const topPad = isWide ? 0 : Platform.OS === "web" ? 67 : insets.top;
+  const [filterType, setFilterType] = useState<string>("all");
 
   const load = useCallback(async (silent = false) => {
     try {
       if (!silent) setLoading(true);
       const data = await apiRequest("/sinistres", "GET", undefined, token);
       setSinistres(data.data ?? []);
-    } catch (e) { console.error(e); }
+    } catch (e: any) { if (!silent) showToast({ type: "error", title: "Erreur de chargement", message: e?.message ?? "Impossible de charger les sinistres." }); }
     finally { setLoading(false); setRefreshing(false); }
   }, [token]);
 
@@ -81,7 +88,7 @@ export default function SinistresScreen() {
   const onRefresh = () => { setRefreshing(true); load(true); };
 
   const handleSubmit = async () => {
-    if (!form.description.trim()) { Alert.alert("Erreur", "La description est obligatoire"); return; }
+    if (!form.description.trim()) { showToast({ type: "warning", title: "Champ requis", message: "La description est obligatoire." }); return; }
     try {
       setSubmitting(true);
       await apiRequest("/sinistres", "POST", {
@@ -94,15 +101,16 @@ export default function SinistresScreen() {
       }, token);
       setShowModal(false);
       setForm({ type: "degat_eau", urgency: "medium", description: "", date: new Date().toISOString().split("T")[0], buildingId: "", estimatedAmount: "" });
+      showToast({ type: "success", title: "Sinistre déclaré", message: "Votre déclaration a été enregistrée." });
       load(true);
     } catch (e: any) {
-      Alert.alert("Erreur", e.message ?? "Impossible de déclarer le sinistre");
+      showToast({ type: "error", title: "Erreur", message: e?.message ?? "Impossible de déclarer le sinistre." });
     } finally { setSubmitting(false); }
   };
 
   const open = sinistres.filter((s) => s.status !== "closed").length;
   const closed = sinistres.filter((s) => s.status === "closed").length;
-  const totalEstimated = sinistres.reduce((s, si) => s + (si.estimatedAmount ?? 0), 0);
+  const totalEstimated = sinistres.reduce((s, si) => s + (Number(si.estimatedAmount) || 0), 0);
 
   return (
     <View style={[styles.root, { backgroundColor: colors.background }]}>
@@ -125,7 +133,7 @@ export default function SinistresScreen() {
           { label: "Total", value: sinistres.length, color: "#ef4444" },
           { label: "En cours", value: open, color: "#f97316" },
           { label: "Clôturés", value: closed, color: "#10b981" },
-          { label: "Estimé", value: `${(totalEstimated / 1000).toFixed(0)}k`, color: "#7c3aed" },
+          { label: "Estimé", value: totalEstimated > 0 ? `${(totalEstimated / 1000).toFixed(0)}k` : "0", color: "#7c3aed" },
         ].map((s, i, arr) => (
           <View key={s.label} style={[styles.statCell, i < arr.length - 1 && { borderRightWidth: 1, borderRightColor: colors.border }]}>
             <Text style={[styles.statVal, { color: s.color }]}>{s.value}</Text>
@@ -143,13 +151,14 @@ export default function SinistresScreen() {
           showsVerticalScrollIndicator={false}
         >
           {sinistres.length === 0 ? (
-            <View style={styles.empty}>
-              <View style={[styles.emptyIcon, { backgroundColor: "#10b98115" }]}>
-                <Feather name="shield" size={32} color="#10b981" />
-              </View>
-              <Text style={[styles.emptyTitle, { color: colors.foreground }]}>Aucun sinistre</Text>
-              <Text style={[styles.emptyText, { color: colors.mutedForeground }]}>Aucun incident déclaré. Votre immeuble est bien protégé.</Text>
-            </View>
+            <EmptyState
+              icon="shield"
+              title="Aucun sinistre"
+              description="Aucun incident déclaré. Votre immeuble est bien protégé."
+              actionLabel="Déclarer un sinistre"
+              onAction={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); setShowModal(true); }}
+              accentColor="#10b981"
+            />
           ) : (
             sinistres.map((s) => {
               const tc = TYPE_CONFIG[s.type] ?? TYPE_CONFIG.autre;
@@ -193,8 +202,8 @@ export default function SinistresScreen() {
                     ) : null}
                     {s.estimatedAmount ? (
                       <Text style={[styles.footerAmt, { color: colors.mutedForeground }]}>
-                        ~{s.estimatedAmount.toLocaleString("fr-MA")} MAD
-                        {s.indemnisedAmount ? ` / Indemnisé: ${s.indemnisedAmount.toLocaleString("fr-MA")} MAD` : ""}
+                        ~{(Number(s.estimatedAmount) || 0).toLocaleString("fr-MA")} MAD
+                        {s.indemnisedAmount ? ` / Indemnisé: ${(Number(s.indemnisedAmount) || 0).toLocaleString("fr-MA")} MAD` : ""}
                       </Text>
                     ) : null}
                   </View>

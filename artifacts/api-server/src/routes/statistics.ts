@@ -672,4 +672,107 @@ router.get(
   },
 );
 
+// ─── Reports analytics (super_admin + syndicate_admin, period-scoped) ────────
+// GET /statistics/reports?period=month|quarter|year
+router.get(
+  "/statistics/reports",
+  requireAuth,
+  requireRole("super_admin", "syndicate_admin"),
+  async (req, res) => {
+    const period = (req.query.period as string) || "month";
+    const txWhere = syndicateWhere(req, transactionsTable.syndicateId);
+    const memWhere = syndicateWhere(req, membersTable.syndicateId);
+    const cotWhere = syndicateWhere(req, cotisationsTable.syndicateId);
+
+    try {
+      const now = new Date();
+
+      // ── Period window ──────────────────────────────────────────────────────
+      let windowStart: Date;
+      let buckets: { label: string; from: Date; to: Date }[];
+
+      if (period === "year") {
+        windowStart = new Date(now.getFullYear(), now.getMonth() - 11, 1);
+        buckets = lastNMonths(12).map((m) => ({ label: m.label, from: m.from, to: m.to }));
+      } else if (period === "quarter") {
+        windowStart = new Date(now.getFullYear(), now.getMonth() - 2, 1);
+        buckets = lastNMonths(3).map((m) => ({ label: m.label, from: m.from, to: m.to }));
+      } else {
+        // month → 4 weekly buckets within the current month
+        const monthStart = new Date(now.getFullYear(), now.getMonth(), 1);
+        windowStart = monthStart;
+        const FR_WEEK = ["S1", "S2", "S3", "S4"];
+        buckets = [0, 1, 2, 3].map((w) => {
+          const from = new Date(now.getFullYear(), now.getMonth(), w * 7 + 1);
+          const rawTo = new Date(now.getFullYear(), now.getMonth(), w * 7 + 7, 23, 59, 59);
+          const monthEnd = new Date(now.getFullYear(), now.getMonth() + 1, 0, 23, 59, 59);
+          return { label: FR_WEEK[w], from, to: rawTo < monthEnd ? rawTo : monthEnd };
+        });
+      }
+
+      // ── Transactions for window ────────────────────────────────────────────
+      const allTx = await db
+        .select({ amount: transactionsTable.amount, type: transactionsTable.type, status: transactionsTable.status, createdAt: transactionsTable.createdAt })
+        .from(transactionsTable)
+        .where(txWhere ? and(txWhere, gte(transactionsTable.createdAt, windowStart)) : gte(transactionsTable.createdAt, windowStart));
+
+      // ── New members for window ─────────────────────────────────────────────
+      const allNewMembers = await db
+        .select({ createdAt: membersTable.createdAt })
+        .from(membersTable)
+        .where(memWhere ? and(memWhere, gte(membersTable.createdAt, windowStart)) : gte(membersTable.createdAt, windowStart));
+
+      // ── Cotisation rate (all-time for syndicate) ───────────────────────────
+      const [allCot, paidCot] = await Promise.all([
+        db.select({ value: count() }).from(cotisationsTable).where(cotWhere ?? undefined),
+        db.select({ value: count() }).from(cotisationsTable).where(cotWhere ? and(cotWhere, eq(cotisationsTable.status, "paid")) : eq(cotisationsTable.status, "paid")),
+      ]);
+      const cotisationRate = Number(allCot[0].value) > 0
+        ? Math.round((Number(paidCot[0].value) / Number(allCot[0].value)) * 100)
+        : 0;
+
+      // ── Chart buckets ──────────────────────────────────────────────────────
+      const revenueChart = buckets.map((b) => ({
+        label: b.label,
+        value: Math.round(
+          allTx
+            .filter((t) => t.createdAt && t.createdAt >= b.from && t.createdAt <= b.to
+              && (t.type === "cotisation" || t.type === "recette") && t.status === "paid")
+            .reduce((s, t) => s + Number(t.amount ?? 0), 0)
+        ),
+      }));
+
+      const membersChart = buckets.map((b) => ({
+        label: b.label,
+        value: allNewMembers.filter((m) => m.createdAt && m.createdAt >= b.from && m.createdAt <= b.to).length,
+      }));
+
+      // ── Period KPIs ────────────────────────────────────────────────────────
+      const revenues = allTx
+        .filter((t) => (t.type === "cotisation" || t.type === "recette") && t.status === "paid")
+        .reduce((s, t) => s + Number(t.amount ?? 0), 0);
+      const expenses = allTx
+        .filter((t) => (t.type === "depense" || t.type === "salaire") && t.status === "paid")
+        .reduce((s, t) => s + Math.abs(Number(t.amount ?? 0)), 0);
+      const memberGrowth = allNewMembers.length;
+
+      res.json({
+        data: {
+          revenueChart,
+          membersChart,
+          kpi: {
+            revenues: Math.round(revenues),
+            expenses: Math.round(expenses),
+            memberGrowth,
+            cotisationRate,
+          },
+        },
+      });
+    } catch (err) {
+      req.log.error(err);
+      res.status(500).json({ error: "Erreur serveur" });
+    }
+  },
+);
+
 export default router;

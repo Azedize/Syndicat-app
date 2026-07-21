@@ -98,7 +98,7 @@ function TemplateRequestContent() {
       const res = await apiRequests.list();
       setRequests(res.data ?? []);
     } catch {
-      showToast("Erreur lors du chargement des demandes", "error");
+      showToast({ type: "error", message: "Erreur lors du chargement des demandes" });
     } finally {
       setLoading(false);
       setRefreshing(false);
@@ -110,9 +110,9 @@ function TemplateRequestContent() {
   const onRefresh = () => { setRefreshing(true); load(); };
 
   const handleSubmit = async () => {
-    if (!form.title.trim()) { showToast("Le titre est requis", "error"); return; }
-    if (!form.category)      { showToast("Choisissez une catégorie", "error"); return; }
-    if (!form.description.trim()) { showToast("La description est requise", "error"); return; }
+    if (!form.title.trim()) { showToast({ type: "error", message: "Le titre est requis" }); return; }
+    if (!form.category)      { showToast({ type: "error", message: "Choisissez une catégorie" }); return; }
+    if (!form.description.trim()) { showToast({ type: "error", message: "La description est requise" }); return; }
 
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
     setSubmitting(true);
@@ -126,13 +126,13 @@ function TemplateRequestContent() {
         legalNotes:      form.legalNotes.trim() || undefined,
         priority:        form.priority,
       });
-      showToast("Demande soumise avec succès", "success");
+      showToast({ type: "success", message: "Demande soumise avec succès" });
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
       setShowForm(false);
       setForm(emptyForm());
       load();
     } catch (err: any) {
-      showToast(err?.message ?? "Erreur lors de la soumission", "error");
+      showToast({ type: "error", message: err?.message ?? "Erreur lors de la soumission" });
     } finally {
       setSubmitting(false);
     }
@@ -461,12 +461,7 @@ function TemplateRequestContent() {
 
 export default function TemplateRequestScreen() {
   return (
-    <RoleGuard roles={["syndicate_admin"]} fallback={
-      <View style={{ flex: 1, alignItems: "center", justifyContent: "center", backgroundColor: "#0f172a" }}>
-        <Feather name="lock" size={40} color="#ef4444" />
-        <Text style={{ color: "#e2e8f0", marginTop: 16, fontSize: 16 }}>Accès réservé aux administrateurs de syndicat</Text>
-      </View>
-    }>
+    <RoleGuard allow={["syndicate_admin", "super_admin"]}>
       <TemplateRequestContent />
     </RoleGuard>
   );

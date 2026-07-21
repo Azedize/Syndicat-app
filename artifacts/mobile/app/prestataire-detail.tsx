@@ -10,6 +10,7 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useAuth } from "@/context/AuthContext";
 import { useBreakpoints } from "@/hooks/useBreakpoints";
 import { useColors } from "@/hooks/useColors";
+import { useToast } from "@/context/ToastContext";
 import { pickAndUploadPdf } from "@/lib/upload";
 import { ApiContrat, ApiEvaluation, ApiPrestataire, ApiTravail, contrats, prestataires } from "@/services/api";
 
@@ -31,6 +32,7 @@ export default function PrestataireDetailScreen() {
   const insets = useSafeAreaInsets();
   const { user, token } = useAuth();
   const { isWide } = useBreakpoints();
+  const { showToast } = useToast();
   const { id } = useLocalSearchParams<{ id: string }>();
 
   const [data, setData] = useState<ApiPrestataire | null>(null);
@@ -61,11 +63,11 @@ export default function PrestataireDetailScreen() {
   const handlePickContractPdf = async () => {
     const result = await pickAndUploadPdf();
     if (result) { setCtForm((p) => ({ ...p, documentUrl: result.objectPath })); setCtFileName("Document PDF joint"); }
-    else Alert.alert("Erreur", "Impossible de téléverser le document");
+    else showToast({ type: "error", title: "Erreur", message: "Impossible de téléverser le document" });
   };
   const handleCreateContract = async () => {
     if (!ctForm.title.trim() || !ctForm.buildingId.trim() || !ctForm.documentUrl) {
-      Alert.alert("Champs requis", "Titre, bâtiment et document PDF sont obligatoires");
+      showToast({ type: "warning", title: "Champs requis", message: "Titre, bâtiment et document PDF sont obligatoires" });
       return;
     }
     try {
@@ -84,7 +86,7 @@ export default function PrestataireDetailScreen() {
       setCtFileName("");
       load();
     } catch (e: any) {
-      Alert.alert("Erreur", e.message ?? "Impossible de créer le contrat");
+      showToast({ type: "error", title: "Erreur", message: e.message ?? "Impossible de créer le contrat" });
     } finally { setSubmitting(false); }
   };
 
@@ -99,7 +101,7 @@ export default function PrestataireDetailScreen() {
       setResilierTarget(null);
       setResilierReason("");
       load();
-    } catch (e: any) { Alert.alert("Erreur", e.message ?? "Action impossible"); }
+    } catch (e: any) { showToast({ type: "error", title: "Erreur", message: e.message ?? "Action impossible" }); }
     finally { setSubmitting(false); }
   };
 
@@ -118,7 +120,7 @@ export default function PrestataireDetailScreen() {
             if (action === "suspend") await contrats.suspend(c.id);
             else await contrats.reactivate(c.id);
             load();
-          } catch (e: any) { Alert.alert("Erreur", e.message ?? "Action impossible"); }
+          } catch (e: any) { showToast({ type: "error", title: "Erreur", message: e.message ?? "Action impossible" }); }
         },
       }],
     );
@@ -134,7 +136,7 @@ export default function PrestataireDetailScreen() {
       setEvForm({ quality: 3, speed: 3, communication: 3, price: 3, comment: "" });
       load();
     } catch (e: any) {
-      Alert.alert("Erreur", e.message ?? "Impossible d'enregistrer l'évaluation");
+      showToast({ type: "error", title: "Erreur", message: e.message ?? "Impossible d'enregistrer l'évaluation" });
     } finally { setSubmitting(false); }
   };
 

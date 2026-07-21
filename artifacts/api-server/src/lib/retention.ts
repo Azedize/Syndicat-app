@@ -19,19 +19,13 @@ export const CATEGORY_RETENTION_YEARS: Record<string, number> = {
 
 /** Per-template overrides — takes priority over the category default when present. */
 export const TEMPLATE_RETENTION_YEARS: Partial<Record<DocumentTemplate, number>> = {
-  contrat: 10,
-  convention_partenariat: 10,
-  accord_collectif: 10,
+  contrat:           10,
   rapport_financier: 10,
-  rapport_audit: 10,
-  pv: 5,
-  compte_rendu: 5,
-  convocation: 5,
-  mise_en_demeure: 10,
-  demande_administrative: 3,
-  note_interne: 3,
-  ordre_de_mission: 3,
-  autorisation: 3,
+  pv:                 5,
+  convocation:        5,
+  mise_en_demeure:   10,
+  appel_de_fonds:     7,
+  facture:            7,
 };
 
 export const DEFAULT_RETENTION_YEARS = 5;

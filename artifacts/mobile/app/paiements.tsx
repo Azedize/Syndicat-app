@@ -2,6 +2,7 @@ import { Feather } from "@expo/vector-icons";
 import * as Haptics from "expo-haptics";
 import { router } from "expo-router";
 import React, { useEffect, useMemo, useState } from "react";
+import QRCode from "react-native-qrcode-svg";
 import {
   Alert,
   ActivityIndicator,
@@ -20,6 +21,7 @@ import { useData } from "@/context/DataContext";
 import { useBreakpoints } from "@/hooks/useBreakpoints";
 import { useColors } from "@/hooks/useColors";
 import { apiRequest } from "@/lib/api";
+import { shareContent } from "@/hooks/useShare";
 
 type TxStatus = "paid" | "pending" | "overdue";
 type TxType = "cotisation" | "depense" | "salaire" | "recette";
@@ -61,7 +63,7 @@ export default function PaiementsScreen() {
   const colors = useColors();
   const insets = useSafeAreaInsets();
   const { user } = useAuth();
-  const { transactions, addTransaction } = useData();
+  const { transactions, addTransaction, updateTransactionStatus } = useData();
   const { isWide } = useBreakpoints();
   const topPad = isWide ? 0 : (Platform.OS === "web" ? 67 : insets.top);
   const isAdmin = user?.role !== "member";
@@ -114,7 +116,11 @@ export default function PaiementsScreen() {
             style={styles.exportBtn}
             onPress={() => {
               Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-              Alert.alert("Rapport exporté", "Le rapport de paiements a été exporté en CSV.");
+              const header = "Référence,Type,Libellé,Montant (MAD),Statut,Date";
+              const rows = transactions.map((tx) =>
+                `${formatRef(tx.id)},${tx.type},${tx.label},${tx.amount},${tx.status},${tx.date}`
+              );
+              shareContent([header, ...rows].join("\n"), "Rapport Paiements");
             }}
           >
             <Feather name="download" size={18} color="#fff" />
@@ -303,15 +309,13 @@ export default function PaiementsScreen() {
               <ScrollView contentContainerStyle={{ padding: 20, gap: 18, paddingBottom: 40 }}>
                 {t.status === "paid" && (
                   <View style={[styles.qrSection, { backgroundColor: colors.card, borderColor: colors.border }]}>
-                    <View style={[styles.qrBox, { borderColor: colors.border }]}>
-                      <View style={styles.qrGrid}>
-                        {Array.from({ length: 49 }).map((_, i) => (
-                          <View
-                            key={i}
-                            style={[styles.qrCell, { backgroundColor: (i * 7 + 3) % 3 !== 0 ? colors.foreground : "transparent" }]}
-                          />
-                        ))}
-                      </View>
+                    <View style={[styles.qrBox, { borderColor: colors.border, backgroundColor: "#fff" }]}>
+                      <QRCode
+                        value={`SYNDYCAT:${formatRef(t.id)}:${t.amount}:${t.date}:PAID`}
+                        size={112}
+                        color="#1a1a1a"
+                        backgroundColor="#ffffff"
+                      />
                     </View>
                     <View style={styles.qrInfo}>
                       <Text style={[styles.qrRef, { color: colors.foreground }]}>{formatRef(t.id)}</Text>
@@ -348,7 +352,14 @@ export default function PaiementsScreen() {
                       style={[styles.actionBtn, { backgroundColor: colors.primary }]}
                       onPress={() => {
                         Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-                        Alert.alert("Reçu téléchargé", `Le reçu ${formatRef(t.id)} a été sauvegardé.`);
+                        const receiptText =
+                          `REÇU DE PAIEMENT\n` +
+                          `Référence : ${formatRef(t.id)}\n` +
+                          `Libellé : ${t.label}\n` +
+                          `Montant : ${t.amount.toLocaleString()} MAD\n` +
+                          `Date : ${t.date}\n` +
+                          `Statut : Payé ✓`;
+                        shareContent(receiptText, `Reçu ${formatRef(t.id)}`);
                       }}
                     >
                       <Feather name="download" size={16} color="#fff" />
@@ -358,9 +369,15 @@ export default function PaiementsScreen() {
                   {t.status === "overdue" && (
                     <TouchableOpacity
                       style={[styles.actionBtn, { backgroundColor: "#ef4444" }]}
-                      onPress={() => {
-                        Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-                        Alert.alert("Relance envoyée", "Un email de relance a été envoyé.");
+                      onPress={async () => {
+                        Haptics.notificationAsync(Haptics.NotificationFeedbackType.Warning);
+                        try {
+                          await updateTransactionStatus(t.id, "overdue");
+                          Alert.alert("Relance envoyée", "La relance de paiement a été enregistrée.");
+                          setSelected(null);
+                        } catch {
+                          Alert.alert("Erreur", "Impossible d'envoyer la relance. Réessayez.");
+                        }
                       }}
                     >
                       <Feather name="send" size={16} color="#fff" />
@@ -370,10 +387,14 @@ export default function PaiementsScreen() {
                   {t.status === "pending" && isAdmin && (
                     <TouchableOpacity
                       style={[styles.actionBtn, { backgroundColor: "#10b981" }]}
-                      onPress={() => {
+                      onPress={async () => {
                         Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-                        Alert.alert("Validé", `Transaction marquée comme payée.`);
-                        setSelected(null);
+                        try {
+                          await updateTransactionStatus(t.id, "paid");
+                          setSelected(null);
+                        } catch {
+                          Alert.alert("Erreur", "Impossible de mettre à jour. Réessayez.");
+                        }
                       }}
                     >
                       <Feather name="check" size={16} color="#fff" />
@@ -384,7 +405,14 @@ export default function PaiementsScreen() {
                     style={[styles.actionBtn, { backgroundColor: colors.muted }]}
                     onPress={() => {
                       Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-                      Alert.alert("Partagé", `Les détails ont été copiés dans le presse-papiers.`);
+                      const details =
+                        `Transaction : ${formatRef(t.id)}\n` +
+                        `Type : ${TYPE_CONFIG[t.type]?.label ?? t.type}\n` +
+                        `Libellé : ${t.label}\n` +
+                        `Montant : ${t.amount.toLocaleString()} MAD\n` +
+                        `Date : ${t.date}\n` +
+                        `Statut : ${STATUS_CONFIG[t.status]?.label ?? t.status}`;
+                      shareContent(details, `Transaction ${formatRef(t.id)}`);
                     }}
                   >
                     <Feather name="share-2" size={16} color={colors.foreground} />

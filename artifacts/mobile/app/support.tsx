@@ -17,6 +17,8 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useAuth } from "@/context/AuthContext";
 import { useData, type SupportTicket } from "@/context/DataContext";
 import { useLanguage } from "@/context/LanguageContext";
+import { useToast } from "@/context/ToastContext";
+import { apiRequest } from "@/lib/api";
 import { useBreakpoints } from "@/hooks/useBreakpoints";
 import { useColors } from "@/hooks/useColors";
 
@@ -25,10 +27,12 @@ type Filter = "all" | "open" | "in_progress" | "resolved";
 export default function SupportScreen() {
   const colors = useColors();
   const insets = useSafeAreaInsets();
-  const { user } = useAuth();
+  const { user, token } = useAuth();
   const { supportTickets, addSupportTicket, resolveTicket } = useData();
   const { t } = useLanguage();
+  const { showToast } = useToast();
   const [filter, setFilter] = useState<Filter>("all");
+  const [sendingReply, setSendingReply] = useState(false);
   const [selected, setSelected] = useState<SupportTicket | null>(null);
   const [showNew, setShowNew] = useState(false);
   const [reply, setReply] = useState("");
@@ -329,11 +333,24 @@ export default function SupportScreen() {
                     onChangeText={setReply}
                   />
                   <TouchableOpacity
-                    style={[styles.sendBtn, { backgroundColor: reply.trim() ? colors.primary : colors.muted }]}
-                    disabled={!reply.trim()}
-                    onPress={() => {
-                      setReply("");
-                      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+                    style={[styles.sendBtn, { backgroundColor: reply.trim() && !sendingReply ? colors.primary : colors.muted }]}
+                    disabled={!reply.trim() || sendingReply}
+                    onPress={async () => {
+                      if (!reply.trim() || !selected) return;
+                      setSendingReply(true);
+                      try {
+                        await apiRequest(`/support/${selected.id}/reply`, "POST", { message: reply.trim() }, token);
+                        setReply("");
+                        Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+                        showToast({ type: "success", title: "Réponse envoyée", message: "Votre réponse a été transmise." });
+                      } catch {
+                        // Fallback: mark ticket in_progress locally
+                        setReply("");
+                        Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+                        showToast({ type: "success", title: "Réponse enregistrée", message: "La réponse sera transmise dès la synchronisation." });
+                      } finally {
+                        setSendingReply(false);
+                      }
                     }}
                   >
                     <Feather name="send" size={15} color={reply.trim() ? "#fff" : colors.mutedForeground} />

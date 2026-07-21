@@ -11,6 +11,7 @@ import { useAuth } from "@/context/AuthContext";
 import { useBreakpoints } from "@/hooks/useBreakpoints";
 import { useColors } from "@/hooks/useColors";
 import { apiRequest } from "@/lib/api";
+import { useToast } from "@/context/ToastContext";
 
 const ROLE_CONFIG: Record<string, { label: string; color: string; icon: keyof typeof Feather.glyphMap }> = {
   super_admin:     { label: "Super Admin",      color: "#7c3aed", icon: "shield" },
@@ -49,6 +50,7 @@ export default function EquipeSyndicScreen() {
   const topPad = isWide ? 0 : Platform.OS === "web" ? 67 : insets.top;
 
   const isAdmin = user?.role === "syndicate_admin" || user?.role === "super_admin";
+  const { showToast } = useToast();
 
   const [team, setTeam] = useState<TeamMember[]>([]);
   const [syndicate, setSyndicate] = useState<SyndicateContact | null>(null);
@@ -88,18 +90,19 @@ export default function EquipeSyndicScreen() {
       setSubmitting(true);
       await apiRequest("/team/syndicate", "PUT", editForm, token);
       setShowEdit(false);
+      showToast({ type: "success", message: "Coordonnées du syndicat mises à jour." });
       load(true);
     } catch (e: any) {
-      Alert.alert("Erreur", e.message ?? "Impossible de mettre à jour");
+      showToast({ type: "error", title: "Erreur", message: e.message ?? "Impossible de mettre à jour" });
     } finally { setSubmitting(false); }
   };
 
   const callPhone = (phone: string) => {
-    Linking.openURL(`tel:${phone}`).catch(() => Alert.alert("Erreur", "Impossible d'ouvrir l'application téléphone"));
+    Linking.openURL(`tel:${phone}`).catch(() => showToast({ type: "error", title: "Erreur", message: "Impossible d'ouvrir l'application téléphone" }));
   };
 
   const sendEmail = (email: string) => {
-    Linking.openURL(`mailto:${email}`).catch(() => Alert.alert("Erreur", "Impossible d'ouvrir l'application email"));
+    Linking.openURL(`mailto:${email}`).catch(() => showToast({ type: "error", title: "Erreur", message: "Impossible d'ouvrir l'application email" }));
   };
 
   const admins = team.filter((m) => m.type === "admin");

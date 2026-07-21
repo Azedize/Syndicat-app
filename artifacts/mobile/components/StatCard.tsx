@@ -31,10 +31,28 @@ export default function StatCard({
       <View style={[styles.iconWrap, { backgroundColor: ic + "18" }]}>
         <Feather name={icon} size={20} color={ic} />
       </View>
-      <Text style={[styles.value, { color: colors.foreground }]}>{value}</Text>
-      <Text style={[styles.label, { color: colors.mutedForeground }]}>{label}</Text>
+      {/* Value: auto-shrinks font to prevent overflow on small screens */}
+      <Text
+        style={[styles.value, { color: colors.foreground }]}
+        numberOfLines={1}
+        adjustsFontSizeToFit
+        minimumFontScale={0.65}
+      >
+        {value}
+      </Text>
+      <Text
+        style={[styles.label, { color: colors.mutedForeground }]}
+        numberOfLines={2}
+      >
+        {label}
+      </Text>
       {subtitle ? (
-        <Text style={[styles.subtitle, { color: colors.mutedForeground }]}>{subtitle}</Text>
+        <Text
+          style={[styles.subtitle, { color: colors.mutedForeground }]}
+          numberOfLines={1}
+        >
+          {subtitle}
+        </Text>
       ) : null}
       {trend ? (
         <View style={styles.trendRow}>
@@ -48,6 +66,7 @@ export default function StatCard({
               styles.trend,
               { color: trendUp ? colors.success : colors.destructive },
             ]}
+            numberOfLines={1}
           >
             {trend}
           </Text>
@@ -64,6 +83,9 @@ const styles = StyleSheet.create({
     padding: 16,
     borderWidth: 1,
     gap: 6,
+    // Prevent the card itself from growing unboundedly and squeezing siblings
+    minWidth: 0,
+    overflow: "hidden",
   },
   iconWrap: {
     width: 40,
@@ -77,14 +99,18 @@ const styles = StyleSheet.create({
     fontSize: 22,
     fontFamily: "Inter_700Bold",
     letterSpacing: -0.5,
+    // Overflow guard: never force the value wider than the card
+    minWidth: 0,
   },
   label: {
     fontSize: 12,
     fontFamily: "Inter_500Medium",
+    minWidth: 0,
   },
   subtitle: {
     fontSize: 11,
     fontFamily: "Inter_400Regular",
+    minWidth: 0,
   },
   trendRow: {
     flexDirection: "row",
@@ -95,5 +121,7 @@ const styles = StyleSheet.create({
   trend: {
     fontSize: 11,
     fontFamily: "Inter_500Medium",
+    flexShrink: 1,
+    minWidth: 0,
   },
 });

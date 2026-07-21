@@ -363,7 +363,7 @@ function buildDocumentOverviewGrid(items: Array<{ label: string; value: string; 
   };
 }
 
-function kpiRow(items: Array<{ label: string; value: string; accent?: string }>): unknown {
+function kpiRow(items: Array<{ label: string; value: string; accent?: string; icon?: string; valueColor?: string }>, _accentColor?: string): unknown {
   return buildDocumentOverviewGrid(items);
 }
 
@@ -1207,9 +1207,14 @@ export interface SignatureToEmbed {
   signedAt: Date;
   /** Raw SVG markup produced by the mobile SignaturePad component (may be empty for a stamp-only signature). */
   signatureSvg?: string | null;
+  /** Raw signature data as stored in the DB (alias for signatureSvg — used by routes before mapping). */
+  signatureData?: string | null;
   /** Legal validation status of this signature — false once the document is rejected/superseded. */
   isValid?: boolean;
 }
+
+/** Alias used by routes for inline-signature embedding. */
+export type InlineSignatureInfo = SignatureToEmbed;
 
 /** Extracts `d="..."` path data from simple single-color <path> elements (our SignaturePad output). */
 function extractSvgPaths(svg: string): string[] {
@@ -1496,80 +1501,35 @@ export async function deleteDocumentFromGcs(internalPath: string): Promise<void>
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
+// V1 — 12 essential production templates
 export type DocumentTemplate =
   | "attestation"
-  | "pv"
-  | "convocation"
-  | "contrat"
-  | "rapport"
-  | "decision"
-  | "certificat"
-  | "circulaire"
-  | "mise_en_demeure"
-  // ── 11 enterprise templates ──────────────────────────
-  | "demande_administrative"
-  | "autorisation"
-  | "ordre_de_mission"
-  | "lettre_officielle"
-  | "note_interne"
-  | "rapport_financier"
-  | "rapport_audit"
-  | "convention_partenariat"
-  | "accord_collectif"
-  | "compte_rendu"
-  | "rapport_activite"
-  | "reglement"
-  // ── 3 smart certificate templates (auto-fills DB) ────
   | "attestation_residence"
   | "attestation_propriete"
   | "attestation_paiement"
-  // ── 6 financial & election templates (entity-driven) ─
+  | "convocation"
+  | "pv"
+  | "decision"
+  | "rapport_financier"
   | "appel_de_fonds"
-  | "recu_paiement"
   | "facture"
-  | "budget_previsionnel"
-  | "decompte_charges"
-  | "rapport_election"
-  // ── 3 operational templates (entity-driven) ──────────────
-  | "contrat_bail"
-  | "sinistre"
-  | "travaux";
+  | "contrat"
+  | "mise_en_demeure";
 
-/** Sequential-numbering prefix per template — used by the API route to mint REG-2026-0001 style refs. */
+/** Sequential-numbering prefix per template — V1 production set. */
 export const TEMPLATE_NUMBER_PREFIX: Record<DocumentTemplate, string> = {
-  attestation: "ATT",
-  pv: "PV",
-  convocation: "CONV",
-  contrat: "CTR",
-  rapport: "RAP",
-  decision: "DEC",
-  certificat: "CERT",
-  circulaire: "CIRC",
-  mise_en_demeure: "MED",
-  demande_administrative: "DEM",
-  autorisation: "AUT",
-  ordre_de_mission: "OM",
-  lettre_officielle: "LO",
-  note_interne: "NI",
-  rapport_financier: "FIN",
-  rapport_audit: "AUD",
-  convention_partenariat: "CONV-P",
-  accord_collectif: "AC",
-  compte_rendu: "CR",
-  rapport_activite: "RA",
-  reglement: "REG",
-  attestation_residence: "ATT-RES",
-  attestation_propriete: "ATT-PRO",
-  attestation_paiement:  "ATT-PAI",
-  appel_de_fonds:        "ADF",
-  recu_paiement:         "REC",
-  facture:               "FAC",
-  budget_previsionnel:   "BUD",
-  decompte_charges:      "DEC-CH",
-  rapport_election:      "ELEC",
-  contrat_bail:          "BAIL",
-  sinistre:              "SIN",
-  travaux:               "TRX",
+  attestation:            "ATT",
+  attestation_residence:  "ATT-RES",
+  attestation_propriete:  "ATT-PRO",
+  attestation_paiement:   "ATT-PAI",
+  convocation:            "CONV",
+  pv:                     "PV",
+  decision:               "DEC",
+  rapport_financier:      "FIN",
+  appel_de_fonds:         "ADF",
+  facture:                "FAC",
+  contrat:                "CTR",
+  mise_en_demeure:        "MED",
 };
 
 /** Real co-ownership property/residence data — fetched from `buildingsTable` + `lotsTable`. */
@@ -4028,14 +3988,6 @@ async function buildDocDef(template: DocumentTemplate, input: DocumentInput): Pr
       break;
     }
 
-    case "rapport": {
-      const rapportPeriode = (input.periode as string) || today;
-      const rapportAuteur  = member || syndInfo.name;
-      const hasKpiData     = !!(input._kpiTotalPaid || input._kpiTotalCharged || input._kpiOutstanding || input._kpiCollectionRate);
-      content = reconstructionPlaceholder("rapport", docNum, syndInfo);
-      break;
-    }
-
     case "decision": {
       const voteFor      = (input._voteFor      as string) || (input.votePour     as string) || "";
       const voteAgainst  = (input._voteAgainst  as string) || (input.voteContre   as string) || "";
@@ -4046,52 +3998,11 @@ async function buildDocDef(template: DocumentTemplate, input: DocumentInput): Pr
       break;
     }
 
-    case "certificat": {
-      // ── Enterprise credential certificate — authority issuer top, recipient hero center ──
-      // Visual concept: DocuSign/Adobe Sign "Certificate of Completion" —
-      // issuer band at top, ornamental title block, beneficiary name at 20pt,
-      // certification panel with left accent bar, official seal + signature.
-      // NO buildCertificateFrame — every element is purpose-built for this template.
-      const certDark = adjustColorBrightness(accentColor, -22);
-      const beneficiary = member || t("certificatBeneficiaryFallback", lang);
-      content = reconstructionPlaceholder("certificat", docNum, syndInfo);
-      break;
-    }
-
-    case "circulaire":
-      content = reconstructionPlaceholder("circulaire", docNum, syndInfo);
-      break;
-
     case "mise_en_demeure":
       content = reconstructionPlaceholder("mise_en_demeure", docNum, syndInfo);
       break;
 
-    // ── Template 10: Demande Administrative ─────────────────────────────────────
-    case "demande_administrative":
-      content = reconstructionPlaceholder("demande_administrative", docNum, syndInfo);
-      break;
-
-    // ── Template 11: Autorisation ────────────────────────────────────────────────
-    case "autorisation":
-      content = reconstructionPlaceholder("autorisation", docNum, syndInfo);
-      break;
-
-    // ── Template 12: Ordre de Mission ────────────────────────────────────────────
-    case "ordre_de_mission":
-      content = reconstructionPlaceholder("ordre_de_mission", docNum, syndInfo);
-      break;
-
-    // ── Template 13: Lettre Officielle ───────────────────────────────────────────
-    case "lettre_officielle":
-      content = reconstructionPlaceholder("lettre_officielle", docNum, syndInfo);
-      break;
-
-    // ── Template 14: Note Interne ────────────────────────────────────────────────
-    case "note_interne":
-      content = reconstructionPlaceholder("note_interne", docNum, syndInfo);
-      break;
-
-    // ── Template 15: Rapport Financier ───────────────────────────────────────────
+    // ── Rapport Financier ────────────────────────────────────────────────────────
     case "rapport_financier": {
       // Auto-derive names from officeHolders when user hasn't typed them
       const oh = input.officeHolders as OfficeHolders | undefined;
@@ -4120,46 +4031,7 @@ async function buildDocDef(template: DocumentTemplate, input: DocumentInput): Pr
       break;
     }
 
-    // ── Template 16: Rapport d'Audit ─────────────────────────────────────────────
-    case "rapport_audit":
-      content = reconstructionPlaceholder("rapport_audit", docNum, syndInfo);
-      break;
-
-    // ── Template 17: Convention de Partenariat ───────────────────────────────────
-    case "convention_partenariat":
-      content = reconstructionPlaceholder("convention_partenariat", docNum, syndInfo);
-      break;
-
-    // ── Template 18: Accord Collectif ────────────────────────────────────────────
-    case "accord_collectif":
-      content = reconstructionPlaceholder("accord_collectif", docNum, syndInfo);
-      break;
-
-    // ── Template 19: Compte-Rendu de Réunion ─────────────────────────────────────
-    case "compte_rendu":
-      content = reconstructionPlaceholder("compte_rendu", docNum, syndInfo);
-      break;
-
-    // ── Template 20: Rapport d'Activité ──────────────────────────────────────────
-    case "rapport_activite":
-      content = reconstructionPlaceholder("rapport_activite", docNum, syndInfo);
-      break;
-
-    // ── Template 21: Règlement de Copropriété (dynamic, DB-fed) ─────────────────
-    case "reglement": {
-      const prop = input.property as PropertyInfo | undefined;
-      const officeHolders = input.officeHolders as OfficeHolders | undefined;
-      const president = officeHolders?.president;
-      const residenceName = prop?.name || syndInfo.name;
-      const surfaceText = prop?.totalSurfaceM2 != null ? `${prop.totalSurfaceM2} m²` : t("notRenseigne", lang);
-      const managerPart = officeHolders?.manager?.fullName
-        ? fmt(t("reglementAdminManagerPart", lang), { manager: officeHolders.manager.fullName })
-        : "";
-      content = reconstructionPlaceholder("reglement", docNum, syndInfo);
-      break;
-    }
-
-    // ── Template 22: Attestation de Résidence ────────────────────────────────────
+    // ── Attestation de Résidence ──────────────────────────────────────────────────
     // Visual concept: Official address proof / domicile certificate.
     // The ADDRESS is the primary fact — it occupies the most prominent visual real estate.
     // Instantly distinguishable from attestation_propriete: residence = address hero,
@@ -5196,19 +5068,6 @@ async function buildDocDef(template: DocumentTemplate, input: DocumentInput): Pr
       break;
     }
 
-    // ── Reçu de Paiement ─────────────────────────────────────────────────────
-    case "recu_paiement": {
-      const paidAmount = Number(input.amount as string ?? 0);
-      const paidDate = (input._paidDate as string) || today;
-      const paymentMethod = (input._paymentMethod as string) || "—";
-      const receiptRef = (input._receiptNumber as string) || docNum;
-      const appelRef = (input._appelId as string) || "—";
-      const periodeRec = (input.periode as string) || today;
-
-      content = reconstructionPlaceholder("recu_paiement", docNum, syndInfo);
-      break;
-    }
-
     // ── Facture (ENTERPRISE FAMILY — Image 1 layout) ─────────────────────────
     case "facture": {
       const invoiceAmount = Number(input.amount as string ?? 0);
@@ -5345,110 +5204,8 @@ async function buildDocDef(template: DocumentTemplate, input: DocumentInput): Pr
       break;
     }
 
-    // ── Budget Prévisionnel ───────────────────────────────────────────────────
-    case "budget_previsionnel": {
-      const budgetYear    = (input.exercice as string) || (input._kpiYear as string) || String(new Date().getFullYear());
-      const totalAmount   = (input._totalAmount   as string) || (input._kpiBudgetTotal   as string) || "0";
-      const chargesAmount = (input._chargesAmount as string) || (input._kpiBudgetCharges as string) || "0";
-      const fondsReserve  = (input._fondsReserve  as string) || (input._kpiBudgetReserve as string) || "0";
-      const budgetBuilding = (input._buildingName as string) || buildingName || "—";
-      const rawBudgetLines = (input._budgetLines as string) || "";
-      const budgetStatus  = (input._budgetStatus as string) || (input._kpiBudgetStatus as string) || "draft";
-      const statusLabel   = ({ draft: "BROUILLON", voted: "VOTÉ", approved: "APPROUVÉ", archived: "ARCHIVÉ" } as Record<string, string>)[budgetStatus] || budgetStatus.toUpperCase();
-      const statusColor   = ({ voted: BRAND.successDark, approved: BRAND.primary, archived: BRAND.muted, draft: BRAND.warningDark } as Record<string, string>)[budgetStatus] || BRAND.warningDark;
-
-      // Parse budget lines from text format into structured data
-      const parsedLines: Array<{ category: string; label: string; amountAnnual: number }> = rawBudgetLines
-        .split("\n")
-        .filter((l) => l.trim())
-        .map((l) => {
-          const parts = l.trim().split(/\s{2,}/);
-          if (parts.length >= 3) {
-            const amountStr = parts[parts.length - 1].replace(/\s|MAD/g, "").replace(",", ".");
-            return {
-              category: parts[0].trim(),
-              label:    parts.slice(1, -1).join(" ").trim() || parts[0].trim(),
-              amountAnnual: parseFloat(amountStr) || 0,
-            };
-          }
-          return null;
-        })
-        .filter(Boolean) as Array<{ category: string; label: string; amountAnnual: number }>;
-
-      content = reconstructionPlaceholder("budget_previsionnel", docNum, syndInfo);
-      break;
-    }
-
-    // ── Décompte des Charges ──────────────────────────────────────────────────
-    case "decompte_charges": {
-      const decompteYear     = (input.exercice as string) || (input._decompteYear as string) || String(new Date().getFullYear());
-      const totalProvisioned = Number((input.totalPrevu   as string) || "0");
-      const totalActual      = Number((input.totalRealise as string) || "0");
-      const totalPaid        = Number((input._decompteTotalPaid as string) || "0");
-      const totalOverdue     = Number((input._decompteTotalOverdue as string) || "0");
-      const difference       = totalActual - totalProvisioned;
-      const appelCount       = (input._decompteAppelCount as string) || "0";
-      const breakdownText    = (input._decompteBreakdown as string) || "";
-      const collRate         = totalProvisioned > 0 ? Math.round((totalPaid / totalProvisioned) * 100) : 0;
-
-      // Data validation — warn if no real data available
-      const hasRealData = totalProvisioned > 0 || totalActual > 0;
-
-      content = reconstructionPlaceholder("decompte_charges", docNum, syndInfo);
-      break;
-    }
-
-    // ── Rapport d'Élection ────────────────────────────────────────────────────
-    case "rapport_election": {
-      const electionTitle = (input._electionTitle as string) || input.title || "Élection du Conseil Syndical";
-      const electionType = (input._electionType as string) || "board";
-      const electionTypeLabel: Record<string, string> = {
-        president: "Président du Syndicat",
-        board: "Conseil Syndical",
-        financial_committee: "Comité Financier",
-        maintenance_committee: "Comité d'Entretien",
-        building_representative: "Représentant d'Immeuble",
-        special: "Élection Spéciale",
-      };
-      const startDate = (input._startDate as string) || today;
-      const endDate = (input._endDate as string) || today;
-      const eligibleCount = (input._eligibleCount as string) || "—";
-      const participantCount = (input._participantCount as string) || "—";
-      const quorumPercent = (input._quorumPercent as string) || "50";
-      const quorumReached = (input._quorumReached as string) || "NON";
-      const participationRate = (input._participationRate as string) || "—";
-      const mandateDuration = (input._mandateDuration as string) || "—";
-      const candidatesText = (input._candidates as string) || "Aucun candidat enregistré.";
-      const invalidVotes = (input._invalidVotes as string) || "0";
-
-      content = reconstructionPlaceholder("rapport_election", docNum, syndInfo);
-      break;
-    }
-
-    // ── Contrat de Bail (Rental/Lease Contract — entity-driven from tenantsTable) ─
-    case "contrat_bail": {
-      const tenantName      = (input._tenantName as string)       || member || "[LOCATAIRE]";
-      const tenantEmail     = (input._tenantEmail as string)      || "—";
-      const tenantPhone     = (input._tenantPhone as string)      || "—";
-      const lotNum          = (input._lotNumber as string)        || (input.lotNumber as string) || "—";
-      const lotFloor        = (input._lotFloor as string)         || "—";
-      const lotSurface      = (input._lotSurface as string)       || "—";
-      const buildingName_   = (input._buildingName as string)     || (input.property as PropertyInfo | undefined)?.name || syndInfo.name;
-      const buildingAddress_= (input._buildingAddress as string)  || syndInfo.address || "—";
-      const leaseStart      = (input._leaseStart as string)       || (input.dateDebut as string) || today;
-      const leaseEnd        = (input._leaseEnd as string)         || (input.dateFin as string)   || "À préciser";
-      const monthlyRent     = (input._monthlyRent as string)      || (input.montant as string)   || "—";
-      const depositAmount   = (input._depositAmount as string)    || "—";
-      const leaseStatus     = (input._leaseStatus as string)      || "active";
-      const statusLabel     = ({ active: "EN COURS", expired: "EXPIRÉ", terminated: "RÉSILIÉ" } as Record<string, string>)[leaseStatus] || leaseStatus.toUpperCase();
-      const accentIsBlue    = BRAND.info;
-
-      content = reconstructionPlaceholder("contrat_bail", docNum, syndInfo);
-      break;
-    }
-
-    // ── Déclaration de Sinistre (entity-driven from sinistresTable) ──────────────
-    case "sinistre": {
+    // ── Déclaration de Sinistre — V2 future template (kept for data migration) ─────
+    case "sinistre" as never: {
       const sinistreType     = (input._sinistreType as string)      || "—";
       const sinistreDate     = (input._sinistreDate as string)      || today;
       const sinistreDesc     = (input._sinistreDescription as string) || body || "—";
@@ -5489,8 +5246,8 @@ async function buildDocDef(template: DocumentTemplate, input: DocumentInput): Pr
       break;
     }
 
-    // ── Ordre de Travaux (entity-driven from travauxTable) ───────────────────────
-    case "travaux": {
+    // ── Ordre de Travaux — V2 future template (kept for data migration) ──────────
+    case "travaux" as never: {
       const travauxTitle     = (input._travauxTitle as string)      || input.title || "Travaux";
       const travauxType      = (input._travauxType as string)       || "entretien";
       const travauxPriority  = (input._travauxPriority as string)   || "normal";
@@ -5550,42 +5307,20 @@ async function buildDocDef(template: DocumentTemplate, input: DocumentInput): Pr
 }
 
 function getDocTypeLabel(template: DocumentTemplate, lang: DocumentLanguage = "fr"): string {
-  if (template === "reglement") return t("docTypeLabel_reglement", lang);
   if (lang !== "fr") return t("docTypeLabel_default", lang);
   const labels: Record<DocumentTemplate, string> = {
-    attestation:              "ATTESTATION D'ADHÉSION",
-    pv:                       "PROCÈS-VERBAL DE RÉUNION",
-    convocation:              "CONVOCATION OFFICIELLE",
-    contrat:                  "CONTRAT",
-    rapport:                  "RAPPORT D'ACTIVITÉ",
-    decision:                 "DÉCISION SYNDICALE",
-    certificat:               "CERTIFICAT OFFICIEL",
-    circulaire:               "CIRCULAIRE INTERNE",
-    mise_en_demeure:          "MISE EN DEMEURE OFFICIELLE",
-    demande_administrative:   "DEMANDE ADMINISTRATIVE",
-    autorisation:             "AUTORISATION OFFICIELLE",
-    ordre_de_mission:         "ORDRE DE MISSION",
-    lettre_officielle:        "LETTRE OFFICIELLE",
-    note_interne:             "NOTE INTERNE",
-    rapport_financier:        "RAPPORT FINANCIER",
-    rapport_audit:            "RAPPORT D'AUDIT",
-    convention_partenariat:   "CONVENTION DE PARTENARIAT",
-    accord_collectif:         "ACCORD COLLECTIF",
-    compte_rendu:             "COMPTE-RENDU DE RÉUNION",
-    rapport_activite:         "RAPPORT D'ACTIVITÉ",
-    reglement:                "RÈGLEMENT DE COPROPRIÉTÉ",
-    attestation_residence:    "ATTESTATION DE RÉSIDENCE",
-    attestation_propriete:    "ATTESTATION DE PROPRIÉTÉ",
-    attestation_paiement:     "ATTESTATION DE PAIEMENT",
-    appel_de_fonds:           "APPEL DE FONDS",
-    recu_paiement:            "REÇU DE PAIEMENT",
-    facture:                  "FACTURE",
-    budget_previsionnel:      "BUDGET PRÉVISIONNEL",
-    decompte_charges:         "DÉCOMPTE DES CHARGES",
-    rapport_election:         "RAPPORT D'ÉLECTION",
-    contrat_bail:             "CONTRAT DE BAIL",
-    sinistre:                 "DÉCLARATION DE SINISTRE",
-    travaux:                  "ORDRE DE TRAVAUX",
+    attestation:           "ATTESTATION D'ADHÉSION",
+    attestation_residence: "ATTESTATION DE RÉSIDENCE",
+    attestation_propriete: "ATTESTATION DE PROPRIÉTÉ",
+    attestation_paiement:  "ATTESTATION DE PAIEMENT",
+    convocation:           "CONVOCATION OFFICIELLE",
+    pv:                    "PROCÈS-VERBAL DE RÉUNION",
+    decision:              "DÉCISION SYNDICALE",
+    rapport_financier:     "RAPPORT FINANCIER",
+    appel_de_fonds:        "APPEL DE FONDS",
+    facture:               "FACTURE",
+    contrat:               "CONTRAT",
+    mise_en_demeure:       "MISE EN DEMEURE OFFICIELLE",
   };
   return labels[template] ?? template.toUpperCase().replace(/_/g, " ");
 }
@@ -5628,7 +5363,5 @@ export const CATEGORY_TO_TEMPLATE: Record<string, DocumentTemplate> = {
   attestation: "attestation",
   pv:          "pv",
   juridique:   "mise_en_demeure",
-  reglements:  "reglement",
   finances:    "rapport_financier",
-  statuts:     "certificat",
 };

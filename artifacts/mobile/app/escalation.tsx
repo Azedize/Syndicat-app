@@ -28,6 +28,7 @@ import {
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useAuth } from "@/context/AuthContext";
 import { useLanguage } from "@/context/LanguageContext";
+import { useToast } from "@/context/ToastContext";
 import { useColors } from "@/hooks/useColors";
 import { apiRequest } from "@/lib/api";
 import RoleGuard from "@/components/RoleGuard";
@@ -126,6 +127,7 @@ function EscalationScreenInner() {
   const insets = useSafeAreaInsets();
   const { user, token } = useAuth();
   const { t } = useLanguage();
+  const { showToast } = useToast();
 
   const [escalations, setEscalations] = useState<Escalation[]>([]);
   const [loading, setLoading] = useState(true);
@@ -156,7 +158,7 @@ function EscalationScreenInner() {
         );
         setEscalations(data.data ?? []);
       } catch (e: any) {
-        if (!silent) Alert.alert(t("error"), e.message ?? t("escLoadError"));
+        if (!silent) showToast({ type: "error", title: t("error"), message: e.message ?? t("escLoadError") });
       } finally {
         setLoading(false);
         setRefreshing(false);
@@ -187,13 +189,10 @@ function EscalationScreenInner() {
         token,
       );
       const r = result.result;
-      Alert.alert(
-        t("escScanTitle"),
-        `${r.created} ${t("escScanCreated")}, ${r.skipped} ${t("escScanSkipped")}${r.errors > 0 ? `, ${r.errors} ${t("escScanErrors")}` : ""}.`,
-      );
+      showToast({ type: "info", title: t("escScanTitle"), message: `${r.created} ${t("escScanCreated")}, ${r.skipped} ${t("escScanSkipped")}${r.errors > 0 ? `, ${r.errors} ${t("escScanErrors")}` : ""}.` });
       load(true);
     } catch (e: any) {
-      Alert.alert(t("error"), e.message ?? t("escScanError"));
+      showToast({ type: "error", title: t("error"), message: e.message ?? t("escScanError") });
     } finally {
       setScanning(false);
     }
@@ -204,7 +203,7 @@ function EscalationScreenInner() {
   const submitOverride = async () => {
     if (!overrideTarget) return;
     if (overrideReason.trim().length < 10) {
-      Alert.alert(t("escJustifRequired"), t("escJustifMinLen"));
+      showToast({ type: "warning", title: t("escJustifRequired"), message: t("escJustifMinLen") });
       return;
     }
     try {
@@ -219,7 +218,7 @@ function EscalationScreenInner() {
       setOverrideReason("");
       load(true);
     } catch (e: any) {
-      Alert.alert(t("error"), e.message ?? t("escOverrideError"));
+      showToast({ type: "error", title: t("error"), message: e.message ?? t("escOverrideError") });
     } finally {
       setSubmitting(false);
     }
@@ -241,7 +240,7 @@ function EscalationScreenInner() {
               await apiRequest(`/escalation/${item.id}/resolve`, "POST", {}, token);
               load(true);
             } catch (e: any) {
-              Alert.alert(t("error"), e.message ?? t("escResolveError"));
+              showToast({ type: "error", title: t("error"), message: e.message ?? t("escResolveError") });
             }
           },
         },
@@ -262,7 +261,7 @@ function EscalationScreenInner() {
     const tokenParam = token ? `?token=${encodeURIComponent(token)}` : "";
     const url = `${base}${item.letterUrl}${tokenParam}`;
     Linking.openURL(url).catch(() =>
-      Alert.alert(t("error"), t("escOpenDocError")),
+      showToast({ type: "error", title: t("error"), message: t("escOpenDocError") }),
     );
   };
 
