@@ -926,12 +926,13 @@ export const announcementsTable = pgTable("announcements", {
   id: id(),
   title: text("title").notNull(),
   body: text("body").notNull(),
-  priority: text("priority").default("normal"),
-  audience: text("audience").default("all"),
+  priority: text("priority").default("info"),
+  audience: text("audience").default("Tous les membres"),
   pinned: boolean("pinned").default(false),
   syndicateId: text("syndicate_id"),
   authorId: text("author_id"),
   author: text("author"),
+  expiresAt: timestamp("expires_at"),
   createdAt: createdAt(),
 });
 

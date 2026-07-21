@@ -29,12 +29,21 @@ import FilterChips from "@/components/FilterChips";
 
 type Priority = ApiAnnouncement["priority"];
 
-function getPriorityConfig(t: (key: string) => string): Record<Priority, { color: string; label: string; icon: keyof typeof Feather.glyphMap; bg: string }> {
+type PriorityConfig = { color: string; label: string; icon: keyof typeof Feather.glyphMap; bg: string };
+
+const FALLBACK_PRIORITY: PriorityConfig = { color: "#3b82f6", label: "Info", icon: "info", bg: "#3b82f615" };
+
+function getPriorityConfig(t: (key: string) => string): Record<string, PriorityConfig> {
   return {
-    urgent: { color: "#ef4444", label: t("priorityUrgent"), icon: "alert-circle", bg: "#ef444415" },
+    urgent:    { color: "#ef4444", label: t("priorityUrgent"),    icon: "alert-circle",   bg: "#ef444415" },
     important: { color: "#f59e0b", label: t("priorityImportant"), icon: "alert-triangle", bg: "#f59e0b15" },
-    info: { color: "#3b82f6", label: t("priorityInfo"), icon: "info", bg: "#3b82f615" },
+    info:      { color: "#3b82f6", label: t("priorityInfo"),       icon: "info",           bg: "#3b82f615" },
+    normal:    { color: "#3b82f6", label: t("priorityInfo"),       icon: "info",           bg: "#3b82f615" },
   };
+}
+
+function getPc(config: Record<string, PriorityConfig>, priority: string): PriorityConfig {
+  return config[priority] ?? FALLBACK_PRIORITY;
 }
 
 function timeAgo(dateStr: string): string {
@@ -218,7 +227,7 @@ export default function AnnoncesScreen() {
           />
         }
         renderItem={({ item: a }) => {
-          const pc = PRIORITY_CONFIG[a.priority];
+          const pc = getPc(PRIORITY_CONFIG, a.priority);
           return (
             <TouchableOpacity
               style={[styles.card, { backgroundColor: colors.card, borderColor: colors.border, borderLeftColor: pc.color }]}
@@ -277,10 +286,10 @@ export default function AnnoncesScreen() {
             </View>
 
             <ScrollView contentContainerStyle={{ padding: 20, gap: 16, paddingBottom: 40 }}>
-              <View style={[styles.priorityBanner, { backgroundColor: PRIORITY_CONFIG[selected.priority].bg, borderColor: PRIORITY_CONFIG[selected.priority].color + "40" }]}>
-                <Feather name={PRIORITY_CONFIG[selected.priority].icon} size={16} color={PRIORITY_CONFIG[selected.priority].color} />
-                <Text style={[styles.priorityBannerText, { color: PRIORITY_CONFIG[selected.priority].color }]}>
-                  {PRIORITY_CONFIG[selected.priority].label}
+              <View style={[styles.priorityBanner, { backgroundColor: getPc(PRIORITY_CONFIG, selected.priority).bg, borderColor: getPc(PRIORITY_CONFIG, selected.priority).color + "40" }]}>
+                <Feather name={getPc(PRIORITY_CONFIG, selected.priority).icon} size={16} color={getPc(PRIORITY_CONFIG, selected.priority).color} />
+                <Text style={[styles.priorityBannerText, { color: getPc(PRIORITY_CONFIG, selected.priority).color }]}>
+                  {getPc(PRIORITY_CONFIG, selected.priority).label}
                   {selected.pinned ? ` · ${t("announcePinned")}` : ""}
                 </Text>
               </View>
