@@ -62,24 +62,24 @@ export default function MembersScreen() {
 
   const handleContactAdmin = useCallback(async (syndicate: Syndicate) => {
     if (contactingAdmin) return;
-    const adminUserId = syndicate.adminId;
-    if (!adminUserId) {
-      // No adminId known — fall back to the chat list
-      navigateFromSyndicateModal("/chat");
-      return;
-    }
     setContactingAdmin(true);
     try {
-      const res = await chatApi.create({ participantId: adminUserId, convType: "direct" }) as any;
+      // If adminId is known use it directly; otherwise let the backend resolve
+      // the syndicate_admin by syndicateId (syndicateAdminLookup).
+      const params = syndicate.adminId
+        ? { participantId: syndicate.adminId, convType: "direct" as const }
+        : { syndicateAdminLookup: syndicate.id, convType: "direct" as const };
+      const res = await chatApi.create(params) as any;
       const convId = res?.data?.id;
+      closeSyndicateModal();
       if (convId) {
-        closeSyndicateModal();
-        setTimeout(() => router.push({ pathname: "/chat-thread", params: { id: convId } } as any), 300);
+        setTimeout(() => router.push(`/chat-thread?id=${convId}` as any), 300);
       } else {
-        navigateFromSyndicateModal("/chat");
+        setTimeout(() => router.push("/chat" as any), 300);
       }
     } catch {
-      navigateFromSyndicateModal("/chat");
+      closeSyndicateModal();
+      setTimeout(() => router.push("/chat" as any), 300);
     } finally {
       setContactingAdmin(false);
     }

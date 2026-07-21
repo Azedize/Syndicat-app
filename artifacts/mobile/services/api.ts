@@ -916,6 +916,7 @@ export const chat = {
 
   create: (params: {
     participantId?: string;
+    syndicateAdminLookup?: string;
     isGroup?: boolean;
     name?: string;
     convType?: ApiConversation["convType"];

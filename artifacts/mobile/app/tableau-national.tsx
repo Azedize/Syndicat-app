@@ -167,19 +167,16 @@ function TableauNationalScreenInner() {
 
   const handleContactAdmin = useCallback(async (syndicat: SyndicateStat) => {
     if (contactingAdmin) return;
-    const adminUserId = syndicat.adminId;
-    if (!adminUserId) {
-      setSelectedSyndicat(null);
-      setTimeout(() => router.push("/chat" as any), 300);
-      return;
-    }
     setContactingAdmin(true);
     try {
-      const res = await chatApi.create({ participantId: adminUserId, convType: "direct" }) as any;
+      const params = syndicat.adminId
+        ? { participantId: syndicat.adminId, convType: "direct" as const }
+        : { syndicateAdminLookup: syndicat.id, convType: "direct" as const };
+      const res = await chatApi.create(params) as any;
       const convId = res?.data?.id;
       setSelectedSyndicat(null);
       if (convId) {
-        setTimeout(() => router.push({ pathname: "/chat-thread", params: { id: convId } } as any), 300);
+        setTimeout(() => router.push(`/chat-thread?id=${convId}` as any), 300);
       } else {
         setTimeout(() => router.push("/chat" as any), 300);
       }

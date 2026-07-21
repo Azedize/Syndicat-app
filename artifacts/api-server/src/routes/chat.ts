@@ -557,6 +557,7 @@ router.get("/conversations/search", requireAuth, async (req, res) => {
 router.post("/conversations", requireAuth, async (req, res) => {
   const schema = z.object({
     participantId: z.string().optional(),
+    syndicateAdminLookup: z.string().optional(), // syndicateId — super_admin shortcut: find the admin of this syndicate
     isGroup: z.boolean().default(false),
     name: z.string().max(100).optional(),
     convType: z.enum(["direct", "group", "announcement", "support", "building", "emergency"]).default("direct"),
@@ -570,8 +571,28 @@ router.post("/conversations", requireAuth, async (req, res) => {
   }
 
   try {
-    const { participantId, isGroup, name, convType, buildingId, participantIds } = result.data;
+    let { participantId, isGroup, name, convType, buildingId, participantIds } = result.data;
+    const { syndicateAdminLookup } = result.data;
     const actor = req.user!;
+
+    // ── Super-admin shortcut: resolve syndicate admin by syndicateId ──────────
+    if (syndicateAdminLookup && !participantId && actor.role === "super_admin") {
+      const [adminUser] = await db
+        .select({ id: usersTable.id })
+        .from(usersTable)
+        .where(
+          and(
+            eq(usersTable.syndicateId, syndicateAdminLookup),
+            eq(usersTable.role, "syndicate_admin"),
+          ),
+        )
+        .limit(1);
+      if (!adminUser) {
+        res.status(404).json({ error: "Aucun administrateur trouvé pour ce syndicat" });
+        return;
+      }
+      participantId = adminUser.id;
+    }
 
     // ── RBAC communication matrix: enforced for direct + emergency 1:1 chats ──
     if ((convType === "direct" || convType === "emergency") && !isGroup && participantId) {
