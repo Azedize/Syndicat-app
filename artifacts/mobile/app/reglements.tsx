@@ -540,7 +540,30 @@ export default function ReglementsScreen() {
   const [newDesc, setNewDesc] = useState("");
 
   useEffect(() => {
-    apiRequest<{ data: any[] }>("/documents?type=reglement").then(({ data }) => { if (data?.length) setDocs(data as any); }).catch(() => {});
+    apiRequest<any>("/documents?type=reglement")
+      .then((resp) => {
+        // API may return an array directly or wrapped in { data: [...] }
+        const raw: any[] = Array.isArray(resp) ? resp : Array.isArray(resp?.data) ? resp.data : [];
+        if (!raw.length) return;
+        // Remap API docs to local ReglementDoc shape with safe fallbacks
+        const mapped: ReglementDoc[] = raw.map((doc: any) => ({
+          id:            String(doc.id ?? ""),
+          title:         String(doc.title ?? ""),
+          type:          (["statuts","ri","circulaire","charte","accord"] as DocType[]).includes(doc.type) ? doc.type as DocType : "ri",
+          status:        (["published","draft","revision","archived"] as DocStatus[]).includes(doc.status) ? doc.status as DocStatus : "draft",
+          version:       String(doc.version ?? "v1.0"),
+          publishedDate: String(doc.publishedDate ?? doc.published_date ?? ""),
+          updatedDate:   String(doc.updatedDate   ?? doc.updated_date   ?? doc.date ?? ""),
+          author:        String(doc.author ?? ""),
+          approvedBy:    String(doc.approvedBy ?? doc.approved_by ?? ""),
+          pages:         Number(doc.pages ?? 0),
+          description:   String(doc.description ?? doc.content ?? ""),
+          tags:          Array.isArray(doc.tags) ? doc.tags.map(String) : [],
+          downloads:     Number(doc.downloads ?? 0),
+        }));
+        setDocs(mapped);
+      })
+      .catch(() => {/* keep INITIAL_DOCS on error */});
   }, []);
 
   // Opens the real generated PDF via a short-lived signed download URL when the
