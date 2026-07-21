@@ -799,7 +799,7 @@ const styles = StyleSheet.create({
   subtitle: { fontSize: 11, fontFamily: "Inter_400Regular", marginTop: 2 },
   platformBadge: { flexDirection: "row", alignItems: "center", gap: 5, paddingHorizontal: 10, paddingVertical: 5, borderRadius: 20 },
   platformBadgeText: { fontSize: 11, fontFamily: "Inter_600SemiBold" },
-  kpiScroll: { borderBottomWidth: 1, maxHeight: 90 },
+  kpiScroll: { borderBottomWidth: 1, height: 106 },
   kpiCard: { alignItems: "center", padding: 12, borderRadius: 14, borderWidth: 1, gap: 4, minWidth: 100 },
   kpiIcon: { width: 32, height: 32, borderRadius: 9, alignItems: "center", justifyContent: "center" },
   kpiVal: { fontSize: 16, fontFamily: "Inter_700Bold" },
