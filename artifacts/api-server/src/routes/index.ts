@@ -50,10 +50,13 @@ const router: IRouter = Router();
 // ─── Subscription enforcement (Scenario 7) ────────────────────────────────────
 // Block all write operations when the syndicate's subscription is expired or
 // suspended. GET / HEAD / OPTIONS are read-only and always pass through.
+// Auth routes (/auth/*) are always exempt — login/refresh/logout must work even
+// on expired subscriptions so users can still sign in to read their data.
 // requireActiveSubscription reads req.user set by the global softAuth middleware.
 // super_admin is always exempt (platform owner, no subscription constraint).
 router.use((req: Request, res: Response, next: NextFunction) => {
   if (["GET", "HEAD", "OPTIONS"].includes(req.method)) return next();
+  if (req.path.startsWith("/auth/")) return next();
   return requireActiveSubscription(req, res, next);
 });
 
