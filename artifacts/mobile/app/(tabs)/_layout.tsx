@@ -234,24 +234,28 @@ export default function TabLayout() {
         }}
       />
 
-      {/* Finance — admin only.
-          Super Admin sees platform revenue / global stats.
-          Syndic Admin sees their syndicate's financial overview. */}
+      {/* Finance — Syndicate Admin only.
+          Super Admin is the PLATFORM OWNER; he does NOT manage syndicate-level
+          finances (charges, budgets, prestataires). His financial view is the
+          Tableau National (revenue, subscriptions, platform KPIs).
+          Syndicate Admin sees their syndicate's financial overview. */}
       <Tabs.Screen
         name="finance"
         options={{
           title: t("finance"),
-          tabBarItemStyle: isAdmin ? undefined : hiddenTabStyle,
+          tabBarItemStyle: isSyndicateAdmin ? undefined : hiddenTabStyle,
         }}
       />
 
-      {/* Marketplace — visible to super_admin, syndicate_admin, member.
-          Tenant is blocked: cannot browse or purchase. */}
+      {/* Marketplace — Syndicate Admin + Member only.
+          Super Admin is not a resident or co-owner; he has no lot and no
+          business purchasing or selling in the syndicate marketplace.
+          Tenant is also blocked: cannot browse or purchase. */}
       <Tabs.Screen
         name="marketplace"
         options={{
           title: t("marketplace"),
-          tabBarItemStyle: isTenant ? hiddenTabStyle : undefined,
+          tabBarItemStyle: (isSyndicateAdmin || role === "member") ? undefined : hiddenTabStyle,
         }}
       />
 

@@ -1,3 +1,4 @@
+- [Super Admin SaaS scope](super-admin-saas-scope.md) — super_admin is platform owner ONLY; all syndicate operational modules stripped from his menu and tabs (Finance tab, Marketplace tab now hidden for super_admin).
 - [Rebuilding missing workspace lib packages](rebuild-missing-lib-packages.md) — when tsconfig/package.json reference `lib/*` packages absent from disk, derive schema/exports from consuming route code, not just any old SQL dump.
 - [Expo RTL reload requirement](expo-rtl-reload.md) — forceRTL() alone doesn't flip layout; app must reload, and reloadAsync throws in Expo Go/dev client.
 - [Stale lib/db dist masks schema errors](stale-db-typecheck.md) — tsc can pass while referencing dropped/renamed Drizzle columns because `lib/db/dist` typings are stale; verify against `lib/db/src/schema.ts` source, not dist types.

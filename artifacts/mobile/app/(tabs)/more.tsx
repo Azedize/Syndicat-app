@@ -34,112 +34,147 @@ interface SectionDef {
 }
 
 const MENU_SECTIONS_DEF: SectionDef[] = [
-  {
-    titleKey: "menuSectionBuilding",
-    items: [
-      { labelKey: "buildingsResidences", icon: "home",       route: "/buildings",   color: "#7c3aed", roles: ["super_admin", "syndicate_admin"] },
-      { labelKey: "lotsUnits",           icon: "grid",       route: "/lots",        color: "#3b82f6", roles: ["super_admin", "syndicate_admin"] },
-      { labelKey: "owners",              icon: "users",      route: "/members",     color: "#10b981", roles: ["super_admin", "syndicate_admin"] },
-      { labelKey: "locataires",          icon: "user-check", route: "/locataires",  color: "#06b6d4", roles: ["super_admin", "syndicate_admin"] },
-      { labelKey: "myApartment",         icon: "home",       route: "/mon-lot",     color: "#7c3aed", roles: ["member"] },
-    ],
-  },
-  {
-    titleKey: "menuSectionMyHome",
-    items: [
-      { labelKey: "myApartment",  icon: "home",      route: "/mon-lot",      color: "#7c3aed", roles: ["tenant"] },
-      { labelKey: "monBail",      icon: "file-text", route: "/mon-bail",     color: "#3b82f6", roles: ["tenant"] },
-      { labelKey: "etatDesLieux", icon: "clipboard", route: "/etat-des-lieux", color: "#10b981", roles: ["tenant"] },
-    ],
-  },
-  {
-    titleKey: "menuSectionFinance",
-    items: [
-      { labelKey: "tableauBord",        icon: "bar-chart-2",  route: "/tableau-bord-financier", color: "#3b82f6", roles: ["super_admin", "syndicate_admin"] },
-      { labelKey: "chargesAppels",      icon: "credit-card",  route: "/charges",                color: "#10b981", roles: ["super_admin", "syndicate_admin", "member"] },
-      { labelKey: "cotisations",        icon: "layers",       route: "/cotisations",            color: "#06b6d4", roles: ["member"] },
-      { labelKey: "paymentHistory",     icon: "dollar-sign",  route: "/paiements",              color: "#10b981", roles: ["member", "tenant"] },
-      { labelKey: "budgetPrevisionnel", icon: "pie-chart",    route: "/budget-previsionnel",    color: "#8b5cf6", roles: ["super_admin", "syndicate_admin"] },
-      { labelKey: "devisFactures",      icon: "file-text",    route: "/invoices",               color: "#6366f1", roles: ["super_admin", "syndicate_admin"] },
-      { labelKey: "bonLivraison",       icon: "package",      route: "/bon-livraison",          color: "#f97316", roles: ["super_admin", "syndicate_admin"] },
-      { labelKey: "rapportsFinanciers", icon: "bar-chart-2",  route: "/reports",                color: "#7c3aed", roles: ["super_admin", "syndicate_admin"] },
-      { labelKey: "fichesPaie",         icon: "file-text",    route: "/fiches-paie",            color: "#6366f1", roles: ["super_admin", "syndicate_admin"] },
-      { labelKey: "escalationLabel",    icon: "trending-up",  route: "/escalation",             color: "#ef4444", roles: ["super_admin", "syndicate_admin"] },
-    ],
-  },
-  {
-    titleKey: "menuSectionMaintenance",
-    items: [
-      { labelKey: "travaux",          icon: "tool",           route: "/travaux",           color: "#f59e0b", roles: ["super_admin", "syndicate_admin", "member", "tenant"] },
-      { labelKey: "prestataires",     icon: "briefcase",      route: "/prestataires",      color: "#3b82f6", roles: ["super_admin", "syndicate_admin"] },
-      { labelKey: "sinistres",        icon: "alert-triangle", route: "/sinistres",         color: "#ef4444", roles: ["super_admin", "syndicate_admin", "member", "tenant"] },
-      { labelKey: "travauxPrivatifs", icon: "edit-2",         route: "/travaux-privatifs", color: "#f97316", roles: ["super_admin", "syndicate_admin", "member", "tenant"] },
-      { labelKey: "parkingVehicules", icon: "map-pin",        route: "/parking",           color: "#7c3aed", roles: ["super_admin", "syndicate_admin", "member", "tenant"] },
-    ],
-  },
-  {
-    titleKey: "menuSectionAG",
-    items: [
-      { labelKey: "assembleesGenerales",  icon: "users",       route: "/assemblee-generale", color: "#7c3aed", roles: ["super_admin", "syndicate_admin", "member"] },
-      { labelKey: "reunionsConvocations", icon: "calendar",    route: "/meetings",            color: "#3b82f6", roles: ["super_admin", "syndicate_admin", "member"] },
-      { labelKey: "votesResolutions",     icon: "check-square",route: "/elections",           color: "#f59e0b", roles: ["super_admin", "syndicate_admin", "member"] },
-      { labelKey: "pvLabel",              icon: "file-text",   route: "/pv",                  color: "#6366f1", roles: ["super_admin", "syndicate_admin", "member"] },
-      { labelKey: "governance",           icon: "award",       route: "/governance",          color: "#8b5cf6", roles: ["super_admin", "syndicate_admin"] },
-    ],
-  },
-  {
-    titleKey: "menuSectionLegal",
-    items: [
-      { labelKey: "documentsCopro",         icon: "folder",    route: "/documents",            color: "#6366f1", roles: ["super_admin", "syndicate_admin", "member", "tenant"] },
-      { labelKey: "reglementsLabel",         icon: "book",      route: "/reglements",           color: "#3b82f6", roles: ["super_admin", "syndicate_admin", "member", "tenant"] },
-      { labelKey: "actesAdministratifs",     icon: "file-text", route: "/actes-administratifs", color: "#7c3aed", roles: ["super_admin", "syndicate_admin"] },
-      { labelKey: "alertesReglementaires",   icon: "shield",    route: "/legal",                color: "#8b5cf6", roles: ["super_admin", "syndicate_admin"] },
-      { labelKey: "transparency",            icon: "eye",       route: "/transparency",         color: "#10b981", roles: ["super_admin", "syndicate_admin"] },
-      { labelKey: "demandesModeles",         icon: "inbox",     route: "/template-request",     color: "#a78bfa", roles: ["syndicate_admin"] },
-    ],
-  },
-  {
-    titleKey: "menuSectionCommunication",
-    items: [
-      { labelKey: "avisResidents",          icon: "bell",           route: "/annonces",           color: "#f59e0b", roles: ["super_admin", "syndicate_admin", "member", "tenant"] },
-      { labelKey: "publicationsActualites", icon: "rss",            route: "/publications",       color: "#f97316", roles: ["super_admin", "syndicate_admin", "member", "tenant"] },
-      { labelKey: "chatMessagerie",         icon: "message-circle", route: "/chat",               color: "#ec4899", roles: ["super_admin", "syndicate_admin", "member", "tenant"] },
-      { labelKey: "messagerieInterne",      icon: "mail",           route: "/messagerie-interne", color: "#3b82f6", roles: ["super_admin", "syndicate_admin", "member", "tenant"] },
-      { labelKey: "ideas",                  icon: "zap",            route: "/ideas",              color: "#f59e0b", roles: ["super_admin", "syndicate_admin", "member", "tenant"] },
-    ],
-  },
-  {
-    titleKey: "menuSectionSupport",
-    items: [
-      // Support tickets — all roles (anyone can submit a helpdesk request)
-      { labelKey: "demandesIntervention", icon: "headphones", route: "/support",      color: "#ef4444", roles: ["super_admin", "syndicate_admin", "member", "tenant"] },
-      // Réclamations = HR grievances module (salaire, discrimination, harcèlement)
-      // Restricted to internal staff roles only — NOT for tenants (locataires)
-      { labelKey: "reclamationsLabel",    icon: "inbox",      route: "/reclamations", color: "#f97316", roles: ["super_admin", "syndicate_admin", "member"] },
-    ],
-  },
-  {
-    titleKey: "menuSectionMarketplace",
-    items: [
-      { labelKey: "monPanier",    icon: "shopping-cart", route: "/cart",     color: "#f59e0b", roles: ["member", "syndicate_admin"] },
-      { labelKey: "mesCommandes", icon: "package",       route: "/orders",   color: "#6366f1", roles: ["member", "syndicate_admin"] },
-      { labelKey: "maBoutique",   icon: "shopping-bag",  route: "/my-shop",  color: "#10b981", roles: ["member", "syndicate_admin"] },
-    ],
-  },
+  // ─── SUPER ADMIN: Platform Administration ────────────────────────────────────
+  // Super Admin is the SaaS PLATFORM OWNER, not a syndicate employee.
+  // He never manages buildings, lots, residents, finance, maintenance, or governance.
+  // His entire experience is scoped to the platform itself.
   {
     titleKey: "menuSectionAdmin",
     items: [
-      { labelKey: "gestionUtilisateurs",  icon: "users",       route: "/utilisateurs",   color: "#7c3aed", roles: ["super_admin"] },
-      { labelKey: "tableauNational",      icon: "globe",        route: "/tableau-national",color: "#6366f1", roles: ["super_admin"] },
-      { labelKey: "creerSyndicat",        icon: "plus-circle",  route: "/syndicate-setup", color: "#10b981", roles: ["super_admin"] },
-      { labelKey: "journalAudit",         icon: "shield",       route: "/journal-audit",   color: "#ef4444", roles: ["super_admin"] },
-      { labelKey: "statistiquesGlobales", icon: "trending-up",  route: "/statistiques",    color: "#10b981", roles: ["super_admin", "syndicate_admin"] },
+      { labelKey: "tableauNational",      icon: "globe",        route: "/tableau-national",  color: "#6366f1", roles: ["super_admin"] },
+      { labelKey: "gestionUtilisateurs",  icon: "users",        route: "/utilisateurs",      color: "#7c3aed", roles: ["super_admin"] },
+      { labelKey: "creerSyndicat",        icon: "plus-circle",  route: "/syndicate-setup",   color: "#10b981", roles: ["super_admin"] },
+      { labelKey: "journalAudit",         icon: "shield",       route: "/journal-audit",     color: "#ef4444", roles: ["super_admin"] },
+      { labelKey: "statistiquesGlobales", icon: "trending-up",  route: "/statistiques",      color: "#0ea5e9", roles: ["super_admin"] },
+      { labelKey: "modelesPlateforme",    icon: "layout",       route: "/template-studio",   color: "#8b5cf6", roles: ["super_admin"] },
+      { labelKey: "editeurModeles",       icon: "edit",         route: "/template-editor",   color: "#a78bfa", roles: ["super_admin"] },
     ],
   },
+
+  // ─── BUILDING MANAGEMENT — Syndicate Admin only ───────────────────────────────
+  {
+    titleKey: "menuSectionBuilding",
+    items: [
+      { labelKey: "buildingsResidences", icon: "home",       route: "/buildings",   color: "#7c3aed", roles: ["syndicate_admin"] },
+      { labelKey: "lotsUnits",           icon: "grid",       route: "/lots",        color: "#3b82f6", roles: ["syndicate_admin"] },
+      { labelKey: "owners",              icon: "users",      route: "/members",     color: "#10b981", roles: ["syndicate_admin"] },
+      { labelKey: "locataires",          icon: "user-check", route: "/locataires",  color: "#06b6d4", roles: ["syndicate_admin"] },
+      { labelKey: "myApartment",         icon: "home",       route: "/mon-lot",     color: "#7c3aed", roles: ["member"] },
+    ],
+  },
+
+  // ─── MY HOME — Tenant only ────────────────────────────────────────────────────
+  {
+    titleKey: "menuSectionMyHome",
+    items: [
+      { labelKey: "myApartment",  icon: "home",      route: "/mon-lot",        color: "#7c3aed", roles: ["tenant"] },
+      { labelKey: "monBail",      icon: "file-text", route: "/mon-bail",       color: "#3b82f6", roles: ["tenant"] },
+      { labelKey: "etatDesLieux", icon: "clipboard", route: "/etat-des-lieux", color: "#10b981", roles: ["tenant"] },
+    ],
+  },
+
+  // ─── FINANCE — Syndicate Admin, Member, Tenant ────────────────────────────────
+  // Super Admin does NOT see syndicate-level finance.
+  // He has platform revenue/billing in his Admin section (tableau-national, statistiques).
+  {
+    titleKey: "menuSectionFinance",
+    items: [
+      { labelKey: "tableauBord",        icon: "bar-chart-2", route: "/tableau-bord-financier", color: "#3b82f6", roles: ["syndicate_admin"] },
+      { labelKey: "chargesAppels",      icon: "credit-card", route: "/charges",                color: "#10b981", roles: ["syndicate_admin", "member"] },
+      { labelKey: "cotisations",        icon: "layers",      route: "/cotisations",            color: "#06b6d4", roles: ["member"] },
+      { labelKey: "paymentHistory",     icon: "dollar-sign", route: "/paiements",              color: "#10b981", roles: ["member", "tenant"] },
+      { labelKey: "budgetPrevisionnel", icon: "pie-chart",   route: "/budget-previsionnel",    color: "#8b5cf6", roles: ["syndicate_admin"] },
+      { labelKey: "devisFactures",      icon: "file-text",   route: "/invoices",               color: "#6366f1", roles: ["syndicate_admin"] },
+      { labelKey: "bonLivraison",       icon: "package",     route: "/bon-livraison",          color: "#f97316", roles: ["syndicate_admin"] },
+      { labelKey: "rapportsFinanciers", icon: "bar-chart-2", route: "/reports",                color: "#7c3aed", roles: ["syndicate_admin"] },
+      { labelKey: "fichesPaie",         icon: "file-text",   route: "/fiches-paie",            color: "#6366f1", roles: ["syndicate_admin"] },
+      { labelKey: "escalationLabel",    icon: "trending-up", route: "/escalation",             color: "#ef4444", roles: ["syndicate_admin"] },
+    ],
+  },
+
+  // ─── MAINTENANCE — Syndicate Admin, Member, Tenant ────────────────────────────
+  // Super Admin does NOT manage buildings' maintenance tickets, vendors, or parking.
+  {
+    titleKey: "menuSectionMaintenance",
+    items: [
+      { labelKey: "travaux",          icon: "tool",           route: "/travaux",           color: "#f59e0b", roles: ["syndicate_admin", "member", "tenant"] },
+      { labelKey: "prestataires",     icon: "briefcase",      route: "/prestataires",      color: "#3b82f6", roles: ["syndicate_admin"] },
+      { labelKey: "sinistres",        icon: "alert-triangle", route: "/sinistres",         color: "#ef4444", roles: ["syndicate_admin", "member", "tenant"] },
+      { labelKey: "travauxPrivatifs", icon: "edit-2",         route: "/travaux-privatifs", color: "#f97316", roles: ["syndicate_admin", "member", "tenant"] },
+      { labelKey: "parkingVehicules", icon: "map-pin",        route: "/parking",           color: "#7c3aed", roles: ["syndicate_admin", "member", "tenant"] },
+    ],
+  },
+
+  // ─── ASSEMBLÉE GÉNÉRALE — Syndicate Admin + Member only ──────────────────────
+  // Super Admin does NOT participate in syndicate governance.
+  {
+    titleKey: "menuSectionAG",
+    items: [
+      { labelKey: "assembleesGenerales",  icon: "users",        route: "/assemblee-generale", color: "#7c3aed", roles: ["syndicate_admin", "member"] },
+      { labelKey: "reunionsConvocations", icon: "calendar",     route: "/meetings",            color: "#3b82f6", roles: ["syndicate_admin", "member"] },
+      { labelKey: "votesResolutions",     icon: "check-square", route: "/elections",           color: "#f59e0b", roles: ["syndicate_admin", "member"] },
+      { labelKey: "pvLabel",              icon: "file-text",    route: "/pv",                  color: "#6366f1", roles: ["syndicate_admin", "member"] },
+      { labelKey: "governance",           icon: "award",        route: "/governance",          color: "#8b5cf6", roles: ["syndicate_admin"] },
+    ],
+  },
+
+  // ─── LEGAL / DOCUMENTS — Syndicate Admin, Member, Tenant ─────────────────────
+  // Super Admin does NOT manage syndicate-level legal documents or regulations.
+  // Platform document templates (Template Studio) live in his Admin section.
+  {
+    titleKey: "menuSectionLegal",
+    items: [
+      { labelKey: "documentsCopro",       icon: "folder",    route: "/documents",            color: "#6366f1", roles: ["syndicate_admin", "member", "tenant"] },
+      { labelKey: "reglementsLabel",       icon: "book",      route: "/reglements",           color: "#3b82f6", roles: ["syndicate_admin", "member", "tenant"] },
+      { labelKey: "actesAdministratifs",   icon: "file-text", route: "/actes-administratifs", color: "#7c3aed", roles: ["syndicate_admin"] },
+      { labelKey: "alertesReglementaires", icon: "shield",    route: "/legal",                color: "#8b5cf6", roles: ["syndicate_admin"] },
+      { labelKey: "transparency",          icon: "eye",       route: "/transparency",         color: "#10b981", roles: ["syndicate_admin"] },
+      { labelKey: "demandesModeles",       icon: "inbox",     route: "/template-request",     color: "#a78bfa", roles: ["syndicate_admin"] },
+    ],
+  },
+
+  // ─── COMMUNICATION — Syndicate Admin, Member, Tenant ─────────────────────────
+  // Super Admin does NOT chat in syndicate community channels.
+  {
+    titleKey: "menuSectionCommunication",
+    items: [
+      { labelKey: "avisResidents",          icon: "bell",           route: "/annonces",           color: "#f59e0b", roles: ["syndicate_admin", "member", "tenant"] },
+      { labelKey: "publicationsActualites", icon: "rss",            route: "/publications",       color: "#f97316", roles: ["syndicate_admin", "member", "tenant"] },
+      { labelKey: "chatMessagerie",         icon: "message-circle", route: "/chat",               color: "#ec4899", roles: ["syndicate_admin", "member", "tenant"] },
+      { labelKey: "messagerieInterne",      icon: "mail",           route: "/messagerie-interne", color: "#3b82f6", roles: ["syndicate_admin", "member", "tenant"] },
+      { labelKey: "ideas",                  icon: "zap",            route: "/ideas",              color: "#f59e0b", roles: ["syndicate_admin", "member", "tenant"] },
+    ],
+  },
+
+  // ─── SUPPORT ─────────────────────────────────────────────────────────────────
+  // Support tickets: all roles (platform helpdesk).
+  // Réclamations = HR grievances — Syndicate Admin + Member only (not super_admin, not tenant).
+  {
+    titleKey: "menuSectionSupport",
+    items: [
+      { labelKey: "demandesIntervention", icon: "headphones", route: "/support",      color: "#ef4444", roles: ["super_admin", "syndicate_admin", "member", "tenant"] },
+      { labelKey: "reclamationsLabel",    icon: "inbox",      route: "/reclamations", color: "#f97316", roles: ["syndicate_admin", "member"] },
+    ],
+  },
+
+  // ─── MARKETPLACE — Syndicate Admin + Member only ──────────────────────────────
+  // Super Admin has no role in the syndicate marketplace (no lot, no purchases).
+  {
+    titleKey: "menuSectionMarketplace",
+    items: [
+      { labelKey: "monPanier",    icon: "shopping-cart", route: "/cart",    color: "#f59e0b", roles: ["member", "syndicate_admin"] },
+      { labelKey: "mesCommandes", icon: "package",       route: "/orders",  color: "#6366f1", roles: ["member", "syndicate_admin"] },
+      { labelKey: "maBoutique",   icon: "shopping-bag",  route: "/my-shop", color: "#10b981", roles: ["member", "syndicate_admin"] },
+    ],
+  },
+
+  // ─── STATISTICS — Syndicate Admin only (own syndicate scope) ─────────────────
+  // Super Admin gets global stats in his Tableau National (Admin section above).
   {
     titleKey: "menuSectionSubscriptions",
     items: [
-      { labelKey: "plansAbonnements", icon: "star", route: "/abonnements", color: "#f59e0b", roles: ["super_admin", "syndicate_admin", "member"] },
+      { labelKey: "statistiquesGlobales", icon: "bar-chart-2", route: "/statistiques", color: "#10b981", roles: ["syndicate_admin"] },
+      { labelKey: "plansAbonnements",     icon: "star",         route: "/abonnements",  color: "#f59e0b", roles: ["super_admin", "syndicate_admin", "member"] },
     ],
   },
   {

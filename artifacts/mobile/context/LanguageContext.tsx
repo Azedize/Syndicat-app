@@ -1635,6 +1635,8 @@ export const TRANSLATIONS: Translations = {
   gestionUtilisateurs:      { fr: "Gestion des Utilisateurs", en: "User Management", ar: "إدارة المستخدمين", es: "Gestión de Usuarios" },
   creerSyndicat:            { fr: "Créer un Syndicat", en: "Create a Syndicate", ar: "إنشاء نقابة", es: "Crear un Sindicato" },
   statistiquesGlobales:     { fr: "Statistiques Globales", en: "Global Statistics", ar: "الإحصائيات العامة", es: "Estadísticas Globales" },
+  modelesPlateforme:        { fr: "Modèles Plateforme", en: "Platform Templates", ar: "قوالب المنصة", es: "Plantillas Plataforma" },
+  editeurModeles:           { fr: "Éditeur de Modèles", en: "Template Editor", ar: "محرر القوالب", es: "Editor de Plantillas" },
   plansAbonnements:         { fr: "Plans & Abonnements", en: "Plans & Subscriptions", ar: "الخطط والاشتراكات", es: "Planes y Suscripciones" },
   monProfil:                { fr: "Mon Profil", en: "My Profile", ar: "ملفي الشخصي", es: "Mi Perfil" },
   cguLabel:                 { fr: "CGU & Confidentialité", en: "Terms & Privacy", ar: "الشروط والخصوصية", es: "Términos y Privacidad" },
