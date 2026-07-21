@@ -47,7 +47,7 @@ const QUICK_ACTIONS_ADMIN: QuickActionKey[] = [
   { labelKey: "tableauBord",   icon: "bar-chart-2", route: "/tableau-bord-financier",    color: "#3b82f6" },
   { labelKey: "prestataires",  icon: "briefcase",   route: "/prestataires",              color: "#f97316" },
   { labelKey: "documents",     icon: "folder",      route: "/documents",                 color: "#6366f1" },
-  { labelKey: "buildings",     icon: "home",        route: "/buildings",                 color: "#10b981" },
+  { labelKey: "teamSyndic",    icon: "award",       route: "/equipe-syndic",             color: "#8b5cf6" },
 ];
 
 const QUICK_ACTIONS_MEMBER: QuickActionKey[] = [

@@ -57,6 +57,7 @@ const MENU_SECTIONS_DEF: SectionDef[] = [
     items: [
       { labelKey: "tableauBord",        icon: "bar-chart-2",  route: "/tableau-bord-financier", color: "#3b82f6", roles: ["super_admin", "syndicate_admin"] },
       { labelKey: "chargesAppels",      icon: "credit-card",  route: "/charges",                color: "#10b981", roles: ["super_admin", "syndicate_admin", "member"] },
+      { labelKey: "cotisations",        icon: "layers",       route: "/cotisations",            color: "#06b6d4", roles: ["member"] },
       { labelKey: "paymentHistory",     icon: "dollar-sign",  route: "/paiements",              color: "#10b981", roles: ["member", "tenant"] },
       { labelKey: "budgetPrevisionnel", icon: "pie-chart",    route: "/budget-previsionnel",    color: "#8b5cf6", roles: ["super_admin", "syndicate_admin"] },
       { labelKey: "devisFactures",      icon: "file-text",    route: "/invoices",               color: "#6366f1", roles: ["super_admin", "syndicate_admin"] },
@@ -93,6 +94,7 @@ const MENU_SECTIONS_DEF: SectionDef[] = [
       { labelKey: "reglementsLabel",         icon: "book",      route: "/reglements",           color: "#3b82f6", roles: ["super_admin", "syndicate_admin", "member", "tenant"] },
       { labelKey: "actesAdministratifs",     icon: "file-text", route: "/actes-administratifs", color: "#7c3aed", roles: ["super_admin", "syndicate_admin"] },
       { labelKey: "alertesReglementaires",   icon: "shield",    route: "/legal",                color: "#8b5cf6", roles: ["super_admin", "syndicate_admin"] },
+      { labelKey: "transparency",            icon: "eye",       route: "/transparency",         color: "#10b981", roles: ["super_admin", "syndicate_admin"] },
       { labelKey: "demandesModeles",         icon: "inbox",     route: "/template-request",     color: "#a78bfa", roles: ["syndicate_admin"] },
     ],
   },

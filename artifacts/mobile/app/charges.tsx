@@ -268,6 +268,19 @@ function ChargesScreenInner() {
         </View>
       </View>
 
+      {/* Payment history shortcut — visible to members only */}
+      {!isAdmin && (
+        <TouchableOpacity
+          style={[styles.historyBanner, { backgroundColor: colors.card, borderColor: colors.border }]}
+          onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); router.push("/paiements" as any); }}
+          activeOpacity={0.75}
+        >
+          <Feather name="clock" size={14} color="#10b981" />
+          <Text style={[styles.historyBannerText, { color: colors.foreground }]}>Historique de mes paiements</Text>
+          <Feather name="chevron-right" size={14} color={colors.mutedForeground} />
+        </TouchableOpacity>
+      )}
+
       <FilterChips
         options={FILTERS}
         value={filter}
@@ -530,6 +543,8 @@ const styles = StyleSheet.create({
   adminActions: { flexDirection: "row", gap: 10, paddingTop: 8, borderTopWidth: StyleSheet.hairlineWidth },
   actionBtn: { flex: 1, flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 6, padding: 10, borderRadius: 10 },
   actionBtnText: { fontSize: 13, fontFamily: "Inter_600SemiBold" },
+  historyBanner: { flexDirection: "row", alignItems: "center", gap: 8, marginHorizontal: 16, marginTop: 8, marginBottom: 4, paddingHorizontal: 14, paddingVertical: 10, borderRadius: 12, borderWidth: StyleSheet.hairlineWidth },
+  historyBannerText: { flex: 1, fontSize: 13, fontFamily: "Inter_500Medium" },
   center: { flex: 1, alignItems: "center", justifyContent: "center" },
   empty: { alignItems: "center", gap: 12, paddingVertical: 60 },
   emptyText: { fontSize: 14, fontFamily: "Inter_400Regular" },
