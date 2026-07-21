@@ -28,15 +28,19 @@ type QuickActionKey = {
   color: string;
 };
 
+// Super Admin is the PLATFORM OWNER — not a syndicate employee.
+// Quick actions must only point to platform-administration screens.
+// Syndicate-level routes (/finance, /buildings, /reports, /legal) are
+// intentionally excluded — those belong to syndicate admins.
 const QUICK_ACTIONS_SUPER: QuickActionKey[] = [
-  { labelKey: "syndicates",    icon: "briefcase",   route: "/members",           color: "#7c3aed" },
-  { labelKey: "finance",       icon: "bar-chart-2", route: "/finance",           color: "#3b82f6" },
-  { labelKey: "buildings",     icon: "home",        route: "/buildings",         color: "#10b981" },
-  { labelKey: "tableauNational",icon: "globe",      route: "/tableau-national",  color: "#7c3aed" },
-  { labelKey: "reports",       icon: "pie-chart",   route: "/reports",           color: "#10b981" },
-  { labelKey: "alerts",        icon: "bell",        route: "/notifications",     color: "#f59e0b" },
-  { labelKey: "legal",         icon: "shield",      route: "/legal",             color: "#8b5cf6" },
-  { labelKey: "auditLog",      icon: "file-text",   route: "/journal-audit",     color: "#ef4444" },
+  { labelKey: "syndicates",          icon: "briefcase",  route: "/members",          color: "#7c3aed" },
+  { labelKey: "tableauNational",     icon: "globe",      route: "/tableau-national", color: "#6366f1" },
+  { labelKey: "gestionUtilisateurs", icon: "users",      route: "/utilisateurs",     color: "#3b82f6" },
+  { labelKey: "statistiquesGlobales",icon: "trending-up",route: "/statistiques",     color: "#10b981" },
+  { labelKey: "plansAbonnements",    icon: "star",       route: "/abonnements",      color: "#f59e0b" },
+  { labelKey: "support",             icon: "headphones", route: "/support",          color: "#ef4444" },
+  { labelKey: "auditLog",            icon: "shield",     route: "/journal-audit",    color: "#8b5cf6" },
+  { labelKey: "creerSyndicat",       icon: "plus-circle",route: "/syndicate-setup",  color: "#0ea5e9" },
 ];
 
 const QUICK_ACTIONS_ADMIN: QuickActionKey[] = [

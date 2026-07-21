@@ -271,10 +271,12 @@ export default function MembersScreen() {
                           },
                         },
                         {
-                          label: "Voir finances",
-                          icon: "bar-chart-2" as const,
-                          color: "#f59e0b",
-                          onPress: () => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); navigateFromSyndicateModal("/(tabs)/finance"); },
+                          // Platform owner monitors syndicates via Tableau National,
+                          // not through the syndicate-level finance tab.
+                          label: "Tableau National",
+                          icon: "globe" as const,
+                          color: "#6366f1",
+                          onPress: () => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); navigateFromSyndicateModal("/tableau-national"); },
                         },
                       ].map((action) => (
                         <TouchableOpacity
