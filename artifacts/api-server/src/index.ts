@@ -8,6 +8,7 @@ import { startElectionReminderScheduler } from "./lib/election-reminders.js";
 import { startMandateExpiryScheduler } from "./lib/mandate-expiry.js";
 import { startDocumentRetentionScheduler } from "./lib/document-retention-job.js";
 import { startDocumentExpiryScheduler } from "./lib/document-expiry-job.js";
+import { startSubscriptionReminderScheduler } from "./lib/subscription-reminders.js";
 import { verifySmtpConnection } from "./lib/email/emailService.js";
 
 // Fail fast on missing auth config — do not wait for first request
@@ -37,6 +38,10 @@ startDocumentRetentionScheduler();
 // Business-expiration scan: sends 30/15/7/1-day reminders and auto-flips
 // documents to "expired" once their expiresAt date has passed.
 startDocumentExpiryScheduler();
+
+// Sends push + email alerts to syndicate admins 7, 3, and 1 day before their
+// subscription expires (Scenario 7). After expiry, platform is read-only.
+startSubscriptionReminderScheduler();
 
 const rawPort = process.env["PORT"];
 

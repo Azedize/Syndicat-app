@@ -1,4 +1,5 @@
-import { Router, type IRouter } from "express";
+import { Router, type IRouter, type Request, type Response, type NextFunction } from "express";
+import { requireActiveSubscription } from "../middleware/subscription.js";
 import healthRouter from "./health.js";
 import authRouter from "./auth.js";
 import membersRouter from "./members.js";
@@ -45,6 +46,16 @@ import emailRouter from "./email.js";
 import templateStudioRouter from "./template-studio.js";
 
 const router: IRouter = Router();
+
+// ─── Subscription enforcement (Scenario 7) ────────────────────────────────────
+// Block all write operations when the syndicate's subscription is expired or
+// suspended. GET / HEAD / OPTIONS are read-only and always pass through.
+// requireActiveSubscription reads req.user set by the global softAuth middleware.
+// super_admin is always exempt (platform owner, no subscription constraint).
+router.use((req: Request, res: Response, next: NextFunction) => {
+  if (["GET", "HEAD", "OPTIONS"].includes(req.method)) return next();
+  return requireActiveSubscription(req, res, next);
+});
 
 router.use(healthRouter);
 router.use(authRouter);

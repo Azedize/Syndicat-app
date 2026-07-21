@@ -52,6 +52,8 @@ const MENU_SECTIONS_DEF: SectionDef[] = [
   },
 
   // ─── BUILDING MANAGEMENT — Syndicate Admin only ───────────────────────────────
+  // Member removed per Scenario 2: member's access is Dashboard, Payments,
+  // Documents, Complaints, Meetings, Voting, Notifications only.
   {
     titleKey: "menuSectionBuilding",
     items: [
@@ -59,7 +61,6 @@ const MENU_SECTIONS_DEF: SectionDef[] = [
       { labelKey: "lotsUnits",           icon: "grid",       route: "/lots",        color: "#3b82f6", roles: ["syndicate_admin"] },
       { labelKey: "owners",              icon: "users",      route: "/members",     color: "#10b981", roles: ["syndicate_admin"] },
       { labelKey: "locataires",          icon: "user-check", route: "/locataires",  color: "#06b6d4", roles: ["syndicate_admin"] },
-      { labelKey: "myApartment",         icon: "home",       route: "/mon-lot",     color: "#7c3aed", roles: ["member"] },
     ],
   },
 
@@ -92,28 +93,34 @@ const MENU_SECTIONS_DEF: SectionDef[] = [
     ],
   },
 
-  // ─── MAINTENANCE — Syndicate Admin, Member, Tenant ────────────────────────────
+  // ─── MAINTENANCE — Syndicate Admin only ────────────────────────────────────────
   // Super Admin does NOT manage buildings' maintenance tickets, vendors, or parking.
+  // Member removed per Scenario 2 (member sees only Dashboard/Payments/Documents/
+  // Complaints/Meetings/Voting/Notifications).
+  // Tenant removed per Scenario 3 (tenant sees only documents, complaints,
+  // notifications, announcements).
   {
     titleKey: "menuSectionMaintenance",
     items: [
-      { labelKey: "travaux",          icon: "tool",           route: "/travaux",           color: "#f59e0b", roles: ["syndicate_admin", "member", "tenant"] },
+      { labelKey: "travaux",          icon: "tool",           route: "/travaux",           color: "#f59e0b", roles: ["syndicate_admin"] },
       { labelKey: "prestataires",     icon: "briefcase",      route: "/prestataires",      color: "#3b82f6", roles: ["syndicate_admin"] },
-      { labelKey: "sinistres",        icon: "alert-triangle", route: "/sinistres",         color: "#ef4444", roles: ["syndicate_admin", "member", "tenant"] },
-      { labelKey: "travauxPrivatifs", icon: "edit-2",         route: "/travaux-privatifs", color: "#f97316", roles: ["syndicate_admin", "member", "tenant"] },
-      { labelKey: "parkingVehicules", icon: "map-pin",        route: "/parking",           color: "#7c3aed", roles: ["syndicate_admin", "member", "tenant"] },
+      { labelKey: "sinistres",        icon: "alert-triangle", route: "/sinistres",         color: "#ef4444", roles: ["syndicate_admin"] },
+      { labelKey: "travauxPrivatifs", icon: "edit-2",         route: "/travaux-privatifs", color: "#f97316", roles: ["syndicate_admin"] },
+      { labelKey: "parkingVehicules", icon: "map-pin",        route: "/parking",           color: "#7c3aed", roles: ["syndicate_admin"] },
     ],
   },
 
-  // ─── ASSEMBLÉE GÉNÉRALE — Syndicate Admin + Member only ──────────────────────
+  // ─── ASSEMBLÉE GÉNÉRALE — Syndicate Admin + Member (meetings & voting only) ──
   // Super Admin does NOT participate in syndicate governance.
+  // Member per Scenario 2: Meetings and Voting are allowed; the AG screen itself
+  // and PV (minutes archive) are admin-only management functions.
   {
     titleKey: "menuSectionAG",
     items: [
-      { labelKey: "assembleesGenerales",  icon: "users",        route: "/assemblee-generale", color: "#7c3aed", roles: ["syndicate_admin", "member"] },
+      { labelKey: "assembleesGenerales",  icon: "users",        route: "/assemblee-generale", color: "#7c3aed", roles: ["syndicate_admin"] },
       { labelKey: "reunionsConvocations", icon: "calendar",     route: "/meetings",            color: "#3b82f6", roles: ["syndicate_admin", "member"] },
       { labelKey: "votesResolutions",     icon: "check-square", route: "/elections",           color: "#f59e0b", roles: ["syndicate_admin", "member"] },
-      { labelKey: "pvLabel",              icon: "file-text",    route: "/pv",                  color: "#6366f1", roles: ["syndicate_admin", "member"] },
+      { labelKey: "pvLabel",              icon: "file-text",    route: "/pv",                  color: "#6366f1", roles: ["syndicate_admin"] },
       { labelKey: "governance",           icon: "award",        route: "/governance",          color: "#8b5cf6", roles: ["syndicate_admin"] },
     ],
   },
@@ -121,11 +128,14 @@ const MENU_SECTIONS_DEF: SectionDef[] = [
   // ─── LEGAL / DOCUMENTS — Syndicate Admin, Member, Tenant ─────────────────────
   // Super Admin does NOT manage syndicate-level legal documents or regulations.
   // Platform document templates (Template Studio) live in his Admin section.
+  // Member per Scenario 2: Documents (/documents) is allowed; regulations/actes
+  // are admin management screens, not resident-facing content.
+  // Tenant per Scenario 3: only residence certificates (documents) allowed.
   {
     titleKey: "menuSectionLegal",
     items: [
       { labelKey: "documentsCopro",       icon: "folder",    route: "/documents",            color: "#6366f1", roles: ["syndicate_admin", "member", "tenant"] },
-      { labelKey: "reglementsLabel",       icon: "book",      route: "/reglements",           color: "#3b82f6", roles: ["syndicate_admin", "member", "tenant"] },
+      { labelKey: "reglementsLabel",       icon: "book",      route: "/reglements",           color: "#3b82f6", roles: ["syndicate_admin"] },
       { labelKey: "actesAdministratifs",   icon: "file-text", route: "/actes-administratifs", color: "#7c3aed", roles: ["syndicate_admin"] },
       { labelKey: "alertesReglementaires", icon: "shield",    route: "/legal",                color: "#8b5cf6", roles: ["syndicate_admin"] },
       { labelKey: "transparency",          icon: "eye",       route: "/transparency",         color: "#10b981", roles: ["syndicate_admin"] },
@@ -133,16 +143,18 @@ const MENU_SECTIONS_DEF: SectionDef[] = [
     ],
   },
 
-  // ─── COMMUNICATION — Syndicate Admin, Member, Tenant ─────────────────────────
+  // ─── COMMUNICATION — Syndicate Admin + Announcements for Member/Tenant ────────
   // Super Admin does NOT chat in syndicate community channels.
+  // Member per Scenario 2: only notifications/announcements (avisResidents) allowed.
+  // Tenant per Scenario 3: may view announcements; broader community channels removed.
   {
     titleKey: "menuSectionCommunication",
     items: [
       { labelKey: "avisResidents",          icon: "bell",           route: "/annonces",           color: "#f59e0b", roles: ["syndicate_admin", "member", "tenant"] },
-      { labelKey: "publicationsActualites", icon: "rss",            route: "/publications",       color: "#f97316", roles: ["syndicate_admin", "member", "tenant"] },
-      { labelKey: "chatMessagerie",         icon: "message-circle", route: "/chat",               color: "#ec4899", roles: ["syndicate_admin", "member", "tenant"] },
-      { labelKey: "messagerieInterne",      icon: "mail",           route: "/messagerie-interne", color: "#3b82f6", roles: ["syndicate_admin", "member", "tenant"] },
-      { labelKey: "ideas",                  icon: "zap",            route: "/ideas",              color: "#f59e0b", roles: ["syndicate_admin", "member", "tenant"] },
+      { labelKey: "publicationsActualites", icon: "rss",            route: "/publications",       color: "#f97316", roles: ["syndicate_admin"] },
+      { labelKey: "chatMessagerie",         icon: "message-circle", route: "/chat",               color: "#ec4899", roles: ["syndicate_admin"] },
+      { labelKey: "messagerieInterne",      icon: "mail",           route: "/messagerie-interne", color: "#3b82f6", roles: ["syndicate_admin"] },
+      { labelKey: "ideas",                  icon: "zap",            route: "/ideas",              color: "#f59e0b", roles: ["syndicate_admin"] },
     ],
   },
 
@@ -157,24 +169,27 @@ const MENU_SECTIONS_DEF: SectionDef[] = [
     ],
   },
 
-  // ─── MARKETPLACE — Syndicate Admin + Member only ──────────────────────────────
+  // ─── MARKETPLACE — Syndicate Admin only ──────────────────────────────────────
   // Super Admin has no role in the syndicate marketplace (no lot, no purchases).
+  // Member removed per Scenario 2: member access is restricted to Dashboard,
+  // Payments, Documents, Complaints, Meetings, Voting, Notifications.
   {
     titleKey: "menuSectionMarketplace",
     items: [
-      { labelKey: "monPanier",    icon: "shopping-cart", route: "/cart",    color: "#f59e0b", roles: ["member", "syndicate_admin"] },
-      { labelKey: "mesCommandes", icon: "package",       route: "/orders",  color: "#6366f1", roles: ["member", "syndicate_admin"] },
-      { labelKey: "maBoutique",   icon: "shopping-bag",  route: "/my-shop", color: "#10b981", roles: ["member", "syndicate_admin"] },
+      { labelKey: "monPanier",    icon: "shopping-cart", route: "/cart",    color: "#f59e0b", roles: ["syndicate_admin"] },
+      { labelKey: "mesCommandes", icon: "package",       route: "/orders",  color: "#6366f1", roles: ["syndicate_admin"] },
+      { labelKey: "maBoutique",   icon: "shopping-bag",  route: "/my-shop", color: "#10b981", roles: ["syndicate_admin"] },
     ],
   },
 
   // ─── STATISTICS — Syndicate Admin only (own syndicate scope) ─────────────────
   // Super Admin gets global stats in his Tableau National (Admin section above).
+  // Member removed from plansAbonnements per Scenario 2 (not in their allowed list).
   {
     titleKey: "menuSectionSubscriptions",
     items: [
       { labelKey: "statistiquesGlobales", icon: "bar-chart-2", route: "/statistiques", color: "#10b981", roles: ["syndicate_admin"] },
-      { labelKey: "plansAbonnements",     icon: "star",         route: "/abonnements",  color: "#f59e0b", roles: ["super_admin", "syndicate_admin", "member"] },
+      { labelKey: "plansAbonnements",     icon: "star",         route: "/abonnements",  color: "#f59e0b", roles: ["super_admin", "syndicate_admin"] },
     ],
   },
   {

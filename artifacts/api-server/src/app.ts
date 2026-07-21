@@ -7,6 +7,7 @@ import pinoHttp from "pino-http";
 import compression from "compression";
 import router from "./routes";
 import { logger } from "./lib/logger";
+import { softAuth } from "./middleware/auth.js";
 import Redis from "ioredis";
 
 const app: Express = express();
@@ -118,6 +119,12 @@ app.use((_req: Request, res: Response, next: NextFunction) => {
 
 app.use("/api/auth", authLimiter);
 app.use("/api", apiLimiter);
+
+// Soft JWT decode — populates req.user from the bearer token when present.
+// This runs before route handlers so subscription enforcement middleware can
+// read req.user for write-method checks without requiring auth to be global.
+app.use(softAuth);
+
 app.use("/api", router);
 
 // ─── Global async error handler ───────────────────────────────────────────────

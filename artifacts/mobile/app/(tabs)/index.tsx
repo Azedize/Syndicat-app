@@ -54,22 +54,25 @@ const QUICK_ACTIONS_ADMIN: QuickActionKey[] = [
   { labelKey: "teamSyndic",    icon: "award",       route: "/equipe-syndic",             color: "#8b5cf6" },
 ];
 
+// Scenario 2 — Fatima (member/owner): Dashboard, Payments, Documents,
+// Complaints, Meetings, Voting, Notifications only.
 const QUICK_ACTIONS_MEMBER: QuickActionKey[] = [
-  { labelKey: "myApartment",   icon: "home",           route: "/mon-lot",            color: "#7c3aed" },
-  { labelKey: "charges",       icon: "credit-card",    route: "/charges",            color: "#10b981" },
-  { labelKey: "travaux",       icon: "tool",           route: "/travaux",            color: "#f59e0b" },
-  { labelKey: "assemblee",     icon: "users",          route: "/assemblee-generale", color: "#6366f1" },
-  { labelKey: "documents",     icon: "folder",         route: "/documents",          color: "#6366f1" },
-  { labelKey: "chat",          icon: "message-circle", route: "/chat",               color: "#3b82f6" },
+  { labelKey: "paymentHistory",     icon: "credit-card",  route: "/paiements",     color: "#10b981" },
+  { labelKey: "documentsCopro",     icon: "folder",       route: "/documents",     color: "#6366f1" },
+  { labelKey: "reclamationsLabel",  icon: "inbox",        route: "/reclamations",  color: "#f97316" },
+  { labelKey: "reunionsConvocations", icon: "calendar",   route: "/meetings",      color: "#3b82f6" },
+  { labelKey: "votesResolutions",   icon: "check-square", route: "/elections",     color: "#f59e0b" },
+  { labelKey: "notifications",      icon: "bell",         route: "/notifications", color: "#ec4899" },
 ];
 
+// Scenario 3 — Ahmed (tenant): residence certificates, complaints,
+// notifications, announcements. No voting, no budgets, no financial reports.
 const QUICK_ACTIONS_TENANT: QuickActionKey[] = [
-  { labelKey: "myApartment",   icon: "home",           route: "/mon-lot",    color: "#7c3aed" },
-  { labelKey: "monBail",       icon: "file-text",      route: "/mon-bail",   color: "#3b82f6" },
-  { labelKey: "travaux",       icon: "tool",           route: "/travaux",    color: "#f59e0b" },
-  { labelKey: "incidents",     icon: "alert-triangle", route: "/sinistres",  color: "#ef4444" },
-  { labelKey: "documents",     icon: "folder",         route: "/documents",  color: "#6366f1" },
-  { labelKey: "chat",          icon: "message-circle", route: "/chat",       color: "#ec4899" },
+  { labelKey: "documentsCopro",     icon: "folder",       route: "/documents",  color: "#6366f1" },
+  { labelKey: "avisResidents",      icon: "bell",         route: "/annonces",   color: "#f59e0b" },
+  { labelKey: "demandesIntervention", icon: "headphones", route: "/support",    color: "#ef4444" },
+  { labelKey: "notifications",      icon: "bell",         route: "/notifications", color: "#ec4899" },
+  { labelKey: "monBail",            icon: "file-text",    route: "/mon-bail",   color: "#3b82f6" },
 ];
 
 const ACTION_GAP = 10;

@@ -130,6 +130,27 @@ export function assertSyndicateAccess(req: Request, resourceSyndicateId: string 
   return resourceSyndicateId === syndicateId;
 }
 
+/**
+ * Soft (optional) JWT decoder — sets req.user if a valid bearer token is present,
+ * silently skips otherwise. Never rejects the request. Intended as a global
+ * pre-middleware so downstream middleware (e.g. subscription enforcement) can
+ * read req.user before route-level requireAuth runs.
+ */
+export function softAuth(req: Request, _res: Response, next: NextFunction): void {
+  const auth = req.headers.authorization;
+  const queryToken = typeof req.query.token === "string" ? req.query.token : null;
+  const rawToken = auth?.startsWith("Bearer ") ? auth.slice(7) : queryToken;
+  if (rawToken) {
+    try {
+      const payload = jwt.verify(rawToken, getJwtSecret()) as JwtPayload;
+      req.user = payload;
+    } catch {
+      // invalid/expired token — leave req.user unset, let requireAuth reject it
+    }
+  }
+  next();
+}
+
 /** Validates at startup — throws if JWT_SECRET is missing so misconfiguration is caught immediately */
 export function validateAuthConfig(): void {
   getJwtSecret();

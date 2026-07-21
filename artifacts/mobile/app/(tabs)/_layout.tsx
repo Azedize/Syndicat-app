@@ -247,15 +247,18 @@ export default function TabLayout() {
         }}
       />
 
-      {/* Marketplace — Syndicate Admin + Member only.
+      {/* Marketplace — Syndicate Admin only.
           Super Admin is not a resident or co-owner; he has no lot and no
           business purchasing or selling in the syndicate marketplace.
+          Member access to marketplace removed per Scenario 2: members can
+          only see Dashboard, Payments, Documents, Complaints, Meetings,
+          Voting, Notifications.
           Tenant is also blocked: cannot browse or purchase. */}
       <Tabs.Screen
         name="marketplace"
         options={{
           title: t("marketplace"),
-          tabBarItemStyle: (isSyndicateAdmin || role === "member") ? undefined : hiddenTabStyle,
+          tabBarItemStyle: isSyndicateAdmin ? undefined : hiddenTabStyle,
         }}
       />
 
