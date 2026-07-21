@@ -161,14 +161,47 @@ router.get(
 );
 
 // GET /prestataires/:id
+// Access rules:
+//   super_admin  — unrestricted
+//   syndicate_admin — only providers belonging to their syndicate
+//   member / tenant — only providers linked to their building via an active contract
 router.get("/prestataires/:id", requireAuth, async (req, res) => {
   try {
+    const user = (req as any).user;
     const [p] = await db
       .select()
       .from(prestatairesTable)
       .where(eq(prestatairesTable.id, String(req.params.id)));
 
     if (!p) return void res.status(404).json({ error: "Not found" });
+
+    // ─── Syndicate / building isolation ──────────────────────────────────────
+    if (user.role !== "super_admin") {
+      if (user.role === "syndicate_admin") {
+        // Syndicate admins may only view providers scoped to their syndicate
+        if (p.syndicateId && p.syndicateId !== user.syndicateId) {
+          return void res.status(403).json({ error: "Accès refusé" });
+        }
+      } else {
+        // member / tenant: only providers associated with their building via a contract
+        const buildingIds = await getUserBuildingIds(user);
+        if (buildingIds.length === 0) {
+          return void res.status(403).json({ error: "Accès refusé" });
+        }
+        const [linked] = await db
+          .select({ id: contratsPrestatairesTable.id })
+          .from(contratsPrestatairesTable)
+          .where(and(
+            eq(contratsPrestatairesTable.prestataireId, p.id),
+            inArray(contratsPrestatairesTable.buildingId, buildingIds),
+          ))
+          .limit(1);
+        if (!linked) {
+          return void res.status(403).json({ error: "Accès refusé" });
+        }
+      }
+    }
+    // ─────────────────────────────────────────────────────────────────────────
 
     const [contracts, recentTravaux, evaluations] = await Promise.all([
       db

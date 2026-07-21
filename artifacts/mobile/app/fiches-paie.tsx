@@ -12,6 +12,7 @@ import { useBreakpoints } from "@/hooks/useBreakpoints";
 import { useColors } from "@/hooks/useColors";
 import { apiRequest } from "@/lib/api";
 import { useToast } from "@/context/ToastContext";
+import RoleGuard from "@/components/RoleGuard";
 
 const STATUS_CFG: Record<string, { label: string; color: string; bg: string }> = {
   paid:    { label: "Payé",       color: "#10b981", bg: "#10b98118" },
@@ -34,7 +35,17 @@ function formatMoney(v: string | number): string {
   return `${parseFloat(String(v ?? 0)).toLocaleString("fr-MA", { minimumFractionDigits: 2 })} MAD`;
 }
 
+// Fiches de paie (payroll) is an admin-only financial module.
+// Members and tenants must not access it — they have no payroll relationship with the syndicate.
 export default function FichesPaieScreen() {
+  return (
+    <RoleGuard allow={["super_admin", "syndicate_admin"]}>
+      <FichesPaieScreenInner />
+    </RoleGuard>
+  );
+}
+
+function FichesPaieScreenInner() {
   const colors = useColors();
   const insets = useSafeAreaInsets();
   const { user, token } = useAuth();

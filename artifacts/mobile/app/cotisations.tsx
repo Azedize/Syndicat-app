@@ -20,6 +20,7 @@ import { useBreakpoints } from "@/hooks/useBreakpoints";
 import { useColors } from "@/hooks/useColors";
 import { content } from "@/services/api";
 import { useToast } from "@/context/ToastContext";
+import RoleGuard from "@/components/RoleGuard";
 
 interface ApiCotisation {
   id: string;
@@ -35,7 +36,17 @@ interface ApiCotisation {
   createdAt: string;
 }
 
+// Cotisations are co-owner (copropriétaire) membership fees.
+// Tenants are not co-owners; admins manage cotisations via the charges/finance module.
 export default function CotisationsScreen() {
+  return (
+    <RoleGuard allow={["member"]}>
+      <CotisationsScreenInner />
+    </RoleGuard>
+  );
+}
+
+function CotisationsScreenInner() {
   const colors = useColors();
   const insets = useSafeAreaInsets();
   const { isWide } = useBreakpoints();

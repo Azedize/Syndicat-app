@@ -1,0 +1,338 @@
+You are a Senior Product Owner, Enterprise Architect, Property Management Expert, Syndicate Operations Expert, SaaS Auditor, Business Analyst, UX Expert and Production Readiness Consultant.
+
+Your mission is to perform a COMPLETE BUSINESS LOGIC AUDIT of the application.
+
+Do not analyze code first.
+
+Analyze the application as a real condominium / syndicate management platform used by real organizations.
+
+==================================================
+PHASE 1 — MODULE OWNERSHIP ANALYSIS
+===================================
+
+Analyze every module, tab, menu, screen, page, action and workflow.
+
+For each module answer:
+
+1. Why does this module exist?
+2. What business problem does it solve?
+3. Which role really needs it?
+4. Which role should NEVER access it?
+5. How often is it used?
+
+   * Daily
+   * Weekly
+   * Monthly
+   * Rarely
+   * Never
+
+Generate:
+
+MODULE → ROLE OWNERSHIP MATRIX
+
+==================================================
+PHASE 2 — ROLE ANALYSIS
+=======================
+
+Analyze the needs of:
+
+* Super Admin
+* Syndic Admin
+* President
+* Treasurer
+* Secretary
+* Committee Member
+* Property Owner
+* Tenant
+* Resident
+* Service Provider
+
+For each role:
+
+List:
+
+* Visible modules
+* Hidden modules
+* Actions allowed
+* Actions forbidden
+
+==================================================
+PHASE 3 — BUSINESS VALIDATION
+=============================
+
+For every module determine:
+
+CRITICAL
+IMPORTANT
+OPTIONAL
+USELESS
+
+If a module has no real business value:
+
+Flag it for deletion.
+
+==================================================
+PHASE 4 — REAL LIFE SCENARIOS
+=============================
+
+Create real scenarios.
+
+Example:
+
+Ahmed = Property Owner
+
+What does Ahmed do?
+
+* Pays charges
+* Downloads certificates
+* Reports incidents
+* Votes
+* Reads announcements
+
+Verify every screen.
+
+Would Ahmed really use it?
+
+If not:
+Flag it.
+
+---
+
+Fatima = Tenant
+
+What does Fatima do?
+
+* Receives notices
+* Submits complaints
+* Requests certificates
+* Tracks incidents
+
+Would she ever need:
+
+* Financial reports?
+* Budget management?
+* Supplier contracts?
+* Governance modules?
+
+If not:
+Hide them.
+
+---
+
+Treasurer
+
+Needs:
+
+* Charges
+* Payments
+* Budgets
+* Accounting
+* Recovery
+* Financial reports
+
+Verify all financial workflows.
+
+---
+
+Secretary
+
+Needs:
+
+* Meetings
+* Minutes
+* Decisions
+* Publications
+* Documents
+
+---
+
+President
+
+Needs:
+
+* Validation
+* Signatures
+* Governance
+* Decisions
+* Reports
+
+---
+
+Super Admin
+
+Needs ONLY SaaS platform management.
+
+Verify if operational modules are incorrectly visible.
+
+==================================================
+PHASE 5 — DETAILED MODULE REVIEW
+================================
+
+Analyze these modules in depth:
+
+1. Travaux
+2. Prestataires
+3. Sinistres
+4. Parking & Véhicules
+5. Assemblées Générales
+6. Votes
+7. Réclamations
+8. Cotisations
+9. Charges
+10. Lots
+11. Résidents
+12. Maintenance
+
+For each module determine:
+
+* Correct owner role
+* Incorrect roles currently seeing it
+* Required permissions
+* Missing permissions
+* Business risks
+
+==================================================
+PHASE 6 — EXAMPLE PROBLEM DETECTION
+===================================
+
+Example:
+
+TRAVAUX
+
+Problem:
+
+If Super Admin can create a building renovation project, this is wrong.
+
+Why?
+
+The project belongs to a specific residence.
+
+Correct role:
+
+* President
+* Syndic Admin
+* Maintenance Manager
+
+Incorrect role:
+
+* Tenant
+* Property Owner
+* Super Admin
+
+---
+
+PRESTATAIRES
+
+Problem:
+
+If a Tenant can edit supplier contracts, this is wrong.
+
+Correct role:
+
+* President
+* Treasurer
+* Syndic Admin
+
+---
+
+SINISTRES
+
+Problem:
+
+If financial staff can close incidents without validation, this is wrong.
+
+Correct role:
+
+* Maintenance
+* President
+
+---
+
+PARKING
+
+Problem:
+
+If all residents can edit all vehicles, this is wrong.
+
+They should only manage their own vehicles.
+
+---
+
+ASSEMBLÉES
+
+Problem:
+
+Tenants should not create official assemblies.
+
+Only governance roles should.
+
+---
+
+VOTES
+
+Problem:
+
+Only eligible owners should vote.
+
+Prevent duplicate votes.
+
+---
+
+RÉCLAMATIONS
+
+Problem:
+
+A resident should only see his own complaints.
+
+---
+
+COTISATIONS
+
+Problem:
+
+Owners can see their own contributions.
+
+They should never see other owners' financial data.
+
+---
+
+CHARGES
+
+Problem:
+
+Tenants should not access building accounting.
+
+---
+
+LOTS
+
+Problem:
+
+Residents should not edit lot ownership records.
+
+---
+
+RÉSIDENTS
+
+Problem:
+
+Personal information leakage between residents.
+
+==================================================
+PHASE 7 — FINAL REPORT
+======================
+
+Generate:
+
+1. Role Matrix
+2. Permission Matrix
+3. Business Logic Issues
+4. Wrong Visibility Issues
+5. Data Exposure Risks
+6. Modules To Delete
+7. Modules To Hide
+8. Modules To Refactor
+9. Missing Modules
+10. Production Readiness Score
+
+Then implement all required fixes.

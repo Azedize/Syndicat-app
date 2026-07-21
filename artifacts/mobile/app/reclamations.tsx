@@ -22,6 +22,7 @@ import { useToast } from "@/context/ToastContext";
 import { apiRequest } from "@/lib/api";
 import EmptyState from "@/components/EmptyState";
 import FilterChips from "@/components/FilterChips";
+import RoleGuard from "@/components/RoleGuard";
 
 const STRINGS = {
   salaire: {
@@ -526,7 +527,17 @@ function mapApiReclamation(row: any): Reclamation {
 
 const TYPES_LIST = Object.entries(TYPE_CONFIG) as [ReclamationType, typeof TYPE_CONFIG[ReclamationType]][];
 
+// Réclamations is the HR grievance module (salaire/discrimination/harcèlement).
+// Tenants (locataires) are not employees of the syndicate and must never access it.
 export default function ReclamationsScreen() {
+  return (
+    <RoleGuard allow={["super_admin", "syndicate_admin", "member"]}>
+      <ReclamationsScreenInner />
+    </RoleGuard>
+  );
+}
+
+function ReclamationsScreenInner() {
   const colors = useColors();
   const insets = useSafeAreaInsets();
   const { user } = useAuth();

@@ -17,6 +17,18 @@ router.get("/sinistres", requireAuth, async (req, res) => {
     const conditions: any[] = [];
 
     if (buildingId) {
+      // Prevent cross-syndicate enumeration: validate the buildingId belongs to the
+      // caller's syndicate before using it as a filter condition.
+      if (user.role !== "super_admin" && user.syndicateId) {
+        const [bld] = await db
+          .select({ syndicateId: buildingsTable.syndicateId })
+          .from(buildingsTable)
+          .where(eq(buildingsTable.id, buildingId))
+          .limit(1);
+        if (!bld || bld.syndicateId !== user.syndicateId) {
+          return void res.status(403).json({ error: "Accès refusé à cet immeuble" });
+        }
+      }
       conditions.push(eq(sinistresTable.buildingId, buildingId));
     } else if (user.role === "syndicate_admin" && user.syndicateId) {
       const buildingsInSyndicate = await db
