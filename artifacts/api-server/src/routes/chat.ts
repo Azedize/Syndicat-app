@@ -640,7 +640,7 @@ router.post("/conversations", requireAuth, async (req, res) => {
     const [conv] = await db
       .insert(conversationsTable)
       .values({
-        syndicateId: actor.syndicateId || "",
+        syndicateId: actor.syndicateId || null,
         buildingId: buildingId,
         convType,
         participant1Id: actor.userId,
@@ -710,7 +710,7 @@ router.post("/conversations/product", requireAuth, async (req, res) => {
     const [conv] = await db
       .insert(conversationsTable)
       .values({
-        syndicateId: actor.syndicateId || product.syndicateId || "",
+        syndicateId: actor.syndicateId || product.syndicateId || null,
         convType: "marketplace",
         participant1Id: actor.userId,
         participant2Id: product.sellerId,
