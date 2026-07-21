@@ -24,6 +24,8 @@ import { useBreakpoints } from "@/hooks/useBreakpoints";
 import { useColors } from "@/hooks/useColors";
 import { announcements, type ApiAnnouncement } from "@/services/api";
 import { useToast } from "@/context/ToastContext";
+import EmptyState from "@/components/EmptyState";
+import FilterChips from "@/components/FilterChips";
 
 type Priority = ApiAnnouncement["priority"];
 
@@ -187,31 +189,18 @@ export default function AnnoncesScreen() {
         ) : null}
       </View>
 
-      {/* Priority filter */}
-      <View style={[styles.filterBar, { backgroundColor: colors.card, borderBottomColor: colors.border }]}>
-        <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: 8, paddingHorizontal: 16, paddingVertical: 10 }}>
-          {([
-            { key: "all", label: t("filterToutes"), color: colors.primary },
-            { key: "urgent", label: t("priorityUrgent"), color: "#ef4444" },
-            { key: "important", label: t("priorityImportant"), color: "#f59e0b" },
-            { key: "info", label: t("priorityInfo"), color: "#3b82f6" },
-          ] as { key: Priority | "all"; label: string; color: string }[]).map((f) => (
-            <TouchableOpacity
-              key={f.key}
-              style={[
-                styles.filterChip,
-                { borderColor: filterPriority === f.key ? f.color : colors.border },
-                filterPriority === f.key ? { backgroundColor: f.color } : { backgroundColor: colors.background },
-              ]}
-              onPress={() => { setFilterPriority(f.key); Haptics.selectionAsync(); }}
-            >
-              <Text style={[styles.filterChipText, { color: filterPriority === f.key ? "#fff" : colors.mutedForeground }]}>
-                {f.label}
-              </Text>
-            </TouchableOpacity>
-          ))}
-        </ScrollView>
-      </View>
+      <FilterChips
+        options={[
+          { key: "all",       label: t("filterToutes"),    color: colors.primary },
+          { key: "urgent",    label: t("priorityUrgent"),  color: "#ef4444", icon: "alert-circle" },
+          { key: "important", label: t("priorityImportant"), color: "#f59e0b", icon: "alert-triangle" },
+          { key: "info",      label: t("priorityInfo"),    color: "#3b82f6", icon: "info" },
+        ]}
+        value={filterPriority}
+        onChange={(k) => setFilterPriority(k as Priority | "all")}
+        accentColor={colors.primary}
+        mode="equal"
+      />
 
       <FlatList
         data={sortedList}
@@ -220,15 +209,13 @@ export default function AnnoncesScreen() {
         showsVerticalScrollIndicator={false}
         refreshControl={<RefreshControl refreshing={false} onRefresh={refetch} tintColor={colors.primary} />}
         ListEmptyComponent={
-          <View style={styles.centerState}>
-            <Feather name="bell-off" size={40} color={colors.mutedForeground} />
-            <Text style={[styles.stateText, { color: colors.mutedForeground }]}>{t("noAnnouncementsYet")}</Text>
-            {isAdmin ? (
-              <TouchableOpacity style={[styles.retryBtn, { backgroundColor: colors.primary }]} onPress={() => setShowCreate(true)}>
-                <Text style={styles.retryBtnText}>{t("createAnnouncement")}</Text>
-              </TouchableOpacity>
-            ) : null}
-          </View>
+          <EmptyState
+            icon="bell-off"
+            title={t("noAnnouncementsYet")}
+            description="Aucune annonce pour cette catégorie de priorité."
+            actionLabel={isAdmin ? t("createAnnouncement") : undefined}
+            onAction={isAdmin ? () => { setShowCreate(true); Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); } : undefined}
+          />
         }
         renderItem={({ item: a }) => {
           const pc = PRIORITY_CONFIG[a.priority];
@@ -446,14 +433,6 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "center",
   },
-  filterBar: { borderBottomWidth: 1 },
-  filterChip: {
-    paddingHorizontal: 14,
-    paddingVertical: 6,
-    borderRadius: 20,
-    borderWidth: 1,
-  },
-  filterChipText: { fontSize: 12, fontFamily: "Inter_600SemiBold" },
   card: {
     borderRadius: 16,
     borderWidth: 1,

@@ -400,7 +400,7 @@ function BarChart({ data, color }: { data: { label: string; value: number }[]; c
         return (
           <View key={i} style={{ flex: 1, alignItems: "center", gap: 4 }}>
             <Text style={{ fontSize: 8, fontFamily: "Inter_700Bold", color: colors.mutedForeground }}>
-              {d.value > 999 ? `${(d.value / 1000).toFixed(0)}k` : `${d.value}`}
+              {(() => { const v = Number.isFinite(d.value) ? d.value : 0; return v > 999 ? `${(v / 1000).toFixed(0)}k` : `${v}`; })()}
             </Text>
             <View style={{ flex: 1, width: "100%", justifyContent: "flex-end" }}>
               <View style={{ width: "100%", height: `${pct}%` as any, backgroundColor: color, borderTopLeftRadius: 5, borderTopRightRadius: 5, opacity: d.value === 0 ? 0.2 : 1 }} />
@@ -476,9 +476,9 @@ export default function StatistiquesScreen() {
   }, [role]);
 
   const activeMembers = members.filter((m) => m.status === "active").length;
-  const totalRevenue = transactions.filter((t) => t.status === "paid" && (t.type === "cotisation" || t.type === "recette")).reduce((s, t) => s + t.amount, 0);
-  const totalExpenses = transactions.filter((t) => t.status === "paid" && (t.type === "depense" || t.type === "salaire")).reduce((s, t) => s + Math.abs(t.amount), 0);
-  const subRevenue = syndicateSubscriptions.filter((s) => s.status === "active").reduce((s, sub) => s + sub.amount, 0);
+  const totalRevenue = transactions.filter((t) => t.status === "paid" && (t.type === "cotisation" || t.type === "recette")).reduce((s, t) => s + (Number(t.amount) || 0), 0);
+  const totalExpenses = transactions.filter((t) => t.status === "paid" && (t.type === "depense" || t.type === "salaire")).reduce((s, t) => s + Math.abs(Number(t.amount) || 0), 0);
+  const subRevenue = syndicateSubscriptions.filter((s) => s.status === "active").reduce((s, sub) => s + (Number(sub.amount) || 0), 0);
   const totalOrders = orders.length;
   const deliveredOrders = orders.filter((o) => o.status === "delivered").length;
   const openTickets = supportTickets.filter((t) => t.status === "open").length;

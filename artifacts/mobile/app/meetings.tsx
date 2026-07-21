@@ -25,6 +25,7 @@ import { useBreakpoints } from "@/hooks/useBreakpoints";
 import { useColors } from "@/hooks/useColors";
 import { apiRequest } from "@/lib/api";
 import FilterTabs from "@/components/FilterTabs";
+import EmptyState from "@/components/EmptyState";
 import { useToast } from "@/context/ToastContext";
 
 const TYPE_CONFIG: Record<string, { icon: keyof typeof Feather.glyphMap; color: string }> = {
@@ -256,10 +257,13 @@ export default function MeetingsScreen() {
         contentContainerStyle={{ padding: 16, gap: 12, paddingBottom: insets.bottom + 40 }}
         showsVerticalScrollIndicator={false}
         ListEmptyComponent={
-          <View style={styles.empty}>
-            <Feather name="calendar" size={40} color={colors.mutedForeground} />
-            <Text style={[styles.emptyText, { color: colors.mutedForeground }]}>{t("noMeetings")}</Text>
-          </View>
+          <EmptyState
+            icon="calendar"
+            title={t("noMeetings")}
+            description={filter === "all" ? "Aucune réunion enregistrée." : filter === "scheduled" ? "Aucune réunion à venir." : "Aucune réunion passée."}
+            actionLabel={isAdmin ? "Planifier une réunion" : undefined}
+            onAction={isAdmin ? () => { setShowCreate(true); Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); } : undefined}
+          />
         }
         renderItem={({ item: m }) => {
           const tc = TYPE_CONFIG[m.type] ?? DEFAULT_TYPE_ICON;
