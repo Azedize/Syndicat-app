@@ -239,21 +239,31 @@ function TableauNationalScreenInner() {
         style={[styles.tabsScroll, { borderBottomColor: colors.border }]}
         contentContainerStyle={{ paddingHorizontal: 4 }}
       >
-        {TABS.map((t) => (
-          <TouchableOpacity
-            key={t.key}
-            style={[styles.tabBtn, tab === t.key ? { borderBottomColor: colors.primary, borderBottomWidth: 2 } : null]}
-            onPress={() => { setTab(t.key); Haptics.selectionAsync(); }}
-          >
-            <Feather name={t.icon} size={14} color={tab === t.key ? colors.primary : colors.mutedForeground} />
-            <Text style={[styles.tabLabel, { color: tab === t.key ? colors.primary : colors.mutedForeground }]}>{t.label}</Text>
-            {t.badge ? (
-              <View style={[styles.tabBadge, { backgroundColor: t.key === "alertes" ? "#ef4444" : "#f59e0b" }]}>
-                <Text style={styles.tabBadgeText}>{t.badge}</Text>
-              </View>
-            ) : null}
-          </TouchableOpacity>
-        ))}
+        {TABS.map((t) => {
+          const isActive = tab === t.key;
+          return (
+            <TouchableOpacity
+              key={t.key}
+              style={[
+                styles.tabBtn,
+                {
+                  borderBottomWidth: 2,
+                  borderBottomColor: isActive ? colors.primary : "transparent",
+                },
+              ]}
+              onPress={() => { setTab(t.key); Haptics.selectionAsync(); }}
+              activeOpacity={0.7}
+            >
+              <Feather name={t.icon} size={14} color={isActive ? colors.primary : colors.mutedForeground} />
+              <Text style={[styles.tabLabel, { color: isActive ? colors.primary : colors.mutedForeground }]}>{t.label}</Text>
+              {t.badge ? (
+                <View style={[styles.tabBadge, { backgroundColor: t.key === "alertes" ? "#ef4444" : "#f59e0b" }]}>
+                  <Text style={styles.tabBadgeText}>{t.badge}</Text>
+                </View>
+              ) : null}
+            </TouchableOpacity>
+          );
+        })}
       </ScrollView>
 
       {tab === "syndicats" ? (
