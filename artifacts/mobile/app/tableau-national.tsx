@@ -170,7 +170,7 @@ function TableauNationalScreenInner() {
     const adminUserId = syndicat.adminId;
     if (!adminUserId) {
       setSelectedSyndicat(null);
-      setTimeout(() => router.push("/(tabs)/chat" as any), 300);
+      setTimeout(() => router.push("/chat" as any), 300);
       return;
     }
     setContactingAdmin(true);
@@ -181,11 +181,11 @@ function TableauNationalScreenInner() {
       if (convId) {
         setTimeout(() => router.push({ pathname: "/chat-thread", params: { id: convId } } as any), 300);
       } else {
-        setTimeout(() => router.push("/(tabs)/chat" as any), 300);
+        setTimeout(() => router.push("/chat" as any), 300);
       }
     } catch {
       setSelectedSyndicat(null);
-      setTimeout(() => router.push("/(tabs)/chat" as any), 300);
+      setTimeout(() => router.push("/chat" as any), 300);
     } finally {
       setContactingAdmin(false);
     }

@@ -65,7 +65,7 @@ export default function MembersScreen() {
     const adminUserId = syndicate.adminId;
     if (!adminUserId) {
       // No adminId known — fall back to the chat list
-      navigateFromSyndicateModal("/(tabs)/chat");
+      navigateFromSyndicateModal("/chat");
       return;
     }
     setContactingAdmin(true);
@@ -76,10 +76,10 @@ export default function MembersScreen() {
         closeSyndicateModal();
         setTimeout(() => router.push({ pathname: "/chat-thread", params: { id: convId } } as any), 300);
       } else {
-        navigateFromSyndicateModal("/(tabs)/chat");
+        navigateFromSyndicateModal("/chat");
       }
     } catch {
-      navigateFromSyndicateModal("/(tabs)/chat");
+      navigateFromSyndicateModal("/chat");
     } finally {
       setContactingAdmin(false);
     }
