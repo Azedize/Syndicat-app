@@ -1581,9 +1581,23 @@ export const payslipsTable = pgTable("payslips", {
 export const subscriptionPlansTable = pgTable("subscription_plans", {
   id: id(),
   name: text("name").notNull(),
-  price: money("price"),
+  description: text("description"),
+  price: money("price"),               // monthly price in MAD
+  yearlyPrice: money("yearly_price"),  // yearly price in MAD (optional discount)
   interval: text("interval").default("monthly"),
-  features: text("features").default("[]"),
+  features: text("features").default("[]"),  // JSON string[]
+  // Limits — null = unlimited
+  maxBuildings: integer("max_buildings"),
+  maxLots: integer("max_lots"),
+  maxMembers: integer("max_members"),
+  maxStorageGb: integer("max_storage_gb"),
+  maxDocuments: integer("max_documents"),
+  maxSignatures: integer("max_signatures"),
+  // Flags
+  isActive: boolean("is_active").default(true),
+  isTrial: boolean("is_trial").default(false),
+  sortOrder: integer("sort_order").default(0),
+  color: text("color").default("#7c3aed"),
   createdAt: createdAt(),
 });
 
@@ -1591,10 +1605,38 @@ export const syndicateSubscriptionsTable = pgTable("syndicate_subscriptions", {
   id: id(),
   syndicateId: text("syndicate_id").notNull(),
   planId: text("plan_id"),
-  status: text("status").default("active"),
+  status: text("status").default("trial"), // trial | active | grace | suspended | cancelled | expired
   autoRenew: boolean("auto_renew").default(true),
+  // Trial period
+  trialStartDate: timestamp("trial_start_date"),
+  trialEndDate: timestamp("trial_end_date"),
+  // Billing period
+  currentPeriodStart: timestamp("current_period_start"),
+  currentPeriodEnd: timestamp("current_period_end"),
+  // Lifecycle
+  canceledAt: timestamp("canceled_at"),
+  gracePeriodEnd: timestamp("grace_period_end"),
+  notes: text("notes"),
   createdAt: createdAt(),
 });
+
+// ─── Billing Invoices ────────────────────────────────────────────────────────
+
+export const billingInvoicesTable = pgTable("billing_invoices", {
+  id: id(),
+  syndicateId: text("syndicate_id").notNull(),
+  subscriptionId: text("subscription_id"),
+  amount: money("amount").notNull(),
+  status: text("status").default("open"), // open | paid | void | uncollectible
+  dueDate: timestamp("due_date"),
+  paidAt: timestamp("paid_at"),
+  description: text("description"),
+  periodStart: timestamp("period_start"),
+  periodEnd: timestamp("period_end"),
+  createdAt: createdAt(),
+},
+  (t) => [index("billing_invoices_syndicate_id_idx").on(t.syndicateId)],
+);
 
 // ─── Audit Log ──────────────────────────────────────────────────────────────
 

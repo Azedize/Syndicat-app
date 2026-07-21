@@ -19,6 +19,7 @@ import { ErrorBoundary } from "@/components/ErrorBoundary";
 import { KeyboardShortcuts } from "@/components/KeyboardShortcuts";
 import { NotificationManager } from "@/components/NotificationManager";
 import { SidebarNav } from "@/components/SidebarNav";
+import SubscriptionBanner from "@/components/SubscriptionBanner";
 import { ToastContainer } from "@/components/ToastContainer";
 import { AuthProvider, useAuth } from "@/context/AuthContext";
 import { ActivityProvider } from "@/context/ActivityContext";
@@ -72,6 +73,7 @@ function AuthGate() {
       <View style={{ flex: 1, flexDirection: "row", backgroundColor: colors.background, direction } as any}>
         <SidebarNav />
         <View style={{ flex: 1, overflow: "hidden" as any }}>
+          <SubscriptionBanner />
           <Slot />
           <AIAssistant />
           <ToastContainer />
@@ -83,6 +85,7 @@ function AuthGate() {
 
   return (
     <View style={{ flex: 1, direction } as any}>
+      {user && !inAuthRoute && <SubscriptionBanner />}
       <Slot />
       {user && !inAuthRoute && <AIAssistant />}
       {user && !inAuthRoute && <NotificationManager />}

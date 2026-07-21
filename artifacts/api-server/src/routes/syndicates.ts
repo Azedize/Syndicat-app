@@ -8,6 +8,7 @@ import { serverAuditLog } from "../lib/audit.js";
 import { sendTransactionalEmail } from "../lib/email/emailService.js";
 import { syndicateCreatedTemplate } from "../lib/email/templates.js";
 import { bustLogoCache } from "../lib/documentPdf.js";
+import { assignTrial } from "./subscriptions.js";
 
 const router = Router();
 
@@ -224,6 +225,9 @@ router.post("/syndicates", requireAuth, requireRole("super_admin"), async (req, 
         }).catch(() => {});
       }
     }
+
+    // Auto-assign 30-day free trial
+    assignTrial(syndicate.id).catch((e) => req.log.warn({ err: e }, "Trial auto-assign failed"));
 
     res.status(201).json({ data: syndicate, message: "Syndicat créé avec succès" });
   } catch (err: any) {
