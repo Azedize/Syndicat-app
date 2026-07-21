@@ -34,7 +34,7 @@ const QUICK_ACTIONS_SUPER: QuickActionKey[] = [
   { labelKey: "buildings",     icon: "home",        route: "/buildings",         color: "#10b981" },
   { labelKey: "tableauNational",icon: "globe",      route: "/tableau-national",  color: "#7c3aed" },
   { labelKey: "reports",       icon: "pie-chart",   route: "/reports",           color: "#10b981" },
-  { labelKey: "alerts",        icon: "bell",        route: "/alerts",            color: "#f59e0b" },
+  { labelKey: "alerts",        icon: "bell",        route: "/notifications",     color: "#f59e0b" },
   { labelKey: "legal",         icon: "shield",      route: "/legal",             color: "#8b5cf6" },
   { labelKey: "auditLog",      icon: "file-text",   route: "/journal-audit",     color: "#ef4444" },
 ];
@@ -161,7 +161,7 @@ export default function DashboardScreen() {
             ) : null}
             <TouchableOpacity
               style={styles.headerBtn}
-              onPress={() => router.push("/alerts" as any)}
+              onPress={() => router.push("/notifications" as any)}
             >
               <Feather name="bell" size={20} color="#fff" />
               {unreadAlerts.length > 0 ? (
@@ -199,7 +199,7 @@ export default function DashboardScreen() {
                   topAlert.type === "success" ? "#10b98140" : colors.primary + "40",
               },
             ]}
-            onPress={() => router.push("/alerts" as any)}
+            onPress={() => router.push("/notifications" as any)}
             activeOpacity={0.85}
           >
             <Feather

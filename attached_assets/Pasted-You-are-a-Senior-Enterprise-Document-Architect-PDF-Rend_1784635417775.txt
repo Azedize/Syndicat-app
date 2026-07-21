@@ -1,0 +1,304 @@
+You are a Senior Enterprise Document Architect, PDF Rendering Expert, UI/UX Designer, SaaS Product Owner, and Moroccan Condominium Management Expert.
+Mission:
+Perform a complete audit and correction of the current Document Template System.
+The current generated documents are not production-ready.
+The templates suffer from major functional and design problems.
+Do not only redesign the UI.
+Analyze the complete document generation pipeline and fix all root causes.
+==================================================
+PROBLEM 1 — SIGNATURE NOT DISPLAYED
+Current issue:
+Documents display:
+"En attente de signature"
+even when signatures exist in the system.
+Audit and verify:
+
+
+document_signatures table
+
+signatures table
+
+storage paths
+
+image URLs
+
+template rendering engine
+
+PDF renderer
+
+QR renderer
+Determine:
+
+
+Is the signature stored?
+
+Is the signature linked to the document?
+
+Is the signature passed to the template?
+
+Is the image loaded correctly?
+
+Is the PDF renderer drawing the signature?
+Fix all issues.
+Required result:
+Display:
+
+
+Signature image
+
+Full Name
+
+Role
+
+Signature Date
+
+Electronic signature status
+==================================================
+PROBLEM 2 — STATIC OFFICIAL STAMP
+Current issue:
+All documents display the same static "CACHET OFFICIEL".
+This is not acceptable.
+Required:
+Generate dynamic stamp blocks.
+Display:
+
+
+Syndicate Name
+
+Official Status
+
+Validation Date
+
+Signatory
+==================================================
+PROBLEM 3 — DOCUMENT STYLE IS NOT PROFESSIONAL
+Current issue:
+Documents look like simple exported reports.
+The layout feels outdated.
+The hierarchy is weak.
+The typography is poor.
+The tables look like Excel exports.
+Required:
+Create enterprise-grade document designs.
+Target quality:
+
+
+Government documents
+
+Bank documents
+
+Insurance documents
+
+Enterprise ERP systems
+==================================================
+PROBLEM 4 — TEMPLATE BUSINESS LOGIC
+Audit every template.
+Examples:
+
+
+Contracts
+
+Invoices
+
+Quotes
+
+Meeting Minutes
+
+Elections
+
+Regulations
+
+Certificates
+
+Financial Reports
+For each template:
+Determine:
+
+
+Business purpose
+
+Required data
+
+Database sources
+
+Missing data
+Never ask users to enter information already stored in PostgreSQL.
+==================================================
+PROBLEM 5 — AUTOMATIC DATA POPULATION
+When generating a document:
+Automatically retrieve:
+Syndicate:
+
+
+Logo
+
+Name
+
+Address
+
+RC
+
+ICE
+
+Email
+
+Phone
+Building:
+
+
+Building Name
+
+Building Address
+Member:
+
+
+Full Name
+
+Apartment
+
+Building
+Meeting:
+
+
+Participants
+
+Votes
+
+Decisions
+Finance:
+
+
+Charges
+
+Payments
+
+Invoices
+Only ask the user for missing information.
+==================================================
+PROBLEM 6 — TEMPLATE DESIGN SYSTEM
+Create a unique visual identity for each document category.
+Financial Documents:
+
+
+Professional accounting style
+Meeting Documents:
+
+
+Official administrative style
+Election Documents:
+
+
+Institutional style
+Contracts:
+
+
+Legal style
+Certificates:
+
+
+Formal certification style
+Each category must have:
+
+
+Unique colors
+
+Unique icons
+
+Unique layout
+==================================================
+PROBLEM 7 — HEADER
+Redesign completely.
+Display:
+
+
+Syndicate Logo
+
+Syndicate Name
+
+Building Name
+
+Address
+
+Contact Information
+
+Document Number
+
+Issue Date
+
+Status Badge
+
+QR Code
+==================================================
+PROBLEM 8 — INFORMATION BLOCKS
+Replace old tables.
+Use:
+
+
+Information Cards
+
+Modern Sections
+
+Better Spacing
+
+Better Hierarchy
+==================================================
+PROBLEM 9 — FOOTER
+Create a professional footer.
+Display:
+
+
+QR Verification
+
+Verification URL
+
+Version
+
+Legal Notice
+
+Page Number
+==================================================
+PROBLEM 10 — TEMPLATE MANAGEMENT
+Audit the Template Management System.
+Verify:
+Can Super Admin:
+
+
+Create Templates
+
+Edit Templates
+
+Version Templates
+
+Preview Templates
+
+Publish Templates
+If missing:
+Implement a modern Template Builder.
+No code editing required by administrators.
+Visual editor only.
+==================================================
+FINAL REPORT
+Generate:
+
+
+Root Causes
+
+Signature Problems
+
+Stamp Problems
+
+Template Problems
+
+Database Mapping
+
+Files Modified
+
+API Changes
+
+PDF Changes
+
+UI Changes
+
+Production Readiness Score
+Do not stop at reporting.
+Implement all fixes and make the document system production-ready for a large Moroccan Condominium SaaS platform. beyeyij900@gicont.com dijere3045@lasttea.com

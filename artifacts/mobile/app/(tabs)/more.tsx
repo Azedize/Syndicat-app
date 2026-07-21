@@ -99,7 +99,7 @@ const MENU_SECTIONS_DEF: SectionDef[] = [
       { labelKey: "publicationsActualites", icon: "rss",            route: "/publications",      color: "#f97316", roles: ["super_admin", "syndicate_admin", "member", "tenant"] },
       { labelKey: "chatMessagerie",         icon: "message-circle", route: "/chat",              color: "#ec4899", roles: ["super_admin", "syndicate_admin", "member", "tenant"] },
       { labelKey: "messagerieInterne",      icon: "mail",           route: "/messagerie-interne",color: "#3b82f6", roles: ["super_admin", "syndicate_admin", "member", "tenant"] },
-      { labelKey: "alerts",                 icon: "bell",           route: "/alerts",            color: "#ef4444", roles: ["super_admin", "syndicate_admin", "member", "tenant"] },
+      { labelKey: "alerts",                 icon: "bell",           route: "/notifications",     color: "#ef4444", roles: ["super_admin", "syndicate_admin", "member", "tenant"] },
     ],
   },
   {
@@ -180,7 +180,7 @@ export default function MoreScreen() {
   })).filter((s) => s.items.length > 0);
 
   const getBadge = (route: string): string | number | undefined => {
-    if (route === "/alerts" && unreadAlerts > 0) return unreadAlerts;
+    if (route === "/notifications" && unreadAlerts > 0) return unreadAlerts;
     if (route === "/cart" && cartCount > 0) return cartCount;
     if (route === "/charges" && openTickets > 0 && role !== "member") return openTickets;
     return undefined;

@@ -1,0 +1,278 @@
+You are a Senior Mobile UX Designer, Senior Product Designer, Design System Architect, React Native Expert, SaaS UI Auditor, and Enterprise Application Designer.
+
+Analyze the attached screenshots carefully.
+
+Do not focus on code first.
+
+First perform a complete visual and UX audit.
+
+The current UI has serious layout, filtering, spacing, responsive, and visual hierarchy issues.
+
+==================================================
+FILTER NAVIGATION AUDIT
+=======================
+
+Analyze all filter bars:
+
+Examples:
+
+* Tous
+* Ascenseur
+* Nettoyage
+* Gardiennage
+* Bureau
+* Assemblée Générale
+* Commission
+* Communiqué
+* Résultats
+* Formation
+
+Current problems:
+
+* Filters are cut off
+* Text is truncated
+* Horizontal scrolling is poor
+* Buttons touch screen borders
+* Uneven spacing
+* Inconsistent heights
+* Different styles between screens
+* Overflow on small devices
+
+Requirements:
+
+Create ONE unified filtering system for the entire application.
+
+All filter bars must use the same design system.
+
+Rules:
+
+* Horizontal scroll must be smooth
+* First and last items must have safe margins
+* Pills must never be cut
+* Dynamic width based on content
+* Minimum touch area 44px
+* Consistent padding
+* Consistent border radius
+* Consistent typography
+
+==================================================
+EMPTY STATES AUDIT
+==================
+
+Several screens appear almost empty:
+
+Examples:
+
+* Publications
+* Procès-Verbaux
+
+Current state:
+
+Large empty dark area with only filters visible.
+
+This looks unfinished and unprofessional.
+
+Requirements:
+
+Design enterprise-grade empty states.
+
+Each empty state must include:
+
+* Illustration or icon
+* Clear explanation
+* Action button
+* Helpful guidance
+
+Examples:
+
+"No publications available"
+
+"Create your first publication"
+
+"No meeting minutes available"
+
+"Create your first meeting record"
+
+Never leave a screen visually empty.
+
+==================================================
+HEADER AUDIT
+============
+
+Current problems:
+
+* Header heights inconsistent
+* Statistics blocks visually disconnected
+* Some headers too large
+* Some headers too small
+* Color hierarchy inconsistent
+
+Requirements:
+
+Create a unified mobile header system.
+
+Every screen should have:
+
+* Back button
+* Screen title
+* Subtitle
+* Optional actions
+* KPI summary section
+
+Consistent spacing everywhere.
+
+==================================================
+KPI CARDS AUDIT
+===============
+
+Example:
+
+Sinistres & Incidents
+
+Problem detected:
+
+NaNk displayed.
+
+This is unacceptable in production.
+
+Requirements:
+
+Identify all calculations generating:
+
+* NaN
+* Undefined
+* Null
+* Infinity
+
+Replace with:
+
+* 0
+* Empty state
+* Proper fallback
+
+Never allow NaN to appear in UI.
+
+Audit every KPI card in the application.
+
+==================================================
+SPACING SYSTEM AUDIT
+====================
+
+Current problems:
+
+* Inconsistent margins
+* Uneven paddings
+* Elements too close together
+* Empty zones too large
+
+Create a global spacing system:
+
+XS
+SM
+MD
+LG
+XL
+
+Apply consistently across:
+
+* Headers
+* Filters
+* Cards
+* Lists
+* Forms
+* Tables
+
+==================================================
+LIST CARD AUDIT
+===============
+
+Example:
+
+Prestataires
+Sinistres
+Publications
+PV
+
+Requirements:
+
+Cards must have:
+
+* Strong visual hierarchy
+* Better spacing
+* Clear status indicators
+* Consistent avatar/icon area
+* Consistent metadata layout
+
+Each card must immediately communicate:
+
+* What it is
+* Status
+* Date
+* Priority
+* Owner
+
+==================================================
+RESPONSIVE AUDIT
+================
+
+Test all screens on:
+
+* 320px
+* 360px
+* 375px
+* 390px
+* 414px
+* Tablets
+
+Verify:
+
+* No overflow
+* No clipping
+* No truncated pills
+* No broken grids
+* No text collisions
+
+==================================================
+DESIGN SYSTEM CONSOLIDATION
+===========================
+
+Currently the application looks like several different apps merged together.
+
+Requirements:
+
+Create ONE design language.
+
+Same:
+
+* Typography
+* Filters
+* Cards
+* Headers
+* Empty states
+* Badges
+* Status chips
+* Buttons
+
+All screens must feel like they belong to the same enterprise SaaS platform.
+
+==================================================
+EXPECTED RESULT
+===============
+
+Target quality:
+
+* Linear
+* Notion
+* Stripe
+* Revolut
+* Microsoft 365
+* SAP Mobile
+* Salesforce Mobile
+
+The application must look production-ready, premium, coherent, modern, and enterprise-grade.
+
+Do not provide only recommendations.
+
+Identify every issue screen by screen.
+
+Then redesign and implement fixes screen by screen until all visual inconsistencies are eliminated.
