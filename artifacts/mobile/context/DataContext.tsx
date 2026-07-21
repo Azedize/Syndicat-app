@@ -682,7 +682,9 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
                 priority: (row.priority as SupportTicket["priority"]) ?? "medium",
                 status: (row.status as SupportTicket["status"]) ?? "open",
                 date: String(row.date ?? row.createdAt ?? ""),
-                category: (row.category as SupportTicket["category"]) ?? "general",
+                category: (["technique", "financier", "juridique", "general", "administratif"].includes(row.category as string)
+                  ? row.category
+                  : "general") as SupportTicket["category"],
               };
             }));
           }

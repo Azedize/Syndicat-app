@@ -65,21 +65,22 @@ export default function SupportScreen() {
     high: { color: colors.destructive, label: t("priorityUrgent"), icon: "alert-circle" as const },
     medium: { color: "#f59e0b", label: t("priorityNormal"), icon: "alert-triangle" as const },
     low: { color: "#3b82f6", label: t("priorityLow"), icon: "info" as const },
-  }[p]);
+  }[p] ?? { color: "#f59e0b", label: t("priorityNormal"), icon: "alert-triangle" as const });
 
   const statusConfig = (s: SupportTicket["status"]) => ({
     open: { color: colors.destructive, label: t("ticketOpen"), icon: "alert-circle" as const },
     in_progress: { color: "#f59e0b", label: t("ticketInProgress"), icon: "clock" as const },
     resolved: { color: colors.success, label: t("ticketResolved"), icon: "check-circle" as const },
     closed: { color: colors.mutedForeground, label: t("ticketClosed"), icon: "x-circle" as const },
-  }[s]);
+  }[s] ?? { color: colors.mutedForeground, label: t("ticketOpen"), icon: "alert-circle" as const });
 
   const catConfig = (c: SupportTicket["category"]) => ({
-    technique: { icon: "settings" as const, color: "#3b82f6" },
-    financier: { icon: "dollar-sign" as const, color: colors.success },
-    juridique: { icon: "shield" as const, color: "#8b5cf6" },
-    general: { icon: "help-circle" as const, color: "#f59e0b" },
-  }[c]);
+    technique:      { icon: "settings" as const,      color: "#3b82f6" },
+    financier:      { icon: "dollar-sign" as const,   color: colors.success },
+    juridique:      { icon: "shield" as const,         color: "#8b5cf6" },
+    general:        { icon: "help-circle" as const,    color: "#f59e0b" },
+    administratif:  { icon: "file-text" as const,      color: "#6b7280" },
+  }[c] ?? { icon: "help-circle" as const, color: "#f59e0b" });
 
   const FILTERS: { key: Filter; label: string }[] = [
     { key: "all", label: t("filterAllTickets") },
