@@ -140,7 +140,7 @@ function ReportsScreenInner() {
       `Croissance membres : +${kpi.memberGrowth}\n` +
       `Taux cotisations : ${kpi.cotisationRate}%\n` +
       `Exporté le ${new Date().toLocaleDateString("fr-MA")}\n` +
-      `SYNDYCAT GLOBAL CPS`;
+      `VERIDIAN`;
     Share.share({ title: reportLabel, message: summary });
   };
 

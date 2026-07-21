@@ -156,7 +156,7 @@ export default function ForgotPasswordScreen() {
               </View>
               <Text style={[styles.successTitle, { color: colors.foreground }]}>Email envoyé !</Text>
               <Text style={[styles.successText, { color: colors.mutedForeground }]}>
-                Si l'adresse {email} est associée à un compte SYNDYCAT, vous recevrez un email avec un lien de réinitialisation dans quelques minutes.
+                Si l'adresse {email} est associée à un compte VERIDIAN, vous recevrez un email avec un lien de réinitialisation dans quelques minutes.
               </Text>
               <Text style={[styles.successHint, { color: colors.mutedForeground }]}>
                 Vérifiez aussi vos spams.

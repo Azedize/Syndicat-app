@@ -1,7 +1,7 @@
 import { Feather } from "@expo/vector-icons";
 import * as Haptics from "expo-haptics";
 import { router } from "expo-router";
-import React, { useState } from "react";
+import React, { useState, useCallback } from "react";
 import {
   Alert,
   FlatList,
@@ -20,6 +20,7 @@ import { useBreakpoints } from "@/hooks/useBreakpoints";
 import { useColors } from "@/hooks/useColors";
 import FilterTabs from "@/components/FilterTabs";
 import { useToast } from "@/context/ToastContext";
+import { chat as chatApi } from "@/services/api";
 
 type MemberFilter = "all" | "active" | "inactive" | "pending";
 
@@ -45,6 +46,7 @@ export default function MembersScreen() {
   const [synAdmin, setSynAdmin] = useState("");
   const [selectedSyndicate, setSelectedSyndicate] = useState<Syndicate | null>(null);
   const [syndicateModalView, setSyndicateModalView] = useState<"detail" | "members">("detail");
+  const [contactingAdmin, setContactingAdmin] = useState(false);
 
   const closeSyndicateModal = () => {
     setSelectedSyndicate(null);
@@ -57,6 +59,31 @@ export default function MembersScreen() {
     // otherwise the navigation can be swallowed while the modal is dismissing.
     setTimeout(() => router.push(path as any), 300);
   };
+
+  const handleContactAdmin = useCallback(async (syndicate: Syndicate) => {
+    if (contactingAdmin) return;
+    const adminUserId = syndicate.adminId;
+    if (!adminUserId) {
+      // No adminId known — fall back to the chat list
+      navigateFromSyndicateModal("/(tabs)/chat");
+      return;
+    }
+    setContactingAdmin(true);
+    try {
+      const res = await chatApi.create({ participantId: adminUserId, convType: "direct" }) as any;
+      const convId = res?.data?.id;
+      if (convId) {
+        closeSyndicateModal();
+        setTimeout(() => router.push({ pathname: "/chat-thread", params: { id: convId } } as any), 300);
+      } else {
+        navigateFromSyndicateModal("/(tabs)/chat");
+      }
+    } catch {
+      navigateFromSyndicateModal("/(tabs)/chat");
+    } finally {
+      setContactingAdmin(false);
+    }
+  }, [contactingAdmin]);
 
   const { isWide } = useBreakpoints();
   const { showToast } = useToast();
@@ -239,10 +266,10 @@ export default function MembersScreen() {
                           onPress: () => { setSyndicateModalView("members"); Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); },
                         },
                         {
-                          label: "Contacter admin",
+                          label: contactingAdmin ? "Ouverture…" : "Contacter admin",
                           icon: "message-circle" as const,
                           color: "#3b82f6",
-                          onPress: () => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); navigateFromSyndicateModal("/(tabs)/chat"); },
+                          onPress: () => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); handleContactAdmin(selectedSyndicate!); },
                         },
                         {
                           label: selectedSyndicate.status === "active" ? "Désactiver" : "Activer",

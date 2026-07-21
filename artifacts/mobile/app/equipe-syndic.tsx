@@ -14,7 +14,7 @@ import { apiRequest } from "@/lib/api";
 import { useToast } from "@/context/ToastContext";
 
 const ROLE_CONFIG: Record<string, { label: string; color: string; icon: keyof typeof Feather.glyphMap }> = {
-  super_admin:     { label: "Super Admin",      color: "#7c3aed", icon: "shield" },
+  super_admin:     { label: "Super Admin",      color: "#2563EB", icon: "shield" },
   syndicate_admin: { label: "Syndic",           color: "#3b82f6", icon: "briefcase" },
   president:       { label: "Président",        color: "#f59e0b", icon: "award" },
   tresorier:       { label: "Trésorier",        color: "#10b981", icon: "dollar-sign" },

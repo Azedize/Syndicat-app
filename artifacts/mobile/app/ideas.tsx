@@ -14,7 +14,7 @@ import { useToast } from "@/context/ToastContext";
 import { apiRequest } from "@/lib/api";
 
 const CATEGORY_CONFIG: Record<string, { label: string; color: string; icon: keyof typeof Feather.glyphMap }> = {
-  infrastructure:   { label: "Infrastructure",   color: "#7c3aed", icon: "tool" },
+  infrastructure:   { label: "Infrastructure",   color: "#2563EB", icon: "tool" },
   security:         { label: "Sécurité",          color: "#ef4444", icon: "shield" },
   environment:      { label: "Environnement",     color: "#10b981", icon: "sun" },
   services:         { label: "Services",          color: "#3b82f6", icon: "package" },
@@ -28,7 +28,7 @@ const STATUS_CONFIG: Record<string, { label: string; color: string; bg: string }
   under_review: { label: "En revue",   color: "#3b82f6", bg: "#3b82f615" },
   approved:     { label: "Approuvé",   color: "#10b981", bg: "#10b98115" },
   rejected:     { label: "Rejeté",     color: "#ef4444", bg: "#ef444415" },
-  implemented:  { label: "Implémenté", color: "#7c3aed", bg: "#7c3aed15" },
+  implemented:  { label: "Implémenté", color: "#2563EB", bg: "#2563EB15" },
 };
 
 type Idea = {
@@ -124,7 +124,7 @@ export default function IdeasScreen() {
   return (
     <View style={[styles.root, { backgroundColor: colors.background }]}>
       {/* Header */}
-      <View style={[styles.header, { paddingTop: topPad + 16, backgroundColor: "#7c3aed" }]}>
+      <View style={[styles.header, { paddingTop: topPad + 16, backgroundColor: "#2563EB" }]}>
         <TouchableOpacity onPress={() => router.back()} style={styles.backBtn}>
           <Feather name="arrow-left" size={22} color="#fff" />
         </TouchableOpacity>
@@ -140,7 +140,7 @@ export default function IdeasScreen() {
       {/* Stats */}
       <View style={[styles.statsRow, { backgroundColor: colors.card, borderBottomColor: colors.border }]}>
         {[
-          { label: "Total", value: ideas.length, color: "#7c3aed" },
+          { label: "Total", value: ideas.length, color: "#2563EB" },
           { label: "En cours", value: pending, color: "#f59e0b" },
           { label: "Implémentées", value: implemented, color: "#10b981" },
           { label: "Votes (total)", value: ideas.reduce((s, i) => s + (i.voteCount ?? 0), 0), color: "#3b82f6" },
@@ -153,21 +153,21 @@ export default function IdeasScreen() {
       </View>
 
       {loading ? (
-        <View style={styles.center}><ActivityIndicator color="#7c3aed" size="large" /></View>
+        <View style={styles.center}><ActivityIndicator color="#2563EB" size="large" /></View>
       ) : (
         <ScrollView
           contentContainerStyle={[styles.list, { paddingBottom: isWide ? 32 : insets.bottom + 100 }]}
-          refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor="#7c3aed" />}
+          refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor="#2563EB" />}
           showsVerticalScrollIndicator={false}
         >
           {ideas.length === 0 ? (
             <View style={styles.empty}>
-              <View style={[styles.emptyIcon, { backgroundColor: "#7c3aed15" }]}>
-                <Feather name="zap" size={32} color="#7c3aed" />
+              <View style={[styles.emptyIcon, { backgroundColor: "#2563EB15" }]}>
+                <Feather name="zap" size={32} color="#2563EB" />
               </View>
               <Text style={[styles.emptyTitle, { color: colors.foreground }]}>Aucune idée soumise</Text>
               <Text style={[styles.emptyText, { color: colors.mutedForeground }]}>Soyez le premier à proposer une amélioration pour votre résidence.</Text>
-              <TouchableOpacity style={[styles.emptyBtn, { backgroundColor: "#7c3aed" }]} onPress={() => setShowSubmit(true)}>
+              <TouchableOpacity style={[styles.emptyBtn, { backgroundColor: "#2563EB" }]} onPress={() => setShowSubmit(true)}>
                 <Text style={styles.emptyBtnText}>Soumettre une idée</Text>
               </TouchableOpacity>
             </View>
@@ -205,19 +205,19 @@ export default function IdeasScreen() {
 
                   <View style={[styles.cardFooter, { borderTopColor: colors.border }]}>
                     <View style={styles.voteRow}>
-                      <Feather name="chevrons-up" size={14} color="#7c3aed" />
+                      <Feather name="chevrons-up" size={14} color="#2563EB" />
                       <Text style={[styles.voteCount, { color: colors.foreground }]}>{idea.voteCount ?? 0} vote{(idea.voteCount ?? 0) !== 1 ? "s" : ""}</Text>
                     </View>
 
                     {idea.status === "pending" || idea.status === "under_review" ? (
                       <TouchableOpacity
-                        style={[styles.voteBtn, { backgroundColor: idea.userVoted ? "#7c3aed" : colors.secondary, borderColor: "#7c3aed" }]}
+                        style={[styles.voteBtn, { backgroundColor: idea.userVoted ? "#2563EB" : colors.secondary, borderColor: "#2563EB" }]}
                         onPress={() => handleVote(idea.id)}
                         disabled={votingId === idea.id}
                       >
                         {votingId === idea.id
-                          ? <ActivityIndicator size="small" color={idea.userVoted ? "#fff" : "#7c3aed"} />
-                          : <Text style={[styles.voteBtnText, { color: idea.userVoted ? "#fff" : "#7c3aed" }]}>
+                          ? <ActivityIndicator size="small" color={idea.userVoted ? "#fff" : "#2563EB"} />
+                          : <Text style={[styles.voteBtnText, { color: idea.userVoted ? "#fff" : "#2563EB" }]}>
                               {idea.userVoted ? "Voté ✓" : "Voter"}
                             </Text>
                         }
@@ -281,7 +281,7 @@ export default function IdeasScreen() {
             />
 
             <TouchableOpacity
-              style={[styles.submitBtn, { backgroundColor: "#7c3aed", opacity: submitting ? 0.7 : 1 }]}
+              style={[styles.submitBtn, { backgroundColor: "#2563EB", opacity: submitting ? 0.7 : 1 }]}
               onPress={handleSubmit} disabled={submitting}
             >
               {submitting ? <ActivityIndicator color="#fff" size="small" /> : <Text style={styles.submitText}>Soumettre la proposition</Text>}
@@ -305,7 +305,7 @@ export default function IdeasScreen() {
             <View style={styles.actionRow}>
               {(["approved", "rejected", "implemented"] as const).map((a) => (
                 <TouchableOpacity key={a}
-                  style={[styles.actionBtn, { backgroundColor: adminAction === a ? (a === "rejected" ? "#ef4444" : a === "implemented" ? "#7c3aed" : "#10b981") : colors.secondary }]}
+                  style={[styles.actionBtn, { backgroundColor: adminAction === a ? (a === "rejected" ? "#ef4444" : a === "implemented" ? "#2563EB" : "#10b981") : colors.secondary }]}
                   onPress={() => setAdminAction(a)}>
                   <Text style={[styles.actionBtnText, { color: adminAction === a ? "#fff" : colors.foreground }]}>
                     {a === "approved" ? "Approuver" : a === "rejected" ? "Rejeter" : "Marquer implémenté"}
@@ -325,7 +325,7 @@ export default function IdeasScreen() {
             />
 
             <TouchableOpacity
-              style={[styles.submitBtn, { backgroundColor: "#7c3aed", opacity: submitting ? 0.7 : 1 }]}
+              style={[styles.submitBtn, { backgroundColor: "#2563EB", opacity: submitting ? 0.7 : 1 }]}
               onPress={handleReview} disabled={submitting}
             >
               {submitting ? <ActivityIndicator color="#fff" size="small" /> : <Text style={styles.submitText}>Enregistrer la décision</Text>}

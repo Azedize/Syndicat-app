@@ -24,7 +24,7 @@ type Translations = Record<string, Record<LangCode, string>>;
 
 export const TRANSLATIONS: Translations = {
   // ─── App ───────────────────────────────────────────────────────────────────
-  appName:       { fr: "SYNDYCAT", en: "SYNDYCAT", ar: "سنديكات", es: "SYNDYCAT" },
+  appName:       { fr: "VERIDIAN", en: "VERIDIAN", ar: "سنديكات", es: "VERIDIAN" },
   appTagline:    { fr: "Global CPS Platform", en: "Global CPS Platform", ar: "منصة CPS العالمية", es: "Plataforma CPS Global" },
 
   // ─── Roles ─────────────────────────────────────────────────────────────────
@@ -62,7 +62,7 @@ export const TRANSLATIONS: Translations = {
   haveCode:               { fr: "Vous avez déjà un code ? ", en: "Already have a code? ", ar: "لديك رمز بالفعل؟ ", es: "¿Ya tiene un código? " },
   resetWithCode:          { fr: "Réinitialiser avec le code", en: "Reset with code", ar: "إعادة التعيين بالرمز", es: "Restablecer con código" },
   emailSentTitle:         { fr: "Email envoyé !", en: "Email sent!", ar: "تم إرسال البريد الإلكتروني!", es: "¡Correo enviado!" },
-  emailSentMsg:           { fr: "Si l'adresse {email} est associée à un compte SYNDYCAT, vous recevrez un email avec un lien de réinitialisation dans quelques minutes.", en: "If {email} is linked to a SYNDYCAT account, you will receive a reset link email in a few minutes.", ar: "إذا كان {email} مرتبطاً بحساب SYNDYCAT، ستتلقى رسالة إعادة تعيين خلال دقائق.", es: "Si {email} está vinculado a una cuenta SYNDYCAT, recibirá un correo de restablecimiento en unos minutos." },
+  emailSentMsg:           { fr: "Si l'adresse {email} est associée à un compte VERIDIAN, vous recevrez un email avec un lien de réinitialisation dans quelques minutes.", en: "If {email} is linked to a VERIDIAN account, you will receive a reset link email in a few minutes.", ar: "إذا كان {email} مرتبطاً بحساب VERIDIAN، ستتلقى رسالة إعادة تعيين خلال دقائق.", es: "Si {email} está vinculado a una cuenta VERIDIAN, recibirá un correo de restablecimiento en unos minutos." },
   checkSpam:              { fr: "Vérifiez aussi vos spams.", en: "Check your spam folder too.", ar: "تحقق أيضاً من مجلد البريد العشوائي.", es: "Revise también su carpeta de spam." },
   enterResetCode:         { fr: "Saisir mon code de réinitialisation", en: "Enter my reset code", ar: "إدخال رمز إعادة التعيين", es: "Ingresar mi código de restablecimiento" },
   backToLogin:            { fr: "Retour à la connexion", en: "Back to login", ar: "العودة إلى تسجيل الدخول", es: "Volver al inicio de sesión" },
@@ -244,7 +244,7 @@ export const TRANSLATIONS: Translations = {
 
   // ─── AI Assistant ──────────────────────────────────────────────────────────
   aiAssistant:        { fr: "Assistant IA", en: "AI Assistant", ar: "مساعد الذكاء الاصطناعي", es: "Asistente IA" },
-  aiAssistantFull:    { fr: "Assistant IA SYNDYCAT", en: "SYNDYCAT AI Assistant", ar: "مساعد الذكاء الاصطناعي SYNDYCAT", es: "Asistente IA SYNDYCAT" },
+  aiAssistantFull:    { fr: "Assistant IA VERIDIAN", en: "VERIDIAN AI Assistant", ar: "مساعد الذكاء الاصطناعي VERIDIAN", es: "Asistente IA VERIDIAN" },
   aiOnline:           { fr: "En ligne — Prêt à répondre", en: "Online — Ready to respond", ar: "متصل — جاهز للرد", es: "En línea — Listo para responder" },
   aiSuggestions:      { fr: "SUGGESTIONS RAPIDES", en: "QUICK SUGGESTIONS", ar: "اقتراحات سريعة", es: "SUGERENCIAS RÁPIDAS" },
   aiGreeting: {
@@ -1253,7 +1253,7 @@ export const TRANSLATIONS: Translations = {
   finishSetup:          { fr: "Terminer la configuration", en: "Finish setup", ar: "إنهاء الإعداد", es: "Finalizar configuración" },
 
   // ─── Onboarding ─────────────────────────────────────────────────────────────
-  welcomeTitle:         { fr: "Bienvenue sur SYNDYCAT", en: "Welcome to SYNDYCAT", ar: "مرحباً بك في سنديكات", es: "Bienvenido a SYNDYCAT" },
+  welcomeTitle:         { fr: "Bienvenue sur VERIDIAN", en: "Welcome to VERIDIAN", ar: "مرحباً بك في سنديكات", es: "Bienvenido a VERIDIAN" },
   getStarted:           { fr: "Commencer", en: "Get started", ar: "ابدأ", es: "Comenzar" },
   skipBtn:              { fr: "Ignorer", en: "Skip", ar: "تخطي", es: "Omitir" },
 

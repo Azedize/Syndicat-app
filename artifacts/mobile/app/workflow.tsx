@@ -136,7 +136,7 @@ const PRIORITY_CONFIG: Record<WfPriority, { label: string; color: string }> = {
 };
 
 const CAT_COLORS: Record<string, string> = {
-  statuts: "#7c3aed",
+  statuts: "#2563EB",
   reglement: "#3b82f6",
   finance: "#10b981",
   juridique: "#ef4444",

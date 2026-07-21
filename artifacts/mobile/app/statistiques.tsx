@@ -507,7 +507,7 @@ export default function StatistiquesScreen() {
         <Text style={[styles.title, { color: colors.foreground }]}>{STRINGS.title[lang]}</Text>
         <TouchableOpacity
           style={[styles.exportBtn, { borderColor: colors.border }]}
-          onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); Share.share({ title: STRINGS.exportTitle[lang], message: `${STRINGS.exportTitle[lang]}\n${new Date().toLocaleDateString("fr-MA")}\nSYNDYCAT GLOBAL CPS` }); }}
+          onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); Share.share({ title: STRINGS.exportTitle[lang], message: `${STRINGS.exportTitle[lang]}\n${new Date().toLocaleDateString("fr-MA")}\nVERIDIAN` }); }}
         >
           <Feather name="download" size={16} color={colors.primary} />
         </TouchableOpacity>
@@ -606,7 +606,7 @@ export default function StatistiquesScreen() {
               ? <Text style={[{ fontSize: 13, fontFamily: "Inter_400Regular", color: colors.mutedForeground, textAlign: "center", paddingVertical: 20 }]}>{STRINGS.noSyndicate[lang]}</Text>
               : [...syndicates].sort((a, b) => b.members - a.members).map((sy, i) => {
                 const maxM = Math.max(...syndicates.map((s) => s.members));
-                const colors2 = ["#7c3aed", "#3b82f6", "#10b981", "#f59e0b", "#ef4444"];
+                const colors2 = ["#2563EB", "#3b82f6", "#10b981", "#f59e0b", "#ef4444"];
                 const color = colors2[i % colors2.length];
                 return (
                   <View key={sy.id} style={[styles.rankRow, { backgroundColor: colors.card, borderColor: colors.border }]}>
@@ -670,7 +670,7 @@ export default function StatistiquesScreen() {
               <Text style={[styles.chartTitle, { color: colors.foreground }]}>{STRINGS.saasByPlan[lang]}</Text>
               {[
                 { plan: STRINGS.enterprise[lang], count: syndicateSubscriptions.filter((s) => s.planId === "plan_enterprise" && s.status === "active").length, color: "#f59e0b", amount: 18000 },
-                { plan: STRINGS.pro[lang], count: syndicateSubscriptions.filter((s) => s.planId === "plan_pro" && s.status === "active").length, color: "#7c3aed", amount: 9600 },
+                { plan: STRINGS.pro[lang], count: syndicateSubscriptions.filter((s) => s.planId === "plan_pro" && s.status === "active").length, color: "#2563EB", amount: 9600 },
                 { plan: STRINGS.essential[lang], count: syndicateSubscriptions.filter((s) => s.planId === "plan_essentiel" && s.status === "active").length, color: "#6b7280", amount: 4800 },
               ].map((p) => (
                 <View key={p.plan} style={styles.planStatRow}>

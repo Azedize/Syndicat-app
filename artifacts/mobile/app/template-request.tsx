@@ -162,26 +162,26 @@ function TemplateRequestContent() {
       <View style={s.infoBanner}>
         <Feather name="info" size={14} color="#a78bfa" />
         <Text style={s.infoBannerText}>
-          Votre demande sera examinée par l'équipe SYNDYCAT. Une fois approuvée, le modèle sera créé et mis à votre disposition.
+          Votre demande sera examinée par l'équipe VERIDIAN. Une fois approuvée, le modèle sera créé et mis à votre disposition.
         </Text>
       </View>
 
       {/* ── List ── */}
       <ScrollView
         style={{ flex: 1 }}
-        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor="#7c3aed" />}
+        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor="#2563EB" />}
         showsVerticalScrollIndicator={false}
         contentContainerStyle={{ padding: 16, gap: 12, paddingBottom: insets.bottom + 40 }}
       >
         {loading ? (
           <View style={{ alignItems: "center", paddingVertical: 60 }}>
-            <ActivityIndicator size="large" color="#7c3aed" />
+            <ActivityIndicator size="large" color="#2563EB" />
             <Text style={s.loadingText}>Chargement…</Text>
           </View>
         ) : requests.length === 0 ? (
           <View style={s.emptyWrap}>
             <View style={s.emptyIcon}>
-              <Feather name="inbox" size={34} color="#7c3aed" />
+              <Feather name="inbox" size={34} color="#2563EB" />
             </View>
             <Text style={s.emptyTitle}>Aucune demande</Text>
             <Text style={s.emptyDesc}>
@@ -205,9 +205,9 @@ function TemplateRequestContent() {
                 <View style={s.cardInner}>
                   {/* Header */}
                   <View style={{ flexDirection: "row", alignItems: "center", gap: 8, marginBottom: 10 }}>
-                    <View style={[s.catPill, { backgroundColor: (cat?.color ?? "#7c3aed") + "20" }]}>
-                      <Feather name={cat?.icon ?? "file"} size={11} color={cat?.color ?? "#7c3aed"} />
-                      <Text style={[s.catPillText, { color: cat?.color ?? "#7c3aed" }]}>{cat?.label ?? req.category}</Text>
+                    <View style={[s.catPill, { backgroundColor: (cat?.color ?? "#2563EB") + "20" }]}>
+                      <Feather name={cat?.icon ?? "file"} size={11} color={cat?.color ?? "#2563EB"} />
+                      <Text style={[s.catPillText, { color: cat?.color ?? "#2563EB" }]}>{cat?.label ?? req.category}</Text>
                     </View>
                     <View style={[s.statusBadge, { backgroundColor: sc.bg, borderColor: sc.color + "44" }]}>
                       <Feather name={sc.icon} size={10} color={sc.color} />
@@ -434,7 +434,7 @@ function TemplateRequestContent() {
                     ) : null}
 
                     {selectedRequest.reviewNotes ? (
-                      <View style={[s.detailSection, { backgroundColor: "#7c3aed15", borderColor: "#7c3aed30" }]}>
+                      <View style={[s.detailSection, { backgroundColor: "#2563EB15", borderColor: "#2563EB30" }]}>
                         <Text style={[s.detailSectionTitle, { color: "#a78bfa" }]}>Notes de l'examinateur</Text>
                         <Text style={[s.detailSectionBody, { color: "#c4b5fd" }]}>{selectedRequest.reviewNotes}</Text>
                       </View>
@@ -477,16 +477,16 @@ const s = StyleSheet.create({
                       alignItems: "center", justifyContent: "center" },
   headerTitle:      { fontSize: 17, fontWeight: "700", color: "#f1f5f9" },
   headerSub:        { fontSize: 11, color: "#64748b", marginTop: 1 },
-  newBtn:           { flexDirection: "row", alignItems: "center", gap: 6, backgroundColor: "#7c3aed",
+  newBtn:           { flexDirection: "row", alignItems: "center", gap: 6, backgroundColor: "#2563EB",
                       paddingHorizontal: 14, paddingVertical: 9, borderRadius: 12 },
   newBtnText:       { fontSize: 13, fontWeight: "700", color: "#fff" },
   infoBanner:       { flexDirection: "row", alignItems: "flex-start", gap: 10, margin: 16,
-                      backgroundColor: "#7c3aed15", borderRadius: 12, padding: 14, borderWidth: 1, borderColor: "#7c3aed30" },
+                      backgroundColor: "#2563EB15", borderRadius: 12, padding: 14, borderWidth: 1, borderColor: "#2563EB30" },
   infoBannerText:   { flex: 1, fontSize: 12, color: "#a78bfa", lineHeight: 18 },
   loadingText:      { color: "#64748b", marginTop: 12, fontSize: 14 },
   emptyWrap:        { alignItems: "center", paddingVertical: 60, paddingHorizontal: 40 },
-  emptyIcon:        { width: 80, height: 80, borderRadius: 24, backgroundColor: "#7c3aed11",
-                      alignItems: "center", justifyContent: "center", marginBottom: 20, borderWidth: 1, borderColor: "#7c3aed33" },
+  emptyIcon:        { width: 80, height: 80, borderRadius: 24, backgroundColor: "#2563EB11",
+                      alignItems: "center", justifyContent: "center", marginBottom: 20, borderWidth: 1, borderColor: "#2563EB33" },
   emptyTitle:       { fontSize: 18, fontWeight: "700", color: "#f1f5f9", marginBottom: 8 },
   emptyDesc:        { fontSize: 13, color: "#64748b", textAlign: "center", lineHeight: 20 },
   card:             { backgroundColor: "#1e293b", borderRadius: 16, overflow: "hidden",
@@ -503,8 +503,8 @@ const s = StyleSheet.create({
   priBadgeText:     { fontSize: 10, fontWeight: "600" },
   cardTitle:        { fontSize: 14, fontWeight: "700", color: "#f1f5f9", marginTop: 8, marginBottom: 4, lineHeight: 20 },
   cardDesc:         { fontSize: 12, color: "#64748b", lineHeight: 17, marginBottom: 6 },
-  reviewNote:       { flexDirection: "row", alignItems: "flex-start", gap: 6, backgroundColor: "#7c3aed10",
-                      borderRadius: 8, padding: 8, marginVertical: 4, borderWidth: 1, borderColor: "#7c3aed25" },
+  reviewNote:       { flexDirection: "row", alignItems: "flex-start", gap: 6, backgroundColor: "#2563EB10",
+                      borderRadius: 8, padding: 8, marginVertical: 4, borderWidth: 1, borderColor: "#2563EB25" },
   reviewNoteText:   { flex: 1, fontSize: 11, color: "#a78bfa", lineHeight: 16 },
   cardDate:         { fontSize: 10, color: "#475569", marginTop: 8 },
   // Modal
@@ -528,7 +528,7 @@ const s = StyleSheet.create({
                       alignItems: "center", justifyContent: "center" },
   cancelBtnText:    { fontSize: 14, fontWeight: "600", color: "#94a3b8" },
   submitBtn:        { flex: 2, flexDirection: "row", alignItems: "center", justifyContent: "center",
-                      gap: 8, backgroundColor: "#7c3aed", paddingVertical: 14, borderRadius: 14 },
+                      gap: 8, backgroundColor: "#2563EB", paddingVertical: 14, borderRadius: 14 },
   submitBtnText:    { fontSize: 14, fontWeight: "700", color: "#fff" },
   // Detail
   detailStatusBadge:{ flexDirection: "row", alignItems: "center", gap: 8, paddingHorizontal: 14,

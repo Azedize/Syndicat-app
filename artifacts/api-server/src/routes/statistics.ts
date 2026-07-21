@@ -439,6 +439,7 @@ router.get(
           openTickets,
           status,
           adminName: adminUser?.name ?? "N/A",
+          adminId: sy.adminId ?? null,
           syStatus: sy.status,
         };
       });

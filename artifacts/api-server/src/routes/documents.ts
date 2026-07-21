@@ -114,14 +114,14 @@ function buildVerifyUrl(token: string): string | undefined {
 
 async function getSyndicateInfo(syndicateId?: string | null): Promise<SyndicateInfo> {
   const defaults: SyndicateInfo = {
-    name: "SYNDYCAT",
+    name: "VERIDIAN",
     address: "",
     city: "",
     phone: "",
     email: "",
     website: "",
     registrationNumber: "",
-    logoColor: "#7c3aed",
+    logoColor: "#2563EB",
     logoUrl: null,
     abbreviation: null,
     bankName: null,
@@ -1142,7 +1142,7 @@ router.get("/documents/templates", requireAuth, async (_req, res) => {
     {
       id: "attestation", name: "Attestation d'adhésion", category: "attestation",
       description: "Certifie officiellement qu'un membre est en règle auprès du syndicat.",
-      icon: "award", color: "#8b5cf6", version: "2.0", author: "SYNDYCAT", updatedAt: "2026-01-01",
+      icon: "award", color: "#8b5cf6", version: "2.0", author: "VERIDIAN", updatedAt: "2026-01-01",
       sections: [
         { title: "En-tête", description: "Logo, coordonnées et accréditation du syndicat", source: "syndicatesTable" },
         { title: "Informations du syndicat", description: "Nom, adresse, N° d'enregistrement", source: "syndicatesTable" },
@@ -1166,7 +1166,7 @@ router.get("/documents/templates", requireAuth, async (_req, res) => {
     {
       id: "pv", name: "Procès-verbal de réunion", category: "pv",
       description: "Procès-verbal officiel enregistrant les délibérations et résolutions d'une réunion.",
-      icon: "clipboard", color: "#10b981", version: "2.0", author: "SYNDYCAT", updatedAt: "2026-01-01",
+      icon: "clipboard", color: "#10b981", version: "2.0", author: "VERIDIAN", updatedAt: "2026-01-01",
       sections: [
         { title: "En-tête", description: "Logo et coordonnées du syndicat", source: "syndicatesTable" },
         { title: "Informations de la réunion", description: "Date, lieu, heure, président de séance", source: "input" },
@@ -1192,7 +1192,7 @@ router.get("/documents/templates", requireAuth, async (_req, res) => {
     {
       id: "convocation", name: "Convocation officielle", category: "pv",
       description: "Convocation officielle adressée aux membres pour une réunion.",
-      icon: "calendar", color: "#3b82f6", version: "2.0", author: "SYNDYCAT", updatedAt: "2026-01-01",
+      icon: "calendar", color: "#3b82f6", version: "2.0", author: "VERIDIAN", updatedAt: "2026-01-01",
       sections: [
         { title: "En-tête", description: "Logo et identité du syndicat", source: "syndicatesTable" },
         { title: "Destinataire", description: "Nom du ou des destinataires", source: "input / usersTable" },
@@ -1215,7 +1215,7 @@ router.get("/documents/templates", requireAuth, async (_req, res) => {
     {
       id: "contrat", name: "Contrat", category: "juridique",
       description: "Contrat formel entre le syndicat et un tiers (prestataire, partenaire…).",
-      icon: "file-text", color: "#0891b2", version: "2.0", author: "SYNDYCAT", updatedAt: "2026-01-01",
+      icon: "file-text", color: "#0891b2", version: "2.0", author: "VERIDIAN", updatedAt: "2026-01-01",
       sections: [
         { title: "En-tête", description: "Logo et identité du syndicat", source: "syndicatesTable" },
         { title: "Parties contractantes", description: "Syndicat (Partie 1) et Tiers (Partie 2)", source: "syndicatesTable + input" },
@@ -1236,7 +1236,7 @@ router.get("/documents/templates", requireAuth, async (_req, res) => {
     {
       id: "decision", name: "Décision syndicale", category: "juridique",
       description: "Décision officielle prise par le bureau syndical.",
-      icon: "check-circle", color: "#16a34a", version: "2.0", author: "SYNDYCAT", updatedAt: "2026-01-01",
+      icon: "check-circle", color: "#16a34a", version: "2.0", author: "VERIDIAN", updatedAt: "2026-01-01",
       sections: [
         { title: "En-tête", description: "Logo et identité du syndicat", source: "syndicatesTable" },
         { title: "Informations de la décision", description: "Organe décisionnel, date, objet", source: "input" },
@@ -1256,7 +1256,7 @@ router.get("/documents/templates", requireAuth, async (_req, res) => {
     {
       id: "mise_en_demeure", name: "Mise en demeure", category: "juridique",
       description: "Document légal de mise en demeure adressé à un débiteur ou contrevenant.",
-      icon: "alert-circle", color: "#ef4444", version: "2.0", author: "SYNDYCAT", updatedAt: "2026-01-01",
+      icon: "alert-circle", color: "#ef4444", version: "2.0", author: "VERIDIAN", updatedAt: "2026-01-01",
       sections: [
         { title: "En-tête", description: "Logo et identité du syndicat", source: "syndicatesTable" },
         { title: "Identité du destinataire", description: "Nom et coordonnées du mis en demeure", source: "input" },
@@ -1280,7 +1280,7 @@ router.get("/documents/templates", requireAuth, async (_req, res) => {
     {
       id: "rapport_financier", name: "Rapport financier", category: "finances",
       description: "Bilan financier de la période avec prévisions et réalisations.",
-      icon: "dollar-sign", color: "#f59e0b", version: "2.0", author: "SYNDYCAT", updatedAt: "2026-01-01",
+      icon: "dollar-sign", color: "#f59e0b", version: "2.0", author: "VERIDIAN", updatedAt: "2026-01-01",
       sections: [
         { title: "En-tête", description: "Logo et identité du syndicat", source: "syndicatesTable" },
         { title: "Informations de l'immeuble", description: "Résidence, adresse, N° de lots", source: "buildingsTable + lotsTable" },
@@ -1308,7 +1308,7 @@ router.get("/documents/templates", requireAuth, async (_req, res) => {
     {
       id: "attestation_residence", name: "Attestation de résidence", category: "attestation",
       description: "Certifie officiellement la résidence d'un copropriétaire dans l'immeuble. Le nom, le bâtiment et le numéro d'appartement sont injectés automatiquement.",
-      icon: "home", color: "#0891b2", version: "2.0", author: "SYNDYCAT", updatedAt: "2026-01-01",
+      icon: "home", color: "#0891b2", version: "2.0", author: "VERIDIAN", updatedAt: "2026-01-01",
       sections: [
         { title: "En-tête professionnel", description: "Logo, coordonnées et accréditation du syndicat", source: "syndicatesTable" },
         { title: "Identité du résident", description: "Nom complet du copropriétaire / locataire", source: "usersTable + membersTable" },
@@ -1332,7 +1332,7 @@ router.get("/documents/templates", requireAuth, async (_req, res) => {
     {
       id: "attestation_propriete", name: "Attestation de propriété", category: "attestation",
       description: "Certifie officiellement la propriété d'un lot de copropriété. Le titre foncier et les tantiièmes sont injectés depuis la base de données.",
-      icon: "key", color: "#7c3aed", version: "2.0", author: "SYNDYCAT", updatedAt: "2026-01-01",
+      icon: "key", color: "#2563EB", version: "2.0", author: "VERIDIAN", updatedAt: "2026-01-01",
       sections: [
         { title: "En-tête professionnel", description: "Logo, coordonnées et accréditation du syndicat", source: "syndicatesTable" },
         { title: "Identité du propriétaire", description: "Nom complet du copropriétaire", source: "membersTable" },
@@ -1357,7 +1357,7 @@ router.get("/documents/templates", requireAuth, async (_req, res) => {
     {
       id: "attestation_paiement", name: "Attestation de paiement des charges", category: "attestation",
       description: "Certifie que le copropriétaire est en règle de paiement de ses charges pour la période indiquée.",
-      icon: "check-circle", color: "#16a34a", version: "2.0", author: "SYNDYCAT", updatedAt: "2026-01-01",
+      icon: "check-circle", color: "#16a34a", version: "2.0", author: "VERIDIAN", updatedAt: "2026-01-01",
       sections: [
         { title: "En-tête professionnel", description: "Logo, coordonnées et accréditation du syndicat", source: "syndicatesTable" },
         { title: "Identité du payeur", description: "Nom et N° de lot du copropriétaire", source: "membersTable + lotsTable" },
@@ -1609,7 +1609,7 @@ function buildVerificationHtml(opts: {
       </div>
       <span style="color:rgba(255,255,255,.85);font-size:13px;font-weight:600;letter-spacing:.8px;text-transform:uppercase;">Syndycat — Portail de vérification</span>
     </div>
-    <div style="color:rgba(255,255,255,.5);font-size:11px;margin-top:4px;letter-spacing:.3px;">documents.syndycat.app</div>
+    <div style="color:rgba(255,255,255,.5);font-size:11px;margin-top:4px;letter-spacing:.3px;">documents.veridian.app</div>
   </div>
 
   <!-- ── Status card (overlaps header) ─────────────────────────────────── -->
@@ -3493,7 +3493,7 @@ router.post(
                 isValid: s.isValid,
               })),
               (doc.language as DocumentLanguage) ?? "fr",
-              (syndBranding?.logoColor as string | undefined) ?? "#7c3aed",
+              (syndBranding?.logoColor as string | undefined) ?? "#2563EB",
               syndBranding?.name ?? "",
               doc.documentNumber ?? "",
               prevCount,

@@ -382,7 +382,7 @@ interface ReglementDoc {
 }
 
 const TYPE_CONFIG: Record<DocType, { label: { [key in LangCode]: string }; color: string; icon: keyof typeof Feather.glyphMap }> = {
-  statuts: { label: STRINGS.tabStatuts, color: "#7c3aed", icon: "book-open" },
+  statuts: { label: STRINGS.tabStatuts, color: "#2563EB", icon: "book-open" },
   ri: { label: STRINGS.tabRI, color: "#3b82f6", icon: "book" },
   circulaire: { label: STRINGS.tabCirculaires, color: "#10b981", icon: "mail" },
   charte: { label: STRINGS.tabChartes, color: "#f59e0b", icon: "star" },
@@ -711,7 +711,7 @@ export default function ReglementsScreen() {
           {[
             {
               doc: "Statuts du Syndicat",
-              color: "#7c3aed",
+              color: "#2563EB",
               versions: [
                 { v: "v4.2", date: "2024-01-15", author: "Bureau National", note: "Révision complète post-AG extraordinaire. Ajout des clauses numériques.", status: "current" },
                 { v: "v4.1", date: "2023-06-10", author: "Commission Juridique", note: "Amendement articles 18 et 24 sur la durée des mandats.", status: "archived" },
@@ -875,7 +875,7 @@ export default function ReglementsScreen() {
                     onPress={(e) => {
                       e.stopPropagation?.();
                       Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-                      Share.share({ title: d.title, message: `${d.title}\n${d.type} — ${d.status}\nPartagé depuis SYNDYCAT GLOBAL CPS` });
+                      Share.share({ title: d.title, message: `${d.title}\n${d.type} — ${d.status}\nPartagé depuis VERIDIAN` });
                     }}
                   >
                     <Feather name="share-2" size={14} color="#6366f1" />
@@ -976,7 +976,7 @@ export default function ReglementsScreen() {
                   </TouchableOpacity>
                   <TouchableOpacity
                     style={[styles.modalActionBtn, { backgroundColor: colors.muted }]}
-                    onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); Share.share({ title: d.title, message: `${d.title} — ${d.type}\nPartagé depuis SYNDYCAT GLOBAL CPS` }); }}
+                    onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); Share.share({ title: d.title, message: `${d.title} — ${d.type}\nPartagé depuis VERIDIAN` }); }}
                   >
                     <Feather name="share-2" size={18} color={colors.foreground} />
                     <Text style={[styles.modalActionBtnText, { color: colors.foreground }]}>Partager</Text>

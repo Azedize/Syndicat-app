@@ -53,7 +53,7 @@ const ROLE_THEMES: Record<BadgeData["role"], RoleTheme> = {
     styleLabelKey: "badgeStyleExecutive",
   },
   syndicate_admin: {
-    gradient: ["#4c1d95", "#7c3aed"],
+    gradient: ["#4c1d95", "#2563EB"],
     accent: "#e9d5ff",
     textOnGradient: "#ffffff",
     icon: "briefcase",
@@ -132,7 +132,7 @@ export default function BadgeCard() {
   if (loading) {
     return (
       <View style={styles.loadingBox}>
-        <ActivityIndicator color="#7c3aed" />
+        <ActivityIndicator color="#2563EB" />
       </View>
     );
   }
@@ -162,7 +162,7 @@ export default function BadgeCard() {
                 <Feather name="shield" size={13} color={theme.accent} />
               </View>
               <View style={{ flex: 1 }}>
-                <Text style={[styles.brandName, { color: theme.textOnGradient }]}>SYNDYCAT GLOBAL CPS</Text>
+                <Text style={[styles.brandName, { color: theme.textOnGradient }]}>VERIDIAN</Text>
                 <Text style={[styles.brandTagline, { color: theme.accent }]}>{t("badgeOfficialId")}</Text>
               </View>
               <View style={[styles.roleChip, { borderColor: theme.accent }]}>
@@ -229,7 +229,7 @@ export default function BadgeCard() {
                 </View>
                 <View>
                   <Text style={[styles.backLabel, { color: theme.accent }]}>{t("badgeSupportContact")}</Text>
-                  <Text style={[styles.backValue, { color: theme.textOnGradient }]}>support@syndycat.app</Text>
+                  <Text style={[styles.backValue, { color: theme.textOnGradient }]}>support@veridian.app</Text>
                 </View>
               </View>
             </View>
@@ -253,7 +253,7 @@ export default function BadgeCard() {
       </View>
 
       <TouchableOpacity style={styles.flipHint} onPress={flip} activeOpacity={0.7}>
-        <Feather name="rotate-cw" size={13} color="#7c3aed" />
+        <Feather name="rotate-cw" size={13} color="#2563EB" />
         <Text style={styles.flipHintText}>{flipped ? t("badgeFlipFront") : t("badgeFlipBack")}</Text>
       </TouchableOpacity>
     </View>
@@ -311,6 +311,6 @@ const styles = StyleSheet.create({
   backCode: { fontSize: 15, fontFamily: "Inter_700Bold", letterSpacing: 1, marginTop: 2 },
   backValue: { fontSize: 12, fontFamily: "Inter_500Medium", marginTop: 2 },
   terms: { fontSize: 9, fontFamily: "Inter_400Regular", lineHeight: 13 },
-  flipHint: { flexDirection: "row", alignItems: "center", gap: 6, paddingVertical: 6, paddingHorizontal: 12, borderRadius: 20, backgroundColor: "#7c3aed12" },
-  flipHintText: { fontSize: 12, fontFamily: "Inter_600SemiBold", color: "#7c3aed" },
+  flipHint: { flexDirection: "row", alignItems: "center", gap: 6, paddingVertical: 6, paddingHorizontal: 12, borderRadius: 20, backgroundColor: "#2563EB12" },
+  flipHintText: { fontSize: 12, fontFamily: "Inter_600SemiBold", color: "#2563EB" },
 });

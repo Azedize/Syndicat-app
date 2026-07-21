@@ -81,7 +81,7 @@ function BudgetPrevisionnelScreenInner() {
           prevu: parseFloat(l.amountAnnual || "0"),
           realise: 0,
           icon: "file-text" as any,
-          color: INCOME_CATEGORIES.has(l.category || "") ? "#3b82f6" : "#7c3aed",
+          color: INCOME_CATEGORIES.has(l.category || "") ? "#3b82f6" : "#2563EB",
         }));
         const r = lines.filter((l) => INCOME_CATEGORIES.has(l.categorie));
         const d = lines.filter((l) => !INCOME_CATEGORIES.has(l.categorie));

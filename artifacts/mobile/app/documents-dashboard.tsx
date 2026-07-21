@@ -207,7 +207,7 @@ export default function DocumentsDashboard() {
     ?? { label: status, color: "#64748b" };
 
   const CAT_COLORS: Record<string, string> = {
-    statuts: "#7c3aed", reglements: "#3b82f6", pv: "#10b981",
+    statuts: "#2563EB", reglements: "#3b82f6", pv: "#10b981",
     juridique: "#ef4444", finances: "#f59e0b", attestation: "#8b5cf6",
   };
 

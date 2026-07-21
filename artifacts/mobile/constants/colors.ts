@@ -1,73 +1,90 @@
+/**
+ * VERIDIAN Design System — Color Palette
+ *
+ * Primary brand colors align with the VERIDIAN logo:
+ *   Deep navy (#0A1628) + Brand blue (#2563EB / #3B82F6)
+ *
+ * All screens reference `useColors()` which selects the correct
+ * light or dark palette based on the system/user theme preference.
+ */
+
 const colors = {
   light: {
-    text: "#1e1b4b",
-    tint: "#7c3aed",
+    text: "#0A1628",
+    tint: "#2563EB",
 
-    background: "#f8f7ff",
-    foreground: "#1e1b4b",
+    /** Main page background — barely-there cool-blue tint on white */
+    background: "#F8FAFF",
+    foreground: "#0A1628",
 
-    card: "#ffffff",
-    cardForeground: "#1e1b4b",
+    card: "#FFFFFF",
+    cardForeground: "#0A1628",
 
-    primary: "#7c3aed",
-    primaryForeground: "#ffffff",
+    /** Brand action blue — buttons, active nav, primary accents */
+    primary: "#1E40AF",
+    primaryForeground: "#FFFFFF",
 
-    secondary: "#ede9fe",
-    secondaryForeground: "#5b21b6",
+    /** Pale blue — chip backgrounds, secondary buttons */
+    secondary: "#EFF6FF",
+    secondaryForeground: "#1E40AF",
 
-    muted: "#f3f4f6",
-    mutedForeground: "#6b7280",
+    muted: "#F1F5F9",
+    mutedForeground: "#64748B",
 
-    accent: "#ede9fe",
-    accentForeground: "#5b21b6",
+    accent: "#DBEAFE",
+    accentForeground: "#1E40AF",
 
-    destructive: "#ef4444",
-    destructiveForeground: "#ffffff",
+    destructive: "#EF4444",
+    destructiveForeground: "#FFFFFF",
 
-    border: "#e5e7eb",
-    input: "#e5e7eb",
+    border: "#E2E8F0",
+    input: "#E2E8F0",
 
-    success: "#10b981",
-    successForeground: "#ffffff",
-    warning: "#f59e0b",
-    warningForeground: "#ffffff",
-    info: "#3b82f6",
-    infoForeground: "#ffffff",
+    success: "#10B981",
+    successForeground: "#FFFFFF",
+    warning: "#F59E0B",
+    warningForeground: "#FFFFFF",
+    info: "#3B82F6",
+    infoForeground: "#FFFFFF",
   },
   dark: {
-    text: "#f0eeff",
-    tint: "#a78bfa",
+    text: "#E8F0FE",
+    tint: "#60A5FA",
 
-    background: "#0f0e17",
-    foreground: "#f0eeff",
+    /** Deep navy — mirrors the logo's dark background panel */
+    background: "#070D1A",
+    foreground: "#E8F0FE",
 
-    card: "#1a1825",
-    cardForeground: "#f0eeff",
+    /** Dark navy card surfaces */
+    card: "#0D1929",
+    cardForeground: "#E8F0FE",
 
-    primary: "#7c3aed",
-    primaryForeground: "#ffffff",
+    /** Bright blue for visibility on dark — primary CTA on navy */
+    primary: "#3B82F6",
+    primaryForeground: "#FFFFFF",
 
-    secondary: "#2d2540",
-    secondaryForeground: "#c4b5fd",
+    /** Dark blue-navy — secondary surfaces */
+    secondary: "#162035",
+    secondaryForeground: "#93C5FD",
 
-    muted: "#1e1d2b",
-    mutedForeground: "#9ca3af",
+    muted: "#0F1D32",
+    mutedForeground: "#7A90B0",
 
-    accent: "#2d2540",
-    accentForeground: "#c4b5fd",
+    accent: "#162035",
+    accentForeground: "#93C5FD",
 
-    destructive: "#f87171",
-    destructiveForeground: "#ffffff",
+    destructive: "#F87171",
+    destructiveForeground: "#FFFFFF",
 
-    border: "#2e2b3d",
-    input: "#2e2b3d",
+    border: "#1E3050",
+    input: "#1E3050",
 
-    success: "#34d399",
-    successForeground: "#ffffff",
-    warning: "#fbbf24",
-    warningForeground: "#ffffff",
-    info: "#60a5fa",
-    infoForeground: "#ffffff",
+    success: "#34D399",
+    successForeground: "#FFFFFF",
+    warning: "#FBBF24",
+    warningForeground: "#FFFFFF",
+    info: "#60A5FA",
+    infoForeground: "#FFFFFF",
   },
   radius: 12,
 };

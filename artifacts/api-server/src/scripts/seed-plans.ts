@@ -73,7 +73,7 @@ const PLANS = [
     isTrial: false,
     isActive: true,
     sortOrder: 2,
-    color: "#7c3aed",
+    color: "#2563EB",
     maxBuildings: 10,
     maxLots: 200,
     maxMembers: 500,

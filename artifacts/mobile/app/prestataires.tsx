@@ -23,7 +23,7 @@ import RoleGuard from "@/components/RoleGuard";
 const TYPE_CONFIG: Record<string, { label: string; icon: keyof typeof Feather.glyphMap; color: string }> = {
   ascenseur:     { label: "Ascenseur",     icon: "chevrons-up",  color: "#3b82f6" },
   nettoyage:     { label: "Nettoyage",     icon: "wind",         color: "#06b6d4" },
-  gardiennage:   { label: "Gardiennage",   icon: "shield",       color: "#7c3aed" },
+  gardiennage:   { label: "Gardiennage",   icon: "shield",       color: "#2563EB" },
   plomberie:     { label: "Plomberie",     icon: "droplet",      color: "#0ea5e9" },
   electricite:   { label: "Électricité",   icon: "zap",          color: "#f59e0b" },
   jardinage:     { label: "Jardinage",     icon: "feather",      color: "#10b981" },
@@ -188,7 +188,7 @@ function PrestatairesScreenInner() {
           { label: "Prestataires", value: prestataires.length, color: "#3b82f6" },
           { label: "Contrats actifs", value: prestataires.reduce((s, p) => s + p.activeContracts, 0), color: "#10b981" },
           { label: "Expirent bientôt", value: prestataires.reduce((s, p) => s + p.expiringContracts, 0), color: "#f59e0b" },
-          { label: "Travaux ouverts", value: prestataires.reduce((s, p) => s + p.openWorkOrders, 0), color: "#7c3aed" },
+          { label: "Travaux ouverts", value: prestataires.reduce((s, p) => s + p.openWorkOrders, 0), color: "#2563EB" },
         ].map((s, i, arr) => (
           <View key={s.label} style={[styles.sumCell, i < arr.length - 1 && { borderRightWidth: 1, borderRightColor: colors.border }]}>
             <Text style={[styles.sumVal, { color: s.color }]}>{s.value}</Text>
@@ -271,7 +271,7 @@ function PrestatairesScreenInner() {
                       </Text>
                     </View>
                     <View style={styles.statItem}>
-                      <Feather name="tool" size={13} color="#7c3aed" />
+                      <Feather name="tool" size={13} color="#2563EB" />
                       <Text style={[styles.statText, { color: colors.mutedForeground }]}>
                         {p.openWorkOrders} travaux en cours
                       </Text>

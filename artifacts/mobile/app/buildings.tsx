@@ -25,7 +25,7 @@ import RoleGuard from "@/components/RoleGuard";
 type SortKey = "name" | "lots" | "unpaid" | "city";
 
 const BUILDING_TYPE_COLORS: Record<string, string> = {
-  residential: "#7c3aed",
+  residential: "#2563EB",
   commercial: "#f59e0b",
   office: "#3b82f6",
   mixed: "#10b981",

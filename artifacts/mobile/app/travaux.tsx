@@ -200,7 +200,7 @@ const PRIORITY_CONFIG: Record<string, { color: string; icon: keyof typeof Feathe
 const STATUS_CONFIG: Record<string, { color: string; stringKey: keyof typeof STRINGS }> = {
   reported:           { color: "#f59e0b", stringKey: "statusReported" },
   assigned:           { color: "#3b82f6", stringKey: "statusAssigned" },
-  in_progress:        { color: "#7c3aed", stringKey: "statusInProgress" },
+  in_progress:        { color: "#2563EB", stringKey: "statusInProgress" },
   pending_validation: { color: "#ec4899", stringKey: "statusPendingValidation" },
   completed:          { color: "#10b981", stringKey: "statusCompleted" },
   cancelled:          { color: "#6b7280", stringKey: "statusCancelled" },
@@ -383,7 +383,7 @@ export default function TravauxScreen() {
         stats={[
           { label: STRINGS.total[lang],       value: stats.total,      color: "#f59e0b" },
           { label: STRINGS.priority[lang],    value: stats.urgent,     color: "#ef4444" },
-          { label: STRINGS.inProgress[lang], value: stats.inProgress, color: "#7c3aed" },
+          { label: STRINGS.inProgress[lang], value: stats.inProgress, color: "#2563EB" },
           { label: STRINGS.completed[lang],    value: stats.done,       color: "#10b981" },
         ]}
         action={{ icon: "plus", onPress: () => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); setShowModal(true); } }}
@@ -464,7 +464,7 @@ export default function TravauxScreen() {
                           <Text style={styles.workflowBtnText}>{STRINGS.assignAction[lang]}</Text>
                         </TouchableOpacity>
                       ) : t.status === "assigned" || t.status === "in_progress" ? (
-                        <TouchableOpacity style={[styles.workflowBtn, { backgroundColor: "#7c3aed" }]} onPress={() => setActionTravail(t)}>
+                        <TouchableOpacity style={[styles.workflowBtn, { backgroundColor: "#2563EB" }]} onPress={() => setActionTravail(t)}>
                           <Feather name="upload" size={13} color="#fff" />
                           <Text style={styles.workflowBtnText}>{STRINGS.reportAction[lang]}</Text>
                         </TouchableOpacity>
@@ -514,16 +514,16 @@ export default function TravauxScreen() {
             ) : (
               <>
                 <TouchableOpacity style={[styles.docPickBtn, { borderColor: colors.border, backgroundColor: colors.card }]} onPress={handlePickReport}>
-                  <Feather name="file-text" size={16} color="#7c3aed" />
-                  <Text style={{ color: "#7c3aed", fontFamily: "Inter_600SemiBold" }}>{reportUrl ? "✓ " : ""}{STRINGS.reportPdf[lang]}</Text>
+                  <Feather name="file-text" size={16} color="#2563EB" />
+                  <Text style={{ color: "#2563EB", fontFamily: "Inter_600SemiBold" }}>{reportUrl ? "✓ " : ""}{STRINGS.reportPdf[lang]}</Text>
                 </TouchableOpacity>
                 <TouchableOpacity style={[styles.docPickBtn, { borderColor: colors.border, backgroundColor: colors.card }]} onPress={handlePickPhoto}>
-                  <Feather name="camera" size={16} color="#7c3aed" />
-                  <Text style={{ color: "#7c3aed", fontFamily: "Inter_600SemiBold" }}>{photoUrl ? "✓ " : ""}{STRINGS.photoProof[lang]}</Text>
+                  <Feather name="camera" size={16} color="#2563EB" />
+                  <Text style={{ color: "#2563EB", fontFamily: "Inter_600SemiBold" }}>{photoUrl ? "✓ " : ""}{STRINGS.photoProof[lang]}</Text>
                 </TouchableOpacity>
                 <TouchableOpacity style={[styles.docPickBtn, { borderColor: colors.border, backgroundColor: colors.card }]} onPress={handlePickInvoice}>
-                  <Feather name="file" size={16} color="#7c3aed" />
-                  <Text style={{ color: "#7c3aed", fontFamily: "Inter_600SemiBold" }}>{invoiceUrl ? "✓ " : ""}{STRINGS.invoiceDoc[lang]}</Text>
+                  <Feather name="file" size={16} color="#2563EB" />
+                  <Text style={{ color: "#2563EB", fontFamily: "Inter_600SemiBold" }}>{invoiceUrl ? "✓ " : ""}{STRINGS.invoiceDoc[lang]}</Text>
                 </TouchableOpacity>
                 <Text style={[styles.fieldLabel, { color: colors.mutedForeground }]}>{STRINGS.invoiceAmountLabel[lang]}</Text>
                 <TextInput
@@ -535,7 +535,7 @@ export default function TravauxScreen() {
                   onChangeText={setInvoiceAmount}
                 />
                 <TouchableOpacity
-                  style={[styles.submitBtn, { backgroundColor: "#7c3aed", opacity: actionBusy ? 0.7 : 1 }]}
+                  style={[styles.submitBtn, { backgroundColor: "#2563EB", opacity: actionBusy ? 0.7 : 1 }]}
                   onPress={handleSubmitReport}
                   disabled={actionBusy}
                 >

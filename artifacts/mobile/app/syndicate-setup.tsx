@@ -87,13 +87,13 @@ const COTISATION_CYCLES = [
 ];
 
 const LOGO_COLORS = [
-  "#7c3aed", "#2563eb", "#0891b2", "#059669",
+  "#2563EB", "#2563eb", "#0891b2", "#059669",
   "#16a34a", "#ca8a04", "#dc2626", "#db2777",
   "#9333ea", "#0f172a",
 ];
 
 const LOGO_PRESETS: { icon: keyof typeof Feather.glyphMap; color: string; label: string }[] = [
-  { icon: "home",        color: "#7c3aed", label: "Résidence"     },
+  { icon: "home",        color: "#2563EB", label: "Résidence"     },
   { icon: "grid",        color: "#2563eb", label: "Immeuble"      },
   { icon: "shield",      color: "#059669", label: "Sécurité"      },
   { icon: "users",       color: "#0891b2", label: "Communauté"    },
@@ -479,7 +479,7 @@ function SuccessScreen({
       {/* Details card */}
       <View style={[styles.successDetails, { backgroundColor: colors.card, borderColor: colors.border }]}>
         <View style={styles.successDetailHeader}>
-          <View style={[styles.successLogo, { backgroundColor: created.logoColor ?? "#7c3aed" }]}>
+          <View style={[styles.successLogo, { backgroundColor: created.logoColor ?? "#2563EB" }]}>
             {created.logoUrl ? (
               <Image source={{ uri: created.logoUrl }} style={styles.successLogoImg} />
             ) : (
@@ -630,7 +630,7 @@ function SyndicateSetupScreenInner() {
     memberCount: "",
     cotisationAmount: "150",
     cotisationCycle: "monthly",
-    logoColor: "#7c3aed",
+    logoColor: "#2563EB",
     logoUri: "",
     logoUrl: "",
     logoPreset: "home",

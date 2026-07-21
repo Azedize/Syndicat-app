@@ -36,7 +36,7 @@ const ACTION_CONFIG: Record<string, { color: string; icon: keyof typeof Feather.
   pay_cotisation: { color: "#10b981", icon: "credit-card" },
   approve_member: { color: "#10b981", icon: "user-check" },
   reject_member: { color: "#ef4444", icon: "user-x" },
-  create_election: { color: "#7c3aed", icon: "layers" },
+  create_election: { color: "#2563EB", icon: "layers" },
   add_member: { color: "#3b82f6", icon: "user-plus" },
   add_transaction: { color: "#10b981", icon: "dollar-sign" },
   validate_product: { color: "#10b981", icon: "package" },

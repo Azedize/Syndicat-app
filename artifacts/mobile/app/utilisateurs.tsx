@@ -99,7 +99,7 @@ const STRINGS = {
 };
 
 const ROLE_CONFIG: Record<Role, { labelKey: keyof typeof STRINGS; color: string; icon: keyof typeof Feather.glyphMap }> = {
-  super_admin: { labelKey: "superAdmin", color: "#7c3aed", icon: "shield" },
+  super_admin: { labelKey: "superAdmin", color: "#2563EB", icon: "shield" },
   syndicate_admin: { labelKey: "syndicateAdmin", color: "#3b82f6", icon: "briefcase" },
   member: { labelKey: "member", color: "#10b981", icon: "user" },
   tenant: { labelKey: "tenant", color: "#f97316", icon: "key" },

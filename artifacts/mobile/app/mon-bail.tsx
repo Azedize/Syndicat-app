@@ -28,7 +28,7 @@ interface InfoRowProps {
   color?: string;
 }
 
-function InfoRow({ label, value, icon, color = "#7c3aed" }: InfoRowProps) {
+function InfoRow({ label, value, icon, color = "#2563EB" }: InfoRowProps) {
   const colors = useColors();
   return (
     <View style={[styles.infoRow, { borderBottomColor: colors.border }]}>
@@ -145,13 +145,13 @@ export default function MonBailScreen() {
           <InfoRow label="Type de bail" value="Location résidentielle" icon="file-text" color="#3b82f6" />
           <InfoRow label="Date de début" value={formatDate(lease.leaseStart)} icon="calendar" color="#10b981" />
           <InfoRow label="Date de fin" value={formatDate(lease.leaseEnd)} icon="calendar" color="#f59e0b" />
-          <InfoRow label="Loyer mensuel" value={formatMAD(lease.monthlyRent)} icon="credit-card" color="#7c3aed" />
+          <InfoRow label="Loyer mensuel" value={formatMAD(lease.monthlyRent)} icon="credit-card" color="#2563EB" />
           <InfoRow label="Caution versée" value={formatMAD(lease.depositAmount)} icon="shield" color="#6366f1" />
         </View>
 
         <View style={[styles.section, { backgroundColor: colors.card, borderColor: colors.border }]}>
           <Text style={[styles.sectionTitle, { color: colors.mutedForeground }]}>APPARTEMENT</Text>
-          <InfoRow label="Résidence" value={lease.buildingName ?? "Non renseignée"} icon="home" color="#7c3aed" />
+          <InfoRow label="Résidence" value={lease.buildingName ?? "Non renseignée"} icon="home" color="#2563EB" />
           <InfoRow label="Numéro de lot" value={lease.lotNumber ?? "Non renseigné"} icon="grid" color="#3b82f6" />
           <InfoRow label="Étage" value={lease.floor != null ? String(lease.floor) : "Non renseigné"} icon="layers" color="#10b981" />
         </View>

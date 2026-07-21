@@ -679,7 +679,7 @@ export default function ChatThreadScreen() {
                 text: t("shareConversation"),
                 onPress: () =>
                   shareContent(
-                    `Conversation avec ${conversation.participant} sur SYNDYCAT`,
+                    `Conversation avec ${conversation.participant} sur VERIDIAN`,
                   ),
               },
             ];

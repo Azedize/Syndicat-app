@@ -63,7 +63,7 @@ interface StudioStats {
 // ─── Constants ────────────────────────────────────────────────────────────────
 
 const CATEGORIES = [
-  { key: "all",             label: "Tous",            icon: "grid"          as const, color: "#7c3aed" },
+  { key: "all",             label: "Tous",            icon: "grid"          as const, color: "#2563EB" },
   { key: "meeting_minutes", label: "Réunions",        icon: "clipboard"     as const, color: "#3b82f6" },
   { key: "financial",       label: "Finance",         icon: "dollar-sign"   as const, color: "#10b981" },
   { key: "legal",           label: "Juridique",       icon: "shield"        as const, color: "#ef4444" },
@@ -149,14 +149,14 @@ function TemplateCard({
   return (
     <View style={styles.card}>
       {/* Category accent bar */}
-      <View style={[styles.cardAccentBar, { backgroundColor: cat?.color ?? "#7c3aed" }]} />
+      <View style={[styles.cardAccentBar, { backgroundColor: cat?.color ?? "#2563EB" }]} />
 
       <View style={styles.cardInner}>
         {/* Header */}
         <View style={styles.cardHeader}>
-          <View style={[styles.cardCatPill, { backgroundColor: (cat?.color ?? "#7c3aed") + "20" }]}>
-            <Feather name={cat?.icon ?? "file"} size={11} color={cat?.color ?? "#7c3aed"} />
-            <Text style={[styles.cardCatText, { color: cat?.color ?? "#7c3aed" }]}>{cat?.label ?? template.category}</Text>
+          <View style={[styles.cardCatPill, { backgroundColor: (cat?.color ?? "#2563EB") + "20" }]}>
+            <Feather name={cat?.icon ?? "file"} size={11} color={cat?.color ?? "#2563EB"} />
+            <Text style={[styles.cardCatText, { color: cat?.color ?? "#2563EB" }]}>{cat?.label ?? template.category}</Text>
           </View>
 
           <View style={styles.cardHeaderRight}>
@@ -393,7 +393,7 @@ function TemplateStudioContent() {
           <Text style={styles.headerTitle}>Template Studio</Text>
           <Text style={styles.headerSub}>Gestionnaire de modèles de documents</Text>
         </View>
-        <View style={[styles.headerBadge, { backgroundColor: "#7c3aed22" }]}>
+        <View style={[styles.headerBadge, { backgroundColor: "#2563EB22" }]}>
           <Feather name="layers" size={14} color="#a78bfa" />
           <Text style={styles.headerBadgeText}>{stats?.total ?? "—"}</Text>
         </View>
@@ -412,7 +412,7 @@ function TemplateStudioContent() {
 
       <ScrollView
         style={styles.scroll}
-        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor="#7c3aed" />}
+        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor="#2563EB" />}
         showsVerticalScrollIndicator={false}
       >
         {/* Stats Strip */}
@@ -421,7 +421,7 @@ function TemplateStudioContent() {
             <StatCard label="Publiés"      value={stats.published}  icon="check-circle" color="#16a34a" />
             <StatCard label="Brouillons"   value={stats.draft}      icon="edit-2"       color="#f59e0b" />
             <StatCard label="Archivés"     value={stats.archived}   icon="archive"      color="#6b7280" />
-            <StatCard label="Utilisations" value={stats.totalUsage} icon="bar-chart-2"  color="#7c3aed" />
+            <StatCard label="Utilisations" value={stats.totalUsage} icon="bar-chart-2"  color="#2563EB" />
           </View>
         )}
 
@@ -477,13 +477,13 @@ function TemplateStudioContent() {
         {/* Template List */}
         {loading ? (
           <View style={styles.loadingWrap}>
-            <ActivityIndicator size="large" color="#7c3aed" />
+            <ActivityIndicator size="large" color="#2563EB" />
             <Text style={styles.loadingText}>Chargement des templates...</Text>
           </View>
         ) : filteredTemplates.length === 0 ? (
           <View style={styles.emptyWrap}>
             <View style={styles.emptyIcon}>
-              <Feather name="layers" size={36} color="#7c3aed" />
+              <Feather name="layers" size={36} color="#2563EB" />
             </View>
             <Text style={styles.emptyTitle}>Aucun template trouvé</Text>
             <Text style={styles.emptyDesc}>
@@ -534,11 +534,11 @@ function TemplateStudioContent() {
 
           {reqLoading ? (
             <View style={styles.loadingWrap}>
-              <ActivityIndicator size="large" color="#7c3aed" />
+              <ActivityIndicator size="large" color="#2563EB" />
             </View>
           ) : requests.length === 0 ? (
             <View style={styles.emptyWrap}>
-              <View style={styles.emptyIcon}><Feather name="inbox" size={36} color="#7c3aed" /></View>
+              <View style={styles.emptyIcon}><Feather name="inbox" size={36} color="#2563EB" /></View>
               <Text style={styles.emptyTitle}>Aucune demande</Text>
               <Text style={styles.emptyDesc}>Les demandes de modèles des administrateurs de syndicat apparaîtront ici.</Text>
             </View>
@@ -738,7 +738,7 @@ const styles = StyleSheet.create({
   headerTitle:    { fontSize: 18, fontWeight: "700", color: "#f1f5f9", letterSpacing: -0.3 },
   headerSub:      { fontSize: 11, color: "#64748b", marginTop: 1 },
   headerBadge:    { flexDirection: "row", alignItems: "center", gap: 5, paddingHorizontal: 10,
-                    paddingVertical: 6, borderRadius: 20, borderWidth: 1, borderColor: "#7c3aed33" },
+                    paddingVertical: 6, borderRadius: 20, borderWidth: 1, borderColor: "#2563EB33" },
   headerBadgeText:{ fontSize: 13, fontWeight: "700", color: "#a78bfa" },
 
   // Stats
@@ -773,7 +773,7 @@ const styles = StyleSheet.create({
                     paddingHorizontal: 16, marginBottom: 4, marginTop: 4 },
   resultsCount:   { fontSize: 12, color: "#64748b", fontWeight: "500" },
   addInlineBtn:   { flexDirection: "row", alignItems: "center", gap: 4, paddingHorizontal: 10,
-                    paddingVertical: 5, borderRadius: 8, backgroundColor: "#7c3aed22" },
+                    paddingVertical: 5, borderRadius: 8, backgroundColor: "#2563EB22" },
   addInlineText:  { fontSize: 12, color: "#a78bfa", fontWeight: "600" },
 
   // Template list
@@ -818,21 +818,21 @@ const styles = StyleSheet.create({
   loadingWrap:    { alignItems: "center", justifyContent: "center", paddingVertical: 60 },
   loadingText:    { color: "#64748b", marginTop: 12, fontSize: 14 },
   emptyWrap:      { alignItems: "center", justifyContent: "center", paddingVertical: 60, paddingHorizontal: 40 },
-  emptyIcon:      { width: 80, height: 80, borderRadius: 24, backgroundColor: "#7c3aed11",
+  emptyIcon:      { width: 80, height: 80, borderRadius: 24, backgroundColor: "#2563EB11",
                     alignItems: "center", justifyContent: "center", marginBottom: 20,
-                    borderWidth: 1, borderColor: "#7c3aed33" },
+                    borderWidth: 1, borderColor: "#2563EB33" },
   emptyTitle:     { fontSize: 18, fontWeight: "700", color: "#f1f5f9", marginBottom: 8 },
   emptyDesc:      { fontSize: 13, color: "#64748b", textAlign: "center", lineHeight: 20 },
   emptyBtn:       { flexDirection: "row", alignItems: "center", gap: 8, marginTop: 24,
-                    backgroundColor: "#7c3aed", paddingHorizontal: 20, paddingVertical: 12,
+                    backgroundColor: "#2563EB", paddingHorizontal: 20, paddingVertical: 12,
                     borderRadius: 12 },
   emptyBtnText:   { color: "#fff", fontWeight: "700", fontSize: 14 },
 
   // FAB
   fabWrap:        { position: "absolute", right: 24 },
-  fab:            { width: 56, height: 56, borderRadius: 28, backgroundColor: "#7c3aed",
+  fab:            { width: 56, height: 56, borderRadius: 28, backgroundColor: "#2563EB",
                     alignItems: "center", justifyContent: "center",
-                    shadowColor: "#7c3aed", shadowOffset: { width: 0, height: 8 },
+                    shadowColor: "#2563EB", shadowOffset: { width: 0, height: 8 },
                     shadowOpacity: 0.5, shadowRadius: 16, elevation: 12 },
 
   // Requests button (header)
@@ -864,6 +864,6 @@ const styles = StyleSheet.create({
                         paddingHorizontal: 14, paddingVertical: 12, color: "#f1f5f9", fontSize: 13,
                         minHeight: 80, textAlignVertical: "top" },
   reviewSubmitBtn:    { flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 8,
-                        backgroundColor: "#7c3aed", paddingVertical: 14, borderRadius: 14, marginTop: 16 },
+                        backgroundColor: "#2563EB", paddingVertical: 14, borderRadius: 14, marginTop: 16 },
   reviewSubmitText:   { fontSize: 14, fontWeight: "700", color: "#fff" },
 });

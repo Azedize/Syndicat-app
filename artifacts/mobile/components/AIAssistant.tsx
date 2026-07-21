@@ -73,15 +73,15 @@ function getAIResponse(query: string, role: string): string {
   }
 
   if (q.includes("abonnement") || q.includes("plan") || q.includes("tarif") || q.includes("prix") || q.includes("facturation")) {
-    return "Les **Abonnements** SYNDYCAT :\n\n• **Starter** — Jusqu'à 50 membres, fonctionnalités de base\n• **Professional** — Jusqu'à 200 membres, finances avancées, marketplace\n• **Enterprise** — Membres illimités, IA, multi-syndicats, support prioritaire\n\nAccédez à **Abonnements** via le menu Plus → Abonnements & Facturation. Les super admins voient tous les abonnements actifs. Les upgrades sont immédiats. Contactez le support pour les remises syndicales.";
+    return "Les **Abonnements** VERIDIAN :\n\n• **Starter** — Jusqu'à 50 membres, fonctionnalités de base\n• **Professional** — Jusqu'à 200 membres, finances avancées, marketplace\n• **Enterprise** — Membres illimités, IA, multi-syndicats, support prioritaire\n\nAccédez à **Abonnements** via le menu Plus → Abonnements & Facturation. Les super admins voient tous les abonnements actifs. Les upgrades sont immédiats. Contactez le support pour les remises syndicales.";
   }
 
   if (q.includes("bonjour") || q.includes("salut") || q.includes("aide") || q.includes("comment")) {
-    return "Bonjour ! 👋 Je suis votre assistant SYNDYCAT.\n\nJe peux vous aider avec :\n\n• 🗳️ **Élections** — Créer, gérer, publier les résultats\n• 👥 **Membres** — Adhésions, cotisations, profils\n• 💰 **Finance** — Transactions, salaires, prévisions\n• ⚖️ **Juridique** — Droits, alertes, conformité\n• 📄 **Documents** — PV, statuts, attestations\n• 🏛️ **Gouvernance** — Bureau, commissions, mandats\n• 💬 **Communication** — Chat, publications, alertes\n\nQuelle est votre question ?";
+    return "Bonjour ! 👋 Je suis votre assistant VERIDIAN.\n\nJe peux vous aider avec :\n\n• 🗳️ **Élections** — Créer, gérer, publier les résultats\n• 👥 **Membres** — Adhésions, cotisations, profils\n• 💰 **Finance** — Transactions, salaires, prévisions\n• ⚖️ **Juridique** — Droits, alertes, conformité\n• 📄 **Documents** — PV, statuts, attestations\n• 🏛️ **Gouvernance** — Bureau, commissions, mandats\n• 💬 **Communication** — Chat, publications, alertes\n\nQuelle est votre question ?";
   }
 
   if (q.includes("marketplace") || q.includes("boutique") || q.includes("produit") || q.includes("commande") || q.includes("achat")) {
-    return "La **Marketplace SYNDYCAT** permet :\n\n**Pour les membres :**\n• Acheter des produits syndicaux (livres, matériel, services)\n• Vendre via **Ma Boutique** (en attente de validation admin)\n• Suivre les commandes et livraisons\n• Laisser des avis sur les produits\n\n**Pour les admins :**\n• Valider les nouveaux produits\n• Gérer le catalogue\n• Consulter les commissions sur chaque vente\n\nAccédez-y depuis l'onglet **Marché** dans la barre du bas.";
+    return "La **Marketplace VERIDIAN** permet :\n\n**Pour les membres :**\n• Acheter des produits syndicaux (livres, matériel, services)\n• Vendre via **Ma Boutique** (en attente de validation admin)\n• Suivre les commandes et livraisons\n• Laisser des avis sur les produits\n\n**Pour les admins :**\n• Valider les nouveaux produits\n• Gérer le catalogue\n• Consulter les commissions sur chaque vente\n\nAccédez-y depuis l'onglet **Marché** dans la barre du bas.";
   }
 
   if (q.includes("syndicat") || q.includes("créer") || q.includes("configurer") || q.includes("setup")) {
@@ -104,7 +104,7 @@ export function AIAssistant() {
   const [messages, setMessages] = useState<Message[]>([
     {
       id: "welcome",
-      text: "Bonjour ! 👋 Je suis votre assistant syndical SYNDYCAT.\n\nPosez-moi n'importe quelle question sur la gestion de votre syndicat — élections, finances, membres, juridique, documents...",
+      text: "Bonjour ! 👋 Je suis votre assistant syndical VERIDIAN.\n\nPosez-moi n'importe quelle question sur la gestion de votre syndicat — élections, finances, membres, juridique, documents...",
       isUser: false,
       time: now(),
     },
@@ -157,7 +157,7 @@ export function AIAssistant() {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
     setMessages([{
       id: "welcome",
-      text: "Bonjour ! 👋 Je suis votre assistant syndical SYNDYCAT.\n\nPosez-moi n'importe quelle question sur la gestion de votre syndicat — élections, finances, membres, juridique, documents...",
+      text: "Bonjour ! 👋 Je suis votre assistant syndical VERIDIAN.\n\nPosez-moi n'importe quelle question sur la gestion de votre syndicat — élections, finances, membres, juridique, documents...",
       isUser: false,
       time: now(),
     }]);
@@ -187,7 +187,7 @@ export function AIAssistant() {
               <Feather name="cpu" size={18} color="#fff" />
             </View>
             <View style={{ flex: 1 }}>
-              <Text style={[styles.modalTitle, { color: colors.foreground }]}>Assistant IA SYNDYCAT</Text>
+              <Text style={[styles.modalTitle, { color: colors.foreground }]}>Assistant IA VERIDIAN</Text>
               <View style={styles.statusRow}>
                 <View style={[styles.statusDot, { backgroundColor: "#10b981" }]} />
                 <Text style={[styles.statusLabel, { color: colors.mutedForeground }]}>En ligne — Prêt à répondre</Text>

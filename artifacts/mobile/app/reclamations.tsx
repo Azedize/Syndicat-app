@@ -479,7 +479,7 @@ const TYPE_CONFIG: Record<ReclamationType, { label: string; icon: keyof typeof F
   harcelement: { label: "harcelement", icon: "slash", color: "#dc2626" },
   licenciement: { label: "licenciement", icon: "user-x", color: "#ef4444" },
   conge: { label: "conge", icon: "calendar", color: "#3b82f6" },
-  avancement: { label: "avancement", icon: "trending-up", color: "#7c3aed" },
+  avancement: { label: "avancement", icon: "trending-up", color: "#2563EB" },
   securite: { label: "securite", icon: "shield", color: "#f97316" },
   autre: { label: "autre", icon: "more-horizontal", color: "#6b7280" },
 };
@@ -488,7 +488,7 @@ const STATUT_CONFIG: Record<ReclamationStatut, { label: string; color: string }>
   deposee: { label: "deposee", color: "#6b7280" },
   en_instruction: { label: "enInstruction", color: "#3b82f6" },
   transmise_direction: { label: "transmiseDirection", color: "#f59e0b" },
-  en_mediation: { label: "enMediation", color: "#7c3aed" },
+  en_mediation: { label: "enMediation", color: "#2563EB" },
   resolue: { label: "resolue", color: "#10b981" },
   classee: { label: "classee", color: "#6b7280" },
   contentieux: { label: "contentieux", color: "#ef4444" },
@@ -903,7 +903,7 @@ function ReclamationsScreenInner() {
                       <Text style={s.actionBtnText}>{STRINGS.marquerResolue[lang]}</Text>
                     </TouchableOpacity>
                     <TouchableOpacity
-                      style={[s.actionBtn, { backgroundColor: "#7c3aed" }]}
+                      style={[s.actionBtn, { backgroundColor: "#2563EB" }]}
                       onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium); handleAdminStatusChange("en_mediation"); }}
                     >
                       <Feather name="users" size={14} color="#fff" />
@@ -992,12 +992,12 @@ function ReclamationsScreenInner() {
               style={[s.anonRow, { backgroundColor: colors.card, borderColor: colors.border }]}
               onPress={() => { setNewAnon((v) => !v); Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); }}
             >
-              <Feather name={newAnon ? "eye-off" : "eye"} size={16} color={newAnon ? "#7c3aed" : colors.mutedForeground} />
+              <Feather name={newAnon ? "eye-off" : "eye"} size={16} color={newAnon ? "#2563EB" : colors.mutedForeground} />
               <View style={{ flex: 1 }}>
                 <Text style={[s.anonTitle, { color: colors.foreground }]}>{STRINGS.reclamationAnonyme[lang]}</Text>
                 <Text style={[s.anonDesc, { color: colors.mutedForeground }]}>{STRINGS.identitePasCommuniquee[lang]}</Text>
               </View>
-              <View style={[s.toggle, { backgroundColor: newAnon ? "#7c3aed" : colors.border }]}>
+              <View style={[s.toggle, { backgroundColor: newAnon ? "#2563EB" : colors.border }]}>
                 <View style={[s.toggleThumb, { marginLeft: newAnon ? 20 : 2 }]} />
               </View>
             </TouchableOpacity>

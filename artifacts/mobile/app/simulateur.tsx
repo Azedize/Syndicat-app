@@ -41,7 +41,7 @@ const INITIAL_BUREAUX: Bureau[] = [
 ];
 
 const TYPE_CFG = {
-  national: { label: "National", color: "#7c3aed", icon: "globe" as const },
+  national: { label: "National", color: "#2563EB", icon: "globe" as const },
   regional: { label: "Régional", color: "#3b82f6", icon: "map-pin" as const },
   local: { label: "Local", color: "#10b981", icon: "home" as const },
   commission: { label: "Commission", color: "#f59e0b", icon: "users" as const },

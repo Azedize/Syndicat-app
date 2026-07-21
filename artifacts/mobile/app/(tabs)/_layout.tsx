@@ -113,7 +113,7 @@ function CustomTabBar({ state, descriptors, navigation, insets }: any) {
           const label =
             (descriptors[route.key]?.options?.title as string) ?? route.name;
           const iconName = ICON_MAP[route.name] ?? "circle";
-          const primary = "#7c3aed";
+          const primary = colors.primary;
 
           return (
             <Pressable

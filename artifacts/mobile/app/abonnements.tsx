@@ -417,7 +417,7 @@ export default function AbonnementsScreen() {
             ) : plans.map((plan, idx) => {
               const features = parseFeaturesArr(plan.features);
               const isCurrent = mySub?.planId === plan.id;
-              const pc = plan.color ?? ["#7c3aed","#3b82f6","#10b981","#f59e0b","#ec4899"][idx % 5];
+              const pc = plan.color ?? ["#2563EB","#3b82f6","#10b981","#f59e0b","#ec4899"][idx % 5];
               const price = billingInterval === "yearly" ? plan.yearlyPrice : plan.price;
               const priceLabel = billingInterval === "yearly" ? "MAD/an" : "MAD/mois";
               const iconName = PLAN_ICONS[plan.name] ?? "star";

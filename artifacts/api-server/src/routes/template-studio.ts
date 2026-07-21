@@ -56,7 +56,7 @@ const sectionDefSchema = z.object({
 });
 
 const layoutConfigSchema = z.object({
-  accentColor: z.string().default("#7c3aed"),
+  accentColor: z.string().default("#2563EB"),
   headerStyle: z.enum(["branded", "minimal", "none"]).default("branded"),
   footerStyle: z.enum(["full", "minimal", "none"]).default("full"),
   watermark: z.boolean().default(false),
@@ -712,7 +712,7 @@ router.get("/verify/:token", async (req, res) => {
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Vérification de document — SYNDYCAT</title>
+  <title>Vérification de document — VERIDIAN</title>
   <style>
     * { box-sizing: border-box; margin: 0; padding: 0; }
     body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
@@ -722,7 +722,7 @@ router.get("/verify/:token", async (req, res) => {
             border: 1px solid rgba(255,255,255,0.1); border-radius: 24px;
             max-width: 480px; width: 100%; padding: 40px 36px; color: #fff; }
     .logo { display: flex; align-items: center; gap: 12px; margin-bottom: 32px; }
-    .logo-mark { width: 44px; height: 44px; background: linear-gradient(135deg, #7c3aed, #4f46e5);
+    .logo-mark { width: 44px; height: 44px; background: linear-gradient(135deg, #2563EB, #4f46e5);
                  border-radius: 12px; display: flex; align-items: center; justify-content: center;
                  font-size: 22px; font-weight: 900; }
     .logo-text { font-size: 18px; font-weight: 700; letter-spacing: -0.5px; }
@@ -752,7 +752,7 @@ router.get("/verify/:token", async (req, res) => {
     <div class="logo">
       <div class="logo-mark">S</div>
       <div>
-        <div class="logo-text">SYNDYCAT</div>
+        <div class="logo-text">VERIDIAN</div>
         <div class="logo-sub">Vérification de document officiel</div>
       </div>
     </div>
@@ -790,8 +790,8 @@ router.get("/verify/:token", async (req, res) => {
     </div>
     `}
     <div class="footer">
-      Ce service de vérification est fourni par la plateforme SYNDYCAT.<br>
-      Pour toute question : <a href="mailto:support@syndycat.ma">support@syndycat.ma</a>
+      Ce service de vérification est fourni par la plateforme VERIDIAN.<br>
+      Pour toute question : <a href="mailto:support@veridian.app">support@veridian.app</a>
     </div>
   </div>
 </body>

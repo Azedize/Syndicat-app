@@ -47,7 +47,7 @@ const MEMBER_TEMPLATES = [
     id: "attestation_propriete",
     label: "Attestation de propriété",
     icon: "award" as const,
-    color: "#7c3aed",
+    color: "#2563EB",
     category: "attestation",
     desc: "Certifie votre statut de copropriétaire",
     autoFilled: ["Titre foncier, tantièmes et données propriétaire chargés automatiquement"],

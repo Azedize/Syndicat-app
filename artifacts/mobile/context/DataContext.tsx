@@ -193,6 +193,7 @@ export interface Syndicate {
   sector: string;
   members: number;
   admin: string;
+  adminId?: string;         // userId of the syndicate_admin — used to open DMs
   status: "active" | "inactive";
   createdAt: string;
   region: string;
@@ -758,6 +759,7 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
                 sector: String(row.sector ?? ""),
                 members: Number(row.membersCount ?? row.members ?? 0),
                 admin: String(row.admin ?? row.adminName ?? ""),
+                adminId: row.adminId ? String(row.adminId) : undefined,
                 status: (row.status as Syndicate["status"]) ?? "active",
                 createdAt: String(row.createdAt ?? ""),
                 region: String(row.region ?? ""),

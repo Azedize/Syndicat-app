@@ -20,7 +20,7 @@ const TYPE_CONFIG: Record<string, { label: string; icon: keyof typeof Feather.gl
   degat_eau:        { label: "Dégât des eaux",     icon: "droplet",       color: "#3b82f6" },
   incendie:         { label: "Incendie",            icon: "alert-octagon", color: "#ef4444" },
   vol:              { label: "Vol / Cambriolage",   icon: "unlock",        color: "#f97316" },
-  ascenseur:        { label: "Panne ascenseur",     icon: "chevrons-up",   color: "#7c3aed" },
+  ascenseur:        { label: "Panne ascenseur",     icon: "chevrons-up",   color: "#2563EB" },
   dommage_commun:   { label: "Dommage commun",      icon: "tool",          color: "#f59e0b" },
   autre:            { label: "Autre",               icon: "alert-triangle",color: "#6b7280" },
 };
@@ -28,7 +28,7 @@ const TYPE_CONFIG: Record<string, { label: string; icon: keyof typeof Feather.gl
 const STATUS_CONFIG: Record<string, { label: string; color: string }> = {
   declared:    { label: "Déclaré",          color: "#f59e0b" },
   in_progress: { label: "En cours",         color: "#3b82f6" },
-  expert:      { label: "Expertise",        color: "#7c3aed" },
+  expert:      { label: "Expertise",        color: "#2563EB" },
   repair:      { label: "Réparation",       color: "#f97316" },
   closed:      { label: "Clôturé",          color: "#10b981" },
 };
@@ -133,7 +133,7 @@ export default function SinistresScreen() {
           { label: "Total", value: sinistres.length, color: "#ef4444" },
           { label: "En cours", value: open, color: "#f97316" },
           { label: "Clôturés", value: closed, color: "#10b981" },
-          { label: "Estimé", value: totalEstimated > 0 ? `${(totalEstimated / 1000).toFixed(0)}k` : "0", color: "#7c3aed" },
+          { label: "Estimé", value: totalEstimated > 0 ? `${(totalEstimated / 1000).toFixed(0)}k` : "0", color: "#2563EB" },
         ].map((s, i, arr) => (
           <View key={s.label} style={[styles.statCell, i < arr.length - 1 && { borderRightWidth: 1, borderRightColor: colors.border }]}>
             <Text style={[styles.statVal, { color: s.color }]}>{s.value}</Text>

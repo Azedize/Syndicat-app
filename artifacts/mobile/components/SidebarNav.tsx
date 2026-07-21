@@ -8,11 +8,13 @@ import {
   Text,
   TouchableOpacity,
   View,
+  useColorScheme,
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useAuth } from "@/context/AuthContext";
 import { useColors } from "@/hooks/useColors";
 import { SIDEBAR_COMPACT, SIDEBAR_FULL, useBreakpoints } from "@/hooks/useBreakpoints";
+import VeridianLogo from "@/components/brand/VeridianLogo";
 
 interface NavItem {
   label: string;
@@ -57,6 +59,8 @@ export function SidebarNav() {
   const sidebarWidth = isDesktop ? SIDEBAR_FULL : SIDEBAR_COMPACT;
   const showLabels = isDesktop;
   const topPad = Platform.OS === "web" ? 16 : insets.top + 16;
+  const colorScheme = useColorScheme();
+  const isDark = colorScheme === "dark";
 
   const visibleItems = NAV_ITEMS.filter((item) => !item.adminOnly || isAdmin);
   const visibleQuickLinks = QUICK_LINKS.filter((item) => {
@@ -117,14 +121,19 @@ export function SidebarNav() {
     >
       {/* Brand */}
       <View style={[styles.brand, { borderBottomColor: colors.border, justifyContent: showLabels ? "flex-start" : "center" }]}>
-        <View style={[styles.logoBox, { backgroundColor: colors.primary }]}>
-          <Feather name="shield" size={18} color="#fff" />
-        </View>
-        {showLabels && (
-          <View style={{ flex: 1 }}>
-            <Text style={[styles.brandName, { color: colors.foreground }]}>SYNDYCAT</Text>
-            <Text style={[styles.brandSub, { color: colors.mutedForeground }]}>Global CPS</Text>
-          </View>
+        {showLabels ? (
+          <VeridianLogo
+            variant="horizontal"
+            colorScheme={isDark ? "dark" : "light"}
+            size={40}
+            showTagline={false}
+          />
+        ) : (
+          <VeridianLogo
+            variant="icon"
+            colorScheme={isDark ? "dark" : "light"}
+            size={32}
+          />
         )}
       </View>
 

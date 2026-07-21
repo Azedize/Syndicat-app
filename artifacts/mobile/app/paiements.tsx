@@ -45,7 +45,7 @@ const STATUS_CONFIG: Record<TxStatus, { label: string; color: string; icon: keyo
 };
 
 const TYPE_CONFIG: Record<TxType, { label: string; color: string; icon: keyof typeof Feather.glyphMap }> = {
-  cotisation: { label: "Cotisation", color: "#7c3aed", icon: "users" },
+  cotisation: { label: "Cotisation", color: "#2563EB", icon: "users" },
   depense:    { label: "Dépense",    color: "#ef4444", icon: "trending-down" },
   salaire:    { label: "Salaire",    color: "#f59e0b", icon: "briefcase" },
   recette:    { label: "Recette",    color: "#10b981", icon: "trending-up" },
@@ -311,7 +311,7 @@ export default function PaiementsScreen() {
                   <View style={[styles.qrSection, { backgroundColor: colors.card, borderColor: colors.border }]}>
                     <View style={[styles.qrBox, { borderColor: colors.border, backgroundColor: "#fff" }]}>
                       <QRCode
-                        value={`SYNDYCAT:${formatRef(t.id)}:${t.amount}:${t.date}:PAID`}
+                        value={`VERIDIAN:${formatRef(t.id)}:${t.amount}:${t.date}:PAID`}
                         size={112}
                         color="#1a1a1a"
                         backgroundColor="#ffffff"

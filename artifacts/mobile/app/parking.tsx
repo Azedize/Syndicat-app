@@ -67,7 +67,7 @@ const STATUS_COLORS: Record<string, string> = {
   open: "#ef4444",
   resolved: "#10b981",
   dismissed: "#6b7280",
-  confirmed: "#7c3aed",
+  confirmed: "#2563EB",
   cancelled: "#6b7280",
   expired: "#f59e0b",
   active: "#10b981",
@@ -338,7 +338,7 @@ export default function ParkingScreen() {
   const text = colors.text;
   const sub = colors.mutedForeground;
   const border = colors.border;
-  const primary = "#7c3aed";
+  const primary = "#2563EB";
 
   if (loading) {
     return (

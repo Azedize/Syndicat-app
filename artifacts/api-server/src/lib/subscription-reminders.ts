@@ -95,7 +95,7 @@ async function getSyndicateAdminEmails(syndicateId: string): Promise<string[]> {
 }
 
 function buildReminderHtml(syndicateName: string, daysLeft: number, planName: string | null): string {
-  const color = daysLeft === 1 ? "#ef4444" : daysLeft === 3 ? "#f59e0b" : "#7c3aed";
+  const color = daysLeft === 1 ? "#ef4444" : daysLeft === 3 ? "#f59e0b" : "#2563EB";
   return `
 <div style="font-family:Inter,sans-serif;max-width:560px;margin:0 auto;padding:32px 24px;">
   <div style="background:${color};border-radius:12px;padding:20px 24px;margin-bottom:24px;text-align:center;">
@@ -120,7 +120,7 @@ function buildReminderHtml(syndicateName: string, daysLeft: number, planName: st
     </a>
   </div>
   <p style="color:#9ca3af;font-size:11px;margin-top:24px;text-align:center;">
-    SYNDYCAT — Syndicat de Copropriété · Loi 18-00
+    VERIDIAN — Syndicat de Copropriété · Loi 18-00
   </p>
 </div>`;
 }
@@ -164,7 +164,7 @@ async function runSubscriptionReminderScan(): Promise<void> {
       await createAlert({
         title: alertTitle,
         message:
-          `Renouvelez votre abonnement pour maintenir l'accès complet à SYNDYCAT. ` +
+          `Renouvelez votre abonnement pour maintenir l'accès complet à VERIDIAN. ` +
           `Après expiration: mode lecture seule.`,
         type: days === 1 ? "error" : "warning",
         syndicateId,
@@ -177,7 +177,7 @@ async function runSubscriptionReminderScan(): Promise<void> {
         await sendPushToUsers(
           adminIds,
           alertTitle,
-          `Votre abonnement SYNDYCAT expire dans ${days} jour${days > 1 ? "s" : ""}. Renouvelez maintenant.`,
+          `Votre abonnement VERIDIAN expire dans ${days} jour${days > 1 ? "s" : ""}. Renouvelez maintenant.`,
           { syndicateId, type: "subscription_expiry", daysLeft: days },
         );
       }
@@ -185,8 +185,8 @@ async function runSubscriptionReminderScan(): Promise<void> {
       // 3. Email all syndicate admins
       const adminEmails = await getSyndicateAdminEmails(syndicateId);
       const subject = days === 1
-        ? `[SYNDYCAT] ⚠️ Votre abonnement expire demain — ${syndicateName}`
-        : `[SYNDYCAT] Rappel abonnement — J-${days} — ${syndicateName}`;
+        ? `[VERIDIAN] ⚠️ Votre abonnement expire demain — ${syndicateName}`
+        : `[VERIDIAN] Rappel abonnement — J-${days} — ${syndicateName}`;
       const html = buildReminderHtml(syndicateName, days, null);
       for (const email of adminEmails) {
         await sendEmail(email, subject, html, "subscription_reminder", syndicateId);

@@ -303,9 +303,9 @@ function EscalationScreenInner() {
               disabled={scanning}
             >
               {scanning ? (
-                <ActivityIndicator size="small" color="#7c3aed" />
+                <ActivityIndicator size="small" color="#2563EB" />
               ) : (
-                <Feather name="refresh-cw" size={16} color="#7c3aed" />
+                <Feather name="refresh-cw" size={16} color="#2563EB" />
               )}
               <Text style={s.scanBtnText}>{scanning ? t("escScanning") : t("escLaunchScan")}</Text>
             </TouchableOpacity>
@@ -331,7 +331,7 @@ function EscalationScreenInner() {
 
         {/* List */}
         {loading ? (
-          <ActivityIndicator style={{ marginTop: 48 }} color="#7c3aed" />
+          <ActivityIndicator style={{ marginTop: 48 }} color="#2563EB" />
         ) : displayed.length === 0 ? (
           <View style={s.empty}>
             <Feather name="check-circle" size={48} color={colors.border} />
@@ -452,7 +452,7 @@ function EscalationCard({ item, colors, isAdmin, onOpenLetter, onOverride, onRes
         )}
         {item.status === "meeting_scheduled" && (
           <View style={[s.statusPill, { backgroundColor: "#f3e8ff" }]}>
-            <Text style={[s.statusPillText, { color: "#7c3aed" }]}>{t("escStatusMeeting")}</Text>
+            <Text style={[s.statusPillText, { color: "#2563EB" }]}>{t("escStatusMeeting")}</Text>
           </View>
         )}
       </View>
@@ -496,9 +496,9 @@ function EscalationCard({ item, colors, isAdmin, onOpenLetter, onOverride, onRes
       {isAdmin && item.status === "open" && (
         <View style={s.actions}>
           {item.letterUrl ? (
-            <TouchableOpacity style={[s.actionBtn, { borderColor: "#7c3aed" }]} onPress={onOpenLetter}>
-              <Feather name="file-text" size={13} color="#7c3aed" />
-              <Text style={[s.actionBtnText, { color: "#7c3aed" }]}>{t("escViewLetter")}</Text>
+            <TouchableOpacity style={[s.actionBtn, { borderColor: "#2563EB" }]} onPress={onOpenLetter}>
+              <Feather name="file-text" size={13} color="#2563EB" />
+              <Text style={[s.actionBtnText, { color: "#2563EB" }]}>{t("escViewLetter")}</Text>
             </TouchableOpacity>
           ) : null}
           <TouchableOpacity
@@ -519,8 +519,8 @@ function EscalationCard({ item, colors, isAdmin, onOpenLetter, onOverride, onRes
       )}
       {item.letterUrl && item.status !== "open" && (
         <TouchableOpacity style={s.letterOnlyBtn} onPress={onOpenLetter}>
-          <Feather name="download" size={13} color="#7c3aed" />
-          <Text style={[s.actionBtnText, { color: "#7c3aed" }]}>{t("escDownloadLetter")}</Text>
+          <Feather name="download" size={13} color="#2563EB" />
+          <Text style={[s.actionBtnText, { color: "#2563EB" }]}>{t("escDownloadLetter")}</Text>
         </TouchableOpacity>
       )}
     </View>
@@ -544,7 +544,7 @@ const s = StyleSheet.create({
     borderWidth: 1,
     borderRadius: 20,
   },
-  scanBtnText: { fontSize: 12, color: "#7c3aed", fontWeight: "600" },
+  scanBtnText: { fontSize: 12, color: "#2563EB", fontWeight: "600" },
   // Card
   card: {
     borderRadius: 14,
@@ -646,7 +646,7 @@ const s = StyleSheet.create({
   },
   modalBtnPrimary: {
     flex: 1,
-    backgroundColor: "#7c3aed",
+    backgroundColor: "#2563EB",
     borderRadius: 10,
     alignItems: "center",
     justifyContent: "center",

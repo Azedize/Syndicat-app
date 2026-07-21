@@ -42,7 +42,7 @@ const MENU_SECTIONS_DEF: SectionDef[] = [
     titleKey: "menuSectionAdmin",
     items: [
       { labelKey: "tableauNational",      icon: "globe",        route: "/tableau-national",  color: "#6366f1", roles: ["super_admin"] },
-      { labelKey: "gestionUtilisateurs",  icon: "users",        route: "/utilisateurs",      color: "#7c3aed", roles: ["super_admin"] },
+      { labelKey: "gestionUtilisateurs",  icon: "users",        route: "/utilisateurs",      color: "#2563EB", roles: ["super_admin"] },
       { labelKey: "creerSyndicat",        icon: "plus-circle",  route: "/syndicate-setup",   color: "#10b981", roles: ["super_admin"] },
       { labelKey: "journalAudit",         icon: "shield",       route: "/journal-audit",     color: "#ef4444", roles: ["super_admin"] },
       { labelKey: "statistiquesGlobales", icon: "trending-up",  route: "/statistiques",      color: "#0ea5e9", roles: ["super_admin"] },
@@ -57,7 +57,7 @@ const MENU_SECTIONS_DEF: SectionDef[] = [
   {
     titleKey: "menuSectionBuilding",
     items: [
-      { labelKey: "buildingsResidences", icon: "home",       route: "/buildings",   color: "#7c3aed", roles: ["syndicate_admin"] },
+      { labelKey: "buildingsResidences", icon: "home",       route: "/buildings",   color: "#2563EB", roles: ["syndicate_admin"] },
       { labelKey: "lotsUnits",           icon: "grid",       route: "/lots",        color: "#3b82f6", roles: ["syndicate_admin"] },
       { labelKey: "owners",              icon: "users",      route: "/members",     color: "#10b981", roles: ["syndicate_admin"] },
       { labelKey: "locataires",          icon: "user-check", route: "/locataires",  color: "#06b6d4", roles: ["syndicate_admin"] },
@@ -68,7 +68,7 @@ const MENU_SECTIONS_DEF: SectionDef[] = [
   {
     titleKey: "menuSectionMyHome",
     items: [
-      { labelKey: "myApartment",  icon: "home",      route: "/mon-lot",        color: "#7c3aed", roles: ["tenant"] },
+      { labelKey: "myApartment",  icon: "home",      route: "/mon-lot",        color: "#2563EB", roles: ["tenant"] },
       { labelKey: "monBail",      icon: "file-text", route: "/mon-bail",       color: "#3b82f6", roles: ["tenant"] },
       { labelKey: "etatDesLieux", icon: "clipboard", route: "/etat-des-lieux", color: "#10b981", roles: ["tenant"] },
     ],
@@ -87,7 +87,7 @@ const MENU_SECTIONS_DEF: SectionDef[] = [
       { labelKey: "budgetPrevisionnel", icon: "pie-chart",   route: "/budget-previsionnel",    color: "#8b5cf6", roles: ["syndicate_admin"] },
       { labelKey: "devisFactures",      icon: "file-text",   route: "/invoices",               color: "#6366f1", roles: ["syndicate_admin"] },
       { labelKey: "bonLivraison",       icon: "package",     route: "/bon-livraison",          color: "#f97316", roles: ["syndicate_admin"] },
-      { labelKey: "rapportsFinanciers", icon: "bar-chart-2", route: "/reports",                color: "#7c3aed", roles: ["syndicate_admin"] },
+      { labelKey: "rapportsFinanciers", icon: "bar-chart-2", route: "/reports",                color: "#2563EB", roles: ["syndicate_admin"] },
       { labelKey: "fichesPaie",         icon: "file-text",   route: "/fiches-paie",            color: "#6366f1", roles: ["syndicate_admin"] },
       { labelKey: "escalationLabel",    icon: "trending-up", route: "/escalation",             color: "#ef4444", roles: ["syndicate_admin"] },
     ],
@@ -106,7 +106,7 @@ const MENU_SECTIONS_DEF: SectionDef[] = [
       { labelKey: "prestataires",     icon: "briefcase",      route: "/prestataires",      color: "#3b82f6", roles: ["syndicate_admin"] },
       { labelKey: "sinistres",        icon: "alert-triangle", route: "/sinistres",         color: "#ef4444", roles: ["syndicate_admin"] },
       { labelKey: "travauxPrivatifs", icon: "edit-2",         route: "/travaux-privatifs", color: "#f97316", roles: ["syndicate_admin"] },
-      { labelKey: "parkingVehicules", icon: "map-pin",        route: "/parking",           color: "#7c3aed", roles: ["syndicate_admin"] },
+      { labelKey: "parkingVehicules", icon: "map-pin",        route: "/parking",           color: "#2563EB", roles: ["syndicate_admin"] },
     ],
   },
 
@@ -117,7 +117,7 @@ const MENU_SECTIONS_DEF: SectionDef[] = [
   {
     titleKey: "menuSectionAG",
     items: [
-      { labelKey: "assembleesGenerales",  icon: "users",        route: "/assemblee-generale", color: "#7c3aed", roles: ["syndicate_admin"] },
+      { labelKey: "assembleesGenerales",  icon: "users",        route: "/assemblee-generale", color: "#2563EB", roles: ["syndicate_admin"] },
       { labelKey: "reunionsConvocations", icon: "calendar",     route: "/meetings",            color: "#3b82f6", roles: ["syndicate_admin", "member"] },
       { labelKey: "votesResolutions",     icon: "check-square", route: "/elections",           color: "#f59e0b", roles: ["syndicate_admin", "member"] },
       { labelKey: "pvLabel",              icon: "file-text",    route: "/pv",                  color: "#6366f1", roles: ["syndicate_admin"] },
@@ -136,7 +136,7 @@ const MENU_SECTIONS_DEF: SectionDef[] = [
     items: [
       { labelKey: "documentsCopro",       icon: "folder",    route: "/documents",            color: "#6366f1", roles: ["syndicate_admin", "member", "tenant"] },
       { labelKey: "reglementsLabel",       icon: "book",      route: "/reglements",           color: "#3b82f6", roles: ["syndicate_admin"] },
-      { labelKey: "actesAdministratifs",   icon: "file-text", route: "/actes-administratifs", color: "#7c3aed", roles: ["syndicate_admin"] },
+      { labelKey: "actesAdministratifs",   icon: "file-text", route: "/actes-administratifs", color: "#2563EB", roles: ["syndicate_admin"] },
       { labelKey: "alertesReglementaires", icon: "shield",    route: "/legal",                color: "#8b5cf6", roles: ["syndicate_admin"] },
       { labelKey: "transparency",          icon: "eye",       route: "/transparency",         color: "#10b981", roles: ["syndicate_admin"] },
       { labelKey: "demandesModeles",       icon: "inbox",     route: "/template-request",     color: "#a78bfa", roles: ["syndicate_admin"] },
@@ -365,7 +365,7 @@ export default function MoreScreen() {
         <View style={[styles.infoCard, { backgroundColor: colors.card, borderColor: colors.border }]}>
           <View style={styles.infoRow}>
             <Text style={[styles.infoLabel, { color: colors.mutedForeground }]}>Application</Text>
-            <Text style={[styles.infoValue, { color: colors.foreground }]}>SYNDYCAT — Syndicat de Copropriété</Text>
+            <Text style={[styles.infoValue, { color: colors.foreground }]}>VERIDIAN — Syndicat de Copropriété</Text>
           </View>
           <View style={[styles.infoDivider, { backgroundColor: colors.border }]} />
           <View style={styles.infoRow}>

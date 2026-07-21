@@ -21,7 +21,7 @@ const COLORS = {
   card: "#ffffff",
   foreground: "#111827",
   muted: "#6b7280",
-  primary: "#7c3aed",
+  primary: "#2563EB",
   primaryForeground: "#ffffff",
   border: "#e5e7eb",
 };
@@ -203,7 +203,7 @@ const styles = StyleSheet.create({
     borderRadius: 10,
     paddingHorizontal: 32,
     minWidth: 200,
-    shadowColor: "#7c3aed",
+    shadowColor: "#2563EB",
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.2,
     shadowRadius: 4,

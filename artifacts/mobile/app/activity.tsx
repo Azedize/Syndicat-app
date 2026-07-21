@@ -25,7 +25,7 @@ import { audit as auditApi } from "@/services/api";
 type ActivityCategory = "all" | "auth" | "finance" | "governance" | "documents" | "elections" | "marketplace" | "members" | "chat" | "system";
 
 const CAT_CONFIG: Record<Exclude<ActivityCategory, "all">, { label: string; color: string; icon: keyof typeof Feather.glyphMap }> = {
-  auth: { label: "Authentification", color: "#7c3aed", icon: "lock" },
+  auth: { label: "Authentification", color: "#2563EB", icon: "lock" },
   finance: { label: "Finance", color: "#10b981", icon: "dollar-sign" },
   governance: { label: "Gouvernance", color: "#3b82f6", icon: "git-merge" },
   documents: { label: "Documents", color: "#6366f1", icon: "file-text" },
@@ -205,7 +205,7 @@ export default function ActivityScreen() {
           {isAdmin && (
             <TouchableOpacity
               style={styles.exportBtn}
-              onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); Share.share({ title: "Journal d'activité SYNDYCAT", message: `Journal d'activité complet\nExporté le ${new Date().toLocaleDateString("fr-MA")}\nSYNDYCAT GLOBAL CPS` }); }}
+              onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); Share.share({ title: "Journal d'activité VERIDIAN", message: `Journal d'activité complet\nExporté le ${new Date().toLocaleDateString("fr-MA")}\nVERIDIAN` }); }}
             >
               <Feather name="download" size={18} color="#fff" />
             </TouchableOpacity>

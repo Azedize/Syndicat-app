@@ -27,7 +27,7 @@ export interface SearchGroup {
 type ScoredResult = SearchResult & { _score: number };
 
 export const SEARCH_CATEGORIES: Record<string, { label: string; icon: string; color: string }> = {
-  membre: { label: "Membres", icon: "users", color: "#7c3aed" },
+  membre: { label: "Membres", icon: "users", color: "#2563EB" },
   syndicat: { label: "Syndicats", icon: "shield", color: "#5b21b6" },
   publication: { label: "Publications", icon: "rss", color: "#f97316" },
   document: { label: "Documents", icon: "file-text", color: "#6366f1" },
@@ -76,8 +76,8 @@ function scoreResult(query: string, fields: string[]): number {
 }
 
 const NAVIGATION_ITEMS = [
-  { id: "nav-dashboard", title: "Dashboard", subtitle: "Accueil principal", route: "/(tabs)/", icon: "home", color: "#7c3aed" },
-  { id: "nav-members", title: "Membres / Syndicats", subtitle: "Gestion des membres", route: "/members", icon: "users", color: "#7c3aed" },
+  { id: "nav-dashboard", title: "Dashboard", subtitle: "Accueil principal", route: "/(tabs)/", icon: "home", color: "#2563EB" },
+  { id: "nav-members", title: "Membres / Syndicats", subtitle: "Gestion des membres", route: "/members", icon: "users", color: "#2563EB" },
   { id: "nav-finance", title: "Finance", subtitle: "Comptabilité et transactions", route: "/finance", icon: "dollar-sign", color: "#10b981" },
   { id: "nav-marketplace", title: "Marketplace", subtitle: "Boutique en ligne", route: "/marketplace", icon: "shopping-bag", color: "#f97316" },
   { id: "nav-elections", title: "Élections", subtitle: "Votes et candidats", route: "/elections", icon: "check-square", color: "#f59e0b" },
@@ -92,7 +92,7 @@ const NAVIGATION_ITEMS = [
   { id: "nav-support", title: "Tickets Support", subtitle: "Aide et assistance", route: "/support", icon: "headphones", color: "#ef4444" },
   { id: "nav-profile", title: "Mon Profil", subtitle: "Informations personnelles", route: "/profile", icon: "user", color: "#6366f1" },
   { id: "nav-settings", title: "Paramètres", subtitle: "Configuration et préférences", route: "/settings", icon: "settings", color: "#6b7280" },
-  { id: "nav-reports", title: "Rapports", subtitle: "Statistiques et exports", route: "/reports", icon: "bar-chart-2", color: "#7c3aed" },
+  { id: "nav-reports", title: "Rapports", subtitle: "Statistiques et exports", route: "/reports", icon: "bar-chart-2", color: "#2563EB" },
   { id: "nav-calendar", title: "Calendrier", subtitle: "Planning et événements", route: "/calendar", icon: "calendar", color: "#6366f1" },
   { id: "nav-formations", title: "Formations", subtitle: "Catalogue de formations", route: "/formations", icon: "book-open", color: "#3b82f6" },
   { id: "nav-partenaires", title: "Partenaires", subtitle: "Partenaires et avantages", route: "/partenaires", icon: "briefcase", color: "#3b82f6" },
@@ -100,7 +100,7 @@ const NAVIGATION_ITEMS = [
   { id: "nav-myshop", title: "Ma Boutique", subtitle: "Gestion de mes produits", route: "/my-shop", icon: "shopping-bag", color: "#10b981" },
   { id: "nav-reviews", title: "Avis & Évaluations", subtitle: "Notes et commentaires", route: "/reviews", icon: "star", color: "#f97316" },
   { id: "nav-statistiques", title: "Statistiques Globales", subtitle: "Tableaux de bord avancés", route: "/statistiques", icon: "trending-up", color: "#10b981" },
-  { id: "nav-sondages", title: "Sondages", subtitle: "Enquêtes et votes", route: "/sondages", icon: "bar-chart-2", color: "#7c3aed" },
+  { id: "nav-sondages", title: "Sondages", subtitle: "Enquêtes et votes", route: "/sondages", icon: "bar-chart-2", color: "#2563EB" },
   { id: "nav-actions", title: "Actions Syndicales", subtitle: "Grèves et mobilisations", route: "/actions", icon: "zap", color: "#ef4444" },
   { id: "nav-annuaire", title: "Annuaire Membres", subtitle: "Répertoire des membres", route: "/annuaire", icon: "book", color: "#10b981" },
   { id: "nav-invoices", title: "Devis & Factures", subtitle: "Facturation et devis", route: "/invoices", icon: "file-text", color: "#3b82f6" },

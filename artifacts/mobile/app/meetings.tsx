@@ -29,7 +29,7 @@ import EmptyState from "@/components/EmptyState";
 import { useToast } from "@/context/ToastContext";
 
 const TYPE_CONFIG: Record<string, { icon: keyof typeof Feather.glyphMap; color: string }> = {
-  board:             { icon: "briefcase",      color: "#7c3aed" },
+  board:             { icon: "briefcase",      color: "#2563EB" },
   general:           { icon: "users",          color: "#3b82f6" },
   committee:         { icon: "layers",         color: "#10b981" },
   emergency:         { icon: "alert-triangle", color: "#ef4444" },

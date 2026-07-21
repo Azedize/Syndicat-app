@@ -31,7 +31,7 @@ const LOT_TYPE_ICONS: Record<string, keyof typeof Feather.glyphMap> = {
 };
 
 const LOT_TYPE_COLORS: Record<string, string> = {
-  appartement: "#7c3aed",
+  appartement: "#2563EB",
   bureau: "#3b82f6",
   commerce: "#f59e0b",
   parking: "#6b7280",
@@ -248,9 +248,9 @@ function LotsScreenInner() {
             </View>
             <ScrollView contentContainerStyle={{ padding: 20, gap: 14, paddingBottom: 40 }} showsVerticalScrollIndicator={false}>
               {/* Type + Status hero */}
-              <View style={[styles.modalHero, { backgroundColor: (LOT_TYPE_COLORS[selectedLot.type] ?? "#7c3aed") + "15", borderColor: (LOT_TYPE_COLORS[selectedLot.type] ?? "#7c3aed") + "40" }]}>
-                <View style={[styles.modalHeroIcon, { backgroundColor: (LOT_TYPE_COLORS[selectedLot.type] ?? "#7c3aed") + "25" }]}>
-                  <Feather name={LOT_TYPE_ICONS[selectedLot.type] ?? "home"} size={28} color={LOT_TYPE_COLORS[selectedLot.type] ?? "#7c3aed"} />
+              <View style={[styles.modalHero, { backgroundColor: (LOT_TYPE_COLORS[selectedLot.type] ?? "#2563EB") + "15", borderColor: (LOT_TYPE_COLORS[selectedLot.type] ?? "#2563EB") + "40" }]}>
+                <View style={[styles.modalHeroIcon, { backgroundColor: (LOT_TYPE_COLORS[selectedLot.type] ?? "#2563EB") + "25" }]}>
+                  <Feather name={LOT_TYPE_ICONS[selectedLot.type] ?? "home"} size={28} color={LOT_TYPE_COLORS[selectedLot.type] ?? "#2563EB"} />
                 </View>
                 <Text style={[styles.modalHeroTitle, { color: colors.foreground }]}>
                   {selectedLot.type.charAt(0).toUpperCase() + selectedLot.type.slice(1)} — Lot {selectedLot.number}

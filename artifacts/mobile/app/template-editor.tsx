@@ -103,7 +103,7 @@ const CATEGORIES = [
 ];
 
 const VARIABLE_SOURCES: { key: VariableSource; label: string; color: string }[] = [
-  { key: "db_syndicate",      label: "Syndicat (DB)",      color: "#7c3aed" },
+  { key: "db_syndicate",      label: "Syndicat (DB)",      color: "#2563EB" },
   { key: "db_property",       label: "Résidence (DB)",     color: "#3b82f6" },
   { key: "db_office_holders", label: "Élus (DB)",          color: "#10b981" },
   { key: "db_member",         label: "Membre (DB)",        color: "#f59e0b" },
@@ -154,7 +154,7 @@ const defaultForm = (): TemplateForm => ({
     { id: crypto.randomUUID?.() ?? String(Date.now()), title: { fr: "Contenu", ar: "المحتوى", en: "Content", es: "Contenido" }, content: emptyI18N(), type: "text", required: true, order: 0 },
   ],
   languages: ["fr"],
-  layoutConfig: { accentColor: "#7c3aed", headerStyle: "branded", footerStyle: "full", watermark: false, showQr: true, showStamp: true },
+  layoutConfig: { accentColor: "#2563EB", headerStyle: "branded", footerStyle: "full", watermark: false, showQr: true, showStamp: true },
 });
 
 // ─── API helper ───────────────────────────────────────────────────────────────
@@ -312,7 +312,7 @@ function VariableEditor({ variables, onChange }: { variables: VariableDef[]; onC
       })}
 
       <TouchableOpacity style={s.addBtn} onPress={openNew}>
-        <Feather name="plus" size={16} color="#7c3aed" />
+        <Feather name="plus" size={16} color="#2563EB" />
         <Text style={s.addBtnText}>Ajouter une variable personnalisée</Text>
       </TouchableOpacity>
 
@@ -354,7 +354,7 @@ function VariableEditor({ variables, onChange }: { variables: VariableDef[]; onC
                   </Field>
                   <View style={s.switchRow}>
                     <Text style={s.fieldLabel}>Requis</Text>
-                    <Switch value={draft.required} onValueChange={(v) => setDraft({ ...draft, required: v })} trackColor={{ false: "#334155", true: "#7c3aed" }} />
+                    <Switch value={draft.required} onValueChange={(v) => setDraft({ ...draft, required: v })} trackColor={{ false: "#334155", true: "#2563EB" }} />
                   </View>
                 </>
               )}
@@ -425,7 +425,7 @@ function SectionEditor({ sections, onChange }: { sections: SectionDef[]; onChang
             </View>
             <View style={{ flex: 1 }}>
               <View style={{ flexDirection: "row", alignItems: "center", gap: 6, marginBottom: 4 }}>
-                <Feather name={typeInfo?.icon ?? "file"} size={13} color="#7c3aed" />
+                <Feather name={typeInfo?.icon ?? "file"} size={13} color="#2563EB" />
                 <Text style={s.secTitle}>{sec.title.fr || "Section sans titre"}</Text>
               </View>
               {sec.content?.fr ? (
@@ -448,7 +448,7 @@ function SectionEditor({ sections, onChange }: { sections: SectionDef[]; onChang
         );
       })}
       <TouchableOpacity style={s.addBtn} onPress={openNew}>
-        <Feather name="plus" size={16} color="#7c3aed" />
+        <Feather name="plus" size={16} color="#2563EB" />
         <Text style={s.addBtnText}>Ajouter une section</Text>
       </TouchableOpacity>
 
@@ -467,7 +467,7 @@ function SectionEditor({ sections, onChange }: { sections: SectionDef[]; onChang
                       {SECTION_TYPES.map((t) => (
                         <TouchableOpacity key={t.key} style={[s.pickerChip, draft.type === t.key && s.pickerChipActive]}
                           onPress={() => setDraft({ ...draft, type: t.key })}>
-                          <Feather name={t.icon} size={12} color={draft.type === t.key ? "#7c3aed" : "#64748b"} />
+                          <Feather name={t.icon} size={12} color={draft.type === t.key ? "#2563EB" : "#64748b"} />
                           <Text style={[s.pickerChipText, draft.type === t.key && s.pickerChipTextActive]}>{t.label}</Text>
                         </TouchableOpacity>
                       ))}
@@ -475,7 +475,7 @@ function SectionEditor({ sections, onChange }: { sections: SectionDef[]; onChang
                   </Field>
                   <View style={s.switchRow}>
                     <Text style={s.fieldLabel}>Section obligatoire</Text>
-                    <Switch value={draft.required} onValueChange={(v) => setDraft({ ...draft, required: v })} trackColor={{ false: "#334155", true: "#7c3aed" }} />
+                    <Switch value={draft.required} onValueChange={(v) => setDraft({ ...draft, required: v })} trackColor={{ false: "#334155", true: "#2563EB" }} />
                   </View>
                 </>
               )}
@@ -525,14 +525,14 @@ function VersionsTab({ templateId }: { templateId: string }) {
     );
   };
 
-  if (loading) return <ActivityIndicator color="#7c3aed" style={{ marginTop: 40 }} />;
+  if (loading) return <ActivityIndicator color="#2563EB" style={{ marginTop: 40 }} />;
 
   return (
     <View style={{ paddingHorizontal: 20 }}>
       <SectionHeader title="Historique des versions" subtitle={`${versions.length} version${versions.length !== 1 ? "s" : ""} enregistrée${versions.length !== 1 ? "s" : ""}`} />
       {versions.map((ver, idx) => (
         <View key={ver.id} style={s.verCard}>
-          <View style={[s.verDot, idx === 0 && { backgroundColor: "#7c3aed" }]} />
+          <View style={[s.verDot, idx === 0 && { backgroundColor: "#2563EB" }]} />
           <View style={{ flex: 1 }}>
             <View style={{ flexDirection: "row", alignItems: "center", gap: 8 }}>
               <Text style={[s.verVersion, idx === 0 && { color: "#a78bfa" }]}>Version {ver.version}</Text>
@@ -543,7 +543,7 @@ function VersionsTab({ templateId }: { templateId: string }) {
           </View>
           {idx > 0 && (
             <TouchableOpacity onPress={() => restore(ver)} style={s.verRestoreBtn}>
-              <Feather name="refresh-cw" size={14} color="#7c3aed" />
+              <Feather name="refresh-cw" size={14} color="#2563EB" />
               <Text style={s.verRestoreText}>Restaurer</Text>
             </TouchableOpacity>
           )}
@@ -591,7 +591,7 @@ function PermissionsTab({ templateId }: { templateId: string }) {
     finally { setSaving(false); }
   };
 
-  if (loading) return <ActivityIndicator color="#7c3aed" style={{ marginTop: 40 }} />;
+  if (loading) return <ActivityIndicator color="#2563EB" style={{ marginTop: 40 }} />;
 
   return (
     <View style={{ paddingHorizontal: 20 }}>
@@ -614,7 +614,7 @@ function PermissionsTab({ templateId }: { templateId: string }) {
                   value={perm[field]}
                   onValueChange={() => { if (!isSuperAdmin) toggle(idx, field); }}
                   disabled={isSuperAdmin}
-                  trackColor={{ false: "#334155", true: "#7c3aed" }}
+                  trackColor={{ false: "#334155", true: "#2563EB" }}
                   thumbColor={perm[field] ? "#a78bfa" : "#64748b"}
                   style={{ transform: [{ scaleX: 0.8 }, { scaleY: 0.8 }] }}
                 />
@@ -633,7 +633,7 @@ function PermissionsTab({ templateId }: { templateId: string }) {
 // ─── Layout Tab ───────────────────────────────────────────────────────────────
 
 function LayoutTab({ config, onChange }: { config: TemplateForm["layoutConfig"]; onChange: (c: TemplateForm["layoutConfig"]) => void }) {
-  const ACCENT_PRESETS = ["#7c3aed", "#3b82f6", "#10b981", "#ef4444", "#f59e0b", "#0891b2", "#ec4899", "#1e293b"];
+  const ACCENT_PRESETS = ["#2563EB", "#3b82f6", "#10b981", "#ef4444", "#f59e0b", "#0891b2", "#ec4899", "#1e293b"];
   return (
     <View style={{ paddingHorizontal: 20 }}>
       <SectionHeader title="Mise en page" subtitle="Apparence et structure du document" />
@@ -644,7 +644,7 @@ function LayoutTab({ config, onChange }: { config: TemplateForm["layoutConfig"];
               onPress={() => onChange({ ...config, accentColor: c })} />
           ))}
         </View>
-        <TInput value={config.accentColor} onChangeText={(t) => onChange({ ...config, accentColor: t })} placeholder="#7c3aed" mono />
+        <TInput value={config.accentColor} onChangeText={(t) => onChange({ ...config, accentColor: t })} placeholder="#2563EB" mono />
       </Field>
       <Field label="Style d'en-tête">
         <View style={s.pickerWrap}>
@@ -668,15 +668,15 @@ function LayoutTab({ config, onChange }: { config: TemplateForm["layoutConfig"];
       </Field>
       <View style={s.switchRow}>
         <View><Text style={s.fieldLabel}>Filigrane (brouillon)</Text><Text style={s.fieldSub}>Affiche "BROUILLON" en arrière-plan</Text></View>
-        <Switch value={config.watermark} onValueChange={(v) => onChange({ ...config, watermark: v })} trackColor={{ false: "#334155", true: "#7c3aed" }} />
+        <Switch value={config.watermark} onValueChange={(v) => onChange({ ...config, watermark: v })} trackColor={{ false: "#334155", true: "#2563EB" }} />
       </View>
       <View style={s.switchRow}>
         <View><Text style={s.fieldLabel}>QR Code de vérification</Text><Text style={s.fieldSub}>Intègre un QR dans l'en-tête</Text></View>
-        <Switch value={config.showQr} onValueChange={(v) => onChange({ ...config, showQr: v })} trackColor={{ false: "#334155", true: "#7c3aed" }} />
+        <Switch value={config.showQr} onValueChange={(v) => onChange({ ...config, showQr: v })} trackColor={{ false: "#334155", true: "#2563EB" }} />
       </View>
       <View style={s.switchRow}>
         <View><Text style={s.fieldLabel}>Bloc cachet officiel</Text><Text style={s.fieldSub}>Cercle de cachet dans la signature</Text></View>
-        <Switch value={config.showStamp} onValueChange={(v) => onChange({ ...config, showStamp: v })} trackColor={{ false: "#334155", true: "#7c3aed" }} />
+        <Switch value={config.showStamp} onValueChange={(v) => onChange({ ...config, showStamp: v })} trackColor={{ false: "#334155", true: "#2563EB" }} />
       </View>
     </View>
   );
@@ -762,7 +762,7 @@ function TemplateEditorContent() {
   if (loading) {
     return (
       <View style={[s.root, { alignItems: "center", justifyContent: "center" }]}>
-        <ActivityIndicator size="large" color="#7c3aed" />
+        <ActivityIndicator size="large" color="#2563EB" />
         <Text style={{ color: "#64748b", marginTop: 12 }}>Chargement du template...</Text>
       </View>
     );
@@ -915,7 +915,7 @@ const s = StyleSheet.create({
   backBtn:          { width: 36, height: 36, borderRadius: 18, backgroundColor: "#1e293b", alignItems: "center", justifyContent: "center" },
   headerTitle:      { fontSize: 16, fontWeight: "700", color: "#f1f5f9" },
   headerSub:        { fontSize: 11, color: "#475569", fontFamily: Platform.OS === "ios" ? "Menlo" : "monospace" },
-  saveBtn2:         { flexDirection: "row", alignItems: "center", gap: 6, backgroundColor: "#7c3aed",
+  saveBtn2:         { flexDirection: "row", alignItems: "center", gap: 6, backgroundColor: "#2563EB",
                       paddingHorizontal: 14, paddingVertical: 9, borderRadius: 10 },
   saveBtnText2:     { color: "#fff", fontWeight: "700", fontSize: 13 },
 
@@ -923,7 +923,7 @@ const s = StyleSheet.create({
   tabsContent:      { paddingHorizontal: 12, gap: 4, flexDirection: "row", alignItems: "center" },
   tab:              { flexDirection: "row", alignItems: "center", gap: 5, paddingHorizontal: 12,
                       paddingVertical: 14, borderBottomWidth: 2, borderBottomColor: "transparent" },
-  tabActive:        { borderBottomColor: "#7c3aed" },
+  tabActive:        { borderBottomColor: "#2563EB" },
   tabText:          { fontSize: 12, color: "#64748b", fontWeight: "500" },
   tabTextActive:    { color: "#a78bfa", fontWeight: "700" },
 
@@ -942,14 +942,14 @@ const s = StyleSheet.create({
   i18nWrap:         { marginBottom: 16 },
   i18nTabs:         { flexDirection: "row", gap: 4, marginBottom: 8 },
   i18nTab:          { paddingHorizontal: 10, paddingVertical: 5, borderRadius: 8, backgroundColor: "#1e293b", borderWidth: 1, borderColor: "#334155" },
-  i18nTabActive:    { backgroundColor: "#7c3aed22", borderColor: "#7c3aed" },
+  i18nTabActive:    { backgroundColor: "#2563EB22", borderColor: "#2563EB" },
   i18nTabText:      { fontSize: 11, color: "#64748b", fontWeight: "600" },
   i18nTabTextActive:{ color: "#a78bfa" },
 
   pickerWrap:       { flexDirection: "row", flexWrap: "wrap", gap: 8, marginTop: 4 },
   pickerChip:       { flexDirection: "row", alignItems: "center", gap: 4, paddingHorizontal: 10, paddingVertical: 7,
                       borderRadius: 8, backgroundColor: "#1e293b", borderWidth: 1, borderColor: "#334155" },
-  pickerChipActive: { backgroundColor: "#7c3aed22", borderColor: "#7c3aed" },
+  pickerChipActive: { backgroundColor: "#2563EB22", borderColor: "#2563EB" },
   pickerChipText:   { fontSize: 12, color: "#64748b", fontWeight: "500" },
   pickerChipTextActive: { color: "#a78bfa", fontWeight: "700" },
 
@@ -971,7 +971,7 @@ const s = StyleSheet.create({
   varAction:        { width: 28, height: 28, borderRadius: 8, backgroundColor: "#0f172a", alignItems: "center", justifyContent: "center" },
 
   addBtn:           { flexDirection: "row", alignItems: "center", gap: 8, paddingVertical: 14,
-                      borderWidth: 1.5, borderColor: "#7c3aed44", borderStyle: "dashed",
+                      borderWidth: 1.5, borderColor: "#2563EB44", borderStyle: "dashed",
                       borderRadius: 12, justifyContent: "center", marginTop: 8 },
   addBtnText:       { color: "#a78bfa", fontWeight: "600", fontSize: 14 },
 
@@ -990,13 +990,13 @@ const s = StyleSheet.create({
                       borderBottomWidth: 1, borderBottomColor: "#1e293b" },
   verDot:           { width: 10, height: 10, borderRadius: 5, backgroundColor: "#334155", marginTop: 4 },
   verVersion:       { fontSize: 13, fontWeight: "700", color: "#94a3b8" },
-  verCurrentBadge:  { paddingHorizontal: 6, paddingVertical: 2, borderRadius: 6, backgroundColor: "#7c3aed22" },
+  verCurrentBadge:  { paddingHorizontal: 6, paddingVertical: 2, borderRadius: 6, backgroundColor: "#2563EB22" },
   verCurrentText:   { fontSize: 10, color: "#a78bfa", fontWeight: "700" },
   verDesc:          { fontSize: 13, color: "#e2e8f0", marginTop: 2 },
   verMeta:          { fontSize: 11, color: "#64748b", marginTop: 4 },
   verRestoreBtn:    { flexDirection: "row", alignItems: "center", gap: 4, paddingHorizontal: 10,
-                      paddingVertical: 6, borderRadius: 8, backgroundColor: "#7c3aed22",
-                      borderWidth: 1, borderColor: "#7c3aed44" },
+                      paddingVertical: 6, borderRadius: 8, backgroundColor: "#2563EB22",
+                      borderWidth: 1, borderColor: "#2563EB44" },
   verRestoreText:   { fontSize: 11, color: "#a78bfa", fontWeight: "600" },
 
   // Permissions
@@ -1008,7 +1008,7 @@ const s = StyleSheet.create({
 
   // Save button
   saveBtn:          { flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 8,
-                      backgroundColor: "#7c3aed", borderRadius: 12, paddingVertical: 14, marginTop: 20 },
+                      backgroundColor: "#2563EB", borderRadius: 12, paddingVertical: 14, marginTop: 20 },
   saveBtnText:      { color: "#fff", fontWeight: "700", fontSize: 15 },
 
   // Color swatches
@@ -1026,6 +1026,6 @@ const s = StyleSheet.create({
   modalCancel:      { flex: 1, paddingVertical: 13, borderRadius: 12, alignItems: "center",
                       backgroundColor: "#0f172a", borderWidth: 1, borderColor: "#334155" },
   modalCancelText:  { color: "#94a3b8", fontWeight: "600" },
-  modalSave:        { flex: 2, paddingVertical: 13, borderRadius: 12, alignItems: "center", backgroundColor: "#7c3aed" },
+  modalSave:        { flex: 2, paddingVertical: 13, borderRadius: 12, alignItems: "center", backgroundColor: "#2563EB" },
   modalSaveText:    { color: "#fff", fontWeight: "700" },
 });

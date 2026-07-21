@@ -1,7 +1,7 @@
 import { Feather } from "@expo/vector-icons";
 import * as Haptics from "expo-haptics";
 import { router } from "expo-router";
-import React, { useEffect, useState } from "react";
+import React, { useCallback, useEffect, useState } from "react";
 import {
   Alert,
   ActivityIndicator,
@@ -19,7 +19,7 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useData } from "@/context/DataContext";
 import { useBreakpoints } from "@/hooks/useBreakpoints";
 import { useColors } from "@/hooks/useColors";
-import { statistics, type EnrichedSyndicate } from "@/services/api";
+import { statistics, chat as chatApi, type EnrichedSyndicate } from "@/services/api";
 import { apiRequest } from "@/lib/api";
 import { useAuth } from "@/context/AuthContext";
 import SyndicateCard, { type SyndicateCardData } from "@/components/SyndicateCard";
@@ -39,6 +39,7 @@ interface SyndicateStat {
   lastActivity: string;
   status: "healthy" | "warning" | "critical";
   adminName: string;
+  adminId?: string | null;
 }
 
 interface PlatformAlert {
@@ -94,6 +95,7 @@ function mapEnrichedToStat(e: EnrichedSyndicate): SyndicateStat {
     lastActivity: e.syStatus === "active" ? "Actif" : "Inactif",
     status: e.status,
     adminName: e.adminName,
+    adminId: e.adminId ?? null,
   };
 }
 
@@ -115,6 +117,7 @@ function TableauNationalScreenInner() {
 
   const [tab, setTab] = useState<TabType>("syndicats");
   const [selectedSyndicat, setSelectedSyndicat] = useState<SyndicateStat | null>(null);
+  const [contactingAdmin, setContactingAdmin] = useState(false);
   const [filterHealth, setFilterHealth] = useState<"all" | "healthy" | "warning" | "critical">("all");
   const [syndicats, setSyndicats] = useState<SyndicateStat[]>([]);
   const [loading, setLoading] = useState(true);
@@ -161,6 +164,32 @@ function TableauNationalScreenInner() {
       .catch(() => {})
       .finally(() => setSyndicateDetailLoading(false));
   }, [selectedSyndicat?.id, token]);
+
+  const handleContactAdmin = useCallback(async (syndicat: SyndicateStat) => {
+    if (contactingAdmin) return;
+    const adminUserId = syndicat.adminId;
+    if (!adminUserId) {
+      setSelectedSyndicat(null);
+      setTimeout(() => router.push("/(tabs)/chat" as any), 300);
+      return;
+    }
+    setContactingAdmin(true);
+    try {
+      const res = await chatApi.create({ participantId: adminUserId, convType: "direct" }) as any;
+      const convId = res?.data?.id;
+      setSelectedSyndicat(null);
+      if (convId) {
+        setTimeout(() => router.push({ pathname: "/chat-thread", params: { id: convId } } as any), 300);
+      } else {
+        setTimeout(() => router.push("/(tabs)/chat" as any), 300);
+      }
+    } catch {
+      setSelectedSyndicat(null);
+      setTimeout(() => router.push("/(tabs)/chat" as any), 300);
+    } finally {
+      setContactingAdmin(false);
+    }
+  }, [contactingAdmin]);
 
   // Map DataContext alerts to platform alerts format
   const platformAlerts: PlatformAlert[] = alerts.map((a) => ({
@@ -393,7 +422,7 @@ function TableauNationalScreenInner() {
                 ? <Text style={{ fontFamily: "Inter_400Regular", fontSize: 12, color: colors.mutedForeground, textAlign: "center" }}>Aucun syndicat</Text>
                 : [...syndicats].sort((a, b) => b.balance - a.balance).map((synd, i) => {
                   const pct = totalBalance > 0 ? (synd.balance / totalBalance) * 100 : 0;
-                  const syndColors = ["#7c3aed", "#3b82f6", "#10b981", "#f59e0b", "#6366f1", "#ec4899"];
+                  const syndColors = ["#2563EB", "#3b82f6", "#10b981", "#f59e0b", "#6366f1", "#ec4899"];
                   const c = syndColors[i % syndColors.length];
                   return (
                     <View key={synd.id} style={styles.financeRow}>
@@ -436,7 +465,7 @@ function TableauNationalScreenInner() {
               <TouchableOpacity
                 key={a.label}
                 style={[styles.exportBtn, { backgroundColor: colors.card, borderColor: colors.border }]}
-                onPress={() => { Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success); Share.share({ title: a.label, message: `${a.label}\nGénéré le ${new Date().toLocaleDateString("fr-MA")}\nSYNDYCAT GLOBAL CPS` }); }}
+                onPress={() => { Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success); Share.share({ title: a.label, message: `${a.label}\nGénéré le ${new Date().toLocaleDateString("fr-MA")}\nVERIDIAN` }); }}
                 activeOpacity={0.8}
               >
                 <View style={[styles.exportIcon, { backgroundColor: a.color + "18" }]}>
@@ -462,7 +491,7 @@ function TableauNationalScreenInner() {
               : Array.from(new Set(syndicats.map((s) => s.region))).map((region, i) => {
                 const count = syndicats.filter((s) => s.region === region).reduce((sum, s) => sum + s.members, 0);
                 const pct = totalMembers > 0 ? (count / totalMembers) * 100 : 0;
-                const regionColors = ["#7c3aed", "#3b82f6", "#10b981", "#f59e0b"];
+                const regionColors = ["#2563EB", "#3b82f6", "#10b981", "#f59e0b"];
                 const c = regionColors[i % regionColors.length];
                 return (
                   <View key={region} style={styles.regionRow}>
@@ -534,7 +563,7 @@ function TableauNationalScreenInner() {
                   ].join("\n");
                   Share.share({
                     message: lines,
-                    title: `Rapport national SYNDYCAT — ${new Date().toLocaleDateString("fr-MA")}`,
+                    title: `Rapport national VERIDIAN — ${new Date().toLocaleDateString("fr-MA")}`,
                   }).catch(() => Alert.alert("Erreur", "Impossible d'exporter le rapport."));
                 },
               },
@@ -618,7 +647,7 @@ function TableauNationalScreenInner() {
                     {[
                       { label: "Recouvr.", value: `${Math.round(r.collectionRate)}%`, color: "#10b981" },
                       { label: "Incidents", value: `${Math.round(r.incidentResolutionRate)}%`, color: "#3b82f6" },
-                      { label: "Docs", value: `${Math.round(r.documentationScore)}`, color: "#7c3aed" },
+                      { label: "Docs", value: `${Math.round(r.documentationScore)}`, color: "#2563EB" },
                       { label: "Réunions", value: `${Math.round(r.meetingComplianceScore)}`, color: "#f59e0b" },
                     ].map((m, i, arr) => (
                       <View key={m.label} style={[styles.metricCell, i < arr.length - 1 ? { borderRightWidth: 1, borderRightColor: colors.border } : null]}>
@@ -762,17 +791,20 @@ function TableauNationalScreenInner() {
 
                     <View style={styles.detailActions}>
                       {[
-                        { label: "Contacter l'admin", icon: "message-circle" as const, bg: colors.primary, text: "#fff" },
-                        { label: "Rapport détaillé", icon: "file-text" as const, bg: colors.secondary, text: colors.primary },
+                        { label: contactingAdmin ? "Ouverture…" : "Contacter l'admin", icon: "message-circle" as const, bg: colors.primary, text: "#fff", isContact: true },
+                        { label: "Rapport détaillé", icon: "file-text" as const, bg: colors.secondary, text: colors.primary, isContact: false },
                       ].map((a) => (
                         <TouchableOpacity
                           key={a.label}
                           style={[styles.detailActionBtn, { backgroundColor: a.bg }]}
                           onPress={() => {
                             Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-                            if (a.label === "Contacter l'admin") router.push("/chat" as any);
-                            else Share.share({ title: selectedSyndicat.name, message: `Rapport syndical — ${selectedSyndicat.name}\nGénéré le ${new Date().toLocaleDateString("fr-MA")}\nSYNDYCAT GLOBAL CPS` });
-                            setSelectedSyndicat(null);
+                            if (a.isContact) {
+                              handleContactAdmin(selectedSyndicat!);
+                            } else {
+                              Share.share({ title: selectedSyndicat.name, message: `Rapport syndical — ${selectedSyndicat.name}\nGénéré le ${new Date().toLocaleDateString("fr-MA")}\nVERIDIAN` });
+                              setSelectedSyndicat(null);
+                            }
                           }}
                         >
                           <Feather name={a.icon} size={14} color={a.text} />

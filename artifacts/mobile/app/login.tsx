@@ -4,7 +4,6 @@ import { router } from "expo-router";
 import React, { useState } from "react";
 import {
   ActivityIndicator,
-  Image,
   KeyboardAvoidingView,
   Platform,
   ScrollView,
@@ -18,6 +17,8 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useAuth, type UserRole } from "@/context/AuthContext";
 import { useLanguage } from "@/context/LanguageContext";
 import { useColors } from "@/hooks/useColors";
+import VeridianLogo from "@/components/brand/VeridianLogo";
+import { useColorScheme } from "react-native";
 
 function useRoles(t: (key: string) => string): {
   role: UserRole;
@@ -32,14 +33,14 @@ function useRoles(t: (key: string) => string): {
       label: t("superAdmin"),
       subtitle: t("superAdminDesc"),
       icon: "shield",
-      email: "admin@syndycat.ma",
+      email: "admin@veridian.app",
     },
     {
       role: "syndicate_admin",
       label: t("syndicateAdmin"),
       subtitle: t("syndicateAdminDesc"),
       icon: "briefcase",
-      email: "syndic@andalous.ma",
+      email: "syndic@veridian.app",
     },
     {
       role: "member",
@@ -57,6 +58,8 @@ export default function LoginScreen() {
   const { login } = useAuth();
   const { t } = useLanguage();
   const ROLES = useRoles(t);
+  const colorScheme = useColorScheme();
+  const isDark = colorScheme === "dark";
 
   const [selectedRole, setSelectedRole] = useState<UserRole>("syndicate_admin");
   const [email, setEmail] = useState(__DEV__ ? "syndic@andalous.ma" : "");
@@ -114,15 +117,12 @@ export default function LoginScreen() {
         >
           {/* Logo */}
           <View style={styles.logoSection}>
-            <Image
-              source={require("../assets/images/icon.png")}
-              style={styles.logoIcon}
-              resizeMode="contain"
+            <VeridianLogo
+              variant="full"
+              colorScheme={isDark ? "dark" : "light"}
+              size={90}
+              showTagline
             />
-            <Text style={[styles.logoTitle, { color: colors.primary }]}>{t("appName")}</Text>
-            <Text style={[styles.logoSub, { color: colors.mutedForeground }]}>
-              {t("appTagline")}
-            </Text>
           </View>
 
           {/* Role selector */}
@@ -281,21 +281,7 @@ const styles = StyleSheet.create({
   logoSection: {
     alignItems: "center",
     gap: 8,
-  },
-  logoIcon: {
-    width: 90,
-    height: 90,
-    marginBottom: 4,
-  },
-  logoTitle: {
-    fontSize: 28,
-    fontFamily: "Inter_700Bold",
-    letterSpacing: 2,
-  },
-  logoSub: {
-    fontSize: 13,
-    fontFamily: "Inter_400Regular",
-    letterSpacing: 0.5,
+    paddingVertical: 8,
   },
   section: { gap: 12 },
   sectionLabel: {

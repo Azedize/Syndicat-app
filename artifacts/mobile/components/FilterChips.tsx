@@ -112,7 +112,7 @@ export default function FilterChips({
   options,
   value,
   onChange,
-  accentColor = "#7c3aed",
+  accentColor = "#2563EB",
   mode,
   scrollable = true,
 }: Props) {

@@ -38,7 +38,7 @@ export default function SyndicateCard({ data, onPress }: SyndicateCardProps) {
   const colors = useColors();
   const statusKey = data.status in HEALTH_CONFIG ? data.status : "active";
   const hc = HEALTH_CONFIG[statusKey as keyof typeof HEALTH_CONFIG];
-  const logoColor = data.logoColor ?? "#7c3aed";
+  const logoColor = data.logoColor ?? "#2563EB";
   const abbr = data.abbreviation ?? data.name.slice(0, 3).toUpperCase();
 
   const formattedDate = data.createdAt

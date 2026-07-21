@@ -228,14 +228,14 @@ export default function ActionsScreen() {
       {/* List */}
       {isLoading ? (
         <View style={styles.center}>
-          <ActivityIndicator size="large" color="#7c3aed" />
+          <ActivityIndicator size="large" color="#2563EB" />
           <Text style={[styles.loadingText, { color: colors.mutedForeground }]}>Chargement des actions…</Text>
         </View>
       ) : isError ? (
         <View style={styles.center}>
           <Feather name="wifi-off" size={40} color={colors.mutedForeground} />
           <Text style={[styles.errorText, { color: colors.mutedForeground }]}>Impossible de charger les actions.</Text>
-          <TouchableOpacity style={[styles.retryBtn, { backgroundColor: "#7c3aed" }]} onPress={() => refetch()}>
+          <TouchableOpacity style={[styles.retryBtn, { backgroundColor: "#2563EB" }]} onPress={() => refetch()}>
             <Text style={styles.retryText}>Réessayer</Text>
           </TouchableOpacity>
         </View>
@@ -253,7 +253,7 @@ export default function ActionsScreen() {
           keyExtractor={(a) => a.id}
           contentContainerStyle={{ padding: 16, gap: 14, paddingBottom: insets.bottom + 40 }}
           showsVerticalScrollIndicator={false}
-          refreshControl={<RefreshControl refreshing={isRefetching} onRefresh={refetch} tintColor="#7c3aed" />}
+          refreshControl={<RefreshControl refreshing={isRefetching} onRefresh={refetch} tintColor="#2563EB" />}
           renderItem={({ item: a }) => {
             const type = TYPE_CONFIG[a.type];
             const status = STATUS_CONFIG[a.status];

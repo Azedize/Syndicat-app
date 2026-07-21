@@ -119,13 +119,13 @@ export default function MonLotScreen() {
   if (loading) {
     return (
       <View style={[s.root, { backgroundColor: colors.background }]}>
-        <View style={[s.header, { backgroundColor: "#7c3aed", paddingTop: topPad + 16 }]}>
+        <View style={[s.header, { backgroundColor: colors.primary, paddingTop: topPad + 16 }]}>
           <TouchableOpacity onPress={() => router.back()} style={s.backBtn}>
             <Feather name="arrow-left" size={22} color="#fff" />
           </TouchableOpacity>
           <Text style={s.headerTitle}>Mon Appartement</Text>
         </View>
-        <View style={s.center}><ActivityIndicator color="#7c3aed" size="large" /></View>
+        <View style={s.center}><ActivityIndicator color={colors.primary} size="large" /></View>
       </View>
     );
   }
@@ -133,7 +133,7 @@ export default function MonLotScreen() {
   if (!lot) {
     return (
       <View style={[s.root, { backgroundColor: colors.background }]}>
-        <View style={[s.header, { backgroundColor: "#7c3aed", paddingTop: topPad + 16 }]}>
+        <View style={[s.header, { backgroundColor: colors.primary, paddingTop: topPad + 16 }]}>
           <TouchableOpacity onPress={() => router.back()} style={s.backBtn}>
             <Feather name="arrow-left" size={22} color="#fff" />
           </TouchableOpacity>
@@ -141,18 +141,18 @@ export default function MonLotScreen() {
         </View>
         <ScrollView
           contentContainerStyle={s.emptyContainer}
-          refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor="#7c3aed" />}
+          refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={colors.primary} />}
         >
           <View style={[s.emptyBox, { backgroundColor: colors.card, borderColor: colors.border }]}>
-            <View style={[s.emptyIcon, { backgroundColor: "#7c3aed18" }]}>
-              <Feather name="home" size={32} color="#7c3aed" />
+            <View style={[s.emptyIcon, { backgroundColor: colors.primary + "18" }]}>
+              <Feather name="home" size={32} color={colors.primary} />
             </View>
             <Text style={[s.emptyTitle, { color: colors.foreground }]}>Aucun lot associé</Text>
             <Text style={[s.emptyText, { color: colors.mutedForeground }]}>
               Votre compte n'est pas encore associé à un appartement. Contactez votre gestionnaire de syndicat.
             </Text>
             <TouchableOpacity
-              style={[s.contactBtn, { backgroundColor: "#7c3aed" }]}
+              style={[s.contactBtn, { backgroundColor: colors.primary }]}
               onPress={() => router.push("/support" as any)}
             >
               <Feather name="headphones" size={16} color="#fff" />
@@ -166,7 +166,7 @@ export default function MonLotScreen() {
 
   return (
     <View style={[s.root, { backgroundColor: colors.background }]}>
-      <View style={[s.header, { backgroundColor: "#7c3aed", paddingTop: topPad + 16 }]}>
+      <View style={[s.header, { backgroundColor: colors.primary, paddingTop: topPad + 16 }]}>
         <TouchableOpacity onPress={() => router.back()} style={s.backBtn}>
           <Feather name="arrow-left" size={22} color="#fff" />
         </TouchableOpacity>
@@ -189,7 +189,7 @@ export default function MonLotScreen() {
       {/* Quick stats */}
       <View style={[s.statsStrip, { backgroundColor: colors.card, borderBottomColor: colors.border }]}>
         {[
-          { label: "Surface", value: lot.surface ? `${lot.surface} m²` : "—", icon: "maximize-2" as const, color: "#7c3aed" },
+          { label: "Surface", value: lot.surface ? `${lot.surface} m²` : "—", icon: "maximize-2" as const, color: colors.primary },
           { label: "Étage", value: lot.floor !== undefined ? `${lot.floor}` : "—", icon: "layers" as const, color: "#3b82f6" },
           { label: "Tantiemes", value: lot.tantiemes ? `${lot.tantiemes}/1000` : "—", icon: "percent" as const, color: "#f59e0b" },
           { label: "Solde dû", value: pendingCharges > 0 ? `${pendingCharges.toLocaleString("fr-MA")} MAD` : "0 MAD", icon: "credit-card" as const, color: pendingCharges > 0 ? "#ef4444" : "#10b981" },
@@ -210,11 +210,11 @@ export default function MonLotScreen() {
           return (
             <TouchableOpacity
               key={t}
-              style={[s.tabBtn, tab === t && { borderBottomColor: "#7c3aed", borderBottomWidth: 2 }]}
+              style={[s.tabBtn, tab === t && { borderBottomColor: colors.primary, borderBottomWidth: 2 }]}
               onPress={() => setTab(t)}
             >
-              <Feather name={icons[t]} size={14} color={tab === t ? "#7c3aed" : colors.mutedForeground} />
-              <Text style={[s.tabLabel, { color: tab === t ? "#7c3aed" : colors.mutedForeground }]}>{labels[t]}</Text>
+              <Feather name={icons[t]} size={14} color={tab === t ? colors.primary : colors.mutedForeground} />
+              <Text style={[s.tabLabel, { color: tab === t ? colors.primary : colors.mutedForeground }]}>{labels[t]}</Text>
             </TouchableOpacity>
           );
         })}
@@ -222,7 +222,7 @@ export default function MonLotScreen() {
 
       <ScrollView
         contentContainerStyle={{ padding: 16, gap: 14, paddingBottom: isWide ? 32 : insets.bottom + 100 }}
-        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor="#7c3aed" />}
+        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor="#2563EB" />}
         showsVerticalScrollIndicator={false}
       >
         {tab === "info" && (
@@ -299,18 +299,18 @@ export default function MonLotScreen() {
 
         {tab === "charges" && (
           <>
-            <View style={[s.chargesSummary, { backgroundColor: "#7c3aed12", borderColor: "#7c3aed30" }]}>
+            <View style={[s.chargesSummary, { backgroundColor: "#2563EB12", borderColor: "#2563EB30" }]}>
               <View style={s.chargesSummaryRow}>
                 <View style={s.chargesSumCell}>
                   <Text style={[s.chargesSumVal, { color: colors.foreground }]}>{totalCharges.toLocaleString("fr-MA")}</Text>
                   <Text style={[s.chargesSumLab, { color: colors.mutedForeground }]}>Total appelé (MAD)</Text>
                 </View>
-                <View style={[s.chargeSumDivider, { backgroundColor: "#7c3aed30" }]} />
+                <View style={[s.chargeSumDivider, { backgroundColor: "#2563EB30" }]} />
                 <View style={s.chargesSumCell}>
                   <Text style={[s.chargesSumVal, { color: "#10b981" }]}>{paidCharges.toLocaleString("fr-MA")}</Text>
                   <Text style={[s.chargesSumLab, { color: colors.mutedForeground }]}>Réglé (MAD)</Text>
                 </View>
-                <View style={[s.chargeSumDivider, { backgroundColor: "#7c3aed30" }]} />
+                <View style={[s.chargeSumDivider, { backgroundColor: "#2563EB30" }]} />
                 <View style={s.chargesSumCell}>
                   <Text style={[s.chargesSumVal, { color: pendingCharges > 0 ? "#ef4444" : "#10b981" }]}>
                     {pendingCharges.toLocaleString("fr-MA")}
@@ -318,10 +318,10 @@ export default function MonLotScreen() {
                   <Text style={[s.chargesSumLab, { color: colors.mutedForeground }]}>Dû (MAD)</Text>
                 </View>
               </View>
-              <View style={[s.progressBg, { backgroundColor: "#7c3aed20" }]}>
+              <View style={[s.progressBg, { backgroundColor: "#2563EB20" }]}>
                 <View style={[s.progressFill, { width: `${paymentRate}%` as any, backgroundColor: paymentRate > 80 ? "#10b981" : paymentRate > 50 ? "#f59e0b" : "#ef4444" }]} />
               </View>
-              <Text style={[s.progressLabel, { color: "#7c3aed" }]}>Taux de paiement: {paymentRate}%</Text>
+              <Text style={[s.progressLabel, { color: "#2563EB" }]}>Taux de paiement: {paymentRate}%</Text>
             </View>
 
             {appels.length === 0 ? (
@@ -357,7 +357,7 @@ export default function MonLotScreen() {
                     ) : null}
                     {(appel.status === "pending" || appel.status === "overdue") ? (
                       <TouchableOpacity
-                        style={[s.payBtn, { backgroundColor: "#7c3aed" }]}
+                        style={[s.payBtn, { backgroundColor: "#2563EB" }]}
                         onPress={() => router.push("/charges" as any)}
                       >
                         <Feather name="credit-card" size={14} color="#fff" />
@@ -375,7 +375,7 @@ export default function MonLotScreen() {
           <View style={[s.emptyBox2, { paddingVertical: 40 }]}>
             <Feather name="folder" size={36} color={colors.mutedForeground} />
             <Text style={[s.emptyText2, { color: colors.mutedForeground }]}>Documents disponibles dans la section Documents</Text>
-            <TouchableOpacity style={[s.contactBtn, { backgroundColor: "#7c3aed", marginTop: 8 }]} onPress={() => router.push("/documents" as any)}>
+            <TouchableOpacity style={[s.contactBtn, { backgroundColor: "#2563EB", marginTop: 8 }]} onPress={() => router.push("/documents" as any)}>
               <Feather name="folder" size={16} color="#fff" />
               <Text style={s.contactBtnText}>Voir les documents</Text>
             </TouchableOpacity>

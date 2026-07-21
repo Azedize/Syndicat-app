@@ -151,14 +151,14 @@ export default function AgendaScreen() {
     const lines = [
       "BEGIN:VCALENDAR",
       "VERSION:2.0",
-      "PRODID:-//SYNDYCAT//Agenda Syndical//FR",
+      "PRODID:-//VERIDIAN//Agenda Syndical//FR",
       "CALSCALE:GREGORIAN",
       "METHOD:PUBLISH",
     ];
     for (const ev of events) {
       lines.push(
         "BEGIN:VEVENT",
-        `UID:syndycat-${ev.id}@syndycat.app`,
+        `UID:syndycat-${ev.id}@veridian.app`,
         `DTSTART;VALUE=DATE:${formatDt(ev.date)}`,
         `DTEND;VALUE=DATE:${formatDt(ev.date)}`,
         `SUMMARY:${esc(ev.title)}`,
@@ -207,7 +207,7 @@ export default function AgendaScreen() {
                 return;
               }
               const ics = buildICS(upcoming);
-              Share.share({ message: ics, title: "Agenda Syndical SYNDYCAT" }).catch(() =>
+              Share.share({ message: ics, title: "Agenda Syndical VERIDIAN" }).catch(() =>
                 showToast({ type: "error", title: "Erreur", message: "Impossible d'exporter l'agenda." })
               );
             }}

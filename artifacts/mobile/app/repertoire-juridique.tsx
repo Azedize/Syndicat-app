@@ -37,7 +37,7 @@ const THEME_CONFIG: Record<ThemeType, { label: string; icon: keyof typeof Feathe
   licenciement: { label: "Licenciement", icon: "user-x", color: "#ef4444" },
   conges: { label: "Congés & RTT", icon: "sun", color: "#f59e0b" },
   salaire: { label: "Salaire", icon: "dollar-sign", color: "#10b981" },
-  syndicale: { label: "Liberté syndicale", icon: "shield", color: "#7c3aed" },
+  syndicale: { label: "Liberté syndicale", icon: "shield", color: "#2563EB" },
   discrimination: { label: "Discrimination", icon: "alert-triangle", color: "#ec4899" },
   contrat: { label: "Contrat de travail", icon: "file-text", color: "#3b82f6" },
   sante: { label: "Santé & Sécurité", icon: "activity", color: "#06b6d4" },

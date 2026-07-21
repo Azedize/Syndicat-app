@@ -107,7 +107,7 @@ export default function FavoritesScreen() {
             <Text style={[styles.suggestTitle, { color: colors.mutedForeground }]}>SUGGESTIONS</Text>
             <View style={styles.suggestGrid}>
               {[
-                { id: "fav-dash", title: "Dashboard", icon: "home", color: "#7c3aed", route: "/(tabs)/" },
+                { id: "fav-dash", title: "Dashboard", icon: "home", color: "#2563EB", route: "/(tabs)/" },
                 { id: "fav-elections", title: "Élections", icon: "check-square", color: "#f59e0b", route: "/elections" },
                 { id: "fav-chat", title: "Chat", icon: "message-circle", color: "#ec4899", route: "/chat" },
                 { id: "fav-docs", title: "Documents", icon: "file-text", color: "#6366f1", route: "/documents" },

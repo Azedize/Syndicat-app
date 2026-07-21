@@ -124,7 +124,7 @@ export const createSyndicateSchema = z.object({
   cotisationAmount: z.string().optional(),
   cotisationCycle: z.enum(["monthly", "quarterly", "yearly"]).default("monthly"),
   // Branding
-  logoColor: z.string().regex(/^#[0-9a-fA-F]{6}$/).default("#7c3aed"),
+  logoColor: z.string().regex(/^#[0-9a-fA-F]{6}$/).default("#2563EB"),
   logoUrl: z.string().optional().or(z.literal("")),
   // Banking
   bankName: z.string().max(100).optional(),

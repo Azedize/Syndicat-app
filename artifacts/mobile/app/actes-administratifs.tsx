@@ -49,7 +49,7 @@ interface ActeAdministratif {
 const TYPE_CONFIG: Record<ActeType, { label: string; icon: keyof typeof Feather.glyphMap; color: string }> = {
   convocation: { label: "Convocation", icon: "mail", color: "#3b82f6" },
   decision: { label: "Décision", icon: "check-square", color: "#10b981" },
-  pv: { label: "Procès-verbal", icon: "file-text", color: "#7c3aed" },
+  pv: { label: "Procès-verbal", icon: "file-text", color: "#2563EB" },
   proces_verbal_ag: { label: "PV d'AG", icon: "users", color: "#f59e0b" },
   resolution: { label: "Résolution", icon: "clipboard", color: "#6366f1" },
   mandat: { label: "Mandat", icon: "shield", color: "#8b5cf6" },

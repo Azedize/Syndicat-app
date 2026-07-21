@@ -316,7 +316,7 @@ function EmptyState({
   onClearHistory: () => void;
 }) {
   const SUGGESTIONS = [
-    { label: "Membres", icon: "users" as const, color: "#7c3aed", query: "membre" },
+    { label: "Membres", icon: "users" as const, color: "#2563EB", query: "membre" },
     { label: "Réunions", icon: "calendar" as const, color: "#3b82f6", query: "réunion" },
     { label: "Documents", icon: "file-text" as const, color: "#6366f1", query: "statut" },
     { label: "Élections", icon: "check-square" as const, color: "#f59e0b", query: "bureau" },

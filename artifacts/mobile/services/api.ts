@@ -1019,6 +1019,7 @@ export interface EnrichedSyndicate {
   openTickets: number;
   status: "healthy" | "warning" | "critical";
   adminName: string;
+  adminId?: string | null;
   syStatus: string;
 }
 

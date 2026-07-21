@@ -23,7 +23,7 @@ const CITIES = ["Casablanca", "Rabat", "Marrakech", "Fès", "Agadir", "Tanger", 
 const SECTORS = ["Éducation", "Santé", "Administration publique", "Industrie", "Commerce", "Banque & Finance", "Ingénierie", "Juridique", "Autre"];
 const SENIORITY = ["< 2 ans", "2 – 5 ans", "5 – 10 ans", "10 – 20 ans", "> 20 ans"];
 
-const AVATAR_COLORS = ["#7c3aed", "#3b82f6", "#10b981", "#f59e0b", "#ef4444", "#ec4899", "#06b6d4", "#8b5cf6"];
+const AVATAR_COLORS = ["#2563EB", "#1E40AF", "#3B82F6", "#0A1628", "#10b981", "#f59e0b", "#06b6d4", "#60A5FA"];
 
 const STEP_LABELS = ["Informations", "Profession", "Avatar", "Confirmation"];
 const STEP_ICONS: Array<keyof typeof Feather.glyphMap> = ["user", "briefcase", "image", "check-circle"];
@@ -47,6 +47,8 @@ export default function OnboardingScreen() {
   const { user, updateUser } = useAuth();
   const { isWide } = useBreakpoints();
   const topPad = isWide ? 0 : (Platform.OS === "web" ? 67 : insets.top);
+  const colorScheme = useColorScheme();
+  const isDark = colorScheme === "dark";
 
   const [step, setStep] = useState(1);
   const [form, setForm] = useState<FormState>({
@@ -57,7 +59,7 @@ export default function OnboardingScreen() {
     employer: "",
     sector: "Éducation",
     seniority: "2 – 5 ans",
-    avatarColor: "#7c3aed",
+    avatarColor: "#2563EB",
     avatarInitials: (user?.name ?? "??").split(" ").map((n) => n[0]).join("").slice(0, 2).toUpperCase(),
     acceptTerms: false,
   });
@@ -286,6 +288,15 @@ export default function OnboardingScreen() {
     <View style={[styles.root, { backgroundColor: colors.background }]}>
       {/* Header */}
       <View style={[styles.header, { paddingTop: topPad + 16, backgroundColor: colors.card, borderBottomColor: colors.border }]}>
+        {/* Brand mark */}
+        <View style={styles.brandRow}>
+          <VeridianLogo
+            variant="horizontal"
+            colorScheme={isDark ? "dark" : "light"}
+            size={28}
+            showTagline={false}
+          />
+        </View>
         <View style={styles.headerTop}>
           {step > 1 ? (
             <TouchableOpacity onPress={handleBack} style={styles.backBtn}>
@@ -379,7 +390,8 @@ function Field({ label, colors, children }: { label: string; colors: ReturnType<
 
 const styles = StyleSheet.create({
   root: { flex: 1 },
-  header: { borderBottomWidth: 1, paddingHorizontal: 16, paddingBottom: 16, gap: 12 },
+  header: { borderBottomWidth: 1, paddingHorizontal: 16, paddingBottom: 16, gap: 10 },
+  brandRow: { alignItems: "center", paddingVertical: 4 },
   headerTop: { flexDirection: "row", alignItems: "center" },
   backBtn: { width: 36, height: 36, alignItems: "center", justifyContent: "center" },
   title: { fontSize: 16, fontFamily: "Inter_700Bold" },

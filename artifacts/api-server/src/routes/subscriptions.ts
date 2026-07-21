@@ -125,7 +125,7 @@ router.post("/subscriptions/plans", requireAuth, requireSuperAdmin, async (req, 
       maxSignatures: maxSignatures ?? null,
       isTrial: isTrial ?? false,
       sortOrder: sortOrder ?? 0,
-      color: color ?? "#7c3aed",
+      color: color ?? "#2563EB",
       isActive: isActive !== false,
     } as any).returning();
 

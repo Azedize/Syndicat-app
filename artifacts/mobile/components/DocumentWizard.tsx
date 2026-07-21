@@ -113,7 +113,7 @@ const ENTITY_TYPE_MAP: Record<string, {
 
 // ─── Source color helper ──────────────────────────────────────────────────────
 function sourceColor(source: string): string {
-  if (source.includes("syndicatesTable"))  return "#7c3aed";
+  if (source.includes("syndicatesTable"))  return "#2563EB";
   if (source.includes("buildingsTable") || source.includes("lotsTable")) return "#0891b2";
   if (source.includes("usersTable") || source.includes("conseilSyndical")) return "#10b981";
   if (source.includes("documentSequences")) return "#f59e0b";
@@ -840,8 +840,8 @@ export default function DocumentWizard({ visible, onClose, onComplete }: Props) 
                 const pi = autofillData.propertyInfo;
                 const oh = autofillData.officeHolders;
                 const mi = autofillData.memberInfo;
-                add("Syndicat", si.syndicate_name, "#7c3aed");
-                add("Adresse", si.syndicate_address ? `${si.syndicate_address}, ${si.syndicate_city ?? ""}`.trim().replace(/,$/, "") : null, "#7c3aed");
+                add("Syndicat", si.syndicate_name, "#2563EB");
+                add("Adresse", si.syndicate_address ? `${si.syndicate_address}, ${si.syndicate_city ?? ""}`.trim().replace(/,$/, "") : null, "#2563EB");
                 add("Immeuble", pi?.building_name, "#3b82f6");
                 add("Lots", pi?.total_lots ? `${pi.total_lots} lots` : null, "#3b82f6");
                 add("Président", oh?.president_name, "#f59e0b");

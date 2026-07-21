@@ -44,7 +44,7 @@ interface PV {
 }
 
 const TYPE_CONFIG_META: Record<PVType, { key: string; icon: keyof typeof Feather.glyphMap; color: string }> = {
-  bureau: { key: "pvTypeBureau", icon: "briefcase", color: "#7c3aed" },
+  bureau: { key: "pvTypeBureau", icon: "briefcase", color: "#2563EB" },
   ag: { key: "pvTypeAG", icon: "users", color: "#3b82f6" },
   commission: { key: "pvTypeCommission", icon: "layers", color: "#10b981" },
   election: { key: "pvTypeElection", icon: "check-square", color: "#f59e0b" },

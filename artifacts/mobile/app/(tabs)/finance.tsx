@@ -79,8 +79,8 @@ const MENU_ITEMS_MEMBER = [
     sub: "Détail de mon lot et mes locataires",
     icon: "home" as const,
     route: "/mon-lot",
-    color: "#7C3AED",
-    bg: "#F5F3FF",
+    color: "#2563EB",
+    bg: "#EFF6FF",
   },
   {
     label: "Documents",

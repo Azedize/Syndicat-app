@@ -129,7 +129,7 @@ export default function FilterTabs({
   options,
   value,
   onChange,
-  accentColor = "#7c3aed",
+  accentColor = "#2563EB",
 }: Props) {
   const colors = useColors();
 

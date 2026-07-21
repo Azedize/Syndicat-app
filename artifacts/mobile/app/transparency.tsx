@@ -17,12 +17,12 @@ const STATUS_CONFIG: Record<string, { label: string; color: string; bg: string }
   pending:    { label: "En cours",   color: "#3b82f6", bg: "#3b82f615" },
   approved:   { label: "Approuvé",  color: "#10b981", bg: "#10b98115" },
   challenged: { label: "Contesté",  color: "#ef4444", bg: "#ef444415" },
-  resolved:   { label: "Résolu",    color: "#7c3aed", bg: "#7c3aed15" },
+  resolved:   { label: "Résolu",    color: "#2563EB", bg: "#2563EB15" },
 };
 
 const CATEGORY_COLORS: Record<string, string> = {
   maintenance: "#f97316",
-  salaires: "#7c3aed",
+  salaires: "#2563EB",
   travaux: "#ef4444",
   fournitures: "#3b82f6",
   assurance: "#10b981",

@@ -178,7 +178,7 @@ export default function ProfileScreen() {
     { icon: "credit-card" as const, label: "Mes\ncotisations", color: "#3b82f6", onPress: () => router.push("/cotisations" as any) },
     { icon: "lock" as const, label: "Changer\nmot de passe", color: "#f59e0b", onPress: () => setShowPwd(true) },
     { icon: "grid" as const, label: "QR Code\nMembre", color: "#8b5cf6", onPress: () => { setShowQR(true); Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); } },
-    { icon: "credit-card" as const, label: "Carte\nmembre", color: "#7c3aed", onPress: () => { setShowQR(true); Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); } },
+    { icon: "credit-card" as const, label: "Carte\nmembre", color: "#2563EB", onPress: () => { setShowQR(true); Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); } },
     { icon: "inbox" as const, label: "Mes\ndemandes", color: "#ec4899", onPress: () => router.push("/support" as any) },
     { icon: "activity" as const, label: "Protections\nsociales", color: "#10b981", onPress: () => router.push("/cotisations" as any) },
     { icon: "shopping-bag" as const, label: "Ma\nboutique", color: "#10b981", onPress: () => router.push("/my-shop" as any) },
@@ -428,7 +428,7 @@ export default function ProfileScreen() {
                 onPress={() => {
                   Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
                   shareContent(
-                    `${user?.name ?? ""} — SYNDYCAT GLOBAL CPS\n${t("badgeVerification")}: https://syndycat.app/verify/badge/${user?.id ?? ""}`,
+                    `${user?.name ?? ""} — VERIDIAN\n${t("badgeVerification")}: https://veridian.app/verify/badge/${user?.id ?? ""}`,
                     t("badgeModalTitle"),
                   );
                 }}

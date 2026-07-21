@@ -33,7 +33,7 @@ type QuickActionKey = {
 // Syndicate-level routes (/finance, /buildings, /reports, /legal) are
 // intentionally excluded — those belong to syndicate admins.
 const QUICK_ACTIONS_SUPER: QuickActionKey[] = [
-  { labelKey: "syndicates",          icon: "briefcase",  route: "/members",          color: "#7c3aed" },
+  { labelKey: "syndicates",          icon: "briefcase",  route: "/members",          color: "#2563EB" },
   { labelKey: "tableauNational",     icon: "globe",      route: "/tableau-national", color: "#6366f1" },
   { labelKey: "gestionUtilisateurs", icon: "users",      route: "/utilisateurs",     color: "#3b82f6" },
   { labelKey: "statistiquesGlobales",icon: "trending-up",route: "/statistiques",     color: "#10b981" },
@@ -44,7 +44,7 @@ const QUICK_ACTIONS_SUPER: QuickActionKey[] = [
 ];
 
 const QUICK_ACTIONS_ADMIN: QuickActionKey[] = [
-  { labelKey: "owners",        icon: "users",       route: "/members",                   color: "#7c3aed" },
+  { labelKey: "owners",        icon: "users",       route: "/members",                   color: "#2563EB" },
   { labelKey: "charges",       icon: "credit-card", route: "/charges",                   color: "#10b981" },
   { labelKey: "travaux",       icon: "tool",        route: "/travaux",                   color: "#f59e0b" },
   { labelKey: "assemblee",     icon: "users",       route: "/assemblee-generale",        color: "#6366f1" },
@@ -434,7 +434,7 @@ export default function DashboardScreen() {
                   key={tx.id}
                   style={[styles.activityItem, i < 4 ? { borderBottomWidth: 1, borderBottomColor: colors.border } : null]}
                 >
-                  <View style={[styles.activityIcon, { backgroundColor: tx.type === "cotisation" ? "#7c3aed18" : tx.type === "depense" ? "#ef444418" : "#10b98118" }]}>
+                  <View style={[styles.activityIcon, { backgroundColor: tx.type === "cotisation" ? "#2563EB18" : tx.type === "depense" ? "#ef444418" : "#10b98118" }]}>
                     <Feather
                       name={tx.type === "cotisation" ? "credit-card" : tx.type === "depense" ? "arrow-up-circle" : tx.type === "salaire" ? "user" : "arrow-down-circle"}
                       size={14}

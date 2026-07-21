@@ -124,7 +124,7 @@ function FichesPaieScreenInner() {
   return (
     <View style={[styles.root, { backgroundColor: colors.background }]}>
       {/* Header */}
-      <View style={[styles.header, { paddingTop: topPad + 16, backgroundColor: "#7c3aed" }]}>
+      <View style={[styles.header, { paddingTop: topPad + 16, backgroundColor: "#2563EB" }]}>
         <TouchableOpacity onPress={() => router.back()} style={styles.backBtn}>
           <Feather name="arrow-left" size={22} color="#fff" />
         </TouchableOpacity>
@@ -142,7 +142,7 @@ function FichesPaieScreenInner() {
       {/* Stats */}
       <View style={[styles.statsRow, { backgroundColor: "#fff", borderBottomColor: "#e2e8f0" }]}>
         {[
-          { label: "Total mois", value: formatMoney(totalNet), color: "#7c3aed" },
+          { label: "Total mois", value: formatMoney(totalNet), color: "#2563EB" },
           { label: "Payés", value: paidCount.toString(), color: "#10b981" },
           { label: "En attente", value: pendingCount.toString(), color: "#f59e0b" },
         ].map((s, i, arr) => (
@@ -164,7 +164,7 @@ function FichesPaieScreenInner() {
           {months.map((m) => (
             <TouchableOpacity
               key={m}
-              style={[styles.monthChip, { backgroundColor: selectedMonth === m ? "#7c3aed" : colors.secondary, borderColor: selectedMonth === m ? "#7c3aed" : colors.border }]}
+              style={[styles.monthChip, { backgroundColor: selectedMonth === m ? "#2563EB" : colors.secondary, borderColor: selectedMonth === m ? "#2563EB" : colors.border }]}
               onPress={() => setSelectedMonth(m)}
             >
               <Text style={[styles.monthChipText, { color: selectedMonth === m ? "#fff" : colors.foreground }]}>{m}</Text>
@@ -174,17 +174,17 @@ function FichesPaieScreenInner() {
       ) : null}
 
       {loading ? (
-        <View style={styles.center}><ActivityIndicator color="#7c3aed" size="large" /></View>
+        <View style={styles.center}><ActivityIndicator color="#2563EB" size="large" /></View>
       ) : (
         <ScrollView
           contentContainerStyle={[styles.list, { paddingBottom: isWide ? 32 : insets.bottom + 100 }]}
-          refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor="#7c3aed" />}
+          refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor="#2563EB" />}
           showsVerticalScrollIndicator={false}
         >
           {monthRecords.length === 0 ? (
             <View style={styles.empty}>
-              <View style={[styles.emptyIcon, { backgroundColor: "#7c3aed15" }]}>
-                <Feather name="file-text" size={32} color="#7c3aed" />
+              <View style={[styles.emptyIcon, { backgroundColor: "#2563EB15" }]}>
+                <Feather name="file-text" size={32} color="#2563EB" />
               </View>
               <Text style={[styles.emptyTitle, { color: colors.foreground }]}>Aucune fiche de paie</Text>
               <Text style={[styles.emptyText, { color: colors.mutedForeground }]}>
@@ -196,8 +196,8 @@ function FichesPaieScreenInner() {
             return (
               <View key={rec.id} style={[styles.card, { backgroundColor: colors.card, borderColor: colors.border }]}>
                 <View style={styles.cardTop}>
-                  <View style={[styles.avatarCircle, { backgroundColor: "#7c3aed18" }]}>
-                    <Feather name="user" size={20} color="#7c3aed" />
+                  <View style={[styles.avatarCircle, { backgroundColor: "#2563EB18" }]}>
+                    <Feather name="user" size={20} color="#2563EB" />
                   </View>
                   <View style={{ flex: 1 }}>
                     <Text style={[styles.cardRole, { color: colors.foreground }]}>{rec.role}</Text>
@@ -266,7 +266,7 @@ function FichesPaieScreenInner() {
             ))}
 
             <TouchableOpacity
-              style={[styles.submitBtn, { backgroundColor: "#7c3aed", opacity: submitting ? 0.7 : 1 }]}
+              style={[styles.submitBtn, { backgroundColor: "#2563EB", opacity: submitting ? 0.7 : 1 }]}
               onPress={handleAdd} disabled={submitting}
             >
               {submitting ? <ActivityIndicator color="#fff" size="small" /> : <Text style={styles.submitText}>Enregistrer</Text>}
