@@ -18,7 +18,7 @@ import {
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useAuth } from "@/context/AuthContext";
-import { useLanguage } from "@/context/LanguageContext";
+import { useLanguage, LangCode } from "@/context/LanguageContext";
 import { useBreakpoints } from "@/hooks/useBreakpoints";
 import { useColors } from "@/hooks/useColors";
 import { apiRequest } from "@/lib/api";
@@ -395,8 +395,6 @@ const STATUS_CONFIG: Record<DocStatus, { label: { [key in LangCode]: string }; c
   revision: { label: { fr: "En révision", en: "In revision", ar: "قيد المراجعة", es: "En revisión" }, color: "#f59e0b" },
   archived: { label: { fr: "Archivé", en: "Archived", ar: "مؤرشف", es: "Archivado" }, color: "#9ca3af" },
 };
-
-import { LangCode } from "@/context/LanguageContext";
 
 const INITIAL_DOCS: ReglementDoc[] = [
   {
