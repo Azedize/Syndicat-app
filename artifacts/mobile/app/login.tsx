@@ -43,6 +43,27 @@ function useRoles(t: (key: string) => string): {
       email: "syndic@veridian.app",
     },
     {
+      role: "president",
+      label: t("rolePresident"),
+      subtitle: t("presidentDesc"),
+      icon: "award",
+      email: "president@andalous.ma",
+    },
+    {
+      role: "treasurer",
+      label: t("roleTresorier"),
+      subtitle: t("treasurerDesc"),
+      icon: "bar-chart-2",
+      email: "tresorier@andalous.ma",
+    },
+    {
+      role: "secretary",
+      label: t("roleSecrétaire"),
+      subtitle: t("secretaryDesc"),
+      icon: "file-text",
+      email: "secretaire@andalous.ma",
+    },
+    {
       role: "member",
       label: t("member"),
       subtitle: t("memberDesc"),

@@ -28,10 +28,9 @@ type QuickActionKey = {
   color: string;
 };
 
-// Super Admin is the PLATFORM OWNER — not a syndicate employee.
-// Quick actions must only point to platform-administration screens.
-// Syndicate-level routes (/finance, /buildings, /reports, /legal) are
-// intentionally excluded — those belong to syndicate admins.
+// ─── Quick action sets per role ──────────────────────────────────────────────
+
+// Super Admin — platform owner only. No syndicate-level items.
 const QUICK_ACTIONS_SUPER: QuickActionKey[] = [
   { labelKey: "syndicates",          icon: "briefcase",  route: "/members",          color: "#2563EB" },
   { labelKey: "tableauNational",     icon: "globe",      route: "/tableau-national", color: "#6366f1" },
@@ -43,6 +42,7 @@ const QUICK_ACTIONS_SUPER: QuickActionKey[] = [
   { labelKey: "creerSyndicat",       icon: "plus-circle",route: "/syndicate-setup",  color: "#0ea5e9" },
 ];
 
+// Syndicate Admin — full operational access.
 const QUICK_ACTIONS_ADMIN: QuickActionKey[] = [
   { labelKey: "owners",        icon: "users",       route: "/members",                   color: "#2563EB" },
   { labelKey: "charges",       icon: "credit-card", route: "/charges",                   color: "#10b981" },
@@ -54,8 +54,52 @@ const QUICK_ACTIONS_ADMIN: QuickActionKey[] = [
   { labelKey: "teamSyndic",    icon: "award",       route: "/equipe-syndic",             color: "#8b5cf6" },
 ];
 
-// Scenario 2 — Fatima (member/owner): Dashboard, Payments, Documents,
-// Complaints, Meetings, Voting, Notifications only.
+// President — governance, decisions, signatures, assemblies.
+// Must NOT see technical settings, budgets, or payroll.
+const QUICK_ACTIONS_PRESIDENT: QuickActionKey[] = [
+  { labelKey: "assembleesGenerales",  icon: "users",        route: "/assemblee-generale",  color: "#2563EB" },
+  { labelKey: "reunionsConvocations", icon: "calendar",     route: "/meetings",             color: "#3b82f6" },
+  { labelKey: "votesResolutions",     icon: "check-square", route: "/elections",            color: "#f59e0b" },
+  { labelKey: "documentsCopro",       icon: "folder",       route: "/documents",            color: "#6366f1" },
+  { labelKey: "governance",           icon: "award",        route: "/governance",           color: "#8b5cf6" },
+  { labelKey: "travaux",              icon: "tool",         route: "/travaux",              color: "#f97316" },
+];
+
+// Treasurer — payments, charges, budgets, financial reports, debt recovery.
+// Must NOT modify platform settings or access governance.
+const QUICK_ACTIONS_TREASURER: QuickActionKey[] = [
+  { labelKey: "tableauBord",        icon: "bar-chart-2", route: "/tableau-bord-financier", color: "#3b82f6" },
+  { labelKey: "chargesAppels",      icon: "credit-card", route: "/charges",                color: "#10b981" },
+  { labelKey: "budgetPrevisionnel", icon: "pie-chart",   route: "/budget-previsionnel",    color: "#8b5cf6" },
+  { labelKey: "rapportsFinanciers", icon: "bar-chart-2", route: "/reports",                color: "#2563EB" },
+  { labelKey: "escalationLabel",    icon: "trending-up", route: "/escalation",             color: "#ef4444" },
+  { labelKey: "devisFactures",      icon: "file-text",   route: "/invoices",               color: "#6366f1" },
+];
+
+// Secretary — documents, meetings, minutes, publications, archives.
+// Must NOT access accounting operations.
+const QUICK_ACTIONS_SECRETARY: QuickActionKey[] = [
+  { labelKey: "documentsCopro",       icon: "folder",    route: "/documents",            color: "#6366f1" },
+  { labelKey: "reunionsConvocations", icon: "calendar",  route: "/meetings",             color: "#3b82f6" },
+  { labelKey: "assembleesGenerales",  icon: "users",     route: "/assemblee-generale",   color: "#2563EB" },
+  { labelKey: "pvLabel",              icon: "file-text", route: "/pv",                   color: "#8b5cf6" },
+  { labelKey: "publicationsActualites",icon: "rss",      route: "/publications",         color: "#f97316" },
+  { labelKey: "actesAdministratifs",  icon: "file-text", route: "/actes-administratifs", color: "#06b6d4" },
+];
+
+// Committee Member — meetings, voting, decisions. Read-only access.
+const QUICK_ACTIONS_COMMITTEE: QuickActionKey[] = [
+  { labelKey: "reunionsConvocations", icon: "calendar",     route: "/meetings",   color: "#3b82f6" },
+  { labelKey: "votesResolutions",     icon: "check-square", route: "/elections",  color: "#f59e0b" },
+  { labelKey: "governance",           icon: "award",        route: "/governance", color: "#8b5cf6" },
+  { labelKey: "documentsCopro",       icon: "folder",       route: "/documents",  color: "#6366f1" },
+  { labelKey: "avisResidents",        icon: "bell",         route: "/annonces",   color: "#ec4899" },
+  { labelKey: "notifications",        icon: "bell",         route: "/notifications", color: "#f59e0b" },
+];
+
+// Member (Co-owner) — Dashboard, Payments, Documents, Complaints, Meetings,
+// Voting, Notifications. Must NOT see: Budgets, Payroll, Administration,
+// Accounting Settings, Audit Reports, Technical Configuration.
 const QUICK_ACTIONS_MEMBER: QuickActionKey[] = [
   { labelKey: "paymentHistory",     icon: "credit-card",  route: "/paiements",     color: "#10b981" },
   { labelKey: "documentsCopro",     icon: "folder",       route: "/documents",     color: "#6366f1" },
@@ -65,14 +109,14 @@ const QUICK_ACTIONS_MEMBER: QuickActionKey[] = [
   { labelKey: "notifications",      icon: "bell",         route: "/notifications", color: "#ec4899" },
 ];
 
-// Scenario 3 — Ahmed (tenant): residence certificates, complaints,
-// notifications, announcements. No voting, no budgets, no financial reports.
+// Tenant — Documents, Complaints, Maintenance Requests, Notifications, Profile.
+// Must NOT see: Financial reports, Governance, Owner-only votes, Audit, Treasury.
 const QUICK_ACTIONS_TENANT: QuickActionKey[] = [
-  { labelKey: "documentsCopro",     icon: "folder",       route: "/documents",  color: "#6366f1" },
-  { labelKey: "avisResidents",      icon: "bell",         route: "/annonces",   color: "#f59e0b" },
-  { labelKey: "demandesIntervention", icon: "headphones", route: "/support",    color: "#ef4444" },
-  { labelKey: "notifications",      icon: "bell",         route: "/notifications", color: "#ec4899" },
-  { labelKey: "monBail",            icon: "file-text",    route: "/mon-bail",   color: "#3b82f6" },
+  { labelKey: "documentsCopro",       icon: "folder",     route: "/documents",     color: "#6366f1" },
+  { labelKey: "avisResidents",        icon: "bell",       route: "/annonces",      color: "#f59e0b" },
+  { labelKey: "demandesIntervention", icon: "headphones", route: "/support",       color: "#ef4444" },
+  { labelKey: "notifications",        icon: "bell",       route: "/notifications", color: "#ec4899" },
+  { labelKey: "monBail",              icon: "file-text",  route: "/mon-bail",      color: "#3b82f6" },
 ];
 
 const ACTION_GAP = 10;
@@ -90,11 +134,17 @@ export default function DashboardScreen() {
 
   if (!user) return null;
 
-  const isSuperAdmin = user.role === "super_admin";
-  const isSyndicateAdmin = user.role === "syndicate_admin";
-  const isMember = user.role === "member";
-  const isTenant = user.role === "tenant";
+  const role = user.role;
+  const isSuperAdmin = role === "super_admin";
+  const isSyndicateAdmin = role === "syndicate_admin";
+  const isPresident = role === "president";
+  const isTreasurer = role === "treasurer";
+  const isSecretary = role === "secretary";
+  const isCommitteeMember = role === "committee_member";
+  const isMember = role === "member";
+  const isTenant = role === "tenant";
   const isAdmin = isSuperAdmin || isSyndicateAdmin;
+  const isSyndicateTeam = isSyndicateAdmin || isPresident || isTreasurer || isSecretary || isCommitteeMember;
 
   const activeMembers = members.filter((m) => m.status === "active").length;
   const openElections = elections.filter((e) => e.status === "open").length;
@@ -106,13 +156,15 @@ export default function DashboardScreen() {
   const unreadAlerts = alerts.filter((a) => !a.read && !dismissedAlerts.has(a.id));
   const totalUnread = conversations.reduce((s, c) => s + c.unread, 0);
 
-  const quickActionsRaw = isSuperAdmin
-    ? QUICK_ACTIONS_SUPER
-    : isSyndicateAdmin
-    ? QUICK_ACTIONS_ADMIN
-    : isTenant
-    ? QUICK_ACTIONS_TENANT
-    : QUICK_ACTIONS_MEMBER;
+  const quickActionsRaw =
+    isSuperAdmin      ? QUICK_ACTIONS_SUPER :
+    isSyndicateAdmin  ? QUICK_ACTIONS_ADMIN :
+    isPresident       ? QUICK_ACTIONS_PRESIDENT :
+    isTreasurer       ? QUICK_ACTIONS_TREASURER :
+    isSecretary       ? QUICK_ACTIONS_SECRETARY :
+    isCommitteeMember ? QUICK_ACTIONS_COMMITTEE :
+    isTenant          ? QUICK_ACTIONS_TENANT :
+                        QUICK_ACTIONS_MEMBER;
 
   const quickActions = quickActionsRaw.map((a) => ({ ...a, label: t(a.labelKey) }));
 
@@ -123,13 +175,15 @@ export default function DashboardScreen() {
     return t("greetingEvening");
   };
 
-  const roleLabel = isSuperAdmin
-    ? t("superAdministrateur")
-    : isSyndicateAdmin
-    ? t("syndicateAdminRole")
-    : isTenant
-    ? t("roleTenant")
-    : t("roleMember");
+  const roleLabel =
+    isSuperAdmin      ? t("superAdministrateur") :
+    isSyndicateAdmin  ? t("syndicateAdminRole") :
+    isPresident       ? t("rolePresident") :
+    isTreasurer       ? t("roleTresorier") :
+    isSecretary       ? t("roleSecrétaire") :
+    isCommitteeMember ? t("roleMembreConseil") :
+    isTenant          ? t("roleTenant") :
+                        t("roleMember");
 
   const topPadding = isWide ? 0 : (Platform.OS === "web" ? 67 : insets.top);
   const topAlert = unreadAlerts[0];
@@ -180,7 +234,19 @@ export default function DashboardScreen() {
           </View>
         </View>
         <View style={styles.roleBadge}>
-          <Feather name={isSuperAdmin ? "shield" : isSyndicateAdmin ? "briefcase" : "user"} size={11} color="rgba(255,255,255,0.9)" />
+          <Feather
+            name={
+              isSuperAdmin ? "shield" :
+              isSyndicateAdmin ? "briefcase" :
+              isPresident ? "award" :
+              isTreasurer ? "bar-chart-2" :
+              isSecretary ? "file-text" :
+              isCommitteeMember ? "users" :
+              isTenant ? "key" : "home"
+            }
+            size={11}
+            color="rgba(255,255,255,0.9)"
+          />
           <Text style={styles.roleBadgeText}>{roleLabel}</Text>
         </View>
       </View>
@@ -231,8 +297,9 @@ export default function DashboardScreen() {
           </TouchableOpacity>
         ) : null}
 
-        {/* Upcoming meeting strip — tenants are not copropriétaires, no AG access */}
-        {!isTenant && upcomingMeetings.length > 0 && (
+        {/* Upcoming meeting strip — visible to everyone who can attend meetings
+            (all syndicate team roles + members); hidden for tenants and super_admin */}
+        {!isTenant && !isSuperAdmin && upcomingMeetings.length > 0 && (
           <View style={{ gap: 8 }}>
             <View style={styles.sectionRow}>
               <Text style={[styles.sectionTitle, { color: colors.foreground }]}>{t("nextMeetings")}</Text>
@@ -264,8 +331,9 @@ export default function DashboardScreen() {
           </View>
         )}
 
-        {/* Open election banner — tenants cannot vote in syndicate elections */}
-        {!isTenant && openElections > 0 ? (
+        {/* Open election banner — visible to all who can vote (team + members);
+            hidden for tenants (renters can't vote) and super_admin (platform owner) */}
+        {!isTenant && !isSuperAdmin && openElections > 0 ? (
           <TouchableOpacity
             style={[styles.electionBanner, { backgroundColor: colors.primary }]}
             onPress={() => router.push("/elections" as any)}
@@ -296,14 +364,24 @@ export default function DashboardScreen() {
                 <StatCard label={t("openTickets")} value={supportTickets.filter((t) => t.status === "open").length} icon="headphones" iconColor="#ef4444" subtitle={t("support")} />
               </View>
             </>
-          ) : isSyndicateAdmin ? (
+          ) : isSyndicateTeam ? (
+            // All syndicate management team members (admin, president, treasurer,
+            // secretary, committee_member) see the syndicate operational overview.
+            // Treasurer additionally sees revenue/pending charges.
+            // President/Secretary/Committee see meetings and elections.
             <>
               <View style={styles.statsRow}>
                 <StatCard label={t("activeMembers")} value={activeMembers} icon="users" />
-                <StatCard label={t("revenue")} value={`${(totalRevenue / 1000).toFixed(1)}k`} icon="trending-up" />
+                {isTreasurer || isSyndicateAdmin
+                  ? <StatCard label={t("revenue")} value={`${(totalRevenue / 1000).toFixed(1)}k`} icon="trending-up" />
+                  : <StatCard label={t("scheduledMeetings")} value={upcomingMeetings.length} icon="calendar" iconColor="#3b82f6" />
+                }
               </View>
               <View style={styles.statsRow}>
-                <StatCard label={t("dueCotisations")} value={pendingCotisations} icon="alert-circle" iconColor="#f59e0b" subtitle={t("pendingLabel")} />
+                {isTreasurer || isSyndicateAdmin
+                  ? <StatCard label={t("dueCotisations")} value={pendingCotisations} icon="alert-circle" iconColor="#f59e0b" subtitle={t("pendingLabel")} />
+                  : <StatCard label={t("elections")} value={openElections} icon="check-square" iconColor="#f59e0b" />
+                }
                 <StatCard label={t("scheduledMeetings")} value={upcomingMeetings.length} icon="calendar" iconColor="#3b82f6" />
               </View>
             </>

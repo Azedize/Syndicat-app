@@ -1473,12 +1473,18 @@ export const supportTicketsTable = pgTable(
     syndicateId: text("syndicate_id").references(() => syndicatesTable.id, { onDelete: "cascade" }),
     submittedById: text("submitted_by_id").references(() => usersTable.id, { onDelete: "set null" }),
     submittedByName: text("submitted_by_name"),
+    // "syndicate" = Level-1 ticket handled by syndicate admin
+    // "platform"  = Level-2 ticket sent to super_admin / technical team
+    scope: text("scope").default("syndicate"),
+    // ID of the Level-1 ticket that was escalated to produce this Level-2 ticket
+    escalatedFrom: text("escalated_from"),
     createdAt: createdAt(),
   },
   (t) => [
     index("support_tickets_submitted_by_id_idx").on(t.submittedById),
     index("support_tickets_syndicate_id_idx").on(t.syndicateId),
     index("support_tickets_status_idx").on(t.status),
+    index("support_tickets_scope_idx").on(t.scope),
   ],
 );
 

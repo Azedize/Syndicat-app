@@ -102,15 +102,67 @@ router.put(
 
 // ─── Support Tickets ──────────────────────────────────────────────────────────
 
+// ─── Support helpers ──────────────────────────────────────────────────────────
+
+// Categories valid for each scope
+const SYNDICATE_CATEGORIES = ["paiement", "maintenance", "juridique", "administratif", "general"] as const;
+const PLATFORM_CATEGORIES  = ["bug", "feature", "acces", "formation", "autre"] as const;
+type SyndicateCat = typeof SYNDICATE_CATEGORIES[number];
+type PlatformCat  = typeof PLATFORM_CATEGORIES[number];
+
+/** Return true when the caller may access/modify this ticket. */
+function canAccessTicket(req: any, ticket: { syndicateId: string | null; scope: string | null; submittedById: string | null }): boolean {
+  const role = req.user!.role as string;
+  const uid  = req.user!.userId as string;
+  const sid  = req.user!.syndicateId as string | null;
+
+  if (role === "super_admin") return true;
+
+  // Platform tickets: syndicate_admin may see their own, members may never see platform tickets
+  if (ticket.scope === "platform") {
+    return role === "syndicate_admin" && ticket.syndicateId === sid;
+  }
+
+  // Syndicate tickets: same syndicate; members/tenants only their own
+  if (ticket.syndicateId !== sid) return false;
+  if (role === "syndicate_admin") return true;
+  return ticket.submittedById === uid;
+}
+
+// ─── Support — LIST ──────────────────────────────────────────────────────────
+
 router.get("/support", requireAuth, async (req, res) => {
-  const { status } = req.query as Record<string, string>;
+  const { status, scope } = req.query as Record<string, string>;
   const pagination = getPagination(req);
+  const role = req.user!.role as string;
+  const uid  = req.user!.userId as string;
+  const sid  = req.user!.syndicateId as string | null;
+
   try {
     const conditions: any[] = [];
-    const syndicateFilter = syndicateWhere(req, supportTicketsTable.syndicateId);
-    if (syndicateFilter) conditions.push(syndicateFilter);
+
+    if (role === "super_admin") {
+      // Super-admin only manages platform-scope tickets (Level 2)
+      conditions.push(eq(supportTicketsTable.scope, "platform"));
+    } else if (role === "syndicate_admin") {
+      if (scope === "platform") {
+        // Their own platform tickets (Level 2 they submitted)
+        conditions.push(eq(supportTicketsTable.scope, "platform"));
+        if (sid) conditions.push(eq(supportTicketsTable.syndicateId, sid));
+      } else {
+        // Syndicate-level tickets they manage (Level 1)
+        conditions.push(eq(supportTicketsTable.scope, "syndicate"));
+        if (sid) conditions.push(eq(supportTicketsTable.syndicateId, sid));
+      }
+    } else {
+      // member / tenant — only their own syndicate-level tickets
+      conditions.push(eq(supportTicketsTable.scope, "syndicate"));
+      conditions.push(eq(supportTicketsTable.submittedById, uid));
+    }
+
     if (status) conditions.push(eq(supportTicketsTable.status, status as any));
     const where = conditions.length > 0 ? and(...conditions) : undefined;
+
     const [rows, [{ value: total }]] = await Promise.all([
       db.select().from(supportTicketsTable)
         .where(where)
@@ -123,62 +175,92 @@ router.get("/support", requireAuth, async (req, res) => {
   } catch (err) { req.log.error(err); res.status(500).json({ error: "Erreur serveur" }); }
 });
 
+// ─── Support — CREATE ─────────────────────────────────────────────────────────
+
 router.post("/support", requireAuth, async (req, res) => {
+  const role = req.user!.role as string;
+  const sid  = req.user!.syndicateId as string | null;
+
+  // Determine scope — only syndicate_admin / super_admin may open platform tickets
+  const requestedScope = String(req.body?.scope ?? "syndicate");
+  const scope = requestedScope === "platform" ? "platform" : "syndicate";
+  if (scope === "platform" && role !== "syndicate_admin" && role !== "super_admin") {
+    res.status(403).json({ error: "Seuls les administrateurs peuvent contacter le support plateforme." });
+    return;
+  }
+
+  const validCategories = scope === "platform" ? PLATFORM_CATEGORIES : SYNDICATE_CATEGORIES;
   const schema = z.object({
-    title: z.string().min(1),
-    description: z.string().min(1),
-    priority: z.enum(["high", "medium", "low"]).default("medium"),
-    category: z.enum(["technique", "financier", "juridique", "general"]).default("general"),
+    title:       z.string().min(1).max(200),
+    description: z.string().min(1).max(5000),
+    priority:    z.enum(["high", "medium", "low"]).default("medium"),
+    category:    z.enum(validCategories as [string, ...string[]]).default(validCategories[4]),
   });
   const result = schema.safeParse(req.body);
-  if (!result.success) { res.status(400).json({ error: "Données invalides" }); return; }
+  if (!result.success) { res.status(400).json({ error: "Données invalides", details: result.error.flatten() }); return; }
+
   try {
     const [ticket] = await db
       .insert(supportTicketsTable)
       .values({
         ...result.data,
-        syndicateId: req.user!.syndicateId || "",
-        submittedById: req.user!.userId,
+        scope,
+        syndicateId: sid || "",
+        submittedById:   req.user!.userId,
         submittedByName: req.user!.name,
         status: "open",
-      })
+      } as any)
       .returning();
 
     const urgencyType = result.data.priority === "high" ? "error" : "warning";
-    createAlert({
-      title: "Nouveau ticket support",
-      message: `Ticket "${result.data.title}" soumis par ${req.user!.name} (priorité: ${result.data.priority}).`,
-      type: urgencyType,
-      syndicateId: req.user!.syndicateId || null,
-      target: "admin",
-    }).catch(() => {});
 
-    // Email syndicate/platform admins so support tickets aren't only visible in-app.
-    (async () => {
-      const admins = await db
-        .select({ email: usersTable.email })
-        .from(usersTable)
-        .where(
-          req.user!.syndicateId
-            ? and(eq(usersTable.syndicateId, req.user!.syndicateId), eq(usersTable.role, "syndicate_admin"))
-            : eq(usersTable.role, "super_admin"),
-        );
-      const { subject, html } = supportTicketTemplate(result.data.title, req.user!.name, result.data.priority);
-      await sendEmailToMany(admins.map((a) => a.email), subject, html, "support_ticket", req.user!.syndicateId || null);
-    })().catch(() => {});
+    if (scope === "syndicate") {
+      // Level 1: alert and notify syndicate admin only
+      createAlert({
+        title:      "Nouveau ticket support",
+        message:    `"${result.data.title}" de ${req.user!.name} (${result.data.priority}).`,
+        type:       urgencyType,
+        syndicateId: sid || null,
+        target:     "admin",
+      }).catch(() => {});
+
+      (async () => {
+        if (!sid) return;
+        const admins = await db.select({ email: usersTable.email }).from(usersTable)
+          .where(and(eq(usersTable.syndicateId, sid), eq(usersTable.role, "syndicate_admin")));
+        const { subject, html } = supportTicketTemplate(result.data.title, req.user!.name, result.data.priority);
+        await sendEmailToMany(admins.map((a) => a.email), subject, html, "support_ticket", sid);
+      })().catch(() => {});
+    } else {
+      // Level 2: alert and notify all super_admins
+      createAlert({
+        title:      "Nouveau ticket plateforme",
+        message:    `"${result.data.title}" de ${req.user!.name} — syndicat ${sid ?? "?"} (${result.data.priority}).`,
+        type:       urgencyType,
+        syndicateId: null,
+        target:     "admin",
+      }).catch(() => {});
+
+      (async () => {
+        const admins = await db.select({ email: usersTable.email }).from(usersTable)
+          .where(eq(usersTable.role, "super_admin"));
+        const { subject, html } = supportTicketTemplate(result.data.title, req.user!.name, result.data.priority);
+        await sendEmailToMany(admins.map((a) => a.email), subject, html, "support_ticket", null);
+      })().catch(() => {});
+    }
 
     res.status(201).json({ data: ticket, message: "Ticket créé" });
   } catch (err) { req.log.error(err); res.status(500).json({ error: "Erreur serveur" }); }
 });
 
+// ─── Support — DETAIL ─────────────────────────────────────────────────────────
+
 router.get("/support/:id", requireAuth, async (req, res) => {
-  const id = String(req.params.id) as string;
+  const id = String(req.params.id);
   try {
     const [ticket] = await db.select().from(supportTicketsTable).where(eq(supportTicketsTable.id, id));
     if (!ticket) { res.status(404).json({ error: "Ticket introuvable" }); return; }
-    if (!isSameSyndicate(req, ticket.syndicateId)) {
-      res.status(403).json({ error: "Accès refusé" }); return;
-    }
+    if (!canAccessTicket(req, ticket)) { res.status(403).json({ error: "Accès refusé" }); return; }
     const replies = await db
       .select()
       .from(ticketRepliesTable)
@@ -188,44 +270,106 @@ router.get("/support/:id", requireAuth, async (req, res) => {
   } catch (err) { req.log.error(err); res.status(500).json({ error: "Erreur serveur" }); }
 });
 
+// ─── Support — REPLY ──────────────────────────────────────────────────────────
+
 router.post("/support/:id/replies", requireAuth, async (req, res) => {
-  const id = String(req.params.id) as string;
+  const id = String(req.params.id);
   const schema = z.object({ text: z.string().min(1).max(5000) });
   const result = schema.safeParse(req.body);
   if (!result.success) { res.status(400).json({ error: "Réponse invalide" }); return; }
   try {
     const [ticket] = await db.select().from(supportTicketsTable).where(eq(supportTicketsTable.id, id));
     if (!ticket) { res.status(404).json({ error: "Ticket introuvable" }); return; }
-    if (!isSameSyndicate(req, ticket.syndicateId)) {
-      res.status(403).json({ error: "Accès refusé" }); return;
-    }
+    if (!canAccessTicket(req, ticket)) { res.status(403).json({ error: "Accès refusé" }); return; }
+
     const [reply] = await db
       .insert(ticketRepliesTable)
       .values({ ticketId: id, authorId: req.user!.userId, authorName: req.user!.name, text: result.data.text })
       .returning();
     await db.update(supportTicketsTable).set({ status: "in_progress" }).where(eq(supportTicketsTable.id, id));
+
+    // Notify the ticket submitter that a reply arrived
+    createAlert({
+      title:      "Réponse à votre ticket",
+      message:    `${req.user!.name} a répondu à votre ticket.`,
+      type:       "info",
+      syndicateId: ticket.syndicateId || null,
+      target:     "admin",
+    }).catch(() => {});
+
     res.status(201).json({ data: reply, message: "Réponse ajoutée" });
   } catch (err) { req.log.error(err); res.status(500).json({ error: "Erreur serveur" }); }
 });
+
+// ─── Support — RESOLVE ────────────────────────────────────────────────────────
 
 router.put(
   "/support/:id/resolve",
   requireAuth,
   requireRole("super_admin", "syndicate_admin"),
   async (req, res) => {
-    const id = String(req.params.id) as string;
+    const id = String(req.params.id);
     try {
       const [ticket] = await db.select().from(supportTicketsTable).where(eq(supportTicketsTable.id, id));
       if (!ticket) { res.status(404).json({ error: "Ticket introuvable" }); return; }
-      if (!isSameSyndicate(req, ticket.syndicateId)) {
-        res.status(403).json({ error: "Accès refusé" }); return;
-      }
+      if (!canAccessTicket(req, ticket)) { res.status(403).json({ error: "Accès refusé" }); return; }
       const [updated] = await db
         .update(supportTicketsTable)
         .set({ status: "resolved" })
         .where(eq(supportTicketsTable.id, id))
         .returning();
       res.json({ data: updated, message: "Ticket résolu" });
+    } catch (err) { req.log.error(err); res.status(500).json({ error: "Erreur serveur" }); }
+  },
+);
+
+// ─── Support — ESCALATE (Level 1 → Level 2) ──────────────────────────────────
+
+router.post(
+  "/support/:id/escalate",
+  requireAuth,
+  requireRole("syndicate_admin"),
+  async (req, res) => {
+    const id = String(req.params.id);
+    const sid = req.user!.syndicateId as string | null;
+    try {
+      const [ticket] = await db.select().from(supportTicketsTable).where(eq(supportTicketsTable.id, id));
+      if (!ticket) { res.status(404).json({ error: "Ticket introuvable" }); return; }
+      if (ticket.scope !== "syndicate") {
+        res.status(400).json({ error: "Seuls les tickets syndicat peuvent être escaladés." }); return;
+      }
+      if (ticket.syndicateId !== sid) { res.status(403).json({ error: "Accès refusé" }); return; }
+
+      // Create a Level-2 platform ticket that references the original
+      const [platformTicket] = await db
+        .insert(supportTicketsTable)
+        .values({
+          title:           `[ESCALADE] ${ticket.title}`,
+          description:     ticket.description,
+          priority:        ticket.priority ?? "medium",
+          category:        "bug",
+          scope:           "platform",
+          escalatedFrom:   ticket.id,
+          syndicateId:     sid || "",
+          submittedById:   req.user!.userId,
+          submittedByName: req.user!.name,
+          status:          "open",
+        } as any)
+        .returning();
+
+      // Mark original as escalated (in_progress)
+      await db.update(supportTicketsTable).set({ status: "in_progress" }).where(eq(supportTicketsTable.id, id));
+
+      // Notify super_admins
+      createAlert({
+        title:      "Ticket escaladé vers la plateforme",
+        message:    `"${ticket.title}" a été escaladé par ${req.user!.name}.`,
+        type:       "error",
+        syndicateId: null,
+        target:     "admin",
+      }).catch(() => {});
+
+      res.status(201).json({ data: platformTicket, message: "Ticket escaladé au support plateforme" });
     } catch (err) { req.log.error(err); res.status(500).json({ error: "Erreur serveur" }); }
   },
 );

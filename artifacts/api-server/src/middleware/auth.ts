@@ -15,10 +15,31 @@ function getJwtSecret(): string {
   return secret;
 }
 
+/**
+ * All possible user roles in the platform:
+ *   super_admin      — SaaS platform owner. Manages syndicates, billing, audit.
+ *   syndicate_admin  — Full operational manager of a syndicate.
+ *   president        — Elected president: governance, signatures, assemblies.
+ *   treasurer        — Elected treasurer: finance, budgets, charges, debt recovery.
+ *   secretary        — Appointed secretary: documents, meetings, minutes, publications.
+ *   committee_member — Elected council member: participates in votes and meetings (read-only elsewhere).
+ *   member           — Co-owner / resident: payments, documents, complaints, votes.
+ *   tenant           — Renter: documents, complaints, maintenance requests.
+ */
+export type UserRole =
+  | "super_admin"
+  | "syndicate_admin"
+  | "president"
+  | "treasurer"
+  | "secretary"
+  | "committee_member"
+  | "member"
+  | "tenant";
+
 export interface JwtPayload {
   userId: string;
   email: string;
-  role: "super_admin" | "syndicate_admin" | "member" | "tenant";
+  role: UserRole;
   syndicateId?: string;
   name: string;
 }
@@ -50,7 +71,7 @@ export function requireAuth(req: Request, res: Response, next: NextFunction) {
   }
 }
 
-export function requireRole(...roles: JwtPayload["role"][]) {
+export function requireRole(...roles: UserRole[]) {
   return (req: Request, res: Response, next: NextFunction) => {
     if (!req.user) {
       res.status(401).json({ error: "Non authentifié" });
@@ -63,6 +84,36 @@ export function requireRole(...roles: JwtPayload["role"][]) {
     next();
   };
 }
+
+/** All roles that form the syndicate management team (not residents or platform owner) */
+export const SYNDICATE_TEAM_ROLES: UserRole[] = [
+  "syndicate_admin",
+  "president",
+  "treasurer",
+  "secretary",
+  "committee_member",
+];
+
+/** Returns true if the given role is part of the syndicate management team */
+export function isSyndicateTeamRole(role: UserRole): boolean {
+  return SYNDICATE_TEAM_ROLES.includes(role);
+}
+
+/** Any syndicate management team member (all 5 management roles) */
+export const requireSyndicateTeam = requireRole(...SYNDICATE_TEAM_ROLES);
+
+/** Finance access: full financial management (admin + treasurer) */
+export const requireFinanceAccess = requireRole("syndicate_admin", "treasurer");
+
+/** Governance access: meetings, elections, AG (admin + president + secretary + committee_member) */
+export const requireGovernanceAccess = requireRole(
+  "syndicate_admin", "president", "secretary", "committee_member"
+);
+
+/** Document management access (admin + secretary + president) */
+export const requireDocumentAccess = requireRole(
+  "syndicate_admin", "secretary", "president"
+);
 
 /** Shorthand: requires super_admin or syndicate_admin role */
 export const requireAdmin = requireRole("super_admin", "syndicate_admin");
@@ -94,15 +145,15 @@ export const requireTenantOnly = requireRole("tenant");
 
 /**
  * Operational route guard — for day-to-day syndicate management routes.
- * - syndicate_admin: full access (scoped to their syndicate via JWT syndicateId)
- * - super_admin: must pass ?supervision=true to access another syndicate's operational data.
- *   Without it, returns 403 with a clear supervision-required error.
+ * - syndicate management team (syndicate_admin, president, treasurer, secretary,
+ *   committee_member): access scoped to their syndicate via JWT syndicateId.
+ * - super_admin: must pass ?supervision=true to access another syndicate's data.
  * - member / tenant: blocked (403)
  */
 export function requireOperationalAccess(req: Request, res: Response, next: NextFunction) {
   if (!req.user) { res.status(401).json({ error: "Non authentifié" }); return; }
   const { role } = req.user;
-  if (role === "syndicate_admin") { next(); return; }
+  if (isSyndicateTeamRole(role)) { next(); return; }
   if (role === "super_admin") {
     if (req.query.supervision !== "true") {
       res.status(403).json({
@@ -115,7 +166,7 @@ export function requireOperationalAccess(req: Request, res: Response, next: Next
     next();
     return;
   }
-  res.status(403).json({ error: "Accès réservé aux administrateurs du syndicat" });
+  res.status(403).json({ error: "Accès réservé aux membres de l'équipe du syndicat" });
 }
 
 /**

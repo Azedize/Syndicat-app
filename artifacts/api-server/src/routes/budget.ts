@@ -15,18 +15,23 @@ import {
   usersTable,
 } from "@workspace/db/schema";
 import { eq, and, desc, sql, sum, or, inArray } from "drizzle-orm";
-import { requireAuth, requireAdmin, requireOperationalAccess } from "../middleware/auth.js";
+import { requireAuth, requireAdmin, requireOperationalAccess, requireFinanceAccess, isSyndicateTeamRole } from "../middleware/auth.js";
+
+/** True when the user is syndicate-scoped (not super_admin). Used for row-level scoping in finance queries. */
+function isSyndicateScoped(role: string): boolean {
+  return isSyndicateTeamRole(role as any);
+}
 import { serverAuditLog } from "../lib/audit.js";
 
 const router = Router();
 
-// GET /budgets — admin only (members see their charges via /appels-de-fonds)
-router.get("/budgets", requireAuth, requireAdmin, async (req, res) => {
+// GET /budgets — finance team (syndicate_admin + treasurer)
+router.get("/budgets", requireAuth, requireFinanceAccess, async (req, res) => {
   try {
     const user = req.user!;
 
     // Mandatory syndicate scoping: syndicate_admin must have syndicateId in JWT
-    if (user.role === "syndicate_admin" && !user.syndicateId) {
+    if (isSyndicateScoped(user.role) && !user.syndicateId) {
       return void res.status(403).json({ error: "Syndicat non défini dans le token" });
     }
 
@@ -34,7 +39,7 @@ router.get("/budgets", requireAuth, requireAdmin, async (req, res) => {
 
     // Scope by syndicate: budgetsTable has no syndicateId — derive via building FK
     let allowedBuildingIds: string[] | null = null;
-    if (user.role === "syndicate_admin") {
+    if (isSyndicateScoped(user.role)) {
       const scopedBuildings = await db
         .select({ id: buildingsTable.id })
         .from(buildingsTable)
@@ -51,7 +56,7 @@ router.get("/budgets", requireAuth, requireAdmin, async (req, res) => {
     }
 
     // If a specific buildingId is requested by syndicate_admin, verify it's in scope
-    if (buildingId && user.role === "syndicate_admin") {
+    if (buildingId && isSyndicateScoped(user.role)) {
       if (!allowedBuildingIds || !allowedBuildingIds.includes(buildingId)) {
         return void res.status(403).json({ error: "Accès refusé à cet immeuble" });
       }
@@ -110,7 +115,7 @@ router.get("/budgets", requireAuth, requireAdmin, async (req, res) => {
 });
 
 // GET /budgets/:id — admin only
-router.get("/budgets/:id", requireAuth, requireAdmin, async (req, res) => {
+router.get("/budgets/:id", requireAuth, requireFinanceAccess, async (req, res) => {
   try {
     const user = req.user!;
 
@@ -122,7 +127,7 @@ router.get("/budgets/:id", requireAuth, requireAdmin, async (req, res) => {
     if (!budget) return void res.status(404).json({ error: "Budget not found" });
 
     // Syndicate isolation: budgetsTable has no syndicateId — derive via building FK
-    if (user.role === "syndicate_admin") {
+    if (isSyndicateScoped(user.role)) {
       if (!user.syndicateId) return void res.status(403).json({ error: "Syndicat non défini dans le token" });
       const [bld] = await db
         .select({ syndicateId: buildingsTable.syndicateId })
@@ -173,7 +178,7 @@ router.post("/budgets", requireAuth, requireOperationalAccess, async (req, res) 
     if (!building) {
       return void res.status(404).json({ error: "Immeuble introuvable" });
     }
-    if (user.role === "syndicate_admin" && building.syndicateId !== user.syndicateId) {
+    if (isSyndicateScoped(user.role) && building.syndicateId !== user.syndicateId) {
       return void res.status(403).json({ error: "Accès refusé : cet immeuble n'appartient pas à votre syndicat" });
     }
 
@@ -244,7 +249,7 @@ router.put("/budgets/:id", requireAuth, requireOperationalAccess, async (req, re
       .where(eq(buildingsTable.id, existing.buildingId))
       .limit(1);
 
-    if (user.role === "syndicate_admin") {
+    if (isSyndicateScoped(user.role)) {
       if (!building || building.syndicateId !== user.syndicateId) {
         return void res.status(403).json({ error: "Accès refusé" });
       }
@@ -297,7 +302,7 @@ router.post("/budgets/:id/generate-appels", requireAuth, requireOperationalAcces
       .where(eq(buildingsTable.id, budget.buildingId))
       .limit(1);
 
-    if (user.role === "syndicate_admin") {
+    if (isSyndicateScoped(user.role)) {
       if (!building || building.syndicateId !== user.syndicateId) {
         return void res.status(403).json({ error: "Accès refusé : cet immeuble n'appartient pas à votre syndicat" });
       }
@@ -369,13 +374,13 @@ router.get("/appels-de-fonds", requireAuth, async (req, res) => {
     const conditions: any[] = [];
 
     // Syndicate admin MUST have syndicateId in JWT — never fall through to global scope
-    if (user.role === "syndicate_admin" && !user.syndicateId) {
+    if (isSyndicateScoped(user.role) && !user.syndicateId) {
       return void res.status(403).json({ error: "Syndicat non défini dans le token" });
     }
 
     if (buildingId) {
       // For syndicate_admin, verify the buildingId belongs to their syndicate
-      if (user.role === "syndicate_admin") {
+      if (isSyndicateScoped(user.role)) {
         const [bld] = await db
           .select({ syndicateId: buildingsTable.syndicateId })
           .from(buildingsTable)
@@ -386,7 +391,7 @@ router.get("/appels-de-fonds", requireAuth, async (req, res) => {
         }
       }
       conditions.push(eq(appelsDeFondsTable.buildingId, buildingId));
-    } else if (user.role === "syndicate_admin") {
+    } else if (isSyndicateScoped(user.role)) {
       // No explicit buildingId — scope to all buildings in this syndicate
       const syndicateBuildings = await db
         .select({ id: buildingsTable.id })
@@ -472,9 +477,9 @@ router.put("/appels-de-fonds/:id/pay", requireAuth, async (req, res) => {
     if (!appel) return void res.status(404).json({ error: "Not found" });
 
     // Admins can submit payment for any call-for-funds in their syndicate.
-    const isAdmin = user.role === "super_admin" || user.role === "syndicate_admin";
+    const isAdmin = user.role === "super_admin" || isSyndicateScoped(user.role);
 
-    if (isAdmin && user.role === "syndicate_admin") {
+    if (isAdmin && isSyndicateScoped(user.role)) {
       // Verify this charge belongs to the admin's syndicate via building FK
       const [bld] = await db
         .select({ syndicateId: buildingsTable.syndicateId })
@@ -535,7 +540,7 @@ router.put("/appels-de-fonds/:id/pay", requireAuth, async (req, res) => {
 });
 
 // PUT /appels-de-fonds/:id/validate — Admin approves or rejects a payment submission
-router.put("/appels-de-fonds/:id/validate", requireAuth, requireAdmin, async (req, res) => {
+router.put("/appels-de-fonds/:id/validate", requireAuth, requireFinanceAccess, async (req, res) => {
   try {
     const user = req.user!;
     const { approve, rejectionReason } = req.body;
@@ -552,7 +557,7 @@ router.put("/appels-de-fonds/:id/validate", requireAuth, requireAdmin, async (re
       .from(buildingsTable)
       .where(eq(buildingsTable.id, appel.buildingId));
 
-    if (user.role === "syndicate_admin" && building?.syndicateId !== user.syndicateId) {
+    if (isSyndicateScoped(user.role) && building?.syndicateId !== user.syndicateId) {
       return void res.status(403).json({ error: "Accès refusé" });
     }
 
@@ -672,7 +677,7 @@ router.get("/appels-de-fonds/:id/receipt", requireAuth, async (req, res) => {
     if (!appel) return void res.status(404).json({ error: "Not found" });
 
     // Access check: admin in same syndicate, or the owner
-    const isAdmin = user.role === "super_admin" || user.role === "syndicate_admin";
+    const isAdmin = user.role === "super_admin" || isSyndicateScoped(user.role);
     if (!isAdmin) {
       const [member] = await db
         .select({ id: membersTable.id })
@@ -855,7 +860,7 @@ router.get("/appels-de-fonds/:id/receipt", requireAuth, async (req, res) => {
 });
 
 // POST /appels-de-fonds/escalate-debts — Scan overdue charges and create escalation records
-router.post("/appels-de-fonds/escalate-debts", requireAuth, requireAdmin, async (req, res) => {
+router.post("/appels-de-fonds/escalate-debts", requireAuth, requireFinanceAccess, async (req, res) => {
   try {
     const now = new Date();
 
@@ -929,7 +934,7 @@ router.post("/appels-de-fonds/escalate-debts", requireAuth, requireAdmin, async 
 });
 
 // GET /debt-escalations — list open debt escalations for this syndicate
-router.get("/debt-escalations", requireAuth, requireAdmin, async (req, res) => {
+router.get("/debt-escalations", requireAuth, requireFinanceAccess, async (req, res) => {
   try {
     const rows = await db.select().from(debtEscalationsTable)
       .where(
@@ -946,7 +951,7 @@ router.get("/debt-escalations", requireAuth, requireAdmin, async (req, res) => {
 });
 
 // POST /budgets/check-reserve-fund — Check reserve fund, fire alerts if below threshold
-router.post("/budgets/check-reserve-fund", requireAuth, requireAdmin, async (req, res) => {
+router.post("/budgets/check-reserve-fund", requireAuth, requireFinanceAccess, async (req, res) => {
   try {
     const { thresholdMonths = 3 } = req.body as { thresholdMonths?: number };
 
@@ -990,7 +995,7 @@ router.post("/budgets/check-reserve-fund", requireAuth, requireAdmin, async (req
 });
 
 // PUT /appels-de-fonds/mark-overdue — Cron-style: mark past due as overdue
-router.put("/appels-de-fonds/mark-overdue", requireAuth, requireAdmin, async (req, res) => {
+router.put("/appels-de-fonds/mark-overdue", requireAuth, requireFinanceAccess, async (req, res) => {
   try {
     const today = new Date().toISOString().split("T")[0];
 

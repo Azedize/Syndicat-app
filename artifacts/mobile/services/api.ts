@@ -692,6 +692,62 @@ export const documents = {
       body: JSON.stringify(body),
     }),
 
+  // Role-aware template catalog — grouped by family, filtered by user role
+  availableTemplates: () =>
+    request<{ data: {
+      role: string;
+      total: number;
+      families: Array<{
+        id: string; label: string; color: string;
+        templates: Array<{
+          id: string; name: string; family: string; familyLabel: string; icon: string;
+          color: string; category: string; description: string; allowedRoles: string[];
+          isBundle: boolean; requiresBalance: boolean; autoFilled: string[];
+        }>;
+      }>;
+    } }>("/documents/available-templates"),
+
+  // Payment certificate eligibility pre-check
+  paymentCertificateCheck: () =>
+    request<{ data: {
+      eligible: boolean;
+      blockedReason: string | null;
+      totalPaid: number;
+      totalCharged: number;
+      remainingBalance: number;
+      overdueCount: number;
+      overdueAmount: number;
+      lastPaymentDate: string | null;
+      lotNumber: string | null;
+    } }>("/documents/payment-certificate/check", { method: "POST", body: JSON.stringify({}) }),
+
+  // Recovery package — 5-step debt recovery bundle (admin only)
+  recoveryPackage: (body: { memberId: string; language?: string }) =>
+    request<{ data: {
+      memberName: string;
+      totalDue: string;
+      documents: Array<{ step: number; documentId: string; title: string; documentNumber: string }>;
+      message: string;
+    } }>("/documents/recovery-package", { method: "POST", body: JSON.stringify(body) }),
+
+  // Sale bundle — 4 notary docs for apartment sale
+  saleBundle: (body: { lotId: string; language?: string }) =>
+    request<{ data: {
+      memberName: string;
+      lotNumber: string | null;
+      documents: Array<{ documentId: string; title: string; templateId: string; documentNumber: string }>;
+      message: string;
+    } }>("/documents/sale-bundle", { method: "POST", body: JSON.stringify(body) }),
+
+  // AG bundle — convocation + PV + décisions for Assemblée Générale
+  agBundle: (body: { meetingId?: string; meetingDate?: string; lieu?: string; heure?: string; agendaText?: string; language?: string }) =>
+    request<{ data: {
+      agTitle: string;
+      meetingDate: string;
+      documents: Array<{ documentId: string; title: string; templateId: string; documentNumber: string }>;
+      message: string;
+    } }>("/documents/ag-bundle", { method: "POST", body: JSON.stringify(body) }),
+
   // Signature order status for a document
   signers: (id: string) =>
     request<{ data: {

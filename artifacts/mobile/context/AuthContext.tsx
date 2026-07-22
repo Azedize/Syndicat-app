@@ -17,7 +17,26 @@ import {
   clearAllTokens,
 } from "../services/api";
 
-export type UserRole = "super_admin" | "syndicate_admin" | "member" | "tenant";
+/**
+ * Platform roles — must stay in sync with the API server's UserRole type.
+ *   super_admin      — SaaS platform owner.
+ *   syndicate_admin  — Full operational manager of a syndicate.
+ *   president        — Elected president: governance, signatures, assemblies.
+ *   treasurer        — Elected treasurer: finance, budgets, charges, debt recovery.
+ *   secretary        — Appointed secretary: documents, meetings, minutes, publications.
+ *   committee_member — Council member: participates in votes/meetings (read-only elsewhere).
+ *   member           — Co-owner / resident: payments, documents, complaints, votes.
+ *   tenant           — Renter: documents, complaints, maintenance requests.
+ */
+export type UserRole =
+  | "super_admin"
+  | "syndicate_admin"
+  | "president"
+  | "treasurer"
+  | "secretary"
+  | "committee_member"
+  | "member"
+  | "tenant";
 
 export interface AuthUser {
   id: string;

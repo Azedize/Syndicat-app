@@ -39,6 +39,14 @@ export const TRANSLATIONS: Translations = {
   roleSyndicAdmin:   { fr: "Admin Syndicat", en: "Syndicate Admin", ar: "مدير النقابة", es: "Admin Sindicato" },
   roleMember:        { fr: "Membre", en: "Member", ar: "عضو", es: "Miembro" },
   roleTenant:        { fr: "Locataire", en: "Tenant", ar: "مستأجر", es: "Inquilino" },
+  rolePresident:     { fr: "Président", en: "President", ar: "الرئيس", es: "Presidente" },
+  roleTresorier:     { fr: "Trésorier", en: "Treasurer", ar: "أمين الصندوق", es: "Tesorero" },
+  roleSecrétaire:    { fr: "Secrétaire", en: "Secretary", ar: "الأمين", es: "Secretario" },
+  roleMembreConseil: { fr: "Membre du Conseil", en: "Council Member", ar: "عضو المجلس", es: "Miembro del Consejo" },
+  presidentDesc:     { fr: "Gouvernance & signatures", en: "Governance & signatures", ar: "الحوكمة والتوقيعات", es: "Gobernanza y firmas" },
+  treasurerDesc:     { fr: "Finances & budget", en: "Finance & budget", ar: "المالية والميزانية", es: "Finanzas y presupuesto" },
+  secretaryDesc:     { fr: "Documents & réunions", en: "Documents & meetings", ar: "الوثائق والاجتماعات", es: "Documentos y reuniones" },
+  committeeMemberDesc: { fr: "Participation conseil", en: "Council participation", ar: "مشاركة المجلس", es: "Participación en consejo" },
 
   // ─── Auth / Login ──────────────────────────────────────────────────────────
   login:                { fr: "Connexion", en: "Login", ar: "تسجيل الدخول", es: "Iniciar sesión" },
@@ -1629,6 +1637,7 @@ export const TRANSLATIONS: Translations = {
   chatMessagerie:           { fr: "Chat & Messagerie", en: "Chat & Messaging", ar: "المحادثة والرسائل", es: "Chat y Mensajería" },
   messagerieInterne:        { fr: "Messagerie Interne", en: "Internal Messaging", ar: "الرسائل الداخللية", es: "Mensajería Interna" },
   demandesIntervention:     { fr: "Demandes d'Intervention", en: "Service Requests", ar: "طلبات التدخل", es: "Solicitudes de Intervención" },
+  supportPlateforme:        { fr: "Support Plateforme", en: "Platform Support", ar: "دعم المنصة", es: "Soporte de Plataforma" },
   reclamationsLabel:        { fr: "Réclamations", en: "Claims", ar: "الشكاوى", es: "Reclamaciones" },
   monPanier:                { fr: "Mon Panier", en: "My Cart", ar: "سلتي", es: "Mi Carrito" },
   mesCommandes:             { fr: "Mes Commandes", en: "My Orders", ar: "طلباتي", es: "Mis Pedidos" },

@@ -210,16 +210,38 @@ export interface LegalAlert {
   action?: string;
 }
 
+export interface TicketReply {
+  id: string;
+  ticketId: string;
+  authorId: string;
+  authorName: string;
+  text: string;
+  createdAt: string;
+}
+
 export interface SupportTicket {
   id: string;
   title: string;
   description: string;
   submittedBy: string;
+  submittedById?: string;
   syndicate: string;
+  syndicateId?: string;
   priority: "high" | "medium" | "low";
   status: "open" | "in_progress" | "resolved" | "closed";
   date: string;
-  category: "technique" | "financier" | "juridique" | "general";
+  // Level 1 (resident → syndicate admin)
+  // Level 2 (syndicate admin → platform)
+  scope: "syndicate" | "platform";
+  escalatedFrom?: string;
+  category:
+    // Syndicate-scope categories (Level 1)
+    | "paiement" | "maintenance" | "juridique" | "administratif" | "general"
+    // Platform-scope categories (Level 2)
+    | "bug" | "feature" | "acces" | "formation" | "autre"
+    // Legacy values kept for backward-compatibility
+    | "technique" | "financier";
+  replies?: TicketReply[];
 }
 
 export interface Order {
@@ -674,18 +696,34 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
           if (rows?.length) {
             setSupportTickets(rows.map((r: unknown) => {
               const row = r as Record<string, unknown>;
+              const validCats = [
+                "paiement", "maintenance", "juridique", "administratif", "general",
+                "bug", "feature", "acces", "formation", "autre",
+                "technique", "financier", // legacy
+              ];
               return {
-                id: String(row.id),
-                title: String(row.title ?? ""),
-                description: String(row.description ?? ""),
-                submittedBy: String(row.submittedBy ?? row.submittedByName ?? ""),
-                syndicate: String(row.syndicate ?? row.syndicateName ?? ""),
-                priority: (row.priority as SupportTicket["priority"]) ?? "medium",
-                status: (row.status as SupportTicket["status"]) ?? "open",
-                date: String(row.date ?? row.createdAt ?? ""),
-                category: (["technique", "financier", "juridique", "general", "administratif"].includes(row.category as string)
-                  ? row.category
-                  : "general") as SupportTicket["category"],
+                id:            String(row.id),
+                title:         String(row.title ?? ""),
+                description:   String(row.description ?? ""),
+                submittedBy:   String(row.submittedByName ?? row.submittedBy ?? ""),
+                submittedById: row.submittedById ? String(row.submittedById) : undefined,
+                syndicate:     String(row.syndicateName ?? row.syndicate ?? ""),
+                syndicateId:   row.syndicateId ? String(row.syndicateId) : undefined,
+                priority:      (row.priority as SupportTicket["priority"]) ?? "medium",
+                status:        (row.status as SupportTicket["status"]) ?? "open",
+                date:          String(row.date ?? row.createdAt ?? ""),
+                scope:         (row.scope === "platform" ? "platform" : "syndicate") as SupportTicket["scope"],
+                escalatedFrom: row.escalatedFrom ? String(row.escalatedFrom) : undefined,
+                category:      (validCats.includes(row.category as string)
+                  ? row.category : "general") as SupportTicket["category"],
+                replies: Array.isArray(row.replies) ? (row.replies as any[]).map((rp: any) => ({
+                  id:         String(rp.id ?? ""),
+                  ticketId:   String(rp.ticketId ?? ""),
+                  authorId:   String(rp.authorId ?? ""),
+                  authorName: String(rp.authorName ?? ""),
+                  text:       String(rp.text ?? ""),
+                  createdAt:  String(rp.createdAt ?? ""),
+                })) : [],
               };
             }));
           }

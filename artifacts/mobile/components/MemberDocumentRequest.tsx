@@ -31,44 +31,62 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useColors } from "@/hooks/useColors";
 import { useAuth } from "@/context/AuthContext";
 
-// ─── Template catalog for members ────────────────────────────────────────────
-// Only show templates that make sense for a member self-serving.
-const MEMBER_TEMPLATES = [
+// ─── Template catalog — full list with role restrictions ──────────────────────
+const ALL_TEMPLATES = [
   {
     id: "attestation_residence",
     label: "Attestation de résidence",
     icon: "home" as const,
-    color: "#8b5cf6",
+    color: "#0891b2",
     category: "attestation",
-    desc: "Prouve votre résidence dans la copropriété",
+    desc: "Prouve votre résidence dans la copropriété. Utile pour inscriptions scolaires.",
     autoFilled: ["Nom, adresse et numéro de lot chargés automatiquement"],
+    allowedRoles: ["member", "tenant"],
+    requiresBalance: false,
   },
   {
     id: "attestation_propriete",
     label: "Attestation de propriété",
-    icon: "award" as const,
+    icon: "key" as const,
     color: "#2563EB",
     category: "attestation",
-    desc: "Certifie votre statut de copropriétaire",
+    desc: "Certifie votre statut de copropriétaire. Titre foncier auto-injecté.",
     autoFilled: ["Titre foncier, tantièmes et données propriétaire chargés automatiquement"],
+    allowedRoles: ["member"],
+    requiresBalance: false,
   },
   {
     id: "attestation_paiement",
     label: "Attestation de paiement des charges",
     icon: "check-circle" as const,
-    color: "#10b981",
+    color: "#16a34a",
     category: "attestation",
-    desc: "Certifie que vos charges de copropriété sont à jour",
-    autoFilled: ["Total des charges payées calculé depuis les appels de fonds réels"],
+    desc: "Certifie que vos charges sont à jour. Bloquée si des impayés existent.",
+    autoFilled: ["Total payé et historique calculés automatiquement depuis vos appels de fonds"],
+    allowedRoles: ["member"],
+    requiresBalance: true,
   },
   {
     id: "attestation",
     label: "Attestation d'adhésion",
-    icon: "star" as const,
-    color: "#f59e0b",
+    icon: "award" as const,
+    color: "#8b5cf6",
     category: "attestation",
-    desc: "Certifie votre qualité de membre du syndicat",
+    desc: "Certifie votre qualité de membre du syndicat.",
     autoFilled: ["Nom et coordonnées chargés automatiquement"],
+    allowedRoles: ["member"],
+    requiresBalance: false,
+  },
+  {
+    id: "rapport_financier",
+    label: "Rapport financier",
+    icon: "dollar-sign" as const,
+    color: "#f59e0b",
+    category: "finances",
+    desc: "Bilan financier de la copropriété sur une période.",
+    autoFilled: ["Données financières complètes depuis la comptabilité"],
+    allowedRoles: ["member"],
+    requiresBalance: false,
   },
   {
     id: "demande_administrative",
@@ -76,17 +94,21 @@ const MEMBER_TEMPLATES = [
     icon: "send" as const,
     color: "#0284c7",
     category: "reglements",
-    desc: "Soumettez une demande formelle au syndicat",
+    desc: "Soumettez une demande formelle au syndicat.",
     autoFilled: ["Votre nom est pré-rempli — précisez uniquement l'objet"],
+    allowedRoles: ["member", "tenant"],
+    requiresBalance: false,
   },
   {
     id: "decompte_charges",
     label: "Décompte de charges",
-    icon: "dollar-sign" as const,
+    icon: "bar-chart-2" as const,
     color: "#f59e0b",
     category: "finances",
-    desc: "Détail de vos charges sur une période donnée",
+    desc: "Détail de vos charges sur une période donnée.",
     autoFilled: ["Charges calculées automatiquement depuis votre lot"],
+    allowedRoles: ["member"],
+    requiresBalance: false,
   },
 ];
 
@@ -106,8 +128,12 @@ export default function MemberDocumentRequest({ visible, onClose, onComplete }: 
   const { user } = useAuth();
   const topPad = Platform.OS === "web" ? 67 : insets.top;
 
+  // Role-filtered template list — tenants see less, members see more
+  const role = user?.role ?? "member";
+  const MEMBER_TEMPLATES = ALL_TEMPLATES.filter((t) => t.allowedRoles.includes(role));
+
   const [step, setStep] = useState<1 | 2 | 3>(1);
-  const [selectedTpl, setSelectedTpl] = useState<typeof MEMBER_TEMPLATES[0] | null>(null);
+  const [selectedTpl, setSelectedTpl] = useState<typeof ALL_TEMPLATES[0] | null>(null);
   const [note, setNote] = useState("");
   const [periode, setPeriode] = useState("");
   const [objet, setObjet] = useState("");
@@ -118,6 +144,16 @@ export default function MemberDocumentRequest({ visible, onClose, onComplete }: 
     syndicateName?: string | null;
   } | null>(null);
   const [autofillLoading, setAutofillLoading] = useState(false);
+  // Payment cert eligibility check
+  const [paymentCheck, setPaymentCheck] = useState<{
+    eligible: boolean;
+    blockedReason: string | null;
+    totalPaid: number;
+    remainingBalance: number;
+    overdueCount: number;
+    lastPaymentDate: string | null;
+  } | null>(null);
+  const [paymentCheckLoading, setPaymentCheckLoading] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [submitted, setSubmitted] = useState(false);
   const [submittedDocId, setSubmittedDocId] = useState<string | null>(null);
@@ -139,6 +175,8 @@ export default function MemberDocumentRequest({ visible, onClose, onComplete }: 
       setPeriode("");
       setObjet("");
       setAutofill(null);
+      setPaymentCheck(null);
+      setPaymentCheckLoading(false);
       setSubmitting(false);
       setSubmitted(false);
       setSubmittedDocId(null);
@@ -146,29 +184,35 @@ export default function MemberDocumentRequest({ visible, onClose, onComplete }: 
     }
   }, [visible]);
 
-  // Load autofill when template selected
-  const handleSelectTemplate = async (tpl: typeof MEMBER_TEMPLATES[0]) => {
+  // Load autofill + optional payment check when template selected
+  const handleSelectTemplate = async (tpl: typeof ALL_TEMPLATES[0]) => {
     setSelectedTpl(tpl);
     setAutofillLoading(true);
+    setPaymentCheck(null);
     animateStep();
     setStep(2);
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
     try {
       const { documents: docsApi } = await import("@/services/api");
-      const res = await docsApi.autofill();
-      const mi = res.data.memberInfo;
-      const si = res.data.syndicateInfo;
-      const pi = res.data.propertyInfo;
+      // Run autofill and (if needed) payment cert check in parallel
+      const loads: Promise<any>[] = [docsApi.autofill()];
+      if (tpl.requiresBalance) loads.push(docsApi.paymentCertificateCheck());
+      const [autofillRes, payRes] = await Promise.all(loads);
+      const mi = autofillRes.data.memberInfo;
+      const si = autofillRes.data.syndicateInfo;
+      const pi = autofillRes.data.propertyInfo;
       setAutofill({
         memberName:    mi.member_name,
         lotNumber:     mi.lot_number,
         buildingName:  pi?.building_name ?? null,
         syndicateName: si.syndicate_name,
       });
+      if (payRes) setPaymentCheck(payRes.data);
     } catch {
       setAutofill({});
     } finally {
       setAutofillLoading(false);
+      setPaymentCheckLoading(false);
     }
   };
 
@@ -240,7 +284,9 @@ export default function MemberDocumentRequest({ visible, onClose, onComplete }: 
             <ScrollView contentContainerStyle={{ padding: 20, gap: 12, paddingBottom: 60 }}>
               <Text style={[s.stepTitle, { color: colors.foreground }]}>Quel document souhaitez-vous ?</Text>
               <Text style={[s.stepSubtitle, { color: colors.mutedForeground }]}>
-                Toutes les données de votre dossier (nom, lot, bâtiment) seront remplies automatiquement.
+                {role === "tenant"
+                  ? "En tant que locataire, vous pouvez demander les documents de résidence et de réclamation."
+                  : "Toutes les données de votre dossier (nom, lot, bâtiment) seront remplies automatiquement."}
               </Text>
 
               <View style={[s.autofillBanner, { backgroundColor: "#10b98110", borderColor: "#10b98130" }]}>
@@ -251,27 +297,43 @@ export default function MemberDocumentRequest({ visible, onClose, onComplete }: 
                 </Text>
               </View>
 
-              {MEMBER_TEMPLATES.map((tpl) => (
-                <TouchableOpacity
-                  key={tpl.id}
-                  style={[s.tplCard, { backgroundColor: colors.card, borderColor: colors.border }]}
-                  onPress={() => handleSelectTemplate(tpl)}
-                  activeOpacity={0.75}
-                >
-                  <View style={[s.tplIconWrap, { backgroundColor: tpl.color + "18" }]}>
-                    <Feather name={tpl.icon} size={22} color={tpl.color} />
-                  </View>
-                  <View style={{ flex: 1 }}>
-                    <Text style={[s.tplName, { color: colors.foreground }]}>{tpl.label}</Text>
-                    <Text style={[s.tplDesc, { color: colors.mutedForeground }]}>{tpl.desc}</Text>
-                    <View style={[s.autoChip, { backgroundColor: tpl.color + "12", marginTop: 6 }]}>
-                      <Feather name="database" size={10} color={tpl.color} />
-                      <Text style={[s.autoChipText, { color: tpl.color }]}>{tpl.autoFilled[0]}</Text>
+              {MEMBER_TEMPLATES.length === 0 ? (
+                <View style={[s.autofillBanner, { backgroundColor: "#f59e0b10", borderColor: "#f59e0b30" }]}>
+                  <Feather name="info" size={14} color="#f59e0b" />
+                  <Text style={{ fontSize: 12, color: "#f59e0b", flex: 1, lineHeight: 18 }}>
+                    Aucun document disponible pour votre profil. Contactez l'administrateur du syndicat.
+                  </Text>
+                </View>
+              ) : (
+                MEMBER_TEMPLATES.map((tpl) => (
+                  <TouchableOpacity
+                    key={tpl.id}
+                    style={[s.tplCard, { backgroundColor: colors.card, borderColor: colors.border }]}
+                    onPress={() => handleSelectTemplate(tpl)}
+                    activeOpacity={0.75}
+                  >
+                    <View style={[s.tplIconWrap, { backgroundColor: tpl.color + "18" }]}>
+                      <Feather name={tpl.icon} size={22} color={tpl.color} />
                     </View>
-                  </View>
-                  <Feather name="chevron-right" size={18} color={colors.mutedForeground} />
-                </TouchableOpacity>
-              ))}
+                    <View style={{ flex: 1 }}>
+                      <View style={{ flexDirection: "row", alignItems: "center", gap: 6 }}>
+                        <Text style={[s.tplName, { color: colors.foreground }]}>{tpl.label}</Text>
+                        {tpl.requiresBalance && (
+                          <View style={{ backgroundColor: "#f59e0b18", borderRadius: 6, paddingHorizontal: 5, paddingVertical: 2 }}>
+                            <Text style={{ fontSize: 9, fontWeight: "700", color: "#f59e0b" }}>VÉRIF. SOLDE</Text>
+                          </View>
+                        )}
+                      </View>
+                      <Text style={[s.tplDesc, { color: colors.mutedForeground }]}>{tpl.desc}</Text>
+                      <View style={[s.autoChip, { backgroundColor: tpl.color + "12", marginTop: 6 }]}>
+                        <Feather name="database" size={10} color={tpl.color} />
+                        <Text style={[s.autoChipText, { color: tpl.color }]}>{tpl.autoFilled[0]}</Text>
+                      </View>
+                    </View>
+                    <Feather name="chevron-right" size={18} color={colors.mutedForeground} />
+                  </TouchableOpacity>
+                ))
+              )}
             </ScrollView>
           )}
 
@@ -326,6 +388,44 @@ export default function MemberDocumentRequest({ visible, onClose, onComplete }: 
                   </View>
                 )}
               </View>
+
+              {/* ── Payment cert eligibility status ── */}
+              {selectedTpl?.requiresBalance && (
+                paymentCheckLoading ? (
+                  <View style={[s.autofillBanner, { backgroundColor: "#f59e0b10", borderColor: "#f59e0b30" }]}>
+                    <ActivityIndicator size="small" color="#f59e0b" />
+                    <Text style={{ fontSize: 12, color: "#f59e0b", flex: 1 }}>Vérification de votre solde en cours…</Text>
+                  </View>
+                ) : paymentCheck ? (
+                  paymentCheck.eligible ? (
+                    <View style={[s.autofillBanner, { backgroundColor: "#10b98110", borderColor: "#10b98130" }]}>
+                      <Feather name="check-circle" size={14} color="#10b981" />
+                      <View style={{ flex: 1 }}>
+                        <Text style={{ fontSize: 12, color: "#10b981", fontWeight: "700" }}>Solde à jour ✓</Text>
+                        <Text style={{ fontSize: 11, color: "#10b981", marginTop: 2 }}>
+                          Total payé : {paymentCheck.totalPaid.toLocaleString("fr-MA")} MAD
+                          {paymentCheck.lastPaymentDate ? `  •  Dernier paiement : ${paymentCheck.lastPaymentDate}` : ""}
+                        </Text>
+                      </View>
+                    </View>
+                  ) : (
+                    <View style={[s.autofillBanner, { backgroundColor: "#ef444410", borderColor: "#ef444430" }]}>
+                      <Feather name="alert-octagon" size={14} color="#ef4444" />
+                      <View style={{ flex: 1 }}>
+                        <Text style={{ fontSize: 12, color: "#ef4444", fontWeight: "700" }}>Attestation bloquée</Text>
+                        <Text style={{ fontSize: 11, color: "#ef4444", marginTop: 2, lineHeight: 16 }}>
+                          {paymentCheck.blockedReason}
+                        </Text>
+                        {paymentCheck.overdueCount > 0 && (
+                          <Text style={{ fontSize: 11, color: "#ef4444", marginTop: 4 }}>
+                            {paymentCheck.overdueCount} appel(s) impayé(s)  •  Solde dû : {paymentCheck.remainingBalance.toLocaleString("fr-MA")} MAD
+                          </Text>
+                        )}
+                      </View>
+                    </View>
+                  )
+                ) : null
+              )}
 
               {/* Optional fields */}
               {needsPeriode && (
@@ -422,21 +522,29 @@ export default function MemberDocumentRequest({ visible, onClose, onComplete }: 
             <TouchableOpacity style={s.backBtn} onPress={() => { setStep(1); animateStep(); }} activeOpacity={0.7}>
               <Feather name="arrow-left" size={18} color={colors.foreground} />
             </TouchableOpacity>
-            <TouchableOpacity
-              style={[s.submitBtn, { flex: 1, backgroundColor: submitting ? colors.border : (selectedTpl?.color ?? colors.primary) }]}
-              onPress={handleSubmit}
-              disabled={submitting || (needsObjet && !objet.trim())}
-              activeOpacity={0.85}
-            >
-              {submitting ? (
-                <ActivityIndicator color="#fff" size="small" />
-              ) : (
-                <>
-                  <Feather name="send" size={16} color="#fff" />
-                  <Text style={s.submitBtnText}>Soumettre la demande</Text>
-                </>
-              )}
-            </TouchableOpacity>
+            {/* Block submit if payment cert is NOT eligible */}
+            {selectedTpl?.requiresBalance && paymentCheck && !paymentCheck.eligible ? (
+              <View style={[s.submitBtn, { flex: 1, backgroundColor: "#ef444425", borderWidth: 1, borderColor: "#ef4444" }]}>
+                <Feather name="lock" size={14} color="#ef4444" />
+                <Text style={[s.submitBtnText, { color: "#ef4444" }]}>Régularisez votre solde</Text>
+              </View>
+            ) : (
+              <TouchableOpacity
+                style={[s.submitBtn, { flex: 1, backgroundColor: submitting ? colors.border : (selectedTpl?.color ?? colors.primary) }]}
+                onPress={handleSubmit}
+                disabled={submitting || (needsObjet && !objet.trim()) || autofillLoading}
+                activeOpacity={0.85}
+              >
+                {submitting ? (
+                  <ActivityIndicator color="#fff" size="small" />
+                ) : (
+                  <>
+                    <Feather name="send" size={16} color="#fff" />
+                    <Text style={s.submitBtnText}>Soumettre la demande</Text>
+                  </>
+                )}
+              </TouchableOpacity>
+            )}
           </View>
         )}
       </View>

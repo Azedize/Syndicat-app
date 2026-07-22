@@ -35,6 +35,7 @@ import DocumentWizard from "@/components/DocumentWizard";
 import MemberDocumentRequest from "@/components/MemberDocumentRequest";
 import TemplateRequestModal from "@/components/TemplateRequestModal";
 import SignatureOrderPanel from "@/components/SignatureOrderPanel";
+import DocumentBundleModal, { type BundleType } from "@/components/DocumentBundleModal";
 
 // ─── Constants ────────────────────────────────────────────────────────────────
 
@@ -186,6 +187,16 @@ export default function DocumentsScreen() {
   // Member document request + template request modals
   const [showMemberRequest,  setShowMemberRequest]  = useState(false);
   const [showTemplateRequest, setShowTemplateRequest] = useState(false);
+
+  // Bundle modals (admin only)
+  const [showBundleMenu,  setShowBundleMenu]  = useState(false);
+  const [activeBundleType, setActiveBundleType] = useState<BundleType | null>(null);
+
+  const openBundle = (type: BundleType) => {
+    setShowBundleMenu(false);
+    setActiveBundleType(type);
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+  };
 
   // Workflow actions
   const [workflowBusy,     setWorkflowBusy]     = useState(false);
@@ -776,6 +787,14 @@ export default function DocumentsScreen() {
         ) : null}
         {isAdmin ? (
           <>
+            {/* Bundle docs (admin) */}
+            <TouchableOpacity
+              style={{ padding: 6, marginRight: 2 }}
+              hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+              onPress={() => { setShowBundleMenu((v) => !v); Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); }}
+            >
+              <Feather name="package" size={20} color={showBundleMenu ? colors.primary : colors.mutedForeground} />
+            </TouchableOpacity>
             {/* Demander un nouveau modèle (admin) */}
             <TouchableOpacity
               style={{ padding: 6, marginRight: 2 }}
@@ -895,6 +914,53 @@ export default function DocumentsScreen() {
         onClose={() => setShowTemplateRequest(false)}
         onSubmitted={() => { setShowTemplateRequest(false); }}
       />
+
+      {/* ── Bundle quick-menu (admin) ── */}
+      {showBundleMenu && (
+        <View style={[styles.bundleMenu, { backgroundColor: colors.card, borderColor: colors.border, top: (Platform.OS === "web" ? 67 : insets.top) + 56 }]}>
+          <Text style={[styles.bundleMenuTitle, { color: colors.mutedForeground }]}>Générer un dossier complet</Text>
+          {([
+            { type: "recovery" as BundleType, icon: "alert-triangle" as const, color: "#dc2626", label: "Recouvrement",       sub: "5 docs · Relance → Juridique" },
+            { type: "sale"     as BundleType, icon: "package"        as const, color: "#7c3aed", label: "Dossier de vente",   sub: "4 docs · Notaire" },
+            { type: "ag"       as BundleType, icon: "users"          as const, color: "#3b82f6", label: "Assemblée Générale", sub: "3 docs · Convoc + PV + Décisions" },
+          ] as const).map((b) => (
+            <TouchableOpacity
+              key={b.type}
+              style={[styles.bundleMenuItem, { borderBottomColor: colors.border }]}
+              onPress={() => openBundle(b.type)}
+              activeOpacity={0.75}
+            >
+              <View style={[styles.bundleMenuIcon, { backgroundColor: b.color + "15" }]}>
+                <Feather name={b.icon} size={18} color={b.color} />
+              </View>
+              <View style={{ flex: 1 }}>
+                <Text style={[styles.bundleMenuItemLabel, { color: colors.foreground }]}>{b.label}</Text>
+                <Text style={[styles.bundleMenuItemSub, { color: colors.mutedForeground }]}>{b.sub}</Text>
+              </View>
+              <Feather name="chevron-right" size={16} color={colors.mutedForeground} />
+            </TouchableOpacity>
+          ))}
+        </View>
+      )}
+
+      {/* ── Document Bundle Modal ── */}
+      {activeBundleType && (
+        <DocumentBundleModal
+          visible={!!activeBundleType}
+          bundleType={activeBundleType}
+          onClose={() => setActiveBundleType(null)}
+          onComplete={(docs) => {
+            setActiveBundleType(null);
+            setShowBundleMenu(false);
+            refreshDocuments().catch(() => {});
+            showToast({
+              type: "success",
+              title: "Dossier généré",
+              message: `${docs.length} document(s) créés et disponibles dans la liste.`,
+            });
+          }}
+        />
+      )}
 
       {/* ── Download progress overlay ── */}
       {dlState.active ? (
@@ -1639,6 +1705,13 @@ const styles = StyleSheet.create({
   title:            { fontSize: 20, fontFamily: "Inter_700Bold" },
   subtitle:         { fontSize: 11, fontFamily: "Inter_400Regular", marginTop: 2 },
   generateBtn:      { width: 38, height: 38, borderRadius: 11, alignItems: "center", justifyContent: "center" },
+  // Bundle menu
+  bundleMenu:       { position: "absolute", right: 14, zIndex: 100, borderWidth: 1, borderRadius: 16, shadowColor: "#000", shadowOpacity: 0.12, shadowRadius: 12, shadowOffset: { width: 0, height: 4 }, elevation: 8, overflow: "hidden" as const, minWidth: 260 },
+  bundleMenuTitle:  { fontSize: 10, fontWeight: "700", letterSpacing: 0.5, textTransform: "uppercase" as const, padding: 12, paddingBottom: 6 },
+  bundleMenuItem:   { flexDirection: "row" as const, alignItems: "center" as const, gap: 12, padding: 14, borderBottomWidth: 1 },
+  bundleMenuIcon:   { width: 36, height: 36, borderRadius: 10, alignItems: "center" as const, justifyContent: "center" as const },
+  bundleMenuItemLabel: { fontSize: 13, fontWeight: "700" },
+  bundleMenuItemSub:   { fontSize: 11, marginTop: 1 },
   searchWrap:       { flexDirection: "row", alignItems: "center", borderWidth: 1, borderRadius: 12, paddingHorizontal: 12, paddingVertical: 10, gap: 8 },
   searchInput:      { flex: 1, fontSize: 14, fontFamily: "Inter_400Regular" },
   statsRow:         { flexDirection: "row", paddingVertical: 10, borderBottomWidth: 1 },

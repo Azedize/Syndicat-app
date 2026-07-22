@@ -211,9 +211,22 @@ const ts = StyleSheet.create({
 });
 
 export default function TabLayout() {
-  const { isSuperAdmin, isSyndicateAdmin, isAdmin, isTenant, role } = useRole();
+  const { isSuperAdmin, isSyndicateAdmin, isTreasurer, isAdmin, role } = useRole();
   const { t } = useLanguage();
   const hiddenTabStyle = { display: "none" as const };
+
+  // Finance tab: Syndicate Admin has full access; Treasurer manages finances.
+  // All other roles (including President/Secretary/Member) access finance
+  // via the More menu with role-appropriate items only.
+  const showFinanceTab = isSyndicateAdmin || isTreasurer;
+
+  // Members tab: Super Admin (platform list of syndicates) + Syndicate Admin (members list).
+  // President/Secretary/CommitteeMember access member info via governance screens.
+  const showMembersTab = isAdmin;
+
+  // Marketplace tab: Syndicate Admin only — manages syndicate marketplace.
+  // Treasurer/President/etc. have no business buying or selling there.
+  const showMarketplaceTab = isSyndicateAdmin;
 
   return (
     <Tabs
@@ -223,42 +236,32 @@ export default function TabLayout() {
       {/* Dashboard — all roles */}
       <Tabs.Screen name="index" options={{ title: t("dashboard") }} />
 
-      {/* Members / Syndicats — admin only.
-          Super Admin sees "Syndicats" (platform list).
-          Syndic Admin sees "Membres" (their syndicate's members). */}
+      {/* Members / Syndicats — super_admin sees platform list; syndicate_admin sees members */}
       <Tabs.Screen
         name="members"
         options={{
           title: isSuperAdmin ? t("syndicates") : t("members"),
-          tabBarItemStyle: isAdmin ? undefined : hiddenTabStyle,
+          tabBarItemStyle: showMembersTab ? undefined : hiddenTabStyle,
         }}
       />
 
-      {/* Finance — Syndicate Admin only.
-          Super Admin is the PLATFORM OWNER; he does NOT manage syndicate-level
-          finances (charges, budgets, prestataires). His financial view is the
-          Tableau National (revenue, subscriptions, platform KPIs).
-          Syndicate Admin sees their syndicate's financial overview. */}
+      {/* Finance — Syndicate Admin (full) + Treasurer (financial management only).
+          Super Admin uses Tableau National. President/Secretary/Member access
+          relevant finance items via More menu. */}
       <Tabs.Screen
         name="finance"
         options={{
           title: t("finance"),
-          tabBarItemStyle: isSyndicateAdmin ? undefined : hiddenTabStyle,
+          tabBarItemStyle: showFinanceTab ? undefined : hiddenTabStyle,
         }}
       />
 
-      {/* Marketplace — Syndicate Admin only.
-          Super Admin is not a resident or co-owner; he has no lot and no
-          business purchasing or selling in the syndicate marketplace.
-          Member access to marketplace removed per Scenario 2: members can
-          only see Dashboard, Payments, Documents, Complaints, Meetings,
-          Voting, Notifications.
-          Tenant is also blocked: cannot browse or purchase. */}
+      {/* Marketplace — Syndicate Admin only. */}
       <Tabs.Screen
         name="marketplace"
         options={{
           title: t("marketplace"),
-          tabBarItemStyle: isSyndicateAdmin ? undefined : hiddenTabStyle,
+          tabBarItemStyle: showMarketplaceTab ? undefined : hiddenTabStyle,
         }}
       />
 
