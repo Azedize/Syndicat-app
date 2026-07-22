@@ -100,6 +100,14 @@ export default function MarketplaceScreen() {
   const [modReason, setModReason] = useState("");
   const [submittingMod, setSubmittingMod] = useState(false);
 
+  // Reject with reason modal
+  const [showRejectModal, setShowRejectModal] = useState(false);
+  const [rejectProductId, setRejectProductId] = useState("");
+  const [rejectProductName, setRejectProductName] = useState("");
+  const [selectedRejectReason, setSelectedRejectReason] = useState("");
+  const [customRejectReason, setCustomRejectReason] = useState("");
+  const [submittingReject, setSubmittingReject] = useState(false);
+
   const isAdmin = user?.role === "super_admin" || user?.role === "syndicate_admin";
 
   // ─── Fetch ─────────────────────────────────────────────────────────────
@@ -151,19 +159,26 @@ export default function MarketplaceScreen() {
   // ─── Moderate ──────────────────────────────────────────────────────────
 
   const handleModerate = (id: string, action: "approve" | "reject", productName: string) => {
-    const labels = { approve: "Approuver", reject: "Rejeter" };
+    if (action === "reject") {
+      // Open reason picker modal instead of plain Alert
+      setRejectProductId(id);
+      setRejectProductName(productName);
+      setSelectedRejectReason("");
+      setCustomRejectReason("");
+      setShowRejectModal(true);
+      return;
+    }
     Alert.alert(
-      `${labels[action]} le produit`,
-      `${labels[action]} "${productName}" ?`,
+      "Approuver le produit",
+      `Approuver "${productName}" et le rendre visible ?`,
       [
         { text: "Annuler", style: "cancel" },
         {
-          text: labels[action],
-          style: action === "reject" ? "destructive" : "default",
+          text: "Approuver",
           onPress: async () => {
             setModerating(id);
             try {
-              await marketplace.moderate(id, { action });
+              await marketplace.moderate(id, { action: "approve" });
               Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
               await Promise.all([fetchProducts(), fetchPending(), fetchStats()]);
             } catch {
@@ -175,6 +190,32 @@ export default function MarketplaceScreen() {
         },
       ],
     );
+  };
+
+  const REJECT_REASONS = [
+    "Contenu inapproprié",
+    "Informations manquantes",
+    "Mauvaise catégorie",
+    "Annonce en double",
+    "Article prohibé",
+    "Autre",
+  ];
+
+  const submitRejectWithReason = async () => {
+    const reason = selectedRejectReason === "Autre" ? customRejectReason.trim() : selectedRejectReason;
+    if (!reason) return;
+    setSubmittingReject(true);
+    try {
+      await marketplace.moderate(rejectProductId, { action: "reject", reason });
+      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+      setShowRejectModal(false);
+      await Promise.all([fetchProducts(), fetchPending(), fetchStats()]);
+      showToast({ type: "success", title: "Produit rejeté", message: "Le vendeur a été notifié" });
+    } catch {
+      showToast({ type: "error", title: "Erreur", message: "Rejet impossible" });
+    } finally {
+      setSubmittingReject(false);
+    }
   };
 
   const openRequestMod = (id: string, name: string) => {
@@ -369,10 +410,18 @@ export default function MarketplaceScreen() {
           </View>
           <View style={{ flexDirection: "row", alignItems: "center", gap: 8 }}>
             {isAdmin ? (
-              <View style={[styles.adminBadge, { backgroundColor: colors.primary + "15" }]}>
-                <Feather name="shield" size={14} color={colors.primary} />
-                <Text style={[styles.adminBadgeText, { color: colors.primary }]}>Admin</Text>
-              </View>
+              <>
+                <TouchableOpacity
+                  style={[styles.headerBtn, { backgroundColor: colors.primary + "15" }]}
+                  onPress={() => { router.push("/marketplace-moderation" as any); Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); }}
+                >
+                  <Feather name="shield" size={18} color={colors.primary} />
+                </TouchableOpacity>
+                <View style={[styles.adminBadge, { backgroundColor: colors.primary + "15" }]}>
+                  <Feather name="shield" size={14} color={colors.primary} />
+                  <Text style={[styles.adminBadgeText, { color: colors.primary }]}>Admin</Text>
+                </View>
+              </>
             ) : (
               <>
                 <TouchableOpacity
@@ -513,6 +562,62 @@ export default function MarketplaceScreen() {
           <Text style={styles.fabText}>Vendre</Text>
         </TouchableOpacity>
       )}
+
+      {/* Reject with reason modal */}
+      <Modal visible={showRejectModal} transparent animationType="slide" onRequestClose={() => setShowRejectModal(false)}>
+        <View style={StyleSheet.absoluteFill}>
+          <TouchableOpacity style={[StyleSheet.absoluteFill, { backgroundColor: "rgba(0,0,0,0.5)" }]} onPress={() => setShowRejectModal(false)} />
+          <View style={[styles.modal, { backgroundColor: colors.card }]}>
+            <Text style={[styles.modalTitle, { color: colors.foreground }]}>Rejeter le produit</Text>
+            <Text style={{ fontSize: 13, color: colors.mutedForeground, marginBottom: 12 }} numberOfLines={1}>{rejectProductName}</Text>
+            <Text style={{ fontSize: 13, fontWeight: "600", color: colors.foreground, marginBottom: 8 }}>Motif de rejet</Text>
+            <View style={{ flexDirection: "row", flexWrap: "wrap", gap: 8, marginBottom: 10 }}>
+              {["Contenu inapproprié", "Informations manquantes", "Mauvaise catégorie", "Annonce en double", "Article prohibé", "Autre"].map((r) => (
+                <TouchableOpacity
+                  key={r}
+                  style={{
+                    flexDirection: "row",
+                    alignItems: "center",
+                    gap: 5,
+                    paddingHorizontal: 12,
+                    paddingVertical: 8,
+                    borderRadius: 20,
+                    borderWidth: 1.5,
+                    backgroundColor: selectedRejectReason === r ? colors.destructive + "18" : colors.secondary,
+                    borderColor: selectedRejectReason === r ? colors.destructive : colors.border,
+                  }}
+                  onPress={() => setSelectedRejectReason(r)}
+                >
+                  {selectedRejectReason === r && <Feather name="check" size={11} color={colors.destructive} />}
+                  <Text style={{ fontSize: 12, fontWeight: "600", color: selectedRejectReason === r ? colors.destructive : colors.foreground }}>{r}</Text>
+                </TouchableOpacity>
+              ))}
+            </View>
+            {selectedRejectReason === "Autre" && (
+              <TextInput
+                style={[styles.modInput, { borderColor: colors.border, color: colors.foreground, backgroundColor: colors.background, minHeight: 70 }]}
+                placeholder="Précisez le motif..."
+                placeholderTextColor={colors.mutedForeground}
+                value={customRejectReason}
+                onChangeText={setCustomRejectReason}
+                multiline
+                maxLength={500}
+              />
+            )}
+            <TouchableOpacity
+              style={[styles.modSubmitBtn, { backgroundColor: (!selectedRejectReason || (selectedRejectReason === "Autre" && !customRejectReason.trim())) ? colors.secondary : colors.destructive, marginTop: 12 }]}
+              onPress={submitRejectWithReason}
+              disabled={!selectedRejectReason || (selectedRejectReason === "Autre" && !customRejectReason.trim()) || submittingReject}
+            >
+              {submittingReject ? (
+                <ActivityIndicator size="small" color="#fff" />
+              ) : (
+                <Text style={styles.modSubmitText}>Rejeter le produit</Text>
+              )}
+            </TouchableOpacity>
+          </View>
+        </View>
+      </Modal>
 
       {/* Request modification modal */}
       <Modal visible={showModModal} transparent animationType="slide" onRequestClose={() => setShowModModal(false)}>

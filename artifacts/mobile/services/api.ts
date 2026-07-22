@@ -512,6 +512,16 @@ export const marketplace = {
     return request<{ data: unknown[]; pagination: unknown }>(`/products/reported?${qs}`);
   },
 
+  // ── Per-product reports detail (admin) ────────────────────────────────────
+  productReports: (productId: string) =>
+    request<{ data: unknown[] }>(`/products/${productId}/reports`),
+
+  // ── Products filtered by status (admin) ───────────────────────────────────
+  productsByStatus: (status: string, params?: Record<string, string>) => {
+    const qs = new URLSearchParams({ status, ...(params ?? {}) });
+    return request<{ data: unknown[]; pagination: unknown }>(`/products?${qs}`);
+  },
+
   // ── Cart ──────────────────────────────────────────────────────────────────
   cart: () => request<{ data: unknown[] }>("/cart"),
   addToCart: (productId: string, quantity = 1) =>
