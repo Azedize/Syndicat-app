@@ -489,6 +489,29 @@ export const marketplace = {
       body: JSON.stringify(payload),
     }),
 
+  // ── Reservation ───────────────────────────────────────────────────────────
+  reserveProduct: (id: string) =>
+    request<{ data: unknown; message: string }>(`/products/${id}/reserve`, { method: "POST" }),
+  unreserveProduct: (id: string) =>
+    request<{ data: unknown; message: string }>(`/products/${id}/reserve`, { method: "DELETE" }),
+
+  // ── Mark sold ─────────────────────────────────────────────────────────────
+  markSold: (id: string) =>
+    request<{ data: unknown; message: string }>(`/products/${id}/mark-sold`, { method: "POST" }),
+
+  // ── Seller reputation ─────────────────────────────────────────────────────
+  sellerReputation: (sellerId: string) =>
+    request<{ data: unknown }>(`/sellers/${sellerId}/reputation`),
+
+  // ── Admin stats ───────────────────────────────────────────────────────────
+  stats: () => request<{ data: unknown }>("/stats"),
+
+  // ── Reported products (admin) ─────────────────────────────────────────────
+  reported: (params?: Record<string, string>) => {
+    const qs = new URLSearchParams(params ?? {});
+    return request<{ data: unknown[]; pagination: unknown }>(`/products/reported?${qs}`);
+  },
+
   // ── Cart ──────────────────────────────────────────────────────────────────
   cart: () => request<{ data: unknown[] }>("/cart"),
   addToCart: (productId: string, quantity = 1) =>

@@ -32,6 +32,45 @@ function isAdmin(role: string) {
   return role === "super_admin" || role === "syndicate_admin";
 }
 
+// ─── Auto-scan: prohibited words + spam detection ─────────────────────────────
+
+const PROHIBITED_WORDS = [
+  // Weapons
+  "arme", "fusil", "pistolet", "couteau", "explosif", "munition",
+  // Drugs
+  "drogue", "cannabis", "cocaine", "héroïne", "crack", "stupéfiant",
+  // Alcohol (for dry jurisdictions)
+  "alcool", "whisky", "vodka", "bière", "vin",
+  // Adult
+  "porn", "sexe", "adulte", "escort",
+  // Counterfeit
+  "contrefaçon", "faux", "réplique", "copie",
+  // Dangerous
+  "dangereux", "illégal", "frauduleux",
+];
+
+const SPAM_PATTERNS = [
+  /(.)\1{6,}/i,               // 7+ repeated chars
+  /https?:\/\//gi,            // URLs in title
+  /\d{10,}/,                  // Long digit strings (phone spam)
+  /whatsapp|telegram|signal/i, // External contact channels
+];
+
+function autoScan(title: string, description: string): { flagged: boolean; reason?: string } {
+  const combined = `${title} ${description}`.toLowerCase();
+  for (const word of PROHIBITED_WORDS) {
+    if (combined.includes(word)) {
+      return { flagged: true, reason: `Contenu interdit détecté : "${word}"` };
+    }
+  }
+  for (const pattern of SPAM_PATTERNS) {
+    if (pattern.test(combined)) {
+      return { flagged: true, reason: "Indicateur de spam détecté dans le contenu" };
+    }
+  }
+  return { flagged: false };
+}
+
 // ─── GET /products ─────────────────────────────────────────────────────────────
 // Cross-syndicate: approved products visible to all authenticated users.
 // Admins can filter by any status.
@@ -283,11 +322,24 @@ router.post("/products", requireAuth, async (req, res) => {
     name: z.string().min(1).max(200),
     description: z.string().max(2000).default(""),
     price: z.number().positive(),
+    originalPrice: z.number().positive().optional(),
     category: z.string().min(1),
     condition: z.enum(["neuf", "bon", "acceptable", "mauvais"]).default("bon"),
+    brand: z.string().max(100).optional(),
+    model: z.string().max(100).optional(),
+    purchaseYear: z.string().max(10).optional(),
+    sellingReason: z.string().max(500).optional(),
+    negotiable: z.boolean().default(false),
+    contactPreferences: z.array(z.enum(["chat", "phone", "email"])).default(["chat"]),
     location: z.string().max(200).default(""),
+    building: z.string().max(100).optional(),
+    block: z.string().max(100).optional(),
+    floor: z.string().max(50).optional(),
     imageUrls: z.array(z.string()).max(8).default([]),
+    videoUrl: z.string().max(500).optional(),
     stock: z.number().int().nonnegative().default(1),
+    sellerPhone: z.string().max(30).optional(),
+    sellerEmail: z.string().max(200).optional(),
   });
   const result = schema.safeParse(req.body);
   if (!result.success) {
@@ -297,11 +349,38 @@ router.post("/products", requireAuth, async (req, res) => {
   try {
     const user = req.user!;
     const adminUser = isAdmin(user.role);
+
+    // Auto-scan for prohibited content
+    const scan = autoScan(result.data.name, result.data.description);
+    if (scan.flagged && !adminUser) {
+      res.status(400).json({ error: scan.reason ?? "Contenu non conforme aux règles du marketplace", code: "CONTENT_FLAGGED" });
+      return;
+    }
+
+    // Duplicate detection: same seller, same name, still active/pending
+    const [existing] = await db
+      .select({ id: productsTable.id })
+      .from(productsTable)
+      .where(
+        and(
+          eq(productsTable.sellerId, user.userId),
+          ilike(productsTable.name, result.data.name.trim()),
+          or(eq(productsTable.status, "approved"), eq(productsTable.status, "pending_review")),
+        ),
+      )
+      .limit(1);
+    if (existing && !adminUser) {
+      res.status(409).json({ error: "Vous avez déjà une annonce similaire en cours. Modifiez-la plutôt que d'en créer une nouvelle.", code: "DUPLICATE_LISTING" });
+      return;
+    }
+
     const [product] = await db
       .insert(productsTable)
       .values({
         ...result.data,
         imageUrls: JSON.stringify(result.data.imageUrls),
+        contactPreferences: JSON.stringify(result.data.contactPreferences),
+        originalPrice: result.data.originalPrice !== undefined ? String(result.data.originalPrice) : undefined,
         syndicateId: user.syndicateId ?? "",
         sellerId: user.userId,
         sellerName: user.name,
@@ -328,11 +407,24 @@ router.put("/products/:id", requireAuth, async (req, res) => {
     name: z.string().min(1).max(200).optional(),
     description: z.string().max(2000).optional(),
     price: z.number().positive().optional(),
+    originalPrice: z.number().positive().optional(),
     category: z.string().optional(),
     condition: z.enum(["neuf", "bon", "acceptable", "mauvais"]).optional(),
+    brand: z.string().max(100).optional(),
+    model: z.string().max(100).optional(),
+    purchaseYear: z.string().max(10).optional(),
+    sellingReason: z.string().max(500).optional(),
+    negotiable: z.boolean().optional(),
+    contactPreferences: z.array(z.enum(["chat", "phone", "email"])).optional(),
     location: z.string().max(200).optional(),
+    building: z.string().max(100).optional(),
+    block: z.string().max(100).optional(),
+    floor: z.string().max(50).optional(),
     imageUrls: z.array(z.string()).max(8).optional(),
+    videoUrl: z.string().max(500).optional(),
     stock: z.number().int().nonnegative().optional(),
+    sellerPhone: z.string().max(30).optional(),
+    sellerEmail: z.string().max(200).optional(),
   });
   const result = schema.safeParse(req.body);
   if (!result.success) {
@@ -353,8 +445,14 @@ router.put("/products/:id", requireAuth, async (req, res) => {
     if (result.data.imageUrls !== undefined) {
       updates.imageUrls = JSON.stringify(result.data.imageUrls);
     }
-    // seller editing an approved product → re-submit for review
-    if (!adminUser && product.status === "approved") {
+    if (result.data.contactPreferences !== undefined) {
+      updates.contactPreferences = JSON.stringify(result.data.contactPreferences);
+    }
+    if (result.data.originalPrice !== undefined) {
+      updates.originalPrice = String(result.data.originalPrice);
+    }
+    // seller editing a live product → re-submit for review
+    if (!adminUser && (product.status === "approved" || product.status === "modification_requested")) {
       updates.status = "pending_review";
       updates.moderatedBy = null;
       updates.moderatedAt = null;
@@ -609,12 +707,211 @@ router.delete("/products/:id/comments/:commentId", requireAuth, async (req, res)
   }
 });
 
+// ─── POST /products/:id/reserve — buyer reserves a product ───────────────────
+
+router.post("/products/:id/reserve", requireAuth, async (req, res) => {
+  const productId = String(req.params.id) as string;
+  try {
+    const user = req.user!;
+    const [product] = await db.select().from(productsTable).where(eq(productsTable.id, productId));
+    if (!product) { res.status(404).json({ error: "Produit introuvable" }); return; }
+    if (product.status !== "approved") {
+      res.status(400).json({ error: "Ce produit n'est pas disponible à la réservation" }); return;
+    }
+    if (product.sellerId === user.userId) {
+      res.status(400).json({ error: "Vous ne pouvez pas réserver votre propre produit" }); return;
+    }
+    const [updated] = await db
+      .update(productsTable)
+      .set({ status: "reserved", reservedBy: user.userId, reservedByName: user.name, reservedAt: new Date() })
+      .where(and(eq(productsTable.id, productId), eq(productsTable.status, "approved")))
+      .returning();
+    if (!updated) { res.status(409).json({ error: "Ce produit vient d'être réservé par quelqu'un d'autre" }); return; }
+    res.json({ data: updated, message: "Produit réservé avec succès" });
+  } catch (err) {
+    req.log.error(err);
+    res.status(500).json({ error: "Erreur serveur" });
+  }
+});
+
+// ─── DELETE /products/:id/reserve — cancel reservation ───────────────────────
+
+router.delete("/products/:id/reserve", requireAuth, async (req, res) => {
+  const productId = String(req.params.id) as string;
+  try {
+    const user = req.user!;
+    const [product] = await db.select().from(productsTable).where(eq(productsTable.id, productId));
+    if (!product) { res.status(404).json({ error: "Produit introuvable" }); return; }
+    if (product.status !== "reserved") { res.status(400).json({ error: "Ce produit n'est pas réservé" }); return; }
+    // Only the buyer who reserved or the seller or admin can cancel
+    if (!isAdmin(user.role) && product.reservedBy !== user.userId && product.sellerId !== user.userId) {
+      res.status(403).json({ error: "Accès refusé" }); return;
+    }
+    const [updated] = await db
+      .update(productsTable)
+      .set({ status: "approved", reservedBy: null, reservedByName: null, reservedAt: null })
+      .where(eq(productsTable.id, productId))
+      .returning();
+    res.json({ data: updated, message: "Réservation annulée" });
+  } catch (err) {
+    req.log.error(err);
+    res.status(500).json({ error: "Erreur serveur" });
+  }
+});
+
+// ─── POST /products/:id/mark-sold — seller marks product as sold ──────────────
+
+router.post("/products/:id/mark-sold", requireAuth, async (req, res) => {
+  const productId = String(req.params.id) as string;
+  try {
+    const user = req.user!;
+    const [product] = await db.select().from(productsTable).where(eq(productsTable.id, productId));
+    if (!product) { res.status(404).json({ error: "Produit introuvable" }); return; }
+    if (!isAdmin(user.role) && product.sellerId !== user.userId) {
+      res.status(403).json({ error: "Accès refusé" }); return;
+    }
+    if (!["approved", "reserved"].includes(product.status ?? "")) {
+      res.status(400).json({ error: "Seuls les produits disponibles ou réservés peuvent être marqués comme vendus" }); return;
+    }
+    const [updated] = await db
+      .update(productsTable)
+      .set({ status: "sold", soldAt: new Date(), stock: 0 })
+      .where(eq(productsTable.id, productId))
+      .returning();
+    res.json({ data: updated, message: "Produit marqué comme vendu. La transaction est archivée." });
+  } catch (err) {
+    req.log.error(err);
+    res.status(500).json({ error: "Erreur serveur" });
+  }
+});
+
+// ─── GET /sellers/:id/reputation ──────────────────────────────────────────────
+
+router.get("/sellers/:id/reputation", requireAuth, async (req, res) => {
+  const sellerId = String(req.params.id) as string;
+  try {
+    const [[sellerInfo], [ratingData], [salesData]] = await Promise.all([
+      db.select({ name: usersTable.email }).from(usersTable).where(eq(usersTable.id, sellerId)).limit(1),
+      db
+        .select({
+          avgRating: sql<string>`coalesce(avg(${reviewsTable.rating})::numeric(3,1), 0)`,
+          totalReviews: count(),
+        })
+        .from(reviewsTable)
+        .innerJoin(productsTable, eq(reviewsTable.productId, productsTable.id))
+        .where(eq(productsTable.sellerId, sellerId)),
+      db
+        .select({ totalSold: count() })
+        .from(productsTable)
+        .where(and(eq(productsTable.sellerId, sellerId), eq(productsTable.status, "sold"))),
+    ]);
+
+    const totalListings = await db
+      .select({ total: count() })
+      .from(productsTable)
+      .where(eq(productsTable.sellerId, sellerId));
+
+    const avgRating = Number((ratingData as any)?.avgRating ?? 0);
+    const totalReviews = Number((ratingData as any)?.totalReviews ?? 0);
+    const totalSold = Number((salesData as any)?.totalSold ?? 0);
+    const totalListingCount = Number(totalListings[0]?.total ?? 0);
+
+    // Community trust score: weighted from ratings + sold items + review count
+    const trustScore = Math.min(
+      100,
+      Math.round((avgRating / 5) * 50 + Math.min(totalSold * 5, 30) + Math.min(totalReviews * 2, 20)),
+    );
+
+    res.json({
+      data: {
+        sellerId,
+        avgRating: avgRating.toFixed(1),
+        totalReviews,
+        totalSold,
+        totalListings: totalListingCount,
+        trustScore,
+        isVerified: totalSold >= 3 && avgRating >= 3.5,
+      },
+    });
+  } catch (err) {
+    req.log.error(err);
+    res.status(500).json({ error: "Erreur serveur" });
+  }
+});
+
+// ─── GET /stats — admin marketplace dashboard stats ───────────────────────────
+
+router.get(
+  "/stats",
+  requireAuth,
+  requireRole("super_admin", "syndicate_admin"),
+  async (req, res) => {
+    try {
+      const [
+        [{ pending }],
+        [{ approved }],
+        [{ rejected }],
+        [{ reported }],
+        [{ sold }],
+        [{ reserved }],
+        topSellers,
+        mostViewed,
+      ] = await Promise.all([
+        db.select({ pending: count() }).from(productsTable).where(eq(productsTable.status, "pending_review")),
+        db.select({ approved: count() }).from(productsTable).where(eq(productsTable.status, "approved")),
+        db.select({ rejected: count() }).from(productsTable).where(eq(productsTable.status, "rejected")),
+        db
+          .select({ reported: count() })
+          .from(productReportsTable)
+          .where(eq(productReportsTable.status, "pending")),
+        db.select({ sold: count() }).from(productsTable).where(eq(productsTable.status, "sold")),
+        db.select({ reserved: count() }).from(productsTable).where(eq(productsTable.status, "reserved")),
+        db
+          .select({
+            sellerId: productsTable.sellerId,
+            sellerName: productsTable.sellerName,
+            totalSold: count(),
+          })
+          .from(productsTable)
+          .where(eq(productsTable.status, "sold"))
+          .groupBy(productsTable.sellerId, productsTable.sellerName)
+          .orderBy(desc(count()))
+          .limit(5),
+        db
+          .select({ id: productsTable.id, name: productsTable.name, viewCount: productsTable.viewCount, sellerName: productsTable.sellerName })
+          .from(productsTable)
+          .where(eq(productsTable.status, "approved"))
+          .orderBy(desc(productsTable.viewCount))
+          .limit(5),
+      ]);
+
+      res.json({
+        data: {
+          pending: Number(pending),
+          approved: Number(approved),
+          rejected: Number(rejected),
+          reported: Number(reported),
+          sold: Number(sold),
+          reserved: Number(reserved),
+          topSellers,
+          mostViewed,
+        },
+      });
+    } catch (err) {
+      req.log.error(err);
+      res.status(500).json({ error: "Erreur serveur" });
+    }
+  },
+);
+
 // ─── POST /products/:id/report — abuse report ─────────────────────────────────
+
+const REPORT_AUTO_ESCALATE_THRESHOLD = 3;
 
 router.post("/products/:id/report", requireAuth, async (req, res) => {
   const productId = String(req.params.id) as string;
   const schema = z.object({
-    reason: z.enum(["spam", "inappropriate", "fraude", "mauvaise_info", "autre"]),
+    reason: z.enum(["spam", "inappropriate", "fraude", "mauvaise_info", "produit_interdit", "faux_produit", "autre"]),
     details: z.string().max(1000).default(""),
   });
   const result = schema.safeParse(req.body);
@@ -633,6 +930,25 @@ router.post("/products/:id/report", requireAuth, async (req, res) => {
         ...result.data,
       })
       .returning();
+
+    // Auto-escalate: if pending reports reach threshold, send product back to moderation
+    const [{ reportCount }] = await db
+      .select({ reportCount: count() })
+      .from(productReportsTable)
+      .where(and(eq(productReportsTable.productId, productId), eq(productReportsTable.status, "pending")));
+
+    if (Number(reportCount) >= REPORT_AUTO_ESCALATE_THRESHOLD) {
+      await db
+        .update(productsTable)
+        .set({
+          status: "pending_review",
+          moderationNote: `Renvoyé en modération automatiquement — ${reportCount} signalements reçus`,
+          moderatedBy: null,
+          moderatedAt: null,
+        })
+        .where(and(eq(productsTable.id, productId), eq(productsTable.status, "approved")));
+    }
+
     res.status(201).json({ data: report, message: "Signalement envoyé — merci pour votre vigilance" });
   } catch (err) {
     req.log.error(err);
@@ -876,6 +1192,53 @@ router.put(
           .returning();
         res.json({ data: updated, message: "Demande de sponsorisation rejetée" });
       }
+    } catch (err) {
+      req.log.error(err);
+      res.status(500).json({ error: "Erreur serveur" });
+    }
+  },
+);
+
+// ─── GET /products/reported — admin: products with pending reports ─────────────
+
+router.get(
+  "/products/reported",
+  requireAuth,
+  requireRole("super_admin", "syndicate_admin"),
+  async (req, res) => {
+    const q = req.query as Record<string, string>;
+    const { page, limit, offset } = parsePage(q);
+    try {
+      // Products that have at least 1 pending report
+      const reportedIds = await db
+        .selectDistinct({ productId: productReportsTable.productId })
+        .from(productReportsTable)
+        .where(eq(productReportsTable.status, "pending"));
+
+      const ids = reportedIds.map((r) => r.productId).filter(Boolean) as string[];
+      if (!ids.length) {
+        res.json({ data: [], pagination: { page, limit, total: 0, pages: 0 } });
+        return;
+      }
+
+      const [rows, [{ total }]] = await Promise.all([
+        db
+          .select({
+            product: productsTable,
+            reportCount: sql<number>`(select count(*) from product_reports where product_id = ${productsTable.id} and status = 'pending')`,
+          })
+          .from(productsTable)
+          .where(inArray(productsTable.id, ids))
+          .orderBy(desc(productsTable.createdAt))
+          .limit(limit)
+          .offset(offset),
+        db.select({ total: count() }).from(productsTable).where(inArray(productsTable.id, ids)),
+      ]);
+
+      res.json({
+        data: rows.map((r) => ({ ...r.product, reportCount: Number(r.reportCount) })),
+        pagination: { page, limit, total, pages: Math.ceil(total / limit) },
+      });
     } catch (err) {
       req.log.error(err);
       res.status(500).json({ error: "Erreur serveur" });

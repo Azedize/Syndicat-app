@@ -1248,7 +1248,7 @@ export const chatReportsTable = pgTable(
 );
 
 // ─── Marketplace ────────────────────────────────────────────────────────────
-// status: pending_review | approved | rejected | modification_requested | sold_out
+// status: pending_review | approved | rejected | modification_requested | sold_out | reserved | sold
 
 export const productsTable = pgTable(
   "products",
@@ -1257,14 +1257,27 @@ export const productsTable = pgTable(
     name: text("name").notNull(),
     description: text("description").default(""),
     price: money("price").notNull(),
+    originalPrice: money("original_price"),
     category: text("category").notNull(),
     condition: text("condition").default("bon"), // neuf | bon | acceptable | mauvais
+    brand: text("brand"),
+    model: text("model"),
+    purchaseYear: text("purchase_year"),
+    sellingReason: text("selling_reason"),
+    negotiable: boolean("negotiable").default(false),
+    contactPreferences: text("contact_preferences").default('["chat"]'), // JSON array: chat | phone | email
     location: text("location").default(""),
+    building: text("building"),
+    block: text("block"),
+    floor: text("floor"),
     imageUrls: text("image_urls").default("[]"), // JSON array of image URLs
+    videoUrl: text("video_url"),
     stock: integer("stock").default(1),
     syndicateId: text("syndicate_id"),
     sellerId: text("seller_id"),
     sellerName: text("seller_name"),
+    sellerPhone: text("seller_phone"),
+    sellerEmail: text("seller_email"),
     status: text("status").default("pending_review"),
     rejectionReason: text("rejection_reason"),
     moderationNote: text("moderation_note"),
@@ -1275,6 +1288,10 @@ export const productsTable = pgTable(
     boostType: text("boost_type"), // featured | top_search | homepage
     boostExpiresAt: timestamp("boost_expires_at"),
     viewCount: integer("view_count").default(0),
+    reservedBy: text("reserved_by"),
+    reservedByName: text("reserved_by_name"),
+    reservedAt: timestamp("reserved_at"),
+    soldAt: timestamp("sold_at"),
     createdAt: createdAt(),
   },
   (t) => [

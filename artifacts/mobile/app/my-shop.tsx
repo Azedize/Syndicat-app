@@ -13,6 +13,7 @@ import {
   RefreshControl,
   ScrollView,
   StyleSheet,
+  Switch,
   Text,
   TextInput,
   TouchableOpacity,
@@ -23,6 +24,7 @@ import { useAuth } from "@/context/AuthContext";
 import { useLanguage } from "@/context/LanguageContext";
 import { useBreakpoints } from "@/hooks/useBreakpoints";
 import { useColors } from "@/hooks/useColors";
+import { useToast } from "@/context/ToastContext";
 import { marketplace } from "@/services/api";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
@@ -32,17 +34,30 @@ type Product = {
   name: string;
   description: string;
   price: string;
+  originalPrice?: string | null;
   category: string;
   condition: string;
+  brand?: string | null;
+  model?: string | null;
+  purchaseYear?: string | null;
+  sellingReason?: string | null;
+  negotiable?: boolean;
+  contactPreferences?: string;
   location: string;
+  building?: string | null;
+  block?: string | null;
+  floor?: string | null;
   stock: number;
   status: string;
   rejectionReason: string | null;
+  moderationNote?: string | null;
   viewCount: number;
   createdAt: string;
   boosted?: boolean;
   boostType?: string | null;
   boostExpiresAt?: string | null;
+  reservedByName?: string | null;
+  soldAt?: string | null;
 };
 
 type Promotion = {
@@ -62,7 +77,6 @@ const PROMO_TYPES = [
   { value: "homepage", label: "Page d'accueil", ratePerDay: 40 },
 ];
 
-/** Safe French price formatter — never crashes on null/NaN */
 function formatMAD(price: string | number | null | undefined): string {
   const n = Number(price ?? 0);
   if (isNaN(n)) return "0";
@@ -83,6 +97,8 @@ const STATUS_CONFIG: Record<string, { color: string; label: string }> = {
   rejected:               { color: "#ef4444", label: "Rejeté" },
   modification_requested: { color: "#f97316", label: "Modif. requises" },
   sold_out:               { color: "#94a3b8", label: "Épuisé" },
+  reserved:               { color: "#6366f1", label: "Réservé" },
+  sold:                   { color: "#94a3b8", label: "Vendu" },
 };
 
 // ─── Screen ───────────────────────────────────────────────────────────────────
@@ -92,6 +108,7 @@ export default function MyShopScreen() {
   const insets = useSafeAreaInsets();
   const { user, token } = useAuth();
   const { t } = useLanguage();
+  const { showToast } = useToast();
   const { isWide } = useBreakpoints();
   const topPad = isWide ? 0 : (Platform.OS === "web" ? 67 : insets.top);
 
@@ -102,20 +119,31 @@ export default function MyShopScreen() {
   const [saving, setSaving] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [deleting, setDeleting] = useState<string | null>(null);
+  const [markingSold, setMarkingSold] = useState<string | null>(null);
 
-  // Form state
+  // Form state — basic
   const [name, setName] = useState("");
   const [desc, setDesc] = useState("");
   const [price, setPrice] = useState("");
+  const [originalPrice, setOriginalPrice] = useState("");
   const [stock, setStock] = useState("1");
   const [category, setCategory] = useState(CATS[0]!);
   const [condition, setCondition] = useState("bon");
+  const [brand, setBrand] = useState("");
+  const [model, setModel] = useState("");
+  const [purchaseYear, setPurchaseYear] = useState("");
+  const [sellingReason, setSellingReason] = useState("");
+  const [negotiable, setNegotiable] = useState(false);
+  const [contactPrefs, setContactPrefs] = useState<string[]>(["chat"]);
   const [location, setLocation] = useState("");
+  const [building, setBuilding] = useState("");
+  const [block, setBlock] = useState("");
+  const [floor, setFloor] = useState("");
   const [imageLocalUris, setImageLocalUris] = useState<string[]>([]);
   const [imageObjectPaths, setImageObjectPaths] = useState<string[]>([]);
   const [uploadingImages, setUploadingImages] = useState(false);
 
-  // Sponsored-listing request state
+  // Promotions
   const [promotions, setPromotions] = useState<Promotion[]>([]);
   const [sponsorProduct, setSponsorProduct] = useState<Product | null>(null);
   const [sponsorType, setSponsorType] = useState(PROMO_TYPES[0]!.value);
@@ -162,14 +190,40 @@ export default function MyShopScreen() {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
   };
 
+  // ─── Mark as sold ─────────────────────────────────────────────────────
+
+  const handleMarkSold = (id: string, productName: string) => {
+    Alert.alert(
+      "Marquer comme vendu",
+      `Confirmez que "${productName}" a été vendu. La vente sera archivée.`,
+      [
+        { text: "Annuler", style: "cancel" },
+        {
+          text: "Marquer comme vendu",
+          onPress: async () => {
+            setMarkingSold(id);
+            try {
+              await marketplace.markSold(id);
+              Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+              showToast({ type: "success", title: "Vendu !", message: "Votre annonce est maintenant archivée comme vendue." });
+              await fetchListings();
+            } catch (e: any) {
+              Alert.alert("Erreur", e?.message ?? "Impossible de marquer comme vendu");
+            } finally {
+              setMarkingSold(null);
+            }
+          },
+        },
+      ],
+    );
+  };
+
+  // ─── Promotion helpers ────────────────────────────────────────────────
+
   const pickSponsorProof = async () => {
     const perm = await ImagePicker.requestMediaLibraryPermissionsAsync();
     if (!perm.granted) return;
-    const result = await ImagePicker.launchImageLibraryAsync({
-      mediaTypes: ImagePicker.MediaTypeOptions.Images,
-      allowsEditing: false,
-      quality: 0.8,
-    });
+    const result = await ImagePicker.launchImageLibraryAsync({ mediaTypes: ImagePicker.MediaTypeOptions.Images, allowsEditing: false, quality: 0.8 });
     if (result.canceled || !result.assets[0]) return;
     const uri = result.assets[0].uri;
     setSponsorProofLocalUri(uri);
@@ -187,28 +241,14 @@ export default function MyShopScreen() {
   const submitSponsorRequest = async () => {
     if (!sponsorProduct) return;
     const days = parseInt(sponsorDays, 10);
-    if (!days || days < 1 || days > 90) {
-      Alert.alert("Erreur", "La durée doit être comprise entre 1 et 90 jours.");
-      return;
-    }
-    if (!sponsorPaymentMethod.trim()) {
-      Alert.alert("Erreur", "Indiquez le mode de paiement utilisé.");
-      return;
-    }
-    if (!sponsorProofObjectPath) {
-      Alert.alert("Justificatif requis", "Ajoutez une capture ou une photo du paiement effectué.");
-      return;
-    }
+    if (!days || days < 1 || days > 90) { Alert.alert("Erreur", "La durée doit être entre 1 et 90 jours."); return; }
+    if (!sponsorPaymentMethod.trim()) { Alert.alert("Erreur", "Indiquez le mode de paiement utilisé."); return; }
+    if (!sponsorProofObjectPath) { Alert.alert("Justificatif requis", "Ajoutez une capture du paiement effectué."); return; }
     setSubmittingPromo(true);
     try {
-      await marketplace.requestPromotion(sponsorProduct.id, {
-        type: sponsorType,
-        durationDays: days,
-        paymentMethod: sponsorPaymentMethod.trim(),
-        proofUrl: sponsorProofObjectPath,
-      });
+      await marketplace.requestPromotion(sponsorProduct.id, { type: sponsorType, durationDays: days, paymentMethod: sponsorPaymentMethod.trim(), proofUrl: sponsorProofObjectPath });
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-      Alert.alert("Demande envoyée", "Votre demande de sponsorisation est en attente de validation du paiement par l'administration.");
+      Alert.alert("Demande envoyée", "Votre demande de sponsorisation est en attente de validation du paiement.");
       setSponsorProduct(null);
       await fetchListings();
     } catch (e: any) {
@@ -224,35 +264,50 @@ export default function MyShopScreen() {
   // ─── Form helpers ─────────────────────────────────────────────────────
 
   const resetForm = () => {
-    setName(""); setDesc(""); setPrice(""); setStock("1");
-    setCategory(CATS[0]!); setCondition("bon"); setLocation("");
+    setName(""); setDesc(""); setPrice(""); setOriginalPrice(""); setStock("1");
+    setCategory(CATS[0]!); setCondition("bon");
+    setBrand(""); setModel(""); setPurchaseYear(""); setSellingReason("");
+    setNegotiable(false); setContactPrefs(["chat"]);
+    setLocation(""); setBuilding(""); setBlock(""); setFloor("");
     setImageLocalUris([]); setImageObjectPaths([]);
     setEditingId(null);
   };
 
-  const openAdd = () => {
-    resetForm();
-    setShowForm(true);
-    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-  };
+  const openAdd = () => { resetForm(); setShowForm(true); Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); };
 
   const openEdit = (p: Product) => {
     setEditingId(p.id);
     setName(p.name);
     setDesc(p.description);
     setPrice(String(Number(p.price)));
+    setOriginalPrice(p.originalPrice ? String(Number(p.originalPrice)) : "");
     setStock(String(p.stock));
     setCategory(p.category);
     setCondition(p.condition);
+    setBrand(p.brand ?? "");
+    setModel(p.model ?? "");
+    setPurchaseYear(p.purchaseYear ?? "");
+    setSellingReason(p.sellingReason ?? "");
+    setNegotiable(p.negotiable ?? false);
+    try { setContactPrefs(JSON.parse(p.contactPreferences ?? '["chat"]')); } catch { setContactPrefs(["chat"]); }
     setLocation(p.location ?? "");
+    setBuilding(p.building ?? "");
+    setBlock(p.block ?? "");
+    setFloor(p.floor ?? "");
     setImageLocalUris([]); setImageObjectPaths([]);
     setShowForm(true);
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
   };
 
+  const toggleContactPref = (pref: string) => {
+    setContactPrefs((prev) =>
+      prev.includes(pref) ? prev.filter((p) => p !== pref) : [...prev, pref],
+    );
+  };
+
   // ─── Image picker ──────────────────────────────────────────────────────
 
-  const uploadImageUri = async (uri: string, token?: string): Promise<string | null> => {
+  const uploadImageUri = async (uri: string, authToken?: string): Promise<string | null> => {
     const domain = process.env.EXPO_PUBLIC_DOMAIN;
     const baseUrl = domain
       ? `https://${domain}/api`
@@ -267,7 +322,7 @@ export default function MyShopScreen() {
       form.append("file", blob, `product-${Date.now()}.${ext === "png" ? "png" : "jpg"}`);
       const res = await fetch(`${baseUrl}/storage/uploads`, {
         method: "POST",
-        headers: token ? { Authorization: `Bearer ${token}` } : {},
+        headers: authToken ? { Authorization: `Bearer ${authToken}` } : {},
         body: form,
       });
       if (!res.ok) return null;
@@ -277,17 +332,10 @@ export default function MyShopScreen() {
   };
 
   const pickProductImage = async () => {
-    if (imageLocalUris.length >= 5) {
-      Alert.alert("Maximum", "Vous pouvez ajouter au maximum 5 photos.");
-      return;
-    }
+    if (imageLocalUris.length >= 5) { Alert.alert("Maximum", "Vous pouvez ajouter au maximum 5 photos."); return; }
     const perm = await ImagePicker.requestMediaLibraryPermissionsAsync();
     if (!perm.granted) return;
-    const result = await ImagePicker.launchImageLibraryAsync({
-      mediaTypes: ImagePicker.MediaTypeOptions.Images,
-      allowsEditing: true,
-      quality: 0.75,
-    });
+    const result = await ImagePicker.launchImageLibraryAsync({ mediaTypes: ImagePicker.MediaTypeOptions.Images, allowsEditing: true, quality: 0.75 });
     if (result.canceled || !result.assets[0]) return;
     const uri = result.assets[0].uri;
     setImageLocalUris((prev) => [...prev, uri]);
@@ -298,7 +346,6 @@ export default function MyShopScreen() {
     if (objectPath) {
       setImageObjectPaths((prev) => [...prev, objectPath]);
     } else {
-      // Remove the local uri if upload failed
       setImageLocalUris((prev) => prev.filter((u) => u !== uri));
       Alert.alert("Erreur", "Impossible de télécharger l'image. Réessayez.");
     }
@@ -310,31 +357,34 @@ export default function MyShopScreen() {
   };
 
   const handleSave = async () => {
-    if (!name.trim() || !price.trim()) {
-      Alert.alert(t("required"), t("onboardingRequired"));
-      return;
-    }
+    if (!name.trim() || !price.trim()) { Alert.alert("Requis", "Le titre et le prix sont obligatoires."); return; }
     const parsedPrice = parseFloat(price);
-    if (isNaN(parsedPrice) || parsedPrice <= 0) {
-      Alert.alert(t("error"), t("error"));
-      return;
-    }
-    if (uploadingImages) {
-      Alert.alert("Images", "Attendez la fin du téléchargement des images.");
-      return;
-    }
+    if (isNaN(parsedPrice) || parsedPrice <= 0) { Alert.alert("Erreur", "Prix invalide."); return; }
+    if (contactPrefs.length === 0) { Alert.alert("Contact", "Sélectionnez au moins un mode de contact."); return; }
+    if (uploadingImages) { Alert.alert("Images", "Attendez la fin du téléchargement des images."); return; }
     setSaving(true);
     try {
-      const payload = {
+      const payload: Record<string, unknown> = {
         name: name.trim(),
         description: desc.trim(),
         price: parsedPrice,
         stock: parseInt(stock) || 1,
         category,
         condition,
+        contactPreferences: contactPrefs,
         location: location.trim(),
         imageUrls: imageObjectPaths,
+        negotiable,
       };
+      if (originalPrice.trim()) payload.originalPrice = parseFloat(originalPrice);
+      if (brand.trim()) payload.brand = brand.trim();
+      if (model.trim()) payload.model = model.trim();
+      if (purchaseYear.trim()) payload.purchaseYear = purchaseYear.trim();
+      if (sellingReason.trim()) payload.sellingReason = sellingReason.trim();
+      if (building.trim()) payload.building = building.trim();
+      if (block.trim()) payload.block = block.trim();
+      if (floor.trim()) payload.floor = floor.trim();
+
       if (editingId) {
         await marketplace.updateProduct(editingId, payload);
       } else {
@@ -345,17 +395,17 @@ export default function MyShopScreen() {
       resetForm();
       await fetchListings();
     } catch (e: any) {
-      Alert.alert(t("error"), e?.message ?? t("error"));
+      Alert.alert("Erreur", e?.message ?? "Erreur lors de la sauvegarde");
     } finally {
       setSaving(false);
     }
   };
 
   const handleDelete = (id: string, productName: string) => {
-    Alert.alert(t("delete"), `${t("delete")} "${productName}" ?`, [
-      { text: t("cancel"), style: "cancel" },
+    Alert.alert("Supprimer", `Supprimer "${productName}" ?`, [
+      { text: "Annuler", style: "cancel" },
       {
-        text: t("delete"),
+        text: "Supprimer",
         style: "destructive",
         onPress: async () => {
           setDeleting(id);
@@ -364,7 +414,7 @@ export default function MyShopScreen() {
             setProducts((prev) => prev.filter((p) => p.id !== id));
             Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
           } catch {
-            Alert.alert(t("error"), t("error"));
+            Alert.alert("Erreur", "Impossible de supprimer");
           } finally {
             setDeleting(null);
           }
@@ -376,12 +426,14 @@ export default function MyShopScreen() {
   // ─── Stats ────────────────────────────────────────────────────────────
 
   const approved = products.filter((p) => p.status === "approved");
+  const reserved = products.filter((p) => p.status === "reserved");
+  const sold = products.filter((p) => p.status === "sold");
   const totalViews = products.reduce((s, p) => s + (p.viewCount ?? 0), 0);
 
   // ─── Render ───────────────────────────────────────────────────────────
 
   const PROMO_STATUS_CONFIG: Record<string, { color: string; label: string }> = {
-    pending_payment: { color: "#f59e0b", label: "Sponsorisation en attente de validation" },
+    pending_payment: { color: "#f59e0b", label: "Sponsorisation en attente" },
     active:          { color: "#8b5cf6", label: "Sponsorisé" },
     rejected:        { color: "#ef4444", label: "Sponsorisation rejetée" },
   };
@@ -390,16 +442,17 @@ export default function MyShopScreen() {
     const sc = STATUS_CONFIG[p.status] ?? { color: colors.mutedForeground, label: p.status };
     const promo = latestPromoForProduct(p.id);
     const promoSc = promo ? PROMO_STATUS_CONFIG[promo.status] : undefined;
+    const canSell = ["approved", "reserved"].includes(p.status);
     return (
       <View style={[styles.productCard, { backgroundColor: colors.card, borderColor: colors.border }]}>
         <View style={styles.cardTop}>
           <View style={{ flex: 1 }}>
             <Text style={[styles.productName, { color: colors.foreground }]}>{p.name}</Text>
-            <Text style={[styles.productPrice, { color: colors.primary }]}>
-              {formatMAD(p.price)} MAD
-            </Text>
+            <Text style={[styles.productPrice, { color: colors.primary }]}>{formatMAD(p.price)} MAD</Text>
             <Text style={[styles.productMeta, { color: colors.mutedForeground }]}>
-              {p.category} · Stock: {p.stock} · {p.viewCount ?? 0} vue(s)
+              {p.category} · {p.viewCount ?? 0} vue(s)
+              {p.status === "reserved" ? ` · Réservé par ${p.reservedByName ?? "un résident"}` : ""}
+              {p.status === "sold" && p.soldAt ? ` · Vendu le ${new Date(p.soldAt).toLocaleDateString("fr-MA")}` : ""}
             </Text>
           </View>
           <View style={[styles.statusPill, { backgroundColor: sc.color + "20" }]}>
@@ -426,43 +479,48 @@ export default function MyShopScreen() {
         )}
 
         <View style={styles.cardActions}>
-          <TouchableOpacity
-            style={[styles.actionBtn, { backgroundColor: colors.primary + "12" }]}
-            onPress={() => openEdit(p)}
-          >
-            <Feather name="edit-2" size={14} color={colors.primary} />
-            <Text style={[styles.actionBtnText, { color: colors.primary }]}>{t("edit")}</Text>
-          </TouchableOpacity>
-          <TouchableOpacity
-            style={[styles.actionBtn, { backgroundColor: colors.secondary }]}
-            onPress={() => { router.push({ pathname: "/product-detail", params: { id: p.id } } as any); }}
-          >
+          {p.status !== "sold" && (
+            <TouchableOpacity style={[styles.actionBtn, { backgroundColor: colors.primary + "12" }]} onPress={() => openEdit(p)}>
+              <Feather name="edit-2" size={14} color={colors.primary} />
+              <Text style={[styles.actionBtnText, { color: colors.primary }]}>{t("edit")}</Text>
+            </TouchableOpacity>
+          )}
+          <TouchableOpacity style={[styles.actionBtn, { backgroundColor: colors.secondary }]} onPress={() => { router.push({ pathname: "/product-detail", params: { id: p.id } } as any); }}>
             <Feather name="eye" size={14} color={colors.foreground} />
-            <Text style={[styles.actionBtnText, { color: colors.foreground }]}>{t("viewDetails")}</Text>
+            <Text style={[styles.actionBtnText, { color: colors.foreground }]}>Voir</Text>
           </TouchableOpacity>
-          {p.status === "approved" && promo?.status !== "pending_payment" && promo?.status !== "active" && (
+          {canSell && (
             <TouchableOpacity
-              style={[styles.actionBtn, { backgroundColor: "#8b5cf612" }]}
-              onPress={() => openSponsor(p)}
+              style={[styles.actionBtn, { backgroundColor: colors.success + "12" }]}
+              onPress={() => handleMarkSold(p.id, p.name)}
+              disabled={markingSold === p.id}
             >
+              {markingSold === p.id ? (
+                <ActivityIndicator size="small" color={colors.success} />
+              ) : (
+                <>
+                  <Feather name="check-circle" size={14} color={colors.success} />
+                  <Text style={[styles.actionBtnText, { color: colors.success }]}>Vendu</Text>
+                </>
+              )}
+            </TouchableOpacity>
+          )}
+          {p.status === "approved" && promo?.status !== "pending_payment" && promo?.status !== "active" && (
+            <TouchableOpacity style={[styles.actionBtn, { backgroundColor: "#8b5cf612" }]} onPress={() => openSponsor(p)}>
               <Feather name="zap" size={14} color="#8b5cf6" />
               <Text style={[styles.actionBtnText, { color: "#8b5cf6" }]}>Sponsoriser</Text>
             </TouchableOpacity>
           )}
-          <TouchableOpacity
-            style={[styles.actionBtn, { backgroundColor: colors.destructive + "12" }]}
-            onPress={() => handleDelete(p.id, p.name)}
-            disabled={deleting === p.id}
-          >
-            {deleting === p.id ? (
-              <ActivityIndicator size="small" color={colors.destructive} />
-            ) : (
-              <>
-                <Feather name="trash-2" size={14} color={colors.destructive} />
-                <Text style={[styles.actionBtnText, { color: colors.destructive }]}>{t("delete")}</Text>
-              </>
-            )}
-          </TouchableOpacity>
+          {p.status !== "sold" && (
+            <TouchableOpacity style={[styles.actionBtn, { backgroundColor: colors.destructive + "12" }]} onPress={() => handleDelete(p.id, p.name)} disabled={deleting === p.id}>
+              {deleting === p.id ? <ActivityIndicator size="small" color={colors.destructive} /> : (
+                <>
+                  <Feather name="trash-2" size={14} color={colors.destructive} />
+                  <Text style={[styles.actionBtnText, { color: colors.destructive }]}>Supprimer</Text>
+                </>
+              )}
+            </TouchableOpacity>
+          )}
         </View>
       </View>
     );
@@ -479,13 +537,10 @@ export default function MyShopScreen() {
           <View style={{ flex: 1, marginStart: 10 }}>
             <Text style={[styles.title, { color: colors.foreground }]}>{t("myShop")}</Text>
             <Text style={[styles.subtitle, { color: colors.mutedForeground }]}>
-              {approved.length} produit{approved.length !== 1 ? "s" : ""} publié{approved.length !== 1 ? "s" : ""}
+              {approved.length} publié{approved.length !== 1 ? "s" : ""} · {reserved.length} réservé{reserved.length !== 1 ? "s" : ""}
             </Text>
           </View>
-          <TouchableOpacity
-            style={[styles.addBtn, { backgroundColor: colors.primary }]}
-            onPress={openAdd}
-          >
+          <TouchableOpacity style={[styles.addBtn, { backgroundColor: colors.primary }]} onPress={openAdd}>
             <Feather name="plus" size={18} color="#fff" />
             <Text style={styles.addBtnText}>{t("add")}</Text>
           </TouchableOpacity>
@@ -494,9 +549,11 @@ export default function MyShopScreen() {
         {/* Stats */}
         <View style={styles.statsRow}>
           {[
-            { label: "Total annonces", value: products.length },
+            { label: "Total", value: products.length },
             { label: "Publiés", value: approved.length },
-            { label: "Total vues", value: totalViews },
+            { label: "Réservés", value: reserved.length },
+            { label: "Vendus", value: sold.length },
+            { label: "Vues", value: totalViews },
           ].map((s) => (
             <View key={s.label} style={[styles.statBox, { backgroundColor: colors.background, borderColor: colors.border }]}>
               <Text style={[styles.statValue, { color: colors.primary }]}>{s.value}</Text>
@@ -508,9 +565,7 @@ export default function MyShopScreen() {
 
       {/* List */}
       {loading ? (
-        <View style={styles.centered}>
-          <ActivityIndicator size="large" color={colors.primary} />
-        </View>
+        <View style={styles.centered}><ActivityIndicator size="large" color={colors.primary} /></View>
       ) : (
         <FlatList
           data={products}
@@ -523,9 +578,7 @@ export default function MyShopScreen() {
             <View style={styles.empty}>
               <Feather name="package" size={48} color={colors.mutedForeground} />
               <Text style={[styles.emptyTitle, { color: colors.foreground }]}>{t("noProducts")}</Text>
-              <Text style={[styles.emptySub, { color: colors.mutedForeground }]}>
-                Publiez votre premier produit et touchez tous les résidents de la plateforme.
-              </Text>
+              <Text style={[styles.emptySub, { color: colors.mutedForeground }]}>Publiez votre premier produit et touchez tous les résidents de la plateforme.</Text>
               <TouchableOpacity style={[styles.emptyAction, { backgroundColor: colors.primary }]} onPress={openAdd}>
                 <Feather name="plus" size={16} color="#fff" />
                 <Text style={styles.emptyActionText}>{t("newPublication")}</Text>
@@ -542,66 +595,26 @@ export default function MyShopScreen() {
             <TouchableOpacity onPress={() => { setShowForm(false); resetForm(); }}>
               <Feather name="x" size={22} color={colors.foreground} />
             </TouchableOpacity>
-            <Text style={[styles.modalTitle, { color: colors.foreground }]}>
-              {editingId ? t("edit") : t("newPublication")}
-            </Text>
-            <TouchableOpacity
-              style={[styles.saveBtn, { backgroundColor: saving ? colors.secondary : colors.primary }]}
-              onPress={handleSave}
-              disabled={saving}
-            >
+            <Text style={[styles.modalTitle, { color: colors.foreground }]}>{editingId ? t("edit") : t("newPublication")}</Text>
+            <TouchableOpacity style={[styles.saveBtn, { backgroundColor: saving ? colors.secondary : colors.primary }]} onPress={handleSave} disabled={saving}>
               {saving ? <ActivityIndicator size="small" color="#fff" /> : <Text style={styles.saveBtnText}>{t("save")}</Text>}
             </TouchableOpacity>
           </View>
 
           <ScrollView contentContainerStyle={styles.modalBody} showsVerticalScrollIndicator={false}>
-            {/* Name */}
-            <Text style={[styles.fieldLabel, { color: colors.foreground }]}>Titre de l'annonce *</Text>
-            <TextInput
-              style={[styles.input, { borderColor: colors.border, color: colors.foreground, backgroundColor: colors.card }]}
-              placeholder="Ex : Machine à laver Samsung 8kg"
-              placeholderTextColor={colors.mutedForeground}
-              value={name}
-              onChangeText={setName}
-              maxLength={200}
-            />
 
-            {/* Price + Stock */}
-            <View style={styles.rowFields}>
-              <View style={{ flex: 1 }}>
-                <Text style={[styles.fieldLabel, { color: colors.foreground }]}>Prix (MAD) *</Text>
-                <TextInput
-                  style={[styles.input, { borderColor: colors.border, color: colors.foreground, backgroundColor: colors.card }]}
-                  placeholder="500"
-                  placeholderTextColor={colors.mutedForeground}
-                  value={price}
-                  onChangeText={setPrice}
-                  keyboardType="numeric"
-                />
-              </View>
-              <View style={{ flex: 1 }}>
-                <Text style={[styles.fieldLabel, { color: colors.foreground }]}>Stock</Text>
-                <TextInput
-                  style={[styles.input, { borderColor: colors.border, color: colors.foreground, backgroundColor: colors.card }]}
-                  placeholder="1"
-                  placeholderTextColor={colors.mutedForeground}
-                  value={stock}
-                  onChangeText={setStock}
-                  keyboardType="numeric"
-                />
-              </View>
-            </View>
+            {/* ── Section: Produit ──────────────────────────────── */}
+            <Text style={[styles.sectionLabel, { color: colors.primary }]}>INFORMATIONS DU PRODUIT</Text>
+
+            <Text style={[styles.fieldLabel, { color: colors.foreground }]}>Titre de l'annonce *</Text>
+            <TextInput style={[styles.input, { borderColor: colors.border, color: colors.foreground, backgroundColor: colors.card }]} placeholder="Ex : Machine à laver Samsung 8kg" placeholderTextColor={colors.mutedForeground} value={name} onChangeText={setName} maxLength={200} />
 
             {/* Category */}
-            <Text style={[styles.fieldLabel, { color: colors.foreground }]}>Catégorie</Text>
+            <Text style={[styles.fieldLabel, { color: colors.foreground }]}>Catégorie *</Text>
             <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ marginBottom: 12 }}>
               <View style={{ flexDirection: "row", gap: 8 }}>
                 {CATS.map((c) => (
-                  <TouchableOpacity
-                    key={c}
-                    style={[styles.chip, { borderColor: colors.border, backgroundColor: category === c ? colors.primary : colors.card }]}
-                    onPress={() => setCategory(c)}
-                  >
+                  <TouchableOpacity key={c} style={[styles.chip, { borderColor: colors.border, backgroundColor: category === c ? colors.primary : colors.card }]} onPress={() => setCategory(c)}>
                     <Text style={[styles.chipText, { color: category === c ? "#fff" : colors.foreground }]}>{c}</Text>
                   </TouchableOpacity>
                 ))}
@@ -609,75 +622,107 @@ export default function MyShopScreen() {
             </ScrollView>
 
             {/* Condition */}
-            <Text style={[styles.fieldLabel, { color: colors.foreground }]}>État</Text>
+            <Text style={[styles.fieldLabel, { color: colors.foreground }]}>État *</Text>
             <View style={styles.conditionRow}>
               {CONDITIONS.map((c) => (
-                <TouchableOpacity
-                  key={c.value}
-                  style={[
-                    styles.conditionChip,
-                    { borderColor: condition === c.value ? colors.primary : colors.border },
-                    condition === c.value && { backgroundColor: colors.primary + "15" },
-                  ]}
-                  onPress={() => setCondition(c.value)}
-                >
-                  <Text style={[styles.conditionChipText, { color: condition === c.value ? colors.primary : colors.foreground }]}>
-                    {c.label}
-                  </Text>
+                <TouchableOpacity key={c.value} style={[styles.conditionChip, { borderColor: condition === c.value ? colors.primary : colors.border }, condition === c.value && { backgroundColor: colors.primary + "15" }]} onPress={() => setCondition(c.value)}>
+                  <Text style={[styles.conditionChipText, { color: condition === c.value ? colors.primary : colors.foreground }]}>{c.label}</Text>
                 </TouchableOpacity>
               ))}
             </View>
 
-            {/* Location */}
-            <Text style={[styles.fieldLabel, { color: colors.foreground }]}>Localisation</Text>
-            <TextInput
-              style={[styles.input, { borderColor: colors.border, color: colors.foreground, backgroundColor: colors.card }]}
-              placeholder="Ex : Hay Riad, Rabat"
-              placeholderTextColor={colors.mutedForeground}
-              value={location}
-              onChangeText={setLocation}
-              maxLength={200}
-            />
+            {/* Brand / Model / Year */}
+            <View style={styles.rowFields}>
+              <View style={{ flex: 1 }}>
+                <Text style={[styles.fieldLabel, { color: colors.foreground }]}>Marque</Text>
+                <TextInput style={[styles.input, { borderColor: colors.border, color: colors.foreground, backgroundColor: colors.card }]} placeholder="Samsung" placeholderTextColor={colors.mutedForeground} value={brand} onChangeText={setBrand} maxLength={100} />
+              </View>
+              <View style={{ flex: 1 }}>
+                <Text style={[styles.fieldLabel, { color: colors.foreground }]}>Modèle</Text>
+                <TextInput style={[styles.input, { borderColor: colors.border, color: colors.foreground, backgroundColor: colors.card }]} placeholder="WW70T4020EX" placeholderTextColor={colors.mutedForeground} value={model} onChangeText={setModel} maxLength={100} />
+              </View>
+            </View>
 
-            {/* Description */}
-            <Text style={[styles.fieldLabel, { color: colors.foreground }]}>{t("descriptionLabel")}</Text>
-            <TextInput
-              style={[styles.textarea, { borderColor: colors.border, color: colors.foreground, backgroundColor: colors.card }]}
-              placeholder="Décrivez votre produit : état, caractéristiques, raison de la vente..."
-              placeholderTextColor={colors.mutedForeground}
-              value={desc}
-              onChangeText={setDesc}
-              multiline
-              maxLength={2000}
-              textAlignVertical="top"
-            />
+            <Text style={[styles.fieldLabel, { color: colors.foreground }]}>Année d'achat</Text>
+            <TextInput style={[styles.input, { borderColor: colors.border, color: colors.foreground, backgroundColor: colors.card }]} placeholder="2021" placeholderTextColor={colors.mutedForeground} value={purchaseYear} onChangeText={setPurchaseYear} keyboardType="numeric" maxLength={4} />
 
-            {/* Photos */}
-            <Text style={[styles.fieldLabel, { color: colors.foreground }]}>Photos (optionnel, max 5)</Text>
+            <Text style={[styles.fieldLabel, { color: colors.foreground }]}>Description</Text>
+            <TextInput style={[styles.textarea, { borderColor: colors.border, color: colors.foreground, backgroundColor: colors.card }]} placeholder="Décrivez votre produit : état, caractéristiques, historique d'utilisation..." placeholderTextColor={colors.mutedForeground} value={desc} onChangeText={setDesc} multiline maxLength={2000} textAlignVertical="top" />
+
+            <Text style={[styles.fieldLabel, { color: colors.foreground }]}>Raison de la vente</Text>
+            <TextInput style={[styles.input, { borderColor: colors.border, color: colors.foreground, backgroundColor: colors.card }]} placeholder="Upgrade, déménagement, n'utilise plus..." placeholderTextColor={colors.mutedForeground} value={sellingReason} onChangeText={setSellingReason} maxLength={500} />
+
+            {/* ── Section: Prix ─────────────────────────────────── */}
+            <Text style={[styles.sectionLabel, { color: colors.primary }]}>PRIX</Text>
+
+            <View style={styles.rowFields}>
+              <View style={{ flex: 1 }}>
+                <Text style={[styles.fieldLabel, { color: colors.foreground }]}>Prix de vente (MAD) *</Text>
+                <TextInput style={[styles.input, { borderColor: colors.border, color: colors.foreground, backgroundColor: colors.card }]} placeholder="500" placeholderTextColor={colors.mutedForeground} value={price} onChangeText={setPrice} keyboardType="numeric" />
+              </View>
+              <View style={{ flex: 1 }}>
+                <Text style={[styles.fieldLabel, { color: colors.foreground }]}>Prix original (MAD)</Text>
+                <TextInput style={[styles.input, { borderColor: colors.border, color: colors.foreground, backgroundColor: colors.card }]} placeholder="800" placeholderTextColor={colors.mutedForeground} value={originalPrice} onChangeText={setOriginalPrice} keyboardType="numeric" />
+              </View>
+            </View>
+
+            <View style={[styles.switchRow, { borderColor: colors.border }]}>
+              <View>
+                <Text style={[styles.switchLabel, { color: colors.foreground }]}>Prix négociable</Text>
+                <Text style={[styles.switchSub, { color: colors.mutedForeground }]}>Autorisez les acheteurs à vous faire une offre</Text>
+              </View>
+              <Switch value={negotiable} onValueChange={setNegotiable} trackColor={{ true: colors.primary }} />
+            </View>
+
+            {/* ── Section: Localisation ─────────────────────────── */}
+            <Text style={[styles.sectionLabel, { color: colors.primary }]}>LOCALISATION</Text>
+
+            <View style={styles.rowFields}>
+              <View style={{ flex: 1 }}>
+                <Text style={[styles.fieldLabel, { color: colors.foreground }]}>Bâtiment</Text>
+                <TextInput style={[styles.input, { borderColor: colors.border, color: colors.foreground, backgroundColor: colors.card }]} placeholder="Bâtiment A" placeholderTextColor={colors.mutedForeground} value={building} onChangeText={setBuilding} maxLength={100} />
+              </View>
+              <View style={{ flex: 1 }}>
+                <Text style={[styles.fieldLabel, { color: colors.foreground }]}>Bloc</Text>
+                <TextInput style={[styles.input, { borderColor: colors.border, color: colors.foreground, backgroundColor: colors.card }]} placeholder="Bloc 2" placeholderTextColor={colors.mutedForeground} value={block} onChangeText={setBlock} maxLength={100} />
+              </View>
+              <View style={{ flex: 1 }}>
+                <Text style={[styles.fieldLabel, { color: colors.foreground }]}>Étage</Text>
+                <TextInput style={[styles.input, { borderColor: colors.border, color: colors.foreground, backgroundColor: colors.card }]} placeholder="3" placeholderTextColor={colors.mutedForeground} value={floor} onChangeText={setFloor} maxLength={20} keyboardType="numeric" />
+              </View>
+            </View>
+
+            <Text style={[styles.fieldLabel, { color: colors.foreground }]}>Adresse (optionnel)</Text>
+            <TextInput style={[styles.input, { borderColor: colors.border, color: colors.foreground, backgroundColor: colors.card }]} placeholder="Hay Riad, Rabat" placeholderTextColor={colors.mutedForeground} value={location} onChangeText={setLocation} maxLength={200} />
+
+            {/* ── Section: Contact ──────────────────────────────── */}
+            <Text style={[styles.sectionLabel, { color: colors.primary }]}>MODES DE CONTACT</Text>
+
+            {[{ key: "chat", label: "Messagerie interne", icon: "message-circle" as const }, { key: "phone", label: "Téléphone", icon: "phone" as const }, { key: "email", label: "Email", icon: "mail" as const }].map((opt) => (
+              <TouchableOpacity key={opt.key} style={[styles.contactRow, { borderColor: contactPrefs.includes(opt.key) ? colors.primary : colors.border, backgroundColor: contactPrefs.includes(opt.key) ? colors.primary + "10" : colors.card }]} onPress={() => toggleContactPref(opt.key)}>
+                <Feather name={opt.icon} size={16} color={contactPrefs.includes(opt.key) ? colors.primary : colors.mutedForeground} />
+                <Text style={[styles.contactLabel, { color: contactPrefs.includes(opt.key) ? colors.primary : colors.foreground }]}>{opt.label}</Text>
+                {contactPrefs.includes(opt.key) && <Feather name="check" size={16} color={colors.primary} style={{ marginStart: "auto" }} />}
+              </TouchableOpacity>
+            ))}
+
+            {/* ── Section: Photos ───────────────────────────────── */}
+            <Text style={[styles.sectionLabel, { color: colors.primary }]}>PHOTOS (max 5)</Text>
+
             <View style={{ flexDirection: "row", flexWrap: "wrap", gap: 8 }}>
               {imageLocalUris.map((uri, idx) => (
                 <View key={uri} style={{ position: "relative" }}>
-                  <Image
-                    source={{ uri }}
-                    style={{ width: 76, height: 76, borderRadius: 10, resizeMode: "cover" }}
-                  />
-                  <TouchableOpacity
-                    style={{ position: "absolute", top: -6, right: -6, backgroundColor: "#ef4444", borderRadius: 10, width: 20, height: 20, alignItems: "center", justifyContent: "center" }}
-                    onPress={() => removeImage(idx)}
-                  >
+                  <Image source={{ uri }} style={{ width: 76, height: 76, borderRadius: 10, resizeMode: "cover" }} />
+                  <TouchableOpacity style={{ position: "absolute", top: -6, right: -6, backgroundColor: "#ef4444", borderRadius: 10, width: 20, height: 20, alignItems: "center", justifyContent: "center" }} onPress={() => removeImage(idx)}>
                     <Feather name="x" size={12} color="#fff" />
                   </TouchableOpacity>
                 </View>
               ))}
               {imageLocalUris.length < 5 && (
-                <TouchableOpacity
-                  style={{ width: 76, height: 76, borderRadius: 10, borderWidth: 1.5, borderStyle: "dashed", borderColor: colors.border, alignItems: "center", justifyContent: "center", gap: 4 }}
-                  onPress={pickProductImage}
-                  disabled={uploadingImages}
-                >
+                <TouchableOpacity style={{ width: 76, height: 76, borderRadius: 10, borderWidth: 1.5, borderStyle: "dashed", borderColor: colors.border, alignItems: "center", justifyContent: "center", gap: 4 }} onPress={pickProductImage} disabled={uploadingImages}>
                   {uploadingImages
                     ? <ActivityIndicator size="small" color={colors.primary} />
-                    : <><Feather name="camera" size={20} color={colors.mutedForeground} /><Text style={{ fontSize: 10, color: colors.mutedForeground, fontFamily: "Inter_400Regular" }}>Ajouter</Text></>}
+                    : <><Feather name="camera" size={20} color={colors.mutedForeground} /><Text style={{ fontSize: 10, color: colors.mutedForeground }}>Ajouter</Text></>}
                 </TouchableOpacity>
               )}
             </View>
@@ -685,9 +730,7 @@ export default function MyShopScreen() {
             {!editingId && (
               <View style={[styles.infoBox, { backgroundColor: colors.primary + "10", borderColor: colors.primary + "30" }]}>
                 <Feather name="info" size={14} color={colors.primary} />
-                <Text style={[styles.infoText, { color: colors.primary }]}>
-                  Votre annonce sera soumise à validation avant d'être publiée sur le marketplace.
-                </Text>
+                <Text style={[styles.infoText, { color: colors.primary }]}>Votre annonce sera soumise à validation avant d'être publiée sur le marketplace.</Text>
               </View>
             )}
           </ScrollView>
@@ -702,11 +745,7 @@ export default function MyShopScreen() {
               <Feather name="x" size={22} color={colors.foreground} />
             </TouchableOpacity>
             <Text style={[styles.modalTitle, { color: colors.foreground }]}>Sponsoriser l'annonce</Text>
-            <TouchableOpacity
-              style={[styles.saveBtn, { backgroundColor: "#8b5cf6" }, (submittingPromo || uploadingProof) && { opacity: 0.6 }]}
-              onPress={submitSponsorRequest}
-              disabled={submittingPromo || uploadingProof}
-            >
+            <TouchableOpacity style={[styles.saveBtn, { backgroundColor: "#8b5cf6" }, (submittingPromo || uploadingProof) && { opacity: 0.6 }]} onPress={submitSponsorRequest} disabled={submittingPromo || uploadingProof}>
               {submittingPromo ? <ActivityIndicator size="small" color="#fff" /> : <Text style={styles.saveBtnText}>Envoyer</Text>}
             </TouchableOpacity>
           </View>
@@ -714,53 +753,28 @@ export default function MyShopScreen() {
           <ScrollView contentContainerStyle={styles.modalBody}>
             <Text style={[styles.fieldLabel, { color: colors.foreground, marginTop: 0 }]}>{sponsorProduct?.name}</Text>
             <Text style={{ fontSize: 12, color: colors.mutedForeground, marginBottom: 8 }}>
-              Choisissez le type de mise en avant, réglez le montant par le mode de paiement indiqué, puis téléchargez le justificatif. Votre annonce sera sponsorisée dès validation par l'administration.
+              Choisissez le type de mise en avant, réglez le montant, puis téléchargez le justificatif. Votre annonce sera sponsorisée dès validation par l'administration.
             </Text>
 
             <Text style={[styles.fieldLabel, { color: colors.foreground }]}>Type de sponsorisation</Text>
             <View style={styles.conditionRow}>
               {PROMO_TYPES.map((pt) => (
-                <TouchableOpacity
-                  key={pt.value}
-                  style={[
-                    styles.conditionChip,
-                    { borderColor: sponsorType === pt.value ? "#8b5cf6" : colors.border },
-                    sponsorType === pt.value && { backgroundColor: "#8b5cf615" },
-                  ]}
-                  onPress={() => setSponsorType(pt.value)}
-                >
-                  <Text style={[styles.conditionChipText, { color: sponsorType === pt.value ? "#8b5cf6" : colors.foreground }]}>
-                    {pt.label} · {pt.ratePerDay} MAD/j
-                  </Text>
+                <TouchableOpacity key={pt.value} style={[styles.conditionChip, { borderColor: sponsorType === pt.value ? "#8b5cf6" : colors.border }, sponsorType === pt.value && { backgroundColor: "#8b5cf615" }]} onPress={() => setSponsorType(pt.value)}>
+                  <Text style={[styles.conditionChipText, { color: sponsorType === pt.value ? "#8b5cf6" : colors.foreground }]}>{pt.label} · {pt.ratePerDay} MAD/j</Text>
                 </TouchableOpacity>
               ))}
             </View>
 
             <Text style={[styles.fieldLabel, { color: colors.foreground }]}>Durée (jours)</Text>
-            <TextInput
-              style={[styles.input, { borderColor: colors.border, color: colors.foreground, backgroundColor: colors.card }]}
-              keyboardType="number-pad"
-              value={sponsorDays}
-              onChangeText={setSponsorDays}
-              maxLength={2}
-            />
+            <TextInput style={[styles.input, { borderColor: colors.border, color: colors.foreground, backgroundColor: colors.card }]} keyboardType="number-pad" value={sponsorDays} onChangeText={setSponsorDays} maxLength={2} />
 
             <View style={[styles.infoBox, { backgroundColor: "#8b5cf610", borderColor: "#8b5cf630" }]}>
               <Feather name="tag" size={14} color="#8b5cf6" />
-              <Text style={[styles.infoText, { color: "#8b5cf6" }]}>
-                Montant à régler : {sponsorEstimatedAmount} MAD
-              </Text>
+              <Text style={[styles.infoText, { color: "#8b5cf6" }]}>Montant à régler : {sponsorEstimatedAmount} MAD</Text>
             </View>
 
             <Text style={[styles.fieldLabel, { color: colors.foreground }]}>Mode de paiement</Text>
-            <TextInput
-              style={[styles.input, { borderColor: colors.border, color: colors.foreground, backgroundColor: colors.card }]}
-              placeholder="Ex : Virement bancaire, espèces à l'accueil..."
-              placeholderTextColor={colors.mutedForeground}
-              value={sponsorPaymentMethod}
-              onChangeText={setSponsorPaymentMethod}
-              maxLength={200}
-            />
+            <TextInput style={[styles.input, { borderColor: colors.border, color: colors.foreground, backgroundColor: colors.card }]} placeholder="Ex : Virement bancaire, espèces à l'accueil..." placeholderTextColor={colors.mutedForeground} value={sponsorPaymentMethod} onChangeText={setSponsorPaymentMethod} maxLength={200} />
 
             <Text style={[styles.fieldLabel, { color: colors.foreground }]}>Justificatif de paiement</Text>
             {sponsorProofLocalUri ? (
@@ -771,20 +785,14 @@ export default function MyShopScreen() {
                     <ActivityIndicator size="small" color="#fff" />
                   </View>
                 )}
-                <TouchableOpacity
-                  style={{ position: "absolute", top: -6, right: -6, backgroundColor: "#ef4444", borderRadius: 10, width: 20, height: 20, alignItems: "center", justifyContent: "center" }}
-                  onPress={() => { setSponsorProofLocalUri(null); setSponsorProofObjectPath(null); }}
-                >
+                <TouchableOpacity style={{ position: "absolute", top: -6, right: -6, backgroundColor: "#ef4444", borderRadius: 10, width: 20, height: 20, alignItems: "center", justifyContent: "center" }} onPress={() => { setSponsorProofLocalUri(null); setSponsorProofObjectPath(null); }}>
                   <Feather name="x" size={12} color="#fff" />
                 </TouchableOpacity>
               </View>
             ) : (
-              <TouchableOpacity
-                style={{ width: 100, height: 100, borderRadius: 10, borderWidth: 1.5, borderStyle: "dashed", borderColor: colors.border, alignItems: "center", justifyContent: "center", gap: 4 }}
-                onPress={pickSponsorProof}
-              >
+              <TouchableOpacity style={{ width: 100, height: 100, borderRadius: 10, borderWidth: 1.5, borderStyle: "dashed", borderColor: colors.border, alignItems: "center", justifyContent: "center", gap: 4 }} onPress={pickSponsorProof}>
                 <Feather name="upload" size={20} color={colors.mutedForeground} />
-                <Text style={{ fontSize: 10, color: colors.mutedForeground, fontFamily: "Inter_400Regular" }}>Ajouter</Text>
+                <Text style={{ fontSize: 10, color: colors.mutedForeground }}>Ajouter</Text>
               </TouchableOpacity>
             )}
           </ScrollView>
@@ -804,10 +812,10 @@ const styles = StyleSheet.create({
   subtitle: { fontSize: 12, marginTop: 1 },
   addBtn: { flexDirection: "row", alignItems: "center", gap: 5, paddingHorizontal: 14, paddingVertical: 8, borderRadius: 20 },
   addBtnText: { color: "#fff", fontWeight: "700", fontSize: 13 },
-  statsRow: { flexDirection: "row", gap: 8 },
-  statBox: { flex: 1, borderRadius: 10, borderWidth: 1, padding: 10, alignItems: "center" },
-  statValue: { fontSize: 18, fontWeight: "800" },
-  statLabel: { fontSize: 10, marginTop: 2, textAlign: "center" },
+  statsRow: { flexDirection: "row", gap: 6 },
+  statBox: { flex: 1, borderRadius: 8, borderWidth: 1, padding: 8, alignItems: "center" },
+  statValue: { fontSize: 16, fontWeight: "800" },
+  statLabel: { fontSize: 9, marginTop: 1, textAlign: "center" },
   list: { padding: 12, gap: 12 },
   centered: { flex: 1, alignItems: "center", justifyContent: "center" },
   empty: { flex: 1, alignItems: "center", justifyContent: "center", gap: 12, paddingTop: 60, padding: 32 },
@@ -819,7 +827,7 @@ const styles = StyleSheet.create({
   cardTop: { flexDirection: "row", alignItems: "flex-start", gap: 10 },
   productName: { fontSize: 15, fontWeight: "700", lineHeight: 20 },
   productPrice: { fontSize: 16, fontWeight: "800", marginTop: 2 },
-  productMeta: { fontSize: 11, marginTop: 3 },
+  productMeta: { fontSize: 11, marginTop: 3, lineHeight: 15 },
   statusPill: { paddingHorizontal: 8, paddingVertical: 4, borderRadius: 20 },
   statusText: { fontSize: 11, fontWeight: "700" },
   rejectionBox: { flexDirection: "row", alignItems: "flex-start", gap: 6, padding: 8, borderRadius: 8, borderWidth: 1 },
@@ -834,6 +842,7 @@ const styles = StyleSheet.create({
   saveBtn: { paddingHorizontal: 16, paddingVertical: 8, borderRadius: 20 },
   saveBtnText: { color: "#fff", fontWeight: "700" },
   modalBody: { padding: 16, gap: 4, paddingBottom: 60 },
+  sectionLabel: { fontSize: 11, fontWeight: "800", letterSpacing: 0.8, marginTop: 16, marginBottom: 4 },
   fieldLabel: { fontSize: 13, fontWeight: "600", marginBottom: 6, marginTop: 10 },
   input: { borderWidth: 1, borderRadius: 10, paddingHorizontal: 14, paddingVertical: 10, fontSize: 14 },
   textarea: { borderWidth: 1, borderRadius: 10, paddingHorizontal: 14, paddingVertical: 10, fontSize: 14, minHeight: 120 },
@@ -843,6 +852,11 @@ const styles = StyleSheet.create({
   conditionRow: { flexDirection: "row", flexWrap: "wrap", gap: 8, marginBottom: 4 },
   conditionChip: { paddingHorizontal: 12, paddingVertical: 7, borderRadius: 8, borderWidth: 1.5 },
   conditionChipText: { fontSize: 13, fontWeight: "600" },
+  switchRow: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", borderRadius: 10, borderWidth: 1, padding: 12, marginTop: 8 },
+  switchLabel: { fontSize: 14, fontWeight: "600" },
+  switchSub: { fontSize: 11, marginTop: 2 },
+  contactRow: { flexDirection: "row", alignItems: "center", gap: 12, borderRadius: 10, borderWidth: 1.5, padding: 12, marginBottom: 6 },
+  contactLabel: { fontSize: 14, fontWeight: "600" },
   infoBox: { flexDirection: "row", alignItems: "flex-start", gap: 8, padding: 12, borderRadius: 10, borderWidth: 1, marginTop: 8 },
   infoText: { fontSize: 13, flex: 1, lineHeight: 18 },
 });
