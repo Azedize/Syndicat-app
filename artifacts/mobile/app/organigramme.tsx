@@ -387,7 +387,7 @@ export default function OrganigrammeScreen() {
   const [orgData, setOrgData]         = useState<OrgData | null>(null);
   const [nationalData, setNationalData] = useState<NationalData | null>(null);
   const [selectedNode, setSelectedNode] = useState<OrgNode | null>(null);
-  const [showNational, setShowNational] = useState(false);
+  const [showNational, setShowNational] = useState(() => user?.role === "super_admin");
 
   const isSuperAdmin   = user?.role === "super_admin";
   const isSyndicateAdmin = user?.role === "syndicate_admin";
@@ -561,6 +561,29 @@ export default function OrganigrammeScreen() {
           showsVerticalScrollIndicator={false}
           refreshControl={<RefreshControl refreshing={refreshing} onRefresh={() => load(true)} tintColor={colors.primary} />}
         >
+          {/* ── Super admin: no syndicate selected ── */}
+          {isSuperAdmin && !orgData && (
+            <View style={{ flex: 1, alignItems: "center", justifyContent: "center", padding: 40, gap: 16 }}>
+              <View style={{ width: 64, height: 64, borderRadius: 20, backgroundColor: "#7C3AED15", alignItems: "center", justifyContent: "center" }}>
+                <Feather name="globe" size={28} color="#7C3AED" />
+              </View>
+              <Text style={{ fontSize: 16, fontWeight: "700", color: colors.foreground, textAlign: "center" }}>
+                Vue nationale disponible
+              </Text>
+              <Text style={{ fontSize: 13, color: colors.mutedForeground, textAlign: "center", lineHeight: 20 }}>
+                En tant que Super Admin, vous supervisiez l'ensemble des syndicats.{"\n"}
+                Activez la vue nationale pour voir tous les syndicats clients.
+              </Text>
+              <TouchableOpacity
+                style={{ flexDirection: "row", alignItems: "center", gap: 8, backgroundColor: "#7C3AED", paddingHorizontal: 20, paddingVertical: 12, borderRadius: 12 }}
+                onPress={() => { setShowNational(true); Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium); }}
+              >
+                <Feather name="globe" size={16} color="#fff" />
+                <Text style={{ color: "#fff", fontWeight: "700", fontSize: 14 }}>Voir tous les syndicats</Text>
+              </TouchableOpacity>
+            </View>
+          )}
+
           {/* ── Governance alerts ── */}
           {stats && stats.alerts.length > 0 && (
             <View style={[styles.alertBanner, { backgroundColor: "#fef3c7", borderColor: "#fbbf24" }]}>
@@ -577,14 +600,14 @@ export default function OrganigrammeScreen() {
           {stats && <StatCards stats={stats} colors={colors} />}
 
           {/* ── Org chart title ── */}
-          <View style={[styles.sectionHeader, { borderLeftColor: synColor }]}>
+          {(!isSuperAdmin || orgData) && <View style={[styles.sectionHeader, { borderLeftColor: synColor }]}>
             <Text style={[styles.sectionTitle, { color: colors.foreground }]}>Hiérarchie de gouvernance</Text>
             <Text style={[styles.sectionSub, { color: colors.mutedForeground }]}>
               Structure officielle du conseil syndical
             </Text>
-          </View>
+          </View>}
 
-          <View style={styles.chartWrap}>
+          {(!isSuperAdmin || orgData) && <View style={styles.chartWrap}>
             {/* Level 2: Syndicate Admin */}
             <View style={[styles.levelLabel, { backgroundColor: "#2563EB10" }]}>
               <Text style={[styles.levelLabelText, { color: "#2563EB" }]}>NIVEAU 1 — ADMINISTRATION</Text>
@@ -653,7 +676,7 @@ export default function OrganigrammeScreen() {
 
             {/* Bottom spacer */}
             <View style={{ height: 20 }} />
-          </View>
+          </View>}
 
           {/* ── Admin actions (admin only) ── */}
           {isAdminOrAbove && (
