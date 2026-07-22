@@ -1,0 +1,251 @@
+CRITICAL EXECUTION MODE
+
+Do NOT stop at reporting.
+
+Do NOT only generate audits.
+
+Do NOT only generate recommendations.
+
+You must actively inspect the entire application and continuously improve it until it reaches enterprise production quality.
+
+For every screen:
+
+1. Analyze its business purpose.
+2. Analyze who should use it.
+3. Analyze who should not see it.
+4. Analyze its workflows.
+5. Analyze all buttons.
+6. Analyze all APIs.
+7. Analyze all database dependencies.
+8. Analyze all notifications.
+9. Analyze all permissions.
+10. Analyze all edge cases.
+
+For every issue found:
+
+* Explain the root cause.
+* Explain the business impact.
+* Implement the fix.
+* Verify the fix.
+* Re-test the workflow.
+
+==================================================
+REAL-LIFE SCENARIO VALIDATION
+=============================
+
+For every module:
+
+Simulate real users.
+
+Examples:
+
+President
+
+Treasurer
+
+Secretary
+
+Owner
+
+Tenant
+
+Committee Member
+
+Syndicate Admin
+
+Super Admin
+
+For each role:
+
+Simulate daily operations.
+
+Verify:
+
+* Login
+* Dashboard
+* Documents
+* Payments
+* Complaints
+* Meetings
+* Votes
+* Notifications
+* Marketplace
+* Support
+* Reports
+
+Determine whether the workflow is logical.
+
+Determine whether the role actually needs the feature.
+
+Determine whether the role should have access.
+
+If not:
+
+* Remove access
+* Hide menus
+* Restrict routes
+* Restrict APIs
+
+==================================================
+PRODUCTION VALIDATION
+=====================
+
+No feature should remain because "it may be useful".
+
+Every feature must have a real business purpose.
+
+Every page must answer:
+
+Why does this page exist?
+
+Who uses it?
+
+How often?
+
+Daily?
+
+Weekly?
+
+Monthly?
+
+Never?
+
+If the answer is unclear:
+
+Flag for removal.
+
+==================================================
+BUTTON EXECUTION AUDIT
+======================
+
+Audit every visible button.
+
+Every button must:
+
+* Navigate somewhere
+* Execute a business action
+* Call an API
+* Update the database
+* Trigger a workflow
+
+Identify:
+
+* Dead buttons
+* Fake buttons
+* Placeholder buttons
+* TODO buttons
+* Empty handlers
+
+Fix all of them.
+
+==================================================
+DESIGN & UX AUDIT
+=================
+
+Audit every screen.
+
+Identify:
+
+* Layout issues
+* Broken responsive behavior
+* Overflow problems
+* Filter bar issues
+* Empty states
+* Poor typography
+* Inconsistent spacing
+* Color inconsistencies
+* Weak hierarchy
+
+Transform the UI into an enterprise-grade SaaS experience inspired by:
+
+* Microsoft 365
+* Salesforce
+* SAP Fiori
+* Oracle Cloud
+* Monday.com
+
+==================================================
+DATA INTEGRITY AUDIT
+====================
+
+Every displayed value must originate from:
+
+Database → API → UI
+
+Identify:
+
+* Hardcoded values
+* Fake counters
+* Mock data
+* Demo data
+* Placeholder statistics
+
+Replace everything with live database queries.
+
+==================================================
+TRANSPARENCY (XAFAFIYA)
+=======================
+
+Every action must be traceable.
+
+Track:
+
+* Created By
+* Modified By
+* Approved By
+* Signed By
+* Rejected By
+* Deleted By
+
+Add:
+
+* Audit logs
+* History
+* Activity timeline
+* Approval trail
+
+==================================================
+WORK CONTINUATION
+=================
+
+After every completed phase:
+
+Create a markdown file.
+
+Examples:
+
+PHASE_01_ROLE_AUDIT.md
+PHASE_02_PERMISSION_FIXES.md
+PHASE_03_DASHBOARD_REFACTOR.md
+PHASE_04_DOCUMENT_WORKFLOWS.md
+PHASE_05_MARKETPLACE_LOGIC.md
+PHASE_06_SUPPORT_SYSTEM.md
+PHASE_07_PRODUCTION_READINESS.md
+
+Each file must contain:
+
+* What was analyzed
+* What was fixed
+* What remains
+* Next phase
+
+This allows a new chat session to immediately continue the project without losing context.
+
+==================================================
+SUCCESS CRITERIA
+================
+
+Continue working until:
+
+* No dead buttons remain.
+* No fake data remains.
+* No permission leaks remain.
+* No incorrect role visibility remains.
+* No broken workflows remain.
+* No generic errors remain.
+* No orphan pages remain.
+* No unused modules remain.
+* No missing audit trails remain.
+* No production blockers remain.
+
+The final result must be a real enterprise SaaS platform ready for production use by real syndicates, real owners, real tenants, real treasurers, real secretaries, and real presidents.

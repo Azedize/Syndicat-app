@@ -1,0 +1,275 @@
+Create a new enterprise module called:
+
+ORGANIGRAMME DU SYNDICAT
+(Syndicate Organizational Structure)
+
+Purpose:
+
+Provide a complete visual representation of the syndicate governance hierarchy.
+
+The page must be available to:
+
+* Super Admin
+* Syndicate Admin
+* President
+* Treasurer
+* Secretary
+* Committee Members
+
+==================================================
+BUSINESS OBJECTIVE
+==================
+
+Every user must understand:
+
+* Who manages the syndicate
+* Who reports to whom
+* Who approves decisions
+* Who signs documents
+* Who manages finances
+* Who manages meetings
+* Who manages governance
+
+The page must become the official governance reference of the residence.
+
+==================================================
+ORGANIZATIONAL TREE
+===================
+
+Display a professional hierarchy tree.
+
+Niveau 1
+
+Syndicate Administration
+
+↓
+
+Niveau 2
+
+Syndicate Admin
+
+Main responsibilities:
+
+* Platform administration
+* User management
+* Residence configuration
+* Global settings
+* Permissions
+
+↓
+
+Niveau 3
+
+Président
+
+Responsibilities:
+
+* Governance
+* Decisions
+* Approvals
+* Signatures
+* Assemblies
+* Strategic direction
+
+↓
+
+Niveau 4
+
+Trésorier
+
+Responsibilities:
+
+* Payments
+* Charges
+* Budget
+* Financial reports
+* Debt recovery
+* Treasury management
+
+↓
+
+Niveau 5
+
+Secrétaire
+
+Responsibilities:
+
+* Meetings
+* Minutes
+* Documents
+* Publications
+* Archives
+* Administrative follow-up
+
+↓
+
+Niveau 6
+
+Membres du Bureau
+
+Responsibilities:
+
+* Participate in decisions
+* Vote
+* Attend meetings
+* Review documents
+* Support governance
+
+==================================================
+VISUAL DESIGN
+=============
+
+Do NOT use a simple list.
+
+Create a premium organization chart.
+
+Inspired by:
+
+* Microsoft Entra ID
+* Oracle Organization Tree
+* SAP SuccessFactors
+* Workday Org Chart
+
+Display:
+
+Profile picture
+
+Full name
+
+Role
+
+Status
+
+Email
+
+Phone
+
+Appointment date
+
+Mandate start
+
+Mandate end
+
+==================================================
+COLOR SYSTEM
+============
+
+Syndicate Admin
+Blue
+
+President
+Purple
+
+Treasurer
+Green
+
+Secretary
+Orange
+
+Committee Members
+Gray
+
+==================================================
+INTERACTIVE FEATURES
+====================
+
+Clicking a role opens:
+
+Role details
+
+Permissions
+
+Accessible modules
+
+Approvals rights
+
+Signature rights
+
+Reports access
+
+Document access
+
+Financial access
+
+==================================================
+SUPER ADMIN MODE
+================
+
+Super Admin sees:
+
+National hierarchy
+
+Syndicate hierarchy
+
+Buildings
+
+Lots
+
+Members count
+
+Governance status
+
+Expired mandates
+
+Missing roles
+
+Vacant positions
+
+Governance alerts
+
+==================================================
+ADMIN DE SYNDICAT MODE
+======================
+
+Can:
+
+Assign roles
+
+Replace members
+
+Create mandates
+
+End mandates
+
+Export organization chart
+
+Print governance report
+
+==================================================
+DASHBOARD CARDS
+===============
+
+Display:
+
+President
+Current person
+
+Treasurer
+Current person
+
+Secretary
+Current person
+
+Committee members count
+
+Active mandates
+
+Expiring mandates
+
+Vacant positions
+
+==================================================
+PRODUCTION REQUIREMENTS
+=======================
+
+All data must come from database.
+
+No hardcoded names.
+
+No hardcoded roles.
+
+No static hierarchy.
+
+The organization tree must automatically update whenever a role changes.
+
+The page must look like a Fortune 500 governance management platform.

@@ -44,6 +44,8 @@ import workflowsRouter from "./workflows.js";
 import fichesJuridiquesRouter from "./fiches-juridiques.js";
 import emailRouter from "./email.js";
 import templateStudioRouter from "./template-studio.js";
+import governanceRouter from "./governance.js";
+import organigrammeRouter from "./organigramme.js";
 
 const router: IRouter = Router();
 
@@ -104,5 +106,7 @@ router.use(workflowsRouter);
 router.use(fichesJuridiquesRouter);
 router.use(emailRouter);
 router.use(templateStudioRouter);
+router.use(governanceRouter);
+router.use(organigrammeRouter);
 
 export default router;

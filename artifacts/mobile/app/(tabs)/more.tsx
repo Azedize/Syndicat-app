@@ -144,6 +144,7 @@ const MENU_SECTIONS_DEF: SectionDef[] = [
       { labelKey: "votesResolutions",     icon: "check-square", route: "/elections",           color: "#f59e0b", roles: ["syndicate_admin", "president", "secretary", "committee_member", "member"] },
       { labelKey: "pvLabel",              icon: "file-text",    route: "/pv",                  color: "#6366f1", roles: ["syndicate_admin", "president", "secretary"] },
       { labelKey: "governance",           icon: "award",        route: "/governance",          color: "#8b5cf6", roles: ["syndicate_admin", "president", "secretary", "committee_member"] },
+      { labelKey: "organigramme",         icon: "git-merge",    route: "/organigramme",        color: "#7C3AED", roles: ["super_admin", "syndicate_admin", "president", "treasurer", "secretary", "committee_member"] },
     ],
   },
 

@@ -276,6 +276,7 @@ export const TRANSLATIONS: Translations = {
   chat:         { fr: "Chat", en: "Chat", ar: "المحادثة", es: "Chat" },
   support:      { fr: "Support", en: "Support", ar: "الدعم", es: "Soporte" },
   governance:   { fr: "Gouvernance", en: "Governance", ar: "الحوكمة", es: "Gobernanza" },
+  organigramme: { fr: "Organigramme", en: "Org Chart", ar: "الهيكل التنظيمي", es: "Organigrama" },
   legal:        { fr: "Juridique", en: "Legal", ar: "قانوني", es: "Legal" },
   reports:      { fr: "Rapports", en: "Reports", ar: "التقارير", es: "Informes" },
   alerts:       { fr: "Notifications", en: "Notifications", ar: "الإشعارات", es: "Notificaciones" },
