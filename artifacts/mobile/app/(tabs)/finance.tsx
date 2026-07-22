@@ -108,8 +108,13 @@ export default function FinanceScreen() {
   const { isWide } = useBreakpoints();
   const topPad = isWide ? 0 : Platform.OS === "web" ? 67 : insets.top;
 
+  // FIX [M1]: treasurer must see the management view — they are the primary
+  // finance operator. Previously only super_admin and syndicate_admin triggered
+  // the admin layout, leaving treasurer on the member view.
   const isAdmin =
-    user?.role === "super_admin" || user?.role === "syndicate_admin";
+    user?.role === "super_admin" ||
+    user?.role === "syndicate_admin" ||
+    user?.role === "treasurer";
   const items = isAdmin ? MENU_ITEMS_ADMIN : MENU_ITEMS_MEMBER;
 
   // Keep this screen as a hub for all finance sub-screens.

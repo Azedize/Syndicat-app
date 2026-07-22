@@ -105,7 +105,9 @@ export default function GovernanceScreen() {
   const [newDelegDesc, setNewDelegDesc] = useState("");
   const { isWide } = useBreakpoints();
   const topPad = isWide ? 0 : (Platform.OS === "web" ? 67 : insets.top);
-  const isAdmin = user?.role !== "member";
+  // FIX [Governance Bug]: Previously `role !== "member"` accidentally granted
+  // admin UI to tenants. Must explicitly list management roles.
+  const isAdmin = ["super_admin", "syndicate_admin", "president", "treasurer", "secretary", "committee_member"].includes(user?.role ?? "");
 
   useEffect(() => {
     apiRequest<{ data: any[] }>("/governance/bureau").then(({ data }) => { if (data?.length) setBureau(data); }).catch(() => {});

@@ -893,10 +893,12 @@ function PendingActionsPanel({
 }
 
 // ─── Main screen ──────────────────────────────────────────────────────────────
-// Financial dashboard — administrators only.
+// FIX [R2]: treasurer is the primary financial operator — they MUST access this
+// dashboard. Previously only super_admin and syndicate_admin were allowed,
+// breaking the entire debt-recovery workflow for treasurers.
 export default function TableauBordFinancier() {
   return (
-    <RoleGuard allow={["super_admin", "syndicate_admin"]}>
+    <RoleGuard allow={["super_admin", "syndicate_admin", "treasurer"]}>
       <TableauBordFinancierInner />
     </RoleGuard>
   );

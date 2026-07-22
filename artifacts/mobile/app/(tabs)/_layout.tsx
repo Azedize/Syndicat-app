@@ -224,9 +224,9 @@ export default function TabLayout() {
   // President/Secretary/CommitteeMember access member info via governance screens.
   const showMembersTab = isAdmin;
 
-  // Marketplace tab: Syndicate Admin only — manages syndicate marketplace.
-  // Treasurer/President/etc. have no business buying or selling there.
-  const showMarketplaceTab = isSyndicateAdmin;
+  // FIX [M2]: Members are buyers in the marketplace — they need to browse and purchase.
+  // Syndicate Admin manages the marketplace (seller). Members are the customers.
+  const showMarketplaceTab = isSyndicateAdmin || role === "member";
 
   return (
     <Tabs

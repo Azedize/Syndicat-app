@@ -3793,10 +3793,13 @@ async function regenerateDocumentWithSignatures(
 
 // ─── POST /documents/:id/sign ──────────────────────────────────────────────────
 
+// FIX [W3]: President must sign PVs and AG minutes (Loi 18-00 requirement).
+// Secretary countersigns administrative documents. Previously only super_admin
+// and syndicate_admin could sign — breaking the AG → PV signature workflow.
 router.post(
   "/documents/:id/sign",
   requireAuth,
-  requireRole("super_admin", "syndicate_admin"),
+  requireRole("super_admin", "syndicate_admin", "president", "secretary"),
   async (req, res) => {
     const id = String(req.params.id);
     const schema = z.object({

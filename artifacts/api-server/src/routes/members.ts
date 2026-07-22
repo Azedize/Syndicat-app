@@ -14,9 +14,11 @@ function isSameSyndicate(req: any, syndicateId: string): boolean {
   return req.user.role === "super_admin" || req.user.syndicateId === syndicateId;
 }
 
-// Member directory (name, email, phone, profession) is admin-only per the permission
-// matrix — members and tenants must not be able to browse other residents' PII.
-router.get("/members", requireAuth, requireRole("super_admin", "syndicate_admin"), async (req, res) => {
+// FIX [R12]: President, treasurer, and secretary need the member directory for
+// operational work: president for quorum, treasurer for charge notices, secretary
+// for convocation letters. All are scoped to their syndicateId — no PII leak.
+// Members and tenants are still correctly blocked (they cannot browse other residents).
+router.get("/members", requireAuth, requireRole("super_admin", "syndicate_admin", "president", "treasurer", "secretary", "committee_member"), async (req, res) => {
   const { search, status, syndicateId } = req.query as Record<string, string>;
   const pagination = getPagination(req);
   try {

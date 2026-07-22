@@ -62,7 +62,9 @@ export default function MeetingsScreen() {
   const [filter, setFilter] = useState<FilterType>("all");
   const [confirmed, setConfirmed] = useState<Set<string>>(new Set());
   const { isWide } = useBreakpoints();
-  const isAdmin = user?.role !== "member";
+  // FIX [Governance Bug]: isAdmin must NOT accidentally include tenant at UI level.
+  // Previously `role !== "member"` allowed tenant to see management UI (though blocked at API).
+  const isAdmin = ["super_admin", "syndicate_admin", "president", "treasurer", "secretary", "committee_member"].includes(user?.role ?? "");
   const [saving, setSaving] = useState(false);
   const { showToast } = useToast();
 
