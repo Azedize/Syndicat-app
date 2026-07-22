@@ -1602,6 +1602,7 @@ export const TRANSLATIONS: Translations = {
   menuSectionCommunication: { fr: "Communication", en: "Communication", ar: "التواصل", es: "Comunicación" },
   menuSectionSupport:       { fr: "Support & Réclamations", en: "Support & Claims", ar: "الدعم والشكاوى", es: "Soporte y Reclamaciones" },
   menuSectionMarketplace:   { fr: "Marketplace Résidence", en: "Residence Marketplace", ar: "سوق الإقامة", es: "Mercado de Residencia" },
+  marketplaceModeration:    { fr: "Modération Marketplace", en: "Marketplace Moderation", ar: "إشراف السوق", es: "Moderación del Mercado" },
   menuSectionAdmin:         { fr: "Administration Plateforme", en: "Platform Administration", ar: "إدارة المنصة", es: "Administración de Plataforma" },
   menuSectionSubscriptions: { fr: "Abonnements", en: "Subscriptions", ar: "الاشتراكات", es: "Suscripciones" },
   menuSectionAccount:       { fr: "Mon Compte", en: "My Account", ar: "حسابي", es: "Mi Cuenta" },

@@ -14,7 +14,7 @@ import {
   usersTable,
 } from "@workspace/db/schema";
 import { eq, and, desc, asc, ilike, or, inArray, count, ne } from "drizzle-orm";
-import { requireAuth, requireRole } from "../middleware/auth.js";
+import { requireAuth, requireRole, requireSuperAdmin } from "../middleware/auth.js";
 import { sendEmail } from "../lib/notify.js";
 import { marketplaceModerationTemplate } from "../lib/email/templates.js";
 
@@ -148,7 +148,7 @@ router.get("/products/featured", requireAuth, async (req, res) => {
 router.get(
   "/products/pending",
   requireAuth,
-  requireRole("super_admin", "syndicate_admin"),
+  requireSuperAdmin,
   async (req, res) => {
     const q = req.query as Record<string, string>;
     const { page, limit, offset } = parsePage(q);
@@ -495,7 +495,7 @@ router.delete("/products/:id", requireAuth, async (req, res) => {
 router.post(
   "/products/:id/moderate",
   requireAuth,
-  requireRole("super_admin", "syndicate_admin"),
+  requireSuperAdmin,
   async (req, res) => {
     const id = String(req.params.id) as string;
     const schema = z.object({
@@ -1204,7 +1204,7 @@ router.put(
 router.get(
   "/products/reported",
   requireAuth,
-  requireRole("super_admin", "syndicate_admin"),
+  requireSuperAdmin,
   async (req, res) => {
     const q = req.query as Record<string, string>;
     const { page, limit, offset } = parsePage(q);
@@ -1251,7 +1251,7 @@ router.get(
 router.get(
   "/products/:id/reports",
   requireAuth,
-  requireRole("super_admin", "syndicate_admin"),
+  requireSuperAdmin,
   async (req, res) => {
     const productId = String(req.params.id) as string;
     try {

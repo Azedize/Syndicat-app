@@ -108,7 +108,11 @@ export default function MarketplaceScreen() {
   const [customRejectReason, setCustomRejectReason] = useState("");
   const [submittingReject, setSubmittingReject] = useState(false);
 
-  const isAdmin = user?.role === "super_admin" || user?.role === "syndicate_admin";
+  // RBAC: super_admin = platform owner with full moderation rights
+  //       syndicate_admin = organisation admin — read-only marketplace view, no moderation
+  const isSuperAdmin = user?.role === "super_admin";
+  const isSyndicateAdmin = user?.role === "syndicate_admin";
+  const isAdmin = isSuperAdmin || isSyndicateAdmin;
 
   // ─── Fetch ─────────────────────────────────────────────────────────────
 
@@ -123,20 +127,20 @@ export default function MarketplaceScreen() {
   }, [category, search]);
 
   const fetchPending = useCallback(async () => {
-    if (!isAdmin) return;
+    if (!isSuperAdmin) return; // moderation queue is super_admin only
     try {
       const res = await marketplace.pending();
       setPending((res.data as Product[]) ?? []);
     } catch { /* keep stale */ }
-  }, [isAdmin]);
+  }, [isSuperAdmin]);
 
   const fetchReported = useCallback(async () => {
-    if (!isAdmin) return;
+    if (!isSuperAdmin) return; // reported queue is super_admin only
     try {
       const res = await marketplace.reported();
       setReported((res.data as Product[]) ?? []);
     } catch { /* keep stale */ }
-  }, [isAdmin]);
+  }, [isSuperAdmin]);
 
   const fetchStats = useCallback(async () => {
     if (!isAdmin) return;
@@ -403,25 +407,35 @@ export default function MarketplaceScreen() {
           <View>
             <Text style={[styles.title, { color: colors.foreground }]}>Marketplace</Text>
             <Text style={[styles.subtitle, { color: colors.mutedForeground }]}>
-              {isAdmin
+              {isSuperAdmin
                 ? `${pending.length} en attente · ${reported.length} signalé${reported.length !== 1 ? "s" : ""}`
+                : isSyndicateAdmin
+                ? "Vue lecture seule"
                 : `${products.length} produit${products.length !== 1 ? "s" : ""} disponible${products.length !== 1 ? "s" : ""}`}
             </Text>
           </View>
           <View style={{ flexDirection: "row", alignItems: "center", gap: 8 }}>
-            {isAdmin ? (
+            {isSuperAdmin ? (
+              // Super Admin — full moderation access + dashboard shortcut
               <>
                 <TouchableOpacity
                   style={[styles.headerBtn, { backgroundColor: colors.primary + "15" }]}
-                  onPress={() => { router.push("/marketplace-moderation" as any); Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); }}
+                  onPress={() => { router.push("/admin/marketplace" as any); Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); }}
+                  accessibilityLabel="Tableau de modération"
                 >
                   <Feather name="shield" size={18} color={colors.primary} />
                 </TouchableOpacity>
                 <View style={[styles.adminBadge, { backgroundColor: colors.primary + "15" }]}>
                   <Feather name="shield" size={14} color={colors.primary} />
-                  <Text style={[styles.adminBadgeText, { color: colors.primary }]}>Admin</Text>
+                  <Text style={[styles.adminBadgeText, { color: colors.primary }]}>Super Admin</Text>
                 </View>
               </>
+            ) : isSyndicateAdmin ? (
+              // Syndicate Admin — read-only view, no moderation shortcut
+              <View style={[styles.adminBadge, { backgroundColor: colors.secondary }]}>
+                <Feather name="eye" size={13} color={colors.mutedForeground} />
+                <Text style={[styles.adminBadgeText, { color: colors.mutedForeground }]}>Lecture seule</Text>
+              </View>
             ) : (
               <>
                 <TouchableOpacity
@@ -460,18 +474,25 @@ export default function MarketplaceScreen() {
         )}
       </View>
 
-      {/* Tabs */}
+      {/* Tabs — Super Admin gets moderation queues; Syndicate Admin gets read-only tabs */}
       {isAdmin ? (
         <FilterTabs
           options={[
             { key: "catalogue", label: "Catalogue" },
-            { key: "validation", label: `Validation (${pending.length})` },
-            { key: "signales", label: `Signalés (${reported.length})` },
+            // Validation + Signalés: super_admin moderation queues only
+            ...(isSuperAdmin ? [
+              { key: "validation", label: `Validation (${pending.length})` },
+              { key: "signales",   label: `Signalés (${reported.length})` },
+            ] : []),
             { key: "commandes", label: "Commandes" },
-            { key: "stats", label: "Stats" },
+            { key: "stats",     label: "Stats" },
           ]}
           value={adminTab}
-          onChange={(k) => setAdminTab(k as AdminTab)}
+          onChange={(k) => {
+            // Redirect syndicate_admin away from moderation tabs if URL-navigated directly
+            if (!isSuperAdmin && (k === "validation" || k === "signales")) return;
+            setAdminTab(k as AdminTab);
+          }}
           accentColor={colors.primary}
         />
       ) : (
@@ -489,7 +510,8 @@ export default function MarketplaceScreen() {
           <ActivityIndicator size="large" color={colors.primary} />
           <Text style={[styles.loadingText, { color: colors.mutedForeground }]}>Chargement du marketplace...</Text>
         </View>
-      ) : isAdmin && adminTab === "validation" ? (
+      ) : isSuperAdmin && adminTab === "validation" ? (
+        // Moderation queue — super_admin only
         <FlatList
           key="validation-list"
           data={pending}
@@ -506,7 +528,8 @@ export default function MarketplaceScreen() {
             </View>
           }
         />
-      ) : isAdmin && adminTab === "signales" ? (
+      ) : isSuperAdmin && adminTab === "signales" ? (
+        // Reported queue — super_admin only
         <FlatList
           key="signales-list"
           data={reported}

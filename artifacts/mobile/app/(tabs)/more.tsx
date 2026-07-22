@@ -41,13 +41,14 @@ const MENU_SECTIONS_DEF: SectionDef[] = [
   {
     titleKey: "menuSectionAdmin",
     items: [
-      { labelKey: "tableauNational",      icon: "globe",        route: "/tableau-national",  color: "#6366f1", roles: ["super_admin"] },
-      { labelKey: "gestionUtilisateurs",  icon: "users",        route: "/utilisateurs",      color: "#2563EB", roles: ["super_admin"] },
-      { labelKey: "creerSyndicat",        icon: "plus-circle",  route: "/syndicate-setup",   color: "#10b981", roles: ["super_admin"] },
-      { labelKey: "journalAudit",         icon: "shield",       route: "/journal-audit",     color: "#ef4444", roles: ["super_admin"] },
-      { labelKey: "statistiquesGlobales", icon: "trending-up",  route: "/statistiques",      color: "#0ea5e9", roles: ["super_admin"] },
-      { labelKey: "modelesPlateforme",    icon: "layout",       route: "/template-studio",   color: "#8b5cf6", roles: ["super_admin"] },
-      { labelKey: "editeurModeles",       icon: "edit",         route: "/template-editor",   color: "#a78bfa", roles: ["super_admin"] },
+      { labelKey: "tableauNational",      icon: "globe",          route: "/tableau-national",    color: "#6366f1", roles: ["super_admin"] },
+      { labelKey: "gestionUtilisateurs",  icon: "users",          route: "/utilisateurs",        color: "#2563EB", roles: ["super_admin"] },
+      { labelKey: "creerSyndicat",        icon: "plus-circle",    route: "/syndicate-setup",     color: "#10b981", roles: ["super_admin"] },
+      { labelKey: "journalAudit",         icon: "shield",         route: "/journal-audit",       color: "#ef4444", roles: ["super_admin"] },
+      { labelKey: "statistiquesGlobales", icon: "trending-up",    route: "/statistiques",        color: "#0ea5e9", roles: ["super_admin"] },
+      { labelKey: "marketplaceModeration",icon: "shopping-bag",   route: "/admin/marketplace",   color: "#f59e0b", roles: ["super_admin"] },
+      { labelKey: "modelesPlateforme",    icon: "layout",         route: "/template-studio",     color: "#8b5cf6", roles: ["super_admin"] },
+      { labelKey: "editeurModeles",       icon: "edit",           route: "/template-editor",     color: "#a78bfa", roles: ["super_admin"] },
     ],
   },
 
