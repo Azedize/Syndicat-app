@@ -109,10 +109,11 @@ export default function MarketplaceScreen() {
   const [submittingReject, setSubmittingReject] = useState(false);
 
   // RBAC: super_admin = platform owner with full moderation rights
-  //       syndicate_admin = organisation admin — read-only marketplace view, no moderation
+  //       syndicate_admin = organisation admin — read-only catalogue view, no admin tabs, no moderation
   const isSuperAdmin = user?.role === "super_admin";
   const isSyndicateAdmin = user?.role === "syndicate_admin";
-  const isAdmin = isSuperAdmin || isSyndicateAdmin;
+  // Only super_admin gets the admin interface — syndicate_admin sees the same catalogue as members
+  const isAdmin = isSuperAdmin;
 
   // ─── Fetch ─────────────────────────────────────────────────────────────
 

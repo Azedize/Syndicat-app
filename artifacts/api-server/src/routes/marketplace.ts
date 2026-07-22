@@ -14,7 +14,7 @@ import {
   usersTable,
 } from "@workspace/db/schema";
 import { eq, and, desc, asc, ilike, or, inArray, count, ne } from "drizzle-orm";
-import { requireAuth, requireRole, requireSuperAdmin } from "../middleware/auth.js";
+import { requireAuth, requireSuperAdmin } from "../middleware/auth.js";
 import { sendEmail } from "../lib/notify.js";
 import { marketplaceModerationTemplate } from "../lib/email/templates.js";
 
@@ -29,7 +29,9 @@ function parsePage(q: Record<string, string>) {
 }
 
 function isAdmin(role: string) {
-  return role === "super_admin" || role === "syndicate_admin";
+  // Only the platform super_admin has marketplace admin privileges.
+  // syndicate_admin has NO moderation rights — they see the public catalogue only.
+  return role === "super_admin";
 }
 
 // ─── Auto-scan: prohibited words + spam detection ─────────────────────────────
@@ -844,7 +846,7 @@ router.get("/sellers/:id/reputation", requireAuth, async (req, res) => {
 router.get(
   "/stats",
   requireAuth,
-  requireRole("super_admin", "syndicate_admin"),
+  requireSuperAdmin,
   async (req, res) => {
     try {
       const [
@@ -961,7 +963,7 @@ router.post("/products/:id/report", requireAuth, async (req, res) => {
 router.post(
   "/products/:id/promote",
   requireAuth,
-  requireRole("super_admin", "syndicate_admin"),
+  requireSuperAdmin,
   async (req, res) => {
     const productId = String(req.params.id) as string;
     const schema = z.object({
@@ -1090,7 +1092,7 @@ router.post("/products/:id/promotions/request", requireAuth, async (req, res) =>
 router.get(
   "/products/promotions/pending",
   requireAuth,
-  requireRole("super_admin", "syndicate_admin"),
+  requireSuperAdmin,
   async (req, res) => {
     try {
       const rows = await db
@@ -1115,7 +1117,7 @@ router.get(
 router.put(
   "/products/promotions/:id/validate",
   requireAuth,
-  requireRole("super_admin", "syndicate_admin"),
+  requireSuperAdmin,
   async (req, res) => {
     const promoId = String(req.params.id) as string;
     const schema = z.object({
@@ -1494,7 +1496,7 @@ router.post("/orders", requireAuth, async (req, res) => {
 router.put(
   "/orders/:id",
   requireAuth,
-  requireRole("super_admin", "syndicate_admin"),
+  requireSuperAdmin,
   async (req, res) => {
     const schema = z.object({
       status: z.enum(["pending", "confirmed", "shipped", "delivered", "cancelled"]),

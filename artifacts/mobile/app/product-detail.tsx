@@ -140,7 +140,8 @@ export default function ProductDetailScreen() {
   const [reserving, setReserving] = useState(false);
   const [markingSold, setMarkingSold] = useState(false);
 
-  const isAdmin = user?.role === "super_admin" || user?.role === "syndicate_admin";
+  // Only super_admin has marketplace moderation rights — syndicate_admin is read-only
+  const isAdmin = user?.role === "super_admin";
   const isSeller = product?.sellerId === user?.id;
   const isReserver = product?.reservedBy === user?.id;
 
