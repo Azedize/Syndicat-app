@@ -1,0 +1,263 @@
+SUPER ADMIN
+
+Le Super Admin n'est pas un membre d'une résidence et n'est pas impliqué dans la gestion quotidienne d'un syndicat. Son rôle est de gérer la plateforme SaaS elle-même. Il supervise tous les clients, toutes les résidences, les abonnements, la facturation, le support technique et la santé globale de la plateforme.
+
+Scénario réel
+
+Ahmed est propriétaire de la société qui commercialise le logiciel de gestion des syndicats. Un nouveau client nommé « Résidence Al Amal » s'abonne à la plateforme.
+
+Ahmed se connecte avec son compte Super Admin.
+
+Depuis son tableau de bord, il peut :
+
+voir le nombre total de syndicats clients ;
+voir les abonnements actifs ;
+consulter les revenus mensuels ;
+surveiller les erreurs système ;
+gérer les tickets de support ;
+suspendre ou réactiver un client.
+
+Ahmed ne doit jamais voir :
+
+les cotisations personnelles d'un copropriétaire ;
+les documents privés d'un résident ;
+les réclamations internes d'un immeuble ;
+les votes d'une assemblée générale.
+
+Ces informations appartiennent au syndicat client et non à l'éditeur du logiciel.
+
+SYNDICATE ADMIN
+
+Le Syndicate Admin est le responsable principal de la résidence sur la plateforme. Il configure l'immeuble, crée les utilisateurs et attribue les rôles.
+
+Scénario réel
+
+La Résidence Al Amal vient d'être créée.
+
+Ahmed (Super Admin) crée un compte pour Ali.
+
+Ali devient Syndicate Admin.
+
+Lors de sa première connexion, Ali :
+
+ajoute le logo de la résidence ;
+configure l'adresse ;
+crée les bâtiments ;
+crée les lots ;
+crée les parkings ;
+ajoute les copropriétaires ;
+crée les comptes du Président, du Trésorier et du Secrétaire.
+
+Ali agit comme administrateur de la résidence mais ne gère pas forcément la comptabilité quotidienne.
+
+PRÉSIDENT
+
+Le Président représente officiellement le syndicat.
+
+Il valide les décisions importantes et signe les documents officiels.
+
+Scénario réel
+
+Une assemblée générale est organisée.
+
+Le Secrétaire prépare le procès-verbal.
+
+Le document est envoyé au Président.
+
+Le Président consulte :
+
+la liste des présents ;
+les résolutions ;
+les résultats des votes.
+
+Après vérification, il signe électroniquement le document.
+
+Le Président ne doit pas gérer :
+
+les paramètres techniques ;
+les comptes utilisateurs ;
+les sauvegardes système.
+
+Son rôle est la gouvernance.
+
+TRÉSORIER
+
+Le Trésorier est responsable des finances.
+
+Il suit les paiements, les charges, les budgets et les impayés.
+
+Scénario réel
+
+Mohamed est Trésorier.
+
+En ouvrant son tableau de bord il voit :
+
+les recettes du mois ;
+les dépenses ;
+les propriétaires débiteurs ;
+les cotisations en retard ;
+le budget annuel.
+
+Ali, propriétaire du lot B-204, n'a pas payé depuis 8 mois.
+
+Mohamed ouvre :
+
+Recouvrement → Ali → Historique des impayés.
+
+Le système calcule automatiquement :
+
+le montant dû ;
+les pénalités ;
+les relances déjà envoyées.
+
+Mohamed peut alors générer :
+
+un rappel ;
+une mise en demeure ;
+un dossier de recouvrement.
+
+Mais Mohamed reste aussi copropriétaire.
+
+Il doit donc également voir :
+
+Mes cotisations ;
+Mes documents ;
+Mes notifications ;
+Mes assemblées.
+SECRÉTAIRE
+
+Le Secrétaire gère toute la partie administrative et documentaire.
+
+Scénario réel
+
+Fatima est Secrétaire.
+
+Une assemblée générale est prévue.
+
+Fatima :
+
+crée la réunion ;
+prépare l'ordre du jour ;
+génère les convocations ;
+enregistre les présences ;
+rédige le procès-verbal ;
+archive les documents.
+
+Elle doit voir :
+
+Documents ;
+Assemblées ;
+Procès-verbaux ;
+Publications ;
+Archives.
+
+Elle ne doit pas gérer :
+
+les budgets ;
+les cotisations ;
+les comptes bancaires.
+MEMBRE DU BUREAU
+
+Le membre du bureau participe à la gouvernance mais n'exécute pas les opérations quotidiennes.
+
+Scénario réel
+
+Youssef est membre du bureau.
+
+Il consulte :
+
+les réunions ;
+les décisions ;
+les rapports ;
+les documents.
+
+Il participe aux votes.
+
+Il peut donner son avis.
+
+Mais il ne peut pas :
+
+modifier les finances ;
+créer des utilisateurs ;
+signer des documents officiels.
+COPROPRIÉTAIRE (OWNER)
+
+Le copropriétaire utilise la plateforme principalement pour suivre sa situation personnelle.
+
+Scénario réel
+
+Ali possède l'appartement B-204.
+
+Quand il se connecte il voit uniquement :
+
+Tableau de bord ;
+Mes cotisations ;
+Mes paiements ;
+Mes documents ;
+Mes réclamations ;
+Assemblées ;
+Votes ;
+Notifications ;
+Mon profil.
+
+Ali n'a aucune raison de voir :
+
+la comptabilité globale ;
+les paramètres du syndicat ;
+les utilisateurs ;
+les rapports financiers détaillés.
+LOCATAIRE (TENANT)
+
+Le locataire n'est pas propriétaire.
+
+Ses besoins sont différents.
+
+Scénario réel
+
+Fatima loue l'appartement A-102.
+
+Lorsqu'elle se connecte elle voit :
+
+Tableau de bord ;
+Documents ;
+Réclamations ;
+Demandes de maintenance ;
+Notifications ;
+Profil.
+
+Fatima ne doit jamais voir :
+
+les votes de copropriété ;
+les budgets ;
+les états financiers ;
+les cotisations des propriétaires.
+RÈGLE MÉTIER IMPORTANTE
+
+Un utilisateur peut cumuler plusieurs rôles.
+
+Exemple réel
+
+Mohamed est :
+
+copropriétaire ;
+Trésorier.
+
+L'application doit fusionner les permissions.
+
+Mohamed doit voir :
+
+Espace personnel :
+
+Mes cotisations
+Mes paiements
+Mes documents
+Mes notifications
+
+Espace Trésorier :
+
+Finances
+Budget
+Recouvrement
+Rapports
+
+L'application ne doit jamais supprimer son espace personnel simplement parce qu'il est devenu Trésorier.
