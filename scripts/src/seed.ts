@@ -87,6 +87,29 @@ import {
   parkingViolationsTable,
   visitorParkingReservationsTable,
   travauxPrivatifsTable,
+  conseilSyndicalTable,
+  fondsTravauxTable,
+  chargeAttachmentsTable,
+  invoiceAttachmentsTable,
+  actesAdministratifsTable,
+  billingInvoicesTable,
+  emailLogsTable,
+  agProxiesTable,
+  electionProxiesTable,
+  electionQuestionsTable,
+  voteReceiptsTable,
+  messageReactionsTable,
+  blockedUsersTable,
+  conversationArchivesTable,
+  chatReportsTable,
+  documentVersionsTable,
+  documentSequencesTable,
+  documentSignaturesTable,
+  documentCommentsTable,
+  templateDefinitionsTable,
+  templateDefinitionVersionsTable,
+  templateDefinitionPermissionsTable,
+  templateRequestsTable,
 } from "@workspace/db/schema";
 
 const PASSWORD_HASH = await bcrypt.hash("password123", 10);
@@ -996,6 +1019,382 @@ async function main() {
   ]).onConflictDoNothing();
 
   // ─────────────────────────────────────────────────────────────────────────
+  // 35. CONSEIL SYNDICAL (elected oversight body members)
+  // ─────────────────────────────────────────────────────────────────────────
+  await db.insert(conseilSyndicalTable).values([
+    { id: "cs_1", syndicateId: "syn_residence_atlas", userId: "user_president_atlas",  memberId: "member_1", role: "president",        name: "Abdelhak Essaidi",    email: "president@andalous.ma",  phone: "+212600000012", mandateStart: "2025-01-01", mandateEnd: "2027-01-01", status: "active",  electionId: "election_1", createdAt: daysAgo(550) },
+    { id: "cs_2", syndicateId: "syn_residence_atlas", userId: "user_treasurer_atlas",  memberId: "member_2", role: "treasurer",        name: "Fatima Zahra Amghar", email: "tresorier@andalous.ma",  phone: "+212600000013", mandateStart: "2025-01-01", mandateEnd: "2027-01-01", status: "active",  electionId: "election_1", createdAt: daysAgo(550) },
+    { id: "cs_3", syndicateId: "syn_residence_atlas", userId: "user_secretary_atlas",  memberId: "member_3", role: "secretary",        name: "Samir Hamdouch",      email: "secretaire@andalous.ma", phone: "+212600000014", mandateStart: "2025-01-01", mandateEnd: "2027-01-01", status: "active",  electionId: "election_1", createdAt: daysAgo(550) },
+    { id: "cs_4", syndicateId: "syn_residence_atlas", userId: "user_committee_atlas",  memberId: "member_1", role: "committee_member", name: "Naima Beldjoudi",     email: "conseil@andalous.ma",    phone: "+212600000015", mandateStart: "2025-01-01", mandateEnd: "2027-01-01", status: "active",  createdAt: daysAgo(550) },
+    { id: "cs_5", syndicateId: "syn_jardins_agdal",   userId: "user_member_3",         memberId: "member_4", role: "president",        name: "Rachid El Amrani",    email: "rachid.elamrani@jardins-agdal.ma", mandateStart: "2024-06-01", mandateEnd: "2026-06-01", status: "expired", createdAt: daysAgo(800) },
+    { id: "cs_6", syndicateId: "syn_jardins_agdal",   userId: "user_member_4",         memberId: "member_5", role: "treasurer",        name: "Amina Rachidi",       email: "amina.rachidi@jardins-agdal.ma",  mandateStart: "2024-06-01", mandateEnd: "2026-06-01", status: "expired", createdAt: daysAgo(700) },
+  ]).onConflictDoNothing();
+
+  // ─────────────────────────────────────────────────────────────────────────
+  // 36. FONDS DE TRAVAUX (mandatory 5% reserve fund — Law 18-00 Art. 18)
+  // ─────────────────────────────────────────────────────────────────────────
+  await db.insert(fondsTravauxTable).values([
+    { id: "ft_1", syndicateId: "syn_residence_atlas", buildingId: "building_atlas_a", year: 2025, budgetBase: "99000.00",  ratePercent: "5", targetAmount: "4950.00",  currentBalance: "4950.00",  status: "funded", notes: "Fonds de réserve 2025 intégralement constitué.", createdAt: daysAgo(560) },
+    { id: "ft_2", syndicateId: "syn_residence_atlas", buildingId: "building_atlas_a", year: 2026, budgetBase: "108000.00", ratePercent: "5", targetAmount: "5400.00",  currentBalance: "3150.00",  status: "active", notes: "En cours de constitution — 3 trimestres cotisés.", createdAt: daysAgo(200) },
+    { id: "ft_3", syndicateId: "syn_residence_atlas", buildingId: "building_atlas_b", year: 2026, budgetBase: "72000.00",  ratePercent: "5", targetAmount: "3600.00",  currentBalance: "1800.00",  status: "active", createdAt: daysAgo(190) },
+    { id: "ft_4", syndicateId: "syn_jardins_agdal",   buildingId: "building_agdal_1", year: 2026, budgetBase: "72000.00",  ratePercent: "7", targetAmount: "5040.00",  currentBalance: "5040.00",  status: "funded", notes: "Taux de 7% voté en AG 2025 — excède le minimum légal.", createdAt: daysAgo(180) },
+  ]).onConflictDoNothing();
+
+  // ─────────────────────────────────────────────────────────────────────────
+  // 37. PIÈCES JOINTES — Appels de fonds & Factures
+  // ─────────────────────────────────────────────────────────────────────────
+  await db.insert(chargeAttachmentsTable).values([
+    { id: "chatt_1", appelDeFondsId: "adf_2", url: "/uploads/charge_attachments/adf_2_cheque.jpg",        filename: "cheque_khadija_juillet.jpg",       mimeType: "image/jpeg",         uploadedBy: "user_member_2", createdAt: daysAgo(10) },
+    { id: "chatt_2", appelDeFondsId: "adf_1", url: "/uploads/charge_attachments/adf_1_virement.pdf",     filename: "virement_mohammed_juillet.pdf",    mimeType: "application/pdf",    uploadedBy: "user_member_1", createdAt: daysAgo(30) },
+    { id: "chatt_3", appelDeFondsId: "adf_7", url: "/uploads/charge_attachments/adf_7_virement.pdf",     filename: "virement_rachid_juillet_agdal.pdf", mimeType: "application/pdf",   uploadedBy: "user_member_3", createdAt: daysAgo(28) },
+  ]).onConflictDoNothing();
+
+  await db.insert(invoiceAttachmentsTable).values([
+    { id: "invatt_1", invoiceId: "inv_1", url: "/uploads/invoice_attachments/inv_1_devis.pdf",   filename: "devis_ascenseur_juillet.pdf",    mimeType: "application/pdf", uploadedBy: "user_admin_atlas", createdAt: daysAgo(35) },
+    { id: "invatt_2", invoiceId: "inv_3", url: "/uploads/invoice_attachments/inv_3_facture.pdf", filename: "facture_peinture_juin.pdf",       mimeType: "application/pdf", uploadedBy: "user_admin_atlas", createdAt: daysAgo(52) },
+    { id: "invatt_3", invoiceId: "inv_3", url: "/uploads/invoice_attachments/inv_3_photos.zip",  filename: "photos_travaux_cage_escalier.zip", mimeType: "application/zip",  uploadedBy: "user_admin_atlas", createdAt: daysAgo(50) },
+  ]).onConflictDoNothing();
+
+  // ─────────────────────────────────────────────────────────────────────────
+  // 38. ACTES ADMINISTRATIFS
+  // ─────────────────────────────────────────────────────────────────────────
+  await db.insert(actesAdministratifsTable).values([
+    {
+      id: "acte_1", syndicateId: "syn_residence_atlas", createdById: "user_admin_atlas",
+      type: "decision", statut: "publie", numero: "DEC-2026-001",
+      titre: "Décision d'approbation du budget prévisionnel 2026",
+      objet: "Approbation du budget prévisionnel de la Résidence Atlas pour l'exercice 2026 à hauteur de 129 600 MAD.",
+      date: "2026-01-20", auteur: "Conseil Syndical Résidence Atlas",
+      signataires: ["Abdelhak Essaidi — Président", "Fatima Zahra Amghar — Trésorière", "Samir Hamdouch — Secrétaire"],
+      destinataires: ["Tous les copropriétaires"], important: true, createdAt: daysAgo(180),
+    },
+    {
+      id: "acte_2", syndicateId: "syn_residence_atlas", createdById: "user_admin_atlas",
+      type: "convocation", statut: "publie", numero: "CONV-2026-001",
+      titre: "Convocation Assemblée Générale Ordinaire 2026",
+      objet: "Convocation de l'Assemblée Générale Ordinaire de la Résidence Atlas, conformément à l'article 25 de la Loi 18-00.",
+      date: "2026-06-30", dateEcheance: "2026-07-20", auteur: "Nadia Ouahbi — Syndic",
+      signataires: ["Nadia Ouahbi — Syndic bénévole"],
+      destinataires: ["Tous les copropriétaires", "Locataires concernés"], important: true, createdAt: daysAgo(22),
+    },
+    {
+      id: "acte_3", syndicateId: "syn_residence_atlas", createdById: "user_admin_atlas",
+      type: "mise_en_demeure", statut: "envoye", numero: "MED-2026-003",
+      titre: "Mise en demeure — Charges impayées Lot A205",
+      objet: "Mise en demeure formelle pour le recouvrement de 2 700 MAD de charges impayées (mai–juin 2026), lot A205.",
+      date: "2026-07-08", dateEcheance: "2026-07-22", auteur: "Conseil Syndical Résidence Atlas",
+      signataires: ["Abdelhak Essaidi — Président", "Nadia Ouahbi — Syndic"],
+      destinataires: ["Hassan Cherkaoui — Copropriétaire Lot A205"], important: true, createdAt: daysAgo(14),
+    },
+    {
+      id: "acte_4", syndicateId: "syn_jardins_agdal", createdById: "user_admin_agdal",
+      type: "pv", statut: "signe", numero: "PV-2025-001",
+      titre: "Procès-verbal AG Ordinaire Les Jardins d'Agdal 2025",
+      objet: "PV de l'Assemblée Générale Ordinaire tenue le 20 septembre 2025 — approbation des comptes et budget 2026.",
+      date: "2025-09-20", auteur: "Youssef Idrissi — Syndic professionnel",
+      signataires: ["Rachid El Amrani — Président", "Amina Rachidi — Secrétaire", "Youssef Idrissi — Syndic"],
+      destinataires: ["Tous les copropriétaires Les Jardins d'Agdal"], important: false, createdAt: daysAgo(300),
+    },
+    {
+      id: "acte_5", syndicateId: "syn_residence_atlas", createdById: "user_admin_atlas",
+      type: "contrat", statut: "brouillon", numero: "CTR-2026-005",
+      titre: "Renouvellement contrat gardiennage — Sécurité Atlas Protect",
+      objet: "Projet de renouvellement du contrat de gardiennage pour l'exercice 2027, en cours de négociation.",
+      date: "2026-07-10", dateEcheance: "2026-08-01", auteur: "Nadia Ouahbi — Syndic",
+      signataires: [], destinataires: ["Sécurité Atlas Protect"], important: false, createdAt: daysAgo(6),
+    },
+  ]).onConflictDoNothing();
+
+  // ─────────────────────────────────────────────────────────────────────────
+  // 39. BILLING INVOICES (plateforme SaaS)
+  // ─────────────────────────────────────────────────────────────────────────
+  await db.insert(billingInvoicesTable).values([
+    { id: "binv_1", syndicateId: "syn_residence_atlas", subscriptionId: "sub_1", amount: "699.00",  status: "paid", dueDate: daysAgo(150), paidAt: daysAgo(145), description: "Abonnement Pro — mai 2026",    periodStart: daysAgo(180), periodEnd: daysAgo(150), createdAt: daysAgo(180) },
+    { id: "binv_2", syndicateId: "syn_residence_atlas", subscriptionId: "sub_1", amount: "699.00",  status: "paid", dueDate: daysAgo(120), paidAt: daysAgo(118), description: "Abonnement Pro — juin 2026",   periodStart: daysAgo(150), periodEnd: daysAgo(120), createdAt: daysAgo(150) },
+    { id: "binv_3", syndicateId: "syn_residence_atlas", subscriptionId: "sub_1", amount: "699.00",  status: "open", dueDate: daysAgo(-10),                       description: "Abonnement Pro — juillet 2026", periodStart: daysAgo(120), periodEnd: daysAgo(-10), createdAt: daysAgo(120) },
+    { id: "binv_4", syndicateId: "syn_jardins_agdal",   subscriptionId: "sub_2", amount: "299.00",  status: "paid", dueDate: daysAgo(120), paidAt: daysAgo(119), description: "Abonnement Basique — juin 2026",  periodStart: daysAgo(150), periodEnd: daysAgo(120), createdAt: daysAgo(150) },
+    { id: "binv_5", syndicateId: "syn_jardins_agdal",   subscriptionId: "sub_2", amount: "299.00",  status: "open", dueDate: daysAgo(-10),                       description: "Abonnement Basique — juillet 2026", periodStart: daysAgo(120), periodEnd: daysAgo(-10), createdAt: daysAgo(120) },
+  ]).onConflictDoNothing();
+
+  // ─────────────────────────────────────────────────────────────────────────
+  // 40. EMAIL LOGS
+  // ─────────────────────────────────────────────────────────────────────────
+  await db.insert(emailLogsTable).values([
+    { id: "email_1", recipient: "mohammed.alaoui@residence-atlas.ma", subject: "Votre reçu de paiement — juillet 2026",             template: "payment_receipt",  status: "sent",   syndicateId: "syn_residence_atlas", sentAt: daysAgo(30), createdAt: daysAgo(30) },
+    { id: "email_2", recipient: "khadija.tahiri@residence-atlas.ma",  subject: "Rappel — Validation de votre paiement en attente", template: "payment_reminder", status: "sent",   syndicateId: "syn_residence_atlas", sentAt: daysAgo(9),  createdAt: daysAgo(9) },
+    { id: "email_3", recipient: "hassan.cherkaoui@residence-atlas.ma",subject: "Mise en demeure — Charges impayées",                template: "debt_notice",      status: "sent",   syndicateId: "syn_residence_atlas", sentAt: daysAgo(14), createdAt: daysAgo(14) },
+    { id: "email_4", recipient: "sara.bouzid@gmail.com",              subject: "Votre bail a été mis à jour",                      template: "document_updated", status: "sent",   syndicateId: "syn_residence_atlas", sentAt: daysAgo(5),  createdAt: daysAgo(5) },
+    { id: "email_5", recipient: "syndic@andalous.ma",                 subject: "Nouveau ticket support — #ticket_1",               template: "ticket_created",   status: "sent",   syndicateId: "syn_residence_atlas", sentAt: daysAgo(1),  createdAt: daysAgo(1) },
+    { id: "email_6", recipient: "omar.zaki@gmail.com",                subject: "Confirmation de votre réservation de parking",     template: "parking_confirm",  status: "failed", syndicateId: "syn_jardins_agdal",   errorMessage: "SMTP timeout", retryCount: 2, createdAt: daysAgo(3) },
+    { id: "email_7", recipient: "superadmin@syndycat.ma",             subject: "Rapport mensuel — juillet 2026",                  template: "monthly_report",   status: "pending",                                  createdAt: daysAgo(0) },
+  ]).onConflictDoNothing();
+
+  // ─────────────────────────────────────────────────────────────────────────
+  // 41. AG PROXIES (pouvoir — Law 18-00 Art. 20)
+  // ─────────────────────────────────────────────────────────────────────────
+  await db.insert(agProxiesTable).values([
+    { id: "agproxy_1", meetingId: "meeting_1", syndicateId: "syn_residence_atlas", grantorId: "member_3", grantorName: "Hassan Cherkaoui", granteeId: "member_1", granteeName: "Mohammed Alaoui", status: "accepted", notes: "Pouvoir signé le 18 juillet 2026.", createdAt: daysAgo(2) },
+    { id: "agproxy_2", meetingId: "meeting_3", syndicateId: "syn_jardins_agdal",   grantorId: "member_6", grantorName: "Kaouthar Bennis",  granteeId: "member_4", granteeName: "Rachid El Amrani", status: "pending",  notes: "Pouvoir transmis par email.",      createdAt: daysAgo(4) },
+  ]).onConflictDoNothing();
+
+  // ─────────────────────────────────────────────────────────────────────────
+  // 42. ELECTION PROXIES (pouvoir vote électronique — Loi 18-00)
+  // ─────────────────────────────────────────────────────────────────────────
+  await db.insert(electionProxiesTable).values([
+    { id: "eproxy_1", electionId: "election_1", syndicateId: "syn_residence_atlas", grantorId: "user_member_5", grantorName: "Hassan Cherkaoui", granteeId: "user_member_1", granteeName: "Mohammed Alaoui", status: "active",  createdAt: daysAgo(5) },
+  ]).onConflictDoNothing();
+
+  // ─────────────────────────────────────────────────────────────────────────
+  // 43. ELECTION QUESTIONS (Q&A candidats)
+  // ─────────────────────────────────────────────────────────────────────────
+  await db.insert(electionQuestionsTable).values([
+    { id: "eq_1", electionId: "election_1", candidateId: "cand_1", askedBy: "user_member_2", askedByName: "Khadija Tahiri",  question: "Quelles sont vos priorités pour la rénovation du bâtiment A ?",                    answer: "Priorité à la toiture et à la modernisation de l'ascenseur.", answeredAt: daysAgo(4), createdAt: daysAgo(6) },
+    { id: "eq_2", electionId: "election_1", candidateId: "cand_1", askedBy: "user_tenant_1", askedByName: "Sara Bouzid",     question: "Comment prévoyez-vous d'améliorer la communication avec les locataires ?",            answer: null, createdAt: daysAgo(2) },
+    { id: "eq_3", electionId: "election_1", candidateId: "cand_2", askedBy: "user_member_1", askedByName: "Mohammed Alaoui", question: "Quelle stratégie proposez-vous pour réduire les impayés de charges ?",               answer: "Mise en place d'un système de relances automatiques et négociation d'échéanciers.", answeredAt: daysAgo(3), createdAt: daysAgo(5) },
+  ]).onConflictDoNothing();
+
+  // ─────────────────────────────────────────────────────────────────────────
+  // 44. VOTE RECEIPTS (participation ballots — anonymity split design)
+  // ─────────────────────────────────────────────────────────────────────────
+  await db.insert(voteReceiptsTable).values([
+    { id: "vr_1", electionId: "election_1", voterId: "user_member_1", createdAt: daysAgo(5) },
+    { id: "vr_2", electionId: "election_1", voterId: "user_member_2", createdAt: daysAgo(4) },
+    { id: "vr_3", electionId: "election_2", voterId: "user_member_1", createdAt: daysAgo(35) },
+    { id: "vr_4", electionId: "election_2", voterId: "user_member_2", createdAt: daysAgo(35) },
+    { id: "vr_5", electionId: "election_2", voterId: "user_member_5", createdAt: daysAgo(34) },
+  ]).onConflictDoNothing();
+
+  // ─────────────────────────────────────────────────────────────────────────
+  // 45. MESSAGE REACTIONS (emoji)
+  // ─────────────────────────────────────────────────────────────────────────
+  await db.insert(messageReactionsTable).values([
+    { id: "react_1", messageId: "msg_1",  userId: "user_member_1", emoji: "👍", createdAt: daysAgo(3) },
+    { id: "react_2", messageId: "msg_1",  userId: "user_member_2", emoji: "👍", createdAt: daysAgo(3) },
+    { id: "react_3", messageId: "msg_5",  userId: "user_tenant_1", emoji: "🙏", createdAt: daysAgo(2) },
+    { id: "react_4", messageId: "msg_14", userId: "user_admin_atlas", emoji: "❤️", createdAt: daysAgo(14) },
+  ]).onConflictDoNothing();
+
+  // ─────────────────────────────────────────────────────────────────────────
+  // 46. BLOCKED USERS (one-directional block list)
+  // ─────────────────────────────────────────────────────────────────────────
+  await db.insert(blockedUsersTable).values([
+    { id: "block_1", blockerId: "user_member_1", blockedId: "user_member_5", createdAt: daysAgo(5) },
+  ]).onConflictDoNothing();
+
+  // ─────────────────────────────────────────────────────────────────────────
+  // 47. CONVERSATION ARCHIVES (per-user archiving)
+  // ─────────────────────────────────────────────────────────────────────────
+  await db.insert(conversationArchivesTable).values([
+    { id: "archive_1", conversationId: "conv_support_atlas", userId: "user_admin_atlas" },
+  ]).onConflictDoNothing();
+
+  // ─────────────────────────────────────────────────────────────────────────
+  // 48. CHAT REPORTS
+  // ─────────────────────────────────────────────────────────────────────────
+  await db.insert(chatReportsTable).values([
+    { id: "chatreport_1", reporterId: "user_member_2", reportedUserId: "user_member_5", conversationId: "conv_general_atlas", reason: "spam", status: "pending", createdAt: daysAgo(4) },
+    { id: "chatreport_2", reporterId: "user_admin_atlas", reportedUserId: "user_tenant_1", messageId: "msg_4", reason: "inapproprié", status: "dismissed", createdAt: daysAgo(2) },
+  ]).onConflictDoNothing();
+
+  // ─────────────────────────────────────────────────────────────────────────
+  // 49. DOCUMENT VERSIONS (historical snapshots)
+  // ─────────────────────────────────────────────────────────────────────────
+  await db.insert(documentVersionsTable).values([
+    { id: "dv_1", documentId: "doc_3", versionNumber: 1, title: "Budget prévisionnel 2026 — Draft initial",     content: "Version initiale avant vote AG.", status: "draft",     fileUrl: null, language: "fr", modifiedBy: "user_admin_atlas", modifiedAt: daysAgo(200), changeReason: "Création initiale", createdAt: daysAgo(200) },
+    { id: "dv_2", documentId: "doc_3", versionNumber: 2, title: "Budget prévisionnel 2026 — Post-AG",           content: "Version approuvée en AG du 20 janvier.", status: "approved", fileUrl: null, language: "fr", modifiedBy: "user_admin_atlas", modifiedAt: daysAgo(180), changeReason: "Approbation AG — mise à jour statut", createdAt: daysAgo(180) },
+    { id: "dv_3", documentId: "doc_7", versionNumber: 1, title: "Contrat bail Sara Bouzid — version originale", content: "Bail initial 2024.", status: "published", fileUrl: null, language: "fr", modifiedBy: "user_admin_atlas", modifiedAt: daysAgo(400), changeReason: "Création contrat initial", createdAt: daysAgo(400) },
+  ]).onConflictDoNothing();
+
+  // ─────────────────────────────────────────────────────────────────────────
+  // 50. DOCUMENT SEQUENCES (sequential reference counters)
+  // ─────────────────────────────────────────────────────────────────────────
+  await db.insert(documentSequencesTable).values([
+    { id: "ds_1", syndicateId: "syn_residence_atlas", prefix: "REG",  year: 2026, currentValue: 1 },
+    { id: "ds_2", syndicateId: "syn_residence_atlas", prefix: "PV",   year: 2026, currentValue: 2 },
+    { id: "ds_3", syndicateId: "syn_residence_atlas", prefix: "FIN",  year: 2026, currentValue: 3 },
+    { id: "ds_4", syndicateId: "syn_residence_atlas", prefix: "BAIL", year: 2026, currentValue: 1 },
+    { id: "ds_5", syndicateId: "syn_jardins_agdal",   prefix: "REG",  year: 2026, currentValue: 1 },
+    { id: "ds_6", syndicateId: "syn_jardins_agdal",   prefix: "PV",   year: 2026, currentValue: 1 },
+    { id: "ds_7", syndicateId: "syn_residence_atlas", prefix: "ATT",  year: 2026, currentValue: 4 },
+  ]).onConflictDoNothing();
+
+  // ─────────────────────────────────────────────────────────────────────────
+  // 51. DOCUMENT SIGNATURES (multi-signature tracking)
+  // ─────────────────────────────────────────────────────────────────────────
+  await db.insert(documentSignaturesTable).values([
+    { id: "dsig_1", documentId: "doc_2", signedBy: "user_admin_atlas",    signedAt: daysAgo(300), signerRole: "syndicate_admin", syndicateId: "syn_residence_atlas", signatureOrder: 1, signerName: "Nadia Ouahbi",    isValid: true, createdAt: daysAgo(300) },
+    { id: "dsig_2", documentId: "doc_2", signedBy: "user_president_atlas", signedAt: daysAgo(299), signerRole: "president",       syndicateId: "syn_residence_atlas", signatureOrder: 2, signerName: "Abdelhak Essaidi", isValid: true, createdAt: daysAgo(299) },
+    { id: "dsig_3", documentId: "doc_7", signedBy: "user_admin_atlas",    signedAt: daysAgo(400), signerRole: "syndicate_admin", syndicateId: "syn_residence_atlas", signatureOrder: 1, signerName: "Nadia Ouahbi",    isValid: true, createdAt: daysAgo(400) },
+    { id: "dsig_4", documentId: "doc_8", signedBy: "user_admin_agdal",    signedAt: daysAgo(200), signerRole: "syndicate_admin", syndicateId: "syn_jardins_agdal",   signatureOrder: 1, signerName: "Youssef Idrissi", isValid: true, createdAt: daysAgo(200) },
+  ]).onConflictDoNothing();
+
+  // ─────────────────────────────────────────────────────────────────────────
+  // 52. DOCUMENT COMMENTS (threaded review collaboration)
+  // ─────────────────────────────────────────────────────────────────────────
+  await db.insert(documentCommentsTable).values([
+    { id: "dc_1", documentId: "doc_3", authorId: "user_president_atlas", content: "Le poste maintenance ascenseurs semble sous-estimé par rapport au devis reçu.", isDeleted: false, createdAt: daysAgo(190) },
+    { id: "dc_2", documentId: "doc_3", authorId: "user_admin_atlas",     content: "J'ai intégré un avenant de 15% de provision sur ce poste.", isDeleted: false, parentId: "dc_1", createdAt: daysAgo(189) },
+    { id: "dc_3", documentId: "doc_2", authorId: "user_treasurer_atlas", content: "Le PV mentionne une résolution sur les travaux toiture mais le détail est incomplet.", isDeleted: false, createdAt: daysAgo(295) },
+    { id: "dc_4", documentId: "doc_7", authorId: "user_tenant_1",        content: "Merci, le bail a bien été mis à jour avec la nouvelle adresse.", isDeleted: false, createdAt: daysAgo(3) },
+  ]).onConflictDoNothing();
+
+  // ─────────────────────────────────────────────────────────────────────────
+  // 53. TEMPLATE DEFINITIONS (document template system)
+  // ─────────────────────────────────────────────────────────────────────────
+  await db.insert(templateDefinitionsTable).values([
+    {
+      id: "tpl_1", slug: "pv_ag", category: "meeting_minutes",
+      name: JSON.stringify({ fr: "Procès-verbal d'Assemblée Générale", ar: "محضر الجمعية العامة" }),
+      description: JSON.stringify({ fr: "PV complet de l'AG annuelle ou extraordinaire avec résolutions." }),
+      variables: JSON.stringify([
+        { name: "meetingDate", label: "Date de réunion", type: "date", required: true },
+        { name: "location",    label: "Lieu",            type: "string", required: true },
+        { name: "syndicName",  label: "Nom du syndicat", type: "string", required: true },
+      ]),
+      sections: JSON.stringify([
+        { id: "header",      title: "En-tête",              order: 1 },
+        { id: "attendees",   title: "Liste de présence",    order: 2 },
+        { id: "resolutions", title: "Résolutions",          order: 3 },
+        { id: "signatures",  title: "Signatures",           order: 4 },
+      ]),
+      status: "published", languages: JSON.stringify(["fr", "ar"]), currentVersion: 1, usageCount: 12,
+      createdBy: "user_super_admin", publishedAt: daysAgo(300), createdAt: daysAgo(300),
+    },
+    {
+      id: "tpl_2", slug: "attestation_adhesion", category: "certificates",
+      name: JSON.stringify({ fr: "Attestation d'Adhésion", ar: "شهادة الانتساب" }),
+      description: JSON.stringify({ fr: "Attestation officielle d'appartenance à un syndicat de copropriété." }),
+      variables: JSON.stringify([
+        { name: "memberName",    label: "Nom du membre",    type: "string", required: true },
+        { name: "lotNumber",     label: "Numéro du lot",    type: "string", required: true },
+        { name: "syndicateName", label: "Nom du syndicat",  type: "string", required: true },
+      ]),
+      sections: JSON.stringify([
+        { id: "header",   title: "En-tête",      order: 1 },
+        { id: "identity", title: "Identité",     order: 2 },
+        { id: "cert",     title: "Attestation",  order: 3 },
+        { id: "sig",      title: "Signature",    order: 4 },
+      ]),
+      status: "published", languages: JSON.stringify(["fr", "ar"]), currentVersion: 2, usageCount: 48,
+      createdBy: "user_super_admin", publishedAt: daysAgo(400), createdAt: daysAgo(400),
+    },
+    {
+      id: "tpl_3", slug: "appel_de_fonds", category: "financial",
+      name: JSON.stringify({ fr: "Appel de Fonds" }),
+      description: JSON.stringify({ fr: "Demande de paiement des charges de copropriété." }),
+      variables: JSON.stringify([
+        { name: "period",   label: "Période",  type: "string", required: true },
+        { name: "amount",   label: "Montant",  type: "number", required: true },
+        { name: "dueDate",  label: "Échéance", type: "date",   required: true },
+      ]),
+      sections: JSON.stringify([{ id: "content", title: "Corps", order: 1 }]),
+      status: "published", languages: JSON.stringify(["fr"]), currentVersion: 1, usageCount: 120,
+      createdBy: "user_super_admin", publishedAt: daysAgo(500), createdAt: daysAgo(500),
+    },
+    {
+      id: "tpl_4", slug: "recu_paiement", category: "financial",
+      name: JSON.stringify({ fr: "Reçu de Paiement" }),
+      description: JSON.stringify({ fr: "Reçu officiel de paiement des charges de copropriété." }),
+      variables: JSON.stringify([
+        { name: "paidDate", label: "Date de paiement", type: "date",   required: true },
+        { name: "amount",   label: "Montant",           type: "number", required: true },
+      ]),
+      sections: JSON.stringify([{ id: "content", title: "Corps", order: 1 }]),
+      status: "published", languages: JSON.stringify(["fr", "ar"]), currentVersion: 1, usageCount: 85,
+      createdBy: "user_super_admin", publishedAt: daysAgo(450), createdAt: daysAgo(450),
+    },
+    {
+      id: "tpl_5", slug: "contrat_bail", category: "contracts",
+      name: JSON.stringify({ fr: "Contrat de Bail" }),
+      description: JSON.stringify({ fr: "Contrat de location standard conforme à la législation marocaine." }),
+      variables: JSON.stringify([
+        { name: "tenantName",    label: "Nom du locataire",  type: "string", required: true },
+        { name: "monthlyRent",   label: "Loyer mensuel",     type: "number", required: true },
+        { name: "leaseStart",    label: "Date de début",     type: "date",   required: true },
+      ]),
+      sections: JSON.stringify([{ id: "content", title: "Corps", order: 1 }]),
+      status: "draft", languages: JSON.stringify(["fr"]), currentVersion: 1, usageCount: 2,
+      createdBy: "user_super_admin", createdAt: daysAgo(50),
+    },
+  ]).onConflictDoNothing();
+
+  // ─────────────────────────────────────────────────────────────────────────
+  // 54. TEMPLATE DEFINITION VERSIONS
+  // ─────────────────────────────────────────────────────────────────────────
+  await db.insert(templateDefinitionVersionsTable).values([
+    { id: "tdv_1", templateId: "tpl_2", version: 1, snapshot: JSON.stringify({ slug: "attestation_adhesion", status: "published", version: 1 }), changeDescription: "Version initiale", createdBy: "user_super_admin", createdAt: daysAgo(400) },
+    { id: "tdv_2", templateId: "tpl_2", version: 2, snapshot: JSON.stringify({ slug: "attestation_adhesion", status: "published", version: 2 }), changeDescription: "Ajout section CIN et photo identité", createdBy: "user_super_admin", createdAt: daysAgo(200) },
+    { id: "tdv_3", templateId: "tpl_1", version: 1, snapshot: JSON.stringify({ slug: "pv_ag", status: "published", version: 1 }), changeDescription: "Version initiale PV AG", createdBy: "user_super_admin", createdAt: daysAgo(300) },
+  ]).onConflictDoNothing();
+
+  // ─────────────────────────────────────────────────────────────────────────
+  // 55. TEMPLATE DEFINITION PERMISSIONS
+  // ─────────────────────────────────────────────────────────────────────────
+  await db.insert(templateDefinitionPermissionsTable).values([
+    { id: "tdp_1", templateId: "tpl_1", role: "syndicate_admin", canUse: true, canEdit: false, canPublish: false, createdAt: daysAgo(300) },
+    { id: "tdp_2", templateId: "tpl_1", role: "super_admin",     canUse: true, canEdit: true,  canPublish: true,  createdAt: daysAgo(300) },
+    { id: "tdp_3", templateId: "tpl_2", role: "syndicate_admin", canUse: true, canEdit: false, canPublish: false, createdAt: daysAgo(400) },
+    { id: "tdp_4", templateId: "tpl_2", role: "super_admin",     canUse: true, canEdit: true,  canPublish: true,  createdAt: daysAgo(400) },
+    { id: "tdp_5", templateId: "tpl_2", role: "member",          canUse: true, canEdit: false, canPublish: false, createdAt: daysAgo(400) },
+    { id: "tdp_6", templateId: "tpl_3", role: "syndicate_admin", canUse: true, canEdit: false, canPublish: false, createdAt: daysAgo(500) },
+    { id: "tdp_7", templateId: "tpl_4", role: "syndicate_admin", canUse: true, canEdit: false, canPublish: false, createdAt: daysAgo(450) },
+    { id: "tdp_8", templateId: "tpl_5", role: "syndicate_admin", canUse: true, canEdit: false, canPublish: false, createdAt: daysAgo(50) },
+    { id: "tdp_9", templateId: "tpl_5", role: "super_admin",     canUse: true, canEdit: true,  canPublish: true,  createdAt: daysAgo(50) },
+  ]).onConflictDoNothing();
+
+  // ─────────────────────────────────────────────────────────────────────────
+  // 56. TEMPLATE REQUESTS (syndicate admin → platform review pipeline)
+  // ─────────────────────────────────────────────────────────────────────────
+  await db.insert(templateRequestsTable).values([
+    {
+      id: "treq_1", requestedBy: "user_admin_atlas", syndicateId: "syn_residence_atlas",
+      title: "Lettre de mise en demeure copropriétaire débiteur",
+      category: "legal",
+      description: "Modèle de lettre de mise en demeure formelle pour le recouvrement des charges impayées, conforme à la Loi 18-00 et au Dahir 1-57-119.",
+      businessPurpose: "Chaque syndicat a besoin d'une lettre type validée juridiquement pour les mises en demeure.",
+      requiredFields: JSON.stringify([
+        { name: "debtorName",    type: "string", required: true },
+        { name: "totalAmount",   type: "number", required: true },
+        { name: "dueDate",       type: "date",   required: true },
+        { name: "referenceText", type: "string", required: false },
+      ]),
+      legalNotes: "Doit inclure référence à l'article 28 de la Loi 18-00 sur les charges impayées.",
+      status: "in_review", reviewedBy: "user_super_admin", reviewedAt: daysAgo(3),
+      reviewNotes: "Dossier solide. En attente de validation par le département juridique.",
+      priority: "high", publishScope: "global", createdAt: daysAgo(10),
+    },
+    {
+      id: "treq_2", requestedBy: "user_admin_agdal", syndicateId: "syn_jardins_agdal",
+      title: "Formulaire d'état des lieux contradictoire",
+      category: "contracts",
+      description: "Document standardisé pour l'état des lieux d'entrée et de sortie des locataires.",
+      businessPurpose: "Éviter les litiges entre propriétaires et locataires lors des changements de location.",
+      requiredFields: JSON.stringify([
+        { name: "tenantName",   type: "string", required: true },
+        { name: "ownerName",    type: "string", required: true },
+        { name: "lotNumber",    type: "string", required: true },
+        { name: "date",         type: "date",   required: true },
+      ]),
+      status: "pending", priority: "normal", publishScope: "private", createdAt: daysAgo(4),
+    },
+    {
+      id: "treq_3", requestedBy: "user_admin_atlas", syndicateId: "syn_residence_atlas",
+      title: "Attestation de non-réclamation — Départ locataire",
+      category: "certificates",
+      description: "Attestation signée par le propriétaire confirmant qu'il n'a aucune réclamation au départ d'un locataire.",
+      businessPurpose: "Exigé lors de la restitution de caution pour se prémunir de litiges ultérieurs.",
+      requiredFields: JSON.stringify([
+        { name: "tenantName",  type: "string", required: true },
+        { name: "leaseEnd",    type: "date",   required: true },
+        { name: "ownerName",   type: "string", required: true },
+      ]),
+      status: "approved", reviewedBy: "user_super_admin", reviewedAt: daysAgo(5),
+      reviewNotes: "Modèle approuvé. Mise en production la semaine prochaine.",
+      priority: "normal", publishScope: "global", createdAt: daysAgo(15),
+    },
+  ]).onConflictDoNothing();
+
+  // ─────────────────────────────────────────────────────────────────────────
   // DONE
   // ─────────────────────────────────────────────────────────────────────────
   console.log("\n✅  Seed terminé avec succès.\n");
@@ -1017,38 +1416,50 @@ async function main() {
   console.log("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━");
   console.log("\n  Tables renseignées:");
   const tables = [
-    "syndicates (2)",           "users (10)",                "members (6)",
-    "buildings (3)",            "lots (8)",                  "tenants (2)",
-    "budgets (3)",              "budget_lines (10)",         "appels_de_fonds (10)",
-    "transactions (9)",         "salary_records (5)",        "caisse_entries (8)",
-    "invoices (3)",             "invoice_items (4)",         "bons_livraison (2)",
-    "bon_items (2)",            "prestataires (5)",          "prestataire_evaluations (4)",
-    "contrats_prestataires (4)","travaux (5)",               "sinistres (4)",
-    "elections (3)",            "candidates (6)",            "votes (5)",
-    "meetings (4)",             "meeting_attendees (5)",     "ag_resolutions (3)",
-    "union_actions (3)",        "action_supports (3)",       "action_participants (3)",
-    "publications (5)",         "publication_likes (5)",     "publication_comments (3)",
-    "announcements (4)",        "documents (8)",
-    "conversations (6)",        "messages (14)",             "message_reads (4)",
-    "products (6)",             "cart_items (2)",            "orders (2)",
-    "reviews (1)",              "product_favorites (2)",     "product_reports (1)",
-    "product_comments (3)",     "marketplace_promotions (1)",
-    "legal_alerts (3)",         "support_tickets (4)",       "ticket_replies (4)",
-    "cotisations (7)",          "payment_proofs (4)",
-    "alerts (5)",               "alert_reads (3)",           "notification_preferences (6)",
-    "partners (3)",             "payslips (3)",
-    "subscription_plans (3)",   "syndicate_subscriptions (2)",
-    "audit_logs (10)",
-    "ideas (4)",                "idea_votes (5)",
+    "syndicates (2)",            "users (14)",                "members (6)",
+    "buildings (3)",             "lots (8)",                  "tenants (2)",
+    "budgets (3)",               "budget_lines (10)",         "appels_de_fonds (10)",
+    "transactions (9)",          "salary_records (5)",        "caisse_entries (8)",
+    "invoices (3)",              "invoice_items (4)",         "bons_livraison (2)",
+    "bon_items (2)",             "prestataires (5)",          "prestataire_evaluations (4)",
+    "contrats_prestataires (4)", "travaux (5)",               "sinistres (4)",
+    "elections (3)",             "candidates (6)",            "votes (5)",
+    "vote_receipts (5)",         "election_proxies (1)",      "election_questions (3)",
+    "meetings (4)",              "meeting_attendees (5)",     "ag_resolutions (3)",
+    "ag_proxies (2)",
+    "union_actions (3)",         "action_supports (3)",       "action_participants (3)",
+    "publications (5)",          "publication_likes (5)",     "publication_comments (3)",
+    "announcements (4)",         "documents (8)",
+    "document_versions (3)",     "document_sequences (7)",    "document_signatures (4)",
+    "document_comments (4)",
+    "conversations (6)",         "messages (14)",             "message_reads (4)",
+    "message_reactions (4)",     "blocked_users (1)",         "conversation_archives (1)",
+    "chat_reports (2)",
+    "products (6)",              "cart_items (2)",            "orders (2)",
+    "reviews (1)",               "product_favorites (2)",     "product_reports (1)",
+    "product_comments (3)",      "marketplace_promotions (1)",
+    "legal_alerts (3)",          "support_tickets (4)",       "ticket_replies (4)",
+    "cotisations (7)",           "payment_proofs (4)",
+    "alerts (5)",                "alert_reads (3)",           "notification_preferences (6)",
+    "partners (3)",              "payslips (3)",
+    "subscription_plans (3)",    "syndicate_subscriptions (2)",
+    "billing_invoices (5)",
+    "audit_logs (10)",           "email_logs (7)",
+    "ideas (4)",                 "idea_votes (5)",
     "debt_escalations (2)",
     "expense_justifications (3)","expense_votes (5)",
     "national_rankings (4)",
-    "parking_spots (9)",        "vehicles (6)",              "parking_violations (2)",
+    "parking_spots (9)",         "vehicles (6)",              "parking_violations (2)",
     "visitor_parking_reservations (2)",
     "travaux_privatifs (4)",
-    "refresh_tokens (5)",       "password_reset_tokens (2)",
-    "reclamations (6)",         "workflows (5)",             "workflow_steps (15)",
+    "conseil_syndical (6)",      "fonds_travaux (4)",
+    "charge_attachments (3)",    "invoice_attachments (3)",
+    "actes_administratifs (5)",
+    "refresh_tokens (5)",        "password_reset_tokens (2)",
+    "reclamations (6)",          "workflows (5)",             "workflow_steps (15)",
     "fiches_juridiques (6)",
+    "template_definitions (5)",  "template_def_versions (3)", "template_def_permissions (9)",
+    "template_requests (3)",
   ];
   for (let i = 0; i < tables.length; i += 3) {
     const row = tables.slice(i, i + 3).map((t) => `  • ${t.padEnd(35)}`).join("");

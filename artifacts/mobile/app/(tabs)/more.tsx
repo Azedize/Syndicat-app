@@ -236,7 +236,7 @@ export default function MoreScreen() {
   const colors = useColors();
   const insets = useSafeAreaInsets();
   const { user, logout } = useAuth();
-  const { alerts, elections, supportTickets, members, cart } = useData();
+  const { alerts, elections, supportTickets, members, cart, conversations } = useData();
   const { isWide } = useBreakpoints();
   const { t } = useLanguage();
   const topPad = isWide ? 0 : Platform.OS === "web" ? 67 : insets.top;
@@ -418,7 +418,7 @@ export default function MoreScreen() {
         <View style={[styles.infoCard, { backgroundColor: colors.card, borderColor: colors.border }]}>
           <View style={styles.infoRow}>
             <Text style={[styles.infoLabel, { color: colors.mutedForeground }]}>Application</Text>
-            <Text style={[styles.infoValue, { color: colors.foreground }]}>VERIDIAN — Syndicat de Copropriété</Text>
+            <Text style={[styles.infoValue, { color: colors.foreground }]}>SYNDYCAT GLOBAL CPS</Text>
           </View>
           <View style={[styles.infoDivider, { backgroundColor: colors.border }]} />
           <View style={styles.infoRow}>

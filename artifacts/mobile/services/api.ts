@@ -164,7 +164,7 @@ export interface ApiUser {
   id: string;
   name: string;
   email: string;
-  role: "super_admin" | "syndicate_admin" | "member";
+  role: "super_admin" | "syndicate_admin" | "president" | "treasurer" | "secretary" | "committee_member" | "member" | "tenant";
   syndicateId?: string | null;
   phone?: string | null;
   profession?: string | null;
