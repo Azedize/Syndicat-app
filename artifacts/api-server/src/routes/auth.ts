@@ -533,8 +533,7 @@ router.post("/auth/otp/verify", async (req, res) => {
 });
 
 // ─── POST /auth/sms/send ──────────────────────────────────────────────────────
-// Sends an SMS OTP via Twilio Verify. No account required — used for phone
-// verification during registration or profile phone confirmation.
+// Sends a 6-digit SMS OTP via ZimSend.
 router.post("/auth/sms/send", async (req, res) => {
   const { phone } = req.body as { phone?: string };
   if (!phone || phone.trim().length < 6) {
@@ -542,23 +541,26 @@ router.post("/auth/sms/send", async (req, res) => {
     return;
   }
   try {
-    const { sendSmsOtp, normalizePhone } = await import("../lib/twilioVerify.js");
-    const normalized = normalizePhone(phone.trim());
-    const result = await sendSmsOtp(normalized);
+    const { sendOtp } = await import("../lib/zimsend.service.js");
+    const result = await sendOtp(phone.trim());
     if (!result.ok) {
-      res.status(502).json({ error: result.error ?? "Échec de l'envoi du SMS" });
+      const status = result.errorCode === "RESEND_TOO_SOON" ? 429
+                   : result.errorCode === "INVALID_PHONE"   ? 400
+                   : result.errorCode === "NOT_CONFIGURED"  ? 503
+                   : 502;
+      res.status(status).json({ error: result.error, code: result.errorCode });
       return;
     }
-    req.log.info({ phone: normalized, status: result.status }, "SMS OTP envoyé via Twilio");
-    res.json({ message: "Code SMS envoyé", phone: normalized, status: result.status, expiresIn: 600 });
+    req.log.info({ phone: result.phone }, "SMS OTP envoyé via ZimSend");
+    res.json({ message: "Code SMS envoyé", phone: result.phone, expiresIn: result.expiresIn });
   } catch (err: any) {
     req.log.error(err, "POST /auth/sms/send error");
-    res.status(400).json({ error: err?.message ?? "Numéro de téléphone invalide ou erreur serveur" });
+    res.status(500).json({ error: err?.message ?? "Erreur serveur" });
   }
 });
 
 // ─── POST /auth/sms/verify ────────────────────────────────────────────────────
-// Verifies an SMS OTP code via Twilio Verify.
+// Verifies a 6-digit SMS OTP code via ZimSend.
 router.post("/auth/sms/verify", async (req, res) => {
   const { phone, code } = req.body as { phone?: string; code?: string };
   if (!phone || !code) {
@@ -566,30 +568,52 @@ router.post("/auth/sms/verify", async (req, res) => {
     return;
   }
   try {
-    const { checkSmsOtp, normalizePhone } = await import("../lib/twilioVerify.js");
-    const normalized = normalizePhone(phone.trim());
-    const result = await checkSmsOtp(normalized, code.trim());
+    const { verifyOtp } = await import("../lib/zimsend.service.js");
+    const result = await verifyOtp(phone.trim(), code.trim());
     if (!result.ok) {
-      res.status(502).json({ error: result.error ?? "Erreur Twilio" });
+      const status = result.errorCode === "MAX_ATTEMPTS" ? 429
+                   : result.errorCode === "INVALID_PHONE" ? 400
+                   : 400;
+      res.status(status).json({ error: result.error, code: result.errorCode, attemptsLeft: result.attemptsLeft });
       return;
     }
-    if (!result.valid) {
-      res.status(400).json({ error: "Code incorrect ou expiré. Vérifiez et réessayez.", status: result.status });
-      return;
-    }
-    req.log.info({ phone: normalized }, "SMS OTP vérifié avec succès");
-    res.json({ verified: true, phone: normalized, message: "Téléphone vérifié avec succès" });
+    req.log.info({ phone: result.phone }, "SMS OTP vérifié avec succès via ZimSend");
+    res.json({ verified: true, phone: result.phone, message: "Téléphone vérifié avec succès" });
   } catch (err: any) {
     req.log.error(err, "POST /auth/sms/verify error");
-    res.status(400).json({ error: err?.message ?? "Erreur de vérification" });
+    res.status(500).json({ error: err?.message ?? "Erreur serveur" });
   }
 });
 
-// ─── GET /auth/twilio/status ──────────────────────────────────────────────────
-// Health-check for Twilio config — useful for the admin panel.
-router.get("/auth/twilio/status", async (_req, res) => {
-  const { twilioConfigured } = await import("../lib/twilioVerify.js");
-  res.json({ configured: twilioConfigured() });
+// ─── POST /auth/verify-phone ──────────────────────────────────────────────────
+// Alias for /auth/sms/verify — validates phone + code, returns { success, verified }.
+router.post("/auth/verify-phone", async (req, res) => {
+  const { phone, code } = req.body as { phone?: string; code?: string };
+  if (!phone || !code) {
+    res.status(400).json({ success: false, error: "phone et code requis" });
+    return;
+  }
+  try {
+    const { verifyOtp } = await import("../lib/zimsend.service.js");
+    const result = await verifyOtp(phone.trim(), code.trim());
+    if (!result.ok) {
+      const status = result.errorCode === "MAX_ATTEMPTS" ? 429 : 400;
+      res.status(status).json({ success: false, verified: false, error: result.error, code: result.errorCode });
+      return;
+    }
+    req.log.info({ phone: result.phone }, "verify-phone: OTP vérifié");
+    res.json({ success: true, verified: true });
+  } catch (err: any) {
+    req.log.error(err, "POST /auth/verify-phone error");
+    res.status(500).json({ success: false, error: err?.message ?? "Erreur serveur" });
+  }
+});
+
+// ─── GET /auth/sms/status ─────────────────────────────────────────────────────
+// Health-check for ZimSend config.
+router.get("/auth/sms/status", async (_req, res) => {
+  const { zimSendConfigured } = await import("../lib/zimsend.service.js");
+  res.json({ provider: "ZimSend", configured: zimSendConfigured() });
 });
 
 export default router;

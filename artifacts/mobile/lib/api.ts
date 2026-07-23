@@ -50,7 +50,16 @@ export async function apiRequest<T = any>(
 
   if (!response.ok) {
     const message = data?.error ?? data?.message ?? `HTTP ${response.status}`;
-    throw new Error(message);
+    const err = new Error(message) as Error & {
+      code?: string; detail?: string; action?: string;
+      phone?: string; httpStatus?: number;
+    };
+    err.code       = data?.code;
+    err.detail     = data?.detail;
+    err.action     = data?.action;
+    err.phone      = data?.phone;
+    err.httpStatus = response.status;
+    throw err;
   }
 
   return data as T;
