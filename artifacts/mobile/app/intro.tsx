@@ -35,7 +35,7 @@ import Svg, {
 } from "react-native-svg";
 import { useTheme } from "@/context/ThemeContext";
 
-const { width: W } = Dimensions.get("window");
+const { width: W, height: H } = Dimensions.get("window");
 
 // ─── Premium Phone Mockup ─────────────────────────────────────────────────────
 function PhoneMockup({ children, accentColor, isDark }: {
@@ -51,7 +51,7 @@ function PhoneMockup({ children, accentColor, isDark }: {
   const sideBtn = isDark ? "#060E1C" : "#0A1628";
 
   return (
-    <Svg width="200" height="390" viewBox="0 0 200 390">
+    <Svg width="110" height="215" viewBox="0 0 200 390">
       {/* Drop shadow illusion */}
       <Rect x="10" y="10" width="188" height="378" rx="36" fill={accentColor} opacity="0.10" />
       <Rect x="6"  y="6"  width="192" height="386" rx="36" fill={accentColor} opacity="0.05" />
@@ -911,9 +911,12 @@ function IntroPage({ item, isDark, scrollX, index }: {
     extrapolate: "clamp",
   });
 
+  // Reserve ~32% for header + progressBar + footer + safe areas
+  const carouselH = H * 0.68;
+
   return (
     <ScrollView
-      style={{ width: W }}
+      style={{ width: W, height: carouselH }}
       contentContainerStyle={st.page}
       showsVerticalScrollIndicator={false}
       nestedScrollEnabled
@@ -1197,16 +1200,15 @@ const st = StyleSheet.create({
   mockupWrap: {
     alignItems: "center",
     justifyContent: "center",
-    marginBottom: 14,
-    // Subtle drop shadow
+    marginBottom: 10,
     shadowColor: "#000",
-    shadowOffset: { width: 0, height: 12 },
-    shadowOpacity: 0.22,
-    shadowRadius: 18,
-    elevation: 14,
+    shadowOffset: { width: 0, height: 8 },
+    shadowOpacity: 0.18,
+    shadowRadius: 12,
+    elevation: 10,
   },
 
-  textBlock: { width: "100%", alignItems: "center", gap: 10 },
+  textBlock: { width: "100%", alignItems: "center", gap: 8 },
 
   tag: {
     flexDirection: "row", alignItems: "center", gap: 6,
@@ -1217,33 +1219,33 @@ const st = StyleSheet.create({
   tagText: { fontSize: 11, fontFamily: "Inter_600SemiBold", letterSpacing: 0.6 },
 
   title: {
-    fontSize: 26, fontFamily: "Inter_700Bold",
-    textAlign: "center", lineHeight: 33,
+    fontSize: 23, fontFamily: "Inter_700Bold",
+    textAlign: "center", lineHeight: 29,
     letterSpacing: -0.4,
   },
   subtitle: {
-    fontSize: 13, fontFamily: "Inter_400Regular",
-    textAlign: "center", lineHeight: 19,
+    fontSize: 12, fontFamily: "Inter_400Regular",
+    textAlign: "center", lineHeight: 18,
     maxWidth: "92%",
   },
 
-  statsRow: { flexDirection: "row", gap: 10, width: "100%" },
+  statsRow: { flexDirection: "row", gap: 8, width: "100%" },
   statCard: {
-    flex: 1, alignItems: "center", gap: 4,
-    paddingVertical: 10, paddingHorizontal: 8,
-    borderRadius: 14, borderWidth: 1,
-  },
-  statIcon: { width: 28, height: 28, borderRadius: 8, alignItems: "center", justifyContent: "center" },
-  statValue: { fontSize: 17, fontFamily: "Inter_700Bold" },
-  statLabel: { fontSize: 9, fontFamily: "Inter_500Medium", textAlign: "center", lineHeight: 12 },
-
-  features: { width: "100%", gap: 7 },
-  featureRow: {
-    flexDirection: "row", alignItems: "center", gap: 10,
-    paddingHorizontal: 14, paddingVertical: 9,
+    flex: 1, alignItems: "center", gap: 3,
+    paddingVertical: 8, paddingHorizontal: 6,
     borderRadius: 12, borderWidth: 1,
   },
-  featureIcon: { width: 28, height: 28, borderRadius: 8, alignItems: "center", justifyContent: "center" },
+  statIcon: { width: 24, height: 24, borderRadius: 7, alignItems: "center", justifyContent: "center" },
+  statValue: { fontSize: 15, fontFamily: "Inter_700Bold" },
+  statLabel: { fontSize: 9, fontFamily: "Inter_500Medium", textAlign: "center", lineHeight: 12 },
+
+  features: { width: "100%", gap: 6 },
+  featureRow: {
+    flexDirection: "row", alignItems: "center", gap: 9,
+    paddingHorizontal: 12, paddingVertical: 7,
+    borderRadius: 11, borderWidth: 1,
+  },
+  featureIcon: { width: 24, height: 24, borderRadius: 7, alignItems: "center", justifyContent: "center" },
   featureText: { flex: 1, fontSize: 12, fontFamily: "Inter_500Medium", lineHeight: 16 },
 
   footer: {
