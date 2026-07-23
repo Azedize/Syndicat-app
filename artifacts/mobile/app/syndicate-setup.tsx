@@ -3,7 +3,7 @@ import AsyncStorage from "@react-native-async-storage/async-storage";
 import * as Haptics from "expo-haptics";
 import * as ImagePicker from "expo-image-picker";
 import { router } from "expo-router";
-import React, { useState, useCallback } from "react";
+import React, { useState, useCallback, useRef, useEffect } from "react";
 import {
   ActivityIndicator,
   FlatList,
@@ -24,6 +24,7 @@ import { useData } from "@/context/DataContext";
 import { useBreakpoints } from "@/hooks/useBreakpoints";
 import { useColors } from "@/hooks/useColors";
 import { syndicates as syndicatesApi } from "@/services/api";
+import { apiRequest } from "@/lib/api";
 
 const TOTAL_STEPS = 4;
 const STEP_ICONS: Array<keyof typeof Feather.glyphMap> = ["home", "phone", "file-text", "settings"];
@@ -630,6 +631,95 @@ function SyndicateSetupScreenInner() {
   const [errors, setErrors] = useState<FieldErrors>({});
   const [touched, setTouched] = useState<Partial<Record<keyof SetupForm, boolean>>>({});
 
+  // ── SMS OTP phone verification (step 2 → step 3 gate) ───────────────────────
+  const [phoneVerified, setPhoneVerified]     = useState(false);
+  const [showSmsModal, setShowSmsModal]       = useState(false);
+  const [smsCode, setSmsCode]                 = useState<string[]>(Array(6).fill(""));
+  const [smsSending, setSmsSending]           = useState(false);
+  const [smsVerifying, setSmsVerifying]       = useState(false);
+  const [smsSendStatus, setSmsSendStatus]     = useState<"idle"|"sending"|"success"|"error">("idle");
+  const [smsSendMsg, setSmsSendMsg]           = useState<string | null>(null);
+  const [smsError, setSmsError]               = useState<string | null>(null);
+  const [smsResendCooldown, setSmsResendCooldown] = useState(0);
+  const [smsTimeLeft, setSmsTimeLeft]         = useState(600);
+  const smsInputs = useRef<(TextInput | null)[]>([]);
+
+  // Countdown when modal is open
+  useEffect(() => {
+    if (!showSmsModal) return;
+    const iv = setInterval(() => {
+      setSmsResendCooldown(c => Math.max(0, c - 1));
+      setSmsTimeLeft(t => Math.max(0, t - 1));
+    }, 1000);
+    return () => clearInterval(iv);
+  }, [showSmsModal]);
+
+  const fmtTime = (s: number) => `${Math.floor(s / 60)}:${String(s % 60).padStart(2, "0")}`;
+
+  const doSmsSend = async () => {
+    setSmsSending(true);
+    setSmsSendStatus("sending");
+    setSmsSendMsg(null);
+    setSmsError(null);
+    setSmsCode(Array(6).fill(""));
+    setSmsResendCooldown(60);
+    setSmsTimeLeft(600);
+    try {
+      await apiRequest("/auth/sms/send", "POST", { phone: form.phone.trim() });
+      setSmsSendStatus("success");
+      setSmsSendMsg(`Code envoyé au ${form.phone.trim()}`);
+      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+      setTimeout(() => setSmsSendStatus("idle"), 3000);
+    } catch (err: any) {
+      setSmsSendStatus("error");
+      setSmsSendMsg(err?.message ?? "Échec de l'envoi du SMS. Vérifiez le numéro.");
+      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
+    } finally {
+      setSmsSending(false);
+    }
+  };
+
+  const handleSmsDigit = (text: string, i: number) => {
+    const char = text.replace(/[^0-9]/g, "").slice(-1);
+    const next = [...smsCode]; next[i] = char; setSmsCode(next);
+    setSmsError(null);
+    if (char && i < 5) smsInputs.current[i + 1]?.focus();
+    // auto-verify when last digit entered
+    if (char && i === 5) {
+      const full = [...next].join("");
+      if (full.length === 6) handleSmsVerify(full);
+    }
+  };
+
+  const handleSmsKey = (key: string, i: number) => {
+    if (key === "Backspace") {
+      const next = [...smsCode];
+      if (next[i]) { next[i] = ""; setSmsCode(next); }
+      else if (i > 0) { next[i - 1] = ""; setSmsCode(next); smsInputs.current[i - 1]?.focus(); }
+    }
+  };
+
+  const handleSmsVerify = async (overrideCode?: string) => {
+    const full = overrideCode ?? smsCode.join("");
+    if (full.length < 6 || smsVerifying) return;
+    setSmsVerifying(true);
+    setSmsError(null);
+    try {
+      await apiRequest("/auth/sms/verify", "POST", { phone: form.phone.trim(), code: full });
+      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+      setPhoneVerified(true);
+      setShowSmsModal(false);
+      setStep(s => s + 1);
+    } catch (err: any) {
+      setSmsError(err?.message ?? "Code incorrect. Vérifiez et réessayez.");
+      setSmsCode(Array(6).fill(""));
+      smsInputs.current[0]?.focus();
+      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
+    } finally {
+      setSmsVerifying(false);
+    }
+  };
+
   const [form, setForm] = useState<SetupForm>({
     name: "",
     abbreviation: "",
@@ -751,6 +841,12 @@ function SyndicateSetupScreenInner() {
   const handleNext = () => {
     if (!validateStep()) {
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
+      return;
+    }
+    // Step 2 → 3 : verify phone via SMS OTP before proceeding
+    if (step === 2 && !phoneVerified) {
+      setShowSmsModal(true);
+      doSmsSend();
       return;
     }
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
@@ -1496,6 +1592,13 @@ function SyndicateSetupScreenInner() {
           },
         ]}
       >
+        {/* Phone verified badge visible at step 2 */}
+        {step === 2 && phoneVerified && (
+          <View style={[styles.verifiedBadge, { backgroundColor: "#10B98115", borderColor: "#10B981" }]}>
+            <Feather name="check-circle" size={14} color="#10B981" />
+            <Text style={styles.verifiedBadgeText}>Téléphone vérifié</Text>
+          </View>
+        )}
         <TouchableOpacity
           style={[styles.nextBtn, { backgroundColor: colors.primary, opacity: isSubmitting ? 0.7 : 1 }]}
           onPress={step === TOTAL_STEPS ? handleFinish : handleNext}
@@ -1512,6 +1615,11 @@ function SyndicateSetupScreenInner() {
               <Feather name="check-circle" size={18} color="#fff" />
               <Text style={styles.nextBtnText}>Créer le syndicat</Text>
             </>
+          ) : step === 2 && !phoneVerified ? (
+            <>
+              <Feather name="smartphone" size={18} color="#fff" />
+              <Text style={styles.nextBtnText}>Vérifier le téléphone</Text>
+            </>
           ) : (
             <>
               <Text style={styles.nextBtnText}>Continuer</Text>
@@ -1520,6 +1628,190 @@ function SyndicateSetupScreenInner() {
           )}
         </TouchableOpacity>
       </View>
+
+      {/* ── SMS OTP Verification Modal ───────────────────────────────────────── */}
+      <Modal
+        visible={showSmsModal}
+        animationType="slide"
+        presentationStyle="pageSheet"
+        onRequestClose={() => setShowSmsModal(false)}
+      >
+        <View style={[styles.smsModal, { backgroundColor: colors.background }]}>
+          {/* Header */}
+          <View style={[styles.smsModalHeader, { borderBottomColor: colors.border }]}>
+            <View style={[styles.smsIconCircle, { backgroundColor: colors.primary + "18" }]}>
+              <Feather name="smartphone" size={22} color={colors.primary} />
+            </View>
+            <View style={{ flex: 1 }}>
+              <Text style={[styles.smsModalTitle, { color: colors.foreground }]}>
+                Vérification du téléphone
+              </Text>
+              <Text style={[styles.smsModalSub, { color: colors.mutedForeground }]}>
+                {form.phone.trim()}
+              </Text>
+            </View>
+            <TouchableOpacity onPress={() => setShowSmsModal(false)} style={styles.smsCloseBtn}>
+              <Feather name="x" size={20} color={colors.mutedForeground} />
+            </TouchableOpacity>
+          </View>
+
+          <ScrollView
+            contentContainerStyle={{ padding: 24, gap: 20 }}
+            showsVerticalScrollIndicator={false}
+            keyboardShouldPersistTaps="handled"
+          >
+            {/* Send status banner */}
+            {smsSendStatus !== "idle" && (
+              <View style={[styles.smsBanner, {
+                backgroundColor:
+                  smsSendStatus === "success" ? "#10B98112" :
+                  smsSendStatus === "error"   ? "#EF444412" :
+                  colors.primary + "10",
+                borderColor:
+                  smsSendStatus === "success" ? "#10B981" :
+                  smsSendStatus === "error"   ? "#EF4444" :
+                  colors.primary,
+              }]}>
+                {smsSendStatus === "sending" && <ActivityIndicator size="small" color={colors.primary} />}
+                {smsSendStatus === "success" && <Feather name="check-circle" size={16} color="#10B981" />}
+                {smsSendStatus === "error"   && <Feather name="x-circle"     size={16} color="#EF4444" />}
+                <View style={{ flex: 1 }}>
+                  <Text style={[styles.smsBannerTitle, {
+                    color: smsSendStatus === "success" ? "#10B981" :
+                           smsSendStatus === "error"   ? "#EF4444" : colors.primary,
+                  }]}>
+                    {smsSendStatus === "sending" && "Envoi du SMS en cours…"}
+                    {smsSendStatus === "success" && "SMS envoyé avec succès !"}
+                    {smsSendStatus === "error"   && "Échec de l'envoi"}
+                  </Text>
+                  {smsSendMsg && (
+                    <Text style={[styles.smsBannerSub, {
+                      color: smsSendStatus === "error" ? "#EF4444" : colors.mutedForeground,
+                    }]}>{smsSendMsg}</Text>
+                  )}
+                </View>
+              </View>
+            )}
+
+            {/* Timer */}
+            {smsTimeLeft > 0 ? (
+              <View style={styles.smsTimerRow}>
+                <Feather name="clock" size={12} color={smsTimeLeft <= 60 ? "#EF4444" : colors.mutedForeground} />
+                <Text style={[styles.smsTimerText, { color: smsTimeLeft <= 60 ? "#EF4444" : colors.mutedForeground }]}>
+                  Code valide pendant {fmtTime(smsTimeLeft)}
+                </Text>
+              </View>
+            ) : (
+              <View style={[styles.smsBanner, { backgroundColor: "#EF444412", borderColor: "#EF444430" }]}>
+                <Feather name="alert-circle" size={14} color="#EF4444" />
+                <Text style={[styles.smsBannerTitle, { color: "#EF4444" }]}>
+                  Code expiré — demandez un nouveau code
+                </Text>
+              </View>
+            )}
+
+            {/* OTP boxes */}
+            <View style={styles.smsOtpRow}>
+              {smsCode.map((digit, i) => (
+                <TextInput
+                  key={i}
+                  ref={ref => { smsInputs.current[i] = ref; }}
+                  style={[styles.smsOtpBox, {
+                    backgroundColor: colors.card,
+                    borderColor: smsError
+                      ? "#EF4444"
+                      : digit ? colors.primary
+                      : colors.border,
+                    color: colors.foreground,
+                  }]}
+                  value={digit}
+                  onChangeText={t => handleSmsDigit(t, i)}
+                  onKeyPress={({ nativeEvent }) => handleSmsKey(nativeEvent.key, i)}
+                  keyboardType="number-pad"
+                  maxLength={1}
+                  selectTextOnFocus
+                  autoFocus={i === 0}
+                />
+              ))}
+            </View>
+
+            {/* Error */}
+            {smsError && (
+              <View style={[styles.smsBanner, { backgroundColor: "#EF444412", borderColor: "#EF444430" }]}>
+                <Feather name="alert-circle" size={14} color="#EF4444" />
+                <Text style={[styles.smsBannerTitle, { color: "#EF4444" }]}>{smsError}</Text>
+              </View>
+            )}
+
+            {/* Loading */}
+            {smsVerifying && (
+              <View style={[styles.smsBanner, {
+                backgroundColor: colors.primary + "10",
+                borderColor: colors.primary + "30",
+              }]}>
+                <ActivityIndicator size="small" color={colors.primary} />
+                <Text style={[styles.smsBannerTitle, { color: colors.primary }]}>
+                  Vérification du code…
+                </Text>
+              </View>
+            )}
+
+            {/* Verify button */}
+            <TouchableOpacity
+              style={[styles.smsVerifyBtn, {
+                backgroundColor: smsCode.join("").length === 6 && !smsVerifying
+                  ? colors.primary
+                  : colors.primary + "40",
+              }]}
+              onPress={() => handleSmsVerify()}
+              disabled={smsCode.join("").length < 6 || smsVerifying}
+              activeOpacity={0.85}
+            >
+              {smsVerifying ? (
+                <ActivityIndicator color="#fff" size="small" />
+              ) : (
+                <>
+                  <Feather name="check-circle" size={18} color="#fff" />
+                  <Text style={styles.smsVerifyBtnText}>Confirmer le code</Text>
+                </>
+              )}
+            </TouchableOpacity>
+
+            {/* Resend */}
+            <View style={styles.smsResendRow}>
+              <Text style={[styles.smsResendLabel, { color: colors.mutedForeground }]}>
+                Pas reçu le SMS ?
+              </Text>
+              <TouchableOpacity
+                onPress={doSmsSend}
+                disabled={smsResendCooldown > 0 || smsSending}
+                activeOpacity={0.7}
+              >
+                <Text style={[styles.smsResendBtn, {
+                  color: smsResendCooldown > 0
+                    ? colors.mutedForeground
+                    : colors.primary,
+                }]}>
+                  {smsSending
+                    ? "Envoi…"
+                    : smsResendCooldown > 0
+                    ? `Renvoyer dans ${smsResendCooldown}s`
+                    : "Renvoyer le code"}
+                </Text>
+              </TouchableOpacity>
+            </View>
+
+            {/* Hint */}
+            <View style={[styles.smsHint, { backgroundColor: colors.muted, borderColor: colors.border }]}>
+              <Feather name="info" size={12} color={colors.mutedForeground} />
+              <Text style={[styles.smsHintText, { color: colors.mutedForeground }]}>
+                Le SMS est envoyé via Twilio Verify. Format accepté : +212XXXXXXXXX ou 06XXXXXXXX.
+                Le code expire dans 10 minutes.
+              </Text>
+            </View>
+          </ScrollView>
+        </View>
+      </Modal>
     </View>
   );
 }
@@ -1627,6 +1919,56 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "center",
   },
+  // ── SMS OTP Modal ──────────────────────────────────────────────────────────
+  verifiedBadge: {
+    flexDirection: "row", alignItems: "center", gap: 6,
+    paddingHorizontal: 12, paddingVertical: 6,
+    borderRadius: 8, borderWidth: 1, marginBottom: 8,
+  },
+  verifiedBadgeText: { fontFamily: "Inter_600SemiBold", fontSize: 12, color: "#10B981" },
+
+  smsModal: { flex: 1 },
+  smsModalHeader: {
+    flexDirection: "row", alignItems: "center", gap: 12,
+    padding: 20, borderBottomWidth: 1,
+  },
+  smsIconCircle: { width: 44, height: 44, borderRadius: 22, alignItems: "center", justifyContent: "center" },
+  smsModalTitle: { fontFamily: "Inter_700Bold", fontSize: 16 },
+  smsModalSub:   { fontFamily: "Inter_400Regular", fontSize: 13, marginTop: 2 },
+  smsCloseBtn:   { width: 36, height: 36, alignItems: "center", justifyContent: "center" },
+
+  smsBanner: {
+    flexDirection: "row", alignItems: "flex-start", gap: 10,
+    padding: 12, borderRadius: 12, borderWidth: 1,
+  },
+  smsBannerTitle: { fontFamily: "Inter_600SemiBold", fontSize: 13 },
+  smsBannerSub:   { fontFamily: "Inter_400Regular",  fontSize: 12, marginTop: 2, lineHeight: 17 },
+
+  smsTimerRow: { flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 6 },
+  smsTimerText: { fontFamily: "Inter_500Medium", fontSize: 13 },
+
+  smsOtpRow: { flexDirection: "row", justifyContent: "center", gap: 10 },
+  smsOtpBox: {
+    width: 48, height: 60, borderRadius: 14, borderWidth: 2,
+    textAlign: "center", fontSize: 24, fontFamily: "Inter_700Bold",
+  },
+
+  smsVerifyBtn: {
+    height: 52, borderRadius: 14,
+    flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 10,
+  },
+  smsVerifyBtnText: { fontFamily: "Inter_700Bold", fontSize: 15, color: "#fff" },
+
+  smsResendRow:  { alignItems: "center", gap: 4 },
+  smsResendLabel: { fontFamily: "Inter_400Regular", fontSize: 13 },
+  smsResendBtn:  { fontFamily: "Inter_600SemiBold", fontSize: 13 },
+
+  smsHint: {
+    flexDirection: "row", alignItems: "flex-start", gap: 8,
+    padding: 12, borderRadius: 10, borderWidth: 1,
+  },
+  smsHintText: { fontFamily: "Inter_400Regular", fontSize: 11, flex: 1, lineHeight: 17 },
+
   logoOrRow: {
     flexDirection: "row",
     alignItems: "center",
