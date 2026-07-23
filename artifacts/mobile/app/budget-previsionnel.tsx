@@ -41,10 +41,12 @@ const INCOME_CATEGORIES = new Set(["Cotisations", "Subventions", "Marketplace", 
 const fmt = (n: number) => new Intl.NumberFormat("fr-MA", { style: "decimal", maximumFractionDigits: 0 }).format(n) + " MAD";
 const pct = (realise: number, prevu: number) => Math.min(100, Math.round((realise / prevu) * 100));
 
-// Le budget prévisionnel est un document de gestion réservé aux administrateurs.
+// Le budget prévisionnel est accessible aux administrateurs et au trésorier (gestion)
+// ainsi qu'au président (consultation). La secrétaire et le membre du bureau n'ont
+// pas accès aux données financières.
 export default function BudgetPrevisionnelScreen() {
   return (
-    <RoleGuard allow={["super_admin", "syndicate_admin"]}>
+    <RoleGuard allow={["super_admin", "syndicate_admin", "treasurer", "president"]}>
       <BudgetPrevisionnelScreenInner />
     </RoleGuard>
   );
@@ -79,7 +81,8 @@ function BudgetPrevisionnelScreenInner() {
           categorie: l.category || "Divers",
           libelle: l.label || "",
           prevu: parseFloat(l.amountAnnual || "0"),
-          realise: 0,
+          // Use realised/spent amount from API response; fall back through several field names
+          realise: parseFloat(l.realise ?? l.amountRealise ?? l.amountSpent ?? l.spent ?? "0"),
           icon: "file-text" as any,
           color: INCOME_CATEGORIES.has(l.category || "") ? "#3b82f6" : "#2563EB",
         }));

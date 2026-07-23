@@ -22,6 +22,7 @@ import { useBreakpoints } from "@/hooks/useBreakpoints";
 import { useColors } from "@/hooks/useColors";
 import { apiRequest } from "@/lib/api";
 import { shareContent } from "@/hooks/useShare";
+import RoleGuard from "@/components/RoleGuard";
 
 type TxStatus = "paid" | "pending" | "overdue";
 type TxType = "cotisation" | "depense" | "salaire" | "recette";
@@ -59,14 +60,26 @@ function formatRef(id: string): string {
   return `PAY-${id.slice(0, 8).toUpperCase()}`;
 }
 
+// Paiements — personal payment history for members, tenants, and governance roles (who are also co-owners).
+// Super Admin does not belong to any syndicate and must never see individual syndicate financial data.
 export default function PaiementsScreen() {
+  return (
+    <RoleGuard allow={["syndicate_admin", "president", "treasurer", "secretary", "committee_member", "member", "tenant"]}>
+      <PaiementsScreenInner />
+    </RoleGuard>
+  );
+}
+
+function PaiementsScreenInner() {
   const colors = useColors();
   const insets = useSafeAreaInsets();
   const { user } = useAuth();
   const { transactions, addTransaction, updateTransactionStatus } = useData();
   const { isWide } = useBreakpoints();
   const topPad = isWide ? 0 : (Platform.OS === "web" ? 67 : insets.top);
-  const isAdmin = user?.role !== "member";
+  // Management roles can approve/reject transactions and see the full stats breakdown.
+  // Members and tenants are read-only viewers of their own transactions.
+  const isAdmin = ["super_admin", "syndicate_admin", "president", "treasurer", "secretary", "committee_member"].includes(user?.role ?? "");
 
   const [tab, setTab] = useState<TabFilter>("all");
   const [selected, setSelected] = useState<Transaction | null>(null);

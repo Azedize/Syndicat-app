@@ -7,8 +7,9 @@ import { z } from "zod";
 
 const router = Router();
 
-// GET /locataires — admin only (tenants see their own lease via /locataires/my-lease)
-router.get("/locataires", requireAuth, requireRole("super_admin", "syndicate_admin"), async (req, res) => {
+// GET /locataires — management team only (tenants see their own lease via /locataires/my-lease)
+// President and secretary manage tenant relations; syndicateId scoping enforces isolation.
+router.get("/locataires", requireAuth, requireRole("super_admin", "syndicate_admin", "president", "secretary"), async (req, res) => {
   try {
     const user = (req as any).user;
     const { status, buildingId, lotId, search } = req.query as Record<string, string>;
@@ -91,6 +92,7 @@ router.get("/locataires/my-lease", requireAuth, async (req, res) => {
         createdAt: tenantsTable.createdAt,
         lotNumber: lotsTable.number,
         floor: lotsTable.floor,
+        lotType: lotsTable.type,
         buildingName: buildingsTable.name,
         buildingAddress: buildingsTable.address,
       })

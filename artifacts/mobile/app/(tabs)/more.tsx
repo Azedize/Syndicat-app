@@ -82,8 +82,8 @@ const MENU_SECTIONS_DEF: SectionDef[] = [
   {
     titleKey: "menuSectionMyHome",
     items: [
-      // FIX: member (co-owner) also has a lot — they need Mon Appartement
-      { labelKey: "myApartment",  icon: "home",      route: "/mon-lot",        color: "#2563EB", roles: ["tenant", "member"] },
+      // Mon Lot: co-owners + governance roles (president/treasurer/secretary/committee_member are co-owners too)
+      { labelKey: "myApartment",  icon: "home",      route: "/mon-lot",        color: "#2563EB", roles: ["member", "president", "treasurer", "secretary", "committee_member"] },
       { labelKey: "monBail",      icon: "file-text", route: "/mon-bail",       color: "#3b82f6", roles: ["tenant"] },
       { labelKey: "etatDesLieux", icon: "clipboard", route: "/etat-des-lieux", color: "#10b981", roles: ["tenant"] },
     ],
@@ -101,8 +101,9 @@ const MENU_SECTIONS_DEF: SectionDef[] = [
     items: [
       { labelKey: "tableauBord",        icon: "bar-chart-2", route: "/tableau-bord-financier", color: "#3b82f6", roles: ["syndicate_admin", "treasurer"] },
       { labelKey: "chargesAppels",      icon: "credit-card", route: "/charges",                color: "#10b981", roles: ["syndicate_admin", "treasurer", "member"] },
-      { labelKey: "cotisations",        icon: "layers",      route: "/cotisations",            color: "#06b6d4", roles: ["member"] },
-      { labelKey: "paymentHistory",     icon: "dollar-sign", route: "/paiements",              color: "#10b981", roles: ["member", "tenant"] },
+      // Governance roles are also co-owners — they must see their personal cotisations and payment history.
+      { labelKey: "cotisations",        icon: "layers",      route: "/cotisations",            color: "#06b6d4", roles: ["member", "president", "treasurer", "secretary", "committee_member"] },
+      { labelKey: "paymentHistory",     icon: "dollar-sign", route: "/paiements",              color: "#10b981", roles: ["member", "tenant", "president", "treasurer", "secretary", "committee_member"] },
       // FIX [M9]: president chairs AG where budget is voted — must have read-only access
       { labelKey: "budgetPrevisionnel", icon: "pie-chart",   route: "/budget-previsionnel",    color: "#8b5cf6", roles: ["syndicate_admin", "treasurer", "president"] },
       { labelKey: "devisFactures",      icon: "file-text",   route: "/invoices",               color: "#6366f1", roles: ["syndicate_admin", "treasurer"] },
@@ -194,8 +195,9 @@ const MENU_SECTIONS_DEF: SectionDef[] = [
     items: [
       { labelKey: "demandesIntervention", icon: "headphones",   route: "/support",          color: "#ef4444", roles: [...ALL_TEAM, "member", "tenant"] },
       { labelKey: "supportPlateforme",    icon: "life-buoy",    route: "/platform-support", color: "#6366f1", roles: ["super_admin", ...ALL_TEAM] },
-      // FIX [M5]: tenants file noise/damage/neighbor complaints too
-      { labelKey: "reclamationsLabel",    icon: "inbox",        route: "/reclamations",     color: "#f97316", roles: ["syndicate_admin", "president", "member", "tenant"] },
+      // Réclamations = HR grievance module (salaire/discrimination/harcèlement).
+      // Tenants are not employees and must not access it (use /support instead).
+      { labelKey: "reclamationsLabel",    icon: "inbox",        route: "/reclamations",     color: "#f97316", roles: ["syndicate_admin", "president", "member"] },
     ],
   },
 
@@ -203,9 +205,9 @@ const MENU_SECTIONS_DEF: SectionDef[] = [
   {
     titleKey: "menuSectionMarketplace",
     items: [
-      // FIX [M2]: members are buyers — they need cart and orders access
-      { labelKey: "monPanier",    icon: "shopping-cart", route: "/cart",    color: "#f59e0b", roles: ["syndicate_admin", "member"] },
-      { labelKey: "mesCommandes", icon: "package",       route: "/orders",  color: "#6366f1", roles: ["syndicate_admin", "member"] },
+      // Members and tenants are buyers in the marketplace — they need cart and orders access.
+      { labelKey: "monPanier",    icon: "shopping-cart", route: "/cart",    color: "#f59e0b", roles: ["syndicate_admin", "member", "tenant"] },
+      { labelKey: "mesCommandes", icon: "package",       route: "/orders",  color: "#6366f1", roles: ["syndicate_admin", "member", "tenant"] },
       // ma-boutique is seller management — admin only
       { labelKey: "maBoutique",   icon: "shopping-bag",  route: "/my-shop", color: "#10b981", roles: ["syndicate_admin"] },
     ],

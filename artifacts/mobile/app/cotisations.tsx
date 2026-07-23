@@ -37,10 +37,12 @@ interface ApiCotisation {
 }
 
 // Cotisations are co-owner (copropriétaire) membership fees.
+// Governance roles (president, treasurer, secretary, committee_member) are also
+// co-owners — they must keep access to their personal cotisations space.
 // Tenants are not co-owners; admins manage cotisations via the charges/finance module.
 export default function CotisationsScreen() {
   return (
-    <RoleGuard allow={["member"]}>
+    <RoleGuard allow={["member", "president", "treasurer", "secretary", "committee_member"]}>
       <CotisationsScreenInner />
     </RoleGuard>
   );

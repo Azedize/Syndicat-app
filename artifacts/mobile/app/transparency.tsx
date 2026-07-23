@@ -54,7 +54,9 @@ export default function TransparencyScreen() {
   const topPad = isWide ? 0 : Platform.OS === "web" ? 67 : insets.top;
 
   const { showToast } = useToast();
-  const isAdmin = user?.role === "syndicate_admin" || user?.role === "super_admin";
+  // Transparency: president has full access (chairs governance decisions).
+  // super_admin is the platform owner — they don't manage individual syndicate transparency.
+  const isAdmin = user?.role === "syndicate_admin" || user?.role === "president";
 
   const [items, setItems] = useState<Justification[]>([]);
   const [loading, setLoading] = useState(true);

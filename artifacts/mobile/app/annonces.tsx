@@ -64,7 +64,9 @@ export default function AnnoncesScreen() {
   const { isWide } = useBreakpoints();
   const topPad = isWide ? 0 : (Platform.OS === "web" ? 67 : insets.top);
   const queryClient = useQueryClient();
-  const isAdmin = user?.role !== "member";
+  // Only management roles can create/delete announcements.
+  // Members and tenants are read-only viewers.
+  const isAdmin = ["super_admin", "syndicate_admin", "president", "secretary"].includes(user?.role ?? "");
   const { showToast } = useToast();
 
   const PRIORITY_CONFIG = getPriorityConfig(t);

@@ -82,7 +82,9 @@ function ActesAdministratifsScreenInner() {
   const { isWide } = useBreakpoints();
   const { showToast } = useToast();
   const topPad = isWide ? 0 : (Platform.OS === "web" ? 67 : insets.top);
-  const isAdmin = user?.role === "syndicate_admin" || user?.role === "super_admin";
+  // Secretary drafts and archives all administrative acts; president signs them.
+  // super_admin must not manage individual syndicate administrative documents.
+  const isAdmin = user?.role === "syndicate_admin" || user?.role === "secretary" || user?.role === "president";
 
   const [actes, setActes] = useState<ActeAdministratif[]>([]);
   const [loading, setLoading] = useState(true);

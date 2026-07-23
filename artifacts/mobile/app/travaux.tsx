@@ -17,6 +17,7 @@ import { pickAndUploadInvoice, pickAndUploadPdf, pickAndUploadPhoto } from "@/li
 import { prestataires as prestatairesApi, travaux as travauxApi } from "@/services/api";
 import FilterChips from "@/components/FilterChips";
 import StatisticsHeader from "@/components/StatisticsHeader";
+import RoleGuard from "@/components/RoleGuard";
 
 const STRINGS = {
   screenTitle: {
@@ -233,6 +234,14 @@ type Travail = {
 };
 
 export default function TravauxScreen() {
+  return (
+    <RoleGuard allow={["syndicate_admin", "president", "committee_member"]}>
+      <TravauxScreenInner />
+    </RoleGuard>
+  );
+}
+
+function TravauxScreenInner() {
   const colors = useColors();
   const insets = useSafeAreaInsets();
   const { user, token } = useAuth();
@@ -260,7 +269,9 @@ export default function TravauxScreen() {
   const [invoiceAmount, setInvoiceAmount] = useState("");
   const [actionBusy, setActionBusy] = useState(false);
 
-  const isAdmin = user?.role === "super_admin" || user?.role === "syndicate_admin";
+  // President and committee_member oversee works (they vote on works budgets).
+  // super_admin is the platform owner — not involved in individual syndicate works.
+  const isAdmin = user?.role === "syndicate_admin" || user?.role === "president" || user?.role === "committee_member";
 
   const closeActionModal = () => {
     setActionTravail(null);

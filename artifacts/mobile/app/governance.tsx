@@ -21,6 +21,7 @@ import { useBreakpoints } from "@/hooks/useBreakpoints";
 import { useColors } from "@/hooks/useColors";
 import { apiRequest } from "@/lib/api";
 import { useToast } from "@/context/ToastContext";
+import RoleGuard from "@/components/RoleGuard";
 
 type BureauMember = { id: string; name: string; role: string; icon: keyof typeof Feather.glyphMap; since: string; email: string; phone: string };
 type Commission = { id: string; name: string; members: number; status: "active" | "inactive"; chair: string; nextMeeting: string };
@@ -81,6 +82,14 @@ const INITIAL_DELEGATIONS: Delegation[] = [
 ];
 
 export default function GovernanceScreen() {
+  return (
+    <RoleGuard allow={["syndicate_admin", "president", "secretary", "committee_member"]}>
+      <GovernanceScreenInner />
+    </RoleGuard>
+  );
+}
+
+function GovernanceScreenInner() {
   const colors = useColors();
   const insets = useSafeAreaInsets();
   const { user } = useAuth();

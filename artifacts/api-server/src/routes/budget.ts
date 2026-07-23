@@ -157,9 +157,9 @@ router.get("/budgets/:id", requireAuth, requireFinanceAccess, async (req, res) =
   }
 });
 
-// POST /budgets
-// SECURITY: Verify buildingId belongs to caller's syndicate before INSERT
-router.post("/budgets", requireAuth, requireOperationalAccess, async (req, res) => {
+// POST /budgets — Treasurer is responsible for budgets (spec: "Mohamed suit les budgets").
+// requireFinanceAccess allows syndicate_admin and treasurer (not super_admin direct access).
+router.post("/budgets", requireAuth, requireFinanceAccess, async (req, res) => {
   try {
     const user = req.user!;
     const { year, buildingId, totalAmount, chargesAmount, fondsReserve, status, notes, lines } = req.body;
@@ -228,9 +228,8 @@ router.post("/budgets", requireAuth, requireOperationalAccess, async (req, res) 
   }
 });
 
-// PUT /budgets/:id
-// SECURITY: Fetch budget first, verify building ownership before UPDATE
-router.put("/budgets/:id", requireAuth, requireOperationalAccess, async (req, res) => {
+// PUT /budgets/:id — Treasurer can update budget entries.
+router.put("/budgets/:id", requireAuth, requireFinanceAccess, async (req, res) => {
   try {
     const user = req.user!;
 
@@ -284,9 +283,8 @@ router.put("/budgets/:id", requireAuth, requireOperationalAccess, async (req, re
   }
 });
 
-// POST /budgets/:id/generate-appels — Auto-generate appels de fonds for all lots
-// SECURITY: Verify building ownership before generating charges
-router.post("/budgets/:id/generate-appels", requireAuth, requireOperationalAccess, async (req, res) => {
+// POST /budgets/:id/generate-appels — Treasurer generates charge calls from budget.
+router.post("/budgets/:id/generate-appels", requireAuth, requireFinanceAccess, async (req, res) => {
   try {
     const user = req.user!;
     const { period, type } = req.body;

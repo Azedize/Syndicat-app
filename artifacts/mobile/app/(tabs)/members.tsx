@@ -3,6 +3,7 @@ import * as Haptics from "expo-haptics";
 import { router } from "expo-router";
 import React, { useState, useCallback } from "react";
 import {
+  ActivityIndicator,
   Alert,
   FlatList,
   Modal,
@@ -21,6 +22,7 @@ import { useColors } from "@/hooks/useColors";
 import FilterTabs from "@/components/FilterTabs";
 import { useToast } from "@/context/ToastContext";
 import { chat as chatApi } from "@/services/api";
+import { apiRequest } from "@/lib/api";
 
 type MemberFilter = "all" | "active" | "inactive" | "pending";
 
@@ -37,6 +39,9 @@ export default function MembersScreen() {
   const [newEmail, setNewEmail] = useState("");
   const [newPhone, setNewPhone] = useState("");
   const [newProfession, setNewProfession] = useState("");
+
+  const [submittingMember, setSubmittingMember] = useState(false);
+  const [submittingSyndicate, setSubmittingSyndicate] = useState(false);
 
   // Super admin - add syndicate state
   const [showAddSyndicate, setShowAddSyndicate] = useState(false);
@@ -107,41 +112,71 @@ export default function MembersScreen() {
     { key: "pending", label: "En attente" },
   ];
 
-  const handleAdd = () => {
-    if (!newName.trim()) return;
-    const member: Member = {
-      id: Date.now().toString(),
-      name: newName.trim(),
-      email: newEmail.trim(),
-      phone: newPhone.trim(),
-      profession: newProfession.trim() || "Non spécifié",
-      joinDate: new Date().toISOString().slice(0, 10),
-      status: "pending",
-      cotisationStatus: "pending",
-      syndicate: user?.syndicate ?? "SNE",
-    };
-    addMember(member);
-    setShowAdd(false);
-    setNewName(""); setNewEmail(""); setNewPhone(""); setNewProfession("");
-    Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+  const handleAdd = async () => {
+    if (!newName.trim() || submittingMember) return;
+    setSubmittingMember(true);
+    try {
+      const { data } = await apiRequest<{ data: any }>("/members", "POST", {
+        name: newName.trim(),
+        email: newEmail.trim(),
+        phone: newPhone.trim(),
+        profession: newProfession.trim() || "Non spécifié",
+        joinDate: new Date().toISOString().slice(0, 10),
+      });
+      const member: Member = {
+        id: data.id,
+        name: data.name,
+        email: data.email,
+        phone: data.phone ?? "",
+        profession: data.profession ?? "Non spécifié",
+        joinDate: data.joinDate ?? new Date().toISOString().slice(0, 10),
+        status: data.status ?? "pending",
+        cotisationStatus: data.cotisationStatus ?? "pending",
+        syndicate: user?.syndicate ?? "",
+      };
+      addMember(member);
+      setShowAdd(false);
+      setNewName(""); setNewEmail(""); setNewPhone(""); setNewProfession("");
+      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+      showToast({ type: "success", title: "Membre ajouté", message: `${member.name} a été ajouté avec succès.` });
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : "Impossible d'ajouter le membre.";
+      showToast({ type: "error", title: "Erreur", message: msg });
+    } finally {
+      setSubmittingMember(false);
+    }
   };
 
-  const handleAddSyndicate = () => {
-    if (!synName.trim()) return;
-    const s: Syndicate = {
-      id: Date.now().toString(),
-      name: synName.trim(),
-      sector: synSector.trim() || "Général",
-      members: 0,
-      admin: synAdmin.trim() || "Non assigné",
-      status: "active",
-      createdAt: new Date().toISOString().slice(0, 10),
-      region: synRegion.trim() || "National",
-    };
-    addSyndicate(s);
-    setShowAddSyndicate(false);
-    setSynName(""); setSynSector(""); setSynRegion(""); setSynAdmin("");
-    Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+  const handleAddSyndicate = async () => {
+    if (!synName.trim() || submittingSyndicate) return;
+    setSubmittingSyndicate(true);
+    try {
+      const { data } = await apiRequest<{ data: any }>("/syndicates", "POST", {
+        name: synName.trim(),
+        sector: synSector.trim() || "Général",
+        region: synRegion.trim() || "National",
+      });
+      const s: Syndicate = {
+        id: data.id,
+        name: data.name,
+        sector: data.sector ?? (synSector.trim() || "Général"),
+        members: data.membersCount ?? 0,
+        admin: synAdmin.trim() || "Non assigné",
+        status: data.status ?? "active",
+        createdAt: data.createdAt ?? new Date().toISOString().slice(0, 10),
+        region: data.region ?? (synRegion.trim() || "National"),
+      };
+      addSyndicate(s);
+      setShowAddSyndicate(false);
+      setSynName(""); setSynSector(""); setSynRegion(""); setSynAdmin("");
+      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+      showToast({ type: "success", title: "Syndicat créé", message: `${s.name} a été créé avec succès.` });
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : "Impossible de créer le syndicat.";
+      showToast({ type: "error", title: "Erreur", message: msg });
+    } finally {
+      setSubmittingSyndicate(false);
+    }
   };
 
   const statusConfig = (status: Member["status"]) => ({
@@ -416,13 +451,17 @@ export default function MembersScreen() {
                     </View>
                   ))}
                   <TouchableOpacity
-                    style={[styles.saveBtn, { backgroundColor: synName.trim() ? colors.primary : colors.muted }]}
+                    style={[styles.saveBtn, { backgroundColor: synName.trim() && !submittingSyndicate ? colors.primary : colors.muted }]}
                     onPress={handleAddSyndicate}
-                    disabled={!synName.trim()}
+                    disabled={!synName.trim() || submittingSyndicate}
                   >
-                    <Text style={[styles.saveBtnText, { color: synName.trim() ? "#fff" : colors.mutedForeground }]}>
-                      Créer le syndicat
-                    </Text>
+                    {submittingSyndicate ? (
+                      <ActivityIndicator size="small" color="#fff" />
+                    ) : (
+                      <Text style={[styles.saveBtnText, { color: synName.trim() ? "#fff" : colors.mutedForeground }]}>
+                        Créer le syndicat
+                      </Text>
+                    )}
                   </TouchableOpacity>
                 </View>
               )}
@@ -592,13 +631,17 @@ export default function MembersScreen() {
                   </View>
                 ))}
                 <TouchableOpacity
-                  style={[styles.saveBtn, { backgroundColor: newName.trim() ? colors.primary : colors.muted }]}
+                  style={[styles.saveBtn, { backgroundColor: newName.trim() && !submittingMember ? colors.primary : colors.muted }]}
                   onPress={handleAdd}
-                  disabled={!newName.trim()}
+                  disabled={!newName.trim() || submittingMember}
                 >
-                  <Text style={[styles.saveBtnText, { color: newName.trim() ? "#fff" : colors.mutedForeground }]}>
-                    Enregistrer
-                  </Text>
+                  {submittingMember ? (
+                    <ActivityIndicator size="small" color="#fff" />
+                  ) : (
+                    <Text style={[styles.saveBtnText, { color: newName.trim() ? "#fff" : colors.mutedForeground }]}>
+                      Enregistrer
+                    </Text>
+                  )}
                 </TouchableOpacity>
               </View>
             )}

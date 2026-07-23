@@ -96,7 +96,7 @@ interface ApiElection {
 // Elections (candidature, vote) sont un droit de copropriétaire (Loi 18-00) ; exclu aux locataires sauf autorisation.
 export default function ElectionsScreen() {
   return (
-    <RoleGuard allow={["super_admin", "syndicate_admin", "member"]}>
+    <RoleGuard allow={["super_admin", "syndicate_admin", "president", "secretary", "committee_member", "member"]}>
       <ElectionsScreenInner />
     </RoleGuard>
   );
@@ -138,10 +138,11 @@ function ElectionsScreenInner() {
   const [newSeats, setNewSeats] = useState("1");
   const [newTenantsVote, setNewTenantsVote] = useState(false);
   const [newEmergency, setNewEmergency] = useState(false);
-  const [candStart, setCandStart] = useState("2026-07-15");
-  const [candEnd, setCandEnd] = useState("2026-07-20");
-  const [newStart, setNewStart] = useState("2026-07-21");
-  const [newEnd, setNewEnd] = useState("2026-07-28");
+  // Default dates computed relative to today so they are never stale
+  const [candStart, setCandStart] = useState(() => { const d = new Date(); d.setDate(d.getDate() + 1); return d.toISOString().slice(0, 10); });
+  const [candEnd, setCandEnd] = useState(() => { const d = new Date(); d.setDate(d.getDate() + 7); return d.toISOString().slice(0, 10); });
+  const [newStart, setNewStart] = useState(() => { const d = new Date(); d.setDate(d.getDate() + 8); return d.toISOString().slice(0, 10); });
+  const [newEnd, setNewEnd] = useState(() => { const d = new Date(); d.setDate(d.getDate() + 15); return d.toISOString().slice(0, 10); });
 
   const [candBio, setCandBio] = useState("");
   const [candMotivation, setCandMotivation] = useState("");
@@ -838,14 +839,14 @@ function ElectionsScreenInner() {
 
               <Text style={[styles.fieldLabel, { color: colors.mutedForeground, marginTop: 12 }]}>{t("candidacyPeriod")} *</Text>
               <View style={styles.rowFields}>
-                <TextInput style={[styles.input, { flex: 1, color: colors.foreground, borderColor: colors.border }]} value={candStart} onChangeText={setCandStart} placeholder="2026-07-15" placeholderTextColor={colors.mutedForeground} />
-                <TextInput style={[styles.input, { flex: 1, color: colors.foreground, borderColor: colors.border }]} value={candEnd} onChangeText={setCandEnd} placeholder="2026-07-20" placeholderTextColor={colors.mutedForeground} />
+                <TextInput style={[styles.input, { flex: 1, color: colors.foreground, borderColor: colors.border }]} value={candStart} onChangeText={setCandStart} placeholder="AAAA-MM-JJ" placeholderTextColor={colors.mutedForeground} />
+                <TextInput style={[styles.input, { flex: 1, color: colors.foreground, borderColor: colors.border }]} value={candEnd} onChangeText={setCandEnd} placeholder="AAAA-MM-JJ" placeholderTextColor={colors.mutedForeground} />
               </View>
 
               <Text style={[styles.fieldLabel, { color: colors.mutedForeground, marginTop: 12 }]}>{t("votingPeriod")} *</Text>
               <View style={styles.rowFields}>
-                <TextInput style={[styles.input, { flex: 1, color: colors.foreground, borderColor: colors.border }]} value={newStart} onChangeText={setNewStart} placeholder="2026-07-21" placeholderTextColor={colors.mutedForeground} />
-                <TextInput style={[styles.input, { flex: 1, color: colors.foreground, borderColor: colors.border }]} value={newEnd} onChangeText={setNewEnd} placeholder="2026-07-28" placeholderTextColor={colors.mutedForeground} />
+                <TextInput style={[styles.input, { flex: 1, color: colors.foreground, borderColor: colors.border }]} value={newStart} onChangeText={setNewStart} placeholder="AAAA-MM-JJ" placeholderTextColor={colors.mutedForeground} />
+                <TextInput style={[styles.input, { flex: 1, color: colors.foreground, borderColor: colors.border }]} value={newEnd} onChangeText={setNewEnd} placeholder="AAAA-MM-JJ" placeholderTextColor={colors.mutedForeground} />
               </View>
 
               <TouchableOpacity style={styles.toggleRow} onPress={() => setNewTenantsVote((p) => !p)}>

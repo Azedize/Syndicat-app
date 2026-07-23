@@ -119,7 +119,9 @@ function PVScreenInner() {
   const insets = useSafeAreaInsets();
   const { user } = useAuth();
   const { t } = useLanguage();
-  const isAdmin = user?.role === "super_admin" || user?.role === "syndicate_admin";
+  // Secretary writes PVs; President signs them. Both need admin-level PV access.
+  // super_admin is excluded — they never manage syndicate documents directly.
+  const isAdmin = user?.role === "syndicate_admin" || user?.role === "secretary" || user?.role === "president";
 
   const { isWide } = useBreakpoints();
   const topPad = isWide ? 0 : Platform.OS === "web" ? 67 : insets.top;

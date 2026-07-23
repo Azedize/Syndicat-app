@@ -142,7 +142,9 @@ router.post(
   },
 );
 
-router.get("/members/:id", requireAuth, requireRole("super_admin", "syndicate_admin"), async (req, res) => {
+// Governance roles need individual member profiles (e.g. secretary invites members to AG,
+// president reviews member status). The row-level isSameSyndicate check enforces isolation.
+router.get("/members/:id", requireAuth, requireRole("super_admin", "syndicate_admin", "president", "treasurer", "secretary", "committee_member"), async (req, res) => {
   const id = String(req.params.id) as string;
   try {
     const [member] = await db.select().from(membersTable).where(eq(membersTable.id, id));

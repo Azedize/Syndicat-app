@@ -16,6 +16,7 @@ import { useAuth } from "@/context/AuthContext";
 import { useBreakpoints } from "@/hooks/useBreakpoints";
 import { useColors } from "@/hooks/useColors";
 import { apiRequest } from "@/lib/api";
+import RoleGuard from "@/components/RoleGuard";
 
 type Lot = {
   id: string;
@@ -67,7 +68,17 @@ const STATUS_COLORS: Record<string, string> = {
   partial: "#f97316",
 };
 
+// Mon Lot — personal apartment details for co-owners and governance members (who are also co-owners).
+// Super Admin and tenants do not have a lot — they are blocked.
 export default function MonLotScreen() {
+  return (
+    <RoleGuard allow={["member", "president", "treasurer", "secretary", "committee_member", "syndicate_admin"]}>
+      <MonLotScreenInner />
+    </RoleGuard>
+  );
+}
+
+function MonLotScreenInner() {
   const colors = useColors();
   const insets = useSafeAreaInsets();
   const { user, token } = useAuth();

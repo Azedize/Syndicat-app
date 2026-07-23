@@ -66,7 +66,8 @@ router.get("/publications", requireAuth, async (req, res) => {
 router.post(
   "/publications",
   requireAuth,
-  requireRole("super_admin", "syndicate_admin"),
+  // Secretary publishes announcements; president makes official communications.
+  requireRole("syndicate_admin", "secretary", "president"),
   async (req, res) => {
     const schema = z.object({
       title: z.string().min(1),

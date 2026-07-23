@@ -49,7 +49,8 @@ function ElectedMembersInner() {
   const { isWide } = useBreakpoints();
   const topPad = isWide ? 0 : (Platform.OS === "web" ? 67 : insets.top);
   const queryClient = useQueryClient();
-  const isAdmin = user?.role === "super_admin" || user?.role === "syndicate_admin";
+  // President and secretary manage elected member mandates and delegations.
+  const isAdmin = user?.role === "syndicate_admin" || user?.role === "president" || user?.role === "secretary";
 
   const { data, isLoading, refetch } = useQuery({
     queryKey: ["mandates"],

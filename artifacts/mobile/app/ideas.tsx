@@ -54,7 +54,8 @@ export default function IdeasScreen() {
   const { isWide } = useBreakpoints();
   const topPad = isWide ? 0 : Platform.OS === "web" ? 67 : insets.top;
 
-  const isAdmin = user?.role === "syndicate_admin" || user?.role === "super_admin";
+  // President moderates and validates ideas submitted by co-owners/members.
+  const isAdmin = user?.role === "syndicate_admin" || user?.role === "president";
   const { showToast } = useToast();
 
   const [ideas, setIdeas] = useState<Idea[]>([]);

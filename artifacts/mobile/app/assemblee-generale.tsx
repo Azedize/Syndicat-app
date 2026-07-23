@@ -86,7 +86,7 @@ const MAJORITY_LABELS: Record<string, string> = {
 // les locataires n'y participent pas et ne doivent pas voir son contenu.
 export default function AssembleeGeneraleScreen() {
   return (
-    <RoleGuard allow={["super_admin", "syndicate_admin", "member"]}>
+    <RoleGuard allow={["super_admin", "syndicate_admin", "president", "secretary", "committee_member", "member"]}>
       <AssembleeGeneraleScreenInner />
     </RoleGuard>
   );
@@ -97,7 +97,11 @@ function AssembleeGeneraleScreenInner() {
   const insets = useSafeAreaInsets();
   const { user, token } = useAuth();
   const { isWide } = useBreakpoints();
-  const isAdmin = user?.role === "super_admin" || user?.role === "syndicate_admin";
+  // President chairs AGs (can create, sign, manage resolutions).
+  // Secretary prepares agenda, records attendance, writes PV.
+  // Both have admin-level access to the AG workflow (not just participant view).
+  const isAdmin = user?.role === "super_admin" || user?.role === "syndicate_admin"
+    || user?.role === "president" || user?.role === "secretary";
   const { showToast } = useToast();
 
   const [ags, setAgs] = useState<AG[]>([]);

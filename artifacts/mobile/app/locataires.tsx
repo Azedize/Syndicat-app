@@ -80,7 +80,8 @@ function LocatairesScreenInner() {
     depositAmount: "", emergencyContact: "", emergencyPhone: "", notes: "",
   });
 
-  const isAdmin = user?.role === "super_admin" || user?.role === "syndicate_admin";
+  // President and secretary manage tenant relations (lease reviews, notices).
+  const isAdmin = user?.role === "syndicate_admin" || user?.role === "president" || user?.role === "secretary";
 
   const load = useCallback(async (silent = false) => {
     try {

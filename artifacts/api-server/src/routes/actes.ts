@@ -58,7 +58,8 @@ router.get("/actes/:id", requireAuth, async (req, res) => {
 router.post(
   "/actes",
   requireAuth,
-  requireRole("syndicate_admin", "super_admin"),
+  // Secretary creates administrative acts; president signs them.
+  requireRole("syndicate_admin", "secretary", "president"),
   async (req, res) => {
     const { role, syndicateId, userId, name } = req.user!;
     const {

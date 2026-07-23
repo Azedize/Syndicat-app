@@ -529,9 +529,10 @@ const TYPES_LIST = Object.entries(TYPE_CONFIG) as [ReclamationType, typeof TYPE_
 
 // Réclamations is the HR grievance module (salaire/discrimination/harcèlement).
 // Tenants (locataires) are not employees of the syndicate and must never access it.
+// President manages grievances at the bureau level alongside syndicate_admin.
 export default function ReclamationsScreen() {
   return (
-    <RoleGuard allow={["super_admin", "syndicate_admin", "member"]}>
+    <RoleGuard allow={["super_admin", "syndicate_admin", "president", "member"]}>
       <ReclamationsScreenInner />
     </RoleGuard>
   );
@@ -546,7 +547,9 @@ function ReclamationsScreenInner() {
   const topPad = isWide ? 0 : (Platform.OS === "web" ? 67 : insets.top);
 
   const { showToast } = useToast();
-  const isAdmin = user?.role === "super_admin" || user?.role === "syndicate_admin";
+  // Reclamations admin view: syndicate_admin and president manage grievances.
+  // super_admin must not see internal syndicate HR grievances.
+  const isAdmin = user?.role === "syndicate_admin" || user?.role === "president";
 
   const [filterStatut, setFilterStatut] = useState<ReclamationStatut | "all">("all");
   const [filterType, setFilterType] = useState<ReclamationType | "all">("all");

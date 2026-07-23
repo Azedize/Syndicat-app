@@ -19,10 +19,12 @@ import ScreenHeader from "@/components/ScreenHeader";
 import StatsStrip from "@/components/StatsStrip";
 
 // Charges & appels de fonds are a copropriétaire (owner) financial matter — tenants
-// are not co-owners and must not reach this screen even via deep link.
+// Charges screen — co-owners see their personal charges; treasurer/admin manage all charges.
+// Governance roles (president, treasurer, secretary) are also co-owners and must see their own charges.
+// Tenants are not co-owners — they are blocked.
 export default function ChargesScreen() {
   return (
-    <RoleGuard allow={["super_admin", "syndicate_admin", "member"]}>
+    <RoleGuard allow={["super_admin", "syndicate_admin", "treasurer", "president", "member"]}>
       <ChargesScreenInner />
     </RoleGuard>
   );
@@ -86,7 +88,9 @@ function ChargesScreenInner() {
   const [rejectModal, setRejectModal] = useState<Appel | null>(null);
   const [rejectReason, setRejectReason] = useState("");
 
-  const isAdmin = user?.role === "super_admin" || user?.role === "syndicate_admin";
+  // Treasurer manages all charges (validation, rejection) — they need the admin view.
+  // Members see their personal charges only.
+  const isAdmin = user?.role === "super_admin" || user?.role === "syndicate_admin" || user?.role === "treasurer";
   const load = useCallback(async (silent = false) => {
     try {
       if (!silent) setLoading(true);

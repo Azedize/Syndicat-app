@@ -39,7 +39,7 @@ function formatMoney(v: string | number): string {
 // Members and tenants must not access it — they have no payroll relationship with the syndicate.
 export default function FichesPaieScreen() {
   return (
-    <RoleGuard allow={["super_admin", "syndicate_admin"]}>
+    <RoleGuard allow={["syndicate_admin", "treasurer"]}>
       <FichesPaieScreenInner />
     </RoleGuard>
   );
@@ -51,7 +51,8 @@ function FichesPaieScreenInner() {
   const { user, token } = useAuth();
   const { isWide } = useBreakpoints();
   const topPad = isWide ? 0 : (Platform.OS === "web" ? 67 : insets.top);
-  const isAdmin = user?.role === "syndicate_admin" || user?.role === "super_admin";
+  // Treasurer manages payroll (spec: "Mohamed gère les salaires"). Admin for validation.
+  const isAdmin = user?.role === "syndicate_admin" || user?.role === "treasurer";
   const { showToast } = useToast();
 
   const [records, setRecords] = useState<SalaryRecord[]>([]);

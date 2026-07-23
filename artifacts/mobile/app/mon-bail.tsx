@@ -3,6 +3,7 @@
  *
  * Displays the current tenant's lease details fetched from
  * GET /locataires/my-lease (matched server-side by the tenant's account email).
+ * Only tenants see this screen — owners/governance roles have Mon Lot instead.
  */
 import { Feather } from "@expo/vector-icons";
 import { router } from "expo-router";
@@ -20,6 +21,7 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useAuth } from "@/context/AuthContext";
 import { useColors } from "@/hooks/useColors";
 import { locataires, type ApiTenantLease } from "@/services/api";
+import RoleGuard from "@/components/RoleGuard";
 
 interface InfoRowProps {
   label: string;
@@ -56,7 +58,16 @@ function formatMAD(value: string | null): string {
   return isNaN(n) ? "— MAD" : `${n.toLocaleString("fr-FR")} MAD`;
 }
 
+// Mon Bail — lease details for tenants only. Owners and governance roles have Mon Lot instead.
 export default function MonBailScreen() {
+  return (
+    <RoleGuard allow={["tenant"]}>
+      <MonBailScreenInner />
+    </RoleGuard>
+  );
+}
+
+function MonBailScreenInner() {
   const colors = useColors();
   const insets = useSafeAreaInsets();
   const { user } = useAuth();
@@ -142,7 +153,7 @@ export default function MonBailScreen() {
 
         <View style={[styles.section, { backgroundColor: colors.card, borderColor: colors.border }]}>
           <Text style={[styles.sectionTitle, { color: colors.mutedForeground }]}>INFORMATIONS DU BAIL</Text>
-          <InfoRow label="Type de bail" value="Location résidentielle" icon="file-text" color="#3b82f6" />
+          <InfoRow label="Type de bail" value={lease.lotType ?? "Non renseigné"} icon="file-text" color="#3b82f6" />
           <InfoRow label="Date de début" value={formatDate(lease.leaseStart)} icon="calendar" color="#10b981" />
           <InfoRow label="Date de fin" value={formatDate(lease.leaseEnd)} icon="calendar" color="#f59e0b" />
           <InfoRow label="Loyer mensuel" value={formatMAD(lease.monthlyRent)} icon="credit-card" color="#2563EB" />

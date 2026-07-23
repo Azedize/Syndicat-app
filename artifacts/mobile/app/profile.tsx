@@ -68,7 +68,15 @@ export default function ProfileScreen() {
 
   const { showToast } = useToast();
   const initials = user?.name.split(" ").map((n) => n[0]).join("").slice(0, 2).toUpperCase() ?? "";
-  const roleLabel = user?.role === "super_admin" ? "Super Administrateur" : user?.role === "syndicate_admin" ? "Admin Syndicat" : "Membre";
+  const roleLabel =
+    user?.role === "super_admin" ? "Super Administrateur" :
+    user?.role === "syndicate_admin" ? "Admin Syndicat" :
+    user?.role === "president" ? "Président" :
+    user?.role === "treasurer" ? "Trésorier" :
+    user?.role === "secretary" ? "Secrétaire" :
+    user?.role === "committee_member" ? "Membre du bureau" :
+    user?.role === "tenant" ? "Locataire" :
+    "Membre";
   const roleIcon = user?.role === "super_admin" ? "shield" as const : user?.role === "syndicate_admin" ? "briefcase" as const : "user" as const;
 
   const INFO_ROWS = [
@@ -91,10 +99,14 @@ export default function ProfileScreen() {
       updateUser({ name: res.data.name, phone: res.data.phone ?? undefined });
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
       showToast({ type: "success", title: "Profil mis à jour", message: "Vos modifications ont été enregistrées." });
-    } catch {
-      updateUser({ name: name.trim(), phone });
-      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-      showToast({ type: "success", title: "Profil mis à jour", message: "Vos modifications ont été enregistrées." });
+    } catch (err: unknown) {
+      // Restore previous values in local state since API call failed
+      setName(user?.name ?? "");
+      setPhone(user?.phone ?? "");
+      setEditing(true);
+      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
+      const msg = err instanceof Error ? err.message : "Impossible de mettre à jour le profil.";
+      showToast({ type: "error", title: "Erreur", message: msg });
     }
   };
 
@@ -337,9 +349,9 @@ export default function ProfileScreen() {
             <View style={[styles.cotCard, { backgroundColor: colors.card, borderColor: colors.border }]}>
               <View style={styles.cotRow}>
                 {[
-                  { value: "10", label: "Payées", color: colors.success },
-                  { value: "1", label: "En attente", color: "#f59e0b" },
-                  { value: "1", label: "En retard", color: colors.destructive },
+                  { value: String(cotisations.filter((c: any) => c.status === "paid").length), label: "Payées", color: colors.success },
+                  { value: String(cotisations.filter((c: any) => c.status === "pending").length), label: "En attente", color: "#f59e0b" },
+                  { value: String(cotisations.filter((c: any) => c.status === "overdue").length), label: "En retard", color: colors.destructive },
                 ].map((item) => (
                   <View key={item.label} style={[styles.cotItem, { backgroundColor: item.color + "15" }]}>
                     <Text style={[styles.cotValue, { color: item.color }]}>{item.value}</Text>

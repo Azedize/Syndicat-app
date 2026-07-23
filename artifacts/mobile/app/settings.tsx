@@ -59,7 +59,15 @@ export default function SettingsScreen() {
   };
 
   const initials = user?.name.split(" ").map((n) => n[0]).join("").slice(0, 2).toUpperCase() ?? "";
-  const roleLabel = user?.role === "super_admin" ? t("superAdmin") : user?.role === "syndicate_admin" ? t("syndicateAdmin") : t("member");
+  const roleLabel =
+    user?.role === "super_admin"       ? t("superAdmin") :
+    user?.role === "syndicate_admin"   ? t("syndicateAdmin") :
+    user?.role === "president"         ? t("rolePresident") :
+    user?.role === "treasurer"         ? t("roleTresorier") :
+    user?.role === "secretary"         ? t("roleSecrétaire") :
+    user?.role === "committee_member"  ? t("roleMembreConseil") :
+    user?.role === "tenant"            ? t("roleTenant") :
+    t("member");
 
   return (
     <View style={[styles.root, { backgroundColor: colors.background }]}>

@@ -152,7 +152,11 @@ export default function DocumentsScreen() {
   const { isWide } = useBreakpoints();
   const { lang, isRTL } = useLanguage();
   const topPad = isWide ? 0 : (Platform.OS === "web" ? 67 : insets.top);
-  const isAdmin = user?.role === "super_admin" || user?.role === "syndicate_admin";
+  // isAdmin controls viewing and document workflow (approve/reject/generate).
+  // super_admin is excluded from write actions on syndicate documents per spec:
+  // "Ahmed ne doit jamais voir les documents privés d'un résident".
+  // Secretary and President manage documents in the syndicate.
+  const isAdmin = user?.role === "syndicate_admin" || user?.role === "secretary" || user?.role === "president";
 
   // List / filter
   const [category, setCategory] = useState("all");

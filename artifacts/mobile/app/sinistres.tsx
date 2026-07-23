@@ -15,6 +15,7 @@ import { apiRequest } from "@/lib/api";
 import EmptyState from "@/components/EmptyState";
 import FilterChips from "@/components/FilterChips";
 import StatisticsHeader from "@/components/StatisticsHeader";
+import RoleGuard from "@/components/RoleGuard";
 
 const TYPE_CONFIG: Record<string, { label: string; icon: keyof typeof Feather.glyphMap; color: string }> = {
   degat_eau:        { label: "Dégât des eaux",     icon: "droplet",       color: "#3b82f6" },
@@ -57,6 +58,14 @@ type Sinistre = {
 };
 
 export default function SinistresScreen() {
+  return (
+    <RoleGuard allow={["syndicate_admin", "president", "committee_member"]}>
+      <SinistresScreenInner />
+    </RoleGuard>
+  );
+}
+
+function SinistresScreenInner() {
   const colors = useColors();
   const insets = useSafeAreaInsets();
   const { user, token } = useAuth();
@@ -69,7 +78,9 @@ export default function SinistresScreen() {
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [showModal, setShowModal] = useState(false);
-  const isAdmin = user?.role === "syndicate_admin" || user?.role === "super_admin";
+  // President chairs governance meetings on sinistres; committee_member votes on remediation.
+  // super_admin never manages individual syndicate incidents.
+  const isAdmin = user?.role === "syndicate_admin" || user?.role === "president" || user?.role === "committee_member";
   const [form, setForm] = useState({ type: "degat_eau", urgency: "medium", description: "", date: new Date().toISOString().split("T")[0], buildingId: "", estimatedAmount: "" });
   const [submitting, setSubmitting] = useState(false);
 

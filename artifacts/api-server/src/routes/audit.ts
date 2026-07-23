@@ -46,7 +46,9 @@ router.post("/audit", requireAuth, async (req, res) => {
   }
 });
 
-router.get("/audit", requireAuth, requireRole("super_admin", "syndicate_admin"), async (req, res) => {
+// Audit log: super_admin reads platform-wide; syndicate team reads own syndicate's events.
+// President needs audit access for governance oversight.
+router.get("/audit", requireAuth, requireRole("super_admin", "syndicate_admin", "president"), async (req, res) => {
   try {
     const pagination = getPagination(req, 50);
     const { limit, offset } = pagination;

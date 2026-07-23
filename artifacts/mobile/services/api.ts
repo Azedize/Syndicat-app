@@ -263,6 +263,7 @@ export interface ApiTenantLease {
   createdAt: string;
   lotNumber: string | null;
   floor: number | null;
+  lotType: string | null;
   buildingName: string | null;
   buildingAddress: string | null;
 }

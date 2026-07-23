@@ -48,7 +48,7 @@ type Prestataire = {
 
 export default function PrestatairesScreen() {
   return (
-    <RoleGuard allow={["super_admin", "syndicate_admin"]}>
+    <RoleGuard allow={["syndicate_admin", "president", "committee_member"]}>
       <PrestatairesScreenInner />
     </RoleGuard>
   );
@@ -59,7 +59,8 @@ function PrestatairesScreenInner() {
   const insets = useSafeAreaInsets();
   const { token, user } = useAuth();
   const { showToast } = useToast();
-  const isAdmin = user?.role === "super_admin" || user?.role === "syndicate_admin";
+  // President and committee_member oversee vendors (they approve contracts at governance level).
+  const isAdmin = user?.role === "syndicate_admin" || user?.role === "president" || user?.role === "committee_member";
   const { isWide } = useBreakpoints();
 
   const [prestataires, setPrestataires] = useState<Prestataire[]>([]);

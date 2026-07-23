@@ -211,22 +211,23 @@ const ts = StyleSheet.create({
 });
 
 export default function TabLayout() {
-  const { isSuperAdmin, isSyndicateAdmin, isTreasurer, isAdmin, role } = useRole();
+  const { isSuperAdmin, isSyndicateAdmin, isTreasurer, isPresident, isAdmin, role } = useRole();
   const { t } = useLanguage();
   const hiddenTabStyle = { display: "none" as const };
 
   // Finance tab: Syndicate Admin has full access; Treasurer manages finances.
-  // All other roles (including President/Secretary/Member) access finance
-  // via the More menu with role-appropriate items only.
-  const showFinanceTab = isSyndicateAdmin || isTreasurer;
+  // President gets read-only budget access via this tab.
+  // Secretary/CommitteeMember/Member access finance via the More menu.
+  const showFinanceTab = isSyndicateAdmin || isTreasurer || isPresident;
 
   // Members tab: Super Admin (platform list of syndicates) + Syndicate Admin (members list).
   // President/Secretary/CommitteeMember access member info via governance screens.
   const showMembersTab = isAdmin;
 
-  // FIX [M2]: Members are buyers in the marketplace — they need to browse and purchase.
-  // Syndicate Admin manages the marketplace (seller). Members are the customers.
-  const showMarketplaceTab = isSyndicateAdmin || role === "member";
+  // Members are buyers in the marketplace — they need to browse and purchase.
+  // Tenants can also browse and purchase from the marketplace.
+  // Syndicate Admin manages the marketplace (seller).
+  const showMarketplaceTab = isSyndicateAdmin || role === "member" || role === "tenant";
 
   return (
     <Tabs

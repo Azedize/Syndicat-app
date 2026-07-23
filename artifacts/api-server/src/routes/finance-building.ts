@@ -16,7 +16,8 @@ import { requireAuth, requireRole } from "../middleware/auth.js";
 const router = Router();
 
 // GET /finance/buildings — list buildings with quick stats (admin only)
-router.get("/finance/buildings", requireAuth, requireRole("super_admin", "syndicate_admin"), async (req, res) => {
+// Treasurer needs building-level finance stats to prepare the budget.
+router.get("/finance/buildings", requireAuth, requireRole("super_admin", "syndicate_admin", "treasurer"), async (req, res) => {
   try {
     const user = (req as any).user;
 

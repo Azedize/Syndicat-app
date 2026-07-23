@@ -125,10 +125,12 @@ const PERMISSIONS: Record<PermissionAction, UserRole[]> = {
   "write:prestataires":  ["syndicate_admin"],
   // ─── Member / tenant actions ────────────────────────────────────────────────
   "submit:incident":     ["syndicate_admin", "president", "secretary", "committee_member", "member", "tenant"],
-  "submit:payment":      ["member"],
+  // Governance roles are also co-owners — they must be able to submit their own payments.
+  "submit:payment":      ["member", "president", "treasurer", "secretary", "committee_member"],
   // Voting: owners (members) + management team
   "vote":                ["syndicate_admin", "president", "secretary", "committee_member", "member"],
-  "view:my-apartment":   ["member", "tenant"],
+  // Governance roles are also co-owners — they have a personal apartment/lot too.
+  "view:my-apartment":   ["member", "tenant", "president", "treasurer", "secretary", "committee_member"],
 };
 
 /**
@@ -165,6 +167,15 @@ export function useRole() {
   /** True if user is a co-owner who can vote and pays charges */
   const isOwner = isMember;
 
+  /**
+   * True if user is a co-owner OR holds a governance role that implies co-ownership.
+   * Use for personal space screens (Mes Cotisations, Mon Lot, Mes Paiements, etc.).
+   * Governance roles (president, treasurer, secretary, committee_member) are elected
+   * among co-owners — they never lose their personal member privileges.
+   */
+  const isOwnerOrGovernance =
+    isMember || isPresident || isTreasurer || isSecretary || isCommitteeMember || isSyndicateAdmin;
+
   return {
     role,
     isSuperAdmin,
@@ -178,5 +189,6 @@ export function useRole() {
     isSyndicateTeamMember,
     isAdmin,
     isOwner,
+    isOwnerOrGovernance,
   };
 }

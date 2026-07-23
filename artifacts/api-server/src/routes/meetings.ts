@@ -65,7 +65,9 @@ router.get("/meetings", requireAuth, async (req, res) => {
   }
 });
 
-router.post("/meetings", requireAuth, requireRole("super_admin", "syndicate_admin"), async (req, res) => {
+// Secretary creates meetings and prepares agendas (spec: "Fatima crée la réunion, prépare l'ordre du jour").
+// President chairs meetings. Syndicate Admin has full access.
+router.post("/meetings", requireAuth, requireRole("super_admin", "syndicate_admin", "president", "secretary"), async (req, res) => {
   const schema = z.object({
     title: z.string().min(1),
     date: z.string(),
@@ -80,8 +82,9 @@ router.post("/meetings", requireAuth, requireRole("super_admin", "syndicate_admi
   try {
     const user = req.user!;
 
-    // syndicate_admin must have a syndicateId — hard fail to prevent unscoped records
-    if (user.role === "syndicate_admin" && !user.syndicateId) {
+    // All non-super_admin roles must have syndicateId — hard fail to prevent unscoped records.
+    // Covers syndicate_admin, president, and secretary who can now create meetings.
+    if (user.role !== "super_admin" && !user.syndicateId) {
       return void res.status(403).json({ error: "Syndicat non défini dans le token" });
     }
 
@@ -118,7 +121,8 @@ router.post("/meetings", requireAuth, requireRole("super_admin", "syndicate_admi
   }
 });
 
-router.put("/meetings/:id", requireAuth, requireRole("super_admin", "syndicate_admin"), async (req, res) => {
+// Secretary and President can update meetings (prepare agenda, record attendance, write PV).
+router.put("/meetings/:id", requireAuth, requireRole("super_admin", "syndicate_admin", "president", "secretary"), async (req, res) => {
   const schema = z.object({
     title: z.string().min(1).optional(),
     date: z.string().optional(),
@@ -134,6 +138,11 @@ router.put("/meetings/:id", requireAuth, requireRole("super_admin", "syndicate_a
     const user = req.user!;
 
     if (user.role === "syndicate_admin" && !user.syndicateId) {
+      return void res.status(403).json({ error: "Syndicat non défini dans le token" });
+    }
+
+    // All non-super_admin roles (including president, secretary) must have syndicateId.
+    if (user.role !== "super_admin" && !user.syndicateId) {
       return void res.status(403).json({ error: "Syndicat non défini dans le token" });
     }
 
