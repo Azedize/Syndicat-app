@@ -912,7 +912,13 @@ function IntroPage({ item, isDark, scrollX, index }: {
   });
 
   return (
-    <View style={[st.page, { width: W }]}>
+    <ScrollView
+      style={{ width: W }}
+      contentContainerStyle={st.page}
+      showsVerticalScrollIndicator={false}
+      nestedScrollEnabled
+      keyboardShouldPersistTaps="handled"
+    >
       {/* Mockup with parallax */}
       <Animated.View style={[st.mockupWrap, { transform: [{ translateX: mockupTransX }, { scale: mockupScale }] }]}>
         <PhoneMockup accentColor={item.accentColor} isDark={isDark}>
@@ -960,7 +966,7 @@ function IntroPage({ item, isDark, scrollX, index }: {
           ))}
         </View>
       </Animated.View>
-    </View>
+    </ScrollView>
   );
 }
 
@@ -1182,10 +1188,10 @@ const st = StyleSheet.create({
   dot: { height: 6, borderRadius: 3 },
 
   page: {
-    flex: 1,
     alignItems: "center",
     paddingHorizontal: 20,
     paddingTop: 8,
+    paddingBottom: 24,
   },
 
   mockupWrap: {
