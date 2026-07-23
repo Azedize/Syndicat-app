@@ -14,18 +14,19 @@ import { Feather } from "@expo/vector-icons";
 import * as Haptics from "expo-haptics";
 import { LinearGradient } from "expo-linear-gradient";
 import { router } from "expo-router";
-import React, { useRef, useState } from "react";
+import React, { useCallback, useRef, useState } from "react";
 import {
   Animated,
   Dimensions,
-  FlatList,
+  NativeScrollEvent,
+  NativeSyntheticEvent,
   Platform,
+  ScrollView,
   StatusBar,
   StyleSheet,
   Text,
   TouchableOpacity,
   View,
-  ViewToken,
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import Svg, {
@@ -969,33 +970,44 @@ export default function IntroScreen() {
   const insets = useSafeAreaInsets();
   const [activeIdx, setActiveIdx] = useState(0);
   const scrollX = useRef(new Animated.Value(0)).current;
-  const flatRef  = useRef<FlatList>(null);
+  const scrollRef = useRef<ScrollView>(null);
+  // Stable ref so goNext always reads the latest index inside useCallback
+  const activeIdxRef = useRef(0);
 
   const topPad = Platform.OS === "android"
     ? (StatusBar.currentHeight ?? 0) + 8
     : insets.top + 8;
 
-  const handleViewableItemsChanged = useRef(({ viewableItems }: { viewableItems: ViewToken[] }) => {
-    if (viewableItems.length > 0) {
-      const idx = viewableItems[0].index ?? 0;
-      setActiveIdx(idx);
-      Haptics.selectionAsync();
-    }
-  }).current;
+  const handleScroll = useCallback(
+    (e: NativeSyntheticEvent<NativeScrollEvent>) => {
+      const x = e.nativeEvent.contentOffset.x;
+      scrollX.setValue(x);
+      const idx = Math.round(x / W);
+      if (idx !== activeIdxRef.current) {
+        activeIdxRef.current = idx;
+        setActiveIdx(idx);
+        Haptics.selectionAsync();
+      }
+    },
+    [scrollX],
+  );
 
-  const goNext = () => {
-    if (activeIdx < PAGES.length - 1) {
-      flatRef.current?.scrollToIndex({ index: activeIdx + 1, animated: true });
+  const goNext = useCallback(() => {
+    const current = activeIdxRef.current;
+    if (current < PAGES.length - 1) {
+      const nextIdx = current + 1;
+      scrollRef.current?.scrollTo({ x: nextIdx * W, animated: true });
+      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
     } else {
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
       router.replace("/get-started" as any);
     }
-  };
+  }, []);
 
-  const skip = () => {
+  const skip = useCallback(() => {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
     router.replace("/get-started" as any);
-  };
+  }, []);
 
   const bg = isDark ? "#070D1A" : "#F8FAFF";
   const currentAccent = PAGES[activeIdx].accentColor;
@@ -1066,22 +1078,21 @@ export default function IntroScreen() {
       </View>
 
       {/* Carousel */}
-      <Animated.FlatList
-        ref={flatRef as any}
-        data={PAGES}
-        keyExtractor={(item) => item.key}
+      <ScrollView
+        ref={scrollRef}
         horizontal
         pagingEnabled
         showsHorizontalScrollIndicator={false}
         bounces={false}
         scrollEventThrottle={16}
-        onScroll={Animated.event([{ nativeEvent: { contentOffset: { x: scrollX } } }], { useNativeDriver: true })}
-        onViewableItemsChanged={handleViewableItemsChanged}
-        viewabilityConfig={{ viewAreaCoveragePercentThreshold: 50 }}
-        renderItem={({ item, index }) => (
-          <IntroPage item={item} isDark={isDark} scrollX={scrollX} index={index} />
-        )}
-      />
+        onScroll={handleScroll}
+        style={{ flex: 1 }}
+        contentContainerStyle={{ alignItems: "flex-start" }}
+      >
+        {PAGES.map((item, index) => (
+          <IntroPage key={item.key} item={item} isDark={isDark} scrollX={scrollX} index={index} />
+        ))}
+      </ScrollView>
 
       {/* Footer CTA */}
       <View style={[st.footer, { paddingBottom: insets.bottom + 16, borderTopColor: isDark ? "rgba(255,255,255,0.06)" : "rgba(37,99,235,0.07)" }]}>
