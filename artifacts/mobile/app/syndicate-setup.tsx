@@ -1,4 +1,5 @@
 import { Feather } from "@expo/vector-icons";
+import AsyncStorage from "@react-native-async-storage/async-storage";
 import * as Haptics from "expo-haptics";
 import * as ImagePicker from "expo-image-picker";
 import { router } from "expo-router";
@@ -445,11 +446,13 @@ function SuccessScreen({
   adminName,
   colors,
   insets,
+  onContinueOnboarding,
 }: {
   created: CreatedSyndicate;
   adminName: string;
   colors: ReturnType<typeof useColors>;
   insets: { bottom: number; top: number };
+  onContinueOnboarding?: () => void;
 }) {
   const createdDate = created.createdAt
     ? new Date(created.createdAt).toLocaleDateString("fr-MA", {
@@ -526,17 +529,31 @@ function SuccessScreen({
 
       {/* Action buttons */}
       <View style={styles.successActions}>
-        <TouchableOpacity
-          style={[styles.successActionPrimary, { backgroundColor: colors.primary }]}
-          onPress={() => {
-            Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-            router.replace("/(tabs)/" as any);
-          }}
-          activeOpacity={0.85}
-        >
-          <Feather name="eye" size={18} color="#fff" />
-          <Text style={styles.successActionPrimaryText}>Voir le Syndicat</Text>
-        </TouchableOpacity>
+        {onContinueOnboarding ? (
+          <TouchableOpacity
+            style={[styles.successActionPrimary, { backgroundColor: colors.primary }]}
+            onPress={() => {
+              Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+              onContinueOnboarding();
+            }}
+            activeOpacity={0.85}
+          >
+            <Feather name="arrow-right" size={18} color="#fff" />
+            <Text style={styles.successActionPrimaryText}>Passer au paiement →</Text>
+          </TouchableOpacity>
+        ) : (
+          <TouchableOpacity
+            style={[styles.successActionPrimary, { backgroundColor: colors.primary }]}
+            onPress={() => {
+              Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+              router.replace("/(tabs)/" as any);
+            }}
+            activeOpacity={0.85}
+          >
+            <Feather name="eye" size={18} color="#fff" />
+            <Text style={styles.successActionPrimaryText}>Voir le Syndicat</Text>
+          </TouchableOpacity>
+        )}
 
         <View style={styles.successActionsRow}>
           <TouchableOpacity
@@ -588,19 +605,21 @@ function SuccessScreen({
 
 // ─── Main Component ───────────────────────────────────────────────────────────
 
-// Creating a new syndicate on the platform is a Super Admin-only action.
+// Creating a new syndicate is allowed for super_admin AND newly-registered syndicate_admin users.
 export default function SyndicateSetupScreen() {
   return (
-    <RoleGuard allow={["super_admin"]}>
+    <RoleGuard allow={["super_admin", "syndicate_admin"]}>
       <SyndicateSetupScreenInner />
     </RoleGuard>
   );
 }
 
+const PENDING_PLAN_KEY = "@veridian_pending_plan";
+
 function SyndicateSetupScreenInner() {
   const colors = useColors();
   const insets = useSafeAreaInsets();
-  const { user } = useAuth();
+  const { user, refreshSession } = useAuth();
   const { addSyndicate } = useData();
   const { isWide } = useBreakpoints();
   const topPad = isWide ? 0 : Platform.OS === "web" ? 67 : insets.top;
@@ -874,6 +893,24 @@ function SyndicateSetupScreenInner() {
     }
   };
 
+  // ─── Onboarding continuation handler ────────────────────────────────────────
+  const handleContinueOnboarding = async () => {
+    try {
+      // Refresh JWT so it includes the new syndicateId
+      await refreshSession();
+    } catch {}
+    // Check if a paid plan is pending
+    const raw = await AsyncStorage.getItem(PENDING_PLAN_KEY);
+    if (raw) {
+      router.replace("/payment" as any);
+    } else {
+      router.replace("/team-invite" as any);
+    }
+  };
+
+  // Only show the onboarding CTA for syndicate_admin (self-onboarding flow)
+  const isOnboarding = user?.role === "syndicate_admin";
+
   // ─── If created → success screen ────────────────────────────────────────────
   if (created) {
     return (
@@ -897,6 +934,7 @@ function SyndicateSetupScreenInner() {
           adminName={user?.name ?? "Admin"}
           colors={colors}
           insets={insets}
+          onContinueOnboarding={isOnboarding ? handleContinueOnboarding : undefined}
         />
       </View>
     );

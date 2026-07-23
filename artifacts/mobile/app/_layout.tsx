@@ -52,10 +52,10 @@ function AuthGate() {
   useEffect(() => {
     if (isLoading) return;
     // Screens accessible without authentication
-    const PUBLIC_ROUTES = new Set(["login", "forgot-password", "reset-password"]);
+    const PUBLIC_ROUTES = new Set(["login", "forgot-password", "reset-password", "welcome", "intro", "plans", "get-started", "register"]);
     const inAuthGroup = PUBLIC_ROUTES.has(segments[0] as string);
     if (!user && !inAuthGroup) {
-      router.replace("/login");
+      router.replace("/welcome");
     } else if (user && segments[0] === "login") {
       router.replace("/(tabs)/" as any);
     }

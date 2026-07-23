@@ -103,6 +103,18 @@ export default function LoginScreen() {
   return (
     <View style={[s.root, { backgroundColor: P.pageBg }]}>
 
+      {/* ── Back to welcome (absolute, top-left) ─────────────────────── */}
+      <View style={[s.backWrap, { top: insets.top + 14 }]}>
+        <TouchableOpacity
+          onPress={() => router.replace("/welcome")}
+          activeOpacity={0.75}
+          style={[s.toggleBtn, { backgroundColor: P.toggleBg, borderColor: P.border }]}
+          hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+        >
+          <Feather name="arrow-left" size={16} color={P.toggleIcon} />
+        </TouchableOpacity>
+      </View>
+
       {/* ── Theme toggle (absolute, top-right) ───────────────────────── */}
       <View style={[s.toggleWrap, { top: insets.top + 14 }]}>
         <TouchableOpacity
@@ -439,7 +451,14 @@ const s = StyleSheet.create({
     flex: 1,
   },
 
-  // Theme toggle
+  // Back to welcome (top-left)
+  backWrap: {
+    position: "absolute",
+    left: 20,
+    zIndex: 100,
+  },
+
+  // Theme toggle (top-right)
   toggleWrap: {
     position: "absolute",
     right: 20,

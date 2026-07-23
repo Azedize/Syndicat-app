@@ -67,6 +67,23 @@ function enrichSubscription(sub: any, plan: any) {
   };
 }
 
+// ─── GET /subscriptions/plans/public ─────────────────────────────────────
+// Public endpoint — no auth required. Used by the pre-login welcome flow.
+
+router.get("/subscriptions/plans/public", async (_req, res) => {
+  try {
+    const plans = await db
+      .select()
+      .from(subscriptionPlansTable)
+      .where(eq(subscriptionPlansTable.isActive, true))
+      .orderBy(subscriptionPlansTable.sortOrder, subscriptionPlansTable.name);
+    res.json({ data: plans });
+  } catch (e) {
+    logger.error(e, "Failed to fetch public plans");
+    res.status(500).json({ error: "Erreur serveur" });
+  }
+});
+
 // ─── GET /subscriptions/plans ─────────────────────────────────────────────
 
 router.get("/subscriptions/plans", requireAuth, async (_req, res) => {

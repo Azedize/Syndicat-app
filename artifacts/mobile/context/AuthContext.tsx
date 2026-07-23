@@ -57,6 +57,8 @@ interface AuthContextType {
   token: string | null;
   isLoading: boolean;
   login: (email: string, password: string) => Promise<boolean>;
+  loginWithTokens: (token: string, refreshToken: string, user: Record<string, unknown>) => Promise<void>;
+  refreshSession: () => Promise<void>;
   logout: () => Promise<void>;
   updateUser: (data: Partial<AuthUser>) => void;
 }
@@ -128,6 +130,35 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     [],
   );
 
+  const loginWithTokens = useCallback(
+    async (newToken: string, newRefreshToken: string, u: Record<string, unknown>): Promise<void> => {
+      await setToken(newToken);
+      await setRefreshToken(newRefreshToken);
+      setTokenState(newToken);
+      setUser(mapApiUser(u));
+    },
+    [],
+  );
+
+  const refreshSession = useCallback(async (): Promise<void> => {
+    try {
+      const refreshTokenValue = await getRefreshToken();
+      if (!refreshTokenValue) return;
+      const res = await authApi.refresh(refreshTokenValue);
+      const { token: newToken, refreshToken: newRefreshToken } = res.data;
+      if (newToken) {
+        await setToken(newToken);
+        setTokenState(newToken);
+      }
+      if (newRefreshToken) await setRefreshToken(newRefreshToken);
+      // Re-fetch user to get updated syndicateId
+      const meRes = await authApi.me();
+      setUser(mapApiUser(meRes.data as unknown as Record<string, unknown>));
+    } catch (err) {
+      // Silently fail — user will get stale data but remains logged in
+    }
+  }, []);
+
   const logout = useCallback(async () => {
     try {
       const rt = await getRefreshToken();
@@ -147,7 +178,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   return (
     <AuthContext.Provider
-      value={{ user, token, isLoading, login, logout, updateUser }}
+      value={{ user, token, isLoading, login, loginWithTokens, refreshSession, logout, updateUser }}
     >
       {children}
     </AuthContext.Provider>

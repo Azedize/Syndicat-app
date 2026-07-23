@@ -144,6 +144,32 @@ export function welcomeTemplate(name: string, role: string, loginUrl?: string): 
   };
 }
 
+export function teamInvitationTemplate(name: string, role: string, syndicateName: string, tempPassword: string): EmailTemplate {
+  const roleLabels: Record<string, string> = {
+    president: "Président",
+    treasurer: "Trésorier",
+    secretary: "Secrétaire",
+    committee_member: "Membre du Conseil",
+    syndicate_admin: "Administrateur de Syndicat",
+  };
+  const roleLabel = roleLabels[role] ?? role;
+
+  return {
+    subject: `Invitation à rejoindre ${syndicateName} — VERIDIAN`,
+    html: `
+      <p>Bonjour ${escapeHtml(name)},</p>
+      <p>Vous avez été invité(e) à rejoindre <strong>${escapeHtml(syndicateName)}</strong> sur la plateforme <strong>VERIDIAN</strong> en tant que <strong>${escapeHtml(roleLabel)}</strong>.</p>
+      <div style="margin:24px 0;padding:20px;background:#EFF6FF;border-radius:12px;border-left:4px solid #2563EB;">
+        <p style="margin:0 0 8px 0;font-size:12px;color:#64748B;font-weight:600;text-transform:uppercase;letter-spacing:1px;">Vos identifiants de connexion</p>
+        <p style="margin:0 0 4px 0;font-size:14px;color:#0A1628;"><strong>Email :</strong> ${escapeHtml(name.toLowerCase().replace(/\s+/g, "."))}</p>
+        <p style="margin:0;font-size:14px;color:#0A1628;"><strong>Mot de passe temporaire :</strong> <code style="background:#DBEAFE;padding:2px 8px;border-radius:4px;font-family:monospace;letter-spacing:1px;">${escapeHtml(tempPassword)}</code></p>
+      </div>
+      <p style="color:#DC2626;font-size:13px;">⚠️ Vous devrez changer ce mot de passe lors de votre première connexion.</p>
+      <p>Téléchargez l'application <strong>VERIDIAN</strong> depuis l'App Store ou Google Play pour commencer.</p>
+      <p>— L'équipe VERIDIAN</p>`,
+  };
+}
+
 export function syndicateCreatedTemplate(syndicateName: string, adminName: string): EmailTemplate {
   return {
     subject: `Votre syndicat "${syndicateName}" est créé`,

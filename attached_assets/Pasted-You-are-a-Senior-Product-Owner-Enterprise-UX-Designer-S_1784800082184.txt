@@ -1,0 +1,264 @@
+You are a Senior Product Owner, Enterprise UX Designer, SaaS Architect, Mobile App Expert, Marketing UX Specialist, and Production Readiness Consultant.
+
+Your mission is to redesign the application's entry experience to meet the standards of a world-class SaaS platform.
+
+Do NOT start with the Login screen.
+
+The Login screen must never be the first screen displayed to a new user.
+
+==================================================
+OBJECTIVE
+=========
+
+Create a professional Welcome Experience before authentication.
+
+The application must feel like a premium SaaS product similar to Microsoft 365, Notion, Slack, Salesforce, Monday.com, or Stripe.
+
+Users must first discover the platform before being invited to sign in.
+
+Do not create documentation.
+
+Implement the feature directly.
+
+==================================================
+WELCOME SCREEN
+==============
+
+The first screen displayed after opening the application must be a modern Welcome screen.
+
+The design must include:
+
+• Full-screen premium layout
+• Company logo
+• Application name
+• Professional slogan
+• Modern illustrations
+• Light/Dark mode support
+• Smooth animations
+• High-quality typography
+• Brand colors
+• Enterprise visual identity
+
+==================================================
+INTRODUCTION
+============
+
+Create a multi-page onboarding experience.
+
+Each page introduces one major feature of the platform.
+
+Examples:
+
+Page 1
+
+Manage your syndicate professionally.
+
+Show an illustration of a dashboard.
+
+Explain:
+
+Finance
+
+Documents
+
+Meetings
+
+Voting
+
+Notifications
+
+---
+
+Page 2
+
+Digital governance.
+
+Show meeting management.
+
+Electronic signatures.
+
+Document approvals.
+
+Decision workflows.
+
+---
+
+Page 3
+
+Financial management.
+
+Budgets.
+
+Charges.
+
+Payments.
+
+Debt recovery.
+
+Financial reports.
+
+---
+
+Page 4
+
+Marketplace.
+
+Residents can buy and sell products securely.
+
+Products are validated by the Syndicate Administrator before publication.
+
+Reservation system.
+
+Secure messaging.
+
+---
+
+Page 5
+
+Maintenance and support.
+
+Complaints.
+
+Incidents.
+
+Work orders.
+
+Contractors.
+
+Maintenance tracking.
+
+==================================================
+APPLICATION PREVIEW
+===================
+
+Display realistic previews of the application.
+
+Do NOT use placeholders.
+
+Use real screenshots from the application when available.
+
+Otherwise generate realistic device mockups.
+
+Display:
+
+Dashboard
+
+Finance
+
+Documents
+
+Marketplace
+
+Meetings
+
+Profile
+
+Notifications
+
+==================================================
+SUBSCRIPTION PLANS
+==================
+
+Before Login, display subscription plans.
+
+IMPORTANT:
+
+Plans must NOT be hardcoded.
+
+Retrieve all plans dynamically from the database.
+
+Display:
+
+Plan name
+
+Price
+
+Billing period
+
+Features
+
+Limits
+
+Storage
+
+Maximum users
+
+Maximum buildings
+
+Support level
+
+Buttons:
+
+Choose Plan
+
+Start Free Trial
+
+Compare Plans
+
+==================================================
+CALL TO ACTION
+==============
+
+At the end of onboarding display:
+
+Get Started
+
+Sign In
+
+Create Organization
+
+Contact Sales
+
+Request Demo
+
+==================================================
+LOGIN
+=====
+
+Only after the Welcome experience can the user access the Login page.
+
+The Login page must inherit the application's visual identity.
+
+It must never appear alone.
+
+==================================================
+DESIGN REQUIREMENTS
+===================
+
+Modern SaaS design.
+
+Premium animations.
+
+Professional transitions.
+
+Responsive.
+
+Accessible.
+
+Light and Dark themes.
+
+Enterprise quality.
+
+Minimalist.
+
+Elegant.
+
+Consistent branding.
+
+==================================================
+PRODUCTION REQUIREMENTS
+=======================
+
+All content must come from the database or configuration.
+
+No hardcoded subscription plans.
+
+No fake screenshots.
+
+No placeholder text.
+
+No lorem ipsum.
+
+Everything must be production-ready.
+
+Implement the complete Welcome Experience directly without generating documentation.

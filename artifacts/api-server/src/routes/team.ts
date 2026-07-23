@@ -5,14 +5,20 @@
  * - All authenticated users in the syndicate can view
  */
 import { Router } from "express";
+import { z } from "zod";
+import bcrypt from "bcryptjs";
+import { randomBytes } from "node:crypto";
 import { db } from "@workspace/db";
 import {
   usersTable,
   membersTable,
   syndicatesTable,
+  refreshTokensTable,
 } from "@workspace/db/schema";
-import { eq, and, or, desc } from "drizzle-orm";
-import { requireAuth, requireAdmin } from "../middleware/auth.js";
+import { eq, and, or } from "drizzle-orm";
+import { requireAuth, requireAdmin, signToken, signRefreshToken } from "../middleware/auth.js";
+import { sendTransactionalEmail } from "../lib/email/emailService.js";
+import { teamInvitationTemplate } from "../lib/email/templates.js";
 
 const router = Router();
 
@@ -143,6 +149,89 @@ router.put("/team/members/:id", requireAuth, requireAdmin, async (req, res) => {
     res.json({ data: updated, message: "Rôle mis à jour" });
   } catch (e) {
     console.error(e);
+    res.status(500).json({ error: "Erreur serveur" });
+  }
+});
+
+// ─── POST /team/invite — create and invite a management team member ───────────
+
+const inviteSchema = z.object({
+  name: z.string().min(2).max(100),
+  email: z.string().email(),
+  phone: z.string().max(30).optional(),
+  role: z.enum(["president", "treasurer", "secretary", "committee_member", "syndicate_admin"]),
+});
+
+router.post("/team/invite", requireAuth, requireAdmin, async (req, res) => {
+  const result = inviteSchema.safeParse(req.body);
+  if (!result.success) {
+    return void res.status(400).json({ error: result.error.issues[0]?.message ?? "Données invalides" });
+  }
+
+  const { name, email, phone, role } = result.data;
+  const syndicateId = req.user!.syndicateId;
+
+  if (!syndicateId) {
+    return void res.status(400).json({ error: "Aucun syndicat associé à votre compte" });
+  }
+
+  try {
+    const emailLower = email.trim().toLowerCase();
+
+    const [existing] = await db.select().from(usersTable).where(eq(usersTable.email, emailLower));
+    if (existing) {
+      return void res.status(409).json({ error: `L'email ${emailLower} est déjà utilisé` });
+    }
+
+    // Generate a temporary password: 8 random chars (memorable format)
+    const tempPassword = randomBytes(3).toString("hex").toUpperCase() + "-" + randomBytes(2).toString("hex");
+    const passwordHash = await bcrypt.hash(tempPassword, 10);
+
+    const [newUser] = await db.insert(usersTable).values({
+      name: name.trim(),
+      email: emailLower,
+      phone: phone?.trim() ?? null,
+      passwordHash,
+      role,
+      syndicateId,
+      status: "active",
+    } as any).returning();
+
+    // Issue tokens so the invited user can log in immediately
+    const accessToken = signToken({
+      userId: newUser.id,
+      email: newUser.email,
+      role: role as any,
+      syndicateId,
+      name: newUser.name,
+    });
+
+    const refreshTokenValue = signRefreshToken();
+    const expiresAt = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000);
+    await db.insert(refreshTokensTable).values({
+      userId: newUser.id,
+      token: refreshTokenValue,
+      expiresAt,
+    });
+
+    // Get syndicate info for email
+    const [syndicate] = await db.select({ name: syndicatesTable.name }).from(syndicatesTable).where(eq(syndicatesTable.id, syndicateId));
+
+    // Send invitation email (best-effort)
+    try {
+      const { subject, html } = teamInvitationTemplate(name, role, syndicate?.name ?? "votre syndicat", tempPassword);
+      await sendTransactionalEmail({ to: emailLower, subject, html, template: "team_invitation" });
+    } catch (emailErr) {
+      req.log.warn(emailErr, "Failed to send team invitation email");
+    }
+
+    const { passwordHash: _, ...safeUser } = newUser;
+    res.status(201).json({
+      data: { ...safeUser, tempPassword },
+      message: "Invitation envoyée",
+    });
+  } catch (err) {
+    req.log.error(err);
     res.status(500).json({ error: "Erreur serveur" });
   }
 });

@@ -25,6 +25,66 @@ async function sendPasswordResetEmail(email: string, name: string, token: string
 
 const router = Router();
 
+// ─── Register ─────────────────────────────────────────────────────────────────
+
+const registerSchema = z.object({
+  name: z.string().min(2).max(100),
+  email: z.string().email(),
+  phone: z.string().max(30).optional(),
+  password: z.string().min(8, "Le mot de passe doit contenir au moins 8 caractères"),
+});
+
+router.post("/auth/register", async (req, res) => {
+  const result = registerSchema.safeParse(req.body);
+  if (!result.success) {
+    res.status(400).json({ error: result.error.issues[0]?.message ?? "Données invalides" });
+    return;
+  }
+  const { name, email, phone, password } = result.data;
+  const emailLower = email.trim().toLowerCase();
+
+  try {
+    const [existing] = await db.select().from(usersTable).where(eq(usersTable.email, emailLower));
+    if (existing) {
+      res.status(409).json({ error: "Cet email est déjà utilisé" });
+      return;
+    }
+
+    const passwordHash = await bcrypt.hash(password, 10);
+
+    const [newUser] = await db.insert(usersTable).values({
+      name: name.trim(),
+      email: emailLower,
+      phone: phone?.trim() ?? null,
+      passwordHash,
+      role: "syndicate_admin",
+      status: "active",
+    } as any).returning();
+
+    const accessToken = signToken({
+      userId: newUser.id,
+      email: newUser.email,
+      role: "syndicate_admin",
+      name: newUser.name,
+    });
+
+    const refreshTokenValue = signRefreshToken();
+    const expiresAt = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000);
+    await db.insert(refreshTokensTable).values({
+      userId: newUser.id,
+      token: refreshTokenValue,
+      expiresAt,
+    });
+
+    const { passwordHash: _, ...safeUser } = newUser;
+    req.log.info({ userId: newUser.id, email: emailLower }, "New user registered");
+    res.status(201).json({ data: { token: accessToken, refreshToken: refreshTokenValue, user: safeUser } });
+  } catch (err) {
+    req.log.error(err);
+    res.status(500).json({ error: "Erreur serveur" });
+  }
+});
+
 const loginSchema = z.object({
   email: z.string().email(),
   password: z.string().min(1),

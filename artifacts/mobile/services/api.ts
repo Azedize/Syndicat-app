@@ -207,6 +207,12 @@ export const auth = {
       body: JSON.stringify(data),
     }),
 
+  register: (data: { name: string; email: string; phone?: string; password: string }) =>
+    request<{ data: { token: string; refreshToken: string; user: ApiUser } }>("/auth/register", {
+      method: "POST",
+      body: JSON.stringify(data),
+    }, false),
+
   forgotPassword: (email: string) =>
     request<{ message: string }>("/auth/forgot-password", {
       method: "POST",
@@ -1316,6 +1322,11 @@ export const team = {
     request<{ message: string }>("/team/syndicate", { method: "PUT", body: JSON.stringify(data) }),
   updateMember: (id: string, committeeRole: string) =>
     request<{ message: string }>(`/team/members/${id}`, { method: "PUT", body: JSON.stringify({ committeeRole }) }),
+  invite: (data: { name: string; email: string; phone?: string; role: string }) =>
+    request<{ data: { id: string; name: string; email: string; role: string; tempPassword: string }; message: string }>("/team/invite", {
+      method: "POST",
+      body: JSON.stringify(data),
+    }),
 };
 
 // ─── P12: National Rankings ───────────────────────────────────────────────────
