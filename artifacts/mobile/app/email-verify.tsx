@@ -79,7 +79,7 @@ export default function EmailVerifyScreen() {
   const formatTime = (s: number) => `${Math.floor(s / 60)}:${String(s % 60).padStart(2, "0")}`;
 
   const fullCode = code.join("");
-  const isComplete = fullCode.length === CODE_LENGTH && !fullCode.includes("");
+  const isComplete = fullCode.length === CODE_LENGTH && !code.includes("");
 
   // Auto-submit when all 6 digits entered
   useEffect(() => {
