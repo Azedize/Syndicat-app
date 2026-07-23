@@ -1,0 +1,369 @@
+You are a Senior UX Designer, Enterprise SaaS Architect, Mobile Product Designer, Product Owner, Frontend Architect, Backend Architect, QA Director, and Production Readiness Consultant.
+
+Your mission is to completely redesign and fix the onboarding, welcome experience, and customer registration workflow.
+
+Do NOT generate a report.
+
+Do NOT explain the problems.
+
+Analyze the current implementation, identify every issue, and implement all required fixes directly.
+
+==================================================
+GLOBAL OBJECTIVE
+================
+
+The current onboarding experience is NOT at enterprise SaaS quality.
+
+It does not inspire trust.
+
+It does not present the platform professionally.
+
+It does not properly convert visitors into customers.
+
+Transform the entire onboarding experience into a premium SaaS onboarding similar to:
+
+• Microsoft 365
+• Salesforce
+• Monday.com
+• Notion
+• Slack
+• Shopify
+• HubSpot
+
+==================================================
+WELCOME EXPERIENCE
+==================
+
+The current welcome pages are not professional.
+
+Redesign everything.
+
+Requirements:
+
+• Premium full-screen layout
+• Modern animations
+• Enterprise visual identity
+• Large illustrations
+• Real application screenshots
+• Smooth transitions
+• Excellent typography
+• Large white space
+• Premium color palette
+• Dark mode
+• Light mode
+
+Never use generic illustrations.
+
+Never use placeholders.
+
+==================================================
+REAL APPLICATION SCREENSHOTS
+============================
+
+The onboarding must use REAL screenshots taken from the application.
+
+Do NOT create fake mobile screens.
+
+Do NOT use stock illustrations.
+
+Capture the actual screens of the application:
+
+• Dashboard
+• Finance
+• Meetings
+• Documents
+• Marketplace
+• Complaints
+• Notifications
+• Maintenance
+• Voting
+• User Management
+
+Display them inside premium device mockups.
+
+Every screenshot must represent a real feature.
+
+==================================================
+PROFESSIONAL CONTENT
+====================
+
+Rewrite all onboarding texts.
+
+The current texts are weak and generic.
+
+Present the platform like a premium enterprise solution.
+
+For every page explain:
+
+• Business value
+• Productivity gains
+• Digital transformation
+• Financial transparency
+• Governance
+• Security
+• Automation
+• Time saving
+• Collaboration
+
+Every paragraph must be persuasive.
+
+Every screen must explain why the customer should use the platform.
+
+==================================================
+SERVICES PRESENTATION
+=====================
+
+The services are not presented professionally.
+
+Redesign the presentation.
+
+Explain every module:
+
+Financial Management
+
+Governance
+
+Documents
+
+Electronic Signature
+
+Meetings
+
+Voting
+
+Maintenance
+
+Complaints
+
+Marketplace
+
+Notifications
+
+Residents
+
+Buildings
+
+Analytics
+
+Support
+
+For each module:
+
+Explain:
+
+Problem solved
+
+Business benefit
+
+Daily usage
+
+Real-life example
+
+Expected productivity improvement
+
+==================================================
+LEGAL LINKS
+===========
+
+The following links currently do not work:
+
+• Terms of Service
+
+• Privacy Policy
+
+Implement them.
+
+Requirements:
+
+Create complete legal pages.
+
+Make every link functional.
+
+Support:
+
+• Internal navigation
+• External links if required
+
+Users must be able to read both documents before creating an account.
+
+==================================================
+REGISTRATION FORM
+=================
+
+The registration workflow is incomplete.
+
+Fix every step.
+
+Validate:
+
+Full name
+
+Email
+
+Phone number
+
+Password
+
+Password confirmation
+
+Company information
+
+Syndicate information
+
+==================================================
+EMAIL VERIFICATION
+==================
+
+When the user enters an email address:
+
+Immediately verify it.
+
+Workflow:
+
+Generate a secure verification code.
+
+Send it by email.
+
+Display OTP verification screen.
+
+Prevent account creation until the email is verified.
+
+Handle:
+
+Expired code
+
+Invalid code
+
+Resend code
+
+Rate limiting
+
+==================================================
+PHONE VERIFICATION
+==================
+
+When a phone number is entered:
+
+Send an SMS verification code.
+
+Support:
+
+OTP
+
+Resend
+
+Expiration
+
+Validation
+
+Prevent registration if the phone number is not verified.
+
+==================================================
+FORM VALIDATION
+===============
+
+Validate every field in real time.
+
+Display professional validation messages.
+
+Never allow invalid data.
+
+==================================================
+CREATE SYNDICATE BUTTON
+=======================
+
+The "Create Syndicate" button currently does nothing.
+
+This is a critical production blocker.
+
+Fix it immediately.
+
+When the user clicks:
+
+Create Syndicate
+
+Execute the complete workflow:
+
+Validate all fields
+
+Validate email
+
+Validate phone
+
+Check duplicate email
+
+Check duplicate phone
+
+Create customer account
+
+Create tenant
+
+Create syndicate
+
+Create subscription
+
+Assign Syndicate Administrator role
+
+Create initial configuration
+
+Navigate to the next onboarding step
+
+Display loading animation during processing.
+
+Display success page after completion.
+
+Handle every possible error.
+
+==================================================
+LOADING EXPERIENCE
+==================
+
+Never leave the user wondering if the application is working.
+
+Every network request must display:
+
+Loading animation
+
+Progress indicator
+
+Status message
+
+Disable duplicate clicks
+
+==================================================
+ERROR HANDLING
+==============
+
+Replace every generic error.
+
+Explain clearly:
+
+What happened
+
+Why
+
+How to fix it
+
+Allow retry.
+
+==================================================
+PRODUCTION REQUIREMENTS
+=======================
+
+Everything must work.
+
+No dead buttons.
+
+No broken links.
+
+No placeholder content.
+
+No fake screenshots.
+
+No missing navigation.
+
+No incomplete workflow.
+
+Every interaction must perform its real business action.
+
+The onboarding experience must meet the quality standards of a Fortune 500 enterprise SaaS product and be fully production-ready.

@@ -28,9 +28,11 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 import { useAuth } from "@/context/AuthContext";
 import { useTheme } from "@/context/ThemeContext";
+import { apiRequest } from "@/lib/api";
 import { auth as authApi } from "@/services/api";
 
-const PENDING_PLAN_KEY = "@veridian_pending_plan";
+const PENDING_PLAN_KEY    = "@veridian_pending_plan";
+const PENDING_REGISTER_KEY = "@veridian_pending_register";
 
 // ─── Field component ──────────────────────────────────────────────────────────
 
@@ -152,33 +154,26 @@ export default function RegisterScreen() {
     setApiError(null);
 
     try {
-      const res = await authApi.register({
+      // Send OTP verification code to email
+      await apiRequest("/auth/otp/send", "POST", { email: email.trim().toLowerCase() });
+
+      // Store all registration data for the OTP screen to use after verification
+      await AsyncStorage.setItem(PENDING_REGISTER_KEY, JSON.stringify({
         name: name.trim(),
         email: email.trim().toLowerCase(),
         phone: phone.trim() || undefined,
         password,
-      });
-
-      const { token, refreshToken, user } = res.data;
-
-      // Store pending plan so payment screen can use it
-      if (hasPlan && params.planId) {
-        await AsyncStorage.setItem(PENDING_PLAN_KEY, JSON.stringify({
-          planId: params.planId,
-          planName: params.planName,
-          planColor: params.planColor,
-          planPrice: params.planPrice,
-          planInterval: params.planInterval,
-        }));
-      }
-
-      // Log the new user in
-      await loginWithTokens(token, refreshToken, user as any);
+        planId: params.planId ?? undefined,
+        planName: params.planName ?? undefined,
+        planColor: params.planColor ?? undefined,
+        planPrice: params.planPrice ?? undefined,
+        planInterval: params.planInterval ?? undefined,
+      }));
 
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-      router.replace("/syndicate-setup" as any);
+      router.push("/email-verify" as any);
     } catch (err: any) {
-      setApiError(err?.message ?? "Une erreur est survenue. Veuillez réessayer.");
+      setApiError(err?.message ?? "Impossible d'envoyer le code de vérification. Vérifiez votre adresse email.");
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
     } finally {
       setLoading(false);
@@ -347,24 +342,30 @@ export default function RegisterScreen() {
           )}
 
           {/* Terms checkbox */}
-          <TouchableOpacity
-            style={s.termsRow}
-            onPress={() => { setAgreed(!agreed); setErrors(e => ({ ...e, agreed: "" })); }}
-            activeOpacity={0.8}
-          >
-            <View style={[s.checkbox, {
-              backgroundColor: agreed ? color : "transparent",
-              borderColor: errors.agreed ? "#EF4444" : (agreed ? color : (isDark ? "rgba(255,255,255,0.2)" : "rgba(37,99,235,0.3)")),
-            }]}>
+          <View style={s.termsRow}>
+            <TouchableOpacity
+              onPress={() => { setAgreed(!agreed); setErrors(e => ({ ...e, agreed: "" })); }}
+              activeOpacity={0.8}
+              style={[s.checkbox, {
+                backgroundColor: agreed ? color : "transparent",
+                borderColor: errors.agreed ? "#EF4444" : (agreed ? color : (isDark ? "rgba(255,255,255,0.2)" : "rgba(37,99,235,0.3)")),
+              }]}
+            >
               {agreed && <Feather name="check" size={11} color="#fff" />}
-            </View>
+            </TouchableOpacity>
             <Text style={[s.termsText, { color: isDark ? "rgba(232,240,254,0.6)" : "#475569" }]}>
               J'accepte les{" "}
-              <Text style={{ color: isDark ? "#60A5FA" : "#2563EB" }}>Conditions d'utilisation</Text>
+              <Text
+                style={{ color: isDark ? "#60A5FA" : "#2563EB" }}
+                onPress={() => router.push("/terms" as any)}
+              >Conditions d'utilisation</Text>
               {" "}et la{" "}
-              <Text style={{ color: isDark ? "#60A5FA" : "#2563EB" }}>Politique de confidentialité</Text>
+              <Text
+                style={{ color: isDark ? "#60A5FA" : "#2563EB" }}
+                onPress={() => router.push("/privacy" as any)}
+              >Politique de confidentialité</Text>
             </Text>
-          </TouchableOpacity>
+          </View>
           {errors.agreed ? <Text style={[s.errorText, { marginTop: -8 }]}>{errors.agreed}</Text> : null}
 
           {/* API error */}
@@ -386,8 +387,8 @@ export default function RegisterScreen() {
               <ActivityIndicator size="small" color="#fff" />
             ) : (
               <>
-                <Text style={s.submitBtnText}>Créer mon compte</Text>
-                <Feather name="arrow-right" size={18} color="#fff" />
+                <Text style={s.submitBtnText}>Envoyer le code de vérification</Text>
+                <Feather name="send" size={16} color="#fff" />
               </>
             )}
           </TouchableOpacity>

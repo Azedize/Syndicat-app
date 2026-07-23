@@ -3,8 +3,8 @@ import bcrypt from "bcryptjs";
 import { randomBytes } from "node:crypto";
 import { z } from "zod";
 import { db } from "@workspace/db";
-import { usersTable, refreshTokensTable, passwordResetTokensTable } from "@workspace/db/schema";
-import { eq, and, gt, isNull } from "drizzle-orm";
+import { usersTable, refreshTokensTable, passwordResetTokensTable, otpTokensTable } from "@workspace/db/schema";
+import { eq, and, gt, isNull, desc } from "drizzle-orm";
 import { requireAuth, signToken, signRefreshToken, type JwtPayload } from "../middleware/auth.js";
 import { sendTransactionalEmail } from "../lib/email/emailService.js";
 import { passwordResetTemplate } from "../lib/email/templates.js";
@@ -442,6 +442,92 @@ router.post("/auth/reset-password", async (req, res) => {
     res.json({ message: "Mot de passe réinitialisé avec succès. Vous pouvez maintenant vous connecter." });
   } catch (err) {
     req.log.error(err);
+    res.status(500).json({ error: "Erreur serveur" });
+  }
+});
+
+// ─── In-memory OTP rate limit (per email, 5 sends/hour) ──────────────────────
+const _otpRate = new Map<string, { count: number; resetAt: number }>();
+function checkOtpRate(email: string): boolean {
+  const now = Date.now();
+  const e = _otpRate.get(email);
+  if (!e || now > e.resetAt) { _otpRate.set(email, { count: 1, resetAt: now + 3600_000 }); return true; }
+  if (e.count >= 5) return false;
+  e.count++;
+  return true;
+}
+
+// ─── POST /auth/otp/send ─────────────────────────────────────────────────────
+router.post("/auth/otp/send", async (req, res) => {
+  const { email } = req.body as { email?: string };
+  if (!email || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+    res.status(400).json({ error: "Adresse email invalide" });
+    return;
+  }
+  const em = email.trim().toLowerCase();
+  if (!checkOtpRate(em)) {
+    res.status(429).json({ error: "Trop de tentatives. Réessayez dans 1 heure." });
+    return;
+  }
+  try {
+    const code = String(Math.floor(100000 + Math.random() * 900000));
+    const codeHash = await bcrypt.hash(code, 8);
+    const expiresAt = new Date(Date.now() + 10 * 60_000); // 10 min
+
+    await db.delete(otpTokensTable).where(eq(otpTokensTable.email, em));
+    await db.insert(otpTokensTable).values({ email: em, codeHash, purpose: "email_verification", expiresAt } as any);
+
+    const subject = "Votre code de vérification VERIDIAN";
+    const html = `
+      <div style="font-family:Helvetica,Arial,sans-serif;max-width:480px;margin:0 auto;padding:32px 24px;background:#fff;border-radius:12px;border:1px solid #E2E8F0;">
+        <div style="text-align:center;margin-bottom:24px;">
+          <div style="width:56px;height:56px;background:#EFF6FF;border-radius:16px;display:inline-flex;align-items:center;justify-content:center;">
+            <span style="font-size:24px;">🔐</span>
+          </div>
+        </div>
+        <h2 style="color:#0A1628;font-size:22px;margin:0 0 8px;text-align:center;">Vérifiez votre email</h2>
+        <p style="color:#64748B;font-size:14px;text-align:center;margin:0 0 28px;">Utilisez ce code pour finaliser la création de votre compte VERIDIAN.</p>
+        <div style="background:#EFF6FF;border:2px solid #2563EB;border-radius:12px;padding:20px;text-align:center;margin-bottom:24px;">
+          <span style="font-size:36px;font-weight:700;letter-spacing:10px;color:#2563EB;">${code}</span>
+        </div>
+        <p style="color:#94A3B8;font-size:12px;text-align:center;margin:0;">Ce code expire dans <strong>10 minutes</strong>. Ne le partagez avec personne.</p>
+      </div>`;
+    await sendTransactionalEmail({ to: em, subject, html, template: "otp" });
+    res.json({ message: "Code envoyé", expiresIn: 600 });
+  } catch (err) {
+    req.log.error(err, "POST /auth/otp/send error");
+    res.status(500).json({ error: "Impossible d'envoyer le code. Vérifiez l'adresse email." });
+  }
+});
+
+// ─── POST /auth/otp/verify ───────────────────────────────────────────────────
+router.post("/auth/otp/verify", async (req, res) => {
+  const { email, code } = req.body as { email?: string; code?: string };
+  if (!email || !code) { res.status(400).json({ error: "Email et code requis" }); return; }
+  const em = email.trim().toLowerCase();
+  try {
+    const now = new Date();
+    const [token] = await db
+      .select()
+      .from(otpTokensTable)
+      .where(and(eq(otpTokensTable.email, em), eq(otpTokensTable.purpose, "email_verification"), isNull(otpTokensTable.usedAt), gt(otpTokensTable.expiresAt, now)))
+      .orderBy(desc(otpTokensTable.createdAt))
+      .limit(1);
+
+    if (!token) { res.status(400).json({ error: "Code expiré ou introuvable. Demandez un nouveau code." }); return; }
+
+    const attempts = (token.attempts ?? 0) + 1;
+    await db.update(otpTokensTable).set({ attempts } as any).where(eq(otpTokensTable.id, token.id));
+
+    if (attempts > 5) { res.status(429).json({ error: "Trop de tentatives incorrectes. Demandez un nouveau code." }); return; }
+
+    const valid = await bcrypt.compare(code.trim(), token.codeHash);
+    if (!valid) { res.status(400).json({ error: `Code incorrect (${6 - attempts} tentatives restantes).` }); return; }
+
+    await db.update(otpTokensTable).set({ usedAt: now } as any).where(eq(otpTokensTable.id, token.id));
+    res.json({ verified: true, message: "Email vérifié avec succès" });
+  } catch (err) {
+    req.log.error(err, "POST /auth/otp/verify error");
     res.status(500).json({ error: "Erreur serveur" });
   }
 });

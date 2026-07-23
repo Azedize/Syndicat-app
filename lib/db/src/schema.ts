@@ -2381,6 +2381,27 @@ export const templateRequestsTable = pgTable(
   ],
 );
 
+// ─── OTP Tokens ──────────────────────────────────────────────────────────────
+// Short-lived 6-digit verification codes for email and phone verification.
+
+export const otpTokensTable = pgTable(
+  "otp_tokens",
+  {
+    id: id(),
+    email: text("email").notNull(),
+    codeHash: text("code_hash").notNull(),
+    purpose: text("purpose").default("email_verification"), // email_verification
+    expiresAt: timestamp("expires_at").notNull(),
+    usedAt: timestamp("used_at"),
+    attempts: integer("attempts").default(0),
+    createdAt: createdAt(),
+  },
+  (t) => [
+    index("otp_tokens_email_idx").on(t.email),
+    index("otp_tokens_expires_at_idx").on(t.expiresAt),
+  ],
+);
+
 // ─── Document Comments ────────────────────────────────────────────────────────
 // Threaded comments on documents for review collaboration and notes.
 

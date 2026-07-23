@@ -234,9 +234,15 @@ export default function WelcomeScreen() {
         {/* ── Legal footer ── */}
         <Text style={[styles.legalText, { color: isDark ? "rgba(232,240,254,0.3)" : "rgba(10,22,40,0.35)" }]}>
           En continuant, vous acceptez nos{" "}
-          <Text style={{ color: isDark ? "#60A5FA" : "#2563EB" }}>Conditions d'utilisation</Text>
+          <Text
+            style={{ color: isDark ? "#60A5FA" : "#2563EB" }}
+            onPress={() => router.push("/terms" as any)}
+          >Conditions d'utilisation</Text>
           {" "}et notre{" "}
-          <Text style={{ color: isDark ? "#60A5FA" : "#2563EB" }}>Politique de confidentialité</Text>.
+          <Text
+            style={{ color: isDark ? "#60A5FA" : "#2563EB" }}
+            onPress={() => router.push("/privacy" as any)}
+          >Politique de confidentialité</Text>.
         </Text>
       </View>
     </View>
