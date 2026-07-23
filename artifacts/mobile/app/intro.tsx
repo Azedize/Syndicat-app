@@ -367,7 +367,14 @@ export default function IntroScreen() {
   const goNext = () => {
     Haptics.selectionAsync();
     if (currentIndex < PAGES.length - 1) {
-      flatRef.current?.scrollToIndex({ index: currentIndex + 1, animated: true });
+      const nextIndex = currentIndex + 1;
+      setCurrentIndex(nextIndex);
+      Animated.timing(progressAnim, {
+        toValue: (nextIndex + 1) / PAGES.length,
+        duration: 300,
+        useNativeDriver: false,
+      }).start();
+      flatRef.current?.scrollToIndex({ index: nextIndex, animated: true });
     } else {
       router.push("/plans");
     }
@@ -375,7 +382,14 @@ export default function IntroScreen() {
 
   const goPrev = () => {
     if (currentIndex > 0) {
-      flatRef.current?.scrollToIndex({ index: currentIndex - 1, animated: true });
+      const prevIndex = currentIndex - 1;
+      setCurrentIndex(prevIndex);
+      Animated.timing(progressAnim, {
+        toValue: (prevIndex + 1) / PAGES.length,
+        duration: 300,
+        useNativeDriver: false,
+      }).start();
+      flatRef.current?.scrollToIndex({ index: prevIndex, animated: true });
     } else {
       router.back();
     }
