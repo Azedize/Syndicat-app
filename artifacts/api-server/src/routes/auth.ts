@@ -532,4 +532,64 @@ router.post("/auth/otp/verify", async (req, res) => {
   }
 });
 
+// ─── POST /auth/sms/send ──────────────────────────────────────────────────────
+// Sends an SMS OTP via Twilio Verify. No account required — used for phone
+// verification during registration or profile phone confirmation.
+router.post("/auth/sms/send", async (req, res) => {
+  const { phone } = req.body as { phone?: string };
+  if (!phone || phone.trim().length < 6) {
+    res.status(400).json({ error: "Numéro de téléphone requis" });
+    return;
+  }
+  try {
+    const { sendSmsOtp, normalizePhone } = await import("../lib/twilioVerify.js");
+    const normalized = normalizePhone(phone.trim());
+    const result = await sendSmsOtp(normalized);
+    if (!result.ok) {
+      res.status(502).json({ error: result.error ?? "Échec de l'envoi du SMS" });
+      return;
+    }
+    req.log.info({ phone: normalized, status: result.status }, "SMS OTP envoyé via Twilio");
+    res.json({ message: "Code SMS envoyé", phone: normalized, status: result.status, expiresIn: 600 });
+  } catch (err: any) {
+    req.log.error(err, "POST /auth/sms/send error");
+    res.status(400).json({ error: err?.message ?? "Numéro de téléphone invalide ou erreur serveur" });
+  }
+});
+
+// ─── POST /auth/sms/verify ────────────────────────────────────────────────────
+// Verifies an SMS OTP code via Twilio Verify.
+router.post("/auth/sms/verify", async (req, res) => {
+  const { phone, code } = req.body as { phone?: string; code?: string };
+  if (!phone || !code) {
+    res.status(400).json({ error: "Numéro de téléphone et code requis" });
+    return;
+  }
+  try {
+    const { checkSmsOtp, normalizePhone } = await import("../lib/twilioVerify.js");
+    const normalized = normalizePhone(phone.trim());
+    const result = await checkSmsOtp(normalized, code.trim());
+    if (!result.ok) {
+      res.status(502).json({ error: result.error ?? "Erreur Twilio" });
+      return;
+    }
+    if (!result.valid) {
+      res.status(400).json({ error: "Code incorrect ou expiré. Vérifiez et réessayez.", status: result.status });
+      return;
+    }
+    req.log.info({ phone: normalized }, "SMS OTP vérifié avec succès");
+    res.json({ verified: true, phone: normalized, message: "Téléphone vérifié avec succès" });
+  } catch (err: any) {
+    req.log.error(err, "POST /auth/sms/verify error");
+    res.status(400).json({ error: err?.message ?? "Erreur de vérification" });
+  }
+});
+
+// ─── GET /auth/twilio/status ──────────────────────────────────────────────────
+// Health-check for Twilio config — useful for the admin panel.
+router.get("/auth/twilio/status", async (_req, res) => {
+  const { twilioConfigured } = await import("../lib/twilioVerify.js");
+  res.json({ configured: twilioConfigured() });
+});
+
 export default router;
