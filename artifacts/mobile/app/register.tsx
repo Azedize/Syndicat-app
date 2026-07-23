@@ -123,6 +123,8 @@ export default function RegisterScreen() {
   const [loading, setLoading] = useState(false);
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [apiError, setApiError] = useState<string | null>(null);
+  const [sendStatus, setSendStatus] = useState<"idle" | "sending" | "success" | "error">("idle");
+  const [sendError, setSendError] = useState<string | null>(null);
 
   const emailRef = useRef<TextInput>(null);
   const phoneRef = useRef<TextInput>(null);
@@ -152,6 +154,8 @@ export default function RegisterScreen() {
 
     setLoading(true);
     setApiError(null);
+    setSendError(null);
+    setSendStatus("sending");
 
     try {
       // Send OTP verification code to email
@@ -171,9 +175,18 @@ export default function RegisterScreen() {
       }));
 
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-      router.push("/email-verify" as any);
+      setSendStatus("success");
+
+      // Navigate after showing success for 1.5 seconds
+      setTimeout(() => {
+        router.push("/email-verify" as any);
+        setSendStatus("idle");
+      }, 1500);
     } catch (err: any) {
-      setApiError(err?.message ?? "Impossible d'envoyer le code de vérification. Vérifiez votre adresse email.");
+      const msg = err?.message ?? "Impossible d'envoyer le code de vérification. Vérifiez votre adresse email.";
+      setSendStatus("error");
+      setSendError(msg);
+      setApiError(msg);
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
     } finally {
       setLoading(false);
@@ -368,27 +381,66 @@ export default function RegisterScreen() {
           </View>
           {errors.agreed ? <Text style={[s.errorText, { marginTop: -8 }]}>{errors.agreed}</Text> : null}
 
-          {/* API error */}
-          {apiError && (
-            <View style={[s.apiError, { backgroundColor: "#EF444415", borderColor: "#EF4444" }]}>
-              <Feather name="alert-circle" size={14} color="#EF4444" />
-              <Text style={s.apiErrorText}>{apiError}</Text>
+          {/* Email send status card */}
+          {sendStatus !== "idle" && (
+            <View style={[s.statusCard, {
+              backgroundColor:
+                sendStatus === "success" ? "#10B98115" :
+                sendStatus === "error"   ? "#EF444415" :
+                (isDark ? "rgba(255,255,255,0.06)" : "rgba(37,99,235,0.06)"),
+              borderColor:
+                sendStatus === "success" ? "#10B981" :
+                sendStatus === "error"   ? "#EF4444" :
+                (isDark ? "rgba(255,255,255,0.15)" : "rgba(37,99,235,0.25)"),
+            }]}>
+              {sendStatus === "sending" && <ActivityIndicator size="small" color={color} />}
+              {sendStatus === "success" && <Feather name="check-circle" size={20} color="#10B981" />}
+              {sendStatus === "error"   && <Feather name="x-circle"     size={20} color="#EF4444" />}
+
+              <View style={{ flex: 1, gap: 3 }}>
+                <Text style={[s.statusTitle, {
+                  color:
+                    sendStatus === "success" ? "#10B981" :
+                    sendStatus === "error"   ? "#EF4444" :
+                    (isDark ? "#E8F0FE" : "#0A1628"),
+                }]}>
+                  {sendStatus === "sending" && "Envoi de l'email en cours…"}
+                  {sendStatus === "success" && "Email envoyé avec succès !"}
+                  {sendStatus === "error"   && "Échec de l'envoi"}
+                </Text>
+
+                {sendStatus === "sending" && (
+                  <Text style={[s.statusSub, { color: isDark ? "rgba(232,240,254,0.45)" : "#64748B" }]}>
+                    Code envoyé à {email.trim()}…
+                  </Text>
+                )}
+                {sendStatus === "success" && (
+                  <Text style={[s.statusSub, { color: "#059669" }]}>
+                    Vérifiez votre boîte mail — redirection dans un instant.
+                  </Text>
+                )}
+                {sendStatus === "error" && sendError && (
+                  <Text style={[s.statusSub, { color: "#EF4444" }]}>{sendError}</Text>
+                )}
+              </View>
             </View>
           )}
 
           {/* Submit button */}
           <TouchableOpacity
-            style={[s.submitBtn, { backgroundColor: color, opacity: loading ? 0.7 : 1 }]}
+            style={[s.submitBtn, { backgroundColor: color, opacity: loading || sendStatus === "success" ? 0.7 : 1 }]}
             onPress={handleSubmit}
-            disabled={loading}
+            disabled={loading || sendStatus === "success"}
             activeOpacity={0.85}
           >
             {loading ? (
               <ActivityIndicator size="small" color="#fff" />
             ) : (
               <>
-                <Text style={s.submitBtnText}>Envoyer le code de vérification</Text>
-                <Feather name="send" size={16} color="#fff" />
+                <Text style={s.submitBtnText}>
+                  {sendStatus === "error" ? "Réessayer" : "Envoyer le code de vérification"}
+                </Text>
+                <Feather name={sendStatus === "error" ? "refresh-cw" : "send"} size={16} color="#fff" />
               </>
             )}
           </TouchableOpacity>
@@ -476,4 +528,11 @@ const s = StyleSheet.create({
   loginRow: { flexDirection: "row", justifyContent: "center", alignItems: "center", gap: 6 },
   loginText: { fontFamily: "Inter_400Regular", fontSize: 14 },
   loginLink: { fontFamily: "Inter_600SemiBold", fontSize: 14 },
+
+  statusCard: {
+    flexDirection: "row", alignItems: "flex-start", gap: 12,
+    padding: 14, borderRadius: 14, borderWidth: 1.5,
+  },
+  statusTitle: { fontFamily: "Inter_600SemiBold", fontSize: 14 },
+  statusSub:   { fontFamily: "Inter_400Regular",  fontSize: 12, lineHeight: 17 },
 });
