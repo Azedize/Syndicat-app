@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "972017139815",
+    "project_id": "syndycat-global-cps",
+    "storage_bucket": "syndycat-global-cps.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:972017139815:android:2483389034643597cc14c2",
+        "android_client_info": {
+          "package_name": "com.syndycatglobalcps.app"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyCM4A5bXtsq9tH8BXVwRNYG6nLSavadX0Y"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

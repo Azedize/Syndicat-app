@@ -303,6 +303,9 @@ importers:
       expo-sharing:
         specifier: ~14.0.8
         version: 14.0.8(expo@54.0.34)
+      expo-task-manager:
+        specifier: ^57.0.6
+        version: 57.0.6(expo@54.0.34)(react-native@0.81.5(@babel/core@7.29.0)(@types/react@19.1.17)(react@19.1.0))
       expo-updates:
         specifier: ~29.0.18
         version: 29.0.18(expo@54.0.34)(react-native@0.81.5(@babel/core@7.29.0)(@types/react@19.1.17)(react@19.1.0))(react@19.1.0)
@@ -3677,6 +3680,12 @@ packages:
       react-native-web:
         optional: true
 
+  expo-task-manager@57.0.6:
+    resolution: {integrity: sha512-nD6tvC3HNzjpOJir3Q8QDNOMtKrY2f1ik+fmKcOl7i/o822AEgGr7HpmDF/kpCQYGchdqBrodmkKcYwb9gxliQ==}
+    peerDependencies:
+      expo: '*'
+      react-native: '*'
+
   expo-updates-interface@2.0.0:
     resolution: {integrity: sha512-pTzAIufEZdVPKql6iMi5ylVSPqV1qbEopz9G6TSECQmnNde2nwq42PxdFBaUEd8IZJ/fdJLQnOT3m6+XJ5s7jg==}
     peerDependencies:
@@ -5761,6 +5770,9 @@ packages:
 
   unicode-trie@2.0.0:
     resolution: {integrity: sha512-x7bc76x0bm4prf1VLg79uhAzKw8DVboClSN5VxJuQ+LKDOVEW9CdH+VY7SP+vX7xCYQqzzgQpFqz15zeLvAtZQ==}
+
+  unimodules-app-loader@57.0.1:
+    resolution: {integrity: sha512-wey5ChoJkCTq0j0JWdIMu2QB81vVrdhmrNAP14ZZ6WDslnZ7ff7Ezv8rMdEnVHaCKz3xK4mIVXbVU51xHgdyCA==}
 
   unpipe@1.0.0:
     resolution: {integrity: sha512-pjy2bYhSsufwWlKwPc+l3cN7+wuJlK6uz0YdJEOlQDbl6jo/YlPi4mb8agUkVC8BF7V8NuzeyPNqRksA3hztKQ==}
@@ -9765,6 +9777,12 @@ snapshots:
     transitivePeerDependencies:
       - supports-color
 
+  expo-task-manager@57.0.6(expo@54.0.34)(react-native@0.81.5(@babel/core@7.29.0)(@types/react@19.1.17)(react@19.1.0)):
+    dependencies:
+      expo: 54.0.34(@babel/core@7.29.0)(@expo/metro-runtime@6.1.2)(expo-router@6.0.23)(react-native-webview@14.0.1(react-native@0.81.5(@babel/core@7.29.0)(@types/react@19.1.17)(react@19.1.0))(react@19.1.0))(react-native@0.81.5(@babel/core@7.29.0)(@types/react@19.1.17)(react@19.1.0))(react@19.1.0)(typescript@5.9.3)
+      react-native: 0.81.5(@babel/core@7.29.0)(@types/react@19.1.17)(react@19.1.0)
+      unimodules-app-loader: 57.0.1
+
   expo-updates-interface@2.0.0(expo@54.0.34):
     dependencies:
       expo: 54.0.34(@babel/core@7.29.0)(@expo/metro-runtime@6.1.2)(expo-router@6.0.23)(react-native-webview@14.0.1(react-native@0.81.5(@babel/core@7.29.0)(@types/react@19.1.17)(react@19.1.0))(react@19.1.0))(react-native@0.81.5(@babel/core@7.29.0)(@types/react@19.1.17)(react@19.1.0))(react@19.1.0)(typescript@5.9.3)
@@ -12253,6 +12271,8 @@ snapshots:
     dependencies:
       pako: 0.2.9
       tiny-inflate: 1.0.3
+
+  unimodules-app-loader@57.0.1: {}
 
   unpipe@1.0.0: {}
 

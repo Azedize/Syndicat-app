@@ -1,3 +1,7 @@
+// ⚠️ Background notification task MUST be imported before anything else
+// so TaskManager registers it while the JS bundle loads (even when app is closed).
+import "@/tasks/backgroundNotifications";
+
 import {
   Inter_400Regular,
   Inter_500Medium,

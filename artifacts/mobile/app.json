@@ -1,6 +1,6 @@
 {
   "expo": {
-    "name": "VERIDIAN",
+    "name": "SYNDYCAT GLOBAL CPS",
     "slug": "mobile",
     "version": "2.0.0",
     "orientation": "portrait",
@@ -16,7 +16,20 @@
     "ios": {
       "supportsTablet": false
     },
-    "android": {},
+    "android": {
+      "package": "com.syndycatglobalcps.app",
+      "googleServicesFile": "./google-services.json",
+      "permissions": [
+        "android.permission.RECEIVE_BOOT_COMPLETED",
+        "android.permission.VIBRATE",
+        "android.permission.POST_NOTIFICATIONS",
+        "android.permission.SCHEDULE_EXACT_ALARM"
+      ],
+      "adaptiveIcon": {
+        "foregroundImage": "./assets/images/icon.png",
+        "backgroundColor": "#0A1628"
+      }
+    },
     "web": {
       "favicon": "./assets/images/icon.png"
     },
@@ -28,7 +41,16 @@
         }
       ],
       "expo-font",
-      "expo-web-browser"
+      "expo-web-browser",
+      [
+        "expo-notifications",
+        {
+          "icon": "./assets/images/icon.png",
+          "color": "#0A1628",
+          "defaultChannel": "default",
+          "sounds": []
+        }
+      ]
     ],
     "experiments": {
       "typedRoutes": true,
