@@ -14,7 +14,9 @@
       "backgroundColor": "#0A1628"
     },
     "ios": {
-      "supportsTablet": false
+      "supportsTablet": false,
+      "bundleIdentifier": "com.syndycatglobalcps.app",
+      "googleServicesFile": "./GoogleService-Info.plist"
     },
     "android": {
       "package": "com.syndycatglobalcps.app",
