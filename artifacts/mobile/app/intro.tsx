@@ -18,6 +18,8 @@ import React, { useRef, useState } from "react";
 import {
   Animated,
   Dimensions,
+  Image,
+  ImageSourcePropType,
   Platform,
   ScrollView,
   StatusBar,
@@ -30,9 +32,7 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 import Svg, {
   Circle,
   Defs,
-  G,
   Path,
-  Rect,
   Stop,
   LinearGradient as SvgGrad,
 } from "react-native-svg";
@@ -41,6 +41,13 @@ import { useTheme } from "@/context/ThemeContext";
 
 const { width: W, height: H } = Dimensions.get("window");
 
+const INTRO_IMAGES = {
+  dashboard: require("../assets/intro/dashboard-kpis.png"),
+  welcome: require("../assets/intro/welcome-screen.png"),
+  welcomeAlt: require("../assets/intro/welcome-screen-alt.png"),
+  landing: require("../assets/intro/landing-screen.jpg"),
+};
+
 // ─── SLIDES DATA ─────────────────────────────────────────────────────────────
 
 const SLIDES = [
@@ -48,6 +55,7 @@ const SLIDES = [
     id: "dashboard",
     color: "#2563EB",
     tag: "DASHBOARD",
+    image: INTRO_IMAGES.dashboard,
     title: "Vue d'ensemble complète",
     subtitle: "Votre résidence en un coup d'œil, en temps réel.",
     kpis: [
@@ -60,6 +68,7 @@ const SLIDES = [
     id: "finance",
     color: "#1D4ED8",
     tag: "FINANCE",
+    image: INTRO_IMAGES.landing,
     title: "Finances maîtrisées",
     subtitle: "Gestion transparente de la trésorerie et des budgets.",
     kpis: [
@@ -72,6 +81,7 @@ const SLIDES = [
     id: "ag",
     color: "#059669",
     tag: "ASSEMBLÉES",
+    image: INTRO_IMAGES.welcome,
     title: "AG simplifiées",
     subtitle: "Des assemblées générales fluides et 100% légales.",
     kpis: [
@@ -84,6 +94,7 @@ const SLIDES = [
     id: "docs",
     color: "#7C3AED",
     tag: "DOCUMENTS",
+    image: INTRO_IMAGES.welcomeAlt,
     title: "Zéro papier",
     subtitle: "Centralisez et signez tous vos documents légaux.",
     kpis: [
@@ -96,6 +107,7 @@ const SLIDES = [
     id: "market",
     color: "#8B5CF6",
     tag: "MARKETPLACE",
+    image: INTRO_IMAGES.landing,
     title: "Échanges entre voisins",
     subtitle: "Une communauté active et solidaire.",
     kpis: [
@@ -108,6 +120,7 @@ const SLIDES = [
     id: "maintenance",
     color: "#D97706",
     tag: "MAINTENANCE",
+    image: INTRO_IMAGES.dashboard,
     title: "Maintenance proactive",
     subtitle: "Gérez les travaux et interventions efficacement.",
     kpis: [
@@ -120,6 +133,7 @@ const SLIDES = [
     id: "claims",
     color: "#E11D48",
     tag: "RÉCLAMATIONS",
+    image: INTRO_IMAGES.welcomeAlt,
     title: "Litiges résolus",
     subtitle: "Un processus de médiation clair et tracé.",
     kpis: [
@@ -132,6 +146,7 @@ const SLIDES = [
     id: "chat",
     color: "#0EA5E9",
     tag: "COMMUNICATION",
+    image: INTRO_IMAGES.landing,
     title: "Toujours connecté",
     subtitle: "Communiquez instantanément avec la résidence.",
     kpis: [
@@ -144,6 +159,7 @@ const SLIDES = [
     id: "national",
     color: "#6366F1",
     tag: "SUPERVISION",
+    image: INTRO_IMAGES.welcome,
     title: "Vision nationale",
     subtitle: "Pilotez plusieurs syndicats depuis une seule interface.",
     kpis: [
@@ -181,119 +197,16 @@ function BgDeco({ color }: { color: string }) {
   );
 }
 
-function PhoneMockup({ children, isDark, compact = false }: { children: React.ReactNode; isDark: boolean; compact?: boolean }) {
-  const frame = isDark ? "#0A1628" : "#1E293B";
-  const bezel = isDark ? "#0F1F35" : "#0F172A";
-  const screen = isDark ? "#0D1929" : "#F8FAFF";
-  const pill = isDark ? "#050D18" : "#0A1628";
-  const home = isDark ? "rgba(255,255,255,0.22)" : "rgba(255,255,255,0.38)";
-  const sideBtn = isDark ? "#060E1C" : "#0A1628";
-
+function PresentationImage({ source, compact = false }: { source: ImageSourcePropType; compact?: boolean }) {
   return (
-    <Svg width={compact ? 100 : 128} height={compact ? 195 : 250} viewBox="0 0 200 390">
-      <Rect x="10" y="10" width="188" height="378" rx="36" fill="#000" opacity="0.25" />
-      <Rect x="2" y="2" width="196" height="386" rx="36" fill={frame} />
-      <Rect x="6" y="6" width="188" height="378" rx="32" fill={bezel} />
-      <Rect x="9" y="9" width="182" height="372" rx="29" fill={screen} />
-      
-      <G>{children}</G>
-
-      <Rect x="71" y="13" width="58" height="10" rx="5" fill={pill} />
-      <Rect x="0" y="80" width="3" height="28" rx="1.5" fill={sideBtn} />
-      <Rect x="0" y="114" width="3" height="28" rx="1.5" fill={sideBtn} />
-      <Rect x="197" y="95" width="3" height="40" rx="1.5" fill={sideBtn} />
-      <Rect x="72" y="374" width="56" height="5" rx="2.5" fill={home} />
-    </Svg>
-  );
-}
-
-function MockupContent({ isDark, color, type }: { isDark: boolean, color: string, type: string }) {
-  const card = isDark ? "rgba(255,255,255,0.08)" : "#FFFFFF";
-  const bg = isDark ? "#0D1929" : "#F0F6FF";
-  
-  return (
-    <G>
-      <Rect x="9" y="24" width="182" height="16" fill={bg} />
-      <Rect x="9" y="40" width="182" height="46" fill={color} />
-      <Rect x="17" y="55" width="60" height="8" rx="4" fill="rgba(255,255,255,0.8)" />
-      
-      {type === "dashboard" && (
-        <G>
-          {[0, 1, 2, 3].map(i => (
-            <Rect key={i} x={16 + (i % 2) * 86} y={96 + Math.floor(i / 2) * 50} width="82" height="42" rx="8" fill={card} />
-          ))}
-          {[0, 1, 2].map(i => (
-            <Rect key={i} x="16" y={206 + i * 22} width="168" height="16" rx="6" fill={card} />
-          ))}
-        </G>
-      )}
-      {type === "finance" && (
-        <G>
-          <Rect x="16" y="96" width="168" height="60" rx="12" fill={color} opacity="0.8" />
-          <Rect x="16" y="166" width="168" height="80" rx="10" fill={card} />
-          {[0, 1, 2, 3, 4, 5, 6].map(i => (
-            <Rect key={i} x={24 + i * 23} y={236 - i * 10} width="12" height={10 + i * 10} rx="4" fill={color} opacity="0.6" />
-          ))}
-        </G>
-      )}
-      {type === "ag" && (
-        <G>
-          <Rect x="16" y="96" width="168" height="50" rx="10" fill={card} />
-          <Rect x="26" y="106" width="10" height="30" rx="4" fill={color} />
-          {[0, 1, 2, 3].map(i => (
-            <Rect key={i} x="16" y={156 + i * 34} width="168" height="26" rx="8" fill={card} />
-          ))}
-        </G>
-      )}
-      {type === "docs" && (
-        <G>
-          <Rect x="16" y="96" width="168" height="30" rx="15" fill={card} />
-          {[0, 1, 2, 3, 4, 5].map(i => (
-            <Rect key={i} x="16" y={136 + i * 26} width="168" height="18" rx="4" fill={card} />
-          ))}
-        </G>
-      )}
-      {type === "market" && (
-        <G>
-          <Rect x="16" y="96" width="50" height="20" rx="10" fill={color} />
-          <Rect x="72" y="96" width="50" height="20" rx="10" fill={card} />
-          {[0, 1, 2, 3].map(i => (
-            <Rect key={i} x={16 + (i % 2) * 86} y={126 + Math.floor(i / 2) * 86} width="82" height="76" rx="12" fill={card} />
-          ))}
-        </G>
-      )}
-      {type === "maintenance" && (
-        <G>
-          {[0, 1, 2].map(i => (
-            <Rect key={i} x={16 + i * 58} y={96} width="52" height="36" rx="8" fill={card} />
-          ))}
-          {[0, 1, 2, 3].map(i => (
-            <Rect key={i} x="16" y={146 + i * 32} width="168" height="24" rx="8" fill={card} />
-          ))}
-        </G>
-      )}
-      {type === "claims" && (
-        <G>
-          {[0, 1, 2, 3].map(i => (
-            <Rect key={i} x="16" y={96 + i * 50} width="168" height="40" rx="10" fill={card} />
-          ))}
-        </G>
-      )}
-      {type === "chat" && (
-        <G>
-          {[0, 1, 2, 3, 4].map(i => (
-            <Rect key={i} x={i % 2 === 0 ? 16 : 60} y={96 + i * 36} width="124" height="28" rx="14" fill={i % 2 === 0 ? card : color} opacity={i % 2 === 0 ? 1 : 0.8} />
-          ))}
-        </G>
-      )}
-      {type === "national" && (
-        <G>
-          <Circle cx="100" cy="140" r="40" fill={color} opacity="0.3" />
-          <Rect x="16" y="200" width="80" height="60" rx="12" fill={card} />
-          <Rect x="104" y="200" width="80" height="60" rx="12" fill={card} />
-        </G>
-      )}
-    </G>
+    <View style={[styles.presentationFrame, compact && styles.presentationFrameCompact]}>
+      <Image
+        source={source}
+        style={styles.presentationImage}
+        resizeMode="cover"
+        accessibilityLabel="Aperçu réel de l'application VERIDIAN"
+      />
+    </View>
   );
 }
 
@@ -323,14 +236,11 @@ function Slide({ item, index, scrollX }: { item: typeof SLIDES[0], index: number
         {/* TOP ZONE (30%) */}
         <Animated.View style={[styles.topZone, compact && styles.topZoneCompact, { transform: [{ translateX: txPhone }] }]}>
           <View style={styles.topZoneHeader}>
-            <VeridianLogo variant="icon" colorScheme="dark" size={36} />
             <View style={[styles.tagBadge, { backgroundColor: item.color }]}>
               <Text style={styles.tagText}>{item.tag}</Text>
             </View>
           </View>
-          <PhoneMockup isDark={isDark} compact={compact}>
-            <MockupContent isDark={isDark} color={item.color} type={item.id} />
-          </PhoneMockup>
+          <PresentationImage source={item.image} compact={compact} />
         </Animated.View>
 
         {/* CONTENT ZONE (40%) */}
@@ -467,9 +377,12 @@ const styles = StyleSheet.create({
 
   topZone: { flex: 0, height: 350, alignItems: "center", justifyContent: "flex-start" },
   topZoneCompact: { height: 280 },
-  topZoneHeader: { marginBottom: 12, alignItems: "center", gap: 8 },
+  topZoneHeader: { marginBottom: 10, alignItems: "center" },
   tagBadge: { paddingHorizontal: 12, paddingVertical: 6, borderRadius: 20, borderWidth: 1, borderColor: "rgba(255,255,255,0.3)" },
   tagText: { fontFamily: "Inter_600SemiBold", fontSize: 11, color: "#FFF", letterSpacing: 1.5 },
+  presentationFrame: { width: 128, height: 250, borderRadius: 28, backgroundColor: "#071326", padding: 5, borderWidth: 1, borderColor: "rgba(255,255,255,0.32)", shadowColor: "#000", shadowOffset: { width: 0, height: 10 }, shadowOpacity: 0.3, shadowRadius: 16, elevation: 10, overflow: "hidden" },
+  presentationFrameCompact: { width: 100, height: 195, borderRadius: 23, padding: 4 },
+  presentationImage: { flex: 1, width: "100%", height: "100%", borderRadius: 23 },
 
   contentZone: { flex: 0, minHeight: 220, justifyContent: "center", paddingTop: 8 },
   contentZoneCompact: { minHeight: 190 },
