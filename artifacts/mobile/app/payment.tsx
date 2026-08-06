@@ -1,5 +1,5 @@
 /**
- * VERIDIAN — Subscription Payment Screen
+ * MIZAN — Subscription Payment Screen
  *
  * Step 2 of the SaaS onboarding flow (post-syndicate-creation):
  * Register → Syndicate Setup → Payment → Team Invite → Dashboard
@@ -30,7 +30,7 @@ import { useAuth } from "@/context/AuthContext";
 import { useTheme } from "@/context/ThemeContext";
 import { apiRequest } from "@/lib/api";
 
-const PENDING_PLAN_KEY = "@veridian_pending_plan";
+const PENDING_PLAN_KEY = "@mizan_pending_plan";
 
 interface PendingPlan {
   planId: string;
@@ -101,7 +101,7 @@ export default function PaymentScreen() {
     if (selectedMethod === "transfer") {
       Alert.alert(
         "Virement bancaire",
-        "Veuillez effectuer un virement sur le compte suivant :\n\nBanque : Attijariwafa Bank\nRIB : 007 780 0000000000000000\nBénéficiaire : VERIDIAN SaaS Maroc\n\nVotre abonnement sera activé sous 24–48h après réception.",
+        "Veuillez effectuer un virement sur le compte suivant :\n\nBanque : Attijariwafa Bank\nRIB : 007 780 0000000000000000\nBénéficiaire : MIZAN Community OS Maroc\n\nVotre abonnement sera activé sous 24–48h après réception.",
         [
           { text: "Annuler", style: "cancel" },
           { text: "Confirmer", onPress: () => doSubscribe() },
@@ -165,7 +165,7 @@ export default function PaymentScreen() {
               Essai gratuit activé !
             </Text>
             <Text style={[s.trialSub, { color: isDark ? "rgba(232,240,254,0.6)" : "#64748B" }]}>
-              Profitez de 30 jours d'accès complet à la plateforme VERIDIAN, sans engagement et sans carte bancaire.
+              Profitez de 30 jours d'accès complet à la plateforme MIZAN, sans engagement et sans carte bancaire.
             </Text>
             <View style={[s.trialFeatures, { borderColor: isDark ? "rgba(255,255,255,0.08)" : "rgba(16,185,129,0.15)" }]}>
               {["Toutes les fonctionnalités incluses", "Données conservées après l'essai", "Aucune carte bancaire requise", "Annulation à tout moment"].map((f) => (

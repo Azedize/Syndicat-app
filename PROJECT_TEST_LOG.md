@@ -112,3 +112,7 @@
 - `pnpm --filter @workspace/mobile run typecheck` — passed with zero errors after the Template Studio and Template Requests localization/recovery pass.
 - `git diff --check` — passed after the Template Studio, Template Requests, translation, and project-log updates.
 - Mobile Expo preview screenshot for `/template-request` at 402×874 — direct protected preview remained behind the unauthenticated boundary; browser logs contained only existing non-blocking Expo web warnings and no new runtime exception.
+- `pnpm --filter @workspace/mobile run typecheck` — passed with zero errors after the Activity Journal localization and recovery pass.
+- `git diff --check -- artifacts/mobile/app/activity.tsx artifacts/mobile/context/LanguageContext.tsx` — passed.
+- Restarted `artifacts/mobile: expo`; Metro started successfully without transform errors. Existing Expo package-version and web compatibility warnings remain non-blocking.
+- Mobile Expo preview screenshot for `/activity` at 402×874 — protected route remained behind the expected unauthenticated boundary; the API 401 was expected authorization behavior and no new browser runtime exception appeared.

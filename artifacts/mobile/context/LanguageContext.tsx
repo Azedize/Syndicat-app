@@ -54,7 +54,7 @@ type Translations = Record<string, Record<LangCode, string>>;
 
 export const TRANSLATIONS: Translations = {
   // ─── App ───────────────────────────────────────────────────────────────────
-  appName: { fr: "VERIDIAN", en: "VERIDIAN", ar: "سنديكات", es: "VERIDIAN" },
+  appName: { fr: "MIZAN", en: "MIZAN", ar: "ميزان", es: "MIZAN" },
   appTagline: {
     fr: "Global CPS Platform",
     en: "Global CPS Platform",
@@ -281,10 +281,10 @@ export const TRANSLATIONS: Translations = {
     es: "¡Correo enviado!",
   },
   emailSentMsg: {
-    fr: "Si l'adresse {email} est associée à un compte VERIDIAN, vous recevrez un email avec un lien de réinitialisation dans quelques minutes.",
-    en: "If {email} is linked to a VERIDIAN account, you will receive a reset link email in a few minutes.",
-    ar: "إذا كان {email} مرتبطاً بحساب VERIDIAN، ستتلقى رسالة إعادة تعيين خلال دقائق.",
-    es: "Si {email} está vinculado a una cuenta VERIDIAN, recibirá un correo de restablecimiento en unos minutos.",
+    fr: "Si l'adresse {email} est associée à un compte MIZAN, vous recevrez un email avec un lien de réinitialisation dans quelques minutes.",
+    en: "If {email} is linked to a MIZAN account, you will receive a reset link email in a few minutes.",
+    ar: "إذا كان {email} مرتبطاً بحساب MIZAN، ستتلقى رسالة إعادة تعيين خلال دقائق.",
+    es: "Si {email} está vinculado a una cuenta MIZAN, recibirá un correo de restablecimiento en unos minutos.",
   },
   checkSpam: {
     fr: "Vérifiez aussi vos spams.",
@@ -928,10 +928,10 @@ export const TRANSLATIONS: Translations = {
     es: "Asistente IA",
   },
   aiAssistantFull: {
-    fr: "Assistant IA VERIDIAN",
-    en: "VERIDIAN AI Assistant",
-    ar: "مساعد الذكاء الاصطناعي VERIDIAN",
-    es: "Asistente IA VERIDIAN",
+    fr: "Assistant IA MIZAN",
+    en: "MIZAN AI Assistant",
+    ar: "مساعد الذكاء الاصطناعي MIZAN",
+    es: "Asistente IA MIZAN",
   },
   aiOnline: {
     fr: "En ligne — Prêt à répondre",
@@ -4724,6 +4724,43 @@ export const TRANSLATIONS: Translations = {
     ar: "لا يوجد نشاط حديث",
     es: "Sin actividad reciente",
   },
+  activityCategoryAuth: { fr: "Authentification", en: "Authentication", ar: "المصادقة", es: "Autenticación" },
+  activityCategoryFinance: { fr: "Finance", en: "Finance", ar: "المالية", es: "Finanzas" },
+  activityCategoryGovernance: { fr: "Gouvernance", en: "Governance", ar: "الحوكمة", es: "Gobernanza" },
+  activityCategoryDocuments: { fr: "Documents", en: "Documents", ar: "الوثائق", es: "Documentos" },
+  activityCategoryElections: { fr: "Élections", en: "Elections", ar: "الانتخابات", es: "Elecciones" },
+  activityCategoryMarketplace: { fr: "Marketplace", en: "Marketplace", ar: "السوق", es: "Marketplace" },
+  activityCategoryMembers: { fr: "Membres", en: "Members", ar: "الأعضاء", es: "Miembros" },
+  activityCategoryChat: { fr: "Chat", en: "Chat", ar: "المحادثة", es: "Chat" },
+  activityCategorySystem: { fr: "Système", en: "System", ar: "النظام", es: "Sistema" },
+  activityEvents: { fr: "Événements", en: "Events", ar: "الأحداث", es: "Eventos" },
+  activitySuccesses: { fr: "Succès", en: "Successes", ar: "نجاحات", es: "Éxitos" },
+  activityAlerts: { fr: "Alertes", en: "Alerts", ar: "تنبيهات", es: "Alertas" },
+  activityUsers: { fr: "Utilisateurs", en: "Users", ar: "المستخدمون", es: "Usuarios" },
+  activitySeverityInfo: { fr: "Info", en: "Info", ar: "معلومات", es: "Info" },
+  activitySeverityWarning: { fr: "Alerte", en: "Warning", ar: "تحذير", es: "Alerta" },
+  activitySeveritySuccess: { fr: "Succès", en: "Success", ar: "نجاح", es: "Éxito" },
+  activityLoadError: {
+    fr: "Le journal d'activité est momentanément indisponible.",
+    en: "The activity log is temporarily unavailable.",
+    ar: "سجل النشاط غير متاح مؤقتًا.",
+    es: "El registro de actividad no está disponible temporalmente.",
+  },
+  activityTarget: { fr: "Cible", en: "Target", ar: "الهدف", es: "Objetivo" },
+  activityDetail: { fr: "Détail", en: "Details", ar: "التفاصيل", es: "Detalles" },
+  activityLog: { fr: "Journal", en: "Log", ar: "سجل", es: "Registro" },
+  activityId: { fr: "ID", en: "ID", ar: "المعرّف", es: "ID" },
+  activityActor: { fr: "Acteur", en: "Actor", ar: "الفاعل", es: "Actor" },
+  activityAction: { fr: "Action", en: "Action", ar: "الإجراء", es: "Acción" },
+  activityDate: { fr: "Date", en: "Date", ar: "التاريخ", es: "Fecha" },
+  justNow: { fr: "À l'instant", en: "Just now", ar: "الآن", es: "Ahora" },
+  activityExportFull: {
+    fr: "Journal d'activité complet",
+    en: "Complete activity log",
+    ar: "سجل النشاط الكامل",
+    es: "Registro de actividad completo",
+  },
+  activityExportedOn: { fr: "Exporté le", en: "Exported on", ar: "تم التصدير في", es: "Exportado el" },
 
   // ─── Simulateur ────────────────────────────────────────────────────────────
   simulateurTitle: {
@@ -8080,10 +8117,10 @@ export const TRANSLATIONS: Translations = {
 
   // ─── Onboarding ─────────────────────────────────────────────────────────────
   welcomeTitle: {
-    fr: "Bienvenue sur VERIDIAN",
-    en: "Welcome to VERIDIAN",
+    fr: "Bienvenue sur MIZAN",
+    en: "Welcome to MIZAN",
     ar: "مرحباً بك في سنديكات",
-    es: "Bienvenido a VERIDIAN",
+    es: "Bienvenido a MIZAN",
   },
   getStarted: {
     fr: "Commencer",
@@ -14434,10 +14471,10 @@ export const TRANSLATIONS: Translations = {
     ar: "تعذّر تصدير الأجندة.",
   },
   agendaShareTitle: {
-    fr: "Agenda Syndical VERIDIAN",
-    en: "VERIDIAN Syndicate Agenda",
-    ar: "أجندة نقابة VERIDIAN",
-    es: "Agenda Sindical VERIDIAN",
+    fr: "Agenda Syndical MIZAN",
+    en: "MIZAN Syndicate Agenda",
+    ar: "أجندة نقابة MIZAN",
+    es: "Agenda Sindical MIZAN",
   },
   agendaConfirmParticipation: {
     fr: "Confirmer ma participation",
@@ -15650,10 +15687,10 @@ export const TRANSLATIONS: Translations = {
     es: "Plataforma profesional",
   },
   authFooter: {
-    fr: "© 2026 VERIDIAN · Tous droits réservés",
-    en: "© 2026 VERIDIAN · All rights reserved",
-    ar: "© 2026 VERIDIAN · جميع الحقوق محفوظة",
-    es: "© 2026 VERIDIAN · Todos los derechos reservados",
+    fr: "© 2026 MIZAN · Tous droits réservés",
+    en: "© 2026 MIZAN · All rights reserved",
+    ar: "© 2026 MIZAN · جميع الحقوق محفوظة",
+    es: "© 2026 MIZAN · Todos los derechos reservados",
   },
   welcomeHeadline: {
     fr: "Gérez votre\ncopropriété",
@@ -16017,7 +16054,7 @@ export const TRANSLATIONS: Translations = {
    tsActionSuccess: { fr: "Action enregistrée", en: "Action saved", ar: "تم حفظ الإجراء", es: "Acción guardada" },
    trSubtitle: { fr: "Proposez un nouveau modèle de document", en: "Suggest a new document template", ar: "اقترح نموذج مستند جديدًا", es: "Propón una nueva plantilla de documento" },
    trNew: { fr: "Nouvelle", en: "New", ar: "جديد", es: "Nueva" },
-   trInfo: { fr: "Votre demande sera examinée par l'équipe VERIDIAN. Une fois approuvée, le modèle sera créé et mis à votre disposition.", en: "Your request will be reviewed by the VERIDIAN team. Once approved, the template will be created and made available to you.", ar: "سيراجع فريق VERIDIAN طلبك. بعد الموافقة، سيتم إنشاء النموذج وإتاحته لك.", es: "El equipo de VERIDIAN revisará tu solicitud. Una vez aprobada, se creará la plantilla y estará disponible para ti." },
+   trInfo: { fr: "Votre demande sera examinée par l'équipe MIZAN. Une fois approuvée, le modèle sera créé et mis à votre disposition.", en: "Your request will be reviewed by the MIZAN team. Once approved, the template will be created and made available to you.", ar: "سيراجع فريق MIZAN طلبك. بعد الموافقة، سيتم إنشاء النموذج وإتاحته لك.", es: "El equipo de MIZAN revisará tu solicitud. Una vez aprobada, se creará la plantilla y estará disponible para ti." },
    trLoadError: { fr: "Les demandes sont temporairement indisponibles.", en: "Requests are temporarily unavailable.", ar: "الطلبات غير متاحة مؤقتًا.", es: "Las solicitudes no están disponibles temporalmente." },
    trLoading: { fr: "Chargement des demandes", en: "Loading requests", ar: "جارٍ تحميل الطلبات", es: "Cargando solicitudes" },
    trEmpty: { fr: "Aucune demande", en: "No requests", ar: "لا توجد طلبات", es: "No hay solicitudes" },

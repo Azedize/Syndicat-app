@@ -36,3 +36,5 @@
 - Mobile verification: zero-error typecheck, diff validation, Expo restart, and Metro bundle rebuild passed after the home dashboard pass.
 - Template Studio & Template Requests: multilingual studio metadata, request review surface, syndicate-admin request form/detail flow, localized priorities/statuses, safe feedback, and retryable data states complete; existing Super Admin/syndicate-admin guards and API contracts preserved.
 - Mobile verification: zero-error typecheck, diff validation, and protected `/template-request` preview pass; direct unauthenticated preview remains safely blocked.
+- Activity Journal: multilingual audit categories, severity labels, statistics, suspicious-login alert, export/detail metadata, locale-aware relative dates, and retryable unavailable-data state complete; real audit API mapping and administrator export boundary preserved.
+- Mobile verification: zero-error typecheck, diff validation, Expo restart, and protected `/activity` preview pass; unauthenticated API 401 remains expected.

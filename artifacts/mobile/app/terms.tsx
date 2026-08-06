@@ -1,5 +1,5 @@
 /**
- * VERIDIAN — Conditions Générales d'Utilisation
+ * MIZAN — Conditions Générales d'Utilisation
  */
 import { Feather } from "@expo/vector-icons";
 import { router } from "expo-router";
@@ -54,16 +54,16 @@ export default function TermsScreen() {
         <View style={[s.legalBadge, { backgroundColor: "#2563EB15", borderColor: "#2563EB30" }]}>
           <Feather name="shield" size={14} color="#2563EB" />
           <Text style={[s.legalBadgeText, { color: isDark ? "#93C5FD" : "#2563EB" }]}>
-            Lisez attentivement ces conditions avant d'utiliser la plateforme VERIDIAN.
+            Lisez attentivement ces conditions avant d'utiliser la plateforme MIZAN.
           </Text>
         </View>
 
         <Section title="1. Objet" isDark={isDark}>
           <P isDark={isDark}>
-            Les présentes Conditions Générales d'Utilisation (CGU) régissent l'accès et l'utilisation de la plateforme SaaS VERIDIAN, éditée par la société VERIDIAN TECHNOLOGIES SARL, société à responsabilité limitée de droit marocain, dont le siège social est situé à Casablanca, Maroc (ci-après « VERIDIAN »).
+            Les présentes Conditions Générales d'Utilisation (CGU) régissent l'accès et l'utilisation de la plateforme SaaS MIZAN Community OS, éditée par la société MIZAN Community OS SARL, société à responsabilité limitée de droit marocain, dont le siège social est situé à Casablanca, Maroc (ci-après « MIZAN »).
           </P>
           <P isDark={isDark}>
-            VERIDIAN est une solution logicielle destinée à la gestion des syndicats de copropriété, permettant notamment la gestion financière, documentaire, la gouvernance numérique et la communication entre les parties prenantes d'une résidence.
+            MIZAN est une solution logicielle destinée à la gestion des syndicats de copropriété, permettant notamment la gestion financière, documentaire, la gouvernance numérique et la communication entre les parties prenantes d'une résidence.
           </P>
         </Section>
 
@@ -77,7 +77,7 @@ export default function TermsScreen() {
         </Section>
 
         <Section title="3. Description des services" isDark={isDark}>
-          <P isDark={isDark}>VERIDIAN propose notamment les modules suivants :</P>
+          <P isDark={isDark}>MIZAN propose notamment les modules suivants :</P>
           <Li isDark={isDark}>Gestion financière : budgets prévisionnels, charges, recouvrement, comptabilité</Li>
           <Li isDark={isDark}>Gouvernance : assemblées générales numériques, élections, procès-verbaux</Li>
           <Li isDark={isDark}>Documents : archivage certifié, génération PDF, signature électronique</Li>
@@ -92,13 +92,13 @@ export default function TermsScreen() {
             Pour accéder aux services, vous devez créer un compte en fournissant des informations exactes, complètes et à jour. Vous êtes responsable de la confidentialité de vos identifiants et de toute activité effectuée sous votre compte.
           </P>
           <P isDark={isDark}>
-            Vous vous engagez à ne pas partager vos identifiants, à ne pas créer de compte pour le compte d'un tiers sans autorisation et à informer immédiatement VERIDIAN de toute utilisation non autorisée de votre compte.
+            Vous vous engagez à ne pas partager vos identifiants, à ne pas créer de compte pour le compte d'un tiers sans autorisation et à informer immédiatement MIZAN de toute utilisation non autorisée de votre compte.
           </P>
         </Section>
 
         <Section title="5. Abonnements et paiements" isDark={isDark}>
           <P isDark={isDark}>
-            L'accès à VERIDIAN est soumis à la souscription d'un abonnement payant (sauf période d'essai gratuit). Les tarifs sont indiqués hors taxes et peuvent être révisés avec un préavis de 30 jours.
+            L'accès à MIZAN est soumis à la souscription d'un abonnement payant (sauf période d'essai gratuit). Les tarifs sont indiqués hors taxes et peuvent être révisés avec un préavis de 30 jours.
           </P>
           <Li isDark={isDark}>L'essai gratuit est valable 30 jours sans engagement ni carte bancaire</Li>
           <Li isDark={isDark}>Le paiement est dû à la date d'échéance indiquée sur la facture</Li>
@@ -108,16 +108,16 @@ export default function TermsScreen() {
 
         <Section title="6. Propriété intellectuelle" isDark={isDark}>
           <P isDark={isDark}>
-            La plateforme VERIDIAN, son code source, ses bases de données, ses interfaces graphiques, ses marques et ses contenus sont la propriété exclusive de VERIDIAN TECHNOLOGIES SARL. Toute reproduction, représentation ou exploitation non autorisée est strictement interdite.
+            La plateforme MIZAN, son code source, ses bases de données, ses interfaces graphiques, ses marques et ses contenus sont la propriété exclusive de MIZAN Community OS SARL. Toute reproduction, représentation ou exploitation non autorisée est strictement interdite.
           </P>
           <P isDark={isDark}>
-            Vous conservez la propriété de vos données. VERIDIAN vous accorde uniquement une licence d'utilisation de la plateforme, non exclusive et non transférable.
+            Vous conservez la propriété de vos données. MIZAN vous accorde uniquement une licence d'utilisation de la plateforme, non exclusive et non transférable.
           </P>
         </Section>
 
         <Section title="7. Protection des données personnelles" isDark={isDark}>
           <P isDark={isDark}>
-            VERIDIAN traite vos données conformément à la loi marocaine n° 09-08 relative à la protection des personnes physiques à l'égard du traitement des données à caractère personnel et au Règlement Général sur la Protection des Données (RGPD) pour les utilisateurs européens.
+            MIZAN traite vos données conformément à la loi marocaine n° 09-08 relative à la protection des personnes physiques à l'égard du traitement des données à caractère personnel et au Règlement Général sur la Protection des Données (RGPD) pour les utilisateurs européens.
           </P>
           <P isDark={isDark}>
             Pour plus d'informations, consultez notre Politique de Confidentialité.
@@ -126,16 +126,16 @@ export default function TermsScreen() {
 
         <Section title="8. Disponibilité du service" isDark={isDark}>
           <P isDark={isDark}>
-            VERIDIAN s'engage à maintenir une disponibilité du service de 99,5% par mois, hors maintenances planifiées. En cas d'indisponibilité prolongée, un crédit de service peut être accordé selon les conditions du contrat.
+            MIZAN s'engage à maintenir une disponibilité du service de 99,5% par mois, hors maintenances planifiées. En cas d'indisponibilité prolongée, un crédit de service peut être accordé selon les conditions du contrat.
           </P>
         </Section>
 
         <Section title="9. Limitation de responsabilité" isDark={isDark}>
           <P isDark={isDark}>
-            VERIDIAN ne saurait être tenu responsable des dommages indirects, pertes de données, pertes d'exploitation ou préjudices consécutifs à l'utilisation ou à l'impossibilité d'utiliser la plateforme.
+            MIZAN ne saurait être tenu responsable des dommages indirects, pertes de données, pertes d'exploitation ou préjudices consécutifs à l'utilisation ou à l'impossibilité d'utiliser la plateforme.
           </P>
           <P isDark={isDark}>
-            La responsabilité totale de VERIDIAN est limitée au montant des abonnements payés par le client au cours des 12 derniers mois.
+            La responsabilité totale de MIZAN est limitée au montant des abonnements payés par le client au cours des 12 derniers mois.
           </P>
         </Section>
 
@@ -144,7 +144,7 @@ export default function TermsScreen() {
             Vous pouvez résilier votre abonnement à tout moment depuis votre espace client. La résiliation prend effet à la fin de la période d'abonnement en cours. Vos données sont conservées pendant 90 jours après la résiliation, puis supprimées définitivement.
           </P>
           <P isDark={isDark}>
-            VERIDIAN se réserve le droit de suspendre ou de résilier votre accès en cas de violation des présentes CGU, de non-paiement ou d'utilisation abusive de la plateforme.
+            MIZAN se réserve le droit de suspendre ou de résilier votre accès en cas de violation des présentes CGU, de non-paiement ou d'utilisation abusive de la plateforme.
           </P>
         </Section>
 
@@ -156,7 +156,7 @@ export default function TermsScreen() {
 
         <Section title="12. Modification des CGU" isDark={isDark}>
           <P isDark={isDark}>
-            VERIDIAN se réserve le droit de modifier les présentes CGU à tout moment. Les modifications sont notifiées par email avec un préavis de 30 jours. La poursuite de l'utilisation de la plateforme après cette période vaut acceptation des nouvelles conditions.
+            MIZAN se réserve le droit de modifier les présentes CGU à tout moment. Les modifications sont notifiées par email avec un préavis de 30 jours. La poursuite de l'utilisation de la plateforme après cette période vaut acceptation des nouvelles conditions.
           </P>
         </Section>
 
@@ -164,7 +164,7 @@ export default function TermsScreen() {
           <Feather name="mail" size={16} color="#2563EB" />
           <View style={{ flex: 1 }}>
             <Text style={[s.contactTitle, { color: fg }]}>Contact juridique</Text>
-            <Text style={[s.contactText, { color: muted }]}>legal@veridian.ma — VERIDIAN TECHNOLOGIES SARL, Casablanca, Maroc</Text>
+            <Text style={[s.contactText, { color: muted }]}>legal@mizan.ma — MIZAN Community OS SARL, Casablanca, Maroc</Text>
           </View>
         </View>
 

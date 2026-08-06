@@ -389,7 +389,7 @@ function PaiementsScreenInner() {
                   <View style={[styles.qrSection, { backgroundColor: colors.card, borderColor: colors.border }]}>
                     <View style={[styles.qrBox, { borderColor: colors.border, backgroundColor: "#fff" }]}>
                       <QRCode
-                        value={`VERIDIAN:${formatRef(tx.id)}:${tx.amount}:${tx.date}:PAID`}
+                        value={`MIZAN:${formatRef(tx.id)}:${tx.amount}:${tx.date}:PAID`}
                         size={112}
                         color="#1a1a1a"
                         backgroundColor="#ffffff"

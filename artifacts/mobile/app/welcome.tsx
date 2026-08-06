@@ -25,7 +25,7 @@ import Svg, {
 } from "react-native-svg";
 
 import VeridianLogo from "@/components/brand/VeridianLogo";
-import { VERIDIAN } from "@/constants/brand";
+import { MIZAN } from "@/constants/brand";
 import { useTheme } from "@/context/ThemeContext";
 
 const SERVICES = [
@@ -54,7 +54,7 @@ function TrustMark({
           },
         ]}
       >
-        <Feather name={icon} size={14} color={isDark ? "#93C5FD" : VERIDIAN.colors.blue} />
+       <Feather name={icon} size={14} color={isDark ? "#93C5FD" : MIZAN.colors.blue} />
       </View>
       <Text style={[styles.trustText, { color: isDark ? "#C7D6ED" : "#334155" }]}>{label}</Text>
     </View>
@@ -79,9 +79,9 @@ function ServiceCard({
       ]}
     >
       <View style={[styles.serviceIcon, { backgroundColor: isDark ? "rgba(37,99,235,0.2)" : "#EFF6FF" }]}>
-        <Feather name={service.icon} size={18} color={isDark ? "#60A5FA" : VERIDIAN.colors.blue} />
+       <Feather name={service.icon} size={18} color={isDark ? "#60A5FA" : MIZAN.colors.blue} />
       </View>
-      <Text style={[styles.serviceTitle, { color: isDark ? "#F8FAFF" : VERIDIAN.colors.navyDeep }]}>
+      <Text style={[styles.serviceTitle, { color: isDark ? "#F8FAFF" : MIZAN.colors.navyDeep }]}>
         {service.title}
       </Text>
       <Text style={[styles.serviceText, { color: isDark ? "#8EA3C0" : "#64748B" }]}>{service.text}</Text>
@@ -168,10 +168,10 @@ export default function WelcomeScreen() {
     Animated.timing(rise, { toValue: 0, duration: 650, useNativeDriver: true }).start();
   }, [fade, rise]);
 
-  const background = isDark ? VERIDIAN.colors.navyDeep : "#F4F8FF";
-  const panel = isDark ? VERIDIAN.colors.navyMid : "#FFFFFF";
+  const background = isDark ? MIZAN.colors.navyDeep : "#F4F8FF";
+  const panel = isDark ? MIZAN.colors.navyMid : "#FFFFFF";
   const muted = isDark ? "#91A5C0" : "#64748B";
-  const foreground = isDark ? "#F8FAFF" : VERIDIAN.colors.navyDeep;
+  const foreground = isDark ? "#F8FAFF" : MIZAN.colors.navyDeep;
 
   return (
     <View style={[styles.root, { backgroundColor: background }]}>
@@ -202,16 +202,16 @@ export default function WelcomeScreen() {
               style={[
                 styles.loginButton,
                 {
-                  borderColor: isDark ? "rgba(147,197,253,0.38)" : "#BFDBFE",
+                   borderColor: isDark ? "rgba(147,197,253,0.38)" : "#BFDBFE",
                   backgroundColor: isDark ? "rgba(37,99,235,0.12)" : "#FFFFFF",
                 },
               ]}
               activeOpacity={0.82}
             >
-              <Text style={[styles.loginText, { color: isDark ? "#BFDBFE" : VERIDIAN.colors.blue }]}>
+              <Text style={[styles.loginText, { color: isDark ? "#BFDBFE" : MIZAN.colors.blue }]}>
                 Se connecter
               </Text>
-              <Feather name="arrow-up-right" size={16} color={isDark ? "#93C5FD" : VERIDIAN.colors.blue} />
+              <Feather name="arrow-up-right" size={16} color={isDark ? "#93C5FD" : MIZAN.colors.blue} />
             </TouchableOpacity>
           </View>
 
@@ -261,7 +261,7 @@ export default function WelcomeScreen() {
                   ]}
                   activeOpacity={0.82}
                 >
-                  <Text style={[styles.plansButtonText, { color: isDark ? "#BFDBFE" : VERIDIAN.colors.blue }]}>
+                  <Text style={[styles.plansButtonText, { color: isDark ? "#BFDBFE" : MIZAN.colors.blue }]}>
                     Voir les plans
                   </Text>
                 </TouchableOpacity>
@@ -283,7 +283,7 @@ export default function WelcomeScreen() {
           </View>
 
           <View style={styles.sectionHeader}>
-            <Text style={[styles.sectionKicker, { color: isDark ? "#60A5FA" : VERIDIAN.colors.blue }]}>UNE GESTION SANS FRICTION</Text>
+            <Text style={[styles.sectionKicker, { color: isDark ? "#60A5FA" : MIZAN.colors.blue }]}>UNE GESTION SANS FRICTION</Text>
             <Text style={[styles.sectionTitle, { color: foreground }]}>Les services dont votre résidence a besoin</Text>
             <Text style={[styles.sectionDescription, { color: muted }]}>
               Des outils connectés pour remplacer les échanges dispersés par une gestion fluide, lisible et fiable.

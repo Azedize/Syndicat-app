@@ -586,7 +586,7 @@ function TableauNationalScreenInner() {
               <TouchableOpacity
                 key={a.label}
                 style={[styles.exportBtn, { backgroundColor: colors.card, borderColor: colors.border }]}
-                onPress={() => { Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success); Share.share({ title: a.label, message: `${a.label}\nGénéré le ${new Date().toLocaleDateString("fr-MA")}\nVERIDIAN` }); }}
+                onPress={() => { Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success); Share.share({ title: a.label, message: `${a.label}\nGénéré le ${new Date().toLocaleDateString("fr-MA")}\nMIZAN` }); }}
                 activeOpacity={0.8}
               >
                 <View style={[styles.exportIcon, { backgroundColor: a.color + "18" }]}>
@@ -694,7 +694,7 @@ function TableauNationalScreenInner() {
                   ].join("\n");
                   Share.share({
                     message: lines,
-                    title: `Rapport national VERIDIAN — ${new Date().toLocaleDateString("fr-MA")}`,
+                    title: `Rapport national MIZAN — ${new Date().toLocaleDateString("fr-MA")}`,
                   }).catch(() => Alert.alert("Erreur", "Impossible d'exporter le rapport."));
                 },
               },
@@ -951,7 +951,7 @@ function TableauNationalScreenInner() {
                             if (a.isContact) {
                               handleContactAdmin(selectedSyndicat!);
                             } else {
-                              Share.share({ title: selectedSyndicat.name, message: `Rapport syndical — ${selectedSyndicat.name}\nGénéré le ${new Date().toLocaleDateString("fr-MA")}\nVERIDIAN` });
+                              Share.share({ title: selectedSyndicat.name, message: `Rapport syndical — ${selectedSyndicat.name}\nGénéré le ${new Date().toLocaleDateString("fr-MA")}\nMIZAN` });
                               setSelectedSyndicat(null);
                             }
                           }}

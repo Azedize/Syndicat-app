@@ -7,7 +7,7 @@ function getBaseUrl(): string {
   // all API calls. Fail loudly so misconfigured production builds are caught.
   if (process.env.NODE_ENV === "production") {
     throw new Error(
-      "[VERIDIAN] EXPO_PUBLIC_DOMAIN is required in production builds. " +
+      "[MIZAN] EXPO_PUBLIC_DOMAIN is required in production builds. " +
         "Set it to your Replit dev domain in the environment variables.",
     );
   }

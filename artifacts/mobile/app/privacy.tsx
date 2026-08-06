@@ -1,5 +1,5 @@
 /**
- * VERIDIAN — Politique de Confidentialité
+ * MIZAN — Politique de Confidentialité
  */
 import { Feather } from "@expo/vector-icons";
 import { router } from "expo-router";
@@ -54,13 +54,13 @@ export default function PrivacyScreen() {
         <View style={[s.legalBadge, { backgroundColor: "#10B98115", borderColor: "#10B98130" }]}>
           <Feather name="lock" size={14} color="#10B981" />
           <Text style={[s.legalBadgeText, { color: isDark ? "#6EE7B7" : "#059669" }]}>
-            VERIDIAN s'engage à protéger vos données personnelles conformément à la loi marocaine 09-08 et au RGPD européen.
+            MIZAN s'engage à protéger vos données personnelles conformément à la loi marocaine 09-08 et au RGPD européen.
           </Text>
         </View>
 
         <Section title="1. Responsable du traitement" isDark={isDark}>
           <P isDark={isDark}>
-            Le responsable du traitement de vos données personnelles est VERIDIAN TECHNOLOGIES SARL, société de droit marocain immatriculée à Casablanca. Contact DPO : privacy@veridian.ma
+            Le responsable du traitement de vos données personnelles est MIZAN Community OS SARL, société de droit marocain immatriculée à Casablanca. Contact DPO : privacy@mizan.ma
           </P>
         </Section>
 
@@ -94,7 +94,7 @@ export default function PrivacyScreen() {
 
         <Section title="4. Base légale du traitement" isDark={isDark}>
           <P isDark={isDark}>Selon les cas, le traitement de vos données repose sur :</P>
-          <Li isDark={isDark}>L'exécution du contrat d'abonnement vous liant à VERIDIAN</Li>
+          <Li isDark={isDark}>L'exécution du contrat d'abonnement vous liant à MIZAN</Li>
           <Li isDark={isDark}>Votre consentement explicite (communications marketing)</Li>
           <Li isDark={isDark}>Notre intérêt légitime (sécurité, amélioration du service)</Li>
           <Li isDark={isDark}>Le respect d'obligations légales (facturation, conservation)</Li>
@@ -126,7 +126,7 @@ export default function PrivacyScreen() {
 
         <Section title="8. Sécurité des données" isDark={isDark}>
           <P isDark={isDark}>
-            VERIDIAN met en œuvre des mesures techniques et organisationnelles appropriées pour protéger vos données :
+            MIZAN met en œuvre des mesures techniques et organisationnelles appropriées pour protéger vos données :
           </P>
           <Li isDark={isDark}>Chiffrement des données en transit (TLS 1.3) et au repos (AES-256)</Li>
           <Li isDark={isDark}>Authentification sécurisée avec hachage des mots de passe (bcrypt)</Li>
@@ -145,13 +145,13 @@ export default function PrivacyScreen() {
           <Li isDark={isDark}><Text style={{ fontFamily: "Inter_600SemiBold" }}>Droit d'opposition</Text> : vous opposer au traitement de vos données</Li>
           <Li isDark={isDark}><Text style={{ fontFamily: "Inter_600SemiBold" }}>Droit à la limitation</Text> : restreindre le traitement dans certains cas</Li>
           <P isDark={isDark}>
-            Pour exercer ces droits, contactez-nous à privacy@veridian.ma. Vous pouvez également introduire une réclamation auprès de la Commission Nationale de Contrôle de la Protection des Données à Caractère Personnel (CNDP).
+            Pour exercer ces droits, contactez-nous à privacy@mizan.ma. Vous pouvez également introduire une réclamation auprès de la Commission Nationale de Contrôle de la Protection des Données à Caractère Personnel (CNDP).
           </P>
         </Section>
 
         <Section title="10. Cookies et traceurs" isDark={isDark}>
           <P isDark={isDark}>
-            L'application mobile VERIDIAN n'utilise pas de cookies tiers. Nous utilisons uniquement des tokens de session stockés localement sur votre appareil pour maintenir votre connexion. Ces tokens sont chiffrés et peuvent être révoqués à tout moment via la déconnexion.
+            L'application mobile MIZAN n'utilise pas de cookies tiers. Nous utilisons uniquement des tokens de session stockés localement sur votre appareil pour maintenir votre connexion. Ces tokens sont chiffrés et peuvent être révoqués à tout moment via la déconnexion.
           </P>
         </Section>
 
@@ -165,8 +165,8 @@ export default function PrivacyScreen() {
           <Feather name="shield" size={16} color="#10B981" />
           <View style={{ flex: 1 }}>
             <Text style={[s.contactTitle, { color: fg }]}>Délégué à la Protection des Données (DPO)</Text>
-            <Text style={[s.contactText, { color: muted }]}>privacy@veridian.ma</Text>
-            <Text style={[s.contactText, { color: muted }]}>VERIDIAN TECHNOLOGIES SARL — Casablanca, Maroc</Text>
+            <Text style={[s.contactText, { color: muted }]}>privacy@mizan.ma</Text>
+            <Text style={[s.contactText, { color: muted }]}>MIZAN Community OS SARL — Casablanca, Maroc</Text>
           </View>
         </View>
 

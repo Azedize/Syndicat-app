@@ -1,5 +1,5 @@
 /**
- * VERIDIAN — Team Invitation Wizard
+ * MIZAN — Team Invitation Wizard
  *
  * Step 3 of the SaaS onboarding flow (post-payment):
  * Register → Syndicate Setup → Payment → Team Invite → Dashboard

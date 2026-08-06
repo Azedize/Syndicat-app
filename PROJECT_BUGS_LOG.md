@@ -18,3 +18,4 @@
 - Home Dashboard financial amounts and dates no longer remain French-only or use an unformatted raw amount presentation.
 - Template Studio and template requests no longer fall back to hardcoded French metadata, form copy, status/priority labels, or recovery messages when the active language changes.
 - Template request list failures no longer masquerade as an empty list; users now receive a localized retryable unavailable-data state.
+- Activity Journal no longer mixes French-only category, severity, statistic, export, alert, and detail labels into English, Arabic, or Spanish sessions; audit-load failures now expose a localized retry action instead of a hardcoded message.

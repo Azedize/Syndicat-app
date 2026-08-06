@@ -96,3 +96,5 @@
 - Audited `artifacts/mobile/app/template-studio.tsx`; localized remaining visible metadata, header/action confirmation copy, request review labels, request statuses, and safe recovery feedback through the shared runtime language system.
 - Audited `artifacts/mobile/app/template-request.tsx`; localized categories, priorities, statuses, form/detail labels, placeholders, validation, submission feedback, date formatting, and empty/loading/error states without changing request APIs or role protection.
 - Reused shared `LoadingState` and `ErrorState` recovery patterns so template request failures no longer collapse into a blank or toast-only surface.
+- Audited `artifacts/mobile/app/activity.tsx` and replaced hardcoded audit categories, severity labels, statistics, export copy, security alert text, detail metadata, and relative-time presentation with runtime translations.
+- Added locale-aware relative timestamps using the active language and a retryable audit loading failure state; preserved the real `/audit` API mapper and administrator-only export behavior.

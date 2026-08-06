@@ -1,7 +1,7 @@
 import { Feather } from "@expo/vector-icons";
 import * as Haptics from "expo-haptics";
 import { router } from "expo-router";
-import React, { useEffect, useState } from "react";
+import React, { useCallback, useEffect, useState } from "react";
 import {
   ActivityIndicator,
   Alert,
@@ -24,16 +24,16 @@ import { audit as auditApi } from "@/services/api";
 
 type ActivityCategory = "all" | "auth" | "finance" | "governance" | "documents" | "elections" | "marketplace" | "members" | "chat" | "system";
 
-const CAT_CONFIG: Record<Exclude<ActivityCategory, "all">, { label: string; color: string; icon: keyof typeof Feather.glyphMap }> = {
-  auth: { label: "Authentification", color: "#2563EB", icon: "lock" },
-  finance: { label: "Finance", color: "#10b981", icon: "dollar-sign" },
-  governance: { label: "Gouvernance", color: "#3b82f6", icon: "git-merge" },
-  documents: { label: "Documents", color: "#6366f1", icon: "file-text" },
-  elections: { label: "Élections", color: "#f59e0b", icon: "check-square" },
-  marketplace: { label: "Marketplace", color: "#f97316", icon: "shopping-bag" },
-  members: { label: "Membres", color: "#ec4899", icon: "users" },
-  chat: { label: "Chat", color: "#06b6d4", icon: "message-circle" },
-  system: { label: "Système", color: "#6b7280", icon: "settings" },
+const CAT_CONFIG: Record<Exclude<ActivityCategory, "all">, { labelKey: string; color: string; icon: keyof typeof Feather.glyphMap }> = {
+  auth: { labelKey: "activityCategoryAuth", color: "#2563EB", icon: "lock" },
+  finance: { labelKey: "activityCategoryFinance", color: "#10b981", icon: "dollar-sign" },
+  governance: { labelKey: "activityCategoryGovernance", color: "#3b82f6", icon: "git-merge" },
+  documents: { labelKey: "activityCategoryDocuments", color: "#6366f1", icon: "file-text" },
+  elections: { labelKey: "activityCategoryElections", color: "#f59e0b", icon: "check-square" },
+  marketplace: { labelKey: "activityCategoryMarketplace", color: "#f97316", icon: "shopping-bag" },
+  members: { labelKey: "activityCategoryMembers", color: "#ec4899", icon: "users" },
+  chat: { labelKey: "activityCategoryChat", color: "#06b6d4", icon: "message-circle" },
+  system: { labelKey: "activityCategorySystem", color: "#6b7280", icon: "settings" },
 };
 
 type Severity = "info" | "warning" | "success" | "error";
@@ -91,16 +91,20 @@ function inferSeverity(action: string): Severity {
   return "info";
 }
 
-function relativeLabel(iso: string): string {
+function relativeLabel(iso: string, locale: string, justNow: string): string {
   const diff = Date.now() - new Date(iso).getTime();
   const mins = Math.floor(diff / 60000);
-  if (mins < 1) return "À l'instant";
-  if (mins < 60) return `Il y a ${mins} min`;
-  const hrs = Math.floor(mins / 60);
-  if (hrs < 24) return `Il y a ${hrs}h`;
-  const days = Math.floor(hrs / 24);
-  if (days === 1) return "Hier";
-  return `Il y a ${days}j`;
+  if (mins < 1) return justNow;
+  try {
+    const formatter = new Intl.RelativeTimeFormat(locale, { numeric: "auto" });
+    if (mins < 60) return formatter.format(-mins, "minute");
+    const hrs = Math.floor(mins / 60);
+    if (hrs < 24) return formatter.format(-hrs, "hour");
+    const days = Math.floor(hrs / 24);
+    return formatter.format(-days, "day");
+  } catch {
+    return justNow;
+  }
 }
 
 function safeDate(iso: string | null | undefined): Date | null {
@@ -127,7 +131,7 @@ function mapApiLog(raw: {
     userAvatar: avatar,
     userRole: "",
     timestamp: ts,
-    relativeTime: d ? relativeLabel(d.toISOString()) : "",
+    relativeTime: "",
     severity: inferSeverity(raw.action ?? ""),
   };
 }
@@ -136,10 +140,11 @@ export default function ActivityScreen() {
   const colors = useColors();
   const insets = useSafeAreaInsets();
   const { user } = useAuth();
-  const { t } = useLanguage();
+  const { t, lang } = useLanguage();
   const { isWide } = useBreakpoints();
   const topPad = isWide ? 0 : (Platform.OS === "web" ? 67 : insets.top);
   const isAdmin = user?.role !== "member";
+  const locale = lang === "ar" ? "ar-MA" : lang === "en" ? "en-US" : lang === "es" ? "es-ES" : "fr-MA";
 
   const [activities, setActivities] = useState<ActivityLog[]>([]);
   const [loadingApi, setLoadingApi] = useState(true);
@@ -147,7 +152,7 @@ export default function ActivityScreen() {
   const [category, setCategory] = useState<ActivityCategory>("all");
   const [selectedLog, setSelectedLog] = useState<ActivityLog | null>(null);
 
-  useEffect(() => {
+  const loadActivities = useCallback(() => {
     let cancelled = false;
     setLoadingApi(true);
     setLoadError(false);
@@ -164,6 +169,8 @@ export default function ActivityScreen() {
     return () => { cancelled = true; };
   }, []);
 
+  useEffect(() => loadActivities(), [loadActivities]);
+
   const filtered = category === "all" ? activities : activities.filter((a) => a.category === category);
 
   // Group by day
@@ -173,9 +180,9 @@ export default function ActivityScreen() {
     const today = new Date();
     const yesterday = new Date(today); yesterday.setDate(today.getDate() - 1);
     let key: string;
-    if (d.toDateString() === today.toDateString()) key = "Aujourd'hui";
-    else if (d.toDateString() === yesterday.toDateString()) key = "Hier";
-    else key = `${d.getDate()} ${["Jan", "Fév", "Mar", "Avr", "Mai", "Juin", "Juil", "Août", "Sep", "Oct", "Nov", "Déc"][d.getMonth()]} ${d.getFullYear()}`;
+    if (d.toDateString() === today.toDateString()) key = t("today");
+    else if (d.toDateString() === yesterday.toDateString()) key = t("yesterday");
+    else key = d.toLocaleDateString(locale, { day: "numeric", month: "short", year: "numeric" });
     if (!acc[key]) acc[key] = [];
     acc[key].push(log);
     return acc;
@@ -189,6 +196,15 @@ export default function ActivityScreen() {
   });
 
   const errorCount = activities.filter((a) => a.severity === "error" || a.severity === "warning").length;
+  const suspiciousCount = activities.filter((a) => a.severity === "error" || (a.severity === "warning" && a.category === "auth")).length;
+  const categoryLabel = (key: Exclude<ActivityCategory, "all">) => t(CAT_CONFIG[key].labelKey);
+  const severityLabel = (severity: Severity) => severity === "info"
+    ? t("activitySeverityInfo")
+    : severity === "warning"
+      ? t("activitySeverityWarning")
+      : severity === "success"
+        ? t("activitySeveritySuccess")
+        : t("error");
 
   return (
     <View style={[styles.root, { backgroundColor: colors.background }]}>
@@ -200,12 +216,12 @@ export default function ActivityScreen() {
           </TouchableOpacity>
           <View style={{ flex: 1 }}>
             <Text style={styles.headerTitle}>{t("activityTitle")}</Text>
-            <Text style={styles.headerSub}>Audit trail & traçabilité complète</Text>
+            <Text style={styles.headerSub}>{t("auditTrailSub")}</Text>
           </View>
           {isAdmin && (
             <TouchableOpacity
               style={styles.exportBtn}
-              onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); Share.share({ title: "Journal d'activité VERIDIAN", message: `Journal d'activité complet\nExporté le ${new Date().toLocaleDateString("fr-MA")}\nVERIDIAN` }); }}
+              onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); Share.share({ title: `${t("activityTitle")} MIZAN`, message: `${t("activityExportFull")}\n${t("activityExportedOn")} ${new Date().toLocaleDateString(locale)}\nMIZAN` }); }}
             >
               <Feather name="download" size={18} color="#fff" />
             </TouchableOpacity>
@@ -215,10 +231,10 @@ export default function ActivityScreen() {
         {/* Stats */}
         <View style={styles.statsRow}>
           {[
-            { icon: "activity" as const, val: activities.length, label: "Événements", color: "#fff" },
-            { icon: "check-circle" as const, val: activities.filter((a) => a.severity === "success").length, label: "Succès", color: "#6ee7b7" },
-            { icon: "alert-triangle" as const, val: errorCount, label: "Alertes", color: errorCount > 0 ? "#fcd34d" : "#6ee7b7" },
-            { icon: "users" as const, val: new Set(activities.map((a) => a.user)).size, label: "Utilisateurs", color: "#c4b5fd" },
+            { icon: "activity" as const, val: activities.length, label: t("activityEvents"), color: "#fff" },
+            { icon: "check-circle" as const, val: activities.filter((a) => a.severity === "success").length, label: t("activitySuccesses"), color: "#6ee7b7" },
+            { icon: "alert-triangle" as const, val: errorCount, label: t("activityAlerts"), color: errorCount > 0 ? "#fcd34d" : "#6ee7b7" },
+            { icon: "users" as const, val: new Set(activities.map((a) => a.user)).size, label: t("activityUsers"), color: "#c4b5fd" },
           ].map((s) => (
             <View key={s.label} style={styles.statBox}>
               <Feather name={s.icon} size={12} color={s.color} />
@@ -229,12 +245,12 @@ export default function ActivityScreen() {
         </View>
 
         {/* Security alert if needed */}
-        {activities.some((a) => a.severity === "error" || (a.severity === "warning" && a.category === "auth")) && (
+        {suspiciousCount > 0 && (
           <View style={styles.securityAlert}>
             <Feather name="shield" size={14} color="#fbbf24" />
-            <Text style={styles.securityAlertText}>1 tentative de connexion suspecte détectée</Text>
+            <Text style={styles.securityAlertText}>{suspiciousCount} {t("suspiciousLogin")}</Text>
             <TouchableOpacity onPress={() => { setCategory("auth"); Haptics.selectionAsync(); }}>
-              <Text style={styles.securityAlertLink}>Voir</Text>
+              <Text style={styles.securityAlertLink}>{t("see")}</Text>
             </TouchableOpacity>
           </View>
         )}
@@ -261,7 +277,7 @@ export default function ActivityScreen() {
             onPress={() => { setCategory(key); Haptics.selectionAsync(); }}
           >
             <Feather name={cfg.icon} size={12} color={category === key ? "#fff" : colors.mutedForeground} />
-            <Text style={[styles.chipText, { color: category === key ? "#fff" : colors.mutedForeground }]}>{cfg.label} ({counts[key]})</Text>
+            <Text style={[styles.chipText, { color: category === key ? "#fff" : colors.mutedForeground }]}>{categoryLabel(key)} ({counts[key]})</Text>
           </TouchableOpacity>
         ))}
       </ScrollView>
@@ -281,8 +297,13 @@ export default function ActivityScreen() {
               <>
                 <Feather name={loadError ? "wifi-off" : "activity"} size={40} color={colors.mutedForeground} />
                 <Text style={[styles.emptyText, { color: colors.mutedForeground }]}>
-                  {loadError ? "Impossible de charger le journal d'activité" : t("noActivity")}
+                  {loadError ? t("activityLoadError") : t("noActivity")}
                 </Text>
+                {loadError && (
+                  <TouchableOpacity style={[styles.retryBtn, { backgroundColor: colors.primary }]} onPress={loadActivities}>
+                    <Text style={styles.retryBtnText}>{t("retry")}</Text>
+                  </TouchableOpacity>
+                )}
               </>
             )}
           </View>
@@ -311,13 +332,15 @@ export default function ActivityScreen() {
                 <View style={styles.logTop}>
                   <View style={styles.logBadges}>
                     <View style={[styles.catBadge, { backgroundColor: catCfg.color + "12" }]}>
-                      <Text style={[styles.catBadgeText, { color: catCfg.color }]}>{catCfg.label}</Text>
+                      <Text style={[styles.catBadgeText, { color: catCfg.color }]}>{categoryLabel(log.category)}</Text>
                     </View>
                     <View style={[styles.sevBadge, { backgroundColor: sevCfg.bg }]}>
-                      <Text style={[styles.sevBadgeText, { color: sevCfg.color }]}>{log.severity === "info" ? "Info" : log.severity === "warning" ? "Alerte" : log.severity === "success" ? "Succès" : t("error")}</Text>
+                        <Text style={[styles.sevBadgeText, { color: sevCfg.color }]}>{severityLabel(log.severity)}</Text>
                     </View>
                   </View>
-                  <Text style={[styles.logTime, { color: colors.mutedForeground }]}>{log.relativeTime}</Text>
+                  <Text style={[styles.logTime, { color: colors.mutedForeground }]}>
+                    {log.timestamp ? relativeLabel(log.timestamp.replace(" ", "T"), locale, t("justNow")) : ""}
+                  </Text>
                 </View>
                 <Text style={[styles.logAction, { color: colors.foreground }]}>{log.action}</Text>
                 <Text style={[styles.logTarget, { color: colors.mutedForeground }]} numberOfLines={1}>{log.target}</Text>
@@ -325,7 +348,7 @@ export default function ActivityScreen() {
                   <View style={[styles.logAvatar, { backgroundColor: catCfg.color + "15" }]}>
                     <Text style={[styles.logAvatarText, { color: catCfg.color }]}>{log.userAvatar}</Text>
                   </View>
-                  <Text style={[styles.logUser, { color: colors.mutedForeground }]}>{log.user} · {log.userRole}</Text>
+                  <Text style={[styles.logUser, { color: colors.mutedForeground }]}>{log.user}{log.userRole ? ` · ${log.userRole}` : ""}</Text>
                 </View>
               </View>
               <View style={[styles.severityStripe, { backgroundColor: sevCfg.color }]} />
@@ -350,11 +373,11 @@ export default function ActivityScreen() {
                   <View style={{ flex: 1, gap: 4 }}>
                     <View style={styles.logBadges}>
                       <View style={[styles.catBadge, { backgroundColor: catCfg.color + "12" }]}>
-                        <Text style={[styles.catBadgeText, { color: catCfg.color }]}>{catCfg.label}</Text>
+                        <Text style={[styles.catBadgeText, { color: catCfg.color }]}>{categoryLabel(log.category)}</Text>
                       </View>
                       <View style={[styles.sevBadge, { backgroundColor: sevCfg.bg }]}>
                         <Text style={[styles.sevBadgeText, { color: sevCfg.color }]}>
-                          {log.severity === "info" ? "Info" : log.severity === "warning" ? "Alerte" : log.severity === "success" ? "Succès" : t("error")}
+                          {severityLabel(log.severity)}
                         </Text>
                       </View>
                     </View>
@@ -367,11 +390,11 @@ export default function ActivityScreen() {
 
                 <View style={[styles.detailSection, { backgroundColor: colors.background, borderColor: colors.border }]}>
                   {[
-                    { label: "Cible", value: log.target },
-                    { label: "Détail", value: log.detail ?? "—" },
-                    { label: "Utilisateur", value: `${log.user} (${log.userRole})` },
-                    { label: "Horodatage", value: log.timestamp },
-                    log.ip ? { label: "Adresse IP", value: log.ip } : null,
+                     { label: t("activityTarget"), value: log.target },
+                     { label: t("activityDetail"), value: log.detail ?? "—" },
+                     { label: t("detailUser"), value: log.userRole ? `${log.user} (${log.userRole})` : log.user },
+                     { label: t("detailTimestamp"), value: log.timestamp },
+                     log.ip ? { label: t("detailIP"), value: log.ip } : null,
                   ].filter(Boolean).map((item: any, i) => (
                     <View key={item.label}>
                       {i > 0 && <View style={[styles.detailSep, { backgroundColor: colors.border }]} />}
@@ -387,10 +410,10 @@ export default function ActivityScreen() {
                   {isAdmin && (
                     <TouchableOpacity
                       style={[styles.detailBtn, { backgroundColor: colors.primary + "15" }]}
-                      onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); Share.share({ title: `Log ${log.id}`, message: `ID: ${log.id}\nActeur: ${log.user}\nAction: ${log.action}\nCible: ${log.target}\nDate: ${log.timestamp}${log.detail ? `\n${log.detail}` : ""}` }); }}
+                       onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); Share.share({ title: `${t("activityLog")} ${log.id}`, message: `${t("activityId")}: ${log.id}\n${t("activityActor")}: ${log.user}\n${t("activityAction")}: ${log.action}\n${t("activityTarget")}: ${log.target}\n${t("activityDate")}: ${log.timestamp}${log.detail ? `\n${log.detail}` : ""}` }); }}
                     >
                       <Feather name="download" size={15} color={colors.primary} />
-                      <Text style={[styles.detailBtnText, { color: colors.primary }]}>Exporter</Text>
+                      <Text style={[styles.detailBtnText, { color: colors.primary }]}>{t("export")}</Text>
                     </TouchableOpacity>
                   )}
                   <TouchableOpacity
@@ -448,7 +471,9 @@ const styles = StyleSheet.create({
   logUser: { fontSize: 11, fontFamily: "Inter_400Regular" },
   severityStripe: { position: "absolute", right: 0, top: 0, bottom: 0, width: 3 },
   empty: { alignItems: "center", justifyContent: "center", padding: 60, gap: 12 },
-  emptyText: { fontSize: 14, fontFamily: "Inter_400Regular" },
+  emptyText: { fontSize: 14, fontFamily: "Inter_400Regular", textAlign: "center" },
+  retryBtn: { paddingHorizontal: 18, paddingVertical: 10, borderRadius: 10 },
+  retryBtnText: { color: "#fff", fontSize: 13, fontFamily: "Inter_600SemiBold" },
   modalOverlay: { flex: 1, backgroundColor: "rgba(0,0,0,0.5)", justifyContent: "flex-end" },
   detailModal: { borderTopLeftRadius: 24, borderTopRightRadius: 24, padding: 24, gap: 16, maxHeight: "85%" },
   detailTop: { flexDirection: "row", alignItems: "flex-start", gap: 12 },

@@ -50,6 +50,7 @@
 - Template Studio now keeps its role, category, variable, section, tab, and identifier presentation aligned with the active language instead of falling back to French metadata.
 - Home Dashboard now provides a visible synchronization state, localized retryable failure recovery, locale-aware MAD/date presentation, and Arabic direction support while keeping each role's operational surface intact.
 - Template Studio and Template Requests now provide a consistent four-language document-template experience with localized review lifecycle, request priorities, form/detail guidance, validation, date presentation, and actionable loading/error/empty states.
+- Activity Journal now provides a consistent four-language traceability experience with localized category/severity hierarchy, translated operational statistics, suspicious-login guidance, locale-aware relative dates, export/detail metadata, and recoverable unavailable-data feedback.
 ---
 ## Session 2026-08-06 — Refonte Enterprise Écrans d'Accueil
 

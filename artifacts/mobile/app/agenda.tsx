@@ -147,14 +147,14 @@ export default function AgendaScreen() {
     const lines = [
       "BEGIN:VCALENDAR",
       "VERSION:2.0",
-      "PRODID:-//VERIDIAN//Agenda Syndical//FR",
+      "PRODID:-//MIZAN//Agenda Syndical//FR",
       "CALSCALE:GREGORIAN",
       "METHOD:PUBLISH",
     ];
     for (const ev of events) {
       lines.push(
         "BEGIN:VEVENT",
-        `UID:syndycat-${ev.id}@veridian.app`,
+        `UID:mizan-${ev.id}@mizan.app`,
         `DTSTART;VALUE=DATE:${formatDt(ev.date)}`,
         `DTEND;VALUE=DATE:${formatDt(ev.date)}`,
         `SUMMARY:${esc(ev.title)}`,

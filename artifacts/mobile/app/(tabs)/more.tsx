@@ -421,7 +421,7 @@ export default function MoreScreen() {
         <View style={[styles.infoCard, { backgroundColor: colors.card, borderColor: colors.border }]}>
           <View style={styles.infoRow}>
             <Text style={[styles.infoLabel, { color: colors.mutedForeground }]}>Application</Text>
-            <Text style={[styles.infoValue, { color: colors.foreground }]}>SYNDYCAT GLOBAL CPS</Text>
+            <Text style={[styles.infoValue, { color: colors.foreground }]}>MIZAN Community OS</Text>
           </View>
           <View style={[styles.infoDivider, { backgroundColor: colors.border }]} />
           <View style={styles.infoRow}>

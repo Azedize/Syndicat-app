@@ -437,7 +437,7 @@ export default function ProfileScreen() {
                 onPress={() => {
                   Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
                   shareContent(
-                    `${user?.name ?? ""} — VERIDIAN\n${t("badgeVerification")}: https://veridian.app/verify/badge/${user?.id ?? ""}`,
+                    `${user?.name ?? ""} — MIZAN\n${t("badgeVerification")}: https://mizan.ma/verify/badge/${user?.id ?? ""}`,
                     t("badgeModalTitle"),
                   );
                 }}

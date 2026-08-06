@@ -875,7 +875,7 @@ export default function ReglementsScreen() {
                     onPress={(e) => {
                       e.stopPropagation?.();
                       Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-                      Share.share({ title: d.title, message: `${d.title}\n${d.type} — ${d.status}\nPartagé depuis VERIDIAN` });
+                      Share.share({ title: d.title, message: `${d.title}\n${d.type} — ${d.status}\nPartagé depuis MIZAN` });
                     }}
                   >
                     <Feather name="share-2" size={14} color="#6366f1" />
@@ -976,7 +976,7 @@ export default function ReglementsScreen() {
                   </TouchableOpacity>
                   <TouchableOpacity
                     style={[styles.modalActionBtn, { backgroundColor: colors.muted }]}
-                    onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); Share.share({ title: d.title, message: `${d.title} — ${d.type}\nPartagé depuis VERIDIAN` }); }}
+                    onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); Share.share({ title: d.title, message: `${d.title} — ${d.type}\nPartagé depuis MIZAN` }); }}
                   >
                     <Feather name="share-2" size={18} color={colors.foreground} />
                     <Text style={[styles.modalActionBtnText, { color: colors.foreground }]}>Partager</Text>

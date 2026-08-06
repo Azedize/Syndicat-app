@@ -1,7 +1,7 @@
 /**
- * VeridianLogo — Official brand logo component
+ * MizanLogo — Official MIZAN brand logo component
  *
- * Renders the VERIDIAN shield icon (SVG vector) combined with the wordmark
+ * Renders the MIZAN balance mark (SVG vector) combined with the wordmark
  * and optional tagline.
  *
  * Variants:
@@ -28,7 +28,7 @@ import Svg, {
   Rect,
   Stop,
 } from "react-native-svg";
-import { VERIDIAN } from "@/constants/brand";
+import { MIZAN } from "@/constants/brand";
 
 // ─── Shield Icon ─────────────────────────────────────────────────────────────
 
@@ -39,76 +39,62 @@ interface ShieldProps {
 }
 
 /**
- * The VERIDIAN shield — a hexagonal heraldic shield with three stylised
- * building bars and five community dots at the base.
+ * The MIZAN mark — a geometric M balanced on a gold governance line.
  *
  * Coordinate space: viewBox "0 0 88 100".
  * Shield occupies x 4–84, y 3–98.
  */
 function Shield({ height, isDark }: ShieldProps) {
-  // Maintain aspect ratio 88:100
-  const width = (height * 88) / 100;
-
-  const shieldFill = isDark
-    ? "rgba(255,255,255,0.07)"
-    : `${VERIDIAN.colors.blue}09`;
-  const shieldStroke = isDark ? "#FFFFFF" : VERIDIAN.colors.navyDeep;
-  const dotFill = isDark ? "rgba(255,255,255,0.8)" : VERIDIAN.colors.blue;
-  const gradId = isDark ? "bgDark" : "bgLight";
+  const width = height;
+  const markFill = isDark ? MIZAN.colors.navyMid : MIZAN.colors.white;
+  const markStroke = isDark ? MIZAN.colors.white : MIZAN.colors.navyDeep;
+  const blueId = isDark ? "mizanBlueDark" : "mizanBlueLight";
 
   return (
-    <Svg width={width} height={height} viewBox="0 0 88 100">
+    <Svg width={width} height={height} viewBox="0 0 88 88">
       <Defs>
-        {/* Building gradient — bottom-anchored for depth */}
-        <LinearGradient id={gradId} x1="0" y1="0" x2="0" y2="1">
-          <Stop offset="0" stopColor={VERIDIAN.colors.bluePale} stopOpacity="1" />
-          <Stop offset="1" stopColor={VERIDIAN.colors.blue} stopOpacity="1" />
+        <LinearGradient id={blueId} x1="0" y1="0" x2="1" y2="1">
+          <Stop offset="0" stopColor={MIZAN.colors.blueLight} />
+          <Stop offset="1" stopColor={MIZAN.colors.teal} />
         </LinearGradient>
       </Defs>
 
-      {/* ── Shield body ────────────────────────────────────── */}
-      {/*  Heraldic shield: wide top corners, rounded sides,   */}
-      {/*  curves to a pointed bottom.                         */}
+      <Rect
+        x="3"
+        y="3"
+        width="82"
+        height="82"
+        rx="24"
+        fill={markFill}
+        stroke={isDark ? "rgba(255,255,255,0.18)" : "#DCE6F3"}
+        strokeWidth="1.5"
+      />
+
       <Path
-        d="M44,4 L83,17 L83,57 Q83,81 44,97 Q5,81 5,57 L5,17 Z"
-        fill={shieldFill}
-        stroke={shieldStroke}
-        strokeWidth="3.5"
+        d="M18 59 V29 L32 43 L44 25 L56 43 L70 29 V59"
+        fill="none"
+        stroke={markStroke}
+        strokeWidth="5"
+        strokeLinecap="round"
         strokeLinejoin="round"
       />
 
-      {/* ── Left building (stepped top) ───────────────────── */}
-      {/*  The step notch on the top-right of the left bar     */}
-      {/*  references the F/S letterform in the logo mark.     */}
       <Path
-        d="M21,49 L21,76 L32,76 L32,63 L29,63 L29,49 Z"
-        fill={`url(#${gradId})`}
+        d="M20 68 H68"
+        stroke={MIZAN.colors.gold}
+        strokeWidth="4"
+        strokeLinecap="round"
       />
 
-      {/* ── Centre building (tallest) ─────────────────────── */}
-      <Rect
-        x="38"
-        y="29"
-        width="10"
-        height="47"
-        rx="1"
-        fill={`url(#${gradId})`}
+      <Circle cx="20" cy="68" r="3.5" fill={MIZAN.colors.gold} />
+      <Circle cx="44" cy="68" r="3.5" fill={`url(#${blueId})`} />
+      <Circle cx="68" cy="68" r="3.5" fill={MIZAN.colors.gold} />
+      <Path
+        d="M44 25 V18"
+        stroke={`url(#${blueId})`}
+        strokeWidth="3"
+        strokeLinecap="round"
       />
-
-      {/* ── Right building ────────────────────────────────── */}
-      <Rect
-        x="54"
-        y="41"
-        width="10"
-        height="35"
-        rx="1"
-        fill={`url(#${gradId})`}
-      />
-
-      {/* ── Community dots (5 circles) ────────────────────── */}
-      {[29, 37, 46, 55, 63].map((cx) => (
-        <Circle key={cx} cx={cx} cy={85} r={3} fill={dotFill} />
-      ))}
     </Svg>
   );
 }
@@ -118,7 +104,7 @@ function Shield({ height, isDark }: ShieldProps) {
 export type LogoVariant = "full" | "horizontal" | "icon" | "compact";
 export type LogoColorScheme = "light" | "dark";
 
-interface VeridianLogoProps {
+interface MizanLogoProps {
   variant?: LogoVariant;
   colorScheme?: LogoColorScheme;
   /**
@@ -132,21 +118,21 @@ interface VeridianLogoProps {
 
 // ─── Component ───────────────────────────────────────────────────────────────
 
-export default function VeridianLogo({
+export default function MizanLogo({
   variant = "full",
   colorScheme = "light",
   size = 80,
   showTagline = true,
   style,
-}: VeridianLogoProps) {
+}: MizanLogoProps) {
   const isDark = colorScheme === "dark";
 
-  const textColor = isDark ? VERIDIAN.colors.white : VERIDIAN.colors.navyDeep;
+  const textColor = isDark ? MIZAN.colors.white : MIZAN.colors.navyDeep;
   const taglineColor = isDark
-    ? VERIDIAN.colors.bluePale
-    : VERIDIAN.colors.blue;
+    ? MIZAN.colors.bluePale
+    : MIZAN.colors.blue;
 
-  // Wordmark font size — "VERIDIAN" should feel substantial relative to shield
+  // Wordmark font size — "MIZAN" should feel substantial relative to the mark
   const wordmarkSize = Math.round(size * 0.31);
   const taglineSize = Math.max(8, Math.round(size * 0.11));
   const wordmarkTracking = Math.round(size * 0.05 * 10) / 10;
@@ -175,7 +161,7 @@ export default function VeridianLogo({
             ]}
             allowFontScaling={false}
           >
-            VERIDIAN
+            MIZAN
           </Text>
           {showTagline && (
             <Text
@@ -186,7 +172,7 @@ export default function VeridianLogo({
               allowFontScaling={false}
               numberOfLines={1}
             >
-              {VERIDIAN.taglineShort.toUpperCase()}
+              {MIZAN.taglineShort.toUpperCase()}
             </Text>
           )}
         </View>
@@ -210,7 +196,7 @@ export default function VeridianLogo({
         ]}
         allowFontScaling={false}
       >
-        VERIDIAN
+        MIZAN
       </Text>
       {showTagline && (
         <Text
@@ -225,7 +211,7 @@ export default function VeridianLogo({
           ]}
           allowFontScaling={false}
         >
-          {VERIDIAN.tagline.toUpperCase()}
+          {MIZAN.tagline.toUpperCase()}
         </Text>
       )}
     </View>

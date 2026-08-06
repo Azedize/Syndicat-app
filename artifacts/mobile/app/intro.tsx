@@ -1,5 +1,5 @@
 /**
- * VERIDIAN — Enterprise Platform Introduction
+ * MIZAN — Enterprise Platform Introduction
  *
  * 9-page premium onboarding carousel.
  * Each slide showcases a different platform module with:
@@ -204,7 +204,7 @@ function PresentationImage({ source, compact = false }: { source: ImageSourcePro
         source={source}
         style={styles.presentationImage}
         resizeMode="cover"
-        accessibilityLabel="Aperçu réel de l'application VERIDIAN"
+        accessibilityLabel="Aperçu réel de l'application MIZAN"
       />
     </View>
   );

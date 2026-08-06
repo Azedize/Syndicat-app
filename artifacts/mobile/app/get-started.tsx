@@ -135,7 +135,7 @@ function TestimonialCard({ isDark }: { isDark: boolean }) {
         ))}
       </View>
       <Text style={[styles.testimonialText, { color: isDark ? "#E8F0FE" : "#0A1628" }]}>
-        "VERIDIAN a transformé la gestion de notre résidence. Les assemblées générales en ligne et la signature électronique nous font gagner un temps précieux."
+         "MIZAN a transformé la gestion de notre résidence. Les assemblées générales en ligne et la signature électronique nous font gagner un temps précieux."
       </Text>
       <View style={styles.testimonialAuthor}>
         <View style={[styles.testimonialAvatar, { backgroundColor: "#F59E0B" }]}>
@@ -206,7 +206,7 @@ export default function GetStartedScreen() {
               onPress={() => router.push("/register")} color="#2563EB" isDark={isDark}
             />
             <ActionBtn
-              variant="outline" icon="log-in" label="Se connecter" sublabel="J'ai déjà un compte VERIDIAN"
+               variant="outline" icon="log-in" label="Se connecter" sublabel="J'ai déjà un compte MIZAN"
               onPress={() => router.replace("/login")} color="#3B82F6" isDark={isDark}
             />
           </View>
@@ -223,11 +223,11 @@ export default function GetStartedScreen() {
             />
             <ActionBtn
               variant="ghost" icon="phone" label="Contacter les ventes" sublabel="Pour les grandes résidences"
-              onPress={() => Linking.openURL("mailto:sales@veridian.ma")} color="#10B981" isDark={isDark}
+              onPress={() => Linking.openURL("mailto:sales@mizan.ma")} color="#10B981" isDark={isDark}
             />
             <ActionBtn
               variant="ghost" icon="monitor" label="Demander une démo" sublabel="Présentation personnalisée en ligne"
-              onPress={() => Linking.openURL("mailto:demo@veridian.ma")} color="#D97706" isDark={isDark}
+              onPress={() => Linking.openURL("mailto:demo@mizan.ma")} color="#D97706" isDark={isDark}
             />
           </View>
         </Animated.View>
@@ -246,9 +246,9 @@ export default function GetStartedScreen() {
         </View>
 
         <Text style={[styles.legalText, { color: isDark ? "#4A6080" : "#94A3B8" }]}>
-          En créant un compte, vous acceptez les{" "}
+           En créant un compte, vous acceptez les{" "}
           <Text style={{ color: isDark ? "#60A5FA" : "#2563EB" }}>Conditions d'utilisation</Text> et la{" "}
-          <Text style={{ color: isDark ? "#60A5FA" : "#2563EB" }}>Politique de confidentialité</Text> de VERIDIAN.
+           <Text style={{ color: isDark ? "#60A5FA" : "#2563EB" }}>Politique de confidentialité</Text> de MIZAN.
         </Text>
       </ScrollView>
     </View>

@@ -615,7 +615,7 @@ export default function SyndicateSetupScreen() {
   );
 }
 
-const PENDING_PLAN_KEY = "@veridian_pending_plan";
+const PENDING_PLAN_KEY = "@mizan_pending_plan";
 
 function SyndicateSetupScreenInner() {
   const colors = useColors();

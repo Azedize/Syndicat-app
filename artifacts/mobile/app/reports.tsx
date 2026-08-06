@@ -144,7 +144,7 @@ function ReportsScreenInner() {
       `${t("rptKpiGrowth")} : +${kpi.memberGrowth} ${t("rptKpiMembersUnit")}\n` +
       `${t("rptKpiCotisationRate")} : ${kpi.cotisationRate}%\n` +
       `${t("rptExportedOn")} ${new Intl.DateTimeFormat(locale).format(new Date())}\n` +
-      `VERIDIAN`;
+      `MIZAN`;
     Share.share({ title: reportLabel, message: summary }).catch(() =>
       showToast({ type: "error", message: t("rptExportError") }),
     );

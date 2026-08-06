@@ -90,3 +90,6 @@
 - Completed the Template Studio enterprise UX pass: localized the studio header, category/status/action metadata, request review labels, confirmations, search, empty states, and safe action feedback across French, English, Arabic, and Spanish.
 - Completed the syndicate-admin template request flow: localized request form/detail content, priorities, lifecycle statuses, date formatting, validation/submission feedback, and retryable loading/error/empty states while preserving the existing API and role guard.
 - Final mobile typecheck and diff validation passed; protected `/template-request` preview correctly remained behind unauthenticated access with only existing Expo web warnings.
+- Continued the enterprise UX audit with the activity journal: localized category, severity, statistics, export, alert, detail metadata, relative dates, and failure copy across French, English, Arabic, and Spanish.
+- Added a retryable unavailable-data state to the audit journal instead of presenting a hardcoded French error, while preserving real API data mapping and administrator-only export access.
+- Mobile typecheck and diff validation passed; Expo restarted successfully and the protected `/activity` preview remained safely behind unauthenticated access with only expected 401/auth and existing Expo web warnings.

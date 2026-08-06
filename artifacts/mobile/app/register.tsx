@@ -1,5 +1,5 @@
 /**
- * VERIDIAN — Registration Screen
+ * MIZAN — Registration Screen
  *
  * Step 3 of the SaaS onboarding flow:
  * Intro → Plans → Register → Syndicate Setup → Payment → Team Invite → Dashboard
@@ -32,8 +32,8 @@ import { useTheme } from "@/context/ThemeContext";
 import { apiRequest } from "@/lib/api";
 import { auth as authApi } from "@/services/api";
 
-const PENDING_PLAN_KEY = "@veridian_pending_plan";
-const PENDING_REGISTER_KEY = "@veridian_pending_register";
+const PENDING_PLAN_KEY = "@mizan_pending_plan";
+const PENDING_REGISTER_KEY = "@mizan_pending_register";
 
 // ─── Field component ──────────────────────────────────────────────────────────
 

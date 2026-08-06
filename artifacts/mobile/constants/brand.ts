@@ -1,45 +1,48 @@
 /**
- * VERIDIAN Brand System
- * Property & Syndicate Management Platform
+ * MIZAN Brand System
+ * Community governance and residence operations platform.
  *
- * The single source of truth for all brand tokens.
- * Import this (not colors.ts) for brand-identity–specific values.
+ * The single source of truth for brand identity tokens.
  */
 
-export const VERIDIAN = {
+export const MIZAN = {
   /** Official platform name */
-  name: "VERIDIAN",
-  /** Official tagline — rendered in small caps below the wordmark */
-  tagline: "Property & Syndicate Management",
+  name: "MIZAN Community OS",
+  /** Short product name used in navigation, notifications and compact contexts */
+  shortName: "MIZAN",
+  /** Official tagline */
+  tagline: "Community Governance & Residence Operations",
   /** Short tagline used in compact / horizontal contexts */
-  taglineShort: "Property & Syndicate Mgmt.",
+  taglineShort: "Gouvernance & résidences",
 
   colors: {
-    /** Primary dark navy — app icon bg, dark splash, dark sidebar */
-    navyDeep: "#0A1628",
+    /** Deep navy — trust, app icon background and dark surfaces */
+    navyDeep: "#0B1F3A",
     /** Mid navy — dark mode card surfaces */
-    navyMid: "#0D1929",
-    /** Standard navy — body text on white, shield stroke on light bg */
-    navy: "#1E2D4A",
-    /** Brand action blue — primary CTA, buildings fill, active states */
-    blue: "#2563EB",
-    /** Lighter brand blue — icon gradients, dark-mode primary */
-    blueLight: "#3B82F6",
+    navyMid: "#102B4D",
+    /** Standard navy — body text and light-mode mark */
+    navy: "#18385C",
+    /** Signal blue — primary product action */
+    blue: "#1F5EFF",
+    /** Lighter signal blue — active states and gradients */
+    blueLight: "#4C7DFF",
+    /** Calm teal — governance and success accent */
+    teal: "#20B8A6",
     /** Pale blue — light-mode accent backgrounds */
-    bluePale: "#60A5FA",
+    bluePale: "#8DB2FF",
     /** Near-white with cool-blue tint — light mode page background */
-    bgLight: "#F8FAFF",
+    bgLight: "#F5F8FC",
     /** Pure white */
     white: "#FFFFFF",
-    /** Gold accent — premium features, subscription highlights */
-    gold: "#F59E0B",
+    /** Muted gold — balance line and premium highlights */
+    gold: "#D9A441",
   },
 
   /** Typography scale used in the wordmark */
   typography: {
-    wordmarkTracking: 4,    // letter-spacing for "VERIDIAN"
+    wordmarkTracking: 3.2,
     taglineTracking: 1.5,   // letter-spacing for the tagline
   },
 } as const;
 
-export type VeridianColors = typeof VERIDIAN.colors;
+export type MizanColors = typeof MIZAN.colors;

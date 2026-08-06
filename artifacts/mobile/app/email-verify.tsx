@@ -1,5 +1,5 @@
 /**
- * VERIDIAN — Email OTP Verification Screen
+ * MIZAN — Email OTP Verification Screen
  *
  * Step between registration form and account creation.
  * User enters the 6-digit code sent to their email.
@@ -30,8 +30,8 @@ import { useTheme } from "@/context/ThemeContext";
 import { apiRequest } from "@/lib/api";
 import { auth as authApi } from "@/services/api";
 
-const PENDING_REGISTER_KEY = "@veridian_pending_register";
-const PENDING_PLAN_KEY = "@veridian_pending_plan";
+const PENDING_REGISTER_KEY = "@mizan_pending_register";
+const PENDING_PLAN_KEY = "@mizan_pending_plan";
 const CODE_LENGTH = 6;
 const RESEND_COOLDOWN = 60;    // seconds before Resend is available
 const EXPIRE_SECONDS  = 600;   // 10-minute code lifetime

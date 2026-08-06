@@ -38,7 +38,7 @@ const CHANNELS: ChannelDef[] = [
       lightColor: "#4F7FFF",
       sound: "default",
       showBadge: true,
-      description: "Notifications générales SYNDYCAT",
+      description: "Notifications générales MIZAN",
     },
   },
   {

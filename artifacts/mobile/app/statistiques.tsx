@@ -507,7 +507,7 @@ export default function StatistiquesScreen() {
         <Text style={[styles.title, { color: colors.foreground }]}>{STRINGS.title[lang]}</Text>
         <TouchableOpacity
           style={[styles.exportBtn, { borderColor: colors.border }]}
-          onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); Share.share({ title: STRINGS.exportTitle[lang], message: `${STRINGS.exportTitle[lang]}\n${new Date().toLocaleDateString("fr-MA")}\nVERIDIAN` }); }}
+          onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); Share.share({ title: STRINGS.exportTitle[lang], message: `${STRINGS.exportTitle[lang]}\n${new Date().toLocaleDateString("fr-MA")}\nMIZAN` }); }}
         >
           <Feather name="download" size={16} color={colors.primary} />
         </TouchableOpacity>

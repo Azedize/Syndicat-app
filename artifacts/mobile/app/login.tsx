@@ -227,7 +227,7 @@ export default function LoginScreen() {
             ))}
           </View>
           
-          <Text style={[styles.footer, { color: mutedColor }]}>VERIDIAN OS v3.2.0 • Enterprise Edition</Text>
+           <Text style={[styles.footer, { color: mutedColor }]}>MIZAN Community OS • Enterprise Edition</Text>
         </ScrollView>
       </KeyboardAvoidingView>
     </View>

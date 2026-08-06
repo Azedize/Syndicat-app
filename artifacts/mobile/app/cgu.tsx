@@ -20,7 +20,7 @@ const CGU_SECTIONS = [
     title: "1. Objet et champ d'application",
     icon: "file-text" as const,
     color: "#2563EB",
-    content: `Les présentes Conditions Générales d'Utilisation (CGU) régissent l'accès et l'utilisation de la plateforme VERIDIAN (ci-après « la Plateforme »), développée conformément aux lois marocaines en vigueur.
+    content: `Les présentes Conditions Générales d'Utilisation (CGU) régissent l'accès et l'utilisation de la plateforme MIZAN (ci-après « la Plateforme »), développée conformément aux lois marocaines en vigueur.
 
 La Plateforme est destinée aux syndicats professionnels légalement constitués, à leurs administrateurs et à leurs membres, dans le respect du Dahir n° 1-57-119 du 16 juillet 1957 relatif à l'exercice du droit syndical.
 
@@ -77,7 +77,7 @@ Droits des personnes :
 • Droit d'opposition au traitement
 • Droit à l'effacement (sous conditions légales)
 
-Pour exercer vos droits, contactez le Délégué à la Protection des Données (DPD) à : dpo@veridian.app`,
+ Pour exercer vos droits, contactez le Délégué à la Protection des Données (DPD) à : dpo@mizan.ma`,
   },
   {
     title: "5. Signature électronique — Loi 53-05",
@@ -90,7 +90,7 @@ Pour exercer vos droits, contactez le Délégué à la Protection des Données (
 • Sont conservées pendant la durée légale applicable
 • Peuvent être utilisées comme preuve devant les juridictions marocaines
 
-Les documents signés électroniquement via VERIDIAN sont générés avec un hash SHA-256 garantissant leur intégrité.`,
+Les documents signés électroniquement via MIZAN sont générés avec un hash SHA-256 garantissant leur intégrité.`,
   },
   {
     title: "6. Responsabilités et obligations des utilisateurs",
@@ -112,7 +112,7 @@ Toute violation de ces obligations peut entraîner la suspension ou la suppressi
     title: "7. Sécurité et confidentialité",
     icon: "shield" as const,
     color: "#ef4444",
-    content: `VERIDIAN met en œuvre les mesures techniques et organisationnelles suivantes pour protéger vos données :
+    content: `MIZAN met en œuvre les mesures techniques et organisationnelles suivantes pour protéger vos données :
 
 • Chiffrement AES-256 des données sensibles au repos
 • Protocole TLS 1.3 pour les transmissions
@@ -132,7 +132,7 @@ En cas de violation de données, vous serez notifié dans les 72 heures conform�
 
 Il peut être résilié :
 • Par l'utilisateur : en contactant l'administrateur de votre syndicat ou en cliquant sur "Supprimer mon compte" dans les paramètres
-• Par VERIDIAN : en cas de violation des CGU, après notification préalable de 15 jours
+• Par MIZAN : en cas de violation des CGU, après notification préalable de 15 jours
 
 La résiliation entraîne la suppression de vos données personnelles dans un délai de 30 jours, sous réserve des obligations légales de conservation.`,
   },
@@ -140,7 +140,7 @@ La résiliation entraîne la suppression de vos données personnelles dans un d�
     title: "9. Modifications des CGU",
     icon: "edit" as const,
     color: "#06b6d4",
-    content: `VERIDIAN se réserve le droit de modifier les présentes CGU à tout moment. Les modifications entrent en vigueur :
+    content: `MIZAN se réserve le droit de modifier les présentes CGU à tout moment. Les modifications entrent en vigueur :
 
 • Dès leur publication pour les mises à jour mineures
 • Après notification et délai de 30 jours pour les modifications substantielles
@@ -157,9 +157,9 @@ Vous serez informé de toute modification par notification in-app et par email. 
 2. À défaut d'accord, aux tribunaux compétents de Casablanca, Maroc
 
 Version des CGU : 2.0 — En vigueur depuis le 1er Juin 2026
-Responsable du traitement : VERIDIAN SAS
+Responsable du traitement : MIZAN Community OS SARL
 Siège social : Casablanca, Maroc
-Contact DPD : dpo@veridian.app`,
+Contact DPD : dpo@mizan.ma`,
   },
 ];
 
@@ -190,7 +190,7 @@ export default function CguScreen() {
       return;
     }
     if (!accepted) {
-      Alert.alert("Confirmation", "Confirmez-vous l'acceptation des Conditions Générales d'Utilisation de VERIDIAN ?", [
+      Alert.alert("Confirmation", "Confirmez-vous l'acceptation des Conditions Générales d'Utilisation de MIZAN ?", [
         { text: "Annuler", style: "cancel" },
         {
           text: "Confirmer",
@@ -266,7 +266,7 @@ export default function CguScreen() {
         <View style={[styles.introCard, { backgroundColor: colors.card, borderColor: colors.border }]}>
           <Feather name="info" size={18} color={colors.primary} />
           <Text style={[styles.introText, { color: colors.mutedForeground }]}>
-            Ces CGU constituent un accord légalement contraignant entre vous et VERIDIAN. Elles ont été rédigées en conformité avec le droit marocain en vigueur au 1er juin 2026.
+            Ces CGU constituent un accord légalement contraignant entre vous et MIZAN. Elles ont été rédigées en conformité avec le droit marocain en vigueur au 1er juin 2026.
           </Text>
         </View>
 
@@ -308,7 +308,7 @@ export default function CguScreen() {
             </View>
             <View style={styles.signMetaRow}>
               <Feather name="tag" size={13} color={colors.mutedForeground} />
-              <Text style={[styles.signMetaText, { color: colors.mutedForeground }]}>Version 2.0 — CGU VERIDIAN</Text>
+              <Text style={[styles.signMetaText, { color: colors.mutedForeground }]}>Version 2.0 — CGU MIZAN</Text>
             </View>
           </View>
         </View>

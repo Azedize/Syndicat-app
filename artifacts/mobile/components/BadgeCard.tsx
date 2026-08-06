@@ -162,7 +162,7 @@ export default function BadgeCard() {
                 <Feather name="shield" size={13} color={theme.accent} />
               </View>
               <View style={{ flex: 1 }}>
-                <Text style={[styles.brandName, { color: theme.textOnGradient }]}>VERIDIAN</Text>
+                <Text style={[styles.brandName, { color: theme.textOnGradient }]}>MIZAN</Text>
                 <Text style={[styles.brandTagline, { color: theme.accent }]}>{t("badgeOfficialId")}</Text>
               </View>
               <View style={[styles.roleChip, { borderColor: theme.accent }]}>
@@ -229,7 +229,7 @@ export default function BadgeCard() {
                 </View>
                 <View>
                   <Text style={[styles.backLabel, { color: theme.accent }]}>{t("badgeSupportContact")}</Text>
-                  <Text style={[styles.backValue, { color: theme.textOnGradient }]}>support@veridian.app</Text>
+                  <Text style={[styles.backValue, { color: theme.textOnGradient }]}>support@mizan.ma</Text>
                 </View>
               </View>
             </View>

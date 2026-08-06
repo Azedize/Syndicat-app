@@ -219,7 +219,7 @@ export default function PublicationsScreen() {
                 style={[styles.shareBtn, { backgroundColor: colors.secondary }]}
                 onPress={() => {
                   Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-                  shareContent(`${selected.title}\n\n${selected.content.slice(0, 120)}...\n\nLire sur VERIDIAN`, selected.title);
+                  shareContent(`${selected.title}\n\n${selected.content.slice(0, 120)}...\n\nLire sur MIZAN`, selected.title);
                 }}
               >
                 <Feather name="share-2" size={16} color={colors.primary} />
