@@ -8,3 +8,4 @@
 - Agenda organizer, event type, status, attendance, and export messages are available in French, English, Arabic, and Spanish without changing event persistence or permissions.
 - Financial report values now use locale-aware Moroccan Dirham formatting and report periods use the active language's month/quarter presentation across French, English, Arabic, and Spanish.
 - Syndical Actions now present action types, statuses, participation/support feedback, participant labels, metadata, demands, and updates in French, English, Arabic, and Spanish while preserving existing permissions.
+- Governance Organigramme now formats mandate dates according to the active locale and translates national governance labels, vacancy states, role statuses, permission sections, and sharing feedback for French, English, Arabic, and Spanish.

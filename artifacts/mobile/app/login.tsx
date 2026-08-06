@@ -38,52 +38,67 @@ import { useTheme } from "@/context/ThemeContext";
 
 // ─── Feature tiles ───────────────────────────────────────────────────────────
 
-const FEATURES: { icon: React.ComponentProps<typeof Feather>["name"]; label: string }[] = [
-  { icon: "home",          label: "Gestion des\ncopropriétés"  },
-  { icon: "users",         label: "Assemblées\ngénérales"       },
-  { icon: "file-text",     label: "Documents\ncertifiés"        },
-  { icon: "pen-tool",      label: "Signature\nélectronique"     },
-  { icon: "bar-chart-2",   label: "Finances\n& budgets"         },
-  { icon: "tool",          label: "Maintenance\n& travaux"      },
-  { icon: "alert-circle",  label: "Réclamations\n& incidents"   },
-  { icon: "bell",          label: "Notifications\n& alertes"    },
+const FEATURES: {
+  icon: React.ComponentProps<typeof Feather>["name"];
+  labelKey: string;
+}[] = [
+  { icon: "home", labelKey: "authFeatureProperties" },
+  { icon: "users", labelKey: "authFeatureAssemblies" },
+  { icon: "file-text", labelKey: "authFeatureDocuments" },
+  { icon: "pen-tool", labelKey: "authFeatureSignatures" },
+  { icon: "bar-chart-2", labelKey: "authFeatureFinance" },
+  { icon: "tool", labelKey: "authFeatureMaintenance" },
+  { icon: "alert-circle", labelKey: "authFeatureIncidents" },
+  { icon: "bell", labelKey: "authFeatureAlerts" },
 ];
 
 // ─── Trust items ─────────────────────────────────────────────────────────────
 
-const TRUST: { icon: React.ComponentProps<typeof Feather>["name"]; label: string }[] = [
-  { icon: "lock",       label: "SSL 256 bits"           },
-  { icon: "shield",     label: "Conformité RGPD"        },
-  { icon: "file-text",  label: "Documents certifiés"    },
-  { icon: "activity",   label: "Audit complet"          },
-  { icon: "eye",        label: "Traçabilité totale"     },
-  { icon: "pen-tool",   label: "Signature électronique" },
+const TRUST: {
+  icon: React.ComponentProps<typeof Feather>["name"];
+  labelKey: string;
+}[] = [
+  { icon: "lock", labelKey: "authTrustEncrypted" },
+  { icon: "shield", labelKey: "authTrustPrivacy" },
+  { icon: "file-text", labelKey: "authTrustCertified" },
+  { icon: "activity", labelKey: "authTrustAudit" },
+  { icon: "eye", labelKey: "authTrustTraceability" },
+  { icon: "pen-tool", labelKey: "authTrustSignature" },
 ];
 
 // ─── Screen ──────────────────────────────────────────────────────────────────
 
 export default function LoginScreen() {
-  const insets             = useSafeAreaInsets();
-  const { login }          = useAuth();
-  const { t }              = useLanguage();
+  const insets = useSafeAreaInsets();
+  const { login } = useAuth();
+  const { t } = useLanguage();
   const { isDark, toggle } = useTheme();
 
-  const [email,        setEmail]        = useState("");
-  const [password,     setPassword]     = useState("");
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
-  const [rememberMe,   setRememberMe]   = useState(false);
-  const [loading,      setLoading]      = useState(false);
-  const [error,        setError]        = useState("");
+  const [rememberMe, setRememberMe] = useState(false);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState("");
   const [emailFocused, setEmailFocused] = useState(false);
-  const [passFocused,  setPassFocused]  = useState(false);
+  const [passFocused, setPassFocused] = useState(false);
 
   // Resolved palette
   const P = isDark ? DARK : LIGHT;
 
   const handleLogin = async () => {
-    if (!email.trim())       { setError(t("emailRequired"));    return; }
-    if (!password)           { setError(t("passwordRequired")); return; }
-    if (password.length < 6) { setError(t("passwordTooShort")); return; }
+    if (!email.trim()) {
+      setError(t("emailRequired"));
+      return;
+    }
+    if (!password) {
+      setError(t("passwordRequired"));
+      return;
+    }
+    if (password.length < 6) {
+      setError(t("passwordTooShort"));
+      return;
+    }
     setLoading(true);
     setError("");
     try {
@@ -102,13 +117,15 @@ export default function LoginScreen() {
 
   return (
     <View style={[s.root, { backgroundColor: P.pageBg }]}>
-
       {/* ── Back to welcome (absolute, top-left) ─────────────────────── */}
       <View style={[s.backWrap, { top: insets.top + 14 }]}>
         <TouchableOpacity
           onPress={() => router.replace("/welcome")}
           activeOpacity={0.75}
-          style={[s.toggleBtn, { backgroundColor: P.toggleBg, borderColor: P.border }]}
+          style={[
+            s.toggleBtn,
+            { backgroundColor: P.toggleBg, borderColor: P.border },
+          ]}
           hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
         >
           <Feather name="arrow-left" size={16} color={P.toggleIcon} />
@@ -120,9 +137,16 @@ export default function LoginScreen() {
         <TouchableOpacity
           onPress={toggle}
           activeOpacity={0.75}
-          style={[s.toggleBtn, { backgroundColor: P.toggleBg, borderColor: P.border }]}
+          style={[
+            s.toggleBtn,
+            { backgroundColor: P.toggleBg, borderColor: P.border },
+          ]}
         >
-          <Feather name={isDark ? "sun" : "moon"} size={16} color={P.toggleIcon} />
+          <Feather
+            name={isDark ? "sun" : "moon"}
+            size={16}
+            color={P.toggleIcon}
+          />
         </TouchableOpacity>
       </View>
 
@@ -139,7 +163,6 @@ export default function LoginScreen() {
           keyboardShouldPersistTaps="handled"
           showsVerticalScrollIndicator={false}
         >
-
           {/* ── BRAND HEADER ─────────────────────────────────────── */}
           <View style={s.brandArea}>
             <VeridianLogo
@@ -147,21 +170,23 @@ export default function LoginScreen() {
               colorScheme={isDark ? "dark" : "light"}
               size={80}
             />
-            <Text style={[s.appName, { color: P.textPrimary }]}>VERIDIAN</Text>
+            <Text style={[s.appName, { color: P.textPrimary }]}>
+              {t("appName")}
+            </Text>
             <Text style={[s.appTagline, { color: P.textMuted }]}>
-              Enterprise Property {"&"} Syndicate Management Platform
+              {t("authPlatformTagline")}
             </Text>
           </View>
 
           {/* ── ENTERPRISE FEATURE TILES ─────────────────────────── */}
           <View style={s.section}>
             <Text style={[s.sectionLabel, { color: P.sectionLabel }]}>
-              Fonctionnalités entreprise
+              {t("authEnterpriseFeatures")}
             </Text>
             <View style={s.tilesGrid}>
               {FEATURES.map((f) => (
                 <View
-                  key={f.label}
+                  key={f.labelKey}
                   style={[
                     s.tile,
                     {
@@ -173,8 +198,11 @@ export default function LoginScreen() {
                   <View style={[s.tileIconWrap, { backgroundColor: P.iconBg }]}>
                     <Feather name={f.icon} size={16} color={P.accent} />
                   </View>
-                  <Text style={[s.tileLabel, { color: P.featureLabel }]} numberOfLines={3}>
-                    {f.label}
+                  <Text
+                    style={[s.tileLabel, { color: P.featureLabel }]}
+                    numberOfLines={3}
+                  >
+                    {t(f.labelKey)}
                   </Text>
                 </View>
               ))}
@@ -182,16 +210,23 @@ export default function LoginScreen() {
           </View>
 
           {/* ── LOGIN CARD ───────────────────────────────────────── */}
-          <View style={[s.card, { backgroundColor: P.card, borderColor: P.cardBorder }]}>
+          <View
+            style={[
+              s.card,
+              { backgroundColor: P.card, borderColor: P.cardBorder },
+            ]}
+          >
             {/* Top accent bar */}
             <View style={[s.cardAccent, { backgroundColor: P.accent }]} />
 
             <View style={s.cardBody}>
               {/* Headline */}
               <View style={s.cardHead}>
-                <Text style={[s.welcomeTitle, { color: P.textPrimary }]}>Bon retour</Text>
+                <Text style={[s.welcomeTitle, { color: P.textPrimary }]}>
+                  {t("authWelcomeBack")}
+                </Text>
                 <Text style={[s.welcomeSub, { color: P.textSecond }]}>
-                  Accédez à votre espace de gestion sécurisé
+                  {t("authSecureWorkspace")}
                 </Text>
               </View>
 
@@ -199,7 +234,9 @@ export default function LoginScreen() {
 
               {/* Email */}
               <View style={s.field}>
-                <Text style={[s.fieldLabel, { color: P.label }]}>{t("email")}</Text>
+                <Text style={[s.fieldLabel, { color: P.label }]}>
+                  {t("email")}
+                </Text>
                 <View
                   style={[
                     s.inputRow,
@@ -217,7 +254,10 @@ export default function LoginScreen() {
                   <TextInput
                     style={[s.input, { color: P.textPrimary }]}
                     value={email}
-                    onChangeText={(v) => { setEmail(v); setError(""); }}
+                    onChangeText={(v) => {
+                      setEmail(v);
+                      setError("");
+                    }}
                     keyboardType="email-address"
                     autoCapitalize="none"
                     autoCorrect={false}
@@ -233,7 +273,9 @@ export default function LoginScreen() {
 
               {/* Password */}
               <View style={s.field}>
-                <Text style={[s.fieldLabel, { color: P.label }]}>{t("password")}</Text>
+                <Text style={[s.fieldLabel, { color: P.label }]}>
+                  {t("password")}
+                </Text>
                 <View
                   style={[
                     s.inputRow,
@@ -251,7 +293,10 @@ export default function LoginScreen() {
                   <TextInput
                     style={[s.input, { color: P.textPrimary }]}
                     value={password}
-                    onChangeText={(v) => { setPassword(v); setError(""); }}
+                    onChangeText={(v) => {
+                      setPassword(v);
+                      setError("");
+                    }}
                     secureTextEntry={!showPassword}
                     placeholder={t("passwordPlaceholder")}
                     placeholderTextColor={P.textMuted}
@@ -289,10 +334,12 @@ export default function LoginScreen() {
                       },
                     ]}
                   >
-                    {rememberMe && <Feather name="check" size={10} color="#FFFFFF" />}
+                    {rememberMe && (
+                      <Feather name="check" size={10} color="#FFFFFF" />
+                    )}
                   </View>
                   <Text style={[s.rememberLabel, { color: P.textSecond }]}>
-                    Se souvenir de moi
+                    {t("authRememberMe")}
                   </Text>
                 </TouchableOpacity>
 
@@ -328,9 +375,7 @@ export default function LoginScreen() {
               >
                 <LinearGradient
                   colors={
-                    isDark
-                      ? ["#3B82F6", "#2563EB"]
-                      : ["#2563EB", "#1D4ED8"]
+                    isDark ? ["#3B82F6", "#2563EB"] : ["#2563EB", "#1D4ED8"]
                   }
                   start={{ x: 0, y: 0 }}
                   end={{ x: 1, y: 0 }}
@@ -346,7 +391,6 @@ export default function LoginScreen() {
                   )}
                 </LinearGradient>
               </TouchableOpacity>
-
             </View>
           </View>
 
@@ -355,7 +399,7 @@ export default function LoginScreen() {
             <View style={s.trustHeader}>
               <View style={[s.trustLine, { backgroundColor: P.divider }]} />
               <Text style={[s.trustHeaderLabel, { color: P.sectionLabel }]}>
-                Plateforme certifiée entreprise
+                {t("authEnterprisePlatform")}
               </Text>
               <View style={[s.trustLine, { backgroundColor: P.divider }]} />
             </View>
@@ -363,17 +407,22 @@ export default function LoginScreen() {
             <View style={s.trustGrid}>
               {TRUST.map((item) => (
                 <View
-                  key={item.label}
+                  key={item.labelKey}
                   style={[
                     s.trustItem,
                     { backgroundColor: P.featureBg, borderColor: P.border },
                   ]}
                 >
-                  <View style={[s.trustIconWrap, { backgroundColor: P.iconBg }]}>
+                  <View
+                    style={[s.trustIconWrap, { backgroundColor: P.iconBg }]}
+                  >
                     <Feather name={item.icon} size={11} color={P.accent} />
                   </View>
-                  <Text style={[s.trustLabel, { color: P.textMuted }]} numberOfLines={2}>
-                    {item.label}
+                  <Text
+                    style={[s.trustLabel, { color: P.textMuted }]}
+                    numberOfLines={2}
+                  >
+                    {t(item.labelKey)}
                   </Text>
                 </View>
               ))}
@@ -382,9 +431,8 @@ export default function LoginScreen() {
 
           {/* ── FOOTER ───────────────────────────────────────────── */}
           <Text style={[s.footer, { color: P.footerText }]}>
-            © 2026 VERIDIAN · Tous droits réservés · v3.0
+            {t("authFooter")}
           </Text>
-
         </ScrollView>
       </KeyboardAvoidingView>
     </View>
@@ -394,59 +442,58 @@ export default function LoginScreen() {
 // ─── Palettes ─────────────────────────────────────────────────────────────────
 
 const DARK = {
-  pageBg:       "#060C18",
-  card:         "#0D1929",
-  cardBorder:   "#1A2E4A",
-  inputBg:      "#081221",
-  inputBorder:  "#1A2E4A",
-  featureBg:    "#0B1523",
-  iconBg:       "rgba(59,130,246,0.14)",
-  accent:       "#3B82F6",
+  pageBg: "#060C18",
+  card: "#0D1929",
+  cardBorder: "#1A2E4A",
+  inputBg: "#081221",
+  inputBorder: "#1A2E4A",
+  featureBg: "#0B1523",
+  iconBg: "rgba(59,130,246,0.14)",
+  accent: "#3B82F6",
   featureLabel: "#93C5FD",
-  textPrimary:  "#E8F0FE",
-  textSecond:   "#7A90B0",
-  textMuted:    "#4A6080",
-  label:        "#93C5FD",
-  border:       "#192840",
-  divider:      "rgba(255,255,255,0.06)",
+  textPrimary: "#E8F0FE",
+  textSecond: "#7A90B0",
+  textMuted: "#4A6080",
+  label: "#93C5FD",
+  border: "#192840",
+  divider: "rgba(255,255,255,0.06)",
   sectionLabel: "rgba(147,197,253,0.5)",
-  footerText:   "rgba(74,96,128,0.6)",
-  toggleBg:     "#0B1523",
-  toggleIcon:   "#60A5FA",
-  error:        "#F87171",
-  errorBg:      "rgba(248,113,113,0.09)",
-  errorBorder:  "rgba(248,113,113,0.22)",
+  footerText: "rgba(74,96,128,0.6)",
+  toggleBg: "#0B1523",
+  toggleIcon: "#60A5FA",
+  error: "#F87171",
+  errorBg: "rgba(248,113,113,0.09)",
+  errorBorder: "rgba(248,113,113,0.22)",
 };
 
 const LIGHT = {
-  pageBg:       "#E8EEFF",
-  card:         "#FFFFFF",
-  cardBorder:   "#D4DCF0",
-  inputBg:      "#F2F5FF",
-  inputBorder:  "#C8D3EE",
-  featureBg:    "#FFFFFF",
-  iconBg:       "rgba(37,99,235,0.09)",
-  accent:       "#2563EB",
+  pageBg: "#E8EEFF",
+  card: "#FFFFFF",
+  cardBorder: "#D4DCF0",
+  inputBg: "#F2F5FF",
+  inputBorder: "#C8D3EE",
+  featureBg: "#FFFFFF",
+  iconBg: "rgba(37,99,235,0.09)",
+  accent: "#2563EB",
   featureLabel: "#1E2D4A",
-  textPrimary:  "#0A1628",
-  textSecond:   "#334466",
-  textMuted:    "#647A99",
-  label:        "#1E3A6A",
-  border:       "#D4DCF0",
-  divider:      "rgba(0,0,0,0.07)",
+  textPrimary: "#0A1628",
+  textSecond: "#334466",
+  textMuted: "#647A99",
+  label: "#1E3A6A",
+  border: "#D4DCF0",
+  divider: "rgba(0,0,0,0.07)",
   sectionLabel: "rgba(30,58,106,0.45)",
-  footerText:   "rgba(100,122,153,0.65)",
-  toggleBg:     "#FFFFFF",
-  toggleIcon:   "#0A1628",
-  error:        "#DC2626",
-  errorBg:      "#FEF2F2",
-  errorBorder:  "#FECACA",
+  footerText: "rgba(100,122,153,0.65)",
+  toggleBg: "#FFFFFF",
+  toggleIcon: "#0A1628",
+  error: "#DC2626",
+  errorBg: "#FEF2F2",
+  errorBorder: "#FECACA",
 };
 
 // ─── Styles ──────────────────────────────────────────────────────────────────
 
 const s = StyleSheet.create({
-
   root: {
     flex: 1,
   },

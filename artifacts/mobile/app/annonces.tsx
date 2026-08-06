@@ -46,14 +46,14 @@ function getPc(config: Record<string, PriorityConfig>, priority: string): Priori
   return config[priority] ?? FALLBACK_PRIORITY;
 }
 
-function timeAgo(dateStr: string): string {
+function timeAgo(dateStr: string, t: (key: string) => string): string {
   const diff = Date.now() - new Date(dateStr).getTime();
   const mins = Math.floor(diff / 60000);
-  if (mins < 60) return `il y a ${mins}min`;
+  if (mins < 60) return `${t("annTimeAgoPrefix")} ${mins}${t("annMinutesShort")}`;
   const hrs = Math.floor(mins / 60);
-  if (hrs < 24) return `il y a ${hrs}h`;
+  if (hrs < 24) return `${t("annTimeAgoPrefix")} ${hrs}${t("annHoursShort")}`;
   const days = Math.floor(hrs / 24);
-  return `il y a ${days}j`;
+  return `${t("annTimeAgoPrefix")} ${days}${t("annDaysShort")}`;
 }
 
 export default function AnnoncesScreen() {
@@ -95,9 +95,9 @@ export default function AnnoncesScreen() {
       setNewTitle(""); setNewBody(""); setNewPriority("info");
       setNewAudience("Tous les membres"); setNewPinned(false);
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-      showToast({ type: "success", title: t("publishAnnouncement"), message: "L'annonce a été publiée et est visible par les membres." });
+       showToast({ type: "success", title: t("publishAnnouncement"), message: t("annPublishedMessage") });
     },
-    onError: (err: Error) => showToast({ type: "error", title: "Erreur", message: err.message }),
+    onError: () => showToast({ type: "error", title: t("annActionErrorTitle"), message: t("annPublishError") }),
   });
 
   const deleteMutation = useMutation({
@@ -107,7 +107,7 @@ export default function AnnoncesScreen() {
       setSelected(null);
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
     },
-    onError: (err: Error) => showToast({ type: "error", title: "Erreur", message: err.message }),
+    onError: () => showToast({ type: "error", title: t("annActionErrorTitle"), message: t("annDeleteError") }),
   });
 
   const allAnnonces = data?.data ?? [];
@@ -120,7 +120,7 @@ export default function AnnoncesScreen() {
 
   const handleCreate = () => {
     if (!newTitle.trim() || !newBody.trim()) {
-      showToast({ type: "warning", title: t("requiredFields"), message: "Le titre et le corps sont obligatoires." });
+       showToast({ type: "warning", title: t("requiredFields"), message: t("annRequiredMessage") });
       return;
     }
     createMutation.mutate({
@@ -137,7 +137,7 @@ export default function AnnoncesScreen() {
       t("confirmDeleteTitle"),
       `${t("deleteAnnouncement")} "${a.title}"?`,
       [
-        { text: "Annuler", style: "cancel" },
+         { text: t("annCancel"), style: "cancel" },
         { text: t("deleteAnnouncement"), style: "destructive", onPress: () => deleteMutation.mutate(a.id) },
       ]
     );
@@ -154,7 +154,7 @@ export default function AnnoncesScreen() {
         </View>
         <View style={styles.centerState}>
           <ActivityIndicator size="large" color={colors.primary} />
-          <Text style={[styles.stateText, { color: colors.mutedForeground }]}>Chargement des annonces...</Text>
+           <Text style={[styles.stateText, { color: colors.mutedForeground }]}>{t("annLoading")}</Text>
         </View>
       </View>
     );
@@ -171,9 +171,9 @@ export default function AnnoncesScreen() {
         </View>
         <View style={styles.centerState}>
           <Feather name="wifi-off" size={40} color={colors.destructive} />
-          <Text style={[styles.stateText, { color: colors.mutedForeground }]}>Impossible de charger les annonces</Text>
+           <Text style={[styles.stateText, { color: colors.mutedForeground }]}>{t("annLoadError")}</Text>
           <TouchableOpacity style={[styles.retryBtn, { backgroundColor: colors.primary }]} onPress={() => refetch()}>
-            <Text style={styles.retryBtnText}>Réessayer</Text>
+             <Text style={styles.retryBtnText}>{t("annRetry")}</Text>
           </TouchableOpacity>
         </View>
       </View>
@@ -188,7 +188,7 @@ export default function AnnoncesScreen() {
         </TouchableOpacity>
         <View style={{ flex: 1 }}>
           <Text style={styles.headerTitle}>{t("announcesTitle")}</Text>
-          <Text style={styles.headerSub}>{allAnnonces.length} annonce(s)</Text>
+           <Text style={styles.headerSub}>{allAnnonces.length} {t("annCount")}</Text>
         </View>
         {isAdmin ? (
           <TouchableOpacity
@@ -223,7 +223,7 @@ export default function AnnoncesScreen() {
           <EmptyState
             icon="bell-off"
             title={t("noAnnouncementsYet")}
-            description="Aucune annonce pour cette catégorie de priorité."
+             description={t("annEmptyDescription")}
             actionLabel={isAdmin ? t("createAnnouncement") : undefined}
             onAction={isAdmin ? () => { setShowCreate(true); Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); } : undefined}
           />
@@ -257,7 +257,7 @@ export default function AnnoncesScreen() {
                   <Feather name="user" size={11} color={colors.mutedForeground} />
                   <Text style={[styles.metaText, { color: colors.mutedForeground }]}>{a.author}</Text>
                   <Text style={[styles.metaText, { color: colors.mutedForeground }]}>·</Text>
-                  <Text style={[styles.metaText, { color: colors.mutedForeground }]}>{timeAgo(a.createdAt)}</Text>
+                   <Text style={[styles.metaText, { color: colors.mutedForeground }]}>{timeAgo(a.createdAt, t)}</Text>
                 </View>
               </View>
             </TouchableOpacity>
@@ -328,13 +328,13 @@ export default function AnnoncesScreen() {
             </TouchableOpacity>
             <View style={{ flex: 1, marginStart: 12 }}>
               <Text style={[styles.modalTitle, { color: colors.foreground }]}>{t("createAnnouncement")}</Text>
-              <Text style={[styles.modalSub, { color: colors.mutedForeground }]}>Publiée immédiatement aux membres</Text>
+               <Text style={[styles.modalSub, { color: colors.mutedForeground }]}>{t("annCreateSubtitle")}</Text>
             </View>
           </View>
 
           <ScrollView contentContainerStyle={{ padding: 20, gap: 16, paddingBottom: 60 }}>
             <View style={{ gap: 6 }}>
-              <Text style={[styles.fieldLabel, { color: colors.foreground }]}>Priorité</Text>
+               <Text style={[styles.fieldLabel, { color: colors.foreground }]}>{t("annPriorityLabel")}</Text>
               <View style={styles.priorityRow}>
                 {(["info", "important", "urgent"] as Priority[]).map((p) => (
                   <TouchableOpacity
@@ -359,7 +359,7 @@ export default function AnnoncesScreen() {
               <Text style={[styles.fieldLabel, { color: colors.foreground }]}>{t("annFormTitle")} *</Text>
               <TextInput
                 style={[styles.input, { backgroundColor: colors.card, borderColor: colors.border, color: colors.foreground }]}
-                placeholder="Ex: Assemblée Générale du 15 juillet"
+                 placeholder={t("annTitlePlaceholder")}
                 placeholderTextColor={colors.mutedForeground}
                 value={newTitle}
                 onChangeText={setNewTitle}
@@ -370,7 +370,7 @@ export default function AnnoncesScreen() {
               <Text style={[styles.fieldLabel, { color: colors.foreground }]}>{t("annFormContent")} *</Text>
               <TextInput
                 style={[styles.input, { backgroundColor: colors.card, borderColor: colors.border, color: colors.foreground, height: 120, textAlignVertical: "top" }]}
-                placeholder="Rédigez votre annonce..."
+                 placeholder={t("annContentPlaceholder")}
                 placeholderTextColor={colors.mutedForeground}
                 value={newBody}
                 onChangeText={setNewBody}
@@ -382,7 +382,7 @@ export default function AnnoncesScreen() {
               <Text style={[styles.fieldLabel, { color: colors.foreground }]}>{t("audienceLabel")}</Text>
               <TextInput
                 style={[styles.input, { backgroundColor: colors.card, borderColor: colors.border, color: colors.foreground }]}
-                placeholder="Ex: Tous les membres"
+                 placeholder={t("annAudiencePlaceholder")}
                 placeholderTextColor={colors.mutedForeground}
                 value={newAudience}
                 onChangeText={setNewAudience}
@@ -414,7 +414,7 @@ export default function AnnoncesScreen() {
                 <Feather name="send" size={16} color={newTitle.trim() && newBody.trim() ? "#fff" : colors.mutedForeground} />
               )}
               <Text style={[styles.publishBtnText, { color: newTitle.trim() && newBody.trim() ? "#fff" : colors.mutedForeground }]}>
-                {createMutation.isPending ? "Publication..." : t("publishAnnouncement")}
+                 {createMutation.isPending ? t("annPublishing") : t("publishAnnouncement")}
               </Text>
             </TouchableOpacity>
           </ScrollView>

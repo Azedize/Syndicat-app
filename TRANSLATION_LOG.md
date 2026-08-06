@@ -29,3 +29,5 @@
 - Agenda now translates event types, organizers, statuses, dates/countdown units, modal metadata, participation confirmation/errors, payment-deadline wording, empty states, and calendar export labels for `fr`, `en`, `ar`, and `es`.
 - Financial Reports now translates KPI labels, chart titles/units, contribution states, balance labels, export summaries, periods, loading/error recovery, and sharing feedback for `fr`, `en`, `ar`, and `es`.
 - Syndical Actions now translate action types, statuses, active counts, statistics, participation/support controls, metadata labels, demands, updates, and action feedback for `fr`, `en`, `ar`, and `es`.
+- Governance Organigramme now translates hierarchy levels, governance statistics, national view copy, role statuses, vacancy states, permission sections, admin actions, loading/error recovery, and sharing feedback for `fr`, `en`, `ar`, and `es`.
+- Travaux Privatifs now translates work types, lifecycle statuses, approval steps, decision history, statistics, resident/admin forms, placeholders, confirmations, validation, loading/recovery, and mutation feedback for `fr`, `en`, `ar`, and `es`.

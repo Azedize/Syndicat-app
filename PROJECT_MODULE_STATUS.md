@@ -25,3 +25,7 @@
 - Mobile verification: zero-error typecheck, diff validation, Metro restart, and protected `/reports` preview pass.
 - Syndical Actions: multilingual action types/statuses, support and participation controls, metadata, demands, updates, and localized feedback complete.
 - Mobile verification: zero-error typecheck, diff validation, Metro restart, and protected `/actions` preview pass.
+- Governance Organigramme: multilingual hierarchy, mandate/status presentation, national supervision, role permissions, administrative actions, locale-aware dates, and recovery states complete.
+- Mobile verification: zero-error typecheck, diff validation, Metro restart, and protected `/organigramme` preview pass.
+- Travaux Privatifs: multilingual work-request lifecycle, approval trail, decision history, resident submission/withdrawal, administrator review, committee, vote, and final-decision experience complete.
+- Mobile verification: zero-error typecheck and diff validation pass; Metro remains healthy and the protected `/travaux-privatifs` route correctly remains behind unauthenticated access.

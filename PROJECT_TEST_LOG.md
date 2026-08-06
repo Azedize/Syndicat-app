@@ -101,3 +101,11 @@
 - `git diff --check -- artifacts/mobile/app/actions.tsx artifacts/mobile/context/LanguageContext.tsx` — passed.
 - Restarted `artifacts/mobile: expo`; Metro started successfully with expected Expo package-version notices and no transform errors.
 - Mobile Expo preview screenshot for `/actions` at 402×874 — protected route remained behind the expected unauthenticated boundary; no new browser errors appeared beyond existing non-blocking Expo web warnings.
+- `pnpm --filter @workspace/mobile run typecheck` — passed with zero errors after the Organigramme pass.
+- `git diff --check -- artifacts/mobile/app/organigramme.tsx artifacts/mobile/context/LanguageContext.tsx` — passed.
+- Restarted `artifacts/mobile: expo`; Metro started successfully with expected Expo package-version notices and no transform errors.
+- Mobile Expo preview screenshot for `/organigramme` at 402×874 — protected route remained behind the expected unauthenticated boundary; no new browser errors appeared beyond existing non-blocking Expo web warnings.
+- `pnpm --filter @workspace/mobile run typecheck` — passed with zero errors after the Travaux Privatifs pass.
+- `git diff --check -- artifacts/mobile/app/travaux-privatifs.tsx artifacts/mobile/context/LanguageContext.tsx` — passed.
+- Mobile workflow logs confirmed Metro was running and the fresh bundle completed without transform errors.
+- Mobile Expo preview screenshot for `/travaux-privatifs` at 402×874 — direct protected preview did not expose the screen without a session; no new browser errors appeared. `/welcome` rendered successfully as the expected public boundary.

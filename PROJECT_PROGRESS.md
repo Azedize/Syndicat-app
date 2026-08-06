@@ -73,3 +73,9 @@
 - Completed the Actions Syndicales enterprise UX pass: action types, statuses, participation/support controls, metadata, demands, updates, and action feedback now follow the active language.
 - Preserved optimistic support/participation behavior and role boundaries while removing remaining visible hardcoded French labels.
 - Mobile typecheck passed with zero errors; Expo restarted and the protected `/actions` preview remained safely behind the unauthenticated boundary.
+- Completed the Organigramme enterprise UX pass: governance hierarchy, mandate statuses, statistics, national supervision, role details, permissions, administrative actions, loading/error states, and sharing feedback now follow the active language.
+- Governance dates now use the active locale, and initial API failures expose a recoverable state instead of silently rendering an empty screen.
+- Mobile typecheck passed with zero errors; Expo restarted and the protected `/organigramme` preview remained safely behind the unauthenticated boundary.
+- Completed the Travaux Privatifs enterprise UX pass: request types, lifecycle statuses, approval trail, decision history, forms, confirmations, and action feedback now follow the active language in French, English, Arabic, and Spanish.
+- Added contextual loading, retryable unavailable-data recovery, and safe localized mutation errors without exposing raw API messages; existing resident/admin workflow contracts and role boundaries remain unchanged.
+- Mobile typecheck and diff validation passed; Metro remained healthy. Direct `/travaux-privatifs` preview was intentionally blocked by the unauthenticated route guard, while `/welcome` rendered successfully.

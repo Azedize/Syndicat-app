@@ -23,42 +23,44 @@ import {
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useAuth } from "@/context/AuthContext";
+import { useLanguage, type LangCode } from "@/context/LanguageContext";
 import { useBreakpoints } from "@/hooks/useBreakpoints";
 import { useColors } from "@/hooks/useColors";
 import { useToast } from "@/context/ToastContext";
 import { apiRequest } from "@/lib/api";
+import { ErrorState, LoadingState } from "@/components/DataState";
 
 const ACCENT = "#f97316";
 
 // ─── Config maps ─────────────────────────────────────────────────────────────
 
-const WORK_TYPES: Record<string, { label: string; icon: keyof typeof Feather.glyphMap }> = {
-  ac_unit:    { label: "Climatiseur",       icon: "wind" },
-  balcony:    { label: "Balcon",            icon: "square" },
-  windows:    { label: "Fenêtres",          icon: "crop" },
-  facade:     { label: "Façade",            icon: "home" },
-  structural: { label: "Structurel",        icon: "layers" },
-  plumbing:   { label: "Plomberie",         icon: "droplet" },
-  electrical: { label: "Électricité",       icon: "zap" },
-  other:      { label: "Autre",             icon: "more-horizontal" },
+const WORK_TYPES: Record<string, { key: string; icon: keyof typeof Feather.glyphMap }> = {
+  ac_unit:    { key: "acUnit", icon: "wind" },
+  balcony:    { key: "balcony", icon: "square" },
+  windows:     { key: "windows", icon: "crop" },
+  facade:     { key: "facade", icon: "home" },
+  structural: { key: "structural", icon: "layers" },
+  plumbing:   { key: "plumbing", icon: "droplet" },
+  electrical: { key: "electrical", icon: "zap" },
+  other:      { key: "other", icon: "more-horizontal" },
 };
 
 const STATUS_CONFIG: Record<string, { label: string; color: string; bg: string; step: number }> = {
-  submitted:       { label: "Soumis",               color: "#6b7280", bg: "#6b728015", step: 0 },
-  under_review:    { label: "En examen",             color: "#3b82f6", bg: "#3b82f615", step: 1 },
-  committee_review:{ label: "Comité",                color: "#8b5cf6", bg: "#8b5cf615", step: 2 },
-  vote_required:   { label: "Vote AG requis",        color: "#f59e0b", bg: "#f59e0b15", step: 3 },
-  approved:        { label: "Approuvé",              color: "#10b981", bg: "#10b98115", step: 4 },
-  rejected:        { label: "Refusé",                color: "#ef4444", bg: "#ef444415", step: 4 },
-  withdrawn:       { label: "Retiré",                color: "#9ca3af", bg: "#9ca3af15", step: -1 },
+  submitted:       { label: "privateWorksSubmitted", color: "#6b7280", bg: "#6b728015", step: 0 },
+  under_review:    { label: "privateWorksUnderReview", color: "#3b82f6", bg: "#3b82f615", step: 1 },
+  committee_review:{ label: "privateWorksCommittee", color: "#8b5cf6", bg: "#8b5cf615", step: 2 },
+  vote_required:   { label: "privateWorksVoteRequired", color: "#f59e0b", bg: "#f59e0b15", step: 3 },
+  approved:        { label: "privateWorksApproved", color: "#10b981", bg: "#10b98115", step: 4 },
+  rejected:        { label: "privateWorksRejected", color: "#ef4444", bg: "#ef444415", step: 4 },
+  withdrawn:       { label: "privateWorksWithdrawn", color: "#9ca3af", bg: "#9ca3af15", step: -1 },
 };
 
 const STEPS = [
-  { key: "submitted",        label: "Soumission" },
-  { key: "under_review",     label: "Revue syndic" },
-  { key: "committee_review", label: "Comité" },
-  { key: "vote_required",    label: "Vote AG" },
-  { key: "decision",         label: "Décision" },
+  { key: "submitted", label: "privateWorksSubmission" },
+  { key: "under_review", label: "privateWorksSyndicReview" },
+  { key: "committee_review", label: "privateWorksCommittee" },
+  { key: "vote_required", label: "privateWorksVote" },
+  { key: "decision", label: "privateWorksDecision" },
 ];
 
 // ─── Types ───────────────────────────────────────────────────────────────────
@@ -100,14 +102,43 @@ type TravauxPrivatif = {
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────
 
-function fmtDate(d?: string | null) {
+function fmtDate(d: string | null | undefined, lang: LangCode) {
   if (!d) return "";
-  return new Date(d).toLocaleDateString("fr-MA", { day: "numeric", month: "short", year: "numeric" });
+  const locale = lang === "ar" ? "ar-MA" : lang === "en" ? "en-MA" : lang === "es" ? "es-MA" : "fr-MA";
+  return new Date(d).toLocaleDateString(locale, { day: "numeric", month: "short", year: "numeric" });
+}
+
+function workTypeLabel(t: (key: string) => string, key: string) {
+  const labels: Record<string, string> = {
+    acUnit: "Climatiseur",
+    balcony: "Balcon",
+    windows: "Fenêtres",
+    facade: "Façade",
+    structural: "Structurel",
+    plumbing: "Plomberie",
+    electrical: "Électricité",
+    other: "Autre",
+  };
+  const translationKeys: Record<string, string> = {
+    acUnit: "privateWorksTypeAcUnit",
+    balcony: "privateWorksTypeBalcony",
+    windows: "privateWorksTypeWindows",
+    facade: "privateWorksTypeFacade",
+    structural: "privateWorksTypeStructural",
+    plumbing: "privateWorksTypePlumbing",
+    electrical: "privateWorksTypeElectrical",
+    other: "privateWorksTypeOther",
+  };
+  return t(translationKeys[key] ?? "") || labels[key] || labels.other;
+}
+
+function statusLabel(t: (key: string) => string, status: string) {
+  return t(STATUS_CONFIG[status]?.label ?? STATUS_CONFIG.submitted.label);
 }
 
 // ─── Step Trail Component ─────────────────────────────────────────────────────
 
-function StepTrail({ row, colors }: { row: TravauxPrivatif; colors: any }) {
+function StepTrail({ row, colors, t }: { row: TravauxPrivatif; colors: any; t: (key: string) => string }) {
   const st = STATUS_CONFIG[row.status] ?? STATUS_CONFIG.submitted;
   const currentStep = st.step;
   const isTerminal = row.status === "approved" || row.status === "rejected" || row.status === "withdrawn";
@@ -116,7 +147,7 @@ function StepTrail({ row, colors }: { row: TravauxPrivatif; colors: any }) {
     return (
       <View style={[trail.box, { backgroundColor: colors.secondary }]}>
         <Feather name="x-circle" size={14} color="#9ca3af" />
-        <Text style={[trail.txt, { color: "#9ca3af" }]}>Demande retirée par le résident</Text>
+        <Text style={[trail.txt, { color: "#9ca3af" }]}>{t("privateWorksWithdrawnByResident")}</Text>
       </View>
     );
   }
@@ -140,7 +171,7 @@ function StepTrail({ row, colors }: { row: TravauxPrivatif; colors: any }) {
               {done ? <Feather name="check" size={8} color="#fff" /> : null}
             </View>
             <Text style={[trail.label, { color: done || active ? colors.foreground : colors.mutedForeground, fontFamily: active ? "Inter_700Bold" : "Inter_400Regular" }]}>
-              {s.label}
+              {t(s.label)}
             </Text>
             {i < visibleSteps.length - 1 && (
               <View style={[trail.line, { backgroundColor: done ? ACCENT : colors.border }]} />
@@ -159,11 +190,11 @@ function StepTrail({ row, colors }: { row: TravauxPrivatif; colors: any }) {
 
 // ─── Decision Trail (audit history) ──────────────────────────────────────────
 
-function DecisionTrail({ row, colors }: { row: TravauxPrivatif; colors: any }) {
+function DecisionTrail({ row, colors, t, lang }: { row: TravauxPrivatif; colors: any; t: (key: string) => string; lang: LangCode }) {
   const items = [
     row.syndicReviewNote && {
       icon: "eye" as const,
-      title: "Revue du syndic",
+      title: t("privateWorksSyndicReviewTitle"),
       note: row.syndicReviewNote,
       by: row.syndicReviewedByName,
       date: row.syndicReviewedAt,
@@ -171,7 +202,7 @@ function DecisionTrail({ row, colors }: { row: TravauxPrivatif; colors: any }) {
     },
     row.committeeNote && {
       icon: "users" as const,
-      title: `Avis du comité${row.committeeRecommendation ? " — " + (row.committeeRecommendation === "approve" ? "Favorable" : row.committeeRecommendation === "reject" ? "Défavorable" : "Vote requis") : ""}`,
+      title: `${t("privateWorksCommitteeOpinion")}${row.committeeRecommendation ? ` — ${row.committeeRecommendation === "approve" ? t("privateWorksFavorable") : row.committeeRecommendation === "reject" ? t("privateWorksUnfavorable") : t("privateWorksSubmitToVote")}` : ""}`,
       note: row.committeeNote,
       by: row.committeeReviewedByName,
       date: row.committeeReviewedAt,
@@ -179,14 +210,14 @@ function DecisionTrail({ row, colors }: { row: TravauxPrivatif; colors: any }) {
     },
     row.voteSummary && {
       icon: "check-square" as const,
-      title: `Vote AG — ${row.voteOutcome === "approved" ? "Approuvé" : row.voteOutcome === "rejected" ? "Rejeté" : "Inconclus"}`,
+      title: `${t("privateWorksVoteResult")} — ${row.voteOutcome === "approved" ? t("privateWorksApproved") : row.voteOutcome === "rejected" ? t("privateWorksRejected") : t("privateWorksInconclusive")}`,
       note: row.voteSummary,
       date: row.voteDate,
       color: "#f59e0b",
     },
     row.finalDecisionNote && {
       icon: (row.finalDecision === "approved" ? "check-circle" : "x-circle") as "check-circle" | "x-circle",
-      title: `Décision finale — ${row.finalDecision === "approved" ? "Approuvé" : "Refusé"}`,
+      title: `${t("privateWorksFinalDecision")} — ${row.finalDecision === "approved" ? t("privateWorksApproved") : t("privateWorksRejected")}`,
       note: row.finalDecisionNote,
       by: row.finalDecisionByName,
       date: row.finalDecisionAt,
@@ -198,7 +229,7 @@ function DecisionTrail({ row, colors }: { row: TravauxPrivatif; colors: any }) {
 
   return (
     <View style={{ marginTop: 12, gap: 8 }}>
-      <Text style={[styles.sectionTitle, { color: colors.mutedForeground }]}>Historique de la décision</Text>
+      <Text style={[styles.sectionTitle, { color: colors.mutedForeground }]}>{t("privateWorksDecisionHistory")}</Text>
       {items.map((item, i) => (
         <View key={i} style={[styles.trailCard, { backgroundColor: item.color + "0D", borderColor: item.color + "30" }]}>
           <View style={styles.trailHeader}>
@@ -208,7 +239,7 @@ function DecisionTrail({ row, colors }: { row: TravauxPrivatif; colors: any }) {
           <Text style={[styles.trailNote, { color: colors.foreground }]}>{item.note}</Text>
           {(item.by || item.date) ? (
             <Text style={[styles.trailMeta, { color: colors.mutedForeground }]}>
-              {[item.by, fmtDate(item.date)].filter(Boolean).join(" · ")}
+              {[item.by, fmtDate(item.date, lang)].filter(Boolean).join(" · ")}
             </Text>
           ) : null}
         </View>
@@ -223,6 +254,7 @@ export default function TravauxPrivatifsScreen() {
   const colors = useColors();
   const insets = useSafeAreaInsets();
   const { user, token } = useAuth();
+  const { t, lang } = useLanguage();
   const { isWide } = useBreakpoints();
   const topPad = isWide ? 0 : Platform.OS === "web" ? 67 : insets.top;
 
@@ -231,6 +263,7 @@ export default function TravauxPrivatifsScreen() {
 
   const [rows, setRows] = useState<TravauxPrivatif[]>([]);
   const [loading, setLoading] = useState(true);
+  const [loadError, setLoadError] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
   const [expanded, setExpanded] = useState<string | null>(null);
 
@@ -278,11 +311,15 @@ export default function TravauxPrivatifsScreen() {
   const load = useCallback(async (silent = false) => {
     try {
       if (!silent) setLoading(true);
+      setLoadError(false);
       const data = await apiRequest("/travaux-privatifs", "GET", undefined, token);
       setRows(data.data ?? []);
-    } catch (e: any) { if (!silent) showToast({ type: "error", title: "Erreur de chargement", message: e?.message ?? "Impossible de charger les travaux privatifs." }); }
+    } catch {
+      if (!silent) setLoadError(true);
+      else showToast({ type: "error", title: t("error"), message: t("privateWorksLoadErrorDescription") });
+    }
     finally { setLoading(false); setRefreshing(false); }
-  }, [token]);
+  }, [token, t]);
 
   const loadBuildings = useCallback(async () => {
     try {
@@ -292,9 +329,9 @@ export default function TravauxPrivatifsScreen() {
       setBuildings(list);
       // Pre-select first building so the form is valid on first open
       if (list.length > 0) setForm((p) => ({ ...p, buildingId: p.buildingId || list[0].id }));
-    } catch (e: any) { showToast({ type: "error", title: "Erreur", message: e?.message ?? "Impossible de charger les immeubles." }); }
+    } catch { showToast({ type: "error", title: t("error"), message: t("privateWorksLoadBuildingsError") }); }
     finally { setBuildingsLoading(false); }
-  }, [token]);
+  }, [token, t]);
 
   useEffect(() => { load(); }, [load]);
   const onRefresh = () => { setRefreshing(true); load(true); };
@@ -302,18 +339,18 @@ export default function TravauxPrivatifsScreen() {
   // ── Submit ────────────────────────────────────────────────────────────────
 
   const handleSubmit = async () => {
-    if (!form.buildingId) { showToast({ type: "warning", title: "Champ requis", message: "Veuillez sélectionner un immeuble." }); return; }
-    if (!form.title.trim()) { showToast({ type: "warning", title: "Champ requis", message: "Le titre est obligatoire." }); return; }
-    if (!form.description.trim()) { showToast({ type: "warning", title: "Champ requis", message: "La description est obligatoire." }); return; }
+    if (!form.buildingId) { showToast({ type: "warning", title: t("privateWorksFieldRequired"), message: t("privateWorksBuildingSelectRequired") }); return; }
+    if (!form.title.trim()) { showToast({ type: "warning", title: t("privateWorksFieldRequired"), message: t("privateWorksTitleValidation") }); return; }
+    if (!form.description.trim()) { showToast({ type: "warning", title: t("privateWorksFieldRequired"), message: t("privateWorksDescriptionValidation") }); return; }
     try {
       setSubmitting(true);
       await apiRequest("/travaux-privatifs", "POST", form, token);
       setShowSubmit(false);
       setForm({ title: "", description: "", workType: "ac_unit", buildingId: "" });
-      showToast({ type: "success", title: "Demande soumise", message: "Votre demande a été transmise au syndic." });
+      showToast({ type: "success", title: t("privateWorksSubmitted"), message: t("privateWorksSubmittedToast") });
       load(true);
     } catch (e: any) {
-      showToast({ type: "error", title: "Erreur", message: e?.message ?? "Impossible de soumettre la demande." });
+      showToast({ type: "error", title: t("error"), message: t("privateWorksLoadErrorDescription") });
     } finally { setSubmitting(false); }
   };
 
@@ -321,15 +358,15 @@ export default function TravauxPrivatifsScreen() {
 
   const handleSyndicReview = async () => {
     if (!showSyndicReview) return;
-    if (!syndicForm.reviewNote.trim()) { showToast({ type: "warning", title: "Champ requis", message: "La note de revue est obligatoire." }); return; }
+    if (!syndicForm.reviewNote.trim()) { showToast({ type: "warning", title: t("privateWorksFieldRequired"), message: t("privateWorksReviewValidation") }); return; }
     try {
       setSubmitting(true);
       await apiRequest(`/travaux-privatifs/${showSyndicReview.id}/syndic-review`, "POST", syndicForm, token);
       setShowSyndicReview(null);
       setSyndicForm({ reviewNote: "", bylawReference: "", requiresCommitteeReview: false, requiresGAVote: false });
-      showToast({ type: "success", title: "Revue transmise", message: "La revue syndicale a été enregistrée." });
+      showToast({ type: "success", title: t("privateWorksSyndicReviewTitle"), message: t("privateWorksReviewSavedToast") });
       load(true);
-    } catch (e: any) { showToast({ type: "error", title: "Erreur", message: e?.message ?? "Impossible de soumettre la revue." }); }
+    } catch { showToast({ type: "error", title: t("error"), message: t("privateWorksLoadErrorDescription") }); }
     finally { setSubmitting(false); }
   };
 
@@ -337,15 +374,15 @@ export default function TravauxPrivatifsScreen() {
 
   const handleCommitteeReview = async () => {
     if (!showCommitteeReview) return;
-    if (!committeeForm.committeeNote.trim()) { showToast({ type: "warning", title: "Champ requis", message: "L'avis du comité est obligatoire." }); return; }
+    if (!committeeForm.committeeNote.trim()) { showToast({ type: "warning", title: t("privateWorksFieldRequired"), message: t("privateWorksOpinionValidation") }); return; }
     try {
       setSubmitting(true);
       await apiRequest(`/travaux-privatifs/${showCommitteeReview.id}/committee-review`, "POST", committeeForm, token);
       setShowCommitteeReview(null);
       setCommitteeForm({ committeeNote: "", recommendation: "approve" });
-      showToast({ type: "success", title: "Avis enregistré", message: "L'avis du comité a été transmis." });
+      showToast({ type: "success", title: t("privateWorksCommitteeOpinion"), message: t("privateWorksOpinionSavedToast") });
       load(true);
-    } catch (e: any) { showToast({ type: "error", title: "Erreur", message: e?.message ?? "Impossible de soumettre l'avis." }); }
+    } catch { showToast({ type: "error", title: t("error"), message: t("privateWorksLoadErrorDescription") }); }
     finally { setSubmitting(false); }
   };
 
@@ -353,15 +390,15 @@ export default function TravauxPrivatifsScreen() {
 
   const handleVote = async () => {
     if (!showVote) return;
-    if (!voteForm.voteSummary.trim()) { showToast({ type: "warning", title: "Champ requis", message: "Le résumé du vote est obligatoire." }); return; }
+    if (!voteForm.voteSummary.trim()) { showToast({ type: "warning", title: t("privateWorksFieldRequired"), message: t("privateWorksVoteSummaryValidation") }); return; }
     try {
       setSubmitting(true);
       await apiRequest(`/travaux-privatifs/${showVote.id}/vote`, "POST", voteForm, token);
       setShowVote(null);
       setVoteForm({ voteOutcome: "approved", voteDate: new Date().toISOString().split("T")[0], voteSummary: "" });
-      showToast({ type: "success", title: "Vote enregistré", message: "Le résultat du vote a été transmis." });
+      showToast({ type: "success", title: t("privateWorksVoteResult"), message: t("privateWorksVoteSavedToast") });
       load(true);
-    } catch (e: any) { showToast({ type: "error", title: "Erreur", message: e?.message ?? "Impossible d'enregistrer le vote." }); }
+    } catch { showToast({ type: "error", title: t("error"), message: t("privateWorksLoadErrorDescription") }); }
     finally { setSubmitting(false); }
   };
 
@@ -370,16 +407,19 @@ export default function TravauxPrivatifsScreen() {
   const handleDecision = async () => {
     if (!showDecision) return;
     if (!decisionForm.justification.trim() || decisionForm.justification.trim().length < 10) {
-      showToast({ type: "warning", title: "Justification insuffisante", message: "La justification doit comporter au moins 10 caractères." });
+      showToast({ type: "warning", title: t("privateWorksFieldRequired"), message: t("privateWorksJustificationValidation") });
       return;
     }
     Alert.alert(
-      "Confirmer la décision",
-      `Vous allez ${decisionForm.decision === "approved" ? "APPROUVER" : "REFUSER"} cette demande. Cette décision est permanente et ne peut pas être modifiée.`,
+      t("confirm"),
+      t("privateWorksDecisionConfirm").replace(
+        "{decision}",
+        decisionForm.decision === "approved" ? t("privateWorksApproveVerb") : t("privateWorksRejectVerb"),
+      ),
       [
-        { text: "Annuler", style: "cancel" },
+        { text: t("cancel"), style: "cancel" },
         {
-          text: "Confirmer",
+          text: t("confirm"),
           style: decisionForm.decision === "rejected" ? "destructive" : "default",
           onPress: async () => {
             try {
@@ -390,9 +430,9 @@ export default function TravauxPrivatifsScreen() {
               }, token);
               setShowDecision(null);
               setDecisionForm({ decision: "approved", justification: "" });
-              showToast({ type: "success", title: "Décision enregistrée", message: `La demande a été ${decisionForm.decision === "approved" ? "approuvée" : "refusée"}.` });
+               showToast({ type: "success", title: t("privateWorksFinalDecision"), message: t("privateWorksDecisionSavedToast") });
               load(true);
-            } catch (e: any) { showToast({ type: "error", title: "Erreur", message: e?.message ?? "Impossible d'enregistrer la décision." }); }
+            } catch { showToast({ type: "error", title: t("error"), message: t("privateWorksLoadErrorDescription") }); }
             finally { setSubmitting(false); }
           },
         },
@@ -403,16 +443,16 @@ export default function TravauxPrivatifsScreen() {
   // ── Withdraw ──────────────────────────────────────────────────────────────
 
   const handleWithdraw = (row: TravauxPrivatif) => {
-    Alert.alert("Retirer la demande", "Voulez-vous vraiment retirer cette demande ?", [
-      { text: "Annuler", style: "cancel" },
+    Alert.alert(t("privateWorksWithdrawTitle"), t("privateWorksWithdrawConfirm"), [
+      { text: t("cancel"), style: "cancel" },
       {
-        text: "Retirer",
+        text: t("privateWorksWithdraw"),
         style: "destructive",
         onPress: async () => {
           try {
             await apiRequest(`/travaux-privatifs/${row.id}/withdraw`, "PUT", {}, token);
             load(true);
-          } catch (e: any) { showToast({ type: "error", title: "Erreur", message: e.message ?? "Impossible de retirer la demande" }); }
+          } catch { showToast({ type: "error", title: t("error"), message: t("privateWorksLoadErrorDescription") }); }
         },
       },
     ]);
@@ -433,8 +473,8 @@ export default function TravauxPrivatifsScreen() {
           <Feather name="arrow-left" size={22} color="#fff" />
         </TouchableOpacity>
         <View style={{ flex: 1 }}>
-          <Text style={styles.headerTitle}>Travaux Privatifs</Text>
-          <Text style={styles.headerSub}>Modifications extérieures & structurelles</Text>
+          <Text style={styles.headerTitle}>{t("privateWorks")}</Text>
+          <Text style={styles.headerSub}>{t("privateWorksSubtitle")}</Text>
         </View>
         <TouchableOpacity
           style={styles.addBtn}
@@ -447,10 +487,10 @@ export default function TravauxPrivatifsScreen() {
       {/* Stats */}
       <View style={[styles.statsRow, { backgroundColor: colors.card, borderBottomColor: colors.border }]}>
         {[
-          { label: "Total",     value: rows.length,  color: ACCENT },
-          { label: "En cours",  value: pending,       color: "#3b82f6" },
-          { label: "Approuvés", value: approved,      color: "#10b981" },
-          { label: "Refusés",   value: rows.filter((r) => r.status === "rejected").length, color: "#ef4444" },
+          { label: t("privateWorksTotal"), value: rows.length, color: ACCENT },
+          { label: t("privateWorksInProgress"), value: pending, color: "#3b82f6" },
+          { label: t("privateWorksApprovedCount"), value: approved, color: "#10b981" },
+          { label: t("privateWorksRejectedCount"), value: rows.filter((r) => r.status === "rejected").length, color: "#ef4444" },
         ].map((s, i, arr) => (
           <View key={s.label} style={[styles.statCell, i < arr.length - 1 && { borderRightWidth: 1, borderRightColor: colors.border }]}>
             <Text style={[styles.statVal, { color: s.color }]}>{s.value}</Text>
@@ -460,7 +500,15 @@ export default function TravauxPrivatifsScreen() {
       </View>
 
       {loading ? (
-        <View style={styles.center}><ActivityIndicator color={ACCENT} size="large" /></View>
+        <LoadingState title={t("privateWorksLoadingTitle")} description={t("privateWorksLoadingDescription")} accentColor={ACCENT} />
+      ) : loadError ? (
+        <ErrorState
+          title={t("privateWorksLoadErrorTitle")}
+          description={t("privateWorksLoadErrorDescription")}
+          retryLabel={t("retry")}
+          onRetry={() => load()}
+          accentColor={ACCENT}
+        />
       ) : (
         <ScrollView
           contentContainerStyle={[styles.list, { paddingBottom: isWide ? 32 : insets.bottom + 100 }]}
@@ -472,12 +520,12 @@ export default function TravauxPrivatifsScreen() {
               <View style={[styles.emptyIcon, { backgroundColor: ACCENT + "18" }]}>
                 <Feather name="edit-2" size={32} color={ACCENT} />
               </View>
-              <Text style={[styles.emptyTitle, { color: colors.foreground }]}>Aucune demande</Text>
+              <Text style={[styles.emptyTitle, { color: colors.foreground }]}>{t("privateWorksEmptyTitle")}</Text>
               <Text style={[styles.emptyText, { color: colors.mutedForeground }]}>
-                Soumettez une demande pour toute modification extérieure ou structurelle de votre appartement.
+                {t("privateWorksEmptyDescription")}
               </Text>
               <TouchableOpacity style={[styles.emptyBtn, { backgroundColor: ACCENT }]} onPress={() => { loadBuildings(); setShowSubmit(true); }}>
-                <Text style={styles.emptyBtnText}>Nouvelle demande</Text>
+                <Text style={styles.emptyBtnText}>{t("privateWorksNewRequest")}</Text>
               </TouchableOpacity>
             </View>
           ) : (
@@ -502,12 +550,12 @@ export default function TravauxPrivatifsScreen() {
                     <View style={{ flex: 1 }}>
                       <Text style={[styles.cardTitle, { color: colors.foreground }]} numberOfLines={2}>{row.title}</Text>
                       <Text style={[styles.cardMeta, { color: colors.mutedForeground }]}>
-                        {wt.label} · {row.requestedByName}{isMyRequest ? " (moi)" : ""}
+                        {workTypeLabel(t, wt.key)} · {row.requestedByName}{isMyRequest ? ` (${t("privateWorksMe")})` : ""}
                       </Text>
                     </View>
                     <View style={styles.badgeCol}>
                       <View style={[styles.statusBadge, { backgroundColor: st.bg }]}>
-                        <Text style={[styles.statusText, { color: st.color }]}>{st.label}</Text>
+                        <Text style={[styles.statusText, { color: st.color }]}>{statusLabel(t, row.status)}</Text>
                       </View>
                       <Feather name={isOpen ? "chevron-up" : "chevron-down"} size={14} color={colors.mutedForeground} style={{ marginTop: 4 }} />
                     </View>
@@ -519,14 +567,14 @@ export default function TravauxPrivatifsScreen() {
 
                   {/* Date */}
                   <Text style={[styles.cardDate, { color: colors.mutedForeground }]}>
-                    Soumis le {fmtDate(row.createdAt)}
+                    {t("privateWorksSubmittedOn")} {fmtDate(row.createdAt, lang)}
                   </Text>
 
                   {/* Expanded: step trail + decision history + actions */}
                   {isOpen && (
                     <View style={[styles.expanded, { borderTopColor: colors.border }]}>
-                      <StepTrail row={row} colors={colors} />
-                      <DecisionTrail row={row} colors={colors} />
+                      <StepTrail row={row} colors={colors} t={t} />
+                      <DecisionTrail row={row} colors={colors} t={t} lang={lang} />
 
                       {/* Action buttons */}
                       <View style={styles.actionRow}>
@@ -536,7 +584,7 @@ export default function TravauxPrivatifsScreen() {
                             style={[styles.actionBtn, { backgroundColor: "#ef444415", borderColor: "#ef4444" }]}
                             onPress={() => handleWithdraw(row)}
                           >
-                            <Text style={[styles.actionBtnText, { color: "#ef4444" }]}>Retirer</Text>
+                            <Text style={[styles.actionBtnText, { color: "#ef4444" }]}>{t("privateWorksWithdraw")}</Text>
                           </TouchableOpacity>
                         )}
 
@@ -547,7 +595,7 @@ export default function TravauxPrivatifsScreen() {
                             onPress={() => { setSyndicForm({ reviewNote: "", bylawReference: "", requiresCommitteeReview: false, requiresGAVote: false }); setShowSyndicReview(row); }}
                           >
                             <Feather name="eye" size={13} color="#3b82f6" />
-                            <Text style={[styles.actionBtnText, { color: "#3b82f6" }]}>Revue initiale</Text>
+                            <Text style={[styles.actionBtnText, { color: "#3b82f6" }]}>{t("privateWorksInitialReviewTitle")}</Text>
                           </TouchableOpacity>
                         )}
 
@@ -558,7 +606,7 @@ export default function TravauxPrivatifsScreen() {
                             onPress={() => { setCommitteeForm({ committeeNote: "", recommendation: "approve" }); setShowCommitteeReview(row); }}
                           >
                             <Feather name="users" size={13} color="#8b5cf6" />
-                            <Text style={[styles.actionBtnText, { color: "#8b5cf6" }]}>Avis comité</Text>
+                            <Text style={[styles.actionBtnText, { color: "#8b5cf6" }]}>{t("privateWorksCommitteeTitle")}</Text>
                           </TouchableOpacity>
                         )}
 
@@ -569,7 +617,7 @@ export default function TravauxPrivatifsScreen() {
                             onPress={() => { setVoteForm({ voteOutcome: "approved", voteDate: new Date().toISOString().split("T")[0], voteSummary: "" }); setShowVote(row); }}
                           >
                             <Feather name="check-square" size={13} color="#f59e0b" />
-                            <Text style={[styles.actionBtnText, { color: "#f59e0b" }]}>Résultat vote</Text>
+                            <Text style={[styles.actionBtnText, { color: "#f59e0b" }]}>{t("privateWorksVoteResult")}</Text>
                           </TouchableOpacity>
                         )}
 
@@ -580,7 +628,7 @@ export default function TravauxPrivatifsScreen() {
                             onPress={() => { setDecisionForm({ decision: "approved", justification: "" }); setShowDecision(row); }}
                           >
                             <Feather name="award" size={13} color={ACCENT} />
-                            <Text style={[styles.actionBtnText, { color: ACCENT }]}>Décision finale</Text>
+                            <Text style={[styles.actionBtnText, { color: ACCENT }]}>{t("privateWorksFinalDecision")}</Text>
                           </TouchableOpacity>
                         )}
                       </View>
@@ -597,7 +645,7 @@ export default function TravauxPrivatifsScreen() {
       <Modal visible={showSubmit} animationType="slide" presentationStyle="pageSheet" onRequestClose={() => setShowSubmit(false)}>
         <View style={[styles.modal, { backgroundColor: colors.background }]}>
           <View style={[styles.modalHeader, { borderBottomColor: colors.border }]}>
-            <Text style={[styles.modalTitle, { color: colors.foreground }]}>Nouvelle demande de travaux</Text>
+            <Text style={[styles.modalTitle, { color: colors.foreground }]}>{t("privateWorksNewRequestTitle")}</Text>
             <TouchableOpacity onPress={() => setShowSubmit(false)}>
               <Feather name="x" size={22} color={colors.foreground} />
             </TouchableOpacity>
@@ -606,18 +654,18 @@ export default function TravauxPrivatifsScreen() {
             <View style={[styles.infoBox, { backgroundColor: ACCENT + "12" }]}>
               <Feather name="info" size={14} color={ACCENT} />
               <Text style={[styles.infoText, { color: ACCENT }]}>
-                Toute modification extérieure (climatiseur, balcon, fenêtres, façade…) doit obtenir l'accord du syndicat avant le début des travaux.
+                {t("privateWorksApprovalNotice")}
               </Text>
             </View>
 
-            <Text style={[styles.fieldLabel, { color: colors.mutedForeground }]}>Immeuble *</Text>
+            <Text style={[styles.fieldLabel, { color: colors.mutedForeground }]}>{t("privateWorksBuildingRequired")}</Text>
             {buildingsLoading ? (
               <ActivityIndicator color={ACCENT} size="small" style={{ marginVertical: 8 }} />
             ) : buildings.length === 0 ? (
               <View style={[styles.infoBox, { backgroundColor: "#ef444412" }]}>
                 <Feather name="alert-circle" size={14} color="#ef4444" />
                 <Text style={[styles.infoText, { color: "#ef4444" }]}>
-                  Aucun immeuble accessible. Contactez votre syndic pour être rattaché à un immeuble.
+                  {t("privateWorksAccessibleBuildingRequired")}
                 </Text>
               </View>
             ) : (
@@ -639,7 +687,7 @@ export default function TravauxPrivatifsScreen() {
               </View>
             )}
 
-            <Text style={[styles.fieldLabel, { color: colors.mutedForeground }]}>Type de travaux *</Text>
+            <Text style={[styles.fieldLabel, { color: colors.mutedForeground }]}>{t("privateWorksTypeRequired")}</Text>
             <View style={styles.typeGrid}>
               {Object.entries(WORK_TYPES).map(([k, v]) => (
                 <TouchableOpacity
@@ -648,25 +696,25 @@ export default function TravauxPrivatifsScreen() {
                   onPress={() => setForm((p) => ({ ...p, workType: k }))}
                 >
                   <Feather name={v.icon} size={14} color={form.workType === k ? "#fff" : ACCENT} />
-                  <Text style={[styles.typeBtnText, { color: form.workType === k ? "#fff" : colors.foreground }]}>{v.label}</Text>
+                  <Text style={[styles.typeBtnText, { color: form.workType === k ? "#fff" : colors.foreground }]}>{workTypeLabel(t, v.key)}</Text>
                 </TouchableOpacity>
               ))}
             </View>
 
-            <Text style={[styles.fieldLabel, { color: colors.mutedForeground }]}>Titre *</Text>
+            <Text style={[styles.fieldLabel, { color: colors.mutedForeground }]}>{t("privateWorksTitleRequired")}</Text>
             <TextInput
               style={[styles.input, { backgroundColor: colors.card, borderColor: colors.border, color: colors.foreground }]}
-              placeholder="Ex: Installation d'une unité de climatisation sur la façade sud"
+              placeholder={t("privateWorksTitlePlaceholder")}
               placeholderTextColor={colors.mutedForeground}
               value={form.title}
               onChangeText={(v) => setForm((p) => ({ ...p, title: v }))}
               maxLength={200}
             />
 
-            <Text style={[styles.fieldLabel, { color: colors.mutedForeground }]}>Description détaillée *</Text>
+            <Text style={[styles.fieldLabel, { color: colors.mutedForeground }]}>{t("privateWorksDescriptionRequired")}</Text>
             <TextInput
               style={[styles.input, styles.textarea, { backgroundColor: colors.card, borderColor: colors.border, color: colors.foreground }]}
-              placeholder="Décrivez les travaux prévus : dimensions, matériaux, emplacement exact, entreprise choisie, délai estimé..."
+              placeholder={t("privateWorksDescriptionPlaceholder")}
               placeholderTextColor={colors.mutedForeground}
               value={form.description}
               onChangeText={(v) => setForm((p) => ({ ...p, description: v }))}
@@ -679,7 +727,7 @@ export default function TravauxPrivatifsScreen() {
             >
               {submitting
                 ? <ActivityIndicator color="#fff" size="small" />
-                : <Text style={styles.submitText}>Soumettre la demande</Text>}
+                : <Text style={styles.submitText}>{t("privateWorksSubmit")}</Text>}
             </TouchableOpacity>
           </ScrollView>
         </View>
@@ -689,7 +737,7 @@ export default function TravauxPrivatifsScreen() {
       <Modal visible={!!showSyndicReview} animationType="slide" presentationStyle="pageSheet" onRequestClose={() => setShowSyndicReview(null)}>
         <View style={[styles.modal, { backgroundColor: colors.background }]}>
           <View style={[styles.modalHeader, { borderBottomColor: colors.border }]}>
-            <Text style={[styles.modalTitle, { color: colors.foreground }]}>Revue initiale du syndic</Text>
+            <Text style={[styles.modalTitle, { color: colors.foreground }]}>{t("privateWorksInitialReviewTitle")}</Text>
             <TouchableOpacity onPress={() => setShowSyndicReview(null)}>
               <Feather name="x" size={22} color={colors.foreground} />
             </TouchableOpacity>
@@ -698,29 +746,29 @@ export default function TravauxPrivatifsScreen() {
             <Text style={[styles.cardTitle, { color: colors.foreground }]}>{showSyndicReview?.title}</Text>
             <Text style={[styles.cardDesc, { color: colors.mutedForeground, marginTop: 6 }]}>{showSyndicReview?.description}</Text>
 
-            <Text style={[styles.fieldLabel, { color: colors.mutedForeground, marginTop: 16 }]}>Article de règlement applicable (optionnel)</Text>
+            <Text style={[styles.fieldLabel, { color: colors.mutedForeground, marginTop: 16 }]}>{t("privateWorksBylawReference")}</Text>
             <TextInput
               style={[styles.input, { backgroundColor: colors.card, borderColor: colors.border, color: colors.foreground }]}
-              placeholder="Ex: Art. 12 — Modifications de façade"
+              placeholder={t("privateWorksBylawPlaceholder")}
               placeholderTextColor={colors.mutedForeground}
               value={syndicForm.bylawReference}
               onChangeText={(v) => setSyndicForm((p) => ({ ...p, bylawReference: v }))}
             />
 
-            <Text style={[styles.fieldLabel, { color: colors.mutedForeground }]}>Note de revue *</Text>
+            <Text style={[styles.fieldLabel, { color: colors.mutedForeground }]}>{t("privateWorksReviewNote")}</Text>
             <TextInput
               style={[styles.input, styles.textarea, { backgroundColor: colors.card, borderColor: colors.border, color: colors.foreground }]}
-              placeholder="Évaluation initiale : conformité au règlement, impact sur l'immeuble, observations..."
+              placeholder={t("privateWorksReviewPlaceholder")}
               placeholderTextColor={colors.mutedForeground}
               value={syndicForm.reviewNote}
               onChangeText={(v) => setSyndicForm((p) => ({ ...p, reviewNote: v }))}
               multiline numberOfLines={5} textAlignVertical="top"
             />
 
-            <Text style={[styles.fieldLabel, { color: colors.mutedForeground }]}>Étapes supplémentaires requises</Text>
+            <Text style={[styles.fieldLabel, { color: colors.mutedForeground }]}>{t("privateWorksExtraSteps")}</Text>
             {([
-              { key: "requiresCommitteeReview", label: "Revue par le comité de copropriété", icon: "users" },
-              { key: "requiresGAVote",          label: "Vote en assemblée générale",         icon: "check-square" },
+              { key: "requiresCommitteeReview", labelKey: "privateWorksCommitteeReviewRequired", icon: "users" },
+              { key: "requiresGAVote",          labelKey: "privateWorksGeneralMeetingVote", icon: "check-square" },
             ] as const).map((item) => (
               <TouchableOpacity
                 key={item.key}
@@ -731,7 +779,7 @@ export default function TravauxPrivatifsScreen() {
                   {syndicForm[item.key] && <Feather name="check" size={11} color="#fff" />}
                 </View>
                 <Feather name={item.icon} size={14} color={syndicForm[item.key] ? ACCENT : colors.mutedForeground} />
-                <Text style={[styles.toggleLabel, { color: colors.foreground }]}>{item.label}</Text>
+                <Text style={[styles.toggleLabel, { color: colors.foreground }]}>{t(item.labelKey)}</Text>
               </TouchableOpacity>
             ))}
 
@@ -739,7 +787,7 @@ export default function TravauxPrivatifsScreen() {
               style={[styles.submitBtn, { backgroundColor: "#3b82f6", opacity: submitting ? 0.7 : 1 }]}
               onPress={handleSyndicReview} disabled={submitting}
             >
-              {submitting ? <ActivityIndicator color="#fff" size="small" /> : <Text style={styles.submitText}>Enregistrer la revue</Text>}
+              {submitting ? <ActivityIndicator color="#fff" size="small" /> : <Text style={styles.submitText}>{t("privateWorksSaveReview")}</Text>}
             </TouchableOpacity>
           </ScrollView>
         </View>
@@ -749,7 +797,7 @@ export default function TravauxPrivatifsScreen() {
       <Modal visible={!!showCommitteeReview} animationType="slide" presentationStyle="pageSheet" onRequestClose={() => setShowCommitteeReview(null)}>
         <View style={[styles.modal, { backgroundColor: colors.background }]}>
           <View style={[styles.modalHeader, { borderBottomColor: colors.border }]}>
-            <Text style={[styles.modalTitle, { color: colors.foreground }]}>Avis du comité</Text>
+            <Text style={[styles.modalTitle, { color: colors.foreground }]}>{t("privateWorksCommitteeTitle")}</Text>
             <TouchableOpacity onPress={() => setShowCommitteeReview(null)}>
               <Feather name="x" size={22} color={colors.foreground} />
             </TouchableOpacity>
@@ -757,12 +805,12 @@ export default function TravauxPrivatifsScreen() {
           <ScrollView contentContainerStyle={styles.modalBody}>
             <Text style={[styles.cardTitle, { color: colors.foreground }]}>{showCommitteeReview?.title}</Text>
 
-            <Text style={[styles.fieldLabel, { color: colors.mutedForeground, marginTop: 12 }]}>Recommandation du comité</Text>
+            <Text style={[styles.fieldLabel, { color: colors.mutedForeground, marginTop: 12 }]}>{t("privateWorksCommitteeRecommendation")}</Text>
             <View style={styles.recRow}>
               {([
-                { k: "approve",       label: "Favorable",     color: "#10b981" },
-                { k: "reject",        label: "Défavorable",   color: "#ef4444" },
-                { k: "escalate_vote", label: "Soumettre au vote", color: "#f59e0b" },
+                { k: "approve",       labelKey: "privateWorksFavorable", color: "#10b981" },
+                { k: "reject",        labelKey: "privateWorksUnfavorable", color: "#ef4444" },
+                { k: "escalate_vote", labelKey: "privateWorksSubmitToVote", color: "#f59e0b" },
               ] as const).map((opt) => (
                 <TouchableOpacity
                   key={opt.k}
@@ -770,16 +818,16 @@ export default function TravauxPrivatifsScreen() {
                   onPress={() => setCommitteeForm((p) => ({ ...p, recommendation: opt.k }))}
                 >
                   <Text style={[styles.recBtnText, { color: committeeForm.recommendation === opt.k ? "#fff" : colors.foreground }]}>
-                    {opt.label}
+                    {t(opt.labelKey)}
                   </Text>
                 </TouchableOpacity>
               ))}
             </View>
 
-            <Text style={[styles.fieldLabel, { color: colors.mutedForeground }]}>Observations du comité *</Text>
+            <Text style={[styles.fieldLabel, { color: colors.mutedForeground }]}>{t("privateWorksCommitteeObservations")}</Text>
             <TextInput
               style={[styles.input, styles.textarea, { backgroundColor: colors.card, borderColor: colors.border, color: colors.foreground }]}
-              placeholder="Justification de la recommandation, conditions éventuelles..."
+              placeholder={t("privateWorksCommitteePlaceholder")}
               placeholderTextColor={colors.mutedForeground}
               value={committeeForm.committeeNote}
               onChangeText={(v) => setCommitteeForm((p) => ({ ...p, committeeNote: v }))}
@@ -790,7 +838,7 @@ export default function TravauxPrivatifsScreen() {
               style={[styles.submitBtn, { backgroundColor: "#8b5cf6", opacity: submitting ? 0.7 : 1 }]}
               onPress={handleCommitteeReview} disabled={submitting}
             >
-              {submitting ? <ActivityIndicator color="#fff" size="small" /> : <Text style={styles.submitText}>Enregistrer l'avis</Text>}
+              {submitting ? <ActivityIndicator color="#fff" size="small" /> : <Text style={styles.submitText}>{t("privateWorksSaveOpinion")}</Text>}
             </TouchableOpacity>
           </ScrollView>
         </View>
@@ -800,18 +848,18 @@ export default function TravauxPrivatifsScreen() {
       <Modal visible={!!showVote} animationType="slide" presentationStyle="pageSheet" onRequestClose={() => setShowVote(null)}>
         <View style={[styles.modal, { backgroundColor: colors.background }]}>
           <View style={[styles.modalHeader, { borderBottomColor: colors.border }]}>
-            <Text style={[styles.modalTitle, { color: colors.foreground }]}>Résultat du vote AG</Text>
+            <Text style={[styles.modalTitle, { color: colors.foreground }]}>{t("privateWorksVoteTitle")}</Text>
             <TouchableOpacity onPress={() => setShowVote(null)}>
               <Feather name="x" size={22} color={colors.foreground} />
             </TouchableOpacity>
           </View>
           <ScrollView contentContainerStyle={styles.modalBody}>
-            <Text style={[styles.fieldLabel, { color: colors.mutedForeground }]}>Résultat du vote</Text>
+            <Text style={[styles.fieldLabel, { color: colors.mutedForeground }]}>{t("privateWorksVoteOutcome")}</Text>
             <View style={styles.recRow}>
               {([
-                { k: "approved",     label: "Approuvé",   color: "#10b981" },
-                { k: "rejected",     label: "Rejeté",     color: "#ef4444" },
-                { k: "inconclusive", label: "Inconclus",  color: "#6b7280" },
+                { k: "approved",     labelKey: "privateWorksApproved", color: "#10b981" },
+                { k: "rejected",     labelKey: "privateWorksRejected", color: "#ef4444" },
+                { k: "inconclusive", labelKey: "privateWorksInconclusive", color: "#6b7280" },
               ] as const).map((opt) => (
                 <TouchableOpacity
                   key={opt.k}
@@ -819,13 +867,13 @@ export default function TravauxPrivatifsScreen() {
                   onPress={() => setVoteForm((p) => ({ ...p, voteOutcome: opt.k }))}
                 >
                   <Text style={[styles.recBtnText, { color: voteForm.voteOutcome === opt.k ? "#fff" : colors.foreground }]}>
-                    {opt.label}
+                    {t(opt.labelKey)}
                   </Text>
                 </TouchableOpacity>
               ))}
             </View>
 
-            <Text style={[styles.fieldLabel, { color: colors.mutedForeground }]}>Date du vote *</Text>
+            <Text style={[styles.fieldLabel, { color: colors.mutedForeground }]}>{t("privateWorksVoteDate")}</Text>
             <TextInput
               style={[styles.input, { backgroundColor: colors.card, borderColor: colors.border, color: colors.foreground }]}
               placeholder="AAAA-MM-JJ"
@@ -834,10 +882,10 @@ export default function TravauxPrivatifsScreen() {
               onChangeText={(v) => setVoteForm((p) => ({ ...p, voteDate: v }))}
             />
 
-            <Text style={[styles.fieldLabel, { color: colors.mutedForeground }]}>Résumé du vote *</Text>
+            <Text style={[styles.fieldLabel, { color: colors.mutedForeground }]}>{t("privateWorksVoteSummary")}</Text>
             <TextInput
               style={[styles.input, styles.textarea, { backgroundColor: colors.card, borderColor: colors.border, color: colors.foreground }]}
-              placeholder="Nombre de voix pour / contre, quorum atteint, conditions..."
+              placeholder={t("privateWorksVotePlaceholder")}
               placeholderTextColor={colors.mutedForeground}
               value={voteForm.voteSummary}
               onChangeText={(v) => setVoteForm((p) => ({ ...p, voteSummary: v }))}
@@ -848,7 +896,7 @@ export default function TravauxPrivatifsScreen() {
               style={[styles.submitBtn, { backgroundColor: "#f59e0b", opacity: submitting ? 0.7 : 1 }]}
               onPress={handleVote} disabled={submitting}
             >
-              {submitting ? <ActivityIndicator color="#fff" size="small" /> : <Text style={styles.submitText}>Enregistrer le résultat</Text>}
+              {submitting ? <ActivityIndicator color="#fff" size="small" /> : <Text style={styles.submitText}>{t("privateWorksSaveVote")}</Text>}
             </TouchableOpacity>
           </ScrollView>
         </View>
@@ -858,7 +906,7 @@ export default function TravauxPrivatifsScreen() {
       <Modal visible={!!showDecision} animationType="slide" presentationStyle="pageSheet" onRequestClose={() => setShowDecision(null)}>
         <View style={[styles.modal, { backgroundColor: colors.background }]}>
           <View style={[styles.modalHeader, { borderBottomColor: colors.border }]}>
-            <Text style={[styles.modalTitle, { color: colors.foreground }]}>Décision finale</Text>
+            <Text style={[styles.modalTitle, { color: colors.foreground }]}>{t("privateWorksFinalDecision")}</Text>
             <TouchableOpacity onPress={() => setShowDecision(null)}>
               <Feather name="x" size={22} color={colors.foreground} />
             </TouchableOpacity>
@@ -867,17 +915,17 @@ export default function TravauxPrivatifsScreen() {
             <View style={[styles.infoBox, { backgroundColor: "#ef444412" }]}>
               <Feather name="alert-circle" size={14} color="#ef4444" />
               <Text style={[styles.infoText, { color: "#ef4444" }]}>
-                La décision finale est permanente et archivée légalement. Elle ne peut pas être modifiée après confirmation.
+                {t("privateWorksFinalDecisionNotice")}
               </Text>
             </View>
 
             <Text style={[styles.cardTitle, { color: colors.foreground, marginTop: 8 }]}>{showDecision?.title}</Text>
 
-            <Text style={[styles.fieldLabel, { color: colors.mutedForeground, marginTop: 12 }]}>Décision</Text>
+            <Text style={[styles.fieldLabel, { color: colors.mutedForeground, marginTop: 12 }]}>{t("privateWorksDecisionLabel")}</Text>
             <View style={styles.recRow}>
               {([
-                { k: "approved", label: "Approuver",  color: "#10b981" },
-                { k: "rejected", label: "Refuser",    color: "#ef4444" },
+                { k: "approved", labelKey: "privateWorksApproveRequest", color: "#10b981" },
+                { k: "rejected", labelKey: "privateWorksRejectRequest", color: "#ef4444" },
               ] as const).map((opt) => (
                 <TouchableOpacity
                   key={opt.k}
@@ -886,16 +934,16 @@ export default function TravauxPrivatifsScreen() {
                 >
                   <Feather name={opt.k === "approved" ? "check" : "x"} size={14} color={decisionForm.decision === opt.k ? "#fff" : opt.color} />
                   <Text style={[styles.recBtnText, { color: decisionForm.decision === opt.k ? "#fff" : colors.foreground }]}>
-                    {opt.label}
+                    {t(opt.labelKey)}
                   </Text>
                 </TouchableOpacity>
               ))}
             </View>
 
-            <Text style={[styles.fieldLabel, { color: colors.mutedForeground }]}>Justification officielle *</Text>
+            <Text style={[styles.fieldLabel, { color: colors.mutedForeground }]}>{t("privateWorksOfficialJustification")}</Text>
             <TextInput
               style={[styles.input, styles.textarea, { backgroundColor: colors.card, borderColor: colors.border, color: colors.foreground }]}
-              placeholder="Motifs de la décision, conditions applicables, références au règlement de copropriété... (min. 10 caractères)"
+              placeholder={t("privateWorksJustificationPlaceholder")}
               placeholderTextColor={colors.mutedForeground}
               value={decisionForm.justification}
               onChangeText={(v) => setDecisionForm((p) => ({ ...p, justification: v }))}
@@ -908,7 +956,7 @@ export default function TravauxPrivatifsScreen() {
             >
               {submitting
                 ? <ActivityIndicator color="#fff" size="small" />
-                : <Text style={styles.submitText}>{decisionForm.decision === "approved" ? "Approuver la demande" : "Refuser la demande"}</Text>}
+                : <Text style={styles.submitText}>{decisionForm.decision === "approved" ? t("privateWorksApproveRequest") : t("privateWorksRejectRequest")}</Text>}
             </TouchableOpacity>
           </ScrollView>
         </View>

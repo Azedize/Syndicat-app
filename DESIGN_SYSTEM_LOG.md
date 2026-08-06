@@ -15,3 +15,4 @@
 - Agenda reuses the existing event color/icon hierarchy, timeline cards, modal detail treatment, and touch actions while applying runtime translations, locale-aware date/currency formatting, and explicit failure feedback.
 - Financial Reports reuses the existing KPI, chart, breakdown, balance, and export hierarchy while applying semantic shared loading/error states, translated labels, locale-aware periods, and consistent MAD formatting.
 - Syndical Actions reuses the existing type/status colors, support and participation button hierarchy, metadata cards, modal sections, and optimistic interaction patterns while translating visible copy at runtime.
+- Governance Organigramme reuses its role-color hierarchy, mandate badges, national summary cards, permission sections, and administrative action hierarchy while adding shared data states, localized dates, and translated feedback.

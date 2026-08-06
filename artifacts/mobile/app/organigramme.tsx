@@ -10,7 +10,6 @@ import * as Haptics from "expo-haptics";
 import { router } from "expo-router";
 import React, { useCallback, useEffect, useRef, useState } from "react";
 import {
-  ActivityIndicator,
   Alert,
   Animated,
   Dimensions,
@@ -30,6 +29,7 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useAuth } from "@/context/AuthContext";
 import { useColors } from "@/hooks/useColors";
 import { useLanguage } from "@/context/LanguageContext";
+import { ErrorState, LoadingState } from "@/components/DataState";
 import { apiRequest } from "@/lib/api";
 import { useBreakpoints } from "@/hooks/useBreakpoints";
 
@@ -129,20 +129,20 @@ function initials(name: string): string {
     .toUpperCase();
 }
 
-function formatDate(s: string | null | undefined): string {
+function formatDate(s: string | null | undefined, locale = "fr-FR"): string {
   if (!s) return "—";
   try {
-    return new Date(s).toLocaleDateString("fr-FR", { day: "2-digit", month: "short", year: "numeric" });
+    return new Date(s).toLocaleDateString(locale, { day: "2-digit", month: "short", year: "numeric" });
   } catch {
     return s;
   }
 }
 
-function statusBadge(status: OrgNode["status"]): { label: string; color: string; bg: string } {
+function statusBadge(status: OrgNode["status"]): { labelKey: string; color: string; bg: string } {
   switch (status) {
-    case "active":   return { label: "Actif",    color: "#059669", bg: "#d1fae5" };
-    case "expiring": return { label: "Expire",   color: "#d97706", bg: "#fef3c7" };
-    case "expired":  return { label: "Expiré",   color: "#dc2626", bg: "#fee2e2" };
+    case "active":   return { labelKey: "orgModalStatusActive", color: "#059669", bg: "#d1fae5" };
+    case "expiring": return { labelKey: "orgModalStatusExpiring", color: "#d97706", bg: "#fef3c7" };
+    case "expired":  return { labelKey: "orgModalStatusExpired", color: "#dc2626", bg: "#fee2e2" };
   }
 }
 
@@ -155,12 +155,12 @@ function govStatusColor(s: NationalSyndicate["governanceStatus"]): string {
 // ─── Sub-components ─────────────────────────────────────────────────────────
 
 /** Top-of-screen dashboard stat cards */
-function StatCards({ stats, colors }: { stats: OrgStats; colors: ReturnType<typeof useColors> }) {
+function StatCards({ stats, colors, t }: { stats: OrgStats; colors: ReturnType<typeof useColors>; t: (key: string) => string }) {
   const cards = [
-    { label: "Mandats actifs",    value: stats.activeMandates,    icon: "award" as const,         color: "#2563EB" },
-    { label: "Membres bureau",    value: stats.committeeCount,    icon: "users" as const,         color: "#7C3AED" },
-    { label: "Expire bientôt",    value: stats.expiringMandates,  icon: "clock" as const,         color: "#EA580C" },
-    { label: "Postes vacants",    value: stats.vacantPositions,   icon: "alert-circle" as const,  color: "#dc2626" },
+    { label: t("orgStatActiveMandates"), value: stats.activeMandates, icon: "award" as const, color: "#2563EB" },
+    { label: t("orgStatCommitteeMembers"), value: stats.committeeCount, icon: "users" as const, color: "#7C3AED" },
+    { label: t("orgStatExpiring"), value: stats.expiringMandates, icon: "clock" as const, color: "#EA580C" },
+    { label: t("orgStatVacant"), value: stats.vacantPositions, icon: "alert-circle" as const, color: "#dc2626" },
   ];
   return (
     <View style={styles.statRow}>
@@ -183,11 +183,13 @@ function NodeCard({
   isTop = false,
   onPress,
   colors,
+  t,
 }: {
   node: OrgNode;
   isTop?: boolean;
   onPress: (n: OrgNode) => void;
   colors: ReturnType<typeof useColors>;
+  t: (key: string) => string;
 }) {
   const badge = statusBadge(node.status);
   const scale = useRef(new Animated.Value(1)).current;
@@ -221,8 +223,8 @@ function NodeCard({
 
         {/* Info */}
         <View style={{ flex: 1, gap: 3 }}>
-          <Text style={[styles.nodeName, { color: isTop ? "#fff" : colors.foreground }]} numberOfLines={1}>
-            {node.name || "Poste vacant"}
+             <Text style={[styles.nodeName, { color: isTop ? "#fff" : colors.foreground }]} numberOfLines={1}>
+             {node.name || t("orgVacantNode")}
           </Text>
           <View style={styles.nodeRolePill}>
             <View style={[styles.roleDot, { backgroundColor: isTop ? "rgba(255,255,255,0.7)" : node.color }]} />
@@ -240,7 +242,7 @@ function NodeCard({
         {/* Status badge */}
         <View style={{ alignItems: "flex-end", gap: 6 }}>
           <View style={[styles.statusBadge, { backgroundColor: isTop ? "rgba(255,255,255,0.15)" : badge.bg }]}>
-            <Text style={[styles.statusBadgeText, { color: isTop ? "#fff" : badge.color }]}>{badge.label}</Text>
+             <Text style={[styles.statusBadgeText, { color: isTop ? "#fff" : badge.color }]}>{t(badge.labelKey)}</Text>
           </View>
           <Feather name="chevron-right" size={14} color={isTop ? "rgba(255,255,255,0.6)" : colors.mutedForeground} />
         </View>
@@ -260,7 +262,7 @@ function Connector({ color }: { color: string }) {
 }
 
 /** Vacant position placeholder */
-function VacantCard({ roleLabel, color, colors }: { roleLabel: string; color: string; colors: ReturnType<typeof useColors> }) {
+function VacantCard({ roleLabel, color, colors, t }: { roleLabel: string; color: string; colors: ReturnType<typeof useColors>; t: (key: string) => string }) {
   return (
     <View style={[styles.vacantCard, { borderColor: color + "40", backgroundColor: color + "06" }]}>
       <View style={[styles.vacantIcon, { backgroundColor: color + "15" }]}>
@@ -268,34 +270,36 @@ function VacantCard({ roleLabel, color, colors }: { roleLabel: string; color: st
       </View>
       <View style={{ flex: 1 }}>
         <Text style={[styles.vacantLabel, { color: colors.mutedForeground }]}>{roleLabel}</Text>
-        <Text style={[styles.vacantSub, { color: color }]}>Poste vacant — non pourvu</Text>
+         <Text style={[styles.vacantSub, { color: color }]}>{t("orgVacantPosition")}</Text>
       </View>
       <View style={[styles.statusBadge, { backgroundColor: "#fee2e2" }]}>
-        <Text style={[styles.statusBadgeText, { color: "#dc2626" }]}>Vacant</Text>
+         <Text style={[styles.statusBadgeText, { color: "#dc2626" }]}>{t("orgVacantBadge")}</Text>
       </View>
     </View>
   );
 }
 
 /** Role detail modal */
-function RoleModal({ node, visible, onClose, isAdmin, colors }: {
+function RoleModal({ node, visible, onClose, isAdmin, colors, t, locale }: {
   node: OrgNode | null;
   visible: boolean;
   onClose: () => void;
   isAdmin: boolean;
   colors: ReturnType<typeof useColors>;
+  t: (key: string) => string;
+  locale: string;
 }) {
   if (!node) return null;
   const badge = statusBadge(node.status);
 
   const sections = [
-    { title: "Modules accessibles",     icon: "grid"         as const, items: node.permissions.modules },
-    { title: "Droits d'approbation",    icon: "check-square" as const, items: node.permissions.approvalRights },
-    { title: "Droits de signature",     icon: "pen-tool"     as const, items: node.permissions.signatureRights },
-    { title: "Accès rapports",          icon: "bar-chart-2"  as const, items: node.permissions.reportsAccess },
-    { title: "Accès documents",         icon: "folder"       as const, items: node.permissions.documentAccess },
-    { title: "Accès financier",         icon: "dollar-sign"  as const, items: node.permissions.financialAccess },
-    { title: "Permissions",             icon: "shield"       as const, items: node.permissions.permissions },
+    { title: t("orgPermModules"), icon: "grid" as const, items: node.permissions.modules },
+    { title: t("orgPermApproval"), icon: "check-square" as const, items: node.permissions.approvalRights },
+    { title: t("orgPermSignature"), icon: "pen-tool" as const, items: node.permissions.signatureRights },
+    { title: t("orgPermReports"), icon: "bar-chart-2" as const, items: node.permissions.reportsAccess },
+    { title: t("orgPermDocuments"), icon: "folder" as const, items: node.permissions.documentAccess },
+    { title: t("orgPermFinancial"), icon: "dollar-sign" as const, items: node.permissions.financialAccess },
+    { title: t("orgPermPermissions"), icon: "shield" as const, items: node.permissions.permissions },
   ].filter((s) => s.items.length > 0);
 
   return (
@@ -307,7 +311,7 @@ function RoleModal({ node, visible, onClose, isAdmin, colors }: {
             <Text style={styles.modalInitials}>{node.name ? initials(node.name) : "?"}</Text>
           </View>
           <View style={{ flex: 1 }}>
-            <Text style={styles.modalName} numberOfLines={1}>{node.name || "Poste vacant"}</Text>
+             <Text style={styles.modalName} numberOfLines={1}>{node.name || t("orgVacantNode")}</Text>
             <Text style={styles.modalRole}>{node.roleLabel}</Text>
           </View>
           <TouchableOpacity onPress={onClose} style={styles.modalClose} hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}>
@@ -319,17 +323,17 @@ function RoleModal({ node, visible, onClose, isAdmin, colors }: {
           {/* Contact + mandate info */}
           <View style={[styles.infoGrid, { backgroundColor: colors.card, borderColor: colors.border }]}>
             <InfoRow icon="mail"      label="Email"        value={node.email || "—"}          colors={colors} />
-            <InfoRow icon="phone"     label="Téléphone"    value={node.phone || "—"}          colors={colors} />
-            <InfoRow icon="calendar"  label="Mandat début" value={formatDate(node.mandateStart)} colors={colors} />
-            <InfoRow icon="calendar"  label="Mandat fin"   value={formatDate(node.mandateEnd)}   colors={colors} />
+             <InfoRow icon="phone" label={t("orgModalPhone")} value={node.phone || "—"} colors={colors} />
+             <InfoRow icon="calendar" label={t("orgModalMandateStart")} value={formatDate(node.mandateStart, locale)} colors={colors} />
+             <InfoRow icon="calendar" label={t("orgModalMandateEnd")} value={formatDate(node.mandateEnd, locale)} colors={colors} />
             {node.appointedAt && (
-              <InfoRow icon="clock"   label="Nommé le"     value={formatDate(node.appointedAt)}  colors={colors} />
+               <InfoRow icon="clock" label={t("orgModalAppointed")} value={formatDate(node.appointedAt, locale)} colors={colors} />
             )}
             <View style={styles.infoRowWrap}>
               <Feather name="activity" size={14} color={colors.mutedForeground} />
-              <Text style={[styles.infoLabel, { color: colors.mutedForeground }]}>Statut</Text>
+               <Text style={[styles.infoLabel, { color: colors.mutedForeground }]}>{t("orgModalStatus")}</Text>
               <View style={[styles.statusBadge, { backgroundColor: badge.bg, marginLeft: "auto" }]}>
-                <Text style={[styles.statusBadgeText, { color: badge.color }]}>{badge.label}</Text>
+                 <Text style={[styles.statusBadgeText, { color: badge.color }]}>{t(badge.labelKey)}</Text>
               </View>
             </View>
           </View>
@@ -381,7 +385,7 @@ export default function OrganigrammeScreen() {
   const insets = useSafeAreaInsets();
   const { user } = useAuth();
   const { isWide } = useBreakpoints();
-  const { t } = useLanguage();
+  const { t, lang } = useLanguage();
   const topPad = isWide ? 0 : Platform.OS === "web" ? 67 : insets.top;
 
   const [loading, setLoading]         = useState(true);
@@ -389,15 +393,17 @@ export default function OrganigrammeScreen() {
   const [orgData, setOrgData]         = useState<OrgData | null>(null);
   const [nationalData, setNationalData] = useState<NationalData | null>(null);
   const [selectedNode, setSelectedNode] = useState<OrgNode | null>(null);
+  const [loadError, setLoadError] = useState(false);
   const [showNational, setShowNational] = useState(() => user?.role === "super_admin");
 
   const isSuperAdmin   = user?.role === "super_admin";
-  const isSyndicateAdmin = user?.role === "syndicate_admin";
   const isAdminOrAbove = ["super_admin", "syndicate_admin"].includes(user?.role ?? "");
+  const locale = lang === "ar" ? "ar-MA" : lang === "en" ? "en-US" : lang === "es" ? "es-ES" : "fr-FR";
 
   const load = useCallback(async (isRefresh = false) => {
     if (isRefresh) setRefreshing(true);
     else setLoading(true);
+    setLoadError(false);
     try {
       const [orgRes, natRes] = await Promise.all([
         apiRequest<{ data: OrgData }>("/organigramme"),
@@ -405,33 +411,39 @@ export default function OrganigrammeScreen() {
       ]);
       if (orgRes?.data) setOrgData(orgRes.data);
       if (natRes?.data) setNationalData(natRes.data);
-    } catch (e) {
-      // fail silently — empty state shown
+    } catch {
+      if (isRefresh) {
+        Alert.alert(t("orgLoadError"), t("orgRetry"));
+      } else {
+        setLoadError(true);
+      }
     } finally {
       setLoading(false);
       setRefreshing(false);
     }
-  }, [isSuperAdmin]);
+  }, [isSuperAdmin, t]);
 
   useEffect(() => { load(); }, [load]);
 
   const handleShare = async () => {
     try {
-      const synName = orgData?.syndicate?.name ?? "Syndicat";
+      const synName = orgData?.syndicate?.name ?? t("orgSyndicateFallback");
       const president = orgData?.hierarchy?.president;
       const treasurer = orgData?.hierarchy?.treasurer;
       const secretary = orgData?.hierarchy?.secretary;
       const text = [
         `🏢 ORGANIGRAMME — ${synName}`,
         "",
-        `🏅 Président: ${president?.name ?? "Vacant"}`,
-        `💰 Trésorier: ${treasurer?.name ?? "Vacant"}`,
-        `📋 Secrétaire: ${secretary?.name ?? "Vacant"}`,
-        `👥 Membres bureau: ${orgData?.stats?.committeeCount ?? 0}`,
-        `✅ Mandats actifs: ${orgData?.stats?.activeMandates ?? 0}`,
+         `🏅 ${t("orgVacantPresident")}: ${president?.name ?? t("orgVacantBadge")}`,
+         `💰 ${t("orgVacantTreasurer")}: ${treasurer?.name ?? t("orgVacantBadge")}`,
+         `📋 ${t("orgVacantSecretary")}: ${secretary?.name ?? t("orgVacantBadge")}`,
+         `👥 ${t("orgStatCommitteeMembers")}: ${orgData?.stats?.committeeCount ?? 0}`,
+         `✅ ${t("orgStatActiveMandates")}: ${orgData?.stats?.activeMandates ?? 0}`,
       ].join("\n");
       await Share.share({ message: text, title: `Organigramme — ${synName}` });
-    } catch {}
+    } catch {
+      Alert.alert(t("orgShareErrorTitle"), t("orgShareError"));
+    }
   };
 
   // ── Render national card ──────────────────────────────────────────────────
@@ -450,21 +462,21 @@ export default function OrganigrammeScreen() {
             <View style={[styles.statusBadge, { backgroundColor: gColor + "18" }]}>
               <View style={[styles.roleDot, { backgroundColor: gColor }]} />
               <Text style={[styles.statusBadgeText, { color: gColor }]}>
-                {item.governanceStatus === "healthy" ? "Sain" : item.governanceStatus === "warning" ? "Alerte" : "Critique"}
+                {item.governanceStatus === "healthy" ? t("orgNatStatusHealthy") : item.governanceStatus === "warning" ? t("orgNatStatusWarning") : t("orgNatStatusCritical")}
               </Text>
             </View>
           </View>
 
           <View style={styles.natStats}>
-            <NatStat icon="home"    value={item.buildingsCount} label="Imm." colors={colors} />
-            <NatStat icon="users"   value={item.membersCount}   label="Memb." colors={colors} />
-            <NatStat icon="award"   value={item.councilCount}   label="Bureau" colors={colors} />
-            <NatStat icon="user-x"  value={item.vacantPositions} label="Vacants" colors={colors} color={item.vacantPositions > 0 ? "#dc2626" : undefined} />
+            <NatStat icon="home" value={item.buildingsCount} label={t("orgNatBuildings")} colors={colors} />
+            <NatStat icon="users" value={item.membersCount} label={t("orgNatMembers")} colors={colors} />
+            <NatStat icon="award" value={item.councilCount} label={t("orgNatCouncil")} colors={colors} />
+            <NatStat icon="user-x" value={item.vacantPositions} label={t("orgNatVacant")} colors={colors} color={item.vacantPositions > 0 ? "#dc2626" : undefined} />
           </View>
 
           {item.president && (
             <Text style={[styles.natPresident, { color: colors.mutedForeground }]}>
-              🏅 Président: {item.president.name}
+              🏅 {t("orgNatPresident")} {item.president.name}
             </Text>
           )}
 
@@ -490,12 +502,28 @@ export default function OrganigrammeScreen() {
           <TouchableOpacity onPress={() => router.back()} style={styles.backBtn}>
             <Feather name="arrow-left" size={22} color={colors.foreground} />
           </TouchableOpacity>
-          <Text style={[styles.headerTitle, { color: colors.foreground }]}>Organigramme</Text>
+          <Text style={[styles.headerTitle, { color: colors.foreground }]}>{t("orgTitle")}</Text>
         </View>
-        <View style={styles.loadingWrap}>
-          <ActivityIndicator size="large" color={colors.primary} />
-          <Text style={[styles.loadingText, { color: colors.mutedForeground }]}>Chargement de l'organigramme…</Text>
+        <LoadingState title={t("orgLoading")} />
+      </View>
+    );
+  }
+
+  if (loadError) {
+    return (
+      <View style={[styles.root, { backgroundColor: colors.background }]}>
+        <View style={[styles.header, { paddingTop: topPad + 16, backgroundColor: colors.card, borderBottomColor: colors.border }]}>
+          <TouchableOpacity onPress={() => router.back()} style={styles.backBtn}>
+            <Feather name="arrow-left" size={22} color={colors.foreground} />
+          </TouchableOpacity>
+          <Text style={[styles.headerTitle, { color: colors.foreground }]}>{t("orgTitle")}</Text>
         </View>
+        <ErrorState
+          title={t("orgLoadError")}
+          description={t("orgLoadErrorDescription")}
+          retryLabel={t("orgRetry")}
+          onRetry={() => load()}
+        />
       </View>
     );
   }
@@ -513,7 +541,7 @@ export default function OrganigrammeScreen() {
           <Feather name="arrow-left" size={22} color={colors.foreground} />
         </TouchableOpacity>
         <View style={{ flex: 1 }}>
-          <Text style={[styles.headerTitle, { color: colors.foreground }]}>Organigramme du Syndicat</Text>
+          <Text style={[styles.headerTitle, { color: colors.foreground }]}>{t("orgTitle")}</Text>
           {syndicate && (
             <Text style={[styles.headerSub, { color: colors.mutedForeground }]} numberOfLines={1}>
               {syndicate.name}
@@ -541,11 +569,11 @@ export default function OrganigrammeScreen() {
           {/* National summary strip */}
           <View style={[styles.natSummary, { backgroundColor: colors.card, borderBottomColor: colors.border }]}>
             <View style={styles.natSummaryInner}>
-              <NatSumStat value={nationalData.summary.total}      label="Total"    color="#2563EB" />
-              <NatSumStat value={nationalData.summary.healthy}    label="Sains"    color="#059669" />
-              <NatSumStat value={nationalData.summary.warnings}   label="Alertes"  color="#d97706" />
-              <NatSumStat value={nationalData.summary.critical}   label="Critiques" color="#dc2626" />
-              <NatSumStat value={nationalData.summary.totalVacancies} label="Vacants" color="#ef4444" />
+              <NatSumStat value={nationalData.summary.total} label={t("orgNatSummaryTotal")} color="#2563EB" />
+              <NatSumStat value={nationalData.summary.healthy} label={t("orgNatSummaryHealthy")} color="#059669" />
+              <NatSumStat value={nationalData.summary.warnings} label={t("orgNatSummaryWarnings")} color="#d97706" />
+              <NatSumStat value={nationalData.summary.critical} label={t("orgNatSummaryCritical")} color="#dc2626" />
+              <NatSumStat value={nationalData.summary.totalVacancies} label={t("orgNatSummaryVacancies")} color="#ef4444" />
             </View>
           </View>
           <FlatList
@@ -570,18 +598,17 @@ export default function OrganigrammeScreen() {
                 <Feather name="globe" size={28} color="#7C3AED" />
               </View>
               <Text style={{ fontSize: 16, fontWeight: "700", color: colors.foreground, textAlign: "center" }}>
-                Vue nationale disponible
+                {t("orgNationalView")}
               </Text>
               <Text style={{ fontSize: 13, color: colors.mutedForeground, textAlign: "center", lineHeight: 20 }}>
-                En tant que Super Admin, vous supervisiez l'ensemble des syndicats.{"\n"}
-                Activez la vue nationale pour voir tous les syndicats clients.
+                {t("orgNationalDesc")}
               </Text>
               <TouchableOpacity
                 style={{ flexDirection: "row", alignItems: "center", gap: 8, backgroundColor: "#7C3AED", paddingHorizontal: 20, paddingVertical: 12, borderRadius: 12 }}
                 onPress={() => { setShowNational(true); Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium); }}
               >
                 <Feather name="globe" size={16} color="#fff" />
-                <Text style={{ color: "#fff", fontWeight: "700", fontSize: 14 }}>Voir tous les syndicats</Text>
+                <Text style={{ color: "#fff", fontWeight: "700", fontSize: 14 }}>{t("orgNationalBtn")}</Text>
               </TouchableOpacity>
             </View>
           )}
@@ -599,64 +626,64 @@ export default function OrganigrammeScreen() {
           )}
 
           {/* ── Dashboard stat cards ── */}
-          {stats && <StatCards stats={stats} colors={colors} />}
+          {stats && <StatCards stats={stats} colors={colors} t={t} />}
 
           {/* ── Org chart title ── */}
           {(!isSuperAdmin || orgData) && <View style={[styles.sectionHeader, { borderLeftColor: synColor }]}>
-            <Text style={[styles.sectionTitle, { color: colors.foreground }]}>Hiérarchie de gouvernance</Text>
+            <Text style={[styles.sectionTitle, { color: colors.foreground }]}>{t("orgHierarchyTitle")}</Text>
             <Text style={[styles.sectionSub, { color: colors.mutedForeground }]}>
-              Structure officielle du conseil syndical
+              {t("orgHierarchySub")}
             </Text>
           </View>}
 
           {(!isSuperAdmin || orgData) && <View style={styles.chartWrap}>
             {/* Level 2: Syndicate Admin */}
             <View style={[styles.levelLabel, { backgroundColor: "#2563EB10" }]}>
-              <Text style={[styles.levelLabelText, { color: "#2563EB" }]}>NIVEAU 1 — ADMINISTRATION</Text>
+              <Text style={[styles.levelLabelText, { color: "#2563EB" }]}>{t("orgLevel1")}</Text>
             </View>
 
             {h && h.admins.length > 0 ? (
               h.admins.map((admin, idx) => (
                 <React.Fragment key={admin.id}>
-                  <NodeCard node={admin} isTop colors={colors} onPress={setSelectedNode} />
+                  <NodeCard node={admin} isTop colors={colors} onPress={setSelectedNode} t={t} />
                   {idx < h.admins.length - 1 && <View style={[styles.connectorSmall, { backgroundColor: colors.border }]} />}
                 </React.Fragment>
               ))
             ) : (
-              <VacantCard roleLabel="Admin de Syndicat" color="#2563EB" colors={colors} />
+              <VacantCard roleLabel={t("orgVacantAdmin")} color="#2563EB" colors={colors} t={t} />
             )}
 
             {/* Level 3: Président */}
             <Connector color="#7C3AED" />
             <View style={[styles.levelLabel, { backgroundColor: "#7C3AED10" }]}>
-              <Text style={[styles.levelLabelText, { color: "#7C3AED" }]}>NIVEAU 2 — PRÉSIDENCE</Text>
+              <Text style={[styles.levelLabelText, { color: "#7C3AED" }]}>{t("orgLevel2")}</Text>
             </View>
             {h?.president ? (
-              <NodeCard node={h.president} colors={colors} onPress={setSelectedNode} />
+              <NodeCard node={h.president} colors={colors} onPress={setSelectedNode} t={t} />
             ) : (
-              <VacantCard roleLabel="Président" color="#7C3AED" colors={colors} />
+              <VacantCard roleLabel={t("orgVacantPresident")} color="#7C3AED" colors={colors} t={t} />
             )}
 
             {/* Level 4: Trésorier */}
             <Connector color="#059669" />
             <View style={[styles.levelLabel, { backgroundColor: "#05966910" }]}>
-              <Text style={[styles.levelLabelText, { color: "#059669" }]}>NIVEAU 3 — TRÉSORERIE</Text>
+              <Text style={[styles.levelLabelText, { color: "#059669" }]}>{t("orgLevel3")}</Text>
             </View>
             {h?.treasurer ? (
-              <NodeCard node={h.treasurer} colors={colors} onPress={setSelectedNode} />
+              <NodeCard node={h.treasurer} colors={colors} onPress={setSelectedNode} t={t} />
             ) : (
-              <VacantCard roleLabel="Trésorier" color="#059669" colors={colors} />
+              <VacantCard roleLabel={t("orgVacantTreasurer")} color="#059669" colors={colors} t={t} />
             )}
 
             {/* Level 5: Secrétaire */}
             <Connector color="#EA580C" />
             <View style={[styles.levelLabel, { backgroundColor: "#EA580C10" }]}>
-              <Text style={[styles.levelLabelText, { color: "#EA580C" }]}>NIVEAU 4 — SECRÉTARIAT</Text>
+              <Text style={[styles.levelLabelText, { color: "#EA580C" }]}>{t("orgLevel4")}</Text>
             </View>
             {h?.secretary ? (
-              <NodeCard node={h.secretary} colors={colors} onPress={setSelectedNode} />
+              <NodeCard node={h.secretary} colors={colors} onPress={setSelectedNode} t={t} />
             ) : (
-              <VacantCard roleLabel="Secrétaire" color="#EA580C" colors={colors} />
+              <VacantCard roleLabel={t("orgVacantSecretary")} color="#EA580C" colors={colors} t={t} />
             )}
 
             {/* Level 6: Membres du Bureau */}
@@ -664,14 +691,14 @@ export default function OrganigrammeScreen() {
               <>
                 <Connector color="#6B7280" />
                 <View style={[styles.levelLabel, { backgroundColor: "#6B728010" }]}>
-                  <Text style={[styles.levelLabelText, { color: "#6B7280" }]}>NIVEAU 5 — MEMBRES DU BUREAU</Text>
+                  <Text style={[styles.levelLabelText, { color: "#6B7280" }]}>{t("orgLevel5")}</Text>
                 </View>
                 {h.committeeMembers.length > 0 ? (
                   h.committeeMembers.map((m) => (
-                    <NodeCard key={m.id} node={m} colors={colors} onPress={setSelectedNode} />
+                    <NodeCard key={m.id} node={m} colors={colors} onPress={setSelectedNode} t={t} />
                   ))
                 ) : (
-                  <VacantCard roleLabel="Membres du Bureau" color="#6B7280" colors={colors} />
+                  <VacantCard roleLabel={t("orgStatCommitteeMembers")} color="#6B7280" colors={colors} t={t} />
                 )}
               </>
             )}
@@ -683,28 +710,28 @@ export default function OrganigrammeScreen() {
           {/* ── Admin actions (admin only) ── */}
           {isAdminOrAbove && (
             <View style={[styles.adminActions, { borderTopColor: colors.border }]}>
-              <Text style={[styles.adminActionsTitle, { color: colors.mutedForeground }]}>ACTIONS ADMINISTRATIVES</Text>
+              <Text style={[styles.adminActionsTitle, { color: colors.mutedForeground }]}>{t("orgAdminActions")}</Text>
               <View style={styles.adminActionsRow}>
                 <TouchableOpacity
                   style={[styles.adminActionBtn, { backgroundColor: colors.card, borderColor: colors.border }]}
                   onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); router.push("/governance" as any); }}
                 >
                   <Feather name="award" size={16} color={colors.primary} />
-                  <Text style={[styles.adminActionLabel, { color: colors.foreground }]}>Gérer le conseil</Text>
+                  <Text style={[styles.adminActionLabel, { color: colors.foreground }]}>{t("orgManageCouncil")}</Text>
                 </TouchableOpacity>
                 <TouchableOpacity
                   style={[styles.adminActionBtn, { backgroundColor: colors.card, borderColor: colors.border }]}
                   onPress={handleShare}
                 >
                   <Feather name="printer" size={16} color={colors.primary} />
-                  <Text style={[styles.adminActionLabel, { color: colors.foreground }]}>Exporter</Text>
+                  <Text style={[styles.adminActionLabel, { color: colors.foreground }]}>{t("orgExport")}</Text>
                 </TouchableOpacity>
                 <TouchableOpacity
                   style={[styles.adminActionBtn, { backgroundColor: colors.card, borderColor: colors.border }]}
                   onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); router.push("/elected-members" as any); }}
                 >
                   <Feather name="user-check" size={16} color={colors.primary} />
-                  <Text style={[styles.adminActionLabel, { color: colors.foreground }]}>Mandats élus</Text>
+                  <Text style={[styles.adminActionLabel, { color: colors.foreground }]}>{t("orgElectedMandates")}</Text>
                 </TouchableOpacity>
               </View>
             </View>
@@ -719,6 +746,8 @@ export default function OrganigrammeScreen() {
         onClose={() => setSelectedNode(null)}
         isAdmin={isAdminOrAbove}
         colors={colors}
+        t={t}
+        locale={locale}
       />
     </View>
   );

@@ -80,3 +80,9 @@
 - Replaced raw report API errors with shared localized loading/error recovery states and added localized share-failure feedback.
 - Audited `artifacts/mobile/app/actions.tsx` and replaced hardcoded action type/status labels, participation/support controls, metadata labels, demand/update section titles, and feedback with runtime translations.
 - Preserved optimistic cache updates, rollback behavior, API contracts, and administrator visibility while making action errors recoverable and localized.
+- Audited `artifacts/mobile/app/organigramme.tsx` and wired its existing translation dictionary into hierarchy levels, governance statistics, national status cards, role details, permissions, vacant positions, and admin actions.
+- Added locale-aware mandate date rendering, recoverable initial loading errors, translated share content, and visible share-failure feedback without changing governance APIs or role boundaries.
+- Audited `artifacts/mobile/app/travaux-privatifs.tsx` and replaced visible French-only work types, statuses, approval steps, decision history, statistics, forms, confirmations, and action labels with runtime translations.
+- Added dedicated `privateWorks*` translation coverage for `fr`, `en`, `ar`, and `es`, including localized placeholders, validation messages, final-decision warnings, and withdrawal confirmations.
+- Replaced the private-works spinner and toast-only initial failure path with shared animated loading and retryable error states; mutation failures now use safe localized guidance instead of raw API messages.
+- Preserved the existing private-works API endpoints, resident withdrawal flow, administrator review/committee/vote/decision actions, and role behavior.
