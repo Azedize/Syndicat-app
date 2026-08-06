@@ -20,3 +20,5 @@
 - Documents Dashboard now translates its overview, counts, lifecycle widgets, validation pipeline, retention expiry, recent-document state, status badges, and administrator actions for `fr`, `en`, `ar`, and `es`.
 - Administrative Acts now translates lifecycle status/type labels, filters, detail metadata, signatory and recipient sections, PDF/share/delete actions, creation form labels/placeholders, validation feedback, and action errors for `fr`, `en`, `ar`, and `es`.
 - Sinistres & Incidents now translates claim types, lifecycle statuses, urgency levels, counters, empty/loading/recovery states, declaration form labels/placeholders, and submission feedback for `fr`, `en`, `ar`, and `es`.
+- Mon Lot now translates personal unit details, building metadata, charge summaries, payment statuses, tabs, quick actions, missing-unit guidance, loading/recovery states, and document guidance for `fr`, `en`, `ar`, and `es`.
+- Mon Bail & Loyer now translates lease and apartment details, tenant role/status, emergency contacts, loading/recovery/no-data states, help guidance, and resident actions for `fr`, `en`, `ar`, and `es`.

@@ -35,3 +35,5 @@
 - Documents Dashboard now provides a consistent multilingual summary, status pipeline, retention-expiry section, recent-document view, and role-scoped quick-action surface.
 - Administrative Acts now distinguishes loading, unavailable data, true empty results, and filtered empty results while keeping its admin-only create, status, and delete actions intact.
 - Sinistres & Incidents now provides a unified four-language experience for claim declaration and monitoring, with contextual loading, retryable recovery, safe error feedback, and guided empty states.
+- Mon Lot now provides a unified four-language personal-unit experience with guided loading, explicit missing-unit messaging, separate financial recovery, translated payment states, and clear resident quick actions.
+- Mon Bail & Loyer now provides a unified four-language tenant lease experience with guided loading, safe retryable recovery, explicit no-lease guidance, translated statuses, and clear resident actions.

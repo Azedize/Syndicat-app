@@ -365,6 +365,8 @@ interface DataContextType {
   candidates: Candidate[];
   meetings: Meeting[];
   documents: Document[];
+  documentsLoading: boolean;
+  documentsLoadError: boolean;
   products: Product[];
   transactions: Transaction[];
   salaries: SalaryRecord[];
@@ -479,6 +481,8 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
   const [candidates, setCandidates] = useState<Candidate[]>([]);
   const [meetings, setMeetings] = useState<Meeting[]>([]);
   const [documents, setDocuments] = useState<Document[]>([]);
+  const [documentsLoading, setDocumentsLoading] = useState(false);
+  const [documentsLoadError, setDocumentsLoadError] = useState(false);
   const [products, setProducts] = useState<Product[]>([]);
   const [transactions, setTransactions] = useState<Transaction[]>([]);
   const [salaries, setSalaries] = useState<SalaryRecord[]>([]);
@@ -505,6 +509,8 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
   useEffect(() => {
     if (!user) return;
     let cancelled = false;
+    setDocumentsLoading(true);
+    setDocumentsLoadError(false);
     async function loadFromApi() {
       try {
         const results = await Promise.allSettled([
@@ -915,22 +921,28 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
 
         if (documentsRes.status === "fulfilled") {
           const rows = (documentsRes.value as { data: unknown[] }).data;
-          if (rows?.length) {
-            setDocuments(rows.map((r: unknown) => {
-              const row = r as Record<string, unknown>;
-              return {
-                id: String(row.id),
-                title: String(row.title ?? ""),
-                category: (row.category as Document["category"]) ?? "statuts",
-                date: String(row.date ?? row.createdAt ?? ""),
-                size: String(row.size ?? ""),
-                status: (row.status as Document["status"]) ?? "published",
-                content: row.content != null ? String(row.content) : undefined,
-              };
-            }));
-          }
+          setDocuments((rows ?? []).map((r: unknown) => {
+            const row = r as Record<string, unknown>;
+            return {
+              id: String(row.id),
+              title: String(row.title ?? ""),
+              category: (row.category as Document["category"]) ?? "statuts",
+              date: String(row.date ?? row.createdAt ?? ""),
+              size: String(row.size ?? ""),
+              status: (row.status as Document["status"]) ?? "published",
+              content: row.content != null ? String(row.content) : undefined,
+            };
+          }));
+          setDocumentsLoadError(false);
+        } else {
+          setDocumentsLoadError(true);
         }
+        setDocumentsLoading(false);
       } catch {
+        if (!cancelled) {
+          setDocumentsLoadError(true);
+          setDocumentsLoading(false);
+        }
         // API call failed (network/auth error): keep whatever was already
         // loaded (or the empty initial state) rather than throwing — this
         // effect has no UI-visible error surface, and other screens read
@@ -1066,6 +1078,7 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
   };
 
   const refreshDocuments = async () => {
+    setDocumentsLoading(true);
     try {
       const res = await api.documents.list();
       const rows = (res as { data: unknown[] }).data ?? [];
@@ -1081,8 +1094,12 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
           content: row.content != null ? String(row.content) : undefined,
         };
       }));
+      setDocumentsLoadError(false);
     } catch {
-      // Silently keep existing list on refresh failure
+      setDocumentsLoadError(true);
+      throw new Error("DOCUMENTS_REFRESH_FAILED");
+    } finally {
+      setDocumentsLoading(false);
     }
   };
   const deleteProduct = (id: string) => {
@@ -1315,7 +1332,7 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
   return (
     <DataContext.Provider
       value={{
-        members, elections, candidates, meetings, documents, products,
+        members, elections, candidates, meetings, documents, documentsLoading, documentsLoadError, products,
         transactions, salaries, caisseEntries, conversations, messages,
         syndicates, legalAlerts, supportTickets, orders, cotisations, alerts,
         publications, cart, bonsLivraison, invoices, reviews,

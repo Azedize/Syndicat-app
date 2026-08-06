@@ -51,3 +51,11 @@
 - Added explicit claims loading and retryable unavailable-data states; claim submission failures now use safe localized guidance instead of exposing raw API messages.
 - Preserved the existing Sinistres role guard and authenticated server scoping, including the personal-scope behavior for residents handled by the API.
 - Fixed an incorrect named `EmptyState` import and boolean error reset in `artifacts/mobile/app/repertoire-juridique.tsx`, which were blocking the mobile typecheck.
+- Audited `artifacts/mobile/app/mon-lot.tsx` and replaced visible French-only unit, building, charge, payment, document, and quick-action copy with shared runtime translations.
+- Added separate `lotLoadError` and `chargesLoadError` handling for the two parallel personal-data requests; charge failures no longer leave misleading zero-valued financial summaries.
+- Reused existing global translation keys where available and removed duplicate dictionary keys introduced during the pass.
+- Audited `artifacts/mobile/app/mon-bail.tsx`; replaced hardcoded lease, tenant, apartment, emergency-contact, status, help, and action copy with shared runtime translations.
+- Replaced the tenant lease spinner and raw error/empty fallback with shared loading, retryable error, and explicit no-lease states.
+- Kept the existing tenant-only RoleGuard and `locataires.myLease()` API behavior unchanged.
+- Audited `artifacts/mobile/app/travaux.tsx`; replaced raw API error fallbacks in assignment, report submission, validation, and creation workflows with localized safe messages.
+- Updated silent travaux refresh failures to show the existing localized recovery toast instead of failing invisibly while retaining already-loaded records.

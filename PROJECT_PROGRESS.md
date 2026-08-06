@@ -41,3 +41,16 @@
 - Completed the Sinistres & Incidents enterprise UX pass: localized claim types, statuses, urgency levels, summaries, forms, empty states, and feedback across French, English, Arabic, and Spanish.
 - Added a contextual loading state and retryable unavailable-data recovery to claims without changing the existing role guard or server-side syndicate scoping.
 - Cleared two unrelated mobile typecheck blockers in the legal directory so the package verification completed cleanly.
+- Completed the Mon Lot enterprise UX pass: localized personal unit details, building metadata, quick actions, charge summaries, payment statuses, and document guidance across French, English, Arabic, and Spanish.
+- Added separate retryable recovery for the personal lot request and fund-call request, avoiding fabricated financial totals when charge data is unavailable.
+- Preserved the existing owner/governance role guard, personal lot endpoint, payment navigation, and pull-to-refresh behavior.
+- Completed the Mon Bail & Loyer enterprise UX pass: localized lease status, lease/apartment/emergency-contact details, tenant guidance, and resident actions across French, English, Arabic, and Spanish.
+- Added guided loading, retryable lease-data recovery, and a distinct no-lease state without exposing raw API errors or changing tenant-only access.
+## Session — 2026-08-06 (Enterprise UX Pass: equipe-syndic, assemblee-generale, documents fix)
+
+### Completed
+- **equipe-syndic.tsx**: Full enterprise rewrite — `useLanguage` + `t()` throughout, proper loading/error/empty states with retry, editable syndicate contact modal, role-colored member cards with call/email actions, `RefreshControl`, all strings localized
+- **assemblee-generale.tsx**: Full enterprise rewrite — `useLanguage` + `t()` throughout, loading/error/empty states with retry, localized TYPE_CONFIG / STATUS_CONFIG / MAJORITY_LABELS (now dynamic via `t()`), all JSX strings localized, vote registration with tantiemes, PV modal, add-resolution modal, attendance confirmation, admin status transitions, `RoleGuard` wrapper
+- **documents.tsx**: Fixed pre-existing TS errors — added `t` to `useLanguage()` destructuring; fixed `CATS[].label` → `t(CATS[].labelKey)` at two call sites
+- **LanguageContext.tsx**: Added 112 new translation keys for equipe-syndic and assemblee-generale (all 4 languages: fr/en/ar/es)
+- Typecheck: `pnpm --filter @workspace/mobile run typecheck` — 0 errors ✓

@@ -7,7 +7,7 @@
  */
 import { Feather } from "@expo/vector-icons";
 import { router } from "expo-router";
-import React, { useEffect, useState } from "react";
+import React, { useCallback, useEffect, useState } from "react";
 import {
   ActivityIndicator,
   Platform,
@@ -20,8 +20,10 @@ import {
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useAuth } from "@/context/AuthContext";
 import { useColors } from "@/hooks/useColors";
+import { useLanguage } from "@/context/LanguageContext";
 import { locataires, type ApiTenantLease } from "@/services/api";
 import RoleGuard from "@/components/RoleGuard";
+import { ErrorState, LoadingState } from "@/components/DataState";
 
 interface InfoRowProps {
   label: string;
@@ -45,17 +47,17 @@ function InfoRow({ label, value, icon, color = "#2563EB" }: InfoRowProps) {
   );
 }
 
-function formatDate(value: string | null): string {
-  if (!value) return "Non renseignée";
+function formatDate(value: string | null, missingLabel: string): string {
+  if (!value) return missingLabel;
   const d = new Date(value);
   if (isNaN(d.getTime())) return value;
   return d.toLocaleDateString("fr-FR", { day: "2-digit", month: "long", year: "numeric" });
 }
 
-function formatMAD(value: string | null): string {
-  if (!value) return "— MAD";
+function formatMAD(value: string | null, missingLabel: string): string {
+  if (!value) return `${missingLabel} MAD`;
   const n = Number(value);
-  return isNaN(n) ? "— MAD" : `${n.toLocaleString("fr-FR")} MAD`;
+  return isNaN(n) ? `${missingLabel} MAD` : `${n.toLocaleString("fr-FR")} MAD`;
 }
 
 // Mon Bail — lease details for tenants only. Owners and governance roles have Mon Lot instead.
@@ -71,43 +73,67 @@ function MonBailScreenInner() {
   const colors = useColors();
   const insets = useSafeAreaInsets();
   const { user } = useAuth();
+  const { t } = useLanguage();
   const [lease, setLease] = useState<ApiTenantLease | null>(null);
   const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
+  const [loadError, setLoadError] = useState(false);
 
   const topPad = Platform.OS === "web" ? 67 : insets.top;
 
-  useEffect(() => {
-    let cancelled = false;
+  const loadLease = useCallback(async () => {
     setLoading(true);
-    locataires.myLease()
-      .then((res) => { if (!cancelled) setLease(res.data); })
-      .catch((e) => { if (!cancelled) setError(e?.message ?? "Impossible de charger votre bail"); })
-      .finally(() => { if (!cancelled) setLoading(false); });
-    return () => { cancelled = true; };
+    setLoadError(false);
+    try {
+      const res = await locataires.myLease();
+      setLease(res.data ?? null);
+    } catch {
+      setLoadError(true);
+    } finally {
+      setLoading(false);
+    }
   }, []);
+
+  useEffect(() => { void loadLease(); }, [loadLease]);
 
   if (loading) {
     return (
       <View style={[styles.root, styles.centered, { backgroundColor: colors.background }]}>
-        <ActivityIndicator color={colors.primary} />
+        <LoadingState
+          title={t("monLeaseLoadingTitle")}
+          description={t("monLeaseLoadingDescription")}
+          accentColor={colors.primary}
+        />
       </View>
     );
   }
 
-  if (error || !lease) {
+  if (loadError) {
+    return (
+      <View style={[styles.root, { backgroundColor: colors.background }]}>
+        <ErrorState
+          title={t("monLeaseUnavailableTitle")}
+          description={t("monLeaseUnavailableDescription")}
+          retryLabel={t("retry")}
+          onRetry={() => void loadLease()}
+          accentColor={colors.primary}
+        />
+      </View>
+    );
+  }
+
+  if (!lease) {
     return (
       <View style={[styles.root, { backgroundColor: colors.background }]}>
         <View style={[styles.header, { paddingTop: topPad + 12, backgroundColor: colors.card, borderBottomColor: colors.border }]}>
           <TouchableOpacity style={styles.backBtn} onPress={() => router.back()} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
             <Feather name="arrow-left" size={22} color={colors.foreground} />
           </TouchableOpacity>
-          <Text style={[styles.headerTitle, { color: colors.foreground }]}>Mon Bail & Loyer</Text>
+          <Text style={[styles.headerTitle, { color: colors.foreground }]}>{t("monBailTitle")} &amp; {t("rentTitle")}</Text>
         </View>
         <View style={[styles.centered, { flex: 1, gap: 12, padding: 24 }]}>
           <Feather name="file-text" size={40} color={colors.mutedForeground} />
           <Text style={[styles.infoNoteText, { color: colors.mutedForeground, textAlign: "center" }]}>
-            {error ?? "Aucun bail n'est encore associé à votre compte. Contactez votre syndic si vous pensez qu'il s'agit d'une erreur."}
+            {t("monLeaseNoDataDescription")}
           </Text>
         </View>
       </View>
@@ -125,7 +151,7 @@ function MonBailScreenInner() {
         >
           <Feather name="arrow-left" size={22} color={colors.foreground} />
         </TouchableOpacity>
-        <Text style={[styles.headerTitle, { color: colors.foreground }]}>Mon Bail & Loyer</Text>
+        <Text style={[styles.headerTitle, { color: colors.foreground }]}>{t("monBailTitle")} &amp; {t("rentTitle")}</Text>
       </View>
 
       <ScrollView
@@ -141,44 +167,44 @@ function MonBailScreenInner() {
           </View>
           <View style={{ flex: 1 }}>
             <Text style={styles.cardName}>{user?.name ?? "—"}</Text>
-            <Text style={styles.cardRole}>Locataire</Text>
+            <Text style={styles.cardRole}>{t("roleTenant")}</Text>
           </View>
           <View style={[styles.activeBadge]}>
             <Feather name={lease.status === "active" ? "check-circle" : "clock"} size={12} color="#fff" />
             <Text style={styles.activeBadgeText}>
-              {lease.status === "active" ? "Actif" : lease.status === "pending" ? "En attente" : lease.status === "expired" ? "Expiré" : lease.status ?? "—"}
+              {lease.status === "active" ? t("statusActive") : lease.status === "pending" ? t("statusPending") : lease.status === "expired" ? t("statusExpired") : lease.status ?? t("na")}
             </Text>
           </View>
         </View>
 
         <View style={[styles.section, { backgroundColor: colors.card, borderColor: colors.border }]}>
-          <Text style={[styles.sectionTitle, { color: colors.mutedForeground }]}>INFORMATIONS DU BAIL</Text>
-          <InfoRow label="Type de bail" value={lease.lotType ?? "Non renseigné"} icon="file-text" color="#3b82f6" />
-          <InfoRow label="Date de début" value={formatDate(lease.leaseStart)} icon="calendar" color="#10b981" />
-          <InfoRow label="Date de fin" value={formatDate(lease.leaseEnd)} icon="calendar" color="#f59e0b" />
-          <InfoRow label="Loyer mensuel" value={formatMAD(lease.monthlyRent)} icon="credit-card" color="#2563EB" />
-          <InfoRow label="Caution versée" value={formatMAD(lease.depositAmount)} icon="shield" color="#6366f1" />
+          <Text style={[styles.sectionTitle, { color: colors.mutedForeground }]}>{t("monLeaseInformationSection")}</Text>
+          <InfoRow label={t("monLeaseTypeLabel")} value={lease.lotType ?? t("notProvided")} icon="file-text" color="#3b82f6" />
+          <InfoRow label={t("leaseStart")} value={formatDate(lease.leaseStart, t("notProvided"))} icon="calendar" color="#10b981" />
+          <InfoRow label={t("leaseEnd")} value={formatDate(lease.leaseEnd, t("notProvided"))} icon="calendar" color="#f59e0b" />
+          <InfoRow label={t("monthlyRent")} value={formatMAD(lease.monthlyRent, t("na"))} icon="credit-card" color="#2563EB" />
+          <InfoRow label={t("monLeaseDepositLabel")} value={formatMAD(lease.depositAmount, t("na"))} icon="shield" color="#6366f1" />
         </View>
 
         <View style={[styles.section, { backgroundColor: colors.card, borderColor: colors.border }]}>
-          <Text style={[styles.sectionTitle, { color: colors.mutedForeground }]}>APPARTEMENT</Text>
-          <InfoRow label="Résidence" value={lease.buildingName ?? "Non renseignée"} icon="home" color="#2563EB" />
-          <InfoRow label="Numéro de lot" value={lease.lotNumber ?? "Non renseigné"} icon="grid" color="#3b82f6" />
-          <InfoRow label="Étage" value={lease.floor != null ? String(lease.floor) : "Non renseigné"} icon="layers" color="#10b981" />
+          <Text style={[styles.sectionTitle, { color: colors.mutedForeground }]}>{t("monLeaseApartmentSection")}</Text>
+          <InfoRow label={t("residence")} value={lease.buildingName ?? t("notProvided")} icon="home" color="#2563EB" />
+          <InfoRow label={t("lotNumber")} value={lease.lotNumber ?? t("notProvided")} icon="grid" color="#3b82f6" />
+          <InfoRow label={t("floor")} value={lease.floor != null ? String(lease.floor) : t("notProvided")} icon="layers" color="#10b981" />
         </View>
 
         {(lease.emergencyContact || lease.emergencyPhone) && (
           <View style={[styles.section, { backgroundColor: colors.card, borderColor: colors.border }]}>
-            <Text style={[styles.sectionTitle, { color: colors.mutedForeground }]}>CONTACT D'URGENCE</Text>
-            <InfoRow label="Nom" value={lease.emergencyContact ?? "—"} icon="user" color="#ef4444" />
-            <InfoRow label="Téléphone" value={lease.emergencyPhone ?? "—"} icon="phone" color="#ef4444" />
+            <Text style={[styles.sectionTitle, { color: colors.mutedForeground }]}>{t("monLeaseEmergencySection")}</Text>
+            <InfoRow label={t("name")} value={lease.emergencyContact ?? t("na")} icon="user" color="#ef4444" />
+            <InfoRow label={t("phone")} value={lease.emergencyPhone ?? t("na")} icon="phone" color="#ef4444" />
           </View>
         )}
 
         <View style={[styles.infoNote, { backgroundColor: colors.secondary, borderColor: colors.border }]}>
           <Feather name="info" size={14} color={colors.primary} />
           <Text style={[styles.infoNoteText, { color: colors.mutedForeground }]}>
-            Pour toute question concernant votre bail, contactez votre syndic via le chat ou ouvrez une demande d'intervention.
+            {t("monLeaseHelpText")}
           </Text>
         </View>
 
@@ -190,7 +216,7 @@ function MonBailScreenInner() {
             activeOpacity={0.82}
           >
             <Feather name="message-circle" size={16} color="#fff" />
-            <Text style={styles.actionBtnText}>Contacter le Syndic</Text>
+            <Text style={styles.actionBtnText}>{t("contactSyndic")}</Text>
           </TouchableOpacity>
           <TouchableOpacity
             style={[styles.actionBtn, { backgroundColor: colors.card, borderWidth: 1, borderColor: colors.border }]}
@@ -198,7 +224,7 @@ function MonBailScreenInner() {
             activeOpacity={0.82}
           >
             <Feather name="folder" size={16} color={colors.primary} />
-            <Text style={[styles.actionBtnText, { color: colors.primary }]}>Mes Documents</Text>
+            <Text style={[styles.actionBtnText, { color: colors.primary }]}>{t("myDocuments")}</Text>
           </TouchableOpacity>
         </View>
       </ScrollView>

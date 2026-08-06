@@ -13,6 +13,7 @@ import {
   Image,
   Modal,
   Platform,
+  RefreshControl,
   ScrollView,
   StyleSheet,
   Text,
@@ -36,15 +37,17 @@ import MemberDocumentRequest from "@/components/MemberDocumentRequest";
 import TemplateRequestModal from "@/components/TemplateRequestModal";
 import SignatureOrderPanel from "@/components/SignatureOrderPanel";
 import DocumentBundleModal, { type BundleType } from "@/components/DocumentBundleModal";
+import EmptyState from "@/components/EmptyState";
+import { ErrorState, LoadingState } from "@/components/DataState";
 
 // ─── Constants ────────────────────────────────────────────────────────────────
 
 const CATS = [
-  { key: "all",        label: "Tous"         },
-  { key: "pv",         label: "PV"           },
-  { key: "juridique",  label: "Juridique"    },
-  { key: "finances",   label: "Finances"     },
-  { key: "attestation",label: "Attestations" },
+  { key: "all",         labelKey: "documentCategoryAll" },
+  { key: "pv",          labelKey: "documentCategoryPv" },
+  { key: "juridique",   labelKey: "documentCategoryLegal" },
+  { key: "finances",    labelKey: "documentCategoryFinance" },
+  { key: "attestation", labelKey: "documentCategoryCertificate" },
 ];
 
 const CAT_ICONS: Record<string, keyof typeof Feather.glyphMap> = {
@@ -145,12 +148,19 @@ export default function DocumentsScreen() {
   const insets          = useSafeAreaInsets();
   const { showToast }   = useToast();
   const { user }        = useAuth();
-  const { documents, updateDocument, refreshDocuments, deleteDocument } = useData();
+  const {
+    documents,
+    documentsLoading,
+    documentsLoadError,
+    updateDocument,
+    refreshDocuments,
+    deleteDocument,
+  } = useData();
   const { logActivity } = useActivity();
   const { toggleFavorite, isFavorite } = useFavorites();
   const FAV_ID = "screen-documents";
   const { isWide } = useBreakpoints();
-  const { lang, isRTL } = useLanguage();
+  const { lang, isRTL, t } = useLanguage();
   const topPad = isWide ? 0 : (Platform.OS === "web" ? 67 : insets.top);
   // isAdmin controls viewing and document workflow (approve/reject/generate).
   // super_admin is excluded from write actions on syndicate documents per spec:
@@ -161,6 +171,7 @@ export default function DocumentsScreen() {
   // List / filter
   const [category, setCategory] = useState("all");
   const [search,   setSearch]   = useState("");
+  const [refreshing, setRefreshing] = useState(false);
 
   // Selected document
   const [selected, setSelected] = useState<Document | null>(null);
@@ -249,18 +260,33 @@ export default function DocumentsScreen() {
 
   const statusConfig = (status: string): { label: string; color: string } =>
     ({
-      published:      { label: "Publié",       color: colors.success },
-      draft:          { label: "Brouillon",     color: colors.mutedForeground },
-      pending:        { label: "En attente",    color: "#f59e0b" },
-      generated:      { label: "Généré",        color: "#3b82f6" },
-      pending_review: { label: "En révision",   color: "#f59e0b" },
-      validated:      { label: "Validé",        color: "#10b981" },
-      signed:         { label: "Signé",         color: "#8b5cf6" },
-      archived:       { label: "Archivé",       color: colors.mutedForeground },
-      rejected:       { label: "Rejeté",        color: "#ef4444" },
-      expired:        { label: "Expiré",        color: "#dc2626" },
+      published:      { label: t("docStatusPublished"),     color: colors.success },
+      draft:          { label: t("docStatusDraft"),         color: colors.mutedForeground },
+      pending:        { label: t("docStatusPending"),       color: "#f59e0b" },
+      generated:      { label: t("docStatusGenerated"),     color: "#3b82f6" },
+      pending_review: { label: t("docStatusPendingReview"), color: "#f59e0b" },
+      validated:      { label: t("docStatusValidated"),     color: "#10b981" },
+      signed:         { label: t("docStatusSigned"),         color: "#8b5cf6" },
+      archived:       { label: t("docStatusArchived"),      color: colors.mutedForeground },
+      rejected:       { label: t("docStatusRejected"),      color: "#ef4444" },
+      expired:        { label: t("docStatusExpired"),       color: "#dc2626" },
     } as Record<string, { label: string; color: string }>)[status]
     ?? { label: status, color: colors.mutedForeground };
+
+  const handleRefreshDocuments = async () => {
+    setRefreshing(true);
+    try {
+      await refreshDocuments();
+    } catch {
+      showToast({
+        type: "error",
+        title: t("documentsUnavailableTitle"),
+        message: t("documentsUnavailableDescription"),
+      });
+    } finally {
+      setRefreshing(false);
+    }
+  };
 
   // ─── Generate ────────────────────────────────────────────────────────────────
 
@@ -353,7 +379,7 @@ export default function DocumentsScreen() {
       const filename  = (res as any).filename as string | undefined;
 
       if (!signedUrl) {
-        setDlState((s) => ({ ...s, phase: "error", errorMsg: "Aucun fichier PDF disponible pour ce document." }));
+        setDlState((s) => ({ ...s, phase: "error", errorMsg: t("downloadNoFile") }));
         return;
       }
 
@@ -405,7 +431,7 @@ export default function DocumentsScreen() {
       const result = await dl.downloadAsync();
 
       if (!result?.uri) {
-        setDlState((s) => ({ ...s, phase: "error", errorMsg: "Téléchargement interrompu." }));
+        setDlState((s) => ({ ...s, phase: "error", errorMsg: t("downloadInterrupted") }));
         return;
       }
 
@@ -431,10 +457,7 @@ export default function DocumentsScreen() {
       setDlState((s) => ({
         ...s,
         phase: "error",
-        errorMsg:
-          err?.message && !err.message.startsWith("HTTP")
-            ? err.message
-            : "Échec du téléchargement. Vérifiez votre connexion et réessayez.",
+        errorMsg: t("downloadFailed"),
       }));
     }
   };
@@ -770,11 +793,13 @@ export default function DocumentsScreen() {
           <Feather name="arrow-left" size={22} color={colors.foreground} />
         </TouchableOpacity>
         <View style={{ flex: 1 }}>
-          <Text style={[styles.title, { color: colors.foreground }]}>Documents</Text>
-          <Text style={[styles.subtitle, { color: colors.mutedForeground }]}>{filtered.length} document(s)</Text>
+          <Text style={[styles.title, { color: colors.foreground }]}>{t("documentsTitle")}</Text>
+          <Text style={[styles.subtitle, { color: colors.mutedForeground }]}>
+            {t("documentsCount").replace("{count}", String(filtered.length))}
+          </Text>
         </View>
         <TouchableOpacity
-          onPress={() => toggleFavorite({ id: FAV_ID, title: "Documents", icon: "file-text", color: "#6366f1", route: "/documents" })}
+          onPress={() => toggleFavorite({ id: FAV_ID, title: t("documentsTitle"), icon: "file-text", color: "#6366f1", route: "/documents" })}
           style={{ padding: 6 }}
           hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
         >
@@ -830,7 +855,7 @@ export default function DocumentsScreen() {
         <Feather name="search" size={16} color={colors.mutedForeground} />
         <TextInput
           style={[styles.searchInput, { color: colors.foreground }]}
-          placeholder="Rechercher un document..."
+          placeholder={t("documentSearchPlaceholder")}
           placeholderTextColor={colors.mutedForeground}
           value={search}
           onChangeText={setSearch}
@@ -838,7 +863,12 @@ export default function DocumentsScreen() {
         {search ? <TouchableOpacity onPress={() => setSearch("")}><Feather name="x" size={16} color={colors.mutedForeground} /></TouchableOpacity> : null}
       </View>
 
-      <FilterChips options={CATS} value={category} onChange={setCategory} accentColor={colors.primary} />
+      <FilterChips
+        options={CATS.map((c) => ({ key: c.key, label: t(c.labelKey) }))}
+        value={category}
+        onChange={setCategory}
+        accentColor={colors.primary}
+      />
 
       {/* ── Stats row ── */}
       <View style={[styles.statsRow, { backgroundColor: colors.card, borderBottomColor: colors.border }]}>
@@ -856,16 +886,40 @@ export default function DocumentsScreen() {
       </View>
 
       {/* ── Document list ── */}
+      {documentsLoading ? (
+        <LoadingState
+          title={t("documentsLoadingTitle")}
+          description={t("documentsLoadingDescription")}
+          accentColor={colors.primary}
+        />
+      ) : documentsLoadError ? (
+        <ErrorState
+          title={t("documentsUnavailableTitle")}
+          description={t("documentsUnavailableDescription")}
+          retryLabel={t("retry")}
+          onRetry={() => void handleRefreshDocuments()}
+          accentColor={colors.primary}
+        />
+      ) : (
       <FlatList
         data={filtered}
         keyExtractor={(d) => d.id}
-        contentContainerStyle={{ padding: 14, gap: 10, paddingBottom: insets.bottom + 40 }}
+        contentContainerStyle={{ flexGrow: filtered.length === 0 ? 1 : undefined, padding: 14, gap: 10, paddingBottom: insets.bottom + 40 }}
+        refreshControl={
+          <RefreshControl
+            refreshing={refreshing}
+            onRefresh={() => void handleRefreshDocuments()}
+            tintColor={colors.primary}
+          />
+        }
         showsVerticalScrollIndicator={false}
         ListEmptyComponent={
-          <View style={styles.empty}>
-            <Feather name="file-text" size={40} color={colors.mutedForeground} />
-            <Text style={[styles.emptyText, { color: colors.mutedForeground }]}>Aucun document trouvé</Text>
-          </View>
+          <EmptyState
+            icon="file-text"
+            title={documents.length === 0 ? t("noDocuments") : t("noDocumentsForFilter")}
+            description={documents.length === 0 ? t("noDocumentsDescription") : t("noDocumentsForFilterDescription")}
+            accentColor={colors.primary}
+          />
         }
         renderItem={({ item: d }) => {
           const sc       = statusConfig(d.status);
@@ -900,6 +954,7 @@ export default function DocumentsScreen() {
           );
         }}
       />
+      )}
 
       {/* ── Member document request modal ── */}
       <MemberDocumentRequest
@@ -979,8 +1034,8 @@ export default function DocumentsScreen() {
             <View style={{ flex: 1, marginLeft: 10 }}>
               <Text style={[styles.dlTitle, { color: colors.foreground }]} numberOfLines={1}>{dlState.docTitle}</Text>
               <Text style={[styles.dlSub, { color: colors.mutedForeground }]}>
-                {dlState.phase === "fetching_url"  ? "Préparation…"
-                  : dlState.phase === "done"        ? "Téléchargement terminé"
+                {dlState.phase === "fetching_url"  ? t("downloadPreparing")
+                  : dlState.phase === "done"        ? t("downloadComplete")
                   : dlState.phase === "error"       ? dlState.errorMsg ?? "Erreur"
                   : (() => {
                       const mb   = (dlState.bytesDownloaded / (1024 * 1024)).toFixed(1);
@@ -1031,7 +1086,7 @@ export default function DocumentsScreen() {
                 onPress={() => openDownloadedFile(dlState.localUri!)}
               >
                 <Feather name="share-2" size={14} color="#fff" />
-                <Text style={styles.dlBtnText}>Ouvrir / Partager</Text>
+                <Text style={styles.dlBtnText}>{t("downloadOpenShare")}</Text>
               </TouchableOpacity>
               <TouchableOpacity
                 style={[styles.dlBtn, { backgroundColor: colors.muted, borderWidth: 1, borderColor: colors.border }]}
@@ -1050,7 +1105,7 @@ export default function DocumentsScreen() {
               }}
             >
               <Feather name="refresh-cw" size={14} color="#fff" />
-              <Text style={styles.dlBtnText}>Réessayer</Text>
+                <Text style={styles.dlBtnText}>{t("retry")}</Text>
             </TouchableOpacity>
           ) : null}
         </View>
@@ -1079,7 +1134,7 @@ export default function DocumentsScreen() {
                 <View style={[detailStyles.headerDocType, { backgroundColor: catColor + "15" }]}>
                   <Feather name={CAT_ICONS[selected.category] ?? "file-text"} size={13} color={catColor} />
                   <Text style={[detailStyles.headerDocTypeText, { color: catColor }]}>
-                    {CATS.find((c) => c.key === selected.category)?.label ?? selected.category}
+                    {t(CATS.find((c) => c.key === selected.category)?.labelKey ?? selected.category)}
                   </Text>
                 </View>
               </View>
@@ -1165,7 +1220,7 @@ export default function DocumentsScreen() {
                     {([
                       { icon: "hash"        as const, label: DOC_STRINGS.docNumber[lang],       value: docRef,                                                  valueColor: undefined                                                                                     },
                       { icon: "layers"      as const, label: DOC_STRINGS.version[lang],          value: "v1.0",                                                  valueColor: undefined                                                                                     },
-                      { icon: "tag"         as const, label: DOC_STRINGS.category[lang],         value: CATS.find((c) => c.key === selected.category)?.label ?? selected.category,  valueColor: catColor                                                             },
+                      { icon: "tag"         as const, label: DOC_STRINGS.category[lang],         value: t(CATS.find((c) => c.key === selected.category)?.labelKey ?? selected.category),  valueColor: catColor                                                             },
                       { icon: "activity"    as const, label: DOC_STRINGS.status[lang],           value: sc.label,                                                valueColor: sc.color                                                                                      },
                       { icon: "calendar"    as const, label: DOC_STRINGS.createdDate[lang],      value: selected.date,                                           valueColor: undefined                                                                                     },
                       { icon: "refresh-cw"  as const, label: DOC_STRINGS.updatedDate[lang],      value: selected.date,                                           valueColor: undefined                                                                                     },

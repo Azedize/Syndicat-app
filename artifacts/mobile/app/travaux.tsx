@@ -317,7 +317,7 @@ function TravauxScreenInner() {
       await travauxApi.assign(actionTravail.id, assignPrestataireId.trim());
       closeActionModal();
       load(true);
-    } catch (e: any) { showToast({ type: "error", title: STRINGS.errorTitle[lang], message: e?.message ?? STRINGS.assignmentError[lang] }); }
+    } catch { showToast({ type: "error", title: STRINGS.errorTitle[lang], message: STRINGS.assignmentError[lang] }); }
     finally { setActionBusy(false); }
   };
 
@@ -348,7 +348,7 @@ function TravauxScreenInner() {
       closeActionModal();
       showToast({ type: "success", title: STRINGS.reportSubmitted[lang], message: STRINGS.reportSubmittedMsg[lang] });
       load(true);
-    } catch (e: any) { showToast({ type: "error", title: STRINGS.errorTitle[lang], message: e?.message ?? STRINGS.submissionError[lang] }); }
+    } catch { showToast({ type: "error", title: STRINGS.errorTitle[lang], message: STRINGS.submissionError[lang] }); }
     finally { setActionBusy(false); }
   };
 
@@ -362,8 +362,8 @@ function TravauxScreenInner() {
             await travauxApi.validate(t.id);
             showToast({ type: "success", title: STRINGS.worksValidated[lang], message: STRINGS.worksValidatedMsg[lang] });
             load(true);
-          } catch (e: any) {
-            showToast({ type: "error", title: STRINGS.errorTitle[lang], message: e?.message ?? STRINGS.validationError[lang] });
+          } catch {
+            showToast({ type: "error", title: STRINGS.errorTitle[lang], message: STRINGS.validationError[lang] });
           }
         },
       },
@@ -376,9 +376,11 @@ function TravauxScreenInner() {
       const qs = filter !== "all" ? `?status=${filter}` : "";
       const data = await apiRequest(`/travaux${qs}`, "GET", undefined, token);
       setTravaux(data.data ?? []);
-    } catch (e: any) {
+    } catch {
       if (!silent) {
         setLoadError(true);
+        showToast({ type: "error", title: STRINGS.loadingError[lang], message: STRINGS.errorDescription[lang] });
+      } else {
         showToast({ type: "error", title: STRINGS.loadingError[lang], message: STRINGS.errorDescription[lang] });
       }
     }
@@ -400,8 +402,8 @@ function TravauxScreenInner() {
       setForm({ title: "", description: "", type: "entretien", priority: "normal", buildingId: "" });
       showToast({ type: "success", title: STRINGS.worksCreated[lang], message: STRINGS.worksCreatedMsg[lang] });
       load(true);
-    } catch (e: any) {
-      showToast({ type: "error", title: STRINGS.errorTitle[lang], message: e?.message ?? STRINGS.createError[lang] });
+    } catch {
+      showToast({ type: "error", title: STRINGS.errorTitle[lang], message: STRINGS.createError[lang] });
     } finally { setSubmitting(false); }
   };
 

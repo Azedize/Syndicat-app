@@ -67,3 +67,10 @@
 - `git diff --check -- artifacts/mobile/app/sinistres.tsx artifacts/mobile/context/LanguageContext.tsx artifacts/mobile/app/repertoire-juridique.tsx` — passed.
 - Restarted `artifacts/mobile: expo`; Metro started successfully. API workflow also restarted successfully with one existing non-blocking duplicate-schema-key warning.
 - Mobile Expo preview screenshot for `/sinistres` at 402×874 — protected route remained safely inaccessible without a session; `/welcome` rendered successfully. Browser logs contained only existing Expo web compatibility warnings.
+- `pnpm --filter @workspace/mobile run typecheck` — passed after the Mon Lot pass.
+- `git diff --check -- artifacts/mobile/app/mon-lot.tsx artifacts/mobile/context/LanguageContext.tsx` — passed.
+- Expo web bundle rebuilt successfully after the Mon Lot changes; `/mon-lot` remained protected without a session. Browser logs contained only existing Expo web compatibility warnings.
+- `pnpm --filter @workspace/mobile run typecheck` — passed after the Mon Bail & Loyer pass.
+- `git diff --check -- artifacts/mobile/app/mon-bail.tsx artifacts/mobile/app/mon-lot.tsx artifacts/mobile/context/LanguageContext.tsx` — passed.
+- Expo web bundle rebuilt successfully after the paired resident/tenant changes; `/mon-bail` remained protected without a session and displayed the guarded loading boundary. Browser logs contained only existing Expo web compatibility warnings.
+- `pnpm --filter @workspace/mobile run typecheck` and `git diff --check` — rerun after the Travaux safe-error follow-up.
