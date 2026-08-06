@@ -27,6 +27,7 @@ import { useLanguage } from "@/context/LanguageContext";
 import { useToast } from "@/context/ToastContext";
 import { elections as electionsApi } from "@/services/api";
 import { pickAndUploadPhoto } from "@/lib/upload";
+import { ErrorState, LoadingState } from "@/components/DataState";
 
 type ElectionStatus =
   | "draft" | "candidacy_open" | "campaign" | "open" | "closed"
@@ -192,8 +193,8 @@ function ElectionsScreenInner() {
   const voteMutation = useMutation({
     mutationFn: ({ candidateId, abstain, onBehalfOfUserId }: { candidateId?: string; abstain?: boolean; onBehalfOfUserId?: string }) =>
       electionsApi.vote(selectedId!, candidateId, abstain, onBehalfOfUserId),
-    onSuccess: () => { invalidate(); Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success); showToast({ type: "success", title: t("castVote"), message: "✓" }); },
-    onError: (err: Error) => { Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error); showToast({ type: "error", title: t("elections"), message: err.message }); },
+    onSuccess: () => { invalidate(); Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success); showToast({ type: "success", title: t("voteRegisteredTitle"), message: t("voteRegisteredMsg") }); },
+    onError: () => { Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error); showToast({ type: "error", title: t("elections"), message: t("electionVoteFailed") }); },
   });
 
   const createMutation = useMutation({
@@ -203,19 +204,19 @@ function ElectionsScreenInner() {
       setShowCreate(false);
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
     },
-    onError: (err: Error) => showToast({ type: "error", title: t("elections"), message: err.message }),
+    onError: () => showToast({ type: "error", title: t("elections"), message: t("electionCreateFailed") }),
   });
 
   const transitionMutation = useMutation({
     mutationFn: ({ action, reason, tiebreakWinnerIds }: { action: string; reason?: string; tiebreakWinnerIds?: string[] }) =>
       electionsApi.transition(selectedId!, action, reason, tiebreakWinnerIds),
-    onSuccess: (res) => { invalidate(); refetchDetail(); Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success); showToast({ type: "success", title: t("elections"), message: res.message }); },
+    onSuccess: () => { invalidate(); refetchDetail(); Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success); showToast({ type: "success", title: t("elections"), message: t("electionActionCompleted") }); },
     onError: (err: any) => {
       if (err.code === "TIE_DETECTED" && err.body?.tiedCandidates) {
         promptTieResolution(err.body.tiedCandidates, err.body.remainingSeats, []);
         return;
       }
-      showToast({ type: "error", title: t("elections"), message: err.message });
+      showToast({ type: "error", title: t("elections"), message: t("electionActionFailed") });
     },
   });
 
@@ -249,44 +250,44 @@ function ElectionsScreenInner() {
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
       showToast({ type: "success", message: t("elections") });
     },
-    onError: (err: Error) => showToast({ type: "error", title: t("elections"), message: err.message }),
+    onError: () => showToast({ type: "error", title: t("elections"), message: t("electionCandidacyFailed") }),
   });
 
   const validateMutation = useMutation({
     mutationFn: ({ candidateId, decision }: { candidateId: string; decision: "approved" | "rejected" }) =>
       electionsApi.validateCandidacy(selectedId!, candidateId, decision),
     onSuccess: () => { invalidate(); refetchDetail(); },
-    onError: (err: Error) => showToast({ type: "error", title: t("elections"), message: err.message }),
+    onError: () => showToast({ type: "error", title: t("elections"), message: t("electionActionFailed") }),
   });
 
   const withdrawMutation = useMutation({
     mutationFn: (candidateId: string) => electionsApi.withdrawCandidacy(selectedId!, candidateId),
     onSuccess: () => { invalidate(); refetchDetail(); },
-    onError: (err: Error) => showToast({ type: "error", title: t("elections"), message: err.message }),
+    onError: () => showToast({ type: "error", title: t("elections"), message: t("electionActionFailed") }),
   });
 
   const askMutation = useMutation({
     mutationFn: ({ candidateId, question }: { candidateId: string; question: string }) => electionsApi.askQuestion(selectedId!, candidateId, question),
     onSuccess: (_r, vars) => { refetchDetail(); setQuestionDraft((p) => ({ ...p, [vars.candidateId]: "" })); },
-    onError: (err: Error) => showToast({ type: "error", title: t("elections"), message: err.message }),
+    onError: () => showToast({ type: "error", title: t("elections"), message: t("electionQuestionFailed") }),
   });
 
   const answerMutation = useMutation({
     mutationFn: ({ questionId, answer }: { questionId: string; answer: string }) => electionsApi.answerQuestion(selectedId!, questionId, answer),
     onSuccess: (_r, vars) => { refetchDetail(); setAnswerDraft((p) => ({ ...p, [vars.questionId]: "" })); },
-    onError: (err: Error) => showToast({ type: "error", title: t("elections"), message: err.message }),
+    onError: () => showToast({ type: "error", title: t("elections"), message: t("electionQuestionFailed") }),
   });
 
   const resignMutation = useMutation({
     mutationFn: (mandateId: string) => electionsApi.resignMandate(mandateId),
     onSuccess: () => { invalidate(); refetchDetail(); },
-    onError: (err: Error) => showToast({ type: "error", title: t("elections"), message: err.message }),
+    onError: () => showToast({ type: "error", title: t("elections"), message: t("electionActionFailed") }),
   });
 
   const revokeMandateMutation = useMutation({
     mutationFn: ({ mandateId, reason }: { mandateId: string; reason: string }) => electionsApi.revokeMandate(mandateId, reason),
     onSuccess: () => { invalidate(); refetchDetail(); },
-    onError: (err: Error) => showToast({ type: "error", title: t("elections"), message: err.message }),
+    onError: () => showToast({ type: "error", title: t("elections"), message: t("electionActionFailed") }),
   });
 
   const { data: eligibleVotersData } = useQuery({
@@ -298,19 +299,19 @@ function ElectionsScreenInner() {
   const delegateMutation = useMutation({
     mutationFn: (granteeId: string) => electionsApi.delegate(selectedId!, granteeId),
     onSuccess: () => { invalidate(); refetchDetail(); setShowDelegatePicker(false); Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success); showToast({ type: "success", message: t("elections") }); },
-    onError: (err: Error) => showToast({ type: "error", title: t("elections"), message: err.message }),
+    onError: () => showToast({ type: "error", title: t("elections"), message: t("electionActionFailed") }),
   });
 
   const revokeDelegationMutation = useMutation({
     mutationFn: () => electionsApi.revokeDelegation(selectedId!),
     onSuccess: () => { invalidate(); refetchDetail(); },
-    onError: (err: Error) => showToast({ type: "error", title: t("elections"), message: err.message }),
+    onError: () => showToast({ type: "error", title: t("elections"), message: t("electionActionFailed") }),
   });
 
   const invalidVotesMutation = useMutation({
     mutationFn: (count: number) => electionsApi.setInvalidVotes(selectedId!, count),
     onSuccess: () => { invalidate(); refetchDetail(); Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success); showToast({ type: "success", message: t("elections") }); },
-    onError: (err: Error) => showToast({ type: "error", title: t("elections"), message: err.message }),
+    onError: () => showToast({ type: "error", title: t("elections"), message: t("electionActionFailed") }),
   });
 
   const electionList = data?.data ?? [];
@@ -404,7 +405,7 @@ function ElectionsScreenInner() {
     return (
       <View style={[styles.root, { backgroundColor: colors.background }]}>
         <Header colors={colors} topPad={topPad} title={t("elections")} onBack={() => router.back()} />
-        <View style={styles.center}><ActivityIndicator size="large" color={colors.primary} /></View>
+        <LoadingState title={t("loadingElections")} description={t("electionLoadDescription")} />
       </View>
     );
   }
@@ -413,11 +414,12 @@ function ElectionsScreenInner() {
     return (
       <View style={[styles.root, { backgroundColor: colors.background }]}>
         <Header colors={colors} topPad={topPad} title={t("elections")} onBack={() => router.back()} />
-        <View style={styles.center}>
-          <Feather name="wifi-off" size={40} color={colors.destructive} />
-          <Text style={[styles.centerText, { color: colors.mutedForeground }]}>{t("noElections")}</Text>
-          <TouchableOpacity style={[styles.retryBtn, { backgroundColor: colors.primary }]} onPress={() => refetch()}><Text style={styles.retryBtnText}>{t("voteNow")}</Text></TouchableOpacity>
-        </View>
+        <ErrorState
+          title={t("cannotLoadElections")}
+          description={t("electionUnavailableDescription")}
+          retryLabel={t("retry")}
+          onRetry={() => refetch()}
+        />
       </View>
     );
   }
@@ -734,7 +736,7 @@ function ElectionsScreenInner() {
                     const result = await pickAndUploadPhoto();
                     if (result) setCandPhoto(result.objectPath);
                   } catch (err: any) {
-                    showToast({ type: "error", title: t("elections"), message: err?.message ?? String(err) });
+                    showToast({ type: "error", title: t("elections"), message: t("electionPhotoUploadFailed") });
                   } finally {
                     setPhotoUploading(false);
                   }

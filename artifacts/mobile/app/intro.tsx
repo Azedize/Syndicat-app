@@ -27,6 +27,7 @@ import {
   Text,
   TouchableOpacity,
   View,
+  useWindowDimensions,
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import Svg, {
@@ -197,15 +198,63 @@ function BgDeco({ color }: { color: string }) {
   );
 }
 
-function PresentationImage({ source, compact = false }: { source: ImageSourcePropType; compact?: boolean }) {
+function DashboardPreview() {
+  return (
+    <View style={styles.dashboardPreview}>
+      <View style={styles.previewTopBar}>
+        <View style={styles.previewDot} />
+        <View style={styles.previewTopLine} />
+        <View style={styles.previewDotBlue} />
+      </View>
+      <View style={styles.previewHeroLine} />
+      <View style={styles.previewHeroLineShort} />
+      <View style={styles.previewKpiRow}>
+        <View style={styles.previewKpiCard}>
+          <View style={styles.previewKpiValue} />
+          <View style={styles.previewKpiLabel} />
+        </View>
+        <View style={styles.previewKpiCard}>
+          <View style={styles.previewKpiValueGreen} />
+          <View style={styles.previewKpiLabel} />
+        </View>
+      </View>
+      <View style={styles.previewChart}>
+        <View style={[styles.previewBar, { height: "34%" }]} />
+        <View style={[styles.previewBar, { height: "56%" }]} />
+        <View style={[styles.previewBar, { height: "43%" }]} />
+        <View style={[styles.previewBar, { height: "78%" }]} />
+        <View style={[styles.previewBar, { height: "64%" }]} />
+        <View style={[styles.previewLine, { bottom: "46%" }]} />
+      </View>
+      <View style={styles.previewBottomRow}>
+        <View style={styles.previewBottomPill} />
+        <View style={styles.previewBottomPillShort} />
+      </View>
+    </View>
+  );
+}
+
+function PresentationImage({
+  source,
+  compact = false,
+  kind,
+}: {
+  source: ImageSourcePropType;
+  compact?: boolean;
+  kind?: string;
+}) {
   return (
     <View style={[styles.presentationFrame, compact && styles.presentationFrameCompact]}>
-      <Image
-        source={source}
-        style={styles.presentationImage}
-        resizeMode="cover"
-        accessibilityLabel="Aperçu réel de l'application MIZAN"
-      />
+      {kind === "dashboard" ? (
+        <DashboardPreview />
+      ) : (
+        <Image
+          source={source}
+          style={styles.presentationImage}
+          resizeMode="cover"
+          accessibilityLabel="Aperçu réel de l'application MIZAN"
+        />
+      )}
     </View>
   );
 }
@@ -214,7 +263,9 @@ function PresentationImage({ source, compact = false }: { source: ImageSourcePro
 
 function Slide({ item, index, scrollX }: { item: typeof SLIDES[0], index: number, scrollX: Animated.Value }) {
   const { isDark } = useTheme();
-  const compact = H < 760;
+  const { height: viewportHeight } = useWindowDimensions();
+  const compact = viewportHeight < 760;
+  const veryCompact = viewportHeight < 680;
   
   const inputRange = [(index - 1) * W, index * W, (index + 1) * W];
   
@@ -231,22 +282,28 @@ function Slide({ item, index, scrollX }: { item: typeof SLIDES[0], index: number
       <LinearGradient colors={gradientColors} style={StyleSheet.absoluteFill} start={{ x: 0, y: 0 }} end={{ x: 0, y: 1 }} />
       <BgDeco color={item.color} />
       
-      <View style={{ flex: 1, paddingHorizontal: 24, paddingTop: Platform.OS === "ios" ? 80 : 60, paddingBottom: 120 }}>
+      <View
+        style={[
+          styles.slideBody,
+          compact && styles.slideBodyCompact,
+          veryCompact && styles.slideBodyVeryCompact,
+        ]}
+      >
         
         {/* TOP ZONE (30%) */}
-        <Animated.View style={[styles.topZone, compact && styles.topZoneCompact, { transform: [{ translateX: txPhone }] }]}>
+        <Animated.View style={[styles.topZone, compact && styles.topZoneCompact, veryCompact && styles.topZoneVeryCompact, { transform: [{ translateX: txPhone }] }]}>
           <View style={styles.topZoneHeader}>
             <View style={[styles.tagBadge, { backgroundColor: item.color }]}>
               <Text style={styles.tagText}>{item.tag}</Text>
             </View>
           </View>
-          <PresentationImage source={item.image} compact={compact} />
+          <PresentationImage source={item.image} compact={compact || veryCompact} kind={item.id} />
         </Animated.View>
 
         {/* CONTENT ZONE (40%) */}
-        <Animated.View style={[styles.contentZone, compact && styles.contentZoneCompact, { transform: [{ translateX: txContent }] }]}>
-          <Text style={styles.slideTitle}>{item.title}</Text>
-          <Text style={styles.slideSubtitle}>{item.subtitle}</Text>
+        <Animated.View style={[styles.contentZone, compact && styles.contentZoneCompact, veryCompact && styles.contentZoneVeryCompact, { transform: [{ translateX: txContent }] }]}>
+          <Text style={[styles.slideTitle, compact && styles.slideTitleCompact]} numberOfLines={2}>{item.title}</Text>
+          <Text style={[styles.slideSubtitle, compact && styles.slideSubtitleCompact]} numberOfLines={2}>{item.subtitle}</Text>
           
           <View style={[styles.kpiRow, compact && styles.kpiRowCompact]}>
             {item.kpis.map((kpi, kIdx) => (
@@ -259,13 +316,13 @@ function Slide({ item, index, scrollX }: { item: typeof SLIDES[0], index: number
         </Animated.View>
 
         {/* FEATURES ZONE (30%) */}
-        <Animated.View style={[styles.featuresZone, compact && styles.featuresZoneCompact, { transform: [{ translateX: txFeatures }] }]}>
+        <Animated.View style={[styles.featuresZone, compact && styles.featuresZoneCompact, veryCompact && styles.featuresZoneVeryCompact, { transform: [{ translateX: txFeatures }] }]}>
           {item.features.map((feat, fIdx) => (
             <View key={fIdx} style={styles.featureRow}>
               <View style={[styles.featureCheck, { backgroundColor: item.color }]}>
                 <Feather name="check" size={14} color="#FFF" />
               </View>
-              <Text style={styles.featureText}>{feat}</Text>
+              <Text style={styles.featureText} numberOfLines={1}>{feat}</Text>
             </View>
           ))}
         </Animated.View>
@@ -305,6 +362,8 @@ export default function IntroScreen() {
         ref={scrollViewRef}
         horizontal
         pagingEnabled
+        style={styles.introScroll}
+        contentContainerStyle={styles.introScrollContent}
         showsHorizontalScrollIndicator={false}
         onScroll={handleScroll}
         scrollEventThrottle={16}
@@ -374,20 +433,47 @@ export default function IntroScreen() {
 
 const styles = StyleSheet.create({
   root: { flex: 1, backgroundColor: "#070D1A" },
+  introScroll: { flex: 1, width: "100%" },
+  introScrollContent: { flexGrow: 1 },
 
-  topZone: { flex: 0, height: 350, alignItems: "center", justifyContent: "flex-start" },
-  topZoneCompact: { height: 280 },
+  slideBody: { flex: 1, paddingHorizontal: 24, paddingTop: Platform.OS === "ios" ? 80 : 60, paddingBottom: 120 },
+  slideBodyCompact: { paddingHorizontal: 20, paddingTop: 62, paddingBottom: 108 },
+  slideBodyVeryCompact: { paddingTop: 54, paddingBottom: 98 },
+  topZone: { flex: 0, height: 270, alignItems: "center", justifyContent: "flex-start" },
+  topZoneCompact: { height: 220 },
+  topZoneVeryCompact: { height: 182 },
   topZoneHeader: { marginBottom: 10, alignItems: "center" },
   tagBadge: { paddingHorizontal: 12, paddingVertical: 6, borderRadius: 20, borderWidth: 1, borderColor: "rgba(255,255,255,0.3)" },
   tagText: { fontFamily: "Inter_600SemiBold", fontSize: 11, color: "#FFF", letterSpacing: 1.5 },
-  presentationFrame: { width: 128, height: 250, borderRadius: 28, backgroundColor: "#071326", padding: 5, borderWidth: 1, borderColor: "rgba(255,255,255,0.32)", shadowColor: "#000", shadowOffset: { width: 0, height: 10 }, shadowOpacity: 0.3, shadowRadius: 16, elevation: 10, overflow: "hidden" },
-  presentationFrameCompact: { width: 100, height: 195, borderRadius: 23, padding: 4 },
+  presentationFrame: { width: 128, height: 220, borderRadius: 28, backgroundColor: "#071326", padding: 5, borderWidth: 1, borderColor: "rgba(255,255,255,0.32)", shadowColor: "#000", shadowOffset: { width: 0, height: 10 }, shadowOpacity: 0.3, shadowRadius: 16, elevation: 10, overflow: "hidden" },
+  presentationFrameCompact: { width: 104, height: 174, borderRadius: 23, padding: 4 },
   presentationImage: { flex: 1, width: "100%", height: "100%", borderRadius: 23 },
+  dashboardPreview: { flex: 1, borderRadius: 23, padding: 10, backgroundColor: "#0B327F", overflow: "hidden" },
+  previewTopBar: { flexDirection: "row", alignItems: "center", gap: 5, marginBottom: 12 },
+  previewDot: { width: 7, height: 7, borderRadius: 4, backgroundColor: "#35D39A" },
+  previewDotBlue: { width: 7, height: 7, borderRadius: 4, backgroundColor: "#70A9FF", marginLeft: "auto" },
+  previewTopLine: { width: 44, height: 5, borderRadius: 3, backgroundColor: "rgba(255,255,255,0.78)" },
+  previewHeroLine: { width: "78%", height: 8, borderRadius: 4, backgroundColor: "#FFFFFF", marginBottom: 5 },
+  previewHeroLineShort: { width: "52%", height: 6, borderRadius: 3, backgroundColor: "rgba(255,255,255,0.58)", marginBottom: 12 },
+  previewKpiRow: { flexDirection: "row", gap: 6 },
+  previewKpiCard: { flex: 1, height: 42, borderRadius: 8, padding: 7, backgroundColor: "rgba(255,255,255,0.15)", borderWidth: 1, borderColor: "rgba(255,255,255,0.22)" },
+  previewKpiValue: { width: "42%", height: 7, borderRadius: 3, backgroundColor: "#FFFFFF", marginBottom: 5 },
+  previewKpiValueGreen: { width: "55%", height: 7, borderRadius: 3, backgroundColor: "#65E5B1", marginBottom: 5 },
+  previewKpiLabel: { width: "76%", height: 4, borderRadius: 2, backgroundColor: "rgba(255,255,255,0.52)" },
+  previewChart: { flex: 1, minHeight: 58, marginTop: 12, borderRadius: 9, padding: 8, flexDirection: "row", alignItems: "flex-end", gap: 5, backgroundColor: "rgba(3,18,60,0.2)" },
+  previewBar: { flex: 1, borderRadius: 3, backgroundColor: "rgba(255,255,255,0.36)" },
+  previewLine: { position: "absolute", left: 8, right: 8, height: 2, borderRadius: 1, backgroundColor: "#65E5B1" },
+  previewBottomRow: { flexDirection: "row", gap: 8, marginTop: 10 },
+  previewBottomPill: { flex: 1, height: 7, borderRadius: 4, backgroundColor: "rgba(255,255,255,0.35)" },
+  previewBottomPillShort: { width: "24%", height: 7, borderRadius: 4, backgroundColor: "#65E5B1" },
 
-  contentZone: { flex: 0, minHeight: 220, justifyContent: "center", paddingTop: 8 },
-  contentZoneCompact: { minHeight: 190 },
+  contentZone: { flex: 0, minHeight: 212, justifyContent: "center", paddingTop: 8 },
+  contentZoneCompact: { minHeight: 174 },
+  contentZoneVeryCompact: { minHeight: 154 },
   slideTitle: { fontFamily: "Inter_700Bold", fontSize: 30, color: "#FFF", letterSpacing: -0.5, lineHeight: 36 },
+  slideTitleCompact: { fontSize: 27, lineHeight: 32 },
   slideSubtitle: { fontFamily: "Inter_400Regular", fontSize: 15, color: "rgba(255,255,255,0.7)", marginTop: 6, lineHeight: 21 },
+  slideSubtitleCompact: { fontSize: 14, lineHeight: 19, marginTop: 4 },
   
   kpiRow: { flexDirection: "row", gap: 12, marginTop: 18 },
   kpiRowCompact: { gap: 8, marginTop: 14 },
@@ -398,6 +484,7 @@ const styles = StyleSheet.create({
 
   featuresZone: { flex: 1, justifyContent: "flex-start", gap: 14, paddingTop: 8 },
   featuresZoneCompact: { gap: 9, paddingTop: 6 },
+  featuresZoneVeryCompact: { gap: 7, paddingTop: 4 },
   featureRow: { flexDirection: "row", alignItems: "center", gap: 12 },
   featureCheck: { width: 24, height: 24, borderRadius: 12, alignItems: "center", justifyContent: "center", borderWidth: 1, borderColor: "rgba(255,255,255,0.2)" },
   featureText: { fontFamily: "Inter_500Medium", fontSize: 15, color: "#FFF" },

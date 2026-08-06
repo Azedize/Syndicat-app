@@ -2,6 +2,12 @@
 
 ## 2026-08-06
 
+- Audited the governance follow-through screens: `elections.tsx`, `elected-members.tsx`, and `meetings.tsx`.
+- Replaced raw election mutation errors and server messages with safe localized recovery copy; vote success now explains secure anonymous recording instead of showing a placeholder check mark.
+- Added shared `LoadingState`/`ErrorState` surfaces to elections and elected mandates, including localized retry guidance and translated mandate-role metadata.
+- Added a domain-specific meetings load-error flag to `DataContext` so the meetings screen can distinguish failed retrieval from a genuine empty list during the shared API fan-out.
+- Localized meeting creation/edit placeholders and added explicit synchronization/unavailable states without changing meeting CRUD, attendance, calendar, or PV navigation behavior.
+
 - Audited `artifacts/mobile/app/workflow.tsx` against the enterprise requirement that all visible text use the internationalization system.
 - Added localized fallback messages for workflow loading, decision saving, workflow creation, and missing documents.
 - Wired workflow detail actions and creation form labels to the screen translation dictionary.

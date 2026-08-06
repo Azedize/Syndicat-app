@@ -10,6 +10,7 @@ import { useBreakpoints } from "@/hooks/useBreakpoints";
 import { useColors } from "@/hooks/useColors";
 import { useLanguage } from "@/context/LanguageContext";
 import { elections as electionsApi } from "@/services/api";
+import { ErrorState, LoadingState } from "@/components/DataState";
 
 interface Mandate {
   id: string;
@@ -22,16 +23,6 @@ interface Mandate {
   mandateEnd: string | null;
   status: "active" | "expired" | "resigned" | "revoked";
 }
-
-const ROLE_LABELS: Record<string, string> = {
-  president: "Président",
-  vice_president: "Vice-président",
-  secretary: "Secrétaire",
-  treasurer: "Trésorier",
-  committee_member: "Membre du conseil",
-  building_representative: "Représentant d'immeuble",
-  member: "Membre",
-};
 
 export default function ElectedMembersScreen() {
   return (
@@ -52,7 +43,7 @@ function ElectedMembersInner() {
   // President and secretary manage elected member mandates and delegations.
   const isAdmin = user?.role === "syndicate_admin" || user?.role === "president" || user?.role === "secretary";
 
-  const { data, isLoading, refetch } = useQuery({
+  const { data, isLoading, isError, refetch } = useQuery({
     queryKey: ["mandates"],
     queryFn: () => electionsApi.mandates() as Promise<{ data: Mandate[] }>,
   });
@@ -60,10 +51,19 @@ function ElectedMembersInner() {
   const resignMutation = useMutation({
     mutationFn: (id: string) => electionsApi.resignMandate(id),
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ["mandates"] }),
-    onError: (err: Error) => Alert.alert(t("elections"), err.message),
+    onError: () => Alert.alert(t("elections"), t("electionActionFailed")),
   });
 
   const mandates = (data?.data ?? []).filter((m) => m.status === "active" || m.status === "resigned");
+  const roleLabel = (role: string) => ({
+    president: t("mandateRolePresident"),
+    vice_president: t("mandateRoleVicePresident"),
+    secretary: t("mandateRoleSecretary"),
+    treasurer: t("mandateRoleTreasurer"),
+    committee_member: t("mandateRoleCommitteeMember"),
+    building_representative: t("mandateRoleBuildingRepresentative"),
+    member: t("mandateRoleMember"),
+  }[role] ?? role);
 
   return (
     <View style={[styles.root, { backgroundColor: colors.background }]}>
@@ -75,7 +75,14 @@ function ElectedMembersInner() {
       </View>
 
       {isLoading ? (
-        <View style={styles.center}><ActivityIndicator size="large" color={colors.primary} /></View>
+        <LoadingState title={t("electedMembers")} description={t("mandatesLoadDescription")} />
+      ) : isError ? (
+        <ErrorState
+          title={t("electedMembers")}
+          description={t("mandatesUnavailableDescription")}
+          retryLabel={t("retry")}
+          onRetry={() => refetch()}
+        />
       ) : (
         <FlatList
           data={mandates}
@@ -95,7 +102,7 @@ function ElectedMembersInner() {
               </View>
               <View style={{ flex: 1, gap: 2 }}>
                 <Text style={[styles.name, { color: colors.foreground }]}>{m.name}</Text>
-                <Text style={[styles.role, { color: colors.mutedForeground }]}>{ROLE_LABELS[m.role] ?? m.role}</Text>
+                <Text style={[styles.role, { color: colors.mutedForeground }]}>{roleLabel(m.role)}</Text>
                 {m.mandateStart ? <Text style={[styles.date, { color: colors.mutedForeground }]}>{t("mandateActive")}: {m.mandateStart}</Text> : null}
               </View>
               {m.status === "resigned" ? (

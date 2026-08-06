@@ -2,6 +2,12 @@
 
 ## 2026-08-06
 
+- Completed the governance follow-through pass across Elections, Elected Members, and Meetings.
+- Elections now use guided loading/unavailable states, safe localized mutation feedback, translated vote confirmation, and localized photo-upload recovery without exposing raw API messages.
+- Elected mandates now use localized role labels, explicit loading/retry states, and safe resignation feedback.
+- Meetings now distinguish initial synchronization, failed meetings retrieval, and genuine empty results while preserving existing creation, editing, attendance, and document workflows.
+- Mobile typecheck passed with zero errors; Expo restarted successfully with no new runtime exceptions.
+
 - Completed an internationalization pass for the approval workflow mobile screen.
 - Replaced visible hardcoded labels, actions, form placeholders, document errors, and workflow progress text with French, English, Arabic, and Spanish translations.
 - Corrected status and priority rendering so translated labels are displayed instead of internal translation keys.
@@ -102,3 +108,6 @@
 - Continued the Finance pass on fund calls and payment history: amounts and dates now use the active locale, payment methods and remaining visible labels are translated, and the period selector filters transactions and KPI totals.
 - Added a recoverable payment-history error state based on the shared data load status, while keeping loading and filtered-empty states distinct and preserving existing role permissions and actions.
 - Mobile typecheck and diff validation passed; the Expo preview rebuilt successfully at 402×874 with only existing non-blocking web compatibility warnings.
+- Completed the Finance dashboard formatting and data-state pass: all dashboard MAD values now use the active locale, contract end dates are localized, and financial summaries no longer fall back to compact non-localized amounts.
+- Preserved the previous dashboard data while switching buildings and added an explicit loading surface for a dashboard that has not returned yet, avoiding misleading empty content during API transitions.
+- Mobile typecheck and diff validation passed; Metro rebuilt successfully and the protected dashboard preview redirected safely without new runtime exceptions.

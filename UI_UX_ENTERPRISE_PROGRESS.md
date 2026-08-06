@@ -3,6 +3,10 @@
 
 ## 2026-08-06
 
+- Elections now provides a consistent four-language governance experience with safe action feedback, secure vote confirmation, guided loading/unavailable states, and localized candidacy/photo recovery.
+- Elected Members now provides translated mandate roles and explicit loading/retry/error states instead of a blank spinner.
+- Meetings now distinguishes synchronization, unavailable data, and genuine empty results, with translated form guidance and no raw API error exposure.
+
 - Improved workflow decision and creation flows by ensuring every visible action and input hint responds to runtime language changes.
 - Preserved existing touch interactions, haptic feedback, API persistence, and RTL-compatible translation content.
 - Improved confidence in provider assignment and intervention reporting by ensuring every success, error, confirmation, and upload state follows the selected language.
@@ -17,6 +21,7 @@
 - Provider and contract management now provides localized operational feedback and explicit loading, retry, and empty states.
 - Charges and fund calls now expose locale-aware MAD/date formatting, translated payment methods, a localized retryable loading error, and a clearer translated empty state for filtered results.
 - Payment history now applies period selectors to the transaction list and KPI totals, keeps financial exports, receipts, and shareable transaction details aligned with the selected language, and exposes recoverable API errors separately from empty results.
+- Financial dashboard now applies the active locale to all MAD summaries, budget/work/provider amounts, and contract dates, while preserving successful data during building transitions and showing an explicit loading surface before the first dashboard response.
 - Invoices now provide localized progress and recovery feedback for PDF generation, proof upload, creation, and sending.
 - Contributions now provide consistent localized loading, error recovery, status, receipt, and secure payment experiences.
 - Budget now provides explicit loading, retryable error, empty, and PDF feedback states without hardcoded execution dates.
@@ -79,7 +84,7 @@
 - TypeScript: 0 erreurs
 
 ### Prochains modules à traiter
-- Tableau de bord financier (charges et paiements désormais traités)
+- Assemblée Générale / Élections
 - Assemblée Générale / Élections
 - Documents & Signatures
 - Profil & Paramètres

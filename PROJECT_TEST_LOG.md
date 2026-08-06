@@ -1,6 +1,9 @@
+- 2026-08-06 — Governance follow-through verification: `pnpm --filter @workspace/mobile run typecheck` passed with zero errors; `git diff --check` passed; Expo workflow restarted successfully with Metro waiting and no new runtime exceptions.
 # Project Test Log
 
 ## 2026-08-06
+
+- Governance follow-through verification: `pnpm --filter @workspace/mobile run typecheck` passed with zero errors; `git diff --check` passed; Expo workflow restarted successfully with Metro waiting and no new runtime exceptions.
 
 - `pnpm --filter @workspace/mobile run typecheck` — passed.
 - `git diff --check -- artifacts/mobile/app/workflow.tsx` — passed.
@@ -127,3 +130,7 @@
 - `pnpm --filter @workspace/mobile run typecheck` — passed with zero errors after the charges and payment-history Finance pass.
 - `git diff --check -- artifacts/mobile/app/charges.tsx artifacts/mobile/app/paiements.tsx artifacts/mobile/context/LanguageContext.tsx` — passed.
 - Expo mobile workflow remained healthy and the 402×874 preview rendered the public entry screen; no new browser runtime exception appeared beyond existing Expo web warnings.
+- `pnpm --filter @workspace/mobile run typecheck` — passed with zero errors after the financial dashboard formatting and loading-state pass.
+- `git diff --check -- artifacts/mobile/app/tableau-bord-financier.tsx` — passed.
+- Metro rebuilt the Expo bundle successfully; existing Expo package-version and web compatibility warnings remain non-blocking.
+- Mobile Expo preview screenshot for `/tableau-bord-financier` at 402×874 — protected route redirected to the public entry without exposing financial data or producing a new browser runtime exception.

@@ -1,3 +1,4 @@
+- 2026-08-06 — Governance screens now use consistent guided loading, recoverable unavailable-data states, localized semantic statuses, and translated form guidance across elections, mandates, and meetings.
 - Ma Boutique: replaced the generic spinner and silent failure surface with animated shared loading/recovery states, translated seller controls, clearer marketplace status hierarchy, and guided first-publication empty state.
 # UI/UX Design Log
 

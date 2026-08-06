@@ -2,6 +2,11 @@
 
 ## 2026-08-06
 
+- Elections: multilingual lifecycle actions, vote/candidacy feedback, safe mutation errors, guided loading/unavailable states, and upload recovery complete.
+- Elected Members: localized mandate roles, safe resignation feedback, and retryable loading/error states complete.
+- Meetings: shared fan-out loading/error distinction, localized form guidance, and recoverable unavailable-data state complete; existing meeting CRUD and attendance behavior preserved.
+- Mobile verification: zero-error typecheck, diff validation, and Expo workflow restart pass after the governance follow-through.
+
 - Governance: multilingual UX pass complete for board, commissions, mandates, delegations, statutes, detail modals, and management forms.
 - Mobile verification: typecheck and diff validation pass after the governance pass.
 - Sinistres & Incidents: multilingual UX, safe feedback, guided empty state, and retryable data recovery complete.
@@ -44,3 +49,5 @@
 - Mobile verification: zero-error typecheck, diff validation, Expo restart, and compact `/marketplace` preview pass; unauthenticated API 401 remains expected.
 - Finance — Charges & Payment History: locale-aware MAD/date formatting, translated payment-method and charge metadata, active period filtering for transactions/KPIs, and distinct loading/error/empty recovery states complete; existing role permissions and payment actions preserved.
 - Mobile verification: zero-error typecheck, diff validation, and compact Expo preview pass; existing protected-route/auth behavior and web compatibility warnings remain non-blocking.
+- Finance — Financial Dashboard: locale-aware MAD formatting across summaries, KPIs, category breakdowns, work budgets, provider contracts, localized contract dates, and explicit dashboard loading recovery complete; building permissions and API data flow preserved.
+- Mobile verification: zero-error typecheck, diff validation, Metro rebuild, and protected compact preview pass.

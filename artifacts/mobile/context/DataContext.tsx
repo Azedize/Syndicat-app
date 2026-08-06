@@ -363,6 +363,7 @@ interface DataContextType {
   dataLoading: boolean;
   dataLoadError: boolean;
   refreshData: () => void;
+  meetingsLoadError: boolean;
   members: Member[];
   elections: Election[];
   candidates: Candidate[];
@@ -481,6 +482,7 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
   const { user } = useAuth();
   const [dataLoading, setDataLoading] = useState(false);
   const [dataLoadError, setDataLoadError] = useState(false);
+  const [meetingsLoadError, setMeetingsLoadError] = useState(false);
   const [dataRefreshKey, setDataRefreshKey] = useState(0);
   const [members, setMembers] = useState<Member[]>([]);
   const [elections, setElections] = useState<Election[]>([]);
@@ -517,6 +519,7 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
     let cancelled = false;
     setDataLoading(true);
     setDataLoadError(false);
+    setMeetingsLoadError(false);
     setDocumentsLoading(true);
     setDocumentsLoadError(false);
     async function loadFromApi() {
@@ -562,6 +565,8 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
           publicationsRes, notifPrefsRes, subsRes, plansRes, partnersRes, payslipsRes,
           documentsRes,
         ] = results;
+
+        setMeetingsLoadError(meetingsRes.status === "rejected");
 
         if (membersRes.status === "fulfilled") {
           const rows = (membersRes.value as { data: unknown[] }).data;
@@ -1350,7 +1355,7 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
   return (
     <DataContext.Provider
       value={{
-        dataLoading, dataLoadError, refreshData,
+        dataLoading, dataLoadError, refreshData, meetingsLoadError,
         members, elections, candidates, meetings, documents, documentsLoading, documentsLoadError, products,
         transactions, salaries, caisseEntries, conversations, messages,
         syndicates, legalAlerts, supportTickets, orders, cotisations, alerts,

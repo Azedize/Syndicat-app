@@ -2,6 +2,9 @@
 
 ## 2026-08-06
 
+- Elections and mandates continue to use the existing elections API as the source of truth; new localized status and recovery surfaces affect presentation and feedback only.
+- Meetings continue to consume the shared DataContext fan-out and existing meeting CRUD APIs; a domain-specific load flag prevents a rejected meetings request from masquerading as a genuine empty list.
+
 - Governance screen continues to consume the shared runtime language context for all visible interaction copy; dynamic names are interpolated into translated messages without changing the existing local/API state model.
 - Internal Messaging continues to use the existing announcements API as its source of truth; localized display fallbacks are injected at mapping time so API records remain unchanged while sender, audience, and message-type presentation follow the active language.
 - Documents Dashboard continues to derive lifecycle counts from the existing DataContext and retention summary endpoint; translations affect presentation only and do not alter document status filtering or API contracts.

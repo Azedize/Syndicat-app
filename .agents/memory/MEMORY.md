@@ -46,3 +46,4 @@
 - [Dashboard data state](dashboard-data-state.md) — home metrics use shared fan-out loading and partial-failure semantics; do not treat initial empty arrays as real zeros.
 - [Expo public entry](expo-public-entry.md) — public landing routes need an immediate root entry before session redirects.
 - [Small-screen mobile layout](small-screen-mobile-layout.md) — carousel mockups and auth option rows need explicit responsive bounds to prevent overlap on compact devices.
+- [Finance locale formatting](finance-locale-formatting.md) — user-facing financial amounts use active-locale MAD formatting, never compact k/M totals; dates follow the same locale.

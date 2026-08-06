@@ -633,42 +633,40 @@ interface DashboardData {
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
 /**
- * Format a number with French thousands-separator and MAD suffix.
- * Uses fr-FR (widely supported on Android/iOS) instead of fr-MA to avoid
- * missing-locale fallbacks that produce unformatted numbers like "25000 MAD".
- * Output: "450 MAD", "1 250 MAD", "25 000 MAD"
+ * Format a monetary value with the active app language and the MAD currency.
+ * The fallback keeps the amount readable on runtimes with limited Intl support.
  */
-function fmtMAD(n: number): string {
+function getLocale(lang: LangCode): string {
+  return lang === "ar" ? "ar-MA" : lang === "en" ? "en-US" : lang === "es" ? "es-ES" : "fr-FR";
+}
+
+function fmtMAD(n: number, lang: LangCode): string {
   if (!Number.isFinite(n) || isNaN(n)) return "0 MAD";
   try {
-    return (
-      new Intl.NumberFormat("fr-FR", { maximumFractionDigits: 0 }).format(
-        Math.round(n),
-      ) + " MAD"
-    );
+    return new Intl.NumberFormat(getLocale(lang), {
+      style: "currency",
+      currency: "MAD",
+      currencyDisplay: "code",
+      maximumFractionDigits: 0,
+    }).format(Math.round(n));
   } catch {
     // Absolute fallback — manual thousands grouping
     return String(Math.round(n)).replace(/\B(?=(\d{3})+(?!\d))/g, " ") + " MAD";
   }
 }
 
-/**
- * Compact display for axis labels / tiny spaces.
- * "25 000" → "25k", "1 200 000" → "1.2M"
- */
-function fmt(n: number): string {
-  if (!Number.isFinite(n) || isNaN(n)) return "0";
-  if (n >= 1_000_000) return `${(n / 1_000_000).toFixed(1)}M`;
-  if (n >= 1_000) return `${Math.round(n / 1_000)}k`;
-  return String(Math.round(n));
+function formatDate(value: string, lang: LangCode): string {
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return value;
+  return date.toLocaleDateString(getLocale(lang), {
+    day: "numeric",
+    month: "short",
+    year: "numeric",
+  });
 }
 
-/**
- * Full MAD value for KPI cards — shows "25 000 MAD" not "25k MAD".
- * Uses fmtMAD to guarantee proper thousands grouping on every device.
- */
-function kpiFmtMAD(n: number): string {
-  return fmtMAD(n);
+function kpiFmtMAD(n: number, lang: LangCode): string {
+  return fmtMAD(n, lang);
 }
 
 const CATEGORY_LABELS: Record<string, string> = {
@@ -909,12 +907,13 @@ function CategoryRow({
   color: string;
   styles: ReturnType<typeof createStyles>;
 }) {
+  const { lang } = useLanguage();
   const pct = total > 0 ? (amount / total) * 100 : 0;
   return (
     <View style={styles.catRow}>
       <View style={styles.catHeader}>
         <Text style={styles.catLabel}>{label}</Text>
-        <Text style={styles.catAmount}>{fmtMAD(amount)}</Text>
+        <Text style={styles.catAmount}>{fmtMAD(amount, lang)}</Text>
       </View>
       <View style={styles.catTrack}>
         {/* Percentage-based bar — fully responsive on all screen widths */}
@@ -958,7 +957,7 @@ function PendingActionsPanel({
             <View style={styles.pendingInfo}>
               <Text style={styles.pendingName}>{item.memberName}</Text>
               <Text style={styles.pendingLabel}>
-                {item.label} · {fmtMAD(item.amount)}
+                {item.label} · {fmtMAD(item.amount, lang)}
               </Text>
               <View
                 style={[
@@ -1032,6 +1031,7 @@ function TableauBordFinancierInner() {
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [data, setData] = useState<DashboardData | null>(null);
   const [loading, setLoading] = useState(true);
+  const [dashboardLoading, setDashboardLoading] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [section, setSection] = useState<"finance" | "travaux" | "prestataires">("finance");
@@ -1051,12 +1051,14 @@ function TableauBordFinancierInner() {
 
   const loadDashboard = useCallback(async (id: string) => {
     setError(null);
-    setData(null);
+    setDashboardLoading(true);
     try {
       const res = await apiRequest<{ data: DashboardData }>(`/finance/building/${id}`);
       setData(res.data);
     } catch (e: any) {
       setError(STRINGS.dashboardUnavailable[lang]);
+    } finally {
+      setDashboardLoading(false);
     }
   }, [lang]);
 
@@ -1253,7 +1255,17 @@ function TableauBordFinancierInner() {
         )}
 
         {!data && !error && (
-          <ActivityIndicator style={{ marginTop: 32 }} color={colors.primary} />
+          <View style={styles.inlineLoading}>
+            {dashboardLoading ? (
+              <LoadingState
+                title={STRINGS.loading[lang]}
+                description={STRINGS.dashboardUnavailable[lang]}
+                accentColor={colors.primary}
+              />
+            ) : (
+              <ActivityIndicator color={colors.primary} />
+            )}
+          </View>
         )}
 
         {data && (
@@ -1300,7 +1312,7 @@ function TableauBordFinancierInner() {
                   <View style={styles.triRow}>
                     <View style={styles.triItem}>
                       <Text style={styles.triVal}>
-                        {fmt(summary.totalEncaisse)}
+                        {fmtMAD(summary.totalEncaisse, lang)}
                       </Text>
                       <Text style={[styles.triLab, { color: colors.success }]}>
                         {STRINGS.collected[lang]}
@@ -1308,7 +1320,7 @@ function TableauBordFinancierInner() {
                     </View>
                     <View style={[styles.triItem, styles.triMid]}>
                       <Text style={styles.triVal}>
-                        {fmt(summary.totalImpaye)}
+                        {fmtMAD(summary.totalImpaye, lang)}
                       </Text>
                       <Text style={[styles.triLab, { color: colors.destructive }]}>
                         {STRINGS.unpaid[lang]}
@@ -1316,7 +1328,7 @@ function TableauBordFinancierInner() {
                     </View>
                     <View style={styles.triItem}>
                       <Text style={styles.triVal}>
-                        {fmt(summary.totalEnAttente)}
+                        {fmtMAD(summary.totalEnAttente, lang)}
                       </Text>
                       <Text style={[styles.triLab, { color: colors.warning }]}>
                         {STRINGS.pending[lang]}
@@ -1329,7 +1341,7 @@ function TableauBordFinancierInner() {
                 <View style={styles.kpiGrid}>
                   <KpiCard
                     label={STRINGS.annualBudget[lang]}
-                    value={kpiFmtMAD(summary.budgetAnnuel)}
+                    value={kpiFmtMAD(summary.budgetAnnuel, lang)}
                     color={colors.info}
                     icon="wallet-outline"
                     cardWidth={kpiCardWidth}
@@ -1337,8 +1349,8 @@ function TableauBordFinancierInner() {
                   />
                   <KpiCard
                     label={STRINGS.reserveFund[lang]}
-                    value={kpiFmtMAD(summary.fondsReserveCollecte)}
-                    sub={`/ ${fmt(summary.fondsReserveBudget)} ${STRINGS.planned[lang]}`}
+                    value={kpiFmtMAD(summary.fondsReserveCollecte, lang)}
+                    sub={`/ ${fmtMAD(summary.fondsReserveBudget, lang)} ${STRINGS.planned[lang]}`}
                     color={colors.tint}
                     icon="shield-checkmark-outline"
                     cardWidth={kpiCardWidth}
@@ -1377,7 +1389,7 @@ function TableauBordFinancierInner() {
                       {STRINGS.budgetDistribution[lang]} {new Date().getFullYear()}
                     </Text>
                     <Text style={styles.cardSub}>
-                      {STRINGS.totalBudget[lang]} : {fmtMAD(budgetTotal)}
+                      {STRINGS.totalBudget[lang]} : {fmtMAD(budgetTotal, lang)}
                     </Text>
                     {budgetCats
                       .sort(([, a], [, b]) => b - a)
@@ -1417,10 +1429,10 @@ function TableauBordFinancierInner() {
                             {ps.period}
                           </Text>
                           <Text style={[styles.td, { color: colors.success }]}>
-                            {fmt(ps.paid)}
+                            {fmtMAD(ps.paid, lang)}
                           </Text>
                           <Text style={[styles.td, { color: colors.destructive }]}>
-                            {fmt(ps.overdue)}
+                            {fmtMAD(ps.overdue, lang)}
                           </Text>
                           <Text style={[styles.td, { color: rColor, fontWeight: "700" }]}>
                             {ps.rate}%
@@ -1463,8 +1475,8 @@ function TableauBordFinancierInner() {
                   />
                   <KpiCard
                     label={STRINGS.estimatedBudget[lang]}
-                    value={kpiFmtMAD(data.travaux.budgetEstime)}
-                    sub={`${STRINGS.spent[lang]} : ${fmt(data.travaux.depenseReelle)} MAD`}
+                    value={kpiFmtMAD(data.travaux.budgetEstime, lang)}
+                    sub={`${STRINGS.spent[lang]} : ${fmtMAD(data.travaux.depenseReelle, lang)}`}
                     color={colors.tint}
                     icon="bar-chart-outline"
                     cardWidth={kpiCardWidth}
@@ -1516,7 +1528,7 @@ function TableauBordFinancierInner() {
                             {t.estimatedAmount && (
                               <Text style={styles.travauxAmt}>
                                 {" · "}
-                                {fmtMAD(t.estimatedAmount)}
+                                {fmtMAD(t.estimatedAmount, lang)}
                               </Text>
                             )}
                           </View>
@@ -1555,10 +1567,10 @@ function TableauBordFinancierInner() {
                     </View>
                     <View style={styles.gaugeHints}>
                       <Text style={styles.gaugeHint}>
-                        {STRINGS.spent[lang]} : {fmtMAD(data.travaux.depenseReelle)}
+                        {STRINGS.spent[lang]} : {fmtMAD(data.travaux.depenseReelle, lang)}
                       </Text>
                       <Text style={styles.gaugeHint}>
-                        {STRINGS.estimatedBudget[lang]} : {fmtMAD(data.travaux.budgetEstime)}
+                        {STRINGS.estimatedBudget[lang]} : {fmtMAD(data.travaux.budgetEstime, lang)}
                       </Text>
                     </View>
                   </View>
@@ -1580,7 +1592,7 @@ function TableauBordFinancierInner() {
                   />
                   <KpiCard
                     label={STRINGS.contractCharges[lang]}
-                    value={kpiFmtMAD(data.prestataires.chargesContrats)}
+                    value={kpiFmtMAD(data.prestataires.chargesContrats, lang)}
                     sub={STRINGS.perYear[lang]}
                     color={colors.warning}
                     icon="receipt-outline"
@@ -1621,17 +1633,17 @@ function TableauBordFinancierInner() {
                         <View style={styles.contratRight}>
                           {c.monthlyAmount ? (
                             <Text style={styles.contratAmt}>
-                              {fmt(c.monthlyAmount)} {STRINGS.perMonth[lang]}
+                              {fmtMAD(c.monthlyAmount, lang)} / {STRINGS.perMonth[lang]}
                             </Text>
                           ) : null}
                           {c.annualAmount ? (
                             <Text style={styles.contratAnnual}>
-                              {fmt(c.annualAmount)} MAD/{STRINGS.annual[lang]}
+                              {fmtMAD(c.annualAmount, lang)} / {STRINGS.annual[lang]}
                             </Text>
                           ) : null}
                           {c.endDate ? (
                             <Text style={styles.contratEnd}>
-                              {STRINGS.endsOn[lang]} : {c.endDate}
+                              {STRINGS.endsOn[lang]} : {formatDate(c.endDate, lang)}
                             </Text>
                           ) : null}
                         </View>
@@ -1696,6 +1708,12 @@ function createStyles(colors: Colors) {
       alignItems: "center",
       gap: 12,
       backgroundColor: colors.background,
+    },
+    inlineLoading: {
+      minHeight: 180,
+      justifyContent: "center",
+      alignItems: "center",
+      paddingHorizontal: 16,
     },
     loadingText: { color: colors.mutedForeground, fontSize: 14 },
 

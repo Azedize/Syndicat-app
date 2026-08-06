@@ -27,6 +27,7 @@ import { apiRequest } from "@/lib/api";
 import FilterTabs from "@/components/FilterTabs";
 import EmptyState from "@/components/EmptyState";
 import { useToast } from "@/context/ToastContext";
+import { ErrorState, LoadingState } from "@/components/DataState";
 
 const TYPE_CONFIG: Record<string, { icon: keyof typeof Feather.glyphMap; color: string }> = {
   board:             { icon: "briefcase",      color: "#2563EB" },
@@ -52,7 +53,7 @@ export default function MeetingsScreen() {
   const colors = useColors();
   const insets = useSafeAreaInsets();
   const { user, token } = useAuth();
-  const { meetings, confirmMeetingAttendance, addMeeting, updateMeeting } = useData();
+  const { dataLoading, meetingsLoadError, refreshData, meetings, confirmMeetingAttendance, addMeeting, updateMeeting } = useData();
   const { logActivity } = useActivity();
   const { toggleFavorite, isFavorite } = useFavorites();
   const { t } = useLanguage();
@@ -112,6 +113,7 @@ export default function MeetingsScreen() {
     (m) => filter === "all" || m.status === filter
   );
   const upcoming = meetings.filter((m) => m.status === "scheduled");
+  const meetingsLoading = dataLoading && meetings.length === 0;
 
   const handleConfirm = (id: string, title: string) => {
     if (confirmed.has(id)) return;
@@ -382,6 +384,20 @@ export default function MeetingsScreen() {
           );
         }}
       />
+      {meetingsLoading ? (
+        <View style={[styles.stateOverlay, { backgroundColor: colors.background }]}>
+          <LoadingState title={t("meetingsLoadingTitle")} description={t("meetingsLoadingDescription")} />
+        </View>
+      ) : meetingsLoadError && meetings.length === 0 ? (
+        <View style={[styles.stateOverlay, { backgroundColor: colors.background }]}>
+          <ErrorState
+            title={t("meetingsUnavailableTitle")}
+            description={t("meetingsUnavailableDescription")}
+            retryLabel={t("retry")}
+            onRetry={refreshData}
+          />
+        </View>
+      ) : null}
 
       {/* Meeting detail modal */}
       <Modal visible={!!selected} animationType="slide" presentationStyle="pageSheet">
@@ -768,4 +784,5 @@ const styles = StyleSheet.create({
   typeChipText: { fontSize: 12, fontFamily: "Inter_600SemiBold" },
   fieldLabel: { fontSize: 13, fontFamily: "Inter_500Medium" },
   fieldInput: { borderWidth: 1, borderRadius: 12, paddingHorizontal: 14, paddingVertical: 12, fontSize: 14, fontFamily: "Inter_400Regular" },
+  stateOverlay: { ...StyleSheet.absoluteFillObject, zIndex: 3 },
 });
