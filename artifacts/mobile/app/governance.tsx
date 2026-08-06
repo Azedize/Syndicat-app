@@ -22,6 +22,7 @@ import { useColors } from "@/hooks/useColors";
 import { apiRequest } from "@/lib/api";
 import { useToast } from "@/context/ToastContext";
 import RoleGuard from "@/components/RoleGuard";
+import { useLanguage } from "@/context/LanguageContext";
 
 type BureauMember = { id: string; name: string; role: string; icon: keyof typeof Feather.glyphMap; since: string; email: string; phone: string };
 type Commission = { id: string; name: string; members: number; status: "active" | "inactive"; chair: string; nextMeeting: string };
@@ -94,6 +95,7 @@ function GovernanceScreenInner() {
   const insets = useSafeAreaInsets();
   const { user } = useAuth();
   const { showToast } = useToast();
+  const { t } = useLanguage();
   const [tab, setTab] = useState<TabType>("organigramme");
   const [bureau, setBureau] = useState(INITIAL_BUREAU);
   const [commissions, setCommissions] = useState(INITIAL_COMMISSIONS);
@@ -147,10 +149,10 @@ function GovernanceScreenInner() {
   };
 
   const handleRemoveMember = (id: string, name: string) => {
-    Alert.alert("Retirer du bureau", `Retirer ${name} du bureau national?`, [
-      { text: "Annuler", style: "cancel" },
+    Alert.alert(t("governanceRemoveTitle"), t("governanceRemoveQuestion").replace("{name}", name), [
+      { text: t("cancel"), style: "cancel" },
       {
-        text: "Retirer",
+        text: t("governanceRemove"),
         style: "destructive",
         onPress: () => {
           setBureau((prev) => prev.filter((m) => m.id !== id));
@@ -180,10 +182,10 @@ function GovernanceScreenInner() {
   };
 
   const handleRevokeDelegation = (id: string) => {
-    Alert.alert("Révoquer la délégation", "Cette action annulera la délégation de pouvoir.", [
-      { text: "Annuler", style: "cancel" },
+    Alert.alert(t("governanceRevokeTitle"), t("governanceRevokeQuestion"), [
+      { text: t("cancel"), style: "cancel" },
       {
-        text: "Révoquer",
+        text: t("governanceRevoke"),
         style: "destructive",
         onPress: () => {
           setDelegations((prev) => prev.map((d) => d.id === id ? { ...d, status: "revoked" as const } : d));
@@ -195,11 +197,11 @@ function GovernanceScreenInner() {
   };
 
   const TABS: { key: TabType; label: string; icon: keyof typeof Feather.glyphMap }[] = [
-    { key: "organigramme", label: "Bureau", icon: "users" },
-    { key: "commissions", label: "Commissions", icon: "layers" },
-    { key: "mandats", label: "Mandats", icon: "award" },
-    { key: "delegations", label: "Délégations", icon: "share-2" },
-    { key: "documents", label: "Statuts", icon: "file-text" },
+    { key: "organigramme", label: t("governanceBureau"), icon: "users" },
+    { key: "commissions", label: t("governanceCommissions"), icon: "layers" },
+    { key: "mandats", label: t("governanceMandates"), icon: "award" },
+    { key: "delegations", label: t("governanceDelegations"), icon: "share-2" },
+    { key: "documents", label: t("governanceStatutes"), icon: "file-text" },
   ];
 
   return (
@@ -210,9 +212,9 @@ function GovernanceScreenInner() {
           <Feather name="arrow-left" size={22} color={colors.foreground} />
         </TouchableOpacity>
         <View style={{ flex: 1 }}>
-          <Text style={[styles.title, { color: colors.foreground }]}>Gouvernance</Text>
+          <Text style={[styles.title, { color: colors.foreground }]}>{t("governanceTitle")}</Text>
           <Text style={[styles.subtitle, { color: colors.mutedForeground }]}>
-            Bureau National — Mandat 2023-2026
+            {t("governanceMandatePeriod")}
           </Text>
         </View>
         {isAdmin && tab === "organigramme" ? (
@@ -259,7 +261,7 @@ function GovernanceScreenInner() {
           <View style={[styles.mandatBadge, { backgroundColor: colors.primary + "10", borderColor: colors.primary + "30" }]}>
             <Feather name="calendar" size={13} color={colors.primary} />
             <Text style={[styles.mandatText, { color: colors.primary }]}>
-              Mandat en cours: 2023–2026 • {bureau.length} membres du bureau
+              {t("governanceCurrentMandate")}: 2023–2026 • {bureau.length} {t("governanceBoardMembers")}
             </Text>
           </View>
 
@@ -279,7 +281,7 @@ function GovernanceScreenInner() {
               <Text style={styles.presRole} numberOfLines={2}>{president.role}</Text>
               <View style={[styles.presSince, { backgroundColor: "rgba(255,255,255,0.2)" }]}>
                 <Feather name="calendar" size={10} color="rgba(255,255,255,0.8)" />
-                <Text style={styles.presSinceText}>Depuis {president.since}</Text>
+                <Text style={styles.presSinceText}>{t("governanceSince")} {president.since}</Text>
               </View>
             </TouchableOpacity>
           </View>
@@ -308,7 +310,7 @@ function GovernanceScreenInner() {
           <View style={[styles.connector, { backgroundColor: colors.border }]} />
 
           {/* Rest of bureau */}
-          <Text style={[styles.bureauSectionLabel, { color: colors.mutedForeground }]}>MEMBRES DU BUREAU</Text>
+          <Text style={[styles.bureauSectionLabel, { color: colors.mutedForeground }]}>{t("governanceBoardMembersTitle")}</Text>
           <View style={styles.bureauGrid}>
             {restBureau.map((m) => (
               <TouchableOpacity
@@ -336,7 +338,7 @@ function GovernanceScreenInner() {
             <View style={[styles.commHeader, { backgroundColor: colors.primary + "10", borderColor: colors.primary + "30" }]}>
               <Feather name="layers" size={14} color={colors.primary} />
               <Text style={[styles.commHeaderText, { color: colors.primary }]}>
-                {commissions.filter((c) => c.status === "active").length} commissions actives
+                {commissions.filter((c) => c.status === "active").length} {t("governanceActiveCommissions")}
               </Text>
             </View>
           }
@@ -353,20 +355,20 @@ function GovernanceScreenInner() {
                 <Text style={[styles.commName2, { color: colors.foreground }]}>{c.name}</Text>
                 <View style={styles.commMeta}>
                   <Feather name="users" size={11} color={colors.mutedForeground} />
-                  <Text style={[styles.commMetaText, { color: colors.mutedForeground }]}>{c.members} membres</Text>
+                  <Text style={[styles.commMetaText, { color: colors.mutedForeground }]}>{c.members} {t("governanceMembers")}</Text>
                   <Text style={[styles.commMetaDot, { color: colors.mutedForeground }]}>•</Text>
-                  <Text style={[styles.commMetaText, { color: colors.mutedForeground }]}>Prés: {c.chair.split(" ")[0]}</Text>
+                  <Text style={[styles.commMetaText, { color: colors.mutedForeground }]}>{t("governanceChairPrefix")}: {c.chair.split(" ")[0]}</Text>
                 </View>
                 <View style={styles.commMeta}>
                   <Feather name="calendar" size={11} color={colors.mutedForeground} />
-                  <Text style={[styles.commMetaText, { color: colors.mutedForeground }]}>Prochaine réunion: {c.nextMeeting}</Text>
+                  <Text style={[styles.commMetaText, { color: colors.mutedForeground }]}>{t("governanceNextMeeting")}: {c.nextMeeting}</Text>
                 </View>
               </View>
               <View style={{ alignItems: "flex-end", gap: 6 }}>
                 <View style={[styles.commStatus, { backgroundColor: c.status === "active" ? colors.success + "15" : colors.muted }]}>
                   <View style={[styles.commStatusDot, { backgroundColor: c.status === "active" ? colors.success : colors.mutedForeground }]} />
                   <Text style={[styles.commStatusText, { color: c.status === "active" ? colors.success : colors.mutedForeground }]}>
-                    {c.status === "active" ? "Active" : "Inactive"}
+                    {c.status === "active" ? t("governanceActiveStatus") : t("governanceInactiveStatus")}
                   </Text>
                 </View>
                 <Feather name="chevron-right" size={14} color={colors.mutedForeground} />
@@ -383,9 +385,9 @@ function GovernanceScreenInner() {
           ListHeaderComponent={
             <View style={styles.mandatsHeader}>
               {[
-                { label: "Actifs", count: mandats.filter((m) => m.status === "actif").length, color: "#10b981" },
-                { label: "Expirés", count: mandats.filter((m) => m.status === "expire").length, color: "#f59e0b" },
-                { label: "Vacants", count: mandats.filter((m) => m.status === "vacant").length, color: "#ef4444" },
+                { label: t("governanceActive"), count: mandats.filter((m) => m.status === "actif").length, color: "#10b981" },
+                { label: t("governanceExpired"), count: mandats.filter((m) => m.status === "expire").length, color: "#f59e0b" },
+                { label: t("governanceVacant"), count: mandats.filter((m) => m.status === "vacant").length, color: "#ef4444" },
               ].map((s, i, arr) => (
                 <View key={s.label} style={[styles.mandatStatCell, { borderColor: colors.border }, i < arr.length - 1 && { borderRightWidth: 1 }]}>
                   <Text style={[styles.mandatStatVal, { color: s.color }]}>{s.count}</Text>
@@ -396,9 +398,9 @@ function GovernanceScreenInner() {
           }
           renderItem={({ item: m }) => {
             const statusConfig = {
-              actif: { label: "Actif", color: "#10b981", bg: "#10b98118" },
-              expire: { label: "Expiré", color: "#f59e0b", bg: "#f59e0b18" },
-              vacant: { label: "Vacant", color: "#ef4444", bg: "#ef444418" },
+              actif: { label: t("statusActive"), color: "#10b981", bg: "#10b98118" },
+              expire: { label: t("governanceExpiredSingular"), color: "#f59e0b", bg: "#f59e0b18" },
+              vacant: { label: t("governanceVacantSingular"), color: "#ef4444", bg: "#ef444418" },
             }[m.status];
             return (
               <TouchableOpacity
@@ -416,7 +418,7 @@ function GovernanceScreenInner() {
                 <View style={{ flex: 1, gap: 3 }}>
                   <Text style={[styles.mandatPoste, { color: colors.foreground }]}>{m.poste}</Text>
                   <Text style={[styles.mandatHolder, { color: m.status === "vacant" ? colors.destructive : colors.mutedForeground }]}>
-                    {m.holder || "Poste vacant"}
+                    {m.holder || t("governanceVacantPosition")}
                   </Text>
                   <View style={styles.mandatMeta}>
                     <Feather name="briefcase" size={10} color={colors.mutedForeground} />
@@ -448,15 +450,15 @@ function GovernanceScreenInner() {
             <View style={[styles.delegInfoBanner, { backgroundColor: colors.primary + "10", borderColor: colors.primary + "30" }]}>
               <Feather name="info" size={13} color={colors.primary} />
               <Text style={[styles.delegInfoText, { color: colors.primary }]}>
-                {delegations.filter((d) => d.status === "active").length} délégation(s) active(s) en cours
+                {delegations.filter((d) => d.status === "active").length} {t("governanceDelegationsActive")}
               </Text>
             </View>
           }
           renderItem={({ item: d }) => {
             const dStatusConfig = {
-              active: { label: "Active", color: "#10b981", bg: "#10b98118" },
-              expired: { label: "Expirée", color: "#f59e0b", bg: "#f59e0b18" },
-              revoked: { label: "Révoquée", color: "#ef4444", bg: "#ef444418" },
+              active: { label: t("governanceActiveStatus"), color: "#10b981", bg: "#10b98118" },
+              expired: { label: t("governanceExpiredSingular"), color: "#f59e0b", bg: "#f59e0b18" },
+              revoked: { label: t("governanceRevoke"), color: "#ef4444", bg: "#ef444418" },
             }[d.status];
             return (
               <TouchableOpacity
@@ -497,7 +499,7 @@ function GovernanceScreenInner() {
           <View style={[styles.statNote, { backgroundColor: colors.primary + "08", borderColor: colors.primary + "20" }]}>
             <Feather name="info" size={14} color={colors.primary} />
             <Text style={[styles.statNoteText, { color: colors.primary }]}>
-              Documents constitutifs et réglementaires du syndicat. Dernière mise à jour: Janvier 2026.
+               {t("governanceDocumentsNote")}
             </Text>
           </View>
           {[
@@ -559,15 +561,15 @@ function GovernanceScreenInner() {
                 </View>
                 <Text style={styles.memberProfileName}>{selectedMember.name}</Text>
                 <Text style={styles.memberProfileRole}>{selectedMember.role}</Text>
-                <Text style={styles.memberProfileSince}>Membre depuis {selectedMember.since}</Text>
+                <Text style={styles.memberProfileSince}>{t("governanceMemberSince")} {selectedMember.since}</Text>
               </View>
 
               {/* Contact */}
               {selectedMember.email ? (
                 <View style={[styles.contactCard, { backgroundColor: colors.card, borderColor: colors.border }]}>
-                  {[
-                    { icon: "mail" as const, label: "Email", value: selectedMember.email },
-                    { icon: "phone" as const, label: "Téléphone", value: selectedMember.phone },
+                    {[
+                      { icon: "mail" as const, label: t("email"), value: selectedMember.email },
+                      { icon: "phone" as const, label: t("phoneLabel"), value: selectedMember.phone },
                   ].map((item, i) => (
                     <View key={item.label}>
                       {i > 0 ? <View style={[styles.sep, { backgroundColor: colors.border }]} /> : null}
@@ -596,7 +598,7 @@ function GovernanceScreenInner() {
                   }}
                 >
                   <Feather name="message-circle" size={15} color="#fff" />
-                  <Text style={[styles.memberActionText, { color: "#fff" }]}>Contacter</Text>
+                  <Text style={[styles.memberActionText, { color: "#fff" }]}>{t("governanceContact")}</Text>
                 </TouchableOpacity>
                 {isAdmin ? (
                   <TouchableOpacity
@@ -604,7 +606,7 @@ function GovernanceScreenInner() {
                     onPress={() => handleRemoveMember(selectedMember.id, selectedMember.name)}
                   >
                     <Feather name="user-x" size={15} color={colors.destructive} />
-                    <Text style={[styles.memberActionText, { color: colors.destructive }]}>Retirer</Text>
+                    <Text style={[styles.memberActionText, { color: colors.destructive }]}>{t("governanceRemove")}</Text>
                   </TouchableOpacity>
                 ) : null}
               </View>
@@ -630,7 +632,7 @@ function GovernanceScreenInner() {
                 <Feather name="layers" size={30} color="rgba(255,255,255,0.3)" />
                 <View>
                   <Text style={styles.commDetailName}>{selectedCommission.name}</Text>
-                  <Text style={styles.commDetailMembers}>{selectedCommission.members} membres actifs</Text>
+                  <Text style={styles.commDetailMembers}>{selectedCommission.members} {t("governanceMembers")} {t("governanceActiveStatus").toLowerCase()}</Text>
                 </View>
               </View>
               <View style={[styles.contactCard, { backgroundColor: colors.card, borderColor: colors.border }]}>
@@ -659,7 +661,7 @@ function GovernanceScreenInner() {
                   }}
                 >
                   <Feather name="calendar" size={15} color="#fff" />
-                  <Text style={[styles.memberActionText, { color: "#fff" }]}>Planifier réunion</Text>
+                  <Text style={[styles.memberActionText, { color: "#fff" }]}>{t("governanceScheduleMeeting")}</Text>
                 </TouchableOpacity>
                 <TouchableOpacity
                   style={[styles.memberActionBtn, { backgroundColor: colors.secondary }]}
@@ -670,7 +672,7 @@ function GovernanceScreenInner() {
                   }}
                 >
                   <Feather name="file-text" size={15} color={colors.primary} />
-                  <Text style={[styles.memberActionText, { color: colors.primary }]}>Voir PVs</Text>
+                  <Text style={[styles.memberActionText, { color: colors.primary }]}>{t("governanceViewMinutes")}</Text>
                 </TouchableOpacity>
               </View>
             </ScrollView>
@@ -687,7 +689,7 @@ function GovernanceScreenInner() {
               <TouchableOpacity onPress={() => setSelectedMandat(null)}>
                 <Feather name="x" size={22} color={colors.mutedForeground} />
               </TouchableOpacity>
-              <Text style={[styles.modalTitle, { color: colors.foreground, flex: 1, marginStart: 12 }]}>Détail du Mandat</Text>
+              <Text style={[styles.modalTitle, { color: colors.foreground, flex: 1, marginStart: 12 }]}>{t("governanceMandateDetail")}</Text>
             </View>
             <ScrollView contentContainerStyle={{ padding: 20, gap: 14, paddingBottom: 40 }}>
               {(() => {
@@ -705,10 +707,10 @@ function GovernanceScreenInner() {
                     </View>
                     <View style={[styles.contactCard, { backgroundColor: colors.card, borderColor: colors.border }]}>
                       {[
-                        { label: "Titulaire", value: selectedMandat.holder || "Poste vacant" },
-                        { label: "Bureau", value: selectedMandat.bureau },
-                        { label: "Début du mandat", value: selectedMandat.startDate || "—" },
-                        { label: "Fin du mandat", value: selectedMandat.endDate || "—" },
+                        { label: t("governanceHolder"), value: selectedMandat.holder || t("governanceVacantPosition") },
+                        { label: t("governanceBoard"), value: selectedMandat.bureau },
+                        { label: t("governanceTermStart"), value: selectedMandat.startDate || "—" },
+                        { label: t("governanceTermEnd"), value: selectedMandat.endDate || "—" },
                       ].map((row, i) => (
                         <View key={row.label}>
                           {i > 0 ? <View style={[styles.sep, { backgroundColor: colors.border }]} /> : null}
@@ -721,13 +723,13 @@ function GovernanceScreenInner() {
                     </View>
                     {isAdmin && selectedMandat.status === "vacant" ? (
                       <View style={{ gap: 10 }}>
-                        <Text style={{ fontSize: 11, fontFamily: "Inter_600SemiBold", color: colors.mutedForeground, letterSpacing: 0.6 }}>NOM DU TITULAIRE À NOMMER</Text>
+                        <Text style={{ fontSize: 11, fontFamily: "Inter_600SemiBold", color: colors.mutedForeground, letterSpacing: 0.6 }}>{t("governanceNomineeLabel")}</Text>
                         <View style={{ borderRadius: 10, borderWidth: 1, borderColor: colors.border, backgroundColor: colors.card, paddingHorizontal: 14, paddingVertical: 10 }}>
                           <TextInput
                             style={{ fontSize: 14, fontFamily: "Inter_400Regular", color: colors.foreground }}
                             value={nomineeInput}
                             onChangeText={setNomineeInput}
-                            placeholder="Prénom NOM du membre"
+                            placeholder={t("governanceNomineePlaceholder")}
                             placeholderTextColor={colors.mutedForeground}
                           />
                         </View>
@@ -741,10 +743,16 @@ function GovernanceScreenInner() {
                             const nomme = nomineeInput.trim();
                             setNomineeInput("");
                             setSelectedMandat(null);
-                            showToast({ type: "success", title: "Nomination confirmée", message: `${nomme} a été nommé(e) titulaire du poste "${selectedMandat.poste}".` });
+                             showToast({
+                               type: "success",
+                               title: t("governanceNominationConfirmed"),
+                               message: t("governanceNominationMessage")
+                                 .replace("{name}", nomme)
+                                 .replace("{post}", selectedMandat.poste),
+                             });
                           }}
                         >
-                          <Text style={[styles.saveBtnText, { color: "#fff" }]}>Confirmer la nomination</Text>
+                          <Text style={[styles.saveBtnText, { color: "#fff" }]}>{t("governanceConfirmNomination")}</Text>
                         </TouchableOpacity>
                       </View>
                     ) : null}
@@ -781,7 +789,7 @@ function GovernanceScreenInner() {
                           </Text>
                         </View>
                         <Text style={[styles.delegPersonName, { color: colors.foreground }]} numberOfLines={2}>{selectedDelegation.delegant}</Text>
-                        <Text style={[styles.delegPersonLabel, { color: colors.mutedForeground }]}>Délégant</Text>
+                        <Text style={[styles.delegPersonLabel, { color: colors.mutedForeground }]}>{t("governanceDelegator")}</Text>
                       </View>
                       <View style={{ alignItems: "center", gap: 4 }}>
                         <Feather name="arrow-right" size={20} color={colors.primary} />
@@ -796,14 +804,14 @@ function GovernanceScreenInner() {
                           </Text>
                         </View>
                         <Text style={[styles.delegPersonName, { color: colors.foreground }]} numberOfLines={2}>{selectedDelegation.delegataire}</Text>
-                        <Text style={[styles.delegPersonLabel, { color: colors.mutedForeground }]}>Délégataire</Text>
+                        <Text style={[styles.delegPersonLabel, { color: colors.mutedForeground }]}>{t("governanceDelegate")}</Text>
                       </View>
                     </View>
                     <View style={[styles.contactCard, { backgroundColor: colors.card, borderColor: colors.border }]}>
                       {[
-                        { label: "Domaine", value: selectedDelegation.domaine },
-                        { label: "Début", value: selectedDelegation.startDate },
-                        { label: "Échéance", value: selectedDelegation.endDate },
+                         { label: t("governanceDomain"), value: selectedDelegation.domaine },
+                         { label: t("governanceStart"), value: selectedDelegation.startDate },
+                         { label: t("governanceDueDate"), value: selectedDelegation.endDate },
                       ].map((row, i) => (
                         <View key={row.label}>
                           {i > 0 ? <View style={[styles.sep, { backgroundColor: colors.border }]} /> : null}
@@ -815,7 +823,7 @@ function GovernanceScreenInner() {
                       ))}
                     </View>
                     <View style={[styles.delegDescBox, { backgroundColor: colors.card, borderColor: colors.border }]}>
-                      <Text style={[styles.delegDescLabel, { color: colors.mutedForeground }]}>Description</Text>
+                      <Text style={[styles.delegDescLabel, { color: colors.mutedForeground }]}>{t("governanceDescription")}</Text>
                       <Text style={[styles.delegDescBody, { color: colors.foreground }]}>{selectedDelegation.description}</Text>
                     </View>
                     {isAdmin && selectedDelegation.status === "active" ? (
@@ -823,7 +831,7 @@ function GovernanceScreenInner() {
                         style={[styles.saveBtn, { backgroundColor: colors.destructive + "15", borderWidth: 1, borderColor: colors.destructive + "40" }]}
                         onPress={() => handleRevokeDelegation(selectedDelegation.id)}
                       >
-                        <Text style={[styles.saveBtnText, { color: colors.destructive }]}>Révoquer cette délégation</Text>
+                        <Text style={[styles.saveBtnText, { color: colors.destructive }]}>{t("governanceRevokeThis")}</Text>
                       </TouchableOpacity>
                     ) : null}
                   </>
@@ -838,27 +846,27 @@ function GovernanceScreenInner() {
       <Modal visible={showAddDelegation} animationType="slide" presentationStyle="pageSheet">
         <View style={[styles.modal, { backgroundColor: colors.background }]}>
           <View style={[styles.modalHeader, { borderBottomColor: colors.border }]}>
-            <Text style={[styles.modalTitle, { color: colors.foreground }]}>Nouvelle Délégation</Text>
+            <Text style={[styles.modalTitle, { color: colors.foreground }]}>{t("governanceNewDelegation")}</Text>
             <TouchableOpacity onPress={() => setShowAddDelegation(false)}>
               <Feather name="x" size={22} color={colors.mutedForeground} />
             </TouchableOpacity>
           </View>
           <ScrollView contentContainerStyle={{ padding: 24, gap: 16, paddingBottom: 40 }}>
             {[
-              { label: "Délégant *", value: newDelegant, setter: setNewDelegant, placeholder: "Nom du délégant" },
-              { label: "Délégataire *", value: newDelegataire, setter: setNewDelegataire, placeholder: "Nom du délégataire" },
-              { label: "Domaine *", value: newDomaine, setter: setNewDomaine, placeholder: "Ex: Représentation institutionnelle" },
-              { label: "Description", value: newDelegDesc, setter: setNewDelegDesc, placeholder: "Description de la délégation de pouvoir..." },
+              { key: "delegator", label: `${t("governanceDelegator")} *`, value: newDelegant, setter: setNewDelegant, placeholder: t("governanceDelegatorName") },
+              { key: "delegate", label: `${t("governanceDelegate")} *`, value: newDelegataire, setter: setNewDelegataire, placeholder: t("governanceDelegateName") },
+              { key: "domain", label: `${t("governanceDomain")} *`, value: newDomaine, setter: setNewDomaine, placeholder: t("governanceDomainPlaceholder") },
+              { key: "description", label: t("governanceDescription"), value: newDelegDesc, setter: setNewDelegDesc, placeholder: t("governanceDescriptionPlaceholder") },
             ].map((field) => (
-              <View key={field.label} style={{ gap: 8 }}>
+              <View key={field.key} style={{ gap: 8 }}>
                 <Text style={[styles.fieldLabel, { color: colors.foreground }]}>{field.label}</Text>
                 <TextInput
-                  style={[styles.fieldInput, { borderColor: colors.border, backgroundColor: colors.card, color: colors.foreground, height: field.label === "Description" ? 80 : undefined, textAlignVertical: field.label === "Description" ? "top" : "center" }]}
+                   style={[styles.fieldInput, { borderColor: colors.border, backgroundColor: colors.card, color: colors.foreground, height: field.key === "description" ? 80 : undefined, textAlignVertical: field.key === "description" ? "top" : "center" }]}
                   value={field.value}
                   onChangeText={field.setter}
                   placeholder={field.placeholder}
                   placeholderTextColor={colors.mutedForeground}
-                  multiline={field.label === "Description"}
+                   multiline={field.key === "description"}
                 />
               </View>
             ))}
@@ -868,7 +876,7 @@ function GovernanceScreenInner() {
               disabled={!newDelegant.trim() || !newDelegataire.trim() || !newDomaine.trim()}
             >
               <Text style={[styles.saveBtnText, { color: newDelegant.trim() && newDelegataire.trim() && newDomaine.trim() ? "#fff" : colors.mutedForeground }]}>
-                Créer la délégation
+                {t("governanceCreateDelegation")}
               </Text>
             </TouchableOpacity>
           </ScrollView>
@@ -878,15 +886,15 @@ function GovernanceScreenInner() {
       <Modal visible={showAddMember} animationType="slide" presentationStyle="pageSheet">
         <View style={[styles.modal, { backgroundColor: colors.background }]}>
           <View style={[styles.modalHeader, { borderBottomColor: colors.border }]}>
-            <Text style={[styles.modalTitle, { color: colors.foreground }]}>Ajouter au bureau</Text>
+            <Text style={[styles.modalTitle, { color: colors.foreground }]}>{t("governanceAddToBoard")}</Text>
             <TouchableOpacity onPress={() => setShowAddMember(false)}>
               <Feather name="x" size={22} color={colors.mutedForeground} />
             </TouchableOpacity>
           </View>
           <View style={{ padding: 24, gap: 16 }}>
             {[
-              { label: "Nom complet *", value: newName, setter: setNewName, placeholder: "Prénom Nom" },
-              { label: "Rôle / Poste *", value: newRole, setter: setNewRole, placeholder: "Ex: Secrétaire à la Communication" },
+              { label: t("governanceFullName"), value: newName, setter: setNewName, placeholder: t("governanceFullNamePlaceholder") },
+              { label: t("governanceRolePost"), value: newRole, setter: setNewRole, placeholder: t("governanceRolePlaceholder") },
             ].map((field) => (
               <View key={field.label} style={{ gap: 8 }}>
                 <Text style={[styles.fieldLabel, { color: colors.foreground }]}>{field.label}</Text>

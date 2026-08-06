@@ -16,9 +16,10 @@ import {
   View,
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
-import { useAuth } from "@/context/AuthContext";
+import { useLanguage } from "@/context/LanguageContext";
 import { useColors } from "@/hooks/useColors";
 import { useToast } from "@/context/ToastContext";
+import { ErrorState, LoadingState } from "@/components/DataState";
 import { captureAndUploadPhoto, pickAndUploadPhoto } from "@/lib/upload";
 import { parking } from "@/services/api";
 
@@ -78,34 +79,38 @@ const STATUS_COLORS: Record<string, string> = {
   maintenance: "#6b7280",
 };
 
-const STATUS_LABELS: Record<string, string> = {
-  open: "Ouvert",
-  resolved: "Résolu",
-  dismissed: "Classé",
-  confirmed: "Confirmée",
-  cancelled: "Annulée",
-  expired: "Expirée",
-  active: "Actif",
-  inactive: "Inactif",
-  available: "Disponible",
-  occupied: "Occupée",
-  reserved: "Réservée",
-  maintenance: "Maintenance",
-};
+function getStatusLabel(status: string, t: (key: string) => string) {
+  const keys: Record<string, string> = {
+    open: "statusOpen",
+    resolved: "statusResolved",
+    dismissed: "parkingStatusDismissed",
+    confirmed: "parkingStatusConfirmed",
+    cancelled: "statusCancelled",
+    expired: "statusExpired",
+    active: "statusActive",
+    inactive: "statusInactive",
+    available: "spotAvailable",
+    occupied: "spotOccupied",
+    reserved: "spotReserved",
+    maintenance: "parkingStatusMaintenance",
+  };
+  return t(keys[status] ?? "unknown");
+}
 
-function StatusBadge({ status }: { status: string }) {
+function StatusBadge({ status, t }: { status: string; t: (key: string) => string }) {
   const color = STATUS_COLORS[status] ?? "#6b7280";
   return (
     <View style={[styles.badge, { backgroundColor: color + "22", borderColor: color + "44" }]}>
-      <Text style={[styles.badgeText, { color }]}>{STATUS_LABELS[status] ?? status}</Text>
+      <Text style={[styles.badgeText, { color }]}>{getStatusLabel(status, t)}</Text>
     </View>
   );
 }
 
-function formatDateTime(iso: string) {
+function formatDateTime(iso: string, lang: string) {
   try {
     const d = new Date(iso);
-    return `${d.toLocaleDateString("fr-FR")} ${d.toLocaleTimeString("fr-FR", { hour: "2-digit", minute: "2-digit" })}`;
+    const locale = lang === "ar" ? "ar-MA" : lang === "es" ? "es-ES" : lang === "en" ? "en-GB" : "fr-FR";
+    return `${d.toLocaleDateString(locale)} ${d.toLocaleTimeString(locale, { hour: "2-digit", minute: "2-digit" })}`;
   } catch {
     return iso;
   }
@@ -114,12 +119,12 @@ function formatDateTime(iso: string) {
 export default function ParkingScreen() {
   const colors = useColors();
   const insets = useSafeAreaInsets();
-  const { user } = useAuth();
+  const { t, lang } = useLanguage();
   const { showToast } = useToast();
-  const isAdmin = user?.role === "super_admin" || user?.role === "syndicate_admin";
 
   const [activeTab, setActiveTab] = useState<Tab>("vehicles");
   const [loading, setLoading] = useState(true);
+  const [loadError, setLoadError] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
 
   const [mySpot, setMySpot] = useState<ApiSpot | null>(null);
@@ -159,6 +164,7 @@ export default function ParkingScreen() {
 
   const load = useCallback(async (silent = false) => {
     if (!silent) setLoading(true);
+    setLoadError(false);
     try {
       const [spotsRes, allSpotsRes, vehiclesRes, violationsRes, reservationsRes] = await Promise.allSettled([
         parking.mySpot(),
@@ -177,8 +183,11 @@ export default function ParkingScreen() {
       if (vehiclesRes.status === "fulfilled") setVehicles(((vehiclesRes.value as any).data ?? []) as ApiVehicle[]);
       if (violationsRes.status === "fulfilled") setViolations(((violationsRes.value as any).data ?? []) as ApiViolation[]);
       if (reservationsRes.status === "fulfilled") setReservations(((reservationsRes.value as any).data ?? []) as ApiReservation[]);
+      if ([spotsRes, allSpotsRes, vehiclesRes, violationsRes, reservationsRes].some((result) => result.status === "rejected")) {
+        setLoadError(true);
+      }
     } catch {
-      // partial failures handled via allSettled
+      setLoadError(true);
     } finally {
       setLoading(false);
       setRefreshing(false);
@@ -192,7 +201,7 @@ export default function ParkingScreen() {
   // ─── Add vehicle ──────────────────────────────────────────────────────────
   const handleAddVehicle = async () => {
     if (!vPlate.trim()) {
-      showToast({ type: "warning", title: "Champ requis", message: "La plaque d'immatriculation est obligatoire" });
+      showToast({ type: "warning", title: t("required"), message: t("parkingPlateRequiredError") });
       return;
     }
     setSavingVehicle(true);
@@ -206,29 +215,29 @@ export default function ParkingScreen() {
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
       setShowAddVehicle(false);
       setVPlate(""); setVBrand(""); setVModel(""); setVColor("");
-      showToast({ type: "success", title: "Véhicule enregistré", message: "Le véhicule a été ajouté avec succès." });
+      showToast({ type: "success", title: t("parkingVehicleSaved"), message: t("parkingVehicleSavedMessage") });
       load(true);
     } catch (e: any) {
-      showToast({ type: "error", title: "Erreur", message: e.message ?? "Impossible d'enregistrer le véhicule" });
+      showToast({ type: "error", title: t("error"), message: t("parkingOperationError") });
     } finally {
       setSavingVehicle(false);
     }
   };
 
   const handleDeleteVehicle = (id: string, plate: string) => {
-    Alert.alert("Supprimer", `Supprimer le véhicule ${plate} ?`, [
-      { text: "Annuler", style: "cancel" },
+    Alert.alert(t("parkingDeleteVehicle"), t("parkingDeleteVehicleQuestion").replace("{plate}", plate), [
+      { text: t("cancel"), style: "cancel" },
       {
-        text: "Supprimer",
+        text: t("parkingDeleteVehicle"),
         style: "destructive",
         onPress: async () => {
           try {
             await parking.deleteVehicle(id);
             Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-            showToast({ type: "success", title: "Véhicule supprimé", message: `${plate} a été retiré.` });
+            showToast({ type: "success", title: t("parkingVehicleDeleted"), message: t("parkingVehicleRemoved") });
             load(true);
           } catch (e: any) {
-            showToast({ type: "error", title: "Erreur", message: e.message ?? "Erreur lors de la suppression" });
+            showToast({ type: "error", title: t("error"), message: t("parkingOperationError") });
           }
         },
       },
@@ -249,15 +258,15 @@ export default function ParkingScreen() {
         if (galleryResult) setRPhotoUrl(galleryResult.objectPath);
       }
     } catch {
-      Alert.alert("Erreur", "Impossible de prendre la photo");
+      Alert.alert(t("error"), t("parkingPhotoError"));
     } finally {
       setUploadingPhoto(false);
     }
   };
 
   const handleReportViolation = async () => {
-    if (!rPlate.trim()) return Alert.alert("Erreur", "La plaque est obligatoire");
-    if (!rSpot) return Alert.alert("Erreur", "Sélectionnez la place concernée");
+    if (!rPlate.trim()) return Alert.alert(t("error"), t("parkingPlateRequiredError"));
+    if (!rSpot) return Alert.alert(t("error"), t("parkingSpotRequiredError"));
     setSavingViolation(true);
     try {
       await parking.reportViolation({
@@ -273,7 +282,7 @@ export default function ParkingScreen() {
       setActiveTab("violations");
       load(true);
     } catch (e: any) {
-      Alert.alert("Erreur", e.message ?? "Impossible de signaler l'infraction");
+      Alert.alert(t("error"), t("parkingOperationError"));
     } finally {
       setSavingViolation(false);
     }
@@ -281,12 +290,12 @@ export default function ParkingScreen() {
 
   // ─── Reserve visitor spot ─────────────────────────────────────────────────
   const handleReserve = async () => {
-    if (!resSpotId) return Alert.alert("Erreur", "Sélectionnez une place visiteur");
-    if (!resVisitorName.trim()) return Alert.alert("Erreur", "Le nom du visiteur est obligatoire");
-    if (!resStartDate) return Alert.alert("Erreur", "Sélectionnez une date (format JJ/MM/AAAA)");
+    if (!resSpotId) return Alert.alert(t("error"), t("parkingVisitorSpotRequiredError"));
+    if (!resVisitorName.trim()) return Alert.alert(t("error"), t("parkingVisitorNameRequiredError"));
+    if (!resStartDate) return Alert.alert(t("error"), t("parkingDateRequiredError"));
 
     const dateParts = resStartDate.split("/");
-    if (dateParts.length !== 3) return Alert.alert("Erreur", "Format de date invalide. Utilisez JJ/MM/AAAA");
+    if (dateParts.length !== 3) return Alert.alert(t("error"), t("parkingDateFormatError"));
     const [d, m, y] = dateParts;
     const startISO = `${y}-${m.padStart(2, "0")}-${d.padStart(2, "0")}T${resStartTime}:00`;
     const endISO = `${y}-${m.padStart(2, "0")}-${d.padStart(2, "0")}T${resEndTime}:00`;
@@ -307,17 +316,17 @@ export default function ParkingScreen() {
       setActiveTab("reservations");
       load(true);
     } catch (e: any) {
-      Alert.alert("Erreur", e.message ?? "Impossible de créer la réservation");
+      Alert.alert(t("error"), t("parkingOperationError"));
     } finally {
       setSavingReservation(false);
     }
   };
 
   const handleCancelReservation = (id: string) => {
-    Alert.alert("Annuler", "Annuler cette réservation ?", [
-      { text: "Non", style: "cancel" },
+    Alert.alert(t("cancel"), t("parkingCancelReservation"), [
+      { text: t("no"), style: "cancel" },
       {
-        text: "Oui, annuler",
+        text: `${t("yes")}, ${t("cancel").toLowerCase()}`,
         style: "destructive",
         onPress: async () => {
           try {
@@ -325,7 +334,7 @@ export default function ParkingScreen() {
             Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
             load(true);
           } catch (e: any) {
-            Alert.alert("Erreur", e.message ?? "Erreur lors de l'annulation");
+            Alert.alert(t("error"), t("parkingOperationError"));
           }
         },
       },
@@ -342,8 +351,26 @@ export default function ParkingScreen() {
 
   if (loading) {
     return (
-      <View style={[styles.center, { backgroundColor: bg }]}>
-        <ActivityIndicator size="large" color={primary} />
+      <View style={[styles.root, { backgroundColor: bg, paddingTop: insets.top }]}>
+        <LoadingState
+          title={t("parkingLoadingTitle")}
+          description={t("parkingLoadingDescription")}
+          accentColor={primary}
+        />
+      </View>
+    );
+  }
+
+  if (loadError) {
+    return (
+      <View style={[styles.root, { backgroundColor: bg, paddingTop: insets.top }]}>
+        <ErrorState
+          title={t("parkingUnavailableTitle")}
+          description={t("parkingUnavailableDescription")}
+          retryLabel={t("retry")}
+          onRetry={() => void load()}
+          accentColor={primary}
+        />
       </View>
     );
   }
@@ -355,7 +382,7 @@ export default function ParkingScreen() {
         <TouchableOpacity onPress={() => router.back()} style={styles.backBtn}>
           <Feather name="arrow-left" size={22} color={text} />
         </TouchableOpacity>
-        <Text style={[styles.headerTitle, { color: text }]}>Mon Parking</Text>
+        <Text style={[styles.headerTitle, { color: text }]}>{t("parkingTitle")}</Text>
         <View style={{ width: 36 }} />
       </View>
 
@@ -364,21 +391,21 @@ export default function ParkingScreen() {
         <View style={[styles.spotBanner, { backgroundColor: primary + "15", borderColor: primary + "33" }]}>
           <Feather name="map-pin" size={18} color={primary} />
           <View style={{ flex: 1, marginStart: 10 }}>
-            <Text style={[styles.spotNum, { color: primary }]}>Place {mySpot.spotNumber}</Text>
+            <Text style={[styles.spotNum, { color: primary }]}>{t("parkingPlace")} {mySpot.spotNumber}</Text>
             <Text style={[styles.spotSub, { color: sub }]}>
-              {mySpot.type === "garage" ? "Garage" : mySpot.type === "visitor" ? "Visiteur" : "Résident"}
+              {mySpot.type === "garage" ? t("parkingGarage") : mySpot.type === "visitor" ? t("parkingVisitor") : t("parkingResident")}
               {mySpot.floor ? ` · ${mySpot.floor}` : ""}
-              {mySpot.lot ? ` · Lot ${mySpot.lot.number}` : ""}
+              {mySpot.lot ? ` · ${t("parkingLot")} ${mySpot.lot.number}` : ""}
             </Text>
           </View>
-          <StatusBadge status={mySpot.status} />
+          <StatusBadge status={mySpot.status} t={t} />
         </View>
       )}
 
       {/* Tabs */}
       <View style={[styles.tabs, { borderBottomColor: border }]}>
         {(["vehicles", "violations", "reservations"] as Tab[]).map((tab) => {
-          const labels: Record<Tab, string> = { vehicles: "Véhicules", violations: "Infractions", reservations: "Visiteurs" };
+          const labels: Record<Tab, string> = { vehicles: t("parkingVehicles"), violations: t("parkingViolations"), reservations: t("parkingVisitors") };
           const icons: Record<Tab, keyof typeof Feather.glyphMap> = { vehicles: "truck", violations: "alert-circle", reservations: "calendar" };
           const active = activeTab === tab;
           return (
@@ -406,13 +433,13 @@ export default function ParkingScreen() {
               onPress={() => setShowAddVehicle(true)}
             >
               <Feather name="plus" size={16} color="#fff" />
-              <Text style={styles.addBtnText}>Ajouter un véhicule</Text>
+              <Text style={styles.addBtnText}>{t("parkingAddVehicle")}</Text>
             </TouchableOpacity>
 
             {vehicles.length === 0 ? (
               <View style={[styles.empty, { backgroundColor: card, borderColor: border }]}>
                 <Feather name="truck" size={32} color={sub} />
-                <Text style={[styles.emptyText, { color: sub }]}>Aucun véhicule enregistré</Text>
+                <Text style={[styles.emptyText, { color: sub }]}>{t("parkingNoVehicles")}</Text>
               </View>
             ) : (
               vehicles.map((v) => (
@@ -421,15 +448,15 @@ export default function ParkingScreen() {
                     <View style={[styles.plateChip, { backgroundColor: primary + "15" }]}>
                       <Text style={[styles.plateText, { color: primary }]}>{v.plateNumber}</Text>
                     </View>
-                    <StatusBadge status={v.status} />
+                    <StatusBadge status={v.status} t={t} />
                     <TouchableOpacity onPress={() => handleDeleteVehicle(v.id, v.plateNumber)} style={{ marginStart: 8 }}>
                       <Feather name="trash-2" size={16} color="#ef4444" />
                     </TouchableOpacity>
                   </View>
                   <Text style={[styles.cardSub, { color: sub, marginTop: 6 }]}>
-                    {[v.brand, v.model, v.color].filter(Boolean).join(" · ") || "Marque non précisée"}
+                    {[v.brand, v.model, v.color].filter(Boolean).join(" · ") || t("parkingNoBrand")}
                   </Text>
-                  {v.lot && <Text style={[styles.cardSub, { color: sub }]}>Lot {v.lot.number}</Text>}
+                  {v.lot && <Text style={[styles.cardSub, { color: sub }]}>{t("parkingLot")} {v.lot.number}</Text>}
                 </View>
               ))
             )}
@@ -444,13 +471,13 @@ export default function ParkingScreen() {
               onPress={() => setShowReportViolation(true)}
             >
               <Feather name="camera" size={16} color="#fff" />
-              <Text style={styles.addBtnText}>Signaler une infraction</Text>
+              <Text style={styles.addBtnText}>{t("parkingReportViolation")}</Text>
             </TouchableOpacity>
 
             {violations.length === 0 ? (
               <View style={[styles.empty, { backgroundColor: card, borderColor: border }]}>
                 <Feather name="check-circle" size={32} color={sub} />
-                <Text style={[styles.emptyText, { color: sub }]}>Aucune infraction signalée</Text>
+                <Text style={[styles.emptyText, { color: sub }]}>{t("parkingNoViolations")}</Text>
               </View>
             ) : (
               violations.map((v) => (
@@ -459,17 +486,17 @@ export default function ParkingScreen() {
                     <View style={[styles.plateChip, { backgroundColor: "#ef444415" }]}>
                       <Text style={[styles.plateText, { color: "#ef4444" }]}>{v.plateNumber}</Text>
                     </View>
-                    <StatusBadge status={v.status} />
+                    <StatusBadge status={v.status} t={t} />
                   </View>
                   {v.spot && (
                     <Text style={[styles.cardSub, { color: sub, marginTop: 4 }]}>
-                      Place {v.spot.spotNumber}
+                      {t("parkingPlace")} {v.spot.spotNumber}
                     </Text>
                   )}
                   {v.notes && <Text style={[styles.cardSub, { color: sub }]}>{v.notes}</Text>}
                   <View style={[styles.cardRow, { marginTop: 6 }]}>
                     <Feather name="clock" size={12} color={sub} />
-                    <Text style={[styles.cardDate, { color: sub }]}> {formatDateTime(v.reportedAt)}</Text>
+                    <Text style={[styles.cardDate, { color: sub }]}> {formatDateTime(v.reportedAt, lang)}</Text>
                     <Text style={[styles.cardDate, { color: sub, marginStart: 8 }]}>· {v.reportedByName}</Text>
                     {v.photoUrl && <Feather name="image" size={12} color={primary} style={{ marginStart: 8 }} />}
                   </View>
@@ -488,23 +515,23 @@ export default function ParkingScreen() {
                 onPress={() => setShowReserve(true)}
               >
                 <Feather name="calendar" size={16} color="#fff" />
-                <Text style={styles.addBtnText}>Réserver une place visiteur</Text>
+                <Text style={styles.addBtnText}>{t("parkingReserveVisitor")}</Text>
               </TouchableOpacity>
             )}
 
             {reservations.length === 0 ? (
               <View style={[styles.empty, { backgroundColor: card, borderColor: border }]}>
                 <Feather name="calendar" size={32} color={sub} />
-                <Text style={[styles.emptyText, { color: sub }]}>Aucune réservation</Text>
+                <Text style={[styles.emptyText, { color: sub }]}>{t("parkingNoReservations")}</Text>
               </View>
             ) : (
               reservations.map((r) => (
                 <View key={r.id} style={[styles.card, { backgroundColor: card, borderColor: border }]}>
                   <View style={styles.cardRow}>
                     <Text style={[styles.visitorName, { color: text }]}>{r.visitorName}</Text>
-                    <StatusBadge status={r.status} />
+                    <StatusBadge status={r.status} t={t} />
                   </View>
-                  {r.spot && <Text style={[styles.cardSub, { color: sub, marginTop: 2 }]}>Place {r.spot.spotNumber}{r.spot.floor ? ` · ${r.spot.floor}` : ""}</Text>}
+                  {r.spot && <Text style={[styles.cardSub, { color: sub, marginTop: 2 }]}>{t("parkingPlace")} {r.spot.spotNumber}{r.spot.floor ? ` · ${r.spot.floor}` : ""}</Text>}
                   {r.visitorPlate && (
                     <View style={[styles.plateChip, { backgroundColor: "#10b98115", marginTop: 4 }]}>
                       <Text style={[styles.plateText, { color: "#10b981" }]}>{r.visitorPlate}</Text>
@@ -512,11 +539,11 @@ export default function ParkingScreen() {
                   )}
                   <View style={[styles.cardRow, { marginTop: 6 }]}>
                     <Feather name="clock" size={12} color={sub} />
-                    <Text style={[styles.cardDate, { color: sub }]}> {formatDateTime(r.startTime)} → {formatDateTime(r.endTime)}</Text>
+                    <Text style={[styles.cardDate, { color: sub }]}> {formatDateTime(r.startTime, lang)} → {formatDateTime(r.endTime, lang)}</Text>
                   </View>
                   {r.status === "confirmed" && (
                     <TouchableOpacity style={[styles.cancelBtn, { borderColor: "#ef4444" }]} onPress={() => handleCancelReservation(r.id)}>
-                      <Text style={{ color: "#ef4444", fontSize: 13 }}>Annuler</Text>
+                      <Text style={{ color: "#ef4444", fontSize: 13 }}>{t("cancel")}</Text>
                     </TouchableOpacity>
                   )}
                 </View>
@@ -531,31 +558,31 @@ export default function ParkingScreen() {
         <View style={[styles.modal, { backgroundColor: bg, paddingTop: Platform.OS === "android" ? 24 : 0 }]}>
           <View style={[styles.modalHeader, { borderBottomColor: border }]}>
             <TouchableOpacity onPress={() => setShowAddVehicle(false)}><Feather name="x" size={22} color={text} /></TouchableOpacity>
-            <Text style={[styles.modalTitle, { color: text }]}>Enregistrer un véhicule</Text>
+            <Text style={[styles.modalTitle, { color: text }]}>{t("parkingRegisterVehicle")}</Text>
             <View style={{ width: 22 }} />
           </View>
           <ScrollView contentContainerStyle={styles.modalBody}>
-            <Text style={[styles.fieldLabel, { color: sub }]}>Plaque d'immatriculation *</Text>
+            <Text style={[styles.fieldLabel, { color: sub }]}>{t("parkingPlateRequired")}</Text>
             <TextInput
               style={[styles.input, { backgroundColor: card, color: text, borderColor: border }]}
-              placeholder="Ex: 1234·A·67"
+              placeholder={t("parkingPlatePlaceholder")}
               placeholderTextColor={sub}
               value={vPlate}
               onChangeText={(t) => setVPlate(t.toUpperCase())}
               autoCapitalize="characters"
             />
-            <Text style={[styles.fieldLabel, { color: sub }]}>Marque</Text>
-            <TextInput style={[styles.input, { backgroundColor: card, color: text, borderColor: border }]} placeholder="Ex: Dacia, Peugeot…" placeholderTextColor={sub} value={vBrand} onChangeText={setVBrand} />
-            <Text style={[styles.fieldLabel, { color: sub }]}>Modèle</Text>
-            <TextInput style={[styles.input, { backgroundColor: card, color: text, borderColor: border }]} placeholder="Ex: Logan, 308…" placeholderTextColor={sub} value={vModel} onChangeText={setVModel} />
-            <Text style={[styles.fieldLabel, { color: sub }]}>Couleur</Text>
-            <TextInput style={[styles.input, { backgroundColor: card, color: text, borderColor: border }]} placeholder="Ex: Blanc, Gris…" placeholderTextColor={sub} value={vColor} onChangeText={setVColor} />
+            <Text style={[styles.fieldLabel, { color: sub }]}>{t("parkingBrand")}</Text>
+            <TextInput style={[styles.input, { backgroundColor: card, color: text, borderColor: border }]} placeholder={t("parkingBrandPlaceholder")} placeholderTextColor={sub} value={vBrand} onChangeText={setVBrand} />
+            <Text style={[styles.fieldLabel, { color: sub }]}>{t("parkingModel")}</Text>
+            <TextInput style={[styles.input, { backgroundColor: card, color: text, borderColor: border }]} placeholder={t("parkingModelPlaceholder")} placeholderTextColor={sub} value={vModel} onChangeText={setVModel} />
+            <Text style={[styles.fieldLabel, { color: sub }]}>{t("parkingColor")}</Text>
+            <TextInput style={[styles.input, { backgroundColor: card, color: text, borderColor: border }]} placeholder={t("parkingColorPlaceholder")} placeholderTextColor={sub} value={vColor} onChangeText={setVColor} />
             <TouchableOpacity
               style={[styles.primaryBtn, { backgroundColor: primary, opacity: savingVehicle ? 0.7 : 1 }]}
               onPress={handleAddVehicle}
               disabled={savingVehicle}
             >
-              {savingVehicle ? <ActivityIndicator color="#fff" size="small" /> : <Text style={styles.primaryBtnText}>Enregistrer</Text>}
+              {savingVehicle ? <ActivityIndicator color="#fff" size="small" /> : <Text style={styles.primaryBtnText}>{t("save")}</Text>}
             </TouchableOpacity>
           </ScrollView>
         </View>
@@ -566,14 +593,14 @@ export default function ParkingScreen() {
         <View style={[styles.modal, { backgroundColor: bg, paddingTop: Platform.OS === "android" ? 24 : 0 }]}>
           <View style={[styles.modalHeader, { borderBottomColor: border }]}>
             <TouchableOpacity onPress={() => setShowReportViolation(false)}><Feather name="x" size={22} color={text} /></TouchableOpacity>
-            <Text style={[styles.modalTitle, { color: text }]}>Signaler une infraction</Text>
+            <Text style={[styles.modalTitle, { color: text }]}>{t("parkingReportViolation")}</Text>
             <View style={{ width: 22 }} />
           </View>
           <ScrollView contentContainerStyle={styles.modalBody}>
             {/* Spot selector (provides buildingId automatically) */}
-            <Text style={[styles.fieldLabel, { color: sub }]}>Place concernée *</Text>
+            <Text style={[styles.fieldLabel, { color: sub }]}>{t("parkingPlaceRequired")}</Text>
             {allSpots.length === 0 ? (
-              <Text style={[styles.cardSub, { color: sub }]}>Aucune place accessible</Text>
+              <Text style={[styles.cardSub, { color: sub }]}>{t("parkingNoAccessibleSpot")}</Text>
             ) : (
               <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ marginBottom: 4 }}>
                 {allSpots.map((s) => (
@@ -590,23 +617,23 @@ export default function ParkingScreen() {
             )}
             {rSpot && (
               <Text style={[styles.cardSub, { color: sub, marginBottom: 4 }]}>
-                Place sélectionnée : {rSpot.spotNumber}{rSpot.floor ? ` · ${rSpot.floor}` : ""}
+                {t("parkingSelectedPlace")} {rSpot.spotNumber}{rSpot.floor ? ` · ${rSpot.floor}` : ""}
               </Text>
             )}
 
-            <Text style={[styles.fieldLabel, { color: sub }]}>Plaque du véhicule en infraction *</Text>
+            <Text style={[styles.fieldLabel, { color: sub }]}>{t("parkingViolationPlate")}</Text>
             <TextInput
               style={[styles.input, { backgroundColor: card, color: text, borderColor: border }]}
-              placeholder="Ex: 1234·A·67"
+              placeholder={t("parkingPlatePlaceholder")}
               placeholderTextColor={sub}
               value={rPlate}
               onChangeText={(t) => setRPlate(t.toUpperCase())}
               autoCapitalize="characters"
             />
-            <Text style={[styles.fieldLabel, { color: sub }]}>Notes</Text>
+            <Text style={[styles.fieldLabel, { color: sub }]}>{t("notesLabel")}</Text>
             <TextInput
               style={[styles.inputMulti, { backgroundColor: card, color: text, borderColor: border }]}
-              placeholder="Décrivez la situation…"
+              placeholder={t("parkingDescribeSituation")}
               placeholderTextColor={sub}
               value={rNotes}
               onChangeText={setRNotes}
@@ -615,7 +642,7 @@ export default function ParkingScreen() {
             />
 
             {/* Photo capture */}
-            <Text style={[styles.fieldLabel, { color: sub }]}>Photo preuve</Text>
+            <Text style={[styles.fieldLabel, { color: sub }]}>{t("parkingProofPhoto")}</Text>
             <TouchableOpacity
               style={[styles.photoBtn, { borderColor: rPhotoUrl ? "#10b981" : border, backgroundColor: rPhotoUrl ? "#10b98115" : card }]}
               onPress={handleTakePhoto}
@@ -627,7 +654,7 @@ export default function ParkingScreen() {
                 <>
                   <Feather name={rPhotoUrl ? "check-circle" : "camera"} size={20} color={rPhotoUrl ? "#10b981" : sub} />
                   <Text style={[styles.photoBtnText, { color: rPhotoUrl ? "#10b981" : sub }]}>
-                    {rPhotoUrl ? "Photo ajoutée ✓" : "Prendre une photo"}
+                    {rPhotoUrl ? `${t("parkingPhotoAdded")} ✓` : t("parkingTakePhoto")}
                   </Text>
                 </>
               )}
@@ -638,7 +665,7 @@ export default function ParkingScreen() {
               onPress={handleReportViolation}
               disabled={savingViolation}
             >
-              {savingViolation ? <ActivityIndicator color="#fff" size="small" /> : <Text style={styles.primaryBtnText}>Signaler l'infraction</Text>}
+              {savingViolation ? <ActivityIndicator color="#fff" size="small" /> : <Text style={styles.primaryBtnText}>{t("parkingSubmitViolation")}</Text>}
             </TouchableOpacity>
           </ScrollView>
         </View>
@@ -649,11 +676,11 @@ export default function ParkingScreen() {
         <View style={[styles.modal, { backgroundColor: bg, paddingTop: Platform.OS === "android" ? 24 : 0 }]}>
           <View style={[styles.modalHeader, { borderBottomColor: border }]}>
             <TouchableOpacity onPress={() => setShowReserve(false)}><Feather name="x" size={22} color={text} /></TouchableOpacity>
-            <Text style={[styles.modalTitle, { color: text }]}>Réservation visiteur</Text>
+            <Text style={[styles.modalTitle, { color: text }]}>{t("parkingReservationTitle")}</Text>
             <View style={{ width: 22 }} />
           </View>
           <ScrollView contentContainerStyle={styles.modalBody}>
-            <Text style={[styles.fieldLabel, { color: sub }]}>Place visiteur disponible *</Text>
+            <Text style={[styles.fieldLabel, { color: sub }]}>{t("parkingAvailableVisitorSpot")}</Text>
             <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ marginBottom: 12 }}>
               {visitorSpots.map((s) => (
                 <TouchableOpacity
@@ -665,24 +692,24 @@ export default function ParkingScreen() {
                   {s.floor && <Text style={{ color: sub, fontSize: 11 }}>{s.floor}</Text>}
                 </TouchableOpacity>
               ))}
-              {visitorSpots.length === 0 && <Text style={{ color: sub }}>Aucune place visiteur disponible</Text>}
+              {visitorSpots.length === 0 && <Text style={{ color: sub }}>{t("parkingNoVisitorAvailable")}</Text>}
             </ScrollView>
 
-            <Text style={[styles.fieldLabel, { color: sub }]}>Nom du visiteur *</Text>
-            <TextInput style={[styles.input, { backgroundColor: card, color: text, borderColor: border }]} placeholder="Ex: Ahmed Bennani" placeholderTextColor={sub} value={resVisitorName} onChangeText={setResVisitorName} />
-            <Text style={[styles.fieldLabel, { color: sub }]}>Plaque du visiteur</Text>
+            <Text style={[styles.fieldLabel, { color: sub }]}>{t("parkingVisitorName")}</Text>
+            <TextInput style={[styles.input, { backgroundColor: card, color: text, borderColor: border }]} placeholder={t("nameLabel")} placeholderTextColor={sub} value={resVisitorName} onChangeText={setResVisitorName} />
+            <Text style={[styles.fieldLabel, { color: sub }]}>{t("parkingVisitorPlate")}</Text>
             <TextInput
               style={[styles.input, { backgroundColor: card, color: text, borderColor: border }]}
-              placeholder="Ex: 9876·B·42"
+              placeholder={t("parkingPlatePlaceholder")}
               placeholderTextColor={sub}
               value={resVisitorPlate}
               onChangeText={(t) => setResVisitorPlate(t.toUpperCase())}
               autoCapitalize="characters"
             />
-            <Text style={[styles.fieldLabel, { color: sub }]}>Date (JJ/MM/AAAA) *</Text>
+            <Text style={[styles.fieldLabel, { color: sub }]}>{t("parkingDateRequired")}</Text>
             <TextInput
               style={[styles.input, { backgroundColor: card, color: text, borderColor: border }]}
-              placeholder="Ex: 15/07/2026"
+              placeholder={t("parkingDatePlaceholder")}
               placeholderTextColor={sub}
               value={resStartDate}
               onChangeText={setResStartDate}
@@ -690,23 +717,23 @@ export default function ParkingScreen() {
             />
             <View style={{ flexDirection: "row", gap: 10 }}>
               <View style={{ flex: 1 }}>
-                <Text style={[styles.fieldLabel, { color: sub }]}>Heure début</Text>
+                <Text style={[styles.fieldLabel, { color: sub }]}>{t("parkingStartTime")}</Text>
                 <TextInput style={[styles.input, { backgroundColor: card, color: text, borderColor: border }]} placeholder="09:00" placeholderTextColor={sub} value={resStartTime} onChangeText={setResStartTime} />
               </View>
               <View style={{ flex: 1 }}>
-                <Text style={[styles.fieldLabel, { color: sub }]}>Heure fin</Text>
+                <Text style={[styles.fieldLabel, { color: sub }]}>{t("parkingEndTime")}</Text>
                 <TextInput style={[styles.input, { backgroundColor: card, color: text, borderColor: border }]} placeholder="18:00" placeholderTextColor={sub} value={resEndTime} onChangeText={setResEndTime} />
               </View>
             </View>
-            <Text style={[styles.fieldLabel, { color: sub }]}>Notes</Text>
-            <TextInput style={[styles.inputMulti, { backgroundColor: card, color: text, borderColor: border }]} placeholder="Objet de la visite…" placeholderTextColor={sub} value={resNotes} onChangeText={setResNotes} multiline numberOfLines={3} />
+            <Text style={[styles.fieldLabel, { color: sub }]}>{t("notesLabel")}</Text>
+            <TextInput style={[styles.inputMulti, { backgroundColor: card, color: text, borderColor: border }]} placeholder={t("parkingVisitPurpose")} placeholderTextColor={sub} value={resNotes} onChangeText={setResNotes} multiline numberOfLines={3} />
 
             <TouchableOpacity
               style={[styles.primaryBtn, { backgroundColor: "#10b981", opacity: savingReservation ? 0.7 : 1 }]}
               onPress={handleReserve}
               disabled={savingReservation}
             >
-              {savingReservation ? <ActivityIndicator color="#fff" size="small" /> : <Text style={styles.primaryBtnText}>Confirmer la réservation</Text>}
+              {savingReservation ? <ActivityIndicator color="#fff" size="small" /> : <Text style={styles.primaryBtnText}>{t("parkingConfirmReservation")}</Text>}
             </TouchableOpacity>
           </ScrollView>
         </View>

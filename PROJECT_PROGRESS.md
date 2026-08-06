@@ -26,3 +26,11 @@
 - Made Platform Support recoverable when support data is unavailable, with localized retry states for the ticket list and selected-ticket conversation details.
 - Made Super Admin Marketplace Moderation recoverable when moderation data is unavailable, with distinct retry states for product queues, live counters, and product reports.
 - Made the document recycle bin recoverable when deleted-document data is unavailable, with localized loading and retry states that distinguish a failed archive request from an empty bin.
+- Completed the parking module enterprise UX pass: localized the full vehicle, violation, and visitor-reservation experience across French, English, Arabic, and Spanish.
+- Added contextual loading, retryable unavailable-data recovery, translated status badges and locale-aware dates, and localized validation/confirmation feedback for parking actions.
+- Hardened the financial dashboard against building-list and selected-building API failures with contextual loading, retryable recovery, and explicit no-accessible-building states.
+- Completed the financial dashboard visible-text audit: KPI labels, payment tables, works statuses/priorities, provider contract units, categories, and section navigation now follow the active language.
+- Completed the buildings administration pass: localized building counts, filters, sorting, statistics, search, empty states, metadata, and active/inactive status text for French, English, Arabic, and Spanish.
+- Replaced the buildings screen's generic loading and raw API-error surface with contextual shared loading and retryable recovery states.
+- Completed the governance screen localization pass: board, commissions, mandates, delegations, statutes, detail modals, confirmations, and creation forms now follow the active language.
+- Corrected subscription status chips to use the existing localized status helpers, restoring the mobile package typecheck after the governance audit.

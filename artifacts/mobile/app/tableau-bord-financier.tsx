@@ -13,8 +13,9 @@ import { Ionicons } from "@expo/vector-icons";
 import { useRouter } from "expo-router";
 import { apiRequest } from "@/lib/api";
 import RoleGuard from "@/components/RoleGuard";
-import { useLanguage } from "@/context/LanguageContext";
+import { LangCode, useLanguage } from "@/context/LanguageContext";
 import { useColors } from "@/hooks/useColors";
+import { ErrorState, LoadingState } from "@/components/DataState";
 
 type Colors = ReturnType<typeof useColors>;
 
@@ -89,6 +90,36 @@ const STRINGS = {
     en: "Validation error",
     ar: "خطأ أثناء التحقق",
     es: "Error durante la validación",
+  },
+  dashboardUnavailable: {
+    fr: "Le tableau de bord financier n'est pas disponible. Vérifiez votre connexion puis réessayez.",
+    en: "The financial dashboard is unavailable. Check your connection and try again.",
+    ar: "لوحة القيادة المالية غير متاحة. تحقق من اتصالك وحاول مجدداً.",
+    es: "El panel financiero no está disponible. Compruebe su conexión e inténtelo de nuevo.",
+  },
+  dashboardUnavailableTitle: {
+    fr: "Données financières indisponibles",
+    en: "Financial data unavailable",
+    ar: "البيانات المالية غير متاحة",
+    es: "Datos financieros no disponibles",
+  },
+  retry: {
+    fr: "Réessayer",
+    en: "Retry",
+    ar: "إعادة المحاولة",
+    es: "Reintentar",
+  },
+  noBuildingsTitle: {
+    fr: "Aucun immeuble disponible",
+    en: "No buildings available",
+    ar: "لا توجد مبانٍ متاحة",
+    es: "No hay edificios disponibles",
+  },
+  noBuildingsDescription: {
+    fr: "Aucun immeuble financier n'est accessible pour votre rôle.",
+    en: "No financial building is accessible for your role.",
+    ar: "لا يوجد مبنى مالي متاح لدورك.",
+    es: "No hay ningún edificio financiero accesible para su rol.",
   },
   finances: {
     fr: "Finances",
@@ -336,6 +367,90 @@ const STRINGS = {
     ar: "منخفضة",
     es: "Baja",
   },
+  paid: {
+    fr: "Payé",
+    en: "Paid",
+    ar: "مدفوع",
+    es: "Pagado",
+  },
+  rate: {
+    fr: "Taux",
+    en: "Rate",
+    ar: "المعدل",
+    es: "Tasa",
+  },
+  quarterTracking: {
+    fr: "Suivi par trimestre",
+    en: "Quarterly tracking",
+    ar: "المتابعة الفصلية",
+    es: "Seguimiento trimestral",
+  },
+  period: {
+    fr: "Période",
+    en: "Period",
+    ar: "الفترة",
+    es: "Período",
+  },
+  consumption: {
+    fr: "Consommation",
+    en: "Usage",
+    ar: "الاستهلاك",
+    es: "Consumo",
+  },
+  spent: {
+    fr: "Dépensé",
+    en: "Spent",
+    ar: "المنفق",
+    es: "Gastado",
+  },
+  estimatedBudget: {
+    fr: "Budget estimé",
+    en: "Estimated budget",
+    ar: "الميزانية المقدرة",
+    es: "Presupuesto estimado",
+  },
+  activeProviders: {
+    fr: "Prestataires actifs",
+    en: "Active providers",
+    ar: "المزودون النشطون",
+    es: "Proveedores activos",
+  },
+  contractCharges: {
+    fr: "Charges contrats",
+    en: "Contract charges",
+    ar: "تكاليف العقود",
+    es: "Cargos de contratos",
+  },
+  perYear: {
+    fr: "par an",
+    en: "per year",
+    ar: "سنوياً",
+    es: "al año",
+  },
+  perMonth: {
+    fr: "/mois",
+    en: "/month",
+    ar: "شهرياً/",
+    es: "/mes",
+  },
+  worksInProgressTitle: {
+    fr: "Travaux en cours",
+    en: "Works in progress",
+    ar: "الأشغال قيد التنفيذ",
+    es: "Obras en curso",
+  },
+  worksBudgetTitle: {
+    fr: "Budget travaux",
+    en: "Works budget",
+    ar: "ميزانية الأشغال",
+    es: "Presupuesto de obras",
+  },
+  activeContractsTitle: {
+    fr: "Contrats actifs",
+    en: "Active contracts",
+    ar: "العقود النشطة",
+    es: "Contratos activos",
+  },
 };
 
 const CATEGORY_STRINGS: Record<string, Record<string, string>> = {
@@ -570,26 +685,26 @@ const CATEGORY_LABELS: Record<string, string> = {
   travaux: "Travaux",
 };
 
-const getCategoryLabel = (cat: string, lang: string) => {
+const getCategoryLabel = (cat: string, lang: LangCode) => {
   return CATEGORY_STRINGS[cat]?.[lang] || CATEGORY_LABELS[cat] || cat;
 };
 
-const getStatusLabel = (status: string, lang: string) => {
+const getStatusLabel = (status: string, lang: LangCode) => {
   switch (status) {
-    case "planned": return STRINGS.statusPlanned[lang as "fr"];
-    case "scheduled": return STRINGS.statusScheduled[lang as "fr"];
-    case "in_progress": return STRINGS.statusInProgress[lang as "fr"];
-    case "completed": return STRINGS.statusCompleted[lang as "fr"];
+    case "planned": return STRINGS.statusPlanned[lang];
+    case "scheduled": return STRINGS.statusScheduled[lang];
+    case "in_progress": return STRINGS.statusInProgress[lang];
+    case "completed": return STRINGS.statusCompleted[lang];
     default: return status;
   }
 };
 
-const getPriorityLabel = (prio: string, lang: string) => {
+const getPriorityLabel = (prio: string, lang: LangCode) => {
   switch (prio) {
-    case "urgent": return STRINGS.priorityUrgent[lang as "fr"];
-    case "high": return STRINGS.priorityHigh[lang as "fr"];
-    case "normal": return STRINGS.priorityNormal[lang as "fr"];
-    case "low": return STRINGS.priorityLow[lang as "fr"];
+    case "urgent": return STRINGS.priorityUrgent[lang];
+    case "high": return STRINGS.priorityHigh[lang];
+    case "normal": return STRINGS.priorityNormal[lang];
+    case "low": return STRINGS.priorityLow[lang];
     default: return prio;
   }
 };
@@ -924,18 +1039,24 @@ function TableauBordFinancierInner() {
   const [reviewBusyId, setReviewBusyId] = useState<string | null>(null);
 
   const loadBuildings = useCallback(async () => {
-    const res = await apiRequest<{ data: BuildingQuick[] }>("/finance/buildings");
-    setBuildings(res.data);
-    if (!selectedId && res.data.length > 0) setSelectedId(res.data[0].id);
-  }, [selectedId]);
+    try {
+      const res = await apiRequest<{ data: BuildingQuick[] }>("/finance/buildings");
+      setBuildings(res.data);
+      if (!selectedId && res.data.length > 0) setSelectedId(res.data[0].id);
+    } catch (e: any) {
+      setError(STRINGS.dashboardUnavailable[lang]);
+      throw e;
+    }
+  }, [selectedId, lang]);
 
   const loadDashboard = useCallback(async (id: string) => {
     setError(null);
+    setData(null);
     try {
       const res = await apiRequest<{ data: DashboardData }>(`/finance/building/${id}`);
       setData(res.data);
     } catch (e: any) {
-      setError(e.message ?? STRINGS.loadError[lang]);
+      setError(STRINGS.dashboardUnavailable[lang]);
     }
   }, [lang]);
 
@@ -955,11 +1076,13 @@ function TableauBordFinancierInner() {
       setLoading(true);
       try {
         await Promise.all([loadBuildings(), loadPending()]);
+      } catch {
+        setError(STRINGS.dashboardUnavailable[lang]);
       } finally {
         setLoading(false);
       }
     })();
-  }, []);
+  }, [lang, loadBuildings, loadPending]);
 
   useEffect(() => {
     if (selectedId) loadDashboard(selectedId);
@@ -967,10 +1090,15 @@ function TableauBordFinancierInner() {
 
   const onRefresh = useCallback(async () => {
     setRefreshing(true);
-    await Promise.all([loadBuildings(), loadPending()]);
-    if (selectedId) await loadDashboard(selectedId);
-    setRefreshing(false);
-  }, [selectedId, loadBuildings, loadDashboard, loadPending]);
+    try {
+      await Promise.all([loadBuildings(), loadPending()]);
+      if (selectedId) await loadDashboard(selectedId);
+    } catch {
+      setError(STRINGS.dashboardUnavailable[lang]);
+    } finally {
+      setRefreshing(false);
+    }
+  }, [selectedId, lang, loadBuildings, loadDashboard, loadPending]);
 
   const handleReview = useCallback(
     async (item: PendingItem, action: "approve" | "reject") => {
@@ -981,7 +1109,7 @@ function TableauBordFinancierInner() {
         setPendingItems((prev) => prev.filter((p) => p.id !== item.id));
         if (selectedId) await loadDashboard(selectedId);
       } catch (e: any) {
-        setError(e.message ?? STRINGS.validationError[lang]);
+        setError(STRINGS.validationError[lang]);
       } finally {
         setReviewBusyId(null);
       }
@@ -992,8 +1120,52 @@ function TableauBordFinancierInner() {
   if (loading) {
     return (
       <View style={styles.centered}>
-        <ActivityIndicator size="large" color={colors.primary} />
-        <Text style={styles.loadingText}>{STRINGS.loading[lang]}</Text>
+        <LoadingState
+          title={STRINGS.loading[lang]}
+          description={STRINGS.dashboardUnavailable[lang]}
+          accentColor={colors.primary}
+        />
+      </View>
+    );
+  }
+
+  if (error && !data) {
+    return (
+      <View style={styles.centered}>
+        <ErrorState
+          title={STRINGS.dashboardUnavailableTitle[lang]}
+          description={error}
+          retryLabel={STRINGS.retry[lang]}
+          onRetry={() => {
+            setLoading(true);
+            void Promise.all([loadBuildings(), loadPending()])
+              .then(() => {
+                if (selectedId) return loadDashboard(selectedId);
+              })
+              .catch(() => setError(STRINGS.dashboardUnavailable[lang]))
+              .finally(() => setLoading(false));
+          }}
+          accentColor={colors.primary}
+        />
+      </View>
+    );
+  }
+
+  if (!data && buildings.length === 0) {
+    return (
+      <View style={styles.centered}>
+        <ErrorState
+          title={STRINGS.noBuildingsTitle[lang]}
+          description={STRINGS.noBuildingsDescription[lang]}
+          retryLabel={STRINGS.retry[lang]}
+          onRetry={() => {
+            setLoading(true);
+            void loadBuildings()
+              .catch(() => setError(STRINGS.dashboardUnavailable[lang]))
+              .finally(() => setLoading(false));
+          }}
+          accentColor={colors.primary}
+        />
       </View>
     );
   }
@@ -1065,7 +1237,7 @@ function TableauBordFinancierInner() {
                       { color: active ? colors.primaryForeground : rateColor },
                     ]}
                   >
-                    {b.tauxRecouvrement}% recouv.
+                    {b.tauxRecouvrement}% {STRINGS.recoveryAbbr[lang]}
                   </Text>
                 </View>
               </TouchableOpacity>
@@ -1101,10 +1273,10 @@ function TableauBordFinancierInner() {
                     ]}
                   >
                     {s === "finance"
-                      ? "Finances"
+                      ? STRINGS.finances[lang]
                       : s === "travaux"
-                      ? "Travaux"
-                      : "Prestataires"}
+                      ? STRINGS.travaux[lang]
+                      : STRINGS.prestataires[lang]}
                   </Text>
                 </TouchableOpacity>
               ))}
@@ -1131,7 +1303,7 @@ function TableauBordFinancierInner() {
                         {fmt(summary.totalEncaisse)}
                       </Text>
                       <Text style={[styles.triLab, { color: colors.success }]}>
-                        Encaissé
+                        {STRINGS.collected[lang]}
                       </Text>
                     </View>
                     <View style={[styles.triItem, styles.triMid]}>
@@ -1139,7 +1311,7 @@ function TableauBordFinancierInner() {
                         {fmt(summary.totalImpaye)}
                       </Text>
                       <Text style={[styles.triLab, { color: colors.destructive }]}>
-                        Impayé
+                        {STRINGS.unpaid[lang]}
                       </Text>
                     </View>
                     <View style={styles.triItem}>
@@ -1147,7 +1319,7 @@ function TableauBordFinancierInner() {
                         {fmt(summary.totalEnAttente)}
                       </Text>
                       <Text style={[styles.triLab, { color: colors.warning }]}>
-                        En attente
+                        {STRINGS.pending[lang]}
                       </Text>
                     </View>
                   </View>
@@ -1156,7 +1328,7 @@ function TableauBordFinancierInner() {
                 {/* KPI cards — 2×2 responsive grid */}
                 <View style={styles.kpiGrid}>
                   <KpiCard
-                    label="Budget annuel"
+                    label={STRINGS.annualBudget[lang]}
                     value={kpiFmtMAD(summary.budgetAnnuel)}
                     color={colors.info}
                     icon="wallet-outline"
@@ -1164,27 +1336,27 @@ function TableauBordFinancierInner() {
                     styles={styles}
                   />
                   <KpiCard
-                    label="Fonds de réserve"
+                    label={STRINGS.reserveFund[lang]}
                     value={kpiFmtMAD(summary.fondsReserveCollecte)}
-                    sub={`/ ${fmt(summary.fondsReserveBudget)} prévu`}
+                    sub={`/ ${fmt(summary.fondsReserveBudget)} ${STRINGS.planned[lang]}`}
                     color={colors.tint}
                     icon="shield-checkmark-outline"
                     cardWidth={kpiCardWidth}
                     styles={styles}
                   />
                   <KpiCard
-                    label="Lots occupés"
+                    label={STRINGS.occupiedLots[lang]}
                     value={`${data.lots.occupes} / ${data.lots.total}`}
-                    sub={`${data.lots.tauxOccupation}% taux`}
+                    sub={`${data.lots.tauxOccupation}% ${STRINGS.occupationRate[lang]}`}
                     color={colors.success}
                     icon="home-outline"
                     cardWidth={kpiCardWidth}
                     styles={styles}
                   />
                   <KpiCard
-                    label="Appels de fonds"
+                    label={STRINGS.callsForFunds[lang]}
                     value={String(data.appelsDeFonds.total)}
-                    sub={`${data.appelsDeFonds.paid} payés · ${data.appelsDeFonds.overdue} impayés`}
+                    sub={`${data.appelsDeFonds.paid} ${STRINGS.paidCount[lang]} · ${data.appelsDeFonds.overdue} ${STRINGS.unpaidCount[lang]}`}
                     color={colors.warning}
                     icon="cash-outline"
                     cardWidth={kpiCardWidth}
@@ -1194,9 +1366,7 @@ function TableauBordFinancierInner() {
 
                 {/* Monthly bar chart */}
                 <View style={styles.card}>
-                  <Text style={styles.cardTitle}>
-                    Historique des paiements (6 mois)
-                  </Text>
+                    <Text style={styles.cardTitle}>{STRINGS.paymentHistory[lang]}</Text>
                   <BarChart data={data.monthlyHistory} colors={colors} styles={styles} />
                 </View>
 
@@ -1204,17 +1374,17 @@ function TableauBordFinancierInner() {
                 {budgetCats.length > 0 && (
                   <View style={styles.card}>
                     <Text style={styles.cardTitle}>
-                      Répartition du budget {new Date().getFullYear()}
+                      {STRINGS.budgetDistribution[lang]} {new Date().getFullYear()}
                     </Text>
                     <Text style={styles.cardSub}>
-                      Total budget : {fmtMAD(budgetTotal)}
+                      {STRINGS.totalBudget[lang]} : {fmtMAD(budgetTotal)}
                     </Text>
                     {budgetCats
                       .sort(([, a], [, b]) => b - a)
                       .map(([cat, amt], i) => (
                         <CategoryRow
                           key={cat}
-                          label={CATEGORY_LABELS[cat] ?? cat}
+                          label={getCategoryLabel(cat, lang)}
                           amount={amt}
                           total={budgetTotal}
                           color={CAT_COLORS[i % CAT_COLORS.length]}
@@ -1227,12 +1397,12 @@ function TableauBordFinancierInner() {
                 {/* Periods table */}
                 {data.periodStats.length > 0 && (
                   <View style={styles.card}>
-                    <Text style={styles.cardTitle}>Suivi par trimestre</Text>
+                    <Text style={styles.cardTitle}>{STRINGS.quarterTracking[lang]}</Text>
                     <View style={styles.tableHeader}>
-                      <Text style={[styles.th, { flex: 2 }]}>Période</Text>
-                      <Text style={styles.th}>Payé</Text>
-                      <Text style={styles.th}>Impayé</Text>
-                      <Text style={[styles.th, { color: colors.info }]}>Taux</Text>
+                      <Text style={[styles.th, { flex: 2 }]}>{STRINGS.period[lang]}</Text>
+                      <Text style={styles.th}>{STRINGS.paid[lang]}</Text>
+                      <Text style={styles.th}>{STRINGS.unpaid[lang]}</Text>
+                      <Text style={[styles.th, { color: colors.info }]}>{STRINGS.rate[lang]}</Text>
                     </View>
                     {data.periodStats.map((ps) => {
                       const rColor =
@@ -1268,7 +1438,7 @@ function TableauBordFinancierInner() {
               <>
                 <View style={styles.kpiGrid}>
                   <KpiCard
-                    label="En cours"
+                    label={STRINGS.worksInProgress[lang]}
                     value={String(data.travaux.enCours)}
                     color={colors.warning}
                     icon="construct-outline"
@@ -1276,7 +1446,7 @@ function TableauBordFinancierInner() {
                     styles={styles}
                   />
                   <KpiCard
-                    label="Terminés"
+                    label={STRINGS.statusCompleted[lang]}
                     value={String(data.travaux.termines)}
                     color={colors.success}
                     icon="checkmark-circle-outline"
@@ -1284,7 +1454,7 @@ function TableauBordFinancierInner() {
                     styles={styles}
                   />
                   <KpiCard
-                    label="Urgents"
+                    label={STRINGS.worksUrgent[lang]}
                     value={String(data.travaux.urgents)}
                     color={colors.destructive}
                     icon="warning-outline"
@@ -1292,9 +1462,9 @@ function TableauBordFinancierInner() {
                     styles={styles}
                   />
                   <KpiCard
-                    label="Budget estimé"
+                    label={STRINGS.estimatedBudget[lang]}
                     value={kpiFmtMAD(data.travaux.budgetEstime)}
-                    sub={`Dépensé : ${fmt(data.travaux.depenseReelle)} MAD`}
+                    sub={`${STRINGS.spent[lang]} : ${fmt(data.travaux.depenseReelle)} MAD`}
                     color={colors.tint}
                     icon="bar-chart-outline"
                     cardWidth={kpiCardWidth}
@@ -1304,7 +1474,7 @@ function TableauBordFinancierInner() {
 
                 {data.travaux.items.length > 0 && (
                   <View style={styles.card}>
-                    <Text style={styles.cardTitle}>Travaux en cours</Text>
+                    <Text style={styles.cardTitle}>{STRINGS.worksInProgressTitle[lang]}</Text>
                     {data.travaux.items.map((t) => (
                       <View key={t.id} style={styles.travauxItem}>
                         <View
@@ -1325,7 +1495,7 @@ function TableauBordFinancierInner() {
                               },
                             ]}
                           >
-                            {t.priority}
+                            {getPriorityLabel(t.priority, lang)}
                           </Text>
                         </View>
                         <View style={{ flex: 1 }}>
@@ -1341,11 +1511,7 @@ function TableauBordFinancierInner() {
                               ]}
                             />
                             <Text style={styles.travauxStatus}>
-                              {t.status === "in_progress"
-                                ? "En cours"
-                                : t.status === "scheduled"
-                                ? "Planifié"
-                                : t.status}
+                              {getStatusLabel(t.status, lang)}
                             </Text>
                             {t.estimatedAmount && (
                               <Text style={styles.travauxAmt}>
@@ -1363,9 +1529,9 @@ function TableauBordFinancierInner() {
                 {/* Budget travaux bar */}
                 {data.travaux.budgetEstime > 0 && (
                   <View style={styles.card}>
-                    <Text style={styles.cardTitle}>Budget travaux</Text>
+                    <Text style={styles.cardTitle}>{STRINGS.worksBudgetTitle[lang]}</Text>
                     <View style={styles.gaugeRow}>
-                      <Text style={styles.gaugeLabel}>Consommation</Text>
+                      <Text style={styles.gaugeLabel}>{STRINGS.consumption[lang]}</Text>
                       <Text style={styles.gaugeValue}>
                         {Math.round(
                           (data.travaux.depenseReelle /
@@ -1389,10 +1555,10 @@ function TableauBordFinancierInner() {
                     </View>
                     <View style={styles.gaugeHints}>
                       <Text style={styles.gaugeHint}>
-                        Dépensé : {fmtMAD(data.travaux.depenseReelle)}
+                        {STRINGS.spent[lang]} : {fmtMAD(data.travaux.depenseReelle)}
                       </Text>
                       <Text style={styles.gaugeHint}>
-                        Estimé : {fmtMAD(data.travaux.budgetEstime)}
+                        {STRINGS.estimatedBudget[lang]} : {fmtMAD(data.travaux.budgetEstime)}
                       </Text>
                     </View>
                   </View>
@@ -1405,7 +1571,7 @@ function TableauBordFinancierInner() {
               <>
                 <View style={styles.kpiGrid}>
                   <KpiCard
-                    label="Prestataires actifs"
+                    label={STRINGS.activeProviders[lang]}
                     value={String(data.prestataires.actifs)}
                     color={colors.info}
                     icon="people-outline"
@@ -1413,9 +1579,9 @@ function TableauBordFinancierInner() {
                     styles={styles}
                   />
                   <KpiCard
-                    label="Charges contrats"
+                    label={STRINGS.contractCharges[lang]}
                     value={kpiFmtMAD(data.prestataires.chargesContrats)}
-                    sub="par an"
+                    sub={STRINGS.perYear[lang]}
                     color={colors.warning}
                     icon="receipt-outline"
                     cardWidth={kpiCardWidth}
@@ -1425,7 +1591,7 @@ function TableauBordFinancierInner() {
 
                 {data.prestataires.contrats.length > 0 && (
                   <View style={styles.card}>
-                    <Text style={styles.cardTitle}>Contrats actifs</Text>
+                    <Text style={styles.cardTitle}>{STRINGS.activeContractsTitle[lang]}</Text>
                     {data.prestataires.contrats.map((c, i) => (
                       <View key={i} style={styles.contratItem}>
                         <View style={styles.contratLeft}>
@@ -1455,17 +1621,17 @@ function TableauBordFinancierInner() {
                         <View style={styles.contratRight}>
                           {c.monthlyAmount ? (
                             <Text style={styles.contratAmt}>
-                              {fmt(c.monthlyAmount)}/mois
+                              {fmt(c.monthlyAmount)} {STRINGS.perMonth[lang]}
                             </Text>
                           ) : null}
                           {c.annualAmount ? (
                             <Text style={styles.contratAnnual}>
-                              {fmt(c.annualAmount)} MAD/an
+                              {fmt(c.annualAmount)} MAD/{STRINGS.annual[lang]}
                             </Text>
                           ) : null}
                           {c.endDate ? (
                             <Text style={styles.contratEnd}>
-                              Fin : {c.endDate}
+                              {STRINGS.endsOn[lang]} : {c.endDate}
                             </Text>
                           ) : null}
                         </View>

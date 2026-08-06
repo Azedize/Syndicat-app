@@ -3,7 +3,6 @@ import * as Haptics from "expo-haptics";
 import { router } from "expo-router";
 import React, { useCallback, useEffect, useMemo, useState } from "react";
 import {
-  ActivityIndicator,
   Platform,
   RefreshControl,
   ScrollView,
@@ -21,6 +20,7 @@ import { useColors } from "@/hooks/useColors";
 import { apiRequest } from "@/lib/api";
 import StatCard from "@/components/StatCard";
 import RoleGuard from "@/components/RoleGuard";
+import { ErrorState, LoadingState } from "@/components/DataState";
 
 type SortKey = "name" | "lots" | "unpaid" | "city";
 
@@ -136,14 +136,14 @@ function BuildingsScreenInner() {
   };
 
   const SORT_OPTIONS: { key: SortKey; label: string }[] = [
-    { key: "name",   label: "Nom" },
-    { key: "city",   label: "Ville" },
+    { key: "name",   label: t("buildingName") },
+    { key: "city",   label: t("city") },
     { key: "lots",   label: t("units") },
-    { key: "unpaid", label: "Impayés" },
+    { key: "unpaid", label: t("unpaidCharges") },
   ];
 
   const FILTER_TYPES = [
-    { key: "all",         label: "Tous" },
+    { key: "all",         label: t("all") },
     { key: "residential", label: t("residential") },
     { key: "commercial",  label: t("commercial") },
     { key: "office",      label: t("offices") },
@@ -151,9 +151,9 @@ function BuildingsScreenInner() {
   ];
 
   const FILTER_STATUS = [
-    { key: "all",      label: "Tous" },
-    { key: "active",   label: "Actifs" },
-    { key: "inactive", label: "Inactifs" },
+    { key: "all",      label: t("all") },
+    { key: "active",   label: t("statusActive") },
+    { key: "inactive", label: t("statusInactive") },
   ];
 
   const load = useCallback(async (silent = false) => {
@@ -169,13 +169,13 @@ function BuildingsScreenInner() {
       setBuildings(bData.data ?? []);
       if (sData) setBldgStats(sData.data ?? []);
       setError(null);
-    } catch (e: any) {
-      setError(e.message ?? "Erreur de chargement");
+    } catch {
+      setError(t("buildingsLoadErrorDescription"));
     } finally {
       setLoading(false);
       setRefreshing(false);
     }
-  }, [token, isSuperAdmin]);
+  }, [token, isSuperAdmin, t]);
 
   useEffect(() => { load(); }, [load]);
 
@@ -234,9 +234,9 @@ function BuildingsScreenInner() {
         </TouchableOpacity>
         <View style={{ flex: 1 }}>
           <Text style={styles.headerTitle}>{t("buildingsResidences")}</Text>
-          <Text style={styles.headerSub}>
-            {buildings.length} immeuble{buildings.length !== 1 ? "s" : ""} géré{buildings.length !== 1 ? "s" : ""}
-          </Text>
+           <Text style={styles.headerSub}>
+             {buildings.length} {t("managedBuildings")}
+           </Text>
         </View>
         {(isSuperAdmin || user?.role === "syndicate_admin") && (
           <TouchableOpacity
@@ -251,21 +251,21 @@ function BuildingsScreenInner() {
 
       {loading ? (
         <View style={styles.center}>
-          <ActivityIndicator color={colors.primary} size="large" />
-          <Text style={[styles.loadingText, { color: colors.mutedForeground }]}>
-            Chargement des immeubles…
-          </Text>
+          <LoadingState
+            title={t("buildingsLoadingTitle")}
+            description={t("buildingsLoadingDescription")}
+            accentColor={colors.primary}
+          />
         </View>
       ) : error ? (
         <View style={styles.center}>
-          <Feather name="wifi-off" size={40} color={colors.mutedForeground} />
-          <Text style={[styles.errorText, { color: colors.destructive }]}>{error}</Text>
-          <TouchableOpacity
-            style={[styles.retryBtn, { backgroundColor: colors.primary }]}
-            onPress={() => load()}
-          >
-            <Text style={styles.retryBtnText}>Réessayer</Text>
-          </TouchableOpacity>
+          <ErrorState
+            title={t("buildingsLoadErrorTitle")}
+            description={error}
+            retryLabel={t("retry")}
+            onRetry={() => { void load(); }}
+            accentColor={colors.primary}
+          />
         </View>
       ) : (
         <ScrollView
@@ -284,7 +284,7 @@ function BuildingsScreenInner() {
           {isSuperAdmin && bldgStats.length > 0 && (
             <>
               <Text style={[styles.sectionLabel, { color: colors.mutedForeground }]}>
-                VUE D'ENSEMBLE
+                 {t("buildingsOverview").toUpperCase()}
               </Text>
               <View style={styles.statsGrid}>
                 <StatCard
@@ -302,33 +302,33 @@ function BuildingsScreenInner() {
               </View>
               <View style={styles.statsGrid}>
                 <StatCard
-                  label="Occupés"
+                   label={t("occupied")}
                   value={globalStats.occupiedLots}
                   icon="check-circle"
                   iconColor="#10b981"
-                  subtitle={`${globalStats.vacantLots} vacant${globalStats.vacantLots !== 1 ? "s" : ""}`}
+                   subtitle={`${globalStats.vacantLots} ${t("vacant")}`}
                 />
                 <StatCard
-                  label="Propriétaires"
+                   label={t("owners")}
                   value={globalStats.owners}
                   icon="user"
                   iconColor="#8b5cf6"
-                  subtitle={`${globalStats.tenants} locataire${globalStats.tenants !== 1 ? "s" : ""}`}
+                   subtitle={`${globalStats.tenants} ${t("tenants")}`}
                 />
               </View>
               <View style={styles.statsGrid}>
                 <StatCard
-                  label="Incidents"
+                   label={t("buildingIncidents")}
                   value={globalStats.incidents}
                   icon="alert-triangle"
                   iconColor="#f59e0b"
                 />
                 <StatCard
-                  label="Taux recouvrement"
+                   label={t("collectionRate")}
                   value={`${collectionRate}%`}
                   icon="percent"
                   iconColor={collectionRate >= 80 ? "#10b981" : collectionRate >= 60 ? "#f59e0b" : "#ef4444"}
-                  subtitle={`${globalStats.unpaidCharges} impayé${globalStats.unpaidCharges !== 1 ? "s" : ""}`}
+                   subtitle={`${globalStats.unpaidCharges} ${t("unpaidCharges")}`}
                 />
               </View>
               <View style={styles.statsGrid}>
@@ -353,7 +353,7 @@ function BuildingsScreenInner() {
             <Feather name="search" size={16} color={colors.mutedForeground} />
             <TextInput
               style={[styles.searchInput, { color: colors.foreground }]}
-              placeholder="Rechercher par nom ou ville…"
+               placeholder={t("searchBuildings")}
               placeholderTextColor={colors.mutedForeground}
               value={search}
               onChangeText={setSearch}
@@ -402,7 +402,7 @@ function BuildingsScreenInner() {
                 ))}
               </View>
 
-              <Text style={[styles.filterLabel, { color: colors.mutedForeground, marginTop: 10 }]}>STATUT</Text>
+               <Text style={[styles.filterLabel, { color: colors.mutedForeground, marginTop: 10 }]}>{t("status").toUpperCase()}</Text>
               <View style={styles.chipRow}>
                 {FILTER_STATUS.map((f) => (
                   <TouchableOpacity
@@ -428,7 +428,7 @@ function BuildingsScreenInner() {
                 ))}
               </View>
 
-              <Text style={[styles.filterLabel, { color: colors.mutedForeground, marginTop: 10 }]}>TRIER PAR</Text>
+               <Text style={[styles.filterLabel, { color: colors.mutedForeground, marginTop: 10 }]}>{t("sortBy").toUpperCase()}</Text>
               <View style={styles.chipRow}>
                 {SORT_OPTIONS.map((s) => (
                   <TouchableOpacity
@@ -468,7 +468,7 @@ function BuildingsScreenInner() {
           {/* Results count */}
           {(search || filterType !== "all" || filterStatus !== "all") && buildings.length > 0 && (
             <Text style={[styles.resultCount, { color: colors.mutedForeground }]}>
-              {displayed.length} résultat{displayed.length !== 1 ? "s" : ""}
+               {displayed.length} {t("results")}
               {search ? ` pour "${search}"` : ""}
             </Text>
           )}
@@ -481,7 +481,7 @@ function BuildingsScreenInner() {
               </View>
               <Text style={[styles.emptyTitle, { color: colors.foreground }]}>{t("noBuildings")}</Text>
               <Text style={[styles.emptyText, { color: colors.mutedForeground }]}>
-                Commencez par enregistrer votre premier immeuble pour gérer vos copropriétaires, charges et travaux.
+                 {t("buildingsEmptyDescription")}
               </Text>
             </View>
           ) : displayed.length === 0 ? (
@@ -489,15 +489,15 @@ function BuildingsScreenInner() {
               <View style={[styles.emptyIcon, { backgroundColor: colors.primary + "15" }]}>
                 <Feather name="search" size={32} color={colors.primary} />
               </View>
-              <Text style={[styles.emptyTitle, { color: colors.foreground }]}>Aucun résultat</Text>
+               <Text style={[styles.emptyTitle, { color: colors.foreground }]}>{t("noResults")}</Text>
               <Text style={[styles.emptyText, { color: colors.mutedForeground }]}>
-                Aucun immeuble ne correspond à vos critères de recherche.
+                 {t("noBuildingMatches")}
               </Text>
               <TouchableOpacity
                 style={[styles.retryBtn, { backgroundColor: colors.primary, marginTop: 8 }]}
                 onPress={() => { setSearch(""); setFilterType("all"); setFilterStatus("all"); }}
               >
-                <Text style={styles.retryBtnText}>Réinitialiser les filtres</Text>
+                 <Text style={styles.retryBtnText}>{t("resetFilters")}</Text>
               </TouchableOpacity>
             </View>
           ) : (
@@ -537,8 +537,8 @@ function BuildingsScreenInner() {
                   {[
                     { icon: "layers" as const,      label: `${building.totalFloors} ${t("floors")}`,                  color: "#6366f1" },
                     { icon: "grid" as const,         label: `${building.lotCount || building.totalLots} ${t("units")}`, color: "#3b82f6" },
-                    { icon: "tool" as const,         label: `${building.openTravaux} travaux`,                          color: building.openTravaux > 0 ? "#f59e0b" : "#10b981" },
-                    { icon: "credit-card" as const,  label: `${building.pendingCharges} impayés`,                       color: building.pendingCharges > 0 ? "#ef4444" : "#10b981" },
+                    { icon: "tool" as const,         label: `${building.openTravaux} ${t("travaux")}`,                   color: building.openTravaux > 0 ? "#f59e0b" : "#10b981" },
+                    { icon: "credit-card" as const,  label: `${building.pendingCharges} ${t("unpaidCharges")}`,         color: building.pendingCharges > 0 ? "#ef4444" : "#10b981" },
                   ].map((info) => (
                     <View key={info.label} style={styles.infoCell}>
                       <Feather name={info.icon} size={13} color={info.color} />
@@ -550,8 +550,8 @@ function BuildingsScreenInner() {
                 <View style={styles.cardFooter}>
                   <View style={[styles.statusDot, { backgroundColor: building.status === "active" ? "#10b981" : "#ef4444" }]} />
                   <Text style={[styles.cardFooterText, { color: colors.mutedForeground }]}>
-                    {building.status === "active" ? "Actif" : "Inactif"}
-                    {building.constructionYear ? ` — Construit en ${building.constructionYear}` : ""}
+                    {building.status === "active" ? t("statusActive") : t("statusInactive")}
+                    {building.constructionYear ? ` — ${t("builtIn")} ${building.constructionYear}` : ""}
                   </Text>
                   <Feather name="chevron-right" size={16} color={colors.mutedForeground} />
                 </View>

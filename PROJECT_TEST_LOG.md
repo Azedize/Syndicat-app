@@ -42,3 +42,14 @@
 - `git diff --check -- artifacts/mobile/app/documents-recycle-bin.tsx` — passed.
 - Mobile workflow restarted after the recycle-bin change; fresh Metro workflow started successfully without syntax or transform errors.
 - Mobile Expo preview screenshot for `/documents-recycle-bin` at 402×874 — protected route correctly redirected safely without a session; browser logs contained only existing non-blocking Expo web warnings.
+- `pnpm --filter @workspace/mobile run typecheck` after the parking pass — passed.
+- `git diff --check -- artifacts/mobile/app/parking.tsx artifacts/mobile/context/LanguageContext.tsx` — passed.
+- Mobile Expo preview screenshot for `/parking` at 402×874 — protected route correctly redirected safely without a session; `/welcome` rendered successfully after verification. Fresh browser logs contained only existing non-blocking Expo web warnings.
+- `pnpm --filter @workspace/mobile run typecheck` after the financial dashboard recovery and localization pass — passed.
+- `git diff --check -- artifacts/mobile/app/tableau-bord-financier.tsx` — passed.
+- Mobile Expo preview screenshot for `/tableau-bord-financier` at 402×874 — protected route displayed the expected guarded loading surface without new runtime errors; browser logs contained only existing non-blocking Expo web warnings.
+- `pnpm --filter @workspace/mobile run typecheck` after the buildings localization and recovery pass — passed.
+- `git diff --check -- artifacts/mobile/app/buildings.tsx artifacts/mobile/context/LanguageContext.tsx` — passed.
+- Restarted `artifacts/mobile: expo`; Metro bundled successfully. Mobile Expo preview screenshot for `/buildings` at 402×874 remained protected as expected without a session, with no new browser errors.
+- `pnpm --filter @workspace/mobile run typecheck` — passed after the governance localization pass and subscription status-chip correction.
+- `git diff --check -- artifacts/mobile/app/governance.tsx artifacts/mobile/app/abonnements.tsx artifacts/mobile/context/LanguageContext.tsx` — passed.

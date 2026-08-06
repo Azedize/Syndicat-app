@@ -12,3 +12,7 @@
 - Platform Support recovery and action feedback messages now support `fr`, `en`, `ar`, and `es` for ticket-list and ticket-conversation failures.
 - Marketplace Moderation recovery messages now support `fr`, `en`, `ar`, and `es` for product queues, statistics, and report-loading failures.
 - Document Recycle Bin loading, unavailable, retry, restore-error, and purge-error messages now support `fr`, `en`, `ar`, and `es`.
+- Parking now translates vehicle, violation, and visitor-reservation labels, placeholders, statuses, alerts, confirmation feedback, and loading/recovery states for `fr`, `en`, `ar`, and `es`.
+- Financial Dashboard now translates building recovery states, finance KPIs, payment tables, works and provider sections, categories, statuses, priorities, and currency units for `fr`, `en`, `ar`, and `es`.
+- Buildings & Residences now translates overview metrics, filters, sort options, search/results copy, empty/recovery states, building metadata, and status labels for `fr`, `en`, `ar`, and `es`.
+- Governance now translates board, commission, mandate, delegation, statute, profile, confirmation, appointment, and form copy for `fr`, `en`, `ar`, and `es`, including dynamic member and position names.

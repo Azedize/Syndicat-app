@@ -32,3 +32,14 @@
 - Audited `artifacts/mobile/app/platform-support.tsx` and replaced swallowed ticket-list and ticket-reply failures with explicit loading, unavailable, and retry states; existing role-scoped support API behavior and ticket actions were preserved.
 - Audited `artifacts/mobile/app/admin/marketplace.tsx` and replaced empty-on-error product/report queues with explicit localized recovery states; marketplace counters now show a retryable warning when statistics fail.
 - Audited `artifacts/mobile/app/documents-recycle-bin.tsx` and replaced the silent empty-bin failure path with explicit localized loading and retry states; restore and permanent-purge permissions were preserved.
+- Audited `artifacts/mobile/app/parking.tsx` and replaced the single-language vehicle, violation, and visitor-reservation copy with runtime translations, including labels, placeholders, status badges, alerts, and action feedback.
+- Added the parking screen to the shared loading and retryable error-state pattern; any failed parking dependency now clearly indicates unavailable data instead of presenting a misleading partial result.
+- Localized parking date formatting by active language and preserved the existing vehicle registration, violation photo upload, and visitor reservation API workflows.
+- Audited `artifacts/mobile/app/tableau-bord-financier.tsx` and added explicit recovery for initial building-list failure, selected-building detail failure, and unavailable/no-building states.
+- Replaced generic dashboard errors with localized retryable states and removed raw API error text from the financial dashboard user surface.
+- Replaced hardcoded financial KPI, payment-table, works, provider, category, status, priority, and currency-unit labels with the existing four-language screen dictionary.
+- Audited `artifacts/mobile/app/buildings.tsx`: localized building overview metrics, filter/sort controls, search, empty results, building metadata, and status/construction labels.
+- Added shared animated loading and retryable error states to buildings; API failures now use localized recovery copy instead of raw server messages.
+- Audited `artifacts/mobile/app/governance.tsx` and replaced French-only board, mandate, delegation, commission, document, modal, confirmation, and form copy with runtime translation keys.
+- Added governance translation coverage for French, English, Arabic, and Spanish, including interpolated member-removal and appointment-confirmation messages.
+- Fixed subscription status-chip rendering in `artifacts/mobile/app/abonnements.tsx` to use localized status helpers instead of undeclared config labels.

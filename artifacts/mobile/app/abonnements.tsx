@@ -12,6 +12,8 @@ import { useBreakpoints } from "@/hooks/useBreakpoints";
 import { useColors } from "@/hooks/useColors";
 import { apiRequest } from "@/lib/api";
 import { useToast } from "@/context/ToastContext";
+import { useLanguage } from "@/context/LanguageContext";
+import { ErrorState, LoadingState } from "@/components/DataState";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -77,21 +79,21 @@ type TabType = "plans" | "syndicats" | "facturation";
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
-const STATUS_CFG: Record<string, { label: string; color: string; bg: string }> = {
-  trial:     { label: "Essai",         color: "#3b82f6", bg: "#3b82f618" },
-  active:    { label: "Actif",         color: "#10b981", bg: "#10b98118" },
-  grace:     { label: "Grâce",         color: "#f59e0b", bg: "#f59e0b18" },
-  expired:   { label: "Expiré",        color: "#ef4444", bg: "#ef444418" },
-  suspended: { label: "Suspendu",      color: "#ef4444", bg: "#ef444418" },
-  cancelled: { label: "Annulé",        color: "#6b7280", bg: "#6b728018" },
-  no_subscription: { label: "Aucun",   color: "#6b7280", bg: "#6b728018" },
+const STATUS_CFG: Record<string, { color: string; bg: string }> = {
+  trial:     { color: "#3b82f6", bg: "#3b82f618" },
+  active:    { color: "#10b981", bg: "#10b98118" },
+  grace:     { color: "#f59e0b", bg: "#f59e0b18" },
+  expired:   { color: "#ef4444", bg: "#ef444418" },
+  suspended: { color: "#ef4444", bg: "#ef444418" },
+  cancelled: { color: "#6b7280", bg: "#6b728018" },
+  no_subscription: { color: "#6b7280", bg: "#6b728018" },
 };
 
-const INVOICE_STATUS_CFG: Record<string, { label: string; color: string }> = {
-  open:          { label: "En attente", color: "#f59e0b" },
-  paid:          { label: "Payée",      color: "#10b981" },
-  void:          { label: "Annulée",    color: "#6b7280" },
-  uncollectible: { label: "Impayée",    color: "#ef4444" },
+const INVOICE_STATUS_CFG: Record<string, { color: string }> = {
+  open:          { color: "#f59e0b" },
+  paid:          { color: "#10b981" },
+  void:          { color: "#6b7280" },
+  uncollectible: { color: "#ef4444" },
 };
 
 const PLAN_ICONS: { [key: string]: keyof typeof Feather.glyphMap } = {
@@ -119,7 +121,30 @@ function fmtDate(d?: string | null): string {
 }
 
 function limitLabel(v?: number | null, unit = ""): string {
-  return v == null ? `Illimité${unit ? " " + unit : ""}` : `${v}${unit ? " " + unit : ""}`;
+  return v == null ? `∞${unit ? " " + unit : ""}` : `${v}${unit ? " " + unit : ""}`;
+}
+
+function subscriptionStatusLabel(status: string, t: (key: string) => string): string {
+  const labels: Record<string, string> = {
+    trial: t("subscriptionTrial"),
+    active: t("statusActive"),
+    grace: t("subscriptionGrace"),
+    expired: t("subscriptionExpired"),
+    suspended: t("subscriptionSuspended"),
+    cancelled: t("subscriptionCancelled"),
+    no_subscription: t("subscriptionNone"),
+  };
+  return labels[status] ?? status;
+}
+
+function invoiceStatusLabel(status: string, t: (key: string) => string): string {
+  const labels: Record<string, string> = {
+    open: t("subscriptionPending"),
+    paid: t("subscriptionPaid"),
+    void: t("subscriptionVoided"),
+    uncollectible: t("subscriptionUncollectible"),
+  };
+  return labels[status] ?? status;
 }
 
 // ─── Main Component ───────────────────────────────────────────────────────────
@@ -131,6 +156,7 @@ export default function AbonnementsScreen() {
   const { isWide } = useBreakpoints();
   const topPad = isWide ? 0 : (Platform.OS === "web" ? 67 : insets.top);
   const { showToast } = useToast();
+  const { t } = useLanguage();
 
   const isSuper = user?.role === "super_admin";
   const isAdmin = user?.role === "syndicate_admin" || isSuper;
@@ -146,27 +172,31 @@ export default function AbonnementsScreen() {
   const [billingInterval, setBillingInterval] = useState<"monthly" | "yearly">("monthly");
   const [manageModal, setManageModal] = useState<AllSub | null>(null);
   const [selectedPlanId, setSelectedPlanId] = useState("");
+  const [error, setError] = useState<string | null>(null);
 
   const load = useCallback(async (silent = false) => {
     try {
       if (!silent) setLoading(true);
+      setError(null);
       const requests: Promise<any>[] = [
         apiRequest("/subscriptions/plans", "GET", undefined, token),
       ];
       if (!isSuper) {
-        requests.push(apiRequest("/subscriptions/my", "GET", undefined, token).catch(() => ({ data: null })));
-        requests.push(apiRequest("/subscriptions/invoices", "GET", undefined, token).catch(() => ({ data: [] })));
+        requests.push(apiRequest("/subscriptions/my", "GET", undefined, token));
+        requests.push(apiRequest("/subscriptions/invoices", "GET", undefined, token));
       } else {
-        requests.push(apiRequest("/subscriptions", "GET", undefined, token).catch(() => ({ data: [] })));
+        requests.push(apiRequest("/subscriptions", "GET", undefined, token));
         requests.push(Promise.resolve({ data: [] }));
       }
       const [plansRes, subRes, invRes] = await Promise.all(requests);
       setPlans((plansRes.data ?? []).filter((p: Plan) => !p.isTrial));
       if (isSuper) { setAllSubs(subRes.data ?? []); }
       else { setMySub(subRes.data ?? null); setInvoices(invRes.data ?? []); }
-    } catch (e) { console.error(e); }
+    } catch {
+      setError(t("subscriptionLoadErrorDescription"));
+    }
     finally { setLoading(false); setRefreshing(false); }
-  }, [token, isSuper]);
+  }, [token, isSuper, t]);
 
   useEffect(() => { load(); }, [load]);
 
@@ -175,11 +205,11 @@ export default function AbonnementsScreen() {
       setSaving(true);
       const syndicateId = isSuper && manageModal ? manageModal.syndicateId : undefined;
       await apiRequest("/subscriptions", "POST", { planId, billingInterval, ...(syndicateId ? { syndicateId } : {}) }, token);
-      showToast({ type: "success", title: "Succès", message: "Abonnement activé avec succès." });
+      showToast({ type: "success", title: t("success"), message: t("subscriptionSuccess") });
       setManageModal(null);
       load(true);
     } catch (e: any) {
-      showToast({ type: "error", title: "Erreur", message: e.message ?? "Impossible d'activer l'abonnement" });
+      showToast({ type: "error", title: t("error"), message: t("subscriptionActionError") });
     } finally { setSaving(false); }
   };
 
@@ -187,11 +217,11 @@ export default function AbonnementsScreen() {
     try {
       setSaving(true);
       await apiRequest(`/subscriptions/${subId}`, "PUT", updates, token);
-      showToast({ type: "success", message: "Abonnement mis à jour." });
+      showToast({ type: "success", message: t("subscriptionUpdated") });
       setManageModal(null);
       load(true);
     } catch (e: any) {
-      showToast({ type: "error", title: "Erreur", message: e.message ?? "Impossible de mettre à jour" });
+      showToast({ type: "error", title: t("error"), message: t("subscriptionActionError") });
     } finally { setSaving(false); }
   };
 
@@ -199,10 +229,10 @@ export default function AbonnementsScreen() {
     try {
       setSaving(true);
       await apiRequest(`/subscriptions/invoices/${invoiceId}/pay`, "PUT", {}, token);
-      showToast({ type: "success", message: "Facture marquée comme payée." });
+      showToast({ type: "success", message: t("invoicePaid") });
       load(true);
     } catch (e: any) {
-      showToast({ type: "error", message: e.message ?? "Erreur" });
+      showToast({ type: "error", title: t("error"), message: t("subscriptionActionError") });
     } finally { setSaving(false); }
   };
 
@@ -213,12 +243,37 @@ export default function AbonnementsScreen() {
           <TouchableOpacity onPress={() => router.back()} style={styles.backBtn}>
             <Feather name="arrow-left" size={22} color={colors.foreground} />
           </TouchableOpacity>
-          <Text style={[styles.title, { color: colors.foreground }]}>Abonnements</Text>
+          <Text style={[styles.title, { color: colors.foreground }]}>{t("abonnements")}</Text>
           <View style={{ width: 38 }} />
         </View>
         <View style={{ flex: 1, alignItems: "center", justifyContent: "center" }}>
-          <ActivityIndicator color={colors.primary} size="large" />
+          <LoadingState
+            title={t("subscriptionLoadingTitle")}
+            description={t("subscriptionLoadingDescription")}
+            accentColor={colors.primary}
+          />
         </View>
+      </View>
+    );
+  }
+
+  if (error) {
+    return (
+      <View style={[styles.root, { backgroundColor: colors.background }]}>
+        <View style={[styles.header, { paddingTop: topPad + 16, backgroundColor: colors.card, borderBottomColor: colors.border }]}>
+          <TouchableOpacity onPress={() => router.back()} style={styles.backBtn}>
+            <Feather name="arrow-left" size={22} color={colors.foreground} />
+          </TouchableOpacity>
+          <Text style={[styles.title, { color: colors.foreground }]}>{t("abonnements")}</Text>
+          <View style={{ width: 38 }} />
+        </View>
+        <ErrorState
+          title={t("subscriptionLoadErrorTitle")}
+          description={error}
+          retryLabel={t("retry")}
+          onRetry={() => { void load(); }}
+          accentColor={colors.primary}
+        />
       </View>
     );
   }
@@ -333,7 +388,7 @@ export default function AbonnementsScreen() {
                           </View>
                         ) : null}
                         <View style={[styles.chip, { backgroundColor: st.bg }]}>
-                          <Text style={[styles.chipText, { color: st.color }]}>{st.label}</Text>
+                          <Text style={[styles.chipText, { color: st.color }]}>{subscriptionStatusLabel(sub.effectiveStatus, t)}</Text>
                         </View>
                         {sub.daysRemaining !== null && sub.daysRemaining <= 7 && !sub.isExpired && (
                           <View style={[styles.chip, { backgroundColor: "#f59e0b18" }]}>
@@ -388,7 +443,7 @@ export default function AbonnementsScreen() {
           <>
             {/* Current plan banner (syndicate_admin) */}
             {!isSuper && mySub && (
-              <CurrentPlanCard sub={mySub} colors={colors} />
+              <CurrentPlanCard sub={mySub} colors={colors} t={t} />
             )}
 
             {/* Billing interval toggle */}
@@ -529,7 +584,7 @@ export default function AbonnementsScreen() {
                 <Text style={[styles.emptyText, { color: colors.mutedForeground }]}>Vos factures apparaîtront ici après activation d'un plan.</Text>
               </View>
             ) : invoices.map((inv) => {
-              const stCfg = INVOICE_STATUS_CFG[inv.status] ?? { label: inv.status, color: "#6b7280" };
+              const stCfg = INVOICE_STATUS_CFG[inv.status] ?? { color: "#6b7280" };
               return (
                 <View key={inv.id} style={[styles.invoiceCard, { backgroundColor: colors.card, borderColor: colors.border }]}>
                   <View style={styles.invoiceRow}>
@@ -544,7 +599,7 @@ export default function AbonnementsScreen() {
                     <View style={{ alignItems: "flex-end", gap: 4 }}>
                       <Text style={[styles.invoiceAmt, { color: colors.foreground }]}>{fmt(inv.amount)} MAD</Text>
                       <View style={[styles.chip, { backgroundColor: stCfg.color + "18" }]}>
-                        <Text style={[styles.chipText, { color: stCfg.color }]}>{stCfg.label}</Text>
+                        <Text style={[styles.chipText, { color: stCfg.color }]}>{invoiceStatusLabel(inv.status, t)}</Text>
                       </View>
                     </View>
                   </View>
@@ -675,7 +730,7 @@ export default function AbonnementsScreen() {
 
 // ─── Current Plan Card ───────────────────────────────────────────────────────
 
-function CurrentPlanCard({ sub, colors }: { sub: MySub; colors: any }) {
+function CurrentPlanCard({ sub, colors, t }: { sub: MySub; colors: any; t: (key: string) => string }) {
   const st = STATUS_CFG[sub.effectiveStatus] ?? STATUS_CFG.active;
   const pc = sub.planColor ?? sub.plan?.color ?? colors.primary;
   const isExpired = sub.isExpired;
@@ -691,7 +746,7 @@ function CurrentPlanCard({ sub, colors }: { sub: MySub; colors: any }) {
           </Text>
         </View>
         <View style={[styles.chip, { backgroundColor: st.bg }]}>
-          <Text style={[styles.chipText, { color: st.color }]}>{st.label}</Text>
+          <Text style={[styles.chipText, { color: st.color }]}>{subscriptionStatusLabel(sub.effectiveStatus, t)}</Text>
         </View>
       </View>
 
