@@ -37,7 +37,11 @@ import { useBreakpoints } from "@/hooks/useBreakpoints";
 import { useColors } from "@/hooks/useColors";
 import { usePushNotifications } from "@/hooks/usePushNotifications";
 
-SplashScreen.preventAutoHideAsync();
+// The web preview must render immediately. On native, keep the splash screen
+// until the Inter family is ready to avoid a flash of unstyled content.
+if (Platform.OS !== "web") {
+  SplashScreen.preventAutoHideAsync();
+}
 
 const queryClient = new QueryClient();
 
@@ -109,12 +113,14 @@ export default function RootLayout() {
   });
 
   useEffect(() => {
-    if (fontsLoaded || fontError) {
+    if (Platform.OS !== "web" && (fontsLoaded || fontError)) {
       SplashScreen.hideAsync();
     }
   }, [fontsLoaded, fontError]);
 
-  if (!fontsLoaded && !fontError) return null;
+  // Never block the public landing page on web font loading. The browser
+  // safely falls back to its system font and swaps to Inter when available.
+  if (Platform.OS !== "web" && !fontsLoaded && !fontError) return null;
 
   return (
     <SafeAreaProvider>

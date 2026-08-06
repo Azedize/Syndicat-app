@@ -45,3 +45,4 @@
 - [Profile and editor localization](profile-and-editor-localization.md) — authenticated profile feedback and Template Studio metadata must be runtime-localized with safe API error copy.
 - [Dashboard data state](dashboard-data-state.md) — home metrics use shared fan-out loading and partial-failure semantics; do not treat initial empty arrays as real zeros.
 - [Expo public entry](expo-public-entry.md) — public landing routes need an immediate root entry before session redirects.
+- [Small-screen mobile layout](small-screen-mobile-layout.md) — carousel mockups and auth option rows need explicit responsive bounds to prevent overlap on compact devices.

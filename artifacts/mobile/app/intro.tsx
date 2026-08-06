@@ -181,7 +181,7 @@ function BgDeco({ color }: { color: string }) {
   );
 }
 
-function PhoneMockup({ children, isDark }: { children: React.ReactNode; isDark: boolean }) {
+function PhoneMockup({ children, isDark, compact = false }: { children: React.ReactNode; isDark: boolean; compact?: boolean }) {
   const frame = isDark ? "#0A1628" : "#1E293B";
   const bezel = isDark ? "#0F1F35" : "#0F172A";
   const screen = isDark ? "#0D1929" : "#F8FAFF";
@@ -190,7 +190,7 @@ function PhoneMockup({ children, isDark }: { children: React.ReactNode; isDark: 
   const sideBtn = isDark ? "#060E1C" : "#0A1628";
 
   return (
-    <Svg width="140" height="273" viewBox="0 0 200 390">
+    <Svg width={compact ? 100 : 128} height={compact ? 195 : 250} viewBox="0 0 200 390">
       <Rect x="10" y="10" width="188" height="378" rx="36" fill="#000" opacity="0.25" />
       <Rect x="2" y="2" width="196" height="386" rx="36" fill={frame} />
       <Rect x="6" y="6" width="188" height="378" rx="32" fill={bezel} />
@@ -301,6 +301,7 @@ function MockupContent({ isDark, color, type }: { isDark: boolean, color: string
 
 function Slide({ item, index, scrollX }: { item: typeof SLIDES[0], index: number, scrollX: Animated.Value }) {
   const { isDark } = useTheme();
+  const compact = H < 760;
   
   const inputRange = [(index - 1) * W, index * W, (index + 1) * W];
   
@@ -320,26 +321,26 @@ function Slide({ item, index, scrollX }: { item: typeof SLIDES[0], index: number
       <View style={{ flex: 1, paddingHorizontal: 24, paddingTop: Platform.OS === "ios" ? 80 : 60, paddingBottom: 120 }}>
         
         {/* TOP ZONE (30%) */}
-        <Animated.View style={[styles.topZone, { transform: [{ translateX: txPhone }] }]}>
+        <Animated.View style={[styles.topZone, compact && styles.topZoneCompact, { transform: [{ translateX: txPhone }] }]}>
           <View style={styles.topZoneHeader}>
             <VeridianLogo variant="icon" colorScheme="dark" size={36} />
             <View style={[styles.tagBadge, { backgroundColor: item.color }]}>
               <Text style={styles.tagText}>{item.tag}</Text>
             </View>
           </View>
-          <PhoneMockup isDark={isDark}>
+          <PhoneMockup isDark={isDark} compact={compact}>
             <MockupContent isDark={isDark} color={item.color} type={item.id} />
           </PhoneMockup>
         </Animated.View>
 
         {/* CONTENT ZONE (40%) */}
-        <Animated.View style={[styles.contentZone, { transform: [{ translateX: txContent }] }]}>
+        <Animated.View style={[styles.contentZone, compact && styles.contentZoneCompact, { transform: [{ translateX: txContent }] }]}>
           <Text style={styles.slideTitle}>{item.title}</Text>
           <Text style={styles.slideSubtitle}>{item.subtitle}</Text>
           
-          <View style={styles.kpiRow}>
+          <View style={[styles.kpiRow, compact && styles.kpiRowCompact]}>
             {item.kpis.map((kpi, kIdx) => (
-              <View key={kIdx} style={styles.kpiCard}>
+              <View key={kIdx} style={[styles.kpiCard, compact && styles.kpiCardCompact]}>
                 <Text style={styles.kpiValue}>{kpi.val}</Text>
                 <Text style={styles.kpiLabel}>{kpi.lbl}</Text>
               </View>
@@ -348,7 +349,7 @@ function Slide({ item, index, scrollX }: { item: typeof SLIDES[0], index: number
         </Animated.View>
 
         {/* FEATURES ZONE (30%) */}
-        <Animated.View style={[styles.featuresZone, { transform: [{ translateX: txFeatures }] }]}>
+        <Animated.View style={[styles.featuresZone, compact && styles.featuresZoneCompact, { transform: [{ translateX: txFeatures }] }]}>
           {item.features.map((feat, fIdx) => (
             <View key={fIdx} style={styles.featureRow}>
               <View style={[styles.featureCheck, { backgroundColor: item.color }]}>
@@ -403,9 +404,20 @@ export default function IntroScreen() {
         ))}
       </Animated.ScrollView>
 
+      {/* Back to the public presentation home */}
+      <View style={[styles.backContainer, { top: insets.top + 16 }]}>
+        <TouchableOpacity
+          onPress={() => router.replace("/welcome")}
+          style={styles.backBtn}
+          accessibilityLabel="Retour à l'accueil"
+        >
+          <Feather name="arrow-left" size={18} color="#FFFFFF" />
+        </TouchableOpacity>
+      </View>
+
       {/* Top Right Skip Button */}
       <View style={[styles.skipContainer, { top: insets.top + 16 }]}>
-        <TouchableOpacity onPress={() => router.push("/get-started")} style={styles.skipBtn}>
+        <TouchableOpacity onPress={() => router.replace("/get-started")} style={styles.skipBtn}>
           <Text style={styles.skipText}>Ignorer</Text>
         </TouchableOpacity>
       </View>
@@ -436,7 +448,7 @@ export default function IntroScreen() {
              if (activeIndex < SLIDES.length - 1) {
                scrollViewRef.current?.scrollTo({ x: (activeIndex + 1) * W, animated: true });
              } else {
-               router.push("/get-started");
+                router.replace("/get-started");
              }
           }}
         >
@@ -453,25 +465,32 @@ export default function IntroScreen() {
 const styles = StyleSheet.create({
   root: { flex: 1, backgroundColor: "#070D1A" },
 
-  topZone: { flex: 3.5, alignItems: "center", justifyContent: "flex-end" },
-  topZoneHeader: { marginBottom: 20, alignItems: "center", gap: 12 },
+  topZone: { flex: 0, height: 350, alignItems: "center", justifyContent: "flex-start" },
+  topZoneCompact: { height: 280 },
+  topZoneHeader: { marginBottom: 12, alignItems: "center", gap: 8 },
   tagBadge: { paddingHorizontal: 12, paddingVertical: 6, borderRadius: 20, borderWidth: 1, borderColor: "rgba(255,255,255,0.3)" },
   tagText: { fontFamily: "Inter_600SemiBold", fontSize: 11, color: "#FFF", letterSpacing: 1.5 },
 
-  contentZone: { flex: 3, justifyContent: "center", paddingTop: 20 },
-  slideTitle: { fontFamily: "Inter_700Bold", fontSize: 32, color: "#FFF", letterSpacing: -0.5, lineHeight: 38 },
-  slideSubtitle: { fontFamily: "Inter_400Regular", fontSize: 16, color: "rgba(255,255,255,0.7)", marginTop: 8, lineHeight: 24 },
+  contentZone: { flex: 0, minHeight: 220, justifyContent: "center", paddingTop: 8 },
+  contentZoneCompact: { minHeight: 190 },
+  slideTitle: { fontFamily: "Inter_700Bold", fontSize: 30, color: "#FFF", letterSpacing: -0.5, lineHeight: 36 },
+  slideSubtitle: { fontFamily: "Inter_400Regular", fontSize: 15, color: "rgba(255,255,255,0.7)", marginTop: 6, lineHeight: 21 },
   
-  kpiRow: { flexDirection: "row", gap: 12, marginTop: 24 },
-  kpiCard: { flex: 1, backgroundColor: "rgba(255,255,255,0.1)", borderRadius: 16, padding: 16, borderWidth: 1, borderColor: "rgba(255,255,255,0.15)" },
-  kpiValue: { fontFamily: "Inter_700Bold", fontSize: 22, color: "#FFF" },
-  kpiLabel: { fontFamily: "Inter_500Medium", fontSize: 12, color: "rgba(255,255,255,0.7)", marginTop: 4 },
+  kpiRow: { flexDirection: "row", gap: 12, marginTop: 18 },
+  kpiRowCompact: { gap: 8, marginTop: 14 },
+  kpiCard: { flex: 1, backgroundColor: "rgba(255,255,255,0.1)", borderRadius: 16, padding: 14, borderWidth: 1, borderColor: "rgba(255,255,255,0.15)" },
+  kpiCardCompact: { borderRadius: 12, padding: 10 },
+  kpiValue: { fontFamily: "Inter_700Bold", fontSize: 21, color: "#FFF" },
+  kpiLabel: { fontFamily: "Inter_500Medium", fontSize: 11, color: "rgba(255,255,255,0.7)", marginTop: 3 },
 
-  featuresZone: { flex: 2.5, justifyContent: "flex-start", gap: 16, paddingTop: 10 },
+  featuresZone: { flex: 1, justifyContent: "flex-start", gap: 14, paddingTop: 8 },
+  featuresZoneCompact: { gap: 9, paddingTop: 6 },
   featureRow: { flexDirection: "row", alignItems: "center", gap: 12 },
   featureCheck: { width: 24, height: 24, borderRadius: 12, alignItems: "center", justifyContent: "center", borderWidth: 1, borderColor: "rgba(255,255,255,0.2)" },
   featureText: { fontFamily: "Inter_500Medium", fontSize: 15, color: "#FFF" },
 
+  backContainer: { position: "absolute", left: 24, zIndex: 10 },
+  backBtn: { width: 38, height: 38, borderRadius: 19, backgroundColor: "rgba(255,255,255,0.14)", alignItems: "center", justifyContent: "center", borderWidth: 1, borderColor: "rgba(255,255,255,0.18)" },
   skipContainer: { position: "absolute", right: 24, zIndex: 10 },
   skipBtn: { paddingVertical: 8, paddingHorizontal: 12, backgroundColor: "rgba(255,255,255,0.15)", borderRadius: 20, borderWidth: 1, borderColor: "rgba(255,255,255,0.1)" },
   skipText: { fontFamily: "Inter_600SemiBold", fontSize: 13, color: "#FFF" },

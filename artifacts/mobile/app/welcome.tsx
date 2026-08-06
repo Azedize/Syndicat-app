@@ -5,7 +5,6 @@ import { router } from "expo-router";
 import React, { useEffect, useRef } from "react";
 import {
   Animated,
-  Image,
   Platform,
   ScrollView,
   StatusBar,
@@ -15,13 +14,19 @@ import {
   View,
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
+import Svg, {
+  Circle,
+  Defs,
+  G,
+  LinearGradient as SvgGradient,
+  Path,
+  Rect,
+  Stop,
+} from "react-native-svg";
 
 import VeridianLogo from "@/components/brand/VeridianLogo";
 import { VERIDIAN } from "@/constants/brand";
 import { useTheme } from "@/context/ThemeContext";
-
-const HERO_IMAGE = require("../assets/images/hero-product-preview.jpeg");
-const DASHBOARD_IMAGE = require("../assets/images/dashboard-preview.png");
 
 const SERVICES = [
   { icon: "shield" as const, title: "Gouvernance", text: "AG, votes et décisions tracées" },
@@ -80,6 +85,73 @@ function ServiceCard({
         {service.title}
       </Text>
       <Text style={[styles.serviceText, { color: isDark ? "#8EA3C0" : "#64748B" }]}>{service.text}</Text>
+    </View>
+  );
+}
+
+function ProductStage({ isDark }: { isDark: boolean }) {
+  const frame = isDark ? "#102442" : "#FFFFFF";
+  const surface = isDark ? "#0A1628" : "#F8FBFF";
+  const softSurface = isDark ? "#132C4D" : "#EDF4FF";
+  const ink = isDark ? "#F8FAFF" : "#0A1628";
+  const muted = isDark ? "#7F9BC2" : "#7085A0";
+
+  return (
+    <View style={styles.heroVisual}>
+      <View style={[styles.glow, { backgroundColor: isDark ? "#2563EB" : "#93C5FD" }]} />
+      <View style={[styles.productFrame, { backgroundColor: frame, borderColor: isDark ? "#35527D" : "#D5E5FA" }]}>
+        <Svg width="100%" height={276} viewBox="0 0 300 276" preserveAspectRatio="xMidYMid meet">
+          <Defs>
+            <SvgGradient id="productBlue" x1="0" y1="0" x2="1" y2="1">
+              <Stop offset="0" stopColor="#5E9BFF" />
+              <Stop offset="1" stopColor="#2563EB" />
+            </SvgGradient>
+            <SvgGradient id="productGlow" x1="0" y1="0" x2="1" y2="1">
+              <Stop offset="0" stopColor="#3B82F6" stopOpacity="0.32" />
+              <Stop offset="1" stopColor="#3B82F6" stopOpacity="0" />
+            </SvgGradient>
+          </Defs>
+          <Rect width="300" height="276" rx="18" fill={surface} />
+          <Circle cx="256" cy="18" r="110" fill="url(#productGlow)" />
+          <Rect x="0" y="0" width="300" height="40" rx="18" fill={frame} />
+          <Rect x="0" y="22" width="300" height="18" fill={frame} />
+          <Circle cx="18" cy="20" r="7" fill="#34D399" />
+          <Rect x="32" y="15" width="72" height="9" rx="4.5" fill={ink} opacity="0.85" />
+          <Rect x="218" y="14" width="22" height="11" rx="5" fill={softSurface} />
+          <Circle cx="263" cy="20" r="6" fill="#60A5FA" opacity="0.8" />
+          <Rect x="14" y="54" width="62" height="200" rx="12" fill={frame} />
+          <Rect x="27" y="70" width="36" height="7" rx="3.5" fill="#60A5FA" />
+          <Rect x="27" y="98" width="35" height="8" rx="4" fill={softSurface} />
+          <Rect x="27" y="122" width="28" height="8" rx="4" fill={softSurface} />
+          <Rect x="27" y="146" width="34" height="8" rx="4" fill="#2563EB" />
+          <Rect x="27" y="170" width="25" height="8" rx="4" fill={softSurface} />
+          <Rect x="27" y="224" width="38" height="1" fill={softSurface} />
+          <Circle cx="34" cy="241" r="8" fill="#F59E0B" opacity="0.9" />
+          <Rect x="88" y="54" width="198" height="32" rx="10" fill={frame} />
+          <Rect x="101" y="63" width="58" height="7" rx="3.5" fill={ink} opacity="0.78" />
+          <Rect x="101" y="74" width="92" height="5" rx="2.5" fill={muted} opacity="0.8" />
+          <Rect x="218" y="62" width="54" height="18" rx="9" fill="#2563EB" />
+          <Path d="M232 71l4 4 8-9" stroke="#FFF" strokeWidth="2" fill="none" strokeLinecap="round" strokeLinejoin="round" />
+          <Rect x="88" y="96" width="94" height="67" rx="12" fill={frame} />
+          <Rect x="192" y="96" width="94" height="67" rx="12" fill={frame} />
+          <Rect x="101" y="109" width="28" height="6" rx="3" fill={muted} />
+          <Rect x="101" y="125" width="50" height="15" rx="5" fill={ink} opacity="0.9" />
+          <Rect x="205" y="109" width="34" height="6" rx="3" fill={muted} />
+          <Rect x="205" y="125" width="40" height="15" rx="5" fill="#34D399" opacity="0.9" />
+          <Rect x="88" y="174" width="198" height="80" rx="12" fill={frame} />
+          <Rect x="101" y="188" width="61" height="6" rx="3" fill={ink} opacity="0.78" />
+          <Path d="M103 236 C120 222 128 230 140 214 S160 228 172 205 S192 218 204 198 S225 208 238 187 S258 200 273 181" stroke="url(#productBlue)" strokeWidth="3" fill="none" strokeLinecap="round" />
+          <Path d="M103 238 C120 224 128 232 140 216 S160 230 172 207 S192 220 204 200 S225 210 238 189 S258 202 273 183 L273 244 L103 244 Z" fill="url(#productGlow)" opacity="0.7" />
+          <Circle cx="204" cy="200" r="4" fill="#FFFFFF" stroke="#3B82F6" strokeWidth="2" />
+        </Svg>
+        <View style={styles.stageCaption}>
+          <View style={styles.captionLive}>
+            <View style={styles.captionDot} />
+            <Text style={styles.captionLiveText}>Interface conçue pour décider</Text>
+          </View>
+          <Text style={styles.captionText}>Tout votre syndic, au même endroit.</Text>
+        </View>
+      </View>
     </View>
   );
 }
@@ -196,19 +268,7 @@ export default function WelcomeScreen() {
               </View>
             </View>
 
-            <View style={styles.heroVisual}>
-              <View style={[styles.glow, { backgroundColor: isDark ? "#2563EB" : "#93C5FD" }]} />
-              <View style={[styles.productFrame, { backgroundColor: panel, borderColor: isDark ? "#35527D" : "#D5E5FA" }]}>
-                <Image source={HERO_IMAGE} style={styles.heroImage} resizeMode="cover" />
-                <View style={styles.imageCaption}>
-                  <View style={styles.captionLive}>
-                    <View style={styles.captionDot} />
-                    <Text style={styles.captionLiveText}>Vue d’ensemble en temps réel</Text>
-                  </View>
-                  <Text style={styles.captionText}>Tout votre syndic, au même endroit.</Text>
-                </View>
-              </View>
-            </View>
+            <ProductStage isDark={isDark} />
           </Animated.View>
 
           <View
@@ -258,7 +318,26 @@ export default function WelcomeScreen() {
                 </View>
               </View>
             </View>
-            <Image source={DASHBOARD_IMAGE} style={styles.dashboardImage} resizeMode="cover" />
+            <View style={styles.miniChart}>
+              <Svg width="112" height="164" viewBox="0 0 112 164">
+                <Rect width="112" height="164" rx="12" fill={isDark ? "#0A1628" : "#F1F6FF"} />
+                <Rect x="12" y="14" width="48" height="6" rx="3" fill={isDark ? "#F8FAFF" : "#0A1628"} opacity="0.9" />
+                <Rect x="12" y="28" width="70" height="5" rx="2.5" fill={isDark ? "#6E88AA" : "#94A3B8"} />
+                {[42, 60, 51, 76, 68, 92].map((height, index) => (
+                  <Rect
+                    key={index}
+                    x={12 + index * 15}
+                    y={142 - height}
+                    width="8"
+                    height={height}
+                    rx="4"
+                    fill={index === 5 ? "#3B82F6" : "#8DB6FF"}
+                    opacity={index === 5 ? 1 : 0.65}
+                  />
+                ))}
+                <Path d="M12 144H100" stroke={isDark ? "#294365" : "#D5E5FA"} strokeWidth="1" />
+              </Svg>
+            </View>
           </View>
 
           <View style={styles.bottomCta}>
@@ -302,8 +381,7 @@ const styles = StyleSheet.create({
   heroVisual: { alignItems: "center", justifyContent: "center", minHeight: 330 },
   glow: { position: "absolute", width: 260, height: 260, borderRadius: 130, opacity: 0.18, transform: [{ scaleX: 1.18 }] },
   productFrame: { width: "82%", borderRadius: 25, borderWidth: 1, padding: 7, transform: [{ rotate: "-2deg" }], shadowColor: "#000", shadowOpacity: 0.3, shadowRadius: 18, shadowOffset: { width: 0, height: 12 }, elevation: 10 },
-  heroImage: { width: "100%", height: 300, borderRadius: 19, backgroundColor: "#0A1628" },
-  imageCaption: { paddingHorizontal: 10, paddingVertical: 10, gap: 4 },
+  stageCaption: { paddingHorizontal: 10, paddingVertical: 10, gap: 4 },
   captionLive: { flexDirection: "row", alignItems: "center", gap: 6 },
   captionDot: { width: 6, height: 6, borderRadius: 3, backgroundColor: "#34D399" },
   captionLiveText: { color: "#60A5FA", fontFamily: "Inter_600SemiBold", fontSize: 10 },
@@ -331,7 +409,7 @@ const styles = StyleSheet.create({
   metricValue: { fontFamily: "Inter_700Bold", fontSize: 21 },
   metricLabel: { fontFamily: "Inter_500Medium", fontSize: 10, marginTop: 2 },
   metricDivider: { width: 1, height: 30, backgroundColor: "rgba(148,163,184,0.25)" },
-  dashboardImage: { width: 112, height: 164, borderRadius: 12, backgroundColor: "#0A1628" },
+  miniChart: { width: 112, height: 164, borderRadius: 12, overflow: "hidden" },
   bottomCta: { alignItems: "center", marginTop: 36, padding: 22, borderRadius: 22, backgroundColor: "#0E2A55", gap: 8 },
   bottomCtaTitle: { fontFamily: "Inter_700Bold", fontSize: 20, textAlign: "center" },
   bottomCtaText: { fontFamily: "Inter_400Regular", fontSize: 13, lineHeight: 19, textAlign: "center", color: "#9DB1CC" },

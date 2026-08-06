@@ -193,7 +193,7 @@ export default function LoginScreen() {
                   </View>
                   <Text style={[styles.rememberLabel, { color: mutedColor }]}>Se souvenir de moi</Text>
                 </TouchableOpacity>
-                <TouchableOpacity onPress={() => router.push("/forgot-password")}>
+                <TouchableOpacity style={styles.forgotButton} onPress={() => router.push("/forgot-password")}>
                   <Text style={styles.forgotLink}>Mot de passe oublié</Text>
                 </TouchableOpacity>
               </View>
@@ -261,11 +261,12 @@ const styles = StyleSheet.create({
   inputRow: { flexDirection: "row", alignItems: "center", borderWidth: 1.5, borderRadius: 16, paddingHorizontal: 16, paddingVertical: Platform.OS === "ios" ? 16 : 12, gap: 12 },
   input: { flex: 1, fontSize: 16, fontFamily: "Inter_400Regular" },
 
-  optionsRow: { flexDirection: "row", justifyContent: "space-between", alignItems: "center" },
-  rememberRow: { flexDirection: "row", alignItems: "center", gap: 8 },
+  optionsRow: { flexDirection: "row", alignItems: "center" },
+  rememberRow: { flex: 1, flexDirection: "row", alignItems: "center", gap: 8, minWidth: 0 },
   checkbox: { width: 20, height: 20, borderRadius: 6, borderWidth: 1.5, alignItems: "center", justifyContent: "center" },
-  rememberLabel: { fontSize: 14, fontFamily: "Inter_500Medium" },
-  forgotLink: { fontSize: 14, fontFamily: "Inter_600SemiBold", color: "#2563EB" },
+  rememberLabel: { fontSize: 12, fontFamily: "Inter_500Medium", flexShrink: 1 },
+  forgotButton: { marginLeft: 12, flexShrink: 0, alignItems: "flex-end" },
+  forgotLink: { fontSize: 12, fontFamily: "Inter_600SemiBold", color: "#2563EB", textAlign: "right" },
 
   errorBox: { flexDirection: "row", alignItems: "center", gap: 8, borderWidth: 1, borderRadius: 12, padding: 12 },
   errorText: { flex: 1, fontSize: 14, fontFamily: "Inter_500Medium", color: "#DC2626" },
