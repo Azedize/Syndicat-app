@@ -16,7 +16,6 @@ import React, { useState } from "react";
 import {
   ActivityIndicator,
   Alert,
-  KeyboardAvoidingView,
   Platform,
   ScrollView,
   StyleSheet,
@@ -25,10 +24,13 @@ import {
   TouchableOpacity,
   View,
 } from "react-native";
+import { KeyboardAvoidingView } from "react-native-keyboard-controller";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 import { useAuth } from "@/context/AuthContext";
+import { useLanguage } from "@/context/LanguageContext";
 import { useTheme } from "@/context/ThemeContext";
+import { KeyboardAwareScrollViewCompat } from "@/components/KeyboardAwareScrollViewCompat";
 import { team as teamApi } from "@/services/api";
 
 // ─── Team roles config ────────────────────────────────────────────────────────
@@ -36,32 +38,32 @@ import { team as teamApi } from "@/services/api";
 const ROLES = [
   {
     id: "president",
-    label: "Président",
-    description: "Gouvernance, signatures, assemblées générales",
+    labelKey: "rolePresident",
+    descriptionKey: "presidentDesc",
     icon: "award" as const,
     color: "#2563EB",
     required: false,
   },
   {
     id: "treasurer",
-    label: "Trésorier",
-    description: "Finance, budgets, charges et recouvrement",
+    labelKey: "roleTresorier",
+    descriptionKey: "treasurerDesc",
     icon: "dollar-sign" as const,
     color: "#059669",
     required: false,
   },
   {
     id: "secretary",
-    label: "Secrétaire",
-    description: "Documents, réunions, procès-verbaux",
+    labelKey: "roleSecrétaire",
+    descriptionKey: "secretaryDesc",
     icon: "file-text" as const,
     color: "#7C3AED",
     required: false,
   },
   {
     id: "committee_member",
-    label: "Membre du Conseil",
-    description: "Participation aux votes et décisions",
+    labelKey: "roleMembreConseil",
+    descriptionKey: "committeeMemberDesc",
     icon: "users" as const,
     color: "#D97706",
     required: false,
@@ -135,6 +137,7 @@ export default function TeamInviteScreen() {
   const insets = useSafeAreaInsets();
   const { isDark } = useTheme();
   const { token } = useAuth();
+  const { t } = useLanguage();
 
   const [currentStep, setCurrentStep] = useState(0);
   const [forms, setForms] = useState<MemberForm[]>(ROLES.map(() => emptyForm()));
@@ -147,7 +150,10 @@ export default function TeamInviteScreen() {
   const role = ROLES[currentStep];
   const form = forms[currentStep];
 
-  function updateForm(field: keyof MemberForm, value: string) {
+  const roleLabel = (roleConfig: typeof ROLES[number]) => t(roleConfig.labelKey);
+  const roleDescription = (roleConfig: typeof ROLES[number]) => t(roleConfig.descriptionKey);
+
+  function updateForm(field: keyof MemberForm, value: string | boolean) {
     setForms((prev) => {
       const next = [...prev];
       next[currentStep] = { ...next[currentStep], [field]: value };
@@ -159,11 +165,15 @@ export default function TeamInviteScreen() {
   function validate(): boolean {
     if (form.skip) return true;
     if (!form.name.trim() || form.name.trim().length < 2) {
-      setErrors((prev) => { const n = [...prev]; n[currentStep] = "Nom complet requis"; return n; });
+      setErrors((prev) => { const n = [...prev]; n[currentStep] = t("teamInviteNameError"); return n; });
       return false;
     }
     if (!form.email.trim() || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(form.email.trim())) {
-      setErrors((prev) => { const n = [...prev]; n[currentStep] = "Adresse email invalide"; return n; });
+      setErrors((prev) => { const n = [...prev]; n[currentStep] = t("emailInvalid"); return n; });
+      return false;
+    }
+    if (form.phone.trim() && !/^(?:\+212|0)(?:[567])\d{8}$/.test(form.phone.replace(/[\s.-]/g, ""))) {
+      setErrors((prev) => { const n = [...prev]; n[currentStep] = t("teamInvitePhoneError"); return n; });
       return false;
     }
     return true;
@@ -184,13 +194,13 @@ export default function TeamInviteScreen() {
           phone: form.phone.trim() || undefined,
           role: role.id,
         });
-        setInvited((prev) => [...prev, role.label]);
+        setInvited((prev) => [...prev, role.id]);
         Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
       } catch (err: any) {
         Alert.alert(
-          "Erreur d'invitation",
-          err?.message ?? "Impossible d'envoyer l'invitation. Continuez, vous pourrez les ajouter depuis les paramètres.",
-          [{ text: "Continuer", onPress: () => goNext() }]
+          t("teamInviteErrorTitle"),
+          t("teamInviteErrorDescription"),
+          [{ text: t("teamInviteContinue"), onPress: () => goNext() }]
         );
         setInviting(false);
         return;
@@ -241,10 +251,10 @@ export default function TeamInviteScreen() {
 
           <View style={{ alignItems: "center", gap: 8 }}>
             <Text style={[s.doneTitle, { color: isDark ? "#E8F0FE" : "#0A1628" }]}>
-              Résidence prête !
+              {t("teamInviteCompleteTitle")}
             </Text>
             <Text style={[s.doneSub, { color: isDark ? "rgba(232,240,254,0.6)" : "#64748B" }]}>
-              Votre syndicat est entièrement configuré et opérationnel.
+              {t("teamInviteCompleteDescription")}
             </Text>
           </View>
 
@@ -252,32 +262,36 @@ export default function TeamInviteScreen() {
           {invited.length > 0 && (
             <View style={[s.invitedCard, { backgroundColor: isDark ? "rgba(255,255,255,0.05)" : "#fff", borderColor: isDark ? "rgba(255,255,255,0.08)" : "rgba(37,99,235,0.12)" }]}>
               <Text style={[s.invitedTitle, { color: isDark ? "#E8F0FE" : "#0A1628" }]}>
-                Invitations envoyées
+                {t("teamInviteSentTitle")}
               </Text>
-              {invited.map((name) => (
-                <View key={name} style={s.invitedRow}>
+              {invited.map((roleId) => {
+                const invitedRole = ROLES.find((item) => item.id === roleId);
+                if (!invitedRole) return null;
+                return (
+                <View key={roleId} style={s.invitedRow}>
                   <Feather name="mail" size={14} color="#10B981" />
                   <Text style={[s.invitedText, { color: isDark ? "rgba(232,240,254,0.75)" : "#374151" }]}>
-                    {name}
+                    {roleLabel(invitedRole)}
                   </Text>
                   <View style={[s.invitedBadge, { backgroundColor: "#10B98118" }]}>
-                    <Text style={{ fontFamily: "Inter_600SemiBold", fontSize: 10, color: "#10B981" }}>Envoyé</Text>
+                    <Text style={{ fontFamily: "Inter_600SemiBold", fontSize: 10, color: "#10B981" }}>{t("teamInviteSent")}</Text>
                   </View>
                 </View>
-              ))}
+                );
+              })}
             </View>
           )}
 
           {/* What's next */}
           <View style={[s.nextStepsCard, { backgroundColor: isDark ? "rgba(255,255,255,0.04)" : "rgba(37,99,235,0.04)", borderColor: isDark ? "rgba(255,255,255,0.07)" : "rgba(37,99,235,0.12)" }]}>
             <Text style={[s.nextStepsTitle, { color: isDark ? "rgba(232,240,254,0.45)" : "#94A3B8" }]}>
-              PROCHAINES ÉTAPES
+              {t("teamInviteNextStepsTitle")}
             </Text>
             {[
-              { icon: "user-plus" as const, text: "Ajouter les copropriétaires et locataires" },
-              { icon: "home" as const, text: "Configurer les appartements et lots" },
-              { icon: "dollar-sign" as const, text: "Créer le premier budget prévisionnel" },
-              { icon: "calendar" as const, text: "Planifier la première assemblée générale" },
+              { icon: "user-plus" as const, text: t("teamInviteNextStepMembers") },
+              { icon: "home" as const, text: t("teamInviteNextStepUnits") },
+              { icon: "dollar-sign" as const, text: t("teamInviteNextStepBudget") },
+              { icon: "calendar" as const, text: t("teamInviteNextStepAssembly") },
             ].map((item) => (
               <View key={item.text} style={s.nextStepRow}>
                 <View style={[s.nextStepIcon, { backgroundColor: "#2563EB18" }]}>
@@ -297,7 +311,7 @@ export default function TeamInviteScreen() {
             activeOpacity={0.85}
           >
             <Feather name="grid" size={17} color="#fff" />
-            <Text style={s.ctaBtnText}>Accéder au tableau de bord</Text>
+             <Text style={s.ctaBtnText}>{t("teamInviteDashboard")}</Text>
           </TouchableOpacity>
         </ScrollView>
       </View>
@@ -311,7 +325,7 @@ export default function TeamInviteScreen() {
       <LinearGradient colors={gradColors} style={StyleSheet.absoluteFill} />
 
       <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === "ios" ? "padding" : undefined}>
-        <ScrollView
+        <KeyboardAwareScrollViewCompat
           contentContainerStyle={{
             paddingTop: insets.top + (Platform.OS === "web" ? 67 : 16),
             paddingBottom: insets.bottom + 40,
@@ -323,11 +337,9 @@ export default function TeamInviteScreen() {
         >
           {/* Header */}
           <View style={{ gap: 6 }}>
-            <Text style={[s.title, { color: isDark ? "#E8F0FE" : "#0A1628" }]}>
-              Constituer l'équipe
-            </Text>
+            <Text style={[s.title, { color: isDark ? "#E8F0FE" : "#0A1628" }]}>{t("teamInviteTitle")}</Text>
             <Text style={[s.subtitle, { color: isDark ? "rgba(232,240,254,0.55)" : "#64748B" }]}>
-              Étape 3 sur 3 — Invitez votre équipe de gestion
+              {t("teamInviteSubtitle")}
             </Text>
           </View>
 
@@ -359,8 +371,8 @@ export default function TeamInviteScreen() {
               <Feather name={role.icon} size={28} color={role.color} />
             </View>
             <View style={{ gap: 4 }}>
-              <Text style={[s.roleName, { color: isDark ? "#E8F0FE" : "#0A1628" }]}>{role.label}</Text>
-              <Text style={[s.roleDesc, { color: isDark ? "rgba(232,240,254,0.5)" : "#64748B" }]}>{role.description}</Text>
+              <Text style={[s.roleName, { color: isDark ? "#E8F0FE" : "#0A1628" }]}>{roleLabel(role)}</Text>
+              <Text style={[s.roleDesc, { color: isDark ? "rgba(232,240,254,0.5)" : "#64748B" }]}>{roleDescription(role)}</Text>
             </View>
             <View style={{ flex: 1 }} />
             <Text style={[s.stepCounter, { color: isDark ? "rgba(232,240,254,0.35)" : "#94A3B8" }]}>
@@ -371,10 +383,12 @@ export default function TeamInviteScreen() {
           {/* Previously invited */}
           {invited.length > 0 && (
             <View style={s.invitedMini}>
-              {invited.map((name) => (
-                <View key={name} style={[s.invitedChip, { backgroundColor: "#10B98115", borderColor: "#10B981" }]}>
+              {invited.map((roleId) => (
+                <View key={roleId} style={[s.invitedChip, { backgroundColor: "#10B98115", borderColor: "#10B981" }]}>
                   <Feather name="check" size={11} color="#10B981" />
-                  <Text style={{ fontFamily: "Inter_500Medium", fontSize: 11, color: "#10B981" }}>{name}</Text>
+                  <Text style={{ fontFamily: "Inter_500Medium", fontSize: 11, color: "#10B981" }}>
+                    {roleLabel(ROLES.find((item) => item.id === roleId) ?? ROLES[0])}
+                  </Text>
                 </View>
               ))}
             </View>
@@ -384,32 +398,32 @@ export default function TeamInviteScreen() {
           {!form.skip ? (
             <View style={{ gap: 16 }}>
               <Field
-                label="Nom complet *"
+                label={t("fullNameLabel")}
                 icon="user"
                 value={form.name}
                 onChangeText={(v) => updateForm("name", v)}
-                placeholder={`Ex: Ali ${role.label}`}
+                placeholder={`${t("teamInviteExample")} ${roleLabel(role)}`}
                 isDark={isDark}
                 color={role.color}
                 error={errors[currentStep] && !form.email ? errors[currentStep] : undefined}
               />
               <Field
-                label="Adresse email *"
+                label={t("teamInviteEmailLabel")}
                 icon="mail"
                 value={form.email}
                 onChangeText={(v) => updateForm("email", v)}
-                placeholder="email@example.ma"
+                placeholder={t("teamInviteEmailPlaceholder")}
                 keyboardType="email-address"
                 isDark={isDark}
                 color={role.color}
                 error={errors[currentStep] && form.name ? errors[currentStep] : undefined}
               />
               <Field
-                label="Téléphone (optionnel)"
+                label={t("teamInvitePhoneLabel")}
                 icon="phone"
                 value={form.phone}
                 onChangeText={(v) => updateForm("phone", v)}
-                placeholder="+212 6XX XXX XXX"
+                placeholder={t("phonePlaceholder")}
                 keyboardType="phone-pad"
                 isDark={isDark}
                 color={role.color}
@@ -425,7 +439,7 @@ export default function TeamInviteScreen() {
             <View style={[s.skippedCard, { backgroundColor: isDark ? "rgba(255,255,255,0.04)" : "rgba(37,99,235,0.04)", borderColor: isDark ? "rgba(255,255,255,0.08)" : "rgba(37,99,235,0.1)" }]}>
               <Feather name="skip-forward" size={20} color={isDark ? "rgba(232,240,254,0.3)" : "#94A3B8"} />
               <Text style={[s.skippedText, { color: isDark ? "rgba(232,240,254,0.4)" : "#94A3B8" }]}>
-                Ce rôle sera ignoré. Vous pourrez ajouter un {role.label} ultérieurement depuis les paramètres.
+                {t("teamInviteSkipped").replace("{role}", roleLabel(role))}
               </Text>
             </View>
           )}
@@ -434,7 +448,7 @@ export default function TeamInviteScreen() {
           <View style={[s.infoBox, { backgroundColor: role.color + "10", borderColor: role.color + "25" }]}>
             <Feather name="info" size={13} color={role.color} />
             <Text style={[s.infoText, { color: isDark ? "rgba(232,240,254,0.6)" : "#475569" }]}>
-              Un email d'invitation avec un mot de passe temporaire sera envoyé à l'adresse indiquée.
+              {t("teamInviteInfo")}
             </Text>
           </View>
 
@@ -451,7 +465,7 @@ export default function TeamInviteScreen() {
               ) : (
                 <>
                   <Text style={s.ctaBtnText}>
-                    {form.skip ? "Passer" : currentStep === ROLES.length - 1 ? "Terminer" : "Inviter et continuer"}
+                    {form.skip ? t("teamInviteSkip") : currentStep === ROLES.length - 1 ? t("teamInviteFinish") : t("teamInviteContinueButton")}
                   </Text>
                   <Feather name="arrow-right" size={17} color="#fff" />
                 </>
@@ -461,19 +475,19 @@ export default function TeamInviteScreen() {
             {!form.skip ? (
               <TouchableOpacity
                 style={[s.skipBtn, { borderColor: isDark ? "rgba(255,255,255,0.12)" : "rgba(37,99,235,0.18)" }]}
-                onPress={() => { updateForm("skip", "true" as any); setErrors((p) => { const n = [...p]; n[currentStep] = ""; return n; }); }}
+                 onPress={() => { updateForm("skip", true); setErrors((p) => { const n = [...p]; n[currentStep] = ""; return n; }); }}
               >
                 <Text style={[s.skipBtnText, { color: isDark ? "rgba(232,240,254,0.45)" : "#94A3B8" }]}>
-                  Ignorer ce rôle pour l'instant
+                  {t("teamInviteSkipRole")}
                 </Text>
               </TouchableOpacity>
             ) : (
               <TouchableOpacity
                 style={[s.skipBtn, { borderColor: isDark ? "rgba(255,255,255,0.12)" : "rgba(37,99,235,0.18)" }]}
-                onPress={() => updateForm("skip", "false" as any)}
+                 onPress={() => updateForm("skip", false)}
               >
                 <Text style={[s.skipBtnText, { color: role.color }]}>
-                  Remplir les informations
+                  {t("teamInviteFill")}
                 </Text>
               </TouchableOpacity>
             )}
@@ -485,10 +499,10 @@ export default function TeamInviteScreen() {
             onPress={goToDashboard}
           >
             <Text style={[s.earlyExitText, { color: isDark ? "rgba(232,240,254,0.25)" : "#CBD5E1" }]}>
-              Configurer l'équipe plus tard
+              {t("teamInviteLater")}
             </Text>
           </TouchableOpacity>
-        </ScrollView>
+        </KeyboardAwareScrollViewCompat>
       </KeyboardAvoidingView>
     </View>
   );

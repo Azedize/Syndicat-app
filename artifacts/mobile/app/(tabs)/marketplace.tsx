@@ -17,19 +17,22 @@ import {
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useAuth } from "@/context/AuthContext";
+import { useLanguage } from "@/context/LanguageContext";
 import { useBreakpoints } from "@/hooks/useBreakpoints";
 import { useColors } from "@/hooks/useColors";
 import { useToast } from "@/context/ToastContext";
 import FilterChips from "@/components/FilterChips";
 import FilterTabs from "@/components/FilterTabs";
+import { ErrorState } from "@/components/DataState";
 import { marketplace } from "@/services/api";
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
-function formatMAD(price: string | number | null | undefined): string {
+function formatMAD(price: string | number | null | undefined, lang = "fr"): string {
   const n = Number(price ?? 0);
   if (isNaN(n)) return "0";
-  try { return n.toLocaleString("fr-FR"); } catch { return String(Math.round(n)); }
+  const locale = { fr: "fr-FR", en: "en-US", ar: "ar-MA", es: "es-ES" }[lang] ?? "fr-FR";
+  try { return n.toLocaleString(locale); } catch { return String(Math.round(n)); }
 }
 
 // ─── Types ────────────────────────────────────────────────────────────────────
@@ -58,7 +61,31 @@ type Product = {
 };
 
 const CATEGORIES = ["Tous", "Électroménager", "Meubles", "Vêtements", "Électronique", "Sport", "Livres", "Autre"];
-const CONDITION_LABELS: Record<string, string> = { neuf: "Neuf", bon: "Bon état", acceptable: "Acceptable", mauvais: "Mauvais état" };
+const CATEGORY_KEYS: Record<string, string> = {
+  Tous: "marketplaceCategoryAll",
+  "Électroménager": "marketplaceCategoryAppliances",
+  Meubles: "marketplaceCategoryFurniture",
+  Vêtements: "marketplaceCategoryClothing",
+  "Électronique": "marketplaceCategoryElectronics",
+  Sport: "marketplaceCategorySports",
+  Livres: "marketplaceCategoryBooks",
+  Autre: "marketplaceCategoryOther",
+};
+const CONDITION_KEYS: Record<string, string> = {
+  neuf: "marketplaceConditionNew",
+  bon: "marketplaceConditionGood",
+  acceptable: "marketplaceConditionAcceptable",
+  mauvais: "marketplaceConditionPoor",
+};
+const STATUS_KEYS: Record<string, string> = {
+  approved: "marketplaceStatusApproved",
+  pending_review: "marketplaceStatusPendingReview",
+  rejected: "marketplaceStatusRejected",
+  modification_requested: "marketplaceStatusModificationRequested",
+  sold_out: "marketplaceStatusSoldOut",
+  reserved: "marketplaceStatusReserved",
+  sold: "marketplaceStatusSold",
+};
 
 const STATUS_COLORS: Record<string, string> = {
   approved: "#22c55e",
@@ -78,6 +105,7 @@ export default function MarketplaceScreen() {
   const colors = useColors();
   const insets = useSafeAreaInsets();
   const { user } = useAuth();
+  const { t, lang } = useLanguage();
   const { isWide } = useBreakpoints();
   const { showToast } = useToast();
   const topPad = isWide ? 0 : (Platform.OS === "web" ? 67 : insets.top);
@@ -87,6 +115,10 @@ export default function MarketplaceScreen() {
   const [reported, setReported] = useState<Product[]>([]);
   const [stats, setStats] = useState<any>(null);
   const [loading, setLoading] = useState(true);
+  const [productsError, setProductsError] = useState(false);
+  const [pendingError, setPendingError] = useState(false);
+  const [reportedError, setReportedError] = useState(false);
+  const [statsError, setStatsError] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
   const [search, setSearch] = useState("");
   const [category, setCategory] = useState("Tous");
@@ -124,7 +156,8 @@ export default function MarketplaceScreen() {
       if (search.trim()) params.search = search.trim();
       const res = await marketplace.products(params);
       setProducts((res.data as Product[]) ?? []);
-    } catch { /* keep stale */ }
+      setProductsError(false);
+    } catch { setProductsError(true); }
   }, [category, search]);
 
   const fetchPending = useCallback(async () => {
@@ -132,7 +165,8 @@ export default function MarketplaceScreen() {
     try {
       const res = await marketplace.pending();
       setPending((res.data as Product[]) ?? []);
-    } catch { /* keep stale */ }
+      setPendingError(false);
+    } catch { setPendingError(true); }
   }, [isSuperAdmin]);
 
   const fetchReported = useCallback(async () => {
@@ -140,7 +174,8 @@ export default function MarketplaceScreen() {
     try {
       const res = await marketplace.reported();
       setReported((res.data as Product[]) ?? []);
-    } catch { /* keep stale */ }
+      setReportedError(false);
+    } catch { setReportedError(true); }
   }, [isSuperAdmin]);
 
   const fetchStats = useCallback(async () => {
@@ -148,7 +183,8 @@ export default function MarketplaceScreen() {
     try {
       const res = await marketplace.stats();
       setStats(res.data);
-    } catch { /* keep stale */ }
+      setStatsError(false);
+    } catch { setStatsError(true); }
   }, [isAdmin]);
 
   const fetchAll = useCallback(async () => {
@@ -174,12 +210,12 @@ export default function MarketplaceScreen() {
       return;
     }
     Alert.alert(
-      "Approuver le produit",
-      `Approuver "${productName}" et le rendre visible ?`,
+      t("marketplaceApproveTitle"),
+      t("marketplaceApproveDescription").replace("{name}", productName),
       [
-        { text: "Annuler", style: "cancel" },
+        { text: t("cancelLabel"), style: "cancel" },
         {
-          text: "Approuver",
+          text: t("approveProduct"),
           onPress: async () => {
             setModerating(id);
             try {
@@ -187,7 +223,7 @@ export default function MarketplaceScreen() {
               Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
               await Promise.all([fetchProducts(), fetchPending(), fetchStats()]);
             } catch {
-              showToast({ type: "error", title: "Erreur", message: "Action de modération impossible" });
+              showToast({ type: "error", title: t("alertError"), message: t("marketplaceModerationError") });
             } finally {
               setModerating(null);
             }
@@ -198,16 +234,18 @@ export default function MarketplaceScreen() {
   };
 
   const REJECT_REASONS = [
-    "Contenu inapproprié",
-    "Informations manquantes",
-    "Mauvaise catégorie",
-    "Annonce en double",
-    "Article prohibé",
-    "Autre",
+    "inappropriate",
+    "missingInformation",
+    "wrongCategory",
+    "duplicateListing",
+    "prohibitedItem",
+    "other",
   ];
 
   const submitRejectWithReason = async () => {
-    const reason = selectedRejectReason === "Autre" ? customRejectReason.trim() : selectedRejectReason;
+    const reason = selectedRejectReason === "other"
+      ? customRejectReason.trim()
+      : t(`marketplaceRejectReason${selectedRejectReason.charAt(0).toUpperCase()}${selectedRejectReason.slice(1)}`);
     if (!reason) return;
     setSubmittingReject(true);
     try {
@@ -215,9 +253,9 @@ export default function MarketplaceScreen() {
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
       setShowRejectModal(false);
       await Promise.all([fetchProducts(), fetchPending(), fetchStats()]);
-      showToast({ type: "success", title: "Produit rejeté", message: "Le vendeur a été notifié" });
+      showToast({ type: "success", title: t("marketplaceRejectedToast"), message: t("marketplaceSellerNotified") });
     } catch {
-      showToast({ type: "error", title: "Erreur", message: "Rejet impossible" });
+      showToast({ type: "error", title: t("alertError"), message: t("marketplaceRejectError") });
     } finally {
       setSubmittingReject(false);
     }
@@ -238,9 +276,9 @@ export default function MarketplaceScreen() {
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
       setShowModModal(false);
       await Promise.all([fetchProducts(), fetchPending(), fetchStats()]);
-      showToast({ type: "success", title: "Modifications demandées", message: "Le vendeur a été notifié" });
+      showToast({ type: "success", title: t("marketplaceModificationRequested"), message: t("marketplaceSellerNotified") });
     } catch {
-      showToast({ type: "error", title: "Erreur", message: "Impossible d'envoyer la demande" });
+      showToast({ type: "error", title: t("alertError"), message: t("marketplaceModificationError") });
     } finally {
       setSubmittingMod(false);
     }
@@ -249,7 +287,7 @@ export default function MarketplaceScreen() {
   // ─── Render helpers ────────────────────────────────────────────────────
 
   const renderProductCard = ({ item: p }: { item: Product }) => {
-    const price = formatMAD(p.price) + " MAD";
+    const price = formatMAD(p.price, lang) + " MAD";
     const isReserved = p.status === "reserved";
     const isSold = p.status === "sold";
     return (
@@ -262,19 +300,19 @@ export default function MarketplaceScreen() {
           {p.featured && (
             <View style={[styles.featuredBadge, { backgroundColor: "#f59e0b" }]}>
               <Feather name="star" size={10} color="#fff" />
-              <Text style={styles.featuredBadgeText}>Vedette</Text>
+              <Text style={styles.featuredBadgeText}>{t("featuredLabel")}</Text>
             </View>
           )}
           {isReserved && (
             <View style={[styles.reservedBadge, { backgroundColor: "#6366f1" }]}>
               <Feather name="lock" size={10} color="#fff" />
-              <Text style={styles.featuredBadgeText}>Réservé</Text>
+              <Text style={styles.featuredBadgeText}>{t("marketplaceStatusReserved")}</Text>
             </View>
           )}
           {isSold && (
             <View style={[styles.reservedBadge, { backgroundColor: "#94a3b8" }]}>
               <Feather name="check-circle" size={10} color="#fff" />
-              <Text style={styles.featuredBadgeText}>Vendu</Text>
+              <Text style={styles.featuredBadgeText}>{t("marketplaceStatusSold")}</Text>
             </View>
           )}
           <Feather name="shopping-bag" size={28} color={colors.mutedForeground} />
@@ -285,7 +323,7 @@ export default function MarketplaceScreen() {
           <View style={styles.cardMeta}>
             <View style={[styles.conditionBadge, { backgroundColor: colors.secondary }]}>
               <Text style={[styles.conditionText, { color: colors.mutedForeground }]}>
-                {CONDITION_LABELS[p.condition] ?? p.condition ?? ""}
+                {CONDITION_KEYS[p.condition] ? t(CONDITION_KEYS[p.condition]) : p.condition ?? ""}
               </Text>
             </View>
             {p.location ? (
@@ -311,9 +349,9 @@ export default function MarketplaceScreen() {
       <View style={{ flex: 1 }}>
         <Text style={[styles.pendingName, { color: colors.foreground }]}>{p.name ?? ""}</Text>
         <Text style={[styles.pendingMeta, { color: colors.mutedForeground }]}>
-          {formatMAD(p.price)} MAD · {p.category ?? ""} · {CONDITION_LABELS[p.condition] ?? p.condition ?? ""}
+          {formatMAD(p.price, lang)} MAD · {p.category ? t(CATEGORY_KEYS[p.category] ?? p.category) : ""} · {CONDITION_KEYS[p.condition] ? t(CONDITION_KEYS[p.condition]) : p.condition ?? ""}
         </Text>
-        <Text style={[styles.pendingMeta, { color: colors.mutedForeground }]}>Vendeur : {p.sellerName}</Text>
+        <Text style={[styles.pendingMeta, { color: colors.mutedForeground }]}>{t("seller")} : {p.sellerName}</Text>
         {p.description ? (
           <Text style={[styles.pendingDesc, { color: colors.mutedForeground }]} numberOfLines={2}>{p.description}</Text>
         ) : null}
@@ -329,7 +367,7 @@ export default function MarketplaceScreen() {
           ) : (
             <>
               <Feather name="check" size={14} color={colors.success} />
-              <Text style={[styles.modBtnText, { color: colors.success }]}>Approuver</Text>
+              <Text style={[styles.modBtnText, { color: colors.success }]}>{t("approveProduct")}</Text>
             </>
           )}
         </TouchableOpacity>
@@ -339,7 +377,7 @@ export default function MarketplaceScreen() {
           disabled={moderating === p.id}
         >
           <Feather name="edit" size={14} color="#f97316" />
-          <Text style={[styles.modBtnText, { color: "#f97316" }]}>Modifier</Text>
+          <Text style={[styles.modBtnText, { color: "#f97316" }]}>{t("marketplaceModify")}</Text>
         </TouchableOpacity>
         <TouchableOpacity
           style={[styles.modBtn, { backgroundColor: colors.destructive + "15" }]}
@@ -347,14 +385,14 @@ export default function MarketplaceScreen() {
           disabled={moderating === p.id}
         >
           <Feather name="x" size={14} color={colors.destructive} />
-          <Text style={[styles.modBtnText, { color: colors.destructive }]}>Rejeter</Text>
+          <Text style={[styles.modBtnText, { color: colors.destructive }]}>{t("rejectProduct")}</Text>
         </TouchableOpacity>
         <TouchableOpacity
           style={[styles.modBtn, { backgroundColor: colors.primary + "10" }]}
           onPress={() => { router.push({ pathname: "/product-detail", params: { id: p.id } } as any); }}
         >
           <Feather name="eye" size={14} color={colors.primary} />
-          <Text style={[styles.modBtnText, { color: colors.primary }]}>Voir</Text>
+          <Text style={[styles.modBtnText, { color: colors.primary }]}>{t("marketplaceView")}</Text>
         </TouchableOpacity>
       </View>
     </View>
@@ -372,7 +410,7 @@ export default function MarketplaceScreen() {
           )}
         </View>
         <Text style={[styles.pendingMeta, { color: colors.mutedForeground }]}>
-          Statut : {p.status} · Vendeur : {p.sellerName}
+          {t("orderStatus")} : {t(STATUS_KEYS[p.status] ?? p.status)} · {t("seller")} {p.sellerName}
         </Text>
         {p.moderationNote ? (
           <Text style={[styles.pendingDesc, { color: colors.mutedForeground }]} numberOfLines={2}>{p.moderationNote}</Text>
@@ -384,7 +422,7 @@ export default function MarketplaceScreen() {
           onPress={() => { router.push({ pathname: "/product-detail", params: { id: p.id } } as any); }}
         >
           <Feather name="eye" size={14} color={colors.primary} />
-          <Text style={[styles.modBtnText, { color: colors.primary }]}>Examiner</Text>
+          <Text style={[styles.modBtnText, { color: colors.primary }]}>{t("marketplaceReview")}</Text>
         </TouchableOpacity>
         <TouchableOpacity
           style={[styles.modBtn, { backgroundColor: colors.destructive + "15" }]}
@@ -392,7 +430,7 @@ export default function MarketplaceScreen() {
           disabled={moderating === p.id}
         >
           <Feather name="x" size={14} color={colors.destructive} />
-          <Text style={[styles.modBtnText, { color: colors.destructive }]}>Rejeter</Text>
+          <Text style={[styles.modBtnText, { color: colors.destructive }]}>{t("rejectProduct")}</Text>
         </TouchableOpacity>
       </View>
     </View>
@@ -406,13 +444,13 @@ export default function MarketplaceScreen() {
       <View style={[styles.header, { paddingTop: topPad + 16, backgroundColor: colors.card, borderBottomColor: colors.border }]}>
         <View style={styles.headerRow}>
           <View>
-            <Text style={[styles.title, { color: colors.foreground }]}>Marketplace</Text>
+            <Text style={[styles.title, { color: colors.foreground }]}>{t("marketplaceTitle")}</Text>
             <Text style={[styles.subtitle, { color: colors.mutedForeground }]}>
               {isSuperAdmin
-                ? `${pending.length} en attente · ${reported.length} signalé${reported.length !== 1 ? "s" : ""}`
+                ? `${t("marketplacePendingCount").replace("{count}", String(pending.length))} · ${t("marketplaceReportedCount").replace("{count}", String(reported.length))}`
                 : isSyndicateAdmin
-                ? "Vue lecture seule"
-                : `${products.length} produit${products.length !== 1 ? "s" : ""} disponible${products.length !== 1 ? "s" : ""}`}
+                ? t("marketplaceReadOnly")
+                : t("marketplaceProductCount").replace("{count}", String(products.length))}
             </Text>
           </View>
           <View style={{ flexDirection: "row", alignItems: "center", gap: 8 }}>
@@ -422,20 +460,20 @@ export default function MarketplaceScreen() {
                 <TouchableOpacity
                   style={[styles.headerBtn, { backgroundColor: colors.primary + "15" }]}
                   onPress={() => { router.push("/admin/marketplace" as any); Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); }}
-                  accessibilityLabel="Tableau de modération"
+                  accessibilityLabel={t("marketplaceModerationAccessibility")}
                 >
                   <Feather name="shield" size={18} color={colors.primary} />
                 </TouchableOpacity>
                 <View style={[styles.adminBadge, { backgroundColor: colors.primary + "15" }]}>
                   <Feather name="shield" size={14} color={colors.primary} />
-                  <Text style={[styles.adminBadgeText, { color: colors.primary }]}>Super Admin</Text>
+                  <Text style={[styles.adminBadgeText, { color: colors.primary }]}>{t("marketplaceSuperAdmin")}</Text>
                 </View>
               </>
             ) : isSyndicateAdmin ? (
               // Syndicate Admin — read-only view, no moderation shortcut
               <View style={[styles.adminBadge, { backgroundColor: colors.secondary }]}>
                 <Feather name="eye" size={13} color={colors.mutedForeground} />
-                <Text style={[styles.adminBadgeText, { color: colors.mutedForeground }]}>Lecture seule</Text>
+                  <Text style={[styles.adminBadgeText, { color: colors.mutedForeground }]}>{t("marketplaceReadOnly")}</Text>
               </View>
             ) : (
               <>
@@ -461,7 +499,7 @@ export default function MarketplaceScreen() {
             <Feather name="search" size={16} color={colors.mutedForeground} />
             <TextInput
               style={[styles.searchInput, { color: colors.foreground }]}
-              placeholder="Rechercher un produit, vendeur..."
+              placeholder={t("searchProduct")}
               placeholderTextColor={colors.mutedForeground}
               value={search}
               onChangeText={setSearch}
@@ -479,14 +517,14 @@ export default function MarketplaceScreen() {
       {isAdmin ? (
         <FilterTabs
           options={[
-            { key: "catalogue", label: "Catalogue" },
+            { key: "catalogue", label: t("marketplaceCatalogue") },
             // Validation + Signalés: super_admin moderation queues only
             ...(isSuperAdmin ? [
-              { key: "validation", label: `Validation (${pending.length})` },
-              { key: "signales",   label: `Signalés (${reported.length})` },
+              { key: "validation", label: `${t("marketplaceValidation")} (${pending.length})` },
+              { key: "signales",   label: `${t("marketplaceReported")} (${reported.length})` },
             ] : []),
-            { key: "commandes", label: "Commandes" },
-            { key: "stats",     label: "Stats" },
+            { key: "commandes", label: t("marketplaceOrders") },
+            { key: "stats",     label: t("marketplaceStats") },
           ]}
           value={adminTab}
           onChange={(k) => {
@@ -509,10 +547,19 @@ export default function MarketplaceScreen() {
       {loading ? (
         <View style={styles.centered}>
           <ActivityIndicator size="large" color={colors.primary} />
-          <Text style={[styles.loadingText, { color: colors.mutedForeground }]}>Chargement du marketplace...</Text>
+          <Text style={[styles.loadingText, { color: colors.mutedForeground }]}>{t("loadingMarketplace")}</Text>
         </View>
       ) : isSuperAdmin && adminTab === "validation" ? (
         // Moderation queue — super_admin only
+        pendingError ? (
+          <ErrorState
+            title={t("marketplaceDataUnavailable")}
+            description={t("marketplaceQueueUnavailable")}
+            onRetry={() => { void fetchAll(); }}
+            retryLabel={t("marketplaceRetry")}
+            accentColor={colors.destructive}
+          />
+        ) : (
         <FlatList
           key="validation-list"
           data={pending}
@@ -524,13 +571,23 @@ export default function MarketplaceScreen() {
           ListEmptyComponent={
             <View style={styles.empty}>
               <Feather name="check-circle" size={44} color={colors.success} />
-              <Text style={[styles.emptyTitle, { color: colors.foreground }]}>File vide !</Text>
-              <Text style={[styles.emptySub, { color: colors.mutedForeground }]}>Aucun produit en attente de validation.</Text>
+              <Text style={[styles.emptyTitle, { color: colors.foreground }]}>{t("marketplaceQueueEmptyTitle")}</Text>
+              <Text style={[styles.emptySub, { color: colors.mutedForeground }]}>{t("marketplacePendingEmpty")}</Text>
             </View>
           }
         />
+        )
       ) : isSuperAdmin && adminTab === "signales" ? (
         // Reported queue — super_admin only
+        reportedError ? (
+          <ErrorState
+            title={t("marketplaceDataUnavailable")}
+            description={t("marketplaceQueueUnavailable")}
+            onRetry={() => { void fetchAll(); }}
+            retryLabel={t("marketplaceRetry")}
+            accentColor={colors.destructive}
+          />
+        ) : (
         <FlatList
           key="signales-list"
           data={reported}
@@ -542,16 +599,26 @@ export default function MarketplaceScreen() {
           ListEmptyComponent={
             <View style={styles.empty}>
               <Feather name="flag" size={44} color={colors.success} />
-              <Text style={[styles.emptyTitle, { color: colors.foreground }]}>Aucun signalement</Text>
-              <Text style={[styles.emptySub, { color: colors.mutedForeground }]}>Aucun produit signalé en attente d'examen.</Text>
+              <Text style={[styles.emptyTitle, { color: colors.foreground }]}>{t("marketplaceReportedEmptyTitle")}</Text>
+              <Text style={[styles.emptySub, { color: colors.mutedForeground }]}>{t("marketplaceReportedEmpty")}</Text>
             </View>
           }
         />
+        )
       ) : isAdmin && adminTab === "commandes" ? (
-        <OrdersAdminView colors={colors} insets={insets} isWide={isWide} refreshing={refreshing} onRefresh={onRefresh} />
+        <OrdersAdminView colors={colors} insets={insets} isWide={isWide} refreshing={refreshing} onRefresh={onRefresh} t={t} lang={lang} />
       ) : isAdmin && adminTab === "stats" ? (
-        <StatsView colors={colors} insets={insets} isWide={isWide} stats={stats} refreshing={refreshing} onRefresh={onRefresh} />
+        <StatsView colors={colors} insets={insets} isWide={isWide} stats={stats} refreshing={refreshing} onRefresh={onRefresh} t={t} lang={lang} statsError={statsError} onRetry={fetchAll} />
       ) : (
+        productsError ? (
+          <ErrorState
+            title={t("marketplaceDataUnavailable")}
+            description={t("marketplaceDataUnavailableDescription")}
+            onRetry={() => { void fetchAll(); }}
+            retryLabel={t("marketplaceRetry")}
+            accentColor={colors.destructive}
+          />
+        ) : (
         <FlatList
           key="catalogue-list"
           data={products}
@@ -566,14 +633,15 @@ export default function MarketplaceScreen() {
             <View style={styles.empty}>
               <Feather name="shopping-bag" size={44} color={colors.mutedForeground} />
               <Text style={[styles.emptyTitle, { color: colors.foreground }]}>
-                {search ? "Aucun résultat" : "Marketplace vide"}
+                {search ? t("marketplaceNoSearchResults") : t("marketplaceEmptyTitle")}
               </Text>
               <Text style={[styles.emptySub, { color: colors.mutedForeground }]}>
-                {search ? `Aucun produit ne correspond à "${search}"` : "Soyez le premier à publier un produit !"}
+                {search ? t("marketplaceNoSearchDescription").replace("{search}", search) : t("marketplaceFirstListing")}
               </Text>
             </View>
           }
         />
+        )
       )}
 
       {/* Sell FAB — visible to members */}
@@ -583,7 +651,7 @@ export default function MarketplaceScreen() {
           onPress={() => { router.push("/my-shop"); Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium); }}
         >
           <Feather name="plus" size={22} color="#fff" />
-          <Text style={styles.fabText}>Vendre</Text>
+          <Text style={styles.fabText}>{t("sellAction")}</Text>
         </TouchableOpacity>
       )}
 
@@ -592,11 +660,11 @@ export default function MarketplaceScreen() {
         <View style={StyleSheet.absoluteFill}>
           <TouchableOpacity style={[StyleSheet.absoluteFill, { backgroundColor: "rgba(0,0,0,0.5)" }]} onPress={() => setShowRejectModal(false)} />
           <View style={[styles.modal, { backgroundColor: colors.card }]}>
-            <Text style={[styles.modalTitle, { color: colors.foreground }]}>Rejeter le produit</Text>
+            <Text style={[styles.modalTitle, { color: colors.foreground }]}>{t("marketplaceRejectTitle")}</Text>
             <Text style={{ fontSize: 13, color: colors.mutedForeground, marginBottom: 12 }} numberOfLines={1}>{rejectProductName}</Text>
-            <Text style={{ fontSize: 13, fontWeight: "600", color: colors.foreground, marginBottom: 8 }}>Motif de rejet</Text>
+            <Text style={{ fontSize: 13, fontWeight: "600", color: colors.foreground, marginBottom: 8 }}>{t("marketplaceRejectReasonLabel")}</Text>
             <View style={{ flexDirection: "row", flexWrap: "wrap", gap: 8, marginBottom: 10 }}>
-              {["Contenu inapproprié", "Informations manquantes", "Mauvaise catégorie", "Annonce en double", "Article prohibé", "Autre"].map((r) => (
+              {REJECT_REASONS.map((r) => (
                 <TouchableOpacity
                   key={r}
                   style={{
@@ -613,14 +681,16 @@ export default function MarketplaceScreen() {
                   onPress={() => setSelectedRejectReason(r)}
                 >
                   {selectedRejectReason === r && <Feather name="check" size={11} color={colors.destructive} />}
-                  <Text style={{ fontSize: 12, fontWeight: "600", color: selectedRejectReason === r ? colors.destructive : colors.foreground }}>{r}</Text>
+                  <Text style={{ fontSize: 12, fontWeight: "600", color: selectedRejectReason === r ? colors.destructive : colors.foreground }}>
+                    {r === "other" ? t("marketplaceRejectReasonOther") : t(`marketplaceRejectReason${r.charAt(0).toUpperCase()}${r.slice(1)}`)}
+                  </Text>
                 </TouchableOpacity>
               ))}
             </View>
-            {selectedRejectReason === "Autre" && (
+            {selectedRejectReason === "other" && (
               <TextInput
                 style={[styles.modInput, { borderColor: colors.border, color: colors.foreground, backgroundColor: colors.background, minHeight: 70 }]}
-                placeholder="Précisez le motif..."
+                placeholder={t("marketplaceRejectPlaceholder")}
                 placeholderTextColor={colors.mutedForeground}
                 value={customRejectReason}
                 onChangeText={setCustomRejectReason}
@@ -629,14 +699,14 @@ export default function MarketplaceScreen() {
               />
             )}
             <TouchableOpacity
-              style={[styles.modSubmitBtn, { backgroundColor: (!selectedRejectReason || (selectedRejectReason === "Autre" && !customRejectReason.trim())) ? colors.secondary : colors.destructive, marginTop: 12 }]}
+              style={[styles.modSubmitBtn, { backgroundColor: (!selectedRejectReason || (selectedRejectReason === "other" && !customRejectReason.trim())) ? colors.secondary : colors.destructive, marginTop: 12 }]}
               onPress={submitRejectWithReason}
-              disabled={!selectedRejectReason || (selectedRejectReason === "Autre" && !customRejectReason.trim()) || submittingReject}
+              disabled={!selectedRejectReason || (selectedRejectReason === "other" && !customRejectReason.trim()) || submittingReject}
             >
               {submittingReject ? (
                 <ActivityIndicator size="small" color="#fff" />
               ) : (
-                <Text style={styles.modSubmitText}>Rejeter le produit</Text>
+                <Text style={styles.modSubmitText}>{t("rejectProduct")}</Text>
               )}
             </TouchableOpacity>
           </View>
@@ -648,11 +718,11 @@ export default function MarketplaceScreen() {
         <View style={StyleSheet.absoluteFill}>
           <TouchableOpacity style={[StyleSheet.absoluteFill, { backgroundColor: "rgba(0,0,0,0.5)" }]} onPress={() => setShowModModal(false)} />
           <View style={[styles.modal, { backgroundColor: colors.card }]}>
-            <Text style={[styles.modalTitle, { color: colors.foreground }]}>Demander des modifications</Text>
+            <Text style={[styles.modalTitle, { color: colors.foreground }]}>{t("marketplaceModificationRequested")}</Text>
             <Text style={{ fontSize: 13, color: colors.mutedForeground, marginBottom: 10 }}>{modProductName}</Text>
             <TextInput
               style={[styles.modInput, { borderColor: colors.border, color: colors.foreground, backgroundColor: colors.background }]}
-              placeholder="Décrivez les modifications requises (images manquantes, catégorie incorrecte, etc.)"
+              placeholder={t("marketplaceModificationPlaceholder")}
               placeholderTextColor={colors.mutedForeground}
               value={modReason}
               onChangeText={setModReason}
@@ -667,7 +737,7 @@ export default function MarketplaceScreen() {
               {submittingMod ? (
                 <ActivityIndicator size="small" color="#fff" />
               ) : (
-                <Text style={styles.modSubmitText}>Envoyer la demande</Text>
+                <Text style={styles.modSubmitText}>{t("marketplaceSendModificationRequest")}</Text>
               )}
             </TouchableOpacity>
           </View>
@@ -679,24 +749,54 @@ export default function MarketplaceScreen() {
 
 // ─── Orders admin sub-view ────────────────────────────────────────────────────
 
-function OrdersAdminView({ colors, insets, isWide, refreshing, onRefresh }: {
+function OrdersAdminView({ colors, insets, isWide, refreshing, onRefresh, t, lang }: {
   colors: ReturnType<typeof import("@/hooks/useColors").useColors>;
   insets: ReturnType<typeof import("react-native-safe-area-context").useSafeAreaInsets>;
   isWide: boolean;
   refreshing: boolean;
   onRefresh: () => void;
+  t: (key: string) => string;
+  lang: string;
 }) {
   const [orders, setOrders] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(false);
 
   useEffect(() => {
-    marketplace.orders().then((r) => { setOrders((r.data as any[]) ?? []); }).catch(() => {}).finally(() => setLoading(false));
+    marketplace.orders()
+      .then((r) => { setOrders((r.data as any[]) ?? []); setError(false); })
+      .catch(() => setError(true))
+      .finally(() => setLoading(false));
   }, []);
 
   if (loading) return <View style={styles.centered}><ActivityIndicator color={colors.primary} /></View>;
+  if (error) {
+    return (
+      <ErrorState
+        title={t("marketplaceDataUnavailable")}
+        description={t("marketplaceDataUnavailableDescription")}
+        retryLabel={t("marketplaceRetry")}
+        onRetry={() => {
+          setLoading(true);
+          setError(false);
+          marketplace.orders()
+            .then((r) => setOrders((r.data as any[]) ?? []))
+            .catch(() => setError(true))
+            .finally(() => setLoading(false));
+        }}
+        accentColor={colors.destructive}
+      />
+    );
+  }
 
   const statusColors: Record<string, string> = { pending: "#f59e0b", confirmed: colors.primary, shipped: "#6366f1", delivered: colors.success, cancelled: colors.destructive };
-  const statusLabels: Record<string, string> = { pending: "En attente", confirmed: "Confirmé", shipped: "Expédié", delivered: "Livré", cancelled: "Annulé" };
+  const statusLabels: Record<string, string> = {
+    pending: t("ordStatusPending"),
+    confirmed: t("ordStatusConfirmed"),
+    shipped: t("ordStatusShipped"),
+    delivered: t("ordStatusDelivered"),
+    cancelled: t("ordStatusCancelled"),
+  };
 
   return (
     <FlatList
@@ -706,14 +806,14 @@ function OrdersAdminView({ colors, insets, isWide, refreshing, onRefresh }: {
       showsVerticalScrollIndicator={false}
       refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={colors.primary} />}
       ListEmptyComponent={
-        <View style={styles.empty}><Feather name="package" size={44} color={colors.mutedForeground} /><Text style={[styles.emptyTitle, { color: colors.foreground }]}>Aucune commande</Text></View>
+        <View style={styles.empty}><Feather name="package" size={44} color={colors.mutedForeground} /><Text style={[styles.emptyTitle, { color: colors.foreground }]}>{t("marketplaceOrdersEmpty")}</Text></View>
       }
       renderItem={({ item: o }) => (
         <View style={[styles.orderRow, { backgroundColor: colors.card, borderColor: colors.border }]}>
           <View style={{ flex: 1 }}>
             <Text style={[styles.orderName, { color: colors.foreground }]}>{o.productName}</Text>
             <Text style={[styles.orderMeta, { color: colors.mutedForeground }]}>{o.buyerName} → {o.sellerName}</Text>
-            <Text style={[styles.orderAmount, { color: colors.primary }]}>{Number(o.amount).toLocaleString("fr-FR")} MAD</Text>
+            <Text style={[styles.orderAmount, { color: colors.primary }]}>{formatMAD(o.amount, lang)} MAD</Text>
           </View>
           <View style={[styles.orderStatus, { backgroundColor: (statusColors[o.status] ?? colors.mutedForeground) + "20" }]}>
             <Text style={[styles.orderStatusText, { color: statusColors[o.status] ?? colors.mutedForeground }]}>{statusLabels[o.status] ?? o.status}</Text>
@@ -726,23 +826,38 @@ function OrdersAdminView({ colors, insets, isWide, refreshing, onRefresh }: {
 
 // ─── Stats sub-view ───────────────────────────────────────────────────────────
 
-function StatsView({ colors, insets, isWide, stats, refreshing, onRefresh }: {
+function StatsView({ colors, insets, isWide, stats, refreshing, onRefresh, t, lang, statsError, onRetry }: {
   colors: ReturnType<typeof import("@/hooks/useColors").useColors>;
   insets: ReturnType<typeof import("react-native-safe-area-context").useSafeAreaInsets>;
   isWide: boolean;
   stats: any;
   refreshing: boolean;
   onRefresh: () => void;
+  t: (key: string) => string;
+  lang: string;
+  statsError: boolean;
+  onRetry: () => void;
 }) {
+  if (statsError) {
+    return (
+      <ErrorState
+        title={t("marketplaceDataUnavailable")}
+        description={t("marketplaceStatsUnavailable")}
+        retryLabel={t("marketplaceRetry")}
+        onRetry={onRetry}
+        accentColor={colors.destructive}
+      />
+    );
+  }
   if (!stats) return <View style={styles.centered}><ActivityIndicator color={colors.primary} /></View>;
 
   const kpis = [
-    { label: "En attente", value: stats.pending, color: "#f59e0b", icon: "clock" as const },
-    { label: "Approuvés", value: stats.approved, color: colors.success, icon: "check-circle" as const },
-    { label: "Réservés", value: stats.reserved, color: "#6366f1", icon: "lock" as const },
-    { label: "Vendus", value: stats.sold, color: "#94a3b8", icon: "check-circle" as const },
-    { label: "Rejetés", value: stats.rejected, color: colors.destructive, icon: "x-circle" as const },
-    { label: "Signalés", value: stats.reported, color: colors.destructive, icon: "flag" as const },
+    { label: t("marketplaceStatsPending"), value: stats.pending, color: "#f59e0b", icon: "clock" as const },
+    { label: t("marketplaceStatsApproved"), value: stats.approved, color: colors.success, icon: "check-circle" as const },
+    { label: t("marketplaceStatsReserved"), value: stats.reserved, color: "#6366f1", icon: "lock" as const },
+    { label: t("marketplaceStatsSold"), value: stats.sold, color: "#94a3b8", icon: "check-circle" as const },
+    { label: t("marketplaceStatsRejected"), value: stats.rejected, color: colors.destructive, icon: "x-circle" as const },
+    { label: t("marketplaceStatsReported"), value: stats.reported, color: colors.destructive, icon: "flag" as const },
   ];
 
   return (
@@ -759,12 +874,12 @@ function StatsView({ colors, insets, isWide, stats, refreshing, onRefresh }: {
 
       {stats.topSellers?.length > 0 && (
         <>
-          <Text style={[styles.sectionHeader, { color: colors.foreground }]}>Top vendeurs</Text>
+          <Text style={[styles.sectionHeader, { color: colors.foreground }]}>{t("marketplaceTopSellers")}</Text>
           {stats.topSellers.map((s: any, i: number) => (
             <View key={s.sellerId ?? i} style={[styles.rankRow, { backgroundColor: colors.card, borderColor: colors.border }]}>
               <Text style={[styles.rankNum, { color: colors.primary }]}>#{i + 1}</Text>
               <Text style={[styles.rankName, { color: colors.foreground }]}>{s.sellerName ?? "—"}</Text>
-              <Text style={[styles.rankValue, { color: colors.mutedForeground }]}>{s.totalSold} vente{s.totalSold !== 1 ? "s" : ""}</Text>
+              <Text style={[styles.rankValue, { color: colors.mutedForeground }]}>{t("marketplaceSalesCount").replace("{count}", String(s.totalSold))}</Text>
             </View>
           ))}
         </>
@@ -772,12 +887,12 @@ function StatsView({ colors, insets, isWide, stats, refreshing, onRefresh }: {
 
       {stats.mostViewed?.length > 0 && (
         <>
-          <Text style={[styles.sectionHeader, { color: colors.foreground }]}>Produits les plus vus</Text>
+          <Text style={[styles.sectionHeader, { color: colors.foreground }]}>{t("marketplaceMostViewed")}</Text>
           {stats.mostViewed.map((p: any, i: number) => (
             <View key={p.id ?? i} style={[styles.rankRow, { backgroundColor: colors.card, borderColor: colors.border }]}>
               <Feather name="eye" size={13} color={colors.mutedForeground} />
               <Text style={[styles.rankName, { color: colors.foreground, flex: 1 }]} numberOfLines={1}>{p.name}</Text>
-              <Text style={[styles.rankValue, { color: colors.mutedForeground }]}>{p.viewCount} vues</Text>
+              <Text style={[styles.rankValue, { color: colors.mutedForeground }]}>{t("marketplaceViewsCount").replace("{count}", String(p.viewCount))}</Text>
             </View>
           ))}
         </>

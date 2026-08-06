@@ -19,3 +19,5 @@
 - Template Studio and template requests no longer fall back to hardcoded French metadata, form copy, status/priority labels, or recovery messages when the active language changes.
 - Template request list failures no longer masquerade as an empty list; users now receive a localized retryable unavailable-data state.
 - Activity Journal no longer mixes French-only category, severity, statistic, export, alert, and detail labels into English, Arabic, or Spanish sessions; audit-load failures now expose a localized retry action instead of a hardcoded message.
+- Team invitation no longer exposes French-only role, action, or validation copy after a language change; optional phone input now rejects malformed Moroccan numbers and invitation failures no longer expose raw API error text.
+- Resident Marketplace no longer mixes French-only catalogue, moderation, order, and statistics labels into other language sessions; failed marketplace requests no longer masquerade as empty data, and the expected unauthenticated API 401 is not treated as a client runtime error.

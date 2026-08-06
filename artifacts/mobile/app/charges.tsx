@@ -77,11 +77,32 @@ type Appel = {
   buildingId: string;
 };
 
+function formatMAD(amount: number, lang: "fr" | "en" | "ar" | "es"): string {
+  const locale = lang === "ar" ? "ar-MA" : lang === "en" ? "en-US" : lang === "es" ? "es-ES" : "fr-FR";
+  try {
+    return new Intl.NumberFormat(locale, {
+      style: "currency",
+      currency: "MAD",
+      maximumFractionDigits: 0,
+    }).format(Number.isFinite(amount) ? amount : 0);
+  } catch {
+    return `${Math.round(Number.isFinite(amount) ? amount : 0).toLocaleString()} MAD`;
+  }
+}
+
+function formatDate(value: string | undefined, lang: "fr" | "en" | "ar" | "es"): string {
+  if (!value) return "";
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return value;
+  const locale = lang === "ar" ? "ar-MA" : lang === "en" ? "en-US" : lang === "es" ? "es-ES" : "fr-FR";
+  return date.toLocaleDateString(locale, { day: "numeric", month: "short", year: "numeric" });
+}
+
 function ChargesScreenInner() {
   const colors = useColors();
   const insets = useSafeAreaInsets();
   const { user, token } = useAuth();
-  const { t } = useLanguage();
+  const { t, lang } = useLanguage();
   const { isWide } = useBreakpoints();
   const { showToast } = useToast();
 
@@ -133,6 +154,17 @@ function ChargesScreenInner() {
   const getTypeLabel = (type: string) => {
     const key = TYPE_KEYS[type];
     return key ? t(key as any) : type;
+  };
+
+  const getPaymentMethodLabel = (method: string | undefined) => {
+    if (!method) return "";
+    const labels: Record<string, string> = {
+      virement: t("payMethodVirement"),
+      cheque: t("payMethodCheque"),
+      especes: t("payMethodEspeces"),
+      online: t("payMethodOnline"),
+    };
+    return labels[method] ?? method;
   };
 
   const load = useCallback(async (silent = false) => {
@@ -299,10 +331,10 @@ function ChargesScreenInner() {
       <View style={[styles.summary, { backgroundColor: colors.card, borderBottomColor: colors.border }]}>
         <StatsStrip
           stats={[
-            { label: t("totalAppele"),  value: `${(total / 1000).toFixed(1)}k`,     color: colors.foreground },
-            { label: t("recovered"),    value: `${(collected / 1000).toFixed(1)}k`, color: "#10b981" },
-            { label: t("inProgressPayment"), value: `${(pending / 1000).toFixed(1)}k`, color: "#f59e0b" },
-            { label: t("latePayment"),  value: `${(overdue / 1000).toFixed(1)}k`,   color: "#ef4444" },
+            { label: t("totalAppele"),  value: formatMAD(total, lang),     color: colors.foreground },
+            { label: t("recovered"),    value: formatMAD(collected, lang), color: "#10b981" },
+            { label: t("inProgressPayment"), value: formatMAD(pending, lang), color: "#f59e0b" },
+            { label: t("latePayment"),  value: formatMAD(overdue, lang),   color: "#ef4444" },
           ]}
         />
         <View style={[styles.progressBg, { backgroundColor: colors.secondary }]}>
@@ -372,12 +404,12 @@ function ChargesScreenInner() {
                         {appel.period} — {getTypeLabel(appel.type)}
                       </Text>
                       <Text style={[styles.cardLot, { color: colors.mutedForeground }]}>
-                        Lot {appel.lotId.slice(-6)} {appel.dueDate ? `• Échéance: ${appel.dueDate}` : ""}
+                        {t("lotLabel")} {appel.lotId.slice(-6)} {appel.dueDate ? `• ${t("dueDate")}: ${formatDate(appel.dueDate, lang)}` : ""}
                       </Text>
                     </View>
                     <View style={{ alignItems: "flex-end", gap: 4 }}>
                       <Text style={[styles.cardAmount, { color: isOverdue ? "#ef4444" : colors.foreground }]}>
-                        {appel.amount.toLocaleString("fr-MA")} MAD
+                        {formatMAD(appel.amount, lang)}
                       </Text>
                       <View style={[styles.statusBadge, { backgroundColor: color + "18" }]}>
                         <Text style={[styles.statusText, { color }]}>{label}</Text>
@@ -392,7 +424,7 @@ function ChargesScreenInner() {
                     >
                       <Feather name="check-circle" size={12} color="#10b981" />
                       <Text style={[styles.receiptText, { color: "#10b981", flex: 1 }]}>
-                        {t("paymentReceiptLabel")} {appel.receiptNumber} — {appel.paidDate} via {appel.paymentMethod}
+                        {t("paymentReceiptLabel")} {appel.receiptNumber} — {formatDate(appel.paidDate, lang)} · {getPaymentMethodLabel(appel.paymentMethod)}
                       </Text>
                       <Feather name="download" size={12} color="#10b981" />
                     </TouchableOpacity>
@@ -411,7 +443,7 @@ function ChargesScreenInner() {
                     <View style={[styles.receiptRow, { borderTopColor: colors.border }]}>
                       <Feather name="loader" size={12} color="#3b82f6" />
                       <Text style={[styles.receiptText, { color: "#3b82f6" }]}>
-                        {t("inProgressPayment")} — {appel.paymentMethod}{appel.proofUrl ? ` • ${t("attachProofHint").split(",")[0]}` : ""}
+                         {t("inProgressPayment")} — {getPaymentMethodLabel(appel.paymentMethod)}{appel.proofUrl ? ` • ${t("attachProofHint").split(",")[0]}` : ""}
                       </Text>
                     </View>
                   ) : null}
@@ -464,7 +496,7 @@ function ChargesScreenInner() {
             {rejectModal ? (
               <View style={[styles.payAmtBox, { backgroundColor: "#ef444410", borderColor: "#ef444430" }]}>
                 <Text style={[styles.payAmtLabel, { color: "#ef4444" }]}>{t("paymentToReject")}</Text>
-                <Text style={[styles.payAmtVal, { color: "#ef4444" }]}>{rejectModal.amount.toLocaleString("fr-MA")} MAD</Text>
+                <Text style={[styles.payAmtVal, { color: "#ef4444" }]}>{formatMAD(rejectModal.amount, lang)}</Text>
                 <Text style={[styles.payAmtPeriod, { color: colors.mutedForeground }]}>{rejectModal.period}</Text>
               </View>
             ) : null}
@@ -504,7 +536,7 @@ function ChargesScreenInner() {
             {payModal ? (
               <View style={[styles.payAmtBox, { backgroundColor: "#10b98110", borderColor: "#10b98130" }]}>
                 <Text style={[styles.payAmtLabel, { color: "#10b981" }]}>{t("paymentAmountLabel")}</Text>
-                <Text style={[styles.payAmtVal, { color: "#10b981" }]}>{payModal.amount.toLocaleString("fr-MA")} MAD</Text>
+                <Text style={[styles.payAmtVal, { color: "#10b981" }]}>{formatMAD(payModal.amount, lang)}</Text>
                 <Text style={[styles.payAmtPeriod, { color: colors.mutedForeground }]}>{payModal.period} • {getTypeLabel(payModal.type)}</Text>
               </View>
             ) : null}

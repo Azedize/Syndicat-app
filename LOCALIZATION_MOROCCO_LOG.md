@@ -9,3 +9,5 @@
 - Financial report values now use locale-aware Moroccan Dirham formatting and report periods use the active language's month/quarter presentation across French, English, Arabic, and Spanish.
 - Syndical Actions now present action types, statuses, participation/support feedback, participant labels, metadata, demands, and updates in French, English, Arabic, and Spanish while preserving existing permissions.
 - Governance Organigramme now formats mandate dates according to the active locale and translates national governance labels, vacancy states, role statuses, permission sections, and sharing feedback for French, English, Arabic, and Spanish.
+- Charges and payment history now format MAD amounts and payment dates with the active French, English, Arabic, or Spanish locale; payment method, lot, due-date, and recovery labels are translated without changing API data or role boundaries.
+- Payment-history periods now filter the visible transactions and financial summaries consistently, while invalid or unavailable transaction data remains recoverable instead of appearing as a misleading empty result.

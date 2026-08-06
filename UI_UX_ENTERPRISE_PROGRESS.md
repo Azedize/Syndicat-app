@@ -15,8 +15,8 @@
 - Validate the workflow screen in Arabic RTL and on compact mobile dimensions.
 - Payroll now provides localized feedback and explicit loading, error-recovery, and empty states instead of a silent spinner.
 - Provider and contract management now provides localized operational feedback and explicit loading, retry, and empty states.
-- Charges and fund calls now expose a localized retryable loading error and a clearer translated empty state for filtered results.
-- Payment history now keeps period selectors, financial exports, receipts, and shareable transaction details aligned with the selected language.
+- Charges and fund calls now expose locale-aware MAD/date formatting, translated payment methods, a localized retryable loading error, and a clearer translated empty state for filtered results.
+- Payment history now applies period selectors to the transaction list and KPI totals, keeps financial exports, receipts, and shareable transaction details aligned with the selected language, and exposes recoverable API errors separately from empty results.
 - Invoices now provide localized progress and recovery feedback for PDF generation, proof upload, creation, and sending.
 - Contributions now provide consistent localized loading, error recovery, status, receipt, and secure payment experiences.
 - Budget now provides explicit loading, retryable error, empty, and PDF feedback states without hardcoded execution dates.
@@ -51,6 +51,8 @@
 - Home Dashboard now provides a visible synchronization state, localized retryable failure recovery, locale-aware MAD/date presentation, and Arabic direction support while keeping each role's operational surface intact.
 - Template Studio and Template Requests now provide a consistent four-language document-template experience with localized review lifecycle, request priorities, form/detail guidance, validation, date presentation, and actionable loading/error/empty states.
 - Activity Journal now provides a consistent four-language traceability experience with localized category/severity hierarchy, translated operational statistics, suspicious-login guidance, locale-aware relative dates, export/detail metadata, and recoverable unavailable-data feedback.
+- Team Invitation now provides a consistent four-language onboarding experience with localized management roles, clear invitation guidance, completion next steps, Moroccan phone validation, safe failure recovery, and keyboard-aware multi-field input behavior.
+- Resident Marketplace now provides a consistent four-language catalogue and moderation experience with localized categories, conditions, statuses, search, actions, orders, statistics, MAD values, and guided empty/error recovery states.
 ---
 ## Session 2026-08-06 — Refonte Enterprise Écrans d'Accueil
 
@@ -77,7 +79,7 @@
 - TypeScript: 0 erreurs
 
 ### Prochains modules à traiter
-- Écrans Finance (tableau-bord-financier, charges, paiements)
+- Tableau de bord financier (charges et paiements désormais traités)
 - Assemblée Générale / Élections
 - Documents & Signatures
 - Profil & Paramètres

@@ -1,7 +1,7 @@
 import { Feather } from "@expo/vector-icons";
 import * as Haptics from "expo-haptics";
 import { router } from "expo-router";
-import React, { useEffect, useMemo, useState } from "react";
+import React, { useMemo, useState } from "react";
 import QRCode from "react-native-qrcode-svg";
 import {
   Alert,
@@ -24,6 +24,7 @@ import { useColors } from "@/hooks/useColors";
 import { apiRequest } from "@/lib/api";
 import { shareContent } from "@/hooks/useShare";
 import RoleGuard from "@/components/RoleGuard";
+import { ErrorState } from "@/components/DataState";
 
 type TxStatus = "paid" | "pending" | "overdue";
 type TxType = "cotisation" | "depense" | "salaire" | "recette";
@@ -74,6 +75,26 @@ function formatRef(id: string): string {
   return `PAY-${id.slice(0, 8).toUpperCase()}`;
 }
 
+function formatMAD(amount: number, lang: "fr" | "en" | "ar" | "es"): string {
+  const locale = lang === "ar" ? "ar-MA" : lang === "en" ? "en-US" : lang === "es" ? "es-ES" : "fr-FR";
+  try {
+    return new Intl.NumberFormat(locale, {
+      style: "currency",
+      currency: "MAD",
+      maximumFractionDigits: 0,
+    }).format(Number.isFinite(amount) ? amount : 0);
+  } catch {
+    return `${Math.round(Number.isFinite(amount) ? amount : 0).toLocaleString()} MAD`;
+  }
+}
+
+function isWithinPeriod(date: string, period: "7j" | "30j" | "3m" | "12m"): boolean {
+  const timestamp = new Date(date).getTime();
+  if (!Number.isFinite(timestamp)) return true;
+  const days = period === "7j" ? 7 : period === "30j" ? 30 : period === "3m" ? 92 : 365;
+  return timestamp >= Date.now() - days * 24 * 60 * 60 * 1000;
+}
+
 // Paiements — personal payment history for members, tenants, and governance roles.
 // Super Admin must never see individual syndicate financial data.
 export default function PaiementsScreen() {
@@ -88,8 +109,8 @@ function PaiementsScreenInner() {
   const colors = useColors();
   const insets = useSafeAreaInsets();
   const { user } = useAuth();
-  const { t } = useLanguage();
-  const { transactions, addTransaction, updateTransactionStatus } = useData();
+  const { t, lang } = useLanguage();
+  const { dataLoading, dataLoadError, refreshData, transactions, updateTransactionStatus } = useData();
   const { isWide } = useBreakpoints();
   const topPad = isWide ? 0 : (Platform.OS === "web" ? 67 : insets.top);
   const isAdmin = ["super_admin", "syndicate_admin", "president", "treasurer", "secretary", "committee_member"].includes(user?.role ?? "");
@@ -97,26 +118,28 @@ function PaiementsScreenInner() {
   const [tab, setTab] = useState<TabFilter>("all");
   const [selected, setSelected] = useState<Transaction | null>(null);
   const [period, setPeriod] = useState<"7j" | "30j" | "3m" | "12m">("30j");
-  const [loading, setLoading] = useState(transactions.length === 0);
-
-  useEffect(() => {
-    if (transactions.length > 0) setLoading(false);
-  }, [transactions]);
 
   const filtered = useMemo(() => {
-    if (tab === "all") return transactions;
-    return transactions.filter((tx) => tx.status === tab);
-  }, [tab, transactions]);
+    return transactions.filter((tx) => {
+      const matchesTab = tab === "all" || tx.status === tab;
+      return matchesTab && isWithinPeriod(tx.date, period);
+    });
+  }, [period, tab, transactions]);
 
-  const totalPaid    = transactions.filter((tx) => tx.status === "paid").reduce((s, tx) => s + tx.amount, 0);
-  const totalPending = transactions.filter((tx) => tx.status === "pending").reduce((s, tx) => s + tx.amount, 0);
-  const totalOverdue = transactions.filter((tx) => tx.status === "overdue").length;
-  const countPaid    = transactions.filter((tx) => tx.status === "paid").length;
+  const periodTransactions = useMemo(
+    () => transactions.filter((tx) => isWithinPeriod(tx.date, period)),
+    [period, transactions],
+  );
+
+  const totalPaid    = periodTransactions.filter((tx) => tx.status === "paid").reduce((s, tx) => s + tx.amount, 0);
+  const totalPending = periodTransactions.filter((tx) => tx.status === "pending").reduce((s, tx) => s + tx.amount, 0);
+  const totalOverdue = periodTransactions.filter((tx) => tx.status === "overdue").length;
+  const countPaid    = periodTransactions.filter((tx) => tx.status === "paid").length;
 
   const typeBreakdown = (["cotisation", "recette", "depense", "salaire"] as TxType[]).map((ty) => ({
     type: ty,
-    count: transactions.filter((tx) => tx.type === ty).length,
-    total: transactions.filter((tx) => tx.type === ty).reduce((s, tx) => s + tx.amount, 0),
+    count: periodTransactions.filter((tx) => tx.type === ty).length,
+    total: periodTransactions.filter((tx) => tx.type === ty).reduce((s, tx) => s + tx.amount, 0),
   })).filter((tx) => tx.count > 0);
 
   // Translated type labels
@@ -128,10 +151,10 @@ function PaiementsScreenInner() {
   };
 
   const TABS: { key: TabFilter; label: string; count: number }[] = [
-    { key: "all",     label: t("all"),         count: transactions.length },
-    { key: "paid",    label: t("paid"),         count: transactions.filter((tx) => tx.status === "paid").length },
-    { key: "pending", label: t("inProgressPayment") ?? t("statusPending"), count: transactions.filter((tx) => tx.status === "pending").length },
-    { key: "overdue", label: t("latePayment"),  count: transactions.filter((tx) => tx.status === "overdue").length },
+    { key: "all",     label: t("all"),         count: periodTransactions.length },
+    { key: "paid",    label: t("paid"),         count: periodTransactions.filter((tx) => tx.status === "paid").length },
+    { key: "pending", label: t("inProgressPayment") ?? t("statusPending"), count: periodTransactions.filter((tx) => tx.status === "pending").length },
+    { key: "overdue", label: t("latePayment"),  count: periodTransactions.filter((tx) => tx.status === "overdue").length },
   ];
 
   const PERIOD_LABELS: Record<typeof period, string> = {
@@ -215,7 +238,7 @@ function PaiementsScreenInner() {
               <Feather name="trending-up" size={14} color="#6ee7b7" />
               <Text style={styles.kpiLabel}>{t("totalCollected")}</Text>
             </View>
-            <Text style={styles.kpiValue}>{totalPaid.toLocaleString()} MAD</Text>
+            <Text style={styles.kpiValue}>{formatMAD(totalPaid, lang)}</Text>
             <Text style={styles.kpiSub}>{countPaid} {t("transactionsLabel").toLowerCase()}</Text>
           </View>
           <View style={[styles.kpiCard, { backgroundColor: "rgba(255,255,255,0.15)" }]}>
@@ -223,8 +246,8 @@ function PaiementsScreenInner() {
               <Feather name="clock" size={14} color="#fde68a" />
               <Text style={styles.kpiLabel}>{t("inProgressPayment")}</Text>
             </View>
-            <Text style={styles.kpiValue}>{totalPending.toLocaleString()} MAD</Text>
-            <Text style={styles.kpiSub}>{transactions.filter((tx) => tx.status === "pending").length} {t("inProgressPayment").toLowerCase()}</Text>
+            <Text style={styles.kpiValue}>{formatMAD(totalPending, lang)}</Text>
+            <Text style={styles.kpiSub}>{periodTransactions.filter((tx) => tx.status === "pending").length} {t("inProgressPayment").toLowerCase()}</Text>
           </View>
         </View>
 
@@ -249,7 +272,7 @@ function PaiementsScreenInner() {
                   <Feather name={icon} size={13} color={color} />
                   <View>
                     <Text style={[styles.methodLabel, { color }]}>{label}</Text>
-                    <Text style={[styles.methodVal, { color: colors.mutedForeground }]}>{tb.total.toLocaleString()} MAD</Text>
+                    <Text style={[styles.methodVal, { color: colors.mutedForeground }]}>{formatMAD(tb.total, lang)}</Text>
                   </View>
                 </View>
               );
@@ -281,12 +304,20 @@ function PaiementsScreenInner() {
         ))}
       </ScrollView>
 
-      {loading ? (
+      {dataLoading ? (
         <FlatList
           data={[1, 2, 3, 4]}
           keyExtractor={(k) => String(k)}
           contentContainerStyle={{ padding: 16, gap: 10, paddingBottom: insets.bottom + 40 }}
           renderItem={() => <SkeletonCard />}
+        />
+      ) : dataLoadError ? (
+        <ErrorState
+          title={t("paymentsLoadErrorTitle")}
+          description={t("paymentsLoadErrorDescription")}
+          retryLabel={t("retry")}
+          onRetry={refreshData}
+          accentColor={colors.primary}
         />
       ) : (
         <FlatList
@@ -336,7 +367,7 @@ function PaiementsScreenInner() {
 
                   <View style={{ alignItems: "flex-end", gap: 4 }}>
                     <Text style={[styles.payAmount, { color: isDebit ? "#ef4444" : "#10b981" }]}>
-                      {isDebit ? "-" : "+"}{tx.amount.toLocaleString()} MAD
+                      {isDebit ? "-" : "+"}{formatMAD(tx.amount, lang)}
                     </Text>
                     <Text style={[styles.payDate, { color: colors.mutedForeground }]}>{tx.date}</Text>
                   </View>
@@ -376,7 +407,7 @@ function PaiementsScreenInner() {
                   <Feather name="x" size={22} color="#fff" />
                 </TouchableOpacity>
                 <View style={styles.modalHeaderCenter}>
-                  <Text style={styles.modalAmount}>{isDebit ? "-" : "+"}{tx.amount.toLocaleString()} MAD</Text>
+                  <Text style={styles.modalAmount}>{isDebit ? "-" : "+"}{formatMAD(tx.amount, lang)}</Text>
                   <View style={styles.modalStatusRow}>
                     <Feather name={statusIcon} size={14} color="#fff" />
                     <Text style={styles.modalStatusText}>{statusLabel}</Text>
@@ -434,7 +465,7 @@ function PaiementsScreenInner() {
                           `${t("paymentReceiptTitle")}\n` +
                           `${t("reference")} : ${formatRef(tx.id)}\n` +
                           `${t("label")} : ${tx.label}\n` +
-                          `${t("amount")} : ${tx.amount.toLocaleString()} MAD\n` +
+                          `${t("amount")} : ${formatMAD(tx.amount, lang)}\n` +
                           `${t("date")} : ${tx.date}\n` +
                           `${t("status")} : ${t("paid")} ✓`;
                         shareContent(receiptText, `${t("paymentReceiptLabel")} ${formatRef(tx.id)}`);
@@ -487,7 +518,7 @@ function PaiementsScreenInner() {
                         `${t("transactionLabel")} : ${formatRef(tx.id)}\n` +
                         `${t("type")} : ${TYPE_LABELS[tx.type] ?? tx.type}\n` +
                         `${t("label")} : ${tx.label}\n` +
-                        `${t("amount")} : ${tx.amount.toLocaleString()} MAD\n` +
+                        `${t("amount")} : ${formatMAD(tx.amount, lang)}\n` +
                         `${t("date")} : ${tx.date}`;
                       shareContent(details, `${t("transactionLabel")} ${formatRef(tx.id)}`);
                     }}

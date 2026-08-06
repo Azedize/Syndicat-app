@@ -38,3 +38,9 @@
 - Mobile verification: zero-error typecheck, diff validation, and protected `/template-request` preview pass; direct unauthenticated preview remains safely blocked.
 - Activity Journal: multilingual audit categories, severity labels, statistics, suspicious-login alert, export/detail metadata, locale-aware relative dates, and retryable unavailable-data state complete; real audit API mapping and administrator export boundary preserved.
 - Mobile verification: zero-error typecheck, diff validation, Expo restart, and protected `/activity` preview pass; unauthenticated API 401 remains expected.
+- Team Invitation Onboarding: multilingual role wizard, completion summary, next-step guidance, localized validation, Moroccan phone validation, safe invitation failure feedback, and keyboard-aware form scrolling complete; team invite API and onboarding route preserved.
+- Mobile verification: zero-error typecheck, diff validation, Metro rebuild, and protected `/team-invite` preview pass.
+- Resident Marketplace: multilingual catalogue, categories, conditions, search, moderation actions, queue states, orders, statistics, MAD formatting, and independent retryable data recovery complete; existing marketplace API and Super Admin-only moderation boundary preserved.
+- Mobile verification: zero-error typecheck, diff validation, Expo restart, and compact `/marketplace` preview pass; unauthenticated API 401 remains expected.
+- Finance — Charges & Payment History: locale-aware MAD/date formatting, translated payment-method and charge metadata, active period filtering for transactions/KPIs, and distinct loading/error/empty recovery states complete; existing role permissions and payment actions preserved.
+- Mobile verification: zero-error typecheck, diff validation, and compact Expo preview pass; existing protected-route/auth behavior and web compatibility warnings remain non-blocking.

@@ -93,3 +93,12 @@
 - Continued the enterprise UX audit with the activity journal: localized category, severity, statistics, export, alert, detail metadata, relative dates, and failure copy across French, English, Arabic, and Spanish.
 - Added a retryable unavailable-data state to the audit journal instead of presenting a hardcoded French error, while preserving real API data mapping and administrator-only export access.
 - Mobile typecheck and diff validation passed; Expo restarted successfully and the protected `/activity` preview remained safely behind unauthenticated access with only expected 401/auth and existing Expo web warnings.
+- Continued the onboarding quality pass on the team invitation wizard: localized management roles, invitation guidance, completion steps, action labels, and validation feedback across French, English, Arabic, and Spanish.
+- Added Moroccan phone validation for optional invite numbers, replaced raw invitation API errors with safe localized recovery guidance, and upgraded the multi-field form to the shared keyboard-aware scroll behavior.
+- Mobile typecheck and diff validation passed; Expo rebuilt successfully and the protected `/team-invite` preview displayed the expected guarded loading surface without new runtime exceptions.
+- Completed the resident Marketplace enterprise UX pass: catalogue categories, product conditions/statuses, search, moderation actions, queue labels, order statuses, statistics, modal copy, and empty states now follow French, English, Arabic, and Spanish.
+- Added locale-aware MAD formatting and independent retryable recovery for catalogue, moderation queues, orders, and statistics so API failures are not presented as empty marketplace data.
+- Mobile typecheck and diff validation passed; Expo restarted and the `/marketplace` preview rendered the authenticated catalogue shell with the expected unauthenticated API 401 and no new runtime exception.
+- Continued the Finance pass on fund calls and payment history: amounts and dates now use the active locale, payment methods and remaining visible labels are translated, and the period selector filters transactions and KPI totals.
+- Added a recoverable payment-history error state based on the shared data load status, while keeping loading and filtered-empty states distinct and preserving existing role permissions and actions.
+- Mobile typecheck and diff validation passed; the Expo preview rebuilt successfully at 402×874 with only existing non-blocking web compatibility warnings.

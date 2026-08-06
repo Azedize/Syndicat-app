@@ -116,3 +116,14 @@
 - `git diff --check -- artifacts/mobile/app/activity.tsx artifacts/mobile/context/LanguageContext.tsx` — passed.
 - Restarted `artifacts/mobile: expo`; Metro started successfully without transform errors. Existing Expo package-version and web compatibility warnings remain non-blocking.
 - Mobile Expo preview screenshot for `/activity` at 402×874 — protected route remained behind the expected unauthenticated boundary; the API 401 was expected authorization behavior and no new browser runtime exception appeared.
+- `pnpm --filter @workspace/mobile run typecheck` — passed with zero errors after the Team Invitation localization, validation, and keyboard-flow pass.
+- `git diff --check -- artifacts/mobile/app/team-invite.tsx artifacts/mobile/context/LanguageContext.tsx` — passed.
+- Expo workflow rebuilt the mobile bundle successfully; existing Expo web compatibility warnings remain non-blocking.
+- Mobile Expo preview screenshot for `/team-invite` at 402×874 — protected route displayed the expected guarded loading surface without a new runtime exception.
+- `pnpm --filter @workspace/mobile run typecheck` — passed with zero errors after the resident Marketplace localization and recovery pass.
+- `git diff --check -- artifacts/mobile/app/(tabs)/marketplace.tsx artifacts/mobile/context/LanguageContext.tsx` — passed.
+- Restarted `artifacts/mobile: expo`; Metro started successfully with expected Expo package-version notices and no transform errors.
+- Mobile Expo preview screenshot for `/(tabs)/marketplace` at 402×874 — catalogue shell rendered correctly; the API 401 was expected without an authenticated session, and no new browser runtime exception appeared beyond existing Expo web warnings.
+- `pnpm --filter @workspace/mobile run typecheck` — passed with zero errors after the charges and payment-history Finance pass.
+- `git diff --check -- artifacts/mobile/app/charges.tsx artifacts/mobile/app/paiements.tsx artifacts/mobile/context/LanguageContext.tsx` — passed.
+- Expo mobile workflow remained healthy and the 402×874 preview rendered the public entry screen; no new browser runtime exception appeared beyond existing Expo web warnings.

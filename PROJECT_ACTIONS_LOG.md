@@ -98,3 +98,7 @@
 - Reused shared `LoadingState` and `ErrorState` recovery patterns so template request failures no longer collapse into a blank or toast-only surface.
 - Audited `artifacts/mobile/app/activity.tsx` and replaced hardcoded audit categories, severity labels, statistics, export copy, security alert text, detail metadata, and relative-time presentation with runtime translations.
 - Added locale-aware relative timestamps using the active language and a retryable audit loading failure state; preserved the real `/audit` API mapper and administrator-only export behavior.
+- Audited `artifacts/mobile/app/team-invite.tsx`; moved management role names, descriptions, wizard copy, completion summary, next steps, input labels, actions, and errors to the runtime language system.
+- Added Moroccan phone-number validation for optional invite numbers, sanitized invitation failures into localized recovery guidance, and replaced the platform `KeyboardAvoidingView` form container with the shared keyboard-aware scroll wrapper.
+- Audited `artifacts/mobile/app/(tabs)/marketplace.tsx`; connected the resident catalogue and Super Admin moderation surface to shared runtime translations for categories, conditions, statuses, actions, search, queues, orders, statistics, and modal copy.
+- Added locale-aware MAD formatting and independent shared retry states for catalogue, pending/reported queues, orders, and statistics; preserved API category values, product navigation, and the Super Admin-only moderation boundary.
