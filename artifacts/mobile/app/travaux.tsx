@@ -18,6 +18,8 @@ import { prestataires as prestatairesApi, travaux as travauxApi } from "@/servic
 import FilterChips from "@/components/FilterChips";
 import StatisticsHeader from "@/components/StatisticsHeader";
 import RoleGuard from "@/components/RoleGuard";
+import EmptyState from "@/components/EmptyState";
+import { ErrorState, LoadingState } from "@/components/DataState";
 
 const STRINGS = {
   screenTitle: {
@@ -200,6 +202,13 @@ const STRINGS = {
   validationError: { fr: "Erreur lors de la validation.", en: "Error validating the intervention.", ar: "حدث خطأ أثناء اعتماد التدخل.", es: "Error al validar la intervención." },
   worksCreated: { fr: "Travaux créés", en: "Works created", ar: "تم إنشاء الأشغال", es: "Obras creadas" },
   worksCreatedMsg: { fr: "La demande d'intervention a été enregistrée.", en: "The intervention request has been saved.", ar: "تم تسجيل طلب التدخل.", es: "La solicitud de intervención ha sido registrada." },
+  loadingTitle: { fr: "Chargement des travaux", en: "Loading works", ar: "جارٍ تحميل الأشغال", es: "Cargando obras" },
+  loadingDescription: { fr: "Nous récupérons les interventions de votre résidence.", en: "We are retrieving interventions for your residence.", ar: "نحن نسترجع تدخلات إقامتك.", es: "Estamos recuperando las intervenciones de su residencia." },
+  errorDescription: { fr: "Les interventions ne sont pas disponibles pour le moment. Vérifiez votre connexion puis réessayez.", en: "Interventions are unavailable right now. Check your connection and try again.", ar: "التدخلات غير متاحة حالياً. تحقق من الاتصال ثم أعد المحاولة.", es: "Las intervenciones no están disponibles ahora. Compruebe su conexión e inténtelo de nuevo." },
+  emptyTitle: { fr: "Aucune intervention à afficher", en: "No interventions to show", ar: "لا توجد تدخلات لعرضها", es: "No hay intervenciones que mostrar" },
+  emptyDescription: { fr: "Créez un bon de travaux pour suivre une réparation ou une maintenance.", en: "Create a work order to track a repair or maintenance task.", ar: "أنشئ طلب أشغال لتتبع إصلاح أو مهمة صيانة.", es: "Cree una orden de trabajo para seguir una reparación o tarea de mantenimiento." },
+  createAction: { fr: "Créer un bon de travaux", en: "Create a work order", ar: "إنشاء طلب أشغال", es: "Crear una orden de trabajo" },
+  retry: { fr: "Réessayer", en: "Retry", ar: "إعادة المحاولة", es: "Reintentar" },
   missingDocs: { fr: "Rapport, photo et facture sont obligatoires", en: "Report, photo and invoice are required", ar: "التقرير والصورة والفاتورة مطلوبة", es: "Informe, foto y factura son obligatorios" },
   validateConfirm: { fr: "Confirmer la validation et le paiement de cette intervention ?", en: "Confirm validation and payment for this intervention?", ar: "تأكيد التصديق ودفع هذا التدخل؟", es: "¿Confirmar validación y pago de esta intervención?" },
   typeEntretien: { fr: "Entretien courant", en: "Routine maintenance", ar: "صيانة دورية", es: "Mantenimiento rutinario" },
@@ -270,6 +279,7 @@ function TravauxScreenInner() {
 
   const [travaux, setTravaux] = useState<Travail[]>([]);
   const [loading, setLoading] = useState(true);
+  const [loadError, setLoadError] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
   const [filter, setFilter] = useState("all");
   const [showModal, setShowModal] = useState(false);
@@ -362,10 +372,16 @@ function TravauxScreenInner() {
   const load = useCallback(async (silent = false) => {
     try {
       if (!silent) setLoading(true);
+      if (!silent) setLoadError(false);
       const qs = filter !== "all" ? `?status=${filter}` : "";
       const data = await apiRequest(`/travaux${qs}`, "GET", undefined, token);
       setTravaux(data.data ?? []);
-    } catch (e: any) { if (!silent) showToast({ type: "error", title: STRINGS.loadingError[lang], message: e?.message ?? STRINGS.loadingWorksError[lang] }); }
+    } catch (e: any) {
+      if (!silent) {
+        setLoadError(true);
+        showToast({ type: "error", title: STRINGS.loadingError[lang], message: STRINGS.errorDescription[lang] });
+      }
+    }
     finally { setLoading(false); setRefreshing(false); }
   }, [token, filter, lang]);
 
@@ -426,18 +442,30 @@ function TravauxScreenInner() {
       />
 
       {loading ? (
-        <View style={styles.center}><ActivityIndicator color="#f59e0b" size="large" /></View>
+        <LoadingState title={STRINGS.loadingTitle[lang]} description={STRINGS.loadingDescription[lang]} accentColor="#f59e0b" />
+      ) : loadError ? (
+        <ErrorState
+          title={STRINGS.loadingError[lang]}
+          description={STRINGS.errorDescription[lang]}
+          retryLabel={STRINGS.retry[lang]}
+          onRetry={() => load()}
+          accentColor="#ef4444"
+        />
       ) : (
         <ScrollView
-          contentContainerStyle={[styles.list, { paddingBottom: isWide ? 32 : insets.bottom + 100 }]}
+          contentContainerStyle={[styles.list, { flexGrow: travaux.length === 0 ? 1 : undefined, paddingBottom: isWide ? 32 : insets.bottom + 100 }]}
           refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor="#f59e0b" />}
           showsVerticalScrollIndicator={false}
         >
           {travaux.length === 0 ? (
-            <View style={styles.empty}>
-              <Feather name="tool" size={36} color={colors.mutedForeground} />
-              <Text style={[styles.emptyText, { color: colors.mutedForeground }]}>{STRINGS.emptyList[lang]}</Text>
-            </View>
+            <EmptyState
+              icon="tool"
+              title={STRINGS.emptyTitle[lang]}
+              description={STRINGS.emptyDescription[lang]}
+              actionLabel={STRINGS.createAction[lang]}
+              onAction={() => setShowModal(true)}
+              accentColor="#f59e0b"
+            />
           ) : (
             travaux.map((t) => {
               const pri = PRIORITY_CONFIG[t.priority] ?? PRIORITY_CONFIG.normal;

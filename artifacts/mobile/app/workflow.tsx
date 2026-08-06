@@ -22,6 +22,8 @@ import { useLanguage } from "@/context/LanguageContext";
 import { useBreakpoints } from "@/hooks/useBreakpoints";
 import { useColors } from "@/hooks/useColors";
 import { apiRequest } from "@/lib/api";
+import EmptyState from "@/components/EmptyState";
+import { ErrorState, LoadingState } from "@/components/DataState";
 
 const STRINGS = {
   statusPending: { fr: "En attente", en: "Pending", ar: "في الانتظار", es: "Pendiente" },
@@ -102,6 +104,12 @@ const STRINGS = {
     es: "Este documento aún no se ha digitalizado en Documentos. Contacte con su administrador para obtenerlo.",
   },
   progressStep: { fr: "Étape", en: "Step", ar: "المرحلة", es: "Etapa" },
+  loadingTitle: { fr: "Chargement des workflows", en: "Loading workflows", ar: "جارٍ تحميل مسارات العمل", es: "Cargando flujos de trabajo" },
+  loadingDescription: { fr: "Nous préparons vos processus d’approbation.", en: "We are preparing your approval processes.", ar: "نحن نجهز مسارات الموافقة الخاصة بك.", es: "Estamos preparando sus procesos de aprobación." },
+  errorDescription: { fr: "Les workflows ne sont pas disponibles pour le moment. Vérifiez votre connexion puis réessayez.", en: "Workflows are unavailable right now. Check your connection and try again.", ar: "مسارات العمل غير متاحة حالياً. تحقق من الاتصال ثم أعد المحاولة.", es: "Los flujos de trabajo no están disponibles ahora. Compruebe su conexión e inténtelo de nuevo." },
+  emptyTitle: { fr: "Aucun workflow à traiter", en: "No workflows to process", ar: "لا توجد مسارات عمل لمعالجتها", es: "No hay flujos de trabajo que procesar" },
+  emptyDescription: { fr: "Les demandes d’approbation apparaîtront ici dès qu’un processus sera créé.", en: "Approval requests will appear here once a process is created.", ar: "ستظهر طلبات الموافقة هنا عند إنشاء مسار عمل.", es: "Las solicitudes de aprobación aparecerán aquí cuando se cree un proceso." },
+  createAction: { fr: "Créer un workflow", en: "Create a workflow", ar: "إنشاء مسار عمل", es: "Crear un flujo de trabajo" },
 };
 
 type StringKey = keyof typeof STRINGS;
@@ -184,7 +192,7 @@ export default function WorkflowScreen() {
 
   const [workflows, setWorkflows] = useState<Workflow[]>([]);
   const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
+  const [error, setError] = useState(false);
   const [tab, setTab] = useState<TabFilter>("all");
   const [selected, setSelected] = useState<Workflow | null>(null);
   const [showApprove, setShowApprove] = useState(false);
@@ -200,10 +208,10 @@ export default function WorkflowScreen() {
 
   const loadWorkflows = () => {
     setLoading(true);
-    setError(null);
+    setError(false);
     apiRequest<{ data: Workflow[] }>("/workflows")
       .then(({ data }) => setWorkflows(data ?? []))
-      .catch((err) => setError(err instanceof Error ? err.message : STRINGS.loadError[lang]))
+      .catch(() => setError(true))
       .finally(() => setLoading(false));
   };
 
@@ -339,28 +347,30 @@ export default function WorkflowScreen() {
       </ScrollView>
 
       {loading ? (
-        <View style={styles.empty}>
-          <ActivityIndicator color={colors.primary} />
-        </View>
+        <LoadingState title={STRINGS.loadingTitle[lang]} description={STRINGS.loadingDescription[lang]} accentColor={colors.primary} />
       ) : error ? (
-        <View style={styles.empty}>
-          <Feather name="alert-triangle" size={40} color="#ef4444" />
-          <Text style={[styles.emptyText, { color: colors.mutedForeground }]}>{error}</Text>
-          <TouchableOpacity style={[styles.retryBtn, { backgroundColor: colors.primary }]} onPress={loadWorkflows}>
-            <Text style={styles.retryBtnText}>{STRINGS.retry[lang]}</Text>
-          </TouchableOpacity>
-        </View>
+        <ErrorState
+          title={STRINGS.errorTitle[lang]}
+          description={STRINGS.errorDescription[lang]}
+          retryLabel={STRINGS.retry[lang]}
+          onRetry={loadWorkflows}
+          accentColor="#ef4444"
+        />
       ) : (
       <FlatList
         data={filtered}
         keyExtractor={(w) => w.id}
-        contentContainerStyle={{ padding: 16, gap: 12, paddingBottom: insets.bottom + 40 }}
+        contentContainerStyle={{ padding: 16, gap: 12, paddingBottom: insets.bottom + 40, flexGrow: filtered.length === 0 ? 1 : undefined }}
         showsVerticalScrollIndicator={false}
         ListEmptyComponent={
-          <View style={styles.empty}>
-            <Feather name="layers" size={40} color={colors.mutedForeground} />
-            <Text style={[styles.emptyText, { color: colors.mutedForeground }]}>{STRINGS.emptyMsg[lang]}</Text>
-          </View>
+          <EmptyState
+            icon="layers"
+            title={STRINGS.emptyTitle[lang]}
+            description={STRINGS.emptyDescription[lang]}
+            actionLabel={isAdmin ? STRINGS.createAction[lang] : undefined}
+            onAction={isAdmin ? () => setShowCreate(true) : undefined}
+            accentColor={colors.primary}
+          />
         }
         renderItem={({ item: w }) => {
           const statusCfg = STATUS_CONFIG[w.status];

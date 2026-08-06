@@ -5,6 +5,7 @@
 - Improved workflow decision and creation flows by ensuring every visible action and input hint responds to runtime language changes.
 - Preserved existing touch interactions, haptic feedback, API persistence, and RTL-compatible translation content.
 - Improved confidence in provider assignment and intervention reporting by ensuring every success, error, confirmation, and upload state follows the selected language.
+- Workflow and works lists now avoid blank loading surfaces and provide contextual loading copy, animated progress cues, actionable empty states, and retryable error recovery.
 
 ## Next high-impact areas
 
