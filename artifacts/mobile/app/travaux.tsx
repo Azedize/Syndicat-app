@@ -182,6 +182,24 @@ const STRINGS = {
   photoProof: { fr: "Photo de preuve", en: "Proof photo", ar: "صورة إثبات", es: "Foto de prueba" },
   invoiceDoc: { fr: "Facture", en: "Invoice", ar: "الفاتورة", es: "Factura" },
   invoiceAmountLabel: { fr: "Montant de la facture (MAD)", en: "Invoice amount (MAD)", ar: "مبلغ الفاتورة", es: "Monto de la factura" },
+  providerIdPlaceholder: { fr: "ID du prestataire", en: "Provider ID", ar: "معرف المزود", es: "ID del proveedor" },
+  invoiceAmountPlaceholder: { fr: "0,00", en: "0.00", ar: "0.00", es: "0,00" },
+  uploadReportError: { fr: "Échec du téléversement du rapport.", en: "Failed to upload the report.", ar: "فشل تحميل التقرير.", es: "No se pudo cargar el informe." },
+  uploadPhotoError: { fr: "Échec du téléversement de la photo.", en: "Failed to upload the photo.", ar: "فشل تحميل الصورة.", es: "No se pudo cargar la foto." },
+  uploadInvoiceError: { fr: "Échec du téléversement de la facture.", en: "Failed to upload the invoice.", ar: "فشل تحميل الفاتورة.", es: "No se pudo cargar la factura." },
+  reportSubmitted: { fr: "Rapport soumis", en: "Report submitted", ar: "تم إرسال التقرير", es: "Informe enviado" },
+  reportSubmittedMsg: { fr: "Le rapport d'intervention a été envoyé.", en: "The intervention report has been submitted.", ar: "تم إرسال تقرير التدخل.", es: "El informe de intervención ha sido enviado." },
+  assignmentError: { fr: "Erreur lors de l'assignation.", en: "Error assigning the provider.", ar: "حدث خطأ أثناء تعيين المزود.", es: "Error al asignar el proveedor." },
+  submissionError: { fr: "Erreur lors de la soumission.", en: "Error submitting the report.", ar: "حدث خطأ أثناء إرسال التقرير.", es: "Error al enviar el informe." },
+  loadingError: { fr: "Erreur de chargement", en: "Loading error", ar: "خطأ في التحميل", es: "Error de carga" },
+  loadingWorksError: { fr: "Impossible de charger les travaux.", en: "Unable to load works.", ar: "تعذر تحميل الأشغال.", es: "No se pueden cargar las obras." },
+  cancel: { fr: "Annuler", en: "Cancel", ar: "إلغاء", es: "Cancelar" },
+  confirm: { fr: "Confirmer", en: "Confirm", ar: "تأكيد", es: "Confirmar" },
+  worksValidated: { fr: "Travaux validés", en: "Works validated", ar: "تم اعتماد الأشغال", es: "Obras validadas" },
+  worksValidatedMsg: { fr: "L'intervention a été validée avec succès.", en: "The intervention was successfully validated.", ar: "تم اعتماد التدخل بنجاح.", es: "La intervención se ha validado correctamente." },
+  validationError: { fr: "Erreur lors de la validation.", en: "Error validating the intervention.", ar: "حدث خطأ أثناء اعتماد التدخل.", es: "Error al validar la intervención." },
+  worksCreated: { fr: "Travaux créés", en: "Works created", ar: "تم إنشاء الأشغال", es: "Obras creadas" },
+  worksCreatedMsg: { fr: "La demande d'intervention a été enregistrée.", en: "The intervention request has been saved.", ar: "تم تسجيل طلب التدخل.", es: "La solicitud de intervención ha sido registrada." },
   missingDocs: { fr: "Rapport, photo et facture sont obligatoires", en: "Report, photo and invoice are required", ar: "التقرير والصورة والفاتورة مطلوبة", es: "Informe, foto y factura son obligatorios" },
   validateConfirm: { fr: "Confirmer la validation et le paiement de cette intervention ?", en: "Confirm validation and payment for this intervention?", ar: "تأكيد التصديق ودفع هذا التدخل؟", es: "¿Confirmar validación y pago de esta intervención?" },
   typeEntretien: { fr: "Entretien courant", en: "Routine maintenance", ar: "صيانة دورية", es: "Mantenimiento rutinario" },
@@ -289,21 +307,21 @@ function TravauxScreenInner() {
       await travauxApi.assign(actionTravail.id, assignPrestataireId.trim());
       closeActionModal();
       load(true);
-    } catch (e: any) { showToast({ type: "error", title: STRINGS.errorTitle[lang], message: e?.message ?? "Erreur lors de l'assignation." }); }
+    } catch (e: any) { showToast({ type: "error", title: STRINGS.errorTitle[lang], message: e?.message ?? STRINGS.assignmentError[lang] }); }
     finally { setActionBusy(false); }
   };
 
   const handlePickReport = async () => {
     const r = await pickAndUploadPdf();
-    if (r) setReportUrl(r.objectPath); else showToast({ type: "error", title: STRINGS.errorTitle[lang], message: "Échec du téléversement du rapport." });
+    if (r) setReportUrl(r.objectPath); else showToast({ type: "error", title: STRINGS.errorTitle[lang], message: STRINGS.uploadReportError[lang] });
   };
   const handlePickPhoto = async () => {
     const r = await pickAndUploadPhoto();
-    if (r) setPhotoUrl(r.objectPath); else showToast({ type: "error", title: STRINGS.errorTitle[lang], message: "Échec du téléversement de la photo." });
+    if (r) setPhotoUrl(r.objectPath); else showToast({ type: "error", title: STRINGS.errorTitle[lang], message: STRINGS.uploadPhotoError[lang] });
   };
   const handlePickInvoice = async () => {
     const r = await pickAndUploadInvoice();
-    if (r) setInvoiceUrl(r.objectPath); else showToast({ type: "error", title: STRINGS.errorTitle[lang], message: "Échec du téléversement de la facture." });
+    if (r) setInvoiceUrl(r.objectPath); else showToast({ type: "error", title: STRINGS.errorTitle[lang], message: STRINGS.uploadInvoiceError[lang] });
   };
 
   const handleSubmitReport = async () => {
@@ -318,24 +336,24 @@ function TravauxScreenInner() {
         invoiceAmount: invoiceAmount ? Number(invoiceAmount) : undefined,
       });
       closeActionModal();
-      showToast({ type: "success", title: "Rapport soumis", message: "Le rapport d'intervention a été envoyé." });
+      showToast({ type: "success", title: STRINGS.reportSubmitted[lang], message: STRINGS.reportSubmittedMsg[lang] });
       load(true);
-    } catch (e: any) { showToast({ type: "error", title: STRINGS.errorTitle[lang], message: e?.message ?? "Erreur lors de la soumission." }); }
+    } catch (e: any) { showToast({ type: "error", title: STRINGS.errorTitle[lang], message: e?.message ?? STRINGS.submissionError[lang] }); }
     finally { setActionBusy(false); }
   };
 
   const handleValidate = (t: Travail) => {
     Alert.alert(STRINGS.validateAction[lang], STRINGS.validateConfirm[lang], [
-      { text: STRINGS.errorTitle[lang] === "Erreur" ? "Annuler" : "Cancel", style: "cancel" },
+      { text: STRINGS.cancel[lang], style: "cancel" },
       {
-        text: "OK",
+        text: STRINGS.confirm[lang],
         onPress: async () => {
           try {
             await travauxApi.validate(t.id);
-            showToast({ type: "success", title: "Travaux validés", message: "L'intervention a été validée avec succès." });
+            showToast({ type: "success", title: STRINGS.worksValidated[lang], message: STRINGS.worksValidatedMsg[lang] });
             load(true);
           } catch (e: any) {
-            showToast({ type: "error", title: STRINGS.errorTitle[lang], message: e?.message ?? "Erreur lors de la validation." });
+            showToast({ type: "error", title: STRINGS.errorTitle[lang], message: e?.message ?? STRINGS.validationError[lang] });
           }
         },
       },
@@ -347,9 +365,9 @@ function TravauxScreenInner() {
       const qs = filter !== "all" ? `?status=${filter}` : "";
       const data = await apiRequest(`/travaux${qs}`, "GET", undefined, token);
       setTravaux(data.data ?? []);
-    } catch (e: any) { if (!silent) showToast({ type: "error", title: "Erreur de chargement", message: e?.message ?? "Impossible de charger les travaux." }); }
+    } catch (e: any) { if (!silent) showToast({ type: "error", title: STRINGS.loadingError[lang], message: e?.message ?? STRINGS.loadingWorksError[lang] }); }
     finally { setLoading(false); setRefreshing(false); }
-  }, [token, filter]);
+  }, [token, filter, lang]);
 
   useEffect(() => { load(); }, [load]);
   const onRefresh = () => { setRefreshing(true); load(true); };
@@ -364,7 +382,7 @@ function TravauxScreenInner() {
       await apiRequest("/travaux", "POST", form, token);
       setShowModal(false);
       setForm({ title: "", description: "", type: "entretien", priority: "normal", buildingId: "" });
-      showToast({ type: "success", title: "Travaux créés", message: "La demande d'intervention a été enregistrée." });
+      showToast({ type: "success", title: STRINGS.worksCreated[lang], message: STRINGS.worksCreatedMsg[lang] });
       load(true);
     } catch (e: any) {
       showToast({ type: "error", title: STRINGS.errorTitle[lang], message: e?.message ?? STRINGS.createError[lang] });
@@ -509,7 +527,7 @@ function TravauxScreenInner() {
                 <Text style={[styles.fieldLabel, { color: colors.mutedForeground }]}>{STRINGS.prestataireIdLabel[lang]}</Text>
                 <TextInput
                   style={[styles.input, { backgroundColor: colors.card, borderColor: colors.border, color: colors.foreground }]}
-                  placeholder="ID du prestataire"
+                  placeholder={STRINGS.providerIdPlaceholder[lang]}
                   placeholderTextColor={colors.mutedForeground}
                   value={assignPrestataireId}
                   onChangeText={setAssignPrestataireId}
@@ -539,7 +557,7 @@ function TravauxScreenInner() {
                 <Text style={[styles.fieldLabel, { color: colors.mutedForeground }]}>{STRINGS.invoiceAmountLabel[lang]}</Text>
                 <TextInput
                   style={[styles.input, { backgroundColor: colors.card, borderColor: colors.border, color: colors.foreground }]}
-                  placeholder="0"
+                  placeholder={STRINGS.invoiceAmountPlaceholder[lang]}
                   placeholderTextColor={colors.mutedForeground}
                   keyboardType="numeric"
                   value={invoiceAmount}

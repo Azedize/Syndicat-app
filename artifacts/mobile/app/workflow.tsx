@@ -47,6 +47,7 @@ const STRINGS = {
   titleRequired: { fr: "Titre requis", en: "Title required", ar: "العنوان مطلوب", es: "Título requerido" },
   wfCreated: { fr: "Workflow créé", en: "Workflow created", ar: "تم إنشاء سير العمل", es: "Workflow creado" },
   wfCreatedMsg: { fr: "Le workflow a été initié et les responsables ont été notifiés.", en: "The workflow has been initiated and those responsible have been notified.", ar: "تم بدء سير العمل وتم إخطار المسؤولين.", es: "Se ha iniciado el flujo de trabajo y se ha notificado a los responsables." },
+  errorTitle: { fr: "Erreur", en: "Error", ar: "خطأ", es: "Error" },
   headerTitle: { fr: "Workflows d'Approbation", en: "Approval Workflows", ar: "سير عمل الموافقات", es: "Flujos de Trabajo de Aprobación" },
   headerSub: { fr: "Gestion des processus multi-niveaux", en: "Multi-level process management", ar: "إدارة العمليات متعددة المستويات", es: "Gestión de procesos multinivel" },
   statTotal: { fr: "Total", en: "Total", ar: "المجموع", es: "Total" },
@@ -89,8 +90,21 @@ const STRINGS = {
   initialValidation: { fr: "Validation initiale", en: "Initial validation", ar: "التحقق الأولي", es: "Validación inicial" },
   directionApproval: { fr: "Approbation direction", en: "Management approval", ar: "موافقة الإدارة", es: "Aprobación dirección" },
   publication: { fr: "Publication", en: "Publication", ar: "نشر", es: "Publicación" },
+  loadError: { fr: "Impossible de charger les workflows.", en: "Unable to load workflows.", ar: "تعذر تحميل مسارات العمل.", es: "No se pueden cargar los flujos de trabajo." },
+  retry: { fr: "Réessayer", en: "Retry", ar: "إعادة المحاولة", es: "Reintentar" },
+  saveDecisionError: { fr: "Impossible d'enregistrer la décision.", en: "Unable to save the decision.", ar: "تعذر حفظ القرار.", es: "No se puede guardar la decisión." },
+  createWorkflowError: { fr: "Impossible de créer le workflow.", en: "Unable to create the workflow.", ar: "تعذر إنشاء مسار العمل.", es: "No se puede crear el flujo de trabajo." },
+  documentNotFound: { fr: "Document non trouvé", en: "Document not found", ar: "لم يتم العثور على الوثيقة", es: "Documento no encontrado" },
+  documentNotFoundMsg: {
+    fr: "Ce document n'a pas encore été numérisé dans l'espace Documents. Contactez votre syndic pour l'obtenir.",
+    en: "This document has not been digitized in Documents yet. Contact your property manager to obtain it.",
+    ar: "لم تتم رقمنة هذه الوثيقة في مساحة الوثائق بعد. تواصل مع مدير الملكية للحصول عليها.",
+    es: "Este documento aún no se ha digitalizado en Documentos. Contacte con su administrador para obtenerlo.",
+  },
+  progressStep: { fr: "Étape", en: "Step", ar: "المرحلة", es: "Etapa" },
 };
 
+type StringKey = keyof typeof STRINGS;
 type WfStatus = "pending" | "in_progress" | "approved" | "rejected" | "cancelled";
 type WfPriority = "low" | "medium" | "high" | "urgent";
 type StepStatus = "done" | "current" | "waiting" | "rejected";
@@ -120,7 +134,7 @@ interface Workflow {
   document?: string;
 }
 
-const STATUS_CONFIG: Record<WfStatus, { label: string; color: string; icon: keyof typeof Feather.glyphMap }> = {
+const STATUS_CONFIG: Record<WfStatus, { label: StringKey; color: string; icon: keyof typeof Feather.glyphMap }> = {
   pending: { label: "statusPending", color: "#f59e0b", icon: "clock" },
   in_progress: { label: "statusInProgress", color: "#3b82f6", icon: "loader" },
   approved: { label: "statusApproved", color: "#10b981", icon: "check-circle" },
@@ -128,7 +142,7 @@ const STATUS_CONFIG: Record<WfStatus, { label: string; color: string; icon: keyo
   cancelled: { label: "statusCancelled", color: "#6b7280", icon: "slash" },
 };
 
-const PRIORITY_CONFIG: Record<WfPriority, { label: string; color: string }> = {
+const PRIORITY_CONFIG: Record<WfPriority, { label: StringKey; color: string }> = {
   low: { label: "priorityLow", color: "#6b7280" },
   medium: { label: "priorityMedium", color: "#3b82f6" },
   high: { label: "priorityHigh", color: "#f59e0b" },
@@ -189,7 +203,7 @@ export default function WorkflowScreen() {
     setError(null);
     apiRequest<{ data: Workflow[] }>("/workflows")
       .then(({ data }) => setWorkflows(data ?? []))
-      .catch((err) => setError(err instanceof Error ? err.message : "Erreur de chargement"))
+      .catch((err) => setError(err instanceof Error ? err.message : STRINGS.loadError[lang]))
       .finally(() => setLoading(false));
   };
 
@@ -226,8 +240,8 @@ export default function WorkflowScreen() {
         isApprove ? STRINGS.stepApproveTitle[lang] : STRINGS.stepRejectTitle[lang],
         isApprove ? STRINGS.stepApproveMsg[lang] : STRINGS.stepRejectMsg[lang]
       );
-    } catch (err) {
-      Alert.alert("Erreur", err instanceof Error ? err.message : "Impossible d'enregistrer la décision.");
+      } catch (err) {
+      Alert.alert(STRINGS.errorTitle[lang], err instanceof Error ? err.message : STRINGS.saveDecisionError[lang]);
     } finally {
       setSubmittingDecision(false);
     }
@@ -250,7 +264,7 @@ export default function WorkflowScreen() {
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
       Alert.alert(STRINGS.wfCreated[lang], STRINGS.wfCreatedMsg[lang]);
     } catch (err) {
-      Alert.alert("Erreur", err instanceof Error ? err.message : "Impossible de créer le workflow.");
+      Alert.alert(STRINGS.errorTitle[lang], err instanceof Error ? err.message : STRINGS.createWorkflowError[lang]);
     } finally {
       setCreating(false);
     }
@@ -333,7 +347,7 @@ export default function WorkflowScreen() {
           <Feather name="alert-triangle" size={40} color="#ef4444" />
           <Text style={[styles.emptyText, { color: colors.mutedForeground }]}>{error}</Text>
           <TouchableOpacity style={[styles.retryBtn, { backgroundColor: colors.primary }]} onPress={loadWorkflows}>
-            <Text style={styles.retryBtnText}>Réessayer</Text>
+            <Text style={styles.retryBtnText}>{STRINGS.retry[lang]}</Text>
           </TouchableOpacity>
         </View>
       ) : (
@@ -374,10 +388,10 @@ export default function WorkflowScreen() {
                     </View>
                     <View style={[styles.statusBadge, { backgroundColor: statusCfg.color + "15" }]}>
                       <Feather name={statusCfg.icon} size={10} color={statusCfg.color} />
-                      <Text style={[styles.statusText, { color: statusCfg.color }]}>{statusCfg.label}</Text>
+                      <Text style={[styles.statusText, { color: statusCfg.color }]}>{STRINGS[statusCfg.label][lang]}</Text>
                     </View>
                     <View style={[styles.priorityBadge, { borderColor: priorityCfg.color + "40" }]}>
-                      <Text style={[styles.priorityText, { color: priorityCfg.color }]}>{priorityCfg.label}</Text>
+                      <Text style={[styles.priorityText, { color: priorityCfg.color }]}>{STRINGS[priorityCfg.label][lang]}</Text>
                     </View>
                   </View>
                   <Text style={[styles.wfTitle, { color: colors.foreground }]}>{w.title}</Text>
@@ -407,10 +421,10 @@ export default function WorkflowScreen() {
               {/* Progress */}
               <View style={{ gap: 6 }}>
                 <View style={styles.progressRow}>
-                  <Text style={[styles.progressLabel, { color: colors.mutedForeground }]}>
-                    Étape {Math.min(progress + 1, w.steps.length)}/{w.steps.length} — {progressPct}%
+                    <Text style={[styles.progressLabel, { color: colors.mutedForeground }]}>
+                    {STRINGS.progressStep[lang]} {Math.min(progress + 1, w.steps.length)}/{w.steps.length} — {progressPct}%
                   </Text>
-                  <Text style={[styles.progressLabel, { color: statusCfg.color }]}>{statusCfg.label}</Text>
+                    <Text style={[styles.progressLabel, { color: statusCfg.color }]}>{STRINGS[statusCfg.label][lang]}</Text>
                 </View>
                 <View style={[styles.progressBar, { backgroundColor: colors.muted }]}>
                   <View style={[styles.progressFill, { width: `${progressPct}%` as any, backgroundColor: statusCfg.color }]} />
@@ -440,8 +454,8 @@ export default function WorkflowScreen() {
               {w.status === "in_progress" && (
                 <View style={[styles.currentStepBox, { backgroundColor: colors.primary + "10", borderColor: colors.primary + "30" }]}>
                   <Feather name="arrow-right" size={12} color={colors.primary} />
-                  <Text style={[styles.currentStepText, { color: colors.primary }]} numberOfLines={1}>
-                    En attente: {w.steps[w.currentStep]?.assignee}
+                      <Text style={[styles.currentStepText, { color: colors.primary }]} numberOfLines={1}>
+                     {STRINGS.waitingOn[lang]} {w.steps[w.currentStep]?.assignee}
                   </Text>
                 </View>
               )}
@@ -481,10 +495,10 @@ export default function WorkflowScreen() {
                       if (match) {
                         router.push("/documents");
                       } else {
-                        Alert.alert(
-                          "Document non trouvé",
-                          `"${w.document}" n'a pas encore été numérisé dans l'espace Documents. Contactez votre syndic pour l'obtenir.`,
-                        );
+                          Alert.alert(
+                           STRINGS.documentNotFound[lang],
+                           `"${w.document}" ${STRINGS.documentNotFoundMsg[lang]}`,
+                         );
                       }
                     }}
                   >
@@ -496,7 +510,7 @@ export default function WorkflowScreen() {
 
                 {/* Steps timeline */}
                 <View style={{ gap: 4 }}>
-                  <Text style={[styles.sectionTitle, { color: colors.foreground }]}>Étapes du workflow</Text>
+                  <Text style={[styles.sectionTitle, { color: colors.foreground }]}>{STRINGS.workflowSteps[lang]}</Text>
                   {w.steps.map((step, i) => {
                     const isDone = step.status === "done";
                     const isCurrent = step.status === "current";
@@ -536,10 +550,10 @@ export default function WorkflowScreen() {
                 {/* Approve/Reject actions */}
                 {canAct && (
                   <View style={styles.actionArea}>
-                    <Text style={[styles.sectionTitle, { color: colors.foreground }]}>Action requise</Text>
+                    <Text style={[styles.sectionTitle, { color: colors.foreground }]}>{STRINGS.actionRequired[lang]}</Text>
                     <View style={[styles.actionCard, { backgroundColor: catColor + "08", borderColor: catColor + "30" }]}>
                       <Text style={[styles.actionCardText, { color: colors.foreground }]}>
-                        En attente de validation par: <Text style={{ color: catColor, fontFamily: "Inter_700Bold" }}>{w.steps[w.currentStep]?.assignee}</Text>
+                        {STRINGS.waitingForValidation[lang]} <Text style={{ color: catColor, fontFamily: "Inter_700Bold" }}>{w.steps[w.currentStep]?.assignee}</Text>
                       </Text>
                     </View>
                     <View style={styles.actionBtns}>
@@ -548,14 +562,14 @@ export default function WorkflowScreen() {
                         onPress={() => { setApproveAction("approve"); setShowApprove(true); Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium); }}
                       >
                         <Feather name="check" size={18} color="#fff" />
-                        <Text style={styles.actionBtnText}>Approuver</Text>
+                        <Text style={styles.actionBtnText}>{STRINGS.approve[lang]}</Text>
                       </TouchableOpacity>
                       <TouchableOpacity
                         style={[styles.actionBtn, { backgroundColor: "#ef4444" }]}
                         onPress={() => { setApproveAction("reject"); setShowApprove(true); Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium); }}
                       >
                         <Feather name="x" size={18} color="#fff" />
-                        <Text style={styles.actionBtnText}>Rejeter</Text>
+                        <Text style={styles.actionBtnText}>{STRINGS.reject[lang]}</Text>
                       </TouchableOpacity>
                     </View>
                   </View>
@@ -571,12 +585,12 @@ export default function WorkflowScreen() {
         <View style={styles.overlay}>
           <View style={[styles.commentModal, { backgroundColor: colors.card }]}>
             <Text style={[styles.commentTitle, { color: colors.foreground }]}>
-              {approveAction === "approve" ? "✓ Approuver l'étape" : "✗ Rejeter l'étape"}
+              {approveAction === "approve" ? STRINGS.approveStep[lang] : STRINGS.rejectStep[lang]}
             </Text>
-            <Text style={[styles.commentSub, { color: colors.mutedForeground }]}>Commentaire (optionnel)</Text>
+            <Text style={[styles.commentSub, { color: colors.mutedForeground }]}>{STRINGS.commentOptional[lang]}</Text>
             <TextInput
               style={[styles.commentInput, { backgroundColor: colors.background, borderColor: colors.border, color: colors.foreground }]}
-              placeholder="Ajoutez un commentaire à votre décision..."
+              placeholder={STRINGS.commentPlaceholder[lang]}
               placeholderTextColor={colors.mutedForeground}
               value={approveComment}
               onChangeText={setApproveComment}
@@ -586,14 +600,14 @@ export default function WorkflowScreen() {
             />
             <View style={styles.commentBtns}>
               <TouchableOpacity style={[styles.commentBtn, { backgroundColor: colors.muted }]} onPress={() => { setShowApprove(false); setApproveComment(""); }}>
-                <Text style={[styles.commentBtnText, { color: colors.foreground }]}>Annuler</Text>
+                <Text style={[styles.commentBtnText, { color: colors.foreground }]}>{STRINGS.cancel[lang]}</Text>
               </TouchableOpacity>
               <TouchableOpacity
                 style={[styles.commentBtn, { backgroundColor: approveAction === "approve" ? "#10b981" : "#ef4444", opacity: submittingDecision ? 0.6 : 1 }]}
                 onPress={handleApprove}
                 disabled={submittingDecision}
               >
-                {submittingDecision ? <ActivityIndicator color="#fff" size="small" /> : <Text style={[styles.commentBtnText, { color: "#fff" }]}>Confirmer</Text>}
+                {submittingDecision ? <ActivityIndicator color="#fff" size="small" /> : <Text style={[styles.commentBtnText, { color: "#fff" }]}>{STRINGS.confirm[lang]}</Text>}
               </TouchableOpacity>
             </View>
           </View>
@@ -607,17 +621,17 @@ export default function WorkflowScreen() {
             <TouchableOpacity onPress={() => setShowCreate(false)}>
               <Feather name="x" size={22} color="#fff" />
             </TouchableOpacity>
-            <Text style={styles.modalTitle}>Nouveau Workflow</Text>
+            <Text style={styles.modalTitle}>{STRINGS.newWorkflow[lang]}</Text>
             <TouchableOpacity onPress={handleCreate} disabled={creating}>
-              {creating ? <ActivityIndicator color="#fff" size="small" /> : <Text style={styles.modalSave}>Créer</Text>}
+              {creating ? <ActivityIndicator color="#fff" size="small" /> : <Text style={styles.modalSave}>{STRINGS.create[lang]}</Text>}
             </TouchableOpacity>
           </View>
           <ScrollView contentContainerStyle={{ padding: 20, gap: 16, paddingBottom: 40 }}>
             <View style={{ gap: 6 }}>
-              <Text style={[styles.fieldLabel, { color: colors.mutedForeground }]}>Titre *</Text>
+              <Text style={[styles.fieldLabel, { color: colors.mutedForeground }]}>{STRINGS.titleLabel[lang]}</Text>
               <TextInput
                 style={[styles.fieldInput, { backgroundColor: colors.card, borderColor: colors.border, color: colors.foreground }]}
-                placeholder="Ex: Révision du Règlement Intérieur"
+                placeholder={STRINGS.titlePlaceholder[lang]}
                 placeholderTextColor={colors.mutedForeground}
                 value={newTitle}
                 onChangeText={setNewTitle}
@@ -625,7 +639,7 @@ export default function WorkflowScreen() {
             </View>
 
             <View style={{ gap: 8 }}>
-              <Text style={[styles.fieldLabel, { color: colors.mutedForeground }]}>Catégorie</Text>
+              <Text style={[styles.fieldLabel, { color: colors.mutedForeground }]}>{STRINGS.categoryLabel[lang]}</Text>
               <View style={styles.catGrid}>
                 {Object.keys(CAT_COLORS).map((cat) => (
                   <TouchableOpacity
@@ -643,7 +657,7 @@ export default function WorkflowScreen() {
             </View>
 
             <View style={{ gap: 8 }}>
-              <Text style={[styles.fieldLabel, { color: colors.mutedForeground }]}>Priorité</Text>
+              <Text style={[styles.fieldLabel, { color: colors.mutedForeground }]}>{STRINGS.priorityLabel[lang]}</Text>
               <View style={styles.catGrid}>
                 {(["low", "medium", "high", "urgent"] as WfPriority[]).map((p) => {
                   const cfg = PRIORITY_CONFIG[p];
@@ -664,10 +678,10 @@ export default function WorkflowScreen() {
             </View>
 
             <View style={{ gap: 6 }}>
-              <Text style={[styles.fieldLabel, { color: colors.mutedForeground }]}>Description</Text>
+              <Text style={[styles.fieldLabel, { color: colors.mutedForeground }]}>{STRINGS.descriptionLabel[lang]}</Text>
               <TextInput
                 style={[styles.fieldInput, styles.fieldTextArea, { backgroundColor: colors.card, borderColor: colors.border, color: colors.foreground }]}
-                placeholder="Décrivez l'objet et le contexte de ce workflow..."
+                placeholder={STRINGS.descriptionPlaceholder[lang]}
                 placeholderTextColor={colors.mutedForeground}
                 value={newDesc}
                 onChangeText={setNewDesc}
