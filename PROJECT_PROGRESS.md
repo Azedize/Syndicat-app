@@ -34,3 +34,5 @@
 - Replaced the buildings screen's generic loading and raw API-error surface with contextual shared loading and retryable recovery states.
 - Completed the governance screen localization pass: board, commissions, mandates, delegations, statutes, detail modals, confirmations, and creation forms now follow the active language.
 - Corrected subscription status chips to use the existing localized status helpers, restoring the mobile package typecheck after the governance audit.
+- Completed the internal messaging UX pass: localized message types, inbox/sent tabs, search, detail metadata, acknowledgment actions, compose form, and message feedback across French, English, Arabic, and Spanish.
+- Added contextual loading, retryable unavailable-data recovery, and a distinct search-no-results state to internal messaging without changing announcement persistence or role behavior.

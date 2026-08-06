@@ -43,3 +43,5 @@
 - Audited `artifacts/mobile/app/governance.tsx` and replaced French-only board, mandate, delegation, commission, document, modal, confirmation, and form copy with runtime translation keys.
 - Added governance translation coverage for French, English, Arabic, and Spanish, including interpolated member-removal and appointment-confirmation messages.
 - Fixed subscription status-chip rendering in `artifacts/mobile/app/abonnements.tsx` to use localized status helpers instead of undeclared config labels.
+- Audited `artifacts/mobile/app/messagerie-interne.tsx` and replaced remaining visible French-only labels with the shared runtime translation system, including localized type prefixes for newly sent subjects.
+- Added explicit loading, retryable API failure, empty inbox/sent, and search-no-results states to internal messaging; existing announcement creation, acknowledgment feedback, and protected access behavior were preserved.

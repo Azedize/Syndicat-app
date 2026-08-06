@@ -20,14 +20,24 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useAuth } from "@/context/AuthContext";
 import { useBreakpoints } from "@/hooks/useBreakpoints";
 import { useColors } from "@/hooks/useColors";
-import { announcements as announcementsApi, type ApiAnnouncement } from "@/services/api";
+import {
+  announcements as announcementsApi,
+  type ApiAnnouncement,
+} from "@/services/api";
 import { useLanguage } from "@/context/LanguageContext";
 import { useToast } from "@/context/ToastContext";
 import EmptyState from "@/components/EmptyState";
+import { ErrorState, LoadingState } from "@/components/DataState";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
-type MessageType = "circulaire" | "convocation" | "decision" | "rapport" | "note" | "mise_en_demeure";
+type MessageType =
+  | "circulaire"
+  | "convocation"
+  | "decision"
+  | "rapport"
+  | "note"
+  | "mise_en_demeure";
 type TabType = "inbox" | "sent";
 
 interface InternalMessage {
@@ -46,13 +56,20 @@ interface InternalMessage {
   isOwn?: boolean;
 }
 
-const TYPE_CONFIG: Record<MessageType, { label: string; icon: keyof typeof Feather.glyphMap; color: string }> = {
-  circulaire:      { label: "Circulaire",        icon: "mail",         color: "#3b82f6" },
-  convocation:     { label: "Convocation",        icon: "calendar",     color: "#8b5cf6" },
-  decision:        { label: "Décision",           icon: "check-square", color: "#10b981" },
-  rapport:         { label: "Rapport",            icon: "file-text",    color: "#f59e0b" },
-  note:            { label: "Note de service",    icon: "edit-3",       color: "#6b7280" },
-  mise_en_demeure: { label: "Mise en demeure",    icon: "alert-circle", color: "#ef4444" },
+const TYPE_CONFIG: Record<
+  MessageType,
+  { label: string; icon: keyof typeof Feather.glyphMap; color: string }
+> = {
+  circulaire: { label: "Circulaire", icon: "mail", color: "#3b82f6" },
+  convocation: { label: "Convocation", icon: "calendar", color: "#8b5cf6" },
+  decision: { label: "Décision", icon: "check-square", color: "#10b981" },
+  rapport: { label: "Rapport", icon: "file-text", color: "#f59e0b" },
+  note: { label: "Note de service", icon: "edit-3", color: "#6b7280" },
+  mise_en_demeure: {
+    label: "Mise en demeure",
+    icon: "alert-circle",
+    color: "#ef4444",
+  },
 };
 
 // Map announcement priority → our priority
@@ -73,15 +90,20 @@ function detectType(title: string): MessageType {
   return "circulaire";
 }
 
-function mapApiAnnouncement(a: ApiAnnouncement, currentUserId?: string): InternalMessage {
+function mapApiAnnouncement(
+  a: ApiAnnouncement,
+  currentUserId: string | undefined,
+  fallbacks: { self: string; administration: string; allMembers: string },
+): InternalMessage {
   return {
     id: a.id,
     type: detectType(a.title),
     subject: a.title,
     body: a.body,
-    from: a.author ?? "Direction",
-    fromRole: a.authorId === currentUserId ? "Moi" : "Administration",
-    to: a.audience ?? "Tous les membres",
+    from: a.author ?? fallbacks.administration,
+    fromRole:
+      a.authorId === currentUserId ? fallbacks.self : fallbacks.administration,
+    to: a.audience === "all" || !a.audience ? fallbacks.allMembers : a.audience,
     date: a.createdAt ? a.createdAt.slice(0, 10) : "",
     priority: mapPriority(a.priority),
     attachments: 0,
@@ -100,33 +122,47 @@ export default function MessagerieInterneScreen() {
   const { user } = useAuth();
   const { isWide } = useBreakpoints();
   const { showToast } = useToast();
-  const topPad = isWide ? 0 : (Platform.OS === "web" ? 67 : insets.top);
+  const topPad = isWide ? 0 : Platform.OS === "web" ? 67 : insets.top;
 
   const [tab, setTab] = useState<TabType>("inbox");
   const [allMessages, setAllMessages] = useState<InternalMessage[]>([]);
   const [loading, setLoading] = useState(true);
+  const [loadError, setLoadError] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
   const [selected, setSelected] = useState<InternalMessage | null>(null);
   const [showCompose, setShowCompose] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
-  const [acknowledgedIds, setAcknowledgedIds] = useState<Set<string>>(new Set());
+  const [acknowledgedIds, setAcknowledgedIds] = useState<Set<string>>(
+    new Set(),
+  );
 
   // Compose form state
   const [newType, setNewType] = useState<MessageType>("note");
   const [newSubject, setNewSubject] = useState("");
   const [newBody, setNewBody] = useState("");
-  const [newPriority, setNewPriority] = useState<"urgent" | "normal" | "low">("normal");
+  const [newPriority, setNewPriority] = useState<"urgent" | "normal" | "low">(
+    "normal",
+  );
   const [sending, setSending] = useState(false);
 
   // ─── Load announcements ──────────────────────────────────────────────────
 
   const loadMessages = async () => {
     try {
-      const res = await announcementsApi.list() as any;
+      const res = (await announcementsApi.list()) as any;
       const rows: ApiAnnouncement[] = Array.isArray(res?.data) ? res.data : [];
-      setAllMessages(rows.map((a) => mapApiAnnouncement(a, (user as any)?.id ?? (user as any)?.userId)));
+      setAllMessages(
+        rows.map((a) =>
+          mapApiAnnouncement(a, (user as any)?.id ?? (user as any)?.userId, {
+            self: t("selfLabel"),
+            administration: t("administrationLabel"),
+            allMembers: t("allMembersLabel"),
+          }),
+        ),
+      );
+      setLoadError(false);
     } catch {
-      // silently keep existing data
+      setLoadError(true);
     } finally {
       setLoading(false);
     }
@@ -134,7 +170,7 @@ export default function MessagerieInterneScreen() {
 
   useEffect(() => {
     loadMessages();
-  }, []); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [t]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const handleRefresh = async () => {
     setRefreshing(true);
@@ -168,22 +204,33 @@ export default function MessagerieInterneScreen() {
   const handleAcknowledge = (id: string) => {
     setAcknowledgedIds((prev) => new Set([...prev, id]));
     Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-    showToast({ type: "success", title: t('ackSuccessTitle'), message: t('ackSuccessMsg') });
+    showToast({
+      type: "success",
+      title: t("ackSuccessTitle"),
+      message: t("ackSuccessMsg"),
+    });
   };
 
   const handleSend = async () => {
     if (!newSubject.trim() || !newBody.trim()) {
-      showToast({ type: "warning", title: t('requiredFields'), message: t('fillSubjectBody') });
+      showToast({
+        type: "warning",
+        title: t("requiredFields"),
+        message: t("fillSubjectBody"),
+      });
       return;
     }
     setSending(true);
     try {
-      const priorityMap: Record<"urgent" | "normal" | "low", ApiAnnouncement["priority"]> = {
+      const priorityMap: Record<
+        "urgent" | "normal" | "low",
+        ApiAnnouncement["priority"]
+      > = {
         urgent: "urgent",
         normal: "important",
         low: "info",
       };
-      const fullSubject = `[${TYPE_CONFIG[newType].label}] ${newSubject}`;
+      const fullSubject = `[${typeLabel(newType)}] ${newSubject}`;
       await announcementsApi.create({
         title: fullSubject,
         body: newBody,
@@ -196,10 +243,18 @@ export default function MessagerieInterneScreen() {
       setNewType("note");
       setNewPriority("normal");
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-      showToast({ type: "success", title: t('messageSentTitle'), message: t('messageSentText') });
+      showToast({
+        type: "success",
+        title: t("messageSentTitle"),
+        message: t("messageSentText"),
+      });
       await loadMessages();
     } catch {
-      showToast({ type: "error", title: t('error'), message: t('sendErrorMsg') });
+      showToast({
+        type: "error",
+        title: t("error"),
+        message: t("sendErrorMsg"),
+      });
     } finally {
       setSending(false);
     }
@@ -207,8 +262,21 @@ export default function MessagerieInterneScreen() {
 
   const priorityColor = (p: string) =>
     p === "urgent" ? "#ef4444" : p === "normal" ? "#3b82f6" : "#10b981";
+  const typeLabel = (type: MessageType) =>
+    ({
+      circulaire: t("messageTypeCircular"),
+      convocation: t("messageTypeSummons"),
+      decision: t("messageTypeDecision"),
+      rapport: t("messageTypeReport"),
+      note: t("messageTypeServiceNote"),
+      mise_en_demeure: t("messageTypeFormalNotice"),
+    })[type];
   const priorityLabel = (p: string) =>
-    p === "urgent" ? "Urgent" : p === "normal" ? "Normal" : "Faible";
+    p === "urgent"
+      ? t("urgentBadge")
+      : p === "normal"
+        ? t("normalePriority")
+        : t("faibleePriority");
 
   // ─── Render ──────────────────────────────────────────────────────────────
 
@@ -217,42 +285,69 @@ export default function MessagerieInterneScreen() {
     const acked = acknowledgedIds.has(item.id) || item.acknowledged;
     return (
       <TouchableOpacity
-        style={[styles.msgCard, { backgroundColor: colors.card, borderColor: colors.border }]}
+        style={[
+          styles.msgCard,
+          { backgroundColor: colors.card, borderColor: colors.border },
+        ]}
         onPress={() => handleOpen(item)}
         activeOpacity={0.75}
       >
-        <View style={[styles.msgTypeIcon, { backgroundColor: tc.color + "18" }]}>
+        <View
+          style={[styles.msgTypeIcon, { backgroundColor: tc.color + "18" }]}
+        >
           <Feather name={tc.icon} size={18} color={tc.color} />
         </View>
         <View style={{ flex: 1, gap: 4 }}>
           <View style={styles.msgTopRow}>
-            <Text style={[styles.msgFrom, { color: colors.foreground }]} numberOfLines={1}>
+            <Text
+              style={[styles.msgFrom, { color: colors.foreground }]}
+              numberOfLines={1}
+            >
               {item.from}
             </Text>
-            <Text style={[styles.msgDate, { color: colors.mutedForeground }]}>{item.date}</Text>
+            <Text style={[styles.msgDate, { color: colors.mutedForeground }]}>
+              {item.date}
+            </Text>
           </View>
-          <Text style={[styles.msgSubject, { color: colors.foreground }]} numberOfLines={1}>
+          <Text
+            style={[styles.msgSubject, { color: colors.foreground }]}
+            numberOfLines={1}
+          >
             {item.subject}
           </Text>
           <View style={styles.msgMeta}>
-            <View style={[styles.typeBadge, { backgroundColor: tc.color + "18" }]}>
-              <Text style={[styles.typeBadgeText, { color: tc.color }]}>{tc.label}</Text>
+            <View
+              style={[styles.typeBadge, { backgroundColor: tc.color + "18" }]}
+            >
+              <Text style={[styles.typeBadgeText, { color: tc.color }]}>
+                {typeLabel(item.type)}
+              </Text>
             </View>
             {item.priority === "urgent" && (
-              <View style={[styles.urgentBadge, { backgroundColor: "#ef444418" }]}>
+              <View
+                style={[styles.urgentBadge, { backgroundColor: "#ef444418" }]}
+              >
                 <Feather name="zap" size={10} color="#ef4444" />
-                <Text style={[styles.urgentText, { color: "#ef4444" }]}>Urgent</Text>
+                <Text style={[styles.urgentText, { color: "#ef4444" }]}>
+                  {t("urgentBadge")}
+                </Text>
               </View>
             )}
             {item.requiresAcknowledgment && !acked && (
               <View style={[styles.ackBadge, { backgroundColor: "#f59e0b18" }]}>
                 <Feather name="check-circle" size={10} color="#f59e0b" />
-                <Text style={[styles.ackText, { color: "#f59e0b" }]}>AR requis</Text>
+                <Text style={[styles.ackText, { color: "#f59e0b" }]}>
+                  {t("ackRequired")}
+                </Text>
               </View>
             )}
           </View>
         </View>
-        <Feather name="chevron-right" size={16} color={colors.mutedForeground} />
+        <Feather
+          name="chevron-right"
+          size={16}
+          color={colors.mutedForeground}
+        />
       </TouchableOpacity>
     );
   };
@@ -261,15 +356,24 @@ export default function MessagerieInterneScreen() {
     <View style={[styles.root, { backgroundColor: colors.background }]}>
       {/* Header */}
       <View
-        style={[styles.header, { paddingTop: topPad + 16, backgroundColor: colors.card, borderBottomColor: colors.border }]}
+        style={[
+          styles.header,
+          {
+            paddingTop: topPad + 16,
+            backgroundColor: colors.card,
+            borderBottomColor: colors.border,
+          },
+        ]}
       >
         <TouchableOpacity onPress={() => router.back()} style={styles.backBtn}>
           <Feather name="arrow-left" size={22} color={colors.foreground} />
         </TouchableOpacity>
         <View style={{ flex: 1 }}>
-          <Text style={[styles.title, { color: colors.foreground }]}>Messagerie Interne</Text>
+          <Text style={[styles.title, { color: colors.foreground }]}>
+            {t("messagerieTitle")}
+          </Text>
           <Text style={[styles.subtitle, { color: colors.mutedForeground }]}>
-            Communications officielles du syndicat
+            {t("messagerieSubtitle")}
           </Text>
         </View>
         <TouchableOpacity
@@ -280,19 +384,29 @@ export default function MessagerieInterneScreen() {
           }}
         >
           <Feather name="edit-3" size={15} color="#fff" />
-          <Text style={styles.composeBtnText}>Rédiger</Text>
+          <Text style={styles.composeBtnText}>{t("composeLabel")}</Text>
         </TouchableOpacity>
       </View>
 
       {/* Search */}
-      <View style={[styles.searchRow, { backgroundColor: colors.card, borderBottomColor: colors.border }]}>
-        <View style={[styles.searchBox, { backgroundColor: colors.background, borderColor: colors.border }]}>
+      <View
+        style={[
+          styles.searchRow,
+          { backgroundColor: colors.card, borderBottomColor: colors.border },
+        ]}
+      >
+        <View
+          style={[
+            styles.searchBox,
+            { backgroundColor: colors.background, borderColor: colors.border },
+          ]}
+        >
           <Feather name="search" size={16} color={colors.mutedForeground} />
           <TextInput
             style={[styles.searchInput, { color: colors.foreground }]}
             value={searchQuery}
             onChangeText={setSearchQuery}
-            placeholder="Rechercher un message..."
+            placeholder={t("searchMessagePlaceholder")}
             placeholderTextColor={colors.mutedForeground}
           />
           {searchQuery ? (
@@ -304,22 +418,38 @@ export default function MessagerieInterneScreen() {
       </View>
 
       {/* Tabs */}
-      <View style={[styles.tabsRow, { backgroundColor: colors.card, borderBottomColor: colors.border }]}>
-        {([
-          { key: "inbox" as const, label: "Boîte de réception", count: 0 },
-          { key: "sent" as const, label: "Envoyés", count: 0 },
-        ]).map((t) => {
+      <View
+        style={[
+          styles.tabsRow,
+          { backgroundColor: colors.card, borderBottomColor: colors.border },
+        ]}
+      >
+        {[
+          { key: "inbox" as const, label: t("inboxLabel"), count: 0 },
+          { key: "sent" as const, label: t("sentLabel"), count: 0 },
+        ].map((t) => {
           const active = tab === t.key;
           return (
             <TouchableOpacity
               key={t.key}
-              style={[styles.tabBtn, active && { borderBottomColor: colors.primary, borderBottomWidth: 2 }]}
+              style={[
+                styles.tabBtn,
+                active && {
+                  borderBottomColor: colors.primary,
+                  borderBottomWidth: 2,
+                },
+              ]}
               onPress={() => {
                 setTab(t.key);
                 Haptics.selectionAsync();
               }}
             >
-              <Text style={[styles.tabLabel, { color: active ? colors.primary : colors.mutedForeground }]}>
+              <Text
+                style={[
+                  styles.tabLabel,
+                  { color: active ? colors.primary : colors.mutedForeground },
+                ]}
+              >
                 {t.label}
               </Text>
             </TouchableOpacity>
@@ -329,9 +459,20 @@ export default function MessagerieInterneScreen() {
 
       {/* List */}
       {loading ? (
-        <View style={styles.loadingWrap}>
-          <ActivityIndicator color={colors.primary} size="large" />
-        </View>
+        <LoadingState
+          title={t("messagerieLoadingTitle")}
+          description={t("messagerieLoadingDescription")}
+        />
+      ) : loadError ? (
+        <ErrorState
+          title={t("messagerieLoadErrorTitle")}
+          description={t("messagerieLoadErrorDescription")}
+          retryLabel={t("retry")}
+          onRetry={() => {
+            setLoading(true);
+            void loadMessages();
+          }}
+        />
       ) : (
         <FlatList
           data={filtered}
@@ -354,11 +495,33 @@ export default function MessagerieInterneScreen() {
           ListEmptyComponent={
             <EmptyState
               icon="inbox"
-              title={tab === "inbox" ? "Boîte vide" : "Aucun message envoyé"}
+              title={
+                searchQuery
+                  ? t("messageSearchEmptyTitle")
+                  : tab === "inbox"
+                    ? t("inboxEmptyTitle")
+                    : t("sentEmptyTitle")
+              }
               description={
-                tab === "inbox"
-                  ? "Aucune communication officielle du syndicat pour le moment."
-                  : "Les messages que vous rédigez apparaîtront ici."
+                searchQuery
+                  ? t("messageSearchEmptyText")
+                  : tab === "inbox"
+                    ? t("inboxEmptyText")
+                    : t("sentEmptyText")
+              }
+              actionLabel={
+                searchQuery
+                  ? t("clearSearch")
+                  : tab === "inbox"
+                    ? t("composeLabel")
+                    : undefined
+              }
+              onAction={
+                searchQuery
+                  ? () => setSearchQuery("")
+                  : tab === "inbox"
+                    ? () => setShowCompose(true)
+                    : undefined
               }
             />
           }
@@ -372,118 +535,239 @@ export default function MessagerieInterneScreen() {
         presentationStyle="pageSheet"
         onRequestClose={() => setSelected(null)}
       >
-        {selected ? (() => {
-          const tc = TYPE_CONFIG[selected.type];
-          const acked = acknowledgedIds.has(selected.id) || selected.acknowledged;
-          return (
-            <View style={[styles.modal, { backgroundColor: colors.background }]}>
-              <View style={[styles.modalHeader, { backgroundColor: colors.card, borderBottomColor: colors.border }]}>
-                <TouchableOpacity onPress={() => setSelected(null)}>
-                  <Feather name="arrow-left" size={22} color={colors.foreground} />
-                </TouchableOpacity>
-                <Text style={[styles.modalTitle, { color: colors.foreground }]} numberOfLines={1}>
-                  {tc.label}
-                </Text>
-                <View style={{ width: 32 }} />
-              </View>
-              <ScrollView contentContainerStyle={{ padding: 20, gap: 16, paddingBottom: 40 }}>
-                {/* Subject */}
-                <Text style={[styles.detailSubject, { color: colors.foreground }]}>
-                  {selected.subject}
-                </Text>
-
-                {/* Meta card */}
-                <View style={[styles.detailMetaCard, { backgroundColor: colors.card, borderColor: colors.border }]}>
-                  {[
-                    { label: "De", value: `${selected.from} — ${selected.fromRole}` },
-                    { label: "À", value: selected.to },
-                    { label: "Date", value: selected.date },
-                  ].map((row, i) => (
-                    <View key={row.label}>
-                      {i > 0 && <View style={[styles.sep, { backgroundColor: colors.border }]} />}
-                      <View style={styles.metaRow}>
-                        <Text style={[styles.metaLabel, { color: colors.mutedForeground }]}>{row.label}</Text>
-                        <Text style={[styles.metaValue, { color: colors.foreground }]} numberOfLines={2}>
-                          {row.value}
-                        </Text>
-                      </View>
-                    </View>
-                  ))}
-                </View>
-
-                {/* Badges */}
-                <View style={styles.badgesRow}>
-                  <View style={[styles.typeBadge, { backgroundColor: tc.color + "18" }]}>
-                    <Feather name={tc.icon} size={12} color={tc.color} />
-                    <Text style={[styles.typeBadgeText, { color: tc.color }]}>{tc.label}</Text>
-                  </View>
-                  <View style={[styles.priorityBadge, { backgroundColor: priorityColor(selected.priority) + "18" }]}>
-                    <Text style={[styles.priorityText, { color: priorityColor(selected.priority) }]}>
-                      {priorityLabel(selected.priority)}
-                    </Text>
-                  </View>
-                </View>
-
-                {/* Body */}
-                <View style={[styles.bodyCard, { backgroundColor: colors.card, borderColor: colors.border }]}>
-                  <Text style={[styles.bodyText, { color: colors.foreground }]}>{selected.body}</Text>
-                </View>
-
-                {/* AR status */}
-                {selected.requiresAcknowledgment && (
+        {selected
+          ? (() => {
+              const tc = TYPE_CONFIG[selected.type];
+              const acked =
+                acknowledgedIds.has(selected.id) || selected.acknowledged;
+              return (
+                <View
+                  style={[styles.modal, { backgroundColor: colors.background }]}
+                >
                   <View
                     style={[
-                      styles.arBox,
+                      styles.modalHeader,
                       {
-                        backgroundColor: acked ? "#10b98110" : "#f59e0b10",
-                        borderColor: acked ? "#10b98130" : "#f59e0b30",
+                        backgroundColor: colors.card,
+                        borderBottomColor: colors.border,
                       },
                     ]}
                   >
-                    <Feather
-                      name={acked ? "check-circle" : "alert-circle"}
-                      size={16}
-                      color={acked ? "#10b981" : "#f59e0b"}
-                    />
-                    <Text style={[styles.arText, { color: acked ? "#10b981" : "#f59e0b" }]}>
-                      {acked
-                        ? "Accusé de réception envoyé"
-                        : "Ce message requiert un accusé de réception"}
-                    </Text>
-                  </View>
-                )}
-
-                {/* Actions */}
-                <View style={styles.detailActions}>
-                  {selected.requiresAcknowledgment && !acked && (
-                    <TouchableOpacity
-                      style={[styles.actionBtn, { backgroundColor: colors.primary }]}
-                      onPress={() => handleAcknowledge(selected.id)}
-                      activeOpacity={0.85}
-                    >
-                      <Feather name="check-circle" size={16} color="#fff" />
-                      <Text style={styles.actionBtnText}>Accuser réception</Text>
+                    <TouchableOpacity onPress={() => setSelected(null)}>
+                      <Feather
+                        name="arrow-left"
+                        size={22}
+                        color={colors.foreground}
+                      />
                     </TouchableOpacity>
-                  )}
-                  <TouchableOpacity
-                    style={[styles.actionBtnOutline, { borderColor: colors.border, backgroundColor: colors.card }]}
-                    onPress={() => {
-                      setSelected(null);
-                      setTimeout(() => {
-                        setShowCompose(true);
-                        setNewSubject(`RE: ${selected.subject}`);
-                      }, 200);
+                    <Text
+                      style={[styles.modalTitle, { color: colors.foreground }]}
+                      numberOfLines={1}
+                    >
+                      {typeLabel(selected.type)}
+                    </Text>
+                    <View style={{ width: 32 }} />
+                  </View>
+                  <ScrollView
+                    contentContainerStyle={{
+                      padding: 20,
+                      gap: 16,
+                      paddingBottom: 40,
                     }}
-                    activeOpacity={0.85}
                   >
-                    <Feather name="corner-up-left" size={16} color={colors.foreground} />
-                    <Text style={[styles.actionBtnOutlineText, { color: colors.foreground }]}>Répondre</Text>
-                  </TouchableOpacity>
+                    {/* Subject */}
+                    <Text
+                      style={[
+                        styles.detailSubject,
+                        { color: colors.foreground },
+                      ]}
+                    >
+                      {selected.subject}
+                    </Text>
+
+                    {/* Meta card */}
+                    <View
+                      style={[
+                        styles.detailMetaCard,
+                        {
+                          backgroundColor: colors.card,
+                          borderColor: colors.border,
+                        },
+                      ]}
+                    >
+                      {[
+                        {
+                          label: t("fromLabel"),
+                          value: `${selected.from} — ${selected.fromRole}`,
+                        },
+                        { label: t("toLabel"), value: selected.to },
+                        { label: t("dateLabel"), value: selected.date },
+                      ].map((row, i) => (
+                        <View key={row.label}>
+                          {i > 0 && (
+                            <View
+                              style={[
+                                styles.sep,
+                                { backgroundColor: colors.border },
+                              ]}
+                            />
+                          )}
+                          <View style={styles.metaRow}>
+                            <Text
+                              style={[
+                                styles.metaLabel,
+                                { color: colors.mutedForeground },
+                              ]}
+                            >
+                              {row.label}
+                            </Text>
+                            <Text
+                              style={[
+                                styles.metaValue,
+                                { color: colors.foreground },
+                              ]}
+                              numberOfLines={2}
+                            >
+                              {row.value}
+                            </Text>
+                          </View>
+                        </View>
+                      ))}
+                    </View>
+
+                    {/* Badges */}
+                    <View style={styles.badgesRow}>
+                      <View
+                        style={[
+                          styles.typeBadge,
+                          { backgroundColor: tc.color + "18" },
+                        ]}
+                      >
+                        <Feather name={tc.icon} size={12} color={tc.color} />
+                        <Text
+                          style={[styles.typeBadgeText, { color: tc.color }]}
+                        >
+                          {typeLabel(selected.type)}
+                        </Text>
+                      </View>
+                      <View
+                        style={[
+                          styles.priorityBadge,
+                          {
+                            backgroundColor:
+                              priorityColor(selected.priority) + "18",
+                          },
+                        ]}
+                      >
+                        <Text
+                          style={[
+                            styles.priorityText,
+                            { color: priorityColor(selected.priority) },
+                          ]}
+                        >
+                          {priorityLabel(selected.priority)}
+                        </Text>
+                      </View>
+                    </View>
+
+                    {/* Body */}
+                    <View
+                      style={[
+                        styles.bodyCard,
+                        {
+                          backgroundColor: colors.card,
+                          borderColor: colors.border,
+                        },
+                      ]}
+                    >
+                      <Text
+                        style={[styles.bodyText, { color: colors.foreground }]}
+                      >
+                        {selected.body}
+                      </Text>
+                    </View>
+
+                    {/* AR status */}
+                    {selected.requiresAcknowledgment && (
+                      <View
+                        style={[
+                          styles.arBox,
+                          {
+                            backgroundColor: acked ? "#10b98110" : "#f59e0b10",
+                            borderColor: acked ? "#10b98130" : "#f59e0b30",
+                          },
+                        ]}
+                      >
+                        <Feather
+                          name={acked ? "check-circle" : "alert-circle"}
+                          size={16}
+                          color={acked ? "#10b981" : "#f59e0b"}
+                        />
+                        <Text
+                          style={[
+                            styles.arText,
+                            { color: acked ? "#10b981" : "#f59e0b" },
+                          ]}
+                        >
+                          {acked ? t("ackSent") : t("ackPending")}
+                        </Text>
+                      </View>
+                    )}
+
+                    {/* Actions */}
+                    <View style={styles.detailActions}>
+                      {selected.requiresAcknowledgment && !acked && (
+                        <TouchableOpacity
+                          style={[
+                            styles.actionBtn,
+                            { backgroundColor: colors.primary },
+                          ]}
+                          onPress={() => handleAcknowledge(selected.id)}
+                          activeOpacity={0.85}
+                        >
+                          <Feather name="check-circle" size={16} color="#fff" />
+                          <Text style={styles.actionBtnText}>
+                            {t("accuReceptionBtn")}
+                          </Text>
+                        </TouchableOpacity>
+                      )}
+                      <TouchableOpacity
+                        style={[
+                          styles.actionBtnOutline,
+                          {
+                            borderColor: colors.border,
+                            backgroundColor: colors.card,
+                          },
+                        ]}
+                        onPress={() => {
+                          setSelected(null);
+                          setTimeout(() => {
+                            setShowCompose(true);
+                            setNewSubject(`RE: ${selected.subject}`);
+                          }, 200);
+                        }}
+                        activeOpacity={0.85}
+                      >
+                        <Feather
+                          name="corner-up-left"
+                          size={16}
+                          color={colors.foreground}
+                        />
+                        <Text
+                          style={[
+                            styles.actionBtnOutlineText,
+                            { color: colors.foreground },
+                          ]}
+                        >
+                          {t("replyBtnLabel")}
+                        </Text>
+                      </TouchableOpacity>
+                    </View>
+                  </ScrollView>
                 </View>
-              </ScrollView>
-            </View>
-          );
-        })() : null}
+              );
+            })()
+          : null}
       </Modal>
 
       {/* ─── Compose modal ───────────────────────────────────────────────── */}
@@ -494,11 +778,21 @@ export default function MessagerieInterneScreen() {
         onRequestClose={() => setShowCompose(false)}
       >
         <View style={[styles.modal, { backgroundColor: colors.background }]}>
-          <View style={[styles.modalHeader, { backgroundColor: colors.card, borderBottomColor: colors.border }]}>
+          <View
+            style={[
+              styles.modalHeader,
+              {
+                backgroundColor: colors.card,
+                borderBottomColor: colors.border,
+              },
+            ]}
+          >
             <TouchableOpacity onPress={() => setShowCompose(false)}>
               <Feather name="x" size={22} color={colors.foreground} />
             </TouchableOpacity>
-            <Text style={[styles.modalTitle, { color: colors.foreground }]}>Rédiger un message</Text>
+            <Text style={[styles.modalTitle, { color: colors.foreground }]}>
+              {t("composeModalTitle")}
+            </Text>
             {sending ? (
               <ActivityIndicator color={colors.primary} size="small" />
             ) : (
@@ -508,12 +802,25 @@ export default function MessagerieInterneScreen() {
             )}
           </View>
 
-          <ScrollView contentContainerStyle={{ padding: 20, gap: 16, paddingBottom: 40 }}>
+          <ScrollView
+            contentContainerStyle={{ padding: 20, gap: 16, paddingBottom: 40 }}
+          >
             {/* Type selector */}
             <View>
-              <Text style={[styles.formLabel, { color: colors.foreground }]}>Type de message *</Text>
-              <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: 8 }}>
-                {(Object.entries(TYPE_CONFIG) as [MessageType, typeof TYPE_CONFIG[MessageType]][]).map(([key, cfg]) => {
+              <Text style={[styles.formLabel, { color: colors.foreground }]}>
+                {t("msgTypeLabel")}
+              </Text>
+              <ScrollView
+                horizontal
+                showsHorizontalScrollIndicator={false}
+                contentContainerStyle={{ gap: 8 }}
+              >
+                {(
+                  Object.entries(TYPE_CONFIG) as [
+                    MessageType,
+                    (typeof TYPE_CONFIG)[MessageType],
+                  ][]
+                ).map(([key, cfg]) => {
                   const active = newType === key;
                   return (
                     <TouchableOpacity
@@ -530,9 +837,18 @@ export default function MessagerieInterneScreen() {
                         Haptics.selectionAsync();
                       }}
                     >
-                      <Feather name={cfg.icon} size={13} color={active ? "#fff" : cfg.color} />
-                      <Text style={[styles.typeChipText, { color: active ? "#fff" : colors.foreground }]}>
-                        {cfg.label}
+                      <Feather
+                        name={cfg.icon}
+                        size={13}
+                        color={active ? "#fff" : cfg.color}
+                      />
+                      <Text
+                        style={[
+                          styles.typeChipText,
+                          { color: active ? "#fff" : colors.foreground },
+                        ]}
+                      >
+                        {typeLabel(key)}
                       </Text>
                     </TouchableOpacity>
                   );
@@ -542,13 +858,27 @@ export default function MessagerieInterneScreen() {
 
             {/* Priority */}
             <View>
-              <Text style={[styles.formLabel, { color: colors.foreground }]}>Priorité</Text>
+              <Text style={[styles.formLabel, { color: colors.foreground }]}>
+                {t("priorityLabel")}
+              </Text>
               <View style={{ flexDirection: "row", gap: 8 }}>
-                {([
-                  { key: "urgent" as const, label: "Urgente", color: "#ef4444" },
-                  { key: "normal" as const, label: "Normale", color: "#3b82f6" },
-                  { key: "low" as const, label: "Faible", color: "#10b981" },
-                ]).map((p) => {
+                {[
+                  {
+                    key: "urgent" as const,
+                    label: t("urgentePriority"),
+                    color: "#ef4444",
+                  },
+                  {
+                    key: "normal" as const,
+                    label: t("normalePriority"),
+                    color: "#3b82f6",
+                  },
+                  {
+                    key: "low" as const,
+                    label: t("faibleePriority"),
+                    color: "#10b981",
+                  },
+                ].map((p) => {
                   const active = newPriority === p.key;
                   return (
                     <TouchableOpacity
@@ -556,7 +886,9 @@ export default function MessagerieInterneScreen() {
                       style={[
                         styles.priorityChip,
                         {
-                          backgroundColor: active ? p.color + "20" : colors.card,
+                          backgroundColor: active
+                            ? p.color + "20"
+                            : colors.card,
                           borderColor: active ? p.color : colors.border,
                         },
                       ]}
@@ -565,7 +897,12 @@ export default function MessagerieInterneScreen() {
                         Haptics.selectionAsync();
                       }}
                     >
-                      <Text style={[styles.priorityChipText, { color: active ? p.color : colors.foreground }]}>
+                      <Text
+                        style={[
+                          styles.priorityChipText,
+                          { color: active ? p.color : colors.foreground },
+                        ]}
+                      >
                         {p.label}
                       </Text>
                     </TouchableOpacity>
@@ -576,24 +913,42 @@ export default function MessagerieInterneScreen() {
 
             {/* Subject */}
             <View>
-              <Text style={[styles.formLabel, { color: colors.foreground }]}>Objet *</Text>
+              <Text style={[styles.formLabel, { color: colors.foreground }]}>
+                {t("subjectLabel")}
+              </Text>
               <TextInput
-                style={[styles.input, { backgroundColor: colors.card, borderColor: colors.border, color: colors.foreground }]}
+                style={[
+                  styles.input,
+                  {
+                    backgroundColor: colors.card,
+                    borderColor: colors.border,
+                    color: colors.foreground,
+                  },
+                ]}
                 value={newSubject}
                 onChangeText={setNewSubject}
-                placeholder="Objet du message"
+                placeholder={t("subjectPlaceholder")}
                 placeholderTextColor={colors.mutedForeground}
               />
             </View>
 
             {/* Body */}
             <View>
-              <Text style={[styles.formLabel, { color: colors.foreground }]}>Corps du message *</Text>
+              <Text style={[styles.formLabel, { color: colors.foreground }]}>
+                {t("bodyLabel")}
+              </Text>
               <TextInput
-                style={[styles.textarea, { backgroundColor: colors.card, borderColor: colors.border, color: colors.foreground }]}
+                style={[
+                  styles.textarea,
+                  {
+                    backgroundColor: colors.card,
+                    borderColor: colors.border,
+                    color: colors.foreground,
+                  },
+                ]}
                 value={newBody}
                 onChangeText={setNewBody}
-                placeholder="Rédigez votre message ici..."
+                placeholder={t("bodyPlaceholder")}
                 placeholderTextColor={colors.mutedForeground}
                 multiline
                 numberOfLines={8}
@@ -602,7 +957,10 @@ export default function MessagerieInterneScreen() {
             </View>
 
             <TouchableOpacity
-              style={[styles.sendBtn, { backgroundColor: sending ? colors.muted : colors.primary }]}
+              style={[
+                styles.sendBtn,
+                { backgroundColor: sending ? colors.muted : colors.primary },
+              ]}
               onPress={handleSend}
               disabled={sending}
               activeOpacity={0.85}
@@ -612,7 +970,9 @@ export default function MessagerieInterneScreen() {
               ) : (
                 <>
                   <Feather name="send" size={16} color="#fff" />
-                  <Text style={styles.sendBtnText}>Envoyer le message</Text>
+                  <Text style={styles.sendBtnText}>
+                    {t("sendMessageLabel")}
+                  </Text>
                 </>
               )}
             </TouchableOpacity>
@@ -646,8 +1006,16 @@ const styles = StyleSheet.create({
     paddingVertical: 8,
     borderRadius: 20,
   },
-  composeBtnText: { fontSize: 12, fontFamily: "Inter_600SemiBold", color: "#fff" },
-  searchRow: { paddingHorizontal: 16, paddingVertical: 10, borderBottomWidth: 1 },
+  composeBtnText: {
+    fontSize: 12,
+    fontFamily: "Inter_600SemiBold",
+    color: "#fff",
+  },
+  searchRow: {
+    paddingHorizontal: 16,
+    paddingVertical: 10,
+    borderBottomWidth: 1,
+  },
   searchBox: {
     flexDirection: "row",
     alignItems: "center",
@@ -676,7 +1044,13 @@ const styles = StyleSheet.create({
     borderRadius: 14,
     borderWidth: 1,
   },
-  msgTypeIcon: { width: 44, height: 44, borderRadius: 13, alignItems: "center", justifyContent: "center" },
+  msgTypeIcon: {
+    width: 44,
+    height: 44,
+    borderRadius: 13,
+    alignItems: "center",
+    justifyContent: "center",
+  },
   msgTopRow: { flexDirection: "row", alignItems: "center", gap: 8 },
   msgFrom: { flex: 1, fontSize: 12, fontFamily: "Inter_600SemiBold" },
   msgDate: { fontSize: 10, fontFamily: "Inter_400Regular" },
@@ -721,19 +1095,34 @@ const styles = StyleSheet.create({
     padding: 20,
     borderBottomWidth: 1,
   },
-  modalTitle: { fontSize: 17, fontFamily: "Inter_700Bold", flex: 1, textAlign: "center" },
+  modalTitle: {
+    fontSize: 17,
+    fontFamily: "Inter_700Bold",
+    flex: 1,
+    textAlign: "center",
+  },
   detailSubject: { fontSize: 17, fontFamily: "Inter_700Bold", lineHeight: 24 },
   detailMetaCard: {
     borderWidth: 1,
     borderRadius: 14,
     overflow: "hidden",
   },
-  metaRow: { flexDirection: "row", alignItems: "flex-start", paddingHorizontal: 14, paddingVertical: 10, gap: 8 },
+  metaRow: {
+    flexDirection: "row",
+    alignItems: "flex-start",
+    paddingHorizontal: 14,
+    paddingVertical: 10,
+    gap: 8,
+  },
   metaLabel: { fontSize: 12, fontFamily: "Inter_600SemiBold", width: 36 },
   metaValue: { flex: 1, fontSize: 13, fontFamily: "Inter_400Regular" },
   sep: { height: 1 },
   badgesRow: { flexDirection: "row", flexWrap: "wrap", gap: 8 },
-  priorityBadge: { paddingHorizontal: 10, paddingVertical: 4, borderRadius: 10 },
+  priorityBadge: {
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+    borderRadius: 10,
+  },
   priorityText: { fontSize: 11, fontFamily: "Inter_600SemiBold" },
   bodyCard: {
     borderWidth: 1,

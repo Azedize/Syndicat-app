@@ -398,7 +398,7 @@ function ElectionsScreenInner() {
     } as any);
   };
 
-  const handleDateError = () => showToast({ type: "error", title: t("elections"), message: "Format de date invalide (AAAA-MM-JJ)" });
+  const handleDateError = () => showToast({ type: "error", title: t("elections"), message: t("invalidDateFormat") });
 
   if (isLoading) {
     return (
@@ -753,8 +753,8 @@ function ElectionsScreenInner() {
                 <Text style={{ color: colors.primary, fontSize: 12, fontWeight: "600" }}>{candPhoto ? t("changePhoto") : t("uploadPhoto")}</Text>
               </TouchableOpacity>
 
-              <Text style={[styles.fieldLabel, { color: colors.mutedForeground, marginTop: 12 }]}>Bio</Text>
-              <TextInput style={[styles.input, styles.textarea, { color: colors.foreground, borderColor: colors.border }]} value={candBio} onChangeText={setCandBio} multiline numberOfLines={3} placeholder="Bio" placeholderTextColor={colors.mutedForeground} />
+              <Text style={[styles.fieldLabel, { color: colors.mutedForeground, marginTop: 12 }]}>{t("candidateBio")}</Text>
+              <TextInput style={[styles.input, styles.textarea, { color: colors.foreground, borderColor: colors.border }]} value={candBio} onChangeText={setCandBio} multiline numberOfLines={3} placeholder={t("candidateBio")} placeholderTextColor={colors.mutedForeground} />
               <Text style={[styles.fieldLabel, { color: colors.mutedForeground, marginTop: 12 }]}>{t("motivationLetter")} *</Text>
               <TextInput style={[styles.input, styles.textarea, { color: colors.foreground, borderColor: colors.border }]} value={candMotivation} onChangeText={setCandMotivation} multiline numberOfLines={4} placeholderTextColor={colors.mutedForeground} />
               <Text style={[styles.fieldLabel, { color: colors.mutedForeground, marginTop: 12 }]}>{t("candidateProgram")} *</Text>
@@ -839,14 +839,14 @@ function ElectionsScreenInner() {
 
               <Text style={[styles.fieldLabel, { color: colors.mutedForeground, marginTop: 12 }]}>{t("candidacyPeriod")} *</Text>
               <View style={styles.rowFields}>
-                <TextInput style={[styles.input, { flex: 1, color: colors.foreground, borderColor: colors.border }]} value={candStart} onChangeText={setCandStart} placeholder="AAAA-MM-JJ" placeholderTextColor={colors.mutedForeground} />
-                <TextInput style={[styles.input, { flex: 1, color: colors.foreground, borderColor: colors.border }]} value={candEnd} onChangeText={setCandEnd} placeholder="AAAA-MM-JJ" placeholderTextColor={colors.mutedForeground} />
+                <TextInput style={[styles.input, { flex: 1, color: colors.foreground, borderColor: colors.border }]} value={candStart} onChangeText={setCandStart} placeholder={t("dateFormatPlaceholder")} placeholderTextColor={colors.mutedForeground} />
+                <TextInput style={[styles.input, { flex: 1, color: colors.foreground, borderColor: colors.border }]} value={candEnd} onChangeText={setCandEnd} placeholder={t("dateFormatPlaceholder")} placeholderTextColor={colors.mutedForeground} />
               </View>
 
               <Text style={[styles.fieldLabel, { color: colors.mutedForeground, marginTop: 12 }]}>{t("votingPeriod")} *</Text>
               <View style={styles.rowFields}>
-                <TextInput style={[styles.input, { flex: 1, color: colors.foreground, borderColor: colors.border }]} value={newStart} onChangeText={setNewStart} placeholder="AAAA-MM-JJ" placeholderTextColor={colors.mutedForeground} />
-                <TextInput style={[styles.input, { flex: 1, color: colors.foreground, borderColor: colors.border }]} value={newEnd} onChangeText={setNewEnd} placeholder="AAAA-MM-JJ" placeholderTextColor={colors.mutedForeground} />
+                <TextInput style={[styles.input, { flex: 1, color: colors.foreground, borderColor: colors.border }]} value={newStart} onChangeText={setNewStart} placeholder={t("dateFormatPlaceholder")} placeholderTextColor={colors.mutedForeground} />
+                <TextInput style={[styles.input, { flex: 1, color: colors.foreground, borderColor: colors.border }]} value={newEnd} onChangeText={setNewEnd} placeholder={t("dateFormatPlaceholder")} placeholderTextColor={colors.mutedForeground} />
               </View>
 
               <TouchableOpacity style={styles.toggleRow} onPress={() => setNewTenantsVote((p) => !p)}>

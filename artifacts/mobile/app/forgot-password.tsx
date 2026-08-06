@@ -16,10 +16,12 @@ import {
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { auth as authApi } from "@/services/api";
 import { useColors } from "@/hooks/useColors";
+import { useLanguage } from "@/context/LanguageContext";
 
 export default function ForgotPasswordScreen() {
   const colors = useColors();
   const insets = useSafeAreaInsets();
+  const { t } = useLanguage();
 
   const [email, setEmail] = useState("");
   const [loading, setLoading] = useState(false);
@@ -29,12 +31,12 @@ export default function ForgotPasswordScreen() {
   const handleSubmit = async () => {
     const trimmed = email.trim().toLowerCase();
     if (!trimmed) {
-      setError("Veuillez saisir votre adresse email.");
+      setError(t("emailRequiredFP"));
       return;
     }
     const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
     if (!emailRegex.test(trimmed)) {
-      setError("Adresse email invalide.");
+      setError(t("emailInvalid"));
       return;
     }
 
@@ -80,16 +82,16 @@ export default function ForgotPasswordScreen() {
             <View style={[styles.iconWrap, { backgroundColor: colors.primary + "18" }]}>
               <Feather name="lock" size={32} color={colors.primary} />
             </View>
-            <Text style={[styles.title, { color: colors.foreground }]}>Mot de passe oublié</Text>
+            <Text style={[styles.title, { color: colors.foreground }]}>{t("forgotPasswordTitle")}</Text>
             <Text style={[styles.subtitle, { color: colors.mutedForeground }]}>
-              Saisissez votre email et nous vous enverrons un lien de réinitialisation.
+              {t("forgotPasswordSubtitle")}
             </Text>
           </View>
 
           {!sent ? (
             <View style={[styles.card, { backgroundColor: colors.card, borderColor: colors.border }]}>
               <View style={styles.inputGroup}>
-                <Text style={[styles.label, { color: colors.foreground }]}>Adresse email</Text>
+                <Text style={[styles.label, { color: colors.foreground }]}>{t("emailAddress")}</Text>
                 <View
                   style={[
                     styles.inputWrap,
@@ -105,7 +107,7 @@ export default function ForgotPasswordScreen() {
                     autoCapitalize="none"
                     autoCorrect={false}
                     autoComplete="email"
-                    placeholder="votre@email.com"
+                    placeholder={t("emailPlaceholder")}
                     placeholderTextColor={colors.mutedForeground}
                     returnKeyType="send"
                     onSubmitEditing={handleSubmit}
@@ -134,7 +136,7 @@ export default function ForgotPasswordScreen() {
                 ) : (
                   <>
                     <Feather name="send" size={16} color="#fff" />
-                    <Text style={styles.submitBtnText}>Envoyer le lien</Text>
+                    <Text style={styles.submitBtnText}>{t("sendLink")}</Text>
                   </>
                 )}
               </TouchableOpacity>
@@ -144,8 +146,8 @@ export default function ForgotPasswordScreen() {
                 onPress={() => router.push("/reset-password")}
               >
                 <Text style={[styles.secondaryText, { color: colors.mutedForeground }]}>
-                  Vous avez déjà un code ?{" "}
-                  <Text style={{ color: colors.primary }}>Réinitialiser avec le code</Text>
+                  {t("haveCode")}
+                  <Text style={{ color: colors.primary }}>{t("resetWithCode")}</Text>
                 </Text>
               </TouchableOpacity>
             </View>
@@ -154,12 +156,12 @@ export default function ForgotPasswordScreen() {
               <View style={[styles.successIcon, { backgroundColor: "#10b98118" }]}>
                 <Feather name="check-circle" size={40} color="#10b981" />
               </View>
-              <Text style={[styles.successTitle, { color: colors.foreground }]}>Email envoyé !</Text>
+              <Text style={[styles.successTitle, { color: colors.foreground }]}>{t("emailSentTitle")}</Text>
               <Text style={[styles.successText, { color: colors.mutedForeground }]}>
-                Si l'adresse {email} est associée à un compte VERIDIAN, vous recevrez un email avec un lien de réinitialisation dans quelques minutes.
+                {t("emailSentMsg").replace("{email}", email)}
               </Text>
               <Text style={[styles.successHint, { color: colors.mutedForeground }]}>
-                Vérifiez aussi vos spams.
+                {t("checkSpam")}
               </Text>
 
               <TouchableOpacity
@@ -167,7 +169,7 @@ export default function ForgotPasswordScreen() {
                 onPress={() => router.push("/reset-password")}
               >
                 <Feather name="key" size={16} color="#fff" />
-                <Text style={styles.submitBtnText}>Saisir mon code de réinitialisation</Text>
+                <Text style={styles.submitBtnText}>{t("enterResetCode")}</Text>
               </TouchableOpacity>
 
               <TouchableOpacity
@@ -175,7 +177,7 @@ export default function ForgotPasswordScreen() {
                 onPress={() => router.back()}
               >
                 <Feather name="arrow-left" size={16} color={colors.foreground} />
-                <Text style={[styles.submitBtnText, { color: colors.foreground }]}>Retour à la connexion</Text>
+                <Text style={[styles.submitBtnText, { color: colors.foreground }]}>{t("backToLogin")}</Text>
               </TouchableOpacity>
             </View>
           )}

@@ -280,13 +280,13 @@ export default function AbonnementsScreen() {
 
   const TABS: { key: TabType; label: string; icon: keyof typeof Feather.glyphMap }[] = isSuper
     ? [
-        { key: "syndicats", label: "Syndicats", icon: "layers" },
-        { key: "plans", label: "Plans", icon: "star" },
-        { key: "facturation", label: "Facturation", icon: "file-text" },
+        { key: "syndicats", label: t("subscriptionSyndicates"), icon: "layers" },
+        { key: "plans", label: t("subscriptionPlans"), icon: "star" },
+        { key: "facturation", label: t("subscriptionBilling"), icon: "file-text" },
       ]
     : [
-        { key: "plans", label: "Plans", icon: "star" },
-        { key: "facturation", label: "Factures", icon: "file-text" },
+        { key: "plans", label: t("subscriptionPlans"), icon: "star" },
+        { key: "facturation", label: t("subscriptionInvoices"), icon: "file-text" },
       ];
 
   const activeCount = allSubs.filter((s) => ["active", "trial"].includes(s.effectiveStatus)).length;
@@ -304,10 +304,10 @@ export default function AbonnementsScreen() {
           <Feather name="arrow-left" size={22} color={colors.foreground} />
         </TouchableOpacity>
         <View style={{ flex: 1 }}>
-          <Text style={[styles.title, { color: colors.foreground }]}>Abonnements</Text>
+          <Text style={[styles.title, { color: colors.foreground }]}>{t("abonnements")}</Text>
           {isSuper && (
             <Text style={[styles.subtitle, { color: colors.mutedForeground }]}>
-              {allSubs.length} syndicats · {activeCount} actifs
+              {allSubs.length} {t("subscriptionSyndicates")} · {activeCount} {t("subscriptionActiveCount")}
             </Text>
           )}
         </View>
@@ -347,11 +347,11 @@ export default function AbonnementsScreen() {
           <>
             {/* KPI strip */}
             <View style={[styles.kpiStrip, { backgroundColor: colors.card, borderColor: colors.border }]}>
-              {[
-                { label: "Total", value: allSubs.length.toString(), icon: "layers" as const, color: colors.primary },
-                { label: "Actifs", value: activeCount.toString(), icon: "check-circle" as const, color: "#10b981" },
-                { label: "Essais", value: trialCount.toString(), icon: "gift" as const, color: "#3b82f6" },
-                { label: "Expirés", value: expiredCount.toString(), icon: "alert-circle" as const, color: "#ef4444" },
+             {[
+                 { label: t("subscriptionTotal"), value: allSubs.length.toString(), icon: "layers" as const, color: colors.primary },
+                 { label: t("subscriptionActiveCount"), value: activeCount.toString(), icon: "check-circle" as const, color: "#10b981" },
+                 { label: t("subscriptionTrialCount"), value: trialCount.toString(), icon: "gift" as const, color: "#3b82f6" },
+                 { label: t("subscriptionExpiredCount"), value: expiredCount.toString(), icon: "alert-circle" as const, color: "#ef4444" },
                 { label: "MRR", value: `${(mrr / 1000).toFixed(0)}k`, icon: "dollar-sign" as const, color: "#f59e0b" },
               ].map((k, i, arr) => (
                 <View key={k.label} style={[styles.kpiCell, i < arr.length - 1 ? { borderRightWidth: 1, borderRightColor: colors.border } : null]}>
@@ -368,8 +368,8 @@ export default function AbonnementsScreen() {
             {allSubs.length === 0 ? (
               <View style={styles.empty}>
                 <Feather name="inbox" size={32} color={colors.mutedForeground} />
-                <Text style={[styles.emptyTitle, { color: colors.foreground }]}>Aucun abonnement</Text>
-                <Text style={[styles.emptyText, { color: colors.mutedForeground }]}>Les syndicats créés reçoivent automatiquement un essai gratuit.</Text>
+                <Text style={[styles.emptyTitle, { color: colors.foreground }]}>{t("subscriptionNoneEmpty")}</Text>
+                <Text style={[styles.emptyText, { color: colors.mutedForeground }]}>{t("subscriptionEmptyDescription")}</Text>
               </View>
             ) : allSubs.map((sub) => {
               const st = STATUS_CFG[sub.effectiveStatus] ?? STATUS_CFG.active;
@@ -393,7 +393,7 @@ export default function AbonnementsScreen() {
                         {sub.daysRemaining !== null && sub.daysRemaining <= 7 && !sub.isExpired && (
                           <View style={[styles.chip, { backgroundColor: "#f59e0b18" }]}>
                             <Feather name="clock" size={10} color="#f59e0b" />
-                            <Text style={[styles.chipText, { color: "#f59e0b" }]}>{sub.daysRemaining}j</Text>
+                            <Text style={[styles.chipText, { color: "#f59e0b" }]}>{sub.daysRemaining}{t("subscriptionDaysShort")}</Text>
                           </View>
                         )}
                       </View>
@@ -402,10 +402,10 @@ export default function AbonnementsScreen() {
                       {sub.planPrice != null && Number(sub.planPrice) > 0 ? (
                         <>
                           <Text style={[styles.subAmt, { color: colors.foreground }]}>{fmt(sub.planPrice)}</Text>
-                          <Text style={[styles.subAmtUnit, { color: colors.mutedForeground }]}>MAD/mois</Text>
+                          <Text style={[styles.subAmtUnit, { color: colors.mutedForeground }]}>{t("subscriptionMonth")}</Text>
                         </>
                       ) : (
-                        <Text style={[styles.subAmtUnit, { color: colors.mutedForeground }]}>Gratuit</Text>
+                        <Text style={[styles.subAmtUnit, { color: colors.mutedForeground }]}>{t("subscriptionFree")}</Text>
                       )}
                     </View>
                   </View>
@@ -413,7 +413,7 @@ export default function AbonnementsScreen() {
                     <View style={styles.subExpiry}>
                       <Feather name="calendar" size={11} color={colors.mutedForeground} />
                       <Text style={[styles.subExpiryText, { color: colors.mutedForeground }]}>
-                        {sub.isExpired ? "Expiré le" : "Expire le"}: {fmtDate(sub.expiryDate)}
+                        {sub.isExpired ? t("subscriptionExpiredOn") : t("subscriptionExpiry")}: {fmtDate(sub.expiryDate)}
                       </Text>
                     </View>
                   )}
@@ -421,7 +421,7 @@ export default function AbonnementsScreen() {
                     <View style={{ flexDirection: "row", alignItems: "center", gap: 4 }}>
                       <Feather name="refresh-cw" size={11} color={sub.autoRenew ? "#10b981" : colors.mutedForeground} />
                       <Text style={[styles.subInfoText, { color: sub.autoRenew ? "#10b981" : colors.mutedForeground }]}>
-                        {sub.autoRenew ? "Renouvellement auto" : "Renouvellement manuel"}
+                         {sub.autoRenew ? t("subscriptionAutoRenew") : t("subscriptionManualRenew")}
                       </Text>
                     </View>
                     <TouchableOpacity
@@ -429,7 +429,7 @@ export default function AbonnementsScreen() {
                       onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); setManageModal(sub); setSelectedPlanId(sub.planId ?? ""); }}
                     >
                       <Feather name="edit-2" size={12} color={colors.primary} />
-                      <Text style={[styles.manageBtnText, { color: colors.primary }]}>Gérer</Text>
+                      <Text style={[styles.manageBtnText, { color: colors.primary }]}>{t("subscriptionManage")}</Text>
                     </TouchableOpacity>
                   </View>
                 </View>
@@ -449,7 +449,7 @@ export default function AbonnementsScreen() {
             {/* Billing interval toggle */}
             {isAdmin && (
               <View style={[styles.intervalToggle, { backgroundColor: colors.card, borderColor: colors.border }]}>
-                <Text style={[styles.intervalLabel, { color: colors.mutedForeground }]}>Facturation :</Text>
+                <Text style={[styles.intervalLabel, { color: colors.mutedForeground }]}>{t("subscriptionBillingLabel")}</Text>
                 {(["monthly", "yearly"] as const).map((iv) => (
                   <TouchableOpacity
                     key={iv}
@@ -457,7 +457,7 @@ export default function AbonnementsScreen() {
                     onPress={() => setBillingInterval(iv)}
                   >
                     <Text style={[styles.intervalBtnText, { color: billingInterval === iv ? "#fff" : colors.mutedForeground }]}>
-                      {iv === "monthly" ? "Mensuel" : "Annuel (−15%)"}
+                      {iv === "monthly" ? t("subscriptionMonthly") : t("subscriptionYearly")}
                     </Text>
                   </TouchableOpacity>
                 ))}
@@ -467,7 +467,7 @@ export default function AbonnementsScreen() {
             {plans.length === 0 ? (
               <View style={styles.empty}>
                 <Feather name="package" size={32} color={colors.mutedForeground} />
-                <Text style={[styles.emptyTitle, { color: colors.foreground }]}>Aucun plan disponible</Text>
+                <Text style={[styles.emptyTitle, { color: colors.foreground }]}>{t("subscriptionNoPlans")}</Text>
               </View>
             ) : plans.map((plan, idx) => {
               const features = parseFeaturesArr(plan.features);
@@ -486,7 +486,7 @@ export default function AbonnementsScreen() {
                   {isCurrent && (
                     <View style={[styles.currentBadge, { backgroundColor: "#10b981" }]}>
                       <Feather name="check" size={10} color="#fff" />
-                      <Text style={styles.currentBadgeText}>Plan actuel</Text>
+                       <Text style={styles.currentBadgeText}>{t("subscriptionCurrentPlan")}</Text>
                     </View>
                   )}
 
@@ -502,11 +502,11 @@ export default function AbonnementsScreen() {
                     </View>
                     <View style={{ alignItems: "flex-end" }}>
                       {isEnterprise ? (
-                        <Text style={[styles.planPrice, { color: pc }]}>Sur devis</Text>
+                         <Text style={[styles.planPrice, { color: pc }]}>{t("subscriptionQuote")}</Text>
                       ) : (
                         <>
                           <Text style={[styles.planPrice, { color: pc }]}>{fmt(price)}</Text>
-                          <Text style={[styles.planPriceUnit, { color: colors.mutedForeground }]}>{priceLabel}</Text>
+                           <Text style={[styles.planPriceUnit, { color: colors.mutedForeground }]}>{billingInterval === "yearly" ? t("subscriptionYearly") : t("subscriptionMonth")}</Text>
                         </>
                       )}
                     </View>
@@ -552,18 +552,21 @@ export default function AbonnementsScreen() {
                         }
                         Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
                         Alert.alert(
-                          "Changer de plan",
-                          `Passer au plan "${plan.name}" (${fmt(price)} ${priceLabel}) ?`,
+                           t("subscriptionChangePlan"),
+                           t("subscriptionChangePlanConfirm")
+                             .replace("{plan}", plan.name)
+                             .replace("{price}", fmt(price))
+                             .replace("{interval}", billingInterval === "yearly" ? t("subscriptionYearly") : t("subscriptionMonth")),
                           [
-                            { text: "Annuler", style: "cancel" },
-                            { text: "Confirmer", onPress: () => handleSubscribe(plan.id) },
+                             { text: t("subscriptionCancel"), style: "cancel" },
+                             { text: t("subscriptionConfirm"), onPress: () => handleSubscribe(plan.id) },
                           ]
                         );
                       }}
                       disabled={saving}
                     >
                       <Text style={[styles.upgradeBtnText, { color: isEnterprise ? pc : "#fff" }]}>
-                        {isEnterprise ? "Contacter l'équipe commerciale" : "Choisir ce plan"}
+                         {isEnterprise ? t("subscriptionContactSales") : t("subscriptionChoosePlan")}
                       </Text>
                       {!isEnterprise && <Feather name="arrow-right" size={13} color="#fff" />}
                     </TouchableOpacity>
@@ -580,8 +583,8 @@ export default function AbonnementsScreen() {
             {invoices.length === 0 && !isSuper ? (
               <View style={styles.empty}>
                 <Feather name="file-text" size={32} color={colors.mutedForeground} />
-                <Text style={[styles.emptyTitle, { color: colors.foreground }]}>Aucune facture</Text>
-                <Text style={[styles.emptyText, { color: colors.mutedForeground }]}>Vos factures apparaîtront ici après activation d'un plan.</Text>
+                <Text style={[styles.emptyTitle, { color: colors.foreground }]}>{t("subscriptionNoInvoices")}</Text>
+                <Text style={[styles.emptyText, { color: colors.mutedForeground }]}>{t("subscriptionNoInvoicesDescription")}</Text>
               </View>
             ) : invoices.map((inv) => {
               const stCfg = INVOICE_STATUS_CFG[inv.status] ?? { color: "#6b7280" };
@@ -590,10 +593,10 @@ export default function AbonnementsScreen() {
                   <View style={styles.invoiceRow}>
                     <View style={{ flex: 1, gap: 3 }}>
                       <Text style={[styles.invoiceDesc, { color: colors.foreground }]} numberOfLines={2}>
-                        {inv.description ?? "Abonnement"}
+                         {inv.description ?? t("subscriptionInvoiceDescription")}
                       </Text>
                       <Text style={[styles.invoiceDate, { color: colors.mutedForeground }]}>
-                        {inv.paidAt ? `Payée le ${fmtDate(inv.paidAt)}` : inv.dueDate ? `Échéance: ${fmtDate(inv.dueDate)}` : fmtDate(inv.createdAt)}
+                         {inv.paidAt ? `${t("subscriptionInvoicePaidOn")} ${fmtDate(inv.paidAt)}` : inv.dueDate ? `${t("subscriptionInvoiceDue")} ${fmtDate(inv.dueDate)}` : fmtDate(inv.createdAt)}
                       </Text>
                     </View>
                     <View style={{ alignItems: "flex-end", gap: 4 }}>
@@ -610,7 +613,7 @@ export default function AbonnementsScreen() {
                       disabled={saving}
                     >
                       <Feather name="check-circle" size={13} color="#10b981" />
-                      <Text style={[styles.payBtnText, { color: "#10b981" }]}>Marquer comme payée</Text>
+                      <Text style={[styles.payBtnText, { color: "#10b981" }]}>{t("subscriptionMarkPaid")}</Text>
                     </TouchableOpacity>
                   )}
                 </View>
@@ -620,7 +623,7 @@ export default function AbonnementsScreen() {
               <View style={[styles.infoBox, { backgroundColor: colors.card, borderColor: colors.border }]}>
                 <Feather name="info" size={14} color={colors.mutedForeground} />
                 <Text style={[styles.infoBoxText, { color: colors.mutedForeground }]}>
-                  Les factures sont générées automatiquement lors de l'activation ou du renouvellement d'un abonnement.
+                   {t("subscriptionInvoicesAutoGenerated")}
                 </Text>
               </View>
             )}
@@ -632,7 +635,7 @@ export default function AbonnementsScreen() {
           <View style={[styles.infoBox, { backgroundColor: colors.card, borderColor: colors.border }]}>
             <Feather name="info" size={14} color={colors.mutedForeground} />
             <Text style={[styles.infoBoxText, { color: colors.mutedForeground }]}>
-              {plans.length} plans actifs configurés. Contactez l'équipe technique pour modifier les plans tarifaires.
+               {t("subscriptionPlansConfigured").replace("{count}", String(plans.length))}
             </Text>
           </View>
         )}
@@ -643,7 +646,7 @@ export default function AbonnementsScreen() {
         <View style={styles.overlay}>
           <View style={[styles.sheet, { backgroundColor: colors.card }]}>
             <View style={styles.sheetHandle} />
-            <Text style={[styles.sheetTitle, { color: colors.foreground }]}>Gérer l'abonnement</Text>
+             <Text style={[styles.sheetTitle, { color: colors.foreground }]}>{t("subscriptionManageTitle")}</Text>
             {manageModal && (
               <Text style={[styles.sheetSub, { color: colors.mutedForeground }]}>{manageModal.syndicateName ?? manageModal.syndicateId}</Text>
             )}
@@ -651,7 +654,7 @@ export default function AbonnementsScreen() {
             <View style={[styles.divider, { backgroundColor: colors.border, marginVertical: 12 }]} />
 
             {/* Plan selector */}
-            <Text style={[styles.sectionLabel, { color: colors.mutedForeground }]}>Changer de plan</Text>
+             <Text style={[styles.sectionLabel, { color: colors.mutedForeground }]}>{t("subscriptionChangePlan")}</Text>
             <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ marginBottom: 12 }} contentContainerStyle={{ gap: 8, paddingVertical: 4 }}>
               {plans.map((p) => {
                 const pc = p.color ?? colors.primary;
@@ -663,7 +666,7 @@ export default function AbonnementsScreen() {
                     onPress={() => setSelectedPlanId(p.id)}
                   >
                     <Text style={[styles.planChipBtnText, { color: sel ? pc : colors.foreground }]}>{p.name}</Text>
-                    <Text style={[styles.planChipBtnPrice, { color: sel ? pc : colors.mutedForeground }]}>{fmt(p.price)} MAD/mois</Text>
+                     <Text style={[styles.planChipBtnPrice, { color: sel ? pc : colors.mutedForeground }]}>{fmt(p.price)} {t("subscriptionMonth")}</Text>
                   </TouchableOpacity>
                 );
               })}
@@ -673,15 +676,15 @@ export default function AbonnementsScreen() {
               <TouchableOpacity
                 style={[styles.confirmBtn, { backgroundColor: colors.primary }]}
                 onPress={() => {
-                  Alert.alert("Confirmer", `Changer vers ce plan ?`, [
-                    { text: "Annuler", style: "cancel" },
-                    { text: "Confirmer", onPress: () => handleSubscribe(selectedPlanId) },
+                   Alert.alert(t("subscriptionConfirm"), t("subscriptionChangePlan"), [
+                     { text: t("subscriptionCancel"), style: "cancel" },
+                     { text: t("subscriptionConfirm"), onPress: () => handleSubscribe(selectedPlanId) },
                   ]);
                 }}
                 disabled={saving}
               >
                 {saving ? <ActivityIndicator color="#fff" size="small" /> : (
-                  <Text style={styles.confirmBtnText}>Appliquer le changement</Text>
+                   <Text style={styles.confirmBtnText}>{t("subscriptionApplyChange")}</Text>
                 )}
               </TouchableOpacity>
             )}
@@ -689,21 +692,21 @@ export default function AbonnementsScreen() {
             <View style={[styles.divider, { backgroundColor: colors.border, marginVertical: 12 }]} />
 
             {/* Status actions */}
-            <Text style={[styles.sectionLabel, { color: colors.mutedForeground }]}>Actions</Text>
+             <Text style={[styles.sectionLabel, { color: colors.mutedForeground }]}>{t("subscriptionActions")}</Text>
             <View style={{ gap: 8 }}>
               {[
-                { label: "Suspendre", status: "suspended", color: "#ef4444", icon: "pause-circle" as const },
-                { label: "Réactiver", status: "active", color: "#10b981", icon: "play-circle" as const },
-                { label: "Annuler", status: "cancelled", color: "#6b7280", icon: "x-circle" as const },
+                 { label: t("subscriptionSuspend"), status: "suspended", color: "#ef4444", icon: "pause-circle" as const },
+                 { label: t("subscriptionReactivate"), status: "active", color: "#10b981", icon: "play-circle" as const },
+                 { label: t("subscriptionCancelledAction"), status: "cancelled", color: "#6b7280", icon: "x-circle" as const },
               ].map((a) => (
                 <TouchableOpacity
                   key={a.status}
                   style={[styles.actionBtn, { borderColor: a.color + "40", backgroundColor: a.color + "10" }]}
                   onPress={() => {
                     if (!manageModal) return;
-                    Alert.alert(a.label, `${a.label} l'abonnement de ${manageModal.syndicateName} ?`, [
-                      { text: "Annuler", style: "cancel" },
-                      { text: "Confirmer", style: a.status === "cancelled" ? "destructive" : "default",
+                     Alert.alert(a.label, t("subscriptionActionConfirm").replace("{action}", a.label).replace("{syndicate}", manageModal.syndicateName ?? manageModal.syndicateId), [
+                       { text: t("subscriptionCancel"), style: "cancel" },
+                       { text: t("subscriptionConfirm"), style: a.status === "cancelled" ? "destructive" : "default",
                         onPress: () => handleUpdateSub(manageModal.id, { status: a.status }) },
                     ]);
                   }}
@@ -719,7 +722,7 @@ export default function AbonnementsScreen() {
               style={[styles.cancelSheetBtn, { borderColor: colors.border }]}
               onPress={() => setManageModal(null)}
             >
-              <Text style={[styles.cancelSheetText, { color: colors.mutedForeground }]}>Fermer</Text>
+               <Text style={[styles.cancelSheetText, { color: colors.mutedForeground }]}>{t("close")}</Text>
             </TouchableOpacity>
           </View>
         </View>

@@ -53,3 +53,7 @@
 - Restarted `artifacts/mobile: expo`; Metro bundled successfully. Mobile Expo preview screenshot for `/buildings` at 402×874 remained protected as expected without a session, with no new browser errors.
 - `pnpm --filter @workspace/mobile run typecheck` — passed after the governance localization pass and subscription status-chip correction.
 - `git diff --check -- artifacts/mobile/app/governance.tsx artifacts/mobile/app/abonnements.tsx artifacts/mobile/context/LanguageContext.tsx` — passed.
+- `pnpm --filter @workspace/mobile run typecheck` — passed after the Internal Messaging localization and recovery pass.
+- `pnpm exec prettier --write artifacts/mobile/app/messagerie-interne.tsx artifacts/mobile/context/LanguageContext.tsx` followed by typecheck — passed.
+- `git diff --check -- artifacts/mobile/app/messagerie-interne.tsx artifacts/mobile/context/LanguageContext.tsx` — passed.
+- Mobile Expo preview screenshot for `/messagerie-interne` at 402×874 — protected route redirected to sign-in without a session; API 401 was expected authorization behavior and no new browser errors appeared beyond existing Expo web compatibility warnings.

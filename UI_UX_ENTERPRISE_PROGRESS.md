@@ -30,3 +30,5 @@
 - Financial Dashboard now distinguishes loading, unavailable, no-accessible-building, and selected-building failure states with localized recovery actions; all major finance, works, provider, and KPI labels follow the active language.
 - Buildings & Residences now provides a four-language administration experience with localized overview metrics, search/filter/sort controls, building metadata, empty states, and retryable API recovery.
 - Governance now provides a unified multilingual experience across board management, commissions, mandates, delegations, statutes, detail modals, confirmations, and creation forms.
+- Internal Messaging now provides a unified multilingual experience across official communications, tabs, search, detail metadata, acknowledgment prompts, reply/compose actions, and form feedback.
+- Internal Messaging now distinguishes loading, unavailable data, genuine empty folders, and searches with no matches, with a clear recovery action for each state.
