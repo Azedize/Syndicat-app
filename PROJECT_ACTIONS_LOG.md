@@ -90,3 +90,9 @@
 - Replaced raw profile/avatar/password mutation errors with safe localized recovery messages while preserving existing API persistence and protected behavior.
 - Audited `artifacts/mobile/app/template-editor.tsx`; localized category, data-source, section-type, role, tab, and slug metadata while keeping the local document-template editor dictionary and Super Admin guard intact.
 - Removed the duplicated `preamble` field from `artifacts/api-server/src/routes/documents.ts` after the API build warning identified the repeated schema key.
+- Audited `artifacts/mobile/app/(tabs)/index.tsx`; added a visible synchronization state and retry path backed by the existing `DataContext` API fan-out.
+- Added locale-aware home-dashboard MAD and date formatting for French, English, Arabic, and Spanish, plus direction styling for Arabic while preserving role-specific quick actions and metrics.
+- Extended `DataContext` with a refreshable global load state; independent endpoint failures remain non-fatal unless every dashboard dependency fails, so partial real data is retained.
+- Audited `artifacts/mobile/app/template-studio.tsx`; localized remaining visible metadata, header/action confirmation copy, request review labels, request statuses, and safe recovery feedback through the shared runtime language system.
+- Audited `artifacts/mobile/app/template-request.tsx`; localized categories, priorities, statuses, form/detail labels, placeholders, validation, submission feedback, date formatting, and empty/loading/error states without changing request APIs or role protection.
+- Reused shared `LoadingState` and `ErrorState` recovery patterns so template request failures no longer collapse into a blank or toast-only surface.

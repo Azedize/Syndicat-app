@@ -23,6 +23,7 @@ import {
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useTheme } from "@/context/ThemeContext";
+import { useLanguage } from "@/context/LanguageContext";
 import { apiRequest } from "@/lib/api";
 
 const CODE_LENGTH     = 6;
@@ -32,6 +33,7 @@ const EXPIRE_SECONDS  = 600;
 export default function SmsVerifyScreen() {
   const insets = useSafeAreaInsets();
   const { isDark } = useTheme();
+  const { t, isRTL } = useLanguage();
   const params = useLocalSearchParams<{ phone?: string; redirect?: string }>();
 
   const phone    = decodeURIComponent(params.phone ?? "");
@@ -92,13 +94,13 @@ export default function SmsVerifyScreen() {
     try {
       await apiRequest("/auth/sms/send", "POST", { phone });
       setSendStatus("success");
-      setSendMsg(`Code SMS envoyé au ${phone}`);
+       setSendMsg(`${t("smsCodeSentTo")} ${phone}`);
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
       // Auto-clear success banner after 3s
       setTimeout(() => setSendStatus("idle"), 3000);
     } catch (err: any) {
       setSendStatus("error");
-      setSendMsg(err?.message ?? "Impossible d'envoyer le SMS. Vérifiez le numéro.");
+       setSendMsg(t("smsSendError"));
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
     } finally {
       setSending(false);
@@ -135,7 +137,7 @@ export default function SmsVerifyScreen() {
       Animated.spring(successAnim, { toValue: 1, tension: 60, friction: 8, useNativeDriver: true }).start();
       setTimeout(() => router.replace(redirect as any), 1200);
     } catch (err: any) {
-      setError(err?.message ?? "Code incorrect. Vérifiez et réessayez.");
+       setError(t("smsInvalidCode"));
       setCode(Array(CODE_LENGTH).fill(""));
       inputs.current[0]?.focus();
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
@@ -147,7 +149,7 @@ export default function SmsVerifyScreen() {
   // ── Success screen ─────────────────────────────────────────────────────────
   if (verified) {
     return (
-      <View style={[st.root, { backgroundColor: isDark ? "#0D0B14" : "#F5F3FF" }]}>
+      <View style={[st.root, { backgroundColor: isDark ? "#0D0B14" : "#F5F3FF", direction: isRTL ? "rtl" : "ltr" }]}>
         <LinearGradient colors={gradColors} style={StyleSheet.absoluteFill} />
         <View style={[st.successWrap, { paddingTop: insets.top + 60 }]}>
           <Animated.View style={{ transform: [{ scale: successAnim }], opacity: successAnim }}>
@@ -155,9 +157,9 @@ export default function SmsVerifyScreen() {
               <Feather name="check" size={40} color="#fff" />
             </View>
           </Animated.View>
-          <Text style={[st.successTitle, { color: isDark ? "#F5F3FF" : "#1E1B3A" }]}>Téléphone vérifié !</Text>
+           <Text style={[st.successTitle, { color: isDark ? "#F5F3FF" : "#1E1B3A" }]}>{t("smsVerifiedTitle")}</Text>
           <Text style={[st.successSub, { color: isDark ? "rgba(245,243,255,0.55)" : "#6B7280" }]}>
-            Redirection en cours…
+             {t("smsRedirecting")}
           </Text>
           <ActivityIndicator color="#10B981" style={{ marginTop: 24 }} />
         </View>
@@ -170,7 +172,7 @@ export default function SmsVerifyScreen() {
   const cardBdr  = isDark ? "rgba(124,58,237,0.2)" : "rgba(124,58,237,0.15)";
 
   return (
-    <View style={[st.root, { backgroundColor: isDark ? "#0D0B14" : "#F5F3FF" }]}>
+    <View style={[st.root, { backgroundColor: isDark ? "#0D0B14" : "#F5F3FF", direction: isRTL ? "rtl" : "ltr" }]}>
       <LinearGradient colors={gradColors} style={StyleSheet.absoluteFill} />
 
       <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === "ios" ? "padding" : undefined}>
@@ -190,10 +192,10 @@ export default function SmsVerifyScreen() {
               <Feather name="smartphone" size={28} color={color} />
             </View>
             <Text style={[st.title, { color: isDark ? "#F5F3FF" : "#1E1B3A" }]}>
-              Vérification SMS
+               {t("smsTitle")}
             </Text>
             <Text style={[st.subtitle, { color: subText }]}>
-              Code envoyé par SMS au
+               {t("smsCodeSentTo")}
             </Text>
             <View style={[st.phoneBadge, { backgroundColor: color + "12", borderColor: color + "30" }]}>
               <Feather name="phone" size={12} color={color} />
@@ -220,9 +222,9 @@ export default function SmsVerifyScreen() {
                 <Text style={[st.statusTitle, {
                   color: sendStatus === "success" ? "#10B981" : sendStatus === "error" ? "#EF4444" : color,
                 }]}>
-                  {sendStatus === "sending" && "Envoi du SMS en cours…"}
-                  {sendStatus === "success" && "SMS envoyé avec succès !"}
-                  {sendStatus === "error"   && "Échec de l'envoi SMS"}
+                   {sendStatus === "sending" && t("smsSending")}
+                   {sendStatus === "success" && t("smsSent")}
+                   {sendStatus === "error"   && t("smsSendFailed")}
                 </Text>
                 {sendMsg && (
                   <Text style={[st.statusSub, {
@@ -240,13 +242,13 @@ export default function SmsVerifyScreen() {
             <View style={st.timerRow}>
               <Feather name="clock" size={13} color={timeLeft <= 60 ? "#EF4444" : (isDark ? "rgba(255,255,255,0.4)" : "#9CA3AF")} />
               <Text style={[st.timerText, { color: timeLeft <= 60 ? "#EF4444" : (isDark ? "rgba(255,255,255,0.4)" : "#9CA3AF") }]}>
-                Code valide pendant {fmt(timeLeft)}
+                 {t("smsCodeValidFor")} {fmt(timeLeft)}
               </Text>
             </View>
           ) : (
             <View style={[st.expiredBadge, { backgroundColor: "#EF444412", borderColor: "#EF444440" }]}>
               <Feather name="alert-circle" size={14} color="#EF4444" />
-              <Text style={[st.expiredText, { color: "#EF4444" }]}>Code expiré — demandez un nouveau code</Text>
+               <Text style={[st.expiredText, { color: "#EF4444" }]}>{t("smsCodeExpired")}</Text>
             </View>
           )}
 
@@ -288,7 +290,7 @@ export default function SmsVerifyScreen() {
           {loading && (
             <View style={[st.loadingCard, { backgroundColor: cardBg, borderColor: cardBdr }]}>
               <ActivityIndicator color={color} size="small" />
-              <Text style={[st.loadingText, { color: subText }]}>Vérification du code…</Text>
+               <Text style={[st.loadingText, { color: subText }]}>{t("smsVerifyLoading")}</Text>
             </View>
           )}
 
@@ -306,7 +308,7 @@ export default function SmsVerifyScreen() {
               <ActivityIndicator color="#fff" size="small" />
             ) : (
               <>
-                <Text style={st.verifyBtnText}>Vérifier le code</Text>
+                 <Text style={st.verifyBtnText}>{t("smsVerifyButton")}</Text>
                 <Feather name="arrow-right" size={18} color="#fff" />
               </>
             )}
@@ -314,16 +316,16 @@ export default function SmsVerifyScreen() {
 
           {/* Resend */}
           <View style={st.resendRow}>
-            <Text style={[st.resendLabel, { color: subText }]}>Vous n'avez pas reçu le SMS ?</Text>
+             <Text style={[st.resendLabel, { color: subText }]}>{t("smsNotReceived")}</Text>
             <TouchableOpacity onPress={() => doSend(true)} disabled={resendCooldown > 0 || sending} activeOpacity={0.7}>
               <Text style={[st.resendBtn, {
                 color: resendCooldown > 0 ? (isDark ? "rgba(255,255,255,0.2)" : "#D1D5DB") : color,
               }]}>
                 {sending
-                  ? "Envoi…"
+                   ? t("smsSendingShort")
                   : resendCooldown > 0
-                  ? `Renvoyer dans ${resendCooldown}s`
-                  : "Renvoyer le code SMS"}
+                   ? `${t("smsResendIn")} ${resendCooldown}s`
+                   : t("smsResend")}
               </Text>
             </TouchableOpacity>
           </View>
@@ -335,7 +337,7 @@ export default function SmsVerifyScreen() {
           }]}>
             <Feather name="info" size={13} color={isDark ? "rgba(255,255,255,0.25)" : "#9CA3AF"} />
             <Text style={[st.hintText, { color: subText }]}>
-              Le SMS peut prendre quelques secondes. Vérifiez que le numéro est correct et qu'il est au format international (+212…).
+               {t("smsHint")}
             </Text>
           </View>
         </ScrollView>

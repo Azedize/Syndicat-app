@@ -31,3 +31,5 @@
 - Syndical Actions now translate action types, statuses, active counts, statistics, participation/support controls, metadata labels, demands, updates, and action feedback for `fr`, `en`, `ar`, and `es`.
 - Governance Organigramme now translates hierarchy levels, governance statistics, national view copy, role statuses, vacancy states, permission sections, admin actions, loading/error recovery, and sharing feedback for `fr`, `en`, `ar`, and `es`.
 - Travaux Privatifs now translates work types, lifecycle statuses, approval steps, decision history, statistics, resident/admin forms, placeholders, confirmations, validation, loading/recovery, and mutation feedback for `fr`, `en`, `ar`, and `es`.
+- Template Studio now translates the studio header, categories, statuses, actions, confirmations, review fields, search, empty states, and safe feedback for `fr`, `en`, `ar`, and `es`.
+- Template Requests now translates request categories, priorities, statuses, form/detail labels, placeholders, validation, submission feedback, locale-aware dates, and loading/error/empty states for `fr`, `en`, `ar`, and `es`.

@@ -83,3 +83,10 @@
 - Localized profile role labels, quick actions, personal/security sections, password validation, safe mutation feedback, and certificate/card recovery messages across French, English, Arabic, and Spanish.
 - Removed the template editor's remaining hardcoded category, variable-source, section-type, role, tab, and slug-prefix labels by routing them through localized metadata.
 - Removed the duplicate `preamble` schema key from document generation validation; the API build now completes without that warning.
+- Started the next enterprise UX pass with the authenticated home dashboard.
+- Added a global dashboard data state backed by the existing API fan-out: contextual synchronization, partial-failure detection, and a retry action now replace misleading zero-value loading surfaces.
+- Added locale-aware MAD amount and date formatting on the home dashboard, including Arabic direction styling, while preserving role-specific quick actions, route contracts, and RBAC visibility.
+- Mobile typecheck and diff validation passed; Expo restarted and Metro rebuilt the mobile bundle successfully.
+- Completed the Template Studio enterprise UX pass: localized the studio header, category/status/action metadata, request review labels, confirmations, search, empty states, and safe action feedback across French, English, Arabic, and Spanish.
+- Completed the syndicate-admin template request flow: localized request form/detail content, priorities, lifecycle statuses, date formatting, validation/submission feedback, and retryable loading/error/empty states while preserving the existing API and role guard.
+- Final mobile typecheck and diff validation passed; protected `/template-request` preview correctly remained behind unauthenticated access with only existing Expo web warnings.

@@ -20,6 +20,7 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 import { useBreakpoints } from "@/hooks/useBreakpoints";
 import { useColors } from "@/hooks/useColors";
+import { useLanguage } from "@/context/LanguageContext";
 import {
   SEARCH_CATEGORIES,
   SearchGroup,
@@ -29,8 +30,27 @@ import {
 
 const CATEGORY_KEYS = Object.keys(SEARCH_CATEGORIES);
 
+const CATEGORY_TRANSLATION_KEYS: Record<string, string> = {
+  membre: "searchCategoryMembers",
+  syndicat: "searchCategorySyndicates",
+  publication: "searchCategoryPublications",
+  document: "searchCategoryDocuments",
+  reunion: "searchCategoryMeetings",
+  election: "searchCategoryElections",
+  alerte: "searchCategoryAlerts",
+  message: "searchCategoryMessages",
+  produit: "searchCategoryProducts",
+  ticket: "searchCategorySupport",
+  transaction: "searchCategoryFinance",
+  partenaire: "searchCategoryPartners",
+  cotisation: "searchCategoryContributions",
+  commande: "searchCategoryOrders",
+  navigation: "searchCategoryNavigation",
+};
+
 export default function SearchScreen() {
   const colors = useColors();
+  const { t, isRTL } = useLanguage();
   const insets = useSafeAreaInsets();
   const { query, setQuery, results, history, addHistory, removeHistory, clearHistory, isSearching, totalCount } =
     useSearch();
@@ -120,7 +140,7 @@ export default function SearchScreen() {
     <Animated.View
       style={[
         styles.root,
-        { backgroundColor: colors.background, opacity: fadeAnim, transform: [{ translateY: slideAnim }] },
+        { backgroundColor: colors.background, opacity: fadeAnim, transform: [{ translateY: slideAnim }], direction: isRTL ? "rtl" : "ltr" },
       ]}
     >
       {/* Search bar */}
@@ -139,7 +159,7 @@ export default function SearchScreen() {
           <TextInput
             ref={inputRef}
             style={[styles.input, { color: colors.foreground }]}
-            placeholder="Rechercher membres, documents, réunions…"
+            placeholder={t("searchPlaceholderDetailed")}
             placeholderTextColor={colors.mutedForeground}
             value={inputValue}
             onChangeText={handleChangeText}
@@ -158,7 +178,7 @@ export default function SearchScreen() {
           ) : null}
         </View>
         <TouchableOpacity onPress={handleClose} style={styles.cancelBtn}>
-          <Text style={[styles.cancelText, { color: colors.primary }]}>Annuler</Text>
+          <Text style={[styles.cancelText, { color: colors.primary }]}>{t("searchCancel")}</Text>
         </TouchableOpacity>
       </View>
 
@@ -185,7 +205,7 @@ export default function SearchScreen() {
                   { color: activeCategory === null ? "#fff" : colors.mutedForeground },
                 ]}
               >
-                Tout ({totalCount})
+                {t("searchAll")} ({totalCount})
               </Text>
             </Pressable>
             {results.map((g) => {
@@ -207,7 +227,7 @@ export default function SearchScreen() {
                 >
                   <Feather name={g.icon as any} size={11} color={isActive ? "#fff" : g.color} />
                   <Text style={[styles.chipText, { color: isActive ? "#fff" : colors.mutedForeground }]}>
-                    {g.label} ({g.results.length})
+                    {t(CATEGORY_TRANSLATION_KEYS[g.category] ?? "searchResults")} ({g.results.length})
                   </Text>
                 </Pressable>
               );
@@ -223,10 +243,11 @@ export default function SearchScreen() {
           colors={colors}
           onSelectHistory={handleSelectHistory}
           onRemoveHistory={removeHistory}
-          onClearHistory={clearHistory}
+           onClearHistory={clearHistory}
+            t={t}
         />
       ) : filteredResults.length === 0 && !isSearching ? (
-        <NoResults query={inputValue} colors={colors} />
+        <NoResults query={inputValue} colors={colors} t={t} />
       ) : (
         <FlatList
           data={filteredResults}
@@ -235,7 +256,7 @@ export default function SearchScreen() {
           showsVerticalScrollIndicator={false}
           keyboardShouldPersistTaps="handled"
           renderItem={({ item: group }) => (
-            <GroupSection group={group} colors={colors} onPress={handleResultPress} />
+            <GroupSection group={group} colors={colors} onPress={handleResultPress} t={t} />
           )}
         />
       )}
@@ -247,10 +268,12 @@ function GroupSection({
   group,
   colors,
   onPress,
+  t,
 }: {
   group: SearchGroup;
   colors: ReturnType<typeof import("@/hooks/useColors").useColors>;
   onPress: (r: SearchResult) => void;
+  t: (key: string) => string;
 }) {
   return (
     <View style={styles.group}>
@@ -308,12 +331,14 @@ function EmptyState({
   onSelectHistory,
   onRemoveHistory,
   onClearHistory,
+  t,
 }: {
   history: string[];
   colors: ReturnType<typeof import("@/hooks/useColors").useColors>;
   onSelectHistory: (h: string) => void;
   onRemoveHistory: (h: string) => void;
   onClearHistory: () => void;
+  t: (key: string) => string;
 }) {
   const SUGGESTIONS = [
     { label: "Membres", icon: "users" as const, color: "#2563EB", query: "membre" },
@@ -417,7 +442,7 @@ function EmptyState({
   );
 }
 
-function NoResults({ query, colors }: { query: string; colors: any }) {
+function NoResults({ query, colors, t }: { query: string; colors: any; t: (key: string) => string }) {
   return (
     <View style={styles.noResults}>
       <View style={[styles.noResultsIcon, { backgroundColor: colors.muted }]}>

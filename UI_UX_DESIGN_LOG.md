@@ -12,3 +12,4 @@
 - Notifications adopted a unified multilingual hierarchy across global controls, category cards, channel toggles, alert filters, grouped history, and detail metadata while preserving the existing theme and touch interactions.
 - Internal Chat retains its existing conversation hierarchy, message-bubble treatments, attachment controls, and editing interaction while localizing the remaining action and lifecycle labels.
 - Level-1 Support retains its ticket-card hierarchy, semantic priority colors, status badges, detail modal, reply composer, and escalation treatment while localizing all supporting labels and states.
+- Template Studio and Template Requests retain their existing card, badge, chip, modal, and action hierarchy while applying shared multilingual metadata and semantic loading, retry, empty, and safe-feedback states.

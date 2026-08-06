@@ -43,3 +43,5 @@
 - [Protected mobile preview validation](protected-mobile-preview-validation.md) — unauthenticated Expo previews redirect protected screens to welcome; validate redirect and clean bundling separately.
 - [Marketplace seller resilience](marketplace-seller-resilience.md) — optional promotion data must never hide otherwise available seller listings during a temporary promotion-service failure.
 - [Profile and editor localization](profile-and-editor-localization.md) — authenticated profile feedback and Template Studio metadata must be runtime-localized with safe API error copy.
+- [Dashboard data state](dashboard-data-state.md) — home metrics use shared fan-out loading and partial-failure semantics; do not treat initial empty arrays as real zeros.
+- [Expo public entry](expo-public-entry.md) — public landing routes need an immediate root entry before session redirects.

@@ -384,7 +384,7 @@ export default function PlansScreen() {
           ]}
         >
           <TouchableOpacity
-            onPress={() => router.back()}
+            onPress={() => router.replace("/welcome" as any)}
             style={styles.backBtn}
           >
             <Feather

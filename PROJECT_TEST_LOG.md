@@ -109,3 +109,6 @@
 - `git diff --check -- artifacts/mobile/app/travaux-privatifs.tsx artifacts/mobile/context/LanguageContext.tsx` — passed.
 - Mobile workflow logs confirmed Metro was running and the fresh bundle completed without transform errors.
 - Mobile Expo preview screenshot for `/travaux-privatifs` at 402×874 — direct protected preview did not expose the screen without a session; no new browser errors appeared. `/welcome` rendered successfully as the expected public boundary.
+- `pnpm --filter @workspace/mobile run typecheck` — passed with zero errors after the Template Studio and Template Requests localization/recovery pass.
+- `git diff --check` — passed after the Template Studio, Template Requests, translation, and project-log updates.
+- Mobile Expo preview screenshot for `/template-request` at 402×874 — direct protected preview remained behind the unauthenticated boundary; browser logs contained only existing non-blocking Expo web warnings and no new runtime exception.

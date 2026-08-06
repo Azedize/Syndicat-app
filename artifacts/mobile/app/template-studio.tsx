@@ -25,6 +25,7 @@ import {
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useAuth } from "@/context/AuthContext";
+import { useLanguage } from "@/context/LanguageContext";
 import { useToast } from "@/context/ToastContext";
 import { useColors } from "@/hooks/useColors";
 import RoleGuard from "@/components/RoleGuard";
@@ -63,24 +64,24 @@ interface StudioStats {
 // ─── Constants ────────────────────────────────────────────────────────────────
 
 const CATEGORIES = [
-  { key: "all",             label: "Tous",            icon: "grid"          as const, color: "#2563EB" },
-  { key: "meeting_minutes", label: "Réunions",        icon: "clipboard"     as const, color: "#3b82f6" },
-  { key: "financial",       label: "Finance",         icon: "dollar-sign"   as const, color: "#10b981" },
-  { key: "legal",           label: "Juridique",       icon: "shield"        as const, color: "#ef4444" },
-  { key: "elections",       label: "Élections",       icon: "check-circle"  as const, color: "#f59e0b" },
-  { key: "contracts",       label: "Contrats",        icon: "file-text"     as const, color: "#0891b2" },
-  { key: "certificates",    label: "Certificats",     icon: "award"         as const, color: "#8b5cf6" },
-  { key: "regulations",     label: "Règlements",      icon: "book"          as const, color: "#06b6d4" },
-  { key: "administrative",  label: "Administratif",   icon: "briefcase"     as const, color: "#16a34a" },
-  { key: "maintenance",     label: "Maintenance",     icon: "tool"          as const, color: "#f97316" },
-  { key: "insurance",       label: "Assurance",       icon: "umbrella"      as const, color: "#ec4899" },
+  { key: "all",             labelKey: "tsCategoryAll",            icon: "grid"          as const, color: "#2563EB" },
+  { key: "meeting_minutes", labelKey: "tsCategoryMeeting",        icon: "clipboard"     as const, color: "#3b82f6" },
+  { key: "financial",       labelKey: "tsCategoryFinancial",       icon: "dollar-sign"   as const, color: "#10b981" },
+  { key: "legal",           labelKey: "tsCategoryLegal",           icon: "shield"        as const, color: "#ef4444" },
+  { key: "elections",       labelKey: "tsCategoryElections",       icon: "check-circle"  as const, color: "#f59e0b" },
+  { key: "contracts",       labelKey: "tsCategoryContracts",       icon: "file-text"     as const, color: "#0891b2" },
+  { key: "certificates",    labelKey: "tsCategoryCertificates",    icon: "award"         as const, color: "#8b5cf6" },
+  { key: "regulations",     labelKey: "tsCategoryRegulations",    icon: "book"          as const, color: "#06b6d4" },
+  { key: "administrative",  labelKey: "tsCategoryAdministrative",  icon: "briefcase"     as const, color: "#16a34a" },
+  { key: "maintenance",     labelKey: "tsCategoryMaintenance",     icon: "tool"          as const, color: "#f97316" },
+  { key: "insurance",       labelKey: "tsCategoryInsurance",       icon: "umbrella"      as const, color: "#ec4899" },
 ];
 
 const STATUS_CONFIG = {
-  draft:     { label: "Brouillon",  color: "#f59e0b", bg: "#fef3c720", icon: "edit-2"      as const },
-  published: { label: "Publié",     color: "#16a34a", bg: "#dcfce720", icon: "check-circle" as const },
-  archived:  { label: "Archivé",   color: "#6b7280", bg: "#f3f4f620", icon: "archive"      as const },
-  disabled:  { label: "Désactivé", color: "#dc2626", bg: "#fee2e220", icon: "slash"        as const },
+  draft:     { labelKey: "tsStatusDraft",     color: "#f59e0b", bg: "#fef3c720", icon: "edit-2"      as const },
+  published: { labelKey: "tsStatusPublished", color: "#16a34a", bg: "#dcfce720", icon: "check-circle" as const },
+  archived:  { labelKey: "tsStatusArchived",  color: "#6b7280", bg: "#f3f4f620", icon: "archive"      as const },
+  disabled:  { labelKey: "tsStatusDisabled",  color: "#dc2626", bg: "#fee2e220", icon: "slash"        as const },
 };
 
 const LANG_FLAGS: Record<string, string> = { fr: "🇫🇷", ar: "🇲🇦", en: "🇬🇧", es: "🇪🇸" };
@@ -100,15 +101,15 @@ function parseLangs(raw: string | string[] | undefined): string[] {
   try { return JSON.parse(raw as string); } catch { return ["fr"]; }
 }
 
-function relativeDate(iso: string): string {
+function relativeDate(iso: string, lang: string): string {
   const diff = Date.now() - new Date(iso).getTime();
   const minutes = Math.floor(diff / 60000);
-  if (minutes < 60) return `il y a ${minutes}m`;
+  if (minutes < 60) return lang === "fr" ? `il y a ${minutes}m` : `${minutes}m ago`;
   const hours = Math.floor(minutes / 60);
-  if (hours < 24) return `il y a ${hours}h`;
+  if (hours < 24) return lang === "fr" ? `il y a ${hours}h` : `${hours}h ago`;
   const days = Math.floor(hours / 24);
-  if (days < 30) return `il y a ${days}j`;
-  return new Date(iso).toLocaleDateString("fr-MA");
+  if (days < 30) return lang === "fr" ? `il y a ${days}j` : `${days}d ago`;
+  return new Date(iso).toLocaleDateString(`${lang}-MA`);
 }
 
 // ─── API ──────────────────────────────────────────────────────────────────────
@@ -136,9 +137,13 @@ function StatCard({ label, value, icon, color }: { label: string; value: number 
 function TemplateCard({
   template,
   onAction,
+  t,
+  lang,
 }: {
   template: TemplateDefinition;
   onAction: (action: string, template: TemplateDefinition) => void;
+  t: (key: string) => string;
+  lang: string;
 }) {
   const [menuOpen, setMenuOpen] = useState(false);
   const sc = STATUS_CONFIG[template.status] ?? STATUS_CONFIG.draft;
@@ -156,13 +161,13 @@ function TemplateCard({
         <View style={styles.cardHeader}>
           <View style={[styles.cardCatPill, { backgroundColor: (cat?.color ?? "#2563EB") + "20" }]}>
             <Feather name={cat?.icon ?? "file"} size={11} color={cat?.color ?? "#2563EB"} />
-            <Text style={[styles.cardCatText, { color: cat?.color ?? "#2563EB" }]}>{cat?.label ?? template.category}</Text>
+            <Text style={[styles.cardCatText, { color: cat?.color ?? "#2563EB" }]}>{cat ? t(cat.labelKey) : template.category}</Text>
           </View>
 
           <View style={styles.cardHeaderRight}>
             <View style={[styles.statusBadge, { backgroundColor: sc.bg, borderColor: sc.color + "44" }]}>
               <Feather name={sc.icon} size={10} color={sc.color} />
-              <Text style={[styles.statusText, { color: sc.color }]}>{sc.label}</Text>
+              <Text style={[styles.statusText, { color: sc.color }]}>{t(sc.labelKey)}</Text>
             </View>
 
             <TouchableOpacity
@@ -176,7 +181,7 @@ function TemplateCard({
 
         {/* Name + slug */}
         <Text style={styles.cardName} numberOfLines={2}>{name}</Text>
-        <Text style={styles.cardSlug}>slug: {template.slug}</Text>
+        <Text style={styles.cardSlug}>{t("templateSlugPrefix")} {template.slug}</Text>
 
         {/* Footer */}
         <View style={styles.cardFooter}>
@@ -185,7 +190,7 @@ function TemplateCard({
             <Text style={styles.cardMeta}>v{template.currentVersion}</Text>
             <View style={styles.dot} />
             <Feather name="file-text" size={12} color="#64748b" />
-            <Text style={styles.cardMeta}>{template.usageCount} utilisations</Text>
+            <Text style={styles.cardMeta}>{template.usageCount} {t("tsUsages")}</Text>
           </View>
 
           <View style={styles.langRow}>
@@ -195,7 +200,7 @@ function TemplateCard({
           </View>
         </View>
 
-        <Text style={styles.cardDate}>Modifié {relativeDate(template.updatedAt)}</Text>
+        <Text style={styles.cardDate}>{t("tsModified")} {relativeDate(template.updatedAt, lang)}</Text>
       </View>
 
       {/* Action Sheet Modal */}
@@ -206,15 +211,15 @@ function TemplateCard({
             <Text style={styles.menuTitle}>{name}</Text>
 
             {[
-              { icon: "edit-2" as const,      label: "Modifier",     action: "edit",      always: true },
-              { icon: "eye" as const,          label: "Prévisualiser", action: "preview",  always: true },
-              { icon: "copy" as const,         label: "Dupliquer",    action: "duplicate", always: true },
-              { icon: "clock" as const,        label: "Versions",     action: "versions",  always: true },
-              { icon: "key" as const,          label: "Permissions",  action: "permissions", always: true },
-              ...(template.status !== "published" ? [{ icon: "globe" as const, label: "Publier", action: "publish", always: false }] : []),
-              ...(template.status === "published" ? [{ icon: "slash" as const, label: "Désactiver", action: "disable", always: false }] : []),
-              ...(template.status !== "archived" ? [{ icon: "archive" as const, label: "Archiver", action: "archive", always: false }] : []),
-              ...(["archived", "disabled"].includes(template.status) ? [{ icon: "refresh-cw" as const, label: "Restaurer", action: "restore", always: false }] : []),
+              { icon: "edit-2" as const, labelKey: "tsEdit", action: "edit", always: true },
+              { icon: "eye" as const, labelKey: "tsPreview", action: "preview", always: true },
+              { icon: "copy" as const, labelKey: "tsDuplicate", action: "duplicate", always: true },
+              { icon: "clock" as const, labelKey: "tsVersions", action: "versions", always: true },
+              { icon: "key" as const, labelKey: "tsPermissions", action: "permissions", always: true },
+              ...(template.status !== "published" ? [{ icon: "globe" as const, labelKey: "tsPublish", action: "publish", always: false }] : []),
+              ...(template.status === "published" ? [{ icon: "slash" as const, labelKey: "tsDisable", action: "disable", always: false }] : []),
+              ...(template.status !== "archived" ? [{ icon: "archive" as const, labelKey: "tsArchive", action: "archive", always: false }] : []),
+              ...(["archived", "disabled"].includes(template.status) ? [{ icon: "refresh-cw" as const, labelKey: "tsRestore", action: "restore", always: false }] : []),
             ].map((item) => (
               <TouchableOpacity
                 key={item.action}
@@ -225,7 +230,7 @@ function TemplateCard({
                 }}
               >
                 <Feather name={item.icon} size={17} color={item.action === "archive" || item.action === "disable" ? "#ef4444" : "#e2e8f0"} />
-                <Text style={[styles.menuItemText, (item.action === "archive" || item.action === "disable") && { color: "#ef4444" }]}>{item.label}</Text>
+                <Text style={[styles.menuItemText, (item.action === "archive" || item.action === "disable") && { color: "#ef4444" }]}>{t(item.labelKey)}</Text>
                 <Feather name="chevron-right" size={14} color="#475569" />
               </TouchableOpacity>
             ))}
@@ -241,6 +246,7 @@ function TemplateCard({
 function TemplateStudioContent() {
   const { user } = useAuth();
   const { showToast } = useToast();
+  const { t, lang } = useLanguage();
   const colors = useColors();
   const insets = useSafeAreaInsets();
 
@@ -273,12 +279,12 @@ function TemplateStudioContent() {
       setTemplates(tmplRes.data ?? []);
       setStats(statsRes.data ?? null);
     } catch (err: any) {
-      showToast({ type: "error", message: "Erreur lors du chargement des templates" });
+      showToast({ type: "error", message: t("tsLoadError") });
     } finally {
       setLoading(false);
       setRefreshing(false);
     }
-  }, []);
+  }, [showToast, t]);
 
   const loadRequests = useCallback(async () => {
     setReqLoading(true);
@@ -287,11 +293,11 @@ function TemplateStudioContent() {
       setRequests(res.data ?? []);
       setPendingCount((res.data ?? []).filter((r) => r.status === "pending" || r.status === "in_review").length);
     } catch {
-      showToast({ type: "error", message: "Erreur chargement des demandes" });
+      showToast({ type: "error", message: t("tsRequestsLoadError") });
     } finally {
       setReqLoading(false);
     }
-  }, []);
+  }, [showToast, t]);
 
   // Load pending count on mount
   useEffect(() => { loadRequests(); }, [loadRequests]);
@@ -328,10 +334,10 @@ function TemplateStudioContent() {
           try {
             setActionLoading(template.id);
             await apiRequest(`/api/template-studio/templates/${template.id}/duplicate`, "POST", { newSlug: newSlug.trim() });
-            showToast({ type: "success", message: "Template dupliqué avec succès" });
+             showToast({ type: "success", message: t("tsDuplicateSuccess") });
             loadData();
           } catch {
-            showToast({ type: "error", message: "Erreur lors de la duplication" });
+             showToast({ type: "error", message: t("tsActionError") });
           } finally {
             setActionLoading(null);
           }
@@ -342,29 +348,29 @@ function TemplateStudioContent() {
       return;
     }
 
-    const actionMap: Record<string, { label: string; confirm: string; successMsg: string }> = {
-      publish:  { label: "Publier",    confirm: `Publier "${parseName(template.name)}" ? Il sera accessible à tous les utilisateurs autorisés.`, successMsg: "Template publié" },
-      archive:  { label: "Archiver",   confirm: `Archiver "${parseName(template.name)}" ? Il ne pourra plus être utilisé.`,                       successMsg: "Template archivé" },
-      restore:  { label: "Restaurer",  confirm: `Restaurer "${parseName(template.name)}" en brouillon ?`,                                          successMsg: "Template restauré" },
-      disable:  { label: "Désactiver", confirm: `Désactiver "${parseName(template.name)}" ?`,                                                      successMsg: "Template désactivé" },
+    const actionMap: Record<string, { labelKey: string; confirm: string }> = {
+      publish:  { labelKey: "tsPublish", confirm: `${t("tsPublish")} "${parseName(template.name)}"?` },
+      archive:  { labelKey: "tsArchive", confirm: `${t("tsArchive")} "${parseName(template.name)}"?` },
+      restore:  { labelKey: "tsRestore", confirm: `${t("tsRestore")} "${parseName(template.name)}"?` },
+      disable:  { labelKey: "tsDisable", confirm: `${t("tsDisable")} "${parseName(template.name)}"?` },
     };
 
     const cfg = actionMap[action];
     if (!cfg) return;
 
-    Alert.alert(cfg.label, cfg.confirm, [
-      { text: "Annuler", style: "cancel" },
+    Alert.alert(t(cfg.labelKey), cfg.confirm, [
+      { text: t("tsCancel"), style: "cancel" },
       {
-        text: cfg.label,
+        text: t(cfg.labelKey),
         style: action === "archive" || action === "disable" ? "destructive" : "default",
         onPress: async () => {
           try {
             setActionLoading(template.id);
             await apiRequest(`/api/template-studio/templates/${template.id}/${action}`, "POST");
-            showToast({ type: "success", message: cfg.successMsg });
+            showToast({ type: "success", message: t("tsActionSuccess") });
             loadData();
           } catch {
-            showToast({ type: "error", message: "Erreur lors de l'action" });
+            showToast({ type: "error", message: t("tsActionError") });
           } finally {
             setActionLoading(null);
           }
@@ -390,8 +396,8 @@ function TemplateStudioContent() {
           <Feather name="arrow-left" size={22} color="#e2e8f0" />
         </TouchableOpacity>
         <View style={styles.headerCenter}>
-          <Text style={styles.headerTitle}>Template Studio</Text>
-          <Text style={styles.headerSub}>Gestionnaire de modèles de documents</Text>
+          <Text style={styles.headerTitle}>{t("tsStudioTitle")}</Text>
+          <Text style={styles.headerSub}>{t("tsStudioSubtitle")}</Text>
         </View>
         <View style={[styles.headerBadge, { backgroundColor: "#2563EB22" }]}>
           <Feather name="layers" size={14} color="#a78bfa" />
@@ -418,10 +424,10 @@ function TemplateStudioContent() {
         {/* Stats Strip */}
         {stats && (
           <View style={styles.statsStrip}>
-            <StatCard label="Publiés"      value={stats.published}  icon="check-circle" color="#16a34a" />
-            <StatCard label="Brouillons"   value={stats.draft}      icon="edit-2"       color="#f59e0b" />
-            <StatCard label="Archivés"     value={stats.archived}   icon="archive"      color="#6b7280" />
-            <StatCard label="Utilisations" value={stats.totalUsage} icon="bar-chart-2"  color="#2563EB" />
+            <StatCard label={t("tsStatusPublished")} value={stats.published} icon="check-circle" color="#16a34a" />
+            <StatCard label={t("tsStatusDraft")} value={stats.draft} icon="edit-2" color="#f59e0b" />
+            <StatCard label={t("tsStatusArchived")} value={stats.archived} icon="archive" color="#6b7280" />
+            <StatCard label={t("tsUsages")} value={stats.totalUsage} icon="bar-chart-2" color="#2563EB" />
           </View>
         )}
 
@@ -432,7 +438,7 @@ function TemplateStudioContent() {
             style={styles.searchInput}
             value={search}
             onChangeText={setSearch}
-            placeholder="Rechercher un template..."
+            placeholder={t("tsSearchPlaceholder")}
             placeholderTextColor="#475569"
           />
           {search.length > 0 && (
@@ -454,7 +460,7 @@ function TemplateStudioContent() {
                 onPress={() => { Haptics.selectionAsync(); setSelectedCat(cat.key); }}
               >
                 <Feather name={cat.icon} size={13} color={active ? "#fff" : cat.color} />
-                <Text style={[styles.catLabel, active && { color: "#fff" }]}>{cat.label}</Text>
+                <Text style={[styles.catLabel, active && { color: "#fff" }]}>{t(cat.labelKey)}</Text>
                 <View style={[styles.catCount, { backgroundColor: active ? "#ffffff33" : cat.color + "22" }]}>
                   <Text style={[styles.catCountText, { color: active ? "#fff" : cat.color }]}>{count}</Text>
                 </View>
@@ -466,11 +472,11 @@ function TemplateStudioContent() {
         {/* Results header */}
         <View style={styles.resultsHeader}>
           <Text style={styles.resultsCount}>
-            {filteredTemplates.length} template{filteredTemplates.length !== 1 ? "s" : ""}
+            {filteredTemplates.length} {t("tsResults")}
           </Text>
           <TouchableOpacity onPress={handleCreate} style={styles.addInlineBtn}>
             <Feather name="plus" size={14} color="#a78bfa" />
-            <Text style={styles.addInlineText}>Nouveau</Text>
+            <Text style={styles.addInlineText}>{t("tsNew")}</Text>
           </TouchableOpacity>
         </View>
 
@@ -478,29 +484,29 @@ function TemplateStudioContent() {
         {loading ? (
           <View style={styles.loadingWrap}>
             <ActivityIndicator size="large" color="#2563EB" />
-            <Text style={styles.loadingText}>Chargement des templates...</Text>
+            <Text style={styles.loadingText}>{t("tsLoadingTitle")}</Text>
           </View>
         ) : filteredTemplates.length === 0 ? (
           <View style={styles.emptyWrap}>
             <View style={styles.emptyIcon}>
               <Feather name="layers" size={36} color="#2563EB" />
             </View>
-            <Text style={styles.emptyTitle}>Aucun template trouvé</Text>
+            <Text style={styles.emptyTitle}>{t("tsNoResults")}</Text>
             <Text style={styles.emptyDesc}>
-              {search ? `Aucun résultat pour "${search}"` : "Créez votre premier template pour cette catégorie."}
+              {search ? `${t("tsNoSearchResults")} "${search}"` : t("tsFirstTemplate")}
             </Text>
             {!search && (
               <TouchableOpacity style={styles.emptyBtn} onPress={handleCreate}>
                 <Feather name="plus" size={16} color="#fff" />
-                <Text style={styles.emptyBtnText}>Créer un template</Text>
+                <Text style={styles.emptyBtnText}>{t("tsCreate")}</Text>
               </TouchableOpacity>
             )}
           </View>
         ) : (
           <View style={styles.listWrap}>
-            {filteredTemplates.map((t) => (
-              <View key={t.id} style={actionLoading === t.id ? { opacity: 0.5 } : undefined}>
-                <TemplateCard template={t} onAction={handleAction} />
+            {filteredTemplates.map((template) => (
+              <View key={template.id} style={actionLoading === template.id ? { opacity: 0.5 } : undefined}>
+                <TemplateCard template={template} onAction={handleAction} t={t} lang={lang} />
               </View>
             ))}
           </View>
@@ -524,8 +530,8 @@ function TemplateStudioContent() {
               <Feather name="arrow-left" size={22} color="#e2e8f0" />
             </TouchableOpacity>
             <View style={styles.headerCenter}>
-              <Text style={styles.headerTitle}>Demandes de modèles</Text>
-              <Text style={styles.headerSub}>{requests.length} demande{requests.length !== 1 ? "s" : ""}</Text>
+              <Text style={styles.headerTitle}>{t("tsRequests")}</Text>
+              <Text style={styles.headerSub}>{requests.length} {t("tsRequestCount")}</Text>
             </View>
             <TouchableOpacity onPress={loadRequests} style={styles.backBtn}>
               <Feather name="refresh-cw" size={17} color="#a78bfa" />
@@ -539,18 +545,18 @@ function TemplateStudioContent() {
           ) : requests.length === 0 ? (
             <View style={styles.emptyWrap}>
               <View style={styles.emptyIcon}><Feather name="inbox" size={36} color="#2563EB" /></View>
-              <Text style={styles.emptyTitle}>Aucune demande</Text>
-              <Text style={styles.emptyDesc}>Les demandes de modèles des administrateurs de syndicat apparaîtront ici.</Text>
+              <Text style={styles.emptyTitle}>{t("tsNoRequests")}</Text>
+              <Text style={styles.emptyDesc}>{t("tsNoRequestsDescription")}</Text>
             </View>
           ) : (
             <ScrollView contentContainerStyle={{ padding: 16, gap: 12, paddingBottom: insets.bottom + 40 }}>
               {(() => {
-                const STATUS_CFG: Record<string, { label: string; color: string; icon: keyof typeof Feather.glyphMap }> = {
-                  pending:       { label: "En attente",          color: "#f59e0b", icon: "clock" },
-                  in_review:     { label: "En cours d'examen",   color: "#3b82f6", icon: "eye" },
-                  approved:      { label: "Approuvé",            color: "#10b981", icon: "check-circle" },
-                  rejected:      { label: "Refusé",              color: "#ef4444", icon: "x-circle" },
-                  need_more_info:{ label: "Infos supplémentaires",color: "#8b5cf6", icon: "info" },
+                const STATUS_CFG: Record<string, { labelKey: string; color: string; icon: keyof typeof Feather.glyphMap }> = {
+                   pending:       { labelKey: "tsPending",       color: "#f59e0b", icon: "clock" },
+                   in_review:     { labelKey: "tsInReview",      color: "#3b82f6", icon: "eye" },
+                   approved:      { labelKey: "tsApproved",       color: "#10b981", icon: "check-circle" },
+                   rejected:      { labelKey: "tsRejected",       color: "#ef4444", icon: "x-circle" },
+                   need_more_info:{ labelKey: "tsNeedMoreInfo",   color: "#8b5cf6", icon: "info" },
                 };
                 return requests.map((req) => {
                   const sc = STATUS_CFG[req.status] ?? STATUS_CFG.pending;
@@ -575,7 +581,7 @@ function TemplateStudioContent() {
                           <Text style={[styles.cardMeta, { color: "#64748b" }]}>{req.syndicateName ?? req.syndicateId ?? "—"}  ·  {req.requesterName ?? "—"}</Text>
                         </View>
                         <View style={[styles.statusBadge, { backgroundColor: sc.color + "15", borderColor: sc.color + "40" }]}>
-                          <Text style={[styles.statusText, { color: sc.color }]}>{sc.label}</Text>
+                           <Text style={[styles.statusText, { color: sc.color }]}>{t(sc.labelKey)}</Text>
                         </View>
                         <Feather name="chevron-right" size={15} color="#475569" />
                       </View>
@@ -606,12 +612,12 @@ function TemplateStudioContent() {
 
               <ScrollView style={{ flex: 1 }} showsVerticalScrollIndicator={false}>
                 {/* Info rows */}
-                {[
-                  { k: "Syndicat", v: selectedReq.syndicateName },
-                  { k: "Demandeur", v: selectedReq.requesterName },
-                  { k: "Catégorie", v: selectedReq.category },
-                  { k: "Priorité",  v: selectedReq.priority },
-                  { k: "Soumis le", v: new Date(selectedReq.createdAt).toLocaleDateString("fr-MA", { dateStyle: "long" }) },
+      {[
+                   { k: t("tsSyndicate"), v: selectedReq.syndicateName },
+                   { k: t("tsRequester"), v: selectedReq.requesterName },
+                   { k: t("tsCategory"), v: selectedReq.category },
+                   { k: t("tsPriority"),  v: selectedReq.priority },
+                   { k: t("tsSubmittedOn"), v: new Date(selectedReq.createdAt).toLocaleDateString(`${lang}-MA`, { dateStyle: "long" }) },
                   selectedReq.businessPurpose ? { k: "Contexte", v: selectedReq.businessPurpose } : null,
                   selectedReq.requiredFields   ? { k: "Champs requis", v: selectedReq.requiredFields } : null,
                   selectedReq.legalNotes       ? { k: "Références légales", v: selectedReq.legalNotes } : null,
@@ -624,20 +630,20 @@ function TemplateStudioContent() {
 
                 {selectedReq.description ? (
                   <View style={styles.reviewDescBox}>
-                    <Text style={styles.reviewDescLabel}>Description</Text>
+                    <Text style={styles.reviewDescLabel}>{t("tsDescription")}</Text>
                     <Text style={styles.reviewDescText}>{selectedReq.description}</Text>
                   </View>
                 ) : null}
 
                 {/* Review form */}
                 <Text style={[styles.headerSub, { marginTop: 20, marginBottom: 10, color: "#94a3b8", fontSize: 12, fontWeight: "700", textTransform: "uppercase", letterSpacing: 0.5 }]}>
-                  Décision
+                  {t("tsDecision")}
                 </Text>
 
                 {/* Status chips */}
                 <View style={{ flexDirection: "row", flexWrap: "wrap", gap: 8, marginBottom: 14 }}>
                   {(["in_review", "approved", "rejected", "need_more_info"] as const).map((s) => {
-                    const labels: Record<string, string> = { in_review: "En examen", approved: "Approuver", rejected: "Refuser", need_more_info: "Infos requises" };
+                    const labels: Record<string, string> = { in_review: t("tsInReview"), approved: t("tsApproved"), rejected: t("tsRejected"), need_more_info: t("tsNeedMoreInfo") };
                     const colors: Record<string, string> = { in_review: "#3b82f6", approved: "#10b981", rejected: "#ef4444", need_more_info: "#8b5cf6" };
                     const active = reviewStatus === s;
                     return (
@@ -656,7 +662,7 @@ function TemplateStudioContent() {
                   style={styles.reviewInput}
                   value={reviewNotes}
                   onChangeText={setReviewNotes}
-                  placeholder="Notes de révision (visible par le demandeur)…"
+                  placeholder={t("tsReviewNotesPlaceholder")}
                   placeholderTextColor="#475569"
                   multiline
                   numberOfLines={3}
@@ -667,7 +673,7 @@ function TemplateStudioContent() {
                     style={[styles.reviewInput, { marginTop: 10 }]}
                     value={reviewReason}
                     onChangeText={setReviewReason}
-                    placeholder="Motif de refus (requis pour un refus)…"
+                    placeholder={t("tsRejectionReasonPlaceholder")}
                     placeholderTextColor="#475569"
                     multiline
                     numberOfLines={2}
@@ -690,11 +696,11 @@ function TemplateStudioContent() {
                       reviewNotes: reviewNotes.trim() || undefined,
                       rejectionReason: reviewReason.trim() || undefined,
                     });
-                    showToast({ type: "success", message: "Décision enregistrée" });
+                     showToast({ type: "success", message: t("tsDecisionSaved") });
                     setSelectedReq(null);
                     loadRequests();
                   } catch {
-                    showToast({ type: "error", message: "Erreur lors de l'enregistrement" });
+                     showToast({ type: "error", message: t("tsActionError") });
                   } finally {
                     setReviewSubmitting(false);
                   }
@@ -704,7 +710,7 @@ function TemplateStudioContent() {
                   ? <ActivityIndicator size="small" color="#fff" />
                   : <Feather name="check" size={17} color="#fff" />}
                 <Text style={styles.reviewSubmitText}>
-                  {reviewSubmitting ? "Enregistrement…" : "Enregistrer la décision"}
+                   {reviewSubmitting ? t("tsSaving") : t("tsSaveDecision")}
                 </Text>
               </TouchableOpacity>
             </View>

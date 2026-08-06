@@ -14,3 +14,7 @@
 - Profile updates no longer expose raw server error text or remain partially French-only after a language change; mutation failures now use safe localized recovery copy.
 - Template Studio no longer displays hardcoded French metadata when the active language is English, Arabic, or Spanish.
 - Document generation validation no longer emits a duplicate-key build warning for `preamble`.
+- Home Dashboard no longer presents provisional empty/zero metrics without context during initial API synchronization; full dependency failure now exposes a localized retry action.
+- Home Dashboard financial amounts and dates no longer remain French-only or use an unformatted raw amount presentation.
+- Template Studio and template requests no longer fall back to hardcoded French metadata, form copy, status/priority labels, or recovery messages when the active language changes.
+- Template request list failures no longer masquerade as an empty list; users now receive a localized retryable unavailable-data state.

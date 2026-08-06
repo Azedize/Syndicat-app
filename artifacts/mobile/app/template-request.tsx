@@ -22,38 +22,40 @@ import {
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useAuth } from "@/context/AuthContext";
+import { useLanguage } from "@/context/LanguageContext";
 import { useToast } from "@/context/ToastContext";
 import RoleGuard from "@/components/RoleGuard";
+import { ErrorState, LoadingState } from "@/components/DataState";
 import { type ApiTemplateRequest, templateRequests as apiRequests } from "@/services/api";
 
 // ─── Constants ────────────────────────────────────────────────────────────────
 
 const CATEGORIES = [
-  { key: "meeting_minutes", label: "Procès-verbaux",   icon: "clipboard"   as const, color: "#3b82f6" },
-  { key: "financial",       label: "Finance",          icon: "dollar-sign" as const, color: "#10b981" },
-  { key: "legal",           label: "Juridique",        icon: "shield"      as const, color: "#ef4444" },
-  { key: "elections",       label: "Élections",        icon: "check-circle" as const, color: "#f59e0b" },
-  { key: "contracts",       label: "Contrats",         icon: "file-text"   as const, color: "#0891b2" },
-  { key: "certificates",    label: "Certificats",      icon: "award"       as const, color: "#8b5cf6" },
-  { key: "regulations",     label: "Règlements",       icon: "book"        as const, color: "#06b6d4" },
-  { key: "administrative",  label: "Administratif",    icon: "briefcase"   as const, color: "#16a34a" },
-  { key: "maintenance",     label: "Maintenance",      icon: "tool"        as const, color: "#f97316" },
-  { key: "insurance",       label: "Assurance",        icon: "umbrella"    as const, color: "#ec4899" },
+  { key: "meeting_minutes", labelKey: "tsCategoryMeeting", icon: "clipboard" as const, color: "#3b82f6" },
+  { key: "financial", labelKey: "tsCategoryFinancial", icon: "dollar-sign" as const, color: "#10b981" },
+  { key: "legal", labelKey: "tsCategoryLegal", icon: "shield" as const, color: "#ef4444" },
+  { key: "elections", labelKey: "tsCategoryElections", icon: "check-circle" as const, color: "#f59e0b" },
+  { key: "contracts", labelKey: "tsCategoryContracts", icon: "file-text" as const, color: "#0891b2" },
+  { key: "certificates", labelKey: "tsCategoryCertificates", icon: "award" as const, color: "#8b5cf6" },
+  { key: "regulations", labelKey: "tsCategoryRegulations", icon: "book" as const, color: "#06b6d4" },
+  { key: "administrative", labelKey: "tsCategoryAdministrative", icon: "briefcase" as const, color: "#16a34a" },
+  { key: "maintenance", labelKey: "tsCategoryMaintenance", icon: "tool" as const, color: "#f97316" },
+  { key: "insurance", labelKey: "tsCategoryInsurance", icon: "umbrella" as const, color: "#ec4899" },
 ];
 
 const PRIORITIES = [
-  { key: "low",    label: "Basse",   color: "#64748b" },
-  { key: "normal", label: "Normale", color: "#3b82f6" },
-  { key: "high",   label: "Haute",   color: "#f59e0b" },
-  { key: "urgent", label: "Urgente", color: "#ef4444" },
+  { key: "low", labelKey: "trPriorityLow", color: "#64748b" },
+  { key: "normal", labelKey: "trPriorityNormal", color: "#3b82f6" },
+  { key: "high", labelKey: "trPriorityHigh", color: "#f59e0b" },
+  { key: "urgent", labelKey: "trPriorityUrgent", color: "#ef4444" },
 ];
 
-const STATUS_CONFIG: Record<string, { label: string; color: string; bg: string; icon: keyof typeof Feather.glyphMap }> = {
-  pending:           { label: "En attente",          color: "#f59e0b", bg: "#fef3c720", icon: "clock" },
-  in_review:         { label: "En cours d'examen",   color: "#3b82f6", bg: "#dbeafe20", icon: "eye" },
-  approved:          { label: "Approuvé",             color: "#10b981", bg: "#d1fae520", icon: "check-circle" },
-  rejected:          { label: "Refusé",               color: "#ef4444", bg: "#fee2e220", icon: "x-circle" },
-  need_more_info:    { label: "Infos supplémentaires", color: "#8b5cf6", bg: "#ede9fe20", icon: "info" },
+const STATUS_CONFIG: Record<string, { labelKey: string; color: string; bg: string; icon: keyof typeof Feather.glyphMap }> = {
+  pending: { labelKey: "tsPending", color: "#f59e0b", bg: "#fef3c720", icon: "clock" },
+  in_review: { labelKey: "tsInReview", color: "#3b82f6", bg: "#dbeafe20", icon: "eye" },
+  approved: { labelKey: "tsApproved", color: "#10b981", bg: "#d1fae520", icon: "check-circle" },
+  rejected: { labelKey: "tsRejected", color: "#ef4444", bg: "#fee2e220", icon: "x-circle" },
+  need_more_info: { labelKey: "tsNeedMoreInfo", color: "#8b5cf6", bg: "#ede9fe20", icon: "info" },
 };
 
 // ─── Form State ───────────────────────────────────────────────────────────────
@@ -83,10 +85,12 @@ const emptyForm = (): FormState => ({
 function TemplateRequestContent() {
   const insets = useSafeAreaInsets();
   const { user } = useAuth();
+  const { t, lang } = useLanguage();
   const { showToast } = useToast();
 
   const [requests, setRequests] = useState<ApiTemplateRequest[]>([]);
   const [loading, setLoading] = useState(true);
+  const [loadError, setLoadError] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
   const [showForm, setShowForm] = useState(false);
   const [submitting, setSubmitting] = useState(false);
@@ -94,11 +98,12 @@ function TemplateRequestContent() {
   const [selectedRequest, setSelectedRequest] = useState<ApiTemplateRequest | null>(null);
 
   const load = useCallback(async () => {
+    setLoadError(false);
     try {
       const res = await apiRequests.list();
       setRequests(res.data ?? []);
     } catch {
-      showToast({ type: "error", message: "Erreur lors du chargement des demandes" });
+      setLoadError(true);
     } finally {
       setLoading(false);
       setRefreshing(false);
@@ -110,9 +115,9 @@ function TemplateRequestContent() {
   const onRefresh = () => { setRefreshing(true); load(); };
 
   const handleSubmit = async () => {
-    if (!form.title.trim()) { showToast({ type: "error", message: "Le titre est requis" }); return; }
-    if (!form.category)      { showToast({ type: "error", message: "Choisissez une catégorie" }); return; }
-    if (!form.description.trim()) { showToast({ type: "error", message: "La description est requise" }); return; }
+    if (!form.title.trim()) { showToast({ type: "error", message: t("trRequiredTitle") }); return; }
+    if (!form.category)      { showToast({ type: "error", message: t("trRequiredCategory") }); return; }
+    if (!form.description.trim()) { showToast({ type: "error", message: t("trRequiredDescription") }); return; }
 
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
     setSubmitting(true);
@@ -126,13 +131,13 @@ function TemplateRequestContent() {
         legalNotes:      form.legalNotes.trim() || undefined,
         priority:        form.priority,
       });
-      showToast({ type: "success", message: "Demande soumise avec succès" });
+      showToast({ type: "success", message: t("trSubmitted") });
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
       setShowForm(false);
       setForm(emptyForm());
       load();
     } catch (err: any) {
-      showToast({ type: "error", message: err?.message ?? "Erreur lors de la soumission" });
+      showToast({ type: "error", message: t("trSubmitError") });
     } finally {
       setSubmitting(false);
     }
@@ -146,15 +151,15 @@ function TemplateRequestContent() {
           <Feather name="arrow-left" size={22} color="#e2e8f0" />
         </TouchableOpacity>
         <View style={{ flex: 1 }}>
-          <Text style={s.headerTitle}>Demandes de modèles</Text>
-          <Text style={s.headerSub}>Proposez un nouveau modèle de document</Text>
+          <Text style={s.headerTitle}>{t("tsRequests")}</Text>
+          <Text style={s.headerSub}>{t("trSubtitle")}</Text>
         </View>
         <TouchableOpacity
           style={s.newBtn}
           onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); setShowForm(true); }}
         >
           <Feather name="plus" size={16} color="#fff" />
-          <Text style={s.newBtnText}>Nouvelle</Text>
+          <Text style={s.newBtnText}>{t("trNew")}</Text>
         </TouchableOpacity>
       </View>
 
@@ -162,7 +167,7 @@ function TemplateRequestContent() {
       <View style={s.infoBanner}>
         <Feather name="info" size={14} color="#a78bfa" />
         <Text style={s.infoBannerText}>
-          Votre demande sera examinée par l'équipe VERIDIAN. Une fois approuvée, le modèle sera créé et mis à votre disposition.
+          {t("trInfo")}
         </Text>
       </View>
 
@@ -174,19 +179,16 @@ function TemplateRequestContent() {
         contentContainerStyle={{ padding: 16, gap: 12, paddingBottom: insets.bottom + 40 }}
       >
         {loading ? (
-          <View style={{ alignItems: "center", paddingVertical: 60 }}>
-            <ActivityIndicator size="large" color="#2563EB" />
-            <Text style={s.loadingText}>Chargement…</Text>
-          </View>
+          <LoadingState title={t("trLoading")} description={t("tsLoadingDescription")} accentColor="#2563EB" />
+        ) : loadError ? (
+          <ErrorState title={t("trLoadError")} description={t("tsActionError")} retryLabel={t("tsRetry")} onRetry={load} accentColor="#ef4444" />
         ) : requests.length === 0 ? (
           <View style={s.emptyWrap}>
             <View style={s.emptyIcon}>
               <Feather name="inbox" size={34} color="#2563EB" />
             </View>
-            <Text style={s.emptyTitle}>Aucune demande</Text>
-            <Text style={s.emptyDesc}>
-              Vous n'avez pas encore soumis de demande de modèle. Appuyez sur "Nouvelle" pour commencer.
-            </Text>
+            <Text style={s.emptyTitle}>{t("trEmpty")}</Text>
+            <Text style={s.emptyDesc}>{t("trEmptyDescription")}</Text>
           </View>
         ) : (
           requests.map((req) => {
@@ -207,15 +209,15 @@ function TemplateRequestContent() {
                   <View style={{ flexDirection: "row", alignItems: "center", gap: 8, marginBottom: 10 }}>
                     <View style={[s.catPill, { backgroundColor: (cat?.color ?? "#2563EB") + "20" }]}>
                       <Feather name={cat?.icon ?? "file"} size={11} color={cat?.color ?? "#2563EB"} />
-                      <Text style={[s.catPillText, { color: cat?.color ?? "#2563EB" }]}>{cat?.label ?? req.category}</Text>
+                      <Text style={[s.catPillText, { color: cat?.color ?? "#2563EB" }]}>{cat ? t(cat.labelKey) : req.category}</Text>
                     </View>
                     <View style={[s.statusBadge, { backgroundColor: sc.bg, borderColor: sc.color + "44" }]}>
                       <Feather name={sc.icon} size={10} color={sc.color} />
-                      <Text style={[s.statusBadgeText, { color: sc.color }]}>{sc.label}</Text>
+                      <Text style={[s.statusBadgeText, { color: sc.color }]}>{t(sc.labelKey)}</Text>
                     </View>
                     {req.priority !== "normal" && (
                       <View style={[s.priBadge, { backgroundColor: (pri?.color ?? "#64748b") + "20" }]}>
-                        <Text style={[s.priBadgeText, { color: pri?.color ?? "#64748b" }]}>{pri?.label}</Text>
+                        <Text style={[s.priBadgeText, { color: pri?.color ?? "#64748b" }]}>{pri ? t(pri.labelKey) : req.priority}</Text>
                       </View>
                     )}
                   </View>
@@ -240,7 +242,7 @@ function TemplateRequestContent() {
                   ) : null}
 
                   <Text style={s.cardDate}>
-                    {new Date(req.createdAt).toLocaleDateString("fr-MA", { dateStyle: "medium" })}
+                    {new Date(req.createdAt).toLocaleDateString(`${lang}-MA`, { dateStyle: "medium" })}
                   </Text>
                 </View>
               </TouchableOpacity>
@@ -255,7 +257,7 @@ function TemplateRequestContent() {
           <View style={[s.modalSheet, { paddingBottom: insets.bottom + 20 }]}>
             <View style={s.modalHandle} />
             <View style={{ flexDirection: "row", alignItems: "center", marginBottom: 20 }}>
-              <Text style={s.modalTitle}>Nouvelle demande de modèle</Text>
+              <Text style={s.modalTitle}>{t("trNewRequest")}</Text>
               <TouchableOpacity onPress={() => setShowForm(false)} style={{ marginLeft: "auto" }}>
                 <Feather name="x" size={20} color="#64748b" />
               </TouchableOpacity>
@@ -264,19 +266,19 @@ function TemplateRequestContent() {
             <ScrollView showsVerticalScrollIndicator={false} style={{ flex: 1 }}>
               {/* Title */}
               <View style={s.formField}>
-                <Text style={s.formLabel}>Titre du modèle <Text style={{ color: "#ef4444" }}>*</Text></Text>
+                <Text style={s.formLabel}>{t("trTitle")} <Text style={{ color: "#ef4444" }}>*</Text></Text>
                 <TextInput
                   style={s.input}
                   value={form.title}
                   onChangeText={(t) => setForm({ ...form, title: t })}
-                  placeholder="Ex: Contrat de maintenance ascenseur"
+                  placeholder={t("trTitlePlaceholder")}
                   placeholderTextColor="#475569"
                 />
               </View>
 
               {/* Category */}
               <View style={s.formField}>
-                <Text style={s.formLabel}>Catégorie <Text style={{ color: "#ef4444" }}>*</Text></Text>
+                <Text style={s.formLabel}>{t("trCategoryRequired")} <Text style={{ color: "#ef4444" }}>*</Text></Text>
                 <View style={s.chipRow}>
                   {CATEGORIES.map((cat) => (
                     <TouchableOpacity
@@ -285,7 +287,7 @@ function TemplateRequestContent() {
                       onPress={() => setForm({ ...form, category: cat.key })}
                     >
                       <Feather name={cat.icon} size={11} color={form.category === cat.key ? cat.color : "#64748b"} />
-                      <Text style={[s.chipText, form.category === cat.key && { color: cat.color }]}>{cat.label}</Text>
+                      <Text style={[s.chipText, form.category === cat.key && { color: cat.color }]}>{t(cat.labelKey)}</Text>
                     </TouchableOpacity>
                   ))}
                 </View>
@@ -293,12 +295,12 @@ function TemplateRequestContent() {
 
               {/* Description */}
               <View style={s.formField}>
-                <Text style={s.formLabel}>Description <Text style={{ color: "#ef4444" }}>*</Text></Text>
+                <Text style={s.formLabel}>{t("trDescriptionRequired")} <Text style={{ color: "#ef4444" }}>*</Text></Text>
                 <TextInput
                   style={[s.input, s.inputMulti]}
                   value={form.description}
                   onChangeText={(t) => setForm({ ...form, description: t })}
-                  placeholder="Décrivez l'objectif et l'usage de ce modèle…"
+                  placeholder={t("trDescriptionPlaceholder")}
                   placeholderTextColor="#475569"
                   multiline
                   numberOfLines={3}
@@ -308,12 +310,12 @@ function TemplateRequestContent() {
 
               {/* Business purpose */}
               <View style={s.formField}>
-                <Text style={s.formLabel}>Contexte métier</Text>
+                <Text style={s.formLabel}>{t("trBusinessPurpose")}</Text>
                 <TextInput
                   style={[s.input, s.inputMulti]}
                   value={form.businessPurpose}
                   onChangeText={(t) => setForm({ ...form, businessPurpose: t })}
-                  placeholder="Quel problème ce modèle résout-il ? Quelle est la fréquence d'utilisation attendue ?"
+                  placeholder={t("trBusinessPurposePlaceholder")}
                   placeholderTextColor="#475569"
                   multiline
                   numberOfLines={3}
@@ -323,12 +325,12 @@ function TemplateRequestContent() {
 
               {/* Required fields */}
               <View style={s.formField}>
-                <Text style={s.formLabel}>Champs requis (variables)</Text>
+                <Text style={s.formLabel}>{t("trRequiredFields")}</Text>
                 <TextInput
                   style={[s.input, s.inputMulti]}
                   value={form.requiredFields}
                   onChangeText={(t) => setForm({ ...form, requiredFields: t })}
-                  placeholder="Ex: date_intervention, nom_prestataire, montant_devis, description_travaux…"
+                  placeholder={t("trRequiredFieldsPlaceholder")}
                   placeholderTextColor="#475569"
                   multiline
                   numberOfLines={3}
@@ -338,19 +340,19 @@ function TemplateRequestContent() {
 
               {/* Legal notes */}
               <View style={s.formField}>
-                <Text style={s.formLabel}>Références légales (optionnel)</Text>
+                <Text style={s.formLabel}>{t("trLegalNotes")}</Text>
                 <TextInput
                   style={s.input}
                   value={form.legalNotes}
                   onChangeText={(t) => setForm({ ...form, legalNotes: t })}
-                  placeholder="Ex: Art. 15 de la loi 18-00 relative à la copropriété"
+                  placeholder={t("trLegalNotesPlaceholder")}
                   placeholderTextColor="#475569"
                 />
               </View>
 
               {/* Priority */}
               <View style={s.formField}>
-                <Text style={s.formLabel}>Priorité</Text>
+                <Text style={s.formLabel}>{t("trPriority")}</Text>
                 <View style={s.chipRow}>
                   {PRIORITIES.map((p) => (
                     <TouchableOpacity
@@ -358,7 +360,7 @@ function TemplateRequestContent() {
                       style={[s.chip, form.priority === p.key && { backgroundColor: p.color + "22", borderColor: p.color }]}
                       onPress={() => setForm({ ...form, priority: p.key as FormState["priority"] })}
                     >
-                      <Text style={[s.chipText, form.priority === p.key && { color: p.color }]}>{p.label}</Text>
+                      <Text style={[s.chipText, form.priority === p.key && { color: p.color }]}>{t(p.labelKey)}</Text>
                     </TouchableOpacity>
                   ))}
                 </View>
@@ -369,7 +371,7 @@ function TemplateRequestContent() {
 
             <View style={s.modalFooter}>
               <TouchableOpacity style={s.cancelBtn} onPress={() => setShowForm(false)}>
-                <Text style={s.cancelBtnText}>Annuler</Text>
+                <Text style={s.cancelBtnText}>{t("trCancel")}</Text>
               </TouchableOpacity>
               <TouchableOpacity
                 style={[s.submitBtn, submitting && { opacity: 0.6 }]}
@@ -377,7 +379,7 @@ function TemplateRequestContent() {
                 disabled={submitting}
               >
                 {submitting ? <ActivityIndicator size="small" color="#fff" /> : <Feather name="send" size={16} color="#fff" />}
-                <Text style={s.submitBtnText}>{submitting ? "Envoi…" : "Soumettre la demande"}</Text>
+                <Text style={s.submitBtnText}>{submitting ? t("trSending") : t("trSubmit")}</Text>
               </TouchableOpacity>
             </View>
           </View>
@@ -404,14 +406,14 @@ function TemplateRequestContent() {
                   <ScrollView showsVerticalScrollIndicator={false}>
                     <View style={[s.detailStatusBadge, { backgroundColor: sc.bg, borderColor: sc.color + "44" }]}>
                       <Feather name={sc.icon} size={14} color={sc.color} />
-                      <Text style={[s.detailStatusText, { color: sc.color }]}>{sc.label}</Text>
+                      <Text style={[s.detailStatusText, { color: sc.color }]}>{t(sc.labelKey)}</Text>
                     </View>
 
                     {[
-                      { label: "Catégorie", value: cat?.label ?? selectedRequest.category },
-                      { label: "Priorité", value: PRIORITIES.find((p) => p.key === selectedRequest.priority)?.label ?? selectedRequest.priority },
-                      { label: "Soumis le", value: new Date(selectedRequest.createdAt).toLocaleDateString("fr-MA", { dateStyle: "long" }) },
-                      selectedRequest.reviewedAt ? { label: "Examiné le", value: new Date(selectedRequest.reviewedAt).toLocaleDateString("fr-MA", { dateStyle: "long" }) } : null,
+                      { label: t("trCategory"), value: cat ? t(cat.labelKey) : selectedRequest.category },
+                      { label: t("trPriority"), value: PRIORITIES.find((p) => p.key === selectedRequest.priority) ? t(PRIORITIES.find((p) => p.key === selectedRequest.priority)!.labelKey) : selectedRequest.priority },
+                      { label: t("trSubmittedOn"), value: new Date(selectedRequest.createdAt).toLocaleDateString(`${lang}-MA`, { dateStyle: "long" }) },
+                      selectedRequest.reviewedAt ? { label: t("trReviewedOn"), value: new Date(selectedRequest.reviewedAt).toLocaleDateString(`${lang}-MA`, { dateStyle: "long" }) } : null,
                     ].filter(Boolean).map((row: any) => (
                       <View key={row.label} style={s.detailRow}>
                         <Text style={s.detailKey}>{row.label}</Text>
@@ -421,28 +423,28 @@ function TemplateRequestContent() {
 
                     {selectedRequest.description ? (
                       <View style={s.detailSection}>
-                        <Text style={s.detailSectionTitle}>Description</Text>
+                        <Text style={s.detailSectionTitle}>{t("trDescriptionRequired")}</Text>
                         <Text style={s.detailSectionBody}>{selectedRequest.description}</Text>
                       </View>
                     ) : null}
 
                     {selectedRequest.businessPurpose ? (
                       <View style={s.detailSection}>
-                        <Text style={s.detailSectionTitle}>Contexte métier</Text>
+                        <Text style={s.detailSectionTitle}>{t("trBusinessPurpose")}</Text>
                         <Text style={s.detailSectionBody}>{selectedRequest.businessPurpose}</Text>
                       </View>
                     ) : null}
 
                     {selectedRequest.reviewNotes ? (
                       <View style={[s.detailSection, { backgroundColor: "#2563EB15", borderColor: "#2563EB30" }]}>
-                        <Text style={[s.detailSectionTitle, { color: "#a78bfa" }]}>Notes de l'examinateur</Text>
+                        <Text style={[s.detailSectionTitle, { color: "#a78bfa" }]}>{t("trReviewerNotes")}</Text>
                         <Text style={[s.detailSectionBody, { color: "#c4b5fd" }]}>{selectedRequest.reviewNotes}</Text>
                       </View>
                     ) : null}
 
                     {selectedRequest.rejectionReason ? (
                       <View style={[s.detailSection, { backgroundColor: "#ef444415", borderColor: "#ef444430" }]}>
-                        <Text style={[s.detailSectionTitle, { color: "#ef4444" }]}>Motif de refus</Text>
+                        <Text style={[s.detailSectionTitle, { color: "#ef4444" }]}>{t("trRejectionReason")}</Text>
                         <Text style={[s.detailSectionBody, { color: "#fca5a5" }]}>{selectedRequest.rejectionReason}</Text>
                       </View>
                     ) : null}

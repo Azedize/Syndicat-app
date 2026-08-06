@@ -48,3 +48,35 @@
 - Travaux Privatifs now provides a consistent four-language approval experience with translated lifecycle hierarchy, resident guidance, decision history, review forms, and safe recovery states.
 - Profile now provides a consistent four-language identity and security experience with localized role hierarchy, quick actions, contribution status, password guidance, and safe recovery feedback.
 - Template Studio now keeps its role, category, variable, section, tab, and identifier presentation aligned with the active language instead of falling back to French metadata.
+- Home Dashboard now provides a visible synchronization state, localized retryable failure recovery, locale-aware MAD/date presentation, and Arabic direction support while keeping each role's operational surface intact.
+- Template Studio and Template Requests now provide a consistent four-language document-template experience with localized review lifecycle, request priorities, form/detail guidance, validation, date presentation, and actionable loading/error/empty states.
+---
+## Session 2026-08-06 — Refonte Enterprise Écrans d'Accueil
+
+### Écrans redessinés (niveau superstar Enterprise)
+
+| Écran | Fichier | Statut |
+|-------|---------|--------|
+| Welcome | app/welcome.tsx | ✅ Redesigné |
+| Intro Carousel (9 slides) | app/intro.tsx | ✅ Redesigné |
+| Get Started | app/get-started.tsx | ✅ Redesigné |
+| Login | app/login.tsx | ✅ Redesigné |
+| Dashboard (tabs/index) | app/(tabs)/index.tsx | ✅ Redesigné |
+
+### Améliorations appliquées
+- Animations spring/séquentiel Animated (useNativeDriver: true)
+- Dark + Light mode complets sur tous les écrans
+- SVG décors : cityscape marocain, orbes lumière, grille subtile
+- Badge "Conforme Loi 18-00 & CNDP" sur welcome
+- Carousel parallax 9 slides avec maquettes smartphones SVG
+- Dashboard stats temps réel (useData(), zéro mock)
+- Format monétaire MAD via Intl.NumberFormat
+- Haptic feedback sur toutes les interactions
+- RTL-ready (direction: isRTL ? "rtl" : "ltr")
+- TypeScript: 0 erreurs
+
+### Prochains modules à traiter
+- Écrans Finance (tableau-bord-financier, charges, paiements)
+- Assemblée Générale / Élections
+- Documents & Signatures
+- Profil & Paramètres

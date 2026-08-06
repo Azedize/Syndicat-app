@@ -360,6 +360,9 @@ export interface PayslipRecord {
 }
 
 interface DataContextType {
+  dataLoading: boolean;
+  dataLoadError: boolean;
+  refreshData: () => void;
   members: Member[];
   elections: Election[];
   candidates: Candidate[];
@@ -476,6 +479,9 @@ const DataContext = createContext<DataContextType | undefined>(undefined);
 
 export function DataProvider({ children }: { children: React.ReactNode }) {
   const { user } = useAuth();
+  const [dataLoading, setDataLoading] = useState(false);
+  const [dataLoadError, setDataLoadError] = useState(false);
+  const [dataRefreshKey, setDataRefreshKey] = useState(0);
   const [members, setMembers] = useState<Member[]>([]);
   const [elections, setElections] = useState<Election[]>([]);
   const [candidates, setCandidates] = useState<Candidate[]>([]);
@@ -509,6 +515,8 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
   useEffect(() => {
     if (!user) return;
     let cancelled = false;
+    setDataLoading(true);
+    setDataLoadError(false);
     setDocumentsLoading(true);
     setDocumentsLoadError(false);
     async function loadFromApi() {
@@ -541,6 +549,9 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
         ]);
 
         if (cancelled) return;
+
+        const rejectedCount = results.filter((result) => result.status === "rejected").length;
+        setDataLoadError(rejectedCount === results.length);
 
         const [
           membersRes, electionsRes, meetingsRes,
@@ -938,10 +949,13 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
           setDocumentsLoadError(true);
         }
         setDocumentsLoading(false);
+        setDataLoading(false);
       } catch {
         if (!cancelled) {
           setDocumentsLoadError(true);
           setDocumentsLoading(false);
+          setDataLoadError(true);
+          setDataLoading(false);
         }
         // API call failed (network/auth error): keep whatever was already
         // loaded (or the empty initial state) rather than throwing — this
@@ -951,7 +965,11 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
     }
     loadFromApi();
     return () => { cancelled = true; };
-  }, [user?.id]);
+  }, [user?.id, dataRefreshKey]);
+
+  const refreshData = () => {
+    setDataRefreshKey((current) => current + 1);
+  };
 
   const updateSubscription = (id: string, planId: string) => {
     const plan = subscriptionPlans.find((p) => p.id === planId);
@@ -1332,6 +1350,7 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
   return (
     <DataContext.Provider
       value={{
+        dataLoading, dataLoadError, refreshData,
         members, elections, candidates, meetings, documents, documentsLoading, documentsLoadError, products,
         transactions, salaries, caisseEntries, conversations, messages,
         syndicates, legalAlerts, supportTickets, orders, cotisations, alerts,

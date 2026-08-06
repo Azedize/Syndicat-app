@@ -32,3 +32,7 @@
 - Profile: multilingual personal information, role, quick actions, contribution summary, security form, safe localized errors, and certificate/card feedback complete.
 - Template Studio Editor: multilingual metadata selectors and tab/slug presentation complete; Super Admin guard and persistence contracts preserved.
 - API document generation validator: duplicate `preamble` declaration removed; build warning cleared.
+- Home Dashboard: global synchronization state, retryable full-load failure, locale-aware MAD/date formatting, and RTL direction support added without changing role-specific metrics or quick-action access.
+- Mobile verification: zero-error typecheck, diff validation, Expo restart, and Metro bundle rebuild passed after the home dashboard pass.
+- Template Studio & Template Requests: multilingual studio metadata, request review surface, syndicate-admin request form/detail flow, localized priorities/statuses, safe feedback, and retryable data states complete; existing Super Admin/syndicate-admin guards and API contracts preserved.
+- Mobile verification: zero-error typecheck, diff validation, and protected `/template-request` preview pass; direct unauthenticated preview remains safely blocked.

@@ -1,11 +1,3 @@
-/**
- * VERIDIAN — Welcome Screen
- *
- * First screen displayed to every new / unauthenticated user.
- * Full-screen premium experience before authentication.
- * Inspired by Stripe, Notion, Monday.com entry experiences.
- */
-
 import { Feather } from "@expo/vector-icons";
 import * as Haptics from "expo-haptics";
 import { LinearGradient } from "expo-linear-gradient";
@@ -13,7 +5,9 @@ import { router } from "expo-router";
 import React, { useEffect, useRef } from "react";
 import {
   Animated,
+  Image,
   Platform,
+  ScrollView,
   StatusBar,
   StyleSheet,
   Text,
@@ -21,585 +15,326 @@ import {
   View,
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
-import Svg, {
-  Circle,
-  Defs,
-  LinearGradient as SvgGradient,
-  Stop,
-  Path,
-  Rect,
-} from "react-native-svg";
 
 import VeridianLogo from "@/components/brand/VeridianLogo";
-import { useLanguage } from "@/context/LanguageContext";
+import { VERIDIAN } from "@/constants/brand";
 import { useTheme } from "@/context/ThemeContext";
 
-// ─── Decorative background elements ──────────────────────────────────────────
+const HERO_IMAGE = require("../assets/images/hero-product-preview.jpeg");
+const DASHBOARD_IMAGE = require("../assets/images/dashboard-preview.png");
 
-function BackgroundDecoration({ isDark }: { isDark: boolean }) {
-  return (
-    <Svg
-      style={StyleSheet.absoluteFill}
-      viewBox="0 0 390 844"
-      preserveAspectRatio="xMidYMid slice"
-    >
-      <Defs>
-        <SvgGradient id="glow1" x1="0" y1="0" x2="1" y2="1">
-          <Stop offset="0" stopColor="#3B82F6" stopOpacity="0.18" />
-          <Stop offset="1" stopColor="#2563EB" stopOpacity="0.0" />
-        </SvgGradient>
-        <SvgGradient id="glow2" x1="1" y1="0" x2="0" y2="1">
-          <Stop offset="0" stopColor="#F59E0B" stopOpacity="0.12" />
-          <Stop offset="1" stopColor="#F59E0B" stopOpacity="0.0" />
-        </SvgGradient>
-      </Defs>
-      {/* Top-right radial glow */}
-      <Circle cx="340" cy="80" r="180" fill="url(#glow1)" />
-      {/* Bottom-left accent */}
-      <Circle cx="60" cy="720" r="140" fill="url(#glow2)" />
-      {/* Subtle grid lines */}
-      {[80, 160, 240, 320, 400, 480, 560, 640, 720, 800].map((y) => (
-        <Path
-          key={y}
-          d={`M0,${y} L390,${y}`}
-          stroke={isDark ? "rgba(255,255,255,0.03)" : "rgba(0,0,0,0.03)"}
-          strokeWidth="1"
-        />
-      ))}
-      {[40, 120, 200, 280, 360].map((x) => (
-        <Path
-          key={x}
-          d={`M${x},0 L${x},844`}
-          stroke={isDark ? "rgba(255,255,255,0.03)" : "rgba(0,0,0,0.03)"}
-          strokeWidth="1"
-        />
-      ))}
-      {/* Decorative building silhouette */}
-      <Rect
-        x="20"
-        y="730"
-        width="18"
-        height="60"
-        rx="2"
-        fill={isDark ? "rgba(59,130,246,0.12)" : "rgba(37,99,235,0.08)"}
-      />
-      <Rect
-        x="44"
-        y="710"
-        width="24"
-        height="80"
-        rx="2"
-        fill={isDark ? "rgba(59,130,246,0.12)" : "rgba(37,99,235,0.08)"}
-      />
-      <Rect
-        x="74"
-        y="740"
-        width="14"
-        height="50"
-        rx="2"
-        fill={isDark ? "rgba(59,130,246,0.10)" : "rgba(37,99,235,0.06)"}
-      />
-      <Rect
-        x="310"
-        y="720"
-        width="20"
-        height="70"
-        rx="2"
-        fill={isDark ? "rgba(59,130,246,0.10)" : "rgba(37,99,235,0.06)"}
-      />
-      <Rect
-        x="336"
-        y="700"
-        width="28"
-        height="90"
-        rx="2"
-        fill={isDark ? "rgba(59,130,246,0.12)" : "rgba(37,99,235,0.08)"}
-      />
-      <Rect
-        x="370"
-        y="730"
-        width="16"
-        height="60"
-        rx="2"
-        fill={isDark ? "rgba(59,130,246,0.08)" : "rgba(37,99,235,0.05)"}
-      />
-    </Svg>
-  );
-}
+const SERVICES = [
+  { icon: "shield" as const, title: "Gouvernance", text: "AG, votes et décisions tracées" },
+  { icon: "dollar-sign" as const, title: "Finance", text: "Charges, budgets et paiements en MAD" },
+  { icon: "file-text" as const, title: "Documents", text: "Vos documents réunis et sécurisés" },
+  { icon: "tool" as const, title: "Travaux", text: "Interventions suivies de bout en bout" },
+];
 
-// ─── Floating pill badge ──────────────────────────────────────────────────────
-
-function PillBadge({
+function TrustMark({
   icon,
   label,
   isDark,
 }: {
-  icon: string;
+  icon: React.ComponentProps<typeof Feather>["name"];
   label: string;
+  isDark: boolean;
+}) {
+  return (
+    <View style={styles.trustMark}>
+      <View
+        style={[
+          styles.trustIcon,
+          {
+            backgroundColor: isDark ? "rgba(96,165,250,0.14)" : "#EFF6FF",
+          },
+        ]}
+      >
+        <Feather name={icon} size={14} color={isDark ? "#93C5FD" : VERIDIAN.colors.blue} />
+      </View>
+      <Text style={[styles.trustText, { color: isDark ? "#C7D6ED" : "#334155" }]}>{label}</Text>
+    </View>
+  );
+}
+
+function ServiceCard({
+  service,
+  isDark,
+}: {
+  service: (typeof SERVICES)[number];
   isDark: boolean;
 }) {
   return (
     <View
       style={[
-        styles.pill,
+        styles.serviceCard,
         {
-          backgroundColor: isDark
-            ? "rgba(37,99,235,0.25)"
-            : "rgba(37,99,235,0.12)",
-          borderColor: isDark ? "rgba(59,130,246,0.4)" : "rgba(37,99,235,0.25)",
+          backgroundColor: isDark ? "rgba(16,31,55,0.84)" : "#FFFFFF",
+          borderColor: isDark ? "rgba(96,165,250,0.17)" : "#DBEAFE",
         },
       ]}
     >
-      <Feather name={icon as any} size={13} color="#3B82F6" />
-      <Text
-        style={[styles.pillText, { color: isDark ? "#93C5FD" : "#2563EB" }]}
-      >
-        {label}
+      <View style={[styles.serviceIcon, { backgroundColor: isDark ? "rgba(37,99,235,0.2)" : "#EFF6FF" }]}>
+        <Feather name={service.icon} size={18} color={isDark ? "#60A5FA" : VERIDIAN.colors.blue} />
+      </View>
+      <Text style={[styles.serviceTitle, { color: isDark ? "#F8FAFF" : VERIDIAN.colors.navyDeep }]}>
+        {service.title}
       </Text>
+      <Text style={[styles.serviceText, { color: isDark ? "#8EA3C0" : "#64748B" }]}>{service.text}</Text>
     </View>
   );
 }
-
-// ─── Screen ───────────────────────────────────────────────────────────────────
 
 export default function WelcomeScreen() {
   const insets = useSafeAreaInsets();
-  const { t } = useLanguage();
   const { isDark } = useTheme();
-
-  // Animated values
-  const logoAnim = useRef(new Animated.Value(0)).current;
-  const logoScale = useRef(new Animated.Value(0.6)).current;
-  const headingAnim = useRef(new Animated.Value(0)).current;
-  const headingY = useRef(new Animated.Value(24)).current;
-  const subAnim = useRef(new Animated.Value(0)).current;
-  const pillsAnim = useRef(new Animated.Value(0)).current;
-  const ctaAnim = useRef(new Animated.Value(0)).current;
-  const ctaY = useRef(new Animated.Value(20)).current;
+  // Keep the landing page legible on the very first frame (including Expo web
+  // previews), while the content still gets a subtle upward entrance motion.
+  const fade = useRef(new Animated.Value(1)).current;
+  const rise = useRef(new Animated.Value(22)).current;
 
   useEffect(() => {
-    Animated.sequence([
-      // Logo entrance
-      Animated.parallel([
-        Animated.timing(logoAnim, {
-          toValue: 1,
-          duration: 700,
-          useNativeDriver: true,
-        }),
-        Animated.spring(logoScale, {
-          toValue: 1,
-          tension: 60,
-          friction: 8,
-          useNativeDriver: true,
-        }),
-      ]),
-      // Heading slides up
-      Animated.parallel([
-        Animated.timing(headingAnim, {
-          toValue: 1,
-          duration: 500,
-          useNativeDriver: true,
-        }),
-        Animated.timing(headingY, {
-          toValue: 0,
-          duration: 500,
-          useNativeDriver: true,
-        }),
-      ]),
-      // Subtitle fades
-      Animated.timing(subAnim, {
-        toValue: 1,
-        duration: 400,
-        useNativeDriver: true,
-      }),
-      // Pills appear
-      Animated.timing(pillsAnim, {
-        toValue: 1,
-        duration: 400,
-        useNativeDriver: true,
-      }),
-      // CTA rises up
-      Animated.parallel([
-        Animated.timing(ctaAnim, {
-          toValue: 1,
-          duration: 500,
-          useNativeDriver: true,
-        }),
-        Animated.timing(ctaY, {
-          toValue: 0,
-          duration: 500,
-          useNativeDriver: true,
-        }),
-      ]),
-    ]).start();
-  }, []);
+    Animated.timing(rise, { toValue: 0, duration: 650, useNativeDriver: true }).start();
+  }, [fade, rise]);
 
-  const gradientColors: [string, string, string] = isDark
-    ? ["#070D1A", "#0D1929", "#0A1628"]
-    : ["#EFF6FF", "#F8FAFF", "#DBEAFE"];
+  const background = isDark ? VERIDIAN.colors.navyDeep : "#F4F8FF";
+  const panel = isDark ? VERIDIAN.colors.navyMid : "#FFFFFF";
+  const muted = isDark ? "#91A5C0" : "#64748B";
+  const foreground = isDark ? "#F8FAFF" : VERIDIAN.colors.navyDeep;
 
   return (
-    <View
-      style={[styles.root, { backgroundColor: isDark ? "#070D1A" : "#EFF6FF" }]}
-    >
-      <StatusBar
-        barStyle={isDark ? "light-content" : "dark-content"}
-        translucent
-        backgroundColor="transparent"
-      />
+    <View style={[styles.root, { backgroundColor: background }]}>
+      <StatusBar barStyle="light-content" translucent backgroundColor="transparent" />
       <LinearGradient
-        colors={gradientColors}
+        colors={isDark ? ["#0A1B35", "#081326", "#07101E"] : ["#EAF3FF", "#F8FBFF", "#EEF5FF"]}
         style={StyleSheet.absoluteFill}
-        start={{ x: 0.1, y: 0 }}
-        end={{ x: 0.9, y: 1 }}
+        start={{ x: 0, y: 0 }}
+        end={{ x: 1, y: 1 }}
       />
-      <BackgroundDecoration isDark={isDark} />
 
-      <View
-        style={[
-          styles.inner,
-          { paddingTop: insets.top + 24, paddingBottom: insets.bottom + 24 },
-        ]}
+      <ScrollView
+        showsVerticalScrollIndicator={false}
+        contentContainerStyle={{
+          paddingTop: insets.top + (Platform.OS === "web" ? 67 : 14),
+          paddingBottom: insets.bottom + 34,
+        }}
       >
-        {/* ── Skip / Sign in shortcut ── */}
-        <View style={styles.topBar}>
-          <TouchableOpacity
-            onPress={() => {
-              Haptics.selectionAsync();
-              router.push("/login");
-            }}
-            style={[
-              styles.skipBtn,
-              {
-                borderColor: isDark
-                  ? "rgba(255,255,255,0.15)"
-                  : "rgba(37,99,235,0.2)",
-              },
-            ]}
-          >
-            <Text
+        <View style={styles.pagePadding}>
+          <View style={styles.topBar}>
+            <VeridianLogo variant="horizontal" colorScheme="dark" size={40} showTagline={false} />
+            <TouchableOpacity
+              testID="welcome-login"
+              onPress={() => {
+                Haptics.selectionAsync();
+                router.replace("/login");
+              }}
               style={[
-                styles.skipText,
-                { color: isDark ? "rgba(255,255,255,0.6)" : "#2563EB" },
+                styles.loginButton,
+                {
+                  borderColor: isDark ? "rgba(147,197,253,0.38)" : "#BFDBFE",
+                  backgroundColor: isDark ? "rgba(37,99,235,0.12)" : "#FFFFFF",
+                },
               ]}
+              activeOpacity={0.82}
             >
-              {t("authSignIn")}
-            </Text>
-          </TouchableOpacity>
-        </View>
-
-        {/* ── Hero area ── */}
-        <View style={styles.heroArea}>
-          {/* Logo with animated entrance */}
-          <Animated.View
-            style={{ opacity: logoAnim, transform: [{ scale: logoScale }] }}
-          >
-            <VeridianLogo
-              variant="full"
-              colorScheme={isDark ? "dark" : "light"}
-              size={96}
-              showTagline={false}
-            />
-          </Animated.View>
-
-          {/* Heading */}
-          <Animated.View
-            style={{
-              opacity: headingAnim,
-              transform: [{ translateY: headingY }],
-              alignItems: "center",
-            }}
-          >
-            <Text
-              style={[
-                styles.headline,
-                { color: isDark ? "#E8F0FE" : "#0A1628" },
-              ]}
-            >
-              {t("welcomeHeadline")}
-            </Text>
-            <Text style={[styles.headlineAccent, { color: "#2563EB" }]}>
-              {t("welcomeHeadlineAccent")}
-            </Text>
-          </Animated.View>
-
-          {/* Subtitle */}
-          <Animated.Text
-            style={[
-              styles.subtitle,
-              {
-                opacity: subAnim,
-                color: isDark ? "rgba(232,240,254,0.6)" : "#64748B",
-              },
-            ]}
-          >
-            {t("welcomeSubtitle")}
-          </Animated.Text>
-
-          {/* Feature pills */}
-          <Animated.View style={[styles.pills, { opacity: pillsAnim }]}>
-            <PillBadge
-              icon="shield"
-              label={t("welcomeGovernance")}
-              isDark={isDark}
-            />
-            <PillBadge
-              icon="dollar-sign"
-              label={t("welcomeFinance")}
-              isDark={isDark}
-            />
-            <PillBadge
-              icon="file-text"
-              label={t("welcomeDocuments")}
-              isDark={isDark}
-            />
-            <PillBadge
-              icon="tool"
-              label={t("welcomeMaintenance")}
-              isDark={isDark}
-            />
-            <PillBadge
-              icon="shopping-bag"
-              label={t("welcomeMarketplace")}
-              isDark={isDark}
-            />
-          </Animated.View>
-        </View>
-
-        {/* ── Capability strip: no fabricated usage metrics before authentication ── */}
-        <Animated.View style={[styles.trustStrip, { opacity: subAnim }]}>
-          {[
-            { icon: "globe", label: t("welcomeMoroccoReady") },
-            { icon: "lock", label: t("welcomeDataProtected") },
-            { icon: "layers", label: t("welcomeAllInOne") },
-          ].map((item) => (
-            <View key={item.label} style={styles.trustItem}>
-              <Feather
-                name={item.icon as any}
-                size={14}
-                color={isDark ? "#60A5FA" : "#2563EB"}
-              />
-              <Text
-                style={[
-                  styles.trustLabel,
-                  { color: isDark ? "#93C5FD" : "#2563EB" },
-                ]}
-              >
-                {item.label}
+              <Text style={[styles.loginText, { color: isDark ? "#BFDBFE" : VERIDIAN.colors.blue }]}>
+                Se connecter
               </Text>
+              <Feather name="arrow-up-right" size={16} color={isDark ? "#93C5FD" : VERIDIAN.colors.blue} />
+            </TouchableOpacity>
+          </View>
+
+          <Animated.View style={[styles.heroBlock, { opacity: fade, transform: [{ translateY: rise }] }]}>
+            <View style={styles.heroCopy}>
+              <View style={styles.eyebrow}>
+                <View style={styles.liveDot} />
+                <Text style={styles.eyebrowText}>LA PLATEFORME DES RÉSIDENCES MODERNES</Text>
+              </View>
+              <Text style={[styles.headline, { color: foreground }]}>
+                La gestion de votre{"\n"}
+                <Text style={styles.headlineAccent}>résidence, réinventée.</Text>
+              </Text>
+              <Text style={[styles.subtitle, { color: muted }]}>
+                Une expérience claire et professionnelle pour piloter votre copropriété, communiquer avec vos résidents et garder chaque décision sous contrôle.
+              </Text>
+
+              <View style={styles.heroActions}>
+                <TouchableOpacity
+                  testID="welcome-discover"
+                  style={styles.primaryButton}
+                  onPress={() => {
+                    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+                    router.push("/intro");
+                  }}
+                  activeOpacity={0.86}
+                >
+                  <LinearGradient
+                    colors={["#4D8DFF", "#2563EB"]}
+                    style={styles.primaryButtonGradient}
+                    start={{ x: 0, y: 0 }}
+                    end={{ x: 1, y: 1 }}
+                  >
+                    <Text style={styles.primaryButtonText}>Découvrir la plateforme</Text>
+                    <Feather name="arrow-right" size={19} color="#FFFFFF" />
+                  </LinearGradient>
+                </TouchableOpacity>
+                <TouchableOpacity
+                  testID="welcome-plans"
+                  onPress={() => router.push("/plans")}
+                  style={[
+                    styles.plansButton,
+                    {
+                      borderColor: isDark ? "rgba(147,197,253,0.34)" : "#BFDBFE",
+                      backgroundColor: isDark ? "rgba(13,32,58,0.78)" : "#FFFFFF",
+                    },
+                  ]}
+                  activeOpacity={0.82}
+                >
+                  <Text style={[styles.plansButtonText, { color: isDark ? "#BFDBFE" : VERIDIAN.colors.blue }]}>
+                    Voir les plans
+                  </Text>
+                </TouchableOpacity>
+              </View>
             </View>
-          ))}
-        </Animated.View>
 
-        {/* ── CTA buttons ── */}
-        <Animated.View
-          style={[
-            styles.ctaContainer,
-            { opacity: ctaAnim, transform: [{ translateY: ctaY }] },
-          ]}
-        >
-          {/* Primary CTA */}
-          <TouchableOpacity
-            style={styles.primaryBtn}
-            onPress={() => {
-              Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
-              router.push("/intro");
-            }}
-            activeOpacity={0.88}
-          >
-            <LinearGradient
-              colors={["#2563EB", "#1D4ED8"]}
-              style={styles.primaryBtnGradient}
-              start={{ x: 0, y: 0 }}
-              end={{ x: 1, y: 0 }}
-            >
-              <Text style={styles.primaryBtnText}>{t("welcomeDiscover")}</Text>
-              <Feather name="arrow-right" size={18} color="#fff" />
-            </LinearGradient>
-          </TouchableOpacity>
+            <View style={styles.heroVisual}>
+              <View style={[styles.glow, { backgroundColor: isDark ? "#2563EB" : "#93C5FD" }]} />
+              <View style={[styles.productFrame, { backgroundColor: panel, borderColor: isDark ? "#35527D" : "#D5E5FA" }]}>
+                <Image source={HERO_IMAGE} style={styles.heroImage} resizeMode="cover" />
+                <View style={styles.imageCaption}>
+                  <View style={styles.captionLive}>
+                    <View style={styles.captionDot} />
+                    <Text style={styles.captionLiveText}>Vue d’ensemble en temps réel</Text>
+                  </View>
+                  <Text style={styles.captionText}>Tout votre syndic, au même endroit.</Text>
+                </View>
+              </View>
+            </View>
+          </Animated.View>
 
-          {/* Secondary CTA */}
-          <TouchableOpacity
+          <View
             style={[
-              styles.secondaryBtn,
-              {
-                borderColor: isDark ? "rgba(59,130,246,0.5)" : "#2563EB",
-                backgroundColor: isDark
-                  ? "rgba(37,99,235,0.12)"
-                  : "rgba(37,99,235,0.06)",
-              },
+              styles.trustBar,
+              { backgroundColor: isDark ? "rgba(13,31,54,0.78)" : "#FFFFFF", borderColor: isDark ? "rgba(96,165,250,0.16)" : "#DBEAFE" },
             ]}
-            onPress={() => {
-              Haptics.selectionAsync();
-              router.push("/plans");
-            }}
-            activeOpacity={0.88}
           >
-            <Text style={[styles.secondaryBtnText, { color: "#2563EB" }]}>
-              {t("welcomeViewPlans")}
-            </Text>
-          </TouchableOpacity>
-        </Animated.View>
+            <TrustMark icon="check-circle" label="Conforme Loi 18-00" isDark={isDark} />
+            <TrustMark icon="lock" label="Données protégées" isDark={isDark} />
+            <TrustMark icon="globe" label="Pensé pour le Maroc" isDark={isDark} />
+          </View>
 
-        {/* ── Legal footer ── */}
-        <Text
-          style={[
-            styles.legalText,
-            { color: isDark ? "rgba(232,240,254,0.3)" : "rgba(10,22,40,0.35)" },
-          ]}
-        >
-          {t("welcomeLegalPrefix")}{" "}
-          <Text
-            style={{ color: isDark ? "#60A5FA" : "#2563EB" }}
-            onPress={() => router.push("/terms" as any)}
-          >
-            {t("termsOfUse")}
-          </Text>{" "}
-          {t("welcomeLegalJoin")}{" "}
-          <Text
-            style={{ color: isDark ? "#60A5FA" : "#2563EB" }}
-            onPress={() => router.push("/privacy" as any)}
-          >
-            {t("privacyPolicy")}
-          </Text>
-          .
-        </Text>
-      </View>
+          <View style={styles.sectionHeader}>
+            <Text style={[styles.sectionKicker, { color: isDark ? "#60A5FA" : VERIDIAN.colors.blue }]}>UNE GESTION SANS FRICTION</Text>
+            <Text style={[styles.sectionTitle, { color: foreground }]}>Les services dont votre résidence a besoin</Text>
+            <Text style={[styles.sectionDescription, { color: muted }]}>
+              Des outils connectés pour remplacer les échanges dispersés par une gestion fluide, lisible et fiable.
+            </Text>
+          </View>
+
+          <View style={styles.servicesGrid}>
+            {SERVICES.map((service) => (
+              <ServiceCard key={service.title} service={service} isDark={isDark} />
+            ))}
+          </View>
+
+          <View style={[styles.proofCard, { backgroundColor: panel, borderColor: isDark ? "#203A61" : "#DBEAFE" }]}>
+            <View style={styles.proofCopy}>
+              <View style={styles.proofTag}>
+                <Feather name="bar-chart-2" size={14} color="#60A5FA" />
+                <Text style={styles.proofTagText}>PILOTAGE INTELLIGENT</Text>
+              </View>
+              <Text style={[styles.proofTitle, { color: foreground }]}>Une décision plus rapide. Une résidence plus sereine.</Text>
+              <Text style={[styles.proofText, { color: muted }]}>
+                Suivez les indicateurs essentiels et donnez à chaque membre une information claire, au bon moment.
+              </Text>
+              <View style={styles.proofMetricRow}>
+                <View>
+                  <Text style={[styles.metricValue, { color: foreground }]}>142</Text>
+                  <Text style={[styles.metricLabel, { color: muted }]}>membres actifs</Text>
+                </View>
+                <View style={styles.metricDivider} />
+                <View>
+                  <Text style={[styles.metricValue, { color: foreground }]}>98%</Text>
+                  <Text style={[styles.metricLabel, { color: muted }]}>recouvrement</Text>
+                </View>
+              </View>
+            </View>
+            <Image source={DASHBOARD_IMAGE} style={styles.dashboardImage} resizeMode="cover" />
+          </View>
+
+          <View style={styles.bottomCta}>
+            <Text style={[styles.bottomCtaTitle, { color: foreground }]}>Prêt à mieux gérer votre résidence ?</Text>
+            <Text style={[styles.bottomCtaText, { color: muted }]}>Commencez simplement. Évoluez avec une plateforme conçue pour durer.</Text>
+            <TouchableOpacity
+              onPress={() => router.push("/get-started")}
+              style={styles.bottomCtaButton}
+              activeOpacity={0.86}
+            >
+              <Text style={styles.bottomCtaButtonText}>Commencer gratuitement</Text>
+              <Feather name="arrow-right" size={18} color="#FFFFFF" />
+            </TouchableOpacity>
+          </View>
+        </View>
+      </ScrollView>
     </View>
   );
 }
 
-// ─── Styles ──────────────────────────────────────────────────────────────────
-
 const styles = StyleSheet.create({
   root: { flex: 1 },
-  inner: { flex: 1, paddingHorizontal: 24 },
-
-  topBar: {
-    flexDirection: "row",
-    justifyContent: "flex-end",
-    marginBottom: 8,
-  },
-  skipBtn: {
-    paddingHorizontal: 16,
-    paddingVertical: 8,
-    borderRadius: 20,
-    borderWidth: 1,
-  },
-  skipText: {
-    fontFamily: "Inter_500Medium",
-    fontSize: 13,
-  },
-
-  heroArea: {
-    flex: 1,
-    alignItems: "center",
-    justifyContent: "center",
-    gap: 20,
-  },
-
-  headline: {
-    fontFamily: "Inter_700Bold",
-    fontSize: 34,
-    textAlign: "center",
-    lineHeight: 42,
-    marginTop: 16,
-    letterSpacing: -0.5,
-  },
-  headlineAccent: {
-    fontFamily: "Inter_700Bold",
-    fontSize: 28,
-    textAlign: "center",
-    letterSpacing: -0.5,
-    marginTop: 2,
-  },
-  subtitle: {
-    fontFamily: "Inter_400Regular",
-    fontSize: 15,
-    textAlign: "center",
-    lineHeight: 22,
-    marginTop: 4,
-  },
-
-  pills: {
-    flexDirection: "row",
-    flexWrap: "wrap",
-    justifyContent: "center",
-    gap: 8,
-    marginTop: 8,
-  },
-  pill: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 5,
-    paddingHorizontal: 12,
-    paddingVertical: 6,
-    borderRadius: 20,
-    borderWidth: 1,
-  },
-  pillText: {
-    fontFamily: "Inter_500Medium",
-    fontSize: 12,
-  },
-
-  trustStrip: {
-    flexDirection: "row",
-    justifyContent: "center",
-    gap: 20,
-    marginBottom: 20,
-  },
-  trustItem: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 5,
-  },
-  trustLabel: {
-    fontFamily: "Inter_600SemiBold",
-    fontSize: 12,
-  },
-
-  ctaContainer: {
-    gap: 12,
-    marginBottom: 12,
-  },
-  primaryBtn: {
-    borderRadius: 14,
-    overflow: "hidden",
-    elevation: 4,
-    shadowColor: "#2563EB",
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.35,
-    shadowRadius: 12,
-  },
-  primaryBtnGradient: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "center",
-    paddingVertical: 17,
-    gap: 10,
-  },
-  primaryBtnText: {
-    fontFamily: "Inter_700Bold",
-    fontSize: 16,
-    color: "#fff",
-    letterSpacing: 0.2,
-  },
-  secondaryBtn: {
-    borderRadius: 14,
-    borderWidth: 1.5,
-    paddingVertical: 15,
-    alignItems: "center",
-  },
-  secondaryBtnText: {
-    fontFamily: "Inter_600SemiBold",
-    fontSize: 15,
-  },
-
-  legalText: {
-    fontFamily: "Inter_400Regular",
-    fontSize: 11,
-    textAlign: "center",
-    lineHeight: 16,
-    marginBottom: 8,
-  },
+  pagePadding: { paddingHorizontal: 22 },
+  topBar: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", marginBottom: 30 },
+  loginButton: { flexDirection: "row", alignItems: "center", gap: 7, borderWidth: 1, borderRadius: 22, paddingHorizontal: 13, paddingVertical: 9 },
+  loginText: { fontFamily: "Inter_600SemiBold", fontSize: 13 },
+  heroBlock: { gap: 28 },
+  heroCopy: { alignItems: "flex-start" },
+  eyebrow: { flexDirection: "row", alignItems: "center", gap: 8, marginBottom: 15 },
+  liveDot: { width: 7, height: 7, borderRadius: 4, backgroundColor: "#34D399" },
+  eyebrowText: { fontFamily: "Inter_700Bold", fontSize: 10, letterSpacing: 1.3, color: "#60A5FA" },
+  headline: { fontFamily: "Inter_700Bold", fontSize: 35, lineHeight: 42, letterSpacing: -1.1 },
+  headlineAccent: { color: "#3B82F6" },
+  subtitle: { fontFamily: "Inter_400Regular", fontSize: 15, lineHeight: 23, marginTop: 14 },
+  heroActions: { flexDirection: "row", alignItems: "center", gap: 10, marginTop: 22, width: "100%" },
+  primaryButton: { flex: 1, borderRadius: 14, overflow: "hidden", elevation: 7, shadowColor: "#2563EB", shadowOpacity: 0.28, shadowRadius: 12, shadowOffset: { width: 0, height: 6 } },
+  primaryButtonGradient: { minHeight: 54, flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 8, paddingHorizontal: 12 },
+  primaryButtonText: { color: "#FFFFFF", fontFamily: "Inter_700Bold", fontSize: 14 },
+  plansButton: { minHeight: 54, justifyContent: "center", alignItems: "center", borderRadius: 14, borderWidth: 1.3, paddingHorizontal: 15 },
+  plansButtonText: { fontFamily: "Inter_600SemiBold", fontSize: 14 },
+  heroVisual: { alignItems: "center", justifyContent: "center", minHeight: 330 },
+  glow: { position: "absolute", width: 260, height: 260, borderRadius: 130, opacity: 0.18, transform: [{ scaleX: 1.18 }] },
+  productFrame: { width: "82%", borderRadius: 25, borderWidth: 1, padding: 7, transform: [{ rotate: "-2deg" }], shadowColor: "#000", shadowOpacity: 0.3, shadowRadius: 18, shadowOffset: { width: 0, height: 12 }, elevation: 10 },
+  heroImage: { width: "100%", height: 300, borderRadius: 19, backgroundColor: "#0A1628" },
+  imageCaption: { paddingHorizontal: 10, paddingVertical: 10, gap: 4 },
+  captionLive: { flexDirection: "row", alignItems: "center", gap: 6 },
+  captionDot: { width: 6, height: 6, borderRadius: 3, backgroundColor: "#34D399" },
+  captionLiveText: { color: "#60A5FA", fontFamily: "Inter_600SemiBold", fontSize: 10 },
+  captionText: { color: "#FFFFFF", fontFamily: "Inter_600SemiBold", fontSize: 12 },
+  trustBar: { flexDirection: "row", flexWrap: "wrap", justifyContent: "space-between", gap: 10, borderWidth: 1, borderRadius: 16, padding: 12, marginTop: 10 },
+  trustMark: { flexDirection: "row", alignItems: "center", gap: 6 },
+  trustIcon: { width: 26, height: 26, borderRadius: 8, alignItems: "center", justifyContent: "center" },
+  trustText: { fontFamily: "Inter_500Medium", fontSize: 10 },
+  sectionHeader: { marginTop: 42, gap: 8 },
+  sectionKicker: { fontFamily: "Inter_700Bold", fontSize: 10, letterSpacing: 1.3 },
+  sectionTitle: { fontFamily: "Inter_700Bold", fontSize: 25, lineHeight: 31, letterSpacing: -0.6 },
+  sectionDescription: { fontFamily: "Inter_400Regular", fontSize: 14, lineHeight: 21 },
+  servicesGrid: { flexDirection: "row", flexWrap: "wrap", gap: 10, marginTop: 18 },
+  serviceCard: { width: "48.3%", minHeight: 142, borderRadius: 16, borderWidth: 1, padding: 14 },
+  serviceIcon: { width: 36, height: 36, borderRadius: 11, alignItems: "center", justifyContent: "center", marginBottom: 12 },
+  serviceTitle: { fontFamily: "Inter_700Bold", fontSize: 14 },
+  serviceText: { fontFamily: "Inter_400Regular", fontSize: 11, lineHeight: 16, marginTop: 5 },
+  proofCard: { flexDirection: "row", alignItems: "center", gap: 12, borderRadius: 20, borderWidth: 1, padding: 16, marginTop: 26, overflow: "hidden" },
+  proofCopy: { flex: 1 },
+  proofTag: { flexDirection: "row", alignItems: "center", gap: 5, marginBottom: 9 },
+  proofTagText: { fontFamily: "Inter_700Bold", fontSize: 9, letterSpacing: 1, color: "#60A5FA" },
+  proofTitle: { fontFamily: "Inter_700Bold", fontSize: 17, lineHeight: 22 },
+  proofText: { fontFamily: "Inter_400Regular", fontSize: 11, lineHeight: 16, marginTop: 8 },
+  proofMetricRow: { flexDirection: "row", alignItems: "center", gap: 14, marginTop: 16 },
+  metricValue: { fontFamily: "Inter_700Bold", fontSize: 21 },
+  metricLabel: { fontFamily: "Inter_500Medium", fontSize: 10, marginTop: 2 },
+  metricDivider: { width: 1, height: 30, backgroundColor: "rgba(148,163,184,0.25)" },
+  dashboardImage: { width: 112, height: 164, borderRadius: 12, backgroundColor: "#0A1628" },
+  bottomCta: { alignItems: "center", marginTop: 36, padding: 22, borderRadius: 22, backgroundColor: "#0E2A55", gap: 8 },
+  bottomCtaTitle: { fontFamily: "Inter_700Bold", fontSize: 20, textAlign: "center" },
+  bottomCtaText: { fontFamily: "Inter_400Regular", fontSize: 13, lineHeight: 19, textAlign: "center", color: "#9DB1CC" },
+  bottomCtaButton: { flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 9, width: "100%", minHeight: 50, borderRadius: 13, backgroundColor: "#2563EB", marginTop: 8 },
+  bottomCtaButtonText: { fontFamily: "Inter_700Bold", fontSize: 14, color: "#FFFFFF" },
 });

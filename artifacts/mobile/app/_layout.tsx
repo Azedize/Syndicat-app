@@ -56,9 +56,11 @@ function AuthGate() {
   useEffect(() => {
     if (isLoading) return;
     // Screens accessible without authentication
-    const PUBLIC_ROUTES = new Set(["login", "forgot-password", "reset-password", "welcome", "intro", "plans", "get-started", "register", "email-verify", "terms", "privacy"]);
+    const PUBLIC_ROUTES = new Set(["index", "login", "forgot-password", "reset-password", "welcome", "intro", "plans", "get-started", "register", "email-verify", "terms", "privacy"]);
     const inAuthGroup = PUBLIC_ROUTES.has(segments[0] as string);
-    if (!user && !inAuthGroup) {
+    // The root route is the public VERIDIAN welcome page. It owns the
+    // unauthenticated landing experience instead of briefly opening the tabs.
+    if (!user && !inAuthGroup && segments[0] !== undefined) {
       router.replace("/welcome");
     } else if (user && segments[0] === "login") {
       router.replace("/(tabs)/" as any);

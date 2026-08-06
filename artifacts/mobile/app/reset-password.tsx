@@ -16,10 +16,12 @@ import {
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { auth as authApi } from "@/services/api";
 import { useColors } from "@/hooks/useColors";
+import { useLanguage } from "@/context/LanguageContext";
 
 export default function ResetPasswordScreen() {
   const colors = useColors();
   const insets = useSafeAreaInsets();
+  const { t, isRTL } = useLanguage();
   const params = useLocalSearchParams<{ token?: string }>();
 
   const [token, setToken] = useState(params.token ?? "");
@@ -32,11 +34,11 @@ export default function ResetPasswordScreen() {
   const [success, setSuccess] = useState(false);
 
   const validate = () => {
-    if (!token.trim()) return "Veuillez saisir votre code de réinitialisation.";
-    if (token.trim().length !== 64) return "Le code doit contenir exactement 64 caractères.";
-    if (!newPassword) return "Veuillez saisir un nouveau mot de passe.";
-    if (newPassword.length < 8) return "Le mot de passe doit contenir au moins 8 caractères.";
-    if (newPassword !== confirmPassword) return "Les mots de passe ne correspondent pas.";
+    if (!token.trim()) return t("codeRequired");
+    if (token.trim().length !== 64) return t("codeLength");
+    if (!newPassword) return t("newPasswordRequired");
+    if (newPassword.length < 8) return t("newPasswordTooShort");
+    if (newPassword !== confirmPassword) return t("passwordsMismatch");
     return null;
   };
 
@@ -49,10 +51,10 @@ export default function ResetPasswordScreen() {
     if (/[A-Z]/.test(pw)) score++;
     if (/[0-9]/.test(pw)) score++;
     if (/[^A-Za-z0-9]/.test(pw)) score++;
-    if (score <= 1) return { label: "Faible", color: "#ef4444", width: "25%" };
-    if (score <= 2) return { label: "Moyen", color: "#f59e0b", width: "50%" };
-    if (score <= 3) return { label: "Bon", color: "#3b82f6", width: "75%" };
-    return { label: "Excellent", color: "#10b981", width: "100%" };
+    if (score <= 1) return { label: t("passwordWeak"), color: "#ef4444", width: "25%" };
+    if (score <= 2) return { label: t("passwordMedium"), color: "#f59e0b", width: "50%" };
+    if (score <= 3) return { label: t("passwordGood"), color: "#3b82f6", width: "75%" };
+    return { label: t("passwordExcellent"), color: "#10b981", width: "100%" };
   };
 
   const strength = getPasswordStrength();
@@ -72,8 +74,7 @@ export default function ResetPasswordScreen() {
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
       setSuccess(true);
     } catch (err: any) {
-      const msg = err?.message ?? "Lien invalide ou expiré. Demandez un nouveau lien.";
-      setError(msg);
+      setError(t("resetPasswordError"));
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
     } finally {
       setLoading(false);
@@ -81,7 +82,7 @@ export default function ResetPasswordScreen() {
   };
 
   return (
-    <View style={[styles.root, { backgroundColor: colors.background }]}>
+    <View style={[styles.root, { backgroundColor: colors.background, direction: isRTL ? "rtl" : "ltr" }]}>
       <KeyboardAvoidingView
         style={{ flex: 1 }}
         behavior={Platform.OS === "ios" ? "padding" : "height"}
@@ -107,9 +108,9 @@ export default function ResetPasswordScreen() {
             <View style={[styles.iconWrap, { backgroundColor: "#10b98118" }]}>
               <Feather name="key" size={32} color="#10b981" />
             </View>
-            <Text style={[styles.title, { color: colors.foreground }]}>Nouveau mot de passe</Text>
+            <Text style={[styles.title, { color: colors.foreground }]}>{t("resetPasswordTitle")}</Text>
             <Text style={[styles.subtitle, { color: colors.mutedForeground }]}>
-              Saisissez le code reçu par email et choisissez un nouveau mot de passe.
+              {t("resetPasswordSubtitle")}
             </Text>
           </View>
 
@@ -118,7 +119,7 @@ export default function ResetPasswordScreen() {
               {/* Token */}
               <View style={styles.inputGroup}>
                 <Text style={[styles.label, { color: colors.foreground }]}>
-                  Code de réinitialisation
+                  {t("resetCodeLabel")}
                 </Text>
                 <View
                   style={[
@@ -133,18 +134,18 @@ export default function ResetPasswordScreen() {
                     onChangeText={(v) => { setToken(v); setError(""); }}
                     autoCapitalize="none"
                     autoCorrect={false}
-                    placeholder="Collez votre code ici (64 caractères)"
+                    placeholder={t("pasteCodePlaceholder")}
                     placeholderTextColor={colors.mutedForeground}
                   />
                 </View>
                 <Text style={[styles.hint, { color: colors.mutedForeground }]}>
-                  Copiez le code depuis le lien reçu par email.
+                  {t("copyFromEmailHint")}
                 </Text>
               </View>
 
               {/* New password */}
               <View style={styles.inputGroup}>
-                <Text style={[styles.label, { color: colors.foreground }]}>Nouveau mot de passe</Text>
+                <Text style={[styles.label, { color: colors.foreground }]}>{t("newPasswordLabel")}</Text>
                 <View
                   style={[
                     styles.inputWrap,
@@ -157,7 +158,7 @@ export default function ResetPasswordScreen() {
                     value={newPassword}
                     onChangeText={(v) => { setNewPassword(v); setError(""); }}
                     secureTextEntry={!showNew}
-                    placeholder="Minimum 8 caractères"
+                    placeholder={t("minCharsPlaceholder")}
                     placeholderTextColor={colors.mutedForeground}
                   />
                   <TouchableOpacity onPress={() => setShowNew((p) => !p)}>
@@ -185,7 +186,7 @@ export default function ResetPasswordScreen() {
 
               {/* Confirm password */}
               <View style={styles.inputGroup}>
-                <Text style={[styles.label, { color: colors.foreground }]}>Confirmer le mot de passe</Text>
+                <Text style={[styles.label, { color: colors.foreground }]}>{t("confirmPasswordLabel")}</Text>
                 <View
                   style={[
                     styles.inputWrap,
@@ -204,7 +205,7 @@ export default function ResetPasswordScreen() {
                     value={confirmPassword}
                     onChangeText={(v) => { setConfirmPassword(v); setError(""); }}
                     secureTextEntry={!showConfirm}
-                    placeholder="Répétez le mot de passe"
+                    placeholder={t("repeatPasswordPlaceholder")}
                     placeholderTextColor={colors.mutedForeground}
                   />
                   <TouchableOpacity onPress={() => setShowConfirm((p) => !p)}>
@@ -213,7 +214,7 @@ export default function ResetPasswordScreen() {
                 </View>
                 {confirmPassword && confirmPassword !== newPassword ? (
                   <Text style={[styles.hint, { color: colors.destructive }]}>
-                    Les mots de passe ne correspondent pas.
+                     {t("passwordsMismatch")}
                   </Text>
                 ) : null}
               </View>
@@ -239,7 +240,7 @@ export default function ResetPasswordScreen() {
                 ) : (
                   <>
                     <Feather name="check" size={16} color="#fff" />
-                    <Text style={styles.submitBtnText}>Réinitialiser le mot de passe</Text>
+                    <Text style={styles.submitBtnText}>{t("resetPasswordBtn")}</Text>
                   </>
                 )}
               </TouchableOpacity>
@@ -249,8 +250,8 @@ export default function ResetPasswordScreen() {
                 onPress={() => router.push("/forgot-password")}
               >
                 <Text style={[styles.secondaryText, { color: colors.mutedForeground }]}>
-                  Pas de code ?{" "}
-                  <Text style={{ color: colors.primary }}>Demander un nouveau lien</Text>
+                  {t("noCode")}
+                  <Text style={{ color: colors.primary }}>{t("requestNewLink")}</Text>
                 </Text>
               </TouchableOpacity>
             </View>
@@ -260,10 +261,10 @@ export default function ResetPasswordScreen() {
                 <Feather name="check-circle" size={44} color="#10b981" />
               </View>
               <Text style={[styles.successTitle, { color: colors.foreground }]}>
-                Mot de passe modifié !
+                {t("passwordChangedTitle")}
               </Text>
               <Text style={[styles.successText, { color: colors.mutedForeground }]}>
-                Votre mot de passe a été réinitialisé avec succès. Vous pouvez maintenant vous connecter avec votre nouveau mot de passe.
+                {t("passwordChangedMsg")}
               </Text>
 
               <TouchableOpacity
@@ -271,7 +272,7 @@ export default function ResetPasswordScreen() {
                 onPress={() => router.replace("/login" as any)}
               >
                 <Feather name="log-in" size={16} color="#fff" />
-                <Text style={styles.submitBtnText}>Se connecter</Text>
+                <Text style={styles.submitBtnText}>{t("resetLogin")}</Text>
               </TouchableOpacity>
             </View>
           )}

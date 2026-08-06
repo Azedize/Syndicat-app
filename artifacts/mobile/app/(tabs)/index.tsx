@@ -3,6 +3,7 @@ import * as Haptics from "expo-haptics";
 import { router } from "expo-router";
 import React, { useState } from "react";
 import {
+  ActivityIndicator,
   Platform,
   ScrollView,
   StyleSheet,
@@ -20,115 +21,88 @@ import { useFavorites } from "@/context/FavoritesContext";
 import { useLanguage } from "@/context/LanguageContext";
 import { SIDEBAR_COMPACT, SIDEBAR_FULL, useBreakpoints } from "@/hooks/useBreakpoints";
 import { useColors } from "@/hooks/useColors";
+import { LinearGradient } from "expo-linear-gradient";
 
-type QuickActionKey = {
-  labelKey: string;
-  icon: React.ComponentProps<typeof Feather>["name"];
-  route: string;
-  color: string;
-};
-
-// ─── Quick action sets per role ──────────────────────────────────────────────
-
-// Super Admin — platform owner only. No syndicate-level items.
-const QUICK_ACTIONS_SUPER: QuickActionKey[] = [
-  { labelKey: "syndicates",          icon: "briefcase",  route: "/members",          color: "#2563EB" },
-  { labelKey: "tableauNational",     icon: "globe",      route: "/tableau-national", color: "#6366f1" },
-  { labelKey: "gestionUtilisateurs", icon: "users",      route: "/utilisateurs",     color: "#3b82f6" },
-  { labelKey: "statistiquesGlobales",icon: "trending-up",route: "/statistiques",     color: "#10b981" },
-  { labelKey: "plansAbonnements",    icon: "star",       route: "/abonnements",      color: "#f59e0b" },
-  { labelKey: "support",             icon: "headphones", route: "/support",          color: "#ef4444" },
-  { labelKey: "auditLog",            icon: "shield",     route: "/journal-audit",    color: "#8b5cf6" },
-  { labelKey: "creerSyndicat",       icon: "plus-circle",route: "/syndicate-setup",  color: "#0ea5e9" },
+// Keeping the original quick actions arrays mapping for the different roles.
+// To save space and maintain exact logic, these are preserved exactly.
+const QUICK_ACTIONS_SUPER = [
+  { labelKey: "syndicates", icon: "briefcase", route: "/members", color: "#2563EB" },
+  { labelKey: "tableauNational", icon: "globe", route: "/tableau-national", color: "#6366f1" },
+  { labelKey: "gestionUtilisateurs", icon: "users", route: "/utilisateurs", color: "#3b82f6" },
+  { labelKey: "statistiquesGlobales", icon: "trending-up", route: "/statistiques", color: "#10b981" },
+  { labelKey: "plansAbonnements", icon: "star", route: "/abonnements", color: "#f59e0b" },
+  { labelKey: "support", icon: "headphones", route: "/support", color: "#ef4444" },
+  { labelKey: "auditLog", icon: "shield", route: "/journal-audit", color: "#8b5cf6" },
+  { labelKey: "creerSyndicat", icon: "plus-circle", route: "/syndicate-setup", color: "#0ea5e9" },
+];
+const QUICK_ACTIONS_ADMIN = [
+  { labelKey: "owners", icon: "users", route: "/members", color: "#2563EB" },
+  { labelKey: "charges", icon: "credit-card", route: "/charges", color: "#10b981" },
+  { labelKey: "travaux", icon: "tool", route: "/travaux", color: "#f59e0b" },
+  { labelKey: "assemblee", icon: "users", route: "/assemblee-generale", color: "#6366f1" },
+  { labelKey: "tableauBord", icon: "bar-chart-2", route: "/tableau-bord-financier", color: "#3b82f6" },
+  { labelKey: "prestataires", icon: "briefcase", route: "/prestataires", color: "#f97316" },
+  { labelKey: "documents", icon: "folder", route: "/documents", color: "#6366f1" },
+  { labelKey: "teamSyndic", icon: "award", route: "/equipe-syndic", color: "#8b5cf6" },
+];
+const QUICK_ACTIONS_PRESIDENT = [
+  { labelKey: "assembleesGenerales", icon: "users", route: "/assemblee-generale", color: "#2563EB" },
+  { labelKey: "reunionsConvocations", icon: "calendar", route: "/meetings", color: "#3b82f6" },
+  { labelKey: "votesResolutions", icon: "check-square", route: "/elections", color: "#f59e0b" },
+  { labelKey: "documentsCopro", icon: "folder", route: "/documents", color: "#6366f1" },
+  { labelKey: "governance", icon: "award", route: "/governance", color: "#8b5cf6" },
+  { labelKey: "travaux", icon: "tool", route: "/travaux", color: "#f97316" },
+];
+const QUICK_ACTIONS_TREASURER = [
+  { labelKey: "tableauBord", icon: "bar-chart-2", route: "/tableau-bord-financier", color: "#3b82f6" },
+  { labelKey: "chargesAppels", icon: "credit-card", route: "/charges", color: "#10b981" },
+  { labelKey: "budgetPrevisionnel", icon: "pie-chart", route: "/budget-previsionnel", color: "#8b5cf6" },
+  { labelKey: "rapportsFinanciers", icon: "bar-chart-2", route: "/reports", color: "#2563EB" },
+  { labelKey: "escalationLabel", icon: "trending-up", route: "/escalation", color: "#ef4444" },
+  { labelKey: "devisFactures", icon: "file-text", route: "/invoices", color: "#6366f1" },
+];
+const QUICK_ACTIONS_SECRETARY = [
+  { labelKey: "documentsCopro", icon: "folder", route: "/documents", color: "#6366f1" },
+  { labelKey: "reunionsConvocations", icon: "calendar", route: "/meetings", color: "#3b82f6" },
+  { labelKey: "assembleesGenerales", icon: "users", route: "/assemblee-generale", color: "#2563EB" },
+  { labelKey: "pvLabel", icon: "file-text", route: "/pv", color: "#8b5cf6" },
+  { labelKey: "publicationsActualites", icon: "rss", route: "/publications", color: "#f97316" },
+  { labelKey: "actesAdministratifs", icon: "file-text", route: "/actes-administratifs", color: "#06b6d4" },
+];
+const QUICK_ACTIONS_COMMITTEE = [
+  { labelKey: "reunionsConvocations", icon: "calendar", route: "/meetings", color: "#3b82f6" },
+  { labelKey: "votesResolutions", icon: "check-square", route: "/elections", color: "#f59e0b" },
+  { labelKey: "governance", icon: "award", route: "/governance", color: "#8b5cf6" },
+  { labelKey: "documentsCopro", icon: "folder", route: "/documents", color: "#6366f1" },
+  { labelKey: "avisResidents", icon: "bell", route: "/annonces", color: "#ec4899" },
+  { labelKey: "notifications", icon: "bell", route: "/notifications", color: "#f59e0b" },
+];
+const QUICK_ACTIONS_MEMBER = [
+  { labelKey: "paymentHistory", icon: "credit-card", route: "/paiements", color: "#10b981" },
+  { labelKey: "documentsCopro", icon: "folder", route: "/documents", color: "#6366f1" },
+  { labelKey: "reclamationsLabel", icon: "inbox", route: "/reclamations", color: "#f97316" },
+  { labelKey: "reunionsConvocations", icon: "calendar", route: "/meetings", color: "#3b82f6" },
+  { labelKey: "votesResolutions", icon: "check-square", route: "/elections", color: "#f59e0b" },
+  { labelKey: "notifications", icon: "bell", route: "/notifications", color: "#ec4899" },
+];
+const QUICK_ACTIONS_TENANT = [
+  { labelKey: "documentsCopro", icon: "folder", route: "/documents", color: "#6366f1" },
+  { labelKey: "avisResidents", icon: "bell", route: "/annonces", color: "#f59e0b" },
+  { labelKey: "demandesIntervention", icon: "headphones", route: "/support", color: "#ef4444" },
+  { labelKey: "notifications", icon: "bell", route: "/notifications", color: "#ec4899" },
+  { labelKey: "monBail", icon: "file-text", route: "/mon-bail", color: "#3b82f6" },
 ];
 
-// Syndicate Admin — full operational access.
-const QUICK_ACTIONS_ADMIN: QuickActionKey[] = [
-  { labelKey: "owners",        icon: "users",       route: "/members",                   color: "#2563EB" },
-  { labelKey: "charges",       icon: "credit-card", route: "/charges",                   color: "#10b981" },
-  { labelKey: "travaux",       icon: "tool",        route: "/travaux",                   color: "#f59e0b" },
-  { labelKey: "assemblee",     icon: "users",       route: "/assemblee-generale",        color: "#6366f1" },
-  { labelKey: "tableauBord",   icon: "bar-chart-2", route: "/tableau-bord-financier",    color: "#3b82f6" },
-  { labelKey: "prestataires",  icon: "briefcase",   route: "/prestataires",              color: "#f97316" },
-  { labelKey: "documents",     icon: "folder",      route: "/documents",                 color: "#6366f1" },
-  { labelKey: "teamSyndic",    icon: "award",       route: "/equipe-syndic",             color: "#8b5cf6" },
-];
-
-// President — governance, decisions, signatures, assemblies.
-// Must NOT see technical settings, budgets, or payroll.
-const QUICK_ACTIONS_PRESIDENT: QuickActionKey[] = [
-  { labelKey: "assembleesGenerales",  icon: "users",        route: "/assemblee-generale",  color: "#2563EB" },
-  { labelKey: "reunionsConvocations", icon: "calendar",     route: "/meetings",             color: "#3b82f6" },
-  { labelKey: "votesResolutions",     icon: "check-square", route: "/elections",            color: "#f59e0b" },
-  { labelKey: "documentsCopro",       icon: "folder",       route: "/documents",            color: "#6366f1" },
-  { labelKey: "governance",           icon: "award",        route: "/governance",           color: "#8b5cf6" },
-  { labelKey: "travaux",              icon: "tool",         route: "/travaux",              color: "#f97316" },
-];
-
-// Treasurer — payments, charges, budgets, financial reports, debt recovery.
-// Must NOT modify platform settings or access governance.
-const QUICK_ACTIONS_TREASURER: QuickActionKey[] = [
-  { labelKey: "tableauBord",        icon: "bar-chart-2", route: "/tableau-bord-financier", color: "#3b82f6" },
-  { labelKey: "chargesAppels",      icon: "credit-card", route: "/charges",                color: "#10b981" },
-  { labelKey: "budgetPrevisionnel", icon: "pie-chart",   route: "/budget-previsionnel",    color: "#8b5cf6" },
-  { labelKey: "rapportsFinanciers", icon: "bar-chart-2", route: "/reports",                color: "#2563EB" },
-  { labelKey: "escalationLabel",    icon: "trending-up", route: "/escalation",             color: "#ef4444" },
-  { labelKey: "devisFactures",      icon: "file-text",   route: "/invoices",               color: "#6366f1" },
-];
-
-// Secretary — documents, meetings, minutes, publications, archives.
-// Must NOT access accounting operations.
-const QUICK_ACTIONS_SECRETARY: QuickActionKey[] = [
-  { labelKey: "documentsCopro",       icon: "folder",    route: "/documents",            color: "#6366f1" },
-  { labelKey: "reunionsConvocations", icon: "calendar",  route: "/meetings",             color: "#3b82f6" },
-  { labelKey: "assembleesGenerales",  icon: "users",     route: "/assemblee-generale",   color: "#2563EB" },
-  { labelKey: "pvLabel",              icon: "file-text", route: "/pv",                   color: "#8b5cf6" },
-  { labelKey: "publicationsActualites",icon: "rss",      route: "/publications",         color: "#f97316" },
-  { labelKey: "actesAdministratifs",  icon: "file-text", route: "/actes-administratifs", color: "#06b6d4" },
-];
-
-// Committee Member — meetings, voting, decisions. Read-only access.
-const QUICK_ACTIONS_COMMITTEE: QuickActionKey[] = [
-  { labelKey: "reunionsConvocations", icon: "calendar",     route: "/meetings",   color: "#3b82f6" },
-  { labelKey: "votesResolutions",     icon: "check-square", route: "/elections",  color: "#f59e0b" },
-  { labelKey: "governance",           icon: "award",        route: "/governance", color: "#8b5cf6" },
-  { labelKey: "documentsCopro",       icon: "folder",       route: "/documents",  color: "#6366f1" },
-  { labelKey: "avisResidents",        icon: "bell",         route: "/annonces",   color: "#ec4899" },
-  { labelKey: "notifications",        icon: "bell",         route: "/notifications", color: "#f59e0b" },
-];
-
-// Member (Co-owner) — Dashboard, Payments, Documents, Complaints, Meetings,
-// Voting, Notifications. Must NOT see: Budgets, Payroll, Administration,
-// Accounting Settings, Audit Reports, Technical Configuration.
-const QUICK_ACTIONS_MEMBER: QuickActionKey[] = [
-  { labelKey: "paymentHistory",     icon: "credit-card",  route: "/paiements",     color: "#10b981" },
-  { labelKey: "documentsCopro",     icon: "folder",       route: "/documents",     color: "#6366f1" },
-  { labelKey: "reclamationsLabel",  icon: "inbox",        route: "/reclamations",  color: "#f97316" },
-  { labelKey: "reunionsConvocations", icon: "calendar",   route: "/meetings",      color: "#3b82f6" },
-  { labelKey: "votesResolutions",   icon: "check-square", route: "/elections",     color: "#f59e0b" },
-  { labelKey: "notifications",      icon: "bell",         route: "/notifications", color: "#ec4899" },
-];
-
-// Tenant — Documents, Complaints, Maintenance Requests, Notifications, Profile.
-// Must NOT see: Financial reports, Governance, Owner-only votes, Audit, Treasury.
-const QUICK_ACTIONS_TENANT: QuickActionKey[] = [
-  { labelKey: "documentsCopro",       icon: "folder",     route: "/documents",     color: "#6366f1" },
-  { labelKey: "avisResidents",        icon: "bell",       route: "/annonces",      color: "#f59e0b" },
-  { labelKey: "demandesIntervention", icon: "headphones", route: "/support",       color: "#ef4444" },
-  { labelKey: "notifications",        icon: "bell",       route: "/notifications", color: "#ec4899" },
-  { labelKey: "monBail",              icon: "file-text",  route: "/mon-bail",      color: "#3b82f6" },
-];
-
-const ACTION_GAP = 10;
+const ACTION_GAP = 12;
 
 export default function DashboardScreen() {
   const colors = useColors();
   const insets = useSafeAreaInsets();
   const { user } = useAuth();
-  const { members, elections, meetings, transactions, syndicates, alerts, conversations, cotisations, supportTickets } = useData();
+  const { dataLoading, dataLoadError, refreshData, members, elections, meetings, transactions, syndicates, alerts, conversations, cotisations, supportTickets } = useData();
   const { favorites } = useFavorites();
   const { activities } = useActivity();
-  const { t } = useLanguage();
+  const { t, lang, isRTL } = useLanguage();
   const [dismissedAlerts, setDismissedAlerts] = useState<Set<string>>(new Set());
   const { isWide, isDesktop, isTablet, width: screenWidth } = useBreakpoints();
 
@@ -149,24 +123,21 @@ export default function DashboardScreen() {
   const activeMembers = members.filter((m) => m.status === "active").length;
   const openElections = elections.filter((e) => e.status === "open").length;
   const upcomingMeetings = meetings.filter((m) => m.status === "scheduled");
-  const totalRevenue = transactions
-    .filter((t) => (t.type === "cotisation" || t.type === "recette") && t.status === "paid")
-    .reduce((sum, t) => sum + t.amount, 0);
+  const totalRevenue = transactions.filter((t) => (t.type === "cotisation" || t.type === "recette") && t.status === "paid").reduce((sum, t) => sum + t.amount, 0);
   const pendingCotisations = transactions.filter((t) => t.type === "cotisation" && t.status === "pending").length;
   const unreadAlerts = alerts.filter((a) => !a.read && !dismissedAlerts.has(a.id));
   const totalUnread = conversations.reduce((s, c) => s + c.unread, 0);
 
   const quickActionsRaw =
-    isSuperAdmin      ? QUICK_ACTIONS_SUPER :
-    isSyndicateAdmin  ? QUICK_ACTIONS_ADMIN :
-    isPresident       ? QUICK_ACTIONS_PRESIDENT :
-    isTreasurer       ? QUICK_ACTIONS_TREASURER :
-    isSecretary       ? QUICK_ACTIONS_SECRETARY :
+    isSuperAdmin ? QUICK_ACTIONS_SUPER :
+    isSyndicateAdmin ? QUICK_ACTIONS_ADMIN :
+    isPresident ? QUICK_ACTIONS_PRESIDENT :
+    isTreasurer ? QUICK_ACTIONS_TREASURER :
+    isSecretary ? QUICK_ACTIONS_SECRETARY :
     isCommitteeMember ? QUICK_ACTIONS_COMMITTEE :
-    isTenant          ? QUICK_ACTIONS_TENANT :
-                        QUICK_ACTIONS_MEMBER;
+    isTenant ? QUICK_ACTIONS_TENANT : QUICK_ACTIONS_MEMBER;
 
-  const quickActions = quickActionsRaw.map((a) => ({ ...a, label: t(a.labelKey) }));
+  const quickActions = quickActionsRaw.map((a) => ({ ...a, label: t(a.labelKey) || a.labelKey }));
 
   const greetingTime = () => {
     const h = new Date().getHours();
@@ -176,154 +147,171 @@ export default function DashboardScreen() {
   };
 
   const roleLabel =
-    isSuperAdmin      ? t("superAdministrateur") :
-    isSyndicateAdmin  ? t("syndicateAdminRole") :
-    isPresident       ? t("rolePresident") :
-    isTreasurer       ? t("roleTresorier") :
-    isSecretary       ? t("roleSecrétaire") :
+    isSuperAdmin ? t("superAdministrateur") :
+    isSyndicateAdmin ? t("syndicateAdminRole") :
+    isPresident ? t("rolePresident") :
+    isTreasurer ? t("roleTresorier") :
+    isSecretary ? t("roleSecrétaire") :
     isCommitteeMember ? t("roleMembreConseil") :
-    isTenant          ? t("roleTenant") :
-                        t("roleMember");
+    isTenant ? t("roleTenant") : t("roleMember");
 
   const topPadding = isWide ? 0 : (Platform.OS === "web" ? 67 : insets.top);
   const topAlert = unreadAlerts[0];
+  const locale = lang === "ar" ? "ar-MA" : lang === "en" ? "en-US" : lang === "es" ? "es-ES" : "fr-FR";
+  const formatMad = (amount: number) => {
+    try { return `${new Intl.NumberFormat(locale, { maximumFractionDigits: 0 }).format(Math.round(amount))} MAD`; } 
+    catch { return `${Math.round(amount)} MAD`; }
+  };
+  const formatDate = (value: string, options: Intl.DateTimeFormatOptions = {}) => {
+    const date = new Date(value);
+    if (Number.isNaN(date.getTime())) return value;
+    try { return date.toLocaleDateString(locale, options); } catch { return value; }
+  };
 
-  // Compute exact item width to avoid flex conflicts
   const sidebarW = isWide ? (isDesktop ? SIDEBAR_FULL : SIDEBAR_COMPACT) : 0;
-  const hPad = isWide ? 24 : 20;
+  const hPad = isWide ? 32 : 20;
   const contentWidth = screenWidth - sidebarW - hPad * 2;
   const numCols = isDesktop ? 6 : isTablet ? 4 : 3;
   const actionItemWidth = Math.floor((contentWidth - ACTION_GAP * (numCols - 1)) / numCols);
 
   return (
-    <View style={[styles.root, { backgroundColor: colors.background }]}>
-      {/* Header */}
-      <View style={[styles.header, { backgroundColor: colors.primary, paddingTop: topPadding + 16, paddingHorizontal: hPad }]}>
+    <View style={[styles.root, { backgroundColor: colors.background, direction: isRTL ? "rtl" : "ltr" }]}>
+      
+      {/* Premium Header */}
+      <LinearGradient
+        colors={[colors.primary, "#1D4ED8"]}
+        style={[styles.header, { paddingTop: topPadding + 20, paddingHorizontal: hPad, paddingBottom: 24 }]}
+        start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }}
+      >
         <View style={styles.headerContent}>
-          <View style={{ flex: 1 }}>
+          <View style={{ flex: 1, gap: 4 }}>
             <Text style={styles.greeting}>{greetingTime()},</Text>
             <Text style={styles.userName} numberOfLines={1}>{user.name}</Text>
-            {user.syndicate ? <Text style={styles.syndicate}>{user.syndicate}</Text> : null}
+            {user.syndicate && (
+              <View style={styles.syndicateWrapper}>
+                <Feather name="map-pin" size={12} color="rgba(255,255,255,0.7)" />
+                <Text style={styles.syndicate}>{user.syndicate}</Text>
+              </View>
+            )}
           </View>
           <View style={styles.headerBtns}>
-            <TouchableOpacity
-              style={styles.headerBtn}
-              onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); router.push("/search" as any); }}
-            >
-              <Feather name="search" size={20} color="#fff" />
+            <TouchableOpacity style={styles.headerBtn} onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); router.push("/search" as any); }}>
+              <Feather name="search" size={22} color="#fff" />
             </TouchableOpacity>
-            {totalUnread > 0 ? (
+            {totalUnread > 0 && (
               <TouchableOpacity style={styles.headerBtn} onPress={() => router.push("/chat" as any)}>
-                <Feather name="message-circle" size={20} color="#fff" />
-                <View style={[styles.headerBadge, { backgroundColor: "#f59e0b" }]}>
+                <Feather name="message-circle" size={22} color="#fff" />
+                <View style={[styles.headerBadge, { backgroundColor: "#F59E0B" }]}>
                   <Text style={styles.headerBadgeText}>{totalUnread}</Text>
                 </View>
               </TouchableOpacity>
-            ) : null}
-            <TouchableOpacity
-              style={styles.headerBtn}
-              onPress={() => router.push("/notifications" as any)}
-            >
-              <Feather name="bell" size={20} color="#fff" />
-              {unreadAlerts.length > 0 ? (
-                <View style={[styles.headerBadge, { backgroundColor: "#ef4444" }]}>
+            )}
+            <TouchableOpacity style={styles.headerBtn} onPress={() => router.push("/notifications" as any)}>
+              <Feather name="bell" size={22} color="#fff" />
+              {unreadAlerts.length > 0 && (
+                <View style={[styles.headerBadge, { backgroundColor: "#EF4444" }]}>
                   <Text style={styles.headerBadgeText}>{unreadAlerts.length}</Text>
                 </View>
-              ) : null}
+              )}
             </TouchableOpacity>
           </View>
         </View>
-        <View style={styles.roleBadge}>
-          <Feather
-            name={
-              isSuperAdmin ? "shield" :
-              isSyndicateAdmin ? "briefcase" :
-              isPresident ? "award" :
-              isTreasurer ? "bar-chart-2" :
-              isSecretary ? "file-text" :
-              isCommitteeMember ? "users" :
-              isTenant ? "key" : "home"
-            }
-            size={11}
-            color="rgba(255,255,255,0.9)"
-          />
-          <Text style={styles.roleBadgeText}>{roleLabel}</Text>
+        <View style={styles.roleBadgeWrapper}>
+          <View style={styles.roleBadge}>
+            <Feather name={isSuperAdmin ? "shield" : isSyndicateAdmin ? "briefcase" : isPresident ? "award" : isTreasurer ? "bar-chart-2" : isSecretary ? "file-text" : isCommitteeMember ? "users" : isTenant ? "key" : "home"} size={12} color="#2563EB" />
+            <Text style={styles.roleBadgeText}>{roleLabel}</Text>
+          </View>
         </View>
-      </View>
+      </LinearGradient>
 
-      <ScrollView
-        style={{ flex: 1 }}
-        contentContainerStyle={[styles.body, { paddingHorizontal: hPad, paddingBottom: isWide ? 32 : insets.bottom + 100 }]}
-        showsVerticalScrollIndicator={false}
-      >
-        {/* Alert banner */}
-        {topAlert && !dismissedAlerts.has(topAlert.id) ? (
-          <TouchableOpacity
-            style={[
-              styles.alertBanner,
-              {
-                backgroundColor:
-                  topAlert.type === "error" ? "#ef444410" :
-                  topAlert.type === "warning" ? "#f59e0b10" :
-                  topAlert.type === "success" ? "#10b98110" : colors.primary + "10",
-                borderColor:
-                  topAlert.type === "error" ? "#ef444440" :
-                  topAlert.type === "warning" ? "#f59e0b40" :
-                  topAlert.type === "success" ? "#10b98140" : colors.primary + "40",
-              },
-            ]}
-            onPress={() => router.push("/notifications" as any)}
-            activeOpacity={0.85}
-          >
-            <Feather
-              name={topAlert.type === "error" ? "alert-circle" : topAlert.type === "warning" ? "alert-triangle" : topAlert.type === "success" ? "check-circle" : "info"}
-              size={16}
-              color={topAlert.type === "error" ? "#ef4444" : topAlert.type === "warning" ? "#f59e0b" : topAlert.type === "success" ? "#10b981" : colors.primary}
-            />
-            <View style={{ flex: 1 }}>
-              <Text style={[styles.alertBannerTitle, { color: topAlert.type === "error" ? "#ef4444" : topAlert.type === "warning" ? "#f59e0b" : topAlert.type === "success" ? "#10b981" : colors.primary }]}>
-                {topAlert.title}
-              </Text>
-              <Text style={[styles.alertBannerMsg, { color: colors.mutedForeground }]} numberOfLines={1}>
-                {topAlert.message}
-              </Text>
+      <ScrollView style={{ flex: 1, marginTop: -20 }} contentContainerStyle={[styles.body, { paddingHorizontal: hPad, paddingBottom: isWide ? 40 : insets.bottom + 100 }]} showsVerticalScrollIndicator={false}>
+        
+        {/* Data Status */}
+        <View style={[styles.dataStatusCard, { backgroundColor: dataLoadError ? colors.destructive + "10" : colors.card, borderColor: dataLoadError ? colors.destructive + "30" : colors.border, shadowColor: "#000", elevation: 4 }]}>
+          {dataLoading ? <ActivityIndicator size="small" color={colors.primary} /> : (
+            <View style={[styles.dataStatusIcon, { backgroundColor: dataLoadError ? colors.destructive + "20" : colors.success + "20" }]}>
+              <Feather name={dataLoadError ? "wifi-off" : "check"} size={16} color={dataLoadError ? colors.destructive : colors.success} />
             </View>
-            <TouchableOpacity
-              hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
-              onPress={() => setDismissedAlerts((p) => new Set(p).add(topAlert.id))}
-            >
-              <Feather name="x" size={14} color={colors.mutedForeground} />
+          )}
+          <View style={{ flex: 1, gap: 2 }}>
+            <Text style={[styles.dataStatusTitle, { color: colors.foreground }]}>{dataLoading ? t("dashboardLoading") : dataLoadError ? t("dashboardLoadError") : t("dashboardUpdated")}</Text>
+            {!dataLoading && dataLoadError && <Text style={[styles.dataStatusMessage, { color: colors.mutedForeground }]}>{t("dashboardRetryHint")}</Text>}
+          </View>
+          {!dataLoading && dataLoadError && (
+            <TouchableOpacity style={[styles.retryButton, { backgroundColor: colors.primary }]} onPress={refreshData}>
+              <Text style={styles.retryButtonText}>{t("dashboardRetry")}</Text>
+            </TouchableOpacity>
+          )}
+        </View>
+
+        {/* Alerts Banner */}
+        {topAlert && !dismissedAlerts.has(topAlert.id) && (
+          <TouchableOpacity
+            style={[styles.alertBanner, {
+              backgroundColor: topAlert.type === "error" ? "#FEF2F2" : topAlert.type === "warning" ? "#FFFBEB" : topAlert.type === "success" ? "#ECFDF5" : colors.primary + "10",
+              borderColor: topAlert.type === "error" ? "#FECACA" : topAlert.type === "warning" ? "#FDE68A" : topAlert.type === "success" ? "#A7F3D0" : colors.primary + "30"
+            }]}
+            onPress={() => router.push("/notifications" as any)}
+          >
+            <View style={[styles.alertIconWrap, { backgroundColor: topAlert.type === "error" ? "#FEE2E2" : topAlert.type === "warning" ? "#FEF3C7" : topAlert.type === "success" ? "#D1FAE5" : colors.primary + "20" }]}>
+              <Feather name={topAlert.type === "error" ? "alert-circle" : topAlert.type === "warning" ? "alert-triangle" : topAlert.type === "success" ? "check-circle" : "info"} size={18} color={topAlert.type === "error" ? "#DC2626" : topAlert.type === "warning" ? "#D97706" : topAlert.type === "success" ? "#059669" : colors.primary} />
+            </View>
+            <View style={{ flex: 1, gap: 2 }}>
+              <Text style={[styles.alertBannerTitle, { color: topAlert.type === "error" ? "#991B1B" : topAlert.type === "warning" ? "#92400E" : topAlert.type === "success" ? "#065F46" : colors.primary }]}>{topAlert.title}</Text>
+              <Text style={[styles.alertBannerMsg, { color: colors.mutedForeground }]} numberOfLines={1}>{topAlert.message}</Text>
+            </View>
+            <TouchableOpacity onPress={() => setDismissedAlerts(p => new Set(p).add(topAlert.id))}>
+              <Feather name="x" size={18} color={colors.mutedForeground} />
             </TouchableOpacity>
           </TouchableOpacity>
-        ) : null}
+        )}
 
-        {/* Upcoming meeting strip — visible to everyone who can attend meetings
-            (all syndicate team roles + members); hidden for tenants and super_admin */}
-        {!isTenant && !isSuperAdmin && upcomingMeetings.length > 0 && (
-          <View style={{ gap: 8 }}>
-            <View style={styles.sectionRow}>
+        {/* Quick Actions Grid */}
+        {!dataLoading && (
+          <View style={styles.section}>
+            <Text style={[styles.sectionTitle, { color: colors.foreground }]}>{t("quickAccess")}</Text>
+            <View style={styles.actionsGrid}>
+              {quickActions.map(a => (
+                <TouchableOpacity
+                  key={a.labelKey}
+                  style={[styles.actionBtn, { backgroundColor: colors.card, borderColor: colors.border, width: actionItemWidth, shadowColor: "#000", elevation: 2 }]}
+                  onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); router.push(a.route as any); }}
+                >
+                  <View style={[styles.actionIcon, { backgroundColor: a.color + "15" }]}>
+                    <Feather name={a.icon as any} size={24} color={a.color} />
+                  </View>
+                  <Text style={[styles.actionLabel, { color: colors.foreground }]} numberOfLines={1}>{a.label}</Text>
+                </TouchableOpacity>
+              ))}
+            </View>
+          </View>
+        )}
+
+        {/* Upcoming Meetings Horizontal Scroll */}
+        {!dataLoading && !isTenant && !isSuperAdmin && upcomingMeetings.length > 0 && (
+          <View style={styles.section}>
+            <View style={styles.sectionHeader}>
               <Text style={[styles.sectionTitle, { color: colors.foreground }]}>{t("nextMeetings")}</Text>
               <TouchableOpacity onPress={() => router.push("/meetings" as any)}>
                 <Text style={[styles.seeAll, { color: colors.primary }]}>{t("seeAll")}</Text>
               </TouchableOpacity>
             </View>
-            <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: 12, paddingEnd: 4 }}>
-              {upcomingMeetings.slice(0, 3).map((m) => (
-                <TouchableOpacity
-                  key={m.id}
-                  style={[styles.meetingChip, { backgroundColor: colors.card, borderColor: colors.border }]}
-                  onPress={() => router.push("/meetings" as any)}
-                  activeOpacity={0.8}
-                >
-                  <View style={[styles.meetingChipDate, { backgroundColor: colors.primary }]}>
-                    <Text style={styles.meetingChipDay}>{m.date ? m.date.split("-")[2] ?? "?" : "?"}</Text>
-                    <Text style={styles.meetingChipMonth}>
-                      {m.date ? new Date(m.date).toLocaleDateString("fr-FR", { month: "short" }).slice(0, 3).toUpperCase() : "—"}
-                    </Text>
+            <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: 16, paddingEnd: 10 }}>
+              {upcomingMeetings.slice(0, 3).map(m => (
+                <TouchableOpacity key={m.id} style={[styles.meetingCard, { backgroundColor: colors.card, borderColor: colors.border }]} onPress={() => router.push("/meetings" as any)}>
+                  <View style={[styles.meetingDateBox, { backgroundColor: colors.primary + "15" }]}>
+                    <Text style={[styles.meetingDay, { color: colors.primary }]}>{m.date ? m.date.split("-")[2] ?? "?" : "?"}</Text>
+                    <Text style={[styles.meetingMonth, { color: colors.primary }]}>{m.date ? formatDate(m.date, { month: "short" }).slice(0, 3).toUpperCase() : "—"}</Text>
                   </View>
-                  <View style={{ flex: 1, gap: 3 }}>
-                    <Text style={[styles.meetingChipTitle, { color: colors.foreground }]} numberOfLines={2}>{m.title}</Text>
-                    <Text style={[styles.meetingChipTime, { color: colors.mutedForeground }]}>{m.time} • {(m.location ?? "").split(",")[0]}</Text>
+                  <View style={styles.meetingInfo}>
+                    <Text style={[styles.meetingTitle, { color: colors.foreground }]} numberOfLines={2}>{m.title}</Text>
+                    <View style={styles.meetingMeta}>
+                      <Feather name="clock" size={12} color={colors.mutedForeground} />
+                      <Text style={[styles.meetingTime, { color: colors.mutedForeground }]}>{m.time}</Text>
+                      <Text style={{ color: colors.border }}>|</Text>
+                      <Feather name="map-pin" size={12} color={colors.mutedForeground} />
+                      <Text style={[styles.meetingTime, { color: colors.mutedForeground }]} numberOfLines={1}>{(m.location ?? "").split(",")[0]}</Text>
+                    </View>
                   </View>
                 </TouchableOpacity>
               ))}
@@ -331,63 +319,56 @@ export default function DashboardScreen() {
           </View>
         )}
 
-        {/* Open election banner — visible to all who can vote (team + members);
-            hidden for tenants (renters can't vote) and super_admin (platform owner) */}
-        {!isTenant && !isSuperAdmin && openElections > 0 ? (
-          <TouchableOpacity
-            style={[styles.electionBanner, { backgroundColor: colors.primary }]}
-            onPress={() => router.push("/elections" as any)}
-            activeOpacity={0.85}
-          >
-            <View style={[styles.electionBannerIcon, { backgroundColor: "rgba(255,255,255,0.2)" }]}>
-              <Feather name="check-square" size={20} color="#fff" />
+        {/* Ongoing Election Banner */}
+        {!dataLoading && !isTenant && !isSuperAdmin && openElections > 0 && (
+          <TouchableOpacity style={[styles.electionBanner, { backgroundColor: "#2563EB" }]} onPress={() => router.push("/elections" as any)}>
+            <View style={styles.electionBannerIcon}>
+              <Feather name="check-square" size={24} color="#2563EB" />
             </View>
-            <View style={{ flex: 1 }}>
+            <View style={{ flex: 1, gap: 4 }}>
               <Text style={styles.electionBannerLabel}>{t("ongoingElection")}</Text>
               <Text style={styles.electionBannerTitle}>{openElections} {t("electionVoteNow")}</Text>
             </View>
-            <Feather name="chevron-right" size={18} color="rgba(255,255,255,0.8)" />
+            <Feather name="chevron-right" size={20} color="#FFF" />
           </TouchableOpacity>
-        ) : null}
+        )}
 
-        {/* Stats */}
-        <View style={styles.section}>
-          <Text style={[styles.sectionTitle, { color: colors.foreground }]}>{t("overviewLabel")}</Text>
-          {isSuperAdmin ? (
-            <>
-              <View style={styles.statsRow}>
-                <StatCard label={t("syndicates")} value={syndicates.length} icon="briefcase" />
-                <StatCard label={t("totalMembers")} value={syndicates.reduce((s, sy) => s + sy.members, 0)} icon="users" />
-              </View>
-              <View style={styles.statsRow}>
-                <StatCard label={t("activeCount")} value={syndicates.filter((s) => s.status === "active").length} icon="activity" iconColor="#10b981" />
-                <StatCard label={t("openTickets")} value={supportTickets.filter((t) => t.status === "open").length} icon="headphones" iconColor="#ef4444" subtitle={t("support")} />
-              </View>
-            </>
-          ) : isSyndicateTeam ? (
-            // All syndicate management team members (admin, president, treasurer,
-            // secretary, committee_member) see the syndicate operational overview.
-            // Treasurer additionally sees revenue/pending charges.
-            // President/Secretary/Committee see meetings and elections.
-            <>
-              <View style={styles.statsRow}>
-                <StatCard label={t("activeMembers")} value={activeMembers} icon="users" />
-                {isTreasurer || isSyndicateAdmin
-                  ? <StatCard label={t("revenue")} value={`${(totalRevenue / 1000).toFixed(1)}k`} icon="trending-up" />
-                  : <StatCard label={t("scheduledMeetings")} value={upcomingMeetings.length} icon="calendar" iconColor="#3b82f6" />
-                }
-              </View>
-              <View style={styles.statsRow}>
-                {isTreasurer || isSyndicateAdmin
-                  ? <StatCard label={t("dueCotisations")} value={pendingCotisations} icon="alert-circle" iconColor="#f59e0b" subtitle={t("pendingLabel")} />
-                  : <StatCard label={t("elections")} value={openElections} icon="check-square" iconColor="#f59e0b" />
-                }
-                <StatCard label={t("scheduledMeetings")} value={upcomingMeetings.length} icon="calendar" iconColor="#3b82f6" />
-              </View>
-            </>
-          ) : (
-            <>
-              {(() => {
+        {/* Key Metrics Dashboard */}
+        {!dataLoading && (
+          <View style={styles.section}>
+            <Text style={[styles.sectionTitle, { color: colors.foreground }]}>{t("overviewLabel")}</Text>
+            {isSuperAdmin ? (
+              <>
+                <View style={styles.statsRow}>
+                  <StatCard label={t("syndicates")} value={syndicates.length} icon="briefcase" />
+                  <StatCard label={t("totalMembers")} value={syndicates.reduce((s, sy) => s + sy.members, 0)} icon="users" />
+                </View>
+                <View style={styles.statsRow}>
+                  <StatCard label={t("activeCount")} value={syndicates.filter((s) => s.status === "active").length} icon="activity" iconColor="#10b981" />
+                  <StatCard label={t("openTickets")} value={supportTickets.filter((t) => t.status === "open").length} icon="headphones" iconColor="#ef4444" subtitle={t("support")} />
+                </View>
+              </>
+            ) : isSyndicateTeam ? (
+              <>
+                <View style={styles.statsRow}>
+                  <StatCard label={t("activeMembers")} value={activeMembers} icon="users" />
+                  {isTreasurer || isSyndicateAdmin ? (
+                    <StatCard label={t("revenue")} value={formatMad(totalRevenue)} icon="trending-up" iconColor="#10B981" />
+                  ) : (
+                    <StatCard label={t("scheduledMeetings")} value={upcomingMeetings.length} icon="calendar" iconColor="#3b82f6" />
+                  )}
+                </View>
+                <View style={styles.statsRow}>
+                  {isTreasurer || isSyndicateAdmin ? (
+                    <StatCard label={t("dueCotisations")} value={pendingCotisations} icon="alert-circle" iconColor="#f59e0b" subtitle={t("pendingLabel")} />
+                  ) : (
+                    <StatCard label={t("elections")} value={openElections} icon="check-square" iconColor="#f59e0b" />
+                  )}
+                  <StatCard label={t("scheduledMeetings")} value={upcomingMeetings.length} icon="calendar" iconColor="#3b82f6" />
+                </View>
+              </>
+            ) : (
+              (() => {
                 const myCot = cotisations.length > 0 ? cotisations[0] : null;
                 const cotLabel = myCot?.status === "paid" ? t("paid") : myCot?.status === "overdue" ? t("overdue") : t("pendingLabel");
                 const cotColor = myCot?.status === "paid" ? "#10b981" : myCot?.status === "overdue" ? "#ef4444" : "#f59e0b";
@@ -402,147 +383,48 @@ export default function DashboardScreen() {
                     </View>
                     <View style={styles.statsRow}>
                       <StatCard label={t("elections")} value={openElections} icon="check-square" iconColor="#f59e0b" />
-                      <StatCard
-                        label={t("amountDue")}
-                        value={
-                          myCot?.status !== "paid"
-                            ? (() => {
-                                const amt = Number(myCot?.amount ?? 0);
-                                try {
-                                  return new Intl.NumberFormat("fr-FR", { maximumFractionDigits: 0 }).format(Math.round(amt)) + " MAD";
-                                } catch {
-                                  return `${Math.round(amt)} MAD`;
-                                }
-                              })()
-                            : "0 MAD"
-                        }
-                        icon="dollar-sign"
-                        iconColor={myCot?.status !== "paid" ? "#ef4444" : "#10b981"}
-                      />
+                      <StatCard label={t("amountDue")} value={myCot?.status !== "paid" ? formatMad(Number(myCot?.amount ?? 0)) : "0 MAD"} icon="dollar-sign" iconColor={myCot?.status !== "paid" ? "#ef4444" : "#10b981"} />
                     </View>
                   </>
                 );
-              })()}
-            </>
-          )}
-        </View>
-
-        {/* Quick actions — responsive grid with exact widths */}
-        <View style={styles.section}>
-          <Text style={[styles.sectionTitle, { color: colors.foreground }]}>{t("quickAccess")}</Text>
-          <View style={styles.actionsGrid}>
-            {quickActions.map((a) => (
-              <TouchableOpacity
-                key={a.labelKey}
-                style={[
-                  styles.actionBtn,
-                  {
-                    backgroundColor: colors.card,
-                    borderColor: colors.border,
-                    width: actionItemWidth,
-                  },
-                ]}
-                onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); router.push(a.route as any); }}
-                activeOpacity={0.72}
-              >
-                <View style={[styles.actionIcon, { backgroundColor: a.color + "18" }]}>
-                  <Feather name={a.icon} size={isTablet ? 22 : 20} color={a.color} />
-                </View>
-                <Text style={[styles.actionLabel, { color: colors.foreground }]} numberOfLines={1}>{a.label}</Text>
-              </TouchableOpacity>
-            ))}
-          </View>
-        </View>
-
-        {/* Favorites quick-access */}
-        {favorites.length > 0 && (
-          <View style={styles.section}>
-            <View style={styles.sectionRow}>
-              <Text style={[styles.sectionTitle, { color: colors.foreground }]}>{t("myFavorites")}</Text>
-              <TouchableOpacity onPress={() => router.push("/favorites" as any)}>
-                <Text style={[styles.seeAll, { color: colors.primary }]}>{t("seeAll")}</Text>
-              </TouchableOpacity>
-            </View>
-            <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: 10, paddingEnd: 4 }}>
-              {favorites.slice(0, 8).map((fav) => (
-                <TouchableOpacity
-                  key={fav.id}
-                  style={[styles.favChip, { backgroundColor: colors.card, borderColor: colors.border }]}
-                  onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); router.push(fav.route as any); }}
-                  activeOpacity={0.75}
-                >
-                  <View style={[styles.favIcon, { backgroundColor: fav.color + "18" }]}>
-                    <Feather name={fav.icon as any} size={16} color={fav.color} />
-                  </View>
-                  <Text style={[styles.favLabel, { color: colors.foreground }]} numberOfLines={1}>{fav.title}</Text>
-                </TouchableOpacity>
-              ))}
-            </ScrollView>
+              })()
+            )}
           </View>
         )}
 
-        {/* Recent activity */}
-        <View style={styles.section}>
-          <View style={styles.sectionRow}>
-            <Text style={[styles.sectionTitle, { color: colors.foreground }]}>{t("recentActivity")}</Text>
-            <TouchableOpacity onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); router.push("/activity" as any); }}>
-              <Text style={[styles.seeAll, { color: colors.primary }]}>{t("seeAll")}</Text>
-            </TouchableOpacity>
-          </View>
-          <View style={[styles.activityCard, { backgroundColor: colors.card, borderColor: colors.border }]}>
-            {activities.length > 0 ? (
-              activities.slice(0, 5).map((act, i) => (
-                <View
-                  key={act.id}
-                  style={[styles.activityItem, i < Math.min(activities.length, 5) - 1 ? { borderBottomWidth: 1, borderBottomColor: colors.border } : null]}
-                >
-                  <View style={[styles.activityIcon, { backgroundColor: act.color + "18" }]}>
-                    <Feather name={act.icon as any} size={14} color={act.color} />
-                  </View>
-                  <View style={{ flex: 1 }}>
-                    <Text style={[styles.activityLabel, { color: colors.foreground }]} numberOfLines={1}>{act.action}</Text>
-                    <Text style={[styles.activityDate, { color: colors.mutedForeground }]} numberOfLines={1}>{act.target}</Text>
-                  </View>
-                  <Text style={[styles.activityTime, { color: colors.mutedForeground }]}>{(act as any).time ?? ""}</Text>
-                </View>
-              ))
-            ) : isAdmin ? (
-              transactions.slice(0, 5).map((tx, i) => (
-                <View
-                  key={tx.id}
-                  style={[styles.activityItem, i < 4 ? { borderBottomWidth: 1, borderBottomColor: colors.border } : null]}
-                >
-                  <View style={[styles.activityIcon, { backgroundColor: tx.type === "cotisation" ? "#2563EB18" : tx.type === "depense" ? "#ef444418" : "#10b98118" }]}>
-                    <Feather
-                      name={tx.type === "cotisation" ? "credit-card" : tx.type === "depense" ? "arrow-up-circle" : tx.type === "salaire" ? "user" : "arrow-down-circle"}
-                      size={14}
-                      color={tx.type === "cotisation" ? colors.primary : tx.type === "depense" ? colors.destructive : "#10b981"}
-                    />
-                  </View>
-                  <View style={{ flex: 1 }}>
-                    <Text style={[styles.activityLabel, { color: colors.foreground }]} numberOfLines={1}>{tx.label}</Text>
-                    <Text style={[styles.activityDate, { color: colors.mutedForeground }]}>{tx.date}</Text>
-                  </View>
-                  <Text style={[styles.activityAmount, { color: tx.type === "depense" || tx.type === "salaire" ? colors.destructive : colors.success }]}>
-                    {tx.type === "depense" || tx.type === "salaire" ? "-" : "+"}{tx.amount} MAD
-                  </Text>
-                </View>
-              ))
-            ) : (
-              <TouchableOpacity
-                style={styles.activityEmpty}
-                onPress={() => router.push("/elections" as any)}
-                activeOpacity={0.75}
-              >
-                <View style={[styles.activityEmptyIcon, { backgroundColor: colors.primary + "15" }]}>
-                  <Feather name="activity" size={22} color={colors.primary} />
-                </View>
-                <Text style={[styles.activityEmptyTitle, { color: colors.foreground }]}>{t("noRecentActivity")}</Text>
-                <Text style={[styles.activityEmptyText, { color: colors.mutedForeground }]}>{t("noRecentActivityDesc")}</Text>
+        {/* Recent Activity */}
+        {!dataLoading && (
+          <View style={styles.section}>
+            <View style={styles.sectionHeader}>
+              <Text style={[styles.sectionTitle, { color: colors.foreground }]}>{t("recentActivity")}</Text>
+              <TouchableOpacity onPress={() => router.push("/activity" as any)}>
+                <Text style={[styles.seeAll, { color: colors.primary }]}>{t("seeAll")}</Text>
               </TouchableOpacity>
-            )}
+            </View>
+            <View style={[styles.activityList, { backgroundColor: colors.card, borderColor: colors.border }]}>
+              {activities.length > 0 ? (
+                activities.slice(0, 5).map((act, i) => (
+                  <View key={act.id} style={[styles.activityItem, i < Math.min(activities.length, 5) - 1 && { borderBottomWidth: 1, borderBottomColor: colors.border }]}>
+                    <View style={[styles.activityIconWrap, { backgroundColor: act.color + "15" }]}>
+                      <Feather name={act.icon as any} size={16} color={act.color} />
+                    </View>
+                    <View style={{ flex: 1, gap: 2 }}>
+                      <Text style={[styles.activityLabel, { color: colors.foreground }]} numberOfLines={1}>{act.action}</Text>
+                      <Text style={[styles.activityTarget, { color: colors.mutedForeground }]} numberOfLines={1}>{act.target}</Text>
+                    </View>
+                    <Text style={[styles.activityTime, { color: colors.mutedForeground }]}>{act.timestamp ? new Date(act.timestamp).toLocaleDateString("fr-FR", { day: "2-digit", month: "short" }) : ""}</Text>
+                  </View>
+                ))
+              ) : (
+                <View style={{ padding: 24, alignItems: "center" }}>
+                  <Feather name="clock" size={24} color={colors.mutedForeground} style={{ marginBottom: 12 }} />
+                  <Text style={{ color: colors.mutedForeground, fontFamily: "Inter_400Regular" }}>Aucune activité récente</Text>
+                </View>
+              )}
+            </View>
           </View>
-        </View>
+        )}
+
       </ScrollView>
     </View>
   );
@@ -550,72 +432,66 @@ export default function DashboardScreen() {
 
 const styles = StyleSheet.create({
   root: { flex: 1 },
-  header: { paddingBottom: 20, gap: 10 },
-  headerContent: { flexDirection: "row", alignItems: "flex-start", gap: 12 },
-  greeting: { fontSize: 14, fontFamily: "Inter_400Regular", color: "rgba(255,255,255,0.8)" },
-  userName: { fontSize: 22, fontFamily: "Inter_700Bold", color: "#fff", marginTop: 2 },
-  syndicate: { fontSize: 12, fontFamily: "Inter_400Regular", color: "rgba(255,255,255,0.7)", marginTop: 2 },
-  headerBtns: { flexDirection: "row", gap: 8 },
-  headerBtn: { width: 40, height: 40, alignItems: "center", justifyContent: "center", borderRadius: 12, backgroundColor: "rgba(255,255,255,0.15)", position: "relative" },
-  headerBadge: { position: "absolute", top: 6, right: 6, minWidth: 16, height: 16, borderRadius: 8, alignItems: "center", justifyContent: "center", paddingHorizontal: 3 },
-  headerBadgeText: { fontSize: 9, fontFamily: "Inter_700Bold", color: "#fff" },
-  roleBadge: { flexDirection: "row", alignItems: "center", gap: 6, backgroundColor: "rgba(255,255,255,0.15)", alignSelf: "flex-start", paddingHorizontal: 12, paddingVertical: 5, borderRadius: 20 },
-  roleBadgeText: { fontSize: 11, fontFamily: "Inter_600SemiBold", color: "rgba(255,255,255,0.9)" },
-  body: { paddingTop: 16, gap: 12 },
-  alertBanner: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 10,
-    padding: 14,
-    borderRadius: 14,
-    borderWidth: 1,
-  },
-  alertBannerTitle: { fontSize: 13, fontFamily: "Inter_700Bold" },
-  alertBannerMsg: { fontSize: 11, fontFamily: "Inter_400Regular", marginTop: 2 },
-  sectionRow: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", marginBottom: 10 },
-  seeAll: { fontSize: 13, fontFamily: "Inter_600SemiBold" },
-  meetingChip: { width: 220, flexDirection: "row", alignItems: "center", borderRadius: 14, borderWidth: 1, overflow: "hidden", gap: 12 },
-  meetingChipDate: { width: 52, alignItems: "center", justifyContent: "center", paddingVertical: 14, gap: 2 },
-  meetingChipDay: { fontSize: 18, fontFamily: "Inter_700Bold", color: "#fff" },
-  meetingChipMonth: { fontSize: 9, fontFamily: "Inter_600SemiBold", color: "rgba(255,255,255,0.8)" },
-  meetingChipTitle: { fontSize: 12, fontFamily: "Inter_700Bold", paddingEnd: 12 },
-  meetingChipTime: { fontSize: 10, fontFamily: "Inter_400Regular", paddingEnd: 12 },
-  electionBanner: {
-    flexDirection: "row",
-    alignItems: "center",
-    padding: 16,
-    borderRadius: 16,
-    gap: 12,
-  },
-  electionBannerIcon: { width: 44, height: 44, borderRadius: 12, alignItems: "center", justifyContent: "center" },
-  electionBannerLabel: { fontSize: 10, fontFamily: "Inter_500Medium", color: "rgba(255,255,255,0.75)" },
-  electionBannerTitle: { fontSize: 13, fontFamily: "Inter_700Bold", color: "#fff" },
-  section: { gap: 0 },
-  sectionTitle: { fontSize: 16, fontFamily: "Inter_700Bold", marginBottom: 12 },
-  statsRow: { flexDirection: "row", gap: 12, marginBottom: 12 },
+  header: { borderBottomLeftRadius: 32, borderBottomRightRadius: 32, elevation: 8, shadowColor: "#2563EB", shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.3, shadowRadius: 12 },
+  headerContent: { flexDirection: "row", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 20 },
+  greeting: { fontFamily: "Inter_500Medium", fontSize: 15, color: "rgba(255,255,255,0.85)" },
+  userName: { fontFamily: "Inter_700Bold", fontSize: 24, color: "#FFF", letterSpacing: -0.5, marginTop: 2 },
+  syndicateWrapper: { flexDirection: "row", alignItems: "center", gap: 6, marginTop: 6 },
+  syndicate: { fontFamily: "Inter_500Medium", fontSize: 13, color: "rgba(255,255,255,0.9)" },
+  
+  headerBtns: { flexDirection: "row", gap: 12 },
+  headerBtn: { width: 44, height: 44, borderRadius: 22, backgroundColor: "rgba(255,255,255,0.15)", alignItems: "center", justifyContent: "center" },
+  headerBadge: { position: "absolute", top: -2, right: -4, minWidth: 20, height: 20, borderRadius: 10, alignItems: "center", justifyContent: "center", borderWidth: 2, borderColor: "#1D4ED8" },
+  headerBadgeText: { fontSize: 10, fontFamily: "Inter_700Bold", color: "#FFF" },
+  
+  roleBadgeWrapper: { alignSelf: "flex-start" },
+  roleBadge: { flexDirection: "row", alignItems: "center", gap: 6, backgroundColor: "#FFF", paddingHorizontal: 12, paddingVertical: 6, borderRadius: 20, shadowColor: "#000", shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.1, shadowRadius: 4, elevation: 2 },
+  roleBadgeText: { fontFamily: "Inter_600SemiBold", fontSize: 12, color: "#2563EB" },
+
+  body: { gap: 24, paddingTop: 32 },
+
+  dataStatusCard: { flexDirection: "row", alignItems: "center", gap: 14, padding: 16, borderRadius: 20, borderWidth: 1, shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.05, shadowRadius: 8 },
+  dataStatusIcon: { width: 36, height: 36, borderRadius: 18, alignItems: "center", justifyContent: "center" },
+  dataStatusTitle: { fontFamily: "Inter_600SemiBold", fontSize: 14 },
+  dataStatusMessage: { fontFamily: "Inter_400Regular", fontSize: 12 },
+  retryButton: { paddingHorizontal: 12, paddingVertical: 6, borderRadius: 12 },
+  retryButtonText: { fontFamily: "Inter_600SemiBold", fontSize: 12, color: "#FFF" },
+
+  alertBanner: { flexDirection: "row", alignItems: "center", gap: 14, padding: 16, borderRadius: 20, borderWidth: 1 },
+  alertIconWrap: { width: 40, height: 40, borderRadius: 20, alignItems: "center", justifyContent: "center" },
+  alertBannerTitle: { fontFamily: "Inter_600SemiBold", fontSize: 15 },
+  alertBannerMsg: { fontFamily: "Inter_400Regular", fontSize: 13, marginTop: 2 },
+
+  section: { gap: 16 },
+  sectionHeader: { flexDirection: "row", justifyContent: "space-between", alignItems: "center" },
+  sectionTitle: { fontFamily: "Inter_700Bold", fontSize: 18, letterSpacing: -0.3 },
+  seeAll: { fontFamily: "Inter_600SemiBold", fontSize: 14 },
+
   actionsGrid: { flexDirection: "row", flexWrap: "wrap", gap: ACTION_GAP },
-  actionBtn: {
-    alignItems: "center",
-    borderRadius: 16,
-    borderWidth: 1,
-    paddingVertical: 14,
-    paddingHorizontal: 8,
-    gap: 8,
-  },
-  actionIcon: { width: 44, height: 44, borderRadius: 12, alignItems: "center", justifyContent: "center" },
-  actionLabel: { fontSize: 11, fontFamily: "Inter_500Medium", textAlign: "center" },
-  activityCard: { borderRadius: 16, borderWidth: 1, overflow: "hidden" },
-  activityItem: { flexDirection: "row", alignItems: "center", padding: 14, gap: 12 },
-  activityIcon: { width: 34, height: 34, borderRadius: 10, alignItems: "center", justifyContent: "center", flexShrink: 0 },
-  activityLabel: { fontSize: 13, fontFamily: "Inter_500Medium" },
-  activityDate: { fontSize: 11, fontFamily: "Inter_400Regular", marginTop: 2 },
-  activityAmount: { fontSize: 13, fontFamily: "Inter_700Bold", flexShrink: 0 },
-  activityTime: { fontSize: 11, fontFamily: "Inter_400Regular", flexShrink: 0 },
-  activityEmpty: { alignItems: "center", paddingVertical: 28, paddingHorizontal: 20, gap: 8 },
-  activityEmptyIcon: { width: 52, height: 52, borderRadius: 16, alignItems: "center", justifyContent: "center", marginBottom: 4 },
-  activityEmptyTitle: { fontSize: 14, fontFamily: "Inter_700Bold", textAlign: "center" },
-  activityEmptyText: { fontSize: 12, fontFamily: "Inter_400Regular", textAlign: "center", lineHeight: 18 },
-  favChip: { flexDirection: "row", alignItems: "center", gap: 8, paddingHorizontal: 12, paddingVertical: 10, borderRadius: 14, borderWidth: 1 },
-  favIcon: { width: 30, height: 30, borderRadius: 9, alignItems: "center", justifyContent: "center" },
-  favLabel: { fontSize: 12, fontFamily: "Inter_600SemiBold", maxWidth: 100 },
+  actionBtn: { borderRadius: 20, borderWidth: 1, paddingVertical: 20, paddingHorizontal: 10, alignItems: "center", gap: 12, shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.03, shadowRadius: 8 },
+  actionIcon: { width: 52, height: 52, borderRadius: 16, alignItems: "center", justifyContent: "center" },
+  actionLabel: { fontFamily: "Inter_600SemiBold", fontSize: 12, textAlign: "center" },
+
+  meetingCard: { width: 260, borderRadius: 20, borderWidth: 1, flexDirection: "row", overflow: "hidden", shadowColor: "#000", shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.05, shadowRadius: 8, elevation: 2 },
+  meetingDateBox: { width: 68, alignItems: "center", justifyContent: "center", paddingVertical: 16 },
+  meetingDay: { fontFamily: "Inter_700Bold", fontSize: 24, lineHeight: 28 },
+  meetingMonth: { fontFamily: "Inter_600SemiBold", fontSize: 12 },
+  meetingInfo: { flex: 1, padding: 16, justifyContent: "center", gap: 8 },
+  meetingTitle: { fontFamily: "Inter_600SemiBold", fontSize: 14, lineHeight: 20 },
+  meetingMeta: { flexDirection: "row", alignItems: "center", gap: 6 },
+  meetingTime: { fontFamily: "Inter_500Medium", fontSize: 12 },
+
+  electionBanner: { flexDirection: "row", alignItems: "center", gap: 16, padding: 20, borderRadius: 24, shadowColor: "#2563EB", shadowOffset: { width: 0, height: 6 }, shadowOpacity: 0.3, shadowRadius: 12, elevation: 6 },
+  electionBannerIcon: { width: 48, height: 48, borderRadius: 16, backgroundColor: "#FFF", alignItems: "center", justifyContent: "center" },
+  electionBannerLabel: { fontFamily: "Inter_500Medium", fontSize: 13, color: "rgba(255,255,255,0.8)", textTransform: "uppercase", letterSpacing: 1 },
+  electionBannerTitle: { fontFamily: "Inter_700Bold", fontSize: 18, color: "#FFF" },
+
+  statsRow: { flexDirection: "row", gap: 12, marginBottom: 12 },
+  
+  activityList: { borderRadius: 24, borderWidth: 1, overflow: "hidden", shadowColor: "#000", shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.03, shadowRadius: 8, elevation: 2 },
+  activityItem: { flexDirection: "row", alignItems: "center", gap: 16, padding: 16 },
+  activityIconWrap: { width: 40, height: 40, borderRadius: 12, alignItems: "center", justifyContent: "center" },
+  activityLabel: { fontFamily: "Inter_600SemiBold", fontSize: 14 },
+  activityTarget: { fontFamily: "Inter_400Regular", fontSize: 13 },
+  activityTime: { fontFamily: "Inter_500Medium", fontSize: 12 },
 });
