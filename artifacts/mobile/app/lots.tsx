@@ -3,7 +3,6 @@ import * as Haptics from "expo-haptics";
 import { useLocalSearchParams } from "expo-router";
 import React, { useCallback, useEffect, useState } from "react";
 import {
-  ActivityIndicator,
   Modal,
   RefreshControl,
   ScrollView,
@@ -14,6 +13,7 @@ import {
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useAuth } from "@/context/AuthContext";
+import { useLanguage } from "@/context/LanguageContext";
 import { useBreakpoints } from "@/hooks/useBreakpoints";
 import { useColors } from "@/hooks/useColors";
 import { apiRequest } from "@/lib/api";
@@ -23,34 +23,27 @@ import RoleGuard from "@/components/RoleGuard";
 
 const LOT_TYPE_ICONS: Record<string, keyof typeof Feather.glyphMap> = {
   appartement: "home",
-  bureau: "briefcase",
-  commerce: "shopping-bag",
-  parking: "truck",
-  cave: "archive",
-  local: "box",
+  bureau:      "briefcase",
+  commerce:    "shopping-bag",
+  parking:     "truck",
+  cave:        "archive",
+  local:       "box",
 };
 
 const LOT_TYPE_COLORS: Record<string, string> = {
   appartement: "#2563EB",
-  bureau: "#3b82f6",
-  commerce: "#f59e0b",
-  parking: "#6b7280",
-  cave: "#92400e",
-  local: "#10b981",
+  bureau:      "#3b82f6",
+  commerce:    "#f59e0b",
+  parking:     "#6b7280",
+  cave:        "#92400e",
+  local:       "#10b981",
 };
 
 const STATUS_COLORS: Record<string, string> = {
   occupied: "#10b981",
-  vacant: "#f59e0b",
+  vacant:   "#f59e0b",
   for_sale: "#3b82f6",
   for_rent: "#8b5cf6",
-};
-
-const STATUS_LABELS: Record<string, string> = {
-  occupied: "Occupé",
-  vacant: "Vacant",
-  for_sale: "À vendre",
-  for_rent: "À louer",
 };
 
 type Lot = {
@@ -79,6 +72,7 @@ function LotsScreenInner() {
   const colors = useColors();
   const insets = useSafeAreaInsets();
   const { token } = useAuth();
+  const { t } = useLanguage();
   const { isWide } = useBreakpoints();
   const params = useLocalSearchParams<{ buildingId?: string; buildingName?: string }>();
 
@@ -108,32 +102,65 @@ function LotsScreenInner() {
   const filtered = filter === "all" ? lots : lots.filter((l) => l.type === filter || l.status === filter);
 
   const stats = {
-    total: lots.length,
+    total:    lots.length,
     occupied: lots.filter((l) => l.status === "occupied").length,
-    vacant: lots.filter((l) => l.status === "vacant").length,
-    overdue: lots.filter((l) => (l.chargeStats?.overdue ?? 0) > 0).length,
+    vacant:   lots.filter((l) => l.status === "vacant").length,
+    overdue:  lots.filter((l) => (l.chargeStats?.overdue ?? 0) > 0).length,
+  };
+
+  const getStatusLabel = (status: string) => {
+    const map: Record<string, string> = {
+      occupied: t("lotStatusOccupied"),
+      vacant:   t("lotStatusVacant"),
+      for_sale: t("lotStatusForSale"),
+      for_rent: t("lotStatusForRent"),
+    };
+    return map[status] ?? status;
   };
 
   const FILTERS = [
-    { key: "all", label: "Tous" },
-    { key: "appartement", label: "Appts" },
-    { key: "bureau", label: "Bureaux" },
-    { key: "commerce", label: "Commerces" },
-    { key: "parking", label: "Parkings" },
-    { key: "vacant", label: "Vacants" },
+    { key: "all",         label: t("all") },
+    { key: "appartement", label: t("filterApts") },
+    { key: "bureau",      label: t("filterOffices") },
+    { key: "commerce",    label: t("filterCommerce") },
+    { key: "parking",     label: t("filterParkings") },
+    { key: "vacant",      label: t("filterVacant") },
   ];
+
+  // Skeleton loading card
+  const SkeletonCard = () => (
+    <View style={[styles.card, { backgroundColor: colors.card, borderColor: colors.border }]}>
+      <View style={styles.cardMain}>
+        <View style={{ width: 44, height: 44, borderRadius: 12, backgroundColor: colors.secondary }} />
+        <View style={{ flex: 1, gap: 8 }}>
+          <View style={{ flexDirection: "row", justifyContent: "space-between", alignItems: "center" }}>
+            <View style={{ height: 15, width: "40%", backgroundColor: colors.secondary, borderRadius: 7 }} />
+            <View style={{ height: 18, width: 60, backgroundColor: colors.secondary, borderRadius: 9 }} />
+          </View>
+          <View style={{ height: 11, width: "60%", backgroundColor: colors.secondary, borderRadius: 6 }} />
+        </View>
+      </View>
+      <View style={[styles.personRow, { borderTopColor: colors.border }]}>
+        <View style={{ height: 12, width: "55%", backgroundColor: colors.secondary, borderRadius: 6 }} />
+      </View>
+      <View style={[styles.chargeRow, { borderTopColor: colors.border }]}>
+        <View style={{ height: 12, width: "30%", backgroundColor: colors.secondary, borderRadius: 6 }} />
+        <View style={{ height: 22, width: 70, backgroundColor: colors.secondary, borderRadius: 10 }} />
+      </View>
+    </View>
+  );
 
   return (
     <View style={[styles.root, { backgroundColor: colors.background }]}>
       <StatisticsHeader
-        title="Lots & Unités"
-        subtitle={params.buildingName ?? "Tous les immeubles"}
+        title={t("lotsTitle")}
+        subtitle={params.buildingName ?? t("allBuildings") ?? "Tous les immeubles"}
         color={colors.primary}
         stats={[
-          { label: "Total",   value: stats.total,    color: colors.primary },
-          { label: "Occupés", value: stats.occupied, color: "#10b981" },
-          { label: "Vacants", value: stats.vacant,   color: "#f59e0b" },
-          { label: "Impayés", value: stats.overdue,  color: "#ef4444" },
+          { label: t("total"),       value: stats.total,    color: colors.primary },
+          { label: t("lotsOccupied"),value: stats.occupied, color: "#10b981" },
+          { label: t("lotsVacant"),  value: stats.vacant,   color: "#f59e0b" },
+          { label: t("lotsOverdue"), value: stats.overdue,  color: "#ef4444" },
         ]}
       />
 
@@ -145,9 +172,9 @@ function LotsScreenInner() {
       />
 
       {loading ? (
-        <View style={styles.center}>
-          <ActivityIndicator color={colors.primary} size="large" />
-        </View>
+        <ScrollView contentContainerStyle={[styles.list, { paddingBottom: isWide ? 32 : insets.bottom + 100 }]}>
+          {[1, 2, 3, 4].map((k) => <SkeletonCard key={k} />)}
+        </ScrollView>
       ) : (
         <ScrollView
           contentContainerStyle={[styles.list, { paddingBottom: isWide ? 32 : insets.bottom + 100 }]}
@@ -157,7 +184,8 @@ function LotsScreenInner() {
           {filtered.length === 0 ? (
             <View style={styles.empty}>
               <Feather name="grid" size={36} color={colors.mutedForeground} />
-              <Text style={[styles.emptyText, { color: colors.mutedForeground }]}>Aucun lot trouvé</Text>
+              <Text style={[styles.emptyText, { color: colors.mutedForeground }]}>{t("noLotsFound")}</Text>
+              <Text style={[styles.emptyHint, { color: colors.mutedForeground }]}>{t("noLots")}</Text>
             </View>
           ) : (
             filtered.map((lot) => {
@@ -182,11 +210,11 @@ function LotsScreenInner() {
                       <View style={styles.cardRow}>
                         <Text style={[styles.lotNumber, { color: colors.foreground }]}>Lot {lot.number}</Text>
                         <View style={[styles.statusBadge, { backgroundColor: sc + "18" }]}>
-                          <Text style={[styles.statusText, { color: sc }]}>{STATUS_LABELS[lot.status] ?? lot.status}</Text>
+                          <Text style={[styles.statusText, { color: sc }]}>{getStatusLabel(lot.status)}</Text>
                         </View>
                       </View>
                       <Text style={[styles.lotType, { color: colors.mutedForeground }]}>
-                        {lot.type.charAt(0).toUpperCase() + lot.type.slice(1)} — Étage {lot.floor}
+                        {lot.type.charAt(0).toUpperCase() + lot.type.slice(1)} — {t("floor")} {lot.floor}
                         {lot.surfaceM2 ? ` — ${lot.surfaceM2} m²` : ""}
                       </Text>
                     </View>
@@ -198,13 +226,13 @@ function LotsScreenInner() {
                       <View style={styles.personCell}>
                         <Feather name="user" size={13} color={colors.primary} />
                         <Text style={[styles.personLabel, { color: colors.mutedForeground }]}>
-                          Propriétaire: <Text style={{ color: colors.foreground, fontFamily: "Inter_500Medium" }}>{lot.owner.name}</Text>
+                          {t("ownerLabel")}: <Text style={{ color: colors.foreground, fontFamily: "Inter_500Medium" }}>{lot.owner.name}</Text>
                         </Text>
                       </View>
                     ) : (
                       <View style={styles.personCell}>
                         <Feather name="user-x" size={13} color="#f59e0b" />
-                        <Text style={[styles.personLabel, { color: "#f59e0b" }]}>Propriétaire non renseigné</Text>
+                        <Text style={[styles.personLabel, { color: "#f59e0b" }]}>{t("noOwnerRegistered")}</Text>
                       </View>
                     )}
                   </View>
@@ -213,19 +241,19 @@ function LotsScreenInner() {
                   <View style={[styles.chargeRow, { borderTopColor: colors.border }]}>
                     <View style={styles.chargeInfo}>
                       <Feather name="percent" size={12} color={colors.mutedForeground} />
-                      <Text style={[styles.chargeText, { color: colors.mutedForeground }]}>{lot.tantiemes} ‰ (tantiémes)</Text>
+                      <Text style={[styles.chargeText, { color: colors.mutedForeground }]}>{lot.tantiemes} ‰ ({t("tantiemes").toLowerCase()})</Text>
                     </View>
                     {pendingAmt > 0 ? (
                       <View style={[styles.amtBadge, { backgroundColor: hasOverdue ? "#ef444418" : "#f59e0b18" }]}>
                         <Feather name="alert-circle" size={11} color={hasOverdue ? "#ef4444" : "#f59e0b"} />
                         <Text style={[styles.amtText, { color: hasOverdue ? "#ef4444" : "#f59e0b" }]}>
-                          {pendingAmt.toLocaleString("fr-MA")} MAD dûs
+                          {pendingAmt.toLocaleString("fr-MA")} MAD {t("amountDue").toLowerCase()}
                         </Text>
                       </View>
                     ) : (
                       <View style={[styles.amtBadge, { backgroundColor: "#10b98118" }]}>
                         <Feather name="check-circle" size={11} color="#10b981" />
-                        <Text style={[styles.amtText, { color: "#10b981" }]}>À jour</Text>
+                        <Text style={[styles.amtText, { color: "#10b981" }]}>{t("upToDate")}</Text>
                       </View>
                     )}
                   </View>
@@ -257,7 +285,7 @@ function LotsScreenInner() {
                 </Text>
                 <View style={[styles.statusBadge, { backgroundColor: (STATUS_COLORS[selectedLot.status] ?? "#6b7280") + "20" }]}>
                   <Text style={[styles.statusText, { color: STATUS_COLORS[selectedLot.status] ?? "#6b7280" }]}>
-                    {STATUS_LABELS[selectedLot.status] ?? selectedLot.status}
+                    {getStatusLabel(selectedLot.status)}
                   </Text>
                 </View>
               </View>
@@ -265,9 +293,9 @@ function LotsScreenInner() {
               {/* Lot details */}
               <View style={[styles.detailCard, { backgroundColor: colors.card, borderColor: colors.border }]}>
                 {[
-                  { icon: "layers" as const, label: "Étage", value: selectedLot.floor.toString() },
-                  { icon: "maximize" as const, label: "Surface", value: selectedLot.surfaceM2 ? `${selectedLot.surfaceM2} m²` : "—" },
-                  { icon: "percent" as const, label: "Tantièmes", value: `${selectedLot.tantiemes} ‰` },
+                  { icon: "layers"   as const, label: t("floor"),     value: selectedLot.floor.toString() },
+                  { icon: "maximize" as const, label: t("surface"),   value: selectedLot.surfaceM2 ? `${selectedLot.surfaceM2} m²` : "—" },
+                  { icon: "percent"  as const, label: t("tantiemes"), value: `${selectedLot.tantiemes} ‰` },
                 ].map((row, i) => (
                   <View key={row.label}>
                     {i > 0 ? <View style={[styles.sep2, { backgroundColor: colors.border }]} /> : null}
@@ -284,14 +312,14 @@ function LotsScreenInner() {
 
               {/* Owner */}
               <View style={[styles.detailCard, { backgroundColor: colors.card, borderColor: colors.border }]}>
-                <Text style={[styles.sectionTitle, { color: colors.foreground }]}>Propriétaire</Text>
+                <Text style={[styles.sectionTitle, { color: colors.foreground }]}>{t("ownerLabel")}</Text>
                 {selectedLot.owner ? (
                   <>
                     <View style={[styles.sep2, { backgroundColor: colors.border }]} />
                     {[
-                      { label: "Nom", value: selectedLot.owner.name },
-                      { label: "Email", value: selectedLot.owner.email },
-                      { label: "Téléphone", value: selectedLot.owner.phone },
+                      { label: t("name"),  value: selectedLot.owner.name },
+                      { label: t("email"), value: selectedLot.owner.email },
+                      { label: t("phone"), value: selectedLot.owner.phone },
                     ].map((row, i) => (
                       <View key={row.label}>
                         {i > 0 ? <View style={[styles.sep2, { backgroundColor: colors.border }]} /> : null}
@@ -305,7 +333,7 @@ function LotsScreenInner() {
                 ) : (
                   <>
                     <View style={[styles.sep2, { backgroundColor: colors.border }]} />
-                    <Text style={[styles.detailLabel, { color: "#f59e0b", paddingVertical: 8 }]}>Aucun propriétaire renseigné</Text>
+                    <Text style={[styles.detailLabel, { color: "#f59e0b", paddingVertical: 8 }]}>{t("noOwnerLabel")}</Text>
                   </>
                 )}
               </View>
@@ -313,12 +341,12 @@ function LotsScreenInner() {
               {/* Charges */}
               {selectedLot.chargeStats && (selectedLot.chargeStats.pending > 0 || selectedLot.chargeStats.overdue > 0) ? (
                 <View style={[styles.detailCard, { backgroundColor: colors.card, borderColor: "#ef444440" }]}>
-                  <Text style={[styles.sectionTitle, { color: colors.foreground }]}>Situation financière</Text>
+                  <Text style={[styles.sectionTitle, { color: colors.foreground }]}>{t("financialSituation")}</Text>
                   <View style={[styles.sep2, { backgroundColor: colors.border }]} />
                   {[
-                    { label: "Appels en attente", value: selectedLot.chargeStats.pending.toString(), color: "#f59e0b" },
-                    { label: "Appels en retard", value: selectedLot.chargeStats.overdue.toString(), color: "#ef4444" },
-                    { label: "Montant dû", value: `${selectedLot.chargeStats.pendingAmount.toLocaleString("fr-MA")} MAD`, color: "#ef4444" },
+                    { label: t("pendingCalls"), value: selectedLot.chargeStats.pending.toString(), color: "#f59e0b" },
+                    { label: t("overdueCalls"), value: selectedLot.chargeStats.overdue.toString(), color: "#ef4444" },
+                    { label: t("amountDue"),    value: `${selectedLot.chargeStats.pendingAmount.toLocaleString("fr-MA")} MAD`, color: "#ef4444" },
                   ].map((row, i) => (
                     <View key={row.label}>
                       {i > 0 ? <View style={[styles.sep2, { backgroundColor: colors.border }]} /> : null}
@@ -348,7 +376,7 @@ const styles = StyleSheet.create({
   modalHero: { alignItems: "center", gap: 10, padding: 20, borderRadius: 18, borderWidth: 1 },
   modalHeroIcon: { width: 64, height: 64, borderRadius: 20, alignItems: "center", justifyContent: "center" },
   modalHeroTitle: { fontSize: 15, fontFamily: "Inter_700Bold", textAlign: "center" },
-  detailCard: { borderRadius: 16, borderWidth: 1, paddingHorizontal: 14, paddingVertical: 4, gap: 0 },
+  detailCard: { borderRadius: 16, borderWidth: 1, paddingHorizontal: 14, paddingVertical: 4 },
   detailRow: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", paddingVertical: 10 },
   detailLabelRow: { flexDirection: "row", alignItems: "center", gap: 6 },
   detailLabel: { fontSize: 12, fontFamily: "Inter_400Regular" },
@@ -370,7 +398,7 @@ const styles = StyleSheet.create({
   chargeText: { fontSize: 11, fontFamily: "Inter_400Regular" },
   amtBadge: { flexDirection: "row", alignItems: "center", gap: 4, paddingHorizontal: 10, paddingVertical: 4, borderRadius: 10 },
   amtText: { fontSize: 11, fontFamily: "Inter_600SemiBold" },
-  center: { flex: 1, alignItems: "center", justifyContent: "center" },
   empty: { alignItems: "center", gap: 12, paddingVertical: 60 },
-  emptyText: { fontSize: 14, fontFamily: "Inter_400Regular" },
+  emptyText: { fontSize: 16, fontFamily: "Inter_600SemiBold" },
+  emptyHint: { fontSize: 13, fontFamily: "Inter_400Regular" },
 });

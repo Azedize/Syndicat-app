@@ -11,100 +11,16 @@ import {
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useAuth } from "@/context/AuthContext";
+import { useLanguage } from "@/context/LanguageContext";
 import { useBreakpoints } from "@/hooks/useBreakpoints";
 import { useColors } from "@/hooks/useColors";
-
-const MENU_ITEMS_ADMIN = [
-  {
-    label: "Tableau de Bord Financier",
-    sub: "Recouvrement, budget, historique par immeuble",
-    icon: "bar-chart-2" as const,
-    route: "/tableau-bord-financier",
-    color: "#3B82F6",
-    bg: "#EFF6FF",
-  },
-  {
-    label: "Charges & Appels de Fonds",
-    sub: "Suivi des paiements des copropriétaires",
-    icon: "credit-card" as const,
-    route: "/charges",
-    color: "#10B981",
-    bg: "#ECFDF5",
-  },
-  {
-    label: "Budget Prévisionnel",
-    sub: "Lignes budgétaires et répartition annuelle",
-    icon: "pie-chart" as const,
-    route: "/budget-previsionnel",
-    color: "#8B5CF6",
-    bg: "#F5F3FF",
-  },
-  {
-    label: "Travaux & Chantiers",
-    sub: "Budget travaux et suivi des dépenses",
-    icon: "tool" as const,
-    route: "/travaux",
-    color: "#F97316",
-    bg: "#FFF7ED",
-  },
-  {
-    label: "Prestataires & Contrats",
-    sub: "Charges contractuelles annuelles",
-    icon: "briefcase" as const,
-    route: "/prestataires",
-    color: "#6366F1",
-    bg: "#EEF2FF",
-  },
-  {
-    label: "Documents Financiers",
-    sub: "PV, quittances, relevés de compte",
-    icon: "folder" as const,
-    route: "/documents",
-    color: "#0891B2",
-    bg: "#ECFEFF",
-  },
-];
-
-const MENU_ITEMS_MEMBER = [
-  {
-    label: "Mes Charges",
-    sub: "Appels de fonds et historique de paiements",
-    icon: "credit-card" as const,
-    route: "/charges",
-    color: "#10B981",
-    bg: "#ECFDF5",
-  },
-  {
-    label: "Mon Appartement",
-    sub: "Détail de mon lot et mes locataires",
-    icon: "home" as const,
-    route: "/mon-lot",
-    color: "#2563EB",
-    bg: "#EFF6FF",
-  },
-  {
-    label: "Documents",
-    sub: "Règlement, PV d'assemblées, quittances",
-    icon: "folder" as const,
-    route: "/documents",
-    color: "#0891B2",
-    bg: "#ECFEFF",
-  },
-  {
-    label: "Travaux en cours",
-    sub: "Suivi des travaux dans la résidence",
-    icon: "tool" as const,
-    route: "/travaux",
-    color: "#F97316",
-    bg: "#FFF7ED",
-  },
-];
 
 export default function FinanceScreen() {
   const colors = useColors();
   const insets = useSafeAreaInsets();
   const { user } = useAuth();
   const router = useRouter();
+  const { t, isRTL } = useLanguage();
   const { isWide } = useBreakpoints();
   const topPad = isWide ? 0 : Platform.OS === "web" ? 67 : insets.top;
 
@@ -118,20 +34,103 @@ export default function FinanceScreen() {
     user?.role === "syndicate_admin" ||
     user?.role === "treasurer" ||
     user?.role === "president";
-  const items = isAdmin ? MENU_ITEMS_ADMIN : MENU_ITEMS_MEMBER;
 
-  // Keep this screen as a hub for all finance sub-screens.
+  const MENU_ITEMS_ADMIN = [
+    {
+      label: t("financeBoardTitle"),
+      sub: t("chargesAppelsSub"),
+      icon: "bar-chart-2" as const,
+      route: "/tableau-bord-financier",
+      color: "#3B82F6",
+      bg: "#EFF6FF",
+    },
+    {
+      label: t("chargesAppels"),
+      sub: t("chargesAppelsSub"),
+      icon: "credit-card" as const,
+      route: "/charges",
+      color: "#10B981",
+      bg: "#ECFDF5",
+    },
+    {
+      label: t("budgetPrevisionnel"),
+      sub: t("budgetPrevSub"),
+      icon: "pie-chart" as const,
+      route: "/budget-previsionnel",
+      color: "#8B5CF6",
+      bg: "#F5F3FF",
+    },
+    {
+      label: t("travauxChantiersLabel"),
+      sub: t("travauxChantiersSub"),
+      icon: "tool" as const,
+      route: "/travaux",
+      color: "#F97316",
+      bg: "#FFF7ED",
+    },
+    {
+      label: t("prestatairesContrats"),
+      sub: t("prestatairesContratsSub"),
+      icon: "briefcase" as const,
+      route: "/prestataires",
+      color: "#6366F1",
+      bg: "#EEF2FF",
+    },
+    {
+      label: t("documentsFinanciers"),
+      sub: t("documentsFinanciersSub"),
+      icon: "folder" as const,
+      route: "/documents",
+      color: "#0891B2",
+      bg: "#ECFEFF",
+    },
+  ];
+
+  const MENU_ITEMS_MEMBER = [
+    {
+      label: t("mesChargesLabel"),
+      sub: t("mesChargesSub"),
+      icon: "credit-card" as const,
+      route: "/charges",
+      color: "#10B981",
+      bg: "#ECFDF5",
+    },
+    {
+      label: t("monAppartement"),
+      sub: t("monAppartementSub"),
+      icon: "home" as const,
+      route: "/mon-lot",
+      color: "#2563EB",
+      bg: "#EFF6FF",
+    },
+    {
+      label: t("documents"),
+      sub: t("documentsMemberSub"),
+      icon: "folder" as const,
+      route: "/documents",
+      color: "#0891B2",
+      bg: "#ECFEFF",
+    },
+    {
+      label: t("travauxEnCours"),
+      sub: t("travauxEnCoursSub"),
+      icon: "tool" as const,
+      route: "/travaux",
+      color: "#F97316",
+      bg: "#FFF7ED",
+    },
+  ];
+
+  const items = isAdmin ? MENU_ITEMS_ADMIN : MENU_ITEMS_MEMBER;
 
   return (
     <View style={[styles.root, { backgroundColor: colors.background, paddingTop: topPad }]}>
       {/* Header */}
-      <View style={[styles.header, { backgroundColor: colors.card, borderBottomColor: colors.border }]}>
+      <View style={[styles.header, { backgroundColor: colors.card, borderBottomColor: colors.border, flexDirection: isRTL ? "row-reverse" : "row" }]}>
         <View>
-          <Text style={[styles.headerTitle, { color: colors.foreground }]}>Finance</Text>
-          <Text style={[styles.headerSub, { color: colors.mutedForeground }]}>
-            {isAdmin
-              ? "Gestion financière de la copropriété"
-              : "Mes finances & paiements"}
+          <Text style={[styles.headerTitle, { color: colors.foreground, textAlign: isRTL ? "right" : "left" }]}>{t("finance")}</Text>
+          <Text style={[styles.headerSub, { color: colors.mutedForeground, textAlign: isRTL ? "right" : "left" }]}>
+            {isAdmin ? t("financeAdminSub") : t("financeMemberSub")}
           </Text>
         </View>
         <View style={[styles.headerIcon, { backgroundColor: colors.primary + "18" }]}>
@@ -148,7 +147,7 @@ export default function FinanceScreen() {
         {/* Admin highlight card */}
         {isAdmin && (
           <TouchableOpacity
-            style={[styles.highlightCard, { backgroundColor: colors.primary }]}
+            style={[styles.highlightCard, { backgroundColor: colors.primary, flexDirection: isRTL ? "row-reverse" : "row" }]}
             onPress={() => router.push("/tableau-bord-financier" as any)}
             activeOpacity={0.85}
           >
@@ -156,21 +155,21 @@ export default function FinanceScreen() {
               <Ionicons name="bar-chart" size={28} color="#fff" />
             </View>
             <View style={{ flex: 1 }}>
-              <Text style={styles.highlightTitle}>Tableau de Bord Financier</Text>
-              <Text style={styles.highlightSub}>
-                Taux de recouvrement · Budget · Fonds de réserve
+              <Text style={[styles.highlightTitle, { textAlign: isRTL ? "right" : "left" }]}>{t("financeBoardTitle")}</Text>
+              <Text style={[styles.highlightSub, { textAlign: isRTL ? "right" : "left" }]}>
+                {t("financeBoardSub")}
               </Text>
             </View>
-            <Ionicons name="chevron-forward" size={20} color="rgba(255,255,255,0.7)" />
+            <Ionicons name={isRTL ? "chevron-back" : "chevron-forward"} size={20} color="rgba(255,255,255,0.7)" />
           </TouchableOpacity>
         )}
 
-        <Text style={[styles.sectionTitle, { color: colors.mutedForeground }]}>Modules financiers</Text>
+        <Text style={[styles.sectionTitle, { color: colors.mutedForeground, textAlign: isRTL ? "right" : "left" }]}>{t("financeModules")}</Text>
 
         {items.map((item) => (
           <TouchableOpacity
             key={item.route}
-            style={[styles.menuItem, { backgroundColor: colors.card, borderColor: colors.border }]}
+            style={[styles.menuItem, { backgroundColor: colors.card, borderColor: colors.border, flexDirection: isRTL ? "row-reverse" : "row" }]}
             onPress={() => router.push(item.route as any)}
             activeOpacity={0.75}
           >
@@ -178,10 +177,10 @@ export default function FinanceScreen() {
               <Feather name={item.icon} size={20} color={item.color} />
             </View>
             <View style={styles.menuText}>
-              <Text style={[styles.menuLabel, { color: colors.foreground }]}>{item.label}</Text>
-              <Text style={[styles.menuSub, { color: colors.mutedForeground }]}>{item.sub}</Text>
+              <Text style={[styles.menuLabel, { color: colors.foreground, textAlign: isRTL ? "right" : "left" }]}>{item.label}</Text>
+              <Text style={[styles.menuSub, { color: colors.mutedForeground, textAlign: isRTL ? "right" : "left" }]}>{item.sub}</Text>
             </View>
-            <Ionicons name="chevron-forward" size={18} color={colors.mutedForeground} />
+            <Ionicons name={isRTL ? "chevron-back" : "chevron-forward"} size={18} color={colors.mutedForeground} />
           </TouchableOpacity>
         ))}
       </ScrollView>
@@ -193,7 +192,6 @@ const styles = StyleSheet.create({
   root: { flex: 1 },
 
   header: {
-    flexDirection: "row",
     justifyContent: "space-between",
     alignItems: "center",
     paddingHorizontal: 20,
@@ -214,7 +212,6 @@ const styles = StyleSheet.create({
   scroll: { paddingHorizontal: 16, paddingTop: 16 },
 
   highlightCard: {
-    flexDirection: "row",
     alignItems: "center",
     gap: 14,
     marginBottom: 16,
@@ -255,7 +252,6 @@ const styles = StyleSheet.create({
   },
 
   menuItem: {
-    flexDirection: "row",
     alignItems: "center",
     gap: 14,
     borderRadius: 14,

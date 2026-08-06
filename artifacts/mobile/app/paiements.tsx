@@ -18,6 +18,7 @@ import {
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useAuth } from "@/context/AuthContext";
 import { useData } from "@/context/DataContext";
+import { useLanguage } from "@/context/LanguageContext";
 import { useBreakpoints } from "@/hooks/useBreakpoints";
 import { useColors } from "@/hooks/useColors";
 import { apiRequest } from "@/lib/api";
@@ -39,17 +40,30 @@ interface Transaction {
 
 type TabFilter = "all" | TxStatus;
 
-const STATUS_CONFIG: Record<TxStatus, { label: string; color: string; icon: keyof typeof Feather.glyphMap; bg: string }> = {
-  paid:     { label: "Payé",       color: "#10b981", icon: "check-circle", bg: "#10b98115" },
-  pending:  { label: "En attente", color: "#f59e0b", icon: "clock",        bg: "#f59e0b15" },
-  overdue:  { label: "En retard",  color: "#ef4444", icon: "alert-circle", bg: "#ef444415" },
+const STATUS_ICONS: Record<TxStatus, keyof typeof Feather.glyphMap> = {
+  paid:    "check-circle",
+  pending: "clock",
+  overdue: "alert-circle",
 };
 
-const TYPE_CONFIG: Record<TxType, { label: string; color: string; icon: keyof typeof Feather.glyphMap }> = {
-  cotisation: { label: "Cotisation", color: "#2563EB", icon: "users" },
-  depense:    { label: "Dépense",    color: "#ef4444", icon: "trending-down" },
-  salaire:    { label: "Salaire",    color: "#f59e0b", icon: "briefcase" },
-  recette:    { label: "Recette",    color: "#10b981", icon: "trending-up" },
+const STATUS_COLORS: Record<TxStatus, { color: string; bg: string }> = {
+  paid:    { color: "#10b981", bg: "#10b98115" },
+  pending: { color: "#f59e0b", bg: "#f59e0b15" },
+  overdue: { color: "#ef4444", bg: "#ef444415" },
+};
+
+const TYPE_ICONS: Record<TxType, keyof typeof Feather.glyphMap> = {
+  cotisation: "users",
+  depense:    "trending-down",
+  salaire:    "briefcase",
+  recette:    "trending-up",
+};
+
+const TYPE_COLORS: Record<TxType, string> = {
+  cotisation: "#2563EB",
+  depense:    "#ef4444",
+  salaire:    "#f59e0b",
+  recette:    "#10b981",
 };
 
 function getInitials(label: string): string {
@@ -60,8 +74,8 @@ function formatRef(id: string): string {
   return `PAY-${id.slice(0, 8).toUpperCase()}`;
 }
 
-// Paiements — personal payment history for members, tenants, and governance roles (who are also co-owners).
-// Super Admin does not belong to any syndicate and must never see individual syndicate financial data.
+// Paiements — personal payment history for members, tenants, and governance roles.
+// Super Admin must never see individual syndicate financial data.
 export default function PaiementsScreen() {
   return (
     <RoleGuard allow={["syndicate_admin", "president", "treasurer", "secretary", "committee_member", "member", "tenant"]}>
@@ -74,11 +88,10 @@ function PaiementsScreenInner() {
   const colors = useColors();
   const insets = useSafeAreaInsets();
   const { user } = useAuth();
+  const { t } = useLanguage();
   const { transactions, addTransaction, updateTransactionStatus } = useData();
   const { isWide } = useBreakpoints();
   const topPad = isWide ? 0 : (Platform.OS === "web" ? 67 : insets.top);
-  // Management roles can approve/reject transactions and see the full stats breakdown.
-  // Members and tenants are read-only viewers of their own transactions.
   const isAdmin = ["super_admin", "syndicate_admin", "president", "treasurer", "secretary", "committee_member"].includes(user?.role ?? "");
 
   const [tab, setTab] = useState<TabFilter>("all");
@@ -92,26 +105,54 @@ function PaiementsScreenInner() {
 
   const filtered = useMemo(() => {
     if (tab === "all") return transactions;
-    return transactions.filter((t) => t.status === tab);
+    return transactions.filter((tx) => tx.status === tab);
   }, [tab, transactions]);
 
-  const totalPaid     = transactions.filter((t) => t.status === "paid").reduce((s, t) => s + t.amount, 0);
-  const totalPending  = transactions.filter((t) => t.status === "pending").reduce((s, t) => s + t.amount, 0);
-  const totalOverdue  = transactions.filter((t) => t.status === "overdue").length;
-  const countPaid     = transactions.filter((t) => t.status === "paid").length;
+  const totalPaid    = transactions.filter((tx) => tx.status === "paid").reduce((s, tx) => s + tx.amount, 0);
+  const totalPending = transactions.filter((tx) => tx.status === "pending").reduce((s, tx) => s + tx.amount, 0);
+  const totalOverdue = transactions.filter((tx) => tx.status === "overdue").length;
+  const countPaid    = transactions.filter((tx) => tx.status === "paid").length;
 
   const typeBreakdown = (["cotisation", "recette", "depense", "salaire"] as TxType[]).map((ty) => ({
     type: ty,
-    count: transactions.filter((t) => t.type === ty).length,
-    total: transactions.filter((t) => t.type === ty).reduce((s, t) => s + t.amount, 0),
-  })).filter((t) => t.count > 0);
+    count: transactions.filter((tx) => tx.type === ty).length,
+    total: transactions.filter((tx) => tx.type === ty).reduce((s, tx) => s + tx.amount, 0),
+  })).filter((tx) => tx.count > 0);
+
+  // Translated type labels
+  const TYPE_LABELS: Record<TxType, string> = {
+    cotisation: t("typeCotisation"),
+    depense:    t("typeDepense"),
+    salaire:    t("typeSalaire"),
+    recette:    t("typeRecette"),
+  };
 
   const TABS: { key: TabFilter; label: string; count: number }[] = [
-    { key: "all",     label: "Tous",       count: transactions.length },
-    { key: "paid",    label: "Payés",      count: transactions.filter((t) => t.status === "paid").length },
-    { key: "pending", label: "En attente", count: transactions.filter((t) => t.status === "pending").length },
-    { key: "overdue", label: "En retard",  count: transactions.filter((t) => t.status === "overdue").length },
+    { key: "all",     label: t("all"),         count: transactions.length },
+    { key: "paid",    label: t("paid"),         count: transactions.filter((tx) => tx.status === "paid").length },
+    { key: "pending", label: t("inProgressPayment") ?? t("statusPending"), count: transactions.filter((tx) => tx.status === "pending").length },
+    { key: "overdue", label: t("latePayment"),  count: transactions.filter((tx) => tx.status === "overdue").length },
   ];
+
+  // Skeleton loading card
+  const SkeletonCard = () => (
+    <View style={[styles.payCard, { backgroundColor: colors.card, borderColor: colors.border }]}>
+      <View style={styles.payTop}>
+        <View style={{ width: 44, height: 44, borderRadius: 22, backgroundColor: colors.secondary }} />
+        <View style={{ flex: 1, gap: 8 }}>
+          <View style={{ flexDirection: "row", gap: 6 }}>
+            <View style={{ height: 18, width: 70, backgroundColor: colors.secondary, borderRadius: 9 }} />
+            <View style={{ height: 18, width: 60, backgroundColor: colors.secondary, borderRadius: 9 }} />
+          </View>
+          <View style={{ height: 13, width: "70%", backgroundColor: colors.secondary, borderRadius: 7 }} />
+        </View>
+        <View style={{ gap: 6, alignItems: "flex-end" }}>
+          <View style={{ height: 18, width: 90, backgroundColor: colors.secondary, borderRadius: 6 }} />
+          <View style={{ height: 12, width: 60, backgroundColor: colors.secondary, borderRadius: 6 }} />
+        </View>
+      </View>
+    </View>
+  );
 
   return (
     <View style={[styles.root, { backgroundColor: colors.background }]}>
@@ -122,8 +163,8 @@ function PaiementsScreenInner() {
             <Feather name="arrow-left" size={22} color="#fff" />
           </TouchableOpacity>
           <View style={{ flex: 1 }}>
-            <Text style={styles.headerTitle}>Gestion des Paiements</Text>
-            <Text style={styles.headerSub}>Suivi et traçabilité financière</Text>
+            <Text style={styles.headerTitle}>{t("paymentsManagement")}</Text>
+            <Text style={styles.headerSub}>{t("paymentsSubtitle")}</Text>
           </View>
           <TouchableOpacity
             style={styles.exportBtn}
@@ -133,7 +174,7 @@ function PaiementsScreenInner() {
               const rows = transactions.map((tx) =>
                 `${formatRef(tx.id)},${tx.type},${tx.label},${tx.amount},${tx.status},${tx.date}`
               );
-              shareContent([header, ...rows].join("\n"), "Rapport Paiements");
+              shareContent([header, ...rows].join("\n"), t("paymentsManagement"));
             }}
           >
             <Feather name="download" size={18} color="#fff" />
@@ -158,7 +199,7 @@ function PaiementsScreenInner() {
           <View style={[styles.kpiCard, { backgroundColor: "rgba(255,255,255,0.15)" }]}>
             <View style={styles.kpiTop}>
               <Feather name="trending-up" size={14} color="#6ee7b7" />
-              <Text style={styles.kpiLabel}>Total encaissé</Text>
+              <Text style={styles.kpiLabel}>{t("totalCollected")}</Text>
             </View>
             <Text style={styles.kpiValue}>{totalPaid.toLocaleString()} MAD</Text>
             <Text style={styles.kpiSub}>{countPaid} transactions</Text>
@@ -166,17 +207,17 @@ function PaiementsScreenInner() {
           <View style={[styles.kpiCard, { backgroundColor: "rgba(255,255,255,0.15)" }]}>
             <View style={styles.kpiTop}>
               <Feather name="clock" size={14} color="#fde68a" />
-              <Text style={styles.kpiLabel}>En attente</Text>
+              <Text style={styles.kpiLabel}>{t("inProgressPayment")}</Text>
             </View>
             <Text style={styles.kpiValue}>{totalPending.toLocaleString()} MAD</Text>
-            <Text style={styles.kpiSub}>{transactions.filter((t) => t.status === "pending").length} en cours</Text>
+            <Text style={styles.kpiSub}>{transactions.filter((tx) => tx.status === "pending").length} {t("inProgressPayment").toLowerCase()}</Text>
           </View>
         </View>
 
         {totalOverdue > 0 && (
           <View style={styles.alertBanner}>
             <Feather name="alert-triangle" size={14} color="#fbbf24" />
-            <Text style={styles.alertText}>{totalOverdue} paiement{totalOverdue > 1 ? "s" : ""} en retard — action requise</Text>
+            <Text style={styles.alertText}>{totalOverdue} {t("overdueAlertText")}</Text>
           </View>
         )}
       </View>
@@ -185,14 +226,16 @@ function PaiementsScreenInner() {
       {isAdmin && typeBreakdown.length > 0 && (
         <View style={[styles.methodBar, { backgroundColor: colors.card, borderBottomColor: colors.border }]}>
           <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.methodContent}>
-            {typeBreakdown.map((t) => {
-              const cfg = TYPE_CONFIG[t.type];
+            {typeBreakdown.map((tb) => {
+              const color = TYPE_COLORS[tb.type];
+              const icon  = TYPE_ICONS[tb.type];
+              const label = TYPE_LABELS[tb.type];
               return (
-                <View key={t.type} style={[styles.methodChip, { backgroundColor: cfg.color + "12", borderColor: cfg.color + "30" }]}>
-                  <Feather name={cfg.icon} size={13} color={cfg.color} />
+                <View key={tb.type} style={[styles.methodChip, { backgroundColor: color + "12", borderColor: color + "30" }]}>
+                  <Feather name={icon} size={13} color={color} />
                   <View>
-                    <Text style={[styles.methodLabel, { color: cfg.color }]}>{cfg.label}</Text>
-                    <Text style={[styles.methodVal, { color: colors.mutedForeground }]}>{t.total.toLocaleString()} MAD</Text>
+                    <Text style={[styles.methodLabel, { color }]}>{label}</Text>
+                    <Text style={[styles.methodVal, { color: colors.mutedForeground }]}>{tb.total.toLocaleString()} MAD</Text>
                   </View>
                 </View>
               );
@@ -208,16 +251,16 @@ function PaiementsScreenInner() {
         style={[styles.tabBar, { backgroundColor: colors.card, borderBottomColor: colors.border }]}
         contentContainerStyle={styles.tabContent}
       >
-        {TABS.map((t) => (
+        {TABS.map((tb) => (
           <TouchableOpacity
-            key={t.key}
-            style={[styles.tabBtn, { backgroundColor: tab === t.key ? colors.primary : colors.muted }]}
-            onPress={() => { setTab(t.key); Haptics.selectionAsync(); }}
+            key={tb.key}
+            style={[styles.tabBtn, { backgroundColor: tab === tb.key ? colors.primary : colors.muted }]}
+            onPress={() => { setTab(tb.key); Haptics.selectionAsync(); }}
           >
-            <Text style={[styles.tabText, { color: tab === t.key ? "#fff" : colors.mutedForeground }]}>{t.label}</Text>
-            {t.count > 0 && (
-              <View style={[styles.tabBadge, { backgroundColor: tab === t.key ? "rgba(255,255,255,0.25)" : colors.border }]}>
-                <Text style={[styles.tabBadgeText, { color: tab === t.key ? "#fff" : colors.mutedForeground }]}>{t.count}</Text>
+            <Text style={[styles.tabText, { color: tab === tb.key ? "#fff" : colors.mutedForeground }]}>{tb.label}</Text>
+            {tb.count > 0 && (
+              <View style={[styles.tabBadge, { backgroundColor: tab === tb.key ? "rgba(255,255,255,0.25)" : colors.border }]}>
+                <Text style={[styles.tabBadgeText, { color: tab === tb.key ? "#fff" : colors.mutedForeground }]}>{tb.count}</Text>
               </View>
             )}
           </TouchableOpacity>
@@ -225,69 +268,75 @@ function PaiementsScreenInner() {
       </ScrollView>
 
       {loading ? (
-        <View style={styles.loadingBox}>
-          <ActivityIndicator size="large" color={colors.primary} />
-          <Text style={[styles.loadingText, { color: colors.mutedForeground }]}>Chargement des transactions...</Text>
-        </View>
+        <FlatList
+          data={[1, 2, 3, 4]}
+          keyExtractor={(k) => String(k)}
+          contentContainerStyle={{ padding: 16, gap: 10, paddingBottom: insets.bottom + 40 }}
+          renderItem={() => <SkeletonCard />}
+        />
       ) : (
         <FlatList
           data={filtered as Transaction[]}
-          keyExtractor={(t) => t.id}
+          keyExtractor={(tx) => tx.id}
           contentContainerStyle={{ padding: 16, gap: 10, paddingBottom: insets.bottom + 40 }}
           showsVerticalScrollIndicator={false}
           ListEmptyComponent={
             <View style={styles.empty}>
               <Feather name="credit-card" size={40} color={colors.mutedForeground} />
-              <Text style={[styles.emptyText, { color: colors.mutedForeground }]}>Aucune transaction trouvée</Text>
+              <Text style={[styles.emptyText, { color: colors.mutedForeground }]}>{t("noTransactions")}</Text>
             </View>
           }
-          renderItem={({ item: t }) => {
-            const statusCfg = STATUS_CONFIG[t.status as TxStatus] ?? STATUS_CONFIG.pending;
-            const typeCfg   = TYPE_CONFIG[t.type as TxType] ?? TYPE_CONFIG.cotisation;
-            const initials  = getInitials(t.label);
-            const isDebit   = t.type === "depense" || t.type === "salaire";
+          renderItem={({ item: tx }) => {
+            const statusColors = STATUS_COLORS[tx.status as TxStatus] ?? STATUS_COLORS.pending;
+            const statusIcon   = STATUS_ICONS[tx.status as TxStatus] ?? "clock";
+            const statusLabel  = tx.status === "paid" ? t("paid") : tx.status === "overdue" ? t("latePayment") : t("inProgressPayment");
+            const typeColor    = TYPE_COLORS[tx.type as TxType] ?? "#6b7280";
+            const typeIcon     = TYPE_ICONS[tx.type as TxType] ?? "users";
+            const typeLabel    = TYPE_LABELS[tx.type as TxType] ?? tx.type;
+            const initials     = getInitials(tx.label);
+            const isDebit      = tx.type === "depense" || tx.type === "salaire";
             return (
               <TouchableOpacity
                 style={[styles.payCard, { backgroundColor: colors.card, borderColor: colors.border }]}
-                onPress={() => { setSelected(t as Transaction); Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); }}
+                onPress={() => { setSelected(tx as Transaction); Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); }}
                 activeOpacity={0.8}
               >
                 <View style={styles.payTop}>
-                  <View style={[styles.payAvatar, { backgroundColor: statusCfg.color + "15" }]}>
-                    <Text style={[styles.payAvatarText, { color: statusCfg.color }]}>{initials}</Text>
+                  <View style={[styles.payAvatar, { backgroundColor: statusColors.bg }]}>
+                    <Text style={[styles.payAvatarText, { color: statusColors.color }]}>{initials}</Text>
                   </View>
 
                   <View style={{ flex: 1, gap: 3 }}>
                     <View style={styles.payBadges}>
-                      <View style={[styles.typeBadge, { backgroundColor: typeCfg.color + "15" }]}>
-                        <Feather name={typeCfg.icon} size={10} color={typeCfg.color} />
-                        <Text style={[styles.typeBadgeText, { color: typeCfg.color }]}>{typeCfg.label}</Text>
+                      <View style={[styles.typeBadge, { backgroundColor: typeColor + "15" }]}>
+                        <Feather name={typeIcon} size={10} color={typeColor} />
+                        <Text style={[styles.typeBadgeText, { color: typeColor }]}>{typeLabel}</Text>
                       </View>
-                      <View style={[styles.statusBadge, { backgroundColor: statusCfg.bg }]}>
-                        <Feather name={statusCfg.icon} size={10} color={statusCfg.color} />
-                        <Text style={[styles.statusText, { color: statusCfg.color }]}>{statusCfg.label}</Text>
+                      <View style={[styles.statusBadge, { backgroundColor: statusColors.bg }]}>
+                        <Feather name={statusIcon} size={10} color={statusColors.color} />
+                        <Text style={[styles.statusText, { color: statusColors.color }]}>{statusLabel}</Text>
                       </View>
                     </View>
-                    <Text style={[styles.payLabel, { color: colors.foreground }]} numberOfLines={2}>{t.label}</Text>
+                    <Text style={[styles.payLabel, { color: colors.foreground }]} numberOfLines={2}>{tx.label}</Text>
                   </View>
 
                   <View style={{ alignItems: "flex-end", gap: 4 }}>
                     <Text style={[styles.payAmount, { color: isDebit ? "#ef4444" : "#10b981" }]}>
-                      {isDebit ? "-" : "+"}{t.amount.toLocaleString()} MAD
+                      {isDebit ? "-" : "+"}{tx.amount.toLocaleString()} MAD
                     </Text>
-                    <Text style={[styles.payDate, { color: colors.mutedForeground }]}>{t.date}</Text>
+                    <Text style={[styles.payDate, { color: colors.mutedForeground }]}>{tx.date}</Text>
                   </View>
                 </View>
 
                 <View style={styles.payMeta}>
                   <View style={styles.metaItem}>
                     <Feather name="hash" size={11} color={colors.mutedForeground} />
-                    <Text style={[styles.metaText, { color: colors.mutedForeground }]}>{formatRef(t.id)}</Text>
+                    <Text style={[styles.metaText, { color: colors.mutedForeground }]}>{formatRef(tx.id)}</Text>
                   </View>
-                  {t.member && (
+                  {tx.member && (
                     <View style={styles.metaItem}>
                       <Feather name="user" size={11} color={colors.mutedForeground} />
-                      <Text style={[styles.metaText, { color: colors.mutedForeground }]}>{t.member}</Text>
+                      <Text style={[styles.metaText, { color: colors.mutedForeground }]}>{tx.member}</Text>
                     </View>
                   )}
                 </View>
@@ -300,49 +349,51 @@ function PaiementsScreenInner() {
       {/* Detail modal */}
       <Modal visible={!!selected} animationType="slide" presentationStyle="pageSheet">
         {selected && (() => {
-          const t = selected;
-          const statusCfg = STATUS_CONFIG[t.status as TxStatus] ?? STATUS_CONFIG.pending;
-          const typeCfg   = TYPE_CONFIG[t.type as TxType] ?? TYPE_CONFIG.cotisation;
-          const isDebit   = t.type === "depense" || t.type === "salaire";
+          const tx = selected;
+          const statusColors = STATUS_COLORS[tx.status as TxStatus] ?? STATUS_COLORS.pending;
+          const statusIcon   = STATUS_ICONS[tx.status as TxStatus] ?? "clock";
+          const statusLabel  = tx.status === "paid" ? t("paid") : tx.status === "overdue" ? t("latePayment") : t("inProgressPayment");
+          const typeLabel    = TYPE_LABELS[tx.type as TxType] ?? tx.type;
+          const isDebit      = tx.type === "depense" || tx.type === "salaire";
           return (
             <View style={[styles.modal, { backgroundColor: colors.background }]}>
-              <View style={[styles.modalHeader, { backgroundColor: t.status === "paid" ? "#10b981" : t.status === "overdue" ? "#ef4444" : "#f59e0b" }]}>
+              <View style={[styles.modalHeader, { backgroundColor: statusColors.color }]}>
                 <TouchableOpacity onPress={() => setSelected(null)}>
                   <Feather name="x" size={22} color="#fff" />
                 </TouchableOpacity>
                 <View style={styles.modalHeaderCenter}>
-                  <Text style={styles.modalAmount}>{isDebit ? "-" : "+"}{t.amount.toLocaleString()} MAD</Text>
+                  <Text style={styles.modalAmount}>{isDebit ? "-" : "+"}{tx.amount.toLocaleString()} MAD</Text>
                   <View style={styles.modalStatusRow}>
-                    <Feather name={statusCfg.icon} size={14} color="#fff" />
-                    <Text style={styles.modalStatusText}>{statusCfg.label}</Text>
+                    <Feather name={statusIcon} size={14} color="#fff" />
+                    <Text style={styles.modalStatusText}>{statusLabel}</Text>
                   </View>
                 </View>
               </View>
 
               <ScrollView contentContainerStyle={{ padding: 20, gap: 18, paddingBottom: 40 }}>
-                {t.status === "paid" && (
+                {tx.status === "paid" && (
                   <View style={[styles.qrSection, { backgroundColor: colors.card, borderColor: colors.border }]}>
                     <View style={[styles.qrBox, { borderColor: colors.border, backgroundColor: "#fff" }]}>
                       <QRCode
-                        value={`VERIDIAN:${formatRef(t.id)}:${t.amount}:${t.date}:PAID`}
+                        value={`VERIDIAN:${formatRef(tx.id)}:${tx.amount}:${tx.date}:PAID`}
                         size={112}
                         color="#1a1a1a"
                         backgroundColor="#ffffff"
                       />
                     </View>
                     <View style={styles.qrInfo}>
-                      <Text style={[styles.qrRef, { color: colors.foreground }]}>{formatRef(t.id)}</Text>
-                      <Text style={[styles.qrSub, { color: colors.mutedForeground }]}>Scannez pour vérifier</Text>
+                      <Text style={[styles.qrRef, { color: colors.foreground }]}>{formatRef(tx.id)}</Text>
+                      <Text style={[styles.qrSub, { color: colors.mutedForeground }]}>{t("verifyQr")}</Text>
                     </View>
                   </View>
                 )}
 
                 <View style={[styles.infoCard, { backgroundColor: colors.card, borderColor: colors.border }]}>
                   {[
-                    { icon: "tag" as const,      label: "Type",       value: typeCfg.label },
-                    { icon: "hash" as const,     label: "Référence",  value: formatRef(t.id) },
-                    { icon: "calendar" as const, label: "Date",       value: t.date },
-                    ...(t.member ? [{ icon: "user" as const, label: "Membre", value: t.member }] : []),
+                    { icon: "tag" as const,      label: t("type"),       value: typeLabel },
+                    { icon: "hash" as const,     label: t("reference") ?? "Référence", value: formatRef(tx.id) },
+                    { icon: "calendar" as const, label: t("date"),       value: tx.date },
+                    ...(tx.member ? [{ icon: "user" as const, label: t("member"), value: tx.member }] : []),
                   ].map(({ icon, label, value }, i) => (
                     <View key={label}>
                       {i > 0 && <View style={[styles.infoSep, { backgroundColor: colors.border }]} />}
@@ -360,58 +411,58 @@ function PaiementsScreenInner() {
                 </View>
 
                 <View style={styles.actionBtns}>
-                  {t.status === "paid" && (
+                  {tx.status === "paid" && (
                     <TouchableOpacity
                       style={[styles.actionBtn, { backgroundColor: colors.primary }]}
                       onPress={() => {
                         Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
                         const receiptText =
                           `REÇU DE PAIEMENT\n` +
-                          `Référence : ${formatRef(t.id)}\n` +
-                          `Libellé : ${t.label}\n` +
-                          `Montant : ${t.amount.toLocaleString()} MAD\n` +
-                          `Date : ${t.date}\n` +
-                          `Statut : Payé ✓`;
-                        shareContent(receiptText, `Reçu ${formatRef(t.id)}`);
+                          `Référence : ${formatRef(tx.id)}\n` +
+                          `Libellé : ${tx.label}\n` +
+                          `Montant : ${tx.amount.toLocaleString()} MAD\n` +
+                          `Date : ${tx.date}\n` +
+                          `Statut : ${t("paid")} ✓`;
+                        shareContent(receiptText, `${t("paymentReceiptLabel")} ${formatRef(tx.id)}`);
                       }}
                     >
                       <Feather name="download" size={16} color="#fff" />
-                      <Text style={styles.actionBtnText}>Télécharger le reçu</Text>
+                      <Text style={styles.actionBtnText}>{t("downloadReceiptLabel")}</Text>
                     </TouchableOpacity>
                   )}
-                  {t.status === "overdue" && (
+                  {tx.status === "overdue" && (
                     <TouchableOpacity
                       style={[styles.actionBtn, { backgroundColor: "#ef4444" }]}
                       onPress={async () => {
                         Haptics.notificationAsync(Haptics.NotificationFeedbackType.Warning);
                         try {
-                          await updateTransactionStatus(t.id, "overdue");
-                          Alert.alert("Relance envoyée", "La relance de paiement a été enregistrée.");
+                          await updateTransactionStatus(tx.id, "overdue");
+                          Alert.alert(t("reminderSentTitle"), t("reminderSentMsg"));
                           setSelected(null);
                         } catch {
-                          Alert.alert("Erreur", "Impossible d'envoyer la relance. Réessayez.");
+                          Alert.alert(t("error"), t("errorGeneric"));
                         }
                       }}
                     >
                       <Feather name="send" size={16} color="#fff" />
-                      <Text style={styles.actionBtnText}>Envoyer une relance</Text>
+                      <Text style={styles.actionBtnText}>{t("sendReminderLabel")}</Text>
                     </TouchableOpacity>
                   )}
-                  {t.status === "pending" && isAdmin && (
+                  {tx.status === "pending" && isAdmin && (
                     <TouchableOpacity
                       style={[styles.actionBtn, { backgroundColor: "#10b981" }]}
                       onPress={async () => {
                         Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
                         try {
-                          await updateTransactionStatus(t.id, "paid");
+                          await updateTransactionStatus(tx.id, "paid");
                           setSelected(null);
                         } catch {
-                          Alert.alert("Erreur", "Impossible de mettre à jour. Réessayez.");
+                          Alert.alert(t("error"), t("errorGeneric"));
                         }
                       }}
                     >
                       <Feather name="check" size={16} color="#fff" />
-                      <Text style={styles.actionBtnText}>Marquer comme payé</Text>
+                      <Text style={styles.actionBtnText}>{t("markAsPaidBtn")}</Text>
                     </TouchableOpacity>
                   )}
                   <TouchableOpacity
@@ -419,17 +470,16 @@ function PaiementsScreenInner() {
                     onPress={() => {
                       Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
                       const details =
-                        `Transaction : ${formatRef(t.id)}\n` +
-                        `Type : ${TYPE_CONFIG[t.type]?.label ?? t.type}\n` +
-                        `Libellé : ${t.label}\n` +
-                        `Montant : ${t.amount.toLocaleString()} MAD\n` +
-                        `Date : ${t.date}\n` +
-                        `Statut : ${STATUS_CONFIG[t.status]?.label ?? t.status}`;
-                      shareContent(details, `Transaction ${formatRef(t.id)}`);
+                        `Transaction : ${formatRef(tx.id)}\n` +
+                        `Type : ${TYPE_LABELS[tx.type] ?? tx.type}\n` +
+                        `Libellé : ${tx.label}\n` +
+                        `Montant : ${tx.amount.toLocaleString()} MAD\n` +
+                        `Date : ${tx.date}`;
+                      shareContent(details, `Transaction ${formatRef(tx.id)}`);
                     }}
                   >
                     <Feather name="share-2" size={16} color={colors.foreground} />
-                    <Text style={[styles.actionBtnText, { color: colors.foreground }]}>Partager</Text>
+                    <Text style={[styles.actionBtnText, { color: colors.foreground }]}>{t("shareLabel")}</Text>
                   </TouchableOpacity>
                 </View>
               </ScrollView>
@@ -497,8 +547,6 @@ const styles = StyleSheet.create({
   modalStatusText: { fontSize: 14, fontFamily: "Inter_600SemiBold", color: "#fff" },
   qrSection: { borderRadius: 16, borderWidth: 1, padding: 20, alignItems: "center", gap: 12 },
   qrBox: { width: 140, height: 140, borderWidth: 2, borderRadius: 12, padding: 8, alignItems: "center", justifyContent: "center" },
-  qrGrid: { flexDirection: "row", flexWrap: "wrap", width: 112, height: 112 },
-  qrCell: { width: 16, height: 16 },
   qrInfo: { alignItems: "center", gap: 4 },
   qrRef: { fontSize: 13, fontFamily: "Inter_700Bold" },
   qrSub: { fontSize: 11, fontFamily: "Inter_400Regular" },

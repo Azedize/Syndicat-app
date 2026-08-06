@@ -17,6 +17,7 @@ import {
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useAuth } from "@/context/AuthContext";
 import { useData, type Member, type Syndicate } from "@/context/DataContext";
+import { useLanguage } from "@/context/LanguageContext";
 import { useBreakpoints } from "@/hooks/useBreakpoints";
 import { useColors } from "@/hooks/useColors";
 import FilterTabs from "@/components/FilterTabs";
@@ -30,6 +31,7 @@ export default function MembersScreen() {
   const colors = useColors();
   const insets = useSafeAreaInsets();
   const { user } = useAuth();
+  const { t, isRTL } = useLanguage();
   const { members, syndicates, addMember, addSyndicate, updateSyndicateStatus, updateMemberStatus } = useData();
 
   const [search, setSearch] = useState("");
@@ -60,8 +62,6 @@ export default function MembersScreen() {
 
   const navigateFromSyndicateModal = (path: string) => {
     closeSyndicateModal();
-    // Wait for the modal's close animation to finish before navigating,
-    // otherwise the navigation can be swallowed while the modal is dismissing.
     setTimeout(() => router.push(path as any), 300);
   };
 
@@ -69,8 +69,6 @@ export default function MembersScreen() {
     if (contactingAdmin) return;
     setContactingAdmin(true);
     try {
-      // If adminId is known use it directly; otherwise let the backend resolve
-      // the syndicate_admin by syndicateId (syndicateAdminLookup).
       const params = syndicate.adminId
         ? { participantId: syndicate.adminId, convType: "direct" as const }
         : { syndicateAdminLookup: syndicate.id, convType: "direct" as const };
@@ -106,10 +104,10 @@ export default function MembersScreen() {
   });
 
   const FILTERS: { key: MemberFilter; label: string }[] = [
-    { key: "all", label: "Tous" },
-    { key: "active", label: "Actifs" },
-    { key: "inactive", label: "Inactifs" },
-    { key: "pending", label: "En attente" },
+    { key: "all",      label: t("all") },
+    { key: "active",   label: t("statusActive") },
+    { key: "inactive", label: t("filterInactifs") },
+    { key: "pending",  label: t("statusPending") },
   ];
 
   const handleAdd = async () => {
@@ -138,10 +136,10 @@ export default function MembersScreen() {
       setShowAdd(false);
       setNewName(""); setNewEmail(""); setNewPhone(""); setNewProfession("");
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-      showToast({ type: "success", title: "Membre ajouté", message: `${member.name} a été ajouté avec succès.` });
+      showToast({ type: "success", title: t("success"), message: `${member.name} — ${t("memberAdded") ?? "ajouté"}` });
     } catch (err: unknown) {
-      const msg = err instanceof Error ? err.message : "Impossible d'ajouter le membre.";
-      showToast({ type: "error", title: "Erreur", message: msg });
+      const msg = err instanceof Error ? err.message : t("errorGeneric");
+      showToast({ type: "error", title: t("error"), message: msg });
     } finally {
       setSubmittingMember(false);
     }
@@ -170,25 +168,25 @@ export default function MembersScreen() {
       setShowAddSyndicate(false);
       setSynName(""); setSynSector(""); setSynRegion(""); setSynAdmin("");
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-      showToast({ type: "success", title: "Syndicat créé", message: `${s.name} a été créé avec succès.` });
+      showToast({ type: "success", title: t("success"), message: `${s.name}` });
     } catch (err: unknown) {
-      const msg = err instanceof Error ? err.message : "Impossible de créer le syndicat.";
-      showToast({ type: "error", title: "Erreur", message: msg });
+      const msg = err instanceof Error ? err.message : t("errorGeneric");
+      showToast({ type: "error", title: t("error"), message: msg });
     } finally {
       setSubmittingSyndicate(false);
     }
   };
 
   const statusConfig = (status: Member["status"]) => ({
-    active: { color: colors.success, label: "Actif" },
-    inactive: { color: colors.destructive, label: "Inactif" },
-    pending: { color: "#f59e0b", label: "En attente" },
+    active:   { color: colors.success,     label: t("statusActive") },
+    inactive: { color: colors.destructive, label: t("statusInactive") },
+    pending:  { color: "#f59e0b",          label: t("statusPending") },
   }[status]);
 
   const cotConfig = (status: Member["cotisationStatus"]) => ({
-    paid: { color: colors.success, label: "Payée" },
-    pending: { color: "#f59e0b", label: "En attente" },
-    overdue: { color: colors.destructive, label: "En retard" },
+    paid:    { color: colors.success,     label: t("paid") },
+    pending: { color: "#f59e0b",          label: t("statusPending") },
+    overdue: { color: colors.destructive, label: t("latePayment") },
   }[status]);
 
   // Super Admin view
@@ -198,9 +196,9 @@ export default function MembersScreen() {
         <View style={[styles.header, { paddingTop: topPad + 16, backgroundColor: colors.card, borderBottomColor: colors.border }]}>
           <View style={styles.headerRow}>
             <View>
-              <Text style={[styles.title, { color: colors.foreground }]}>Syndicats</Text>
+              <Text style={[styles.title, { color: colors.foreground }]}>{t("syndicatsTitle")}</Text>
               <Text style={[styles.subtitle, { color: colors.mutedForeground }]}>
-                {syndicates.length} syndicats • {syndicates.filter((s) => s.status === "active").length} actifs
+                {syndicates.length} syndicats • {syndicates.filter((s) => s.status === "active").length} {t("statusActive").toLowerCase()}
               </Text>
             </View>
             <View style={{ flexDirection: "row", gap: 8 }}>
@@ -241,22 +239,22 @@ export default function MembersScreen() {
                 <Text style={[styles.syndicateMeta, { color: colors.mutedForeground }]}>{s.sector} • {s.region}</Text>
                 <View style={styles.syndicateRow}>
                   <Feather name="users" size={11} color={colors.mutedForeground} />
-                  <Text style={[styles.syndicateMeta, { color: colors.mutedForeground }]}>{s.members} membres</Text>
+                  <Text style={[styles.syndicateMeta, { color: colors.mutedForeground }]}>{s.members} {t("syndicatMembersCount").toLowerCase()}</Text>
                   <Text style={[styles.syndicateMeta, { color: colors.mutedForeground }]}>•</Text>
-                  <Text style={[styles.syndicateMeta, { color: colors.mutedForeground }]}>Admin: {s.admin}</Text>
+                  <Text style={[styles.syndicateMeta, { color: colors.mutedForeground }]}>{t("syndicatAdminLabel")}: {s.admin}</Text>
                 </View>
               </View>
               <View style={styles.syndicateRight}>
                 <View style={[styles.statusDot, { backgroundColor: s.status === "active" ? colors.success : colors.destructive }]} />
                 <Text style={[styles.statusLabel, { color: s.status === "active" ? colors.success : colors.destructive }]}>
-                  {s.status === "active" ? "Actif" : "Inactif"}
+                  {s.status === "active" ? t("statusActive") : t("statusInactive")}
                 </Text>
               </View>
             </TouchableOpacity>
           )}
         />
 
-        {/* Syndicate detail / members modal (single modal, switched views to avoid stacking two <Modal>s) */}
+        {/* Syndicate detail / members modal */}
         <Modal visible={!!selectedSyndicate} animationType="slide" presentationStyle="pageSheet" onRequestClose={closeSyndicateModal}>
           {selectedSyndicate && syndicateModalView === "detail" ? (
             <View style={[styles.modal, { backgroundColor: colors.background }]}>
@@ -276,12 +274,12 @@ export default function MembersScreen() {
                   <View style={{ gap: 16 }}>
                     <View style={[styles.synDetailCard, { backgroundColor: colors.card, borderColor: colors.border }]}>
                       {[
-                        { label: "Secteur", value: selectedSyndicate.sector },
-                        { label: "Région", value: selectedSyndicate.region },
-                        { label: "Administrateur", value: selectedSyndicate.admin },
-                        { label: "Membres", value: `${selectedSyndicate.members}` },
-                        { label: "Créé le", value: selectedSyndicate.createdAt },
-                        { label: "Statut", value: selectedSyndicate.status === "active" ? "Actif" : "Inactif" },
+                        { label: t("syndicatSector"),      value: selectedSyndicate.sector },
+                        { label: t("syndicatRegion"),      value: selectedSyndicate.region },
+                        { label: t("syndicatAdminLabel"),  value: selectedSyndicate.admin },
+                        { label: t("syndicatMembersCount"),value: `${selectedSyndicate.members}` },
+                        { label: t("syndicatCreatedAt"),   value: selectedSyndicate.createdAt },
+                        { label: t("syndicatStatusLabel"), value: selectedSyndicate.status === "active" ? t("statusActive") : t("statusInactive") },
                       ].map((item, i) => (
                         <View key={item.label}>
                           {i > 0 ? <View style={[styles.sep, { backgroundColor: colors.border }]} /> : null}
@@ -295,47 +293,41 @@ export default function MembersScreen() {
                     <View style={styles.synActions}>
                       {[
                         {
-                          label: "Voir les membres",
+                          label: t("viewMembersLabel"),
                           icon: "users" as const,
                           color: colors.primary,
                           onPress: () => { setSyndicateModalView("members"); Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); },
                         },
                         {
-                          label: contactingAdmin ? "Ouverture…" : "Contacter admin",
+                          label: contactingAdmin ? t("openingLabel") : t("contactAdminLabel"),
                           icon: "message-circle" as const,
                           color: "#3b82f6",
                           onPress: () => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); handleContactAdmin(selectedSyndicate!); },
                         },
                         {
-                          label: selectedSyndicate.status === "active" ? "Désactiver" : "Activer",
+                          label: selectedSyndicate.status === "active" ? t("deactivate") : t("activate"),
                           icon: selectedSyndicate.status === "active" ? "user-x" as const : "user-check" as const,
                           color: selectedSyndicate.status === "active" ? colors.destructive : colors.success,
                           onPress: () => {
                             const newStatus = selectedSyndicate.status === "active" ? "inactive" as const : "active" as const;
-                            const label = newStatus === "active" ? "activé" : "désactivé";
-                            Alert.alert(
-                              newStatus === "active" ? "Activer le syndicat" : "Désactiver le syndicat",
-                              `Confirmer ${newStatus === "active" ? "l'activation" : "la désactivation"} de ${selectedSyndicate.name} ?`,
-                              [
-                                { text: "Annuler", style: "cancel" },
-                                {
-                                  text: newStatus === "active" ? "Activer" : "Désactiver",
-                                  style: newStatus === "active" ? "default" : "destructive",
-                                  onPress: () => {
-                                    updateSyndicateStatus(selectedSyndicate.id, newStatus);
-                                    setSelectedSyndicate({ ...selectedSyndicate, status: newStatus });
-                                    Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-                                    showToast({ type: "success", title: "Mise à jour", message: `Le syndicat a été ${label} avec succès.` });
-                                  },
+                            const label = newStatus === "active" ? t("activate") : t("deactivate");
+                            Alert.alert(label, `${selectedSyndicate.name}?`, [
+                              { text: t("cancel"), style: "cancel" },
+                              {
+                                text: label,
+                                style: newStatus === "active" ? "default" : "destructive",
+                                onPress: () => {
+                                  updateSyndicateStatus(selectedSyndicate.id, newStatus);
+                                  setSelectedSyndicate({ ...selectedSyndicate, status: newStatus });
+                                  Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+                                  showToast({ type: "success", title: t("success"), message: selectedSyndicate.name });
                                 },
-                              ]
-                            );
+                              },
+                            ]);
                           },
                         },
                         {
-                          // Platform owner monitors syndicates via Tableau National,
-                          // not through the syndicate-level finance tab.
-                          label: "Tableau National",
+                          label: t("tableauNationalLabel"),
                           icon: "globe" as const,
                           color: "#6366f1",
                           onPress: () => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); navigateFromSyndicateModal("/tableau-national"); },
@@ -359,10 +351,10 @@ export default function MembersScreen() {
           ) : selectedSyndicate && syndicateModalView === "members" ? (
             <View style={[styles.modal, { backgroundColor: colors.background }]}>
               <View style={[styles.modalHeader, { borderBottomColor: colors.border }]}>
-                <TouchableOpacity onPress={() => setSyndicateModalView("detail")} style={{ flexDirection: "row", alignItems: "center", gap: 6, flex: 1 }}>
-                  <Feather name="chevron-left" size={20} color={colors.foreground} />
+                <TouchableOpacity onPress={() => setSyndicateModalView("detail")} style={{ flexDirection: isRTL ? "row-reverse" : "row", alignItems: "center", gap: 6, flex: 1 }}>
+                  <Feather name={isRTL ? "chevron-right" : "chevron-left"} size={20} color={colors.foreground} />
                   <Text style={[styles.modalTitle, { color: colors.foreground }]} numberOfLines={1}>
-                    Membres — {selectedSyndicate.name}
+                    {t("syndicatMembersCount")} — {selectedSyndicate.name}
                   </Text>
                 </TouchableOpacity>
                 <TouchableOpacity onPress={closeSyndicateModal}>
@@ -383,12 +375,16 @@ export default function MembersScreen() {
                     contentContainerStyle={{ padding: 16, gap: 10, paddingBottom: 40 }}
                     showsVerticalScrollIndicator={false}
                     ListHeaderComponent={
-                      <Text style={{ fontSize: 12, fontFamily: "Inter_400Regular", color: colors.mutedForeground, marginBottom: 4 }}>
-                        {displayMembers.length} membre(s) dans ce syndicat
+                      <Text style={{ fontSize: 12, fontFamily: "Inter_400Regular", color: colors.mutedForeground, marginBottom: 4, textAlign: isRTL ? "right" : "left" }}>
+                        {displayMembers.length} {t("membersInSyndicate")}
                       </Text>
                     }
                     renderItem={({ item: m }) => {
-                      const sc = { active: { color: colors.success, label: "Actif" }, inactive: { color: colors.destructive, label: "Inactif" }, pending: { color: "#f59e0b", label: "En attente" } }[m.status];
+                      const sc = {
+                        active:   { color: colors.success,     label: t("statusActive") },
+                        inactive: { color: colors.destructive, label: t("statusInactive") },
+                        pending:  { color: "#f59e0b",          label: t("statusPending") },
+                      }[m.status];
                       return (
                         <TouchableOpacity
                           style={[styles.memberCard, { backgroundColor: colors.card, borderColor: colors.border }]}
@@ -422,7 +418,7 @@ export default function MembersScreen() {
         <Modal visible={showAddSyndicate} animationType="slide" presentationStyle="pageSheet">
           <View style={[styles.modal, { backgroundColor: colors.background }]}>
             <View style={[styles.modalHeader, { borderBottomColor: colors.border }]}>
-              <Text style={[styles.modalTitle, { color: colors.foreground }]}>Nouveau syndicat</Text>
+              <Text style={[styles.modalTitle, { color: colors.foreground }]}>{t("newSyndicate") ?? "Nouveau syndicat"}</Text>
               <TouchableOpacity onPress={() => setShowAddSyndicate(false)}>
                 <Feather name="x" size={22} color={colors.mutedForeground} />
               </TouchableOpacity>
@@ -434,10 +430,10 @@ export default function MembersScreen() {
               renderItem={() => (
                 <View style={{ gap: 14 }}>
                   {[
-                    { label: "Nom du syndicat *", value: synName, setter: setSynName, placeholder: "Syndicat National des..." },
-                    { label: "Secteur", value: synSector, setter: setSynSector, placeholder: "Éducation, Santé, Industrie..." },
-                    { label: "Région", value: synRegion, setter: setSynRegion, placeholder: "National, Casablanca..." },
-                    { label: "Administrateur", value: synAdmin, setter: setSynAdmin, placeholder: "Nom de l'administrateur" },
+                    { label: t("nomSyndicat"),    value: synName,   setter: setSynName,   placeholder: "Syndicat National des..." },
+                    { label: t("syndicatSector"), value: synSector, setter: setSynSector, placeholder: "Éducation, Santé..." },
+                    { label: t("syndicatRegion"), value: synRegion, setter: setSynRegion, placeholder: "National, Casablanca..." },
+                    { label: t("syndicatAdminLabel"), value: synAdmin, setter: setSynAdmin, placeholder: "Nom de l'administrateur" },
                   ].map((field) => (
                     <View key={field.label} style={{ gap: 6 }}>
                       <Text style={[styles.fieldLabel, { color: colors.foreground }]}>{field.label}</Text>
@@ -459,7 +455,7 @@ export default function MembersScreen() {
                       <ActivityIndicator size="small" color="#fff" />
                     ) : (
                       <Text style={[styles.saveBtnText, { color: synName.trim() ? "#fff" : colors.mutedForeground }]}>
-                        Créer le syndicat
+                        {t("createSyndicatBtn")}
                       </Text>
                     )}
                   </TouchableOpacity>
@@ -478,9 +474,9 @@ export default function MembersScreen() {
       <View style={[styles.header, { paddingTop: topPad + 16, backgroundColor: colors.card, borderBottomColor: colors.border }]}>
         <View style={styles.headerRow}>
           <View>
-            <Text style={[styles.title, { color: colors.foreground }]}>Copropriétaires</Text>
+            <Text style={[styles.title, { color: colors.foreground }]}>{t("copropriétairesTitle")}</Text>
             <Text style={[styles.subtitle, { color: colors.mutedForeground }]}>
-              {filtered.length} / {members.length} copropriétaires
+              {filtered.length} / {members.length} {t("copropriétairesTitle").toLowerCase()}
             </Text>
           </View>
           <TouchableOpacity
@@ -495,14 +491,13 @@ export default function MembersScreen() {
           <Feather name="search" size={16} color={colors.mutedForeground} />
           <TextInput
             style={[styles.searchInput, { color: colors.foreground }]}
-            placeholder="Rechercher un membre..."
+            placeholder={t("searchMemberPlaceholder")}
             placeholderTextColor={colors.mutedForeground}
             value={search}
             onChangeText={setSearch}
           />
           {search ? <TouchableOpacity onPress={() => setSearch("")}><Feather name="x" size={16} color={colors.mutedForeground} /></TouchableOpacity> : null}
         </View>
-
       </View>
 
       <FilterTabs
@@ -520,7 +515,7 @@ export default function MembersScreen() {
         ListEmptyComponent={
           <View style={styles.empty}>
             <Feather name="users" size={40} color={colors.mutedForeground} />
-            <Text style={[styles.emptyText, { color: colors.mutedForeground }]}>Aucun membre trouvé</Text>
+            <Text style={[styles.emptyText, { color: colors.mutedForeground }]}>{t("noMembers")}</Text>
           </View>
         }
         renderItem={({ item: m }) => {
@@ -530,7 +525,7 @@ export default function MembersScreen() {
           return (
             <View style={[styles.memberCard, { backgroundColor: colors.card, borderColor: isPending ? "#f59e0b" : colors.border, borderLeftWidth: isPending ? 4 : 1, borderLeftColor: isPending ? "#f59e0b" : colors.border }]}>
               <TouchableOpacity
-                style={{ flexDirection: "row", alignItems: "center", gap: 12 }}
+                style={{ flexDirection: isRTL ? "row-reverse" : "row", alignItems: "center", gap: 12 }}
                 onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); router.push({ pathname: "/member-detail", params: { id: m.id } }); }}
                 activeOpacity={0.8}
               >
@@ -540,16 +535,16 @@ export default function MembersScreen() {
                   </Text>
                 </View>
                 <View style={{ flex: 1, gap: 3 }}>
-                  <View style={{ flexDirection: "row", alignItems: "center", gap: 6 }}>
+                  <View style={{ flexDirection: isRTL ? "row-reverse" : "row", alignItems: "center", gap: 6 }}>
                     <Text style={[styles.memberName, { color: colors.foreground }]}>{m.name}</Text>
                     {isPending && (
                       <View style={{ backgroundColor: "#f59e0b18", paddingHorizontal: 6, paddingVertical: 2, borderRadius: 6 }}>
-                        <Text style={{ fontSize: 9, fontFamily: "Inter_700Bold", color: "#f59e0b" }}>EN ATTENTE</Text>
+                        <Text style={{ fontSize: 9, fontFamily: "Inter_700Bold", color: "#f59e0b" }}>{t("statusEnAttenteBadge")}</Text>
                       </View>
                     )}
                   </View>
                   <Text style={[styles.memberProfession, { color: colors.mutedForeground }]}>{m.profession}</Text>
-                  <View style={styles.memberMeta}>
+                  <View style={[styles.memberMeta, { flexDirection: isRTL ? "row-reverse" : "row" }]}>
                     <Feather name="calendar" size={11} color={colors.mutedForeground} />
                     <Text style={[styles.memberDate, { color: colors.mutedForeground }]}>{m.joinDate.slice(0, 7)}</Text>
                   </View>
@@ -568,18 +563,18 @@ export default function MembersScreen() {
               </TouchableOpacity>
 
               {isPending && (
-                <View style={{ flexDirection: "row", gap: 8, marginTop: 10 }}>
+                <View style={{ flexDirection: isRTL ? "row-reverse" : "row", gap: 8, marginTop: 10 }}>
                   <TouchableOpacity
                     style={{ flex: 1, flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 6, paddingVertical: 10, borderRadius: 10, backgroundColor: colors.destructive + "15", borderWidth: 1, borderColor: colors.destructive + "30" }}
                     onPress={() => {
-                      Alert.alert("Rejeter la demande", `Rejeter la demande de ${m.name} ?`, [
-                        { text: "Annuler", style: "cancel" },
-                        { text: "Rejeter", style: "destructive", onPress: () => { updateMemberStatus(m.id, "inactive"); Haptics.notificationAsync(Haptics.NotificationFeedbackType.Warning); } },
+                      Alert.alert(t("rejectRequestLabel"), `${m.name}?`, [
+                        { text: t("cancel"), style: "cancel" },
+                        { text: t("rejectBtn"), style: "destructive", onPress: () => { updateMemberStatus(m.id, "inactive"); Haptics.notificationAsync(Haptics.NotificationFeedbackType.Warning); } },
                       ]);
                     }}
                   >
                     <Feather name="x" size={14} color={colors.destructive} />
-                    <Text style={{ fontSize: 12, fontFamily: "Inter_600SemiBold", color: colors.destructive }}>Rejeter</Text>
+                    <Text style={{ fontSize: 12, fontFamily: "Inter_600SemiBold", color: colors.destructive }}>{t("rejectBtn")}</Text>
                   </TouchableOpacity>
                   <TouchableOpacity
                     style={{ flex: 2, flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 6, paddingVertical: 10, borderRadius: 10, backgroundColor: colors.success + "18", borderWidth: 1, borderColor: colors.success + "40" }}
@@ -589,7 +584,7 @@ export default function MembersScreen() {
                     }}
                   >
                     <Feather name="check" size={14} color={colors.success} />
-                    <Text style={{ fontSize: 12, fontFamily: "Inter_700Bold", color: colors.success }}>Approuver l'adhésion</Text>
+                    <Text style={{ fontSize: 12, fontFamily: "Inter_700Bold", color: colors.success }}>{t("approveRequest")}</Text>
                   </TouchableOpacity>
                 </View>
               )}
@@ -602,7 +597,7 @@ export default function MembersScreen() {
       <Modal visible={showAdd} animationType="slide" presentationStyle="pageSheet">
         <View style={[styles.modal, { backgroundColor: colors.background }]}>
           <View style={[styles.modalHeader, { borderBottomColor: colors.border }]}>
-            <Text style={[styles.modalTitle, { color: colors.foreground }]}>Ajouter un membre</Text>
+            <Text style={[styles.modalTitle, { color: colors.foreground }]}>{t("addMember")}</Text>
             <TouchableOpacity onPress={() => setShowAdd(false)}>
               <Feather name="x" size={22} color={colors.mutedForeground} />
             </TouchableOpacity>
@@ -614,10 +609,10 @@ export default function MembersScreen() {
             renderItem={() => (
               <View style={{ gap: 14 }}>
                 {[
-                  { label: "Nom complet *", value: newName, setter: setNewName, placeholder: "Mohammed Alaoui" },
-                  { label: "Email", value: newEmail, setter: setNewEmail, placeholder: "email@exemple.com" },
-                  { label: "Téléphone", value: newPhone, setter: setNewPhone, placeholder: "+212 6 XX XX XX XX" },
-                  { label: "Profession", value: newProfession, setter: setNewProfession, placeholder: "Professeur" },
+                  { label: t("nomComplet"),     value: newName,       setter: setNewName,       placeholder: "Mohammed Alaoui" },
+                  { label: t("email"),          value: newEmail,      setter: setNewEmail,      placeholder: "email@exemple.com" },
+                  { label: t("phone"),          value: newPhone,      setter: setNewPhone,      placeholder: "+212 6 XX XX XX XX" },
+                  { label: t("professionLabel"),value: newProfession, setter: setNewProfession, placeholder: "Professeur" },
                 ].map((field) => (
                   <View key={field.label} style={{ gap: 6 }}>
                     <Text style={[styles.fieldLabel, { color: colors.foreground }]}>{field.label}</Text>
@@ -639,7 +634,7 @@ export default function MembersScreen() {
                     <ActivityIndicator size="small" color="#fff" />
                   ) : (
                     <Text style={[styles.saveBtnText, { color: newName.trim() ? "#fff" : colors.mutedForeground }]}>
-                      Enregistrer
+                      {t("saveMemberBtn")}
                     </Text>
                   )}
                 </TouchableOpacity>
@@ -668,7 +663,7 @@ const styles = StyleSheet.create({
   memberInitials: { fontSize: 16, fontFamily: "Inter_700Bold" },
   memberName: { fontSize: 14, fontFamily: "Inter_700Bold" },
   memberProfession: { fontSize: 12, fontFamily: "Inter_400Regular" },
-  memberMeta: { flexDirection: "row", alignItems: "center", gap: 4 },
+  memberMeta: { alignItems: "center", gap: 4 },
   memberDate: { fontSize: 11, fontFamily: "Inter_400Regular" },
   memberRight: { alignItems: "flex-end", gap: 6 },
   statusBadge: { flexDirection: "row", alignItems: "center", gap: 5, paddingHorizontal: 8, paddingVertical: 4, borderRadius: 20 },

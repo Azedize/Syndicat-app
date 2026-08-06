@@ -9,6 +9,7 @@ import {
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useAuth } from "@/context/AuthContext";
+import { useLanguage } from "@/context/LanguageContext";
 import { useBreakpoints } from "@/hooks/useBreakpoints";
 import { useColors } from "@/hooks/useColors";
 import { apiRequest } from "@/lib/api";
@@ -18,10 +19,7 @@ import RoleGuard from "@/components/RoleGuard";
 import ScreenHeader from "@/components/ScreenHeader";
 import StatsStrip from "@/components/StatsStrip";
 
-// Charges & appels de fonds are a copropriétaire (owner) financial matter — tenants
 // Charges screen — co-owners see their personal charges; treasurer/admin manage all charges.
-// Governance roles (president, treasurer, secretary) are also co-owners and must see their own charges.
-// Tenants are not co-owners — they are blocked.
 export default function ChargesScreen() {
   return (
     <RoleGuard allow={["super_admin", "syndicate_admin", "treasurer", "president", "member"]}>
@@ -30,27 +28,36 @@ export default function ChargesScreen() {
   );
 }
 
-const STATUS_CONFIG: Record<string, { color: string; label: string; icon: keyof typeof Feather.glyphMap }> = {
-  pending:            { color: "#f59e0b", label: "À payer",            icon: "clock" },
-  pending_validation: { color: "#3b82f6", label: "En validation",      icon: "loader" },
-  paid:               { color: "#10b981", label: "Payé",               icon: "check-circle" },
-  overdue:            { color: "#ef4444", label: "En retard",          icon: "alert-circle" },
-  rejected:           { color: "#ef4444", label: "Rejeté",             icon: "x-circle" },
-  partial:            { color: "#f97316", label: "Partiel",            icon: "minus-circle" },
+const STATUS_ICONS: Record<string, keyof typeof Feather.glyphMap> = {
+  pending:            "clock",
+  pending_validation: "loader",
+  paid:               "check-circle",
+  overdue:            "alert-circle",
+  rejected:           "x-circle",
+  partial:            "minus-circle",
 };
 
-const TYPE_LABELS: Record<string, string> = {
-  charges_courantes: "Charges courantes",
-  fonds_reserve:     "Fonds de réserve",
-  appel_special:     "Appel spécial",
+const STATUS_COLORS: Record<string, string> = {
+  pending:            "#f59e0b",
+  pending_validation: "#3b82f6",
+  paid:               "#10b981",
+  overdue:            "#ef4444",
+  rejected:           "#ef4444",
+  partial:            "#f97316",
 };
 
-const PAYMENT_METHODS = [
-  { key: "virement", label: "Virement bancaire", icon: "send" as const },
-  { key: "cheque",   label: "Chèque",            icon: "file-text" as const },
-  { key: "especes",  label: "Espèces",            icon: "dollar-sign" as const },
-  { key: "online",   label: "Paiement en ligne",  icon: "credit-card" as const },
-];
+const TYPE_KEYS: Record<string, string> = {
+  charges_courantes: "typeChargesCourantes",
+  fonds_reserve:     "typeFondsReserve",
+  appel_special:     "typeAppelSpecial",
+};
+
+const PAYMENT_ICONS: Record<string, keyof typeof Feather.glyphMap> = {
+  virement: "send",
+  cheque:   "file-text",
+  especes:  "dollar-sign",
+  online:   "credit-card",
+};
 
 type Appel = {
   id: string;
@@ -73,6 +80,7 @@ function ChargesScreenInner() {
   const colors = useColors();
   const insets = useSafeAreaInsets();
   const { user, token } = useAuth();
+  const { t } = useLanguage();
   const { isWide } = useBreakpoints();
   const { showToast } = useToast();
 
@@ -87,10 +95,44 @@ function ChargesScreenInner() {
   const [payProofUri, setPayProofUri] = useState("");
   const [rejectModal, setRejectModal] = useState<Appel | null>(null);
   const [rejectReason, setRejectReason] = useState("");
+  const [uploadingProof, setUploadingProof] = useState(false);
 
-  // Treasurer manages all charges (validation, rejection) — they need the admin view.
-  // Members see their personal charges only.
   const isAdmin = user?.role === "super_admin" || user?.role === "syndicate_admin" || user?.role === "treasurer";
+
+  // Translated configs built inside the component so t() is available
+  const PAYMENT_METHODS = [
+    { key: "virement", label: t("payMethodVirement"), icon: PAYMENT_ICONS.virement },
+    { key: "cheque",   label: t("payMethodCheque"),   icon: PAYMENT_ICONS.cheque },
+    { key: "especes",  label: t("payMethodEspeces"),  icon: PAYMENT_ICONS.especes },
+    { key: "online",   label: t("payMethodOnline"),   icon: PAYMENT_ICONS.online },
+  ];
+
+  const FILTERS = [
+    { key: "all",                label: t("all") },
+    { key: "pending",            label: t("atPay") },
+    { key: "pending_validation", label: t("inValidation") },
+    { key: "overdue",            label: t("latePayment") },
+    { key: "paid",               label: t("paid") },
+    { key: "rejected",           label: t("statusRejected") },
+  ];
+
+  const getStatusLabel = (status: string) => {
+    const map: Record<string, string> = {
+      pending:            t("atPay"),
+      pending_validation: t("inValidation"),
+      paid:               t("paid"),
+      overdue:            t("latePayment"),
+      rejected:           t("statusRejected"),
+      partial:            t("statusPartial"),
+    };
+    return map[status] ?? status;
+  };
+
+  const getTypeLabel = (type: string) => {
+    const key = TYPE_KEYS[type];
+    return key ? t(key as any) : type;
+  };
+
   const load = useCallback(async (silent = false) => {
     try {
       if (!silent) setLoading(true);
@@ -104,13 +146,6 @@ function ChargesScreenInner() {
   useEffect(() => { load(); }, [load]);
   const onRefresh = () => { setRefreshing(true); load(true); };
 
-  const [uploadingProof, setUploadingProof] = useState(false);
-
-  /**
-   * Upload a local image URI to the API server via multipart POST.
-   * Uses the /storage/uploads endpoint which works in dev (local filesystem)
-   * and prod (GCS). Never stores a local file:// URI in the database.
-   */
   const uploadProofImage = async (uri: string): Promise<string | undefined> => {
     const domain = process.env.EXPO_PUBLIC_DOMAIN;
     const baseUrl = domain
@@ -143,21 +178,11 @@ function ChargesScreenInner() {
         const cam = await ImagePicker.requestCameraPermissionsAsync();
         if (!cam.granted) return;
         const result = await ImagePicker.launchCameraAsync({ allowsEditing: true, quality: 0.7 });
-        if (!result.canceled && result.assets[0]) {
-          setPayProofUri(result.assets[0].uri);
-          Haptics.selectionAsync();
-        }
+        if (!result.canceled && result.assets[0]) { setPayProofUri(result.assets[0].uri); Haptics.selectionAsync(); }
         return;
       }
-      const result = await ImagePicker.launchImageLibraryAsync({
-        mediaTypes: ImagePicker.MediaTypeOptions.Images,
-        allowsEditing: true,
-        quality: 0.7,
-      });
-      if (!result.canceled && result.assets[0]) {
-        setPayProofUri(result.assets[0].uri);
-        Haptics.selectionAsync();
-      }
+      const result = await ImagePicker.launchImageLibraryAsync({ mediaTypes: ImagePicker.MediaTypeOptions.Images, allowsEditing: true, quality: 0.7 });
+      if (!result.canceled && result.assets[0]) { setPayProofUri(result.assets[0].uri); Haptics.selectionAsync(); }
     } catch { /* silently ignore */ }
   };
 
@@ -172,7 +197,7 @@ function ChargesScreenInner() {
       const { Linking } = await import("react-native");
       await Linking.openURL(receiptUrl);
     } catch {
-      showToast({ type: "error", title: "Erreur", message: "Impossible d'ouvrir le reçu" });
+      showToast({ type: "error", title: t("error"), message: t("errorGeneric") });
     }
   };
 
@@ -186,7 +211,7 @@ function ChargesScreenInner() {
         proofUrl = await uploadProofImage(payProofUri);
         setUploadingProof(false);
         if (!proofUrl) {
-          showToast({ type: "error", title: "Erreur d'upload", message: "Le téléchargement du justificatif a échoué. Vérifiez votre connexion et réessayez." });
+          showToast({ type: "error", title: t("error"), message: t("uploadProofFailed") });
           setSubmitting(false);
           return;
         }
@@ -201,7 +226,7 @@ function ChargesScreenInner() {
       setPayProofUri("");
       load(true);
     } catch (e: any) {
-      Alert.alert("Erreur", e.message ?? "Impossible de soumettre le paiement");
+      Alert.alert(t("error"), e.message ?? t("errorGeneric"));
     } finally { setSubmitting(false); }
   };
 
@@ -210,13 +235,14 @@ function ChargesScreenInner() {
       await apiRequest(`/appels-de-fonds/${id}/validate`, "PUT", { approve: true }, token);
       load(true);
     } catch (e: any) {
-      Alert.alert("Erreur", e.message ?? "Impossible de valider");
+      Alert.alert(t("error"), e.message ?? t("errorGeneric"));
     }
   };
 
   const handleReject = async () => {
     if (!rejectModal || !rejectReason.trim()) {
-      Alert.alert("Erreur", "Le motif de rejet est obligatoire"); return;
+      Alert.alert(t("error"), t("rejectionReasonRequired"));
+      return;
     }
     try {
       setSubmitting(true);
@@ -228,43 +254,50 @@ function ChargesScreenInner() {
       setRejectReason("");
       load(true);
     } catch (e: any) {
-      Alert.alert("Erreur", e.message ?? "Impossible de rejeter");
+      Alert.alert(t("error"), e.message ?? t("errorGeneric"));
     } finally { setSubmitting(false); }
   };
 
-  const total = appels.reduce((s, a) => s + a.amount, 0);
+  const total     = appels.reduce((s, a) => s + a.amount, 0);
   const collected = appels.filter((a) => a.status === "paid").reduce((s, a) => s + a.amount, 0);
-  const pending = appels.filter((a) => a.status === "pending").reduce((s, a) => s + a.amount, 0);
-  const overdue = appels.filter((a) => a.status === "overdue").reduce((s, a) => s + a.amount, 0);
-  const rate = total > 0 ? Math.round((collected / total) * 100) : 0;
-
-  const FILTERS = [
-    { key: "all",               label: "Tous" },
-    { key: "pending",           label: "À payer" },
-    { key: "pending_validation",label: "En validation" },
-    { key: "overdue",           label: "En retard" },
-    { key: "paid",              label: "Payés" },
-    { key: "rejected",          label: "Rejetés" },
-  ];
+  const pending   = appels.filter((a) => a.status === "pending").reduce((s, a) => s + a.amount, 0);
+  const overdue   = appels.filter((a) => a.status === "overdue").reduce((s, a) => s + a.amount, 0);
+  const rate      = total > 0 ? Math.round((collected / total) * 100) : 0;
 
   const filtered = filter === "all" ? appels : appels.filter((a) => a.status === filter);
+
+  // Skeleton loading placeholder
+  const SkeletonCard = () => (
+    <View style={[styles.card, { backgroundColor: colors.card, borderColor: colors.border }]}>
+      <View style={styles.cardTop}>
+        <View style={[styles.amtCircle, { backgroundColor: colors.secondary }]} />
+        <View style={{ flex: 1, gap: 8 }}>
+          <View style={{ height: 14, width: "60%", backgroundColor: colors.secondary, borderRadius: 7 }} />
+          <View style={{ height: 11, width: "40%", backgroundColor: colors.secondary, borderRadius: 6 }} />
+        </View>
+        <View style={{ gap: 6, alignItems: "flex-end" }}>
+          <View style={{ height: 20, width: 80, backgroundColor: colors.secondary, borderRadius: 6 }} />
+          <View style={{ height: 16, width: 60, backgroundColor: colors.secondary, borderRadius: 8 }} />
+        </View>
+      </View>
+    </View>
+  );
 
   return (
     <View style={[styles.root, { backgroundColor: colors.background }]}>
       <ScreenHeader
-        title="Charges & Appels de Fonds"
-        subtitle={`Taux de recouvrement: ${rate}%`}
+        title={t("chargesAppels")}
+        subtitle={`${t("chargesCollectionRate")}: ${rate}%`}
         color="#10b981"
       />
 
-      {/* Finance summary: amounts + progress bar */}
       <View style={[styles.summary, { backgroundColor: colors.card, borderBottomColor: colors.border }]}>
         <StatsStrip
           stats={[
-            { label: "Total appelé", value: `${(total / 1000).toFixed(1)}k`,     color: colors.foreground },
-            { label: "Recouvré",     value: `${(collected / 1000).toFixed(1)}k`, color: "#10b981" },
-            { label: "En attente",   value: `${(pending / 1000).toFixed(1)}k`,   color: "#f59e0b" },
-            { label: "En retard",    value: `${(overdue / 1000).toFixed(1)}k`,   color: "#ef4444" },
+            { label: t("totalAppele"),  value: `${(total / 1000).toFixed(1)}k`,     color: colors.foreground },
+            { label: t("recovered"),    value: `${(collected / 1000).toFixed(1)}k`, color: "#10b981" },
+            { label: t("inProgressPayment"), value: `${(pending / 1000).toFixed(1)}k`, color: "#f59e0b" },
+            { label: t("latePayment"),  value: `${(overdue / 1000).toFixed(1)}k`,   color: "#ef4444" },
           ]}
         />
         <View style={[styles.progressBg, { backgroundColor: colors.secondary }]}>
@@ -280,7 +313,7 @@ function ChargesScreenInner() {
           activeOpacity={0.75}
         >
           <Feather name="clock" size={14} color="#10b981" />
-          <Text style={[styles.historyBannerText, { color: colors.foreground }]}>Historique de mes paiements</Text>
+          <Text style={[styles.historyBannerText, { color: colors.foreground }]}>{t("paymentHistoryShortcut")}</Text>
           <Feather name="chevron-right" size={14} color={colors.mutedForeground} />
         </TouchableOpacity>
       )}
@@ -293,7 +326,9 @@ function ChargesScreenInner() {
       />
 
       {loading ? (
-        <View style={styles.center}><ActivityIndicator color="#10b981" size="large" /></View>
+        <ScrollView contentContainerStyle={[styles.list, { paddingBottom: isWide ? 32 : insets.bottom + 100 }]}>
+          {[1, 2, 3, 4].map((k) => <SkeletonCard key={k} />)}
+        </ScrollView>
       ) : (
         <ScrollView
           contentContainerStyle={[styles.list, { paddingBottom: isWide ? 32 : insets.bottom + 100 }]}
@@ -303,22 +338,25 @@ function ChargesScreenInner() {
           {filtered.length === 0 ? (
             <View style={styles.empty}>
               <Feather name="credit-card" size={36} color={colors.mutedForeground} />
-              <Text style={[styles.emptyText, { color: colors.mutedForeground }]}>Aucun appel de fonds</Text>
+              <Text style={[styles.emptyText, { color: colors.mutedForeground }]}>{t("noChargesFound")}</Text>
+              <Text style={[styles.emptyHint, { color: colors.mutedForeground }]}>{t("emptyStateHint") ?? "Aucun appel de fonds pour ce filtre."}</Text>
             </View>
           ) : (
             filtered.map((appel) => {
-              const sc = STATUS_CONFIG[appel.status] ?? STATUS_CONFIG.pending;
+              const color = STATUS_COLORS[appel.status] ?? "#6b7280";
+              const icon  = STATUS_ICONS[appel.status] ?? "clock";
+              const label = getStatusLabel(appel.status);
               const isOverdue = appel.status === "overdue";
 
               return (
                 <View key={appel.id} style={[styles.card, { backgroundColor: colors.card, borderColor: isOverdue ? "#ef444430" : colors.border }]}>
                   <View style={styles.cardTop}>
-                    <View style={[styles.amtCircle, { backgroundColor: sc.color + "18" }]}>
-                      <Feather name={sc.icon} size={20} color={sc.color} />
+                    <View style={[styles.amtCircle, { backgroundColor: color + "18" }]}>
+                      <Feather name={icon} size={20} color={color} />
                     </View>
                     <View style={{ flex: 1 }}>
                       <Text style={[styles.cardPeriod, { color: colors.foreground }]}>
-                        {appel.period} — {TYPE_LABELS[appel.type] ?? appel.type}
+                        {appel.period} — {getTypeLabel(appel.type)}
                       </Text>
                       <Text style={[styles.cardLot, { color: colors.mutedForeground }]}>
                         Lot {appel.lotId.slice(-6)} {appel.dueDate ? `• Échéance: ${appel.dueDate}` : ""}
@@ -328,8 +366,8 @@ function ChargesScreenInner() {
                       <Text style={[styles.cardAmount, { color: isOverdue ? "#ef4444" : colors.foreground }]}>
                         {appel.amount.toLocaleString("fr-MA")} MAD
                       </Text>
-                      <View style={[styles.statusBadge, { backgroundColor: sc.color + "18" }]}>
-                        <Text style={[styles.statusText, { color: sc.color }]}>{sc.label}</Text>
+                      <View style={[styles.statusBadge, { backgroundColor: color + "18" }]}>
+                        <Text style={[styles.statusText, { color }]}>{label}</Text>
                       </View>
                     </View>
                   </View>
@@ -341,7 +379,7 @@ function ChargesScreenInner() {
                     >
                       <Feather name="check-circle" size={12} color="#10b981" />
                       <Text style={[styles.receiptText, { color: "#10b981", flex: 1 }]}>
-                        Reçu {appel.receiptNumber} — {appel.paidDate} via {appel.paymentMethod}
+                        {t("paymentReceiptLabel")} {appel.receiptNumber} — {appel.paidDate} via {appel.paymentMethod}
                       </Text>
                       <Feather name="download" size={12} color="#10b981" />
                     </TouchableOpacity>
@@ -351,7 +389,7 @@ function ChargesScreenInner() {
                     <View style={[styles.rejectRow, { borderTopColor: colors.border, backgroundColor: "#ef444410" }]}>
                       <Feather name="alert-circle" size={12} color="#ef4444" />
                       <Text style={[styles.receiptText, { color: "#ef4444", flex: 1 }]}>
-                        Rejeté: {appel.rejectionReason}
+                        {t("paymentRejectedLabel")}: {appel.rejectionReason}
                       </Text>
                     </View>
                   ) : null}
@@ -360,7 +398,7 @@ function ChargesScreenInner() {
                     <View style={[styles.receiptRow, { borderTopColor: colors.border }]}>
                       <Feather name="loader" size={12} color="#3b82f6" />
                       <Text style={[styles.receiptText, { color: "#3b82f6" }]}>
-                        En attente — {appel.paymentMethod}{appel.proofUrl ? " • Justificatif joint" : ""}
+                        {t("inProgressPayment")} — {appel.paymentMethod}{appel.proofUrl ? ` • ${t("attachProofHint").split(",")[0]}` : ""}
                       </Text>
                     </View>
                   ) : null}
@@ -373,23 +411,23 @@ function ChargesScreenInner() {
                     >
                       <Feather name="credit-card" size={14} color="#fff" />
                       <Text style={styles.payBtnText}>
-                        {appel.status === "rejected" ? "Soumettre à nouveau" : "Soumettre un paiement"}
+                        {appel.status === "rejected" ? t("resubmitLabel") : t("submitPaymentModal")}
                       </Text>
                     </TouchableOpacity>
                   ) : null}
 
-                  {/* Admin actions — only show when payment submitted and awaiting review */}
+                  {/* Admin actions */}
                   {isAdmin && appel.status === "pending_validation" ? (
                     <View style={[styles.adminActions, { borderTopColor: colors.border }]}>
                       <TouchableOpacity style={[styles.actionBtn, { backgroundColor: "#10b98115" }]}
                         onPress={() => handleApprove(appel.id)}>
                         <Feather name="check" size={14} color="#10b981" />
-                        <Text style={[styles.actionBtnText, { color: "#10b981" }]}>Valider</Text>
+                        <Text style={[styles.actionBtnText, { color: "#10b981" }]}>{t("validateLabel")}</Text>
                       </TouchableOpacity>
                       <TouchableOpacity style={[styles.actionBtn, { backgroundColor: "#ef444415" }]}
                         onPress={() => { setRejectModal(appel); setRejectReason(""); }}>
                         <Feather name="x" size={14} color="#ef4444" />
-                        <Text style={[styles.actionBtnText, { color: "#ef4444" }]}>Rejeter</Text>
+                        <Text style={[styles.actionBtnText, { color: "#ef4444" }]}>{t("rejectBtn")}</Text>
                       </TouchableOpacity>
                     </View>
                   ) : null}
@@ -404,7 +442,7 @@ function ChargesScreenInner() {
       <Modal visible={!!rejectModal} animationType="slide" presentationStyle="formSheet" onRequestClose={() => setRejectModal(null)}>
         <View style={[styles.modal, { backgroundColor: colors.background }]}>
           <View style={[styles.modalHeader, { borderBottomColor: colors.border }]}>
-            <Text style={[styles.modalTitle, { color: colors.foreground }]}>Motif de rejet</Text>
+            <Text style={[styles.modalTitle, { color: colors.foreground }]}>{t("rejectReason")}</Text>
             <TouchableOpacity onPress={() => setRejectModal(null)}>
               <Feather name="x" size={22} color={colors.foreground} />
             </TouchableOpacity>
@@ -412,15 +450,15 @@ function ChargesScreenInner() {
           <ScrollView contentContainerStyle={[styles.modalBody, { gap: 16 }]}>
             {rejectModal ? (
               <View style={[styles.payAmtBox, { backgroundColor: "#ef444410", borderColor: "#ef444430" }]}>
-                <Text style={[styles.payAmtLabel, { color: "#ef4444" }]}>Paiement à rejeter</Text>
+                <Text style={[styles.payAmtLabel, { color: "#ef4444" }]}>{t("paymentToReject")}</Text>
                 <Text style={[styles.payAmtVal, { color: "#ef4444" }]}>{rejectModal.amount.toLocaleString("fr-MA")} MAD</Text>
                 <Text style={[styles.payAmtPeriod, { color: colors.mutedForeground }]}>{rejectModal.period}</Text>
               </View>
             ) : null}
-            <Text style={[styles.fieldLabel, { color: colors.mutedForeground }]}>Motif du rejet *</Text>
+            <Text style={[styles.fieldLabel, { color: colors.mutedForeground }]}>{t("rejectReason")} *</Text>
             <TextInput
               style={[styles.input, { backgroundColor: colors.card, borderColor: colors.border, color: colors.foreground, minHeight: 80, textAlignVertical: "top" }]}
-              placeholder="Ex: Justificatif illisible, montant incorrect..."
+              placeholder={t("rejectionReasonPlaceholder")}
               placeholderTextColor={colors.mutedForeground}
               value={rejectReason}
               onChangeText={setRejectReason}
@@ -431,8 +469,10 @@ function ChargesScreenInner() {
               onPress={handleReject}
               disabled={submitting}
             >
-              {submitting ? <ActivityIndicator color="#fff" size="small" /> :
-                <><Feather name="x-circle" size={16} color="#fff" /><Text style={styles.submitText}>Rejeter le paiement</Text></>}
+              {submitting
+                ? <ActivityIndicator color="#fff" size="small" />
+                : <><Feather name="x-circle" size={16} color="#fff" /><Text style={styles.submitText}>{t("rejectPaymentBtn")}</Text></>
+              }
             </TouchableOpacity>
           </ScrollView>
         </View>
@@ -442,7 +482,7 @@ function ChargesScreenInner() {
       <Modal visible={!!payModal} animationType="slide" presentationStyle="pageSheet" onRequestClose={() => setPayModal(null)}>
         <View style={[styles.modal, { backgroundColor: colors.background }]}>
           <View style={[styles.modalHeader, { borderBottomColor: colors.border }]}>
-            <Text style={[styles.modalTitle, { color: colors.foreground }]}>Soumettre un paiement</Text>
+            <Text style={[styles.modalTitle, { color: colors.foreground }]}>{t("submitPaymentModal")}</Text>
             <TouchableOpacity onPress={() => setPayModal(null)}>
               <Feather name="x" size={22} color={colors.foreground} />
             </TouchableOpacity>
@@ -450,13 +490,13 @@ function ChargesScreenInner() {
           <ScrollView contentContainerStyle={[styles.modalBody, { gap: 16 }]}>
             {payModal ? (
               <View style={[styles.payAmtBox, { backgroundColor: "#10b98110", borderColor: "#10b98130" }]}>
-                <Text style={[styles.payAmtLabel, { color: "#10b981" }]}>Montant à payer</Text>
+                <Text style={[styles.payAmtLabel, { color: "#10b981" }]}>{t("paymentAmountLabel")}</Text>
                 <Text style={[styles.payAmtVal, { color: "#10b981" }]}>{payModal.amount.toLocaleString("fr-MA")} MAD</Text>
-                <Text style={[styles.payAmtPeriod, { color: colors.mutedForeground }]}>{payModal.period} • {TYPE_LABELS[payModal.type]}</Text>
+                <Text style={[styles.payAmtPeriod, { color: colors.mutedForeground }]}>{payModal.period} • {getTypeLabel(payModal.type)}</Text>
               </View>
             ) : null}
 
-            <Text style={[styles.fieldLabel, { color: colors.mutedForeground }]}>Mode de paiement</Text>
+            <Text style={[styles.fieldLabel, { color: colors.mutedForeground }]}>{t("paymentMethod")}</Text>
             {PAYMENT_METHODS.map((m) => (
               <TouchableOpacity key={m.key}
                 style={[styles.methodBtn, { backgroundColor: colors.card, borderColor: payMethod === m.key ? "#10b981" : colors.border, borderWidth: payMethod === m.key ? 2 : 1 }]}
@@ -467,30 +507,30 @@ function ChargesScreenInner() {
               </TouchableOpacity>
             ))}
 
-            <Text style={[styles.fieldLabel, { color: colors.mutedForeground }]}>Référence / Note</Text>
+            <Text style={[styles.fieldLabel, { color: colors.mutedForeground }]}>{t("paymentRefLabel")}</Text>
             <TextInput
               style={[styles.input, { backgroundColor: colors.card, borderColor: colors.border, color: colors.foreground }]}
-              placeholder="Référence virement, numéro chèque..."
+              placeholder={t("paymentRefPlaceholder")}
               placeholderTextColor={colors.mutedForeground}
               value={payNote}
               onChangeText={setPayNote}
             />
 
-            <Text style={[styles.fieldLabel, { color: colors.mutedForeground }]}>Justificatif de paiement (optionnel)</Text>
+            <Text style={[styles.fieldLabel, { color: colors.mutedForeground }]}>{t("paymentProofLabel")}</Text>
             {payProofUri ? (
               <View style={{ gap: 8 }}>
                 <Image source={{ uri: payProofUri }} style={{ width: "100%", height: 160, borderRadius: 12, resizeMode: "cover" }} />
                 {uploadingProof && (
                   <View style={{ flexDirection: "row", alignItems: "center", gap: 8 }}>
                     <ActivityIndicator size="small" color="#3b82f6" />
-                    <Text style={{ fontSize: 12, fontFamily: "Inter_400Regular", color: "#3b82f6" }}>Téléchargement en cours...</Text>
+                    <Text style={{ fontSize: 12, fontFamily: "Inter_400Regular", color: "#3b82f6" }}>{t("uploadingProof")}</Text>
                   </View>
                 )}
                 <TouchableOpacity
                   style={[styles.input, { backgroundColor: "#ef444410", borderColor: "#ef444430", alignItems: "center", paddingVertical: 10 }]}
                   onPress={() => setPayProofUri("")}
                 >
-                  <Text style={{ fontSize: 13, fontFamily: "Inter_500Medium", color: "#ef4444" }}>Supprimer le justificatif</Text>
+                  <Text style={{ fontSize: 13, fontFamily: "Inter_500Medium", color: "#ef4444" }}>{t("removeProofLabel")}</Text>
                 </TouchableOpacity>
               </View>
             ) : (
@@ -503,8 +543,8 @@ function ChargesScreenInner() {
                   <Feather name="camera" size={18} color="#3b82f6" />
                 </View>
                 <View style={{ flex: 1 }}>
-                  <Text style={{ fontSize: 14, fontFamily: "Inter_500Medium", color: colors.foreground }}>Joindre un justificatif</Text>
-                  <Text style={{ fontSize: 11, fontFamily: "Inter_400Regular", color: colors.mutedForeground }}>Reçu, virement, chèque...</Text>
+                  <Text style={{ fontSize: 14, fontFamily: "Inter_500Medium", color: colors.foreground }}>{t("attachProofLabel")}</Text>
+                  <Text style={{ fontSize: 11, fontFamily: "Inter_400Regular", color: colors.mutedForeground }}>{t("attachProofHint")}</Text>
                 </View>
                 <Feather name="upload" size={16} color={colors.mutedForeground} />
               </TouchableOpacity>
@@ -515,8 +555,10 @@ function ChargesScreenInner() {
               onPress={handlePay}
               disabled={submitting || uploadingProof}
             >
-              {submitting ? <ActivityIndicator color="#fff" size="small" /> :
-                <><Feather name="send" size={16} color="#fff" /><Text style={styles.submitText}>Soumettre le paiement</Text></>}
+              {submitting
+                ? <ActivityIndicator color="#fff" size="small" />
+                : <><Feather name="send" size={16} color="#fff" /><Text style={styles.submitText}>{t("submitPaymentBtn")}</Text></>
+              }
             </TouchableOpacity>
           </ScrollView>
         </View>
@@ -551,7 +593,8 @@ const styles = StyleSheet.create({
   historyBannerText: { flex: 1, fontSize: 13, fontFamily: "Inter_500Medium" },
   center: { flex: 1, alignItems: "center", justifyContent: "center" },
   empty: { alignItems: "center", gap: 12, paddingVertical: 60 },
-  emptyText: { fontSize: 14, fontFamily: "Inter_400Regular" },
+  emptyText: { fontSize: 16, fontFamily: "Inter_600SemiBold" },
+  emptyHint: { fontSize: 13, fontFamily: "Inter_400Regular" },
   modal: { flex: 1 },
   modalHeader: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", padding: 20, borderBottomWidth: 1 },
   modalTitle: { fontSize: 18, fontFamily: "Inter_700Bold" },

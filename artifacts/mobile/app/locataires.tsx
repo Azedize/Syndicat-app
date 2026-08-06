@@ -4,7 +4,6 @@ import { router } from "expo-router";
 import React, { useCallback, useEffect, useState } from "react";
 import {
   ActivityIndicator,
-  Alert,
   FlatList,
   Modal,
   RefreshControl,
@@ -17,6 +16,7 @@ import {
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useAuth } from "@/context/AuthContext";
+import { useLanguage } from "@/context/LanguageContext";
 import { useBreakpoints } from "@/hooks/useBreakpoints";
 import { useColors } from "@/hooks/useColors";
 import { useToast } from "@/context/ToastContext";
@@ -45,10 +45,16 @@ type Tenant = {
   createdAt?: string;
 };
 
-const STATUS_CONFIG: Record<string, { color: string; label: string; icon: keyof typeof Feather.glyphMap }> = {
-  active:  { color: "#10b981", label: "Actif",       icon: "check-circle" },
-  expired: { color: "#ef4444", label: "Expiré",      icon: "alert-circle" },
-  pending: { color: "#f59e0b", label: "En attente",  icon: "clock" },
+const STATUS_ICONS: Record<string, keyof typeof Feather.glyphMap> = {
+  active:  "check-circle",
+  expired: "alert-circle",
+  pending: "clock",
+};
+
+const STATUS_COLORS: Record<string, string> = {
+  active:  "#10b981",
+  expired: "#ef4444",
+  pending: "#f59e0b",
 };
 
 export default function LocatairesScreen() {
@@ -63,6 +69,7 @@ function LocatairesScreenInner() {
   const colors = useColors();
   const insets = useSafeAreaInsets();
   const { user, token } = useAuth();
+  const { t } = useLanguage();
   const { isWide } = useBreakpoints();
   const { showToast } = useToast();
   const [tenants, setTenants] = useState<Tenant[]>([]);
@@ -123,7 +130,7 @@ function LocatairesScreenInner() {
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
       load(true);
     } catch (e: any) {
-      showToast({ type: "error", title: "Erreur", message: e.message ?? "Impossible d'ajouter le locataire" });
+      showToast({ type: "error", title: t("error"), message: e.message ?? t("errorGeneric") });
     } finally {
       setSubmitting(false);
     }
@@ -134,43 +141,70 @@ function LocatairesScreenInner() {
       await apiRequest(`/locataires/${id}`, "PUT", { status }, token);
       load(true);
     } catch (e: any) {
-      showToast({ type: "error", title: "Erreur", message: e.message ?? "Impossible de mettre à jour" });
+      showToast({ type: "error", title: t("error"), message: e.message ?? t("errorGeneric") });
     }
   };
 
-  const filtered = tenants.filter((t) => {
+  const getStatusLabel = (status: string) => {
+    const map: Record<string, string> = {
+      active:  t("statusActive"),
+      expired: t("statusExpired"),
+      pending: t("statusPending"),
+    };
+    return map[status] ?? status;
+  };
+
+  const filtered = tenants.filter((ten) => {
     const matchSearch = !search ||
-      t.name.toLowerCase().includes(search.toLowerCase()) ||
-      (t.email ?? "").toLowerCase().includes(search.toLowerCase()) ||
-      (t.lotNumber ?? "").toLowerCase().includes(search.toLowerCase());
-    const matchFilter = filter === "all" || t.status === filter;
+      ten.name.toLowerCase().includes(search.toLowerCase()) ||
+      (ten.email ?? "").toLowerCase().includes(search.toLowerCase()) ||
+      (ten.lotNumber ?? "").toLowerCase().includes(search.toLowerCase());
+    const matchFilter = filter === "all" || ten.status === filter;
     return matchSearch && matchFilter;
   });
 
   const FILTERS = [
-    { key: "all", label: "Tous" },
-    { key: "active", label: "Actifs" },
-    { key: "pending", label: "En attente" },
-    { key: "expired", label: "Expirés" },
+    { key: "all",     label: t("all") },
+    { key: "active",  label: t("statusActive") },
+    { key: "pending", label: t("statusPending") },
+    { key: "expired", label: t("statusExpired") },
   ];
 
-  const activeCount = tenants.filter((t) => t.status === "active").length;
-  const expiringCount = tenants.filter((t) => {
-    if (!t.leaseEnd) return false;
-    const daysLeft = Math.ceil((new Date(t.leaseEnd).getTime() - Date.now()) / 86400000);
+  const activeCount   = tenants.filter((ten) => ten.status === "active").length;
+  const expiringCount = tenants.filter((ten) => {
+    if (!ten.leaseEnd) return false;
+    const daysLeft = Math.ceil((new Date(ten.leaseEnd).getTime() - Date.now()) / 86400000);
     return daysLeft <= 30 && daysLeft >= 0;
   }).length;
+
+  // Skeleton loading card
+  const SkeletonCard = () => (
+    <View style={[s.card, { backgroundColor: colors.card, borderColor: colors.border }]}>
+      <View style={s.cardTop}>
+        <View style={{ width: 46, height: 46, borderRadius: 23, backgroundColor: colors.secondary }} />
+        <View style={{ flex: 1, gap: 8 }}>
+          <View style={{ height: 14, width: "55%", backgroundColor: colors.secondary, borderRadius: 7 }} />
+          <View style={{ height: 11, width: "70%", backgroundColor: colors.secondary, borderRadius: 6 }} />
+          <View style={{ height: 11, width: "45%", backgroundColor: colors.secondary, borderRadius: 6 }} />
+        </View>
+        <View style={{ gap: 8, alignItems: "flex-end" }}>
+          <View style={{ height: 22, width: 55, backgroundColor: colors.secondary, borderRadius: 8 }} />
+          <View style={{ height: 13, width: 80, backgroundColor: colors.secondary, borderRadius: 6 }} />
+        </View>
+      </View>
+    </View>
+  );
 
   return (
     <View style={[s.root, { backgroundColor: colors.background }]}>
       <StatisticsHeader
-        title="Locataires"
-        subtitle={`${tenants.length} locataire(s) enregistré(s)`}
+        title={t("locatairesTitle")}
+        subtitle={`${tenants.length} ${t("locatairesTitle").toLowerCase()}`}
         color="#06b6d4"
         stats={[
-          { label: "Actifs",          value: activeCount,    color: "#10b981" },
-          { label: "Expirant bientôt",value: expiringCount, color: "#f59e0b" },
-          { label: "Total",           value: tenants.length, color: "#06b6d4" },
+          { label: t("statusActive"),   value: activeCount,    color: "#10b981" },
+          { label: t("expiringLabel"),  value: expiringCount,  color: "#f59e0b" },
+          { label: t("total"),          value: tenants.length, color: "#06b6d4" },
         ]}
         action={isAdmin ? { icon: "plus", onPress: () => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); setShowAdd(true); } } : undefined}
       />
@@ -180,7 +214,7 @@ function LocatairesScreenInner() {
           <Feather name="search" size={15} color={colors.mutedForeground} />
           <TextInput
             style={[s.searchInput, { color: colors.foreground }]}
-            placeholder="Nom, email, lot..."
+            placeholder={`${t("name")}, ${t("email")}, lot...`}
             placeholderTextColor={colors.mutedForeground}
             value={search}
             onChangeText={setSearch}
@@ -197,62 +231,70 @@ function LocatairesScreenInner() {
       />
 
       {loading ? (
-        <View style={s.center}><ActivityIndicator color="#06b6d4" size="large" /></View>
+        <FlatList
+          data={[1, 2, 3, 4]}
+          keyExtractor={(k) => String(k)}
+          contentContainerStyle={{ padding: 16, gap: 10, paddingBottom: isWide ? 32 : insets.bottom + 100 }}
+          renderItem={() => <SkeletonCard />}
+        />
       ) : (
         <FlatList
           data={filtered}
-          keyExtractor={(t) => t.id}
+          keyExtractor={(ten) => ten.id}
           contentContainerStyle={{ padding: 16, gap: 10, paddingBottom: isWide ? 32 : insets.bottom + 100 }}
           refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor="#06b6d4" />}
           showsVerticalScrollIndicator={false}
           ListEmptyComponent={
             <View style={s.empty}>
               <Feather name="user-check" size={40} color={colors.mutedForeground} />
-              <Text style={[s.emptyText, { color: colors.mutedForeground }]}>Aucun locataire trouvé</Text>
+              <Text style={[s.emptyText, { color: colors.mutedForeground }]}>{t("noTenantFound")}</Text>
+              <Text style={[s.emptyHint, { color: colors.mutedForeground }]}>{t("noTenants")}</Text>
             </View>
           }
-          renderItem={({ item: t }) => {
-            const sc = STATUS_CONFIG[t.status] ?? STATUS_CONFIG.pending;
-            const daysLeft = t.leaseEnd
-              ? Math.ceil((new Date(t.leaseEnd).getTime() - Date.now()) / 86400000)
+          renderItem={({ item: ten }) => {
+            const color = STATUS_COLORS[ten.status] ?? "#6b7280";
+            const icon  = STATUS_ICONS[ten.status] ?? "clock";
+            const label = getStatusLabel(ten.status);
+            const daysLeft = ten.leaseEnd
+              ? Math.ceil((new Date(ten.leaseEnd).getTime() - Date.now()) / 86400000)
               : null;
             const isExpiring = daysLeft !== null && daysLeft <= 30 && daysLeft >= 0;
 
             return (
               <TouchableOpacity
                 style={[s.card, { backgroundColor: colors.card, borderColor: isExpiring ? "#f59e0b40" : colors.border, borderLeftWidth: isExpiring ? 4 : 1, borderLeftColor: isExpiring ? "#f59e0b" : colors.border }]}
-                onPress={() => setSelected(t)}
+                onPress={() => setSelected(ten)}
                 activeOpacity={0.8}
               >
                 <View style={s.cardTop}>
                   <View style={[s.avatar, { backgroundColor: "#06b6d418" }]}>
                     <Text style={[s.avatarText, { color: "#06b6d4" }]}>
-                      {t.name.split(" ").map((n) => n[0]).join("").slice(0, 2).toUpperCase()}
+                      {ten.name.split(" ").map((n) => n[0]).join("").slice(0, 2).toUpperCase()}
                     </Text>
                   </View>
                   <View style={{ flex: 1 }}>
-                    <Text style={[s.name, { color: colors.foreground }]}>{t.name}</Text>
-                    {t.email ? <Text style={[s.meta, { color: colors.mutedForeground }]}>{t.email}</Text> : null}
-                    {t.lotNumber ? (
+                    <Text style={[s.name, { color: colors.foreground }]}>{ten.name}</Text>
+                    {ten.email ? <Text style={[s.meta, { color: colors.mutedForeground }]}>{ten.email}</Text> : null}
+                    {ten.lotNumber ? (
                       <View style={s.lotRow}>
                         <Feather name="home" size={11} color={colors.mutedForeground} />
-                        <Text style={[s.meta, { color: colors.mutedForeground }]}>Lot {t.lotNumber}</Text>
-                        {t.buildingName ? <Text style={[s.meta, { color: colors.mutedForeground }]}>• {t.buildingName}</Text> : null}
+                        <Text style={[s.meta, { color: colors.mutedForeground }]}>Lot {ten.lotNumber}</Text>
+                        {ten.buildingName ? <Text style={[s.meta, { color: colors.mutedForeground }]}>• {ten.buildingName}</Text> : null}
                       </View>
                     ) : null}
-                    {t.leaseEnd ? (
+                    {ten.leaseEnd ? (
                       <Text style={[s.meta, { color: isExpiring ? "#f59e0b" : colors.mutedForeground }]}>
-                        Bail jusqu'au {t.leaseEnd}{isExpiring ? ` (${daysLeft}j)` : ""}
+                        {t("leaseExpiry")} {ten.leaseEnd}{isExpiring ? ` (${daysLeft}j)` : ""}
                       </Text>
                     ) : null}
                   </View>
                   <View style={{ alignItems: "flex-end", gap: 6 }}>
-                    <View style={[s.badge, { backgroundColor: sc.color + "18" }]}>
-                      <Feather name={sc.icon} size={10} color={sc.color} />
-                      <Text style={[s.badgeText, { color: sc.color }]}>{sc.label}</Text>
+                    <View style={[s.badge, { backgroundColor: color + "18" }]}>
+                      <Feather name={icon} size={10} color={color} />
+                      <Text style={[s.badgeText, { color }]}>{label}</Text>
                     </View>
-                    {t.monthlyRent ? (
-                      <Text style={[s.rent, { color: colors.foreground }]}>{t.monthlyRent.toLocaleString("fr-MA")} MAD/m</Text>
+                    {ten.monthlyRent ? (
+                      <Text style={[s.rent, { color: colors.foreground }]}>{ten.monthlyRent.toLocaleString("fr-MA")} MAD/m</Text>
                     ) : null}
                   </View>
                 </View>
@@ -275,18 +317,18 @@ function LocatairesScreenInner() {
             <ScrollView contentContainerStyle={{ padding: 20, gap: 16, paddingBottom: 40 }}>
               <View style={[s.detailCard, { backgroundColor: colors.card, borderColor: colors.border }]}>
                 {[
-                  { label: "Email", value: selected.email ?? "—" },
-                  { label: "Téléphone", value: selected.phone ?? "—" },
-                  { label: "Lot", value: selected.lotNumber ? `Lot ${selected.lotNumber}` : "—" },
-                  { label: "Immeuble", value: selected.buildingName ?? "—" },
-                  { label: "Début du bail", value: selected.leaseStart ?? "—" },
-                  { label: "Fin du bail", value: selected.leaseEnd ?? "—" },
-                  { label: "Loyer mensuel", value: selected.monthlyRent ? `${selected.monthlyRent.toLocaleString("fr-MA")} MAD` : "—" },
-                  { label: "Dépôt de garantie", value: selected.depositAmount ? `${selected.depositAmount.toLocaleString("fr-MA")} MAD` : "—" },
-                  { label: "Contact urgence", value: selected.emergencyContact ?? "—" },
-                  { label: "Tel. urgence", value: selected.emergencyPhone ?? "—" },
-                  { label: "Statut", value: STATUS_CONFIG[selected.status]?.label ?? selected.status },
-                  { label: "Notes", value: selected.notes ?? "—" },
+                  { label: t("email"),             value: selected.email ?? "—" },
+                  { label: t("phone"),             value: selected.phone ?? "—" },
+                  { label: t("tenantLotLabel"),    value: selected.lotNumber ? `Lot ${selected.lotNumber}` : "—" },
+                  { label: t("tenantBuilding"),    value: selected.buildingName ?? "—" },
+                  { label: t("tenantLeaseStart"),  value: selected.leaseStart ?? "—" },
+                  { label: t("tenantLeaseEnd"),    value: selected.leaseEnd ?? "—" },
+                  { label: t("monthlyRentLabel"),  value: selected.monthlyRent ? `${selected.monthlyRent.toLocaleString("fr-MA")} MAD` : "—" },
+                  { label: t("tenantDeposit"),     value: selected.depositAmount ? `${selected.depositAmount.toLocaleString("fr-MA")} MAD` : "—" },
+                  { label: t("tenantEmergencyContact"), value: selected.emergencyContact ?? "—" },
+                  { label: t("tenantEmergencyPhone"),   value: selected.emergencyPhone ?? "—" },
+                  { label: t("tenantStatus"),      value: getStatusLabel(selected.status) },
+                  { label: t("tenantNotes"),       value: selected.notes ?? "—" },
                 ].map((row, i) => (
                   <View key={row.label}>
                     {i > 0 && <View style={[s.sep, { backgroundColor: colors.border }]} />}
@@ -302,15 +344,17 @@ function LocatairesScreenInner() {
                 <View style={s.actionsRow}>
                   {(["active", "pending", "expired"] as Tenant["status"][]).map((st) => {
                     if (st === selected.status) return null;
-                    const c = STATUS_CONFIG[st];
+                    const color = STATUS_COLORS[st];
+                    const icon  = STATUS_ICONS[st];
+                    const label = getStatusLabel(st);
                     return (
                       <TouchableOpacity
                         key={st}
-                        style={[s.actionBtn, { backgroundColor: c.color + "15", borderColor: c.color + "30" }]}
+                        style={[s.actionBtn, { backgroundColor: color + "15", borderColor: color + "30" }]}
                         onPress={() => { handleStatusChange(selected.id, st); setSelected(null); }}
                       >
-                        <Feather name={c.icon} size={14} color={c.color} />
-                        <Text style={[s.actionBtnText, { color: c.color }]}>Marquer {c.label}</Text>
+                        <Feather name={icon} size={14} color={color} />
+                        <Text style={[s.actionBtnText, { color }]}>{t("markTenantLabel")} {label}</Text>
                       </TouchableOpacity>
                     );
                   })}
@@ -325,24 +369,24 @@ function LocatairesScreenInner() {
       <Modal visible={showAdd} animationType="slide" presentationStyle="pageSheet" onRequestClose={() => setShowAdd(false)}>
         <View style={[s.modal, { backgroundColor: colors.background }]}>
           <View style={[s.modalHeader, { borderBottomColor: colors.border }]}>
-            <Text style={[s.modalTitle, { color: colors.foreground }]}>Nouveau locataire</Text>
+            <Text style={[s.modalTitle, { color: colors.foreground }]}>{t("newTenantTitle")}</Text>
             <TouchableOpacity onPress={() => setShowAdd(false)}>
               <Feather name="x" size={22} color={colors.foreground} />
             </TouchableOpacity>
           </View>
           <ScrollView contentContainerStyle={{ padding: 20, gap: 14, paddingBottom: 40 }}>
             {[
-              { label: "Nom complet *", key: "name" as const, placeholder: "Mohammed Benali" },
-              { label: "Email", key: "email" as const, placeholder: "m.benali@email.com" },
-              { label: "Téléphone", key: "phone" as const, placeholder: "+212 6XX XXX XXX" },
-              { label: "ID du Lot", key: "lotId" as const, placeholder: "ID du lot occupé" },
-              { label: "Début du bail (AAAA-MM-JJ)", key: "leaseStart" as const, placeholder: "2025-01-01" },
-              { label: "Fin du bail (AAAA-MM-JJ)", key: "leaseEnd" as const, placeholder: "2026-01-01" },
-              { label: "Loyer mensuel (MAD)", key: "monthlyRent" as const, placeholder: "5000" },
-              { label: "Dépôt de garantie (MAD)", key: "depositAmount" as const, placeholder: "10000" },
-              { label: "Contact d'urgence", key: "emergencyContact" as const, placeholder: "Nom du contact" },
-              { label: "Téléphone d'urgence", key: "emergencyPhone" as const, placeholder: "+212 6XX XXX XXX" },
-              { label: "Notes", key: "notes" as const, placeholder: "Informations complémentaires..." },
+              { label: t("tenantFullName"),      key: "name"             as const, placeholder: "Mohammed Benali" },
+              { label: t("email"),               key: "email"            as const, placeholder: "m.benali@email.com" },
+              { label: t("phone"),               key: "phone"            as const, placeholder: "+212 6XX XXX XXX" },
+              { label: t("tenantLotId"),         key: "lotId"            as const, placeholder: "ID du lot occupé" },
+              { label: t("leaseStartLabel"),     key: "leaseStart"       as const, placeholder: "2025-01-01" },
+              { label: t("leaseEndLabel"),       key: "leaseEnd"         as const, placeholder: "2026-01-01" },
+              { label: t("monthlyRentLabel"),    key: "monthlyRent"      as const, placeholder: "5000" },
+              { label: t("depositLabel"),        key: "depositAmount"    as const, placeholder: "10000" },
+              { label: t("emergencyContactLabel"), key: "emergencyContact" as const, placeholder: "Nom du contact" },
+              { label: t("emergencyPhoneLabel"), key: "emergencyPhone"   as const, placeholder: "+212 6XX XXX XXX" },
+              { label: t("notes"),               key: "notes"            as const, placeholder: "Informations complémentaires..." },
             ].map((field) => (
               <View key={field.key} style={{ gap: 6 }}>
                 <Text style={[s.fieldLabel, { color: colors.mutedForeground }]}>{field.label}</Text>
@@ -363,7 +407,7 @@ function LocatairesScreenInner() {
               disabled={!form.name.trim() || submitting}
             >
               {submitting ? <ActivityIndicator color="#fff" size="small" /> : (
-                <><Feather name="user-check" size={16} color="#fff" /><Text style={s.submitText}>Enregistrer le locataire</Text></>
+                <><Feather name="user-check" size={16} color="#fff" /><Text style={s.submitText}>{t("registerTenantBtn")}</Text></>
               )}
             </TouchableOpacity>
           </ScrollView>
@@ -378,9 +422,9 @@ const s = StyleSheet.create({
   searchRow: { paddingHorizontal: 12, paddingVertical: 8, borderBottomWidth: StyleSheet.hairlineWidth },
   searchBox: { flexDirection: "row", alignItems: "center", gap: 8, borderRadius: 10, borderWidth: 1, paddingHorizontal: 10, paddingVertical: 8 },
   searchInput: { flex: 1, fontSize: 14, fontFamily: "Inter_400Regular" },
-  center: { flex: 1, alignItems: "center", justifyContent: "center" },
   empty: { alignItems: "center", gap: 12, paddingVertical: 60 },
-  emptyText: { fontSize: 14, fontFamily: "Inter_400Regular" },
+  emptyText: { fontSize: 16, fontFamily: "Inter_600SemiBold" },
+  emptyHint: { fontSize: 13, fontFamily: "Inter_400Regular" },
   card: { borderRadius: 16, borderWidth: 1, padding: 14 },
   cardTop: { flexDirection: "row", alignItems: "center", gap: 12 },
   avatar: { width: 46, height: 46, borderRadius: 23, alignItems: "center", justifyContent: "center" },
