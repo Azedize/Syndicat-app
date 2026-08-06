@@ -86,3 +86,7 @@
 - Added dedicated `privateWorks*` translation coverage for `fr`, `en`, `ar`, and `es`, including localized placeholders, validation messages, final-decision warnings, and withdrawal confirmations.
 - Replaced the private-works spinner and toast-only initial failure path with shared animated loading and retryable error states; mutation failures now use safe localized guidance instead of raw API messages.
 - Preserved the existing private-works API endpoints, resident withdrawal flow, administrator review/committee/vote/decision actions, and role behavior.
+- Audited `artifacts/mobile/app/profile.tsx`; replaced visible French-only role, action, status, statistics, security, certificate, and password copy with runtime translations.
+- Replaced raw profile/avatar/password mutation errors with safe localized recovery messages while preserving existing API persistence and protected behavior.
+- Audited `artifacts/mobile/app/template-editor.tsx`; localized category, data-source, section-type, role, tab, and slug metadata while keeping the local document-template editor dictionary and Super Admin guard intact.
+- Removed the duplicated `preamble` field from `artifacts/api-server/src/routes/documents.ts` after the API build warning identified the repeated schema key.

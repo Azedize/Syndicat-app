@@ -181,6 +181,7 @@ const TEXT = {
   changeDescription: { fr: "Description de la modification", en: "Change description", ar: "وصف التعديل", es: "Descripción del cambio" },
   changeDescriptionHint: { fr: "Cette note sera enregistrée dans l'historique des versions.", en: "This note will be saved in the version history.", ar: "سيتم حفظ هذه الملاحظة في سجل الإصدارات.", es: "Esta nota se guardará en el historial de versiones." },
   slugAndNameRequired: { fr: "Le slug et le nom (FR) sont requis.", en: "The slug and French name are required.", ar: "المعرّف والاسم بالفرنسية مطلوبان.", es: "El slug y el nombre en francés son obligatorios." },
+  templateSlugPrefix: { fr: "identifiant :", en: "slug:", ar: "المعرّف:", es: "identificador:" },
   created: { fr: "Template créé avec succès.", en: "Template created successfully.", ar: "تم إنشاء القالب بنجاح.", es: "Plantilla creada correctamente." },
   updated: { fr: "Template mis à jour.", en: "Template updated.", ar: "تم تحديث القالب.", es: "Plantilla actualizada." },
   duplicateSlug: { fr: "Ce slug existe déjà.", en: "This slug already exists.", ar: "هذا المعرّف موجود بالفعل.", es: "Este slug ya existe." },
@@ -243,44 +244,44 @@ const ROLE_LABELS: Record<string, Localized> = {
 // ─── Constants ────────────────────────────────────────────────────────────────
 
 const CATEGORIES = [
-  { key: "meeting_minutes", label: "Procès-verbaux"      },
-  { key: "financial",       label: "Finance"              },
-  { key: "legal",           label: "Juridique"            },
-  { key: "elections",       label: "Élections"            },
-  { key: "contracts",       label: "Contrats"             },
-  { key: "certificates",    label: "Certificats"          },
-  { key: "regulations",     label: "Règlements"           },
-  { key: "administrative",  label: "Administratif"        },
-  { key: "maintenance",     label: "Maintenance"          },
-  { key: "insurance",       label: "Assurance"            },
+  { key: "meeting_minutes" },
+  { key: "financial" },
+  { key: "legal" },
+  { key: "elections" },
+  { key: "contracts" },
+  { key: "certificates" },
+  { key: "regulations" },
+  { key: "administrative" },
+  { key: "maintenance" },
+  { key: "insurance" },
 ];
 
-const VARIABLE_SOURCES: { key: VariableSource; label: string; color: string }[] = [
-  { key: "db_syndicate",      label: "Syndicat (DB)",      color: "#2563EB" },
-  { key: "db_property",       label: "Résidence (DB)",     color: "#3b82f6" },
-  { key: "db_office_holders", label: "Élus (DB)",          color: "#10b981" },
-  { key: "db_member",         label: "Membre (DB)",        color: "#f59e0b" },
-  { key: "user_input",        label: "Saisie utilisateur", color: "#0891b2" },
-  { key: "generated",         label: "Généré auto",        color: "#6b7280" },
+const VARIABLE_SOURCES: { key: VariableSource; color: string }[] = [
+  { key: "db_syndicate", color: "#2563EB" },
+  { key: "db_property", color: "#3b82f6" },
+  { key: "db_office_holders", color: "#10b981" },
+  { key: "db_member", color: "#f59e0b" },
+  { key: "user_input", color: "#0891b2" },
+  { key: "generated", color: "#6b7280" },
 ];
 
-const SECTION_TYPES: { key: SectionType; label: string; icon: keyof typeof Feather.glyphMap }[] = [
-  { key: "text",       label: "Texte",         icon: "type"      },
-  { key: "table",      label: "Tableau",       icon: "grid"      },
-  { key: "signature",  label: "Signature",     icon: "pen-tool"  },
-  { key: "stamp",      label: "Cachet",        icon: "circle"    },
-  { key: "qr",         label: "QR Code",       icon: "grid"      },
-  { key: "image",      label: "Image",         icon: "image"     },
-  { key: "chart",      label: "Graphique",     icon: "bar-chart-2" },
-  { key: "page_break", label: "Saut de page",  icon: "minus"     },
+const SECTION_TYPES: { key: SectionType; icon: keyof typeof Feather.glyphMap }[] = [
+  { key: "text", icon: "type" },
+  { key: "table", icon: "grid" },
+  { key: "signature", icon: "pen-tool" },
+  { key: "stamp", icon: "circle" },
+  { key: "qr", icon: "grid" },
+  { key: "image", icon: "image" },
+  { key: "chart", icon: "bar-chart-2" },
+  { key: "page_break", icon: "minus" },
 ];
 
 const ROLES = [
-  { key: "super_admin",     label: "Super Admin"          },
-  { key: "syndicate_admin", label: "Admin Syndicat"       },
-  { key: "member",          label: "Membre"               },
-  { key: "tenant",          label: "Locataire"            },
-  { key: "all",             label: "Tous les rôles"       },
+  { key: "super_admin" },
+  { key: "syndicate_admin" },
+  { key: "member" },
+  { key: "tenant" },
+  { key: "all" },
 ];
 
 const PRESET_VARIABLES: VariableDef[] = [
@@ -843,12 +844,12 @@ function LayoutTab({ config, onChange }: { config: TemplateForm["layoutConfig"];
 // ─── Main Screen ──────────────────────────────────────────────────────────────
 
 const TABS = [
-  { key: "info",        label: "Info",        icon: "info"         as const },
-  { key: "variables",   label: "Variables",   icon: "code"         as const },
-  { key: "sections",    label: "Sections",    icon: "layout"       as const },
-  { key: "layout",      label: "Mise en page",icon: "sliders"      as const },
-  { key: "versions",    label: "Versions",    icon: "clock"        as const },
-  { key: "permissions", label: "Permissions", icon: "key"          as const },
+  { key: "info", icon: "info" as const },
+  { key: "variables", icon: "code" as const },
+  { key: "sections", icon: "layout" as const },
+  { key: "layout", icon: "sliders" as const },
+  { key: "versions", icon: "clock" as const },
+  { key: "permissions", icon: "key" as const },
 ];
 
 function TemplateEditorContent() {
@@ -974,7 +975,7 @@ function TemplateEditorContent() {
         </TouchableOpacity>
         <View style={{ flex: 1 }}>
           <Text style={s.headerTitle} numberOfLines={1}>{isNew ? tr("newTemplate", lang) : (form.name[lang] || tr("editTemplate", lang))}</Text>
-          {!isNew && <Text style={s.headerSub}>slug: {form.slug}</Text>}
+           {!isNew && <Text style={s.headerSub}>{tr("templateSlugPrefix", lang)} {form.slug}</Text>}
         </View>
         <TouchableOpacity
           style={[s.saveBtn2, saving && { opacity: 0.6 }]}

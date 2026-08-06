@@ -79,3 +79,7 @@
 - Completed the Travaux Privatifs enterprise UX pass: request types, lifecycle statuses, approval trail, decision history, forms, confirmations, and action feedback now follow the active language in French, English, Arabic, and Spanish.
 - Added contextual loading, retryable unavailable-data recovery, and safe localized mutation errors without exposing raw API messages; existing resident/admin workflow contracts and role boundaries remain unchanged.
 - Mobile typecheck and diff validation passed; Metro remained healthy. Direct `/travaux-privatifs` preview was intentionally blocked by the unauthenticated route guard, while `/welcome` rendered successfully.
+- Continued the enterprise UX audit on the authenticated profile and Super Admin template editor.
+- Localized profile role labels, quick actions, personal/security sections, password validation, safe mutation feedback, and certificate/card recovery messages across French, English, Arabic, and Spanish.
+- Removed the template editor's remaining hardcoded category, variable-source, section-type, role, tab, and slug-prefix labels by routing them through localized metadata.
+- Removed the duplicate `preamble` schema key from document generation validation; the API build now completes without that warning.

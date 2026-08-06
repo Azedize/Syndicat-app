@@ -42,3 +42,4 @@
 - [Twilio Verify SMS OTP](twilio-verify-sms.md) — SMS OTP via Twilio Verify; service SID must be VA… not VV…; normalizePhone handles +212 local format.
 - [Protected mobile preview validation](protected-mobile-preview-validation.md) — unauthenticated Expo previews redirect protected screens to welcome; validate redirect and clean bundling separately.
 - [Marketplace seller resilience](marketplace-seller-resilience.md) — optional promotion data must never hide otherwise available seller listings during a temporary promotion-service failure.
+- [Profile and editor localization](profile-and-editor-localization.md) — authenticated profile feedback and Template Studio metadata must be runtime-localized with safe API error copy.

@@ -3120,7 +3120,6 @@ router.post(
       conditions:        z.string().optional(),
       dateDebut:         z.string().optional(),
       dateFin:           z.string().optional(),
-      preamble:          z.string().optional(),
       // pv / convocation / decision
       dateMeeting:       z.string().optional(),
       presidentSeance:   z.string().optional(),

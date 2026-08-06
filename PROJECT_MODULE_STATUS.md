@@ -29,3 +29,6 @@
 - Mobile verification: zero-error typecheck, diff validation, Metro restart, and protected `/organigramme` preview pass.
 - Travaux Privatifs: multilingual work-request lifecycle, approval trail, decision history, resident submission/withdrawal, administrator review, committee, vote, and final-decision experience complete.
 - Mobile verification: zero-error typecheck and diff validation pass; Metro remains healthy and the protected `/travaux-privatifs` route correctly remains behind unauthenticated access.
+- Profile: multilingual personal information, role, quick actions, contribution summary, security form, safe localized errors, and certificate/card feedback complete.
+- Template Studio Editor: multilingual metadata selectors and tab/slug presentation complete; Super Admin guard and persistence contracts preserved.
+- API document generation validator: duplicate `preamble` declaration removed; build warning cleared.

@@ -69,28 +69,28 @@ export default function ProfileScreen() {
   const { showToast } = useToast();
   const initials = user?.name.split(" ").map((n) => n[0]).join("").slice(0, 2).toUpperCase() ?? "";
   const roleLabel =
-    user?.role === "super_admin" ? "Super Administrateur" :
-    user?.role === "syndicate_admin" ? "Admin Syndicat" :
-    user?.role === "president" ? "Président" :
-    user?.role === "treasurer" ? "Trésorier" :
-    user?.role === "secretary" ? "Secrétaire" :
-    user?.role === "committee_member" ? "Membre du bureau" :
-    user?.role === "tenant" ? "Locataire" :
-    "Membre";
+    user?.role === "super_admin" ? t("profileRoleSuperAdmin") :
+    user?.role === "syndicate_admin" ? t("profileRoleSyndicateAdmin") :
+    user?.role === "president" ? t("profileRolePresident") :
+    user?.role === "treasurer" ? t("profileRoleTreasurer") :
+    user?.role === "secretary" ? t("profileRoleSecretary") :
+    user?.role === "committee_member" ? t("profileRoleCommittee") :
+    user?.role === "tenant" ? t("profileRoleTenant") :
+    t("profileRoleMember");
   const roleIcon = user?.role === "super_admin" ? "shield" as const : user?.role === "syndicate_admin" ? "briefcase" as const : "user" as const;
 
   const INFO_ROWS = [
-    { icon: "mail" as const, label: "Email", value: user?.email, editable: false },
-    { icon: "phone" as const, label: "Téléphone", value: phone, editable: true, key: "phone" },
-    { icon: "briefcase" as const, label: "Profession", value: user?.profession, editable: false },
-    { icon: "calendar" as const, label: "Membre depuis", value: user?.memberSince, editable: false },
-    { icon: "shield" as const, label: "Rôle", value: roleLabel, editable: false },
-    ...(user?.syndicate ? [{ icon: "briefcase" as const, label: "Syndicat", value: user.syndicate, editable: false }] : []),
+    { icon: "mail" as const, label: t("profileEmail"), value: user?.email, editable: false },
+    { icon: "phone" as const, label: t("profilePhone"), value: phone, editable: true, key: "phone" },
+    { icon: "briefcase" as const, label: t("profileProfession"), value: user?.profession, editable: false },
+    { icon: "calendar" as const, label: t("profileMemberSince"), value: user?.memberSince, editable: false },
+    { icon: "shield" as const, label: t("profileRole"), value: roleLabel, editable: false },
+    ...(user?.syndicate ? [{ icon: "briefcase" as const, label: t("profileSyndicate"), value: user.syndicate, editable: false }] : []),
   ];
 
   const handleSave = async () => {
     if (!name.trim()) {
-      showToast({ type: "error", title: "Erreur", message: "Le nom ne peut pas être vide." });
+      showToast({ type: "error", title: t("error"), message: t("profileNameRequired") });
       return;
     }
     setEditing(false);
@@ -98,15 +98,14 @@ export default function ProfileScreen() {
       const res = await authApi.updateProfile({ name: name.trim(), phone });
       updateUser({ name: res.data.name, phone: res.data.phone ?? undefined });
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-      showToast({ type: "success", title: "Profil mis à jour", message: "Vos modifications ont été enregistrées." });
+      showToast({ type: "success", title: t("profileTitle"), message: t("profileUpdated") });
     } catch (err: unknown) {
       // Restore previous values in local state since API call failed
       setName(user?.name ?? "");
       setPhone(user?.phone ?? "");
       setEditing(true);
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
-      const msg = err instanceof Error ? err.message : "Impossible de mettre à jour le profil.";
-      showToast({ type: "error", title: "Erreur", message: msg });
+      showToast({ type: "error", title: t("error"), message: t("profileUpdateError") });
     }
   };
 
@@ -119,10 +118,9 @@ export default function ProfileScreen() {
       const res = await authApi.updateProfile({ avatar: result.objectPath });
       updateUser({ avatar: res.data.avatar ?? undefined });
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-      showToast({ type: "success", message: "Photo de profil mise à jour." });
+      showToast({ type: "success", message: t("profilePhotoUpdated") });
     } catch (err: unknown) {
-      const msg = err instanceof Error ? err.message : "Impossible de mettre à jour la photo de profil.";
-      showToast({ type: "error", title: "Erreur", message: msg });
+      showToast({ type: "error", title: t("error"), message: t("profilePhotoUpdateError") });
     } finally {
       setAvatarUploading(false);
     }
@@ -131,11 +129,11 @@ export default function ProfileScreen() {
   const handleChangePassword = async () => {
     if (!oldPwd || !newPwd || !confirmPwd) return;
     if (newPwd !== confirmPwd) {
-      showToast({ type: "error", title: "Erreur", message: "Les mots de passe ne correspondent pas." });
+      showToast({ type: "error", title: t("error"), message: t("profilePasswordsMismatch") });
       return;
     }
     if (newPwd.length < 8) {
-      showToast({ type: "error", title: "Erreur", message: "Le mot de passe doit contenir au moins 8 caractères." });
+      showToast({ type: "error", title: t("error"), message: t("profilePasswordMinLength") });
       return;
     }
     try {
@@ -143,10 +141,9 @@ export default function ProfileScreen() {
       setShowPwd(false);
       setOldPwd(""); setNewPwd(""); setConfirmPwd("");
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-      showToast({ type: "success", title: "Mot de passe changé", message: "Votre mot de passe a été modifié avec succès." });
+      showToast({ type: "success", title: t("profilePasswordChanged"), message: t("profilePasswordChangedMessage") });
     } catch (err: unknown) {
-      const msg = err instanceof Error ? err.message : "Erreur lors du changement de mot de passe.";
-      showToast({ type: "error", title: "Erreur", message: msg });
+      showToast({ type: "error", title: t("error"), message: t("profilePasswordChangeError") });
     }
   };
 
@@ -165,7 +162,7 @@ export default function ProfileScreen() {
       const url = `${getApiBase()}/api/pdf/membership/${user?.id}${tokenParam}`;
       await Linking.openURL(url);
     } catch {
-      showToast({ type: "error", title: "Erreur", message: "Impossible de générer l'attestation. Vérifiez votre connexion." });
+      showToast({ type: "error", title: t("error"), message: t("profileAttestationError") });
     }
   };
 
@@ -179,26 +176,26 @@ export default function ProfileScreen() {
       const url = `${getApiBase()}/api/pdf/badge/${user?.id}${tokenParam}`;
       await Linking.openURL(url);
     } catch {
-      showToast({ type: "error", title: "Erreur", message: "Impossible de générer la carte. Vérifiez votre connexion." });
+      showToast({ type: "error", title: t("error"), message: t("profileBadgeError") });
     }
   };
 
   const [showQR, setShowQR] = useState(false);
 
   const QUICK_ACTIONS = [
-    { icon: "award" as const, label: "Attestation\nd'adhésion", color: colors.primary, onPress: handleAttestation },
-    { icon: "credit-card" as const, label: "Mes\ncotisations", color: "#3b82f6", onPress: () => router.push("/cotisations" as any) },
-    { icon: "lock" as const, label: "Changer\nmot de passe", color: "#f59e0b", onPress: () => setShowPwd(true) },
-    { icon: "grid" as const, label: "QR Code\nMembre", color: "#8b5cf6", onPress: () => { setShowQR(true); Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); } },
-    { icon: "credit-card" as const, label: "Carte\nmembre", color: "#2563EB", onPress: () => { setShowQR(true); Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); } },
-    { icon: "inbox" as const, label: "Mes\ndemandes", color: "#ec4899", onPress: () => router.push("/support" as any) },
-    { icon: "activity" as const, label: "Protections\nsociales", color: "#10b981", onPress: () => router.push("/cotisations" as any) },
-    { icon: "shopping-bag" as const, label: "Ma\nboutique", color: "#10b981", onPress: () => router.push("/my-shop" as any) },
-    { icon: "package" as const, label: "Mes\ncommandes", color: "#6366f1", onPress: () => router.push("/orders" as any) },
-    { icon: "headphones" as const, label: "Support\nsyndicat", color: "#ef4444", onPress: () => router.push("/support" as any) },
+    { icon: "award" as const, label: t("profileMembershipCertificate"), color: colors.primary, onPress: handleAttestation },
+    { icon: "credit-card" as const, label: t("profileContributions"), color: "#3b82f6", onPress: () => router.push("/cotisations" as any) },
+    { icon: "lock" as const, label: t("profileChangePassword"), color: "#f59e0b", onPress: () => setShowPwd(true) },
+    { icon: "grid" as const, label: t("profileMemberQr"), color: "#8b5cf6", onPress: () => { setShowQR(true); Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); } },
+    { icon: "credit-card" as const, label: t("profileMemberCard"), color: "#2563EB", onPress: () => { setShowQR(true); Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); } },
+    { icon: "inbox" as const, label: t("profileRequests"), color: "#ec4899", onPress: () => router.push("/support" as any) },
+    { icon: "activity" as const, label: t("profileSocialProtection"), color: "#10b981", onPress: () => router.push("/cotisations" as any) },
+    { icon: "shopping-bag" as const, label: t("profileMyShop"), color: "#10b981", onPress: () => router.push("/my-shop" as any) },
+    { icon: "package" as const, label: t("profileOrders"), color: "#6366f1", onPress: () => router.push("/orders" as any) },
+    { icon: "headphones" as const, label: t("profileSyndicateSupport"), color: "#ef4444", onPress: () => router.push("/support" as any) },
   ];
 
-  const pwdStrength = newPwd.length === 0 ? null : newPwd.length < 6 ? { label: "Faible", color: colors.destructive, width: "33%" as const } : newPwd.length < 10 ? { label: "Moyen", color: "#f59e0b", width: "66%" as const } : { label: "Fort", color: colors.success, width: "100%" as const };
+  const pwdStrength = newPwd.length === 0 ? null : newPwd.length < 6 ? { label: t("passwordWeak"), color: colors.destructive, width: "33%" as const } : newPwd.length < 10 ? { label: t("passwordMedium"), color: "#f59e0b", width: "66%" as const } : { label: t("passwordExcellent"), color: colors.success, width: "100%" as const };
 
   return (
     <View style={[styles.root, { backgroundColor: colors.background }]}>
@@ -206,7 +203,7 @@ export default function ProfileScreen() {
         <TouchableOpacity onPress={() => router.back()} style={styles.backBtn}>
           <Feather name="arrow-left" size={22} color={colors.foreground} />
         </TouchableOpacity>
-        <Text style={[styles.title, { color: colors.foreground }]}>Mon Profil</Text>
+         <Text style={[styles.title, { color: colors.foreground }]}>{t("profileTitle")}</Text>
         <TouchableOpacity
           style={[styles.editBtn, { backgroundColor: editing ? colors.primary : colors.secondary }]}
           onPress={() => { editing ? handleSave() : setEditing(true); Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); }}
@@ -244,7 +241,7 @@ export default function ProfileScreen() {
               style={[styles.heroNameInput, { color: "#fff", borderColor: "rgba(255,255,255,0.4)" }]}
               value={name}
               onChangeText={setName}
-              placeholder="Nom complet"
+               placeholder={t("profileFullName")}
               placeholderTextColor="rgba(255,255,255,0.5)"
             />
           ) : (
@@ -256,7 +253,7 @@ export default function ProfileScreen() {
           </View>
           <View style={styles.heroStatus}>
             <View style={styles.heroStatusDot} />
-            <Text style={styles.heroStatusText}>Compte actif</Text>
+             <Text style={styles.heroStatusText}>{t("profileActiveAccount")}</Text>
           </View>
         </View>
 
@@ -264,9 +261,9 @@ export default function ProfileScreen() {
           {/* Stats — real data from context */}
           <View style={styles.statsRow}>
             {[
-              { label: "Cotisations", value: String(cotisations.length), icon: "credit-card" as const, color: colors.primary },
-              { label: "Transactions", value: String(transactions.length), icon: "file-text" as const, color: "#3b82f6" },
-              { label: "Élections", value: String(elections.filter((e) => e.status === "open" || e.status === "closed").length), icon: "check-square" as const, color: "#10b981" },
+              { label: t("profileStatsContributions"), value: String(cotisations.length), icon: "credit-card" as const, color: colors.primary },
+              { label: t("profileStatsTransactions"), value: String(transactions.length), icon: "file-text" as const, color: "#3b82f6" },
+              { label: t("profileStatsElections"), value: String(elections.filter((e) => e.status === "open" || e.status === "closed").length), icon: "check-square" as const, color: "#10b981" },
             ].map((s) => (
               <View key={s.label} style={[styles.statCard, { backgroundColor: colors.card, borderColor: colors.border }]}>
                 <View style={[styles.statIcon, { backgroundColor: s.color + "15" }]}>
@@ -280,7 +277,7 @@ export default function ProfileScreen() {
 
           {/* Quick actions */}
           <View style={{ gap: 10 }}>
-            <Text style={[styles.sectionTitle, { color: colors.foreground }]}>Actions rapides</Text>
+            <Text style={[styles.sectionTitle, { color: colors.foreground }]}>{t("profileQuickActions")}</Text>
             <View style={styles.actionsGrid}>
               {QUICK_ACTIONS.map((a) => (
                 <TouchableOpacity
@@ -308,15 +305,15 @@ export default function ProfileScreen() {
               <Feather name="award" size={22} color="#fff" />
             </View>
             <View style={{ flex: 1 }}>
-              <Text style={styles.attestationTitle}>Télécharger mon attestation</Text>
-              <Text style={styles.attestationSub}>Attestation d'adhésion officielle au syndicat</Text>
+              <Text style={styles.attestationTitle}>{t("profileDownloadCertificate")}</Text>
+              <Text style={styles.attestationSub}>{t("profileCertificateDescription")}</Text>
             </View>
             <Feather name="download" size={18} color="rgba(255,255,255,0.8)" />
           </TouchableOpacity>
 
           {/* Info */}
           <View style={{ gap: 10 }}>
-            <Text style={[styles.sectionTitle, { color: colors.foreground }]}>Informations personnelles</Text>
+            <Text style={[styles.sectionTitle, { color: colors.foreground }]}>{t("profilePersonalInfo")}</Text>
             <View style={[styles.infoCard, { backgroundColor: colors.card, borderColor: colors.border }]}>
               {INFO_ROWS.map((row, i) => (
                 <View key={row.label}>
@@ -345,13 +342,13 @@ export default function ProfileScreen() {
 
           {/* Cotisations summary */}
           <View style={{ gap: 10 }}>
-            <Text style={[styles.sectionTitle, { color: colors.foreground }]}>Cotisations</Text>
+            <Text style={[styles.sectionTitle, { color: colors.foreground }]}>{t("profileContributionsTitle")}</Text>
             <View style={[styles.cotCard, { backgroundColor: colors.card, borderColor: colors.border }]}>
               <View style={styles.cotRow}>
                 {[
-                  { value: String(cotisations.filter((c: any) => c.status === "paid").length), label: "Payées", color: colors.success },
-                  { value: String(cotisations.filter((c: any) => c.status === "pending").length), label: "En attente", color: "#f59e0b" },
-                  { value: String(cotisations.filter((c: any) => c.status === "overdue").length), label: "En retard", color: colors.destructive },
+                  { value: String(cotisations.filter((c: any) => c.status === "paid").length), label: t("profilePaid"), color: colors.success },
+                  { value: String(cotisations.filter((c: any) => c.status === "pending").length), label: t("profilePending"), color: "#f59e0b" },
+                  { value: String(cotisations.filter((c: any) => c.status === "overdue").length), label: t("profileOverdue"), color: colors.destructive },
                 ].map((item) => (
                   <View key={item.label} style={[styles.cotItem, { backgroundColor: item.color + "15" }]}>
                     <Text style={[styles.cotValue, { color: item.color }]}>{item.value}</Text>
@@ -364,7 +361,7 @@ export default function ProfileScreen() {
                 onPress={() => router.push("/cotisations" as any)}
               >
                 <Feather name="clock" size={14} color={colors.primary} />
-                <Text style={[styles.cotHistoryBtnText, { color: colors.primary }]}>Voir l'historique complet</Text>
+                <Text style={[styles.cotHistoryBtnText, { color: colors.primary }]}>{t("profileHistory")}</Text>
                 <Feather name="chevron-right" size={14} color={colors.primary} />
               </TouchableOpacity>
             </View>
@@ -372,15 +369,15 @@ export default function ProfileScreen() {
 
           {/* Security */}
           <View style={{ gap: 10 }}>
-            <Text style={[styles.sectionTitle, { color: colors.foreground }]}>Sécurité</Text>
+            <Text style={[styles.sectionTitle, { color: colors.foreground }]}>{t("profileSecurity")}</Text>
             <View style={[styles.infoCard, { backgroundColor: colors.card, borderColor: colors.border }]}>
               <TouchableOpacity style={styles.secRow} onPress={() => { setShowPwd(true); Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); }}>
                 <View style={[styles.rowIcon, { backgroundColor: "#f59e0b15" }]}>
                   <Feather name="lock" size={14} color="#f59e0b" />
                 </View>
                 <View style={{ flex: 1 }}>
-                  <Text style={[styles.rowValue, { color: colors.foreground }]}>Changer le mot de passe</Text>
-                  <Text style={[styles.rowLabel, { color: colors.mutedForeground }]}>Dernière modification il y a 30 jours</Text>
+                  <Text style={[styles.rowValue, { color: colors.foreground }]}>{t("profilePasswordChange")}</Text>
+                  <Text style={[styles.rowLabel, { color: colors.mutedForeground }]}>{t("profilePasswordLastChanged")}</Text>
                 </View>
                 <Feather name="chevron-right" size={16} color={colors.mutedForeground} />
               </TouchableOpacity>
@@ -390,8 +387,8 @@ export default function ProfileScreen() {
                   <Feather name="settings" size={14} color={colors.primary} />
                 </View>
                 <View style={{ flex: 1 }}>
-                  <Text style={[styles.rowValue, { color: colors.foreground }]}>Paramètres & notifications</Text>
-                  <Text style={[styles.rowLabel, { color: colors.mutedForeground }]}>Confidentialité, sécurité, notifications</Text>
+                  <Text style={[styles.rowValue, { color: colors.foreground }]}>{t("profileSettings")}</Text>
+                  <Text style={[styles.rowLabel, { color: colors.mutedForeground }]}>{t("profileSettingsDescription")}</Text>
                 </View>
                 <Feather name="chevron-right" size={16} color={colors.mutedForeground} />
               </TouchableOpacity>
@@ -457,7 +454,7 @@ export default function ProfileScreen() {
       <Modal visible={showPwd} animationType="slide" presentationStyle="pageSheet">
         <View style={[styles.modal, { backgroundColor: colors.background }]}>
           <View style={[styles.modalHeader, { borderBottomColor: colors.border }]}>
-            <Text style={[styles.modalTitle, { color: colors.foreground }]}>Changer le mot de passe</Text>
+             <Text style={[styles.modalTitle, { color: colors.foreground }]}>{t("profilePasswordChange")}</Text>
             <TouchableOpacity onPress={() => { setShowPwd(false); setOldPwd(""); setNewPwd(""); setConfirmPwd(""); }}>
               <Feather name="x" size={22} color={colors.mutedForeground} />
             </TouchableOpacity>
@@ -467,13 +464,13 @@ export default function ProfileScreen() {
             <View style={[styles.secTip, { backgroundColor: colors.primary + "10", borderColor: colors.primary + "30" }]}>
               <Feather name="shield" size={14} color={colors.primary} />
               <Text style={[styles.secTipText, { color: colors.primary }]}>
-                Choisissez un mot de passe fort avec au moins 8 caractères, incluant majuscules, chiffres et symboles.
+                 {t("profilePasswordTip")}
               </Text>
             </View>
 
             {/* Old password */}
             <View style={{ gap: 8 }}>
-              <Text style={[styles.fieldLabel, { color: colors.foreground }]}>Mot de passe actuel</Text>
+               <Text style={[styles.fieldLabel, { color: colors.foreground }]}>{t("profileCurrentPassword")}</Text>
               <View style={[styles.pwdWrap, { borderColor: colors.border, backgroundColor: colors.card }]}>
                 <TextInput
                   style={[styles.pwdInput, { color: colors.foreground }]}
@@ -491,7 +488,7 @@ export default function ProfileScreen() {
 
             {/* New password */}
             <View style={{ gap: 8 }}>
-              <Text style={[styles.fieldLabel, { color: colors.foreground }]}>Nouveau mot de passe</Text>
+               <Text style={[styles.fieldLabel, { color: colors.foreground }]}>{t("profileNewPassword")}</Text>
               <View style={[styles.pwdWrap, { borderColor: colors.border, backgroundColor: colors.card }]}>
                 <TextInput
                   style={[styles.pwdInput, { color: colors.foreground }]}
@@ -512,7 +509,7 @@ export default function ProfileScreen() {
                     <View style={[styles.strengthFill, { width: pwdStrength.width, backgroundColor: pwdStrength.color }]} />
                   </View>
                   <Text style={[styles.strengthLabel, { color: pwdStrength.color }]}>
-                    Force: {pwdStrength.label}
+                     {t("profilePasswordStrength")}: {pwdStrength.label}
                   </Text>
                 </View>
               ) : null}
@@ -520,7 +517,7 @@ export default function ProfileScreen() {
 
             {/* Confirm */}
             <View style={{ gap: 8 }}>
-              <Text style={[styles.fieldLabel, { color: colors.foreground }]}>Confirmer le nouveau mot de passe</Text>
+               <Text style={[styles.fieldLabel, { color: colors.foreground }]}>{t("profileConfirmPassword")}</Text>
               <View style={[styles.pwdWrap, { borderColor: confirmPwd && confirmPwd !== newPwd ? colors.destructive : colors.border, backgroundColor: colors.card }]}>
                 <TextInput
                   style={[styles.pwdInput, { color: colors.foreground }]}
@@ -535,7 +532,7 @@ export default function ProfileScreen() {
                 ) : null}
               </View>
               {confirmPwd && confirmPwd !== newPwd ? (
-                <Text style={[styles.pwdError, { color: colors.destructive }]}>Les mots de passe ne correspondent pas</Text>
+                 <Text style={[styles.pwdError, { color: colors.destructive }]}>{t("profilePasswordsMismatch")}</Text>
               ) : null}
             </View>
 
@@ -551,7 +548,7 @@ export default function ProfileScreen() {
             >
               <Feather name="lock" size={16} color={oldPwd && newPwd && confirmPwd && newPwd === confirmPwd ? "#fff" : colors.mutedForeground} />
               <Text style={[styles.changePwdBtnText, { color: oldPwd && newPwd && confirmPwd && newPwd === confirmPwd ? "#fff" : colors.mutedForeground }]}>
-                Confirmer le changement
+                 {t("profileConfirmChange")}
               </Text>
             </TouchableOpacity>
           </ScrollView>

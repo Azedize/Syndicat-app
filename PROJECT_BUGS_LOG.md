@@ -11,3 +11,6 @@
 - Mon Lot no longer silently treats a failed personal lot or fund-call request as an empty/zero-valued state; each unavailable dependency now has an explicit retry path.
 - Mon Bail & Loyer no longer exposes raw lease API errors or conflates network failure with a genuinely unlinked tenant account; recovery and no-data states are now distinct.
 - Travaux workflow mutations and silent refreshes no longer expose raw API messages or fail without user feedback.
+- Profile updates no longer expose raw server error text or remain partially French-only after a language change; mutation failures now use safe localized recovery copy.
+- Template Studio no longer displays hardcoded French metadata when the active language is English, Arabic, or Spanish.
+- Document generation validation no longer emits a duplicate-key build warning for `preamble`.

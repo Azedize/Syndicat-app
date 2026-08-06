@@ -46,3 +46,5 @@
 - Syndical Actions now provides a consistent four-language mobilization experience with semantic type/status hierarchy, translated participation/support actions, localized metadata, and visible recovery feedback.
 - Governance Organigramme now provides a consistent four-language hierarchy experience with translated national supervision, mandate/status hierarchy, role permission details, locale-aware dates, and recoverable data states.
 - Travaux Privatifs now provides a consistent four-language approval experience with translated lifecycle hierarchy, resident guidance, decision history, review forms, and safe recovery states.
+- Profile now provides a consistent four-language identity and security experience with localized role hierarchy, quick actions, contribution status, password guidance, and safe recovery feedback.
+- Template Studio now keeps its role, category, variable, section, tab, and identifier presentation aligned with the active language instead of falling back to French metadata.
