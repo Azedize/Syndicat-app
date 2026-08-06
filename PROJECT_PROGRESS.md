@@ -23,3 +23,6 @@
 - Hardened protected screen navigation so unauthenticated deep links redirect to the public welcome screen instead of leaving an indefinite guard spinner.
 - Continued the enterprise UX pass on Ideas & Proposals: localized all visible content and added guided loading, retryable error, empty, and action feedback states.
 - Made the Super Admin national dashboard recoverable when platform data is unavailable, with localized retry states for syndicate overview data, national rankings, and syndicate detail enrichment.
+- Made Platform Support recoverable when support data is unavailable, with localized retry states for the ticket list and selected-ticket conversation details.
+- Made Super Admin Marketplace Moderation recoverable when moderation data is unavailable, with distinct retry states for product queues, live counters, and product reports.
+- Made the document recycle bin recoverable when deleted-document data is unavailable, with localized loading and retry states that distinguish a failed archive request from an empty bin.

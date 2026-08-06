@@ -34,10 +34,12 @@ import {
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import RoleGuard from "@/components/RoleGuard";
 import { useAuth } from "@/context/AuthContext";
+import { useLanguage } from "@/context/LanguageContext";
 import { useBreakpoints } from "@/hooks/useBreakpoints";
 import { useColors } from "@/hooks/useColors";
 import { useToast } from "@/context/ToastContext";
 import { marketplace } from "@/services/api";
+import { ErrorState, LoadingState } from "@/components/DataState";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -84,6 +86,46 @@ type StatusTab =
   | "reported"
   | "reserved"
   | "sold";
+
+const STATE_COPY = {
+  loadingTitle: {
+    fr: "Chargement de la modération",
+    en: "Loading moderation",
+    ar: "جارٍ تحميل الإشراف",
+    es: "Cargando moderación",
+  },
+  loadingDescription: {
+    fr: "Nous récupérons les annonces et leurs statuts.",
+    en: "We are retrieving listings and their statuses.",
+    ar: "نحن نسترجع الإعلانات وحالاتها.",
+    es: "Estamos recuperando los anuncios y sus estados.",
+  },
+  unavailableTitle: {
+    fr: "Données marketplace indisponibles",
+    en: "Marketplace data unavailable",
+    ar: "بيانات السوق غير متاحة",
+    es: "Datos del marketplace no disponibles",
+  },
+  productsUnavailable: {
+    fr: "La file de modération n'est pas disponible. Réessayez pour vérifier les annonces.",
+    en: "The moderation queue is unavailable. Retry to check listings.",
+    ar: "قائمة الإشراف غير متاحة. أعد المحاولة للتحقق من الإعلانات.",
+    es: "La cola de moderación no está disponible. Reintente para verificar los anuncios.",
+  },
+  statsUnavailable: {
+    fr: "Les compteurs marketplace ne sont pas disponibles. Réessayez pour actualiser les volumes.",
+    en: "Marketplace counters are unavailable. Retry to refresh the volumes.",
+    ar: "عدادات السوق غير متاحة. أعد المحاولة لتحديث الأحجام.",
+    es: "Los contadores del marketplace no están disponibles. Reintente para actualizar los volúmenes.",
+  },
+  reportsUnavailable: {
+    fr: "Les signalements ne sont pas disponibles. Réessayez pour charger l'historique.",
+    en: "Reports are unavailable. Retry to load the history.",
+    ar: "البلاغات غير متاحة. أعد المحاولة لتحميل السجل.",
+    es: "Los reportes no están disponibles. Reintente para cargar el historial.",
+  },
+  retry: { fr: "Réessayer", en: "Retry", ar: "إعادة المحاولة", es: "Reintentar" },
+} as const;
 
 // ─── Constants ────────────────────────────────────────────────────────────────
 
@@ -162,6 +204,7 @@ function ModerationDashboard() {
   const colors   = useColors();
   const insets   = useSafeAreaInsets();
   const { user } = useAuth();
+  const { lang } = useLanguage();
   const { isWide } = useBreakpoints();
   const { showToast } = useToast();
   const topPad = isWide ? 0 : (Platform.OS === "web" ? 67 : insets.top);
@@ -170,6 +213,8 @@ function ModerationDashboard() {
   const [products,  setProducts]  = useState<Product[]>([]);
   const [stats,     setStats]     = useState<Record<string, number>>({});
   const [loading,   setLoading]   = useState(true);
+  const [productsError, setProductsError] = useState(false);
+  const [statsError, setStatsError] = useState(false);
   const [refreshing,setRefreshing]= useState(false);
   const [moderating,setModerating]= useState<string | null>(null);
 
@@ -195,10 +240,12 @@ function ModerationDashboard() {
   const [reportsTarget,  setReportsTarget]  = useState<{ id: string; name: string } | null>(null);
   const [reports,        setReports]        = useState<ProductReport[]>([]);
   const [reportsLoading, setReportsLoading] = useState(false);
+  const [reportsError, setReportsError] = useState(false);
 
   // ─── Fetch ─────────────────────────────────────────────────────────────────
 
   const fetchProducts = useCallback(async (tab: StatusTab) => {
+    setProductsError(false);
     try {
       if (tab === "reported") {
         const res = await marketplace.reported();
@@ -207,10 +254,14 @@ function ModerationDashboard() {
         const res = await marketplace.products({ status: tab });
         setProducts((res.data as Product[]) ?? []);
       }
-    } catch { setProducts([]); }
+    } catch {
+      setProductsError(true);
+      setProducts([]);
+    }
   }, []);
 
   const fetchStats = useCallback(async () => {
+    setStatsError(false);
     try {
       const res = await marketplace.stats();
       const d   = res.data as any;
@@ -223,7 +274,9 @@ function ModerationDashboard() {
         reserved:               Number(d?.reserved     ?? 0),
         sold:                   Number(d?.sold         ?? 0),
       });
-    } catch { /* keep stale */ }
+    } catch {
+      setStatsError(true);
+    }
   }, []);
 
   const fetchAll = useCallback(async (tab: StatusTab) => {
@@ -310,15 +363,26 @@ function ModerationDashboard() {
     );
   };
 
-  const openReports = async (id: string, name: string) => {
-    setReportsTarget({ id, name });
-    setReportsModal(true);
+  const fetchReports = useCallback(async (id: string) => {
     setReportsLoading(true);
+    setReportsError(false);
     try {
       const res = await marketplace.productReports(id);
       setReports((res.data as ProductReport[]) ?? []);
-    } catch { setReports([]); }
-    finally { setReportsLoading(false); }
+    } catch {
+      setReportsError(true);
+      setReports([]);
+    } finally {
+      setReportsLoading(false);
+    }
+  }, []);
+
+  const openReports = (id: string, name: string) => {
+    setReportsTarget({ id, name });
+    setReports([]);
+    setReportsError(false);
+    setReportsModal(true);
+    void fetchReports(id);
   };
 
   // ─── Derived ───────────────────────────────────────────────────────────────
@@ -374,6 +438,17 @@ function ModerationDashboard() {
           ))}
         </ScrollView>
       </View>
+      {statsError ? (
+        <View style={[styles.dataWarning, { backgroundColor: "#f59e0b12", borderBottomColor: colors.border }]}>
+          <Feather name="alert-circle" size={14} color="#f59e0b" />
+          <Text style={[styles.dataWarningText, { color: colors.foreground }]}>
+            {STATE_COPY.statsUnavailable[lang]}
+          </Text>
+          <TouchableOpacity onPress={() => void fetchStats()} accessibilityRole="button" accessibilityLabel={STATE_COPY.retry[lang]}>
+            <Text style={[styles.dataWarningRetry, { color: "#f59e0b" }]}>{STATE_COPY.retry[lang]}</Text>
+          </TouchableOpacity>
+        </View>
+      ) : null}
 
       {/* ── Active tab label ───────────────────────────────────────────── */}
       <View style={[styles.tabBar, { backgroundColor: colors.background }]}>
@@ -386,10 +461,19 @@ function ModerationDashboard() {
 
       {/* ── Product list ───────────────────────────────────────────────── */}
       {loading ? (
-        <View style={styles.centered}>
-          <ActivityIndicator size="large" color={colors.primary} />
-          <Text style={[styles.loadingText, { color: colors.mutedForeground }]}>Chargement...</Text>
-        </View>
+        <LoadingState
+          title={STATE_COPY.loadingTitle[lang]}
+          description={STATE_COPY.loadingDescription[lang]}
+          accentColor={tabConfig.color}
+        />
+      ) : productsError ? (
+        <ErrorState
+          title={STATE_COPY.unavailableTitle[lang]}
+          description={STATE_COPY.productsUnavailable[lang]}
+          retryLabel={STATE_COPY.retry[lang]}
+          onRetry={() => void fetchAll(activeTab)}
+          accentColor={tabConfig.color}
+        />
       ) : (
         <FlatList
           data={products}
@@ -662,9 +746,19 @@ function ModerationDashboard() {
             )}
 
             {reportsLoading ? (
-              <View style={[styles.centered, { flex: 0, paddingVertical: 40 }]}>
-                <ActivityIndicator color={colors.primary} />
-              </View>
+              <LoadingState
+                title={STATE_COPY.loadingTitle[lang]}
+                description={STATE_COPY.loadingDescription[lang]}
+                accentColor={colors.primary}
+              />
+            ) : reportsError ? (
+              <ErrorState
+                title={STATE_COPY.unavailableTitle[lang]}
+                description={STATE_COPY.reportsUnavailable[lang]}
+                retryLabel={STATE_COPY.retry[lang]}
+                onRetry={() => reportsTarget ? void fetchReports(reportsTarget.id) : undefined}
+                accentColor={colors.primary}
+              />
             ) : reports.length === 0 ? (
               <View style={[styles.centered, { flex: 0, paddingVertical: 40 }]}>
                 <Feather name="flag" size={32} color={colors.mutedForeground} />
@@ -891,6 +985,9 @@ const styles = StyleSheet.create({
   loadingText:  { fontSize: 14 },
   emptyTitle:   { fontSize: 17, fontWeight: "700", marginTop: 8 },
   emptySub:     { fontSize: 13, textAlign: "center", maxWidth: 260 },
+  dataWarning:  { flexDirection: "row", alignItems: "center", gap: 8, paddingHorizontal: 16, paddingVertical: 9, borderBottomWidth: 1 },
+  dataWarningText: { flex: 1, fontSize: 11, lineHeight: 16 },
+  dataWarningRetry: { fontSize: 11, fontWeight: "700" },
 
   // Cards
   list:               { padding: 12, gap: 12 },

@@ -31,11 +31,13 @@ import {
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useAuth } from "@/context/AuthContext";
+import { useLanguage } from "@/context/LanguageContext";
 import { useToast } from "@/context/ToastContext";
 import { apiRequest } from "@/lib/api";
 import { useBreakpoints } from "@/hooks/useBreakpoints";
 import { useColors } from "@/hooks/useColors";
 import RoleGuard from "@/components/RoleGuard";
+import { ErrorState, LoadingState } from "@/components/DataState";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -43,6 +45,68 @@ type PlatformCat = "bug" | "feature" | "acces" | "formation" | "autre";
 type Priority    = "high" | "medium" | "low";
 type Status      = "open" | "in_progress" | "resolved" | "closed";
 type Filter      = "all" | "open" | "in_progress" | "resolved";
+
+const STATE_COPY = {
+  loadingTitle: {
+    fr: "Chargement du support plateforme",
+    en: "Loading platform support",
+    ar: "جارٍ تحميل دعم المنصة",
+    es: "Cargando soporte de plataforma",
+  },
+  loadingDescription: {
+    fr: "Nous récupérons vos demandes et leur statut.",
+    en: "We are retrieving your requests and their status.",
+    ar: "نحن نسترجع طلباتك وحالتها.",
+    es: "Estamos recuperando sus solicitudes y su estado.",
+  },
+  unavailableTitle: {
+    fr: "Support plateforme indisponible",
+    en: "Platform support unavailable",
+    ar: "دعم المنصة غير متاح",
+    es: "Soporte de plataforma no disponible",
+  },
+  unavailableDescription: {
+    fr: "Les tickets ne sont pas disponibles pour le moment. Vérifiez votre connexion puis réessayez.",
+    en: "Tickets are unavailable right now. Check your connection and try again.",
+    ar: "التذاكر غير متاحة حالياً. تحقق من الاتصال ثم أعد المحاولة.",
+    es: "Los tickets no están disponibles ahora. Compruebe su conexión e inténtelo de nuevo.",
+  },
+  detailUnavailableDescription: {
+    fr: "La conversation de ce ticket n'est pas disponible. Réessayez pour charger les réponses.",
+    en: "This ticket conversation is unavailable. Retry to load the replies.",
+    ar: "محادثة هذه التذكرة غير متاحة. أعد المحاولة لتحميل الردود.",
+    es: "La conversación de este ticket no está disponible. Reintente para cargar las respuestas.",
+  },
+  retry: { fr: "Réessayer", en: "Retry", ar: "إعادة المحاولة", es: "Reintentar" },
+  error: { fr: "Erreur", en: "Error", ar: "خطأ", es: "Error" },
+  sentTitle: { fr: "Demande envoyée", en: "Request sent", ar: "تم إرسال الطلب", es: "Solicitud enviada" },
+  sentMessage: {
+    fr: "L'équipe plateforme a été notifiée.",
+    en: "The platform team has been notified.",
+    ar: "تم إخطار فريق المنصة.",
+    es: "El equipo de plataforma ha sido notificado.",
+  },
+  sendError: {
+    fr: "Impossible d'envoyer la demande.",
+    en: "Unable to send the request.",
+    ar: "تعذر إرسال الطلب.",
+    es: "No se puede enviar la solicitud.",
+  },
+  replySent: { fr: "Réponse envoyée", en: "Reply sent", ar: "تم إرسال الرد", es: "Respuesta enviada" },
+  replyError: {
+    fr: "Impossible d'envoyer la réponse.",
+    en: "Unable to send the reply.",
+    ar: "تعذر إرسال الرد.",
+    es: "No se puede enviar la respuesta.",
+  },
+  resolved: { fr: "Ticket résolu", en: "Ticket resolved", ar: "تم حل التذكرة", es: "Ticket resuelto" },
+  resolveError: {
+    fr: "Impossible de résoudre le ticket.",
+    en: "Unable to resolve the ticket.",
+    ar: "تعذر حل التذكرة.",
+    es: "No se puede resolver el ticket.",
+  },
+} as const;
 
 interface PlatformTicket {
   id:              string;
@@ -108,6 +172,7 @@ function PlatformSupportScreen() {
   const colors = useColors();
   const insets = useSafeAreaInsets();
   const { user, token } = useAuth();
+  const { lang } = useLanguage();
   const { showToast } = useToast();
   const { isWide } = useBreakpoints();
 
@@ -118,11 +183,14 @@ function PlatformSupportScreen() {
   // ── List state ──
   const [tickets,  setTickets]  = useState<PlatformTicket[]>([]);
   const [loading,  setLoading]  = useState(true);
+  const [loadError, setLoadError] = useState(false);
   const [filter,   setFilter]   = useState<Filter>("all");
 
   // ── Detail state ──
   const [selected,  setSelected]  = useState<PlatformTicket | null>(null);
   const [replies,   setReplies]   = useState<Reply[]>([]);
+  const [repliesLoading, setRepliesLoading] = useState(false);
+  const [repliesError, setRepliesError] = useState(false);
   const [replyText, setReplyText] = useState("");
   const [replying,  setReplying]  = useState(false);
 
@@ -138,6 +206,7 @@ function PlatformSupportScreen() {
 
   const fetchTickets = useCallback(async () => {
     setLoading(true);
+    setLoadError(false);
     try {
       // super_admin: GET /support always returns platform tickets
       // syndicate_admin: GET /support?scope=platform returns their platform tickets
@@ -158,7 +227,7 @@ function PlatformSupportScreen() {
         escalatedFrom: r.escalatedFrom ? String(r.escalatedFrom) : undefined,
       })));
     } catch {
-      // keep empty list
+      setLoadError(true);
     } finally {
       setLoading(false);
     }
@@ -168,12 +237,25 @@ function PlatformSupportScreen() {
 
   // ─── Fetch detail / replies ────────────────────────────────────────────────
 
-  useEffect(() => {
-    if (!selected) { setReplies([]); return; }
-    apiRequest(`/support/${selected.id}`, "GET", undefined, token)
-      .then((res: any) => setReplies(res?.data?.replies ?? []))
-      .catch(() => setReplies([]));
-  }, [selected, token]);
+  const fetchReplies = useCallback(async () => {
+    if (!selected) {
+      setReplies([]);
+      setRepliesError(false);
+      return;
+    }
+    setRepliesLoading(true);
+    setRepliesError(false);
+    try {
+      const res: any = await apiRequest(`/support/${selected.id}`, "GET", undefined, token);
+      setReplies(res?.data?.replies ?? []);
+    } catch {
+      setRepliesError(true);
+    } finally {
+      setRepliesLoading(false);
+    }
+  }, [selected?.id, token]);
+
+  useEffect(() => { void fetchReplies(); }, [fetchReplies]);
 
   // ─── Actions ──────────────────────────────────────────────────────────────
 
@@ -188,13 +270,13 @@ function PlatformSupportScreen() {
         category:    newCat,
         scope:       "platform",
       }, token);
-      showToast({ type: "success", title: "Demande envoyée", message: "L'équipe plateforme a été notifiée." });
+      showToast({ type: "success", title: STATE_COPY.sentTitle[lang], message: STATE_COPY.sentMessage[lang] });
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
       setShowNew(false);
       setNewTitle(""); setNewDesc(""); setNewPri("medium"); setNewCat("bug");
       fetchTickets();
     } catch {
-      showToast({ type: "error", title: "Erreur", message: "Impossible d'envoyer la demande." });
+      showToast({ type: "error", title: STATE_COPY.error[lang], message: STATE_COPY.sendError[lang] });
     } finally {
       setSubmitting(false);
     }
@@ -207,12 +289,12 @@ function PlatformSupportScreen() {
       await apiRequest(`/support/${selected.id}/replies`, "POST", { text: replyText.trim() }, token);
       setReplyText("");
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-      showToast({ type: "success", title: "Réponse envoyée" });
+      showToast({ type: "success", title: STATE_COPY.replySent[lang] });
       const res: any = await apiRequest(`/support/${selected.id}`, "GET", undefined, token);
       setReplies(res?.data?.replies ?? []);
       setTickets((prev) => prev.map((tk) => tk.id === selected.id ? { ...tk, status: "in_progress" } : tk));
     } catch {
-      showToast({ type: "error", title: "Erreur", message: "Impossible d'envoyer la réponse." });
+      showToast({ type: "error", title: STATE_COPY.error[lang], message: STATE_COPY.replyError[lang] });
     } finally {
       setReplying(false);
     }
@@ -221,12 +303,12 @@ function PlatformSupportScreen() {
   const handleResolve = async (id: string) => {
     try {
       await apiRequest(`/support/${id}/resolve`, "PUT", undefined, token);
-      showToast({ type: "success", title: "Ticket résolu" });
+      showToast({ type: "success", title: STATE_COPY.resolved[lang] });
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
       setSelected(null);
       fetchTickets();
     } catch {
-      showToast({ type: "error", title: "Erreur", message: "Impossible de résoudre le ticket." });
+      showToast({ type: "error", title: STATE_COPY.error[lang], message: STATE_COPY.resolveError[lang] });
     }
   };
 
@@ -332,10 +414,19 @@ function PlatformSupportScreen() {
 
       {/* ── List ── */}
       {loading ? (
-        <View style={styles.center}>
-          <ActivityIndicator color="#6366f1" />
-          <Text style={[styles.loadingTxt, { color: colors.mutedForeground }]}>Chargement des tickets…</Text>
-        </View>
+        <LoadingState
+          title={STATE_COPY.loadingTitle[lang]}
+          description={STATE_COPY.loadingDescription[lang]}
+          accentColor="#6366f1"
+        />
+      ) : loadError ? (
+        <ErrorState
+          title={STATE_COPY.unavailableTitle[lang]}
+          description={STATE_COPY.unavailableDescription[lang]}
+          retryLabel={STATE_COPY.retry[lang]}
+          onRetry={() => void fetchTickets()}
+          accentColor="#6366f1"
+        />
       ) : (
         <FlatList
           data={filtered}
@@ -517,7 +608,21 @@ function PlatformSupportScreen() {
               </View>
 
               {/* ── Reply thread ── */}
-              {replies.length > 0 && (
+              {repliesLoading ? (
+                <LoadingState
+                  title={STATE_COPY.loadingTitle[lang]}
+                  description={STATE_COPY.loadingDescription[lang]}
+                  accentColor="#6366f1"
+                />
+              ) : repliesError ? (
+                <ErrorState
+                  title={STATE_COPY.unavailableTitle[lang]}
+                  description={STATE_COPY.detailUnavailableDescription[lang]}
+                  retryLabel={STATE_COPY.retry[lang]}
+                  onRetry={() => void fetchReplies()}
+                  accentColor="#6366f1"
+                />
+              ) : replies.length > 0 && (
                 <View style={{ gap: 10 }}>
                   <Text style={[styles.threadLbl, { color: colors.foreground }]}>
                     Conversation ({replies.length})

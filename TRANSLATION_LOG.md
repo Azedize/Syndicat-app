@@ -9,3 +9,6 @@
 - Provider management now translates provider types, filters, statistics, contract details, upload guidance, validation dialogs, form labels, placeholders, and creation feedback for `fr`, `en`, `ar`, and `es`.
 - Ideas & Proposals now translates categories, statuses, pluralized counts, form labels/placeholders, decisions, empty/loading/error states, and action feedback for `fr`, `en`, `ar`, and `es`.
 - National dashboard recovery messages now support `fr`, `en`, `ar`, and `es` for syndicate, ranking, and detail-data loading failures.
+- Platform Support recovery and action feedback messages now support `fr`, `en`, `ar`, and `es` for ticket-list and ticket-conversation failures.
+- Marketplace Moderation recovery messages now support `fr`, `en`, `ar`, and `es` for product queues, statistics, and report-loading failures.
+- Document Recycle Bin loading, unavailable, retry, restore-error, and purge-error messages now support `fr`, `en`, `ar`, and `es`.

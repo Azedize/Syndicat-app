@@ -23,9 +23,11 @@ import {
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useAuth } from "@/context/AuthContext";
 import { useData } from "@/context/DataContext";
+import { useLanguage } from "@/context/LanguageContext";
 import { useBreakpoints } from "@/hooks/useBreakpoints";
 import { useColors } from "@/hooks/useColors";
 import { useToast } from "@/context/ToastContext";
+import { ErrorState, LoadingState } from "@/components/DataState";
 
 interface DeletedDoc {
   id: string;
@@ -44,29 +46,73 @@ const CAT_LABELS: Record<string, string> = {
   juridique: "Juridique", finances: "Finances", attestation: "Attestations",
 };
 
+const STATE_COPY = {
+  loadingTitle: {
+    fr: "Chargement de la corbeille",
+    en: "Loading recycle bin",
+    ar: "جارٍ تحميل سلة المحذوفات",
+    es: "Cargando papelera",
+  },
+  loadingDescription: {
+    fr: "Nous récupérons les documents supprimés.",
+    en: "We are retrieving deleted documents.",
+    ar: "نحن نسترجع المستندات المحذوفة.",
+    es: "Estamos recuperando los documentos eliminados.",
+  },
+  unavailableTitle: {
+    fr: "Corbeille indisponible",
+    en: "Recycle bin unavailable",
+    ar: "سلة المحذوفات غير متاحة",
+    es: "Papelera no disponible",
+  },
+  unavailableDescription: {
+    fr: "Les documents supprimés ne sont pas disponibles pour le moment. Vérifiez votre connexion puis réessayez.",
+    en: "Deleted documents are unavailable right now. Check your connection and try again.",
+    ar: "المستندات المحذوفة غير متاحة حالياً. تحقق من الاتصال ثم أعد المحاولة.",
+    es: "Los documentos eliminados no están disponibles ahora. Compruebe su conexión e inténtelo de nuevo.",
+  },
+  retry: { fr: "Réessayer", en: "Retry", ar: "إعادة المحاولة", es: "Reintentar" },
+  error: { fr: "Erreur", en: "Error", ar: "خطأ", es: "Error" },
+  restoreError: {
+    fr: "Impossible de restaurer ce document.",
+    en: "Unable to restore this document.",
+    ar: "تعذر استعادة هذا المستند.",
+    es: "No se puede restaurar este documento.",
+  },
+  purgeError: {
+    fr: "Impossible de supprimer définitivement ce document.",
+    en: "Unable to permanently delete this document.",
+    ar: "تعذر حذف هذا المستند نهائياً.",
+    es: "No se puede eliminar permanentemente este documento.",
+  },
+} as const;
+
 export default function DocumentsRecycleBin() {
   const { showToast } = useToast();
   const colors = useColors();
   const insets = useSafeAreaInsets();
   const { user } = useAuth();
   const { refreshDocuments } = useData();
+  const { lang } = useLanguage();
   const { isWide } = useBreakpoints();
   const topPad = isWide ? 0 : (Platform.OS === "web" ? 67 : insets.top);
   const isSuperAdmin = user?.role === "super_admin";
 
   const [items, setItems] = useState<DeletedDoc[]>([]);
   const [loading, setLoading] = useState(true);
+  const [loadError, setLoadError] = useState(false);
   const [search, setSearch] = useState("");
   const [busyId, setBusyId] = useState<string | null>(null);
 
   const load = useCallback(async (q?: string) => {
     setLoading(true);
+    setLoadError(false);
     try {
       const { documents: docsApi } = await import("@/services/api");
       const res = (await docsApi.deleted({ search: q })) as { data: DeletedDoc[] };
       setItems(res.data ?? []);
     } catch {
-      showToast({ type: "error", title: "Erreur", message: "Impossible de charger la corbeille." });
+      setLoadError(true);
     } finally {
       setLoading(false);
     }
@@ -86,7 +132,7 @@ export default function DocumentsRecycleBin() {
       showToast({ type: "success", title: "Document restauré", message: `"${doc.title}" a été restauré avec succès.` });
     } catch (err: any) {
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
-      showToast({ type: "error", title: "Erreur", message: err?.message ?? "Impossible de restaurer ce document." });
+      showToast({ type: "error", title: STATE_COPY.error[lang], message: STATE_COPY.restoreError[lang] });
     } finally {
       setBusyId(null);
     }
@@ -110,7 +156,7 @@ export default function DocumentsRecycleBin() {
               setItems((prev) => prev.filter((d) => d.id !== doc.id));
             } catch (err: any) {
               Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
-              showToast({ type: "error", title: "Erreur", message: err?.message ?? "Impossible de purger ce document." });
+              showToast({ type: "error", title: STATE_COPY.error[lang], message: STATE_COPY.purgeError[lang] });
             } finally {
               setBusyId(null);
             }
@@ -145,7 +191,19 @@ export default function DocumentsRecycleBin() {
       </View>
 
       {loading ? (
-        <View style={styles.center}><ActivityIndicator color={colors.primary} /></View>
+        <LoadingState
+          title={STATE_COPY.loadingTitle[lang]}
+          description={STATE_COPY.loadingDescription[lang]}
+          accentColor={colors.primary}
+        />
+      ) : loadError ? (
+        <ErrorState
+          title={STATE_COPY.unavailableTitle[lang]}
+          description={STATE_COPY.unavailableDescription[lang]}
+          retryLabel={STATE_COPY.retry[lang]}
+          onRetry={() => void load(search)}
+          accentColor={colors.primary}
+        />
       ) : items.length === 0 ? (
         <View style={styles.center}>
           <Feather name="trash-2" size={36} color={colors.mutedForeground} />

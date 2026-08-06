@@ -30,3 +30,15 @@
 - `git diff --check -- artifacts/mobile/app/tableau-national.tsx` — passed.
 - Mobile workflow restarted after the dashboard change; fresh Metro bundle completed without syntax or transform errors.
 - Mobile Expo preview screenshot for `/tableau-national` at 402×874 — protected route correctly redirected to `/welcome` without a session; `/welcome` rendered successfully. Existing Expo web compatibility warnings remain non-blocking.
+- `pnpm --filter @workspace/mobile run typecheck` after the Platform Support recovery pass — passed.
+- `git diff --check -- artifacts/mobile/app/platform-support.tsx` — passed.
+- Mobile workflow restarted after the Platform Support change; fresh Metro workflow started successfully without syntax or transform errors.
+- Mobile Expo preview screenshot for `/platform-support` at 402×874 — protected route correctly redirected safely without a session; fresh browser logs contained only existing non-blocking Expo web warnings.
+- `pnpm --filter @workspace/mobile run typecheck` after the Marketplace Moderation recovery pass — passed.
+- `git diff --check -- artifacts/mobile/app/admin/marketplace.tsx` — passed.
+- Mobile workflow restarted after the Marketplace Moderation change; fresh Metro workflow started successfully without syntax or transform errors.
+- Mobile Expo preview screenshot for `/admin/marketplace` at 402×874 — Super Admin-protected route correctly redirected safely without a session; browser logs contained only existing non-blocking Expo web warnings.
+- `pnpm --filter @workspace/mobile run typecheck` after the document recycle-bin recovery pass — passed.
+- `git diff --check -- artifacts/mobile/app/documents-recycle-bin.tsx` — passed.
+- Mobile workflow restarted after the recycle-bin change; fresh Metro workflow started successfully without syntax or transform errors.
+- Mobile Expo preview screenshot for `/documents-recycle-bin` at 402×874 — protected route correctly redirected safely without a session; browser logs contained only existing non-blocking Expo web warnings.

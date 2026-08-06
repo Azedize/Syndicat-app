@@ -19,8 +19,10 @@ import {
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useAuth } from "@/context/AuthContext";
 import { useData, type Document } from "@/context/DataContext";
+import { useLanguage } from "@/context/LanguageContext";
 import { useBreakpoints } from "@/hooks/useBreakpoints";
 import { useColors } from "@/hooks/useColors";
+import { ErrorState, LoadingState } from "@/components/DataState";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -34,6 +36,34 @@ interface Widget {
   description: string;
 }
 
+const STATE_COPY = {
+  loadingTitle: {
+    fr: "Chargement des échéances",
+    en: "Loading expiry data",
+    ar: "جارٍ تحميل بيانات الانتهاء",
+    es: "Cargando vencimientos",
+  },
+  loadingDescription: {
+    fr: "Nous vérifions les documents dont la conservation arrive à échéance.",
+    en: "We are checking documents approaching their retention deadline.",
+    ar: "نحن نتحقق من المستندات التي تقترب مدة الاحتفاظ بها من الانتهاء.",
+    es: "Estamos comprobando los documentos cuya conservación se acerca a su vencimiento.",
+  },
+  unavailableTitle: {
+    fr: "Échéances indisponibles",
+    en: "Expiry data unavailable",
+    ar: "بيانات الانتهاء غير متاحة",
+    es: "Datos de vencimiento no disponibles",
+  },
+  unavailableDescription: {
+    fr: "Les échéances de conservation ne sont pas disponibles pour le moment. Réessayez pour actualiser cette section.",
+    en: "Retention expiry data is unavailable right now. Retry to refresh this section.",
+    ar: "بيانات انتهاء مدة الاحتفاظ غير متاحة حالياً. أعد المحاولة لتحديث هذا القسم.",
+    es: "Los datos de vencimiento de conservación no están disponibles ahora. Reintente para actualizar esta sección.",
+  },
+  retry: { fr: "Réessayer", en: "Retry", ar: "إعادة المحاولة", es: "Reintentar" },
+} as const;
+
 // ─── Screen ───────────────────────────────────────────────────────────────────
 
 export default function DocumentsDashboard() {
@@ -41,6 +71,7 @@ export default function DocumentsDashboard() {
   const insets  = useSafeAreaInsets();
   const { user } = useAuth();
   const { documents } = useData();
+  const { lang } = useLanguage();
   const { isWide } = useBreakpoints();
   const topPad = isWide ? 0 : (Platform.OS === "web" ? 67 : insets.top);
 
@@ -56,20 +87,30 @@ export default function DocumentsDashboard() {
     expiring: { in30: number; in60: number; in90: number; documents30: SummaryDoc[] };
   }
   const [summary, setSummary] = useState<Summary | null>(null);
+  const [summaryLoading, setSummaryLoading] = useState(true);
+  const [summaryError, setSummaryError] = useState(false);
+
+  const loadSummary = React.useCallback(async () => {
+    setSummaryLoading(true);
+    setSummaryError(false);
+    try {
+      const { documents: docsApi } = await import("@/services/api");
+      const res = (await (docsApi as any).summary?.()) as { data: Summary } | undefined;
+      if (res?.data) {
+        setSummary(res.data);
+      } else {
+        setSummaryError(true);
+      }
+    } catch {
+      setSummaryError(true);
+    } finally {
+      setSummaryLoading(false);
+    }
+  }, []);
 
   useEffect(() => {
-    let cancelled = false;
-    (async () => {
-      try {
-        const { documents: docsApi } = await import("@/services/api");
-        const res = (await (docsApi as any).summary?.()) as { data: Summary } | undefined;
-        if (!cancelled && res?.data) setSummary(res.data);
-      } catch {
-        // Non-fatal — dashboard falls back to local counts if the summary endpoint is unavailable
-      }
-    })();
-    return () => { cancelled = true; };
-  }, []);
+    void loadSummary();
+  }, [loadSummary]);
 
   // ── Compute metrics ─────────────────────────────────────────────────────────
 
@@ -87,8 +128,8 @@ export default function DocumentsDashboard() {
       .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())
       .slice(0, 5);
 
-    // Real 30-day retention-expiry bucket from the backend; falls back to 0/empty
-    // (not a fabricated estimate) while the summary request is in flight.
+    // Real 30-day retention-expiry bucket from the backend. The render keeps
+    // this section in an explicit loading/error state until the request settles.
     const expiringCount = summary?.expiring.in30 ?? 0;
     const expiringDocs = (summary?.expiring.documents30 ?? []).map((sd) => ({
       id: sd.id,
@@ -313,7 +354,31 @@ export default function DocumentsDashboard() {
         </View>
 
         {/* ── Expiring soon ── */}
-        {metrics.expiringDocs.length > 0 ? (
+        {summaryLoading ? (
+          <>
+            <Text style={[styles.sectionTitle, { color: colors.mutedForeground }]}>⚠ EXPIRENT BIENTÔT</Text>
+            <View style={[styles.stateCard, { backgroundColor: colors.card, borderColor: colors.border }]}>
+              <LoadingState
+                title={STATE_COPY.loadingTitle[lang]}
+                description={STATE_COPY.loadingDescription[lang]}
+                accentColor="#ef4444"
+              />
+            </View>
+          </>
+        ) : summaryError ? (
+          <>
+            <Text style={[styles.sectionTitle, { color: colors.mutedForeground }]}>⚠ EXPIRENT BIENTÔT</Text>
+            <View style={[styles.stateCard, { backgroundColor: colors.card, borderColor: colors.border }]}>
+              <ErrorState
+                title={STATE_COPY.unavailableTitle[lang]}
+                description={STATE_COPY.unavailableDescription[lang]}
+                retryLabel={STATE_COPY.retry[lang]}
+                onRetry={() => void loadSummary()}
+                accentColor="#ef4444"
+              />
+            </View>
+          </>
+        ) : metrics.expiringDocs.length > 0 ? (
           <>
             <Text style={[styles.sectionTitle, { color: colors.mutedForeground }]}>⚠ EXPIRENT BIENTÔT</Text>
             <View style={[styles.expiringCard, { backgroundColor: "#fef2f2", borderColor: "#fecaca" }]}>
@@ -444,6 +509,7 @@ const styles = StyleSheet.create({
   divider:            { height: 1, marginHorizontal: 14 },
   emptyCard:          { borderRadius: 16, borderWidth: 1, padding: 32, alignItems: "center", gap: 10 },
   emptyText:          { fontSize: 14, fontFamily: "Inter_400Regular" },
+  stateCard:          { borderRadius: 16, borderWidth: 1, overflow: "hidden" },
   quickActions:       { flexDirection: "row", flexWrap: "wrap", gap: 10 },
   quickAction:        { width: "47%", borderRadius: 16, padding: 16, alignItems: "center", gap: 10, borderWidth: 1 },
   quickActionIcon:    { width: 50, height: 50, borderRadius: 14, alignItems: "center", justifyContent: "center" },

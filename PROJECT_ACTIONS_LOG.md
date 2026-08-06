@@ -29,3 +29,6 @@
 - Added the shared animated loading and retryable error states to the ideas list so failed initial loads no longer become a blank surface.
 - Audited `artifacts/mobile/app/tableau-national.tsx` and replaced silent failures for syndicate statistics, national rankings, and selected-syndicate detail enrichment with explicit semantic error states and retry actions.
 - Prevented finance and statistics tabs from presenting zero-valued KPIs when the syndicate overview request failed; the dashboard now clearly distinguishes unavailable data from a genuine empty result.
+- Audited `artifacts/mobile/app/platform-support.tsx` and replaced swallowed ticket-list and ticket-reply failures with explicit loading, unavailable, and retry states; existing role-scoped support API behavior and ticket actions were preserved.
+- Audited `artifacts/mobile/app/admin/marketplace.tsx` and replaced empty-on-error product/report queues with explicit localized recovery states; marketplace counters now show a retryable warning when statistics fail.
+- Audited `artifacts/mobile/app/documents-recycle-bin.tsx` and replaced the silent empty-bin failure path with explicit localized loading and retry states; restore and permanent-purge permissions were preserved.
