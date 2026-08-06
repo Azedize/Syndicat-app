@@ -32,3 +32,6 @@
 - Governance now provides a unified multilingual experience across board management, commissions, mandates, delegations, statutes, detail modals, confirmations, and creation forms.
 - Internal Messaging now provides a unified multilingual experience across official communications, tabs, search, detail metadata, acknowledgment prompts, reply/compose actions, and form feedback.
 - Internal Messaging now distinguishes loading, unavailable data, genuine empty folders, and searches with no matches, with a clear recovery action for each state.
+- Documents Dashboard now provides a consistent multilingual summary, status pipeline, retention-expiry section, recent-document view, and role-scoped quick-action surface.
+- Administrative Acts now distinguishes loading, unavailable data, true empty results, and filtered empty results while keeping its admin-only create, status, and delete actions intact.
+- Sinistres & Incidents now provides a unified four-language experience for claim declaration and monitoring, with contextual loading, retryable recovery, safe error feedback, and guided empty states.

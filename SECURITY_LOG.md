@@ -10,3 +10,6 @@
 - Document Recycle Bin now distinguishes unavailable deleted-document data from a genuine empty archive and does not expose raw API errors; existing restore and Super Admin-only purge controls remain unchanged.
 - Governance localization preserved the existing management-role guard and destructive-action confirmations; member removal and delegation revocation remain explicit user-confirmed actions.
 - Internal Messaging now distinguishes an unavailable announcement response from a genuine empty inbox/sent folder and does not expose raw API errors; existing protected access and announcement API authorization remain unchanged.
+- Documents Dashboard localization preserved the existing role-scoped administrator quick actions and database/API-derived document counts; no client-side fallback statistics were introduced.
+- Administrative Acts retains the existing `RoleGuard` and admin-only mutation controls; its new retry state does not expose raw API errors or alter the `/actes` authorization contract.
+- Sinistres & Incidents retains its existing management-role guard and authenticated API scoping; claim load and create failures now use safe localized messages without exposing raw server details.

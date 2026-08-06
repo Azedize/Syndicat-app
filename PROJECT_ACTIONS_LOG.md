@@ -45,3 +45,9 @@
 - Fixed subscription status-chip rendering in `artifacts/mobile/app/abonnements.tsx` to use localized status helpers instead of undeclared config labels.
 - Audited `artifacts/mobile/app/messagerie-interne.tsx` and replaced remaining visible French-only labels with the shared runtime translation system, including localized type prefixes for newly sent subjects.
 - Added explicit loading, retryable API failure, empty inbox/sent, and search-no-results states to internal messaging; existing announcement creation, acknowledgment feedback, and protected access behavior were preserved.
+- Audited `artifacts/mobile/app/documents-dashboard.tsx` and moved all visible dashboard labels, document status metadata, expiry wording, recent-document copy, and admin quick actions to the shared runtime translation system.
+- Audited `artifacts/mobile/app/actes-administratifs.tsx`; replaced visible French-only copy with shared runtime translations and added explicit retryable loading/error handling for the acts API.
+- Audited `artifacts/mobile/app/sinistres.tsx`; replaced hardcoded claim types, statuses, urgency labels, summaries, form copy, empty state, and action feedback with shared runtime translations.
+- Added explicit claims loading and retryable unavailable-data states; claim submission failures now use safe localized guidance instead of exposing raw API messages.
+- Preserved the existing Sinistres role guard and authenticated server scoping, including the personal-scope behavior for residents handled by the API.
+- Fixed an incorrect named `EmptyState` import and boolean error reset in `artifacts/mobile/app/repertoire-juridique.tsx`, which were blocking the mobile typecheck.

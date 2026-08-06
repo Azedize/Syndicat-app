@@ -11,34 +11,36 @@ import { useAuth } from "@/context/AuthContext";
 import { useBreakpoints } from "@/hooks/useBreakpoints";
 import { useColors } from "@/hooks/useColors";
 import { useToast } from "@/context/ToastContext";
+import { useLanguage } from "@/context/LanguageContext";
 import { apiRequest } from "@/lib/api";
 import EmptyState from "@/components/EmptyState";
+import { ErrorState, LoadingState } from "@/components/DataState";
 import FilterChips from "@/components/FilterChips";
 import StatisticsHeader from "@/components/StatisticsHeader";
 import RoleGuard from "@/components/RoleGuard";
 
 const TYPE_CONFIG: Record<string, { label: string; icon: keyof typeof Feather.glyphMap; color: string }> = {
-  degat_eau:        { label: "Dégât des eaux",     icon: "droplet",       color: "#3b82f6" },
-  incendie:         { label: "Incendie",            icon: "alert-octagon", color: "#ef4444" },
-  vol:              { label: "Vol / Cambriolage",   icon: "unlock",        color: "#f97316" },
-  ascenseur:        { label: "Panne ascenseur",     icon: "chevrons-up",   color: "#2563EB" },
-  dommage_commun:   { label: "Dommage commun",      icon: "tool",          color: "#f59e0b" },
-  autre:            { label: "Autre",               icon: "alert-triangle",color: "#6b7280" },
+  degat_eau:        { label: "sinistreTypeWater",  icon: "droplet",       color: "#3b82f6" },
+  incendie:         { label: "sinistreTypeFire",   icon: "alert-octagon", color: "#ef4444" },
+  vol:              { label: "sinistreTypeTheft",  icon: "unlock",        color: "#f97316" },
+  ascenseur:        { label: "sinistreTypeElevator", icon: "chevrons-up",  color: "#2563EB" },
+  dommage_commun:   { label: "sinistreTypeCommon", icon: "tool",          color: "#f59e0b" },
+  autre:            { label: "sinistreTypeOther",  icon: "alert-triangle",color: "#6b7280" },
 };
 
 const STATUS_CONFIG: Record<string, { label: string; color: string }> = {
-  declared:    { label: "Déclaré",          color: "#f59e0b" },
-  in_progress: { label: "En cours",         color: "#3b82f6" },
-  expert:      { label: "Expertise",        color: "#2563EB" },
-  repair:      { label: "Réparation",       color: "#f97316" },
-  closed:      { label: "Clôturé",          color: "#10b981" },
+  declared:    { label: "sinistreStatusDeclared", color: "#f59e0b" },
+  in_progress: { label: "sinistreStatusProgress", color: "#3b82f6" },
+  expert:      { label: "sinistreStatusExpert", color: "#2563EB" },
+  repair:      { label: "sinistreStatusRepair", color: "#f97316" },
+  closed:      { label: "sinistreStatusClosed", color: "#10b981" },
 };
 
 const URGENCY_CONFIG: Record<string, { label: string; color: string; icon: keyof typeof Feather.glyphMap }> = {
-  low:      { label: "Faible",   color: "#10b981", icon: "arrow-down-circle" },
-  medium:   { label: "Moyen",    color: "#f59e0b", icon: "minus-circle" },
-  high:     { label: "Élevé",    color: "#f97316", icon: "arrow-up-circle" },
-  critical: { label: "Critique", color: "#ef4444", icon: "alert-octagon" },
+  low:      { label: "sinistreUrgencyLow", color: "#10b981", icon: "arrow-down-circle" },
+  medium:   { label: "sinistreUrgencyMedium", color: "#f59e0b", icon: "minus-circle" },
+  high:     { label: "sinistreUrgencyHigh", color: "#f97316", icon: "arrow-up-circle" },
+  critical: { label: "sinistreUrgencyCritical", color: "#ef4444", icon: "alert-octagon" },
 };
 
 type Sinistre = {
@@ -69,6 +71,7 @@ function SinistresScreenInner() {
   const colors = useColors();
   const insets = useSafeAreaInsets();
   const { user, token } = useAuth();
+  const { t } = useLanguage();
   const { isWide } = useBreakpoints();
   const topPad = isWide ? 0 : Platform.OS === "web" ? 67 : insets.top;
 
@@ -76,6 +79,7 @@ function SinistresScreenInner() {
 
   const [sinistres, setSinistres] = useState<Sinistre[]>([]);
   const [loading, setLoading] = useState(true);
+  const [loadError, setLoadError] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
   const [showModal, setShowModal] = useState(false);
   // President chairs governance meetings on sinistres; committee_member votes on remediation.
@@ -88,10 +92,15 @@ function SinistresScreenInner() {
 
   const load = useCallback(async (silent = false) => {
     try {
-      if (!silent) setLoading(true);
+      if (!silent) {
+        setLoading(true);
+        setLoadError(false);
+      }
       const data = await apiRequest("/sinistres", "GET", undefined, token);
       setSinistres(data.data ?? []);
-    } catch (e: any) { if (!silent) showToast({ type: "error", title: "Erreur de chargement", message: e?.message ?? "Impossible de charger les sinistres." }); }
+    } catch {
+      if (!silent) setLoadError(true);
+    }
     finally { setLoading(false); setRefreshing(false); }
   }, [token]);
 
@@ -99,7 +108,10 @@ function SinistresScreenInner() {
   const onRefresh = () => { setRefreshing(true); load(true); };
 
   const handleSubmit = async () => {
-    if (!form.description.trim()) { showToast({ type: "warning", title: "Champ requis", message: "La description est obligatoire." }); return; }
+    if (!form.description.trim()) {
+      showToast({ type: "warning", title: t("requiredFields"), message: t("sinistreDescriptionRequired") });
+      return;
+    }
     try {
       setSubmitting(true);
       await apiRequest("/sinistres", "POST", {
@@ -112,10 +124,10 @@ function SinistresScreenInner() {
       }, token);
       setShowModal(false);
       setForm({ type: "degat_eau", urgency: "medium", description: "", date: new Date().toISOString().split("T")[0], buildingId: "", estimatedAmount: "" });
-      showToast({ type: "success", title: "Sinistre déclaré", message: "Votre déclaration a été enregistrée." });
+      showToast({ type: "success", title: t("sinistreDeclaredTitle"), message: t("sinistreDeclaredMessage") });
       load(true);
     } catch (e: any) {
-      showToast({ type: "error", title: "Erreur", message: e?.message ?? "Impossible de déclarer le sinistre." });
+      showToast({ type: "error", title: t("error"), message: t("sinistreCreateError") });
     } finally { setSubmitting(false); }
   };
 
@@ -130,8 +142,8 @@ function SinistresScreenInner() {
           <Feather name="arrow-left" size={22} color="#fff" />
         </TouchableOpacity>
         <View style={{ flex: 1 }}>
-          <Text style={styles.headerTitle}>Sinistres & Incidents</Text>
-          <Text style={styles.headerSub}>{sinistres.length} sinistre{sinistres.length !== 1 ? "s" : ""} déclaré{sinistres.length !== 1 ? "s" : ""}</Text>
+          <Text style={styles.headerTitle}>{t("sinistresTitle")} &amp; {t("incidents")}</Text>
+          <Text style={styles.headerSub}>{t("sinistreDeclaredCount").replace("{count}", String(sinistres.length))}</Text>
         </View>
         <TouchableOpacity style={styles.addBtn} onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); setShowModal(true); }}>
           <Feather name="plus" size={20} color="#fff" />
@@ -141,10 +153,10 @@ function SinistresScreenInner() {
       {/* Stats */}
       <View style={[styles.statsRow, { backgroundColor: colors.card, borderBottomColor: colors.border }]}>
         {[
-          { label: "Total", value: sinistres.length, color: "#ef4444" },
-          { label: "En cours", value: open, color: "#f97316" },
-          { label: "Clôturés", value: closed, color: "#10b981" },
-          { label: "Estimé", value: totalEstimated > 0 ? `${(totalEstimated / 1000).toFixed(0)}k` : "0", color: "#2563EB" },
+          { label: "total", value: sinistres.length, color: "#ef4444" },
+          { label: "sinistreOpen", value: open, color: "#f97316" },
+          { label: "sinistreClosed", value: closed, color: "#10b981" },
+          { label: "sinistreEstimated", value: totalEstimated > 0 ? `${(totalEstimated / 1000).toFixed(0)}k` : "0", color: "#2563EB" },
         ].map((s, i, arr) => (
           <View key={s.label} style={[styles.statCell, i < arr.length - 1 && { borderRightWidth: 1, borderRightColor: colors.border }]}>
             <Text style={[styles.statVal, { color: s.color }]}>{s.value}</Text>
@@ -154,7 +166,15 @@ function SinistresScreenInner() {
       </View>
 
       {loading ? (
-        <View style={styles.center}><ActivityIndicator color="#ef4444" size="large" /></View>
+        <LoadingState title={t("sinistresLoadingTitle")} description={t("sinistresLoadingDescription")} accentColor="#ef4444" />
+      ) : loadError ? (
+        <ErrorState
+          title={t("sinistresUnavailableTitle")}
+          description={t("sinistresUnavailableDescription")}
+          retryLabel={t("retry")}
+          onRetry={() => void load()}
+          accentColor="#ef4444"
+        />
       ) : (
         <ScrollView
           contentContainerStyle={[styles.list, { paddingBottom: isWide ? 32 : insets.bottom + 100 }]}
@@ -164,9 +184,9 @@ function SinistresScreenInner() {
           {sinistres.length === 0 ? (
             <EmptyState
               icon="shield"
-              title="Aucun sinistre"
-              description="Aucun incident déclaré. Votre immeuble est bien protégé."
-              actionLabel="Déclarer un sinistre"
+              title={t("noSinistres")}
+              description={t("sinistresEmptyDescription")}
+              actionLabel={t("newSinistre")}
               onAction={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); setShowModal(true); }}
               accentColor="#10b981"
             />
@@ -182,20 +202,20 @@ function SinistresScreenInner() {
                       <Feather name={tc.icon} size={22} color={tc.color} />
                     </View>
                     <View style={{ flex: 1 }}>
-                      <Text style={[styles.cardType, { color: tc.color }]}>{tc.label}</Text>
+                      <Text style={[styles.cardType, { color: tc.color }]}>{t(tc.label)}</Text>
                       <Text style={[styles.cardDate, { color: colors.mutedForeground }]}>
-                        {s.date}{s.lot ? ` — Lot ${s.lot.number}` : ""}{s.reportedByName ? ` — ${s.reportedByName}` : ""}
+                        {s.date}{s.lot ? ` — ${t("lot")} ${s.lot.number}` : ""}{s.reportedByName ? ` — ${s.reportedByName}` : ""}
                       </Text>
                     </View>
                     <View style={{ alignItems: "flex-end", gap: 4 }}>
                       <View style={[styles.statusBadge, { backgroundColor: sc.color + "18" }]}>
-                        <Text style={[styles.statusText, { color: sc.color }]}>{sc.label}</Text>
+                        <Text style={[styles.statusText, { color: sc.color }]}>{t(sc.label)}</Text>
                       </View>
                       {s.urgency ? (() => {
                         const uc = URGENCY_CONFIG[s.urgency] ?? URGENCY_CONFIG.medium;
                         return (
                           <View style={[styles.statusBadge, { backgroundColor: uc.color + "18" }]}>
-                            <Text style={[styles.statusText, { color: uc.color }]}>{uc.label}</Text>
+                            <Text style={[styles.statusText, { color: uc.color }]}>{t(uc.label)}</Text>
                           </View>
                         );
                       })() : null}
@@ -208,13 +228,13 @@ function SinistresScreenInner() {
                     {s.claimNumber ? (
                       <View style={styles.footerItem}>
                         <Feather name="hash" size={12} color={colors.mutedForeground} />
-                        <Text style={[styles.footerText, { color: colors.mutedForeground }]}>Dossier: {s.claimNumber}</Text>
+                        <Text style={[styles.footerText, { color: colors.mutedForeground }]}>{t("sinistreDossier")}: {s.claimNumber}</Text>
                       </View>
                     ) : null}
                     {s.estimatedAmount ? (
                       <Text style={[styles.footerAmt, { color: colors.mutedForeground }]}>
                         ~{(Number(s.estimatedAmount) || 0).toLocaleString("fr-MA")} MAD
-                        {s.indemnisedAmount ? ` / Indemnisé: ${(Number(s.indemnisedAmount) || 0).toLocaleString("fr-MA")} MAD` : ""}
+                        {s.indemnisedAmount ? ` / ${t("sinistreIndemnised")}: ${(Number(s.indemnisedAmount) || 0).toLocaleString("fr-MA")} MAD` : ""}
                       </Text>
                     ) : null}
                   </View>
@@ -228,45 +248,45 @@ function SinistresScreenInner() {
       <Modal visible={showModal} animationType="slide" presentationStyle="pageSheet" onRequestClose={() => setShowModal(false)}>
         <View style={[styles.modal, { backgroundColor: colors.background }]}>
           <View style={[styles.modalHeader, { borderBottomColor: colors.border }]}>
-            <Text style={[styles.modalTitle, { color: colors.foreground }]}>Déclarer un Sinistre</Text>
+            <Text style={[styles.modalTitle, { color: colors.foreground }]}>{t("sinistreDeclareTitle")}</Text>
             <TouchableOpacity onPress={() => setShowModal(false)}><Feather name="x" size={22} color={colors.foreground} /></TouchableOpacity>
           </View>
           <ScrollView contentContainerStyle={styles.modalBody}>
-            <Text style={[styles.fieldLabel, { color: colors.mutedForeground }]}>Type de sinistre</Text>
+            <Text style={[styles.fieldLabel, { color: colors.mutedForeground }]}>{t("sinistreType")}</Text>
             <View style={styles.typeGrid}>
               {Object.entries(TYPE_CONFIG).map(([k, v]) => (
                 <TouchableOpacity key={k}
                   style={[styles.typeBtn, { backgroundColor: form.type === k ? v.color : colors.secondary, borderColor: form.type === k ? v.color : colors.border }]}
                   onPress={() => setForm((p) => ({ ...p, type: k }))}>
                   <Feather name={v.icon} size={16} color={form.type === k ? "#fff" : v.color} />
-                  <Text style={[styles.typeBtnText, { color: form.type === k ? "#fff" : colors.foreground }]}>{v.label}</Text>
+                   <Text style={[styles.typeBtnText, { color: form.type === k ? "#fff" : colors.foreground }]}>{t(v.label)}</Text>
                 </TouchableOpacity>
               ))}
             </View>
 
-            <Text style={[styles.fieldLabel, { color: colors.mutedForeground }]}>Niveau d'urgence</Text>
+            <Text style={[styles.fieldLabel, { color: colors.mutedForeground }]}>{t("sinistreUrgency")}</Text>
             <View style={styles.typeGrid}>
               {Object.entries(URGENCY_CONFIG).map(([k, v]) => (
                 <TouchableOpacity key={k}
                   style={[styles.typeBtn, { backgroundColor: form.urgency === k ? v.color : colors.secondary, borderColor: form.urgency === k ? v.color : colors.border }]}
                   onPress={() => setForm((p) => ({ ...p, urgency: k }))}>
                   <Feather name={v.icon} size={14} color={form.urgency === k ? "#fff" : v.color} />
-                  <Text style={[styles.typeBtnText, { color: form.urgency === k ? "#fff" : colors.foreground }]}>{v.label}</Text>
+                   <Text style={[styles.typeBtnText, { color: form.urgency === k ? "#fff" : colors.foreground }]}>{t(v.label)}</Text>
                 </TouchableOpacity>
               ))}
             </View>
 
-            <Text style={[styles.fieldLabel, { color: colors.mutedForeground }]}>Description *</Text>
+            <Text style={[styles.fieldLabel, { color: colors.mutedForeground }]}>{t("description")} *</Text>
             <TextInput
               style={[styles.input, styles.textarea, { backgroundColor: colors.card, borderColor: colors.border, color: colors.foreground }]}
-              placeholder="Décrivez le sinistre en détail..."
+              placeholder={t("sinistreDescriptionPlaceholder")}
               placeholderTextColor={colors.mutedForeground}
               value={form.description}
               onChangeText={(v) => setForm((p) => ({ ...p, description: v }))}
               multiline numberOfLines={4} textAlignVertical="top"
             />
 
-            <Text style={[styles.fieldLabel, { color: colors.mutedForeground }]}>Date du sinistre</Text>
+            <Text style={[styles.fieldLabel, { color: colors.mutedForeground }]}>{t("sinistreDate")}</Text>
             <TextInput
               style={[styles.input, { backgroundColor: colors.card, borderColor: colors.border, color: colors.foreground }]}
               placeholder="YYYY-MM-DD"
@@ -275,10 +295,10 @@ function SinistresScreenInner() {
               onChangeText={(v) => setForm((p) => ({ ...p, date: v }))}
             />
 
-            <Text style={[styles.fieldLabel, { color: colors.mutedForeground }]}>Estimation des dommages (MAD)</Text>
+            <Text style={[styles.fieldLabel, { color: colors.mutedForeground }]}>{t("sinistreEstimatedDamage")}</Text>
             <TextInput
               style={[styles.input, { backgroundColor: colors.card, borderColor: colors.border, color: colors.foreground }]}
-              placeholder="Ex: 15000"
+              placeholder={t("sinistreEstimatedPlaceholder")}
               placeholderTextColor={colors.mutedForeground}
               value={form.estimatedAmount}
               onChangeText={(v) => setForm((p) => ({ ...p, estimatedAmount: v }))}
@@ -288,7 +308,7 @@ function SinistresScreenInner() {
             <TouchableOpacity
               style={[styles.submitBtn, { backgroundColor: "#ef4444", opacity: submitting ? 0.7 : 1 }]}
               onPress={handleSubmit} disabled={submitting}>
-              {submitting ? <ActivityIndicator color="#fff" size="small" /> : <Text style={styles.submitText}>Déclarer le sinistre</Text>}
+              {submitting ? <ActivityIndicator color="#fff" size="small" /> : <Text style={styles.submitText}>{t("sinistreDeclareAction")}</Text>}
             </TouchableOpacity>
           </ScrollView>
         </View>

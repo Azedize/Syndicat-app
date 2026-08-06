@@ -36,3 +36,8 @@
 - Corrected subscription status chips to use the existing localized status helpers, restoring the mobile package typecheck after the governance audit.
 - Completed the internal messaging UX pass: localized message types, inbox/sent tabs, search, detail metadata, acknowledgment actions, compose form, and message feedback across French, English, Arabic, and Spanish.
 - Added contextual loading, retryable unavailable-data recovery, and a distinct search-no-results state to internal messaging without changing announcement persistence or role behavior.
+- Completed the Documents Dashboard localization pass: summary metrics, status widgets, validation pipeline, expiry section, recent documents, status badges, and admin quick actions now follow the active language.
+- Completed the Administrative Acts pass: localized lifecycle labels, filters, detail and creation forms, confirmations, action feedback, and protected retryable loading/error states.
+- Completed the Sinistres & Incidents enterprise UX pass: localized claim types, statuses, urgency levels, summaries, forms, empty states, and feedback across French, English, Arabic, and Spanish.
+- Added a contextual loading state and retryable unavailable-data recovery to claims without changing the existing role guard or server-side syndicate scoping.
+- Cleared two unrelated mobile typecheck blockers in the legal directory so the package verification completed cleanly.

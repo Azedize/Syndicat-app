@@ -17,3 +17,6 @@
 - Buildings & Residences now translates overview metrics, filters, sort options, search/results copy, empty/recovery states, building metadata, and status labels for `fr`, `en`, `ar`, and `es`.
 - Governance now translates board, commission, mandate, delegation, statute, profile, confirmation, appointment, and form copy for `fr`, `en`, `ar`, and `es`, including dynamic member and position names.
 - Internal Messaging now translates message type metadata, sender/recipient fallbacks, tabs, search, empty/recovery states, acknowledgment copy, detail labels, priorities, compose fields, and send feedback for `fr`, `en`, `ar`, and `es`.
+- Documents Dashboard now translates its overview, counts, lifecycle widgets, validation pipeline, retention expiry, recent-document state, status badges, and administrator actions for `fr`, `en`, `ar`, and `es`.
+- Administrative Acts now translates lifecycle status/type labels, filters, detail metadata, signatory and recipient sections, PDF/share/delete actions, creation form labels/placeholders, validation feedback, and action errors for `fr`, `en`, `ar`, and `es`.
+- Sinistres & Incidents now translates claim types, lifecycle statuses, urgency levels, counters, empty/loading/recovery states, declaration form labels/placeholders, and submission feedback for `fr`, `en`, `ar`, and `es`.

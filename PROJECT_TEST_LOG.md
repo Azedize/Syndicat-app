@@ -57,3 +57,13 @@
 - `pnpm exec prettier --write artifacts/mobile/app/messagerie-interne.tsx artifacts/mobile/context/LanguageContext.tsx` followed by typecheck — passed.
 - `git diff --check -- artifacts/mobile/app/messagerie-interne.tsx artifacts/mobile/context/LanguageContext.tsx` — passed.
 - Mobile Expo preview screenshot for `/messagerie-interne` at 402×874 — protected route redirected to sign-in without a session; API 401 was expected authorization behavior and no new browser errors appeared beyond existing Expo web compatibility warnings.
+- `pnpm --filter @workspace/mobile run typecheck` — passed after the Documents Dashboard localization pass.
+- `git diff --check -- artifacts/mobile/app/documents-dashboard.tsx artifacts/mobile/context/LanguageContext.tsx` — passed.
+- Mobile Expo preview screenshot for `/documents-dashboard` at 402×874 — protected route stopped at the expected unauthenticated boundary; `/api/documents/summary` returned expected 401 and no new browser errors appeared beyond existing Expo web compatibility warnings.
+- `pnpm --filter @workspace/mobile run typecheck` — passed after the Administrative Acts localization and recoverable-state pass.
+- `git diff --check -- artifacts/mobile/app/actes-administratifs.tsx artifacts/mobile/context/LanguageContext.tsx` — passed.
+- Mobile Expo workflow restarted successfully and previewed `/actes-administratifs` at 402×874; protected unauthenticated boundary remained clean with no new browser errors beyond existing Expo compatibility warnings.
+- `pnpm --filter @workspace/mobile run typecheck` — passed after the Sinistres & Incidents pass and legal-directory typecheck cleanup.
+- `git diff --check -- artifacts/mobile/app/sinistres.tsx artifacts/mobile/context/LanguageContext.tsx artifacts/mobile/app/repertoire-juridique.tsx` — passed.
+- Restarted `artifacts/mobile: expo`; Metro started successfully. API workflow also restarted successfully with one existing non-blocking duplicate-schema-key warning.
+- Mobile Expo preview screenshot for `/sinistres` at 402×874 — protected route remained safely inaccessible without a session; `/welcome` rendered successfully. Browser logs contained only existing Expo web compatibility warnings.
