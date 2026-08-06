@@ -26,3 +26,7 @@
 - `pnpm --filter @workspace/mobile run typecheck` after the Ideas & Proposals pass — passed.
 - `git diff --check -- artifacts/mobile/app/ideas.tsx PROJECT_PROGRESS.md PROJECT_ACTIONS_LOG.md UI_UX_ENTERPRISE_PROGRESS.md TRANSLATION_LOG.md SECURITY_LOG.md` — passed.
 - Mobile Expo preview screenshot for `/ideas` at 402×874 — protected route correctly redirected to `/welcome` without a session; `/welcome` rendered successfully. Existing Expo web compatibility warnings remain non-blocking.
+- `pnpm --filter @workspace/mobile run typecheck` after the national dashboard recovery pass — passed.
+- `git diff --check -- artifacts/mobile/app/tableau-national.tsx` — passed.
+- Mobile workflow restarted after the dashboard change; fresh Metro bundle completed without syntax or transform errors.
+- Mobile Expo preview screenshot for `/tableau-national` at 402×874 — protected route correctly redirected to `/welcome` without a session; `/welcome` rendered successfully. Existing Expo web compatibility warnings remain non-blocking.

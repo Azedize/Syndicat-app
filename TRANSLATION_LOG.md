@@ -8,3 +8,4 @@
 - Payroll screen now translates titles, record counts, statistics, statuses, payment actions, confirmation dialogs, validation messages, form labels, placeholders, and feedback for `fr`, `en`, `ar`, and `es`.
 - Provider management now translates provider types, filters, statistics, contract details, upload guidance, validation dialogs, form labels, placeholders, and creation feedback for `fr`, `en`, `ar`, and `es`.
 - Ideas & Proposals now translates categories, statuses, pluralized counts, form labels/placeholders, decisions, empty/loading/error states, and action feedback for `fr`, `en`, `ar`, and `es`.
+- National dashboard recovery messages now support `fr`, `en`, `ar`, and `es` for syndicate, ranking, and detail-data loading failures.

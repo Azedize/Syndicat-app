@@ -27,3 +27,5 @@
 - Updated the shared role guard to wait for session restoration and explicitly redirect unauthenticated users to `/welcome`; authorized-role enforcement remains unchanged.
 - Audited `artifacts/mobile/app/ideas.tsx`: removed French-only category/status/action copy, replaced raw API error exposure, and added localized success/error feedback for submission, voting, and review decisions.
 - Added the shared animated loading and retryable error states to the ideas list so failed initial loads no longer become a blank surface.
+- Audited `artifacts/mobile/app/tableau-national.tsx` and replaced silent failures for syndicate statistics, national rankings, and selected-syndicate detail enrichment with explicit semantic error states and retry actions.
+- Prevented finance and statistics tabs from presenting zero-valued KPIs when the syndicate overview request failed; the dashboard now clearly distinguishes unavailable data from a genuine empty result.

@@ -17,6 +17,7 @@ import {
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useData } from "@/context/DataContext";
+import { useLanguage } from "@/context/LanguageContext";
 import { useBreakpoints } from "@/hooks/useBreakpoints";
 import { useColors } from "@/hooks/useColors";
 import { statistics, chat as chatApi, type EnrichedSyndicate } from "@/services/api";
@@ -25,6 +26,7 @@ import { useAuth } from "@/context/AuthContext";
 import SyndicateCard, { type SyndicateCardData } from "@/components/SyndicateCard";
 import FilterChips from "@/components/FilterChips";
 import RoleGuard from "@/components/RoleGuard";
+import { ErrorState, LoadingState } from "@/components/DataState";
 
 interface SyndicateStat {
   id: string;
@@ -81,6 +83,75 @@ const ALERT_TYPE_CONFIG = {
   critical: { color: "#ef4444", bg: "#ef444418", icon: "alert-circle" as const },
 };
 
+const STATE_COPY = {
+  loadingSyndicates: {
+    fr: "Chargement des syndicats",
+    en: "Loading syndicates",
+    ar: "جارٍ تحميل النقابات",
+    es: "Cargando sindicatos",
+  },
+  loadingSyndicatesDescription: {
+    fr: "Nous récupérons les données de la plateforme.",
+    en: "We are retrieving the platform data.",
+    ar: "نحن نسترجع بيانات المنصة.",
+    es: "Estamos recuperando los datos de la plataforma.",
+  },
+  loadingRankings: {
+    fr: "Calcul du classement",
+    en: "Loading ranking",
+    ar: "جارٍ تحميل الترتيب",
+    es: "Cargando clasificación",
+  },
+  loadingRankingsDescription: {
+    fr: "Nous préparons les scores nationaux.",
+    en: "We are preparing the national scores.",
+    ar: "نحن نجهز النتائج الوطنية.",
+    es: "Estamos preparando las puntuaciones nacionales.",
+  },
+  loadingDetails: {
+    fr: "Chargement des détails",
+    en: "Loading details",
+    ar: "جارٍ تحميل التفاصيل",
+    es: "Cargando detalles",
+  },
+  loadingDetailsDescription: {
+    fr: "Nous récupérons les informations du syndicat.",
+    en: "We are retrieving the syndicate information.",
+    ar: "نحن نسترجع معلومات النقابة.",
+    es: "Estamos recuperando la información del sindicato.",
+  },
+  unavailableTitle: {
+    fr: "Données indisponibles",
+    en: "Data unavailable",
+    ar: "البيانات غير متاحة",
+    es: "Datos no disponibles",
+  },
+  syndicatesUnavailable: {
+    fr: "La liste des syndicats n'est pas disponible pour le moment. Vérifiez votre connexion puis réessayez.",
+    en: "The syndicate list is unavailable right now. Check your connection and try again.",
+    ar: "قائمة النقابات غير متاحة حالياً. تحقق من الاتصال ثم أعد المحاولة.",
+    es: "La lista de sindicatos no está disponible ahora. Compruebe su conexión e inténtelo de nuevo.",
+  },
+  rankingsUnavailable: {
+    fr: "Le classement national n'est pas disponible pour le moment. Réessayez pour actualiser les scores.",
+    en: "The national ranking is unavailable right now. Retry to refresh the scores.",
+    ar: "الترتيب الوطني غير متاح حالياً. أعد المحاولة لتحديث النتائج.",
+    es: "La clasificación nacional no está disponible ahora. Reintente para actualizar las puntuaciones.",
+  },
+  detailsUnavailable: {
+    fr: "Les informations détaillées ne sont pas disponibles. Réessayez sans fermer cette fiche.",
+    en: "The detailed information is unavailable. Retry without closing this record.",
+    ar: "المعلومات التفصيلية غير متاحة. أعد المحاولة دون إغلاق هذا السجل.",
+    es: "La información detallada no está disponible. Reintente sin cerrar esta ficha.",
+  },
+  retry: {
+    fr: "Réessayer",
+    en: "Retry",
+    ar: "إعادة المحاولة",
+    es: "Reintentar",
+  },
+} as const;
+
 function mapEnrichedToStat(e: EnrichedSyndicate): SyndicateStat {
   return {
     id: e.id,
@@ -114,6 +185,7 @@ function TableauNationalScreenInner() {
   const topPad = isWide ? 0 : (Platform.OS === "web" ? 67 : insets.top);
   const { alerts } = useData();
   const { token } = useAuth();
+  const { lang } = useLanguage();
 
   const [tab, setTab] = useState<TabType>("syndicats");
   const [selectedSyndicat, setSelectedSyndicat] = useState<SyndicateStat | null>(null);
@@ -121,49 +193,78 @@ function TableauNationalScreenInner() {
   const [filterHealth, setFilterHealth] = useState<"all" | "healthy" | "warning" | "critical">("all");
   const [syndicats, setSyndicats] = useState<SyndicateStat[]>([]);
   const [loading, setLoading] = useState(true);
+  const [syndicatsError, setSyndicatsError] = useState(false);
   const [rankings, setRankings] = useState<RankingRow[]>([]);
   const [rankingsLoading, setRankingsLoading] = useState(false);
+  const [rankingsError, setRankingsError] = useState(false);
 
   // Syndicate detail enrichment
   const [syndicateFullData, setSyndicateFullData] = useState<Record<string, any> | null>(null);
   const [syndicateMembers, setSyndicateMembers] = useState<any[]>([]);
   const [syndicateDetailLoading, setSyndicateDetailLoading] = useState(false);
+  const [syndicateDetailError, setSyndicateDetailError] = useState(false);
 
-  useEffect(() => {
+  const loadSyndicates = useCallback(async () => {
     setLoading(true);
-    statistics.syndicates()
-      .then((res) => setSyndicats(res.data.map(mapEnrichedToStat)))
-      .catch(() => {})
-      .finally(() => setLoading(false));
+    setSyndicatsError(false);
+    try {
+      const res = await statistics.syndicates();
+      setSyndicats(res.data.map(mapEnrichedToStat));
+    } catch {
+      setSyndicatsError(true);
+    } finally {
+      setLoading(false);
+    }
   }, []);
 
   useEffect(() => {
-    if (tab !== "classement") return;
+    void loadSyndicates();
+  }, [loadSyndicates]);
+
+  const loadRankings = useCallback(async () => {
     setRankingsLoading(true);
-    apiRequest("/rankings", "GET", undefined, token)
-      .then((data) => setRankings(data.data ?? []))
-      .catch(() => {})
-      .finally(() => setRankingsLoading(false));
-  }, [tab, token]);
+    setRankingsError(false);
+    try {
+      const data = await apiRequest("/rankings", "GET", undefined, token);
+      setRankings(data.data ?? []);
+    } catch {
+      setRankingsError(true);
+    } finally {
+      setRankingsLoading(false);
+    }
+  }, [token]);
 
   useEffect(() => {
+    if (tab !== "classement") return;
+    void loadRankings();
+  }, [tab, loadRankings]);
+
+  const loadSyndicateDetails = useCallback(async () => {
     if (!selectedSyndicat) {
       setSyndicateFullData(null);
       setSyndicateMembers([]);
+      setSyndicateDetailError(false);
       return;
     }
     setSyndicateDetailLoading(true);
-    Promise.all([
-      apiRequest(`/syndicates/${selectedSyndicat.id}`, "GET", undefined, token),
-      apiRequest(`/members?syndicateId=${selectedSyndicat.id}&limit=50`, "GET", undefined, token),
-    ])
-      .then(([syndRes, membersRes]) => {
-        setSyndicateFullData((syndRes as any).data ?? null);
-        setSyndicateMembers((membersRes as any).data ?? []);
-      })
-      .catch(() => {})
-      .finally(() => setSyndicateDetailLoading(false));
+    setSyndicateDetailError(false);
+    try {
+      const [syndRes, membersRes] = await Promise.all([
+        apiRequest(`/syndicates/${selectedSyndicat.id}`, "GET", undefined, token),
+        apiRequest(`/members?syndicateId=${selectedSyndicat.id}&limit=50`, "GET", undefined, token),
+      ]);
+      setSyndicateFullData((syndRes as any).data ?? null);
+      setSyndicateMembers((membersRes as any).data ?? []);
+    } catch {
+      setSyndicateDetailError(true);
+    } finally {
+      setSyndicateDetailLoading(false);
+    }
   }, [selectedSyndicat?.id, token]);
+
+  useEffect(() => {
+    void loadSyndicateDetails();
+  }, [loadSyndicateDetails]);
 
   const handleContactAdmin = useCallback(async (syndicat: SyndicateStat) => {
     if (contactingAdmin) return;
@@ -203,6 +304,7 @@ function TableauNationalScreenInner() {
   const avgCotisation = syndicats.length > 0 ? Math.round(syndicats.reduce((s, x) => s + x.cotisationRate, 0) / syndicats.length) : 0;
   const criticalCount = syndicats.filter((x) => x.status === "critical").length;
   const criticalAlerts = platformAlerts.filter((a) => a.type === "critical").length;
+  const nationalDataUnavailable = syndicatsError;
 
   const filteredSyndicats = syndicats.filter((s) => filterHealth === "all" || s.status === filterHealth);
 
@@ -223,7 +325,11 @@ function TableauNationalScreenInner() {
         <View style={{ flex: 1 }}>
           <Text style={[styles.title, { color: colors.foreground }]}>Tableau National</Text>
           <Text style={[styles.subtitle, { color: colors.mutedForeground }]}>
-            {loading ? "Chargement..." : `${syndicats.length} syndicats · ${totalMembers.toLocaleString()} membres au total`}
+            {loading
+              ? "Chargement..."
+              : nationalDataUnavailable
+                ? STATE_COPY.unavailableTitle[lang]
+                : `${syndicats.length} syndicats · ${totalMembers.toLocaleString()} membres au total`}
           </Text>
         </View>
         <View style={[styles.platformBadge, { backgroundColor: colors.primary + "15" }]}>
@@ -294,10 +400,19 @@ function TableauNationalScreenInner() {
 
       {tab === "syndicats" ? (
         loading ? (
-          <View style={{ flex: 1, alignItems: "center", justifyContent: "center", gap: 12 }}>
-            <ActivityIndicator size="large" color={colors.primary} />
-            <Text style={{ fontFamily: "Inter_400Regular", fontSize: 13, color: colors.mutedForeground }}>Chargement des syndicats...</Text>
-          </View>
+          <LoadingState
+            title={STATE_COPY.loadingSyndicates[lang]}
+            description={STATE_COPY.loadingSyndicatesDescription[lang]}
+            accentColor={colors.primary}
+          />
+        ) : syndicatsError ? (
+          <ErrorState
+            title={STATE_COPY.unavailableTitle[lang]}
+            description={STATE_COPY.syndicatesUnavailable[lang]}
+            retryLabel={STATE_COPY.retry[lang]}
+            onRetry={() => void loadSyndicates()}
+            accentColor={colors.primary}
+          />
         ) : (
           <>
             <FilterChips
@@ -401,6 +516,15 @@ function TableauNationalScreenInner() {
           }}
         />
       ) : tab === "finances" ? (
+        nationalDataUnavailable ? (
+          <ErrorState
+            title={STATE_COPY.unavailableTitle[lang]}
+            description={STATE_COPY.syndicatesUnavailable[lang]}
+            retryLabel={STATE_COPY.retry[lang]}
+            onRetry={() => void loadSyndicates()}
+            accentColor={colors.primary}
+          />
+        ) : (
         <ScrollView contentContainerStyle={{ padding: 16, gap: 14, paddingBottom: insets.bottom + 80 }}>
           <View style={[styles.financeHero, { backgroundColor: colors.primary }]}>
             <View style={styles.financeHeroRow}>
@@ -474,7 +598,17 @@ function TableauNationalScreenInner() {
             ))}
           </View>
         </ScrollView>
+        )
       ) : tab === "stats" ? (
+        nationalDataUnavailable ? (
+          <ErrorState
+            title={STATE_COPY.unavailableTitle[lang]}
+            description={STATE_COPY.syndicatesUnavailable[lang]}
+            retryLabel={STATE_COPY.retry[lang]}
+            onRetry={() => void loadSyndicates()}
+            accentColor={colors.primary}
+          />
+        ) : (
         <ScrollView contentContainerStyle={{ padding: 16, gap: 14, paddingBottom: insets.bottom + 80 }}>
           <View style={[styles.statCard, { backgroundColor: colors.card, borderColor: colors.border }]}>
             <View style={styles.statCardHeader}>
@@ -591,12 +725,22 @@ function TableauNationalScreenInner() {
             ))}
           </View>
         </ScrollView>
+        )
       ) : tab === "classement" ? (
         rankingsLoading ? (
-          <View style={{ flex: 1, alignItems: "center", justifyContent: "center", gap: 12 }}>
-            <ActivityIndicator size="large" color="#f59e0b" />
-            <Text style={{ fontFamily: "Inter_400Regular", fontSize: 13, color: colors.mutedForeground }}>Calcul du classement...</Text>
-          </View>
+          <LoadingState
+            title={STATE_COPY.loadingRankings[lang]}
+            description={STATE_COPY.loadingRankingsDescription[lang]}
+            accentColor="#f59e0b"
+          />
+        ) : rankingsError ? (
+          <ErrorState
+            title={STATE_COPY.unavailableTitle[lang]}
+            description={STATE_COPY.rankingsUnavailable[lang]}
+            retryLabel={STATE_COPY.retry[lang]}
+            onRetry={() => void loadRankings()}
+            accentColor="#f59e0b"
+          />
         ) : (
           <FlatList
             data={rankings}
@@ -722,6 +866,14 @@ function TableauNationalScreenInner() {
                     {/* Extended info from full API fetch */}
                     {syndicateDetailLoading ? (
                       <ActivityIndicator color={colors.primary} />
+                    ) : syndicateDetailError ? (
+                      <ErrorState
+                        title={STATE_COPY.unavailableTitle[lang]}
+                        description={STATE_COPY.detailsUnavailable[lang]}
+                        retryLabel={STATE_COPY.retry[lang]}
+                        onRetry={() => void loadSyndicateDetails()}
+                        accentColor={colors.primary}
+                      />
                     ) : syndicateFullData ? (
                       <View style={[styles.infoCard, { backgroundColor: colors.card, borderColor: colors.border }]}>
                         <View style={styles.infoRow}>

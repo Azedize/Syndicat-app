@@ -22,3 +22,4 @@
 - Completed the budget screen audit with localized loading, error, empty, PDF, and execution states; removed the hardcoded execution date and silent load failure.
 - Hardened protected screen navigation so unauthenticated deep links redirect to the public welcome screen instead of leaving an indefinite guard spinner.
 - Continued the enterprise UX pass on Ideas & Proposals: localized all visible content and added guided loading, retryable error, empty, and action feedback states.
+- Made the Super Admin national dashboard recoverable when platform data is unavailable, with localized retry states for syndicate overview data, national rankings, and syndicate detail enrichment.
