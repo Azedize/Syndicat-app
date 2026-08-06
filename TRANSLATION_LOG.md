@@ -5,3 +5,6 @@
 - Approval workflow screen now translates visible status, priority, progress, detail, decision, document, and creation-form text for `fr`, `en`, `ar`, and `es`.
 - Internal status/priority translation keys are now type-checked against the screen dictionary before rendering.
 - Works and interventions action flows now translate upload errors, validation feedback, success confirmations, and input placeholders for `fr`, `en`, `ar`, and `es`.
+- Payroll screen now translates titles, record counts, statistics, statuses, payment actions, confirmation dialogs, validation messages, form labels, placeholders, and feedback for `fr`, `en`, `ar`, and `es`.
+- Provider management now translates provider types, filters, statistics, contract details, upload guidance, validation dialogs, form labels, placeholders, and creation feedback for `fr`, `en`, `ar`, and `es`.
+- Ideas & Proposals now translates categories, statuses, pluralized counts, form labels/placeholders, decisions, empty/loading/error states, and action feedback for `fr`, `en`, `ar`, and `es`.

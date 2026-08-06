@@ -18,6 +18,7 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useBreakpoints } from "@/hooks/useBreakpoints";
 import { useColors } from "@/hooks/useColors";
+import { useLanguage } from "@/context/LanguageContext";
 import { content } from "@/services/api";
 import { useToast } from "@/context/ToastContext";
 import RoleGuard from "@/components/RoleGuard";
@@ -54,6 +55,7 @@ function CotisationsScreenInner() {
   const { isWide } = useBreakpoints();
   const topPad = isWide ? 0 : (Platform.OS === "web" ? 67 : insets.top);
   const queryClient = useQueryClient();
+  const { t } = useLanguage();
 
   const { showToast } = useToast();
   const [payModal, setPayModal] = useState(false);
@@ -74,11 +76,11 @@ function CotisationsScreenInner() {
       setPayMethod(null);
       setSelectedId(null);
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-      showToast({ type: "success", title: "Paiement enregistré ✓", message: "Votre cotisation a été soumise pour validation. Un reçu vous sera envoyé par email après approbation." });
+       showToast({ type: "success", title: t("cotPaymentSavedTitle"), message: t("cotPaymentSavedMessage") });
     },
     onError: (err: Error) => {
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
-      showToast({ type: "error", title: "Erreur de paiement", message: err.message });
+      showToast({ type: "error", title: t("cotPaymentErrorTitle"), message: err.message || t("errorGeneric") });
     },
   });
 
@@ -89,10 +91,10 @@ function CotisationsScreenInner() {
   const totalPaid = paid.reduce((s, c) => s + c.amount, 0);
 
   const statusConfig = (status: string) => {
-    if (status === "paid") return { color: colors.success, label: "Payée", icon: "check-circle" as const };
-    if (status === "pending_validation") return { color: "#8b5cf6", label: "En validation", icon: "clock" as const };
-    if (status === "pending") return { color: "#f59e0b", label: "En attente", icon: "clock" as const };
-    return { color: colors.destructive, label: "En retard", icon: "alert-circle" as const };
+    if (status === "paid") return { color: colors.success, label: t("cotStatusPaid"), icon: "check-circle" as const };
+    if (status === "pending_validation") return { color: "#8b5cf6", label: t("inValidation"), icon: "clock" as const };
+    if (status === "pending") return { color: "#f59e0b", label: t("inProgressPayment"), icon: "clock" as const };
+    return { color: colors.destructive, label: t("latePayment"), icon: "alert-circle" as const };
   };
 
   const handlePay = (id: string) => {
@@ -118,11 +120,11 @@ function CotisationsScreenInner() {
           <TouchableOpacity onPress={() => router.back()} style={styles.backBtn}>
             <Feather name="arrow-left" size={22} color="#fff" />
           </TouchableOpacity>
-          <Text style={styles.headerTitle}>Mes Cotisations</Text>
+          <Text style={styles.headerTitle}>{t("myContributionsTitle")}</Text>
         </View>
         <View style={styles.center}>
           <ActivityIndicator size="large" color={colors.primary} />
-          <Text style={[styles.centerText, { color: colors.mutedForeground }]}>Chargement...</Text>
+          <Text style={[styles.centerText, { color: colors.mutedForeground }]}>{t("loadingContributions")}</Text>
         </View>
       </View>
     );
@@ -135,13 +137,13 @@ function CotisationsScreenInner() {
           <TouchableOpacity onPress={() => router.back()} style={styles.backBtn}>
             <Feather name="arrow-left" size={22} color="#fff" />
           </TouchableOpacity>
-          <Text style={styles.headerTitle}>Mes Cotisations</Text>
+          <Text style={styles.headerTitle}>{t("myContributionsTitle")}</Text>
         </View>
         <View style={styles.center}>
           <Feather name="wifi-off" size={40} color={colors.destructive} />
-          <Text style={[styles.centerText, { color: colors.mutedForeground }]}>Impossible de charger vos cotisations</Text>
+          <Text style={[styles.centerText, { color: colors.mutedForeground }]}>{t("contributionsLoadError")}</Text>
           <TouchableOpacity style={[styles.retryBtn, { backgroundColor: colors.primary }]} onPress={() => refetch()}>
-            <Text style={styles.retryBtnText}>Réessayer</Text>
+            <Text style={styles.retryBtnText}>{t("retry")}</Text>
           </TouchableOpacity>
         </View>
       </View>
@@ -155,8 +157,8 @@ function CotisationsScreenInner() {
           <Feather name="arrow-left" size={22} color="#fff" />
         </TouchableOpacity>
         <View style={{ flex: 1 }}>
-          <Text style={styles.headerTitle}>Mes Cotisations</Text>
-          <Text style={styles.headerSub}>Historique et paiements</Text>
+          <Text style={styles.headerTitle}>{t("myContributionsTitle")}</Text>
+          <Text style={styles.headerSub}>{t("contributionsSubtitle")}</Text>
         </View>
       </View>
 
@@ -164,22 +166,22 @@ function CotisationsScreenInner() {
       <View style={[styles.summary, { backgroundColor: colors.card, borderBottomColor: colors.border }]}>
         <View style={styles.summaryItem}>
           <Text style={[styles.sumValue, { color: colors.success }]}>{paid.length}</Text>
-          <Text style={[styles.sumLabel, { color: colors.mutedForeground }]}>Payées</Text>
+          <Text style={[styles.sumLabel, { color: colors.mutedForeground }]}>{t("cotStatusPaid")}</Text>
         </View>
         <View style={[styles.sumDivider, { backgroundColor: colors.border }]} />
         <View style={styles.summaryItem}>
           <Text style={[styles.sumValue, { color: "#f59e0b" }]}>{pending.length}</Text>
-          <Text style={[styles.sumLabel, { color: colors.mutedForeground }]}>En attente</Text>
+          <Text style={[styles.sumLabel, { color: colors.mutedForeground }]}>{t("inProgressPayment")}</Text>
         </View>
         <View style={[styles.sumDivider, { backgroundColor: colors.border }]} />
         <View style={styles.summaryItem}>
           <Text style={[styles.sumValue, { color: colors.destructive }]}>{overdue.length}</Text>
-          <Text style={[styles.sumLabel, { color: colors.mutedForeground }]}>En retard</Text>
+          <Text style={[styles.sumLabel, { color: colors.mutedForeground }]}>{t("latePayment")}</Text>
         </View>
         <View style={[styles.sumDivider, { backgroundColor: colors.border }]} />
         <View style={styles.summaryItem}>
           <Text style={[styles.sumValue, { color: colors.primary }]}>{totalPaid} MAD</Text>
-          <Text style={[styles.sumLabel, { color: colors.mutedForeground }]}>Total payé</Text>
+          <Text style={[styles.sumLabel, { color: colors.mutedForeground }]}>{t("cotTotalPaid")}</Text>
         </View>
       </View>
 
@@ -192,8 +194,8 @@ function CotisationsScreenInner() {
           <Feather name={overdue.length > 0 ? "alert-circle" : "clock"} size={16} color={overdue.length > 0 ? colors.destructive : "#f59e0b"} />
           <Text style={[styles.alertText, { color: overdue.length > 0 ? colors.destructive : "#f59e0b" }]}>
             {overdue.length > 0
-              ? `${overdue.length} cotisation(s) en retard — payez dès maintenant`
-              : `${pending.length} cotisation(s) à régler ce mois`}
+               ? `${overdue.length} ${t("cotLateAlert")}`
+               : `${pending.length} ${t("cotPendingAlert")}`}
           </Text>
         </View>
       ) : null}
@@ -207,7 +209,7 @@ function CotisationsScreenInner() {
         ListEmptyComponent={
           <View style={styles.center}>
             <Feather name="credit-card" size={40} color={colors.mutedForeground} />
-            <Text style={[styles.centerText, { color: colors.mutedForeground }]}>Aucune cotisation trouvée</Text>
+            <Text style={[styles.centerText, { color: colors.mutedForeground }]}>{t("noCotisations")}</Text>
           </View>
         }
         renderItem={({ item: c }) => {
@@ -220,11 +222,11 @@ function CotisationsScreenInner() {
                 </View>
                 <View style={{ flex: 1 }}>
                   <Text style={[styles.cotLabel, { color: colors.foreground }]}>{c.label}</Text>
-                  <Text style={[styles.cotPeriod, { color: colors.mutedForeground }]}>Période: {c.period}</Text>
+                   <Text style={[styles.cotPeriod, { color: colors.mutedForeground }]}>{t("periodLabel")}: {c.period}</Text>
                   {c.paidDate ? (
-                    <Text style={[styles.cotDate, { color: colors.mutedForeground }]}>Payé le: {c.paidDate}</Text>
+                     <Text style={[styles.cotDate, { color: colors.mutedForeground }]}>{t("paidOnLabel")}: {c.paidDate}</Text>
                   ) : (
-                    <Text style={[styles.cotDate, { color: sc.color }]}>Échéance: {c.dueDate}</Text>
+                     <Text style={[styles.cotDate, { color: sc.color }]}>{t("dueDateLabel")}: {c.dueDate}</Text>
                   )}
                 </View>
                 <View style={styles.cotRight}>
@@ -242,24 +244,24 @@ function CotisationsScreenInner() {
                   activeOpacity={0.8}
                 >
                   <Feather name="credit-card" size={15} color="#fff" />
-                  <Text style={styles.payBtnText}>Payer maintenant — {c.amount} MAD</Text>
+                   <Text style={styles.payBtnText}>{t("payNow")} — {c.amount} MAD</Text>
                 </TouchableOpacity>
               ) : c.status === "pending_validation" ? (
                 <View style={[styles.pendingTag, { backgroundColor: "#8b5cf615", borderColor: "#8b5cf640" }]}>
                   <Feather name="clock" size={14} color="#8b5cf6" />
-                  <Text style={[styles.pendingTagText, { color: "#8b5cf6" }]}>Preuve soumise — en attente de validation par l'administrateur</Text>
+                   <Text style={[styles.pendingTagText, { color: "#8b5cf6" }]}>{t("cotProofPending")}</Text>
                 </View>
               ) : (
                 <TouchableOpacity
                   style={[styles.receiptBtn, { backgroundColor: colors.secondary, borderColor: colors.border }]}
                   onPress={() => {
                     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-                    showToast({ type: "info", title: "Reçu", message: `Le reçu ${c.receipt ?? c.label} est disponible dans votre espace Documents.` });
+                     showToast({ type: "info", title: t("paymentReceiptLabel"), message: `${t("receiptAvailablePrefix")} ${c.receipt ?? c.label} ${t("receiptAvailableSuffix")}` });
                   }}
                 >
                   <Feather name="download" size={14} color={colors.primary} />
                   <Text style={[styles.receiptBtnText, { color: colors.primary }]}>
-                    Télécharger le reçu {c.receipt ?? ""}
+                     {t("downloadReceiptLabel")} {c.receipt ?? ""}
                   </Text>
                 </TouchableOpacity>
               )}
@@ -272,19 +274,19 @@ function CotisationsScreenInner() {
       <Modal visible={payModal} transparent animationType="slide">
         <View style={styles.modalOverlay}>
           <View style={[styles.payModal, { backgroundColor: colors.card }]}>
-            <Text style={[styles.payModalTitle, { color: colors.foreground }]}>Paiement sécurisé</Text>
+             <Text style={[styles.payModalTitle, { color: colors.foreground }]}>{t("securePaymentTitle")}</Text>
             <Text style={[styles.payModalSub, { color: colors.mutedForeground }]}>
-              Montant à payer:{" "}
+               {t("paymentAmountLabel")}:{" "}
               <Text style={{ fontFamily: "Inter_700Bold", color: colors.primary }}>
-                {cotisations.find((c) => c.id === selectedId)?.amount ?? 150} MAD
+                 {cotisations.find((c) => c.id === selectedId)?.amount ?? 0} MAD
               </Text>
             </Text>
 
             <View style={styles.payMethods}>
               {[
-                { icon: "credit-card" as const, label: "Carte bancaire", sub: "Visa / Mastercard" },
-                { icon: "smartphone" as const, label: "Paiement mobile", sub: "M-Wallet / CMI" },
-                { icon: "dollar-sign" as const, label: "Virement bancaire", sub: "RIB du syndicat" },
+                 { icon: "credit-card" as const, label: t("cardPayment"), sub: "Visa / Mastercard" },
+                 { icon: "smartphone" as const, label: t("mobilePayment"), sub: "M-Wallet / CMI" },
+                 { icon: "dollar-sign" as const, label: t("bankTransfer"), sub: t("syndicateBankDetails") },
               ].map((method, idx) => {
                 const active = payMethod === idx;
                 return (
@@ -317,7 +319,7 @@ function CotisationsScreenInner() {
                 style={[styles.cancelBtn, { borderColor: colors.border }]}
                 onPress={() => { setPayModal(false); setPayMethod(null); }}
               >
-                <Text style={[styles.cancelBtnText, { color: colors.mutedForeground }]}>Annuler</Text>
+                 <Text style={[styles.cancelBtnText, { color: colors.mutedForeground }]}>{t("cancel")}</Text>
               </TouchableOpacity>
               <TouchableOpacity
                 style={[styles.confirmBtn, { backgroundColor: payMethod !== null ? colors.primary : colors.muted }]}
@@ -328,7 +330,7 @@ function CotisationsScreenInner() {
                   ? <ActivityIndicator size="small" color="#fff" />
                   : <Feather name="lock" size={14} color={payMethod !== null ? "#fff" : colors.mutedForeground} />}
                 <Text style={[styles.confirmBtnText, { color: payMethod !== null ? "#fff" : colors.mutedForeground }]}>
-                  {payMutation.isPending ? "Traitement..." : "Confirmer le paiement"}
+                   {payMutation.isPending ? t("paymentProcessing") : t("confirmPayment")}
                 </Text>
               </TouchableOpacity>
             </View>

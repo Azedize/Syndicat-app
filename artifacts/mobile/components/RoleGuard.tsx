@@ -32,17 +32,20 @@ interface RoleGuardProps {
 }
 
 export default function RoleGuard({ allow, children, redirectTo = "/" }: RoleGuardProps) {
-  const { user } = useAuth();
+  const { user, isLoading } = useAuth();
   const colors = useColors();
   const authorized = !!user && allow.includes(user.role);
 
   useEffect(() => {
-    if (user && !authorized) {
+    if (isLoading) return;
+    if (!user) {
+      router.replace("/welcome");
+    } else if (!authorized) {
       router.replace(redirectTo as any);
     }
-  }, [user, authorized, redirectTo]);
+  }, [user, authorized, isLoading, redirectTo]);
 
-  if (!user || !authorized) {
+  if (isLoading || !user || !authorized) {
     return (
       <View style={[styles.loading, { backgroundColor: colors.background }]}>
         <ActivityIndicator color={colors.primary} />

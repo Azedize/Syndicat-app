@@ -18,6 +18,7 @@ import FilterChips from "@/components/FilterChips";
 import RoleGuard from "@/components/RoleGuard";
 import ScreenHeader from "@/components/ScreenHeader";
 import StatsStrip from "@/components/StatsStrip";
+import { ErrorState } from "@/components/DataState";
 
 // Charges screen — co-owners see their personal charges; treasurer/admin manage all charges.
 export default function ChargesScreen() {
@@ -86,6 +87,7 @@ function ChargesScreenInner() {
 
   const [appels, setAppels] = useState<Appel[]>([]);
   const [loading, setLoading] = useState(true);
+  const [loadError, setLoadError] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
   const [filter, setFilter] = useState("all");
   const [payModal, setPayModal] = useState<Appel | null>(null);
@@ -136,10 +138,13 @@ function ChargesScreenInner() {
   const load = useCallback(async (silent = false) => {
     try {
       if (!silent) setLoading(true);
+      setLoadError(false);
       const qs = filter !== "all" ? `?status=${filter}` : "";
       const data = await apiRequest(`/appels-de-fonds${qs}`, "GET", undefined, token);
       setAppels((data.data ?? []).map((a: any) => ({ ...a, amount: Number(a.amount) || 0 })));
-    } catch (e) { console.error(e); }
+    } catch {
+      setLoadError(true);
+    }
     finally { setLoading(false); setRefreshing(false); }
   }, [token, filter]);
 
@@ -329,6 +334,14 @@ function ChargesScreenInner() {
         <ScrollView contentContainerStyle={[styles.list, { paddingBottom: isWide ? 32 : insets.bottom + 100 }]}>
           {[1, 2, 3, 4].map((k) => <SkeletonCard key={k} />)}
         </ScrollView>
+      ) : loadError ? (
+        <ErrorState
+          title={t("chargesLoadErrorTitle")}
+          description={t("chargesLoadErrorDescription")}
+          retryLabel={t("retry")}
+          onRetry={() => load()}
+          accentColor="#10b981"
+        />
       ) : (
         <ScrollView
           contentContainerStyle={[styles.list, { paddingBottom: isWide ? 32 : insets.bottom + 100 }]}
@@ -339,7 +352,7 @@ function ChargesScreenInner() {
             <View style={styles.empty}>
               <Feather name="credit-card" size={36} color={colors.mutedForeground} />
               <Text style={[styles.emptyText, { color: colors.mutedForeground }]}>{t("noChargesFound")}</Text>
-              <Text style={[styles.emptyHint, { color: colors.mutedForeground }]}>{t("emptyStateHint") ?? "Aucun appel de fonds pour ce filtre."}</Text>
+              <Text style={[styles.emptyHint, { color: colors.mutedForeground }]}>{t("chargesEmptyHint")}</Text>
             </View>
           ) : (
             filtered.map((appel) => {

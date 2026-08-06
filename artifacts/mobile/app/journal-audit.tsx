@@ -3,7 +3,6 @@ import * as Haptics from "expo-haptics";
 import { router } from "expo-router";
 import React, { useCallback, useEffect, useState } from "react";
 import {
-  ActivityIndicator,
   FlatList,
   Platform,
   RefreshControl,
@@ -15,9 +14,11 @@ import {
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import RoleGuard from "@/components/RoleGuard";
 import { useAuth } from "@/context/AuthContext";
+import { useLanguage, type LangCode } from "@/context/LanguageContext";
 import { useBreakpoints } from "@/hooks/useBreakpoints";
 import { useColors } from "@/hooks/useColors";
 import { getToken } from "@/services/api";
+import { ErrorState, LoadingState } from "@/components/DataState";
 
 interface AuditLog {
   id: string;
@@ -48,29 +49,51 @@ function getActionConfig(action: string) {
   return ACTION_CONFIG[action] ?? { color: "#6b7280", icon: "activity" as const };
 }
 
-function formatDate(iso: string) {
+const ACTION_LABELS: Record<string, Record<LangCode, string>> = {
+  vote: { fr: "Vote enregistré", en: "Vote recorded", ar: "تم تسجيل التصويت", es: "Voto registrado" },
+  pay_cotisation: { fr: "Cotisation payée", en: "Contribution paid", ar: "تم دفع الاشتراك", es: "Cuota pagada" },
+  approve_member: { fr: "Membre approuvé", en: "Member approved", ar: "تمت الموافقة على العضو", es: "Miembro aprobado" },
+  reject_member: { fr: "Membre rejeté", en: "Member rejected", ar: "تم رفض العضو", es: "Miembro rechazado" },
+  create_election: { fr: "Élection créée", en: "Election created", ar: "تم إنشاء الانتخابات", es: "Elección creada" },
+  add_member: { fr: "Membre ajouté", en: "Member added", ar: "تمت إضافة العضو", es: "Miembro añadido" },
+  add_transaction: { fr: "Transaction ajoutée", en: "Transaction added", ar: "تمت إضافة المعاملة", es: "Transacción añadida" },
+  validate_product: { fr: "Produit validé", en: "Product approved", ar: "تم اعتماد المنتج", es: "Producto validado" },
+  resolve_ticket: { fr: "Ticket résolu", en: "Ticket resolved", ar: "تم حل التذكرة", es: "Ticket resuelto" },
+  login: { fr: "Connexion", en: "Login", ar: "تسجيل الدخول", es: "Inicio de sesión" },
+};
+
+const ENTITY_FILTERS: Array<{ key: string; labelKey: string; matches: string[] }> = [
+  { key: "all", labelKey: "auditEntityAll", matches: [] },
+  { key: "election", labelKey: "auditEntityElection", matches: ["élection", "election"] },
+  { key: "member", labelKey: "auditEntityMember", matches: ["membre", "member"] },
+  { key: "payment", labelKey: "auditEntityPayment", matches: ["paiement", "payment", "cotisation", "contribution"] },
+  { key: "meeting", labelKey: "auditEntityMeeting", matches: ["réunion", "reunion", "meeting"] },
+  { key: "document", labelKey: "auditEntityDocument", matches: ["document"] },
+  { key: "work", labelKey: "auditEntityWork", matches: ["travaux", "work"] },
+];
+
+const AUDIT_TEXT: Record<string, Record<LangCode, string>> = {
+  entries: { fr: "entrée(s)", en: "entry", ar: "سجل", es: "entrada(s)" },
+  entriesPlural: { fr: "entrée(s)", en: "entries", ar: "سجلات", es: "entradas" },
+  loadingTitle: { fr: "Chargement du journal d’audit", en: "Loading audit log", ar: "جارٍ تحميل سجل التدقيق", es: "Cargando registro de auditoría" },
+  loadingDescription: { fr: "Nous préparons l’historique des actions autorisées.", en: "We are preparing the history of authorized actions.", ar: "نحن نجهز سجل الإجراءات المصرح بها.", es: "Estamos preparando el historial de acciones autorizadas." },
+  loadingError: { fr: "Impossible de charger le journal d’audit", en: "Unable to load the audit log", ar: "تعذر تحميل سجل التدقيق", es: "No se puede cargar el registro de auditoría" },
+  errorDescription: { fr: "Le journal n’est pas disponible pour le moment. Vérifiez votre connexion puis réessayez.", en: "The audit log is unavailable right now. Check your connection and try again.", ar: "سجل التدقيق غير متاح حالياً. تحقق من الاتصال ثم أعد المحاولة.", es: "El registro de auditoría no está disponible. Compruebe su conexión e inténtelo de nuevo." },
+  emptyTitle: { fr: "Aucune entrée", en: "No entries", ar: "لا توجد سجلات", es: "Sin entradas" },
+  retry: { fr: "Réessayer", en: "Retry", ar: "إعادة المحاولة", es: "Reintentar" },
+  syndicate: { fr: "Syndicat", en: "Syndicate", ar: "النقابة", es: "Sindicato" },
+};
+
+function formatDate(iso: string, lang: LangCode) {
   const d = new Date(iso);
-  return d.toLocaleDateString("fr-FR", { day: "2-digit", month: "short", year: "numeric" }) +
-    " " + d.toLocaleTimeString("fr-FR", { hour: "2-digit", minute: "2-digit" });
+  const locale = { fr: "fr-FR", en: "en-GB", ar: "ar-MA", es: "es-ES" }[lang];
+  return d.toLocaleDateString(locale, { day: "2-digit", month: "short", year: "numeric" }) +
+    " " + d.toLocaleTimeString(locale, { hour: "2-digit", minute: "2-digit" });
 }
 
-function actionLabel(action: string) {
-  const labels: Record<string, string> = {
-    vote: "Vote enregistré",
-    pay_cotisation: "Cotisation payée",
-    approve_member: "Membre approuvé",
-    reject_member: "Membre rejeté",
-    create_election: "Élection créée",
-    add_member: "Membre ajouté",
-    add_transaction: "Transaction ajoutée",
-    validate_product: "Produit validé",
-    resolve_ticket: "Ticket résolu",
-    login: "Connexion",
-  };
-  return labels[action] ?? action.replace(/_/g, " ");
+function actionLabel(action: string, lang: LangCode) {
+  return ACTION_LABELS[action]?.[lang] ?? action.replace(/_/g, " ");
 }
-
-const ENTITY_FILTERS = ["Tous", "élection", "membre", "cotisation", "transaction", "produit"];
 
 export default function JournalAuditScreen() {
   return (
@@ -84,18 +107,19 @@ function JournalAuditScreenInner() {
   const colors = useColors();
   const insets = useSafeAreaInsets();
   const { user } = useAuth();
+  const { lang, t } = useLanguage();
   const { isWide } = useBreakpoints();
   const topPad = isWide ? 0 : (Platform.OS === "web" ? 67 : insets.top);
 
   const [logs, setLogs] = useState<AuditLog[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
-  const [entityFilter, setEntityFilter] = useState("Tous");
-  const [error, setError] = useState("");
+  const [entityFilter, setEntityFilter] = useState("all");
+  const [loadError, setLoadError] = useState(false);
 
   const fetchLogs = useCallback(async () => {
     try {
-      setError("");
+      setLoadError(false);
       const token = await getToken();
       const baseUrl = `https://${process.env.EXPO_PUBLIC_DOMAIN}/api`;
       const resp = await fetch(`${baseUrl}/audit`, {
@@ -104,8 +128,8 @@ function JournalAuditScreenInner() {
       if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
       const data = await resp.json();
       setLogs(data.data ?? []);
-    } catch (e: any) {
-      setError("Impossible de charger les journaux — " + (e.message ?? "erreur réseau"));
+    } catch {
+      setLoadError(true);
     } finally {
       setLoading(false);
       setRefreshing(false);
@@ -116,9 +140,10 @@ function JournalAuditScreenInner() {
 
   const onRefresh = () => { setRefreshing(true); fetchLogs(); };
 
-  const filtered = entityFilter === "Tous"
+  const selectedFilter = ENTITY_FILTERS.find((filter) => filter.key === entityFilter) ?? ENTITY_FILTERS[0];
+  const filtered = entityFilter === "all"
     ? logs
-    : logs.filter((l) => l.entity.toLowerCase().includes(entityFilter.toLowerCase()));
+    : logs.filter((l) => selectedFilter.matches.some((match) => l.entity.toLowerCase().includes(match)));
 
   const isSuperAdmin = user?.role === "super_admin";
   const isSyndicateAdmin = user?.role === "syndicate_admin";
@@ -128,7 +153,7 @@ function JournalAuditScreenInner() {
       <View style={[styles.root, { backgroundColor: colors.background }]}>
         <View style={[styles.header, { paddingTop: topPad + 16, backgroundColor: colors.primary }]}>
           <TouchableOpacity onPress={() => router.back()}><Feather name="arrow-left" size={22} color="#fff" /></TouchableOpacity>
-          <Text style={styles.headerTitle}>Journal d'Audit</Text>
+           <Text style={styles.headerTitle}>{t("journalAudit")}</Text>
           <View style={{ width: 22 }} />
         </View>
         <View style={{ flex: 1, alignItems: "center", justifyContent: "center", gap: 12 }}>
@@ -147,8 +172,10 @@ function JournalAuditScreenInner() {
           <Feather name="arrow-left" size={22} color="#fff" />
         </TouchableOpacity>
         <View style={{ flex: 1 }}>
-          <Text style={styles.headerTitle}>Journal d'Audit</Text>
-          <Text style={styles.headerSub}>{filtered.length} entrée(s) — {isSuperAdmin ? "Plateforme globale" : "Votre syndicat"}</Text>
+           <Text style={styles.headerTitle}>{t("journalAudit")}</Text>
+           <Text style={styles.headerSub}>
+             {filtered.length} {filtered.length === 1 ? AUDIT_TEXT.entries[lang] : AUDIT_TEXT.entriesPlural[lang]} — {isSuperAdmin ? t("platformGlobal") : t("yourSyndicate")}
+           </Text>
         </View>
         <TouchableOpacity
           onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); onRefresh(); }}
@@ -162,18 +189,18 @@ function JournalAuditScreenInner() {
       <View style={[styles.filterRow, { backgroundColor: colors.card, borderBottomColor: colors.border }]}>
         <FlatList
           horizontal
-          data={ENTITY_FILTERS}
-          keyExtractor={(k) => k}
+           data={ENTITY_FILTERS}
+           keyExtractor={(item) => item.key}
           showsHorizontalScrollIndicator={false}
           contentContainerStyle={{ gap: 8, paddingHorizontal: 16, paddingVertical: 10 }}
           renderItem={({ item }) => {
-            const active = entityFilter === item;
+             const active = entityFilter === item.key;
             return (
               <TouchableOpacity
                 style={[styles.filterChip, { backgroundColor: active ? colors.primary : colors.background, borderColor: active ? colors.primary : colors.border }]}
-                onPress={() => { setEntityFilter(item); Haptics.selectionAsync(); }}
+                 onPress={() => { setEntityFilter(item.key); Haptics.selectionAsync(); }}
               >
-                <Text style={[styles.filterLabel, { color: active ? "#fff" : colors.mutedForeground }]}>{item.charAt(0).toUpperCase() + item.slice(1)}</Text>
+                 <Text style={[styles.filterLabel, { color: active ? "#fff" : colors.mutedForeground }]}>{t(item.labelKey)}</Text>
               </TouchableOpacity>
             );
           }}
@@ -182,26 +209,20 @@ function JournalAuditScreenInner() {
 
       {/* Content */}
       {loading ? (
-        <View style={styles.center}>
-          <ActivityIndicator color={colors.primary} size="large" />
-          <Text style={[styles.loadingText, { color: colors.mutedForeground }]}>Chargement des journaux...</Text>
-        </View>
-      ) : error ? (
-        <View style={styles.center}>
-          <Feather name="wifi-off" size={40} color={colors.mutedForeground} />
-          <Text style={[styles.errorText, { color: colors.mutedForeground }]}>{error}</Text>
-          <TouchableOpacity
-            style={[styles.retryBtn, { backgroundColor: colors.primary }]}
-            onPress={() => { setLoading(true); fetchLogs(); }}
-          >
-            <Text style={styles.retryBtnText}>Réessayer</Text>
-          </TouchableOpacity>
-        </View>
+        <LoadingState title={AUDIT_TEXT.loadingTitle[lang]} description={AUDIT_TEXT.loadingDescription[lang]} accentColor={colors.primary} />
+      ) : loadError ? (
+        <ErrorState
+          title={AUDIT_TEXT.loadingError[lang]}
+          description={AUDIT_TEXT.errorDescription[lang]}
+          retryLabel={AUDIT_TEXT.retry[lang]}
+          onRetry={() => { setLoading(true); fetchLogs(); }}
+          accentColor={colors.destructive}
+        />
       ) : filtered.length === 0 ? (
         <View style={styles.center}>
           <Feather name="shield" size={44} color={colors.mutedForeground} />
-          <Text style={[styles.emptyTitle, { color: colors.foreground }]}>Aucune entrée</Text>
-          <Text style={[styles.emptyText, { color: colors.mutedForeground }]}>Le journal d'audit est vide pour ce filtre.</Text>
+          <Text style={[styles.emptyTitle, { color: colors.foreground }]}>{AUDIT_TEXT.emptyTitle[lang]}</Text>
+          <Text style={[styles.emptyText, { color: colors.mutedForeground }]}>{t("noLogsMsg")}</Text>
         </View>
       ) : (
         <FlatList
@@ -219,20 +240,20 @@ function JournalAuditScreenInner() {
                 </View>
                 <View style={{ flex: 1, gap: 3 }}>
                   <View style={{ flexDirection: "row", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
-                    <Text style={[styles.actionLabel, { color: colors.foreground }]}>{actionLabel(log.action)}</Text>
+                     <Text style={[styles.actionLabel, { color: colors.foreground }]}>{actionLabel(log.action, lang)}</Text>
                     <View style={[styles.entityBadge, { backgroundColor: cfg.color + "15" }]}>
                       <Text style={[styles.entityText, { color: cfg.color }]}>{log.entity}</Text>
                     </View>
                   </View>
                   <Text style={[styles.userName, { color: colors.mutedForeground }]}>
                     <Feather name="user" size={10} color={colors.mutedForeground} /> {log.userName}
-                    {log.syndicateId ? ` • Syndicat ${log.syndicateId.slice(0, 8)}` : ""}
+                     {log.syndicateId ? ` • ${AUDIT_TEXT.syndicate[lang]} ${log.syndicateId.slice(0, 8)}` : ""}
                   </Text>
                   {log.details ? (
                     <Text style={[styles.details, { color: colors.mutedForeground }]} numberOfLines={2}>{log.details}</Text>
                   ) : null}
                 </View>
-                <Text style={[styles.timestamp, { color: colors.mutedForeground }]}>{formatDate(log.createdAt)}</Text>
+                 <Text style={[styles.timestamp, { color: colors.mutedForeground }]}>{formatDate(log.createdAt, lang)}</Text>
               </View>
             );
           }}

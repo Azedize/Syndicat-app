@@ -9,3 +9,16 @@
 - Replaced blank loading, generic error, and minimal empty-list states on the workflows and works screens with guided, localized states.
 - Added shared animated loading and recoverable error patterns for mobile data screens.
 - Verified the mobile package with TypeScript and confirmed the Expo preview starts successfully.
+- Started the next enterprise UX pass on the payroll mobile module.
+- Localized payroll titles, statuses, statistics, validation messages, confirmation dialogs, form labels, placeholders, and save feedback for French, English, Arabic, and Spanish.
+- Replaced the payroll screen's blank spinner and silent request failure with contextual loading, retryable error, and guided empty states.
+- Continued the enterprise UX pass on the service-provider and contract mobile module.
+- Localized provider types, filters, summaries, contract counters, form labels, upload guidance, validation feedback, and creation confirmation for French, English, Arabic, and Spanish.
+- Added explicit provider loading, retryable error, and empty states while preserving provider role guards and API persistence.
+- Improved the charges and fund calls screen with a localized retryable API error state and a translated filter-specific empty-state explanation.
+- Continued the finance audit on payment history by localizing period filters, exports, receipt/share details, and transaction counters across all supported languages.
+- Improved the invoices workflow with localized PDF, upload, send, and creation feedback; send failures now provide a recoverable user message instead of being silently ignored.
+- Completed the contributions screen audit by localizing payment statuses, alerts, receipts, loading/error states, and secure payment method selection.
+- Completed the budget screen audit with localized loading, error, empty, PDF, and execution states; removed the hardcoded execution date and silent load failure.
+- Hardened protected screen navigation so unauthenticated deep links redirect to the public welcome screen instead of leaving an indefinite guard spinner.
+- Continued the enterprise UX pass on Ideas & Proposals: localized all visible content and added guided loading, retryable error, empty, and action feedback states.

@@ -12,3 +12,13 @@
 - Continue the visible-text audit across remaining mobile screens.
 - Replace generic loading indicators with screen-specific skeleton states where data loading is significant.
 - Validate the workflow screen in Arabic RTL and on compact mobile dimensions.
+- Payroll now provides localized feedback and explicit loading, error-recovery, and empty states instead of a silent spinner.
+- Provider and contract management now provides localized operational feedback and explicit loading, retry, and empty states.
+- Charges and fund calls now expose a localized retryable loading error and a clearer translated empty state for filtered results.
+- Payment history now keeps period selectors, financial exports, receipts, and shareable transaction details aligned with the selected language.
+- Invoices now provide localized progress and recovery feedback for PDF generation, proof upload, creation, and sending.
+- Contributions now provide consistent localized loading, error recovery, status, receipt, and secure payment experiences.
+- Budget now provides explicit loading, retryable error, empty, and PDF feedback states without hardcoded execution dates.
+- Protected screens now fail safely to the public welcome route when opened without an authenticated session, avoiding an indefinite loading state.
+- Continue with the remaining finance and administration screens, prioritizing visible hardcoded text and silent API failures.
+- Ideas & Proposals now provides consistent localized copy, contextual loading, actionable empty state, retryable load errors, and confirmation feedback for its three primary actions.

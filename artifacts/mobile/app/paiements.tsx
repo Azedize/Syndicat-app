@@ -134,6 +134,13 @@ function PaiementsScreenInner() {
     { key: "overdue", label: t("latePayment"),  count: transactions.filter((tx) => tx.status === "overdue").length },
   ];
 
+  const PERIOD_LABELS: Record<typeof period, string> = {
+    "7j": t("period7Days"),
+    "30j": t("period30Days"),
+    "3m": t("period3Months"),
+    "12m": t("period12Months"),
+  };
+
   // Skeleton loading card
   const SkeletonCard = () => (
     <View style={[styles.payCard, { backgroundColor: colors.card, borderColor: colors.border }]}>
@@ -170,7 +177,14 @@ function PaiementsScreenInner() {
             style={styles.exportBtn}
             onPress={() => {
               Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-              const header = "Référence,Type,Libellé,Montant (MAD),Statut,Date";
+              const header = [
+                t("reference"),
+                t("type"),
+                t("label"),
+                `${t("amount")} (MAD)`,
+                t("status"),
+                t("date"),
+              ].join(",");
               const rows = transactions.map((tx) =>
                 `${formatRef(tx.id)},${tx.type},${tx.label},${tx.amount},${tx.status},${tx.date}`
               );
@@ -189,7 +203,7 @@ function PaiementsScreenInner() {
               style={[styles.periodBtn, { backgroundColor: period === p ? "rgba(255,255,255,0.25)" : "rgba(255,255,255,0.1)" }]}
               onPress={() => { setPeriod(p); Haptics.selectionAsync(); }}
             >
-              <Text style={[styles.periodText, { color: period === p ? "#fff" : "rgba(255,255,255,0.65)" }]}>{p}</Text>
+              <Text style={[styles.periodText, { color: period === p ? "#fff" : "rgba(255,255,255,0.65)" }]}>{PERIOD_LABELS[p]}</Text>
             </TouchableOpacity>
           ))}
         </View>
@@ -202,7 +216,7 @@ function PaiementsScreenInner() {
               <Text style={styles.kpiLabel}>{t("totalCollected")}</Text>
             </View>
             <Text style={styles.kpiValue}>{totalPaid.toLocaleString()} MAD</Text>
-            <Text style={styles.kpiSub}>{countPaid} transactions</Text>
+            <Text style={styles.kpiSub}>{countPaid} {t("transactionsLabel").toLowerCase()}</Text>
           </View>
           <View style={[styles.kpiCard, { backgroundColor: "rgba(255,255,255,0.15)" }]}>
             <View style={styles.kpiTop}>
@@ -391,7 +405,7 @@ function PaiementsScreenInner() {
                 <View style={[styles.infoCard, { backgroundColor: colors.card, borderColor: colors.border }]}>
                   {[
                     { icon: "tag" as const,      label: t("type"),       value: typeLabel },
-                    { icon: "hash" as const,     label: t("reference") ?? "Référence", value: formatRef(tx.id) },
+                    { icon: "hash" as const,     label: t("reference"), value: formatRef(tx.id) },
                     { icon: "calendar" as const, label: t("date"),       value: tx.date },
                     ...(tx.member ? [{ icon: "user" as const, label: t("member"), value: tx.member }] : []),
                   ].map(({ icon, label, value }, i) => (
@@ -417,12 +431,12 @@ function PaiementsScreenInner() {
                       onPress={() => {
                         Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
                         const receiptText =
-                          `REÇU DE PAIEMENT\n` +
-                          `Référence : ${formatRef(tx.id)}\n` +
-                          `Libellé : ${tx.label}\n` +
-                          `Montant : ${tx.amount.toLocaleString()} MAD\n` +
-                          `Date : ${tx.date}\n` +
-                          `Statut : ${t("paid")} ✓`;
+                          `${t("paymentReceiptTitle")}\n` +
+                          `${t("reference")} : ${formatRef(tx.id)}\n` +
+                          `${t("label")} : ${tx.label}\n` +
+                          `${t("amount")} : ${tx.amount.toLocaleString()} MAD\n` +
+                          `${t("date")} : ${tx.date}\n` +
+                          `${t("status")} : ${t("paid")} ✓`;
                         shareContent(receiptText, `${t("paymentReceiptLabel")} ${formatRef(tx.id)}`);
                       }}
                     >
@@ -470,12 +484,12 @@ function PaiementsScreenInner() {
                     onPress={() => {
                       Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
                       const details =
-                        `Transaction : ${formatRef(tx.id)}\n` +
-                        `Type : ${TYPE_LABELS[tx.type] ?? tx.type}\n` +
-                        `Libellé : ${tx.label}\n` +
-                        `Montant : ${tx.amount.toLocaleString()} MAD\n` +
-                        `Date : ${tx.date}`;
-                      shareContent(details, `Transaction ${formatRef(tx.id)}`);
+                        `${t("transactionLabel")} : ${formatRef(tx.id)}\n` +
+                        `${t("type")} : ${TYPE_LABELS[tx.type] ?? tx.type}\n` +
+                        `${t("label")} : ${tx.label}\n` +
+                        `${t("amount")} : ${tx.amount.toLocaleString()} MAD\n` +
+                        `${t("date")} : ${tx.date}`;
+                      shareContent(details, `${t("transactionLabel")} ${formatRef(tx.id)}`);
                     }}
                   >
                     <Feather name="share-2" size={16} color={colors.foreground} />

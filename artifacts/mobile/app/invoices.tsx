@@ -92,7 +92,7 @@ function InvoicesScreenInner() {
       const url = `${base}/api/pdf/invoice/${invoiceId}${tokenParam}`;
       await Linking.openURL(url);
     } catch {
-      showToast({ type: "error", title: t("error"), message: "Impossible de générer le PDF. Vérifiez votre connexion." });
+      showToast({ type: "error", title: t("error"), message: t("invPdfError") });
     } finally {
       setDownloadingPdf(false);
     }
@@ -153,7 +153,7 @@ function InvoicesScreenInner() {
       [
         { text: t("invGaleriePhoto"), onPress: () => doPickAndUpload("gallery") },
         { text: t("invAppareilPhoto"), onPress: () => doPickAndUpload("camera") },
-        { text: "📄 PDF / Document", onPress: () => doPickAndUpload("document") },
+        { text: t("invDocumentOption"), onPress: () => doPickAndUpload("document") },
         { text: t("cancel"), style: "cancel" },
       ]
     );
@@ -430,7 +430,18 @@ function InvoicesScreenInner() {
                 </TouchableOpacity>
                 <TouchableOpacity
                   style={[styles.actionBtn, { backgroundColor: colors.primary }]}
-                  onPress={async () => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium); try { await apiRequest(`/invoices/${selectedInvoice.id}/send`, "POST"); } catch {} Share.share({ title: selectedInvoice.reference, message: `Facture ${selectedInvoice.reference} envoyée à ${selectedInvoice.recipient} — ${selectedInvoice.amount.toLocaleString()} MAD` }); }}
+                  onPress={async () => {
+                    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+                    try {
+                      await apiRequest(`/invoices/${selectedInvoice.id}/send`, "POST");
+                      await Share.share({
+                        title: selectedInvoice.reference,
+                        message: `${t("invSharePrefix")} ${selectedInvoice.reference} — ${selectedInvoice.recipient} — ${selectedInvoice.amount.toLocaleString()} MAD`,
+                      });
+                    } catch {
+                      showToast({ type: "error", title: t("error"), message: t("invSendError") });
+                    }
+                  }}
                 >
                   <Feather name="send" size={16} color="#fff" />
                   <Text style={[styles.actionBtnText, { color: "#fff" }]}>{t("invEnvoyerBtn")}</Text>
@@ -608,7 +619,7 @@ function InvoicesScreenInner() {
                 <View style={[styles.proofUploadZone, { borderColor: colors.primary + "60", backgroundColor: colors.primary + "06", gap: 12 }]}>
                   <ActivityIndicator size="large" color={colors.primary} />
                   <Text style={{ fontSize: 13, fontFamily: "Inter_600SemiBold", color: colors.primary }}>
-                    Téléversement en cours…
+                    {t("invUploading")}
                   </Text>
                 </View>
               ) : (
@@ -666,7 +677,7 @@ function InvoicesScreenInner() {
               )}
               <Text style={[styles.submitBtnText, { color: isFormValid && !isSubmitting ? "#fff" : colors.mutedForeground }]}>
                 {isSubmitting
-                  ? "Création en cours…"
+                  ? t("invCreating")
                   : addType === "facture" ? t("invCreerFacture") : t("invCreerDevis")}
               </Text>
             </TouchableOpacity>

@@ -22,6 +22,7 @@ import { useToast } from "@/context/ToastContext";
 import RoleGuard from "@/components/RoleGuard";
 import { useBreakpoints } from "@/hooks/useBreakpoints";
 import { useColors } from "@/hooks/useColors";
+import { ErrorState, LoadingState } from "@/components/DataState";
 
 type TabType = "vue_ensemble" | "recettes" | "depenses" | "comparatif";
 
@@ -39,7 +40,7 @@ interface LigneBudget {
 const INCOME_CATEGORIES = new Set(["Cotisations", "Subventions", "Marketplace", "Revenus", "Recettes", "cotisation", "subvention", "revenu"]);
 
 const fmt = (n: number) => new Intl.NumberFormat("fr-MA", { style: "decimal", maximumFractionDigits: 0 }).format(n) + " MAD";
-const pct = (realise: number, prevu: number) => Math.min(100, Math.round((realise / prevu) * 100));
+const pct = (realise: number, prevu: number) => prevu > 0 ? Math.min(100, Math.round((realise / prevu) * 100)) : 0;
 
 // Le budget prévisionnel est accessible aux administrateurs et au trésorier (gestion)
 // ainsi qu'au président (consultation). La secrétaire et le membre du bureau n'ont
@@ -68,10 +69,17 @@ function BudgetPrevisionnelScreenInner() {
   const [annee, setAnnee] = useState("2026");
   const [budgetId, setBudgetId] = useState<string | null>(null);
   const [downloading, setDownloading] = useState(false);
+  const [loading, setLoading] = useState(true);
+  const [loadError, setLoadError] = useState(false);
 
   useEffect(() => {
-    apiRequest<{ data: any[] }>("/budgets")
-      .then(({ data }) => {
+    let cancelled = false;
+    const loadBudget = async () => {
+      try {
+        setLoading(true);
+        setLoadError(false);
+        const { data } = await apiRequest<{ data: any[] }>("/budgets");
+        if (cancelled) return;
         if (!data || data.length === 0) return;
         const budget = data[0];
         setBudgetId(budget.id ?? null);
@@ -90,8 +98,14 @@ function BudgetPrevisionnelScreenInner() {
         const d = lines.filter((l) => !INCOME_CATEGORIES.has(l.categorie));
         setRecettes(r.length > 0 ? r : lines.slice(0, Math.ceil(lines.length / 2)));
         setDepenses(d.length > 0 ? d : lines.slice(Math.ceil(lines.length / 2)));
-      })
-      .catch((e) => console.error("Failed to load budget", e));
+      } catch {
+        if (!cancelled) setLoadError(true);
+      } finally {
+        if (!cancelled) setLoading(false);
+      }
+    };
+    loadBudget();
+    return () => { cancelled = true; };
   }, []);
 
   // Local aliases so existing JSX references still resolve
@@ -142,6 +156,82 @@ function BudgetPrevisionnelScreenInner() {
     </TouchableOpacity>
   );
 
+  if (loading) {
+    return (
+      <View style={[styles.root, { backgroundColor: colors.background }]}>
+        <LoadingState
+          title={t("budgetLoadingTitle")}
+          description={t("budgetLoadingDescription")}
+          accentColor={colors.primary}
+        />
+      </View>
+    );
+  }
+
+  if (loadError) {
+    return (
+      <View style={[styles.root, { backgroundColor: colors.background }]}>
+        <ErrorState
+          title={t("budgetLoadErrorTitle")}
+          description={t("budgetLoadErrorDescription")}
+          retryLabel={t("retry")}
+          onRetry={() => {
+            setLoadError(false);
+            setLoading(true);
+            apiRequest<{ data: any[] }>("/budgets")
+              .then(({ data }) => {
+                const budget = data?.[0];
+                if (budget) {
+                  setBudgetId(budget.id ?? null);
+                  if (budget.year) setAnnee(String(budget.year));
+                  const lines: LigneBudget[] = (budget.lines || []).map((l: any, i: number) => ({
+                    id: l.id || `line-${i}`,
+                    categorie: l.category || "Divers",
+                    libelle: l.label || "",
+                    prevu: parseFloat(l.amountAnnual || "0"),
+                    realise: parseFloat(l.realise ?? l.amountRealise ?? l.amountSpent ?? l.spent ?? "0"),
+                    icon: "file-text" as any,
+                    color: INCOME_CATEGORIES.has(l.category || "") ? "#3b82f6" : "#2563EB",
+                  }));
+                  const r = lines.filter((l) => INCOME_CATEGORIES.has(l.categorie));
+                  const d = lines.filter((l) => !INCOME_CATEGORIES.has(l.categorie));
+                  setRecettes(r.length > 0 ? r : lines.slice(0, Math.ceil(lines.length / 2)));
+                  setDepenses(d.length > 0 ? d : lines.slice(Math.ceil(lines.length / 2)));
+                }
+                setLoadError(false);
+              })
+              .catch(() => setLoadError(true))
+              .finally(() => setLoading(false));
+          }}
+          accentColor={colors.primary}
+        />
+      </View>
+    );
+  }
+
+  if (!budgetId && recettes.length === 0 && depenses.length === 0) {
+    return (
+      <View style={[styles.root, { backgroundColor: colors.background }]}>
+        <View style={[styles.emptyState, { backgroundColor: colors.background }]}>
+          <View style={[styles.emptyIcon, { backgroundColor: colors.primary + "15" }]}>
+            <Feather name="pie-chart" size={28} color={colors.primary} />
+          </View>
+          <Text style={[styles.emptyTitle, { color: colors.foreground }]}>{t("noBudget")}</Text>
+          <Text style={[styles.emptyDescription, { color: colors.mutedForeground }]}>
+            {t("budgetEmptyDescription")}
+          </Text>
+          <TouchableOpacity
+            style={[styles.emptyBackBtn, { borderColor: colors.border }]}
+            onPress={() => router.back()}
+            accessibilityRole="button"
+          >
+            <Text style={[styles.emptyBackBtnText, { color: colors.primary }]}>{t("back")}</Text>
+          </TouchableOpacity>
+        </View>
+      </View>
+    );
+  }
+
   return (
     <View style={[styles.root, { backgroundColor: colors.background }]}>
       <View style={[styles.header, { paddingTop: topPad + 16, backgroundColor: colors.card, borderBottomColor: colors.border }]}>
@@ -150,7 +240,7 @@ function BudgetPrevisionnelScreenInner() {
         </TouchableOpacity>
         <View style={{ flex: 1 }}>
           <Text style={[styles.title, { color: colors.foreground }]}>{t("budgetTitle")}</Text>
-          <Text style={[styles.subtitle, { color: colors.mutedForeground }]}>Exercice {ANNEE} — Exécution au 31/05/2026</Text>
+           <Text style={[styles.subtitle, { color: colors.mutedForeground }]}>{t("budgetExercise")} {ANNEE}</Text>
         </View>
         <TouchableOpacity
           style={[styles.exportBtn, { backgroundColor: colors.primary }]}
@@ -168,7 +258,7 @@ function BudgetPrevisionnelScreenInner() {
               const url = `${base}/api/pdf/budget/${budgetId}${tokenParam}`;
               await Linking.openURL(url);
             } catch {
-              showToast({ type: "error", title: t("error"), message: "Impossible de générer le PDF du budget. Vérifiez votre connexion." });
+               showToast({ type: "error", title: t("budgetPdfError") });
             } finally {
               setDownloading(false);
             }
@@ -254,7 +344,7 @@ function BudgetPrevisionnelScreenInner() {
                   <Text style={[styles.execPct, { color: "#ef4444" }]}>{pct(totalDepensesRealise, totalDepensesPrevu)}%</Text>
                 </View>
               </View>
-              <Text style={[styles.execNote, { color: colors.mutedForeground }]}>Exécution sur 5 mois (janv–mai {ANNEE})</Text>
+             <Text style={[styles.execNote, { color: colors.mutedForeground }]}>{t("budgetExecutionNote")} {ANNEE}</Text>
             </View>
 
             {/* Category summary */}
@@ -438,4 +528,10 @@ const styles = StyleSheet.create({
   modalRow: { flexDirection: "row", alignItems: "center", justifyContent: "space-between" },
   modalRowLabel: { fontSize: 13, fontFamily: "Inter_400Regular" },
   modalRowVal: { fontSize: 13, fontFamily: "Inter_700Bold" },
+  emptyState: { flex: 1, alignItems: "center", justifyContent: "center", padding: 32, gap: 12 },
+  emptyIcon: { width: 62, height: 62, borderRadius: 31, alignItems: "center", justifyContent: "center", marginBottom: 4 },
+  emptyTitle: { fontSize: 18, fontFamily: "Inter_700Bold", textAlign: "center" },
+  emptyDescription: { maxWidth: 320, fontSize: 13, lineHeight: 19, fontFamily: "Inter_400Regular", textAlign: "center" },
+  emptyBackBtn: { marginTop: 4, paddingHorizontal: 18, paddingVertical: 10, borderRadius: 10, borderWidth: 1 },
+  emptyBackBtnText: { fontSize: 13, fontFamily: "Inter_600SemiBold" },
 });
