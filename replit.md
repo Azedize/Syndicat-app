@@ -1,61 +1,56 @@
 # SYNDYCAT GLOBAL CPS
 
-A French-language co-ownership / syndicate management platform.
-
-## Stack
-
-- **Mobile app**: Expo React Native (`artifacts/mobile/`) — main user-facing UI
-- **API server**: Express + TypeScript + Drizzle ORM (`artifacts/api-server/`) — REST API
-- **Database**: PostgreSQL (via `lib/db/`)
-- **Shared types**: `lib/api-zod/` (Zod schemas shared between mobile and API)
-- **Canvas/mockup sandbox**: `artifacts/mockup-sandbox/` (design tooling)
-
-## Running the project
-
-### Prerequisites (secrets required)
-
-| Secret | Purpose |
-|---|---|
-| `DATABASE_URL` | PostgreSQL connection string |
-| `JWT_SECRET` | JWT signing secret for auth |
-| `REDIS_URL` | Redis for rate limiting (optional in dev) |
-| `SMTP_HOST`, `SMTP_PORT`, `SMTP_USER`, `SMTP_PASS`, `SMTP_FROM`, `SMTP_SECURE` | Email (optional, needed for password reset) |
-| `SESSION_SECRET` | Already configured |
-
-### Start workflows
-
-- **API Server**: `pnpm --filter @workspace/api-server run dev`
-- **Mobile (Expo)**: `pnpm --filter @workspace/mobile run dev`
-- **Component Preview (mockup sandbox)**: `pnpm --filter @workspace/mockup-sandbox run dev`
-
-### Database setup
-
-```bash
-# Push schema to the database (applies schema without migrations)
-pnpm --filter @workspace/db run db:push
-
-# Seed initial data
-pnpm --filter @workspace/scripts run seed
-
-# Open Drizzle Studio (DB browser)
-pnpm --filter @workspace/db run db:studio
-```
+A syndicate management SaaS platform (pnpm monorepo) with an Express API backend and an Expo React Native mobile app.
 
 ## Project structure
 
-```
-artifacts/
-  api-server/     — Express API (routes, middleware, schedulers)
-  mobile/         — Expo React Native app (100+ screens)
-  mockup-sandbox/ — Design/canvas tooling
-lib/
-  db/             — Drizzle schema + db:push / db:studio scripts
-  api-zod/        — Shared Zod validation schemas
-scripts/          — DB seed and utility scripts
+| Directory | Purpose |
+|---|---|
+| `artifacts/api-server` | Express.js REST API (Node 24, TypeScript, Drizzle ORM, PostgreSQL) |
+| `artifacts/mobile` | Expo React Native mobile app (Expo Router, React Native) |
+| `artifacts/mockup-sandbox` | Vite component preview sandbox (design tooling) |
+| `lib/db` | Shared Drizzle ORM schema + database client |
+| `lib/api-zod` | Shared Zod validation schemas |
+| `scripts` | Seed scripts and post-merge setup |
+
+## How to run
+
+All services start via Replit workflows. After a fresh clone:
+
+```bash
+# 1. Install dependencies
+pnpm install
+
+# 2. Build shared libs
+pnpm run typecheck:libs
+
+# 3. Push database schema (first time only, or after schema changes)
+cd lib/db && pnpm run db:push
+
+# 4. (Optional) Seed the database
+pnpm --filter @workspace/scripts run seed
 ```
 
-## Setup status
+Then start the workflows from the Replit UI:
+- **API Server** — `pnpm --filter @workspace/api-server run dev` (port 8082)
+- **Expo** — `pnpm --filter @workspace/mobile run dev` (port 18115)
+- **Mockup Sandbox** — `pnpm --filter @workspace/mockup-sandbox run dev` (port 8081)
 
-Project is running on Replit: dependencies installed, Postgres schema pushed (`db:push`), and seed data loaded (test accounts, password `password123` — see `pnpm --filter @workspace/scripts run seed` output for the full list). All three workflows (API Server, Expo mobile, Component Preview) are up. `DATABASE_URL`, `JWT_SECRET`, `SESSION_SECRET` are set; `REDIS_URL` and `SMTP_*` are still unset (optional in dev — rate limiting and password-reset email won't work without them).
+## Environment variables
+
+Set in Replit Secrets / Env Vars (shared environment):
+
+| Key | Notes |
+|---|---|
+| `DATABASE_URL` | Runtime-managed by Replit — do not set manually |
+| `JWT_SECRET` | Already configured |
+| `SESSION_SECRET` | Already configured (secret) |
+| `SMTP_HOST / SMTP_PORT / SMTP_USER` | Gmail SMTP configured |
+| `SMTP_PASS` | Must be set as a secret for email sending to work |
+| `APP_URL` | Public URL of the app |
 
 ## User preferences
+
+- Keep pnpm workspace structure; do not restructure.
+- Maintain existing role-based access control (super_admin / syndicate_admin / member / tenant).
+- French is the primary UI language.
