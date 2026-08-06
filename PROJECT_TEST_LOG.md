@@ -74,3 +74,6 @@
 - `git diff --check -- artifacts/mobile/app/mon-bail.tsx artifacts/mobile/app/mon-lot.tsx artifacts/mobile/context/LanguageContext.tsx` — passed.
 - Expo web bundle rebuilt successfully after the paired resident/tenant changes; `/mon-bail` remained protected without a session and displayed the guarded loading boundary. Browser logs contained only existing Expo web compatibility warnings.
 - `pnpm --filter @workspace/mobile run typecheck` and `git diff --check` — rerun after the Travaux safe-error follow-up.
+- `pnpm --filter @workspace/mobile run typecheck` — passed after the Ma Boutique marketplace localization and recovery pass.
+- `git diff --check -- artifacts/mobile/app/my-shop.tsx` — passed.
+- Expo workflow remained running and Metro had previously bundled successfully; the seller route remains protected without an authenticated session.

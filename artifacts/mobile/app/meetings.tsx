@@ -118,7 +118,7 @@ export default function MeetingsScreen() {
     setConfirmed((prev) => new Set(prev).add(id));
     confirmMeetingAttendance(id);
     Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-    showToast({ type: "success", title: t("confirmAttendanceTitle"), message: `Présence confirmée pour "${title}".` });
+    showToast({ type: "success", title: t("confirmAttendanceTitle"), message: `${t("meetingsPresenceFor")} « ${title} ».` });
     logActivity({ action: t("attendanceConfirmedLabel"), target: title, route: "/meetings", icon: "calendar", color: "#3b82f6" });
   };
 
@@ -262,8 +262,14 @@ export default function MeetingsScreen() {
           <EmptyState
             icon="calendar"
             title={t("noMeetings")}
-            description={filter === "all" ? "Aucune réunion enregistrée." : filter === "scheduled" ? "Aucune réunion à venir." : "Aucune réunion passée."}
-            actionLabel={isAdmin ? "Planifier une réunion" : undefined}
+            description={
+              filter === "all"
+                ? t("meetingsEmptyAll")
+                : filter === "scheduled"
+                ? t("meetingsEmptyScheduled")
+                : t("meetingsEmptyPast")
+            }
+            actionLabel={isAdmin ? t("meetingsPlanBtn") : undefined}
             onAction={isAdmin ? () => { setShowCreate(true); Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); } : undefined}
           />
         }
@@ -439,7 +445,7 @@ export default function MeetingsScreen() {
                   onPress={() => {
                     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
                     Linking.openURL(`https://maps.google.com/?q=${encodeURIComponent(selected?.location ?? "")}`).catch(() =>
-                      showToast({ type: "error", title: "Navigation impossible", message: "Impossible d'ouvrir l'application Cartes." })
+                      showToast({ type: "error", title: t("navigationError"), message: t("cannotOpenMaps") })
                     );
                   }}
                 >

@@ -1,3 +1,4 @@
+- Ma Boutique: replaced the generic spinner and silent failure surface with animated shared loading/recovery states, translated seller controls, clearer marketplace status hierarchy, and guided first-publication empty state.
 # UI/UX Design Log
 
 ## 2026-08-06

@@ -59,3 +59,6 @@
 - Kept the existing tenant-only RoleGuard and `locataires.myLease()` API behavior unchanged.
 - Audited `artifacts/mobile/app/travaux.tsx`; replaced raw API error fallbacks in assignment, report submission, validation, and creation workflows with localized safe messages.
 - Updated silent travaux refresh failures to show the existing localized recovery toast instead of failing invisibly while retaining already-loaded records.
+- Audited `artifacts/mobile/app/my-shop.tsx` and removed the remaining seller-facing French-only marketplace copy, including form fields, product statuses, statistics, promotion actions, confirmations, and upload feedback.
+- Added a shared screen-local translation map for marketplace-specific labels across `fr`, `en`, `ar`, and `es`, plus locale-aware MAD/date rendering and success feedback for create/update actions.
+- Added explicit loading, retryable unavailable-data, and guided empty states to the seller listing screen; promotion request failures remain isolated from listing retrieval.

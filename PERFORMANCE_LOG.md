@@ -1,3 +1,4 @@
+- Ma Boutique keeps the existing parallel listing/promotion fetch and isolates optional promotion failure without adding polling, duplicate listing requests, or client-side fallback data.
 # Performance Log
 
 ## 2026-08-06

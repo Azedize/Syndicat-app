@@ -10916,6 +10916,23 @@ export const TRANSLATIONS: Translations = {
   agStatusCancelled: { fr: "annulée", en: "cancelled", ar: "ملغاة", es: "cancelada" },
   agMarkAs: { fr: "Marquer cette AG comme", en: "Mark this assembly as", ar: "تحديد هذه الجمعية كـ", es: "Marcar esta AG como" },
   agMajorityInfo: { fr: "Majorité requise :", en: "Required majority:", ar: "الأغلبية المطلوبة:", es: "Mayoría requerida:" },
+
+  // ─── Meetings ────────────────────────────────────────────────────────────────
+  meetingsEmptyAll:       { fr: "Aucune réunion enregistrée.", en: "No meetings recorded.", ar: "لا توجد اجتماعات مسجلة.", es: "No hay reuniones registradas." },
+  meetingsEmptyScheduled: { fr: "Aucune réunion à venir.", en: "No upcoming meetings.", ar: "لا توجد اجتماعات قادمة.", es: "No hay reuniones próximas." },
+  meetingsEmptyPast:      { fr: "Aucune réunion passée.", en: "No past meetings.", ar: "لا توجد اجتماعات سابقة.", es: "No hay reuniones pasadas." },
+  meetingsPlanBtn:        { fr: "Planifier une réunion", en: "Schedule a meeting", ar: "جدولة اجتماع", es: "Planificar una reunión" },
+  meetingsPresenceFor:    { fr: "Présence confirmée pour", en: "Attendance confirmed for", ar: "تم تأكيد الحضور لـ", es: "Asistencia confirmada para" },
+  cannotOpenMaps:         { fr: "Impossible d'ouvrir l'application Cartes.", en: "Cannot open the Maps app.", ar: "تعذر فتح تطبيق الخرائط.", es: "No se puede abrir la aplicación Mapas." },
+  navigationError:        { fr: "Navigation impossible", en: "Navigation unavailable", ar: "التنقل غير متاح", es: "Navegación no disponible" },
+
+  // ─── Chat ────────────────────────────────────────────────────────────────────
+  chatContactsError: { fr: "Impossible de charger les contacts.", en: "Could not load contacts.", ar: "تعذر تحميل جهات الاتصال.", es: "No se pudieron cargar los contactos." },
+  chatConvError:     { fr: "Impossible de créer la conversation.", en: "Could not create conversation.", ar: "تعذر إنشاء المحادثة.", es: "No se pudo crear la conversación." },
+  chatGroupError:    { fr: "Impossible de créer le groupe.", en: "Could not create the group.", ar: "تعذر إنشاء المجموعة.", es: "No se pudo crear el grupo." },
+  chatMessagesError: { fr: "Messages indisponibles.", en: "Messages unavailable.", ar: "الرسائل غير متاحة.", es: "Mensajes no disponibles." },
+  chatMessagesRetry: { fr: "Réessayer", en: "Retry", ar: "إعادة المحاولة", es: "Reintentar" },
+  fileTooLarge:      { fr: "Fichier trop volumineux", en: "File too large", ar: "الملف كبير جداً", es: "Archivo demasiado grande" },
 };
 
 interface LanguageContextValue {

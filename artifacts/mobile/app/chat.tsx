@@ -25,6 +25,7 @@ import { useColors } from "@/hooks/useColors";
 import { chat as chatApi } from "@/services/api";
 import EmptyState from "@/components/EmptyState";
 import FilterChips from "@/components/FilterChips";
+import { useToast } from "@/context/ToastContext";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -79,6 +80,7 @@ export default function ChatScreen() {
   const [creatingGroup, setCreatingGroup] = useState(false);
   const { isWide } = useBreakpoints();
   const topPad = isWide ? 0 : (Platform.OS === "web" ? 67 : insets.top);
+  const { showToast } = useToast();
 
   const totalUnread = conversations.reduce((s, c) => s + c.unread, 0);
 
@@ -117,9 +119,14 @@ export default function ChatScreen() {
 
   const handleRefresh = useCallback(async () => {
     setRefreshing(true);
-    await refreshConversations().catch(() => {});
-    setRefreshing(false);
-  }, [refreshConversations]);
+    try {
+      await refreshConversations();
+    } catch {
+      showToast({ type: "error", title: t("error"), message: t("noData") });
+    } finally {
+      setRefreshing(false);
+    }
+  }, [refreshConversations]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const handleLongPress = (c: ChatConversation) => {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
@@ -153,6 +160,7 @@ export default function ChatScreen() {
       setContacts(rows);
     } catch {
       setContacts([]);
+      showToast({ type: "error", title: t("error"), message: t("chatContactsError") });
     } finally {
       setLoadingContacts(false);
     }
@@ -181,6 +189,7 @@ export default function ChatScreen() {
       }
     } catch {
       setCreatingConv(null);
+      showToast({ type: "error", title: t("error"), message: t("chatConvError") });
     }
   };
 
@@ -205,7 +214,7 @@ export default function ChatScreen() {
         router.push({ pathname: "/chat-thread", params: { id: convId } });
       }
     } catch {
-      Alert.alert(t("error"), t("error"));
+      showToast({ type: "error", title: t("error"), message: t("chatGroupError") });
     } finally {
       setCreatingGroup(false);
     }

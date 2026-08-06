@@ -41,3 +41,4 @@
 - [RBAC 4-role management team expansion](rbac-management-team.md) — president/treasurer/secretary/committee_member added as distinct roles; full menu, API guards, and dashboard updated.
 - [Twilio Verify SMS OTP](twilio-verify-sms.md) — SMS OTP via Twilio Verify; service SID must be VA… not VV…; normalizePhone handles +212 local format.
 - [Protected mobile preview validation](protected-mobile-preview-validation.md) — unauthenticated Expo previews redirect protected screens to welcome; validate redirect and clean bundling separately.
+- [Marketplace seller resilience](marketplace-seller-resilience.md) — optional promotion data must never hide otherwise available seller listings during a temporary promotion-service failure.

@@ -54,3 +54,5 @@
 - **documents.tsx**: Fixed pre-existing TS errors — added `t` to `useLanguage()` destructuring; fixed `CATS[].label` → `t(CATS[].labelKey)` at two call sites
 - **LanguageContext.tsx**: Added 112 new translation keys for equipe-syndic and assemblee-generale (all 4 languages: fr/en/ar/es)
 - Typecheck: `pnpm --filter @workspace/mobile run typecheck` — 0 errors ✓
+- Completed the enterprise UX pass for `my-shop.tsx`: localized seller listings, statuses, statistics, forms, promotion flow, confirmations, validation messages, and MAD formatting for French, English, Arabic, and Spanish.
+- Added guided loading, retryable listing recovery, and localized empty-state copy; promotion loading failures remain isolated so available listings are never hidden.

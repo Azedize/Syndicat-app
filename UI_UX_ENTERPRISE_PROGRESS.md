@@ -1,3 +1,4 @@
+- Ma Boutique seller experience now has localized form guidance, action confirmations, meaningful loading/error/empty states, and clear feedback for listing and promotion workflows.
 # UI/UX Enterprise Progress
 
 ## 2026-08-06

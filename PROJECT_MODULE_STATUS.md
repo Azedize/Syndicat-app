@@ -11,3 +11,5 @@
 - Mon Bail & Loyer: multilingual tenant lease, apartment, emergency-contact, status, and recovery pass complete.
 - Travaux & Interventions: existing multilingual workflow retained; raw action errors removed and silent refresh failures now surface safe localized recovery feedback.
 - Mobile verification: typecheck, diff validation, and Expo bundle rebuild pass after the paired resident/tenant and works follow-up passes.
+- Ma Boutique: multilingual seller listing, CRUD form, status, promotion, upload feedback, MAD formatting, and recoverable data-state pass complete.
+- Mobile verification: typecheck and diff validation pass; direct unauthenticated seller preview correctly receives 401 from both protected seller endpoints.

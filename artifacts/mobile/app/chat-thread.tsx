@@ -170,6 +170,11 @@ export default function ChatThreadScreen() {
   const typingSentAtRef = useRef(0);
 
   // ─── Upload state ─────────────────────────────────────────────────────────
+  const [messagesError, setMessagesError] = useState(false);
+  const [loadingMessages, setLoadingMessages] = useState(true);
+  const [retryKey, setRetryKey] = useState(0);
+
+  // ─── Upload state ─────────────────────────────────────────────────────────
   const [uploading, setUploading] = useState(false);
   const [uploadProgress, setUploadProgress] = useState(0); // 0-1
 
@@ -216,10 +221,12 @@ export default function ChatThreadScreen() {
     };
   }
 
-  // Load historical messages on mount; mark conversation as read
+  // Load historical messages on mount (or retry); mark conversation as read
   useEffect(() => {
     if (!id) return;
     let cancelled = false;
+    setLoadingMessages(true);
+    setMessagesError(false);
     chatApi
       .messages(id)
       .then((res: any) => {
@@ -232,12 +239,17 @@ export default function ChatThreadScreen() {
             mapped[mapped.length - 1].createdAt ?? null;
         }
       })
-      .catch(() => {});
+      .catch(() => {
+        if (!cancelled) setMessagesError(true);
+      })
+      .finally(() => {
+        if (!cancelled) setLoadingMessages(false);
+      });
     markConversationRead(id);
     return () => {
       cancelled = true;
     };
-  }, [id]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [id, retryKey]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // Poll for new messages, edits, deletions, and typing every 4 seconds
   useEffect(() => {
@@ -429,7 +441,7 @@ export default function ChatThreadScreen() {
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
     } catch (err: any) {
       const msg = err?.message?.startsWith("FILE_TOO_LARGE")
-        ? `Fichier trop volumineux (max ${formatBytes(MAX_ATTACHMENT_SIZE)})`
+        ? `${t("fileTooLarge")} (max ${formatBytes(MAX_ATTACHMENT_SIZE)})`
         : t("uploadError");
       Alert.alert(t("error"), msg);
     } finally {

@@ -1,3 +1,4 @@
+- Ma Boutique changes preserve the existing authenticated marketplace API, seller CRUD permissions, upload authorization, destructive confirmations, and promotion proof-of-payment flow; raw API errors are not exposed.
 # Security Log
 
 ## 2026-08-06
