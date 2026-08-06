@@ -42,25 +42,25 @@ type SyndicateCat = "paiement" | "maintenance" | "juridique" | "administratif" |
 
 // ─── Constants ────────────────────────────────────────────────────────────────
 
-const CATEGORIES: { key: SyndicateCat; labelFr: string; icon: keyof typeof Feather.glyphMap; color: string }[] = [
-  { key: "paiement",       labelFr: "Problème de paiement", icon: "credit-card",  color: "#ef4444" },
-  { key: "maintenance",    labelFr: "Maintenance",          icon: "tool",         color: "#f59e0b" },
-  { key: "juridique",      labelFr: "Juridique",            icon: "shield",       color: "#8b5cf6" },
-  { key: "administratif",  labelFr: "Administratif",        icon: "file-text",    color: "#3b82f6" },
-  { key: "general",        labelFr: "Général",              icon: "help-circle",  color: "#6b7280" },
+const CATEGORIES: { key: SyndicateCat; labelKey: string; icon: keyof typeof Feather.glyphMap; color: string }[] = [
+  { key: "paiement",       labelKey: "supportCategoryPayment",      icon: "credit-card", color: "#ef4444" },
+  { key: "maintenance",    labelKey: "supportCategoryMaintenance",   icon: "tool",        color: "#f59e0b" },
+  { key: "juridique",      labelKey: "supportCategoryLegal",          icon: "shield",      color: "#8b5cf6" },
+  { key: "administratif",  labelKey: "supportCategoryAdministrative", icon: "file-text",  color: "#3b82f6" },
+  { key: "general",        labelKey: "supportCategoryGeneral",         icon: "help-circle", color: "#6b7280" },
 ];
 
-const PRIORITIES: { key: SupportTicket["priority"]; labelFr: string; icon: keyof typeof Feather.glyphMap; color: string }[] = [
-  { key: "high",   labelFr: "Urgent",  icon: "alert-circle",   color: "#ef4444" },
-  { key: "medium", labelFr: "Normal",  icon: "alert-triangle", color: "#f59e0b" },
-  { key: "low",    labelFr: "Faible",  icon: "info",           color: "#3b82f6" },
+const PRIORITIES: { key: SupportTicket["priority"]; labelKey: string; icon: keyof typeof Feather.glyphMap; color: string }[] = [
+  { key: "high",   labelKey: "priorityUrgent", icon: "alert-circle",   color: "#ef4444" },
+  { key: "medium", labelKey: "priorityNormal", icon: "alert-triangle", color: "#f59e0b" },
+  { key: "low",    labelKey: "priorityLow",    icon: "info",            color: "#3b82f6" },
 ];
 
 const STATUS_CFG = {
-  open:        { color: "#ef4444", icon: "alert-circle" as const,   label: "Ouvert" },
-  in_progress: { color: "#f59e0b", icon: "clock" as const,          label: "En cours" },
-  resolved:    { color: "#10b981", icon: "check-circle" as const,   label: "Résolu" },
-  closed:      { color: "#6b7280", icon: "x-circle" as const,       label: "Fermé" },
+  open:        { color: "#ef4444", icon: "alert-circle" as const,   labelKey: "ticketOpen" },
+  in_progress: { color: "#f59e0b", icon: "clock" as const,          labelKey: "ticketInProgress" },
+  resolved:    { color: "#10b981", icon: "check-circle" as const,   labelKey: "ticketResolved" },
+  closed:      { color: "#6b7280", icon: "x-circle" as const,       labelKey: "ticketClosed" },
 };
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
@@ -74,11 +74,12 @@ function priCfg(p: string) {
 function stCfg(s: string) {
   return STATUS_CFG[s as keyof typeof STATUS_CFG] ?? STATUS_CFG.open;
 }
-function fmtDate(d: string) {
+function fmtDate(d: string, lang: string) {
   if (!d) return "";
   const dt = new Date(d);
   if (isNaN(dt.getTime())) return d.slice(0, 10);
-  return dt.toLocaleDateString("fr-FR", { day: "2-digit", month: "short", year: "numeric" });
+  const locale = lang === "ar" ? "ar-MA" : lang === "en" ? "en-US" : lang === "es" ? "es-ES" : "fr-FR";
+  return dt.toLocaleDateString(locale, { day: "2-digit", month: "short", year: "numeric" });
 }
 
 // ─── Component ────────────────────────────────────────────────────────────────
@@ -87,7 +88,7 @@ export default function SupportScreen() {
   const colors   = useColors();
   const insets   = useSafeAreaInsets();
   const { user, token } = useAuth();
-  const { t }    = useLanguage();
+  const { t, lang } = useLanguage();
   const { showToast } = useToast();
   const { isWide } = useBreakpoints();
 
@@ -169,13 +170,13 @@ export default function SupportScreen() {
         category:    newCat,
         scope:       "syndicate",
       }, token);
-      showToast({ type: "success", title: "Ticket soumis", message: "L'administrateur du syndicat a été notifié." });
+      showToast({ type: "success", title: t("supportTicketSubmitted"), message: t("supportTicketSubmittedMessage") });
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
       setShowNew(false);
       setNewTitle(""); setNewDesc(""); setNewPri("medium"); setNewCat("general");
       fetchTickets();
     } catch {
-      showToast({ type: "error", title: "Erreur", message: "Impossible de soumettre le ticket." });
+      showToast({ type: "error", title: t("error"), message: t("supportSubmitError") });
     } finally {
       setSubmitting(false);
     }
@@ -188,14 +189,14 @@ export default function SupportScreen() {
       await apiRequest(`/support/${selected.id}/replies`, "POST", { text: replyText.trim() }, token);
       setReplyText("");
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-      showToast({ type: "success", title: "Réponse envoyée" });
+      showToast({ type: "success", title: t("supportReplySent") });
       // Refresh replies
       const res: any = await apiRequest(`/support/${selected.id}`, "GET", undefined, token);
       setReplies(res?.data?.replies ?? []);
       // Mark in_progress locally
       setTickets((prev) => prev.map((tk) => tk.id === selected.id ? { ...tk, status: "in_progress" } : tk));
     } catch {
-      showToast({ type: "error", title: "Erreur", message: "Impossible d'envoyer la réponse." });
+      showToast({ type: "error", title: t("error"), message: t("supportReplyError") });
     } finally {
       setReplying(false);
     }
@@ -204,12 +205,12 @@ export default function SupportScreen() {
   const handleResolve = async (id: string) => {
     try {
       await apiRequest(`/support/${id}/resolve`, "PUT", undefined, token);
-      showToast({ type: "success", title: "Ticket résolu" });
+      showToast({ type: "success", title: t("supportTicketResolved") });
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
       setSelected(null);
       fetchTickets();
     } catch {
-      showToast({ type: "error", title: "Erreur", message: "Impossible de résoudre le ticket." });
+      showToast({ type: "error", title: t("error"), message: t("supportResolveError") });
     }
   };
 
@@ -219,14 +220,14 @@ export default function SupportScreen() {
       await apiRequest(`/support/${ticket.id}/escalate`, "POST", undefined, token);
       showToast({
         type:    "success",
-        title:   "Ticket escaladé",
-        message: "Un ticket a été envoyé au support plateforme.",
+        title:   t("supportTicketEscalated"),
+        message: t("supportEscalatedMessage"),
       });
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
       setSelected(null);
       fetchTickets();
     } catch {
-      showToast({ type: "error", title: "Erreur", message: "Impossible d'escalader ce ticket." });
+      showToast({ type: "error", title: t("error"), message: t("supportEscalateError") });
     } finally {
       setEscalating(false);
     }
@@ -238,10 +239,10 @@ export default function SupportScreen() {
   const openCount = tickets.filter((tk) => tk.status === "open").length;
 
   const FILTERS: { key: Filter; label: string }[] = [
-    { key: "all",         label: "Tous" },
-    { key: "open",        label: "Ouverts" },
-    { key: "in_progress", label: "En cours" },
-    { key: "resolved",    label: "Résolus" },
+    { key: "all",         label: t("supportFilterAll") },
+    { key: "open",        label: t("supportFilterOpen") },
+    { key: "in_progress", label: t("supportFilterInProgress") },
+    { key: "resolved",    label: t("supportFilterResolved") },
   ];
 
   // ─── Render ───────────────────────────────────────────────────────────────
@@ -255,14 +256,14 @@ export default function SupportScreen() {
         </TouchableOpacity>
         <View style={{ flex: 1 }}>
           <Text style={[styles.title, { color: colors.foreground }]}>
-            {isSyndicateAdmin ? "Support Syndicat" : "Mes demandes"}
+            {isSyndicateAdmin ? t("supportSyndicateTitle") : t("supportMyRequestsTitle")}
           </Text>
           <Text style={[styles.subtitle, { color: colors.mutedForeground }]}>
             {isSyndicateAdmin
-              ? `Gestion des tickets résidents · ${openCount} ouvert(s)`
+              ? `${t("supportAdminSubtitle")} · ${openCount} ${t("supportOpenCount")}`
               : openCount > 0
-                ? `${openCount} demande(s) en attente`
-                : "Aucune demande en attente"}
+                ? `${openCount} ${t("supportPendingCount")}`
+                : t("supportNoPending")}
           </Text>
         </View>
         <TouchableOpacity
@@ -278,7 +279,7 @@ export default function SupportScreen() {
         <View style={[styles.infoBanner, { backgroundColor: colors.primary + "10", borderBottomColor: colors.border }]}>
           <Feather name="info" size={14} color={colors.primary} />
           <Text style={[styles.infoBannerText, { color: colors.primary }]}>
-            Vos demandes sont transmises à l'administrateur de votre syndicat.
+            {t("supportMemberBanner")}
           </Text>
         </View>
       )}
@@ -286,10 +287,10 @@ export default function SupportScreen() {
       {/* ── Stats strip ── */}
       <View style={[styles.statsStrip, { backgroundColor: colors.card, borderBottomColor: colors.border }]}>
         {[
-          { label: "Ouverts",   count: tickets.filter((t) => t.status === "open").length,        color: "#ef4444" },
-          { label: "En cours",  count: tickets.filter((t) => t.status === "in_progress").length,  color: "#f59e0b" },
-          { label: "Résolus",   count: tickets.filter((t) => t.status === "resolved").length,     color: "#10b981" },
-          { label: "Total",     count: tickets.length,                                            color: colors.primary },
+          { label: t("supportStatOpen"),       count: tickets.filter((t) => t.status === "open").length,        color: "#ef4444" },
+          { label: t("supportStatInProgress"), count: tickets.filter((t) => t.status === "in_progress").length, color: "#f59e0b" },
+          { label: t("supportStatResolved"),   count: tickets.filter((t) => t.status === "resolved").length,   color: "#10b981" },
+          { label: t("supportStatTotal"),       count: tickets.length,                                             color: colors.primary },
         ].map((s, i) => (
           <React.Fragment key={s.label}>
             {i > 0 && <View style={[styles.statDiv, { backgroundColor: colors.border }]} />}
@@ -332,9 +333,9 @@ export default function SupportScreen() {
               <View style={[styles.emptyIcon, { backgroundColor: colors.primary + "12" }]}>
                 <Feather name="inbox" size={36} color={colors.primary} />
               </View>
-              <Text style={[styles.emptyTitle, { color: colors.foreground }]}>Aucun ticket</Text>
+              <Text style={[styles.emptyTitle, { color: colors.foreground }]}>{t("noTickets")}</Text>
               <Text style={[styles.emptySub, { color: colors.mutedForeground }]}>
-                {filter === "all" ? "Créez votre première demande." : "Aucun ticket dans cette catégorie."}
+                {filter === "all" ? t("supportCreateFirst") : t("supportNoCategoryTickets")}
               </Text>
               {filter === "all" && (
                 <TouchableOpacity
@@ -342,7 +343,7 @@ export default function SupportScreen() {
                   onPress={() => { setShowNew(true); Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); }}
                 >
                   <Feather name="plus" size={14} color="#fff" />
-                  <Text style={styles.emptyBtnTxt}>Nouveau ticket</Text>
+                  <Text style={styles.emptyBtnTxt}>{t("supportNewTicket")}</Text>
                 </TouchableOpacity>
               )}
             </View>
@@ -375,22 +376,22 @@ export default function SupportScreen() {
                       </Text>
                       <Text style={[styles.dot, { color: colors.mutedForeground }]}>•</Text>
                       <Text style={[styles.cardCat, { color: cc.color }]}>
-                        {cc.labelFr}
+                        {t(cc.labelKey)}
                       </Text>
                     </View>
                   </View>
                   <View style={styles.cardRight}>
                     <View style={[styles.badge, { backgroundColor: pc.color + "15" }]}>
                       <Feather name={pc.icon} size={9} color={pc.color} />
-                      <Text style={[styles.badgeTxt, { color: pc.color }]}>{pc.labelFr}</Text>
+                      <Text style={[styles.badgeTxt, { color: pc.color }]}>{t(pc.labelKey)}</Text>
                     </View>
                     <View style={[styles.badge, { backgroundColor: sc.color + "15" }]}>
                       <Feather name={sc.icon} size={9} color={sc.color} />
-                      <Text style={[styles.badgeTxt, { color: sc.color }]}>{sc.label}</Text>
+                      <Text style={[styles.badgeTxt, { color: sc.color }]}>{t(sc.labelKey)}</Text>
                     </View>
                   </View>
                 </View>
-                <Text style={[styles.cardDate, { color: colors.mutedForeground }]}>{fmtDate(ticket.date)}</Text>
+                <Text style={[styles.cardDate, { color: colors.mutedForeground }]}>{fmtDate(ticket.date, lang)}</Text>
               </TouchableOpacity>
             );
           }}
@@ -404,7 +405,7 @@ export default function SupportScreen() {
         activeOpacity={0.85}
       >
         <Feather name="plus" size={20} color="#fff" />
-        <Text style={styles.fabTxt}>Nouveau ticket</Text>
+        <Text style={styles.fabTxt}>{t("supportNewTicket")}</Text>
       </TouchableOpacity>
 
       {/* ═══════════════════════════════════════════════════════════════════════
@@ -422,7 +423,7 @@ export default function SupportScreen() {
                 <Feather name="x" size={22} color={colors.mutedForeground} />
               </TouchableOpacity>
               <Text style={[styles.modalTitle, { color: colors.foreground }]} numberOfLines={1}>
-                Ticket #{selected.id.slice(-6).toUpperCase()}
+                 {t("supportTicketDetail")} #{selected.id.slice(-6).toUpperCase()}
               </Text>
               {isSyndicateAdmin && selected.status !== "resolved" ? (
                 <TouchableOpacity
@@ -430,7 +431,7 @@ export default function SupportScreen() {
                   onPress={() => handleResolve(selected.id)}
                 >
                   <Feather name="check" size={12} color="#fff" />
-                  <Text style={styles.resolveBtnTxt}>Résoudre</Text>
+                  <Text style={styles.resolveBtnTxt}>{t("supportResolveAction")}</Text>
                 </TouchableOpacity>
               ) : <View style={{ width: 72 }} />}
             </View>
@@ -449,14 +450,14 @@ export default function SupportScreen() {
                   <View key={i} style={[styles.chip, { backgroundColor: cfg.color + "15" }]}>
                     <Feather name={cfg.icon as any} size={11} color={cfg.color} />
                     <Text style={[styles.chipTxt, { color: cfg.color }]}>
-                      {i === 0 ? (cfg as any).labelFr : (cfg as any).label}
+                 {t(i === 0 ? (cfg as any).labelKey : (cfg as any).labelKey)}
                     </Text>
                   </View>
                 ))}
                 <View style={[styles.chip, { backgroundColor: catCfg(selected.category).color + "15" }]}>
                   <Feather name={catCfg(selected.category).icon} size={11} color={catCfg(selected.category).color} />
                   <Text style={[styles.chipTxt, { color: catCfg(selected.category).color }]}>
-                    {catCfg(selected.category).labelFr}
+                    {t(catCfg(selected.category).labelKey)}
                   </Text>
                 </View>
               </View>
@@ -464,8 +465,8 @@ export default function SupportScreen() {
               {/* Info grid */}
               <View style={[styles.infoBox, { backgroundColor: colors.card, borderColor: colors.border }]}>
                 {[
-                  { label: "Soumis par",   value: selected.submittedBy },
-                  { label: "Date",          value: fmtDate(selected.date) },
+                  { label: t("supportSubmittedBy"), value: selected.submittedBy },
+                  { label: t("date"), value: fmtDate(selected.date, lang) },
                 ].map((row, i) => (
                   <View key={row.label}>
                     {i > 0 && <View style={[styles.sep, { backgroundColor: colors.border }]} />}
@@ -487,7 +488,7 @@ export default function SupportScreen() {
               {replies.length > 0 && (
                 <View style={{ gap: 10 }}>
                   <Text style={[styles.threadLbl, { color: colors.foreground }]}>
-                    Conversation ({replies.length})
+                    {t("supportConversation")} ({replies.length})
                   </Text>
                   {replies.map((rp) => {
                     const isAdmin = rp.authorName?.toLowerCase().includes("admin") ||
@@ -507,7 +508,7 @@ export default function SupportScreen() {
                             {rp.authorName}
                           </Text>
                           <Text style={[styles.bubbleDate, { color: colors.mutedForeground }]}>
-                            {fmtDate(rp.createdAt)}
+                            {fmtDate(rp.createdAt, lang)}
                           </Text>
                         </View>
                         <Text style={[styles.bubbleTxt, { color: colors.foreground }]}>{rp.text}</Text>
@@ -521,11 +522,11 @@ export default function SupportScreen() {
               {selected.status !== "resolved" && selected.status !== "closed" && (
                 <View style={{ gap: 8 }}>
                   <Text style={[styles.replyLbl, { color: colors.foreground }]}>
-                    {isSyndicateAdmin ? "Répondre au ticket" : "Ajouter un commentaire"}
+                    {isSyndicateAdmin ? t("supportReplyToTicket") : t("supportAddComment")}
                   </Text>
                   <TextInput
                     style={[styles.replyInput, { borderColor: colors.border, backgroundColor: colors.card, color: colors.foreground }]}
-                    placeholder="Écrivez votre réponse…"
+                    placeholder={t("supportWriteReply")}
                     placeholderTextColor={colors.mutedForeground}
                     multiline
                     numberOfLines={4}
@@ -544,7 +545,7 @@ export default function SupportScreen() {
                       : <Feather name="send" size={14} color={replyText.trim() ? "#fff" : colors.mutedForeground} />
                     }
                     <Text style={[styles.sendBtnTxt, { color: replyText.trim() && !replying ? "#fff" : colors.mutedForeground }]}>
-                      Envoyer
+                      {t("supportSend")}
                     </Text>
                   </TouchableOpacity>
                 </View>
@@ -555,7 +556,7 @@ export default function SupportScreen() {
                 <View style={[styles.resolvedBanner, { backgroundColor: colors.success + "12", borderColor: colors.success + "30" }]}>
                   <Feather name="check-circle" size={18} color={colors.success} />
                   <Text style={[styles.resolvedTxt, { color: colors.success }]}>
-                    Ce ticket est résolu. Merci pour votre patience.
+                     {t("supportResolvedBanner")}
                   </Text>
                 </View>
               )}
@@ -570,10 +571,10 @@ export default function SupportScreen() {
                   <Feather name="trending-up" size={16} color="#6366f1" />
                   <View style={{ flex: 1 }}>
                     <Text style={[styles.escalateBtnTitle, { color: "#6366f1" }]}>
-                      {escalating ? "Escalade en cours…" : "Escalader au Support Plateforme"}
+                      {escalating ? t("supportEscalating") : t("supportEscalateAction")}
                     </Text>
                     <Text style={[styles.escalateBtnSub, { color: colors.mutedForeground }]}>
-                      Ce problème dépasse le périmètre du syndicat → envoyer à l'équipe technique.
+                       {t("supportEscalateDescription")}
                     </Text>
                   </View>
                   <Feather name="chevron-right" size={16} color="#6366f1" />
@@ -593,7 +594,7 @@ export default function SupportScreen() {
           behavior={Platform.OS === "ios" ? "padding" : "height"}
         >
           <View style={[styles.modalHdr, { borderBottomColor: colors.border }]}>
-            <Text style={[styles.modalTitle, { color: colors.foreground }]}>Nouveau ticket</Text>
+            <Text style={[styles.modalTitle, { color: colors.foreground }]}>{t("supportNewTicket")}</Text>
             <TouchableOpacity onPress={() => setShowNew(false)}>
               <Feather name="x" size={22} color={colors.mutedForeground} />
             </TouchableOpacity>
@@ -607,14 +608,14 @@ export default function SupportScreen() {
             <View style={[styles.prefilledCard, { backgroundColor: colors.card, borderColor: colors.border }]}>
               <Feather name="user" size={14} color={colors.primary} />
               <Text style={[styles.prefilledTxt, { color: colors.foreground }]}>
-                <Text style={{ fontFamily: "Inter_600SemiBold" }}>Demandeur : </Text>
+                <Text style={{ fontFamily: "Inter_600SemiBold" }}>{t("supportSubmittedBy")} : </Text>
                 {user?.name}
               </Text>
             </View>
 
             {/* Category selector */}
             <View style={{ gap: 8 }}>
-              <Text style={[styles.fieldLbl, { color: colors.foreground }]}>Catégorie *</Text>
+              <Text style={[styles.fieldLbl, { color: colors.foreground }]}>{t("supportCategory")} *</Text>
               <View style={styles.chipGrid}>
                 {CATEGORIES.map((c) => {
                   const active = newCat === c.key;
@@ -630,7 +631,7 @@ export default function SupportScreen() {
                     >
                       <Feather name={c.icon} size={13} color={active ? "#fff" : c.color} />
                       <Text style={[styles.selectChipTxt, { color: active ? "#fff" : c.color }]} numberOfLines={1}>
-                        {c.labelFr}
+                         {t(c.labelKey)}
                       </Text>
                     </TouchableOpacity>
                   );
@@ -640,7 +641,7 @@ export default function SupportScreen() {
 
             {/* Priority selector */}
             <View style={{ gap: 8 }}>
-              <Text style={[styles.fieldLbl, { color: colors.foreground }]}>Priorité</Text>
+              <Text style={[styles.fieldLbl, { color: colors.foreground }]}>{t("ticketPriorityLabel")}</Text>
               <View style={styles.chipRow}>
                 {PRIORITIES.map((p) => {
                   const active = newPri === p.key;
@@ -655,7 +656,7 @@ export default function SupportScreen() {
                       onPress={() => setNewPri(p.key)}
                     >
                       <Feather name={p.icon} size={13} color={active ? "#fff" : p.color} />
-                      <Text style={[styles.selectChipTxt, { color: active ? "#fff" : p.color }]}>{p.labelFr}</Text>
+                      <Text style={[styles.selectChipTxt, { color: active ? "#fff" : p.color }]}>{t(p.labelKey)}</Text>
                     </TouchableOpacity>
                   );
                 })}
@@ -664,17 +665,17 @@ export default function SupportScreen() {
 
             {/* Title */}
             <View style={{ gap: 6 }}>
-              <Text style={[styles.fieldLbl, { color: colors.foreground }]}>Sujet *</Text>
+              <Text style={[styles.fieldLbl, { color: colors.foreground }]}>{t("supportSubject")} *</Text>
               <TextInput
                 style={[styles.fieldInput, { borderColor: colors.border, backgroundColor: colors.card, color: colors.foreground }]}
                 value={newTitle}
                 onChangeText={setNewTitle}
                 placeholder={
-                  newCat === "paiement"      ? "Ex : Paiement non reflété dans l'application" :
-                  newCat === "maintenance"   ? "Ex : Fuite d'eau au parking niveau P1" :
-                  newCat === "juridique"     ? "Ex : Question sur le règlement de copropriété" :
-                  newCat === "administratif" ? "Ex : Erreur dans mes informations de compte" :
-                                               "Décrivez brièvement votre problème"
+                   newCat === "paiement"      ? t("supportSubjectPaymentPlaceholder") :
+                   newCat === "maintenance"   ? t("supportSubjectMaintenancePlaceholder") :
+                   newCat === "juridique"     ? t("supportSubjectLegalPlaceholder") :
+                   newCat === "administratif" ? t("supportSubjectAdministrativePlaceholder") :
+                                                t("supportSubjectGeneralPlaceholder")
                 }
                 placeholderTextColor={colors.mutedForeground}
               />
@@ -682,12 +683,12 @@ export default function SupportScreen() {
 
             {/* Description */}
             <View style={{ gap: 6 }}>
-              <Text style={[styles.fieldLbl, { color: colors.foreground }]}>Description *</Text>
+              <Text style={[styles.fieldLbl, { color: colors.foreground }]}>{t("supportDescription")} *</Text>
               <TextInput
                 style={[styles.fieldInput, styles.textArea, { borderColor: colors.border, backgroundColor: colors.card, color: colors.foreground }]}
                 value={newDesc}
                 onChangeText={setNewDesc}
-                placeholder="Décrivez votre problème en détail. Plus vous donnez d'informations, plus vite nous pourrons vous aider."
+                 placeholder={t("supportDescriptionPlaceholder")}
                 placeholderTextColor={colors.mutedForeground}
                 multiline
                 numberOfLines={5}
@@ -698,7 +699,7 @@ export default function SupportScreen() {
             <View style={[styles.noteBox, { backgroundColor: colors.primary + "10", borderColor: colors.primary + "30" }]}>
               <Feather name="info" size={14} color={colors.primary} />
               <Text style={[styles.noteTxt, { color: colors.primary }]}>
-                Votre demande sera transmise à l'administrateur de votre syndicat. Temps de réponse habituel : 24 à 48 h.
+                {t("supportResponseNote")}
               </Text>
             </View>
 
@@ -717,7 +718,7 @@ export default function SupportScreen() {
               <Text style={[styles.submitBtnTxt, {
                 color: newTitle.trim() && newDesc.trim() && !submitting ? "#fff" : colors.mutedForeground,
               }]}>
-                {submitting ? "Envoi en cours…" : "Soumettre la demande"}
+                 {submitting ? t("supportSending") : t("supportSubmitRequest")}
               </Text>
             </TouchableOpacity>
           </ScrollView>

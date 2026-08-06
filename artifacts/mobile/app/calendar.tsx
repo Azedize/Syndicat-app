@@ -14,6 +14,7 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useData } from "@/context/DataContext";
 import { useBreakpoints } from "@/hooks/useBreakpoints";
 import { useColors } from "@/hooks/useColors";
+import { useLanguage } from "@/context/LanguageContext";
 
 type FilterType = "all" | "meeting" | "election" | "cotisation";
 
@@ -38,6 +39,7 @@ export default function CalendarScreen() {
   const insets = useSafeAreaInsets();
   const { meetings, elections, cotisations } = useData();
   const { isWide } = useBreakpoints();
+  const { t } = useLanguage();
   const topPad = isWide ? 0 : (Platform.OS === "web" ? 67 : insets.top);
 
   const today = new Date();
@@ -117,15 +119,15 @@ export default function CalendarScreen() {
   };
 
   const STATUS_CONFIG: Record<string, { label: string; color: string }> = {
-    scheduled: { label: "Planifié", color: "#3b82f6" },
-    completed: { label: "Terminé", color: "#10b981" },
-    cancelled: { label: "Annulé", color: "#ef4444" },
-    open: { label: "En cours", color: "#f59e0b" },
-    upcoming: { label: "À venir", color: "#6366f1" },
-    closed: { label: "Clôturé", color: "#6b7280" },
-    pending: { label: "En attente", color: "#f59e0b" },
-    overdue: { label: "En retard", color: "#ef4444" },
-    paid: { label: "Payé", color: "#10b981" },
+    scheduled: { label: t("calStatusScheduled"), color: "#3b82f6" },
+    completed: { label: t("calStatusCompleted"), color: "#10b981" },
+    cancelled: { label: t("calStatusCancelled"), color: "#ef4444" },
+    open: { label: t("calStatusOpen"), color: "#f59e0b" },
+    upcoming: { label: t("calStatusUpcoming"), color: "#6366f1" },
+    closed: { label: t("calStatusClosed"), color: "#6b7280" },
+    pending: { label: t("calStatusPending"), color: "#f59e0b" },
+    overdue: { label: t("calStatusOverdue"), color: "#ef4444" },
+    paid: { label: t("calStatusPaid"), color: "#10b981" },
   };
 
   const upcomingEvents = filteredEvents
@@ -140,9 +142,9 @@ export default function CalendarScreen() {
           <Feather name="arrow-left" size={22} color={colors.foreground} />
         </TouchableOpacity>
         <View style={{ flex: 1 }}>
-          <Text style={[styles.title, { color: colors.foreground }]}>Calendrier</Text>
+          <Text style={[styles.title, { color: colors.foreground }]}>{t("calTitle")}</Text>
           <Text style={[styles.subtitle, { color: colors.mutedForeground }]}>
-            {allEvents.length} événements
+            {allEvents.length} {t("calEventsCount")}
           </Text>
         </View>
       </View>
@@ -151,7 +153,7 @@ export default function CalendarScreen() {
         {/* Filter chips */}
         <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.filters}>
           {(["all", "meeting", "election", "cotisation"] as FilterType[]).map((f) => {
-            const labels: Record<FilterType, string> = { all: "Tout", meeting: "Réunions", election: "Elections", cotisation: "Cotisations" };
+            const labels: Record<FilterType, string> = { all: t("calFilterAll"), meeting: t("calFilterMeetings"), election: t("calFilterElections"), cotisation: t("calFilterCotisations") };
             return (
               <TouchableOpacity
                 key={f}
@@ -174,7 +176,7 @@ export default function CalendarScreen() {
             <Feather name="chevron-left" size={22} color={colors.foreground} />
           </TouchableOpacity>
           <Text style={[styles.monthTitle, { color: colors.foreground }]}>
-            {MONTH_NAMES[currentMonth]} {currentYear}
+            {[t("calMonthJan"),t("calMonthFeb"),t("calMonthMar"),t("calMonthApr"),t("calMonthMay"),t("calMonthJun"),t("calMonthJul"),t("calMonthAug"),t("calMonthSep"),t("calMonthOct"),t("calMonthNov"),t("calMonthDec")][currentMonth]} {currentYear}
           </Text>
           <TouchableOpacity onPress={nextMonth} style={styles.monthBtn}>
             <Feather name="chevron-right" size={22} color={colors.foreground} />
@@ -230,8 +232,8 @@ export default function CalendarScreen() {
         {selectedDay !== null && (
           <View style={{ padding: 16, gap: 10 }}>
             <Text style={[styles.sectionTitle, { color: colors.foreground }]}>
-              {selectedDay} {MONTH_NAMES[currentMonth]} {currentYear}
-              {selectedDayEvents.length === 0 && " — Aucun événement"}
+              {selectedDay} {[t("calMonthJan"),t("calMonthFeb"),t("calMonthMar"),t("calMonthApr"),t("calMonthMay"),t("calMonthJun"),t("calMonthJul"),t("calMonthAug"),t("calMonthSep"),t("calMonthOct"),t("calMonthNov"),t("calMonthDec")][currentMonth]} {currentYear}
+              {selectedDayEvents.length === 0 && ` ${t("calNoEventsDay")}`}
             </Text>
             {selectedDayEvents.map((ev) => (
               <View key={ev.id} style={[styles.eventCard, { backgroundColor: colors.card, borderColor: colors.border, borderLeftColor: ev.color }]}>
@@ -265,13 +267,14 @@ export default function CalendarScreen() {
 
         {/* Upcoming events */}
         <View style={{ paddingHorizontal: 16, gap: 10 }}>
-          <Text style={[styles.sectionTitle, { color: colors.foreground }]}>Prochains événements</Text>
+          <Text style={[styles.sectionTitle, { color: colors.foreground }]}>{t("calUpcomingSection")}</Text>
           {upcomingEvents.length === 0 ? (
-            <Text style={[styles.noEvents, { color: colors.mutedForeground }]}>Aucun événement à venir</Text>
+            <Text style={[styles.noEvents, { color: colors.mutedForeground }]}>{t("calNoEventsUpcoming")}</Text>
           ) : (
             upcomingEvents.map((ev) => {
+              const monthNames = [t("calMonthJan"),t("calMonthFeb"),t("calMonthMar"),t("calMonthApr"),t("calMonthMay"),t("calMonthJun"),t("calMonthJul"),t("calMonthAug"),t("calMonthSep"),t("calMonthOct"),t("calMonthNov"),t("calMonthDec")];
               const d = new Date(ev.date);
-              const dayStr = `${d.getDate()} ${MONTH_NAMES[d.getMonth()].slice(0, 3)}`;
+              const dayStr = `${d.getDate()} ${monthNames[d.getMonth()].slice(0, 3)}`;
               return (
                 <View key={ev.id} style={[styles.upcomingCard, { backgroundColor: colors.card, borderColor: colors.border }]}>
                   <View style={[styles.upcomingDate, { backgroundColor: ev.color + "15" }]}>
@@ -281,7 +284,7 @@ export default function CalendarScreen() {
                   <View style={{ flex: 1 }}>
                     <Text style={[styles.upcomingTitle, { color: colors.foreground }]} numberOfLines={1}>{ev.title}</Text>
                     <Text style={[styles.upcomingType, { color: colors.mutedForeground }]}>
-                      {{ meeting: "Réunion", election: "Élection", cotisation: "Cotisation", all: "" }[ev.type]}
+                      {{ meeting: t("calTypeReunion"), election: t("calTypeElection"), cotisation: t("calTypeCotisation"), all: "" }[ev.type]}
                     </Text>
                   </View>
                 </View>

@@ -24,6 +24,8 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useToast } from "@/context/ToastContext";
 import RoleGuard from "@/components/RoleGuard";
 import { apiRequest as libApiRequest } from "@/lib/api";
+import { LangCode, useLanguage } from "@/context/LanguageContext";
+import { ErrorState, LoadingState } from "@/components/DataState";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -86,6 +88,157 @@ interface PermissionEntry {
   canEdit: boolean;
   canPublish: boolean;
 }
+
+type Localized = Record<LangCode, string>;
+const TEXT = {
+  error: { fr: "Erreur", en: "Error", ar: "خطأ", es: "Error" },
+  success: { fr: "Succès", en: "Success", ar: "نجاح", es: "Éxito" },
+  cancel: { fr: "Annuler", en: "Cancel", ar: "إلغاء", es: "Cancelar" },
+  save: { fr: "Enregistrer", en: "Save", ar: "حفظ", es: "Guardar" },
+  delete: { fr: "Supprimer", en: "Delete", ar: "حذف", es: "Eliminar" },
+  edit: { fr: "Modifier", en: "Edit", ar: "تعديل", es: "Editar" },
+  add: { fr: "Ajouter", en: "Add", ar: "إضافة", es: "Añadir" },
+  create: { fr: "Créer", en: "Create", ar: "إنشاء", es: "Crear" },
+  retry: { fr: "Réessayer", en: "Retry", ar: "إعادة المحاولة", es: "Reintentar" },
+  loadingTemplate: { fr: "Chargement du template", en: "Loading template", ar: "جارٍ تحميل القالب", es: "Cargando la plantilla" },
+  loadingTemplateDesc: { fr: "Nous récupérons sa configuration et ses versions.", en: "We are retrieving its configuration and versions.", ar: "نسترجع إعداداته وإصداراته.", es: "Estamos recuperando su configuración y sus versiones." },
+  templateUnavailable: { fr: "Template indisponible", en: "Template unavailable", ar: "القالب غير متاح", es: "Plantilla no disponible" },
+  templateUnavailableDesc: { fr: "Le template ne peut pas être chargé pour le moment. Réessayez pour reprendre votre travail.", en: "The template cannot be loaded right now. Retry to resume your work.", ar: "لا يمكن تحميل القالب حالياً. أعد المحاولة لمتابعة عملك.", es: "La plantilla no se puede cargar ahora. Vuelva a intentarlo para continuar." },
+  variables: { fr: "Variables", en: "Variables", ar: "المتغيرات", es: "Variables" },
+  variablesDesc: { fr: "Données dynamiques injectées dans le template", en: "Dynamic data injected into the template", ar: "بيانات ديناميكية تُدرج في القالب", es: "Datos dinámicos insertados en la plantilla" },
+  presets: { fr: "Variables prédéfinies disponibles", en: "Available predefined variables", ar: "المتغيرات المحددة مسبقاً المتاحة", es: "Variables predefinidas disponibles" },
+  addCustomVariable: { fr: "Ajouter une variable personnalisée", en: "Add a custom variable", ar: "إضافة متغير مخصص", es: "Añadir una variable personalizada" },
+  newVariable: { fr: "Nouvelle variable", en: "New variable", ar: "متغير جديد", es: "Nueva variable" },
+  editVariable: { fr: "Modifier la variable", en: "Edit variable", ar: "تعديل المتغير", es: "Editar variable" },
+  identifier: { fr: "Nom (identifiant)", en: "Name (identifier)", ar: "الاسم (المعرّف)", es: "Nombre (identificador)" },
+  label: { fr: "Libellé", en: "Label", ar: "التسمية", es: "Etiqueta" },
+  source: { fr: "Source", en: "Source", ar: "المصدر", es: "Origen" },
+  type: { fr: "Type", en: "Type", ar: "النوع", es: "Tipo" },
+  exampleValue: { fr: "Valeur d'exemple (prévisualisation)", en: "Example value (preview)", ar: "قيمة مثال (معاينة)", es: "Valor de ejemplo (vista previa)" },
+  required: { fr: "Requis", en: "Required", ar: "مطلوب", es: "Obligatorio" },
+  variableNameRequired: { fr: "Le nom de la variable est requis.", en: "The variable name is required.", ar: "اسم المتغير مطلوب.", es: "El nombre de la variable es obligatorio." },
+  deleteVariable: { fr: "Supprimer cette variable ?", en: "Delete this variable?", ar: "هل تريد حذف هذا المتغير؟", es: "¿Eliminar esta variable?" },
+  sections: { fr: "Sections", en: "Sections", ar: "الأقسام", es: "Secciones" },
+  sectionsDesc: { fr: "Blocs de contenu composant le document", en: "Content blocks that compose the document", ar: "كتل المحتوى التي تكوّن الوثيقة", es: "Bloques de contenido que componen el documento" },
+  addSection: { fr: "Ajouter une section", en: "Add a section", ar: "إضافة قسم", es: "Añadir una sección" },
+  newSection: { fr: "Nouvelle section", en: "New section", ar: "قسم جديد", es: "Nueva sección" },
+  editSection: { fr: "Modifier la section", en: "Edit section", ar: "تعديل القسم", es: "Editar sección" },
+  sectionTitle: { fr: "Titre de section", en: "Section title", ar: "عنوان القسم", es: "Título de sección" },
+  defaultContent: { fr: "Contenu par défaut", en: "Default content", ar: "المحتوى الافتراضي", es: "Contenido predeterminado" },
+  blockType: { fr: "Type de bloc", en: "Block type", ar: "نوع الكتلة", es: "Tipo de bloque" },
+  requiredSection: { fr: "Section obligatoire", en: "Required section", ar: "قسم إلزامي", es: "Sección obligatoria" },
+  untitledSection: { fr: "Section sans titre", en: "Untitled section", ar: "قسم بدون عنوان", es: "Sección sin título" },
+  emptyContent: { fr: "Contenu vide — à remplir dans l'éditeur", en: "Empty content — fill it in the editor", ar: "محتوى فارغ — املأه في المحرر", es: "Contenido vacío — complételo en el editor" },
+  sectionTitleRequired: { fr: "Le titre de la section en français est requis.", en: "The French section title is required.", ar: "عنوان القسم بالفرنسية مطلوب.", es: "El título de la sección en francés es obligatorio." },
+  deleteSection: { fr: "Supprimer cette section ?", en: "Delete this section?", ar: "هل تريد حذف هذا القسم؟", es: "¿Eliminar esta sección?" },
+  versions: { fr: "Versions", en: "Versions", ar: "الإصدارات", es: "Versiones" },
+  versionsHistory: { fr: "Historique des versions", en: "Version history", ar: "سجل الإصدارات", es: "Historial de versiones" },
+  versionOne: { fr: "1 version enregistrée", en: "1 version saved", ar: "إصدار واحد محفوظ", es: "1 versión guardada" },
+  versionsMany: { fr: "{count} versions enregistrées", en: "{count} versions saved", ar: "{count} versiones guardadas", es: "{count} versiones guardadas" },
+  version: { fr: "Version", en: "Version", ar: "الإصدار", es: "Versión" },
+  current: { fr: "Actuelle", en: "Current", ar: "الحالية", es: "Actual" },
+  restore: { fr: "Restaurer", en: "Restore", ar: "استعادة", es: "Restaurar" },
+  restoreVersion: { fr: "Restaurer la version", en: "Restore version", ar: "استعادة الإصدار", es: "Restaurar versión" },
+  restoreMessage: { fr: "Restaurer v{version} « {description} » ? Cela créera une nouvelle version.", en: "Restore v{version} “{description}”? This will create a new version.", ar: "هل تريد استعادة الإصدار {version} « {description} »؟ سيؤدي ذلك إلى إنشاء إصدار جديد.", es: "¿Restaurar v{version} «{description}»? Esto creará una nueva versión." },
+  restored: { fr: "Version restaurée.", en: "Version restored.", ar: "تمت استعادة الإصدار.", es: "Versión restaurada." },
+  update: { fr: "Mise à jour", en: "Update", ar: "تحديث", es: "Actualización" },
+  versionsUnavailable: { fr: "Impossible de charger les versions.", en: "Versions could not be loaded.", ar: "تعذر تحميل الإصدارات.", es: "No se pudieron cargar las versiones." },
+  permissions: { fr: "Permissions", en: "Permissions", ar: "الصلاحيات", es: "Permisos" },
+  accessByRole: { fr: "Contrôle d'accès par rôle", en: "Role-based access control", ar: "التحكم في الوصول حسب الدور", es: "Control de acceso por rol" },
+  role: { fr: "Rôle", en: "Role", ar: "الدور", es: "Rol" },
+  use: { fr: "Utiliser", en: "Use", ar: "استخدام", es: "Usar" },
+  modify: { fr: "Modifier", en: "Edit", ar: "تعديل", es: "Modificar" },
+  publish: { fr: "Publier", en: "Publish", ar: "نشر", es: "Publicar" },
+  savePermissions: { fr: "Enregistrer les permissions", en: "Save permissions", ar: "حفظ الصلاحيات", es: "Guardar permisos" },
+  permissionsUpdated: { fr: "Permissions mises à jour.", en: "Permissions updated.", ar: "تم تحديث الصلاحيات.", es: "Permisos actualizados." },
+  permissionsUnavailable: { fr: "Impossible de charger les permissions.", en: "Permissions could not be loaded.", ar: "تعذر تحميل الصلاحيات.", es: "No se pudieron cargar los permisos." },
+  layout: { fr: "Mise en page", en: "Layout", ar: "التخطيط", es: "Diseño" },
+  layoutDesc: { fr: "Apparence et structure du document", en: "Document appearance and structure", ar: "مظهر الوثيقة وبنيتها", es: "Apariencia y estructura del documento" },
+  accent: { fr: "Couleur d'accentuation", en: "Accent color", ar: "لون التمييز", es: "Color de acento" },
+  headerStyle: { fr: "Style d'en-tête", en: "Header style", ar: "نمط الرأس", es: "Estilo del encabezado" },
+  footerStyle: { fr: "Style de pied de page", en: "Footer style", ar: "نمط التذييل", es: "Estilo del pie de página" },
+  branded: { fr: "Avec marque", en: "Branded", ar: "مع الهوية", es: "Con marca" },
+  minimal: { fr: "Minimal", en: "Minimal", ar: "مبسط", es: "Minimal" },
+  none: { fr: "Aucun", en: "None", ar: "بدون", es: "Ninguno" },
+  full: { fr: "Complet", en: "Full", ar: "كامل", es: "Completo" },
+  watermark: { fr: "Filigrane (brouillon)", en: "Watermark (draft)", ar: "علامة مائية (مسودة)", es: "Marca de agua (borrador)" },
+  watermarkDesc: { fr: "Affiche « BROUILLON » en arrière-plan", en: "Shows “DRAFT” in the background", ar: "يعرض «مسودة» في الخلفية", es: "Muestra «BORRADOR» de fondo" },
+  qrCode: { fr: "QR Code de vérification", en: "Verification QR code", ar: "رمز QR للتحقق", es: "Código QR de verificación" },
+  qrCodeDesc: { fr: "Intègre un QR dans l'en-tête", en: "Adds a QR code to the header", ar: "يضيف رمز QR إلى الرأس", es: "Integra un QR en el encabezado" },
+  officialStamp: { fr: "Bloc cachet officiel", en: "Official stamp block", ar: "كتلة الختم الرسمي", es: "Bloque de sello oficial" },
+  officialStampDesc: { fr: "Cercle de cachet dans la signature", en: "Stamp circle in the signature", ar: "دائرة ختم في التوقيع", es: "Círculo de sello en la firma" },
+  info: { fr: "Info", en: "Info", ar: "معلومات", es: "Info" },
+  generalInfo: { fr: "Informations générales", en: "General information", ar: "معلومات عامة", es: "Información general" },
+  slug: { fr: "Slug (identifiant unique)", en: "Slug (unique identifier)", ar: "المعرّف (معرّف فريد)", es: "Slug (identificador único)" },
+  category: { fr: "Catégorie", en: "Category", ar: "الفئة", es: "Categoría" },
+  templateName: { fr: "Nom du template", en: "Template name", ar: "اسم القالب", es: "Nombre de la plantilla" },
+  description: { fr: "Description", en: "Description", ar: "الوصف", es: "Descripción" },
+  supportedLanguages: { fr: "Langues supportées", en: "Supported languages", ar: "اللغات المدعومة", es: "Idiomas compatibles" },
+  saveFirst: { fr: "Sauvegardez d'abord le template", en: "Save the template first", ar: "احفظ القالب أولاً", es: "Guarde primero la plantilla" },
+  newTemplate: { fr: "Nouveau template", en: "New template", ar: "قالب جديد", es: "Nueva plantilla" },
+  editTemplate: { fr: "Éditer le template", en: "Edit template", ar: "تعديل القالب", es: "Editar plantilla" },
+  saving: { fr: "Sauvegarde...", en: "Saving...", ar: "جارٍ الحفظ...", es: "Guardando..." },
+  changeDescription: { fr: "Description de la modification", en: "Change description", ar: "وصف التعديل", es: "Descripción del cambio" },
+  changeDescriptionHint: { fr: "Cette note sera enregistrée dans l'historique des versions.", en: "This note will be saved in the version history.", ar: "سيتم حفظ هذه الملاحظة في سجل الإصدارات.", es: "Esta nota se guardará en el historial de versiones." },
+  slugAndNameRequired: { fr: "Le slug et le nom (FR) sont requis.", en: "The slug and French name are required.", ar: "المعرّف والاسم بالفرنسية مطلوبان.", es: "El slug y el nombre en francés son obligatorios." },
+  created: { fr: "Template créé avec succès.", en: "Template created successfully.", ar: "تم إنشاء القالب بنجاح.", es: "Plantilla creada correctamente." },
+  updated: { fr: "Template mis à jour.", en: "Template updated.", ar: "تم تحديث القالب.", es: "Plantilla actualizada." },
+  duplicateSlug: { fr: "Ce slug existe déjà.", en: "This slug already exists.", ar: "هذا المعرّف موجود بالفعل.", es: "Este slug ya existe." },
+  saveError: { fr: "Impossible d'enregistrer le template.", en: "The template could not be saved.", ar: "تعذر حفظ القالب.", es: "No se pudo guardar la plantilla." },
+  variableNamePlaceholder: { fr: "ex. : syndicate_name", en: "e.g. syndicate_name", ar: "مثال: syndicate_name", es: "ej.: syndicate_name" },
+  exampleValuePlaceholder: { fr: "ex. : M. Ahmed Benali", en: "e.g. Mr Ahmed Benali", ar: "مثال: أحمد بنعلي", es: "ej.: Sr. Ahmed Benali" },
+  slugPlaceholder: { fr: "ex. : attestation_v2", en: "e.g. attestation_v2", ar: "مثال: attestation_v2", es: "ej.: attestation_v2" },
+  changePlaceholder: { fr: "ex. : Ajout de la variable president_name", en: "e.g. Added the president_name variable", ar: "مثال: إضافة المتغير president_name", es: "ej.: Añadir la variable president_name" },
+} satisfies Record<string, Localized>;
+
+function tr(key: keyof typeof TEXT, lang: LangCode, replacements?: Record<string, string>): string {
+  let value = (TEXT[key] as Localized)[lang];
+  Object.entries(replacements ?? {}).forEach(([name, replacement]) => {
+    value = value.replace(`{${name}}`, replacement);
+  });
+  return value;
+}
+
+const CATEGORY_LABELS: Record<string, Localized> = {
+  meeting_minutes: { fr: "Procès-verbaux", en: "Meeting minutes", ar: "محاضر الاجتماعات", es: "Actas" },
+  financial: { fr: "Finance", en: "Finance", ar: "المالية", es: "Finanzas" },
+  legal: { fr: "Juridique", en: "Legal", ar: "قانوني", es: "Legal" },
+  elections: { fr: "Élections", en: "Elections", ar: "الانتخابات", es: "Elecciones" },
+  contracts: { fr: "Contrats", en: "Contracts", ar: "العقود", es: "Contratos" },
+  certificates: { fr: "Certificats", en: "Certificates", ar: "الشهادات", es: "Certificados" },
+  regulations: { fr: "Règlements", en: "Regulations", ar: "اللوائح", es: "Reglamentos" },
+  administrative: { fr: "Administratif", en: "Administrative", ar: "إداري", es: "Administrativo" },
+  maintenance: { fr: "Maintenance", en: "Maintenance", ar: "الصيانة", es: "Mantenimiento" },
+  insurance: { fr: "Assurance", en: "Insurance", ar: "التأمين", es: "Seguros" },
+};
+
+const SOURCE_LABELS: Record<VariableSource, Localized> = {
+  db_syndicate: { fr: "Syndicat (DB)", en: "Syndicate (DB)", ar: "النقابة (قاعدة البيانات)", es: "Sindicato (BD)" },
+  db_property: { fr: "Résidence (DB)", en: "Property (DB)", ar: "العقار (قاعدة البيانات)", es: "Residencia (BD)" },
+  db_office_holders: { fr: "Élus (DB)", en: "Office holders (DB)", ar: "المسؤولون (قاعدة البيانات)", es: "Cargos electos (BD)" },
+  db_member: { fr: "Membre (DB)", en: "Member (DB)", ar: "العضو (قاعدة البيانات)", es: "Miembro (BD)" },
+  user_input: { fr: "Saisie utilisateur", en: "User input", ar: "إدخال المستخدم", es: "Entrada del usuario" },
+  generated: { fr: "Généré auto", en: "Auto-generated", ar: "مولّد تلقائياً", es: "Generado automáticamente" },
+};
+
+const SECTION_LABELS: Record<SectionType, Localized> = {
+  text: { fr: "Texte", en: "Text", ar: "نص", es: "Texto" },
+  table: { fr: "Tableau", en: "Table", ar: "جدول", es: "Tabla" },
+  signature: { fr: "Signature", en: "Signature", ar: "توقيع", es: "Firma" },
+  stamp: { fr: "Cachet", en: "Stamp", ar: "ختم", es: "Sello" },
+  qr: { fr: "QR Code", en: "QR code", ar: "رمز QR", es: "Código QR" },
+  image: { fr: "Image", en: "Image", ar: "صورة", es: "Imagen" },
+  chart: { fr: "Graphique", en: "Chart", ar: "رسم بياني", es: "Gráfico" },
+  page_break: { fr: "Saut de page", en: "Page break", ar: "فاصل صفحة", es: "Salto de página" },
+};
+
+const ROLE_LABELS: Record<string, Localized> = {
+  super_admin: { fr: "Super Admin", en: "Super Admin", ar: "المشرف العام", es: "Superadministrador" },
+  syndicate_admin: { fr: "Admin Syndicat", en: "Syndicate admin", ar: "مشرف النقابة", es: "Administrador del sindicato" },
+  member: { fr: "Membre", en: "Member", ar: "عضو", es: "Miembro" },
+  tenant: { fr: "Locataire", en: "Tenant", ar: "مكتري", es: "Inquilino" },
+  all: { fr: "Tous les rôles", en: "All roles", ar: "كل الأدوار", es: "Todos los roles" },
+};
 
 // ─── Constants ────────────────────────────────────────────────────────────────
 
@@ -233,6 +386,7 @@ function I18NEditor({ value, onChange, label, multiline }: {
 // ─── Variable Editor ──────────────────────────────────────────────────────────
 
 function VariableEditor({ variables, onChange }: { variables: VariableDef[]; onChange: (v: VariableDef[]) => void }) {
+  const { lang } = useLanguage();
   const [editingIdx, setEditingIdx] = useState<number | null>(null);
   const [draft, setDraft] = useState<VariableDef | null>(null);
 
@@ -240,7 +394,7 @@ function VariableEditor({ variables, onChange }: { variables: VariableDef[]; onC
   const openNew  = () => { setEditingIdx(-1); setDraft({ name: "", label: emptyI18N(), source: "user_input", type: "text", required: false, example: "" }); };
   const save = () => {
     if (!draft) return;
-    if (!draft.name.trim()) { Alert.alert("Erreur", "Le nom de la variable est requis"); return; }
+    if (!draft.name.trim()) { Alert.alert(tr("error", lang), tr("variableNameRequired", lang)); return; }
     const updated = [...variables];
     if (editingIdx === -1) updated.push(draft);
     else updated[editingIdx!] = draft;
@@ -248,17 +402,17 @@ function VariableEditor({ variables, onChange }: { variables: VariableDef[]; onC
     setEditingIdx(null);
     setDraft(null);
   };
-  const remove = (idx: number) => Alert.alert("Supprimer", "Supprimer cette variable ?", [
-    { text: "Annuler", style: "cancel" },
-    { text: "Supprimer", style: "destructive", onPress: () => onChange(variables.filter((_, i) => i !== idx)) },
+  const remove = (idx: number) => Alert.alert(tr("delete", lang), tr("deleteVariable", lang), [
+    { text: tr("cancel", lang), style: "cancel" },
+    { text: tr("delete", lang), style: "destructive", onPress: () => onChange(variables.filter((_, i) => i !== idx)) },
   ]);
 
   return (
     <View>
-      <SectionHeader title="Variables" subtitle="Données dynamiques injectées dans le template" />
+      <SectionHeader title={tr("variables", lang)} subtitle={tr("variablesDesc", lang)} />
 
       {/* Preset quick-add */}
-      <Text style={s.sectionSub2}>Variables prédéfinies disponibles</Text>
+      <Text style={s.sectionSub2}>{tr("presets", lang)}</Text>
       <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ marginBottom: 16 }}>
         <View style={{ flexDirection: "row", gap: 8, paddingVertical: 4 }}>
           {PRESET_VARIABLES.filter((p) => !variables.find((v) => v.name === p.name)).map((preset) => {
@@ -284,17 +438,17 @@ function VariableEditor({ variables, onChange }: { variables: VariableDef[]; onC
             <View style={[s.varSourceDot, { backgroundColor: src?.color ?? "#6b7280" }]} />
             <View style={{ flex: 1 }}>
               <Text style={s.varName}>{"{{" + v.name + "}}"}</Text>
-              <Text style={s.varLabel}>{v.label.fr || "—"}</Text>
+              <Text style={s.varLabel}>{v.label[lang] || "—"}</Text>
               <View style={{ flexDirection: "row", gap: 6, marginTop: 4 }}>
                 <View style={[s.varTag, { backgroundColor: (src?.color ?? "#6b7280") + "22" }]}>
-                  <Text style={[s.varTagText, { color: src?.color ?? "#6b7280" }]}>{src?.label ?? v.source}</Text>
+                  <Text style={[s.varTagText, { color: src?.color ?? "#6b7280" }]}>{src ? tr("source", lang) === tr("source", lang) ? SOURCE_LABELS[v.source][lang] : v.source : v.source}</Text>
                 </View>
                 <View style={[s.varTag, { backgroundColor: "#33415522" }]}>
                   <Text style={[s.varTagText, { color: "#64748b" }]}>{v.type}</Text>
                 </View>
                 {v.required && (
                   <View style={[s.varTag, { backgroundColor: "#ef444422" }]}>
-                    <Text style={[s.varTagText, { color: "#ef4444" }]}>requis</Text>
+                    <Text style={[s.varTagText, { color: "#ef4444" }]}>{tr("required", lang)}</Text>
                   </View>
                 )}
               </View>
@@ -313,7 +467,7 @@ function VariableEditor({ variables, onChange }: { variables: VariableDef[]; onC
 
       <TouchableOpacity style={s.addBtn} onPress={openNew}>
         <Feather name="plus" size={16} color="#2563EB" />
-        <Text style={s.addBtnText}>Ajouter une variable personnalisée</Text>
+        <Text style={s.addBtnText}>{tr("addCustomVariable", lang)}</Text>
       </TouchableOpacity>
 
       {/* Edit Modal */}
@@ -321,25 +475,25 @@ function VariableEditor({ variables, onChange }: { variables: VariableDef[]; onC
         <View style={s.modalOverlay}>
           <View style={s.modalSheet}>
             <View style={s.modalHandle} />
-            <Text style={s.modalTitle}>{editingIdx === -1 ? "Nouvelle variable" : "Modifier la variable"}</Text>
+            <Text style={s.modalTitle}>{editingIdx === -1 ? tr("newVariable", lang) : tr("editVariable", lang)}</Text>
             <ScrollView showsVerticalScrollIndicator={false}>
               {draft && (
                 <>
-                  <Field label="Nom (identifiant)" required>
-                    <TInput value={draft.name} onChangeText={(t) => setDraft({ ...draft, name: t.toLowerCase().replace(/\s/g, "_") })} placeholder="ex: syndicate_name" mono />
+                  <Field label={tr("identifier", lang)} required>
+                    <TInput value={draft.name} onChangeText={(t) => setDraft({ ...draft, name: t.toLowerCase().replace(/\s/g, "_") })} placeholder={tr("variableNamePlaceholder", lang)} mono />
                   </Field>
-                  <I18NEditor value={draft.label} onChange={(v) => setDraft({ ...draft, label: v })} label="Libellé" />
-                  <Field label="Source">
+                  <I18NEditor value={draft.label} onChange={(v) => setDraft({ ...draft, label: v })} label={tr("label", lang)} />
+                  <Field label={tr("source", lang)}>
                     <View style={s.pickerWrap}>
                       {VARIABLE_SOURCES.map((src) => (
                         <TouchableOpacity key={src.key} style={[s.pickerChip, draft.source === src.key && { backgroundColor: src.color + "22", borderColor: src.color }]}
                           onPress={() => setDraft({ ...draft, source: src.key })}>
-                          <Text style={[s.pickerChipText, draft.source === src.key && { color: src.color }]}>{src.label}</Text>
+                          <Text style={[s.pickerChipText, draft.source === src.key && { color: src.color }]}>{SOURCE_LABELS[src.key][lang]}</Text>
                         </TouchableOpacity>
                       ))}
                     </View>
                   </Field>
-                  <Field label="Type">
+                  <Field label={tr("type", lang)}>
                     <View style={s.pickerWrap}>
                       {(["text", "date", "number", "boolean", "list"] as VariableType[]).map((type) => (
                         <TouchableOpacity key={type} style={[s.pickerChip, draft.type === type && s.pickerChipActive]}
@@ -349,11 +503,11 @@ function VariableEditor({ variables, onChange }: { variables: VariableDef[]; onC
                       ))}
                     </View>
                   </Field>
-                  <Field label="Valeur d'exemple (prévisualisation)">
-                    <TInput value={draft.example} onChangeText={(t) => setDraft({ ...draft, example: t })} placeholder="ex: M. Ahmed Benali" />
+                  <Field label={tr("exampleValue", lang)}>
+                    <TInput value={draft.example} onChangeText={(t) => setDraft({ ...draft, example: t })} placeholder={tr("exampleValuePlaceholder", lang)} />
                   </Field>
                   <View style={s.switchRow}>
-                    <Text style={s.fieldLabel}>Requis</Text>
+                    <Text style={s.fieldLabel}>{tr("required", lang)}</Text>
                     <Switch value={draft.required} onValueChange={(v) => setDraft({ ...draft, required: v })} trackColor={{ false: "#334155", true: "#2563EB" }} />
                   </View>
                 </>
@@ -361,10 +515,10 @@ function VariableEditor({ variables, onChange }: { variables: VariableDef[]; onC
             </ScrollView>
             <View style={s.modalFooter}>
               <TouchableOpacity style={s.modalCancel} onPress={() => setEditingIdx(null)}>
-                <Text style={s.modalCancelText}>Annuler</Text>
+                <Text style={s.modalCancelText}>{tr("cancel", lang)}</Text>
               </TouchableOpacity>
               <TouchableOpacity style={s.modalSave} onPress={save}>
-                <Text style={s.modalSaveText}>Enregistrer</Text>
+                <Text style={s.modalSaveText}>{tr("save", lang)}</Text>
               </TouchableOpacity>
             </View>
           </View>
@@ -377,6 +531,7 @@ function VariableEditor({ variables, onChange }: { variables: VariableDef[]; onC
 // ─── Section Editor ───────────────────────────────────────────────────────────
 
 function SectionEditor({ sections, onChange }: { sections: SectionDef[]; onChange: (s: SectionDef[]) => void }) {
+  const { lang } = useLanguage();
   const [editingIdx, setEditingIdx] = useState<number | null>(null);
   const [draft, setDraft] = useState<SectionDef | null>(null);
 
@@ -387,16 +542,16 @@ function SectionEditor({ sections, onChange }: { sections: SectionDef[]; onChang
   };
   const save = () => {
     if (!draft) return;
-    if (!draft.title.fr.trim()) { Alert.alert("Erreur", "Le titre de la section (FR) est requis"); return; }
+    if (!draft.title.fr.trim()) { Alert.alert(tr("error", lang), tr("sectionTitleRequired", lang)); return; }
     const updated = [...sections];
     if (editingIdx === -1) updated.push(draft);
     else updated[editingIdx!] = draft;
     onChange(updated);
     setEditingIdx(null); setDraft(null);
   };
-  const remove = (idx: number) => Alert.alert("Supprimer", "Supprimer cette section ?", [
-    { text: "Annuler", style: "cancel" },
-    { text: "Supprimer", style: "destructive", onPress: () => onChange(sections.filter((_, i) => i !== idx)) },
+  const remove = (idx: number) => Alert.alert(tr("delete", lang), tr("deleteSection", lang), [
+    { text: tr("cancel", lang), style: "cancel" },
+    { text: tr("delete", lang), style: "destructive", onPress: () => onChange(sections.filter((_, i) => i !== idx)) },
   ]);
   const move = (idx: number, dir: -1 | 1) => {
     const to = idx + dir;
@@ -409,7 +564,7 @@ function SectionEditor({ sections, onChange }: { sections: SectionDef[]; onChang
 
   return (
     <View>
-      <SectionHeader title="Sections" subtitle="Blocs de contenu composant le document" />
+      <SectionHeader title={tr("sections", lang)} subtitle={tr("sectionsDesc", lang)} />
       {sections.map((sec, idx) => {
         const typeInfo = SECTION_TYPES.find((t) => t.key === sec.type);
         return (
@@ -426,18 +581,18 @@ function SectionEditor({ sections, onChange }: { sections: SectionDef[]; onChang
             <View style={{ flex: 1 }}>
               <View style={{ flexDirection: "row", alignItems: "center", gap: 6, marginBottom: 4 }}>
                 <Feather name={typeInfo?.icon ?? "file"} size={13} color="#2563EB" />
-                <Text style={s.secTitle}>{sec.title.fr || "Section sans titre"}</Text>
+                <Text style={s.secTitle}>{sec.title[lang] || tr("untitledSection", lang)}</Text>
               </View>
-              {sec.content?.fr ? (
-                <Text style={s.secContent} numberOfLines={2}>{sec.content.fr}</Text>
+              {sec.content?.[lang] ? (
+                <Text style={s.secContent} numberOfLines={2}>{sec.content[lang]}</Text>
               ) : (
-                <Text style={s.secContentEmpty}>Contenu vide — à remplir dans l'éditeur</Text>
+                <Text style={s.secContentEmpty}>{tr("emptyContent", lang)}</Text>
               )}
               <View style={{ flexDirection: "row", gap: 6, marginTop: 6 }}>
                 <View style={s.varTag}>
-                  <Text style={s.varTagText}>{typeInfo?.label ?? sec.type}</Text>
+                  <Text style={s.varTagText}>{SECTION_LABELS[sec.type][lang]}</Text>
                 </View>
-                {sec.required && <View style={[s.varTag, { backgroundColor: "#ef444422" }]}><Text style={[s.varTagText, { color: "#ef4444" }]}>requis</Text></View>}
+                {sec.required && <View style={[s.varTag, { backgroundColor: "#ef444422" }]}><Text style={[s.varTagText, { color: "#ef4444" }]}>{tr("required", lang)}</Text></View>}
               </View>
             </View>
             <View style={{ gap: 8 }}>
@@ -449,40 +604,40 @@ function SectionEditor({ sections, onChange }: { sections: SectionDef[]; onChang
       })}
       <TouchableOpacity style={s.addBtn} onPress={openNew}>
         <Feather name="plus" size={16} color="#2563EB" />
-        <Text style={s.addBtnText}>Ajouter une section</Text>
+        <Text style={s.addBtnText}>{tr("addSection", lang)}</Text>
       </TouchableOpacity>
 
       <Modal visible={editingIdx !== null} transparent animationType="slide" onRequestClose={() => setEditingIdx(null)}>
         <View style={s.modalOverlay}>
           <View style={s.modalSheet}>
             <View style={s.modalHandle} />
-            <Text style={s.modalTitle}>{editingIdx === -1 ? "Nouvelle section" : "Modifier la section"}</Text>
+            <Text style={s.modalTitle}>{editingIdx === -1 ? tr("newSection", lang) : tr("editSection", lang)}</Text>
             <ScrollView showsVerticalScrollIndicator={false}>
               {draft && (
                 <>
-                  <I18NEditor value={draft.title} onChange={(v) => setDraft({ ...draft, title: v })} label="Titre de section" />
-                  <I18NEditor value={draft.content} onChange={(v) => setDraft({ ...draft, content: v })} label="Contenu par défaut" multiline />
-                  <Field label="Type de bloc">
+                  <I18NEditor value={draft.title} onChange={(v) => setDraft({ ...draft, title: v })} label={tr("sectionTitle", lang)} />
+                  <I18NEditor value={draft.content} onChange={(v) => setDraft({ ...draft, content: v })} label={tr("defaultContent", lang)} multiline />
+                  <Field label={tr("blockType", lang)}>
                     <View style={s.pickerWrap}>
                       {SECTION_TYPES.map((t) => (
                         <TouchableOpacity key={t.key} style={[s.pickerChip, draft.type === t.key && s.pickerChipActive]}
                           onPress={() => setDraft({ ...draft, type: t.key })}>
                           <Feather name={t.icon} size={12} color={draft.type === t.key ? "#2563EB" : "#64748b"} />
-                          <Text style={[s.pickerChipText, draft.type === t.key && s.pickerChipTextActive]}>{t.label}</Text>
+                          <Text style={[s.pickerChipText, draft.type === t.key && s.pickerChipTextActive]}>{SECTION_LABELS[t.key][lang]}</Text>
                         </TouchableOpacity>
                       ))}
                     </View>
                   </Field>
                   <View style={s.switchRow}>
-                    <Text style={s.fieldLabel}>Section obligatoire</Text>
+                    <Text style={s.fieldLabel}>{tr("requiredSection", lang)}</Text>
                     <Switch value={draft.required} onValueChange={(v) => setDraft({ ...draft, required: v })} trackColor={{ false: "#334155", true: "#2563EB" }} />
                   </View>
                 </>
               )}
             </ScrollView>
             <View style={s.modalFooter}>
-              <TouchableOpacity style={s.modalCancel} onPress={() => setEditingIdx(null)}><Text style={s.modalCancelText}>Annuler</Text></TouchableOpacity>
-              <TouchableOpacity style={s.modalSave} onPress={save}><Text style={s.modalSaveText}>Enregistrer</Text></TouchableOpacity>
+              <TouchableOpacity style={s.modalCancel} onPress={() => setEditingIdx(null)}><Text style={s.modalCancelText}>{tr("cancel", lang)}</Text></TouchableOpacity>
+              <TouchableOpacity style={s.modalSave} onPress={save}><Text style={s.modalSaveText}>{tr("save", lang)}</Text></TouchableOpacity>
             </View>
           </View>
         </View>
@@ -494,6 +649,7 @@ function SectionEditor({ sections, onChange }: { sections: SectionDef[]; onChang
 // ─── Versions Tab ─────────────────────────────────────────────────────────────
 
 function VersionsTab({ templateId }: { templateId: string }) {
+  const { lang } = useLanguage();
   const { showToast } = useToast();
   const [versions, setVersions] = useState<VersionEntry[]>([]);
   const [loading, setLoading] = useState(true);
@@ -501,50 +657,50 @@ function VersionsTab({ templateId }: { templateId: string }) {
   useEffect(() => {
     apiReq(`/api/template-studio/templates/${templateId}/versions`)
       .then((r) => setVersions(r.data ?? []))
-      .catch(() => showToast({ type: "error", message: "Erreur chargement versions" }))
+      .catch(() => showToast({ type: "error", message: tr("versionsUnavailable", lang) }))
       .finally(() => setLoading(false));
   }, [templateId]);
 
   const restore = (ver: VersionEntry) => {
     Alert.alert(
-      "Restaurer la version",
-      `Restaurer v${ver.version} "${ver.changeDescription ?? ""}" ? Cela créera une nouvelle version.`,
+      tr("restoreVersion", lang),
+      tr("restoreMessage", lang, { version: String(ver.version), description: ver.changeDescription ?? "" }),
       [
-        { text: "Annuler", style: "cancel" },
+        { text: tr("cancel", lang), style: "cancel" },
         {
-          text: "Restaurer", onPress: async () => {
+          text: tr("restore", lang), onPress: async () => {
             try {
               await apiReq(`/api/template-studio/templates/${templateId}/versions/${ver.id}/restore`, "POST");
-              showToast({ type: "success", message: "Version restaurée" });
+              showToast({ type: "success", message: tr("restored", lang) });
               const r = await apiReq(`/api/template-studio/templates/${templateId}/versions`);
               setVersions(r.data ?? []);
-            } catch { showToast({ type: "error", message: "Erreur" }); }
+            } catch { showToast({ type: "error", message: tr("versionsUnavailable", lang) }); }
           },
         },
       ],
     );
   };
 
-  if (loading) return <ActivityIndicator color="#2563EB" style={{ marginTop: 40 }} />;
+  if (loading) return <LoadingState title={tr("versions", lang)} description={tr("loadingTemplateDesc", lang)} accentColor="#2563EB" />;
 
   return (
     <View style={{ paddingHorizontal: 20 }}>
-      <SectionHeader title="Historique des versions" subtitle={`${versions.length} version${versions.length !== 1 ? "s" : ""} enregistrée${versions.length !== 1 ? "s" : ""}`} />
+      <SectionHeader title={tr("versionsHistory", lang)} subtitle={versions.length === 1 ? tr("versionOne", lang) : tr("versionsMany", lang, { count: String(versions.length) })} />
       {versions.map((ver, idx) => (
         <View key={ver.id} style={s.verCard}>
           <View style={[s.verDot, idx === 0 && { backgroundColor: "#2563EB" }]} />
           <View style={{ flex: 1 }}>
             <View style={{ flexDirection: "row", alignItems: "center", gap: 8 }}>
-              <Text style={[s.verVersion, idx === 0 && { color: "#a78bfa" }]}>Version {ver.version}</Text>
-              {idx === 0 && <View style={s.verCurrentBadge}><Text style={s.verCurrentText}>Actuelle</Text></View>}
+              <Text style={[s.verVersion, idx === 0 && { color: "#a78bfa" }]}>{tr("version", lang)} {ver.version}</Text>
+              {idx === 0 && <View style={s.verCurrentBadge}><Text style={s.verCurrentText}>{tr("current", lang)}</Text></View>}
             </View>
-            <Text style={s.verDesc}>{ver.changeDescription ?? "Mise à jour"}</Text>
-            <Text style={s.verMeta}>{ver.authorName ?? "—"} · {new Date(ver.createdAt).toLocaleDateString("fr-MA", { dateStyle: "medium" })}</Text>
+            <Text style={s.verDesc}>{ver.changeDescription ?? tr("update", lang)}</Text>
+            <Text style={s.verMeta}>{ver.authorName ?? "—"} · {new Date(ver.createdAt).toLocaleDateString(lang === "ar" ? "ar-MA" : lang === "es" ? "es-MA" : lang === "en" ? "en-MA" : "fr-MA", { dateStyle: "medium" })}</Text>
           </View>
           {idx > 0 && (
             <TouchableOpacity onPress={() => restore(ver)} style={s.verRestoreBtn}>
               <Feather name="refresh-cw" size={14} color="#2563EB" />
-              <Text style={s.verRestoreText}>Restaurer</Text>
+              <Text style={s.verRestoreText}>{tr("restore", lang)}</Text>
             </TouchableOpacity>
           )}
         </View>
@@ -556,6 +712,7 @@ function VersionsTab({ templateId }: { templateId: string }) {
 // ─── Permissions Tab ──────────────────────────────────────────────────────────
 
 function PermissionsTab({ templateId }: { templateId: string }) {
+  const { lang } = useLanguage();
   const { showToast } = useToast();
   const [perms, setPerms] = useState<PermissionEntry[]>([]);
   const [loading, setLoading] = useState(true);
@@ -572,7 +729,7 @@ function PermissionsTab({ templateId }: { templateId: string }) {
         });
         setPerms(merged);
       })
-      .catch(() => showToast({ type: "error", message: "Erreur chargement permissions" }))
+      .catch(() => showToast({ type: "error", message: tr("permissionsUnavailable", lang) }))
       .finally(() => setLoading(false));
   }, [templateId]);
 
@@ -586,28 +743,28 @@ function PermissionsTab({ templateId }: { templateId: string }) {
     try {
       setSaving(true);
       await apiReq(`/api/template-studio/templates/${templateId}/permissions`, "PUT", { permissions: perms });
-      showToast({ type: "success", message: "Permissions mises à jour" });
-    } catch { showToast({ type: "error", message: "Erreur" }); }
+      showToast({ type: "success", message: tr("permissionsUpdated", lang) });
+    } catch { showToast({ type: "error", message: tr("saveError", lang) }); }
     finally { setSaving(false); }
   };
 
-  if (loading) return <ActivityIndicator color="#2563EB" style={{ marginTop: 40 }} />;
+  if (loading) return <LoadingState title={tr("permissions", lang)} description={tr("loadingTemplateDesc", lang)} accentColor="#2563EB" />;
 
   return (
     <View style={{ paddingHorizontal: 20 }}>
-      <SectionHeader title="Permissions" subtitle="Contrôle d'accès par rôle" />
+      <SectionHeader title={tr("permissions", lang)} subtitle={tr("accessByRole", lang)} />
       <View style={s.permHeader}>
-        <Text style={[s.permLabel, { flex: 1 }]}>Rôle</Text>
-        <Text style={s.permCol}>Utiliser</Text>
-        <Text style={s.permCol}>Modifier</Text>
-        <Text style={s.permCol}>Publier</Text>
+        <Text style={[s.permLabel, { flex: 1 }]}>{tr("role", lang)}</Text>
+        <Text style={s.permCol}>{tr("use", lang)}</Text>
+        <Text style={s.permCol}>{tr("modify", lang)}</Text>
+        <Text style={s.permCol}>{tr("publish", lang)}</Text>
       </View>
       {perms.map((perm, idx) => {
         const role = ROLES.find((r) => r.key === perm.role);
         const isSuperAdmin = perm.role === "super_admin";
         return (
           <View key={perm.role} style={s.permRow}>
-            <Text style={[s.permLabel, { flex: 1 }]}>{role?.label ?? perm.role}</Text>
+            <Text style={[s.permLabel, { flex: 1 }]}>{ROLE_LABELS[perm.role]?.[lang] ?? perm.role}</Text>
             {(["canUse", "canEdit", "canPublish"] as const).map((field) => (
               <View key={field} style={s.permColView}>
                 <Switch
@@ -624,7 +781,7 @@ function PermissionsTab({ templateId }: { templateId: string }) {
         );
       })}
       <TouchableOpacity style={[s.saveBtn, saving && { opacity: 0.6 }]} onPress={save} disabled={saving}>
-        {saving ? <ActivityIndicator color="#fff" size="small" /> : <><Feather name="save" size={16} color="#fff" /><Text style={s.saveBtnText}>Enregistrer les permissions</Text></>}
+        {saving ? <ActivityIndicator color="#fff" size="small" /> : <><Feather name="save" size={16} color="#fff" /><Text style={s.saveBtnText}>{tr("savePermissions", lang)}</Text></>}
       </TouchableOpacity>
     </View>
   );
@@ -633,11 +790,12 @@ function PermissionsTab({ templateId }: { templateId: string }) {
 // ─── Layout Tab ───────────────────────────────────────────────────────────────
 
 function LayoutTab({ config, onChange }: { config: TemplateForm["layoutConfig"]; onChange: (c: TemplateForm["layoutConfig"]) => void }) {
+  const { lang } = useLanguage();
   const ACCENT_PRESETS = ["#2563EB", "#3b82f6", "#10b981", "#ef4444", "#f59e0b", "#0891b2", "#ec4899", "#1e293b"];
   return (
     <View style={{ paddingHorizontal: 20 }}>
-      <SectionHeader title="Mise en page" subtitle="Apparence et structure du document" />
-      <Field label="Couleur d'accentuation">
+      <SectionHeader title={tr("layout", lang)} subtitle={tr("layoutDesc", lang)} />
+      <Field label={tr("accent", lang)}>
         <View style={{ flexDirection: "row", flexWrap: "wrap", gap: 10, marginTop: 4 }}>
           {ACCENT_PRESETS.map((c) => (
             <TouchableOpacity key={c} style={[s.colorSwatch, { backgroundColor: c }, config.accentColor === c && s.colorSwatchActive]}
@@ -646,36 +804,36 @@ function LayoutTab({ config, onChange }: { config: TemplateForm["layoutConfig"];
         </View>
         <TInput value={config.accentColor} onChangeText={(t) => onChange({ ...config, accentColor: t })} placeholder="#2563EB" mono />
       </Field>
-      <Field label="Style d'en-tête">
+      <Field label={tr("headerStyle", lang)}>
         <View style={s.pickerWrap}>
-          {([["branded", "Avec marque"], ["minimal", "Minimal"], ["none", "Aucun"]] as const).map(([k, l]) => (
+          {(["branded", "minimal", "none"] as const).map((k) => (
             <TouchableOpacity key={k} style={[s.pickerChip, config.headerStyle === k && s.pickerChipActive]}
               onPress={() => onChange({ ...config, headerStyle: k })}>
-              <Text style={[s.pickerChipText, config.headerStyle === k && s.pickerChipTextActive]}>{l}</Text>
+              <Text style={[s.pickerChipText, config.headerStyle === k && s.pickerChipTextActive]}>{tr(k, lang)}</Text>
             </TouchableOpacity>
           ))}
         </View>
       </Field>
-      <Field label="Style de pied de page">
+      <Field label={tr("footerStyle", lang)}>
         <View style={s.pickerWrap}>
-          {([["full", "Complet"], ["minimal", "Minimal"], ["none", "Aucun"]] as const).map(([k, l]) => (
+          {(["full", "minimal", "none"] as const).map((k) => (
             <TouchableOpacity key={k} style={[s.pickerChip, config.footerStyle === k && s.pickerChipActive]}
               onPress={() => onChange({ ...config, footerStyle: k })}>
-              <Text style={[s.pickerChipText, config.footerStyle === k && s.pickerChipTextActive]}>{l}</Text>
+              <Text style={[s.pickerChipText, config.footerStyle === k && s.pickerChipTextActive]}>{tr(k, lang)}</Text>
             </TouchableOpacity>
           ))}
         </View>
       </Field>
       <View style={s.switchRow}>
-        <View><Text style={s.fieldLabel}>Filigrane (brouillon)</Text><Text style={s.fieldSub}>Affiche "BROUILLON" en arrière-plan</Text></View>
+        <View><Text style={s.fieldLabel}>{tr("watermark", lang)}</Text><Text style={s.fieldSub}>{tr("watermarkDesc", lang)}</Text></View>
         <Switch value={config.watermark} onValueChange={(v) => onChange({ ...config, watermark: v })} trackColor={{ false: "#334155", true: "#2563EB" }} />
       </View>
       <View style={s.switchRow}>
-        <View><Text style={s.fieldLabel}>QR Code de vérification</Text><Text style={s.fieldSub}>Intègre un QR dans l'en-tête</Text></View>
+        <View><Text style={s.fieldLabel}>{tr("qrCode", lang)}</Text><Text style={s.fieldSub}>{tr("qrCodeDesc", lang)}</Text></View>
         <Switch value={config.showQr} onValueChange={(v) => onChange({ ...config, showQr: v })} trackColor={{ false: "#334155", true: "#2563EB" }} />
       </View>
       <View style={s.switchRow}>
-        <View><Text style={s.fieldLabel}>Bloc cachet officiel</Text><Text style={s.fieldSub}>Cercle de cachet dans la signature</Text></View>
+        <View><Text style={s.fieldLabel}>{tr("officialStamp", lang)}</Text><Text style={s.fieldSub}>{tr("officialStampDesc", lang)}</Text></View>
         <Switch value={config.showStamp} onValueChange={(v) => onChange({ ...config, showStamp: v })} trackColor={{ false: "#334155", true: "#2563EB" }} />
       </View>
     </View>
@@ -695,6 +853,7 @@ const TABS = [
 
 function TemplateEditorContent() {
   const params = useLocalSearchParams<{ id?: string; mode?: string; tab?: string }>();
+  const { lang } = useLanguage();
   const { showToast } = useToast();
   const insets = useSafeAreaInsets();
   const isNew = params.mode === "create" || !params.id;
@@ -702,6 +861,7 @@ function TemplateEditorContent() {
   const [form, setForm] = useState<TemplateForm>(defaultForm());
   const [loading, setLoading] = useState(!isNew);
   const [saving, setSaving] = useState(false);
+  const [loadError, setLoadError] = useState(false);
   const [activeTab, setActiveTab] = useState(params.tab ?? "info");
   const [changeDesc, setChangeDesc] = useState("");
   const [showChangeModal, setShowChangeModal] = useState(false);
@@ -709,6 +869,7 @@ function TemplateEditorContent() {
   // Load existing template
   useEffect(() => {
     if (isNew || !params.id) return;
+    setLoadError(false);
     apiReq(`/api/template-studio/templates/${params.id}`)
       .then((r) => {
         const d = r.data;
@@ -725,27 +886,27 @@ function TemplateEditorContent() {
             : defaultForm().layoutConfig,
         });
       })
-      .catch(() => showToast({ type: "error", message: "Erreur chargement du template" }))
+      .catch(() => setLoadError(true))
       .finally(() => setLoading(false));
-  }, [params.id]);
+  }, [params.id, isNew]);
 
   const doSave = async (desc: string) => {
     if (!form.slug.trim() || !form.name.fr.trim()) {
-      showToast({ type: "error", message: "Le slug et le nom (FR) sont requis" }); return;
+      showToast({ type: "error", message: tr("slugAndNameRequired", lang) }); return;
     }
     try {
       setSaving(true);
       const payload = { ...form, changeDescription: desc || undefined };
       if (isNew) {
         await apiReq("/api/template-studio/templates", "POST", payload);
-        showToast({ type: "success", message: "Template créé avec succès" });
+        showToast({ type: "success", message: tr("created", lang) });
         router.back();
       } else {
         await apiReq(`/api/template-studio/templates/${params.id}`, "PUT", payload);
-        showToast({ type: "success", message: "Template mis à jour" });
+        showToast({ type: "success", message: tr("updated", lang) });
       }
     } catch (err: any) {
-      showToast({ type: "error", message: err?.message?.includes("slug") ? "Ce slug existe déjà" : "Erreur lors de la sauvegarde" });
+      showToast({ type: "error", message: err?.message?.includes("slug") ? tr("duplicateSlug", lang) : tr("saveError", lang) });
     } finally {
       setSaving(false);
     }
@@ -761,9 +922,45 @@ function TemplateEditorContent() {
 
   if (loading) {
     return (
-      <View style={[s.root, { alignItems: "center", justifyContent: "center" }]}>
-        <ActivityIndicator size="large" color="#2563EB" />
-        <Text style={{ color: "#64748b", marginTop: 12 }}>Chargement du template...</Text>
+      <View style={s.root}>
+        <LoadingState title={tr("loadingTemplate", lang)} description={tr("loadingTemplateDesc", lang)} accentColor="#2563EB" />
+      </View>
+    );
+  }
+
+  if (loadError) {
+    return (
+      <View style={s.root}>
+        <ErrorState
+          title={tr("templateUnavailable", lang)}
+          description={tr("templateUnavailableDesc", lang)}
+          retryLabel={tr("retry", lang)}
+          onRetry={() => {
+            setLoading(true);
+            setLoadError(false);
+            if (params.id) {
+              apiReq(`/api/template-studio/templates/${params.id}`)
+                .then((r) => {
+                  const d = r.data;
+                  setForm({
+                    slug: d.slug ?? "",
+                    category: d.category ?? "administrative",
+                    name: (typeof d.name === "object" ? d.name : {}) as I18NField,
+                    description: (typeof d.description === "object" ? d.description : {}) as I18NField,
+                    variables: Array.isArray(d.variables) ? d.variables : [],
+                    sections: Array.isArray(d.sections) ? d.sections : [],
+                    languages: Array.isArray(d.languages) ? d.languages : ["fr"],
+                    layoutConfig: typeof d.layoutConfig === "object" && d.layoutConfig
+                      ? { ...defaultForm().layoutConfig, ...d.layoutConfig }
+                      : defaultForm().layoutConfig,
+                  });
+                })
+                .catch(() => setLoadError(true))
+                .finally(() => setLoading(false));
+            }
+          }}
+          accentColor="#ef4444"
+        />
       </View>
     );
   }
@@ -776,7 +973,7 @@ function TemplateEditorContent() {
           <Feather name="arrow-left" size={20} color="#e2e8f0" />
         </TouchableOpacity>
         <View style={{ flex: 1 }}>
-          <Text style={s.headerTitle} numberOfLines={1}>{isNew ? "Nouveau template" : (form.name.fr || "Éditer le template")}</Text>
+          <Text style={s.headerTitle} numberOfLines={1}>{isNew ? tr("newTemplate", lang) : (form.name[lang] || tr("editTemplate", lang))}</Text>
           {!isNew && <Text style={s.headerSub}>slug: {form.slug}</Text>}
         </View>
         <TouchableOpacity
@@ -786,7 +983,7 @@ function TemplateEditorContent() {
         >
           {saving
             ? <ActivityIndicator color="#fff" size="small" />
-            : <><Feather name="save" size={15} color="#fff" /><Text style={s.saveBtnText2}>{isNew ? "Créer" : "Sauver"}</Text></>
+            : <><Feather name="save" size={15} color="#fff" /><Text style={s.saveBtnText2}>{isNew ? tr("create", lang) : tr("save", lang)}</Text></>
           }
         </TouchableOpacity>
       </View>
@@ -797,7 +994,7 @@ function TemplateEditorContent() {
           <TouchableOpacity key={tab.key} style={[s.tab, activeTab === tab.key && s.tabActive]}
             onPress={() => { Haptics.selectionAsync(); setActiveTab(tab.key); }}>
             <Feather name={tab.icon} size={13} color={activeTab === tab.key ? "#a78bfa" : "#64748b"} />
-            <Text style={[s.tabText, activeTab === tab.key && s.tabTextActive]}>{tab.label}</Text>
+            <Text style={[s.tabText, activeTab === tab.key && s.tabTextActive]}>{tr(tab.key as keyof typeof TEXT, lang)}</Text>
           </TouchableOpacity>
         ))}
       </ScrollView>
@@ -806,23 +1003,23 @@ function TemplateEditorContent() {
       <ScrollView style={{ flex: 1 }} showsVerticalScrollIndicator={false}>
         {activeTab === "info" && (
           <View style={{ padding: 20, gap: 4 }}>
-            <SectionHeader title="Informations générales" />
-            <Field label="Slug (identifiant unique)" required>
-              <TInput value={form.slug} onChangeText={(t) => setForm({ ...form, slug: t.toLowerCase().replace(/\s/g, "_") })} placeholder="ex: attestation_v2" mono />
+            <SectionHeader title={tr("generalInfo", lang)} />
+            <Field label={tr("slug", lang)} required>
+              <TInput value={form.slug} onChangeText={(t) => setForm({ ...form, slug: t.toLowerCase().replace(/\s/g, "_") })} placeholder={tr("slugPlaceholder", lang)} mono />
             </Field>
-            <Field label="Catégorie" required>
+            <Field label={tr("category", lang)} required>
               <View style={s.pickerWrap}>
                 {CATEGORIES.map((c) => (
                   <TouchableOpacity key={c.key} style={[s.pickerChip, form.category === c.key && s.pickerChipActive]}
                     onPress={() => setForm({ ...form, category: c.key })}>
-                    <Text style={[s.pickerChipText, form.category === c.key && s.pickerChipTextActive]}>{c.label}</Text>
+                    <Text style={[s.pickerChipText, form.category === c.key && s.pickerChipTextActive]}>{CATEGORY_LABELS[c.key][lang]}</Text>
                   </TouchableOpacity>
                 ))}
               </View>
             </Field>
-            <I18NEditor value={form.name} onChange={(v) => setForm({ ...form, name: v })} label="Nom du template" />
-            <I18NEditor value={form.description} onChange={(v) => setForm({ ...form, description: v })} label="Description" multiline />
-            <Field label="Langues supportées">
+            <I18NEditor value={form.name} onChange={(v) => setForm({ ...form, name: v })} label={tr("templateName", lang)} />
+            <I18NEditor value={form.description} onChange={(v) => setForm({ ...form, description: v })} label={tr("description", lang)} multiline />
+            <Field label={tr("supportedLanguages", lang)}>
               <View style={s.pickerWrap}>
                 {LANGS.map((l) => {
                   const active = form.languages.includes(l);
@@ -863,7 +1060,7 @@ function TemplateEditorContent() {
         {(activeTab === "versions" || activeTab === "permissions") && isNew && (
           <View style={{ alignItems: "center", paddingVertical: 60 }}>
             <Feather name="info" size={32} color="#334155" />
-            <Text style={{ color: "#64748b", marginTop: 12 }}>Sauvegardez d'abord le template</Text>
+            <Text style={{ color: "#64748b", marginTop: 12 }}>{tr("saveFirst", lang)}</Text>
           </View>
         )}
         <View style={{ height: insets.bottom + 40 }} />
@@ -874,21 +1071,21 @@ function TemplateEditorContent() {
         <View style={s.modalOverlay}>
           <View style={[s.modalSheet, { maxHeight: 300 }]}>
             <View style={s.modalHandle} />
-            <Text style={s.modalTitle}>Description de la modification</Text>
-            <Text style={{ color: "#64748b", marginBottom: 12, fontSize: 13 }}>Cette note sera enregistrée dans l'historique des versions.</Text>
+            <Text style={s.modalTitle}>{tr("changeDescription", lang)}</Text>
+            <Text style={{ color: "#64748b", marginBottom: 12, fontSize: 13 }}>{tr("changeDescriptionHint", lang)}</Text>
             <TextInput
               style={[s.input, { marginBottom: 20 }]}
               value={changeDesc}
               onChangeText={setChangeDesc}
-              placeholder="ex: Ajout de la variable president_name"
+              placeholder={tr("changePlaceholder", lang)}
               placeholderTextColor="#475569"
             />
             <View style={s.modalFooter}>
               <TouchableOpacity style={s.modalCancel} onPress={() => setShowChangeModal(false)}>
-                <Text style={s.modalCancelText}>Annuler</Text>
+                <Text style={s.modalCancelText}>{tr("cancel", lang)}</Text>
               </TouchableOpacity>
               <TouchableOpacity style={s.modalSave} onPress={() => { setShowChangeModal(false); doSave(changeDesc); }}>
-                <Text style={s.modalSaveText}>Sauvegarder</Text>
+                <Text style={s.modalSaveText}>{tr("save", lang)}</Text>
               </TouchableOpacity>
             </View>
           </View>

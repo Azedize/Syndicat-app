@@ -264,7 +264,7 @@ export default function ChatScreen() {
           <Text style={[styles.title, { color: colors.foreground }]}>{t("chatTitle")}</Text>
           {totalUnread > 0 ? (
             <Text style={[styles.subtitle, { color: colors.mutedForeground }]}>
-              {totalUnread} message{totalUnread > 1 ? "s" : ""}
+              {totalUnread} {t(totalUnread > 1 ? "chatUnreadMessages" : "chatUnreadMessage")}
             </Text>
           ) : (
             <Text style={[styles.subtitle, { color: colors.success }]}>✓</Text>

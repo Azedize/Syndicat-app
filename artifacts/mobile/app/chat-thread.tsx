@@ -542,7 +542,7 @@ export default function ChatThreadScreen() {
 
     if (canEdit) {
       actionOptions.push({
-        text: "✏️  " + (t("editMessage") || "Modifier"),
+        text: t("editMessage"),
         onPress: () => {
           setEditingMessageId(msg.id);
           setEditingText(msg.text);
@@ -551,23 +551,22 @@ export default function ChatThreadScreen() {
     }
 
     actionOptions.push({
-      text: "🗑️  " + (t("deleteForMe") || "Supprimer pour moi"),
+      text: t("deleteForMe"),
       onPress: () => handleDeleteMessage(msg.id, "for_me"),
     });
 
     if (canDeleteForAll) {
       actionOptions.push({
-        text: "⛔  " + (t("deleteForEveryone") || "Supprimer pour tous"),
+        text: t("deleteForEveryone"),
         style: "destructive" as const,
         onPress: () =>
           Alert.alert(
-            t("deleteForEveryone") || "Supprimer pour tous",
-            t("deleteForEveryoneConfirm") ||
-              "Ce message sera définitivement supprimé pour tous les participants.",
+            t("deleteForEveryone"),
+            t("deleteForEveryoneConfirm"),
             [
               { text: t("cancel"), style: "cancel" },
               {
-                text: t("delete") || "Supprimer",
+                text: t("delete"),
                 style: "destructive",
                 onPress: () => handleDeleteMessage(msg.id, "for_everyone"),
               },
@@ -577,7 +576,7 @@ export default function ChatThreadScreen() {
     }
 
     actionOptions.push({ text: t("cancel"), style: "cancel" as const });
-    Alert.alert(t("messageOptions") || "Options", undefined, actionOptions);
+    Alert.alert(t("messageOptions"), undefined, actionOptions);
   };
 
   if (!conversation) {
@@ -837,7 +836,7 @@ export default function ChatThreadScreen() {
                             },
                           ]}
                         >
-                          {t("messageDeleted") || "Ce message a été supprimé"}
+                          {t("messageDeleted")}
                         </Text>
                       </View>
                     ) : isImage && resolvedUrl ? (
@@ -897,7 +896,7 @@ export default function ChatThreadScreen() {
                               },
                             ]}
                           >
-                            {t("openLabel") ?? "Ouvrir"}
+                            {t("openLabel")}
                           </Text>
                         </View>
                         <Feather
@@ -975,7 +974,7 @@ export default function ChatThreadScreen() {
                         { color: colors.mutedForeground },
                       ]}
                     >
-                      {t("edited") || "Modifié"}
+                      {t("edited")}
                     </Text>
                   )}
                   <Text
@@ -1011,7 +1010,7 @@ export default function ChatThreadScreen() {
             style={[styles.editIndicatorText, { color: colors.primary }]}
             numberOfLines={1}
           >
-            {t("editingMessage") || "Modification en cours"}
+            {t("editingMessage")}
           </Text>
           <TouchableOpacity
             onPress={() => {
@@ -1198,7 +1197,7 @@ export default function ChatThreadScreen() {
             onPress={() => Linking.openURL(imageViewerUrl!).catch(() => {})}
           >
             <Feather name="download" size={18} color="#fff" />
-            <Text style={styles.imgViewerDownloadText}>Télécharger</Text>
+            <Text style={styles.imgViewerDownloadText}>{t("downloadLabel")}</Text>
           </TouchableOpacity>
         </View>
       </Modal>
@@ -1297,7 +1296,7 @@ export default function ChatThreadScreen() {
               value={editingText}
               onChangeText={setEditingText}
               placeholder={
-                t("editMessagePlaceholder") || "Modifier le message…"
+                t("editMessagePlaceholder")
               }
               placeholderTextColor={colors.mutedForeground}
               multiline

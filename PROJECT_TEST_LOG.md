@@ -77,3 +77,27 @@
 - `pnpm --filter @workspace/mobile run typecheck` — passed after the Ma Boutique marketplace localization and recovery pass.
 - `git diff --check -- artifacts/mobile/app/my-shop.tsx` — passed.
 - Expo workflow remained running and Metro had previously bundled successfully; the seller route remains protected without an authenticated session.
+- `pnpm --filter @workspace/mobile run typecheck` — passed after the Notifications & Alerts localization pass.
+- `git diff --check` — passed after the notification screen and translation updates.
+- Mobile Expo preview screenshot for `/notifications` at 402×874 — preferences screen rendered successfully with translated controls.
+- Mobile Expo preview screenshot for `/alerts` at 402×874 — protected route redirected safely without a session; browser logs contained only existing non-blocking Expo web warnings.
+- `pnpm --filter @workspace/mobile run typecheck` — passed after the internal chat localization follow-up.
+- `git diff --check` — passed after the chat screen, thread, and translation updates.
+- Restarted `artifacts/mobile: expo`; Metro started successfully with the expected Expo package-version notices and no transform errors.
+- Mobile Expo preview screenshots for `/chat` and `/chat-thread` at 402×874 — protected routes redirected safely without a session; browser logs contained only existing non-blocking Expo web warnings.
+- `pnpm --filter @workspace/mobile run typecheck` — passed after the Level-1 Support localization pass.
+- `git diff --check` — passed after the support screen and translation updates.
+- Restarted `artifacts/mobile: expo`; Metro started successfully with the expected Expo package-version notices and no transform errors.
+- Mobile Expo preview screenshot for `/support` at 402×874 — protected route redirected safely without a session; browser logs contained only existing non-blocking Expo web warnings.
+- `pnpm --filter @workspace/mobile run typecheck` — passed with zero errors after the Agenda pass and two unrelated pre-existing typecheck blockers were cleared.
+- `git diff --check -- artifacts/mobile/app/agenda.tsx artifacts/mobile/app/simulateur.tsx artifacts/mobile/context/LanguageContext.tsx` — passed.
+- Restarted `artifacts/mobile: expo`; Metro started successfully with expected Expo package-version notices and no transform errors.
+- Mobile Expo preview screenshot for `/agenda` at 402×874 — protected route remained behind the expected unauthenticated boundary; no new browser errors appeared beyond existing non-blocking Expo web warnings.
+- `pnpm --filter @workspace/mobile run typecheck` — passed with zero errors after the Financial Reports pass.
+- `git diff --check -- artifacts/mobile/app/reports.tsx artifacts/mobile/context/LanguageContext.tsx` — passed.
+- Restarted `artifacts/mobile: expo`; Metro started successfully with expected Expo package-version notices and no transform errors.
+- Mobile Expo preview screenshot for `/reports` at 402×874 — protected route remained behind the expected unauthenticated boundary; no new browser errors appeared beyond existing non-blocking Expo web warnings.
+- `pnpm --filter @workspace/mobile run typecheck` — passed with zero errors after the Syndical Actions pass.
+- `git diff --check -- artifacts/mobile/app/actions.tsx artifacts/mobile/context/LanguageContext.tsx` — passed.
+- Restarted `artifacts/mobile: expo`; Metro started successfully with expected Expo package-version notices and no transform errors.
+- Mobile Expo preview screenshot for `/actions` at 402×874 — protected route remained behind the expected unauthenticated boundary; no new browser errors appeared beyond existing non-blocking Expo web warnings.

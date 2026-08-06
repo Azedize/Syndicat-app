@@ -15,6 +15,7 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useData } from "@/context/DataContext";
 import { useBreakpoints } from "@/hooks/useBreakpoints";
 import { useColors } from "@/hooks/useColors";
+import { useLanguage } from "@/context/LanguageContext";
 
 type TabType = "preferences" | "historique";
 
@@ -34,6 +35,7 @@ const ALERT_ICONS: Record<string, keyof typeof Feather.glyphMap> = {
 
 export default function NotificationsScreen() {
   const colors = useColors();
+  const { t } = useLanguage();
   const insets = useSafeAreaInsets();
   const { notificationPreferences, toggleNotificationPref, alerts, markAlertRead } = useData();
   const { isWide } = useBreakpoints();
@@ -48,6 +50,29 @@ export default function NotificationsScreen() {
   const [previewEnabled, setPreviewEnabled] = useState(true);
 
   const unread = alerts.filter((a) => !a.read).length;
+
+  const categoryMeta = (category: string) => {
+    const normalized = category.toLowerCase();
+    if (normalized.includes("financ") || normalized.includes("charge") || normalized.includes("payment")) {
+      return { label: t("notificationCategoryFinancial"), description: t("notificationCategoryFinancialDescription") };
+    }
+    if (normalized.includes("document") || normalized.includes("acte")) {
+      return { label: t("notificationCategoryDocuments"), description: t("notificationCategoryDocumentsDescription") };
+    }
+    if (normalized.includes("meeting") || normalized.includes("réunion") || normalized.includes("reunion") || normalized.includes("assembl")) {
+      return { label: t("notificationCategoryMeetings"), description: t("notificationCategoryMeetingsDescription") };
+    }
+    if (normalized.includes("message") || normalized.includes("chat")) {
+      return { label: t("notificationCategoryMessages"), description: t("notificationCategoryMessagesDescription") };
+    }
+    if (normalized.includes("security") || normalized.includes("sécurité") || normalized.includes("securite") || normalized.includes("account")) {
+      return { label: t("notificationCategorySecurity"), description: t("notificationCategorySecurityDescription") };
+    }
+    if (normalized.includes("work") || normalized.includes("travaux") || normalized.includes("incident") || normalized.includes("sinistre")) {
+      return { label: t("notificationCategoryWorks"), description: t("notificationCategoryWorksDescription") };
+    }
+    return { label: category || t("notificationsTitle"), description: "" };
+  };
 
   const handleToggle = (id: string, channel: "push" | "email" | "inApp") => {
     Haptics.selectionAsync();
@@ -65,19 +90,21 @@ export default function NotificationsScreen() {
         <TouchableOpacity onPress={() => router.back()} style={styles.backBtn}>
           <Feather name="arrow-left" size={22} color={colors.foreground} />
         </TouchableOpacity>
-        <Text style={[styles.title, { color: colors.foreground }]}>Notifications</Text>
+        <Text style={[styles.title, { color: colors.foreground }]}>{t("notificationsTitle")}</Text>
         <View style={{ width: 38 }} />
       </View>
 
       <View style={[styles.tabRow, { backgroundColor: colors.card, borderBottomColor: colors.border }]}>
-        {(["preferences", "historique"] as TabType[]).map((t) => (
+        {(["preferences", "historique"] as TabType[]).map((tabKey) => (
           <TouchableOpacity
-            key={t}
-            style={[styles.tabBtn, tab === t && { borderBottomColor: colors.primary, borderBottomWidth: 2 }]}
-            onPress={() => { Haptics.selectionAsync(); setTab(t); }}
+            key={tabKey}
+            style={[styles.tabBtn, tab === tabKey && { borderBottomColor: colors.primary, borderBottomWidth: 2 }]}
+            onPress={() => { Haptics.selectionAsync(); setTab(tabKey); }}
           >
-            <Text style={[styles.tabLabel, { color: tab === t ? colors.primary : colors.mutedForeground }]}>
-              {t === "preferences" ? "Préférences" : `Historique${unread > 0 ? ` (${unread})` : ""}`}
+            <Text style={[styles.tabLabel, { color: tab === tabKey ? colors.primary : colors.mutedForeground }]}>
+              {tabKey === "preferences"
+                ? t("preferencesTab")
+                : `${t("historyTab")}${unread > 0 ? ` (${unread})` : ""}`}
             </Text>
           </TouchableOpacity>
         ))}
@@ -91,30 +118,30 @@ export default function NotificationsScreen() {
           <>
             {/* Global controls */}
             <View style={[styles.sectionCard, { backgroundColor: colors.card, borderColor: colors.border }]}>
-              <Text style={[styles.sectionLabel, { color: colors.mutedForeground }]}>PARAMÈTRES GLOBAUX</Text>
+              <Text style={[styles.sectionLabel, { color: colors.mutedForeground }]}>{t("globalSettingsLabel")}</Text>
 
               {[
                 {
                   icon: "bell" as const,
                   color: colors.primary,
-                  label: "Notifications push",
-                  sub: "Recevoir des notifications sur l'appareil",
+                  label: t("pushNotifsLabel"),
+                  sub: t("pushNotifsSub"),
                   value: globalPush,
                   onChange: (v: boolean) => { Haptics.selectionAsync(); setGlobalPush(v); },
                 },
                 {
                   icon: "mail" as const,
                   color: "#3b82f6",
-                  label: "Notifications email",
-                  sub: "Recevoir des emails de notification",
+                  label: t("emailNotifsLabel"),
+                  sub: t("emailNotifsSub"),
                   value: globalEmail,
                   onChange: (v: boolean) => { Haptics.selectionAsync(); setGlobalEmail(v); },
                 },
                 {
                   icon: "moon" as const,
                   color: "#8b5cf6",
-                  label: "Ne pas déranger",
-                  sub: "Désactiver toutes les notifications",
+                  label: t("doNotDisturbLabel"),
+                  sub: t("doNotDisturbSub"),
                   value: doNotDisturb,
                   onChange: (v: boolean) => { Haptics.selectionAsync(); setDoNotDisturb(v); },
                 },
@@ -141,27 +168,41 @@ export default function NotificationsScreen() {
             </View>
 
             {/* Per-category preferences */}
-            <Text style={[styles.sectionTitle, { color: colors.mutedForeground }]}>PAR CATÉGORIE</Text>
+            <Text style={[styles.sectionTitle, { color: colors.mutedForeground }]}>{t("perCategoryLabel")}</Text>
 
-            {notificationPreferences.map((pref) => (
+            {notificationPreferences.map((pref, index) => (
               <View key={pref.id} style={[styles.prefCard, { backgroundColor: colors.card, borderColor: colors.border }]}>
                 <View style={styles.prefHeader}>
+                  {(() => {
+                    const meta = categoryMeta(pref.category || pref.label || [
+                      "financial",
+                      "documents",
+                      "meetings",
+                      "messages",
+                      "security",
+                      "works",
+                    ][index] || "");
+                    return (
+                      <>
                   <View style={[styles.prefIcon, { backgroundColor: pref.color + "18" }]}>
                     <Feather name={pref.icon as keyof typeof Feather.glyphMap} size={20} color={pref.color} />
                   </View>
                   <View style={{ flex: 1 }}>
-                    <Text style={[styles.prefLabel, { color: colors.foreground }]}>{pref.label}</Text>
-                    <Text style={[styles.prefDesc, { color: colors.mutedForeground }]}>{pref.description}</Text>
+                    <Text style={[styles.prefLabel, { color: colors.foreground }]}>{meta.label}</Text>
+                    <Text style={[styles.prefDesc, { color: colors.mutedForeground }]}>{meta.description || pref.description}</Text>
                   </View>
+                      </>
+                    );
+                  })()}
                 </View>
 
                 <View style={[styles.prefDivider, { backgroundColor: colors.border }]} />
 
                 <View style={styles.prefChannels}>
                   {[
-                    { key: "push" as const, label: "Push", icon: "smartphone" as const },
-                    { key: "email" as const, label: "Email", icon: "mail" as const },
-                    { key: "inApp" as const, label: "In-App", icon: "bell" as const },
+                    { key: "push" as const, label: t("notificationChannelPush"), icon: "smartphone" as const },
+                    { key: "email" as const, label: t("notificationChannelEmail"), icon: "mail" as const },
+                    { key: "inApp" as const, label: t("notificationChannelInApp"), icon: "bell" as const },
                   ].map((ch, i, arr) => (
                     <View key={ch.key} style={[styles.channelCell, i < arr.length - 1 ? { borderRightWidth: 1, borderRightColor: colors.border } : null]}>
                       <View style={{ flexDirection: "row", alignItems: "center", gap: 5, marginBottom: 6 }}>
@@ -183,11 +224,11 @@ export default function NotificationsScreen() {
 
             {/* Sound & vibration */}
             <View style={[styles.sectionCard, { backgroundColor: colors.card, borderColor: colors.border }]}>
-              <Text style={[styles.sectionLabel, { color: colors.mutedForeground }]}>SON & VIBRATION</Text>
+              <Text style={[styles.sectionLabel, { color: colors.mutedForeground }]}>{t("soundVibrationLabel")}</Text>
               {[
-                { icon: "volume-2" as const, color: "#10b981", label: "Son des notifications", sub: "Jouer un son à chaque notification", value: soundEnabled, onChange: (v: boolean) => { Haptics.selectionAsync(); setSoundEnabled(v); } },
-                { icon: "activity" as const, color: "#f59e0b", label: "Vibration", sub: "Vibrer à chaque notification", value: vibrationEnabled, onChange: (v: boolean) => { Haptics.selectionAsync(); setVibrationEnabled(v); } },
-                { icon: "eye" as const, color: "#6366f1", label: "Aperçu des messages", sub: "Afficher le contenu sur l'écran verrouillé", value: previewEnabled, onChange: (v: boolean) => { Haptics.selectionAsync(); setPreviewEnabled(v); } },
+                { icon: "volume-2" as const, color: "#10b981", label: t("soundNotifsLabel"), sub: t("soundNotifsSub"), value: soundEnabled, onChange: (v: boolean) => { Haptics.selectionAsync(); setSoundEnabled(v); } },
+                { icon: "activity" as const, color: "#f59e0b", label: t("vibrationLabel"), sub: t("vibrationSub"), value: vibrationEnabled, onChange: (v: boolean) => { Haptics.selectionAsync(); setVibrationEnabled(v); } },
+                { icon: "eye" as const, color: "#6366f1", label: t("msgPreviewLabel"), sub: t("msgPreviewSub"), value: previewEnabled, onChange: (v: boolean) => { Haptics.selectionAsync(); setPreviewEnabled(v); } },
               ].map((item, i) => (
                 <View key={item.label}>
                   {i > 0 && <View style={[styles.sep, { backgroundColor: colors.border }]} />}
@@ -221,7 +262,7 @@ export default function NotificationsScreen() {
               >
                 <Feather name="check-square" size={15} color={colors.primary} />
                 <Text style={[styles.markAllText, { color: colors.primary }]}>
-                  Tout marquer comme lu ({unread})
+                  {t("markAllReadBtn")} ({unread})
                 </Text>
               </TouchableOpacity>
             )}
@@ -237,7 +278,7 @@ export default function NotificationsScreen() {
                     </View>
                     <Text style={[styles.summaryCount, { color: colors.foreground }]}>{count}</Text>
                     <Text style={[styles.summaryLabel, { color: colors.mutedForeground }]}>
-                      {type === "info" ? "Info" : type === "warning" ? "Alerte" : type === "success" ? "Succès" : "Erreur"}
+                       {type === "info" ? t("alertInfo") : type === "warning" ? t("alertWarning") : type === "success" ? t("alertSuccess") : t("alertError")}
                     </Text>
                   </View>
                 );
@@ -284,7 +325,7 @@ export default function NotificationsScreen() {
                     <View style={styles.notifFooter}>
                       <View style={[styles.typeChip, { backgroundColor: c + "18" }]}>
                         <Text style={[styles.typeChipText, { color: c }]}>
-                          {alert.type === "info" ? "Info" : alert.type === "warning" ? "Alerte" : alert.type === "success" ? "Succès" : "Erreur"}
+                           {alert.type === "info" ? t("alertInfo") : alert.type === "warning" ? t("alertWarning") : alert.type === "success" ? t("alertSuccess") : t("alertError")}
                         </Text>
                       </View>
                       <Text style={[styles.notifDate, { color: colors.mutedForeground }]}>{alert.date}</Text>
@@ -297,7 +338,7 @@ export default function NotificationsScreen() {
             {alerts.length === 0 && (
               <View style={styles.emptyState}>
                 <Feather name="bell-off" size={40} color={colors.mutedForeground} />
-                <Text style={[styles.emptyText, { color: colors.mutedForeground }]}>Aucune notification</Text>
+                <Text style={[styles.emptyText, { color: colors.mutedForeground }]}>{t("notificationNoneTitle")}</Text>
               </View>
             )}
           </>

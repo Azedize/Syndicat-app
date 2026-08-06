@@ -62,3 +62,21 @@
 - Audited `artifacts/mobile/app/my-shop.tsx` and removed the remaining seller-facing French-only marketplace copy, including form fields, product statuses, statistics, promotion actions, confirmations, and upload feedback.
 - Added a shared screen-local translation map for marketplace-specific labels across `fr`, `en`, `ar`, and `es`, plus locale-aware MAD/date rendering and success feedback for create/update actions.
 - Added explicit loading, retryable unavailable-data, and guided empty states to the seller listing screen; promotion request failures remain isolated from listing retrieval.
+- Audited `artifacts/mobile/app/notifications.tsx` and `artifacts/mobile/app/alerts.tsx` for remaining hardcoded notification copy and mixed-language presentation.
+- Added shared translation coverage for global notification settings, category descriptions, channels, alert filters, time buckets, recipients, detail metadata, and empty states.
+- Kept notification preference persistence and alert read actions unchanged; category labels use stable category matching with a safe API-provided fallback.
+- Audited `artifacts/mobile/app/chat.tsx` and `artifacts/mobile/app/chat-thread.tsx` for remaining visible French fallback strings.
+- Added translations for unread counts, edit/delete menus, deletion confirmation, edited/deleted states, attachment opening and download, and edit-mode placeholders.
+- Removed a duplicate `openLabel` dictionary entry discovered during typecheck and corrected the Arabic plural unread-message label.
+- Audited `artifacts/mobile/app/support.tsx`; replaced visible French-only ticket, category, priority, status, filter, detail, reply, escalation, and new-ticket copy with shared runtime translation keys.
+- Added localized support-specific labels, placeholders, empty states, action feedback, and locale-aware date formatting while preserving `/support`, `/support/:id/replies`, `/support/:id/resolve`, and `/support/:id/escalate` behavior.
+- Audited `artifacts/mobile/app/agenda.tsx` and replaced remaining hardcoded event types, dates, statuses, modal metadata, empty-state text, calendar-share labels, and attendance feedback with runtime translations.
+- Added locale-aware `Intl` date and MAD currency formatting for agenda sections, date badges, detail metadata, and unpaid contribution deadlines.
+- Replaced the swallowed meeting-attendance API failure with a localized recoverable toast and kept calendar export failures user-visible.
+- Fixed the unrelated `ParityBar` prop type error in `simulateur.tsx` and removed the duplicate `pubTitlePlaceholder` translation key so the mobile package could be verified cleanly.
+- Audited `artifacts/mobile/app/reports.tsx` and replaced hardcoded financial KPI, chart, breakdown, balance, and export labels with runtime translation keys.
+- Replaced the French-only report period helper with locale-aware month formatting and translated quarter labels.
+- Added locale-aware MAD formatting to KPI cards, financial balance values, and exported report summaries.
+- Replaced raw report API errors with shared localized loading/error recovery states and added localized share-failure feedback.
+- Audited `artifacts/mobile/app/actions.tsx` and replaced hardcoded action type/status labels, participation/support controls, metadata labels, demand/update section titles, and feedback with runtime translations.
+- Preserved optimistic cache updates, rollback behavior, API contracts, and administrator visibility while making action errors recoverable and localized.

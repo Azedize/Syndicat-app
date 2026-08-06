@@ -6,3 +6,6 @@
 - Internal Messaging continues to use the existing announcements API as its source of truth; localized display fallbacks are injected at mapping time so API records remain unchanged while sender, audience, and message-type presentation follow the active language.
 - Documents Dashboard continues to derive lifecycle counts from the existing DataContext and retention summary endpoint; translations affect presentation only and do not alter document status filtering or API contracts.
 - Administrative Acts continues to use `/actes` as its source of truth; localized labels are derived from stable type/status enums and the retryable state only controls presentation around the existing fetch.
+- Notifications continue to use DataContext and the existing user-scoped preferences/read APIs as the source of truth; stable category/type values are translated only at render time.
+- Chat continues to use the existing conversation, message, attachment, reaction, and report APIs as its source of truth; the follow-up changes only render-time translation and keeps message payloads unchanged.
+- Level-1 Support continues to use the existing support ticket and reply APIs as its source of truth; stable category, priority, and status enums are translated only at render time and ticket payloads remain unchanged.

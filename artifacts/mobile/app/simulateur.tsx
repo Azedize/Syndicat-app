@@ -17,6 +17,7 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useToast } from "@/context/ToastContext";
 import { useBreakpoints } from "@/hooks/useBreakpoints";
 import { useColors } from "@/hooks/useColors";
+import { useLanguage } from "@/context/LanguageContext";
 
 interface Bureau {
   id: string;
@@ -47,14 +48,14 @@ const TYPE_CFG = {
   commission: { label: "Commission", color: "#f59e0b", icon: "users" as const },
 };
 
-function ParityBar({ value, min = 40 }: { value: number; min?: number }) {
+function ParityBar({ value, label, min = 40 }: { value: number; label: string; min?: number }) {
   const colors = useColors();
   const ok = value >= min;
   const color = ok ? "#10b981" : "#ef4444";
   return (
     <View style={{ gap: 4 }}>
       <View style={{ flexDirection: "row", justifyContent: "space-between" }}>
-        <Text style={{ fontSize: 10, fontFamily: "Inter_400Regular", color: colors.mutedForeground }}>Parité</Text>
+        <Text style={{ fontSize: 10, fontFamily: "Inter_400Regular", color: colors.mutedForeground }}>{label}</Text>
         <Text style={{ fontSize: 10, fontFamily: "Inter_700Bold", color }}>{value}%</Text>
       </View>
       <View style={{ height: 4, backgroundColor: "#e5e7eb", borderRadius: 2, overflow: "hidden" }}>
@@ -68,6 +69,7 @@ export default function SimulateurScreen() {
   const colors = useColors();
   const insets = useSafeAreaInsets();
   const { isWide } = useBreakpoints();
+  const { t } = useLanguage();
   const topPad = isWide ? 0 : (Platform.OS === "web" ? 67 : insets.top);
 
   const [bureaux, setBureaux] = useState<Bureau[]>(INITIAL_BUREAUX);
@@ -96,7 +98,7 @@ export default function SimulateurScreen() {
 
   const handleRemoveBureau = (id: string) => {
     if (!sandboxMode) {
-      Alert.alert("Sandbox requis", "Activez le mode sandbox pour modifier la structure.");
+      Alert.alert(t("simSandboxRequired"), t("simSandboxRequiredMsg"));
       return;
     }
     setSandboxBureaux((p) => p.map((b) => b.id === id ? { ...b, status: "removed" as const } : b));
@@ -106,11 +108,11 @@ export default function SimulateurScreen() {
 
   const handleAddBureau = () => {
     if (!sandboxMode) {
-      Alert.alert("Sandbox requis", "Activez le mode sandbox pour modifier la structure.");
+      Alert.alert(t("simSandboxRequired"), t("simSandboxRequiredMsg"));
       return;
     }
     if (!form.name || !form.president || !form.members) {
-      Alert.alert("Champs requis", "Nom, président et nombre de membres sont obligatoires.");
+      Alert.alert(t("simRequiredFields"), t("simRequiredFieldsMsg"));
       return;
     }
     const nb: Bureau = {
@@ -133,17 +135,17 @@ export default function SimulateurScreen() {
 
   const handleApply = () => {
     Alert.alert(
-      "Appliquer les modifications",
-      "Voulez-vous appliquer les modifications du sandbox à la structure réelle ?",
+      t("simApplyConfirmTitle"),
+      t("simApplyConfirmMsg"),
       [
-        { text: "Annuler", style: "cancel" },
+        { text: t("pubEditCancel"), style: "cancel" },
         {
-          text: "Appliquer",
+          text: t("simApplyConfirmOk"),
           onPress: () => {
             setBureaux(sandboxBureaux.map((b) => ({ ...b, status: b.status === "added" ? "active" : b.status })));
             setSandboxMode(false);
             Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-            Alert.alert("Succès", "Les modifications ont été appliquées à la structure réelle.");
+            Alert.alert(t("simApplySuccess"), t("simApplySuccessMsg"));
           },
         },
       ]
@@ -175,7 +177,7 @@ export default function SimulateurScreen() {
               <Text style={[styles.bureauName, { color: colors.foreground }]} numberOfLines={1}>{b.name}</Text>
               {isNew && (
                 <View style={[styles.newBadge, { backgroundColor: "#10b98118" }]}>
-                  <Text style={[styles.newBadgeText, { color: "#10b981" }]}>Nouveau</Text>
+                  <Text style={[styles.newBadgeText, { color: "#10b981" }]}>{t("simNewBadge")}</Text>
                 </View>
               )}
             </View>
@@ -183,14 +185,14 @@ export default function SimulateurScreen() {
           </View>
           <View style={styles.bureauStats}>
             <Text style={[styles.bureauMembCount, { color: colors.foreground }]}>{b.members}</Text>
-            <Text style={[styles.bureauMembLabel, { color: colors.mutedForeground }]}>membres</Text>
+            <Text style={[styles.bureauMembLabel, { color: colors.mutedForeground }]}>{t("simMembers")}</Text>
           </View>
         </View>
-        <ParityBar value={b.parityRatio} />
+        <ParityBar value={b.parityRatio} label={t("simParity")} />
         {b.parityRatio < 40 && (
           <View style={styles.warningRow}>
             <Feather name="alert-triangle" size={11} color="#ef4444" />
-            <Text style={[styles.warningText, { color: "#ef4444" }]}>Parité insuffisante (min 40%)</Text>
+            <Text style={[styles.warningText, { color: "#ef4444" }]}>{t("simParityWarning")}</Text>
           </View>
         )}
       </TouchableOpacity>
@@ -204,8 +206,8 @@ export default function SimulateurScreen() {
           <Feather name="arrow-left" size={22} color={colors.foreground} />
         </TouchableOpacity>
         <View style={{ flex: 1 }}>
-          <Text style={[styles.title, { color: colors.foreground }]}>Simulateur de Structure</Text>
-          <Text style={[styles.subtitle, { color: colors.mutedForeground }]}>Testez vos réorganisations en sandbox</Text>
+          <Text style={[styles.title, { color: colors.foreground }]}>{t("simTitle")}</Text>
+          <Text style={[styles.subtitle, { color: colors.mutedForeground }]}>{t("simSubtitle")}</Text>
         </View>
         <TouchableOpacity
           style={[styles.sandboxToggle, { backgroundColor: sandboxMode ? "#f59e0b" : colors.muted }]}
@@ -217,7 +219,7 @@ export default function SimulateurScreen() {
         >
           <Feather name="play" size={14} color={sandboxMode ? "#fff" : colors.mutedForeground} />
           <Text style={[styles.sandboxToggleText, { color: sandboxMode ? "#fff" : colors.mutedForeground }]}>
-            {sandboxMode ? "Sandbox ON" : "Sandbox"}
+            {sandboxMode ? t("simSandboxOn") : t("simSandboxOff")}
           </Text>
         </TouchableOpacity>
       </View>
@@ -225,24 +227,24 @@ export default function SimulateurScreen() {
       {sandboxMode && (
         <View style={[styles.sandboxBanner, { backgroundColor: "#f59e0b18", borderBottomColor: "#f59e0b40" }]}>
           <Feather name="alert-circle" size={14} color="#f59e0b" />
-          <Text style={[styles.sandboxText, { color: "#f59e0b" }]}>Mode sandbox — les modifications ne sont pas appliquées</Text>
+          <Text style={[styles.sandboxText, { color: "#f59e0b" }]}>{t("simSandboxBanner")}</Text>
           <TouchableOpacity onPress={handleReset} style={styles.resetBtn}>
             <Feather name="refresh-cw" size={13} color="#f59e0b" />
-            <Text style={[styles.resetText, { color: "#f59e0b" }]}>Reset</Text>
+            <Text style={[styles.resetText, { color: "#f59e0b" }]}>{t("simReset")}</Text>
           </TouchableOpacity>
         </View>
       )}
 
       {/* Tabs */}
       <View style={[styles.tabs, { backgroundColor: colors.card, borderBottomColor: colors.border }]}>
-        {(["structure", "impacts"] as const).map((t) => (
+        {(["structure", "impacts"] as const).map((tab) => (
           <TouchableOpacity
-            key={t}
-            style={[styles.tab, activeTab === t && { borderBottomColor: colors.primary, borderBottomWidth: 2 }]}
-            onPress={() => setActiveTab(t)}
+            key={tab}
+            style={[styles.tab, activeTab === tab && { borderBottomColor: colors.primary, borderBottomWidth: 2 }]}
+            onPress={() => setActiveTab(tab)}
           >
-            <Text style={[styles.tabText, { color: activeTab === t ? colors.primary : colors.mutedForeground }]}>
-              {t === "structure" ? "Structure" : "Analyse d'impact"}
+            <Text style={[styles.tabText, { color: activeTab === tab ? colors.primary : colors.mutedForeground }]}>
+              {tab === "structure" ? t("simTabStructure") : t("simTabImpacts")}
             </Text>
           </TouchableOpacity>
         ))}
@@ -254,9 +256,9 @@ export default function SimulateurScreen() {
             {/* KPI strip */}
             <View style={[styles.kpiStrip, { backgroundColor: colors.card, borderColor: colors.border }]}>
               {[
-                { label: "Bureaux actifs", value: activeBureaux.length, icon: "git-merge" as const, color: colors.primary },
-                { label: "Total membres", value: totalMembers, icon: "users" as const, color: "#3b82f6" },
-                { label: "Parité moy.", value: `${avgParity}%`, icon: "activity" as const, color: avgParity >= 40 ? "#10b981" : "#ef4444" },
+                { label: t("simKpiActiveBureaux"), value: activeBureaux.length, icon: "git-merge" as const, color: colors.primary },
+                { label: t("simKpiTotalMembers"), value: totalMembers, icon: "users" as const, color: "#3b82f6" },
+                { label: t("simKpiAvgParity"), value: `${avgParity}%`, icon: "activity" as const, color: avgParity >= 40 ? "#10b981" : "#ef4444" },
               ].map((k, i, arr) => (
                 <View key={k.label} style={[styles.kpi, i < arr.length - 1 && { borderRightWidth: 1, borderRightColor: colors.border }]}>
                   <View style={[styles.kpiIcon, { backgroundColor: k.color + "18" }]}>
@@ -277,7 +279,7 @@ export default function SimulateurScreen() {
                 onPress={() => { setShowAddModal(true); Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); }}
               >
                 <Feather name="plus" size={18} color={colors.primary} />
-                <Text style={[styles.addBureauText, { color: colors.primary }]}>Ajouter un bureau</Text>
+                <Text style={[styles.addBureauText, { color: colors.primary }]}>{t("simAddBureau")}</Text>
               </TouchableOpacity>
             )}
           </>
@@ -289,9 +291,9 @@ export default function SimulateurScreen() {
                 <Feather name={isCompliant ? "check-circle" : "alert-triangle"} size={22} color={isCompliant ? "#10b981" : "#ef4444"} />
                 <View style={{ flex: 1 }}>
                   <Text style={[styles.complianceTitle, { color: isCompliant ? "#10b981" : "#ef4444" }]}>
-                    {isCompliant ? "Structure conforme" : `${complianceIssues.length} problème(s) de conformité`}
+                    {isCompliant ? t("simCompliant") : `${complianceIssues.length} ${t("simComplianceIssues")}`}
                   </Text>
-                  <Text style={[styles.complianceSub, { color: colors.mutedForeground }]}>Code Travail 65-99 — Parité ≥ 40%, Min 5 membres/bureau</Text>
+                  <Text style={[styles.complianceSub, { color: colors.mutedForeground }]}>{t("simComplianceLaw")}</Text>
                 </View>
               </View>
               {!isCompliant && complianceIssues.map((b) => (
@@ -307,13 +309,13 @@ export default function SimulateurScreen() {
             {/* Comparison */}
             {sandboxMode && (
               <View style={[styles.compCard, { backgroundColor: colors.card, borderColor: colors.border }]}>
-                <Text style={[styles.compTitle, { color: colors.foreground }]}>Comparaison avant / après</Text>
+                <Text style={[styles.compTitle, { color: colors.foreground }]}>{t("simCompareTitle")}</Text>
                 {[
-                  { label: "Bureaux actifs", before: origActiveBureaux.length, after: activeBureaux.length, unit: "" },
-                  { label: "Total membres", before: origTotal, after: totalMembers, unit: "" },
-                  { label: "Budget total", before: origBudget, after: totalBudget, unit: " MAD" },
-                  { label: "Parité moyenne", before: Math.round(bureaux.reduce((s, b) => s + b.parityRatio, 0) / bureaux.length), after: avgParity, unit: "%" },
-                  { label: "Jeunes (<35 ans)", before: Math.round(bureaux.reduce((s, b) => s + b.jeunesRatio, 0) / bureaux.length), after: avgJeunes, unit: "%" },
+                  { label: t("simKpiActiveBureaux"), before: origActiveBureaux.length, after: activeBureaux.length, unit: "" },
+                  { label: t("simKpiTotalMembers"), before: origTotal, after: totalMembers, unit: "" },
+                  { label: t("simAnnualBudget"), before: origBudget, after: totalBudget, unit: " MAD" },
+                  { label: t("simFemaleParity"), before: Math.round(bureaux.reduce((s, b) => s + b.parityRatio, 0) / bureaux.length), after: avgParity, unit: "%" },
+                  { label: t("simYouth"), before: Math.round(bureaux.reduce((s, b) => s + b.jeunesRatio, 0) / bureaux.length), after: avgJeunes, unit: "%" },
                 ].map((r, i) => {
                   const delta = r.after - r.before;
                   const deltaColor = delta > 0 ? "#10b981" : delta < 0 ? "#ef4444" : colors.mutedForeground;
@@ -341,7 +343,7 @@ export default function SimulateurScreen() {
 
             {/* Budget breakdown */}
             <View style={[styles.budgetCard, { backgroundColor: colors.card, borderColor: colors.border }]}>
-              <Text style={[styles.compTitle, { color: colors.foreground }]}>Budget par bureau</Text>
+              <Text style={[styles.compTitle, { color: colors.foreground }]}>{t("simBudgetTitle")}</Text>
               {activeBureaux.map((b, i) => {
                 const pct = totalBudget > 0 ? Math.round((b.budget / totalBudget) * 100) : 0;
                 const tc = TYPE_CFG[b.type];
@@ -368,7 +370,7 @@ export default function SimulateurScreen() {
                 onPress={handleApply}
               >
                 <Feather name="check" size={16} color="#fff" />
-                <Text style={styles.applyBtnText}>Appliquer les modifications</Text>
+                <Text style={styles.applyBtnText}>{t("simApplyBtn")}</Text>
               </TouchableOpacity>
             )}
           </>
@@ -396,11 +398,11 @@ export default function SimulateurScreen() {
               <ScrollView contentContainerStyle={{ padding: 20, gap: 16 }}>
                 <View style={[styles.detailGrid, { backgroundColor: colors.card, borderColor: colors.border }]}>
                   {[
-                    { label: "Président(e)", value: b.president, icon: "user" as const },
-                    { label: "Membres", value: String(b.members), icon: "users" as const },
-                    { label: "Budget annuel", value: `${b.budget.toLocaleString()} MAD`, icon: "dollar-sign" as const },
-                    { label: "Parité femmes", value: `${b.parityRatio}%`, icon: "activity" as const },
-                    { label: "Jeunes (<35 ans)", value: `${b.jeunesRatio}%`, icon: "trending-up" as const },
+                    { label: t("simPresident"), value: b.president, icon: "user" as const },
+                    { label: t("simKpiTotalMembers"), value: String(b.members), icon: "users" as const },
+                    { label: t("simAnnualBudget"), value: `${b.budget.toLocaleString()} MAD`, icon: "dollar-sign" as const },
+                    { label: t("simFemaleParity"), value: `${b.parityRatio}%`, icon: "activity" as const },
+                    { label: t("simYouth"), value: `${b.jeunesRatio}%`, icon: "trending-up" as const },
                   ].map(({ label, value, icon }, i) => (
                     <View key={label}>
                       {i > 0 && <View style={[styles.sep, { backgroundColor: colors.border }]} />}
@@ -414,14 +416,14 @@ export default function SimulateurScreen() {
                     </View>
                   ))}
                 </View>
-                <ParityBar value={b.parityRatio} />
+        <ParityBar value={b.parityRatio} label={t("simParity")} />
                 {sandboxMode && b.id !== "b1" && (
                   <TouchableOpacity
                     style={[styles.removeBureauBtn, { borderColor: "#ef4444" + "40" }]}
                     onPress={() => handleRemoveBureau(b.id)}
                   >
                     <Feather name="trash-2" size={16} color="#ef4444" />
-                    <Text style={[styles.removeBureauText, { color: "#ef4444" }]}>Supprimer du sandbox</Text>
+                    <Text style={[styles.removeBureauText, { color: "#ef4444" }]}>{t("simRemoveBureau")}</Text>
                   </TouchableOpacity>
                 )}
               </ScrollView>
@@ -444,13 +446,13 @@ export default function SimulateurScreen() {
           </View>
           <ScrollView contentContainerStyle={{ padding: 20, gap: 12 }}>
             {[
-              { label: "Nom du bureau", field: "name" as const, placeholder: "Ex: Bureau Marrakech-Safi" },
-              { label: "Président(e)", field: "president" as const, placeholder: "Prénom NOM" },
-              { label: "Région", field: "region" as const, placeholder: "Ex: Marrakech-Safi" },
-              { label: "Nombre de membres", field: "members" as const, placeholder: "Ex: 7" },
+              { label: t("simFieldName"), field: "name" as const, placeholder: "Ex: Bureau Marrakech-Safi" },
+              { label: t("simFieldPresident"), field: "president" as const, placeholder: "Prénom NOM" },
+              { label: t("simFieldRegion"), field: "region" as const, placeholder: "Ex: Marrakech-Safi" },
+              { label: t("simFieldMembers"), field: "members" as const, placeholder: "Ex: 7" },
               { label: "Budget annuel (MAD)", field: "budget" as const, placeholder: "Ex: 35000" },
-              { label: "Ratio parité femmes (%)", field: "parityRatio" as const, placeholder: "Ex: 44" },
-              { label: "Ratio jeunes <35 ans (%)", field: "jeunesRatio" as const, placeholder: "Ex: 30" },
+              { label: t("simFieldParity"), field: "parityRatio" as const, placeholder: "Ex: 44" },
+              { label: t("simFieldYouth"), field: "jeunesRatio" as const, placeholder: "Ex: 30" },
             ].map((f) => (
               <View key={f.field}>
                 <Text style={[styles.fieldLabel, { color: colors.mutedForeground }]}>{f.label}</Text>

@@ -3,7 +3,6 @@ import * as Haptics from "expo-haptics";
 import { router } from "expo-router";
 import React, { useCallback, useEffect, useState } from "react";
 import {
-  ActivityIndicator,
   Platform,
   ScrollView,
   Share,
@@ -14,10 +13,12 @@ import {
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import RoleGuard from "@/components/RoleGuard";
-import { useAuth } from "@/context/AuthContext";
 import { useData } from "@/context/DataContext";
+import { ErrorState, LoadingState } from "@/components/DataState";
 import { useBreakpoints } from "@/hooks/useBreakpoints";
 import { useColors } from "@/hooks/useColors";
+import { useLanguage } from "@/context/LanguageContext";
+import { useToast } from "@/context/ToastContext";
 import * as statisticsApi from "@/services/api";
 
 type Period = "month" | "quarter" | "year";
@@ -64,13 +65,12 @@ const barStyles = StyleSheet.create({
   barVal: { fontSize: 8, fontFamily: "Inter_700Bold" },
 });
 
-function periodLabel(period: Period): string {
+function periodLabel(period: Period, locale: string, quarterLabel: string): string {
   const now = new Date();
-  const FR_MONTHS = ["Jan", "Fév", "Mar", "Avr", "Mai", "Jun", "Jul", "Aoû", "Sep", "Oct", "Nov", "Déc"];
-  if (period === "month") return `${FR_MONTHS[now.getMonth()]} ${now.getFullYear()}`;
+  if (period === "month") return new Intl.DateTimeFormat(locale, { month: "short", year: "numeric" }).format(now);
   if (period === "quarter") {
     const q = Math.floor(now.getMonth() / 3) + 1;
-    return `T${q} ${now.getFullYear()}`;
+    return `${quarterLabel}${q} ${now.getFullYear()}`;
   }
   return `${now.getFullYear()}`;
 }
@@ -93,7 +93,6 @@ export default function ReportsScreen() {
 function ReportsScreenInner() {
   const colors = useColors();
   const insets = useSafeAreaInsets();
-  const { user } = useAuth();
   const { cotisations } = useData();
   const [period, setPeriod] = useState<Period>("month");
   const [reportData, setReportData] = useState<ReportData>(EMPTY_REPORT);
@@ -101,6 +100,9 @@ function ReportsScreenInner() {
   const [error, setError] = useState<string | null>(null);
   const { isWide } = useBreakpoints();
   const topPad = isWide ? 0 : (Platform.OS === "web" ? 67 : insets.top);
+  const { t, lang } = useLanguage();
+  const { showToast } = useToast();
+  const locale = lang === "ar" ? "ar-MA" : lang === "en" ? "en-US" : lang === "es" ? "es-ES" : "fr-FR";
 
   const fetchReports = useCallback(async (p: Period) => {
     setLoading(true);
@@ -108,8 +110,8 @@ function ReportsScreenInner() {
     try {
       const res = await statisticsApi.statistics.reports(p);
       setReportData(res.data);
-    } catch (err: any) {
-      setError(err?.message ?? "Erreur de chargement");
+    } catch {
+      setError("unavailable");
     } finally {
       setLoading(false);
     }
@@ -126,30 +128,34 @@ function ReportsScreenInner() {
   const overdueCount = cotisations.filter((c) => c.status === "overdue").length;
   const totalCot = cotisations.length;
 
-  const label = periodLabel(period);
+  const label = periodLabel(period, locale, t("rptQuarterShort"));
+  const formatMad = (amount: number) =>
+    new Intl.NumberFormat(locale, { style: "currency", currency: "MAD", maximumFractionDigits: 0 }).format(amount);
 
   const handleExport = (reportLabel: string) => {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
     const kpi = pd.kpi;
     const summary =
       `${reportLabel}\n` +
-      `Période : ${label}\n` +
-      `Revenus : ${kpi.revenues.toLocaleString()} MAD\n` +
-      `Dépenses : ${kpi.expenses.toLocaleString()} MAD\n` +
-      `Excédent : ${(kpi.revenues - kpi.expenses).toLocaleString()} MAD\n` +
-      `Croissance membres : +${kpi.memberGrowth}\n` +
-      `Taux cotisations : ${kpi.cotisationRate}%\n` +
-      `Exporté le ${new Date().toLocaleDateString("fr-MA")}\n` +
+      `${t("rptExportPeriod")} : ${label}\n` +
+      `${t("rptKpiRevenues")} : ${formatMad(kpi.revenues)}\n` +
+      `${t("rptKpiExpenses")} : ${formatMad(kpi.expenses)}\n` +
+      `${t("rptBalanceSurplus")} : ${formatMad(kpi.revenues - kpi.expenses)}\n` +
+      `${t("rptKpiGrowth")} : +${kpi.memberGrowth} ${t("rptKpiMembersUnit")}\n` +
+      `${t("rptKpiCotisationRate")} : ${kpi.cotisationRate}%\n` +
+      `${t("rptExportedOn")} ${new Intl.DateTimeFormat(locale).format(new Date())}\n` +
       `VERIDIAN`;
-    Share.share({ title: reportLabel, message: summary });
+    Share.share({ title: reportLabel, message: summary }).catch(() =>
+      showToast({ type: "error", message: t("rptExportError") }),
+    );
   };
 
   const REPORTS = [
-    { label: `Rapport financier — ${label}`, icon: "file-text" as const },
-    { label: "Liste des membres actifs", icon: "users" as const },
-    { label: "Rapport de cotisations", icon: "credit-card" as const },
-    { label: "Bilan des activités syndicales", icon: "activity" as const },
-    { label: "Rapport d'élections", icon: "check-square" as const },
+    { label: `${t("rptExportFinancial")} — ${label}`, icon: "file-text" as const },
+    { label: t("rptExportMembers"), icon: "users" as const },
+    { label: t("rptExportCotisations"), icon: "credit-card" as const },
+    { label: t("rptExportActivities"), icon: "activity" as const },
+    { label: t("rptExportElections"), icon: "check-square" as const },
   ];
 
   return (
@@ -160,12 +166,12 @@ function ReportsScreenInner() {
           <Feather name="arrow-left" size={22} color={colors.foreground} />
         </TouchableOpacity>
         <View style={{ flex: 1 }}>
-          <Text style={[styles.title, { color: colors.foreground }]}>Rapports & Analytics</Text>
+          <Text style={[styles.title, { color: colors.foreground }]}>{t("rptTitle")}</Text>
           <Text style={[styles.subtitle, { color: colors.mutedForeground }]}>{label}</Text>
         </View>
         <TouchableOpacity
           style={[styles.exportBtn, { backgroundColor: colors.primary + "15" }]}
-          onPress={() => handleExport(`Rapport général — ${label}`)}
+          onPress={() => handleExport(`${t("rptExportGeneral")} — ${label}`)}
         >
           <Feather name="download" size={16} color={colors.primary} />
         </TouchableOpacity>
@@ -174,9 +180,9 @@ function ReportsScreenInner() {
       {/* Period selector */}
       <View style={[styles.periodRow, { backgroundColor: colors.card, borderBottomColor: colors.border }]}>
         {([
-          { key: "month", label: "Ce mois", icon: "calendar" as const },
-          { key: "quarter", label: "Trimestre", icon: "bar-chart-2" as const },
-          { key: "year", label: "Année", icon: "trending-up" as const },
+          { key: "month", label: t("rptPeriodMonth"), icon: "calendar" as const },
+          { key: "quarter", label: t("rptPeriodQuarter"), icon: "bar-chart-2" as const },
+          { key: "year", label: t("rptPeriodYear"), icon: "trending-up" as const },
         ] as { key: Period; label: string; icon: keyof typeof Feather.glyphMap }[]).map((p) => (
           <TouchableOpacity
             key={p.key}
@@ -192,21 +198,14 @@ function ReportsScreenInner() {
       </View>
 
       {loading ? (
-        <View style={{ flex: 1, alignItems: "center", justifyContent: "center", gap: 12 }}>
-          <ActivityIndicator size="large" color={colors.primary} />
-          <Text style={{ color: colors.mutedForeground, fontSize: 13 }}>Chargement des données...</Text>
-        </View>
+        <LoadingState title={t("rptLoading")} description={t("rptLoadingDescription")} />
       ) : error ? (
-        <View style={{ flex: 1, alignItems: "center", justifyContent: "center", gap: 12, padding: 24 }}>
-          <Feather name="alert-circle" size={36} color={colors.destructive} />
-          <Text style={{ color: colors.destructive, fontSize: 14, textAlign: "center" }}>{error}</Text>
-          <TouchableOpacity
-            style={{ backgroundColor: colors.primary, paddingHorizontal: 20, paddingVertical: 10, borderRadius: 10 }}
-            onPress={() => fetchReports(period)}
-          >
-            <Text style={{ color: "#fff", fontSize: 13, fontFamily: "Inter_600SemiBold" }}>Réessayer</Text>
-          </TouchableOpacity>
-        </View>
+        <ErrorState
+          title={t("rptErrorTitle")}
+          description={t("rptErrorDescription")}
+          retryLabel={t("rptRetry")}
+          onRetry={() => fetchReports(period)}
+        />
       ) : (
         <ScrollView
           contentContainerStyle={{ padding: 20, gap: 16, paddingBottom: insets.bottom + 40 }}
@@ -216,35 +215,35 @@ function ReportsScreenInner() {
           <View style={styles.kpiGrid}>
             {[
               {
-                label: "Revenus",
-                value: pd.kpi.revenues > 999 ? `${(pd.kpi.revenues / 1000).toFixed(0)}k MAD` : `${pd.kpi.revenues} MAD`,
+                label: t("rptKpiRevenues"),
+                value: formatMad(pd.kpi.revenues),
                 icon: "trending-up" as const,
                 color: colors.success,
                 change: pd.kpi.revenues > 0 ? `${(pd.kpi.revenues / 1000).toFixed(0)}k` : "—",
                 up: true,
               },
               {
-                label: "Dépenses",
-                value: pd.kpi.expenses > 999 ? `${(pd.kpi.expenses / 1000).toFixed(0)}k MAD` : `${pd.kpi.expenses} MAD`,
+                label: t("rptKpiExpenses"),
+                value: formatMad(pd.kpi.expenses),
                 icon: "trending-down" as const,
                 color: colors.destructive,
                 change: pd.kpi.expenses > 0 ? `${(pd.kpi.expenses / 1000).toFixed(0)}k` : "—",
                 up: false,
               },
               {
-                label: "Croissance",
-                value: `+${pd.kpi.memberGrowth} membres`,
+                label: t("rptKpiGrowth"),
+                value: `+${pd.kpi.memberGrowth} ${t("rptKpiMembersUnit")}`,
                 icon: "users" as const,
                 color: colors.primary,
                 change: pd.kpi.memberGrowth > 0 ? `+${pd.kpi.memberGrowth}` : "—",
                 up: pd.kpi.memberGrowth > 0,
               },
               {
-                label: "Taux cotis.",
+                label: t("rptKpiCotisationRate"),
                 value: `${pd.kpi.cotisationRate}%`,
                 icon: "credit-card" as const,
                 color: "#f59e0b",
-                change: pd.kpi.cotisationRate >= 85 ? "Bon" : pd.kpi.cotisationRate > 0 ? "Faible" : "—",
+                change: pd.kpi.cotisationRate >= 85 ? t("rptKpiRateGood") : pd.kpi.cotisationRate > 0 ? t("rptKpiRateLow") : "—",
                 up: pd.kpi.cotisationRate >= 85,
               },
             ].map((kpi) => (
@@ -267,7 +266,7 @@ function ReportsScreenInner() {
             <View style={[styles.chartCard, { backgroundColor: colors.card, borderColor: colors.border }]}>
               <View style={styles.chartHeader}>
                 <View style={{ gap: 2 }}>
-                  <Text style={[styles.chartTitle, { color: colors.foreground }]}>Évolution des revenus</Text>
+                  <Text style={[styles.chartTitle, { color: colors.foreground }]}>{t("rptChartRevenue")}</Text>
                   <Text style={[styles.chartSub, { color: colors.mutedForeground }]}>{label}</Text>
                 </View>
                 <View style={[styles.legendDot, { backgroundColor: colors.primary }]} />
@@ -282,11 +281,11 @@ function ReportsScreenInner() {
             <View style={[styles.chartCard, { backgroundColor: colors.card, borderColor: colors.border }]}>
               <View style={styles.chartHeader}>
                 <View style={{ gap: 2 }}>
-                  <Text style={[styles.chartTitle, { color: colors.foreground }]}>Nouveaux membres</Text>
+                  <Text style={[styles.chartTitle, { color: colors.foreground }]}>{t("rptChartMembers")}</Text>
                   <Text style={[styles.chartSub, { color: colors.mutedForeground }]}>{label}</Text>
                 </View>
                 <View style={[styles.legendDot, { backgroundColor: colors.success }]} />
-                <Text style={[styles.chartUnit, { color: colors.mutedForeground }]}>Membres</Text>
+                <Text style={[styles.chartUnit, { color: colors.mutedForeground }]}>{t("rptChartMembersUnit")}</Text>
               </View>
               <BarChart data={pd.membersChart} maxVal={maxMembers} color={colors.success} />
             </View>
@@ -295,13 +294,13 @@ function ReportsScreenInner() {
           {/* Cotisations breakdown — from real DataContext */}
           <View style={[styles.breakdownCard, { backgroundColor: colors.card, borderColor: colors.border }]}>
             <View style={styles.chartHeader}>
-              <Text style={[styles.chartTitle, { color: colors.foreground }]}>Recouvrement des cotisations</Text>
-              <Text style={[styles.chartUnit, { color: colors.mutedForeground }]}>{totalCot} total</Text>
+              <Text style={[styles.chartTitle, { color: colors.foreground }]}>{t("rptBreakdownTitle")}</Text>
+              <Text style={[styles.chartUnit, { color: colors.mutedForeground }]}>{totalCot} {t("rptTotal")}</Text>
             </View>
             {[
-              { label: "Payées", count: paidCount, color: colors.success },
-              { label: "En attente", count: pendingCount, color: "#f59e0b" },
-              { label: "En retard", count: overdueCount, color: colors.destructive },
+              { label: t("rptBreakdownPaid"), count: paidCount, color: colors.success },
+              { label: t("rptBreakdownPending"), count: pendingCount, color: "#f59e0b" },
+              { label: t("rptBreakdownOverdue"), count: overdueCount, color: colors.destructive },
             ].map((row) => {
               const pct = totalCot > 0 ? Math.round((row.count / totalCot) * 100) : 0;
               return (
@@ -321,40 +320,38 @@ function ReportsScreenInner() {
 
           {/* Financial balance */}
           <View style={[styles.balanceCard, { backgroundColor: colors.card, borderColor: colors.border }]}>
-            <Text style={[styles.chartTitle, { color: colors.foreground }]}>Solde financier</Text>
+            <Text style={[styles.chartTitle, { color: colors.foreground }]}>{t("rptBalanceTitle")}</Text>
             <View style={styles.balanceRow}>
               <View style={[styles.balanceItem, { backgroundColor: colors.success + "10", borderColor: colors.success + "25" }]}>
                 <Feather name="arrow-up-circle" size={22} color={colors.success} />
                 <Text style={[styles.balanceVal, { color: colors.success }]}>
-                  +{pd.kpi.revenues > 999 ? `${(pd.kpi.revenues / 1000).toFixed(0)}k` : pd.kpi.revenues}
+                  +{formatMad(pd.kpi.revenues)}
                 </Text>
-                <Text style={[styles.balanceLab, { color: colors.mutedForeground }]}>Revenus</Text>
+                <Text style={[styles.balanceLab, { color: colors.mutedForeground }]}>{t("rptBalanceRevenues")}</Text>
               </View>
               <View style={[styles.balanceMid, { backgroundColor: colors.border }]} />
               <View style={[styles.balanceItem, { backgroundColor: colors.destructive + "10", borderColor: colors.destructive + "25" }]}>
                 <Feather name="arrow-down-circle" size={22} color={colors.destructive} />
                 <Text style={[styles.balanceVal, { color: colors.destructive }]}>
-                  -{pd.kpi.expenses > 999 ? `${(pd.kpi.expenses / 1000).toFixed(0)}k` : pd.kpi.expenses}
+                  -{formatMad(pd.kpi.expenses)}
                 </Text>
-                <Text style={[styles.balanceLab, { color: colors.mutedForeground }]}>Dépenses</Text>
+                <Text style={[styles.balanceLab, { color: colors.mutedForeground }]}>{t("rptBalanceExpenses")}</Text>
               </View>
               <View style={[styles.balanceMid, { backgroundColor: colors.border }]} />
               <View style={[styles.balanceItem, { backgroundColor: colors.primary + "10", borderColor: colors.primary + "25" }]}>
                 <Feather name="trending-up" size={22} color={colors.primary} />
                 <Text style={[styles.balanceVal, { color: colors.primary }]}>
                   {pd.kpi.revenues - pd.kpi.expenses >= 0 ? "+" : ""}
-                  {Math.abs(pd.kpi.revenues - pd.kpi.expenses) > 999
-                    ? `${((pd.kpi.revenues - pd.kpi.expenses) / 1000).toFixed(0)}k`
-                    : pd.kpi.revenues - pd.kpi.expenses}
+                  {formatMad(pd.kpi.revenues - pd.kpi.expenses)}
                 </Text>
-                <Text style={[styles.balanceLab, { color: colors.mutedForeground }]}>Excédent</Text>
+                <Text style={[styles.balanceLab, { color: colors.mutedForeground }]}>{t("rptBalanceSurplus")}</Text>
               </View>
             </View>
           </View>
 
           {/* Export reports */}
           <View style={[styles.reportsCard, { backgroundColor: colors.card, borderColor: colors.border }]}>
-            <Text style={[styles.reportsTitle, { color: colors.foreground }]}>Exporter des rapports</Text>
+            <Text style={[styles.reportsTitle, { color: colors.foreground }]}>{t("rptExportTitle")}</Text>
             {REPORTS.map((r, i) => (
               <View key={r.label}>
                 {i > 0 ? <View style={[styles.sep, { backgroundColor: colors.border }]} /> : null}

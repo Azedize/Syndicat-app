@@ -19,6 +19,7 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useAuth } from "@/context/AuthContext";
 import { useBreakpoints } from "@/hooks/useBreakpoints";
 import { useColors } from "@/hooks/useColors";
+import { useLanguage } from "@/context/LanguageContext";
 import { marketplace } from "@/services/api";
 
 type OrderStatus = "pending" | "confirmed" | "shipped" | "delivered" | "cancelled";
@@ -62,6 +63,7 @@ export default function OrdersScreen() {
   const [tab, setTab] = useState<Tab>("purchases");
   const [selected, setSelected] = useState<ApiOrder | null>(null);
   const [confirming, setConfirming] = useState<string | null>(null);
+  const { t } = useLanguage();
 
   const loadOrders = useCallback(async () => {
     try {

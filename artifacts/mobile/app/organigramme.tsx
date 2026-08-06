@@ -29,6 +29,7 @@ import {
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useAuth } from "@/context/AuthContext";
 import { useColors } from "@/hooks/useColors";
+import { useLanguage } from "@/context/LanguageContext";
 import { apiRequest } from "@/lib/api";
 import { useBreakpoints } from "@/hooks/useBreakpoints";
 
@@ -380,6 +381,7 @@ export default function OrganigrammeScreen() {
   const insets = useSafeAreaInsets();
   const { user } = useAuth();
   const { isWide } = useBreakpoints();
+  const { t } = useLanguage();
   const topPad = isWide ? 0 : Platform.OS === "web" ? 67 : insets.top;
 
   const [loading, setLoading]         = useState(true);

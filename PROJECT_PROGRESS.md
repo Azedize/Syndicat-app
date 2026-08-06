@@ -56,3 +56,20 @@
 - Typecheck: `pnpm --filter @workspace/mobile run typecheck` — 0 errors ✓
 - Completed the enterprise UX pass for `my-shop.tsx`: localized seller listings, statuses, statistics, forms, promotion flow, confirmations, validation messages, and MAD formatting for French, English, Arabic, and Spanish.
 - Added guided loading, retryable listing recovery, and localized empty-state copy; promotion loading failures remain isolated so available listings are never hidden.
+- Completed the notifications experience pass: notification preferences and alert history now use the runtime language system across French, English, Arabic, and Spanish.
+- Added translated notification filters, unread/read states, time-group labels, recipients, detail metadata, category descriptions, channel labels, and empty states.
+- Verified the notification preferences screen on compact mobile preview; protected alert history correctly redirects without an authenticated session.
+- Completed the internal chat follow-up: unread counts, edit/delete actions, deleted and edited message states, document opening/download labels, and edit-mode copy now use runtime translations across French, English, Arabic, and Spanish.
+- Preserved chat persistence, protected access, attachments, reactions, polling, and message actions while removing visible hardcoded fallback copy.
+- Completed the Level-1 syndicate support pass: ticket list, filters, categories, priorities, statuses, detail modal, reply flow, escalation flow, and new-ticket form now follow runtime translations across French, English, Arabic, and Spanish.
+- Added locale-aware support ticket dates and safe localized success/error feedback without changing support API contracts or role boundaries.
+- Completed the Agenda enterprise UX pass: event types, month/day dates, deadlines, organizers, statuses, empty state, calendar sharing, and attendance feedback now follow the active language.
+- Added locale-aware MAD formatting for payment deadlines and explicit recovery feedback when meeting attendance cannot be recorded.
+- Cleared two unrelated mobile typecheck blockers discovered during verification: a missing simulator component prop and a duplicate publication translation key.
+- Mobile typecheck passed with zero errors; Expo restarted and Metro started without transform errors. The direct agenda preview remained behind the expected unauthenticated protected-route boundary.
+- Completed the financial Reports enterprise UX pass: KPI labels, chart titles, contribution statuses, balance labels, export copy, periods, and errors now follow the active language.
+- Reports now format financial values as locale-aware MAD currency and expose guided loading/error recovery instead of raw API error text.
+- Report sharing failures now provide localized feedback; the mobile typecheck and Expo restart passed after the reports changes.
+- Completed the Actions Syndicales enterprise UX pass: action types, statuses, participation/support controls, metadata, demands, updates, and action feedback now follow the active language.
+- Preserved optimistic support/participation behavior and role boundaries while removing remaining visible hardcoded French labels.
+- Mobile typecheck passed with zero errors; Expo restarted and the protected `/actions` preview remained safely behind the unauthenticated boundary.

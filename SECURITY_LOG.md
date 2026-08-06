@@ -17,3 +17,6 @@
 - Mon Lot retains its existing owner/governance RoleGuard and `/lots/my-lot` personal endpoint; dependency failures use safe localized recovery without exposing raw API details or inventing financial values.
 - Mon Bail & Loyer retains its tenant-only RoleGuard and `/locataires/my-lease` personal endpoint; lease failures use safe localized recovery without exposing raw server details.
 - Travaux workflow failures now use fixed localized messages rather than returning raw server error text to the mobile UI.
+- Notification preference updates remain user-scoped by the existing API contract; the UX pass changes presentation only and does not broaden alert visibility or mutation permissions.
+- Chat localization preserves existing conversation access, message mutation permissions, report actions, attachment authorization, and protected-route behavior; no API scope was changed.
+- Level-1 Support localization preserves the existing member/tenant/syndicate-admin access boundary, syndicate-scoped ticket APIs, reply permissions, and admin-only resolve/escalate controls.

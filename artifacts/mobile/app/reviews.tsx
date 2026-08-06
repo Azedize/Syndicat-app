@@ -19,6 +19,7 @@ import {
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useBreakpoints } from "@/hooks/useBreakpoints";
 import { useColors } from "@/hooks/useColors";
+import { useLanguage } from "@/context/LanguageContext";
 import { marketplace } from "@/services/api";
 
 type ApiReview = {
@@ -76,7 +77,8 @@ export default function ReviewsScreen() {
   const [selectedOrderId, setSelectedOrderId] = useState("");
   const [rating, setRating] = useState(5);
   const [comment, setComment] = useState("");
-  const [filterProduct, setFilterProduct] = useState<string>("Tous");
+  const [filterProduct, setFilterProduct] = useState<string>("all");
+  const { t } = useLanguage();
 
   const loadData = useCallback(async () => {
     try {

@@ -11,20 +11,21 @@ import { useAuth } from "@/context/AuthContext";
 import { useBreakpoints } from "@/hooks/useBreakpoints";
 import { useColors } from "@/hooks/useColors";
 import { useToast } from "@/context/ToastContext";
+import { useLanguage } from "@/context/LanguageContext";
 import { pickAndUploadPdf } from "@/lib/upload";
 import { ApiContrat, ApiEvaluation, ApiPrestataire, ApiTravail, contrats, prestataires } from "@/services/api";
 
 const TYPE_LABELS: Record<string, string> = {
-  ascenseur: "Ascenseur", nettoyage: "Nettoyage", gardiennage: "Gardiennage",
-  plomberie: "Plomberie", electricite: "Électricité", jardinage: "Jardinage",
-  peinture: "Peinture", autre: "Autre",
+  ascenseur: "pdTypeElevator", nettoyage: "pdTypeCleaning", gardiennage: "pdTypeSecurity",
+  plomberie: "pdTypePlumbing", electricite: "pdTypeElectrical", jardinage: "pdTypeGardening",
+  peinture: "pdTypePainting", autre: "pdTypeOther",
 };
 
-const CONTRACT_STATUS: Record<string, { label: string; color: string }> = {
-  active: { label: "Actif", color: "#10b981" },
-  suspended: { label: "Suspendu", color: "#f59e0b" },
-  expired: { label: "Expiré", color: "#ef4444" },
-  terminated: { label: "Résilié", color: "#6b7280" },
+const CONTRACT_STATUS: Record<string, { labelKey: string; color: string }> = {
+  active: { labelKey: "pdStatusActive", color: "#10b981" },
+  suspended: { labelKey: "pdStatusSuspended", color: "#f59e0b" },
+  expired: { labelKey: "pdStatusExpired", color: "#ef4444" },
+  terminated: { labelKey: "pdStatusTerminated", color: "#6b7280" },
 };
 
 export default function PrestataireDetailScreen() {
@@ -33,6 +34,7 @@ export default function PrestataireDetailScreen() {
   const { user, token } = useAuth();
   const { isWide } = useBreakpoints();
   const { showToast } = useToast();
+  const { t, lang } = useLanguage();
   const { id } = useLocalSearchParams<{ id: string }>();
 
   const [data, setData] = useState<ApiPrestataire | null>(null);
@@ -62,12 +64,12 @@ export default function PrestataireDetailScreen() {
   const [ctFileName, setCtFileName] = useState("");
   const handlePickContractPdf = async () => {
     const result = await pickAndUploadPdf();
-    if (result) { setCtForm((p) => ({ ...p, documentUrl: result.objectPath })); setCtFileName("Document PDF joint"); }
-    else showToast({ type: "error", title: "Erreur", message: "Impossible de téléverser le document" });
+    if (result) { setCtForm((p) => ({ ...p, documentUrl: result.objectPath })); setCtFileName(t("pdAttachPdf")); }
+    else showToast({ type: "error", title: t("error"), message: t("pdUploadDocumentError") });
   };
   const handleCreateContract = async () => {
     if (!ctForm.title.trim() || !ctForm.buildingId.trim() || !ctForm.documentUrl) {
-      showToast({ type: "warning", title: "Champs requis", message: "Titre, bâtiment et document PDF sont obligatoires" });
+      showToast({ type: "warning", title: t("requiredFields"), message: t("pdRequiredFields") });
       return;
     }
     try {
@@ -86,7 +88,7 @@ export default function PrestataireDetailScreen() {
       setCtFileName("");
       load();
     } catch (e: any) {
-      showToast({ type: "error", title: "Erreur", message: e.message ?? "Impossible de créer le contrat" });
+      showToast({ type: "error", title: t("error"), message: t("pdCreateContractError") });
     } finally { setSubmitting(false); }
   };
 
@@ -101,7 +103,7 @@ export default function PrestataireDetailScreen() {
       setResilierTarget(null);
       setResilierReason("");
       load();
-    } catch (e: any) { showToast({ type: "error", title: "Erreur", message: e.message ?? "Action impossible" }); }
+    } catch { showToast({ type: "error", title: t("error"), message: t("pdActionError") }); }
     finally { setSubmitting(false); }
   };
 
@@ -111,16 +113,16 @@ export default function PrestataireDetailScreen() {
       return;
     }
     Alert.alert(
-      action === "suspend" ? "Suspendre le contrat" : "Réactiver le contrat",
-      `Confirmer cette action pour "${c.title}" ?`,
-      [{ text: "Annuler", style: "cancel" }, {
-        text: "Confirmer",
+      action === "suspend" ? t("pdSuspend") : t("pdReactivate"),
+      `${t("pdConfirmContractAction")} "${c.title}" ?`,
+      [{ text: t("cancel"), style: "cancel" }, {
+        text: t("confirm"),
         onPress: async () => {
           try {
             if (action === "suspend") await contrats.suspend(c.id);
             else await contrats.reactivate(c.id);
             load();
-          } catch (e: any) { showToast({ type: "error", title: "Erreur", message: e.message ?? "Action impossible" }); }
+          } catch { showToast({ type: "error", title: t("error"), message: t("pdActionError") }); }
         },
       }],
     );
@@ -136,7 +138,7 @@ export default function PrestataireDetailScreen() {
       setEvForm({ quality: 3, speed: 3, communication: 3, price: 3, comment: "" });
       load();
     } catch (e: any) {
-      showToast({ type: "error", title: "Erreur", message: e.message ?? "Impossible d'enregistrer l'évaluation" });
+      showToast({ type: "error", title: t("error"), message: t("pdEvaluationError") });
     } finally { setSubmitting(false); }
   };
 
@@ -151,7 +153,7 @@ export default function PrestataireDetailScreen() {
   if (!data) {
     return (
       <View style={[styles.root, styles.center, { backgroundColor: colors.background }]}>
-        <Text style={{ color: colors.foreground }}>Prestataire introuvable</Text>
+        <Text style={{ color: colors.foreground }}>{t("pdNotFound")}</Text>
       </View>
     );
   }
@@ -166,11 +168,11 @@ export default function PrestataireDetailScreen() {
         </TouchableOpacity>
         <View style={{ flex: 1 }}>
           <Text style={styles.headerTitle}>{data.name}</Text>
-          <Text style={styles.headerSub}>{TYPE_LABELS[data.type] ?? data.type}</Text>
+          <Text style={styles.headerSub}>{t(TYPE_LABELS[data.type] ?? "pdTypeOther")}</Text>
         </View>
         <View style={[styles.statusPill, { backgroundColor: data.status === "active" ? "#10b98130" : "#ef444430" }]}>
           <Text style={[styles.statusPillText, { color: data.status === "active" ? "#10b981" : "#ef4444" }]}>
-            {data.status === "active" ? "Actif" : "Inactif"}
+            {data.status === "active" ? t("pdStatusActive") : t("pdStatusInactive")}
           </Text>
         </View>
       </View>
@@ -182,23 +184,23 @@ export default function PrestataireDetailScreen() {
           ))}
         </View>
         <Text style={[styles.ratingText, { color: colors.foreground }]}>
-          {rating.toFixed(1)} ({data.evaluationsCount ?? 0} avis)
+          {rating.toFixed(1)} ({t("pdRatingCount").replace("{count}", String(data.evaluationsCount ?? 0))})
         </Text>
         <TouchableOpacity
           style={[styles.evalBtn, { backgroundColor: "#f59e0b" }]}
           onPress={() => { Haptics.selectionAsync(); setShowEvaluate(true); }}
         >
           <Feather name="star" size={13} color="#fff" />
-          <Text style={styles.evalBtnText}>Évaluer</Text>
+          <Text style={styles.evalBtnText}>{t("pdEvaluate")}</Text>
         </TouchableOpacity>
       </View>
 
       <View style={[styles.tabs, { borderBottomColor: colors.border }]}>
         {([
-          ["info", "Infos"], ["contracts", "Contrats"], ["travaux", "Interventions"], ["evaluations", "Avis"],
+          ["info", "pdTabInfo"], ["contracts", "pdTabContracts"], ["travaux", "pdTabWorks"], ["evaluations", "pdTabEvaluations"],
         ] as const).map(([k, label]) => (
           <TouchableOpacity key={k} style={styles.tabBtn} onPress={() => setTab(k)}>
-            <Text style={[styles.tabLabel, { color: tab === k ? "#3b82f6" : colors.mutedForeground, fontFamily: tab === k ? "Inter_700Bold" : "Inter_500Medium" }]}>{label}</Text>
+            <Text style={[styles.tabLabel, { color: tab === k ? "#3b82f6" : colors.mutedForeground, fontFamily: tab === k ? "Inter_700Bold" : "Inter_500Medium" }]}>{t(label)}</Text>
             {tab === k && <View style={[styles.tabIndicator, { backgroundColor: "#3b82f6" }]} />}
           </TouchableOpacity>
         ))}
@@ -208,12 +210,12 @@ export default function PrestataireDetailScreen() {
         {tab === "info" && (
           <View style={[styles.infoCard, { backgroundColor: colors.card, borderColor: colors.border }]}>
             {[
-              { icon: "user" as const, label: "Contact", value: data.contactName },
-              { icon: "phone" as const, label: "Téléphone", value: data.phone, action: data.phone ? () => Linking.openURL(`tel:${data.phone}`) : undefined },
-              { icon: "mail" as const, label: "Email", value: data.email, action: data.email ? () => Linking.openURL(`mailto:${data.email}`) : undefined },
-              { icon: "map-pin" as const, label: "Adresse", value: data.address },
-              { icon: "hash" as const, label: "ICE", value: data.ice },
-              { icon: "file-text" as const, label: "RC", value: data.rc },
+              { icon: "user" as const, label: t("pdContact"), value: data.contactName },
+              { icon: "phone" as const, label: t("pdPhone"), value: data.phone, action: data.phone ? () => Linking.openURL(`tel:${data.phone}`) : undefined },
+              { icon: "mail" as const, label: t("pdEmail"), value: data.email, action: data.email ? () => Linking.openURL(`mailto:${data.email}`) : undefined },
+              { icon: "map-pin" as const, label: t("pdAddress"), value: data.address },
+              { icon: "hash" as const, label: t("pdIce"), value: data.ice },
+              { icon: "file-text" as const, label: t("pdRc"), value: data.rc },
             ].filter((r) => r.value).map((r, i) => (
               <TouchableOpacity key={r.label} disabled={!r.action} onPress={r.action}
                 style={[styles.infoRow, i > 0 && { borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: colors.border }]}>
@@ -228,7 +230,7 @@ export default function PrestataireDetailScreen() {
               <View style={[styles.infoRow, { borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: colors.border }]}>
                 <Feather name="clipboard" size={16} color={colors.mutedForeground} />
                 <View style={{ flex: 1 }}>
-                  <Text style={[styles.infoLabel, { color: colors.mutedForeground }]}>Notes</Text>
+                  <Text style={[styles.infoLabel, { color: colors.mutedForeground }]}>{t("pdNotes")}</Text>
                   <Text style={[styles.infoValue, { color: colors.foreground }]}>{data.notes}</Text>
                 </View>
               </View>
@@ -241,11 +243,11 @@ export default function PrestataireDetailScreen() {
             {isAdmin && (
               <TouchableOpacity style={[styles.addBtn, { backgroundColor: "#3b82f6" }]} onPress={() => setShowNewContract(true)}>
                 <Feather name="plus" size={16} color="#fff" />
-                <Text style={styles.addBtnText}>Nouveau contrat</Text>
+                <Text style={styles.addBtnText}>{t("pdNewContract")}</Text>
               </TouchableOpacity>
             )}
             {(data.contracts ?? []).length === 0 ? (
-              <Text style={{ color: colors.mutedForeground, textAlign: "center", paddingVertical: 30 }}>Aucun contrat</Text>
+              <Text style={{ color: colors.mutedForeground, textAlign: "center", paddingVertical: 30 }}>{t("pdNoContract")}</Text>
             ) : (data.contracts ?? []).map((c) => {
               const sc = CONTRACT_STATUS[c.status] ?? CONTRACT_STATUS.active;
               return (
@@ -253,30 +255,30 @@ export default function PrestataireDetailScreen() {
                   <View style={styles.rowBetween}>
                     <Text style={[styles.contractTitle, { color: colors.foreground }]}>{c.title}</Text>
                     <View style={[styles.badge, { backgroundColor: sc.color + "18" }]}>
-                      <Text style={[styles.badgeText, { color: sc.color }]}>{sc.label}</Text>
+                      <Text style={[styles.badgeText, { color: sc.color }]}>{t(sc.labelKey)}</Text>
                     </View>
                   </View>
-                  {c.monthlyAmount ? <Text style={{ color: colors.mutedForeground, fontSize: 12 }}>{Number(c.monthlyAmount).toLocaleString("fr-MA")} MAD/mois</Text> : null}
-                  {c.endDate ? <Text style={{ color: colors.mutedForeground, fontSize: 12 }}>Échéance: {c.endDate}</Text> : null}
+                  {c.monthlyAmount ? <Text style={{ color: colors.mutedForeground, fontSize: 12 }}>{Number(c.monthlyAmount).toLocaleString(lang === "ar" ? "ar-MA" : lang === "en" ? "en-US" : lang === "es" ? "es-MA" : "fr-MA")} MAD/mois</Text> : null}
+                  {c.endDate ? <Text style={{ color: colors.mutedForeground, fontSize: 12 }}>{t("pdDueDate")}: {c.endDate}</Text> : null}
                   {c.documentUrl ? (
                     <TouchableOpacity style={styles.docLink} onPress={() => Linking.openURL(c.documentUrl!)}>
                       <Feather name="paperclip" size={12} color="#3b82f6" />
-                      <Text style={{ color: "#3b82f6", fontSize: 12 }}>Voir le document</Text>
+                      <Text style={{ color: "#3b82f6", fontSize: 12 }}>{t("pdViewDocument")}</Text>
                     </TouchableOpacity>
                   ) : null}
                   {isAdmin && c.status !== "terminated" && (
                     <View style={styles.contractActions}>
                       {c.status === "active" ? (
                         <TouchableOpacity style={[styles.smallBtn, { borderColor: "#f59e0b" }]} onPress={() => handleContractAction(c, "suspend")}>
-                          <Text style={{ color: "#f59e0b", fontSize: 12, fontFamily: "Inter_600SemiBold" }}>Suspendre</Text>
+                          <Text style={{ color: "#f59e0b", fontSize: 12, fontFamily: "Inter_600SemiBold" }}>{t("pdSuspend")}</Text>
                         </TouchableOpacity>
                       ) : c.status === "suspended" ? (
                         <TouchableOpacity style={[styles.smallBtn, { borderColor: "#10b981" }]} onPress={() => handleContractAction(c, "reactivate")}>
-                          <Text style={{ color: "#10b981", fontSize: 12, fontFamily: "Inter_600SemiBold" }}>Réactiver</Text>
+                          <Text style={{ color: "#10b981", fontSize: 12, fontFamily: "Inter_600SemiBold" }}>{t("pdReactivate")}</Text>
                         </TouchableOpacity>
                       ) : null}
                       <TouchableOpacity style={[styles.smallBtn, { borderColor: "#ef4444" }]} onPress={() => handleContractAction(c, "resilier")}>
-                        <Text style={{ color: "#ef4444", fontSize: 12, fontFamily: "Inter_600SemiBold" }}>Résilier</Text>
+                        <Text style={{ color: "#ef4444", fontSize: 12, fontFamily: "Inter_600SemiBold" }}>{t("pdTerminate")}</Text>
                       </TouchableOpacity>
                     </View>
                   )}
@@ -289,7 +291,7 @@ export default function PrestataireDetailScreen() {
         {tab === "travaux" && (
           <View style={{ gap: 12 }}>
             {(data.recentTravaux ?? []).length === 0 ? (
-              <Text style={{ color: colors.mutedForeground, textAlign: "center", paddingVertical: 30 }}>Aucune intervention</Text>
+              <Text style={{ color: colors.mutedForeground, textAlign: "center", paddingVertical: 30 }}>{t("pdNoWorks")}</Text>
             ) : (data.recentTravaux ?? []).map((t: ApiTravail) => (
               <TouchableOpacity key={t.id} style={[styles.contractCard, { backgroundColor: colors.card, borderColor: colors.border }]}
                 onPress={() => router.push("/travaux" as any)}>
@@ -303,11 +305,11 @@ export default function PrestataireDetailScreen() {
         {tab === "evaluations" && (
           <View style={{ gap: 12 }}>
             {(data.evaluations ?? []).length === 0 ? (
-              <Text style={{ color: colors.mutedForeground, textAlign: "center", paddingVertical: 30 }}>Aucune évaluation</Text>
+              <Text style={{ color: colors.mutedForeground, textAlign: "center", paddingVertical: 30 }}>{t("pdNoEvaluations")}</Text>
             ) : (data.evaluations ?? []).map((e: ApiEvaluation) => (
               <View key={e.id} style={[styles.contractCard, { backgroundColor: colors.card, borderColor: colors.border }]}>
                 <View style={styles.rowBetween}>
-                  <Text style={[styles.contractTitle, { color: colors.foreground }]}>{e.ratedByName ?? "Anonyme"}</Text>
+                  <Text style={[styles.contractTitle, { color: colors.foreground }]}>{e.ratedByName ?? t("pdAnonymous")}</Text>
                   <Text style={{ color: "#f59e0b", fontFamily: "Inter_700Bold" }}>{Number(e.average).toFixed(1)} ★</Text>
                 </View>
                 {e.comment ? <Text style={{ color: colors.mutedForeground, fontSize: 13, marginTop: 4 }}>{e.comment}</Text> : null}
@@ -321,33 +323,33 @@ export default function PrestataireDetailScreen() {
       <Modal visible={showNewContract} animationType="slide" presentationStyle="pageSheet" onRequestClose={() => setShowNewContract(false)}>
         <View style={[styles.modal, { backgroundColor: colors.background }]}>
           <View style={[styles.modalHeader, { borderBottomColor: colors.border }]}>
-            <Text style={[styles.modalTitle, { color: colors.foreground }]}>Nouveau contrat</Text>
+            <Text style={[styles.modalTitle, { color: colors.foreground }]}>{t("pdNewContract")}</Text>
             <TouchableOpacity onPress={() => setShowNewContract(false)}><Feather name="x" size={22} color={colors.foreground} /></TouchableOpacity>
           </View>
           <ScrollView contentContainerStyle={styles.modalBody}>
-            <Text style={[styles.fieldLabel, { color: colors.mutedForeground }]}>Titre *</Text>
+            <Text style={[styles.fieldLabel, { color: colors.mutedForeground }]}>{t("pdTitle")} *</Text>
             <TextInput style={[styles.input, { backgroundColor: colors.card, borderColor: colors.border, color: colors.foreground }]}
-              value={ctForm.title} onChangeText={(v) => setCtForm((p) => ({ ...p, title: v }))} placeholderTextColor={colors.mutedForeground} placeholder="Ex: Contrat entretien ascenseur" />
-            <Text style={[styles.fieldLabel, { color: colors.mutedForeground }]}>ID Bâtiment *</Text>
+              value={ctForm.title} onChangeText={(v) => setCtForm((p) => ({ ...p, title: v }))} placeholderTextColor={colors.mutedForeground} placeholder={t("pdContractTitlePlaceholder")} />
+            <Text style={[styles.fieldLabel, { color: colors.mutedForeground }]}>{t("pdBuildingId")} *</Text>
             <TextInput style={[styles.input, { backgroundColor: colors.card, borderColor: colors.border, color: colors.foreground }]}
-              value={ctForm.buildingId} onChangeText={(v) => setCtForm((p) => ({ ...p, buildingId: v }))} placeholderTextColor={colors.mutedForeground} placeholder="ID du bâtiment" />
-            <Text style={[styles.fieldLabel, { color: colors.mutedForeground }]}>Date de début (AAAA-MM-JJ)</Text>
+              value={ctForm.buildingId} onChangeText={(v) => setCtForm((p) => ({ ...p, buildingId: v }))} placeholderTextColor={colors.mutedForeground} placeholder={t("pdBuildingIdPlaceholder")} />
+            <Text style={[styles.fieldLabel, { color: colors.mutedForeground }]}>{t("pdStartDate")} (AAAA-MM-JJ)</Text>
             <TextInput style={[styles.input, { backgroundColor: colors.card, borderColor: colors.border, color: colors.foreground }]}
               value={ctForm.startDate} onChangeText={(v) => setCtForm((p) => ({ ...p, startDate: v }))} placeholderTextColor={colors.mutedForeground} placeholder="2026-01-01" />
-            <Text style={[styles.fieldLabel, { color: colors.mutedForeground }]}>Date de fin (AAAA-MM-JJ)</Text>
+            <Text style={[styles.fieldLabel, { color: colors.mutedForeground }]}>{t("pdEndDate")} (AAAA-MM-JJ)</Text>
             <TextInput style={[styles.input, { backgroundColor: colors.card, borderColor: colors.border, color: colors.foreground }]}
               value={ctForm.endDate} onChangeText={(v) => setCtForm((p) => ({ ...p, endDate: v }))} placeholderTextColor={colors.mutedForeground} placeholder="2027-01-01" />
-            <Text style={[styles.fieldLabel, { color: colors.mutedForeground }]}>Montant mensuel (MAD)</Text>
+            <Text style={[styles.fieldLabel, { color: colors.mutedForeground }]}>{t("pdMonthlyAmount")}</Text>
             <TextInput style={[styles.input, { backgroundColor: colors.card, borderColor: colors.border, color: colors.foreground }]}
               value={ctForm.monthlyAmount} onChangeText={(v) => setCtForm((p) => ({ ...p, monthlyAmount: v }))} keyboardType="numeric" placeholderTextColor={colors.mutedForeground} placeholder="1500" />
 
             <TouchableOpacity style={[styles.docPickBtn, { borderColor: colors.border, backgroundColor: colors.card }]} onPress={handlePickContractPdf}>
               <Feather name="paperclip" size={16} color="#3b82f6" />
-              <Text style={{ color: "#3b82f6", fontFamily: "Inter_600SemiBold" }}>{ctFileName || "Joindre le document PDF (obligatoire)"}</Text>
+              <Text style={{ color: "#3b82f6", fontFamily: "Inter_600SemiBold" }}>{ctFileName || t("pdAttachPdfRequired")}</Text>
             </TouchableOpacity>
 
             <TouchableOpacity style={[styles.submitBtn, { backgroundColor: "#3b82f6", opacity: submitting ? 0.7 : 1 }]} onPress={handleCreateContract} disabled={submitting}>
-              {submitting ? <ActivityIndicator color="#fff" /> : <Text style={styles.submitText}>Créer le contrat</Text>}
+              {submitting ? <ActivityIndicator color="#fff" /> : <Text style={styles.submitText}>{t("pdCreateContract")}</Text>}
             </TouchableOpacity>
           </ScrollView>
         </View>
@@ -357,15 +359,15 @@ export default function PrestataireDetailScreen() {
       <Modal visible={showEvaluate} animationType="slide" presentationStyle="pageSheet" onRequestClose={() => setShowEvaluate(false)}>
         <View style={[styles.modal, { backgroundColor: colors.background }]}>
           <View style={[styles.modalHeader, { borderBottomColor: colors.border }]}>
-            <Text style={[styles.modalTitle, { color: colors.foreground }]}>Évaluer {data.name}</Text>
+            <Text style={[styles.modalTitle, { color: colors.foreground }]}>{t("pdEvaluate")} {data.name}</Text>
             <TouchableOpacity onPress={() => setShowEvaluate(false)}><Feather name="x" size={22} color={colors.foreground} /></TouchableOpacity>
           </View>
           <ScrollView contentContainerStyle={styles.modalBody}>
             {([
-              ["quality", "Qualité"], ["speed", "Rapidité"], ["communication", "Communication"], ["price", "Rapport qualité/prix"],
+              ["quality", "pdQuality"], ["speed", "pdSpeed"], ["communication", "pdCommunication"], ["price", "pdValueForMoney"],
             ] as const).map(([k, label]) => (
               <View key={k} style={{ marginBottom: 14 }}>
-                <Text style={[styles.fieldLabel, { color: colors.mutedForeground }]}>{label}</Text>
+                <Text style={[styles.fieldLabel, { color: colors.mutedForeground }]}>{t(label)}</Text>
                 <View style={{ flexDirection: "row", gap: 8 }}>
                   {[1, 2, 3, 4, 5].map((v) => (
                     <TouchableOpacity key={v} onPress={() => setEvForm((p) => ({ ...p, [k]: v }))}>
@@ -375,11 +377,11 @@ export default function PrestataireDetailScreen() {
                 </View>
               </View>
             ))}
-            <Text style={[styles.fieldLabel, { color: colors.mutedForeground }]}>Commentaire</Text>
+            <Text style={[styles.fieldLabel, { color: colors.mutedForeground }]}>{t("pdComment")}</Text>
             <TextInput style={[styles.input, styles.textarea, { backgroundColor: colors.card, borderColor: colors.border, color: colors.foreground }]}
-              value={evForm.comment} onChangeText={(v) => setEvForm((p) => ({ ...p, comment: v }))} multiline placeholderTextColor={colors.mutedForeground} placeholder="Votre avis..." />
+              value={evForm.comment} onChangeText={(v) => setEvForm((p) => ({ ...p, comment: v }))} multiline placeholderTextColor={colors.mutedForeground} placeholder={t("pdReviewPlaceholder")} />
             <TouchableOpacity style={[styles.submitBtn, { backgroundColor: "#f59e0b", opacity: submitting ? 0.7 : 1 }]} onPress={handleSubmitEvaluation} disabled={submitting}>
-              {submitting ? <ActivityIndicator color="#fff" /> : <Text style={styles.submitText}>Envoyer l'évaluation</Text>}
+              {submitting ? <ActivityIndicator color="#fff" /> : <Text style={styles.submitText}>{t("pdSubmitEvaluation")}</Text>}
             </TouchableOpacity>
           </ScrollView>
         </View>
@@ -389,10 +391,10 @@ export default function PrestataireDetailScreen() {
       <Modal visible={!!resilierTarget} animationType="fade" transparent onRequestClose={() => setResilierTarget(null)}>
         <View style={styles.centerOverlay}>
           <View style={[styles.reasonCard, { backgroundColor: colors.card }]}>
-            <Text style={[styles.modalTitle, { color: colors.foreground, marginBottom: 10 }]}>Résilier le contrat</Text>
+            <Text style={[styles.modalTitle, { color: colors.foreground, marginBottom: 10 }]}>{t("pdTerminateContract")}</Text>
             <TextInput
               style={[styles.input, styles.textarea, { backgroundColor: colors.background, borderColor: colors.border, color: colors.foreground }]}
-              placeholder="Motif de résiliation"
+              placeholder={t("pdTerminationReason")}
               placeholderTextColor={colors.mutedForeground}
               value={resilierReason}
               onChangeText={setResilierReason}
@@ -400,14 +402,14 @@ export default function PrestataireDetailScreen() {
             />
             <View style={{ flexDirection: "row", gap: 10, marginTop: 14 }}>
               <TouchableOpacity style={[styles.smallBtn, { flex: 1, alignItems: "center", borderColor: colors.border }]} onPress={() => setResilierTarget(null)}>
-                <Text style={{ color: colors.foreground, fontFamily: "Inter_600SemiBold" }}>Annuler</Text>
+                <Text style={{ color: colors.foreground, fontFamily: "Inter_600SemiBold" }}>{t("cancel")}</Text>
               </TouchableOpacity>
               <TouchableOpacity
                 style={[styles.smallBtn, { flex: 1, alignItems: "center", borderColor: "#ef4444", backgroundColor: "#ef444418", opacity: resilierReason.trim() ? 1 : 0.5 }]}
                 onPress={handleConfirmResilier}
                 disabled={!resilierReason.trim() || submitting}
               >
-                <Text style={{ color: "#ef4444", fontFamily: "Inter_700Bold" }}>Résilier</Text>
+                <Text style={{ color: "#ef4444", fontFamily: "Inter_700Bold" }}>{t("pdTerminate")}</Text>
               </TouchableOpacity>
             </View>
           </View>

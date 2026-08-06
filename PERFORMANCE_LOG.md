@@ -11,3 +11,6 @@
 - Sinistres & Incidents reuses shared `LoadingState` and `ErrorState`; the pass adds no network requests or polling and keeps the existing pull-to-refresh behavior.
 - Mon Lot keeps its existing parallel lot and fund-call requests; the pass adds no requests or polling and reuses shared data-state animations.
 - Mon Bail & Loyer keeps its single lease request and adds no polling or duplicate calls; the shared loading/error components provide feedback without extra network work.
+- Notification localization adds no requests, polling, or client-side data duplication; alert grouping remains memoized and preference toggles retain the existing optimistic update path.
+- Chat localization adds no requests, polling, or message duplication; existing conversation polling, attachment handling, and message-list rendering remain unchanged.
+- Support localization adds no requests, polling, or ticket duplication; existing ticket/reply fetches and mutation flows remain unchanged, with date formatting performed locally at render time.

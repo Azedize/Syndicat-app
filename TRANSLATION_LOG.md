@@ -23,3 +23,9 @@
 - Mon Lot now translates personal unit details, building metadata, charge summaries, payment statuses, tabs, quick actions, missing-unit guidance, loading/recovery states, and document guidance for `fr`, `en`, `ar`, and `es`.
 - Mon Bail & Loyer now translates lease and apartment details, tenant role/status, emergency contacts, loading/recovery/no-data states, help guidance, and resident actions for `fr`, `en`, `ar`, and `es`.
 - Ma Boutique now translates seller listing statuses, statistics, CRUD forms, upload guidance, promotion workflow, confirmations, validation feedback, empty/recovery states, and contact methods for `fr`, `en`, `ar`, and `es`.
+- Notifications and Alerts now translate global settings, category descriptions, channels, filters, unread/read states, time buckets, recipients, detail metadata, and empty states for `fr`, `en`, `ar`, and `es`.
+- Internal Chat now translates unread summaries, message actions, delete confirmations, edited/deleted states, attachment actions, download labels, and edit-mode copy for `fr`, `en`, `ar`, and `es`.
+- Level-1 Support now translates ticket categories, priorities, statuses, filters, role-specific headings, empty states, detail metadata, replies, escalation controls, form placeholders, and feedback for `fr`, `en`, `ar`, and `es`.
+- Agenda now translates event types, organizers, statuses, dates/countdown units, modal metadata, participation confirmation/errors, payment-deadline wording, empty states, and calendar export labels for `fr`, `en`, `ar`, and `es`.
+- Financial Reports now translates KPI labels, chart titles/units, contribution states, balance labels, export summaries, periods, loading/error recovery, and sharing feedback for `fr`, `en`, `ar`, and `es`.
+- Syndical Actions now translate action types, statuses, active counts, statistics, participation/support controls, metadata labels, demands, updates, and action feedback for `fr`, `en`, `ar`, and `es`.

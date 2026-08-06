@@ -38,3 +38,9 @@
 - Sinistres & Incidents now provides a unified four-language experience for claim declaration and monitoring, with contextual loading, retryable recovery, safe error feedback, and guided empty states.
 - Mon Lot now provides a unified four-language personal-unit experience with guided loading, explicit missing-unit messaging, separate financial recovery, translated payment states, and clear resident quick actions.
 - Mon Bail & Loyer now provides a unified four-language tenant lease experience with guided loading, safe retryable recovery, explicit no-lease guidance, translated statuses, and clear resident actions.
+- Notifications now provides one consistent four-language experience across preferences and alert history, with clear unread hierarchy, translated filters, category guidance, and actionable empty/detail states.
+- Internal Chat now keeps unread summaries, message actions, attachment actions, edit mode, and message lifecycle states consistent with the four-language product experience.
+- Level-1 Syndicate Support now provides a consistent four-language ticket experience with localized filters, semantic priority/status hierarchy, guided empty state, detail conversation, escalation action, and ticket creation form.
+- Agenda now provides a consistent four-language event experience with localized type/status hierarchy, locale-aware calendar dates, MAD deadline presentation, empty-state copy, calendar export feedback, and recoverable attendance errors.
+- Financial Reports now provides a consistent four-language analytics experience with locale-aware periods, MAD values, translated KPI/chart/balance hierarchy, guided loading/error states, and recoverable report sharing.
+- Syndical Actions now provides a consistent four-language mobilization experience with semantic type/status hierarchy, translated participation/support actions, localized metadata, and visible recovery feedback.

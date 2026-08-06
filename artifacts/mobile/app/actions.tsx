@@ -22,23 +22,24 @@ import { useBreakpoints } from "@/hooks/useBreakpoints";
 import { useColors } from "@/hooks/useColors";
 import { actions as actionsApi, type ApiUnionAction } from "@/services/api";
 import { useToast } from "@/context/ToastContext";
+import { useLanguage } from "@/context/LanguageContext";
 
 type ActionType = ApiUnionAction["type"];
 type ActionStatus = ApiUnionAction["status"];
 
-const TYPE_CONFIG: Record<ActionType, { label: string; color: string; icon: keyof typeof Feather.glyphMap }> = {
-  greve:         { label: "Grève",        color: "#ef4444", icon: "zap" },
-  manifestation: { label: "Manifestation",color: "#f59e0b", icon: "users" },
-  petition:      { label: "Pétition",     color: "#3b82f6", icon: "file-text" },
-  negociation:   { label: "Négociation",  color: "#10b981", icon: "briefcase" },
-  communique:    { label: "Communiqué",   color: "#8b5cf6", icon: "rss" },
+const TYPE_CONFIG: Record<ActionType, { labelKey: string; color: string; icon: keyof typeof Feather.glyphMap }> = {
+  greve:         { labelKey: "actTypeGreve", color: "#ef4444", icon: "zap" },
+  manifestation: { labelKey: "actTypeManifestation", color: "#f59e0b", icon: "users" },
+  petition:      { labelKey: "actTypePetition", color: "#3b82f6", icon: "file-text" },
+  negociation:   { labelKey: "actTypeNegociation", color: "#10b981", icon: "briefcase" },
+  communique:    { labelKey: "actTypeCommunique", color: "#8b5cf6", icon: "rss" },
 };
 
-const STATUS_CONFIG: Record<ActionStatus, { label: string; color: string }> = {
-  planned:   { label: "Planifiée",  color: "#3b82f6" },
-  active:    { label: "En cours",   color: "#10b981" },
-  completed: { label: "Terminée",   color: "#6b7280" },
-  cancelled: { label: "Annulée",    color: "#ef4444" },
+const STATUS_CONFIG: Record<ActionStatus, { labelKey: string; color: string }> = {
+  planned:   { labelKey: "actStatusPlanned", color: "#3b82f6" },
+  active:    { labelKey: "actStatusActive", color: "#10b981" },
+  completed: { labelKey: "actStatusCompleted", color: "#6b7280" },
+  cancelled: { labelKey: "actStatusCancelled", color: "#ef4444" },
 };
 
 export default function ActionsScreen() {
@@ -55,6 +56,7 @@ export default function ActionsScreen() {
 
   const isAdmin = user?.role === "super_admin" || user?.role === "syndicate_admin";
   const { showToast } = useToast();
+  const { t } = useLanguage();
 
   // ── Fetch actions ────────────────────────────────────────────────────────────
   const { data, isLoading, isError, refetch, isRefetching } = useQuery({
@@ -92,7 +94,7 @@ export default function ActionsScreen() {
     },
     onError: (_err, _id, context) => {
       if (context?.previous) queryClient.setQueryData(["actions", filterType, filterStatus], context.previous);
-      showToast({ type: "error", title: "Erreur", message: "Impossible d'enregistrer votre soutien." });
+      showToast({ type: "error", message: t("actSupportError") });
     },
     onSettled: () => queryClient.invalidateQueries({ queryKey: ["actions"] }),
   });
@@ -124,14 +126,14 @@ export default function ActionsScreen() {
       const action = actionList.find((a) => a.id === id) ?? selectedAction;
       if (result.participating && action) {
         Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-        showToast({ type: "success", title: "Participation confirmée ✓", message: `Votre participation à "${action.title}" a été enregistrée.` });
+        showToast({ type: "success", title: t("actParticipateConfirmedToast"), message: t("actParticipateMsg") });
       } else {
         Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
       }
     },
     onError: (_err, _id, context) => {
       if (context?.previous) queryClient.setQueryData(["actions", filterType, filterStatus], context.previous);
-      showToast({ type: "error", title: "Erreur", message: "Impossible d'enregistrer votre participation." });
+      showToast({ type: "error", message: t("actParticipateError") });
     },
     onSettled: () => queryClient.invalidateQueries({ queryKey: ["actions"] }),
   });
@@ -160,21 +162,21 @@ export default function ActionsScreen() {
             <Feather name="arrow-left" size={22} color="#fff" />
           </TouchableOpacity>
           <View style={{ flex: 1 }}>
-            <Text style={styles.headerTitle}>Actions Syndicales</Text>
-            <Text style={styles.headerSub}>Mobilisation & Revendications</Text>
+            <Text style={styles.headerTitle}>{t("actTitle")}</Text>
+            <Text style={styles.headerSub}>{t("actSubtitle")}</Text>
           </View>
           <View style={[styles.activeBadge, { backgroundColor: "#ef4444" }]}>
             <View style={styles.activeDot} />
-            <Text style={styles.activeText}>{activeCount} actives</Text>
+            <Text style={styles.activeText}>{activeCount} {t("actActiveBadge")}</Text>
           </View>
         </View>
 
         {/* Stats */}
         <View style={styles.statsRow}>
           {[
-            { label: "En cours",  value: activeCount,                             icon: "zap"        as const, color: "#ef4444" },
-            { label: "Mes actions", value: myActions,                             icon: "user-check" as const, color: "#f59e0b" },
-            { label: "Soutiens",  value: totalSupports >= 1000 ? `${(totalSupports / 1000).toFixed(1)}k` : totalSupports, icon: "heart" as const, color: "#ec4899" },
+            { label: t("actStatActive"),   value: activeCount,                             icon: "zap"        as const, color: "#ef4444" },
+            { label: t("actStatMyActions"), value: myActions,                             icon: "user-check" as const, color: "#f59e0b" },
+            { label: t("actStatSupports"),  value: totalSupports >= 1000 ? `${(totalSupports / 1000).toFixed(1)}k` : totalSupports, icon: "heart" as const, color: "#ec4899" },
           ].map((s) => (
             <View key={s.label} style={[styles.statBox, { backgroundColor: "rgba(255,255,255,0.08)" }]}>
               <Feather name={s.icon} size={14} color={s.color} />
@@ -192,7 +194,7 @@ export default function ActionsScreen() {
             style={[styles.filterChip, { backgroundColor: filterType === "all" ? "#1a1a2e" : colors.muted }]}
             onPress={() => setFilterType("all")}
           >
-            <Text style={[styles.filterText, { color: filterType === "all" ? "#fff" : colors.mutedForeground }]}>Tous</Text>
+            <Text style={[styles.filterText, { color: filterType === "all" ? "#fff" : colors.mutedForeground }]}>{t("actFilterAll")}</Text>
           </TouchableOpacity>
           {(Object.entries(TYPE_CONFIG) as [ActionType, typeof TYPE_CONFIG["greve"]][]).map(([key, cfg]) => (
             <TouchableOpacity
@@ -201,7 +203,7 @@ export default function ActionsScreen() {
               onPress={() => setFilterType(key)}
             >
               <Feather name={cfg.icon} size={12} color={filterType === key ? "#fff" : colors.mutedForeground} />
-              <Text style={[styles.filterText, { color: filterType === key ? "#fff" : colors.mutedForeground }]}>{cfg.label}</Text>
+              <Text style={[styles.filterText, { color: filterType === key ? "#fff" : colors.mutedForeground }]}>{t(cfg.labelKey)}</Text>
             </TouchableOpacity>
           ))}
         </ScrollView>
@@ -210,7 +212,7 @@ export default function ActionsScreen() {
       {/* Status filters */}
       <View style={[styles.statusFilterBar, { backgroundColor: colors.background, borderBottomColor: colors.border }]}>
         <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.filterScroll}>
-          {([["all", "Tous les statuts", colors.foreground], ...Object.entries(STATUS_CONFIG).map(([k, v]) => [k, v.label, v.color])] as [string, string, string][]).map(([key, label, color]) => (
+          {([["all", t("actFilterAllStatus"), colors.foreground], ...Object.entries(STATUS_CONFIG).map(([k, v]) => [k, t(v.labelKey), v.color])] as [string, string, string][]).map(([key, label, color]) => (
             <TouchableOpacity
               key={key}
               style={[styles.statusChip, filterStatus === key && { borderColor: color, backgroundColor: color + "15" }]}
@@ -229,22 +231,22 @@ export default function ActionsScreen() {
       {isLoading ? (
         <View style={styles.center}>
           <ActivityIndicator size="large" color="#2563EB" />
-          <Text style={[styles.loadingText, { color: colors.mutedForeground }]}>Chargement des actions…</Text>
+          <Text style={[styles.loadingText, { color: colors.mutedForeground }]}>{t("actLoading")}</Text>
         </View>
       ) : isError ? (
         <View style={styles.center}>
           <Feather name="wifi-off" size={40} color={colors.mutedForeground} />
-          <Text style={[styles.errorText, { color: colors.mutedForeground }]}>Impossible de charger les actions.</Text>
+          <Text style={[styles.errorText, { color: colors.mutedForeground }]}>{t("actLoadError")}</Text>
           <TouchableOpacity style={[styles.retryBtn, { backgroundColor: "#2563EB" }]} onPress={() => refetch()}>
-            <Text style={styles.retryText}>Réessayer</Text>
+            <Text style={styles.retryText}>{t("actRetry")}</Text>
           </TouchableOpacity>
         </View>
       ) : actionList.length === 0 ? (
         <View style={styles.center}>
           <Feather name="inbox" size={40} color={colors.mutedForeground} />
-          <Text style={[styles.errorText, { color: colors.mutedForeground }]}>Aucune action syndicale trouvée.</Text>
+          <Text style={[styles.errorText, { color: colors.mutedForeground }]}>{t("actEmpty")}</Text>
           {isAdmin && (
-            <Text style={[styles.hintText, { color: colors.mutedForeground }]}>Créez la première action depuis le tableau de bord.</Text>
+            <Text style={[styles.hintText, { color: colors.mutedForeground }]}>{t("actEmptyAdmin")}</Text>
           )}
         </View>
       ) : (
@@ -272,11 +274,11 @@ export default function ActionsScreen() {
                   <View style={{ flex: 1, gap: 4 }}>
                     <View style={styles.badgeRow}>
                       <View style={[styles.typeBadge, { backgroundColor: type.color + "15" }]}>
-                        <Text style={[styles.typeBadgeText, { color: type.color }]}>{type.label}</Text>
+                        <Text style={[styles.typeBadgeText, { color: type.color }]}>{t(type.labelKey)}</Text>
                       </View>
                       <View style={[styles.statusBadge, { backgroundColor: status.color + "15" }]}>
                         {a.status === "active" && <View style={[styles.statusDot, { backgroundColor: status.color }]} />}
-                        <Text style={[styles.statusText, { color: status.color }]}>{status.label}</Text>
+                        <Text style={[styles.statusText, { color: status.color }]}>{t(status.labelKey)}</Text>
                       </View>
                     </View>
                     <Text style={[styles.actionTitle, { color: colors.foreground }]}>{a.title}</Text>
@@ -305,7 +307,7 @@ export default function ActionsScreen() {
                   <View style={{ gap: 4 }}>
                     <View style={styles.partRow}>
                       <Text style={[styles.partLabel, { color: colors.mutedForeground }]}>
-                        {a.participantsConfirmed.toLocaleString()} / {a.participantsTarget.toLocaleString()} participants
+                        {a.participantsConfirmed.toLocaleString()} / {a.participantsTarget.toLocaleString()} {t("actParticipants")}
                       </Text>
                       <Text style={[styles.partPct, { color: type.color }]}>{Math.min(participationPct, 100).toFixed(0)}%</Text>
                     </View>
@@ -336,7 +338,7 @@ export default function ActionsScreen() {
                     >
                       <Feather name={a.userParticipates ? "check-circle" : "plus-circle"} size={13} color={a.userParticipates ? type.color : "#fff"} />
                       <Text style={[styles.participateBtnText, { color: a.userParticipates ? type.color : "#fff" }]}>
-                        {a.userParticipates ? "Confirmé" : "Participer"}
+                        {a.userParticipates ? t("actConfirmedBtn") : t("actParticipateBtn")}
                       </Text>
                     </TouchableOpacity>
                   )}
@@ -363,10 +365,10 @@ export default function ActionsScreen() {
                   <View style={styles.modalBadgeRow}>
                     <View style={[styles.modalBadge, { backgroundColor: "rgba(255,255,255,0.2)" }]}>
                       <Feather name={type.icon} size={11} color="#fff" />
-                      <Text style={styles.modalBadgeText}>{type.label}</Text>
+                      <Text style={styles.modalBadgeText}>{t(type.labelKey)}</Text>
                     </View>
                     <View style={[styles.modalBadge, { backgroundColor: "rgba(255,255,255,0.2)" }]}>
-                      <Text style={styles.modalBadgeText}>{status.label}</Text>
+                      <Text style={styles.modalBadgeText}>{t(status.labelKey)}</Text>
                     </View>
                   </View>
                   <Text style={styles.modalTitle} numberOfLines={3}>{a.title}</Text>
@@ -383,7 +385,7 @@ export default function ActionsScreen() {
                   >
                     <Feather name="heart" size={18} color={a.userSupports ? "#fff" : "#ec4899"} />
                     <Text style={[styles.bigSupportText, { color: a.userSupports ? "#fff" : "#ec4899" }]}>
-                      {a.userSupports ? "Soutenu ♥" : "Soutenir"} ({a.supportCount.toLocaleString()})
+                      {a.userSupports ? t("actSupportedBtn") : t("actSupportBtn")} ({a.supportCount.toLocaleString()})
                     </Text>
                   </TouchableOpacity>
                   {(a.status === "planned" || a.status === "active") && a.type !== "negociation" && (
@@ -394,7 +396,7 @@ export default function ActionsScreen() {
                     >
                       <Feather name={a.userParticipates ? "check-circle" : "plus-circle"} size={18} color={a.userParticipates ? "#fff" : type.color} />
                       <Text style={[styles.bigParticipateText, { color: a.userParticipates ? "#fff" : type.color }]}>
-                        {a.userParticipates ? "Confirmé" : "Je participe"}
+                        {a.userParticipates ? t("actConfirmedBtn") : t("actParticipateBtn")}
                       </Text>
                     </TouchableOpacity>
                   )}
@@ -406,10 +408,10 @@ export default function ActionsScreen() {
                 {/* Info card */}
                 <View style={[styles.infoCard, { backgroundColor: colors.card, borderColor: colors.border }]}>
                   {([
-                    { icon: "calendar" as const,  label: "Date",         value: a.date },
-                    ...(a.location ? [{ icon: "map-pin" as const, label: "Lieu", value: a.location }] : []),
-                    { icon: "user"    as const,  label: "Organisateur", value: a.organizer },
-                    ...(a.participantsTarget > 0 ? [{ icon: "users" as const, label: "Participants", value: `${a.participantsConfirmed.toLocaleString()} confirmés / ${a.participantsTarget.toLocaleString()} objectif` }] : []),
+                    { icon: "calendar" as const,  label: t("actModalDate"), value: a.date },
+                    ...(a.location ? [{ icon: "map-pin" as const, label: t("actModalLocation"), value: a.location }] : []),
+                    { icon: "user" as const, label: t("actModalOrganizer"), value: a.organizer },
+                    ...(a.participantsTarget > 0 ? [{ icon: "users" as const, label: t("actModalParticipants"), value: `${a.participantsConfirmed.toLocaleString()} ${t("actConfirmed")} / ${a.participantsTarget.toLocaleString()} ${t("actTarget")}` }] : []),
                   ] as { icon: keyof typeof Feather.glyphMap; label: string; value: string }[]).map(({ icon, label, value }, i) => (
                     <View key={label}>
                       {i > 0 && <View style={[styles.sep, { backgroundColor: colors.border }]} />}
@@ -427,7 +429,7 @@ export default function ActionsScreen() {
                 {/* Demands */}
                 {a.demands.length > 0 && (
                   <View style={{ gap: 10 }}>
-                    <Text style={[styles.sectionTitle, { color: colors.foreground }]}>Revendications</Text>
+                    <Text style={[styles.sectionTitle, { color: colors.foreground }]}>{t("actSectionDemands")}</Text>
                     {a.demands.map((d, i) => (
                       <View key={i} style={styles.demandRow}>
                         <View style={[styles.demandBullet, { backgroundColor: type.color }]}>
@@ -442,7 +444,7 @@ export default function ActionsScreen() {
                 {/* Updates */}
                 {a.updates.length > 0 && (
                   <View style={{ gap: 10 }}>
-                    <Text style={[styles.sectionTitle, { color: colors.foreground }]}>Mises à jour</Text>
+                    <Text style={[styles.sectionTitle, { color: colors.foreground }]}>{t("actSectionUpdates")}</Text>
                     {a.updates.map((u, i) => (
                       <View key={i} style={[styles.updateCard, { backgroundColor: colors.card, borderLeftColor: type.color, borderColor: colors.border }]}>
                         <Text style={[styles.updateDate, { color: type.color }]}>{u.date}</Text>

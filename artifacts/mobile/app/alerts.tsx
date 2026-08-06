@@ -25,52 +25,52 @@ type Filter = "all" | "unread" | "info" | "warning" | "success" | "error";
 const TYPE_META: Record<
   AppAlert["type"],
   {
-    prefix: string;
+    prefixKey: string;
     icon: React.ComponentProps<typeof Feather>["name"];
     color: string;
     bgColor: string;
     borderColor: string;
-    badgeLabel: string;
+    badgeKey: string;
   }
 > = {
   warning: {
-    prefix: "Attention",
+    prefixKey: "notificationFilterWarning",
     icon: "alert-triangle",
     color: "#f59e0b",
     bgColor: "#fffbeb",
     borderColor: "#fef3c7",
-    badgeLabel: "Alerte",
+    badgeKey: "alertWarning",
   },
   error: {
-    prefix: "Urgent",
+    prefixKey: "notificationFilterUrgent",
     icon: "alert-circle",
     color: "#ef4444",
     bgColor: "#fff5f5",
     borderColor: "#fee2e2",
-    badgeLabel: "Critique",
+    badgeKey: "alertError",
   },
   info: {
-    prefix: "Information",
+    prefixKey: "notificationFilterInfo",
     icon: "info",
     color: "#3b82f6",
     bgColor: "#eff6ff",
     borderColor: "#dbeafe",
-    badgeLabel: "Info",
+    badgeKey: "alertInfo",
   },
   success: {
-    prefix: "Succès",
+    prefixKey: "notificationFilterSuccess",
     icon: "check-circle",
     color: "#10b981",
     bgColor: "#f0fdf4",
     borderColor: "#d1fae5",
-    badgeLabel: "Succès",
+    badgeKey: "alertSuccess",
   },
 };
 
 // ─── Group notifications by time bucket ──────────────────────────────────────
 type Group = { title: string; data: AppAlert[] };
 
-function groupByTime(items: AppAlert[]): Group[] {
+function groupByTime(items: AppAlert[], translate: (key: string) => string): Group[] {
   const now = new Date();
   const todayStr = now.toDateString();
   const yesterday = new Date(now);
@@ -98,25 +98,12 @@ function groupByTime(items: AppAlert[]): Group[] {
   }
 
   const groups: Group[] = [];
-  if (today.length) groups.push({ title: "Aujourd'hui", data: today });
-  if (yesterdayItems.length) groups.push({ title: "Hier", data: yesterdayItems });
-  if (thisWeek.length) groups.push({ title: "Cette semaine", data: thisWeek });
-  if (older.length) groups.push({ title: "Plus tôt", data: older });
+  if (today.length) groups.push({ title: translate("notificationToday"), data: today });
+  if (yesterdayItems.length) groups.push({ title: translate("notificationYesterday"), data: yesterdayItems });
+  if (thisWeek.length) groups.push({ title: translate("notificationThisWeek"), data: thisWeek });
+  if (older.length) groups.push({ title: translate("notificationEarlier"), data: older });
   return groups;
 }
-
-const FILTERS: {
-  key: Filter;
-  label: string;
-  icon: React.ComponentProps<typeof Feather>["name"];
-}[] = [
-  { key: "all", label: "Tout", icon: "bell" },
-  { key: "unread", label: "Non lues", icon: "circle" },
-  { key: "error", label: "Urgent", icon: "alert-circle" },
-  { key: "warning", label: "Alerte", icon: "alert-triangle" },
-  { key: "info", label: "Info", icon: "info" },
-  { key: "success", label: "Succès", icon: "check-circle" },
-];
 
 export default function AlertsScreen() {
   const colors = useColors();
@@ -129,6 +116,19 @@ export default function AlertsScreen() {
 
   const [filter, setFilter] = useState<Filter>("all");
   const [selected, setSelected] = useState<AppAlert | null>(null);
+
+  const filters: {
+    key: Filter;
+    label: string;
+    icon: React.ComponentProps<typeof Feather>["name"];
+  }[] = [
+    { key: "all", label: t("notificationFilterAll"), icon: "bell" },
+    { key: "unread", label: t("notificationFilterUnread"), icon: "circle" },
+    { key: "error", label: t("notificationFilterUrgent"), icon: "alert-circle" },
+    { key: "warning", label: t("notificationFilterWarning"), icon: "alert-triangle" },
+    { key: "info", label: t("notificationFilterInfo"), icon: "info" },
+    { key: "success", label: t("notificationFilterSuccess"), icon: "check-circle" },
+  ];
 
   const unread = alerts.filter((a) => !a.read).length;
 
@@ -158,14 +158,14 @@ export default function AlertsScreen() {
     | { kind: "notif"; item: AppAlert; id: string };
 
   const listData = useMemo<ListItem[]>(() => {
-    const groups = groupByTime(filtered);
+    const groups = groupByTime(filtered, t);
     const out: ListItem[] = [];
     for (const g of groups) {
       out.push({ kind: "header", title: g.title, id: `h-${g.title}` });
       for (const item of g.data) out.push({ kind: "notif", item, id: item.id });
     }
     return out;
-  }, [filtered]);
+  }, [filtered, t]);
 
   const handleMarkAllRead = () => {
     markAllAlertsRead();
@@ -214,11 +214,11 @@ export default function AlertsScreen() {
           <Feather name="arrow-left" size={22} color={colors.foreground} />
         </TouchableOpacity>
         <View style={{ flex: 1 }}>
-          <Text style={[styles.title, { color: colors.foreground }]}>Notifications</Text>
+          <Text style={[styles.title, { color: colors.foreground }]}>{t("notificationsTitle")}</Text>
           <Text style={[styles.subtitle, { color: colors.mutedForeground }]}>
             {unread > 0
-              ? `${unread} non lue${unread > 1 ? "s" : ""}`
-              : "Tout est à jour"}
+              ? `${unread} ${t("notificationsUnreadCount").replace("{count}", "").trim()}`
+              : t("notificationsUpToDate")}
           </Text>
         </View>
         {unread > 0 && (
@@ -228,7 +228,7 @@ export default function AlertsScreen() {
           >
             <Feather name="check-square" size={14} color={colors.primary} />
             <Text style={[styles.markAllText, { color: colors.primary }]}>
-              Tout lire
+              {t("markAllShort")}
             </Text>
           </TouchableOpacity>
         )}
@@ -241,7 +241,7 @@ export default function AlertsScreen() {
         contentContainerStyle={styles.filtersRow}
         style={[styles.filtersBar, { backgroundColor: colors.card, borderBottomColor: colors.border }]}
       >
-        {FILTERS.map((f) => {
+        {filters.map((f) => {
           const active = filter === f.key;
           const accent = filterAccentColor(f.key);
           const count = f.key === "unread" ? unread : f.key === "all" ? alerts.length : alerts.filter((a) => a.type === f.key).length;
@@ -296,12 +296,12 @@ export default function AlertsScreen() {
               <Feather name="bell-off" size={36} color={colors.primary} />
             </View>
             <Text style={[styles.emptyTitle, { color: colors.foreground }]}>
-              Aucune notification
+              {t("notificationNoneTitle")}
             </Text>
             <Text style={[styles.emptySub, { color: colors.mutedForeground }]}>
               {filter === "all"
-                ? "Vous serez notifié dès qu'un événement se produit."
-                : `Aucune notification dans "${FILTERS.find((f2) => f2.key === filter)?.label}".`}
+                ? t("notificationNoneDescription")
+                : t("notificationNoneFiltered")}
             </Text>
             {filter !== "all" && (
               <TouchableOpacity
@@ -309,7 +309,7 @@ export default function AlertsScreen() {
                 onPress={() => setFilter("all")}
               >
                 <Text style={[styles.showAllText, { color: colors.foreground }]}>
-                  Voir tout
+                  {t("notificationShowAll")}
                 </Text>
               </TouchableOpacity>
             )}
@@ -358,16 +358,16 @@ export default function AlertsScreen() {
                 {/* Prefix + badge row */}
                 <View style={styles.prefixRow}>
                   <Text style={[styles.notifPrefix, { color: meta.color }]}>
-                    {meta.prefix}
+                    {t(meta.prefixKey)}
                   </Text>
                   <View style={[styles.badgePill, { backgroundColor: meta.color + "18" }]}>
                     <Text style={[styles.badgePillText, { color: meta.color }]}>
-                      {meta.badgeLabel}
+                      {t(meta.badgeKey)}
                     </Text>
                   </View>
                   {!alert.read && (
                     <View style={[styles.newPill, { backgroundColor: meta.color }]}>
-                      <Text style={styles.newPillText}>Nouveau</Text>
+                      <Text style={styles.newPillText}>{t("notificationNew")}</Text>
                     </View>
                   )}
                 </View>
@@ -403,10 +403,10 @@ export default function AlertsScreen() {
                   <Text style={[styles.notifSep, { color: colors.border }]}>·</Text>
                   <Text style={[styles.notifTarget, { color: colors.mutedForeground }]}>
                     {alert.target === "all"
-                      ? "Tous les membres"
+                      ? t("notificationTargetAll")
                       : alert.target === "admin"
-                      ? "Administrateurs"
-                      : "Membres"}
+                      ? t("notificationTargetAdmin")
+                      : t("notificationTargetMember")}
                   </Text>
                 </View>
               </View>
@@ -435,7 +435,7 @@ export default function AlertsScreen() {
                   <Feather name="x" size={20} color={colors.mutedForeground} />
                 </TouchableOpacity>
                 <Text style={[styles.modalHeaderTitle, { color: colors.foreground }]}>
-                  Détail de la notification
+                  {t("notificationDetail")}
                 </Text>
                 <View style={{ width: 34 }} />
               </View>
@@ -458,7 +458,7 @@ export default function AlertsScreen() {
                     <Feather name={meta.icon} size={38} color={meta.color} />
                   </View>
                   <View style={[styles.heroTypePill, { backgroundColor: meta.color }]}>
-                    <Text style={styles.heroTypePillText}>{meta.prefix}</Text>
+                    <Text style={styles.heroTypePillText}>{t(meta.prefixKey)}</Text>
                   </View>
                   <Text style={[styles.heroTitle, { color: colors.foreground }]}>
                     {selected.title}
@@ -470,7 +470,7 @@ export default function AlertsScreen() {
                   style={[styles.infoCard, { backgroundColor: colors.card, borderColor: colors.border }]}
                 >
                   <Text style={[styles.infoCardLabel, { color: colors.mutedForeground }]}>
-                    MESSAGE
+                    {t("notificationMessageLabel")}
                   </Text>
                   <Text style={[styles.infoCardText, { color: colors.foreground }]}>
                     {selected.message}
@@ -482,23 +482,23 @@ export default function AlertsScreen() {
                   style={[styles.metaCard, { backgroundColor: colors.card, borderColor: colors.border }]}
                 >
                   {[
-                    { label: "Date", value: selected.date, icon: "calendar" as const },
+                    { label: t("notificationDateLabel"), value: selected.date, icon: "calendar" as const },
                     {
-                      label: "Destinataires",
+                      label: t("notificationRecipientsLabel"),
                       value:
                         selected.target === "all"
-                          ? "Tous les membres"
+                          ? t("notificationTargetAll")
                           : selected.target === "admin"
-                          ? "Administrateurs"
-                          : "Membres",
+                          ? t("notificationTargetAdmin")
+                          : t("notificationTargetMember"),
                       icon: "users" as const,
                     },
                     {
-                      label: "Statut",
-                      value: selected.read ? "Lue" : "Non lue",
+                      label: t("notificationStatusLabel"),
+                      value: selected.read ? t("notificationRead") : t("notificationUnread"),
                       icon: "eye" as const,
                     },
-                    { label: "Priorité", value: meta.badgeLabel, icon: "flag" as const },
+                    { label: t("notificationPriorityLabel"), value: t(meta.badgeKey), icon: "flag" as const },
                   ].map((row, i) => (
                     <View key={row.label}>
                       {i > 0 && (
@@ -529,7 +529,7 @@ export default function AlertsScreen() {
                     }}
                   >
                     <Feather name="check" size={16} color="#fff" />
-                    <Text style={styles.readBtnText}>Marquer comme lue</Text>
+                    <Text style={styles.readBtnText}>{t("notificationMarkRead")}</Text>
                   </TouchableOpacity>
                 )}
               </ScrollView>

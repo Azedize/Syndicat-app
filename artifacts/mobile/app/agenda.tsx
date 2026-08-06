@@ -3,7 +3,6 @@ import * as Haptics from "expo-haptics";
 import { router } from "expo-router";
 import React, { useState } from "react";
 import {
-  Alert,
   Modal,
   Platform,
   SectionList,
@@ -14,20 +13,20 @@ import {
   View,
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
-import { useAuth } from "@/context/AuthContext";
 import { useData } from "@/context/DataContext";
 import { useBreakpoints } from "@/hooks/useBreakpoints";
 import { useColors } from "@/hooks/useColors";
 import { apiRequest } from "@/lib/api";
 import { Share } from "react-native";
 import { useToast } from "@/context/ToastContext";
+import { useLanguage } from "@/context/LanguageContext";
 
 type EventType = "meeting" | "election" | "echeance";
 
-const TYPE_CONFIG: Record<EventType, { label: string; color: string; icon: keyof typeof Feather.glyphMap }> = {
-  meeting: { label: "Réunion", color: "#3b82f6", icon: "users" },
-  election: { label: "Élection", color: "#f59e0b", icon: "check-square" },
-  echeance: { label: "Échéance", color: "#10b981", icon: "credit-card" },
+const TYPE_CONFIG: Record<EventType, { labelKey: string; color: string; icon: keyof typeof Feather.glyphMap }> = {
+  meeting: { labelKey: "agendaTypeReunion", color: "#3b82f6", icon: "users" },
+  election: { labelKey: "agendaTypeElection", color: "#f59e0b", icon: "check-square" },
+  echeance: { labelKey: "agendaTypeEcheance", color: "#10b981", icon: "credit-card" },
 };
 
 interface AgendaEvent {
@@ -45,20 +44,16 @@ interface AgendaEvent {
   organizer?: string;
 }
 
-const MONTH_NAMES = ["Janvier", "Février", "Mars", "Avril", "Mai", "Juin", "Juillet", "Août", "Septembre", "Octobre", "Novembre", "Décembre"];
-const DAY_NAMES_LONG = ["Dimanche", "Lundi", "Mardi", "Mercredi", "Jeudi", "Vendredi", "Samedi"];
-
 type FilterType = "all" | EventType;
 type ViewMode = "list" | "timeline";
 
 export default function AgendaScreen() {
   const colors = useColors();
   const insets = useSafeAreaInsets();
-  const { user } = useAuth();
   const { meetings, elections, cotisations } = useData();
   const { isWide } = useBreakpoints();
   const topPad = isWide ? 0 : (Platform.OS === "web" ? 67 : insets.top);
-
+  const { t, lang } = useLanguage();
   const { showToast } = useToast();
   const [filter, setFilter] = useState<FilterType>("all");
   const [viewMode, setViewMode] = useState<ViewMode>("list");
@@ -66,6 +61,13 @@ export default function AgendaScreen() {
   const [showUpcomingOnly, setShowUpcomingOnly] = useState(false);
 
   const today = new Date();
+  const locale = lang === "ar" ? "ar-MA" : lang === "en" ? "en-US" : lang === "es" ? "es-ES" : "fr-FR";
+  const formatDate = (dateStr: string, options: Intl.DateTimeFormatOptions) =>
+    new Intl.DateTimeFormat(locale, options).format(new Date(dateStr));
+  const formatMonthYear = (dateStr: string) => formatDate(dateStr, { month: "long", year: "numeric" });
+  const formatShortDate = (dateStr: string) => formatDate(dateStr, { day: "numeric", month: "short" });
+  const formatCurrency = (amount: number | string) =>
+    new Intl.NumberFormat(locale, { style: "currency", currency: "MAD", maximumFractionDigits: 2 }).format(Number(amount) || 0);
 
   const dataEvents: AgendaEvent[] = [
     ...meetings.map((m) => ({
@@ -77,7 +79,7 @@ export default function AgendaScreen() {
       location: m.location,
       description: m.description ?? "",
       status: new Date(m.date) >= today ? "upcoming" as const : "completed" as const,
-      organizer: "Bureau",
+       organizer: t("agendaOrganizerBureau"),
     })),
     ...elections.map((e) => ({
       id: e.id,
@@ -86,7 +88,7 @@ export default function AgendaScreen() {
       date: e.startDate,
       description: e.description ?? "",
       status: new Date(e.startDate) >= today ? "upcoming" as const : "completed" as const,
-      organizer: "Commission Électorale",
+       organizer: t("agendaOrganizerElectionCommission"),
     })),
     ...cotisations
       .filter((c) => c.status !== "paid")
@@ -95,9 +97,9 @@ export default function AgendaScreen() {
         title: c.label,
         type: "echeance" as EventType,
         date: c.dueDate,
-        description: `Échéance de paiement — ${c.amount} MAD`,
+       description: `${t("agendaPaymentDeadline")} — ${formatCurrency(c.amount)}`,
         status: new Date(c.dueDate) >= today ? "upcoming" as const : "completed" as const,
-        organizer: "Syndic",
+       organizer: t("agendaOrganizerSyndic"),
       })),
   ];
 
@@ -111,8 +113,7 @@ export default function AgendaScreen() {
 
   // Group by month
   const grouped = filtered.reduce<Record<string, AgendaEvent[]>>((acc, ev) => {
-    const d = new Date(ev.date);
-    const key = `${MONTH_NAMES[d.getMonth()]} ${d.getFullYear()}`;
+    const key = formatMonthYear(ev.date);
     if (!acc[key]) acc[key] = [];
     acc[key].push(ev);
     return acc;
@@ -128,16 +129,11 @@ export default function AgendaScreen() {
   }).length;
 
   const FILTER_OPTIONS: { key: FilterType; label: string }[] = [
-    { key: "all", label: "Tout" },
-    { key: "meeting", label: "Réunions" },
-    { key: "election", label: "Élections" },
-    { key: "echeance", label: "Échéances" },
+    { key: "all", label: t("agendaFilterAll") },
+    { key: "meeting", label: t("agendaFilterMeetings") },
+    { key: "election", label: t("agendaFilterElections") },
+    { key: "echeance", label: t("agendaFilterEcheances") },
   ];
-
-  const formatDate = (dateStr: string) => {
-    const d = new Date(dateStr);
-    return `${DAY_NAMES_LONG[d.getDay()]} ${d.getDate()} ${MONTH_NAMES[d.getMonth()]}`;
-  };
 
   // Build a minimal valid ICS (iCalendar) string from events so users can
   // import directly into Google Calendar, Apple Calendar, Outlook, etc.
@@ -173,10 +169,26 @@ export default function AgendaScreen() {
 
   const getDaysUntil = (dateStr: string) => {
     const diff = Math.ceil((new Date(dateStr).getTime() - today.getTime()) / 86400000);
-    if (diff === 0) return "Aujourd'hui";
-    if (diff === 1) return "Demain";
-    if (diff < 0) return `Il y a ${Math.abs(diff)}j`;
-    return `Dans ${diff}j`;
+    if (diff === 0) return t("agendaDaysToday");
+    if (diff === 1) return t("agendaDaysTomorrow");
+    if (diff < 0) return `${t("agendaDaysAgo")} ${Math.abs(diff)} ${t("agendaDaysUnit")}`;
+    return `${t("agendaDaysIn")} ${diff} ${t("agendaDaysUnit")}`;
+  };
+
+  const confirmAttendance = async (event: AgendaEvent) => {
+    if (event.type !== "meeting") {
+      showToast({ type: "success", title: t("agendaParticipationConfirmed"), message: t("agendaParticipationMsg") });
+      setSelected(null);
+      return;
+    }
+    try {
+      await apiRequest(`/meetings/${event.id}/attend`, "POST");
+      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+      showToast({ type: "success", title: t("agendaParticipationConfirmed"), message: t("agendaParticipationMsg") });
+      setSelected(null);
+    } catch {
+      showToast({ type: "error", message: t("agendaParticipationError") });
+    }
   };
 
   return (
@@ -188,8 +200,8 @@ export default function AgendaScreen() {
             <Feather name="arrow-left" size={22} color="#fff" />
           </TouchableOpacity>
           <View style={{ flex: 1 }}>
-            <Text style={styles.headerTitle}>Programme Syndical</Text>
-            <Text style={styles.headerSub}>Agenda & Planning des événements</Text>
+            <Text style={styles.headerTitle}>{t("agendaHeaderTitle")}</Text>
+            <Text style={styles.headerSub}>{t("agendaHeaderSub")}</Text>
           </View>
           <TouchableOpacity
             style={styles.viewBtn}
@@ -203,12 +215,12 @@ export default function AgendaScreen() {
               Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
               const upcoming = allEvents.filter((ev) => ev.status === "upcoming");
               if (upcoming.length === 0) {
-                showToast({ type: "warning", message: "Il n'y a pas d'événements à venir à exporter." });
+                showToast({ type: "warning", message: t("agendaExportNoEvents") });
                 return;
               }
               const ics = buildICS(upcoming);
-              Share.share({ message: ics, title: "Agenda Syndical VERIDIAN" }).catch(() =>
-                showToast({ type: "error", title: "Erreur", message: "Impossible d'exporter l'agenda." })
+              Share.share({ message: ics, title: t("agendaShareTitle") }).catch(() =>
+                showToast({ type: "error", message: t("agendaExportError") })
               );
             }}
           >
@@ -219,9 +231,9 @@ export default function AgendaScreen() {
         {/* Stats strip */}
         <View style={styles.statsStrip}>
           {[
-            { icon: "calendar" as const, val: allEvents.length, label: "Événements", color: "#fff" },
-            { icon: "clock" as const, val: upcomingCount, label: "À venir", color: "#fde68a" },
-            { icon: "zap" as const, val: thisWeekCount, label: "Cette semaine", color: "#6ee7b7" },
+            { icon: "calendar" as const, val: allEvents.length, label: t("agendaStatEvents"), color: "#fff" },
+            { icon: "clock" as const, val: upcomingCount, label: t("agendaStatUpcoming"), color: "#fde68a" },
+            { icon: "zap" as const, val: thisWeekCount, label: t("agendaStatThisWeek"), color: "#6ee7b7" },
           ].map((s) => (
             <View key={s.label} style={styles.statBox}>
               <Feather name={s.icon} size={13} color={s.color} />
@@ -242,7 +254,7 @@ export default function AgendaScreen() {
           onPress={() => { setShowUpcomingOnly(!showUpcomingOnly); Haptics.selectionAsync(); }}
         >
           <Feather name="clock" size={13} color={showUpcomingOnly ? colors.primary : colors.mutedForeground} />
-          <Text style={[styles.upcomingToggleText, { color: showUpcomingOnly ? colors.primary : colors.mutedForeground }]}>À venir seulement</Text>
+          <Text style={[styles.upcomingToggleText, { color: showUpcomingOnly ? colors.primary : colors.mutedForeground }]}>{t("agendaUpcomingOnly")}</Text>
         </TouchableOpacity>
       </View>
 
@@ -280,7 +292,7 @@ export default function AgendaScreen() {
         ListEmptyComponent={
           <View style={styles.empty}>
             <Feather name="calendar" size={40} color={colors.mutedForeground} />
-            <Text style={[styles.emptyText, { color: colors.mutedForeground }]}>Aucun événement trouvé</Text>
+            <Text style={[styles.emptyText, { color: colors.mutedForeground }]}>{t("agendaEmptyTitle")}</Text>
           </View>
         }
         renderSectionHeader={({ section }) => (
@@ -323,17 +335,17 @@ export default function AgendaScreen() {
                   <View style={{ flex: 1, gap: 3 }}>
                     <View style={styles.badgeRow}>
                       <View style={[styles.typeBadge, { backgroundColor: typeCfg.color + "15" }]}>
-                        <Text style={[styles.typeBadgeText, { color: typeCfg.color }]}>{typeCfg.label}</Text>
+                        <Text style={[styles.typeBadgeText, { color: typeCfg.color }]}>{t(typeCfg.labelKey)}</Text>
                       </View>
                       {ev.mandatory && (
                         <View style={[styles.mandatoryBadge, { backgroundColor: "#ef444415" }]}>
                           <Feather name="alert-circle" size={10} color="#ef4444" />
-                          <Text style={styles.mandatoryText}>Obligatoire</Text>
+                          <Text style={styles.mandatoryText}>{t("agendaMandatory")}</Text>
                         </View>
                       )}
                       {isCompleted && (
                         <View style={[styles.typeBadge, { backgroundColor: "#10b98115" }]}>
-                          <Text style={[styles.typeBadgeText, { color: "#10b981" }]}>Terminé</Text>
+                          <Text style={[styles.typeBadgeText, { color: "#10b981" }]}>{t("agendaCompleted")}</Text>
                         </View>
                       )}
                     </View>
@@ -346,7 +358,7 @@ export default function AgendaScreen() {
                     </Text>
                     <View style={[styles.dateBubble, { backgroundColor: typeCfg.color + "10" }]}>
                       <Text style={[styles.dateBubbleText, { color: typeCfg.color }]}>
-                        {new Date(ev.date).getDate()} {MONTH_NAMES[new Date(ev.date).getMonth()].slice(0, 3)}
+                        {formatShortDate(ev.date)}
                       </Text>
                     </View>
                   </View>
@@ -399,7 +411,7 @@ export default function AgendaScreen() {
                 <View style={{ flex: 1 }}>
                   <View style={[styles.modalTypeBadge, { backgroundColor: "rgba(255,255,255,0.2)" }]}>
                     <Feather name={typeCfg.icon} size={12} color="#fff" />
-                    <Text style={styles.modalTypeBadgeText}>{typeCfg.label}</Text>
+                    <Text style={styles.modalTypeBadgeText}>{t(typeCfg.labelKey)}</Text>
                   </View>
                   <Text style={styles.modalTitle}>{ev.title}</Text>
                 </View>
@@ -411,9 +423,11 @@ export default function AgendaScreen() {
                   <View style={styles.dateHighlightLeft}>
                     <Text style={[styles.dateHighlightDay, { color: typeCfg.color }]}>{new Date(ev.date).getDate()}</Text>
                     <Text style={[styles.dateHighlightMonth, { color: typeCfg.color }]}>
-                      {MONTH_NAMES[new Date(ev.date).getMonth()]} {new Date(ev.date).getFullYear()}
+                      {formatMonthYear(ev.date)}
                     </Text>
-                    <Text style={[styles.dateHighlightDow, { color: colors.mutedForeground }]}>{formatDate(ev.date)}</Text>
+                    <Text style={[styles.dateHighlightDow, { color: colors.mutedForeground }]}>
+                      {formatDate(ev.date, { weekday: "long", day: "numeric", month: "long" })}
+                    </Text>
                   </View>
                   <View style={styles.dateHighlightRight}>
                     <Text style={[styles.countdownLabel, { color: typeCfg.color }]}>{daysUntil}</Text>
@@ -431,10 +445,10 @@ export default function AgendaScreen() {
                 {/* Info */}
                 <View style={[styles.infoCard, { backgroundColor: colors.card, borderColor: colors.border }]}>
                   {[
-                    ev.location && { icon: "map-pin" as const, label: "Lieu", value: ev.location },
-                    ev.organizer && { icon: "briefcase" as const, label: "Organisateur", value: ev.organizer },
-                    ev.participants && { icon: "users" as const, label: "Participants", value: `${ev.participants.toLocaleString()} personnes` },
-                    { icon: "info" as const, label: "Statut", value: isPast ? "Terminé" : ev.mandatory ? "Obligatoire" : "Facultatif" },
+                    ev.location && { icon: "map-pin" as const, label: t("agendaModalLieu"), value: ev.location },
+                    ev.organizer && { icon: "briefcase" as const, label: t("agendaModalOrganizer"), value: ev.organizer },
+                    ev.participants && { icon: "users" as const, label: t("agendaModalParticipants"), value: `${ev.participants.toLocaleString(locale)} ${t("agendaPeople")}` },
+                    { icon: "info" as const, label: t("agendaModalStatus"), value: isPast ? t("agendaModalStatusCompleted") : ev.mandatory ? t("agendaModalStatusMandatory") : t("agendaModalStatusOptional") },
                   ].filter(Boolean).map((item: any, i, arr) => (
                     <View key={item.label}>
                       {i > 0 && <View style={[styles.infoSep, { backgroundColor: colors.border }]} />}
@@ -452,7 +466,7 @@ export default function AgendaScreen() {
                 </View>
 
                 <View style={{ gap: 8 }}>
-                  <Text style={[styles.descTitle, { color: colors.foreground }]}>Description</Text>
+                  <Text style={[styles.descTitle, { color: colors.foreground }]}>{t("agendaDescription")}</Text>
                   <Text style={[styles.descText, { color: colors.mutedForeground }]}>{ev.description}</Text>
                 </View>
 
@@ -460,10 +474,10 @@ export default function AgendaScreen() {
                   {!isPast && (
                     <TouchableOpacity
                       style={[styles.modalActionBtn, { backgroundColor: typeCfg.color }]}
-                      onPress={async () => { Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success); if (ev.type === "meeting") { try { await apiRequest(`/meetings/${ev.id}/attend`, "POST"); } catch {} } showToast({ type: "success", title: "Participation confirmée", message: "Votre présence a été enregistrée." }); setSelected(null); }}
+                      onPress={() => confirmAttendance(ev)}
                     >
                       <Feather name="check" size={18} color="#fff" />
-                      <Text style={styles.modalActionBtnText}>Confirmer ma participation</Text>
+                      <Text style={styles.modalActionBtnText}>{t("agendaConfirmParticipation")}</Text>
                     </TouchableOpacity>
                   )}
                   <TouchableOpacity
@@ -472,12 +486,12 @@ export default function AgendaScreen() {
                       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
                       const ics = buildICS([ev]);
                       Share.share({ message: ics, title: ev.title }).catch(() =>
-                        showToast({ type: "error", title: "Erreur", message: "Impossible d'exporter l'événement." })
+                        showToast({ type: "error", message: t("agendaEventExportError") })
                       );
                     }}
                   >
                     <Feather name="calendar" size={18} color={colors.foreground} />
-                    <Text style={[styles.modalActionBtnText, { color: colors.foreground }]}>Exporter vers calendrier (.ics)</Text>
+                    <Text style={[styles.modalActionBtnText, { color: colors.foreground }]}>{t("agendaExportCalendar")}</Text>
                   </TouchableOpacity>
                 </View>
               </ScrollView>

@@ -20,11 +20,11 @@ import { useAuth } from "@/context/AuthContext";
 import { useData, type Publication } from "@/context/DataContext";
 import { useFavorites } from "@/context/FavoritesContext";
 import { useToast } from "@/context/ToastContext";
+import { useLanguage } from "@/context/LanguageContext";
 import { useBreakpoints } from "@/hooks/useBreakpoints";
 import { useColors } from "@/hooks/useColors";
 import EmptyState from "@/components/EmptyState";
 import FilterChips from "@/components/FilterChips";
-import StatisticsHeader from "@/components/StatisticsHeader";
 
 const CAT_COLORS: Record<string, string> = {
   communiqué: "#ef4444",
@@ -38,6 +38,7 @@ const CAT_COLORS: Record<string, string> = {
 export default function PublicationsScreen() {
   const colors = useColors();
   const { showToast } = useToast();
+  const { t } = useLanguage();
   const insets = useSafeAreaInsets();
   const { user } = useAuth();
   const { publications, likePublication, addPublication } = useData();
@@ -54,12 +55,10 @@ export default function PublicationsScreen() {
   const [newCategory, setNewCategory] = useState("actualité");
   const isAdmin = user?.role !== "member";
 
-  // Edit publication state
   const [showEditPub, setShowEditPub] = useState(false);
   const [editTitle, setEditTitle] = useState("");
   const [editContent, setEditContent] = useState("");
 
-  // Comments state
   const [showComments, setShowComments] = useState(false);
   const [commentText, setCommentText] = useState("");
   const [commentsByPub, setCommentsByPub] = useState<Record<string, string[]>>({});
@@ -94,7 +93,7 @@ export default function PublicationsScreen() {
     setShowCreate(false);
     setNewTitle(""); setNewContent("");
     Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-    showToast({ type: "success", title: "Publication créée", message: "Votre publication a été publiée avec succès." });
+    showToast({ type: "success", title: t("pubCreatedToast"), message: t("pubCreatedMsg") });
   };
 
   return (
@@ -105,13 +104,13 @@ export default function PublicationsScreen() {
           <Feather name="arrow-left" size={22} color={colors.foreground} />
         </TouchableOpacity>
         <View style={{ flex: 1 }}>
-          <Text style={[styles.title, { color: colors.foreground }]}>Publications</Text>
+          <Text style={[styles.title, { color: colors.foreground }]}>{t("pubTitle")}</Text>
           <Text style={[styles.subtitle, { color: colors.mutedForeground }]}>
-            {filtered.length} article(s)
+            {filtered.length} {t("pubSubtitle")}
           </Text>
         </View>
         <TouchableOpacity
-          onPress={() => toggleFavorite({ id: FAV_ID, title: "Publications", icon: "rss", color: "#ef4444", route: "/publications" })}
+          onPress={() => toggleFavorite({ id: FAV_ID, title: t("pubTitle"), icon: "rss", color: "#ef4444", route: "/publications" })}
           style={{ padding: 6 }}
           hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
         >
@@ -129,7 +128,7 @@ export default function PublicationsScreen() {
 
       <FilterChips
         options={[
-          { key: "all", label: "Toutes" },
+          { key: "all", label: t("pubFilterAll") },
           ...Object.entries(CAT_COLORS).map(([cat, color]) => ({ key: cat, label: cat.charAt(0).toUpperCase() + cat.slice(1), color })),
         ]}
         value={filterCat}
@@ -145,9 +144,9 @@ export default function PublicationsScreen() {
         ListEmptyComponent={
           <EmptyState
             icon="rss"
-            title="Aucune publication"
-            description="Aucune publication disponible pour cette catégorie."
-            actionLabel={isAdmin ? "Créer une publication" : undefined}
+            title={t("pubEmptyTitle")}
+            description={t("pubEmptyDesc")}
+            actionLabel={isAdmin ? t("pubCreateAction") : undefined}
             onAction={isAdmin ? () => { setShowCreate(true); Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); } : undefined}
           />
         }
@@ -163,7 +162,7 @@ export default function PublicationsScreen() {
               {pub.pinned ? (
                 <View style={[styles.pinnedBadge, { backgroundColor: colors.primary }]}>
                   <Feather name="bookmark" size={10} color="#fff" />
-                  <Text style={styles.pinnedText}>Épinglé</Text>
+                  <Text style={styles.pinnedText}>{t("pubPinned")}</Text>
                 </View>
               ) : null}
 
@@ -189,15 +188,8 @@ export default function PublicationsScreen() {
                   <Text style={[styles.pubAuthor, { color: colors.mutedForeground }]}>{pub.author}</Text>
                 </View>
                 <View style={styles.pubActions}>
-                  <TouchableOpacity
-                    style={styles.actionPill}
-                    onPress={() => handleLike(pub.id)}
-                  >
-                    <Feather
-                      name={isLiked ? "heart" : "heart"}
-                      size={13}
-                      color={isLiked ? "#ef4444" : colors.mutedForeground}
-                    />
+                  <TouchableOpacity style={styles.actionPill} onPress={() => handleLike(pub.id)}>
+                    <Feather name="heart" size={13} color={isLiked ? "#ef4444" : colors.mutedForeground} />
                     <Text style={[styles.actionCount, { color: isLiked ? "#ef4444" : colors.mutedForeground }]}>
                       {pub.likes + (isLiked ? 1 : 0)}
                     </Text>
@@ -206,7 +198,7 @@ export default function PublicationsScreen() {
                     <Feather name="message-circle" size={13} color={colors.mutedForeground} />
                     <Text style={[styles.actionCount, { color: colors.mutedForeground }]}>{pub.comments}</Text>
                   </View>
-                  <Text style={[styles.readMore, { color: colors.primary }]}>Lire →</Text>
+                  <Text style={[styles.readMore, { color: colors.primary }]}>{t("pubReadMore")}</Text>
                 </View>
               </View>
             </TouchableOpacity>
@@ -234,7 +226,6 @@ export default function PublicationsScreen() {
               </TouchableOpacity>
             </View>
             <ScrollView contentContainerStyle={{ padding: 20, gap: 16, paddingBottom: 40 }}>
-              {/* Category & date */}
               <View style={styles.articleMeta}>
                 <View style={[styles.catBadge, { backgroundColor: (CAT_COLORS[selected.category] ?? colors.primary) + "18" }]}>
                   <Text style={[styles.catLabel2, { color: CAT_COLORS[selected.category] ?? colors.primary }]}>
@@ -244,10 +235,8 @@ export default function PublicationsScreen() {
                 <Text style={[styles.pubDate, { color: colors.mutedForeground }]}>{selected.date}</Text>
               </View>
 
-              {/* Title */}
               <Text style={[styles.articleTitle, { color: colors.foreground }]}>{selected.title}</Text>
 
-              {/* Author */}
               <View style={[styles.articleAuthor, { borderColor: colors.border }]}>
                 <View style={[styles.authorAvatarLg, { backgroundColor: (CAT_COLORS[selected.category] ?? colors.primary) + "20" }]}>
                   <Text style={[styles.authorInitialsLg, { color: CAT_COLORS[selected.category] ?? colors.primary }]}>
@@ -256,14 +245,11 @@ export default function PublicationsScreen() {
                 </View>
                 <View>
                   <Text style={[styles.articleAuthorName, { color: colors.foreground }]}>{selected.author}</Text>
-                  <Text style={[styles.articleAuthorRole, { color: colors.mutedForeground }]}>Syndicat National des Enseignants</Text>
                 </View>
               </View>
 
-              {/* Content */}
               <Text style={[styles.articleContent, { color: colors.foreground }]}>{selected.content}</Text>
 
-              {/* Engagement */}
               <View style={[styles.engagementRow, { borderColor: colors.border }]}>
                 <TouchableOpacity
                   style={[styles.engBtn, {
@@ -275,18 +261,15 @@ export default function PublicationsScreen() {
                 >
                   <Feather name="heart" size={16} color={liked.has(selected.id) ? "#ef4444" : colors.mutedForeground} />
                   <Text style={[styles.engBtnText, { color: liked.has(selected.id) ? "#ef4444" : colors.mutedForeground }]}>
-                    {selected.likes + (liked.has(selected.id) ? 1 : 0)} J'aime
+                    {selected.likes + (liked.has(selected.id) ? 1 : 0)} {t("pubLike")}
                   </Text>
                 </TouchableOpacity>
                 <TouchableOpacity
                   style={[styles.engBtn, { backgroundColor: colors.secondary }]}
-                  onPress={() => {
-                    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-                    setShowComments(true);
-                  }}
+                  onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); setShowComments(true); }}
                 >
                   <Feather name="message-circle" size={16} color={colors.mutedForeground} />
-                  <Text style={[styles.engBtnText, { color: colors.mutedForeground }]}>{selected.comments} Commentaires</Text>
+                  <Text style={[styles.engBtnText, { color: colors.mutedForeground }]}>{selected.comments} {t("pubComments")}</Text>
                 </TouchableOpacity>
               </View>
 
@@ -302,32 +285,32 @@ export default function PublicationsScreen() {
                     }}
                   >
                     <Feather name="edit-2" size={14} color={colors.primary} />
-                    <Text style={[styles.adminBtnText, { color: colors.primary }]}>Modifier</Text>
+                    <Text style={[styles.adminBtnText, { color: colors.primary }]}>{t("pubAdminEdit")}</Text>
                   </TouchableOpacity>
                   <TouchableOpacity
                     style={[styles.adminBtn, { borderColor: "#ef444440", backgroundColor: "#ef444408" }]}
                     onPress={() => {
                       Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
-                      Alert.alert("Supprimer la publication", `Voulez-vous supprimer "${selected.title}"? Cette action est irréversible.`, [
-                        { text: "Annuler", style: "cancel" },
-                        { text: "Supprimer", style: "destructive", onPress: () => { setSelected(null); Haptics.notificationAsync(Haptics.NotificationFeedbackType.Warning); } },
+                      Alert.alert(t("pubDeleteConfirmTitle"), t("pubDeleteConfirmMsg"), [
+                        { text: t("pubEditCancel"), style: "cancel" },
+                        { text: t("pubDeleteConfirmOk"), style: "destructive", onPress: () => { setSelected(null); Haptics.notificationAsync(Haptics.NotificationFeedbackType.Warning); } },
                       ]);
                     }}
                   >
                     <Feather name="trash-2" size={14} color="#ef4444" />
-                    <Text style={[styles.adminBtnText, { color: "#ef4444" }]}>Supprimer</Text>
+                    <Text style={[styles.adminBtnText, { color: "#ef4444" }]}>{t("pubAdminDelete")}</Text>
                   </TouchableOpacity>
                   {!selected.pinned ? (
                     <TouchableOpacity
                       style={[styles.adminBtn, { borderColor: "#f59e0b40", backgroundColor: "#f59e0b08" }]}
                       onPress={() => {
                         Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-                        showToast({ type: "info", title: "Publication épinglée", message: `"${selected.title}" a été épinglée en haut de la liste.` });
+                        showToast({ type: "info", title: t("pubPinnedToast"), message: t("pubPinnedMsg") });
                         setSelected(null);
                       }}
                     >
                       <Feather name="bookmark" size={14} color="#f59e0b" />
-                      <Text style={[styles.adminBtnText, { color: "#f59e0b" }]}>Épingler</Text>
+                      <Text style={[styles.adminBtnText, { color: "#f59e0b" }]}>{t("pubAdminPin")}</Text>
                     </TouchableOpacity>
                   ) : null}
                 </View>
@@ -341,15 +324,14 @@ export default function PublicationsScreen() {
       <Modal visible={showCreate} animationType="slide" presentationStyle="pageSheet">
         <View style={[styles.modal, { backgroundColor: colors.background }]}>
           <View style={[styles.modalHeader, { borderBottomColor: colors.border }]}>
-            <Text style={[styles.modalTitle, { color: colors.foreground }]}>Nouvelle publication</Text>
+            <Text style={[styles.modalTitle, { color: colors.foreground }]}>{t("pubCreateTitle")}</Text>
             <TouchableOpacity onPress={() => setShowCreate(false)}>
               <Feather name="x" size={22} color={colors.mutedForeground} />
             </TouchableOpacity>
           </View>
           <ScrollView contentContainerStyle={{ padding: 20, gap: 16, paddingBottom: 40 }}>
-            {/* Category selector */}
             <View style={{ gap: 8 }}>
-              <Text style={[styles.fieldLabel, { color: colors.foreground }]}>Catégorie</Text>
+              <Text style={[styles.fieldLabel, { color: colors.foreground }]}>{t("pubFieldCategory")}</Text>
               <FlatList
                 horizontal
                 data={Object.entries(CAT_COLORS)}
@@ -368,23 +350,23 @@ export default function PublicationsScreen() {
             </View>
 
             <View style={{ gap: 8 }}>
-              <Text style={[styles.fieldLabel, { color: colors.foreground }]}>Titre *</Text>
+              <Text style={[styles.fieldLabel, { color: colors.foreground }]}>{t("pubFieldTitle")}</Text>
               <TextInput
                 style={[styles.fieldInput, { borderColor: colors.border, backgroundColor: colors.card, color: colors.foreground }]}
                 value={newTitle}
                 onChangeText={setNewTitle}
-                placeholder="Titre de la publication"
+                placeholder={t("pubTitlePlaceholder")}
                 placeholderTextColor={colors.mutedForeground}
               />
             </View>
 
             <View style={{ gap: 8 }}>
-              <Text style={[styles.fieldLabel, { color: colors.foreground }]}>Contenu *</Text>
+              <Text style={[styles.fieldLabel, { color: colors.foreground }]}>{t("pubFieldContent")}</Text>
               <TextInput
                 style={[styles.fieldInput, styles.contentArea, { borderColor: colors.border, backgroundColor: colors.card, color: colors.foreground }]}
                 value={newContent}
                 onChangeText={setNewContent}
-                placeholder="Rédigez le contenu de votre publication..."
+                placeholder={t("pubContentPlaceholder")}
                 placeholderTextColor={colors.mutedForeground}
                 multiline
               />
@@ -397,7 +379,7 @@ export default function PublicationsScreen() {
             >
               <Feather name="send" size={16} color={newTitle.trim() && newContent.trim() ? "#fff" : colors.mutedForeground} />
               <Text style={[styles.publishBtnText, { color: newTitle.trim() && newContent.trim() ? "#fff" : colors.mutedForeground }]}>
-                Publier maintenant
+                {t("pubPublishBtn")}
               </Text>
             </TouchableOpacity>
           </ScrollView>
@@ -410,29 +392,29 @@ export default function PublicationsScreen() {
           <View style={{ backgroundColor: colors.card, borderTopLeftRadius: 24, borderTopRightRadius: 24, padding: 24, maxHeight: "85%" }}>
             <View style={{ width: 40, height: 4, borderRadius: 2, backgroundColor: "#e5e7eb", alignSelf: "center", marginBottom: 16 }} />
             <View style={{ flexDirection: "row", alignItems: "center", marginBottom: 20 }}>
-              <Text style={{ flex: 1, fontSize: 18, fontFamily: "Inter_700Bold", color: colors.foreground }}>Modifier la publication</Text>
+              <Text style={{ flex: 1, fontSize: 18, fontFamily: "Inter_700Bold", color: colors.foreground }}>{t("pubEditTitle")}</Text>
               <TouchableOpacity onPress={() => setShowEditPub(false)}>
                 <Feather name="x" size={20} color={colors.mutedForeground} />
               </TouchableOpacity>
             </View>
             <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={{ gap: 14, paddingBottom: 20 }}>
               <View style={{ gap: 6 }}>
-                <Text style={{ fontSize: 10, fontFamily: "Inter_600SemiBold", color: colors.mutedForeground, letterSpacing: 1 }}>TITRE</Text>
+                <Text style={{ fontSize: 10, fontFamily: "Inter_600SemiBold", color: colors.mutedForeground, letterSpacing: 1 }}>{t("pubEditFieldTitle")}</Text>
                 <TextInput
                   style={{ borderRadius: 12, borderWidth: 1, borderColor: colors.border, backgroundColor: colors.background, padding: 12, fontSize: 15, fontFamily: "Inter_600SemiBold", color: colors.foreground }}
                   value={editTitle}
                   onChangeText={setEditTitle}
-                  placeholder="Titre de la publication"
+                  placeholder={t("pubTitlePlaceholder")}
                   placeholderTextColor={colors.mutedForeground}
                 />
               </View>
               <View style={{ gap: 6 }}>
-                <Text style={{ fontSize: 10, fontFamily: "Inter_600SemiBold", color: colors.mutedForeground, letterSpacing: 1 }}>CONTENU</Text>
+                <Text style={{ fontSize: 10, fontFamily: "Inter_600SemiBold", color: colors.mutedForeground, letterSpacing: 1 }}>{t("pubEditFieldContent")}</Text>
                 <TextInput
                   style={{ borderRadius: 12, borderWidth: 1, borderColor: colors.border, backgroundColor: colors.background, padding: 12, fontSize: 14, fontFamily: "Inter_400Regular", color: colors.foreground, minHeight: 120, textAlignVertical: "top" }}
                   value={editContent}
                   onChangeText={setEditContent}
-                  placeholder="Contenu de la publication..."
+                  placeholder={t("pubContentPlaceholder")}
                   placeholderTextColor={colors.mutedForeground}
                   multiline
                 />
@@ -442,7 +424,7 @@ export default function PublicationsScreen() {
                   style={{ flex: 1, paddingVertical: 14, borderRadius: 12, borderWidth: 1, borderColor: colors.border, alignItems: "center" }}
                   onPress={() => setShowEditPub(false)}
                 >
-                  <Text style={{ fontSize: 14, fontFamily: "Inter_600SemiBold", color: colors.mutedForeground }}>Annuler</Text>
+                  <Text style={{ fontSize: 14, fontFamily: "Inter_600SemiBold", color: colors.mutedForeground }}>{t("pubEditCancel")}</Text>
                 </TouchableOpacity>
                 <TouchableOpacity
                   style={{ flex: 1, flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 7, paddingVertical: 14, borderRadius: 12, backgroundColor: colors.primary }}
@@ -450,11 +432,11 @@ export default function PublicationsScreen() {
                     Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
                     setShowEditPub(false);
                     setSelected(null);
-                    showToast({ type: "success", title: "Publication mise à jour", message: "Les modifications ont été enregistrées." });
+                    showToast({ type: "success", title: t("pubUpdatedToast"), message: t("pubUpdatedMsg") });
                   }}
                 >
                   <Feather name="check" size={15} color="#fff" />
-                  <Text style={{ fontSize: 14, fontFamily: "Inter_700Bold", color: "#fff" }}>Enregistrer</Text>
+                  <Text style={{ fontSize: 14, fontFamily: "Inter_700Bold", color: "#fff" }}>{t("pubEditSave")}</Text>
                 </TouchableOpacity>
               </View>
             </ScrollView>
@@ -469,7 +451,7 @@ export default function PublicationsScreen() {
             <View style={{ width: 40, height: 4, borderRadius: 2, backgroundColor: "#e5e7eb", alignSelf: "center", marginBottom: 16 }} />
             <View style={{ flexDirection: "row", alignItems: "center", marginBottom: 16 }}>
               <Text style={{ flex: 1, fontSize: 17, fontFamily: "Inter_700Bold", color: colors.foreground }}>
-                Commentaires {selected ? `(${(commentsByPub[selected.id] ?? []).length + selected.comments})` : ""}
+                {t("pubCommentsTitle")} {selected ? `(${(commentsByPub[selected.id] ?? []).length + selected.comments})` : ""}
               </Text>
               <TouchableOpacity onPress={() => setShowComments(false)}>
                 <Feather name="x" size={20} color={colors.mutedForeground} />
@@ -479,18 +461,18 @@ export default function PublicationsScreen() {
               {selected && (commentsByPub[selected.id] ?? []).map((c, i) => (
                 <View key={i} style={{ flexDirection: "row", gap: 10, alignItems: "flex-start" }}>
                   <View style={{ width: 34, height: 34, borderRadius: 17, backgroundColor: colors.primary + "18", alignItems: "center", justifyContent: "center" }}>
-                    <Text style={{ fontSize: 11, fontFamily: "Inter_700Bold", color: colors.primary }}>Moi</Text>
+                    <Text style={{ fontSize: 11, fontFamily: "Inter_700Bold", color: colors.primary }}>{t("pubCommentMe")}</Text>
                   </View>
                   <View style={{ flex: 1, backgroundColor: colors.background, borderRadius: 12, padding: 10, borderWidth: 1, borderColor: colors.border }}>
                     <Text style={{ fontSize: 13, fontFamily: "Inter_400Regular", color: colors.foreground }}>{c}</Text>
-                    <Text style={{ fontSize: 10, fontFamily: "Inter_400Regular", color: colors.mutedForeground, marginTop: 4 }}>À l'instant</Text>
+                    <Text style={{ fontSize: 10, fontFamily: "Inter_400Regular", color: colors.mutedForeground, marginTop: 4 }}>{t("pubCommentJustNow")}</Text>
                   </View>
                 </View>
               ))}
               {selected && (commentsByPub[selected.id] ?? []).length === 0 && (
                 <View style={{ alignItems: "center", paddingVertical: 24 }}>
                   <Feather name="message-circle" size={28} color={colors.mutedForeground} />
-                  <Text style={{ fontSize: 13, fontFamily: "Inter_400Regular", color: colors.mutedForeground, marginTop: 8 }}>Soyez le premier à commenter</Text>
+                  <Text style={{ fontSize: 13, fontFamily: "Inter_400Regular", color: colors.mutedForeground, marginTop: 8 }}>{t("pubCommentsEmpty")}</Text>
                 </View>
               )}
             </ScrollView>
@@ -499,7 +481,7 @@ export default function PublicationsScreen() {
                 style={{ flex: 1, borderRadius: 20, borderWidth: 1, borderColor: colors.border, backgroundColor: colors.background, paddingHorizontal: 16, paddingVertical: 10, fontSize: 14, fontFamily: "Inter_400Regular", color: colors.foreground }}
                 value={commentText}
                 onChangeText={setCommentText}
-                placeholder="Ajouter un commentaire..."
+                placeholder={t("pubCommentPlaceholder")}
                 placeholderTextColor={colors.mutedForeground}
               />
               <TouchableOpacity
@@ -529,10 +511,7 @@ const styles = StyleSheet.create({
   title: { fontSize: 20, fontFamily: "Inter_700Bold" },
   subtitle: { fontSize: 11, fontFamily: "Inter_400Regular", marginTop: 2 },
   createBtn: { width: 38, height: 38, borderRadius: 11, alignItems: "center", justifyContent: "center" },
-  catBar: { flexShrink: 0, borderBottomWidth: 1 },
-  catRow: { flexDirection: "row", paddingHorizontal: 16, paddingVertical: 10, gap: 8, alignItems: "center" },
   catChip: { flexDirection: "row", alignItems: "center", gap: 5, paddingHorizontal: 14, paddingVertical: 8, borderRadius: 20, borderWidth: 1, flexShrink: 0 },
-  catDot: { width: 6, height: 6, borderRadius: 3 },
   catLabel: { fontSize: 12, fontFamily: "Inter_600SemiBold" },
   catLabel2: { fontSize: 10, fontFamily: "Inter_700Bold" },
   pubCard: { borderRadius: 16, borderWidth: 1, borderLeftWidth: 4, padding: 16, gap: 10 },
@@ -553,26 +532,26 @@ const styles = StyleSheet.create({
   actionCount: { fontSize: 12, fontFamily: "Inter_500Medium" },
   readMore: { fontSize: 13, fontFamily: "Inter_600SemiBold" },
   modal: { flex: 1 },
-  modalHeader: { flexDirection: "row", alignItems: "center", padding: 20, borderBottomWidth: 1, gap: 8 },
-  modalTitle: { fontSize: 18, fontFamily: "Inter_700Bold", flex: 1 },
-  shareBtn: { width: 36, height: 36, borderRadius: 10, alignItems: "center", justifyContent: "center" },
-  articleMeta: { flexDirection: "row", alignItems: "center", justifyContent: "space-between" },
-  articleTitle: { fontSize: 22, fontFamily: "Inter_700Bold", lineHeight: 30 },
-  articleAuthor: { flexDirection: "row", alignItems: "center", gap: 12, paddingVertical: 14, borderBottomWidth: 1, borderTopWidth: 1 },
-  authorAvatarLg: { width: 46, height: 46, borderRadius: 23, alignItems: "center", justifyContent: "center" },
+  modalHeader: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", padding: 20, borderBottomWidth: 1 },
+  modalTitle: { fontSize: 17, fontFamily: "Inter_700Bold" },
+  shareBtn: { width: 36, height: 36, borderRadius: 18, alignItems: "center", justifyContent: "center" },
+  articleMeta: { flexDirection: "row", alignItems: "center", gap: 10 },
+  articleTitle: { fontSize: 20, fontFamily: "Inter_700Bold", lineHeight: 28 },
+  articleAuthor: { flexDirection: "row", alignItems: "center", gap: 12, padding: 14, borderRadius: 14, borderWidth: 1 },
+  authorAvatarLg: { width: 44, height: 44, borderRadius: 22, alignItems: "center", justifyContent: "center" },
   authorInitialsLg: { fontSize: 16, fontFamily: "Inter_700Bold" },
-  articleAuthorName: { fontSize: 14, fontFamily: "Inter_700Bold" },
-  articleAuthorRole: { fontSize: 12, fontFamily: "Inter_400Regular", marginTop: 2 },
+  articleAuthorName: { fontSize: 15, fontFamily: "Inter_700Bold" },
+  articleAuthorRole: { fontSize: 12, fontFamily: "Inter_400Regular" },
   articleContent: { fontSize: 15, fontFamily: "Inter_400Regular", lineHeight: 24 },
-  engagementRow: { flexDirection: "row", gap: 10, paddingTop: 16, borderTopWidth: 1 },
-  engBtn: { flex: 1, flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 8, paddingVertical: 12, borderRadius: 12 },
+  engagementRow: { flexDirection: "row", gap: 10, paddingTop: 12, borderTopWidth: 1 },
+  engBtn: { flex: 1, flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 6, paddingVertical: 10, borderRadius: 10 },
   engBtnText: { fontSize: 13, fontFamily: "Inter_600SemiBold" },
-  adminActions: { flexDirection: "row", gap: 10 },
-  adminBtn: { flex: 1, flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 7, paddingVertical: 11, borderRadius: 12, borderWidth: 1 },
+  adminActions: { flexDirection: "row", gap: 8, flexWrap: "wrap" },
+  adminBtn: { flex: 1, flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 6, paddingVertical: 10, borderRadius: 10, borderWidth: 1 },
   adminBtnText: { fontSize: 12, fontFamily: "Inter_600SemiBold" },
-  fieldLabel: { fontSize: 13, fontFamily: "Inter_500Medium" },
-  fieldInput: { borderWidth: 1, borderRadius: 12, paddingHorizontal: 14, paddingVertical: 12, fontSize: 14, fontFamily: "Inter_400Regular" },
-  contentArea: { minHeight: 140, textAlignVertical: "top" },
-  publishBtn: { flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 10, paddingVertical: 15, borderRadius: 14 },
+  fieldLabel: { fontSize: 13, fontFamily: "Inter_600SemiBold" },
+  fieldInput: { borderWidth: 1, borderRadius: 12, padding: 12, fontSize: 14, fontFamily: "Inter_400Regular" },
+  contentArea: { minHeight: 120, textAlignVertical: "top" },
+  publishBtn: { flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 8, paddingVertical: 15, borderRadius: 14 },
   publishBtnText: { fontSize: 14, fontFamily: "Inter_700Bold" },
 });

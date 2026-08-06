@@ -9,3 +9,9 @@
 - Sinistres & Incidents adopted shared translation keys and shared loading/retry components while preserving its severity/status color system, modal interaction pattern, and role-scoped access.
 - Mon Lot adopted shared translation keys and shared dependency-specific recovery components while preserving its unit/charge color semantics, tab structure, payment CTA, and support actions.
 - Mon Bail & Loyer adopted shared translation keys and shared loading/retry components while preserving its lease status colors, tenant card, information hierarchy, tenant-only visibility, and contact actions.
+- Notifications reuse the semantic alert colors, shared card treatments, channel controls, and existing touch targets while translating all supporting labels and state copy at runtime.
+- Internal Chat reuses the existing message action hierarchy, attachment controls, and shared typography while replacing visible fallback copy with runtime translations.
+- Level-1 Support reuses the existing semantic priority/status colors, card surfaces, filter pills, modal layout, and action hierarchy while translating labels and feedback at runtime.
+- Agenda reuses the existing event color/icon hierarchy, timeline cards, modal detail treatment, and touch actions while applying runtime translations, locale-aware date/currency formatting, and explicit failure feedback.
+- Financial Reports reuses the existing KPI, chart, breakdown, balance, and export hierarchy while applying semantic shared loading/error states, translated labels, locale-aware periods, and consistent MAD formatting.
+- Syndical Actions reuses the existing type/status colors, support and participation button hierarchy, metadata cards, modal sections, and optimistic interaction patterns while translating visible copy at runtime.
