@@ -42,7 +42,15 @@ export interface Meeting {
   date: string;
   time: string;
   location: string;
-  type: "board" | "general" | "committee" | "emergency" | "ag_ordinaire" | "ag_extraordinaire" | "ag_constitutive" | "ag_elective";
+  type:
+    | "board"
+    | "general"
+    | "committee"
+    | "emergency"
+    | "ag_ordinaire"
+    | "ag_extraordinaire"
+    | "ag_constitutive"
+    | "ag_elective";
   status: "scheduled" | "completed" | "cancelled" | "in_progress";
   attendees: number;
   description: string;
@@ -53,10 +61,24 @@ export interface Meeting {
 export interface Document {
   id: string;
   title: string;
-  category: "reglements" | "statuts" | "pv" | "juridique" | "finances" | "attestation";
+  category:
+    | "reglements"
+    | "statuts"
+    | "pv"
+    | "juridique"
+    | "finances"
+    | "attestation";
   date: string;
   size: string;
-  status: "published" | "draft" | "pending" | "generated" | "pending_review" | "validated" | "signed" | "archived";
+  status:
+    | "published"
+    | "draft"
+    | "pending"
+    | "generated"
+    | "pending_review"
+    | "validated"
+    | "signed"
+    | "archived";
   content?: string;
 }
 
@@ -67,7 +89,12 @@ export interface Product {
   price: number;
   seller: string;
   category: string;
-  status: "approved" | "pending_review" | "rejected" | "modification_requested" | "sold_out";
+  status:
+    | "approved"
+    | "pending_review"
+    | "rejected"
+    | "modification_requested"
+    | "sold_out";
   stock: number;
 }
 
@@ -150,7 +177,15 @@ export interface CaisseEntry {
 
 export interface ChatConversation {
   id: string;
-  convType: "direct" | "group" | "announcement" | "support" | "building" | "marketplace" | "incident" | "emergency";
+  convType:
+    | "direct"
+    | "group"
+    | "announcement"
+    | "support"
+    | "building"
+    | "marketplace"
+    | "incident"
+    | "emergency";
   isGroup: boolean;
   participant: string;
   participantId?: string | null;
@@ -193,7 +228,7 @@ export interface Syndicate {
   sector: string;
   members: number;
   admin: string;
-  adminId?: string;         // userId of the syndicate_admin — used to open DMs
+  adminId?: string; // userId of the syndicate_admin — used to open DMs
   status: "active" | "inactive";
   createdAt: string;
   region: string;
@@ -234,13 +269,21 @@ export interface SupportTicket {
   // Level 2 (syndicate admin → platform)
   scope: "syndicate" | "platform";
   escalatedFrom?: string;
-  category:
-    // Syndicate-scope categories (Level 1)
-    | "paiement" | "maintenance" | "juridique" | "administratif" | "general"
+  category: // Syndicate-scope categories (Level 1)
+    | "paiement"
+    | "maintenance"
+    | "juridique"
+    | "administratif"
+    | "general"
     // Platform-scope categories (Level 2)
-    | "bug" | "feature" | "acces" | "formation" | "autre"
+    | "bug"
+    | "feature"
+    | "acces"
+    | "formation"
+    | "autre"
     // Legacy values kept for backward-compatibility
-    | "technique" | "financier";
+    | "technique"
+    | "financier";
   replies?: TicketReply[];
 }
 
@@ -329,7 +372,14 @@ export interface NotificationPreference {
 export interface Partner {
   id: string;
   name: string;
-  type: "assurance" | "banque" | "formation" | "sante" | "juridique" | "commercial" | "autre";
+  type:
+    | "assurance"
+    | "banque"
+    | "formation"
+    | "sante"
+    | "juridique"
+    | "commercial"
+    | "autre";
   sector: string;
   contact: string;
   phone: string;
@@ -371,6 +421,7 @@ interface DataContextType {
   documents: Document[];
   documentsLoading: boolean;
   documentsLoadError: boolean;
+  partnersLoadError: boolean;
   products: Product[];
   transactions: Transaction[];
   salaries: SalaryRecord[];
@@ -394,9 +445,15 @@ interface DataContextType {
   partners: Partner[];
   payslips: PayslipRecord[];
   updateSubscription: (id: string, planId: string) => void;
-  toggleNotificationPref: (id: string, channel: "push" | "email" | "inApp") => void;
-  addPartner: (p: Partner) => void;
-  updatePartnerStatus: (id: string, status: Partner["status"]) => void;
+  toggleNotificationPref: (
+    id: string,
+    channel: "push" | "email" | "inApp",
+  ) => void;
+  addPartner: (p: Partner) => Promise<boolean>;
+  updatePartnerStatus: (
+    id: string,
+    status: Partner["status"],
+  ) => Promise<boolean>;
   generatePayslip: (employeeId: string, month: string) => void;
   likePublication: (id: string) => void;
   addPublication: (p: Publication) => void;
@@ -421,7 +478,10 @@ interface DataContextType {
   deleteConversation: (conversationId: string) => void;
   refreshConversations: () => Promise<void>;
   addTransaction: (t: Transaction) => void;
-  updateTransactionStatus: (id: string, status: Transaction["status"]) => Promise<void>;
+  updateTransactionStatus: (
+    id: string,
+    status: Transaction["status"],
+  ) => Promise<void>;
   createElection: (e: Election) => void;
   addToCart: (item: Omit<CartItem, "id">) => void;
   removeFromCart: (id: string) => void;
@@ -431,22 +491,30 @@ interface DataContextType {
   addInvoice: (inv: Invoice) => Promise<boolean>;
   refreshInvoices: () => Promise<void>;
   addBonLivraison: (bl: BonLivraison) => void;
-  updateBonLivraisonStatus: (id: string, status: BonLivraison["status"]) => void;
+  updateBonLivraisonStatus: (
+    id: string,
+    status: BonLivraison["status"],
+  ) => void;
   confirmMeetingAttendance: (id: string) => void;
   addMeeting: (m: Meeting) => void;
   updateMeeting: (m: Meeting) => void;
-  updateDocument: (id: string, changes: Partial<Pick<Document, "title" | "content" | "category" | "status">>) => void;
+  updateDocument: (
+    id: string,
+    changes: Partial<
+      Pick<Document, "title" | "content" | "category" | "status">
+    >,
+  ) => void;
   addDocument: (doc: Document) => void;
   refreshDocuments: () => Promise<void>;
   deleteDocument: (id: string) => void;
   markAllAlertsRead: () => void;
 }
 
-
-
 // ─── Row mapper (module-level, no closure deps) ──────────────────────────────
 
-function mapConversationRow(r: unknown): import("./DataContext").ChatConversation {
+function mapConversationRow(
+  r: unknown,
+): import("./DataContext").ChatConversation {
   const row = r as Record<string, unknown>;
   return {
     id: String(row.id),
@@ -470,7 +538,9 @@ function mapConversationRow(r: unknown): import("./DataContext").ChatConversatio
     buildingId: row.buildingId ? String(row.buildingId) : null,
     productId: row.productId ? String(row.productId) : null,
     incidentId: row.incidentId ? String(row.incidentId) : null,
-    participantIds: Array.isArray(row.participantIds) ? (row.participantIds as string[]) : [],
+    participantIds: Array.isArray(row.participantIds)
+      ? (row.participantIds as string[])
+      : [],
     isArchived: Boolean(row.isArchived),
     isBlocked: Boolean(row.isBlocked),
   };
@@ -508,10 +578,17 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
   const [bonsLivraison, setBonsLivraison] = useState<BonLivraison[]>([]);
   const [invoices, setInvoices] = useState<Invoice[]>([]);
   const [reviews, setReviews] = useState<Review[]>([]);
-  const [subscriptionPlans, setSubscriptionPlans] = useState<SubscriptionPlan[]>([]);
-  const [syndicateSubscriptions, setSyndicateSubscriptions] = useState<SyndicateSubscription[]>([]);
-  const [notificationPreferences, setNotificationPreferences] = useState<NotificationPreference[]>([]);
+  const [subscriptionPlans, setSubscriptionPlans] = useState<
+    SubscriptionPlan[]
+  >([]);
+  const [syndicateSubscriptions, setSyndicateSubscriptions] = useState<
+    SyndicateSubscription[]
+  >([]);
+  const [notificationPreferences, setNotificationPreferences] = useState<
+    NotificationPreference[]
+  >([]);
   const [partners, setPartners] = useState<Partner[]>([]);
+  const [partnersLoadError, setPartnersLoadError] = useState(false);
   const [payslips, setPayslips] = useState<PayslipRecord[]>([]);
 
   useEffect(() => {
@@ -522,6 +599,7 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
     setMeetingsLoadError(false);
     setDocumentsLoading(true);
     setDocumentsLoadError(false);
+    setPartnersLoadError(false);
     async function loadFromApi() {
       try {
         const results = await Promise.allSettled([
@@ -553,16 +631,35 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
 
         if (cancelled) return;
 
-        const rejectedCount = results.filter((result) => result.status === "rejected").length;
+        const rejectedCount = results.filter(
+          (result) => result.status === "rejected",
+        ).length;
         setDataLoadError(rejectedCount === results.length);
 
         const [
-          membersRes, electionsRes, meetingsRes,
-          transactionsRes, salariesRes, caisseRes, invoicesRes, bonsRes,
-          productsRes, ordersRes, reviewsRes,
-          conversationsRes, syndicatesRes,
-          legalAlertsRes, ticketsRes, cotisationsRes, alertsRes,
-          publicationsRes, notifPrefsRes, subsRes, plansRes, partnersRes, payslipsRes,
+          membersRes,
+          electionsRes,
+          meetingsRes,
+          transactionsRes,
+          salariesRes,
+          caisseRes,
+          invoicesRes,
+          bonsRes,
+          productsRes,
+          ordersRes,
+          reviewsRes,
+          conversationsRes,
+          syndicatesRes,
+          legalAlertsRes,
+          ticketsRes,
+          cotisationsRes,
+          alertsRes,
+          publicationsRes,
+          notifPrefsRes,
+          subsRes,
+          plansRes,
+          partnersRes,
+          payslipsRes,
           documentsRes,
         ] = results;
 
@@ -571,40 +668,48 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
         if (membersRes.status === "fulfilled") {
           const rows = (membersRes.value as { data: unknown[] }).data;
           if (rows?.length) {
-            setMembers(rows.map((r: unknown) => {
-              const row = r as Record<string, unknown>;
-              return {
-                id: String(row.id),
-                name: String(row.name ?? ""),
-                email: String(row.email ?? ""),
-                phone: String(row.phone ?? ""),
-                profession: String(row.profession ?? ""),
-                joinDate: String(row.joinDate ?? row.createdAt ?? ""),
-                status: (row.status as Member["status"]) ?? "active",
-                cotisationStatus: (row.cotisationStatus as Member["cotisationStatus"]) ?? "pending",
-                syndicate: String(row.syndicate ?? row.syndicateName ?? ""),
-              };
-            }));
+            setMembers(
+              rows.map((r: unknown) => {
+                const row = r as Record<string, unknown>;
+                return {
+                  id: String(row.id),
+                  name: String(row.name ?? ""),
+                  email: String(row.email ?? ""),
+                  phone: String(row.phone ?? ""),
+                  profession: String(row.profession ?? ""),
+                  joinDate: String(row.joinDate ?? row.createdAt ?? ""),
+                  status: (row.status as Member["status"]) ?? "active",
+                  cotisationStatus:
+                    (row.cotisationStatus as Member["cotisationStatus"]) ??
+                    "pending",
+                  syndicate: String(row.syndicate ?? row.syndicateName ?? ""),
+                };
+              }),
+            );
           }
         }
 
         if (electionsRes.status === "fulfilled") {
           const rows = (electionsRes.value as { data: unknown[] }).data;
           if (rows?.length) {
-            setElections(rows.map((r: unknown) => {
-              const row = r as Record<string, unknown>;
-              const cands = Array.isArray(row.candidates) ? row.candidates as Record<string, unknown>[] : [];
-              return {
-                id: String(row.id),
-                title: String(row.title ?? ""),
-                status: (row.status as Election["status"]) ?? "upcoming",
-                candidates: cands.length,
-                votes: cands.reduce((s, c) => s + Number(c.votes ?? 0), 0),
-                startDate: String(row.startDate ?? ""),
-                endDate: String(row.endDate ?? ""),
-                description: String(row.description ?? ""),
-              };
-            }));
+            setElections(
+              rows.map((r: unknown) => {
+                const row = r as Record<string, unknown>;
+                const cands = Array.isArray(row.candidates)
+                  ? (row.candidates as Record<string, unknown>[])
+                  : [];
+                return {
+                  id: String(row.id),
+                  title: String(row.title ?? ""),
+                  status: (row.status as Election["status"]) ?? "upcoming",
+                  candidates: cands.length,
+                  votes: cands.reduce((s, c) => s + Number(c.votes ?? 0), 0),
+                  startDate: String(row.startDate ?? ""),
+                  endDate: String(row.endDate ?? ""),
+                  description: String(row.description ?? ""),
+                };
+              }),
+            );
             const allCandidates: Candidate[] = [];
             for (const r of rows) {
               const row = r as Record<string, unknown>;
@@ -618,7 +723,9 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
                     post: String(cand.post ?? ""),
                     votes: Number(cand.votes ?? 0),
                     bio: String(cand.bio ?? ""),
-                    voted: row.userVotedCandidateId != null && String(row.userVotedCandidateId) === String(cand.id),
+                    voted:
+                      row.userVotedCandidateId != null &&
+                      String(row.userVotedCandidateId) === String(cand.id),
                   });
                 }
               }
@@ -630,216 +737,276 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
         if (meetingsRes.status === "fulfilled") {
           const rows = (meetingsRes.value as { data: unknown[] }).data;
           if (rows?.length) {
-            setMeetings(rows.map((r: unknown) => {
-              const row = r as Record<string, unknown>;
-              let agenda: string[] | undefined;
-              if (Array.isArray(row.agendaLines) && (row.agendaLines as unknown[]).length > 0) {
-                agenda = (row.agendaLines as unknown[]).map(String);
-              } else if (Array.isArray(row.agenda) && (row.agenda as unknown[]).length > 0) {
-                agenda = (row.agenda as unknown[]).map(String);
-              } else if (typeof row.agenda === "string" && row.agenda.trim()) {
-                agenda = row.agenda.split("\n").map((s) => s.trim()).filter(Boolean);
-              }
-              return {
-                id: String(row.id),
-                title: String(row.title ?? ""),
-                date: String(row.date ?? ""),
-                time: String(row.time ?? "09:00"),
-                location: String(row.location ?? ""),
-                type: (row.type as Meeting["type"]) ?? "general",
-                status: (row.status as Meeting["status"]) ?? "scheduled",
-                attendees: Number(row.attendees ?? 0),
-                description: String(row.description ?? ""),
-                userConfirmed: Boolean(row.userConfirmed),
-                agenda,
-              };
-            }));
+            setMeetings(
+              rows.map((r: unknown) => {
+                const row = r as Record<string, unknown>;
+                let agenda: string[] | undefined;
+                if (
+                  Array.isArray(row.agendaLines) &&
+                  (row.agendaLines as unknown[]).length > 0
+                ) {
+                  agenda = (row.agendaLines as unknown[]).map(String);
+                } else if (
+                  Array.isArray(row.agenda) &&
+                  (row.agenda as unknown[]).length > 0
+                ) {
+                  agenda = (row.agenda as unknown[]).map(String);
+                } else if (
+                  typeof row.agenda === "string" &&
+                  row.agenda.trim()
+                ) {
+                  agenda = row.agenda
+                    .split("\n")
+                    .map((s) => s.trim())
+                    .filter(Boolean);
+                }
+                return {
+                  id: String(row.id),
+                  title: String(row.title ?? ""),
+                  date: String(row.date ?? ""),
+                  time: String(row.time ?? "09:00"),
+                  location: String(row.location ?? ""),
+                  type: (row.type as Meeting["type"]) ?? "general",
+                  status: (row.status as Meeting["status"]) ?? "scheduled",
+                  attendees: Number(row.attendees ?? 0),
+                  description: String(row.description ?? ""),
+                  userConfirmed: Boolean(row.userConfirmed),
+                  agenda,
+                };
+              }),
+            );
           }
         }
 
         if (transactionsRes.status === "fulfilled") {
           const rows = (transactionsRes.value as { data: unknown[] }).data;
           if (rows?.length) {
-            setTransactions(rows.map((r: unknown) => {
-              const row = r as Record<string, unknown>;
-              return {
-                id: String(row.id),
-                type: (row.type as Transaction["type"]) ?? "cotisation",
-                amount: Number(row.amount ?? 0),
-                label: String(row.label ?? ""),
-                date: String(row.date ?? row.createdAt ?? ""),
-                status: (row.status as Transaction["status"]) ?? "pending",
-                member: row.memberName ? String(row.memberName) : undefined,
-              };
-            }));
+            setTransactions(
+              rows.map((r: unknown) => {
+                const row = r as Record<string, unknown>;
+                return {
+                  id: String(row.id),
+                  type: (row.type as Transaction["type"]) ?? "cotisation",
+                  amount: Number(row.amount ?? 0),
+                  label: String(row.label ?? ""),
+                  date: String(row.date ?? row.createdAt ?? ""),
+                  status: (row.status as Transaction["status"]) ?? "pending",
+                  member: row.memberName ? String(row.memberName) : undefined,
+                };
+              }),
+            );
           }
         }
 
         if (productsRes.status === "fulfilled") {
           const rows = (productsRes.value as { data: unknown[] }).data;
           if (rows?.length) {
-            setProducts(rows.map((r: unknown) => {
-              const row = r as Record<string, unknown>;
-              return {
-                id: String(row.id),
-                name: String(row.name ?? ""),
-                description: String(row.description ?? ""),
-                price: Number(row.price ?? 0),
-                seller: String(row.seller ?? row.sellerName ?? ""),
-                category: String(row.category ?? ""),
-                status: (row.status as Product["status"]) ?? "approved",
-                stock: Number(row.stock ?? 0),
-              };
-            }));
+            setProducts(
+              rows.map((r: unknown) => {
+                const row = r as Record<string, unknown>;
+                return {
+                  id: String(row.id),
+                  name: String(row.name ?? ""),
+                  description: String(row.description ?? ""),
+                  price: Number(row.price ?? 0),
+                  seller: String(row.seller ?? row.sellerName ?? ""),
+                  category: String(row.category ?? ""),
+                  status: (row.status as Product["status"]) ?? "approved",
+                  stock: Number(row.stock ?? 0),
+                };
+              }),
+            );
           }
         }
 
         if (legalAlertsRes.status === "fulfilled") {
           const rows = (legalAlertsRes.value as { data: unknown[] }).data;
           if (rows?.length) {
-            setLegalAlerts(rows.map((r: unknown) => {
-              const row = r as Record<string, unknown>;
-              return {
-                id: String(row.id),
-                title: String(row.title ?? ""),
-                description: String(row.description ?? ""),
-                level: (row.level as LegalAlert["level"]) ?? "info",
-                category: (row.category as LegalAlert["category"]) ?? "statuts",
-                date: String(row.date ?? row.createdAt ?? ""),
-                status: (row.status as LegalAlert["status"]) ?? "open",
-                action: row.action ? String(row.action) : undefined,
-              };
-            }));
+            setLegalAlerts(
+              rows.map((r: unknown) => {
+                const row = r as Record<string, unknown>;
+                return {
+                  id: String(row.id),
+                  title: String(row.title ?? ""),
+                  description: String(row.description ?? ""),
+                  level: (row.level as LegalAlert["level"]) ?? "info",
+                  category:
+                    (row.category as LegalAlert["category"]) ?? "statuts",
+                  date: String(row.date ?? row.createdAt ?? ""),
+                  status: (row.status as LegalAlert["status"]) ?? "open",
+                  action: row.action ? String(row.action) : undefined,
+                };
+              }),
+            );
           }
         }
 
         if (ticketsRes.status === "fulfilled") {
           const rows = (ticketsRes.value as { data: unknown[] }).data;
           if (rows?.length) {
-            setSupportTickets(rows.map((r: unknown) => {
-              const row = r as Record<string, unknown>;
-              const validCats = [
-                "paiement", "maintenance", "juridique", "administratif", "general",
-                "bug", "feature", "acces", "formation", "autre",
-                "technique", "financier", // legacy
-              ];
-              return {
-                id:            String(row.id),
-                title:         String(row.title ?? ""),
-                description:   String(row.description ?? ""),
-                submittedBy:   String(row.submittedByName ?? row.submittedBy ?? ""),
-                submittedById: row.submittedById ? String(row.submittedById) : undefined,
-                syndicate:     String(row.syndicateName ?? row.syndicate ?? ""),
-                syndicateId:   row.syndicateId ? String(row.syndicateId) : undefined,
-                priority:      (row.priority as SupportTicket["priority"]) ?? "medium",
-                status:        (row.status as SupportTicket["status"]) ?? "open",
-                date:          String(row.date ?? row.createdAt ?? ""),
-                scope:         (row.scope === "platform" ? "platform" : "syndicate") as SupportTicket["scope"],
-                escalatedFrom: row.escalatedFrom ? String(row.escalatedFrom) : undefined,
-                category:      (validCats.includes(row.category as string)
-                  ? row.category : "general") as SupportTicket["category"],
-                replies: Array.isArray(row.replies) ? (row.replies as any[]).map((rp: any) => ({
-                  id:         String(rp.id ?? ""),
-                  ticketId:   String(rp.ticketId ?? ""),
-                  authorId:   String(rp.authorId ?? ""),
-                  authorName: String(rp.authorName ?? ""),
-                  text:       String(rp.text ?? ""),
-                  createdAt:  String(rp.createdAt ?? ""),
-                })) : [],
-              };
-            }));
+            setSupportTickets(
+              rows.map((r: unknown) => {
+                const row = r as Record<string, unknown>;
+                const validCats = [
+                  "paiement",
+                  "maintenance",
+                  "juridique",
+                  "administratif",
+                  "general",
+                  "bug",
+                  "feature",
+                  "acces",
+                  "formation",
+                  "autre",
+                  "technique",
+                  "financier", // legacy
+                ];
+                return {
+                  id: String(row.id),
+                  title: String(row.title ?? ""),
+                  description: String(row.description ?? ""),
+                  submittedBy: String(
+                    row.submittedByName ?? row.submittedBy ?? "",
+                  ),
+                  submittedById: row.submittedById
+                    ? String(row.submittedById)
+                    : undefined,
+                  syndicate: String(row.syndicateName ?? row.syndicate ?? ""),
+                  syndicateId: row.syndicateId
+                    ? String(row.syndicateId)
+                    : undefined,
+                  priority:
+                    (row.priority as SupportTicket["priority"]) ?? "medium",
+                  status: (row.status as SupportTicket["status"]) ?? "open",
+                  date: String(row.date ?? row.createdAt ?? ""),
+                  scope: (row.scope === "platform"
+                    ? "platform"
+                    : "syndicate") as SupportTicket["scope"],
+                  escalatedFrom: row.escalatedFrom
+                    ? String(row.escalatedFrom)
+                    : undefined,
+                  category: (validCats.includes(row.category as string)
+                    ? row.category
+                    : "general") as SupportTicket["category"],
+                  replies: Array.isArray(row.replies)
+                    ? (row.replies as any[]).map((rp: any) => ({
+                        id: String(rp.id ?? ""),
+                        ticketId: String(rp.ticketId ?? ""),
+                        authorId: String(rp.authorId ?? ""),
+                        authorName: String(rp.authorName ?? ""),
+                        text: String(rp.text ?? ""),
+                        createdAt: String(rp.createdAt ?? ""),
+                      }))
+                    : [],
+                };
+              }),
+            );
           }
         }
 
         if (cotisationsRes.status === "fulfilled") {
           const rows = (cotisationsRes.value as { data: unknown[] }).data;
           if (rows?.length) {
-            setCotisations(rows.map((r: unknown) => {
-              const row = r as Record<string, unknown>;
-              return {
-                id: String(row.id),
-                label: String(row.label ?? ""),
-                amount: Number(row.amount ?? 0),
-                dueDate: String(row.dueDate ?? ""),
-                paidDate: row.paidDate ? String(row.paidDate) : undefined,
-                status: (row.status as Cotisation["status"]) ?? "pending",
-                receipt: row.receipt ? String(row.receipt) : undefined,
-                period: String(row.period ?? ""),
-              };
-            }));
+            setCotisations(
+              rows.map((r: unknown) => {
+                const row = r as Record<string, unknown>;
+                return {
+                  id: String(row.id),
+                  label: String(row.label ?? ""),
+                  amount: Number(row.amount ?? 0),
+                  dueDate: String(row.dueDate ?? ""),
+                  paidDate: row.paidDate ? String(row.paidDate) : undefined,
+                  status: (row.status as Cotisation["status"]) ?? "pending",
+                  receipt: row.receipt ? String(row.receipt) : undefined,
+                  period: String(row.period ?? ""),
+                };
+              }),
+            );
           }
         }
 
         if (alertsRes.status === "fulfilled") {
           const rows = (alertsRes.value as { data: unknown[] }).data;
           if (rows?.length) {
-            setAlerts(rows.map((r: unknown) => {
-              const row = r as Record<string, unknown>;
-              return {
-                id: String(row.id),
-                title: String(row.title ?? ""),
-                message: String(row.message ?? ""),
-                type: (row.type as Alert["type"]) ?? "info",
-                date: String(row.date ?? row.createdAt ?? ""),
-                read: Boolean((row as any).readByUser ?? row.read),
-                target: (row.target as Alert["target"]) ?? "all",
-              };
-            }));
+            setAlerts(
+              rows.map((r: unknown) => {
+                const row = r as Record<string, unknown>;
+                return {
+                  id: String(row.id),
+                  title: String(row.title ?? ""),
+                  message: String(row.message ?? ""),
+                  type: (row.type as Alert["type"]) ?? "info",
+                  date: String(row.date ?? row.createdAt ?? ""),
+                  read: Boolean((row as any).readByUser ?? row.read),
+                  target: (row.target as Alert["target"]) ?? "all",
+                };
+              }),
+            );
           }
         }
 
         if (publicationsRes.status === "fulfilled") {
           const rows = (publicationsRes.value as { data: unknown[] }).data;
           if (rows?.length) {
-            setPublications(rows.map((r: unknown) => {
-              const row = r as Record<string, unknown>;
-              return {
-                id: String(row.id),
-                title: String(row.title ?? ""),
-                content: String(row.content ?? ""),
-                date: String(row.date ?? row.createdAt ?? ""),
-                author: String(row.author ?? row.authorName ?? ""),
-                category: String(row.category ?? ""),
-                pinned: Boolean(row.pinned),
-                likes: Number(row.likes ?? 0),
-                comments: Number(row.comments ?? 0),
-              };
-            }));
+            setPublications(
+              rows.map((r: unknown) => {
+                const row = r as Record<string, unknown>;
+                return {
+                  id: String(row.id),
+                  title: String(row.title ?? ""),
+                  content: String(row.content ?? ""),
+                  date: String(row.date ?? row.createdAt ?? ""),
+                  author: String(row.author ?? row.authorName ?? ""),
+                  category: String(row.category ?? ""),
+                  pinned: Boolean(row.pinned),
+                  likes: Number(row.likes ?? 0),
+                  comments: Number(row.comments ?? 0),
+                };
+              }),
+            );
           }
         }
 
         if (syndicatesRes.status === "fulfilled") {
           const rows = (syndicatesRes.value as { data: unknown[] }).data;
           if (rows?.length) {
-            setSyndicates(rows.map((r: unknown) => {
-              const row = r as Record<string, unknown>;
-              return {
-                id: String(row.id),
-                name: String(row.name ?? ""),
-                sector: String(row.sector ?? ""),
-                members: Number(row.membersCount ?? row.members ?? 0),
-                admin: String(row.admin ?? row.adminName ?? ""),
-                adminId: row.adminId ? String(row.adminId) : undefined,
-                status: (row.status as Syndicate["status"]) ?? "active",
-                createdAt: String(row.createdAt ?? ""),
-                region: String(row.region ?? ""),
-              };
-            }));
+            setSyndicates(
+              rows.map((r: unknown) => {
+                const row = r as Record<string, unknown>;
+                return {
+                  id: String(row.id),
+                  name: String(row.name ?? ""),
+                  sector: String(row.sector ?? ""),
+                  members: Number(row.membersCount ?? row.members ?? 0),
+                  admin: String(row.admin ?? row.adminName ?? ""),
+                  adminId: row.adminId ? String(row.adminId) : undefined,
+                  status: (row.status as Syndicate["status"]) ?? "active",
+                  createdAt: String(row.createdAt ?? ""),
+                  region: String(row.region ?? ""),
+                };
+              }),
+            );
           }
         }
 
         if (notifPrefsRes.status === "fulfilled") {
           const rows = (notifPrefsRes.value as { data: unknown[] }).data;
-          if (rows?.length) setNotificationPreferences(rows as NotificationPreference[]);
+          if (rows?.length)
+            setNotificationPreferences(rows as NotificationPreference[]);
         }
 
         if (subsRes.status === "fulfilled") {
           const rows = (subsRes.value as { data: unknown[] }).data;
           if (rows?.length) {
-            setSyndicateSubscriptions(rows.map((r: unknown) => {
-              const row = r as Record<string, unknown>;
-              return { ...(row as unknown as SyndicateSubscription), amount: Number(row.amount ?? 0) };
-            }));
+            setSyndicateSubscriptions(
+              rows.map((r: unknown) => {
+                const row = r as Record<string, unknown>;
+                return {
+                  ...(row as unknown as SyndicateSubscription),
+                  amount: Number(row.amount ?? 0),
+                };
+              }),
+            );
           }
         }
 
@@ -851,6 +1018,8 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
         if (partnersRes.status === "fulfilled") {
           const rows = (partnersRes.value as { data: unknown[] }).data;
           if (rows?.length) setPartners(rows as Partner[]);
+        } else {
+          setPartnersLoadError(true);
         }
 
         if (payslipsRes.status === "fulfilled") {
@@ -861,36 +1030,40 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
         if (salariesRes.status === "fulfilled") {
           const rows = (salariesRes.value as { data: unknown[] }).data;
           if (rows?.length) {
-            setSalaries(rows.map((r: unknown) => {
-              const row = r as Record<string, unknown>;
-              return {
-                id: String(row.id),
-                employee: String(row.employee ?? row.employeeName ?? ""),
-                role: String(row.role ?? ""),
-                amount: Number(row.amount ?? 0),
-                month: String(row.month ?? ""),
-                status: (row.status as SalaryRecord["status"]) ?? "pending",
-                date: String(row.date ?? row.createdAt ?? ""),
-              };
-            }));
+            setSalaries(
+              rows.map((r: unknown) => {
+                const row = r as Record<string, unknown>;
+                return {
+                  id: String(row.id),
+                  employee: String(row.employee ?? row.employeeName ?? ""),
+                  role: String(row.role ?? ""),
+                  amount: Number(row.amount ?? 0),
+                  month: String(row.month ?? ""),
+                  status: (row.status as SalaryRecord["status"]) ?? "pending",
+                  date: String(row.date ?? row.createdAt ?? ""),
+                };
+              }),
+            );
           }
         }
 
         if (caisseRes.status === "fulfilled") {
           const rows = (caisseRes.value as { data: unknown[] }).data;
           if (rows?.length) {
-            setCaisseEntries(rows.map((r: unknown) => {
-              const row = r as Record<string, unknown>;
-              return {
-                id: String(row.id),
-                label: String(row.label ?? ""),
-                amount: Number(row.amount ?? 0),
-                type: (row.type as CaisseEntry["type"]) ?? "encaissement",
-                date: String(row.date ?? row.createdAt ?? ""),
-                balance: Number(row.balance ?? 0),
-                category: String(row.category ?? ""),
-              };
-            }));
+            setCaisseEntries(
+              rows.map((r: unknown) => {
+                const row = r as Record<string, unknown>;
+                return {
+                  id: String(row.id),
+                  label: String(row.label ?? ""),
+                  amount: Number(row.amount ?? 0),
+                  type: (row.type as CaisseEntry["type"]) ?? "encaissement",
+                  date: String(row.date ?? row.createdAt ?? ""),
+                  balance: Number(row.balance ?? 0),
+                  category: String(row.category ?? ""),
+                };
+              }),
+            );
           }
         }
 
@@ -907,19 +1080,21 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
         if (ordersRes.status === "fulfilled") {
           const rows = (ordersRes.value as { data: unknown[] }).data;
           if (rows?.length) {
-            setOrders(rows.map((r: unknown) => {
-              const row = r as Record<string, unknown>;
-              return {
-                id: String(row.id),
-                product: String(row.product ?? row.productName ?? ""),
-                buyer: String(row.buyer ?? row.buyerName ?? ""),
-                seller: String(row.seller ?? row.sellerName ?? ""),
-                amount: Number(row.amount ?? 0),
-                status: (row.status as Order["status"]) ?? "pending",
-                date: String(row.date ?? row.createdAt ?? ""),
-                type: (row.type as Order["type"]) ?? "purchase",
-              };
-            }));
+            setOrders(
+              rows.map((r: unknown) => {
+                const row = r as Record<string, unknown>;
+                return {
+                  id: String(row.id),
+                  product: String(row.product ?? row.productName ?? ""),
+                  buyer: String(row.buyer ?? row.buyerName ?? ""),
+                  seller: String(row.seller ?? row.sellerName ?? ""),
+                  amount: Number(row.amount ?? 0),
+                  status: (row.status as Order["status"]) ?? "pending",
+                  date: String(row.date ?? row.createdAt ?? ""),
+                  type: (row.type as Order["type"]) ?? "purchase",
+                };
+              }),
+            );
           }
         }
 
@@ -937,18 +1112,20 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
 
         if (documentsRes.status === "fulfilled") {
           const rows = (documentsRes.value as { data: unknown[] }).data;
-          setDocuments((rows ?? []).map((r: unknown) => {
-            const row = r as Record<string, unknown>;
-            return {
-              id: String(row.id),
-              title: String(row.title ?? ""),
-              category: (row.category as Document["category"]) ?? "statuts",
-              date: String(row.date ?? row.createdAt ?? ""),
-              size: String(row.size ?? ""),
-              status: (row.status as Document["status"]) ?? "published",
-              content: row.content != null ? String(row.content) : undefined,
-            };
-          }));
+          setDocuments(
+            (rows ?? []).map((r: unknown) => {
+              const row = r as Record<string, unknown>;
+              return {
+                id: String(row.id),
+                title: String(row.title ?? ""),
+                category: (row.category as Document["category"]) ?? "statuts",
+                date: String(row.date ?? row.createdAt ?? ""),
+                size: String(row.size ?? ""),
+                status: (row.status as Document["status"]) ?? "published",
+                content: row.content != null ? String(row.content) : undefined,
+              };
+            }),
+          );
           setDocumentsLoadError(false);
         } else {
           setDocumentsLoadError(true);
@@ -969,7 +1146,9 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
       }
     }
     loadFromApi();
-    return () => { cancelled = true; };
+    return () => {
+      cancelled = true;
+    };
   }, [user?.id, dataRefreshKey]);
 
   const refreshData = () => {
@@ -980,27 +1159,60 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
     const plan = subscriptionPlans.find((p) => p.id === planId);
     if (!plan) return;
     setSyndicateSubscriptions((p) =>
-      p.map((s) => s.id === id ? { ...s, planId, planName: plan.name, amount: plan.price, maxMembers: plan.maxMembers } : s)
+      p.map((s) =>
+        s.id === id
+          ? {
+              ...s,
+              planId,
+              planName: plan.name,
+              amount: plan.price,
+              maxMembers: plan.maxMembers,
+            }
+          : s,
+      ),
     );
     api.content.updateSubscription(id, planId).catch(() => {});
   };
 
-  const toggleNotificationPref = (id: string, channel: "push" | "email" | "inApp") => {
+  const toggleNotificationPref = (
+    id: string,
+    channel: "push" | "email" | "inApp",
+  ) => {
     const current = notificationPreferences.find((n) => n.id === id);
     const newValue = current ? !current[channel] : true;
     setNotificationPreferences((p) =>
-      p.map((n) => (n.id === id ? { ...n, [channel]: !n[channel] } : n))
+      p.map((n) => (n.id === id ? { ...n, [channel]: !n[channel] } : n)),
     );
     api.content.toggleNotificationPref(id, channel, newValue).catch(() => {});
   };
 
-  const addPartner = (p: Partner) => {
+  const addPartner = async (p: Partner): Promise<boolean> => {
     setPartners((prev) => [p, ...prev]);
-    api.content.addPartner(p).catch(() => {});
+    try {
+      await api.content.addPartner(p);
+      return true;
+    } catch {
+      setPartners((prev) => prev.filter((partner) => partner.id !== p.id));
+      return false;
+    }
   };
-  const updatePartnerStatus = (id: string, status: Partner["status"]) => {
+  const updatePartnerStatus = async (
+    id: string,
+    status: Partner["status"],
+  ): Promise<boolean> => {
+    const previous = partners.find((partner) => partner.id === id)?.status;
     setPartners((p) => p.map((pt) => (pt.id === id ? { ...pt, status } : pt)));
-    api.content.updatePartnerStatus(id, status).catch(() => {});
+    try {
+      await api.content.updatePartnerStatus(id, status);
+      return true;
+    } catch {
+      if (previous) {
+        setPartners((p) =>
+          p.map((pt) => (pt.id === id ? { ...pt, status: previous } : pt)),
+        );
+      }
+      return false;
+    }
   };
   const generatePayslip = (employeeId: string, month: string) => {
     const existing = payslips.find((ps) => ps.employeeId === employeeId);
@@ -1017,7 +1229,13 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
   };
 
   const confirmMeetingAttendance = (id: string) => {
-    setMeetings((p) => p.map((m) => m.id === id ? { ...m, attendees: m.attendees + 1, userConfirmed: true } : m));
+    setMeetings((p) =>
+      p.map((m) =>
+        m.id === id
+          ? { ...m, attendees: m.attendees + 1, userConfirmed: true }
+          : m,
+      ),
+    );
     api.meetings.confirmAttendance(id).catch(() => {});
   };
 
@@ -1026,7 +1244,7 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
   };
 
   const updateMeeting = (m: Meeting) => {
-    setMeetings((p) => p.map((x) => x.id === m.id ? m : x));
+    setMeetings((p) => p.map((x) => (x.id === m.id ? m : x)));
   };
 
   const markAllAlertsRead = () => {
@@ -1036,17 +1254,19 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
 
   const refreshAlerts = async () => {
     try {
-      const res = await api.content.alerts() as any;
+      const res = (await api.content.alerts()) as any;
       const rows = (res.data ?? []) as Record<string, unknown>[];
-      setAlerts(rows.map((row) => ({
-        id: String(row.id),
-        title: String(row.title ?? ""),
-        message: String(row.message ?? ""),
-        type: (row.type as Alert["type"]) ?? "info",
-        date: String(row.date ?? row.createdAt ?? ""),
-        read: Boolean((row as any).readByUser ?? row.read),
-        target: (row.target as Alert["target"]) ?? "all",
-      })));
+      setAlerts(
+        rows.map((row) => ({
+          id: String(row.id),
+          title: String(row.title ?? ""),
+          message: String(row.message ?? ""),
+          type: (row.type as Alert["type"]) ?? "info",
+          date: String(row.date ?? row.createdAt ?? ""),
+          read: Boolean((row as any).readByUser ?? row.read),
+          target: (row.target as Alert["target"]) ?? "all",
+        })),
+      );
     } catch {
       // keep showing stale data
     }
@@ -1054,31 +1274,57 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
 
   useEffect(() => {
     if (!user) return;
-    const id = setInterval(() => { refreshAlerts(); }, 30_000);
+    const id = setInterval(() => {
+      refreshAlerts();
+    }, 30_000);
     return () => clearInterval(id);
   }, [user]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // Poll conversations every 5s for real-time unread count and last message updates
   useEffect(() => {
     if (!user) return;
-    const id = setInterval(() => { refreshConversations(); }, 5_000);
+    const id = setInterval(() => {
+      refreshConversations();
+    }, 5_000);
     return () => clearInterval(id);
   }, [user]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const addMember = (m: Member) => {
     setMembers((p) => [m, ...p]);
     api.members.create(m).catch(() => {
-      notificationBus.emit({ type: "warning", message: `Membre ajouté localement — sera synchronisé au prochain démarrage` });
+      notificationBus.emit({
+        type: "warning",
+        message: `Membre ajouté localement — sera synchronisé au prochain démarrage`,
+      });
     });
-    notificationBus.emit({ type: "success", message: `Demande d'adhésion enregistrée : ${m.name}` });
+    notificationBus.emit({
+      type: "success",
+      message: `Demande d'adhésion enregistrée : ${m.name}`,
+    });
   };
   const updateMemberStatus = (id: string, status: Member["status"]) => {
     setMembers((p) => p.map((m) => (m.id === id ? { ...m, status } : m)));
     api.members.updateStatus(id, status).catch(() => {});
     const action = status === "active" ? "approve_member" : "reject_member";
-    api.content.auditLog({ action, entity: "membre", entityId: id, details: `Nouveau statut: ${status}` }).catch(() => {});
-    if (status === "active") notificationBus.emit({ type: "success", message: "Membre approuvé — il peut maintenant accéder à l'espace syndical" });
-    else if (status === "inactive") notificationBus.emit({ type: "info", message: "Demande d'adhésion refusée" });
+    api.content
+      .auditLog({
+        action,
+        entity: "membre",
+        entityId: id,
+        details: `Nouveau statut: ${status}`,
+      })
+      .catch(() => {});
+    if (status === "active")
+      notificationBus.emit({
+        type: "success",
+        message:
+          "Membre approuvé — il peut maintenant accéder à l'espace syndical",
+      });
+    else if (status === "inactive")
+      notificationBus.emit({
+        type: "info",
+        message: "Demande d'adhésion refusée",
+      });
   };
   const addProduct = (p: Product) => {
     setProducts((prev) => [p, ...prev]);
@@ -1088,8 +1334,15 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
     setProducts((prev) => prev.map((pr) => (pr.id === p.id ? p : pr)));
     api.marketplace.updateProduct(p.id, p).catch(() => {});
   };
-  const updateDocument = (id: string, changes: Partial<Pick<Document, "title" | "content" | "category" | "status">>) => {
-    setDocuments((prev) => prev.map((d) => (d.id === id ? { ...d, ...changes } : d)));
+  const updateDocument = (
+    id: string,
+    changes: Partial<
+      Pick<Document, "title" | "content" | "category" | "status">
+    >,
+  ) => {
+    setDocuments((prev) =>
+      prev.map((d) => (d.id === id ? { ...d, ...changes } : d)),
+    );
   };
 
   const addDocument = (doc: Document) => {
@@ -1105,18 +1358,20 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
     try {
       const res = await api.documents.list();
       const rows = (res as { data: unknown[] }).data ?? [];
-      setDocuments(rows.map((r: unknown) => {
-        const row = r as Record<string, unknown>;
-        return {
-          id: String(row.id),
-          title: String(row.title ?? ""),
-          category: (row.category as Document["category"]) ?? "statuts",
-          date: String(row.date ?? row.createdAt ?? ""),
-          size: String(row.size ?? "—"),
-          status: (row.status as Document["status"]) ?? "draft",
-          content: row.content != null ? String(row.content) : undefined,
-        };
-      }));
+      setDocuments(
+        rows.map((r: unknown) => {
+          const row = r as Record<string, unknown>;
+          return {
+            id: String(row.id),
+            title: String(row.title ?? ""),
+            category: (row.category as Document["category"]) ?? "statuts",
+            date: String(row.date ?? row.createdAt ?? ""),
+            size: String(row.size ?? "—"),
+            status: (row.status as Document["status"]) ?? "draft",
+            content: row.content != null ? String(row.content) : undefined,
+          };
+        }),
+      );
       setDocumentsLoadError(false);
     } catch {
       setDocumentsLoadError(true);
@@ -1130,9 +1385,14 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
     api.marketplace.deleteProduct(id).catch(() => {});
   };
   const validateProduct = (id: string) => {
-    setProducts((p) => p.map((pr) => (pr.id === id ? { ...pr, status: "approved" } : pr)));
+    setProducts((p) =>
+      p.map((pr) => (pr.id === id ? { ...pr, status: "approved" } : pr)),
+    );
     api.marketplace.updateProduct(id, { status: "approved" }).catch(() => {});
-    notificationBus.emit({ type: "success", message: "Produit validé et publié sur le marketplace" });
+    notificationBus.emit({
+      type: "success",
+      message: "Produit validé et publié sur le marketplace",
+    });
   };
   const addSyndicate = (s: Syndicate) => {
     setSyndicates((p) => [s, ...p]);
@@ -1145,69 +1405,128 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
   const addSupportTicket = (t: SupportTicket) => {
     setSupportTickets((p) => [t, ...p]);
     api.content.createTicket(t).catch(() => {});
-    notificationBus.emit({ type: "info", message: `Ticket support soumis : "${t.title}"` });
+    notificationBus.emit({
+      type: "info",
+      message: `Ticket support soumis : "${t.title}"`,
+    });
   };
   const resolveLegalAlert = (id: string) => {
-    setLegalAlerts((p) => p.map((a) => (a.id === id ? { ...a, status: "resolved" } : a)));
+    setLegalAlerts((p) =>
+      p.map((a) => (a.id === id ? { ...a, status: "resolved" } : a)),
+    );
     api.content.resolveLegalAlert(id).catch(() => {});
   };
   const resolveTicket = (id: string) => {
-    setSupportTickets((p) => p.map((t) => (t.id === id ? { ...t, status: "resolved" } : t)));
+    setSupportTickets((p) =>
+      p.map((t) => (t.id === id ? { ...t, status: "resolved" } : t)),
+    );
     api.content.resolveTicket(id).catch(() => {});
-    notificationBus.emit({ type: "success", message: "Ticket support marqué comme résolu" });
+    notificationBus.emit({
+      type: "success",
+      message: "Ticket support marqué comme résolu",
+    });
   };
   const payOrder = (id: string) => {
     const receipt = `CMD-${new Date().getFullYear()}-${String(Math.floor(Math.random() * 9000) + 1000)}`;
     setOrders((prev) =>
       prev.map((o) =>
-        o.id === id ? { ...o, status: "delivered" as const } : o
-      )
+        o.id === id ? { ...o, status: "delivered" as const } : o,
+      ),
     );
-    api.content.auditLog({ action: "pay_order", entity: "commande", entityId: id, details: `Reçu: ${receipt}` }).catch(() => {});
-    notificationBus.emit({ type: "success", message: `Commande payée — reçu ${receipt} généré` });
+    api.content
+      .auditLog({
+        action: "pay_order",
+        entity: "commande",
+        entityId: id,
+        details: `Reçu: ${receipt}`,
+      })
+      .catch(() => {});
+    notificationBus.emit({
+      type: "success",
+      message: `Commande payée — reçu ${receipt} généré`,
+    });
   };
   const payCotisation = (id: string) => {
     const receipt = `REC-${new Date().getFullYear()}-${String(Math.floor(Math.random() * 9000) + 1000)}`;
     setCotisations((prev) =>
       prev.map((c) =>
         c.id === id
-          ? { ...c, status: "paid" as const, paidDate: new Date().toISOString().slice(0, 10), receipt }
-          : c
-      )
+          ? {
+              ...c,
+              status: "paid" as const,
+              paidDate: new Date().toISOString().slice(0, 10),
+              receipt,
+            }
+          : c,
+      ),
     );
     api.content.payCotisation(id).catch(() => {
-      notificationBus.emit({ type: "warning", message: "Paiement enregistré — synchronisation en attente" });
+      notificationBus.emit({
+        type: "warning",
+        message: "Paiement enregistré — synchronisation en attente",
+      });
     });
-    api.content.auditLog({ action: "pay_cotisation", entity: "cotisation", entityId: id, details: `Reçu: ${receipt}` }).catch(() => {});
-    notificationBus.emit({ type: "success", message: `Cotisation payée — reçu ${receipt} généré` });
+    api.content
+      .auditLog({
+        action: "pay_cotisation",
+        entity: "cotisation",
+        entityId: id,
+        details: `Reçu: ${receipt}`,
+      })
+      .catch(() => {});
+    notificationBus.emit({
+      type: "success",
+      message: `Cotisation payée — reçu ${receipt} généré`,
+    });
   };
   const markAlertRead = (id: string) => {
     setAlerts((p) => p.map((a) => (a.id === id ? { ...a, read: true } : a)));
     api.content.markAlertRead(id).catch(() => {});
   };
-  const voteForCandidate = async (candidateId: string, electionId: string): Promise<void> => {
+  const voteForCandidate = async (
+    candidateId: string,
+    electionId: string,
+  ): Promise<void> => {
     try {
       await api.elections.vote(electionId, candidateId);
       setCandidates((p) =>
-        p.map((c) => (c.id === candidateId ? { ...c, votes: c.votes + 1, voted: true } : c))
+        p.map((c) =>
+          c.id === candidateId ? { ...c, votes: c.votes + 1, voted: true } : c,
+        ),
       );
-      notificationBus.emit({ type: "success", message: "Vote enregistré avec succès — merci pour votre participation" });
-      api.content.auditLog({ action: "vote", entity: "élection", entityId: electionId, details: `Candidat ${candidateId}` }).catch(() => {});
+      notificationBus.emit({
+        type: "success",
+        message: "Vote enregistré avec succès — merci pour votre participation",
+      });
+      api.content
+        .auditLog({
+          action: "vote",
+          entity: "élection",
+          entityId: electionId,
+          details: `Candidat ${candidateId}`,
+        })
+        .catch(() => {});
     } catch (err: any) {
-      const msg = err?.response?.data?.error ?? "Erreur lors du vote — veuillez réessayer";
+      const msg =
+        err?.response?.data?.error ??
+        "Erreur lors du vote — veuillez réessayer";
       notificationBus.emit({ type: "error", message: msg });
       throw err;
     }
   };
   const refreshConversations = async () => {
     try {
-      const res = await api.chat.conversations() as { data: unknown[] };
+      const res = (await api.chat.conversations()) as { data: unknown[] };
       if (res?.data?.length) setConversations(res.data.map(mapConversationRow));
-    } catch { /* keep stale */ }
+    } catch {
+      /* keep stale */
+    }
   };
 
   const markConversationRead = (conversationId: string) => {
-    setConversations((p) => p.map((c) => c.id === conversationId ? { ...c, unread: 0 } : c));
+    setConversations((p) =>
+      p.map((c) => (c.id === conversationId ? { ...c, unread: 0 } : c)),
+    );
     api.chat.markRead(conversationId).catch(() => {});
   };
 
@@ -1223,22 +1542,32 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
       conversationId,
       sender: "Moi",
       text,
-      time: now.toLocaleTimeString("fr-FR", { hour: "2-digit", minute: "2-digit" }),
+      time: now.toLocaleTimeString("fr-FR", {
+        hour: "2-digit",
+        minute: "2-digit",
+      }),
       isMe: true,
       messageType: "text",
       createdAt: now.toISOString(),
     };
     setMessages((p) => [...p, msg]);
-    setConversations((p) => p.map((c) =>
-      c.id === conversationId ? { ...c, lastMessage: text, time: msg.time, unread: 0 } : c
-    ));
+    setConversations((p) =>
+      p.map((c) =>
+        c.id === conversationId
+          ? { ...c, lastMessage: text, time: msg.time, unread: 0 }
+          : c,
+      ),
+    );
     api.chat.sendMessage(conversationId, text).catch(() => {});
   };
   const addTransaction = (t: Transaction) => {
     setTransactions((p) => [t, ...p]);
     api.finance.addTransaction(t).catch(() => {});
   };
-  const updateTransactionStatus = async (id: string, status: Transaction["status"]) => {
+  const updateTransactionStatus = async (
+    id: string,
+    status: Transaction["status"],
+  ) => {
     // Capture original status for rollback
     let originalStatus: Transaction["status"] | undefined;
     setTransactions((p) => {
@@ -1253,15 +1582,20 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
       if (originalStatus !== undefined) {
         const prev = originalStatus;
         setTransactions((p) =>
-          p.map((tx) => (tx.id === id ? { ...tx, status: prev } : tx))
+          p.map((tx) => (tx.id === id ? { ...tx, status: prev } : tx)),
         );
       }
-      notificationBus.emit({ type: "error", message: err?.message ?? "Échec mise à jour du statut" });
+      notificationBus.emit({
+        type: "error",
+        message: err?.message ?? "Échec mise à jour du statut",
+      });
       throw err;
     }
   };
   const likePublication = (id: string) => {
-    setPublications((p) => p.map((pub) => (pub.id === id ? { ...pub, likes: pub.likes + 1 } : pub)));
+    setPublications((p) =>
+      p.map((pub) => (pub.id === id ? { ...pub, likes: pub.likes + 1 } : pub)),
+    );
     api.publications.like(id).catch(() => {});
   };
   const addPublication = (pub: Publication) => {
@@ -1271,23 +1605,45 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
   const createElection = (e: Election) => {
     setElections((p) => [e, ...p]);
     api.elections.create(e).catch(() => {
-      notificationBus.emit({ type: "warning", message: "Élection créée localement — synchronisation en attente" });
+      notificationBus.emit({
+        type: "warning",
+        message: "Élection créée localement — synchronisation en attente",
+      });
     });
-    api.content.auditLog({ action: "create_election", entity: "élection", entityId: e.id, details: e.title }).catch(() => {});
-    notificationBus.emit({ type: "info", message: `Élection créée : "${e.title}" — les membres peuvent voter` });
+    api.content
+      .auditLog({
+        action: "create_election",
+        entity: "élection",
+        entityId: e.id,
+        details: e.title,
+      })
+      .catch(() => {});
+    notificationBus.emit({
+      type: "info",
+      message: `Élection créée : "${e.title}" — les membres peuvent voter`,
+    });
   };
 
   const addToCart = (item: Omit<CartItem, "id">) =>
     setCart((prev) => {
       const existing = prev.find((c) => c.productId === item.productId);
       if (existing) {
-        return prev.map((c) => c.productId === item.productId ? { ...c, quantity: c.quantity + item.quantity } : c);
+        return prev.map((c) =>
+          c.productId === item.productId
+            ? { ...c, quantity: c.quantity + item.quantity }
+            : c,
+        );
       }
       return [...prev, { ...item, id: `cart-${Date.now()}` }];
     });
-  const removeFromCart = (id: string) => setCart((p) => p.filter((c) => c.id !== id));
+  const removeFromCart = (id: string) =>
+    setCart((p) => p.filter((c) => c.id !== id));
   const updateCartQty = (id: string, qty: number) =>
-    setCart((p) => p.map((c) => (c.id === id ? { ...c, quantity: qty } : c)).filter((c) => c.quantity > 0));
+    setCart((p) =>
+      p
+        .map((c) => (c.id === id ? { ...c, quantity: qty } : c))
+        .filter((c) => c.quantity > 0),
+    );
   const clearCart = () => setCart([]);
 
   const addReview = (r: Review) => {
@@ -1302,7 +1658,9 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
       reference: String(row.reference ?? ""),
       type: (row.type as "devis" | "facture") ?? "facture",
       recipient: String(row.recipient ?? ""),
-      syndicate: String((row as any).syndicate ?? (row as any).syndicateId ?? ""),
+      syndicate: String(
+        (row as any).syndicate ?? (row as any).syndicateId ?? "",
+      ),
       date: String(row.date ?? ""),
       dueDate: String(row.dueDate ?? ""),
       amount: Number(row.amount ?? 0),
@@ -1320,10 +1678,12 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
 
   const refreshInvoices = async () => {
     try {
-      const res = await api.finance.invoices() as { data: unknown[] };
+      const res = (await api.finance.invoices()) as { data: unknown[] };
       const rows = res?.data ?? [];
       setInvoices(rows.map(mapDbInvoice));
-    } catch { /* keep stale */ }
+    } catch {
+      /* keep stale */
+    }
   };
 
   const addInvoice = async (inv: Invoice): Promise<boolean> => {
@@ -1344,32 +1704,100 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
     setBonsLivraison((p) => [bl, ...p]);
     api.finance.addBon(bl).catch(() => {});
   };
-  const updateBonLivraisonStatus = (id: string, status: BonLivraison["status"]) => {
-    setBonsLivraison((p) => p.map((bl) => (bl.id === id ? { ...bl, status } : bl)));
+  const updateBonLivraisonStatus = (
+    id: string,
+    status: BonLivraison["status"],
+  ) => {
+    setBonsLivraison((p) =>
+      p.map((bl) => (bl.id === id ? { ...bl, status } : bl)),
+    );
     api.finance.updateBon(id, { status }).catch(() => {});
   };
 
   return (
     <DataContext.Provider
       value={{
-        dataLoading, dataLoadError, refreshData, meetingsLoadError,
-        members, elections, candidates, meetings, documents, documentsLoading, documentsLoadError, products,
-        transactions, salaries, caisseEntries, conversations, messages,
-        syndicates, legalAlerts, supportTickets, orders, cotisations, alerts,
-        publications, cart, bonsLivraison, invoices, reviews,
-        subscriptionPlans, syndicateSubscriptions, notificationPreferences,
-        partners, payslips,
-        addMember, updateMemberStatus, addProduct, updateProduct, deleteProduct, validateProduct,
-        addSyndicate, updateSyndicateStatus, resolveLegalAlert, addSupportTicket, resolveTicket, payOrder, payCotisation,
-        markAlertRead, markAllAlertsRead, refreshAlerts, voteForCandidate, sendMessage, addTransaction, updateTransactionStatus,
-        likePublication, addPublication, createElection,
-        addToCart, removeFromCart, updateCartQty, clearCart,
-        addReview, addInvoice, refreshInvoices, addBonLivraison, updateBonLivraisonStatus,
-        updateSubscription, toggleNotificationPref,
-        addPartner, updatePartnerStatus, generatePayslip,
+        dataLoading,
+        dataLoadError,
+        refreshData,
+        meetingsLoadError,
+        members,
+        elections,
+        candidates,
+        meetings,
+        documents,
+        documentsLoading,
+        documentsLoadError,
+        partnersLoadError,
+        products,
+        transactions,
+        salaries,
+        caisseEntries,
+        conversations,
+        messages,
+        syndicates,
+        legalAlerts,
+        supportTickets,
+        orders,
+        cotisations,
+        alerts,
+        publications,
+        cart,
+        bonsLivraison,
+        invoices,
+        reviews,
+        subscriptionPlans,
+        syndicateSubscriptions,
+        notificationPreferences,
+        partners,
+        payslips,
+        addMember,
+        updateMemberStatus,
+        addProduct,
+        updateProduct,
+        deleteProduct,
+        validateProduct,
+        addSyndicate,
+        updateSyndicateStatus,
+        resolveLegalAlert,
+        addSupportTicket,
+        resolveTicket,
+        payOrder,
+        payCotisation,
+        markAlertRead,
+        markAllAlertsRead,
+        refreshAlerts,
+        voteForCandidate,
+        sendMessage,
+        addTransaction,
+        updateTransactionStatus,
+        likePublication,
+        addPublication,
+        createElection,
+        addToCart,
+        removeFromCart,
+        updateCartQty,
+        clearCart,
+        addReview,
+        addInvoice,
+        refreshInvoices,
+        addBonLivraison,
+        updateBonLivraisonStatus,
+        updateSubscription,
+        toggleNotificationPref,
+        addPartner,
+        updatePartnerStatus,
+        generatePayslip,
         confirmMeetingAttendance,
-        addMeeting, updateMeeting, updateDocument, addDocument, deleteDocument, refreshDocuments,
-        markConversationRead, deleteConversation, refreshConversations,
+        addMeeting,
+        updateMeeting,
+        updateDocument,
+        addDocument,
+        deleteDocument,
+        refreshDocuments,
+        markConversationRead,
+        deleteConversation,
+        refreshConversations,
       }}
     >
       {children}
