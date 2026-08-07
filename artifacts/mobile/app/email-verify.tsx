@@ -26,6 +26,7 @@ import {
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 import { useAuth } from "@/context/AuthContext";
+import { useLanguage } from "@/context/LanguageContext";
 import { useTheme } from "@/context/ThemeContext";
 import { apiRequest } from "@/lib/api";
 import { auth as authApi } from "@/services/api";
@@ -39,6 +40,7 @@ const EXPIRE_SECONDS  = 600;   // 10-minute code lifetime
 export default function EmailVerifyScreen() {
   const insets = useSafeAreaInsets();
   const { isDark } = useTheme();
+  const { t, isRTL } = useLanguage();
   const { loginWithTokens } = useAuth();
 
   const [code, setCode] = useState<string[]>(Array(CODE_LENGTH).fill(""));
@@ -155,7 +157,7 @@ export default function EmailVerifyScreen() {
       await loginWithTokens(token, refreshToken, user as any);
       setTimeout(() => router.replace("/syndicate-setup" as any), 900);
     } catch (err: any) {
-      setError(err?.message ?? "Code incorrect. Vérifiez et réessayez.");
+      setError(t("emailVerifyInvalidCode"));
       setCode(Array(CODE_LENGTH).fill(""));
       inputs.current[0]?.focus();
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
@@ -174,7 +176,7 @@ export default function EmailVerifyScreen() {
       await apiRequest("/auth/otp/send", "POST", { email });
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
     } catch (err: any) {
-      setError(err?.message ?? "Impossible d'envoyer le code.");
+      setError(t("emailVerifySendError"));
     }
   };
 
@@ -184,7 +186,7 @@ export default function EmailVerifyScreen() {
 
   if (success) {
     return (
-      <View style={[s.root, { backgroundColor: isDark ? "#070D1A" : "#EFF6FF" }]}>
+      <View style={[s.root, { backgroundColor: isDark ? "#070D1A" : "#EFF6FF", direction: isRTL ? "rtl" : "ltr" }]}>
         <LinearGradient colors={gradColors} style={StyleSheet.absoluteFill} />
         <View style={[s.successWrap, { paddingTop: insets.top + 60 }]}>
           <Animated.View style={{ transform: [{ scale: successAnim }], opacity: successAnim }}>
@@ -193,10 +195,10 @@ export default function EmailVerifyScreen() {
             </View>
           </Animated.View>
           <Text style={[s.successTitle, { color: isDark ? "#E8F0FE" : "#0A1628" }]}>
-            Email vérifié !
+            {t("emailVerifySuccessTitle")}
           </Text>
           <Text style={[s.successSub, { color: isDark ? "rgba(232,240,254,0.55)" : "#64748B" }]}>
-            Votre compte est créé. Redirection…
+            {t("emailVerifySuccessMessage")}
           </Text>
           <ActivityIndicator color="#10B981" style={{ marginTop: 24 }} />
         </View>
@@ -205,7 +207,7 @@ export default function EmailVerifyScreen() {
   }
 
   return (
-    <View style={[s.root, { backgroundColor: isDark ? "#070D1A" : "#EFF6FF" }]}>
+    <View style={[s.root, { backgroundColor: isDark ? "#070D1A" : "#EFF6FF", direction: isRTL ? "rtl" : "ltr" }]}>
       <LinearGradient colors={gradColors} style={StyleSheet.absoluteFill} />
 
       <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === "ios" ? "padding" : undefined}>
@@ -230,10 +232,10 @@ export default function EmailVerifyScreen() {
               <Feather name="mail" size={28} color={color} />
             </View>
             <Text style={[s.title, { color: isDark ? "#E8F0FE" : "#0A1628" }]}>
-              Vérifiez votre email
+              {t("emailVerifyTitle")}
             </Text>
             <Text style={[s.subtitle, { color: isDark ? "rgba(232,240,254,0.55)" : "#64748B" }]}>
-              Nous avons envoyé un code à 6 chiffres à
+              {t("emailVerifySubtitle")}
             </Text>
             <View style={[s.emailBadge, { backgroundColor: color + "12", borderColor: color + "30" }]}>
               <Feather name="mail" size={12} color={color} />
@@ -246,13 +248,13 @@ export default function EmailVerifyScreen() {
             <View style={s.timerRow}>
               <Feather name="clock" size={13} color={timeLeft <= 60 ? "#EF4444" : (isDark ? "rgba(255,255,255,0.4)" : "#94A3B8")} />
               <Text style={[s.timerText, { color: timeLeft <= 60 ? "#EF4444" : (isDark ? "rgba(255,255,255,0.4)" : "#94A3B8") }]}>
-                Code valide pendant {formatTime(timeLeft)}
+                {t("emailVerifyCodeValidFor")} {formatTime(timeLeft)}
               </Text>
             </View>
           ) : (
             <View style={[s.expiredBadge, { backgroundColor: "#EF444412", borderColor: "#EF444440" }]}>
               <Feather name="alert-circle" size={14} color="#EF4444" />
-              <Text style={[s.expiredText, { color: "#EF4444" }]}>Code expiré — demandez un nouveau code ci-dessous</Text>
+              <Text style={[s.expiredText, { color: "#EF4444" }]}>{t("emailVerifyCodeExpired")}</Text>
             </View>
           )}
 
@@ -302,7 +304,7 @@ export default function EmailVerifyScreen() {
             <View style={[s.stepCard, { backgroundColor: cardBg, borderColor: isDark ? "rgba(255,255,255,0.08)" : "rgba(37,99,235,0.1)" }]}>
               <ActivityIndicator color={color} size="small" />
               <Text style={[s.stepText, { color: isDark ? "rgba(232,240,254,0.7)" : "#475569" }]}>
-                {step === "verifying" ? "Vérification du code…" : "Création de votre compte…"}
+                {step === "verifying" ? t("emailVerifyChecking") : t("emailVerifyCreating")}
               </Text>
             </View>
           )}
@@ -318,7 +320,7 @@ export default function EmailVerifyScreen() {
               <ActivityIndicator color="#fff" size="small" />
             ) : (
               <>
-                <Text style={s.verifyBtnText}>Vérifier et créer mon compte</Text>
+                <Text style={s.verifyBtnText}>{t("emailVerifyButton")}</Text>
                 <Feather name="arrow-right" size={18} color="#fff" />
               </>
             )}
@@ -327,7 +329,7 @@ export default function EmailVerifyScreen() {
           {/* Resend */}
           <View style={s.resendRow}>
             <Text style={[s.resendLabel, { color: isDark ? "rgba(232,240,254,0.4)" : "#94A3B8" }]}>
-              Vous n'avez pas reçu le code ?
+              {t("emailVerifyNotReceived")}
             </Text>
             <TouchableOpacity
               onPress={handleResend}
@@ -335,7 +337,9 @@ export default function EmailVerifyScreen() {
               activeOpacity={0.7}
             >
               <Text style={[s.resendBtn, { color: resendCooldown > 0 ? (isDark ? "rgba(255,255,255,0.25)" : "#CBD5E1") : color }]}>
-                {resendCooldown > 0 ? `Renvoyer dans ${resendCooldown}s` : "Renvoyer le code"}
+                {resendCooldown > 0
+                  ? `${t("emailVerifyResendIn")} ${resendCooldown}s`
+                  : t("emailVerifyResend")}
               </Text>
             </TouchableOpacity>
           </View>
@@ -344,7 +348,7 @@ export default function EmailVerifyScreen() {
           <View style={[s.hintBox, { backgroundColor: isDark ? "rgba(255,255,255,0.04)" : "rgba(37,99,235,0.04)", borderColor: isDark ? "rgba(255,255,255,0.07)" : "rgba(37,99,235,0.1)" }]}>
             <Feather name="info" size={13} color={isDark ? "rgba(255,255,255,0.3)" : "#94A3B8"} />
             <Text style={[s.hintText, { color: isDark ? "rgba(232,240,254,0.4)" : "#94A3B8" }]}>
-              Vérifiez vos spams si vous ne trouvez pas l'email. Le code expire dans 10 minutes.
+              {t("emailVerifyHint")}
             </Text>
           </View>
         </ScrollView>

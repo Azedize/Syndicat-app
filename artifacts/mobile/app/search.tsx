@@ -281,7 +281,9 @@ function GroupSection({
         <View style={[styles.groupIconWrap, { backgroundColor: group.color + "20" }]}>
           <Feather name={group.icon as any} size={13} color={group.color} />
         </View>
-        <Text style={[styles.groupLabel, { color: colors.mutedForeground }]}>{group.label.toUpperCase()}</Text>
+        <Text style={[styles.groupLabel, { color: colors.mutedForeground }]}>
+          {t(CATEGORY_TRANSLATION_KEYS[group.category] ?? "searchResults").toUpperCase()}
+        </Text>
         <View style={[styles.groupCount, { backgroundColor: group.color + "20" }]}>
           <Text style={[styles.groupCountText, { color: group.color }]}>{group.results.length}</Text>
         </View>
@@ -341,12 +343,12 @@ function EmptyState({
   t: (key: string) => string;
 }) {
   const SUGGESTIONS = [
-    { label: "Membres", icon: "users" as const, color: "#2563EB", query: "membre" },
-    { label: "Réunions", icon: "calendar" as const, color: "#3b82f6", query: "réunion" },
-    { label: "Documents", icon: "file-text" as const, color: "#6366f1", query: "statut" },
-    { label: "Élections", icon: "check-square" as const, color: "#f59e0b", query: "bureau" },
-    { label: "Finance", icon: "dollar-sign" as const, color: "#10b981", query: "cotisation" },
-    { label: "Alertes", icon: "bell" as const, color: "#ef4444", query: "alerte" },
+    { labelKey: "searchCategoryMembers", icon: "users" as const, color: "#2563EB", query: "membre" },
+    { labelKey: "searchCategoryMeetings", icon: "calendar" as const, color: "#3b82f6", query: "réunion" },
+    { labelKey: "searchCategoryDocuments", icon: "file-text" as const, color: "#6366f1", query: "statut" },
+    { labelKey: "searchCategoryElections", icon: "check-square" as const, color: "#f59e0b", query: "bureau" },
+    { labelKey: "searchCategoryFinance", icon: "dollar-sign" as const, color: "#10b981", query: "cotisation" },
+    { labelKey: "searchCategoryAlerts", icon: "bell" as const, color: "#ef4444", query: "alerte" },
   ];
 
   return (
@@ -357,17 +359,19 @@ function EmptyState({
     >
       {/* Suggestions rapides */}
       <View style={styles.emptySection}>
-        <Text style={[styles.emptySectionTitle, { color: colors.mutedForeground }]}>SUGGESTIONS RAPIDES</Text>
+        <Text style={[styles.emptySectionTitle, { color: colors.mutedForeground }]}>
+          {t("quickSuggestionsLabel")}
+        </Text>
         <View style={styles.suggestionsGrid}>
           {SUGGESTIONS.map((s) => (
             <TouchableOpacity
-              key={s.label}
+              key={s.labelKey}
               style={[styles.suggestionChip, { backgroundColor: s.color + "15", borderColor: s.color + "40" }]}
               onPress={() => onSelectHistory(s.query)}
               activeOpacity={0.7}
             >
               <Feather name={s.icon} size={14} color={s.color} />
-              <Text style={[styles.suggestionLabel, { color: s.color }]}>{s.label}</Text>
+              <Text style={[styles.suggestionLabel, { color: s.color }]}>{t(s.labelKey)}</Text>
             </TouchableOpacity>
           ))}
         </View>
@@ -377,9 +381,11 @@ function EmptyState({
       {history.length > 0 && (
         <View style={styles.emptySection}>
           <View style={styles.historyHeader}>
-            <Text style={[styles.emptySectionTitle, { color: colors.mutedForeground }]}>RECHERCHES RÉCENTES</Text>
+            <Text style={[styles.emptySectionTitle, { color: colors.mutedForeground }]}>
+              {t("searchRecent")}
+            </Text>
             <TouchableOpacity onPress={onClearHistory}>
-              <Text style={[styles.clearText, { color: colors.primary }]}>Tout effacer</Text>
+              <Text style={[styles.clearText, { color: colors.primary }]}>{t("searchClearAll")}</Text>
             </TouchableOpacity>
           </View>
           <View style={[styles.historyCard, { backgroundColor: colors.card, borderColor: colors.border }]}>
@@ -412,16 +418,18 @@ function EmptyState({
 
       {/* Raccourcis */}
       <View style={styles.emptySection}>
-        <Text style={[styles.emptySectionTitle, { color: colors.mutedForeground }]}>ACCÈS RAPIDE</Text>
+        <Text style={[styles.emptySectionTitle, { color: colors.mutedForeground }]}>
+          {t("searchQuickAccess")}
+        </Text>
         <View style={styles.shortcutsGrid}>
           {[
-            { label: "Publications", icon: "rss" as const, color: "#f97316", route: "/publications" },
-            { label: "Chat", icon: "message-circle" as const, color: "#ec4899", route: "/chat" },
-            { label: "Profil", icon: "user" as const, color: "#6366f1", route: "/profile" },
-            { label: "Paramètres", icon: "settings" as const, color: "#6b7280", route: "/settings" },
+            { labelKey: "publications", icon: "rss" as const, color: "#f97316", route: "/publications" },
+            { labelKey: "chat", icon: "message-circle" as const, color: "#ec4899", route: "/chat" },
+            { labelKey: "profile", icon: "user" as const, color: "#6366f1", route: "/profile" },
+            { labelKey: "settings", icon: "settings" as const, color: "#6b7280", route: "/settings" },
           ].map((s) => (
             <TouchableOpacity
-              key={s.label}
+              key={s.labelKey}
               style={[styles.shortcutCard, { backgroundColor: colors.card, borderColor: colors.border }]}
               onPress={() => {
                 Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
@@ -433,7 +441,7 @@ function EmptyState({
               <View style={[styles.shortcutIcon, { backgroundColor: s.color + "18" }]}>
                 <Feather name={s.icon} size={20} color={s.color} />
               </View>
-              <Text style={[styles.shortcutLabel, { color: colors.foreground }]}>{s.label}</Text>
+              <Text style={[styles.shortcutLabel, { color: colors.foreground }]}>{t(s.labelKey)}</Text>
             </TouchableOpacity>
           ))}
         </View>
@@ -448,9 +456,9 @@ function NoResults({ query, colors, t }: { query: string; colors: any; t: (key: 
       <View style={[styles.noResultsIcon, { backgroundColor: colors.muted }]}>
         <Feather name="search" size={32} color={colors.mutedForeground} />
       </View>
-      <Text style={[styles.noResultsTitle, { color: colors.foreground }]}>Aucun résultat</Text>
+      <Text style={[styles.noResultsTitle, { color: colors.foreground }]}>{t("noResultsTitle")}</Text>
       <Text style={[styles.noResultsSubtitle, { color: colors.mutedForeground }]}>
-        Aucun résultat pour "{query}".{"\n"}Essayez un autre terme de recherche.
+        {t("noResultsFor")} "{query}".{"\n"}{t("tryOtherSearch")}
       </Text>
     </View>
   );

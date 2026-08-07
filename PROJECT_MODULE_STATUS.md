@@ -61,3 +61,5 @@
 - Mobile verification: zero-error typecheck, diff validation, Expo restart, and protected `/tableau-national` preview pass; only existing Expo web compatibility warnings remain.
 - Assemblée Générale / Élections: remaining locale-aware AG dates/times, dedicated resolution action copy, translated election mandate roles/statuses, and localized mandate end dates complete; real governance APIs, election state machine, voting/delegation behavior, and role boundaries preserved.
 - Mobile verification: zero-error typecheck, diff validation, Metro bundle, and protected `/assemblee-generale` plus `/elections` preview pass; only existing Expo web compatibility warnings remain.
+- Search: multilingual headings, suggestions, history, quick access, and no-results recovery complete; existing real search context and navigation preserved.
+- Subscription Payment: multilingual free-trial/paid flows, active-locale MAD presentation, safe error recovery, and non-embedded transfer guidance complete; API subscription contract preserved.

@@ -27,6 +27,7 @@ import {
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 import { useAuth } from "@/context/AuthContext";
+import { useLanguage } from "@/context/LanguageContext";
 import { useTheme } from "@/context/ThemeContext";
 import { apiRequest } from "@/lib/api";
 
@@ -44,30 +45,31 @@ const PAYMENT_METHODS = [
   {
     id: "card",
     icon: "credit-card" as const,
-    label: "Carte bancaire",
-    sublabel: "Visa, Mastercard — paiement sécurisé",
     color: "#2563EB",
   },
   {
     id: "transfer",
     icon: "repeat" as const,
-    label: "Virement bancaire",
-    sublabel: "Instructions envoyées par email",
     color: "#059669",
   },
   {
     id: "cmi",
     icon: "globe" as const,
-    label: "CMI / Paiement Maroc",
-    sublabel: "Passerelle de paiement locale",
     color: "#7C3AED",
   },
 ];
+
+const PAYMENT_METHOD_LABELS: Record<string, { labelKey: string; hintKey: string }> = {
+  card: { labelKey: "cardPayment", hintKey: "paymentCardHint" },
+  transfer: { labelKey: "bankTransfer", hintKey: "paymentTransferHint" },
+  cmi: { labelKey: "paymentCmiLabel", hintKey: "paymentCmiHint" },
+};
 
 export default function PaymentScreen() {
   const insets = useSafeAreaInsets();
   const { isDark } = useTheme();
   const { token } = useAuth();
+  const { t, lang } = useLanguage();
 
   const [plan, setPlan] = useState<PendingPlan | null>(null);
   const [billing, setBilling] = useState<"monthly" | "yearly">("monthly");
@@ -90,6 +92,11 @@ export default function PaymentScreen() {
   const price = plan?.planPrice ? Number(plan.planPrice) : 0;
   const yearlyPrice = billing === "yearly" ? Math.round(price * 12 * 0.8) : null;
   const displayPrice = billing === "yearly" ? yearlyPrice : price;
+  const locale = lang === "ar" ? "ar-MA" : lang === "en" ? "en-US" : lang === "es" ? "es-ES" : "fr-MA";
+  const formatAmount = (amount: number) =>
+    new Intl.NumberFormat(locale, { maximumFractionDigits: 2 }).format(amount);
+  const interpolate = (key: string, values: Record<string, string>) =>
+    Object.entries(values).reduce((text, [name, value]) => text.replace(`{${name}}`, value), t(key));
 
   async function handleConfirm() {
     if (!plan?.planId) {
@@ -100,11 +107,11 @@ export default function PaymentScreen() {
 
     if (selectedMethod === "transfer") {
       Alert.alert(
-        "Virement bancaire",
-        "Veuillez effectuer un virement sur le compte suivant :\n\nBanque : Attijariwafa Bank\nRIB : 007 780 0000000000000000\nBénéficiaire : MIZAN Community OS Maroc\n\nVotre abonnement sera activé sous 24–48h après réception.",
+        t("paymentTransferTitle"),
+        t("paymentTransferInstructions"),
         [
-          { text: "Annuler", style: "cancel" },
-          { text: "Confirmer", onPress: () => doSubscribe() },
+          { text: t("subscriptionCancel"), style: "cancel" },
+          { text: t("subscriptionConfirm"), onPress: () => doSubscribe() },
         ]
       );
       return;
@@ -127,8 +134,8 @@ export default function PaymentScreen() {
 
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
       router.replace("/team-invite" as any);
-    } catch (err: any) {
-      Alert.alert("Erreur de paiement", err?.message ?? "Impossible d'activer l'abonnement. Veuillez réessayer.");
+    } catch {
+      Alert.alert(t("paymentErrorTitle"), t("paymentErrorDescription"));
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
     } finally {
       setLoading(false);
@@ -162,16 +169,23 @@ export default function PaymentScreen() {
               <Feather name="gift" size={36} color="#10B981" />
             </View>
             <Text style={[s.trialTitle, { color: isDark ? "#E8F0FE" : "#0A1628" }]}>
-              Essai gratuit activé !
+              {t("paymentFreeTrialTitle")}
             </Text>
             <Text style={[s.trialSub, { color: isDark ? "rgba(232,240,254,0.6)" : "#64748B" }]}>
-              Profitez de 30 jours d'accès complet à la plateforme MIZAN, sans engagement et sans carte bancaire.
+              {t("paymentFreeTrialDescription")}
             </Text>
             <View style={[s.trialFeatures, { borderColor: isDark ? "rgba(255,255,255,0.08)" : "rgba(16,185,129,0.15)" }]}>
-              {["Toutes les fonctionnalités incluses", "Données conservées après l'essai", "Aucune carte bancaire requise", "Annulation à tout moment"].map((f) => (
-                <View key={f} style={s.trialFeatureRow}>
+              {[
+                "paymentTrialFeatureAll",
+                "paymentTrialFeatureData",
+                "paymentTrialFeatureNoCard",
+                "paymentTrialFeatureCancel",
+              ].map((featureKey) => (
+                <View key={featureKey} style={s.trialFeatureRow}>
                   <Feather name="check-circle" size={14} color="#10B981" />
-                  <Text style={[s.trialFeatureText, { color: isDark ? "rgba(232,240,254,0.75)" : "#374151" }]}>{f}</Text>
+                  <Text style={[s.trialFeatureText, { color: isDark ? "rgba(232,240,254,0.75)" : "#374151" }]}>
+                    {t(featureKey)}
+                  </Text>
                 </View>
               ))}
             </View>
@@ -180,7 +194,7 @@ export default function PaymentScreen() {
               onPress={() => router.replace("/team-invite" as any)}
               activeOpacity={0.85}
             >
-              <Text style={s.ctaBtnText}>Constituer l'équipe de gestion</Text>
+              <Text style={s.ctaBtnText}>{t("paymentTeamInvite")}</Text>
               <Feather name="arrow-right" size={17} color="#fff" />
             </TouchableOpacity>
           </View>
@@ -209,9 +223,9 @@ export default function PaymentScreen() {
 
         {/* Header */}
         <View style={{ gap: 6 }}>
-          <Text style={[s.title, { color: isDark ? "#E8F0FE" : "#0A1628" }]}>Finaliser le paiement</Text>
+          <Text style={[s.title, { color: isDark ? "#E8F0FE" : "#0A1628" }]}>{t("paymentHeaderTitle")}</Text>
           <Text style={[s.subtitle, { color: isDark ? "rgba(232,240,254,0.55)" : "#64748B" }]}>
-            Étape 2 sur 3 — Activation de l'abonnement
+            {t("paymentHeaderStep")}
           </Text>
         </View>
 
@@ -223,20 +237,22 @@ export default function PaymentScreen() {
             </View>
             <View>
               <Text style={s.planCardName}>{plan.planName}</Text>
-              <Text style={s.planCardDesc}>Abonnement actif dès aujourd'hui</Text>
+              <Text style={s.planCardDesc}>{t("paymentPlanActive")}</Text>
             </View>
           </LinearGradient>
 
           {/* Billing toggle */}
           <View style={s.planCardBody}>
-            <Text style={[s.sectionLabel, { color: isDark ? "rgba(232,240,254,0.45)" : "#94A3B8" }]}>FACTURATION</Text>
+            <Text style={[s.sectionLabel, { color: isDark ? "rgba(232,240,254,0.45)" : "#94A3B8" }]}>
+              {t("paymentBillingSection")}
+            </Text>
             <View style={[s.toggleWrap, { backgroundColor: isDark ? "rgba(255,255,255,0.06)" : "rgba(37,99,235,0.07)", borderColor: isDark ? "rgba(255,255,255,0.1)" : "rgba(37,99,235,0.15)" }]}>
               <TouchableOpacity
                 style={[s.toggleBtn, billing === "monthly" && { backgroundColor: color }]}
                 onPress={() => { setBilling("monthly"); Haptics.selectionAsync(); }}
               >
                 <Text style={[s.toggleText, { color: billing === "monthly" ? "#fff" : (isDark ? "rgba(232,240,254,0.5)" : "#64748B") }]}>
-                  Mensuel
+                  {t("paymentMonthly")}
                 </Text>
               </TouchableOpacity>
               <TouchableOpacity
@@ -244,7 +260,7 @@ export default function PaymentScreen() {
                 onPress={() => { setBilling("yearly"); Haptics.selectionAsync(); }}
               >
                 <Text style={[s.toggleText, { color: billing === "yearly" ? "#fff" : (isDark ? "rgba(232,240,254,0.5)" : "#64748B") }]}>
-                  Annuel
+                  {t("paymentYearly")}
                 </Text>
                 <View style={[s.savePill, { backgroundColor: "#10B98125" }]}>
                   <Text style={{ fontSize: 9, fontFamily: "Inter_700Bold", color: "#10B981" }}>-20%</Text>
@@ -255,15 +271,17 @@ export default function PaymentScreen() {
             {/* Price display */}
             <View style={[s.priceBox, { backgroundColor: color + "10", borderColor: color + "25" }]}>
               <Text style={[s.priceBig, { color }]}>
-                {displayPrice?.toLocaleString("fr-MA")} MAD
+                {formatAmount(displayPrice ?? 0)} {lang === "ar" ? "د.م." : "MAD"}
               </Text>
               <Text style={[s.pricePer, { color: isDark ? "rgba(232,240,254,0.5)" : "#64748B" }]}>
-                / {billing === "yearly" ? "an" : "mois"}
+                {billing === "yearly" ? t("paymentPerYear") : t("paymentPerMonth")}
               </Text>
               {billing === "yearly" && (
                 <View style={[s.savingBadge, { backgroundColor: "#10B98120" }]}>
                   <Text style={{ fontFamily: "Inter_600SemiBold", fontSize: 11, color: "#10B981" }}>
-                    Économisez {(price * 12 - (yearlyPrice ?? 0)).toLocaleString("fr-MA")} MAD/an
+                    {interpolate("paymentSavings", {
+                      amount: formatAmount(price * 12 - (yearlyPrice ?? 0)),
+                    })}
                   </Text>
                 </View>
               )}
@@ -274,7 +292,7 @@ export default function PaymentScreen() {
         {/* Payment method */}
         <View style={{ gap: 12 }}>
           <Text style={[s.sectionLabel, { color: isDark ? "rgba(232,240,254,0.45)" : "#94A3B8" }]}>
-            MODE DE PAIEMENT
+            {t("paymentMethodsSection")}
           </Text>
           {PAYMENT_METHODS.map((method) => (
             <TouchableOpacity
@@ -291,8 +309,12 @@ export default function PaymentScreen() {
                 <Feather name={method.icon} size={20} color={method.color} />
               </View>
               <View style={{ flex: 1 }}>
-                <Text style={[s.methodLabel, { color: isDark ? "#E8F0FE" : "#0A1628" }]}>{method.label}</Text>
-                <Text style={[s.methodSub, { color: isDark ? "rgba(232,240,254,0.45)" : "#64748B" }]}>{method.sublabel}</Text>
+                <Text style={[s.methodLabel, { color: isDark ? "#E8F0FE" : "#0A1628" }]}>
+                  {t(PAYMENT_METHOD_LABELS[method.id].labelKey)}
+                </Text>
+                <Text style={[s.methodSub, { color: isDark ? "rgba(232,240,254,0.45)" : "#64748B" }]}>
+                  {t(PAYMENT_METHOD_LABELS[method.id].hintKey)}
+                </Text>
               </View>
               <View style={[s.radioOuter, { borderColor: selectedMethod === method.id ? method.color : (isDark ? "rgba(255,255,255,0.2)" : "rgba(37,99,235,0.3)") }]}>
                 {selectedMethod === method.id && (
@@ -307,7 +329,7 @@ export default function PaymentScreen() {
         <View style={[s.securityNote, { backgroundColor: isDark ? "rgba(255,255,255,0.03)" : "rgba(37,99,235,0.04)", borderColor: isDark ? "rgba(255,255,255,0.06)" : "rgba(37,99,235,0.1)" }]}>
           <Feather name="shield" size={14} color={isDark ? "#60A5FA" : "#2563EB"} />
           <Text style={[s.securityText, { color: isDark ? "rgba(232,240,254,0.5)" : "#64748B" }]}>
-            Paiement sécurisé · Chiffrement SSL · Données protégées RGPD
+            {t("paymentSecurityNote")}
           </Text>
         </View>
 
@@ -324,7 +346,9 @@ export default function PaymentScreen() {
             <>
               <Feather name="lock" size={17} color="#fff" />
               <Text style={s.ctaBtnText}>
-                Payer {displayPrice?.toLocaleString("fr-MA")} MAD
+                {interpolate("paymentPayButton", {
+                  amount: `${formatAmount(displayPrice ?? 0)}${lang === "ar" ? " د.م." : ""}`,
+                })}
               </Text>
             </>
           )}
@@ -336,7 +360,7 @@ export default function PaymentScreen() {
           onPress={() => router.replace("/team-invite" as any)}
         >
           <Text style={[s.skipText, { color: isDark ? "rgba(232,240,254,0.35)" : "#94A3B8" }]}>
-            Payer plus tard
+            {t("paymentPayLater")}
           </Text>
         </TouchableOpacity>
       </ScrollView>

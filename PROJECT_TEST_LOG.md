@@ -91,6 +91,10 @@
 - `git diff --check` — passed after the chat screen, thread, and translation updates.
 - Restarted `artifacts/mobile: expo`; Metro started successfully with the expected Expo package-version notices and no transform errors.
 - Mobile Expo preview screenshots for `/chat` and `/chat-thread` at 402×874 — protected routes redirected safely without a session; browser logs contained only existing non-blocking Expo web warnings.
+- `pnpm --filter @workspace/mobile run typecheck` — passed with zero errors after the Search and Payment onboarding passes.
+- `git diff --check -- artifacts/mobile/app/search.tsx artifacts/mobile/app/payment.tsx artifacts/mobile/context/LanguageContext.tsx` — passed.
+- Restarted `artifacts/mobile: expo`; Metro started successfully with expected Expo package-version notices and no transform errors.
+- Mobile Expo preview screenshots for `/welcome` and `/payment` at 402×874 — public welcome rendered successfully and protected payment preview remained safely behind the unauthenticated boundary; no new browser runtime exceptions appeared beyond existing Expo web compatibility warnings.
 - `pnpm --filter @workspace/mobile run typecheck` — passed after the Level-1 Support localization pass.
 - `git diff --check` — passed after the support screen and translation updates.
 - Restarted `artifacts/mobile: expo`; Metro started successfully with the expected Expo package-version notices and no transform errors.

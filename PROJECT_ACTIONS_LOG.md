@@ -118,3 +118,5 @@
 - Audited `artifacts/mobile/app/assemblee-generale.tsx` and `artifacts/mobile/app/elections.tsx` for the remaining governance presentation gaps after their broad translation coverage was already in place.
 - Added locale-aware AG date/time rendering, replaced the unrelated team-member label on the resolution action with `agAddResolutionBtn`, and localized election mandate roles, mandate statuses, and mandate end dates through the existing language system.
 - Passed the language and locale helpers through the standalone election results panel without changing API payloads, transition actions, vote/delegation rules, or RBAC.
+- Audited `artifacts/mobile/app/search.tsx`; moved category headings, quick suggestions, recent-search controls, quick-access shortcuts, and the no-results state to runtime translation keys without changing search behavior or routes.
+- Audited `artifacts/mobile/app/payment.tsx`; localized the free-trial and paid-subscription flows, added active-locale MAD amount formatting, replaced raw subscription API errors with safe recovery copy, and removed hardcoded bank coordinates from the transfer confirmation.

@@ -23,3 +23,5 @@
 - Resident Marketplace no longer mixes French-only catalogue, moderation, order, and statistics labels into other language sessions; failed marketplace requests no longer masquerade as empty data, and the expected unauthenticated API 401 is not treated as a client runtime error.
 - Super Admin National Dashboard no longer mixes French-only platform supervision labels or compact non-localized balance output into other language sessions; ranking, detail, and export surfaces now recover and present through the active language.
 - Assemblée Générale and Élections no longer expose raw ISO dates, raw mandate roles/statuses, or an unrelated team-member translation on the resolution action; the underlying governance state and API behavior were unchanged.
+- Search no longer mixes French-only headings, shortcuts, suggestions, and no-result guidance into non-French sessions.
+- Subscription payment onboarding no longer exposes raw API error text, hardcoded French copy, or embedded bank coordinates; payment amounts now use the active locale.

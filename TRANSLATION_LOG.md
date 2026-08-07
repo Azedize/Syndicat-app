@@ -35,3 +35,5 @@
 - Template Requests now translates request categories, priorities, statuses, form/detail labels, placeholders, validation, submission feedback, locale-aware dates, and loading/error/empty states for `fr`, `en`, `ar`, and `es`.
 - Super Admin National Dashboard now translates tabs, KPI labels, health and alert states, empty/recovery copy, ranking criteria, quick actions, syndicate detail metadata, member statuses, and export feedback for `fr`, `en`, `ar`, and `es`.
 - General Assembly and Elections now translate the remaining dedicated resolution action, mandate roles/statuses, and governance date presentation for `fr`, `en`, `ar`, and `es`; existing lifecycle, voting, candidacy, delegation, and mandate actions remain wired to the same APIs.
+- Search now translates category headings, quick suggestions, recent-search controls, quick-access shortcuts, and no-result guidance for `fr`, `en`, `ar`, and `es`.
+- Subscription Payment now translates free-trial copy, billing intervals, payment methods, transfer confirmation, security guidance, amount actions, and safe recovery messages for `fr`, `en`, `ar`, and `es`.

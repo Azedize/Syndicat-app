@@ -124,3 +124,6 @@
 - AG dates and times now use the active French, English, Arabic, or Spanish locale, the resolution action uses its dedicated translation, and election mandate roles/statuses and mandate end dates are translated/formatted at render time.
 - Preserved the existing real AG/election APIs, election transition state machine, candidacy/voting/delegation behavior, role guards, and anonymous ballot boundary.
 - Mobile typecheck and diff validation passed; Metro bundled both protected routes successfully and `/assemblee-generale` plus `/elections` redirected safely to the public welcome screen without new runtime exceptions.
+- Continued the enterprise localization pass on Search: category headings, quick suggestions, recent-search controls, quick-access shortcuts, and no-results guidance now follow the active language across French, English, Arabic, and Spanish.
+- Continued the subscription onboarding pass on Payment: free-trial copy, billing options, payment methods, security guidance, transfer confirmation, errors, MAD amounts, and pay-later actions now follow the active language; raw API errors and embedded bank coordinates were removed.
+- Mobile typecheck, diff validation, Expo restart, and protected `/payment` preview passed without new runtime exceptions; existing Expo compatibility warnings remain non-blocking.

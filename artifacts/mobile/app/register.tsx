@@ -115,7 +115,7 @@ function Field({
 
 export default function RegisterScreen() {
   const insets = useSafeAreaInsets();
-  const { t } = useLanguage();
+  const { t, lang } = useLanguage();
   const { isDark } = useTheme();
   const { loginWithTokens } = useAuth();
 
@@ -152,6 +152,7 @@ export default function RegisterScreen() {
   const cpwRef = useRef<TextInput>(null);
 
   const color = planColor;
+  const planLocale = lang === "ar" ? "ar-MA" : lang === "en" ? "en-US" : lang === "es" ? "es-ES" : "fr-MA";
   const gradColors: [string, string] = isDark
     ? ["#070D1A", "#0D1929"]
     : ["#EFF6FF", "#F8FAFF"];
@@ -281,7 +282,7 @@ export default function RegisterScreen() {
                   {params.planName}
                 </Text>
                 {params.planPrice
-                  ? ` · ${Number(params.planPrice).toLocaleString("fr-MA")} MAD/${params.planInterval === "yearly" ? t("authYear") : t("authMonth")}`
+                  ? ` · ${new Intl.NumberFormat(planLocale, { maximumFractionDigits: 2 }).format(Number(params.planPrice))} ${lang === "ar" ? "د.م." : "MAD"}/${params.planInterval === "yearly" ? t("authYear") : t("authMonth")}`
                   : ""}
               </Text>
             </View>

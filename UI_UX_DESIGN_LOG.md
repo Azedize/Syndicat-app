@@ -19,3 +19,5 @@
 - Template Studio and Template Requests retain their existing card, badge, chip, modal, and action hierarchy while applying shared multilingual metadata and semantic loading, retry, empty, and safe-feedback states.
 - Super Admin National Dashboard retains its platform health color semantics, KPI strip, tab hierarchy, syndicate detail sheet, ranking metrics, and quick-action affordances while replacing mixed-language surfaces with runtime translation and locale-aware financial presentation.
 - Assemblée Générale retains its calendar/banner, resolution cards, majority indicators, vote controls, and administrative action hierarchy while using locale-aware date/time presentation and dedicated translated action labels; Élections retains its lifecycle tabs and mandate result cards with localized role/status metadata.
+- Search retains its result-group and shortcut hierarchy while replacing mixed-language headings and no-result copy with runtime translations.
+- Payment retains its premium onboarding hierarchy, billing toggle, method cards, and security note while using locale-aware amounts, localized confirmations, and safer transfer guidance.
