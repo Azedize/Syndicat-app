@@ -1,4 +1,7 @@
 - 2026-08-06 — Governance screens now use consistent guided loading, recoverable unavailable-data states, localized semantic statuses, and translated form guidance across elections, mandates, and meetings.
+- 2026-08-06 — Assemblée Générale now uses shared guided loading/unavailable states, localized form examples, and safe feedback across its governance actions without changing touch targets or role visibility.
+- 2026-08-06 — Charges & Fund Calls now keep payment mutation failures in the shared localized recovery hierarchy without changing the existing proof-upload and role-specific action layout.
+- 2026-08-06 — Invoices now present upload, create, PDF, and send outcomes consistently through localized feedback while preserving the existing document-first form hierarchy.
 - Ma Boutique: replaced the generic spinner and silent failure surface with animated shared loading/recovery states, translated seller controls, clearer marketplace status hierarchy, and guided first-publication empty state.
 # UI/UX Design Log
 
@@ -14,3 +17,5 @@
 - Internal Chat retains its existing conversation hierarchy, message-bubble treatments, attachment controls, and editing interaction while localizing the remaining action and lifecycle labels.
 - Level-1 Support retains its ticket-card hierarchy, semantic priority colors, status badges, detail modal, reply composer, and escalation treatment while localizing all supporting labels and states.
 - Template Studio and Template Requests retain their existing card, badge, chip, modal, and action hierarchy while applying shared multilingual metadata and semantic loading, retry, empty, and safe-feedback states.
+- Super Admin National Dashboard retains its platform health color semantics, KPI strip, tab hierarchy, syndicate detail sheet, ranking metrics, and quick-action affordances while replacing mixed-language surfaces with runtime translation and locale-aware financial presentation.
+- Assemblée Générale retains its calendar/banner, resolution cards, majority indicators, vote controls, and administrative action hierarchy while using locale-aware date/time presentation and dedicated translated action labels; Élections retains its lifecycle tabs and mandate result cards with localized role/status metadata.

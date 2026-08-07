@@ -6,6 +6,9 @@
 - Elections now provides a consistent four-language governance experience with safe action feedback, secure vote confirmation, guided loading/unavailable states, and localized candidacy/photo recovery.
 - Elected Members now provides translated mandate roles and explicit loading/retry/error states instead of a blank spinner.
 - Meetings now distinguishes synchronization, unavailable data, and genuine empty results, with translated form guidance and no raw API error exposure.
+- Assemblée Générale now uses the shared guided loading/unavailable state language, localized creation/resolution/vote form guidance, and safe recovery feedback across attendance, status, voting, and minutes actions.
+- Charges & Fund Calls now keep payment submission, validation, and rejection failures inside the localized recovery language instead of exposing server messages.
+- Invoices now keep proof upload, creation, PDF generation, and send outcomes inside safe localized feedback while preserving the real storage URL and optimistic rollback behavior.
 
 - Improved workflow decision and creation flows by ensuring every visible action and input hint responds to runtime language changes.
 - Preserved existing touch interactions, haptic feedback, API persistence, and RTL-compatible translation content.
@@ -58,6 +61,8 @@
 - Activity Journal now provides a consistent four-language traceability experience with localized category/severity hierarchy, translated operational statistics, suspicious-login guidance, locale-aware relative dates, export/detail metadata, and recoverable unavailable-data feedback.
 - Team Invitation now provides a consistent four-language onboarding experience with localized management roles, clear invitation guidance, completion next steps, Moroccan phone validation, safe failure recovery, and keyboard-aware multi-field input behavior.
 - Resident Marketplace now provides a consistent four-language catalogue and moderation experience with localized categories, conditions, statuses, search, actions, orders, statistics, MAD values, and guided empty/error recovery states.
+- Super Admin National Dashboard now provides a consistent four-language platform supervision experience across national KPIs, tabs, health states, alerts, ranking guidance, quick actions, detail metadata, member statuses, and export feedback, with locale-aware MAD values and dates.
+- Assemblée Générale and Élections now complete their remaining governance presentation gaps with active-locale meeting/election dates, dedicated resolution actions, translated mandate roles/statuses, and localized mandate end dates while preserving the existing decision and voting workflows.
 ---
 ## Session 2026-08-06 — Refonte Enterprise Écrans d'Accueil
 

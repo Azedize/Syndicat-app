@@ -1333,13 +1333,10 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
       await api.finance.addInvoice(inv);
       // Refresh from DB to replace fake ID with real UUID and pick up server-computed fields
       await refreshInvoices();
-      notificationBus.emit({ type: "success", message: `${inv.type === "facture" ? "Facture" : "Devis"} ${inv.reference} créé avec succès` });
       return true;
-    } catch (err: any) {
+    } catch {
       // Rollback optimistic insert on failure
       setInvoices((p) => p.filter((i) => i.id !== optimisticId));
-      const msg = err?.message ?? "Erreur réseau — vérifiez votre connexion";
-      notificationBus.emit({ type: "error", message: `Échec création : ${msg}` });
       return false;
     }
   };

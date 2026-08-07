@@ -7,6 +7,11 @@
 - Elected mandates now use localized role labels, explicit loading/retry states, and safe resignation feedback.
 - Meetings now distinguish initial synchronization, failed meetings retrieval, and genuine empty results while preserving existing creation, editing, attendance, and document workflows.
 - Mobile typecheck passed with zero errors; Expo restarted successfully with no new runtime exceptions.
+- Continued the governance cluster with Assemblée Générale: translated form guidance, shared loading/unavailable states, and safe localized feedback for attendance, creation, status changes, resolutions, voting, and PV generation.
+- Preserved the Loi 18-00 coproprietor-only role boundary and all existing assembly, quorum, resolution, vote, attendance, and minutes API behavior.
+- Continued the finance pass on Charges & Fund Calls: payment submission, validation, and rejection failures now use safe localized recovery messages instead of raw API text.
+- Preserved existing payment proof upload, personal/admin scope, MAD formatting, and validation workflows.
+- Continued the administration/finance pass on Invoices: optimistic creation rollback remains intact, raw shared-context error text was removed, and upload, create, PDF, and send feedback now remain safe and localized.
 
 - Completed an internationalization pass for the approval workflow mobile screen.
 - Replaced visible hardcoded labels, actions, form placeholders, document errors, and workflow progress text with French, English, Arabic, and Spanish translations.
@@ -111,3 +116,11 @@
 - Completed the Finance dashboard formatting and data-state pass: all dashboard MAD values now use the active locale, contract end dates are localized, and financial summaries no longer fall back to compact non-localized amounts.
 - Preserved the previous dashboard data while switching buildings and added an explicit loading surface for a dashboard that has not returned yet, avoiding misleading empty content during API transitions.
 - Mobile typecheck and diff validation passed; Metro rebuilt successfully and the protected dashboard preview redirected safely without new runtime exceptions.
+- Completed the Super Admin national dashboard localization and financial presentation pass.
+- Replaced remaining visible French-only national dashboard labels, health/status text, empty states, ranking guidance, quick actions, detail metadata, member statuses, and export feedback with runtime French, English, Arabic, and Spanish copy.
+- Replaced compact/non-localized national balance displays with active-locale MAD formatting and localized national/report sharing dates; preserved real statistics, ranking data, API calls, and the Super Admin role guard.
+- Mobile typecheck and diff validation passed; Expo restarted successfully, and the protected `/tableau-national` preview redirected to the public welcome screen without new runtime exceptions.
+- Continued the Assemblée Générale / Élections enterprise pass by localizing remaining governance date, resolution-action, mandate-role, and mandate-status presentation gaps.
+- AG dates and times now use the active French, English, Arabic, or Spanish locale, the resolution action uses its dedicated translation, and election mandate roles/statuses and mandate end dates are translated/formatted at render time.
+- Preserved the existing real AG/election APIs, election transition state machine, candidacy/voting/delegation behavior, role guards, and anonymous ballot boundary.
+- Mobile typecheck and diff validation passed; Metro bundled both protected routes successfully and `/assemblee-generale` plus `/elections` redirected safely to the public welcome screen without new runtime exceptions.

@@ -7,6 +7,10 @@
 - Added shared `LoadingState`/`ErrorState` surfaces to elections and elected mandates, including localized retry guidance and translated mandate-role metadata.
 - Added a domain-specific meetings load-error flag to `DataContext` so the meetings screen can distinguish failed retrieval from a genuine empty list during the shared API fan-out.
 - Localized meeting creation/edit placeholders and added explicit synchronization/unavailable states without changing meeting CRUD, attendance, calendar, or PV navigation behavior.
+- Audited `artifacts/mobile/app/assemblee-generale.tsx`; replaced raw API error exposure across attendance, creation, status, resolution, vote, and PV actions with safe localized messages.
+- Replaced the generic assembly spinner and retry surface with shared `LoadingState`/`ErrorState` components, and localized all remaining assembly form examples while preserving the existing Loi 18-00 role guard and API contracts.
+- Audited `artifacts/mobile/app/charges.tsx`; replaced raw payment submission, validation, and rejection API messages with safe localized recovery copy while preserving proof uploads, role scope, and existing payment actions.
+- Audited `artifacts/mobile/app/invoices.tsx` and `DataContext.addInvoice`; removed raw invoice creation error emission, added localized create success/failure feedback, and kept file-size-aware upload recovery without changing storage or persistence behavior.
 
 - Audited `artifacts/mobile/app/workflow.tsx` against the enterprise requirement that all visible text use the internationalization system.
 - Added localized fallback messages for workflow loading, decision saving, workflow creation, and missing documents.
@@ -108,3 +112,9 @@
 - Added Moroccan phone-number validation for optional invite numbers, sanitized invitation failures into localized recovery guidance, and replaced the platform `KeyboardAvoidingView` form container with the shared keyboard-aware scroll wrapper.
 - Audited `artifacts/mobile/app/(tabs)/marketplace.tsx`; connected the resident catalogue and Super Admin moderation surface to shared runtime translations for categories, conditions, statuses, actions, search, queues, orders, statistics, and modal copy.
 - Added locale-aware MAD formatting and independent shared retry states for catalogue, pending/reported queues, orders, and statistics; preserved API category values, product navigation, and the Super Admin-only moderation boundary.
+- Audited `artifacts/mobile/app/tableau-national.tsx` and found remaining French-only national administration labels, modal metadata, member statuses, ranking guidance, and non-localized financial/report sharing output.
+- Added screen-local four-language copy for national tabs, KPI labels, health states, alerts, empty/recovery states, ranking metrics, quick actions, syndicate detail metadata, member statuses, and export feedback.
+- Replaced compact `k MAD` national balance presentation with locale-aware MAD currency formatting and localized report dates without changing the real statistics/ranking APIs or Super Admin protection.
+- Audited `artifacts/mobile/app/assemblee-generale.tsx` and `artifacts/mobile/app/elections.tsx` for the remaining governance presentation gaps after their broad translation coverage was already in place.
+- Added locale-aware AG date/time rendering, replaced the unrelated team-member label on the resolution action with `agAddResolutionBtn`, and localized election mandate roles, mandate statuses, and mandate end dates through the existing language system.
+- Passed the language and locale helpers through the standalone election results panel without changing API payloads, transition actions, vote/delegation rules, or RBAC.

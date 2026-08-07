@@ -17,3 +17,5 @@
 - Syndical Actions reuses the existing type/status colors, support and participation button hierarchy, metadata cards, modal sections, and optimistic interaction patterns while translating visible copy at runtime.
 - Governance Organigramme reuses its role-color hierarchy, mandate badges, national summary cards, permission sections, and administrative action hierarchy while adding shared data states, localized dates, and translated feedback.
 - Template Studio and Template Requests reuse existing category/status/priority semantic colors, card and modal surfaces, touch targets, and role boundaries while adopting shared runtime translations and DataState recovery components.
+- Super Admin National Dashboard reuses semantic health/alert colors, ranking podium accents, KPI cards, detail surfaces, and export actions while applying four-language labels and active-locale MAD/date formatting.
+- Assemblée Générale and Élections preserve their existing semantic status colors, card/modal surfaces, lifecycle controls, and mandate/result hierarchy while applying the shared four-language runtime and locale-aware date formatting.

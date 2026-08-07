@@ -14,3 +14,5 @@
 - Notification localization adds no requests, polling, or client-side data duplication; alert grouping remains memoized and preference toggles retain the existing optimistic update path.
 - Chat localization adds no requests, polling, or message duplication; existing conversation polling, attachment handling, and message-list rendering remain unchanged.
 - Support localization adds no requests, polling, or ticket duplication; existing ticket/reply fetches and mutation flows remain unchanged, with date formatting performed locally at render time.
+- National Dashboard localization adds no requests, polling, or duplicated data; currency, number, and date formatting are performed locally at render time while existing syndicate/ranking/detail fetches remain unchanged.
+- AG/Elections presentation fixes add no requests, polling, or duplicated state; date/role/status localization is computed locally at render time and results-panel helper props do not change query or mutation behavior.

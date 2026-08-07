@@ -262,8 +262,8 @@ function ChargesScreenInner() {
       setPayNote("");
       setPayProofUri("");
       load(true);
-    } catch (e: any) {
-      Alert.alert(t("error"), e.message ?? t("errorGeneric"));
+    } catch {
+      Alert.alert(t("error"), t("paymentSubmissionFailed"));
     } finally { setSubmitting(false); }
   };
 
@@ -271,8 +271,8 @@ function ChargesScreenInner() {
     try {
       await apiRequest(`/appels-de-fonds/${id}/validate`, "PUT", { approve: true }, token);
       load(true);
-    } catch (e: any) {
-      Alert.alert(t("error"), e.message ?? t("errorGeneric"));
+    } catch {
+      Alert.alert(t("error"), t("paymentValidationFailed"));
     }
   };
 
@@ -290,8 +290,8 @@ function ChargesScreenInner() {
       setRejectModal(null);
       setRejectReason("");
       load(true);
-    } catch (e: any) {
-      Alert.alert(t("error"), e.message ?? t("errorGeneric"));
+    } catch {
+      Alert.alert(t("error"), t("paymentRejectionFailed"));
     } finally { setSubmitting(false); }
   };
 

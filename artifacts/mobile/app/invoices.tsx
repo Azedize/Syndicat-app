@@ -136,10 +136,11 @@ function InvoicesScreenInner() {
         setProofUpload(result);
         Haptics.selectionAsync();
       }
-    } catch (err: any) {
-      showToast({ type: "error", title: t("error"), message: err?.message?.startsWith("FILE_TOO_LARGE")
-        ? t("uploadErrorSize") ?? "Fichier trop volumineux (max 50 Mo)"
-        : t("uploadError") ?? "Erreur de téléversement" });
+    } catch (err: unknown) {
+      const uploadCode = err instanceof Error ? err.message : "";
+      showToast({ type: "error", title: t("error"), message: uploadCode.startsWith("FILE_TOO_LARGE")
+        ? t("uploadErrorSize")
+        : t("uploadError") });
     } finally {
       setProofUploading(false);
     }
@@ -195,8 +196,15 @@ function InvoicesScreenInner() {
     setIsSubmitting(false);
     if (success) {
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+      showToast({
+        type: "success",
+        title: t("invCreatedTitle"),
+        message: addType === "facture" ? t("invCreatedInvoiceMsg") : t("invCreatedQuoteMsg"),
+      });
       setShowAdd(false);
       resetForm();
+    } else {
+      showToast({ type: "error", title: t("error"), message: t("invCreateError") });
     }
   };
 

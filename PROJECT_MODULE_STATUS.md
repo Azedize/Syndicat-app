@@ -6,6 +6,12 @@
 - Elected Members: localized mandate roles, safe resignation feedback, and retryable loading/error states complete.
 - Meetings: shared fan-out loading/error distinction, localized form guidance, and recoverable unavailable-data state complete; existing meeting CRUD and attendance behavior preserved.
 - Mobile verification: zero-error typecheck, diff validation, and Expo workflow restart pass after the governance follow-through.
+- Assemblée Générale: multilingual assembly lifecycle, quorum/resolution/vote forms, safe mutation feedback, shared loading/unavailable states, and localized form guidance complete; Loi 18-00 role boundary preserved.
+- Mobile verification: zero-error typecheck and diff validation pass after the Assemblée Générale pass.
+- Finance — Charges & Fund Calls: safe localized recovery for payment submission, validation, and rejection mutations complete; proof upload, scope, MAD formatting, and role permissions preserved.
+- Mobile verification: zero-error typecheck and diff validation pass after the finance mutation-feedback pass.
+- Invoices: safe localized upload/create/PDF/send feedback complete; optimistic rollback and real storage/API persistence preserved.
+- Mobile verification: zero-error typecheck and diff validation pass after the invoice feedback pass.
 
 - Governance: multilingual UX pass complete for board, commissions, mandates, delegations, statutes, detail modals, and management forms.
 - Mobile verification: typecheck and diff validation pass after the governance pass.
@@ -51,3 +57,7 @@
 - Mobile verification: zero-error typecheck, diff validation, and compact Expo preview pass; existing protected-route/auth behavior and web compatibility warnings remain non-blocking.
 - Finance — Financial Dashboard: locale-aware MAD formatting across summaries, KPIs, category breakdowns, work budgets, provider contracts, localized contract dates, and explicit dashboard loading recovery complete; building permissions and API data flow preserved.
 - Mobile verification: zero-error typecheck, diff validation, Metro rebuild, and protected compact preview pass.
+- Super Admin National Dashboard: multilingual tabs, KPI labels, health/status hierarchy, empty states, ranking guidance, quick actions, detail modal metadata, member statuses, export feedback, locale-aware dates, and MAD formatting complete; national statistics and role boundary preserved.
+- Mobile verification: zero-error typecheck, diff validation, Expo restart, and protected `/tableau-national` preview pass; only existing Expo web compatibility warnings remain.
+- Assemblée Générale / Élections: remaining locale-aware AG dates/times, dedicated resolution action copy, translated election mandate roles/statuses, and localized mandate end dates complete; real governance APIs, election state machine, voting/delegation behavior, and role boundaries preserved.
+- Mobile verification: zero-error typecheck, diff validation, Metro bundle, and protected `/assemblee-generale` plus `/elections` preview pass; only existing Expo web compatibility warnings remain.

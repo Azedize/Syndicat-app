@@ -1,4 +1,7 @@
 - 2026-08-06 — Elections, elected mandates, and meetings completed runtime localization coverage for French, English, Arabic, and Spanish, including roles, workflow feedback, retry states, and form guidance.
+- 2026-08-06 — Assemblée Générale completed runtime localization coverage for lifecycle feedback, loading/retry states, quorum and resolution forms, vote registration, attendance, and minutes generation in French, English, Arabic, and Spanish.
+- 2026-08-06 — Charges & Fund Calls completed safe localized recovery coverage for payment submission, payment validation, and payment rejection in French, English, Arabic, and Spanish.
+- 2026-08-06 — Invoices completed safe localized recovery coverage for proof upload, invoice/quote creation, PDF generation, and document sending in French, English, Arabic, and Spanish.
 # Morocco Localization Log
 
 ## 2026-08-06
@@ -13,3 +16,5 @@
 - Charges and payment history now format MAD amounts and payment dates with the active French, English, Arabic, or Spanish locale; payment method, lot, due-date, and recovery labels are translated without changing API data or role boundaries.
 - Payment-history periods now filter the visible transactions and financial summaries consistently, while invalid or unavailable transaction data remains recoverable instead of appearing as a misleading empty result.
 - Financial dashboard summaries, budgets, work estimates, provider contract charges, and contract end dates now follow the active French, English, Arabic, or Spanish locale; API values, building scope, and role boundaries remain unchanged.
+- National platform supervision now formats syndicate/member counts, national balances, syndicate balances, and report dates with the active French, English, Arabic, or Spanish locale; MAD remains the displayed currency and API values remain unchanged.
+- General Assembly and Elections now format date ranges, meeting dates/times, mandate end dates, mandate roles, and mandate lifecycle statuses using the active French, English, Arabic, or Spanish locale while preserving Moroccan governance semantics and API values.

@@ -20,10 +20,16 @@ import { useData } from "@/context/DataContext";
 import { useLanguage } from "@/context/LanguageContext";
 import { useBreakpoints } from "@/hooks/useBreakpoints";
 import { useColors } from "@/hooks/useColors";
-import { statistics, chat as chatApi, type EnrichedSyndicate } from "@/services/api";
+import {
+  statistics,
+  chat as chatApi,
+  type EnrichedSyndicate,
+} from "@/services/api";
 import { apiRequest } from "@/lib/api";
 import { useAuth } from "@/context/AuthContext";
-import SyndicateCard, { type SyndicateCardData } from "@/components/SyndicateCard";
+import SyndicateCard, {
+  type SyndicateCardData,
+} from "@/components/SyndicateCard";
 import FilterChips from "@/components/FilterChips";
 import RoleGuard from "@/components/RoleGuard";
 import { ErrorState, LoadingState } from "@/components/DataState";
@@ -72,15 +78,31 @@ type RankingRow = {
 };
 
 const HEALTH_CONFIG = {
-  healthy: { label: "Sain", color: "#10b981", bg: "#10b98118", icon: "check-circle" as const },
-  warning: { label: "Attention", color: "#f59e0b", bg: "#f59e0b18", icon: "alert-triangle" as const },
-  critical: { label: "Critique", color: "#ef4444", bg: "#ef444418", icon: "alert-circle" as const },
+  healthy: { color: "#10b981", bg: "#10b98118", icon: "check-circle" as const },
+  warning: {
+    color: "#f59e0b",
+    bg: "#f59e0b18",
+    icon: "alert-triangle" as const,
+  },
+  critical: {
+    color: "#ef4444",
+    bg: "#ef444418",
+    icon: "alert-circle" as const,
+  },
 };
 
 const ALERT_TYPE_CONFIG = {
   info: { color: "#3b82f6", bg: "#3b82f618", icon: "info" as const },
-  warning: { color: "#f59e0b", bg: "#f59e0b18", icon: "alert-triangle" as const },
-  critical: { color: "#ef4444", bg: "#ef444418", icon: "alert-circle" as const },
+  warning: {
+    color: "#f59e0b",
+    bg: "#f59e0b18",
+    icon: "alert-triangle" as const,
+  },
+  critical: {
+    color: "#ef4444",
+    bg: "#ef444418",
+    icon: "alert-circle" as const,
+  },
 };
 
 const STATE_COPY = {
@@ -152,6 +174,373 @@ const STATE_COPY = {
   },
 } as const;
 
+const SCREEN_COPY = {
+  title: {
+    fr: "Tableau national",
+    en: "National dashboard",
+    ar: "لوحة التحكم الوطنية",
+    es: "Panel nacional",
+  },
+  superAdmin: {
+    fr: "Super Admin",
+    en: "Super Admin",
+    ar: "المدير العام",
+    es: "Super Admin",
+  },
+  syndicates: {
+    fr: "Syndicats",
+    en: "Syndicates",
+    ar: "النقابات",
+    es: "Sindicatos",
+  },
+  alerts: { fr: "Alertes", en: "Alerts", ar: "التنبيهات", es: "Alertas" },
+  finances: { fr: "Finances", en: "Finance", ar: "المالية", es: "Finanzas" },
+  statistics: {
+    fr: "Statistiques",
+    en: "Statistics",
+    ar: "الإحصائيات",
+    es: "Estadísticas",
+  },
+  ranking: {
+    fr: "Classement",
+    en: "Ranking",
+    ar: "الترتيب",
+    es: "Clasificación",
+  },
+  loading: {
+    fr: "Chargement...",
+    en: "Loading...",
+    ar: "جارٍ التحميل...",
+    es: "Cargando...",
+  },
+  membersTotal: {
+    fr: "membres au total",
+    en: "total members",
+    ar: "عضو إجمالاً",
+    es: "miembros en total",
+  },
+  all: { fr: "Tous", en: "All", ar: "الكل", es: "Todos" },
+  healthy: { fr: "Sain", en: "Healthy", ar: "سليم", es: "Saludable" },
+  warning: { fr: "Attention", en: "Attention", ar: "تنبيه", es: "Atención" },
+  critical: { fr: "Critique", en: "Critical", ar: "حرج", es: "Crítico" },
+  members: { fr: "Membres", en: "Members", ar: "الأعضاء", es: "Miembros" },
+  membersTotalLabel: {
+    fr: "Membres total",
+    en: "Total members",
+    ar: "إجمالي الأعضاء",
+    es: "Miembros totales",
+  },
+  membersActive: {
+    fr: "Membres actifs",
+    en: "Active members",
+    ar: "الأعضاء النشطون",
+    es: "Miembros activos",
+  },
+  balance: { fr: "Solde", en: "Balance", ar: "الرصيد", es: "Saldo" },
+  region: { fr: "Région", en: "Region", ar: "المنطقة", es: "Región" },
+  administrator: { fr: "Administrateur", en: "Administrator", ar: "المدير", es: "Administrador" },
+  pendingElections: { fr: "Élections en attente", en: "Pending elections", ar: "الانتخابات المعلقة", es: "Elecciones pendientes" },
+  openTickets: { fr: "Tickets ouverts", en: "Open tickets", ar: "التذاكر المفتوحة", es: "Tickets abiertos" },
+  status: { fr: "Statut", en: "Status", ar: "الحالة", es: "Estado" },
+  averageCollection: {
+    fr: "Taux cotis. moy.",
+    en: "Avg. collection",
+    ar: "متوسط التحصيل",
+    es: "Tasa media de cobro",
+  },
+  platformBalance: {
+    fr: "Solde plateforme",
+    en: "Platform balance",
+    ar: "رصيد المنصة",
+    es: "Saldo de la plataforma",
+  },
+  criticalAlerts: {
+    fr: "Alertes critiques",
+    en: "Critical alerts",
+    ar: "التنبيهات الحرجة",
+    es: "Alertas críticas",
+  },
+  criticalSyndicates: {
+    fr: "Syndicats critiques",
+    en: "Critical syndicates",
+    ar: "النقابات الحرجة",
+    es: "Sindicatos críticos",
+  },
+  noSyndicates: {
+    fr: "Aucun syndicat",
+    en: "No syndicates",
+    ar: "لا توجد نقابات",
+    es: "No hay sindicatos",
+  },
+  noSyndicatesRegistered: {
+    fr: "Aucun syndicat enregistré sur la plateforme.",
+    en: "No syndicates are registered on the platform.",
+    ar: "لا توجد نقابات مسجلة على المنصة.",
+    es: "No hay sindicatos registrados en la plataforma.",
+  },
+  noSyndicatesFiltered: {
+    fr: "Aucun syndicat ne correspond à ce filtre.",
+    en: "No syndicates match this filter.",
+    ar: "لا توجد نقابات تطابق هذا الفلتر.",
+    es: "Ningún sindicato coincide con este filtro.",
+  },
+  noAlerts: {
+    fr: "Aucune alerte",
+    en: "No alerts",
+    ar: "لا توجد تنبيهات",
+    es: "No hay alertas",
+  },
+  allUnderControl: {
+    fr: "Tout est sous contrôle.",
+    en: "Everything is under control.",
+    ar: "كل شيء تحت السيطرة.",
+    es: "Todo está bajo control.",
+  },
+  criticalAction: {
+    fr: "nécessitent une action immédiate",
+    en: "require immediate action",
+    ar: "تتطلب إجراءً فورياً",
+    es: "requieren una acción inmediata",
+  },
+  close: { fr: "Fermer", en: "Close", ar: "إغلاق", es: "Cerrar" },
+  takeOwnership: {
+    fr: "Prendre en charge",
+    en: "Take ownership",
+    ar: "تولي المعالجة",
+    es: "Asumir la gestión",
+  },
+  totalPlatformBalance: {
+    fr: "Solde total de la plateforme",
+    en: "Total platform balance",
+    ar: "إجمالي رصيد المنصة",
+    es: "Saldo total de la plataforma",
+  },
+  realtimeData: {
+    fr: "Données en temps réel",
+    en: "Real-time data",
+    ar: "بيانات لحظية",
+    es: "Datos en tiempo real",
+  },
+  distributionBySyndicate: {
+    fr: "Répartition par syndicat",
+    en: "Distribution by syndicate",
+    ar: "التوزيع حسب النقابة",
+    es: "Distribución por sindicato",
+  },
+  collectionRate: {
+    fr: "Taux de recouvrement des cotisations",
+    en: "Contribution collection rate",
+    ar: "نسبة تحصيل الاشتراكات",
+    es: "Tasa de cobro de cuotas",
+  },
+  noSyndicate: {
+    fr: "Aucun syndicat",
+    en: "No syndicates",
+    ar: "لا توجد نقابات",
+    es: "No hay sindicatos",
+  },
+  consolidatedReport: {
+    fr: "Rapport financier consolidé",
+    en: "Consolidated financial report",
+    ar: "التقرير المالي الموحد",
+    es: "Informe financiero consolidado",
+  },
+  exportExcel: {
+    fr: "Export Excel — tous syndicats",
+    en: "Excel export — all syndicates",
+    ar: "تصدير Excel — جميع النقابات",
+    es: "Exportar Excel — todos los sindicatos",
+  },
+  membersByRegion: {
+    fr: "Membres par région",
+    en: "Members by region",
+    ar: "الأعضاء حسب المنطقة",
+    es: "Miembros por región",
+  },
+  platformHealth: {
+    fr: "Santé de la plateforme",
+    en: "Platform health",
+    ar: "حالة المنصة",
+    es: "Salud de la plataforma",
+  },
+  syndicateCount: {
+    fr: "syndicat",
+    en: "syndicate",
+    ar: "نقابة",
+    es: "sindicato",
+  },
+  syndicateCountPlural: {
+    fr: "syndicats",
+    en: "syndicates",
+    ar: "نقابات",
+    es: "sindicatos",
+  },
+  quickActions: {
+    fr: "Actions rapides",
+    en: "Quick actions",
+    ar: "إجراءات سريعة",
+    es: "Acciones rápidas",
+  },
+  createSyndicate: {
+    fr: "Créer un nouveau syndicat",
+    en: "Create a new syndicate",
+    ar: "إنشاء نقابة جديدة",
+    es: "Crear un nuevo sindicato",
+  },
+  manageSubscriptions: {
+    fr: "Gérer les abonnements",
+    en: "Manage subscriptions",
+    ar: "إدارة الاشتراكات",
+    es: "Gestionar suscripciones",
+  },
+  exportNationalReport: {
+    fr: "Exporter rapport national",
+    en: "Export national report",
+    ar: "تصدير التقرير الوطني",
+    es: "Exportar informe nacional",
+  },
+  sendGlobalAnnouncement: {
+    fr: "Envoyer communiqué global",
+    en: "Send global announcement",
+    ar: "إرسال إعلان عام",
+    es: "Enviar comunicado global",
+  },
+  exportError: {
+    fr: "Impossible d'exporter le rapport.",
+    en: "The report could not be exported.",
+    ar: "تعذر تصدير التقرير.",
+    es: "No se pudo exportar el informe.",
+  },
+  nationalRanking: {
+    fr: "Classement national",
+    en: "National ranking",
+    ar: "الترتيب الوطني",
+    es: "Clasificación nacional",
+  },
+  rankingCriteria: {
+    fr: "Score calculé sur 5 critères : recouvrement, résolution incidents, documentation, réunions, satisfaction.",
+    en: "Score calculated from 5 criteria: collection, incident resolution, documentation, meetings, and satisfaction.",
+    ar: "تُحسب النتيجة وفق 5 معايير: التحصيل، حل الحوادث، التوثيق، الاجتماعات، والرضا.",
+    es: "Puntuación calculada según 5 criterios: cobro, resolución de incidencias, documentación, reuniones y satisfacción.",
+  },
+  noRanking: {
+    fr: "Aucun classement disponible",
+    en: "No ranking available",
+    ar: "لا يوجد ترتيب متاح",
+    es: "No hay clasificación disponible",
+  },
+  noRankingDescription: {
+    fr: "Utilisez « Calculer le classement » dans le panneau super-admin pour générer les scores.",
+    en: "Use “Calculate ranking” in the super-admin panel to generate scores.",
+    ar: "استخدم «حساب الترتيب» في لوحة المدير العام لإنشاء النتائج.",
+    es: "Use «Calcular clasificación» en el panel de superadmin para generar las puntuaciones.",
+  },
+  collectionShort: {
+    fr: "Recouvr.",
+    en: "Collection",
+    ar: "التحصيل",
+    es: "Cobro",
+  },
+  incidents: {
+    fr: "Incidents",
+    en: "Incidents",
+    ar: "الحوادث",
+    es: "Incidencias",
+  },
+  documentsShort: { fr: "Docs", en: "Docs", ar: "الوثائق", es: "Docs" },
+  meetings: {
+    fr: "Réunions",
+    en: "Meetings",
+    ar: "الاجتماعات",
+    es: "Reuniones",
+  },
+  informationComplete: {
+    fr: "Informations complètes",
+    en: "Complete information",
+    ar: "معلومات كاملة",
+    es: "Información completa",
+  },
+  legalForm: {
+    fr: "Forme juridique",
+    en: "Legal form",
+    ar: "الشكل القانوني",
+    es: "Forma jurídica",
+  },
+  address: { fr: "Adresse", en: "Address", ar: "العنوان", es: "Dirección" },
+  city: { fr: "Ville", en: "City", ar: "المدينة", es: "Ciudad" },
+  phone: { fr: "Téléphone", en: "Phone", ar: "الهاتف", es: "Teléfono" },
+  foundingDate: {
+    fr: "Date de fondation",
+    en: "Founded on",
+    ar: "تاريخ التأسيس",
+    es: "Fecha de fundación",
+  },
+  registrationNumber: {
+    fr: "N° enregistrement",
+    en: "Registration no.",
+    ar: "رقم التسجيل",
+    es: "N.º de registro",
+  },
+  membership: { fr: "Adhésion", en: "Joined", ar: "الانضمام", es: "Adhesión" },
+  otherMembers: {
+    fr: "autres membres",
+    en: "other members",
+    ar: "أعضاء آخرون",
+    es: "miembros más",
+  },
+  contactAdmin: {
+    fr: "Contacter l'admin",
+    en: "Contact admin",
+    ar: "التواصل مع المدير",
+    es: "Contactar al administrador",
+  },
+  opening: {
+    fr: "Ouverture…",
+    en: "Opening…",
+    ar: "جارٍ الفتح…",
+    es: "Abriendo…",
+  },
+  detailedReport: {
+    fr: "Rapport détaillé",
+    en: "Detailed report",
+    ar: "تقرير مفصل",
+    es: "Informe detallado",
+  },
+  syndicateReport: {
+    fr: "Rapport syndical",
+    en: "Syndicate report",
+    ar: "تقرير النقابة",
+    es: "Informe sindical",
+  },
+  active: { fr: "Actif", en: "Active", ar: "نشط", es: "Activo" },
+  inactive: { fr: "Inactif", en: "Inactive", ar: "غير نشط", es: "Inactivo" },
+  pending: {
+    fr: "En attente",
+    en: "Pending",
+    ar: "قيد الانتظار",
+    es: "Pendiente",
+  },
+} as const;
+
+type ScreenCopyKey = keyof typeof SCREEN_COPY;
+
+function healthLabel(
+  status: keyof typeof HEALTH_CONFIG,
+  lang: keyof typeof SCREEN_COPY.healthy,
+) {
+  return SCREEN_COPY[status][lang];
+}
+
+function statusLabel(
+  status: string | null | undefined,
+  lang: keyof typeof SCREEN_COPY.healthy,
+) {
+  if (status === "active") return SCREEN_COPY.active[lang];
+  if (status === "inactive") return SCREEN_COPY.inactive[lang];
+  if (status === "pending") return SCREEN_COPY.pending[lang];
+  return status ?? "—";
+}
+
 function mapEnrichedToStat(e: EnrichedSyndicate): SyndicateStat {
   return {
     id: e.id,
@@ -163,7 +552,7 @@ function mapEnrichedToStat(e: EnrichedSyndicate): SyndicateStat {
     balance: e.balance,
     pendingElections: e.pendingElections,
     openTickets: e.openTickets,
-    lastActivity: e.syStatus === "active" ? "Actif" : "Inactif",
+    lastActivity: e.syStatus,
     status: e.status,
     adminName: e.adminName,
     adminId: e.adminId ?? null,
@@ -182,15 +571,43 @@ function TableauNationalScreenInner() {
   const colors = useColors();
   const insets = useSafeAreaInsets();
   const { isWide } = useBreakpoints();
-  const topPad = isWide ? 0 : (Platform.OS === "web" ? 67 : insets.top);
+  const topPad = isWide ? 0 : Platform.OS === "web" ? 67 : insets.top;
   const { alerts } = useData();
   const { token } = useAuth();
   const { lang } = useLanguage();
+  const copy = useCallback(
+    <K extends ScreenCopyKey>(key: K) => SCREEN_COPY[key][lang],
+    [lang],
+  );
+  const locale =
+    lang === "ar"
+      ? "ar-MA"
+      : lang === "es"
+        ? "es-ES"
+        : lang === "en"
+          ? "en-GB"
+          : "fr-MA";
+  const formatMAD = useCallback(
+    (value: number) =>
+      new Intl.NumberFormat(locale, {
+        style: "currency",
+        currency: "MAD",
+        maximumFractionDigits: 0,
+      }).format(value),
+    [locale],
+  );
+  const formatNumber = useCallback(
+    (value: number) => new Intl.NumberFormat(locale).format(value),
+    [locale],
+  );
 
   const [tab, setTab] = useState<TabType>("syndicats");
-  const [selectedSyndicat, setSelectedSyndicat] = useState<SyndicateStat | null>(null);
+  const [selectedSyndicat, setSelectedSyndicat] =
+    useState<SyndicateStat | null>(null);
   const [contactingAdmin, setContactingAdmin] = useState(false);
-  const [filterHealth, setFilterHealth] = useState<"all" | "healthy" | "warning" | "critical">("all");
+  const [filterHealth, setFilterHealth] = useState<
+    "all" | "healthy" | "warning" | "critical"
+  >("all");
   const [syndicats, setSyndicats] = useState<SyndicateStat[]>([]);
   const [loading, setLoading] = useState(true);
   const [syndicatsError, setSyndicatsError] = useState(false);
@@ -199,7 +616,10 @@ function TableauNationalScreenInner() {
   const [rankingsError, setRankingsError] = useState(false);
 
   // Syndicate detail enrichment
-  const [syndicateFullData, setSyndicateFullData] = useState<Record<string, any> | null>(null);
+  const [syndicateFullData, setSyndicateFullData] = useState<Record<
+    string,
+    any
+  > | null>(null);
   const [syndicateMembers, setSyndicateMembers] = useState<any[]>([]);
   const [syndicateDetailLoading, setSyndicateDetailLoading] = useState(false);
   const [syndicateDetailError, setSyndicateDetailError] = useState(false);
@@ -250,8 +670,18 @@ function TableauNationalScreenInner() {
     setSyndicateDetailError(false);
     try {
       const [syndRes, membersRes] = await Promise.all([
-        apiRequest(`/syndicates/${selectedSyndicat.id}`, "GET", undefined, token),
-        apiRequest(`/members?syndicateId=${selectedSyndicat.id}&limit=50`, "GET", undefined, token),
+        apiRequest(
+          `/syndicates/${selectedSyndicat.id}`,
+          "GET",
+          undefined,
+          token,
+        ),
+        apiRequest(
+          `/members?syndicateId=${selectedSyndicat.id}&limit=50`,
+          "GET",
+          undefined,
+          token,
+        ),
       ]);
       setSyndicateFullData((syndRes as any).data ?? null);
       setSyndicateMembers((membersRes as any).data ?? []);
@@ -266,75 +696,128 @@ function TableauNationalScreenInner() {
     void loadSyndicateDetails();
   }, [loadSyndicateDetails]);
 
-  const handleContactAdmin = useCallback(async (syndicat: SyndicateStat) => {
-    if (contactingAdmin) return;
-    setContactingAdmin(true);
-    try {
-      const params = syndicat.adminId
-        ? { participantId: syndicat.adminId, convType: "direct" as const }
-        : { syndicateAdminLookup: syndicat.id, convType: "direct" as const };
-      const res = await chatApi.create(params) as any;
-      const convId = res?.data?.id;
-      setSelectedSyndicat(null);
-      if (convId) {
-        setTimeout(() => router.push(`/chat-thread?id=${convId}` as any), 300);
-      } else {
+  const handleContactAdmin = useCallback(
+    async (syndicat: SyndicateStat) => {
+      if (contactingAdmin) return;
+      setContactingAdmin(true);
+      try {
+        const params = syndicat.adminId
+          ? { participantId: syndicat.adminId, convType: "direct" as const }
+          : { syndicateAdminLookup: syndicat.id, convType: "direct" as const };
+        const res = (await chatApi.create(params)) as any;
+        const convId = res?.data?.id;
+        setSelectedSyndicat(null);
+        if (convId) {
+          setTimeout(
+            () => router.push(`/chat-thread?id=${convId}` as any),
+            300,
+          );
+        } else {
+          setTimeout(() => router.push("/chat" as any), 300);
+        }
+      } catch {
+        setSelectedSyndicat(null);
         setTimeout(() => router.push("/chat" as any), 300);
+      } finally {
+        setContactingAdmin(false);
       }
-    } catch {
-      setSelectedSyndicat(null);
-      setTimeout(() => router.push("/chat" as any), 300);
-    } finally {
-      setContactingAdmin(false);
-    }
-  }, [contactingAdmin]);
+    },
+    [contactingAdmin],
+  );
 
   // Map DataContext alerts to platform alerts format
   const platformAlerts: PlatformAlert[] = alerts.map((a) => ({
     id: a.id,
     title: a.title,
     body: a.message ?? "",
-    type: (a.type === "error" ? "critical" : a.type === "warning" ? "warning" : "info") as "info" | "warning" | "critical",
+    type: (a.type === "error"
+      ? "critical"
+      : a.type === "warning"
+        ? "warning"
+        : "info") as "info" | "warning" | "critical",
     date: a.date ?? new Date().toISOString().slice(0, 10),
     syndicat: undefined,
   }));
 
   const totalMembers = syndicats.reduce((s, x) => s + x.members, 0);
   const totalBalance = syndicats.reduce((s, x) => s + x.balance, 0);
-  const avgCotisation = syndicats.length > 0 ? Math.round(syndicats.reduce((s, x) => s + x.cotisationRate, 0) / syndicats.length) : 0;
+  const avgCotisation =
+    syndicats.length > 0
+      ? Math.round(
+          syndicats.reduce((s, x) => s + x.cotisationRate, 0) /
+            syndicats.length,
+        )
+      : 0;
   const criticalCount = syndicats.filter((x) => x.status === "critical").length;
-  const criticalAlerts = platformAlerts.filter((a) => a.type === "critical").length;
+  const criticalAlerts = platformAlerts.filter(
+    (a) => a.type === "critical",
+  ).length;
   const nationalDataUnavailable = syndicatsError;
 
-  const filteredSyndicats = syndicats.filter((s) => filterHealth === "all" || s.status === filterHealth);
+  const filteredSyndicats = syndicats.filter(
+    (s) => filterHealth === "all" || s.status === filterHealth,
+  );
 
-  const TABS: { key: TabType; label: string; icon: keyof typeof Feather.glyphMap; badge?: number }[] = [
-    { key: "syndicats", label: "Syndicats", icon: "layers", badge: criticalCount || undefined },
-    { key: "alertes", label: "Alertes", icon: "bell", badge: criticalAlerts || undefined },
-    { key: "finances", label: "Finances", icon: "dollar-sign" },
-    { key: "stats", label: "Statistiques", icon: "bar-chart-2" },
-    { key: "classement", label: "Classement", icon: "award" },
+  const TABS: {
+    key: TabType;
+    label: string;
+    icon: keyof typeof Feather.glyphMap;
+    badge?: number;
+  }[] = [
+    {
+      key: "syndicats",
+      label: copy("syndicates"),
+      icon: "layers",
+      badge: criticalCount || undefined,
+    },
+    {
+      key: "alertes",
+      label: copy("alerts"),
+      icon: "bell",
+      badge: criticalAlerts || undefined,
+    },
+    { key: "finances", label: copy("finances"), icon: "dollar-sign" },
+    { key: "stats", label: copy("statistics"), icon: "bar-chart-2" },
+    { key: "classement", label: copy("ranking"), icon: "award" },
   ];
 
   return (
     <View style={[styles.root, { backgroundColor: colors.background }]}>
-      <View style={[styles.header, { paddingTop: topPad + 16, backgroundColor: colors.card, borderBottomColor: colors.border }]}>
+      <View
+        style={[
+          styles.header,
+          {
+            paddingTop: topPad + 16,
+            backgroundColor: colors.card,
+            borderBottomColor: colors.border,
+          },
+        ]}
+      >
         <TouchableOpacity onPress={() => router.back()} style={styles.backBtn}>
           <Feather name="arrow-left" size={22} color={colors.foreground} />
         </TouchableOpacity>
         <View style={{ flex: 1 }}>
-          <Text style={[styles.title, { color: colors.foreground }]}>Tableau National</Text>
+          <Text style={[styles.title, { color: colors.foreground }]}>
+            {copy("title")}
+          </Text>
           <Text style={[styles.subtitle, { color: colors.mutedForeground }]}>
             {loading
-              ? "Chargement..."
+              ? copy("loading")
               : nationalDataUnavailable
                 ? STATE_COPY.unavailableTitle[lang]
-                : `${syndicats.length} syndicats · ${totalMembers.toLocaleString()} membres au total`}
+                : `${formatNumber(syndicats.length)} ${copy("syndicates").toLocaleLowerCase()} · ${formatNumber(totalMembers)} ${copy("membersTotal")}`}
           </Text>
         </View>
-        <View style={[styles.platformBadge, { backgroundColor: colors.primary + "15" }]}>
+        <View
+          style={[
+            styles.platformBadge,
+            { backgroundColor: colors.primary + "15" },
+          ]}
+        >
           <Feather name="shield" size={12} color={colors.primary} />
-          <Text style={[styles.platformBadgeText, { color: colors.primary }]}>Super Admin</Text>
+          <Text style={[styles.platformBadgeText, { color: colors.primary }]}>
+            {copy("superAdmin")}
+          </Text>
         </View>
       </View>
 
@@ -342,27 +825,79 @@ function TableauNationalScreenInner() {
         horizontal
         showsHorizontalScrollIndicator={false}
         style={[styles.kpiScroll, { borderBottomColor: colors.border }]}
-        contentContainerStyle={{ paddingHorizontal: 12, gap: 10, paddingVertical: 10 }}
+        contentContainerStyle={{
+          paddingHorizontal: 12,
+          gap: 10,
+          paddingVertical: 10,
+        }}
       >
-        {loading
-          ? <ActivityIndicator color={colors.primary} style={{ marginHorizontal: 20 }} />
-          : [
-            { label: "Syndicats", value: syndicats.length.toString(), icon: "layers" as const, color: colors.primary },
-            { label: "Membres total", value: totalMembers.toLocaleString(), icon: "users" as const, color: "#3b82f6" },
-            { label: "Taux cotis. moy.", value: `${avgCotisation}%`, icon: "percent" as const, color: "#10b981" },
-            { label: "Solde plateforme", value: `${(totalBalance / 1000).toFixed(0)}k MAD`, icon: "dollar-sign" as const, color: "#6366f1" },
-            { label: "Alertes critiques", value: criticalAlerts.toString(), icon: "alert-circle" as const, color: "#ef4444" },
-            { label: "Syndicats critiques", value: criticalCount.toString(), icon: "alert-triangle" as const, color: "#f59e0b" },
+        {loading ? (
+          <ActivityIndicator
+            color={colors.primary}
+            style={{ marginHorizontal: 20 }}
+          />
+        ) : (
+          [
+            {
+              label: copy("syndicates"),
+              value: formatNumber(syndicats.length),
+              icon: "layers" as const,
+              color: colors.primary,
+            },
+            {
+              label: copy("membersTotalLabel"),
+              value: formatNumber(totalMembers),
+              icon: "users" as const,
+              color: "#3b82f6",
+            },
+            {
+              label: copy("averageCollection"),
+              value: `${avgCotisation}%`,
+              icon: "percent" as const,
+              color: "#10b981",
+            },
+            {
+              label: copy("platformBalance"),
+              value: formatMAD(totalBalance),
+              icon: "dollar-sign" as const,
+              color: "#6366f1",
+            },
+            {
+              label: copy("criticalAlerts"),
+              value: formatNumber(criticalAlerts),
+              icon: "alert-circle" as const,
+              color: "#ef4444",
+            },
+            {
+              label: copy("criticalSyndicates"),
+              value: formatNumber(criticalCount),
+              icon: "alert-triangle" as const,
+              color: "#f59e0b",
+            },
           ].map((kpi) => (
-            <View key={kpi.label} style={[styles.kpiCard, { backgroundColor: colors.card, borderColor: colors.border }]}>
-              <View style={[styles.kpiIcon, { backgroundColor: kpi.color + "18" }]}>
+            <View
+              key={kpi.label}
+              style={[
+                styles.kpiCard,
+                { backgroundColor: colors.card, borderColor: colors.border },
+              ]}
+            >
+              <View
+                style={[styles.kpiIcon, { backgroundColor: kpi.color + "18" }]}
+              >
                 <Feather name={kpi.icon} size={14} color={kpi.color} />
               </View>
-              <Text style={[styles.kpiVal, { color: kpi.color }]}>{kpi.value}</Text>
-              <Text style={[styles.kpiLabel, { color: colors.mutedForeground }]}>{kpi.label}</Text>
+              <Text style={[styles.kpiVal, { color: kpi.color }]}>
+                {kpi.value}
+              </Text>
+              <Text
+                style={[styles.kpiLabel, { color: colors.mutedForeground }]}
+              >
+                {kpi.label}
+              </Text>
             </View>
           ))
-        }
+        )}
       </ScrollView>
 
       <ScrollView
@@ -383,13 +918,35 @@ function TableauNationalScreenInner() {
                   borderBottomColor: isActive ? colors.primary : "transparent",
                 },
               ]}
-              onPress={() => { setTab(t.key); Haptics.selectionAsync(); }}
+              onPress={() => {
+                setTab(t.key);
+                Haptics.selectionAsync();
+              }}
               activeOpacity={0.7}
             >
-              <Feather name={t.icon} size={14} color={isActive ? colors.primary : colors.mutedForeground} />
-              <Text style={[styles.tabLabel, { color: isActive ? colors.primary : colors.mutedForeground }]}>{t.label}</Text>
+              <Feather
+                name={t.icon}
+                size={14}
+                color={isActive ? colors.primary : colors.mutedForeground}
+              />
+              <Text
+                style={[
+                  styles.tabLabel,
+                  { color: isActive ? colors.primary : colors.mutedForeground },
+                ]}
+              >
+                {t.label}
+              </Text>
               {t.badge ? (
-                <View style={[styles.tabBadge, { backgroundColor: t.key === "alertes" ? "#ef4444" : "#f59e0b" }]}>
+                <View
+                  style={[
+                    styles.tabBadge,
+                    {
+                      backgroundColor:
+                        t.key === "alertes" ? "#ef4444" : "#f59e0b",
+                    },
+                  ]}
+                >
                   <Text style={styles.tabBadgeText}>{t.badge}</Text>
                 </View>
               ) : null}
@@ -417,10 +974,25 @@ function TableauNationalScreenInner() {
           <>
             <FilterChips
               options={[
-                { key: "all", label: "Tous" },
-                { key: "healthy", label: "Sain", icon: HEALTH_CONFIG.healthy.icon, color: HEALTH_CONFIG.healthy.color },
-                { key: "warning", label: "Attention", icon: HEALTH_CONFIG.warning.icon, color: HEALTH_CONFIG.warning.color },
-                { key: "critical", label: "Critique", icon: HEALTH_CONFIG.critical.icon, color: HEALTH_CONFIG.critical.color },
+                { key: "all", label: copy("all") },
+                {
+                  key: "healthy",
+                  label: copy("healthy"),
+                  icon: HEALTH_CONFIG.healthy.icon,
+                  color: HEALTH_CONFIG.healthy.color,
+                },
+                {
+                  key: "warning",
+                  label: copy("warning"),
+                  icon: HEALTH_CONFIG.warning.icon,
+                  color: HEALTH_CONFIG.warning.color,
+                },
+                {
+                  key: "critical",
+                  label: copy("critical"),
+                  icon: HEALTH_CONFIG.critical.icon,
+                  color: HEALTH_CONFIG.critical.color,
+                },
               ]}
               value={filterHealth}
               onChange={(k) => setFilterHealth(k as typeof filterHealth)}
@@ -428,18 +1000,51 @@ function TableauNationalScreenInner() {
               mode="equal"
             />
             {filteredSyndicats.length === 0 ? (
-              <View style={{ flex: 1, alignItems: "center", justifyContent: "center", gap: 10, padding: 24 }}>
-                <Feather name="inbox" size={40} color={colors.mutedForeground} />
-                <Text style={{ fontFamily: "Inter_600SemiBold", fontSize: 14, color: colors.foreground }}>Aucun syndicat</Text>
-                <Text style={{ fontFamily: "Inter_400Regular", fontSize: 12, color: colors.mutedForeground, textAlign: "center" }}>
-                  {syndicats.length === 0 ? "Aucun syndicat enregistré sur la plateforme." : "Aucun syndicat ne correspond à ce filtre."}
+              <View
+                style={{
+                  flex: 1,
+                  alignItems: "center",
+                  justifyContent: "center",
+                  gap: 10,
+                  padding: 24,
+                }}
+              >
+                <Feather
+                  name="inbox"
+                  size={40}
+                  color={colors.mutedForeground}
+                />
+                <Text
+                  style={{
+                    fontFamily: "Inter_600SemiBold",
+                    fontSize: 14,
+                    color: colors.foreground,
+                  }}
+                >
+                  {copy("noSyndicates")}
+                </Text>
+                <Text
+                  style={{
+                    fontFamily: "Inter_400Regular",
+                    fontSize: 12,
+                    color: colors.mutedForeground,
+                    textAlign: "center",
+                  }}
+                >
+                  {syndicats.length === 0
+                    ? copy("noSyndicatesRegistered")
+                    : copy("noSyndicatesFiltered")}
                 </Text>
               </View>
             ) : (
               <FlatList
                 data={filteredSyndicats}
                 keyExtractor={(s) => s.id}
-                contentContainerStyle={{ padding: 16, gap: 12, paddingBottom: insets.bottom + 80 }}
+                contentContainerStyle={{
+                  padding: 16,
+                  gap: 12,
+                  paddingBottom: insets.bottom + 80,
+                }}
                 showsVerticalScrollIndicator={false}
                 renderItem={({ item: synd }) => {
                   const cardData: SyndicateCardData = {
@@ -465,21 +1070,60 @@ function TableauNationalScreenInner() {
         <FlatList
           data={platformAlerts}
           keyExtractor={(a) => a.id}
-          contentContainerStyle={{ padding: 16, gap: 10, paddingBottom: insets.bottom + 80 }}
+          contentContainerStyle={{
+            padding: 16,
+            gap: 10,
+            paddingBottom: insets.bottom + 80,
+          }}
           showsVerticalScrollIndicator={false}
           ListEmptyComponent={
-            <View style={{ alignItems: "center", justifyContent: "center", padding: 32, gap: 10 }}>
-              <Feather name="bell-off" size={32} color={colors.mutedForeground} />
-              <Text style={{ fontFamily: "Inter_600SemiBold", fontSize: 14, color: colors.foreground }}>Aucune alerte</Text>
-              <Text style={{ fontFamily: "Inter_400Regular", fontSize: 12, color: colors.mutedForeground }}>Tout est sous contrôle.</Text>
+            <View
+              style={{
+                alignItems: "center",
+                justifyContent: "center",
+                padding: 32,
+                gap: 10,
+              }}
+            >
+              <Feather
+                name="bell-off"
+                size={32}
+                color={colors.mutedForeground}
+              />
+              <Text
+                style={{
+                  fontFamily: "Inter_600SemiBold",
+                  fontSize: 14,
+                  color: colors.foreground,
+                }}
+              >
+                {copy("noAlerts")}
+              </Text>
+              <Text
+                style={{
+                  fontFamily: "Inter_400Regular",
+                  fontSize: 12,
+                  color: colors.mutedForeground,
+                }}
+              >
+                {copy("allUnderControl")}
+              </Text>
             </View>
           }
           ListHeaderComponent={
             criticalAlerts > 0 ? (
-              <View style={[styles.alertBanner, { backgroundColor: "#ef444415", borderColor: "#ef444430" }]}>
+              <View
+                style={[
+                  styles.alertBanner,
+                  { backgroundColor: "#ef444415", borderColor: "#ef444430" },
+                ]}
+              >
                 <Feather name="alert-circle" size={14} color="#ef4444" />
                 <Text style={[styles.alertBannerText, { color: "#ef4444" }]}>
-                  {criticalAlerts} alerte{criticalAlerts > 1 ? "s" : ""} critique{criticalAlerts > 1 ? "s" : ""} nécessitent une action immédiate
+                  {formatNumber(criticalAlerts)}{" "}
+                  {copy("alerts").toLocaleLowerCase()}{" "}
+                  {copy("critical").toLocaleLowerCase()}{" "}
+                  {copy("criticalAction")}
                 </Text>
               </View>
             ) : null
@@ -488,13 +1132,32 @@ function TableauNationalScreenInner() {
             const ac = ALERT_TYPE_CONFIG[alert.type];
             return (
               <TouchableOpacity
-                style={[styles.alertCard, { backgroundColor: colors.card, borderColor: alert.type === "critical" ? "#ef444440" : colors.border, borderLeftColor: ac.color, borderLeftWidth: 4 }]}
+                style={[
+                  styles.alertCard,
+                  {
+                    backgroundColor: colors.card,
+                    borderColor:
+                      alert.type === "critical" ? "#ef444440" : colors.border,
+                    borderLeftColor: ac.color,
+                    borderLeftWidth: 4,
+                  },
+                ]}
                 onPress={() => {
                   Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-                  Alert.alert(alert.title, `${alert.body}\n\nDate: ${alert.date}${alert.syndicat ? `\nSyndicat: ${alert.syndicat}` : ""}`, [
-                    { text: "Fermer", style: "cancel" },
-                    { text: "Prendre en charge", onPress: () => Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success) },
-                  ]);
+                  Alert.alert(
+                    alert.title,
+                    `${alert.body}\n\n${copy("meetings")}: ${alert.date}${alert.syndicat ? `\n${copy("syndicates")}: ${alert.syndicat}` : ""}`,
+                    [
+                      { text: copy("close"), style: "cancel" },
+                      {
+                        text: copy("takeOwnership"),
+                        onPress: () =>
+                          Haptics.notificationAsync(
+                            Haptics.NotificationFeedbackType.Success,
+                          ),
+                      },
+                    ],
+                  );
                 }}
                 activeOpacity={0.8}
               >
@@ -503,14 +1166,37 @@ function TableauNationalScreenInner() {
                     <Feather name={ac.icon} size={16} color={ac.color} />
                   </View>
                   <View style={{ flex: 1 }}>
-                    <Text style={[styles.alertTitle, { color: colors.foreground }]}>{alert.title}</Text>
+                    <Text
+                      style={[styles.alertTitle, { color: colors.foreground }]}
+                    >
+                      {alert.title}
+                    </Text>
                     {alert.syndicat ? (
-                      <Text style={[styles.alertSyndicat, { color: colors.primary }]}>{alert.syndicat}</Text>
+                      <Text
+                        style={[
+                          styles.alertSyndicat,
+                          { color: colors.primary },
+                        ]}
+                      >
+                        {alert.syndicat}
+                      </Text>
                     ) : null}
                   </View>
-                  <Text style={[styles.alertDate, { color: colors.mutedForeground }]}>{alert.date.slice(5)}</Text>
+                  <Text
+                    style={[
+                      styles.alertDate,
+                      { color: colors.mutedForeground },
+                    ]}
+                  >
+                    {alert.date.slice(5)}
+                  </Text>
                 </View>
-                <Text style={[styles.alertBody, { color: colors.mutedForeground }]} numberOfLines={2}>{alert.body}</Text>
+                <Text
+                  style={[styles.alertBody, { color: colors.mutedForeground }]}
+                  numberOfLines={2}
+                >
+                  {alert.body}
+                </Text>
               </TouchableOpacity>
             );
           }}
@@ -525,79 +1211,232 @@ function TableauNationalScreenInner() {
             accentColor={colors.primary}
           />
         ) : (
-        <ScrollView contentContainerStyle={{ padding: 16, gap: 14, paddingBottom: insets.bottom + 80 }}>
-          <View style={[styles.financeHero, { backgroundColor: colors.primary }]}>
-            <View style={styles.financeHeroRow}>
-              <Feather name="dollar-sign" size={20} color="rgba(255,255,255,0.6)" />
-              <Text style={styles.financeHeroLabel}>Solde Total de la Plateforme</Text>
+          <ScrollView
+            contentContainerStyle={{
+              padding: 16,
+              gap: 14,
+              paddingBottom: insets.bottom + 80,
+            }}
+          >
+            <View
+              style={[styles.financeHero, { backgroundColor: colors.primary }]}
+            >
+              <View style={styles.financeHeroRow}>
+                <Feather
+                  name="dollar-sign"
+                  size={20}
+                  color="rgba(255,255,255,0.6)"
+                />
+                <Text style={styles.financeHeroLabel}>
+                  {copy("totalPlatformBalance")}
+                </Text>
+              </View>
+              <Text style={styles.financeHeroAmount}>
+                {loading ? "..." : formatMAD(totalBalance)}
+              </Text>
+              <Text style={styles.financeHeroSub}>
+                {formatNumber(syndicats.length)}{" "}
+                {copy("syndicates").toLocaleLowerCase()} ·{" "}
+                {copy("realtimeData")}
+              </Text>
             </View>
-            <Text style={styles.financeHeroAmount}>{loading ? "..." : totalBalance.toLocaleString("fr-MA")} MAD</Text>
-            <Text style={styles.financeHeroSub}>{syndicats.length} syndicats · Données en temps réel</Text>
-          </View>
 
-          <View style={[styles.financeCard, { backgroundColor: colors.card, borderColor: colors.border }]}>
-            <Text style={[styles.financeCardTitle, { color: colors.foreground }]}>Répartition par syndicat</Text>
-            {loading
-              ? <ActivityIndicator color={colors.primary} />
-              : syndicats.length === 0
-                ? <Text style={{ fontFamily: "Inter_400Regular", fontSize: 12, color: colors.mutedForeground, textAlign: "center" }}>Aucun syndicat</Text>
-                : [...syndicats].sort((a, b) => b.balance - a.balance).map((synd, i) => {
-                  const pct = totalBalance > 0 ? (synd.balance / totalBalance) * 100 : 0;
-                  const syndColors = ["#2563EB", "#3b82f6", "#10b981", "#f59e0b", "#6366f1", "#ec4899"];
-                  const c = syndColors[i % syndColors.length];
-                  return (
-                    <View key={synd.id} style={styles.financeRow}>
-                      <View style={[styles.syndDot, { backgroundColor: c }]} />
-                      <Text style={[styles.financeRowName, { color: colors.foreground }]} numberOfLines={1}>{synd.name.split("—")[0].trim()}</Text>
-                      <View style={[styles.financeBar, { backgroundColor: colors.border }]}>
-                        <View style={[styles.financeBarFill, { width: `${pct}%`, backgroundColor: c }]} />
-                      </View>
-                      <Text style={[styles.financeRowAmt, { color: colors.foreground }]}>{(synd.balance / 1000).toFixed(0)}k</Text>
-                    </View>
-                  );
-                })
-            }
-          </View>
-
-          <View style={[styles.financeCard, { backgroundColor: colors.card, borderColor: colors.border }]}>
-            <Text style={[styles.financeCardTitle, { color: colors.foreground }]}>Taux de recouvrement des cotisations</Text>
-            {loading
-              ? <ActivityIndicator color={colors.primary} />
-              : [...syndicats].sort((a, b) => b.cotisationRate - a.cotisationRate).map((synd) => {
-                const c = synd.cotisationRate >= 85 ? "#10b981" : synd.cotisationRate >= 70 ? "#f59e0b" : "#ef4444";
-                return (
-                  <View key={synd.id} style={styles.cotisRow}>
-                    <Text style={[styles.cotisName, { color: colors.foreground }]} numberOfLines={1}>{synd.name.split("—")[0].trim().slice(0, 25)}</Text>
-                    <View style={[styles.financeBar, { backgroundColor: colors.border }]}>
-                      <View style={[styles.financeBarFill, { width: `${synd.cotisationRate}%`, backgroundColor: c }]} />
-                    </View>
-                    <Text style={[styles.cotisRate, { color: c }]}>{synd.cotisationRate}%</Text>
-                  </View>
-                );
-              })
-            }
-          </View>
-
-          <View style={styles.exportRow}>
-            {[
-              { label: "Rapport financier consolidé", icon: "file-text" as const, color: "#6366f1" },
-              { label: "Export Excel — tous syndicats", icon: "download" as const, color: "#10b981" },
-            ].map((a) => (
-              <TouchableOpacity
-                key={a.label}
-                style={[styles.exportBtn, { backgroundColor: colors.card, borderColor: colors.border }]}
-                onPress={() => { Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success); Share.share({ title: a.label, message: `${a.label}\nGénéré le ${new Date().toLocaleDateString("fr-MA")}\nMIZAN` }); }}
-                activeOpacity={0.8}
+            <View
+              style={[
+                styles.financeCard,
+                { backgroundColor: colors.card, borderColor: colors.border },
+              ]}
+            >
+              <Text
+                style={[styles.financeCardTitle, { color: colors.foreground }]}
               >
-                <View style={[styles.exportIcon, { backgroundColor: a.color + "18" }]}>
-                  <Feather name={a.icon} size={16} color={a.color} />
-                </View>
-                <Text style={[styles.exportLabel, { color: colors.foreground }]}>{a.label}</Text>
-                <Feather name="chevron-right" size={14} color={colors.mutedForeground} />
-              </TouchableOpacity>
-            ))}
-          </View>
-        </ScrollView>
+                {copy("distributionBySyndicate")}
+              </Text>
+              {loading ? (
+                <ActivityIndicator color={colors.primary} />
+              ) : syndicats.length === 0 ? (
+                <Text
+                  style={{
+                    fontFamily: "Inter_400Regular",
+                    fontSize: 12,
+                    color: colors.mutedForeground,
+                    textAlign: "center",
+                  }}
+                >
+                  {copy("noSyndicate")}
+                </Text>
+              ) : (
+                [...syndicats]
+                  .sort((a, b) => b.balance - a.balance)
+                  .map((synd, i) => {
+                    const pct =
+                      totalBalance > 0
+                        ? (synd.balance / totalBalance) * 100
+                        : 0;
+                    const syndColors = [
+                      "#2563EB",
+                      "#3b82f6",
+                      "#10b981",
+                      "#f59e0b",
+                      "#6366f1",
+                      "#ec4899",
+                    ];
+                    const c = syndColors[i % syndColors.length];
+                    return (
+                      <View key={synd.id} style={styles.financeRow}>
+                        <View
+                          style={[styles.syndDot, { backgroundColor: c }]}
+                        />
+                        <Text
+                          style={[
+                            styles.financeRowName,
+                            { color: colors.foreground },
+                          ]}
+                          numberOfLines={1}
+                        >
+                          {synd.name.split("—")[0].trim()}
+                        </Text>
+                        <View
+                          style={[
+                            styles.financeBar,
+                            { backgroundColor: colors.border },
+                          ]}
+                        >
+                          <View
+                            style={[
+                              styles.financeBarFill,
+                              { width: `${pct}%`, backgroundColor: c },
+                            ]}
+                          />
+                        </View>
+                        <Text
+                          style={[
+                            styles.financeRowAmt,
+                            { color: colors.foreground },
+                          ]}
+                        >
+                          {formatMAD(synd.balance)}
+                        </Text>
+                      </View>
+                    );
+                  })
+              )}
+            </View>
+
+            <View
+              style={[
+                styles.financeCard,
+                { backgroundColor: colors.card, borderColor: colors.border },
+              ]}
+            >
+              <Text
+                style={[styles.financeCardTitle, { color: colors.foreground }]}
+              >
+                {copy("collectionRate")}
+              </Text>
+              {loading ? (
+                <ActivityIndicator color={colors.primary} />
+              ) : (
+                [...syndicats]
+                  .sort((a, b) => b.cotisationRate - a.cotisationRate)
+                  .map((synd) => {
+                    const c =
+                      synd.cotisationRate >= 85
+                        ? "#10b981"
+                        : synd.cotisationRate >= 70
+                          ? "#f59e0b"
+                          : "#ef4444";
+                    return (
+                      <View key={synd.id} style={styles.cotisRow}>
+                        <Text
+                          style={[
+                            styles.cotisName,
+                            { color: colors.foreground },
+                          ]}
+                          numberOfLines={1}
+                        >
+                          {synd.name.split("—")[0].trim().slice(0, 25)}
+                        </Text>
+                        <View
+                          style={[
+                            styles.financeBar,
+                            { backgroundColor: colors.border },
+                          ]}
+                        >
+                          <View
+                            style={[
+                              styles.financeBarFill,
+                              {
+                                width: `${synd.cotisationRate}%`,
+                                backgroundColor: c,
+                              },
+                            ]}
+                          />
+                        </View>
+                        <Text style={[styles.cotisRate, { color: c }]}>
+                          {synd.cotisationRate}%
+                        </Text>
+                      </View>
+                    );
+                  })
+              )}
+            </View>
+
+            <View style={styles.exportRow}>
+              {[
+                {
+                  label: copy("consolidatedReport"),
+                  icon: "file-text" as const,
+                  color: "#6366f1",
+                },
+                {
+                  label: copy("exportExcel"),
+                  icon: "download" as const,
+                  color: "#10b981",
+                },
+              ].map((a) => (
+                <TouchableOpacity
+                  key={a.label}
+                  style={[
+                    styles.exportBtn,
+                    {
+                      backgroundColor: colors.card,
+                      borderColor: colors.border,
+                    },
+                  ]}
+                  onPress={() => {
+                    Haptics.notificationAsync(
+                      Haptics.NotificationFeedbackType.Success,
+                    );
+                    void Share.share({
+                      title: a.label,
+                      message: `${a.label}\n${new Date().toLocaleDateString(locale)}\nMIZAN`,
+                    });
+                  }}
+                  activeOpacity={0.8}
+                >
+                  <View
+                    style={[
+                      styles.exportIcon,
+                      { backgroundColor: a.color + "18" },
+                    ]}
+                  >
+                    <Feather name={a.icon} size={16} color={a.color} />
+                  </View>
+                  <Text
+                    style={[styles.exportLabel, { color: colors.foreground }]}
+                  >
+                    {a.label}
+                  </Text>
+                  <Feather
+                    name="chevron-right"
+                    size={14}
+                    color={colors.mutedForeground}
+                  />
+                </TouchableOpacity>
+              ))}
+            </View>
+          </ScrollView>
         )
       ) : tab === "stats" ? (
         nationalDataUnavailable ? (
@@ -609,122 +1448,267 @@ function TableauNationalScreenInner() {
             accentColor={colors.primary}
           />
         ) : (
-        <ScrollView contentContainerStyle={{ padding: 16, gap: 14, paddingBottom: insets.bottom + 80 }}>
-          <View style={[styles.statCard, { backgroundColor: colors.card, borderColor: colors.border }]}>
-            <View style={styles.statCardHeader}>
-              <View style={[styles.statIcon, { backgroundColor: colors.primary + "18" }]}>
-                <Feather name="map-pin" size={15} color={colors.primary} />
+          <ScrollView
+            contentContainerStyle={{
+              padding: 16,
+              gap: 14,
+              paddingBottom: insets.bottom + 80,
+            }}
+          >
+            <View
+              style={[
+                styles.statCard,
+                { backgroundColor: colors.card, borderColor: colors.border },
+              ]}
+            >
+              <View style={styles.statCardHeader}>
+                <View
+                  style={[
+                    styles.statIcon,
+                    { backgroundColor: colors.primary + "18" },
+                  ]}
+                >
+                  <Feather name="map-pin" size={15} color={colors.primary} />
+                </View>
+                <Text
+                  style={[styles.statCardTitle, { color: colors.foreground }]}
+                >
+                  {copy("membersByRegion")}
+                </Text>
               </View>
-              <Text style={[styles.statCardTitle, { color: colors.foreground }]}>Membres par région</Text>
+              {loading ? (
+                <ActivityIndicator color={colors.primary} />
+              ) : (
+                Array.from(new Set(syndicats.map((s) => s.region))).map(
+                  (region, i) => {
+                    const count = syndicats
+                      .filter((s) => s.region === region)
+                      .reduce((sum, s) => sum + s.members, 0);
+                    const pct =
+                      totalMembers > 0 ? (count / totalMembers) * 100 : 0;
+                    const regionColors = [
+                      "#2563EB",
+                      "#3b82f6",
+                      "#10b981",
+                      "#f59e0b",
+                    ];
+                    const c = regionColors[i % regionColors.length];
+                    return (
+                      <View key={region} style={styles.regionRow}>
+                        <View
+                          style={[styles.regionDot, { backgroundColor: c }]}
+                        />
+                        <Text
+                          style={[
+                            styles.regionName,
+                            { color: colors.foreground, flex: 1 },
+                          ]}
+                        >
+                          {region}
+                        </Text>
+                        <View
+                          style={[
+                            styles.regionBar,
+                            { backgroundColor: colors.border },
+                          ]}
+                        >
+                          <View
+                            style={[
+                              styles.regionBarFill,
+                              { width: `${pct}%`, backgroundColor: c },
+                            ]}
+                          />
+                        </View>
+                        <Text
+                          style={[
+                            styles.regionCount,
+                            { color: colors.mutedForeground },
+                          ]}
+                        >
+                          {formatNumber(count)}
+                        </Text>
+                      </View>
+                    );
+                  },
+                )
+              )}
             </View>
-            {loading
-              ? <ActivityIndicator color={colors.primary} />
-              : Array.from(new Set(syndicats.map((s) => s.region))).map((region, i) => {
-                const count = syndicats.filter((s) => s.region === region).reduce((sum, s) => sum + s.members, 0);
-                const pct = totalMembers > 0 ? (count / totalMembers) * 100 : 0;
-                const regionColors = ["#2563EB", "#3b82f6", "#10b981", "#f59e0b"];
-                const c = regionColors[i % regionColors.length];
+
+            <View
+              style={[
+                styles.statCard,
+                { backgroundColor: colors.card, borderColor: colors.border },
+              ]}
+            >
+              <View style={styles.statCardHeader}>
+                <View
+                  style={[styles.statIcon, { backgroundColor: "#10b98118" }]}
+                >
+                  <Feather name="activity" size={15} color="#10b981" />
+                </View>
+                <Text
+                  style={[styles.statCardTitle, { color: colors.foreground }]}
+                >
+                  {copy("platformHealth")}
+                </Text>
+              </View>
+              {(["healthy", "warning", "critical"] as const).map((health) => {
+                const hc = HEALTH_CONFIG[health];
+                const count = syndicats.filter(
+                  (s) => s.status === health,
+                ).length;
                 return (
-                  <View key={region} style={styles.regionRow}>
-                    <View style={[styles.regionDot, { backgroundColor: c }]} />
-                    <Text style={[styles.regionName, { color: colors.foreground, flex: 1 }]}>{region}</Text>
-                    <View style={[styles.regionBar, { backgroundColor: colors.border }]}>
-                      <View style={[styles.regionBarFill, { width: `${pct}%`, backgroundColor: c }]} />
+                  <View key={health} style={styles.healthRow}>
+                    <Feather name={hc.icon} size={14} color={hc.color} />
+                    <Text
+                      style={[
+                        styles.healthLabel,
+                        { color: colors.foreground, flex: 1 },
+                      ]}
+                    >
+                      {healthLabel(health, lang)}
+                    </Text>
+                    <View
+                      style={[
+                        styles.healthBar,
+                        { backgroundColor: colors.border },
+                      ]}
+                    >
+                      <View
+                        style={[
+                          styles.healthBarFill,
+                          {
+                            width:
+                              syndicats.length > 0
+                                ? `${(count / syndicats.length) * 100}%`
+                                : "0%",
+                            backgroundColor: hc.color,
+                          },
+                        ]}
+                      />
                     </View>
-                    <Text style={[styles.regionCount, { color: colors.mutedForeground }]}>{count.toLocaleString()}</Text>
+                    <Text style={[styles.healthCount, { color: hc.color }]}>
+                      {formatNumber(count)}{" "}
+                      {count === 1
+                        ? copy("syndicateCount")
+                        : copy("syndicateCountPlural")}
+                    </Text>
                   </View>
                 );
-              })
-            }
-          </View>
-
-          <View style={[styles.statCard, { backgroundColor: colors.card, borderColor: colors.border }]}>
-            <View style={styles.statCardHeader}>
-              <View style={[styles.statIcon, { backgroundColor: "#10b98118" }]}>
-                <Feather name="activity" size={15} color="#10b981" />
-              </View>
-              <Text style={[styles.statCardTitle, { color: colors.foreground }]}>Santé de la plateforme</Text>
+              })}
             </View>
-            {(["healthy", "warning", "critical"] as const).map((health) => {
-              const hc = HEALTH_CONFIG[health];
-              const count = syndicats.filter((s) => s.status === health).length;
-              return (
-                <View key={health} style={styles.healthRow}>
-                  <Feather name={hc.icon} size={14} color={hc.color} />
-                  <Text style={[styles.healthLabel, { color: colors.foreground, flex: 1 }]}>{hc.label}</Text>
-                  <View style={[styles.healthBar, { backgroundColor: colors.border }]}>
-                    <View style={[styles.healthBarFill, { width: syndicats.length > 0 ? `${(count / syndicats.length) * 100}%` : "0%", backgroundColor: hc.color }]} />
-                  </View>
-                  <Text style={[styles.healthCount, { color: hc.color }]}>{count} syndicat{count !== 1 ? "s" : ""}</Text>
-                </View>
-              );
-            })}
-          </View>
 
-          <View style={[styles.statCard, { backgroundColor: colors.card, borderColor: colors.border }]}>
-            <View style={styles.statCardHeader}>
-              <View style={[styles.statIcon, { backgroundColor: "#6366f118" }]}>
-                <Feather name="zap" size={15} color="#6366f1" />
-              </View>
-              <Text style={[styles.statCardTitle, { color: colors.foreground }]}>Actions rapides</Text>
-            </View>
-            {([
-              {
-                label: "Créer un nouveau syndicat",
-                icon: "plus-circle" as const,
-                color: colors.primary,
-                onPress: () => router.push("/syndicate-setup" as any),
-              },
-              {
-                label: "Gérer les abonnements",
-                icon: "star" as const,
-                color: "#f59e0b",
-                onPress: () => router.push("/abonnements" as any),
-              },
-              {
-                label: "Exporter rapport national",
-                icon: "download" as const,
-                color: "#10b981",
-                onPress: () => {
-                  const lines = [
-                    "Syndicat;Région;Membres;Statut",
-                    ...syndicats.map((s) =>
-                      [s.name, s.region, s.members, s.status].join(";")
-                    ),
-                  ].join("\n");
-                  Share.share({
-                    message: lines,
-                    title: `Rapport national MIZAN — ${new Date().toLocaleDateString("fr-MA")}`,
-                  }).catch(() => Alert.alert("Erreur", "Impossible d'exporter le rapport."));
-                },
-              },
-              {
-                label: "Envoyer communiqué global",
-                icon: "send" as const,
-                color: "#ec4899",
-                onPress: () => router.push("/publications" as any),
-              },
-            ] as { label: string; icon: any; color: string; onPress: () => void }[]).map((action, i) => (
-              <View key={action.label}>
-                {i > 0 ? <View style={[styles.sep, { backgroundColor: colors.border }]} /> : null}
-                <TouchableOpacity
-                  style={styles.quickActionRow}
-                  onPress={() => {
-                    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-                    action.onPress();
-                  }}
-                  activeOpacity={0.7}
+            <View
+              style={[
+                styles.statCard,
+                { backgroundColor: colors.card, borderColor: colors.border },
+              ]}
+            >
+              <View style={styles.statCardHeader}>
+                <View
+                  style={[styles.statIcon, { backgroundColor: "#6366f118" }]}
                 >
-                  <View style={[styles.quickActionIcon, { backgroundColor: action.color + "18" }]}>
-                    <Feather name={action.icon} size={16} color={action.color} />
-                  </View>
-                  <Text style={[styles.quickActionLabel, { color: colors.foreground }]}>{action.label}</Text>
-                  <Feather name="chevron-right" size={14} color={colors.mutedForeground} />
-                </TouchableOpacity>
+                  <Feather name="zap" size={15} color="#6366f1" />
+                </View>
+                <Text
+                  style={[styles.statCardTitle, { color: colors.foreground }]}
+                >
+                  {copy("quickActions")}
+                </Text>
               </View>
-            ))}
-          </View>
-        </ScrollView>
+              {(
+                [
+                  {
+                    label: copy("createSyndicate"),
+                    icon: "plus-circle" as const,
+                    color: colors.primary,
+                    onPress: () => router.push("/syndicate-setup" as any),
+                  },
+                  {
+                    label: copy("manageSubscriptions"),
+                    icon: "star" as const,
+                    color: "#f59e0b",
+                    onPress: () => router.push("/abonnements" as any),
+                  },
+                  {
+                    label: copy("exportNationalReport"),
+                    icon: "download" as const,
+                    color: "#10b981",
+                    onPress: () => {
+                      const lines = [
+                        `${copy("syndicates")};${copy("membersByRegion")};${copy("members")};${copy("platformHealth")}`,
+                        ...syndicats.map((s) =>
+                          [s.name, s.region, s.members, s.status].join(";"),
+                        ),
+                      ].join("\n");
+                      Share.share({
+                        message: lines,
+                        title: `${copy("nationalRanking")} MIZAN — ${new Date().toLocaleDateString(locale)}`,
+                      }).catch(() =>
+                        Alert.alert(
+                          STATE_COPY.unavailableTitle[lang],
+                          copy("exportError"),
+                        ),
+                      );
+                    },
+                  },
+                  {
+                    label: copy("sendGlobalAnnouncement"),
+                    icon: "send" as const,
+                    color: "#ec4899",
+                    onPress: () => router.push("/publications" as any),
+                  },
+                ] as {
+                  label: string;
+                  icon: any;
+                  color: string;
+                  onPress: () => void;
+                }[]
+              ).map((action, i) => (
+                <View key={action.label}>
+                  {i > 0 ? (
+                    <View
+                      style={[styles.sep, { backgroundColor: colors.border }]}
+                    />
+                  ) : null}
+                  <TouchableOpacity
+                    style={styles.quickActionRow}
+                    onPress={() => {
+                      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+                      action.onPress();
+                    }}
+                    activeOpacity={0.7}
+                  >
+                    <View
+                      style={[
+                        styles.quickActionIcon,
+                        { backgroundColor: action.color + "18" },
+                      ]}
+                    >
+                      <Feather
+                        name={action.icon}
+                        size={16}
+                        color={action.color}
+                      />
+                    </View>
+                    <Text
+                      style={[
+                        styles.quickActionLabel,
+                        { color: colors.foreground },
+                      ]}
+                    >
+                      {action.label}
+                    </Text>
+                    <Feather
+                      name="chevron-right"
+                      size={14}
+                      color={colors.mutedForeground}
+                    />
+                  </TouchableOpacity>
+                </View>
+              ))}
+            </View>
+          </ScrollView>
         )
       ) : tab === "classement" ? (
         rankingsLoading ? (
@@ -745,55 +1729,197 @@ function TableauNationalScreenInner() {
           <FlatList
             data={rankings}
             keyExtractor={(r) => r.id}
-            contentContainerStyle={{ padding: 16, gap: 10, paddingBottom: insets.bottom + 80 }}
+            contentContainerStyle={{
+              padding: 16,
+              gap: 10,
+              paddingBottom: insets.bottom + 80,
+            }}
             showsVerticalScrollIndicator={false}
             ListHeaderComponent={
-              <View style={[styles.statCard, { backgroundColor: colors.card, borderColor: colors.border, marginBottom: 4 }]}>
-                <Text style={[styles.statCardTitle, { color: colors.foreground }]}>
-                  Classement National · {rankings[0]?.month ?? "—"}/{rankings[0]?.year ?? ""}
+              <View
+                style={[
+                  styles.statCard,
+                  {
+                    backgroundColor: colors.card,
+                    borderColor: colors.border,
+                    marginBottom: 4,
+                  },
+                ]}
+              >
+                <Text
+                  style={[styles.statCardTitle, { color: colors.foreground }]}
+                >
+                  {copy("nationalRanking")} · {rankings[0]?.month ?? "—"}/
+                  {rankings[0]?.year ?? ""}
                 </Text>
-                <Text style={{ fontFamily: "Inter_400Regular", fontSize: 12, color: colors.mutedForeground, marginTop: 4 }}>
-                  Score calculé sur 5 critères : recouvrement, résolution incidents, documentation, réunions, satisfaction.
+                <Text
+                  style={{
+                    fontFamily: "Inter_400Regular",
+                    fontSize: 12,
+                    color: colors.mutedForeground,
+                    marginTop: 4,
+                  }}
+                >
+                  {copy("rankingCriteria")}
                 </Text>
               </View>
             }
             ListEmptyComponent={
-              <View style={{ alignItems: "center", justifyContent: "center", padding: 40, gap: 12 }}>
-                <Feather name="award" size={36} color={colors.mutedForeground} />
-                <Text style={{ fontFamily: "Inter_600SemiBold", fontSize: 14, color: colors.foreground }}>Aucun classement disponible</Text>
-                <Text style={{ fontFamily: "Inter_400Regular", fontSize: 12, color: colors.mutedForeground, textAlign: "center" }}>
-                  Utilisez "Calculer le classement" dans le panneau super-admin pour générer les scores.
+              <View
+                style={{
+                  alignItems: "center",
+                  justifyContent: "center",
+                  padding: 40,
+                  gap: 12,
+                }}
+              >
+                <Feather
+                  name="award"
+                  size={36}
+                  color={colors.mutedForeground}
+                />
+                <Text
+                  style={{
+                    fontFamily: "Inter_600SemiBold",
+                    fontSize: 14,
+                    color: colors.foreground,
+                  }}
+                >
+                  {copy("noRanking")}
+                </Text>
+                <Text
+                  style={{
+                    fontFamily: "Inter_400Regular",
+                    fontSize: 12,
+                    color: colors.mutedForeground,
+                    textAlign: "center",
+                  }}
+                >
+                  {copy("noRankingDescription")}
                 </Text>
               </View>
             }
             renderItem={({ item: r, index }) => {
               const podiumColors = ["#f59e0b", "#9ca3af", "#a16207"];
-              const rankColor = r.rank <= 3 ? podiumColors[r.rank - 1] : colors.primary;
+              const rankColor =
+                r.rank <= 3 ? podiumColors[r.rank - 1] : colors.primary;
               return (
-                <View style={[styles.syndicatCard, { backgroundColor: colors.card, borderColor: r.rank === 1 ? "#f59e0b40" : colors.border }]}>
+                <View
+                  style={[
+                    styles.syndicatCard,
+                    {
+                      backgroundColor: colors.card,
+                      borderColor: r.rank === 1 ? "#f59e0b40" : colors.border,
+                    },
+                  ]}
+                >
                   <View style={styles.syndicatHeader}>
-                    <View style={[styles.syndicatAvatar, { backgroundColor: rankColor + "20" }]}>
-                      <Text style={{ fontSize: r.rank <= 3 ? 18 : 14, fontFamily: "Inter_700Bold", color: rankColor }}>#{r.rank}</Text>
+                    <View
+                      style={[
+                        styles.syndicatAvatar,
+                        { backgroundColor: rankColor + "20" },
+                      ]}
+                    >
+                      <Text
+                        style={{
+                          fontSize: r.rank <= 3 ? 18 : 14,
+                          fontFamily: "Inter_700Bold",
+                          color: rankColor,
+                        }}
+                      >
+                        #{r.rank}
+                      </Text>
                     </View>
                     <View style={{ flex: 1 }}>
-                      <Text style={[styles.syndicatName, { color: colors.foreground }]} numberOfLines={1}>{r.syndicateName ?? r.syndicateId}</Text>
-                      {r.region ? <Text style={[styles.syndicatRegion, { color: colors.mutedForeground }]}>{r.region}</Text> : null}
+                      <Text
+                        style={[
+                          styles.syndicatName,
+                          { color: colors.foreground },
+                        ]}
+                        numberOfLines={1}
+                      >
+                        {r.syndicateName ?? r.syndicateId}
+                      </Text>
+                      {r.region ? (
+                        <Text
+                          style={[
+                            styles.syndicatRegion,
+                            { color: colors.mutedForeground },
+                          ]}
+                        >
+                          {r.region}
+                        </Text>
+                      ) : null}
                     </View>
                     <View style={{ alignItems: "flex-end" }}>
-                      <Text style={{ fontSize: 18, fontFamily: "Inter_700Bold", color: rankColor }}>{Math.round(r.totalScore)}</Text>
-                      <Text style={{ fontSize: 10, fontFamily: "Inter_400Regular", color: colors.mutedForeground }}>/ 100</Text>
+                      <Text
+                        style={{
+                          fontSize: 18,
+                          fontFamily: "Inter_700Bold",
+                          color: rankColor,
+                        }}
+                      >
+                        {Math.round(r.totalScore)}
+                      </Text>
+                      <Text
+                        style={{
+                          fontSize: 10,
+                          fontFamily: "Inter_400Regular",
+                          color: colors.mutedForeground,
+                        }}
+                      >
+                        / 100
+                      </Text>
                     </View>
                   </View>
-                  <View style={[styles.metricsRow, { borderColor: colors.border }]}>
+                  <View
+                    style={[styles.metricsRow, { borderColor: colors.border }]}
+                  >
                     {[
-                      { label: "Recouvr.", value: `${Math.round(r.collectionRate)}%`, color: "#10b981" },
-                      { label: "Incidents", value: `${Math.round(r.incidentResolutionRate)}%`, color: "#3b82f6" },
-                      { label: "Docs", value: `${Math.round(r.documentationScore)}`, color: "#2563EB" },
-                      { label: "Réunions", value: `${Math.round(r.meetingComplianceScore)}`, color: "#f59e0b" },
+                      {
+                        label: copy("collectionShort"),
+                        value: `${Math.round(r.collectionRate)}%`,
+                        color: "#10b981",
+                      },
+                      {
+                        label: "Incidents",
+                        value: `${Math.round(r.incidentResolutionRate)}%`,
+                        color: "#3b82f6",
+                      },
+                      {
+                        label: "Docs",
+                        value: `${Math.round(r.documentationScore)}`,
+                        color: "#2563EB",
+                      },
+                      {
+                        label: copy("meetings"),
+                        value: `${Math.round(r.meetingComplianceScore)}`,
+                        color: "#f59e0b",
+                      },
                     ].map((m, i, arr) => (
-                      <View key={m.label} style={[styles.metricCell, i < arr.length - 1 ? { borderRightWidth: 1, borderRightColor: colors.border } : null]}>
-                        <Text style={[styles.metricVal, { color: m.color }]}>{m.value}</Text>
-                        <Text style={[styles.metricLabel, { color: colors.mutedForeground }]}>{m.label}</Text>
+                      <View
+                        key={m.label}
+                        style={[
+                          styles.metricCell,
+                          i < arr.length - 1
+                            ? {
+                                borderRightWidth: 1,
+                                borderRightColor: colors.border,
+                              }
+                            : null,
+                        ]}
+                      >
+                        <Text style={[styles.metricVal, { color: m.color }]}>
+                          {m.value}
+                        </Text>
+                        <Text
+                          style={[
+                            styles.metricLabel,
+                            { color: colors.mutedForeground },
+                          ]}
+                        >
+                          {m.label}
+                        </Text>
                       </View>
                     ))}
                   </View>
@@ -804,60 +1930,192 @@ function TableauNationalScreenInner() {
         )
       ) : null}
 
-      <Modal visible={!!selectedSyndicat} animationType="slide" presentationStyle="pageSheet">
+      <Modal
+        visible={!!selectedSyndicat}
+        animationType="slide"
+        presentationStyle="pageSheet"
+      >
         {selectedSyndicat ? (
           <View style={[styles.modal, { backgroundColor: colors.background }]}>
-            <View style={[styles.modalHeader, { borderBottomColor: colors.border }]}>
+            <View
+              style={[styles.modalHeader, { borderBottomColor: colors.border }]}
+            >
               <TouchableOpacity onPress={() => setSelectedSyndicat(null)}>
                 <Feather name="x" size={22} color={colors.mutedForeground} />
               </TouchableOpacity>
-              <Text style={[styles.modalTitle, { color: colors.foreground, flex: 1, marginStart: 12 }]} numberOfLines={2}>
+              <Text
+                style={[
+                  styles.modalTitle,
+                  { color: colors.foreground, flex: 1, marginStart: 12 },
+                ]}
+                numberOfLines={2}
+              >
                 {selectedSyndicat.name}
               </Text>
             </View>
-            <ScrollView contentContainerStyle={{ padding: 20, gap: 14, paddingBottom: 40 }}>
+            <ScrollView
+              contentContainerStyle={{
+                padding: 20,
+                gap: 14,
+                paddingBottom: 40,
+              }}
+            >
               {(() => {
                 const hc = HEALTH_CONFIG[selectedSyndicat.status];
                 return (
                   <>
-                    <View style={[styles.syndicatDetailHero, { backgroundColor: hc.bg, borderColor: hc.color + "40" }]}>
-                      <View style={[styles.syndicatDetailIcon, { backgroundColor: hc.color + "25" }]}>
+                    <View
+                      style={[
+                        styles.syndicatDetailHero,
+                        {
+                          backgroundColor: hc.bg,
+                          borderColor: hc.color + "40",
+                        },
+                      ]}
+                    >
+                      <View
+                        style={[
+                          styles.syndicatDetailIcon,
+                          { backgroundColor: hc.color + "25" },
+                        ]}
+                      >
                         <Feather name={hc.icon} size={24} color={hc.color} />
                       </View>
-                      <Text style={[styles.syndicatDetailName, { color: colors.foreground }]}>{selectedSyndicat.name}</Text>
-                      <View style={[styles.healthBadge, { backgroundColor: hc.bg, borderWidth: 1, borderColor: hc.color + "60" }]}>
+                      <Text
+                        style={[
+                          styles.syndicatDetailName,
+                          { color: colors.foreground },
+                        ]}
+                      >
+                        {selectedSyndicat.name}
+                      </Text>
+                      <View
+                        style={[
+                          styles.healthBadge,
+                          {
+                            backgroundColor: hc.bg,
+                            borderWidth: 1,
+                            borderColor: hc.color + "60",
+                          },
+                        ]}
+                      >
                         <Feather name={hc.icon} size={11} color={hc.color} />
-                        <Text style={[styles.healthBadgeText, { color: hc.color }]}>{hc.label}</Text>
+                        <Text
+                          style={[styles.healthBadgeText, { color: hc.color }]}
+                        >
+                          {healthLabel(selectedSyndicat.status, lang)}
+                        </Text>
                       </View>
                     </View>
 
                     <View style={styles.detailMetrics}>
                       {[
-                        { label: "Membres totaux", value: selectedSyndicat.members.toLocaleString(), color: colors.primary },
-                        { label: "Membres actifs", value: selectedSyndicat.activeMembers.toLocaleString(), color: "#10b981" },
-                        { label: "Taux cotisations", value: `${selectedSyndicat.cotisationRate}%`, color: selectedSyndicat.cotisationRate >= 80 ? "#10b981" : "#f59e0b" },
-                        { label: "Solde", value: `${selectedSyndicat.balance.toLocaleString()} MAD`, color: "#6366f1" },
+                        {
+                          label: copy("membersTotalLabel"),
+                          value: formatNumber(selectedSyndicat.members),
+                          color: colors.primary,
+                        },
+                        {
+                          label: copy("membersActive"),
+                          value:
+                            formatNumber(selectedSyndicat.activeMembers),
+                          color: "#10b981",
+                        },
+                        {
+                          label: "Taux cotisations",
+                          value: `${selectedSyndicat.cotisationRate}%`,
+                          color:
+                            selectedSyndicat.cotisationRate >= 80
+                              ? "#10b981"
+                              : "#f59e0b",
+                        },
+                        {
+                          label: copy("balance"),
+                          value: formatMAD(selectedSyndicat.balance),
+                          color: "#6366f1",
+                        },
                       ].map((m) => (
-                        <View key={m.label} style={[styles.detailMetricCard, { backgroundColor: colors.card, borderColor: colors.border }]}>
-                          <Text style={[styles.detailMetricVal, { color: m.color }]}>{m.value}</Text>
-                          <Text style={[styles.detailMetricLabel, { color: colors.mutedForeground }]}>{m.label}</Text>
+                        <View
+                          key={m.label}
+                          style={[
+                            styles.detailMetricCard,
+                            {
+                              backgroundColor: colors.card,
+                              borderColor: colors.border,
+                            },
+                          ]}
+                        >
+                          <Text
+                            style={[styles.detailMetricVal, { color: m.color }]}
+                          >
+                            {m.value}
+                          </Text>
+                          <Text
+                            style={[
+                              styles.detailMetricLabel,
+                              { color: colors.mutedForeground },
+                            ]}
+                          >
+                            {m.label}
+                          </Text>
                         </View>
                       ))}
                     </View>
 
-                    <View style={[styles.infoCard, { backgroundColor: colors.card, borderColor: colors.border }]}>
+                    <View
+                      style={[
+                        styles.infoCard,
+                        {
+                          backgroundColor: colors.card,
+                          borderColor: colors.border,
+                        },
+                      ]}
+                    >
                       {[
-                        { label: "Région", value: selectedSyndicat.region },
-                        { label: "Administrateur", value: selectedSyndicat.adminName },
-                        { label: "Élections en attente", value: selectedSyndicat.pendingElections.toString() },
-                        { label: "Tickets ouverts", value: selectedSyndicat.openTickets.toString() },
-                        { label: "Statut", value: selectedSyndicat.lastActivity },
+                        { label: copy("region"), value: selectedSyndicat.region },
+                        {
+                          label: copy("administrator"),
+                          value: selectedSyndicat.adminName,
+                        },
+                        {
+                          label: copy("pendingElections"),
+                          value: formatNumber(selectedSyndicat.pendingElections),
+                        },
+                        {
+                          label: copy("openTickets"),
+                          value: formatNumber(selectedSyndicat.openTickets),
+                        },
+                        {
+                          label: copy("status"),
+                          value: statusLabel(selectedSyndicat.lastActivity, lang),
+                        },
                       ].map((row, i) => (
                         <View key={row.label}>
-                          {i > 0 ? <View style={[styles.sep, { backgroundColor: colors.border }]} /> : null}
+                          {i > 0 ? (
+                            <View
+                              style={[
+                                styles.sep,
+                                { backgroundColor: colors.border },
+                              ]}
+                            />
+                          ) : null}
                           <View style={styles.infoRow}>
-                            <Text style={[styles.infoLabel, { color: colors.mutedForeground }]}>{row.label}</Text>
-                            <Text style={[styles.infoValue, { color: colors.foreground }]}>{row.value}</Text>
+                            <Text
+                              style={[
+                                styles.infoLabel,
+                                { color: colors.mutedForeground },
+                              ]}
+                            >
+                              {row.label}
+                            </Text>
+                            <Text
+                              style={[
+                                styles.infoValue,
+                                { color: colors.foreground },
+                              ]}
+                            >
+                              {row.value}
+                            </Text>
                           </View>
                         </View>
                       ))}
@@ -875,63 +2133,231 @@ function TableauNationalScreenInner() {
                         accentColor={colors.primary}
                       />
                     ) : syndicateFullData ? (
-                      <View style={[styles.infoCard, { backgroundColor: colors.card, borderColor: colors.border }]}>
+                      <View
+                        style={[
+                          styles.infoCard,
+                          {
+                            backgroundColor: colors.card,
+                            borderColor: colors.border,
+                          },
+                        ]}
+                      >
                         <View style={styles.infoRow}>
-                          <Text style={[styles.infoLabel, { color: colors.mutedForeground, fontFamily: "Inter_600SemiBold" }]}>Informations complètes</Text>
+                          <Text
+                            style={[
+                              styles.infoLabel,
+                              {
+                                color: colors.mutedForeground,
+                                fontFamily: "Inter_600SemiBold",
+                              },
+                            ]}
+                          >
+                            {copy("informationComplete")}
+                          </Text>
                         </View>
                         {[
-                          { label: "Forme juridique", value: syndicateFullData.legalForm },
-                          { label: "Adresse", value: syndicateFullData.address },
-                          { label: "Ville", value: syndicateFullData.city },
+                          {
+                            label: copy("legalForm"),
+                            value: syndicateFullData.legalForm,
+                          },
+                          {
+                            label: copy("address"),
+                            value: syndicateFullData.address,
+                          },
+                          { label: copy("city"), value: syndicateFullData.city },
                           { label: "Email", value: syndicateFullData.email },
-                          { label: "Téléphone", value: syndicateFullData.phone },
-                          { label: "Date de fondation", value: syndicateFullData.foundingDate },
-                          { label: "N° enregistrement", value: syndicateFullData.registrationNumber },
+                          {
+                            label: copy("phone"),
+                            value: syndicateFullData.phone,
+                          },
+                          {
+                            label: copy("foundingDate"),
+                            value: syndicateFullData.foundingDate,
+                          },
+                          {
+                            label: copy("registrationNumber"),
+                            value: syndicateFullData.registrationNumber,
+                          },
                           { label: "ICE", value: syndicateFullData.iceNumber },
-                        ].filter((r) => r.value).map((row, i) => (
-                          <View key={row.label}>
-                            <View style={[styles.sep, { backgroundColor: colors.border }]} />
-                            <View style={styles.infoRow}>
-                              <Text style={[styles.infoLabel, { color: colors.mutedForeground }]}>{row.label}</Text>
-                              <Text style={[styles.infoValue, { color: colors.foreground }]} numberOfLines={2}>{row.value}</Text>
+                        ]
+                          .filter((r) => r.value)
+                          .map((row, i) => (
+                            <View key={row.label}>
+                              <View
+                                style={[
+                                  styles.sep,
+                                  { backgroundColor: colors.border },
+                                ]}
+                              />
+                              <View style={styles.infoRow}>
+                                <Text
+                                  style={[
+                                    styles.infoLabel,
+                                    { color: colors.mutedForeground },
+                                  ]}
+                                >
+                                  {row.label}
+                                </Text>
+                                <Text
+                                  style={[
+                                    styles.infoValue,
+                                    { color: colors.foreground },
+                                  ]}
+                                  numberOfLines={2}
+                                >
+                                  {row.value}
+                                </Text>
+                              </View>
                             </View>
-                          </View>
-                        ))}
+                          ))}
                       </View>
                     ) : null}
 
                     {/* Members list */}
                     {syndicateMembers.length > 0 ? (
-                      <View style={[styles.infoCard, { backgroundColor: colors.card, borderColor: colors.border }]}>
+                      <View
+                        style={[
+                          styles.infoCard,
+                          {
+                            backgroundColor: colors.card,
+                            borderColor: colors.border,
+                          },
+                        ]}
+                      >
                         <View style={[styles.infoRow, { paddingBottom: 4 }]}>
-                          <Text style={[styles.infoLabel, { color: colors.mutedForeground, fontFamily: "Inter_600SemiBold" }]}>
-                            Membres ({syndicateMembers.length})
+                          <Text
+                            style={[
+                              styles.infoLabel,
+                              {
+                                color: colors.mutedForeground,
+                                fontFamily: "Inter_600SemiBold",
+                              },
+                            ]}
+                          >
+                            {copy("members")} ({formatNumber(syndicateMembers.length)})
                           </Text>
                         </View>
-                        {syndicateMembers.slice(0, 10).map((m: any, i: number) => {
-                          const sc = { active: { color: "#10b981", label: "Actif" }, inactive: { color: "#9ca3af", label: "Inactif" }, pending: { color: "#f59e0b", label: "En attente" } }[m.status as string] ?? { color: "#9ca3af", label: m.status };
-                          return (
-                            <View key={m.id}>
-                              <View style={[styles.sep, { backgroundColor: colors.border }]} />
-                              <View style={[styles.infoRow, { paddingVertical: 10, alignItems: "flex-start" }]}>
-                                <View style={{ flex: 1, gap: 2 }}>
-                                  <Text style={[styles.infoValue, { color: colors.foreground }]}>{m.name}</Text>
-                                  {m.email ? <Text style={[styles.infoLabel, { color: colors.mutedForeground }]}>{m.email}</Text> : null}
-                                  {m.phone ? <Text style={[styles.infoLabel, { color: colors.mutedForeground }]}>{m.phone}</Text> : null}
-                                  {m.profession ? <Text style={[styles.infoLabel, { color: colors.mutedForeground }]}>{m.profession}</Text> : null}
-                                  {m.joinDate ? <Text style={[styles.infoLabel, { color: colors.mutedForeground }]}>Adhésion: {m.joinDate}</Text> : null}
-                                </View>
-                                <View style={[styles.healthBadge, { backgroundColor: sc.color + "18", borderWidth: 0 }]}>
-                                  <Text style={[styles.healthBadgeText, { color: sc.color }]}>{sc.label}</Text>
+                        {syndicateMembers
+                          .slice(0, 10)
+                          .map((m: any, i: number) => {
+                            const sc = {
+                              active: { color: "#10b981", label: copy("active") },
+                              inactive: { color: "#9ca3af", label: copy("inactive") },
+                              pending: {
+                                color: "#f59e0b",
+                                label: copy("pending"),
+                              },
+                            }[m.status as string] ?? {
+                              color: "#9ca3af",
+                              label: m.status,
+                            };
+                            return (
+                              <View key={m.id}>
+                                <View
+                                  style={[
+                                    styles.sep,
+                                    { backgroundColor: colors.border },
+                                  ]}
+                                />
+                                <View
+                                  style={[
+                                    styles.infoRow,
+                                    {
+                                      paddingVertical: 10,
+                                      alignItems: "flex-start",
+                                    },
+                                  ]}
+                                >
+                                  <View style={{ flex: 1, gap: 2 }}>
+                                    <Text
+                                      style={[
+                                        styles.infoValue,
+                                        { color: colors.foreground },
+                                      ]}
+                                    >
+                                      {m.name}
+                                    </Text>
+                                    {m.email ? (
+                                      <Text
+                                        style={[
+                                          styles.infoLabel,
+                                          { color: colors.mutedForeground },
+                                        ]}
+                                      >
+                                        {m.email}
+                                      </Text>
+                                    ) : null}
+                                    {m.phone ? (
+                                      <Text
+                                        style={[
+                                          styles.infoLabel,
+                                          { color: colors.mutedForeground },
+                                        ]}
+                                      >
+                                        {m.phone}
+                                      </Text>
+                                    ) : null}
+                                    {m.profession ? (
+                                      <Text
+                                        style={[
+                                          styles.infoLabel,
+                                          { color: colors.mutedForeground },
+                                        ]}
+                                      >
+                                        {m.profession}
+                                      </Text>
+                                    ) : null}
+                                    {m.joinDate ? (
+                                      <Text
+                                        style={[
+                                          styles.infoLabel,
+                                          { color: colors.mutedForeground },
+                                        ]}
+                                      >
+                                        {copy("membership")}: {m.joinDate}
+                                      </Text>
+                                    ) : null}
+                                  </View>
+                                  <View
+                                    style={[
+                                      styles.healthBadge,
+                                      {
+                                        backgroundColor: sc.color + "18",
+                                        borderWidth: 0,
+                                      },
+                                    ]}
+                                  >
+                                    <Text
+                                      style={[
+                                        styles.healthBadgeText,
+                                        { color: sc.color },
+                                      ]}
+                                    >
+                                      {sc.label}
+                                    </Text>
+                                  </View>
                                 </View>
                               </View>
-                            </View>
-                          );
-                        })}
+                            );
+                          })}
                         {syndicateMembers.length > 10 ? (
-                          <View style={[styles.sep, { backgroundColor: colors.border }]}>
-                            <Text style={[styles.infoLabel, { color: colors.mutedForeground, textAlign: "center", paddingVertical: 8 }]}>
-                              + {syndicateMembers.length - 10} autres membres
+                          <View
+                            style={[
+                              styles.sep,
+                              { backgroundColor: colors.border },
+                            ]}
+                          >
+                            <Text
+                              style={[
+                                styles.infoLabel,
+                                {
+                                  color: colors.mutedForeground,
+                                  textAlign: "center",
+                                  paddingVertical: 8,
+                                },
+                              ]}
+                            >
+                              + {formatNumber(syndicateMembers.length - 10)} {copy("otherMembers")}
                             </Text>
                           </View>
                         ) : null}
@@ -940,24 +2366,50 @@ function TableauNationalScreenInner() {
 
                     <View style={styles.detailActions}>
                       {[
-                        { label: contactingAdmin ? "Ouverture…" : "Contacter l'admin", icon: "message-circle" as const, bg: colors.primary, text: "#fff", isContact: true },
-                        { label: "Rapport détaillé", icon: "file-text" as const, bg: colors.secondary, text: colors.primary, isContact: false },
+                        {
+                          label: contactingAdmin
+                            ? copy("opening")
+                            : copy("contactAdmin"),
+                          icon: "message-circle" as const,
+                          bg: colors.primary,
+                          text: "#fff",
+                          isContact: true,
+                        },
+                        {
+                          label: copy("detailedReport"),
+                          icon: "file-text" as const,
+                          bg: colors.secondary,
+                          text: colors.primary,
+                          isContact: false,
+                        },
                       ].map((a) => (
                         <TouchableOpacity
                           key={a.label}
-                          style={[styles.detailActionBtn, { backgroundColor: a.bg }]}
+                          style={[
+                            styles.detailActionBtn,
+                            { backgroundColor: a.bg },
+                          ]}
                           onPress={() => {
-                            Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+                            Haptics.impactAsync(
+                              Haptics.ImpactFeedbackStyle.Light,
+                            );
                             if (a.isContact) {
                               handleContactAdmin(selectedSyndicat!);
                             } else {
-                              Share.share({ title: selectedSyndicat.name, message: `Rapport syndical — ${selectedSyndicat.name}\nGénéré le ${new Date().toLocaleDateString("fr-MA")}\nMIZAN` });
+                              Share.share({
+                                title: selectedSyndicat.name,
+                                  message: `${copy("syndicateReport")} — ${selectedSyndicat.name}\n${new Date().toLocaleDateString(locale)}\nMIZAN`,
+                              });
                               setSelectedSyndicat(null);
                             }
                           }}
                         >
                           <Feather name={a.icon} size={14} color={a.text} />
-                          <Text style={[styles.detailActionText, { color: a.text }]}>{a.label}</Text>
+                          <Text
+                            style={[styles.detailActionText, { color: a.text }]}
+                          >
+                            {a.label}
+                          </Text>
                         </TouchableOpacity>
                       ))}
                     </View>
@@ -974,30 +2426,99 @@ function TableauNationalScreenInner() {
 
 const styles = StyleSheet.create({
   root: { flex: 1 },
-  header: { flexDirection: "row", alignItems: "center", paddingHorizontal: 20, paddingBottom: 16, gap: 12, borderBottomWidth: 1 },
+  header: {
+    flexDirection: "row",
+    alignItems: "center",
+    paddingHorizontal: 20,
+    paddingBottom: 16,
+    gap: 12,
+    borderBottomWidth: 1,
+  },
   backBtn: { padding: 4 },
   title: { fontSize: 20, fontFamily: "Inter_700Bold" },
   subtitle: { fontSize: 11, fontFamily: "Inter_400Regular", marginTop: 2 },
-  platformBadge: { flexDirection: "row", alignItems: "center", gap: 5, paddingHorizontal: 10, paddingVertical: 5, borderRadius: 20 },
+  platformBadge: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 5,
+    paddingHorizontal: 10,
+    paddingVertical: 5,
+    borderRadius: 20,
+  },
   platformBadgeText: { fontSize: 11, fontFamily: "Inter_600SemiBold" },
   kpiScroll: { borderBottomWidth: 1, flexShrink: 0 },
-  kpiCard: { alignItems: "center", justifyContent: "center", paddingHorizontal: 12, paddingVertical: 10, borderRadius: 14, borderWidth: 1, gap: 3, minWidth: 96, height: 86 },
-  kpiIcon: { width: 30, height: 30, borderRadius: 9, alignItems: "center", justifyContent: "center" },
+  kpiCard: {
+    alignItems: "center",
+    justifyContent: "center",
+    paddingHorizontal: 12,
+    paddingVertical: 10,
+    borderRadius: 14,
+    borderWidth: 1,
+    gap: 3,
+    minWidth: 96,
+    height: 86,
+  },
+  kpiIcon: {
+    width: 30,
+    height: 30,
+    borderRadius: 9,
+    alignItems: "center",
+    justifyContent: "center",
+  },
   kpiVal: { fontSize: 15, fontFamily: "Inter_700Bold" },
-  kpiLabel: { fontSize: 9, fontFamily: "Inter_400Regular", textAlign: "center" },
+  kpiLabel: {
+    fontSize: 9,
+    fontFamily: "Inter_400Regular",
+    textAlign: "center",
+  },
   tabsScroll: { flexShrink: 0, borderBottomWidth: 1 },
-  tabBtn: { flexDirection: "row", alignItems: "center", gap: 6, paddingVertical: 12, paddingHorizontal: 14 },
+  tabBtn: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 6,
+    paddingVertical: 12,
+    paddingHorizontal: 14,
+  },
   tabLabel: { fontSize: 12, fontFamily: "Inter_600SemiBold" },
-  tabBadge: { minWidth: 18, height: 18, borderRadius: 9, alignItems: "center", justifyContent: "center", paddingHorizontal: 4 },
+  tabBadge: {
+    minWidth: 18,
+    height: 18,
+    borderRadius: 9,
+    alignItems: "center",
+    justifyContent: "center",
+    paddingHorizontal: 4,
+  },
   tabBadgeText: { fontSize: 10, fontFamily: "Inter_700Bold", color: "#fff" },
   syndicatCard: { borderRadius: 16, borderWidth: 1, padding: 14, gap: 10 },
   syndicatHeader: { flexDirection: "row", alignItems: "flex-start", gap: 10 },
-  syndicatAvatar: { width: 42, height: 42, borderRadius: 12, alignItems: "center", justifyContent: "center" },
+  syndicatAvatar: {
+    width: 42,
+    height: 42,
+    borderRadius: 12,
+    alignItems: "center",
+    justifyContent: "center",
+  },
   syndicatName: { fontSize: 13, fontFamily: "Inter_700Bold", lineHeight: 18 },
-  syndicatRegion: { fontSize: 11, fontFamily: "Inter_400Regular", marginTop: 2 },
-  healthBadge: { flexDirection: "row", alignItems: "center", gap: 4, paddingHorizontal: 8, paddingVertical: 3, borderRadius: 20 },
+  syndicatRegion: {
+    fontSize: 11,
+    fontFamily: "Inter_400Regular",
+    marginTop: 2,
+  },
+  healthBadge: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 4,
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+    borderRadius: 20,
+  },
   healthBadgeText: { fontSize: 10, fontFamily: "Inter_600SemiBold" },
-  metricsRow: { flexDirection: "row", borderWidth: 1, borderRadius: 12, overflow: "hidden" },
+  metricsRow: {
+    flexDirection: "row",
+    borderWidth: 1,
+    borderRadius: 12,
+    overflow: "hidden",
+  },
   metricCell: { flex: 1, alignItems: "center", paddingVertical: 10 },
   metricVal: { fontSize: 14, fontFamily: "Inter_700Bold" },
   metricLabel: { fontSize: 9, fontFamily: "Inter_400Regular", marginTop: 2 },
@@ -1005,20 +2526,46 @@ const styles = StyleSheet.create({
   syndicatAdmin: { fontSize: 11, fontFamily: "Inter_400Regular" },
   syndicatDot: { fontSize: 11 },
   syndicatTime: { fontSize: 11, fontFamily: "Inter_400Regular" },
-  alertBanner: { flexDirection: "row", alignItems: "center", gap: 8, padding: 12, borderRadius: 12, borderWidth: 1, marginBottom: 4 },
+  alertBanner: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 8,
+    padding: 12,
+    borderRadius: 12,
+    borderWidth: 1,
+    marginBottom: 4,
+  },
   alertBannerText: { flex: 1, fontSize: 12, fontFamily: "Inter_600SemiBold" },
   alertCard: { borderRadius: 14, borderWidth: 1, padding: 14, gap: 8 },
   alertCardHeader: { flexDirection: "row", alignItems: "flex-start", gap: 10 },
-  alertIcon: { width: 38, height: 38, borderRadius: 10, alignItems: "center", justifyContent: "center" },
+  alertIcon: {
+    width: 38,
+    height: 38,
+    borderRadius: 10,
+    alignItems: "center",
+    justifyContent: "center",
+  },
   alertTitle: { fontSize: 13, fontFamily: "Inter_700Bold", lineHeight: 18 },
   alertSyndicat: { fontSize: 11, fontFamily: "Inter_500Medium", marginTop: 2 },
   alertDate: { fontSize: 11, fontFamily: "Inter_400Regular" },
   alertBody: { fontSize: 12, fontFamily: "Inter_400Regular", lineHeight: 17 },
   financeHero: { borderRadius: 20, padding: 20, gap: 8 },
   financeHeroRow: { flexDirection: "row", alignItems: "center", gap: 8 },
-  financeHeroLabel: { fontSize: 12, fontFamily: "Inter_500Medium", color: "rgba(255,255,255,0.8)" },
-  financeHeroAmount: { fontSize: 28, fontFamily: "Inter_700Bold", color: "#fff" },
-  financeHeroSub: { fontSize: 11, fontFamily: "Inter_400Regular", color: "rgba(255,255,255,0.6)" },
+  financeHeroLabel: {
+    fontSize: 12,
+    fontFamily: "Inter_500Medium",
+    color: "rgba(255,255,255,0.8)",
+  },
+  financeHeroAmount: {
+    fontSize: 28,
+    fontFamily: "Inter_700Bold",
+    color: "#fff",
+  },
+  financeHeroSub: {
+    fontSize: 11,
+    fontFamily: "Inter_400Regular",
+    color: "rgba(255,255,255,0.6)",
+  },
   financeCard: { padding: 16, borderRadius: 16, borderWidth: 1, gap: 12 },
   financeCardTitle: { fontSize: 14, fontFamily: "Inter_700Bold" },
   financeRow: { flexDirection: "row", alignItems: "center", gap: 8 },
@@ -1026,48 +2573,149 @@ const styles = StyleSheet.create({
   financeRowName: { fontSize: 11, fontFamily: "Inter_500Medium", width: 80 },
   financeBar: { flex: 1, height: 6, borderRadius: 3, overflow: "hidden" },
   financeBarFill: { height: 6, borderRadius: 3 },
-  financeRowAmt: { fontSize: 11, fontFamily: "Inter_600SemiBold", width: 36, textAlign: "right" },
+  financeRowAmt: {
+    fontSize: 11,
+    fontFamily: "Inter_600SemiBold",
+    width: 36,
+    textAlign: "right",
+  },
   cotisRow: { flexDirection: "row", alignItems: "center", gap: 8 },
   cotisName: { fontSize: 10, fontFamily: "Inter_500Medium", width: 80 },
-  cotisRate: { fontSize: 11, fontFamily: "Inter_700Bold", width: 32, textAlign: "right" },
+  cotisRate: {
+    fontSize: 11,
+    fontFamily: "Inter_700Bold",
+    width: 32,
+    textAlign: "right",
+  },
   exportRow: { gap: 8 },
-  exportBtn: { flexDirection: "row", alignItems: "center", padding: 14, borderRadius: 14, borderWidth: 1, gap: 12 },
-  exportIcon: { width: 40, height: 40, borderRadius: 11, alignItems: "center", justifyContent: "center" },
+  exportBtn: {
+    flexDirection: "row",
+    alignItems: "center",
+    padding: 14,
+    borderRadius: 14,
+    borderWidth: 1,
+    gap: 12,
+  },
+  exportIcon: {
+    width: 40,
+    height: 40,
+    borderRadius: 11,
+    alignItems: "center",
+    justifyContent: "center",
+  },
   exportLabel: { flex: 1, fontSize: 13, fontFamily: "Inter_500Medium" },
   statCard: { padding: 16, borderRadius: 16, borderWidth: 1, gap: 12 },
   statCardHeader: { flexDirection: "row", alignItems: "center", gap: 10 },
-  statIcon: { width: 34, height: 34, borderRadius: 10, alignItems: "center", justifyContent: "center" },
+  statIcon: {
+    width: 34,
+    height: 34,
+    borderRadius: 10,
+    alignItems: "center",
+    justifyContent: "center",
+  },
   statCardTitle: { fontSize: 14, fontFamily: "Inter_600SemiBold", flex: 1 },
   regionRow: { flexDirection: "row", alignItems: "center", gap: 8 },
   regionDot: { width: 8, height: 8, borderRadius: 4 },
   regionName: { fontSize: 11, fontFamily: "Inter_500Medium" },
   regionBar: { flex: 1, height: 6, borderRadius: 3, overflow: "hidden" },
   regionBarFill: { height: 6, borderRadius: 3 },
-  regionCount: { fontSize: 11, fontFamily: "Inter_600SemiBold", width: 50, textAlign: "right" },
+  regionCount: {
+    fontSize: 11,
+    fontFamily: "Inter_600SemiBold",
+    width: 50,
+    textAlign: "right",
+  },
   healthRow: { flexDirection: "row", alignItems: "center", gap: 8 },
   healthLabel: { fontSize: 12, fontFamily: "Inter_500Medium" },
   healthBar: { flex: 1, height: 6, borderRadius: 3, overflow: "hidden" },
   healthBarFill: { height: 6, borderRadius: 3 },
-  healthCount: { fontSize: 11, fontFamily: "Inter_600SemiBold", width: 70, textAlign: "right" },
+  healthCount: {
+    fontSize: 11,
+    fontFamily: "Inter_600SemiBold",
+    width: 70,
+    textAlign: "right",
+  },
   sep: { height: 1 },
-  quickActionRow: { flexDirection: "row", alignItems: "center", paddingVertical: 12, gap: 12 },
-  quickActionIcon: { width: 38, height: 38, borderRadius: 10, alignItems: "center", justifyContent: "center" },
+  quickActionRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    paddingVertical: 12,
+    gap: 12,
+  },
+  quickActionIcon: {
+    width: 38,
+    height: 38,
+    borderRadius: 10,
+    alignItems: "center",
+    justifyContent: "center",
+  },
   quickActionLabel: { flex: 1, fontSize: 13, fontFamily: "Inter_500Medium" },
   modal: { flex: 1 },
-  modalHeader: { flexDirection: "row", alignItems: "center", padding: 20, borderBottomWidth: 1 },
+  modalHeader: {
+    flexDirection: "row",
+    alignItems: "center",
+    padding: 20,
+    borderBottomWidth: 1,
+  },
   modalTitle: { fontSize: 17, fontFamily: "Inter_700Bold" },
-  syndicatDetailHero: { alignItems: "center", gap: 10, padding: 20, borderRadius: 18, borderWidth: 1 },
-  syndicatDetailIcon: { width: 60, height: 60, borderRadius: 30, alignItems: "center", justifyContent: "center" },
-  syndicatDetailName: { fontSize: 15, fontFamily: "Inter_700Bold", textAlign: "center" },
+  syndicatDetailHero: {
+    alignItems: "center",
+    gap: 10,
+    padding: 20,
+    borderRadius: 18,
+    borderWidth: 1,
+  },
+  syndicatDetailIcon: {
+    width: 60,
+    height: 60,
+    borderRadius: 30,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  syndicatDetailName: {
+    fontSize: 15,
+    fontFamily: "Inter_700Bold",
+    textAlign: "center",
+  },
   detailMetrics: { flexDirection: "row", flexWrap: "wrap", gap: 10 },
-  detailMetricCard: { flex: 1, minWidth: "45%", alignItems: "center", padding: 14, borderRadius: 14, borderWidth: 1, gap: 4 },
+  detailMetricCard: {
+    flex: 1,
+    minWidth: "45%",
+    alignItems: "center",
+    padding: 14,
+    borderRadius: 14,
+    borderWidth: 1,
+    gap: 4,
+  },
   detailMetricVal: { fontSize: 18, fontFamily: "Inter_700Bold" },
-  detailMetricLabel: { fontSize: 11, fontFamily: "Inter_400Regular", textAlign: "center" },
-  infoCard: { borderRadius: 16, borderWidth: 1, paddingHorizontal: 14, paddingVertical: 4 },
-  infoRow: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", paddingVertical: 10 },
+  detailMetricLabel: {
+    fontSize: 11,
+    fontFamily: "Inter_400Regular",
+    textAlign: "center",
+  },
+  infoCard: {
+    borderRadius: 16,
+    borderWidth: 1,
+    paddingHorizontal: 14,
+    paddingVertical: 4,
+  },
+  infoRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    paddingVertical: 10,
+  },
   infoLabel: { fontSize: 12, fontFamily: "Inter_400Regular" },
   infoValue: { fontSize: 13, fontFamily: "Inter_600SemiBold" },
   detailActions: { flexDirection: "row", gap: 10 },
-  detailActionBtn: { flex: 1, flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 8, paddingVertical: 13, borderRadius: 13 },
+  detailActionBtn: {
+    flex: 1,
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 8,
+    paddingVertical: 13,
+    borderRadius: 13,
+  },
   detailActionText: { fontSize: 13, fontFamily: "Inter_700Bold" },
 });

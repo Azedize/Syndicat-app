@@ -4,6 +4,9 @@
 ## 2026-08-06
 
 - Governance follow-through verification: `pnpm --filter @workspace/mobile run typecheck` passed with zero errors; `git diff --check` passed; Expo workflow restarted successfully with Metro waiting and no new runtime exceptions.
+- Assemblée Générale verification: `pnpm --filter @workspace/mobile run typecheck` and `git diff --check` passed; no raw `err.message` remains in the screen's user-facing mutation handlers.
+- Charges & Fund Calls verification: `pnpm --filter @workspace/mobile run typecheck` and `git diff --check` passed; payment mutation handlers no longer expose raw API error messages.
+- Invoices verification: `pnpm --filter @workspace/mobile run typecheck` and `git diff --check` passed; invoice creation no longer emits raw API messages from the shared data context.
 
 - `pnpm --filter @workspace/mobile run typecheck` — passed.
 - `git diff --check -- artifacts/mobile/app/workflow.tsx` — passed.
@@ -134,3 +137,11 @@
 - `git diff --check -- artifacts/mobile/app/tableau-bord-financier.tsx` — passed.
 - Metro rebuilt the Expo bundle successfully; existing Expo package-version and web compatibility warnings remain non-blocking.
 - Mobile Expo preview screenshot for `/tableau-bord-financier` at 402×874 — protected route redirected to the public entry without exposing financial data or producing a new browser runtime exception.
+- `pnpm --filter @workspace/mobile run typecheck` — passed with zero errors after the Super Admin National Dashboard localization and MAD-formatting pass.
+- `pnpm exec prettier --write artifacts/mobile/app/tableau-national.tsx` and `git diff --check -- artifacts/mobile/app/tableau-national.tsx` — passed.
+- Restarted `artifacts/mobile: expo`; Metro started successfully. Existing Expo package-version, web shadow-style, notification listener, and web animation warnings remain non-blocking.
+- Mobile Expo preview screenshot for `/tableau-national` at 402×874 — protected route redirected to the public welcome screen as expected without a session; no new browser runtime exception appeared.
+- `pnpm exec prettier --write artifacts/mobile/app/assemblee-generale.tsx artifacts/mobile/app/elections.tsx` and `git diff --check -- artifacts/mobile/app/assemblee-generale.tsx artifacts/mobile/app/elections.tsx` — passed.
+- `pnpm --filter @workspace/mobile run typecheck` — passed with zero errors after the AG/Elections locale/date/mandate presentation pass.
+- Focused grep confirmed no remaining raw AG/election date rendering, raw mandate role/status rendering, or unrelated `addTeamMember` resolution action label in the touched flows.
+- Expo workflow remained healthy and Metro bundled the updated routes. Protected `/assemblee-generale` and `/elections` previews at 402×874 redirected to the public welcome screen without new browser runtime exceptions; existing Expo web warnings remain non-blocking.
