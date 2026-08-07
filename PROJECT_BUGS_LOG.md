@@ -37,3 +37,8 @@
 - Invoice retrieval no longer retains stale records when the authoritative API returns an empty list, and initial invoice failures no longer masquerade as an empty screen; localized retry recovery is now visible.
 - Réclamations & Griefs no longer exposes raw API errors, a fixed French retry label, or a hardcoded anonymous fallback; loading and failure states are now localized and recoverable.
 - Statistiques no longer ignores `statistics.platform()` failures or presents incomplete platform KPIs as real zero values; the screen now shows an explicit retry state and no longer calculates SaaS revenue from hardcoded plan tariffs.
+- Profile onboarding no longer mixes fixed French labels, validation alerts, legal-consent copy, or Moroccan city/sector metadata into non-French sessions.
+- Marketplace cart no longer exposes fixed French checkout copy, raw order errors, or fixed `fr-MA` amount formatting when the active language changes.
+- Favorites no longer remains French-only or clears the entire list without a destructive confirmation; Arabic navigation direction is now reflected in its controls.
+- Syndicate Setup no longer exposes mixed French-only wizard, validation, financial, success, or SMS verification copy after a language change; protected unauthenticated deep links still redirect safely.
+- The public welcome page no longer presents unverified KPI values, synthetic charts, or a fabricated named testimonial as evidence of platform performance; public proof is now descriptive until backed by a real API source.

@@ -9,6 +9,8 @@
 - Preserved role-specific quick actions, API-backed metrics, audit activity, localized copy, MAD formatting, and RTL direction behavior.
 - Profile & Settings received the next UX pass: profile actions now use readable two-column mobile rows, profile/settings screens mirror RTL navigation direction, and settings security/application metadata now uses the translation system.
 - Preserved real profile data, password/avatar workflows, theme controls, language selection, notification toggles, logout confirmation, and protected-route behavior.
+- Favorites now provides a consistent multilingual saved-items experience with a deliberate clear confirmation, readable counts, guided empty state, and RTL-aware navigation.
+- Syndicate Setup now provides a consistent multilingual creation journey across identity, contact, legal, financial configuration, phone verification, and post-creation actions while preserving the existing premium hierarchy and role boundaries.
 
 ## 2026-08-06
 
@@ -75,6 +77,8 @@
 - Assemblée Générale and Élections now complete their remaining governance presentation gaps with active-locale meeting/election dates, dedicated resolution actions, translated mandate roles/statuses, and localized mandate end dates while preserving the existing decision and voting workflows.
 - Réclamations & Griefs now provides explicit loading, unavailable, empty, and mutation-feedback states with safe localized copy while preserving its confidential role-scoped workflow.
 - Statistiques now provides explicit synchronization/error recovery, active-locale MAD formatting, persisted SaaS plan totals, and RTL-aware navigation without changing platform analytics permissions.
+- Profile onboarding now provides a consistent four-language completion journey across step navigation, Moroccan profile fields, avatar selection, terms consent, summary metadata, and success/recovery feedback.
+- Marketplace cart now provides a consistent four-language purchase completion journey with localized item summaries, empty state, destructive confirmations, delivery-payment guidance, order success, and active-locale MAD values.
 - Search now keeps category hierarchy, quick discovery, history management, shortcuts, and no-results recovery consistent with the active language while preserving the existing search interaction model.
 - Subscription Payment now keeps onboarding, free-trial reassurance, billing choice, payment-method hierarchy, transfer confirmation, amount presentation, and recovery messaging consistent across supported languages; sensitive banking details are not embedded in the mobile UI.
 - Documents & Signatures now keeps the main list, detail sheet, workflow controls, signature capture, document editing, comments, version history, QR verification, bundle menu, and download feedback consistent across French, English, Arabic, and Spanish.
@@ -115,3 +119,4 @@
 - Delivery Notes now provides a consistent four-language logistics experience with localized incoming/outgoing hierarchy, status progression, confirmation/PDF feedback, guided empty state, locale-aware dates, and MAD totals.
 - My Orders now provides a consistent four-language marketplace order experience with localized lifecycle tracking, purchase/sales hierarchy, confirmation/review actions, guided empty states, recoverable unavailable data, locale-aware dates, and full MAD totals.
 - User Management now provides a consistent four-language administrative account experience with guided synchronization/recovery, locale-aware membership metadata, safe mutation feedback, Moroccan contact validation, and role-sensitive actions.
+- Public Welcome now provides a four-language, trust-safe product introduction with descriptive proof language instead of unverified performance claims, while preserving the premium landing hierarchy and public navigation.

@@ -162,3 +162,14 @@
 - Audited Réclamations & Griefs and added localized loading/unavailable/retry states, safe mutation feedback, the translated anonymous-name fallback, and RTL back navigation without changing permissions or reclamation endpoints.
 - Audited Statistiques and replaced the ignored platform-statistics failure with an explicit localized retry surface; platform KPIs now show only after successful synchronization, financial values use the active locale, and SaaS plan totals derive from persisted subscription data.
 - `pnpm --filter @workspace/mobile run typecheck`, Prettier, `git diff --check`, Expo restart, and protected `/statistiques` preview validation passed; only existing Expo web compatibility warnings remain.
+- Audited onboarding and marketplace cart for remaining visible French-only public-entry and checkout copy.
+- Added shared four-language translations for onboarding steps, Moroccan city/sector/seniority metadata, profile validation/completion, terms consent, cart states, checkout, delivery payment guidance, and safe mutation feedback.
+- Replaced fixed `fr-MA` cart presentation with active-locale MAD formatting while preserving marketplace/cart/order API behavior and existing navigation.
+- Mobile typecheck and `git diff --check` pass; all newly referenced translation keys were validated against `LanguageContext.tsx`.
+- Audited `artifacts/mobile/app/favorites.tsx`; connected the existing favorites screen to the shared runtime language system, added localized counts/empty/suggestion copy, RTL-aware navigation icons, and confirmation before clearing the list.
+- Audited `artifacts/mobile/app/syndicate-setup.tsx`; localized the four-step identity/contact/legal/configuration flow, validation feedback, city and legal-form pickers, logo guidance, financial summary, success screen, and SMS OTP states across the four supported languages.
+- Preserved the syndicate creation payload, server-backed logo upload, Twilio Verify phone gate, onboarding/payment continuation, and role protection; mobile typecheck and diff validation pass.
+- Audited `artifacts/mobile/app/welcome.tsx` for public-facing content that could be interpreted as real product performance data.
+- Removed the hardcoded `142` members, `98%` recovery rate, synthetic chart, and named testimonial from the public proof card; replaced them with a non-quantified management signal and descriptive copy.
+- Added four-language translation keys for public service descriptions, hero/CTA copy, trust markers, and the management signal; public RTL top-bar direction now follows the active language.
+- Mobile typecheck, `git diff --check`, Expo restart, and public `/welcome` preview validation passed; existing Expo web compatibility warnings remain non-blocking.

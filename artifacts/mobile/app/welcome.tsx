@@ -26,13 +26,14 @@ import Svg, {
 
 import VeridianLogo from "@/components/brand/VeridianLogo";
 import { MIZAN } from "@/constants/brand";
+import { useLanguage } from "@/context/LanguageContext";
 import { useTheme } from "@/context/ThemeContext";
 
 const SERVICES = [
-  { icon: "shield" as const, title: "Gouvernance", text: "AG, votes et décisions tracées" },
-  { icon: "dollar-sign" as const, title: "Finance", text: "Charges, budgets et paiements en MAD" },
-  { icon: "file-text" as const, title: "Documents", text: "Vos documents réunis et sécurisés" },
-  { icon: "tool" as const, title: "Travaux", text: "Interventions suivies de bout en bout" },
+  { icon: "shield" as const, titleKey: "welcomeGovernance", textKey: "welcomeGovernanceText" },
+  { icon: "dollar-sign" as const, titleKey: "welcomeFinance", textKey: "welcomeFinanceText" },
+  { icon: "file-text" as const, titleKey: "welcomeDocuments", textKey: "welcomeDocumentsText" },
+  { icon: "tool" as const, titleKey: "welcomeMaintenance", textKey: "welcomeMaintenanceText" },
 ];
 
 function TrustMark({
@@ -64,9 +65,11 @@ function TrustMark({
 function ServiceCard({
   service,
   isDark,
+  t,
 }: {
   service: (typeof SERVICES)[number];
   isDark: boolean;
+  t: (key: string) => string;
 }) {
   return (
     <View
@@ -82,14 +85,14 @@ function ServiceCard({
        <Feather name={service.icon} size={18} color={isDark ? "#60A5FA" : MIZAN.colors.blue} />
       </View>
       <Text style={[styles.serviceTitle, { color: isDark ? "#F8FAFF" : MIZAN.colors.navyDeep }]}>
-        {service.title}
+        {t(service.titleKey)}
       </Text>
-      <Text style={[styles.serviceText, { color: isDark ? "#8EA3C0" : "#64748B" }]}>{service.text}</Text>
+      <Text style={[styles.serviceText, { color: isDark ? "#8EA3C0" : "#64748B" }]}>{t(service.textKey)}</Text>
     </View>
   );
 }
 
-function ProductStage({ isDark }: { isDark: boolean }) {
+function ProductStage({ isDark, t }: { isDark: boolean; t: (key: string) => string }) {
   const frame = isDark ? "#102442" : "#FFFFFF";
   const surface = isDark ? "#0A1628" : "#F8FBFF";
   const softSurface = isDark ? "#132C4D" : "#EDF4FF";
@@ -147,9 +150,9 @@ function ProductStage({ isDark }: { isDark: boolean }) {
         <View style={styles.stageCaption}>
           <View style={styles.captionLive}>
             <View style={styles.captionDot} />
-            <Text style={styles.captionLiveText}>Interface conçue pour décider</Text>
+            <Text style={styles.captionLiveText}>{t("welcomePilotage")}</Text>
           </View>
-          <Text style={styles.captionText}>Tout votre syndic, au même endroit.</Text>
+          <Text style={styles.captionText}>{t("welcomeAllInOne")}</Text>
         </View>
       </View>
     </View>
@@ -159,6 +162,7 @@ function ProductStage({ isDark }: { isDark: boolean }) {
 export default function WelcomeScreen() {
   const insets = useSafeAreaInsets();
   const { isDark } = useTheme();
+  const { t, isRTL } = useLanguage();
   // Keep the landing page legible on the very first frame (including Expo web
   // previews), while the content still gets a subtle upward entrance motion.
   const fade = useRef(new Animated.Value(1)).current;
@@ -191,7 +195,7 @@ export default function WelcomeScreen() {
         }}
       >
         <View style={styles.pagePadding}>
-          <View style={styles.topBar}>
+          <View style={[styles.topBar, isRTL && styles.rtlRow]}>
             <VeridianLogo variant="horizontal" colorScheme="dark" size={40} showTagline={false} />
             <TouchableOpacity
               testID="welcome-login"
@@ -209,7 +213,7 @@ export default function WelcomeScreen() {
               activeOpacity={0.82}
             >
               <Text style={[styles.loginText, { color: isDark ? "#BFDBFE" : MIZAN.colors.blue }]}>
-                Se connecter
+                {t("connect")}
               </Text>
               <Feather name="arrow-up-right" size={16} color={isDark ? "#93C5FD" : MIZAN.colors.blue} />
             </TouchableOpacity>
@@ -219,14 +223,14 @@ export default function WelcomeScreen() {
             <View style={styles.heroCopy}>
               <View style={styles.eyebrow}>
                 <View style={styles.liveDot} />
-                <Text style={styles.eyebrowText}>LA PLATEFORME DES RÉSIDENCES MODERNES</Text>
+                <Text style={styles.eyebrowText}>{t("authEnterprisePlatform")}</Text>
               </View>
               <Text style={[styles.headline, { color: foreground }]}>
-                La gestion de votre{"\n"}
-                <Text style={styles.headlineAccent}>résidence, réinventée.</Text>
+                {t("welcomeHeadline")}
+                <Text style={styles.headlineAccent}>{t("welcomeHeadlineAccent")}</Text>
               </Text>
               <Text style={[styles.subtitle, { color: muted }]}>
-                Une expérience claire et professionnelle pour piloter votre copropriété, communiquer avec vos résidents et garder chaque décision sous contrôle.
+                {t("welcomeSubtitle")}
               </Text>
 
               <View style={styles.heroActions}>
@@ -245,7 +249,7 @@ export default function WelcomeScreen() {
                     start={{ x: 0, y: 0 }}
                     end={{ x: 1, y: 1 }}
                   >
-                    <Text style={styles.primaryButtonText}>Découvrir la plateforme</Text>
+                    <Text style={styles.primaryButtonText}>{t("welcomeDiscover")}</Text>
                     <Feather name="arrow-right" size={19} color="#FFFFFF" />
                   </LinearGradient>
                 </TouchableOpacity>
@@ -262,13 +266,13 @@ export default function WelcomeScreen() {
                   activeOpacity={0.82}
                 >
                   <Text style={[styles.plansButtonText, { color: isDark ? "#BFDBFE" : MIZAN.colors.blue }]}>
-                    Voir les plans
+                    {t("welcomeViewPlans")}
                   </Text>
                 </TouchableOpacity>
               </View>
             </View>
 
-            <ProductStage isDark={isDark} />
+            <ProductStage isDark={isDark} t={t} />
           </Animated.View>
 
           <View
@@ -277,22 +281,22 @@ export default function WelcomeScreen() {
               { backgroundColor: isDark ? "rgba(13,31,54,0.78)" : "#FFFFFF", borderColor: isDark ? "rgba(96,165,250,0.16)" : "#DBEAFE" },
             ]}
           >
-            <TrustMark icon="check-circle" label="Conforme Loi 18-00" isDark={isDark} />
-            <TrustMark icon="lock" label="Données protégées" isDark={isDark} />
-            <TrustMark icon="globe" label="Pensé pour le Maroc" isDark={isDark} />
+            <TrustMark icon="check-circle" label={t("welcomeLaw18")} isDark={isDark} />
+            <TrustMark icon="lock" label={t("welcomeDataProtected")} isDark={isDark} />
+            <TrustMark icon="globe" label={t("welcomeMoroccoReady")} isDark={isDark} />
           </View>
 
           <View style={styles.sectionHeader}>
-            <Text style={[styles.sectionKicker, { color: isDark ? "#60A5FA" : MIZAN.colors.blue }]}>UNE GESTION SANS FRICTION</Text>
-            <Text style={[styles.sectionTitle, { color: foreground }]}>Les services dont votre résidence a besoin</Text>
+            <Text style={[styles.sectionKicker, { color: isDark ? "#60A5FA" : MIZAN.colors.blue }]}>{t("welcomeFrictionless")}</Text>
+            <Text style={[styles.sectionTitle, { color: foreground }]}>{t("welcomeServicesTitle")}</Text>
             <Text style={[styles.sectionDescription, { color: muted }]}>
-              Des outils connectés pour remplacer les échanges dispersés par une gestion fluide, lisible et fiable.
+              {t("welcomeServicesDescription")}
             </Text>
           </View>
 
           <View style={styles.servicesGrid}>
             {SERVICES.map((service) => (
-              <ServiceCard key={service.title} service={service} isDark={isDark} />
+              <ServiceCard key={service.titleKey} service={service} isDark={isDark} t={t} />
             ))}
           </View>
 
@@ -300,55 +304,31 @@ export default function WelcomeScreen() {
             <View style={styles.proofCopy}>
               <View style={styles.proofTag}>
                 <Feather name="bar-chart-2" size={14} color="#60A5FA" />
-                <Text style={styles.proofTagText}>PILOTAGE INTELLIGENT</Text>
+                <Text style={styles.proofTagText}>{t("welcomePilotage")}</Text>
               </View>
-              <Text style={[styles.proofTitle, { color: foreground }]}>Une décision plus rapide. Une résidence plus sereine.</Text>
+              <Text style={[styles.proofTitle, { color: foreground }]}>{t("welcomePilotageTitle")}</Text>
               <Text style={[styles.proofText, { color: muted }]}>
-                Suivez les indicateurs essentiels et donnez à chaque membre une information claire, au bon moment.
+                {t("welcomePilotageText")}
               </Text>
-              <View style={styles.proofMetricRow}>
-                <View>
-                  <Text style={[styles.metricValue, { color: foreground }]}>142</Text>
-                  <Text style={[styles.metricLabel, { color: muted }]}>membres actifs</Text>
-                </View>
-                <View style={styles.metricDivider} />
-                <View>
-                  <Text style={[styles.metricValue, { color: foreground }]}>98%</Text>
-                  <Text style={[styles.metricLabel, { color: muted }]}>recouvrement</Text>
-                </View>
+              <View style={styles.proofSignal}>
+                <Feather name="check-circle" size={16} color="#34D399" />
+                <Text style={[styles.proofSignalText, { color: muted }]}>{t("welcomePilotageSignal")}</Text>
               </View>
             </View>
-            <View style={styles.miniChart}>
-              <Svg width="112" height="164" viewBox="0 0 112 164">
-                <Rect width="112" height="164" rx="12" fill={isDark ? "#0A1628" : "#F1F6FF"} />
-                <Rect x="12" y="14" width="48" height="6" rx="3" fill={isDark ? "#F8FAFF" : "#0A1628"} opacity="0.9" />
-                <Rect x="12" y="28" width="70" height="5" rx="2.5" fill={isDark ? "#6E88AA" : "#94A3B8"} />
-                {[42, 60, 51, 76, 68, 92].map((height, index) => (
-                  <Rect
-                    key={index}
-                    x={12 + index * 15}
-                    y={142 - height}
-                    width="8"
-                    height={height}
-                    rx="4"
-                    fill={index === 5 ? "#3B82F6" : "#8DB6FF"}
-                    opacity={index === 5 ? 1 : 0.65}
-                  />
-                ))}
-                <Path d="M12 144H100" stroke={isDark ? "#294365" : "#D5E5FA"} strokeWidth="1" />
-              </Svg>
+            <View style={[styles.proofEmblem, { backgroundColor: isDark ? "#0A1628" : "#F1F6FF" }]}>
+              <Feather name="activity" size={42} color={isDark ? "#60A5FA" : MIZAN.colors.blue} />
             </View>
           </View>
 
           <View style={styles.bottomCta}>
-            <Text style={[styles.bottomCtaTitle, { color: foreground }]}>Prêt à mieux gérer votre résidence ?</Text>
-            <Text style={[styles.bottomCtaText, { color: muted }]}>Commencez simplement. Évoluez avec une plateforme conçue pour durer.</Text>
+            <Text style={[styles.bottomCtaTitle, { color: foreground }]}>{t("welcomeBottomTitle")}</Text>
+            <Text style={[styles.bottomCtaText, { color: muted }]}>{t("welcomeBottomText")}</Text>
             <TouchableOpacity
               onPress={() => router.push("/get-started")}
               style={styles.bottomCtaButton}
               activeOpacity={0.86}
             >
-              <Text style={styles.bottomCtaButtonText}>Commencer gratuitement</Text>
+              <Text style={styles.bottomCtaButtonText}>{t("welcomeStartFree")}</Text>
               <Feather name="arrow-right" size={18} color="#FFFFFF" />
             </TouchableOpacity>
           </View>
@@ -362,6 +342,7 @@ const styles = StyleSheet.create({
   root: { flex: 1 },
   pagePadding: { paddingHorizontal: 22 },
   topBar: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", marginBottom: 30 },
+  rtlRow: { flexDirection: "row-reverse" },
   loginButton: { flexDirection: "row", alignItems: "center", gap: 7, borderWidth: 1, borderRadius: 22, paddingHorizontal: 13, paddingVertical: 9 },
   loginText: { fontFamily: "Inter_600SemiBold", fontSize: 13 },
   heroBlock: { gap: 28 },
@@ -405,11 +386,9 @@ const styles = StyleSheet.create({
   proofTagText: { fontFamily: "Inter_700Bold", fontSize: 9, letterSpacing: 1, color: "#60A5FA" },
   proofTitle: { fontFamily: "Inter_700Bold", fontSize: 17, lineHeight: 22 },
   proofText: { fontFamily: "Inter_400Regular", fontSize: 11, lineHeight: 16, marginTop: 8 },
-  proofMetricRow: { flexDirection: "row", alignItems: "center", gap: 14, marginTop: 16 },
-  metricValue: { fontFamily: "Inter_700Bold", fontSize: 21 },
-  metricLabel: { fontFamily: "Inter_500Medium", fontSize: 10, marginTop: 2 },
-  metricDivider: { width: 1, height: 30, backgroundColor: "rgba(148,163,184,0.25)" },
-  miniChart: { width: 112, height: 164, borderRadius: 12, overflow: "hidden" },
+  proofSignal: { flexDirection: "row", alignItems: "center", gap: 7, marginTop: 16 },
+  proofSignalText: { fontFamily: "Inter_500Medium", fontSize: 11, lineHeight: 16, flex: 1 },
+  proofEmblem: { width: 112, height: 164, borderRadius: 12, alignItems: "center", justifyContent: "center" },
   bottomCta: { alignItems: "center", marginTop: 36, padding: 22, borderRadius: 22, backgroundColor: "#0E2A55", gap: 8 },
   bottomCtaTitle: { fontFamily: "Inter_700Bold", fontSize: 20, textAlign: "center" },
   bottomCtaText: { fontFamily: "Inter_400Regular", fontSize: 13, lineHeight: 19, textAlign: "center", color: "#9DB1CC" },

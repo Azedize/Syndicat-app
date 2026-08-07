@@ -86,3 +86,10 @@
 - Mobile/API verification: zero-error typechecks, clean diff validation, successful Expo/API workflow restarts, and public preview pass after the invoice integrity pass.
 - Réclamations & Griefs: localized loading/recovery and safe mutation feedback complete; existing confidentiality, filters, detail flow, and status permissions preserved.
 - Statistiques: explicit platform synchronization/retry, genuine data-state separation, locale-aware MAD values, persisted subscription totals, and RTL navigation complete; Super Admin API scope preserved.
+- Public onboarding & marketplace cart: four-language onboarding wizard and cart/checkout presentation complete, including localized validation, confirmations, payment guidance, safe recovery, and active-locale MAD formatting; existing API contracts preserved.
+- Mobile verification: zero-error typecheck, translation-key validation, and diff validation pass after the public-entry localization follow-through.
+- Favorites: multilingual list/empty/suggestion experience, RTL navigation, and destructive clear confirmation complete; AsyncStorage persistence and favorite navigation preserved.
+- Syndicate Setup: four-language wizard, localized Moroccan validation and SMS OTP feedback, financial summary, legal guidance, and success actions complete; creation API, logo upload, onboarding continuation, and role guards preserved.
+- Mobile verification: zero-error typecheck, clean diff validation, Expo restart, and protected `/syndicate-setup` preview pass after the visible-text audit.
+- Public Welcome: descriptive, non-fabricated product presentation, four-language hero/service/CTA/trust copy, and RTL-aware public header direction complete; no database-backed KPI surface was added.
+- Mobile verification: zero-error typecheck, clean diff validation, Expo restart, and public `/welcome` preview pass after the trust-content audit.

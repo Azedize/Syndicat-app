@@ -36,3 +36,4 @@
 - User Management now localizes account roles, statuses, synchronization/recovery feedback, validation guidance, membership dates, and administrative actions across French, English, Arabic, and Spanish; Moroccan phone input accepts the national and +212 formats.
 - Réclamations & Griefs now keeps all recovery and mutation feedback in the active French, English, Arabic, or Spanish locale, with RTL-aware back navigation.
 - Statistiques now formats platform KPIs and persisted SaaS subscription totals with the active French, English, Arabic, or Spanish locale while retaining MAD as the displayed currency.
+- Public Welcome now localizes its service descriptions, hero, trust markers, management messaging, CTA, and RTL-aware header direction across French, English, Arabic, and Spanish.

@@ -21,6 +21,7 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 import RoleGuard from "@/components/RoleGuard";
 import { useAuth } from "@/context/AuthContext";
 import { useData } from "@/context/DataContext";
+import { useLanguage } from "@/context/LanguageContext";
 import { useBreakpoints } from "@/hooks/useBreakpoints";
 import { useColors } from "@/hooks/useColors";
 import { syndicates as syndicatesApi } from "@/services/api";
@@ -28,7 +29,7 @@ import { apiRequest } from "@/lib/api";
 
 const TOTAL_STEPS = 4;
 const STEP_ICONS: Array<keyof typeof Feather.glyphMap> = ["home", "phone", "file-text", "settings"];
-const STEP_LABELS = ["Identité", "Contact", "Légal", "Config"];
+const STEP_LABEL_KEYS = ["setupStepIdentity", "setupStepContact", "setupStepLegal", "setupStepConfig"] as const;
 
 // ─── Constants ────────────────────────────────────────────────────────────────
 
@@ -83,10 +84,10 @@ const LEGAL_FORMS = [
 ];
 
 const COTISATION_CYCLES = [
-  { key: "monthly", label: "Mensuel" },
-  { key: "quarterly", label: "Trimestriel" },
-  { key: "yearly", label: "Annuel" },
-];
+  { key: "monthly", labelKey: "setupMonthly" },
+  { key: "quarterly", labelKey: "setupQuarterly" },
+  { key: "yearly", labelKey: "setupYearly" },
+] as const;
 
 const LOGO_COLORS = [
   "#2563EB", "#2563eb", "#0891b2", "#059669",
@@ -112,39 +113,39 @@ const LOGO_PRESETS: { icon: keyof typeof Feather.glyphMap; color: string; label:
 // ─── Validation helpers ───────────────────────────────────────────────────────
 
 function validateEmail(v: string): string | null {
-  if (!v.trim()) return "L'email est obligatoire.";
-  if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(v.trim())) return "Format email invalide.";
+  if (!v.trim()) return "setupValidationRequired";
+  if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(v.trim())) return "setupValidationEmail";
   return null;
 }
 
 function validatePhone(v: string): string | null {
-  if (!v.trim()) return "Le téléphone est obligatoire.";
+  if (!v.trim()) return "setupValidationRequired";
   const clean = v.replace(/\s/g, "");
-  if (!/^(\+212|0)[0-9]{9}$/.test(clean)) return "Format invalide (ex: +212600000000 ou 0600000000).";
+  if (!/^(\+212|0)[0-9]{9}$/.test(clean)) return "setupValidationPhone";
   return null;
 }
 
 function validateRegNumber(v: string): string | null {
-  if (!v.trim()) return "Le numéro d'enregistrement est obligatoire.";
-  if (!/^[A-Za-z0-9\-\/\.]{3,50}$/.test(v.trim())) return "Format invalide (ex: 2024-SYN-001234).";
+  if (!v.trim()) return "setupValidationRequired";
+  if (!/^[A-Za-z0-9\-\/\.]{3,50}$/.test(v.trim())) return "setupValidationRegistration";
   return null;
 }
 
 function validateFoundingDate(v: string): string | null {
-  if (!v.trim()) return "La date de fondation est obligatoire.";
-  if (!/^\d{4}-\d{2}-\d{2}$/.test(v.trim())) return "Format requis: AAAA-MM-JJ.";
+  if (!v.trim()) return "setupValidationRequired";
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(v.trim())) return "setupValidationDate";
   return null;
 }
 
 function validateICE(v: string): string | null {
   if (!v) return null; // optional
-  if (!/^[0-9]{15}$/.test(v.trim())) return "L'ICE doit comporter exactement 15 chiffres.";
+  if (!/^[0-9]{15}$/.test(v.trim())) return "setupValidationIce";
   return null;
 }
 
 function validateRC(v: string): string | null {
   if (!v) return null; // optional
-  if (!/^[A-Za-z0-9\-\/\.]{3,20}$/.test(v.trim())) return "Format RC invalide.";
+  if (!/^[A-Za-z0-9\-\/\.]{3,20}$/.test(v.trim())) return "setupValidationRc";
   return null;
 }
 
@@ -208,6 +209,7 @@ function Field({
   error?: string;
   children: React.ReactNode;
 }) {
+  const { t } = useLanguage();
   return (
     <View style={{ gap: 6 }}>
       <Text style={[styles.fieldLabel, { color: colors.mutedForeground }]}>{label}</Text>
@@ -225,7 +227,7 @@ function Field({
       {error ? (
         <View style={styles.errorRow}>
           <Feather name="alert-circle" size={12} color={colors.destructive} />
-          <Text style={[styles.errorText, { color: colors.destructive }]}>{error}</Text>
+          <Text style={[styles.errorText, { color: colors.destructive }]}>{t(error)}</Text>
         </View>
       ) : null}
     </View>
@@ -243,6 +245,7 @@ function CityPicker({
   colors: ReturnType<typeof useColors>;
   error?: string;
 }) {
+  const { t, isRTL } = useLanguage();
   const [open, setOpen] = useState(false);
   const [query, setQuery] = useState("");
 
@@ -252,7 +255,7 @@ function CityPicker({
 
   return (
     <View style={{ gap: 6 }}>
-      <Text style={[styles.fieldLabel, { color: colors.mutedForeground }]}>Ville *</Text>
+      <Text style={[styles.fieldLabel, { color: colors.mutedForeground }]}>{t("syndicateCity")}</Text>
       <TouchableOpacity
         style={[
           styles.fieldBox,
@@ -268,9 +271,9 @@ function CityPicker({
             { color: value ? colors.foreground : colors.mutedForeground },
           ]}
         >
-          {value || "Sélectionnez une ville…"}
+            {value || t("setupSelect")}
         </Text>
-        <Feather name="chevron-down" size={16} color={colors.mutedForeground} />
+        <Feather name={isRTL ? "chevron-left" : "chevron-down"} size={16} color={colors.mutedForeground} />
       </TouchableOpacity>
       {error ? (
         <View style={styles.errorRow}>
@@ -283,7 +286,7 @@ function CityPicker({
         <View style={[styles.pickerModal, { backgroundColor: colors.background }]}>
           <View style={[styles.pickerModalHeader, { borderBottomColor: colors.border }]}>
             <Text style={[styles.pickerModalTitle, { color: colors.foreground }]}>
-              Choisir une ville
+              {t("setupChooseCity")}
             </Text>
             <TouchableOpacity onPress={() => setOpen(false)}>
               <Feather name="x" size={22} color={colors.mutedForeground} />
@@ -293,7 +296,7 @@ function CityPicker({
             <Feather name="search" size={16} color={colors.mutedForeground} style={{ marginStart: 10 }} />
             <TextInput
               style={[styles.pickerSearchInput, { color: colors.foreground }]}
-              placeholder="Rechercher une ville…"
+              placeholder={t("setupSearchCity")}
               placeholderTextColor={colors.mutedForeground}
               value={query}
               onChangeText={setQuery}
@@ -323,7 +326,7 @@ function CityPicker({
                 <Text
                   style={[
                     styles.pickerItemText,
-                    { color: item === value ? colors.primary : colors.foreground },
+                    { color: item === value ? colors.primary : colors.foreground, textAlign: isRTL ? "right" : "left" },
                   ]}
                 >
                   {item}
@@ -357,6 +360,7 @@ function SimplePicker({
   error?: string;
   title: string;
 }) {
+  const { t, isRTL } = useLanguage();
   const [open, setOpen] = useState(false);
   const [query, setQuery] = useState("");
   const showSearch = options.length > 8;
@@ -377,9 +381,9 @@ function SimplePicker({
         activeOpacity={0.8}
       >
         <Text style={[styles.input, { color: value ? colors.foreground : colors.mutedForeground }]}>
-          {value || `Sélectionnez…`}
+           {value || t("setupSelect")}
         </Text>
-        <Feather name="chevron-down" size={16} color={colors.mutedForeground} />
+        <Feather name={isRTL ? "chevron-left" : "chevron-down"} size={16} color={colors.mutedForeground} />
       </TouchableOpacity>
       {error ? (
         <View style={styles.errorRow}>
@@ -401,7 +405,7 @@ function SimplePicker({
               <Feather name="search" size={16} color={colors.mutedForeground} style={{ marginStart: 10 }} />
               <TextInput
                 style={[styles.pickerSearchInput, { color: colors.foreground }]}
-                placeholder={`Rechercher…`}
+                 placeholder={t("setupSearch")}
                 placeholderTextColor={colors.mutedForeground}
                 value={query}
                 onChangeText={setQuery}
@@ -429,7 +433,7 @@ function SimplePicker({
                   Haptics.selectionAsync();
                 }}
               >
-                <Text style={[styles.pickerItemText, { color: item === value ? colors.primary : colors.foreground }]}>
+                 <Text style={[styles.pickerItemText, { color: item === value ? colors.primary : colors.foreground, textAlign: isRTL ? "right" : "left" }]}>
                   {item}
                 </Text>
                 {item === value ? <Feather name="check" size={16} color={colors.primary} /> : null}
@@ -455,13 +459,14 @@ function SuccessScreen({
   insets: { bottom: number; top: number };
   onContinueOnboarding?: () => void;
 }) {
+  const { t, lang, isRTL } = useLanguage();
   const createdDate = created.createdAt
-    ? new Date(created.createdAt).toLocaleDateString("fr-MA", {
+    ? new Date(created.createdAt).toLocaleDateString(lang === "ar" ? "ar-MA" : `${lang}-MA`, {
         day: "2-digit",
         month: "long",
         year: "numeric",
       })
-    : new Date().toLocaleDateString("fr-MA", { day: "2-digit", month: "long", year: "numeric" });
+    : new Date().toLocaleDateString(lang === "ar" ? "ar-MA" : `${lang}-MA`, { day: "2-digit", month: "long", year: "numeric" });
 
   return (
     <ScrollView
@@ -474,9 +479,9 @@ function SuccessScreen({
         <View style={[styles.successIconWrap, { backgroundColor: "#10b98120" }]}>
           <Feather name="check-circle" size={40} color="#10b981" />
         </View>
-        <Text style={[styles.successTitle, { color: colors.foreground }]}>Syndicat créé avec succès !</Text>
+        <Text style={[styles.successTitle, { color: colors.foreground }]}>{t("setupCreatedSuccess")}</Text>
         <Text style={[styles.successSubtitle, { color: colors.mutedForeground }]}>
-          Votre syndicat est maintenant actif sur la plateforme.
+          {t("setupCreatedDescription")}
         </Text>
       </View>
 
@@ -510,11 +515,11 @@ function SuccessScreen({
         <View style={[styles.successSep, { backgroundColor: colors.border }]} />
 
         {[
-          { icon: "hash" as const, label: "N° d'enregistrement", value: created.registrationNumber ?? "—" },
-          { icon: "calendar" as const, label: "Date de création", value: createdDate },
-          { icon: "user" as const, label: "Administrateur", value: adminName },
-          { icon: "users" as const, label: "Membres initiaux", value: `${created.membersCount ?? 0}` },
-          { icon: "activity" as const, label: "Statut", value: "Actif" },
+          { icon: "hash" as const, label: t("setupSummaryRegistration"), value: created.registrationNumber ?? "—" },
+          { icon: "calendar" as const, label: t("setupSummaryCreated"), value: createdDate },
+          { icon: "user" as const, label: t("setupSummaryAdmin"), value: adminName },
+          { icon: "users" as const, label: t("setupSummaryMembers"), value: `${created.membersCount ?? 0}` },
+          { icon: "activity" as const, label: t("setupSummaryStatus"), value: t("setupActive") },
         ].map((row) => (
           <View key={row.label} style={styles.successRow}>
             <View style={[styles.successRowIcon, { backgroundColor: colors.muted }]}>
@@ -539,8 +544,8 @@ function SuccessScreen({
             }}
             activeOpacity={0.85}
           >
-            <Feather name="arrow-right" size={18} color="#fff" />
-            <Text style={styles.successActionPrimaryText}>Passer au paiement →</Text>
+            <Feather name={isRTL ? "arrow-left" : "arrow-right"} size={18} color="#fff" />
+            <Text style={styles.successActionPrimaryText}>{t("setupContinuePayment")}</Text>
           </TouchableOpacity>
         ) : (
           <TouchableOpacity
@@ -552,7 +557,7 @@ function SuccessScreen({
             activeOpacity={0.85}
           >
             <Feather name="eye" size={18} color="#fff" />
-            <Text style={styles.successActionPrimaryText}>Voir le Syndicat</Text>
+            <Text style={styles.successActionPrimaryText}>{t("setupViewSyndicate")}</Text>
           </TouchableOpacity>
         )}
 
@@ -567,7 +572,7 @@ function SuccessScreen({
           >
             <Feather name="user-plus" size={16} color={colors.primary} />
             <Text style={[styles.successActionSecondaryText, { color: colors.primary }]}>
-              Ajouter des Membres
+              {t("setupAddMembers")}
             </Text>
           </TouchableOpacity>
 
@@ -581,7 +586,7 @@ function SuccessScreen({
           >
             <Feather name="home" size={16} color="#3b82f6" />
             <Text style={[styles.successActionSecondaryText, { color: "#3b82f6" }]}>
-              Ajouter un Immeuble
+              {t("setupAddBuilding")}
             </Text>
           </TouchableOpacity>
         </View>
@@ -596,7 +601,7 @@ function SuccessScreen({
         >
           <Feather name="grid" size={16} color={colors.mutedForeground} />
           <Text style={[styles.successActionOutlineText, { color: colors.mutedForeground }]}>
-            Retour au Tableau de Bord
+            {t("setupBackDashboard")}
           </Text>
         </TouchableOpacity>
       </View>
@@ -622,6 +627,7 @@ function SyndicateSetupScreenInner() {
   const insets = useSafeAreaInsets();
   const { user, refreshSession } = useAuth();
   const { addSyndicate } = useData();
+  const { t, lang, isRTL } = useLanguage();
   const { isWide } = useBreakpoints();
   const topPad = isWide ? 0 : Platform.OS === "web" ? 67 : insets.top;
 
@@ -667,12 +673,12 @@ function SyndicateSetupScreenInner() {
     try {
       await apiRequest("/auth/sms/send", "POST", { phone: form.phone.trim() });
       setSmsSendStatus("success");
-      setSmsSendMsg(`Code envoyé au ${form.phone.trim()}`);
+       setSmsSendMsg(`${t("smsCodeSentTo")} ${form.phone.trim()}`);
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
       setTimeout(() => setSmsSendStatus("idle"), 3000);
     } catch (err: any) {
       setSmsSendStatus("error");
-      setSmsSendMsg(err?.message ?? "Échec de l'envoi du SMS. Vérifiez le numéro.");
+      setSmsSendMsg(t("smsSendError"));
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
     } finally {
       setSmsSending(false);
@@ -711,7 +717,7 @@ function SyndicateSetupScreenInner() {
       setShowSmsModal(false);
       setStep(s => s + 1);
     } catch (err: any) {
-      setSmsError(err?.message ?? "Code incorrect. Vérifiez et réessayez.");
+      setSmsError(t("smsInvalidCode"));
       setSmsCode(Array(6).fill(""));
       smsInputs.current[0]?.focus();
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
@@ -802,8 +808,8 @@ function SyndicateSetupScreenInner() {
     if (step === 1) {
       newTouched.name = true;
       newTouched.abbreviation = true;
-      if (!form.name.trim()) newErrors.name = "Le nom du syndicat est obligatoire.";
-      if (!form.abbreviation.trim()) newErrors.abbreviation = "Le sigle/abréviation est obligatoire.";
+       if (!form.name.trim()) newErrors.name = "setupValidationRequired";
+       if (!form.abbreviation.trim()) newErrors.abbreviation = "setupValidationRequired";
     }
     if (step === 2) {
       newTouched.email = true;
@@ -811,17 +817,17 @@ function SyndicateSetupScreenInner() {
       newTouched.city = true;
       const emailErr = validateEmail(form.email);
       const phoneErr = validatePhone(form.phone);
-      if (emailErr) newErrors.email = emailErr;
-      if (phoneErr) newErrors.phone = phoneErr;
-      if (!form.city.trim()) newErrors.city = "La ville est obligatoire.";
+       if (emailErr) newErrors.email = emailErr;
+       if (phoneErr) newErrors.phone = phoneErr;
+       if (!form.city.trim()) newErrors.city = "setupValidationRequired";
     }
     if (step === 3) {
       newTouched.registrationNumber = true;
       newTouched.foundingDate = true;
       const regErr = validateRegNumber(form.registrationNumber);
       const dateErr = validateFoundingDate(form.foundingDate);
-      if (regErr) newErrors.registrationNumber = regErr;
-      if (dateErr) newErrors.foundingDate = dateErr;
+       if (regErr) newErrors.registrationNumber = regErr;
+       if (dateErr) newErrors.foundingDate = dateErr;
       if (form.iceNumber) {
         const iceErr = validateICE(form.iceNumber);
         if (iceErr) newErrors.iceNumber = iceErr;
@@ -982,8 +988,7 @@ function SyndicateSetupScreenInner() {
       setCreated(createdData ?? { id: "", name: form.name });
     } catch (err: any) {
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
-      const msg = err?.message ?? "Une erreur est survenue lors de la création du syndicat.";
-      setErrors((e) => ({ ...e, name: msg }));
+       setErrors((e) => ({ ...e, name: "setupApiError" }));
     } finally {
       setIsSubmitting(false);
     }
@@ -1014,13 +1019,13 @@ function SyndicateSetupScreenInner() {
         <View
           style={[
             styles.header,
-            { paddingTop: topPad + 16, backgroundColor: colors.card, borderBottomColor: colors.border },
+             { paddingTop: topPad + 16, backgroundColor: colors.card, borderBottomColor: colors.border },
           ]}
         >
           <View style={styles.headerTop}>
             <View style={{ width: 36 }} />
             <View style={{ flex: 1, alignItems: "center" }}>
-              <Text style={[styles.title, { color: colors.foreground }]}>Syndicat créé !</Text>
+               <Text style={[styles.title, { color: colors.foreground }]}>{t("setupCreatedTitle")}</Text>
             </View>
             <View style={{ width: 36 }} />
           </View>
@@ -1043,19 +1048,19 @@ function SyndicateSetupScreenInner() {
         return (
           <View style={styles.stepContent}>
             <Text style={[styles.stepDesc, { color: colors.mutedForeground }]}>
-              Renseignez les informations d'identité principales de votre syndicat.
+               {t("setupIdentityDescription")}
             </Text>
-            <Field label="Nom complet du syndicat *" colors={colors} error={errors.name}>
+            <Field label={t("setupNameLabel")} colors={colors} error={errors.name}>
               <TextInput
                 style={[styles.input, { color: colors.foreground }]}
-                placeholder="Ex: Syndicat de Copropriété Résidence Al Andalous"
+                 placeholder={t("setupNamePlaceholder")}
                 placeholderTextColor={colors.mutedForeground}
                 value={form.name}
                 onChangeText={(v) => up("name", v)}
                 onBlur={() => touch("name")}
               />
             </Field>
-            <Field label="Sigle / Abréviation *" colors={colors} error={errors.abbreviation}>
+            <Field label={t("setupAbbreviationLabel")} colors={colors} error={errors.abbreviation}>
               <TextInput
                 style={[styles.input, { color: colors.foreground }]}
                 placeholder="Ex: SCA"
@@ -1066,10 +1071,10 @@ function SyndicateSetupScreenInner() {
                 autoCapitalize="characters"
               />
             </Field>
-            <Field label="Mission / Description" colors={colors}>
+            <Field label={t("setupMissionLabel")} colors={colors}>
               <TextInput
                 style={[styles.input, { color: colors.foreground, minHeight: 70 }]}
-                placeholder="Décrivez la mission principale du syndicat..."
+                 placeholder={t("setupMissionPlaceholder")}
                 placeholderTextColor={colors.mutedForeground}
                 value={form.mission}
                 onChangeText={(v) => up("mission", v)}
@@ -1077,20 +1082,20 @@ function SyndicateSetupScreenInner() {
               />
             </Field>
             <SimplePicker
-              label="Secteur d'activité"
+               label={t("setupSectorLabel")}
               value={form.sector}
               onChange={(v) => up("sector", v)}
               options={SECTORS}
               colors={colors}
-              title="Secteur d'activité"
+               title={t("setupSectorLabel")}
             />
             <SimplePicker
-              label="Région"
+               label={t("setupRegionLabel")}
               value={form.region}
               onChange={(v) => up("region", v)}
               options={REGIONS}
               colors={colors}
-              title="Choisir une région"
+               title={t("setupChooseRegion")}
             />
           </View>
         );
@@ -1099,9 +1104,9 @@ function SyndicateSetupScreenInner() {
         return (
           <View style={styles.stepContent}>
             <Text style={[styles.stepDesc, { color: colors.mutedForeground }]}>
-              Ces coordonnées seront visibles par les membres et affichées dans l'annuaire.
+               {t("setupContactDescription")}
             </Text>
-            <Field label="Email officiel *" colors={colors} error={errors.email}>
+            <Field label={t("setupEmailLabel")} colors={colors} error={errors.email}>
               <TextInput
                 style={[styles.input, { color: colors.foreground }]}
                 placeholder="contact@syndicat.ma"
@@ -1113,7 +1118,7 @@ function SyndicateSetupScreenInner() {
                 autoCapitalize="none"
               />
             </Field>
-            <Field label="Téléphone *" colors={colors} error={errors.phone}>
+             <Field label={t("setupPhoneLabel")} colors={colors} error={errors.phone}>
               <TextInput
                 style={[styles.input, { color: colors.foreground }]}
                 placeholder="+212600000000"
@@ -1124,7 +1129,7 @@ function SyndicateSetupScreenInner() {
                 keyboardType="phone-pad"
               />
             </Field>
-            <Field label="Site web (optionnel)" colors={colors}>
+             <Field label={t("setupWebsiteLabel")} colors={colors}>
               <TextInput
                 style={[styles.input, { color: colors.foreground }]}
                 placeholder="https://www.syndicat.ma"
@@ -1134,7 +1139,7 @@ function SyndicateSetupScreenInner() {
                 autoCapitalize="none"
               />
             </Field>
-            <Field label="Adresse du siège" colors={colors}>
+             <Field label={t("setupAddressLabel")} colors={colors}>
               <TextInput
                 style={[styles.input, { color: colors.foreground, minHeight: 60 }]}
                 placeholder="Numéro, rue..."
@@ -1150,7 +1155,7 @@ function SyndicateSetupScreenInner() {
               colors={colors}
               error={errors.city}
             />
-            <Field label="Pays" colors={colors} error={errors.country}>
+             <Field label={t("setupCountryLabel")} colors={colors} error={errors.country}>
               <TextInput
                 style={[styles.input, { color: colors.foreground }]}
                 placeholder="Maroc"
@@ -1162,7 +1167,7 @@ function SyndicateSetupScreenInner() {
             </Field>
 
             {/* Logo section */}
-            <Text style={[styles.fieldLabel, { color: colors.mutedForeground }]}>Logo du syndicat</Text>
+             <Text style={[styles.fieldLabel, { color: colors.mutedForeground }]}>{t("setupLogoLabel")}</Text>
             <View style={[styles.logoSection, { backgroundColor: colors.muted, borderColor: colors.border }]}>
               {/* Preview */}
               <View style={styles.logoPreviewRow}>
@@ -1196,7 +1201,7 @@ function SyndicateSetupScreenInner() {
               {!form.logoUri ? (
                 <>
                   <Text style={[styles.logoColorLabel, { color: colors.mutedForeground }]}>
-                    Choisissez un logo prédéfini
+                     {t("setupLogoPresetLabel")}
                   </Text>
                   <View style={styles.logoPresetGrid}>
                     {LOGO_PRESETS.map((p) => {
@@ -1259,7 +1264,7 @@ function SyndicateSetupScreenInner() {
                 >
                   <Feather name="upload" size={15} color={colors.primary} />
                   <Text style={[styles.logoBtnText, { color: colors.primary }]}>
-                    {form.logoUri ? "Changer l'image" : "Téléverser depuis mon appareil"}
+                     {form.logoUri ? t("setupChangeImage") : t("setupUploadLogo")}
                   </Text>
                 </TouchableOpacity>
                 {Platform.OS !== "web" && !form.logoUri && (
@@ -1280,9 +1285,9 @@ function SyndicateSetupScreenInner() {
         return (
           <View style={styles.stepContent}>
             <Text style={[styles.stepDesc, { color: colors.mutedForeground }]}>
-              Informations juridiques requises conformément au Dahir n° 1-57-119 du 16 juillet 1957.
+               {t("setupLegalDescription")}
             </Text>
-            <Field label="Numéro d'enregistrement *" colors={colors} error={errors.registrationNumber}>
+            <Field label={t("setupRegistrationLabel")} colors={colors} error={errors.registrationNumber}>
               <TextInput
                 style={[styles.input, { color: colors.foreground }]}
                 placeholder="Ex: 2024-SYN-001234"
@@ -1292,7 +1297,7 @@ function SyndicateSetupScreenInner() {
                 onBlur={() => touch("registrationNumber")}
               />
             </Field>
-            <Field label="Date de fondation *" colors={colors} error={errors.foundingDate}>
+             <Field label={t("setupFoundingDateLabel")} colors={colors} error={errors.foundingDate}>
               <TextInput
                 style={[styles.input, { color: colors.foreground }]}
                 placeholder="AAAA-MM-JJ"
@@ -1302,7 +1307,7 @@ function SyndicateSetupScreenInner() {
                 onBlur={() => touch("foundingDate")}
               />
             </Field>
-            <Field label="Numéro ICE (optionnel)" colors={colors} error={errors.iceNumber}>
+             <Field label={t("setupIceLabel")} colors={colors} error={errors.iceNumber}>
               <TextInput
                 style={[styles.input, { color: colors.foreground }]}
                 placeholder="15 chiffres"
@@ -1314,7 +1319,7 @@ function SyndicateSetupScreenInner() {
                 maxLength={15}
               />
             </Field>
-            <Field label="Numéro RC (optionnel)" colors={colors} error={errors.rcNumber}>
+             <Field label={t("setupRcLabel")} colors={colors} error={errors.rcNumber}>
               <TextInput
                 style={[styles.input, { color: colors.foreground }]}
                 placeholder="Ex: 123456"
@@ -1324,7 +1329,7 @@ function SyndicateSetupScreenInner() {
                 onBlur={() => touch("rcNumber")}
               />
             </Field>
-            <Field label="Nombre initial de membres" colors={colors}>
+             <Field label={t("setupMemberCountLabel")} colors={colors}>
               <TextInput
                 style={[styles.input, { color: colors.foreground }]}
                 placeholder="Ex: 50"
@@ -1335,18 +1340,17 @@ function SyndicateSetupScreenInner() {
               />
             </Field>
             <SimplePicker
-              label="Forme juridique"
+               label={t("setupLegalFormLabel")}
               value={form.legalForm}
               onChange={(v) => up("legalForm", v)}
               options={LEGAL_FORMS}
               colors={colors}
-              title="Forme juridique"
+               title={t("setupLegalFormLabel")}
             />
             <View style={[styles.legalNote, { backgroundColor: "#3b82f618", borderColor: "#3b82f630" }]}>
               <Feather name="info" size={14} color="#3b82f6" />
               <Text style={[styles.legalNoteText, { color: "#3b82f6" }]}>
-                Ces informations seront vérifiées lors de la validation de votre syndicat sur la plateforme.
-                Assurez-vous de la conformité avec le Dahir 1-57-119.
+                 {t("setupLegalNote")}
               </Text>
             </View>
           </View>
@@ -1356,7 +1360,7 @@ function SyndicateSetupScreenInner() {
         return (
           <View style={styles.stepContent}>
             <Text style={[styles.stepDesc, { color: colors.mutedForeground }]}>
-              Configurez les paramètres financiers et vérifiez le récapitulatif.
+               {t("setupConfigDescription")}
             </Text>
 
             {/* Preview card */}
@@ -1383,11 +1387,11 @@ function SyndicateSetupScreenInner() {
               </View>
               <View style={[styles.previewSep, { backgroundColor: colors.border }]} />
               {[
-                { icon: "mail" as const, value: form.email || "Non renseigné" },
-                { icon: "phone" as const, value: form.phone || "Non renseigné" },
-                { icon: "map-pin" as const, value: form.city ? `${form.city}, ${form.country}` : "Non renseigné" },
-                { icon: "file-text" as const, value: `N° ${form.registrationNumber || "Non renseigné"}` },
-                { icon: "calendar" as const, value: `Fondé le ${form.foundingDate || "Non renseigné"}` },
+                 { icon: "mail" as const, value: form.email || t("setupSummaryNotProvided") },
+                 { icon: "phone" as const, value: form.phone || t("setupSummaryNotProvided") },
+                 { icon: "map-pin" as const, value: form.city ? `${form.city}, ${form.country}` : t("setupSummaryNotProvided") },
+                 { icon: "file-text" as const, value: `N° ${form.registrationNumber || t("setupSummaryNotProvided")}` },
+                 { icon: "calendar" as const, value: `${t("setupFoundedOn")} ${form.foundingDate || t("setupSummaryNotProvided")}` },
               ].map(({ icon, value }, i) => (
                 <View key={i} style={styles.previewRow}>
                   <Feather name={icon} size={13} color={colors.mutedForeground} />
@@ -1396,7 +1400,7 @@ function SyndicateSetupScreenInner() {
               ))}
             </View>
 
-            <Text style={[styles.fieldLabel, { color: colors.mutedForeground }]}>Montant cotisation (MAD)</Text>
+             <Text style={[styles.fieldLabel, { color: colors.mutedForeground }]}>{t("setupCotisationAmount")}</Text>
             <View style={[styles.fieldBox, { backgroundColor: colors.card, borderColor: colors.border }]}>
               <TextInput
                 style={[styles.input, { color: colors.foreground }]}
@@ -1408,7 +1412,7 @@ function SyndicateSetupScreenInner() {
               />
             </View>
 
-            <Text style={[styles.fieldLabel, { color: colors.mutedForeground }]}>Cycle de cotisation</Text>
+             <Text style={[styles.fieldLabel, { color: colors.mutedForeground }]}>{t("setupCotisationCycle")}</Text>
             <View style={styles.cycleRow}>
               {COTISATION_CYCLES.map((c) => (
                 <TouchableOpacity
@@ -1432,7 +1436,7 @@ function SyndicateSetupScreenInner() {
                       },
                     ]}
                   >
-                    {c.label}
+                    {t(c.labelKey)}
                   </Text>
                 </TouchableOpacity>
               ))}
@@ -1440,24 +1444,20 @@ function SyndicateSetupScreenInner() {
 
             <View style={[styles.summaryBox, { backgroundColor: colors.muted }]}>
               <Text style={[styles.summaryLine, { color: colors.foreground }]}>
-                Cotisation de{" "}
+                 {t("setupCotisationAmount")}{" "}
                 <Text style={{ color: colors.primary, fontFamily: "Inter_700Bold" }}>
                   {form.cotisationAmount} MAD
                 </Text>{" "}
-                {COTISATION_CYCLES.find((c) => c.key === form.cotisationCycle)?.label.toLowerCase()} par membre
+                 {t(COTISATION_CYCLES.find((c) => c.key === form.cotisationCycle)?.labelKey ?? "setupMonthly").toLowerCase()} {t("setupPerMember")}
               </Text>
               {form.memberCount ? (
                 <Text style={[styles.summaryLine, { color: colors.mutedForeground }]}>
-                  Revenus estimés:{" "}
+                   {t("setupEstimatedIncome")}:{" "}
                   {(
                     parseInt(form.cotisationAmount || "0") * parseInt(form.memberCount || "0")
                   ).toLocaleString()}{" "}
                   MAD /{" "}
-                  {form.cotisationCycle === "monthly"
-                    ? "mois"
-                    : form.cotisationCycle === "quarterly"
-                    ? "trimestre"
-                    : "an"}
+                   {t(form.cotisationCycle === "monthly" ? "setupMonth" : form.cotisationCycle === "quarterly" ? "setupQuarter" : "setupYear")}
                 </Text>
               ) : null}
             </View>
@@ -1471,7 +1471,7 @@ function SyndicateSetupScreenInner() {
                 ]}
               >
                 <Feather name="alert-circle" size={14} color={colors.destructive} />
-                <Text style={[styles.legalNoteText, { color: colors.destructive }]}>{errors.name}</Text>
+                <Text style={[styles.legalNoteText, { color: colors.destructive }]}>{t(errors.name)}</Text>
               </View>
             ) : null}
           </View>
@@ -1520,12 +1520,12 @@ function SyndicateSetupScreenInner() {
           />
         </View>
         <View style={styles.stepTabs}>
-          {STEP_LABELS.map((label, i) => {
+          {STEP_LABEL_KEYS.map((labelKey, i) => {
             const n = i + 1;
             const done = n < step;
             const active = n === step;
             return (
-              <View key={label} style={styles.stepTab}>
+              <View key={labelKey} style={styles.stepTab}>
                 <View
                   style={[
                     styles.stepCircle,
@@ -1556,7 +1556,7 @@ function SyndicateSetupScreenInner() {
                     { color: active ? colors.primary : colors.mutedForeground },
                   ]}
                 >
-                  {label}
+                   {t(labelKey)}
                 </Text>
               </View>
             );
@@ -1572,11 +1572,11 @@ function SyndicateSetupScreenInner() {
         <Text style={[styles.stepTitle, { color: colors.foreground }]}>
           {
             [
-              "Identité du syndicat",
-              "Contact & Localisation",
-              "Informations légales",
-              "Configuration & Récapitulatif",
-            ][step - 1]
+              "setupStepIdentityTitle",
+              "setupStepContactTitle",
+              "setupStepLegalTitle",
+              "setupStepConfigTitle",
+            ].map((key) => t(key))[step - 1]
           }
         </Text>
         {renderStep()}
@@ -1596,7 +1596,7 @@ function SyndicateSetupScreenInner() {
         {step === 2 && phoneVerified && (
           <View style={[styles.verifiedBadge, { backgroundColor: "#10B98115", borderColor: "#10B981" }]}>
             <Feather name="check-circle" size={14} color="#10B981" />
-            <Text style={styles.verifiedBadgeText}>Téléphone vérifié</Text>
+            <Text style={styles.verifiedBadgeText}>{t("setupPhoneVerified")}</Text>
           </View>
         )}
         <TouchableOpacity
@@ -1608,21 +1608,21 @@ function SyndicateSetupScreenInner() {
           {isSubmitting ? (
             <>
               <ActivityIndicator size="small" color="#fff" />
-              <Text style={styles.nextBtnText}>Création en cours…</Text>
+               <Text style={styles.nextBtnText}>{t("setupCreating")}</Text>
             </>
           ) : step === TOTAL_STEPS ? (
             <>
               <Feather name="check-circle" size={18} color="#fff" />
-              <Text style={styles.nextBtnText}>Créer le syndicat</Text>
+               <Text style={styles.nextBtnText}>{t("setupCreateButton")}</Text>
             </>
           ) : step === 2 && !phoneVerified ? (
             <>
               <Feather name="smartphone" size={18} color="#fff" />
-              <Text style={styles.nextBtnText}>Vérifier le téléphone</Text>
+               <Text style={styles.nextBtnText}>{t("setupVerifyPhone")}</Text>
             </>
           ) : (
             <>
-              <Text style={styles.nextBtnText}>Continuer</Text>
+               <Text style={styles.nextBtnText}>{t("setupContinue")}</Text>
               <Feather name="arrow-right" size={18} color="#fff" />
             </>
           )}
@@ -1644,7 +1644,7 @@ function SyndicateSetupScreenInner() {
             </View>
             <View style={{ flex: 1 }}>
               <Text style={[styles.smsModalTitle, { color: colors.foreground }]}>
-                Vérification du téléphone
+                {t("smsTitle")}
               </Text>
               <Text style={[styles.smsModalSub, { color: colors.mutedForeground }]}>
                 {form.phone.trim()}
@@ -1680,9 +1680,9 @@ function SyndicateSetupScreenInner() {
                     color: smsSendStatus === "success" ? "#10B981" :
                            smsSendStatus === "error"   ? "#EF4444" : colors.primary,
                   }]}>
-                    {smsSendStatus === "sending" && "Envoi du SMS en cours…"}
-                    {smsSendStatus === "success" && "SMS envoyé avec succès !"}
-                    {smsSendStatus === "error"   && "Échec de l'envoi"}
+                    {smsSendStatus === "sending" && t("setupSmsSending")}
+                    {smsSendStatus === "success" && t("setupSmsSent")}
+                    {smsSendStatus === "error"   && t("setupSmsSendFailed")}
                   </Text>
                   {smsSendMsg && (
                     <Text style={[styles.smsBannerSub, {
@@ -1698,14 +1698,14 @@ function SyndicateSetupScreenInner() {
               <View style={styles.smsTimerRow}>
                 <Feather name="clock" size={12} color={smsTimeLeft <= 60 ? "#EF4444" : colors.mutedForeground} />
                 <Text style={[styles.smsTimerText, { color: smsTimeLeft <= 60 ? "#EF4444" : colors.mutedForeground }]}>
-                  Code valide pendant {fmtTime(smsTimeLeft)}
+                  {t("smsCodeValidFor")} {fmtTime(smsTimeLeft)}
                 </Text>
               </View>
             ) : (
               <View style={[styles.smsBanner, { backgroundColor: "#EF444412", borderColor: "#EF444430" }]}>
                 <Feather name="alert-circle" size={14} color="#EF4444" />
                 <Text style={[styles.smsBannerTitle, { color: "#EF4444" }]}>
-                  Code expiré — demandez un nouveau code
+                  {t("smsCodeExpired")}
                 </Text>
               </View>
             )}
@@ -1751,7 +1751,7 @@ function SyndicateSetupScreenInner() {
               }]}>
                 <ActivityIndicator size="small" color={colors.primary} />
                 <Text style={[styles.smsBannerTitle, { color: colors.primary }]}>
-                  Vérification du code…
+                  {t("smsVerifyLoading")}
                 </Text>
               </View>
             )}
@@ -1772,7 +1772,7 @@ function SyndicateSetupScreenInner() {
               ) : (
                 <>
                   <Feather name="check-circle" size={18} color="#fff" />
-                  <Text style={styles.smsVerifyBtnText}>Confirmer le code</Text>
+                  <Text style={styles.smsVerifyBtnText}>{t("setupSmsVerify")}</Text>
                 </>
               )}
             </TouchableOpacity>
@@ -1780,7 +1780,7 @@ function SyndicateSetupScreenInner() {
             {/* Resend */}
             <View style={styles.smsResendRow}>
               <Text style={[styles.smsResendLabel, { color: colors.mutedForeground }]}>
-                Pas reçu le SMS ?
+                {t("smsNotReceived")}
               </Text>
               <TouchableOpacity
                 onPress={doSmsSend}
@@ -1793,10 +1793,10 @@ function SyndicateSetupScreenInner() {
                     : colors.primary,
                 }]}>
                   {smsSending
-                    ? "Envoi…"
+                    ? t("smsSendingShort")
                     : smsResendCooldown > 0
-                    ? `Renvoyer dans ${smsResendCooldown}s`
-                    : "Renvoyer le code"}
+                    ? `${t("smsResendIn")} ${smsResendCooldown}s`
+                    : t("smsResend")}
                 </Text>
               </TouchableOpacity>
             </View>
@@ -1805,8 +1805,7 @@ function SyndicateSetupScreenInner() {
             <View style={[styles.smsHint, { backgroundColor: colors.muted, borderColor: colors.border }]}>
               <Feather name="info" size={12} color={colors.mutedForeground} />
               <Text style={[styles.smsHintText, { color: colors.mutedForeground }]}>
-                Le SMS est envoyé via Twilio Verify. Format accepté : +212XXXXXXXXX ou 06XXXXXXXX.
-                Le code expire dans 10 minutes.
+                 {t("setupSmsHint")}
               </Text>
             </View>
           </ScrollView>

@@ -1,3 +1,4 @@
+- Favorites and Syndicate Setup now use runtime translations for all newly audited visible states across `fr`, `en`, `ar`, and `es`; stable API enum values and submitted payloads remain unchanged.
 # 2026-08-07 — Devis & Factures
 
 - Added four-language synchronization and unavailable-data messages for the invoice screen.
@@ -46,3 +47,4 @@
 - Signature Order and Document Wizard now translate signer roles, signature statuses, dates, category/template guidance, entity/autofill states, preview metadata, generation/signature/publication states, navigation, and recoverable errors for `fr`, `en`, `ar`, and `es`.
 - Réclamations & Griefs now translate synchronization, unavailable/retryable states, submission/update failures, and anonymous display fallback for `fr`, `en`, `ar`, and `es`.
 - Statistiques now translate synchronization and unavailable/retryable states; platform financial values and subscription totals follow the active locale while preserving the existing statistical labels and role scope.
+- Public Welcome now translates service descriptions, hero/CTA copy, trust markers, management messaging, and the descriptive replacement for unverified proof content for `fr`, `en`, `ar`, and `es`.

@@ -28,3 +28,6 @@
 - Documents & Signatures reuse the existing semantic document colors, status chips, step indicator, entity cards, signature safeguards, and publication actions while applying consistent four-language copy and recoverable state presentation.
 - Réclamations & Griefs reuses the existing status/severity hierarchy, filters, detail sheet, and mutation controls while adding shared loading/error recovery, localized feedback, and RTL-aware navigation.
 - Statistiques reuses the existing KPI, chart, plan breakdown, and export hierarchy while adding explicit synchronization recovery, active-locale MAD formatting, persisted plan totals, and RTL-aware navigation.
+- Profile onboarding reuses its progressive step, avatar preview, and summary hierarchy while applying shared runtime language metadata to the complete journey.
+ - Marketplace cart reuses its order summary and checkout hierarchy while applying shared semantic feedback, active-locale MAD formatting, and four-language payment guidance.
+ - Public Welcome reuses the established MIZAN blue/navy visual language and touch hierarchy while applying shared translation keys and removing unverified proof visuals from the public surface.

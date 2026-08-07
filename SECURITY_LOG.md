@@ -31,3 +31,4 @@
 - Template Studio audit entries now use the shared `entity`/`entityId` contract with serialized details; route-parameter normalization does not broaden access or alter existing Super Admin and syndicate-admin guards.
 - Réclamations & Griefs retains its existing role-scoped list/detail/mutation permissions and API contracts; safe localized failures do not expose raw server details or broaden confidential grievance visibility.
 - Statistiques retains the existing Super Admin-only platform endpoint and role guard; unavailable responses now fail visibly instead of presenting misleading zero-valued KPIs, and persisted subscription data is read without changing access scope.
+- Public Welcome no longer implies database-backed performance or customer outcomes through unverified metrics, synthetic charts, or named testimonials; no authentication, API scope, or personal-data behavior changed.

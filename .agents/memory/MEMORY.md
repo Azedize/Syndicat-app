@@ -50,3 +50,4 @@
 - [Admin-created account credentials](admin-account-credentials.md) — account creation must generate temporary credentials server-side; never ship a shared default password in the client.
 - [Invoice persistence boundary](invoice-persistence-boundary.md) — invoice identity, lifecycle dates, scope, and totals belong to the server persistence boundary, not client-generated form state.
 - [Statistics data state](statistics-data-state.md) — platform KPIs must remain unavailable on failed synchronization; subscription totals use persisted plan/subscription data, never UI tariffs.
+- [Public trust content](public-trust-content.md) — public landing pages must not present unverified KPIs, synthetic charts, or named testimonials as real outcomes.

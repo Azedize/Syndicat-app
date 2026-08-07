@@ -15,6 +15,7 @@ import {
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useAuth } from "@/context/AuthContext";
+import { useLanguage } from "@/context/LanguageContext";
 import { useBreakpoints } from "@/hooks/useBreakpoints";
 import { useColors } from "@/hooks/useColors";
 import VeridianLogo from "@/components/brand/VeridianLogo";
@@ -27,8 +28,25 @@ const SENIORITY = ["< 2 ans", "2 – 5 ans", "5 – 10 ans", "10 – 20 ans", ">
 
 const AVATAR_COLORS = ["#2563EB", "#1E40AF", "#3B82F6", "#0A1628", "#10b981", "#f59e0b", "#06b6d4", "#60A5FA"];
 
-const STEP_LABELS = ["Informations", "Profession", "Avatar", "Confirmation"];
 const STEP_ICONS: Array<keyof typeof Feather.glyphMap> = ["user", "briefcase", "image", "check-circle"];
+const STEP_LABEL_KEYS = ["onboardingStep1Title", "onboardingStep2Title", "onboardingStep3Title", "onboardingStep4Title"] as const;
+const CITY_LABEL_KEYS: Record<string, string> = {
+  Casablanca: "cityCasablanca", Rabat: "cityRabat", Marrakech: "cityMarrakech", "Fès": "cityFes",
+  Agadir: "cityAgadir", Tanger: "cityTangier", "Meknès": "cityMeknes", Oujda: "cityOujda",
+  Kénitra: "cityKenitra", Tétouan: "cityTetouan", Salé: "citySale", Safi: "citySafi",
+  "El Jadida": "cityElJadida", Autre: "onboardingOther",
+};
+const SECTOR_LABEL_KEYS: Record<string, string> = {
+  "Éducation": "onboardingSectorEducation", "Santé": "onboardingSectorHealth",
+  "Administration publique": "onboardingSectorPublicAdmin", Industrie: "onboardingSectorIndustry",
+  Commerce: "onboardingSectorCommerce", "Banque & Finance": "onboardingSectorBanking",
+  Ingénierie: "onboardingSectorEngineering", Juridique: "onboardingSectorLegal", Autre: "onboardingOther",
+};
+const SENIORITY_LABEL_KEYS: Record<string, string> = {
+  "< 2 ans": "onboardingSeniorityUnder2", "2 – 5 ans": "onboardingSeniority2to5",
+  "5 – 10 ans": "onboardingSeniority5to10", "10 – 20 ans": "onboardingSeniority10to20",
+  "> 20 ans": "onboardingSeniorityOver20",
+};
 
 interface FormState {
   fullName: string;
@@ -47,6 +65,7 @@ export default function OnboardingScreen() {
   const colors = useColors();
   const insets = useSafeAreaInsets();
   const { user, updateUser } = useAuth();
+  const { t } = useLanguage();
   const { isWide } = useBreakpoints();
   const topPad = isWide ? 0 : (Platform.OS === "web" ? 67 : insets.top);
   const colorScheme = useColorScheme();
@@ -73,13 +92,13 @@ export default function OnboardingScreen() {
 
   const validateStep = (): boolean => {
     if (step === 1) {
-      if (!form.fullName.trim()) { Alert.alert("Requis", "Le nom complet est obligatoire."); return false; }
-      if (!form.phone.trim()) { Alert.alert("Requis", "Le téléphone est obligatoire."); return false; }
-      if (!form.city) { Alert.alert("Requis", "Veuillez sélectionner une ville."); return false; }
+       if (!form.fullName.trim()) { Alert.alert(t("onboardingRequired"), t("fullNameRequired")); return false; }
+       if (!form.phone.trim()) { Alert.alert(t("onboardingRequired"), t("phoneRequired")); return false; }
+       if (!form.city) { Alert.alert(t("onboardingRequired"), t("cityRequired")); return false; }
       return true;
     }
     if (step === 2) {
-      if (!form.employer.trim()) { Alert.alert("Requis", "L'employeur est obligatoire."); return false; }
+       if (!form.employer.trim()) { Alert.alert(t("onboardingRequired"), t("employerRequired")); return false; }
       return true;
     }
     return true;
@@ -98,13 +117,13 @@ export default function OnboardingScreen() {
 
   const handleFinish = () => {
     if (!form.acceptTerms) {
-      Alert.alert("Conditions requises", "Veuillez accepter les conditions d'utilisation pour continuer.");
+       Alert.alert(t("termsRequired"), t("termsRequiredMsg"));
       return;
     }
     updateUser({ name: form.fullName, phone: form.phone });
     Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-    Alert.alert("Profil complété !", "Votre profil a été enregistré avec succès.", [
-      { text: "Accéder à l'application", onPress: () => router.replace("/(tabs)/" as any) },
+     Alert.alert(t("profileCompletedTitle"), t("profileCompletedMsg"), [
+       { text: t("accessApp"), onPress: () => router.replace("/(tabs)/" as any) },
     ]);
   };
 
@@ -114,37 +133,37 @@ export default function OnboardingScreen() {
         return (
           <View style={styles.stepContent}>
             <Text style={[styles.stepDesc, { color: colors.mutedForeground }]}>
-              Ces informations permettront aux autres membres de vous identifier.
+               {t("onboardingStep1Desc")}
             </Text>
-            <Field label="Nom complet *" colors={colors}>
+            <Field label={t("fullNameLabel")} colors={colors}>
               <TextInput
                 style={[styles.input, { color: colors.foreground }]}
-                placeholder="Prénom et NOM"
+                 placeholder={t("fullNamePlaceholder")}
                 placeholderTextColor={colors.mutedForeground}
                 value={form.fullName}
                 onChangeText={(v) => { update("fullName", v); update("avatarInitials", v.split(" ").map((n) => n[0]).join("").slice(0, 2).toUpperCase()); }}
               />
             </Field>
-            <Field label="Téléphone *" colors={colors}>
+            <Field label={`${t("onboardingPhoneLabel")} *`} colors={colors}>
               <TextInput
                 style={[styles.input, { color: colors.foreground }]}
-                placeholder="+212 6 00 00 00 00"
+                 placeholder={t("phonePlaceholder")}
                 placeholderTextColor={colors.mutedForeground}
                 value={form.phone}
                 onChangeText={(v) => update("phone", v)}
                 keyboardType="phone-pad"
               />
             </Field>
-            <Field label="Adresse" colors={colors}>
+            <Field label={t("addressLabel")} colors={colors}>
               <TextInput
                 style={[styles.input, { color: colors.foreground }]}
-                placeholder="Rue, quartier..."
+                 placeholder={t("addressPlaceholder")}
                 placeholderTextColor={colors.mutedForeground}
                 value={form.address}
                 onChangeText={(v) => update("address", v)}
               />
             </Field>
-            <Text style={[styles.fieldLabel, { color: colors.mutedForeground }]}>Ville *</Text>
+            <Text style={[styles.fieldLabel, { color: colors.mutedForeground }]}>{t("cityLabel")}</Text>
             <View style={styles.chipGrid}>
               {CITIES.map((c) => (
                 <TouchableOpacity
@@ -152,7 +171,7 @@ export default function OnboardingScreen() {
                   style={[styles.chip, { backgroundColor: form.city === c ? colors.primary : colors.muted, borderColor: form.city === c ? colors.primary : colors.border }]}
                   onPress={() => { update("city", c); Haptics.selectionAsync(); }}
                 >
-                  <Text style={[styles.chipText, { color: form.city === c ? "#fff" : colors.foreground }]}>{c}</Text>
+                   <Text style={[styles.chipText, { color: form.city === c ? "#fff" : colors.foreground }]}>{t(CITY_LABEL_KEYS[c] ?? c)}</Text>
                 </TouchableOpacity>
               ))}
             </View>
@@ -163,18 +182,18 @@ export default function OnboardingScreen() {
         return (
           <View style={styles.stepContent}>
             <Text style={[styles.stepDesc, { color: colors.mutedForeground }]}>
-              Informations professionnelles pour personnaliser votre expérience syndicale.
+               {t("onboardingStep2Desc")}
             </Text>
-            <Field label="Établissement / Employeur *" colors={colors}>
+            <Field label={t("employerLabel")} colors={colors}>
               <TextInput
                 style={[styles.input, { color: colors.foreground }]}
-                placeholder="Ex: Lycée Al Kindi, Casablanca"
+                 placeholder={t("employerPlaceholder")}
                 placeholderTextColor={colors.mutedForeground}
                 value={form.employer}
                 onChangeText={(v) => update("employer", v)}
               />
             </Field>
-            <Text style={[styles.fieldLabel, { color: colors.mutedForeground }]}>Secteur d'activité</Text>
+            <Text style={[styles.fieldLabel, { color: colors.mutedForeground }]}>{t("sectorLabel")}</Text>
             <View style={styles.chipGrid}>
               {SECTORS.map((s) => (
                 <TouchableOpacity
@@ -182,11 +201,11 @@ export default function OnboardingScreen() {
                   style={[styles.chip, { backgroundColor: form.sector === s ? colors.primary : colors.muted, borderColor: form.sector === s ? colors.primary : colors.border }]}
                   onPress={() => { update("sector", s); Haptics.selectionAsync(); }}
                 >
-                  <Text style={[styles.chipText, { color: form.sector === s ? "#fff" : colors.foreground }]}>{s}</Text>
+                   <Text style={[styles.chipText, { color: form.sector === s ? "#fff" : colors.foreground }]}>{t(SECTOR_LABEL_KEYS[s] ?? s)}</Text>
                 </TouchableOpacity>
               ))}
             </View>
-            <Text style={[styles.fieldLabel, { color: colors.mutedForeground }]}>Ancienneté</Text>
+            <Text style={[styles.fieldLabel, { color: colors.mutedForeground }]}>{t("seniorityLabel")}</Text>
             <View style={styles.seniorityRow}>
               {SENIORITY.map((s) => (
                 <TouchableOpacity
@@ -194,7 +213,7 @@ export default function OnboardingScreen() {
                   style={[styles.seniorityChip, { backgroundColor: form.seniority === s ? colors.primary + "18" : colors.muted, borderColor: form.seniority === s ? colors.primary : colors.border }]}
                   onPress={() => { update("seniority", s); Haptics.selectionAsync(); }}
                 >
-                  <Text style={[styles.seniorityText, { color: form.seniority === s ? colors.primary : colors.mutedForeground }]}>{s}</Text>
+                   <Text style={[styles.seniorityText, { color: form.seniority === s ? colors.primary : colors.mutedForeground }]}>{t(SENIORITY_LABEL_KEYS[s] ?? s)}</Text>
                 </TouchableOpacity>
               ))}
             </View>
@@ -205,16 +224,16 @@ export default function OnboardingScreen() {
         return (
           <View style={styles.stepContent}>
             <Text style={[styles.stepDesc, { color: colors.mutedForeground }]}>
-              Choisissez la couleur de votre avatar. Vos initiales seront affichées automatiquement.
+               {t("onboardingStep3Desc")}
             </Text>
             <View style={styles.avatarPreview}>
               <View style={[styles.avatarBig, { backgroundColor: form.avatarColor }]}>
                 <Text style={styles.avatarBigText}>{form.avatarInitials || "??"}</Text>
               </View>
-              <Text style={[styles.avatarName, { color: colors.foreground }]}>{form.fullName || "Votre nom"}</Text>
-              <Text style={[styles.avatarCity, { color: colors.mutedForeground }]}>{form.city || "Ville non définie"}</Text>
+               <Text style={[styles.avatarName, { color: colors.foreground }]}>{form.fullName || t("onboardingYourName")}</Text>
+               <Text style={[styles.avatarCity, { color: colors.mutedForeground }]}>{form.city ? t(CITY_LABEL_KEYS[form.city] ?? form.city) : t("onboardingCityUndefined")}</Text>
             </View>
-            <Text style={[styles.fieldLabel, { color: colors.mutedForeground }]}>Couleur de l'avatar</Text>
+            <Text style={[styles.fieldLabel, { color: colors.mutedForeground }]}>{t("onboardingAvatarColorLabel")}</Text>
             <View style={styles.colorGrid}>
               {AVATAR_COLORS.map((c) => (
                 <TouchableOpacity
@@ -233,7 +252,7 @@ export default function OnboardingScreen() {
         return (
           <View style={styles.stepContent}>
             <Text style={[styles.stepDesc, { color: colors.mutedForeground }]}>
-              Vérifiez vos informations avant de finaliser la création de votre profil.
+               {t("onboardingStep4Desc")}
             </Text>
             <View style={[styles.summaryCard, { backgroundColor: colors.card, borderColor: colors.border }]}>
               <View style={styles.summaryAvatar}>
@@ -242,16 +261,16 @@ export default function OnboardingScreen() {
                 </View>
                 <View>
                   <Text style={[styles.summaryName, { color: colors.foreground }]}>{form.fullName}</Text>
-                  <Text style={[styles.summaryRole, { color: colors.mutedForeground }]}>{user?.role === "syndicate_admin" ? "Admin Syndicat" : "Membre"}</Text>
+                   <Text style={[styles.summaryRole, { color: colors.mutedForeground }]}>{user?.role === "syndicate_admin" ? t("onboardingRoleSyndicateAdmin") : t("onboardingRoleMember")}</Text>
                 </View>
               </View>
               <View style={[styles.summarySep, { backgroundColor: colors.border }]} />
               {[
-                { icon: "phone" as const, label: "Téléphone", value: form.phone },
-                { icon: "map-pin" as const, label: "Ville", value: form.city },
-                { icon: "briefcase" as const, label: "Employeur", value: form.employer },
-                { icon: "layers" as const, label: "Secteur", value: form.sector },
-                { icon: "clock" as const, label: "Ancienneté", value: form.seniority },
+                 { icon: "phone" as const, label: t("onboardingPhoneLabel"), value: form.phone },
+                 { icon: "map-pin" as const, label: t("cityLabel").replace(" *", ""), value: form.city ? t(CITY_LABEL_KEYS[form.city] ?? form.city) : "" },
+                 { icon: "briefcase" as const, label: t("onboardingEmployerSummaryLabel"), value: form.employer },
+                 { icon: "layers" as const, label: t("sectorLabel"), value: t(SECTOR_LABEL_KEYS[form.sector] ?? form.sector) },
+                 { icon: "clock" as const, label: t("seniorityLabel"), value: t(SENIORITY_LABEL_KEYS[form.seniority] ?? form.seniority) },
               ].map(({ icon, label, value }, i) => (
                 <View key={label}>
                   {i > 0 && <View style={[styles.sep, { backgroundColor: colors.border }]} />}
@@ -273,12 +292,12 @@ export default function OnboardingScreen() {
               <View style={[styles.checkbox, { backgroundColor: form.acceptTerms ? colors.primary : "transparent", borderColor: form.acceptTerms ? colors.primary : colors.mutedForeground }]}>
                 {form.acceptTerms && <Feather name="check" size={12} color="#fff" />}
               </View>
-              <Text style={[styles.termsText, { color: colors.foreground }]}>
-                J'accepte les{" "}
+               <Text style={[styles.termsText, { color: colors.foreground }]}>
+                 {t("onboardingAcceptPrefix")}{" "}
                 <Text style={{ color: colors.primary, fontFamily: "Inter_600SemiBold" }} onPress={() => router.push("/cgu" as any)}>
-                  conditions d'utilisation
+                   {t("onboardingTermsLink")}
                 </Text>{" "}
-                et la politique de confidentialité (Loi 09-08 CNDP)
+                 {t("onboardingAndPrivacy")}
               </Text>
             </TouchableOpacity>
           </View>
@@ -310,8 +329,8 @@ export default function OnboardingScreen() {
             </TouchableOpacity>
           )}
           <View style={{ flex: 1, alignItems: "center" }}>
-            <Text style={[styles.title, { color: colors.foreground }]}>Compléter le profil</Text>
-            <Text style={[styles.stepIndicator, { color: colors.mutedForeground }]}>Étape {step} / {TOTAL_STEPS}</Text>
+             <Text style={[styles.title, { color: colors.foreground }]}>{t("onboardingProfileTitle")}</Text>
+             <Text style={[styles.stepIndicator, { color: colors.mutedForeground }]}>{t("onboardingStepIndicator")} {step} / {TOTAL_STEPS}</Text>
           </View>
           <View style={{ width: 36 }} />
         </View>
@@ -321,12 +340,12 @@ export default function OnboardingScreen() {
         </View>
         {/* Step tabs */}
         <View style={styles.stepTabs}>
-          {STEP_LABELS.map((label, i) => {
+           {STEP_LABEL_KEYS.map((key, i) => {
             const n = i + 1;
             const done = n < step;
             const active = n === step;
             return (
-              <View key={label} style={styles.stepTab}>
+               <View key={key} style={styles.stepTab}>
                 <View style={[styles.stepCircle, { backgroundColor: done ? colors.primary : active ? colors.primary + "20" : colors.muted, borderColor: active ? colors.primary : "transparent", borderWidth: active ? 2 : 0 }]}>
                   {done ? (
                     <Feather name="check" size={12} color="#fff" />
@@ -334,7 +353,7 @@ export default function OnboardingScreen() {
                     <Feather name={STEP_ICONS[i]} size={12} color={active ? colors.primary : colors.mutedForeground} />
                   )}
                 </View>
-                <Text style={[styles.stepTabText, { color: active ? colors.primary : colors.mutedForeground }]}>{label}</Text>
+                 <Text style={[styles.stepTabText, { color: active ? colors.primary : colors.mutedForeground }]}>{t(key)}</Text>
               </View>
             );
           })}
@@ -347,7 +366,7 @@ export default function OnboardingScreen() {
         keyboardShouldPersistTaps="handled"
       >
         <Text style={[styles.stepTitle, { color: colors.foreground }]}>
-          {["Informations personnelles", "Informations professionnelles", "Photo de profil", "Récapitulatif"][step - 1]}
+           {[t("onboardingPersonalInfoTitle"), t("onboardingProfessionalInfoTitle"), t("onboardingPhotoTitle"), t("onboardingSummaryTitle")][step - 1]}
         </Text>
         {renderStep()}
       </ScrollView>
@@ -362,17 +381,17 @@ export default function OnboardingScreen() {
           {step === TOTAL_STEPS ? (
             <>
               <Feather name="check-circle" size={18} color="#fff" />
-              <Text style={styles.nextBtnText}>Finaliser le profil</Text>
+               <Text style={styles.nextBtnText}>{t("onboardingFinish")}</Text>
             </>
           ) : (
             <>
-              <Text style={styles.nextBtnText}>Continuer</Text>
+              <Text style={styles.nextBtnText}>{t("onboardingContinue")}</Text>
               <Feather name="arrow-right" size={18} color="#fff" />
             </>
           )}
         </TouchableOpacity>
         <Text style={[styles.skipText, { color: colors.mutedForeground }]} onPress={() => router.replace("/(tabs)/" as any)}>
-          Compléter plus tard
+           {t("onboardingSkip")}
         </Text>
       </View>
     </View>

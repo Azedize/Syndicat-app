@@ -1,3 +1,5 @@
+- 2026-08-07 — Favorites: preserved the compact saved-item hierarchy while making clear-all destructive, empty guidance actionable, and directional affordances correct in RTL.
+- 2026-08-07 — Syndicate Setup: retained the existing four-step creation hierarchy while removing language-specific friction from field guidance, legal verification, financial summary, SMS OTP, and success actions.
 # 2026-08-07 — Devis & Factures reliability and presentation pass
 
 - Reframed invoice creation as a persistence-backed financial workflow: server-owned identity, reference, dates, status, and total replace client-fabricated values.
@@ -42,3 +44,6 @@
 - Signature review retains its status hierarchy, signer sequence, retryable error surface, and signing CTA while using locale-aware dates and role/status labels.
 - DocumentWizard retains its category cards, template metadata, entity picker, resolved-data rows, preview card, signature pad, and publication confirmation hierarchy while applying consistent multilingual state and action copy.
 - Lots and Tenant Administration now use the shared loading/error recovery language, preserve their card/detail/modal hierarchy, and present property and financial metadata in the active locale without changing touch targets or role visibility.
+- Onboarding keeps its progressive four-step hierarchy and avatar preview while removing language-specific friction from labels, city chips, validation, legal consent, and completion actions.
+- Cart keeps its compact order-summary and checkout-sheet hierarchy while making item count, monetary totals, payment method, destructive actions, and success feedback respond to the active language.
+- Welcome keeps its product-stage and service-card hierarchy while replacing synthetic charts/testimonials with a clear descriptive management signal and localizing the full public presentation across supported languages.

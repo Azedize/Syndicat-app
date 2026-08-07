@@ -131,53 +131,53 @@ const STATE_COPY = {
 
 const STATUS_TABS: {
   key: StatusTab;
-  label: string;
+  labelKey: string;
   color: string;
   icon: React.ComponentProps<typeof Feather>["name"];
 }[] = [
-  { key: "pending_review",          label: "En attente",      color: "#f59e0b", icon: "clock"       },
-  { key: "approved",                label: "Approuvés",       color: "#22c55e", icon: "check-circle" },
-  { key: "rejected",                label: "Rejetés",         color: "#ef4444", icon: "x-circle"    },
-  { key: "modification_requested",  label: "Modifs requises", color: "#f97316", icon: "edit-2"      },
-  { key: "reported",                label: "Signalés",        color: "#dc2626", icon: "flag"        },
-  { key: "reserved",                label: "Réservés",        color: "#6366f1", icon: "lock"        },
-  { key: "sold",                    label: "Vendus",          color: "#94a3b8", icon: "package"     },
+  { key: "pending_review",          labelKey: "marketplaceStatusPendingReview", color: "#f59e0b", icon: "clock"       },
+  { key: "approved",                labelKey: "marketplaceStatusApproved", color: "#22c55e", icon: "check-circle" },
+  { key: "rejected",                labelKey: "marketplaceStatusRejected", color: "#ef4444", icon: "x-circle"    },
+  { key: "modification_requested",  labelKey: "marketplaceStatusModificationRequested", color: "#f97316", icon: "edit-2"      },
+  { key: "reported",                labelKey: "marketplaceReported", color: "#dc2626", icon: "flag"        },
+  { key: "reserved",                labelKey: "marketplaceStatusReserved", color: "#6366f1", icon: "lock"        },
+  { key: "sold",                    labelKey: "marketplaceStatusSold", color: "#94a3b8", icon: "package"     },
 ];
 
 const REJECT_REASONS = [
-  "Contenu inapproprié",
-  "Informations manquantes",
-  "Mauvaise catégorie",
-  "Annonce en double",
-  "Article prohibé",
-  "Photos insuffisantes",
-  "Prix non conforme",
-  "Autre",
+  { value: "marketplaceRejectReasonInappropriate", labelKey: "marketplaceRejectReasonInappropriate" },
+  { value: "marketplaceRejectReasonMissingInformation", labelKey: "marketplaceRejectReasonMissingInformation" },
+  { value: "marketplaceRejectReasonWrongCategory", labelKey: "marketplaceRejectReasonWrongCategory" },
+  { value: "marketplaceRejectReasonDuplicateListing", labelKey: "marketplaceRejectReasonDuplicateListing" },
+  { value: "marketplaceRejectReasonProhibitedItem", labelKey: "marketplaceRejectReasonProhibitedItem" },
+  { value: "marketplaceRejectReasonInsufficientPhotos", labelKey: "marketplaceRejectReasonInsufficientPhotos" },
+  { value: "marketplaceRejectReasonInvalidPrice", labelKey: "marketplaceRejectReasonInvalidPrice" },
+  { value: "marketplaceRejectReasonOther", labelKey: "marketplaceRejectReasonOther" },
 ];
 
 const CONDITION_LABELS: Record<string, string> = {
-  neuf: "Neuf",
-  bon: "Bon état",
-  acceptable: "Acceptable",
-  mauvais: "Mauvais état",
+  neuf: "marketplaceConditionNew",
+  bon: "marketplaceConditionGood",
+  acceptable: "marketplaceConditionAcceptable",
+  mauvais: "marketplaceConditionPoor",
 };
 
 const REPORT_REASON_LABELS: Record<string, string> = {
-  spam: "Spam",
-  inappropriate: "Contenu inapproprié",
-  fraude: "Fraude",
-  mauvaise_info: "Mauvaises informations",
-  produit_interdit: "Produit prohibé",
-  faux_produit: "Faux produit",
-  autre: "Autre",
+  spam: "productReportSpam",
+  inappropriate: "productReportInappropriate",
+  fraude: "productReportFraud",
+  mauvaise_info: "productReportIncorrectInfo",
+  produit_interdit: "productReportProhibited",
+  faux_produit: "productReportFake",
+  autre: "marketplaceRejectReasonOther",
 };
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
-function formatMAD(v: string | number | null | undefined) {
+function formatMAD(v: string | number | null | undefined, locale: string) {
   const n = Number(v ?? 0);
   if (isNaN(n)) return "0";
-  try { return n.toLocaleString("fr-FR"); } catch { return String(Math.round(n)); }
+  try { return new Intl.NumberFormat(locale, { maximumFractionDigits: 2 }).format(n); } catch { return String(Math.round(n)); }
 }
 
 function safeDate(s?: string | null) {
@@ -186,10 +186,10 @@ function safeDate(s?: string | null) {
   return isNaN(d.getTime()) ? null : d;
 }
 
-function formatDate(s?: string | null) {
+function formatDate(s: string | null | undefined, locale: string) {
   const d = safeDate(s);
   if (!d) return "—";
-  return d.toLocaleDateString("fr-FR", { day: "2-digit", month: "short", year: "numeric" });
+  return d.toLocaleDateString(locale, { day: "2-digit", month: "short", year: "numeric" });
 }
 
 function parseImageUrls(raw?: string | string[] | null): string[] {
@@ -204,7 +204,8 @@ function ModerationDashboard() {
   const colors   = useColors();
   const insets   = useSafeAreaInsets();
   const { user } = useAuth();
-  const { lang } = useLanguage();
+  const { lang, t } = useLanguage();
+  const locale = lang === "ar" ? "ar-MA" : lang === "en" ? "en-US" : lang === "es" ? "es-ES" : "fr-MA";
   const { isWide } = useBreakpoints();
   const { showToast } = useToast();
   const topPad = isWide ? 0 : (Platform.OS === "web" ? 67 : insets.top);
@@ -302,9 +303,9 @@ function ModerationDashboard() {
 
   const submitReject = async () => {
     if (!rejectTarget) return;
-    const reason = selectedReason === "Autre" ? customReason.trim() : selectedReason;
+    const reason = selectedReason === "marketplaceRejectReasonOther" ? customReason.trim() : t(selectedReason);
     if (!reason) {
-      showToast({ type: "error", title: "Motif requis", message: "Sélectionnez ou saisissez un motif de rejet" });
+      showToast({ type: "error", title: t("marketplaceReasonRequired"), message: t("marketplaceReasonRequiredDescription") });
       return;
     }
     setRejectSubmitting(true);
@@ -312,10 +313,10 @@ function ModerationDashboard() {
       await marketplace.moderate(rejectTarget.id, { action: "reject", reason });
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
       setRejectModal(false);
-      showToast({ type: "success", title: "Produit rejeté", message: "Le vendeur a été notifié" });
+      showToast({ type: "success", title: t("marketplaceRejectedToast"), message: t("marketplaceSellerNotified") });
       fetchAll(activeTab);
     } catch {
-      showToast({ type: "error", title: "Erreur", message: "Impossible de rejeter le produit" });
+      showToast({ type: "error", title: t("cartUpdateErrorTitle"), message: t("marketplaceRejectError") });
     } finally { setRejectSubmitting(false); }
   };
 
@@ -332,30 +333,30 @@ function ModerationDashboard() {
       await marketplace.moderate(changesTarget.id, { action: "request_modification", reason: changesComment.trim() });
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
       setChangesModal(false);
-      showToast({ type: "success", title: "Modifications demandées", message: "Le vendeur a été notifié" });
+      showToast({ type: "success", title: t("marketplaceModificationRequested"), message: t("marketplaceSellerNotified") });
       fetchAll(activeTab);
     } catch {
-      showToast({ type: "error", title: "Erreur", message: "Impossible d'envoyer la demande" });
+      showToast({ type: "error", title: t("cartUpdateErrorTitle"), message: t("marketplaceModificationError") });
     } finally { setChangesSubmitting(false); }
   };
 
   const handleApprove = (id: string, name: string) => {
     Alert.alert(
-      "Approuver le produit",
-      `Approuver "${name}" et le rendre visible dans le marketplace ?`,
+      t("marketplaceApproveTitle"),
+      t("marketplaceApproveDescription").replace("{name}", name),
       [
-        { text: "Annuler", style: "cancel" },
+        { text: t("cartCancel"), style: "cancel" },
         {
-          text: "Approuver",
+          text: t("productApproveAction"),
           onPress: async () => {
             setModerating(id);
             try {
               await marketplace.moderate(id, { action: "approve" });
               Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-              showToast({ type: "success", title: "Approuvé ✓", message: "Le vendeur a été notifié" });
+              showToast({ type: "success", title: t("marketplaceApprovedToast"), message: t("marketplaceSellerNotified") });
               fetchAll(activeTab);
             } catch {
-              showToast({ type: "error", title: "Erreur", message: "Approbation impossible" });
+              showToast({ type: "error", title: t("cartUpdateErrorTitle"), message: t("marketplaceApproveError") });
             } finally { setModerating(null); }
           },
         },
@@ -401,12 +402,12 @@ function ModerationDashboard() {
             <Feather name="arrow-left" size={22} color={colors.foreground} />
           </TouchableOpacity>
           <View style={{ flex: 1, marginLeft: 10 }}>
-            <Text style={[styles.title, { color: colors.foreground }]}>Modération Marketplace</Text>
-            <Text style={[styles.subtitle, { color: colors.mutedForeground }]}>Administration globale de la plateforme</Text>
+           <Text style={[styles.title, { color: colors.foreground }]}>{t("marketplaceModeration")}</Text>
+           <Text style={[styles.subtitle, { color: colors.mutedForeground }]}>{t("marketplaceModerationAccessibility")}</Text>
           </View>
           <View style={[styles.rolePill, { backgroundColor: "#ef444420", borderColor: "#ef444430" }]}>
             <Feather name="shield" size={12} color="#ef4444" />
-            <Text style={[styles.rolePillText, { color: "#ef4444" }]}>Super Admin</Text>
+             <Text style={[styles.rolePillText, { color: "#ef4444" }]}>{t("superAdmin")}</Text>
           </View>
         </View>
       </View>
@@ -414,25 +415,25 @@ function ModerationDashboard() {
       {/* ── Counter strip ──────────────────────────────────────────────── */}
       <View style={[styles.counterStrip, { backgroundColor: colors.card, borderBottomColor: colors.border }]}>
         <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.counterScroll}>
-          {STATUS_TABS.map((t) => (
+          {STATUS_TABS.map((tab) => (
             <TouchableOpacity
-              key={t.key}
+              key={tab.key}
               style={[
                 styles.counterChip,
                 {
-                  backgroundColor: activeTab === t.key ? t.color + "22" : colors.secondary,
-                  borderColor:     activeTab === t.key ? t.color : "transparent",
+                  backgroundColor: activeTab === tab.key ? tab.color + "22" : colors.secondary,
+                  borderColor:     activeTab === tab.key ? tab.color : "transparent",
                   borderWidth: 1.5,
                 },
               ]}
-              onPress={() => switchTab(t.key)}
+              onPress={() => switchTab(tab.key)}
             >
-              <Feather name={t.icon} size={12} color={t.color} />
-              <Text style={[styles.counterNum, { color: t.color }]}>
-                {stats[t.key] !== undefined ? stats[t.key] : "—"}
+              <Feather name={tab.icon} size={12} color={tab.color} />
+              <Text style={[styles.counterNum, { color: tab.color }]}>
+                {stats[tab.key] !== undefined ? stats[tab.key] : "—"}
               </Text>
-              <Text style={[styles.counterLabel, { color: activeTab === t.key ? t.color : colors.mutedForeground }]}>
-                {t.label}
+              <Text style={[styles.counterLabel, { color: activeTab === tab.key ? tab.color : colors.mutedForeground }]}>
+                {t(tab.labelKey)}
               </Text>
             </TouchableOpacity>
           ))}
@@ -454,8 +455,8 @@ function ModerationDashboard() {
       <View style={[styles.tabBar, { backgroundColor: colors.background }]}>
         <Feather name={tabConfig.icon} size={14} color={tabConfig.color} />
         <Text style={[styles.tabLabel, { color: tabConfig.color }]}>
-          {tabConfig.label}
-          {products.length > 0 ? ` · ${products.length} produit${products.length !== 1 ? "s" : ""}` : ""}
+           {t(tabConfig.labelKey)}
+           {products.length > 0 ? ` · ${products.length} ${t("marketplaceProductUnit")}` : ""}
         </Text>
       </View>
 
@@ -490,6 +491,8 @@ function ModerationDashboard() {
               onDetail={(p) => { setDetailProduct(p); setDetailModal(true); }}
               onReports={openReports}
               onViewSeller={(sid) => router.push({ pathname: "/member-detail", params: { id: sid } } as any)}
+              locale={locale}
+              t={t}
             />
           )}
           contentContainerStyle={[styles.list, { paddingBottom: isWide ? 32 : insets.bottom + 100 }]}
@@ -498,9 +501,9 @@ function ModerationDashboard() {
           ListEmptyComponent={
             <View style={styles.centered}>
               <Feather name={tabConfig.icon} size={44} color={colors.mutedForeground} />
-              <Text style={[styles.emptyTitle, { color: colors.foreground }]}>Aucun produit</Text>
+               <Text style={[styles.emptyTitle, { color: colors.foreground }]}>{t("marketplaceQueueEmptyTitle")}</Text>
               <Text style={[styles.emptySub,  { color: colors.mutedForeground }]}>
-                Aucun produit avec le statut « {tabConfig.label} ».
+                 {t("marketplaceQueueEmptyDescription").replace("{status}", t(tabConfig.labelKey))}
               </Text>
             </View>
           }
@@ -517,20 +520,20 @@ function ModerationDashboard() {
           <TouchableOpacity style={[StyleSheet.absoluteFill, styles.overlay]} onPress={() => setRejectModal(false)} />
           <View style={[styles.sheet, { backgroundColor: colors.card }]}>
             <View style={[styles.handle, { backgroundColor: colors.border }]} />
-            <Text style={[styles.sheetTitle, { color: colors.foreground }]}>Rejeter le produit</Text>
+            <Text style={[styles.sheetTitle, { color: colors.foreground }]}>{t("marketplaceRejectTitle")}</Text>
             {rejectTarget && (
               <Text style={[styles.sheetSub, { color: colors.mutedForeground }]} numberOfLines={1}>
                 {rejectTarget.name}
               </Text>
             )}
 
-            <Text style={[styles.fieldLabel, { color: colors.foreground }]}>Motif de rejet</Text>
+            <Text style={[styles.fieldLabel, { color: colors.foreground }]}>{t("marketplaceRejectReasonLabel")}</Text>
             <View style={styles.reasonGrid}>
               {REJECT_REASONS.map((r) => {
-                const active = selectedReason === r;
+                const active = selectedReason === r.value;
                 return (
                   <TouchableOpacity
-                    key={r}
+                    key={r.value}
                     style={[
                       styles.reasonChip,
                       {
@@ -538,19 +541,19 @@ function ModerationDashboard() {
                         borderColor:     active ? colors.destructive : colors.border,
                       },
                     ]}
-                    onPress={() => setSelectedReason(r)}
+                    onPress={() => setSelectedReason(r.value)}
                   >
                     {active && <Feather name="check" size={11} color={colors.destructive} />}
-                    <Text style={[styles.reasonChipText, { color: active ? colors.destructive : colors.foreground }]}>{r}</Text>
+                    <Text style={[styles.reasonChipText, { color: active ? colors.destructive : colors.foreground }]}>{t(r.labelKey)}</Text>
                   </TouchableOpacity>
                 );
               })}
             </View>
 
-            {selectedReason === "Autre" && (
+            {selectedReason === "marketplaceRejectReasonOther" && (
               <TextInput
                 style={[styles.textarea, { borderColor: colors.border, color: colors.foreground, backgroundColor: colors.background }]}
-                placeholder="Précisez le motif..."
+                placeholder={t("marketplaceRejectPlaceholder")}
                 placeholderTextColor={colors.mutedForeground}
                 value={customReason}
                 onChangeText={setCustomReason}
@@ -564,19 +567,19 @@ function ModerationDashboard() {
                 style={[styles.btnSecondary, { borderColor: colors.border }]}
                 onPress={() => setRejectModal(false)}
               >
-                <Text style={[styles.btnSecondaryText, { color: colors.foreground }]}>Annuler</Text>
+                <Text style={[styles.btnSecondaryText, { color: colors.foreground }]}>{t("cartCancel")}</Text>
               </TouchableOpacity>
               <TouchableOpacity
                 style={[
                   styles.btnPrimary,
-                  { backgroundColor: (!selectedReason || (selectedReason === "Autre" && !customReason.trim())) ? colors.muted : colors.destructive },
+                   { backgroundColor: (!selectedReason || (selectedReason === "marketplaceRejectReasonOther" && !customReason.trim())) ? colors.muted : colors.destructive },
                 ]}
                 onPress={submitReject}
-                disabled={!selectedReason || (selectedReason === "Autre" && !customReason.trim()) || rejectSubmitting}
+                disabled={!selectedReason || (selectedReason === "marketplaceRejectReasonOther" && !customReason.trim()) || rejectSubmitting}
               >
                 {rejectSubmitting
                   ? <ActivityIndicator size="small" color="#fff" />
-                  : <><Feather name="x" size={14} color="#fff" /><Text style={styles.btnPrimaryText}>Rejeter</Text></>}
+                  : <><Feather name="x" size={14} color="#fff" /><Text style={styles.btnPrimaryText}>{t("rejectProduct")}</Text></>}
               </TouchableOpacity>
             </View>
           </View>
@@ -589,16 +592,16 @@ function ModerationDashboard() {
           <TouchableOpacity style={[StyleSheet.absoluteFill, styles.overlay]} onPress={() => setChangesModal(false)} />
           <View style={[styles.sheet, { backgroundColor: colors.card }]}>
             <View style={[styles.handle, { backgroundColor: colors.border }]} />
-            <Text style={[styles.sheetTitle, { color: colors.foreground }]}>Demander des modifications</Text>
+            <Text style={[styles.sheetTitle, { color: colors.foreground }]}>{t("marketplaceModificationRequested")}</Text>
             {changesTarget && (
               <Text style={[styles.sheetSub, { color: colors.mutedForeground }]} numberOfLines={1}>
                 {changesTarget.name}
               </Text>
             )}
-            <Text style={[styles.fieldLabel, { color: colors.foreground }]}>Commentaire pour le vendeur</Text>
+            <Text style={[styles.fieldLabel, { color: colors.foreground }]}>{t("marketplaceModificationCommentLabel")}</Text>
             <TextInput
               style={[styles.textarea, { borderColor: colors.border, color: colors.foreground, backgroundColor: colors.background }]}
-              placeholder="Ex : Ajoutez des photos supplémentaires et corrigez la catégorie..."
+              placeholder={t("marketplaceModificationPlaceholder")}
               placeholderTextColor={colors.mutedForeground}
               value={changesComment}
               onChangeText={setChangesComment}
@@ -610,7 +613,7 @@ function ModerationDashboard() {
                 style={[styles.btnSecondary, { borderColor: colors.border }]}
                 onPress={() => setChangesModal(false)}
               >
-                <Text style={[styles.btnSecondaryText, { color: colors.foreground }]}>Annuler</Text>
+                <Text style={[styles.btnSecondaryText, { color: colors.foreground }]}>{t("cartCancel")}</Text>
               </TouchableOpacity>
               <TouchableOpacity
                 style={[styles.btnPrimary, { backgroundColor: !changesComment.trim() ? colors.muted : "#f97316" }]}
@@ -619,7 +622,7 @@ function ModerationDashboard() {
               >
                 {changesSubmitting
                   ? <ActivityIndicator size="small" color="#fff" />
-                  : <><Feather name="edit-2" size={14} color="#fff" /><Text style={styles.btnPrimaryText}>Envoyer</Text></>}
+                  : <><Feather name="edit-2" size={14} color="#fff" /><Text style={styles.btnPrimaryText}>{t("marketplaceSendModificationRequest")}</Text></>}
               </TouchableOpacity>
             </View>
           </View>
@@ -636,7 +639,7 @@ function ModerationDashboard() {
               <ScrollView showsVerticalScrollIndicator={false}>
                 {/* Status + close */}
                 <View style={styles.detailHeader}>
-                  <StatusBadge status={detailProduct.status} colors={colors} />
+                  <StatusBadge status={detailProduct.status} colors={colors} t={t} />
                   <TouchableOpacity onPress={() => setDetailModal(false)}>
                     <Feather name="x" size={20} color={colors.mutedForeground} />
                   </TouchableOpacity>
@@ -650,20 +653,20 @@ function ModerationDashboard() {
                       {imgs.map((_, i) => (
                         <View key={i} style={[styles.imgThumb, { backgroundColor: colors.secondary }]}>
                           <Feather name="image" size={26} color={colors.mutedForeground} />
-                          <Text style={{ fontSize: 9, color: colors.mutedForeground, marginTop: 2 }}>Photo {i + 1}</Text>
+                          <Text style={{ fontSize: 9, color: colors.mutedForeground, marginTop: 2 }}>{t("marketplacePhoto")} {i + 1}</Text>
                         </View>
                       ))}
                     </ScrollView>
                   ) : (
                     <View style={[styles.imgPlaceholder, { backgroundColor: colors.secondary }]}>
                       <Feather name="shopping-bag" size={32} color={colors.mutedForeground} />
-                      <Text style={{ fontSize: 12, color: colors.mutedForeground, marginTop: 4 }}>Aucune photo</Text>
+                      <Text style={{ fontSize: 12, color: colors.mutedForeground, marginTop: 4 }}>{t("marketplaceNoPhoto")}</Text>
                     </View>
                   );
                 })()}
 
                 <Text style={[styles.detailTitle, { color: colors.foreground }]}>{detailProduct.name}</Text>
-                <Text style={[styles.detailPrice, { color: colors.primary  }]}>{formatMAD(detailProduct.price)} MAD</Text>
+                <Text style={[styles.detailPrice, { color: colors.primary  }]}>{formatMAD(detailProduct.price, locale)} MAD</Text>
 
                 {/* Info grid */}
                 <View style={[styles.infoGrid, { borderColor: colors.border }]}>
@@ -671,12 +674,12 @@ function ModerationDashboard() {
                     { label: "Catégorie",    value: detailProduct.category },
                     { label: "Marque",       value: detailProduct.brand },
                     { label: "Modèle",       value: detailProduct.model },
-                    { label: "État",         value: CONDITION_LABELS[detailProduct.condition ?? ""] ?? detailProduct.condition },
-                    { label: "Localisation", value: detailProduct.location },
-                    { label: "Bâtiment",     value: detailProduct.building },
-                    { label: "Vendeur",      value: detailProduct.sellerName },
-                    { label: "Soumis le",    value: formatDate(detailProduct.createdAt) },
-                    { label: "Modéré le",    value: formatDate(detailProduct.moderatedAt) },
+                    { label: t("marketplaceConditionLabel"), value: detailProduct.condition ? t(CONDITION_LABELS[detailProduct.condition] ?? "") : detailProduct.condition },
+                    { label: t("marketplaceLocationLabel"), value: detailProduct.location },
+                    { label: t("marketplaceBuildingLabel"), value: detailProduct.building },
+                    { label: t("marketplaceSellerLabel"), value: detailProduct.sellerName },
+                    { label: t("marketplaceSubmittedLabel"), value: formatDate(detailProduct.createdAt, locale) },
+                    { label: t("marketplaceModeratedLabel"), value: formatDate(detailProduct.moderatedAt, locale) },
                   ] as { label: string; value: string | null | undefined }[])
                     .filter((r) => r.value)
                     .map((r, i, arr) => (
@@ -692,7 +695,7 @@ function ModerationDashboard() {
 
                 {detailProduct.description ? (
                   <>
-                    <Text style={[styles.fieldLabel, { color: colors.foreground, marginTop: 12 }]}>Description</Text>
+                    <Text style={[styles.fieldLabel, { color: colors.foreground, marginTop: 12 }]}>{t("marketplaceDescriptionLabel")}</Text>
                     <Text style={[styles.descText, { color: colors.mutedForeground }]}>{detailProduct.description}</Text>
                   </>
                 ) : null}
@@ -714,9 +717,9 @@ function ModerationDashboard() {
                 {/* Moderation actions for pending products */}
                 {detailProduct.status === "pending_review" && (
                   <View style={styles.detailActions}>
-                    <ActionBtn label="Approuver"   icon="check"   color={colors.success}      onPress={() => { setDetailModal(false); handleApprove(detailProduct.id, detailProduct.name); }} />
-                    <ActionBtn label="Modifications" icon="edit-2" color="#f97316"             onPress={() => { setDetailModal(false); openChangesModal(detailProduct.id, detailProduct.name); }} />
-                    <ActionBtn label="Rejeter"     icon="x"       color={colors.destructive}  onPress={() => { setDetailModal(false); openRejectModal(detailProduct.id, detailProduct.name); }} />
+                    <ActionBtn label={t("productApproveAction")} icon="check" color={colors.success} onPress={() => { setDetailModal(false); handleApprove(detailProduct.id, detailProduct.name); }} />
+                    <ActionBtn label={t("marketplaceModify")} icon="edit-2" color="#f97316" onPress={() => { setDetailModal(false); openChangesModal(detailProduct.id, detailProduct.name); }} />
+                    <ActionBtn label={t("rejectProduct")} icon="x" color={colors.destructive} onPress={() => { setDetailModal(false); openRejectModal(detailProduct.id, detailProduct.name); }} />
                   </View>
                 )}
 
@@ -734,7 +737,7 @@ function ModerationDashboard() {
           <View style={[styles.detailSheet, { backgroundColor: colors.card }]}>
             <View style={[styles.handle, { backgroundColor: colors.border }]} />
             <View style={styles.sheetTitleRow}>
-              <Text style={[styles.sheetTitle, { color: colors.foreground }]}>Signalements</Text>
+              <Text style={[styles.sheetTitle, { color: colors.foreground }]}>{t("marketplaceReports")}</Text>
               <TouchableOpacity onPress={() => setReportsModal(false)}>
                 <Feather name="x" size={20} color={colors.mutedForeground} />
               </TouchableOpacity>
@@ -762,7 +765,7 @@ function ModerationDashboard() {
             ) : reports.length === 0 ? (
               <View style={[styles.centered, { flex: 0, paddingVertical: 40 }]}>
                 <Feather name="flag" size={32} color={colors.mutedForeground} />
-                <Text style={[styles.emptySub, { color: colors.mutedForeground, marginTop: 8 }]}>Aucun signalement</Text>
+                <Text style={[styles.emptySub, { color: colors.mutedForeground, marginTop: 8 }]}>{t("marketplaceReportedEmptyTitle")}</Text>
               </View>
             ) : (
               <ScrollView showsVerticalScrollIndicator={false}>
@@ -775,17 +778,17 @@ function ModerationDashboard() {
                           {REPORT_REASON_LABELS[r.reason] ?? r.reason}
                         </Text>
                       </View>
-                      <Text style={[styles.reportDate, { color: colors.mutedForeground }]}>{formatDate(r.createdAt)}</Text>
+                      <Text style={[styles.reportDate, { color: colors.mutedForeground }]}>{formatDate(r.createdAt, locale)}</Text>
                     </View>
                     <Text style={[styles.reportReporter, { color: colors.mutedForeground }]}>
-                      Par : {r.reporterName ?? "Anonyme"}
+                      {t("marketplaceReportedBy")} : {r.reporterName ?? t("marketplaceAnonymous")}
                     </Text>
                     {r.details ? (
                       <Text style={[styles.reportDetails, { color: colors.foreground }]}>{r.details}</Text>
                     ) : null}
                     <View style={[styles.reportStatusPill, { backgroundColor: r.status === "pending" ? "#f59e0b15" : "#22c55e15" }]}>
                       <Text style={{ fontSize: 11, fontWeight: "700", color: r.status === "pending" ? "#f59e0b" : "#22c55e" }}>
-                        {r.status === "pending" ? "En attente" : "Traité"}
+                        {r.status === "pending" ? t("marketplaceStatusPendingReview") : t("marketplaceProcessedStatus")}
                       </Text>
                     </View>
                   </View>
@@ -815,20 +818,20 @@ export default function AdminMarketplaceScreen() {
 
 type Colors = ReturnType<typeof import("@/hooks/useColors").useColors>;
 
-function StatusBadge({ status, colors }: { status: string; colors: Colors }) {
+function StatusBadge({ status, colors, t }: { status: string; colors: Colors; t: (key: string) => string }) {
   const STATUS_MAP: Record<string, { color: string; label: string }> = {
-    approved:               { color: "#22c55e", label: "Approuvé"       },
-    pending_review:         { color: "#f59e0b", label: "En attente"     },
-    rejected:               { color: "#ef4444", label: "Rejeté"         },
-    modification_requested: { color: "#f97316", label: "Modifs requises" },
-    reserved:               { color: "#6366f1", label: "Réservé"        },
-    sold:                   { color: "#94a3b8", label: "Vendu"          },
+    approved:               { color: "#22c55e", label: "marketplaceStatusApproved" },
+    pending_review:         { color: "#f59e0b", label: "marketplaceStatusPendingReview" },
+    rejected:               { color: "#ef4444", label: "marketplaceStatusRejected" },
+    modification_requested: { color: "#f97316", label: "marketplaceStatusModificationRequested" },
+    reserved:               { color: "#6366f1", label: "marketplaceStatusReserved" },
+    sold:                   { color: "#94a3b8", label: "marketplaceStatusSold" },
   };
   const { color, label } = STATUS_MAP[status] ?? { color: colors.mutedForeground, label: status };
   return (
     <View style={{ flexDirection: "row", alignItems: "center", gap: 5, paddingHorizontal: 10, paddingVertical: 4, borderRadius: 12, backgroundColor: color + "18" }}>
       <View style={{ width: 6, height: 6, borderRadius: 3, backgroundColor: color }} />
-      <Text style={{ fontSize: 12, fontWeight: "700", color }}>{label}</Text>
+      <Text style={{ fontSize: 12, fontWeight: "700", color }}>{STATUS_MAP[status] ? t(label) : label}</Text>
     </View>
   );
 }
@@ -871,7 +874,7 @@ function Pill({ icon, label, color, loading, onPress }: {
 
 function ProductCard({
   product: p, tab, colors, moderating,
-  onApprove, onReject, onChanges, onDetail, onReports, onViewSeller,
+  onApprove, onReject, onChanges, onDetail, onReports, onViewSeller, locale, t,
 }: {
   product: Product; tab: StatusTab; colors: Colors; moderating: string | null;
   onApprove:    (id: string, name: string) => void;
@@ -880,6 +883,8 @@ function ProductCard({
   onDetail:     (p: Product) => void;
   onReports:    (id: string, name: string) => void;
   onViewSeller: (sellerId: string) => void;
+  locale: string;
+  t: (key: string) => string;
 }) {
   const STATUS_BORDER: Record<StatusTab, string> = {
     pending_review:         "#f59e0b",
@@ -900,7 +905,7 @@ function ProductCard({
       <View style={{ flexDirection: "row", alignItems: "flex-start", gap: 8 }}>
         <View style={{ flex: 1 }}>
           <Text style={[styles.cardName,  { color: colors.foreground }]} numberOfLines={2}>{p.name ?? ""}</Text>
-          <Text style={[styles.cardPrice, { color: colors.primary    }]}>{formatMAD(p.price)} MAD</Text>
+          <Text style={[styles.cardPrice, { color: colors.primary    }]}>{formatMAD(p.price, locale)} MAD</Text>
         </View>
         {(p.reportCount ?? 0) > 0 && (
           <View style={[styles.reportCountBadge, { backgroundColor: "#ef4444" }]}>
@@ -916,8 +921,8 @@ function ProductCard({
         {(p.brand || p.model) && <MetaRow icon="box" label={[p.brand, p.model].filter(Boolean).join(" · ")} colors={colors} />}
         {p.sellerName  && <MetaRow icon="user"     label={p.sellerName}                                       colors={colors} />}
         {p.building    && <MetaRow icon="home"     label={p.building}                                         colors={colors} />}
-        <MetaRow icon="calendar" label={formatDate(p.createdAt)} colors={colors} />
-        {p.condition   && <MetaRow icon="star"     label={CONDITION_LABELS[p.condition] ?? p.condition}       colors={colors} />}
+        <MetaRow icon="calendar" label={formatDate(p.createdAt, locale)} colors={colors} />
+        {p.condition   && <MetaRow icon="star" label={t(CONDITION_LABELS[p.condition] ?? p.condition)} colors={colors} />}
       </View>
 
       {/* Rejection / note banner */}
@@ -936,20 +941,20 @@ function ProductCard({
 
       {/* Action pills */}
       <View style={styles.pills}>
-        <Pill icon="eye"           label="Voir"      color={colors.primary}      onPress={() => onDetail(p)} />
+        <Pill icon="eye" label={t("marketplaceView")} color={colors.primary} onPress={() => onDetail(p)} />
         {(isPending || p.status === "modification_requested" || isReported) && (
-          <Pill icon="check"       label="Approuver" color={colors.success}      loading={moderating === p.id} onPress={() => onApprove(p.id, p.name)} />
+          <Pill icon="check" label={t("productApproveAction")} color={colors.success} loading={moderating === p.id} onPress={() => onApprove(p.id, p.name)} />
         )}
         {isPending && (
-          <Pill icon="edit-2"      label="Modifier"  color="#f97316"             onPress={() => onChanges(p.id, p.name)} />
+          <Pill icon="edit-2" label={t("marketplaceModify")} color="#f97316" onPress={() => onChanges(p.id, p.name)} />
         )}
         {(isPending || p.status === "approved" || isReported) && (
-          <Pill icon="x"           label="Rejeter"   color={colors.destructive}  onPress={() => onReject(p.id, p.name)} />
+          <Pill icon="x" label={t("rejectProduct")} color={colors.destructive} onPress={() => onReject(p.id, p.name)} />
         )}
         {isReported && (
-          <Pill icon="flag"        label="Rapports"  color="#dc2626"             onPress={() => onReports(p.id, p.name)} />
+          <Pill icon="flag" label={t("marketplaceReports")} color="#dc2626" onPress={() => onReports(p.id, p.name)} />
         )}
-        <Pill icon="external-link" label="Vendeur"   color={colors.mutedForeground} onPress={() => onViewSeller(p.sellerId)} />
+        <Pill icon="external-link" label={t("marketplaceSeller")} color={colors.mutedForeground} onPress={() => onViewSeller(p.sellerId)} />
       </View>
     </View>
   );

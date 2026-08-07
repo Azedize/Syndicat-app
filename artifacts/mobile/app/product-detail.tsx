@@ -17,9 +17,11 @@ import {
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useAuth } from "@/context/AuthContext";
+import { useLanguage } from "@/context/LanguageContext";
 import { useColors } from "@/hooks/useColors";
 import { useToast } from "@/context/ToastContext";
 import { marketplace, chat } from "@/services/api";
+import { ErrorState, LoadingState } from "@/components/DataState";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -73,17 +75,34 @@ type Comment = {
   createdAt: string;
 };
 
-function formatMAD(price: string | number | null | undefined): string {
+function formatMAD(price: string | number | null | undefined, locale: string): string {
   const n = Number(price ?? 0);
   if (isNaN(n)) return "0";
-  try { return n.toLocaleString("fr-FR"); } catch { return String(Math.round(n)); }
+  try {
+    return new Intl.NumberFormat(locale, {
+      minimumFractionDigits: 0,
+      maximumFractionDigits: 2,
+    }).format(n);
+  } catch {
+    return String(Math.round(n));
+  }
 }
 
-const CONDITION_LABELS: Record<string, string> = {
-  neuf: "Neuf",
-  bon: "Bon état",
-  acceptable: "État acceptable",
-  mauvais: "Mauvais état",
+const CONDITION_KEYS: Record<string, string> = {
+  neuf: "marketplaceConditionNew",
+  bon: "marketplaceConditionGood",
+  acceptable: "marketplaceConditionAcceptable",
+  mauvais: "marketplaceConditionPoor",
+};
+
+const CATEGORY_KEYS: Record<string, string> = {
+  electromenager: "marketplaceCategoryAppliances",
+  meubles: "marketplaceCategoryFurniture",
+  vetements: "marketplaceCategoryClothing",
+  electronique: "marketplaceCategoryElectronics",
+  sport: "marketplaceCategorySports",
+  livres: "marketplaceCategoryBooks",
+  autre: "marketplaceCategoryOther",
 };
 
 const STATUS_COLORS: Record<string, string> = {
@@ -96,24 +115,24 @@ const STATUS_COLORS: Record<string, string> = {
   sold: "#94a3b8",
 };
 
-const STATUS_LABELS: Record<string, string> = {
-  approved: "Disponible",
-  pending_review: "En attente de validation",
-  rejected: "Rejeté",
-  modification_requested: "Modifications requises",
-  sold_out: "Épuisé",
-  reserved: "Réservé",
-  sold: "Vendu",
+const STATUS_KEYS: Record<string, string> = {
+  approved: "productStatusAvailable",
+  pending_review: "marketplaceStatusPendingReview",
+  rejected: "marketplaceStatusRejected",
+  modification_requested: "marketplaceStatusModificationRequested",
+  sold_out: "marketplaceStatusSoldOut",
+  reserved: "marketplaceStatusReserved",
+  sold: "marketplaceStatusSold",
 };
 
 const REPORT_REASONS = [
-  { value: "spam", label: "Spam" },
-  { value: "inappropriate", label: "Contenu inapproprié" },
-  { value: "fraude", label: "Fraude / arnaque" },
-  { value: "faux_produit", label: "Faux produit" },
-  { value: "produit_interdit", label: "Produit interdit" },
-  { value: "mauvaise_info", label: "Informations incorrectes" },
-  { value: "autre", label: "Autre" },
+  { value: "spam", labelKey: "productReportSpam" },
+  { value: "inappropriate", labelKey: "productReportInappropriate" },
+  { value: "fraude", labelKey: "productReportFraud" },
+  { value: "faux_produit", labelKey: "productReportFake" },
+  { value: "produit_interdit", labelKey: "productReportProhibited" },
+  { value: "mauvaise_info", labelKey: "productReportIncorrectInfo" },
+  { value: "autre", labelKey: "onboardingOther" },
 ];
 
 // ─── Screen ───────────────────────────────────────────────────────────────────
@@ -123,11 +142,13 @@ export default function ProductDetailScreen() {
   const colors = useColors();
   const insets = useSafeAreaInsets();
   const { user } = useAuth();
+  const { t, lang } = useLanguage();
   const { id } = useLocalSearchParams<{ id: string }>();
 
   const [product, setProduct] = useState<Product | null>(null);
   const [comments, setComments] = useState<Comment[]>([]);
   const [loading, setLoading] = useState(true);
+  const [loadError, setLoadError] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
   const [commentText, setCommentText] = useState("");
   const [sendingComment, setSendingComment] = useState(false);
@@ -159,8 +180,9 @@ export default function ProductDetailScreen() {
       ]);
       setProduct(pRes.data as Product);
       setComments((cRes.data as Comment[]) ?? []);
+       setLoadError(false);
     } catch {
-      // keep stale
+       setLoadError(true);
     } finally {
       setLoading(false);
       setRefreshing(false);
@@ -180,8 +202,8 @@ export default function ProductDetailScreen() {
   const handleValidatePromotion = (approve: boolean) => {
     if (!pendingPromo) return;
     if (approve) {
-      Alert.alert("Valider la sponsorisation", "Confirmez avoir vérifié le justificatif avant d'approuver.", [
-        { text: "Annuler", style: "cancel" },
+        Alert.alert(t("productValidatePromotion"), t("productValidatePromotionMessage"), [
+        { text: t("cartCancel"), style: "cancel" },
         {
           text: "Approuver",
           onPress: async () => {
@@ -192,7 +214,7 @@ export default function ProductDetailScreen() {
               setPendingPromo(null);
               fetchAll();
             } catch (e: any) {
-              Alert.alert("Erreur", e?.message ?? "Impossible de valider la sponsorisation");
+               Alert.alert(t("cartUpdateErrorTitle"), t("productPromotionValidationError"));
             } finally {
               setValidatingPromo(false);
             }
@@ -214,7 +236,7 @@ export default function ProductDetailScreen() {
       setPendingPromo(null);
       setShowRejectPromo(false);
     } catch (e: any) {
-      Alert.alert("Erreur", e?.message ?? "Impossible de rejeter la demande");
+      Alert.alert(t("cartUpdateErrorTitle"), t("productPromotionRejectError"));
     } finally {
       setValidatingPromo(false);
     }
@@ -233,7 +255,7 @@ export default function ProductDetailScreen() {
       const res = await marketplace.toggleFavorite(product.id);
       setProduct((p) => p ? { ...p, isFavorited: (res as { isFavorited: boolean }).isFavorited } : p);
     } catch {
-      Alert.alert("Erreur", "Impossible de modifier les favoris");
+      Alert.alert(t("cartUpdateErrorTitle"), t("productFavoriteError"));
     } finally {
       setFavoriteLoading(false);
     }
@@ -248,9 +270,9 @@ export default function ProductDetailScreen() {
       router.push(`/chat-thread?id=${res.data.id}`);
     } catch (e: any) {
       if (e?.code === "USER_BLOCKED") {
-        Alert.alert("Indisponible", "Vous ne pouvez pas contacter ce vendeur.");
+        Alert.alert(t("productUnavailableTitle"), t("productContactBlocked"));
       } else {
-        Alert.alert("Erreur", e?.message ?? "Impossible de contacter le vendeur");
+        Alert.alert(t("cartUpdateErrorTitle"), t("productContactError"));
       }
     } finally {
       setContactingSeller(false);
@@ -264,28 +286,28 @@ export default function ProductDetailScreen() {
     try {
       const res = await marketplace.reserveProduct(product.id);
       setProduct((p) => p ? { ...p, ...(res.data as Partial<Product>) } : p);
-      showToast({ type: "success", title: "Réservé !", message: "Le produit vous est réservé. Contactez le vendeur pour finaliser." });
+      showToast({ type: "success", title: t("productReservedTitle"), message: t("productReservedMessage") });
     } catch (e: any) {
-      Alert.alert("Erreur", e?.message ?? "Impossible de réserver ce produit");
+      Alert.alert(t("cartUpdateErrorTitle"), t("productReserveError"));
     } finally {
       setReserving(false);
     }
   };
 
   const handleUnreserve = () => {
-    Alert.alert("Annuler la réservation", "Êtes-vous sûr de vouloir annuler votre réservation ?", [
-      { text: "Non", style: "cancel" },
+    Alert.alert(t("productCancelReservation"), t("productCancelReservationMessage"), [
+      { text: t("productNo"), style: "cancel" },
       {
-        text: "Annuler la réservation",
+         text: t("productCancelReservation"),
         style: "destructive",
         onPress: async () => {
           setReserving(true);
           try {
             const res = await marketplace.unreserveProduct(product!.id);
             setProduct((p) => p ? { ...p, ...(res.data as Partial<Product>) } : p);
-            showToast({ type: "success", title: "Réservation annulée", message: "Le produit est à nouveau disponible" });
+             showToast({ type: "success", title: t("productReservationCancelled"), message: t("productAvailableAgain") });
           } catch (e: any) {
-            Alert.alert("Erreur", e?.message ?? "Impossible d'annuler la réservation");
+            Alert.alert(t("cartUpdateErrorTitle"), t("productCancelReservationError"));
           } finally {
             setReserving(false);
           }
@@ -296,10 +318,10 @@ export default function ProductDetailScreen() {
 
   const handleMarkSold = () => {
     Alert.alert(
-      "Marquer comme vendu",
-      "Confirmez que la transaction est terminée. Le produit sera archivé comme vendu.",
+      t("productMarkSold"),
+      t("productMarkSoldMessage"),
       [
-        { text: "Annuler", style: "cancel" },
+        { text: t("cartCancel"), style: "cancel" },
         {
           text: "Marquer comme vendu",
           onPress: async () => {
@@ -308,9 +330,9 @@ export default function ProductDetailScreen() {
               const res = await marketplace.markSold(product!.id);
               setProduct((p) => p ? { ...p, ...(res.data as Partial<Product>) } : p);
               Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-              showToast({ type: "success", title: "Vendu !", message: "La vente est enregistrée. Bravo !" });
+               showToast({ type: "success", title: t("productSoldTitle"), message: t("productSoldMessage") });
             } catch (e: any) {
-              Alert.alert("Erreur", e?.message ?? "Impossible de marquer comme vendu");
+              Alert.alert(t("cartUpdateErrorTitle"), t("productMarkSoldError"));
             } finally {
               setMarkingSold(false);
             }
@@ -329,24 +351,24 @@ export default function ProductDetailScreen() {
       setCommentText("");
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
     } catch {
-      Alert.alert("Erreur", "Impossible d'envoyer le commentaire");
+      Alert.alert(t("cartUpdateErrorTitle"), t("productCommentSendError"));
     } finally {
       setSendingComment(false);
     }
   };
 
   const handleDeleteComment = (commentId: string) => {
-    Alert.alert("Supprimer", "Supprimer ce commentaire ?", [
-      { text: "Annuler", style: "cancel" },
+    Alert.alert(t("productDelete"), t("productDeleteCommentMessage"), [
+      { text: t("cartCancel"), style: "cancel" },
       {
-        text: "Supprimer",
+        text: t("productDelete"),
         style: "destructive",
         onPress: async () => {
           try {
             await marketplace.deleteComment(product!.id, commentId);
             setComments((prev) => prev.filter((c) => c.id !== commentId));
           } catch {
-            Alert.alert("Erreur", "Impossible de supprimer");
+            Alert.alert(t("cartUpdateErrorTitle"), t("productCommentDeleteError"));
           }
         },
       },
@@ -356,21 +378,21 @@ export default function ProductDetailScreen() {
   const handleModerate = (action: string, extra?: Record<string, string>) => {
     if (!product) return;
     const labels: Record<string, string> = {
-      approve: "Approuver ce produit ?",
-      reject: "Rejeter ce produit ?",
-      feature: "Mettre en avant ce produit ?",
+      approve: t("productModerateApprove"),
+      reject: t("productModerateReject"),
+      feature: t("productModerateFeature"),
     };
-    Alert.alert("Modération", labels[action] ?? action, [
-      { text: "Annuler", style: "cancel" },
+    Alert.alert(t("productModeration"), labels[action] ?? action, [
+      { text: t("cartCancel"), style: "cancel" },
       {
-        text: "Confirmer",
+         text: t("cartConfirm"),
         onPress: async () => {
           try {
             const res = await marketplace.moderate(product.id, { action, ...extra });
             setProduct((p) => p ? { ...p, ...(res.data as Partial<Product>) } : p);
             Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
           } catch {
-            Alert.alert("Erreur", "Action impossible");
+             Alert.alert(t("cartUpdateErrorTitle"), t("marketplaceModerationError"));
           }
         },
       },
@@ -385,9 +407,9 @@ export default function ProductDetailScreen() {
       setShowReportModal(false);
       setReportReason("");
       setReportDetails("");
-      showToast({ type: "success", title: "Signalement envoyé", message: "Merci. Notre équipe examinera ce produit." });
+       showToast({ type: "success", title: t("productReportSent"), message: t("productReportSentMessage") });
     } catch {
-      Alert.alert("Erreur", "Impossible d'envoyer le signalement");
+       Alert.alert(t("cartUpdateErrorTitle"), t("productReportError"));
     } finally {
       setSubmittingReport(false);
     }
@@ -398,28 +420,47 @@ export default function ProductDetailScreen() {
   if (loading) {
     return (
       <View style={[styles.centered, { backgroundColor: colors.background }]}>
-        <ActivityIndicator size="large" color={colors.primary} />
+        <LoadingState
+          title={t("productLoadingTitle")}
+          description={t("productLoadingDescription")}
+        />
       </View>
     );
   }
 
   if (!product) {
+    if (loadError) {
+      return (
+        <View style={[styles.centered, { backgroundColor: colors.background }]}>
+          <ErrorState
+            title={t("productDataUnavailable")}
+            description={t("productDataUnavailableDescription")}
+            retryLabel={t("marketplaceRetry")}
+            onRetry={fetchAll}
+          />
+          <TouchableOpacity onPress={() => router.back()} style={[styles.backBtn, { backgroundColor: colors.secondary }]}>
+            <Text style={[styles.backBtnText, { color: colors.foreground }]}>{t("productBack")}</Text>
+          </TouchableOpacity>
+        </View>
+      );
+    }
     return (
       <View style={[styles.centered, { backgroundColor: colors.background }]}>
         <Feather name="alert-circle" size={40} color={colors.mutedForeground} />
-        <Text style={[styles.errorText, { color: colors.mutedForeground }]}>Produit introuvable</Text>
+        <Text style={[styles.errorText, { color: colors.mutedForeground }]}>{t("productNotFound")}</Text>
         <TouchableOpacity onPress={() => router.back()} style={[styles.backBtn, { backgroundColor: colors.primary }]}>
-          <Text style={styles.backBtnText}>Retour</Text>
+          <Text style={styles.backBtnText}>{t("productBack")}</Text>
         </TouchableOpacity>
       </View>
     );
   }
 
+  const locale = lang === "fr" ? "fr-MA" : lang === "en" ? "en-US" : lang === "ar" ? "ar-MA" : "es-ES";
   const parsedImages: string[] = (() => { try { return JSON.parse(product.imageUrls ?? "[]"); } catch { return []; } })();
   const parsedContactPrefs: string[] = (() => { try { return JSON.parse(product.contactPreferences ?? '["chat"]'); } catch { return ["chat"]; } })();
-  const price = formatMAD(product.price) + " MAD";
+  const price = formatMAD(product.price, locale) + " MAD";
   const statusColor = STATUS_COLORS[product.status] ?? colors.mutedForeground;
-  const statusLabel = STATUS_LABELS[product.status] ?? product.status;
+  const statusLabel = t(STATUS_KEYS[product.status] ?? product.status);
 
   const canReserve = !isSeller && !isAdmin && product.status === "approved";
   const canUnreserve = product.status === "reserved" && (isReserver || isSeller || isAdmin);
@@ -458,7 +499,7 @@ export default function ProductDetailScreen() {
         <View style={[styles.imagePlaceholder, { backgroundColor: colors.secondary }]}>
           {parsedImages.length > 0 ? (
             <Text style={[styles.imageCount, { color: colors.mutedForeground }]}>
-              {parsedImages.length} photo(s)
+              {parsedImages.length} {t(parsedImages.length === 1 ? "productPhotoSingular" : "productPhotoPlural")}
             </Text>
           ) : (
             <Feather name="image" size={48} color={colors.mutedForeground} />
@@ -466,13 +507,13 @@ export default function ProductDetailScreen() {
           {product.status === "reserved" && (
             <View style={[styles.overlayBadge, { backgroundColor: "#6366f1CC" }]}>
               <Feather name="lock" size={14} color="#fff" />
-              <Text style={styles.overlayBadgeText}>Réservé par {product.reservedByName ?? "un résident"}</Text>
+              <Text style={styles.overlayBadgeText}>{t("productReservedBy")} {product.reservedByName ?? t("productAResident")}</Text>
             </View>
           )}
           {product.status === "sold" && (
             <View style={[styles.overlayBadge, { backgroundColor: "#374151CC" }]}>
               <Feather name="check-circle" size={14} color="#fff" />
-              <Text style={styles.overlayBadgeText}>Vendu</Text>
+              <Text style={styles.overlayBadgeText}>{t("marketplaceStatusSold")}</Text>
             </View>
           )}
         </View>
@@ -486,12 +527,12 @@ export default function ProductDetailScreen() {
             {product.featured && (
               <View style={[styles.statusBadge, { backgroundColor: "#f59e0b20" }]}>
                 <Feather name="star" size={11} color="#f59e0b" />
-                <Text style={[styles.statusText, { color: "#f59e0b", marginStart: 3 }]}>Vedette</Text>
+                <Text style={[styles.statusText, { color: "#f59e0b", marginStart: 3 }]}>{t("productFeatured")}</Text>
               </View>
             )}
             {product.negotiable && (
               <View style={[styles.statusBadge, { backgroundColor: colors.primary + "20" }]}>
-                <Text style={[styles.statusText, { color: colors.primary }]}>Négociable</Text>
+                <Text style={[styles.statusText, { color: colors.primary }]}>{t("productNegotiable")}</Text>
               </View>
             )}
           </View>
@@ -501,7 +542,7 @@ export default function ProductDetailScreen() {
             <Text style={[styles.productPrice, { color: colors.primary }]}>{price}</Text>
             {product.originalPrice && Number(product.originalPrice) > 0 && (
               <Text style={[styles.originalPrice, { color: colors.mutedForeground }]}>
-                {formatMAD(product.originalPrice)} MAD
+                {formatMAD(product.originalPrice, locale)} MAD
               </Text>
             )}
           </View>
@@ -509,9 +550,11 @@ export default function ProductDetailScreen() {
           {/* Category / condition */}
           <View style={styles.metaRow}>
             <Feather name="tag" size={13} color={colors.mutedForeground} />
-            <Text style={[styles.metaText, { color: colors.mutedForeground }]}>{product.category}</Text>
+            <Text style={[styles.metaText, { color: colors.mutedForeground }]}>
+              {t(CATEGORY_KEYS[product.category] ?? product.category)}
+            </Text>
             <Feather name="box" size={13} color={colors.mutedForeground} style={{ marginStart: 12 }} />
-            <Text style={[styles.metaText, { color: colors.mutedForeground }]}>{CONDITION_LABELS[product.condition] ?? product.condition}</Text>
+            <Text style={[styles.metaText, { color: colors.mutedForeground }]}>{t(CONDITION_KEYS[product.condition] ?? product.condition)}</Text>
           </View>
 
           {/* Brand / model / year */}
@@ -529,7 +572,7 @@ export default function ProductDetailScreen() {
             <View style={styles.metaRow}>
               <Feather name="map-pin" size={13} color={colors.mutedForeground} />
               <Text style={[styles.metaText, { color: colors.mutedForeground }]}>
-                {[product.building, product.block ? `Bloc ${product.block}` : null, product.floor ? `Ét. ${product.floor}` : null, product.location].filter(Boolean).join(" · ")}
+                {[product.building, product.block ? `${t("productBlock")} ${product.block}` : null, product.floor ? `${t("productFloor")} ${product.floor}` : null, product.location].filter(Boolean).join(" · ")}
               </Text>
             </View>
           )}
@@ -539,7 +582,7 @@ export default function ProductDetailScreen() {
             <Feather name="user" size={13} color={colors.mutedForeground} />
             <Text style={[styles.metaText, { color: colors.mutedForeground }]}>{product.sellerName}</Text>
             <Feather name="eye" size={13} color={colors.mutedForeground} style={{ marginStart: 12 }} />
-            <Text style={[styles.metaText, { color: colors.mutedForeground }]}>{product.viewCount} vues</Text>
+            <Text style={[styles.metaText, { color: colors.mutedForeground }]}>{product.viewCount} {t("productViews")}</Text>
           </View>
 
           {/* Rating */}
@@ -547,7 +590,7 @@ export default function ProductDetailScreen() {
             <View style={styles.metaRow}>
               <Feather name="star" size={13} color="#f59e0b" />
               <Text style={[styles.metaText, { color: colors.mutedForeground }]}>
-                {product.avgRating} / 5 ({product.ratingCount} avis)
+                {product.avgRating} / 5 ({product.ratingCount} {t("productReviews")})
               </Text>
             </View>
           )}
@@ -557,7 +600,7 @@ export default function ProductDetailScreen() {
             <View style={styles.metaRow}>
               <Feather name="phone" size={13} color={colors.mutedForeground} />
               <Text style={[styles.metaText, { color: colors.mutedForeground }]}>
-                Contact : {parsedContactPrefs.map((c) => ({ chat: "Messagerie", phone: "Téléphone", email: "Email" }[c] ?? c)).join(", ")}
+                {t("productContact")}: {parsedContactPrefs.map((c) => ({ chat: t("productContactChat"), phone: t("productContactPhone"), email: t("productContactEmail") }[c] ?? c)).join(", ")}
               </Text>
             </View>
           )}
@@ -571,7 +614,7 @@ export default function ProductDetailScreen() {
           {product.sellingReason ? (
             <View style={[styles.infoBox, { backgroundColor: colors.secondary, borderColor: colors.border }]}>
               <Feather name="info" size={13} color={colors.mutedForeground} />
-              <Text style={[styles.infoBoxText, { color: colors.mutedForeground }]}>Raison de vente : {product.sellingReason}</Text>
+              <Text style={[styles.infoBoxText, { color: colors.mutedForeground }]}>{t("productSellingReason")}: {product.sellingReason}</Text>
             </View>
           ) : null}
 
@@ -593,55 +636,55 @@ export default function ProductDetailScreen() {
         {/* Admin moderation panel */}
         {isAdmin && (
           <View style={[styles.card, { backgroundColor: colors.card, borderColor: colors.border }]}>
-            <Text style={[styles.sectionTitle, { color: colors.foreground }]}>Modération</Text>
+            <Text style={[styles.sectionTitle, { color: colors.foreground }]}>{t("productModerationSection")}</Text>
             <View style={styles.moderationRow}>
               {product.status === "pending_review" && (
                 <>
                   <TouchableOpacity style={[styles.modBtn, { backgroundColor: colors.success + "15" }]} onPress={() => handleModerate("approve")}>
                     <Feather name="check" size={16} color={colors.success} />
-                    <Text style={[styles.modBtnText, { color: colors.success }]}>Approuver</Text>
+                    <Text style={[styles.modBtnText, { color: colors.success }]}>{t("productApproveAction")}</Text>
                   </TouchableOpacity>
                   <TouchableOpacity style={[styles.modBtn, { backgroundColor: "#f9731615" }]} onPress={() => {
                     Alert.prompt
-                      ? Alert.prompt("Modifications requises", "Précisez les changements attendus du vendeur", (reason) => {
+                      ? Alert.prompt(t("productRequestChangesTitle"), t("productRequestChangesDescription"), (reason) => {
                           if (reason?.trim()) marketplace.moderate(product.id, { action: "request_modification", reason }).then((r) => setProduct((p) => p ? { ...p, ...(r.data as Partial<Product>) } : p)).catch(() => {});
                         })
-                      : Alert.alert("Action", "Utilisez la liste de validation pour demander des modifications");
+                      : Alert.alert(t("productActionUnavailableTitle"), t("productRequestChangesWebFallback"));
                   }}>
                     <Feather name="edit" size={16} color="#f97316" />
-                    <Text style={[styles.modBtnText, { color: "#f97316" }]}>Modifier</Text>
+                    <Text style={[styles.modBtnText, { color: "#f97316" }]}>{t("productRequestChangesAction")}</Text>
                   </TouchableOpacity>
                   <TouchableOpacity style={[styles.modBtn, { backgroundColor: colors.destructive + "15" }]} onPress={() => handleModerate("reject")}>
                     <Feather name="x" size={16} color={colors.destructive} />
-                    <Text style={[styles.modBtnText, { color: colors.destructive }]}>Rejeter</Text>
+                    <Text style={[styles.modBtnText, { color: colors.destructive }]}>{t("productRejectAction")}</Text>
                   </TouchableOpacity>
                 </>
               )}
               {product.status === "approved" && !product.featured && (
                 <TouchableOpacity style={[styles.modBtn, { backgroundColor: "#f59e0b15" }]} onPress={() => handleModerate("feature")}>
                   <Feather name="star" size={16} color="#f59e0b" />
-                  <Text style={[styles.modBtnText, { color: "#f59e0b" }]}>Mettre en avant</Text>
+                  <Text style={[styles.modBtnText, { color: "#f59e0b" }]}>{t("productFeatureAction")}</Text>
                 </TouchableOpacity>
               )}
             </View>
 
             {pendingPromo && (
               <View style={{ marginTop: 12, gap: 8 }}>
-                <Text style={[styles.sectionTitle, { color: colors.foreground, fontSize: 13 }]}>Demande de sponsorisation en attente</Text>
+                <Text style={[styles.sectionTitle, { color: colors.foreground, fontSize: 13 }]}>{t("productPendingPromotion")}</Text>
                 <Text style={{ fontSize: 12, color: colors.mutedForeground }}>
-                  Type : {pendingPromo.type} · Montant : {formatMAD(pendingPromo.amount)} MAD · Paiement : {pendingPromo.paymentMethod ?? "—"}
+                  {t("productPromotionType")}: {pendingPromo.type} · {t("productPromotionAmount")}: {formatMAD(pendingPromo.amount, locale)} MAD · {t("productPromotionPayment")}: {pendingPromo.paymentMethod ?? "—"}
                 </Text>
                 {pendingPromo.proofUrl
-                  ? <Text style={{ fontSize: 12, color: colors.success }}>Justificatif fourni ✓</Text>
-                  : <Text style={{ fontSize: 12, color: colors.destructive }}>Aucun justificatif fourni</Text>}
+                  ? <Text style={{ fontSize: 12, color: colors.success }}>{t("productProofProvided")}</Text>
+                  : <Text style={{ fontSize: 12, color: colors.destructive }}>{t("productProofMissing")}</Text>}
                 <View style={styles.moderationRow}>
                   <TouchableOpacity style={[styles.modBtn, { backgroundColor: colors.success + "15" }]} onPress={() => handleValidatePromotion(true)} disabled={validatingPromo}>
                     <Feather name="check" size={16} color={colors.success} />
-                    <Text style={[styles.modBtnText, { color: colors.success }]}>Approuver le paiement</Text>
+                    <Text style={[styles.modBtnText, { color: colors.success }]}>{t("productApprovePayment")}</Text>
                   </TouchableOpacity>
                   <TouchableOpacity style={[styles.modBtn, { backgroundColor: colors.destructive + "15" }]} onPress={() => handleValidatePromotion(false)} disabled={validatingPromo}>
                     <Feather name="x" size={16} color={colors.destructive} />
-                    <Text style={[styles.modBtnText, { color: colors.destructive }]}>Rejeter</Text>
+                    <Text style={[styles.modBtnText, { color: colors.destructive }]}>{t("productRejectAction")}</Text>
                   </TouchableOpacity>
                 </View>
               </View>
@@ -651,11 +694,11 @@ export default function ProductDetailScreen() {
 
         {/* Comments */}
         <View style={[styles.card, { backgroundColor: colors.card, borderColor: colors.border }]}>
-          <Text style={[styles.sectionTitle, { color: colors.foreground }]}>Commentaires ({comments.length})</Text>
+          <Text style={[styles.sectionTitle, { color: colors.foreground }]}>{t("productComments")} ({comments.length})</Text>
           {comments.length === 0 ? (
             <View style={styles.emptyComments}>
               <Feather name="message-circle" size={28} color={colors.mutedForeground} />
-              <Text style={[styles.emptyText, { color: colors.mutedForeground }]}>Aucun commentaire — posez une question au vendeur</Text>
+              <Text style={[styles.emptyText, { color: colors.mutedForeground }]}>{t("productNoComments")}</Text>
             </View>
           ) : (
             comments.map((c) => (
@@ -665,8 +708,8 @@ export default function ProductDetailScreen() {
                 </View>
                 <View style={{ flex: 1 }}>
                   <View style={styles.commentHeader}>
-                    <Text style={[styles.commentAuthor, { color: colors.foreground }]}>{c.userName ?? "Utilisateur"}</Text>
-                    <Text style={[styles.commentDate, { color: colors.mutedForeground }]}>{new Date(c.createdAt).toLocaleDateString("fr-MA")}</Text>
+                    <Text style={[styles.commentAuthor, { color: colors.foreground }]}>{c.userName ?? t("productUser")}</Text>
+                    <Text style={[styles.commentDate, { color: colors.mutedForeground }]}>{new Date(c.createdAt).toLocaleDateString(locale)}</Text>
                   </View>
                   <Text style={[styles.commentContent, { color: colors.foreground }]}>{c.content}</Text>
                 </View>
@@ -687,7 +730,7 @@ export default function ProductDetailScreen() {
             onPress={() => setShowReportModal(true)}
           >
             <Feather name="flag" size={14} color={colors.mutedForeground} />
-            <Text style={[styles.reportBtnText, { color: colors.mutedForeground }]}>Signaler ce produit</Text>
+            <Text style={[styles.reportBtnText, { color: colors.mutedForeground }]}>{t("productReportTitle")}</Text>
           </TouchableOpacity>
         )}
       </ScrollView>
@@ -696,7 +739,7 @@ export default function ProductDetailScreen() {
       <View style={[styles.commentInputBar, { backgroundColor: colors.card, borderTopColor: colors.border, paddingBottom: insets.bottom + 8 }]}>
         <TextInput
           style={[styles.commentInput, { backgroundColor: colors.background, borderColor: colors.border, color: colors.foreground }]}
-          placeholder="Poser une question au vendeur..."
+          placeholder={t("productAskSellerPlaceholder")}
           placeholderTextColor={colors.mutedForeground}
           value={commentText}
           onChangeText={setCommentText}
@@ -722,7 +765,7 @@ export default function ProductDetailScreen() {
           {contactingSeller ? <ActivityIndicator size="small" color={colors.primary} /> : (
             <>
               <Feather name="message-circle" size={18} color={colors.primary} />
-              <Text style={[styles.contactSellerFabText, { color: colors.primary }]}>Contacter le vendeur</Text>
+              <Text style={[styles.contactSellerFabText, { color: colors.primary }]}>{t("productContactSellerAction")}</Text>
             </>
           )}
         </TouchableOpacity>
@@ -738,7 +781,7 @@ export default function ProductDetailScreen() {
           {reserving ? <ActivityIndicator size="small" color="#fff" /> : (
             <>
               <Feather name="lock" size={18} color="#fff" />
-              <Text style={styles.cartFabText}>Réserver ce produit</Text>
+              <Text style={styles.cartFabText}>{t("productReserveAction")}</Text>
             </>
           )}
         </TouchableOpacity>
@@ -753,7 +796,7 @@ export default function ProductDetailScreen() {
           {reserving ? <ActivityIndicator size="small" color="#6366f1" /> : (
             <>
               <Feather name="unlock" size={18} color="#6366f1" />
-              <Text style={[styles.cartFabText, { color: "#6366f1" }]}>Annuler la réservation</Text>
+              <Text style={[styles.cartFabText, { color: "#6366f1" }]}>{t("productCancelReservation")}</Text>
             </>
           )}
         </TouchableOpacity>
@@ -769,7 +812,7 @@ export default function ProductDetailScreen() {
           {markingSold ? <ActivityIndicator size="small" color="#fff" /> : (
             <>
               <Feather name="check-circle" size={18} color="#fff" />
-              <Text style={styles.cartFabText}>Marquer comme vendu</Text>
+              <Text style={styles.cartFabText}>{t("productMarkSold")}</Text>
             </>
           )}
         </TouchableOpacity>
@@ -780,7 +823,7 @@ export default function ProductDetailScreen() {
         <View style={StyleSheet.absoluteFill}>
           <TouchableOpacity style={[StyleSheet.absoluteFill, { backgroundColor: "rgba(0,0,0,0.5)" }]} onPress={() => setShowReportModal(false)} />
           <View style={[styles.modal, { backgroundColor: colors.card, bottom: insets.bottom + 16 }]}>
-            <Text style={[styles.modalTitle, { color: colors.foreground }]}>Signaler ce produit</Text>
+            <Text style={[styles.modalTitle, { color: colors.foreground }]}>{t("productReportTitle")}</Text>
             {REPORT_REASONS.map((r) => (
               <TouchableOpacity
                 key={r.value}
@@ -790,12 +833,12 @@ export default function ProductDetailScreen() {
                 <View style={[styles.radioCircle, { borderColor: reportReason === r.value ? colors.primary : colors.border }]}>
                   {reportReason === r.value && <View style={[styles.radioFill, { backgroundColor: colors.primary }]} />}
                 </View>
-                <Text style={[styles.reportOptionText, { color: colors.foreground }]}>{r.label}</Text>
+                <Text style={[styles.reportOptionText, { color: colors.foreground }]}>{t(r.labelKey)}</Text>
               </TouchableOpacity>
             ))}
             <TextInput
               style={[styles.reportDetailsInput, { borderColor: colors.border, color: colors.foreground, backgroundColor: colors.background }]}
-              placeholder="Détails supplémentaires (optionnel)"
+              placeholder={t("productReportDetailsPlaceholder")}
               placeholderTextColor={colors.mutedForeground}
               value={reportDetails}
               onChangeText={setReportDetails}
@@ -807,7 +850,7 @@ export default function ProductDetailScreen() {
               onPress={handleSubmitReport}
               disabled={!reportReason || submittingReport}
             >
-              {submittingReport ? <ActivityIndicator size="small" color="#fff" /> : <Text style={styles.reportSubmitText}>Envoyer le signalement</Text>}
+              {submittingReport ? <ActivityIndicator size="small" color="#fff" /> : <Text style={styles.reportSubmitText}>{t("productSendReport")}</Text>}
             </TouchableOpacity>
           </View>
         </View>
@@ -818,10 +861,10 @@ export default function ProductDetailScreen() {
         <View style={StyleSheet.absoluteFill}>
           <TouchableOpacity style={[StyleSheet.absoluteFill, { backgroundColor: "rgba(0,0,0,0.5)" }]} onPress={() => setShowRejectPromo(false)} />
           <View style={[styles.modal, { backgroundColor: colors.card, bottom: insets.bottom + 16 }]}>
-            <Text style={[styles.modalTitle, { color: colors.foreground }]}>Rejeter la sponsorisation</Text>
+            <Text style={[styles.modalTitle, { color: colors.foreground }]}>{t("productRejectPromotionTitle")}</Text>
             <TextInput
               style={[styles.reportDetailsInput, { borderColor: colors.border, color: colors.foreground, backgroundColor: colors.background }]}
-              placeholder="Motif du rejet (obligatoire)"
+              placeholder={t("productRejectPromotionPlaceholder")}
               placeholderTextColor={colors.mutedForeground}
               value={rejectPromoReason}
               onChangeText={setRejectPromoReason}
@@ -833,7 +876,7 @@ export default function ProductDetailScreen() {
               onPress={submitRejectPromotion}
               disabled={!rejectPromoReason.trim() || validatingPromo}
             >
-              {validatingPromo ? <ActivityIndicator size="small" color="#fff" /> : <Text style={styles.reportSubmitText}>Confirmer le rejet</Text>}
+              {validatingPromo ? <ActivityIndicator size="small" color="#fff" /> : <Text style={styles.reportSubmitText}>{t("productConfirmReject")}</Text>}
             </TouchableOpacity>
           </View>
         </View>

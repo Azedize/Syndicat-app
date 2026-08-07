@@ -163,6 +163,10 @@
 - Localized signature loading/error/retry states, status and role metadata, signature actions, and dates; localized the seven-step document creation flow including category selection, template loading, entity/autofill states, preview, generation, signing, publishing, navigation, and recovery copy across French, English, Arabic, and Spanish.
 - Preserved the existing document template/entity APIs, PDF generation payloads, signature persistence, publishing workflow, role boundaries, and RTL behavior.
 - Mobile typecheck and diff validation passed; Expo restarted successfully and the public mobile preview produced no new browser runtime exceptions beyond existing Expo compatibility warnings.
+- Continued the visible-text audit on Favorites and Syndicate Setup.
+- Favorites now uses the shared four-language translation system, localized count/empty/suggestion copy, RTL-aware navigation icons, and a destructive confirmation before clearing all favorites.
+- Syndicate Setup now localizes the four-step wizard, field labels/placeholders, validation messages, legal guidance, financial summary, success actions, and SMS OTP states across French, English, Arabic, and Spanish; real creation, logo upload, phone verification, payment continuation, and role guard behavior remain unchanged.
+- Mobile typecheck, `git diff --check`, Expo restart, and protected `/syndicate-setup` preview validation passed; only existing Expo web compatibility warnings remain.
 - Continued the governance reliability pass on `governance.tsx`: removed hardcoded seeded council, mandate, and delegation records from the rendered state and switched the screen to the real `/governance/conseil`, `/governance/mandats`, and `/governance/delegations` APIs.
 - Added explicit synchronized, unavailable, and genuine-empty states with retry guidance; council-member add/remove actions now persist through the API with localized success/error feedback.
 - Removed local-only delegation creation/revocation controls because the current delegation endpoint is read-only and has no persistence layer; the UI now avoids implying unsupported mutations.
@@ -195,3 +199,11 @@
 - Continued the reliability pass on Réclamations & Griefs and Statistiques: both screens now distinguish synchronization, unavailable data, and genuine empty results with localized recovery guidance.
 - Statistiques now uses active-locale MAD formatting, RTL-aware navigation, and persisted subscription amounts/plans instead of hardcoded financial tariffs; existing role guards and statistics APIs remain unchanged.
 - Mobile typecheck and diff validation pass; Expo restarted and bundled successfully, and the protected statistics preview redirects safely to the public welcome screen without new runtime exceptions.
+- Continued the public-entry localization pass on profile onboarding and the marketplace cart.
+- Onboarding now uses runtime French, English, Arabic, and Spanish copy for all four steps, Moroccan city/sector/seniority labels, validation, profile completion, terms consent, and summary metadata.
+- Cart now uses runtime translations for cart states, confirmations, checkout, delivery payment guidance, safe recovery messages, item labels, and active-locale MAD formatting; marketplace and order APIs remain unchanged.
+- Mobile typecheck, translation-key validation, and diff validation pass; Expo remained healthy with no new browser runtime errors.
+- Continued the public trust and localization pass on the MIZAN welcome page.
+- Removed unverified public KPI values, chart data, and testimonial copy that could be mistaken for database-backed results; replaced them with descriptive product messaging.
+- Routed the public service cards, hero, CTA, trust markers, and management signal through the four-language runtime dictionary, including RTL-aware top-bar direction.
+- Mobile typecheck and diff validation pass; Expo restarted and the public `/welcome` route bundled without new runtime exceptions.

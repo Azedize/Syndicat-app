@@ -1,3 +1,4 @@
+- 2026-08-07 — Favorites and Syndicate Setup: mobile typecheck passed with zero errors; `git diff --check` passed; Expo workflow restarted successfully; protected `/syndicate-setup` preview redirected safely to the public welcome screen without new runtime exceptions. Existing Expo web compatibility warnings remain non-blocking.
 - 2026-08-07 — MemberDocumentRequest localization: `pnpm --filter @workspace/mobile run typecheck` passed with zero errors; Expo/Metro workflow remained running and the web bundle completed without new browser console errors.
 - 2026-08-06 — Governance follow-through verification: `pnpm --filter @workspace/mobile run typecheck` passed with zero errors; `git diff --check` passed; Expo workflow restarted successfully with Metro waiting and no new runtime exceptions.
 # Project Test Log
@@ -186,3 +187,5 @@
 - `pnpm --filter @workspace/mobile run typecheck` and `git diff --check` — passed with zero errors after the Réclamations & Griefs and Statistiques reliability/localization pass.
 - `pnpm exec prettier --write artifacts/mobile/app/reclamations.tsx artifacts/mobile/app/statistiques.tsx` — passed; Expo restarted and Metro bundled without transform errors.
 - Protected `/statistiques` preview at 402×874 redirected to the public welcome boundary as expected without a new browser runtime exception; existing Expo web compatibility warnings remain non-blocking.
+- `pnpm --filter @workspace/mobile run typecheck` — passed with zero errors after the public welcome content/localization pass.
+- `git diff --check` — passed; Expo restarted cleanly, Metro bundled the public entry, and `/welcome` at 402×874 produced no new browser runtime exceptions. Existing shadow-prop, push-notification web, and native-driver web warnings remain non-blocking.

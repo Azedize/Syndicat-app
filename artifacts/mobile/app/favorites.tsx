@@ -3,6 +3,7 @@ import * as Haptics from "expo-haptics";
 import { router } from "expo-router";
 import React from "react";
 import {
+  Alert,
   Platform,
   ScrollView,
   StyleSheet,
@@ -12,6 +13,7 @@ import {
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useFavorites } from "@/context/FavoritesContext";
+import { useLanguage } from "@/context/LanguageContext";
 import { useBreakpoints } from "@/hooks/useBreakpoints";
 import { useColors } from "@/hooks/useColors";
 
@@ -19,8 +21,27 @@ export default function FavoritesScreen() {
   const colors = useColors();
   const insets = useSafeAreaInsets();
   const { favorites, removeFavorite, clearFavorites } = useFavorites();
+  const { t, isRTL } = useLanguage();
   const { isWide } = useBreakpoints();
   const topPad = isWide ? 0 : (Platform.OS === "web" ? 67 : insets.top);
+
+  const confirmClear = () => {
+    Alert.alert(
+      t("clearFavoritesConfirmTitle"),
+      t("clearFavoritesConfirmMessage"),
+      [
+        { text: t("cancel"), style: "cancel" },
+        {
+          text: t("clearFavoritesLabel"),
+          style: "destructive",
+          onPress: () => {
+            clearFavorites();
+            Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+          },
+        },
+      ],
+    );
+  };
 
   const handleNav = (route: string, params?: Record<string, string>) => {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
@@ -34,17 +55,17 @@ export default function FavoritesScreen() {
   return (
     <View style={[styles.root, { backgroundColor: colors.background }]}>
       {/* Header */}
-      <View style={[styles.header, { paddingTop: topPad + 16, backgroundColor: colors.card, borderBottomColor: colors.border }]}>
+      <View style={[styles.header, { paddingTop: topPad + 16, backgroundColor: colors.card, borderBottomColor: colors.border, flexDirection: isRTL ? "row-reverse" : "row" }]}>
         <TouchableOpacity onPress={() => router.back()} style={styles.backBtn}>
-          <Feather name="arrow-left" size={22} color={colors.foreground} />
+          <Feather name={isRTL ? "arrow-right" : "arrow-left"} size={22} color={colors.foreground} />
         </TouchableOpacity>
-        <Text style={[styles.title, { color: colors.foreground }]}>Mes Favoris</Text>
+        <Text style={[styles.title, { color: colors.foreground, textAlign: isRTL ? "right" : "left" }]}>{t("myFavoritesTitle")}</Text>
         {favorites.length > 0 && (
           <TouchableOpacity
-            onPress={() => { clearFavorites(); Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); }}
+            onPress={confirmClear}
             style={styles.clearBtn}
           >
-            <Text style={[styles.clearText, { color: colors.destructive }]}>Tout effacer</Text>
+            <Text style={[styles.clearText, { color: colors.destructive }]}>{t("clearFavoritesLabel")}</Text>
           </TouchableOpacity>
         )}
       </View>
@@ -54,9 +75,9 @@ export default function FavoritesScreen() {
           <View style={[styles.emptyIcon, { backgroundColor: colors.secondary }]}>
             <Feather name="star" size={36} color={colors.primary} />
           </View>
-          <Text style={[styles.emptyTitle, { color: colors.foreground }]}>Aucun favori</Text>
+          <Text style={[styles.emptyTitle, { color: colors.foreground }]}>{t("favEmptyTitle")}</Text>
           <Text style={[styles.emptyText, { color: colors.mutedForeground }]}>
-            Appuyez sur l'étoile ★ dans n'importe quel écran pour ajouter{"\n"}des pages ou éléments à vos favoris.
+            {t("favEmptyText")}
           </Text>
           <TouchableOpacity
             style={[styles.exploreBtn, { backgroundColor: colors.primary }]}
@@ -64,7 +85,7 @@ export default function FavoritesScreen() {
             activeOpacity={0.85}
           >
             <Feather name="search" size={16} color="#fff" />
-            <Text style={styles.exploreBtnText}>Explorer l'application</Text>
+            <Text style={styles.exploreBtnText}>{t("exploreAppLabel")}</Text>
           </TouchableOpacity>
         </View>
       ) : (
@@ -73,7 +94,7 @@ export default function FavoritesScreen() {
           showsVerticalScrollIndicator={false}
         >
           <Text style={[styles.count, { color: colors.mutedForeground }]}>
-            {favorites.length} favori{favorites.length > 1 ? "s" : ""} enregistré{favorites.length > 1 ? "s" : ""}
+            {favorites.length} {t(favorites.length === 1 ? "favoriteCountOne" : "favoriteCountMany")}
           </Text>
 
           {favorites.map((fav) => (
@@ -98,13 +119,13 @@ export default function FavoritesScreen() {
               >
                 <Feather name="star" size={18} color="#f59e0b" />
               </TouchableOpacity>
-              <Feather name="chevron-right" size={16} color={colors.mutedForeground} />
+              <Feather name={isRTL ? "chevron-left" : "chevron-right"} size={16} color={colors.mutedForeground} />
             </TouchableOpacity>
           ))}
 
           {/* Quick suggestions */}
           <View style={[styles.suggestSection, { borderTopColor: colors.border }]}>
-            <Text style={[styles.suggestTitle, { color: colors.mutedForeground }]}>SUGGESTIONS</Text>
+            <Text style={[styles.suggestTitle, { color: colors.mutedForeground }]}>{t("suggestionsLabel")}</Text>
             <View style={styles.suggestGrid}>
               {[
                 { id: "fav-dash", title: "Dashboard", icon: "home", color: "#2563EB", route: "/(tabs)/" },
@@ -121,8 +142,8 @@ export default function FavoritesScreen() {
                   <View style={[styles.suggestIcon, { backgroundColor: s.color + "18" }]}>
                     <Feather name={s.icon as any} size={16} color={s.color} />
                   </View>
-                  <Text style={[styles.suggestLabel, { color: colors.foreground }]}>{s.title}</Text>
-                  <Feather name="arrow-right" size={14} color={colors.mutedForeground} />
+                  <Text style={[styles.suggestLabel, { color: colors.foreground, textAlign: isRTL ? "right" : "left" }]}>{s.title}</Text>
+                  <Feather name={isRTL ? "arrow-left" : "arrow-right"} size={14} color={colors.mutedForeground} />
                 </TouchableOpacity>
               ))}
             </View>
