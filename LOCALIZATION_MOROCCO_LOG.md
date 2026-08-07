@@ -20,3 +20,5 @@
 - General Assembly and Elections now format date ranges, meeting dates/times, mandate end dates, mandate roles, and mandate lifecycle statuses using the active French, English, Arabic, or Spanish locale while preserving Moroccan governance semantics and API values.
 - Search discovery surfaces now use runtime French, English, Arabic, and Spanish labels for categories, suggestions, history, shortcuts, and no-result recovery.
 - Subscription onboarding now uses runtime French, English, Arabic, and Spanish copy for free trials, billing intervals, payment methods, transfer confirmation, security guidance, and safe recovery; amounts use Morocco-compatible locale formatting and Arabic MAD notation.
+- Documents & Signatures now use runtime French, English, Arabic, and Spanish copy for document counts, generation, preview/download outcomes, electronic signatures, workflow decisions, archive/delete confirmations, comments, version history, QR verification, bundle packages, and document editing.
+- Arabic document actions remain compatible with the existing RTL language flow; no API payload, signature data, PDF storage behavior, or role scope changed during this pass.

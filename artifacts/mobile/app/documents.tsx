@@ -118,6 +118,118 @@ const DOC_STRINGS: Record<string, Record<LangCode, string>> = {
   archive:        { fr: "Archiver",              en: "Archive",               ar: "أرشفة",                  es: "Archivar"                 },
   delete:         { fr: "Supprimer",             en: "Delete",                ar: "حذف",                    es: "Eliminar"                 },
   fileSize:       { fr: "Taille",                en: "File size",             ar: "الحجم",                  es: "Tamaño"                   },
+  publishedCount: { fr: "Publiés",               en: "Published",              ar: "منشورة",                 es: "Publicados"                },
+  draftsCount:    { fr: "Brouillons",            en: "Drafts",                 ar: "مسودات",                  es: "Borradores"                },
+  pendingCount:   { fr: "En attente",            en: "Pending",                ar: "قيد الانتظار",            es: "Pendientes"                },
+  signedCount:    { fr: "Signés",                en: "Signed",                 ar: "موقعة",                   es: "Firmados"                  },
+  previewUnavailableTitle: {
+    fr: "Aperçu indisponible", en: "Preview unavailable", ar: "المعاينة غير متاحة", es: "Vista previa no disponible",
+  },
+  previewUnavailableMessage: {
+    fr: "Le PDF n'est pas encore disponible. Il est peut-être encore en cours de génération.",
+    en: "The PDF is not available yet. It may still be generating.",
+    ar: "ملف PDF غير متاح بعد. قد يكون قيد الإنشاء.",
+    es: "El PDF aún no está disponible. Es posible que todavía se esté generando.",
+  },
+  previewErrorTitle: {
+    fr: "Aperçu impossible", en: "Unable to preview", ar: "تعذر عرض المعاينة", es: "No se puede mostrar la vista previa",
+  },
+  previewMissingFile: {
+    fr: "Ce document n'a pas encore de fichier PDF associé.",
+    en: "This document does not have an associated PDF file yet.",
+    ar: "لا يحتوي هذا المستند على ملف PDF مرتبط بعد.",
+    es: "Este documento aún no tiene un archivo PDF asociado.",
+  },
+  previewConnectionError: {
+    fr: "Impossible d'ouvrir l'aperçu. Vérifiez votre connexion.",
+    en: "The preview could not be opened. Check your connection.",
+    ar: "تعذر فتح المعاينة. تحقق من الاتصال.",
+    es: "No se pudo abrir la vista previa. Compruebe la conexión.",
+  },
+  generatedTitle: { fr: "Document généré", en: "Document generated", ar: "تم إنشاء المستند", es: "Documento generado" },
+  generatedMessage: { fr: "\"{name}\" a été créé avec succès.", en: "\"{name}\" was created successfully.", ar: "تم إنشاء «{name}» بنجاح.", es: "«{name}» se creó correctamente." },
+  generationError: { fr: "Erreur de génération", en: "Generation error", ar: "خطأ في الإنشاء", es: "Error de generación" },
+  generationFailed: { fr: "Impossible de générer le document. Vérifiez la connexion et réessayez.", en: "The document could not be generated. Check your connection and try again.", ar: "تعذر إنشاء المستند. تحقق من الاتصال ثم أعد المحاولة.", es: "No se pudo generar el documento. Compruebe la conexión e inténtelo de nuevo." },
+  signedTitle: { fr: "Document signé", en: "Document signed", ar: "تم توقيع المستند", es: "Documento firmado" },
+  signedMessage: { fr: "Votre signature électronique a été enregistrée avec succès.", en: "Your electronic signature was recorded successfully.", ar: "تم تسجيل توقيعك الإلكتروني بنجاح.", es: "Su firma electrónica se registró correctamente." },
+  signatureError: { fr: "Erreur de signature", en: "Signature error", ar: "خطأ في التوقيع", es: "Error de firma" },
+  alreadySigned: { fr: "Vous avez déjà signé ce document.", en: "You have already signed this document.", ar: "لقد وقّعت هذا المستند مسبقاً.", es: "Ya ha firmado este documento." },
+  signatureFailed: { fr: "Impossible d'enregistrer la signature. Vérifiez la connexion.", en: "The signature could not be recorded. Check your connection.", ar: "تعذر تسجيل التوقيع. تحقق من الاتصال.", es: "No se pudo registrar la firma. Compruebe la conexión." },
+  requiredTitle: { fr: "Titre requis", en: "Title required", ar: "العنوان مطلوب", es: "Título obligatorio" },
+  requiredTitleMessage: { fr: "Le titre du document ne peut pas être vide.", en: "The document title cannot be empty.", ar: "لا يمكن أن يكون عنوان المستند فارغاً.", es: "El título del documento no puede estar vacío." },
+  savedTitle: { fr: "Modifications enregistrées", en: "Changes saved", ar: "تم حفظ التغييرات", es: "Cambios guardados" },
+  savedMessage: { fr: "\"{name}\" a été mis à jour avec succès.", en: "\"{name}\" was updated successfully.", ar: "تم تحديث «{name}» بنجاح.", es: "«{name}» se actualizó correctamente." },
+  saveError: { fr: "Échec de la sauvegarde", en: "Save failed", ar: "فشل الحفظ", es: "Error al guardar" },
+  saveFailedMessage: { fr: "Impossible d'enregistrer les modifications.", en: "The changes could not be saved.", ar: "تعذر حفظ التغييرات.", es: "No se pudieron guardar los cambios." },
+  actionFailed: { fr: "Action échouée", en: "Action failed", ar: "فشل الإجراء", es: "Acción fallida" },
+  actionFailedMessage: { fr: "Action impossible. Vérifiez la connexion.", en: "The action could not be completed. Check your connection.", ar: "تعذر إتمام الإجراء. تحقق من الاتصال.", es: "No se pudo completar la acción. Compruebe la conexión." },
+  archiveConfirmTitle: { fr: "Archiver le document", en: "Archive document", ar: "أرشفة المستند", es: "Archivar el documento" },
+  archiveConfirmMessage: { fr: "Ce document sera archivé et ne sera plus affiché dans les listes actives.", en: "This document will be archived and removed from active lists.", ar: "ستتم أرشفة هذا المستند وإزالته من القوائم النشطة.", es: "Este documento se archivará y dejará de aparecer en las listas activas." },
+  cancel: { fr: "Annuler", en: "Cancel", ar: "إلغاء", es: "Cancelar" },
+  archivedTitle: { fr: "Archivé", en: "Archived", ar: "تمت الأرشفة", es: "Archivado" },
+  archivedMessage: { fr: "Le document a été archivé.", en: "The document was archived.", ar: "تمت أرشفة المستند.", es: "El documento se archivó." },
+  rejectedTitle: { fr: "Document rejeté", en: "Document rejected", ar: "تم رفض المستند", es: "Documento rechazado" },
+  rejectedMessage: { fr: "Le document a été rejeté. L'initiateur sera notifié.", en: "The document was rejected. The requester will be notified.", ar: "تم رفض المستند. سيتم إشعار مقدمه.", es: "El documento fue rechazado. Se notificará al solicitante." },
+  rejectError: { fr: "Rejet échoué", en: "Rejection failed", ar: "فشل الرفض", es: "Error al rechazar" },
+  rejectFailedMessage: { fr: "Impossible de rejeter le document.", en: "The document could not be rejected.", ar: "تعذر رفض المستند.", es: "No se pudo rechazar el documento." },
+  deleteConfirmTitle: { fr: "Supprimer le document", en: "Delete document", ar: "حذف المستند", es: "Eliminar el documento" },
+  deleteConfirmMessage: { fr: "\"{name}\" sera déplacé dans la corbeille. Vous pourrez le restaurer ultérieurement.", en: "\"{name}\" will be moved to the recycle bin. You can restore it later.", ar: "سيُنقل «{name}» إلى سلة المحذوفات ويمكنك استعادته لاحقاً.", es: "«{name}» se moverá a la papelera y podrá restaurarlo más tarde." },
+  deletedTitle: { fr: "Document supprimé", en: "Document deleted", ar: "تم حذف المستند", es: "Documento eliminado" },
+  deletedMessage: { fr: "\"{name}\" a été déplacé dans la corbeille.", en: "\"{name}\" was moved to the recycle bin.", ar: "تم نقل «{name}» إلى سلة المحذوفات.", es: "«{name}» se movió a la papelera." },
+  deleteError: { fr: "Suppression échouée", en: "Deletion failed", ar: "فشل الحذف", es: "Error al eliminar" },
+  deleteFailedMessage: { fr: "Impossible de supprimer ce document.", en: "The document could not be deleted.", ar: "تعذر حذف هذا المستند.", es: "No se pudo eliminar este documento." },
+  commentAdded: { fr: "Commentaire ajouté", en: "Comment added", ar: "تمت إضافة التعليق", es: "Comentario añadido" },
+  commentAddedMessage: { fr: "Votre commentaire a été publié avec succès.", en: "Your comment was posted successfully.", ar: "تم نشر تعليقك بنجاح.", es: "Su comentario se publicó correctamente." },
+  sendFailed: { fr: "Envoi échoué", en: "Send failed", ar: "فشل الإرسال", es: "Error de envío" },
+  commentSendFailed: { fr: "Impossible d'ajouter le commentaire.", en: "The comment could not be added.", ar: "تعذر إضافة التعليق.", es: "No se pudo añadir el comentario." },
+  deleteCommentTitle: { fr: "Supprimer le commentaire", en: "Delete comment", ar: "حذف التعليق", es: "Eliminar el comentario" },
+  irreversible: { fr: "Cette action est irréversible.", en: "This action cannot be undone.", ar: "لا يمكن التراجع عن هذا الإجراء.", es: "Esta acción no se puede deshacer." },
+  commentDeleted: { fr: "Commentaire supprimé", en: "Comment deleted", ar: "تم حذف التعليق", es: "Comentario eliminado" },
+  commentDeletedMessage: { fr: "Le commentaire a été retiré.", en: "The comment was removed.", ar: "تمت إزالة التعليق.", es: "El comentario se eliminó." },
+  versionRestoreTitle: { fr: "Restaurer la version {version}", en: "Restore version {version}", ar: "استعادة الإصدار {version}", es: "Restaurar la versión {version}" },
+  versionRestoreMessage: { fr: "La version actuelle sera sauvegardée dans l'historique et remplacée par cette version.", en: "The current version will be saved to history and replaced by this version.", ar: "سيتم حفظ الإصدار الحالي في السجل واستبداله بهذا الإصدار.", es: "La versión actual se guardará en el historial y se reemplazará por esta versión." },
+  versionRestored: { fr: "Version {version} restaurée", en: "Version {version} restored", ar: "تمت استعادة الإصدار {version}", es: "Versión {version} restaurada" },
+  versionRestoredMessage: { fr: "Le document a été remplacé par cette version avec succès.", en: "The document was successfully replaced by this version.", ar: "تم استبدال المستند بهذا الإصدار بنجاح.", es: "El documento se reemplazó correctamente por esta versión." },
+  restoreError: { fr: "Restauration échouée", en: "Restore failed", ar: "فشلت الاستعادة", es: "Error al restaurar" },
+  restoreFailedMessage: { fr: "Impossible de restaurer cette version.", en: "This version could not be restored.", ar: "تعذر استعادة هذا الإصدار.", es: "No se pudo restaurar esta versión." },
+  submittedTitle: { fr: "Demande soumise", en: "Request submitted", ar: "تم إرسال الطلب", es: "Solicitud enviada" },
+  submittedMessage: { fr: "Votre demande de document a été envoyée à l'administrateur.", en: "Your document request was sent to the administrator.", ar: "تم إرسال طلب المستند إلى المسؤول.", es: "Su solicitud de documento se envió al administrador." },
+  bundleTitle: { fr: "Générer un dossier complet", en: "Generate a complete package", ar: "إنشاء ملف كامل", es: "Generar un expediente completo" },
+  bundleRecovery: { fr: "Recouvrement", en: "Debt recovery", ar: "تحصيل الديون", es: "Recobro" },
+  bundleRecoverySub: { fr: "5 documents · Relance → Juridique", en: "5 documents · Reminder → Legal", ar: "5 مستندات · تذكير ← قانوني", es: "5 documentos · Recordatorio → Legal" },
+  bundleSale: { fr: "Dossier de vente", en: "Sale package", ar: "ملف البيع", es: "Expediente de venta" },
+  bundleSaleSub: { fr: "4 documents · Notaire", en: "4 documents · Notary", ar: "4 مستندات · موثق", es: "4 documentos · Notario" },
+  bundleAg: { fr: "Assemblée Générale", en: "General Assembly", ar: "الجمع العام", es: "Asamblea General" },
+  bundleAgSub: { fr: "3 documents · Convocation + PV + décisions", en: "3 documents · Notice + minutes + decisions", ar: "3 مستندات · استدعاء + محضر + قرارات", es: "3 documentos · Convocatoria + acta + decisiones" },
+  bundleGenerated: { fr: "Dossier généré", en: "Package generated", ar: "تم إنشاء الملف", es: "Expediente generado" },
+  bundleGeneratedMessage: { fr: "{count} document(s) créés et disponibles dans la liste.", en: "{count} document(s) created and available in the list.", ar: "تم إنشاء {count} مستند وإتاحتها في القائمة.", es: "{count} documento(s) creados y disponibles en la lista." },
+  signaturePanelTitle: { fr: "SIGNATURES ÉLECTRONIQUES", en: "ELECTRONIC SIGNATURES", ar: "التوقيعات الإلكترونية", es: "FIRMAS ELECTRÓNICAS" },
+  handwrittenSignature: { fr: "Signature manuscrite", en: "Handwritten signature", ar: "التوقيع بخط اليد", es: "Firma manuscrita" },
+  signatureGuidance: { fr: "Signez avec votre doigt dans la zone ci-dessous. Cette signature sera intégrée au document et horodatée.", en: "Sign with your finger in the area below. Your signature will be embedded in the document and timestamped.", ar: "وقّع بإصبعك في المنطقة أدناه. سيتم إدراج توقيعك في المستند وتسجيل وقته.", es: "Firme con el dedo en el área siguiente. La firma se integrará en el documento y se fechará." },
+  clear: { fr: "Effacer", en: "Clear", ar: "مسح", es: "Borrar" },
+  confirmSignature: { fr: "Confirmer la signature", en: "Confirm signature", ar: "تأكيد التوقيع", es: "Confirmar firma" },
+  sending: { fr: "Envoi…", en: "Sending…", ar: "جارٍ الإرسال…", es: "Enviando…" },
+  editDocument: { fr: "Modifier le document", en: "Edit document", ar: "تعديل المستند", es: "Editar el documento" },
+  titleLabel: { fr: "Titre", en: "Title", ar: "العنوان", es: "Título" },
+  contentLabel: { fr: "Contenu", en: "Content", ar: "المحتوى", es: "Contenido" },
+  contentPlaceholder: { fr: "Contenu du document…", en: "Document content…", ar: "محتوى المستند…", es: "Contenido del documento…" },
+  save: { fr: "Enregistrer", en: "Save", ar: "حفظ", es: "Guardar" },
+  saving: { fr: "Enregistrement…", en: "Saving…", ar: "جارٍ الحفظ…", es: "Guardando…" },
+  rejectDocument: { fr: "Rejeter le document", en: "Reject document", ar: "رفض المستند", es: "Rechazar el documento" },
+  rejectGuidance: { fr: "Indiquez la raison du rejet. L'initiateur sera notifié.", en: "Enter the reason for rejection. The requester will be notified.", ar: "أدخل سبب الرفض. سيتم إشعار مقدم الطلب.", es: "Indique el motivo del rechazo. Se notificará al solicitante." },
+  rejectionReasonPlaceholder: { fr: "Motif de rejet (requis)…", en: "Rejection reason (required)…", ar: "سبب الرفض (مطلوب)…", es: "Motivo del rechazo (obligatorio)…" },
+  confirmRejection: { fr: "Confirmer le rejet", en: "Confirm rejection", ar: "تأكيد الرفض", es: "Confirmar rechazo" },
+  versionHistory: { fr: "Historique des versions", en: "Version history", ar: "سجل الإصدارات", es: "Historial de versiones" },
+  noPreviousVersions: { fr: "Aucune version précédente", en: "No previous versions", ar: "لا توجد إصدارات سابقة", es: "No hay versiones anteriores" },
+  qrVerificationTitle: { fr: "QR Code de vérification", en: "Verification QR code", ar: "رمز QR للتحقق", es: "Código QR de verificación" },
+  qrVerificationGuidance: { fr: "Scannez ce code pour vérifier l'authenticité du document.", en: "Scan this code to verify the document's authenticity.", ar: "امسح هذا الرمز للتحقق من أصالة المستند.", es: "Escanee este código para verificar la autenticidad del documento." },
+  qrUnavailable: { fr: "QR code indisponible", en: "QR code unavailable", ar: "رمز QR غير متاح", es: "Código QR no disponible" },
+  commentsTitle: { fr: "Commentaires", en: "Comments", ar: "التعليقات", es: "Comentarios" },
+  commentPlaceholder: { fr: "Ajouter un commentaire…", en: "Add a comment…", ar: "إضافة تعليق…", es: "Añadir un comentario…" },
+  noComments: { fr: "Aucun commentaire", en: "No comments", ar: "لا توجد تعليقات", es: "No hay comentarios" },
+  firstComment: { fr: "Soyez le premier à commenter", en: "Be the first to comment", ar: "كن أول من يعلق", es: "Sea el primero en comentar" },
+  unknownAuthor: { fr: "Inconnu", en: "Unknown", ar: "غير معروف", es: "Desconocido" },
+  close: { fr: "Fermer", en: "Close", ar: "إغلاق", es: "Cerrar" },
 };
 
 // ─── Download progress state ──────────────────────────────────────────────────
@@ -161,6 +273,13 @@ export default function DocumentsScreen() {
   const FAV_ID = "screen-documents";
   const { isWide } = useBreakpoints();
   const { lang, isRTL, t } = useLanguage();
+  const docText = (key: string, values?: Record<string, string | number>) => {
+    const template = DOC_STRINGS[key]?.[lang] ?? key;
+    return Object.entries(values ?? {}).reduce(
+      (text, [name, value]) => text.replace(`{${name}}`, String(value)),
+      template,
+    );
+  };
   const topPad = isWide ? 0 : (Platform.OS === "web" ? 67 : insets.top);
   // isAdmin controls viewing and document workflow (approve/reject/generate).
   // super_admin is excluded from write actions on syndicate documents per spec:
@@ -307,7 +426,7 @@ export default function DocumentsScreen() {
       logActivity({ action: "Document généré", target: selectedTemplate.name, route: "/documents", icon: "file-text", color: "#6366f1" });
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
       await refreshDocuments().catch(() => {});
-      showToast({ type: "success", title: "Document généré", message: `"${selectedTemplate.name}" a été créé avec succès.` });
+      showToast({ type: "success", title: docText("generatedTitle"), message: docText("generatedMessage", { name: selectedTemplate.name }) });
       setShowGenerate(false);
       setSelectedTemplate(null);
       setGenMember("");
@@ -315,13 +434,7 @@ export default function DocumentsScreen() {
       setGenLanguage("fr");
     } catch (err: any) {
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
-      showToast({
-        type: "error",
-        title: "Erreur de génération",
-        message: err?.message && !err.message.startsWith("HTTP")
-          ? err.message
-          : "Impossible de générer le document. Vérifiez la connexion et réessayez.",
-      });
+      showToast({ type: "error", title: docText("generationError"), message: docText("generationFailed") });
     } finally {
       setGenerating(false);
     }
@@ -352,14 +465,12 @@ export default function DocumentsScreen() {
         });
         return;
       }
-      showToast({ type: "warning", title: "Aperçu indisponible", message: "Le PDF n'est pas encore disponible. Il est peut-être encore en cours de génération." });
+      showToast({ type: "warning", title: docText("previewUnavailableTitle"), message: docText("previewUnavailableMessage") });
     } catch (err: any) {
       showToast({
         type: "error",
-        title: "Aperçu impossible",
-        message: err?.message?.includes("404")
-          ? "Ce document n'a pas encore de fichier PDF associé."
-          : "Impossible d'ouvrir l'aperçu. Vérifiez votre connexion.",
+        title: docText("previewErrorTitle"),
+        message: err?.message?.includes("404") ? docText("previewMissingFile") : docText("previewConnectionError"),
       });
     }
   };
@@ -516,17 +627,13 @@ export default function DocumentsScreen() {
       setShowSign(false);
       setSigPanelKey((k) => k + 1);   // forces SignatureOrderPanel to re-fetch
       setSelected((s) => (s ? { ...s, status: "signed" as Document["status"] } : s));
-      showToast({ type: "success", title: "Document signé", message: "Votre signature électronique a été enregistrée avec succès." });
+      showToast({ type: "success", title: docText("signedTitle"), message: docText("signedMessage") });
     } catch (err: any) {
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
       showToast({
         type: "error",
-        title: "Erreur de signature",
-        message: err?.message?.includes("409")
-          ? "Vous avez déjà signé ce document."
-          : err?.message && !err.message.startsWith("HTTP")
-            ? err.message
-            : "Impossible d'enregistrer la signature. Vérifiez la connexion.",
+        title: docText("signatureError"),
+        message: err?.message?.includes("409") ? docText("alreadySigned") : docText("signatureFailed"),
       });
     } finally {
       setSigning(false);
@@ -535,7 +642,7 @@ export default function DocumentsScreen() {
 
   const handleSaveEdit = async () => {
     if (!selected) return;
-    if (!editTitle.trim()) { showToast({ type: "warning", title: "Titre requis", message: "Le titre du document ne peut pas être vide." }); return; }
+    if (!editTitle.trim()) { showToast({ type: "warning", title: docText("requiredTitle"), message: docText("requiredTitleMessage") }); return; }
     setSavingEdit(true);
     try {
       const { documents: docsApi } = await import("@/services/api");
@@ -545,16 +652,10 @@ export default function DocumentsScreen() {
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
       setShowEdit(false);
       setSelected((s) => (s ? { ...s, title: editTitle.trim(), content: editContent } : s));
-      showToast({ type: "success", title: "Modifications enregistrées", message: `"${editTitle.trim()}" a été mis à jour avec succès.` });
+      showToast({ type: "success", title: docText("savedTitle"), message: docText("savedMessage", { name: editTitle.trim() }) });
     } catch (err: any) {
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
-      showToast({
-        type: "error",
-        title: "Échec de la sauvegarde",
-        message: err?.message && !err.message.startsWith("HTTP")
-          ? err.message
-          : "Impossible d'enregistrer les modifications.",
-      });
+      showToast({ type: "error", title: docText("saveError"), message: docText("saveFailedMessage") });
     } finally {
       setSavingEdit(false);
     }
@@ -575,29 +676,29 @@ export default function DocumentsScreen() {
       showToast({ type: "success", title: successTitle, message: successMsg });
     } catch (err: any) {
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
-      showToast({ type: "error", title: "Action échouée", message: err?.message && !err.message.startsWith("HTTP") ? err.message : "Action impossible. Vérifiez la connexion." });
+      showToast({ type: "error", title: docText("actionFailed"), message: docText("actionFailedMessage") });
     } finally {
       setWorkflowBusy(false);
     }
   };
 
   const handleSubmitForReview = () =>
-    applyStatusUpdate("pending_review", "Envoyé en révision", "Le document a été soumis pour révision et approbation.");
+    applyStatusUpdate("pending_review", docText("documentsDashboardStatusInReview"), docText("documentsDashboardInReviewDescription"));
 
   const handleApproveDoc = () =>
-    applyStatusUpdate("validated", "Document validé", "Le document a été approuvé et validé.");
+    applyStatusUpdate("validated", t("docStatusValidated"), t("documentsDashboardPendingApprovalDescription"));
 
   const handlePublishDoc = () =>
-    applyStatusUpdate("published", "Document publié", "Le document est maintenant publié et accessible aux membres.");
+    applyStatusUpdate("published", t("docStatusPublished"), t("documentsDashboardPublishedDescription"));
 
   const handleArchiveDoc = () => {
     if (!selected) return;
     Alert.alert(
-      "Archiver le document",
-      "Ce document sera archivé et ne sera plus affiché dans les listes actives.",
+      docText("archiveConfirmTitle"),
+      docText("archiveConfirmMessage"),
       [
-        { text: "Annuler", style: "cancel" },
-        { text: "Archiver", onPress: () => applyStatusUpdate("archived", "Archivé", "Le document a été archivé.") },
+        { text: docText("cancel"), style: "cancel" },
+        { text: docText("archive"), onPress: () => applyStatusUpdate("archived", docText("archivedTitle"), docText("archivedMessage")) },
       ],
     );
   };
@@ -614,9 +715,9 @@ export default function DocumentsScreen() {
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
       setShowRejectModal(false);
       setRejectReason("");
-      showToast({ type: "warning", title: "Document rejeté", message: "Le document a été rejeté. L'initiateur sera notifié par notification." });
+      showToast({ type: "warning", title: docText("rejectedTitle"), message: docText("rejectedMessage") });
     } catch (err: any) {
-      showToast({ type: "error", title: "Rejet échoué", message: err?.message ?? "Impossible de rejeter le document." });
+      showToast({ type: "error", title: docText("rejectError"), message: docText("rejectFailedMessage") });
     } finally {
       setWorkflowBusy(false);
     }
@@ -627,10 +728,10 @@ export default function DocumentsScreen() {
   const handleDelete = () => {
     if (!selected) return;
     Alert.alert(
-      "Supprimer le document",
-      `"${selected.title}" sera déplacé dans la corbeille. Vous pouvez le restaurer ultérieurement.`,
+      docText("deleteConfirmTitle"),
+      docText("deleteConfirmMessage", { name: selected.title }),
       [
-        { text: "Annuler", style: "cancel" },
+        { text: docText("cancel"), style: "cancel" },
         {
           text: "Supprimer",
           style: "destructive",
@@ -644,12 +745,12 @@ export default function DocumentsScreen() {
               const { documents: docsApi } = await import("@/services/api");
               await docsApi.delete(docId);
               Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-              showToast({ type: "success", title: "Document supprimé", message: `"${docTitle}" a été déplacé dans la corbeille.` });
+              showToast({ type: "success", title: docText("deletedTitle"), message: docText("deletedMessage", { name: docTitle }) });
               refreshDocuments().catch(() => {});
             } catch (err: any) {
               // Rollback: re-fetch list to restore the document
               refreshDocuments().catch(() => {});
-              showToast({ type: "error", title: "Suppression échouée", message: err?.message ?? "Impossible de supprimer ce document." });
+              showToast({ type: "error", title: docText("deleteError"), message: docText("deleteFailedMessage") });
             }
           },
         },
@@ -703,9 +804,9 @@ export default function DocumentsScreen() {
       setCommentText("");
       const res = await docsApi.comments(selected.id);
       setComments((res.data ?? []).filter((c) => !c.isDeleted));
-      showToast({ type: "success", title: "Commentaire ajouté", message: "Votre commentaire a été publié avec succès." });
+      showToast({ type: "success", title: docText("commentAdded"), message: docText("commentAddedMessage") });
     } catch (err: any) {
-      showToast({ type: "error", title: "Envoi échoué", message: err?.message ?? "Impossible d'ajouter le commentaire." });
+      showToast({ type: "error", title: docText("sendFailed"), message: docText("commentSendFailed") });
     } finally {
       setPostingComment(false);
     }
@@ -713,8 +814,8 @@ export default function DocumentsScreen() {
 
   const handleDeleteComment = (commentId: string) => {
     if (!selected) return;
-    Alert.alert("Supprimer le commentaire", "Cette action est irréversible.", [
-      { text: "Annuler", style: "cancel" },
+    Alert.alert(docText("deleteCommentTitle"), docText("irreversible"), [
+      { text: docText("cancel"), style: "cancel" },
       {
         text: "Supprimer", style: "destructive",
         onPress: async () => {
@@ -723,9 +824,9 @@ export default function DocumentsScreen() {
             const { documents: docsApi } = await import("@/services/api");
             await docsApi.deleteComment(selected.id, commentId);
             setComments((prev) => prev.filter((c) => c.id !== commentId));
-            showToast({ type: "success", title: "Commentaire supprimé", message: "Le commentaire a été retiré." });
+            showToast({ type: "success", title: docText("commentDeleted"), message: docText("commentDeletedMessage") });
           } catch (err: any) {
-            showToast({ type: "error", title: "Suppression échouée", message: err?.message ?? "Impossible de supprimer le commentaire." });
+            showToast({ type: "error", title: docText("deleteError"), message: docText("commentSendFailed") });
           } finally {
             setDeletingComment(null);
           }
@@ -755,10 +856,10 @@ export default function DocumentsScreen() {
   const handleRestoreVersion = (versionId: string, versionNum: number) => {
     if (!selected || restoringVersion) return;
     Alert.alert(
-      `Restaurer la version ${versionNum}`,
-      "La version actuelle sera sauvegardée en historique et le document sera remplacé par cette version.",
+      docText("versionRestoreTitle", { version: versionNum }),
+      docText("versionRestoreMessage"),
       [
-        { text: "Annuler", style: "cancel" },
+        { text: docText("cancel"), style: "cancel" },
         {
           text: "Restaurer",
           onPress: async () => {
@@ -770,9 +871,9 @@ export default function DocumentsScreen() {
               await refreshDocuments().catch(() => {});
               setShowVersions(false);
               setSelected(null);
-              showToast({ type: "success", title: `Version ${versionNum} restaurée`, message: "Le document a été remplacé par cette version avec succès." });
+              showToast({ type: "success", title: docText("versionRestored", { version: versionNum }), message: docText("versionRestoredMessage") });
             } catch (err: any) {
-              showToast({ type: "error", title: "Restauration échouée", message: err?.message ?? "Impossible de restaurer cette version." });
+              showToast({ type: "error", title: docText("restoreError"), message: docText("restoreFailedMessage") });
             } finally {
               setRestoringVersion(null);
             }
@@ -873,10 +974,10 @@ export default function DocumentsScreen() {
       {/* ── Stats row ── */}
       <View style={[styles.statsRow, { backgroundColor: colors.card, borderBottomColor: colors.border }]}>
         {[
-          { label: "Publiés",    count: documents.filter((d) => d.status === "published").length,                                            color: colors.success         },
-          { label: "Brouillons", count: documents.filter((d) => d.status === "draft" || d.status === "generated").length,                    color: colors.mutedForeground },
-          { label: "En attente", count: documents.filter((d) => d.status === "pending" || d.status === "pending_review").length,             color: "#f59e0b"              },
-          { label: "Signés",     count: documents.filter((d) => d.status === "signed" || d.status === "validated").length,                   color: "#8b5cf6"              },
+          { label: DOC_STRINGS.publishedCount[lang], count: documents.filter((d) => d.status === "published").length, color: colors.success },
+          { label: DOC_STRINGS.draftsCount[lang], count: documents.filter((d) => d.status === "draft" || d.status === "generated").length, color: colors.mutedForeground },
+          { label: DOC_STRINGS.pendingCount[lang], count: documents.filter((d) => d.status === "pending" || d.status === "pending_review").length, color: "#f59e0b" },
+          { label: DOC_STRINGS.signedCount[lang], count: documents.filter((d) => d.status === "signed" || d.status === "validated").length, color: "#8b5cf6" },
         ].map((s) => (
           <View key={s.label} style={styles.statItem}>
             <Text style={[styles.statCount, { color: s.color }]}>{s.count}</Text>
@@ -963,7 +1064,7 @@ export default function DocumentsScreen() {
         onComplete={(docId) => {
           setShowMemberRequest(false);
           refreshDocuments().catch(() => {});
-          showToast({ type: "success", title: "Demande soumise", message: "Votre demande de document a été envoyée à l'administrateur." });
+          showToast({ type: "success", title: docText("submittedTitle"), message: docText("submittedMessage") });
         }}
       />
 
@@ -977,11 +1078,11 @@ export default function DocumentsScreen() {
       {/* ── Bundle quick-menu (admin) ── */}
       {showBundleMenu && (
         <View style={[styles.bundleMenu, { backgroundColor: colors.card, borderColor: colors.border, top: (Platform.OS === "web" ? 67 : insets.top) + 56 }]}>
-          <Text style={[styles.bundleMenuTitle, { color: colors.mutedForeground }]}>Générer un dossier complet</Text>
+          <Text style={[styles.bundleMenuTitle, { color: colors.mutedForeground }]}>{docText("bundleTitle")}</Text>
           {([
-            { type: "recovery" as BundleType, icon: "alert-triangle" as const, color: "#dc2626", label: "Recouvrement",       sub: "5 docs · Relance → Juridique" },
-            { type: "sale"     as BundleType, icon: "package"        as const, color: "#7c3aed", label: "Dossier de vente",   sub: "4 docs · Notaire" },
-            { type: "ag"       as BundleType, icon: "users"          as const, color: "#3b82f6", label: "Assemblée Générale", sub: "3 docs · Convoc + PV + Décisions" },
+            { type: "recovery" as BundleType, icon: "alert-triangle" as const, color: "#dc2626", label: docText("bundleRecovery"), sub: docText("bundleRecoverySub") },
+            { type: "sale" as BundleType, icon: "package" as const, color: "#7c3aed", label: docText("bundleSale"), sub: docText("bundleSaleSub") },
+            { type: "ag" as BundleType, icon: "users" as const, color: "#3b82f6", label: docText("bundleAg"), sub: docText("bundleAgSub") },
           ] as const).map((b) => (
             <TouchableOpacity
               key={b.type}
@@ -1014,8 +1115,8 @@ export default function DocumentsScreen() {
             refreshDocuments().catch(() => {});
             showToast({
               type: "success",
-              title: "Dossier généré",
-              message: `${docs.length} document(s) créés et disponibles dans la liste.`,
+              title: docText("bundleGenerated"),
+              message: docText("bundleGeneratedMessage", { count: docs.length }),
             });
           }}
         />
@@ -1092,7 +1193,7 @@ export default function DocumentsScreen() {
                 style={[styles.dlBtn, { backgroundColor: colors.muted, borderWidth: 1, borderColor: colors.border }]}
                 onPress={() => setDlState(INIT_DL)}
               >
-                <Text style={[styles.dlBtnText, { color: colors.foreground }]}>Fermer</Text>
+                <Text style={[styles.dlBtnText, { color: colors.foreground }]}>{docText("close")}</Text>
               </TouchableOpacity>
             </View>
           ) : null}
@@ -1340,7 +1441,7 @@ export default function DocumentsScreen() {
                 {/* ── Signature order panel ── */}
                 <View style={detailStyles.section}>
                   <Text style={[detailStyles.sectionLabel, { color: colors.mutedForeground }]}>
-                    SIGNATURES ÉLECTRONIQUES
+                    {docText("signaturePanelTitle")}
                   </Text>
                   <SignatureOrderPanel
                     key={sigPanelKey}
@@ -1455,12 +1556,12 @@ export default function DocumentsScreen() {
               <Feather name="x" size={22} color={colors.mutedForeground} />
             </TouchableOpacity>
             <View style={{ flex: 1, marginStart: 12 }}>
-              <Text style={[styles.modalTitle, { color: colors.foreground }]}>Signature manuscrite</Text>
+               <Text style={[styles.modalTitle, { color: colors.foreground }]}>{docText("handwrittenSignature")}</Text>
             </View>
           </View>
           <ScrollView contentContainerStyle={{ padding: 20, gap: 16, paddingBottom: 40 }}>
             <Text style={{ color: colors.mutedForeground, fontSize: 13 }}>
-              Signez avec votre doigt dans la zone ci-dessous. Cette signature sera intégrée au document et horodatée.
+               {docText("signatureGuidance")}
             </Text>
             <View style={{ borderWidth: 1, borderColor: colors.border, borderRadius: 12, alignSelf: "center" }}>
               <SignaturePad
@@ -1476,7 +1577,7 @@ export default function DocumentsScreen() {
                 onPress={() => { sigPadRef.current?.clear(); }}
               >
                 <Feather name="rotate-ccw" size={16} color={colors.foreground} />
-                <Text style={[styles.secBtnText, { color: colors.foreground }]}>Effacer</Text>
+                 <Text style={[styles.secBtnText, { color: colors.foreground }]}>{docText("clear")}</Text>
               </TouchableOpacity>
               <TouchableOpacity
                 style={[styles.primaryAction, { flex: 1, backgroundColor: sigEmpty ? colors.mutedForeground : "#8b5cf6", opacity: signing ? 0.7 : 1 }]}
@@ -1484,7 +1585,7 @@ export default function DocumentsScreen() {
                 onPress={handleConfirmSign}
               >
                 {signing ? <ActivityIndicator color="#fff" /> : <Feather name="check" size={18} color="#fff" />}
-                <Text style={styles.primaryActionText}>{signing ? "Envoi..." : "Confirmer la signature"}</Text>
+                <Text style={styles.primaryActionText}>{signing ? docText("sending") : docText("confirmSignature")}</Text>
               </TouchableOpacity>
             </View>
           </ScrollView>
@@ -1505,14 +1606,14 @@ export default function DocumentsScreen() {
       <Modal visible={showEdit} animationType="slide" presentationStyle="pageSheet">
         <View style={[styles.modal, { backgroundColor: colors.background }]}>
           <View style={[styles.modalHeader, { borderBottomColor: colors.border }]}>
-            <Text style={[styles.modalTitle, { color: colors.foreground }]}>Modifier le document</Text>
+            <Text style={[styles.modalTitle, { color: colors.foreground }]}>{docText("editDocument")}</Text>
             <TouchableOpacity onPress={() => setShowEdit(false)}>
               <Feather name="x" size={22} color={colors.mutedForeground} />
             </TouchableOpacity>
           </View>
           <ScrollView contentContainerStyle={{ padding: 20, gap: 16, paddingBottom: 40 }}>
             <View style={{ gap: 8 }}>
-              <Text style={[styles.fieldLabel, { color: colors.foreground }]}>Titre</Text>
+              <Text style={[styles.fieldLabel, { color: colors.foreground }]}>{docText("titleLabel")}</Text>
               <TextInput
                 style={[styles.fieldInput, { borderColor: colors.border, backgroundColor: colors.card, color: colors.foreground }]}
                 value={editTitle}
@@ -1521,12 +1622,12 @@ export default function DocumentsScreen() {
               />
             </View>
             <View style={{ gap: 8 }}>
-              <Text style={[styles.fieldLabel, { color: colors.foreground }]}>Contenu</Text>
+              <Text style={[styles.fieldLabel, { color: colors.foreground }]}>{docText("contentLabel")}</Text>
               <TextInput
                 style={[styles.fieldInput, styles.fieldTextArea, { borderColor: colors.border, backgroundColor: colors.card, color: colors.foreground, minHeight: 180, textAlignVertical: "top" }]}
                 value={editContent}
                 onChangeText={setEditContent}
-                placeholder="Contenu du document..."
+                placeholder={docText("contentPlaceholder")}
                 placeholderTextColor={colors.mutedForeground}
                 multiline
               />
@@ -1537,7 +1638,7 @@ export default function DocumentsScreen() {
               disabled={savingEdit}
             >
               {savingEdit ? <ActivityIndicator color="#fff" size="small" /> : <Feather name="save" size={18} color="#fff" />}
-              <Text style={styles.primaryActionText}>{savingEdit ? "Enregistrement…" : "Enregistrer"}</Text>
+              <Text style={styles.primaryActionText}>{savingEdit ? docText("saving") : docText("save")}</Text>
             </TouchableOpacity>
           </ScrollView>
         </View>
@@ -1547,13 +1648,13 @@ export default function DocumentsScreen() {
       <Modal visible={showRejectModal} transparent animationType="fade">
         <View style={styles.overlay}>
           <View style={[styles.overlayCard, { backgroundColor: colors.card }]}>
-            <Text style={[styles.overlayTitle, { color: colors.foreground }]}>✗ Rejeter le document</Text>
+            <Text style={[styles.overlayTitle, { color: colors.foreground }]}>{docText("rejectDocument")}</Text>
             <Text style={[styles.overlaySub, { color: colors.mutedForeground }]}>
-              Indiquez la raison du rejet. L'initiateur sera notifié.
+              {docText("rejectGuidance")}
             </Text>
             <TextInput
               style={[styles.fieldInput, styles.fieldTextArea, { borderColor: colors.border, backgroundColor: colors.background, color: colors.foreground, minHeight: 100, textAlignVertical: "top" }]}
-              placeholder="Motif de rejet (requis)..."
+              placeholder={docText("rejectionReasonPlaceholder")}
               placeholderTextColor={colors.mutedForeground}
               value={rejectReason}
               onChangeText={setRejectReason}
@@ -1565,14 +1666,14 @@ export default function DocumentsScreen() {
                 style={[styles.overlayBtn, { backgroundColor: colors.muted, flex: 1 }]}
                 onPress={() => { setShowRejectModal(false); setRejectReason(""); }}
               >
-                <Text style={[styles.overlayBtnText, { color: colors.foreground }]}>Annuler</Text>
+                <Text style={[styles.overlayBtnText, { color: colors.foreground }]}>{docText("cancel")}</Text>
               </TouchableOpacity>
               <TouchableOpacity
                 style={[styles.overlayBtn, { backgroundColor: rejectReason.trim() ? "#ef4444" : "#ef444460", flex: 1, opacity: workflowBusy ? 0.6 : 1 }]}
                 onPress={handleRejectDoc}
                 disabled={!rejectReason.trim() || workflowBusy}
               >
-                {workflowBusy ? <ActivityIndicator color="#fff" size="small" /> : <Text style={[styles.overlayBtnText, { color: "#fff" }]}>Confirmer le rejet</Text>}
+                {workflowBusy ? <ActivityIndicator color="#fff" size="small" /> : <Text style={[styles.overlayBtnText, { color: "#fff" }]}>{docText("confirmRejection")}</Text>}
               </TouchableOpacity>
             </View>
           </View>
@@ -1587,7 +1688,7 @@ export default function DocumentsScreen() {
               <Feather name="arrow-left" size={22} color={colors.mutedForeground} />
             </TouchableOpacity>
             <View style={{ flex: 1, marginStart: 12 }}>
-              <Text style={[styles.modalTitle, { color: colors.foreground }]}>Historique des versions</Text>
+              <Text style={[styles.modalTitle, { color: colors.foreground }]}>{docText("versionHistory")}</Text>
             </View>
             <Feather name="clock" size={20} color={colors.mutedForeground} />
           </View>
@@ -1596,7 +1697,7 @@ export default function DocumentsScreen() {
           ) : versions.length === 0 ? (
             <View style={styles.empty}>
               <Feather name="clock" size={36} color={colors.mutedForeground} />
-              <Text style={[styles.emptyText, { color: colors.mutedForeground }]}>Aucune version précédente</Text>
+              <Text style={[styles.emptyText, { color: colors.mutedForeground }]}>{docText("noPreviousVersions")}</Text>
             </View>
           ) : (
             <FlatList
@@ -1638,13 +1739,13 @@ export default function DocumentsScreen() {
           <View style={[styles.overlayCard, { backgroundColor: colors.card, alignItems: "center" }]}>
             <View style={{ flexDirection: "row", alignItems: "center", gap: 10, width: "100%" }}>
               <Feather name="grid" size={20} color="#06b6d4" />
-              <Text style={[styles.overlayTitle, { color: colors.foreground, flex: 1 }]}>QR Code de vérification</Text>
+              <Text style={[styles.overlayTitle, { color: colors.foreground, flex: 1 }]}>{docText("qrVerificationTitle")}</Text>
               <TouchableOpacity onPress={() => setShowQR(false)}>
                 <Feather name="x" size={20} color={colors.mutedForeground} />
               </TouchableOpacity>
             </View>
             <Text style={[styles.overlaySub, { color: colors.mutedForeground, textAlign: "center" }]}>
-              Scannez ce code pour vérifier l'authenticité du document
+              {docText("qrVerificationGuidance")}
             </Text>
             {qrLoading ? (
               <View style={{ height: 200, alignItems: "center", justifyContent: "center" }}>
@@ -1658,7 +1759,7 @@ export default function DocumentsScreen() {
             ) : (
               <View style={{ height: 160, alignItems: "center", justifyContent: "center", gap: 8 }}>
                 <Feather name="alert-circle" size={32} color={colors.mutedForeground} />
-                <Text style={[styles.overlaySub, { color: colors.mutedForeground }]}>QR code indisponible</Text>
+                <Text style={[styles.overlaySub, { color: colors.mutedForeground }]}>{docText("qrUnavailable")}</Text>
               </View>
             )}
             <Text style={[styles.versionMeta, { color: colors.mutedForeground, textAlign: "center" }]}>
@@ -1676,7 +1777,7 @@ export default function DocumentsScreen() {
               <Feather name="arrow-left" size={22} color={colors.mutedForeground} />
             </TouchableOpacity>
             <View style={{ flex: 1, marginStart: 12 }}>
-              <Text style={[styles.modalTitle, { color: colors.foreground }]}>Commentaires</Text>
+              <Text style={[styles.modalTitle, { color: colors.foreground }]}>{docText("commentsTitle")}</Text>
             </View>
             <Feather name="message-square" size={20} color="#f59e0b" />
           </View>
@@ -1685,7 +1786,7 @@ export default function DocumentsScreen() {
           <View style={[styles.commentInputRow, { borderBottomColor: colors.border, backgroundColor: colors.card }]}>
             <TextInput
               style={[styles.commentInput, { color: colors.foreground, backgroundColor: colors.background, borderColor: colors.border }]}
-              placeholder="Ajouter un commentaire..."
+              placeholder={docText("commentPlaceholder")}
               placeholderTextColor={colors.mutedForeground}
               value={commentText}
               onChangeText={setCommentText}
@@ -1709,8 +1810,8 @@ export default function DocumentsScreen() {
           ) : comments.length === 0 ? (
             <View style={styles.empty}>
               <Feather name="message-square" size={36} color={colors.mutedForeground} />
-              <Text style={[styles.emptyText, { color: colors.mutedForeground }]}>Aucun commentaire</Text>
-              <Text style={[styles.versionMeta, { color: colors.mutedForeground }]}>Soyez le premier à commenter</Text>
+              <Text style={[styles.emptyText, { color: colors.mutedForeground }]}>{docText("noComments")}</Text>
+              <Text style={[styles.versionMeta, { color: colors.mutedForeground }]}>{docText("firstComment")}</Text>
             </View>
           ) : (
             <FlatList
@@ -1726,7 +1827,7 @@ export default function DocumentsScreen() {
                       </Text>
                     </View>
                     <View style={{ flex: 1 }}>
-                      <Text style={[styles.commentAuthor, { color: colors.foreground }]}>{c.authorName ?? "Inconnu"}</Text>
+                      <Text style={[styles.commentAuthor, { color: colors.foreground }]}>{c.authorName ?? docText("unknownAuthor")}</Text>
                       <Text style={[styles.versionMeta, { color: colors.mutedForeground }]}>
                         {new Date(c.createdAt).toLocaleDateString("fr-FR", { day: "2-digit", month: "short", year: "numeric", hour: "2-digit", minute: "2-digit" })}
                       </Text>

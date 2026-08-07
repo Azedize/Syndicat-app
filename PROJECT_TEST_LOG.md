@@ -95,6 +95,10 @@
 - `git diff --check -- artifacts/mobile/app/search.tsx artifacts/mobile/app/payment.tsx artifacts/mobile/context/LanguageContext.tsx` — passed.
 - Restarted `artifacts/mobile: expo`; Metro started successfully with expected Expo package-version notices and no transform errors.
 - Mobile Expo preview screenshots for `/welcome` and `/payment` at 402×874 — public welcome rendered successfully and protected payment preview remained safely behind the unauthenticated boundary; no new browser runtime exceptions appeared beyond existing Expo web compatibility warnings.
+- `pnpm --filter @workspace/mobile run typecheck` — passed with zero errors after the Documents & Signatures follow-through.
+- Focused grep confirmed the main document screen's visible action and modal copy now resolves through localized screen strings; no new raw workflow error fallback remains.
+- Restarted `artifacts/mobile: expo`; Metro started successfully with expected Expo package-version notices and no transform errors.
+- Mobile Expo preview screenshot at 402×874 — public welcome rendered successfully; browser logs contained only existing Expo web compatibility warnings (shadow style deprecation, notifications web limitation, and native animated fallback).
 - `pnpm --filter @workspace/mobile run typecheck` — passed after the Level-1 Support localization pass.
 - `git diff --check` — passed after the support screen and translation updates.
 - Restarted `artifacts/mobile: expo`; Metro started successfully with the expected Expo package-version notices and no transform errors.

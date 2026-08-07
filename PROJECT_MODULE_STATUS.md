@@ -63,3 +63,5 @@
 - Mobile verification: zero-error typecheck, diff validation, Metro bundle, and protected `/assemblee-generale` plus `/elections` preview pass; only existing Expo web compatibility warnings remain.
 - Search: multilingual headings, suggestions, history, quick access, and no-results recovery complete; existing real search context and navigation preserved.
 - Subscription Payment: multilingual free-trial/paid flows, active-locale MAD presentation, safe error recovery, and non-embedded transfer guidance complete; API subscription contract preserved.
+- Documents & Signatures: main document list/detail workflow now has four-language feedback and form coverage for generation, preview, download, signature, validation, archive/delete, comments, versions, QR verification, and bundle actions; real API and role boundaries preserved.
+- Mobile verification: zero-error typecheck and Expo workflow restart pass after the Documents & Signatures follow-through.

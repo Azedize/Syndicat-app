@@ -65,6 +65,7 @@
 - Assemblée Générale and Élections now complete their remaining governance presentation gaps with active-locale meeting/election dates, dedicated resolution actions, translated mandate roles/statuses, and localized mandate end dates while preserving the existing decision and voting workflows.
 - Search now keeps category hierarchy, quick discovery, history management, shortcuts, and no-results recovery consistent with the active language while preserving the existing search interaction model.
 - Subscription Payment now keeps onboarding, free-trial reassurance, billing choice, payment-method hierarchy, transfer confirmation, amount presentation, and recovery messaging consistent across supported languages; sensitive banking details are not embedded in the mobile UI.
+- Documents & Signatures now keeps the main list, detail sheet, workflow controls, signature capture, document editing, comments, version history, QR verification, bundle menu, and download feedback consistent across French, English, Arabic, and Spanish.
 ---
 ## Session 2026-08-06 — Refonte Enterprise Écrans d'Accueil
 

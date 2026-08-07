@@ -11,3 +11,4 @@ description: Pitfalls found while converting screens to the global t()/useLangua
 - Keep loading and error state as semantic flags rather than already-translated strings when the UI supports runtime language switching; derive the visible copy from the current language during render.
 - For larger localization passes, apply metadata, state, and UI bindings in small independent edits; this keeps older screen structures safe to patch and makes compiler errors easy to isolate.
 - Run the formatter before final verification on large React Native screens; it can reflow JSX and make later context-based patches miss, so follow each formatting step with focused grep/typecheck.
+- Local screen dictionaries are also vulnerable to duplicate keys during broad localization passes; a full package typecheck is required even when the shared language context itself was not changed.

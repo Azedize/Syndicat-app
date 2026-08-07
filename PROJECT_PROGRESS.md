@@ -127,3 +127,7 @@
 - Continued the enterprise localization pass on Search: category headings, quick suggestions, recent-search controls, quick-access shortcuts, and no-results guidance now follow the active language across French, English, Arabic, and Spanish.
 - Continued the subscription onboarding pass on Payment: free-trial copy, billing options, payment methods, security guidance, transfer confirmation, errors, MAD amounts, and pay-later actions now follow the active language; raw API errors and embedded bank coordinates were removed.
 - Mobile typecheck, diff validation, Expo restart, and protected `/payment` preview passed without new runtime exceptions; existing Expo compatibility warnings remain non-blocking.
+- Started the Documents & Signatures follow-through pass on the main documents screen.
+- Localized document statistics, generation and preview feedback, signature confirmation/errors, workflow transitions, deletion/archive confirmations, comments, version history, QR verification, bundles, and edit/signature forms across French, English, Arabic, and Spanish.
+- Preserved real PDF download/preview, electronic signature, document workflow state transitions, soft-delete, comments, version restoration, bundle generation, role guards, and API contracts.
+- Mobile typecheck passed with zero errors; Expo restarted successfully and the public preview rendered without new browser runtime exceptions.
