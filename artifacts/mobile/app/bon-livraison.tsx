@@ -20,14 +20,77 @@ import { useData, type BonLivraison } from "@/context/DataContext";
 import { useBreakpoints } from "@/hooks/useBreakpoints";
 import { useColors } from "@/hooks/useColors";
 import { useToast } from "@/context/ToastContext";
+import { useLanguage } from "@/context/LanguageContext";
 
 type FilterType = "all" | "sortie" | "entree";
 
-const STATUS_CONFIG: Record<BonLivraison["status"], { label: string; color: string }> = {
-  draft: { label: "Brouillon", color: "#6b7280" },
-  sent: { label: "Expédié", color: "#3b82f6" },
-  delivered: { label: "Livré", color: "#10b981" },
-  cancelled: { label: "Annulé", color: "#ef4444" },
+const STRINGS = {
+  title: { fr: "Bons de livraison", en: "Delivery notes", ar: "سندات التسليم", es: "Albaranes" },
+  subtitle: { fr: "Gestion des entrées et sorties", en: "Manage incoming and outgoing goods", ar: "إدارة الواردات والصادرات", es: "Gestión de entradas y salidas" },
+  outgoingDelivered: { fr: "Sorties livrées", en: "Delivered outgoing", ar: "الصادرات المسلّمة", es: "Salidas entregadas" },
+  incomingReceived: { fr: "Entrées reçues", en: "Received incoming", ar: "الواردات المستلمة", es: "Entradas recibidas" },
+  pending: { fr: "En attente", en: "Pending", ar: "قيد الانتظار", es: "Pendientes" },
+  all: { fr: "Tous", en: "All", ar: "الكل", es: "Todos" },
+  outgoing: { fr: "Sortie", en: "Outgoing", ar: "صادر", es: "Salida" },
+  incoming: { fr: "Entrée", en: "Incoming", ar: "وارد", es: "Entrada" },
+  noNotes: { fr: "Aucun bon de livraison", en: "No delivery notes", ar: "لا توجد سندات تسليم", es: "Sin albaranes" },
+  items: { fr: "articles", en: "items", ar: "عناصر", es: "artículos" },
+  item: { fr: "article", en: "item", ar: "عنصر", es: "artículo" },
+  supplierRecipient: { fr: "Destinataire / Fournisseur", en: "Recipient / Supplier", ar: "المستلم / المورد", es: "Destinatario / Proveedor" },
+  date: { fr: "Date", en: "Date", ar: "التاريخ", es: "Fecha" },
+  articles: { fr: "Articles", en: "Items", ar: "العناصر", es: "Artículos" },
+  total: { fr: "Total", en: "Total", ar: "المجموع", es: "Total" },
+  newNote: { fr: "Nouveau bon de livraison", en: "New delivery note", ar: "سند تسليم جديد", es: "Nuevo albarán" },
+  mainItem: { fr: "Article principal *", en: "Main item *", ar: "العنصر الرئيسي *", es: "Artículo principal *" },
+  recipientRequired: { fr: "Destinataire / Fournisseur *", en: "Recipient / Supplier *", ar: "المستلم / المورد *", es: "Destinatario / Proveedor *" },
+  quantity: { fr: "Quantité", en: "Quantity", ar: "الكمية", es: "Cantidad" },
+  unitPrice: { fr: "Prix unitaire (MAD)", en: "Unit price (MAD)", ar: "السعر الوحدوي (درهم)", es: "Precio unitario (MAD)" },
+  estimatedTotal: { fr: "Total estimé", en: "Estimated total", ar: "المجموع التقديري", es: "Total estimado" },
+  create: { fr: "Créer", en: "Create", ar: "إنشاء", es: "Crear" },
+  cancel: { fr: "Annuler", en: "Cancel", ar: "إلغاء", es: "Cancelar" },
+  createdTitle: { fr: "Bon créé", en: "Delivery note created", ar: "تم إنشاء السند", es: "Albarán creado" },
+  createdMessage: { fr: "Le bon de livraison {reference} a été créé.", en: "Delivery note {reference} was created.", ar: "تم إنشاء سند التسليم {reference}.", es: "Se creó el albarán {reference}." },
+  pdfTitle: { fr: "PDF généré", en: "PDF generated", ar: "تم إنشاء PDF", es: "PDF generado" },
+  pdfMessage: { fr: "Le bon {reference} a été exporté en PDF et sauvegardé dans vos documents.", en: "Note {reference} was exported as a PDF and saved to your documents.", ar: "تم تصدير السند {reference} بصيغة PDF وحفظه في مستنداتك.", es: "El albarán {reference} se exportó en PDF y se guardó en sus documentos." },
+  ship: { fr: "Expédier", en: "Ship", ar: "إرسال", es: "Enviar" },
+  confirmDelivery: { fr: "Confirmer la livraison", en: "Confirm delivery", ar: "تأكيد التسليم", es: "Confirmar entrega" },
+  markShipped: { fr: "Marquer comme expédié", en: "Mark as shipped", ar: "تحديد كمُرسل", es: "Marcar como enviado" },
+  alreadyDelivered: { fr: "Déjà livré", en: "Already delivered", ar: "تم التسليم مسبقاً", es: "Ya entregado" },
+  cancelled: { fr: "Annulé", en: "Cancelled", ar: "ملغى", es: "Cancelado" },
+  confirm: { fr: "Confirmer", en: "Confirm", ar: "تأكيد", es: "Confirmar" },
+  statusDraft: { fr: "Brouillon", en: "Draft", ar: "مسودة", es: "Borrador" },
+  statusSent: { fr: "Expédié", en: "Shipped", ar: "مُرسل", es: "Enviado" },
+  statusDelivered: { fr: "Livré", en: "Delivered", ar: "مُسلّم", es: "Entregado" },
+  statusCancelled: { fr: "Annulé", en: "Cancelled", ar: "ملغى", es: "Cancelado" },
+} as const;
+
+type Language = keyof typeof STRINGS.title;
+
+function localize(key: keyof typeof STRINGS, lang: Language, replacements?: Record<string, string>) {
+  let value: string = STRINGS[key][lang] ?? STRINGS[key].fr;
+  Object.entries(replacements ?? {}).forEach(([token, replacement]) => {
+    value = value.replace(`{${token}}`, replacement);
+  });
+  return value;
+}
+
+function formatMoney(value: number, lang: Language) {
+  const locale = lang === "ar" ? "ar-MA" : lang === "en" ? "en-US" : lang === "es" ? "es-MA" : "fr-MA";
+  return `${value.toLocaleString(locale, { minimumFractionDigits: 2, maximumFractionDigits: 2 })} MAD`;
+}
+
+function formatDate(value: string, lang: Language) {
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return value;
+  const locale = lang === "ar" ? "ar-MA" : lang === "en" ? "en-GB" : lang === "es" ? "es-MA" : "fr-FR";
+  return new Intl.DateTimeFormat(locale, { day: "2-digit", month: "short", year: "numeric" }).format(date);
+}
+
+const STATUS_CONFIG: Record<BonLivraison["status"], { key: keyof typeof STRINGS; color: string }> = {
+  draft: { key: "statusDraft", color: "#6b7280" },
+  sent: { key: "statusSent", color: "#3b82f6" },
+  delivered: { key: "statusDelivered", color: "#10b981" },
+  cancelled: { key: "statusCancelled", color: "#ef4444" },
 };
 
 export default function BonLivraisonScreen() {
@@ -36,6 +99,7 @@ export default function BonLivraisonScreen() {
   const { user } = useAuth();
   const { bonsLivraison, addBonLivraison, updateBonLivraisonStatus } = useData();
   const { isWide } = useBreakpoints();
+  const { lang } = useLanguage();
   const topPad = isWide ? 0 : (Platform.OS === "web" ? 67 : insets.top);
 
   const [filter, setFilter] = useState<FilterType>("all");
@@ -76,7 +140,11 @@ export default function BonLivraisonScreen() {
     Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
     setShowAdd(false);
     setNewRecipient(""); setNewItemLabel(""); setNewItemQty("1"); setNewItemPrice("");
-    showToast({ type: "success", title: "Créé !", message: `Bon de livraison ${newBl.reference} créé avec succès.` });
+    showToast({
+      type: "success",
+      title: localize("createdTitle", lang),
+      message: localize("createdMessage", lang, { reference: newBl.reference }),
+    });
   };
 
   const handleStatusChange = (bl: BonLivraison) => {
@@ -88,16 +156,16 @@ export default function BonLivraisonScreen() {
     };
     const next = nextStatus[bl.status];
     if (next === bl.status) return;
-    const labels: Record<BonLivraison["status"], string> = {
-      draft: "Marquer comme expédié",
-      sent: "Confirmer la livraison",
-      delivered: "Déjà livré",
-      cancelled: "Annulé",
+    const labels: Record<BonLivraison["status"], keyof typeof STRINGS> = {
+      draft: "markShipped",
+      sent: "confirmDelivery",
+      delivered: "alreadyDelivered",
+      cancelled: "cancelled",
     };
-    Alert.alert(labels[bl.status], `${bl.reference} — ${bl.recipient}`, [
-      { text: "Annuler", style: "cancel" },
+    Alert.alert(localize(labels[bl.status], lang), `${bl.reference} — ${bl.recipient}`, [
+      { text: localize("cancel", lang), style: "cancel" },
       {
-        text: "Confirmer",
+        text: localize("confirm", lang),
         onPress: () => {
           updateBonLivraisonStatus(bl.id, next);
           setSelected(null);
@@ -114,8 +182,8 @@ export default function BonLivraisonScreen() {
           <Feather name="arrow-left" size={22} color="#fff" />
         </TouchableOpacity>
         <View style={{ flex: 1 }}>
-          <Text style={styles.headerTitle}>Bons de Livraison</Text>
-          <Text style={styles.headerSub}>Gestion des entrées et sorties</Text>
+          <Text style={styles.headerTitle}>{localize("title", lang)}</Text>
+          <Text style={styles.headerSub}>{localize("subtitle", lang)}</Text>
         </View>
         {isAdmin && (
           <TouchableOpacity
@@ -130,9 +198,9 @@ export default function BonLivraisonScreen() {
       {/* Stats */}
       <View style={[styles.statsRow, { backgroundColor: colors.card, borderBottomColor: colors.border }]}>
         {[
-          { label: "Sorties livrées", value: `${totalSortie.toLocaleString()} MAD`, icon: "arrow-up-right" as const, color: "#ef4444" },
-          { label: "Entrées reçues", value: `${totalEntree.toLocaleString()} MAD`, icon: "arrow-down-left" as const, color: "#10b981" },
-          { label: "En attente", value: `${pending} BL`, icon: "clock" as const, color: "#f59e0b" },
+          { label: localize("outgoingDelivered", lang), value: formatMoney(totalSortie, lang), icon: "arrow-up-right" as const, color: "#ef4444" },
+          { label: localize("incomingReceived", lang), value: formatMoney(totalEntree, lang), icon: "arrow-down-left" as const, color: "#10b981" },
+          { label: localize("pending", lang), value: `${pending} BL`, icon: "clock" as const, color: "#f59e0b" },
         ].map((s, i, arr) => (
           <View key={s.label} style={[styles.statCell, i < arr.length - 1 ? { borderRightWidth: 1, borderRightColor: colors.border } : null]}>
             <View style={[styles.statIcon, { backgroundColor: s.color + "18" }]}>
@@ -147,9 +215,9 @@ export default function BonLivraisonScreen() {
       {/* Filter chips */}
       <View style={[styles.filterRow, { backgroundColor: colors.card, borderBottomColor: colors.border }]}>
         {([
-          { key: "all", label: "Tous", icon: "list" as const },
-          { key: "sortie", label: "Sorties", icon: "arrow-up-right" as const },
-          { key: "entree", label: "Entrées", icon: "arrow-down-left" as const },
+          { key: "all", label: localize("all", lang), icon: "list" as const },
+          { key: "sortie", label: localize("outgoing", lang), icon: "arrow-up-right" as const },
+          { key: "entree", label: localize("incoming", lang), icon: "arrow-down-left" as const },
         ] as { key: FilterType; label: string; icon: keyof typeof Feather.glyphMap }[]).map((f) => (
           <TouchableOpacity
             key={f.key}
@@ -177,7 +245,7 @@ export default function BonLivraisonScreen() {
           <View style={styles.emptyBox}>
             <Feather name="package" size={40} color={colors.muted} />
             <Text style={[styles.emptyText, { color: colors.mutedForeground }]}>
-              Aucun bon de livraison
+              {localize("noNotes", lang)}
             </Text>
           </View>
         }
@@ -202,7 +270,7 @@ export default function BonLivraisonScreen() {
                   <Text style={[styles.blRef, { color: colors.foreground }]}>{bl.reference}</Text>
                   <View style={[styles.blTypeBadge, { backgroundColor: (isOut ? "#ef4444" : "#10b981") + "15" }]}>
                     <Text style={[styles.blTypeBadgeText, { color: isOut ? "#ef4444" : "#10b981" }]}>
-                      {isOut ? "Sortie" : "Entrée"}
+                       {isOut ? localize("outgoing", lang) : localize("incoming", lang)}
                     </Text>
                   </View>
                 </View>
@@ -211,19 +279,19 @@ export default function BonLivraisonScreen() {
                 </Text>
                 <View style={styles.blMeta}>
                   <Feather name="calendar" size={10} color={colors.mutedForeground} />
-                  <Text style={[styles.blMetaText, { color: colors.mutedForeground }]}>{bl.date}</Text>
+                   <Text style={[styles.blMetaText, { color: colors.mutedForeground }]}>{formatDate(bl.date, lang)}</Text>
                   <Text style={[styles.blMetaDot, { color: colors.mutedForeground }]}>•</Text>
                   <Text style={[styles.blMetaText, { color: colors.mutedForeground }]}>
-                    {bl.items.length} article{bl.items.length > 1 ? "s" : ""}
+                     {bl.items.length} {localize(bl.items.length > 1 ? "items" : "item", lang)}
                   </Text>
                 </View>
               </View>
               <View style={{ alignItems: "flex-end", gap: 6 }}>
                 <Text style={[styles.blTotal, { color: colors.foreground }]}>
-                  {bl.total.toLocaleString()} MAD
+                   {formatMoney(bl.total, lang)}
                 </Text>
                 <View style={[styles.statusBadge, { backgroundColor: sc.color + "18" }]}>
-                  <Text style={[styles.statusText, { color: sc.color }]}>{sc.label}</Text>
+                   <Text style={[styles.statusText, { color: sc.color }]}>{localize(sc.key, lang)}</Text>
                 </View>
               </View>
             </TouchableOpacity>
@@ -243,12 +311,12 @@ export default function BonLivraisonScreen() {
                   <View style={styles.detailTypRow}>
                     <View style={[styles.blTypeBadge, { backgroundColor: (selected.type === "sortie" ? "#ef4444" : "#10b981") + "15" }]}>
                       <Text style={[styles.blTypeBadgeText, { color: selected.type === "sortie" ? "#ef4444" : "#10b981" }]}>
-                        {selected.type === "sortie" ? "Sortie" : "Entrée"}
+                         {selected.type === "sortie" ? localize("outgoing", lang) : localize("incoming", lang)}
                       </Text>
                     </View>
                     <View style={[styles.statusBadge, { backgroundColor: STATUS_CONFIG[selected.status].color + "18" }]}>
                       <Text style={[styles.statusText, { color: STATUS_CONFIG[selected.status].color }]}>
-                        {STATUS_CONFIG[selected.status].label}
+                         {localize(STATUS_CONFIG[selected.status].key, lang)}
                       </Text>
                     </View>
                   </View>
@@ -260,8 +328,8 @@ export default function BonLivraisonScreen() {
 
               <View style={[styles.infoBox, { backgroundColor: colors.background, borderColor: colors.border }]}>
                 {[
-                  { label: "Destinataire/Fournisseur", value: selected.recipient },
-                  { label: "Date", value: selected.date },
+                   { label: localize("supplierRecipient", lang), value: selected.recipient },
+                   { label: localize("date", lang), value: formatDate(selected.date, lang) },
                 ].map(({ label, value }) => (
                   <View key={label} style={styles.infoRow}>
                     <Text style={[styles.infoLabel, { color: colors.mutedForeground }]}>{label}</Text>
@@ -270,21 +338,21 @@ export default function BonLivraisonScreen() {
                 ))}
               </View>
 
-              <Text style={[styles.itemsTitle, { color: colors.foreground }]}>Articles</Text>
+               <Text style={[styles.itemsTitle, { color: colors.foreground }]}>{localize("articles", lang)}</Text>
               {selected.items.map((item, i) => (
                 <View key={i} style={[styles.itemRow, { borderColor: colors.border }]}>
                   <Text style={[styles.itemLabel, { color: colors.foreground, flex: 1 }]}>{item.label}</Text>
                   <Text style={[styles.itemQty, { color: colors.mutedForeground }]}>x{item.quantity}</Text>
                   <Text style={[styles.itemPrice, { color: colors.foreground }]}>
-                    {(item.quantity * item.unitPrice).toLocaleString()} MAD
+                     {formatMoney(item.quantity * item.unitPrice, lang)}
                   </Text>
                 </View>
               ))}
 
               <View style={[styles.totalRow, { borderTopColor: colors.border }]}>
-                <Text style={[styles.totalLabel, { color: colors.foreground }]}>Total</Text>
+                 <Text style={[styles.totalLabel, { color: colors.foreground }]}>{localize("total", lang)}</Text>
                 <Text style={[styles.totalAmount, { color: colors.primary }]}>
-                  {selected.total.toLocaleString()} MAD
+                   {formatMoney(selected.total, lang)}
                 </Text>
               </View>
 
@@ -293,7 +361,11 @@ export default function BonLivraisonScreen() {
                   style={[styles.actionBtn, { backgroundColor: colors.muted }]}
                   onPress={() => {
                     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-                    showToast({ type: "info", title: "PDF généré", message: `Le bon de livraison ${selected.reference} a été exporté en PDF et sauvegardé dans vos documents.` });
+                     showToast({
+                       type: "info",
+                       title: localize("pdfTitle", lang),
+                       message: localize("pdfMessage", lang, { reference: selected.reference }),
+                     });
                   }}
                 >
                   <Feather name="download" size={15} color={colors.foreground} />
@@ -306,7 +378,7 @@ export default function BonLivraisonScreen() {
                   >
                     <Feather name="check-circle" size={15} color="#fff" />
                     <Text style={[styles.actionBtnText, { color: "#fff" }]}>
-                      {selected.status === "draft" ? "Expédier" : "Confirmer livraison"}
+                       {selected.status === "draft" ? localize("ship", lang) : localize("confirmDelivery", lang)}
                     </Text>
                   </TouchableOpacity>
                 )}
@@ -323,7 +395,7 @@ export default function BonLivraisonScreen() {
             <View style={[styles.addModal, { backgroundColor: colors.card }]}>
               <View style={styles.modalHandle} />
               <View style={styles.detailHeader}>
-                <Text style={[styles.addTitle, { color: colors.foreground }]}>Nouveau bon de livraison</Text>
+                 <Text style={[styles.addTitle, { color: colors.foreground }]}>{localize("newNote", lang)}</Text>
                 <TouchableOpacity onPress={() => setShowAdd(false)}>
                   <Feather name="x" size={22} color={colors.mutedForeground} />
                 </TouchableOpacity>
@@ -344,15 +416,15 @@ export default function BonLivraisonScreen() {
                   >
                     <Feather name={t === "sortie" ? "arrow-up-right" : "arrow-down-left"} size={14} color={newType === t ? "#fff" : colors.mutedForeground} />
                     <Text style={[styles.typeChipText, { color: newType === t ? "#fff" : colors.mutedForeground }]}>
-                      {t === "sortie" ? "Sortie" : "Entrée"}
+                       {t === "sortie" ? localize("outgoing", lang) : localize("incoming", lang)}
                     </Text>
                   </TouchableOpacity>
                 ))}
               </View>
 
               {[
-                { label: "Destinataire / Fournisseur *", val: newRecipient, set: setNewRecipient, placeholder: "Ex: Bureau Régional..." },
-                { label: "Article principal *", val: newItemLabel, set: setNewItemLabel, placeholder: "Ex: Ramettes de papier A4..." },
+                 { label: localize("recipientRequired", lang), val: newRecipient, set: setNewRecipient, placeholder: localize("recipientRequired", lang) },
+                 { label: localize("mainItem", lang), val: newItemLabel, set: setNewItemLabel, placeholder: localize("mainItem", lang) },
               ].map(({ label, val, set, placeholder }) => (
                 <View key={label} style={{ gap: 6 }}>
                   <Text style={[styles.fieldLabel, { color: colors.foreground }]}>{label}</Text>
@@ -368,7 +440,7 @@ export default function BonLivraisonScreen() {
 
               <View style={{ flexDirection: "row", gap: 12 }}>
                 <View style={{ flex: 1, gap: 6 }}>
-                  <Text style={[styles.fieldLabel, { color: colors.foreground }]}>Quantité</Text>
+                   <Text style={[styles.fieldLabel, { color: colors.foreground }]}>{localize("quantity", lang)}</Text>
                   <TextInput
                     style={[styles.input, { borderColor: colors.border, backgroundColor: colors.background, color: colors.foreground }]}
                     placeholder="1"
@@ -379,7 +451,7 @@ export default function BonLivraisonScreen() {
                   />
                 </View>
                 <View style={{ flex: 1, gap: 6 }}>
-                  <Text style={[styles.fieldLabel, { color: colors.foreground }]}>Prix unitaire (MAD)</Text>
+                   <Text style={[styles.fieldLabel, { color: colors.foreground }]}>{localize("unitPrice", lang)}</Text>
                   <TextInput
                     style={[styles.input, { borderColor: colors.border, backgroundColor: colors.background, color: colors.foreground }]}
                     placeholder="0"
@@ -394,7 +466,7 @@ export default function BonLivraisonScreen() {
               {newItemQty && newItemPrice ? (
                 <View style={[styles.previewTotal, { backgroundColor: colors.primary + "10", borderColor: colors.primary + "30" }]}>
                   <Text style={[styles.previewTotalText, { color: colors.primary }]}>
-                    Total estimé: {((parseInt(newItemQty) || 0) * (parseFloat(newItemPrice) || 0)).toLocaleString()} MAD
+                     {localize("estimatedTotal", lang)}: {formatMoney((parseInt(newItemQty) || 0) * (parseFloat(newItemPrice) || 0), lang)}
                   </Text>
                 </View>
               ) : null}
@@ -404,7 +476,7 @@ export default function BonLivraisonScreen() {
                   style={[styles.actionBtn, { backgroundColor: colors.muted }]}
                   onPress={() => setShowAdd(false)}
                 >
-                  <Text style={[styles.actionBtnText, { color: colors.mutedForeground }]}>Annuler</Text>
+                   <Text style={[styles.actionBtnText, { color: colors.mutedForeground }]}>{localize("cancel", lang)}</Text>
                 </TouchableOpacity>
                 <TouchableOpacity
                   style={[styles.actionBtn, {
@@ -417,7 +489,7 @@ export default function BonLivraisonScreen() {
                   <Text style={[styles.actionBtnText, {
                     color: newRecipient.trim() && newItemLabel.trim() && newItemPrice.trim() ? "#fff" : colors.mutedForeground,
                   }]}>
-                    Créer
+                     {localize("create", lang)}
                   </Text>
                 </TouchableOpacity>
               </View>

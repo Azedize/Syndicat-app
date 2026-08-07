@@ -146,3 +146,15 @@
 - Continued the marketplace UX pass on Reviews & Ratings: localized the review list, filters, pending-purchase banner, rating form, confirmations, errors, and seller metadata across French, English, Arabic, and Spanish.
 - Added real loading, unavailable-data recovery, and guided empty states; review dates now follow the active locale and the product filter no longer depends on translated display text.
 - Preserved the existing review/order APIs, delivered-order eligibility, publication flow, and marketplace role boundaries.
+- Continued the property administration pass on Lots and Tenants: list retrieval now distinguishes synchronization, unavailable data, and genuine empty results with retryable recovery.
+- Localized lot type labels, tenant status feedback, dates, lease expiry, and MAD rent/deposit/charge amounts across French, English, Arabic, and Spanish.
+- Replaced raw tenant mutation errors and silent list failures with safe localized feedback while preserving existing role guards, API contracts, filters, and refresh behavior.
+- Mobile typecheck passed with zero errors; Expo restarted successfully and the compact public preview rendered without new browser runtime exceptions.
+- Continued the administration pass on Delivery Notes: localized delivery-note headers, filters, statuses, confirmations, PDF feedback, forms, empty states, dates, and MAD amounts across French, English, Arabic, and Spanish.
+- Mobile typecheck passed with zero errors; the protected delivery-note preview redirected safely to the public welcome screen with only existing Expo web compatibility warnings.
+- Continued the marketplace pass on My Orders: localized order status tracking, purchase/sales tabs, confirmations, review/details actions, empty states, order dates, and MAD amounts across French, English, Arabic, and Spanish.
+- Added an explicit unavailable-data retry surface for initial order retrieval while preserving stale data during refreshes, marketplace APIs, delivered-order review eligibility, and seller permissions.
+- Mobile typecheck passed with zero errors; the protected orders preview redirected safely to the public welcome screen with no new runtime exceptions.
+- Continued the administration pass on User Management: added real synchronization/loading/retry states, locale-aware membership dates, safe localized mutation feedback, role-aware controls, and Moroccan phone/email validation across French, English, Arabic, and Spanish.
+- Replaced the shared client-side default password with server-generated temporary credentials delivered through the welcome email flow; existing user APIs, audit logging, and role boundaries remain intact.
+- Mobile typecheck passed with zero errors and the API production build completed successfully; the API package's standalone typecheck still reports pre-existing errors in unrelated document, budget, content, and template-studio modules.

@@ -1,5 +1,6 @@
 import { Router } from "express";
 import bcrypt from "bcryptjs";
+import { randomBytes } from "node:crypto";
 import { z } from "zod";
 import { db } from "@workspace/db";
 import { usersTable, syndicatesTable } from "@workspace/db/schema";
@@ -99,7 +100,7 @@ router.post(
       email: z.string().email(),
       phone: z.string().optional(),
       role: z.enum(ROLE_VALUES).default("member"),
-      password: z.string().min(6),
+      password: z.string().min(6).optional(),
     });
     const result = schema.safeParse(req.body);
     if (!result.success) {
@@ -125,7 +126,11 @@ router.post(
         return;
       }
 
-      const passwordHash = await bcrypt.hash(password, 10);
+      // Generate credentials server-side when an administrator creates an account.
+      // The previous client-supplied shared password created a predictable credential
+      // and made the invitation flow unsafe.
+      const temporaryPassword = password ?? randomBytes(12).toString("base64url");
+      const passwordHash = await bcrypt.hash(temporaryPassword, 10);
       const [created] = await db
         .insert(usersTable)
         .values({
@@ -156,7 +161,7 @@ router.post(
       });
 
       const loginUrl = process.env.APP_URL ? `${process.env.APP_URL}/login` : undefined;
-      const { subject, html } = welcomeTemplate(created.name, created.role, loginUrl);
+      const { subject, html } = welcomeTemplate(created.name, created.role, loginUrl, temporaryPassword);
       sendTransactionalEmail({
         to: created.email,
         subject,

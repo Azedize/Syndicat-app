@@ -8,6 +8,7 @@ import {
   FlatList,
   Modal,
   Platform,
+  RefreshControl,
   ScrollView,
   StyleSheet,
   Text,
@@ -22,6 +23,7 @@ import { useRequireRole } from "@/hooks/useRequireRole";
 import { useLanguage } from "@/context/LanguageContext";
 import { useToast } from "@/context/ToastContext";
 import { apiRequest } from "@/lib/api";
+import { ErrorState, LoadingState } from "@/components/DataState";
 
 type Role = "super_admin" | "syndicate_admin" | "member" | "tenant";
 type Status = "active" | "inactive" | "suspended" | "pending";
@@ -54,6 +56,17 @@ const STRINGS = {
   delete: { fr: "Supprimer", en: "Delete", ar: "حذف", es: "Eliminar" },
   requiredFields: { fr: "Champs requis", en: "Required Fields", ar: "الحقول المطلوبة", es: "Campos obligatorios" },
   nameEmailRequired: { fr: "Le nom et l'email sont obligatoires.", en: "Name and email are required.", ar: "الاسم والبريد الإلكتروني مطلوبان.", es: "El nombre y el correo electrónico son obligatorios." },
+  invalidEmail: { fr: "Saisissez une adresse email valide.", en: "Enter a valid email address.", ar: "أدخل عنوان بريد إلكتروني صالحاً.", es: "Introduzca una dirección de correo válida." },
+  invalidPhone: { fr: "Saisissez un numéro marocain valide au format +212 6XX XXX XXX.", en: "Enter a valid Moroccan number in the format +212 6XX XXX XXX.", ar: "أدخل رقماً مغربياً صالحاً بالصيغة ‎+212 6XX XXX XXX.", es: "Introduzca un número marroquí válido con el formato +212 6XX XXX XXX." },
+  loadTitle: { fr: "Utilisateurs indisponibles", en: "Users unavailable", ar: "المستخدمون غير متاحين", es: "Usuarios no disponibles" },
+  loadDescription: { fr: "Nous n'avons pas pu synchroniser les comptes. Vérifiez votre connexion puis réessayez.", en: "We could not synchronize the accounts. Check your connection and try again.", ar: "تعذر مزامنة الحسابات. تحقق من الاتصال ثم أعد المحاولة.", es: "No pudimos sincronizar las cuentas. Compruebe la conexión e inténtelo de nuevo." },
+  loadingTitle: { fr: "Synchronisation des utilisateurs", en: "Synchronizing users", ar: "جارٍ مزامنة المستخدمين", es: "Sincronizando usuarios" },
+  loadingDescription: { fr: "Nous récupérons les comptes et leurs droits d'accès.", en: "We are retrieving accounts and their access rights.", ar: "نسترجع الحسابات وصلاحيات الوصول الخاصة بها.", es: "Estamos recuperando las cuentas y sus permisos de acceso." },
+  retry: { fr: "Réessayer", en: "Retry", ar: "إعادة المحاولة", es: "Reintentar" },
+  updateError: { fr: "La mise à jour n'a pas pu être enregistrée. Les données ont été resynchronisées.", en: "The update could not be saved. The data has been synchronized again.", ar: "تعذر حفظ التحديث. تمت مزامنة البيانات من جديد.", es: "No se pudo guardar la actualización. Los datos se han sincronizado de nuevo." },
+  deleteError: { fr: "La suppression n'a pas pu être terminée. Réessayez.", en: "The deletion could not be completed. Please try again.", ar: "تعذر إتمام الحذف. حاول مرة أخرى.", es: "No se pudo completar la eliminación. Inténtelo de nuevo." },
+  createError: { fr: "Impossible de créer cet utilisateur pour le moment. Vérifiez les informations puis réessayez.", en: "This user could not be created right now. Check the information and try again.", ar: "تعذر إنشاء هذا المستخدم حالياً. تحقق من المعلومات ثم حاول مرة أخرى.", es: "No se puede crear este usuario ahora. Compruebe los datos e inténtelo de nuevo." },
+  roleUnavailable: { fr: "Votre rôle ne permet pas de gérer ce niveau d'accès.", en: "Your role cannot manage this access level.", ar: "لا يسمح دورك بإدارة مستوى الوصول هذا.", es: "Su rol no permite gestionar este nivel de acceso." },
   never: { fr: "Jamais", en: "Never", ar: "أبداً", es: "Nunca" },
   userCreated: { fr: "Utilisateur créé", en: "User Created", ar: "تم إنشاء المستخدم", es: "Usuario creado" },
   userAddedPending: { fr: "{name} a été ajouté avec le statut \"En attente de validation\".", en: "{name} has been added with \"Pending validation\" status.", ar: "تم إضافة {name} مع حالة \"في انتظار التحقق\".", es: "{name} ha sido añadido con el estado \"Pendiente de validación\"." },
@@ -116,7 +129,7 @@ const STATUS_CONFIG: Record<Status, { labelKey: keyof typeof STRINGS; color: str
 type TabFilter = "all" | Role | "suspended" | "pending";
 
 export default function UtilisateursScreen() {
-  const { allowed } = useRequireRole(["super_admin", "syndicate_admin"]);
+  const { allowed, user } = useRequireRole(["super_admin", "syndicate_admin"]);
   const colors = useColors();
   const { showToast } = useToast();
   const insets = useSafeAreaInsets();
@@ -126,6 +139,8 @@ export default function UtilisateursScreen() {
 
   const [users, setUsers] = useState<User[]>([]);
   const [loading, setLoading] = useState(true);
+  const [loadError, setLoadError] = useState(false);
+  const [refreshing, setRefreshing] = useState(false);
   const [tab, setTab] = useState<TabFilter>("all");
   const [search, setSearch] = useState("");
   const [selected, setSelected] = useState<User | null>(null);
@@ -144,30 +159,48 @@ export default function UtilisateursScreen() {
     role: u.role as Role,
     status: u.status as Status,
     syndicate: u.syndicateName || "Global",
-    joinDate: u.createdAt ? new Date(u.createdAt).toLocaleDateString("fr-MA") : "",
+    joinDate: u.createdAt ? new Date(u.createdAt).toLocaleDateString(lang === "ar" ? "ar-MA" : `${lang}-MA`) : "",
     lastLogin: "",
     avatar: u.name.split(" ").filter(Boolean).map((n: string) => n[0]).join("").toUpperCase().slice(0, 2),
-  }), []);
+  }), [lang]);
 
-  const fetchUsers = useCallback(async () => {
-    setLoading(true);
+  const fetchUsers = useCallback(async (silent = false) => {
+    if (!silent) {
+      setLoading(true);
+      setLoadError(false);
+    }
     try {
       const data = await apiRequest<{ data: any[]; total: number }>("/users");
       setUsers((data.data || []).map(mapApiUser));
-    } catch (e) {
-      console.error("Failed to fetch users", e);
+      setLoadError(false);
+    } catch {
+      if (!silent) setLoadError(true);
+      showToast({ type: "error", title: STRINGS.loadTitle[lang], message: STRINGS.loadDescription[lang] });
     } finally {
       setLoading(false);
+      setRefreshing(false);
     }
-  }, [mapApiUser]);
+  }, [lang, mapApiUser, showToast]);
 
   useEffect(() => { fetchUsers(); }, [fetchUsers]);
 
   if (!allowed) return null;
   if (loading) {
     return (
-      <View style={[styles.root, { backgroundColor: colors.background, alignItems: "center", justifyContent: "center" }]}>
-        <ActivityIndicator size="large" color={colors.primary} />
+      <View style={[styles.root, { backgroundColor: colors.background }]}>
+        <LoadingState title={STRINGS.loadingTitle[lang]} description={STRINGS.loadingDescription[lang]} />
+      </View>
+    );
+  }
+  if (loadError && users.length === 0) {
+    return (
+      <View style={[styles.root, { backgroundColor: colors.background }]}>
+        <ErrorState
+          title={STRINGS.loadTitle[lang]}
+          description={STRINGS.loadDescription[lang]}
+          retryLabel={STRINGS.retry[lang]}
+          onRetry={() => fetchUsers()}
+        />
       </View>
     );
   }
@@ -202,8 +235,8 @@ export default function UtilisateursScreen() {
     try {
       await apiRequest(`/users/${uid}/status`, "PUT", { status });
     } catch (e) {
-      console.error("Failed to update status", e);
-      fetchUsers();
+      showToast({ type: "error", title: STRINGS.updateError[lang], message: STRINGS.updateError[lang] });
+      fetchUsers(true);
     }
   };
 
@@ -220,8 +253,8 @@ export default function UtilisateursScreen() {
           try {
             await apiRequest(`/users/${uid}`, "DELETE");
           } catch (e) {
-            console.error("Failed to delete user", e);
-            fetchUsers();
+            showToast({ type: "error", title: STRINGS.deleteError[lang], message: STRINGS.deleteError[lang] });
+            fetchUsers(true);
           }
         },
       },
@@ -233,13 +266,20 @@ export default function UtilisateursScreen() {
       showToast({ type: "warning", title: STRINGS.requiredFields[lang], message: STRINGS.nameEmailRequired[lang] });
       return;
     }
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(newEmail.trim())) {
+      showToast({ type: "warning", title: STRINGS.requiredFields[lang], message: STRINGS.invalidEmail[lang] });
+      return;
+    }
+    if (newPhone.trim() && !/^(?:\+212|0)(?:[5-7])\d{8}$/.test(newPhone.replace(/[\s-]/g, ""))) {
+      showToast({ type: "warning", title: STRINGS.requiredFields[lang], message: STRINGS.invalidPhone[lang] });
+      return;
+    }
     try {
       const result = await apiRequest<{ data: any }>("/users", "POST", {
         name: newName.trim(),
         email: newEmail.trim(),
         phone: newPhone.trim() || undefined,
         role: newRole,
-        password: "ChangeMe@2026!",
       });
       if (result?.data) setUsers((prev) => [mapApiUser(result.data), ...prev]);
       setShowAdd(false);
@@ -247,10 +287,14 @@ export default function UtilisateursScreen() {
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
       showToast({ type: "success", title: STRINGS.userCreated[lang], message: STRINGS.userAddedPending[lang].replace("{name}", newName.trim()) });
     } catch (e: any) {
-      showToast({ type: "error", title: STRINGS.requiredFields[lang], message: e?.message || "Erreur lors de la création" });
+      showToast({ type: "error", title: STRINGS.userCreated[lang], message: STRINGS.createError[lang] });
     }
   };
 
+  const canManageAllRoles = user?.role === "super_admin";
+  const availableRoles: Role[] = canManageAllRoles
+    ? ["super_admin", "syndicate_admin", "member", "tenant"]
+    : ["member", "tenant"];
   const TABS: { key: TabFilter; label: string; count: number }[] = [
     { key: "all", label: STRINGS.all[lang], count: counts.all },
     { key: "super_admin", label: STRINGS.superAdmins[lang], count: counts.super_admin },
@@ -341,6 +385,7 @@ export default function UtilisateursScreen() {
         data={filtered}
         keyExtractor={(u) => u.id}
         contentContainerStyle={{ padding: 16, gap: 10, paddingBottom: insets.bottom + 40 }}
+        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={() => { setRefreshing(true); fetchUsers(true); }} tintColor={colors.primary} />}
         showsVerticalScrollIndicator={false}
         ListEmptyComponent={
           <View style={styles.empty}>
@@ -374,7 +419,7 @@ export default function UtilisateursScreen() {
                     <Feather name={roleCfg.icon} size={10} color={roleCfg.color} />
                     <Text style={[styles.roleText, { color: roleCfg.color }]}>{STRINGS[roleCfg.labelKey][lang]}</Text>
                   </View>
-                  <Text style={[styles.lastLogin, { color: colors.mutedForeground }]}>{STRINGS[u.lastLogin as keyof typeof STRINGS] ? STRINGS[u.lastLogin as keyof typeof STRINGS][lang] : u.lastLogin}</Text>
+                   <Text style={[styles.lastLogin, { color: colors.mutedForeground }]}>{u.lastLogin ? (STRINGS[u.lastLogin as keyof typeof STRINGS] ? STRINGS[u.lastLogin as keyof typeof STRINGS][lang] : u.lastLogin) : STRINGS.never[lang]}</Text>
                 </View>
                 <Text style={[styles.syndicate, { color: colors.mutedForeground }]} numberOfLines={1}>{u.syndicate}</Text>
               </View>
@@ -458,7 +503,7 @@ export default function UtilisateursScreen() {
                 <View style={{ gap: 8 }}>
                   <Text style={[styles.sectionTitle, { color: colors.foreground }]}>{STRINGS.role[lang]}</Text>
                   <View style={styles.roleActions}>
-                    {(["super_admin", "syndicate_admin", "member", "tenant"] as Role[]).map((r) => {
+                           {availableRoles.map((r) => {
                       const cfg = ROLE_CONFIG[r];
                       return (
                         <TouchableOpacity
@@ -475,9 +520,9 @@ export default function UtilisateursScreen() {
                             try {
                               await apiRequest(`/users/${u.id}/role`, "PUT", { role: r });
                             } catch (e) {
-                              console.error("Failed to update role", e);
                               setUsers((prev) => prev.map((usr) => usr.id === u.id ? { ...usr, role: prevRole } : usr));
                               setSelected((prev) => prev ? { ...prev, role: prevRole } : null);
+                               showToast({ type: "error", title: STRINGS.role[lang], message: STRINGS.updateError[lang] });
                             }
                           }}
                         >
@@ -498,13 +543,15 @@ export default function UtilisateursScreen() {
                     <Feather name="key" size={15} color="#f59e0b" />
                     <Text style={[styles.actionBtnText, { color: "#f59e0b" }]}>{STRINGS.resetPassword[lang]}</Text>
                   </TouchableOpacity>
-                  <TouchableOpacity
-                    style={[styles.actionBtn, { backgroundColor: "#ef444415", borderColor: "#ef444440" }]}
-                    onPress={() => handleDelete(u.id, u.name)}
-                  >
-                    <Feather name="trash-2" size={15} color="#ef4444" />
-                    <Text style={[styles.actionBtnText, { color: "#ef4444" }]}>{STRINGS.delete[lang]}</Text>
-                  </TouchableOpacity>
+                   {canManageAllRoles ? (
+                     <TouchableOpacity
+                       style={[styles.actionBtn, { backgroundColor: "#ef444415", borderColor: "#ef444440" }]}
+                       onPress={() => handleDelete(u.id, u.name)}
+                     >
+                       <Feather name="trash-2" size={15} color="#ef4444" />
+                       <Text style={[styles.actionBtnText, { color: "#ef4444" }]}>{STRINGS.delete[lang]}</Text>
+                     </TouchableOpacity>
+                   ) : null}
                 </View>
               </ScrollView>
             </View>
@@ -545,7 +592,7 @@ export default function UtilisateursScreen() {
             <View style={{ gap: 6 }}>
               <Text style={[styles.fieldLabel, { color: colors.mutedForeground }]}>{STRINGS.role[lang]}</Text>
               <View style={styles.roleActions}>
-                {(["super_admin", "syndicate_admin", "member", "tenant"] as Role[]).map((r) => {
+                {availableRoles.map((r) => {
                   const cfg = ROLE_CONFIG[r];
                   return (
                     <TouchableOpacity

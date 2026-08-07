@@ -1,4 +1,6 @@
 - 2026-08-07 — Member/tenant document request: preserved the existing three-step interaction while removing language-specific friction from every visible state, including payment certification and pending validation.
+- 2026-08-07 — Delivery Notes: retained the compact logistics workflow while replacing fixed French presentation with locale-aware status hierarchy, actions, form guidance, dates, totals, and PDF feedback.
+- 2026-08-07 — My Orders: retained the marketplace tracking layout while making status progression, purchase/sales tabs, action labels, recovery states, dates, and MAD summaries fully locale-aware.
 - 2026-08-06 — Governance screens now use consistent guided loading, recoverable unavailable-data states, localized semantic statuses, and translated form guidance across elections, mandates, and meetings.
 - 2026-08-06 — Assemblée Générale now uses shared guided loading/unavailable states, localized form examples, and safe feedback across its governance actions without changing touch targets or role visibility.
 - 2026-08-06 — Charges & Fund Calls now keep payment mutation failures in the shared localized recovery hierarchy without changing the existing proof-upload and role-specific action layout.
@@ -24,3 +26,4 @@
 - Payment retains its premium onboarding hierarchy, billing toggle, method cards, and security note while using locale-aware amounts, localized confirmations, and safer transfer guidance.
 - Signature review retains its status hierarchy, signer sequence, retryable error surface, and signing CTA while using locale-aware dates and role/status labels.
 - DocumentWizard retains its category cards, template metadata, entity picker, resolved-data rows, preview card, signature pad, and publication confirmation hierarchy while applying consistent multilingual state and action copy.
+- Lots and Tenant Administration now use the shared loading/error recovery language, preserve their card/detail/modal hierarchy, and present property and financial metadata in the active locale without changing touch targets or role visibility.

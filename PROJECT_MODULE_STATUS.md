@@ -69,3 +69,11 @@
 - Mobile verification: zero-error typecheck, diff validation, healthy Expo/API workflows, and public preview pass after the governance reliability follow-through.
 - Marketplace Reviews & Ratings: multilingual review presentation, rating distribution, pending-review flow, localized publication feedback, locale-aware dates, and retryable loading recovery complete; review/order API contracts preserved.
 - Mobile verification: zero-error typecheck, diff validation, Expo restart, and protected-route preview pass after the Reviews & Ratings pass.
+- Lots & Tenant Administration: localized unit/tenant metadata, locale-aware lease dates and MAD amounts, explicit loading/unavailable/empty recovery, and safe tenant mutation feedback complete; existing role guards and API contracts preserved.
+- Mobile verification: zero-error typecheck, diff validation, Expo restart, and compact public preview pass after the Lots/Tenants pass.
+- Delivery Notes: multilingual headers, filters, status actions, detail metadata, PDF feedback, forms, dates, MAD formatting, and empty-state presentation complete; existing DataContext persistence and administrator boundary preserved.
+- Mobile verification: zero-error typecheck and protected-route preview pass after the Delivery Notes pass.
+- My Orders: multilingual order tracking, purchase/sales tabs, status actions, review/details actions, empty states, locale-aware dates, and full MAD totals complete; initial-load retry and stale-refresh behavior preserved.
+- Mobile verification: zero-error typecheck, Expo bundling, and protected-route preview pass after the My Orders pass.
+- User Management: multilingual synchronization/recovery, locale-aware dates, safe mutation feedback, Moroccan contact validation, role-aware controls, and server-generated temporary credentials complete; existing user API and RBAC contracts preserved.
+- Mobile verification: zero-error mobile typecheck and successful API build pass after the User Management hardening; unrelated API typecheck errors remain documented.

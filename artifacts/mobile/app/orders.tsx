@@ -42,13 +42,26 @@ type ApiOrder = {
 
 const STATUS_STEPS: OrderStatus[] = ["pending", "confirmed", "shipped", "delivered"];
 
-const STATUS_LABELS: Record<OrderStatus, string> = {
-  pending: "En attente",
-  confirmed: "Confirmée",
-  shipped: "Expédiée",
-  delivered: "Livrée",
-  cancelled: "Annulée",
+const STATUS_KEYS: Record<OrderStatus, string> = {
+  pending: "ordStatusPending",
+  confirmed: "ordStatusConfirmed",
+  shipped: "ordStatusShipped",
+  delivered: "ordStatusDelivered",
+  cancelled: "ordStatusCancelled",
 };
+
+function formatMoney(value: number, lang: "fr" | "en" | "ar" | "es") {
+  const locale = lang === "ar" ? "ar-MA" : lang === "en" ? "en-US" : lang === "es" ? "es-MA" : "fr-MA";
+  return `${value.toLocaleString(locale, { minimumFractionDigits: 2, maximumFractionDigits: 2 })} MAD`;
+}
+
+function formatDate(value: string, lang: "fr" | "en" | "ar" | "es") {
+  if (!value) return "—";
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return value;
+  const locale = lang === "ar" ? "ar-MA" : lang === "en" ? "en-GB" : lang === "es" ? "es-MA" : "fr-FR";
+  return new Intl.DateTimeFormat(locale, { day: "2-digit", month: "short", year: "numeric" }).format(date);
+}
 
 export default function OrdersScreen() {
   const colors = useColors();
@@ -59,17 +72,21 @@ export default function OrdersScreen() {
 
   const [orders, setOrders] = useState<ApiOrder[]>([]);
   const [loading, setLoading] = useState(true);
+  const [loadError, setLoadError] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
   const [tab, setTab] = useState<Tab>("purchases");
   const [selected, setSelected] = useState<ApiOrder | null>(null);
   const [confirming, setConfirming] = useState<string | null>(null);
-  const { t } = useLanguage();
+  const { t, lang } = useLanguage();
 
   const loadOrders = useCallback(async () => {
     try {
       const res = await marketplace.orders();
       setOrders((res.data as ApiOrder[]) ?? []);
-    } catch { /* keep stale */ }
+      setLoadError(false);
+    } catch {
+      setLoadError(true);
+    }
     finally { setLoading(false); setRefreshing(false); }
   }, []);
 
@@ -85,24 +102,24 @@ export default function OrdersScreen() {
   const totalEarned = sales.filter((o) => o.status === "delivered").reduce((s, o) => s + Number(o.amount), 0);
 
   const statusConfig = (status: OrderStatus) => ({
-    pending: { color: "#f59e0b", label: STATUS_LABELS.pending, icon: "clock" as const },
-    confirmed: { color: "#3b82f6", label: STATUS_LABELS.confirmed, icon: "check" as const },
-    shipped: { color: colors.primary, label: STATUS_LABELS.shipped, icon: "truck" as const },
-    delivered: { color: colors.success, label: STATUS_LABELS.delivered, icon: "check-circle" as const },
-    cancelled: { color: colors.destructive, label: STATUS_LABELS.cancelled, icon: "x-circle" as const },
-  }[status] ?? { color: colors.mutedForeground, label: status, icon: "package" as const });
+    pending: { color: "#f59e0b", icon: "clock" as const },
+    confirmed: { color: "#3b82f6", icon: "check" as const },
+    shipped: { color: colors.primary, icon: "truck" as const },
+    delivered: { color: colors.success, icon: "check-circle" as const },
+    cancelled: { color: colors.destructive, icon: "x-circle" as const },
+  }[status] ?? { color: colors.mutedForeground, icon: "package" as const });
 
   const stepIndex = (status: OrderStatus) => STATUS_STEPS.indexOf(status);
 
   const handleConfirm = (order: ApiOrder) => {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
     Alert.alert(
-      "Confirmer la commande",
-      `Confirmer la commande de ${order.buyerName} pour "${order.productName}" — ${Number(order.amount).toLocaleString("fr-MA")} MAD?`,
+      t("ordConfirmTitle"),
+      `${t("ordConfirmTitle")} de ${order.buyerName} pour "${order.productName}" — ${formatMoney(Number(order.amount), lang)}?`,
       [
-        { text: "Annuler", style: "cancel" },
+        { text: t("ordCancelBtn"), style: "cancel" },
         {
-          text: "Confirmer",
+          text: t("ordConfirmOk"),
           onPress: async () => {
             setConfirming(order.id);
             try {
@@ -110,9 +127,9 @@ export default function OrdersScreen() {
               setOrders((prev) => prev.map((o) => o.id === order.id ? { ...o, status: "confirmed" as OrderStatus } : o));
               setSelected((prev) => prev?.id === order.id ? { ...prev, status: "confirmed" as OrderStatus } : prev);
               Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-              Alert.alert("Commande confirmée", "L'acheteur a été notifié de la confirmation.");
+              Alert.alert(t("ordConfirmedAlert"), t("ordConfirmedMsg"));
             } catch {
-              Alert.alert("Erreur", "Impossible de confirmer la commande. Vérifiez vos permissions.");
+              Alert.alert(t("ordError"), t("ordConfirmError"));
             } finally {
               setConfirming(null);
             }
@@ -127,16 +144,31 @@ export default function OrdersScreen() {
   };
 
   const STATS = [
-    { label: "Achats", value: purchases.length, color: colors.primary },
-    { label: "Ventes", value: sales.length, color: colors.success },
-    { label: "Dépensé", value: totalSpent > 999 ? `${Math.round(totalSpent / 1000)}k` : `${Math.round(totalSpent)}`, color: colors.destructive },
-    { label: "Gagné", value: totalEarned > 999 ? `${Math.round(totalEarned / 1000)}k` : `${Math.round(totalEarned)}`, color: colors.success },
+    { label: t("ordStatPurchases"), value: purchases.length, color: colors.primary },
+    { label: t("ordStatSales"), value: sales.length, color: colors.success },
+    { label: t("ordStatSpent"), value: formatMoney(totalSpent, lang), color: colors.destructive },
+    { label: t("ordStatEarned"), value: formatMoney(totalEarned, lang), color: colors.success },
   ];
 
   if (loading) {
     return (
       <View style={[styles.root, { backgroundColor: colors.background, alignItems: "center", justifyContent: "center" }]}>
         <ActivityIndicator size="large" color={colors.primary} />
+      </View>
+    );
+  }
+
+  if (loadError && orders.length === 0) {
+    return (
+      <View style={[styles.root, { backgroundColor: colors.background, alignItems: "center", justifyContent: "center", padding: 28 }]}>
+        <View style={[styles.emptyIcon, { backgroundColor: colors.destructive + "12" }]}>
+          <Feather name="wifi-off" size={34} color={colors.destructive} />
+        </View>
+        <Text style={[styles.emptyTitle, { color: colors.foreground, marginTop: 16 }]}>{t("marketplaceDataUnavailable")}</Text>
+        <Text style={[styles.emptySub, { color: colors.mutedForeground, marginTop: 8 }]}>{t("marketplaceDataUnavailableDescription")}</Text>
+        <TouchableOpacity style={[styles.retryBtn, { backgroundColor: colors.primary }]} onPress={loadOrders}>
+          <Text style={styles.retryText}>{t("marketplaceRetry")}</Text>
+        </TouchableOpacity>
       </View>
     );
   }
@@ -149,9 +181,9 @@ export default function OrdersScreen() {
           <Feather name="arrow-left" size={22} color={colors.foreground} />
         </TouchableOpacity>
         <View style={{ flex: 1 }}>
-          <Text style={[styles.title, { color: colors.foreground }]}>Mes Commandes</Text>
+          <Text style={[styles.title, { color: colors.foreground }]}>{t("ordTitle")}</Text>
           <Text style={[styles.subtitle, { color: colors.mutedForeground }]}>
-            {orders.length} commande{orders.length !== 1 ? "s" : ""} au total
+            {orders.length} {orders.length === 1 ? t("ordSubtitleSingular") : t("ordSubtitlePlural")}
           </Text>
         </View>
       </View>
@@ -172,8 +204,8 @@ export default function OrdersScreen() {
       {/* Tabs */}
       <View style={[styles.tabs, { borderBottomColor: colors.border }]}>
         {([
-          { key: "purchases", label: "Mes achats", icon: "shopping-bag" as const, count: purchases.length },
-          { key: "sales", label: "Mes ventes", icon: "tag" as const, count: sales.length },
+          { key: "purchases", label: t("ordTabPurchases"), icon: "shopping-bag" as const, count: purchases.length },
+          { key: "sales", label: t("ordTabSales"), icon: "tag" as const, count: sales.length },
         ] as { key: Tab; label: string; icon: keyof typeof Feather.glyphMap; count: number }[]).map((t) => (
           <TouchableOpacity
             key={t.key}
@@ -205,12 +237,12 @@ export default function OrdersScreen() {
               <Feather name="shopping-bag" size={36} color={colors.primary} />
             </View>
             <Text style={[styles.emptyTitle, { color: colors.foreground }]}>
-              Aucune {tab === "purchases" ? "commande" : "vente"}
+              {tab === "purchases" ? t("ordEmptyPurchases") : t("ordEmptySales")}
             </Text>
             <Text style={[styles.emptySub, { color: colors.mutedForeground }]}>
               {tab === "purchases"
-                ? "Vous n'avez pas encore passé de commandes sur le marketplace."
-                : "Vous n'avez pas encore reçu de commandes pour vos produits."}
+                ? t("ordEmptyPurchasesDesc")
+                : t("ordEmptySalesDesc")}
             </Text>
           </View>
         }
@@ -233,17 +265,17 @@ export default function OrdersScreen() {
                     {order.productName}
                   </Text>
                   <Text style={[styles.orderParty, { color: colors.mutedForeground }]}>
-                    {tab === "purchases" ? `Vendeur: ${order.sellerName}` : `Acheteur: ${order.buyerName}`}
+                     {tab === "purchases" ? `${t("ordSeller")} ${order.sellerName}` : `${t("ordBuyer")} ${order.buyerName}`}
                   </Text>
-                  <Text style={[styles.orderDate, { color: colors.mutedForeground }]}>{dateStr}</Text>
+                  <Text style={[styles.orderDate, { color: colors.mutedForeground }]}>{formatDate(dateStr, lang)}</Text>
                 </View>
                 <View style={{ alignItems: "flex-end", gap: 6 }}>
                   <Text style={[styles.orderAmount, { color: colors.foreground }]}>
-                    {Number(order.amount).toLocaleString("fr-MA")} MAD
+                     {formatMoney(Number(order.amount), lang)}
                   </Text>
                   <View style={[styles.statusBadge, { backgroundColor: sc.color + "15" }]}>
                     <Feather name={sc.icon} size={11} color={sc.color} />
-                    <Text style={[styles.statusText, { color: sc.color }]}>{sc.label}</Text>
+                     <Text style={[styles.statusText, { color: sc.color }]}>{t(STATUS_KEYS[order.status])}</Text>
                   </View>
                 </View>
               </View>
@@ -266,7 +298,7 @@ export default function OrdersScreen() {
                             {done ? <Feather name="check" size={9} color="#fff" /> : null}
                           </View>
                           <Text style={[styles.stepLabel, { color: done ? colors.foreground : colors.mutedForeground }]}>
-                            {stepConf.label}
+                             {t(STATUS_KEYS[step])}
                           </Text>
                         </View>
                         {i < STATUS_STEPS.length - 1 ? (
@@ -279,7 +311,7 @@ export default function OrdersScreen() {
               ) : (
                 <View style={[styles.cancelledBadge, { backgroundColor: colors.destructive + "10", borderColor: colors.destructive + "25" }]}>
                   <Feather name="x-circle" size={13} color={colors.destructive} />
-                  <Text style={[styles.cancelledText, { color: colors.destructive }]}>Cette commande a été annulée</Text>
+                  <Text style={[styles.cancelledText, { color: colors.destructive }]}>{t("ordCancelledMsg")}</Text>
                 </View>
               )}
 
@@ -291,7 +323,7 @@ export default function OrdersScreen() {
                     onPress={(e) => { e.stopPropagation?.(); handleLeaveReview(order); }}
                   >
                     <Feather name="star" size={13} color="#f59e0b" />
-                    <Text style={[styles.actionText, { color: "#f59e0b" }]}>Laisser un avis</Text>
+                    <Text style={[styles.actionText, { color: "#f59e0b" }]}>{t("ordLeaveReview")}</Text>
                   </TouchableOpacity>
                 ) : null}
                 {tab === "sales" && order.status === "pending" ? (
@@ -303,7 +335,7 @@ export default function OrdersScreen() {
                     {confirming === order.id
                       ? <ActivityIndicator size="small" color="#fff" />
                       : <Feather name="check" size={13} color="#fff" />}
-                    <Text style={[styles.actionText, { color: "#fff" }]}>Confirmer</Text>
+                    <Text style={[styles.actionText, { color: "#fff" }]}>{t("ordConfirmBtn")}</Text>
                   </TouchableOpacity>
                 ) : null}
                 <TouchableOpacity
@@ -311,7 +343,7 @@ export default function OrdersScreen() {
                   onPress={() => { setSelected(order); Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); }}
                 >
                   <Feather name="eye" size={13} color={colors.mutedForeground} />
-                  <Text style={[styles.actionText, { color: colors.mutedForeground }]}>Détails</Text>
+                  <Text style={[styles.actionText, { color: colors.mutedForeground }]}>{t("ordDetailsBtn")}</Text>
                 </TouchableOpacity>
               </View>
             </TouchableOpacity>
@@ -327,7 +359,7 @@ export default function OrdersScreen() {
               <TouchableOpacity onPress={() => setSelected(null)}>
                 <Feather name="x" size={22} color={colors.mutedForeground} />
               </TouchableOpacity>
-              <Text style={[styles.modalTitle, { color: colors.foreground }]}>Détails commande</Text>
+               <Text style={[styles.modalTitle, { color: colors.foreground }]}>{t("ordModalTitle")}</Text>
               <View style={{ width: 22 }} />
             </View>
             <ScrollView contentContainerStyle={{ padding: 20, gap: 16, paddingBottom: 60 }} showsVerticalScrollIndicator={false}>
@@ -338,12 +370,12 @@ export default function OrdersScreen() {
                 </View>
                 <Text style={[styles.orderHeroProduct, { color: colors.foreground }]}>{selected.productName}</Text>
                 <Text style={[styles.orderHeroAmount, { color: colors.primary }]}>
-                  {Number(selected.amount).toLocaleString("fr-MA")} MAD
+                   {formatMoney(Number(selected.amount), lang)}
                 </Text>
                 <View style={[styles.statusBadge, { backgroundColor: statusConfig(selected.status).color + "15" }]}>
                   <Feather name={statusConfig(selected.status).icon} size={12} color={statusConfig(selected.status).color} />
                   <Text style={[styles.statusText, { color: statusConfig(selected.status).color }]}>
-                    {statusConfig(selected.status).label}
+                     {t(STATUS_KEYS[selected.status])}
                   </Text>
                 </View>
               </View>
@@ -351,7 +383,7 @@ export default function OrdersScreen() {
               {/* Progress tracker */}
               {selected.status !== "cancelled" ? (
                 <View style={[styles.trackerCard, { backgroundColor: colors.card, borderColor: colors.border }]}>
-                  <Text style={[styles.trackerTitle, { color: colors.foreground }]}>Suivi de livraison</Text>
+                   <Text style={[styles.trackerTitle, { color: colors.foreground }]}>{t("ordTrackingTitle")}</Text>
                   <View style={styles.progress}>
                     {STATUS_STEPS.map((step, i) => {
                       const stepConf = statusConfig(step);
@@ -367,7 +399,7 @@ export default function OrdersScreen() {
                               {done ? <Feather name="check" size={9} color="#fff" /> : null}
                             </View>
                             <Text style={[styles.stepLabel, { color: done ? colors.foreground : colors.mutedForeground }]}>
-                              {stepConf.label}
+                             {t(STATUS_KEYS[step])}
                             </Text>
                           </View>
                           {i < STATUS_STEPS.length - 1 ? (
@@ -383,10 +415,10 @@ export default function OrdersScreen() {
               {/* Details card */}
               <View style={[styles.detailCard, { backgroundColor: colors.card, borderColor: colors.border }]}>
                 {[
-                  { label: "Vendeur", value: selected.sellerName },
-                  { label: "Acheteur", value: selected.buyerName },
-                  { label: "Date de commande", value: selected.date ?? selected.createdAt?.split("T")[0] ?? "—" },
-                  { label: "Montant", value: `${Number(selected.amount).toLocaleString("fr-MA")} MAD` },
+                   { label: t("ordDetailSeller"), value: selected.sellerName },
+                   { label: t("ordDetailBuyer"), value: selected.buyerName },
+                   { label: t("ordDetailDate"), value: formatDate(selected.date ?? selected.createdAt?.split("T")[0] ?? "", lang) },
+                   { label: t("ordDetailAmount"), value: formatMoney(Number(selected.amount), lang) },
                 ].map((item, i) => (
                   <View key={item.label}>
                     {i > 0 ? <View style={[styles.sep, { backgroundColor: colors.border }]} /> : null}
@@ -405,7 +437,7 @@ export default function OrdersScreen() {
                   onPress={() => handleLeaveReview(selected)}
                 >
                   <Feather name="star" size={16} color="#f59e0b" />
-                  <Text style={[styles.modalActionText, { color: "#f59e0b" }]}>Laisser un avis</Text>
+                   <Text style={[styles.modalActionText, { color: "#f59e0b" }]}>{t("ordLeaveReview")}</Text>
                 </TouchableOpacity>
               ) : null}
 
@@ -418,7 +450,7 @@ export default function OrdersScreen() {
                   {confirming === selected.id
                     ? <ActivityIndicator size="small" color="#fff" />
                     : <Feather name="check-circle" size={16} color="#fff" />}
-                  <Text style={[styles.modalActionText, { color: "#fff" }]}>Confirmer la commande</Text>
+                   <Text style={[styles.modalActionText, { color: "#fff" }]}>{t("ordConfirmOrderBtn")}</Text>
                 </TouchableOpacity>
               ) : null}
             </ScrollView>
@@ -468,6 +500,8 @@ const styles = StyleSheet.create({
   orderActions: { flexDirection: "row", gap: 8, flexWrap: "wrap" },
   actionBtn: { flexDirection: "row", alignItems: "center", gap: 5, paddingHorizontal: 12, paddingVertical: 8, borderRadius: 10 },
   actionText: { fontSize: 12, fontFamily: "Inter_600SemiBold" },
+  retryBtn: { marginTop: 18, paddingHorizontal: 22, paddingVertical: 11, borderRadius: 12 },
+  retryText: { color: "#fff", fontSize: 13, fontFamily: "Inter_600SemiBold" },
   modal: { flex: 1 },
   modalHeader: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", padding: 20, borderBottomWidth: 1 },
   modalTitle: { fontSize: 17, fontFamily: "Inter_700Bold" },

@@ -100,3 +100,7 @@
 - Profil & Paramètres
 - Documents & Signatures now provide a consistent enterprise wizard and signature-review language layer across all seven states, with visible loading, empty, recovery, confirmation, and action surfaces in the four supported locales.
 - Reviews & Ratings now provides a consistent four-language marketplace feedback experience with localized rating hierarchy, pending-review guidance, locale-aware dates, guided empty state, and recoverable unavailable-data feedback.
+- Lots & Tenant Administration now provides a consistent four-language property-occupancy experience with explicit synchronization/recovery states, localized type/status hierarchy, locale-aware lease dates, and MAD rent/deposit/charge presentation.
+- Delivery Notes now provides a consistent four-language logistics experience with localized incoming/outgoing hierarchy, status progression, confirmation/PDF feedback, guided empty state, locale-aware dates, and MAD totals.
+- My Orders now provides a consistent four-language marketplace order experience with localized lifecycle tracking, purchase/sales hierarchy, confirmation/review actions, guided empty states, recoverable unavailable data, locale-aware dates, and full MAD totals.
+- User Management now provides a consistent four-language administrative account experience with guided synchronization/recovery, locale-aware membership metadata, safe mutation feedback, Moroccan contact validation, and role-sensitive actions.

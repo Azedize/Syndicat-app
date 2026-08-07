@@ -133,3 +133,18 @@
 - Audited `artifacts/mobile/app/reviews.tsx`; replaced hardcoded marketplace review labels, seller metadata, rating labels, form copy, and publication alerts with the shared runtime language system.
 - Added localized loading, unavailable-data retry, and guided empty states; product filtering now uses a stable internal sentinel instead of the translated “All” label, and review/order dates use the active locale.
 - Preserved delivered-order eligibility, review submission payloads, optimistic local insertion, marketplace API behavior, and existing role boundaries.
+- Audited `artifacts/mobile/app/lots.tsx` and `artifacts/mobile/app/locataires.tsx` for silent API failures and fixed-locale financial presentation.
+- Added shared loading/unavailable/retry states for lot and tenant retrieval while preserving data during silent refreshes and retaining existing filter and role behavior.
+- Added runtime translations for lot synchronization/recovery, localized lot-type metadata, tenant save/status feedback, lease dates, expiry countdown units, and locale-aware MAD currency formatting.
+- Sanitized tenant mutation failures so raw API messages are not exposed to users.
+- Audited `artifacts/mobile/app/bon-livraison.tsx` and removed the remaining visible French-only delivery-note interface copy, including headers, filters, statuses, confirmations, PDF feedback, detail metadata, empty state, and form labels.
+- Added active-locale date and MAD formatting for delivery-note lists, totals, line items, and estimated totals while preserving existing DataContext persistence and administrator actions.
+- Mobile typecheck passed with zero errors; the protected delivery-note route safely redirected to the public welcome screen and emitted no new runtime exceptions.
+- Audited `artifacts/mobile/app/orders.tsx` and wired the existing order translation dictionary into headers, status steps, purchases/sales tabs, empty states, confirmations, detail actions, review actions, and seller/buyer metadata.
+- Replaced compact `k` financial summaries and fixed `fr-MA` formatting with full active-locale MAD amounts and locale-aware order dates.
+- Added a recoverable initial-load unavailable state with retry while keeping stale orders visible during refresh failures; marketplace APIs and role behavior remain unchanged.
+- Mobile typecheck passed with zero errors, Expo bundled successfully, and the protected orders route redirected safely without new runtime exceptions.
+- Audited `artifacts/mobile/app/utilisateurs.tsx`; added localized loading/unavailable/retry states, refresh recovery, locale-aware join dates, safe status/role/delete/create feedback, and Moroccan phone/email validation.
+- Restricted role-changing and deletion controls to the platform administrator while preserving the syndicate administrator's scoped user-management access.
+- Removed the predictable `ChangeMe@2026!` client password; `artifacts/api-server/src/routes/users.ts` now generates a temporary credential server-side and includes it only in the welcome email flow.
+- Mobile typecheck and API build passed; the existing API standalone typecheck remains blocked by unrelated legacy errors outside the user-management changes.

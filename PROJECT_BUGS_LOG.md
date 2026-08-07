@@ -26,3 +26,8 @@
 - Search no longer mixes French-only headings, shortcuts, suggestions, and no-result guidance into non-French sessions.
 - Subscription payment onboarding no longer exposes raw API error text, hardcoded French copy, or embedded bank coordinates; payment amounts now use the active locale.
 - Marketplace Reviews & Ratings no longer mixes French-only labels or raw publication errors into other language sessions; failed review/order loads no longer masquerade as an empty list, and localized product filtering remains stable when the language changes.
+- Lots no longer silently renders an empty result after a failed retrieval, and lot types/charge amounts no longer fall back to fixed French formatting.
+- Tenant administration no longer hides list failures or exposes raw save/status API errors; lease dates and rent/deposit amounts now follow the active locale.
+- Delivery Notes no longer mix French-only labels, fixed-locale dates, or raw non-localized MAD amounts into non-French sessions; confirmations and PDF feedback now follow the active language.
+- My Orders no longer displays French-only marketplace copy, compact `k` totals, or fixed French-Morocco formatting in non-French sessions; an initial order API failure now has visible retry guidance instead of a blank/false empty result.
+- User Management no longer silently renders an empty list after an API failure, exposes raw mutation errors, uses fixed French membership dates, or sends every new account the same predictable client-side password.

@@ -2950,6 +2950,36 @@ export const TRANSLATIONS: Translations = {
     es: "No asignado",
   },
   lotLabel: { fr: "Lot", en: "Unit", ar: "وحدة", es: "Lote" },
+  allBuildings: {
+    fr: "Tous les immeubles",
+    en: "All buildings",
+    ar: "جميع المباني",
+    es: "Todos los edificios",
+  },
+  lotsLoadingTitle: {
+    fr: "Synchronisation des lots",
+    en: "Syncing units",
+    ar: "جارٍ مزامنة الوحدات",
+    es: "Sincronizando unidades",
+  },
+  lotsLoadingDescription: {
+    fr: "Récupération des lots, propriétaires et situation des charges.",
+    en: "Loading units, owners, and charge status.",
+    ar: "جارٍ تحميل الوحدات والمالكين ووضعية الرسوم.",
+    es: "Cargando unidades, propietarios y situación de cuotas.",
+  },
+  lotsUnavailableTitle: {
+    fr: "Lots indisponibles",
+    en: "Units unavailable",
+    ar: "الوحدات غير متاحة",
+    es: "Unidades no disponibles",
+  },
+  lotsUnavailableDescription: {
+    fr: "Les lots n'ont pas pu être synchronisés. Vérifiez votre connexion puis réessayez.",
+    en: "Units could not be synchronized. Check your connection and try again.",
+    ar: "تعذرت مزامنة الوحدات. تحقق من الاتصال ثم أعد المحاولة.",
+    es: "No se pudieron sincronizar las unidades. Compruebe la conexión e inténtelo de nuevo.",
+  },
   newWorkOrder: {
     fr: "Nouveau Bon de Travaux",
     en: "New Work Order",
@@ -14012,6 +14042,50 @@ export const TRANSLATIONS: Translations = {
   },
   tenantNotes: { fr: "Notes", en: "Notes", ar: "ملاحظات", es: "Notas" },
   tenantStatus: { fr: "Statut", en: "Status", ar: "الحالة", es: "Estado" },
+  tenantsUnavailableTitle: {
+    fr: "Locataires indisponibles",
+    en: "Tenants unavailable",
+    ar: "المستأجرون غير متاحين",
+    es: "Inquilinos no disponibles",
+  },
+  tenantsUnavailableDescription: {
+    fr: "La liste des locataires n'a pas pu être chargée. Vérifiez votre connexion puis réessayez.",
+    en: "The tenant list could not be loaded. Check your connection and try again.",
+    ar: "تعذر تحميل قائمة المستأجرين. تحقق من الاتصال ثم أعد المحاولة.",
+    es: "No se pudo cargar la lista de inquilinos. Compruebe la conexión e inténtelo de nuevo.",
+  },
+  daysShort: { fr: "j", en: "d", ar: "ي", es: "d" },
+  perMonthShort: { fr: " / mois", en: " / month", ar: " / شهر", es: " / mes" },
+  tenantSaved: {
+    fr: "Locataire enregistré",
+    en: "Tenant registered",
+    ar: "تم تسجيل المستأجر",
+    es: "Inquilino registrado",
+  },
+  tenantSavedDescription: {
+    fr: "Le dossier du locataire a été enregistré.",
+    en: "The tenant record has been saved.",
+    ar: "تم حفظ ملف المستأجر.",
+    es: "El expediente del inquilino se ha guardado.",
+  },
+  tenantSaveError: {
+    fr: "Impossible d'enregistrer le locataire. Vérifiez les informations puis réessayez.",
+    en: "The tenant could not be registered. Check the details and try again.",
+    ar: "تعذر تسجيل المستأجر. تحقق من المعلومات ثم أعد المحاولة.",
+    es: "No se pudo registrar el inquilino. Compruebe los datos e inténtelo de nuevo.",
+  },
+  tenantStatusSaved: {
+    fr: "Statut mis à jour",
+    en: "Status updated",
+    ar: "تم تحديث الحالة",
+    es: "Estado actualizado",
+  },
+  tenantStatusError: {
+    fr: "Impossible de mettre à jour le statut. Réessayez.",
+    en: "The status could not be updated. Try again.",
+    ar: "تعذر تحديث الحالة. أعد المحاولة.",
+    es: "No se pudo actualizar el estado. Inténtelo de nuevo.",
+  },
 
   // ── Members screen ───────────────────────────────────────────────────────────
   syndicatsTitle: {

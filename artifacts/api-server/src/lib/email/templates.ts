@@ -126,7 +126,7 @@ export function passwordResetTemplate(name: string, resetUrl: string): EmailTemp
   };
 }
 
-export function welcomeTemplate(name: string, role: string, loginUrl?: string): EmailTemplate {
+export function welcomeTemplate(name: string, role: string, loginUrl?: string, temporaryPassword?: string): EmailTemplate {
   const roleLabel: Record<string, string> = {
     super_admin: "Administrateur plateforme",
     syndicate_admin: "Administrateur de syndicat",
@@ -139,6 +139,7 @@ export function welcomeTemplate(name: string, role: string, loginUrl?: string): 
       <p>Bonjour ${escapeHtml(name)},</p>
       <p>Votre compte VERIDIAN a été créé avec succès en tant que <strong>${escapeHtml(roleLabel[role] ?? role)}</strong>.</p>
       <p>Vous pouvez dès maintenant vous connecter pour gérer vos démarches liées à votre syndicat de copropriété.</p>
+      ${temporaryPassword ? `<div style="margin:20px 0;padding:16px;background:#EFF6FF;border-radius:10px;border-left:4px solid #2563EB;"><p style="margin:0 0 6px 0;font-size:12px;color:#64748B;font-weight:600;text-transform:uppercase;">Identifiant temporaire</p><p style="margin:0;color:#0A1628;"><strong>Mot de passe :</strong> <code style="background:#DBEAFE;padding:2px 8px;border-radius:4px;font-family:monospace;letter-spacing:1px;">${escapeHtml(temporaryPassword)}</code></p></div><p style="color:#DC2626;font-size:13px;">Veuillez changer ce mot de passe après votre première connexion.</p>` : ""}
       ${loginUrl ? button(loginUrl, "Accéder à mon compte") : ""}
       <p>— L'équipe VERIDIAN</p>`,
   };
