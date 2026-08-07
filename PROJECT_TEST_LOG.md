@@ -158,3 +158,6 @@
 - `git diff --check -- artifacts/mobile/components/SignatureOrderPanel.tsx artifacts/mobile/components/DocumentWizard.tsx artifacts/mobile/context/LanguageContext.tsx` — passed.
 - Restarted `artifacts/mobile: expo`; Metro started successfully with only existing Expo package-version, web shadow-style, notification-listener, and animation compatibility warnings.
 - Mobile Expo preview at 402×874 rendered the public entry without a new browser runtime exception; protected document routes remain safely inaccessible without an authenticated session.
+- `pnpm --filter @workspace/mobile run typecheck` — passed with zero errors after the governance reliability follow-through.
+- `git diff --check` and focused stale-reference grep — passed; no governance seed arrays, obsolete endpoints, or removed local delegation mutation handlers remain.
+- Expo and API workflows remained healthy; the 402×874 public mobile preview rendered successfully with only existing non-blocking Expo web compatibility warnings.

@@ -128,3 +128,5 @@
 - Audited `artifacts/mobile/components/SignatureOrderPanel.tsx`; localized signature loading, retryable errors, dates, statuses, role labels, signing CTA, and collection confirmation through the global language system.
 - Audited `artifacts/mobile/components/DocumentWizard.tsx`; localized the seven-step document creation experience, including category/template selection, data/entity loading, preview, PDF generation, electronic signature, publication, navigation, and error recovery.
 - Preserved real document APIs, entity IDs, autofill behavior, generation/signature/publish mutations, and the existing document workflow state machine.
+- Audited `artifacts/mobile/app/governance.tsx`; removed hardcoded council, mandate, and delegation seed records, corrected the council endpoint from non-existent routes to `/governance/conseil`, and added a shared localized synchronization/error/empty state.
+- Changed council add/remove actions from local state updates to durable POST/DELETE API calls with safe localized feedback and refresh-on-success. Removed delegation create/revoke controls because the current API explicitly has no persistence layer.

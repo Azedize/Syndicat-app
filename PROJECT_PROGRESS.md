@@ -139,3 +139,7 @@
 - Localized signature loading/error/retry states, status and role metadata, signature actions, and dates; localized the seven-step document creation flow including category selection, template loading, entity/autofill states, preview, generation, signing, publishing, navigation, and recovery copy across French, English, Arabic, and Spanish.
 - Preserved the existing document template/entity APIs, PDF generation payloads, signature persistence, publishing workflow, role boundaries, and RTL behavior.
 - Mobile typecheck and diff validation passed; Expo restarted successfully and the public mobile preview produced no new browser runtime exceptions beyond existing Expo compatibility warnings.
+- Continued the governance reliability pass on `governance.tsx`: removed hardcoded seeded council, mandate, and delegation records from the rendered state and switched the screen to the real `/governance/conseil`, `/governance/mandats`, and `/governance/delegations` APIs.
+- Added explicit synchronized, unavailable, and genuine-empty states with retry guidance; council-member add/remove actions now persist through the API with localized success/error feedback.
+- Removed local-only delegation creation/revocation controls because the current delegation endpoint is read-only and has no persistence layer; the UI now avoids implying unsupported mutations.
+- Mobile typecheck, diff validation, workflow logs, and a 402×874 public preview passed; only existing Expo web compatibility warnings remain.

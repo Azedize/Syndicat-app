@@ -1,7 +1,7 @@
 import { Feather } from "@expo/vector-icons";
 import * as Haptics from "expo-haptics";
 import { router } from "expo-router";
-import React, { useEffect, useState } from "react";
+import React, { useCallback, useEffect, useState } from "react";
 import {
   Alert,
   FlatList,
@@ -23,26 +23,11 @@ import { apiRequest } from "@/lib/api";
 import { useToast } from "@/context/ToastContext";
 import RoleGuard from "@/components/RoleGuard";
 import { useLanguage } from "@/context/LanguageContext";
+import { ErrorState, LoadingState } from "@/components/DataState";
+import EmptyState from "@/components/EmptyState";
 
 type BureauMember = { id: string; name: string; role: string; icon: keyof typeof Feather.glyphMap; since: string; email: string; phone: string };
 type Commission = { id: string; name: string; members: number; status: "active" | "inactive"; chair: string; nextMeeting: string };
-
-const INITIAL_BUREAU: BureauMember[] = [
-  { id: "1", name: "Fatima Zahra El Alami", role: "Secrétaire Générale", icon: "briefcase", since: "2023", email: "fz@sne.ma", phone: "+212 6 61 23 45 67" },
-  { id: "2", name: "Mohamed Ouali", role: "Secrétaire Général Adjoint", icon: "users", since: "2023", email: "m.ouali@sne.ma", phone: "+212 6 62 34 56 78" },
-  { id: "3", name: "Ahmed El Fassi", role: "Trésorier Général", icon: "dollar-sign", since: "2023", email: "a.fassi@sne.ma", phone: "+212 6 63 45 67 89" },
-  { id: "4", name: "Nadia Benkiran", role: "Secrétaire aux Relations", icon: "link", since: "2023", email: "n.benkiran@sne.ma", phone: "+212 6 64 56 78 90" },
-  { id: "5", name: "Omar Slimani", role: "Secrétaire à l'Organisation", icon: "grid", since: "2023", email: "o.slimani@sne.ma", phone: "+212 6 65 67 89 01" },
-  { id: "6", name: "Zineb Mansour", role: "Secrétaire à la Formation", icon: "book-open", since: "2023", email: "z.mansour@sne.ma", phone: "+212 6 66 78 90 12" },
-];
-
-const INITIAL_COMMISSIONS: Commission[] = [
-  { id: "1", name: "Commission Juridique", members: 5, status: "active", chair: "Rachid Amrani", nextMeeting: "2026-05-28" },
-  { id: "2", name: "Commission Financière", members: 4, status: "active", chair: "Sanaa Benchekroun", nextMeeting: "2026-06-02" },
-  { id: "3", name: "Commission Sociale", members: 6, status: "active", chair: "Laila Berrada", nextMeeting: "2026-06-10" },
-  { id: "4", name: "Commission Femmes", members: 3, status: "active", chair: "Khadija Tahiri", nextMeeting: "2026-06-15" },
-  { id: "5", name: "Commission Formation", members: 7, status: "active", chair: "Youssef Idrissi", nextMeeting: "2026-07-01" },
-];
 
 type TabType = "organigramme" | "commissions" | "mandats" | "delegations" | "documents";
 
@@ -67,21 +52,6 @@ interface Delegation {
   description: string;
 }
 
-const INITIAL_MANDATS: Mandat[] = [
-  { id: "m1", poste: "Secrétaire Générale", holder: "Fatima Zahra El Alami", startDate: "2023-12-01", endDate: "2026-12-01", status: "actif", bureau: "Bureau National" },
-  { id: "m2", poste: "Secrétaire Général Adjoint", holder: "Mohamed Ouali", startDate: "2023-12-01", endDate: "2026-12-01", status: "actif", bureau: "Bureau National" },
-  { id: "m3", poste: "Trésorier Général", holder: "Ahmed El Fassi", startDate: "2023-12-01", endDate: "2026-12-01", status: "actif", bureau: "Bureau National" },
-  { id: "m4", poste: "Secrétaire aux Relations", holder: "Nadia Benkiran", startDate: "2023-12-01", endDate: "2026-12-01", status: "actif", bureau: "Bureau National" },
-  { id: "m5", poste: "Président Bureau Casablanca", holder: "Hassan Berrada", startDate: "2024-01-01", endDate: "2026-01-01", status: "expire", bureau: "Bureau Régional Casa" },
-  { id: "m6", poste: "Délégué Syndical - Fès", holder: "", startDate: "", endDate: "", status: "vacant", bureau: "Bureau Régional Fès" },
-];
-
-const INITIAL_DELEGATIONS: Delegation[] = [
-  { id: "d1", delegant: "Fatima Zahra El Alami", delegataire: "Mohamed Ouali", domaine: "Représentation institutionnelle", startDate: "2026-03-01", endDate: "2026-06-30", status: "active", description: "Délégation de pouvoir pour représenter le syndicat lors des négociations ministérielles du printemps 2026." },
-  { id: "d2", delegant: "Ahmed El Fassi", delegataire: "Nadia Benkiran", domaine: "Gestion financière courante", startDate: "2026-04-15", endDate: "2026-05-15", status: "expired", description: "Autorisation de signature des dépenses courantes inférieures à 5 000 MAD pendant le congé du trésorier." },
-  { id: "d3", delegant: "Mohamed Ouali", delegataire: "Omar Slimani", domaine: "Organisation des formations", startDate: "2026-05-01", endDate: "2026-12-31", status: "active", description: "Délégation pour la coordination et l'organisation des sessions de formation syndicale régionales." },
-];
-
 export default function GovernanceScreen() {
   return (
     <RoleGuard allow={["syndicate_admin", "president", "secretary", "committee_member"]}>
@@ -97,55 +67,73 @@ function GovernanceScreenInner() {
   const { showToast } = useToast();
   const { t } = useLanguage();
   const [tab, setTab] = useState<TabType>("organigramme");
-  const [bureau, setBureau] = useState(INITIAL_BUREAU);
-  const [commissions, setCommissions] = useState(INITIAL_COMMISSIONS);
-  const [mandats, setMandats] = useState(INITIAL_MANDATS);
+  const [bureau, setBureau] = useState<BureauMember[]>([]);
+  const [commissions] = useState<Commission[]>([]);
+  const [mandats, setMandats] = useState<Mandat[]>([]);
   const [nomineeInput, setNomineeInput] = useState("");
-  const [delegations, setDelegations] = useState(INITIAL_DELEGATIONS);
+  const [delegations, setDelegations] = useState<Delegation[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [loadError, setLoadError] = useState(false);
+  const [saving, setSaving] = useState(false);
   const [selectedMember, setSelectedMember] = useState<BureauMember | null>(null);
   const [selectedCommission, setSelectedCommission] = useState<Commission | null>(null);
   const [selectedMandat, setSelectedMandat] = useState<Mandat | null>(null);
   const [selectedDelegation, setSelectedDelegation] = useState<Delegation | null>(null);
   const [showAddMember, setShowAddMember] = useState(false);
-  const [showAddDelegation, setShowAddDelegation] = useState(false);
   const [newName, setNewName] = useState("");
   const [newRole, setNewRole] = useState("");
-  const [newDelegant, setNewDelegant] = useState("");
-  const [newDelegataire, setNewDelegataire] = useState("");
-  const [newDomaine, setNewDomaine] = useState("");
-  const [newDelegDesc, setNewDelegDesc] = useState("");
   const { isWide } = useBreakpoints();
   const topPad = isWide ? 0 : (Platform.OS === "web" ? 67 : insets.top);
   // FIX [Governance Bug]: Previously `role !== "member"` accidentally granted
   // admin UI to tenants. Must explicitly list management roles.
   const isAdmin = ["super_admin", "syndicate_admin", "president", "treasurer", "secretary", "committee_member"].includes(user?.role ?? "");
 
-  useEffect(() => {
-    apiRequest<{ data: any[] }>("/governance/bureau").then(({ data }) => { if (data?.length) setBureau(data); }).catch(() => {});
-    apiRequest<{ data: any[] }>("/governance/commissions").then(({ data }) => { if (data?.length) setCommissions(data); }).catch(() => {});
-    apiRequest<{ data: any[] }>("/governance/mandats").then(({ data }) => { if (data?.length) setMandats(data); }).catch(() => {});
-    apiRequest<{ data: any[] }>("/governance/delegations").then(({ data }) => { if (data?.length) setDelegations(data); }).catch(() => {});
+  const loadGovernance = useCallback(async (silent = false) => {
+    if (!silent) setLoading(true);
+    setLoadError(false);
+    try {
+      const [bureauResult, mandateResult, delegationResult] = await Promise.all([
+        apiRequest<{ data: BureauMember[] }>("/governance/conseil"),
+        apiRequest<{ data: Mandat[] }>("/governance/mandats"),
+        apiRequest<{ data: Delegation[] }>("/governance/delegations"),
+      ]);
+      setBureau(bureauResult.data ?? []);
+      setMandats(mandateResult.data ?? []);
+      setDelegations(delegationResult.data ?? []);
+    } catch {
+      setLoadError(true);
+    } finally {
+      setLoading(false);
+    }
   }, []);
 
-  const president = bureau[0]!;
-  const vp = bureau[1]!;
+  useEffect(() => {
+    void loadGovernance();
+  }, [loadGovernance]);
+
+  const president = bureau[0];
+  const vp = bureau[1];
   const restBureau = bureau.slice(2);
 
-  const handleAddMember = () => {
+  const handleAddMember = async () => {
     if (!newName.trim() || !newRole.trim()) return;
-    const m: BureauMember = {
-      id: Date.now().toString(),
-      name: newName.trim(),
-      role: newRole.trim(),
-      icon: "user",
-      since: "2026",
-      email: "",
-      phone: "",
-    };
-    setBureau((prev) => [...prev, m]);
-    setShowAddMember(false);
-    setNewName(""); setNewRole("");
-    Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+    setSaving(true);
+    try {
+      await apiRequest("/governance/conseil", "POST", {
+        name: newName.trim(),
+        role: newRole.trim(),
+        mandateStart: new Date().toISOString().slice(0, 10),
+      });
+      await loadGovernance(true);
+      setShowAddMember(false);
+      setNewName(""); setNewRole("");
+      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+      showToast({ type: "success", title: t("governanceSavedTitle"), message: t("governanceMemberAdded") });
+    } catch {
+      showToast({ type: "error", title: t("governanceSaveErrorTitle"), message: t("governanceSaveErrorMessage") });
+    } finally {
+      setSaving(false);
+    }
   };
 
   const handleRemoveMember = (id: string, name: string) => {
@@ -154,43 +142,16 @@ function GovernanceScreenInner() {
       {
         text: t("governanceRemove"),
         style: "destructive",
-        onPress: () => {
-          setBureau((prev) => prev.filter((m) => m.id !== id));
-          setSelectedMember(null);
-          Haptics.notificationAsync(Haptics.NotificationFeedbackType.Warning);
-        },
-      },
-    ]);
-  };
-
-  const handleAddDelegation = () => {
-    if (!newDelegant.trim() || !newDelegataire.trim() || !newDomaine.trim()) return;
-    const d: Delegation = {
-      id: `d${Date.now()}`,
-      delegant: newDelegant.trim(),
-      delegataire: newDelegataire.trim(),
-      domaine: newDomaine.trim(),
-      startDate: new Date().toISOString().slice(0, 10),
-      endDate: new Date(Date.now() + 90 * 24 * 60 * 60 * 1000).toISOString().slice(0, 10),
-      status: "active",
-      description: newDelegDesc.trim(),
-    };
-    setDelegations((prev) => [d, ...prev]);
-    setShowAddDelegation(false);
-    setNewDelegant(""); setNewDelegataire(""); setNewDomaine(""); setNewDelegDesc("");
-    Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-  };
-
-  const handleRevokeDelegation = (id: string) => {
-    Alert.alert(t("governanceRevokeTitle"), t("governanceRevokeQuestion"), [
-      { text: t("cancel"), style: "cancel" },
-      {
-        text: t("governanceRevoke"),
-        style: "destructive",
-        onPress: () => {
-          setDelegations((prev) => prev.map((d) => d.id === id ? { ...d, status: "revoked" as const } : d));
-          setSelectedDelegation(null);
-          Haptics.notificationAsync(Haptics.NotificationFeedbackType.Warning);
+        onPress: async () => {
+          try {
+            await apiRequest(`/governance/conseil/${id}`, "DELETE");
+            await loadGovernance(true);
+            setSelectedMember(null);
+            Haptics.notificationAsync(Haptics.NotificationFeedbackType.Warning);
+            showToast({ type: "success", title: t("governanceSavedTitle"), message: t("governanceMemberRemoved") });
+          } catch {
+            showToast({ type: "error", title: t("governanceSaveErrorTitle"), message: t("governanceSaveErrorMessage") });
+          }
         },
       },
     ]);
@@ -224,13 +185,6 @@ function GovernanceScreenInner() {
           >
             <Feather name="user-plus" size={16} color="#fff" />
           </TouchableOpacity>
-        ) : isAdmin && tab === "delegations" ? (
-          <TouchableOpacity
-            style={[styles.addBtn, { backgroundColor: colors.primary }]}
-            onPress={() => { setShowAddDelegation(true); Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); }}
-          >
-            <Feather name="plus" size={16} color="#fff" />
-          </TouchableOpacity>
         ) : null}
       </View>
 
@@ -255,7 +209,25 @@ function GovernanceScreenInner() {
         ))}
       </ScrollView>
 
-      {tab === "organigramme" ? (
+      {loading ? (
+        <LoadingState title={t("governanceLoadingTitle")} description={t("governanceLoadingDescription")} />
+      ) : loadError ? (
+        <ErrorState
+          title={t("governanceLoadErrorTitle")}
+          description={t("governanceLoadErrorDescription")}
+          retryLabel={t("retry")}
+          onRetry={() => void loadGovernance()}
+        />
+      ) : tab === "organigramme" ? (
+        bureau.length === 0 ? (
+          <EmptyState
+            icon="users"
+            title={t("governanceEmptyTitle")}
+            description={t("governanceEmptyDescription")}
+            actionLabel={isAdmin ? t("governanceAddToBoard") : undefined}
+            onAction={isAdmin ? () => setShowAddMember(true) : undefined}
+          />
+        ) : (
         <ScrollView contentContainerStyle={{ padding: 20, gap: 20, paddingBottom: insets.bottom + 40 }} showsVerticalScrollIndicator={false}>
           {/* Mandate badge */}
           <View style={[styles.mandatBadge, { backgroundColor: colors.primary + "10", borderColor: colors.primary + "30" }]}>
@@ -266,7 +238,7 @@ function GovernanceScreenInner() {
           </View>
 
           {/* President */}
-          <View style={styles.levelCenter}>
+          {vp ? <View style={styles.levelCenter}>
             <TouchableOpacity
               style={[styles.presidentCard, { backgroundColor: colors.primary, borderColor: colors.primary }]}
               onPress={() => setSelectedMember(president)}
@@ -284,7 +256,7 @@ function GovernanceScreenInner() {
                 <Text style={styles.presSinceText}>{t("governanceSince")} {president.since}</Text>
               </View>
             </TouchableOpacity>
-          </View>
+          </View> : null}
 
           {/* Connector */}
           <View style={[styles.connector, { backgroundColor: colors.border }]} />
@@ -328,6 +300,7 @@ function GovernanceScreenInner() {
             ))}
           </View>
         </ScrollView>
+        )
       ) : tab === "commissions" ? (
         <FlatList
           data={commissions}
@@ -375,6 +348,13 @@ function GovernanceScreenInner() {
               </View>
             </TouchableOpacity>
           )}
+          ListEmptyComponent={
+            <EmptyState
+              icon="layers"
+              title={t("governanceCommissionsEmptyTitle")}
+              description={t("governanceCommissionsEmptyDescription")}
+            />
+          }
         />
       ) : tab === "mandats" ? (
         <FlatList
@@ -439,6 +419,13 @@ function GovernanceScreenInner() {
               </TouchableOpacity>
             );
           }}
+          ListEmptyComponent={
+            <EmptyState
+              icon="award"
+              title={t("governanceMandatesEmptyTitle")}
+              description={t("governanceMandatesEmptyDescription")}
+            />
+          }
         />
       ) : tab === "delegations" ? (
         <FlatList
@@ -492,6 +479,13 @@ function GovernanceScreenInner() {
               </TouchableOpacity>
             );
           }}
+          ListEmptyComponent={
+            <EmptyState
+              icon="share-2"
+              title={t("governanceDelegationsEmptyTitle")}
+              description={t("governanceDelegationsEmptyDescription")}
+            />
+          }
         />
       ) : (
         /* Statuts tab */
@@ -826,61 +820,12 @@ function GovernanceScreenInner() {
                       <Text style={[styles.delegDescLabel, { color: colors.mutedForeground }]}>{t("governanceDescription")}</Text>
                       <Text style={[styles.delegDescBody, { color: colors.foreground }]}>{selectedDelegation.description}</Text>
                     </View>
-                    {isAdmin && selectedDelegation.status === "active" ? (
-                      <TouchableOpacity
-                        style={[styles.saveBtn, { backgroundColor: colors.destructive + "15", borderWidth: 1, borderColor: colors.destructive + "40" }]}
-                        onPress={() => handleRevokeDelegation(selectedDelegation.id)}
-                      >
-                        <Text style={[styles.saveBtnText, { color: colors.destructive }]}>{t("governanceRevokeThis")}</Text>
-                      </TouchableOpacity>
-                    ) : null}
                   </>
                 );
               })()}
             </ScrollView>
           </View>
         ) : null}
-      </Modal>
-
-      {/* Add delegation modal */}
-      <Modal visible={showAddDelegation} animationType="slide" presentationStyle="pageSheet">
-        <View style={[styles.modal, { backgroundColor: colors.background }]}>
-          <View style={[styles.modalHeader, { borderBottomColor: colors.border }]}>
-            <Text style={[styles.modalTitle, { color: colors.foreground }]}>{t("governanceNewDelegation")}</Text>
-            <TouchableOpacity onPress={() => setShowAddDelegation(false)}>
-              <Feather name="x" size={22} color={colors.mutedForeground} />
-            </TouchableOpacity>
-          </View>
-          <ScrollView contentContainerStyle={{ padding: 24, gap: 16, paddingBottom: 40 }}>
-            {[
-              { key: "delegator", label: `${t("governanceDelegator")} *`, value: newDelegant, setter: setNewDelegant, placeholder: t("governanceDelegatorName") },
-              { key: "delegate", label: `${t("governanceDelegate")} *`, value: newDelegataire, setter: setNewDelegataire, placeholder: t("governanceDelegateName") },
-              { key: "domain", label: `${t("governanceDomain")} *`, value: newDomaine, setter: setNewDomaine, placeholder: t("governanceDomainPlaceholder") },
-              { key: "description", label: t("governanceDescription"), value: newDelegDesc, setter: setNewDelegDesc, placeholder: t("governanceDescriptionPlaceholder") },
-            ].map((field) => (
-              <View key={field.key} style={{ gap: 8 }}>
-                <Text style={[styles.fieldLabel, { color: colors.foreground }]}>{field.label}</Text>
-                <TextInput
-                   style={[styles.fieldInput, { borderColor: colors.border, backgroundColor: colors.card, color: colors.foreground, height: field.key === "description" ? 80 : undefined, textAlignVertical: field.key === "description" ? "top" : "center" }]}
-                  value={field.value}
-                  onChangeText={field.setter}
-                  placeholder={field.placeholder}
-                  placeholderTextColor={colors.mutedForeground}
-                   multiline={field.key === "description"}
-                />
-              </View>
-            ))}
-            <TouchableOpacity
-              style={[styles.saveBtn, { backgroundColor: newDelegant.trim() && newDelegataire.trim() && newDomaine.trim() ? colors.primary : colors.muted }]}
-              onPress={handleAddDelegation}
-              disabled={!newDelegant.trim() || !newDelegataire.trim() || !newDomaine.trim()}
-            >
-              <Text style={[styles.saveBtnText, { color: newDelegant.trim() && newDelegataire.trim() && newDomaine.trim() ? "#fff" : colors.mutedForeground }]}>
-                {t("governanceCreateDelegation")}
-              </Text>
-            </TouchableOpacity>
-          </ScrollView>
-        </View>
       </Modal>
 
       <Modal visible={showAddMember} animationType="slide" presentationStyle="pageSheet">
@@ -913,7 +858,7 @@ function GovernanceScreenInner() {
               disabled={!newName.trim() || !newRole.trim()}
             >
               <Text style={[styles.saveBtnText, { color: newName.trim() && newRole.trim() ? "#fff" : colors.mutedForeground }]}>
-                Ajouter au bureau
+                {saving ? t("saving") : t("governanceAddToBoard")}
               </Text>
             </TouchableOpacity>
           </View>

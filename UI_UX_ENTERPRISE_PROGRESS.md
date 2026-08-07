@@ -67,6 +67,7 @@
 - Search now keeps category hierarchy, quick discovery, history management, shortcuts, and no-results recovery consistent with the active language while preserving the existing search interaction model.
 - Subscription Payment now keeps onboarding, free-trial reassurance, billing choice, payment-method hierarchy, transfer confirmation, amount presentation, and recovery messaging consistent across supported languages; sensitive banking details are not embedded in the mobile UI.
 - Documents & Signatures now keeps the main list, detail sheet, workflow controls, signature capture, document editing, comments, version history, QR verification, bundle menu, and download feedback consistent across French, English, Arabic, and Spanish.
+- Governance now distinguishes official synchronized data from unavailable and genuinely empty states, never presents local seed records as authoritative, and gives administrators durable, localized feedback for council-member changes.
 ---
 ## Session 2026-08-06 — Refonte Enterprise Écrans d'Accueil
 

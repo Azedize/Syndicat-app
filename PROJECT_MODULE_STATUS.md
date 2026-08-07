@@ -65,3 +65,5 @@
 - Subscription Payment: multilingual free-trial/paid flows, active-locale MAD presentation, safe error recovery, and non-embedded transfer guidance complete; API subscription contract preserved.
 - Documents & Signatures: main document list/detail workflow now has four-language feedback and form coverage for generation, preview, download, signature, validation, archive/delete, comments, versions, QR verification, and bundle actions; real API and role boundaries preserved.
 - Mobile verification: zero-error typecheck and Expo workflow restart pass after the Documents & Signatures follow-through.
+- Governance: removed seeded-looking fallback data, wired council and mandate retrieval to the database-backed API, added localized loading/unavailable/empty recovery, and made council add/remove actions durable; unsupported delegation mutations are no longer presented.
+- Mobile verification: zero-error typecheck, diff validation, healthy Expo/API workflows, and public preview pass after the governance reliability follow-through.
