@@ -154,3 +154,7 @@
 - `pnpm --filter @workspace/mobile run typecheck` — passed with zero errors after the AG/Elections locale/date/mandate presentation pass.
 - Focused grep confirmed no remaining raw AG/election date rendering, raw mandate role/status rendering, or unrelated `addTeamMember` resolution action label in the touched flows.
 - Expo workflow remained healthy and Metro bundled the updated routes. Protected `/assemblee-generale` and `/elections` previews at 402×874 redirected to the public welcome screen without new browser runtime exceptions; existing Expo web warnings remain non-blocking.
+- `pnpm --filter @workspace/mobile run typecheck` — passed with zero errors after the SignatureOrderPanel and DocumentWizard localization pass.
+- `git diff --check -- artifacts/mobile/components/SignatureOrderPanel.tsx artifacts/mobile/components/DocumentWizard.tsx artifacts/mobile/context/LanguageContext.tsx` — passed.
+- Restarted `artifacts/mobile: expo`; Metro started successfully with only existing Expo package-version, web shadow-style, notification-listener, and animation compatibility warnings.
+- Mobile Expo preview at 402×874 rendered the public entry without a new browser runtime exception; protected document routes remain safely inaccessible without an authenticated session.

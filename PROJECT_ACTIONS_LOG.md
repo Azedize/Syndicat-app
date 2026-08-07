@@ -125,3 +125,6 @@
 - Audited `artifacts/mobile/app/documents.tsx`; localized the remaining document statistics, generation/preview/signature feedback, workflow confirmations, bundle actions, edit/sign forms, QR verification, comments, and version-history surfaces through a screen-local four-language dictionary.
 - Kept the existing PDF download and in-app preview pipeline, electronic signature persistence, status state machine, soft-delete recovery, comments, version restoration, bundle generation, and role boundaries unchanged.
 - Removed the only duplicate local translation key discovered during verification and sanitized workflow failures so raw API messages are not shown to users.
+- Audited `artifacts/mobile/components/SignatureOrderPanel.tsx`; localized signature loading, retryable errors, dates, statuses, role labels, signing CTA, and collection confirmation through the global language system.
+- Audited `artifacts/mobile/components/DocumentWizard.tsx`; localized the seven-step document creation experience, including category/template selection, data/entity loading, preview, PDF generation, electronic signature, publication, navigation, and error recovery.
+- Preserved real document APIs, entity IDs, autofill behavior, generation/signature/publish mutations, and the existing document workflow state machine.

@@ -21,6 +21,7 @@ import {
   View,
 } from "react-native";
 import { useColors } from "@/hooks/useColors";
+import { useLanguage } from "@/context/LanguageContext";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -63,27 +64,29 @@ interface Props {
 
 export default function SignatureOrderPanel({ documentId, onSignPress }: Props) {
   const colors = useColors();
+  const { t, lang } = useLanguage();
   const [data,    setData]    = useState<SignersData | null>(null);
   const [loading, setLoading] = useState(true);
   const [error,   setError]   = useState(false);
 
-  useEffect(() => {
+  const loadSigners = async () => {
     if (!documentId) return;
     setLoading(true);
     setError(false);
+    try {
+      const { documents: docsApi } = await import("@/services/api");
+      const res = await docsApi.signers(documentId);
+      setData(res.data);
+    } catch {
+      setError(true);
+    } finally {
+      setLoading(false);
+    }
+  };
 
-    const loadSigners = async () => {
-      try {
-        const { documents: docsApi } = await import("@/services/api");
-        const res = await docsApi.signers(documentId);
-        setData(res.data);
-      } catch {
-        setError(true);
-      } finally {
-        setLoading(false);
-      }
-    };
-    loadSigners();
+  useEffect(() => {
+    if (!documentId) return;
+    void loadSigners();
   }, [documentId]);
 
   const s = makeStyles(colors);
@@ -91,12 +94,33 @@ export default function SignatureOrderPanel({ documentId, onSignPress }: Props) 
   if (loading) {
     return (
       <View style={[s.card, { borderColor: colors.border, backgroundColor: colors.card }]}>
-        <ActivityIndicator color={colors.primary} style={{ padding: 16 }} />
+        <View style={{ alignItems: "center", gap: 8, padding: 16 }}>
+          <ActivityIndicator color={colors.primary} />
+          <Text style={[s.signerMeta, { color: colors.mutedForeground }]}>{t("signatureLoading")}</Text>
+        </View>
       </View>
     );
   }
 
-  if (error || !data) return null;
+  if (error || !data) {
+    return (
+      <View style={[s.card, { borderColor: colors.border, backgroundColor: colors.card, padding: 16, gap: 10 }]}>
+        <View style={{ flexDirection: "row", alignItems: "center", gap: 8 }}>
+          <Feather name="alert-circle" size={16} color="#ef4444" />
+          <Text style={[s.signerLabel, { color: colors.foreground, flex: 1 }]}>{t("signatureLoadError")}</Text>
+        </View>
+        <Text style={[s.signerMeta, { color: colors.mutedForeground }]}>{t("signatureLoadErrorDescription")}</Text>
+        <TouchableOpacity
+          style={[s.retryBtn, { borderColor: colors.border }]}
+          onPress={() => void loadSigners()}
+          activeOpacity={0.8}
+        >
+          <Feather name="refresh-cw" size={13} color={colors.primary} />
+          <Text style={[s.retryBtnText, { color: colors.primary }]}>{t("signatureRetry")}</Text>
+        </TouchableOpacity>
+      </View>
+    );
+  }
 
   // If no required signers defined, show completed signatures only (free-form signing)
   const hasOrder = data.requiredSigners.length > 0;
@@ -111,8 +135,29 @@ export default function SignatureOrderPanel({ documentId, onSignPress }: Props) 
   const fmtDate = (iso: string | null) => {
     if (!iso) return "—";
     try {
-      return new Date(iso).toLocaleDateString("fr-FR", { day: "2-digit", month: "short", year: "numeric", hour: "2-digit", minute: "2-digit" });
+      const locale = ({ fr: "fr-MA", en: "en-US", ar: "ar-MA", es: "es-ES" } as const)[lang];
+      return new Date(iso).toLocaleDateString(locale, { day: "2-digit", month: "short", year: "numeric", hour: "2-digit", minute: "2-digit" });
     } catch { return "—"; }
+  };
+  const translateRole = (value: string | null | undefined) => {
+    if (!value) return "—";
+    const normalized = value.toLowerCase().trim();
+    const roleKeys: Record<string, string> = {
+      president: "signatureRolePresident",
+      président: "signatureRolePresident",
+      "syndic administrator": "signatureRoleSyndic",
+      "administrateur syndic": "signatureRoleSyndic",
+      syndic: "signatureRoleSyndic",
+      treasurer: "signatureRoleTreasurer",
+      trésorier: "signatureRoleTreasurer",
+      secretary: "signatureRoleSecretary",
+      secrétaire: "signatureRoleSecretary",
+      member: "signatureRoleMember",
+      membre: "signatureRoleMember",
+      tenant: "signatureRoleTenant",
+      locataire: "signatureRoleTenant",
+    };
+    return roleKeys[normalized] ? t(roleKeys[normalized]) : value;
   };
 
   return (
@@ -122,7 +167,7 @@ export default function SignatureOrderPanel({ documentId, onSignPress }: Props) 
         <View style={[s.iconWrap, { backgroundColor: "#6366f115" }]}>
           <Feather name="pen-tool" size={14} color="#6366f1" />
         </View>
-        <Text style={[s.cardTitle, { color: colors.foreground }]}>Signatures électroniques</Text>
+        <Text style={[s.cardTitle, { color: colors.foreground }]}>{t("signatureTitle")}</Text>
         <View style={[s.badge, {
           backgroundColor: data.allSigned ? "#10b98115" : data.totalCompleted > 0 ? "#f59e0b15" : colors.muted,
         }]}>
@@ -179,21 +224,21 @@ export default function SignatureOrderPanel({ documentId, onSignPress }: Props) 
                 <View style={{ flex: 1, paddingTop: 2 }}>
                   <View style={{ flexDirection: "row", alignItems: "center", gap: 6, flexWrap: "wrap" }}>
                     <Text style={[s.signerLabel, { color: done ? colors.foreground : isNext ? colors.foreground : colors.mutedForeground }]}>
-                      {req.label}
+                      {translateRole(req.label)}
                     </Text>
                     {done && (
                       <View style={[s.chip, { backgroundColor: "#10b98115" }]}>
-                        <Text style={[s.chipText, { color: "#10b981" }]}>Signé</Text>
+                        <Text style={[s.chipText, { color: "#10b981" }]}>{t("signatureSigned")}</Text>
                       </View>
                     )}
                     {isNext && !done && (
                       <View style={[s.chip, { backgroundColor: colors.primary + "15" }]}>
-                        <Text style={[s.chipText, { color: colors.primary }]}>En attente</Text>
+                        <Text style={[s.chipText, { color: colors.primary }]}>{t("signaturePending")}</Text>
                       </View>
                     )}
                     {!done && !isNext && (
                       <View style={[s.chip, { backgroundColor: colors.muted }]}>
-                        <Text style={[s.chipText, { color: colors.mutedForeground }]}>Suivant</Text>
+                        <Text style={[s.chipText, { color: colors.mutedForeground }]}>{t("signatureNext")}</Text>
                       </View>
                     )}
                   </View>
@@ -214,7 +259,7 @@ export default function SignatureOrderPanel({ documentId, onSignPress }: Props) 
             <View style={{ padding: 14, alignItems: "center", gap: 6 }}>
               <Feather name="pen-tool" size={24} color={colors.mutedForeground} />
               <Text style={[s.signerMeta, { color: colors.mutedForeground, textAlign: "center" }]}>
-                Aucune signature enregistrée
+                 {t("signatureNoneRecorded")}
               </Text>
             </View>
           ) : (
@@ -226,12 +271,12 @@ export default function SignatureOrderPanel({ documentId, onSignPress }: Props) 
                 <View style={{ flex: 1 }}>
                   <Text style={[s.signerLabel, { color: colors.foreground }]}>{sig.signerName ?? "—"}</Text>
                   <Text style={[s.signerMeta, { color: colors.mutedForeground }]}>
-                    {sig.signerRole ?? "—"} · {fmtDate(sig.signedAt)}
+                    {translateRole(sig.signerRole)} · {fmtDate(sig.signedAt)}
                   </Text>
                 </View>
                 {sig.isValid === false && (
                   <View style={[s.chip, { backgroundColor: "#ef444415" }]}>
-                    <Text style={[s.chipText, { color: "#ef4444" }]}>Invalidée</Text>
+                    <Text style={[s.chipText, { color: "#ef4444" }]}>{t("signatureInvalid")}</Text>
                   </View>
                 )}
               </View>
@@ -244,9 +289,9 @@ export default function SignatureOrderPanel({ documentId, onSignPress }: Props) 
       {data.isMyTurn && !data.allSigned && onSignPress && (
         <View style={[s.ctaRow, { borderTopColor: colors.border }]}>
           <View style={{ flex: 1 }}>
-            <Text style={[s.signerLabel, { color: colors.foreground }]}>C'est votre tour de signer</Text>
+            <Text style={[s.signerLabel, { color: colors.foreground }]}>{t("signatureYourTurn")}</Text>
             <Text style={[s.signerMeta, { color: colors.mutedForeground }]}>
-              Rôle attendu : {data.nextSigner?.label}
+              {t("signatureExpectedRole")}: {translateRole(data.nextSigner?.label)}
             </Text>
           </View>
           <TouchableOpacity
@@ -255,7 +300,7 @@ export default function SignatureOrderPanel({ documentId, onSignPress }: Props) 
             activeOpacity={0.85}
           >
             <Feather name="pen-tool" size={14} color="#fff" />
-            <Text style={[s.ctaBtnText]}>Signer</Text>
+             <Text style={[s.ctaBtnText]}>{t("signatureSign")}</Text>
           </TouchableOpacity>
         </View>
       )}
@@ -265,7 +310,7 @@ export default function SignatureOrderPanel({ documentId, onSignPress }: Props) 
         <View style={[s.ctaRow, { borderTopColor: colors.border, backgroundColor: "#10b98108" }]}>
           <Feather name="check-circle" size={16} color="#10b981" />
           <Text style={{ fontSize: 13, color: "#10b981", fontWeight: "700" }}>
-            Toutes les signatures ont été collectées
+             {t("signatureAllCollected")}
           </Text>
         </View>
       )}
@@ -296,5 +341,7 @@ function makeStyles(colors: ReturnType<typeof import("@/hooks/useColors").useCol
     ctaRow:       { flexDirection: "row", alignItems: "center", gap: 10, padding: 14, borderTopWidth: 1 },
     ctaBtn:       { flexDirection: "row", alignItems: "center", gap: 6, paddingVertical: 8, paddingHorizontal: 14, borderRadius: 10 },
     ctaBtnText:   { fontSize: 13, fontWeight: "700", color: "#fff" },
+     retryBtn:     { flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 6, alignSelf: "flex-start", borderWidth: 1, borderRadius: 10, paddingHorizontal: 12, paddingVertical: 8 },
+     retryBtnText:  { fontSize: 12, fontWeight: "700" },
   });
 }

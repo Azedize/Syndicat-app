@@ -29,6 +29,7 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 import { useColors } from "@/hooks/useColors";
 import SignaturePad, { type SignaturePadHandle } from "@/components/SignaturePad";
+import { useLanguage } from "@/context/LanguageContext";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -78,10 +79,10 @@ interface Props {
 // ─── Category config ──────────────────────────────────────────────────────────
 
 const CATEGORIES = [
-  { key: "attestation", label: "Attestations",   icon: "award"       as const, color: "#8b5cf6", desc: "Attestations d'adhésion, résidence, propriété, paiement" },
-  { key: "pv",          label: "PV & Décisions", icon: "clipboard"   as const, color: "#10b981", desc: "Procès-verbaux, convocations et décisions syndicales" },
-  { key: "finances",    label: "Finances",        icon: "dollar-sign" as const, color: "#f59e0b", desc: "Rapports financiers, appels de fonds et factures" },
-  { key: "juridique",   label: "Juridique",       icon: "shield"      as const, color: "#ef4444", desc: "Contrats et mises en demeure officielles" },
+  { key: "attestation", labelKey: "wizardCategoryAttestations", descKey: "wizardCategoryAttestationsDesc", icon: "award"       as const, color: "#8b5cf6" },
+  { key: "pv",          labelKey: "wizardCategoryGovernance", descKey: "wizardCategoryGovernanceDesc", icon: "clipboard"   as const, color: "#10b981" },
+  { key: "finances",    labelKey: "wizardCategoryFinance", descKey: "wizardCategoryFinanceDesc", icon: "dollar-sign" as const, color: "#f59e0b" },
+  { key: "juridique",   labelKey: "wizardCategoryLegal", descKey: "wizardCategoryLegalDesc", icon: "shield"      as const, color: "#ef4444" },
 ];
 
 // ─── Entity type → document template mapping ─────────────────────────────────
@@ -125,6 +126,7 @@ function sourceColor(source: string): string {
 
 export default function DocumentWizard({ visible, onClose, onComplete }: Props) {
   const colors = useColors();
+  const { t, lang: uiLang } = useLanguage();
   const insets = useSafeAreaInsets();
   const topPad = Platform.OS === "web" ? 67 : insets.top;
 
@@ -209,7 +211,7 @@ export default function DocumentWizard({ visible, onClose, onComplete }: Props) 
       const filtered = res.data.filter((t) => t.category === catKey);
       setTemplates(filtered);
     } catch (err: any) {
-      setError("Impossible de charger les modèles. Vérifiez la connexion.");
+      setError(t("wizardTemplatesLoadError"));
       setTemplates([]);
     } finally {
       setTemplatesLoading(false);
@@ -278,7 +280,7 @@ export default function DocumentWizard({ visible, onClose, onComplete }: Props) 
     // Validate required inputs
     for (const req of selectedTpl.requiredInputs) {
       if (!fields[req]?.trim()) {
-        setError(`Le champ "${getFieldLabel(req, selectedTpl)}" est requis.`);
+        setError(`${t("wizardRequiredField")} "${getFieldLabel(req, selectedTpl)}".`);
         return;
       }
     }
@@ -294,7 +296,7 @@ export default function DocumentWizard({ visible, onClose, onComplete }: Props) 
       });
       setPreviewData(res.data);
     } catch (err: any) {
-      setError("Impossible de charger l'aperçu. Les données du syndicat sont peut-être incomplètes.");
+      setError(t("wizardPreviewLoadError"));
     } finally {
       setPreviewLoading(false);
     }
@@ -403,7 +405,7 @@ export default function DocumentWizard({ visible, onClose, onComplete }: Props) 
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
     } catch (err: any) {
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
-      setError(err?.message?.includes("HTTP") ? "Impossible de générer le document. Vérifiez la connexion." : (err?.message ?? "Erreur de génération."));
+      setError(err?.message?.includes("HTTP") ? t("wizardGenerateError") : t("wizardGenerateError"));
     } finally {
       setGenerating(false);
     }
@@ -421,7 +423,7 @@ export default function DocumentWizard({ visible, onClose, onComplete }: Props) 
       goToStep(7);
     } catch (err: any) {
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
-      setError(err?.message?.includes("409") ? "Vous avez déjà signé ce document." : "Impossible d'enregistrer la signature.");
+      setError(err?.message?.includes("409") ? t("wizardAlreadySigned") : t("wizardSignError"));
     } finally {
       setSigning(false);
     }
@@ -562,13 +564,13 @@ export default function DocumentWizard({ visible, onClose, onComplete }: Props) 
 
   // ─── Step labels ──────────────────────────────────────────────────────────────
   const STEPS = [
-    { num: 1, label: "Type" },
-    { num: 2, label: "Modèle" },
-    { num: 3, label: "Variables" },
-    { num: 4, label: "Aperçu" },
-    { num: 5, label: "Génération" },
-    { num: 6, label: "Signature" },
-    { num: 7, label: "Publication" },
+    { num: 1, label: t("wizardStepType") },
+    { num: 2, label: t("wizardStepTemplate") },
+    { num: 3, label: t("wizardStepVariables") },
+    { num: 4, label: t("wizardStepPreview") },
+    { num: 5, label: t("wizardStepGeneration") },
+    { num: 6, label: t("wizardStepSignature") },
+    { num: 7, label: t("wizardStepPublish") },
   ];
 
   // ─── Render each step ─────────────────────────────────────────────────────────
@@ -579,9 +581,9 @@ export default function DocumentWizard({ visible, onClose, onComplete }: Props) 
       case 1:
         return (
           <ScrollView contentContainerStyle={{ padding: 20, gap: 12, paddingBottom: 100 }}>
-            <Text style={[s.stepTitle, { color: colors.foreground }]}>Choisir le type de document</Text>
+            <Text style={[s.stepTitle, { color: colors.foreground }]}>{t("wizardChooseType")}</Text>
             <Text style={[s.stepSubtitle, { color: colors.mutedForeground }]}>
-              Sélectionnez la catégorie qui correspond au document à créer.
+              {t("wizardChooseTypeDescription")}
             </Text>
             {CATEGORIES.map((cat) => (
               <TouchableOpacity
@@ -594,8 +596,8 @@ export default function DocumentWizard({ visible, onClose, onComplete }: Props) 
                   <Feather name={cat.icon} size={24} color={cat.color} />
                 </View>
                 <View style={{ flex: 1 }}>
-                  <Text style={[s.catLabel, { color: colors.foreground }]}>{cat.label}</Text>
-                  <Text style={[s.catDesc, { color: colors.mutedForeground }]}>{cat.desc}</Text>
+                  <Text style={[s.catLabel, { color: colors.foreground }]}>{t(cat.labelKey)}</Text>
+                  <Text style={[s.catDesc, { color: colors.mutedForeground }]}>{t(cat.descKey)}</Text>
                 </View>
                 <Feather name="chevron-right" size={18} color={colors.mutedForeground} />
               </TouchableOpacity>
@@ -607,19 +609,19 @@ export default function DocumentWizard({ visible, onClose, onComplete }: Props) 
       case 2:
         return (
           <ScrollView contentContainerStyle={{ padding: 20, gap: 14, paddingBottom: 100 }}>
-            <Text style={[s.stepTitle, { color: colors.foreground }]}>Choisir un modèle</Text>
+            <Text style={[s.stepTitle, { color: colors.foreground }]}>{t("wizardChooseTemplate")}</Text>
             <Text style={[s.stepSubtitle, { color: colors.mutedForeground }]}>
-              Chaque modèle a une structure prédéfinie avec des sections et des variables automatiques.
+              {t("wizardChooseTemplateDescription")}
             </Text>
             {templatesLoading ? (
               <View style={{ alignItems: "center", paddingVertical: 40 }}>
                 <ActivityIndicator color={colors.primary} size="large" />
-                <Text style={[s.stepSubtitle, { color: colors.mutedForeground, marginTop: 12 }]}>Chargement des modèles…</Text>
+                <Text style={[s.stepSubtitle, { color: colors.mutedForeground, marginTop: 12 }]}>{t("wizardLoadingTemplates")}</Text>
               </View>
             ) : templates.length === 0 ? (
               <View style={{ alignItems: "center", paddingVertical: 40, gap: 10 }}>
                 <Feather name="inbox" size={36} color={colors.mutedForeground} />
-                <Text style={[s.stepSubtitle, { color: colors.mutedForeground }]}>Aucun modèle disponible</Text>
+                <Text style={[s.stepSubtitle, { color: colors.mutedForeground }]}>{t("wizardNoTemplates")}</Text>
               </View>
             ) : (
               templates.map((tpl) => (
@@ -654,7 +656,7 @@ export default function DocumentWizard({ visible, onClose, onComplete }: Props) 
                     ))}
                     {tpl.sections.length > 4 ? (
                       <Text style={[s.sectionText, { color: colors.mutedForeground, marginLeft: 14 }]}>
-                        +{tpl.sections.length - 4} autres sections
+                        +{tpl.sections.length - 4} {t("wizardOtherSections")}
                       </Text>
                     ) : null}
                   </View>
@@ -662,7 +664,7 @@ export default function DocumentWizard({ visible, onClose, onComplete }: Props) 
                   <View style={[s.varBadge, { backgroundColor: tpl.color + "12" }]}>
                     <Feather name="code" size={11} color={tpl.color} />
                     <Text style={[s.varBadgeText, { color: tpl.color }]}>
-                      {tpl.variables.length} variable{tpl.variables.length > 1 ? "s" : ""}  ·  {tpl.requiredInputs.length} champ{tpl.requiredInputs.length !== 1 ? "s" : ""} requis
+                      {tpl.variables.length} {t("wizardVariables")}  ·  {tpl.requiredInputs.length} {t("wizardRequiredFields")}
                     </Text>
                   </View>
                 </TouchableOpacity>
@@ -713,7 +715,7 @@ export default function DocumentWizard({ visible, onClose, onComplete }: Props) 
                     {selectedEntityId && !entityLoading && (
                       <View style={[s.autoChip, { backgroundColor: "#10b98115" }]}>
                         <Feather name="check" size={10} color="#10b981" />
-                        <Text style={[s.autoChipText, { color: "#10b981" }]}>Sélectionné</Text>
+                          <Text style={[s.autoChipText, { color: "#10b981" }]}>{t("wizardSelected")}</Text>
                       </View>
                     )}
                   </View>
@@ -735,12 +737,12 @@ export default function DocumentWizard({ visible, onClose, onComplete }: Props) 
                   {/* Entity list */}
                   {entityLoading ? (
                     <View style={{ alignItems: "center", paddingVertical: 16, paddingBottom: 14 }}>
-                      <Text style={[s.stepSubtitle, { color: colors.mutedForeground }]}>Chargement…</Text>
+                      <Text style={[s.stepSubtitle, { color: colors.mutedForeground }]}>{t("wizardLoading")}</Text>
                     </View>
                   ) : entityItems.length === 0 ? (
                     <View style={{ alignItems: "center", paddingVertical: 14, paddingBottom: 16, gap: 6 }}>
                       <Feather name="inbox" size={22} color={colors.mutedForeground} />
-                      <Text style={[s.stepSubtitle, { color: colors.mutedForeground }]}>Aucune donnée disponible</Text>
+                      <Text style={[s.stepSubtitle, { color: colors.mutedForeground }]}>{t("wizardNoEntityData")}</Text>
                     </View>
                   ) : (
                     <View style={{ paddingHorizontal: 14, paddingBottom: 14, gap: 6 }}>
@@ -780,7 +782,7 @@ export default function DocumentWizard({ visible, onClose, onComplete }: Props) 
                           onPress={() => setEntityExpanded(true)}
                         >
                           <Text style={{ color: selectedTpl.color, fontSize: 13, fontFamily: "Inter_600SemiBold" }}>
-                            Voir {entityItems.length - 5} de plus…
+                             {t("wizardSeeMore")} {entityItems.length - 5}
                           </Text>
                         </TouchableOpacity>
                       )}
@@ -792,7 +794,7 @@ export default function DocumentWizard({ visible, onClose, onComplete }: Props) 
 
             {/* Document structure */}
             <View style={[s.sectionBox, { backgroundColor: colors.card, borderColor: colors.border }]}>
-              <Text style={[s.boxTitle, { color: colors.foreground }]}>Structure du document</Text>
+              <Text style={[s.boxTitle, { color: colors.foreground }]}>{t("wizardDocumentStructure")}</Text>
               {selectedTpl.sections.map((sec, i) => (
                 <View key={i} style={[s.structureRow, { borderTopColor: i > 0 ? colors.border : "transparent" }]}>
                   <View style={[s.structureNum, { backgroundColor: colors.primary + "15" }]}>
@@ -814,21 +816,21 @@ export default function DocumentWizard({ visible, onClose, onComplete }: Props) 
             {/* Auto-resolved DB variables — real values from autofill */}
             <View style={[s.sectionBox, { backgroundColor: colors.card, borderColor: colors.border }]}>
               <View style={{ flexDirection: "row", alignItems: "center", gap: 8, marginBottom: 10 }}>
-                <Text style={[s.boxTitle, { color: colors.foreground }]}>Données automatiques</Text>
+                <Text style={[s.boxTitle, { color: colors.foreground }]}>{t("wizardAutomaticData")}</Text>
                 {autofillLoading && <ActivityIndicator size="small" color={selectedTpl.color} />}
                 {!autofillLoading && autofillData && (
                   <View style={[s.autoChip, { backgroundColor: "#10b98115" }]}>
                     <Feather name="check-circle" size={10} color="#10b981" />
-                    <Text style={[s.autoChipText, { color: "#10b981" }]}>Résolu</Text>
+                    <Text style={[s.autoChipText, { color: "#10b981" }]}>{t("wizardResolved")}</Text>
                   </View>
                 )}
               </View>
               <Text style={[s.stepSubtitle, { color: colors.mutedForeground, marginBottom: 10 }]}>
-                Ces informations sont récupérées automatiquement depuis votre profil et syndicat.
+                 {t("wizardAutomaticDataDescription")}
               </Text>
               {autofillLoading ? (
                 <View style={{ alignItems: "center", paddingVertical: 16 }}>
-                  <Text style={[s.stepSubtitle, { color: colors.mutedForeground }]}>Récupération des données…</Text>
+                   <Text style={[s.stepSubtitle, { color: colors.mutedForeground }]}>{t("wizardFetchingData")}</Text>
                 </View>
               ) : autofillData ? (() => {
                 // Flatten all resolved values into display rows
@@ -853,7 +855,7 @@ export default function DocumentWizard({ visible, onClose, onComplete }: Props) 
                 add("Lot", mi.lot_number ? `Lot ${mi.lot_number}` : null, "#ec4899");
                 return rows.length === 0 ? (
                   <Text style={[s.stepSubtitle, { color: colors.mutedForeground }]}>
-                    Aucune donnée syndicat trouvée. Complétez le profil de votre syndicat.
+                     {t("wizardNoSyndicateData")}
                   </Text>
                 ) : (
                   <View style={{ gap: 0 }}>
@@ -864,7 +866,7 @@ export default function DocumentWizard({ visible, onClose, onComplete }: Props) 
                           <Text style={[s.varSource, { color: row.color, fontSize: 12 }]} numberOfLines={1}>{row.value}</Text>
                           <View style={[s.autoChip, { backgroundColor: row.color + "12" }]}>
                             <Feather name="cpu" size={9} color={row.color} />
-                            <Text style={[s.autoChipText, { color: row.color }]}>Auto</Text>
+                             <Text style={[s.autoChipText, { color: row.color }]}>{t("wizardAuto")}</Text>
                           </View>
                         </View>
                       </View>
@@ -880,7 +882,7 @@ export default function DocumentWizard({ visible, onClose, onComplete }: Props) 
                     </View>
                     <View style={[s.autoChip, { backgroundColor: sourceColor(v.source) + "12" }]}>
                       <Feather name="cpu" size={10} color={sourceColor(v.source)} />
-                      <Text style={[s.autoChipText, { color: sourceColor(v.source) }]}>Auto</Text>
+                       <Text style={[s.autoChipText, { color: sourceColor(v.source) }]}>{t("wizardAuto")}</Text>
                     </View>
                   </View>
                 ))
@@ -888,18 +890,18 @@ export default function DocumentWizard({ visible, onClose, onComplete }: Props) 
             </View>
 
             {/* User input fields */}
-            <Text style={[s.boxTitle, { color: colors.foreground }]}>Informations à saisir</Text>
+            <Text style={[s.boxTitle, { color: colors.foreground }]}>{t("wizardInputInformation")}</Text>
             {tplFields.map((f) => (
               <View key={f.name} style={{ gap: 6 }}>
                 <View style={{ flexDirection: "row", alignItems: "center", gap: 8 }}>
                   <Text style={[s.fieldLabel, { color: colors.foreground }]}>{f.label}</Text>
                   <View style={[s.srcBadge, { backgroundColor: sourceColor(f.source) + "12" }]}>
                     <Text style={[s.srcBadgeText, { color: sourceColor(f.source) }]}>
-                      {f.source.includes("input") ? "Saisie" : f.source}
+                      {f.source.includes("input") ? t("wizardUserInput") : f.source}
                     </Text>
                   </View>
                   {selectedTpl.requiredInputs.includes(f.name) ? (
-                    <Text style={{ color: "#ef4444", fontSize: 11 }}>requis</Text>
+                      <Text style={{ color: "#ef4444", fontSize: 11 }}>{t("wizardRequired")}</Text>
                   ) : null}
                 </View>
                 <TextInput
@@ -919,7 +921,7 @@ export default function DocumentWizard({ visible, onClose, onComplete }: Props) 
 
             {/* Language */}
             <View style={{ gap: 8 }}>
-              <Text style={[s.fieldLabel, { color: colors.foreground }]}>Langue du document</Text>
+              <Text style={[s.fieldLabel, { color: colors.foreground }]}>{t("wizardDocumentLanguage")}</Text>
               <View style={{ flexDirection: "row", gap: 8 }}>
                 {([
                   { code: "fr" as const, label: "Français" },
@@ -953,15 +955,15 @@ export default function DocumentWizard({ visible, onClose, onComplete }: Props) 
         if (!selectedTpl) return null;
         return (
           <ScrollView contentContainerStyle={{ padding: 20, gap: 14, paddingBottom: 120 }}>
-            <Text style={[s.stepTitle, { color: colors.foreground }]}>Aperçu avant génération</Text>
+            <Text style={[s.stepTitle, { color: colors.foreground }]}>{t("wizardPreviewTitle")}</Text>
             <Text style={[s.stepSubtitle, { color: colors.mutedForeground }]}>
-              Vérifiez les données qui seront utilisées dans votre document avant de générer le PDF.
+              {t("wizardPreviewDescription")}
             </Text>
 
             {previewLoading ? (
               <View style={{ alignItems: "center", paddingVertical: 40, gap: 12 }}>
                 <ActivityIndicator color={selectedTpl.color} size="large" />
-                <Text style={[s.stepSubtitle, { color: colors.mutedForeground }]}>Résolution des variables…</Text>
+                <Text style={[s.stepSubtitle, { color: colors.mutedForeground }]}>{t("wizardResolvingVariables")}</Text>
               </View>
             ) : (
               <>
@@ -980,14 +982,14 @@ export default function DocumentWizard({ visible, onClose, onComplete }: Props) 
                       {fields["title"] || selectedTpl.name}
                     </Text>
                     <Text style={[s.docPreviewRef, { color: colors.mutedForeground }]}>
-                      Réf. {previewData?.resolvedVariables?.documentNumber ?? `[${selectedTpl.id.toUpperCase()}-${new Date().getFullYear()}-XXXX]`}
+                       {t("wizardReference")} {previewData?.resolvedVariables?.documentNumber ?? `[${selectedTpl.id.toUpperCase()}-${new Date().getFullYear()}-XXXX]`}
                     </Text>
                   </View>
                 </View>
 
                 {/* Sections breakdown */}
                 <View style={[s.sectionBox, { backgroundColor: colors.card, borderColor: colors.border }]}>
-                  <Text style={[s.boxTitle, { color: colors.foreground }]}>Composition du document</Text>
+                   <Text style={[s.boxTitle, { color: colors.foreground }]}>{t("wizardDocumentComposition")}</Text>
                   {selectedTpl.sections.map((sec, i) => (
                     <View key={i} style={[s.structureRow, { borderTopColor: i > 0 ? colors.border : "transparent" }]}>
                       <View style={[s.structureNum, { backgroundColor: selectedTpl.color + "15" }]}>
@@ -1004,9 +1006,9 @@ export default function DocumentWizard({ visible, onClose, onComplete }: Props) 
                 {/* Resolved variable values */}
                 {previewData ? (
                   <View style={[s.sectionBox, { backgroundColor: colors.card, borderColor: colors.border }]}>
-                    <Text style={[s.boxTitle, { color: colors.foreground }]}>Variables résolues</Text>
+                     <Text style={[s.boxTitle, { color: colors.foreground }]}>{t("wizardResolvedVariables")}</Text>
                     <Text style={[s.stepSubtitle, { color: colors.mutedForeground, marginBottom: 4 }]}>
-                      Valeurs récupérées depuis votre base de données au {new Date(previewData.resolvedAt).toLocaleTimeString("fr-FR", { hour: "2-digit", minute: "2-digit" })}
+                       {t("wizardResolvedAt")} {new Date(previewData.resolvedAt).toLocaleTimeString(({ fr: "fr-MA", en: "en-US", ar: "ar-MA", es: "es-ES" } as const)[uiLang], { hour: "2-digit", minute: "2-digit" })}
                     </Text>
                     {selectedTpl.variables.map((v, i) => {
                       const resolvedVal = previewData.resolvedVariables[v.name];
@@ -1026,12 +1028,12 @@ export default function DocumentWizard({ visible, onClose, onComplete }: Props) 
                             {isFromDb ? (
                               <View style={[s.autoChip, { backgroundColor: "#10b98115" }]}>
                                 <Feather name="database" size={9} color="#10b981" />
-                                <Text style={[s.autoChipText, { color: "#10b981" }]}>Base de données</Text>
+                                 <Text style={[s.autoChipText, { color: "#10b981" }]}>{t("wizardDatabase")}</Text>
                               </View>
                             ) : userVal ? (
                               <View style={[s.autoChip, { backgroundColor: "#3b82f615" }]}>
                                 <Feather name="user" size={9} color="#3b82f6" />
-                                <Text style={[s.autoChipText, { color: "#3b82f6" }]}>Saisi</Text>
+                                 <Text style={[s.autoChipText, { color: "#3b82f6" }]}>{t("wizardEntered")}</Text>
                               </View>
                             ) : null}
                           </View>
@@ -1061,9 +1063,9 @@ export default function DocumentWizard({ visible, onClose, onComplete }: Props) 
                 <View style={[s.genSpinner, { backgroundColor: (selectedTpl?.color ?? colors.primary) + "18" }]}>
                   <ActivityIndicator color={selectedTpl?.color ?? colors.primary} size="large" />
                 </View>
-                <Text style={[s.stepTitle, { color: colors.foreground, textAlign: "center" }]}>Génération en cours…</Text>
+                 <Text style={[s.stepTitle, { color: colors.foreground, textAlign: "center" }]}>{t("wizardGenerating")}</Text>
                 <Text style={[s.stepSubtitle, { color: colors.mutedForeground, textAlign: "center" }]}>
-                  Le moteur PDF compile votre document avec les données du syndicat, le QR de vérification et la mise en page officielle.
+                   {t("wizardGeneratingDescription")}
                 </Text>
               </>
             ) : generatedDocId ? (
@@ -1071,16 +1073,16 @@ export default function DocumentWizard({ visible, onClose, onComplete }: Props) 
                 <View style={[s.genSpinner, { backgroundColor: "#10b98118" }]}>
                   <Feather name="check-circle" size={48} color="#10b981" />
                 </View>
-                <Text style={[s.stepTitle, { color: colors.foreground, textAlign: "center" }]}>Document généré !</Text>
+                 <Text style={[s.stepTitle, { color: colors.foreground, textAlign: "center" }]}>{t("wizardGenerated")}</Text>
                 <Text style={[s.stepSubtitle, { color: colors.mutedForeground, textAlign: "center" }]}>
-                  "{generatedDocTitle}" a été généré avec succès et est disponible dans la liste des documents.
+                   {t("wizardGeneratedDescription").replace("{title}", generatedDocTitle)}
                 </Text>
                 <View style={[s.sectionBox, { backgroundColor: colors.card, borderColor: colors.border, width: "100%" }]}>
                   {[
-                    { icon: "file-text"  as const, label: "Modèle",    value: selectedTpl?.name ?? "" },
-                    { icon: "globe"      as const, label: "Langue",    value: { fr: "Français", ar: "Arabe", en: "Anglais", es: "Espagnol" }[language] },
-                    { icon: "shield"     as const, label: "QR inclus", value: "Vérification authentifiée" },
-                    { icon: "clock"      as const, label: "Statut",    value: "Généré — en attente de signature" },
+                     { icon: "file-text"  as const, label: t("wizardTemplate"),    value: selectedTpl?.name ?? "" },
+                     { icon: "globe"      as const, label: t("wizardLanguage"),    value: { fr: t("languageFrench"), ar: t("languageArabic"), en: t("languageEnglish"), es: t("languageSpanish") }[language] },
+                     { icon: "shield"     as const, label: t("wizardQrIncluded"), value: t("wizardAuthenticatedVerification") },
+                     { icon: "clock"      as const, label: t("wizardStatus"),    value: t("wizardGeneratedPendingSignature") },
                   ].map((item, i) => (
                     <View key={item.label} style={[s.varRow, { borderTopColor: i > 0 ? colors.border : "transparent" }]}>
                       <Feather name={item.icon} size={14} color={colors.primary} />
@@ -1095,7 +1097,7 @@ export default function DocumentWizard({ visible, onClose, onComplete }: Props) 
                 <View style={[s.genSpinner, { backgroundColor: "#ef444418" }]}>
                   <Feather name="alert-circle" size={48} color="#ef4444" />
                 </View>
-                <Text style={[s.stepTitle, { color: "#ef4444", textAlign: "center" }]}>Échec de la génération</Text>
+                 <Text style={[s.stepTitle, { color: "#ef4444", textAlign: "center" }]}>{t("wizardGenerationFailed")}</Text>
                 {error ? <Text style={[s.stepSubtitle, { color: colors.mutedForeground, textAlign: "center" }]}>{error}</Text> : null}
               </>
             )}
@@ -1106,16 +1108,16 @@ export default function DocumentWizard({ visible, onClose, onComplete }: Props) 
       case 6:
         return (
           <ScrollView contentContainerStyle={{ padding: 20, gap: 16, paddingBottom: 120 }}>
-            <Text style={[s.stepTitle, { color: colors.foreground }]}>Signer le document</Text>
+             <Text style={[s.stepTitle, { color: colors.foreground }]}>{t("wizardSignTitle")}</Text>
             <Text style={[s.stepSubtitle, { color: colors.mutedForeground }]}>
-              Apposez votre signature manuscrite électronique. Elle sera intégrée au PDF et horodatée de façon irréversible.
+              {t("wizardSignDescription")}
             </Text>
 
             <View style={[s.sigInfoBox, { backgroundColor: colors.card, borderColor: colors.border }]}>
               {[
-                { icon: "shield"  as const, text: "Signature cryptographiquement liée au document" },
-                { icon: "clock"   as const, text: "Horodatage automatique à la seconde" },
-                { icon: "user"    as const, text: "Rôle et identité enregistrés" },
+                 { icon: "shield"  as const, text: t("wizardSignatureLinked") },
+                 { icon: "clock"   as const, text: t("wizardTimestamped") },
+                 { icon: "user"    as const, text: t("wizardIdentityRecorded") },
               ].map((item) => (
                 <View key={item.text} style={{ flexDirection: "row", alignItems: "center", gap: 10 }}>
                   <Feather name={item.icon} size={14} color="#8b5cf6" />
@@ -1139,7 +1141,7 @@ export default function DocumentWizard({ visible, onClose, onComplete }: Props) 
                 onPress={() => { sigPadRef.current?.clear(); setSigEmpty(true); }}
               >
                 <Feather name="rotate-ccw" size={16} color={colors.foreground} />
-                <Text style={[s.secBtnText, { color: colors.foreground }]}>Effacer</Text>
+                 <Text style={[s.secBtnText, { color: colors.foreground }]}>{t("wizardClear")}</Text>
               </TouchableOpacity>
               <TouchableOpacity
                 style={[s.primaryBtn, { flex: 2, backgroundColor: sigEmpty ? colors.mutedForeground : "#8b5cf6", opacity: signing ? 0.7 : 1 }]}
@@ -1147,7 +1149,7 @@ export default function DocumentWizard({ visible, onClose, onComplete }: Props) 
                 onPress={handleSign}
               >
                 {signing ? <ActivityIndicator color="#fff" /> : <Feather name="edit-3" size={18} color="#fff" />}
-                <Text style={s.primaryBtnText}>{signing ? "Envoi…" : "Signer le document"}</Text>
+                 <Text style={s.primaryBtnText}>{signing ? t("wizardSending") : t("wizardSignDocument")}</Text>
               </TouchableOpacity>
             </View>
 
@@ -1168,17 +1170,17 @@ export default function DocumentWizard({ visible, onClose, onComplete }: Props) 
               <Feather name="globe" size={48} color="#10b981" />
             </View>
             <Text style={[s.stepTitle, { color: colors.foreground, textAlign: "center" }]}>
-              Prêt à publier
+               {t("wizardReadyToPublish")}
             </Text>
             <Text style={[s.stepSubtitle, { color: colors.mutedForeground, textAlign: "center" }]}>
-              Publier rendra le document visible à tous les membres de votre syndicat. Cette action peut être annulée en archivant le document.
+               {t("wizardPublishDescription")}
             </Text>
             <View style={[s.sectionBox, { backgroundColor: colors.card, borderColor: colors.border, width: "100%" }]}>
               {[
-                { label: "Document",  value: generatedDocTitle },
-                { label: "Catégorie", value: CATEGORIES.find((c) => c.key === selectedCat)?.label ?? selectedCat },
-                { label: "Modèle",    value: selectedTpl?.name ?? "" },
-                { label: "Langue",    value: { fr: "Français", ar: "Arabe", en: "Anglais", es: "Espagnol" }[language] },
+                 { label: t("wizardDocument"),  value: generatedDocTitle },
+                 { label: t("wizardCategory"), value: CATEGORIES.find((c) => c.key === selectedCat) ? t(CATEGORIES.find((c) => c.key === selectedCat)!.labelKey) : selectedCat },
+                 { label: t("wizardTemplate"),    value: selectedTpl?.name ?? "" },
+                 { label: t("wizardLanguage"),    value: { fr: t("languageFrench"), ar: t("languageArabic"), en: t("languageEnglish"), es: t("languageSpanish") }[language] },
               ].map((item, i) => (
                 <View key={item.label} style={[s.varRow, { borderTopColor: i > 0 ? colors.border : "transparent" }]}>
                   <Text style={[s.varLabel, { color: colors.mutedForeground, flex: 1 }]}>{item.label}</Text>
@@ -1193,14 +1195,14 @@ export default function DocumentWizard({ visible, onClose, onComplete }: Props) 
                 disabled={publishing}
               >
                 {publishing ? <ActivityIndicator color="#fff" size="small" /> : <Feather name="globe" size={18} color="#fff" />}
-                <Text style={s.primaryBtnText}>{publishing ? "Publication…" : "Publier maintenant"}</Text>
+                 <Text style={s.primaryBtnText}>{publishing ? t("wizardPublishing") : t("wizardPublishNow")}</Text>
               </TouchableOpacity>
               <TouchableOpacity
                 style={[s.secBtn, { borderColor: colors.border, backgroundColor: colors.card, justifyContent: "center" }]}
                 onPress={() => onComplete(generatedDocId ?? undefined)}
               >
                 <Feather name="check" size={16} color={colors.foreground} />
-                <Text style={[s.secBtnText, { color: colors.foreground }]}>Terminer sans publier</Text>
+                 <Text style={[s.secBtnText, { color: colors.foreground }]}>{t("wizardFinishWithoutPublishing")}</Text>
               </TouchableOpacity>
             </View>
           </ScrollView>
@@ -1218,11 +1220,11 @@ export default function DocumentWizard({ visible, onClose, onComplete }: Props) 
     const canGoBack = step > 1 && step < 5;
 
     const nextLabel: Record<number, string> = {
-      2: "Continuer",
-      3: "Voir l'aperçu",
-      4: "Générer le PDF",
-      5: generating ? "…" : (generatedDocId ? "Signer" : "Réessayer"),
-      6: "Passer",
+       2: t("wizardContinue"),
+       3: t("wizardViewPreview"),
+       4: t("wizardGeneratePdf"),
+       5: generating ? "…" : (generatedDocId ? t("wizardSign") : t("wizardRetry")),
+       6: t("wizardSkip"),
     };
 
     const handleNext = () => {
@@ -1253,7 +1255,7 @@ export default function DocumentWizard({ visible, onClose, onComplete }: Props) 
               onPress={() => { setError(null); goToStep(step - 1); }}
             >
               <Feather name="arrow-left" size={16} color={colors.foreground} />
-              <Text style={[s.secBtnText, { color: colors.foreground }]}>Retour</Text>
+               <Text style={[s.secBtnText, { color: colors.foreground }]}>{t("wizardBack")}</Text>
             </TouchableOpacity>
           ) : null}
           {showNext ? (
@@ -1261,7 +1263,7 @@ export default function DocumentWizard({ visible, onClose, onComplete }: Props) 
               style={[s.primaryBtn, { flex: canGoBack ? 2 : 1, backgroundColor: selectedTpl?.color ?? colors.primary }]}
               onPress={handleNext}
             >
-              <Text style={s.primaryBtnText}>{nextLabel[step] ?? "Continuer"}</Text>
+               <Text style={s.primaryBtnText}>{nextLabel[step] ?? t("wizardContinue")}</Text>
               <Feather name="arrow-right" size={16} color="#fff" />
             </TouchableOpacity>
           ) : null}
@@ -1319,9 +1321,9 @@ export default function DocumentWizard({ visible, onClose, onComplete }: Props) 
             <Feather name="x" size={22} color={colors.mutedForeground} />
           </TouchableOpacity>
           <View style={{ flex: 1 }}>
-            <Text style={[s.headerTitle, { color: colors.foreground }]}>Créer un document</Text>
+             <Text style={[s.headerTitle, { color: colors.foreground }]}>{t("wizardTitle")}</Text>
             <Text style={[s.headerSub, { color: colors.mutedForeground }]}>
-              Étape {step} / 7 — {STEPS[step - 1]?.label}
+              {t("wizardStepOf").replace("{step}", String(step)).replace("{label}", STEPS[step - 1]?.label ?? "")}
             </Text>
           </View>
         </View>

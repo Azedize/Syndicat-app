@@ -20,3 +20,4 @@
 - Template Studio and Template Requests reuse existing category/status/priority semantic colors, card and modal surfaces, touch targets, and role boundaries while adopting shared runtime translations and DataState recovery components.
 - Super Admin National Dashboard reuses semantic health/alert colors, ranking podium accents, KPI cards, detail surfaces, and export actions while applying four-language labels and active-locale MAD/date formatting.
 - Assemblée Générale and Élections preserve their existing semantic status colors, card/modal surfaces, lifecycle controls, and mandate/result hierarchy while applying the shared four-language runtime and locale-aware date formatting.
+- Documents & Signatures reuse the existing semantic document colors, status chips, step indicator, entity cards, signature safeguards, and publication actions while applying consistent four-language copy and recoverable state presentation.

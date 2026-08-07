@@ -22,3 +22,5 @@
 - Assemblée Générale retains its calendar/banner, resolution cards, majority indicators, vote controls, and administrative action hierarchy while using locale-aware date/time presentation and dedicated translated action labels; Élections retains its lifecycle tabs and mandate result cards with localized role/status metadata.
 - Search retains its result-group and shortcut hierarchy while replacing mixed-language headings and no-result copy with runtime translations.
 - Payment retains its premium onboarding hierarchy, billing toggle, method cards, and security note while using locale-aware amounts, localized confirmations, and safer transfer guidance.
+- Signature review retains its status hierarchy, signer sequence, retryable error surface, and signing CTA while using locale-aware dates and role/status labels.
+- DocumentWizard retains its category cards, template metadata, entity picker, resolved-data rows, preview card, signature pad, and publication confirmation hierarchy while applying consistent multilingual state and action copy.

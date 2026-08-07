@@ -97,3 +97,4 @@
 - Assemblée Générale / Élections
 - Documents & Signatures
 - Profil & Paramètres
+- Documents & Signatures now provide a consistent enterprise wizard and signature-review language layer across all seven states, with visible loading, empty, recovery, confirmation, and action surfaces in the four supported locales.

@@ -38,3 +38,4 @@
 - General Assembly and Elections now translate the remaining dedicated resolution action, mandate roles/statuses, and governance date presentation for `fr`, `en`, `ar`, and `es`; existing lifecycle, voting, candidacy, delegation, and mandate actions remain wired to the same APIs.
 - Search now translates category headings, quick suggestions, recent-search controls, quick-access shortcuts, and no-result guidance for `fr`, `en`, `ar`, and `es`.
 - Subscription Payment now translates free-trial copy, billing intervals, payment methods, transfer confirmation, security guidance, amount actions, and safe recovery messages for `fr`, `en`, `ar`, and `es`.
+- Signature Order and Document Wizard now translate signer roles, signature statuses, dates, category/template guidance, entity/autofill states, preview metadata, generation/signature/publication states, navigation, and recoverable errors for `fr`, `en`, `ar`, and `es`.

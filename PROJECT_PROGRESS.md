@@ -135,3 +135,7 @@
 - Localized the member/tenant document catalog, auto-filled identity summary, payment eligibility states, request fields, review guidance, submission success state, and recovery feedback across French, English, Arabic, and Spanish.
 - Preserved role-filtered templates, real autofill/payment-check/request APIs, pending-review workflow, and balance blocking; corrected the payment-check loading state so it is visible while the API request is in flight.
 - Mobile typecheck passed with zero errors and Metro remained healthy after the change.
+- Continued the Documents & Signatures follow-through pass on `SignatureOrderPanel` and `DocumentWizard`.
+- Localized signature loading/error/retry states, status and role metadata, signature actions, and dates; localized the seven-step document creation flow including category selection, template loading, entity/autofill states, preview, generation, signing, publishing, navigation, and recovery copy across French, English, Arabic, and Spanish.
+- Preserved the existing document template/entity APIs, PDF generation payloads, signature persistence, publishing workflow, role boundaries, and RTL behavior.
+- Mobile typecheck and diff validation passed; Expo restarted successfully and the public mobile preview produced no new browser runtime exceptions beyond existing Expo compatibility warnings.

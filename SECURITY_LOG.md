@@ -23,3 +23,4 @@
 - Level-1 Support localization preserves the existing member/tenant/syndicate-admin access boundary, syndicate-scoped ticket APIs, reply permissions, and admin-only resolve/escalate controls.
 - Super Admin National Dashboard localization preserves the existing Super Admin-only RoleGuard, platform-wide syndicate/ranking visibility, authenticated detail requests, and chat contact flow; no permission or API scope was broadened.
 - AG/Elections presentation fixes preserve the existing Loi 18-00 role guards, member/tenant participation boundary, election transition enforcement, anonymous ballot exposure, proxy delegation authorization, and mandate admin/member action checks.
+- SignatureOrderPanel and DocumentWizard preserve the existing document ownership, signer-role, generation, signature, publication, and entity-selection boundaries; no API scope, workflow authorization, or document storage behavior changed.
