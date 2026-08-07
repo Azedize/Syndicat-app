@@ -610,7 +610,9 @@ export default function DashboardScreen() {
   const sidebarW = isWide ? (isDesktop ? SIDEBAR_FULL : SIDEBAR_COMPACT) : 0;
   const hPad = isWide ? 32 : 20;
   const contentWidth = screenWidth - sidebarW - hPad * 2;
-  const numCols = isDesktop ? 6 : isTablet ? 4 : 3;
+  // Two comfortable touch columns on phones; the old three-column grid
+  // made labels wrap and hid the action hierarchy on compact Android screens.
+  const numCols = isDesktop ? 6 : isTablet ? 4 : 2;
   const actionItemWidth = Math.floor(
     (contentWidth - ACTION_GAP * (numCols - 1)) / numCols,
   );
@@ -804,111 +806,121 @@ export default function DashboardScreen() {
 
         {/* Alerts Banner */}
         {topAlert && !dismissedAlerts.has(topAlert.id) && (
-          <TouchableOpacity
+          <View
             style={[
               styles.alertBanner,
               {
                 backgroundColor:
                   topAlert.type === "error"
-                    ? "#FEF2F2"
+                    ? colors.destructive + "12"
                     : topAlert.type === "warning"
-                      ? "#FFFBEB"
+                      ? colors.warning + "16"
                       : topAlert.type === "success"
-                        ? "#ECFDF5"
+                        ? colors.success + "14"
                         : colors.primary + "10",
                 borderColor:
                   topAlert.type === "error"
-                    ? "#FECACA"
+                    ? colors.destructive + "45"
                     : topAlert.type === "warning"
-                      ? "#FDE68A"
+                      ? colors.warning + "45"
                       : topAlert.type === "success"
-                        ? "#A7F3D0"
+                        ? colors.success + "45"
                         : colors.primary + "30",
               },
             ]}
-            onPress={() => router.push("/notifications" as any)}
           >
-            <View
+            <TouchableOpacity
+              style={styles.alertBannerMain}
+              onPress={() => router.push("/notifications" as any)}
+              accessibilityRole="button"
+              accessibilityLabel={topAlert.title}
+            >
+              <View
               style={[
                 styles.alertIconWrap,
                 {
                   backgroundColor:
                     topAlert.type === "error"
-                      ? "#FEE2E2"
+                      ? colors.destructive + "20"
                       : topAlert.type === "warning"
-                        ? "#FEF3C7"
+                        ? colors.warning + "22"
                         : topAlert.type === "success"
-                          ? "#D1FAE5"
+                          ? colors.success + "20"
                           : colors.primary + "20",
                 },
               ]}
-            >
-              <Feather
-                name={
-                  topAlert.type === "error"
-                    ? "alert-circle"
-                    : topAlert.type === "warning"
-                      ? "alert-triangle"
-                      : topAlert.type === "success"
-                        ? "check-circle"
-                        : "info"
-                }
-                size={18}
-                color={
-                  topAlert.type === "error"
-                    ? "#DC2626"
-                    : topAlert.type === "warning"
-                      ? "#D97706"
-                      : topAlert.type === "success"
-                        ? "#059669"
-                        : colors.primary
-                }
-              />
-            </View>
-            <View style={{ flex: 1, gap: 2 }}>
-              <Text
-                style={[
-                  styles.alertBannerTitle,
-                  {
-                    color:
-                      topAlert.type === "error"
-                        ? "#991B1B"
-                        : topAlert.type === "warning"
-                          ? "#92400E"
-                          : topAlert.type === "success"
-                            ? "#065F46"
-                            : colors.primary,
-                  },
-                ]}
               >
-                {topAlert.title}
-              </Text>
-              <Text
-                style={[
-                  styles.alertBannerMsg,
-                  { color: colors.mutedForeground },
-                ]}
-                numberOfLines={1}
-              >
-                {topAlert.message}
-              </Text>
-            </View>
+                <Feather
+                  name={
+                    topAlert.type === "error"
+                      ? "alert-circle"
+                      : topAlert.type === "warning"
+                        ? "alert-triangle"
+                        : topAlert.type === "success"
+                          ? "check-circle"
+                          : "info"
+                  }
+                  size={18}
+                  color={
+                    topAlert.type === "error"
+                      ? colors.destructive
+                      : topAlert.type === "warning"
+                        ? colors.warning
+                        : topAlert.type === "success"
+                          ? colors.success
+                          : colors.primary
+                  }
+                />
+              </View>
+              <View style={styles.alertBannerCopy}>
+                <Text
+                  style={[
+                    styles.alertBannerTitle,
+                    { color: colors.foreground },
+                  ]}
+                  numberOfLines={1}
+                >
+                  {topAlert.title}
+                </Text>
+                <Text
+                  style={[
+                    styles.alertBannerMsg,
+                    { color: colors.mutedForeground },
+                  ]}
+                  numberOfLines={2}
+                >
+                  {topAlert.message}
+                </Text>
+              </View>
+              <Feather name="chevron-right" size={18} color={colors.mutedForeground} />
+            </TouchableOpacity>
             <TouchableOpacity
+              style={styles.alertDismiss}
               onPress={() =>
                 setDismissedAlerts((p) => new Set(p).add(topAlert.id))
               }
+              accessibilityRole="button"
+              accessibilityLabel="Fermer"
             >
               <Feather name="x" size={18} color={colors.mutedForeground} />
             </TouchableOpacity>
-          </TouchableOpacity>
+          </View>
         )}
 
         {/* Quick Actions Grid */}
         {!dataLoading && (
           <View style={styles.section}>
-            <Text style={[styles.sectionTitle, { color: colors.foreground }]}>
-              {t("quickAccess")}
-            </Text>
+            <View style={styles.sectionHeader}>
+              <View>
+                <Text style={[styles.eyebrow, { color: colors.primary }]}>
+                  {t("quickAccess")}
+                </Text>
+                <Text style={[styles.sectionTitle, { color: colors.foreground }]}>
+                  {t("overviewLabel")}
+                </Text>
+              </View>
+              <Feather name="arrow-up-right" size={18} color={colors.mutedForeground} />
+            </View>
             <View style={styles.actionsGrid}>
               {quickActions.map((a) => (
                 <TouchableOpacity
@@ -1074,12 +1086,25 @@ export default function DashboardScreen() {
           </TouchableOpacity>
         )}
 
-        {/* Key Metrics Dashboard */}
+         {/* Key Metrics Dashboard */}
         {!dataLoading && (
           <View style={styles.section}>
-            <Text style={[styles.sectionTitle, { color: colors.foreground }]}>
-              {t("overviewLabel")}
-            </Text>
+            <View style={styles.sectionHeader}>
+              <View>
+                <Text style={[styles.eyebrow, { color: colors.primary }]}>
+                  {t("overviewLabel")}
+                </Text>
+                <Text style={[styles.sectionTitle, { color: colors.foreground }]}>
+                  {roleLabel}
+                </Text>
+              </View>
+              <View style={[styles.livePill, { backgroundColor: colors.success + "14" }]}>
+                <View style={[styles.liveDot, { backgroundColor: colors.success }]} />
+                <Text style={[styles.livePillText, { color: colors.success }]}>
+                  {t("dashboardUpdated")}
+                </Text>
+              </View>
+            </View>
             {isSuperAdmin ? (
               <>
                 <View style={styles.statsRow}>
@@ -1498,10 +1523,26 @@ const styles = StyleSheet.create({
   alertBanner: {
     flexDirection: "row",
     alignItems: "center",
-    gap: 14,
-    padding: 16,
-    borderRadius: 20,
+    gap: 8,
+    padding: 10,
+    borderRadius: 22,
     borderWidth: 1,
+  },
+  alertBannerMain: {
+    flex: 1,
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 12,
+    minWidth: 0,
+    padding: 6,
+  },
+  alertBannerCopy: { flex: 1, minWidth: 0, gap: 3 },
+  alertDismiss: {
+    width: 34,
+    height: 34,
+    borderRadius: 17,
+    alignItems: "center",
+    justifyContent: "center",
   },
   alertIconWrap: {
     width: 40,
@@ -1510,14 +1551,15 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "center",
   },
-  alertBannerTitle: { fontFamily: "Inter_600SemiBold", fontSize: 15 },
+  alertBannerTitle: { fontFamily: "Inter_700Bold", fontSize: 14 },
   alertBannerMsg: {
     fontFamily: "Inter_400Regular",
     fontSize: 13,
     marginTop: 2,
+    lineHeight: 18,
   },
 
-  section: { gap: 16 },
+  section: { gap: 14 },
   sectionHeader: {
     flexDirection: "row",
     justifyContent: "space-between",
@@ -1525,34 +1567,43 @@ const styles = StyleSheet.create({
   },
   sectionTitle: {
     fontFamily: "Inter_700Bold",
-    fontSize: 18,
+    fontSize: 20,
     letterSpacing: -0.3,
+  },
+  eyebrow: {
+    fontFamily: "Inter_700Bold",
+    fontSize: 11,
+    letterSpacing: 1.1,
+    textTransform: "uppercase",
+    marginBottom: 3,
   },
   seeAll: { fontFamily: "Inter_600SemiBold", fontSize: 14 },
 
   actionsGrid: { flexDirection: "row", flexWrap: "wrap", gap: ACTION_GAP },
   actionBtn: {
-    borderRadius: 20,
+    borderRadius: 22,
     borderWidth: 1,
-    paddingVertical: 20,
-    paddingHorizontal: 10,
+    paddingVertical: 15,
+    paddingHorizontal: 12,
+    flexDirection: "row",
     alignItems: "center",
-    gap: 12,
+    gap: 10,
     shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.03,
-    shadowRadius: 8,
+    shadowOpacity: 0.05,
+    shadowRadius: 10,
   },
   actionIcon: {
-    width: 52,
-    height: 52,
-    borderRadius: 16,
+    width: 42,
+    height: 42,
+    borderRadius: 14,
     alignItems: "center",
     justifyContent: "center",
   },
   actionLabel: {
     fontFamily: "Inter_600SemiBold",
     fontSize: 12,
-    textAlign: "center",
+    flex: 1,
+    textAlign: "left",
   },
 
   meetingCard: {
@@ -1618,6 +1669,16 @@ const styles = StyleSheet.create({
   },
 
   statsRow: { flexDirection: "row", gap: 12, marginBottom: 12 },
+  livePill: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 6,
+    borderRadius: 99,
+    paddingHorizontal: 10,
+    paddingVertical: 7,
+  },
+  liveDot: { width: 6, height: 6, borderRadius: 3 },
+  livePillText: { fontFamily: "Inter_600SemiBold", fontSize: 10 },
 
   activityList: {
     borderRadius: 24,

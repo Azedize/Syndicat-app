@@ -2,6 +2,12 @@
 - Ma Boutique seller experience now has localized form guidance, action confirmations, meaningful loading/error/empty states, and clear feedback for listing and promotion workflows.
 # UI/UX Enterprise Progress
 
+## 2026-08-07
+
+- Home Dashboard received a superstar UX pass focused on operational hierarchy: compact mobile actions now use comfortable two-column touch targets, alerts have separate open/dismiss affordances, and overview sections use stronger eyebrow/title grouping.
+- Dashboard KPI cards now have a clearer premium surface with consistent height and spacing; the live synchronization state is visible beside the role context.
+- Preserved role-specific quick actions, API-backed metrics, audit activity, localized copy, MAD formatting, and RTL direction behavior.
+
 ## 2026-08-06
 
 - Elections now provides a consistent four-language governance experience with safe action feedback, secure vote confirmation, guided loading/unavailable states, and localized candidacy/photo recovery.

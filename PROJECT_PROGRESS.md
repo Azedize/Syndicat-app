@@ -1,5 +1,13 @@
 # Project Progress
 
+## 2026-08-07 — Home Dashboard Superstar UX Pass
+
+- Reworked the role-aware home dashboard hierarchy without changing API contracts or permissions.
+- Replaced the compact three-column mobile quick-action grid with a readable two-column touch layout and stronger section framing.
+- Separated alert navigation from alert dismissal, improved alert copy wrapping, and aligned alert colors with the active theme.
+- Refined KPI card spacing/height and added an explicit live synchronization cue beside the role context.
+- Mobile typecheck passed with zero errors; Expo preview remained healthy with only existing non-blocking web compatibility warnings.
+
 ## 2026-08-06
 
 - Completed the governance follow-through pass across Elections, Elected Members, and Meetings.

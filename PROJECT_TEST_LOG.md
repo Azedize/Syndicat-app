@@ -2,6 +2,13 @@
 - 2026-08-06 — Governance follow-through verification: `pnpm --filter @workspace/mobile run typecheck` passed with zero errors; `git diff --check` passed; Expo workflow restarted successfully with Metro waiting and no new runtime exceptions.
 # Project Test Log
 
+## 2026-08-07
+
+- Home Dashboard UX verification: `pnpm --filter @workspace/mobile run typecheck` passed with zero errors.
+- Expo mobile preview remained running and bundled successfully after the dashboard refactor; the protected dashboard route correctly remains session-gated in the public preview.
+- Compact 402×874 preview verified the public app shell and login surfaces render without new runtime exceptions; existing Expo web compatibility warnings remain non-blocking.
+- Theme review confirmed dashboard alert surfaces now derive state colors from semantic light/dark palette tokens.
+
 ## 2026-08-06
 
 - Governance follow-through verification: `pnpm --filter @workspace/mobile run typecheck` passed with zero errors; `git diff --check` passed; Expo workflow restarted successfully with Metro waiting and no new runtime exceptions.

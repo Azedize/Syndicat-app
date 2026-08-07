@@ -79,18 +79,20 @@ export default function StatCard({
 const styles = StyleSheet.create({
   card: {
     flex: 1,
-    borderRadius: 16,
-    padding: 16,
+    borderRadius: 22,
+    padding: 15,
     borderWidth: 1,
     gap: 6,
+    minHeight: 136,
+    justifyContent: "space-between",
     // Prevent the card itself from growing unboundedly and squeezing siblings
     minWidth: 0,
     overflow: "hidden",
   },
   iconWrap: {
-    width: 40,
-    height: 40,
-    borderRadius: 12,
+    width: 38,
+    height: 38,
+    borderRadius: 13,
     alignItems: "center",
     justifyContent: "center",
     marginBottom: 4,

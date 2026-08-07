@@ -8,6 +8,12 @@
 - Ma Boutique: replaced the generic spinner and silent failure surface with animated shared loading/recovery states, translated seller controls, clearer marketplace status hierarchy, and guided first-publication empty state.
 # UI/UX Design Log
 
+## 2026-08-07
+
+- Home Dashboard visual direction was elevated from a dense admin surface to a role-aware command center: primary context is clearer, actions are easier to scan, and alert interaction no longer conflates opening and dismissing.
+- Compact mobile layouts now favor two columns for quick actions, with icon-plus-label rows that keep touch targets comfortable and labels readable on Android-sized screens.
+- Dashboard theme surfaces now use semantic palette tokens for alert states so light and dark modes retain the same hierarchy without hardcoded light-only backgrounds.
+
 ## 2026-08-06
 
 - Internal Messaging now uses the shared loading, error, empty, and search-no-results patterns so its state transitions remain consistent with the rest of the mobile application.
