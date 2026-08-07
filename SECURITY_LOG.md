@@ -1,3 +1,7 @@
+# 2026-08-07 — Invoice persistence boundary
+
+- Invoice IDs, references, dates, status, amount, and syndicate ownership are now determined server-side from authenticated request scope rather than trusted client fields.
+- Mobile invoice creation no longer submits a fabricated identifier or server-controlled lifecycle fields.
 - 2026-08-07 — Resident document request: role-filtered template visibility, real server-side autofill/payment eligibility, and existing pending-review submission boundaries were preserved during the UX pass.
 - Ma Boutique changes preserve the existing authenticated marketplace API, seller CRUD permissions, upload authorization, destructive confirmations, and promotion proof-of-payment flow; raw API errors are not exposed.
 # Security Log
@@ -25,3 +29,5 @@
 - AG/Elections presentation fixes preserve the existing Loi 18-00 role guards, member/tenant participation boundary, election transition enforcement, anonymous ballot exposure, proxy delegation authorization, and mandate admin/member action checks.
 - SignatureOrderPanel and DocumentWizard preserve the existing document ownership, signer-role, generation, signature, publication, and entity-selection boundaries; no API scope, workflow authorization, or document storage behavior changed.
 - Template Studio audit entries now use the shared `entity`/`entityId` contract with serialized details; route-parameter normalization does not broaden access or alter existing Super Admin and syndicate-admin guards.
+- Réclamations & Griefs retains its existing role-scoped list/detail/mutation permissions and API contracts; safe localized failures do not expose raw server details or broaden confidential grievance visibility.
+- Statistiques retains the existing Super Admin-only platform endpoint and role guard; unavailable responses now fail visibly instead of presenting misleading zero-valued KPIs, and persisted subscription data is read without changing access scope.

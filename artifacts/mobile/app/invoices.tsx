@@ -26,6 +26,7 @@ import { useLanguage } from "@/context/LanguageContext";
 import { useBreakpoints } from "@/hooks/useBreakpoints";
 import { useColors } from "@/hooks/useColors";
 import { useToast } from "@/context/ToastContext";
+import { ErrorState, LoadingState } from "@/components/DataState";
 import { apiRequest } from "@/lib/api";
 import {
   pickAndUploadPhoto,
@@ -46,6 +47,27 @@ function proofUrlFromResult(result: UploadResult): string {
   return `${base}/storage${result.objectPath}`;
 }
 
+function formatMAD(amount: number, lang: "fr" | "en" | "ar" | "es"): string {
+  const locale = lang === "ar" ? "ar-MA" : lang === "en" ? "en-US" : lang === "es" ? "es-ES" : "fr-FR";
+  try {
+    return new Intl.NumberFormat(locale, {
+      style: "currency",
+      currency: "MAD",
+      maximumFractionDigits: 2,
+    }).format(Number.isFinite(amount) ? amount : 0);
+  } catch {
+    return `${Math.round(Number.isFinite(amount) ? amount : 0).toLocaleString()} MAD`;
+  }
+}
+
+function formatDate(value: string, lang: "fr" | "en" | "ar" | "es"): string {
+  if (!value) return "—";
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return value;
+  const locale = lang === "ar" ? "ar-MA" : lang === "en" ? "en-US" : lang === "es" ? "es-ES" : "fr-FR";
+  return date.toLocaleDateString(locale, { day: "numeric", month: "short", year: "numeric" });
+}
+
 type TabType = "factures" | "devis";
 
 const STATUS_CONFIG: Record<Invoice["status"], { labelKey: string; color: string; icon: keyof typeof Feather.glyphMap }> = {
@@ -58,7 +80,7 @@ const STATUS_CONFIG: Record<Invoice["status"], { labelKey: string; color: string
 
 export default function InvoicesScreen() {
   return (
-    <RoleGuard allow={["super_admin", "syndicate_admin"]}>
+    <RoleGuard allow={["super_admin", "syndicate_admin", "treasurer"]}>
       <InvoicesScreenInner />
     </RoleGuard>
   );
@@ -67,8 +89,8 @@ export default function InvoicesScreen() {
 function InvoicesScreenInner() {
   const colors = useColors();
   const insets = useSafeAreaInsets();
-  const { invoices, addInvoice } = useData();
-  const { t } = useLanguage();
+  const { invoices, invoicesLoading, invoicesLoadError, refreshInvoices, addInvoice } = useData();
+  const { t, lang } = useLanguage();
   const { isWide } = useBreakpoints();
   const { token } = useAuth();
   const { showToast } = useToast();
@@ -103,7 +125,6 @@ function InvoicesScreenInner() {
   const [addRecipient, setAddRecipient] = useState("");
   const [addAmount, setAddAmount] = useState("");
   const [addLabel, setAddLabel] = useState("");
-  const [addNotes, setAddNotes] = useState("");
   // Proof attachment — upload happens immediately on pick, before form submission
   const [proofUpload, setProofUpload] = useState<UploadResult | null>(null);
   const [proofUploading, setProofUploading] = useState(false);
@@ -164,7 +185,7 @@ function InvoicesScreenInner() {
 
   const resetForm = () => {
     setAddRecipient(""); setAddAmount(""); setAddLabel("");
-    setAddNotes(""); setProofUpload(null); setProofError(false);
+    setProofUpload(null); setProofError(false);
   };
 
   const handleAdd = async () => {
@@ -174,25 +195,17 @@ function InvoicesScreenInner() {
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
       return;
     }
-    const count = invoices.filter((i) => i.type === addType).length + 1;
-    const pad = String(count).padStart(4, "0");
-    const ref = addType === "facture" ? `FAC-${new Date().getFullYear()}-${pad}` : `DEV-${new Date().getFullYear()}-${pad}`;
+    const amount = Number.parseFloat(addAmount.replace(",", "."));
+    if (!Number.isFinite(amount) || amount <= 0) return;
     const realProofUrl = proofUrlFromResult(proofUpload);
-    const inv: Invoice = {
-      id: `inv${Date.now()}`,
-      reference: ref,
+    const input = {
       type: addType,
       recipient: addRecipient.trim(),
-      syndicate: addRecipient.trim().slice(0, 3).toUpperCase(),
-      date: new Date().toISOString().slice(0, 10),
-      dueDate: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString().slice(0, 10),
-      amount: parseFloat(addAmount),
-      status: "draft",
-      items: [{ label: addLabel.trim(), quantity: 1, unitPrice: parseFloat(addAmount) }],
-      proofUrl: realProofUrl,  // ← real storage URL, saved to DB
+      items: [{ label: addLabel.trim(), quantity: 1, unitPrice: amount }],
+      proofUrl: realProofUrl,
     };
     setIsSubmitting(true);
-    const success = await addInvoice(inv);
+    const success = await addInvoice(input);
     setIsSubmitting(false);
     if (success) {
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
@@ -239,7 +252,7 @@ function InvoicesScreenInner() {
           { value: totalOverdue, label: t("invEnRetard"), color: "#ef4444" },
         ].map(({ value, label, color }) => (
           <View key={label} style={[styles.statBox, { backgroundColor: color + "12" }]}>
-            <Text style={[styles.statValue, { color }]}>{value.toLocaleString()}</Text>
+            <Text style={[styles.statValue, { color }]}>{formatMAD(value, lang)}</Text>
             <Text style={[styles.statLabel, { color: colors.mutedForeground }]}>{label}</Text>
           </View>
         ))}
@@ -267,6 +280,21 @@ function InvoicesScreenInner() {
       </View>
 
       {/* List */}
+      {invoicesLoading && invoices.length === 0 ? (
+        <LoadingState
+          title={t("invLoadingTitle")}
+          description={t("invLoadingDescription")}
+          accentColor={colors.primary}
+        />
+      ) : invoicesLoadError && invoices.length === 0 ? (
+        <ErrorState
+          title={t("invUnavailableTitle")}
+          description={t("invUnavailableDescription")}
+          retryLabel={t("retry")}
+          onRetry={() => { void refreshInvoices(); }}
+          accentColor={colors.primary}
+        />
+      ) : (
       <FlatList
         data={filteredInvoices}
         keyExtractor={(inv) => inv.id}
@@ -312,11 +340,11 @@ function InvoicesScreenInner() {
                 </View>
                 <Text style={[styles.invRecipient, { color: colors.mutedForeground }]}>{inv.recipient}</Text>
                 <Text style={[styles.invDate, { color: colors.mutedForeground }]}>
-                  {t("invEmis")} : {inv.date} · {t("invEcheance")} : {inv.dueDate}
+                  {t("invEmis")} : {formatDate(inv.date, lang)} · {t("invEcheance")} : {formatDate(inv.dueDate, lang)}
                 </Text>
               </View>
               <View style={{ alignItems: "flex-end", gap: 6 }}>
-                <Text style={[styles.invAmount, { color: colors.foreground }]}>{inv.amount.toLocaleString()} MAD</Text>
+                <Text style={[styles.invAmount, { color: colors.foreground }]}>{formatMAD(inv.amount, lang)}</Text>
                 <View style={[styles.statusBadge, { backgroundColor: sc.color + "18" }]}>
                   <Feather name={sc.icon} size={10} color={sc.color} />
                   <Text style={[styles.statusText, { color: sc.color }]}>{t(sc.labelKey)}</Text>
@@ -326,6 +354,7 @@ function InvoicesScreenInner() {
           );
         }}
       />
+      )}
 
       {/* ─── Detail modal ──────────────────────────────────────────────────────── */}
       <Modal visible={!!selectedInvoice} transparent animationType="slide" onRequestClose={() => setSelectedInvoice(null)}>
@@ -358,8 +387,8 @@ function InvoicesScreenInner() {
               <View style={[styles.detailInfo, { backgroundColor: colors.background, borderColor: colors.border }]}>
                 {[
                   { label: t("invDestinataire"), value: selectedInvoice.recipient },
-                  { label: t("invDateEmission"), value: selectedInvoice.date },
-                  { label: t("invDateEcheance"), value: selectedInvoice.dueDate },
+                  { label: t("invDateEmission"), value: formatDate(selectedInvoice.date, lang) },
+                  { label: t("invDateEcheance"), value: formatDate(selectedInvoice.dueDate, lang) },
                 ].map(({ label, value }) => (
                   <View key={label} style={styles.detailRow}>
                     <Text style={[styles.detailLabel, { color: colors.mutedForeground }]}>{label}</Text>
@@ -376,14 +405,14 @@ function InvoicesScreenInner() {
                     <Text style={[styles.itemLabel, { color: colors.foreground, flex: 1 }]}>{item.label}</Text>
                     <Text style={[styles.itemQty, { color: colors.mutedForeground }]}>×{item.quantity}</Text>
                     <Text style={[styles.itemPrice, { color: colors.foreground }]}>
-                      {(item.quantity * item.unitPrice).toLocaleString()} MAD
+                      {formatMAD(item.quantity * item.unitPrice, lang)}
                     </Text>
                   </View>
                 ))}
                 <View style={[styles.totalRow, { borderTopColor: colors.border }]}>
                   <Text style={[styles.totalLabel, { color: colors.foreground }]}>{t("invTotal")}</Text>
                   <Text style={[styles.totalAmount, { color: colors.primary }]}>
-                    {selectedInvoice.amount.toLocaleString()} MAD
+                    {formatMAD(selectedInvoice.amount, lang)}
                   </Text>
                 </View>
               </View>
@@ -444,7 +473,7 @@ function InvoicesScreenInner() {
                       await apiRequest(`/invoices/${selectedInvoice.id}/send`, "POST");
                       await Share.share({
                         title: selectedInvoice.reference,
-                        message: `${t("invSharePrefix")} ${selectedInvoice.reference} — ${selectedInvoice.recipient} — ${selectedInvoice.amount.toLocaleString()} MAD`,
+                          message: `${t("invSharePrefix")} ${selectedInvoice.reference} — ${selectedInvoice.recipient} — ${formatMAD(selectedInvoice.amount, lang)}`,
                       });
                     } catch {
                       showToast({ type: "error", title: t("error"), message: t("invSendError") });
@@ -536,18 +565,6 @@ function InvoicesScreenInner() {
                 />
               </View>
             ))}
-
-            <View>
-              <Text style={[styles.fieldLabel, { color: colors.foreground }]}>{t("invNotesLabel")}</Text>
-              <TextInput
-                style={[styles.input, { borderColor: colors.border, backgroundColor: colors.background, color: colors.foreground, minHeight: 60 }]}
-                placeholder={t("invNotesPh")}
-                placeholderTextColor={colors.mutedForeground}
-                value={addNotes}
-                onChangeText={setAddNotes}
-                multiline
-              />
-            </View>
 
             {/* ── Justificatif section ── */}
             <View style={[

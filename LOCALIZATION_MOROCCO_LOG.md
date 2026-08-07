@@ -1,3 +1,8 @@
+# 2026-08-07 — Invoice localization pass
+
+- Invoice MAD values now use locale-aware `Intl.NumberFormat` presentation for `fr-FR`, `en-US`, `ar-MA`, and `es-ES`.
+- Invoice issue and due dates now use the active locale, and loading/unavailable recovery copy is translated across all enabled languages.
+
 - 2026-08-07 — Added French/English/Arabic/Spanish runtime coverage for resident document requests, including locale-aware MAD eligibility totals and Moroccan co-ownership vocabulary.
 - 2026-08-06 — Elections, elected mandates, and meetings completed runtime localization coverage for French, English, Arabic, and Spanish, including roles, workflow feedback, retry states, and form guidance.
 - 2026-08-06 — Assemblée Générale completed runtime localization coverage for lifecycle feedback, loading/retry states, quorum and resolution forms, vote registration, attendance, and minutes generation in French, English, Arabic, and Spanish.
@@ -29,3 +34,5 @@
 - Delivery Notes now localize incoming/outgoing labels, lifecycle statuses, confirmation/PDF feedback, form guidance, empty-state copy, dates, and MAD totals across French, English, Arabic, and Spanish.
 - My Orders now localize order lifecycle labels, purchase/sales tabs, seller/buyer metadata, confirmation/review actions, empty and unavailable states, dates, and full MAD totals across French, English, Arabic, and Spanish.
 - User Management now localizes account roles, statuses, synchronization/recovery feedback, validation guidance, membership dates, and administrative actions across French, English, Arabic, and Spanish; Moroccan phone input accepts the national and +212 formats.
+- Réclamations & Griefs now keeps all recovery and mutation feedback in the active French, English, Arabic, or Spanish locale, with RTL-aware back navigation.
+- Statistiques now formats platform KPIs and persisted SaaS subscription totals with the active French, English, Arabic, or Spanish locale while retaining MAD as the displayed currency.

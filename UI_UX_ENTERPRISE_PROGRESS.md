@@ -7,6 +7,8 @@
 - Home Dashboard received a superstar UX pass focused on operational hierarchy: compact mobile actions now use comfortable two-column touch targets, alerts have separate open/dismiss affordances, and overview sections use stronger eyebrow/title grouping.
 - Dashboard KPI cards now have a clearer premium surface with consistent height and spacing; the live synchronization state is visible beside the role context.
 - Preserved role-specific quick actions, API-backed metrics, audit activity, localized copy, MAD formatting, and RTL direction behavior.
+- Profile & Settings received the next UX pass: profile actions now use readable two-column mobile rows, profile/settings screens mirror RTL navigation direction, and settings security/application metadata now uses the translation system.
+- Preserved real profile data, password/avatar workflows, theme controls, language selection, notification toggles, logout confirmation, and protected-route behavior.
 
 ## 2026-08-06
 
@@ -33,6 +35,7 @@
 - Payment history now applies period selectors to the transaction list and KPI totals, keeps financial exports, receipts, and shareable transaction details aligned with the selected language, and exposes recoverable API errors separately from empty results.
 - Financial dashboard now applies the active locale to all MAD summaries, budget/work/provider amounts, and contract dates, while preserving successful data during building transitions and showing an explicit loading surface before the first dashboard response.
 - Invoices now provide localized progress and recovery feedback for PDF generation, proof upload, creation, and sending.
+- Devis & Factures now distinguish synchronization, unavailable data, and genuine empty results, while financial amounts and dates follow the active language and treasurer access matches the server role matrix.
 - Contributions now provide consistent localized loading, error recovery, status, receipt, and secure payment experiences.
 - Budget now provides explicit loading, retryable error, empty, and PDF feedback states without hardcoded execution dates.
 - Protected screens now fail safely to the public welcome route when opened without an authenticated session, avoiding an indefinite loading state.
@@ -70,6 +73,8 @@
 - Resident Marketplace now provides a consistent four-language catalogue and moderation experience with localized categories, conditions, statuses, search, actions, orders, statistics, MAD values, and guided empty/error recovery states.
 - Super Admin National Dashboard now provides a consistent four-language platform supervision experience across national KPIs, tabs, health states, alerts, ranking guidance, quick actions, detail metadata, member statuses, and export feedback, with locale-aware MAD values and dates.
 - Assemblée Générale and Élections now complete their remaining governance presentation gaps with active-locale meeting/election dates, dedicated resolution actions, translated mandate roles/statuses, and localized mandate end dates while preserving the existing decision and voting workflows.
+- Réclamations & Griefs now provides explicit loading, unavailable, empty, and mutation-feedback states with safe localized copy while preserving its confidential role-scoped workflow.
+- Statistiques now provides explicit synchronization/error recovery, active-locale MAD formatting, persisted SaaS plan totals, and RTL-aware navigation without changing platform analytics permissions.
 - Search now keeps category hierarchy, quick discovery, history management, shortcuts, and no-results recovery consistent with the active language while preserving the existing search interaction model.
 - Subscription Payment now keeps onboarding, free-trial reassurance, billing choice, payment-method hierarchy, transfer confirmation, amount presentation, and recovery messaging consistent across supported languages; sensitive banking details are not embedded in the mobile UI.
 - Documents & Signatures now keeps the main list, detail sheet, workflow controls, signature capture, document editing, comments, version history, QR verification, bundle menu, and download feedback consistent across French, English, Arabic, and Spanish.

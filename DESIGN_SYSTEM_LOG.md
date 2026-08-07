@@ -1,3 +1,8 @@
+# 2026-08-07 — Financial document state language
+
+- Extended the shared enterprise state vocabulary to the invoice module with contextual synchronization and unavailable-data recovery.
+- Reused the product's active-locale financial/date presentation conventions so financial summaries and document metadata remain coherent across French, English, Arabic, and Spanish.
+
 - 2026-08-07 — Extended shared runtime language coverage to the resident document-request component; financial eligibility values now use the active locale and MAD currency presentation.
 - Ma Boutique reuses semantic theme colors and shared DataState components while keeping seller actions, status pills, promotion feedback, and MAD/date presentation consistent across light/dark and supported languages.
 # Design System Log
@@ -21,3 +26,5 @@
 - Super Admin National Dashboard reuses semantic health/alert colors, ranking podium accents, KPI cards, detail surfaces, and export actions while applying four-language labels and active-locale MAD/date formatting.
 - Assemblée Générale and Élections preserve their existing semantic status colors, card/modal surfaces, lifecycle controls, and mandate/result hierarchy while applying the shared four-language runtime and locale-aware date formatting.
 - Documents & Signatures reuse the existing semantic document colors, status chips, step indicator, entity cards, signature safeguards, and publication actions while applying consistent four-language copy and recoverable state presentation.
+- Réclamations & Griefs reuses the existing status/severity hierarchy, filters, detail sheet, and mutation controls while adding shared loading/error recovery, localized feedback, and RTL-aware navigation.
+- Statistiques reuses the existing KPI, chart, plan breakdown, and export hierarchy while adding explicit synchronization recovery, active-locale MAD formatting, persisted plan totals, and RTL-aware navigation.

@@ -8,6 +8,12 @@
 - Expo mobile preview remained running and bundled successfully after the dashboard refactor; the protected dashboard route correctly remains session-gated in the public preview.
 - Compact 402×874 preview verified the public app shell and login surfaces render without new runtime exceptions; existing Expo web compatibility warnings remain non-blocking.
 - Theme review confirmed dashboard alert surfaces now derive state colors from semantic light/dark palette tokens.
+- Profile & Settings UX verification: `pnpm --filter @workspace/mobile run typecheck` and `git diff --check` passed with zero errors.
+- Protected `/profile` and `/settings` previews correctly remained session-gated; Expo bundled both route requests without new browser/runtime exceptions beyond existing compatibility warnings.
+- Settings scan confirmed fixed security/application labels were replaced by localized keys; profile action labels now support RTL alignment on compact mobile layouts.
+- Approval Workflow UX verification: `pnpm --filter @workspace/mobile run typecheck` and `git diff --check` passed with zero errors.
+- Restarted `artifacts/mobile: expo`; Metro bundled successfully and `/workflow` rendered at 402×874 with the expected protected API 401 boundary and only existing Expo web compatibility warnings.
+- Workflow scan confirmed no user-facing raw `err.message` remains in decision/create handlers, translated status/priority rendering is used, and zero-step progress is guarded.
 
 ## 2026-08-06
 
@@ -174,3 +180,9 @@
 - `pnpm --filter @workspace/api-server run typecheck` — passed with zero errors after resolving document PDF, budget, content, and Template Studio typing blockers.
 - `pnpm --filter @workspace/api-server run build` — passed; API workflow restarted and reported successful server startup with scheduled document scans completing without errors.
 - `pnpm --filter @workspace/mobile run typecheck` and `git diff --check` — passed with zero errors after the combined API type-safety cleanup.
+- `pnpm --filter @workspace/mobile run typecheck` — passed with zero errors after the invoice integrity and recovery pass.
+- `pnpm --filter @workspace/api-server run typecheck` — passed with zero errors after moving invoice identity, dates, and totals to the persistence boundary.
+- `git diff --check` — passed; mobile and API workflows restarted successfully, API build completed, Metro waited without transform errors, and the 402×874 public `/welcome` preview showed no new browser runtime exceptions beyond existing Expo web compatibility warnings.
+- `pnpm --filter @workspace/mobile run typecheck` and `git diff --check` — passed with zero errors after the Réclamations & Griefs and Statistiques reliability/localization pass.
+- `pnpm exec prettier --write artifacts/mobile/app/reclamations.tsx artifacts/mobile/app/statistiques.tsx` — passed; Expo restarted and Metro bundled without transform errors.
+- Protected `/statistiques` preview at 402×874 redirected to the public welcome boundary as expected without a new browser runtime exception; existing Expo web compatibility warnings remain non-blocking.

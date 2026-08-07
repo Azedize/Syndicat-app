@@ -82,3 +82,7 @@
 - Mobile/API verification: zero-error typechecks, Expo bundling, API restart, clean diff validation, and public preview pass after the dashboard and RBAC follow-through.
 - Règlements & Statuts: removed seeded-looking fallback records and local-only document mutations; the regulatory library now consumes persisted documents, workflow transitions, signed PDF access, and database-backed version history with localized recovery states.
 - Mobile verification: zero-error typecheck, clean diff validation, and public preview pass after the regulatory documents reliability pass.
+- Devis & Factures: server-owned invoice identity/reference/dates/status/totals, authoritative empty-state replacement, dedicated loading/unavailable recovery, locale-aware MAD/date formatting, and treasurer access alignment complete.
+- Mobile/API verification: zero-error typechecks, clean diff validation, successful Expo/API workflow restarts, and public preview pass after the invoice integrity pass.
+- Réclamations & Griefs: localized loading/recovery and safe mutation feedback complete; existing confidentiality, filters, detail flow, and status permissions preserved.
+- Statistiques: explicit platform synchronization/retry, genuine data-state separation, locale-aware MAD values, persisted subscription totals, and RTL navigation complete; Super Admin API scope preserved.

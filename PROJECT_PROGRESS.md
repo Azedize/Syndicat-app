@@ -8,6 +8,22 @@
 - Refined KPI card spacing/height and added an explicit live synchronization cue beside the role context.
 - Mobile typecheck passed with zero errors; Expo preview remained healthy with only existing non-blocking web compatibility warnings.
 
+## 2026-08-07 — Profile & Settings UX Pass
+
+- Reworked profile quick actions into readable two-column mobile rows with comfortable touch targets and RTL-aware label alignment.
+- Added RTL-aware back navigation to Profile and Settings.
+- Replaced remaining Settings security, language-direction, version, and application metadata labels with localized translation keys across French, English, Arabic, and Spanish.
+- Preserved existing profile update, avatar upload, password change, badge, theme, language, notification, logout, and role behavior.
+- Mobile typecheck and diff validation passed; protected profile/settings previews remained correctly session-gated with no new Expo runtime errors.
+
+## 2026-08-07 — Approval Workflow UX Reliability Pass
+
+- Added RTL-aware navigation, directional workflow cues, and right-aligned workflow form inputs for Arabic.
+- Fixed detail and creation surfaces that could display internal status/priority keys instead of translated labels.
+- Replaced raw decision/creation API error text with safe localized recovery messages.
+- Guarded progress rendering when a workflow has no steps, preserving the existing API and approval permissions.
+- Restarted Expo successfully; the 402×874 workflow preview rendered the header, KPI strip, filters, and guided loading state without new runtime errors.
+
 ## 2026-08-06
 
 - Completed the governance follow-through pass across Elections, Elected Members, and Meetings.
@@ -173,3 +189,9 @@
 - Continued the regulatory documents enterprise pass on Règlements & Statuts: removed seeded sample records and local-only publish/create behavior, and switched retrieval, creation, publishing, PDF access, and version history to the database-backed document APIs.
 - Added explicit localized synchronization, unavailable-data recovery, real empty states, and loading surfaces; retained role filtering and the existing document workflow state machine.
 - Mobile typecheck and diff validation pass; public mobile preview remains healthy with only existing Expo web compatibility warnings.
+- Continued the financial integrity pass on Devis & Factures: invoice references, IDs, issue dates, due dates, status, and totals are now generated and persisted by the API rather than fabricated on the client.
+- Invoice retrieval now replaces state with authoritative empty API responses and exposes dedicated loading/unavailable/retry states; invoice amounts and dates follow the active locale in French, English, Arabic, and Spanish.
+- Treasurer access is aligned between the mobile guard and the API; mobile and API typechecks pass, both workflows restarted cleanly, and the public mobile preview shows no new runtime exceptions.
+- Continued the reliability pass on Réclamations & Griefs and Statistiques: both screens now distinguish synchronization, unavailable data, and genuine empty results with localized recovery guidance.
+- Statistiques now uses active-locale MAD formatting, RTL-aware navigation, and persisted subscription amounts/plans instead of hardcoded financial tariffs; existing role guards and statistics APIs remain unchanged.
+- Mobile typecheck and diff validation pass; Expo restarted and bundled successfully, and the protected statistics preview redirects safely to the public welcome screen without new runtime exceptions.

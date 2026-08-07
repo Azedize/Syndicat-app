@@ -1,6 +1,7 @@
 import { Router } from "express";
 import { z } from "zod";
 import { sql } from "drizzle-orm";
+import { randomUUID } from "node:crypto";
 import { db } from "@workspace/db";
 import {
   transactionsTable,
@@ -312,12 +313,8 @@ router.post(
       unitPrice: z.number().positive(),
     });
     const schema = z.object({
-      reference: z.string().min(1),
       type: z.enum(["devis", "facture"]).default("facture"),
       recipient: z.string().min(1),
-      date: z.string(),
-      dueDate: z.string(),
-      status: z.enum(["draft", "issued", "sent", "paid", "partially_paid", "due", "overdue", "cancelled"]).default("draft"),
       items: z.array(itemSchema).default([]),
       syndicateId: z.string().optional(),
       proofUrl: z.string().optional(),
@@ -326,18 +323,33 @@ router.post(
     if (!result.success) { res.status(400).json({ error: "Données invalides" }); return; }
     try {
       const sid = effectiveSyndicateId(req, result.data.syndicateId);
-      const { syndicateId: _sid, items, ...data } = result.data;
+      const { syndicateId: _sid, items, type, recipient, proofUrl } = result.data;
+      const issuedAt = new Date();
+      const dueAt = new Date(issuedAt);
+      dueAt.setDate(dueAt.getDate() + 30);
+      const prefix = type === "facture" ? "FAC" : "DEV";
+      const reference = `${prefix}-${issuedAt.getFullYear()}-${randomUUID().slice(0, 8).toUpperCase()}`;
       const amount = items.reduce((s, i) => s + i.quantity * i.unitPrice, 0);
       const [inv] = await db
         .insert(invoicesTable)
-        .values({ ...data, syndicateId: sid, amount } as any)
+        .values({
+          reference,
+          type,
+          recipient,
+          date: issuedAt.toISOString().slice(0, 10),
+          dueDate: dueAt.toISOString().slice(0, 10),
+          status: "draft",
+          syndicateId: sid,
+          proofUrl,
+          amount,
+        } as any)
         .returning();
       if (items.length > 0) {
         await db
           .insert(invoiceItemsTable)
           .values(items.map((i) => ({ ...i, invoiceId: inv.id })) as any);
       }
-      res.status(201).json({ data: inv, message: "Facture créée" });
+      res.status(201).json({ data: { ...inv, amount: Number(inv.amount), items }, message: "Facture créée" });
     } catch (err) {
       req.log.error(err);
       res.status(500).json({ error: "Erreur serveur" });

@@ -24,7 +24,7 @@ export default function SettingsScreen() {
   const insets = useSafeAreaInsets();
   const { logout, user } = useAuth();
   const { isDark, toggle: toggleTheme, mode, setMode } = useTheme();
-  const { lang, setLang, t } = useLanguage();
+  const { lang, setLang, t, isRTL } = useLanguage();
   const { isWide } = useBreakpoints();
   const topPad = isWide ? 0 : (Platform.OS === "web" ? 67 : insets.top);
 
@@ -70,10 +70,10 @@ export default function SettingsScreen() {
     t("member");
 
   return (
-    <View style={[styles.root, { backgroundColor: colors.background }]}>
+    <View style={[styles.root, { backgroundColor: colors.background, direction: isRTL ? "rtl" : "ltr" }]}>
       <View style={[styles.header, { paddingTop: topPad + 16, backgroundColor: colors.card, borderBottomColor: colors.border }]}>
         <TouchableOpacity onPress={() => router.back()} style={styles.backBtn}>
-          <Feather name="arrow-left" size={22} color={colors.foreground} />
+          <Feather name={isRTL ? "arrow-right" : "arrow-left"} size={22} color={colors.foreground} />
         </TouchableOpacity>
         <Text style={[styles.title, { color: colors.foreground }]}>{t("settingsTitle")}</Text>
       </View>
@@ -153,7 +153,7 @@ export default function SettingsScreen() {
 
         {/* Language */}
         <View style={styles.group}>
-          <Text style={[styles.groupTitle, { color: colors.mutedForeground }]}>{t("language").toUpperCase()}</Text>
+          <Text style={[styles.groupTitle, { color: colors.mutedForeground }]}>{t("languageSection")}</Text>
           <View style={[styles.card, { backgroundColor: colors.card, borderColor: colors.border }]}>
             {LANG_OPTIONS.map((option, i) => (
               <View key={option.code}>
@@ -171,7 +171,7 @@ export default function SettingsScreen() {
                   <View style={{ flex: 1 }}>
                     <Text style={[styles.navLabel, { color: colors.foreground }]}>{option.nativeLabel}</Text>
                     {option.rtl && (
-                      <Text style={[styles.navSub, { color: colors.mutedForeground }]}>RTL</Text>
+                      <Text style={[styles.navSub, { color: colors.mutedForeground }]}>{t("rtlLabel")}</Text>
                     )}
                   </View>
                   {lang === option.code ? <Feather name="check" size={18} color={colors.primary} /> : null}
@@ -185,9 +185,9 @@ export default function SettingsScreen() {
         <View style={styles.group}>
           <Text style={[styles.groupTitle, { color: colors.mutedForeground }]}>{t("securitySection")}</Text>
           <View style={[styles.card, { backgroundColor: colors.card, borderColor: colors.border }]}>
-            <SettingRow icon="cpu" label={t("biometricAuth")} sub="Face ID / Touch ID" value={biometric} onToggle={() => toggle(setBiometric, biometric)} colors={colors} />
+            <SettingRow icon="cpu" label={t("biometricAuth")} sub={t("biometricAuthSub")} value={biometric} onToggle={() => toggle(setBiometric, biometric)} colors={colors} />
             <View style={[styles.sep, { backgroundColor: colors.border }]} />
-            <SettingRow icon="shield" label={t("twoFactorAuth")} sub="SMS / Application" value={twoFactor} onToggle={() => toggle(setTwoFactor, twoFactor)} colors={colors} />
+            <SettingRow icon="shield" label={t("twoFactorAuth")} sub={t("twoFactorAuthSub")} value={twoFactor} onToggle={() => toggle(setTwoFactor, twoFactor)} colors={colors} />
             <View style={[styles.sep, { backgroundColor: colors.border }]} />
             <SettingRow icon="lock" label={t("autoLockLabel")} sub={t("autoLockSub")} value={autoLock} onToggle={() => toggle(setAutoLock, autoLock)} colors={colors} />
             <View style={[styles.sep, { backgroundColor: colors.border }]} />
@@ -209,7 +209,7 @@ export default function SettingsScreen() {
           <Text style={[styles.groupTitle, { color: colors.mutedForeground }]}>{t("aboutSection")}</Text>
           <View style={[styles.card, { backgroundColor: colors.card, borderColor: colors.border }]}>
             {[
-              { icon: "info" as const, label: t("appVersion"), value: "2.0.0" },
+              { icon: "info" as const, label: t("appVersion"), value: t("appVersionValue") },
               { icon: "server" as const, label: t("serverStatus"), value: t("operational") },
             ].map((item, i) => (
               <View key={item.label}>

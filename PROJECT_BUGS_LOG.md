@@ -33,3 +33,7 @@
 - User Management no longer silently renders an empty list after an API failure, exposes raw mutation errors, uses fixed French membership dates, or sends every new account the same predictable client-side password.
 - The API standalone typecheck no longer fails in document PDF generation, budget receipt rendering, support ticket creation, or Template Studio routes; all previously recorded blockers are resolved.
 - Règlements & Statuts no longer presents fabricated sample documents after an API failure, reports local-only publish/create success, or falls back to sharing metadata when a real PDF cannot be retrieved; failures now remain visible and retryable.
+- Invoice creation no longer fabricates legal/financial identifiers and dates on the client, so concurrent users cannot derive duplicate local references or present a record before persistence succeeds.
+- Invoice retrieval no longer retains stale records when the authoritative API returns an empty list, and initial invoice failures no longer masquerade as an empty screen; localized retry recovery is now visible.
+- Réclamations & Griefs no longer exposes raw API errors, a fixed French retry label, or a hardcoded anonymous fallback; loading and failure states are now localized and recoverable.
+- Statistiques no longer ignores `statistics.platform()` failures or presents incomplete platform KPIs as real zero values; the screen now shows an explicit retry state and no longer calculates SaaS revenue from hardcoded plan tariffs.

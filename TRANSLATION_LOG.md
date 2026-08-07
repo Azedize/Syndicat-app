@@ -1,3 +1,8 @@
+# 2026-08-07 — Devis & Factures
+
+- Added four-language synchronization and unavailable-data messages for the invoice screen.
+- Preserved localized invoice status, proof, creation, PDF, send, and sharing copy while routing new recovery surfaces through the runtime language system.
+
 - 2026-08-07 — Added the complete `mdr*` translation family for the member/tenant document-request flow; no visible catalog, form, payment, review, success, or recovery copy remains French-only in that component.
 # Translation Log
 
@@ -39,3 +44,5 @@
 - Search now translates category headings, quick suggestions, recent-search controls, quick-access shortcuts, and no-result guidance for `fr`, `en`, `ar`, and `es`.
 - Subscription Payment now translates free-trial copy, billing intervals, payment methods, transfer confirmation, security guidance, amount actions, and safe recovery messages for `fr`, `en`, `ar`, and `es`.
 - Signature Order and Document Wizard now translate signer roles, signature statuses, dates, category/template guidance, entity/autofill states, preview metadata, generation/signature/publication states, navigation, and recoverable errors for `fr`, `en`, `ar`, and `es`.
+- Réclamations & Griefs now translate synchronization, unavailable/retryable states, submission/update failures, and anonymous display fallback for `fr`, `en`, `ar`, and `es`.
+- Statistiques now translate synchronization and unavailable/retryable states; platform financial values and subscription totals follow the active locale while preserving the existing statistical labels and role scope.

@@ -63,7 +63,7 @@ export default function ProfileScreen() {
   const ACTION_GAP = 10;
   const hPad = isWide ? 24 : 20;
   const contentWidth = screenWidth - sidebarWidth - hPad * 2;
-  const numCols = isDesktop ? 7 : isTablet ? 5 : 4;
+  const numCols = isDesktop ? 7 : isTablet ? 5 : 2;
   const actionItemWidth = Math.floor((contentWidth - ACTION_GAP * (numCols - 1)) / numCols);
 
   const { showToast } = useToast();
@@ -198,10 +198,10 @@ export default function ProfileScreen() {
   const pwdStrength = newPwd.length === 0 ? null : newPwd.length < 6 ? { label: t("passwordWeak"), color: colors.destructive, width: "33%" as const } : newPwd.length < 10 ? { label: t("passwordMedium"), color: "#f59e0b", width: "66%" as const } : { label: t("passwordExcellent"), color: colors.success, width: "100%" as const };
 
   return (
-    <View style={[styles.root, { backgroundColor: colors.background }]}>
+    <View style={[styles.root, { backgroundColor: colors.background, direction: isRTL ? "rtl" : "ltr" }]}>
       <View style={[styles.header, { paddingTop: topPad + 16, backgroundColor: colors.card, borderBottomColor: colors.border }]}>
         <TouchableOpacity onPress={() => router.back()} style={styles.backBtn}>
-          <Feather name="arrow-left" size={22} color={colors.foreground} />
+          <Feather name={isRTL ? "arrow-right" : "arrow-left"} size={22} color={colors.foreground} />
         </TouchableOpacity>
          <Text style={[styles.title, { color: colors.foreground }]}>{t("profileTitle")}</Text>
         <TouchableOpacity
@@ -289,7 +289,7 @@ export default function ProfileScreen() {
                   <View style={[styles.actionIcon, { backgroundColor: a.color + "15" }]}>
                     <Feather name={a.icon} size={20} color={a.color} />
                   </View>
-                  <Text style={[styles.actionLabel, { color: colors.foreground }]}>{a.label}</Text>
+                  <Text style={[styles.actionLabel, { color: colors.foreground, textAlign: isRTL ? "right" : "left" }]}>{a.label}</Text>
                 </TouchableOpacity>
               ))}
             </View>
@@ -583,9 +583,9 @@ const styles = StyleSheet.create({
   statVal: { fontSize: 20, fontFamily: "Inter_700Bold" },
   statLabel: { fontSize: 10, fontFamily: "Inter_400Regular" },
   actionsGrid: { flexDirection: "row", flexWrap: "wrap", gap: 10 },
-  actionCard: { alignItems: "center", borderRadius: 14, borderWidth: 1, paddingVertical: 14, paddingHorizontal: 8, gap: 6 },
-  actionIcon: { width: 44, height: 44, borderRadius: 12, alignItems: "center", justifyContent: "center" },
-  actionLabel: { fontSize: 10, fontFamily: "Inter_500Medium", textAlign: "center" },
+  actionCard: { flexDirection: "row", alignItems: "center", borderRadius: 18, borderWidth: 1, paddingVertical: 13, paddingHorizontal: 11, gap: 10, minHeight: 66 },
+  actionIcon: { width: 40, height: 40, borderRadius: 13, alignItems: "center", justifyContent: "center" },
+  actionLabel: { flex: 1, fontSize: 11, lineHeight: 15, fontFamily: "Inter_600SemiBold", textAlign: "left" },
   attestationBtn: { flexDirection: "row", alignItems: "center", gap: 14, borderRadius: 18, padding: 18 },
   attestationIcon: { width: 46, height: 46, borderRadius: 12, alignItems: "center", justifyContent: "center" },
   attestationTitle: { fontSize: 14, fontFamily: "Inter_700Bold", color: "#fff" },

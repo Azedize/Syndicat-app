@@ -181,7 +181,7 @@ type TabFilter = "all" | WfStatus;
 
 export default function WorkflowScreen() {
   const colors = useColors();
-  const { lang } = useLanguage();
+  const { lang, isRTL } = useLanguage();
   const insets = useSafeAreaInsets();
   const { user } = useAuth();
   const { documents } = useData();
@@ -249,7 +249,7 @@ export default function WorkflowScreen() {
         isApprove ? STRINGS.stepApproveMsg[lang] : STRINGS.stepRejectMsg[lang]
       );
       } catch (err) {
-      Alert.alert(STRINGS.errorTitle[lang], err instanceof Error ? err.message : STRINGS.saveDecisionError[lang]);
+      Alert.alert(STRINGS.errorTitle[lang], STRINGS.saveDecisionError[lang]);
     } finally {
       setSubmittingDecision(false);
     }
@@ -272,7 +272,7 @@ export default function WorkflowScreen() {
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
       Alert.alert(STRINGS.wfCreated[lang], STRINGS.wfCreatedMsg[lang]);
     } catch (err) {
-      Alert.alert(STRINGS.errorTitle[lang], err instanceof Error ? err.message : STRINGS.createWorkflowError[lang]);
+      Alert.alert(STRINGS.errorTitle[lang], STRINGS.createWorkflowError[lang]);
     } finally {
       setCreating(false);
     }
@@ -287,12 +287,12 @@ export default function WorkflowScreen() {
   ];
 
   return (
-    <View style={[styles.root, { backgroundColor: colors.background }]}>
+    <View style={[styles.root, { backgroundColor: colors.background, direction: isRTL ? "rtl" : "ltr" }]}>
       {/* Header */}
       <View style={[styles.header, { paddingTop: topPad + 16, backgroundColor: colors.primary }]}>
         <View style={styles.headerRow}>
           <TouchableOpacity onPress={() => router.back()}>
-            <Feather name="arrow-left" size={22} color="#fff" />
+            <Feather name={isRTL ? "arrow-right" : "arrow-left"} size={22} color="#fff" />
           </TouchableOpacity>
           <View style={{ flex: 1 }}>
             <Text style={styles.headerTitle}>{STRINGS.headerTitle[lang]}</Text>
@@ -377,7 +377,7 @@ export default function WorkflowScreen() {
           const priorityCfg = PRIORITY_CONFIG[w.priority];
           const catColor = CAT_COLORS[w.category] ?? colors.primary;
           const progress = w.steps.filter((s) => s.status === "done").length;
-          const progressPct = Math.round((progress / w.steps.length) * 100);
+          const progressPct = w.steps.length > 0 ? Math.round((progress / w.steps.length) * 100) : 0;
           const daysLeft = w.deadline ? Math.ceil((new Date(w.deadline).getTime() - Date.now()) / 86400000) : null;
 
           return (
@@ -463,7 +463,7 @@ export default function WorkflowScreen() {
 
               {w.status === "in_progress" && (
                 <View style={[styles.currentStepBox, { backgroundColor: colors.primary + "10", borderColor: colors.primary + "30" }]}>
-                  <Feather name="arrow-right" size={12} color={colors.primary} />
+                  <Feather name={isRTL ? "arrow-left" : "arrow-right"} size={12} color={colors.primary} />
                       <Text style={[styles.currentStepText, { color: colors.primary }]} numberOfLines={1}>
                      {STRINGS.waitingOn[lang]} {w.steps[w.currentStep]?.assignee}
                   </Text>
@@ -490,7 +490,7 @@ export default function WorkflowScreen() {
                 </TouchableOpacity>
                 <Text style={styles.modalTitle} numberOfLines={2}>{w.title}</Text>
                 <View style={[styles.modalStatusBadge, { backgroundColor: "rgba(255,255,255,0.2)" }]}>
-                  <Text style={styles.modalStatusText}>{statusCfg.label}</Text>
+                  <Text style={styles.modalStatusText}>{STRINGS[statusCfg.label][lang]}</Text>
                 </View>
               </View>
               <ScrollView contentContainerStyle={{ padding: 20, gap: 18, paddingBottom: 40 }}>
@@ -599,7 +599,7 @@ export default function WorkflowScreen() {
             </Text>
             <Text style={[styles.commentSub, { color: colors.mutedForeground }]}>{STRINGS.commentOptional[lang]}</Text>
             <TextInput
-              style={[styles.commentInput, { backgroundColor: colors.background, borderColor: colors.border, color: colors.foreground }]}
+              style={[styles.commentInput, { backgroundColor: colors.background, borderColor: colors.border, color: colors.foreground, textAlign: isRTL ? "right" : "left" }]}
               placeholder={STRINGS.commentPlaceholder[lang]}
               placeholderTextColor={colors.mutedForeground}
               value={approveComment}
@@ -640,7 +640,7 @@ export default function WorkflowScreen() {
             <View style={{ gap: 6 }}>
               <Text style={[styles.fieldLabel, { color: colors.mutedForeground }]}>{STRINGS.titleLabel[lang]}</Text>
               <TextInput
-                style={[styles.fieldInput, { backgroundColor: colors.card, borderColor: colors.border, color: colors.foreground }]}
+                style={[styles.fieldInput, { backgroundColor: colors.card, borderColor: colors.border, color: colors.foreground, textAlign: isRTL ? "right" : "left" }]}
                 placeholder={STRINGS.titlePlaceholder[lang]}
                 placeholderTextColor={colors.mutedForeground}
                 value={newTitle}
@@ -680,7 +680,7 @@ export default function WorkflowScreen() {
                       }]}
                       onPress={() => { setNewPriority(p); Haptics.selectionAsync(); }}
                     >
-                      <Text style={[styles.catOptionText, { color: newPriority === p ? cfg.color : colors.mutedForeground }]}>{cfg.label}</Text>
+                      <Text style={[styles.catOptionText, { color: newPriority === p ? cfg.color : colors.mutedForeground }]}>{STRINGS[cfg.label][lang]}</Text>
                     </TouchableOpacity>
                   );
                 })}
@@ -690,7 +690,7 @@ export default function WorkflowScreen() {
             <View style={{ gap: 6 }}>
               <Text style={[styles.fieldLabel, { color: colors.mutedForeground }]}>{STRINGS.descriptionLabel[lang]}</Text>
               <TextInput
-                style={[styles.fieldInput, styles.fieldTextArea, { backgroundColor: colors.card, borderColor: colors.border, color: colors.foreground }]}
+                style={[styles.fieldInput, styles.fieldTextArea, { backgroundColor: colors.card, borderColor: colors.border, color: colors.foreground, textAlign: isRTL ? "right" : "left" }]}
                 placeholder={STRINGS.descriptionPlaceholder[lang]}
                 placeholderTextColor={colors.mutedForeground}
                 value={newDesc}

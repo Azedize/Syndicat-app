@@ -1,3 +1,9 @@
+# 2026-08-07 — Devis & Factures reliability and presentation pass
+
+- Reframed invoice creation as a persistence-backed financial workflow: server-owned identity, reference, dates, status, and total replace client-fabricated values.
+- Added a clear loading/unavailable/retry hierarchy so a failed financial request is never presented as a genuine empty list.
+- Applied active-locale MAD and date formatting to summaries, list rows, details, line items, and share content while preserving the existing premium proof/document interaction.
+
 - 2026-08-07 — Member/tenant document request: preserved the existing three-step interaction while removing language-specific friction from every visible state, including payment certification and pending validation.
 - 2026-08-07 — Delivery Notes: retained the compact logistics workflow while replacing fixed French presentation with locale-aware status hierarchy, actions, form guidance, dates, totals, and PDF feedback.
 - 2026-08-07 — My Orders: retained the marketplace tracking layout while making status progression, purchase/sales tabs, action labels, recovery states, dates, and MAD summaries fully locale-aware.
@@ -13,6 +19,9 @@
 - Home Dashboard visual direction was elevated from a dense admin surface to a role-aware command center: primary context is clearer, actions are easier to scan, and alert interaction no longer conflates opening and dismissing.
 - Compact mobile layouts now favor two columns for quick actions, with icon-plus-label rows that keep touch targets comfortable and labels readable on Android-sized screens.
 - Dashboard theme surfaces now use semantic palette tokens for alert states so light and dark modes retain the same hierarchy without hardcoded light-only backgrounds.
+- Profile now treats quick actions as a scan-friendly action rail on compact screens instead of a compressed icon grid; labels remain readable and align with Arabic RTL when selected.
+- Settings now keeps language, security, application metadata, and navigation affordances inside the runtime translation and direction system, removing the remaining fixed English/security labels from that screen.
+- Approval Workflows now preserve the existing operational card/timeline hierarchy while making direction, status/priority labels, input alignment, and failure feedback consistent with the active locale.
 
 ## 2026-08-06
 

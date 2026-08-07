@@ -564,6 +564,7 @@ export const TRANSLATIONS: Translations = {
     ar: "اتباع مظهر النظام",
     es: "Seguir el tema del sistema",
   },
+  rtlLabel: { fr: "RTL", en: "RTL", ar: "من اليمين إلى اليسار", es: "RTL" },
   notificationsSection: {
     fr: "NOTIFICATIONS",
     en: "NOTIFICATIONS",
@@ -624,6 +625,18 @@ export const TRANSLATIONS: Translations = {
     ar: "المصادقة الثنائية",
     es: "Autenticación de dos factores",
   },
+  biometricAuthSub: {
+    fr: "Face ID / Touch ID",
+    en: "Face ID / Touch ID",
+    ar: "Face ID / Touch ID",
+    es: "Face ID / Touch ID",
+  },
+  twoFactorAuthSub: {
+    fr: "SMS / application d'authentification",
+    en: "SMS / authenticator app",
+    ar: "رسائل SMS / تطبيق المصادقة",
+    es: "SMS / aplicación de autenticación",
+  },
   autoLockLabel: {
     fr: "Verrouillage auto",
     en: "Auto-lock",
@@ -654,6 +667,32 @@ export const TRANSLATIONS: Translations = {
     en: "App version",
     ar: "إصدار التطبيق",
     es: "Versión de la app",
+  },
+  appVersionValue: { fr: "2.0.0", en: "2.0.0", ar: "2.0.0", es: "2.0.0" },
+  applicationLabel: {
+    fr: "Application",
+    en: "Application",
+    ar: "التطبيق",
+    es: "Aplicación",
+  },
+  applicationName: {
+    fr: "MIZAN Community OS",
+    en: "MIZAN Community OS",
+    ar: "MIZAN Community OS",
+    es: "MIZAN Community OS",
+  },
+  versionLabel: { fr: "Version", en: "Version", ar: "الإصدار", es: "Versión" },
+  complianceLabel: {
+    fr: "Conformité",
+    en: "Compliance",
+    ar: "الامتثال",
+    es: "Cumplimiento",
+  },
+  complianceMorocco: {
+    fr: "Loi 18-00 — Maroc ✓",
+    en: "Law 18-00 — Morocco ✓",
+    ar: "القانون 18-00 — المغرب ✓",
+    es: "Ley 18-00 — Marruecos ✓",
   },
   serverStatus: {
     fr: "Statut serveur",
@@ -11211,6 +11250,30 @@ export const TRANSLATIONS: Translations = {
     en: "Creating…",
     ar: "جارٍ الإنشاء…",
     es: "Creando…",
+  },
+  invLoadingTitle: {
+    fr: "Synchronisation des factures",
+    en: "Synchronizing invoices",
+    ar: "جارٍ مزامنة الفواتير",
+    es: "Sincronizando facturas",
+  },
+  invLoadingDescription: {
+    fr: "Les documents financiers enregistrés sont en cours de récupération.",
+    en: "Saved financial documents are being retrieved.",
+    ar: "جارٍ استرجاع المستندات المالية المحفوظة.",
+    es: "Se están recuperando los documentos financieros guardados.",
+  },
+  invUnavailableTitle: {
+    fr: "Factures momentanément indisponibles",
+    en: "Invoices temporarily unavailable",
+    ar: "الفواتير غير متاحة مؤقتاً",
+    es: "Facturas temporalmente no disponibles",
+  },
+  invUnavailableDescription: {
+    fr: "Vérifiez votre connexion puis réessayez. Les données existantes restent protégées.",
+    en: "Check your connection and try again. Existing data remains protected.",
+    ar: "تحقق من اتصالك ثم أعد المحاولة. تظل البيانات الموجودة محمية.",
+    es: "Compruebe su conexión e inténtelo de nuevo. Los datos existentes están protegidos.",
   },
   myContributionsTitle: {
     fr: "Mes Cotisations",

@@ -156,3 +156,9 @@
 - Audited `artifacts/mobile/app/reglements.tsx` and removed all seeded regulatory documents, local-only status mutations, demo PDF/share fallback, and hardcoded revision timeline content.
 - Wired the screen to `GET /documents?category=reglements`, `POST /documents`, `PUT /documents/:id`, `GET /documents/:id/download-url`, and `GET /documents/:id/versions`, including real workflow transitions and reload-on-success behavior.
 - Added localized loading, unavailable/retryable, genuine-empty, action-failure, and version-history states across French, English, Arabic, and Spanish; mobile typecheck and diff validation pass and the public preview has no new runtime errors.
+- Audited the invoice flow and removed client-generated invoice IDs, references, dates, due dates, status, syndicate shorthand, and optimistic financial records.
+- Updated the API to generate the canonical invoice reference and dates at persistence time, return the created row with line items, and accept only user-entered invoice data from mobile.
+- Added invoice-specific loading/unavailable/retry state, authoritative empty-response replacement, locale-aware MAD/date presentation, and treasurer visibility; preserved proof uploads, PDF access, sharing, and role boundaries.
+- Audited Réclamations & Griefs and added localized loading/unavailable/retry states, safe mutation feedback, the translated anonymous-name fallback, and RTL back navigation without changing permissions or reclamation endpoints.
+- Audited Statistiques and replaced the ignored platform-statistics failure with an explicit localized retry surface; platform KPIs now show only after successful synchronization, financial values use the active locale, and SaaS plan totals derive from persisted subscription data.
+- `pnpm --filter @workspace/mobile run typecheck`, Prettier, `git diff --check`, Expo restart, and protected `/statistiques` preview validation passed; only existing Expo web compatibility warnings remain.

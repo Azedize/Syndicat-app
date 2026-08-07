@@ -23,6 +23,7 @@ import { apiRequest } from "@/lib/api";
 import EmptyState from "@/components/EmptyState";
 import FilterChips from "@/components/FilterChips";
 import RoleGuard from "@/components/RoleGuard";
+import { ErrorState, LoadingState } from "@/components/DataState";
 
 const STRINGS = {
   salaire: {
@@ -427,6 +428,60 @@ const STRINGS = {
     ar: "مجهول (محمي)",
     es: "Anónimo (protegido)",
   },
+  dataLoadingTitle: {
+    fr: "Synchronisation des réclamations",
+    en: "Syncing claims",
+    ar: "جارٍ مزامنة المطالبات",
+    es: "Sincronizando reclamaciones",
+  },
+  dataLoadingDescription: {
+    fr: "Nous récupérons les derniers éléments autorisés pour votre espace.",
+    en: "We are retrieving the latest items available to your space.",
+    ar: "نسترجع أحدث العناصر المسموح بها لمساحتك.",
+    es: "Estamos recuperando los últimos elementos disponibles para su espacio.",
+  },
+  dataUnavailableTitle: {
+    fr: "Réclamations indisponibles",
+    en: "Claims unavailable",
+    ar: "المطالبات غير متاحة",
+    es: "Reclamaciones no disponibles",
+  },
+  dataUnavailableDescription: {
+    fr: "Les réclamations ne peuvent pas être synchronisées pour le moment. Vérifiez votre connexion puis réessayez.",
+    en: "Claims cannot be synchronized right now. Check your connection and try again.",
+    ar: "لا يمكن مزامنة المطالبات حالياً. تحقق من اتصالك ثم أعد المحاولة.",
+    es: "Las reclamaciones no se pueden sincronizar ahora. Compruebe su conexión e inténtelo de nuevo.",
+  },
+  retry: {
+    fr: "Réessayer",
+    en: "Try again",
+    ar: "إعادة المحاولة",
+    es: "Reintentar",
+  },
+  submitErrorTitle: {
+    fr: "Dépôt impossible",
+    en: "Could not file claim",
+    ar: "تعذر تقديم المطالبة",
+    es: "No se pudo presentar la reclamación",
+  },
+  submitErrorMessage: {
+    fr: "Votre réclamation n'a pas pu être enregistrée. Vérifiez les informations puis réessayez.",
+    en: "Your claim could not be recorded. Check the information and try again.",
+    ar: "تعذر تسجيل مطالبتك. تحقق من المعلومات ثم أعد المحاولة.",
+    es: "No se pudo registrar su reclamación. Compruebe la información e inténtelo de nuevo.",
+  },
+  updateErrorTitle: {
+    fr: "Mise à jour impossible",
+    en: "Could not update claim",
+    ar: "تعذر تحديث المطالبة",
+    es: "No se pudo actualizar la reclamación",
+  },
+  updateErrorMessage: {
+    fr: "Le changement de statut n'a pas été enregistré. Actualisez les données puis réessayez.",
+    en: "The status change was not saved. Refresh the data and try again.",
+    ar: "لم يتم حفظ تغيير الحالة. حدّث البيانات ثم أعد المحاولة.",
+    es: "No se guardó el cambio de estado. Actualice los datos e inténtelo de nuevo.",
+  },
 };
 
 type ReclamationType =
@@ -472,10 +527,21 @@ interface Reclamation {
   anonymous: boolean;
 }
 
-const TYPE_CONFIG: Record<ReclamationType, { label: string; icon: keyof typeof Feather.glyphMap; color: string }> = {
+const TYPE_CONFIG: Record<
+  ReclamationType,
+  { label: string; icon: keyof typeof Feather.glyphMap; color: string }
+> = {
   salaire: { label: "salaire", icon: "dollar-sign", color: "#10b981" },
-  condition_travail: { label: "conditionTravail", icon: "tool", color: "#f59e0b" },
-  discrimination: { label: "discrimination", icon: "alert-octagon", color: "#ef4444" },
+  condition_travail: {
+    label: "conditionTravail",
+    icon: "tool",
+    color: "#f59e0b",
+  },
+  discrimination: {
+    label: "discrimination",
+    icon: "alert-octagon",
+    color: "#ef4444",
+  },
   harcelement: { label: "harcelement", icon: "slash", color: "#dc2626" },
   licenciement: { label: "licenciement", icon: "user-x", color: "#ef4444" },
   conge: { label: "conge", icon: "calendar", color: "#3b82f6" },
@@ -484,7 +550,10 @@ const TYPE_CONFIG: Record<ReclamationType, { label: string; icon: keyof typeof F
   autre: { label: "autre", icon: "more-horizontal", color: "#6b7280" },
 };
 
-const STATUT_CONFIG: Record<ReclamationStatut, { label: string; color: string }> = {
+const STATUT_CONFIG: Record<
+  ReclamationStatut,
+  { label: string; color: string }
+> = {
   deposee: { label: "deposee", color: "#6b7280" },
   en_instruction: { label: "enInstruction", color: "#3b82f6" },
   transmise_direction: { label: "transmiseDirection", color: "#f59e0b" },
@@ -494,7 +563,10 @@ const STATUT_CONFIG: Record<ReclamationStatut, { label: string; color: string }>
   contentieux: { label: "contentieux", color: "#ef4444" },
 };
 
-const PRIORITE_CONFIG: Record<ReclamationPriorite, { label: string; color: string }> = {
+const PRIORITE_CONFIG: Record<
+  ReclamationPriorite,
+  { label: string; color: string }
+> = {
   urgente: { label: "urgente", color: "#dc2626" },
   haute: { label: "haute", color: "#ef4444" },
   normale: { label: "normale", color: "#f59e0b" },
@@ -510,7 +582,7 @@ function mapApiReclamation(row: any): Reclamation {
     priorite: row.priorite,
     titre: row.titre,
     description: row.description,
-    membre: row.memberName ?? (row.anonymous ? "Anonyme" : ""),
+    membre: row.memberName ?? "",
     membreId: row.memberId ?? "",
     service: row.service ?? "",
     dateDepot: row.dateDepot,
@@ -518,21 +590,27 @@ function mapApiReclamation(row: any): Reclamation {
     dateCloture: row.dateCloture ?? undefined,
     traitePar: row.traitePar ?? undefined,
     commentaireAdmin: row.commentaireAdmin ?? undefined,
-    documentsJoints: Array.isArray(row.documentsJoints) ? row.documentsJoints : [],
+    documentsJoints: Array.isArray(row.documentsJoints)
+      ? row.documentsJoints
+      : [],
     etapes: Array.isArray(row.etapes) ? row.etapes : [],
     anonymous: !!row.anonymous,
   };
 }
 
-
-const TYPES_LIST = Object.entries(TYPE_CONFIG) as [ReclamationType, typeof TYPE_CONFIG[ReclamationType]][];
+const TYPES_LIST = Object.entries(TYPE_CONFIG) as [
+  ReclamationType,
+  (typeof TYPE_CONFIG)[ReclamationType],
+][];
 
 // Réclamations is the HR grievance module (salaire/discrimination/harcèlement).
 // Tenants (locataires) are not employees of the syndicate and must never access it.
 // President manages grievances at the bureau level alongside syndicate_admin.
 export default function ReclamationsScreen() {
   return (
-    <RoleGuard allow={["super_admin", "syndicate_admin", "president", "member"]}>
+    <RoleGuard
+      allow={["super_admin", "syndicate_admin", "president", "member"]}
+    >
       <ReclamationsScreenInner />
     </RoleGuard>
   );
@@ -543,17 +621,22 @@ function ReclamationsScreenInner() {
   const insets = useSafeAreaInsets();
   const { user } = useAuth();
   const { isWide } = useBreakpoints();
-  const { lang } = useLanguage();
-  const topPad = isWide ? 0 : (Platform.OS === "web" ? 67 : insets.top);
+  const { lang, isRTL } = useLanguage();
+  const topPad = isWide ? 0 : Platform.OS === "web" ? 67 : insets.top;
 
   const { showToast } = useToast();
   // Reclamations admin view: syndicate_admin and president manage grievances.
   // super_admin must not see internal syndicate HR grievances.
-  const isAdmin = user?.role === "syndicate_admin" || user?.role === "president";
+  const isAdmin =
+    user?.role === "syndicate_admin" || user?.role === "president";
 
-  const [filterStatut, setFilterStatut] = useState<ReclamationStatut | "all">("all");
+  const [filterStatut, setFilterStatut] = useState<ReclamationStatut | "all">(
+    "all",
+  );
   const [filterType, setFilterType] = useState<ReclamationType | "all">("all");
-  const [filterPriorite, setFilterPriorite] = useState<ReclamationPriorite | "all">("all");
+  const [filterPriorite, setFilterPriorite] = useState<
+    ReclamationPriorite | "all"
+  >("all");
   const [searchText, setSearchText] = useState("");
   const [selected, setSelected] = useState<Reclamation | null>(null);
   const [showNew, setShowNew] = useState(false);
@@ -565,44 +648,70 @@ function ReclamationsScreenInner() {
 
   const [reclamations, setReclamations] = useState<Reclamation[]>([]);
   const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
+  const [error, setError] = useState(false);
   const [depositing, setDepositing] = useState(false);
 
   const loadReclamations = useCallback(() => {
     setLoading(true);
-    setError(null);
+    setError(false);
     apiRequest<{ data: any[] }>("/reclamations")
       .then(({ data }) => setReclamations((data ?? []).map(mapApiReclamation)))
-      .catch((err) => setError(err instanceof Error ? err.message : "Erreur de chargement"))
+      .catch(() => setError(true))
       .finally(() => setLoading(false));
   }, []);
 
-  useEffect(() => { loadReclamations(); }, [loadReclamations]);
+  useEffect(() => {
+    loadReclamations();
+  }, [loadReclamations]);
 
   const filtered = reclamations.filter((r) => {
     if (filterStatut !== "all" && r.statut !== filterStatut) return false;
     if (filterType !== "all" && r.type !== filterType) return false;
     if (filterPriorite !== "all" && r.priorite !== filterPriorite) return false;
-    if (searchText && !r.titre.toLowerCase().includes(searchText.toLowerCase()) && !r.reference.toLowerCase().includes(searchText.toLowerCase())) return false;
+    if (
+      searchText &&
+      !r.titre.toLowerCase().includes(searchText.toLowerCase()) &&
+      !r.reference.toLowerCase().includes(searchText.toLowerCase())
+    )
+      return false;
     return true;
   });
 
   const stats = {
     total: reclamations.length,
-    enCours: reclamations.filter((r) => ["deposee", "en_instruction", "transmise_direction", "en_mediation"].includes(r.statut)).length,
+    enCours: reclamations.filter((r) =>
+      [
+        "deposee",
+        "en_instruction",
+        "transmise_direction",
+        "en_mediation",
+      ].includes(r.statut),
+    ).length,
     resolues: reclamations.filter((r) => r.statut === "resolue").length,
-    urgentes: reclamations.filter((r) => r.priorite === "urgente" && r.statut !== "resolue" && r.statut !== "classee").length,
+    urgentes: reclamations.filter(
+      (r) =>
+        r.priorite === "urgente" &&
+        r.statut !== "resolue" &&
+        r.statut !== "classee",
+    ).length,
   };
 
   const handleDeposer = async () => {
     if (!newTitle.trim() || !newDesc.trim()) {
-      showToast({ type: "warning", title: STRINGS.champsRequis[lang], message: STRINGS.veuillezRenseigner[lang] });
+      showToast({
+        type: "warning",
+        title: STRINGS.champsRequis[lang],
+        message: STRINGS.veuillezRenseigner[lang],
+      });
       return;
     }
     if (depositing) return;
     setDepositing(true);
     try {
-      const { data, reference } = await apiRequest<{ data: any; reference: string }>("/reclamations", "POST", {
+      const { data, reference } = await apiRequest<{
+        data: any;
+        reference: string;
+      }>("/reclamations", "POST", {
         titre: newTitle.trim(),
         description: newDesc.trim(),
         type: newType,
@@ -615,9 +724,20 @@ function ReclamationsScreenInner() {
       setNewType("autre");
       setNewAnon(false);
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-      showToast({ type: "success", title: STRINGS.reclamationDeposee[lang], message: STRINGS.reclamationEnregistree[lang].replace("REC-2026-048", reference) });
+      showToast({
+        type: "success",
+        title: STRINGS.reclamationDeposee[lang],
+        message: STRINGS.reclamationEnregistree[lang].replace(
+          "REC-2026-048",
+          reference,
+        ),
+      });
     } catch (err) {
-      showToast({ type: "error", title: "Erreur", message: err instanceof Error ? err.message : "Impossible d'enregistrer la réclamation." });
+      showToast({
+        type: "error",
+        title: STRINGS.submitErrorTitle[lang],
+        message: STRINGS.submitErrorMessage[lang],
+      });
     } finally {
       setDepositing(false);
     }
@@ -626,31 +746,63 @@ function ReclamationsScreenInner() {
   const handleAdminStatusChange = async (statut: ReclamationStatut) => {
     if (!selected) return;
     try {
-      const { data } = await apiRequest<{ data: any }>(`/reclamations/${selected.id}`, "PUT", { statut });
+      const { data } = await apiRequest<{ data: any }>(
+        `/reclamations/${selected.id}`,
+        "PUT",
+        { statut },
+      );
       const mapped = mapApiReclamation(data);
-      setReclamations((prev) => prev.map((r) => (r.id === mapped.id ? mapped : r)));
+      setReclamations((prev) =>
+        prev.map((r) => (r.id === mapped.id ? mapped : r)),
+      );
       setSelected(mapped);
     } catch (err) {
-      showToast({ type: "error", title: "Erreur", message: err instanceof Error ? err.message : "Impossible de mettre à jour la réclamation." });
+      showToast({
+        type: "error",
+        title: STRINGS.updateErrorTitle[lang],
+        message: STRINGS.updateErrorMessage[lang],
+      });
     }
   };
 
   return (
     <View style={[s.root, { backgroundColor: colors.background }]}>
       {/* Header */}
-      <View style={[s.header, { paddingTop: topPad + 16, backgroundColor: colors.card, borderBottomColor: colors.border }]}>
+      <View
+        style={[
+          s.header,
+          {
+            paddingTop: topPad + 16,
+            backgroundColor: colors.card,
+            borderBottomColor: colors.border,
+          },
+        ]}
+      >
         <TouchableOpacity onPress={() => router.back()} style={s.backBtn}>
-          <Feather name="arrow-left" size={22} color={colors.foreground} />
+          <Feather
+            name={isRTL ? "arrow-right" : "arrow-left"}
+            size={22}
+            color={colors.foreground}
+          />
         </TouchableOpacity>
         <View style={{ flex: 1 }}>
-          <Text style={[s.title, { color: colors.foreground }]}>{STRINGS.screenTitle[lang]}</Text>
+          <Text style={[s.title, { color: colors.foreground }]}>
+            {STRINGS.screenTitle[lang]}
+          </Text>
           <Text style={[s.subtitle, { color: colors.mutedForeground }]}>
-            {isAdmin ? STRINGS.enCoursUrgentes[lang].replace("{urgentes}", stats.urgentes.toString()).replace("{enCours}", stats.enCours.toString()) : STRINGS.vosReclamations[lang]}
+            {isAdmin
+              ? STRINGS.enCoursUrgentes[lang]
+                  .replace("{urgentes}", stats.urgentes.toString())
+                  .replace("{enCours}", stats.enCours.toString())
+              : STRINGS.vosReclamations[lang]}
           </Text>
         </View>
         <TouchableOpacity
           style={[s.newBtn, { backgroundColor: colors.primary }]}
-          onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium); setShowNew(true); }}
+          onPress={() => {
+            Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+            setShowNew(true);
+          }}
         >
           <Feather name="plus" size={16} color="#fff" />
           <Text style={s.newBtnText}>{STRINGS.deposer[lang]}</Text>
@@ -659,24 +811,57 @@ function ReclamationsScreenInner() {
 
       {/* Stats bar — admin only */}
       {isAdmin && (
-        <View style={[s.statsBar, { backgroundColor: colors.card, borderBottomColor: colors.border }]}>
+        <View
+          style={[
+            s.statsBar,
+            { backgroundColor: colors.card, borderBottomColor: colors.border },
+          ]}
+        >
           {[
-            { label: STRINGS.total[lang], value: stats.total, color: colors.foreground },
-            { label: STRINGS.enCours[lang], value: stats.enCours, color: "#3b82f6" },
-            { label: STRINGS.resolues[lang], value: stats.resolues, color: "#10b981" },
-            { label: STRINGS.urgentesLabel[lang], value: stats.urgentes, color: "#ef4444" },
+            {
+              label: STRINGS.total[lang],
+              value: stats.total,
+              color: colors.foreground,
+            },
+            {
+              label: STRINGS.enCours[lang],
+              value: stats.enCours,
+              color: "#3b82f6",
+            },
+            {
+              label: STRINGS.resolues[lang],
+              value: stats.resolues,
+              color: "#10b981",
+            },
+            {
+              label: STRINGS.urgentesLabel[lang],
+              value: stats.urgentes,
+              color: "#ef4444",
+            },
           ].map((st) => (
             <View key={st.label} style={s.statItem}>
               <Text style={[s.statValue, { color: st.color }]}>{st.value}</Text>
-              <Text style={[s.statLabel, { color: colors.mutedForeground }]}>{st.label}</Text>
+              <Text style={[s.statLabel, { color: colors.mutedForeground }]}>
+                {st.label}
+              </Text>
             </View>
           ))}
         </View>
       )}
 
       {/* Search */}
-      <View style={[s.searchRow, { backgroundColor: colors.card, borderBottomColor: colors.border }]}>
-        <View style={[s.searchBox, { backgroundColor: colors.muted, borderColor: colors.border }]}>
+      <View
+        style={[
+          s.searchRow,
+          { backgroundColor: colors.card, borderBottomColor: colors.border },
+        ]}
+      >
+        <View
+          style={[
+            s.searchBox,
+            { backgroundColor: colors.muted, borderColor: colors.border },
+          ]}
+        >
           <Feather name="search" size={15} color={colors.mutedForeground} />
           <TextInput
             style={[s.searchInput, { color: colors.foreground }]}
@@ -690,12 +875,28 @@ function ReclamationsScreenInner() {
 
       {/* Filters */}
       <FilterChips
-        options={(["all", "deposee", "en_instruction", "transmise_direction", "en_mediation", "resolue", "contentieux"] as (ReclamationStatut | "all")[]).map((st) => {
+        options={(
+          [
+            "all",
+            "deposee",
+            "en_instruction",
+            "transmise_direction",
+            "en_mediation",
+            "resolue",
+            "contentieux",
+          ] as (ReclamationStatut | "all")[]
+        ).map((st) => {
           const cfg = st === "all" ? null : STATUT_CONFIG[st];
-          const count = st === "all" ? reclamations.length : reclamations.filter((r) => r.statut === st).length;
+          const count =
+            st === "all"
+              ? reclamations.length
+              : reclamations.filter((r) => r.statut === st).length;
           return {
             key: st,
-            label: st === "all" ? STRINGS.toutes[lang] : STRINGS[cfg!.label as keyof typeof STRINGS][lang],
+            label:
+              st === "all"
+                ? STRINGS.toutes[lang]
+                : STRINGS[cfg!.label as keyof typeof STRINGS][lang],
             count,
             color: cfg?.color,
           };
@@ -707,240 +908,676 @@ function ReclamationsScreenInner() {
 
       {/* List */}
       {loading ? (
-        <View style={s.empty}>
-          <ActivityIndicator color={colors.primary} />
-        </View>
+        <LoadingState
+          title={STRINGS.dataLoadingTitle[lang]}
+          description={STRINGS.dataLoadingDescription[lang]}
+        />
       ) : error ? (
-        <View style={s.empty}>
-          <Feather name="alert-triangle" size={32} color="#ef4444" />
-          <Text style={[s.emptyText, { color: colors.mutedForeground, textAlign: "center" }]}>{error}</Text>
-          <TouchableOpacity style={[s.submitBtn, { backgroundColor: colors.primary, marginTop: 8 }]} onPress={loadReclamations}>
-            <Text style={s.submitText}>Réessayer</Text>
-          </TouchableOpacity>
-        </View>
+        <ErrorState
+          title={STRINGS.dataUnavailableTitle[lang]}
+          description={STRINGS.dataUnavailableDescription[lang]}
+          retryLabel={STRINGS.retry[lang]}
+          onRetry={loadReclamations}
+        />
       ) : (
-      <ScrollView contentContainerStyle={{ padding: 16, gap: 12, paddingBottom: insets.bottom + 40 }} showsVerticalScrollIndicator={false}>
-        {filtered.length === 0 && (
-          <EmptyState
-            icon="inbox"
-            title={STRINGS.aucuneReclamation[lang]}
-            description={reclamations.length > 0 ? STRINGS.aucuneMatch[lang] : (isAdmin ? STRINGS.aucuneMatch[lang] : STRINGS.pasEncoreDepose[lang])}
-            actionLabel={STRINGS.deposer[lang]}
-            onAction={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium); setShowNew(true); }}
-          />
-        )}
+        <ScrollView
+          contentContainerStyle={{
+            padding: 16,
+            gap: 12,
+            paddingBottom: insets.bottom + 40,
+          }}
+          showsVerticalScrollIndicator={false}
+        >
+          {filtered.length === 0 && (
+            <EmptyState
+              icon="inbox"
+              title={STRINGS.aucuneReclamation[lang]}
+              description={
+                reclamations.length > 0
+                  ? STRINGS.aucuneMatch[lang]
+                  : isAdmin
+                    ? STRINGS.aucuneMatch[lang]
+                    : STRINGS.pasEncoreDepose[lang]
+              }
+              actionLabel={STRINGS.deposer[lang]}
+              onAction={() => {
+                Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+                setShowNew(true);
+              }}
+            />
+          )}
 
-        {filtered.map((rec) => {
-          const tc = TYPE_CONFIG[rec.type];
-          const sc = STATUT_CONFIG[rec.statut];
-          const pc = PRIORITE_CONFIG[rec.priorite];
-          return (
-            <TouchableOpacity
-              key={rec.id}
-              style={[s.card, { backgroundColor: colors.card, borderColor: rec.priorite === "urgente" ? "#ef444440" : colors.border }]}
-              onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); setSelected(rec); setShowEtapes(false); }}
-              activeOpacity={0.75}
-            >
-              <View style={s.cardTop}>
-                <View style={[s.typeIcon, { backgroundColor: tc.color + "18" }]}>
-                  <Feather name={tc.icon} size={18} color={tc.color} />
-                </View>
-                <View style={{ flex: 1, gap: 4 }}>
-                  <View style={s.badgeRow}>
-                    <View style={[s.badge, { backgroundColor: sc.color + "18" }]}>
-                      <Text style={[s.badgeText, { color: sc.color }]}>{STRINGS[sc.label as keyof typeof STRINGS][lang]}</Text>
-                    </View>
-                    <View style={[s.badge, { backgroundColor: pc.color + "18" }]}>
-                      <Text style={[s.badgeText, { color: pc.color }]}>{STRINGS[pc.label as keyof typeof STRINGS][lang]}</Text>
-                    </View>
-                    {rec.anonymous && (
-                      <View style={[s.badge, { backgroundColor: "#6b728018" }]}>
-                        <Text style={[s.badgeText, { color: "#6b7280" }]}>{STRINGS.anonyme[lang]}</Text>
+          {filtered.map((rec) => {
+            const tc = TYPE_CONFIG[rec.type];
+            const sc = STATUT_CONFIG[rec.statut];
+            const pc = PRIORITE_CONFIG[rec.priorite];
+            return (
+              <TouchableOpacity
+                key={rec.id}
+                style={[
+                  s.card,
+                  {
+                    backgroundColor: colors.card,
+                    borderColor:
+                      rec.priorite === "urgente" ? "#ef444440" : colors.border,
+                  },
+                ]}
+                onPress={() => {
+                  Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+                  setSelected(rec);
+                  setShowEtapes(false);
+                }}
+                activeOpacity={0.75}
+              >
+                <View style={s.cardTop}>
+                  <View
+                    style={[s.typeIcon, { backgroundColor: tc.color + "18" }]}
+                  >
+                    <Feather name={tc.icon} size={18} color={tc.color} />
+                  </View>
+                  <View style={{ flex: 1, gap: 4 }}>
+                    <View style={s.badgeRow}>
+                      <View
+                        style={[s.badge, { backgroundColor: sc.color + "18" }]}
+                      >
+                        <Text style={[s.badgeText, { color: sc.color }]}>
+                          {STRINGS[sc.label as keyof typeof STRINGS][lang]}
+                        </Text>
                       </View>
-                    )}
+                      <View
+                        style={[s.badge, { backgroundColor: pc.color + "18" }]}
+                      >
+                        <Text style={[s.badgeText, { color: pc.color }]}>
+                          {STRINGS[pc.label as keyof typeof STRINGS][lang]}
+                        </Text>
+                      </View>
+                      {rec.anonymous && (
+                        <View
+                          style={[s.badge, { backgroundColor: "#6b728018" }]}
+                        >
+                          <Text style={[s.badgeText, { color: "#6b7280" }]}>
+                            {STRINGS.anonyme[lang]}
+                          </Text>
+                        </View>
+                      )}
+                    </View>
+                    <Text
+                      style={[s.cardTitle, { color: colors.foreground }]}
+                      numberOfLines={2}
+                    >
+                      {rec.titre}
+                    </Text>
+                    <Text
+                      style={[s.cardRef, { color: colors.mutedForeground }]}
+                    >
+                      {rec.reference} ·{" "}
+                      {STRINGS[tc.label as keyof typeof STRINGS][lang]}
+                    </Text>
                   </View>
-                  <Text style={[s.cardTitle, { color: colors.foreground }]} numberOfLines={2}>{rec.titre}</Text>
-                  <Text style={[s.cardRef, { color: colors.mutedForeground }]}>{rec.reference} · {STRINGS[tc.label as keyof typeof STRINGS][lang]}</Text>
+                  <Feather
+                    name="chevron-right"
+                    size={16}
+                    color={colors.mutedForeground}
+                  />
                 </View>
-                <Feather name="chevron-right" size={16} color={colors.mutedForeground} />
-              </View>
-              <View style={[s.cardFooter, { borderTopColor: colors.border }]}>
-                <View style={s.metaItem}>
-                  <Feather name="user" size={11} color={colors.mutedForeground} />
-                  <Text style={[s.metaText, { color: colors.mutedForeground }]}>{rec.anonymous ? STRINGS.anonyme[lang] : rec.membre}</Text>
-                </View>
-                <View style={s.metaItem}>
-                  <Feather name="calendar" size={11} color={colors.mutedForeground} />
-                  <Text style={[s.metaText, { color: colors.mutedForeground }]}>{STRINGS.deposeeLe[lang]} {new Date(rec.dateDepot).toLocaleDateString(lang === "en" ? "en-US" : lang === "fr" ? "fr-FR" : lang === "ar" ? "ar-MA" : "es-ES")}</Text>
-                </View>
-                {rec.etapes.length > 0 && (
+                <View style={[s.cardFooter, { borderTopColor: colors.border }]}>
                   <View style={s.metaItem}>
-                    <Feather name="list" size={11} color={colors.mutedForeground} />
-                    <Text style={[s.metaText, { color: colors.mutedForeground }]}>{rec.etapes.length} {STRINGS.etapesCount[lang]}</Text>
+                    <Feather
+                      name="user"
+                      size={11}
+                      color={colors.mutedForeground}
+                    />
+                    <Text
+                      style={[s.metaText, { color: colors.mutedForeground }]}
+                    >
+                      {rec.anonymous ? STRINGS.anonyme[lang] : rec.membre}
+                    </Text>
                   </View>
-                )}
-              </View>
-            </TouchableOpacity>
-          );
-        })}
-      </ScrollView>
+                  <View style={s.metaItem}>
+                    <Feather
+                      name="calendar"
+                      size={11}
+                      color={colors.mutedForeground}
+                    />
+                    <Text
+                      style={[s.metaText, { color: colors.mutedForeground }]}
+                    >
+                      {STRINGS.deposeeLe[lang]}{" "}
+                      {new Date(rec.dateDepot).toLocaleDateString(
+                        lang === "en"
+                          ? "en-US"
+                          : lang === "fr"
+                            ? "fr-FR"
+                            : lang === "ar"
+                              ? "ar-MA"
+                              : "es-ES",
+                      )}
+                    </Text>
+                  </View>
+                  {rec.etapes.length > 0 && (
+                    <View style={s.metaItem}>
+                      <Feather
+                        name="list"
+                        size={11}
+                        color={colors.mutedForeground}
+                      />
+                      <Text
+                        style={[s.metaText, { color: colors.mutedForeground }]}
+                      >
+                        {rec.etapes.length} {STRINGS.etapesCount[lang]}
+                      </Text>
+                    </View>
+                  )}
+                </View>
+              </TouchableOpacity>
+            );
+          })}
+        </ScrollView>
       )}
 
       {/* Detail Modal */}
-      <Modal visible={!!selected} animationType="slide" presentationStyle="pageSheet" onRequestClose={() => setSelected(null)}>
-        {selected && (() => {
-          const tc = TYPE_CONFIG[selected.type];
-          const sc = STATUT_CONFIG[selected.statut];
-          const pc = PRIORITE_CONFIG[selected.priorite];
-          return (
-            <View style={[s.modal, { backgroundColor: colors.background }]}>
-              <View style={[s.modalHeader, { backgroundColor: colors.card, borderBottomColor: colors.border }]}>
-                <View style={[s.typeIcon, { backgroundColor: tc.color + "18" }]}>
-                  <Feather name={tc.icon} size={20} color={tc.color} />
-                </View>
-                <View style={{ flex: 1 }}>
-                  <Text style={[s.modalTitle, { color: colors.foreground }]} numberOfLines={2}>{selected.titre}</Text>
-                  <Text style={[s.modalRef, { color: colors.mutedForeground }]}>{selected.reference}</Text>
-                </View>
-                <TouchableOpacity onPress={() => setSelected(null)} style={s.closeBtn}>
-                  <Feather name="x" size={22} color={colors.foreground} />
-                </TouchableOpacity>
-              </View>
-
-              <ScrollView contentContainerStyle={{ padding: 20, gap: 16, paddingBottom: insets.bottom + 40 }}>
-                {/* Status & priority */}
-                <View style={s.badgeRowLarge}>
-                  <View style={[s.badgeLg, { backgroundColor: sc.color + "18", borderColor: sc.color + "30" }]}>
-                    <View style={[s.dot, { backgroundColor: sc.color }]} />
-                    <Text style={[s.badgeLgText, { color: sc.color }]}>{STRINGS[sc.label as keyof typeof STRINGS][lang]}</Text>
+      <Modal
+        visible={!!selected}
+        animationType="slide"
+        presentationStyle="pageSheet"
+        onRequestClose={() => setSelected(null)}
+      >
+        {selected &&
+          (() => {
+            const tc = TYPE_CONFIG[selected.type];
+            const sc = STATUT_CONFIG[selected.statut];
+            const pc = PRIORITE_CONFIG[selected.priorite];
+            return (
+              <View style={[s.modal, { backgroundColor: colors.background }]}>
+                <View
+                  style={[
+                    s.modalHeader,
+                    {
+                      backgroundColor: colors.card,
+                      borderBottomColor: colors.border,
+                    },
+                  ]}
+                >
+                  <View
+                    style={[s.typeIcon, { backgroundColor: tc.color + "18" }]}
+                  >
+                    <Feather name={tc.icon} size={20} color={tc.color} />
                   </View>
-                  <View style={[s.badgeLg, { backgroundColor: pc.color + "18", borderColor: pc.color + "30" }]}>
-                    <Text style={[s.badgeLgText, { color: pc.color }]}>{STRINGS.priorite[lang]} {STRINGS[pc.label as keyof typeof STRINGS][lang]}</Text>
+                  <View style={{ flex: 1 }}>
+                    <Text
+                      style={[s.modalTitle, { color: colors.foreground }]}
+                      numberOfLines={2}
+                    >
+                      {selected.titre}
+                    </Text>
+                    <Text
+                      style={[s.modalRef, { color: colors.mutedForeground }]}
+                    >
+                      {selected.reference}
+                    </Text>
                   </View>
-                  <View style={[s.badgeLg, { backgroundColor: tc.color + "18", borderColor: tc.color + "30" }]}>
-                    <Text style={[s.badgeLgText, { color: tc.color }]}>{STRINGS[tc.label as keyof typeof STRINGS][lang]}</Text>
-                  </View>
+                  <TouchableOpacity
+                    onPress={() => setSelected(null)}
+                    style={s.closeBtn}
+                  >
+                    <Feather name="x" size={22} color={colors.foreground} />
+                  </TouchableOpacity>
                 </View>
 
-                {/* Description */}
-                <View style={[s.section, { backgroundColor: colors.card, borderColor: colors.border }]}>
-                  <Text style={[s.sectionTitle, { color: colors.foreground }]}>{STRINGS.description[lang]}</Text>
-                  <Text style={[s.sectionBody, { color: colors.mutedForeground }]}>{selected.description}</Text>
-                </View>
-
-                {/* Info grid */}
-                <View style={[s.section, { backgroundColor: colors.card, borderColor: colors.border }]}>
-                  <Text style={[s.sectionTitle, { color: colors.foreground }]}>{STRINGS.informations[lang]}</Text>
-                  {[
-                    { label: STRINGS.membre[lang], value: selected.anonymous ? STRINGS.anonymeProtege[lang] : selected.membre, icon: "user" as const },
-                    { label: STRINGS.service[lang], value: selected.service, icon: "briefcase" as const },
-                    { label: STRINGS.dateDepot[lang], value: new Date(selected.dateDepot).toLocaleDateString(lang === "en" ? "en-US" : lang === "fr" ? "fr-FR" : lang === "ar" ? "ar-MA" : "es-ES"), icon: "calendar" as const },
-                    ...(selected.dateEcheance ? [{ label: STRINGS.echeance[lang], value: new Date(selected.dateEcheance).toLocaleDateString(lang === "en" ? "en-US" : lang === "fr" ? "fr-FR" : lang === "ar" ? "ar-MA" : "es-ES"), icon: "clock" as const }] : []),
-                    ...(selected.dateCloture ? [{ label: STRINGS.dateCloture[lang], value: new Date(selected.dateCloture).toLocaleDateString(lang === "en" ? "en-US" : lang === "fr" ? "fr-FR" : lang === "ar" ? "ar-MA" : "es-ES"), icon: "check-circle" as const }] : []),
-                    ...(selected.traitePar ? [{ label: STRINGS.traitePar[lang], value: selected.traitePar, icon: "user-check" as const }] : []),
-                  ].map((info) => (
-                    <View key={info.label} style={[s.infoRow, { borderTopColor: colors.border }]}>
-                      <Feather name={info.icon} size={13} color={colors.mutedForeground} />
-                      <Text style={[s.infoLabel, { color: colors.mutedForeground }]}>{info.label}</Text>
-                      <Text style={[s.infoValue, { color: colors.foreground }]}>{info.value}</Text>
+                <ScrollView
+                  contentContainerStyle={{
+                    padding: 20,
+                    gap: 16,
+                    paddingBottom: insets.bottom + 40,
+                  }}
+                >
+                  {/* Status & priority */}
+                  <View style={s.badgeRowLarge}>
+                    <View
+                      style={[
+                        s.badgeLg,
+                        {
+                          backgroundColor: sc.color + "18",
+                          borderColor: sc.color + "30",
+                        },
+                      ]}
+                    >
+                      <View style={[s.dot, { backgroundColor: sc.color }]} />
+                      <Text style={[s.badgeLgText, { color: sc.color }]}>
+                        {STRINGS[sc.label as keyof typeof STRINGS][lang]}
+                      </Text>
                     </View>
-                  ))}
-                </View>
-
-                {/* Admin comment */}
-                {selected.commentaireAdmin && (
-                  <View style={[s.section, { backgroundColor: "#10b98110", borderColor: "#10b98130" }]}>
-                    <View style={s.sectionTitleRow}>
-                      <Feather name="message-circle" size={14} color="#10b981" />
-                      <Text style={[s.sectionTitle, { color: "#10b981" }]}>{STRINGS.noteDelegue[lang]}</Text>
+                    <View
+                      style={[
+                        s.badgeLg,
+                        {
+                          backgroundColor: pc.color + "18",
+                          borderColor: pc.color + "30",
+                        },
+                      ]}
+                    >
+                      <Text style={[s.badgeLgText, { color: pc.color }]}>
+                        {STRINGS.priorite[lang]}{" "}
+                        {STRINGS[pc.label as keyof typeof STRINGS][lang]}
+                      </Text>
                     </View>
-                    <Text style={[s.sectionBody, { color: colors.foreground }]}>{selected.commentaireAdmin}</Text>
+                    <View
+                      style={[
+                        s.badgeLg,
+                        {
+                          backgroundColor: tc.color + "18",
+                          borderColor: tc.color + "30",
+                        },
+                      ]}
+                    >
+                      <Text style={[s.badgeLgText, { color: tc.color }]}>
+                        {STRINGS[tc.label as keyof typeof STRINGS][lang]}
+                      </Text>
+                    </View>
                   </View>
-                )}
 
-                {/* Documents */}
-                {selected.documentsJoints.length > 0 && (
-                  <View style={[s.section, { backgroundColor: colors.card, borderColor: colors.border }]}>
-                    <Text style={[s.sectionTitle, { color: colors.foreground }]}>{STRINGS.documentsJoints[lang]} ({selected.documentsJoints.length})</Text>
-                    {selected.documentsJoints.map((doc, i) => (
-                      <TouchableOpacity key={i} style={[s.docRow, { borderTopColor: colors.border }]} onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); router.push({ pathname: "/pdf-viewer", params: { uri: doc, title: doc.split("/").pop() ?? "Document" } } as any); }}>
-                        <Feather name="file-text" size={14} color="#6366f1" />
-                        <Text style={[s.docName, { color: "#6366f1" }]}>{doc}</Text>
-                        <Feather name="external-link" size={14} color="#6366f1" />
-                      </TouchableOpacity>
+                  {/* Description */}
+                  <View
+                    style={[
+                      s.section,
+                      {
+                        backgroundColor: colors.card,
+                        borderColor: colors.border,
+                      },
+                    ]}
+                  >
+                    <Text
+                      style={[s.sectionTitle, { color: colors.foreground }]}
+                    >
+                      {STRINGS.description[lang]}
+                    </Text>
+                    <Text
+                      style={[s.sectionBody, { color: colors.mutedForeground }]}
+                    >
+                      {selected.description}
+                    </Text>
+                  </View>
+
+                  {/* Info grid */}
+                  <View
+                    style={[
+                      s.section,
+                      {
+                        backgroundColor: colors.card,
+                        borderColor: colors.border,
+                      },
+                    ]}
+                  >
+                    <Text
+                      style={[s.sectionTitle, { color: colors.foreground }]}
+                    >
+                      {STRINGS.informations[lang]}
+                    </Text>
+                    {[
+                      {
+                        label: STRINGS.membre[lang],
+                        value: selected.anonymous
+                          ? STRINGS.anonymeProtege[lang]
+                          : selected.membre,
+                        icon: "user" as const,
+                      },
+                      {
+                        label: STRINGS.service[lang],
+                        value: selected.service,
+                        icon: "briefcase" as const,
+                      },
+                      {
+                        label: STRINGS.dateDepot[lang],
+                        value: new Date(selected.dateDepot).toLocaleDateString(
+                          lang === "en"
+                            ? "en-US"
+                            : lang === "fr"
+                              ? "fr-FR"
+                              : lang === "ar"
+                                ? "ar-MA"
+                                : "es-ES",
+                        ),
+                        icon: "calendar" as const,
+                      },
+                      ...(selected.dateEcheance
+                        ? [
+                            {
+                              label: STRINGS.echeance[lang],
+                              value: new Date(
+                                selected.dateEcheance,
+                              ).toLocaleDateString(
+                                lang === "en"
+                                  ? "en-US"
+                                  : lang === "fr"
+                                    ? "fr-FR"
+                                    : lang === "ar"
+                                      ? "ar-MA"
+                                      : "es-ES",
+                              ),
+                              icon: "clock" as const,
+                            },
+                          ]
+                        : []),
+                      ...(selected.dateCloture
+                        ? [
+                            {
+                              label: STRINGS.dateCloture[lang],
+                              value: new Date(
+                                selected.dateCloture,
+                              ).toLocaleDateString(
+                                lang === "en"
+                                  ? "en-US"
+                                  : lang === "fr"
+                                    ? "fr-FR"
+                                    : lang === "ar"
+                                      ? "ar-MA"
+                                      : "es-ES",
+                              ),
+                              icon: "check-circle" as const,
+                            },
+                          ]
+                        : []),
+                      ...(selected.traitePar
+                        ? [
+                            {
+                              label: STRINGS.traitePar[lang],
+                              value: selected.traitePar,
+                              icon: "user-check" as const,
+                            },
+                          ]
+                        : []),
+                    ].map((info) => (
+                      <View
+                        key={info.label}
+                        style={[s.infoRow, { borderTopColor: colors.border }]}
+                      >
+                        <Feather
+                          name={info.icon}
+                          size={13}
+                          color={colors.mutedForeground}
+                        />
+                        <Text
+                          style={[
+                            s.infoLabel,
+                            { color: colors.mutedForeground },
+                          ]}
+                        >
+                          {info.label}
+                        </Text>
+                        <Text
+                          style={[s.infoValue, { color: colors.foreground }]}
+                        >
+                          {info.value}
+                        </Text>
+                      </View>
                     ))}
                   </View>
-                )}
 
-                {/* Timeline */}
-                <TouchableOpacity
-                  style={[s.section, { backgroundColor: colors.card, borderColor: colors.border }]}
-                  onPress={() => { setShowEtapes((v) => !v); Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); }}
-                >
-                  <View style={[s.sectionTitleRow, { justifyContent: "space-between" }]}>
-                    <View style={s.sectionTitleRow}>
-                      <Feather name="list" size={14} color={colors.primary} />
-                      <Text style={[s.sectionTitle, { color: colors.foreground }]}>{STRINGS.historique[lang]} ({selected.etapes.length} {STRINGS.etapesCount[lang]})</Text>
-                    </View>
-                    <Feather name={showEtapes ? "chevron-up" : "chevron-down"} size={16} color={colors.mutedForeground} />
-                  </View>
-                  {showEtapes && selected.etapes.map((etape, i) => (
-                    <View key={i} style={[s.etapeRow, { borderTopColor: colors.border }]}>
-                      <View style={[s.etapeDot, { backgroundColor: i === selected.etapes.length - 1 ? colors.primary : colors.border }]} />
-                      <View style={{ flex: 1, gap: 2 }}>
-                        <Text style={[s.etapeDate, { color: colors.mutedForeground }]}>{new Date(etape.date).toLocaleDateString(lang === "en" ? "en-US" : lang === "fr" ? "fr-FR" : lang === "ar" ? "ar-MA" : "es-ES")} · {etape.auteur}</Text>
-                        <Text style={[s.etapeAction, { color: colors.foreground }]}>{etape.action}</Text>
+                  {/* Admin comment */}
+                  {selected.commentaireAdmin && (
+                    <View
+                      style={[
+                        s.section,
+                        {
+                          backgroundColor: "#10b98110",
+                          borderColor: "#10b98130",
+                        },
+                      ]}
+                    >
+                      <View style={s.sectionTitleRow}>
+                        <Feather
+                          name="message-circle"
+                          size={14}
+                          color="#10b981"
+                        />
+                        <Text style={[s.sectionTitle, { color: "#10b981" }]}>
+                          {STRINGS.noteDelegue[lang]}
+                        </Text>
                       </View>
+                      <Text
+                        style={[s.sectionBody, { color: colors.foreground }]}
+                      >
+                        {selected.commentaireAdmin}
+                      </Text>
                     </View>
-                  ))}
-                </TouchableOpacity>
+                  )}
 
-                {/* Admin actions */}
-                {isAdmin && selected.statut !== "resolue" && selected.statut !== "classee" && (
-                  <View style={s.actionsRow}>
-                    <TouchableOpacity
-                      style={[s.actionBtn, { backgroundColor: "#10b981" }]}
-                      onPress={() => { Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success); handleAdminStatusChange("resolue"); }}
+                  {/* Documents */}
+                  {selected.documentsJoints.length > 0 && (
+                    <View
+                      style={[
+                        s.section,
+                        {
+                          backgroundColor: colors.card,
+                          borderColor: colors.border,
+                        },
+                      ]}
                     >
-                      <Feather name="check-circle" size={14} color="#fff" />
-                      <Text style={s.actionBtnText}>{STRINGS.marquerResolue[lang]}</Text>
-                    </TouchableOpacity>
-                    <TouchableOpacity
-                      style={[s.actionBtn, { backgroundColor: "#2563EB" }]}
-                      onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium); handleAdminStatusChange("en_mediation"); }}
+                      <Text
+                        style={[s.sectionTitle, { color: colors.foreground }]}
+                      >
+                        {STRINGS.documentsJoints[lang]} (
+                        {selected.documentsJoints.length})
+                      </Text>
+                      {selected.documentsJoints.map((doc, i) => (
+                        <TouchableOpacity
+                          key={i}
+                          style={[s.docRow, { borderTopColor: colors.border }]}
+                          onPress={() => {
+                            Haptics.impactAsync(
+                              Haptics.ImpactFeedbackStyle.Light,
+                            );
+                            router.push({
+                              pathname: "/pdf-viewer",
+                              params: {
+                                uri: doc,
+                                title: doc.split("/").pop() ?? "Document",
+                              },
+                            } as any);
+                          }}
+                        >
+                          <Feather name="file-text" size={14} color="#6366f1" />
+                          <Text style={[s.docName, { color: "#6366f1" }]}>
+                            {doc}
+                          </Text>
+                          <Feather
+                            name="external-link"
+                            size={14}
+                            color="#6366f1"
+                          />
+                        </TouchableOpacity>
+                      ))}
+                    </View>
+                  )}
+
+                  {/* Timeline */}
+                  <TouchableOpacity
+                    style={[
+                      s.section,
+                      {
+                        backgroundColor: colors.card,
+                        borderColor: colors.border,
+                      },
+                    ]}
+                    onPress={() => {
+                      setShowEtapes((v) => !v);
+                      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+                    }}
+                  >
+                    <View
+                      style={[
+                        s.sectionTitleRow,
+                        { justifyContent: "space-between" },
+                      ]}
                     >
-                      <Feather name="users" size={14} color="#fff" />
-                      <Text style={s.actionBtnText}>{STRINGS.mediation[lang]}</Text>
-                    </TouchableOpacity>
-                    <TouchableOpacity
-                      style={[s.actionBtn, { backgroundColor: "#ef4444" }]}
-                      onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Heavy); handleAdminStatusChange("contentieux"); }}
-                    >
-                      <Feather name="alert-triangle" size={14} color="#fff" />
-                      <Text style={s.actionBtnText}>{STRINGS.contentieux[lang]}</Text>
-                    </TouchableOpacity>
-                  </View>
-                )}
-              </ScrollView>
-            </View>
-          );
-        })()}
+                      <View style={s.sectionTitleRow}>
+                        <Feather name="list" size={14} color={colors.primary} />
+                        <Text
+                          style={[s.sectionTitle, { color: colors.foreground }]}
+                        >
+                          {STRINGS.historique[lang]} ({selected.etapes.length}{" "}
+                          {STRINGS.etapesCount[lang]})
+                        </Text>
+                      </View>
+                      <Feather
+                        name={showEtapes ? "chevron-up" : "chevron-down"}
+                        size={16}
+                        color={colors.mutedForeground}
+                      />
+                    </View>
+                    {showEtapes &&
+                      selected.etapes.map((etape, i) => (
+                        <View
+                          key={i}
+                          style={[
+                            s.etapeRow,
+                            { borderTopColor: colors.border },
+                          ]}
+                        >
+                          <View
+                            style={[
+                              s.etapeDot,
+                              {
+                                backgroundColor:
+                                  i === selected.etapes.length - 1
+                                    ? colors.primary
+                                    : colors.border,
+                              },
+                            ]}
+                          />
+                          <View style={{ flex: 1, gap: 2 }}>
+                            <Text
+                              style={[
+                                s.etapeDate,
+                                { color: colors.mutedForeground },
+                              ]}
+                            >
+                              {new Date(etape.date).toLocaleDateString(
+                                lang === "en"
+                                  ? "en-US"
+                                  : lang === "fr"
+                                    ? "fr-FR"
+                                    : lang === "ar"
+                                      ? "ar-MA"
+                                      : "es-ES",
+                              )}{" "}
+                              · {etape.auteur}
+                            </Text>
+                            <Text
+                              style={[
+                                s.etapeAction,
+                                { color: colors.foreground },
+                              ]}
+                            >
+                              {etape.action}
+                            </Text>
+                          </View>
+                        </View>
+                      ))}
+                  </TouchableOpacity>
+
+                  {/* Admin actions */}
+                  {isAdmin &&
+                    selected.statut !== "resolue" &&
+                    selected.statut !== "classee" && (
+                      <View style={s.actionsRow}>
+                        <TouchableOpacity
+                          style={[s.actionBtn, { backgroundColor: "#10b981" }]}
+                          onPress={() => {
+                            Haptics.notificationAsync(
+                              Haptics.NotificationFeedbackType.Success,
+                            );
+                            handleAdminStatusChange("resolue");
+                          }}
+                        >
+                          <Feather name="check-circle" size={14} color="#fff" />
+                          <Text style={s.actionBtnText}>
+                            {STRINGS.marquerResolue[lang]}
+                          </Text>
+                        </TouchableOpacity>
+                        <TouchableOpacity
+                          style={[s.actionBtn, { backgroundColor: "#2563EB" }]}
+                          onPress={() => {
+                            Haptics.impactAsync(
+                              Haptics.ImpactFeedbackStyle.Medium,
+                            );
+                            handleAdminStatusChange("en_mediation");
+                          }}
+                        >
+                          <Feather name="users" size={14} color="#fff" />
+                          <Text style={s.actionBtnText}>
+                            {STRINGS.mediation[lang]}
+                          </Text>
+                        </TouchableOpacity>
+                        <TouchableOpacity
+                          style={[s.actionBtn, { backgroundColor: "#ef4444" }]}
+                          onPress={() => {
+                            Haptics.impactAsync(
+                              Haptics.ImpactFeedbackStyle.Heavy,
+                            );
+                            handleAdminStatusChange("contentieux");
+                          }}
+                        >
+                          <Feather
+                            name="alert-triangle"
+                            size={14}
+                            color="#fff"
+                          />
+                          <Text style={s.actionBtnText}>
+                            {STRINGS.contentieux[lang]}
+                          </Text>
+                        </TouchableOpacity>
+                      </View>
+                    )}
+                </ScrollView>
+              </View>
+            );
+          })()}
       </Modal>
 
       {/* New Reclamation Modal */}
-      <Modal visible={showNew} animationType="slide" presentationStyle="pageSheet" onRequestClose={() => setShowNew(false)}>
+      <Modal
+        visible={showNew}
+        animationType="slide"
+        presentationStyle="pageSheet"
+        onRequestClose={() => setShowNew(false)}
+      >
         <View style={[s.modal, { backgroundColor: colors.background }]}>
-          <View style={[s.modalHeader, { backgroundColor: colors.card, borderBottomColor: colors.border }]}>
+          <View
+            style={[
+              s.modalHeader,
+              {
+                backgroundColor: colors.card,
+                borderBottomColor: colors.border,
+              },
+            ]}
+          >
             <Feather name="plus-circle" size={20} color={colors.primary} />
-            <Text style={[s.modalTitle, { color: colors.foreground }]}>{STRINGS.deposerReclamation[lang]}</Text>
-            <TouchableOpacity onPress={() => setShowNew(false)} style={s.closeBtn}>
+            <Text style={[s.modalTitle, { color: colors.foreground }]}>
+              {STRINGS.deposerReclamation[lang]}
+            </Text>
+            <TouchableOpacity
+              onPress={() => setShowNew(false)}
+              style={s.closeBtn}
+            >
               <Feather name="x" size={22} color={colors.foreground} />
             </TouchableOpacity>
           </View>
 
-          <ScrollView contentContainerStyle={{ padding: 20, gap: 16, paddingBottom: insets.bottom + 40 }}>
+          <ScrollView
+            contentContainerStyle={{
+              padding: 20,
+              gap: 16,
+              paddingBottom: insets.bottom + 40,
+            }}
+          >
             {/* Info */}
-            <View style={[s.infoBox, { backgroundColor: "#3b82f610", borderColor: "#3b82f630" }]}>
+            <View
+              style={[
+                s.infoBox,
+                { backgroundColor: "#3b82f610", borderColor: "#3b82f630" },
+              ]}
+            >
               <Feather name="info" size={14} color="#3b82f6" />
               <Text style={[s.infoBoxText, { color: "#3b82f6" }]}>
                 {STRINGS.infoBulleTraitement[lang]}
@@ -949,16 +1586,44 @@ function ReclamationsScreenInner() {
 
             {/* Type */}
             <View style={{ gap: 8 }}>
-              <Text style={[s.fieldLabel, { color: colors.foreground }]}>{STRINGS.typeReclamation[lang]}</Text>
-              <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: 8 }}>
+              <Text style={[s.fieldLabel, { color: colors.foreground }]}>
+                {STRINGS.typeReclamation[lang]}
+              </Text>
+              <ScrollView
+                horizontal
+                showsHorizontalScrollIndicator={false}
+                contentContainerStyle={{ gap: 8 }}
+              >
                 {TYPES_LIST.map(([key, cfg]) => (
                   <TouchableOpacity
                     key={key}
-                    style={[s.typeChip, { backgroundColor: newType === key ? cfg.color : colors.card, borderColor: newType === key ? cfg.color : colors.border }]}
-                    onPress={() => { setNewType(key); Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); }}
+                    style={[
+                      s.typeChip,
+                      {
+                        backgroundColor:
+                          newType === key ? cfg.color : colors.card,
+                        borderColor:
+                          newType === key ? cfg.color : colors.border,
+                      },
+                    ]}
+                    onPress={() => {
+                      setNewType(key);
+                      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+                    }}
                   >
-                    <Feather name={cfg.icon} size={13} color={newType === key ? "#fff" : cfg.color} />
-                    <Text style={[s.typeChipText, { color: newType === key ? "#fff" : colors.foreground }]}>{STRINGS[cfg.label as keyof typeof STRINGS][lang]}</Text>
+                    <Feather
+                      name={cfg.icon}
+                      size={13}
+                      color={newType === key ? "#fff" : cfg.color}
+                    />
+                    <Text
+                      style={[
+                        s.typeChipText,
+                        { color: newType === key ? "#fff" : colors.foreground },
+                      ]}
+                    >
+                      {STRINGS[cfg.label as keyof typeof STRINGS][lang]}
+                    </Text>
                   </TouchableOpacity>
                 ))}
               </ScrollView>
@@ -966,9 +1631,18 @@ function ReclamationsScreenInner() {
 
             {/* Title */}
             <View style={{ gap: 8 }}>
-              <Text style={[s.fieldLabel, { color: colors.foreground }]}>{STRINGS.titreReclamation[lang]}</Text>
+              <Text style={[s.fieldLabel, { color: colors.foreground }]}>
+                {STRINGS.titreReclamation[lang]}
+              </Text>
               <TextInput
-                style={[s.input, { backgroundColor: colors.muted, borderColor: colors.border, color: colors.foreground }]}
+                style={[
+                  s.input,
+                  {
+                    backgroundColor: colors.muted,
+                    borderColor: colors.border,
+                    color: colors.foreground,
+                  },
+                ]}
                 placeholder={STRINGS.titrePlaceholder[lang]}
                 placeholderTextColor={colors.mutedForeground}
                 value={newTitle}
@@ -978,9 +1652,18 @@ function ReclamationsScreenInner() {
 
             {/* Description */}
             <View style={{ gap: 8 }}>
-              <Text style={[s.fieldLabel, { color: colors.foreground }]}>{STRINGS.descDetaille[lang]}</Text>
+              <Text style={[s.fieldLabel, { color: colors.foreground }]}>
+                {STRINGS.descDetaille[lang]}
+              </Text>
               <TextInput
-                style={[s.textarea, { backgroundColor: colors.muted, borderColor: colors.border, color: colors.foreground }]}
+                style={[
+                  s.textarea,
+                  {
+                    backgroundColor: colors.muted,
+                    borderColor: colors.border,
+                    color: colors.foreground,
+                  },
+                ]}
                 placeholder={STRINGS.descPlaceholder[lang]}
                 placeholderTextColor={colors.mutedForeground}
                 multiline
@@ -992,21 +1675,62 @@ function ReclamationsScreenInner() {
 
             {/* Anonymous toggle */}
             <TouchableOpacity
-              style={[s.anonRow, { backgroundColor: colors.card, borderColor: colors.border }]}
-              onPress={() => { setNewAnon((v) => !v); Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); }}
+              style={[
+                s.anonRow,
+                { backgroundColor: colors.card, borderColor: colors.border },
+              ]}
+              onPress={() => {
+                setNewAnon((v) => !v);
+                Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+              }}
             >
-              <Feather name={newAnon ? "eye-off" : "eye"} size={16} color={newAnon ? "#2563EB" : colors.mutedForeground} />
+              <Feather
+                name={newAnon ? "eye-off" : "eye"}
+                size={16}
+                color={newAnon ? "#2563EB" : colors.mutedForeground}
+              />
               <View style={{ flex: 1 }}>
-                <Text style={[s.anonTitle, { color: colors.foreground }]}>{STRINGS.reclamationAnonyme[lang]}</Text>
-                <Text style={[s.anonDesc, { color: colors.mutedForeground }]}>{STRINGS.identitePasCommuniquee[lang]}</Text>
+                <Text style={[s.anonTitle, { color: colors.foreground }]}>
+                  {STRINGS.reclamationAnonyme[lang]}
+                </Text>
+                <Text style={[s.anonDesc, { color: colors.mutedForeground }]}>
+                  {STRINGS.identitePasCommuniquee[lang]}
+                </Text>
               </View>
-              <View style={[s.toggle, { backgroundColor: newAnon ? "#2563EB" : colors.border }]}>
-                <View style={[s.toggleThumb, { marginLeft: newAnon ? 20 : 2 }]} />
+              <View
+                style={[
+                  s.toggle,
+                  { backgroundColor: newAnon ? "#2563EB" : colors.border },
+                ]}
+              >
+                <View
+                  style={[s.toggleThumb, { marginLeft: newAnon ? 20 : 2 }]}
+                />
               </View>
             </TouchableOpacity>
 
-            <TouchableOpacity style={[s.submitBtn, { backgroundColor: colors.primary, opacity: depositing ? 0.6 : 1 }]} onPress={handleDeposer} activeOpacity={0.85} disabled={depositing}>
-              {depositing ? <ActivityIndicator color="#fff" size="small" /> : <><Feather name="send" size={16} color="#fff" /><Text style={s.submitText}>{STRINGS.deposerLaReclamation[lang]}</Text></>}
+            <TouchableOpacity
+              style={[
+                s.submitBtn,
+                {
+                  backgroundColor: colors.primary,
+                  opacity: depositing ? 0.6 : 1,
+                },
+              ]}
+              onPress={handleDeposer}
+              activeOpacity={0.85}
+              disabled={depositing}
+            >
+              {depositing ? (
+                <ActivityIndicator color="#fff" size="small" />
+              ) : (
+                <>
+                  <Feather name="send" size={16} color="#fff" />
+                  <Text style={s.submitText}>
+                    {STRINGS.deposerLaReclamation[lang]}
+                  </Text>
+                </>
+              )}
             </TouchableOpacity>
           </ScrollView>
         </View>
@@ -1017,74 +1741,245 @@ function ReclamationsScreenInner() {
 
 const s = StyleSheet.create({
   root: { flex: 1 },
-  header: { flexDirection: "row", alignItems: "center", paddingHorizontal: 16, paddingBottom: 16, borderBottomWidth: 1, gap: 12 },
+  header: {
+    flexDirection: "row",
+    alignItems: "center",
+    paddingHorizontal: 16,
+    paddingBottom: 16,
+    borderBottomWidth: 1,
+    gap: 12,
+  },
   backBtn: { padding: 4 },
   title: { fontSize: 20, fontFamily: "Inter_700Bold" },
   subtitle: { fontSize: 11, fontFamily: "Inter_400Regular", marginTop: 1 },
-  newBtn: { flexDirection: "row", alignItems: "center", gap: 6, paddingHorizontal: 14, paddingVertical: 9, borderRadius: 12 },
+  newBtn: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 6,
+    paddingHorizontal: 14,
+    paddingVertical: 9,
+    borderRadius: 12,
+  },
   newBtnText: { fontSize: 13, fontFamily: "Inter_600SemiBold", color: "#fff" },
   statsBar: { flexDirection: "row", borderBottomWidth: 1, paddingVertical: 12 },
   statItem: { flex: 1, alignItems: "center", gap: 2 },
   statValue: { fontSize: 20, fontFamily: "Inter_700Bold" },
   statLabel: { fontSize: 10, fontFamily: "Inter_400Regular" },
-  searchRow: { paddingHorizontal: 16, paddingVertical: 10, borderBottomWidth: 1 },
-  searchBox: { flexDirection: "row", alignItems: "center", gap: 8, paddingHorizontal: 12, paddingVertical: 10, borderRadius: 12, borderWidth: 1 },
+  searchRow: {
+    paddingHorizontal: 16,
+    paddingVertical: 10,
+    borderBottomWidth: 1,
+  },
+  searchBox: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 8,
+    paddingHorizontal: 12,
+    paddingVertical: 10,
+    borderRadius: 12,
+    borderWidth: 1,
+  },
   searchInput: { flex: 1, fontSize: 14, fontFamily: "Inter_400Regular" },
-  filterRow: { flexDirection: "row", paddingHorizontal: 16, paddingVertical: 10, gap: 8 },
-  chip: { paddingHorizontal: 12, paddingVertical: 7, borderRadius: 20, borderWidth: 1, flexShrink: 0 },
+  filterRow: {
+    flexDirection: "row",
+    paddingHorizontal: 16,
+    paddingVertical: 10,
+    gap: 8,
+  },
+  chip: {
+    paddingHorizontal: 12,
+    paddingVertical: 7,
+    borderRadius: 20,
+    borderWidth: 1,
+    flexShrink: 0,
+  },
   chipText: { fontSize: 11, fontFamily: "Inter_500Medium" },
   empty: { alignItems: "center", paddingVertical: 60, gap: 16 },
-  emptyIcon: { width: 70, height: 70, borderRadius: 22, alignItems: "center", justifyContent: "center" },
+  emptyIcon: {
+    width: 70,
+    height: 70,
+    borderRadius: 22,
+    alignItems: "center",
+    justifyContent: "center",
+  },
   emptyTitle: { fontSize: 18, fontFamily: "Inter_700Bold" },
-  emptyText: { fontSize: 13, fontFamily: "Inter_400Regular", textAlign: "center", lineHeight: 22 },
+  emptyText: {
+    fontSize: 13,
+    fontFamily: "Inter_400Regular",
+    textAlign: "center",
+    lineHeight: 22,
+  },
   card: { borderRadius: 16, borderWidth: 1, overflow: "hidden" },
-  cardTop: { flexDirection: "row", alignItems: "flex-start", gap: 12, padding: 14 },
-  typeIcon: { width: 44, height: 44, borderRadius: 13, alignItems: "center", justifyContent: "center" },
+  cardTop: {
+    flexDirection: "row",
+    alignItems: "flex-start",
+    gap: 12,
+    padding: 14,
+  },
+  typeIcon: {
+    width: 44,
+    height: 44,
+    borderRadius: 13,
+    alignItems: "center",
+    justifyContent: "center",
+  },
   badgeRow: { flexDirection: "row", gap: 6, flexWrap: "wrap" },
   badge: { paddingHorizontal: 7, paddingVertical: 3, borderRadius: 8 },
   badgeText: { fontSize: 10, fontFamily: "Inter_600SemiBold" },
   cardTitle: { fontSize: 13, fontFamily: "Inter_600SemiBold", lineHeight: 19 },
   cardRef: { fontSize: 11, fontFamily: "Inter_400Regular" },
-  cardFooter: { flexDirection: "row", gap: 14, flexWrap: "wrap", paddingHorizontal: 14, paddingVertical: 10, borderTopWidth: 1 },
+  cardFooter: {
+    flexDirection: "row",
+    gap: 14,
+    flexWrap: "wrap",
+    paddingHorizontal: 14,
+    paddingVertical: 10,
+    borderTopWidth: 1,
+  },
   metaItem: { flexDirection: "row", alignItems: "center", gap: 5 },
   metaText: { fontSize: 11, fontFamily: "Inter_400Regular" },
   modal: { flex: 1 },
-  modalHeader: { flexDirection: "row", alignItems: "center", padding: 20, paddingTop: 24, borderBottomWidth: 1, gap: 12 },
-  modalTitle: { flex: 1, fontSize: 16, fontFamily: "Inter_700Bold", lineHeight: 22 },
+  modalHeader: {
+    flexDirection: "row",
+    alignItems: "center",
+    padding: 20,
+    paddingTop: 24,
+    borderBottomWidth: 1,
+    gap: 12,
+  },
+  modalTitle: {
+    flex: 1,
+    fontSize: 16,
+    fontFamily: "Inter_700Bold",
+    lineHeight: 22,
+  },
   modalRef: { fontSize: 11, fontFamily: "Inter_400Regular", marginTop: 2 },
   closeBtn: { padding: 4 },
   badgeRowLarge: { flexDirection: "row", gap: 8, flexWrap: "wrap" },
-  badgeLg: { flexDirection: "row", alignItems: "center", gap: 6, paddingHorizontal: 10, paddingVertical: 6, borderRadius: 10, borderWidth: 1 },
+  badgeLg: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 6,
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+    borderRadius: 10,
+    borderWidth: 1,
+  },
   badgeLgText: { fontSize: 12, fontFamily: "Inter_600SemiBold" },
   dot: { width: 7, height: 7, borderRadius: 4 },
   section: { borderRadius: 14, borderWidth: 1, padding: 14, gap: 10 },
   sectionTitleRow: { flexDirection: "row", alignItems: "center", gap: 8 },
   sectionTitle: { fontSize: 14, fontFamily: "Inter_700Bold" },
   sectionBody: { fontSize: 13, fontFamily: "Inter_400Regular", lineHeight: 21 },
-  infoRow: { flexDirection: "row", alignItems: "center", gap: 8, paddingTop: 10, borderTopWidth: StyleSheet.hairlineWidth },
+  infoRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 8,
+    paddingTop: 10,
+    borderTopWidth: StyleSheet.hairlineWidth,
+  },
   infoLabel: { width: 110, fontSize: 12, fontFamily: "Inter_400Regular" },
   infoValue: { flex: 1, fontSize: 12, fontFamily: "Inter_600SemiBold" },
-  docRow: { flexDirection: "row", alignItems: "center", gap: 10, paddingTop: 10, borderTopWidth: StyleSheet.hairlineWidth },
+  docRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 10,
+    paddingTop: 10,
+    borderTopWidth: StyleSheet.hairlineWidth,
+  },
   docName: { flex: 1, fontSize: 13, fontFamily: "Inter_500Medium" },
-  etapeRow: { flexDirection: "row", alignItems: "flex-start", gap: 10, paddingTop: 10, borderTopWidth: StyleSheet.hairlineWidth },
+  etapeRow: {
+    flexDirection: "row",
+    alignItems: "flex-start",
+    gap: 10,
+    paddingTop: 10,
+    borderTopWidth: StyleSheet.hairlineWidth,
+  },
   etapeDot: { width: 10, height: 10, borderRadius: 5, marginTop: 3 },
   etapeDate: { fontSize: 10, fontFamily: "Inter_400Regular" },
   etapeAction: { fontSize: 13, fontFamily: "Inter_500Medium", lineHeight: 19 },
   actionsRow: { flexDirection: "row", gap: 8, flexWrap: "wrap" },
-  actionBtn: { flex: 1, flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 6, paddingVertical: 12, borderRadius: 12, minWidth: 100 },
-  actionBtnText: { fontSize: 12, fontFamily: "Inter_600SemiBold", color: "#fff" },
-  infoBox: { flexDirection: "row", alignItems: "flex-start", gap: 10, padding: 12, borderRadius: 12, borderWidth: 1 },
-  infoBoxText: { flex: 1, fontSize: 12, fontFamily: "Inter_500Medium", lineHeight: 19 },
+  actionBtn: {
+    flex: 1,
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 6,
+    paddingVertical: 12,
+    borderRadius: 12,
+    minWidth: 100,
+  },
+  actionBtnText: {
+    fontSize: 12,
+    fontFamily: "Inter_600SemiBold",
+    color: "#fff",
+  },
+  infoBox: {
+    flexDirection: "row",
+    alignItems: "flex-start",
+    gap: 10,
+    padding: 12,
+    borderRadius: 12,
+    borderWidth: 1,
+  },
+  infoBoxText: {
+    flex: 1,
+    fontSize: 12,
+    fontFamily: "Inter_500Medium",
+    lineHeight: 19,
+  },
   fieldLabel: { fontSize: 13, fontFamily: "Inter_600SemiBold" },
-  input: { borderWidth: 1, borderRadius: 12, padding: 14, fontSize: 14, fontFamily: "Inter_400Regular" },
-  textarea: { borderWidth: 1, borderRadius: 12, padding: 14, fontSize: 14, fontFamily: "Inter_400Regular", minHeight: 120, textAlignVertical: "top" },
-  typeChip: { flexDirection: "row", alignItems: "center", gap: 6, paddingHorizontal: 12, paddingVertical: 8, borderRadius: 20, borderWidth: 1, flexShrink: 0 },
+  input: {
+    borderWidth: 1,
+    borderRadius: 12,
+    padding: 14,
+    fontSize: 14,
+    fontFamily: "Inter_400Regular",
+  },
+  textarea: {
+    borderWidth: 1,
+    borderRadius: 12,
+    padding: 14,
+    fontSize: 14,
+    fontFamily: "Inter_400Regular",
+    minHeight: 120,
+    textAlignVertical: "top",
+  },
+  typeChip: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 6,
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    borderRadius: 20,
+    borderWidth: 1,
+    flexShrink: 0,
+  },
   typeChipText: { fontSize: 12, fontFamily: "Inter_500Medium" },
-  anonRow: { flexDirection: "row", alignItems: "center", gap: 12, padding: 14, borderRadius: 14, borderWidth: 1 },
+  anonRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 12,
+    padding: 14,
+    borderRadius: 14,
+    borderWidth: 1,
+  },
   anonTitle: { fontSize: 13, fontFamily: "Inter_600SemiBold" },
   anonDesc: { fontSize: 11, fontFamily: "Inter_400Regular", marginTop: 2 },
   toggle: { width: 42, height: 24, borderRadius: 12, justifyContent: "center" },
-  toggleThumb: { width: 18, height: 18, borderRadius: 9, backgroundColor: "#fff" },
-  submitBtn: { flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 8, paddingVertical: 16, borderRadius: 14 },
+  toggleThumb: {
+    width: 18,
+    height: 18,
+    borderRadius: 9,
+    backgroundColor: "#fff",
+  },
+  submitBtn: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 8,
+    paddingVertical: 16,
+    borderRadius: 14,
+  },
   submitText: { fontSize: 15, fontFamily: "Inter_700Bold", color: "#fff" },
 });

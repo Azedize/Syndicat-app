@@ -1,3 +1,8 @@
+# 2026-08-07 — Invoice data flow
+
+- Removed the client-side invoice refresh dependency after creation; the API response is mapped directly into the local cache, reducing a redundant round trip and avoiding stale refresh ambiguity.
+- Invoice list state now distinguishes initial synchronization from stale-data refresh failure, keeping existing data visible during a recoverable refresh.
+
 - 2026-08-07 — Document request localization kept the existing parallel autofill/payment fetch and makes its loading state explicit without adding network calls or extra rendering loops.
 - Ma Boutique keeps the existing parallel listing/promotion fetch and isolates optional promotion failure without adding polling, duplicate listing requests, or client-side fallback data.
 # Performance Log

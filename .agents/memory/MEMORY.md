@@ -48,3 +48,5 @@
 - [Small-screen mobile layout](small-screen-mobile-layout.md) — carousel mockups and auth option rows need explicit responsive bounds to prevent overlap on compact devices.
 - [Finance locale formatting](finance-locale-formatting.md) — user-facing financial amounts use active-locale MAD formatting, never compact k/M totals; dates follow the same locale.
 - [Admin-created account credentials](admin-account-credentials.md) — account creation must generate temporary credentials server-side; never ship a shared default password in the client.
+- [Invoice persistence boundary](invoice-persistence-boundary.md) — invoice identity, lifecycle dates, scope, and totals belong to the server persistence boundary, not client-generated form state.
+- [Statistics data state](statistics-data-state.md) — platform KPIs must remain unavailable on failed synchronization; subscription totals use persisted plan/subscription data, never UI tariffs.

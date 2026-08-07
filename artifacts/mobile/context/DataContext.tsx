@@ -133,6 +133,13 @@ export interface Invoice {
   proofUrl?: string;
 }
 
+export type InvoiceCreateInput = {
+  type: Invoice["type"];
+  recipient: string;
+  items: { label: string; quantity: number; unitPrice: number }[];
+  proofUrl?: string;
+};
+
 export interface Review {
   id: string;
   productId: string;
@@ -438,6 +445,8 @@ interface DataContextType {
   cart: CartItem[];
   bonsLivraison: BonLivraison[];
   invoices: Invoice[];
+  invoicesLoading: boolean;
+  invoicesLoadError: boolean;
   reviews: Review[];
   subscriptionPlans: SubscriptionPlan[];
   syndicateSubscriptions: SyndicateSubscription[];
@@ -488,8 +497,8 @@ interface DataContextType {
   updateCartQty: (id: string, qty: number) => void;
   clearCart: () => void;
   addReview: (r: Review) => void;
-  addInvoice: (inv: Invoice) => Promise<boolean>;
-  refreshInvoices: () => Promise<void>;
+  addInvoice: (input: InvoiceCreateInput) => Promise<boolean>;
+  refreshInvoices: () => Promise<boolean>;
   addBonLivraison: (bl: BonLivraison) => void;
   updateBonLivraisonStatus: (
     id: string,
@@ -577,6 +586,8 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
   const [cart, setCart] = useState<CartItem[]>([]);
   const [bonsLivraison, setBonsLivraison] = useState<BonLivraison[]>([]);
   const [invoices, setInvoices] = useState<Invoice[]>([]);
+  const [invoicesLoading, setInvoicesLoading] = useState(false);
+  const [invoicesLoadError, setInvoicesLoadError] = useState(false);
   const [reviews, setReviews] = useState<Review[]>([]);
   const [subscriptionPlans, setSubscriptionPlans] = useState<
     SubscriptionPlan[]
@@ -596,6 +607,8 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
     let cancelled = false;
     setDataLoading(true);
     setDataLoadError(false);
+    setInvoicesLoading(true);
+    setInvoicesLoadError(false);
     setMeetingsLoadError(false);
     setDocumentsLoading(true);
     setDocumentsLoadError(false);
@@ -1069,8 +1082,12 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
 
         if (invoicesRes.status === "fulfilled") {
           const rows = (invoicesRes.value as { data: unknown[] }).data;
-          if (rows?.length) setInvoices(rows.map(mapDbInvoice));
+          setInvoices((rows ?? []).map(mapDbInvoice));
+          setInvoicesLoadError(false);
+        } else {
+          setInvoicesLoadError(true);
         }
+        setInvoicesLoading(false);
 
         if (bonsRes.status === "fulfilled") {
           const rows = (bonsRes.value as { data: unknown[] }).data;
@@ -1134,6 +1151,8 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
         setDataLoading(false);
       } catch {
         if (!cancelled) {
+          setInvoicesLoadError(true);
+          setInvoicesLoading(false);
           setDocumentsLoadError(true);
           setDocumentsLoading(false);
           setDataLoadError(true);
@@ -1677,26 +1696,29 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
   }
 
   const refreshInvoices = async () => {
+    setInvoicesLoading(true);
+    setInvoicesLoadError(false);
     try {
       const res = (await api.finance.invoices()) as { data: unknown[] };
       const rows = res?.data ?? [];
       setInvoices(rows.map(mapDbInvoice));
+      setInvoicesLoadError(false);
+      return true;
     } catch {
-      /* keep stale */
+      setInvoicesLoadError(true);
+      return false;
+    } finally {
+      setInvoicesLoading(false);
     }
   };
 
-  const addInvoice = async (inv: Invoice): Promise<boolean> => {
-    const optimisticId = inv.id;
-    setInvoices((p) => [inv, ...p]); // optimistic insert
+  const addInvoice = async (input: InvoiceCreateInput): Promise<boolean> => {
     try {
-      await api.finance.addInvoice(inv);
-      // Refresh from DB to replace fake ID with real UUID and pick up server-computed fields
-      await refreshInvoices();
+      const response = await api.finance.addInvoice(input) as { data: unknown };
+      const created = mapDbInvoice(response.data);
+      setInvoices((p) => [created, ...p.filter((invoice) => invoice.id !== created.id)]);
       return true;
     } catch {
-      // Rollback optimistic insert on failure
-      setInvoices((p) => p.filter((i) => i.id !== optimisticId));
       return false;
     }
   };
@@ -1745,6 +1767,8 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
         cart,
         bonsLivraison,
         invoices,
+        invoicesLoading,
+        invoicesLoadError,
         reviews,
         subscriptionPlans,
         syndicateSubscriptions,
