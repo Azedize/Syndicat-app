@@ -67,3 +67,5 @@
 - Mobile verification: zero-error typecheck and Expo workflow restart pass after the Documents & Signatures follow-through.
 - Governance: removed seeded-looking fallback data, wired council and mandate retrieval to the database-backed API, added localized loading/unavailable/empty recovery, and made council add/remove actions durable; unsupported delegation mutations are no longer presented.
 - Mobile verification: zero-error typecheck, diff validation, healthy Expo/API workflows, and public preview pass after the governance reliability follow-through.
+- Marketplace Reviews & Ratings: multilingual review presentation, rating distribution, pending-review flow, localized publication feedback, locale-aware dates, and retryable loading recovery complete; review/order API contracts preserved.
+- Mobile verification: zero-error typecheck, diff validation, Expo restart, and protected-route preview pass after the Reviews & Ratings pass.

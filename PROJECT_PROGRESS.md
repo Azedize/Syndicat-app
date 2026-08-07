@@ -143,3 +143,6 @@
 - Added explicit synchronized, unavailable, and genuine-empty states with retry guidance; council-member add/remove actions now persist through the API with localized success/error feedback.
 - Removed local-only delegation creation/revocation controls because the current delegation endpoint is read-only and has no persistence layer; the UI now avoids implying unsupported mutations.
 - Mobile typecheck, diff validation, workflow logs, and a 402×874 public preview passed; only existing Expo web compatibility warnings remain.
+- Continued the marketplace UX pass on Reviews & Ratings: localized the review list, filters, pending-purchase banner, rating form, confirmations, errors, and seller metadata across French, English, Arabic, and Spanish.
+- Added real loading, unavailable-data recovery, and guided empty states; review dates now follow the active locale and the product filter no longer depends on translated display text.
+- Preserved the existing review/order APIs, delivered-order eligibility, publication flow, and marketplace role boundaries.

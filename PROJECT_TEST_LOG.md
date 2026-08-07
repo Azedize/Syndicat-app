@@ -161,3 +161,6 @@
 - `pnpm --filter @workspace/mobile run typecheck` — passed with zero errors after the governance reliability follow-through.
 - `git diff --check` and focused stale-reference grep — passed; no governance seed arrays, obsolete endpoints, or removed local delegation mutation handlers remain.
 - Expo and API workflows remained healthy; the 402×874 public mobile preview rendered successfully with only existing non-blocking Expo web compatibility warnings.
+- `pnpm --filter @workspace/mobile run typecheck` — passed with zero errors after the Reviews & Ratings pass.
+- `pnpm exec prettier --write artifacts/mobile/app/reviews.tsx artifacts/mobile/context/LanguageContext.tsx` and `git diff --check` — passed.
+- Restarted `artifacts/mobile: expo`; Metro bundled successfully. Public 402×874 preview rendered without new browser runtime exceptions; protected Reviews & Ratings route remains behind the expected unauthenticated boundary.

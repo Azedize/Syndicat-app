@@ -99,3 +99,4 @@
 - Documents & Signatures
 - Profil & Paramètres
 - Documents & Signatures now provide a consistent enterprise wizard and signature-review language layer across all seven states, with visible loading, empty, recovery, confirmation, and action surfaces in the four supported locales.
+- Reviews & Ratings now provides a consistent four-language marketplace feedback experience with localized rating hierarchy, pending-review guidance, locale-aware dates, guided empty state, and recoverable unavailable-data feedback.

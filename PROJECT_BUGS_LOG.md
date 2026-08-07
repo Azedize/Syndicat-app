@@ -25,3 +25,4 @@
 - Assemblée Générale and Élections no longer expose raw ISO dates, raw mandate roles/statuses, or an unrelated team-member translation on the resolution action; the underlying governance state and API behavior were unchanged.
 - Search no longer mixes French-only headings, shortcuts, suggestions, and no-result guidance into non-French sessions.
 - Subscription payment onboarding no longer exposes raw API error text, hardcoded French copy, or embedded bank coordinates; payment amounts now use the active locale.
+- Marketplace Reviews & Ratings no longer mixes French-only labels or raw publication errors into other language sessions; failed review/order loads no longer masquerade as an empty list, and localized product filtering remains stable when the language changes.

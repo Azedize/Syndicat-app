@@ -130,3 +130,6 @@
 - Preserved real document APIs, entity IDs, autofill behavior, generation/signature/publish mutations, and the existing document workflow state machine.
 - Audited `artifacts/mobile/app/governance.tsx`; removed hardcoded council, mandate, and delegation seed records, corrected the council endpoint from non-existent routes to `/governance/conseil`, and added a shared localized synchronization/error/empty state.
 - Changed council add/remove actions from local state updates to durable POST/DELETE API calls with safe localized feedback and refresh-on-success. Removed delegation create/revoke controls because the current API explicitly has no persistence layer.
+- Audited `artifacts/mobile/app/reviews.tsx`; replaced hardcoded marketplace review labels, seller metadata, rating labels, form copy, and publication alerts with the shared runtime language system.
+- Added localized loading, unavailable-data retry, and guided empty states; product filtering now uses a stable internal sentinel instead of the translated “All” label, and review/order dates use the active locale.
+- Preserved delivered-order eligibility, review submission payloads, optimistic local insertion, marketplace API behavior, and existing role boundaries.
