@@ -1,3 +1,4 @@
+- 2026-08-07 — Added the complete `mdr*` translation family for the member/tenant document-request flow; no visible catalog, form, payment, review, success, or recovery copy remains French-only in that component.
 # Translation Log
 
 ## 2026-08-06

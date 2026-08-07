@@ -1,3 +1,4 @@
+- 2026-08-07 — Document request localization kept the existing parallel autofill/payment fetch and makes its loading state explicit without adding network calls or extra rendering loops.
 - Ma Boutique keeps the existing parallel listing/promotion fetch and isolates optional promotion failure without adding polling, duplicate listing requests, or client-side fallback data.
 # Performance Log
 

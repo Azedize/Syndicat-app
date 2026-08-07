@@ -1,3 +1,4 @@
+- 2026-08-07 — Member/tenant document request: preserved the existing three-step interaction while removing language-specific friction from every visible state, including payment certification and pending validation.
 - 2026-08-06 — Governance screens now use consistent guided loading, recoverable unavailable-data states, localized semantic statuses, and translated form guidance across elections, mandates, and meetings.
 - 2026-08-06 — Assemblée Générale now uses shared guided loading/unavailable states, localized form examples, and safe feedback across its governance actions without changing touch targets or role visibility.
 - 2026-08-06 — Charges & Fund Calls now keep payment mutation failures in the shared localized recovery hierarchy without changing the existing proof-upload and role-specific action layout.

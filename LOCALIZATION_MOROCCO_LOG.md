@@ -1,3 +1,4 @@
+- 2026-08-07 — Added French/English/Arabic/Spanish runtime coverage for resident document requests, including locale-aware MAD eligibility totals and Moroccan co-ownership vocabulary.
 - 2026-08-06 — Elections, elected mandates, and meetings completed runtime localization coverage for French, English, Arabic, and Spanish, including roles, workflow feedback, retry states, and form guidance.
 - 2026-08-06 — Assemblée Générale completed runtime localization coverage for lifecycle feedback, loading/retry states, quorum and resolution forms, vote registration, attendance, and minutes generation in French, English, Arabic, and Spanish.
 - 2026-08-06 — Charges & Fund Calls completed safe localized recovery coverage for payment submission, payment validation, and payment rejection in French, English, Arabic, and Spanish.

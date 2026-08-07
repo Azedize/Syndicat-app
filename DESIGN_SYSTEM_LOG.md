@@ -1,3 +1,4 @@
+- 2026-08-07 — Extended shared runtime language coverage to the resident document-request component; financial eligibility values now use the active locale and MAD currency presentation.
 - Ma Boutique reuses semantic theme colors and shared DataState components while keeping seller actions, status pills, promotion feedback, and MAD/date presentation consistent across light/dark and supported languages.
 # Design System Log
 

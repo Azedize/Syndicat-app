@@ -1,3 +1,4 @@
+- 2026-08-07 — Resident document request: role-filtered template visibility, real server-side autofill/payment eligibility, and existing pending-review submission boundaries were preserved during the UX pass.
 - Ma Boutique changes preserve the existing authenticated marketplace API, seller CRUD permissions, upload authorization, destructive confirmations, and promotion proof-of-payment flow; raw API errors are not exposed.
 # Security Log
 

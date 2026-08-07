@@ -131,3 +131,7 @@
 - Localized document statistics, generation and preview feedback, signature confirmation/errors, workflow transitions, deletion/archive confirmations, comments, version history, QR verification, bundles, and edit/signature forms across French, English, Arabic, and Spanish.
 - Preserved real PDF download/preview, electronic signature, document workflow state transitions, soft-delete, comments, version restoration, bundle generation, role guards, and API contracts.
 - Mobile typecheck passed with zero errors; Expo restarted successfully and the public preview rendered without new browser runtime exceptions.
+- Continued the Documents & Signatures follow-through pass on the resident document-request flow.
+- Localized the member/tenant document catalog, auto-filled identity summary, payment eligibility states, request fields, review guidance, submission success state, and recovery feedback across French, English, Arabic, and Spanish.
+- Preserved role-filtered templates, real autofill/payment-check/request APIs, pending-review workflow, and balance blocking; corrected the payment-check loading state so it is visible while the API request is in flight.
+- Mobile typecheck passed with zero errors and Metro remained healthy after the change.

@@ -30,83 +30,84 @@ import {
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useColors } from "@/hooks/useColors";
 import { useAuth } from "@/context/AuthContext";
+import { useLanguage } from "@/context/LanguageContext";
 
 // ─── Template catalog — full list with role restrictions ──────────────────────
 const ALL_TEMPLATES = [
   {
     id: "attestation_residence",
-    label: "Attestation de résidence",
+    labelKey: "mdrTemplateResidence",
     icon: "home" as const,
     color: "#0891b2",
     category: "attestation",
-    desc: "Prouve votre résidence dans la copropriété. Utile pour inscriptions scolaires.",
-    autoFilled: ["Nom, adresse et numéro de lot chargés automatiquement"],
+    descKey: "mdrTemplateResidenceDesc",
+    autoFilledKey: "mdrTemplateResidenceAuto",
     allowedRoles: ["member", "tenant"],
     requiresBalance: false,
   },
   {
     id: "attestation_propriete",
-    label: "Attestation de propriété",
+    labelKey: "mdrTemplateOwnership",
     icon: "key" as const,
     color: "#2563EB",
     category: "attestation",
-    desc: "Certifie votre statut de copropriétaire. Titre foncier auto-injecté.",
-    autoFilled: ["Titre foncier, tantièmes et données propriétaire chargés automatiquement"],
+    descKey: "mdrTemplateOwnershipDesc",
+    autoFilledKey: "mdrTemplateOwnershipAuto",
     allowedRoles: ["member"],
     requiresBalance: false,
   },
   {
     id: "attestation_paiement",
-    label: "Attestation de paiement des charges",
+    labelKey: "mdrTemplatePayment",
     icon: "check-circle" as const,
     color: "#16a34a",
     category: "attestation",
-    desc: "Certifie que vos charges sont à jour. Bloquée si des impayés existent.",
-    autoFilled: ["Total payé et historique calculés automatiquement depuis vos appels de fonds"],
+    descKey: "mdrTemplatePaymentDesc",
+    autoFilledKey: "mdrTemplatePaymentAuto",
     allowedRoles: ["member"],
     requiresBalance: true,
   },
   {
     id: "attestation",
-    label: "Attestation d'adhésion",
+    labelKey: "mdrTemplateMembership",
     icon: "award" as const,
     color: "#8b5cf6",
     category: "attestation",
-    desc: "Certifie votre qualité de membre du syndicat.",
-    autoFilled: ["Nom et coordonnées chargés automatiquement"],
+    descKey: "mdrTemplateMembershipDesc",
+    autoFilledKey: "mdrTemplateMembershipAuto",
     allowedRoles: ["member"],
     requiresBalance: false,
   },
   {
     id: "rapport_financier",
-    label: "Rapport financier",
+    labelKey: "mdrTemplateFinancialReport",
     icon: "dollar-sign" as const,
     color: "#f59e0b",
     category: "finances",
-    desc: "Bilan financier de la copropriété sur une période.",
-    autoFilled: ["Données financières complètes depuis la comptabilité"],
+    descKey: "mdrTemplateFinancialReportDesc",
+    autoFilledKey: "mdrTemplateFinancialReportAuto",
     allowedRoles: ["member"],
     requiresBalance: false,
   },
   {
     id: "demande_administrative",
-    label: "Demande administrative",
+    labelKey: "mdrTemplateAdministrative",
     icon: "send" as const,
     color: "#0284c7",
     category: "reglements",
-    desc: "Soumettez une demande formelle au syndicat.",
-    autoFilled: ["Votre nom est pré-rempli — précisez uniquement l'objet"],
+    descKey: "mdrTemplateAdministrativeDesc",
+    autoFilledKey: "mdrTemplateAdministrativeAuto",
     allowedRoles: ["member", "tenant"],
     requiresBalance: false,
   },
   {
     id: "decompte_charges",
-    label: "Décompte de charges",
+    labelKey: "mdrTemplateCharges",
     icon: "bar-chart-2" as const,
     color: "#f59e0b",
     category: "finances",
-    desc: "Détail de vos charges sur une période donnée.",
-    autoFilled: ["Charges calculées automatiquement depuis votre lot"],
+    descKey: "mdrTemplateChargesDesc",
+    autoFilledKey: "mdrTemplateChargesAuto",
     allowedRoles: ["member"],
     requiresBalance: false,
   },
@@ -126,6 +127,7 @@ export default function MemberDocumentRequest({ visible, onClose, onComplete }: 
   const colors = useColors();
   const insets = useSafeAreaInsets();
   const { user } = useAuth();
+  const { t, lang } = useLanguage();
   const topPad = Platform.OS === "web" ? 67 : insets.top;
 
   // Role-filtered template list — tenants see less, members see more
@@ -189,6 +191,7 @@ export default function MemberDocumentRequest({ visible, onClose, onComplete }: 
     setSelectedTpl(tpl);
     setAutofillLoading(true);
     setPaymentCheck(null);
+    setPaymentCheckLoading(tpl.requiresBalance);
     animateStep();
     setStep(2);
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
@@ -237,7 +240,7 @@ export default function MemberDocumentRequest({ visible, onClose, onComplete }: 
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
     } catch (err: any) {
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
-      setError("Impossible de soumettre la demande. Vérifiez votre connexion et réessayez.");
+      setError(t("mdrSubmitError"));
     } finally {
       setSubmitting(false);
     }
@@ -245,6 +248,12 @@ export default function MemberDocumentRequest({ visible, onClose, onComplete }: 
 
   const needsPeriode = ["attestation_paiement", "attestation_residence", "decompte_charges"].includes(selectedTpl?.id ?? "");
   const needsObjet   = ["demande_administrative"].includes(selectedTpl?.id ?? "");
+  const locale = ({ fr: "fr-MA", en: "en-US", ar: "ar-MA", es: "es-ES" } as const)[lang];
+  const formatMad = (amount: number) =>
+    new Intl.NumberFormat(locale, { style: "currency", currency: "MAD", maximumFractionDigits: 2 }).format(amount);
+  const templateText = (key: string) => t(key);
+  const selectedLabel = selectedTpl ? templateText(selectedTpl.labelKey) : "";
+  const selectedDescription = selectedTpl ? templateText(selectedTpl.descKey) : "";
 
   const s = styles(colors);
 
@@ -256,13 +265,13 @@ export default function MemberDocumentRequest({ visible, onClose, onComplete }: 
           <TouchableOpacity onPress={onClose} style={s.closeBtn}>
             <Feather name="x" size={20} color={colors.mutedForeground} />
           </TouchableOpacity>
-          <Text style={[s.headerTitle, { color: colors.foreground }]}>Demander un document</Text>
+          <Text style={[s.headerTitle, { color: colors.foreground }]}>{t("mdrTitle")}</Text>
           <View style={{ width: 36 }} />
         </View>
 
         {/* Step indicators */}
         <View style={s.stepsRow}>
-          {["Modèle", "Confirmer", "Envoyé"].map((label, i) => (
+          {[t("mdrStepTemplate"), t("mdrStepConfirm"), t("mdrStepSent")].map((label, i) => (
             <View key={i} style={s.stepItem}>
               <View style={[s.stepDot, {
                 backgroundColor: step > i + 1 ? "#10b981" : step === i + 1 ? colors.primary : colors.border,
@@ -282,18 +291,18 @@ export default function MemberDocumentRequest({ visible, onClose, onComplete }: 
           {/* ── Step 1: Choose template ────────────────────────────────── */}
           {step === 1 && (
             <ScrollView contentContainerStyle={{ padding: 20, gap: 12, paddingBottom: 60 }}>
-              <Text style={[s.stepTitle, { color: colors.foreground }]}>Quel document souhaitez-vous ?</Text>
+              <Text style={[s.stepTitle, { color: colors.foreground }]}>{t("mdrChooseTitle")}</Text>
               <Text style={[s.stepSubtitle, { color: colors.mutedForeground }]}>
                 {role === "tenant"
-                  ? "En tant que locataire, vous pouvez demander les documents de résidence et de réclamation."
-                  : "Toutes les données de votre dossier (nom, lot, bâtiment) seront remplies automatiquement."}
+                  ? t("mdrTenantDescription")
+                  : t("mdrMemberDescription")}
               </Text>
 
               <View style={[s.autofillBanner, { backgroundColor: "#10b98110", borderColor: "#10b98130" }]}>
                 <Feather name="zap" size={14} color="#10b981" />
                 <Text style={{ fontSize: 12, color: "#10b981", flex: 1, lineHeight: 18 }}>
-                  <Text style={{ fontWeight: "700" }}>Auto-remplissage activé</Text>
-                  {" "}— vos données sont chargées directement depuis la base du syndicat.
+                  <Text style={{ fontWeight: "700" }}>{t("mdrAutofillEnabled")}</Text>
+                  {" "}{t("mdrAutofillDescription")}
                 </Text>
               </View>
 
@@ -301,7 +310,7 @@ export default function MemberDocumentRequest({ visible, onClose, onComplete }: 
                 <View style={[s.autofillBanner, { backgroundColor: "#f59e0b10", borderColor: "#f59e0b30" }]}>
                   <Feather name="info" size={14} color="#f59e0b" />
                   <Text style={{ fontSize: 12, color: "#f59e0b", flex: 1, lineHeight: 18 }}>
-                    Aucun document disponible pour votre profil. Contactez l'administrateur du syndicat.
+                    {t("mdrNoTemplates")}
                   </Text>
                 </View>
               ) : (
@@ -317,17 +326,17 @@ export default function MemberDocumentRequest({ visible, onClose, onComplete }: 
                     </View>
                     <View style={{ flex: 1 }}>
                       <View style={{ flexDirection: "row", alignItems: "center", gap: 6 }}>
-                        <Text style={[s.tplName, { color: colors.foreground }]}>{tpl.label}</Text>
+                        <Text style={[s.tplName, { color: colors.foreground }]}>{templateText(tpl.labelKey)}</Text>
                         {tpl.requiresBalance && (
                           <View style={{ backgroundColor: "#f59e0b18", borderRadius: 6, paddingHorizontal: 5, paddingVertical: 2 }}>
-                            <Text style={{ fontSize: 9, fontWeight: "700", color: "#f59e0b" }}>VÉRIF. SOLDE</Text>
+                            <Text style={{ fontSize: 9, fontWeight: "700", color: "#f59e0b" }}>{t("mdrBalanceCheck")}</Text>
                           </View>
                         )}
                       </View>
-                      <Text style={[s.tplDesc, { color: colors.mutedForeground }]}>{tpl.desc}</Text>
+                      <Text style={[s.tplDesc, { color: colors.mutedForeground }]}>{templateText(tpl.descKey)}</Text>
                       <View style={[s.autoChip, { backgroundColor: tpl.color + "12", marginTop: 6 }]}>
                         <Feather name="database" size={10} color={tpl.color} />
-                        <Text style={[s.autoChipText, { color: tpl.color }]}>{tpl.autoFilled[0]}</Text>
+                        <Text style={[s.autoChipText, { color: tpl.color }]}>{templateText(tpl.autoFilledKey)}</Text>
                       </View>
                     </View>
                     <Feather name="chevron-right" size={18} color={colors.mutedForeground} />
@@ -346,8 +355,8 @@ export default function MemberDocumentRequest({ visible, onClose, onComplete }: 
                   <Feather name={selectedTpl.icon} size={20} color={selectedTpl.color} />
                 </View>
                 <View style={{ flex: 1 }}>
-                  <Text style={[s.tplName, { color: selectedTpl.color }]}>{selectedTpl.label}</Text>
-                  <Text style={[s.tplDesc, { color: colors.mutedForeground }]}>{selectedTpl.desc}</Text>
+                  <Text style={[s.tplName, { color: selectedTpl.color }]}>{selectedLabel}</Text>
+                  <Text style={[s.tplDesc, { color: colors.mutedForeground }]}>{selectedDescription}</Text>
                 </View>
               </View>
 
@@ -355,21 +364,21 @@ export default function MemberDocumentRequest({ visible, onClose, onComplete }: 
               <View style={[s.dataCard, { backgroundColor: colors.card, borderColor: colors.border }]}>
                 <View style={[s.dataCardHeader, { borderBottomColor: colors.border }]}>
                   <Feather name="database" size={14} color="#10b981" />
-                  <Text style={[s.dataCardTitle, { color: colors.foreground }]}>Données remplies automatiquement</Text>
+                  <Text style={[s.dataCardTitle, { color: colors.foreground }]}>{t("mdrAutofillTitle")}</Text>
                   {autofillLoading && <ActivityIndicator size="small" color="#10b981" />}
                 </View>
 
                 {autofillLoading ? (
                   <View style={{ padding: 20, alignItems: "center" }}>
-                    <Text style={[s.tplDesc, { color: colors.mutedForeground }]}>Chargement de vos données…</Text>
+                    <Text style={[s.tplDesc, { color: colors.mutedForeground }]}>{t("mdrAutofillLoading")}</Text>
                   </View>
                 ) : (
                   <View style={{ padding: 14, gap: 10 }}>
                     {[
-                      { icon: "user" as const, label: "Nom", value: autofill?.memberName ?? user?.name ?? "—" },
-                      { icon: "home" as const, label: "Lot", value: autofill?.lotNumber ? `Lot ${autofill.lotNumber}` : "—" },
-                      { icon: "layers" as const, label: "Bâtiment", value: autofill?.buildingName ?? "—" },
-                      { icon: "shield" as const, label: "Syndicat", value: autofill?.syndicateName ?? "—" },
+                       { icon: "user" as const, label: t("mdrName"), value: autofill?.memberName ?? user?.name ?? "—" },
+                       { icon: "home" as const, label: t("mdrLot"), value: autofill?.lotNumber ? `${t("mdrLot")} ${autofill.lotNumber}` : "—" },
+                       { icon: "layers" as const, label: t("mdrBuilding"), value: autofill?.buildingName ?? "—" },
+                       { icon: "shield" as const, label: t("mdrSyndicate"), value: autofill?.syndicateName ?? "—" },
                     ].map((row) => (
                       <View key={row.label} style={{ flexDirection: "row", alignItems: "center", gap: 10 }}>
                         <View style={{ width: 28, height: 28, borderRadius: 8, backgroundColor: "#10b98115", alignItems: "center", justifyContent: "center" }}>
@@ -381,7 +390,7 @@ export default function MemberDocumentRequest({ visible, onClose, onComplete }: 
                         </View>
                         <View style={[s.autoChip, { backgroundColor: "#10b98110" }]}>
                           <Feather name="check" size={9} color="#10b981" />
-                          <Text style={[s.autoChipText, { color: "#10b981" }]}>Auto</Text>
+                          <Text style={[s.autoChipText, { color: "#10b981" }]}>{t("mdrAuto")}</Text>
                         </View>
                       </View>
                     ))}
@@ -394,17 +403,17 @@ export default function MemberDocumentRequest({ visible, onClose, onComplete }: 
                 paymentCheckLoading ? (
                   <View style={[s.autofillBanner, { backgroundColor: "#f59e0b10", borderColor: "#f59e0b30" }]}>
                     <ActivityIndicator size="small" color="#f59e0b" />
-                    <Text style={{ fontSize: 12, color: "#f59e0b", flex: 1 }}>Vérification de votre solde en cours…</Text>
+                    <Text style={{ fontSize: 12, color: "#f59e0b", flex: 1 }}>{t("mdrBalanceChecking")}</Text>
                   </View>
                 ) : paymentCheck ? (
                   paymentCheck.eligible ? (
                     <View style={[s.autofillBanner, { backgroundColor: "#10b98110", borderColor: "#10b98130" }]}>
                       <Feather name="check-circle" size={14} color="#10b981" />
                       <View style={{ flex: 1 }}>
-                        <Text style={{ fontSize: 12, color: "#10b981", fontWeight: "700" }}>Solde à jour ✓</Text>
+                        <Text style={{ fontSize: 12, color: "#10b981", fontWeight: "700" }}>{t("mdrBalanceCurrent")} ✓</Text>
                         <Text style={{ fontSize: 11, color: "#10b981", marginTop: 2 }}>
-                          Total payé : {paymentCheck.totalPaid.toLocaleString("fr-MA")} MAD
-                          {paymentCheck.lastPaymentDate ? `  •  Dernier paiement : ${paymentCheck.lastPaymentDate}` : ""}
+                          {t("mdrTotalPaid")}: {formatMad(paymentCheck.totalPaid)}
+                          {paymentCheck.lastPaymentDate ? `  •  ${t("mdrLastPayment")}: ${paymentCheck.lastPaymentDate}` : ""}
                         </Text>
                       </View>
                     </View>
@@ -412,13 +421,13 @@ export default function MemberDocumentRequest({ visible, onClose, onComplete }: 
                     <View style={[s.autofillBanner, { backgroundColor: "#ef444410", borderColor: "#ef444430" }]}>
                       <Feather name="alert-octagon" size={14} color="#ef4444" />
                       <View style={{ flex: 1 }}>
-                        <Text style={{ fontSize: 12, color: "#ef4444", fontWeight: "700" }}>Attestation bloquée</Text>
+                        <Text style={{ fontSize: 12, color: "#ef4444", fontWeight: "700" }}>{t("mdrCertificateBlocked")}</Text>
                         <Text style={{ fontSize: 11, color: "#ef4444", marginTop: 2, lineHeight: 16 }}>
                           {paymentCheck.blockedReason}
                         </Text>
                         {paymentCheck.overdueCount > 0 && (
                           <Text style={{ fontSize: 11, color: "#ef4444", marginTop: 4 }}>
-                            {paymentCheck.overdueCount} appel(s) impayé(s)  •  Solde dû : {paymentCheck.remainingBalance.toLocaleString("fr-MA")} MAD
+                            {paymentCheck.overdueCount} {t("mdrUnpaidCalls")}  •  {t("mdrBalanceDue")}: {formatMad(paymentCheck.remainingBalance)}
                           </Text>
                         )}
                       </View>
@@ -430,10 +439,10 @@ export default function MemberDocumentRequest({ visible, onClose, onComplete }: 
               {/* Optional fields */}
               {needsPeriode && (
                 <View>
-                  <Text style={[s.fieldLabel, { color: colors.foreground }]}>Période couverte <Text style={{ color: colors.mutedForeground }}>(optionnel)</Text></Text>
+                  <Text style={[s.fieldLabel, { color: colors.foreground }]}>{t("mdrPeriod")} <Text style={{ color: colors.mutedForeground }}>({t("mdrOptional")})</Text></Text>
                   <TextInput
                     style={[s.input, { backgroundColor: colors.card, borderColor: colors.border, color: colors.foreground }]}
-                    placeholder="Ex: Exercice 2026 / Du 01/01 au 31/12/2026"
+                     placeholder={t("mdrPeriodPlaceholder")}
                     placeholderTextColor={colors.mutedForeground}
                     value={periode}
                     onChangeText={setPeriode}
@@ -443,10 +452,10 @@ export default function MemberDocumentRequest({ visible, onClose, onComplete }: 
 
               {needsObjet && (
                 <View>
-                  <Text style={[s.fieldLabel, { color: colors.foreground }]}>Objet de la demande <Text style={{ color: "#ef4444" }}>*</Text></Text>
+                  <Text style={[s.fieldLabel, { color: colors.foreground }]}>{t("mdrRequestSubject")} <Text style={{ color: "#ef4444" }}>*</Text></Text>
                   <TextInput
                     style={[s.input, { backgroundColor: colors.card, borderColor: colors.border, color: colors.foreground }]}
-                    placeholder="Décrivez brièvement l'objet de votre demande"
+                     placeholder={t("mdrRequestSubjectPlaceholder")}
                     placeholderTextColor={colors.mutedForeground}
                     value={objet}
                     onChangeText={setObjet}
@@ -455,10 +464,10 @@ export default function MemberDocumentRequest({ visible, onClose, onComplete }: 
               )}
 
               <View>
-                <Text style={[s.fieldLabel, { color: colors.foreground }]}>Note / raison <Text style={{ color: colors.mutedForeground }}>(optionnel)</Text></Text>
+                <Text style={[s.fieldLabel, { color: colors.foreground }]}>{t("mdrNoteReason")} <Text style={{ color: colors.mutedForeground }}>({t("mdrOptional")})</Text></Text>
                 <TextInput
                   style={[s.input, s.textarea, { backgroundColor: colors.card, borderColor: colors.border, color: colors.foreground }]}
-                  placeholder="Ajoutez un contexte ou une précision pour l'administrateur…"
+                  placeholder={t("mdrNotePlaceholder")}
                   placeholderTextColor={colors.mutedForeground}
                   value={note}
                   onChangeText={setNote}
@@ -472,7 +481,7 @@ export default function MemberDocumentRequest({ visible, onClose, onComplete }: 
               <View style={[s.autofillBanner, { backgroundColor: "#f59e0b10", borderColor: "#f59e0b30" }]}>
                 <Feather name="info" size={14} color="#f59e0b" />
                 <Text style={{ fontSize: 12, color: "#f59e0b", flex: 1, lineHeight: 18 }}>
-                  Votre demande sera examinée par l'administrateur du syndicat avant publication.
+                  {t("mdrReviewNotice")}
                 </Text>
               </View>
 
@@ -491,17 +500,17 @@ export default function MemberDocumentRequest({ visible, onClose, onComplete }: 
               <View style={{ width: 80, height: 80, borderRadius: 40, backgroundColor: "#10b98120", alignItems: "center", justifyContent: "center" }}>
                 <Feather name="check-circle" size={44} color="#10b981" />
               </View>
-              <Text style={[s.stepTitle, { color: colors.foreground, textAlign: "center" }]}>Demande soumise !</Text>
+              <Text style={[s.stepTitle, { color: colors.foreground, textAlign: "center" }]}>{t("mdrSubmittedTitle")}</Text>
               <Text style={[s.stepSubtitle, { color: colors.mutedForeground, textAlign: "center", lineHeight: 22 }]}>
-                Le document a été généré et envoyé à l'administrateur du syndicat pour validation. Vous serez notifié dès qu'il sera disponible.
+                 {t("mdrSubmittedDescription")}
               </Text>
               <View style={[s.dataCard, { backgroundColor: colors.card, borderColor: colors.border, width: "100%" }]}>
                 <View style={{ padding: 14, gap: 6 }}>
-                  <Text style={{ fontSize: 11, color: colors.mutedForeground, textTransform: "uppercase", letterSpacing: 0.5 }}>Document demandé</Text>
-                  <Text style={{ fontSize: 14, fontWeight: "700", color: colors.foreground }}>{selectedTpl?.label}</Text>
+                   <Text style={{ fontSize: 11, color: colors.mutedForeground, textTransform: "uppercase", letterSpacing: 0.5 }}>{t("mdrRequestedDocument")}</Text>
+                   <Text style={{ fontSize: 14, fontWeight: "700", color: colors.foreground }}>{selectedLabel}</Text>
                   <View style={[s.autoChip, { backgroundColor: "#f59e0b10" }]}>
                     <Feather name="clock" size={10} color="#f59e0b" />
-                    <Text style={[s.autoChipText, { color: "#f59e0b" }]}>En attente de validation</Text>
+                     <Text style={[s.autoChipText, { color: "#f59e0b" }]}>{t("mdrPendingValidation")}</Text>
                   </View>
                 </View>
               </View>
@@ -510,7 +519,7 @@ export default function MemberDocumentRequest({ visible, onClose, onComplete }: 
                 onPress={() => onComplete(submittedDocId ?? undefined)}
                 activeOpacity={0.85}
               >
-                <Text style={s.submitBtnText}>Voir mes documents</Text>
+                 <Text style={s.submitBtnText}>{t("mdrViewDocuments")}</Text>
               </TouchableOpacity>
             </View>
           )}
@@ -526,7 +535,7 @@ export default function MemberDocumentRequest({ visible, onClose, onComplete }: 
             {selectedTpl?.requiresBalance && paymentCheck && !paymentCheck.eligible ? (
               <View style={[s.submitBtn, { flex: 1, backgroundColor: "#ef444425", borderWidth: 1, borderColor: "#ef4444" }]}>
                 <Feather name="lock" size={14} color="#ef4444" />
-                <Text style={[s.submitBtnText, { color: "#ef4444" }]}>Régularisez votre solde</Text>
+                <Text style={[s.submitBtnText, { color: "#ef4444" }]}>{t("mdrSettleBalance")}</Text>
               </View>
             ) : (
               <TouchableOpacity
@@ -540,7 +549,7 @@ export default function MemberDocumentRequest({ visible, onClose, onComplete }: 
                 ) : (
                   <>
                     <Feather name="send" size={16} color="#fff" />
-                    <Text style={s.submitBtnText}>Soumettre la demande</Text>
+                    <Text style={s.submitBtnText}>{t("mdrSubmit")}</Text>
                   </>
                 )}
               </TouchableOpacity>
