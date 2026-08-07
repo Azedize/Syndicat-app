@@ -57,13 +57,10 @@ await Sharing.shareAsync(result.uri, { mimeType: "application/pdf", UTI: "com.ad
 
 **Why:** FileSystem.cacheDirectory is not typed in expo-file-system v19 (but exists at runtime). Use `(FileSystem as any).cacheDirectory` to bypass TS error.
 
-## CATEGORY_TO_TEMPLATE mapping
+## Category routing note
 
-```
-attestation → attestation
-pv          → pv
-juridique   → mise_en_demeure
-reglements  → circulaire
-finances    → rapport
-statuts     → certificat
-```
+The mobile regulatory library queries the persisted `reglements` category and must not invent client-side records or pretend that a local status change succeeded. Document generation still follows the server's supported template contract; add a dedicated regulatory template before mapping a new regulatory subtype to a PDF template.
+
+**Why:** A category is not the same thing as a PDF template. Treating an unsupported regulatory subtype as an unrelated template produces a document that looks successful but is semantically wrong.
+
+**How to apply:** When extending regulatory creation, update the server template union, numbering map, renderer, and route validation together, then wire the mobile form to that explicit template.

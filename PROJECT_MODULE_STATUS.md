@@ -77,3 +77,8 @@
 - Mobile verification: zero-error typecheck, Expo bundling, and protected-route preview pass after the My Orders pass.
 - User Management: multilingual synchronization/recovery, locale-aware dates, safe mutation feedback, Moroccan contact validation, role-aware controls, and server-generated temporary credentials complete; existing user API and RBAC contracts preserved.
 - Mobile and API verification: zero-error typechecks, successful API build, clean diff validation, and healthy API workflow after the User Management hardening and API type-safety cleanup.
+- Role-aware Dashboard: server audit activity for supervision roles, personal alert/cotisation activity for residents, localized loading/retry/empty states, active-locale dates, and role-specific election/KPI visibility complete.
+- Governance and finance access alignment: PV, administrative acts, and financial reports now expose the workflows permitted by their API role matrix without broadening mutation permissions.
+- Mobile/API verification: zero-error typechecks, Expo bundling, API restart, clean diff validation, and public preview pass after the dashboard and RBAC follow-through.
+- Règlements & Statuts: removed seeded-looking fallback records and local-only document mutations; the regulatory library now consumes persisted documents, workflow transitions, signed PDF access, and database-backed version history with localized recovery states.
+- Mobile verification: zero-error typecheck, clean diff validation, and public preview pass after the regulatory documents reliability pass.

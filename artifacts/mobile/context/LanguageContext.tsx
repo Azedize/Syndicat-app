@@ -6583,6 +6583,18 @@ export const TRANSLATIONS: Translations = {
     ar: "إعادة المحاولة",
     es: "Reintentar",
   },
+  dashboardActivityLoading: {
+    fr: "Chargement de l’activité récente",
+    en: "Loading recent activity",
+    ar: "جارٍ تحميل النشاط الأخير",
+    es: "Cargando actividad reciente",
+  },
+  dashboardActivityUnavailable: {
+    fr: "L’activité récente est momentanément indisponible.",
+    en: "Recent activity is temporarily unavailable.",
+    ar: "النشاط الأخير غير متاح مؤقتًا.",
+    es: "La actividad reciente no está disponible temporalmente.",
+  },
   yourActions: {
     fr: "Vos actions apparaîtront ici",
     en: "Your actions will appear here",

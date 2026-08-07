@@ -2,7 +2,7 @@ import { Feather } from "@expo/vector-icons";
 import * as Haptics from "expo-haptics";
 import * as Linking from "expo-linking";
 import { router } from "expo-router";
-import React, { useEffect, useState } from "react";
+import React, { useCallback, useEffect, useState } from "react";
 import {
   Alert,
   FlatList,
@@ -22,6 +22,7 @@ import { useLanguage, LangCode } from "@/context/LanguageContext";
 import { useBreakpoints } from "@/hooks/useBreakpoints";
 import { useColors } from "@/hooks/useColors";
 import { apiRequest } from "@/lib/api";
+import { ErrorState, LoadingState } from "@/components/DataState";
 
 type DocType = "statuts" | "ri" | "circulaire" | "charte" | "accord";
 type DocStatus = "published" | "draft" | "revision" | "archived";
@@ -219,29 +220,11 @@ const STRINGS = {
     ar: "تحميل",
     es: "Descargar",
   },
-  downloadAlertMsg: {
-    fr: "téléchargé en PDF (mode démo).",
-    en: "downloaded as PDF (demo mode).",
-    ar: "تم تحميله بصيغة PDF (وضع تجريبي).",
-    es: "descargado en PDF (modo demo).",
-  },
   shareAlertTitle: {
     fr: "Partager",
     en: "Share",
     ar: "مشاركة",
     es: "Compartir",
-  },
-  shareAlertMsg: {
-    fr: "Lien de partage copié pour",
-    en: "Share link copied for",
-    ar: "تم نسخ رابط المشاركة لـ",
-    es: "Enlace de compartir copiado para",
-  },
-  demoSuffix: {
-    fr: "(mode démo).",
-    en: "(demo mode).",
-    ar: "(وضع تجريبي).",
-    es: "(modo demo).",
   },
   modalNewDoc: {
     fr: "Nouveau Document",
@@ -363,6 +346,66 @@ const STRINGS = {
     ar: "غير معتمد",
     es: "No aprobado",
   },
+  loadingTitle: {
+    fr: "Chargement des règlements",
+    en: "Loading regulations",
+    ar: "جار تحميل اللوائح",
+    es: "Cargando reglamentos",
+  },
+  loadingDescription: {
+    fr: "Nous récupérons les documents officiels de votre résidence.",
+    en: "We are retrieving your residence's official documents.",
+    ar: "نسترجع الوثائق الرسمية لإقامتك.",
+    es: "Estamos recuperando los documentos oficiales de su residencia.",
+  },
+  unavailableTitle: {
+    fr: "Documents indisponibles",
+    en: "Documents unavailable",
+    ar: "الوثائق غير متاحة",
+    es: "Documentos no disponibles",
+  },
+  unavailableDescription: {
+    fr: "Les règlements n'ont pas pu être synchronisés. Réessayez dans un instant.",
+    en: "The regulations could not be synchronized. Please try again.",
+    ar: "تعذر مزامنة اللوائح. حاول مرة أخرى بعد قليل.",
+    es: "No se pudieron sincronizar los reglamentos. Inténtelo de nuevo.",
+  },
+  emptyTitle: {
+    fr: "Aucun règlement publié",
+    en: "No published regulations",
+    ar: "لا توجد لوائح منشورة",
+    es: "No hay reglamentos publicados",
+  },
+  emptyDescription: {
+    fr: "Les documents officiels de votre résidence apparaîtront ici dès leur publication.",
+    en: "Your residence's official documents will appear here once published.",
+    ar: "ستظهر الوثائق الرسمية لإقامتك هنا عند نشرها.",
+    es: "Los documentos oficiales de su residencia aparecerán aquí cuando se publiquen.",
+  },
+  actionErrorTitle: {
+    fr: "Action impossible",
+    en: "Action unavailable",
+    ar: "تعذر تنفيذ العملية",
+    es: "Acción no disponible",
+  },
+  actionErrorMessage: {
+    fr: "La modification n'a pas été enregistrée. Vérifiez votre connexion puis réessayez.",
+    en: "The change was not saved. Check your connection and try again.",
+    ar: "لم يتم حفظ التغيير. تحقق من الاتصال وحاول مرة أخرى.",
+    es: "El cambio no se guardó. Compruebe su conexión e inténtelo de nuevo.",
+  },
+  retry: {
+    fr: "Réessayer",
+    en: "Retry",
+    ar: "إعادة المحاولة",
+    es: "Reintentar",
+  },
+  historyEmpty: {
+    fr: "Aucun historique de version disponible",
+    en: "No version history available",
+    ar: "لا يتوفر سجل للإصدارات",
+    es: "No hay historial de versiones disponible",
+  },
 };
 
 interface ReglementDoc {
@@ -370,6 +413,7 @@ interface ReglementDoc {
   title: string;
   type: DocType;
   status: DocStatus;
+  apiStatus: string;
   version: string;
   publishedDate: string;
   updatedDate: string;
@@ -396,129 +440,6 @@ const STATUS_CONFIG: Record<DocStatus, { label: { [key in LangCode]: string }; c
   archived: { label: { fr: "Archivé", en: "Archived", ar: "مؤرشف", es: "Archivado" }, color: "#9ca3af" },
 };
 
-const INITIAL_DOCS: ReglementDoc[] = [
-  {
-    id: "r1",
-    title: "Statuts du Syndicat National de l'Éducation",
-    type: "statuts",
-    status: "published",
-    version: "v4.2",
-    publishedDate: "2024-01-15",
-    updatedDate: "2024-01-15",
-    author: "Bureau National",
-    approvedBy: "Assemblée Générale",
-    pages: 28,
-    description: "Texte fondateur régissant l'organisation, les objectifs, les droits et obligations du syndicat et de ses membres. Adopté lors de l'AG extraordinaire du 15 janvier 2024.",
-    tags: ["fondamental", "organisation", "membres"],
-    downloads: 342,
-  },
-  {
-    id: "r2",
-    title: "Règlement Intérieur 2024 — Bureau National",
-    type: "ri",
-    status: "published",
-    version: "v3.1",
-    publishedDate: "2024-02-01",
-    updatedDate: "2024-02-01",
-    author: "Fatima Zahra El Alami",
-    approvedBy: "Bureau National",
-    pages: 18,
-    description: "Règles de fonctionnement interne du bureau national, incluant les procédures de vote, la gestion des réunions, les délégations de pouvoirs et les modalités de représentation.",
-    tags: ["bureau", "procédures", "gouvernance"],
-    downloads: 187,
-  },
-  {
-    id: "r3",
-    title: "Règlement Intérieur — Commissions Spécialisées",
-    type: "ri",
-    status: "revision",
-    version: "v2.0-rc1",
-    publishedDate: "",
-    updatedDate: "2026-05-10",
-    author: "Commission Juridique",
-    approvedBy: "En cours de validation",
-    pages: 12,
-    description: "Règles applicables aux commissions permanentes et temporaires. Ce document est en cours de révision pour intégrer les nouvelles dispositions statutaires de 2026.",
-    tags: ["commissions", "révision", "2026"],
-    downloads: 23,
-  },
-  {
-    id: "r4",
-    title: "Circulaire N°2026-05 — Renouvellement des Cotisations",
-    type: "circulaire",
-    status: "published",
-    version: "v1.0",
-    publishedDate: "2026-05-01",
-    updatedDate: "2026-05-01",
-    author: "Secrétariat Général",
-    approvedBy: "Trésorier Général",
-    pages: 3,
-    description: "Modalités et barèmes du renouvellement des cotisations syndicales pour l'année 2026-2027. Inclut les grilles tarifaires par catégorie de membres.",
-    tags: ["cotisations", "2026", "finances"],
-    downloads: 456,
-  },
-  {
-    id: "r5",
-    title: "Charte Éthique et Déontologique",
-    type: "charte",
-    status: "published",
-    version: "v2.0",
-    publishedDate: "2023-09-01",
-    updatedDate: "2023-09-01",
-    author: "Commission Éthique",
-    approvedBy: "Assemblée Générale",
-    pages: 8,
-    description: "Principes fondamentaux régissant le comportement éthique des membres et responsables syndicaux. Inclut les procédures disciplinaires en cas de manquement.",
-    tags: ["éthique", "déontologie", "discipline"],
-    downloads: 215,
-  },
-  {
-    id: "r6",
-    title: "Accord Collectif — Conditions de Travail 2025",
-    type: "accord",
-    status: "published",
-    version: "v1.0",
-    publishedDate: "2025-03-15",
-    updatedDate: "2025-03-15",
-    author: "Bureau de Négociation",
-    approvedBy: "Ministère de l'Éducation",
-    pages: 22,
-    description: "Accord collectif signé avec le ministère définissant les nouvelles conditions de travail, les grilles salariales révisées et les droits acquis pour la période 2025-2027.",
-    tags: ["accord", "salaires", "conditions travail"],
-    downloads: 789,
-  },
-  {
-    id: "r7",
-    title: "Statuts — Proposition d'Amendement 2026",
-    type: "statuts",
-    status: "draft",
-    version: "v5.0-draft",
-    publishedDate: "",
-    updatedDate: "2026-05-18",
-    author: "Commission Juridique",
-    approvedBy: "Non approuvé",
-    pages: 31,
-    description: "Projet de révision des statuts pour adapter l'organisation aux nouvelles réalités du mouvement syndical. Soumis à l'AG extraordinaire prévue en juin 2026.",
-    tags: ["statuts", "révision", "AG 2026"],
-    downloads: 12,
-  },
-  {
-    id: "r8",
-    title: "Circulaire N°2026-03 — Protocole de Communication",
-    type: "circulaire",
-    status: "archived",
-    version: "v1.0",
-    publishedDate: "2026-03-01",
-    updatedDate: "2026-03-01",
-    author: "Bureau Communication",
-    approvedBy: "Secrétariat Général",
-    pages: 5,
-    description: "Protocole de communication officielle du syndicat, incluant les canaux autorisés, les gabarits graphiques et les procédures de publication.",
-    tags: ["communication", "protocole"],
-    downloads: 134,
-  },
-];
-
 type TabType = "tous" | DocType | "revision" | "versions";
 
 export default function ReglementsScreen() {
@@ -530,7 +451,16 @@ export default function ReglementsScreen() {
   const topPad = isWide ? 0 : (Platform.OS === "web" ? 67 : insets.top);
   const isAdmin = user?.role !== "member";
 
-  const [docs, setDocs] = useState<ReglementDoc[]>(INITIAL_DOCS);
+  const [docs, setDocs] = useState<ReglementDoc[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [loadError, setLoadError] = useState(false);
+  const [actionBusy, setActionBusy] = useState<string | null>(null);
+  const [versionGroups, setVersionGroups] = useState<Array<{
+    doc: string;
+    color: string;
+    versions: Array<{ v: string; date: string; author: string; note: string; status: "current" | "archived" }>;
+  }>>([]);
+  const [versionsLoading, setVersionsLoading] = useState(false);
   const [tab, setTab] = useState<TabType>("tous");
   const [search, setSearch] = useState("");
   const [selected, setSelected] = useState<ReglementDoc | null>(null);
@@ -539,43 +469,106 @@ export default function ReglementsScreen() {
   const [newType, setNewType] = useState<DocType>("ri");
   const [newDesc, setNewDesc] = useState("");
 
-  useEffect(() => {
-    apiRequest<any>("/documents?type=reglement")
-      .then((resp) => {
-        // API may return an array directly or wrapped in { data: [...] }
-        const raw: any[] = Array.isArray(resp) ? resp : Array.isArray(resp?.data) ? resp.data : [];
-        if (!raw.length) return;
-        // Remap API docs to local ReglementDoc shape with safe fallbacks
-        const mapped: ReglementDoc[] = raw.map((doc: any) => ({
-          id:            String(doc.id ?? ""),
-          title:         String(doc.title ?? ""),
-          type:          (["statuts","ri","circulaire","charte","accord"] as DocType[]).includes(doc.type) ? doc.type as DocType : "ri",
-          status:        (["published","draft","revision","archived"] as DocStatus[]).includes(doc.status) ? doc.status as DocStatus : "draft",
-          version:       String(doc.version ?? "v1.0"),
-          publishedDate: String(doc.publishedDate ?? doc.published_date ?? ""),
-          updatedDate:   String(doc.updatedDate   ?? doc.updated_date   ?? doc.date ?? ""),
-          author:        String(doc.author ?? ""),
-          approvedBy:    String(doc.approvedBy ?? doc.approved_by ?? ""),
-          pages:         Number(doc.pages ?? 0),
-          description:   String(doc.description ?? doc.content ?? ""),
-          tags:          Array.isArray(doc.tags) ? doc.tags.map(String) : [],
-          downloads:     Number(doc.downloads ?? 0),
-        }));
-        setDocs(mapped);
-      })
-      .catch(() => {/* keep INITIAL_DOCS on error */});
+  const mapDocument = useCallback((doc: any): ReglementDoc => {
+    const rawStatus = String(doc.status ?? "draft");
+    const status: DocStatus = rawStatus === "published"
+      ? "published"
+      : rawStatus === "archived"
+      ? "archived"
+      : rawStatus === "pending_review" || rawStatus === "validated" || rawStatus === "signed"
+      ? "revision"
+      : "draft";
+    const template = String(doc.templateId ?? "").toLowerCase();
+    const title = String(doc.title ?? "");
+    const type: DocType = template.includes("statut") || title.toLowerCase().includes("statut")
+      ? "statuts"
+      : template.includes("circul") || title.toLowerCase().includes("circul")
+      ? "circulaire"
+      : template.includes("charte") || title.toLowerCase().includes("charte")
+      ? "charte"
+      : template.includes("accord") || title.toLowerCase().includes("accord")
+      ? "accord"
+      : "ri";
+    return {
+      id: String(doc.id ?? ""),
+      title,
+      type,
+      status,
+      apiStatus: rawStatus,
+      version: String(doc.version ?? "1"),
+      publishedDate: String(doc.publishedAt ?? doc.publishedDate ?? ""),
+      updatedDate: String(doc.updatedAt ?? doc.updatedDate ?? doc.createdAt ?? ""),
+      author: String(doc.createdByName ?? doc.author ?? ""),
+      approvedBy: String(doc.approvedByName ?? doc.approvedBy ?? ""),
+      pages: Number(doc.pages ?? 0),
+      description: String(doc.description ?? doc.content ?? ""),
+      tags: Array.isArray(doc.tags) ? doc.tags.map(String) : [type],
+      downloads: Number(doc.downloads ?? 0),
+    };
   }, []);
 
-  // Opens the real generated PDF via a short-lived signed download URL when the
-  // document was created through the API. Seed/demo entries (no real backing
-  // file yet) fall back to sharing the document's metadata as text.
+  const loadDocuments = useCallback(async () => {
+    setLoading(true);
+    setLoadError(false);
+    try {
+      const resp = await apiRequest<any>("/documents?category=reglements");
+      const raw: any[] = Array.isArray(resp) ? resp : Array.isArray(resp?.data) ? resp.data : [];
+      setDocs(raw.map(mapDocument).filter((doc) => doc.id));
+    } catch {
+      setLoadError(true);
+    } finally {
+      setLoading(false);
+    }
+  }, [mapDocument]);
+
+  const loadVersions = useCallback(async () => {
+    if (docs.length === 0) {
+      setVersionGroups([]);
+      return;
+    }
+    setVersionsLoading(true);
+    try {
+      const groups = await Promise.all(docs.map(async (doc, index) => {
+        try {
+          const resp = await apiRequest<any>(`/documents/${doc.id}/versions`);
+          const raw: any[] = Array.isArray(resp) ? resp : Array.isArray(resp?.data) ? resp.data : [];
+          const versions = [
+            ...raw.map((version: any) => ({
+              v: `v${String(version.versionNumber ?? "1")}`,
+              date: String(version.modifiedAt ?? ""),
+              author: String(version.modifiedByName ?? ""),
+              note: String(version.changeReason ?? ""),
+              status: "archived" as const,
+            })),
+            {
+              v: `v${doc.version}`,
+              date: doc.updatedDate,
+              author: doc.author,
+              note: doc.description,
+              status: "current" as const,
+            },
+          ];
+          return { doc: doc.title, color: ["#2563EB", "#3b82f6", "#10b981", "#f59e0b"][index % 4], versions };
+        } catch {
+          return { doc: doc.title, color: ["#2563EB", "#3b82f6", "#10b981", "#f59e0b"][index % 4], versions: [] };
+        }
+      }));
+      setVersionGroups(groups.filter((group) => group.versions.length > 0));
+    } finally {
+      setVersionsLoading(false);
+    }
+  }, [docs]);
+
+  useEffect(() => { void loadDocuments(); }, [loadDocuments]);
+  useEffect(() => { void loadVersions(); }, [loadVersions]);
+
   const handleDownload = async (d: ReglementDoc) => {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
     try {
       const { url } = await apiRequest<{ url: string }>(`/documents/${d.id}/download-url`);
       await Linking.openURL(url);
     } catch {
-      Share.share({ title: d.title, message: `${d.title}\nType: ${d.type} — Statut: ${d.status}\nVersion: ${d.version ?? "1"} · ${d.pages ?? ""} pages` });
+      Alert.alert(STRINGS.actionErrorTitle[lang], STRINGS.actionErrorMessage[lang]);
     }
   };
 
@@ -595,35 +588,51 @@ export default function ReglementsScreen() {
   const revisionCount = docs.filter((d) => d.status === "revision" || d.status === "draft").length;
   const totalDownloads = docs.reduce((s, d) => s + d.downloads, 0);
 
-  const handlePublish = (id: string) => {
-    Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-    setDocs((prev) => prev.map((d) => d.id === id ? { ...d, status: "published", publishedDate: new Date().toISOString().split("T")[0] } : d));
-    if (selected?.id === id) setSelected((prev) => prev ? { ...prev, status: "published" } : null);
-    Alert.alert(STRINGS.publishSuccessTitle[lang], STRINGS.publishSuccessMsg[lang]);
+  const handlePublish = async (id: string) => {
+    const current = docs.find((doc) => doc.id === id);
+    if (!current || actionBusy) return;
+    setActionBusy(id);
+    try {
+      let apiStatus = current.apiStatus;
+      if (apiStatus === "generated" || apiStatus === "pending_review") {
+        await apiRequest(`/documents/${id}`, "PUT", { status: "validated" });
+        apiStatus = "validated";
+      }
+      if (apiStatus !== "published") {
+        await apiRequest(`/documents/${id}`, "PUT", { status: "published" });
+      }
+      await loadDocuments();
+      if (selected?.id === id) setSelected(null);
+      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+      Alert.alert(STRINGS.publishSuccessTitle[lang], STRINGS.publishSuccessMsg[lang]);
+    } catch {
+      Alert.alert(STRINGS.actionErrorTitle[lang], STRINGS.actionErrorMessage[lang]);
+    } finally {
+      setActionBusy(null);
+    }
   };
 
-  const handleCreateDoc = () => {
+  const handleCreateDoc = async () => {
     if (!newTitle.trim()) { Alert.alert(STRINGS.titleRequired[lang]); return; }
-    const doc: ReglementDoc = {
-      id: `r${Date.now()}`,
-      title: newTitle.trim(),
-      type: newType,
-      status: "draft",
-      version: "v1.0-draft",
-      publishedDate: "",
-      updatedDate: new Date().toISOString().split("T")[0],
-      author: user?.name ?? STRINGS.adminName[lang],
-      approvedBy: STRINGS.pendingApproval[lang],
-      pages: 0,
-      description: newDesc.trim(),
-      tags: [newType],
-      downloads: 0,
-    };
-    setDocs((prev) => [doc, ...prev]);
-    setShowCreate(false);
-    setNewTitle(""); setNewDesc(""); setNewType("ri");
-    Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-    Alert.alert(STRINGS.createSuccessTitle[lang], STRINGS.createSuccessMsg[lang]);
+    setActionBusy("create");
+    try {
+      await apiRequest("/documents", "POST", {
+        title: newTitle.trim(),
+        category: "reglements",
+        templateId: "attestation",
+        content: newDesc.trim(),
+        language: lang,
+      });
+      await loadDocuments();
+      setShowCreate(false);
+      setNewTitle(""); setNewDesc(""); setNewType("ri");
+      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+      Alert.alert(STRINGS.createSuccessTitle[lang], STRINGS.createSuccessMsg[lang]);
+    } catch {
+      Alert.alert(STRINGS.actionErrorTitle[lang], STRINGS.actionErrorMessage[lang]);
+    } finally {
+      setActionBusy(null);
+    }
   };
 
   const TABS: { key: TabType; label: string }[] = [
@@ -701,49 +710,35 @@ export default function ReglementsScreen() {
         ))}
       </ScrollView>
 
-      {tab === "versions" ? (
+      {loading ? (
+        <LoadingState
+          title={STRINGS.loadingTitle[lang]}
+          description={STRINGS.loadingDescription[lang]}
+          accentColor={colors.primary}
+        />
+      ) : loadError ? (
+        <ErrorState
+          title={STRINGS.unavailableTitle[lang]}
+          description={STRINGS.unavailableDescription[lang]}
+          retryLabel={STRINGS.retry[lang]}
+          onRetry={() => void loadDocuments()}
+          accentColor={colors.primary}
+        />
+      ) : tab === "versions" ? (
         <ScrollView
           contentContainerStyle={{ padding: 16, gap: 16, paddingBottom: insets.bottom + 40 }}
           showsVerticalScrollIndicator={false}
         >
           <Text style={[styles.vhTitle, { color: colors.foreground }]}>{STRINGS.historyTitle[lang]}</Text>
           <Text style={[styles.vhSub, { color: colors.mutedForeground }]}>{STRINGS.historySub[lang]}</Text>
-          {[
-            {
-              doc: "Statuts du Syndicat",
-              color: "#2563EB",
-              versions: [
-                { v: "v4.2", date: "2024-01-15", author: "Bureau National", note: "Révision complète post-AG extraordinaire. Ajout des clauses numériques.", status: "current" },
-                { v: "v4.1", date: "2023-06-10", author: "Commission Juridique", note: "Amendement articles 18 et 24 sur la durée des mandats.", status: "archived" },
-                { v: "v4.0", date: "2022-12-01", author: "Bureau National", note: "Refonte majeure — adaptation Code du Travail 2022.", status: "archived" },
-                { v: "v3.2", date: "2021-03-15", author: "Commission Juridique", note: "Ajout des dispositions sur le télétravail syndical.", status: "archived" },
-              ],
-            },
-            {
-              doc: "Règlement Intérieur — Bureau National",
-              color: "#3b82f6",
-              versions: [
-                { v: "v3.1", date: "2024-02-01", author: "F.Z. El Alami", note: "Intégration des nouvelles procédures de vote électronique.", status: "current" },
-                { v: "v3.0", date: "2023-01-10", author: "Bureau National", note: "Refonte complète des procédures de délégation.", status: "archived" },
-                { v: "v2.1", date: "2021-07-20", author: "Secrétariat Général", note: "Correction des articles sur les conflits d'intérêt.", status: "archived" },
-              ],
-            },
-            {
-              doc: "Charte Éthique et Déontologique",
-              color: "#10b981",
-              versions: [
-                { v: "v2.0", date: "2023-09-01", author: "Commission Éthique", note: "Refonte pour inclusion des dispositions anti-harcèlement.", status: "current" },
-                { v: "v1.0", date: "2020-01-15", author: "Bureau Fondateur", note: "Version initiale adoptée à l'AG constitutive.", status: "archived" },
-              ],
-            },
-            {
-              doc: "Accord Collectif — Conditions de Travail",
-              color: "#f59e0b",
-              versions: [
-                { v: "v1.0", date: "2025-03-15", author: "Bureau de Négociation", note: "Premier accord collectif signé avec le Ministère.", status: "current" },
-              ],
-            },
-          ].map((group) => (
+          {versionsLoading ? (
+            <LoadingState title={STRINGS.loadingTitle[lang]} accentColor={colors.primary} />
+          ) : versionGroups.length === 0 ? (
+            <View style={styles.empty}>
+              <Feather name="clock" size={40} color={colors.mutedForeground} />
+              <Text style={[styles.emptyText, { color: colors.mutedForeground }]}>{STRINGS.historyEmpty[lang]}</Text>
+            </View>
+          ) : versionGroups.map((group) => (
             <View key={group.doc} style={[styles.vhGroup, { backgroundColor: colors.card, borderColor: colors.border }]}>
               <View style={[styles.vhGroupHeader, { borderBottomColor: colors.border }]}>
                 <View style={[styles.vhGroupDot, { backgroundColor: group.color }]} />
@@ -784,10 +779,11 @@ export default function ReglementsScreen() {
         keyExtractor={(d) => d.id}
         contentContainerStyle={{ padding: 16, gap: 12, paddingBottom: insets.bottom + 40 }}
         showsVerticalScrollIndicator={false}
-        ListEmptyComponent={
+         ListEmptyComponent={
           <View style={styles.empty}>
             <Feather name="book-open" size={40} color={colors.mutedForeground} />
-            <Text style={[styles.emptyText, { color: colors.mutedForeground }]}>{STRINGS.noDocs[lang]}</Text>
+             <Text style={[styles.emptyText, { color: colors.foreground }]}>{docs.length === 0 ? STRINGS.emptyTitle[lang] : STRINGS.noDocs[lang]}</Text>
+             <Text style={[styles.emptyText, { color: colors.mutedForeground }]}>{docs.length === 0 ? STRINGS.emptyDescription[lang] : ""}</Text>
           </View>
         }
         renderItem={({ item: d }) => {

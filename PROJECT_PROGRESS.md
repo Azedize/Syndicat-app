@@ -158,3 +158,10 @@
 - Continued the administration pass on User Management: added real synchronization/loading/retry states, locale-aware membership dates, safe localized mutation feedback, role-aware controls, and Moroccan phone/email validation across French, English, Arabic, and Spanish.
 - Replaced the shared client-side default password with server-generated temporary credentials delivered through the welcome email flow; existing user APIs, audit logging, and role boundaries remain intact.
 - Mobile and API typechecks now pass with zero errors; the API production build completed successfully after resolving the document PDF, budget, support-content, and Template Studio typing blockers.
+- Continued the role-aware dashboard pass: supervision roles now consume server audit activity, while members and tenants see personal alerts and cotisation signals instead of local simulated activity.
+- Added localized loading, retryable-unavailable, and empty activity states, active-locale dates, role-aware election visibility, and MAD zero formatting without treating initial empty fan-out data as real zeros.
+- Aligned PV, administrative-act, and financial-report screen guards with the API role matrix so secretary/president workflows and treasurer reports are reachable while write permissions remain server-enforced.
+- Mobile and API typechecks pass with zero errors; Expo bundled successfully, API restarted successfully, diff validation passed, and the public mobile preview rendered without new runtime exceptions.
+- Continued the regulatory documents enterprise pass on Règlements & Statuts: removed seeded sample records and local-only publish/create behavior, and switched retrieval, creation, publishing, PDF access, and version history to the database-backed document APIs.
+- Added explicit localized synchronization, unavailable-data recovery, real empty states, and loading surfaces; retained role filtering and the existing document workflow state machine.
+- Mobile typecheck and diff validation pass; public mobile preview remains healthy with only existing Expo web compatibility warnings.

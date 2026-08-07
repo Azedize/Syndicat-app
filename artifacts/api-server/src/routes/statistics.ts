@@ -28,13 +28,31 @@ const router = Router();
 // Helper: last N months as { label, from, to }
 function lastNMonths(n: number) {
   const months: { label: string; key: string; from: Date; to: Date }[] = [];
-  const FR_MONTHS = ["Jan", "Fév", "Mar", "Avr", "Mai", "Jun", "Jul", "Aoû", "Sep", "Oct", "Nov", "Déc"];
+  const FR_MONTHS = [
+    "Jan",
+    "Fév",
+    "Mar",
+    "Avr",
+    "Mai",
+    "Jun",
+    "Jul",
+    "Aoû",
+    "Sep",
+    "Oct",
+    "Nov",
+    "Déc",
+  ];
   const now = new Date();
   for (let i = n - 1; i >= 0; i--) {
     const d = new Date(now.getFullYear(), now.getMonth() - i, 1);
     const from = new Date(d.getFullYear(), d.getMonth(), 1);
     const to = new Date(d.getFullYear(), d.getMonth() + 1, 0, 23, 59, 59);
-    months.push({ label: FR_MONTHS[d.getMonth()], key: `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`, from, to });
+    months.push({
+      label: FR_MONTHS[d.getMonth()],
+      key: `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`,
+      from,
+      to,
+    });
   }
   return months;
 }
@@ -57,28 +75,54 @@ router.get(
         openTicketsRow,
         activeSubs,
       ] = await Promise.all([
-        db.select({ id: syndicatesTable.id, status: syndicatesTable.status }).from(syndicatesTable),
+        db
+          .select({ id: syndicatesTable.id, status: syndicatesTable.status })
+          .from(syndicatesTable),
         db.select({ value: count() }).from(membersTable),
-        db.select({ value: count() }).from(membersTable).where(eq(membersTable.status, "active")),
-        db.select({ value: sql<number>`coalesce(sum(${transactionsTable.amount}),0)` })
+        db
+          .select({ value: count() })
+          .from(membersTable)
+          .where(eq(membersTable.status, "active")),
+        db
+          .select({
+            value: sql<number>`coalesce(sum(${transactionsTable.amount}),0)`,
+          })
           .from(transactionsTable)
-          .where(and(
-            sql`${transactionsTable.type} IN ('cotisation','recette')`,
-            eq(transactionsTable.status, "paid"),
-          )),
-        db.select({ value: sql<number>`coalesce(sum(abs(${transactionsTable.amount})),0)` })
+          .where(
+            and(
+              sql`${transactionsTable.type} IN ('cotisation','recette')`,
+              eq(transactionsTable.status, "paid"),
+            ),
+          ),
+        db
+          .select({
+            value: sql<number>`coalesce(sum(abs(${transactionsTable.amount})),0)`,
+          })
           .from(transactionsTable)
-          .where(and(
-            sql`${transactionsTable.type} IN ('depense','salaire')`,
-            eq(transactionsTable.status, "paid"),
-          )),
-        db.select({ value: count() }).from(supportTicketsTable).where(eq(supportTicketsTable.status, "open")),
-        db.select({ value: count() }).from(syndicatesTable).where(eq(syndicatesTable.status, "active")),
+          .where(
+            and(
+              sql`${transactionsTable.type} IN ('depense','salaire')`,
+              eq(transactionsTable.status, "paid"),
+            ),
+          ),
+        db
+          .select({ value: count() })
+          .from(supportTicketsTable)
+          .where(eq(supportTicketsTable.status, "open")),
+        db
+          .select({ value: count() })
+          .from(syndicatesTable)
+          .where(eq(syndicatesTable.status, "active")),
       ]);
 
       // Monthly revenue chart (last 6 months from transactions)
       const allTransactions = await db
-        .select({ amount: transactionsTable.amount, type: transactionsTable.type, status: transactionsTable.status, createdAt: transactionsTable.createdAt })
+        .select({
+          amount: transactionsTable.amount,
+          type: transactionsTable.type,
+          status: transactionsTable.status,
+          createdAt: transactionsTable.createdAt,
+        })
         .from(transactionsTable)
         .where(gte(transactionsTable.createdAt, months[0].from));
 
@@ -89,28 +133,35 @@ router.get(
 
       const revenueChart = months.map((m) => {
         const val = allTransactions
-          .filter((t) =>
-            t.createdAt && t.createdAt >= m.from && t.createdAt <= m.to
-            && (t.type === "cotisation" || t.type === "recette")
-            && t.status === "paid"
+          .filter(
+            (t) =>
+              t.createdAt &&
+              t.createdAt >= m.from &&
+              t.createdAt <= m.to &&
+              (t.type === "cotisation" || t.type === "recette") &&
+              t.status === "paid",
           )
           .reduce((s, t) => s + Number(t.amount ?? 0), 0);
         return { label: m.label, value: Math.round(val) };
       });
 
       const membersChart = months.map((m) => {
-        const val = allMembers
-          .filter((mem) => mem.createdAt && mem.createdAt >= m.from && mem.createdAt <= m.to)
-          .length;
+        const val = allMembers.filter(
+          (mem) =>
+            mem.createdAt && mem.createdAt >= m.from && mem.createdAt <= m.to,
+        ).length;
         return { label: m.label, value: val };
       });
 
       const expensesChart = months.map((m) => {
         const val = allTransactions
-          .filter((t) =>
-            t.createdAt && t.createdAt >= m.from && t.createdAt <= m.to
-            && (t.type === "depense" || t.type === "salaire")
-            && t.status === "paid"
+          .filter(
+            (t) =>
+              t.createdAt &&
+              t.createdAt >= m.from &&
+              t.createdAt <= m.to &&
+              (t.type === "depense" || t.type === "salaire") &&
+              t.status === "paid",
           )
           .reduce((s, t) => s + Math.abs(Number(t.amount ?? 0)), 0);
         return { label: m.label, value: Math.round(val) };
@@ -125,7 +176,11 @@ router.get(
           totalRevenue: Math.round(Number(revenueRow[0].value)),
           totalExpenses: Math.round(Number(expensesRow[0].value)),
           openTickets: Number(openTicketsRow[0].value),
-          charts: { revenue: revenueChart, members: membersChart, expenses: expensesChart },
+          charts: {
+            revenue: revenueChart,
+            members: membersChart,
+            expenses: expensesChart,
+          },
         },
       });
     } catch (err) {
@@ -155,48 +210,93 @@ router.get(
         allMembersRows,
       ] = await Promise.all([
         db.select({ value: count() }).from(membersTable).where(where),
-        db.select({ value: count() }).from(membersTable).where(
-          where ? and(where, eq(membersTable.status, "active")) : eq(membersTable.status, "active")
-        ),
-        db.select({ status: cotisationsTable.status, amount: cotisationsTable.amount, paidDate: cotisationsTable.paidDate, createdAt: cotisationsTable.createdAt })
+        db
+          .select({ value: count() })
+          .from(membersTable)
+          .where(
+            where
+              ? and(where, eq(membersTable.status, "active"))
+              : eq(membersTable.status, "active"),
+          ),
+        db
+          .select({
+            status: cotisationsTable.status,
+            amount: cotisationsTable.amount,
+            paidDate: cotisationsTable.paidDate,
+            createdAt: cotisationsTable.createdAt,
+          })
           .from(cotisationsTable)
           .where(cotWhere)
           .orderBy(desc(cotisationsTable.createdAt))
           .limit(2000),
-        db.select({ date: unionActionsTable.date, createdAt: unionActionsTable.createdAt })
+        db
+          .select({
+            date: unionActionsTable.date,
+            createdAt: unionActionsTable.createdAt,
+          })
           .from(unionActionsTable)
-          .where(actionWhere ? and(actionWhere, gte(unionActionsTable.createdAt!, months[0].from)) : gte(unionActionsTable.createdAt!, months[0].from))
+          .where(
+            actionWhere
+              ? and(
+                  actionWhere,
+                  gte(unionActionsTable.createdAt!, months[0].from),
+                )
+              : gte(unionActionsTable.createdAt!, months[0].from),
+          )
           .limit(500),
-        db.select({ createdAt: membersTable.createdAt })
+        db
+          .select({ createdAt: membersTable.createdAt })
           .from(membersTable)
-          .where(where ? and(where, gte(membersTable.createdAt!, months[0].from)) : gte(membersTable.createdAt!, months[0].from))
+          .where(
+            where
+              ? and(where, gte(membersTable.createdAt!, months[0].from))
+              : gte(membersTable.createdAt!, months[0].from),
+          )
           .limit(500),
       ]);
 
       const totalMembers = Number(totalMembersRow[0].value);
       const activeMembers = Number(activeMembersRow[0].value);
-      const paidCotisations = cotisationsRows.filter((c) => c.status === "paid").length;
+      const paidCotisations = cotisationsRows.filter(
+        (c) => c.status === "paid",
+      ).length;
       const totalCotisations = cotisationsRows.length;
-      const cotisationRate = totalCotisations > 0 ? Math.round((paidCotisations / totalCotisations) * 100) : 0;
-      const overdueMembers = cotisationsRows.filter((c) => c.status === "overdue").length;
+      const cotisationRate =
+        totalCotisations > 0
+          ? Math.round((paidCotisations / totalCotisations) * 100)
+          : 0;
+      const overdueMembers = cotisationsRows.filter(
+        (c) => c.status === "overdue",
+      ).length;
 
       const adhesionsChart = months.map((m) => ({
         label: m.label,
-        valeur: allMembersRows.filter((mem) => mem.createdAt && mem.createdAt >= m.from && mem.createdAt <= m.to).length,
+        valeur: allMembersRows.filter(
+          (mem) =>
+            mem.createdAt && mem.createdAt >= m.from && mem.createdAt <= m.to,
+        ).length,
       }));
 
       const cotisationsChart = months.map((m) => ({
         label: m.label,
         valeur: Math.round(
           cotisationsRows
-            .filter((c) => c.status === "paid" && c.createdAt && c.createdAt >= m.from && c.createdAt <= m.to)
-            .reduce((s, c) => s + Number(c.amount ?? 0), 0)
+            .filter(
+              (c) =>
+                c.status === "paid" &&
+                c.createdAt &&
+                c.createdAt >= m.from &&
+                c.createdAt <= m.to,
+            )
+            .reduce((s, c) => s + Number(c.amount ?? 0), 0),
         ),
       }));
 
       const actionsChart = months.map((m) => ({
         label: m.label,
-        valeur: actionsRows.filter((a) => a.createdAt && a.createdAt >= m.from && a.createdAt <= m.to).length,
+        valeur: actionsRows.filter(
+          (a) => a.createdAt && a.createdAt >= m.from && a.createdAt <= m.to,
+        ).length,
       }));
 
       res.json({
@@ -207,7 +307,11 @@ router.get(
           overdueMembers,
           paidCotisations,
           totalCotisations,
-          charts: { adhesions: adhesionsChart, cotisations: cotisationsChart, actions: actionsChart },
+          charts: {
+            adhesions: adhesionsChart,
+            cotisations: cotisationsChart,
+            actions: actionsChart,
+          },
         },
       });
     } catch (err) {
@@ -230,39 +334,93 @@ router.get(
       const now = new Date();
       const thisMonthStart = new Date(now.getFullYear(), now.getMonth(), 1);
 
-      const [latestCaisse, thisMonthRevenue, thisMonthExpenses, totalRevenue, totalExpenses] = await Promise.all([
-        db.select({ balance: caisseEntriesTable.balance, amount: caisseEntriesTable.amount })
+      const [
+        latestCaisse,
+        thisMonthRevenue,
+        thisMonthExpenses,
+        totalRevenue,
+        totalExpenses,
+      ] = await Promise.all([
+        db
+          .select({
+            balance: caisseEntriesTable.balance,
+            amount: caisseEntriesTable.amount,
+          })
           .from(caisseEntriesTable)
           .where(caisseWhere)
           .orderBy(desc(caisseEntriesTable.createdAt))
           .limit(10),
-        db.select({ value: sql<number>`coalesce(sum(${transactionsTable.amount}),0)` })
+        db
+          .select({
+            value: sql<number>`coalesce(sum(${transactionsTable.amount}),0)`,
+          })
           .from(transactionsTable)
           .where(
             txWhere
-              ? and(txWhere, sql`${transactionsTable.type} IN ('cotisation','recette')`, eq(transactionsTable.status, "paid"), gte(transactionsTable.createdAt, thisMonthStart))
-              : and(sql`${transactionsTable.type} IN ('cotisation','recette')`, eq(transactionsTable.status, "paid"), gte(transactionsTable.createdAt, thisMonthStart))
+              ? and(
+                  txWhere,
+                  sql`${transactionsTable.type} IN ('cotisation','recette')`,
+                  eq(transactionsTable.status, "paid"),
+                  gte(transactionsTable.createdAt, thisMonthStart),
+                )
+              : and(
+                  sql`${transactionsTable.type} IN ('cotisation','recette')`,
+                  eq(transactionsTable.status, "paid"),
+                  gte(transactionsTable.createdAt, thisMonthStart),
+                ),
           ),
-        db.select({ value: sql<number>`coalesce(sum(abs(${transactionsTable.amount})),0)` })
+        db
+          .select({
+            value: sql<number>`coalesce(sum(abs(${transactionsTable.amount})),0)`,
+          })
           .from(transactionsTable)
           .where(
             txWhere
-              ? and(txWhere, sql`${transactionsTable.type} IN ('depense','salaire')`, eq(transactionsTable.status, "paid"), gte(transactionsTable.createdAt, thisMonthStart))
-              : and(sql`${transactionsTable.type} IN ('depense','salaire')`, eq(transactionsTable.status, "paid"), gte(transactionsTable.createdAt, thisMonthStart))
+              ? and(
+                  txWhere,
+                  sql`${transactionsTable.type} IN ('depense','salaire')`,
+                  eq(transactionsTable.status, "paid"),
+                  gte(transactionsTable.createdAt, thisMonthStart),
+                )
+              : and(
+                  sql`${transactionsTable.type} IN ('depense','salaire')`,
+                  eq(transactionsTable.status, "paid"),
+                  gte(transactionsTable.createdAt, thisMonthStart),
+                ),
           ),
-        db.select({ value: sql<number>`coalesce(sum(${transactionsTable.amount}),0)` })
+        db
+          .select({
+            value: sql<number>`coalesce(sum(${transactionsTable.amount}),0)`,
+          })
           .from(transactionsTable)
           .where(
             txWhere
-              ? and(txWhere, sql`${transactionsTable.type} IN ('cotisation','recette')`, eq(transactionsTable.status, "paid"))
-              : and(sql`${transactionsTable.type} IN ('cotisation','recette')`, eq(transactionsTable.status, "paid"))
+              ? and(
+                  txWhere,
+                  sql`${transactionsTable.type} IN ('cotisation','recette')`,
+                  eq(transactionsTable.status, "paid"),
+                )
+              : and(
+                  sql`${transactionsTable.type} IN ('cotisation','recette')`,
+                  eq(transactionsTable.status, "paid"),
+                ),
           ),
-        db.select({ value: sql<number>`coalesce(sum(abs(${transactionsTable.amount})),0)` })
+        db
+          .select({
+            value: sql<number>`coalesce(sum(abs(${transactionsTable.amount})),0)`,
+          })
           .from(transactionsTable)
           .where(
             txWhere
-              ? and(txWhere, sql`${transactionsTable.type} IN ('depense','salaire')`, eq(transactionsTable.status, "paid"))
-              : and(sql`${transactionsTable.type} IN ('depense','salaire')`, eq(transactionsTable.status, "paid"))
+              ? and(
+                  txWhere,
+                  sql`${transactionsTable.type} IN ('depense','salaire')`,
+                  eq(transactionsTable.status, "paid"),
+                )
+              : and(
+                  sql`${transactionsTable.type} IN ('depense','salaire')`,
+                  eq(transactionsTable.status, "paid"),
+                ),
           ),
       ]);
 
@@ -309,34 +467,40 @@ router.get(
         eq(cotisationsTable.status, "pending"),
         lt(cotisationsTable.dueDate, today),
       );
-      const validationClause = eq(cotisationsTable.status, "pending_validation");
+      const validationClause = eq(
+        cotisationsTable.status,
+        "pending_validation",
+      );
       const statusFilter = or(overdueClause, validationClause);
 
-      const [flaggedCotisations, overdueCountRow, validationCountRow] = await Promise.all([
-        db
-          .select({
-            id: cotisationsTable.id,
-            memberId: cotisationsTable.memberId,
-            label: cotisationsTable.label,
-            period: cotisationsTable.period,
-            amount: cotisationsTable.amount,
-            dueDate: cotisationsTable.dueDate,
-            status: cotisationsTable.status,
-            syndicateId: cotisationsTable.syndicateId,
-          })
-          .from(cotisationsTable)
-          .where(cotWhere ? and(cotWhere, statusFilter) : statusFilter)
-          .orderBy(desc(cotisationsTable.createdAt))
-          .limit(200),
-        db
-          .select({ value: count() })
-          .from(cotisationsTable)
-          .where(cotWhere ? and(cotWhere, overdueClause) : overdueClause),
-        db
-          .select({ value: count() })
-          .from(cotisationsTable)
-          .where(cotWhere ? and(cotWhere, validationClause) : validationClause),
-      ]);
+      const [flaggedCotisations, overdueCountRow, validationCountRow] =
+        await Promise.all([
+          db
+            .select({
+              id: cotisationsTable.id,
+              memberId: cotisationsTable.memberId,
+              label: cotisationsTable.label,
+              period: cotisationsTable.period,
+              amount: cotisationsTable.amount,
+              dueDate: cotisationsTable.dueDate,
+              status: cotisationsTable.status,
+              syndicateId: cotisationsTable.syndicateId,
+            })
+            .from(cotisationsTable)
+            .where(cotWhere ? and(cotWhere, statusFilter) : statusFilter)
+            .orderBy(desc(cotisationsTable.createdAt))
+            .limit(200),
+          db
+            .select({ value: count() })
+            .from(cotisationsTable)
+            .where(cotWhere ? and(cotWhere, overdueClause) : overdueClause),
+          db
+            .select({ value: count() })
+            .from(cotisationsTable)
+            .where(
+              cotWhere ? and(cotWhere, validationClause) : validationClause,
+            ),
+        ]);
 
       const memberIds = [...new Set(flaggedCotisations.map((c) => c.memberId))];
       const members = memberIds.length
@@ -361,8 +525,12 @@ router.get(
         .orderBy(desc(paymentProofsTable.createdAt))
         .limit(200);
 
-      const relevantCotisationIds = new Set(flaggedCotisations.map((c) => c.id));
-      const scopedProofs = proofs.filter((p) => relevantCotisationIds.has(p.cotisationId));
+      const relevantCotisationIds = new Set(
+        flaggedCotisations.map((c) => c.id),
+      );
+      const scopedProofs = proofs.filter((p) =>
+        relevantCotisationIds.has(p.cotisationId),
+      );
 
       const items = flaggedCotisations.map((c) => ({
         ...c,
@@ -391,25 +559,75 @@ router.get(
   requireRole("super_admin"),
   async (req, res) => {
     try {
-      const [syndicates, allMembers, allCotisations, allTickets, allCaisse, allElections, admins] = await Promise.all([
-        db.select().from(syndicatesTable).orderBy(desc(syndicatesTable.membersCount)),
-        db.select({ syndicateId: membersTable.syndicateId, status: membersTable.status }).from(membersTable),
-        db.select({ syndicateId: cotisationsTable.syndicateId, status: cotisationsTable.status }).from(cotisationsTable),
-        db.select({ syndicateId: supportTicketsTable.syndicateId, status: supportTicketsTable.status }).from(supportTicketsTable),
-        db.select({ syndicateId: caisseEntriesTable.syndicateId, balance: caisseEntriesTable.balance, amount: caisseEntriesTable.amount, createdAt: caisseEntriesTable.createdAt }).from(caisseEntriesTable).orderBy(desc(caisseEntriesTable.createdAt)),
-        db.select({ syndicateId: electionsTable.syndicateId, status: electionsTable.status }).from(electionsTable),
-        db.select({ id: usersTable.id, name: usersTable.name }).from(usersTable),
+      const [
+        syndicates,
+        allMembers,
+        allCotisations,
+        allTickets,
+        allCaisse,
+        allElections,
+        admins,
+      ] = await Promise.all([
+        db
+          .select()
+          .from(syndicatesTable)
+          .orderBy(desc(syndicatesTable.membersCount)),
+        db
+          .select({
+            syndicateId: membersTable.syndicateId,
+            status: membersTable.status,
+          })
+          .from(membersTable),
+        db
+          .select({
+            syndicateId: cotisationsTable.syndicateId,
+            status: cotisationsTable.status,
+          })
+          .from(cotisationsTable),
+        db
+          .select({
+            syndicateId: supportTicketsTable.syndicateId,
+            status: supportTicketsTable.status,
+          })
+          .from(supportTicketsTable),
+        db
+          .select({
+            syndicateId: caisseEntriesTable.syndicateId,
+            balance: caisseEntriesTable.balance,
+            amount: caisseEntriesTable.amount,
+            createdAt: caisseEntriesTable.createdAt,
+          })
+          .from(caisseEntriesTable)
+          .orderBy(desc(caisseEntriesTable.createdAt)),
+        db
+          .select({
+            syndicateId: electionsTable.syndicateId,
+            status: electionsTable.status,
+          })
+          .from(electionsTable),
+        db
+          .select({ id: usersTable.id, name: usersTable.name })
+          .from(usersTable),
       ]);
 
       const enriched = syndicates.map((sy) => {
         const syMembers = allMembers.filter((m) => m.syndicateId === sy.id);
-        const activeMembers = syMembers.filter((m) => m.status === "active").length;
+        const activeMembers = syMembers.filter(
+          (m) => m.status === "active",
+        ).length;
 
-        const syCotisations = allCotisations.filter((c) => c.syndicateId === sy.id);
+        const syCotisations = allCotisations.filter(
+          (c) => c.syndicateId === sy.id,
+        );
         const paidCot = syCotisations.filter((c) => c.status === "paid").length;
-        const cotisationRate = syCotisations.length > 0 ? Math.round((paidCot / syCotisations.length) * 100) : 0;
+        const cotisationRate =
+          syCotisations.length > 0
+            ? Math.round((paidCot / syCotisations.length) * 100)
+            : 0;
 
-        const openTickets = allTickets.filter((t) => t.syndicateId === sy.id && t.status === "open").length;
+        const openTickets = allTickets.filter(
+          (t) => t.syndicateId === sy.id && t.status === "open",
+        ).length;
 
         // Latest caisse balance for this syndicate
         const syCaisse = allCaisse.filter((c) => c.syndicateId === sy.id);
@@ -418,9 +636,13 @@ router.get(
           balance = Number(syCaisse[0].balance ?? 0);
         }
 
-        const pendingElections = allElections.filter((e) => e.syndicateId === sy.id && e.status === "upcoming").length;
+        const pendingElections = allElections.filter(
+          (e) => e.syndicateId === sy.id && e.status === "upcoming",
+        ).length;
 
-        const adminUser = sy.adminId ? admins.find((a) => a.id === sy.adminId) : null;
+        const adminUser = sy.adminId
+          ? admins.find((a) => a.id === sy.adminId)
+          : null;
 
         let status: "healthy" | "warning" | "critical" = "healthy";
         if (cotisationRate < 70 || openTickets > 15) status = "critical";
@@ -523,7 +745,7 @@ router.get(
         })
         .from(usersTable)
         .where(
-          sql`${usersTable.role} IN ('employee','staff','gardien','gestionnaire')`
+          sql`${usersTable.role} IN ('employee','staff','gardien','gestionnaire')`,
         )
         .groupBy(usersTable.syndicateId);
 
@@ -534,7 +756,10 @@ router.get(
           total: count(),
         })
         .from(sinistresTable)
-        .innerJoin(buildingsTable, eq(sinistresTable.buildingId, buildingsTable.id))
+        .innerJoin(
+          buildingsTable,
+          eq(sinistresTable.buildingId, buildingsTable.id),
+        )
         .groupBy(buildingsTable.syndicateId);
 
       // Documents per syndicate
@@ -567,7 +792,10 @@ router.get(
           paidAmount: sql<number>`COALESCE(SUM(CAST(${appelsDeFondsTable.amount} AS numeric)) FILTER (WHERE ${appelsDeFondsTable.status} = 'paid'), 0)`,
         })
         .from(appelsDeFondsTable)
-        .innerJoin(buildingsTable, eq(appelsDeFondsTable.buildingId, buildingsTable.id))
+        .innerJoin(
+          buildingsTable,
+          eq(appelsDeFondsTable.buildingId, buildingsTable.id),
+        )
         .groupBy(buildingsTable.syndicateId);
 
       // Financial balance from caisse_entries (latest balance per syndicate)
@@ -582,7 +810,9 @@ router.get(
         .orderBy(desc(caisseEntriesTable.createdAt));
 
       // Build lookup maps
-      const byCounts = (rows: { syndicateId: string | null; total: number }[]) => {
+      const byCounts = (
+        rows: { syndicateId: string | null; total: number }[],
+      ) => {
         const m = new Map<string, number>();
         for (const r of rows) {
           if (r.syndicateId) m.set(r.syndicateId, Number(r.total));
@@ -598,7 +828,10 @@ router.get(
       const documentMap = byCounts(documentCounts);
       const meetingMap = byCounts(meetingCounts);
 
-      const lotMap = new Map<string, { totalLots: number; occupiedLots: number; vacantLots: number }>();
+      const lotMap = new Map<
+        string,
+        { totalLots: number; occupiedLots: number; vacantLots: number }
+      >();
       for (const r of lotStats) {
         if (r.syndicateId) {
           lotMap.set(r.syndicateId, {
@@ -609,7 +842,16 @@ router.get(
         }
       }
 
-      const chargeMap = new Map<string, { unpaidCharges: number; paidCharges: number; totalCharges: number; collectionRate: number; financialBalance: number }>();
+      const chargeMap = new Map<
+        string,
+        {
+          unpaidCharges: number;
+          paidCharges: number;
+          totalCharges: number;
+          collectionRate: number;
+          financialBalance: number;
+        }
+      >();
       for (const r of chargeStats) {
         if (r.syndicateId) {
           const total = Number(r.totalCharges);
@@ -617,7 +859,8 @@ router.get(
           const unpaid = Number(r.unpaidCharges);
           const totalAmt = Number(r.totalAmount);
           const paidAmt = Number(r.paidAmount);
-          const collectionRate = total > 0 ? Math.round((paid / total) * 100) : 0;
+          const collectionRate =
+            total > 0 ? Math.round((paid / total) * 100) : 0;
           chargeMap.set(r.syndicateId, {
             unpaidCharges: unpaid,
             paidCharges: paid,
@@ -632,14 +875,27 @@ router.get(
       const caisseBalanceMap = new Map<string, number>();
       for (const entry of latestCaisse) {
         if (entry.syndicateId && !caisseBalanceMap.has(entry.syndicateId)) {
-          const bal = entry.balance != null ? Number(entry.balance) : Number(entry.amount ?? 0);
+          const bal =
+            entry.balance != null
+              ? Number(entry.balance)
+              : Number(entry.amount ?? 0);
           caisseBalanceMap.set(entry.syndicateId, bal);
         }
       }
 
       const result = syndicates.map((sy) => {
-        const lots = lotMap.get(sy.id) ?? { totalLots: 0, occupiedLots: 0, vacantLots: 0 };
-        const charges = chargeMap.get(sy.id) ?? { unpaidCharges: 0, paidCharges: 0, totalCharges: 0, collectionRate: 0, financialBalance: 0 };
+        const lots = lotMap.get(sy.id) ?? {
+          totalLots: 0,
+          occupiedLots: 0,
+          vacantLots: 0,
+        };
+        const charges = chargeMap.get(sy.id) ?? {
+          unpaidCharges: 0,
+          paidCharges: 0,
+          totalCharges: 0,
+          collectionRate: 0,
+          financialBalance: 0,
+        };
         return {
           syndicateId: sy.id,
           syndicateName: sy.name,
@@ -673,12 +929,12 @@ router.get(
   },
 );
 
-// ─── Reports analytics (super_admin + syndicate_admin, period-scoped) ────────
+// ─── Reports analytics (platform + syndicate + treasurer, period-scoped) ────
 // GET /statistics/reports?period=month|quarter|year
 router.get(
   "/statistics/reports",
   requireAuth,
-  requireRole("super_admin", "syndicate_admin"),
+  requireRole("super_admin", "syndicate_admin", "treasurer"),
   async (req, res) => {
     const period = (req.query.period as string) || "month";
     const txWhere = syndicateWhere(req, transactionsTable.syndicateId);
@@ -694,10 +950,18 @@ router.get(
 
       if (period === "year") {
         windowStart = new Date(now.getFullYear(), now.getMonth() - 11, 1);
-        buckets = lastNMonths(12).map((m) => ({ label: m.label, from: m.from, to: m.to }));
+        buckets = lastNMonths(12).map((m) => ({
+          label: m.label,
+          from: m.from,
+          to: m.to,
+        }));
       } else if (period === "quarter") {
         windowStart = new Date(now.getFullYear(), now.getMonth() - 2, 1);
-        buckets = lastNMonths(3).map((m) => ({ label: m.label, from: m.from, to: m.to }));
+        buckets = lastNMonths(3).map((m) => ({
+          label: m.label,
+          from: m.from,
+          to: m.to,
+        }));
       } else {
         // month → 4 weekly buckets within the current month
         const monthStart = new Date(now.getFullYear(), now.getMonth(), 1);
@@ -705,55 +969,115 @@ router.get(
         const FR_WEEK = ["S1", "S2", "S3", "S4"];
         buckets = [0, 1, 2, 3].map((w) => {
           const from = new Date(now.getFullYear(), now.getMonth(), w * 7 + 1);
-          const rawTo = new Date(now.getFullYear(), now.getMonth(), w * 7 + 7, 23, 59, 59);
-          const monthEnd = new Date(now.getFullYear(), now.getMonth() + 1, 0, 23, 59, 59);
-          return { label: FR_WEEK[w], from, to: rawTo < monthEnd ? rawTo : monthEnd };
+          const rawTo = new Date(
+            now.getFullYear(),
+            now.getMonth(),
+            w * 7 + 7,
+            23,
+            59,
+            59,
+          );
+          const monthEnd = new Date(
+            now.getFullYear(),
+            now.getMonth() + 1,
+            0,
+            23,
+            59,
+            59,
+          );
+          return {
+            label: FR_WEEK[w],
+            from,
+            to: rawTo < monthEnd ? rawTo : monthEnd,
+          };
         });
       }
 
       // ── Transactions for window ────────────────────────────────────────────
       const allTx = await db
-        .select({ amount: transactionsTable.amount, type: transactionsTable.type, status: transactionsTable.status, createdAt: transactionsTable.createdAt })
+        .select({
+          amount: transactionsTable.amount,
+          type: transactionsTable.type,
+          status: transactionsTable.status,
+          createdAt: transactionsTable.createdAt,
+        })
         .from(transactionsTable)
-        .where(txWhere ? and(txWhere, gte(transactionsTable.createdAt, windowStart)) : gte(transactionsTable.createdAt, windowStart));
+        .where(
+          txWhere
+            ? and(txWhere, gte(transactionsTable.createdAt, windowStart))
+            : gte(transactionsTable.createdAt, windowStart),
+        );
 
       // ── New members for window ─────────────────────────────────────────────
       const allNewMembers = await db
         .select({ createdAt: membersTable.createdAt })
         .from(membersTable)
-        .where(memWhere ? and(memWhere, gte(membersTable.createdAt, windowStart)) : gte(membersTable.createdAt, windowStart));
+        .where(
+          memWhere
+            ? and(memWhere, gte(membersTable.createdAt, windowStart))
+            : gte(membersTable.createdAt, windowStart),
+        );
 
       // ── Cotisation rate (all-time for syndicate) ───────────────────────────
       const [allCot, paidCot] = await Promise.all([
-        db.select({ value: count() }).from(cotisationsTable).where(cotWhere ?? undefined),
-        db.select({ value: count() }).from(cotisationsTable).where(cotWhere ? and(cotWhere, eq(cotisationsTable.status, "paid")) : eq(cotisationsTable.status, "paid")),
+        db
+          .select({ value: count() })
+          .from(cotisationsTable)
+          .where(cotWhere ?? undefined),
+        db
+          .select({ value: count() })
+          .from(cotisationsTable)
+          .where(
+            cotWhere
+              ? and(cotWhere, eq(cotisationsTable.status, "paid"))
+              : eq(cotisationsTable.status, "paid"),
+          ),
       ]);
-      const cotisationRate = Number(allCot[0].value) > 0
-        ? Math.round((Number(paidCot[0].value) / Number(allCot[0].value)) * 100)
-        : 0;
+      const cotisationRate =
+        Number(allCot[0].value) > 0
+          ? Math.round(
+              (Number(paidCot[0].value) / Number(allCot[0].value)) * 100,
+            )
+          : 0;
 
       // ── Chart buckets ──────────────────────────────────────────────────────
       const revenueChart = buckets.map((b) => ({
         label: b.label,
         value: Math.round(
           allTx
-            .filter((t) => t.createdAt && t.createdAt >= b.from && t.createdAt <= b.to
-              && (t.type === "cotisation" || t.type === "recette") && t.status === "paid")
-            .reduce((s, t) => s + Number(t.amount ?? 0), 0)
+            .filter(
+              (t) =>
+                t.createdAt &&
+                t.createdAt >= b.from &&
+                t.createdAt <= b.to &&
+                (t.type === "cotisation" || t.type === "recette") &&
+                t.status === "paid",
+            )
+            .reduce((s, t) => s + Number(t.amount ?? 0), 0),
         ),
       }));
 
       const membersChart = buckets.map((b) => ({
         label: b.label,
-        value: allNewMembers.filter((m) => m.createdAt && m.createdAt >= b.from && m.createdAt <= b.to).length,
+        value: allNewMembers.filter(
+          (m) => m.createdAt && m.createdAt >= b.from && m.createdAt <= b.to,
+        ).length,
       }));
 
       // ── Period KPIs ────────────────────────────────────────────────────────
       const revenues = allTx
-        .filter((t) => (t.type === "cotisation" || t.type === "recette") && t.status === "paid")
+        .filter(
+          (t) =>
+            (t.type === "cotisation" || t.type === "recette") &&
+            t.status === "paid",
+        )
         .reduce((s, t) => s + Number(t.amount ?? 0), 0);
       const expenses = allTx
-        .filter((t) => (t.type === "depense" || t.type === "salaire") && t.status === "paid")
+        .filter(
+          (t) =>
+            (t.type === "depense" || t.type === "salaire") &&
+            t.status === "paid",
+        )
         .reduce((s, t) => s + Math.abs(Number(t.amount ?? 0)), 0);
       const memberGrowth = allNewMembers.length;
 

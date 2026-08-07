@@ -32,3 +32,4 @@
 - My Orders no longer displays French-only marketplace copy, compact `k` totals, or fixed French-Morocco formatting in non-French sessions; an initial order API failure now has visible retry guidance instead of a blank/false empty result.
 - User Management no longer silently renders an empty list after an API failure, exposes raw mutation errors, uses fixed French membership dates, or sends every new account the same predictable client-side password.
 - The API standalone typecheck no longer fails in document PDF generation, budget receipt rendering, support ticket creation, or Template Studio routes; all previously recorded blockers are resolved.
+- Règlements & Statuts no longer presents fabricated sample documents after an API failure, reports local-only publish/create success, or falls back to sharing metadata when a real PDF cannot be retrieved; failures now remain visible and retryable.

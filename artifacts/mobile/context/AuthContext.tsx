@@ -57,7 +57,11 @@ interface AuthContextType {
   token: string | null;
   isLoading: boolean;
   login: (email: string, password: string) => Promise<boolean>;
-  loginWithTokens: (token: string, refreshToken: string, user: Record<string, unknown>) => Promise<void>;
+  loginWithTokens: (
+    token: string,
+    refreshToken: string,
+    user: Record<string, unknown>,
+  ) => Promise<void>;
   refreshSession: () => Promise<void>;
   logout: () => Promise<void>;
   updateUser: (data: Partial<AuthUser>) => void;
@@ -71,6 +75,11 @@ function mapApiUser(u: Record<string, unknown>): AuthUser {
     name: String(u.name ?? ""),
     email: String(u.email ?? ""),
     role: (u.role as UserRole) ?? "member",
+    syndicate: u.syndicate
+      ? String(u.syndicate)
+      : u.syndicateName
+        ? String(u.syndicateName)
+        : undefined,
     syndicateId: (u.syndicateId as string) ?? undefined,
     avatar: (u.avatar as string) ?? undefined,
     memberSince:
@@ -131,7 +140,11 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   );
 
   const loginWithTokens = useCallback(
-    async (newToken: string, newRefreshToken: string, u: Record<string, unknown>): Promise<void> => {
+    async (
+      newToken: string,
+      newRefreshToken: string,
+      u: Record<string, unknown>,
+    ): Promise<void> => {
       await setToken(newToken);
       await setRefreshToken(newRefreshToken);
       setTokenState(newToken);
@@ -178,7 +191,16 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   return (
     <AuthContext.Provider
-      value={{ user, token, isLoading, login, loginWithTokens, refreshSession, logout, updateUser }}
+      value={{
+        user,
+        token,
+        isLoading,
+        login,
+        loginWithTokens,
+        refreshSession,
+        logout,
+        updateUser,
+      }}
     >
       {children}
     </AuthContext.Provider>

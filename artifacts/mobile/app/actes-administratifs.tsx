@@ -128,7 +128,7 @@ const STATUTS_LIST: ActeStatut[] = [
 
 export default function ActesAdministratifsScreen() {
   return (
-    <RoleGuard allow={["super_admin", "syndicate_admin"]}>
+    <RoleGuard allow={["syndicate_admin", "secretary", "president"]}>
       <ActesAdministratifsScreenInner />
     </RoleGuard>
   );

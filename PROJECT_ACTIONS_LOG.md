@@ -149,3 +149,10 @@
 - Removed the predictable `ChangeMe@2026!` client password; `artifacts/api-server/src/routes/users.ts` now generates a temporary credential server-side and includes it only in the welcome email flow.
 - Resolved the API standalone typecheck blockers in document PDF overview helpers, nullable budget charge labels, readonly support-category enums, Express 5 route parameters, and Template Studio audit payloads.
 - `pnpm --filter @workspace/api-server run typecheck`, API build, mobile typecheck, and `git diff --check` all pass with zero errors; the API workflow restarted successfully.
+- Replaced dashboard-local activity with server audit activity for `super_admin`, `syndicate_admin`, and `president`; member/tenant dashboards now use only personal alerts and cotisation data already returned by the authenticated fan-out.
+- Added localized dashboard activity recovery and empty states, locale-aware activity dates, role-specific election visibility, and consistent MAD formatting.
+- Corrected screen/API RBAC mismatches: PV is available to governance roles, administrative acts are available to secretary/president/syndicate admin, and reports/API now include treasurer read access.
+- Mobile/API typechecks, Expo bundling, API restart, public preview, and `git diff --check` passed; only existing Expo web compatibility warnings remain.
+- Audited `artifacts/mobile/app/reglements.tsx` and removed all seeded regulatory documents, local-only status mutations, demo PDF/share fallback, and hardcoded revision timeline content.
+- Wired the screen to `GET /documents?category=reglements`, `POST /documents`, `PUT /documents/:id`, `GET /documents/:id/download-url`, and `GET /documents/:id/versions`, including real workflow transitions and reload-on-success behavior.
+- Added localized loading, unavailable/retryable, genuine-empty, action-failure, and version-history states across French, English, Arabic, and Spanish; mobile typecheck and diff validation pass and the public preview has no new runtime errors.
