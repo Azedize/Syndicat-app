@@ -157,4 +157,4 @@
 - Mobile typecheck passed with zero errors; the protected orders preview redirected safely to the public welcome screen with no new runtime exceptions.
 - Continued the administration pass on User Management: added real synchronization/loading/retry states, locale-aware membership dates, safe localized mutation feedback, role-aware controls, and Moroccan phone/email validation across French, English, Arabic, and Spanish.
 - Replaced the shared client-side default password with server-generated temporary credentials delivered through the welcome email flow; existing user APIs, audit logging, and role boundaries remain intact.
-- Mobile typecheck passed with zero errors and the API production build completed successfully; the API package's standalone typecheck still reports pre-existing errors in unrelated document, budget, content, and template-studio modules.
+- Mobile and API typechecks now pass with zero errors; the API production build completed successfully after resolving the document PDF, budget, support-content, and Template Studio typing blockers.

@@ -800,7 +800,7 @@ router.get("/appels-de-fonds/:id/receipt", requireAuth, async (req, res) => {
               ],
               [
                 { text: "Type de charge", style: { font: FONT, fontSize: 9, bold: true, color: "#475569" }, border: [false, false, false, true], borderColor: ["", "", "", "#e2e8f0"] },
-                { text: typeLabels[appel.type] ?? appel.type, border: [false, false, false, true], borderColor: ["", "", "", "#e2e8f0"] },
+                { text: typeLabels[String(appel.type ?? "")] ?? appel.type ?? "—", border: [false, false, false, true], borderColor: ["", "", "", "#e2e8f0"] },
               ],
               [
                 { text: "Mode de paiement", style: { font: FONT, fontSize: 9, bold: true, color: "#475569" }, border: [false, false, false, true], borderColor: ["", "", "", "#e2e8f0"] },

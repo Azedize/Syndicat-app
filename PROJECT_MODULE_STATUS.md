@@ -76,4 +76,4 @@
 - My Orders: multilingual order tracking, purchase/sales tabs, status actions, review/details actions, empty states, locale-aware dates, and full MAD totals complete; initial-load retry and stale-refresh behavior preserved.
 - Mobile verification: zero-error typecheck, Expo bundling, and protected-route preview pass after the My Orders pass.
 - User Management: multilingual synchronization/recovery, locale-aware dates, safe mutation feedback, Moroccan contact validation, role-aware controls, and server-generated temporary credentials complete; existing user API and RBAC contracts preserved.
-- Mobile verification: zero-error mobile typecheck and successful API build pass after the User Management hardening; unrelated API typecheck errors remain documented.
+- Mobile and API verification: zero-error typechecks, successful API build, clean diff validation, and healthy API workflow after the User Management hardening and API type-safety cleanup.

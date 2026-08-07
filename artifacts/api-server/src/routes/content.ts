@@ -189,12 +189,13 @@ router.post("/support", requireAuth, async (req, res) => {
     return;
   }
 
-  const validCategories = scope === "platform" ? PLATFORM_CATEGORIES : SYNDICATE_CATEGORIES;
   const schema = z.object({
     title:       z.string().min(1).max(200),
     description: z.string().min(1).max(5000),
     priority:    z.enum(["high", "medium", "low"]).default("medium"),
-    category:    z.enum(validCategories as [string, ...string[]]).default(validCategories[4]),
+    category:    scope === "platform"
+      ? z.enum(PLATFORM_CATEGORIES).default("autre")
+      : z.enum(SYNDICATE_CATEGORIES).default("general"),
   });
   const result = schema.safeParse(req.body);
   if (!result.success) { res.status(400).json({ error: "Données invalides", details: result.error.flatten() }); return; }

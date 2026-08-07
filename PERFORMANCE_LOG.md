@@ -18,3 +18,4 @@
 - National Dashboard localization adds no requests, polling, or duplicated data; currency, number, and date formatting are performed locally at render time while existing syndicate/ranking/detail fetches remain unchanged.
 - AG/Elections presentation fixes add no requests, polling, or duplicated state; date/role/status localization is computed locally at render time and results-panel helper props do not change query or mutation behavior.
 - SignatureOrderPanel and DocumentWizard localization add no requests or duplicated data; dates and labels are formatted locally while the existing document/signature API calls and wizard state transitions remain unchanged.
+- API type-safety cleanup adds no database queries, polling, or payload expansion; route parameters and audit details are normalized at request handling time.

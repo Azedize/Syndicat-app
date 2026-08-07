@@ -349,13 +349,18 @@ function buildDigitalVerificationPanel(qrDataUrl: string, docNum: string, _verif
   };
 }
 
-function buildDocumentOverviewGrid(items: Array<{ label: string; value: string; accent?: string }>): unknown {
+function buildDocumentOverviewGrid(
+  items: Array<{ label: string; value: string; accent?: string } | [string, string]>,
+): unknown {
+  const normalized = items.map((item) => Array.isArray(item)
+    ? { label: item[0], value: item[1] }
+    : item);
   return {
     table: {
-      widths: items.map(() => "*"),
+      widths: normalized.map(() => "*"),
       body: [
-        items.map(it => ({ text: it.label, fontSize: 6, bold: true, color: it.accent || BRAND.muted, alignment: "center" as const })),
-        items.map(it => ({ text: it.value, fontSize: 10, bold: true, color: BRAND.ink, alignment: "center" as const })),
+        normalized.map(it => ({ text: it.label, fontSize: 6, bold: true, color: it.accent || BRAND.muted, alignment: "center" as const })),
+        normalized.map(it => ({ text: it.value, fontSize: 10, bold: true, color: BRAND.ink, alignment: "center" as const })),
       ],
     },
     layout: "noBorders",
@@ -5019,12 +5024,12 @@ async function buildDocDef(template: DocumentTemplate, input: DocumentInput): Pr
           ["TANTIEMES", tantiemes],
           ["PÉRIODE", periode],
           ["RÉFÉRENCE", receiptNum],
-        ], accentColor) as object,
+        ]) as object,
         kpiRow([
           { icon: "◈", label: "MONTANT DÛ", value: `${amount.toLocaleString("fr-MA")} MAD`, valueColor: accentColor },
           { icon: "📅", label: "ÉCHÉANCE", value: dueDate, valueColor: BRAND.warningDark },
           { icon: "●", label: "TYPE CHARGES", value: chargeType, valueColor: BRAND.ink },
-        ], accentColor) as object,
+        ]) as object,
         contentSection("DÉTAILS DE L'APPEL DE FONDS", [
           `Nature des charges : ${chargeType}`,
           `Période : ${periode}`,
@@ -5053,13 +5058,13 @@ async function buildDocDef(template: DocumentTemplate, input: DocumentInput): Pr
           ["ÉTAGE", floor],
           ["SURFACE", surface],
           ["TANTIEMES", tantiemes],
-        ], accentColor) as object,
+        ]) as object,
         buildSidebarInfoPanel("RÉSUMÉ FINANCIER", "◈", [
           ["MONTANT DÛ", `${amount.toLocaleString("fr-MA")} MAD`],
           ["PÉRIODE", periode],
           ["ÉCHÉANCE", dueDate],
           ["TYPE", chargeType],
-        ], accentColor) as object,
+        ]) as object,
         buildValidationStatusPanel("generated", accentColor, lang) as object,
         buildDigitalVerificationPanel(qrDataUrl, docNum, verifyUrl, accentColor, lang) as object,
       ];
@@ -5160,7 +5165,7 @@ async function buildDocDef(template: DocumentTemplate, input: DocumentInput): Pr
           ["ICE SYNDICAT", syndInfo.registrationNumber || "—"],
           ["RÉFÉRENCE", docNum],
           ["VERSION", version || "v1.0"],
-        ], accentColor) as object,
+        ]) as object,
         kpiRow([
           { icon: "◈", label: "TOTAL HT", value: `${totalHT.toLocaleString("fr-MA")} MAD`, valueColor: accentColor },
           { icon: "%", label: "TVA 20%", value: `${tva.toLocaleString("fr-MA")} MAD`, valueColor: BRAND.warningDark },

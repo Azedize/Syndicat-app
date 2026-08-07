@@ -89,6 +89,10 @@ const permissionsSchema = z.array(z.object({
   canPublish: z.boolean().default(false),
 }));
 
+function routeParam(value: string | string[] | undefined): string {
+  return Array.isArray(value) ? (value[0] ?? "") : (value ?? "");
+}
+
 // ─── Helper ───────────────────────────────────────────────────────────────────
 
 async function getTemplateOrFail(id: string, res: import("express").Response) {
@@ -248,8 +252,9 @@ router.post(
 
       await serverAuditLog(req, {
         action: "template_created",
-        targetId: template.id,
-        details: { slug: data.slug, category: data.category },
+        entity: "template_definition",
+        entityId: template.id,
+        details: JSON.stringify({ slug: data.slug, category: data.category }),
       });
 
       res.status(201).json({ data: template });
@@ -270,7 +275,7 @@ router.get(
   requireAuth,
   requireRole("super_admin", "syndicate_admin"),
   async (req, res) => {
-    const tmpl = await getTemplateOrFail(req.params.id, res);
+    const tmpl = await getTemplateOrFail(routeParam(req.params.id), res);
     if (!tmpl) return;
 
     // Fetch permissions
@@ -301,7 +306,7 @@ router.put(
   requireAuth,
   requireRole("super_admin"),
   async (req, res) => {
-    const tmpl = await getTemplateOrFail(req.params.id, res);
+    const tmpl = await getTemplateOrFail(routeParam(req.params.id), res);
     if (!tmpl) return;
 
     if (tmpl.status === "archived" || tmpl.status === "disabled") {
@@ -352,8 +357,9 @@ router.put(
 
       await serverAuditLog(req, {
         action: "template_updated",
-        targetId: tmpl.id,
-        details: { newVersion, changeDescription: data.changeDescription },
+        entity: "template_definition",
+        entityId: tmpl.id,
+        details: JSON.stringify({ newVersion, changeDescription: data.changeDescription }),
       });
 
       res.json({ data: updated });
@@ -372,7 +378,7 @@ async function setTemplateStatus(
   action: string,
   guard?: (tmpl: Record<string, unknown>) => string | null,
 ) {
-  const tmpl = await getTemplateOrFail(req.params.id, res);
+  const tmpl = await getTemplateOrFail(routeParam(req.params.id), res);
   if (!tmpl) return;
   if (guard) {
     const err = guard(tmpl as any);
@@ -393,7 +399,7 @@ async function setTemplateStatus(
     .where(eq(templateDefinitionsTable.id, tmpl.id))
     .returning();
 
-  await serverAuditLog(req, { action, targetId: tmpl.id, details: { newStatus } });
+  await serverAuditLog(req, { action, entity: "template_definition", entityId: tmpl.id, details: JSON.stringify({ newStatus }) });
   res.json({ data: updated });
 }
 
@@ -424,7 +430,7 @@ router.post(
   requireAuth,
   requireRole("super_admin"),
   async (req, res) => {
-    const tmpl = await getTemplateOrFail(req.params.id, res);
+    const tmpl = await getTemplateOrFail(routeParam(req.params.id), res);
     if (!tmpl) return;
 
     const { newSlug } = req.body;
@@ -482,7 +488,7 @@ router.get(
   requireAuth,
   requireRole("super_admin", "syndicate_admin"),
   async (req, res) => {
-    const tmpl = await getTemplateOrFail(req.params.id, res);
+    const tmpl = await getTemplateOrFail(routeParam(req.params.id), res);
     if (!tmpl) return;
 
     const versions = await db
@@ -515,8 +521,8 @@ router.get(
       .from(templateDefinitionVersionsTable)
       .where(
         and(
-          eq(templateDefinitionVersionsTable.templateId, req.params.id),
-          eq(templateDefinitionVersionsTable.id, req.params.vid),
+          eq(templateDefinitionVersionsTable.templateId, routeParam(req.params.id)),
+          eq(templateDefinitionVersionsTable.id, routeParam(req.params.vid)),
         ),
       );
     if (!version) { res.status(404).json({ error: "Version introuvable" }); return; }
@@ -531,7 +537,7 @@ router.post(
   requireAuth,
   requireRole("super_admin"),
   async (req, res) => {
-    const tmpl = await getTemplateOrFail(req.params.id, res);
+    const tmpl = await getTemplateOrFail(routeParam(req.params.id), res);
     if (!tmpl) return;
 
     const [version] = await db
@@ -540,7 +546,7 @@ router.post(
       .where(
         and(
           eq(templateDefinitionVersionsTable.templateId, tmpl.id),
-          eq(templateDefinitionVersionsTable.id, req.params.vid),
+          eq(templateDefinitionVersionsTable.id, routeParam(req.params.vid)),
         ),
       );
     if (!version) { res.status(404).json({ error: "Version introuvable" }); return; }
@@ -574,8 +580,9 @@ router.post(
 
     await serverAuditLog(req, {
       action: "template_version_restored",
-      targetId: tmpl.id,
-      details: { restoredFromVersion: version.version, newVersion },
+      entity: "template_definition_version",
+      entityId: tmpl.id,
+      details: JSON.stringify({ restoredFromVersion: version.version, newVersion }),
     });
 
     res.json({ data: updated });
@@ -592,7 +599,7 @@ router.get(
     const perms = await db
       .select()
       .from(templateDefinitionPermissionsTable)
-      .where(eq(templateDefinitionPermissionsTable.templateId, req.params.id));
+      .where(eq(templateDefinitionPermissionsTable.templateId, routeParam(req.params.id)));
     res.json({ data: perms });
   },
 );
@@ -604,7 +611,7 @@ router.put(
   requireAuth,
   requireRole("super_admin"),
   async (req, res) => {
-    const tmpl = await getTemplateOrFail(req.params.id, res);
+    const tmpl = await getTemplateOrFail(routeParam(req.params.id), res);
     if (!tmpl) return;
 
     const result = permissionsSchema.safeParse(req.body.permissions);
@@ -932,7 +939,7 @@ router.put(
           reviewedAt:      new Date(),
           updatedAt:       new Date(),
         })
-        .where(eq(templateRequestsTable.id, req.params.id))
+        .where(eq(templateRequestsTable.id, routeParam(req.params.id)))
         .returning();
       if (!updated) { res.status(404).json({ error: "Demande introuvable" }); return; }
       res.json({ data: updated, message: "Demande mise à jour" });

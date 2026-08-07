@@ -147,4 +147,5 @@
 - Audited `artifacts/mobile/app/utilisateurs.tsx`; added localized loading/unavailable/retry states, refresh recovery, locale-aware join dates, safe status/role/delete/create feedback, and Moroccan phone/email validation.
 - Restricted role-changing and deletion controls to the platform administrator while preserving the syndicate administrator's scoped user-management access.
 - Removed the predictable `ChangeMe@2026!` client password; `artifacts/api-server/src/routes/users.ts` now generates a temporary credential server-side and includes it only in the welcome email flow.
-- Mobile typecheck and API build passed; the existing API standalone typecheck remains blocked by unrelated legacy errors outside the user-management changes.
+- Resolved the API standalone typecheck blockers in document PDF overview helpers, nullable budget charge labels, readonly support-category enums, Express 5 route parameters, and Template Studio audit payloads.
+- `pnpm --filter @workspace/api-server run typecheck`, API build, mobile typecheck, and `git diff --check` all pass with zero errors; the API workflow restarted successfully.

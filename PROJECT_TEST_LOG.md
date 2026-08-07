@@ -164,3 +164,6 @@
 - `pnpm --filter @workspace/mobile run typecheck` — passed with zero errors after the Reviews & Ratings pass.
 - `pnpm exec prettier --write artifacts/mobile/app/reviews.tsx artifacts/mobile/context/LanguageContext.tsx` and `git diff --check` — passed.
 - Restarted `artifacts/mobile: expo`; Metro bundled successfully. Public 402×874 preview rendered without new browser runtime exceptions; protected Reviews & Ratings route remains behind the expected unauthenticated boundary.
+- `pnpm --filter @workspace/api-server run typecheck` — passed with zero errors after resolving document PDF, budget, content, and Template Studio typing blockers.
+- `pnpm --filter @workspace/api-server run build` — passed; API workflow restarted and reported successful server startup with scheduled document scans completing without errors.
+- `pnpm --filter @workspace/mobile run typecheck` and `git diff --check` — passed with zero errors after the combined API type-safety cleanup.
