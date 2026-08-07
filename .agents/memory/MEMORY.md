@@ -51,3 +51,4 @@
 - [Invoice persistence boundary](invoice-persistence-boundary.md) — invoice identity, lifecycle dates, scope, and totals belong to the server persistence boundary, not client-generated form state.
 - [Statistics data state](statistics-data-state.md) — platform KPIs must remain unavailable on failed synchronization; subscription totals use persisted plan/subscription data, never UI tariffs.
 - [Public trust content](public-trust-content.md) — public landing pages must not present unverified KPIs, synthetic charts, or named testimonials as real outcomes.
+- [Public Expo presentation rendering](public-expo-presentation-rendering.md) — long public Expo pages render more reliably with simple native primitives than complex animated/SVG compositions.

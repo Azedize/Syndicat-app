@@ -1,25 +1,8 @@
-/**
- * MIZAN — Enterprise Platform Introduction
- *
- * 9-page premium onboarding carousel.
- * Each slide showcases a different platform module with:
- *   • A unique SVG "live UI" rendered inside a premium phone mockup
- *   • Module tag, bold title, persuasive subtitle
- *   • Two KPI stats demonstrating business ROI
- *   • Three feature bullet points
- * Transitions use Animated interpolation for parallax depth.
- */
-
 import { Feather } from "@expo/vector-icons";
 import * as Haptics from "expo-haptics";
-import { LinearGradient } from "expo-linear-gradient";
 import { router } from "expo-router";
-import React, { useRef, useState } from "react";
+import React from "react";
 import {
-  Animated,
-  Dimensions,
-  Image,
-  ImageSourcePropType,
   Platform,
   ScrollView,
   StatusBar,
@@ -27,478 +10,333 @@ import {
   Text,
   TouchableOpacity,
   View,
-  useWindowDimensions,
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
-import Svg, {
-  Circle,
-  Defs,
-  Path,
-  Stop,
-  LinearGradient as SvgGrad,
-} from "react-native-svg";
-import VeridianLogo from "@/components/brand/VeridianLogo";
+
 import { useTheme } from "@/context/ThemeContext";
 
-const { width: W, height: H } = Dimensions.get("window");
-
-const INTRO_IMAGES = {
-  dashboard: require("../assets/intro/dashboard-kpis.png"),
-  welcome: require("../assets/intro/welcome-screen.png"),
-  welcomeAlt: require("../assets/intro/welcome-screen-alt.png"),
-  landing: require("../assets/intro/landing-screen.jpg"),
-};
-
-// ─── SLIDES DATA ─────────────────────────────────────────────────────────────
-
-const SLIDES = [
+const MODULES = [
   {
-    id: "dashboard",
+    icon: "grid" as const,
     color: "#2563EB",
-    tag: "DASHBOARD",
-    image: INTRO_IMAGES.dashboard,
-    title: "Vue d'ensemble complète",
-    subtitle: "Votre résidence en un coup d'œil, en temps réel.",
-    kpis: [
-      { val: "142", lbl: "Membres actifs" },
-      { val: "98%", lbl: "Recouvrement" },
+    tag: "PILOTAGE",
+    title: "Une vue claire de votre syndicat",
+    description:
+      "Retrouvez les informations importantes au même endroit et prenez vos décisions avec une vision structurée de la résidence.",
+    points: [
+      "Activité et alertes regroupées",
+      "Accès rapide aux modules clés",
+      "Informations adaptées à chaque rôle",
     ],
-    features: ["Tableaux de bord temps réel", "KPIs personnalisés", "Alertes intelligentes"],
   },
   {
-    id: "finance",
+    icon: "bar-chart-2" as const,
     color: "#1D4ED8",
     tag: "FINANCE",
-    image: INTRO_IMAGES.landing,
-    title: "Finances maîtrisées",
-    subtitle: "Gestion transparente de la trésorerie et des budgets.",
-    kpis: [
-      { val: "125k", lbl: "MAD encaissés" },
-      { val: "12", lbl: "Impayés traités" },
+    title: "Des finances lisibles et suivies",
+    description:
+      "Organisez les charges, les appels de fonds, les paiements, les impayés et les budgets avec une traçabilité complète.",
+    points: [
+      "Appels de fonds et échéances",
+      "Suivi des règlements et relances",
+      "Budgets et rapports financiers",
     ],
-    features: ["Charges en MAD", "Recouvrement automatisé", "Rapports PDF"],
   },
   {
-    id: "ag",
+    icon: "users" as const,
     color: "#059669",
-    tag: "ASSEMBLÉES",
-    image: INTRO_IMAGES.welcome,
-    title: "AG simplifiées",
-    subtitle: "Des assemblées générales fluides et 100% légales.",
-    kpis: [
-      { val: "48h", lbl: "Quorum atteint" },
-      { val: "100%", lbl: "Légal Loi 18-00" },
+    tag: "GOUVERNANCE",
+    title: "Des assemblées mieux organisées",
+    description:
+      "Préparez les réunions, convoquez les participants, gérez les votes et conservez les procès-verbaux dans un même espace.",
+    points: [
+      "Ordre du jour et convocations",
+      "Candidatures, votes et quorum",
+      "Mandats et procès-verbaux",
     ],
-    features: ["Convocations électroniques", "Votes en ligne", "PV générés auto."],
   },
   {
-    id: "docs",
+    icon: "file-text" as const,
     color: "#7C3AED",
     tag: "DOCUMENTS",
-    image: INTRO_IMAGES.welcomeAlt,
-    title: "Zéro papier",
-    subtitle: "Centralisez et signez tous vos documents légaux.",
-    kpis: [
-      { val: "147", lbl: "Docs sécurisés" },
-      { val: "AES", lbl: "Signature légale" },
+    title: "Tous vos documents, au bon endroit",
+    description:
+      "Centralisez les documents administratifs et contractuels, suivez leur cycle de vie et facilitez les signatures.",
+    points: [
+      "Classement par résidence et dossier",
+      "Signatures et validations multi-parties",
+      "Téléchargement et archivage contrôlés",
     ],
-    features: ["GED centralisée", "Signature électronique", "Archivage conforme"],
   },
   {
-    id: "market",
+    icon: "shopping-bag" as const,
     color: "#8B5CF6",
-    tag: "MARKETPLACE",
-    image: INTRO_IMAGES.landing,
-    title: "Échanges entre voisins",
-    subtitle: "Une communauté active et solidaire.",
-    kpis: [
-      { val: "4.5k", lbl: "MAD économisés" },
-      { val: "500+", lbl: "Annonces" },
+    tag: "SERVICES",
+    title: "Une place de marché pour la résidence",
+    description:
+      "Mettez en relation les résidents, les vendeurs et les prestataires dans un environnement dédié à la copropriété.",
+    points: [
+      "Annonces de vente et de location",
+      "Demandes de devis et partenaires",
+      "Gestion des favoris et commandes",
     ],
-    features: ["Vente/Location interne", "Prestataires certifiés", "Paiement sécurisé"],
   },
   {
-    id: "maintenance",
+    icon: "tool" as const,
     color: "#D97706",
     tag: "MAINTENANCE",
-    image: INTRO_IMAGES.dashboard,
-    title: "Maintenance proactive",
-    subtitle: "Gérez les travaux et interventions efficacement.",
-    kpis: [
-      { val: "23", lbl: "Tickets en cours" },
-      { val: "48h", lbl: "Résolution moy." },
+    title: "Des travaux suivis de bout en bout",
+    description:
+      "Transformez chaque incident ou chantier en action suivie, documentée et attribuée.",
+    points: [
+      "Sinistres et incidents déclarés",
+      "Travaux avec responsables et statuts",
+      "Pièces jointes et historique des actions",
     ],
-    features: ["Tickets avec priorités", "Suivi prestataires", "Photos et rapports"],
   },
   {
-    id: "claims",
+    icon: "shield" as const,
     color: "#E11D48",
-    tag: "RÉCLAMATIONS",
-    image: INTRO_IMAGES.welcomeAlt,
-    title: "Litiges résolus",
-    subtitle: "Un processus de médiation clair et tracé.",
-    kpis: [
-      { val: "95%", lbl: "Taux résolution" },
-      { val: "24/7", lbl: "Médiation interne" },
+    tag: "RELATION RÉSIDENTS",
+    title: "Les demandes ne se perdent plus",
+    description:
+      "Donnez un cadre clair aux réclamations, aux demandes d’intervention et aux échanges avec les résidents.",
+    points: [
+      "Dépôt et qualification des demandes",
+      "Statuts et responsables identifiés",
+      "Escalade et suivi des réponses",
     ],
-    features: ["Dépôt en ligne", "Suivi en temps réel", "Escalade automatique"],
   },
   {
-    id: "chat",
+    icon: "message-circle" as const,
     color: "#0EA5E9",
     tag: "COMMUNICATION",
-    image: INTRO_IMAGES.landing,
-    title: "Toujours connecté",
-    subtitle: "Communiquez instantanément avec la résidence.",
-    kpis: [
-      { val: "< 2h", lbl: "Réponse moy." },
-      { val: "100%", lbl: "Des résidents" },
+    title: "Une communication qui rassemble",
+    description:
+      "Diffusez les annonces officielles et échangez avec les bons interlocuteurs sans mélanger les conversations.",
+    points: [
+      "Messagerie interne et conversations",
+      "Publications et annonces de résidence",
+      "Notifications et pièces jointes",
     ],
-    features: ["Messagerie interne", "Notifications push", "Annonces officielles"],
   },
   {
-    id: "national",
+    icon: "globe" as const,
     color: "#6366F1",
-    tag: "SUPERVISION",
-    image: INTRO_IMAGES.welcome,
-    title: "Vision nationale",
-    subtitle: "Pilotez plusieurs syndicats depuis une seule interface.",
-    kpis: [
-      { val: "Multi", lbl: "Syndicats" },
-      { val: "Live", lbl: "Dashboards" },
+    tag: "ADMINISTRATION",
+    title: "Une organisation prête à grandir",
+    description:
+      "Les équipes de gestion et les administrateurs disposent d’espaces adaptés à leur périmètre et à leurs responsabilités.",
+    points: [
+      "Séparation des espaces et des données",
+      "Équipe du syndic et rôles métier",
+      "Audit, transparence et supervision",
     ],
-    features: ["Supervision multi-sites", "Comparatifs régionaux", "Export données"],
-  }
+  },
 ];
 
-// ─── SVG Mockups & Backgrounds ───────────────────────────────────────────────
-
-function BgDeco({ color }: { color: string }) {
-  return (
-    <Svg style={StyleSheet.absoluteFill} viewBox="0 0 390 844" preserveAspectRatio="xMidYMid slice">
-      <Defs>
-        <SvgGrad id="grad1" x1="0" y1="0" x2="1" y2="1">
-          <Stop offset="0" stopColor={color} stopOpacity="0.4" />
-          <Stop offset="1" stopColor={color} stopOpacity="0" />
-        </SvgGrad>
-        <SvgGrad id="grad2" x1="1" y1="0" x2="0" y2="1">
-          <Stop offset="0" stopColor="#FFFFFF" stopOpacity="0.1" />
-          <Stop offset="1" stopColor="#FFFFFF" stopOpacity="0" />
-        </SvgGrad>
-      </Defs>
-      <Circle cx="350" cy="150" r="280" fill="url(#grad1)" />
-      <Circle cx="40" cy="750" r="220" fill="url(#grad2)" />
-      {[200, 300, 400, 500, 600, 700].map(y => (
-        <Path key={`h${y}`} d={`M0,${y} L390,${y}`} stroke="rgba(255,255,255,0.04)" strokeWidth="1" />
-      ))}
-      {[100, 200, 300].map(x => (
-        <Path key={`v${x}`} d={`M${x},0 L${x},844`} stroke="rgba(255,255,255,0.04)" strokeWidth="1" />
-      ))}
-    </Svg>
-  );
-}
-
-function DashboardPreview() {
-  return (
-    <View style={styles.dashboardPreview}>
-      <View style={styles.previewTopBar}>
-        <View style={styles.previewDot} />
-        <View style={styles.previewTopLine} />
-        <View style={styles.previewDotBlue} />
-      </View>
-      <View style={styles.previewHeroLine} />
-      <View style={styles.previewHeroLineShort} />
-      <View style={styles.previewKpiRow}>
-        <View style={styles.previewKpiCard}>
-          <View style={styles.previewKpiValue} />
-          <View style={styles.previewKpiLabel} />
-        </View>
-        <View style={styles.previewKpiCard}>
-          <View style={styles.previewKpiValueGreen} />
-          <View style={styles.previewKpiLabel} />
-        </View>
-      </View>
-      <View style={styles.previewChart}>
-        <View style={[styles.previewBar, { height: "34%" }]} />
-        <View style={[styles.previewBar, { height: "56%" }]} />
-        <View style={[styles.previewBar, { height: "43%" }]} />
-        <View style={[styles.previewBar, { height: "78%" }]} />
-        <View style={[styles.previewBar, { height: "64%" }]} />
-        <View style={[styles.previewLine, { bottom: "46%" }]} />
-      </View>
-      <View style={styles.previewBottomRow}>
-        <View style={styles.previewBottomPill} />
-        <View style={styles.previewBottomPillShort} />
-      </View>
-    </View>
-  );
-}
-
-function PresentationImage({
-  source,
-  compact = false,
-  kind,
+function ModuleCard({
+  module,
+  isDark,
 }: {
-  source: ImageSourcePropType;
-  compact?: boolean;
-  kind?: string;
+  module: (typeof MODULES)[number];
+  isDark: boolean;
 }) {
   return (
-    <View style={[styles.presentationFrame, compact && styles.presentationFrameCompact]}>
-      {kind === "dashboard" ? (
-        <DashboardPreview />
-      ) : (
-        <Image
-          source={source}
-          style={styles.presentationImage}
-          resizeMode="cover"
-          accessibilityLabel="Aperçu réel de l'application MIZAN"
-        />
-      )}
-    </View>
-  );
-}
-
-// ─── SLIDE COMPONENT ─────────────────────────────────────────────────────────
-
-function Slide({ item, index, scrollX }: { item: typeof SLIDES[0], index: number, scrollX: Animated.Value }) {
-  const { isDark } = useTheme();
-  const { height: viewportHeight } = useWindowDimensions();
-  const compact = viewportHeight < 760;
-  const veryCompact = viewportHeight < 680;
-  
-  const inputRange = [(index - 1) * W, index * W, (index + 1) * W];
-  
-  // Parallax offsets
-  const txPhone = scrollX.interpolate({ inputRange, outputRange: [W * 0.5, 0, -W * 0.5], extrapolate: "clamp" });
-  const txContent = scrollX.interpolate({ inputRange, outputRange: [W * 0.8, 0, -W * 0.8], extrapolate: "clamp" });
-  const txFeatures = scrollX.interpolate({ inputRange, outputRange: [W * 1.1, 0, -W * 1.1], extrapolate: "clamp" });
-
-  // Each slide has a gradient transitioning to deep navy for consistency across the app
-  const gradientColors: [string, string] = isDark ? [item.color, "#070D1A"] : [item.color, "#0A1628"];
-
-  return (
-    <View style={{ width: W, height: H }}>
-      <LinearGradient colors={gradientColors} style={StyleSheet.absoluteFill} start={{ x: 0, y: 0 }} end={{ x: 0, y: 1 }} />
-      <BgDeco color={item.color} />
-      
-      <View
-        style={[
-          styles.slideBody,
-          compact && styles.slideBodyCompact,
-          veryCompact && styles.slideBodyVeryCompact,
-        ]}
-      >
-        
-        {/* TOP ZONE (30%) */}
-        <Animated.View style={[styles.topZone, compact && styles.topZoneCompact, veryCompact && styles.topZoneVeryCompact, { transform: [{ translateX: txPhone }] }]}>
-          <View style={styles.topZoneHeader}>
-            <View style={[styles.tagBadge, { backgroundColor: item.color }]}>
-              <Text style={styles.tagText}>{item.tag}</Text>
+    <View
+      style={[
+        styles.moduleCard,
+        {
+          backgroundColor: isDark ? "rgba(16, 35, 62, 0.94)" : "#FFFFFF",
+          borderColor: isDark ? "rgba(130, 175, 235, 0.18)" : "#DCE8F8",
+        },
+      ]}
+    >
+      <View style={styles.moduleHeader}>
+        <View style={[styles.moduleIcon, { backgroundColor: module.color }]}>
+          <Feather name={module.icon} size={20} color="#FFFFFF" />
+        </View>
+        <View style={styles.moduleTagWrap}>
+          <Text style={[styles.moduleTag, { color: module.color }]}>{module.tag}</Text>
+          <View style={[styles.moduleLine, { backgroundColor: `${module.color}30` }]} />
+        </View>
+      </View>
+      <Text style={[styles.moduleTitle, { color: isDark ? "#F8FAFF" : "#0A1628" }]}>
+        {module.title}
+      </Text>
+      <Text style={[styles.moduleDescription, { color: isDark ? "#A8BCD8" : "#61738C" }]}>
+        {module.description}
+      </Text>
+      <View style={styles.pointList}>
+        {module.points.map((point) => (
+          <View key={point} style={styles.pointRow}>
+            <View style={[styles.pointIcon, { backgroundColor: `${module.color}18` }]}>
+              <Feather name="check" size={12} color={module.color} />
             </View>
+            <Text style={[styles.pointText, { color: isDark ? "#D5E1F2" : "#344861" }]}>{point}</Text>
           </View>
-          <PresentationImage source={item.image} compact={compact || veryCompact} kind={item.id} />
-        </Animated.View>
-
-        {/* CONTENT ZONE (40%) */}
-        <Animated.View style={[styles.contentZone, compact && styles.contentZoneCompact, veryCompact && styles.contentZoneVeryCompact, { transform: [{ translateX: txContent }] }]}>
-          <Text style={[styles.slideTitle, compact && styles.slideTitleCompact]} numberOfLines={2}>{item.title}</Text>
-          <Text style={[styles.slideSubtitle, compact && styles.slideSubtitleCompact]} numberOfLines={2}>{item.subtitle}</Text>
-          
-          <View style={[styles.kpiRow, compact && styles.kpiRowCompact]}>
-            {item.kpis.map((kpi, kIdx) => (
-              <View key={kIdx} style={[styles.kpiCard, compact && styles.kpiCardCompact]}>
-                <Text style={styles.kpiValue}>{kpi.val}</Text>
-                <Text style={styles.kpiLabel}>{kpi.lbl}</Text>
-              </View>
-            ))}
-          </View>
-        </Animated.View>
-
-        {/* FEATURES ZONE (30%) */}
-        <Animated.View style={[styles.featuresZone, compact && styles.featuresZoneCompact, veryCompact && styles.featuresZoneVeryCompact, { transform: [{ translateX: txFeatures }] }]}>
-          {item.features.map((feat, fIdx) => (
-            <View key={fIdx} style={styles.featureRow}>
-              <View style={[styles.featureCheck, { backgroundColor: item.color }]}>
-                <Feather name="check" size={14} color="#FFF" />
-              </View>
-              <Text style={styles.featureText} numberOfLines={1}>{feat}</Text>
-            </View>
-          ))}
-        </Animated.View>
-
+        ))}
       </View>
     </View>
   );
 }
-
-// ─── SCREEN MAIN ─────────────────────────────────────────────────────────────
 
 export default function IntroScreen() {
-  const scrollX = useRef(new Animated.Value(0)).current;
   const insets = useSafeAreaInsets();
-  const scrollViewRef = useRef<ScrollView>(null);
-  const [activeIndex, setActiveIndex] = useState(0);
+  const { isDark } = useTheme();
+  const foreground = isDark ? "#F8FAFF" : "#0A1628";
+  const muted = isDark ? "#9DB3CF" : "#667991";
 
-  const handleScroll = Animated.event(
-    [{ nativeEvent: { contentOffset: { x: scrollX } } }],
-    {
-      useNativeDriver: true,
-      listener: (e: any) => {
-        const idx = Math.round(e.nativeEvent.contentOffset.x / W);
-        if (idx !== activeIndex) {
-          setActiveIndex(idx);
-          Haptics.selectionAsync();
-        }
-      }
-    }
-  );
+  const openStart = () => {
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+    router.push("/get-started");
+  };
 
   return (
-    <View style={styles.root}>
+    <View style={[styles.root, { backgroundColor: isDark ? "#071326" : "#F3F7FD" }]}>
       <StatusBar barStyle="light-content" translucent backgroundColor="transparent" />
-      
-      <Animated.ScrollView
-        ref={scrollViewRef}
-        horizontal
-        pagingEnabled
-        style={styles.introScroll}
-        contentContainerStyle={styles.introScrollContent}
-        showsHorizontalScrollIndicator={false}
-        onScroll={handleScroll}
-        scrollEventThrottle={16}
+      <ScrollView
+        showsVerticalScrollIndicator={false}
+        contentContainerStyle={[
+          styles.content,
+          {
+            paddingTop: insets.top + (Platform.OS === "web" ? 67 : 18),
+            paddingBottom: insets.bottom + 36,
+          },
+        ]}
       >
-        {SLIDES.map((item, index) => (
-          <Slide key={item.id} item={item} index={index} scrollX={scrollX} />
-        ))}
-      </Animated.ScrollView>
-
-      {/* Back to the public presentation home */}
-      <View style={[styles.backContainer, { top: insets.top + 16 }]}>
-        <TouchableOpacity
-          onPress={() => router.replace("/welcome")}
-          style={styles.backBtn}
-          accessibilityLabel="Retour à l'accueil"
-        >
-          <Feather name="arrow-left" size={18} color="#FFFFFF" />
-        </TouchableOpacity>
-      </View>
-
-      {/* Top Right Skip Button */}
-      <View style={[styles.skipContainer, { top: insets.top + 16 }]}>
-        <TouchableOpacity onPress={() => router.replace("/get-started")} style={styles.skipBtn}>
-          <Text style={styles.skipText}>Ignorer</Text>
-        </TouchableOpacity>
-      </View>
-
-      {/* Bottom Pagination & Navigation */}
-      <View style={[styles.bottomContainer, { paddingBottom: insets.bottom + 24 }]}>
-        <View style={styles.pagination}>
-          {SLIDES.map((_, i) => {
-            const opacity = scrollX.interpolate({
-              inputRange: [(i - 1) * W, i * W, (i + 1) * W],
-              outputRange: [0.3, 1, 0.3],
-              extrapolate: "clamp",
-            });
-            const scale = scrollX.interpolate({
-              inputRange: [(i - 1) * W, i * W, (i + 1) * W],
-              outputRange: [0.8, 1.2, 0.8],
-              extrapolate: "clamp",
-            });
-            return <Animated.View key={i} style={[styles.dot, { opacity, transform: [{ scale }] }]} />;
-          })}
+        <View style={styles.topBar}>
+          <TouchableOpacity
+            onPress={() => router.replace("/welcome")}
+            style={styles.iconButton}
+            accessibilityLabel="Retour à l'accueil"
+            testID="intro-back"
+          >
+            <Feather name="arrow-left" size={19} color={isDark ? "#FFFFFF" : "#1D4ED8"} />
+          </TouchableOpacity>
+          <Text style={styles.brandText}>SYNDYCAT GLOBAL CPS</Text>
+          <TouchableOpacity onPress={() => router.replace("/get-started")} style={styles.skipButton}>
+            <Text style={[styles.skipText, { color: isDark ? "#BFD4F1" : "#2563EB" }]}>Commencer</Text>
+          </TouchableOpacity>
         </View>
 
-        <TouchableOpacity 
-          style={styles.nextBtn} 
-          activeOpacity={0.8}
-          onPress={() => {
-             Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-             if (activeIndex < SLIDES.length - 1) {
-               scrollViewRef.current?.scrollTo({ x: (activeIndex + 1) * W, animated: true });
-             } else {
-                router.replace("/get-started");
-             }
-          }}
-        >
-          <Text style={styles.nextText}>{activeIndex === SLIDES.length - 1 ? "Commencer" : "Suivant"}</Text>
-          <Feather name={activeIndex === SLIDES.length - 1 ? "zap" : "arrow-right"} size={16} color="#0A1628" />
-        </TouchableOpacity>
-      </View>
+        <View style={styles.hero}>
+          <View style={styles.eyebrow}>
+            <View style={styles.eyebrowDot} />
+            <Text style={styles.eyebrowText}>PLATEFORME DE GESTION IMMOBILIÈRE</Text>
+          </View>
+          <Text style={[styles.heroTitle, { color: foreground }]}>
+            La gestion de votre résidence,{" "}
+            <Text style={styles.heroAccent}>enfin réunie.</Text>
+          </Text>
+          <Text style={[styles.heroDescription, { color: muted }]}>
+            Une plateforme complète pour les syndics, les copropriétaires, les membres du conseil syndical et les locataires.
+            Un seul espace pour organiser, décider, communiquer et suivre la vie de votre résidence.
+          </Text>
+          <View style={styles.heroActions}>
+            <TouchableOpacity onPress={openStart} style={styles.primaryButton} activeOpacity={0.86} testID="intro-start">
+              <Text style={styles.primaryText}>Découvrir et commencer</Text>
+              <Feather name="arrow-right" size={18} color="#FFFFFF" />
+            </TouchableOpacity>
+            <TouchableOpacity
+              onPress={() => router.replace("/login")}
+              style={[styles.loginButton, { borderColor: isDark ? "#34547E" : "#C7D9F0" }]}
+              activeOpacity={0.82}
+            >
+              <Feather name="log-in" size={16} color={isDark ? "#BFD4F1" : "#2563EB"} />
+              <Text style={[styles.loginText, { color: isDark ? "#BFD4F1" : "#2563EB" }]}>Se connecter</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+
+        <View style={[styles.promiseCard, { backgroundColor: isDark ? "#102B4D" : "#FFFFFF", borderColor: isDark ? "#234A7D" : "#D7E6F8" }]}>
+          <View style={[styles.promiseIcon, { backgroundColor: isDark ? "#173C70" : "#EAF3FF" }]}>
+            <Feather name="layers" size={22} color={isDark ? "#72A9FF" : "#2563EB"} />
+          </View>
+          <View style={styles.promiseCopy}>
+            <Text style={[styles.promiseTitle, { color: foreground }]}>Un écosystème pensé pour la copropriété</Text>
+            <Text style={[styles.promiseText, { color: muted }]}>
+              Des espaces dédiés à chaque profil, des accès maîtrisés et un historique pour garder le contrôle.
+            </Text>
+          </View>
+        </View>
+
+        <View style={styles.sectionIntro}>
+          <Text style={styles.sectionKicker}>TOUT CE DONT VOUS AVEZ BESOIN</Text>
+          <Text style={[styles.sectionTitle, { color: foreground }]}>Une plateforme, neuf domaines de gestion</Text>
+          <Text style={[styles.sectionDescription, { color: muted }]}>
+            Explorez les principales fonctions de SYNDYCAT GLOBAL CPS. Chaque domaine s’intègre dans un parcours unique, de la décision au suivi quotidien.
+          </Text>
+        </View>
+
+        <View style={styles.moduleList}>
+          {MODULES.map((module) => (
+            <ModuleCard key={module.tag} module={module} isDark={isDark} />
+          ))}
+        </View>
+
+        <View style={[styles.finalCta, { backgroundColor: isDark ? "#12386B" : "#0E2A55" }]}>
+          <Feather name="check-circle" size={28} color="#69A2FF" />
+          <Text style={styles.finalTitle}>Prêt à mieux piloter votre résidence ?</Text>
+          <Text style={styles.finalText}>
+            Créez votre espace, invitez votre équipe et commencez à centraliser votre gestion.
+          </Text>
+          <TouchableOpacity onPress={openStart} style={styles.finalButton} activeOpacity={0.86}>
+            <Text style={styles.finalButtonText}>Créer mon espace</Text>
+            <Feather name="arrow-right" size={17} color="#0A1628" />
+          </TouchableOpacity>
+        </View>
+      </ScrollView>
     </View>
   );
 }
 
-// ─── STYLES ──────────────────────────────────────────────────────────────────
-
 const styles = StyleSheet.create({
-  root: { flex: 1, backgroundColor: "#070D1A" },
-  introScroll: { flex: 1, width: "100%" },
-  introScrollContent: { flexGrow: 1 },
-
-  slideBody: { flex: 1, paddingHorizontal: 24, paddingTop: Platform.OS === "ios" ? 80 : 60, paddingBottom: 120 },
-  slideBodyCompact: { paddingHorizontal: 20, paddingTop: 62, paddingBottom: 108 },
-  slideBodyVeryCompact: { paddingTop: 54, paddingBottom: 98 },
-  topZone: { flex: 0, height: 270, alignItems: "center", justifyContent: "flex-start" },
-  topZoneCompact: { height: 220 },
-  topZoneVeryCompact: { height: 182 },
-  topZoneHeader: { marginBottom: 10, alignItems: "center" },
-  tagBadge: { paddingHorizontal: 12, paddingVertical: 6, borderRadius: 20, borderWidth: 1, borderColor: "rgba(255,255,255,0.3)" },
-  tagText: { fontFamily: "Inter_600SemiBold", fontSize: 11, color: "#FFF", letterSpacing: 1.5 },
-  presentationFrame: { width: 128, height: 220, borderRadius: 28, backgroundColor: "#071326", padding: 5, borderWidth: 1, borderColor: "rgba(255,255,255,0.32)", shadowColor: "#000", shadowOffset: { width: 0, height: 10 }, shadowOpacity: 0.3, shadowRadius: 16, elevation: 10, overflow: "hidden" },
-  presentationFrameCompact: { width: 104, height: 174, borderRadius: 23, padding: 4 },
-  presentationImage: { flex: 1, width: "100%", height: "100%", borderRadius: 23 },
-  dashboardPreview: { flex: 1, borderRadius: 23, padding: 10, backgroundColor: "#0B327F", overflow: "hidden" },
-  previewTopBar: { flexDirection: "row", alignItems: "center", gap: 5, marginBottom: 12 },
-  previewDot: { width: 7, height: 7, borderRadius: 4, backgroundColor: "#35D39A" },
-  previewDotBlue: { width: 7, height: 7, borderRadius: 4, backgroundColor: "#70A9FF", marginLeft: "auto" },
-  previewTopLine: { width: 44, height: 5, borderRadius: 3, backgroundColor: "rgba(255,255,255,0.78)" },
-  previewHeroLine: { width: "78%", height: 8, borderRadius: 4, backgroundColor: "#FFFFFF", marginBottom: 5 },
-  previewHeroLineShort: { width: "52%", height: 6, borderRadius: 3, backgroundColor: "rgba(255,255,255,0.58)", marginBottom: 12 },
-  previewKpiRow: { flexDirection: "row", gap: 6 },
-  previewKpiCard: { flex: 1, height: 42, borderRadius: 8, padding: 7, backgroundColor: "rgba(255,255,255,0.15)", borderWidth: 1, borderColor: "rgba(255,255,255,0.22)" },
-  previewKpiValue: { width: "42%", height: 7, borderRadius: 3, backgroundColor: "#FFFFFF", marginBottom: 5 },
-  previewKpiValueGreen: { width: "55%", height: 7, borderRadius: 3, backgroundColor: "#65E5B1", marginBottom: 5 },
-  previewKpiLabel: { width: "76%", height: 4, borderRadius: 2, backgroundColor: "rgba(255,255,255,0.52)" },
-  previewChart: { flex: 1, minHeight: 58, marginTop: 12, borderRadius: 9, padding: 8, flexDirection: "row", alignItems: "flex-end", gap: 5, backgroundColor: "rgba(3,18,60,0.2)" },
-  previewBar: { flex: 1, borderRadius: 3, backgroundColor: "rgba(255,255,255,0.36)" },
-  previewLine: { position: "absolute", left: 8, right: 8, height: 2, borderRadius: 1, backgroundColor: "#65E5B1" },
-  previewBottomRow: { flexDirection: "row", gap: 8, marginTop: 10 },
-  previewBottomPill: { flex: 1, height: 7, borderRadius: 4, backgroundColor: "rgba(255,255,255,0.35)" },
-  previewBottomPillShort: { width: "24%", height: 7, borderRadius: 4, backgroundColor: "#65E5B1" },
-
-  contentZone: { flex: 0, minHeight: 212, justifyContent: "center", paddingTop: 8 },
-  contentZoneCompact: { minHeight: 174 },
-  contentZoneVeryCompact: { minHeight: 154 },
-  slideTitle: { fontFamily: "Inter_700Bold", fontSize: 30, color: "#FFF", letterSpacing: -0.5, lineHeight: 36 },
-  slideTitleCompact: { fontSize: 27, lineHeight: 32 },
-  slideSubtitle: { fontFamily: "Inter_400Regular", fontSize: 15, color: "rgba(255,255,255,0.7)", marginTop: 6, lineHeight: 21 },
-  slideSubtitleCompact: { fontSize: 14, lineHeight: 19, marginTop: 4 },
-  
-  kpiRow: { flexDirection: "row", gap: 12, marginTop: 18 },
-  kpiRowCompact: { gap: 8, marginTop: 14 },
-  kpiCard: { flex: 1, backgroundColor: "rgba(255,255,255,0.1)", borderRadius: 16, padding: 14, borderWidth: 1, borderColor: "rgba(255,255,255,0.15)" },
-  kpiCardCompact: { borderRadius: 12, padding: 10 },
-  kpiValue: { fontFamily: "Inter_700Bold", fontSize: 21, color: "#FFF" },
-  kpiLabel: { fontFamily: "Inter_500Medium", fontSize: 11, color: "rgba(255,255,255,0.7)", marginTop: 3 },
-
-  featuresZone: { flex: 1, justifyContent: "flex-start", gap: 14, paddingTop: 8 },
-  featuresZoneCompact: { gap: 9, paddingTop: 6 },
-  featuresZoneVeryCompact: { gap: 7, paddingTop: 4 },
-  featureRow: { flexDirection: "row", alignItems: "center", gap: 12 },
-  featureCheck: { width: 24, height: 24, borderRadius: 12, alignItems: "center", justifyContent: "center", borderWidth: 1, borderColor: "rgba(255,255,255,0.2)" },
-  featureText: { fontFamily: "Inter_500Medium", fontSize: 15, color: "#FFF" },
-
-  backContainer: { position: "absolute", left: 24, zIndex: 10 },
-  backBtn: { width: 38, height: 38, borderRadius: 19, backgroundColor: "rgba(255,255,255,0.14)", alignItems: "center", justifyContent: "center", borderWidth: 1, borderColor: "rgba(255,255,255,0.18)" },
-  skipContainer: { position: "absolute", right: 24, zIndex: 10 },
-  skipBtn: { paddingVertical: 8, paddingHorizontal: 12, backgroundColor: "rgba(255,255,255,0.15)", borderRadius: 20, borderWidth: 1, borderColor: "rgba(255,255,255,0.1)" },
-  skipText: { fontFamily: "Inter_600SemiBold", fontSize: 13, color: "#FFF" },
-
-  bottomContainer: { position: "absolute", bottom: 0, left: 0, right: 0, flexDirection: "row", alignItems: "center", justifyContent: "space-between", paddingHorizontal: 24 },
-  pagination: { flexDirection: "row", gap: 8 },
-  dot: { width: 8, height: 8, borderRadius: 4, backgroundColor: "#FFF" },
-
-  nextBtn: { flexDirection: "row", alignItems: "center", gap: 8, backgroundColor: "#FFF", paddingHorizontal: 20, paddingVertical: 14, borderRadius: 24 },
-  nextText: { fontFamily: "Inter_700Bold", fontSize: 15, color: "#0A1628" },
+  root: { flex: 1 },
+  content: { paddingHorizontal: 20, gap: 26 },
+  topBar: { flexDirection: "row", alignItems: "center", justifyContent: "space-between" },
+  brandText: { color: "#2563EB", fontFamily: "Inter_700Bold", fontSize: 11, letterSpacing: 1.1 },
+  iconButton: { width: 40, height: 40, borderRadius: 20, backgroundColor: "#FFFFFF", borderWidth: 1, borderColor: "#D7E6F8", alignItems: "center", justifyContent: "center" },
+  skipButton: { paddingHorizontal: 12, paddingVertical: 9, borderRadius: 18, backgroundColor: "rgba(255,255,255,0.74)" },
+  skipText: { fontFamily: "Inter_600SemiBold", fontSize: 12 },
+  hero: { alignItems: "center", gap: 12, paddingTop: 8 },
+  eyebrow: { flexDirection: "row", alignItems: "center", gap: 8 },
+  eyebrowDot: { width: 8, height: 8, borderRadius: 4, backgroundColor: "#35D39A" },
+  eyebrowText: { color: "#3B82F6", fontFamily: "Inter_700Bold", fontSize: 10, letterSpacing: 1.5 },
+  heroTitle: { fontFamily: "Inter_700Bold", textAlign: "center", fontSize: 33, lineHeight: 40, letterSpacing: -0.8 },
+  heroAccent: { color: "#3B82F6" },
+  heroDescription: { fontFamily: "Inter_400Regular", textAlign: "center", fontSize: 15, lineHeight: 23, maxWidth: 600 },
+  heroActions: { width: "100%", gap: 10, marginTop: 8 },
+  primaryButton: { minHeight: 54, borderRadius: 14, backgroundColor: "#2563EB", flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 9, paddingHorizontal: 18, shadowColor: "#2563EB", shadowOpacity: 0.25, shadowRadius: 12, shadowOffset: { width: 0, height: 6 }, elevation: 7 },
+  primaryGradient: { minHeight: 54, paddingHorizontal: 18, flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 9 },
+  primaryText: { color: "#FFFFFF", fontFamily: "Inter_700Bold", fontSize: 14 },
+  loginButton: { minHeight: 48, borderRadius: 14, borderWidth: 1.2, backgroundColor: "rgba(255,255,255,0.35)", flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 8 },
+  loginText: { fontFamily: "Inter_600SemiBold", fontSize: 14 },
+  promiseCard: { flexDirection: "row", alignItems: "center", gap: 13, borderWidth: 1, borderRadius: 18, padding: 15 },
+  promiseIcon: { width: 46, height: 46, borderRadius: 14, alignItems: "center", justifyContent: "center" },
+  promiseCopy: { flex: 1, gap: 4 },
+  promiseTitle: { fontFamily: "Inter_700Bold", fontSize: 14 },
+  promiseText: { fontFamily: "Inter_400Regular", fontSize: 12, lineHeight: 18 },
+  sectionIntro: { gap: 8, marginTop: 8 },
+  sectionKicker: { color: "#3B82F6", fontFamily: "Inter_700Bold", fontSize: 10, letterSpacing: 1.3 },
+  sectionTitle: { fontFamily: "Inter_700Bold", fontSize: 25, lineHeight: 31, letterSpacing: -0.5 },
+  sectionDescription: { fontFamily: "Inter_400Regular", fontSize: 14, lineHeight: 21 },
+  moduleList: { gap: 14 },
+  moduleCard: { borderRadius: 20, borderWidth: 1, padding: 17, gap: 11 },
+  moduleHeader: { flexDirection: "row", alignItems: "center", gap: 11 },
+  moduleIcon: { width: 42, height: 42, borderRadius: 13, alignItems: "center", justifyContent: "center" },
+  moduleTagWrap: { flex: 1, gap: 7 },
+  moduleTag: { fontFamily: "Inter_700Bold", fontSize: 10, letterSpacing: 1.2 },
+  moduleLine: { width: "100%", height: 2, borderRadius: 1 },
+  moduleTitle: { fontFamily: "Inter_700Bold", fontSize: 18, lineHeight: 23 },
+  moduleDescription: { fontFamily: "Inter_400Regular", fontSize: 13, lineHeight: 20 },
+  pointList: { gap: 8, marginTop: 2 },
+  pointRow: { flexDirection: "row", alignItems: "center", gap: 9 },
+  pointIcon: { width: 22, height: 22, borderRadius: 11, alignItems: "center", justifyContent: "center" },
+  pointText: { flex: 1, fontFamily: "Inter_500Medium", fontSize: 12, lineHeight: 17 },
+  finalCta: { borderRadius: 22, padding: 22, alignItems: "center", gap: 9, marginTop: 4 },
+  finalTitle: { color: "#FFFFFF", fontFamily: "Inter_700Bold", textAlign: "center", fontSize: 21, lineHeight: 27 },
+  finalText: { color: "#AFC5E2", fontFamily: "Inter_400Regular", textAlign: "center", fontSize: 13, lineHeight: 20 },
+  finalButton: { minHeight: 48, width: "100%", marginTop: 7, borderRadius: 13, backgroundColor: "#FFFFFF", flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 8 },
+  finalButtonText: { color: "#0A1628", fontFamily: "Inter_700Bold", fontSize: 14 },
 });
