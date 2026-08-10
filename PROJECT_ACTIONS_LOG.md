@@ -1,3 +1,6 @@
+- 2026-08-10 — Audité `documents-recycle-bin.tsx` et supprimé les derniers libellés et dates français codés en dur. Ajout de clés de traduction partagées pour les catégories de documents, la corbeille et les confirmations destructives ; permissions de restauration/purge et endpoints inchangés.
+- 2026-08-10 — Audité `documents.tsx` et remplacé les dates forcées en `fr-FR` de l’historique des versions et des commentaires par un formateur dépendant de la langue active ; contenu, API et permissions inchangés.
+- 2026-08-10 — Audité `mon-bail.tsx` et remplacé les formats français fixes des dates et montants par des helpers dépendant de `fr-MA`, `en-GB`, `ar-MA` ou `es-ES`; ajout de la direction RTL sur la page locataire.
 # Project Actions Log
 
 ## 2026-08-06

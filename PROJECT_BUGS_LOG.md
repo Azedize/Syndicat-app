@@ -1,3 +1,6 @@
+- 2026-08-10 — Corrigé : la corbeille documentaire affichait encore « Corbeille », les catégories, les confirmations et les dates en français dans toutes les langues. Les libellés et dates suivent maintenant le contexte de langue.
+- 2026-08-10 — Corrigé : l’historique des versions et les commentaires de la bibliothèque documentaire imposaient `fr-FR` même lorsque l’utilisateur avait choisi l’anglais, l’arabe ou l’espagnol.
+- 2026-08-10 — Corrigé : Mon Bail & Loyer imposait `fr-FR` aux dates et montants, ce qui produisait une présentation incohérente pour les locataires ayant choisi une autre langue.
 # Project Bugs Log
 
 ## 2026-08-06

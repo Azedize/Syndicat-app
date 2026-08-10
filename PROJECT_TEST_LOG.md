@@ -1,3 +1,8 @@
+- 2026-08-10 — `pnpm --filter @workspace/mobile run typecheck` après le passage de localisation de la corbeille — réussi.
+- 2026-08-10 — Prettier et `git diff --check` sur les fichiers modifiés — réussis.
+- 2026-08-10 — Workflow Expo redémarré ; Metro a recompilé le bundle sans erreur de transformation. La prévisualisation protégée de `/documents-recycle-bin` redirige correctement sans session ; seuls les avertissements Expo Web déjà connus et le 401 attendu sont présents.
+- 2026-08-10 — `pnpm --filter @workspace/mobile run typecheck`, Prettier et `git diff --check` après la correction Mon Bail & Loyer — réussis.
+- 2026-08-10 — Balayage des écrans mobiles : aucune occurrence de `toLocaleDateString("fr-FR")`, `toLocaleString("fr-FR")` ou `toLocaleTimeString("fr-FR")` restante.
 - 2026-08-07 — Favorites and Syndicate Setup: mobile typecheck passed with zero errors; `git diff --check` passed; Expo workflow restarted successfully; protected `/syndicate-setup` preview redirected safely to the public welcome screen without new runtime exceptions. Existing Expo web compatibility warnings remain non-blocking.
 - 2026-08-07 — MemberDocumentRequest localization: `pnpm --filter @workspace/mobile run typecheck` passed with zero errors; Expo/Metro workflow remained running and the web bundle completed without new browser console errors.
 - 2026-08-06 — Governance follow-through verification: `pnpm --filter @workspace/mobile run typecheck` passed with zero errors; `git diff --check` passed; Expo workflow restarted successfully with Metro waiting and no new runtime exceptions.

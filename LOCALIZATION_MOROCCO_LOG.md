@@ -1,3 +1,6 @@
+- 2026-08-10 — Documents / Corbeille : ajout des libellés FR/EN/AR/ES, des catégories Statuts/Règlements et du formatage localisé des dates de suppression et de conservation ; direction RTL appliquée aux éléments de présentation.
+- 2026-08-10 — Documents / Historique : formatage des dates de versions et commentaires aligné sur les locales `fr-MA`, `en-GB`, `ar-MA` et `es-ES`.
+- 2026-08-10 — Mon Bail & Loyer : dates contractuelles et montants MAD suivent la langue active ; l’en-tête et la flèche de retour reflètent l’orientation arabe RTL.
 # 2026-08-07 — Invoice localization pass
 
 - Invoice MAD values now use locale-aware `Intl.NumberFormat` presentation for `fr-FR`, `en-US`, `ar-MA`, and `es-ES`.

@@ -1,3 +1,6 @@
+- 2026-08-10 — Documents / Corbeille : la corbeille documentaire suit désormais la langue active pour son titre, compteur, recherche, catégories, états vides, restauration, suppression définitive, conservation légale et confirmations. Les dates utilisent le locale actif et l’en-tête, les cartes et la navigation s’adaptent à l’arabe RTL.
+- 2026-08-10 — Documents : les dates de l’historique des versions et des commentaires utilisent désormais le locale actif (français, anglais, arabe ou espagnol) au lieu d’un format français imposé.
+- 2026-08-10 — Mon Bail & Loyer : dates du bail, dépôt et loyer mensuel alignés sur le locale actif avec formatage MAD à deux décimales ; en-têtes et retour adaptés à l’arabe RTL.
 # Project Progress
 
 ## 2026-08-07 — Home Dashboard Superstar UX Pass

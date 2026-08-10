@@ -1,3 +1,6 @@
+- 2026-08-10 — Corbeille documentaire : ajout des traductions du titre, compteur, recherche, état vide, catégories, restauration, purge, confirmations, auteur de suppression et durée de conservation en français, anglais, arabe et espagnol.
+- 2026-08-10 — Bibliothèque documentaire : les dates d’historique et de commentaires suivent maintenant la langue active ; aucun nouveau libellé métier n’a été ajouté.
+- 2026-08-10 — Mon Bail & Loyer : aucun nouveau libellé, mais tous les montants et dates affichés respectent désormais la locale active et le contexte marocain MAD.
 - Favorites and Syndicate Setup now use runtime translations for all newly audited visible states across `fr`, `en`, `ar`, and `es`; stable API enum values and submitted payloads remain unchanged.
 # 2026-08-07 — Devis & Factures
 

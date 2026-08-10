@@ -41,9 +41,13 @@ interface DeletedDoc {
   retentionUntil: string | null;
 }
 
-const CAT_LABELS: Record<string, string> = {
-  statuts: "Statuts", reglements: "Règlements", pv: "PV",
-  juridique: "Juridique", finances: "Finances", attestation: "Attestations",
+const CAT_LABEL_KEYS: Record<string, string> = {
+  statuts: "documentCategoryStatutes",
+  reglements: "documentCategoryRegulations",
+  pv: "documentCategoryPv",
+  juridique: "documentCategoryLegal",
+  finances: "documentCategoryFinance",
+  attestation: "documentCategoryCertificate",
 };
 
 const STATE_COPY = {
@@ -71,7 +75,12 @@ const STATE_COPY = {
     ar: "المستندات المحذوفة غير متاحة حالياً. تحقق من الاتصال ثم أعد المحاولة.",
     es: "Los documentos eliminados no están disponibles ahora. Compruebe su conexión e inténtelo de nuevo.",
   },
-  retry: { fr: "Réessayer", en: "Retry", ar: "إعادة المحاولة", es: "Reintentar" },
+  retry: {
+    fr: "Réessayer",
+    en: "Retry",
+    ar: "إعادة المحاولة",
+    es: "Reintentar",
+  },
   error: { fr: "Erreur", en: "Error", ar: "خطأ", es: "Error" },
   restoreError: {
     fr: "Impossible de restaurer ce document.",
@@ -93,10 +102,42 @@ export default function DocumentsRecycleBin() {
   const insets = useSafeAreaInsets();
   const { user } = useAuth();
   const { refreshDocuments } = useData();
-  const { lang } = useLanguage();
+  const { lang, isRTL, t } = useLanguage();
   const { isWide } = useBreakpoints();
-  const topPad = isWide ? 0 : (Platform.OS === "web" ? 67 : insets.top);
+  const topPad = isWide ? 0 : Platform.OS === "web" ? 67 : insets.top;
   const isSuperAdmin = user?.role === "super_admin";
+
+  const formatDate = useCallback(
+    (value: string) => {
+      const date = new Date(value);
+      if (Number.isNaN(date.getTime())) return "—";
+      const locale =
+        lang === "ar"
+          ? "ar-MA"
+          : lang === "en"
+            ? "en-GB"
+            : lang === "es"
+              ? "es-ES"
+              : "fr-MA";
+      return date.toLocaleDateString(locale, {
+        day: "2-digit",
+        month: "short",
+        year: "numeric",
+      });
+    },
+    [lang],
+  );
+
+  const formatCopy = useCallback(
+    (key: string, values: Record<string, string>) => {
+      return Object.entries(values).reduce(
+        (message, [placeholder, value]) =>
+          message.replace(`{${placeholder}}`, value),
+        t(key),
+      );
+    },
+    [t],
+  );
 
   const [items, setItems] = useState<DeletedDoc[]>([]);
   const [loading, setLoading] = useState(true);
@@ -109,7 +150,9 @@ export default function DocumentsRecycleBin() {
     setLoadError(false);
     try {
       const { documents: docsApi } = await import("@/services/api");
-      const res = (await docsApi.deleted({ search: q })) as { data: DeletedDoc[] };
+      const res = (await docsApi.deleted({ search: q })) as {
+        data: DeletedDoc[];
+      };
       setItems(res.data ?? []);
     } catch {
       setLoadError(true);
@@ -118,7 +161,9 @@ export default function DocumentsRecycleBin() {
     }
   }, []);
 
-  useEffect(() => { load(); }, [load]);
+  useEffect(() => {
+    load();
+  }, [load]);
 
   const handleRestore = async (doc: DeletedDoc) => {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
@@ -129,10 +174,20 @@ export default function DocumentsRecycleBin() {
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
       setItems((prev) => prev.filter((d) => d.id !== doc.id));
       await refreshDocuments().catch(() => {});
-      showToast({ type: "success", title: "Document restauré", message: `"${doc.title}" a été restauré avec succès.` });
+      showToast({
+        type: "success",
+        title: t("recycleBinRestoreSuccessTitle"),
+        message: formatCopy("recycleBinRestoreSuccessMessage", {
+          name: doc.title,
+        }),
+      });
     } catch (err: any) {
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
-      showToast({ type: "error", title: STATE_COPY.error[lang], message: STATE_COPY.restoreError[lang] });
+      showToast({
+        type: "error",
+        title: STATE_COPY.error[lang],
+        message: STATE_COPY.restoreError[lang],
+      });
     } finally {
       setBusyId(null);
     }
@@ -140,23 +195,29 @@ export default function DocumentsRecycleBin() {
 
   const handlePurge = (doc: DeletedDoc) => {
     Alert.alert(
-      "Suppression définitive",
-      `"${doc.title}" sera définitivement supprimé (fichier PDF et historique). Cette action est irréversible.`,
+      t("recycleBinPurgeTitle"),
+      formatCopy("recycleBinPurgeMessage", { name: doc.title }),
       [
-        { text: "Annuler", style: "cancel" },
+        { text: t("cancel"), style: "cancel" },
         {
-          text: "Supprimer définitivement",
+          text: t("recycleBinPurgeConfirm"),
           style: "destructive",
           onPress: async () => {
             setBusyId(doc.id);
             try {
               const { documents: docsApi } = await import("@/services/api");
               await docsApi.purge(doc.id);
-              Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+              Haptics.notificationAsync(
+                Haptics.NotificationFeedbackType.Success,
+              );
               setItems((prev) => prev.filter((d) => d.id !== doc.id));
             } catch (err: any) {
               Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
-              showToast({ type: "error", title: STATE_COPY.error[lang], message: STATE_COPY.purgeError[lang] });
+              showToast({
+                type: "error",
+                title: STATE_COPY.error[lang],
+                message: STATE_COPY.purgeError[lang],
+              });
             } finally {
               setBusyId(null);
             }
@@ -167,26 +228,83 @@ export default function DocumentsRecycleBin() {
   };
 
   return (
-    <View style={[styles.root, { backgroundColor: colors.background }]}>
-      <View style={[styles.header, { paddingTop: topPad + 16, backgroundColor: colors.card, borderBottomColor: colors.border }]}>
+    <View
+      style={[
+        styles.root,
+        {
+          backgroundColor: colors.background,
+          direction: isRTL ? "rtl" : "ltr",
+        },
+      ]}
+    >
+      <View
+        style={[
+          styles.header,
+          {
+            paddingTop: topPad + 16,
+            backgroundColor: colors.card,
+            borderBottomColor: colors.border,
+            flexDirection: isRTL ? "row-reverse" : "row",
+          },
+        ]}
+      >
         <TouchableOpacity onPress={() => router.back()} style={{ padding: 4 }}>
-          <Feather name="arrow-left" size={22} color={colors.foreground} />
+          <Feather
+            name={isRTL ? "arrow-right" : "arrow-left"}
+            size={22}
+            color={colors.foreground}
+          />
         </TouchableOpacity>
-        <View style={{ flex: 1, marginLeft: 12 }}>
-          <Text style={[styles.title, { color: colors.foreground }]}>Corbeille</Text>
-          <Text style={[styles.subtitle, { color: colors.mutedForeground }]}>{items.length} document(s) supprimé(s)</Text>
+        <View
+          style={{
+            flex: 1,
+            marginStart: 12,
+            alignItems: isRTL ? "flex-end" : "flex-start",
+          }}
+        >
+          <Text
+            style={[
+              styles.title,
+              { color: colors.foreground, textAlign: isRTL ? "right" : "left" },
+            ]}
+          >
+            {t("recycleBinTitle")}
+          </Text>
+          <Text
+            style={[
+              styles.subtitle,
+              {
+                color: colors.mutedForeground,
+                textAlign: isRTL ? "right" : "left",
+              },
+            ]}
+          >
+            {formatCopy("recycleBinCount", { count: String(items.length) })}
+          </Text>
         </View>
         <Feather name="trash-2" size={20} color={colors.mutedForeground} />
       </View>
 
-      <View style={[styles.searchWrap, { margin: 12, backgroundColor: colors.card, borderColor: colors.border }]}>
+      <View
+        style={[
+          styles.searchWrap,
+          {
+            margin: 12,
+            backgroundColor: colors.card,
+            borderColor: colors.border,
+          },
+        ]}
+      >
         <Feather name="search" size={16} color={colors.mutedForeground} />
         <TextInput
           style={[styles.searchInput, { color: colors.foreground }]}
-          placeholder="Rechercher dans la corbeille..."
+          placeholder={t("recycleBinSearchPlaceholder")}
           placeholderTextColor={colors.mutedForeground}
           value={search}
-          onChangeText={(v) => { setSearch(v); load(v); }}
+          onChangeText={(v) => {
+            setSearch(v);
+            load(v);
+          }}
         />
       </View>
 
@@ -207,34 +325,100 @@ export default function DocumentsRecycleBin() {
       ) : items.length === 0 ? (
         <View style={styles.center}>
           <Feather name="trash-2" size={36} color={colors.mutedForeground} />
-          <Text style={[styles.emptyText, { color: colors.mutedForeground }]}>La corbeille est vide</Text>
+          <Text
+            style={[
+              styles.emptyText,
+              {
+                color: colors.mutedForeground,
+                textAlign: isRTL ? "right" : "left",
+              },
+            ]}
+          >
+            {t("recycleBinEmpty")}
+          </Text>
         </View>
       ) : (
         <FlatList
           data={items}
           keyExtractor={(d) => d.id}
-          contentContainerStyle={{ padding: 12, gap: 10, paddingBottom: insets.bottom + 24 }}
+          contentContainerStyle={{
+            padding: 12,
+            gap: 10,
+            paddingBottom: insets.bottom + 24,
+          }}
           renderItem={({ item }) => (
-            <View style={[styles.card, { backgroundColor: colors.card, borderColor: colors.border }]}>
+            <View
+              style={[
+                styles.card,
+                {
+                  backgroundColor: colors.card,
+                  borderColor: colors.border,
+                  flexDirection: isRTL ? "row-reverse" : "row",
+                },
+              ]}
+            >
               <View style={{ flex: 1 }}>
-                <Text style={[styles.cardTitle, { color: colors.foreground }]} numberOfLines={1}>{item.title}</Text>
-                <Text style={[styles.cardMeta, { color: colors.mutedForeground }]}>
-                  {CAT_LABELS[item.category] ?? item.category} · {item.size} · Supprimé le {new Date(item.deletedAt).toLocaleDateString("fr-FR")}
-                  {item.deletedByName ? ` par ${item.deletedByName}` : ""}
+                <Text
+                  style={[
+                    styles.cardTitle,
+                    {
+                      color: colors.foreground,
+                      textAlign: isRTL ? "right" : "left",
+                    },
+                  ]}
+                  numberOfLines={1}
+                >
+                  {item.title}
+                </Text>
+                <Text
+                  style={[
+                    styles.cardMeta,
+                    {
+                      color: colors.mutedForeground,
+                      textAlign: isRTL ? "right" : "left",
+                    },
+                  ]}
+                >
+                  {t(CAT_LABEL_KEYS[item.category] ?? "documentCategoryAll")} ·{" "}
+                  {item.size} ·{" "}
+                  {formatCopy("recycleBinDeletedOn", {
+                    date: formatDate(item.deletedAt),
+                  })}
+                  {item.deletedByName
+                    ? ` ${formatCopy("recycleBinDeletedBy", { name: item.deletedByName })}`
+                    : ""}
                 </Text>
                 {item.retentionUntil ? (
-                  <Text style={[styles.cardMeta, { color: colors.mutedForeground, marginTop: 2 }]}>
-                    Conservation légale jusqu'au {new Date(item.retentionUntil).toLocaleDateString("fr-FR")}
+                  <Text
+                    style={[
+                      styles.cardMeta,
+                      {
+                        color: colors.mutedForeground,
+                        marginTop: 2,
+                        textAlign: isRTL ? "right" : "left",
+                      },
+                    ]}
+                  >
+                    {formatCopy("recycleBinRetentionUntil", {
+                      date: formatDate(item.retentionUntil),
+                    })}
                   </Text>
                 ) : null}
               </View>
               <View style={{ gap: 8 }}>
                 <TouchableOpacity
-                  style={[styles.actionBtn, { backgroundColor: colors.primary }]}
+                  style={[
+                    styles.actionBtn,
+                    { backgroundColor: colors.primary },
+                  ]}
                   disabled={busyId === item.id}
                   onPress={() => handleRestore(item)}
                 >
-                  {busyId === item.id ? <ActivityIndicator size="small" color="#fff" /> : <Feather name="rotate-ccw" size={14} color="#fff" />}
+                  {busyId === item.id ? (
+                    <ActivityIndicator size="small" color="#fff" />
+                  ) : (
+                    <Feather name="rotate-ccw" size={14} color="#fff" />
+                  )}
                 </TouchableOpacity>
                 {isSuperAdmin ? (
                   <TouchableOpacity
@@ -255,16 +439,43 @@ export default function DocumentsRecycleBin() {
 }
 
 const styles = StyleSheet.create({
-  root:        { flex: 1 },
-  header:      { flexDirection: "row", alignItems: "center", paddingHorizontal: 20, paddingBottom: 16, borderBottomWidth: 1 },
-  title:       { fontSize: 20, fontFamily: "Inter_700Bold" },
-  subtitle:    { fontSize: 12, fontFamily: "Inter_400Regular", marginTop: 2 },
-  searchWrap:  { flexDirection: "row", alignItems: "center", gap: 8, paddingHorizontal: 12, paddingVertical: 10, borderRadius: 12, borderWidth: 1 },
+  root: { flex: 1 },
+  header: {
+    flexDirection: "row",
+    alignItems: "center",
+    paddingHorizontal: 20,
+    paddingBottom: 16,
+    borderBottomWidth: 1,
+  },
+  title: { fontSize: 20, fontFamily: "Inter_700Bold" },
+  subtitle: { fontSize: 12, fontFamily: "Inter_400Regular", marginTop: 2 },
+  searchWrap: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 8,
+    paddingHorizontal: 12,
+    paddingVertical: 10,
+    borderRadius: 12,
+    borderWidth: 1,
+  },
   searchInput: { flex: 1, fontSize: 14, fontFamily: "Inter_400Regular" },
-  center:      { flex: 1, alignItems: "center", justifyContent: "center", gap: 10 },
-  emptyText:   { fontSize: 14, fontFamily: "Inter_400Regular" },
-  card:        { flexDirection: "row", alignItems: "center", gap: 10, padding: 14, borderRadius: 14, borderWidth: 1 },
-  cardTitle:   { fontSize: 14, fontFamily: "Inter_600SemiBold", marginBottom: 4 },
-  cardMeta:    { fontSize: 11, fontFamily: "Inter_400Regular" },
-  actionBtn:   { width: 32, height: 32, borderRadius: 8, alignItems: "center", justifyContent: "center" },
+  center: { flex: 1, alignItems: "center", justifyContent: "center", gap: 10 },
+  emptyText: { fontSize: 14, fontFamily: "Inter_400Regular" },
+  card: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 10,
+    padding: 14,
+    borderRadius: 14,
+    borderWidth: 1,
+  },
+  cardTitle: { fontSize: 14, fontFamily: "Inter_600SemiBold", marginBottom: 4 },
+  cardMeta: { fontSize: 11, fontFamily: "Inter_400Regular" },
+  actionBtn: {
+    width: 32,
+    height: 32,
+    borderRadius: 8,
+    alignItems: "center",
+    justifyContent: "center",
+  },
 });

@@ -1,3 +1,6 @@
+- Documents — Corbeille : localisation complète FR/EN/AR/ES, formatage de dates selon la langue active et présentation RTL/LTR complète terminés ; restauration et purge restent protégées par les mêmes rôles.
+- Documents — Bibliothèque : historique des versions et commentaires utilisent le format de date actif pour les quatre langues ; génération, signature, téléchargement, commentaires et permissions conservés.
+- Mon Bail & Loyer — formatage des dates et montants MAD selon la langue active terminé ; navigation et présentation RTL adaptées, API locataire et RoleGuard conservés.
 # Project Module Status
 
 ## 2026-08-06

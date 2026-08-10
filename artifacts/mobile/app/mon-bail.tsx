@@ -20,7 +20,7 @@ import {
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useAuth } from "@/context/AuthContext";
 import { useColors } from "@/hooks/useColors";
-import { useLanguage } from "@/context/LanguageContext";
+import { useLanguage, type LangCode } from "@/context/LanguageContext";
 import { locataires, type ApiTenantLease } from "@/services/api";
 import RoleGuard from "@/components/RoleGuard";
 import { ErrorState, LoadingState } from "@/components/DataState";
@@ -40,24 +40,52 @@ function InfoRow({ label, value, icon, color = "#2563EB" }: InfoRowProps) {
         <Feather name={icon} size={16} color={color} />
       </View>
       <View style={{ flex: 1 }}>
-        <Text style={[styles.infoLabel, { color: colors.mutedForeground }]}>{label}</Text>
-        <Text style={[styles.infoValue, { color: colors.foreground }]}>{value}</Text>
+        <Text style={[styles.infoLabel, { color: colors.mutedForeground }]}>
+          {label}
+        </Text>
+        <Text style={[styles.infoValue, { color: colors.foreground }]}>
+          {value}
+        </Text>
       </View>
     </View>
   );
 }
 
-function formatDate(value: string | null, missingLabel: string): string {
+function getLocale(lang: LangCode): string {
+  return lang === "ar"
+    ? "ar-MA"
+    : lang === "en"
+      ? "en-GB"
+      : lang === "es"
+        ? "es-ES"
+        : "fr-MA";
+}
+
+function formatDate(
+  value: string | null,
+  missingLabel: string,
+  lang: LangCode,
+): string {
   if (!value) return missingLabel;
   const d = new Date(value);
   if (isNaN(d.getTime())) return value;
-  return d.toLocaleDateString("fr-FR", { day: "2-digit", month: "long", year: "numeric" });
+  return d.toLocaleDateString(getLocale(lang), {
+    day: "2-digit",
+    month: "long",
+    year: "numeric",
+  });
 }
 
-function formatMAD(value: string | null, missingLabel: string): string {
+function formatMAD(
+  value: string | null,
+  missingLabel: string,
+  lang: LangCode,
+): string {
   if (!value) return `${missingLabel} MAD`;
   const n = Number(value);
-  return isNaN(n) ? `${missingLabel} MAD` : `${n.toLocaleString("fr-FR")} MAD`;
+  return isNaN(n)
+    ? `${missingLabel} MAD`
+    : `${n.toLocaleString(getLocale(lang), { minimumFractionDigits: 2, maximumFractionDigits: 2 })} MAD`;
 }
 
 // Mon Bail — lease details for tenants only. Owners and governance roles have Mon Lot instead.
@@ -73,7 +101,7 @@ function MonBailScreenInner() {
   const colors = useColors();
   const insets = useSafeAreaInsets();
   const { user } = useAuth();
-  const { t } = useLanguage();
+  const { t, lang, isRTL } = useLanguage();
   const [lease, setLease] = useState<ApiTenantLease | null>(null);
   const [loading, setLoading] = useState(true);
   const [loadError, setLoadError] = useState(false);
@@ -93,11 +121,19 @@ function MonBailScreenInner() {
     }
   }, []);
 
-  useEffect(() => { void loadLease(); }, [loadLease]);
+  useEffect(() => {
+    void loadLease();
+  }, [loadLease]);
 
   if (loading) {
     return (
-      <View style={[styles.root, styles.centered, { backgroundColor: colors.background }]}>
+      <View
+        style={[
+          styles.root,
+          styles.centered,
+          { backgroundColor: colors.background },
+        ]}
+      >
         <LoadingState
           title={t("monLeaseLoadingTitle")}
           description={t("monLeaseLoadingDescription")}
@@ -124,15 +160,45 @@ function MonBailScreenInner() {
   if (!lease) {
     return (
       <View style={[styles.root, { backgroundColor: colors.background }]}>
-        <View style={[styles.header, { paddingTop: topPad + 12, backgroundColor: colors.card, borderBottomColor: colors.border }]}>
-          <TouchableOpacity style={styles.backBtn} onPress={() => router.back()} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
-            <Feather name="arrow-left" size={22} color={colors.foreground} />
+        <View
+          style={[
+            styles.header,
+            {
+              paddingTop: topPad + 12,
+              backgroundColor: colors.card,
+              borderBottomColor: colors.border,
+              flexDirection: isRTL ? "row-reverse" : "row",
+            },
+          ]}
+        >
+          <TouchableOpacity
+            style={styles.backBtn}
+            onPress={() => router.back()}
+            hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+          >
+            <Feather
+              name={isRTL ? "arrow-right" : "arrow-left"}
+              size={22}
+              color={colors.foreground}
+            />
           </TouchableOpacity>
-          <Text style={[styles.headerTitle, { color: colors.foreground }]}>{t("monBailTitle")} &amp; {t("rentTitle")}</Text>
+          <Text
+            style={[
+              styles.headerTitle,
+              { color: colors.foreground, textAlign: isRTL ? "right" : "left" },
+            ]}
+          >
+            {t("monBailTitle")} &amp; {t("rentTitle")}
+          </Text>
         </View>
         <View style={[styles.centered, { flex: 1, gap: 12, padding: 24 }]}>
           <Feather name="file-text" size={40} color={colors.mutedForeground} />
-          <Text style={[styles.infoNoteText, { color: colors.mutedForeground, textAlign: "center" }]}>
+          <Text
+            style={[
+              styles.infoNoteText,
+              { color: colors.mutedForeground, textAlign: "center" },
+            ]}
+          >
             {t("monLeaseNoDataDescription")}
           </Text>
         </View>
@@ -141,28 +207,65 @@ function MonBailScreenInner() {
   }
 
   return (
-    <View style={[styles.root, { backgroundColor: colors.background }]}>
+    <View
+      style={[
+        styles.root,
+        {
+          backgroundColor: colors.background,
+          direction: isRTL ? "rtl" : "ltr",
+        },
+      ]}
+    >
       {/* Header */}
-      <View style={[styles.header, { paddingTop: topPad + 12, backgroundColor: colors.card, borderBottomColor: colors.border }]}>
+      <View
+        style={[
+          styles.header,
+          {
+            paddingTop: topPad + 12,
+            backgroundColor: colors.card,
+            borderBottomColor: colors.border,
+            flexDirection: isRTL ? "row-reverse" : "row",
+          },
+        ]}
+      >
         <TouchableOpacity
           style={styles.backBtn}
           onPress={() => router.back()}
           hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
         >
-          <Feather name="arrow-left" size={22} color={colors.foreground} />
+          <Feather
+            name={isRTL ? "arrow-right" : "arrow-left"}
+            size={22}
+            color={colors.foreground}
+          />
         </TouchableOpacity>
-        <Text style={[styles.headerTitle, { color: colors.foreground }]}>{t("monBailTitle")} &amp; {t("rentTitle")}</Text>
+        <Text
+          style={[
+            styles.headerTitle,
+            { color: colors.foreground, textAlign: isRTL ? "right" : "left" },
+          ]}
+        >
+          {t("monBailTitle")} &amp; {t("rentTitle")}
+        </Text>
       </View>
 
       <ScrollView
-        contentContainerStyle={[styles.body, { paddingBottom: insets.bottom + 32 }]}
+        contentContainerStyle={[
+          styles.body,
+          { paddingBottom: insets.bottom + 32 },
+        ]}
         showsVerticalScrollIndicator={false}
       >
         {/* Tenant identity card */}
         <View style={[styles.card, { backgroundColor: colors.primary }]}>
           <View style={styles.cardAvatar}>
             <Text style={styles.cardAvatarText}>
-              {user?.name?.split(" ").map((n) => n[0]).join("").slice(0, 2).toUpperCase() ?? "?"}
+              {user?.name
+                ?.split(" ")
+                .map((n) => n[0])
+                .join("")
+                .slice(0, 2)
+                .toUpperCase() ?? "?"}
             </Text>
           </View>
           <View style={{ flex: 1 }}>
@@ -170,40 +273,134 @@ function MonBailScreenInner() {
             <Text style={styles.cardRole}>{t("roleTenant")}</Text>
           </View>
           <View style={[styles.activeBadge]}>
-            <Feather name={lease.status === "active" ? "check-circle" : "clock"} size={12} color="#fff" />
+            <Feather
+              name={lease.status === "active" ? "check-circle" : "clock"}
+              size={12}
+              color="#fff"
+            />
             <Text style={styles.activeBadgeText}>
-              {lease.status === "active" ? t("statusActive") : lease.status === "pending" ? t("statusPending") : lease.status === "expired" ? t("statusExpired") : lease.status ?? t("na")}
+              {lease.status === "active"
+                ? t("statusActive")
+                : lease.status === "pending"
+                  ? t("statusPending")
+                  : lease.status === "expired"
+                    ? t("statusExpired")
+                    : (lease.status ?? t("na"))}
             </Text>
           </View>
         </View>
 
-        <View style={[styles.section, { backgroundColor: colors.card, borderColor: colors.border }]}>
-          <Text style={[styles.sectionTitle, { color: colors.mutedForeground }]}>{t("monLeaseInformationSection")}</Text>
-          <InfoRow label={t("monLeaseTypeLabel")} value={lease.lotType ?? t("notProvided")} icon="file-text" color="#3b82f6" />
-          <InfoRow label={t("leaseStart")} value={formatDate(lease.leaseStart, t("notProvided"))} icon="calendar" color="#10b981" />
-          <InfoRow label={t("leaseEnd")} value={formatDate(lease.leaseEnd, t("notProvided"))} icon="calendar" color="#f59e0b" />
-          <InfoRow label={t("monthlyRent")} value={formatMAD(lease.monthlyRent, t("na"))} icon="credit-card" color="#2563EB" />
-          <InfoRow label={t("monLeaseDepositLabel")} value={formatMAD(lease.depositAmount, t("na"))} icon="shield" color="#6366f1" />
+        <View
+          style={[
+            styles.section,
+            { backgroundColor: colors.card, borderColor: colors.border },
+          ]}
+        >
+          <Text
+            style={[styles.sectionTitle, { color: colors.mutedForeground }]}
+          >
+            {t("monLeaseInformationSection")}
+          </Text>
+          <InfoRow
+            label={t("monLeaseTypeLabel")}
+            value={lease.lotType ?? t("notProvided")}
+            icon="file-text"
+            color="#3b82f6"
+          />
+          <InfoRow
+            label={t("leaseStart")}
+            value={formatDate(lease.leaseStart, t("notProvided"), lang)}
+            icon="calendar"
+            color="#10b981"
+          />
+          <InfoRow
+            label={t("leaseEnd")}
+            value={formatDate(lease.leaseEnd, t("notProvided"), lang)}
+            icon="calendar"
+            color="#f59e0b"
+          />
+          <InfoRow
+            label={t("monthlyRent")}
+            value={formatMAD(lease.monthlyRent, t("na"), lang)}
+            icon="credit-card"
+            color="#2563EB"
+          />
+          <InfoRow
+            label={t("monLeaseDepositLabel")}
+            value={formatMAD(lease.depositAmount, t("na"), lang)}
+            icon="shield"
+            color="#6366f1"
+          />
         </View>
 
-        <View style={[styles.section, { backgroundColor: colors.card, borderColor: colors.border }]}>
-          <Text style={[styles.sectionTitle, { color: colors.mutedForeground }]}>{t("monLeaseApartmentSection")}</Text>
-          <InfoRow label={t("residence")} value={lease.buildingName ?? t("notProvided")} icon="home" color="#2563EB" />
-          <InfoRow label={t("lotNumber")} value={lease.lotNumber ?? t("notProvided")} icon="grid" color="#3b82f6" />
-          <InfoRow label={t("floor")} value={lease.floor != null ? String(lease.floor) : t("notProvided")} icon="layers" color="#10b981" />
+        <View
+          style={[
+            styles.section,
+            { backgroundColor: colors.card, borderColor: colors.border },
+          ]}
+        >
+          <Text
+            style={[styles.sectionTitle, { color: colors.mutedForeground }]}
+          >
+            {t("monLeaseApartmentSection")}
+          </Text>
+          <InfoRow
+            label={t("residence")}
+            value={lease.buildingName ?? t("notProvided")}
+            icon="home"
+            color="#2563EB"
+          />
+          <InfoRow
+            label={t("lotNumber")}
+            value={lease.lotNumber ?? t("notProvided")}
+            icon="grid"
+            color="#3b82f6"
+          />
+          <InfoRow
+            label={t("floor")}
+            value={lease.floor != null ? String(lease.floor) : t("notProvided")}
+            icon="layers"
+            color="#10b981"
+          />
         </View>
 
         {(lease.emergencyContact || lease.emergencyPhone) && (
-          <View style={[styles.section, { backgroundColor: colors.card, borderColor: colors.border }]}>
-            <Text style={[styles.sectionTitle, { color: colors.mutedForeground }]}>{t("monLeaseEmergencySection")}</Text>
-            <InfoRow label={t("name")} value={lease.emergencyContact ?? t("na")} icon="user" color="#ef4444" />
-            <InfoRow label={t("phone")} value={lease.emergencyPhone ?? t("na")} icon="phone" color="#ef4444" />
+          <View
+            style={[
+              styles.section,
+              { backgroundColor: colors.card, borderColor: colors.border },
+            ]}
+          >
+            <Text
+              style={[styles.sectionTitle, { color: colors.mutedForeground }]}
+            >
+              {t("monLeaseEmergencySection")}
+            </Text>
+            <InfoRow
+              label={t("name")}
+              value={lease.emergencyContact ?? t("na")}
+              icon="user"
+              color="#ef4444"
+            />
+            <InfoRow
+              label={t("phone")}
+              value={lease.emergencyPhone ?? t("na")}
+              icon="phone"
+              color="#ef4444"
+            />
           </View>
         )}
 
-        <View style={[styles.infoNote, { backgroundColor: colors.secondary, borderColor: colors.border }]}>
+        <View
+          style={[
+            styles.infoNote,
+            { backgroundColor: colors.secondary, borderColor: colors.border },
+          ]}
+        >
           <Feather name="info" size={14} color={colors.primary} />
-          <Text style={[styles.infoNoteText, { color: colors.mutedForeground }]}>
+          <Text
+            style={[styles.infoNoteText, { color: colors.mutedForeground }]}
+          >
             {t("monLeaseHelpText")}
           </Text>
         </View>
@@ -219,12 +416,21 @@ function MonBailScreenInner() {
             <Text style={styles.actionBtnText}>{t("contactSyndic")}</Text>
           </TouchableOpacity>
           <TouchableOpacity
-            style={[styles.actionBtn, { backgroundColor: colors.card, borderWidth: 1, borderColor: colors.border }]}
+            style={[
+              styles.actionBtn,
+              {
+                backgroundColor: colors.card,
+                borderWidth: 1,
+                borderColor: colors.border,
+              },
+            ]}
             onPress={() => router.push("/documents" as any)}
             activeOpacity={0.82}
           >
             <Feather name="folder" size={16} color={colors.primary} />
-            <Text style={[styles.actionBtnText, { color: colors.primary }]}>{t("myDocuments")}</Text>
+            <Text style={[styles.actionBtnText, { color: colors.primary }]}>
+              {t("myDocuments")}
+            </Text>
           </TouchableOpacity>
         </View>
       </ScrollView>
@@ -263,7 +469,12 @@ const styles = StyleSheet.create({
   },
   cardAvatarText: { fontSize: 18, fontFamily: "Inter_700Bold", color: "#fff" },
   cardName: { fontSize: 16, fontFamily: "Inter_700Bold", color: "#fff" },
-  cardRole: { fontSize: 12, fontFamily: "Inter_400Regular", color: "rgba(255,255,255,0.8)", marginTop: 2 },
+  cardRole: {
+    fontSize: 12,
+    fontFamily: "Inter_400Regular",
+    color: "rgba(255,255,255,0.8)",
+    marginTop: 2,
+  },
   activeBadge: {
     flexDirection: "row",
     alignItems: "center",
@@ -273,7 +484,11 @@ const styles = StyleSheet.create({
     paddingVertical: 5,
     borderRadius: 20,
   },
-  activeBadgeText: { fontSize: 11, fontFamily: "Inter_600SemiBold", color: "#fff" },
+  activeBadgeText: {
+    fontSize: 11,
+    fontFamily: "Inter_600SemiBold",
+    color: "#fff",
+  },
   section: {
     borderRadius: 16,
     borderWidth: 1,
@@ -313,7 +528,12 @@ const styles = StyleSheet.create({
     borderRadius: 14,
     borderWidth: 1,
   },
-  infoNoteText: { flex: 1, fontSize: 12, fontFamily: "Inter_400Regular", lineHeight: 18 },
+  infoNoteText: {
+    flex: 1,
+    fontSize: 12,
+    fontFamily: "Inter_400Regular",
+    lineHeight: 18,
+  },
   actions: { gap: 10 },
   actionBtn: {
     flexDirection: "row",
@@ -323,5 +543,9 @@ const styles = StyleSheet.create({
     padding: 14,
     borderRadius: 14,
   },
-  actionBtnText: { fontSize: 14, fontFamily: "Inter_600SemiBold", color: "#fff" },
+  actionBtnText: {
+    fontSize: 14,
+    fontFamily: "Inter_600SemiBold",
+    color: "#fff",
+  },
 });
