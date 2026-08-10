@@ -39,6 +39,7 @@ import { Feather } from "@expo/vector-icons";
 import React from "react";
 import { StyleSheet, Text, TouchableOpacity, View } from "react-native";
 import { useColors } from "@/hooks/useColors";
+import { RADIUS, SPACING, TYPOGRAPHY } from "@/constants/spacing";
 
 interface Props {
   icon: keyof typeof Feather.glyphMap;
@@ -94,24 +95,24 @@ const styles = StyleSheet.create({
     flex: 1,
     alignItems: "center",
     justifyContent: "center",
-    gap: 12,
-    paddingHorizontal: 32,
-    paddingVertical: 24,
+    gap: SPACING.MD,
+    paddingHorizontal: SPACING.XXL,
+    paddingVertical: SPACING.XL,
   },
   iconWrap: {
     width: 68,
     height: 68,
-    borderRadius: 34,
+    borderRadius: RADIUS.FULL,
     alignItems: "center",
     justifyContent: "center",
   },
   title: {
-    fontSize: 16,
+    fontSize: TYPOGRAPHY.LG,
     fontFamily: "Inter_700Bold",
     textAlign: "center",
   },
   description: {
-    fontSize: 13,
+    fontSize: TYPOGRAPHY.MD,
     fontFamily: "Inter_400Regular",
     textAlign: "center",
     lineHeight: 20,
@@ -119,15 +120,15 @@ const styles = StyleSheet.create({
   actionBtn: {
     flexDirection: "row",
     alignItems: "center",
-    gap: 8,
-    paddingHorizontal: 20,
+    gap: SPACING.SM,
+    paddingHorizontal: SPACING.XL,
     paddingVertical: 11,
-    borderRadius: 12,
-    marginTop: 4,
+    borderRadius: RADIUS.MD,
+    marginTop: SPACING.XS,
   },
   actionBtnText: {
-    fontSize: 14,
+    fontSize: TYPOGRAPHY.BASE,
     fontFamily: "Inter_600SemiBold",
-    color: "#fff",
+    color: "#FFFFFF",
   },
 });

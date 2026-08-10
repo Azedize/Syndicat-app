@@ -10,6 +10,8 @@ import {
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useBreakpoints } from "@/hooks/useBreakpoints";
 import { useBackNavigation } from "@/hooks/useBackNavigation";
+import { useColors } from "@/hooks/useColors";
+import { useLanguage } from "@/context/LanguageContext";
 
 interface ActionButton {
   icon: keyof typeof Feather.glyphMap;
@@ -30,12 +32,14 @@ interface Props {
 export default function ScreenHeader({
   title,
   subtitle,
-  color = "#1E3A5F",
+  color,
   onBack,
   action,
   action2,
   rightContent,
 }: Props) {
+  const colors = useColors();
+  const { isRTL } = useLanguage();
   const insets = useSafeAreaInsets();
   const { isWide } = useBreakpoints();
   const goBack = useBackNavigation();
@@ -43,28 +47,47 @@ export default function ScreenHeader({
   const topPad = isWide ? 0 : Platform.OS === "web" ? 67 : insets.top;
 
   const handleBack = onBack ?? goBack;
+  const headerColor = color ?? colors.primary;
 
   return (
     <View
       style={[
         styles.header,
-        { backgroundColor: color, paddingTop: topPad + 14 },
+        {
+          backgroundColor: headerColor,
+          paddingTop: topPad + 14,
+          direction: isRTL ? "rtl" : "ltr",
+        },
       ]}
     >
       <TouchableOpacity
         onPress={handleBack}
         style={styles.backBtn}
         hitSlop={{ top: 8, left: 8, bottom: 8, right: 8 }}
+        accessibilityRole="button"
       >
-        <Feather name="arrow-left" size={22} color="#fff" />
+        <Feather
+          name={isRTL ? "arrow-right" : "arrow-left"}
+          size={22}
+          color={colors.primaryForeground}
+        />
       </TouchableOpacity>
 
       <View style={styles.titles}>
-        <Text style={styles.title} numberOfLines={1}>
+        <Text
+          style={[styles.title, { color: colors.primaryForeground }]}
+          numberOfLines={1}
+        >
           {title}
         </Text>
         {subtitle ? (
-          <Text style={styles.subtitle} numberOfLines={1}>
+          <Text
+            style={[
+              styles.subtitle,
+              { color: colors.primaryForeground + "CC" },
+            ]}
+            numberOfLines={1}
+          >
             {subtitle}
           </Text>
         ) : null}
@@ -79,8 +102,14 @@ export default function ScreenHeader({
               onPress={action2.onPress}
               style={styles.actionBtn}
               hitSlop={{ top: 8, left: 8, bottom: 8, right: 8 }}
+              accessibilityRole="button"
+              accessibilityLabel={action2.label}
             >
-              <Feather name={action2.icon} size={20} color="#fff" />
+              <Feather
+                name={action2.icon}
+                size={20}
+                color={colors.primaryForeground}
+              />
             </TouchableOpacity>
           ) : null}
           {action ? (
@@ -88,8 +117,14 @@ export default function ScreenHeader({
               onPress={action.onPress}
               style={styles.actionBtn}
               hitSlop={{ top: 8, left: 8, bottom: 8, right: 8 }}
+              accessibilityRole="button"
+              accessibilityLabel={action.label}
             >
-              <Feather name={action.icon} size={20} color="#fff" />
+              <Feather
+                name={action.icon}
+                size={20}
+                color={colors.primaryForeground}
+              />
             </TouchableOpacity>
           ) : null}
         </View>
@@ -110,7 +145,7 @@ const styles = StyleSheet.create({
   backBtn: {
     width: 40,
     height: 40,
-    borderRadius: 12,
+    borderRadius: 10,
     backgroundColor: "rgba(255,255,255,0.2)",
     alignItems: "center",
     justifyContent: "center",
@@ -123,12 +158,10 @@ const styles = StyleSheet.create({
   title: {
     fontSize: 20,
     fontFamily: "Inter_700Bold",
-    color: "#fff",
   },
   subtitle: {
     fontSize: 12,
     fontFamily: "Inter_400Regular",
-    color: "rgba(255,255,255,0.8)",
   },
   actions: {
     flexDirection: "row",
@@ -141,7 +174,7 @@ const styles = StyleSheet.create({
   actionBtn: {
     width: 40,
     height: 40,
-    borderRadius: 12,
+    borderRadius: 10,
     backgroundColor: "rgba(255,255,255,0.2)",
     alignItems: "center",
     justifyContent: "center",

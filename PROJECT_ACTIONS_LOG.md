@@ -192,3 +192,10 @@
 - Renamed the shared vector logo component to `MizanLogo`; preserved its existing balance mark and deferred icon artwork changes to Phase 2 so the mandated sequence is respected.
 - Kept `MIZAN Community OS SARL` in legal/privacy content as the registered entity name rather than incorrectly replacing legal identity with the product short name.
 - Verified with mobile/API typechecks, `git diff --check`, legacy-name search, workflow restarts, and a 402×874 public welcome preview. No new runtime exceptions were observed; existing Expo web compatibility warnings remain non-blocking.
+- Continued into Phase 2 — Logo & App Icon after the Phase 1 identity lock. Replaced the retired purple/gold shield artwork with the MIZAN balance mark and kept the source vector plus generated production PNG aligned.
+- Applied the MIZAN deep-navy, white, gold, blue, and teal visual system to the icon; the same asset now drives Expo app icon, splash, Android adaptive foreground, notification icon, and web favicon configuration.
+- Fixed a light-mode welcome-header contrast issue discovered during preview validation by making the lockup follow the page theme instead of forcing the dark variant.
+- Phase 2 verified with mobile typecheck, `git diff --check`, 1024×1024 8-bit RGBA icon validation, Expo restart/Metro bundling, and a compact public welcome preview. Phase 3 is the design-system milestone.
+ - Started Phase 3 — Design System consolidation. Updated the shared mobile primitives (`ScreenHeader`, `DataState`, `EmptyState`, `StatCard`, `FilterChips`, and `StatsStrip`) to consume centralized MIZAN semantic colors and spacing/radius/typography tokens instead of local default values.
+ - Added RTL-aware shared header arrows and statistics separators, theme-aware foreground colors for shared actions, and accessibility roles/labels on shared icon actions without changing route behavior or API contracts.
+ - Verified with `pnpm --filter @workspace/mobile run typecheck`, Prettier, `git diff --check`, healthy Expo/API workflow logs, and a compact `/welcome` preview. Existing Expo Web warnings remain non-blocking.

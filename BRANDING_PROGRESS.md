@@ -38,6 +38,27 @@ The legacy presentation identities **SYNDYCAT GLOBAL CPS** and **VERIDIAN** were
 - API workflow restarted and built/started successfully.
 - Public `/welcome` preview checked at 402×874 with no new browser runtime exceptions.
 
+## Phase 2 — Logo & App Icon
+
+**Status:** Complete — 2026-08-10
+
+### Implemented
+
+- Replaced the retired purple/gold shield artwork in the Expo app icon with the MIZAN balance mark.
+- Built the production icon from the existing MIZAN vector: deep-navy gradient field, white governance form, gold balance line, and blue/teal center signal.
+- Kept the vector source at `artifacts/mobile/assets/images/mizan-mark.svg` and generated a 1024×1024 8-bit RGBA PNG for Expo.
+- Aligned the same icon asset across the app icon, splash image, Android adaptive foreground, notification icon, and web favicon.
+- Updated Expo splash, adaptive icon, and notification colors to the MIZAN deep-navy token.
+- Corrected the public welcome lockup to use the light/dark wordmark variant based on the page theme.
+
+### Verification
+
+- Mobile TypeScript check passed with zero errors.
+- `git diff --check` passed.
+- Icon validated as a 1024×1024 sRGB 8-bit RGBA PNG.
+- Expo workflow restarted and Metro bundled successfully.
+- Public `/welcome` preview checked at 402×874 with no new browser runtime exceptions; existing Expo web compatibility warnings remain non-blocking.
+
 ### Next phase
 
-Phase 2 — Logo & App Icon. The existing icon artwork remains intentionally unchanged until that phase begins.
+Phase 3 — Design System. The MIZAN identity and icon system are now stable inputs for the broader welcome experience and product UI refinement.

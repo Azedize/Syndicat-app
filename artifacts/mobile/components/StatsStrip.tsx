@@ -1,6 +1,8 @@
 import React from "react";
 import { StyleSheet, Text, View } from "react-native";
 import { useColors } from "@/hooks/useColors";
+import { SPACING, TYPOGRAPHY } from "@/constants/spacing";
+import { useLanguage } from "@/context/LanguageContext";
 
 export interface StatItem {
   label: string;
@@ -14,11 +16,16 @@ interface Props {
 
 export default function StatsStrip({ stats }: Props) {
   const colors = useColors();
+  const { isRTL } = useLanguage();
   return (
     <View
       style={[
         styles.row,
-        { backgroundColor: colors.card, borderBottomColor: colors.border },
+        {
+          backgroundColor: colors.card,
+          borderBottomColor: colors.border,
+          direction: isRTL ? "rtl" : "ltr",
+        },
       ]}
     >
       {stats.map((s, i) => (
@@ -27,8 +34,10 @@ export default function StatsStrip({ stats }: Props) {
           style={[
             styles.cell,
             i < stats.length - 1 && {
-              borderRightWidth: StyleSheet.hairlineWidth,
-              borderRightColor: colors.border,
+              borderLeftWidth: isRTL ? StyleSheet.hairlineWidth : 0,
+              borderLeftColor: isRTL ? colors.border : "transparent",
+              borderRightWidth: isRTL ? 0 : StyleSheet.hairlineWidth,
+              borderRightColor: isRTL ? "transparent" : colors.border,
             },
           ]}
         >
@@ -59,11 +68,11 @@ const styles = StyleSheet.create({
   cell: {
     flex: 1,
     alignItems: "center",
-    paddingVertical: 10,
-    paddingHorizontal: 4,
+    paddingVertical: SPACING.MD,
+    paddingHorizontal: SPACING.XS,
   },
   val: {
-    fontSize: 18,
+    fontSize: TYPOGRAPHY.XL,
     fontFamily: "Inter_700Bold",
     minWidth: 24,
     textAlign: "center",

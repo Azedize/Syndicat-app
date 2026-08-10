@@ -43,7 +43,7 @@ function Shield({ height, isDark }: ShieldProps) {
         height="82"
         rx="24"
         fill={markFill}
-        stroke={isDark ? "rgba(255,255,255,0.18)" : "#DCE6F3"}
+        stroke={isDark ? "rgba(255,255,255,0.18)" : MIZAN.colors.bluePale}
         strokeWidth="1.5"
       />
       <Path

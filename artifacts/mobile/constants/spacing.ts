@@ -1,5 +1,5 @@
 /**
- * Global design-system tokens for the SYNDYCAT mobile app.
+ * Global design-system tokens for the MIZAN mobile app.
  *
  * Using these tokens ensures every screen uses the same spacing,
  * border-radius, and font-size values — the #1 fix for the

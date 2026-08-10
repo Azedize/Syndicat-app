@@ -9,6 +9,7 @@ import {
   View,
 } from "react-native";
 import { useColors } from "@/hooks/useColors";
+import { RADIUS } from "@/constants/spacing";
 
 // Locking these two constants is what keeps every filter bar in the app
 // pixel-identical: same chip height, same bar height, everywhere.
@@ -78,12 +79,19 @@ function Chip({
         <Feather
           name={opt.icon}
           size={13}
-          color={active ? "#fff" : opt.color ?? colors.mutedForeground}
+          color={
+            active
+              ? colors.primaryForeground
+              : (opt.color ?? colors.mutedForeground)
+          }
           style={styles.chipIcon}
         />
       ) : null}
       <Text
-        style={[styles.chipText, { color: active ? "#fff" : colors.foreground }]}
+        style={[
+          styles.chipText,
+          { color: active ? colors.primaryForeground : colors.foreground },
+        ]}
         numberOfLines={1}
         ellipsizeMode="tail"
       >
@@ -93,11 +101,22 @@ function Chip({
         <View
           style={[
             styles.countPill,
-            { backgroundColor: active ? "rgba(255,255,255,0.22)" : colors.border },
+            {
+              backgroundColor: active
+                ? colors.primaryForeground + "38"
+                : colors.border,
+            },
           ]}
         >
           <Text
-            style={[styles.countText, { color: active ? "#fff" : colors.mutedForeground }]}
+            style={[
+              styles.countText,
+              {
+                color: active
+                  ? colors.primaryForeground
+                  : colors.mutedForeground,
+              },
+            ]}
             numberOfLines={1}
           >
             {opt.count}
@@ -112,19 +131,21 @@ export default function FilterChips({
   options,
   value,
   onChange,
-  accentColor = "#2563EB",
+  accentColor,
   mode,
   scrollable = true,
 }: Props) {
   const colors = useColors();
-  const resolvedMode: "scroll" | "equal" = mode ?? (scrollable ? "scroll" : "equal");
+  const resolvedAccentColor = accentColor ?? colors.primary;
+  const resolvedMode: "scroll" | "equal" =
+    mode ?? (scrollable ? "scroll" : "equal");
 
   const renderChip = (opt: FilterOption) => (
     <Chip
       key={opt.key}
       opt={opt}
       active={value === opt.key}
-      accentColor={accentColor}
+      accentColor={resolvedAccentColor}
       equal={resolvedMode === "equal"}
       onPress={() => {
         Haptics.selectionAsync();
@@ -135,14 +156,25 @@ export default function FilterChips({
 
   if (resolvedMode === "equal") {
     return (
-      <View style={[styles.bar, styles.equalRow, { backgroundColor: colors.card, borderBottomColor: colors.border }]}>
+      <View
+        style={[
+          styles.bar,
+          styles.equalRow,
+          { backgroundColor: colors.card, borderBottomColor: colors.border },
+        ]}
+      >
         {options.map(renderChip)}
       </View>
     );
   }
 
   return (
-    <View style={[styles.bar, { backgroundColor: colors.card, borderBottomColor: colors.border }]}>
+    <View
+      style={[
+        styles.bar,
+        { backgroundColor: colors.card, borderBottomColor: colors.border },
+      ]}
+    >
       <ScrollView
         horizontal
         showsHorizontalScrollIndicator={false}
@@ -183,7 +215,7 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "center",
-    borderRadius: CHIP_HEIGHT / 2,
+    borderRadius: RADIUS.FULL,
     borderWidth: 1,
   },
   chipAuto: {

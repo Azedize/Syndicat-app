@@ -2,6 +2,7 @@ import { Feather } from "@expo/vector-icons";
 import React from "react";
 import { StyleSheet, Text, View } from "react-native";
 import { useColors } from "@/hooks/useColors";
+import { RADIUS, SPACING, TYPOGRAPHY } from "@/constants/spacing";
 
 interface StatCardProps {
   label: string;
@@ -27,7 +28,12 @@ export default function StatCard({
   const ic = iconColor ?? colors.primary;
 
   return (
-    <View style={[styles.card, { backgroundColor: colors.card, borderColor: colors.border }]}>
+    <View
+      style={[
+        styles.card,
+        { backgroundColor: colors.card, borderColor: colors.border },
+      ]}
+    >
       <View style={[styles.iconWrap, { backgroundColor: ic + "18" }]}>
         <Feather name={icon} size={20} color={ic} />
       </View>
@@ -79,10 +85,10 @@ export default function StatCard({
 const styles = StyleSheet.create({
   card: {
     flex: 1,
-    borderRadius: 22,
-    padding: 15,
+    borderRadius: RADIUS.LG,
+    padding: SPACING.LG,
     borderWidth: 1,
-    gap: 6,
+    gap: SPACING.SM,
     minHeight: 136,
     justifyContent: "space-between",
     // Prevent the card itself from growing unboundedly and squeezing siblings
@@ -92,13 +98,13 @@ const styles = StyleSheet.create({
   iconWrap: {
     width: 38,
     height: 38,
-    borderRadius: 13,
+    borderRadius: RADIUS.MD,
     alignItems: "center",
     justifyContent: "center",
     marginBottom: 4,
   },
   value: {
-    fontSize: 22,
+    fontSize: TYPOGRAPHY.XXL,
     fontFamily: "Inter_700Bold",
     letterSpacing: -0.5,
     // Overflow guard: never force the value wider than the card

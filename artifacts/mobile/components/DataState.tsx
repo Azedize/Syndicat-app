@@ -1,7 +1,15 @@
 import { Feather } from "@expo/vector-icons";
 import React, { useEffect, useRef } from "react";
-import { ActivityIndicator, Animated, StyleSheet, Text, TouchableOpacity, View } from "react-native";
+import {
+  ActivityIndicator,
+  Animated,
+  StyleSheet,
+  Text,
+  TouchableOpacity,
+  View,
+} from "react-native";
 import { useColors } from "@/hooks/useColors";
+import { RADIUS, SPACING, TYPOGRAPHY } from "@/constants/spacing";
 
 interface LoadingStateProps {
   title: string;
@@ -21,7 +29,11 @@ function StateShell({ children }: { children: React.ReactNode }) {
   return <View style={styles.shell}>{children}</View>;
 }
 
-export function LoadingState({ title, description, accentColor }: LoadingStateProps) {
+export function LoadingState({
+  title,
+  description,
+  accentColor,
+}: LoadingStateProps) {
   const colors = useColors();
   const accent = accentColor ?? colors.primary;
   const pulse = useRef(new Animated.Value(0.45)).current;
@@ -29,8 +41,16 @@ export function LoadingState({ title, description, accentColor }: LoadingStatePr
   useEffect(() => {
     const animation = Animated.loop(
       Animated.sequence([
-        Animated.timing(pulse, { toValue: 1, duration: 850, useNativeDriver: false }),
-        Animated.timing(pulse, { toValue: 0.45, duration: 850, useNativeDriver: false }),
+        Animated.timing(pulse, {
+          toValue: 1,
+          duration: 850,
+          useNativeDriver: false,
+        }),
+        Animated.timing(pulse, {
+          toValue: 0.45,
+          duration: 850,
+          useNativeDriver: false,
+        }),
       ]),
     );
     animation.start();
@@ -43,14 +63,22 @@ export function LoadingState({ title, description, accentColor }: LoadingStatePr
         <ActivityIndicator color={accent} size="small" />
       </View>
       <Text style={[styles.title, { color: colors.foreground }]}>{title}</Text>
-      {description ? <Text style={[styles.description, { color: colors.mutedForeground }]}>{description}</Text> : null}
+      {description ? (
+        <Text style={[styles.description, { color: colors.mutedForeground }]}>
+          {description}
+        </Text>
+      ) : null}
       <View style={styles.skeletonGroup} accessibilityLabel={title}>
         {[0.88, 0.66, 0.76].map((width, index) => (
           <Animated.View
             key={index}
             style={[
               styles.skeletonLine,
-              { width: `${width * 100}%`, backgroundColor: colors.muted, opacity: pulse },
+              {
+                width: `${width * 100}%`,
+                backgroundColor: colors.muted,
+                opacity: pulse,
+              },
             ]}
           />
         ))}
@@ -59,7 +87,13 @@ export function LoadingState({ title, description, accentColor }: LoadingStatePr
   );
 }
 
-export function ErrorState({ title, description, retryLabel, onRetry, accentColor }: ErrorStateProps) {
+export function ErrorState({
+  title,
+  description,
+  retryLabel,
+  onRetry,
+  accentColor,
+}: ErrorStateProps) {
   const colors = useColors();
   const accent = accentColor ?? colors.destructive ?? "#ef4444";
 
@@ -69,7 +103,9 @@ export function ErrorState({ title, description, retryLabel, onRetry, accentColo
         <Feather name="wifi-off" size={28} color={accent} />
       </View>
       <Text style={[styles.title, { color: colors.foreground }]}>{title}</Text>
-      <Text style={[styles.description, { color: colors.mutedForeground }]}>{description}</Text>
+      <Text style={[styles.description, { color: colors.mutedForeground }]}>
+        {description}
+      </Text>
       <TouchableOpacity
         style={[styles.action, { backgroundColor: accent }]}
         onPress={onRetry}
@@ -77,7 +113,7 @@ export function ErrorState({ title, description, retryLabel, onRetry, accentColo
         accessibilityRole="button"
         accessibilityLabel={retryLabel}
       >
-        <Feather name="refresh-cw" size={15} color="#fff" />
+        <Feather name="refresh-cw" size={15} color={colors.primaryForeground} />
         <Text style={styles.actionText}>{retryLabel}</Text>
       </TouchableOpacity>
     </StateShell>
@@ -90,26 +126,26 @@ const styles = StyleSheet.create({
     minHeight: 220,
     alignItems: "center",
     justifyContent: "center",
-    paddingHorizontal: 28,
-    paddingVertical: 36,
-    gap: 10,
+    paddingHorizontal: SPACING.XXL,
+    paddingVertical: SPACING.XXL,
+    gap: SPACING.MD,
   },
   iconWrap: {
     width: 62,
     height: 62,
-    borderRadius: 31,
+    borderRadius: RADIUS.FULL,
     alignItems: "center",
     justifyContent: "center",
     marginBottom: 2,
   },
   title: {
-    fontSize: 16,
+    fontSize: TYPOGRAPHY.LG,
     fontFamily: "Inter_700Bold",
     textAlign: "center",
   },
   description: {
     maxWidth: 320,
-    fontSize: 13,
+    fontSize: TYPOGRAPHY.MD,
     lineHeight: 19,
     fontFamily: "Inter_400Regular",
     textAlign: "center",
@@ -131,12 +167,12 @@ const styles = StyleSheet.create({
     gap: 8,
     paddingHorizontal: 18,
     paddingVertical: 11,
-    borderRadius: 12,
-    marginTop: 4,
+    borderRadius: RADIUS.MD,
+    marginTop: SPACING.XS,
   },
   actionText: {
-    color: "#fff",
-    fontSize: 14,
+    color: "#FFFFFF",
+    fontSize: TYPOGRAPHY.BASE,
     fontFamily: "Inter_600SemiBold",
   },
 });

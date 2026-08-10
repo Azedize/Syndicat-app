@@ -196,7 +196,7 @@ export default function WelcomeScreen() {
       >
         <View style={styles.pagePadding}>
           <View style={[styles.topBar, isRTL && styles.rtlRow]}>
-            <MizanLogo variant="horizontal" colorScheme="dark" size={40} showTagline={false} />
+            <MizanLogo variant="horizontal" colorScheme={isDark ? "dark" : "light"} size={40} showTagline={false} />
             <TouchableOpacity
               testID="welcome-login"
               onPress={() => {

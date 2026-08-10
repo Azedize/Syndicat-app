@@ -207,3 +207,12 @@
  - `git diff --check` and focused legacy-name search — passed; remaining `MIZAN Community OS SARL` references are legal-entity wording in legal/privacy screens.
  - Restarted `artifacts/mobile: expo`; Metro bundled successfully. Restarted `artifacts/api-server: API Server`; build and server startup completed successfully.
  - Public mobile `/welcome` preview at 402×874 — rendered successfully with no new browser runtime exceptions. Existing Expo web shadow, push-notification, and native-driver warnings remain non-blocking.
+ - `pnpm --filter @workspace/mobile run typecheck` — passed with zero errors after the Phase 2 logo/icon implementation.
+ - `git diff --check` — passed after SVG, generated PNG, Expo configuration, and welcome lockup updates.
+ - Icon asset validation — passed: 1024×1024, sRGB, 8-bit RGBA PNG.
+ - Restarted `artifacts/mobile: expo`; Metro bundled successfully after the app icon configuration update.
+ - Public mobile `/welcome` preview at 402×874 — loaded the MIZAN mark and produced no new browser runtime exceptions. Existing Expo web shadow, push-notification, and native-driver warnings remain non-blocking.
+- `pnpm --filter @workspace/mobile run typecheck` — passed with zero errors after the Phase 3 shared design-system primitive consolidation.
+- `pnpm exec prettier --write` on the updated shared mobile primitives and `git diff --check` — passed.
+- Expo and API workflows remained healthy; Metro bundled successfully after the shared primitive updates.
+- Public mobile `/welcome` preview at 402×874 — rendered without overflow or new browser runtime exceptions. Existing Expo Web shadow-style, push-notification, and native-animation warnings remain non-blocking.
