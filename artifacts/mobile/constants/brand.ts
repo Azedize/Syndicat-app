@@ -6,14 +6,14 @@
  */
 
 export const MIZAN = {
-  /** Official platform name */
-  name: "MIZAN Community OS",
+  /** Official product name */
+  name: "MIZAN",
   /** Short product name used in navigation, notifications and compact contexts */
   shortName: "MIZAN",
-  /** Official tagline */
+  /** Global descriptor used in formal product surfaces */
   tagline: "Community Governance & Residence Operations",
-  /** Short tagline used in compact / horizontal contexts */
-  taglineShort: "Gouvernance & résidences",
+  /** Primary Morocco-market descriptor used in compact surfaces */
+  taglineShort: "Gouvernance & gestion des résidences",
 
   colors: {
     /** Deep navy — trust, app icon background and dark surfaces */

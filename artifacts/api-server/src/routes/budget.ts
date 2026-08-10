@@ -826,7 +826,7 @@ router.get("/appels-de-fonds/:id/receipt", requireAuth, async (req, res) => {
           alignment: "center",
         },
         {
-          text: `Généré le ${new Date().toLocaleDateString("fr-MA")} — Syndycat Global CPS`,
+          text: `Généré le ${new Date().toLocaleDateString("fr-MA")} — MIZAN`,
           style: { font: FONT, fontSize: 7, color: "#cbd5e1" },
           alignment: "center",
           margin: [0, 4, 0, 0],

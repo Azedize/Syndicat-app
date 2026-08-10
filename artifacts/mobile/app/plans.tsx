@@ -1,5 +1,5 @@
 /**
- * VERIDIAN — Subscription Plans Screen
+ * MIZAN — Subscription Plans Screen
  *
  * Displayed before authentication as part of the welcome flow.
  * Plans are fetched dynamically from the database — nothing hardcoded.

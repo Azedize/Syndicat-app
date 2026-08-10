@@ -156,7 +156,7 @@ async function sendPdf(res: any, docDef: any, filename: string) {
 
 function pageHeader(title: string, subtitle?: string) {
   return [
-    { text: "VERIDIAN", style: "brand", margin: [0, 0, 0, 2] },
+    { text: "MIZAN", style: "brand", margin: [0, 0, 0, 2] },
     { text: title, style: "header" },
     ...(subtitle ? [{ text: subtitle, style: "subheader" }] : []),
     { canvas: [{ type: "line", x1: 0, y1: 0, x2: 515, y2: 0, lineWidth: 2, lineColor: "#2563EB" }], margin: [0, 8, 0, 16] },
@@ -253,7 +253,7 @@ router.get("/pdf/invoice/:id", requireAuth, async (req, res) => {
       ],
       styles,
       footer: (page: number, pages: number) => ({
-        text: `Page ${page} / ${pages}  —  Document généré par VERIDIAN le ${new Date().toLocaleDateString("fr-MA")}`,
+        text: `Page ${page} / ${pages}  —  Document généré par MIZAN le ${new Date().toLocaleDateString("fr-MA")}`,
         style: "footer",
         alignment: "center",
         margin: [0, 0, 0, 10],
@@ -326,7 +326,7 @@ router.get("/pdf/receipt/:id", requireAuth, async (req, res) => {
       ],
       styles,
       footer: (page: number, pages: number) => ({
-        text: `Document généré par VERIDIAN le ${new Date().toLocaleDateString("fr-MA")}`,
+        text: `Document généré par MIZAN le ${new Date().toLocaleDateString("fr-MA")}`,
         style: "footer",
         alignment: "center",
         margin: [0, 0, 0, 10],
@@ -405,7 +405,7 @@ router.get("/pdf/budget/:id", requireAuth, async (req, res) => {
       ],
       styles,
       footer: (page: number, pages: number) => ({
-        text: `Page ${page} / ${pages}  —  VERIDIAN — ${new Date().toLocaleDateString("fr-MA")}`,
+        text: `Page ${page} / ${pages}  —  MIZAN — ${new Date().toLocaleDateString("fr-MA")}`,
         style: "footer",
         alignment: "center",
         margin: [0, 0, 0, 10],
@@ -487,7 +487,7 @@ router.get("/pdf/ag/:id", requireAuth, async (req, res) => {
       ],
       styles,
       footer: (page: number, pages: number) => ({
-        text: `Page ${page} / ${pages}  —  VERIDIAN — ${new Date().toLocaleDateString("fr-MA")}`,
+        text: `Page ${page} / ${pages}  —  MIZAN — ${new Date().toLocaleDateString("fr-MA")}`,
         style: "footer",
         alignment: "center",
         margin: [0, 0, 0, 10],
@@ -520,7 +520,7 @@ router.get("/pdf/membership/:userId", requireAuth, async (req, res) => {
       : null;
 
     // Generate QR code pointing to public badge verification endpoint
-    const verifyUrl = `${process.env.APP_URL ?? "https://veridian.app"}/verify/badge/${userId}`;
+    const verifyUrl = `${process.env.APP_URL ?? "https://mizan.ma"}/verify/badge/${userId}`;
     const qrDataUrl = await QRCode.toDataURL(verifyUrl, { width: 120, margin: 1 });
 
     const docDef = {
@@ -628,7 +628,7 @@ router.get("/pdf/badge/:userId", requireAuth, async (req, res) => {
     const issueDate = ctx.joinDate ?? (user.createdAt ? new Date(user.createdAt as any).toISOString().split("T")[0] : null);
     const isActive = user.status === "active";
     const locationLine = [ctx.building?.name, ctx.lot ? `Lot ${ctx.lot.number}` : null].filter(Boolean).join(" · ");
-    const verifyUrl = `${process.env.APP_URL ?? "https://veridian.app"}/verify/badge/${userId}`;
+    const verifyUrl = `${process.env.APP_URL ?? "https://mizan.ma"}/verify/badge/${userId}`;
     const qrDataUrl = await QRCode.toDataURL(verifyUrl, { width: 200, margin: 0, color: { dark: "#111827", light: "#ffffff" } });
     const verifCode = badgeVerificationCode(badgeId);
 
@@ -637,7 +637,7 @@ router.get("/pdf/badge/:userId", requireAuth, async (req, res) => {
     // ─ Recto (front) ─
     const front = [
       bg(theme.bg),
-      { text: "VERIDIAN", color: theme.text, bold: true, fontSize: 9.5, absolutePosition: { x: 16, y: 14 } },
+      { text: "MIZAN", color: theme.text, bold: true, fontSize: 9.5, absolutePosition: { x: 16, y: 14 } },
       { text: "Carte d'identité officielle", color: theme.accent, fontSize: 7, absolutePosition: { x: 16, y: 25 } },
       {
         canvas: [{ type: "rect", x: 0, y: 0, w: 78, h: 15, r: 8, color: theme.bg, lineColor: theme.accent, lineWidth: 1 }],
@@ -672,14 +672,14 @@ router.get("/pdf/badge/:userId", requireAuth, async (req, res) => {
       { text: "CODE DE VÉRIFICATION", color: theme.accent, fontSize: 6.5, bold: true, absolutePosition: { x: 86, y: 36 } },
       { text: verifCode, color: theme.text, bold: true, fontSize: 13, absolutePosition: { x: 86, y: 45 } },
       { text: "SUPPORT", color: theme.accent, fontSize: 6.5, bold: true, absolutePosition: { x: 86, y: 66 } },
-      { text: "support@veridian.app", color: theme.text, fontSize: 8.5, absolutePosition: { x: 86, y: 75 } },
+      { text: "support@mizan.ma", color: theme.text, fontSize: 8.5, absolutePosition: { x: 86, y: 75 } },
       { canvas: [{ type: "line", x1: 0, y1: 0, x2: CARD_W - 32, y2: 0, lineWidth: 0.5, lineColor: theme.accent }], absolutePosition: { x: 16, y: 98 } },
       ...(ctx.emergencyContact || ctx.emergencyPhone || ctx.phone ? [
         { text: "CONTACT D'URGENCE", color: theme.accent, fontSize: 6.5, bold: true, absolutePosition: { x: 16, y: 104 } },
         { text: `${ctx.emergencyContact ?? user.name} · ${ctx.emergencyPhone ?? ctx.phone ?? "—"}`, color: theme.text, fontSize: 7.5, absolutePosition: { x: 16, y: 113 }, width: CARD_W - 32 },
       ] : []),
       {
-        text: "Cette carte est la propriété de VERIDIAN. En cas de perte, merci de la retourner ou de contacter le support. Toute falsification est passible de poursuites.",
+        text: "Cette carte est la propriété de MIZAN. En cas de perte, merci de la retourner ou de contacter le support. Toute falsification est passible de poursuites.",
         color: theme.text,
         opacity: 0.75,
         fontSize: 5.8,
@@ -737,7 +737,7 @@ router.get("/badge/me", requireAuth, async (req, res) => {
         issueDate,
         emergencyContact: ctx.emergencyContact,
         emergencyPhone: ctx.emergencyPhone,
-        verifyUrl: `${process.env.APP_URL ?? "https://veridian.app"}/verify/badge/${user.id}`,
+        verifyUrl: `${process.env.APP_URL ?? "https://mizan.ma"}/verify/badge/${user.id}`,
       },
     });
   } catch (err) {
@@ -1038,7 +1038,7 @@ router.get("/pdf/escalation/:id", async (req, res) => {
         },
         // Footer note
         {
-          text: `Document généré automatiquement le ${formatDate(today.toISOString())} | Réf. ${refNum} | VERIDIAN Platform`,
+        text: `Document généré automatiquement le ${formatDate(today.toISOString())} | Réf. ${refNum} | MIZAN Platform`,
           style: "footer",
           margin: [0, 24, 0, 0],
           alignment: "center",
@@ -1154,7 +1154,7 @@ router.get("/pdf/acte/:id", requireAuth, async (req, res) => {
       ],
       styles,
       footer: (page: number, pages: number) => ({
-        text: `Page ${page} / ${pages}  —  Document officiel VERIDIAN — ${new Date().toLocaleDateString("fr-MA")}`,
+        text: `Page ${page} / ${pages}  —  Document officiel MIZAN — ${new Date().toLocaleDateString("fr-MA")}`,
         style: "footer",
         alignment: "center",
         margin: [0, 0, 0, 10],

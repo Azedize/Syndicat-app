@@ -16,7 +16,7 @@ import {
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import Svg, { Circle, Defs, LinearGradient as SvgGradient, Stop, Path } from "react-native-svg";
 
-import VeridianLogo from "@/components/brand/VeridianLogo";
+import MizanLogo from "@/components/brand/MizanLogo";
 import { useTheme } from "@/context/ThemeContext";
 
 // ─── Background decoration ────────────────────────────────────────────────────
@@ -187,7 +187,7 @@ export default function GetStartedScreen() {
         </TouchableOpacity>
 
         <Animated.View style={[styles.hero, { opacity: fadeAnim, transform: [{ translateY: slideAnim }] }]}>
-          <VeridianLogo variant="icon" colorScheme={isDark ? "dark" : "light"} size={72} />
+          <MizanLogo variant="icon" colorScheme={isDark ? "dark" : "light"} size={72} />
           <View style={{ alignItems: "center", gap: 8, marginTop: 24 }}>
             <Text style={[styles.heroTitle, { color: isDark ? "#FFFFFF" : "#0A1628" }]}>
               Prêt à commencer ?

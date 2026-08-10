@@ -676,10 +676,10 @@ export const TRANSLATIONS: Translations = {
     es: "Aplicación",
   },
   applicationName: {
-    fr: "MIZAN Community OS",
-    en: "MIZAN Community OS",
-    ar: "MIZAN Community OS",
-    es: "MIZAN Community OS",
+    fr: "MIZAN",
+    en: "MIZAN",
+    ar: "MIZAN",
+    es: "MIZAN",
   },
   versionLabel: { fr: "Version", en: "Version", ar: "الإصدار", es: "Versión" },
   complianceLabel: {

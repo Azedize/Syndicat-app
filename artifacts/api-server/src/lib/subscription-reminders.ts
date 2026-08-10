@@ -120,7 +120,7 @@ function buildReminderHtml(syndicateName: string, daysLeft: number, planName: st
     </a>
   </div>
   <p style="color:#9ca3af;font-size:11px;margin-top:24px;text-align:center;">
-    VERIDIAN — Syndicat de Copropriété · Loi 18-00
+    MIZAN — Syndicat de Copropriété · Loi 18-00
   </p>
 </div>`;
 }
@@ -164,7 +164,7 @@ async function runSubscriptionReminderScan(): Promise<void> {
       await createAlert({
         title: alertTitle,
         message:
-          `Renouvelez votre abonnement pour maintenir l'accès complet à VERIDIAN. ` +
+          `Renouvelez votre abonnement pour maintenir l'accès complet à MIZAN. ` +
           `Après expiration: mode lecture seule.`,
         type: days === 1 ? "error" : "warning",
         syndicateId,
@@ -177,7 +177,7 @@ async function runSubscriptionReminderScan(): Promise<void> {
         await sendPushToUsers(
           adminIds,
           alertTitle,
-          `Votre abonnement VERIDIAN expire dans ${days} jour${days > 1 ? "s" : ""}. Renouvelez maintenant.`,
+          `Votre abonnement MIZAN expire dans ${days} jour${days > 1 ? "s" : ""}. Renouvelez maintenant.`,
           { syndicateId, type: "subscription_expiry", daysLeft: days },
         );
       }
@@ -185,8 +185,8 @@ async function runSubscriptionReminderScan(): Promise<void> {
       // 3. Email all syndicate admins
       const adminEmails = await getSyndicateAdminEmails(syndicateId);
       const subject = days === 1
-        ? `[VERIDIAN] ⚠️ Votre abonnement expire demain — ${syndicateName}`
-        : `[VERIDIAN] Rappel abonnement — J-${days} — ${syndicateName}`;
+        ? `[MIZAN] ⚠️ Votre abonnement expire demain — ${syndicateName}`
+        : `[MIZAN] Rappel abonnement — J-${days} — ${syndicateName}`;
       const html = buildReminderHtml(syndicateName, days, null);
       for (const email of adminEmails) {
         await sendEmail(email, subject, html, "subscription_reminder", syndicateId);

@@ -1,4 +1,4 @@
-# SYNDYCAT GLOBAL CPS
+# MIZAN
 
 A syndicate management SaaS platform (pnpm monorepo) with an Express API backend and an Expo React Native mobile app.
 

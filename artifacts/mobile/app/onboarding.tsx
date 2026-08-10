@@ -18,7 +18,7 @@ import { useAuth } from "@/context/AuthContext";
 import { useLanguage } from "@/context/LanguageContext";
 import { useBreakpoints } from "@/hooks/useBreakpoints";
 import { useColors } from "@/hooks/useColors";
-import VeridianLogo from "@/components/brand/VeridianLogo";
+import MizanLogo from "@/components/brand/MizanLogo";
 
 const TOTAL_STEPS = 4;
 
@@ -311,7 +311,7 @@ export default function OnboardingScreen() {
       <View style={[styles.header, { paddingTop: topPad + 16, backgroundColor: colors.card, borderBottomColor: colors.border }]}>
         {/* Brand mark */}
         <View style={styles.brandRow}>
-          <VeridianLogo
+          <MizanLogo
             variant="horizontal"
             colorScheme={isDark ? "dark" : "light"}
             size={28}

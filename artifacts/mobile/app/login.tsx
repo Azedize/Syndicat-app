@@ -17,7 +17,8 @@ import {
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import Svg, { Rect, Path, Defs, LinearGradient as SvgGradient, Stop } from "react-native-svg";
 
-import VeridianLogo from "@/components/brand/VeridianLogo";
+import MizanLogo from "@/components/brand/MizanLogo";
+import { MIZAN } from "@/constants/brand";
 import { useAuth } from "@/context/AuthContext";
 import { useLanguage } from "@/context/LanguageContext";
 import { useTheme } from "@/context/ThemeContext";
@@ -133,8 +134,8 @@ export default function LoginScreen() {
         <ScrollView contentContainerStyle={[styles.scroll, { paddingTop: insets.top + 80, paddingBottom: insets.bottom + 40 }]} showsVerticalScrollIndicator={false}>
           
           <View style={styles.brandArea}>
-            <VeridianLogo variant="full" colorScheme={isDark ? "dark" : "light"} size={72} showTagline={false} />
-            <Text style={[styles.appTagline, { color: mutedColor }]}>Plateforme de gestion de syndicats</Text>
+            <MizanLogo variant="full" colorScheme={isDark ? "dark" : "light"} size={72} showTagline={false} />
+            <Text style={[styles.appTagline, { color: mutedColor }]}>{MIZAN.taglineShort}</Text>
           </View>
 
           <View style={styles.featuresGrid}>
@@ -227,7 +228,7 @@ export default function LoginScreen() {
             ))}
           </View>
           
-           <Text style={[styles.footer, { color: mutedColor }]}>MIZAN Community OS • Enterprise Edition</Text>
+           <Text style={[styles.footer, { color: mutedColor }]}>{MIZAN.name} • Enterprise platform</Text>
         </ScrollView>
       </KeyboardAvoidingView>
     </View>

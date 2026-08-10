@@ -477,7 +477,7 @@ router.post("/auth/otp/send", async (req, res) => {
     await db.delete(otpTokensTable).where(eq(otpTokensTable.email, em));
     await db.insert(otpTokensTable).values({ email: em, codeHash, purpose: "email_verification", expiresAt } as any);
 
-    const subject = "Votre code de vérification VERIDIAN";
+    const subject = "Votre code de vérification MIZAN";
     const html = `
       <div style="font-family:Helvetica,Arial,sans-serif;max-width:480px;margin:0 auto;padding:32px 24px;background:#fff;border-radius:12px;border:1px solid #E2E8F0;">
         <div style="text-align:center;margin-bottom:24px;">
@@ -486,7 +486,7 @@ router.post("/auth/otp/send", async (req, res) => {
           </div>
         </div>
         <h2 style="color:#0A1628;font-size:22px;margin:0 0 8px;text-align:center;">Vérifiez votre email</h2>
-        <p style="color:#64748B;font-size:14px;text-align:center;margin:0 0 28px;">Utilisez ce code pour finaliser la création de votre compte VERIDIAN.</p>
+        <p style="color:#64748B;font-size:14px;text-align:center;margin:0 0 28px;">Utilisez ce code pour finaliser la création de votre compte MIZAN.</p>
         <div style="background:#EFF6FF;border:2px solid #2563EB;border-radius:12px;padding:20px;text-align:center;margin-bottom:24px;">
           <span style="font-size:36px;font-weight:700;letter-spacing:10px;color:#2563EB;">${code}</span>
         </div>

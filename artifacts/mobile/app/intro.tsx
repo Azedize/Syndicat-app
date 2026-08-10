@@ -15,6 +15,7 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 import { useTheme } from "@/context/ThemeContext";
 import { useColors } from "@/hooks/useColors";
+import MizanLogo from "@/components/brand/MizanLogo";
 
 type IconName = React.ComponentProps<typeof Feather>["name"];
 
@@ -115,22 +116,6 @@ const ROLE_BENEFITS = [
   { icon: "users" as IconName, label: "Conseils syndicaux", text: "Décidez avec les bons éléments." },
   { icon: "key" as IconName, label: "Locataires", text: "Accédez simplement à vos démarches." },
 ];
-
-function BrandMark({ compact = false }: { compact?: boolean }) {
-  return (
-    <View style={styles.brandLockup}>
-      <View style={styles.brandMark}>
-        <View style={styles.brandMarkInner}>
-          <Feather name="layers" size={compact ? 15 : 18} color="#FFFFFF" />
-        </View>
-      </View>
-      <View>
-        <Text style={styles.brandName}>SYNDYCAT</Text>
-        {!compact && <Text style={styles.brandSubname}>GLOBAL CPS</Text>}
-      </View>
-    </View>
-  );
-}
 
 function DashboardPreview() {
   return (
@@ -271,7 +256,7 @@ export default function IntroScreen() {
       >
         <View style={styles.hero}>
           <View style={[styles.topBar, { paddingTop: Platform.OS === "web" ? 0 : 16 }]}>
-            <BrandMark />
+            <MizanLogo variant="horizontal" colorScheme="dark" size={38} showTagline={false} />
             <TouchableOpacity onPress={() => router.replace("/login")} style={styles.topCta}>
               <Text style={styles.topCtaText}>Se connecter</Text>
             </TouchableOpacity>
@@ -283,7 +268,7 @@ export default function IntroScreen() {
               <Text style={styles.heroTitleAccent}>mérite un espace à sa hauteur.</Text>
             </Text>
             <Text style={styles.heroDescription}>
-              SYNDYCAT GLOBAL CPS réunit les décisions, les finances, les documents et les échanges dans une seule expérience.
+              MIZAN réunit les décisions, les finances, les documents et les échanges dans une seule expérience.
             </Text>
             <TouchableOpacity onPress={openStart} style={styles.primaryButton}>
               <Text style={styles.primaryText}>Découvrir la plateforme</Text>

@@ -202,3 +202,8 @@
 - Protected `/statistiques` preview at 402×874 redirected to the public welcome boundary as expected without a new browser runtime exception; existing Expo web compatibility warnings remain non-blocking.
 - `pnpm --filter @workspace/mobile run typecheck` — passed with zero errors after the public welcome content/localization pass.
 - `git diff --check` — passed; Expo restarted cleanly, Metro bundled the public entry, and `/welcome` at 402×874 produced no new browser runtime exceptions. Existing shadow-prop, push-notification web, and native-driver web warnings remain non-blocking.
+ - `pnpm --filter @workspace/mobile run typecheck` — passed with zero errors after Phase 1 brand identity consolidation.
+ - `pnpm --filter @workspace/api-server run typecheck` — passed with zero errors after customer-facing email/PDF/verification branding updates.
+ - `git diff --check` and focused legacy-name search — passed; remaining `MIZAN Community OS SARL` references are legal-entity wording in legal/privacy screens.
+ - Restarted `artifacts/mobile: expo`; Metro bundled successfully. Restarted `artifacts/api-server: API Server`; build and server startup completed successfully.
+ - Public mobile `/welcome` preview at 402×874 — rendered successfully with no new browser runtime exceptions. Existing Expo web shadow, push-notification, and native-driver warnings remain non-blocking.

@@ -719,7 +719,7 @@ router.get("/verify/:token", async (req, res) => {
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Vérification de document — VERIDIAN</title>
+  <title>Vérification de document — MIZAN</title>
   <style>
     * { box-sizing: border-box; margin: 0; padding: 0; }
     body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
@@ -759,7 +759,7 @@ router.get("/verify/:token", async (req, res) => {
     <div class="logo">
       <div class="logo-mark">S</div>
       <div>
-        <div class="logo-text">VERIDIAN</div>
+        <div class="logo-text">MIZAN</div>
         <div class="logo-sub">Vérification de document officiel</div>
       </div>
     </div>
@@ -797,8 +797,8 @@ router.get("/verify/:token", async (req, res) => {
     </div>
     `}
     <div class="footer">
-      Ce service de vérification est fourni par la plateforme VERIDIAN.<br>
-      Pour toute question : <a href="mailto:support@veridian.app">support@veridian.app</a>
+      Ce service de vérification est fourni par la plateforme MIZAN.<br>
+      Pour toute question : <a href="mailto:support@mizan.ma">support@mizan.ma</a>
     </div>
   </div>
 </body>

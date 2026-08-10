@@ -24,7 +24,7 @@ import Svg, {
   Stop,
 } from "react-native-svg";
 
-import VeridianLogo from "@/components/brand/VeridianLogo";
+import MizanLogo from "@/components/brand/MizanLogo";
 import { MIZAN } from "@/constants/brand";
 import { useLanguage } from "@/context/LanguageContext";
 import { useTheme } from "@/context/ThemeContext";
@@ -196,7 +196,7 @@ export default function WelcomeScreen() {
       >
         <View style={styles.pagePadding}>
           <View style={[styles.topBar, isRTL && styles.rtlRow]}>
-            <VeridianLogo variant="horizontal" colorScheme="dark" size={40} showTagline={false} />
+            <MizanLogo variant="horizontal" colorScheme="dark" size={40} showTagline={false} />
             <TouchableOpacity
               testID="welcome-login"
               onPress={() => {

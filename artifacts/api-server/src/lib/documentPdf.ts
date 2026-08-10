@@ -157,12 +157,12 @@ const ARABIC_FONT = FONTS.Amiri ? "Amiri" : PRIMARY_FONT;
 // No raw hex strings are allowed outside this block.
 
 const BRAND = {
-  // ── Core palette — VERIDIAN brand colors ─────────────────────────────────
-  primary:        "#2563EB",   // VERIDIAN blue — brand action blue
+  // ── Core palette — MIZAN brand colors ────────────────────────────────────
+  primary:        "#2563EB",   // MIZAN blue — brand action blue
   primaryMid:     "#1D4ED8",   // blue-700
   primaryDark:    "#1E40AF",   // blue-800
   primaryDeep:    "#1E3A8A",   // blue-900
-  primaryDeeper:  "#0A1628",   // VERIDIAN navyDeep
+  primaryDeeper:  "#0A1628",   // MIZAN navyDeep
   primaryLight:   "#DBEAFE",   // blue-100 tint
   primaryLighter: "#EFF6FF",   // blue-50
 
@@ -184,14 +184,14 @@ const BRAND = {
   infoLight:      "#eff6ff",   // blue-50
 
   // ── Neutrals ─────────────────────────────────────────────────────────────
-  ink:            "#0A1628",   // VERIDIAN navyDeep — dark text / headers
+  ink:            "#0A1628",   // MIZAN navyDeep — dark text / headers
   inkMid:         "#374151",   // gray-700
   inkLight:       "#475569",   // slate-600
   muted:          "#6b7280",   // gray-500
   mutedLight:     "#9ca3af",   // gray-400
   border:         "#e5e7eb",   // gray-200
   borderLight:    "#f3f4f6",   // gray-100
-  surface:        "#F8FAFF",   // VERIDIAN bgLight (blue-tinted white)
+  surface:        "#F8FAFF",   // MIZAN bgLight (blue-tinted white)
   surfaceCard:    "#ffffff",   // card white
   surfaceAlt:     "#f9fafb",   // gray-50
 
@@ -250,7 +250,7 @@ function adjustColorBrightness(hex: string, delta: number): string {
 // doesn't crash while the full Phase 3 rebuild is in progress.
 
 function buildOfficialSeal(name: string, color: string, signerName?: string, date?: string): unknown {
-  const n = (name || "VERIDIAN").slice(0, 12).toUpperCase();
+  const n = (name || "MIZAN").slice(0, 12).toUpperCase();
   return {
     canvas: [
       { type: "ellipse" as const, x: 45, y: 45, r1: 44, r2: 44, color: "#FFF8E8", lineColor: color, lineWidth: 2 },
@@ -853,7 +853,7 @@ function reconstructionPlaceholder(
     {
       columns: [
         { text: "Réf. " + docNum, fontSize: 7, color: "#687078", width: "*" },
-        { text: syndInfo.name + " — VERIDIAN", fontSize: 7, color: "#687078", alignment: "right" as const, width: "auto" },
+        { text: syndInfo.name + " — MIZAN", fontSize: 7, color: "#687078", alignment: "right" as const, width: "auto" },
       ],
       margin: [0, 6, 0, 0] as [number, number, number, number],
     },
@@ -1625,7 +1625,7 @@ export interface DocumentInput {
 async function buildDocDef(template: DocumentTemplate, input: DocumentInput): Promise<unknown> {
   const today = input.date ?? new Date().toLocaleDateString("fr-MA", { dateStyle: "long" });
   const syndInfo: SyndicateInfo = input.syndicate ?? {
-    name: input.syndicateName ?? "VERIDIAN",
+    name: input.syndicateName ?? "MIZAN",
     address: input.syndicateAddress ?? "",
     city: "",
     phone: "",
@@ -1681,7 +1681,7 @@ async function buildDocDef(template: DocumentTemplate, input: DocumentInput): Pr
   // Layout: 3-column strip below a hairline rule.
   //   LEFT  — syndicate name (bold) + Réf. + date + verify URL
   //   CENTER — status chip (semantic color) + "Document certifié Syndycat.ma"
-  //   RIGHT  — page N / M (prominent) + VERIDIAN brand mark
+  //   RIGHT  — page N / M (prominent) + MIZAN brand mark
   // No duplicate QR — QR code lives in the header only.
   const docStatus = input.docStatus as string | null ?? null;
   const statusBadgeMap: Record<string, { label: string; color: string }> = {
@@ -1742,7 +1742,7 @@ async function buildDocDef(template: DocumentTemplate, input: DocumentInput): Pr
           {
             stack: [
               { text: `${page}  /  ${pages}`, fontSize: 9, bold: true, color: BRAND.ink, alignment: "right" as const, margin: [0, 0, 0, 1] },
-              { text: "VERIDIAN", fontSize: 5.5, bold: true, color: accentColor, alignment: "right" as const, characterSpacing: 0.3 },
+              { text: "MIZAN", fontSize: 5.5, bold: true, color: accentColor, alignment: "right" as const, characterSpacing: 0.3 },
             ],
             width: 130,
             margin: [0, 4, 40, 4],
@@ -1775,7 +1775,7 @@ async function buildDocDef(template: DocumentTemplate, input: DocumentInput): Pr
         // Center: syndicate name + doc type label
         {
           stack: [
-            { text: (_si.name || "VERIDIAN").toUpperCase(), fontSize: 8, bold: true, color: BRAND.ink, characterSpacing: 0.3, margin: [0,0,0,2] },
+            { text: (_si.name || "MIZAN").toUpperCase(), fontSize: 8, bold: true, color: BRAND.ink, characterSpacing: 0.3, margin: [0,0,0,2] },
             { text: docTypeLabel, fontSize: 12, bold: true, color: accent, characterSpacing: 0.2, lineHeight: 1.1 },
             ...(_building ? [{ text: _building, fontSize: 7, color: BRAND.muted, margin: [0,2,0,0] }] : []),
           ],
@@ -2475,7 +2475,7 @@ async function buildDocDef(template: DocumentTemplate, input: DocumentInput): Pr
       const pvInk     = "#0F172A";   // darkest text
 
       // ── Parse input data ──────────────────────────────────────────────────
-      const pvSyndName   = syndInfo.name || "VERIDIAN";
+      const pvSyndName   = syndInfo.name || "MIZAN";
       const pvDocNum_    = docNum;
       const pvDate_      = (input.meetingDate as string) || today;
       const pvMeetType   = (input.meetingType as string) || "Board of Directors\nMeeting";
@@ -3472,7 +3472,7 @@ async function buildDocDef(template: DocumentTemplate, input: DocumentInput): Pr
                 {
                   stack: [
                     { text: "CONTACT INFORMATION", fontSize: 4.5, bold: true, color: pvNavy, margin: [0,0,0,1] },
-                    { text: [syndInfo.address, syndInfo.city, syndInfo.phone, syndInfo.email].filter(Boolean).join(" · ") || "Syndycat Global CPS", fontSize: 4.5, color: pvSlate, lineHeight: 1.3 },
+                    { text: [syndInfo.address, syndInfo.city, syndInfo.phone, syndInfo.email].filter(Boolean).join(" · ") || "MIZAN", fontSize: 4.5, color: pvSlate, lineHeight: 1.3 },
                   ],
                   border: [false,false,true,false] as [boolean,boolean,boolean,boolean],
                   borderColor: ["","","",pvBorder] as [string,string,string,string],

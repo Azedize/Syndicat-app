@@ -52,3 +52,4 @@
 - [Statistics data state](statistics-data-state.md) — platform KPIs must remain unavailable on failed synchronization; subscription totals use persisted plan/subscription data, never UI tariffs.
 - [Public trust content](public-trust-content.md) — public landing pages must not present unverified KPIs, synthetic charts, or named testimonials as real outcomes.
 - [Public Expo presentation rendering](public-expo-presentation-rendering.md) — long public Expo pages render more reliably with simple native primitives than complex animated/SVG compositions.
+- [MIZAN canonical brand](mizan-brand-canonical.md) — use MIZAN for customer-facing product presentation; retain MIZAN Community OS SARL only as legal entity wording.

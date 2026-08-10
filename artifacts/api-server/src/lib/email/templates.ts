@@ -1,13 +1,13 @@
 /**
- * Reusable HTML email templates for VERIDIAN.
+ * Reusable HTML email templates for MIZAN.
  *
  * Every template returns `{ subject, html }`. The `html` is the inner body only —
  * `EmailService.send()` wraps it in `wrapEmail()` so every outgoing email shares the
  * same branded header/footer, regardless of which flow triggered it.
  */
 
-const BRAND_NAVY  = "#0A1628";   // VERIDIAN navyDeep — header background
-const BRAND_BLUE  = "#2563EB";   // VERIDIAN blue — action color, buttons
+const BRAND_NAVY  = "#0A1628";   // MIZAN navyDeep — header background
+const BRAND_BLUE  = "#2563EB";   // MIZAN blue — action color, buttons
 const BRAND_COLOR = BRAND_BLUE;  // legacy alias kept for button() helper
 
 /** Shared branded shell every email body gets wrapped in. */
@@ -32,12 +32,12 @@ export function wrapEmail(preheader: string, bodyHtml: string): string {
                           <tr>
                             <td style="vertical-align:middle;padding-right:14px;">
                               <div style="width:38px;height:44px;background:linear-gradient(160deg,${BRAND_BLUE},#60A5FA);border-radius:4px 4px 6px 6px;display:inline-block;text-align:center;line-height:44px;">
-                                <span style="color:#fff;font-size:18px;font-weight:900;">V</span>
+                                <span style="color:#fff;font-size:18px;font-weight:900;">M</span>
                               </div>
                             </td>
                             <td style="vertical-align:middle;">
-                              <div style="color:#ffffff;font-size:22px;font-weight:900;letter-spacing:3px;font-family:Helvetica,Arial,sans-serif;">VERIDIAN</div>
-                              <div style="color:#93C5FD;font-size:10px;font-weight:600;letter-spacing:2px;margin-top:2px;font-family:Helvetica,Arial,sans-serif;">PROPERTY &amp; SYNDICATE MANAGEMENT</div>
+                              <div style="color:#ffffff;font-size:22px;font-weight:900;letter-spacing:3px;font-family:Helvetica,Arial,sans-serif;">MIZAN</div>
+                              <div style="color:#93C5FD;font-size:10px;font-weight:600;letter-spacing:2px;margin-top:2px;font-family:Helvetica,Arial,sans-serif;">GOUVERNANCE &amp; GESTION DES RÉSIDENCES</div>
                             </td>
                           </tr>
                         </table>
@@ -62,9 +62,9 @@ export function wrapEmail(preheader: string, bodyHtml: string): string {
                   <table role="presentation" width="100%" cellpadding="0" cellspacing="0">
                     <tr>
                       <td>
-                        <p style="margin:0 0 4px 0;color:#2563EB;font-size:11px;font-weight:700;letter-spacing:1px;">VERIDIAN</p>
+                        <p style="margin:0 0 4px 0;color:#2563EB;font-size:11px;font-weight:700;letter-spacing:1px;">MIZAN</p>
                         <p style="margin:0;color:#64748B;font-size:10px;line-height:1.5;">
-                          Cet email a été envoyé automatiquement par la plateforme VERIDIAN Property &amp; Syndicate Management.<br/>
+                          Cet email a été envoyé automatiquement par la plateforme MIZAN — Gouvernance &amp; gestion des résidences.<br/>
                           Ne répondez pas directement à ce message.
                         </p>
                       </td>
@@ -115,14 +115,14 @@ export function passwordResetTemplate(name: string, resetUrl: string): EmailTemp
     : "";
 
   return {
-    subject: "Réinitialisation de votre mot de passe — VERIDIAN",
+    subject: "Réinitialisation de votre mot de passe — MIZAN",
     html: `
       <p>Bonjour ${escapeHtml(name)},</p>
-      <p>Vous avez demandé la réinitialisation de votre mot de passe VERIDIAN.</p>
+      <p>Vous avez demandé la réinitialisation de votre mot de passe MIZAN.</p>
       ${button(resetUrl, "Réinitialiser mon mot de passe")}
       ${tokenBlock}
       <p>Ce lien expire dans <strong>1 heure</strong>. Si vous n'avez pas effectué cette demande, ignorez cet email.</p>
-      <p>— L'équipe VERIDIAN</p>`,
+      <p>— L'équipe MIZAN</p>`,
   };
 }
 
@@ -134,14 +134,14 @@ export function welcomeTemplate(name: string, role: string, loginUrl?: string, t
     tenant: "Locataire",
   };
   return {
-    subject: "Bienvenue sur VERIDIAN",
+    subject: "Bienvenue sur MIZAN",
     html: `
       <p>Bonjour ${escapeHtml(name)},</p>
-      <p>Votre compte VERIDIAN a été créé avec succès en tant que <strong>${escapeHtml(roleLabel[role] ?? role)}</strong>.</p>
+      <p>Votre compte MIZAN a été créé avec succès en tant que <strong>${escapeHtml(roleLabel[role] ?? role)}</strong>.</p>
       <p>Vous pouvez dès maintenant vous connecter pour gérer vos démarches liées à votre syndicat de copropriété.</p>
       ${temporaryPassword ? `<div style="margin:20px 0;padding:16px;background:#EFF6FF;border-radius:10px;border-left:4px solid #2563EB;"><p style="margin:0 0 6px 0;font-size:12px;color:#64748B;font-weight:600;text-transform:uppercase;">Identifiant temporaire</p><p style="margin:0;color:#0A1628;"><strong>Mot de passe :</strong> <code style="background:#DBEAFE;padding:2px 8px;border-radius:4px;font-family:monospace;letter-spacing:1px;">${escapeHtml(temporaryPassword)}</code></p></div><p style="color:#DC2626;font-size:13px;">Veuillez changer ce mot de passe après votre première connexion.</p>` : ""}
       ${loginUrl ? button(loginUrl, "Accéder à mon compte") : ""}
-      <p>— L'équipe VERIDIAN</p>`,
+      <p>— L'équipe MIZAN</p>`,
   };
 }
 
@@ -156,18 +156,18 @@ export function teamInvitationTemplate(name: string, role: string, syndicateName
   const roleLabel = roleLabels[role] ?? role;
 
   return {
-    subject: `Invitation à rejoindre ${syndicateName} — VERIDIAN`,
+    subject: `Invitation à rejoindre ${syndicateName} — MIZAN`,
     html: `
       <p>Bonjour ${escapeHtml(name)},</p>
-      <p>Vous avez été invité(e) à rejoindre <strong>${escapeHtml(syndicateName)}</strong> sur la plateforme <strong>VERIDIAN</strong> en tant que <strong>${escapeHtml(roleLabel)}</strong>.</p>
+      <p>Vous avez été invité(e) à rejoindre <strong>${escapeHtml(syndicateName)}</strong> sur la plateforme <strong>MIZAN</strong> en tant que <strong>${escapeHtml(roleLabel)}</strong>.</p>
       <div style="margin:24px 0;padding:20px;background:#EFF6FF;border-radius:12px;border-left:4px solid #2563EB;">
         <p style="margin:0 0 8px 0;font-size:12px;color:#64748B;font-weight:600;text-transform:uppercase;letter-spacing:1px;">Vos identifiants de connexion</p>
         <p style="margin:0 0 4px 0;font-size:14px;color:#0A1628;"><strong>Email :</strong> ${escapeHtml(name.toLowerCase().replace(/\s+/g, "."))}</p>
         <p style="margin:0;font-size:14px;color:#0A1628;"><strong>Mot de passe temporaire :</strong> <code style="background:#DBEAFE;padding:2px 8px;border-radius:4px;font-family:monospace;letter-spacing:1px;">${escapeHtml(tempPassword)}</code></p>
       </div>
       <p style="color:#DC2626;font-size:13px;">⚠️ Vous devrez changer ce mot de passe lors de votre première connexion.</p>
-      <p>Téléchargez l'application <strong>VERIDIAN</strong> depuis l'App Store ou Google Play pour commencer.</p>
-      <p>— L'équipe VERIDIAN</p>`,
+      <p>Téléchargez l'application <strong>MIZAN</strong> depuis l'App Store ou Google Play pour commencer.</p>
+      <p>— L'équipe MIZAN</p>`,
   };
 }
 
@@ -176,9 +176,9 @@ export function syndicateCreatedTemplate(syndicateName: string, adminName: strin
     subject: `Votre syndicat "${syndicateName}" est créé`,
     html: `
       <p>Bonjour ${escapeHtml(adminName)},</p>
-      <p>Le syndicat <strong>${escapeHtml(syndicateName)}</strong> a été créé sur VERIDIAN et vous en êtes l'administrateur.</p>
+      <p>Le syndicat <strong>${escapeHtml(syndicateName)}</strong> a été créé sur MIZAN et vous en êtes l'administrateur.</p>
       <p>Vous pouvez maintenant ajouter des membres, configurer les cotisations, et gérer les assemblées générales.</p>
-      <p>— L'équipe VERIDIAN</p>`,
+      <p>— L'équipe MIZAN</p>`,
   };
 }
 
@@ -193,7 +193,7 @@ export function electionNotificationTemplate(
       <p><strong>${escapeHtml(eventLabel)}</strong></p>
       <p>Élection : <strong>${escapeHtml(electionTitle)}</strong></p>
       <p>${escapeHtml(message)}</p>
-      <p>— L'équipe VERIDIAN</p>`,
+      <p>— L'équipe MIZAN</p>`,
   };
 }
 
@@ -214,7 +214,7 @@ export function meetingInvitationTemplate(
         ${location ? `📍 ${escapeHtml(location)}<br/>` : ""}
       </p>
       ${agenda ? `<p><strong>Ordre du jour :</strong><br/>${escapeHtml(agenda).replace(/\n/g, "<br/>")}</p>` : ""}
-      <p>— L'équipe VERIDIAN</p>`,
+      <p>— L'équipe MIZAN</p>`,
   };
 }
 
@@ -242,7 +242,7 @@ export function agmInvitationTemplate(
         ${location ? `📍 ${escapeHtml(location)}<br/>` : ""}
       </p>
       <p>Merci de confirmer votre présence ou de désigner un mandataire (pouvoir) via l'application.</p>
-      <p>— L'équipe VERIDIAN</p>`,
+      <p>— L'équipe MIZAN</p>`,
   };
 }
 
@@ -258,7 +258,7 @@ export function paymentReminderTemplate(
       <p>Bonjour ${escapeHtml(memberName)},</p>
       <p>Ceci est un rappel amical : un appel de fonds de <strong>${escapeHtml(amount)} MAD</strong> pour la période <strong>${escapeHtml(period)}</strong> reste impayé${dueDate ? ` (échéance : ${escapeHtml(dueDate)})` : ""}.</p>
       <p>Merci de régulariser votre situation dès que possible auprès de votre syndic.</p>
-      <p>— L'équipe VERIDIAN</p>`,
+      <p>— L'équipe MIZAN</p>`,
   };
 }
 
@@ -275,7 +275,7 @@ export function latePaymentWarningTemplate(
       <p>Votre compte présente un impayé de <strong>${escapeHtml(totalOverdue)} MAD</strong>, soit <strong>${overdueMonths} mois</strong> de retard.</p>
       <p>Ce dossier a atteint le niveau : <strong>${escapeHtml(levelLabel)}</strong>.</p>
       <p>Merci de régulariser votre situation sans délai pour éviter une escalade supplémentaire.</p>
-      <p>— L'équipe VERIDIAN</p>`,
+      <p>— L'équipe MIZAN</p>`,
   };
 }
 
@@ -286,7 +286,7 @@ export function supportTicketTemplate(ticketTitle: string, submittedBy: string, 
       <p>Un nouveau ticket de support a été soumis par <strong>${escapeHtml(submittedBy)}</strong>.</p>
       <p><strong>Sujet :</strong> ${escapeHtml(ticketTitle)}<br/><strong>Priorité :</strong> ${escapeHtml(priority)}</p>
       <p>Merci de le traiter depuis le tableau de bord support.</p>
-      <p>— VERIDIAN</p>`,
+      <p>— MIZAN</p>`,
   };
 }
 
@@ -298,7 +298,7 @@ export function marketplaceModerationTemplate(
   if (action === "approved") {
     return {
       subject: `Votre annonce "${productName}" a été approuvée`,
-      html: `<p>Bonne nouvelle ! Votre annonce <strong>${escapeHtml(productName)}</strong> a été approuvée et est maintenant visible sur le marketplace VERIDIAN.</p><p>— L'équipe VERIDIAN</p>`,
+      html: `<p>Bonne nouvelle ! Votre annonce <strong>${escapeHtml(productName)}</strong> a été approuvée et est maintenant visible sur le marketplace MIZAN.</p><p>— L'équipe MIZAN</p>`,
     };
   }
   const verb = action === "rejected" ? "rejetée" : "renvoyée pour modification";
@@ -307,7 +307,7 @@ export function marketplaceModerationTemplate(
     html: `
       <p>Votre annonce <strong>${escapeHtml(productName)}</strong> a été ${verb}.</p>
       ${reason ? `<p><strong>Motif :</strong> ${escapeHtml(reason)}</p>` : ""}
-      <p>— L'équipe VERIDIAN</p>`,
+      <p>— L'équipe MIZAN</p>`,
   };
 }
 
@@ -318,17 +318,17 @@ export function incidentNotificationTemplate(type: string, description: string, 
       <p>Un nouveau sinistre a été déclaré.</p>
       <p><strong>Type :</strong> ${escapeHtml(type)}<br/><strong>Urgence :</strong> ${escapeHtml(urgency)}</p>
       <p><strong>Description :</strong><br/>${escapeHtml(description)}</p>
-      <p>— VERIDIAN</p>`,
+      <p>— MIZAN</p>`,
   };
 }
 
 export function testEmailTemplate(name: string): EmailTemplate {
   return {
-    subject: "Email de test — VERIDIAN",
+    subject: "Email de test — MIZAN",
     html: `
       <p>Bonjour ${escapeHtml(name)},</p>
-      <p>Ceci est un email de test envoyé depuis le Centre Email de VERIDIAN pour vérifier la configuration SMTP.</p>
+      <p>Ceci est un email de test envoyé depuis le Centre Email de MIZAN pour vérifier la configuration SMTP.</p>
       <p>Si vous recevez ce message, la livraison d'emails fonctionne correctement. ✅</p>
-      <p>— L'équipe VERIDIAN</p>`,
+      <p>— L'équipe MIZAN</p>`,
   };
 }

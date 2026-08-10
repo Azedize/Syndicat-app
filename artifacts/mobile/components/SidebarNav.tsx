@@ -14,7 +14,7 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useAuth } from "@/context/AuthContext";
 import { useColors } from "@/hooks/useColors";
 import { SIDEBAR_COMPACT, SIDEBAR_FULL, useBreakpoints } from "@/hooks/useBreakpoints";
-import VeridianLogo from "@/components/brand/VeridianLogo";
+import MizanLogo from "@/components/brand/MizanLogo";
 
 interface NavItem {
   label: string;
@@ -122,14 +122,14 @@ export function SidebarNav() {
       {/* Brand */}
       <View style={[styles.brand, { borderBottomColor: colors.border, justifyContent: showLabels ? "flex-start" : "center" }]}>
         {showLabels ? (
-          <VeridianLogo
+          <MizanLogo
             variant="horizontal"
             colorScheme={isDark ? "dark" : "light"}
             size={40}
             showTagline={false}
           />
         ) : (
-          <VeridianLogo
+          <MizanLogo
             variant="icon"
             colorScheme={isDark ? "dark" : "light"}
             size={32}
