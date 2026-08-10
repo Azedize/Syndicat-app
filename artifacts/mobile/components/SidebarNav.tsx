@@ -12,12 +12,18 @@ import {
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useAuth } from "@/context/AuthContext";
+import { useLanguage } from "@/context/LanguageContext";
 import { useColors } from "@/hooks/useColors";
-import { SIDEBAR_COMPACT, SIDEBAR_FULL, useBreakpoints } from "@/hooks/useBreakpoints";
+import {
+  SIDEBAR_COMPACT,
+  SIDEBAR_FULL,
+  useBreakpoints,
+} from "@/hooks/useBreakpoints";
 import MizanLogo from "@/components/brand/MizanLogo";
+import { RADIUS, SPACING } from "@/constants/spacing";
 
 interface NavItem {
-  label: string;
+  labelKey: string;
   icon: keyof typeof Feather.glyphMap;
   route: string;
   match?: string[];
@@ -27,23 +33,94 @@ interface NavItem {
 }
 
 const NAV_ITEMS: NavItem[] = [
-  { label: "Dashboard", icon: "home", route: "/(tabs)/", match: ["/", "/(tabs)/", "/(tabs)"] },
-  { label: "Membres", icon: "users", route: "/(tabs)/members", match: ["/members", "/(tabs)/members", "/member-detail"], adminOnly: true },
-  { label: "Finance", icon: "bar-chart-2", route: "/(tabs)/finance", match: ["/finance", "/(tabs)/finance"], adminOnly: true },
-  { label: "Marketplace", icon: "shopping-bag", route: "/(tabs)/marketplace", match: ["/marketplace", "/(tabs)/marketplace"] },
-  { label: "Plus", icon: "grid", route: "/(tabs)/more", match: ["/more", "/(tabs)/more"] },
+  {
+    labelKey: "dashboard",
+    icon: "home",
+    route: "/(tabs)/",
+    match: ["/", "/(tabs)/", "/(tabs)"],
+  },
+  {
+    labelKey: "members",
+    icon: "users",
+    route: "/(tabs)/members",
+    match: ["/members", "/(tabs)/members", "/member-detail"],
+    adminOnly: true,
+  },
+  {
+    labelKey: "finance",
+    icon: "bar-chart-2",
+    route: "/(tabs)/finance",
+    match: ["/finance", "/(tabs)/finance"],
+    adminOnly: true,
+  },
+  {
+    labelKey: "marketplace",
+    icon: "shopping-bag",
+    route: "/(tabs)/marketplace",
+    match: ["/marketplace", "/(tabs)/marketplace"],
+  },
+  {
+    labelKey: "more",
+    icon: "grid",
+    route: "/(tabs)/more",
+    match: ["/more", "/(tabs)/more"],
+  },
 ];
 
 const QUICK_LINKS: NavItem[] = [
-  { label: "Notifications", icon: "bell", route: "/alerts", match: ["/alerts"] },
-  { label: "Chat", icon: "message-circle", route: "/chat", match: ["/chat", "/chat-thread"] },
-  { label: "Élections", icon: "check-square", route: "/elections", match: ["/elections"] },
-  { label: "Réunions", icon: "calendar", route: "/meetings", match: ["/meetings"] },
-  { label: "Négociations", icon: "message-square", route: "/negociations", match: ["/negociations"], adminOnly: true },
-  { label: "Procès-Verbaux", icon: "file-text", route: "/pv", match: ["/pv"], adminOnly: true },
-  { label: "RH", icon: "briefcase", route: "/ressources-humaines", match: ["/ressources-humaines"], adminOnly: true },
-  { label: "Tableau National", icon: "globe", route: "/tableau-national", match: ["/tableau-national"], superAdminOnly: true },
-  { label: "Recherche", icon: "search", route: "/search", match: ["/search"] },
+  { labelKey: "alerts", icon: "bell", route: "/alerts", match: ["/alerts"] },
+  {
+    labelKey: "chat",
+    icon: "message-circle",
+    route: "/chat",
+    match: ["/chat", "/chat-thread"],
+  },
+  {
+    labelKey: "elections",
+    icon: "check-square",
+    route: "/elections",
+    match: ["/elections"],
+  },
+  {
+    labelKey: "meetings",
+    icon: "calendar",
+    route: "/meetings",
+    match: ["/meetings"],
+  },
+  {
+    labelKey: "navNegotiations",
+    icon: "message-square",
+    route: "/negociations",
+    match: ["/negociations"],
+    adminOnly: true,
+  },
+  {
+    labelKey: "pv",
+    icon: "file-text",
+    route: "/pv",
+    match: ["/pv"],
+    adminOnly: true,
+  },
+  {
+    labelKey: "navHumanResources",
+    icon: "briefcase",
+    route: "/ressources-humaines",
+    match: ["/ressources-humaines"],
+    adminOnly: true,
+  },
+  {
+    labelKey: "navNationalBoard",
+    icon: "globe",
+    route: "/tableau-national",
+    match: ["/tableau-national"],
+    superAdminOnly: true,
+  },
+  {
+    labelKey: "searchTitle",
+    icon: "search",
+    route: "/search",
+    match: ["/search"],
+  },
 ];
 
 export function SidebarNav() {
@@ -52,10 +129,12 @@ export function SidebarNav() {
   const { isDesktop, isTablet } = useBreakpoints();
   const pathname = usePathname();
   const { user, logout } = useAuth();
+  const { t, isRTL } = useLanguage();
 
   if (!user) return null;
 
-  const isAdmin = user.role === "super_admin" || user.role === "syndicate_admin";
+  const isAdmin =
+    user.role === "super_admin" || user.role === "syndicate_admin";
   const sidebarWidth = isDesktop ? SIDEBAR_FULL : SIDEBAR_COMPACT;
   const showLabels = isDesktop;
   const topPad = Platform.OS === "web" ? 16 : insets.top + 16;
@@ -74,7 +153,12 @@ export function SidebarNav() {
     const matches = item.match ?? [item.route];
     for (const m of matches) {
       if (m === "/" || m === "/(tabs)/" || m === "/(tabs)") {
-        if (pathname === "/" || pathname === "/(tabs)/" || pathname === "/(tabs)") return true;
+        if (
+          pathname === "/" ||
+          pathname === "/(tabs)/" ||
+          pathname === "/(tabs)"
+        )
+          return true;
       } else if (pathname.startsWith(m)) {
         return true;
       }
@@ -102,10 +186,20 @@ export function SidebarNav() {
 
   const roleLabel =
     user.role === "super_admin"
-      ? "Super Admin"
+      ? t("profileRoleSuperAdmin")
       : user.role === "syndicate_admin"
-      ? "Admin Syndicat"
-      : "Membre";
+        ? t("profileRoleSyndicateAdmin")
+        : user.role === "president"
+          ? t("profileRolePresident")
+          : user.role === "treasurer"
+            ? t("profileRoleTreasurer")
+            : user.role === "secretary"
+              ? t("profileRoleSecretary")
+              : user.role === "committee_member"
+                ? t("profileRoleCommittee")
+                : user.role === "tenant"
+                  ? t("profileRoleTenant")
+                  : t("profileRoleMember");
 
   return (
     <View
@@ -114,13 +208,25 @@ export function SidebarNav() {
         {
           width: sidebarWidth,
           backgroundColor: colors.card,
+          borderRightWidth: isRTL ? 0 : 1,
+          borderLeftWidth: isRTL ? 1 : 0,
           borderRightColor: colors.border,
+          borderLeftColor: colors.border,
           paddingTop: topPad,
+          direction: isRTL ? "rtl" : "ltr",
         },
       ]}
     >
       {/* Brand */}
-      <View style={[styles.brand, { borderBottomColor: colors.border, justifyContent: showLabels ? "flex-start" : "center" }]}>
+      <View
+        style={[
+          styles.brand,
+          {
+            borderBottomColor: colors.border,
+            justifyContent: showLabels ? "flex-start" : "center",
+          },
+        ]}
+      >
         {showLabels ? (
           <MizanLogo
             variant="horizontal"
@@ -146,7 +252,7 @@ export function SidebarNav() {
             marginHorizontal: showLabels ? 12 : 8,
             marginBottom: 4,
             justifyContent: showLabels ? "flex-start" : "center",
-            paddingLeft: showLabels ? 14 : 0,
+            paddingHorizontal: showLabels ? 14 : 0,
           },
         ]}
         onPress={() => navigate("/search")}
@@ -154,14 +260,20 @@ export function SidebarNav() {
       >
         <Feather name="search" size={15} color={colors.primary} />
         {showLabels && (
-          <Text style={[styles.searchText, { color: colors.primary }]}>Rechercher… ⌘K</Text>
+          <Text style={[styles.searchText, { color: colors.primary }]}>
+            {t("searchPlaceholder")}
+          </Text>
         )}
       </TouchableOpacity>
 
       {/* Main nav */}
       <View style={styles.navSection}>
         {showLabels && (
-          <Text style={[styles.navSectionLabel, { color: colors.mutedForeground }]}>NAVIGATION</Text>
+          <Text
+            style={[styles.navSectionLabel, { color: colors.mutedForeground }]}
+          >
+            {t("navPrimary")}
+          </Text>
         )}
         {visibleItems.map((item) => {
           const active = isActive(item);
@@ -171,10 +283,12 @@ export function SidebarNav() {
               style={[
                 styles.navItem,
                 {
-                  backgroundColor: active ? colors.primary + "15" : "transparent",
+                  backgroundColor: active
+                    ? colors.primary + "15"
+                    : "transparent",
                   marginHorizontal: showLabels ? 8 : 6,
                   justifyContent: showLabels ? "flex-start" : "center",
-                  paddingLeft: showLabels ? 12 : 0,
+                  paddingHorizontal: showLabels ? 12 : 0,
                 },
               ]}
               onPress={() => navigate(item.route)}
@@ -183,7 +297,11 @@ export function SidebarNav() {
               <View
                 style={[
                   styles.navIconWrap,
-                  { backgroundColor: active ? colors.primary + "20" : "transparent" },
+                  {
+                    backgroundColor: active
+                      ? colors.primary + "20"
+                      : "transparent",
+                  },
                 ]}
               >
                 <Feather
@@ -200,13 +318,22 @@ export function SidebarNav() {
                   ]}
                   numberOfLines={1}
                 >
-                  {item.label === "Membres" && user.role === "super_admin"
-                    ? "Syndicats"
-                    : item.label}
+                  {item.labelKey === "members" && user.role === "super_admin"
+                    ? t("navSyndicates")
+                    : t(item.labelKey)}
                 </Text>
               )}
               {active && (
-                <View style={[styles.activeBar, { backgroundColor: colors.primary }]} />
+                <View
+                  style={[
+                    styles.activeBar,
+                    {
+                      backgroundColor: colors.primary,
+                      left: isRTL ? 0 : undefined,
+                      right: isRTL ? undefined : 0,
+                    },
+                  ]}
+                />
               )}
             </TouchableOpacity>
           );
@@ -216,7 +343,11 @@ export function SidebarNav() {
       {/* Quick links */}
       <View style={[styles.navSection, { marginTop: 8 }]}>
         {showLabels && (
-          <Text style={[styles.navSectionLabel, { color: colors.mutedForeground }]}>ACCÈS RAPIDE</Text>
+          <Text
+            style={[styles.navSectionLabel, { color: colors.mutedForeground }]}
+          >
+            {t("navQuickAccess")}
+          </Text>
         )}
         {visibleQuickLinks.map((item) => {
           const active = isActive(item);
@@ -226,10 +357,12 @@ export function SidebarNav() {
               style={[
                 styles.navItem,
                 {
-                  backgroundColor: active ? colors.primary + "12" : "transparent",
+                  backgroundColor: active
+                    ? colors.primary + "12"
+                    : "transparent",
                   marginHorizontal: showLabels ? 8 : 6,
                   justifyContent: showLabels ? "flex-start" : "center",
-                  paddingLeft: showLabels ? 12 : 0,
+                  paddingHorizontal: showLabels ? 12 : 0,
                 },
               ]}
               onPress={() => navigate(item.route)}
@@ -238,7 +371,11 @@ export function SidebarNav() {
               <View
                 style={[
                   styles.navIconWrap,
-                  { backgroundColor: active ? colors.primary + "15" : "transparent" },
+                  {
+                    backgroundColor: active
+                      ? colors.primary + "15"
+                      : "transparent",
+                  },
                 ]}
               >
                 <Feather
@@ -255,11 +392,20 @@ export function SidebarNav() {
                   ]}
                   numberOfLines={1}
                 >
-                  {item.label}
+                  {t(item.labelKey)}
                 </Text>
               )}
               {active && (
-                <View style={[styles.activeBar, { backgroundColor: colors.primary }]} />
+                <View
+                  style={[
+                    styles.activeBar,
+                    {
+                      backgroundColor: colors.primary,
+                      left: isRTL ? 0 : undefined,
+                      right: isRTL ? undefined : 0,
+                    },
+                  ]}
+                />
               )}
             </TouchableOpacity>
           );
@@ -288,10 +434,16 @@ export function SidebarNav() {
         </View>
         {showLabels && (
           <View style={styles.userInfo}>
-            <Text style={[styles.userName, { color: colors.foreground }]} numberOfLines={1}>
+            <Text
+              style={[styles.userName, { color: colors.foreground }]}
+              numberOfLines={1}
+            >
               {user.name}
             </Text>
-            <Text style={[styles.userRole, { color: colors.mutedForeground }]} numberOfLines={1}>
+            <Text
+              style={[styles.userRole, { color: colors.mutedForeground }]}
+              numberOfLines={1}
+            >
               {roleLabel}
             </Text>
           </View>
@@ -305,7 +457,7 @@ export function SidebarNav() {
           {
             borderTopColor: colors.border,
             justifyContent: showLabels ? "flex-start" : "center",
-            paddingLeft: showLabels ? 16 : 0,
+            paddingHorizontal: showLabels ? 16 : 0,
             marginBottom: insets.bottom > 0 ? insets.bottom : 8,
           },
         ]}
@@ -315,7 +467,7 @@ export function SidebarNav() {
         <Feather name="log-out" size={16} color={colors.destructive} />
         {showLabels && (
           <Text style={[styles.logoutText, { color: colors.destructive }]}>
-            Déconnexion
+            {t("logout")}
           </Text>
         )}
       </TouchableOpacity>
@@ -327,6 +479,7 @@ const styles = StyleSheet.create({
   sidebar: {
     height: "100%" as any,
     borderRightWidth: 1,
+    borderLeftWidth: 1,
     flexDirection: "column",
   },
   brand: {
@@ -341,7 +494,7 @@ const styles = StyleSheet.create({
   logoBox: {
     width: 34,
     height: 34,
-    borderRadius: 10,
+    borderRadius: RADIUS.SM,
     alignItems: "center",
     justifyContent: "center",
     flexShrink: 0,
@@ -358,7 +511,7 @@ const styles = StyleSheet.create({
   },
   searchBtn: {
     height: 36,
-    borderRadius: 10,
+    borderRadius: RADIUS.SM,
     flexDirection: "row",
     alignItems: "center",
     gap: 8,
@@ -383,16 +536,16 @@ const styles = StyleSheet.create({
   navItem: {
     flexDirection: "row",
     alignItems: "center",
-    gap: 10,
+    gap: SPACING.SM,
     height: 42,
-    borderRadius: 11,
+    borderRadius: RADIUS.MD,
     overflow: "hidden",
     position: "relative",
   },
   navIconWrap: {
     width: 32,
     height: 32,
-    borderRadius: 9,
+    borderRadius: RADIUS.SM,
     alignItems: "center",
     justifyContent: "center",
     flexShrink: 0,
@@ -409,7 +562,6 @@ const styles = StyleSheet.create({
   },
   activeBar: {
     position: "absolute",
-    right: 0,
     width: 3,
     height: 20,
     borderRadius: 2,
@@ -430,7 +582,7 @@ const styles = StyleSheet.create({
     justifyContent: "center",
     flexShrink: 0,
   },
-  avatarText: { fontSize: 12, fontFamily: "Inter_700Bold", color: "#fff" },
+  avatarText: { fontSize: 12, fontFamily: "Inter_700Bold", color: "#FFFFFF" },
   userInfo: { flex: 1, minWidth: 0 },
   userName: { fontSize: 12, fontFamily: "Inter_600SemiBold" },
   userRole: { fontSize: 10, fontFamily: "Inter_400Regular", marginTop: 2 },

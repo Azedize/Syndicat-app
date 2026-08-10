@@ -490,6 +490,42 @@ export const TRANSLATIONS: Translations = {
   finance: { fr: "Finance", en: "Finance", ar: "المالية", es: "Finanzas" },
   marketplace: { fr: "Marché", en: "Market", ar: "السوق", es: "Mercado" },
   more: { fr: "Plus", en: "More", ar: "المزيد", es: "Más" },
+  navPrimary: {
+    fr: "Navigation",
+    en: "Navigation",
+    ar: "التنقل",
+    es: "Navegación",
+  },
+  navQuickAccess: {
+    fr: "Accès rapide",
+    en: "Quick access",
+    ar: "وصول سريع",
+    es: "Acceso rápido",
+  },
+  navSyndicates: {
+    fr: "Syndicats",
+    en: "Syndicates",
+    ar: "النقابات",
+    es: "Sindicatos",
+  },
+  navNegotiations: {
+    fr: "Négociations",
+    en: "Negotiations",
+    ar: "المفاوضات",
+    es: "Negociaciones",
+  },
+  navHumanResources: {
+    fr: "Ressources humaines",
+    en: "Human resources",
+    ar: "الموارد البشرية",
+    es: "Recursos humanos",
+  },
+  navNationalBoard: {
+    fr: "Tableau national",
+    en: "National dashboard",
+    ar: "لوحة القيادة الوطنية",
+    es: "Panel nacional",
+  },
 
   // ─── Settings ──────────────────────────────────────────────────────────────
   settings: {

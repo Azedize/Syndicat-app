@@ -9,7 +9,7 @@ import {
   StyleSheet,
   Text,
   TouchableOpacity,
-  View
+  View,
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import StatCard from "@/components/StatCard";
@@ -549,8 +549,26 @@ export default function DashboardScreen() {
                 ? QUICK_ACTIONS_TENANT
                 : QUICK_ACTIONS_MEMBER;
 
+  const resolveActionColor = (value: string) => {
+    const normalized = value.toLowerCase();
+    if (normalized.includes("10b981") || normalized.includes("06b6d4")) {
+      return colors.success;
+    }
+    if (normalized.includes("f59e0b") || normalized.includes("f97316")) {
+      return colors.warning;
+    }
+    if (normalized.includes("ef4444") || normalized.includes("ec4899")) {
+      return colors.destructive;
+    }
+    if (normalized.includes("8b5cf6") || normalized.includes("6366f1")) {
+      return colors.info;
+    }
+    return colors.primary;
+  };
+
   const quickActions = quickActionsRaw.map((a) => ({
     ...a,
+    color: resolveActionColor(a.color),
     label: t(a.labelKey) || a.labelKey,
   }));
 
@@ -666,16 +684,27 @@ export default function DashboardScreen() {
                 router.push("/search" as any);
               }}
             >
-              <Feather name="search" size={22} color="#fff" />
+              <Feather
+                name="search"
+                size={22}
+                color={colors.primaryForeground}
+              />
             </TouchableOpacity>
             {totalUnread > 0 && (
               <TouchableOpacity
                 style={styles.headerBtn}
                 onPress={() => router.push("/chat" as any)}
               >
-                <Feather name="message-circle" size={22} color="#fff" />
+                <Feather
+                  name="message-circle"
+                  size={22}
+                  color={colors.primaryForeground}
+                />
                 <View
-                  style={[styles.headerBadge, { backgroundColor: "#F59E0B" }]}
+                  style={[
+                    styles.headerBadge,
+                    { backgroundColor: colors.warning },
+                  ]}
                 >
                   <Text style={styles.headerBadgeText}>{totalUnread}</Text>
                 </View>
@@ -685,10 +714,13 @@ export default function DashboardScreen() {
               style={styles.headerBtn}
               onPress={() => router.push("/notifications" as any)}
             >
-              <Feather name="bell" size={22} color="#fff" />
+              <Feather name="bell" size={22} color={colors.primaryForeground} />
               {unreadAlerts.length > 0 && (
                 <View
-                  style={[styles.headerBadge, { backgroundColor: "#EF4444" }]}
+                  style={[
+                    styles.headerBadge,
+                    { backgroundColor: colors.destructive },
+                  ]}
                 >
                   <Text style={styles.headerBadgeText}>
                     {unreadAlerts.length}
@@ -719,9 +751,11 @@ export default function DashboardScreen() {
                               : "home"
               }
               size={12}
-              color="#2563EB"
+              color={colors.primary}
             />
-            <Text style={styles.roleBadgeText}>{roleLabel}</Text>
+            <Text style={[styles.roleBadgeText, { color: colors.primary }]}>
+              {roleLabel}
+            </Text>
           </View>
         </View>
       </LinearGradient>
@@ -836,19 +870,19 @@ export default function DashboardScreen() {
               accessibilityLabel={topAlert.title}
             >
               <View
-              style={[
-                styles.alertIconWrap,
-                {
-                  backgroundColor:
-                    topAlert.type === "error"
-                      ? colors.destructive + "20"
-                      : topAlert.type === "warning"
-                        ? colors.warning + "22"
-                        : topAlert.type === "success"
-                          ? colors.success + "20"
-                          : colors.primary + "20",
-                },
-              ]}
+                style={[
+                  styles.alertIconWrap,
+                  {
+                    backgroundColor:
+                      topAlert.type === "error"
+                        ? colors.destructive + "20"
+                        : topAlert.type === "warning"
+                          ? colors.warning + "22"
+                          : topAlert.type === "success"
+                            ? colors.success + "20"
+                            : colors.primary + "20",
+                  },
+                ]}
               >
                 <Feather
                   name={
@@ -892,7 +926,11 @@ export default function DashboardScreen() {
                   {topAlert.message}
                 </Text>
               </View>
-              <Feather name="chevron-right" size={18} color={colors.mutedForeground} />
+              <Feather
+                name={isRTL ? "chevron-left" : "chevron-right"}
+                size={18}
+                color={colors.mutedForeground}
+              />
             </TouchableOpacity>
             <TouchableOpacity
               style={styles.alertDismiss}
@@ -900,7 +938,7 @@ export default function DashboardScreen() {
                 setDismissedAlerts((p) => new Set(p).add(topAlert.id))
               }
               accessibilityRole="button"
-              accessibilityLabel="Fermer"
+              accessibilityLabel={t("close")}
             >
               <Feather name="x" size={18} color={colors.mutedForeground} />
             </TouchableOpacity>
@@ -915,11 +953,17 @@ export default function DashboardScreen() {
                 <Text style={[styles.eyebrow, { color: colors.primary }]}>
                   {t("quickAccess")}
                 </Text>
-                <Text style={[styles.sectionTitle, { color: colors.foreground }]}>
+                <Text
+                  style={[styles.sectionTitle, { color: colors.foreground }]}
+                >
                   {t("overviewLabel")}
                 </Text>
               </View>
-              <Feather name="arrow-up-right" size={18} color={colors.mutedForeground} />
+              <Feather
+                name={isRTL ? "arrow-up-left" : "arrow-up-right"}
+                size={18}
+                color={colors.mutedForeground}
+              />
             </View>
             <View style={styles.actionsGrid}>
               {quickActions.map((a) => (
@@ -1068,11 +1112,11 @@ export default function DashboardScreen() {
         {/* Ongoing Election Banner */}
         {!dataLoading && canViewElections && openElections > 0 && (
           <TouchableOpacity
-            style={[styles.electionBanner, { backgroundColor: "#2563EB" }]}
+            style={[styles.electionBanner, { backgroundColor: colors.primary }]}
             onPress={() => router.push("/elections" as any)}
           >
             <View style={styles.electionBannerIcon}>
-              <Feather name="check-square" size={24} color="#2563EB" />
+              <Feather name="check-square" size={24} color={colors.primary} />
             </View>
             <View style={{ flex: 1, gap: 4 }}>
               <Text style={styles.electionBannerLabel}>
@@ -1082,11 +1126,15 @@ export default function DashboardScreen() {
                 {openElections} {t("electionVoteNow")}
               </Text>
             </View>
-            <Feather name="chevron-right" size={20} color="#FFF" />
+            <Feather
+              name={isRTL ? "chevron-left" : "chevron-right"}
+              size={20}
+              color={colors.primaryForeground}
+            />
           </TouchableOpacity>
         )}
 
-         {/* Key Metrics Dashboard */}
+        {/* Key Metrics Dashboard */}
         {!dataLoading && (
           <View style={styles.section}>
             <View style={styles.sectionHeader}>
@@ -1094,12 +1142,21 @@ export default function DashboardScreen() {
                 <Text style={[styles.eyebrow, { color: colors.primary }]}>
                   {t("overviewLabel")}
                 </Text>
-                <Text style={[styles.sectionTitle, { color: colors.foreground }]}>
+                <Text
+                  style={[styles.sectionTitle, { color: colors.foreground }]}
+                >
                   {roleLabel}
                 </Text>
               </View>
-              <View style={[styles.livePill, { backgroundColor: colors.success + "14" }]}>
-                <View style={[styles.liveDot, { backgroundColor: colors.success }]} />
+              <View
+                style={[
+                  styles.livePill,
+                  { backgroundColor: colors.success + "14" },
+                ]}
+              >
+                <View
+                  style={[styles.liveDot, { backgroundColor: colors.success }]}
+                />
                 <Text style={[styles.livePillText, { color: colors.success }]}>
                   {t("dashboardUpdated")}
                 </Text>
@@ -1126,7 +1183,7 @@ export default function DashboardScreen() {
                       syndicates.filter((s) => s.status === "active").length
                     }
                     icon="activity"
-                    iconColor="#10b981"
+                    iconColor={colors.success}
                   />
                   <StatCard
                     label={t("openTickets")}
@@ -1134,7 +1191,7 @@ export default function DashboardScreen() {
                       supportTickets.filter((t) => t.status === "open").length
                     }
                     icon="headphones"
-                    iconColor="#ef4444"
+                    iconColor={colors.destructive}
                     subtitle={t("support")}
                   />
                 </View>
@@ -1152,14 +1209,14 @@ export default function DashboardScreen() {
                       label={t("revenue")}
                       value={formatMad(totalRevenue)}
                       icon="trending-up"
-                      iconColor="#10B981"
+                      iconColor={colors.success}
                     />
                   ) : (
                     <StatCard
                       label={t("scheduledMeetings")}
                       value={upcomingMeetings.length}
                       icon="calendar"
-                      iconColor="#3b82f6"
+                      iconColor={colors.info}
                     />
                   )}
                 </View>
@@ -1169,7 +1226,7 @@ export default function DashboardScreen() {
                       label={t("dueCotisations")}
                       value={pendingCotisations}
                       icon="alert-circle"
-                      iconColor="#f59e0b"
+                      iconColor={colors.warning}
                       subtitle={t("pendingLabel")}
                     />
                   ) : (
@@ -1177,14 +1234,14 @@ export default function DashboardScreen() {
                       label={t("elections")}
                       value={openElections}
                       icon="check-square"
-                      iconColor="#f59e0b"
+                      iconColor={colors.warning}
                     />
                   )}
                   <StatCard
                     label={t("scheduledMeetings")}
                     value={upcomingMeetings.length}
                     icon="calendar"
-                    iconColor="#3b82f6"
+                    iconColor={colors.info}
                   />
                 </View>
               </>
@@ -1199,10 +1256,10 @@ export default function DashboardScreen() {
                       : t("pendingLabel");
                 const cotColor =
                   myCot?.status === "paid"
-                    ? "#10b981"
+                    ? colors.success
                     : myCot?.status === "overdue"
-                      ? "#ef4444"
-                      : "#f59e0b";
+                      ? colors.destructive
+                      : colors.warning;
                 const myMember = members.find((m) => m.email === user.email);
                 const memberStatus =
                   myMember?.status === "active"
@@ -1212,10 +1269,10 @@ export default function DashboardScreen() {
                       : t("pendingLabel");
                 const memberColor =
                   myMember?.status === "active"
-                    ? "#10b981"
+                    ? colors.success
                     : myMember?.status === "inactive"
-                      ? "#ef4444"
-                      : "#f59e0b";
+                      ? colors.destructive
+                      : colors.warning;
                 return (
                   <>
                     <View style={styles.statsRow}>
@@ -1237,7 +1294,7 @@ export default function DashboardScreen() {
                         label={t("elections")}
                         value={openElections}
                         icon="check-square"
-                        iconColor="#f59e0b"
+                        iconColor={colors.warning}
                       />
                       <StatCard
                         label={t("amountDue")}
@@ -1248,7 +1305,9 @@ export default function DashboardScreen() {
                         }
                         icon="dollar-sign"
                         iconColor={
-                          myCot?.status !== "paid" ? "#ef4444" : "#10b981"
+                          myCot?.status !== "paid"
+                            ? colors.destructive
+                            : colors.success
                         }
                       />
                     </View>

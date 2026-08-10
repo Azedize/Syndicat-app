@@ -106,3 +106,5 @@
 - Mobile verification: zero-error typecheck, clean diff validation, Expo restart, and compact public preview pass after the Support RTL pass.
 - Design System / MIZAN Phase 3 foundation: shared headers, data states, empty states, KPI cards, filter chips, and statistics strips now consume centralized semantic theme and layout tokens, with RTL-aware direction behavior complete for the shared primitives.
 - Mobile verification: zero-error typecheck, Prettier, diff validation, healthy Expo/API workflows, and compact public preview pass after the shared-primitives consolidation.
+- Design System / MIZAN Phase 3 navigation/dashboard follow-through: SidebarNav and FilterTabs now use runtime translations, active theme colors, shared layout tokens, and Arabic RTL mirroring; the role-aware dashboard now uses semantic theme accents for header actions, election/banner affordances, and KPI status colors.
+- Mobile verification: zero-error typecheck, Prettier, diff validation, healthy workflows, and compact public preview pass after the navigation/dashboard consolidation.

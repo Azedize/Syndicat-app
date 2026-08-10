@@ -199,3 +199,8 @@
  - Started Phase 3 — Design System consolidation. Updated the shared mobile primitives (`ScreenHeader`, `DataState`, `EmptyState`, `StatCard`, `FilterChips`, and `StatsStrip`) to consume centralized MIZAN semantic colors and spacing/radius/typography tokens instead of local default values.
  - Added RTL-aware shared header arrows and statistics separators, theme-aware foreground colors for shared actions, and accessibility roles/labels on shared icon actions without changing route behavior or API contracts.
  - Verified with `pnpm --filter @workspace/mobile run typecheck`, Prettier, `git diff --check`, healthy Expo/API workflow logs, and a compact `/welcome` preview. Existing Expo Web warnings remain non-blocking.
+- Continued Phase 3 on the shared navigation and dashboard surfaces.
+- Localized SidebarNav labels, section headings, role labels, search/logout copy, and super-admin syndicate wording through the runtime dictionary; added missing navigation translations for quick access, negotiations, HR, and the national dashboard.
+- Added RTL-aware SidebarNav borders, active indicators, alignment, and FilterTabs direction; FilterTabs now defaults to the active theme primary color and shared radius/spacing/typography tokens.
+- Replaced the dashboard's visible hardcoded action/status accents with active MIZAN semantic colors, mirrored dashboard arrows in Arabic, and localized the dismiss accessibility label without changing API, routes, or role permissions.
+- Mobile typecheck, Prettier, `git diff --check`, Expo bundling, and compact public preview passed; existing Expo Web compatibility warnings remain non-blocking.

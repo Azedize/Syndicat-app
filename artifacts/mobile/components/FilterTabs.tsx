@@ -24,6 +24,8 @@ import {
   View,
 } from "react-native";
 import { useColors } from "@/hooks/useColors";
+import { useLanguage } from "@/context/LanguageContext";
+import { RADIUS, SPACING, TYPOGRAPHY } from "@/constants/spacing";
 
 export interface TabOption {
   key: string;
@@ -94,7 +96,11 @@ function Tab({
             <Text
               style={[
                 styles.badgeText,
-                { color: active ? "#fff" : colors.mutedForeground },
+                {
+                  color: active
+                    ? colors.primaryForeground
+                    : colors.mutedForeground,
+                },
               ]}
             >
               {opt.count > 99 ? "99+" : opt.count}
@@ -129,9 +135,11 @@ export default function FilterTabs({
   options,
   value,
   onChange,
-  accentColor = "#2563EB",
+  accentColor,
 }: Props) {
   const colors = useColors();
+  const { isRTL } = useLanguage();
+  const resolvedAccentColor = accentColor ?? colors.primary;
 
   return (
     <View
@@ -140,6 +148,7 @@ export default function FilterTabs({
         {
           backgroundColor: colors.card,
           borderBottomColor: colors.border,
+          direction: isRTL ? "rtl" : "ltr",
         },
       ]}
     >
@@ -148,7 +157,7 @@ export default function FilterTabs({
           key={opt.key}
           opt={opt}
           active={value === opt.key}
-          accentColor={accentColor}
+          accentColor={resolvedAccentColor}
           onPress={() => {
             Haptics.selectionAsync();
             onChange(opt.key);
@@ -175,17 +184,17 @@ const styles = StyleSheet.create({
   labelRow: {
     flexDirection: "row",
     alignItems: "center",
-    gap: 5,
+    gap: SPACING.XS,
   },
   label: {
-    fontSize: 13,
+    fontSize: TYPOGRAPHY.MD,
     fontFamily: "Inter_600SemiBold",
     textAlign: "center",
   },
   badge: {
     minWidth: 18,
     height: 18,
-    borderRadius: 9,
+    borderRadius: RADIUS.FULL,
     alignItems: "center",
     justifyContent: "center",
     paddingHorizontal: 4,
@@ -201,6 +210,6 @@ const styles = StyleSheet.create({
     left: 8,
     right: 8,
     height: 2,
-    borderRadius: 1,
+    borderRadius: RADIUS.SM,
   },
 });
