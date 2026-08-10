@@ -93,3 +93,11 @@
 - Mobile verification: zero-error typecheck, clean diff validation, Expo restart, and protected `/syndicate-setup` preview pass after the visible-text audit.
 - Public Welcome: descriptive, non-fabricated product presentation, four-language hero/service/CTA/trust copy, and RTL-aware public header direction complete; no database-backed KPI surface was added.
 - Mobile verification: zero-error typecheck, clean diff validation, Expo restart, and public `/welcome` preview pass after the trust-content audit.
+- Approval Workflows: active-locale dates, Arabic RTL row mirroring, compact-screen statistics spacing, safe-area-aware modal headers, and existing loading/unavailable/empty recovery complete; workflow APIs and approval permissions preserved.
+- Mobile verification: zero-error typecheck, clean diff validation, Expo restart, and compact public preview pass after the workflow presentation pass.
+- Level-1 Support: independent ticket-list and conversation loading/unavailable recovery, localized retry guidance, and reply reload handling complete; support API contracts, escalation, and role boundaries preserved.
+- Mobile verification: zero-error typecheck, clean diff validation, and Expo restart pass after the support reliability pass.
+- Financial Reports: full active-locale MAD/number formatting now covers KPI change indicators and chart values; existing real statistics, period filtering, exports, and recovery states preserved.
+- Mobile verification: zero-error typecheck, clean diff validation, and Metro rebuild pass after the financial presentation follow-through.
+- Level-1 Support: Arabic RTL mirroring and shared description localization complete across list/detail/create-ticket surfaces, including direction-aware priority accents and action icons; APIs and permissions preserved.
+- Mobile verification: zero-error typecheck, clean diff validation, Expo restart, and compact public preview pass after the Support RTL pass.

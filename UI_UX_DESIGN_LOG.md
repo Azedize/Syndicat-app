@@ -47,3 +47,7 @@
 - Onboarding keeps its progressive four-step hierarchy and avatar preview while removing language-specific friction from labels, city chips, validation, legal consent, and completion actions.
 - Cart keeps its compact order-summary and checkout-sheet hierarchy while making item count, monetary totals, payment method, destructive actions, and success feedback respond to the active language.
 - Welcome keeps its product-stage and service-card hierarchy while replacing synthetic charts/testimonials with a clear descriptive management signal and localizing the full public presentation across supported languages.
+- Approval Workflows retain their operational card, progress, timeline, and decision hierarchy while adding locale-aware dates, explicit RTL mirroring, compact statistics spacing, and safe-area-aware modal headers for small mobile surfaces.
+- Level-1 Support retains its ticket cards, detail sheet, reply thread, escalation treatment, and compose flow while adding distinct unavailable-data surfaces for the list and conversation instead of collapsing failures into empty content.
+- Financial Reports retain their KPI, chart, breakdown, balance, and export hierarchy while replacing compact `k` values with complete locale-aware financial labels for better scanability and trust.
+- Level-1 Support now mirrors list and modal compositions in Arabic, including metadata rows, badges, priority edge treatment, recovery/action banners, reply controls, forms, and directional navigation icons; the existing visual hierarchy remains unchanged in LTR locales.

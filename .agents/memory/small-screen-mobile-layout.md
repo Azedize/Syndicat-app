@@ -7,4 +7,4 @@ For compact mobile viewports, dense presentation screens must give large visual 
 
 **Why:** Flexible vertical zones and minimum-width assumptions can make neighboring content overlap or clip on smaller Android and web-preview dimensions, even when the same screen looks correct on a larger device.
 
-**How to apply:** Add a compact-height variant for large mockups and content zones, use shrinkable primary content plus a non-shrinking secondary action for login option rows, and prefer two-column icon-plus-label action rows over four-column icon grids on authenticated mobile screens. Validate at approximately 390×844 and a compact height below 760 points.
+**How to apply:** Add a compact-height variant for large mockups and content zones, use shrinkable primary content plus a non-shrinking secondary action for login option rows, and prefer two-column icon-plus-label action rows over four-column icon grids on authenticated mobile screens. For Arabic, explicitly mirror nested rows with `row-reverse` rather than relying only on the root `direction` prop. Validate at approximately 390×844 and a compact height below 760 points.

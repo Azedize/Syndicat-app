@@ -38,10 +38,12 @@ function BarChart({
   data,
   maxVal,
   color,
+  valueFormatter,
 }: {
   data: { label: string; value: number }[];
   maxVal: number;
   color: string;
+  valueFormatter?: (value: number) => string;
 }) {
   const colors = useColors();
   return (
@@ -49,7 +51,7 @@ function BarChart({
       {data.map((d, i) => (
         <View key={i} style={barStyles.bar}>
           <Text style={[barStyles.barVal, { color: colors.foreground }]}>
-            {d.value > 999 ? `${(d.value / 1000).toFixed(1)}k` : `${d.value}`}
+            {valueFormatter ? valueFormatter(d.value) : `${d.value}`}
           </Text>
           <View style={barStyles.barWrap}>
             <View
@@ -336,9 +338,7 @@ function ReportsScreenInner() {
                 icon: "trending-up" as const,
                 color: colors.success,
                 change:
-                  pd.kpi.revenues > 0
-                    ? `${(pd.kpi.revenues / 1000).toFixed(0)}k`
-                    : "—",
+                  pd.kpi.revenues > 0 ? formatMad(pd.kpi.revenues) : "—",
                 up: true,
               },
               {
@@ -347,9 +347,7 @@ function ReportsScreenInner() {
                 icon: "trending-down" as const,
                 color: colors.destructive,
                 change:
-                  pd.kpi.expenses > 0
-                    ? `${(pd.kpi.expenses / 1000).toFixed(0)}k`
-                    : "—",
+                  pd.kpi.expenses > 0 ? formatMad(pd.kpi.expenses) : "—",
                 up: false,
               },
               {
@@ -458,6 +456,7 @@ function ReportsScreenInner() {
                 data={pd.revenueChart}
                 maxVal={maxRevenue}
                 color={colors.primary}
+                valueFormatter={formatMad}
               />
             </View>
           )}
@@ -499,6 +498,7 @@ function ReportsScreenInner() {
                 data={pd.membersChart}
                 maxVal={maxMembers}
                 color={colors.success}
+                valueFormatter={(value) => new Intl.NumberFormat(locale).format(value)}
               />
             </View>
           )}

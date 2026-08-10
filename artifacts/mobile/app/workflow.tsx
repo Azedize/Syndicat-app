@@ -179,14 +179,23 @@ const CAT_LABEL_KEYS: Record<string, keyof typeof STRINGS> = {
 
 type TabFilter = "all" | WfStatus;
 
+function formatWorkflowDate(value: string | undefined, lang: "fr" | "en" | "ar" | "es") {
+  if (!value) return "";
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return value;
+  const locale = lang === "ar" ? "ar-MA" : lang === "es" ? "es-ES" : lang === "en" ? "en-GB" : "fr-MA";
+  return new Intl.DateTimeFormat(locale, { day: "2-digit", month: "short", year: "numeric" }).format(date);
+}
+
 export default function WorkflowScreen() {
   const colors = useColors();
   const { lang, isRTL } = useLanguage();
   const insets = useSafeAreaInsets();
   const { user } = useAuth();
   const { documents } = useData();
-  const { isWide } = useBreakpoints();
+  const { isWide, isMobile } = useBreakpoints();
   const topPad = isWide ? 0 : (Platform.OS === "web" ? 67 : insets.top);
+  const rowDirection = isRTL ? "row-reverse" : "row";
 
   const isAdmin = user?.role === "super_admin" || user?.role === "syndicate_admin";
 
@@ -290,13 +299,13 @@ export default function WorkflowScreen() {
     <View style={[styles.root, { backgroundColor: colors.background, direction: isRTL ? "rtl" : "ltr" }]}>
       {/* Header */}
       <View style={[styles.header, { paddingTop: topPad + 16, backgroundColor: colors.primary }]}>
-        <View style={styles.headerRow}>
+        <View style={[styles.headerRow, { flexDirection: rowDirection }]}>
           <TouchableOpacity onPress={() => router.back()}>
             <Feather name={isRTL ? "arrow-right" : "arrow-left"} size={22} color="#fff" />
           </TouchableOpacity>
-          <View style={{ flex: 1 }}>
-            <Text style={styles.headerTitle}>{STRINGS.headerTitle[lang]}</Text>
-            <Text style={styles.headerSub}>{STRINGS.headerSub[lang]}</Text>
+          <View style={{ flex: 1, alignItems: isRTL ? "flex-end" : "flex-start" }}>
+            <Text style={[styles.headerTitle, { textAlign: isRTL ? "right" : "left" }]}>{STRINGS.headerTitle[lang]}</Text>
+            <Text style={[styles.headerSub, { textAlign: isRTL ? "right" : "left" }]}>{STRINGS.headerSub[lang]}</Text>
           </View>
           {isAdmin && (
             <TouchableOpacity
@@ -308,14 +317,20 @@ export default function WorkflowScreen() {
           )}
         </View>
 
-        <View style={styles.statsRow}>
+        <View style={[styles.statsRow, isMobile && styles.statsRowCompact]}>
           {[
             { label: STRINGS.statTotal[lang], value: counts.all, color: "#fff" },
             { label: STRINGS.statInProgress[lang], value: counts.in_progress, color: "#93c5fd" },
             { label: STRINGS.statRequired[lang], value: myPending, color: "#fde68a" },
             { label: STRINGS.statApproved[lang], value: counts.approved, color: "#6ee7b7" },
           ].map((s) => (
-            <View key={s.label} style={styles.statBox}>
+            <View
+              key={s.label}
+              style={[
+                styles.statBox,
+                isMobile ? styles.statBoxCompact : undefined,
+              ]}
+            >
               <Text style={[styles.statVal, { color: s.color }]}>{s.value}</Text>
               <Text style={styles.statLab}>{s.label}</Text>
             </View>
@@ -328,7 +343,7 @@ export default function WorkflowScreen() {
         horizontal
         showsHorizontalScrollIndicator={false}
         style={[styles.tabBar, { backgroundColor: colors.card, borderBottomColor: colors.border }]}
-        contentContainerStyle={styles.tabContent}
+        contentContainerStyle={[styles.tabContent, { flexDirection: rowDirection }]}
       >
         {TABS.map((t) => (
           <TouchableOpacity
@@ -387,12 +402,12 @@ export default function WorkflowScreen() {
               activeOpacity={0.8}
             >
               {/* Top */}
-              <View style={styles.cardTop}>
+              <View style={[styles.cardTop, { flexDirection: rowDirection }]}>
                 <View style={[styles.catDot, { backgroundColor: catColor + "20" }]}>
                   <Feather name="layers" size={18} color={catColor} />
                 </View>
                 <View style={{ flex: 1, gap: 3 }}>
-                  <View style={styles.badgeRow}>
+                  <View style={[styles.badgeRow, { flexDirection: rowDirection }]}>
                     <View style={[styles.catBadge, { backgroundColor: catColor + "15" }]}>
                       <Text style={[styles.catText, { color: catColor }]}>{CAT_LABEL_KEYS[w.category] ? STRINGS[CAT_LABEL_KEYS[w.category]][lang] : w.category}</Text>
                     </View>
@@ -404,19 +419,19 @@ export default function WorkflowScreen() {
                       <Text style={[styles.priorityText, { color: priorityCfg.color }]}>{STRINGS[priorityCfg.label][lang]}</Text>
                     </View>
                   </View>
-                  <Text style={[styles.wfTitle, { color: colors.foreground }]}>{w.title}</Text>
+                  <Text style={[styles.wfTitle, { color: colors.foreground, textAlign: isRTL ? "right" : "left" }]}>{w.title}</Text>
                 </View>
               </View>
 
               {/* Meta */}
-              <View style={styles.metaRow}>
+              <View style={[styles.metaRow, { flexDirection: rowDirection }]}>
                 <View style={styles.metaItem}>
                   <Feather name="user" size={11} color={colors.mutedForeground} />
                   <Text style={[styles.metaText, { color: colors.mutedForeground }]}>{w.initiatorName}</Text>
                 </View>
                 <View style={styles.metaItem}>
                   <Feather name="calendar" size={11} color={colors.mutedForeground} />
-                  <Text style={[styles.metaText, { color: colors.mutedForeground }]}>{w.startDate}</Text>
+                    <Text style={[styles.metaText, { color: colors.mutedForeground }]}>{formatWorkflowDate(w.startDate, lang)}</Text>
                 </View>
                 {daysLeft !== null && (
                   <View style={styles.metaItem}>
@@ -430,7 +445,7 @@ export default function WorkflowScreen() {
 
               {/* Progress */}
               <View style={{ gap: 6 }}>
-                <View style={styles.progressRow}>
+                <View style={[styles.progressRow, { flexDirection: rowDirection }]}>
                     <Text style={[styles.progressLabel, { color: colors.mutedForeground }]}>
                     {STRINGS.progressStep[lang]} {Math.min(progress + 1, w.steps.length)}/{w.steps.length} — {progressPct}%
                   </Text>
@@ -442,7 +457,7 @@ export default function WorkflowScreen() {
               </View>
 
               {/* Steps mini */}
-              <View style={styles.stepsRow}>
+              <View style={[styles.stepsRow, { flexDirection: rowDirection }]}>
                 {w.steps.map((step, i) => (
                   <View
                     key={step.id}
@@ -462,9 +477,9 @@ export default function WorkflowScreen() {
               </View>
 
               {w.status === "in_progress" && (
-                <View style={[styles.currentStepBox, { backgroundColor: colors.primary + "10", borderColor: colors.primary + "30" }]}>
+                <View style={[styles.currentStepBox, { flexDirection: rowDirection, backgroundColor: colors.primary + "10", borderColor: colors.primary + "30" }]}>
                   <Feather name={isRTL ? "arrow-left" : "arrow-right"} size={12} color={colors.primary} />
-                      <Text style={[styles.currentStepText, { color: colors.primary }]} numberOfLines={1}>
+                      <Text style={[styles.currentStepText, { color: colors.primary, textAlign: isRTL ? "right" : "left" }]} numberOfLines={1}>
                      {STRINGS.waitingOn[lang]} {w.steps[w.currentStep]?.assignee}
                   </Text>
                 </View>
@@ -484,11 +499,11 @@ export default function WorkflowScreen() {
           const canAct = isAdmin && w.status === "in_progress";
           return (
             <View style={[styles.modal, { backgroundColor: colors.background }]}>
-              <View style={[styles.modalHeader, { backgroundColor: catColor }]}>
+              <View style={[styles.modalHeader, { flexDirection: rowDirection, paddingTop: insets.top + 16, backgroundColor: catColor }]}>
                 <TouchableOpacity onPress={() => setSelected(null)}>
                   <Feather name="x" size={22} color="#fff" />
                 </TouchableOpacity>
-                <Text style={styles.modalTitle} numberOfLines={2}>{w.title}</Text>
+                <Text style={[styles.modalTitle, { textAlign: isRTL ? "right" : "left" }]} numberOfLines={2}>{w.title}</Text>
                 <View style={[styles.modalStatusBadge, { backgroundColor: "rgba(255,255,255,0.2)" }]}>
                   <Text style={styles.modalStatusText}>{STRINGS[statusCfg.label][lang]}</Text>
                 </View>
@@ -497,8 +512,8 @@ export default function WorkflowScreen() {
                 <Text style={[styles.wfDesc, { color: colors.mutedForeground }]}>{w.description}</Text>
 
                 {w.document && (
-                  <TouchableOpacity
-                    style={[styles.docLink, { backgroundColor: catColor + "10", borderColor: catColor + "30" }]}
+                   <TouchableOpacity
+                     style={[styles.docLink, { flexDirection: rowDirection, backgroundColor: catColor + "10", borderColor: catColor + "30" }]}
                     onPress={() => {
                       Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
                       const match = documents.find((d) => w.document && (d.title === w.document || w.document.startsWith(d.title)));
@@ -527,7 +542,7 @@ export default function WorkflowScreen() {
                     const isRejected = step.status === "rejected";
                     const dotColor = isDone ? "#10b981" : isCurrent ? catColor : isRejected ? "#ef4444" : colors.muted;
                     return (
-                      <View key={step.id} style={styles.timelineItem}>
+                       <View key={step.id} style={[styles.timelineItem, { flexDirection: rowDirection }]}>
                         <View style={styles.timelineLeft}>
                           <View style={[styles.timelineDot, { backgroundColor: dotColor, borderColor: isCurrent ? catColor : "transparent" }]}>
                             {isDone && <Feather name="check" size={10} color="#fff" />}
@@ -540,11 +555,11 @@ export default function WorkflowScreen() {
                           )}
                         </View>
                         <View style={[styles.timelineContent, { backgroundColor: isCurrent ? catColor + "08" : "transparent", borderColor: isCurrent ? catColor + "30" : "transparent" }]}>
-                          <View style={styles.timelineTop}>
-                            <Text style={[styles.stepTitle, { color: isCurrent ? catColor : isDone ? colors.foreground : colors.mutedForeground }]}>{step.title}</Text>
-                            {step.date && <Text style={[styles.stepDate, { color: colors.mutedForeground }]}>{step.date}</Text>}
+                           <View style={[styles.timelineTop, { flexDirection: rowDirection }]}>
+                             <Text style={[styles.stepTitle, { color: isCurrent ? catColor : isDone ? colors.foreground : colors.mutedForeground, textAlign: isRTL ? "right" : "left" }]}>{step.title}</Text>
+                             {step.date && <Text style={[styles.stepDate, { color: colors.mutedForeground, textAlign: isRTL ? "left" : "right" }]}>{formatWorkflowDate(step.date, lang)}</Text>}
                           </View>
-                          <Text style={[styles.stepAssignee, { color: colors.mutedForeground }]}>{step.assignee} · {step.role}</Text>
+                           <Text style={[styles.stepAssignee, { color: colors.mutedForeground, textAlign: isRTL ? "right" : "left" }]}>{step.assignee} · {step.role}</Text>
                           {step.comment ? (
                             <View style={[styles.stepComment, { backgroundColor: isDone ? "#10b98112" : "#ef444412" }]}>
                               <Feather name={isDone ? "message-circle" : "alert-circle"} size={12} color={isDone ? "#10b981" : "#ef4444"} />
@@ -566,7 +581,7 @@ export default function WorkflowScreen() {
                         {STRINGS.waitingForValidation[lang]} <Text style={{ color: catColor, fontFamily: "Inter_700Bold" }}>{w.steps[w.currentStep]?.assignee}</Text>
                       </Text>
                     </View>
-                    <View style={styles.actionBtns}>
+                     <View style={[styles.actionBtns, { flexDirection: rowDirection }]}>
                       <TouchableOpacity
                         style={[styles.actionBtn, { backgroundColor: "#10b981" }]}
                         onPress={() => { setApproveAction("approve"); setShowApprove(true); Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium); }}
@@ -593,11 +608,11 @@ export default function WorkflowScreen() {
       {/* Approve comment modal */}
       <Modal visible={showApprove} transparent animationType="fade">
         <View style={styles.overlay}>
-          <View style={[styles.commentModal, { backgroundColor: colors.card }]}>
-            <Text style={[styles.commentTitle, { color: colors.foreground }]}>
+           <View style={[styles.commentModal, { backgroundColor: colors.card }]}>
+             <Text style={[styles.commentTitle, { color: colors.foreground, textAlign: isRTL ? "right" : "left" }]}>
               {approveAction === "approve" ? STRINGS.approveStep[lang] : STRINGS.rejectStep[lang]}
             </Text>
-            <Text style={[styles.commentSub, { color: colors.mutedForeground }]}>{STRINGS.commentOptional[lang]}</Text>
+             <Text style={[styles.commentSub, { color: colors.mutedForeground, textAlign: isRTL ? "right" : "left" }]}>{STRINGS.commentOptional[lang]}</Text>
             <TextInput
               style={[styles.commentInput, { backgroundColor: colors.background, borderColor: colors.border, color: colors.foreground, textAlign: isRTL ? "right" : "left" }]}
               placeholder={STRINGS.commentPlaceholder[lang]}
@@ -608,7 +623,7 @@ export default function WorkflowScreen() {
               numberOfLines={3}
               textAlignVertical="top"
             />
-            <View style={styles.commentBtns}>
+             <View style={[styles.commentBtns, { flexDirection: rowDirection }]}>
               <TouchableOpacity style={[styles.commentBtn, { backgroundColor: colors.muted }]} onPress={() => { setShowApprove(false); setApproveComment(""); }}>
                 <Text style={[styles.commentBtnText, { color: colors.foreground }]}>{STRINGS.cancel[lang]}</Text>
               </TouchableOpacity>
@@ -627,11 +642,11 @@ export default function WorkflowScreen() {
       {/* Create modal */}
       <Modal visible={showCreate} animationType="slide" presentationStyle="pageSheet">
         <View style={[styles.modal, { backgroundColor: colors.background }]}>
-          <View style={[styles.modalHeader, { backgroundColor: colors.primary }]}>
+           <View style={[styles.modalHeader, { flexDirection: rowDirection, paddingTop: insets.top + 16, backgroundColor: colors.primary }]}>
             <TouchableOpacity onPress={() => setShowCreate(false)}>
               <Feather name="x" size={22} color="#fff" />
             </TouchableOpacity>
-            <Text style={styles.modalTitle}>{STRINGS.newWorkflow[lang]}</Text>
+             <Text style={[styles.modalTitle, { textAlign: isRTL ? "right" : "left" }]}>{STRINGS.newWorkflow[lang]}</Text>
             <TouchableOpacity onPress={handleCreate} disabled={creating}>
               {creating ? <ActivityIndicator color="#fff" size="small" /> : <Text style={styles.modalSave}>{STRINGS.create[lang]}</Text>}
             </TouchableOpacity>
@@ -716,6 +731,8 @@ const styles = StyleSheet.create({
   addBtn: { width: 36, height: 36, borderRadius: 18, backgroundColor: "rgba(255,255,255,0.2)", alignItems: "center", justifyContent: "center" },
   statsRow: { flexDirection: "row", backgroundColor: "rgba(255,255,255,0.12)", borderRadius: 16, padding: 14 },
   statBox: { flex: 1, alignItems: "center", gap: 4 },
+  statsRowCompact: { paddingHorizontal: 8, paddingVertical: 12 },
+  statBoxCompact: { minWidth: 0 },
   statVal: { fontSize: 18, fontFamily: "Inter_700Bold" },
   statLab: { fontSize: 9, fontFamily: "Inter_400Regular", color: "rgba(255,255,255,0.75)", textAlign: "center" },
   tabBar: { flexShrink: 0, borderBottomWidth: 1 },

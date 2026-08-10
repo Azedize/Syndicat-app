@@ -173,3 +173,14 @@
 - Removed the hardcoded `142` members, `98%` recovery rate, synthetic chart, and named testimonial from the public proof card; replaced them with a non-quantified management signal and descriptive copy.
 - Added four-language translation keys for public service descriptions, hero/CTA copy, trust markers, and the management signal; public RTL top-bar direction now follows the active language.
 - Mobile typecheck, `git diff --check`, Expo restart, and public `/welcome` preview validation passed; existing Expo web compatibility warnings remain non-blocking.
+- Audited `artifacts/mobile/app/workflow.tsx` for compact-screen and Arabic RTL presentation gaps.
+- Added active-locale workflow date formatting, explicit RTL row direction for headers/cards/tabs/timelines/actions, responsive compact statistics styles, and safe-area-aware modal headers without changing workflow API payloads or role behavior.
+- Mobile typecheck, `git diff --check`, Expo restart, and compact public preview passed; existing Expo web compatibility warnings remain non-blocking.
+- Audited `artifacts/mobile/app/support.tsx` for remaining silent support-data failures.
+- Added independent list and conversation recovery states, localized retry guidance, conversation loading feedback, and a reusable reply reload path; existing support mutations and permissions remain unchanged.
+- Mobile typecheck, `git diff --check`, and Expo restart passed; Metro started without transform errors.
+- Audited `artifacts/mobile/app/reports.tsx` for compact financial presentation that violated the Morocco locale-formatting rule.
+- Replaced `k`-abbreviated revenue/expense indicators and chart values with active-locale MAD or number formatting while preserving the report API, period selector, exports, and recovery states.
+- Mobile typecheck, `git diff --check`, and Metro rebuild passed.
+- Completed the Support presentation audit: added explicit Arabic RTL direction for the root, header, filters, statistics, cards, ticket detail, ticket creation form, banners, action rows, and text inputs; mirrored directional arrows and removed the remaining hard-coded `Description` label.
+- Mobile typecheck, `git diff --check`, Expo restart, and compact public preview passed; only existing Expo Web warnings remain.

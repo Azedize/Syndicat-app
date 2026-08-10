@@ -108,6 +108,95 @@ const STATE_COPY = {
   },
 } as const;
 
+const PLATFORM_COPY = {
+  categoryBug: { fr: "Bug technique", en: "Technical bug", ar: "خلل تقني", es: "Error técnico" },
+  categoryFeature: { fr: "Demande de fonctionnalité", en: "Feature request", ar: "طلب ميزة", es: "Solicitud de función" },
+  categoryAccess: { fr: "Accès / Compte", en: "Access / Account", ar: "الوصول / الحساب", es: "Acceso / Cuenta" },
+  categoryTraining: { fr: "Formation", en: "Training", ar: "التدريب", es: "Formación" },
+  categoryOther: { fr: "Autre", en: "Other", ar: "أخرى", es: "Otro" },
+  categoryBugDescription: { fr: "Dysfonctionnement, erreur, panne", en: "Malfunction, error, outage", ar: "خلل أو خطأ أو عطل", es: "Fallo, error o interrupción" },
+  categoryFeatureDescription: { fr: "Nouvelle fonctionnalité souhaitée", en: "Requested new functionality", ar: "وظيفة جديدة مطلوبة", es: "Nueva funcionalidad solicitada" },
+  categoryAccessDescription: { fr: "Problème de connexion ou de droits", en: "Sign-in or permission issue", ar: "مشكلة في الدخول أو الصلاحيات", es: "Problema de acceso o permisos" },
+  categoryTrainingDescription: { fr: "Question sur l'utilisation du produit", en: "Question about using the product", ar: "سؤال حول استخدام المنتج", es: "Pregunta sobre el uso del producto" },
+  categoryOtherDescription: { fr: "Toute autre demande", en: "Any other request", ar: "أي طلب آخر", es: "Cualquier otra solicitud" },
+  priorityCritical: { fr: "Critique", en: "Critical", ar: "حرجة", es: "Crítica" },
+  priorityNormal: { fr: "Normal", en: "Normal", ar: "عادية", es: "Normal" },
+  priorityLow: { fr: "Faible", en: "Low", ar: "منخفضة", es: "Baja" },
+  statusOpen: { fr: "Ouvert", en: "Open", ar: "مفتوحة", es: "Abierta" },
+  statusInProgress: { fr: "En cours", en: "In progress", ar: "قيد التنفيذ", es: "En curso" },
+  statusResolved: { fr: "Résolu", en: "Resolved", ar: "محلولة", es: "Resuelto" },
+  statusClosed: { fr: "Fermé", en: "Closed", ar: "مغلقة", es: "Cerrado" },
+  title: { fr: "Support Plateforme", en: "Platform Support", ar: "دعم المنصة", es: "Soporte de plataforma" },
+  level: { fr: "Niveau 2", en: "Level 2", ar: "المستوى 2", es: "Nivel 2" },
+  pending: { fr: "ticket(s) plateforme en attente", en: "platform ticket(s) pending", ar: "تذكرة منصة قيد الانتظار", es: "ticket(s) de plataforma pendientes" },
+  open: { fr: "ouvert(s)", en: "open", ar: "مفتوحة", es: "abiertos" },
+  technicalSubtitle: { fr: "Support technique & fonctionnel", en: "Technical & functional support", ar: "الدعم التقني والوظيفي", es: "Soporte técnico y funcional" },
+  residents: { fr: "Résidents", en: "Residents", ar: "السكان", es: "Residentes" },
+  syndicate: { fr: "Syndicat", en: "Syndicate", ar: "النقابة", es: "Sindicato" },
+  platform: { fr: "Plateforme", en: "Platform", ar: "المنصة", es: "Plataforma" },
+  technical: { fr: "Technique", en: "Technical", ar: "تقني", es: "Técnico" },
+  all: { fr: "Tous", en: "All", ar: "الكل", es: "Todos" },
+  openFilter: { fr: "Ouverts", en: "Open", ar: "مفتوحة", es: "Abiertos" },
+  inProgress: { fr: "En cours", en: "In progress", ar: "قيد التنفيذ", es: "En curso" },
+  resolved: { fr: "Résolus", en: "Resolved", ar: "محلولة", es: "Resueltos" },
+  total: { fr: "Total", en: "Total", ar: "الإجمالي", es: "Total" },
+  contact: { fr: "Contacter le support plateforme", en: "Contact platform support", ar: "التواصل مع دعم المنصة", es: "Contactar con soporte de plataforma" },
+  shortcutDescription: { fr: "Bug, demande de fonctionnalité, problème de compte…", en: "Bugs, feature requests, account issues…", ar: "أخطاء أو طلبات ميزات أو مشاكل الحساب…", es: "Errores, solicitudes de funciones, problemas de cuenta…" },
+  noPlatformTickets: { fr: "Aucun ticket plateforme", en: "No platform tickets", ar: "لا توجد تذاكر منصة", es: "No hay tickets de plataforma" },
+  noRequests: { fr: "Aucune demande envoyée", en: "No requests sent", ar: "لم يتم إرسال أي طلب", es: "No se han enviado solicitudes" },
+  allProcessed: { fr: "Tous les tickets ont été traités.", en: "All tickets have been handled.", ar: "تمت معالجة جميع التذاكر.", es: "Todos los tickets han sido tratados." },
+  useChannel: { fr: "Utilisez ce canal pour signaler des bugs ou demander de nouvelles fonctionnalités.", en: "Use this channel to report bugs or request new features.", ar: "استخدم هذه القناة للإبلاغ عن الأخطاء أو طلب ميزات جديدة.", es: "Usa este canal para informar de errores o solicitar funciones." },
+  escalated: { fr: "Escaladé depuis le syndicat", en: "Escalated from syndicate", ar: "تم التصعيد من النقابة", es: "Escalado desde el sindicato" },
+  submittedBy: { fr: "Soumis par", en: "Submitted by", ar: "مقدم الطلب", es: "Enviado por" },
+  date: { fr: "Date", en: "Date", ar: "التاريخ", es: "Fecha" },
+  description: { fr: "Description", en: "Description", ar: "الوصف", es: "Descripción" },
+  conversation: { fr: "Conversation", en: "Conversation", ar: "المحادثة", es: "Conversación" },
+  platformTeam: { fr: "Équipe Plateforme", en: "Platform Team", ar: "فريق المنصة", es: "Equipo de plataforma" },
+  teamReply: { fr: "Réponse de l'équipe plateforme", en: "Platform team reply", ar: "رد فريق المنصة", es: "Respuesta del equipo de plataforma" },
+  addInformation: { fr: "Ajouter des informations", en: "Add information", ar: "إضافة معلومات", es: "Añadir información" },
+  replyPlaceholder: { fr: "Répondez au ticket de l'administrateur…", en: "Reply to the administrator's ticket…", ar: "الرد على تذكرة المسؤول…", es: "Responde al ticket del administrador…" },
+  detailsPlaceholder: { fr: "Fournissez des précisions supplémentaires…", en: "Provide additional details…", ar: "قدم تفاصيل إضافية…", es: "Proporciona más detalles…" },
+  send: { fr: "Envoyer", en: "Send", ar: "إرسال", es: "Enviar" },
+  resolvedBanner: { fr: "Ce ticket a été traité par l'équipe plateforme.", en: "This ticket has been handled by the platform team.", ar: "تمت معالجة هذه التذكرة من قبل فريق المنصة.", es: "Este ticket ha sido tratado por el equipo de plataforma." },
+  newModalTitle: { fr: "Contacter le Support Plateforme", en: "Contact Platform Support", ar: "التواصل مع دعم المنصة", es: "Contactar con soporte de plataforma" },
+  administrator: { fr: "Administrateur", en: "Administrator", ar: "المسؤول", es: "Administrador" },
+  requestType: { fr: "Type de demande", en: "Request type", ar: "نوع الطلب", es: "Tipo de solicitud" },
+  criticality: { fr: "Criticité", en: "Priority", ar: "الأولوية", es: "Prioridad" },
+  subject: { fr: "Sujet", en: "Subject", ar: "الموضوع", es: "Asunto" },
+  detailedDescription: { fr: "Description détaillée", en: "Detailed description", ar: "الوصف التفصيلي", es: "Descripción detallada" },
+  bugSubject: { fr: "Ex : Les signatures électroniques ne fonctionnent plus", en: "E.g. Electronic signatures no longer work", ar: "مثال: لم تعد التوقيعات الإلكترونية تعمل", es: "Ej.: Las firmas electrónicas ya no funcionan" },
+  featureSubject: { fr: "Ex : Badges visiteurs avec QR code", en: "E.g. Visitor badges with QR code", ar: "مثال: شارات الزوار برمز QR", es: "Ej.: Insignias de visitantes con código QR" },
+  accessSubject: { fr: "Ex : Impossible de se connecter depuis l'application", en: "E.g. Unable to sign in from the app", ar: "مثال: لا يمكن تسجيل الدخول من التطبيق", es: "Ej.: No se puede iniciar sesión desde la aplicación" },
+  trainingSubject: { fr: "Ex : Comment configurer les appels de fonds automatiques ?", en: "E.g. How do I configure automatic charge calls?", ar: "مثال: كيف أضبط طلبات التحصيل التلقائية؟", es: "Ej.: ¿Cómo configuro las cuotas automáticas?" },
+  otherSubject: { fr: "Décrivez brièvement votre demande", en: "Briefly describe your request", ar: "صف طلبك باختصار", es: "Describe brevemente tu solicitud" },
+  bugDescription: { fr: "Décrivez le problème : quand est-il apparu ? Quels utilisateurs sont affectés ? Quels appareils ?", en: "Describe the issue: when did it appear? Which users and devices are affected?", ar: "صف المشكلة: متى ظهرت؟ ما المستخدمون والأجهزة المتأثرة؟", es: "Describe el problema: ¿cuándo apareció? ¿Qué usuarios y dispositivos están afectados?" },
+  requestDescription: { fr: "Décrivez votre besoin en détail. Précisez le contexte métier et l'impact attendu.", en: "Describe your need in detail. Include the business context and expected impact.", ar: "صف احتياجك بالتفصيل. اذكر سياق العمل والأثر المتوقع.", es: "Describe tu necesidad en detalle. Indica el contexto y el impacto esperado." },
+  privacyNote: { fr: "Ce ticket est envoyé directement à l'équipe technique de la plateforme. Les résidents ne peuvent pas accéder à ce canal.", en: "This ticket is sent directly to the platform technical team. Residents cannot access this channel.", ar: "تُرسل هذه التذكرة مباشرة إلى الفريق التقني للمنصة. لا يمكن للسكان الوصول إلى هذه القناة.", es: "Este ticket se envía directamente al equipo técnico de la plataforma. Los residentes no pueden acceder a este canal." },
+  sending: { fr: "Envoi en cours…", en: "Sending…", ar: "جارٍ الإرسال…", es: "Enviando…" },
+  sendToSupport: { fr: "Envoyer au support plateforme", en: "Send to platform support", ar: "إرسال إلى دعم المنصة", es: "Enviar al soporte de plataforma" },
+} as const;
+
+const CATEGORY_COPY_KEYS = {
+  bug: ["categoryBug", "categoryBugDescription"],
+  feature: ["categoryFeature", "categoryFeatureDescription"],
+  acces: ["categoryAccess", "categoryAccessDescription"],
+  formation: ["categoryTraining", "categoryTrainingDescription"],
+  autre: ["categoryOther", "categoryOtherDescription"],
+} as const;
+
+const PRIORITY_COPY_KEYS = {
+  high: "priorityCritical",
+  medium: "priorityNormal",
+  low: "priorityLow",
+} as const;
+
+const STATUS_COPY_KEYS = {
+  open: "statusOpen",
+  in_progress: "statusInProgress",
+  resolved: "statusResolved",
+  closed: "statusClosed",
+} as const;
+
 interface PlatformTicket {
   id:              string;
   title:           string;
@@ -159,11 +248,12 @@ const STATUS_CFG = {
 function catCfg(c: string) { return CATEGORIES.find((x) => x.key === c) ?? CATEGORIES[4]; }
 function priCfg(p: string) { return PRIORITIES.find((x) => x.key === p) ?? PRIORITIES[1]; }
 function stCfg (s: string) { return STATUS_CFG[s as keyof typeof STATUS_CFG] ?? STATUS_CFG.open; }
-function fmtDate(d: string) {
+function fmtDate(d: string, lang: string) {
   if (!d) return "";
   const dt = new Date(d);
   if (isNaN(dt.getTime())) return d.slice(0, 10);
-  return dt.toLocaleDateString("fr-FR", { day: "2-digit", month: "short", year: "numeric" });
+  const locale = lang === "ar" ? "ar-MA" : lang === "en" ? "en-US" : lang === "es" ? "es-ES" : "fr-FR";
+  return dt.toLocaleDateString(locale, { day: "2-digit", month: "short", year: "numeric" });
 }
 
 // ─── Main Component ───────────────────────────────────────────────────────────
@@ -172,13 +262,14 @@ function PlatformSupportScreen() {
   const colors = useColors();
   const insets = useSafeAreaInsets();
   const { user, token } = useAuth();
-  const { lang } = useLanguage();
+  const { t, lang, isRTL } = useLanguage();
   const { showToast } = useToast();
   const { isWide } = useBreakpoints();
 
   const isSuperAdmin     = user?.role === "super_admin";
   const isSyndicateAdmin = user?.role === "syndicate_admin";
   const topPad           = isWide ? 0 : (Platform.OS === "web" ? 67 : insets.top);
+  const rowDirection = isRTL ? "row-reverse" : "row";
 
   // ── List state ──
   const [tickets,  setTickets]  = useState<PlatformTicket[]>([]);
@@ -327,23 +418,23 @@ function PlatformSupportScreen() {
   // ─── Render ───────────────────────────────────────────────────────────────
 
   return (
-    <View style={[styles.root, { backgroundColor: colors.background }]}>
+    <View style={[styles.root, { backgroundColor: colors.background, direction: isRTL ? "rtl" : "ltr" }]}>
       {/* ── Header ── */}
-      <View style={[styles.header, { paddingTop: topPad + 16, backgroundColor: colors.card, borderBottomColor: colors.border }]}>
+      <View style={[styles.header, { flexDirection: rowDirection, paddingTop: topPad + 16, backgroundColor: colors.card, borderBottomColor: colors.border }]}>
         <TouchableOpacity onPress={() => router.back()} style={styles.backBtn}>
-          <Feather name="arrow-left" size={22} color={colors.foreground} />
+          <Feather name={isRTL ? "arrow-right" : "arrow-left"} size={22} color={colors.foreground} />
         </TouchableOpacity>
-        <View style={{ flex: 1 }}>
-          <View style={{ flexDirection: "row", alignItems: "center", gap: 8 }}>
-            <Text style={[styles.title, { color: colors.foreground }]}>Support Plateforme</Text>
+        <View style={{ flex: 1, alignItems: isRTL ? "flex-end" : "flex-start" }}>
+          <View style={{ flexDirection: rowDirection, alignItems: "center", gap: 8 }}>
+            <Text style={[styles.title, { color: colors.foreground, textAlign: isRTL ? "right" : "left" }]}>{t("supportPlateforme")}</Text>
             <View style={[styles.level2Badge, { backgroundColor: "#6366f1" + "18" }]}>
-              <Text style={[styles.level2BadgeTxt, { color: "#6366f1" }]}>Niveau 2</Text>
+              <Text style={[styles.level2BadgeTxt, { color: "#6366f1" }]}>{PLATFORM_COPY.level[lang]}</Text>
             </View>
           </View>
-          <Text style={[styles.subtitle, { color: colors.mutedForeground }]}>
+          <Text style={[styles.subtitle, { color: colors.mutedForeground, textAlign: isRTL ? "right" : "left" }]}>
             {isSuperAdmin
-              ? `${openCount} ticket(s) plateforme en attente`
-              : `Support technique & fonctionnel · ${openCount} ouvert(s)`}
+              ? `${openCount} ${PLATFORM_COPY.pending[lang]}`
+              : `${PLATFORM_COPY.technicalSubtitle[lang]} · ${openCount} ${PLATFORM_COPY.open[lang]}`}
           </Text>
         </View>
         {isSyndicateAdmin && (
@@ -357,35 +448,35 @@ function PlatformSupportScreen() {
       </View>
 
       {/* ── Hierarchy info banner ── */}
-      <View style={[styles.hierarchyBanner, { backgroundColor: "#6366f1" + "09", borderBottomColor: colors.border }]}>
+      <View style={[styles.hierarchyBanner, { flexDirection: rowDirection, backgroundColor: "#6366f1" + "09", borderBottomColor: colors.border }]}>
         <View style={styles.hierarchyStep}>
           <Feather name="users" size={13} color={colors.mutedForeground} />
-          <Text style={[styles.hierarchyTxt, { color: colors.mutedForeground }]}>Résidents</Text>
+          <Text style={[styles.hierarchyTxt, { color: colors.mutedForeground }]}>{PLATFORM_COPY.residents[lang]}</Text>
         </View>
-        <Feather name="arrow-right" size={12} color={colors.mutedForeground} />
+        <Feather name={isRTL ? "arrow-left" : "arrow-right"} size={12} color={colors.mutedForeground} />
         <View style={styles.hierarchyStep}>
           <Feather name="home" size={13} color="#f59e0b" />
-          <Text style={[styles.hierarchyTxt, { color: "#f59e0b" }]}>Syndicat</Text>
+          <Text style={[styles.hierarchyTxt, { color: "#f59e0b" }]}>{PLATFORM_COPY.syndicate[lang]}</Text>
         </View>
-        <Feather name="arrow-right" size={12} color={colors.mutedForeground} />
+        <Feather name={isRTL ? "arrow-left" : "arrow-right"} size={12} color={colors.mutedForeground} />
         <View style={styles.hierarchyStep}>
           <Feather name="life-buoy" size={13} color="#6366f1" />
-          <Text style={[styles.hierarchyTxt, { color: "#6366f1", fontFamily: "Inter_700Bold" }]}>Plateforme ◀</Text>
+          <Text style={[styles.hierarchyTxt, { color: "#6366f1", fontFamily: "Inter_700Bold" }]}>{PLATFORM_COPY.platform[lang]} {isRTL ? "◀" : "▶"}</Text>
         </View>
-        <Feather name="arrow-right" size={12} color={colors.mutedForeground} />
+        <Feather name={isRTL ? "arrow-left" : "arrow-right"} size={12} color={colors.mutedForeground} />
         <View style={styles.hierarchyStep}>
           <Feather name="code" size={13} color={colors.mutedForeground} />
-          <Text style={[styles.hierarchyTxt, { color: colors.mutedForeground }]}>Technique</Text>
+          <Text style={[styles.hierarchyTxt, { color: colors.mutedForeground }]}>{PLATFORM_COPY.technical[lang]}</Text>
         </View>
       </View>
 
       {/* ── Stats strip ── */}
-      <View style={[styles.statsStrip, { backgroundColor: colors.card, borderBottomColor: colors.border }]}>
+      <View style={[styles.statsStrip, { flexDirection: rowDirection, backgroundColor: colors.card, borderBottomColor: colors.border }]}>
         {[
-          { label: "Ouverts",   count: tickets.filter((t) => t.status === "open").length,        color: "#ef4444" },
-          { label: "En cours",  count: tickets.filter((t) => t.status === "in_progress").length,  color: "#f59e0b" },
-          { label: "Résolus",   count: tickets.filter((t) => t.status === "resolved").length,     color: "#10b981" },
-          { label: "Total",     count: tickets.length,                                            color: "#6366f1" },
+          { label: PLATFORM_COPY.openFilter[lang], count: tickets.filter((t) => t.status === "open").length, color: "#ef4444" },
+          { label: PLATFORM_COPY.inProgress[lang], count: tickets.filter((t) => t.status === "in_progress").length, color: "#f59e0b" },
+          { label: PLATFORM_COPY.resolved[lang], count: tickets.filter((t) => t.status === "resolved").length, color: "#10b981" },
+          { label: PLATFORM_COPY.total[lang], count: tickets.length, color: "#6366f1" },
         ].map((s, i) => (
           <React.Fragment key={s.label}>
             {i > 0 && <View style={[styles.statDiv, { backgroundColor: colors.border }]} />}
@@ -398,7 +489,7 @@ function PlatformSupportScreen() {
       </View>
 
       {/* ── Filters ── */}
-      <View style={[styles.filterRow, { borderBottomColor: colors.border }]}>
+      <View style={[styles.filterRow, { flexDirection: rowDirection, borderBottomColor: colors.border }]}>
         {FILTERS.map((f) => (
           <TouchableOpacity
             key={f.key}
@@ -516,7 +607,7 @@ function PlatformSupportScreen() {
                     </View>
                   </View>
                 </View>
-                <Text style={[styles.cardDate, { color: colors.mutedForeground }]}>{fmtDate(ticket.date)}</Text>
+                <Text style={[styles.cardDate, { color: colors.mutedForeground }]}>{fmtDate(ticket.date, lang)}</Text>
               </TouchableOpacity>
             );
           }}
@@ -589,7 +680,7 @@ function PlatformSupportScreen() {
               <View style={[styles.infoBox, { backgroundColor: colors.card, borderColor: colors.border }]}>
                 {[
                   { label: "Soumis par",  value: selected.submittedBy },
-                  { label: "Date",         value: fmtDate(selected.date) },
+                  { label: PLATFORM_COPY.date[lang], value: fmtDate(selected.date, lang) },
                 ].map((row, i) => (
                   <View key={row.label}>
                     {i > 0 && <View style={[styles.sep, { backgroundColor: colors.border }]} />}
@@ -643,7 +734,7 @@ function PlatformSupportScreen() {
                           <Text style={[styles.bubbleAuthor, { color: fromPlatform ? "#6366f1" : colors.foreground }]}>
                             {rp.authorName}{fromPlatform ? " · Équipe Plateforme" : ""}
                           </Text>
-                          <Text style={[styles.bubbleDate, { color: colors.mutedForeground }]}>{fmtDate(rp.createdAt)}</Text>
+                          <Text style={[styles.bubbleDate, { color: colors.mutedForeground }]}>{fmtDate(rp.createdAt, lang)}</Text>
                         </View>
                         <Text style={[styles.bubbleTxt, { color: colors.foreground }]}>{rp.text}</Text>
                       </View>

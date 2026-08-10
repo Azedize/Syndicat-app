@@ -88,22 +88,26 @@ export default function SupportScreen() {
   const colors   = useColors();
   const insets   = useSafeAreaInsets();
   const { user, token } = useAuth();
-  const { t, lang } = useLanguage();
+  const { t, lang, isRTL } = useLanguage();
   const { showToast } = useToast();
   const { isWide } = useBreakpoints();
 
   const isSyndicateAdmin = user?.role === "syndicate_admin";
   const isMember         = user?.role === "member" || user?.role === "tenant";
   const topPad           = isWide ? 0 : (Platform.OS === "web" ? 67 : insets.top);
+  const rowDirection = isRTL ? "row-reverse" : "row";
 
   // ── List state ──
   const [tickets,  setTickets]  = useState<SupportTicket[]>([]);
   const [loading,  setLoading]  = useState(true);
+  const [listError, setListError] = useState(false);
   const [filter,   setFilter]   = useState<Filter>("all");
 
   // ── Detail state ──
   const [selected, setSelected] = useState<SupportTicket | null>(null);
   const [replies,  setReplies]  = useState<TicketReply[]>([]);
+  const [repliesLoading, setRepliesLoading] = useState(false);
+  const [repliesError, setRepliesError] = useState(false);
   const [replying, setReplying] = useState(false);
   const [replyText, setReplyText] = useState("");
   const [escalating, setEscalating] = useState(false);
@@ -120,6 +124,7 @@ export default function SupportScreen() {
 
   const fetchTickets = useCallback(async () => {
     setLoading(true);
+    setListError(false);
     try {
       const res = await apiRequest("/support", "GET", undefined, token);
       const rows: any[] = res?.data ?? res?.items ?? [];
@@ -138,7 +143,7 @@ export default function SupportScreen() {
         category:      r.category ?? "general",
       })));
     } catch {
-      // keep empty list
+      setListError(true);
     } finally {
       setLoading(false);
     }
@@ -148,14 +153,28 @@ export default function SupportScreen() {
 
   // ─── Fetch replies for selected ticket ────────────────────────────────────
 
+  const fetchReplies = useCallback(async (ticketId: string) => {
+    setRepliesLoading(true);
+    setRepliesError(false);
+    try {
+      const res: any = await apiRequest(`/support/${ticketId}`, "GET", undefined, token);
+      setReplies(res?.data?.replies ?? []);
+    } catch {
+      setReplies([]);
+      setRepliesError(true);
+    } finally {
+      setRepliesLoading(false);
+    }
+  }, [token]);
+
   useEffect(() => {
-    if (!selected) { setReplies([]); return; }
-    apiRequest(`/support/${selected.id}`, "GET", undefined, token)
-      .then((res: any) => {
-        setReplies(res?.data?.replies ?? []);
-      })
-      .catch(() => setReplies([]));
-  }, [selected, token]);
+    if (!selected) {
+      setReplies([]);
+      setRepliesError(false);
+      return;
+    }
+    fetchReplies(selected.id);
+  }, [fetchReplies, selected]);
 
   // ─── Actions ──────────────────────────────────────────────────────────────
 
@@ -191,8 +210,7 @@ export default function SupportScreen() {
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
       showToast({ type: "success", title: t("supportReplySent") });
       // Refresh replies
-      const res: any = await apiRequest(`/support/${selected.id}`, "GET", undefined, token);
-      setReplies(res?.data?.replies ?? []);
+       await fetchReplies(selected.id);
       // Mark in_progress locally
       setTickets((prev) => prev.map((tk) => tk.id === selected.id ? { ...tk, status: "in_progress" } : tk));
     } catch {
@@ -248,17 +266,17 @@ export default function SupportScreen() {
   // ─── Render ───────────────────────────────────────────────────────────────
 
   return (
-    <View style={[styles.root, { backgroundColor: colors.background }]}>
+    <View style={[styles.root, { backgroundColor: colors.background, direction: isRTL ? "rtl" : "ltr" }]}>
       {/* ── Header ── */}
-      <View style={[styles.header, { paddingTop: topPad + 16, backgroundColor: colors.card, borderBottomColor: colors.border }]}>
+      <View style={[styles.header, { flexDirection: rowDirection, paddingTop: topPad + 16, backgroundColor: colors.card, borderBottomColor: colors.border }]}>
         <TouchableOpacity onPress={() => router.back()} style={styles.backBtn}>
-          <Feather name="arrow-left" size={22} color={colors.foreground} />
+          <Feather name={isRTL ? "arrow-right" : "arrow-left"} size={22} color={colors.foreground} />
         </TouchableOpacity>
-        <View style={{ flex: 1 }}>
-          <Text style={[styles.title, { color: colors.foreground }]}>
+        <View style={{ flex: 1, alignItems: isRTL ? "flex-end" : "flex-start" }}>
+          <Text style={[styles.title, { color: colors.foreground, textAlign: isRTL ? "right" : "left" }]}>
             {isSyndicateAdmin ? t("supportSyndicateTitle") : t("supportMyRequestsTitle")}
           </Text>
-          <Text style={[styles.subtitle, { color: colors.mutedForeground }]}>
+          <Text style={[styles.subtitle, { color: colors.mutedForeground, textAlign: isRTL ? "right" : "left" }]}>
             {isSyndicateAdmin
               ? `${t("supportAdminSubtitle")} · ${openCount} ${t("supportOpenCount")}`
               : openCount > 0
@@ -276,7 +294,7 @@ export default function SupportScreen() {
 
       {/* ── Info banner for members ── */}
       {isMember && (
-        <View style={[styles.infoBanner, { backgroundColor: colors.primary + "10", borderBottomColor: colors.border }]}>
+        <View style={[styles.infoBanner, { flexDirection: rowDirection, backgroundColor: colors.primary + "10", borderBottomColor: colors.border }]}>
           <Feather name="info" size={14} color={colors.primary} />
           <Text style={[styles.infoBannerText, { color: colors.primary }]}>
             {t("supportMemberBanner")}
@@ -285,7 +303,7 @@ export default function SupportScreen() {
       )}
 
       {/* ── Stats strip ── */}
-      <View style={[styles.statsStrip, { backgroundColor: colors.card, borderBottomColor: colors.border }]}>
+      <View style={[styles.statsStrip, { flexDirection: rowDirection, backgroundColor: colors.card, borderBottomColor: colors.border }]}>
         {[
           { label: t("supportStatOpen"),       count: tickets.filter((t) => t.status === "open").length,        color: "#ef4444" },
           { label: t("supportStatInProgress"), count: tickets.filter((t) => t.status === "in_progress").length, color: "#f59e0b" },
@@ -303,7 +321,7 @@ export default function SupportScreen() {
       </View>
 
       {/* ── Filters ── */}
-      <View style={[styles.filterRow, { borderBottomColor: colors.border }]}>
+      <View style={[styles.filterRow, { flexDirection: rowDirection, borderBottomColor: colors.border }]}>
         {FILTERS.map((f) => (
           <TouchableOpacity
             key={f.key}
@@ -321,6 +339,18 @@ export default function SupportScreen() {
       {loading ? (
         <View style={styles.center}>
           <ActivityIndicator color={colors.primary} />
+        </View>
+      ) : listError ? (
+        <View style={styles.recovery}>
+          <View style={[styles.emptyIcon, { backgroundColor: colors.destructive + "12" }]}>
+            <Feather name="wifi-off" size={30} color={colors.destructive} />
+          </View>
+          <Text style={[styles.emptyTitle, { color: colors.foreground }]}>{t("supportUnavailableTitle")}</Text>
+          <Text style={[styles.emptySub, { color: colors.mutedForeground }]}>{t("supportUnavailableDescription")}</Text>
+          <TouchableOpacity style={[styles.emptyBtn, { backgroundColor: colors.primary }]} onPress={fetchTickets}>
+            <Feather name="refresh-cw" size={14} color="#fff" />
+            <Text style={styles.emptyBtnTxt}>{t("supportRetry")}</Text>
+          </TouchableOpacity>
         </View>
       ) : (
         <FlatList
@@ -357,12 +387,13 @@ export default function SupportScreen() {
                 style={[styles.card, {
                   backgroundColor: colors.card,
                   borderColor:     colors.border,
-                  borderLeftColor: pc.color,
+                  borderLeftColor: isRTL ? colors.border : pc.color,
+                  borderRightColor: isRTL ? pc.color : colors.border,
                 }]}
                 onPress={() => { setSelected(ticket); setReplyText(""); Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); }}
                 activeOpacity={0.75}
               >
-                <View style={styles.cardTop}>
+                <View style={[styles.cardTop, { flexDirection: rowDirection }]}>
                   <View style={[styles.cardIcon, { backgroundColor: cc.color + "15" }]}>
                     <Feather name={cc.icon} size={18} color={cc.color} />
                   </View>
@@ -370,7 +401,7 @@ export default function SupportScreen() {
                     <Text style={[styles.cardTitle, { color: colors.foreground }]} numberOfLines={1}>
                       {ticket.title}
                     </Text>
-                    <View style={styles.cardMeta}>
+                    <View style={[styles.cardMeta, { flexDirection: rowDirection }]}>
                       <Text style={[styles.cardBy, { color: colors.mutedForeground }]} numberOfLines={1}>
                         {ticket.submittedBy}
                       </Text>
@@ -380,7 +411,7 @@ export default function SupportScreen() {
                       </Text>
                     </View>
                   </View>
-                  <View style={styles.cardRight}>
+                  <View style={[styles.cardRight, { alignItems: isRTL ? "flex-start" : "flex-end" }]}>
                     <View style={[styles.badge, { backgroundColor: pc.color + "15" }]}>
                       <Feather name={pc.icon} size={9} color={pc.color} />
                       <Text style={[styles.badgeTxt, { color: pc.color }]}>{t(pc.labelKey)}</Text>
@@ -400,7 +431,7 @@ export default function SupportScreen() {
 
       {/* ── FAB ── */}
       <TouchableOpacity
-        style={[styles.fab, { backgroundColor: colors.primary }]}
+        style={[styles.fab, { left: isRTL ? undefined : 20, right: isRTL ? 20 : undefined, flexDirection: rowDirection, backgroundColor: colors.primary }]}
         onPress={() => { setShowNew(true); Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium); }}
         activeOpacity={0.85}
       >
@@ -418,11 +449,11 @@ export default function SupportScreen() {
             behavior={Platform.OS === "ios" ? "padding" : "height"}
           >
             {/* Modal header */}
-            <View style={[styles.modalHdr, { borderBottomColor: colors.border }]}>
+            <View style={[styles.modalHdr, { flexDirection: rowDirection, paddingTop: insets.top + 16, borderBottomColor: colors.border }]}>
               <TouchableOpacity onPress={() => setSelected(null)}>
                 <Feather name="x" size={22} color={colors.mutedForeground} />
               </TouchableOpacity>
-              <Text style={[styles.modalTitle, { color: colors.foreground }]} numberOfLines={1}>
+              <Text style={[styles.modalTitle, { color: colors.foreground, textAlign: isRTL ? "right" : "left" }]} numberOfLines={1}>
                  {t("supportTicketDetail")} #{selected.id.slice(-6).toUpperCase()}
               </Text>
               {isSyndicateAdmin && selected.status !== "resolved" ? (
@@ -445,7 +476,7 @@ export default function SupportScreen() {
               <Text style={[styles.detailTitle, { color: colors.foreground }]}>{selected.title}</Text>
 
               {/* Badge row */}
-              <View style={styles.badgeRow}>
+              <View style={[styles.badgeRow, { flexDirection: rowDirection }]}>
                 {[priCfg(selected.priority), stCfg(selected.status)].map((cfg, i) => (
                   <View key={i} style={[styles.chip, { backgroundColor: cfg.color + "15" }]}>
                     <Feather name={cfg.icon as any} size={11} color={cfg.color} />
@@ -470,9 +501,9 @@ export default function SupportScreen() {
                 ].map((row, i) => (
                   <View key={row.label}>
                     {i > 0 && <View style={[styles.sep, { backgroundColor: colors.border }]} />}
-                    <View style={styles.infoRow}>
+                    <View style={[styles.infoRow, { flexDirection: rowDirection }]}>
                       <Text style={[styles.infoLbl, { color: colors.mutedForeground }]}>{row.label}</Text>
-                      <Text style={[styles.infoVal, { color: colors.foreground }]}>{row.value}</Text>
+                      <Text style={[styles.infoVal, { color: colors.foreground, textAlign: isRTL ? "left" : "right" }]}>{row.value}</Text>
                     </View>
                   </View>
                 ))}
@@ -480,12 +511,28 @@ export default function SupportScreen() {
 
               {/* Description */}
               <View style={[styles.descBox, { backgroundColor: colors.card, borderColor: colors.border }]}>
-                <Text style={[styles.descLbl, { color: colors.foreground }]}>Description</Text>
-                <Text style={[styles.descTxt, { color: colors.mutedForeground }]}>{selected.description}</Text>
+                <Text style={[styles.descLbl, { color: colors.foreground, textAlign: isRTL ? "right" : "left" }]}>{t("supportDescription")}</Text>
+                <Text style={[styles.descTxt, { color: colors.mutedForeground, textAlign: isRTL ? "right" : "left" }]}>{selected.description}</Text>
               </View>
 
               {/* ── Reply thread ── */}
-              {replies.length > 0 && (
+              {repliesLoading ? (
+                <View style={styles.threadState}>
+                  <ActivityIndicator color={colors.primary} size="small" />
+                  <Text style={[styles.threadStateTxt, { color: colors.mutedForeground }]}>{t("supportConversationLoading")}</Text>
+                </View>
+              ) : repliesError ? (
+                <View style={[styles.threadRecovery, { backgroundColor: colors.destructive + "10", borderColor: colors.destructive + "30" }]}>
+                  <Feather name="alert-circle" size={16} color={colors.destructive} />
+                  <View style={{ flex: 1, gap: 3 }}>
+                    <Text style={[styles.threadStateTxt, { color: colors.foreground }]}>{t("supportConversationUnavailable")}</Text>
+                    <Text style={[styles.threadRecoverySub, { color: colors.mutedForeground }]}>{t("supportConversationUnavailableDescription")}</Text>
+                  </View>
+                  <TouchableOpacity onPress={() => fetchReplies(selected.id)} accessibilityRole="button" accessibilityLabel={t("supportRetry")}>
+                    <Feather name="refresh-cw" size={16} color={colors.destructive} />
+                  </TouchableOpacity>
+                </View>
+              ) : replies.length > 0 && (
                 <View style={{ gap: 10 }}>
                   <Text style={[styles.threadLbl, { color: colors.foreground }]}>
                     {t("supportConversation")} ({replies.length})
@@ -503,7 +550,7 @@ export default function SupportScreen() {
                             : [styles.bubbleUser,  { backgroundColor: colors.card, borderColor: colors.border }],
                         ]}
                       >
-                        <View style={styles.bubbleHdr}>
+                        <View style={[styles.bubbleHdr, { flexDirection: rowDirection }]}>
                           <Text style={[styles.bubbleAuthor, { color: isAdmin ? colors.primary : colors.foreground }]}>
                             {rp.authorName}
                           </Text>
@@ -511,7 +558,7 @@ export default function SupportScreen() {
                             {fmtDate(rp.createdAt, lang)}
                           </Text>
                         </View>
-                        <Text style={[styles.bubbleTxt, { color: colors.foreground }]}>{rp.text}</Text>
+                        <Text style={[styles.bubbleTxt, { color: colors.foreground, textAlign: isRTL ? "right" : "left" }]}>{rp.text}</Text>
                       </View>
                     );
                   })}
@@ -553,9 +600,9 @@ export default function SupportScreen() {
 
               {/* ── Resolved banner ── */}
               {(selected.status === "resolved" || selected.status === "closed") && (
-                <View style={[styles.resolvedBanner, { backgroundColor: colors.success + "12", borderColor: colors.success + "30" }]}>
+                <View style={[styles.resolvedBanner, { flexDirection: rowDirection, backgroundColor: colors.success + "12", borderColor: colors.success + "30" }]}>
                   <Feather name="check-circle" size={18} color={colors.success} />
-                  <Text style={[styles.resolvedTxt, { color: colors.success }]}>
+                  <Text style={[styles.resolvedTxt, { color: colors.success, textAlign: isRTL ? "right" : "left" }]}>
                      {t("supportResolvedBanner")}
                   </Text>
                 </View>
@@ -564,20 +611,20 @@ export default function SupportScreen() {
               {/* ── Escalation button (syndicate_admin only, on open/in_progress tickets) ── */}
               {isSyndicateAdmin && !["resolved", "closed"].includes(selected.status) && (
                 <TouchableOpacity
-                  style={[styles.escalateBtn, { borderColor: "#6366f1" + "40", backgroundColor: "#6366f1" + "08" }]}
+                  style={[styles.escalateBtn, { flexDirection: rowDirection, borderColor: "#6366f1" + "40", backgroundColor: "#6366f1" + "08" }]}
                   onPress={() => handleEscalate(selected)}
                   disabled={escalating}
                 >
                   <Feather name="trending-up" size={16} color="#6366f1" />
                   <View style={{ flex: 1 }}>
-                    <Text style={[styles.escalateBtnTitle, { color: "#6366f1" }]}>
+                    <Text style={[styles.escalateBtnTitle, { color: "#6366f1", textAlign: isRTL ? "right" : "left" }]}>
                       {escalating ? t("supportEscalating") : t("supportEscalateAction")}
                     </Text>
-                    <Text style={[styles.escalateBtnSub, { color: colors.mutedForeground }]}>
+                    <Text style={[styles.escalateBtnSub, { color: colors.mutedForeground, textAlign: isRTL ? "right" : "left" }]}>
                        {t("supportEscalateDescription")}
                     </Text>
                   </View>
-                  <Feather name="chevron-right" size={16} color="#6366f1" />
+                  <Feather name={isRTL ? "chevron-left" : "chevron-right"} size={16} color="#6366f1" />
                 </TouchableOpacity>
               )}
             </ScrollView>
@@ -593,8 +640,8 @@ export default function SupportScreen() {
           style={[styles.modal, { backgroundColor: colors.background }]}
           behavior={Platform.OS === "ios" ? "padding" : "height"}
         >
-          <View style={[styles.modalHdr, { borderBottomColor: colors.border }]}>
-            <Text style={[styles.modalTitle, { color: colors.foreground }]}>{t("supportNewTicket")}</Text>
+          <View style={[styles.modalHdr, { flexDirection: rowDirection, paddingTop: insets.top + 16, borderBottomColor: colors.border }]}>
+            <Text style={[styles.modalTitle, { color: colors.foreground, textAlign: isRTL ? "right" : "left" }]}>{t("supportNewTicket")}</Text>
             <TouchableOpacity onPress={() => setShowNew(false)}>
               <Feather name="x" size={22} color={colors.mutedForeground} />
             </TouchableOpacity>
@@ -605,7 +652,7 @@ export default function SupportScreen() {
             keyboardShouldPersistTaps="handled"
           >
             {/* Submitter info (pre-filled, read-only) */}
-            <View style={[styles.prefilledCard, { backgroundColor: colors.card, borderColor: colors.border }]}>
+            <View style={[styles.prefilledCard, { flexDirection: rowDirection, backgroundColor: colors.card, borderColor: colors.border }]}>
               <Feather name="user" size={14} color={colors.primary} />
               <Text style={[styles.prefilledTxt, { color: colors.foreground }]}>
                 <Text style={{ fontFamily: "Inter_600SemiBold" }}>{t("supportSubmittedBy")} : </Text>
@@ -616,7 +663,7 @@ export default function SupportScreen() {
             {/* Category selector */}
             <View style={{ gap: 8 }}>
               <Text style={[styles.fieldLbl, { color: colors.foreground }]}>{t("supportCategory")} *</Text>
-              <View style={styles.chipGrid}>
+              <View style={[styles.chipGrid, { flexDirection: rowDirection }]}>
                 {CATEGORIES.map((c) => {
                   const active = newCat === c.key;
                   return (
@@ -642,7 +689,7 @@ export default function SupportScreen() {
             {/* Priority selector */}
             <View style={{ gap: 8 }}>
               <Text style={[styles.fieldLbl, { color: colors.foreground }]}>{t("ticketPriorityLabel")}</Text>
-              <View style={styles.chipRow}>
+              <View style={[styles.chipRow, { flexDirection: rowDirection }]}>
                 {PRIORITIES.map((p) => {
                   const active = newPri === p.key;
                   return (
@@ -667,7 +714,7 @@ export default function SupportScreen() {
             <View style={{ gap: 6 }}>
               <Text style={[styles.fieldLbl, { color: colors.foreground }]}>{t("supportSubject")} *</Text>
               <TextInput
-                style={[styles.fieldInput, { borderColor: colors.border, backgroundColor: colors.card, color: colors.foreground }]}
+                style={[styles.fieldInput, { borderColor: colors.border, backgroundColor: colors.card, color: colors.foreground, textAlign: isRTL ? "right" : "left" }]}
                 value={newTitle}
                 onChangeText={setNewTitle}
                 placeholder={
@@ -685,7 +732,7 @@ export default function SupportScreen() {
             <View style={{ gap: 6 }}>
               <Text style={[styles.fieldLbl, { color: colors.foreground }]}>{t("supportDescription")} *</Text>
               <TextInput
-                style={[styles.fieldInput, styles.textArea, { borderColor: colors.border, backgroundColor: colors.card, color: colors.foreground }]}
+                style={[styles.fieldInput, styles.textArea, { borderColor: colors.border, backgroundColor: colors.card, color: colors.foreground, textAlign: isRTL ? "right" : "left" }]}
                 value={newDesc}
                 onChangeText={setNewDesc}
                  placeholder={t("supportDescriptionPlaceholder")}
@@ -696,15 +743,15 @@ export default function SupportScreen() {
             </View>
 
             {/* Info note */}
-            <View style={[styles.noteBox, { backgroundColor: colors.primary + "10", borderColor: colors.primary + "30" }]}>
+            <View style={[styles.noteBox, { flexDirection: rowDirection, backgroundColor: colors.primary + "10", borderColor: colors.primary + "30" }]}>
               <Feather name="info" size={14} color={colors.primary} />
-              <Text style={[styles.noteTxt, { color: colors.primary }]}>
+              <Text style={[styles.noteTxt, { color: colors.primary, textAlign: isRTL ? "right" : "left" }]}>
                 {t("supportResponseNote")}
               </Text>
             </View>
 
             <TouchableOpacity
-              style={[styles.submitBtn, {
+              style={[styles.submitBtn, { flexDirection: rowDirection,
                 backgroundColor: newTitle.trim() && newDesc.trim() && !submitting
                   ? colors.primary : colors.muted,
               }]}
@@ -733,6 +780,7 @@ export default function SupportScreen() {
 const styles = StyleSheet.create({
   root:        { flex: 1 },
   center:      { flex: 1, alignItems: "center", justifyContent: "center", padding: 40 },
+  recovery:    { flex: 1, alignItems: "center", justifyContent: "center", padding: 32, gap: 12 },
   header:      { flexDirection: "row", alignItems: "center", paddingHorizontal: 20, paddingBottom: 16, gap: 12, borderBottomWidth: 1 },
   backBtn:     { padding: 4 },
   title:       { fontSize: 20, fontFamily: "Inter_700Bold" },
@@ -787,6 +835,10 @@ const styles = StyleSheet.create({
   descLbl:     { fontSize: 13, fontFamily: "Inter_700Bold" },
   descTxt:     { fontSize: 13, fontFamily: "Inter_400Regular", lineHeight: 19 },
   threadLbl:   { fontSize: 13, fontFamily: "Inter_700Bold" },
+  threadState: { alignItems: "center", justifyContent: "center", gap: 8, paddingVertical: 16 },
+  threadStateTxt: { fontSize: 12, fontFamily: "Inter_600SemiBold" },
+  threadRecovery: { flexDirection: "row", alignItems: "center", gap: 10, padding: 12, borderRadius: 12, borderWidth: 1 },
+  threadRecoverySub: { fontSize: 11, fontFamily: "Inter_400Regular", lineHeight: 15 },
   bubble:      { borderRadius: 12, borderWidth: 1, padding: 12, gap: 6 },
   bubbleAdmin: {},
   bubbleUser:  {},

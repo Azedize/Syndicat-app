@@ -31,3 +31,7 @@
 - Profile onboarding reuses its progressive step, avatar preview, and summary hierarchy while applying shared runtime language metadata to the complete journey.
  - Marketplace cart reuses its order summary and checkout hierarchy while applying shared semantic feedback, active-locale MAD formatting, and four-language payment guidance.
  - Public Welcome reuses the established MIZAN blue/navy visual language and touch hierarchy while applying shared translation keys and removing unverified proof visuals from the public surface.
+- Approval Workflows reuse the existing semantic status/priority/category palette and progress hierarchy while applying active-locale dates, directional row tokens, compact statistics spacing, and safe-area-aware modal surfaces.
+- Level-1 Support reuses its semantic priority/status/category hierarchy and conversation surfaces while applying the shared unavailable/retry language to both ticket synchronization and reply retrieval.
+- Financial Reports reuse the existing KPI/chart hierarchy while applying one consistent active-locale MAD/number presentation to all visible financial chart and indicator values.
+- Level-1 Support applies the shared directional row and text-alignment rules to its semantic ticket/status/action components, including RTL-aware priority edge placement and navigation icons.

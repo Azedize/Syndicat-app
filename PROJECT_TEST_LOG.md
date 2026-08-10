@@ -15,6 +15,14 @@
 - Approval Workflow UX verification: `pnpm --filter @workspace/mobile run typecheck` and `git diff --check` passed with zero errors.
 - Restarted `artifacts/mobile: expo`; Metro bundled successfully and `/workflow` rendered at 402×874 with the expected protected API 401 boundary and only existing Expo web compatibility warnings.
 - Workflow scan confirmed no user-facing raw `err.message` remains in decision/create handlers, translated status/priority rendering is used, and zero-step progress is guarded.
+- Approval Workflows follow-through verification: active-locale date formatting, Arabic RTL mirroring, compact statistics spacing, and safe-area modal headers passed `pnpm --filter @workspace/mobile run typecheck` and `git diff --check -- artifacts/mobile/app/workflow.tsx`.
+- Restarted `artifacts/mobile: expo`; Metro started successfully and the compact 402×874 public preview rendered without new browser/runtime exceptions. Existing Expo package-version and web compatibility warnings remain non-blocking.
+- Level-1 Support reliability verification: `pnpm --filter @workspace/mobile run typecheck` passed with zero errors; `git diff --check -- artifacts/mobile/app/support.tsx artifacts/mobile/context/LanguageContext.tsx` passed.
+- Restarted `artifacts/mobile: expo`; Metro started successfully without transform errors. Protected support access remains session-gated as expected; existing Expo package-version and web compatibility warnings remain non-blocking.
+- Financial Reports formatting verification: `pnpm --filter @workspace/mobile run typecheck` passed with zero errors; `git diff --check -- artifacts/mobile/app/reports.tsx` passed and no compact `k` financial formatter remains in the report screen.
+- Expo/Metro rebuilt the mobile bundle successfully without new browser/runtime errors; existing Expo compatibility warnings remain non-blocking.
+- Support RTL/localization verification: `pnpm --filter @workspace/mobile run typecheck` passed with zero errors; `git diff --check -- artifacts/mobile/app/support.tsx` passed.
+- Restarted `artifacts/mobile: expo`; Metro rebuilt successfully. Compact 402×874 public preview rendered without new browser/runtime exceptions; existing shadow-style, web notification-listener, and native-driver warnings remain non-blocking.
 
 ## 2026-08-06
 

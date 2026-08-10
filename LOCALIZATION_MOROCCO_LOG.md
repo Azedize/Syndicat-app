@@ -37,3 +37,7 @@
 - Réclamations & Griefs now keeps all recovery and mutation feedback in the active French, English, Arabic, or Spanish locale, with RTL-aware back navigation.
 - Statistiques now formats platform KPIs and persisted SaaS subscription totals with the active French, English, Arabic, or Spanish locale while retaining MAD as the displayed currency.
 - Public Welcome now localizes its service descriptions, hero, trust markers, management messaging, CTA, and RTL-aware header direction across French, English, Arabic, and Spanish.
+- Approval Workflows now format start and step dates with the active French, English, Arabic, or Spanish locale and mirror operational rows, timeline actions, and modal controls for Arabic RTL without changing stored workflow values.
+- Level-1 Support now localizes ticket-list unavailable states, conversation loading/unavailable states, and retry actions across French, English, Arabic, and Spanish while preserving Moroccan syndicate support terminology and role behavior.
+- Financial Reports now display revenue/expense chart values and KPI change indicators using complete locale-aware MAD formatting, avoiding compact notation that obscures Moroccan financial amounts.
+- Level-1 Support now mirrors Arabic presentation and localizes the detail description label across the Moroccan syndicate support flow, while preserving existing French, English, and Spanish wording.

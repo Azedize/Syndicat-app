@@ -15967,6 +15967,37 @@ export const TRANSLATIONS: Translations = {
     ar: "لا توجد تذاكر في هذه الفئة.",
     es: "No hay tickets en esta categoría.",
   },
+  supportUnavailableTitle: {
+    fr: "Support temporairement indisponible",
+    en: "Support is temporarily unavailable",
+    ar: "الدعم غير متاح مؤقتاً",
+    es: "El soporte no está disponible temporalmente",
+  },
+  supportUnavailableDescription: {
+    fr: "Vos tickets n’ont pas pu être synchronisés. Vérifiez votre connexion puis réessayez.",
+    en: "Your tickets could not be synchronized. Check your connection and try again.",
+    ar: "تعذر مزامنة تذاكرك. تحقق من الاتصال ثم أعد المحاولة.",
+    es: "No se han podido sincronizar tus tickets. Comprueba la conexión e inténtalo de nuevo.",
+  },
+  supportRetry: { fr: "Réessayer", en: "Retry", ar: "إعادة المحاولة", es: "Reintentar" },
+  supportConversationLoading: {
+    fr: "Chargement de la conversation…",
+    en: "Loading conversation…",
+    ar: "جارٍ تحميل المحادثة…",
+    es: "Cargando la conversación…",
+  },
+  supportConversationUnavailable: {
+    fr: "Conversation indisponible",
+    en: "Conversation unavailable",
+    ar: "المحادثة غير متاحة",
+    es: "Conversación no disponible",
+  },
+  supportConversationUnavailableDescription: {
+    fr: "Les réponses n’ont pas pu être chargées. Vous pouvez réessayer.",
+    en: "Replies could not be loaded. You can try again.",
+    ar: "تعذر تحميل الردود. يمكنك إعادة المحاولة.",
+    es: "No se han podido cargar las respuestas. Puedes intentarlo de nuevo.",
+  },
   supportNewTicket: {
     fr: "Nouveau ticket",
     en: "New ticket",

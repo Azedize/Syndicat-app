@@ -48,3 +48,7 @@
 - Réclamations & Griefs now translate synchronization, unavailable/retryable states, submission/update failures, and anonymous display fallback for `fr`, `en`, `ar`, and `es`.
 - Statistiques now translate synchronization and unavailable/retryable states; platform financial values and subscription totals follow the active locale while preserving the existing statistical labels and role scope.
 - Public Welcome now translates service descriptions, hero/CTA copy, trust markers, management messaging, and the descriptive replacement for unverified proof content for `fr`, `en`, `ar`, and `es`.
+- Approval Workflows retain their existing translated status, priority, category, action, loading, error, and empty-state copy while dates now follow the active locale and directional layout follows Arabic RTL.
+- Level-1 Support now translates ticket synchronization recovery, conversation loading, conversation failure, and retry guidance for `fr`, `en`, `ar`, and `es`.
+- Financial Reports now use the active locale for all visible revenue/expense indicator and chart number formatting; existing translated labels remain unchanged.
+- Level-1 Support now routes the detail description label through the shared translation catalog and keeps all added RTL presentation behavior independent of translation content.

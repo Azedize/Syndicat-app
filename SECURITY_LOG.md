@@ -32,3 +32,7 @@
 - Réclamations & Griefs retains its existing role-scoped list/detail/mutation permissions and API contracts; safe localized failures do not expose raw server details or broaden confidential grievance visibility.
 - Statistiques retains the existing Super Admin-only platform endpoint and role guard; unavailable responses now fail visibly instead of presenting misleading zero-valued KPIs, and persisted subscription data is read without changing access scope.
 - Public Welcome no longer implies database-backed performance or customer outcomes through unverified metrics, synthetic charts, or named testimonials; no authentication, API scope, or personal-data behavior changed.
+- Approval Workflow presentation changes preserve existing authenticated access, administrator creation permissions, decision authorization, document navigation, and API contracts; no workflow scope or personal-data exposure changed.
+- Level-1 Support recovery changes preserve member/tenant/syndicate-admin access, syndicate-scoped ticket and reply retrieval, escalation authorization, and mutation boundaries; no raw server details or additional ticket data are exposed.
+- Financial Reports presentation changes preserve the existing role guard and statistics endpoint scope; only display formatting changed, with no additional financial data exposure.
+- Support RTL/localization changes preserve authenticated member/tenant/syndicate-admin access, syndicate-scoped retrieval, escalation authorization, and mutation boundaries; no data scope changed.

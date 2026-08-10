@@ -207,3 +207,11 @@
 - Removed unverified public KPI values, chart data, and testimonial copy that could be mistaken for database-backed results; replaced them with descriptive product messaging.
 - Routed the public service cards, hero, CTA, trust markers, and management signal through the four-language runtime dictionary, including RTL-aware top-bar direction.
 - Mobile typecheck and diff validation pass; Expo restarted and the public `/welcome` route bundled without new runtime exceptions.
+- Continued the approval workflow enterprise pass: workflow dates now use the active locale, modal and card rows mirror correctly in Arabic RTL, and compact screens use responsive statistics spacing and safer touch-layout alignment.
+- Preserved real workflow APIs, approval decisions, creation flow, role guards, and document navigation; mobile typecheck, diff validation, Expo restart, and compact public preview passed.
+- Continued the Level-1 Support reliability pass: ticket-list synchronization failures now have a localized retry surface, and conversation loading failures no longer appear as an empty thread.
+- Preserved support ticket/reply/escalation APIs, role boundaries, stale ticket visibility, and localized feedback; mobile typecheck, diff validation, and Expo restart passed.
+- Continued the financial Reports integrity pass: chart values and KPI change indicators now use full active-locale MAD/number formatting instead of compact `k` abbreviations.
+- Preserved report synchronization recovery, period filtering, real statistics data, exports, and role guards; mobile typecheck, diff validation, and Metro rebuild passed.
+- Completed the Level-1 Support RTL/localization pass: headers, filters, statistics, ticket cards, detail/new-ticket modals, badges, banners, actions, fields, and directional icons now mirror for Arabic, and the detail description label uses the shared translation key.
+- Preserved support ticket/reply/escalation behavior, API contracts, role boundaries, and recovery states; mobile typecheck, diff validation, Expo restart, and compact public preview passed.

@@ -25,3 +25,7 @@
 - SignatureOrderPanel and DocumentWizard localization add no requests or duplicated data; dates and labels are formatted locally while the existing document/signature API calls and wizard state transitions remain unchanged.
 - API type-safety cleanup adds no database queries, polling, or payload expansion; route parameters and audit details are normalized at request handling time.
 - Public Welcome localization adds no requests, polling, or duplicated state; replacing the synthetic proof chart with a static semantic icon also reduces public rendering work without changing navigation.
+- Approval Workflow presentation changes add no requests, polling, or duplicated state; date formatting and responsive direction decisions are computed at render time while the existing single workflow fetch and mutation flows remain unchanged.
+- Level-1 Support adds no polling or duplicate ticket retrieval; conversation reloads are centralized in one callback and only run on selection, explicit retry, or after a successful reply.
+- Financial Reports formatting remains render-only and adds no requests, polling, or duplicated data; chart values are formatted at display time from the existing report response.
+- Support RTL changes are render-only: one derived row direction and locale flag drive mirroring without additional requests, listeners, or duplicated ticket state.

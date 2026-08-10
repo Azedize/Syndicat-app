@@ -42,3 +42,7 @@
 - Favorites no longer remains French-only or clears the entire list without a destructive confirmation; Arabic navigation direction is now reflected in its controls.
 - Syndicate Setup no longer exposes mixed French-only wizard, validation, financial, success, or SMS verification copy after a language change; protected unauthenticated deep links still redirect safely.
 - The public welcome page no longer presents unverified KPI values, synthetic charts, or a fabricated named testimonial as evidence of platform performance; public proof is now descriptive until backed by a real API source.
+- Approval Workflows no longer display raw workflow dates, LTR-only card/modal rows, or cramped compact statistics spacing in Arabic and small-screen layouts; decision, creation, document, and role behavior remain unchanged.
+- Level-1 Support no longer turns a failed ticket-list request into a misleading empty state or a failed conversation request into an empty thread; both surfaces now explain the unavailable data and offer retry.
+- Financial Reports no longer abbreviate revenue and expense values as compact `k` strings; user-facing report values now use complete active-locale MAD formatting.
+- Level-1 Support no longer leaves Arabic ticket cards, modals, fields, priority accents, or navigation/action arrows in an LTR presentation; the remaining hard-coded description label is localized.
