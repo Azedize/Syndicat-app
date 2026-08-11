@@ -219,3 +219,6 @@
 - Rewired Settings and Notifications global controls to the persisted push/email/in-app channels, added localized loading/retry/save-failure feedback, and removed local-only sound/vibration/preview controls from the persisted settings experience.
 - Changed biometric, two-factor, and auto-lock rows to an honest unavailable/configuration-soon state because no complete device/server security flow exists yet.
 - Mobile typecheck, Prettier, `git diff --check`, Expo restart, and fresh workflow logs passed; no new browser runtime errors were observed.
+- Audited the failed API workflow and traced the startup error to `stripeWebhook.ts` importing a non-exported payment finalizer from `subscriptions.ts`.
+- Exported the transaction-backed finalizer and adapted Stripe webhook period/subscription extraction to the current Stripe SDK (`subscription.items.data` periods and `invoice.parent.subscription_details.subscription`).
+- API typecheck, build, diff validation, workflow restart, startup logs, SMTP verification, and retention/expiry scheduler startup all passed.

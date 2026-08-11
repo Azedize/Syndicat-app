@@ -102,7 +102,7 @@ function paymentError(res: any, code: string, error: string, status = 400) {
   res.status(status).json({ error, code });
 }
 
-async function finalizeSuccessfulPayment(paymentId: string, providerReference?: string) {
+export async function finalizeSuccessfulPayment(paymentId: string, providerReference?: string) {
   return db.transaction(async (tx) => {
     const [payment] = await tx
       .select()

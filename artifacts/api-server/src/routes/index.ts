@@ -46,6 +46,7 @@ import emailRouter from "./email.js";
 import templateStudioRouter from "./template-studio.js";
 import governanceRouter from "./governance.js";
 import organigrammeRouter from "./organigramme.js";
+import stripeRouter from "./stripe.js";
 
 const router: IRouter = Router();
 
@@ -97,6 +98,7 @@ router.use(transparencyRouter);
 router.use(rankingsRouter);
 router.use(teamRouter);
 router.use(subscriptionsRouter);
+router.use(stripeRouter);
 router.use(parkingRouter);
 router.use(escalationRouter);
 router.use(storageRouter);

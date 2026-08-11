@@ -9,7 +9,7 @@
  *   DELETE /invoice-attachments/:id       — remove an attachment
  */
 
-import { Router } from "express";
+import { Router, type Request, type Response } from "express";
 import { db } from "@workspace/db";
 import {
   chargeAttachmentsTable,
@@ -19,7 +19,7 @@ import {
   buildingsTable,
 } from "@workspace/db/schema";
 import { eq, and } from "drizzle-orm";
-import { requireAuth, requireAdmin } from "../middleware/auth.js";
+import { assertSyndicateAccess, requireAuth, requireAdmin } from "../middleware/auth.js";
 import { serverAuditLog } from "../lib/audit.js";
 
 const router = Router();
@@ -36,6 +36,39 @@ async function getAppelSyndicateId(appelId: string): Promise<string | null> {
 async function getInvoiceSyndicateId(invoiceId: string): Promise<string | null> {
   const [inv] = await db.select({ syndicateId: invoicesTable.syndicateId }).from(invoicesTable).where(eq(invoicesTable.id, invoiceId));
   return inv?.syndicateId ?? null;
+}
+
+function enforceSyndicateAccess(
+  req: Request,
+  res: Response,
+  syndicateId: string | null,
+): boolean {
+  if (!syndicateId) {
+    res.status(404).json({ error: "Ressource financière introuvable" });
+    return false;
+  }
+  if (!assertSyndicateAccess(req, syndicateId)) {
+    res.status(403).json({ error: "Accès refusé" });
+    return false;
+  }
+  return true;
+}
+
+function enforcePersonalChargeAccess(
+  req: Request,
+  res: Response,
+  ownerId: string | null | undefined,
+): boolean {
+  if (
+    (req.user?.role === "member" || req.user?.role === "tenant") &&
+    ownerId !== req.user.userId
+  ) {
+    res.status(403).json({
+      error: "Vous ne pouvez accéder qu'aux pièces de vos propres charges",
+    });
+    return false;
+  }
+  return true;
 }
 
 // ─── Charge (Appel de Fonds) Attachments ─────────────────────────────────────
@@ -60,15 +93,9 @@ router.post("/charge-attachments", requireAuth, async (req, res) => {
     if (!appel) return void res.status(404).json({ error: "Appel de fonds introuvable" });
 
     const syndicateId = await getAppelSyndicateId(appelDeFondsId);
-    if (user.role === "syndicate_admin" && syndicateId !== user.syndicateId) {
-      return void res.status(403).json({ error: "Accès refusé" });
-    }
+    if (!enforceSyndicateAccess(req, res, syndicateId)) return;
     // Members/tenants can only attach to their own appels
-    if (user.role === "member" || user.role === "tenant") {
-      if (appel.ownerId !== user.userId) {
-        return void res.status(403).json({ error: "Vous ne pouvez ajouter des pièces que pour vos propres charges" });
-      }
-    }
+    if (!enforcePersonalChargeAccess(req, res, appel.ownerId)) return;
 
     const [row] = await db.insert(chargeAttachmentsTable).values({
       appelDeFondsId,
@@ -105,9 +132,13 @@ router.get("/charge-attachments/:appelId", requireAuth, async (req, res) => {
     const appelId = String(req.params.appelId);
 
     const syndicateId = await getAppelSyndicateId(appelId);
-    if (user.role === "syndicate_admin" && syndicateId !== user.syndicateId) {
-      return void res.status(403).json({ error: "Accès refusé" });
-    }
+    if (!enforceSyndicateAccess(req, res, syndicateId)) return;
+
+    const [appel] = await db
+      .select({ ownerId: appelsDeFondsTable.ownerId })
+      .from(appelsDeFondsTable)
+      .where(eq(appelsDeFondsTable.id, appelId));
+    if (!appel || !enforcePersonalChargeAccess(req, res, appel.ownerId)) return;
 
     const rows = await db
       .select()
@@ -134,9 +165,7 @@ router.delete("/charge-attachments/:id", requireAuth, async (req, res) => {
       return void res.status(403).json({ error: "Accès refusé" });
     }
     const syndicateId = await getAppelSyndicateId(att.appelDeFondsId);
-    if (user.role === "syndicate_admin" && syndicateId !== user.syndicateId) {
-      return void res.status(403).json({ error: "Accès refusé" });
-    }
+    if (!enforceSyndicateAccess(req, res, syndicateId)) return;
 
     await db.delete(chargeAttachmentsTable).where(eq(chargeAttachmentsTable.id, attId));
 
@@ -176,9 +205,7 @@ router.post("/invoice-attachments", requireAuth, requireAdmin, async (req, res) 
     if (!invoice) return void res.status(404).json({ error: "Facture introuvable" });
 
     const syndicateId = await getInvoiceSyndicateId(invoiceId);
-    if (user.role === "syndicate_admin" && syndicateId !== user.syndicateId) {
-      return void res.status(403).json({ error: "Accès refusé" });
-    }
+    if (!enforceSyndicateAccess(req, res, syndicateId)) return;
 
     const [row] = await db.insert(invoiceAttachmentsTable).values({
       invoiceId,
@@ -210,9 +237,7 @@ router.get("/invoice-attachments/:invoiceId", requireAuth, async (req, res) => {
     const invoiceId = String(req.params.invoiceId);
 
     const syndicateId = await getInvoiceSyndicateId(invoiceId);
-    if (user.role === "syndicate_admin" && syndicateId !== user.syndicateId) {
-      return void res.status(403).json({ error: "Accès refusé" });
-    }
+    if (!enforceSyndicateAccess(req, res, syndicateId)) return;
 
     const rows = await db
       .select()
@@ -235,9 +260,7 @@ router.delete("/invoice-attachments/:id", requireAuth, requireAdmin, async (req,
     if (!att) return void res.status(404).json({ error: "Not found" });
 
     const syndicateId = await getInvoiceSyndicateId(att.invoiceId);
-    if (user.role === "syndicate_admin" && syndicateId !== user.syndicateId) {
-      return void res.status(403).json({ error: "Accès refusé" });
-    }
+    if (!enforceSyndicateAccess(req, res, syndicateId)) return;
 
     await db.delete(invoiceAttachmentsTable).where(eq(invoiceAttachmentsTable.id, invAttId));
 

@@ -399,11 +399,11 @@ async function main() {
     { id: "cand_6", electionId: "election_3", name: "Amina Rachidi",    post: "Secrétaire",                    bio: "Architecte, très impliquée",    votes: 0 },
   ]).onConflictDoNothing();
   await db.insert(votesTable).values([
-    { id: "vote_1", electionId: "election_1", voterId: "user_member_1", candidateId: "cand_1", createdAt: daysAgo(5) },
-    { id: "vote_2", electionId: "election_1", voterId: "user_member_2", candidateId: "cand_1", createdAt: daysAgo(4) },
-    { id: "vote_3", electionId: "election_2", voterId: "user_member_1", candidateId: "cand_3", createdAt: daysAgo(35) },
-    { id: "vote_4", electionId: "election_2", voterId: "user_member_2", candidateId: "cand_3", createdAt: daysAgo(35) },
-    { id: "vote_5", electionId: "election_2", voterId: "user_member_5", candidateId: "cand_4", createdAt: daysAgo(34) },
+    { id: "vote_1", electionId: "election_1", candidateId: "cand_1", createdAt: daysAgo(5) },
+    { id: "vote_2", electionId: "election_1", candidateId: "cand_1", createdAt: daysAgo(4) },
+    { id: "vote_3", electionId: "election_2", candidateId: "cand_3", createdAt: daysAgo(35) },
+    { id: "vote_4", electionId: "election_2", candidateId: "cand_3", createdAt: daysAgo(35) },
+    { id: "vote_5", electionId: "election_2", candidateId: "cand_4", createdAt: daysAgo(34) },
   ]).onConflictDoNothing();
 
   // ─────────────────────────────────────────────────────────────────────────

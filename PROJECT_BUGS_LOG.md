@@ -50,4 +50,5 @@
 - Financial Reports no longer abbreviate revenue and expense values as compact `k` strings; user-facing report values now use complete active-locale MAD formatting.
 - Level-1 Support no longer leaves Arabic ticket cards, modals, fields, priority accents, or navigation/action arrows in an LTR presentation; the remaining hard-coded description label is localized.
 - Settings and Notifications no longer lose global notification changes when the app is closed, silently swallow preference-save failures, or display local-only security/audio switches as if they were server-backed capabilities.
+- API startup no longer fails because the Stripe webhook imported a private payment finalizer or referenced removed Stripe SDK fields; current subscription item periods and invoice parent subscription details are now used.
 - Operational invitation and meeting forms no longer drift from the shared MIZAN field language; resident lot balances/receipts and announcement detail dates no longer force French-Morocco formatting; document bundle generation no longer exposes French-only labels or raw French fallback copy in other locales.

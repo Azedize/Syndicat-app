@@ -6,6 +6,7 @@
   "scripts": {
     "hello": "tsx ./src/hello.ts",
     "seed": "tsx ./src/seed.ts",
+    "seed:stripe-products": "tsx ./src/seed-stripe-products.ts",
     "election-audit:seed": "tsx ./src/election-audit-seed.ts",
     "election-audit:test": "tsx ./src/election-audit-test.ts",
     "typecheck": "tsc -p tsconfig.json --noEmit"

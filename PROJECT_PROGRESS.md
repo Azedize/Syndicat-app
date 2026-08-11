@@ -243,3 +243,5 @@
 - Continued the mobile settings and notifications follow-through: global push, email, and in-app notification switches now derive from server-persisted per-category preferences instead of local-only state.
 - Added explicit notification-preference loading, unavailable/retry, optimistic-save, and rollback feedback across Paramètres and Notifications; unsupported biometric, two-factor, and auto-lock toggles no longer pretend to activate security features.
 - Mobile typecheck, Prettier, diff validation, Expo restart, and fresh workflow logs passed; only existing Expo package-version and web compatibility warnings remain.
+- Fixed the API production startup blocker in the Stripe webhook adapter: exported the shared payment finalizer and updated subscription/invoice field access for the installed Stripe SDK types.
+- API verification passed: standalone typecheck, production build, diff validation, managed workflow restart, server startup, SMTP verification, and scheduled retention/expiry scans completed successfully.

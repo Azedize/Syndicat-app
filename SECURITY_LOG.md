@@ -36,3 +36,4 @@
 - Level-1 Support recovery changes preserve member/tenant/syndicate-admin access, syndicate-scoped ticket and reply retrieval, escalation authorization, and mutation boundaries; no raw server details or additional ticket data are exposed.
 - Financial Reports presentation changes preserve the existing role guard and statistics endpoint scope; only display formatting changed, with no additional financial data exposure.
 - Support RTL/localization changes preserve authenticated member/tenant/syndicate-admin access, syndicate-scoped retrieval, escalation authorization, and mutation boundaries; no data scope changed.
+- Stripe webhook payment finalization remains transaction-backed and idempotent; the SDK compatibility update changes field mapping only and does not weaken signature verification, payment-state checks, or subscription ownership persistence.

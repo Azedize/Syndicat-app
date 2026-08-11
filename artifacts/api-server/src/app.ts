@@ -9,6 +9,7 @@ import router from "./routes";
 import { logger } from "./lib/logger";
 import { softAuth } from "./middleware/auth.js";
 import Redis from "ioredis";
+import { processStripeWebhook } from "./lib/stripeWebhook.js";
 
 const app: Express = express();
 
@@ -101,6 +102,27 @@ app.use(
     },
   }),
 );
+
+// Stripe requires the exact raw request body for signature verification.
+// This route must stay before express.json().
+app.post("/api/stripe/webhook", express.raw({ type: "application/json" }), async (req, res) => {
+  const signature = req.headers["stripe-signature"];
+  if (!signature || Array.isArray(signature)) {
+    res.status(400).json({ error: "Signature Stripe manquante ou invalide" });
+    return;
+  }
+  if (!Buffer.isBuffer(req.body)) {
+    res.status(400).json({ error: "Corps webhook Stripe invalide" });
+    return;
+  }
+  try {
+    await processStripeWebhook(req.body, signature);
+    res.json({ received: true });
+  } catch (error: any) {
+    logger.warn({ error: error?.message }, "Stripe webhook rejected");
+    res.status(400).json({ error: "Webhook Stripe invalide" });
+  }
+});
 
 app.use(express.json({ limit: "2mb" }));
 app.use(express.urlencoded({ extended: true, limit: "2mb" }));
