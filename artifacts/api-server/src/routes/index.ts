@@ -59,6 +59,10 @@ const router: IRouter = Router();
 router.use((req: Request, res: Response, next: NextFunction) => {
   if (["GET", "HEAD", "OPTIONS"].includes(req.method)) return next();
   if (req.path.startsWith("/auth/")) return next();
+  // Billing recovery must remain available when a subscription is expired,
+  // cancelled, or awaiting payment; otherwise the customer cannot renew or
+  // retry the payment that would restore access.
+  if (req.path.startsWith("/subscriptions")) return next();
   return requireActiveSubscription(req, res, next);
 });
 

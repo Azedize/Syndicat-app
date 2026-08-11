@@ -13218,6 +13218,36 @@ export const TRANSLATIONS: Translations = {
     ar: "تعذر تفعيل الاشتراك. تحققوا من الاتصال ثم حاولوا مجدداً.",
     es: "No se pudo activar la suscripción. Compruebe la conexión e inténtelo de nuevo.",
   },
+  paymentPendingTitle: {
+    fr: "Paiement en attente",
+    en: "Payment pending",
+    ar: "الدفع قيد الانتظار",
+    es: "Pago pendiente",
+  },
+  paymentPendingDescription: {
+    fr: "Votre demande est enregistrée. L'abonnement sera activé uniquement après confirmation du paiement.",
+    en: "Your request is recorded. The subscription will activate only after payment confirmation.",
+    ar: "تم تسجيل طلبكم. سيتم تفعيل الاشتراك فقط بعد تأكيد الدفع.",
+    es: "Su solicitud est enregistrée. La suscripción se activará únicamente después de confirmar el pago.",
+  },
+  paymentNoMethodsConfigured: {
+    fr: "Aucun mode de paiement n'est actuellement configuré. Contactez l'administrateur.",
+    en: "No payment method is currently configured. Contact the administrator.",
+    ar: "لا توجد طريقة دفع مهيأة حالياً. تواصلوا مع المسؤول.",
+    es: "No hay ningún método de pago configurado. Contacte al administrador.",
+  },
+  paymentPaypalLabel: {
+    fr: "PayPal",
+    en: "PayPal",
+    ar: "PayPal",
+    es: "PayPal",
+  },
+  paymentPaypalHint: {
+    fr: "Paiement sécurisé via PayPal",
+    en: "Secure payment via PayPal",
+    ar: "دفع آمن عبر PayPal",
+    es: "Pago seguro vía PayPal",
+  },
   paymentFreeTrialTitle: {
     fr: "Essai gratuit activé !",
     en: "Free trial activated!",

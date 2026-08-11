@@ -5,7 +5,9 @@
  * Register → Syndicate Setup → Payment → Team Invite → Dashboard
  *
  * Reads pending plan from AsyncStorage (set by register.tsx).
- * Allows choosing billing interval and payment method, then activates subscription.
+ * Allows choosing billing interval and payment method, then creates a
+ * server-authoritative pending payment attempt. Activation happens only after
+ * an authorized payment confirmation.
  */
 
 import { Feather } from "@expo/vector-icons";
@@ -38,6 +40,7 @@ interface PendingPlan {
   planName: string;
   planColor?: string;
   planPrice?: string;
+  planYearlyPrice?: string;
   planInterval?: string;
 }
 
@@ -48,12 +51,17 @@ const PAYMENT_METHODS = [
     color: "#2563EB",
   },
   {
-    id: "transfer",
+    id: "bank_transfer",
     icon: "repeat" as const,
     color: "#059669",
   },
   {
-    id: "cmi",
+    id: "paypal",
+    icon: "dollar-sign" as const,
+    color: "#2563EB",
+  },
+  {
+    id: "moroccan_gateway",
     icon: "globe" as const,
     color: "#7C3AED",
   },
@@ -61,8 +69,9 @@ const PAYMENT_METHODS = [
 
 const PAYMENT_METHOD_LABELS: Record<string, { labelKey: string; hintKey: string }> = {
   card: { labelKey: "cardPayment", hintKey: "paymentCardHint" },
-  transfer: { labelKey: "bankTransfer", hintKey: "paymentTransferHint" },
-  cmi: { labelKey: "paymentCmiLabel", hintKey: "paymentCmiHint" },
+  bank_transfer: { labelKey: "bankTransfer", hintKey: "paymentTransferHint" },
+  paypal: { labelKey: "paymentPaypalLabel", hintKey: "paymentPaypalHint" },
+  moroccan_gateway: { labelKey: "paymentCmiLabel", hintKey: "paymentCmiHint" },
 };
 
 export default function PaymentScreen() {
@@ -76,6 +85,9 @@ export default function PaymentScreen() {
   const [selectedMethod, setSelectedMethod] = useState("card");
   const [loading, setLoading] = useState(false);
   const [loadingPlan, setLoadingPlan] = useState(true);
+  const [configuredMethods, setConfiguredMethods] = useState<string[]>([]);
+  const [pendingPaymentId, setPendingPaymentId] = useState<string | null>(null);
+  const [paymentState, setPaymentState] = useState<string | null>(null);
 
   const gradColors: [string, string] = isDark ? ["#070D1A", "#0D1929"] : ["#EFF6FF", "#F8FAFF"];
   const color = plan?.planColor ?? "#2563EB";
@@ -87,10 +99,33 @@ export default function PaymentScreen() {
       }
       setLoadingPlan(false);
     });
+    AsyncStorage.getItem("@mizan_pending_payment").then((raw) => {
+      if (!raw) return;
+      try {
+        const pending = JSON.parse(raw);
+        if (pending?.paymentId) {
+          setPendingPaymentId(pending.paymentId);
+          apiRequest(`/subscriptions/payments/${pending.paymentId}`, "GET")
+            .then((result: any) => setPaymentState(result.data?.status ?? "pending"))
+            .catch(() => setPaymentState("pending"));
+        }
+      } catch {}
+    });
+    apiRequest("/subscriptions/payment-methods")
+      .then((result: any) => {
+        const methods = (result.data ?? [])
+          .filter((method: any) => method.configured)
+          .map((method: any) => method.id);
+        setConfiguredMethods(methods);
+        if (methods.length > 0 && !methods.includes(selectedMethod)) {
+          setSelectedMethod(methods[0]);
+        }
+      })
+      .catch(() => setConfiguredMethods([]));
   }, []);
 
   const price = plan?.planPrice ? Number(plan.planPrice) : 0;
-  const yearlyPrice = billing === "yearly" ? Math.round(price * 12 * 0.8) : null;
+  const yearlyPrice = plan?.planYearlyPrice ? Number(plan.planYearlyPrice) : null;
   const displayPrice = billing === "yearly" ? yearlyPrice : price;
   const locale = lang === "ar" ? "ar-MA" : lang === "en" ? "en-US" : lang === "es" ? "es-ES" : "fr-MA";
   const formatAmount = (amount: number) =>
@@ -105,7 +140,7 @@ export default function PaymentScreen() {
       return;
     }
 
-    if (selectedMethod === "transfer") {
+    if (selectedMethod === "bank_transfer") {
       Alert.alert(
         t("paymentTransferTitle"),
         t("paymentTransferInstructions"),
@@ -124,18 +159,30 @@ export default function PaymentScreen() {
     if (!plan?.planId) return;
     setLoading(true);
     try {
-      await apiRequest("/subscriptions", "POST", {
+      const storedKey = await AsyncStorage.getItem("@mizan_pending_payment_key");
+      const idempotencyKey = storedKey ?? `${plan.planId}:${billing}:${selectedMethod}:${Date.now()}`;
+      await AsyncStorage.setItem("@mizan_pending_payment_key", idempotencyKey);
+      const result = await apiRequest("/subscriptions", "POST", {
         planId: plan.planId,
         billingInterval: billing,
+        paymentMethod: selectedMethod,
+        idempotencyKey,
       }, token);
 
-      // Clear the pending plan
-      await AsyncStorage.removeItem(PENDING_PLAN_KEY);
-
-      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-      router.replace("/team-invite" as any);
-    } catch {
-      Alert.alert(t("paymentErrorTitle"), t("paymentErrorDescription"));
+      setPendingPaymentId(result.data?.id ?? null);
+      setPaymentState(result.data?.status ?? "pending");
+      await AsyncStorage.setItem("@mizan_pending_payment", JSON.stringify({
+        paymentId: result.data?.id,
+        planId: plan.planId,
+        billing,
+      }));
+      Alert.alert(
+        selectedMethod === "bank_transfer" ? t("paymentTransferTitle") : t("paymentPendingTitle"),
+        selectedMethod === "bank_transfer" ? t("paymentTransferInstructions") : t("paymentPendingDescription"),
+      );
+      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Warning);
+    } catch (error: any) {
+      Alert.alert(t("paymentErrorTitle"), error?.message ?? t("paymentErrorDescription"));
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
     } finally {
       setLoading(false);
@@ -262,9 +309,13 @@ export default function PaymentScreen() {
                 <Text style={[s.toggleText, { color: billing === "yearly" ? "#fff" : (isDark ? "rgba(232,240,254,0.5)" : "#64748B") }]}>
                   {t("paymentYearly")}
                 </Text>
-                <View style={[s.savePill, { backgroundColor: "#10B98125" }]}>
-                  <Text style={{ fontSize: 9, fontFamily: "Inter_700Bold", color: "#10B981" }}>-20%</Text>
-                </View>
+                 {yearlyPrice !== null && price > 0 && yearlyPrice < price * 12 ? (
+                   <View style={[s.savePill, { backgroundColor: "#10B98125" }]}>
+                     <Text style={{ fontSize: 9, fontFamily: "Inter_700Bold", color: "#10B981" }}>
+                       -{Math.round((1 - yearlyPrice / (price * 12)) * 100)}%
+                     </Text>
+                   </View>
+                 ) : null}
               </TouchableOpacity>
             </View>
 
@@ -276,7 +327,7 @@ export default function PaymentScreen() {
               <Text style={[s.pricePer, { color: isDark ? "rgba(232,240,254,0.5)" : "#64748B" }]}>
                 {billing === "yearly" ? t("paymentPerYear") : t("paymentPerMonth")}
               </Text>
-              {billing === "yearly" && (
+              {billing === "yearly" && yearlyPrice !== null && (
                 <View style={[s.savingBadge, { backgroundColor: "#10B98120" }]}>
                   <Text style={{ fontFamily: "Inter_600SemiBold", fontSize: 11, color: "#10B981" }}>
                     {interpolate("paymentSavings", {
@@ -294,35 +345,43 @@ export default function PaymentScreen() {
           <Text style={[s.sectionLabel, { color: isDark ? "rgba(232,240,254,0.45)" : "#94A3B8" }]}>
             {t("paymentMethodsSection")}
           </Text>
-          {PAYMENT_METHODS.map((method) => (
-            <TouchableOpacity
-              key={method.id}
-              style={[s.methodCard, {
-                backgroundColor: isDark ? "rgba(255,255,255,0.05)" : "#fff",
-                borderColor: selectedMethod === method.id ? method.color : (isDark ? "rgba(255,255,255,0.08)" : "rgba(37,99,235,0.12)"),
-                borderWidth: selectedMethod === method.id ? 2 : 1,
-              }]}
-              onPress={() => { setSelectedMethod(method.id); Haptics.selectionAsync(); }}
-              activeOpacity={0.85}
-            >
-              <View style={[s.methodIconWrap, { backgroundColor: method.color + "18" }]}>
-                <Feather name={method.icon} size={20} color={method.color} />
-              </View>
-              <View style={{ flex: 1 }}>
-                <Text style={[s.methodLabel, { color: isDark ? "#E8F0FE" : "#0A1628" }]}>
-                  {t(PAYMENT_METHOD_LABELS[method.id].labelKey)}
-                </Text>
-                <Text style={[s.methodSub, { color: isDark ? "rgba(232,240,254,0.45)" : "#64748B" }]}>
-                  {t(PAYMENT_METHOD_LABELS[method.id].hintKey)}
-                </Text>
-              </View>
-              <View style={[s.radioOuter, { borderColor: selectedMethod === method.id ? method.color : (isDark ? "rgba(255,255,255,0.2)" : "rgba(37,99,235,0.3)") }]}>
-                {selectedMethod === method.id && (
-                  <View style={[s.radioInner, { backgroundColor: method.color }]} />
-                )}
-              </View>
-            </TouchableOpacity>
-          ))}
+           {PAYMENT_METHODS.filter((method) => configuredMethods.includes(method.id)).map((method) => (
+             <TouchableOpacity
+               key={method.id}
+               style={[s.methodCard, {
+                 backgroundColor: isDark ? "rgba(255,255,255,0.05)" : "#fff",
+                 borderColor: selectedMethod === method.id ? method.color : (isDark ? "rgba(255,255,255,0.08)" : "rgba(37,99,235,0.12)"),
+                 borderWidth: selectedMethod === method.id ? 2 : 1,
+               }]}
+               onPress={() => { setSelectedMethod(method.id); Haptics.selectionAsync(); }}
+               activeOpacity={0.85}
+             >
+               <View style={[s.methodIconWrap, { backgroundColor: method.color + "18" }]}>
+                 <Feather name={method.icon} size={20} color={method.color} />
+               </View>
+               <View style={{ flex: 1 }}>
+                 <Text style={[s.methodLabel, { color: isDark ? "#E8F0FE" : "#0A1628" }]}>
+                   {t(PAYMENT_METHOD_LABELS[method.id].labelKey)}
+                 </Text>
+                 <Text style={[s.methodSub, { color: isDark ? "rgba(232,240,254,0.45)" : "#64748B" }]}>
+                   {t(PAYMENT_METHOD_LABELS[method.id].hintKey)}
+                 </Text>
+               </View>
+               <View style={[s.radioOuter, { borderColor: selectedMethod === method.id ? method.color : (isDark ? "rgba(255,255,255,0.2)" : "rgba(37,99,235,0.3)") }]}>
+                 {selectedMethod === method.id && (
+                   <View style={[s.radioInner, { backgroundColor: method.color }]} />
+                 )}
+               </View>
+             </TouchableOpacity>
+           ))}
+           {configuredMethods.length === 0 && (
+             <View style={[s.securityNote, { backgroundColor: isDark ? "rgba(245,158,11,0.1)" : "rgba(245,158,11,0.08)", borderColor: "#f59e0b40" }]}>
+               <Feather name="alert-triangle" size={14} color="#f59e0b" />
+               <Text style={[s.securityText, { color: isDark ? "rgba(232,240,254,0.7)" : "#92400E" }]}>
+                 {t("paymentNoMethodsConfigured")}
+               </Text>
+             </View>
+           )}
         </View>
 
         {/* Security note */}
@@ -353,6 +412,15 @@ export default function PaymentScreen() {
             </>
           )}
         </TouchableOpacity>
+
+        {pendingPaymentId && (
+          <View style={[s.securityNote, { backgroundColor: isDark ? "rgba(245,158,11,0.1)" : "rgba(245,158,11,0.08)", borderColor: "#f59e0b40" }]}>
+            <Feather name="clock" size={14} color="#f59e0b" />
+            <Text style={[s.securityText, { color: isDark ? "rgba(232,240,254,0.7)" : "#92400E" }]}>
+              {t("paymentPendingDescription")} {paymentState ? `(${paymentState})` : ""}
+            </Text>
+          </View>
+        )}
 
         {/* Skip option for already-paying users */}
         <TouchableOpacity

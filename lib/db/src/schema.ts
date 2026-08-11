@@ -1616,6 +1616,9 @@ export const subscriptionPlansTable = pgTable("subscription_plans", {
   maxStorageGb: integer("max_storage_gb"),
   maxDocuments: integer("max_documents"),
   maxSignatures: integer("max_signatures"),
+  maxApartments: integer("max_apartments"),
+  maxUsers: integer("max_users"),
+  supportLevel: text("support_level"),
   // Flags
   isActive: boolean("is_active").default(true),
   isTrial: boolean("is_trial").default(false),
@@ -1628,7 +1631,7 @@ export const syndicateSubscriptionsTable = pgTable("syndicate_subscriptions", {
   id: id(),
   syndicateId: text("syndicate_id").notNull(),
   planId: text("plan_id"),
-  status: text("status").default("trial"), // trial | active | grace | suspended | cancelled | expired
+  status: text("status").default("trial"), // pending_payment | trial | active | grace | suspended | cancelled | expired
   autoRenew: boolean("auto_renew").default(true),
   // Trial period
   trialStartDate: timestamp("trial_start_date"),
@@ -1640,6 +1643,8 @@ export const syndicateSubscriptionsTable = pgTable("syndicate_subscriptions", {
   canceledAt: timestamp("canceled_at"),
   gracePeriodEnd: timestamp("grace_period_end"),
   notes: text("notes"),
+  activatedAt: timestamp("activated_at"),
+  renewalDate: timestamp("renewal_date"),
   createdAt: createdAt(),
 });
 
@@ -1656,9 +1661,49 @@ export const billingInvoicesTable = pgTable("billing_invoices", {
   description: text("description"),
   periodStart: timestamp("period_start"),
   periodEnd: timestamp("period_end"),
+  paymentId: text("payment_id"),
+  invoiceNumber: text("invoice_number"),
   createdAt: createdAt(),
 },
   (t) => [index("billing_invoices_syndicate_id_idx").on(t.syndicateId)],
+);
+
+// ─── SaaS subscription payments ─────────────────────────────────────────────
+// One row per payment attempt. This is deliberately separate from resident
+// payment proofs and from billing invoices so provider retries/callbacks remain
+// auditable without overwriting history.
+export const subscriptionPaymentsTable = pgTable(
+  "subscription_payments",
+  {
+    id: id(),
+    syndicateId: text("syndicate_id").notNull(),
+    subscriptionId: text("subscription_id"),
+    planId: text("plan_id").notNull(),
+    invoiceId: text("invoice_id"),
+    idempotencyKey: text("idempotency_key").notNull(),
+    amount: money("amount").notNull(),
+    currency: text("currency").notNull().default("MAD"),
+    billingInterval: text("billing_interval").notNull().default("monthly"),
+    paymentMethod: text("payment_method").notNull(),
+    provider: text("provider"),
+    providerReference: text("provider_reference"),
+    // pending | processing | succeeded | failed | cancelled | refunded
+    status: text("status").notNull().default("pending"),
+    failureCode: text("failure_code"),
+    failureMessage: text("failure_message"),
+    metadata: jsonb("metadata"),
+    processedAt: timestamp("processed_at"),
+    cancelledAt: timestamp("cancelled_at"),
+    refundedAt: timestamp("refunded_at"),
+    createdAt: createdAt(),
+    updatedAt: timestamp("updated_at").defaultNow(),
+  },
+  (t) => [
+    uniqueIndex("subscription_payments_idempotency_key_uq").on(t.idempotencyKey),
+    index("subscription_payments_syndicate_id_idx").on(t.syndicateId),
+    index("subscription_payments_status_idx").on(t.status),
+    index("subscription_payments_subscription_id_idx").on(t.subscriptionId),
+  ],
 );
 
 // ─── Audit Log ──────────────────────────────────────────────────────────────

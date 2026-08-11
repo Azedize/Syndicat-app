@@ -50,6 +50,7 @@ export default function RegisterScreen() {
     planName?: string;
     planColor?: string;
     planPrice?: string;
+    planYearlyPrice?: string;
     planInterval?: string;
   }>();
 
@@ -129,6 +130,7 @@ export default function RegisterScreen() {
           planName: params.planName ?? undefined,
           planColor: params.planColor ?? undefined,
           planPrice: params.planPrice ?? undefined,
+          planYearlyPrice: params.planYearlyPrice ?? undefined,
           planInterval: params.planInterval ?? undefined,
         }),
       );

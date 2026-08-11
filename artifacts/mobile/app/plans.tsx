@@ -318,6 +318,7 @@ function PlanCard({
                     yearly && plan.yearlyPrice
                       ? plan.yearlyPrice
                       : (plan.price ?? "0"),
+                  planYearlyPrice: plan.yearlyPrice ?? undefined,
                   planInterval: yearly ? "yearly" : "monthly",
                 },
               });

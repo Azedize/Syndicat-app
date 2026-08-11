@@ -5,10 +5,12 @@ import {
   syndicateSubscriptionsTable,
   syndicatesTable,
   billingInvoicesTable,
+  subscriptionPaymentsTable,
 } from "@workspace/db/schema";
-import { eq, desc, and, lt, gte, isNull } from "drizzle-orm";
+import { eq, desc, and, inArray } from "drizzle-orm";
 import { requireAuth, requireAdmin, requireRole, requireSuperAdmin } from "../middleware/auth.js";
 import { logger } from "../lib/logger.js";
+import { serverAuditLog } from "../lib/audit.js";
 
 const router = Router();
 
@@ -67,6 +69,131 @@ function enrichSubscription(sub: any, plan: any) {
   };
 }
 
+const PAYMENT_METHODS = [
+  { id: "card", label: "Carte bancaire", configured: () => Boolean(process.env.STRIPE_SECRET_KEY || process.env.STRIPE_API_KEY), provider: "stripe" },
+  { id: "paypal", label: "PayPal", configured: () => Boolean(process.env.PAYPAL_CLIENT_ID && process.env.PAYPAL_CLIENT_SECRET), provider: "paypal" },
+  // Bank transfer does not require a third-party credential: the transfer
+  // remains pending until a super_admin confirms it.
+  { id: "bank_transfer", label: "Virement bancaire", configured: () => true, provider: "bank_transfer" },
+  { id: "moroccan_gateway", label: "Passerelle marocaine", configured: () => Boolean(process.env.MOROCCAN_PAYMENT_GATEWAY_URL && process.env.MOROCCAN_PAYMENT_GATEWAY_KEY), provider: "moroccan_gateway" },
+] as const;
+
+function availablePaymentMethods() {
+  return PAYMENT_METHODS.map((method) => ({
+    id: method.id,
+    label: method.label,
+    provider: method.provider,
+    configured: method.configured(),
+  }));
+}
+
+function paymentMethodConfig(methodId: string) {
+  return PAYMENT_METHODS.find((method) => method.id === methodId);
+}
+
+function periodEndFrom(start: Date, interval: string) {
+  const end = new Date(start);
+  if (interval === "yearly") end.setFullYear(end.getFullYear() + 1);
+  else end.setMonth(end.getMonth() + 1);
+  return end;
+}
+
+function paymentError(res: any, code: string, error: string, status = 400) {
+  res.status(status).json({ error, code });
+}
+
+async function finalizeSuccessfulPayment(paymentId: string, providerReference?: string) {
+  return db.transaction(async (tx) => {
+    const [payment] = await tx
+      .select()
+      .from(subscriptionPaymentsTable)
+      .where(eq(subscriptionPaymentsTable.id, paymentId))
+      .limit(1);
+    if (!payment) throw Object.assign(new Error("Paiement introuvable"), { status: 404, code: "PAYMENT_NOT_FOUND" });
+    if (payment.status === "refunded") {
+      throw Object.assign(new Error("Un paiement remboursé ne peut pas être réactivé"), { status: 409, code: "PAYMENT_REFUNDED" });
+    }
+    if (payment.status === "succeeded") {
+      const [existing] = await tx.select().from(syndicateSubscriptionsTable)
+        .where(eq(syndicateSubscriptionsTable.id, payment.subscriptionId ?? ""))
+        .limit(1);
+      return { payment: existing ? { ...payment, subscriptionId: existing.id } : payment, duplicate: true };
+    }
+    if (!["pending", "processing"].includes(payment.status)) {
+      throw Object.assign(new Error("Le paiement n'est pas confirmable dans son état actuel"), { status: 409, code: "PAYMENT_STATE_INVALID" });
+    }
+
+    const now = new Date();
+    const periodEnd = periodEndFrom(now, payment.billingInterval);
+    const [current] = await tx.select().from(syndicateSubscriptionsTable)
+      .where(and(
+        eq(syndicateSubscriptionsTable.syndicateId, payment.syndicateId),
+        inArray(syndicateSubscriptionsTable.status, ["active", "trial", "grace", "pending_payment"]),
+      ))
+      .orderBy(desc(syndicateSubscriptionsTable.createdAt))
+      .limit(1);
+
+    if (current && current.id !== payment.subscriptionId && ["active", "trial", "grace"].includes(current.status ?? "")) {
+      await tx.update(syndicateSubscriptionsTable)
+        .set({ status: "cancelled", canceledAt: now })
+        .where(eq(syndicateSubscriptionsTable.id, current.id));
+    }
+
+    const [subscription] = await tx.update(syndicateSubscriptionsTable)
+      .set({
+        status: "active",
+        autoRenew: true,
+        currentPeriodStart: now,
+        currentPeriodEnd: periodEnd,
+        renewalDate: periodEnd,
+        activatedAt: now,
+        canceledAt: null,
+      })
+      .where(and(
+        eq(syndicateSubscriptionsTable.id, payment.subscriptionId ?? ""),
+        eq(syndicateSubscriptionsTable.status, "pending_payment"),
+      ))
+      .returning();
+    if (!subscription) {
+      throw Object.assign(new Error("La souscription en attente est introuvable ou déjà finalisée"), { status: 409, code: "SUBSCRIPTION_FINALIZATION_CONFLICT" });
+    }
+
+    const invoiceNumber = `INV-${now.toISOString().slice(0, 10).replaceAll("-", "")}-${payment.id.slice(0, 8).toUpperCase()}`;
+    const [invoice] = await tx.insert(billingInvoicesTable).values({
+      syndicateId: payment.syndicateId,
+      subscriptionId: subscription.id,
+      paymentId: payment.id,
+      invoiceNumber,
+      amount: payment.amount,
+      status: "paid",
+      dueDate: now,
+      paidAt: now,
+      description: `Abonnement ${payment.planId} — ${payment.billingInterval === "yearly" ? "annuel" : "mensuel"}`,
+      periodStart: now,
+      periodEnd,
+    } as any).returning();
+
+    const [updatedPayment] = await tx.update(subscriptionPaymentsTable)
+      .set({
+        status: "succeeded",
+        providerReference: providerReference ?? payment.providerReference,
+        subscriptionId: subscription.id,
+        invoiceId: invoice.id,
+        processedAt: now,
+        updatedAt: now,
+      })
+      .where(and(
+        eq(subscriptionPaymentsTable.id, payment.id),
+        inArray(subscriptionPaymentsTable.status, ["pending", "processing"]),
+      ))
+      .returning();
+    if (!updatedPayment) {
+      throw Object.assign(new Error("Le paiement a déjà été traité"), { status: 409, code: "PAYMENT_ALREADY_PROCESSED" });
+    }
+    return { payment: updatedPayment, subscription, invoice, duplicate: false };
+  });
+}
+
 // ─── GET /subscriptions/plans/public ─────────────────────────────────────
 // Public endpoint — no auth required. Used by the pre-login welcome flow.
 
@@ -122,6 +249,7 @@ router.post("/subscriptions/plans", requireAuth, requireSuperAdmin, async (req, 
     const {
       name, description, price, yearlyPrice, interval, features,
       maxBuildings, maxLots, maxMembers, maxStorageGb, maxDocuments, maxSignatures,
+      maxApartments, maxUsers, supportLevel,
       isTrial, sortOrder, color, isActive,
     } = req.body as Record<string, any>;
 
@@ -140,6 +268,9 @@ router.post("/subscriptions/plans", requireAuth, requireSuperAdmin, async (req, 
       maxStorageGb: maxStorageGb ?? null,
       maxDocuments: maxDocuments ?? null,
       maxSignatures: maxSignatures ?? null,
+       maxApartments: maxApartments ?? null,
+       maxUsers: maxUsers ?? null,
+       supportLevel: supportLevel ?? null,
       isTrial: isTrial ?? false,
       sortOrder: sortOrder ?? 0,
       color: color ?? "#2563EB",
@@ -160,7 +291,8 @@ router.put("/subscriptions/plans/:id", requireAuth, requireSuperAdmin, async (re
     const planId = String(req.params.id);
     const update: Record<string, any> = {};
     const allowed = ["name","description","price","yearlyPrice","interval","features","maxBuildings","maxLots",
-      "maxMembers","maxStorageGb","maxDocuments","maxSignatures","isTrial","sortOrder","color","isActive"];
+      "maxMembers","maxStorageGb","maxDocuments","maxSignatures","maxApartments","maxUsers","supportLevel",
+      "isTrial","sortOrder","color","isActive"];
     for (const key of allowed) {
       if (req.body[key] !== undefined) {
         if (key === "features" && Array.isArray(req.body[key])) {
@@ -326,61 +458,317 @@ router.get("/subscriptions", requireAuth, requireRole("super_admin"), async (_re
   }
 });
 
-// ─── POST /subscriptions (subscribe to a paid plan) ──────────────────────
+// ─── GET /subscriptions/payment-methods ───────────────────────────────────
+
+router.get("/subscriptions/payment-methods", requireAuth, async (_req, res) => {
+  res.json({ data: availablePaymentMethods() });
+});
+
+// ─── POST /subscriptions (create a pending checkout) ──────────────────────
+// This endpoint never activates a subscription. Activation only happens from
+// finalizeSuccessfulPayment(), after an authorized payment confirmation.
 
 router.post("/subscriptions", requireAuth, requireAdmin, async (req, res) => {
   try {
-    const { planId, syndicateId: targetSyndicateId, billingInterval } = req.body as {
+    const { planId, syndicateId: targetSyndicateId, billingInterval, paymentMethod, idempotencyKey: bodyKey } = req.body as {
       planId: string; syndicateId?: string; billingInterval?: "monthly" | "yearly";
+      paymentMethod?: string; idempotencyKey?: string;
     };
     if (!planId) { res.status(400).json({ error: "planId est requis" }); return; }
 
     const syndicateId = req.user!.role === "super_admin" ? targetSyndicateId : req.user!.syndicateId;
     if (!syndicateId) { res.status(400).json({ error: "syndicateId est requis" }); return; }
+    const interval = billingInterval === "yearly" ? "yearly" : "monthly";
+    const method = paymentMethod ?? "bank_transfer";
+    const methodConfig = paymentMethodConfig(method);
+    if (!methodConfig) { paymentError(res, "PAYMENT_METHOD_UNSUPPORTED", "Mode de paiement non pris en charge"); return; }
+    if (!methodConfig.configured()) {
+      paymentError(res, "PAYMENT_METHOD_NOT_CONFIGURED", "Ce mode de paiement n'est pas configuré. Choisissez un mode disponible.", 409);
+      return;
+    }
+    const idempotencyKey = String(req.headers["idempotency-key"] ?? bodyKey ?? "").trim();
+    if (!idempotencyKey || idempotencyKey.length > 200) {
+      paymentError(res, "IDEMPOTENCY_KEY_REQUIRED", "Une clé d'idempotence est requise pour protéger le paiement"); return;
+    }
 
     const [plan] = await db.select().from(subscriptionPlansTable).where(eq(subscriptionPlansTable.id, planId));
-    if (!plan) { res.status(404).json({ error: "Plan introuvable" }); return; }
-
-    const now = new Date();
-    const periodEnd = new Date(now);
-    if (billingInterval === "yearly") {
-      periodEnd.setFullYear(periodEnd.getFullYear() + 1);
-    } else {
-      periodEnd.setMonth(periodEnd.getMonth() + 1);
+    if (!plan || !plan.isActive) { res.status(404).json({ error: "Plan introuvable ou inactif" }); return; }
+    if (plan.isTrial) { paymentError(res, "TRIAL_PLAN_NOT_PAYABLE", "Le plan d'essai est activé lors de l'inscription"); return; }
+    const amount = interval === "yearly" ? plan.yearlyPrice : plan.price;
+    if (amount === null || amount === undefined || Number(amount) <= 0) {
+      paymentError(res, "PLAN_PRICE_NOT_CONFIGURED", "Le prix de ce plan n'est pas configuré en base de données", 409); return;
     }
 
-    // Cancel existing
-    await db.update(syndicateSubscriptionsTable)
-      .set({ status: "cancelled", canceledAt: now })
-      .where(eq(syndicateSubscriptionsTable.syndicateId, syndicateId));
+    const created = await db.transaction(async (tx) => {
+      const [existing] = await tx.select().from(subscriptionPaymentsTable)
+        .where(eq(subscriptionPaymentsTable.idempotencyKey, idempotencyKey)).limit(1);
+      if (existing) {
+        const sameRequest = existing.syndicateId === syndicateId
+          && existing.planId === planId
+          && existing.billingInterval === interval
+          && Number(existing.amount) === Number(amount);
+        if (!sameRequest) {
+          throw Object.assign(new Error("Cette clé d'idempotence est déjà utilisée pour une autre demande"), {
+            status: 409,
+            code: "IDEMPOTENCY_KEY_REUSED",
+          });
+        }
+        return { payment: existing, duplicate: true };
+      }
 
-    const [sub] = await db.insert(syndicateSubscriptionsTable).values({
-      syndicateId,
-      planId,
-      status: "active",
-      autoRenew: true,
-      currentPeriodStart: now,
-      currentPeriodEnd: periodEnd,
-    } as any).returning();
-
-    // Create invoice
-    const price = billingInterval === "yearly" ? plan.yearlyPrice : plan.price;
-    if (price && Number(price) > 0) {
-      await db.insert(billingInvoicesTable).values({
+      const now = new Date();
+      const [pendingSub] = await tx.insert(syndicateSubscriptionsTable).values({
         syndicateId,
-        subscriptionId: sub.id,
-        amount: String(price),
-        status: "open",
-        dueDate: now,
-        description: `Abonnement ${plan.name} — ${billingInterval === "yearly" ? "annuel" : "mensuel"}`,
-        periodStart: now,
-        periodEnd: periodEnd,
-      } as any);
-    }
+        planId,
+        status: "pending_payment",
+        autoRenew: true,
+        notes: `Paiement en attente — ${method}`,
+      } as any).returning();
+      const [payment] = await tx.insert(subscriptionPaymentsTable).values({
+        syndicateId,
+        subscriptionId: pendingSub.id,
+        planId,
+        idempotencyKey,
+        amount: String(amount),
+        currency: "MAD",
+        billingInterval: interval,
+        paymentMethod: method,
+        provider: methodConfig.provider,
+        status: "pending",
+        metadata: { planName: plan.name, requestedAt: now.toISOString() },
+      } as any).returning();
+      return { payment, duplicate: false };
+    });
 
-    res.status(201).json({ data: sub, message: "Abonnement activé" });
+    if (!created.duplicate) {
+      await serverAuditLog(req, {
+        action: "CREATE",
+        entity: "subscription_payment",
+        entityId: created.payment.id,
+        syndicateId,
+        platformAction: req.user!.role === "super_admin",
+        details: JSON.stringify({ planId, amount: String(amount), billingInterval: interval, paymentMethod: method, status: "pending" }),
+      });
+    }
+    res.status(created.duplicate ? 200 : 201).json({
+      data: created.payment,
+      message: created.duplicate ? "Paiement déjà initialisé" : "Paiement en attente",
+      duplicate: created.duplicate,
+      plan: { id: plan.id, name: plan.name, amount, billingInterval: interval, currency: "MAD" },
+    });
   } catch (e) {
+    if ((e as any)?.code === "23505") {
+      const key = String(req.headers["idempotency-key"] ?? req.body?.idempotencyKey ?? "");
+      const [existing] = await db.select().from(subscriptionPaymentsTable).where(eq(subscriptionPaymentsTable.idempotencyKey, key)).limit(1);
+      if (existing) { res.json({ data: existing, duplicate: true, message: "Paiement déjà initialisé" }); return; }
+    }
     logger.error(e, "POST subscriptions error");
+    res.status(500).json({ error: "Erreur serveur" });
+  }
+});
+
+// ─── GET /subscriptions/payments (auditable payment history) ──────────────
+
+router.get("/subscriptions/payments", requireAuth, requireAdmin, async (req, res) => {
+  try {
+    const syndicateId = req.user!.role === "super_admin"
+      ? (typeof req.query.syndicateId === "string" ? req.query.syndicateId : undefined)
+      : req.user!.syndicateId;
+    const where = syndicateId ? eq(subscriptionPaymentsTable.syndicateId, syndicateId) : undefined;
+    const payments = await db.select({
+      id: subscriptionPaymentsTable.id,
+      syndicateId: subscriptionPaymentsTable.syndicateId,
+      subscriptionId: subscriptionPaymentsTable.subscriptionId,
+      invoiceId: subscriptionPaymentsTable.invoiceId,
+      planId: subscriptionPaymentsTable.planId,
+      planName: subscriptionPlansTable.name,
+      amount: subscriptionPaymentsTable.amount,
+      currency: subscriptionPaymentsTable.currency,
+      billingInterval: subscriptionPaymentsTable.billingInterval,
+      paymentMethod: subscriptionPaymentsTable.paymentMethod,
+      provider: subscriptionPaymentsTable.provider,
+      providerReference: subscriptionPaymentsTable.providerReference,
+      status: subscriptionPaymentsTable.status,
+      failureCode: subscriptionPaymentsTable.failureCode,
+      failureMessage: subscriptionPaymentsTable.failureMessage,
+      processedAt: subscriptionPaymentsTable.processedAt,
+      cancelledAt: subscriptionPaymentsTable.cancelledAt,
+      refundedAt: subscriptionPaymentsTable.refundedAt,
+      createdAt: subscriptionPaymentsTable.createdAt,
+    }).from(subscriptionPaymentsTable)
+      .leftJoin(subscriptionPlansTable, eq(subscriptionPaymentsTable.planId, subscriptionPlansTable.id))
+      .where(where)
+      .orderBy(desc(subscriptionPaymentsTable.createdAt));
+    res.json({ data: payments });
+  } catch (e) {
+    logger.error(e, "GET subscriptions/payments error");
+    res.status(500).json({ error: "Erreur serveur" });
+  }
+});
+
+// ─── GET /subscriptions/payments/:id ──────────────────────────────────────
+// Mobile uses this after an app restart or network interruption to reconcile
+// the locally persisted attempt with the server's authoritative state.
+
+router.get("/subscriptions/payments/:id", requireAuth, requireAdmin, async (req, res) => {
+  try {
+    const [payment] = await db.select({
+      id: subscriptionPaymentsTable.id,
+      syndicateId: subscriptionPaymentsTable.syndicateId,
+      subscriptionId: subscriptionPaymentsTable.subscriptionId,
+      invoiceId: subscriptionPaymentsTable.invoiceId,
+      planId: subscriptionPaymentsTable.planId,
+      amount: subscriptionPaymentsTable.amount,
+      currency: subscriptionPaymentsTable.currency,
+      billingInterval: subscriptionPaymentsTable.billingInterval,
+      paymentMethod: subscriptionPaymentsTable.paymentMethod,
+      provider: subscriptionPaymentsTable.provider,
+      providerReference: subscriptionPaymentsTable.providerReference,
+      status: subscriptionPaymentsTable.status,
+      failureCode: subscriptionPaymentsTable.failureCode,
+      failureMessage: subscriptionPaymentsTable.failureMessage,
+      processedAt: subscriptionPaymentsTable.processedAt,
+      cancelledAt: subscriptionPaymentsTable.cancelledAt,
+      refundedAt: subscriptionPaymentsTable.refundedAt,
+      createdAt: subscriptionPaymentsTable.createdAt,
+    }).from(subscriptionPaymentsTable)
+      .where(eq(subscriptionPaymentsTable.id, String(req.params.id)))
+      .limit(1);
+    if (!payment) { paymentError(res, "PAYMENT_NOT_FOUND", "Paiement introuvable", 404); return; }
+    if (req.user!.role !== "super_admin" && payment.syndicateId !== req.user!.syndicateId) {
+      paymentError(res, "ACCESS_DENIED", "Accès refusé", 403); return;
+    }
+    res.json({ data: payment });
+  } catch (e) {
+    logger.error(e, "GET subscription payment by id error");
+    res.status(500).json({ error: "Erreur serveur" });
+  }
+});
+
+// ─── POST /subscriptions/payments/:id/confirm ─────────────────────────────
+// Used by a configured provider callback/authorized bank-transfer operator.
+// It is deliberately idempotent: a delayed callback returns the existing
+// successful result and never creates a second subscription or invoice.
+
+router.post("/subscriptions/payments/:id/confirm", requireAuth, requireSuperAdmin, async (req, res) => {
+  try {
+    const result = await finalizeSuccessfulPayment(String(req.params.id), req.body?.providerReference);
+    await serverAuditLog(req, {
+      action: result.duplicate ? "REPLAY" : "CONFIRM",
+      entity: "subscription_payment",
+      entityId: String(req.params.id),
+      syndicateId: (result.payment as any).syndicateId,
+      details: JSON.stringify({ status: "succeeded", duplicate: result.duplicate }),
+    });
+    res.json({ data: result, message: result.duplicate ? "Confirmation déjà traitée" : "Paiement confirmé, abonnement activé" });
+  } catch (e) {
+    const status = Number((e as any)?.status) || 500;
+    if (status < 500) { paymentError(res, (e as any).code ?? "PAYMENT_CONFIRMATION_ERROR", (e as Error).message, status); return; }
+    logger.error(e, "POST subscription payment confirm error");
+    res.status(500).json({ error: "Erreur serveur" });
+  }
+});
+
+// ─── POST /subscriptions/payments/:id/fail ─────────────────────────────────
+
+router.post("/subscriptions/payments/:id/fail", requireAuth, requireSuperAdmin, async (req, res) => {
+  try {
+    const [payment] = await db.update(subscriptionPaymentsTable)
+      .set({
+        status: "failed",
+        failureCode: String(req.body?.failureCode ?? "PAYMENT_FAILED"),
+        failureMessage: String(req.body?.failureMessage ?? "Le paiement a échoué"),
+        updatedAt: new Date(),
+      })
+      .where(and(
+        eq(subscriptionPaymentsTable.id, String(req.params.id)),
+        inArray(subscriptionPaymentsTable.status, ["pending", "processing"]),
+      ))
+      .returning();
+    if (!payment) { paymentError(res, "PAYMENT_STATE_INVALID", "Le paiement n'est pas en attente ou n'existe pas", 409); return; }
+    await db.update(syndicateSubscriptionsTable).set({ status: "cancelled", canceledAt: new Date(), notes: "Paiement échoué" })
+      .where(and(eq(syndicateSubscriptionsTable.id, payment.subscriptionId ?? ""), eq(syndicateSubscriptionsTable.status, "pending_payment")));
+    await serverAuditLog(req, { action: "FAIL", entity: "subscription_payment", entityId: payment.id, syndicateId: payment.syndicateId, details: JSON.stringify({ failureCode: payment.failureCode }) });
+    res.json({ data: payment, message: "Paiement échoué. Vous pouvez réessayer." });
+  } catch (e) {
+    logger.error(e, "POST subscription payment fail error");
+    res.status(500).json({ error: "Erreur serveur" });
+  }
+});
+
+// ─── POST /subscriptions/payments/:id/cancel ───────────────────────────────
+
+router.post("/subscriptions/payments/:id/cancel", requireAuth, requireAdmin, async (req, res) => {
+  try {
+    const paymentId = String(req.params.id);
+    const [payment] = await db.select().from(subscriptionPaymentsTable).where(eq(subscriptionPaymentsTable.id, paymentId)).limit(1);
+    if (!payment) { paymentError(res, "PAYMENT_NOT_FOUND", "Paiement introuvable", 404); return; }
+    if (req.user!.role !== "super_admin" && payment.syndicateId !== req.user!.syndicateId) { paymentError(res, "ACCESS_DENIED", "Accès refusé", 403); return; }
+    const [updated] = await db.update(subscriptionPaymentsTable)
+      .set({ status: "cancelled", cancelledAt: new Date(), updatedAt: new Date() })
+      .where(and(eq(subscriptionPaymentsTable.id, paymentId), inArray(subscriptionPaymentsTable.status, ["pending", "processing"])))
+      .returning();
+    if (!updated) { paymentError(res, "PAYMENT_STATE_INVALID", "Ce paiement ne peut plus être annulé", 409); return; }
+    await db.update(syndicateSubscriptionsTable).set({ status: "cancelled", canceledAt: new Date(), notes: "Paiement annulé" })
+      .where(and(eq(syndicateSubscriptionsTable.id, updated.subscriptionId ?? ""), eq(syndicateSubscriptionsTable.status, "pending_payment")));
+    await serverAuditLog(req, { action: "CANCEL", entity: "subscription_payment", entityId: updated.id, syndicateId: updated.syndicateId });
+    res.json({ data: updated, message: "Paiement annulé. Vous pouvez réessayer." });
+  } catch (e) {
+    logger.error(e, "POST subscription payment cancel error");
+    res.status(500).json({ error: "Erreur serveur" });
+  }
+});
+
+// ─── POST /subscriptions/payments/:id/retry ────────────────────────────────
+
+router.post("/subscriptions/payments/:id/retry", requireAuth, requireAdmin, async (req, res) => {
+  try {
+    const [previous] = await db.select().from(subscriptionPaymentsTable).where(eq(subscriptionPaymentsTable.id, String(req.params.id))).limit(1);
+    if (!previous) { paymentError(res, "PAYMENT_NOT_FOUND", "Paiement introuvable", 404); return; }
+    if (req.user!.role !== "super_admin" && previous.syndicateId !== req.user!.syndicateId) { paymentError(res, "ACCESS_DENIED", "Accès refusé", 403); return; }
+    if (!["failed", "cancelled"].includes(previous.status)) { paymentError(res, "PAYMENT_RETRY_INVALID", "Seuls les paiements échoués ou annulés peuvent être réessayés", 409); return; }
+    const method = String(req.body?.paymentMethod ?? previous.paymentMethod);
+    const config = paymentMethodConfig(method);
+    if (!config || !config.configured()) { paymentError(res, "PAYMENT_METHOD_NOT_CONFIGURED", "Ce mode de paiement n'est pas configuré", 409); return; }
+    const key = String(req.headers["idempotency-key"] ?? req.body?.idempotencyKey ?? "").trim();
+    if (!key) { paymentError(res, "IDEMPOTENCY_KEY_REQUIRED", "Une clé d'idempotence est requise"); return; }
+    const [existing] = await db.select().from(subscriptionPaymentsTable).where(eq(subscriptionPaymentsTable.idempotencyKey, key)).limit(1);
+    if (existing) { res.json({ data: existing, duplicate: true, message: "Nouvelle tentative déjà initialisée" }); return; }
+    const [subscription] = await db.insert(syndicateSubscriptionsTable).values({
+      syndicateId: previous.syndicateId, planId: previous.planId, status: "pending_payment", autoRenew: true,
+      notes: `Nouvelle tentative de paiement ${previous.id}`,
+    } as any).returning();
+    const [payment] = await db.insert(subscriptionPaymentsTable).values({
+      syndicateId: previous.syndicateId, subscriptionId: subscription.id, planId: previous.planId,
+      idempotencyKey: key, amount: previous.amount, currency: previous.currency,
+      billingInterval: previous.billingInterval, paymentMethod: method, provider: config.provider,
+      status: "pending", metadata: { retryOfPaymentId: previous.id },
+    } as any).returning();
+    await serverAuditLog(req, { action: "RETRY", entity: "subscription_payment", entityId: payment.id, syndicateId: payment.syndicateId, details: JSON.stringify({ retryOfPaymentId: previous.id }) });
+    res.status(201).json({ data: payment, duplicate: false, message: "Nouvelle tentative de paiement créée" });
+  } catch (e) {
+    logger.error(e, "POST subscription payment retry error");
+    res.status(500).json({ error: "Erreur serveur" });
+  }
+});
+
+// ─── POST /subscriptions/payments/:id/refund ───────────────────────────────
+
+router.post("/subscriptions/payments/:id/refund", requireAuth, requireSuperAdmin, async (req, res) => {
+  try {
+    const paymentId = String(req.params.id);
+    const [payment] = await db.update(subscriptionPaymentsTable)
+      .set({ status: "refunded", refundedAt: new Date(), updatedAt: new Date(), metadata: { refundReason: req.body?.reason ?? null } })
+      .where(and(eq(subscriptionPaymentsTable.id, paymentId), eq(subscriptionPaymentsTable.status, "succeeded")))
+      .returning();
+    if (!payment) { paymentError(res, "REFUND_INVALID", "Seuls les paiements réussis peuvent être remboursés", 409); return; }
+    await db.update(syndicateSubscriptionsTable).set({ status: "cancelled", canceledAt: new Date(), notes: "Paiement remboursé" })
+      .where(and(eq(syndicateSubscriptionsTable.id, payment.subscriptionId ?? ""), inArray(syndicateSubscriptionsTable.status, ["active", "grace"])));
+    if (payment.invoiceId) await db.update(billingInvoicesTable).set({ status: "refunded" }).where(eq(billingInvoicesTable.id, payment.invoiceId));
+    await serverAuditLog(req, { action: "REFUND", entity: "subscription_payment", entityId: payment.id, syndicateId: payment.syndicateId, details: JSON.stringify({ reason: req.body?.reason ?? null }) });
+    res.json({ data: payment, message: "Paiement remboursé et abonnement clôturé" });
+  } catch (e) {
+    logger.error(e, "POST subscription payment refund error");
     res.status(500).json({ error: "Erreur serveur" });
   }
 });
@@ -463,13 +851,25 @@ router.get("/subscriptions/invoices", requireAuth, async (req, res) => {
 router.put("/subscriptions/invoices/:id/pay", requireAuth, requireSuperAdmin, async (req, res) => {
   try {
     const id = String(req.params.id);
-    const [updated] = await db.update(billingInvoicesTable)
-      .set({ status: "paid", paidAt: new Date() })
-      .where(eq(billingInvoicesTable.id, id))
-      .returning();
-    if (!updated) { res.status(404).json({ error: "Facture introuvable" }); return; }
-    res.json({ data: updated, message: "Facture marquée payée" });
+    const [invoice] = await db.select().from(billingInvoicesTable)
+      .where(eq(billingInvoicesTable.id, id)).limit(1);
+    if (!invoice) { res.status(404).json({ error: "Facture introuvable" }); return; }
+    if (!invoice.paymentId) {
+      paymentError(res, "PAYMENT_LINK_MISSING", "Cette facture ne possède pas de tentative de paiement confirmable", 409);
+      return;
+    }
+    const result = await finalizeSuccessfulPayment(invoice.paymentId, req.body?.providerReference);
+    await serverAuditLog(req, {
+      action: result.duplicate ? "REPLAY" : "CONFIRM",
+      entity: "subscription_payment",
+      entityId: invoice.paymentId,
+      syndicateId: invoice.syndicateId,
+      details: JSON.stringify({ via: "invoice", duplicate: result.duplicate }),
+    });
+    res.json({ data: result, message: result.duplicate ? "Confirmation déjà traitée" : "Paiement confirmé, abonnement activé" });
   } catch (e) {
+    const status = Number((e as any)?.status) || 500;
+    if (status < 500) { paymentError(res, (e as any).code ?? "PAYMENT_CONFIRMATION_ERROR", (e as Error).message, status); return; }
     logger.error(e, "PUT invoices/:id/pay error");
     res.status(500).json({ error: "Erreur serveur" });
   }
