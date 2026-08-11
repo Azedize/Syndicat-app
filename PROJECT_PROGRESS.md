@@ -240,3 +240,6 @@
 - Preserved anti-enumeration behavior for reset-link requests, real reset-password API calls, token validation, password strength feedback, and post-reset login handoff.
 - Corrected the reset-code placeholder for compact screens so the required 64-character guidance remains readable.
 - Mobile typecheck, Prettier, diff validation, Expo bundling, and protected recovery previews passed; only existing Expo web compatibility warnings and browser password-form notices remain.
+- Continued the mobile settings and notifications follow-through: global push, email, and in-app notification switches now derive from server-persisted per-category preferences instead of local-only state.
+- Added explicit notification-preference loading, unavailable/retry, optimistic-save, and rollback feedback across Paramètres and Notifications; unsupported biometric, two-factor, and auto-lock toggles no longer pretend to activate security features.
+- Mobile typecheck, Prettier, diff validation, Expo restart, and fresh workflow logs passed; only existing Expo package-version and web compatibility warnings remain.

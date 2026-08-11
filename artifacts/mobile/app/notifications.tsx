@@ -3,6 +3,7 @@ import * as Haptics from "expo-haptics";
 import { router } from "expo-router";
 import React, { useState } from "react";
 import {
+  ActivityIndicator,
   Platform,
   ScrollView,
   StyleSheet,
@@ -16,6 +17,8 @@ import { useData } from "@/context/DataContext";
 import { useBreakpoints } from "@/hooks/useBreakpoints";
 import { useColors } from "@/hooks/useColors";
 import { useLanguage } from "@/context/LanguageContext";
+import { ErrorState } from "@/components/DataState";
+import { useToast } from "@/context/ToastContext";
 
 type TabType = "preferences" | "historique";
 
@@ -37,46 +40,114 @@ export default function NotificationsScreen() {
   const colors = useColors();
   const { t } = useLanguage();
   const insets = useSafeAreaInsets();
-  const { notificationPreferences, toggleNotificationPref, alerts, markAlertRead } = useData();
+  const {
+    notificationPreferences,
+    notificationPreferencesLoading,
+    notificationPreferencesLoadError,
+    refreshNotificationPreferences,
+    toggleNotificationPref,
+    toggleNotificationChannel,
+    alerts,
+    markAlertRead,
+  } = useData();
+  const { showToast } = useToast();
   const { isWide } = useBreakpoints();
-  const topPad = isWide ? 0 : (Platform.OS === "web" ? 67 : insets.top);
+  const topPad = isWide ? 0 : Platform.OS === "web" ? 67 : insets.top;
 
   const [tab, setTab] = useState<TabType>("preferences");
-  const [globalPush, setGlobalPush] = useState(true);
-  const [globalEmail, setGlobalEmail] = useState(true);
-  const [doNotDisturb, setDoNotDisturb] = useState(false);
-  const [soundEnabled, setSoundEnabled] = useState(true);
-  const [vibrationEnabled, setVibrationEnabled] = useState(true);
-  const [previewEnabled, setPreviewEnabled] = useState(true);
-
   const unread = alerts.filter((a) => !a.read).length;
+  const channelValue = (channel: "push" | "email" | "inApp") =>
+    notificationPreferences.length > 0 &&
+    notificationPreferences.every((preference) => preference[channel]);
 
   const categoryMeta = (category: string) => {
     const normalized = category.toLowerCase();
-    if (normalized.includes("financ") || normalized.includes("charge") || normalized.includes("payment")) {
-      return { label: t("notificationCategoryFinancial"), description: t("notificationCategoryFinancialDescription") };
+    if (
+      normalized.includes("financ") ||
+      normalized.includes("charge") ||
+      normalized.includes("payment")
+    ) {
+      return {
+        label: t("notificationCategoryFinancial"),
+        description: t("notificationCategoryFinancialDescription"),
+      };
     }
     if (normalized.includes("document") || normalized.includes("acte")) {
-      return { label: t("notificationCategoryDocuments"), description: t("notificationCategoryDocumentsDescription") };
+      return {
+        label: t("notificationCategoryDocuments"),
+        description: t("notificationCategoryDocumentsDescription"),
+      };
     }
-    if (normalized.includes("meeting") || normalized.includes("réunion") || normalized.includes("reunion") || normalized.includes("assembl")) {
-      return { label: t("notificationCategoryMeetings"), description: t("notificationCategoryMeetingsDescription") };
+    if (
+      normalized.includes("meeting") ||
+      normalized.includes("réunion") ||
+      normalized.includes("reunion") ||
+      normalized.includes("assembl")
+    ) {
+      return {
+        label: t("notificationCategoryMeetings"),
+        description: t("notificationCategoryMeetingsDescription"),
+      };
     }
     if (normalized.includes("message") || normalized.includes("chat")) {
-      return { label: t("notificationCategoryMessages"), description: t("notificationCategoryMessagesDescription") };
+      return {
+        label: t("notificationCategoryMessages"),
+        description: t("notificationCategoryMessagesDescription"),
+      };
     }
-    if (normalized.includes("security") || normalized.includes("sécurité") || normalized.includes("securite") || normalized.includes("account")) {
-      return { label: t("notificationCategorySecurity"), description: t("notificationCategorySecurityDescription") };
+    if (
+      normalized.includes("security") ||
+      normalized.includes("sécurité") ||
+      normalized.includes("securite") ||
+      normalized.includes("account")
+    ) {
+      return {
+        label: t("notificationCategorySecurity"),
+        description: t("notificationCategorySecurityDescription"),
+      };
     }
-    if (normalized.includes("work") || normalized.includes("travaux") || normalized.includes("incident") || normalized.includes("sinistre")) {
-      return { label: t("notificationCategoryWorks"), description: t("notificationCategoryWorksDescription") };
+    if (
+      normalized.includes("work") ||
+      normalized.includes("travaux") ||
+      normalized.includes("incident") ||
+      normalized.includes("sinistre")
+    ) {
+      return {
+        label: t("notificationCategoryWorks"),
+        description: t("notificationCategoryWorksDescription"),
+      };
     }
     return { label: category || t("notificationsTitle"), description: "" };
   };
 
-  const handleToggle = (id: string, channel: "push" | "email" | "inApp") => {
+  const handleToggle = async (
+    id: string,
+    channel: "push" | "email" | "inApp",
+  ) => {
     Haptics.selectionAsync();
-    toggleNotificationPref(id, channel);
+    const saved = await toggleNotificationPref(id, channel);
+    if (!saved) {
+      showToast({
+        type: "error",
+        title: t("error"),
+        message: t("settingsNotificationsSaveError"),
+      });
+    }
+  };
+
+  const handleGlobalToggle = async (
+    channel: "push" | "email" | "inApp",
+    value: boolean,
+  ) => {
+    Haptics.selectionAsync();
+    const saved = await toggleNotificationChannel(channel, value);
+    if (!saved) {
+      showToast({
+        type: "error",
+        title: t("error"),
+        message: t("settingsNotificationsSaveError"),
+      });
+    }
   };
 
   const handleMarkAllRead = () => {
@@ -86,22 +157,55 @@ export default function NotificationsScreen() {
 
   return (
     <View style={[styles.root, { backgroundColor: colors.background }]}>
-      <View style={[styles.header, { paddingTop: topPad + 16, backgroundColor: colors.card, borderBottomColor: colors.border }]}>
+      <View
+        style={[
+          styles.header,
+          {
+            paddingTop: topPad + 16,
+            backgroundColor: colors.card,
+            borderBottomColor: colors.border,
+          },
+        ]}
+      >
         <TouchableOpacity onPress={() => router.back()} style={styles.backBtn}>
           <Feather name="arrow-left" size={22} color={colors.foreground} />
         </TouchableOpacity>
-        <Text style={[styles.title, { color: colors.foreground }]}>{t("notificationsTitle")}</Text>
+        <Text style={[styles.title, { color: colors.foreground }]}>
+          {t("notificationsTitle")}
+        </Text>
         <View style={{ width: 38 }} />
       </View>
 
-      <View style={[styles.tabRow, { backgroundColor: colors.card, borderBottomColor: colors.border }]}>
+      <View
+        style={[
+          styles.tabRow,
+          { backgroundColor: colors.card, borderBottomColor: colors.border },
+        ]}
+      >
         {(["preferences", "historique"] as TabType[]).map((tabKey) => (
           <TouchableOpacity
             key={tabKey}
-            style={[styles.tabBtn, tab === tabKey && { borderBottomColor: colors.primary, borderBottomWidth: 2 }]}
-            onPress={() => { Haptics.selectionAsync(); setTab(tabKey); }}
+            style={[
+              styles.tabBtn,
+              tab === tabKey && {
+                borderBottomColor: colors.primary,
+                borderBottomWidth: 2,
+              },
+            ]}
+            onPress={() => {
+              Haptics.selectionAsync();
+              setTab(tabKey);
+            }}
           >
-            <Text style={[styles.tabLabel, { color: tab === tabKey ? colors.primary : colors.mutedForeground }]}>
+            <Text
+              style={[
+                styles.tabLabel,
+                {
+                  color:
+                    tab === tabKey ? colors.primary : colors.mutedForeground,
+                },
+              ]}
+            >
               {tabKey === "preferences"
                 ? t("preferencesTab")
                 : `${t("historyTab")}${unread > 0 ? ` (${unread})` : ""}`}
@@ -112,13 +216,53 @@ export default function NotificationsScreen() {
 
       <ScrollView
         showsVerticalScrollIndicator={false}
-        contentContainerStyle={{ padding: 16, gap: 16, paddingBottom: isWide ? 32 : insets.bottom + 100 }}
+        contentContainerStyle={{
+          padding: 16,
+          gap: 16,
+          paddingBottom: isWide ? 32 : insets.bottom + 100,
+        }}
       >
         {tab === "preferences" && (
           <>
+            {notificationPreferencesLoading &&
+            notificationPreferences.length === 0 ? (
+              <View
+                style={[
+                  styles.syncCard,
+                  { backgroundColor: colors.card, borderColor: colors.border },
+                ]}
+              >
+                <ActivityIndicator size="small" color={colors.primary} />
+                <Text
+                  style={[styles.syncText, { color: colors.mutedForeground }]}
+                >
+                  {t("settingsNotificationsLoading")}
+                </Text>
+              </View>
+            ) : notificationPreferencesLoadError &&
+              notificationPreferences.length === 0 ? (
+              <ErrorState
+                title={t("settingsNotificationsUnavailable")}
+                description={t("settingsNotificationsUnavailable")}
+                retryLabel={t("settingsNotificationsRetry")}
+                onRetry={() => {
+                  void refreshNotificationPreferences();
+                }}
+                accentColor={colors.destructive}
+              />
+            ) : null}
             {/* Global controls */}
-            <View style={[styles.sectionCard, { backgroundColor: colors.card, borderColor: colors.border }]}>
-              <Text style={[styles.sectionLabel, { color: colors.mutedForeground }]}>{t("globalSettingsLabel")}</Text>
+            <View
+              style={[
+                styles.sectionCard,
+                { backgroundColor: colors.card, borderColor: colors.border },
+              ]}
+            >
+              <Text
+                style={[styles.sectionLabel, { color: colors.mutedForeground }]}
+              >
+                {t("globalSettingsLabel")}
+              </Text>
 
               {[
                 {
@@ -126,40 +270,69 @@ export default function NotificationsScreen() {
                   color: colors.primary,
                   label: t("pushNotifsLabel"),
                   sub: t("pushNotifsSub"),
-                  value: globalPush,
-                  onChange: (v: boolean) => { Haptics.selectionAsync(); setGlobalPush(v); },
+                  channel: "push" as const,
+                  value: channelValue("push"),
                 },
                 {
                   icon: "mail" as const,
                   color: "#3b82f6",
                   label: t("emailNotifsLabel"),
                   sub: t("emailNotifsSub"),
-                  value: globalEmail,
-                  onChange: (v: boolean) => { Haptics.selectionAsync(); setGlobalEmail(v); },
+                  channel: "email" as const,
+                  value: channelValue("email"),
                 },
                 {
-                  icon: "moon" as const,
-                  color: "#8b5cf6",
-                  label: t("doNotDisturbLabel"),
-                  sub: t("doNotDisturbSub"),
-                  value: doNotDisturb,
-                  onChange: (v: boolean) => { Haptics.selectionAsync(); setDoNotDisturb(v); },
+                  icon: "bell" as const,
+                  color: "#10b981",
+                  label: t("inAppNotifications"),
+                  sub: t("inAppNotificationsSub"),
+                  channel: "inApp" as const,
+                  value: channelValue("inApp"),
                 },
               ].map((item, i, arr) => (
                 <View key={item.label}>
-                  {i > 0 && <View style={[styles.sep, { backgroundColor: colors.border }]} />}
+                  {i > 0 && (
+                    <View
+                      style={[styles.sep, { backgroundColor: colors.border }]}
+                    />
+                  )}
                   <View style={styles.switchRow}>
-                    <View style={[styles.rowIcon, { backgroundColor: item.color + "18" }]}>
+                    <View
+                      style={[
+                        styles.rowIcon,
+                        { backgroundColor: item.color + "18" },
+                      ]}
+                    >
                       <Feather name={item.icon} size={18} color={item.color} />
                     </View>
                     <View style={{ flex: 1 }}>
-                      <Text style={[styles.rowLabel, { color: colors.foreground }]}>{item.label}</Text>
-                      <Text style={[styles.rowSub, { color: colors.mutedForeground }]}>{item.sub}</Text>
+                      <Text
+                        style={[styles.rowLabel, { color: colors.foreground }]}
+                      >
+                        {item.label}
+                      </Text>
+                      <Text
+                        style={[
+                          styles.rowSub,
+                          { color: colors.mutedForeground },
+                        ]}
+                      >
+                        {item.sub}
+                      </Text>
                     </View>
                     <Switch
                       value={item.value}
-                      onValueChange={item.onChange}
-                      trackColor={{ false: colors.border, true: item.color + "60" }}
+                      onValueChange={(value) => {
+                        void handleGlobalToggle(item.channel, value);
+                      }}
+                      disabled={
+                        notificationPreferencesLoading ||
+                        notificationPreferences.length === 0
+                      }
+                      trackColor={{
+                        false: colors.border,
+                        true: item.color + "60",
+                      }}
                       thumbColor={item.value ? item.color : "#f4f3f4"}
                     />
                   </View>
@@ -168,88 +341,148 @@ export default function NotificationsScreen() {
             </View>
 
             {/* Per-category preferences */}
-            <Text style={[styles.sectionTitle, { color: colors.mutedForeground }]}>{t("perCategoryLabel")}</Text>
+            <Text
+              style={[styles.sectionTitle, { color: colors.mutedForeground }]}
+            >
+              {t("perCategoryLabel")}
+            </Text>
 
             {notificationPreferences.map((pref, index) => (
-              <View key={pref.id} style={[styles.prefCard, { backgroundColor: colors.card, borderColor: colors.border }]}>
+              <View
+                key={pref.id}
+                style={[
+                  styles.prefCard,
+                  { backgroundColor: colors.card, borderColor: colors.border },
+                ]}
+              >
                 <View style={styles.prefHeader}>
                   {(() => {
-                    const meta = categoryMeta(pref.category || pref.label || [
-                      "financial",
-                      "documents",
-                      "meetings",
-                      "messages",
-                      "security",
-                      "works",
-                    ][index] || "");
+                    const meta = categoryMeta(
+                      pref.category ||
+                        pref.label ||
+                        [
+                          "financial",
+                          "documents",
+                          "meetings",
+                          "messages",
+                          "security",
+                          "works",
+                        ][index] ||
+                        "",
+                    );
                     return (
                       <>
-                  <View style={[styles.prefIcon, { backgroundColor: pref.color + "18" }]}>
-                    <Feather name={pref.icon as keyof typeof Feather.glyphMap} size={20} color={pref.color} />
-                  </View>
-                  <View style={{ flex: 1 }}>
-                    <Text style={[styles.prefLabel, { color: colors.foreground }]}>{meta.label}</Text>
-                    <Text style={[styles.prefDesc, { color: colors.mutedForeground }]}>{meta.description || pref.description}</Text>
-                  </View>
+                        <View
+                          style={[
+                            styles.prefIcon,
+                            { backgroundColor: pref.color + "18" },
+                          ]}
+                        >
+                          <Feather
+                            name={pref.icon as keyof typeof Feather.glyphMap}
+                            size={20}
+                            color={pref.color}
+                          />
+                        </View>
+                        <View style={{ flex: 1 }}>
+                          <Text
+                            style={[
+                              styles.prefLabel,
+                              { color: colors.foreground },
+                            ]}
+                          >
+                            {meta.label}
+                          </Text>
+                          <Text
+                            style={[
+                              styles.prefDesc,
+                              { color: colors.mutedForeground },
+                            ]}
+                          >
+                            {meta.description || pref.description}
+                          </Text>
+                        </View>
                       </>
                     );
                   })()}
                 </View>
 
-                <View style={[styles.prefDivider, { backgroundColor: colors.border }]} />
+                <View
+                  style={[
+                    styles.prefDivider,
+                    { backgroundColor: colors.border },
+                  ]}
+                />
 
                 <View style={styles.prefChannels}>
                   {[
-                    { key: "push" as const, label: t("notificationChannelPush"), icon: "smartphone" as const },
-                    { key: "email" as const, label: t("notificationChannelEmail"), icon: "mail" as const },
-                    { key: "inApp" as const, label: t("notificationChannelInApp"), icon: "bell" as const },
+                    {
+                      key: "push" as const,
+                      label: t("notificationChannelPush"),
+                      icon: "smartphone" as const,
+                    },
+                    {
+                      key: "email" as const,
+                      label: t("notificationChannelEmail"),
+                      icon: "mail" as const,
+                    },
+                    {
+                      key: "inApp" as const,
+                      label: t("notificationChannelInApp"),
+                      icon: "bell" as const,
+                    },
                   ].map((ch, i, arr) => (
-                    <View key={ch.key} style={[styles.channelCell, i < arr.length - 1 ? { borderRightWidth: 1, borderRightColor: colors.border } : null]}>
-                      <View style={{ flexDirection: "row", alignItems: "center", gap: 5, marginBottom: 6 }}>
-                        <Feather name={ch.icon} size={12} color={colors.mutedForeground} />
-                        <Text style={[styles.channelLabel, { color: colors.mutedForeground }]}>{ch.label}</Text>
+                    <View
+                      key={ch.key}
+                      style={[
+                        styles.channelCell,
+                        i < arr.length - 1
+                          ? {
+                              borderRightWidth: 1,
+                              borderRightColor: colors.border,
+                            }
+                          : null,
+                      ]}
+                    >
+                      <View
+                        style={{
+                          flexDirection: "row",
+                          alignItems: "center",
+                          gap: 5,
+                          marginBottom: 6,
+                        }}
+                      >
+                        <Feather
+                          name={ch.icon}
+                          size={12}
+                          color={colors.mutedForeground}
+                        />
+                        <Text
+                          style={[
+                            styles.channelLabel,
+                            { color: colors.mutedForeground },
+                          ]}
+                        >
+                          {ch.label}
+                        </Text>
                       </View>
                       <Switch
                         value={pref[ch.key]}
                         onValueChange={() => handleToggle(pref.id, ch.key)}
-                        trackColor={{ false: colors.border, true: pref.color + "60" }}
+                        trackColor={{
+                          false: colors.border,
+                          true: pref.color + "60",
+                        }}
                         thumbColor={pref[ch.key] ? pref.color : "#f4f3f4"}
-                        style={{ transform: [{ scaleX: 0.8 }, { scaleY: 0.8 }] }}
+                        style={{
+                          transform: [{ scaleX: 0.8 }, { scaleY: 0.8 }],
+                        }}
                       />
                     </View>
                   ))}
                 </View>
               </View>
             ))}
-
-            {/* Sound & vibration */}
-            <View style={[styles.sectionCard, { backgroundColor: colors.card, borderColor: colors.border }]}>
-              <Text style={[styles.sectionLabel, { color: colors.mutedForeground }]}>{t("soundVibrationLabel")}</Text>
-              {[
-                { icon: "volume-2" as const, color: "#10b981", label: t("soundNotifsLabel"), sub: t("soundNotifsSub"), value: soundEnabled, onChange: (v: boolean) => { Haptics.selectionAsync(); setSoundEnabled(v); } },
-                { icon: "activity" as const, color: "#f59e0b", label: t("vibrationLabel"), sub: t("vibrationSub"), value: vibrationEnabled, onChange: (v: boolean) => { Haptics.selectionAsync(); setVibrationEnabled(v); } },
-                { icon: "eye" as const, color: "#6366f1", label: t("msgPreviewLabel"), sub: t("msgPreviewSub"), value: previewEnabled, onChange: (v: boolean) => { Haptics.selectionAsync(); setPreviewEnabled(v); } },
-              ].map((item, i) => (
-                <View key={item.label}>
-                  {i > 0 && <View style={[styles.sep, { backgroundColor: colors.border }]} />}
-                  <View style={styles.switchRow}>
-                    <View style={[styles.rowIcon, { backgroundColor: item.color + "18" }]}>
-                      <Feather name={item.icon} size={18} color={item.color} />
-                    </View>
-                    <View style={{ flex: 1 }}>
-                      <Text style={[styles.rowLabel, { color: colors.foreground }]}>{item.label}</Text>
-                      <Text style={[styles.rowSub, { color: colors.mutedForeground }]}>{item.sub}</Text>
-                    </View>
-                    <Switch
-                      value={item.value}
-                      onValueChange={item.onChange}
-                      trackColor={{ false: colors.border, true: item.color + "60" }}
-                      thumbColor={item.value ? item.color : "#f4f3f4"}
-                    />
-                  </View>
-                </View>
-              ))}
-            </View>
           </>
         )}
 
@@ -257,7 +490,13 @@ export default function NotificationsScreen() {
           <>
             {unread > 0 && (
               <TouchableOpacity
-                style={[styles.markAllBtn, { backgroundColor: colors.primary + "15", borderColor: colors.primary + "30" }]}
+                style={[
+                  styles.markAllBtn,
+                  {
+                    backgroundColor: colors.primary + "15",
+                    borderColor: colors.primary + "30",
+                  },
+                ]}
                 onPress={handleMarkAllRead}
               >
                 <Feather name="check-square" size={15} color={colors.primary} />
@@ -268,21 +507,66 @@ export default function NotificationsScreen() {
             )}
 
             {/* Summary strip */}
-            <View style={[styles.summaryRow, { backgroundColor: colors.card, borderColor: colors.border }]}>
-              {(["info", "warning", "success", "error"] as const).map((type, i, arr) => {
-                const count = alerts.filter((a) => a.type === type).length;
-                return (
-                  <View key={type} style={[styles.summaryCell, i < arr.length - 1 ? { borderRightWidth: 1, borderRightColor: colors.border } : null]}>
-                    <View style={[styles.summaryDot, { backgroundColor: ALERT_COLORS[type] + "20" }]}>
-                      <Feather name={ALERT_ICONS[type]} size={13} color={ALERT_COLORS[type]} />
+            <View
+              style={[
+                styles.summaryRow,
+                { backgroundColor: colors.card, borderColor: colors.border },
+              ]}
+            >
+              {(["info", "warning", "success", "error"] as const).map(
+                (type, i, arr) => {
+                  const count = alerts.filter((a) => a.type === type).length;
+                  return (
+                    <View
+                      key={type}
+                      style={[
+                        styles.summaryCell,
+                        i < arr.length - 1
+                          ? {
+                              borderRightWidth: 1,
+                              borderRightColor: colors.border,
+                            }
+                          : null,
+                      ]}
+                    >
+                      <View
+                        style={[
+                          styles.summaryDot,
+                          { backgroundColor: ALERT_COLORS[type] + "20" },
+                        ]}
+                      >
+                        <Feather
+                          name={ALERT_ICONS[type]}
+                          size={13}
+                          color={ALERT_COLORS[type]}
+                        />
+                      </View>
+                      <Text
+                        style={[
+                          styles.summaryCount,
+                          { color: colors.foreground },
+                        ]}
+                      >
+                        {count}
+                      </Text>
+                      <Text
+                        style={[
+                          styles.summaryLabel,
+                          { color: colors.mutedForeground },
+                        ]}
+                      >
+                        {type === "info"
+                          ? t("alertInfo")
+                          : type === "warning"
+                            ? t("alertWarning")
+                            : type === "success"
+                              ? t("alertSuccess")
+                              : t("alertError")}
+                      </Text>
                     </View>
-                    <Text style={[styles.summaryCount, { color: colors.foreground }]}>{count}</Text>
-                    <Text style={[styles.summaryLabel, { color: colors.mutedForeground }]}>
-                       {type === "info" ? t("alertInfo") : type === "warning" ? t("alertWarning") : type === "success" ? t("alertSuccess") : t("alertError")}
-                    </Text>
-                  </View>
-                );
-              })}
+                  );
+                },
+              )}
             </View>
 
             {/* Notification list */}
@@ -307,28 +591,62 @@ export default function NotificationsScreen() {
                   }}
                   activeOpacity={0.85}
                 >
-                  <View style={[styles.notifIconWrap, { backgroundColor: c + "18" }]}>
+                  <View
+                    style={[
+                      styles.notifIconWrap,
+                      { backgroundColor: c + "18" },
+                    ]}
+                  >
                     <Feather name={ico} size={18} color={c} />
                   </View>
                   <View style={{ flex: 1, gap: 3 }}>
                     <View style={styles.notifTitleRow}>
-                      <Text style={[styles.notifTitle, { color: colors.foreground }]} numberOfLines={1}>
+                      <Text
+                        style={[
+                          styles.notifTitle,
+                          { color: colors.foreground },
+                        ]}
+                        numberOfLines={1}
+                      >
                         {alert.title}
                       </Text>
                       {!alert.read && (
-                        <View style={[styles.unreadDot, { backgroundColor: c }]} />
+                        <View
+                          style={[styles.unreadDot, { backgroundColor: c }]}
+                        />
                       )}
                     </View>
-                    <Text style={[styles.notifMsg, { color: colors.mutedForeground }]} numberOfLines={2}>
+                    <Text
+                      style={[
+                        styles.notifMsg,
+                        { color: colors.mutedForeground },
+                      ]}
+                      numberOfLines={2}
+                    >
                       {alert.message}
                     </Text>
                     <View style={styles.notifFooter}>
-                      <View style={[styles.typeChip, { backgroundColor: c + "18" }]}>
+                      <View
+                        style={[styles.typeChip, { backgroundColor: c + "18" }]}
+                      >
                         <Text style={[styles.typeChipText, { color: c }]}>
-                           {alert.type === "info" ? t("alertInfo") : alert.type === "warning" ? t("alertWarning") : alert.type === "success" ? t("alertSuccess") : t("alertError")}
+                          {alert.type === "info"
+                            ? t("alertInfo")
+                            : alert.type === "warning"
+                              ? t("alertWarning")
+                              : alert.type === "success"
+                                ? t("alertSuccess")
+                                : t("alertError")}
                         </Text>
                       </View>
-                      <Text style={[styles.notifDate, { color: colors.mutedForeground }]}>{alert.date}</Text>
+                      <Text
+                        style={[
+                          styles.notifDate,
+                          { color: colors.mutedForeground },
+                        ]}
+                      >
+                        {alert.date}
+                      </Text>
                     </View>
                   </View>
                 </TouchableOpacity>
@@ -337,8 +655,16 @@ export default function NotificationsScreen() {
 
             {alerts.length === 0 && (
               <View style={styles.emptyState}>
-                <Feather name="bell-off" size={40} color={colors.mutedForeground} />
-                <Text style={[styles.emptyText, { color: colors.mutedForeground }]}>{t("notificationNoneTitle")}</Text>
+                <Feather
+                  name="bell-off"
+                  size={40}
+                  color={colors.mutedForeground}
+                />
+                <Text
+                  style={[styles.emptyText, { color: colors.mutedForeground }]}
+                >
+                  {t("notificationNoneTitle")}
+                </Text>
               </View>
             )}
           </>
@@ -358,8 +684,18 @@ const styles = StyleSheet.create({
     borderBottomWidth: 1,
     gap: 12,
   },
-  backBtn: { width: 38, height: 38, alignItems: "center", justifyContent: "center" },
-  title: { flex: 1, fontSize: 20, fontFamily: "Inter_700Bold", textAlign: "center" },
+  backBtn: {
+    width: 38,
+    height: 38,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  title: {
+    flex: 1,
+    fontSize: 20,
+    fontFamily: "Inter_700Bold",
+    textAlign: "center",
+  },
   tabRow: { flexDirection: "row", borderBottomWidth: 1 },
   tabBtn: {
     flex: 1,
@@ -376,15 +712,41 @@ const styles = StyleSheet.create({
     padding: 16,
     gap: 0,
   },
-  sectionLabel: { fontSize: 11, fontFamily: "Inter_600SemiBold", letterSpacing: 1, marginBottom: 12 },
-  sectionTitle: { fontSize: 11, fontFamily: "Inter_600SemiBold", letterSpacing: 1, marginStart: 4 },
+  syncCard: {
+    minHeight: 92,
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 8,
+    borderRadius: 16,
+    borderWidth: 1,
+    padding: 16,
+  },
+  syncText: { fontSize: 13, fontFamily: "Inter_500Medium" },
+  sectionLabel: {
+    fontSize: 11,
+    fontFamily: "Inter_600SemiBold",
+    letterSpacing: 1,
+    marginBottom: 12,
+  },
+  sectionTitle: {
+    fontSize: 11,
+    fontFamily: "Inter_600SemiBold",
+    letterSpacing: 1,
+    marginStart: 4,
+  },
   switchRow: {
     flexDirection: "row",
     alignItems: "center",
     gap: 12,
     paddingVertical: 10,
   },
-  rowIcon: { width: 38, height: 38, borderRadius: 11, alignItems: "center", justifyContent: "center" },
+  rowIcon: {
+    width: 38,
+    height: 38,
+    borderRadius: 11,
+    alignItems: "center",
+    justifyContent: "center",
+  },
   rowLabel: { fontSize: 14, fontFamily: "Inter_600SemiBold" },
   rowSub: { fontSize: 12, fontFamily: "Inter_400Regular", marginTop: 1 },
   sep: { height: 1, marginVertical: 2 },
@@ -396,9 +758,20 @@ const styles = StyleSheet.create({
     gap: 10,
   },
   prefHeader: { flexDirection: "row", alignItems: "center", gap: 12 },
-  prefIcon: { width: 42, height: 42, borderRadius: 12, alignItems: "center", justifyContent: "center" },
+  prefIcon: {
+    width: 42,
+    height: 42,
+    borderRadius: 12,
+    alignItems: "center",
+    justifyContent: "center",
+  },
   prefLabel: { fontSize: 14, fontFamily: "Inter_700Bold" },
-  prefDesc: { fontSize: 12, fontFamily: "Inter_400Regular", marginTop: 2, lineHeight: 16 },
+  prefDesc: {
+    fontSize: 12,
+    fontFamily: "Inter_400Regular",
+    marginTop: 2,
+    lineHeight: 16,
+  },
   prefDivider: { height: 1 },
   prefChannels: { flexDirection: "row" },
   channelCell: { flex: 1, alignItems: "center", paddingVertical: 6 },
@@ -420,7 +793,13 @@ const styles = StyleSheet.create({
     overflow: "hidden",
   },
   summaryCell: { flex: 1, alignItems: "center", paddingVertical: 12, gap: 4 },
-  summaryDot: { width: 30, height: 30, borderRadius: 8, alignItems: "center", justifyContent: "center" },
+  summaryDot: {
+    width: 30,
+    height: 30,
+    borderRadius: 8,
+    alignItems: "center",
+    justifyContent: "center",
+  },
   summaryCount: { fontSize: 15, fontFamily: "Inter_700Bold" },
   summaryLabel: { fontSize: 10, fontFamily: "Inter_400Regular" },
   notifCard: {
@@ -431,12 +810,24 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     padding: 14,
   },
-  notifIconWrap: { width: 38, height: 38, borderRadius: 10, alignItems: "center", justifyContent: "center", marginTop: 2 },
+  notifIconWrap: {
+    width: 38,
+    height: 38,
+    borderRadius: 10,
+    alignItems: "center",
+    justifyContent: "center",
+    marginTop: 2,
+  },
   notifTitleRow: { flexDirection: "row", alignItems: "center", gap: 8 },
   notifTitle: { flex: 1, fontSize: 14, fontFamily: "Inter_700Bold" },
   unreadDot: { width: 8, height: 8, borderRadius: 4 },
   notifMsg: { fontSize: 12, fontFamily: "Inter_400Regular", lineHeight: 17 },
-  notifFooter: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", marginTop: 4 },
+  notifFooter: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    marginTop: 4,
+  },
   typeChip: { paddingHorizontal: 8, paddingVertical: 3, borderRadius: 20 },
   typeChipText: { fontSize: 10, fontFamily: "Inter_600SemiBold" },
   notifDate: { fontSize: 11, fontFamily: "Inter_400Regular" },

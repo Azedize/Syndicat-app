@@ -214,3 +214,8 @@
 - Verified mobile typecheck and `git diff --check`; workflow logs show healthy Expo/API services. Preview validation found no new runtime exception, while the existing web capture can snapshot animated/auth content before text settles.
 - Migrated `artifacts/mobile/app/register.tsx` from its local field implementation to `MizanFormField` and `KeyboardAwareScrollViewCompat`; added focus progression between inputs, RTL-aware back/consent layout, accessible password toggles, and preserved email OTP, AsyncStorage handoff, plan selection, and validation contracts.
 - Verified the registration surface with zero-error mobile typecheck, clean diff validation, healthy workflows, and a 402×874 preview showing the complete form without new runtime errors.
+- Audited the Settings and Notifications preference surfaces and found global switches were local-only while the category controls were persisted without visible recovery feedback.
+- Extended DataContext with explicit notification-preference loading/error state, refresh, optimistic per-channel updates, bulk channel persistence, and rollback when any server update fails.
+- Rewired Settings and Notifications global controls to the persisted push/email/in-app channels, added localized loading/retry/save-failure feedback, and removed local-only sound/vibration/preview controls from the persisted settings experience.
+- Changed biometric, two-factor, and auto-lock rows to an honest unavailable/configuration-soon state because no complete device/server security flow exists yet.
+- Mobile typecheck, Prettier, `git diff --check`, Expo restart, and fresh workflow logs passed; no new browser runtime errors were observed.

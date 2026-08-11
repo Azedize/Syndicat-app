@@ -10,6 +10,11 @@ interface Props {
   icon: keyof typeof Feather.glyphMap;
   focused?: boolean;
   error?: string;
+  helper?: string;
+  required?: boolean;
+  disabled?: boolean;
+  accessibilityLabel?: string;
+  iconColor?: string;
   children: React.ReactNode;
   trailing?: React.ReactNode;
 }
@@ -26,43 +31,82 @@ export default function MizanFormField({
   icon,
   focused = false,
   error,
+  helper,
+  required = false,
+  disabled = false,
+  accessibilityLabel,
+  iconColor,
   children,
   trailing,
 }: Props) {
   const colors = useColors();
   const { isRTL } = useLanguage();
-  const stateColor = error ? colors.destructive : focused ? colors.primary : colors.border;
+  const stateColor = error
+    ? colors.destructive
+    : focused
+      ? colors.primary
+      : colors.border;
 
   return (
     <View style={styles.field}>
       <Text
         style={[
           styles.label,
-          { color: error ? colors.destructive : colors.foreground, textAlign: isRTL ? "right" : "left" },
+          {
+            color: error ? colors.destructive : colors.foreground,
+            textAlign: isRTL ? "right" : "left",
+          },
         ]}
       >
         {label}
+        {required ? " *" : ""}
       </Text>
       <View
+        accessible
+        accessibilityLabel={accessibilityLabel ?? label}
+        accessibilityState={{ disabled }}
         style={[
           styles.inputRow,
           {
             backgroundColor: colors.input + "22",
             borderColor: stateColor,
+            opacity: disabled ? 0.55 : 1,
           },
         ]}
       >
         <Feather
           name={icon}
           size={18}
-          color={error ? colors.destructive : focused ? colors.primary : colors.mutedForeground}
+          color={
+            error
+              ? colors.destructive
+              : (iconColor ??
+                (focused ? colors.primary : colors.mutedForeground))
+          }
         />
         <View style={styles.inputContent}>{children}</View>
         {trailing}
       </View>
       {error ? (
-        <Text style={[styles.error, { color: colors.destructive, textAlign: isRTL ? "right" : "left" }]}>
+        <Text
+          style={[
+            styles.error,
+            { color: colors.destructive, textAlign: isRTL ? "right" : "left" },
+          ]}
+        >
           {error}
+        </Text>
+      ) : helper ? (
+        <Text
+          style={[
+            styles.helper,
+            {
+              color: colors.mutedForeground,
+              textAlign: isRTL ? "right" : "left",
+            },
+          ]}
+        >
+          {helper}
         </Text>
       ) : null}
     </View>
@@ -93,5 +137,9 @@ const styles = StyleSheet.create({
   error: {
     fontSize: TYPOGRAPHY.SM,
     fontFamily: "Inter_500Medium",
+  },
+  helper: {
+    fontSize: TYPOGRAPHY.SM,
+    fontFamily: "Inter_400Regular",
   },
 });

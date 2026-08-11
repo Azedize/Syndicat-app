@@ -216,6 +216,8 @@
 - `pnpm exec prettier --write` on the updated shared mobile primitives and `git diff --check` — passed.
 - Expo and API workflows remained healthy; Metro bundled successfully after the shared primitive updates.
 - Public mobile `/welcome` preview at 402×874 — rendered without overflow or new browser runtime exceptions. Existing Expo Web shadow-style, push-notification, and native-animation warnings remain non-blocking.
+- Notification preference follow-through: `pnpm --filter @workspace/mobile run typecheck` passed with zero errors; Prettier and `git diff --check` passed for Settings, Notifications, DataContext, and LanguageContext.
+- Restarted `artifacts/mobile: expo`; Metro reached its waiting state with no transform errors. Fresh workflow logs showed only existing Expo package-version notices and no new browser console logs.
 - `pnpm --filter @workspace/mobile run typecheck` — passed with zero errors after the Phase 3 navigation/dashboard consolidation.
 - `pnpm exec prettier --write` on SidebarNav, FilterTabs, LanguageContext, and the role-aware dashboard plus `git diff --check` — passed.
 - Expo, API, and mockup-sandbox workflows remained healthy; Metro bundled successfully after the navigation/dashboard updates.

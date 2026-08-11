@@ -29,27 +29,63 @@ import FilterChips from "@/components/FilterChips";
 
 type Priority = ApiAnnouncement["priority"];
 
-type PriorityConfig = { color: string; label: string; icon: keyof typeof Feather.glyphMap; bg: string };
+type PriorityConfig = {
+  color: string;
+  label: string;
+  icon: keyof typeof Feather.glyphMap;
+  bg: string;
+};
 
-const FALLBACK_PRIORITY: PriorityConfig = { color: "#3b82f6", label: "Info", icon: "info", bg: "#3b82f615" };
+const FALLBACK_PRIORITY: PriorityConfig = {
+  color: "#3b82f6",
+  label: "Info",
+  icon: "info",
+  bg: "#3b82f615",
+};
 
-function getPriorityConfig(t: (key: string) => string): Record<string, PriorityConfig> {
+function getPriorityConfig(
+  t: (key: string) => string,
+): Record<string, PriorityConfig> {
   return {
-    urgent:    { color: "#ef4444", label: t("priorityUrgent"),    icon: "alert-circle",   bg: "#ef444415" },
-    important: { color: "#f59e0b", label: t("priorityImportant"), icon: "alert-triangle", bg: "#f59e0b15" },
-    info:      { color: "#3b82f6", label: t("priorityInfo"),       icon: "info",           bg: "#3b82f615" },
-    normal:    { color: "#3b82f6", label: t("priorityInfo"),       icon: "info",           bg: "#3b82f615" },
+    urgent: {
+      color: "#ef4444",
+      label: t("priorityUrgent"),
+      icon: "alert-circle",
+      bg: "#ef444415",
+    },
+    important: {
+      color: "#f59e0b",
+      label: t("priorityImportant"),
+      icon: "alert-triangle",
+      bg: "#f59e0b15",
+    },
+    info: {
+      color: "#3b82f6",
+      label: t("priorityInfo"),
+      icon: "info",
+      bg: "#3b82f615",
+    },
+    normal: {
+      color: "#3b82f6",
+      label: t("priorityInfo"),
+      icon: "info",
+      bg: "#3b82f615",
+    },
   };
 }
 
-function getPc(config: Record<string, PriorityConfig>, priority: string): PriorityConfig {
+function getPc(
+  config: Record<string, PriorityConfig>,
+  priority: string,
+): PriorityConfig {
   return config[priority] ?? FALLBACK_PRIORITY;
 }
 
 function timeAgo(dateStr: string, t: (key: string) => string): string {
   const diff = Date.now() - new Date(dateStr).getTime();
   const mins = Math.floor(diff / 60000);
-  if (mins < 60) return `${t("annTimeAgoPrefix")} ${mins}${t("annMinutesShort")}`;
+  if (mins < 60)
+    return `${t("annTimeAgoPrefix")} ${mins}${t("annMinutesShort")}`;
   const hrs = Math.floor(mins / 60);
   if (hrs < 24) return `${t("annTimeAgoPrefix")} ${hrs}${t("annHoursShort")}`;
   const days = Math.floor(hrs / 24);
@@ -60,13 +96,18 @@ export default function AnnoncesScreen() {
   const colors = useColors();
   const insets = useSafeAreaInsets();
   const { user } = useAuth();
-  const { t } = useLanguage();
+  const { t, lang, isRTL } = useLanguage();
   const { isWide } = useBreakpoints();
-  const topPad = isWide ? 0 : (Platform.OS === "web" ? 67 : insets.top);
+  const topPad = isWide ? 0 : Platform.OS === "web" ? 67 : insets.top;
   const queryClient = useQueryClient();
   // Only management roles can create/delete announcements.
   // Members and tenants are read-only viewers.
-  const isAdmin = ["super_admin", "syndicate_admin", "president", "secretary"].includes(user?.role ?? "");
+  const isAdmin = [
+    "super_admin",
+    "syndicate_admin",
+    "president",
+    "secretary",
+  ].includes(user?.role ?? "");
   const { showToast } = useToast();
 
   const PRIORITY_CONFIG = getPriorityConfig(t);
@@ -88,16 +129,29 @@ export default function AnnoncesScreen() {
   });
 
   const createMutation = useMutation({
-    mutationFn: (d: Parameters<typeof announcements.create>[0]) => announcements.create(d),
+    mutationFn: (d: Parameters<typeof announcements.create>[0]) =>
+      announcements.create(d),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["announcements"] });
       setShowCreate(false);
-      setNewTitle(""); setNewBody(""); setNewPriority("info");
-      setNewAudience("Tous les membres"); setNewPinned(false);
+      setNewTitle("");
+      setNewBody("");
+      setNewPriority("info");
+      setNewAudience("Tous les membres");
+      setNewPinned(false);
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-       showToast({ type: "success", title: t("publishAnnouncement"), message: t("annPublishedMessage") });
+      showToast({
+        type: "success",
+        title: t("publishAnnouncement"),
+        message: t("annPublishedMessage"),
+      });
     },
-    onError: () => showToast({ type: "error", title: t("annActionErrorTitle"), message: t("annPublishError") }),
+    onError: () =>
+      showToast({
+        type: "error",
+        title: t("annActionErrorTitle"),
+        message: t("annPublishError"),
+      }),
   });
 
   const deleteMutation = useMutation({
@@ -107,20 +161,30 @@ export default function AnnoncesScreen() {
       setSelected(null);
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
     },
-    onError: () => showToast({ type: "error", title: t("annActionErrorTitle"), message: t("annDeleteError") }),
+    onError: () =>
+      showToast({
+        type: "error",
+        title: t("annActionErrorTitle"),
+        message: t("annDeleteError"),
+      }),
   });
 
   const allAnnonces = data?.data ?? [];
-  const filtered = filterPriority === "all"
-    ? allAnnonces
-    : allAnnonces.filter((a) => a.priority === filterPriority);
+  const filtered =
+    filterPriority === "all"
+      ? allAnnonces
+      : allAnnonces.filter((a) => a.priority === filterPriority);
   const pinned = filtered.filter((a) => a.pinned);
   const regular = filtered.filter((a) => !a.pinned);
   const sortedList = [...pinned, ...regular];
 
   const handleCreate = () => {
     if (!newTitle.trim() || !newBody.trim()) {
-       showToast({ type: "warning", title: t("requiredFields"), message: t("annRequiredMessage") });
+      showToast({
+        type: "warning",
+        title: t("requiredFields"),
+        message: t("annRequiredMessage"),
+      });
       return;
     }
     createMutation.mutate({
@@ -137,24 +201,38 @@ export default function AnnoncesScreen() {
       t("confirmDeleteTitle"),
       `${t("deleteAnnouncement")} "${a.title}"?`,
       [
-         { text: t("annCancel"), style: "cancel" },
-        { text: t("deleteAnnouncement"), style: "destructive", onPress: () => deleteMutation.mutate(a.id) },
-      ]
+        { text: t("annCancel"), style: "cancel" },
+        {
+          text: t("deleteAnnouncement"),
+          style: "destructive",
+          onPress: () => deleteMutation.mutate(a.id),
+        },
+      ],
     );
   };
 
   if (isLoading) {
     return (
       <View style={[styles.root, { backgroundColor: colors.background }]}>
-        <View style={[styles.header, { paddingTop: topPad + 16, backgroundColor: colors.primary }]}>
-          <TouchableOpacity onPress={() => router.back()} style={styles.backBtn}>
+        <View
+          style={[
+            styles.header,
+            { paddingTop: topPad + 16, backgroundColor: colors.primary },
+          ]}
+        >
+          <TouchableOpacity
+            onPress={() => router.back()}
+            style={styles.backBtn}
+          >
             <Feather name="arrow-left" size={22} color="#fff" />
           </TouchableOpacity>
           <Text style={styles.headerTitle}>{t("announcesTitle")}</Text>
         </View>
         <View style={styles.centerState}>
           <ActivityIndicator size="large" color={colors.primary} />
-           <Text style={[styles.stateText, { color: colors.mutedForeground }]}>{t("annLoading")}</Text>
+          <Text style={[styles.stateText, { color: colors.mutedForeground }]}>
+            {t("annLoading")}
+          </Text>
         </View>
       </View>
     );
@@ -163,17 +241,30 @@ export default function AnnoncesScreen() {
   if (isError) {
     return (
       <View style={[styles.root, { backgroundColor: colors.background }]}>
-        <View style={[styles.header, { paddingTop: topPad + 16, backgroundColor: colors.primary }]}>
-          <TouchableOpacity onPress={() => router.back()} style={styles.backBtn}>
+        <View
+          style={[
+            styles.header,
+            { paddingTop: topPad + 16, backgroundColor: colors.primary },
+          ]}
+        >
+          <TouchableOpacity
+            onPress={() => router.back()}
+            style={styles.backBtn}
+          >
             <Feather name="arrow-left" size={22} color="#fff" />
           </TouchableOpacity>
           <Text style={styles.headerTitle}>{t("announcesTitle")}</Text>
         </View>
         <View style={styles.centerState}>
           <Feather name="wifi-off" size={40} color={colors.destructive} />
-           <Text style={[styles.stateText, { color: colors.mutedForeground }]}>{t("annLoadError")}</Text>
-          <TouchableOpacity style={[styles.retryBtn, { backgroundColor: colors.primary }]} onPress={() => refetch()}>
-             <Text style={styles.retryBtnText}>{t("annRetry")}</Text>
+          <Text style={[styles.stateText, { color: colors.mutedForeground }]}>
+            {t("annLoadError")}
+          </Text>
+          <TouchableOpacity
+            style={[styles.retryBtn, { backgroundColor: colors.primary }]}
+            onPress={() => refetch()}
+          >
+            <Text style={styles.retryBtnText}>{t("annRetry")}</Text>
           </TouchableOpacity>
         </View>
       </View>
@@ -182,18 +273,28 @@ export default function AnnoncesScreen() {
 
   return (
     <View style={[styles.root, { backgroundColor: colors.background }]}>
-      <View style={[styles.header, { paddingTop: topPad + 16, backgroundColor: colors.primary }]}>
+      <View
+        style={[
+          styles.header,
+          { paddingTop: topPad + 16, backgroundColor: colors.primary },
+        ]}
+      >
         <TouchableOpacity onPress={() => router.back()} style={styles.backBtn}>
           <Feather name="arrow-left" size={22} color="#fff" />
         </TouchableOpacity>
         <View style={{ flex: 1 }}>
           <Text style={styles.headerTitle}>{t("announcesTitle")}</Text>
-           <Text style={styles.headerSub}>{allAnnonces.length} {t("annCount")}</Text>
+          <Text style={styles.headerSub}>
+            {allAnnonces.length} {t("annCount")}
+          </Text>
         </View>
         {isAdmin ? (
           <TouchableOpacity
             style={styles.addBtn}
-            onPress={() => { setShowCreate(true); Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); }}
+            onPress={() => {
+              setShowCreate(true);
+              Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+            }}
           >
             <Feather name="plus" size={20} color="#fff" />
           </TouchableOpacity>
@@ -202,10 +303,25 @@ export default function AnnoncesScreen() {
 
       <FilterChips
         options={[
-          { key: "all",       label: t("filterToutes"),    color: colors.primary },
-          { key: "urgent",    label: t("priorityUrgent"),  color: "#ef4444", icon: "alert-circle" },
-          { key: "important", label: t("priorityImportant"), color: "#f59e0b", icon: "alert-triangle" },
-          { key: "info",      label: t("priorityInfo"),    color: "#3b82f6", icon: "info" },
+          { key: "all", label: t("filterToutes"), color: colors.primary },
+          {
+            key: "urgent",
+            label: t("priorityUrgent"),
+            color: "#ef4444",
+            icon: "alert-circle",
+          },
+          {
+            key: "important",
+            label: t("priorityImportant"),
+            color: "#f59e0b",
+            icon: "alert-triangle",
+          },
+          {
+            key: "info",
+            label: t("priorityInfo"),
+            color: "#3b82f6",
+            icon: "info",
+          },
         ]}
         value={filterPriority}
         onChange={(k) => setFilterPriority(k as Priority | "all")}
@@ -216,24 +332,51 @@ export default function AnnoncesScreen() {
       <FlatList
         data={sortedList}
         keyExtractor={(a) => a.id}
-        contentContainerStyle={{ padding: 16, gap: 12, paddingBottom: insets.bottom + 40 }}
+        contentContainerStyle={{
+          padding: 16,
+          gap: 12,
+          paddingBottom: insets.bottom + 40,
+        }}
         showsVerticalScrollIndicator={false}
-        refreshControl={<RefreshControl refreshing={false} onRefresh={refetch} tintColor={colors.primary} />}
+        refreshControl={
+          <RefreshControl
+            refreshing={false}
+            onRefresh={refetch}
+            tintColor={colors.primary}
+          />
+        }
         ListEmptyComponent={
           <EmptyState
             icon="bell-off"
             title={t("noAnnouncementsYet")}
-             description={t("annEmptyDescription")}
+            description={t("annEmptyDescription")}
             actionLabel={isAdmin ? t("createAnnouncement") : undefined}
-            onAction={isAdmin ? () => { setShowCreate(true); Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); } : undefined}
+            onAction={
+              isAdmin
+                ? () => {
+                    setShowCreate(true);
+                    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+                  }
+                : undefined
+            }
           />
         }
         renderItem={({ item: a }) => {
           const pc = getPc(PRIORITY_CONFIG, a.priority);
           return (
             <TouchableOpacity
-              style={[styles.card, { backgroundColor: colors.card, borderColor: colors.border, borderLeftColor: pc.color }]}
-              onPress={() => { setSelected(a); Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); }}
+              style={[
+                styles.card,
+                {
+                  backgroundColor: colors.card,
+                  borderColor: colors.border,
+                  borderLeftColor: pc.color,
+                },
+              ]}
+              onPress={() => {
+                setSelected(a);
+                Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+              }}
               activeOpacity={0.8}
             >
               <View style={styles.cardTop}>
@@ -242,22 +385,60 @@ export default function AnnoncesScreen() {
                 </View>
                 <View style={{ flex: 1, gap: 4 }}>
                   <View style={styles.titleRow}>
-                    {a.pinned ? <Feather name="bookmark" size={13} color={colors.primary} /> : null}
-                    <Text style={[styles.cardTitle, { color: colors.foreground }]} numberOfLines={2}>{a.title}</Text>
+                    {a.pinned ? (
+                      <Feather
+                        name="bookmark"
+                        size={13}
+                        color={colors.primary}
+                      />
+                    ) : null}
+                    <Text
+                      style={[styles.cardTitle, { color: colors.foreground }]}
+                      numberOfLines={2}
+                    >
+                      {a.title}
+                    </Text>
                   </View>
-                  <Text style={[styles.cardBody, { color: colors.mutedForeground }]} numberOfLines={2}>{a.body}</Text>
+                  <Text
+                    style={[styles.cardBody, { color: colors.mutedForeground }]}
+                    numberOfLines={2}
+                  >
+                    {a.body}
+                  </Text>
                 </View>
               </View>
 
-              <View style={[styles.cardFooter, { borderTopColor: colors.border }]}>
-                <View style={[styles.priorityBadge, { backgroundColor: pc.bg }]}>
-                  <Text style={[styles.priorityText, { color: pc.color }]}>{pc.label}</Text>
+              <View
+                style={[styles.cardFooter, { borderTopColor: colors.border }]}
+              >
+                <View
+                  style={[styles.priorityBadge, { backgroundColor: pc.bg }]}
+                >
+                  <Text style={[styles.priorityText, { color: pc.color }]}>
+                    {pc.label}
+                  </Text>
                 </View>
                 <View style={styles.footerMeta}>
-                  <Feather name="user" size={11} color={colors.mutedForeground} />
-                  <Text style={[styles.metaText, { color: colors.mutedForeground }]}>{a.author}</Text>
-                  <Text style={[styles.metaText, { color: colors.mutedForeground }]}>·</Text>
-                   <Text style={[styles.metaText, { color: colors.mutedForeground }]}>{timeAgo(a.createdAt, t)}</Text>
+                  <Feather
+                    name="user"
+                    size={11}
+                    color={colors.mutedForeground}
+                  />
+                  <Text
+                    style={[styles.metaText, { color: colors.mutedForeground }]}
+                  >
+                    {a.author}
+                  </Text>
+                  <Text
+                    style={[styles.metaText, { color: colors.mutedForeground }]}
+                  >
+                    ·
+                  </Text>
+                  <Text
+                    style={[styles.metaText, { color: colors.mutedForeground }]}
+                  >
+                    {timeAgo(a.createdAt, t)}
+                  </Text>
                 </View>
               </View>
             </TouchableOpacity>
@@ -266,51 +447,169 @@ export default function AnnoncesScreen() {
       />
 
       {/* Detail modal */}
-      <Modal visible={!!selected} animationType="slide" presentationStyle="pageSheet">
+      <Modal
+        visible={!!selected}
+        animationType="slide"
+        presentationStyle="pageSheet"
+      >
         {selected ? (
           <View style={[styles.modal, { backgroundColor: colors.background }]}>
-            <View style={[styles.modalHeader, { borderBottomColor: colors.border }]}>
+            <View
+              style={[styles.modalHeader, { borderBottomColor: colors.border }]}
+            >
               <TouchableOpacity onPress={() => setSelected(null)}>
                 <Feather name="x" size={22} color={colors.mutedForeground} />
               </TouchableOpacity>
               <View style={{ flex: 1, marginStart: 12 }}>
-                <Text style={[styles.modalTitle, { color: colors.foreground }]} numberOfLines={2}>{selected.title}</Text>
-                <Text style={[styles.modalSub, { color: colors.mutedForeground }]}>{selected.audience}</Text>
+                <Text
+                  style={[styles.modalTitle, { color: colors.foreground }]}
+                  numberOfLines={2}
+                >
+                  {selected.title}
+                </Text>
+                <Text
+                  style={[styles.modalSub, { color: colors.mutedForeground }]}
+                >
+                  {selected.audience}
+                </Text>
               </View>
               {isAdmin ? (
                 <TouchableOpacity
-                  onPress={() => { setSelected(null); handleDelete(selected); }}
-                  style={[styles.deleteBtn, { backgroundColor: colors.destructive + "15" }]}
+                  onPress={() => {
+                    setSelected(null);
+                    handleDelete(selected);
+                  }}
+                  style={[
+                    styles.deleteBtn,
+                    { backgroundColor: colors.destructive + "15" },
+                  ]}
                 >
-                  <Feather name="trash-2" size={16} color={colors.destructive} />
+                  <Feather
+                    name="trash-2"
+                    size={16}
+                    color={colors.destructive}
+                  />
                 </TouchableOpacity>
               ) : null}
             </View>
 
-            <ScrollView contentContainerStyle={{ padding: 20, gap: 16, paddingBottom: 40 }}>
-              <View style={[styles.priorityBanner, { backgroundColor: getPc(PRIORITY_CONFIG, selected.priority).bg, borderColor: getPc(PRIORITY_CONFIG, selected.priority).color + "40" }]}>
-                <Feather name={getPc(PRIORITY_CONFIG, selected.priority).icon} size={16} color={getPc(PRIORITY_CONFIG, selected.priority).color} />
-                <Text style={[styles.priorityBannerText, { color: getPc(PRIORITY_CONFIG, selected.priority).color }]}>
+            <ScrollView
+              contentContainerStyle={{
+                padding: 20,
+                gap: 16,
+                paddingBottom: 40,
+              }}
+            >
+              <View
+                style={[
+                  styles.priorityBanner,
+                  {
+                    backgroundColor: getPc(PRIORITY_CONFIG, selected.priority)
+                      .bg,
+                    borderColor:
+                      getPc(PRIORITY_CONFIG, selected.priority).color + "40",
+                  },
+                ]}
+              >
+                <Feather
+                  name={getPc(PRIORITY_CONFIG, selected.priority).icon}
+                  size={16}
+                  color={getPc(PRIORITY_CONFIG, selected.priority).color}
+                />
+                <Text
+                  style={[
+                    styles.priorityBannerText,
+                    { color: getPc(PRIORITY_CONFIG, selected.priority).color },
+                  ]}
+                >
                   {getPc(PRIORITY_CONFIG, selected.priority).label}
                   {selected.pinned ? ` · ${t("announcePinned")}` : ""}
                 </Text>
               </View>
 
-              <View style={[styles.bodyCard, { backgroundColor: colors.card, borderColor: colors.border }]}>
-                <Text style={[styles.bodyText, { color: colors.foreground }]}>{selected.body}</Text>
+              <View
+                style={[
+                  styles.bodyCard,
+                  { backgroundColor: colors.card, borderColor: colors.border },
+                ]}
+              >
+                <Text style={[styles.bodyText, { color: colors.foreground }]}>
+                  {selected.body}
+                </Text>
               </View>
 
-              <View style={[styles.metaCard, { backgroundColor: colors.card, borderColor: colors.border }]}>
+              <View
+                style={[
+                  styles.metaCard,
+                  { backgroundColor: colors.card, borderColor: colors.border },
+                ]}
+              >
                 {[
-                  { icon: "user" as const, label: t("authorLabel"), value: selected.author },
-                  { icon: "users" as const, label: t("audienceLabel"), value: selected.audience },
-                  { icon: "clock" as const, label: t("publishedOn"), value: new Date(selected.createdAt).toLocaleDateString("fr-MA", { day: "numeric", month: "long", year: "numeric" }) },
-                  ...(selected.expiresAt ? [{ icon: "calendar" as const, label: t("expiresOn"), value: new Date(selected.expiresAt).toLocaleDateString("fr-MA") }] : []),
+                  {
+                    icon: "user" as const,
+                    label: t("authorLabel"),
+                    value: selected.author,
+                  },
+                  {
+                    icon: "users" as const,
+                    label: t("audienceLabel"),
+                    value: selected.audience,
+                  },
+                  {
+                    icon: "clock" as const,
+                    label: t("publishedOn"),
+                    value: new Date(selected.createdAt).toLocaleDateString(
+                      lang === "ar"
+                        ? "ar-MA"
+                        : lang === "en"
+                          ? "en-US"
+                          : lang === "es"
+                            ? "es-ES"
+                            : "fr-FR",
+                      { day: "numeric", month: "long", year: "numeric" },
+                    ),
+                  },
+                  ...(selected.expiresAt
+                    ? [
+                        {
+                          icon: "calendar" as const,
+                          label: t("expiresOn"),
+                          value: new Date(
+                            selected.expiresAt,
+                          ).toLocaleDateString(
+                            lang === "ar"
+                              ? "ar-MA"
+                              : lang === "en"
+                                ? "en-US"
+                                : lang === "es"
+                                  ? "es-ES"
+                                  : "fr-FR",
+                          ),
+                        },
+                      ]
+                    : []),
                 ].map((row) => (
-                  <View key={row.label} style={[styles.metaRow, { borderBottomColor: colors.border }]}>
+                  <View
+                    key={row.label}
+                    style={[
+                      styles.metaRow,
+                      { borderBottomColor: colors.border },
+                    ]}
+                  >
                     <Feather name={row.icon} size={14} color={colors.primary} />
-                    <Text style={[styles.metaLabel, { color: colors.mutedForeground }]}>{row.label}</Text>
-                    <Text style={[styles.metaValue, { color: colors.foreground }]}>{row.value}</Text>
+                    <Text
+                      style={[
+                        styles.metaLabel,
+                        { color: colors.mutedForeground },
+                      ]}
+                    >
+                      {row.label}
+                    </Text>
+                    <Text
+                      style={[styles.metaValue, { color: colors.foreground }]}
+                    >
+                      {row.value}
+                    </Text>
                   </View>
                 ))}
               </View>
@@ -320,34 +619,74 @@ export default function AnnoncesScreen() {
       </Modal>
 
       {/* Create modal */}
-      <Modal visible={showCreate} animationType="slide" presentationStyle="pageSheet">
+      <Modal
+        visible={showCreate}
+        animationType="slide"
+        presentationStyle="pageSheet"
+      >
         <View style={[styles.modal, { backgroundColor: colors.background }]}>
-          <View style={[styles.modalHeader, { borderBottomColor: colors.border }]}>
+          <View
+            style={[styles.modalHeader, { borderBottomColor: colors.border }]}
+          >
             <TouchableOpacity onPress={() => setShowCreate(false)}>
               <Feather name="x" size={22} color={colors.mutedForeground} />
             </TouchableOpacity>
             <View style={{ flex: 1, marginStart: 12 }}>
-              <Text style={[styles.modalTitle, { color: colors.foreground }]}>{t("createAnnouncement")}</Text>
-               <Text style={[styles.modalSub, { color: colors.mutedForeground }]}>{t("annCreateSubtitle")}</Text>
+              <Text style={[styles.modalTitle, { color: colors.foreground }]}>
+                {t("createAnnouncement")}
+              </Text>
+              <Text
+                style={[styles.modalSub, { color: colors.mutedForeground }]}
+              >
+                {t("annCreateSubtitle")}
+              </Text>
             </View>
           </View>
 
-          <ScrollView contentContainerStyle={{ padding: 20, gap: 16, paddingBottom: 60 }}>
+          <ScrollView
+            contentContainerStyle={{ padding: 20, gap: 16, paddingBottom: 60 }}
+          >
             <View style={{ gap: 6 }}>
-               <Text style={[styles.fieldLabel, { color: colors.foreground }]}>{t("annPriorityLabel")}</Text>
+              <Text style={[styles.fieldLabel, { color: colors.foreground }]}>
+                {t("annPriorityLabel")}
+              </Text>
               <View style={styles.priorityRow}>
                 {(["info", "important", "urgent"] as Priority[]).map((p) => (
                   <TouchableOpacity
                     key={p}
                     style={[
                       styles.priorityChip,
-                      { borderColor: newPriority === p ? PRIORITY_CONFIG[p].color : colors.border },
-                      newPriority === p ? { backgroundColor: PRIORITY_CONFIG[p].color } : { backgroundColor: colors.background },
+                      {
+                        borderColor:
+                          newPriority === p
+                            ? PRIORITY_CONFIG[p].color
+                            : colors.border,
+                      },
+                      newPriority === p
+                        ? { backgroundColor: PRIORITY_CONFIG[p].color }
+                        : { backgroundColor: colors.background },
                     ]}
-                    onPress={() => { setNewPriority(p); Haptics.selectionAsync(); }}
+                    onPress={() => {
+                      setNewPriority(p);
+                      Haptics.selectionAsync();
+                    }}
                   >
-                    <Feather name={PRIORITY_CONFIG[p].icon} size={13} color={newPriority === p ? "#fff" : colors.mutedForeground} />
-                    <Text style={[styles.priorityChipText, { color: newPriority === p ? "#fff" : colors.mutedForeground }]}>
+                    <Feather
+                      name={PRIORITY_CONFIG[p].icon}
+                      size={13}
+                      color={
+                        newPriority === p ? "#fff" : colors.mutedForeground
+                      }
+                    />
+                    <Text
+                      style={[
+                        styles.priorityChipText,
+                        {
+                          color:
+                            newPriority === p ? "#fff" : colors.mutedForeground,
+                        },
+                      ]}
+                    >
                       {PRIORITY_CONFIG[p].label}
                     </Text>
                   </TouchableOpacity>
@@ -356,10 +695,19 @@ export default function AnnoncesScreen() {
             </View>
 
             <View style={{ gap: 6 }}>
-              <Text style={[styles.fieldLabel, { color: colors.foreground }]}>{t("annFormTitle")} *</Text>
+              <Text style={[styles.fieldLabel, { color: colors.foreground }]}>
+                {t("annFormTitle")} *
+              </Text>
               <TextInput
-                style={[styles.input, { backgroundColor: colors.card, borderColor: colors.border, color: colors.foreground }]}
-                 placeholder={t("annTitlePlaceholder")}
+                style={[
+                  styles.input,
+                  {
+                    backgroundColor: colors.card,
+                    borderColor: colors.border,
+                    color: colors.foreground,
+                  },
+                ]}
+                placeholder={t("annTitlePlaceholder")}
                 placeholderTextColor={colors.mutedForeground}
                 value={newTitle}
                 onChangeText={setNewTitle}
@@ -367,10 +715,21 @@ export default function AnnoncesScreen() {
             </View>
 
             <View style={{ gap: 6 }}>
-              <Text style={[styles.fieldLabel, { color: colors.foreground }]}>{t("annFormContent")} *</Text>
+              <Text style={[styles.fieldLabel, { color: colors.foreground }]}>
+                {t("annFormContent")} *
+              </Text>
               <TextInput
-                style={[styles.input, { backgroundColor: colors.card, borderColor: colors.border, color: colors.foreground, height: 120, textAlignVertical: "top" }]}
-                 placeholder={t("annContentPlaceholder")}
+                style={[
+                  styles.input,
+                  {
+                    backgroundColor: colors.card,
+                    borderColor: colors.border,
+                    color: colors.foreground,
+                    height: 120,
+                    textAlignVertical: "top",
+                  },
+                ]}
+                placeholder={t("annContentPlaceholder")}
                 placeholderTextColor={colors.mutedForeground}
                 value={newBody}
                 onChangeText={setNewBody}
@@ -379,10 +738,19 @@ export default function AnnoncesScreen() {
             </View>
 
             <View style={{ gap: 6 }}>
-              <Text style={[styles.fieldLabel, { color: colors.foreground }]}>{t("audienceLabel")}</Text>
+              <Text style={[styles.fieldLabel, { color: colors.foreground }]}>
+                {t("audienceLabel")}
+              </Text>
               <TextInput
-                style={[styles.input, { backgroundColor: colors.card, borderColor: colors.border, color: colors.foreground }]}
-                 placeholder={t("annAudiencePlaceholder")}
+                style={[
+                  styles.input,
+                  {
+                    backgroundColor: colors.card,
+                    borderColor: colors.border,
+                    color: colors.foreground,
+                  },
+                ]}
+                placeholder={t("annAudiencePlaceholder")}
                 placeholderTextColor={colors.mutedForeground}
                 value={newAudience}
                 onChangeText={setNewAudience}
@@ -390,31 +758,82 @@ export default function AnnoncesScreen() {
             </View>
 
             <TouchableOpacity
-              style={[styles.pinnedToggle, { borderColor: colors.border, backgroundColor: newPinned ? colors.primary + "10" : colors.card }]}
-              onPress={() => { setNewPinned(!newPinned); Haptics.selectionAsync(); }}
+              style={[
+                styles.pinnedToggle,
+                {
+                  borderColor: colors.border,
+                  backgroundColor: newPinned
+                    ? colors.primary + "10"
+                    : colors.card,
+                },
+              ]}
+              onPress={() => {
+                setNewPinned(!newPinned);
+                Haptics.selectionAsync();
+              }}
             >
-              <Feather name={newPinned ? "bookmark" : "bookmark"} size={16} color={newPinned ? colors.primary : colors.mutedForeground} />
-              <Text style={[styles.pinnedText, { color: newPinned ? colors.primary : colors.foreground }]}>
+              <Feather
+                name={newPinned ? "bookmark" : "bookmark"}
+                size={16}
+                color={newPinned ? colors.primary : colors.mutedForeground}
+              />
+              <Text
+                style={[
+                  styles.pinnedText,
+                  { color: newPinned ? colors.primary : colors.foreground },
+                ]}
+              >
                 {newPinned ? t("announcePinned") : t("announcePinned")}
               </Text>
-              <Feather name={newPinned ? "toggle-right" : "toggle-left"} size={20} color={newPinned ? colors.primary : colors.mutedForeground} />
+              <Feather
+                name={newPinned ? "toggle-right" : "toggle-left"}
+                size={20}
+                color={newPinned ? colors.primary : colors.mutedForeground}
+              />
             </TouchableOpacity>
 
             <TouchableOpacity
               style={[
                 styles.publishBtn,
-                { backgroundColor: newTitle.trim() && newBody.trim() ? colors.primary : colors.muted },
+                {
+                  backgroundColor:
+                    newTitle.trim() && newBody.trim()
+                      ? colors.primary
+                      : colors.muted,
+                },
               ]}
               onPress={handleCreate}
-              disabled={!newTitle.trim() || !newBody.trim() || createMutation.isPending}
+              disabled={
+                !newTitle.trim() || !newBody.trim() || createMutation.isPending
+              }
             >
               {createMutation.isPending ? (
                 <ActivityIndicator size="small" color="#fff" />
               ) : (
-                <Feather name="send" size={16} color={newTitle.trim() && newBody.trim() ? "#fff" : colors.mutedForeground} />
+                <Feather
+                  name="send"
+                  size={16}
+                  color={
+                    newTitle.trim() && newBody.trim()
+                      ? "#fff"
+                      : colors.mutedForeground
+                  }
+                />
               )}
-              <Text style={[styles.publishBtnText, { color: newTitle.trim() && newBody.trim() ? "#fff" : colors.mutedForeground }]}>
-                 {createMutation.isPending ? t("annPublishing") : t("publishAnnouncement")}
+              <Text
+                style={[
+                  styles.publishBtnText,
+                  {
+                    color:
+                      newTitle.trim() && newBody.trim()
+                        ? "#fff"
+                        : colors.mutedForeground,
+                  },
+                ]}
+              >
+                {createMutation.isPending
+                  ? t("annPublishing")
+                  : t("publishAnnouncement")}
               </Text>
             </TouchableOpacity>
           </ScrollView>
@@ -435,7 +854,12 @@ const styles = StyleSheet.create({
   },
   backBtn: { padding: 4 },
   headerTitle: { fontSize: 18, fontFamily: "Inter_700Bold", color: "#fff" },
-  headerSub: { fontSize: 11, fontFamily: "Inter_400Regular", color: "rgba(255,255,255,0.75)", marginTop: 2 },
+  headerSub: {
+    fontSize: 11,
+    fontFamily: "Inter_400Regular",
+    color: "rgba(255,255,255,0.75)",
+    marginTop: 2,
+  },
   addBtn: {
     width: 36,
     height: 36,
@@ -464,7 +888,12 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "center",
   },
-  titleRow: { flexDirection: "row", alignItems: "flex-start", gap: 6, flexWrap: "wrap" },
+  titleRow: {
+    flexDirection: "row",
+    alignItems: "flex-start",
+    gap: 6,
+    flexWrap: "wrap",
+  },
   cardTitle: { fontSize: 13, fontFamily: "Inter_700Bold", flex: 1 },
   cardBody: { fontSize: 12, fontFamily: "Inter_400Regular", lineHeight: 17 },
   cardFooter: {
@@ -483,14 +912,29 @@ const styles = StyleSheet.create({
   priorityText: { fontSize: 10, fontFamily: "Inter_600SemiBold" },
   footerMeta: { flexDirection: "row", alignItems: "center", gap: 5 },
   metaText: { fontSize: 11, fontFamily: "Inter_400Regular" },
-  centerState: { flex: 1, alignItems: "center", justifyContent: "center", gap: 14, padding: 40, paddingTop: 80 },
-  stateText: { fontSize: 14, fontFamily: "Inter_400Regular", textAlign: "center" },
+  centerState: {
+    flex: 1,
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 14,
+    padding: 40,
+    paddingTop: 80,
+  },
+  stateText: {
+    fontSize: 14,
+    fontFamily: "Inter_400Regular",
+    textAlign: "center",
+  },
   retryBtn: {
     paddingHorizontal: 20,
     paddingVertical: 10,
     borderRadius: 10,
   },
-  retryBtnText: { fontSize: 14, fontFamily: "Inter_600SemiBold", color: "#fff" },
+  retryBtnText: {
+    fontSize: 14,
+    fontFamily: "Inter_600SemiBold",
+    color: "#fff",
+  },
   modal: { flex: 1 },
   modalHeader: {
     flexDirection: "row",

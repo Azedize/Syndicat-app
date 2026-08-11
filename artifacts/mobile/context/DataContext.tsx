@@ -454,13 +454,21 @@ interface DataContextType {
   subscriptionPlans: SubscriptionPlan[];
   syndicateSubscriptions: SyndicateSubscription[];
   notificationPreferences: NotificationPreference[];
+  notificationPreferencesLoading: boolean;
+  notificationPreferencesLoadError: boolean;
+  refreshNotificationPreferences: () => Promise<boolean>;
   partners: Partner[];
   payslips: PayslipRecord[];
   updateSubscription: (id: string, planId: string) => void;
   toggleNotificationPref: (
     id: string,
     channel: "push" | "email" | "inApp",
-  ) => void;
+    value?: boolean,
+  ) => Promise<boolean>;
+  toggleNotificationChannel: (
+    channel: "push" | "email" | "inApp",
+    value: boolean,
+  ) => Promise<boolean>;
   addPartner: (p: Partner) => Promise<boolean>;
   updatePartnerStatus: (
     id: string,
@@ -603,6 +611,12 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
   const [notificationPreferences, setNotificationPreferences] = useState<
     NotificationPreference[]
   >([]);
+  const [notificationPreferencesLoading, setNotificationPreferencesLoading] =
+    useState(false);
+  const [
+    notificationPreferencesLoadError,
+    setNotificationPreferencesLoadError,
+  ] = useState(false);
   const [partners, setPartners] = useState<Partner[]>([]);
   const [partnersLoadError, setPartnersLoadError] = useState(false);
   const [payslips, setPayslips] = useState<PayslipRecord[]>([]);
@@ -620,6 +634,8 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
     setPartnersLoadError(false);
     setLegalAlertsLoading(true);
     setLegalAlertsLoadError(false);
+    setNotificationPreferencesLoading(true);
+    setNotificationPreferencesLoadError(false);
     async function loadFromApi() {
       try {
         const results = await Promise.allSettled([
@@ -849,8 +865,7 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
                 title: String(row.title ?? ""),
                 description: String(row.description ?? ""),
                 level: (row.level as LegalAlert["level"]) ?? "info",
-                category:
-                  (row.category as LegalAlert["category"]) ?? "statuts",
+                category: (row.category as LegalAlert["category"]) ?? "statuts",
                 date: String(row.date ?? row.createdAt ?? ""),
                 status: (row.status as LegalAlert["status"]) ?? "open",
                 action: row.action ? String(row.action) : undefined,
@@ -1012,9 +1027,11 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
 
         if (notifPrefsRes.status === "fulfilled") {
           const rows = (notifPrefsRes.value as { data: unknown[] }).data;
-          if (rows?.length)
-            setNotificationPreferences(rows as NotificationPreference[]);
+          setNotificationPreferences((rows ?? []) as NotificationPreference[]);
+        } else {
+          setNotificationPreferencesLoadError(true);
         }
+        setNotificationPreferencesLoading(false);
 
         if (subsRes.status === "fulfilled") {
           const rows = (subsRes.value as { data: unknown[] }).data;
@@ -1156,6 +1173,10 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
           setDocumentsLoadError(true);
         }
         setDocumentsLoading(false);
+        if (notifPrefsRes.status === "fulfilled") {
+          setNotificationPreferencesLoadError(false);
+        }
+        setNotificationPreferencesLoading(false);
         setDataLoading(false);
       } catch {
         if (!cancelled) {
@@ -1166,8 +1187,10 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
           setDataLoadError(true);
           setDataLoading(false);
           setLegalAlertsLoadError(true);
+          setNotificationPreferencesLoadError(true);
         }
         setLegalAlertsLoading(false);
+        setNotificationPreferencesLoading(false);
         // API call failed (network/auth error): keep whatever was already
         // loaded (or the empty initial state) rather than throwing — this
         // effect has no UI-visible error surface, and other screens read
@@ -1234,16 +1257,61 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
     api.content.updateSubscription(id, planId).catch(() => {});
   };
 
-  const toggleNotificationPref = (
+  const refreshNotificationPreferences = async (): Promise<boolean> => {
+    setNotificationPreferencesLoading(true);
+    setNotificationPreferencesLoadError(false);
+    try {
+      const response = await api.content.notificationPrefs();
+      setNotificationPreferences(
+        ((response as { data: unknown[] }).data ??
+          []) as NotificationPreference[],
+      );
+      return true;
+    } catch {
+      setNotificationPreferencesLoadError(true);
+      return false;
+    } finally {
+      setNotificationPreferencesLoading(false);
+    }
+  };
+
+  const toggleNotificationPref = async (
     id: string,
     channel: "push" | "email" | "inApp",
-  ) => {
+    requestedValue?: boolean,
+  ): Promise<boolean> => {
     const current = notificationPreferences.find((n) => n.id === id);
-    const newValue = current ? !current[channel] : true;
+    const newValue = requestedValue ?? (current ? !current[channel] : true);
+    const previous = notificationPreferences;
     setNotificationPreferences((p) =>
-      p.map((n) => (n.id === id ? { ...n, [channel]: !n[channel] } : n)),
+      p.map((n) => (n.id === id ? { ...n, [channel]: newValue } : n)),
     );
-    api.content.toggleNotificationPref(id, channel, newValue).catch(() => {});
+    try {
+      await api.content.toggleNotificationPref(id, channel, newValue);
+      return true;
+    } catch {
+      setNotificationPreferences(previous);
+      return false;
+    }
+  };
+
+  const toggleNotificationChannel = async (
+    channel: "push" | "email" | "inApp",
+    value: boolean,
+  ): Promise<boolean> => {
+    const previous = notificationPreferences;
+    const pending = notificationPreferences.map((preference) =>
+      api.content.toggleNotificationPref(preference.id, channel, value),
+    );
+    setNotificationPreferences((items) =>
+      items.map((item) => ({ ...item, [channel]: value })),
+    );
+    const results = await Promise.allSettled(pending);
+    if (results.some((result) => result.status === "rejected")) {
+      setNotificationPreferences(previous);
+      return false;
+    }
+    return true;
   };
 
   const addPartner = async (p: Partner): Promise<boolean> => {
@@ -1480,9 +1548,7 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
       return true;
     } catch {
       if (previous) {
-        setLegalAlerts((p) =>
-          p.map((a) => (a.id === id ? previous : a)),
-        );
+        setLegalAlerts((p) => p.map((a) => (a.id === id ? previous : a)));
       }
       return false;
     }
@@ -1766,9 +1832,14 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
 
   const addInvoice = async (input: InvoiceCreateInput): Promise<boolean> => {
     try {
-      const response = await api.finance.addInvoice(input) as { data: unknown };
+      const response = (await api.finance.addInvoice(input)) as {
+        data: unknown;
+      };
       const created = mapDbInvoice(response.data);
-      setInvoices((p) => [created, ...p.filter((invoice) => invoice.id !== created.id)]);
+      setInvoices((p) => [
+        created,
+        ...p.filter((invoice) => invoice.id !== created.id),
+      ]);
       return true;
     } catch {
       return false;
@@ -1828,6 +1899,9 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
         subscriptionPlans,
         syndicateSubscriptions,
         notificationPreferences,
+        notificationPreferencesLoading,
+        notificationPreferencesLoadError,
+        refreshNotificationPreferences,
         partners,
         payslips,
         addMember,
@@ -1864,6 +1938,7 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
         updateBonLivraisonStatus,
         updateSubscription,
         toggleNotificationPref,
+        toggleNotificationChannel,
         addPartner,
         updatePartnerStatus,
         generatePayslip,

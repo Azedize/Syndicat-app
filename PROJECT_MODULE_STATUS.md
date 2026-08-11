@@ -117,3 +117,5 @@
 - Mobile/API verification: zero-error typechecks, Prettier, diff validation, healthy workflows, invalid-token API response, and compact email/recovery previews pass.
 - Password Recovery: forgot-password and reset-password screens now use the shared MIZAN form shell, semantic state colors, RTL-aware navigation, field-level validation, accessible password visibility controls, and localized recovery actions.
 - Mobile verification: zero-error typecheck, Prettier, clean diff validation, healthy workflows, and compact protected previews for both recovery routes pass.
+- Settings & Notifications persistence: global push, email, and in-app controls now use server-backed category preferences with synchronized loading, retryable unavailable states, optimistic saves, and rollback on failure; unsupported security toggles are explicitly non-configured rather than simulated.
+- Mobile verification: zero-error typecheck, Prettier, diff validation, and Expo workflow restart pass after the notification-preference follow-through.

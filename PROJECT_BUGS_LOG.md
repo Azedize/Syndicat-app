@@ -49,3 +49,5 @@
 - Level-1 Support no longer turns a failed ticket-list request into a misleading empty state or a failed conversation request into an empty thread; both surfaces now explain the unavailable data and offer retry.
 - Financial Reports no longer abbreviate revenue and expense values as compact `k` strings; user-facing report values now use complete active-locale MAD formatting.
 - Level-1 Support no longer leaves Arabic ticket cards, modals, fields, priority accents, or navigation/action arrows in an LTR presentation; the remaining hard-coded description label is localized.
+- Settings and Notifications no longer lose global notification changes when the app is closed, silently swallow preference-save failures, or display local-only security/audio switches as if they were server-backed capabilities.
+- Operational invitation and meeting forms no longer drift from the shared MIZAN field language; resident lot balances/receipts and announcement detail dates no longer force French-Morocco formatting; document bundle generation no longer exposes French-only labels or raw French fallback copy in other locales.
