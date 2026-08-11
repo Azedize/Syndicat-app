@@ -219,6 +219,18 @@ const STRINGS = {
     ar: "الشهر مطلوب.",
     es: "El mes es obligatorio.",
   },
+  amountInvalid: {
+    fr: "Le montant doit être un nombre strictement positif.",
+    en: "Amount must be a positive number.",
+    ar: "يجب أن يكون المبلغ رقماً موجباً.",
+    es: "El importe debe ser un número positivo.",
+  },
+  monthInvalid: {
+    fr: "Le mois doit respecter le format AAAA-MM.",
+    en: "Month must use the YYYY-MM format.",
+    ar: "يجب أن يكون الشهر بالتنسيق YYYY-MM.",
+    es: "El mes debe tener el formato AAAA-MM.",
+  },
   save: { fr: "Enregistrer", en: "Save", ar: "حفظ", es: "Guardar" },
 } as const;
 
@@ -242,8 +254,19 @@ type SalaryRecord = {
   createdAt: string;
 };
 
-function formatMoney(v: string | number): string {
-  return `${parseFloat(String(v ?? 0)).toLocaleString("fr-MA", { minimumFractionDigits: 2 })} MAD`;
+function formatMoney(
+  v: string | number,
+  lang: "fr" | "en" | "ar" | "es",
+): string {
+  const locale =
+    lang === "ar"
+      ? "ar-MA"
+      : lang === "en"
+        ? "en-US"
+        : lang === "es"
+          ? "es-MA"
+          : "fr-MA";
+  return `${parseFloat(String(v ?? 0)).toLocaleString(locale, { minimumFractionDigits: 2, maximumFractionDigits: 2 })} MAD`;
 }
 
 // Fiches de paie (payroll) is an admin-only financial module.
@@ -280,6 +303,7 @@ function FichesPaieScreenInner() {
     month: new Date().toISOString().slice(0, 7),
   });
   const [submitting, setSubmitting] = useState(false);
+  const [payingIds, setPayingIds] = useState<Set<string>>(() => new Set());
 
   const load = useCallback(
     async (silent = false) => {
@@ -328,7 +352,7 @@ function FichesPaieScreenInner() {
       });
       return;
     }
-    if (!form.amount) {
+    if (!form.amount.trim()) {
       showToast({
         type: "error",
         title: STRINGS.requiredTitle[lang],
@@ -336,11 +360,22 @@ function FichesPaieScreenInner() {
       });
       return;
     }
-    if (!form.month) {
+    const amount = Number(form.amount.replace(",", "."));
+    if (!Number.isFinite(amount) || amount <= 0) {
       showToast({
         type: "error",
         title: STRINGS.requiredTitle[lang],
-        message: STRINGS.monthRequired[lang],
+        message: STRINGS.amountInvalid[lang],
+      });
+      return;
+    }
+    if (!/^\d{4}-(0[1-9]|1[0-2])$/.test(form.month.trim())) {
+      showToast({
+        type: "error",
+        title: STRINGS.requiredTitle[lang],
+        message: form.month.trim()
+          ? STRINGS.monthInvalid[lang]
+          : STRINGS.monthRequired[lang],
       });
       return;
     }
@@ -351,8 +386,8 @@ function FichesPaieScreenInner() {
         "POST",
         {
           role: form.role,
-          amount: parseFloat(form.amount),
-          month: form.month,
+           amount,
+           month: form.month.trim(),
           status: "pending",
         },
         token,
@@ -381,6 +416,8 @@ function FichesPaieScreenInner() {
   };
 
   const handleMarkPaid = async (id: string) => {
+    if (payingIds.has(id)) return;
+    setPayingIds((current) => new Set(current).add(id));
     try {
       await apiRequest(
         `/finance/salaries/${id}`,
@@ -398,6 +435,12 @@ function FichesPaieScreenInner() {
         type: "error",
         title: STRINGS.loadingError[lang],
         message: STRINGS.genericError[lang],
+      });
+    } finally {
+      setPayingIds((current) => {
+        const next = new Set(current);
+        next.delete(id);
+        return next;
       });
     }
   };
@@ -462,7 +505,7 @@ function FichesPaieScreenInner() {
         {[
           {
             label: STRINGS.totalMonth[lang],
-            value: formatMoney(totalNet),
+            value: formatMoney(totalNet, lang),
             color: "#2563EB",
           },
           {
@@ -624,7 +667,7 @@ function FichesPaieScreenInner() {
                           { color: colors.foreground },
                         ]}
                       >
-                        {formatMoney(rec.amount)}
+                        {formatMoney(rec.amount, lang)}
                       </Text>
                       <View
                         style={[styles.statusBadge, { backgroundColor: sc.bg }]}
@@ -661,8 +704,10 @@ function FichesPaieScreenInner() {
                           {
                             backgroundColor: "#10b98118",
                             borderColor: "#10b981",
+                            opacity: payingIds.has(rec.id) ? 0.6 : 1,
                           },
                         ]}
+                        disabled={payingIds.has(rec.id)}
                         onPress={() => {
                           Haptics.impactAsync(
                             Haptics.ImpactFeedbackStyle.Light,

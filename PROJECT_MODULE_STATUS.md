@@ -112,5 +112,8 @@
 - Mobile verification: zero-error typecheck and clean diff validation pass; Expo/API workflows remain healthy and the protected authentication contract is unchanged.
 - Registration / Account Creation: shared MIZAN form shell, keyboard-aware multi-field navigation, RTL-aware consent/back controls, accessible password visibility actions, and preserved email OTP handoff complete.
 - Mobile verification: zero-error typecheck, clean diff validation, healthy Expo/API workflows, and compact registration preview pass.
+- Email Verification: shared MIZAN keyboard-aware surface, semantic theme tokens, RTL-aware actions, localized OTP expiry/rate-limit recovery, resend timing protection, and interrupted-registration restart flow complete.
+- Password Recovery: invalid/expired reset links now return a dedicated API code and show a localized recovery state with direct new-link and login actions.
+- Mobile/API verification: zero-error typechecks, Prettier, diff validation, healthy workflows, invalid-token API response, and compact email/recovery previews pass.
 - Password Recovery: forgot-password and reset-password screens now use the shared MIZAN form shell, semantic state colors, RTL-aware navigation, field-level validation, accessible password visibility controls, and localized recovery actions.
 - Mobile verification: zero-error typecheck, Prettier, clean diff validation, healthy workflows, and compact protected previews for both recovery routes pass.

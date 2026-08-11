@@ -115,7 +115,9 @@ function PrestatairesScreenInner() {
   const { lang } = useLanguage();
   const { showToast } = useToast();
   // President and committee_member oversee vendors (they approve contracts at governance level).
-  const isAdmin = user?.role === "syndicate_admin" || user?.role === "president" || user?.role === "committee_member";
+  // The API's requireAdmin guard permits only syndicate_admin for syndicate-scoped
+  // provider mutations. Other management roles can still consult the list.
+  const isAdmin = user?.role === "syndicate_admin";
   const { isWide } = useBreakpoints();
 
   const [prestataires, setPrestataires] = useState<Prestataire[]>([]);
@@ -178,8 +180,8 @@ function PrestatairesScreenInner() {
       setShowAdd(false);
       resetForm();
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-      showToast({ type: "success", title: STRINGS.createdTitle[lang], message: `${form.name} ${STRINGS.createdMessage[lang]}` });
-      load();
+       showToast({ type: "success", title: STRINGS.createdTitle[lang], message: `${form.name} ${STRINGS.createdMessage[lang]}` });
+       await load(true);
     } catch {
       showToast({ type: "error", title: STRINGS.loadingError[lang], message: STRINGS.genericError[lang] });
     } finally { setSubmitting(false); }
@@ -290,8 +292,8 @@ function PrestatairesScreenInner() {
               icon="briefcase"
               title={STRINGS.noProviders[lang]}
               description={STRINGS.emptyDescription[lang]}
-              actionLabel={STRINGS.addProvider[lang]}
-              onAction={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); setShowAdd(true); }}
+               actionLabel={isAdmin ? STRINGS.addProvider[lang] : undefined}
+               onAction={isAdmin ? () => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); setShowAdd(true); } : undefined}
               accentColor="#3b82f6"
             />
           ) : (
@@ -364,7 +366,7 @@ function PrestatairesScreenInner() {
                           <Text style={[styles.contractTitle, { color: colors.mutedForeground }]} numberOfLines={1}>{c.title}</Text>
                           {c.monthlyAmount ? (
                             <Text style={[styles.contractAmt, { color: colors.foreground }]}>
-                              {c.monthlyAmount.toLocaleString("fr-MA")} {STRINGS.perMonth[lang]}
+                               {Number(c.monthlyAmount).toLocaleString(lang === "ar" ? "ar-MA" : lang === "en" ? "en-US" : lang === "es" ? "es-MA" : "fr-MA")} {STRINGS.perMonth[lang]}
                             </Text>
                           ) : null}
                           {c.endDate ? (

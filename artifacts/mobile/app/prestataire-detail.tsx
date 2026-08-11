@@ -14,6 +14,7 @@ import { useToast } from "@/context/ToastContext";
 import { useLanguage } from "@/context/LanguageContext";
 import { pickAndUploadPdf } from "@/lib/upload";
 import { ApiContrat, ApiEvaluation, ApiPrestataire, ApiTravail, contrats, prestataires } from "@/services/api";
+import { ErrorState, LoadingState } from "@/components/DataState";
 
 const TYPE_LABELS: Record<string, string> = {
   ascenseur: "pdTypeElevator", nettoyage: "pdTypeCleaning", gardiennage: "pdTypeSecurity",
@@ -39,21 +40,23 @@ export default function PrestataireDetailScreen() {
 
   const [data, setData] = useState<ApiPrestataire | null>(null);
   const [loading, setLoading] = useState(true);
+  const [loadError, setLoadError] = useState(false);
   const [tab, setTab] = useState<"info" | "contracts" | "travaux" | "evaluations">("info");
   const [showNewContract, setShowNewContract] = useState(false);
   const [showEvaluate, setShowEvaluate] = useState(false);
   const [submitting, setSubmitting] = useState(false);
 
-  const isAdmin = user?.role === "super_admin" || user?.role === "syndicate_admin";
+  const isAdmin = user?.role === "syndicate_admin";
   const topPad = isWide ? 0 : Platform.OS === "web" ? 67 : insets.top;
 
   const load = useCallback(async () => {
     if (!id) return;
     try {
       setLoading(true);
+      setLoadError(false);
       const res = await prestataires.get(id);
       setData(res as any);
-    } catch (e) { console.error(e); }
+    } catch { setLoadError(true); }
     finally { setLoading(false); }
   }, [id]);
 
@@ -144,8 +147,21 @@ export default function PrestataireDetailScreen() {
 
   if (loading) {
     return (
-      <View style={[styles.root, styles.center, { backgroundColor: colors.background }]}>
-        <ActivityIndicator size="large" color="#3b82f6" />
+      <View style={[styles.root, { backgroundColor: colors.background }]}>
+        <LoadingState title={t("loading")} description={t("pdLoadingDescription")} accentColor={colors.primary} />
+      </View>
+    );
+  }
+
+  if (loadError) {
+    return (
+      <View style={[styles.root, { backgroundColor: colors.background }]}>
+        <ErrorState
+          title={t("error")}
+          description={t("pdLoadError")}
+          retryLabel={t("retry")}
+          onRetry={() => void load()}
+        />
       </View>
     );
   }
@@ -292,11 +308,13 @@ export default function PrestataireDetailScreen() {
           <View style={{ gap: 12 }}>
             {(data.recentTravaux ?? []).length === 0 ? (
               <Text style={{ color: colors.mutedForeground, textAlign: "center", paddingVertical: 30 }}>{t("pdNoWorks")}</Text>
-            ) : (data.recentTravaux ?? []).map((t: ApiTravail) => (
-              <TouchableOpacity key={t.id} style={[styles.contractCard, { backgroundColor: colors.card, borderColor: colors.border }]}
+            ) : (data.recentTravaux ?? []).map((work: ApiTravail) => (
+              <TouchableOpacity key={work.id} style={[styles.contractCard, { backgroundColor: colors.card, borderColor: colors.border }]}
                 onPress={() => router.push("/travaux" as any)}>
-                <Text style={[styles.contractTitle, { color: colors.foreground }]}>{t.title}</Text>
-                <Text style={{ color: colors.mutedForeground, fontSize: 12 }}>{t.status}</Text>
+                <Text style={[styles.contractTitle, { color: colors.foreground }]}>{work.title}</Text>
+                <Text style={{ color: colors.mutedForeground, fontSize: 12 }}>
+                  {t(work.status === "completed" ? "pdWorkCompleted" : work.status === "cancelled" ? "pdWorkCancelled" : "pdWorkActive")}
+                </Text>
               </TouchableOpacity>
             ))}
           </View>

@@ -484,6 +484,18 @@ export const TRANSLATIONS: Translations = {
     ar: "تعذر إعادة تعيين كلمة المرور. تحقق من الرابط وحاول مرة أخرى.",
     es: "No se pudo restablecer la contraseña. Compruebe el enlace e inténtelo de nuevo.",
   },
+  resetLinkExpiredTitle: {
+    fr: "Lien de réinitialisation expiré",
+    en: "Reset link expired",
+    ar: "انتهت صلاحية رابط إعادة التعيين",
+    es: "Enlace de restablecimiento caducado",
+  },
+  resetLinkExpiredMessage: {
+    fr: "Ce lien n’est plus disponible. Demandez un nouvel email pour choisir un nouveau mot de passe.",
+    en: "This link is no longer available. Request a new email to choose a new password.",
+    ar: "لم يعد هذا الرابط متاحاً. اطلبوا رسالة جديدة لاختيار كلمة مرور جديدة.",
+    es: "Este enlace ya no está disponible. Solicite un nuevo correo para elegir una contraseña.",
+  },
   resetLogin: {
     fr: "Se connecter",
     en: "Sign in",
@@ -17443,6 +17455,21 @@ export const TRANSLATIONS: Translations = {
     ar: "تعذر العثور على المزود",
     es: "Proveedor no encontrado",
   },
+  pdLoadingDescription: {
+    fr: "Nous récupérons les contrats et interventions de ce prestataire.",
+    en: "We are retrieving this provider's contracts and work orders.",
+    ar: "نحن نسترجع عقود وتدخلات مزود الخدمة هذا.",
+    es: "Estamos recuperando los contratos e intervenciones de este proveedor.",
+  },
+  pdLoadError: {
+    fr: "Les données de ce prestataire sont indisponibles. Vérifiez votre connexion puis réessayez.",
+    en: "This provider's data is unavailable. Check your connection and try again.",
+    ar: "بيانات مزود الخدمة غير متاحة. تحقق من الاتصال ثم أعد المحاولة.",
+    es: "Los datos de este proveedor no están disponibles. Compruebe la conexión e inténtelo de nuevo.",
+  },
+  pdWorkCompleted: { fr: "Terminée", en: "Completed", ar: "مكتملة", es: "Completada" },
+  pdWorkCancelled: { fr: "Annulée", en: "Cancelled", ar: "ملغاة", es: "Cancelada" },
+  pdWorkActive: { fr: "En cours", en: "In progress", ar: "قيد التنفيذ", es: "En curso" },
 
   // ─── Publications ──────────────────────────────────────────────────────────
   pubTitle: {
@@ -19802,6 +19829,24 @@ export const TRANSLATIONS: Translations = {
     ar: "أرسلنا رمزاً من 6 أرقام إلى",
     es: "Hemos enviado un código de 6 dígitos a",
   },
+  emailVerifySessionTitle: {
+    fr: "Inscription interrompue",
+    en: "Registration interrupted",
+    ar: "توقفت عملية التسجيل",
+    es: "Registro interrumpido",
+  },
+  emailVerifySessionMessage: {
+    fr: "Votre session d’inscription n’est plus disponible. Recommencez pour recevoir un nouveau code de vérification.",
+    en: "Your registration session is no longer available. Start again to receive a new verification code.",
+    ar: "لم تعد جلسة التسجيل متاحة. ابدأوا من جديد للحصول على رمز تحقق جديد.",
+    es: "Su sesión de registro ya no está disponible. Empiece de nuevo para recibir un código nuevo.",
+  },
+  emailVerifyBackToRegister: {
+    fr: "Recommencer l’inscription",
+    en: "Restart registration",
+    ar: "إعادة بدء التسجيل",
+    es: "Reiniciar el registro",
+  },
   emailVerifySuccessTitle: {
     fr: "Email vérifié !",
     en: "Email verified!",
@@ -19837,6 +19882,12 @@ export const TRANSLATIONS: Translations = {
     en: "We could not send the code. Check your email address and try again.",
     ar: "تعذر إرسال الرمز. تحققوا من بريدكم الإلكتروني ثم حاولوا مجدداً.",
     es: "No se pudo enviar el código. Compruebe su correo e inténtelo de nuevo.",
+  },
+  emailVerifyResendRateLimited: {
+    fr: "Trop de demandes. Patientez un peu avant de demander un nouveau code.",
+    en: "Too many requests. Please wait before requesting a new code.",
+    ar: "طلبات كثيرة جداً. انتظروا قليلاً قبل طلب رمز جديد.",
+    es: "Demasiadas solicitudes. Espere un poco antes de pedir un código nuevo.",
   },
   emailVerifyChecking: {
     fr: "Vérification du code…",

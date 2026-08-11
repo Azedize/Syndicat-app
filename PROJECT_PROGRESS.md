@@ -230,6 +230,11 @@
 - Login validation passed with zero-error mobile typecheck and clean diff validation. Expo and API workflows remained healthy; the compact preview exposed only the existing early web-capture blank-text behavior and non-blocking Expo web compatibility warnings.
 - Continued the same form-system rollout on account creation: registration now uses the shared field shell, keyboard-aware scrolling, RTL-aware navigation and consent controls, accessible password visibility actions, and preserved OTP registration persistence/API behavior.
 - Registration validation passed with zero-error mobile typecheck, clean diff validation, healthy Expo/API workflows, and a compact preview confirming all five fields, consent, and verification-code CTA remain accessible.
+- Completed the email-verification continuity pass: the OTP screen now uses the shared MIZAN keyboard-aware surface, semantic theme colors, RTL-aware actions, accessible controls, localized retry feedback, and a clear recovery state when the saved registration session is missing or malformed.
+- Hardened OTP recovery so expired codes cannot be submitted, resend cooldowns only start after a successful send, and rate-limit/server failures remain recoverable and localized.
+- Hardened password-reset recovery with a dedicated `RESET_TOKEN_INVALID_OR_EXPIRED` API code and a localized expired-link state that routes directly to a new reset-link request or login.
+- Preserved the existing OTP verification, account creation, plan transfer, password reset, anti-enumeration, and onboarding contracts.
+- Mobile/API typechecks, Prettier, diff validation, API invalid-token verification, Expo bundling, and compact recovery previews passed; only existing Expo web compatibility warnings remain.
 - Continued the MIZAN authentication form-system rollout on password recovery.
 - Standardized forgot-password and reset-password screens with the shared keyboard-aware form shell, semantic success colors, RTL direction, field-level validation feedback, focus states, password visibility accessibility labels, and localized recovery actions.
 - Preserved anti-enumeration behavior for reset-link requests, real reset-password API calls, token validation, password strength feedback, and post-reset login handoff.

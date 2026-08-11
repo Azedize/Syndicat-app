@@ -429,6 +429,9 @@ interface DataContextType {
   documentsLoading: boolean;
   documentsLoadError: boolean;
   partnersLoadError: boolean;
+  legalAlertsLoading: boolean;
+  legalAlertsLoadError: boolean;
+  refreshLegalAlerts: () => Promise<boolean>;
   products: Product[];
   transactions: Transaction[];
   salaries: SalaryRecord[];
@@ -474,7 +477,7 @@ interface DataContextType {
   validateProduct: (id: string) => void;
   addSyndicate: (s: Syndicate) => void;
   updateSyndicateStatus: (id: string, status: Syndicate["status"]) => void;
-  resolveLegalAlert: (id: string) => void;
+  resolveLegalAlert: (id: string) => Promise<boolean>;
   addSupportTicket: (t: SupportTicket) => void;
   resolveTicket: (id: string) => void;
   payOrder: (id: string) => void;
@@ -578,6 +581,8 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [syndicates, setSyndicates] = useState<Syndicate[]>([]);
   const [legalAlerts, setLegalAlerts] = useState<LegalAlert[]>([]);
+  const [legalAlertsLoading, setLegalAlertsLoading] = useState(false);
+  const [legalAlertsLoadError, setLegalAlertsLoadError] = useState(false);
   const [supportTickets, setSupportTickets] = useState<SupportTicket[]>([]);
   const [orders, setOrders] = useState<Order[]>([]);
   const [cotisations, setCotisations] = useState<Cotisation[]>([]);
@@ -613,6 +618,8 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
     setDocumentsLoading(true);
     setDocumentsLoadError(false);
     setPartnersLoadError(false);
+    setLegalAlertsLoading(true);
+    setLegalAlertsLoadError(false);
     async function loadFromApi() {
       try {
         const results = await Promise.allSettled([
@@ -834,24 +841,25 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
 
         if (legalAlertsRes.status === "fulfilled") {
           const rows = (legalAlertsRes.value as { data: unknown[] }).data;
-          if (rows?.length) {
-            setLegalAlerts(
-              rows.map((r: unknown) => {
-                const row = r as Record<string, unknown>;
-                return {
-                  id: String(row.id),
-                  title: String(row.title ?? ""),
-                  description: String(row.description ?? ""),
-                  level: (row.level as LegalAlert["level"]) ?? "info",
-                  category:
-                    (row.category as LegalAlert["category"]) ?? "statuts",
-                  date: String(row.date ?? row.createdAt ?? ""),
-                  status: (row.status as LegalAlert["status"]) ?? "open",
-                  action: row.action ? String(row.action) : undefined,
-                };
-              }),
-            );
-          }
+          setLegalAlerts(
+            (rows ?? []).map((r: unknown) => {
+              const row = r as Record<string, unknown>;
+              return {
+                id: String(row.id),
+                title: String(row.title ?? ""),
+                description: String(row.description ?? ""),
+                level: (row.level as LegalAlert["level"]) ?? "info",
+                category:
+                  (row.category as LegalAlert["category"]) ?? "statuts",
+                date: String(row.date ?? row.createdAt ?? ""),
+                status: (row.status as LegalAlert["status"]) ?? "open",
+                action: row.action ? String(row.action) : undefined,
+              };
+            }),
+          );
+          setLegalAlertsLoadError(false);
+        } else {
+          setLegalAlertsLoadError(true);
         }
 
         if (ticketsRes.status === "fulfilled") {
@@ -1157,7 +1165,9 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
           setDocumentsLoading(false);
           setDataLoadError(true);
           setDataLoading(false);
+          setLegalAlertsLoadError(true);
         }
+        setLegalAlertsLoading(false);
         // API call failed (network/auth error): keep whatever was already
         // loaded (or the empty initial state) rather than throwing — this
         // effect has no UI-visible error surface, and other screens read
@@ -1172,6 +1182,37 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
 
   const refreshData = () => {
     setDataRefreshKey((current) => current + 1);
+  };
+
+  const refreshLegalAlerts = async (): Promise<boolean> => {
+    setLegalAlertsLoading(true);
+    setLegalAlertsLoadError(false);
+    try {
+      const response = await api.content.legalAlerts();
+      const rows = (response as { data?: unknown[] }).data ?? [];
+      setLegalAlerts(
+        rows.map((r: unknown) => {
+          const row = r as Record<string, unknown>;
+          return {
+            id: String(row.id),
+            title: String(row.title ?? ""),
+            description: String(row.description ?? ""),
+            level: (row.level as LegalAlert["level"]) ?? "info",
+            category: (row.category as LegalAlert["category"]) ?? "statuts",
+            date: String(row.date ?? row.createdAt ?? ""),
+            status: (row.status as LegalAlert["status"]) ?? "open",
+            action: row.action ? String(row.action) : undefined,
+          };
+        }),
+      );
+      setLegalAlertsLoadError(false);
+      return true;
+    } catch {
+      setLegalAlertsLoadError(true);
+      return false;
+    } finally {
+      setLegalAlertsLoading(false);
+    }
   };
 
   const updateSubscription = (id: string, planId: string) => {
@@ -1429,11 +1470,22 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
       message: `Ticket support soumis : "${t.title}"`,
     });
   };
-  const resolveLegalAlert = (id: string) => {
+  const resolveLegalAlert = async (id: string): Promise<boolean> => {
+    const previous = legalAlerts.find((alert) => alert.id === id);
     setLegalAlerts((p) =>
       p.map((a) => (a.id === id ? { ...a, status: "resolved" } : a)),
     );
-    api.content.resolveLegalAlert(id).catch(() => {});
+    try {
+      await api.content.resolveLegalAlert(id);
+      return true;
+    } catch {
+      if (previous) {
+        setLegalAlerts((p) =>
+          p.map((a) => (a.id === id ? previous : a)),
+        );
+      }
+      return false;
+    }
   };
   const resolveTicket = (id: string) => {
     setSupportTickets((p) =>
@@ -1751,6 +1803,9 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
         documentsLoading,
         documentsLoadError,
         partnersLoadError,
+        legalAlertsLoading,
+        legalAlertsLoadError,
+        refreshLegalAlerts,
         products,
         transactions,
         salaries,

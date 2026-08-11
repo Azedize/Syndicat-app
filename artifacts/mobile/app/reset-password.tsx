@@ -31,6 +31,7 @@ export default function ResetPasswordScreen() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
   const [success, setSuccess] = useState(false);
+  const [linkInvalid, setLinkInvalid] = useState(false);
   const [focusedField, setFocusedField] = useState<string | null>(null);
   const newPasswordRef = useRef<TextInput>(null);
   const confirmPasswordRef = useRef<TextInput>(null);
@@ -74,12 +75,21 @@ export default function ResetPasswordScreen() {
 
     setLoading(true);
     setError("");
+    setLinkInvalid(false);
     try {
       await authApi.resetPassword(token.trim(), newPassword);
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
       setSuccess(true);
     } catch (err: any) {
-      setError(t("resetPasswordError"));
+      const invalidLink =
+        err?.code === "RESET_TOKEN_INVALID_OR_EXPIRED" ||
+        /expired|expir|invalide|invalid/i.test(String(err?.message ?? ""));
+      if (invalidLink) {
+        setLinkInvalid(true);
+        setError("");
+      } else {
+        setError(t("resetPasswordError"));
+      }
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
     } finally {
       setLoading(false);
@@ -142,7 +152,7 @@ export default function ResetPasswordScreen() {
           </Text>
         </View>
 
-        {!success ? (
+        {!success && !linkInvalid ? (
           <View
             style={[
               styles.card,
@@ -372,6 +382,61 @@ export default function ResetPasswordScreen() {
               </Text>
             </TouchableOpacity>
           </View>
+        ) : linkInvalid ? (
+          <View
+            style={[
+              styles.card,
+              styles.successCard,
+              { backgroundColor: colors.card, borderColor: colors.border },
+            ]}
+          >
+            <View
+              style={[
+                styles.successIcon,
+                { backgroundColor: colors.warning + "18" },
+              ]}
+            >
+              <Feather name="clock" size={44} color={colors.warning} />
+            </View>
+            <Text style={[styles.successTitle, { color: colors.foreground }]}>
+              {t("resetLinkExpiredTitle")}
+            </Text>
+            <Text
+              style={[styles.successText, { color: colors.mutedForeground }]}
+            >
+              {t("resetLinkExpiredMessage")}
+            </Text>
+            <TouchableOpacity
+              style={[styles.submitBtn, { backgroundColor: colors.primary }]}
+              onPress={() => router.replace("/forgot-password" as any)}
+              accessibilityRole="button"
+              accessibilityLabel={t("requestNewLink")}
+            >
+              <Feather name="mail" size={16} color={colors.primaryForeground} />
+              <Text style={styles.submitBtnText}>{t("requestNewLink")}</Text>
+            </TouchableOpacity>
+            <TouchableOpacity
+              style={[
+                styles.submitBtn,
+                styles.outlineBtn,
+                { borderColor: colors.border },
+              ]}
+              onPress={() => router.replace("/login" as any)}
+              accessibilityRole="button"
+              accessibilityLabel={t("resetLogin")}
+            >
+              <Feather
+                name={isRTL ? "arrow-right" : "arrow-left"}
+                size={16}
+                color={colors.foreground}
+              />
+              <Text
+                style={[styles.submitBtnText, { color: colors.foreground }]}
+              >
+                {t("resetLogin")}
+              </Text>
+            </TouchableOpacity>
+          </View>
         ) : (
           <View
             style={[
@@ -488,6 +553,7 @@ const styles = StyleSheet.create({
     paddingVertical: 15,
     gap: 8,
   },
+  outlineBtn: { backgroundColor: "transparent", borderWidth: 1 },
   submitBtnText: { color: "#fff", fontSize: 15, fontFamily: "Inter_700Bold" },
   secondaryLink: { alignItems: "center", paddingVertical: 4 },
   secondaryText: {

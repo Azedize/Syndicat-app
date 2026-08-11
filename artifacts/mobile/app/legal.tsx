@@ -13,19 +13,15 @@ import {
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useData, type LegalAlert } from "@/context/DataContext";
+import { useLanguage } from "@/context/LanguageContext";
 import { useBreakpoints } from "@/hooks/useBreakpoints";
 import { useColors } from "@/hooks/useColors";
 import RoleGuard from "@/components/RoleGuard";
+import { ErrorState, LoadingState } from "@/components/DataState";
+import EmptyState from "@/components/EmptyState";
+import { useToast } from "@/context/ToastContext";
 
 type Tab = "alerts" | "analysis" | "documents";
-
-const AI_RISKS = [
-  { area: "Conformité statutaire", score: 82, color: "#10b981", label: "Conforme" },
-  { area: "Gestion financière", score: 65, color: "#f59e0b", label: "Attention" },
-  { area: "Droit du travail", score: 91, color: "#10b981", label: "Conforme" },
-  { area: "Gouvernance", score: 48, color: "#ef4444", label: "Risque" },
-  { area: "Protection données", score: 74, color: "#f59e0b", label: "Attention" },
-];
 
 const LEGAL_DOCS = [
   { id: "1", title: "Mise en demeure - Cotisations impayées", icon: "file-text" as const, category: "Recouvrement", template: "mise_en_demeure" },
@@ -47,7 +43,15 @@ export default function LegalScreen() {
 function LegalScreenInner() {
   const colors = useColors();
   const insets = useSafeAreaInsets();
-  const { legalAlerts, resolveLegalAlert } = useData();
+  const {
+    legalAlerts,
+    legalAlertsLoading,
+    legalAlertsLoadError,
+    refreshLegalAlerts,
+    resolveLegalAlert,
+  } = useData();
+  const { t, lang, isRTL } = useLanguage();
+  const { showToast } = useToast();
   const [tab, setTab] = useState<Tab>("alerts");
   const { isWide } = useBreakpoints();
   const topPad = isWide ? 0 : (Platform.OS === "web" ? 67 : insets.top);
@@ -64,6 +68,24 @@ function LegalScreenInner() {
     return { color: colors.success, label: "Résolu" };
   };
 
+  const analysisCopy = {
+    title: { fr: "Analyse de conformité", en: "Compliance analysis", ar: "تحليل الامتثال", es: "Análisis de cumplimiento" },
+    unavailable: { fr: "Analyse non disponible", en: "Analysis unavailable", ar: "التحليل غير متاح", es: "Análisis no disponible" },
+    description: {
+      fr: "Aucun score ou recommandation certifié n'est encore disponible pour ce syndicat. Les résultats ne seront affichés qu'après synchronisation d'une source réelle.",
+      en: "No verified score or recommendation is available for this syndicate yet. Results will appear only after a real data source is synchronized.",
+      ar: "لا توجد بعد نتيجة أو توصية موثوقة لهذا الاتحاد. ستظهر النتائج بعد مزامنة مصدر بيانات حقيقي.",
+      es: "Todavía no hay una puntuación ni recomendaciones verificadas para este sindicato. Los resultados aparecerán tras sincronizar una fuente real.",
+    },
+    sourceNote: {
+      fr: "Les alertes ci-dessous proviennent des données juridiques enregistrées dans votre espace.",
+      en: "The alerts below come from the legal data recorded in your workspace.",
+      ar: "التنبيهات أدناه مصدرها البيانات القانونية المسجلة في فضائك.",
+      es: "Las alertas siguientes proceden de los datos legales registrados en su espacio.",
+    },
+  };
+  const copy = (key: keyof typeof analysisCopy) => analysisCopy[key][lang];
+
   return (
     <View style={[styles.root, { backgroundColor: colors.background }]}>
       <View style={[styles.header, { paddingTop: topPad + 16, backgroundColor: colors.primary }]}>
@@ -71,8 +93,8 @@ function LegalScreenInner() {
           <Feather name="arrow-left" size={22} color="#fff" />
         </TouchableOpacity>
         <View style={{ flex: 1 }}>
-          <Text style={styles.headerTitle}>Module Juridique</Text>
-          <Text style={styles.headerSub}>Alertes légales & analyse des risques</Text>
+          <Text style={styles.headerTitle}>{t("legalTitle")}</Text>
+          <Text style={styles.headerSub}>{t("legalAlertTitle")}</Text>
         </View>
         <View style={[styles.aiBadge, { backgroundColor: "rgba(255,255,255,0.2)" }]}>
           <Feather name="zap" size={12} color="#fbbf24" />
@@ -105,6 +127,22 @@ function LegalScreenInner() {
       </View>
 
       {tab === "alerts" ? (
+        legalAlertsLoading ? (
+          <LoadingState title={t("loading")} description={copy("sourceNote")} accentColor={colors.primary} />
+        ) : legalAlertsLoadError ? (
+          <ErrorState
+            title={t("error")}
+            description={copy("description")}
+            retryLabel={t("retry")}
+            onRetry={() => void refreshLegalAlerts()}
+          />
+        ) : legalAlerts.length === 0 ? (
+          <EmptyState
+            icon="shield"
+            title={t("noLegalAlerts")}
+            description={copy("sourceNote")}
+          />
+        ) : (
         <FlatList
           data={legalAlerts}
           keyExtractor={(a) => a.id}
@@ -144,8 +182,13 @@ function LegalScreenInner() {
                     <TouchableOpacity
                       style={[styles.resolveBtn, { backgroundColor: colors.primary }]}
                       onPress={() => {
-                        resolveLegalAlert(alert.id);
-                        Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+                        void resolveLegalAlert(alert.id).then((success) => {
+                          if (success) {
+                            Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+                          } else {
+                            showToast({ type: "error", title: t("error"), message: copy("description") });
+                          }
+                        });
                       }}
                     >
                       <Feather name="check" size={13} color="#fff" />
@@ -162,49 +205,21 @@ function LegalScreenInner() {
             );
           }}
         />
+        )
       ) : tab === "analysis" ? (
         <ScrollView contentContainerStyle={{ padding: 20, gap: 20, paddingBottom: insets.bottom + 40 }}>
-          <View style={[styles.aiCard, { backgroundColor: colors.card, borderColor: colors.border }]}>
+          <View style={[styles.aiCard, { backgroundColor: colors.card, borderColor: colors.border, direction: isRTL ? "rtl" : "ltr" }]}>
             <View style={styles.aiHeader}>
-              <Feather name="cpu" size={20} color={colors.primary} />
-              <Text style={[styles.aiTitle, { color: colors.foreground }]}>Analyse IA des risques</Text>
-              <Text style={[styles.aiDate, { color: colors.mutedForeground }]}>Mise à jour: 18 Mai 2026</Text>
+              <Feather name="info" size={20} color={colors.primary} />
+              <Text style={[styles.aiTitle, { color: colors.foreground }]}>{copy("title")}</Text>
             </View>
-            <View style={[styles.globalScore, { backgroundColor: colors.primary + "10" }]}>
-              <Text style={[styles.scoreLabel, { color: colors.mutedForeground }]}>Score global de conformité</Text>
-              <Text style={[styles.scoreValue, { color: colors.primary }]}>72/100</Text>
-              <Text style={[styles.scoreDesc, { color: colors.mutedForeground }]}>Attention — Des actions correctives sont requises</Text>
-            </View>
-          </View>
-
-          {AI_RISKS.map((risk) => (
-            <View key={risk.area} style={[styles.riskCard, { backgroundColor: colors.card, borderColor: colors.border }]}>
-              <View style={styles.riskTop}>
-                <Text style={[styles.riskArea, { color: colors.foreground }]}>{risk.area}</Text>
-                <View style={[styles.riskBadge, { backgroundColor: risk.color + "18" }]}>
-                  <Text style={[styles.riskLabel, { color: risk.color }]}>{risk.label}</Text>
-                </View>
-              </View>
-              <View style={[styles.progressBg, { backgroundColor: colors.muted }]}>
-                <View style={[styles.progressFill, { width: `${risk.score}%` as any, backgroundColor: risk.color }]} />
-              </View>
-              <Text style={[styles.riskScore, { color: colors.mutedForeground }]}>{risk.score}/100</Text>
-            </View>
-          ))}
-
-          <View style={[styles.recoCard, { backgroundColor: colors.primary + "10", borderColor: colors.primary + "30" }]}>
-            <Text style={[styles.recoTitle, { color: colors.primary }]}>Recommandations IA</Text>
-            {[
-              "Organiser les élections du bureau avant expiration du mandat",
-              "Réviser le règlement intérieur suite au décret N°2026-15",
-              "Mettre en place un comité RGPD pour la protection des données",
-              "Renforcer les contrôles internes sur les dépenses budgétaires",
-            ].map((r, i) => (
-              <View key={i} style={styles.recoRow}>
-                <View style={[styles.recoDot, { backgroundColor: colors.primary }]} />
-                <Text style={[styles.recoText, { color: colors.foreground }]}>{r}</Text>
-              </View>
-            ))}
+            <EmptyState
+              icon="database"
+              title={copy("unavailable")}
+              description={copy("description")}
+              accentColor={colors.primary}
+            />
+            <Text style={[styles.sourceNote, { color: colors.mutedForeground }]}>{copy("sourceNote")}</Text>
           </View>
         </ScrollView>
       ) : (
@@ -348,6 +363,7 @@ const styles = StyleSheet.create({
   },
   aiHeader: { flexDirection: "row", alignItems: "center", gap: 10 },
   aiTitle: { flex: 1, fontSize: 15, fontFamily: "Inter_700Bold" },
+  sourceNote: { fontSize: 12, fontFamily: "Inter_400Regular", lineHeight: 18 },
   aiDate: { fontSize: 11, fontFamily: "Inter_400Regular" },
   globalScore: {
     borderRadius: 12,
