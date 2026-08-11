@@ -147,6 +147,11 @@
 - Replaced compact `k` financial summaries and fixed `fr-MA` formatting with full active-locale MAD amounts and locale-aware order dates.
 - Added a recoverable initial-load unavailable state with retry while keeping stale orders visible during refresh failures; marketplace APIs and role behavior remain unchanged.
 - Mobile typecheck passed with zero errors, Expo bundled successfully, and the protected orders route redirected safely without new runtime exceptions.
+- Audited `artifacts/mobile/app/forgot-password.tsx` and `artifacts/mobile/app/reset-password.tsx` as the next authentication UX surface.
+- Applied `MizanFormField` and `KeyboardAwareScrollViewCompat` consistently, added RTL-aware back affordances and semantic MIZAN success colors, improved field-level errors, password visibility labels, and action accessibility.
+- Preserved the real `/auth/forgot-password` anti-enumeration contract and `/auth/reset-password` token/password persistence flow.
+- Shortened the reset-code placeholder in `LanguageContext.tsx` to prevent clipping on compact mobile widths.
+- Mobile typecheck, Prettier, `git diff --check`, Expo bundling, and protected previews passed without new runtime exceptions.
 - Audited `artifacts/mobile/app/utilisateurs.tsx`; added localized loading/unavailable/retry states, refresh recovery, locale-aware join dates, safe status/role/delete/create feedback, and Moroccan phone/email validation.
 - Restricted role-changing and deletion controls to the platform administrator while preserving the syndicate administrator's scoped user-management access.
 - Removed the predictable `ChangeMe@2026!` client password; `artifacts/api-server/src/routes/users.ts` now generates a temporary credential server-side and includes it only in the welcome email flow.
@@ -204,3 +209,8 @@
 - Added RTL-aware SidebarNav borders, active indicators, alignment, and FilterTabs direction; FilterTabs now defaults to the active theme primary color and shared radius/spacing/typography tokens.
 - Replaced the dashboard's visible hardcoded action/status accents with active MIZAN semantic colors, mirrored dashboard arrows in Arabic, and localized the dismiss accessibility label without changing API, routes, or role permissions.
 - Mobile typecheck, Prettier, `git diff --check`, Expo bundling, and compact public preview passed; existing Expo Web compatibility warnings remain non-blocking.
+- Added `artifacts/mobile/components/MizanFormField.tsx` as the shared enterprise field shell for labels, focus borders, leading icons, validation messages, and RTL alignment.
+- Migrated `artifacts/mobile/app/login.tsx` to the shared field shell and `KeyboardAwareScrollViewCompat`; localized auth feature/trust metadata, validation feedback, theme controls, password visibility, and directional actions without changing authentication behavior.
+- Verified mobile typecheck and `git diff --check`; workflow logs show healthy Expo/API services. Preview validation found no new runtime exception, while the existing web capture can snapshot animated/auth content before text settles.
+- Migrated `artifacts/mobile/app/register.tsx` from its local field implementation to `MizanFormField` and `KeyboardAwareScrollViewCompat`; added focus progression between inputs, RTL-aware back/consent layout, accessible password toggles, and preserved email OTP, AsyncStorage handoff, plan selection, and validation contracts.
+- Verified the registration surface with zero-error mobile typecheck, clean diff validation, healthy workflows, and a 402×874 preview showing the complete form without new runtime errors.

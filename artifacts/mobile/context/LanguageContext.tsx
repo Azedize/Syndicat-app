@@ -206,6 +206,18 @@ export const TRANSLATIONS: Translations = {
     ar: "••••••••",
     es: "••••••••",
   },
+  showPassword: {
+    fr: "Afficher le mot de passe",
+    en: "Show password",
+    ar: "إظهار كلمة المرور",
+    es: "Mostrar contraseña",
+  },
+  hidePassword: {
+    fr: "Masquer le mot de passe",
+    en: "Hide password",
+    ar: "إخفاء كلمة المرور",
+    es: "Ocultar contraseña",
+  },
   forgotPassword: {
     fr: "Mot de passe oublié ?",
     en: "Forgot password?",
@@ -349,10 +361,10 @@ export const TRANSLATIONS: Translations = {
     es: "Código de restablecimiento",
   },
   pasteCodePlaceholder: {
-    fr: "Collez votre code ici (64 caractères)",
-    en: "Paste your code here (64 characters)",
-    ar: "الصق رمزك هنا (64 حرفاً)",
-    es: "Pegue su código aquí (64 caracteres)",
+    fr: "Code reçu (64 caractères)",
+    en: "Received code (64 characters)",
+    ar: "الرمز المستلم (64 حرفاً)",
+    es: "Código recibido (64 caracteres)",
   },
   copyFromEmailHint: {
     fr: "Copiez le code depuis le lien reçu par email.",
@@ -572,6 +584,12 @@ export const TRANSLATIONS: Translations = {
     en: "Dark mode",
     ar: "الوضع الداكن",
     es: "Modo oscuro",
+  },
+  lightMode: {
+    fr: "Mode clair",
+    en: "Light mode",
+    ar: "الوضع الفاتح",
+    es: "Modo claro",
   },
   editProfile: { fr: "Modifier", en: "Edit", ar: "تعديل", es: "Editar" },
   appearanceSection: {

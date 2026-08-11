@@ -15,9 +15,7 @@ import { router, useLocalSearchParams } from "expo-router";
 import React, { useRef, useState } from "react";
 import {
   ActivityIndicator,
-  KeyboardAvoidingView,
   Platform,
-  ScrollView,
   StyleSheet,
   Text,
   TextInput,
@@ -26,97 +24,25 @@ import {
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
+import MizanFormField from "@/components/MizanFormField";
+import { KeyboardAwareScrollViewCompat } from "@/components/KeyboardAwareScrollViewCompat";
 import { useAuth } from "@/context/AuthContext";
 import { useLanguage } from "@/context/LanguageContext";
 import { useTheme } from "@/context/ThemeContext";
+import { useColors } from "@/hooks/useColors";
 import { apiRequest } from "@/lib/api";
 import { auth as authApi } from "@/services/api";
 
 const PENDING_PLAN_KEY = "@mizan_pending_plan";
 const PENDING_REGISTER_KEY = "@mizan_pending_register";
 
-// ─── Field component ──────────────────────────────────────────────────────────
-
-function Field({
-  label,
-  icon,
-  value,
-  onChangeText,
-  placeholder,
-  secureTextEntry,
-  error,
-  keyboardType,
-  isDark,
-  color,
-  rightElement,
-}: {
-  label: string;
-  icon: React.ComponentProps<typeof Feather>["name"];
-  value: string;
-  onChangeText: (v: string) => void;
-  placeholder: string;
-  secureTextEntry?: boolean;
-  error?: string;
-  keyboardType?: React.ComponentProps<typeof TextInput>["keyboardType"];
-  isDark: boolean;
-  color: string;
-  rightElement?: React.ReactNode;
-}) {
-  const bg = isDark ? "rgba(255,255,255,0.06)" : "rgba(255,255,255,0.9)";
-  const border = error
-    ? "#EF4444"
-    : isDark
-      ? "rgba(255,255,255,0.12)"
-      : "rgba(37,99,235,0.2)";
-  const textColor = isDark ? "#E8F0FE" : "#0A1628";
-  const phColor = isDark ? "rgba(232,240,254,0.3)" : "#94A3B8";
-
-  return (
-    <View style={{ gap: 6 }}>
-      <Text
-        style={[
-          s.fieldLabel,
-          { color: isDark ? "rgba(232,240,254,0.6)" : "#475569" },
-        ]}
-      >
-        {label}
-      </Text>
-      <View style={[s.fieldWrap, { backgroundColor: bg, borderColor: border }]}>
-        <Feather
-          name={icon}
-          size={16}
-          color={error ? "#EF4444" : color}
-          style={{ marginLeft: 14 }}
-        />
-        <TextInput
-          style={[s.input, { color: textColor, flex: 1 }]}
-          value={value}
-          onChangeText={onChangeText}
-          placeholder={placeholder}
-          placeholderTextColor={phColor}
-          secureTextEntry={secureTextEntry}
-          keyboardType={keyboardType}
-          autoCapitalize="none"
-          autoCorrect={false}
-        />
-        {rightElement}
-      </View>
-      {error ? (
-        <View style={s.errorRow}>
-          <Feather name="alert-circle" size={12} color="#EF4444" />
-          <Text style={s.errorText}>{error}</Text>
-        </View>
-      ) : null}
-    </View>
-  );
-}
-
 // ─── Screen ───────────────────────────────────────────────────────────────────
 
 export default function RegisterScreen() {
   const insets = useSafeAreaInsets();
-  const { t, lang } = useLanguage();
+  const { t, lang, isRTL } = useLanguage();
   const { isDark } = useTheme();
+  const colors = useColors();
   const { loginWithTokens } = useAuth();
 
   const params = useLocalSearchParams<{
@@ -140,6 +66,7 @@ export default function RegisterScreen() {
   const [agreed, setAgreed] = useState(false);
   const [loading, setLoading] = useState(false);
   const [errors, setErrors] = useState<Record<string, string>>({});
+  const [focusedField, setFocusedField] = useState<string | null>(null);
   const [apiError, setApiError] = useState<string | null>(null);
   const [sendStatus, setSendStatus] = useState<
     "idle" | "sending" | "success" | "error"
@@ -229,11 +156,11 @@ export default function RegisterScreen() {
     <View style={[s.root, { backgroundColor: isDark ? "#070D1A" : "#EFF6FF" }]}>
       <LinearGradient colors={gradColors} style={StyleSheet.absoluteFill} />
 
-      <KeyboardAvoidingView
+      <KeyboardAwareScrollViewCompat
         style={{ flex: 1 }}
-        behavior={Platform.OS === "ios" ? "padding" : undefined}
-      >
-        <ScrollView
+        bottomOffset={28}
+        keyboardDismissMode="interactive"
+        keyboardShouldPersistTaps="handled"
           contentContainerStyle={{
             paddingTop: insets.top + (Platform.OS === "web" ? 67 : 16),
             paddingBottom: insets.bottom + 40,
@@ -241,14 +168,13 @@ export default function RegisterScreen() {
             gap: 24,
           }}
           showsVerticalScrollIndicator={false}
-          keyboardShouldPersistTaps="handled"
         >
           {/* Back button */}
-          <TouchableOpacity onPress={() => router.back()} style={s.backBtn}>
+          <TouchableOpacity onPress={() => router.back()} style={s.backBtn} accessibilityRole="button" accessibilityLabel={t("back")}>
             <Feather
-              name="arrow-left"
+              name={isRTL ? "arrow-right" : "arrow-left"}
               size={20}
-              color={isDark ? "#93C5FD" : "#2563EB"}
+              color={colors.primary}
             />
           </TouchableOpacity>
 
@@ -351,109 +277,150 @@ export default function RegisterScreen() {
 
           {/* Form */}
           <View style={{ gap: 16 }}>
-            <Field
+            <MizanFormField
               label={t("fullNameLabel")}
               icon="user"
-              value={name}
-              onChangeText={(v) => {
-                setName(v);
-                setErrors((e) => ({ ...e, name: "" }));
-              }}
-              placeholder={t("fullNamePlaceholder")}
+              focused={focusedField === "name"}
               error={errors.name}
-              isDark={isDark}
-              color={color}
-            />
+            >
+              <TextInput
+                style={[s.input, { color: colors.foreground }]}
+                value={name}
+                onChangeText={(v) => { setName(v); setErrors((e) => ({ ...e, name: "" })); }}
+                placeholder={t("fullNamePlaceholder")}
+                placeholderTextColor={colors.mutedForeground}
+                onFocus={() => setFocusedField("name")}
+                onBlur={() => setFocusedField(null)}
+                returnKeyType="next"
+                onSubmitEditing={() => emailRef.current?.focus()}
+                accessibilityLabel={t("fullNameLabel")}
+              />
+            </MizanFormField>
 
-            <Field
+            <MizanFormField
               label={`${t("emailAddress")} *`}
               icon="mail"
-              value={email}
-              onChangeText={(v) => {
-                setEmail(v);
-                setErrors((e) => ({ ...e, email: "" }));
-              }}
-              placeholder={t("emailPlaceholder")}
-              keyboardType="email-address"
+              focused={focusedField === "email"}
               error={errors.email}
-              isDark={isDark}
-              color={color}
-            />
+            >
+              <TextInput
+                ref={emailRef}
+                style={[s.input, { color: colors.foreground }]}
+                value={email}
+                onChangeText={(v) => { setEmail(v); setErrors((e) => ({ ...e, email: "" })); }}
+                placeholder={t("emailPlaceholder")}
+                placeholderTextColor={colors.mutedForeground}
+                keyboardType="email-address"
+                autoCapitalize="none"
+                autoCorrect={false}
+                onFocus={() => setFocusedField("email")}
+                onBlur={() => setFocusedField(null)}
+                returnKeyType="next"
+                onSubmitEditing={() => phoneRef.current?.focus()}
+                accessibilityLabel={t("emailAddress")}
+              />
+            </MizanFormField>
 
-            <Field
+            <MizanFormField
               label={t("authPhoneOptional")}
               icon="phone"
-              value={phone}
-              onChangeText={(value) => {
-                setPhone(value);
-                if (errors.phone) {
-                  setErrors((current) => {
-                    const next = { ...current };
-                    delete next.phone;
-                    return next;
-                  });
-                }
-              }}
-              placeholder={t("phonePlaceholder")}
+              focused={focusedField === "phone"}
               error={errors.phone}
-              keyboardType="phone-pad"
-              isDark={isDark}
-              color={color}
-            />
+            >
+              <TextInput
+                ref={phoneRef}
+                style={[s.input, { color: colors.foreground }]}
+                value={phone}
+                onChangeText={(value) => {
+                  setPhone(value);
+                  if (errors.phone) {
+                    setErrors((current) => {
+                      const next = { ...current };
+                      delete next.phone;
+                      return next;
+                    });
+                  }
+                }}
+                placeholder={t("phonePlaceholder")}
+                placeholderTextColor={colors.mutedForeground}
+                keyboardType="phone-pad"
+                onFocus={() => setFocusedField("phone")}
+                onBlur={() => setFocusedField(null)}
+                returnKeyType="next"
+                onSubmitEditing={() => pwRef.current?.focus()}
+                accessibilityLabel={t("authPhoneOptional")}
+              />
+            </MizanFormField>
 
-            <Field
+            <MizanFormField
               label={`${t("password")} *`}
               icon="lock"
-              value={password}
-              onChangeText={(v) => {
-                setPassword(v);
-                setErrors((e) => ({ ...e, password: "" }));
-              }}
-              placeholder={t("authPasswordMin")}
-              secureTextEntry={!showPassword}
+              focused={focusedField === "password"}
               error={errors.password}
-              isDark={isDark}
-              color={color}
-              rightElement={
+              trailing={
                 <TouchableOpacity
                   onPress={() => setShowPassword(!showPassword)}
-                  style={{ paddingHorizontal: 14 }}
+                  accessibilityRole="button"
+                  accessibilityLabel={showPassword ? t("hidePassword") : t("showPassword")}
                 >
                   <Feather
                     name={showPassword ? "eye-off" : "eye"}
                     size={16}
-                    color={isDark ? "rgba(232,240,254,0.4)" : "#94A3B8"}
+                    color={colors.mutedForeground}
                   />
                 </TouchableOpacity>
               }
-            />
+            >
+              <TextInput
+                ref={pwRef}
+                style={[s.input, { color: colors.foreground }]}
+                value={password}
+                onChangeText={(v) => { setPassword(v); setErrors((e) => ({ ...e, password: "" })); }}
+                placeholder={t("authPasswordMin")}
+                placeholderTextColor={colors.mutedForeground}
+                secureTextEntry={!showPassword}
+                onFocus={() => setFocusedField("password")}
+                onBlur={() => setFocusedField(null)}
+                returnKeyType="next"
+                onSubmitEditing={() => cpwRef.current?.focus()}
+                accessibilityLabel={t("password")}
+              />
+            </MizanFormField>
 
-            <Field
+            <MizanFormField
               label={t("authConfirmPassword")}
               icon="lock"
-              value={confirmPassword}
-              onChangeText={(v) => {
-                setConfirmPassword(v);
-                setErrors((e) => ({ ...e, confirmPassword: "" }));
-              }}
-              placeholder={t("authConfirmPasswordPlaceholder")}
-              secureTextEntry={!showConfirm}
+              focused={focusedField === "confirmPassword"}
               error={errors.confirmPassword}
-              isDark={isDark}
-              color={color}
-              rightElement={
+              trailing={
                 <TouchableOpacity
                   onPress={() => setShowConfirm(!showConfirm)}
-                  style={{ paddingHorizontal: 14 }}
+                  accessibilityRole="button"
+                  accessibilityLabel={showConfirm ? t("hidePassword") : t("showPassword")}
                 >
                   <Feather
                     name={showConfirm ? "eye-off" : "eye"}
                     size={16}
-                    color={isDark ? "rgba(232,240,254,0.4)" : "#94A3B8"}
+                    color={colors.mutedForeground}
                   />
                 </TouchableOpacity>
               }
-            />
+            >
+              <TextInput
+                ref={cpwRef}
+                style={[s.input, { color: colors.foreground }]}
+                value={confirmPassword}
+                onChangeText={(v) => { setConfirmPassword(v); setErrors((e) => ({ ...e, confirmPassword: "" })); }}
+                placeholder={t("authConfirmPasswordPlaceholder")}
+                placeholderTextColor={colors.mutedForeground}
+                secureTextEntry={!showConfirm}
+                onFocus={() => setFocusedField("confirmPassword")}
+                onBlur={() => setFocusedField(null)}
+                returnKeyType="done"
+                onSubmitEditing={handleSubmit}
+                accessibilityLabel={t("authConfirmPassword")}
+              />
+            </MizanFormField>
           </View>
 
           {/* Password strength indicator */}
@@ -503,7 +470,7 @@ export default function RegisterScreen() {
           )}
 
           {/* Terms checkbox */}
-          <View style={s.termsRow}>
+          <View style={[s.termsRow, { flexDirection: isRTL ? "row-reverse" : "row" }]}>
             <TouchableOpacity
               onPress={() => {
                 setAgreed(!agreed);
@@ -523,8 +490,11 @@ export default function RegisterScreen() {
                         : "rgba(37,99,235,0.3)",
                 },
               ]}
+              accessibilityRole="checkbox"
+              accessibilityState={{ checked: agreed }}
+              accessibilityLabel={t("authAcceptPrefix")}
             >
-              {agreed && <Feather name="check" size={11} color="#fff" />}
+              {agreed && <Feather name="check" size={11} color={colors.primaryForeground} />}
             </TouchableOpacity>
             <Text
               style={[
@@ -646,6 +616,8 @@ export default function RegisterScreen() {
             onPress={handleSubmit}
             disabled={loading || sendStatus === "success"}
             activeOpacity={0.85}
+            accessibilityRole="button"
+            accessibilityLabel={sendStatus === "error" ? t("retryLabel") : t("authSendVerificationCode")}
           >
             {loading ? (
               <ActivityIndicator size="small" color="#fff" />
@@ -683,8 +655,7 @@ export default function RegisterScreen() {
               </Text>
             </TouchableOpacity>
           </View>
-        </ScrollView>
-      </KeyboardAvoidingView>
+        </KeyboardAwareScrollViewCompat>
     </View>
   );
 }

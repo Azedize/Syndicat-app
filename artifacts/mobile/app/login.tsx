@@ -5,9 +5,6 @@ import { router } from "expo-router";
 import React, { useState } from "react";
 import {
   ActivityIndicator,
-  KeyboardAvoidingView,
-  Platform,
-  ScrollView,
   StyleSheet,
   Text,
   TextInput,
@@ -18,10 +15,13 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 import Svg, { Rect, Path, Defs, LinearGradient as SvgGradient, Stop } from "react-native-svg";
 
 import MizanLogo from "@/components/brand/MizanLogo";
+import MizanFormField from "@/components/MizanFormField";
+import { KeyboardAwareScrollViewCompat } from "@/components/KeyboardAwareScrollViewCompat";
 import { MIZAN } from "@/constants/brand";
 import { useAuth } from "@/context/AuthContext";
 import { useLanguage } from "@/context/LanguageContext";
 import { useTheme } from "@/context/ThemeContext";
+import { useColors } from "@/hooks/useColors";
 
 function LoginBgDecor({ isDark }: { isDark: boolean }) {
   const lineStr = isDark ? "rgba(255,255,255,0.03)" : "rgba(37,99,235,0.04)";
@@ -55,30 +55,31 @@ function LoginBgDecor({ isDark }: { isDark: boolean }) {
 }
 
 const FEATURES = [
-  { icon: "home", label: "Propriétés" },
-  { icon: "users", label: "Assemblées" },
-  { icon: "file-text", label: "Documents" },
-  { icon: "pen-tool", label: "Signatures" },
-  { icon: "dollar-sign", label: "Finance" },
-  { icon: "tool", label: "Maintenance" },
-  { icon: "alert-triangle", label: "Incidents" },
-  { icon: "bell", label: "Alertes" },
+  { icon: "home", key: "authFeatureProperties" },
+  { icon: "users", key: "authFeatureAssemblies" },
+  { icon: "file-text", key: "authFeatureDocuments" },
+  { icon: "pen-tool", key: "authFeatureSignatures" },
+  { icon: "dollar-sign", key: "authFeatureFinance" },
+  { icon: "tool", key: "authFeatureMaintenance" },
+  { icon: "alert-triangle", key: "authFeatureIncidents" },
+  { icon: "bell", key: "authFeatureAlerts" },
 ];
 
 const TRUST = [
-  { icon: "lock", label: "Chiffrement AES-256" },
-  { icon: "shield", label: "Confidentialité CNDP" },
-  { icon: "award", label: "Certifié ISO 27001" },
-  { icon: "activity", label: "Audit continu" },
-  { icon: "eye", label: "Traçabilité totale" },
-  { icon: "file-text", label: "Signature légale" },
+  { icon: "lock", key: "authTrustEncrypted" },
+  { icon: "shield", key: "authTrustPrivacy" },
+  { icon: "award", key: "authTrustCertified" },
+  { icon: "activity", key: "authTrustAudit" },
+  { icon: "eye", key: "authTrustTraceability" },
+  { icon: "file-text", key: "authTrustSignature" },
 ];
 
 export default function LoginScreen() {
   const insets = useSafeAreaInsets();
   const { login } = useAuth();
-  const { t } = useLanguage();
+  const { t, isRTL } = useLanguage();
   const { isDark, toggle } = useTheme();
+  const colors = useColors();
 
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -90,59 +91,65 @@ export default function LoginScreen() {
   const [passFocused, setPassFocused] = useState(false);
 
   const handleLogin = async () => {
-    if (!email.trim()) { setError("E-mail requis"); return; }
-    if (!password) { setError("Mot de passe requis"); return; }
-    if (password.length < 6) { setError("Mot de passe trop court"); return; }
+    if (!email.trim()) { setError(t("emailRequired")); return; }
+    if (!password) { setError(t("passwordRequired")); return; }
+    if (password.length < 6) { setError(t("passwordTooShort")); return; }
     
     setLoading(true);
     setError("");
     try {
       const ok = await login(email, password);
       if (!ok) {
-        setError("Identifiants incorrects");
+        setError(t("invalidCredentials"));
         Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
       } else {
         Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
         router.replace("/(tabs)/" as any);
       }
+    } catch {
+      setError(t("invalidCredentials"));
+      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
     } finally {
       setLoading(false);
     }
   };
 
-  const bgColor = isDark ? "#070D1A" : "#F8FAFF";
-  const fgColor = isDark ? "#FFFFFF" : "#0A1628";
-  const mutedColor = isDark ? "#7A90B0" : "#64748B";
-  const cardColor = isDark ? "#111D32" : "#FFFFFF";
-  const cardBorder = isDark ? "#1E3050" : "#E2E8F0";
-  const inputBg = isDark ? "#0D1929" : "#F1F5F9";
+  const bgColor = colors.background;
+  const fgColor = colors.foreground;
+  const mutedColor = colors.mutedForeground;
+  const cardColor = colors.card;
+  const cardBorder = colors.border;
 
   return (
     <View style={[styles.root, { backgroundColor: bgColor }]}>
       <LoginBgDecor isDark={isDark} />
 
       <View style={[styles.headerControls, { top: insets.top + 14 }]}>
-        <TouchableOpacity onPress={() => router.replace("/welcome")} style={[styles.iconBtn, { backgroundColor: cardColor, borderColor: cardBorder }]}>
-          <Feather name="arrow-left" size={20} color={fgColor} />
+        <TouchableOpacity onPress={() => router.replace("/welcome")} style={[styles.iconBtn, { backgroundColor: cardColor, borderColor: cardBorder }]} accessibilityRole="button" accessibilityLabel={t("back")}>
+          <Feather name={isRTL ? "arrow-right" : "arrow-left"} size={20} color={fgColor} />
         </TouchableOpacity>
-        <TouchableOpacity onPress={toggle} style={[styles.iconBtn, { backgroundColor: cardColor, borderColor: cardBorder }]}>
+        <TouchableOpacity onPress={toggle} style={[styles.iconBtn, { backgroundColor: cardColor, borderColor: cardBorder }]} accessibilityRole="button" accessibilityLabel={isDark ? t("lightMode") : t("darkMode")}>
           <Feather name={isDark ? "sun" : "moon"} size={20} color={fgColor} />
         </TouchableOpacity>
       </View>
 
-      <KeyboardAvoidingView style={styles.kav} behavior={Platform.OS === "ios" ? "padding" : "height"} keyboardVerticalOffset={Platform.OS === "ios" ? 0 : 24}>
-        <ScrollView contentContainerStyle={[styles.scroll, { paddingTop: insets.top + 80, paddingBottom: insets.bottom + 40 }]} showsVerticalScrollIndicator={false}>
+      <KeyboardAwareScrollViewCompat
+        style={styles.kav}
+        contentContainerStyle={[styles.scroll, { paddingTop: insets.top + 80, paddingBottom: insets.bottom + 40 }]}
+        showsVerticalScrollIndicator={false}
+        bottomOffset={24}
+      >
           
           <View style={styles.brandArea}>
             <MizanLogo variant="full" colorScheme={isDark ? "dark" : "light"} size={72} showTagline={false} />
-            <Text style={[styles.appTagline, { color: mutedColor }]}>{MIZAN.taglineShort}</Text>
+            <Text style={[styles.appTagline, { color: mutedColor }]}>{t("authPlatformTagline")}</Text>
           </View>
 
           <View style={styles.featuresGrid}>
             {FEATURES.map(f => (
-              <View key={f.label} style={[styles.featureTile, { backgroundColor: isDark ? "rgba(255,255,255,0.03)" : "rgba(37,99,235,0.03)", borderColor: cardBorder }]}>
-                <Feather name={f.icon as any} size={16} color="#3B82F6" />
-                <Text style={[styles.featureLabel, { color: fgColor }]}>{f.label}</Text>
+              <View key={f.key} style={[styles.featureTile, { backgroundColor: colors.primary + "08", borderColor: cardBorder }]}>
+                <Feather name={f.icon as any} size={16} color={colors.primary} />
+                <Text style={[styles.featureLabel, { color: fgColor }]}>{t(f.key)}</Text>
               </View>
             ))}
           </View>
@@ -151,67 +158,65 @@ export default function LoginScreen() {
             <View style={styles.cardAccent} />
             <View style={styles.cardBody}>
               <View style={styles.cardHead}>
-                <Text style={[styles.welcomeTitle, { color: fgColor }]}>Bon retour</Text>
-                <Text style={[styles.welcomeSub, { color: mutedColor }]}>Espace de travail sécurisé</Text>
+                <Text style={[styles.welcomeTitle, { color: fgColor }]}>{t("authWelcomeBack")}</Text>
+                <Text style={[styles.welcomeSub, { color: mutedColor }]}>{t("authSecureWorkspace")}</Text>
               </View>
 
               <View style={[styles.divider, { backgroundColor: cardBorder }]} />
 
-              <View style={styles.field}>
-                <Text style={[styles.fieldLabel, { color: fgColor }]}>E-mail professionnel</Text>
-                <View style={[styles.inputRow, { backgroundColor: inputBg, borderColor: emailFocused ? "#2563EB" : cardBorder }]}>
-                  <Feather name="mail" size={18} color={emailFocused ? "#2563EB" : mutedColor} />
-                  <TextInput
+              <MizanFormField label={t("email")} icon="mail" focused={emailFocused} error={error && !email.trim() ? error : undefined}>
+                <TextInput
                     style={[styles.input, { color: fgColor }]}
                     value={email} onChangeText={(v) => { setEmail(v); setError(""); }}
                     keyboardType="email-address" autoCapitalize="none"
-                    placeholder="syndic@residence.ma" placeholderTextColor={mutedColor}
+                    placeholder={t("emailPlaceholder")} placeholderTextColor={mutedColor}
                     onFocus={() => setEmailFocused(true)} onBlur={() => setEmailFocused(false)}
+                    returnKeyType="next"
+                    accessibilityLabel={t("email")}
                   />
-                </View>
-              </View>
+              </MizanFormField>
 
-              <View style={styles.field}>
-                <Text style={[styles.fieldLabel, { color: fgColor }]}>Mot de passe</Text>
-                <View style={[styles.inputRow, { backgroundColor: inputBg, borderColor: passFocused ? "#2563EB" : cardBorder }]}>
-                  <Feather name="lock" size={18} color={passFocused ? "#2563EB" : mutedColor} />
-                  <TextInput
+              <MizanFormField label={t("password")} icon="lock" focused={passFocused} error={error && !password ? error : undefined} trailing={
+                <TouchableOpacity onPress={() => setShowPassword(!showPassword)} accessibilityRole="button" accessibilityLabel={showPassword ? t("hidePassword") : t("showPassword")}>
+                  <Feather name={showPassword ? "eye-off" : "eye"} size={18} color={mutedColor} />
+                </TouchableOpacity>
+              }>
+                <TextInput
                     style={[styles.input, { color: fgColor }]}
                     value={password} onChangeText={(v) => { setPassword(v); setError(""); }}
-                    secureTextEntry={!showPassword} placeholder="••••••••" placeholderTextColor={mutedColor}
+                    secureTextEntry={!showPassword} placeholder={t("passwordPlaceholder")} placeholderTextColor={mutedColor}
                     onFocus={() => setPassFocused(true)} onBlur={() => setPassFocused(false)}
+                    returnKeyType="done"
+                    onSubmitEditing={handleLogin}
+                    accessibilityLabel={t("password")}
                   />
-                  <TouchableOpacity onPress={() => setShowPassword(!showPassword)}>
-                    <Feather name={showPassword ? "eye-off" : "eye"} size={18} color={mutedColor} />
-                  </TouchableOpacity>
-                </View>
-              </View>
+              </MizanFormField>
 
-              <View style={styles.optionsRow}>
-                <TouchableOpacity style={styles.rememberRow} onPress={() => setRememberMe(!rememberMe)}>
-                  <View style={[styles.checkbox, { borderColor: rememberMe ? "#2563EB" : cardBorder, backgroundColor: rememberMe ? "#2563EB" : "transparent" }]}>
-                    {rememberMe && <Feather name="check" size={12} color="#FFF" />}
+              <View style={[styles.optionsRow, { flexDirection: isRTL ? "row-reverse" : "row" }]}>
+                <TouchableOpacity style={[styles.rememberRow, { flexDirection: isRTL ? "row-reverse" : "row" }]} onPress={() => setRememberMe(!rememberMe)} accessibilityRole="checkbox" accessibilityState={{ checked: rememberMe }}>
+                  <View style={[styles.checkbox, { borderColor: rememberMe ? colors.primary : cardBorder, backgroundColor: rememberMe ? colors.primary : "transparent" }]}>
+                    {rememberMe && <Feather name="check" size={12} color={colors.primaryForeground} />}
                   </View>
-                  <Text style={[styles.rememberLabel, { color: mutedColor }]}>Se souvenir de moi</Text>
+                  <Text style={[styles.rememberLabel, { color: mutedColor, textAlign: isRTL ? "right" : "left" }]}>{t("authRememberMe")}</Text>
                 </TouchableOpacity>
                 <TouchableOpacity style={styles.forgotButton} onPress={() => router.push("/forgot-password")}>
-                  <Text style={styles.forgotLink}>Mot de passe oublié</Text>
+                  <Text style={[styles.forgotLink, { color: colors.primary, textAlign: isRTL ? "left" : "right" }]}>{t("forgotPassword")}</Text>
                 </TouchableOpacity>
               </View>
 
               {!!error && (
-                <View style={[styles.errorBox, { backgroundColor: isDark ? "rgba(248,113,113,0.1)" : "#FEF2F2", borderColor: isDark ? "rgba(248,113,113,0.3)" : "#FECACA" }]}>
-                  <Feather name="alert-circle" size={16} color="#DC2626" />
-                  <Text style={styles.errorText}>{error}</Text>
+                <View style={[styles.errorBox, { backgroundColor: colors.destructive + "12", borderColor: colors.destructive + "40", flexDirection: isRTL ? "row-reverse" : "row" }]}>
+                  <Feather name="alert-circle" size={16} color={colors.destructive} />
+                  <Text style={[styles.errorText, { color: colors.destructive, textAlign: isRTL ? "right" : "left" }]}>{error}</Text>
                 </View>
               )}
 
-              <TouchableOpacity onPress={handleLogin} disabled={loading} style={styles.ctaOuter}>
-                <LinearGradient colors={["#3B82F6", "#1D4ED8"]} style={styles.ctaGradient} start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }}>
-                  {loading ? <ActivityIndicator color="#FFF" /> : (
+              <TouchableOpacity onPress={handleLogin} disabled={loading} style={[styles.ctaOuter, { shadowColor: colors.primary }]} accessibilityRole="button" accessibilityLabel={t("connect")}>
+                <LinearGradient colors={[colors.primary, colors.secondaryForeground]} style={styles.ctaGradient} start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }}>
+                  {loading ? <ActivityIndicator color={colors.primaryForeground} /> : (
                     <>
-                      <Text style={styles.ctaLabel}>Se connecter</Text>
-                      <Feather name="arrow-right" size={18} color="#FFF" />
+                      <Text style={[styles.ctaLabel, { color: colors.primaryForeground }]}>{t("connect")}</Text>
+                      <Feather name={isRTL ? "arrow-left" : "arrow-right"} size={18} color={colors.primaryForeground} />
                     </>
                   )}
                 </LinearGradient>
@@ -221,16 +226,15 @@ export default function LoginScreen() {
 
           <View style={styles.trustGrid}>
             {TRUST.map(item => (
-              <View key={item.label} style={styles.trustItem}>
-                <Feather name={item.icon as any} size={14} color="#3B82F6" />
-                <Text style={[styles.trustLabel, { color: mutedColor }]}>{item.label}</Text>
+              <View key={item.key} style={styles.trustItem}>
+                <Feather name={item.icon as any} size={14} color={colors.primary} />
+                <Text style={[styles.trustLabel, { color: mutedColor }]}>{t(item.key)}</Text>
               </View>
             ))}
           </View>
           
-           <Text style={[styles.footer, { color: mutedColor }]}>{MIZAN.name} • Enterprise platform</Text>
-        </ScrollView>
-      </KeyboardAvoidingView>
+           <Text style={[styles.footer, { color: mutedColor }]}>{MIZAN.name} • {t("authEnterprisePlatform")}</Text>
+      </KeyboardAwareScrollViewCompat>
     </View>
   );
 }
@@ -257,9 +261,6 @@ const styles = StyleSheet.create({
   welcomeSub: { fontSize: 15, fontFamily: "Inter_400Regular" },
   divider: { height: 1, marginHorizontal: -24 },
 
-  field: { gap: 8 },
-  fieldLabel: { fontSize: 14, fontFamily: "Inter_600SemiBold" },
-  inputRow: { flexDirection: "row", alignItems: "center", borderWidth: 1.5, borderRadius: 16, paddingHorizontal: 16, paddingVertical: Platform.OS === "ios" ? 16 : 12, gap: 12 },
   input: { flex: 1, fontSize: 16, fontFamily: "Inter_400Regular" },
 
   optionsRow: { flexDirection: "row", alignItems: "center" },
@@ -267,10 +268,10 @@ const styles = StyleSheet.create({
   checkbox: { width: 20, height: 20, borderRadius: 6, borderWidth: 1.5, alignItems: "center", justifyContent: "center" },
   rememberLabel: { fontSize: 12, fontFamily: "Inter_500Medium", flexShrink: 1 },
   forgotButton: { marginLeft: 12, flexShrink: 0, alignItems: "flex-end" },
-  forgotLink: { fontSize: 12, fontFamily: "Inter_600SemiBold", color: "#2563EB", textAlign: "right" },
+  forgotLink: { fontSize: 12, fontFamily: "Inter_600SemiBold" },
 
-  errorBox: { flexDirection: "row", alignItems: "center", gap: 8, borderWidth: 1, borderRadius: 12, padding: 12 },
-  errorText: { flex: 1, fontSize: 14, fontFamily: "Inter_500Medium", color: "#DC2626" },
+  errorBox: { alignItems: "center", gap: 8, borderWidth: 1, borderRadius: 12, padding: 12 },
+  errorText: { flex: 1, fontSize: 14, fontFamily: "Inter_500Medium" },
 
   ctaOuter: { borderRadius: 16, overflow: "hidden", shadowColor: "#2563EB", shadowOffset: { width: 0, height: 6 }, shadowOpacity: 0.4, shadowRadius: 16, elevation: 8, marginTop: 4 },
   ctaGradient: { paddingVertical: 18, alignItems: "center", justifyContent: "center", flexDirection: "row", gap: 10 },

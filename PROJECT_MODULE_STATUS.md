@@ -108,3 +108,9 @@
 - Mobile verification: zero-error typecheck, Prettier, diff validation, healthy Expo/API workflows, and compact public preview pass after the shared-primitives consolidation.
 - Design System / MIZAN Phase 3 navigation/dashboard follow-through: SidebarNav and FilterTabs now use runtime translations, active theme colors, shared layout tokens, and Arabic RTL mirroring; the role-aware dashboard now uses semantic theme accents for header actions, election/banner affordances, and KPI status colors.
 - Mobile verification: zero-error typecheck, Prettier, diff validation, healthy workflows, and compact public preview pass after the navigation/dashboard consolidation.
+- Design System / MIZAN Phase 3 form foundation: shared MizanFormField and the login adoption are complete, including theme-aware focus/error states, RTL alignment, accessible controls, localized auth copy, and keyboard-aware form scrolling.
+- Mobile verification: zero-error typecheck and clean diff validation pass; Expo/API workflows remain healthy and the protected authentication contract is unchanged.
+- Registration / Account Creation: shared MIZAN form shell, keyboard-aware multi-field navigation, RTL-aware consent/back controls, accessible password visibility actions, and preserved email OTP handoff complete.
+- Mobile verification: zero-error typecheck, clean diff validation, healthy Expo/API workflows, and compact registration preview pass.
+- Password Recovery: forgot-password and reset-password screens now use the shared MIZAN form shell, semantic state colors, RTL-aware navigation, field-level validation, accessible password visibility controls, and localized recovery actions.
+- Mobile verification: zero-error typecheck, Prettier, clean diff validation, healthy workflows, and compact protected previews for both recovery routes pass.
