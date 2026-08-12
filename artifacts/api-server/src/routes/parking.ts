@@ -13,7 +13,7 @@ import {
   membersTable,
 } from "@workspace/db/schema";
 import { eq, and, desc, inArray, or, lte, gte } from "drizzle-orm";
-import { requireAuth, requireAdmin } from "../middleware/auth.js";
+import { isSyndicateTeamRole, requireAuth, requireAdmin } from "../middleware/auth.js";
 import type { JwtPayload } from "../middleware/auth.js";
 import { createAlert, sendPushToUsers } from "../lib/notify.js";
 import { getUserBuildingIds } from "../lib/scope.js";
@@ -25,7 +25,10 @@ const router = Router();
 /** Returns the set of building IDs the authenticated user is allowed to act on. */
 async function getScopedBuildingIds(user: JwtPayload): Promise<string[]> {
   if (user.role === "super_admin") return []; // empty = "all"
-  if (user.role === "syndicate_admin" && user.syndicateId) {
+  if (isSyndicateTeamRole(user.role)) {
+    if (!user.syndicateId) {
+      throw Object.assign(new Error("Syndicat non défini dans le token"), { status: 403 });
+    }
     const bldgs = await db
       .select({ id: buildingsTable.id })
       .from(buildingsTable)
@@ -47,6 +50,20 @@ async function assertBuildingAccess(user: JwtPayload, buildingId: string): Promi
     const err: any = new Error("Accès refusé à cet immeuble");
     err.status = 403;
     throw err;
+  }
+}
+
+async function assertLotMatchesBuilding(lotId: string, buildingId: string): Promise<void> {
+  const [lot] = await db
+    .select({ buildingId: lotsTable.buildingId })
+    .from(lotsTable)
+    .where(eq(lotsTable.id, lotId))
+    .limit(1);
+  if (!lot) {
+    throw Object.assign(new Error("Lot introuvable"), { status: 400 });
+  }
+  if (lot.buildingId !== buildingId) {
+    throw Object.assign(new Error("Le lot n'appartient pas à cet immeuble"), { status: 400 });
   }
 }
 
@@ -180,6 +197,9 @@ router.post("/parking/spots", requireAdmin, async (req, res) => {
     const user = req.user!;
     // Syndicate admins may only manage their own buildings
     await assertBuildingAccess(user, parsed.data.buildingId);
+    if (parsed.data.lotId) {
+      await assertLotMatchesBuilding(parsed.data.lotId, parsed.data.buildingId);
+    }
 
     const [spot] = await db
       .insert(parkingSpotsTable)
@@ -215,6 +235,9 @@ router.put("/parking/spots/:id", requireAdmin, async (req, res) => {
     await assertBuildingAccess(user, existing.buildingId);
 
     const { lotId, status, notes, floor } = req.body as Record<string, string>;
+    if (lotId) {
+      await assertLotMatchesBuilding(lotId, existing.buildingId);
+    }
     const [spot] = await db
       .update(parkingSpotsTable)
       .set({
@@ -240,15 +263,18 @@ router.put("/parking/spots/:id", requireAdmin, async (req, res) => {
 router.get("/parking/vehicles", requireAuth, async (req, res) => {
   try {
     const user = req.user!;
+    if (isSyndicateTeamRole(user.role) && !user.syndicateId) {
+      return void res.status(403).json({ error: "Syndicat non défini dans le token" });
+    }
     const conditions: any[] = [];
 
     if (user.role === "member" || user.role === "tenant") {
       conditions.push(eq(vehiclesTable.userId, user.userId));
-    } else if (user.role === "syndicate_admin" && user.syndicateId) {
+    } else if (isSyndicateTeamRole(user.role)) {
       const users = await db
         .select({ id: usersTable.id })
         .from(usersTable)
-        .where(eq(usersTable.syndicateId, user.syndicateId));
+        .where(eq(usersTable.syndicateId, user.syndicateId!));
       const ids = users.map((u) => u.id);
       if (ids.length === 0) return void res.json({ data: [], total: 0 });
       conditions.push(inArray(vehiclesTable.userId, ids));
@@ -305,6 +331,34 @@ router.post("/parking/vehicles", requireAuth, async (req, res) => {
   }
   try {
     const user = req.user!;
+    if (parsed.data.lotId) {
+      const [lot] = await db
+        .select({ id: lotsTable.id, buildingId: lotsTable.buildingId, ownerId: lotsTable.ownerId, tenantId: lotsTable.tenantId })
+        .from(lotsTable)
+        .where(eq(lotsTable.id, parsed.data.lotId))
+        .limit(1);
+      if (!lot) return void res.status(400).json({ error: "Lot introuvable" });
+      await assertBuildingAccess(user, lot.buildingId);
+      if (user.role === "member") {
+        const [member] = await db
+          .select({ id: membersTable.id })
+          .from(membersTable)
+          .where(eq(membersTable.email, user.email))
+          .limit(1);
+        if (![user.userId, member?.id].includes(lot.ownerId ?? "")) {
+          return void res.status(403).json({ error: "Ce lot n'est pas rattaché à votre compte" });
+        }
+      } else if (user.role === "tenant") {
+        const [tenant] = await db
+          .select({ id: tenantsTable.id })
+          .from(tenantsTable)
+          .where(or(eq(tenantsTable.id, user.userId), eq(tenantsTable.email, user.email)))
+          .limit(1);
+        if (lot.tenantId !== tenant?.id) {
+          return void res.status(403).json({ error: "Ce lot n'est pas rattaché à votre compte" });
+        }
+      }
+    }
     const [vehicle] = await db
       .insert(vehiclesTable)
       .values({
@@ -332,6 +386,9 @@ router.post("/parking/vehicles", requireAuth, async (req, res) => {
 router.delete("/parking/vehicles/:id", requireAuth, async (req, res) => {
   try {
     const user = req.user!;
+    if (isSyndicateTeamRole(user.role) && !user.syndicateId) {
+      return void res.status(403).json({ error: "Syndicat non défini dans le token" });
+    }
     const [vehicle] = await db
       .select()
       .from(vehiclesTable)
@@ -540,8 +597,29 @@ router.get("/parking/reservations", requireAuth, async (req, res) => {
 
     if (user.role === "member" || user.role === "tenant") {
       conditions.push(eq(visitorParkingReservationsTable.requestedById, user.userId));
+    } else if (user.role !== "super_admin") {
+      const buildingIds = await getScopedBuildingIds(user);
+      if (buildingIds.length === 0) return void res.json({ data: [], total: 0 });
+      const scopedSpots = await db
+        .select({ id: parkingSpotsTable.id })
+        .from(parkingSpotsTable)
+        .where(inArray(parkingSpotsTable.buildingId, buildingIds));
+      const spotIds = scopedSpots.map((s) => s.id);
+      if (spotIds.length === 0) return void res.json({ data: [], total: 0 });
+      conditions.push(inArray(visitorParkingReservationsTable.spotId, spotIds));
     }
-    if (spotId) conditions.push(eq(visitorParkingReservationsTable.spotId, spotId));
+    if (spotId) {
+      await assertBuildingAccess(
+        user,
+        (await db
+          .select({ buildingId: parkingSpotsTable.buildingId })
+          .from(parkingSpotsTable)
+          .where(eq(parkingSpotsTable.id, spotId))
+          .limit(1)
+          .then(([spot]) => spot?.buildingId ?? "")),
+      );
+      conditions.push(eq(visitorParkingReservationsTable.spotId, spotId));
+    }
     if (status) conditions.push(eq(visitorParkingReservationsTable.status, status));
 
     const reservations = await db
@@ -566,7 +644,8 @@ router.get("/parking/reservations", requireAuth, async (req, res) => {
     }));
 
     res.json({ data: enriched, total: enriched.length });
-  } catch (e) {
+  } catch (e: any) {
+    if (e?.status) return void res.status(e.status).json({ error: e.message });
     console.error(e);
     res.status(500).json({ error: "Erreur serveur" });
   }
@@ -666,6 +745,9 @@ router.post("/parking/reservations", requireAuth, async (req, res) => {
 router.delete("/parking/reservations/:id", requireAuth, async (req, res) => {
   try {
     const user = req.user!;
+    if (isSyndicateTeamRole(user.role) && !user.syndicateId) {
+      return void res.status(403).json({ error: "Syndicat non défini dans le token" });
+    }
     const [reservation] = await db
       .select()
       .from(visitorParkingReservationsTable)

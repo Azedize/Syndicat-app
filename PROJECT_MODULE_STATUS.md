@@ -3,6 +3,11 @@
 - Mon Bail & Loyer — formatage des dates et montants MAD selon la langue active terminé ; navigation et présentation RTL adaptées, API locataire et RoleGuard conservés.
 # Project Module Status
 
+## 2026-08-11
+
+- Tenant isolation audit continuation: Locataires, Sinistres, Travaux, Prestataires, and Marketplace server boundaries hardened with JWT syndicate scope and row/building-level validation.
+- API typecheck and managed workflow restart passed; adjacent route authorization audit remains in progress.
+
 ## 2026-08-06
 
 - Elections: multilingual lifecycle actions, vote/candidacy feedback, safe mutation errors, guided loading/unavailable states, and upload recovery complete.
@@ -120,3 +125,4 @@
 - Settings & Notifications persistence: global push, email, and in-app controls now use server-backed category preferences with synchronized loading, retryable unavailable states, optimistic saves, and rollback on failure; unsupported security toggles are explicitly non-configured rather than simulated.
 - Mobile verification: zero-error typecheck, Prettier, diff validation, and Expo workflow restart pass after the notification-preference follow-through.
 - Stripe Billing Infrastructure: webhook payment finalization export and current Stripe SDK subscription/invoice field mapping corrected; API startup and build verification complete.
+- Buildings & Parking Authorization: management roles use JWT syndicate isolation; resident building access derives from linked lots/tenancies; parking spot, reservation, vehicle, violation, and lot/building relationships are validated server-side.

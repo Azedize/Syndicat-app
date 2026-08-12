@@ -8,6 +8,15 @@
 - 2026-08-06 — Governance follow-through verification: `pnpm --filter @workspace/mobile run typecheck` passed with zero errors; `git diff --check` passed; Expo workflow restarted successfully with Metro waiting and no new runtime exceptions.
 # Project Test Log
 
+## 2026-08-11
+
+- `pnpm --filter @workspace/api-server run typecheck` — passed after tenant, incident, works, provider, and marketplace authorization changes.
+- `git diff --check` — passed for the complete security-hardening diff.
+- Restarted `artifacts/api-server: API Server`; build completed, server listened on port 8080, subscription/document schedulers started, and SMTP verification completed without new errors.
+- `pnpm --filter @workspace/api-server run typecheck` — passed after buildings and parking authorization hardening.
+- `git diff --check` — passed after the buildings/parking isolation batch.
+- Restarted `artifacts/api-server: API Server`; production build, port 8080 startup, SMTP verification, subscription reminder scheduler, and document retention/expiry scans completed without new errors.
+
 ## 2026-08-07
 
 - Home Dashboard UX verification: `pnpm --filter @workspace/mobile run typecheck` passed with zero errors.

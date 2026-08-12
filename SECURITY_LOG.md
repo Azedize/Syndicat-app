@@ -6,6 +6,13 @@
 - Ma Boutique changes preserve the existing authenticated marketplace API, seller CRUD permissions, upload authorization, destructive confirmations, and promotion proof-of-payment flow; raw API errors are not exposed.
 # Security Log
 
+## 2026-08-11
+
+- Hardened `locataires` and `sinistres` against cross-syndicate ID enumeration and resident cross-building access; related building/lot ownership is checked before create, update, or delete.
+- Hardened `travaux` and `prestataires`: all syndicate management roles require JWT syndicate scope, works lists are syndicate-filtered, residents cannot assign providers, and provider/lot relationships are checked against the target building.
+- Marketplace listing creation now rejects non-platform users without a JWT syndicate scope; existing seller ownership and Super Admin moderation boundaries remain unchanged.
+- Verification: API typecheck, diff check, managed workflow restart, server startup, scheduler startup, and SMTP verification passed.
+
 ## 2026-08-06
 
 - List-loading error surfaces on workflows and works no longer expose raw API error details to end users; recovery uses localized guidance and an explicit retry action.
@@ -37,3 +44,5 @@
 - Financial Reports presentation changes preserve the existing role guard and statistics endpoint scope; only display formatting changed, with no additional financial data exposure.
 - Support RTL/localization changes preserve authenticated member/tenant/syndicate-admin access, syndicate-scoped retrieval, escalation authorization, and mutation boundaries; no data scope changed.
 - Stripe webhook payment finalization remains transaction-backed and idempotent; the SDK compatibility update changes field mapping only and does not weaken signature verification, payment-state checks, or subscription ownership persistence.
+- Buildings detail/list/create/update now fail closed for management users without JWT `syndicateId`, enforce row-level syndicate matching, and restrict resident building visibility to linked buildings.
+- Parking spot, violation, reservation, and availability routes enforce building scope; spot lot assignment validates lot/building consistency; reservation listing is scoped by spot building; vehicle management no longer exposes cross-syndicate rows through role fallthrough.

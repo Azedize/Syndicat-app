@@ -3,6 +3,12 @@
 - 2026-08-10 — Mon Bail & Loyer : dates du bail, dépôt et loyer mensuel alignés sur le locale actif avec formatage MAD à deux décimales ; en-têtes et retour adaptés à l’arabe RTL.
 # Project Progress
 
+## 2026-08-11 — Server-side tenant-isolation hardening continuation
+
+- Hardened tenant and incident routes with JWT syndicate scope, row-level syndicate checks, building/lot consistency validation, and resident building ownership checks.
+- Extended the same boundary to works, providers, and marketplace listing creation: management roles now require syndicate scope, resident work requests cannot assign providers, and provider/lot assignments must match the target building and syndicate.
+- API verification passed with `pnpm --filter @workspace/api-server run typecheck` and `git diff --check`; the managed API workflow restarted successfully and is listening on port 8080.
+
 ## 2026-08-07 — Home Dashboard Superstar UX Pass
 
 - Reworked the role-aware home dashboard hierarchy without changing API contracts or permissions.
@@ -245,3 +251,5 @@
 - Mobile typecheck, Prettier, diff validation, Expo restart, and fresh workflow logs passed; only existing Expo package-version and web compatibility warnings remain.
 - Fixed the API production startup blocker in the Stripe webhook adapter: exported the shared payment finalizer and updated subscription/invoice field access for the installed Stripe SDK types.
 - API verification passed: standalone typecheck, production build, diff validation, managed workflow restart, server startup, SMTP verification, and scheduled retention/expiry scans completed successfully.
+- Continued the server-side authorization audit on buildings and parking: management access now requires JWT syndicate scope, residents are limited to linked buildings, and parking reservations, vehicles, spots, and lots are checked against their building scope.
+- API typecheck, diff validation, production build, managed workflow restart, server startup, SMTP verification, and scheduled scans passed after the buildings/parking isolation batch.

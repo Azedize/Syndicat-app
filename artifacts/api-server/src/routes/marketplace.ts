@@ -351,6 +351,10 @@ router.post("/products", requireAuth, async (req, res) => {
   try {
     const user = req.user!;
     const adminUser = isAdmin(user.role);
+    if (!adminUser && !user.syndicateId) {
+      res.status(403).json({ error: "Syndicat non défini dans le token" });
+      return;
+    }
 
     // Auto-scan for prohibited content
     const scan = autoScan(result.data.name, result.data.description);

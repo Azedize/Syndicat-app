@@ -8,8 +8,9 @@ import {
   sinistresTable,
 } from "@workspace/db/schema";
 import { eq, and, sql, desc, count, inArray } from "drizzle-orm";
-import { requireAuth, requireOperationalAccess } from "../middleware/auth.js";
+import { isSyndicateTeamRole, requireAuth, requireOperationalAccess } from "../middleware/auth.js";
 import { serverAuditLog } from "../lib/audit.js";
+import { getUserBuildingIds } from "../lib/scope.js";
 
 const router = Router();
 
@@ -19,6 +20,16 @@ router.get("/buildings", requireAuth, async (req, res) => {
   try {
     const user = req.user!;
     const isSuperAdmin = user.role === "super_admin";
+    if (isSyndicateTeamRole(user.role) && !user.syndicateId) {
+      return void res.status(403).json({ error: "Syndicat non défini dans le token" });
+    }
+
+    const scopedBuildingIds = !isSuperAdmin && !isSyndicateTeamRole(user.role)
+      ? await getUserBuildingIds(user)
+      : [];
+    if (!isSuperAdmin && !isSyndicateTeamRole(user.role) && scopedBuildingIds.length === 0) {
+      return void res.json({ data: [], total: 0 });
+    }
 
     const rows = await db
       .select()
@@ -26,7 +37,9 @@ router.get("/buildings", requireAuth, async (req, res) => {
       .where(
         isSuperAdmin
           ? undefined
-          : eq(buildingsTable.syndicateId, user.syndicateId ?? "")
+          : isSyndicateTeamRole(user.role)
+            ? eq(buildingsTable.syndicateId, user.syndicateId!)
+            : inArray(buildingsTable.id, scopedBuildingIds)
       )
       .orderBy(desc(buildingsTable.createdAt));
 
@@ -91,10 +104,22 @@ router.get("/buildings/:id", requireAuth, async (req, res) => {
 
     if (!building) return void res.status(404).json({ error: "Building not found" });
 
-    // Syndicate isolation for non-super_admin
+    // Enforce both syndicate isolation and resident personal-building scope.
     const user = req.user!;
-    if (user.role !== "super_admin" && building.syndicateId && building.syndicateId !== user.syndicateId) {
-      return void res.status(403).json({ error: "Accès refusé" });
+    if (user.role !== "super_admin") {
+      if (isSyndicateTeamRole(user.role) && !user.syndicateId) {
+        return void res.status(403).json({ error: "Syndicat non défini dans le token" });
+      }
+      if (isSyndicateTeamRole(user.role)) {
+        if (building.syndicateId !== user.syndicateId) {
+          return void res.status(403).json({ error: "Accès refusé" });
+        }
+      } else {
+        const allowedBuildingIds = await getUserBuildingIds(user);
+        if (!allowedBuildingIds.includes(building.id)) {
+          return void res.status(403).json({ error: "Accès refusé" });
+        }
+      }
     }
 
     const [lots, travaux, sinistres, [chargeStats]] = await Promise.all([
@@ -139,6 +164,9 @@ router.get("/buildings/:id", requireAuth, async (req, res) => {
 router.post("/buildings", requireAuth, requireOperationalAccess, async (req, res) => {
   try {
     const user = req.user!;
+    if (isSyndicateTeamRole(user.role) && !user.syndicateId) {
+      return void res.status(403).json({ error: "Syndicat non défini dans le token" });
+    }
     const {
       name, address, city, type, totalFloors, totalLots,
       constructionYear, bankAccount, registrationNumber, description,
@@ -193,8 +221,11 @@ router.post("/buildings", requireAuth, requireOperationalAccess, async (req, res
 router.put("/buildings/:id", requireAuth, requireOperationalAccess, async (req, res) => {
   try {
     const user = req.user!;
+    if (isSyndicateTeamRole(user.role) && !user.syndicateId) {
+      return void res.status(403).json({ error: "Syndicat non défini dans le token" });
+    }
 
-    // Syndicate isolation for syndicate_admin
+    // Syndicate isolation for every syndicate management role
     const [existing] = await db
       .select({ syndicateId: buildingsTable.syndicateId })
       .from(buildingsTable)
@@ -202,8 +233,11 @@ router.put("/buildings/:id", requireAuth, requireOperationalAccess, async (req, 
 
     if (!existing) return void res.status(404).json({ error: "Building not found" });
 
-    if (user.role === "syndicate_admin" && existing.syndicateId !== user.syndicateId) {
-      return void res.status(403).json({ error: "Accès refusé" });
+    if (isSyndicateTeamRole(user.role)) {
+      if (!user.syndicateId) return void res.status(403).json({ error: "Syndicat non défini dans le token" });
+      if (existing.syndicateId !== user.syndicateId) {
+        return void res.status(403).json({ error: "Accès refusé" });
+      }
     }
 
     const allowed = [

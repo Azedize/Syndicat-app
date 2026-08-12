@@ -9,12 +9,52 @@ import {
   transactionsTable,
 } from "@workspace/db/schema";
 import { eq, and, desc, inArray, sql } from "drizzle-orm";
-import { requireAuth, requireAdmin } from "../middleware/auth.js";
+import { isSyndicateTeamRole, requireAuth, requireAdmin } from "../middleware/auth.js";
 import { createAlert } from "../lib/notify.js";
 import { serverAuditLog } from "../lib/audit.js";
 import { getUserBuildingIds, assertUserCanAccessBuilding } from "../lib/scope.js";
 
 const router = Router();
+
+async function assertPrestataireMatchesBuilding(
+  prestataireId: string,
+  buildingId: string,
+): Promise<void> {
+  const [[prestataire], [building]] = await Promise.all([
+    db
+      .select({
+        buildingId: prestatairesTable.buildingId,
+        syndicateId: prestatairesTable.syndicateId,
+      })
+      .from(prestatairesTable)
+      .where(eq(prestatairesTable.id, prestataireId))
+      .limit(1),
+    db
+      .select({ syndicateId: buildingsTable.syndicateId })
+      .from(buildingsTable)
+      .where(eq(buildingsTable.id, buildingId))
+      .limit(1),
+  ]);
+
+  if (!building) {
+    throw Object.assign(new Error("Immeuble introuvable"), { status: 400 });
+  }
+  if (!prestataire) {
+    throw Object.assign(new Error("Prestataire introuvable"), { status: 400 });
+  }
+  if (prestataire.buildingId && prestataire.buildingId !== buildingId) {
+    throw Object.assign(
+      new Error("Le prestataire ne correspond pas à l'immeuble sélectionné"),
+      { status: 400 },
+    );
+  }
+  if (prestataire.syndicateId && prestataire.syndicateId !== building.syndicateId) {
+    throw Object.assign(
+      new Error("Le prestataire n'appartient pas au syndicat de l'immeuble"),
+      { status: 400 },
+    );
+  }
+}
 
 // GET /travaux — List work orders (no N+1: batch joins)
 router.get("/travaux", requireAuth, async (req, res) => {
@@ -33,7 +73,10 @@ router.get("/travaux", requireAuth, async (req, res) => {
         return void res.status(403).json({ error: "Accès refusé à cet immeuble" });
       }
       conditions.push(eq(travauxTable.buildingId, buildingId));
-    } else if (user.role === "syndicate_admin" && user.syndicateId) {
+    } else if (isSyndicateTeamRole(user.role)) {
+      if (!user.syndicateId) {
+        return void res.status(403).json({ error: "Syndicat non défini dans le token" });
+      }
       // Scope to buildings belonging to this syndicate
       const buildingsInSyndicate = await db
         .select({ id: buildingsTable.id })
@@ -160,11 +203,35 @@ router.post("/travaux", requireAuth, async (req, res) => {
     const user = (req as any).user;
     const { title, description, type, priority, buildingId, lotId, prestataireId, estimatedAmount, startDate, endDate, notes } = parsed.data;
 
+    if (prestataireId && !isSyndicateTeamRole(user.role) && user.role !== "super_admin") {
+      return void res.status(403).json({ error: "Seule l'équipe de gestion peut affecter un prestataire" });
+    }
+
     // Scope check: verify the caller is allowed to create a work order for this building
     try {
       await assertUserCanAccessBuilding(user, buildingId);
     } catch {
       return void res.status(403).json({ error: "Accès refusé à cet immeuble" });
+    }
+
+    if (lotId) {
+      const [lot] = await db
+        .select({ buildingId: lotsTable.buildingId })
+        .from(lotsTable)
+        .where(eq(lotsTable.id, lotId))
+        .limit(1);
+      if (!lot) return void res.status(400).json({ error: "Lot introuvable" });
+      if (lot.buildingId !== buildingId) {
+        return void res.status(400).json({ error: "Le lot ne correspond pas à l'immeuble sélectionné" });
+      }
+    }
+
+    if (prestataireId) {
+      try {
+        await assertPrestataireMatchesBuilding(prestataireId, buildingId);
+      } catch (error: any) {
+        return void res.status(error.status ?? 400).json({ error: error.message });
+      }
     }
 
     const [travail] = await db
@@ -228,6 +295,11 @@ router.post("/travaux/:id/assign", requireAuth, requireAdmin, async (req, res) =
     const [travail] = await db.select().from(travauxTable).where(eq(travauxTable.id, String(String(req.params.id))));
     if (!travail) return void res.status(404).json({ error: "Not found" });
     try { await assertUserCanAccessBuilding(user, travail.buildingId); } catch { return void res.status(403).json({ error: "Accès refusé" }); }
+    try {
+      await assertPrestataireMatchesBuilding(String(prestataireId), travail.buildingId);
+    } catch (error: any) {
+      return void res.status(error.status ?? 400).json({ error: error.message });
+    }
 
     const now = new Date();
     const responseTimeMinutes = Math.round((now.getTime() - new Date(travail.createdAt as any).getTime()) / 60000);
@@ -388,6 +460,13 @@ router.put("/travaux/:id", requireAuth, requireAdmin, async (req, res) => {
     const [existing] = await db.select({ buildingId: travauxTable.buildingId }).from(travauxTable).where(eq(travauxTable.id, String(String(req.params.id))));
     if (!existing) return void res.status(404).json({ error: "Not found" });
     try { await assertUserCanAccessBuilding(user, existing.buildingId); } catch { return void res.status(403).json({ error: "Accès refusé" }); }
+    if (req.body.prestataireId) {
+      try {
+        await assertPrestataireMatchesBuilding(String(req.body.prestataireId), existing.buildingId);
+      } catch (error: any) {
+        return void res.status(error.status ?? 400).json({ error: error.message });
+      }
+    }
 
     const allowed = [
       "title", "description", "type", "status", "priority",

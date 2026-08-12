@@ -3,6 +3,12 @@
 - 2026-08-10 — Audité `mon-bail.tsx` et remplacé les formats français fixes des dates et montants par des helpers dépendant de `fr-MA`, `en-GB`, `ar-MA` ou `es-ES`; ajout de la direction RTL sur la page locataire.
 # Project Actions Log
 
+## 2026-08-11
+
+- Audited `locataires.ts` and `sinistres.ts` for ID-based cross-tenant access; added JWT syndicate hard-fails, row-level ownership checks, resident building scope, and building/lot consistency validation.
+- Audited `travaux.ts`, `scope.ts`, `marketplace.ts`, and `prestataires.ts`; extended shared building access to every syndicate management role, scoped works lists to the JWT syndicate, rejected resident-supplied provider assignment, and validated provider/lot/building relationships before mutations.
+- Restarted `artifacts/api-server: API Server` after the security changes; startup, schedulers, SMTP verification, and port 8080 listening completed without new errors.
+
 ## 2026-08-06
 
 - Audited the governance follow-through screens: `elections.tsx`, `elected-members.tsx`, and `meetings.tsx`.
@@ -222,3 +228,6 @@
 - Audited the failed API workflow and traced the startup error to `stripeWebhook.ts` importing a non-exported payment finalizer from `subscriptions.ts`.
 - Exported the transaction-backed finalizer and adapted Stripe webhook period/subscription extraction to the current Stripe SDK (`subscription.items.data` periods and `invoice.parent.subscription_details.subscription`).
 - API typecheck, build, diff validation, workflow restart, startup logs, SMTP verification, and retention/expiry scheduler startup all passed.
+- Audited `artifacts/api-server/src/routes/buildings.ts` and enforced management-role JWT syndicate scope on list, detail, create, and update paths; resident building list/detail now derives scope from linked lots/tenancies.
+- Hardened `artifacts/api-server/src/routes/parking.ts`: all management-role building scopes use `isSyndicateTeamRole`, missing management `syndicateId` hard-fails, spot lot assignments must match the spot building, reservation lists are building-scoped, and vehicle list/delete paths no longer fall back to global access.
+- Re-ran API typecheck and `git diff --check`; restarted `artifacts/api-server: API Server` and confirmed a clean build, port 8080, SMTP verification, and scheduler startup.

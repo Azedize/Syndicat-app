@@ -1,7 +1,7 @@
 import { db } from "@workspace/db";
 import { lotsTable, membersTable, tenantsTable, buildingsTable } from "@workspace/db/schema";
 import { eq, or, inArray } from "drizzle-orm";
-import type { JwtPayload } from "../middleware/auth.js";
+import { isSyndicateTeamRole, type JwtPayload } from "../middleware/auth.js";
 
 /**
  * Returns the list of building IDs a "member" or "tenant" user is linked to,
@@ -50,7 +50,12 @@ export async function assertUserCanAccessBuilding(
 ): Promise<void> {
   if (user.role === "super_admin") return; // unrestricted
 
-  if (user.role === "syndicate_admin") {
+  if (isSyndicateTeamRole(user.role)) {
+    if (!user.syndicateId) {
+      const err: any = new Error("Syndicat non défini dans le token");
+      err.status = 403;
+      throw err;
+    }
     const [building] = await db
       .select({ syndicateId: buildingsTable.syndicateId })
       .from(buildingsTable)

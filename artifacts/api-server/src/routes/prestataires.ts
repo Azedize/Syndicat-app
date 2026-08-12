@@ -177,9 +177,14 @@ router.get("/prestataires/:id", requireAuth, async (req, res) => {
 
     // ─── Syndicate / building isolation ──────────────────────────────────────
     if (user.role !== "super_admin") {
-      if (user.role === "syndicate_admin") {
-        // Syndicate admins may only view providers scoped to their syndicate
-        if (p.syndicateId && p.syndicateId !== user.syndicateId) {
+      if (!user.syndicateId) {
+        return void res.status(403).json({ error: "Syndicat non défini dans le token" });
+      }
+      if (user.role === "syndicate_admin" || user.role === "president" ||
+          user.role === "treasurer" || user.role === "secretary" ||
+          user.role === "committee_member") {
+        // Syndicate management may only view providers scoped to their syndicate.
+        if (p.syndicateId !== user.syndicateId) {
           return void res.status(403).json({ error: "Accès refusé" });
         }
       } else {

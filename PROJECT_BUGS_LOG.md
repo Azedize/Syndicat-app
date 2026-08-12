@@ -3,6 +3,12 @@
 - 2026-08-10 — Corrigé : Mon Bail & Loyer imposait `fr-FR` aux dates et montants, ce qui produisait une présentation incohérente pour les locataires ayant choisi une autre langue.
 # Project Bugs Log
 
+## 2026-08-11
+
+- Corrected a server-side isolation gap where non-`syndicate_admin` management roles could reach unscoped works data when no building filter was supplied.
+- Corrected mutation gaps allowing client-selected lots/providers to be attached to an unrelated building, and prevented marketplace listings from being created without an authenticated syndicate scope.
+- Remaining production audit work is intentionally open for adjacent API routes; no claim of full platform-wide authorization coverage is made here.
+
 ## 2026-08-06
 
 - Internal Messaging no longer silently presents stale or empty content when the announcements request fails; the screen now provides localized retryable recovery.
@@ -52,3 +58,5 @@
 - Settings and Notifications no longer lose global notification changes when the app is closed, silently swallow preference-save failures, or display local-only security/audio switches as if they were server-backed capabilities.
 - API startup no longer fails because the Stripe webhook imported a private payment finalizer or referenced removed Stripe SDK fields; current subscription item periods and invoice parent subscription details are now used.
 - Operational invitation and meeting forms no longer drift from the shared MIZAN field language; resident lot balances/receipts and announcement detail dates no longer force French-Morocco formatting; document bundle generation no longer exposes French-only labels or raw French fallback copy in other locales.
+- Building detail/update no longer accepts a missing or mismatched management syndicate scope, and resident building responses no longer expose buildings outside linked lots or tenancies.
+- Parking no longer permits cross-building lot assignment, broad reservation enumeration, or global vehicle listing through non-admin management roles; management JWTs without `syndicateId` now fail closed.

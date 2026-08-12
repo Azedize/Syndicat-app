@@ -1,5 +1,11 @@
 # Project Architecture Log
 
+## 2026-08-11
+
+- Server-side resource scope remains authoritative: management access is derived from JWT `syndicateId`, resident building access from linked lots/tenancies, and mutations validate related building, lot, and provider ownership before persistence.
+- `assertUserCanAccessBuilding` now treats all syndicate management roles uniformly while preserving unrestricted `super_admin` supervision behavior and resident personal-building scope.
+- Works provider validation is centralized in the route layer and reused by create, assign, and update mutations; client-supplied relationship IDs are not trusted independently.
+
 ## 2026-08-06
 
 - Elections and mandates continue to use the existing elections API as the source of truth; new localized status and recovery surfaces affect presentation and feedback only.
@@ -24,3 +30,4 @@
 - Level-1 Support continues to use `/support`, `/support/:id`, `/support/:id/replies`, `/support/:id/resolve`, and `/support/:id/escalate` as sources of truth; list and conversation recovery state is client presentation around the same authenticated endpoints.
 - Financial Reports continue to consume the existing statistics reports response; locale-aware financial formatting is applied only at render time and does not alter API payloads or stored values.
 - Level-1 Support continues to consume the same authenticated support endpoints; RTL direction, text alignment, icon direction, and localized labels remain presentation-only concerns.
+- Buildings and parking operational routes now derive management scope from `isSyndicateTeamRole` plus JWT `syndicateId`; resident building scope derives from `getUserBuildingIds`, and client-supplied parking lot IDs are validated against the target building before mutation.

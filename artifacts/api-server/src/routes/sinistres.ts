@@ -1,12 +1,43 @@
 import { Router } from "express";
 import { db } from "@workspace/db";
-import { sinistresTable, lotsTable, buildingsTable, usersTable } from "@workspace/db/schema";
+import {
+  sinistresTable,
+  lotsTable,
+  buildingsTable,
+  usersTable,
+  membersTable,
+  tenantsTable,
+} from "@workspace/db/schema";
 import { eq, and, desc, inArray } from "drizzle-orm";
-import { requireAuth, requireAdmin, requireOperationalAccess } from "../middleware/auth.js";
+import { isSyndicateTeamRole, requireAuth, requireOperationalAccess } from "../middleware/auth.js";
 import { createAlert, sendEmailToMany } from "../lib/notify.js";
 import { incidentNotificationTemplate } from "../lib/email/templates.js";
+import { getUserBuildingIds } from "../lib/scope.js";
 
 const router = Router();
+
+function forbidden(message = "Accès refusé") {
+  return Object.assign(new Error(message), { status: 403 });
+}
+
+async function getClaimBuildingAccess(user: NonNullable<Express.Request["user"]>, buildingId: string) {
+  const [building] = await db
+    .select({ id: buildingsTable.id, syndicateId: buildingsTable.syndicateId })
+    .from(buildingsTable)
+    .where(eq(buildingsTable.id, buildingId))
+    .limit(1);
+  if (!building) return null;
+
+  if (user.role === "super_admin") return building;
+  if (isSyndicateTeamRole(user.role)) {
+    if (!user.syndicateId || building.syndicateId !== user.syndicateId) throw forbidden();
+    return building;
+  }
+
+  const allowedBuildings = await getUserBuildingIds(user);
+  if (!allowedBuildings.includes(buildingId)) throw forbidden();
+  return building;
+}
 
 // GET /sinistres — (no N+1: batch lot lookup)
 router.get("/sinistres", requireAuth, async (req, res) => {
@@ -17,25 +48,18 @@ router.get("/sinistres", requireAuth, async (req, res) => {
     const conditions: any[] = [];
 
     if (buildingId) {
-      // Prevent cross-syndicate enumeration: validate the buildingId belongs to the
-      // caller's syndicate before using it as a filter condition.
-      if (user.role !== "super_admin" && user.syndicateId) {
-        const [bld] = await db
-          .select({ syndicateId: buildingsTable.syndicateId })
-          .from(buildingsTable)
-          .where(eq(buildingsTable.id, buildingId))
-          .limit(1);
-        if (!bld || bld.syndicateId !== user.syndicateId) {
-          return void res.status(403).json({ error: "Accès refusé à cet immeuble" });
-        }
-      }
+      const building = await getClaimBuildingAccess(user, buildingId);
+      if (!building) return void res.status(404).json({ error: "Immeuble introuvable" });
       conditions.push(eq(sinistresTable.buildingId, buildingId));
-    } else if (user.role === "syndicate_admin" && user.syndicateId) {
-      const buildingsInSyndicate = await db
-        .select({ id: buildingsTable.id })
-        .from(buildingsTable)
-        .where(eq(buildingsTable.syndicateId, user.syndicateId));
-      const ids = buildingsInSyndicate.map((b) => b.id);
+    } else if (user.role !== "super_admin") {
+      const ids = isSyndicateTeamRole(user.role)
+        ? user.syndicateId
+          ? (await db
+              .select({ id: buildingsTable.id })
+              .from(buildingsTable)
+              .where(eq(buildingsTable.syndicateId, user.syndicateId))).map((b) => b.id)
+          : []
+        : await getUserBuildingIds(user);
       if (ids.length === 0) return void res.json({ data: [], total: 0 });
       conditions.push(inArray(sinistresTable.buildingId, ids));
     }
@@ -74,6 +98,8 @@ router.get("/sinistres", requireAuth, async (req, res) => {
 
     res.json({ data: enriched, total: enriched.length });
   } catch (e) {
+    const error = e as { status?: number; message?: string };
+    if (error.status) return void res.status(error.status).json({ error: error.message ?? "Accès refusé" });
     console.error(e);
     res.status(500).json({ error: "Server error" });
   }
@@ -82,11 +108,37 @@ router.get("/sinistres", requireAuth, async (req, res) => {
 // POST /sinistres — Declare a claim/incident
 router.post("/sinistres", requireAuth, async (req, res) => {
   try {
-    const user = (req as any).user;
+    const user = req.user!;
     const { buildingId, lotId, type, description, date, estimatedAmount, notes, urgency, imageUrls } = req.body;
 
     if (!buildingId || !type || !description || !date) {
       return void res.status(400).json({ error: "buildingId, type, description et date sont obligatoires" });
+    }
+
+    const building = await getClaimBuildingAccess(user, String(buildingId));
+    if (!building) return void res.status(404).json({ error: "Immeuble introuvable" });
+
+    if (lotId) {
+      const [lot] = await db
+        .select({ buildingId: lotsTable.buildingId, ownerId: lotsTable.ownerId, tenantId: lotsTable.tenantId })
+        .from(lotsTable)
+        .where(eq(lotsTable.id, String(lotId)))
+        .limit(1);
+      if (!lot || lot.buildingId !== String(buildingId)) {
+        return void res.status(400).json({ error: "Lot ou immeuble invalide" });
+      }
+      if (user.role === "member" && lot.ownerId !== user.userId) {
+        const [member] = await db
+          .select({ id: membersTable.id })
+          .from(membersTable)
+          .where(eq(membersTable.email, user.email))
+          .limit(1);
+        if (!member || lot.ownerId !== member.id) return void res.status(403).json({ error: "Accès refusé" });
+      }
+      if (user.role === "tenant" && lot.tenantId !== user.userId) {
+        const [tenant] = await db.select({ id: tenantsTable.id }).from(tenantsTable).where(eq(tenantsTable.email, user.email)).limit(1);
+        if (!tenant || lot.tenantId !== tenant.id) return void res.status(403).json({ error: "Accès refusé" });
+      }
     }
 
     const [sinistre] = await db
@@ -107,11 +159,6 @@ router.post("/sinistres", requireAuth, async (req, res) => {
       .returning();
 
     // Find syndicate for scoped alert
-    const [building] = await db
-      .select({ syndicateId: buildingsTable.syndicateId })
-      .from(buildingsTable)
-      .where(eq(buildingsTable.id, buildingId));
-
     createAlert({
       title: `🚨 Sinistre déclaré: ${type}`,
       message: description,
@@ -135,6 +182,8 @@ router.post("/sinistres", requireAuth, async (req, res) => {
 
     res.status(201).json({ data: sinistre, message: "Sinistre déclaré avec succès" });
   } catch (e) {
+    const error = e as { status?: number; message?: string };
+    if (error.status) return void res.status(error.status).json({ error: error.message ?? "Accès refusé" });
     console.error(e);
     res.status(500).json({ error: "Server error" });
   }
@@ -143,6 +192,16 @@ router.post("/sinistres", requireAuth, async (req, res) => {
 // PUT /sinistres/:id — Update claim status/amounts
 router.put("/sinistres/:id", requireAuth, requireOperationalAccess, async (req, res) => {
   try {
+    const user = req.user!;
+    const [existing] = await db
+      .select({ buildingId: sinistresTable.buildingId })
+      .from(sinistresTable)
+      .where(eq(sinistresTable.id, String(req.params.id)))
+      .limit(1);
+    if (!existing) return void res.status(404).json({ error: "Sinistre introuvable" });
+    const building = await getClaimBuildingAccess(user, existing.buildingId);
+    if (!building) return void res.status(404).json({ error: "Immeuble introuvable" });
+
     const allowed = ["status", "urgency", "estimatedAmount", "indemnisedAmount", "claimNumber", "notes", "contractorId", "resolutionNote", "invoiceUrl", "imageUrls"];
     const updates: Record<string, any> = {};
     for (const k of allowed) {
@@ -166,6 +225,8 @@ router.put("/sinistres/:id", requireAuth, requireOperationalAccess, async (req, 
     if (!updated) return void res.status(404).json({ error: "Sinistre introuvable" });
     res.json({ data: updated, message: "Sinistre mis à jour" });
   } catch (e) {
+    const error = e as { status?: number; message?: string };
+    if (error.status) return void res.status(error.status).json({ error: error.message ?? "Accès refusé" });
     console.error(e);
     res.status(500).json({ error: "Server error" });
   }
