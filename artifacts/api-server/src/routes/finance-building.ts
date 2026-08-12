@@ -11,7 +11,7 @@ import {
   lotsTable,
 } from "@workspace/db/schema";
 import { eq, and, inArray, sql } from "drizzle-orm";
-import { requireAuth, requireRole } from "../middleware/auth.js";
+import { isSyndicateTeamRole, requireAuth, requireRole } from "../middleware/auth.js";
 
 const router = Router();
 
@@ -21,8 +21,8 @@ router.get("/finance/buildings", requireAuth, requireRole("super_admin", "syndic
   try {
     const user = (req as any).user;
 
-    // syndicate_admin must have syndicateId in JWT — never fall back to unscoped query
-    if (user.role === "syndicate_admin" && !user.syndicateId) {
+    // Every non-super-admin finance user must have a syndicate scope in JWT.
+    if (isSyndicateTeamRole(user.role) && !user.syndicateId) {
       return void res.status(403).json({ error: "Syndicat non défini dans le token" });
     }
 
@@ -91,9 +91,14 @@ router.get("/finance/building/:id", requireAuth, requireRole("super_admin", "syn
     if (!building)
       return void res.status(404).json({ error: "Immeuble introuvable" });
 
-    // Syndicate isolation: non-super_admin can only access their own syndicate's buildings
-    if (user.role !== "super_admin" && building.syndicateId && building.syndicateId !== user.syndicateId) {
-      return void res.status(403).json({ error: "Accès refusé" });
+    // Syndicate isolation: non-super_admin can only access their own syndicate's buildings.
+    if (user.role !== "super_admin") {
+      if (!user.syndicateId) {
+        return void res.status(403).json({ error: "Syndicat non défini dans le token" });
+      }
+      if (building.syndicateId !== user.syndicateId) {
+        return void res.status(403).json({ error: "Accès refusé" });
+      }
     }
 
     // Fetch everything in parallel

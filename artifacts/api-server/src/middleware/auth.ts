@@ -102,8 +102,22 @@ export function isSyndicateTeamRole(role: UserRole): boolean {
 /** Any syndicate management team member (all 5 management roles) */
 export const requireSyndicateTeam = requireRole(...SYNDICATE_TEAM_ROLES);
 
-/** Finance access: full financial management (admin + treasurer) */
-export const requireFinanceAccess = requireRole("syndicate_admin", "treasurer");
+/** Finance access: full financial management (admin + treasurer), always syndicate-scoped. */
+export function requireFinanceAccess(req: Request, res: Response, next: NextFunction) {
+  if (!req.user) {
+    res.status(401).json({ error: "Non authentifié" });
+    return;
+  }
+  if (req.user.role !== "syndicate_admin" && req.user.role !== "treasurer") {
+    res.status(403).json({ error: "Accès refusé" });
+    return;
+  }
+  if (!req.user.syndicateId) {
+    res.status(403).json({ error: "Syndicat non défini dans le token" });
+    return;
+  }
+  next();
+}
 
 /** Governance access: meetings, elections, AG (admin + president + secretary + committee_member) */
 export const requireGovernanceAccess = requireRole(

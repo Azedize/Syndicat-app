@@ -13,7 +13,7 @@ import {
   bonItemsTable,
 } from "@workspace/db/schema";
 import { eq, desc, count, inArray } from "drizzle-orm";
-import { requireAuth, requireRole } from "../middleware/auth.js";
+import { requireAuth, requireFinanceAccess } from "../middleware/auth.js";
 import { syndicateWhere, effectiveSyndicateId } from "../lib/syndicate-filter.js";
 import { getPagination, buildPagedResponse } from "../lib/paginate.js";
 
@@ -24,7 +24,7 @@ const router = Router();
 router.get(
   "/finance/transactions",
   requireAuth,
-  requireRole("syndicate_admin", "treasurer"),
+  requireFinanceAccess,
   async (req, res) => {
     const pagination = getPagination(req);
     try {
@@ -48,7 +48,7 @@ router.get(
 router.post(
   "/finance/transactions",
   requireAuth,
-  requireRole("syndicate_admin", "treasurer"),
+  requireFinanceAccess,
   async (req, res) => {
     const schema = z
       .object({
@@ -90,7 +90,7 @@ router.post(
 router.patch(
   "/finance/transactions/:id/status",
   requireAuth,
-  requireRole("syndicate_admin", "treasurer"),
+  requireFinanceAccess,
   async (req, res) => {
     const id = String(req.params.id);
     const schema = z.object({
@@ -122,7 +122,7 @@ router.patch(
 router.get(
   "/finance/salaries",
   requireAuth,
-  requireRole("syndicate_admin", "treasurer"),
+  requireFinanceAccess,
   async (req, res) => {
     const pagination = getPagination(req);
     try {
@@ -146,7 +146,7 @@ router.get(
 router.post(
   "/finance/salaries",
   requireAuth,
-  requireRole("syndicate_admin", "treasurer"),
+  requireFinanceAccess,
   async (req, res) => {
     const schema = z.object({
       employee: z.string().min(1),
@@ -179,7 +179,7 @@ router.post(
 router.get(
   "/finance/caisse",
   requireAuth,
-  requireRole("syndicate_admin", "treasurer"),
+  requireFinanceAccess,
   async (req, res) => {
     const pagination = getPagination(req);
     try {
@@ -203,7 +203,7 @@ router.get(
 router.post(
   "/finance/caisse",
   requireAuth,
-  requireRole("syndicate_admin", "treasurer"),
+  requireFinanceAccess,
   async (req, res) => {
     const schema = z.object({
       label: z.string().min(1),
@@ -258,7 +258,7 @@ router.post(
 router.get(
   "/invoices",
   requireAuth,
-  requireRole("syndicate_admin", "treasurer"),
+  requireFinanceAccess,
   async (req, res) => {
     const pagination = getPagination(req);
     try {
@@ -305,7 +305,7 @@ router.get(
 router.post(
   "/invoices",
   requireAuth,
-  requireRole("syndicate_admin", "treasurer"),
+  requireFinanceAccess,
   async (req, res) => {
     const itemSchema = z.object({
       label: z.string().min(1),
@@ -360,7 +360,7 @@ router.post(
 router.put(
   "/invoices/:id/status",
   requireAuth,
-  requireRole("syndicate_admin", "treasurer"),
+  requireFinanceAccess,
   async (req, res) => {
     const id = String(req.params.id) as string;
     const schema = z.object({
@@ -395,7 +395,7 @@ router.put(
 router.get(
   "/bons-livraison",
   requireAuth,
-  requireRole("syndicate_admin", "treasurer"),
+  requireFinanceAccess,
   async (req, res) => {
     const pagination = getPagination(req);
     try {
@@ -447,7 +447,7 @@ router.get(
 router.post(
   "/bons-livraison",
   requireAuth,
-  requireRole("syndicate_admin", "treasurer"),
+  requireFinanceAccess,
   async (req, res) => {
     const itemSchema = z.object({
       label: z.string().min(1),
@@ -488,7 +488,7 @@ router.post(
 router.put(
   "/bons-livraison/:id/status",
   requireAuth,
-  requireRole("syndicate_admin", "treasurer"),
+  requireFinanceAccess,
   async (req, res) => {
     const id = String(req.params.id) as string;
     const schema = z.object({ status: z.enum(["draft", "sent", "delivered", "cancelled"]) });

@@ -1,6 +1,12 @@
 - Documents — Corbeille : localisation complète FR/EN/AR/ES, formatage de dates selon la langue active et présentation RTL/LTR complète terminés ; restauration et purge restent protégées par les mêmes rôles.
 - Documents — Bibliothèque : historique des versions et commentaires utilisent le format de date actif pour les quatre langues ; génération, signature, téléchargement, commentaires et permissions conservés.
 - Mon Bail & Loyer — formatage des dates et montants MAD selon la langue active terminé ; navigation et présentation RTL adaptées, API locataire et RoleGuard conservés.
+## 2026-08-12
+
+- General Assembly server authorization: meeting-level isolation now covers lifecycle status, attendance, resolutions, voting, PVs, and proxy CRUD; AG creation rejects missing scope and cross-syndicate building references.
+- API typecheck/build, diff validation, workflow restart, health probe, and unauthenticated route probe passed.
+- Adjacent API route authorization audit remains in progress.
+
 # Project Module Status
 
 ## 2026-08-11

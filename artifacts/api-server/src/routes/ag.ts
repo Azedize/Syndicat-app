@@ -10,7 +10,13 @@ import {
   usersTable,
 } from "@workspace/db/schema";
 import { eq, and, desc, sql, count, inArray, ne } from "drizzle-orm";
-import { requireAuth, requireAdmin, requireOperationalAccess, requireNotTenant } from "../middleware/auth.js";
+import {
+  assertSyndicateAccess,
+  requireAuth,
+  requireAdmin,
+  requireOperationalAccess,
+  requireNotTenant,
+} from "../middleware/auth.js";
 import { z } from "zod";
 import { sendEmailToMany } from "../lib/notify.js";
 import { agmInvitationTemplate } from "../lib/email/templates.js";
@@ -164,6 +170,26 @@ router.post("/ag-meetings", requireAuth, requireOperationalAccess, async (req, r
   try {
     const user = (req as any).user;
     const data = result.data;
+    const syndicateId =
+      user.role === "super_admin"
+        ? (req.query.syndicateId as string | undefined)
+        : user.syndicateId;
+
+    if (!syndicateId) {
+      return void res.status(400).json({
+        error: "Un syndicat cible est requis pour planifier une AG",
+      });
+    }
+
+    if (data.buildingId) {
+      const [building] = await db
+        .select({ syndicateId: buildingsTable.syndicateId })
+        .from(buildingsTable)
+        .where(eq(buildingsTable.id, data.buildingId));
+      if (!building || building.syndicateId !== syndicateId) {
+        return void res.status(403).json({ error: "Bâtiment hors du périmètre du syndicat" });
+      }
+    }
 
     // Embed quorum and building info into description JSON-ish field
     const meta = JSON.stringify({
@@ -182,7 +208,7 @@ router.post("/ag-meetings", requireAuth, requireOperationalAccess, async (req, r
         type: data.type,
         description: data.description + (data.buildingId ? `\n__meta:${meta}` : ""),
         agenda: data.agenda,
-        syndicateId: user.syndicateId ?? "",
+        syndicateId,
         status: "scheduled",
         createdBy: user.userId,
       })
@@ -222,6 +248,9 @@ router.put("/ag-meetings/:id/status", requireAuth, requireOperationalAccess, asy
       .where(eq(meetingsTable.id, String(req.params.id)));
 
     if (!meeting) return void res.status(404).json({ error: "AG introuvable" });
+    if (!assertSyndicateAccess(req, meeting.syndicateId)) {
+      return void res.status(403).json({ error: "Accès refusé" });
+    }
 
     let descUpdate = meeting.description;
     if (result.data.membresPresents !== undefined) {
@@ -232,7 +261,14 @@ router.put("/ag-meetings/:id/status", requireAuth, requireOperationalAccess, asy
     const [updated] = await db
       .update(meetingsTable)
       .set({ status: result.data.status, description: descUpdate })
-      .where(eq(meetingsTable.id, String(req.params.id)))
+      .where(
+        and(
+          eq(meetingsTable.id, String(req.params.id)),
+          req.user?.role === "super_admin"
+            ? undefined
+            : eq(meetingsTable.syndicateId, req.user!.syndicateId!),
+        ),
+      )
       .returning();
 
     res.json({ data: updated, message: "Statut AG mis à jour" });
@@ -243,10 +279,18 @@ router.put("/ag-meetings/:id/status", requireAuth, requireOperationalAccess, asy
 });
 
 // POST /ag-meetings/:id/attend — Confirm attendance
-router.post("/ag-meetings/:id/attend", requireAuth, async (req, res) => {
+router.post("/ag-meetings/:id/attend", requireAuth, requireNotTenant, async (req, res) => {
   try {
     const user = (req as any).user;
     const id = String(req.params.id);
+    const [meeting] = await db
+      .select({ syndicateId: meetingsTable.syndicateId })
+      .from(meetingsTable)
+      .where(eq(meetingsTable.id, id));
+    if (!meeting) return void res.status(404).json({ error: "AG introuvable" });
+    if (!assertSyndicateAccess(req, meeting.syndicateId)) {
+      return void res.status(403).json({ error: "Accès refusé" });
+    }
 
     const existing = await db
       .select()
@@ -298,6 +342,20 @@ router.post("/ag-meetings/:id/resolutions", requireAuth, requireOperationalAcces
     const meetingId = String(req.params.id);
     const [meeting] = await db.select().from(meetingsTable).where(eq(meetingsTable.id, meetingId));
     if (!meeting) return void res.status(404).json({ error: "AG introuvable" });
+    if (!assertSyndicateAccess(req, meeting.syndicateId)) {
+      return void res.status(403).json({ error: "Accès refusé" });
+    }
+
+    const buildingIdFromRequest = result.data.buildingId;
+    if (buildingIdFromRequest) {
+      const [building] = await db
+        .select({ syndicateId: buildingsTable.syndicateId })
+        .from(buildingsTable)
+        .where(eq(buildingsTable.id, buildingIdFromRequest));
+      if (!building || building.syndicateId !== meeting.syndicateId) {
+        return void res.status(403).json({ error: "Bâtiment hors du périmètre du syndicat" });
+      }
+    }
 
     // Auto-increment resolution number
     const existing = await db
@@ -310,6 +368,16 @@ router.post("/ag-meetings/:id/resolutions", requireAuth, requireOperationalAcces
       (meeting.description?.match(/__meta:({.*?})/)?.[1] &&
         JSON.parse(meeting.description.match(/__meta:({.*?})/)![1])?.buildingId) ||
       "";
+
+    if (buildingId) {
+      const [building] = await db
+        .select({ syndicateId: buildingsTable.syndicateId })
+        .from(buildingsTable)
+        .where(eq(buildingsTable.id, buildingId));
+      if (!building || building.syndicateId !== meeting.syndicateId) {
+        return void res.status(403).json({ error: "Bâtiment hors du périmètre du syndicat" });
+      }
+    }
 
     const [resolution] = await db
       .insert(agResolutionsTable)
@@ -347,12 +415,23 @@ router.put("/ag-meetings/:id/resolutions/:resId/vote", requireAuth, requireOpera
   if (!result.success) return void res.status(400).json({ error: "Données invalides" });
 
   try {
-    const [resolution] = await db
+    const meetingId = String(req.params.id);
+    const [resolutionRow] = await db
       .select()
       .from(agResolutionsTable)
-      .where(eq(agResolutionsTable.id, String(req.params.resId)));
+      .innerJoin(meetingsTable, eq(meetingsTable.id, agResolutionsTable.meetingId))
+      .where(
+        and(
+          eq(agResolutionsTable.id, String(req.params.resId)),
+          eq(agResolutionsTable.meetingId, meetingId),
+        ),
+      );
 
-    if (!resolution) return void res.status(404).json({ error: "Résolution introuvable" });
+    if (!resolutionRow) return void res.status(404).json({ error: "Résolution introuvable" });
+    if (!assertSyndicateAccess(req, resolutionRow.meetings.syndicateId)) {
+      return void res.status(403).json({ error: "Accès refusé" });
+    }
+    const resolution = resolutionRow.ag_resolutions;
 
     const { tantiemesFor, tantiemesAgainst, tantiemesAbstain, totalTantiemes } = result.data;
 
@@ -377,7 +456,12 @@ router.put("/ag-meetings/:id/resolutions/:resId/vote", requireAuth, requireOpera
         tantiemesAbstain,
         result: adoptionResult,
       })
-      .where(eq(agResolutionsTable.id, String(req.params.resId)))
+      .where(
+        and(
+          eq(agResolutionsTable.id, String(req.params.resId)),
+          eq(agResolutionsTable.meetingId, meetingId),
+        ),
+      )
       .returning();
 
     res.json({ data: updated, message: `Résolution ${adoptionResult === "adopted" ? "adoptée" : adoptionResult === "rejected" ? "rejetée" : "mise à jour"}` });
@@ -400,7 +484,7 @@ router.get("/ag-meetings/:id/pv", requireAuth, requireNotTenant, async (req, res
 
     // Syndicate isolation: this route previously had none — any authenticated
     // non-tenant user could fetch any syndicate's PV by guessing/incrementing IDs.
-    if (user.role !== "super_admin" && meeting.syndicateId && meeting.syndicateId !== user.syndicateId) {
+    if (!assertSyndicateAccess(req, meeting.syndicateId)) {
       return void res.status(403).json({ error: "Accès refusé" });
     }
 
@@ -475,7 +559,7 @@ router.get("/ag-meetings/:id/proxies", requireAuth, requireNotTenant, async (req
     const [meeting] = await db.select({ id: meetingsTable.id, syndicateId: meetingsTable.syndicateId })
       .from(meetingsTable).where(eq(meetingsTable.id, String(req.params.id)));
     if (!meeting) { res.status(404).json({ error: "Réunion introuvable" }); return; }
-    if (user.syndicateId && user.syndicateId !== meeting.syndicateId) {
+    if (!assertSyndicateAccess(req, meeting.syndicateId)) {
       res.status(403).json({ error: "Accès refusé" }); return;
     }
     const proxies = await db.select().from(agProxiesTable)
@@ -494,7 +578,7 @@ router.post("/ag-meetings/:id/proxies", requireAuth, requireOperationalAccess, a
     const [meeting] = await db.select({ id: meetingsTable.id, syndicateId: meetingsTable.syndicateId })
       .from(meetingsTable).where(eq(meetingsTable.id, String(req.params.id)));
     if (!meeting) { res.status(404).json({ error: "Réunion introuvable" }); return; }
-    if (user.syndicateId && user.syndicateId !== meeting.syndicateId) {
+    if (!assertSyndicateAccess(req, meeting.syndicateId)) {
       res.status(403).json({ error: "Accès refusé" }); return;
     }
     const syndicateId = meeting.syndicateId ?? user.syndicateId;
@@ -526,7 +610,7 @@ router.put("/ag-meetings/:id/proxies/:proxyId", requireAuth, requireOperationalA
     const [meeting] = await db.select({ id: meetingsTable.id, syndicateId: meetingsTable.syndicateId })
       .from(meetingsTable).where(eq(meetingsTable.id, String(req.params.id)));
     if (!meeting) { res.status(404).json({ error: "Réunion introuvable" }); return; }
-    if (user.syndicateId && user.syndicateId !== meeting.syndicateId) {
+    if (!assertSyndicateAccess(req, meeting.syndicateId)) {
       res.status(403).json({ error: "Accès refusé" }); return;
     }
     const [updated] = await db.update(agProxiesTable)
@@ -545,7 +629,7 @@ router.delete("/ag-meetings/:id/proxies/:proxyId", requireAuth, requireOperation
     const [meeting] = await db.select({ id: meetingsTable.id, syndicateId: meetingsTable.syndicateId })
       .from(meetingsTable).where(eq(meetingsTable.id, String(req.params.id)));
     if (!meeting) { res.status(404).json({ error: "Réunion introuvable" }); return; }
-    if (user.syndicateId && user.syndicateId !== meeting.syndicateId) {
+    if (!assertSyndicateAccess(req, meeting.syndicateId)) {
       res.status(403).json({ error: "Accès refusé" }); return;
     }
     const [deleted] = await db.delete(agProxiesTable)

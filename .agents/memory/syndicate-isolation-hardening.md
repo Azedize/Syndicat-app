@@ -19,3 +19,9 @@ Any route that is not `super_admin`-only must check `user.syndicateId` and retur
 - Routes already using `requireRole("super_admin")` exclusively are exempt.
 
 Files patched: budget.ts (appels GET), meetings.ts (GET, POST, PUT, DELETE, attend).
+
+For nested governance resources, validate the parent row before mutating the child: a role guard alone does not establish that `:id` belongs to the caller's syndicate. Also require the URL parent ID to match the child's stored foreign key before updating.
+
+**Why:** AG status, resolution, attendance, PV, and proxy handlers initially had valid role middleware but ID-only queries; a caller with a guessed meeting or resolution ID could cross syndicate boundaries.
+
+**How to apply:** Fetch the parent meeting, call `assertSyndicateAccess(req, parent.syndicateId)`, and constrain child updates by both the child ID and parent ID.

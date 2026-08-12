@@ -1,6 +1,14 @@
 - 2026-08-10 — Documents / Corbeille : la corbeille documentaire suit désormais la langue active pour son titre, compteur, recherche, catégories, états vides, restauration, suppression définitive, conservation légale et confirmations. Les dates utilisent le locale actif et l’en-tête, les cartes et la navigation s’adaptent à l’arabe RTL.
 - 2026-08-10 — Documents : les dates de l’historique des versions et des commentaires utilisent désormais le locale actif (français, anglais, arabe ou espagnol) au lieu d’un format français imposé.
 - 2026-08-10 — Mon Bail & Loyer : dates du bail, dépôt et loyer mensuel alignés sur le locale actif avec formatage MAD à deux décimales ; en-têtes et retour adaptés à l’arabe RTL.
+## 2026-08-12
+
+- Continued the server-side authorization audit on General Assemblies.
+- Hardened AG creation so management users cannot create an unscoped meeting and super-admin supervision must identify the target syndicate; optional building references are checked against that syndicate.
+- Hardened AG status updates, attendance toggles, resolution creation/voting, PV retrieval, and proxy CRUD with meeting-level syndicate isolation; resolution voting also verifies the parent meeting ID.
+- API typecheck, production build, diff validation, managed workflow restart, health probe, and unauthenticated AG authorization probe passed.
+- Adjacent API route authorization audit remains in progress.
+
 # Project Progress
 
 ## 2026-08-11 — Server-side tenant-isolation hardening continuation

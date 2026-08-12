@@ -4,6 +4,13 @@
 - Mobile invoice creation no longer submits a fabricated identifier or server-controlled lifecycle fields.
 - 2026-08-07 — Resident document request: role-filtered template visibility, real server-side autofill/payment eligibility, and existing pending-review submission boundaries were preserved during the UX pass.
 - Ma Boutique changes preserve the existing authenticated marketplace API, seller CRUD permissions, upload authorization, destructive confirmations, and promotion proof-of-payment flow; raw API errors are not exposed.
+## 2026-08-12
+
+- General Assembly mutations now enforce the authenticated syndicate at the meeting boundary, not only through the broad operational-role guard.
+- Status updates, attendance, resolution creation/voting, PV retrieval, and proxy CRUD fail closed for cross-syndicate IDs; resolution voting also requires the URL meeting ID to match the resolution parent.
+- AG creation no longer persists an empty syndicate identifier and validates optional building references against the target syndicate.
+- Verification: API typecheck, production build, managed workflow restart, health probe, and unauthenticated AG route probe passed.
+
 # Security Log
 
 ## 2026-08-11

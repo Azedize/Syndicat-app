@@ -1,6 +1,12 @@
 - 2026-08-10 — Corrigé : la corbeille documentaire affichait encore « Corbeille », les catégories, les confirmations et les dates en français dans toutes les langues. Les libellés et dates suivent maintenant le contexte de langue.
 - 2026-08-10 — Corrigé : l’historique des versions et les commentaires de la bibliothèque documentaire imposaient `fr-FR` même lorsque l’utilisateur avait choisi l’anglais, l’arabe ou l’espagnol.
 - 2026-08-10 — Corrigé : Mon Bail & Loyer imposait `fr-FR` aux dates et montants, ce qui produisait une présentation incohérente pour les locataires ayant choisi une autre langue.
+## 2026-08-12
+
+- Corrected an AG authorization gap where operational-role middleware validated the role but ID-based status, resolution, attendance, PV, and proxy actions did not consistently verify the parent meeting's syndicate.
+- Corrected AG creation fallback that could persist an empty syndicate identifier when a management JWT lacked scope; target syndicate and optional building references are now required/validated.
+- Remaining production audit work is intentionally open for adjacent API routes; no claim of full platform-wide authorization coverage is made here.
+
 # Project Bugs Log
 
 ## 2026-08-11

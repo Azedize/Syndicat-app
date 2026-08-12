@@ -1,6 +1,13 @@
 - 2026-08-10 — Audité `documents-recycle-bin.tsx` et supprimé les derniers libellés et dates français codés en dur. Ajout de clés de traduction partagées pour les catégories de documents, la corbeille et les confirmations destructives ; permissions de restauration/purge et endpoints inchangés.
 - 2026-08-10 — Audité `documents.tsx` et remplacé les dates forcées en `fr-FR` de l’historique des versions et des commentaires par un formateur dépendant de la langue active ; contenu, API et permissions inchangés.
 - 2026-08-10 — Audité `mon-bail.tsx` et remplacé les formats français fixes des dates et montants par des helpers dépendant de `fr-MA`, `en-GB`, `ar-MA` ou `es-ES`; ajout de la direction RTL sur la page locataire.
+## 2026-08-12
+
+- Audited `artifacts/api-server/src/routes/ag.ts` after the adjacent-API isolation review identified ID-only AG mutations.
+- Added `assertSyndicateAccess` checks for meeting status, attendance, resolutions, PVs, and proxy operations; constrained status and resolution updates to the authenticated meeting scope.
+- Added target-syndicate and building ownership validation to AG creation/resolution creation, and rejected missing syndicate scope instead of persisting an empty `syndicateId`.
+- Verified with API typecheck, API production build, `git diff --check`, workflow restart, `/api/healthz` (`200`), and unauthenticated `/api/ag-meetings` (`401`).
+
 # Project Actions Log
 
 ## 2026-08-11

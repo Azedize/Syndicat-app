@@ -15,7 +15,10 @@ export function syndicateWhere(req: Request, column: AnyColumn): SQL | undefined
     if (!sid) return undefined;
     return eq(column, sid);
   }
-  return eq(column, req.user!.syndicateId ?? "");
+  if (!req.user!.syndicateId) {
+    throw Object.assign(new Error("Syndicat non défini dans le token"), { status: 403 });
+  }
+  return eq(column, req.user!.syndicateId);
 }
 
 /**
@@ -24,7 +27,14 @@ export function syndicateWhere(req: Request, column: AnyColumn): SQL | undefined
  */
 export function effectiveSyndicateId(req: Request, bodyValue?: string): string {
   if (req.user!.role === "super_admin") {
-    return (req.query.syndicateId as string | undefined) ?? bodyValue ?? "";
+    const sid = (req.query.syndicateId as string | undefined) ?? bodyValue;
+    if (!sid) {
+      throw Object.assign(new Error("syndicateId est requis"), { status: 400 });
+    }
+    return sid;
   }
-  return req.user!.syndicateId ?? "";
+  if (!req.user!.syndicateId) {
+    throw Object.assign(new Error("Syndicat non défini dans le token"), { status: 403 });
+  }
+  return req.user!.syndicateId;
 }

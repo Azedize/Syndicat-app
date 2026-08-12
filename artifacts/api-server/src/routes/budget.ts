@@ -13,9 +13,11 @@ import {
   alertsTable,
   caisseEntriesTable,
   usersTable,
+  prestatairesTable,
 } from "@workspace/db/schema";
 import { eq, and, desc, sql, sum, or, inArray } from "drizzle-orm";
 import { requireAuth, requireAdmin, requireOperationalAccess, requireFinanceAccess, isSyndicateTeamRole } from "../middleware/auth.js";
+import { assertUserCanAccessBuilding } from "../lib/scope.js";
 
 /** True when the user is syndicate-scoped (not super_admin). Used for row-level scoping in finance queries. */
 function isSyndicateScoped(role: string): boolean {
@@ -180,6 +182,28 @@ router.post("/budgets", requireAuth, requireFinanceAccess, async (req, res) => {
     }
     if (isSyndicateScoped(user.role) && building.syndicateId !== user.syndicateId) {
       return void res.status(403).json({ error: "Accès refusé : cet immeuble n'appartient pas à votre syndicat" });
+    }
+
+    const providerIds = [
+      ...new Set(
+        (Array.isArray(lines) ? lines : [])
+          .map((line: any) => line?.prestataireId)
+          .filter((id: unknown): id is string => typeof id === "string" && id.length > 0),
+      ),
+    ];
+    if (providerIds.length > 0) {
+      const providers = await db
+        .select({ id: prestatairesTable.id })
+        .from(prestatairesTable)
+        .where(
+          and(
+            inArray(prestatairesTable.id, providerIds),
+            eq(prestatairesTable.buildingId, buildingId),
+          ),
+        );
+      if (providers.length !== providerIds.length) {
+        return void res.status(400).json({ error: "Un prestataire n'appartient pas à cet immeuble" });
+      }
     }
 
     const [budget] = await db
@@ -377,6 +401,7 @@ router.get("/appels-de-fonds", requireAuth, async (req, res) => {
     }
 
     if (buildingId) {
+      await assertUserCanAccessBuilding(user, buildingId);
       // For syndicate_admin, verify the buildingId belongs to their syndicate
       if (isSyndicateScoped(user.role)) {
         const [bld] = await db
@@ -402,7 +427,21 @@ router.get("/appels-de-fonds", requireAuth, async (req, res) => {
       conditions.push(inArray(appelsDeFondsTable.buildingId, buildingIds));
     }
 
-    if (lotId) conditions.push(eq(appelsDeFondsTable.lotId, lotId));
+    if (lotId) {
+      const [lot] = await db
+        .select({ buildingId: lotsTable.buildingId })
+        .from(lotsTable)
+        .where(eq(lotsTable.id, lotId))
+        .limit(1);
+      if (!lot) return void res.status(404).json({ error: "Lot introuvable" });
+      if (buildingId && lot.buildingId !== buildingId) {
+        return void res.status(400).json({ error: "Le lot n'appartient pas à cet immeuble" });
+      }
+      if (isSyndicateScoped(user.role)) {
+        await assertUserCanAccessBuilding(user, lot.buildingId);
+      }
+      conditions.push(eq(appelsDeFondsTable.lotId, lotId));
+    }
     if (status) conditions.push(eq(appelsDeFondsTable.status, status));
     if (period) conditions.push(eq(appelsDeFondsTable.period, period));
     if (ownerId) conditions.push(eq(appelsDeFondsTable.ownerId, ownerId));
@@ -450,7 +489,8 @@ router.get("/appels-de-fonds", requireAuth, async (req, res) => {
     ]);
 
     res.json({ data: rows, total: rows.length, stats });
-  } catch (e) {
+  } catch (e: any) {
+    if (e?.status) return void res.status(e.status).json({ error: e.message });
     req.log.error(e);
     res.status(500).json({ error: "Server error" });
   }
@@ -460,6 +500,9 @@ router.get("/appels-de-fonds", requireAuth, async (req, res) => {
 router.put("/appels-de-fonds/:id/pay", requireAuth, async (req, res) => {
   try {
     const user = req.user!;
+    if (isSyndicateScoped(user.role) && !user.syndicateId) {
+      return void res.status(403).json({ error: "Syndicat non défini dans le token" });
+    }
 
     // Tenants cannot pay appels de fonds (not owners)
     if (user.role === "tenant") {
@@ -674,6 +717,20 @@ router.get("/appels-de-fonds/:id/receipt", requireAuth, async (req, res) => {
       .where(eq(appelsDeFondsTable.id, String(req.params.id)));
     if (!appel) return void res.status(404).json({ error: "Not found" });
 
+    if (isSyndicateScoped(user.role)) {
+      if (!user.syndicateId) {
+        return void res.status(403).json({ error: "Syndicat non défini dans le token" });
+      }
+      const [buildingScope] = await db
+        .select({ syndicateId: buildingsTable.syndicateId })
+        .from(buildingsTable)
+        .where(eq(buildingsTable.id, appel.buildingId))
+        .limit(1);
+      if (!buildingScope || buildingScope.syndicateId !== user.syndicateId) {
+        return void res.status(403).json({ error: "Accès refusé" });
+      }
+    }
+
     // Access check: admin in same syndicate, or the owner
     const isAdmin = user.role === "super_admin" || isSyndicateScoped(user.role);
     if (!isAdmin) {
@@ -860,7 +917,17 @@ router.get("/appels-de-fonds/:id/receipt", requireAuth, async (req, res) => {
 // POST /appels-de-fonds/escalate-debts — Scan overdue charges and create escalation records
 router.post("/appels-de-fonds/escalate-debts", requireAuth, requireFinanceAccess, async (req, res) => {
   try {
+    const user = req.user!;
     const now = new Date();
+
+    const scopedBuildings = await db
+      .select({ id: buildingsTable.id })
+      .from(buildingsTable)
+      .where(eq(buildingsTable.syndicateId, user.syndicateId!));
+    const buildingIds = scopedBuildings.map((building) => building.id);
+    if (buildingIds.length === 0) {
+      return void res.json({ escalations: 0, data: [] });
+    }
 
     const overdueCharges = await db
       .select({
@@ -869,7 +936,12 @@ router.post("/appels-de-fonds/escalate-debts", requireAuth, requireFinanceAccess
         buildingId: appelsDeFondsTable.buildingId,
       })
       .from(appelsDeFondsTable)
-      .where(eq(appelsDeFondsTable.status, "overdue"));
+      .where(
+        and(
+          eq(appelsDeFondsTable.status, "overdue"),
+          inArray(appelsDeFondsTable.buildingId, buildingIds),
+        ),
+      );
 
     if (overdueCharges.length === 0) {
       res.json({ escalations: 0, message: "Aucune charge en retard" }); return;
@@ -995,7 +1067,17 @@ router.post("/budgets/check-reserve-fund", requireAuth, requireFinanceAccess, as
 // PUT /appels-de-fonds/mark-overdue — Cron-style: mark past due as overdue
 router.put("/appels-de-fonds/mark-overdue", requireAuth, requireFinanceAccess, async (req, res) => {
   try {
+    const user = req.user!;
     const today = new Date().toISOString().split("T")[0];
+
+    const scopedBuildings = await db
+      .select({ id: buildingsTable.id })
+      .from(buildingsTable)
+      .where(eq(buildingsTable.syndicateId, user.syndicateId!));
+    const buildingIds = scopedBuildings.map((building) => building.id);
+    if (buildingIds.length === 0) {
+      return void res.json({ updated: 0 });
+    }
 
     const result = await db
       .update(appelsDeFondsTable)
@@ -1003,7 +1085,8 @@ router.put("/appels-de-fonds/mark-overdue", requireAuth, requireFinanceAccess, a
       .where(
         and(
           eq(appelsDeFondsTable.status, "pending"),
-          sql`${appelsDeFondsTable.dueDate} < ${today}`
+          sql`${appelsDeFondsTable.dueDate} < ${today}`,
+          inArray(appelsDeFondsTable.buildingId, buildingIds),
         )
       )
       .returning();
