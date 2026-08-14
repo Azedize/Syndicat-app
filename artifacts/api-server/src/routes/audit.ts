@@ -27,6 +27,10 @@ router.post("/audit", requireAuth, async (req, res) => {
     return;
   }
   try {
+    if (req.user!.role !== "super_admin" && !req.user!.syndicateId) {
+      return void res.status(403).json({ error: "Syndicat non défini dans le token" });
+    }
+
     // A syndicate_admin cannot claim to act on another syndicate or mark a platform
     // action, so those overrides are only trusted from super_admin callers.
     const isSuperAdmin = req.user!.role === "super_admin";
@@ -53,11 +57,16 @@ router.get("/audit", requireAuth, requireRole("super_admin", "syndicate_admin", 
     const pagination = getPagination(req, 50);
     const { limit, offset } = pagination;
     const syndicateId = req.user!.syndicateId;
+    if (req.user!.role !== "super_admin" && !syndicateId) {
+      return void res.status(403).json({ error: "Syndicat non défini dans le token" });
+    }
     // Optional: filter by actor userId or date range
     const { actorId, since } = req.query as Record<string, string | undefined>;
 
     const conditions: ReturnType<typeof eq>[] = [];
-    if (syndicateId) conditions.push(eq(auditLogsTable.syndicateId, syndicateId));
+    if (req.user!.role !== "super_admin") {
+      conditions.push(eq(auditLogsTable.syndicateId, syndicateId!));
+    }
     if (actorId) conditions.push(eq(auditLogsTable.userId, actorId));
     if (since) {
       const d = new Date(since);

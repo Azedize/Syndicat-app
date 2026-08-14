@@ -246,3 +246,7 @@
 - Audited `artifacts/api-server/src/routes/buildings.ts` and enforced management-role JWT syndicate scope on list, detail, create, and update paths; resident building list/detail now derives scope from linked lots/tenancies.
 - Hardened `artifacts/api-server/src/routes/parking.ts`: all management-role building scopes use `isSyndicateTeamRole`, missing management `syndicateId` hard-fails, spot lot assignments must match the spot building, reservation lists are building-scoped, and vehicle list/delete paths no longer fall back to global access.
 - Re-ran API typecheck and `git diff --check`; restarted `artifacts/api-server: API Server` and confirmed a clean build, port 8080, SMTP verification, and scheduler startup.
+- Audited `artifacts/api-server/src/routes/members.ts`, `audit.ts`, `lots.ts`, and `team.ts` for the same missing-scope/global-fallback class.
+- Added fail-closed scope checks for member creation, audit writes/reads, lot list/personal lookup, and non-platform team operations; member creation validates the target syndicate before the transaction.
+- Added explicit `?supervision=true` enforcement before target lookup for Super Admin team-member role changes, avoiding ID existence disclosure and preserving scoped audit semantics.
+- Verified with API typecheck, production build, `git diff --check`, managed restart, health probe, unauthenticated 401 checks, and valid-but-scope-less 403 checks.

@@ -28,6 +28,9 @@ router.get("/lots", requireAuth, async (req, res) => {
     const { buildingId, type, status, ownerId } = req.query as Record<string, string>;
 
     const conditions: any[] = [];
+    if (user.role !== "super_admin" && !user.syndicateId) {
+      return void res.status(403).json({ error: "Syndicat non défini dans le token" });
+    }
     if (buildingId) {
       // When a specific buildingId is provided, verify it belongs to the caller's syndicate
       // (prevents cross-syndicate enumeration by guessing building IDs)
@@ -128,25 +131,45 @@ router.get("/lots", requireAuth, async (req, res) => {
 router.get("/lots/my-lot", requireAuth, async (req, res) => {
   try {
     const user = req.user!;
+    if (user.role !== "super_admin" && !user.syndicateId) {
+      return void res.status(403).json({ error: "Syndicat non défini dans le token" });
+    }
 
     // Find member record by email (membersTable has no userId FK, only email)
-    const [member] = await db
+    const memberRows = await db
       .select({ id: membersTable.id })
       .from(membersTable)
-      .where(eq(membersTable.email, user.email))
-      .limit(1);
+      .where(
+        user.role === "super_admin"
+          ? eq(membersTable.email, user.email)
+          : and(
+              eq(membersTable.email, user.email),
+              eq(membersTable.syndicateId, user.syndicateId!),
+            ),
+      );
 
     // Build OR conditions: ownerId could store membersTable.id or usersTable.id
     const ownerConditions: any[] = [eq(lotsTable.ownerId, user.userId)];
-    if (member) ownerConditions.push(eq(lotsTable.ownerId, member.id));
+    for (const member of memberRows) {
+      ownerConditions.push(eq(lotsTable.ownerId, member.id));
+    }
 
-    const [lot] = await db
-      .select()
+    const [lotRow] = await db
+      .select({ lot: lotsTable, buildingSyndicateId: buildingsTable.syndicateId })
       .from(lotsTable)
-      .where(ownerConditions.length > 1 ? or(...ownerConditions) : ownerConditions[0])
+      .innerJoin(buildingsTable, eq(buildingsTable.id, lotsTable.buildingId))
+      .where(
+        and(
+          ownerConditions.length > 1 ? or(...ownerConditions) : ownerConditions[0],
+          user.role === "super_admin"
+            ? undefined
+            : eq(buildingsTable.syndicateId, user.syndicateId!),
+        ),
+      )
       .limit(1);
 
-    if (!lot) return void res.status(404).json({ error: "Aucun lot associé à votre compte" });
+    if (!lotRow) return void res.status(404).json({ error: "Aucun lot associé à votre compte" });
+    const lot = lotRow.lot;
 
     const [building] = await db
       .select()

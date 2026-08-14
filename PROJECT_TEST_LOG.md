@@ -231,3 +231,7 @@
 - `pnpm exec prettier --write` on SidebarNav, FilterTabs, LanguageContext, and the role-aware dashboard plus `git diff --check` — passed.
 - Expo, API, and mockup-sandbox workflows remained healthy; Metro bundled successfully after the navigation/dashboard updates.
 - Public mobile `/welcome` preview at 402×874 — rendered without overflow or new browser runtime exceptions. Existing Expo Web shadow-style, push-notification, and native-animation warnings remain non-blocking.
+- `pnpm --filter @workspace/api-server run typecheck` — passed with zero errors after the members/audit/lots/team authorization batch.
+- `pnpm --filter @workspace/api-server run build` — passed; managed API restart completed with clean server, SMTP, retention, and expiry-scan startup logs.
+- `git diff --check` — passed for the four audited route files.
+- `/api/healthz` returned 200; unauthenticated affected routes returned 401; valid-but-scope-less management JWT probes returned 403 for member creation, audit read/write, lot list/personal lookup, and Super Admin team mutation without supervision.

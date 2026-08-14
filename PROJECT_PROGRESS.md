@@ -269,3 +269,7 @@
 - API verification passed: standalone typecheck, production build, diff validation, managed workflow restart, server startup, SMTP verification, and scheduled retention/expiry scans completed successfully.
 - Continued the server-side authorization audit on buildings and parking: management access now requires JWT syndicate scope, residents are limited to linked buildings, and parking reservations, vehicles, spots, and lots are checked against their building scope.
 - API typecheck, diff validation, production build, managed workflow restart, server startup, SMTP verification, and scheduled scans passed after the buildings/parking isolation batch.
+- Continued the adjacent API authorization audit on members, audit logs, lots, and team management.
+- Member creation and audit writes/reads now fail closed when a non-platform JWT has no syndicate scope; member creation also requires a real target syndicate before persistence.
+- Lot listing and personal-lot lookup now require and apply syndicate scope for non-platform users; Super Admin team-member role changes now require explicit supervision and a scoped target.
+- API typecheck, diff validation, production build, managed workflow restart, health probe, and valid-but-scope-less JWT probes passed; the wider route audit remains open.

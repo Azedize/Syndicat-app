@@ -138,3 +138,4 @@
 - Mobile verification: zero-error typecheck, Prettier, diff validation, and Expo workflow restart pass after the notification-preference follow-through.
 - Stripe Billing Infrastructure: webhook payment finalization export and current Stripe SDK subscription/invoice field mapping corrected; API startup and build verification complete.
 - Buildings & Parking Authorization: management roles use JWT syndicate isolation; resident building access derives from linked lots/tenancies; parking spot, reservation, vehicle, violation, and lot/building relationships are validated server-side.
+- Members, Audit, Lots & Team Authorization: missing JWT syndicate scope now fails closed for member creation, audit writes/reads, lot list/personal lookup, and non-platform team operations; Super Admin team edits require explicit supervision. Wider adjacent-route audit remains open.

@@ -25,3 +25,15 @@ Related access-control class bug found in this pass: routes gated only by `requi
 check for the syndicate_admin branch are IDOR-vulnerable to cross-syndicate access. Grep for
 `requireAdmin`/`requireRole("super_admin", "syndicate_admin")` handlers that fetch-by-id and
 verify each has this check before assuming the RBAC/syndicate-isolation work is complete.
+
+Additional rule: a Super Admin mutation that targets a syndicate-owned row must require an
+explicit supervision signal before looking up the target, then constrain the update to the
+resolved target syndicate. This avoids both unscoped platform mutations and ID-existence
+disclosure through different precondition responses.
+
+**Why:** team-member role changes were reachable through the broad `requireAdmin` guard and
+could mutate an arbitrary member ID without the supervision boundary used by operational routes.
+
+**How to apply:** for Super Admin ID-based syndicate mutations, check `?supervision=true` before
+the target query, resolve the target's syndicate, and include that syndicate in the final update
+predicate; non-platform roles must require a non-empty JWT `syndicateId`.

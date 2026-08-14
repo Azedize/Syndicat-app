@@ -127,12 +127,27 @@ router.put("/team/members/:id", requireAuth, requireAdmin, async (req, res) => {
       return void res.status(400).json({ error: `Rôle invalide. Valeurs acceptées: ${validRoles.join(", ")}` });
     }
 
-    if (user.role === "syndicate_admin") {
-      const [target] = await db
-        .select({ syndicateId: membersTable.syndicateId })
-        .from(membersTable)
-        .where(eq(membersTable.id, String(req.params.id) as string));
-      if (!target) return void res.status(404).json({ error: "Membre introuvable" });
+    if (user.role === "super_admin" && req.query.supervision !== "true") {
+      return void res.status(403).json({
+        error: "La supervision est requise pour modifier un membre de syndicat",
+        code: "SUPERVISION_REQUIRED",
+      });
+    }
+
+    const [target] = await db
+      .select({ syndicateId: membersTable.syndicateId })
+      .from(membersTable)
+      .where(eq(membersTable.id, String(req.params.id) as string));
+    if (!target) return void res.status(404).json({ error: "Membre introuvable" });
+
+    if (user.role === "super_admin") {
+      if (!target.syndicateId) {
+        return void res.status(403).json({ error: "Syndicat cible non défini" });
+      }
+    } else {
+      if (!user.syndicateId) {
+        return void res.status(403).json({ error: "Syndicat non défini dans le token" });
+      }
       if (target.syndicateId !== user.syndicateId) {
         return void res.status(403).json({ error: "Accès refusé" });
       }
@@ -142,7 +157,14 @@ router.put("/team/members/:id", requireAuth, requireAdmin, async (req, res) => {
     const [updated] = await db
       .update(membersTable)
       .set({ profession: role })
-      .where(eq(membersTable.id, String(req.params.id) as string))
+      .where(
+        and(
+          eq(membersTable.id, String(req.params.id) as string),
+          user.role === "super_admin"
+            ? eq(membersTable.syndicateId, target.syndicateId!)
+            : eq(membersTable.syndicateId, user.syndicateId!),
+        ),
+      )
       .returning();
 
     if (!updated) return void res.status(404).json({ error: "Membre introuvable" });

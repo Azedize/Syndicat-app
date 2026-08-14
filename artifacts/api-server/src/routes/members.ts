@@ -100,8 +100,26 @@ router.post(
     try {
       const syndicateId =
         req.user!.role === "super_admin"
-          ? result.data.syndicateId || ""
-          : req.user!.syndicateId || "";
+          ? result.data.syndicateId
+          : req.user!.syndicateId;
+
+      if (!syndicateId) {
+        return void res.status(req.user!.role === "super_admin" ? 400 : 403).json({
+          error:
+            req.user!.role === "super_admin"
+              ? "Un syndicat cible est requis"
+              : "Syndicat non défini dans le token",
+        });
+      }
+
+      const [syndicate] = await db
+        .select({ id: syndicatesTable.id })
+        .from(syndicatesTable)
+        .where(eq(syndicatesTable.id, syndicateId))
+        .limit(1);
+      if (!syndicate) {
+        return void res.status(404).json({ error: "Syndicat introuvable" });
+      }
 
       let member: typeof membersTable.$inferSelect;
       await db.transaction(async (tx) => {

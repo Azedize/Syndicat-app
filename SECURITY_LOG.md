@@ -60,3 +60,5 @@
 - Stripe webhook payment finalization remains transaction-backed and idempotent; the SDK compatibility update changes field mapping only and does not weaken signature verification, payment-state checks, or subscription ownership persistence.
 - Buildings detail/list/create/update now fail closed for management users without JWT `syndicateId`, enforce row-level syndicate matching, and restrict resident building visibility to linked buildings.
 - Parking spot, violation, reservation, and availability routes enforce building scope; spot lot assignment validates lot/building consistency; reservation listing is scoped by spot building; vehicle management no longer exposes cross-syndicate rows through role fallthrough.
+- Member creation now requires a valid target syndicate for Super Admin and a non-empty JWT syndicate scope for other management roles; audit writes and reads fail closed for scope-less non-platform sessions.
+- Lot list and personal-lot lookup apply the authenticated syndicate to building/owner resolution; Super Admin team-member role changes require explicit supervision before target lookup and update the row within its resolved syndicate.

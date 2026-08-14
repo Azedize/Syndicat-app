@@ -72,3 +72,6 @@
 - Operational invitation and meeting forms no longer drift from the shared MIZAN field language; resident lot balances/receipts and announcement detail dates no longer force French-Morocco formatting; document bundle generation no longer exposes French-only labels or raw French fallback copy in other locales.
 - Building detail/update no longer accepts a missing or mismatched management syndicate scope, and resident building responses no longer expose buildings outside linked lots or tenancies.
 - Parking no longer permits cross-building lot assignment, broad reservation enumeration, or global vehicle listing through non-admin management roles; management JWTs without `syndicateId` now fail closed.
+- Member creation and audit logging no longer accept a missing syndicate scope from non-platform sessions; audit reads no longer fall back to a global log query.
+- Lot list and personal-lot lookup no longer fall through to global data when a management JWT lacks syndicate scope; personal member lookup is constrained to the caller's syndicate.
+- Super Admin team-member role changes no longer mutate arbitrary member IDs without explicit supervision, and supervision is checked before target existence is revealed.
