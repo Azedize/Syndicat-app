@@ -9,6 +9,14 @@
 - API typecheck, production build, diff validation, managed workflow restart, health probe, and unauthenticated AG authorization probe passed.
 - Adjacent API route authorization audit remains in progress.
 
+## 2026-08-13
+
+- Continued the adjacent API authorization audit across elections, ideas, financial transparency, and private works.
+- Added fail-closed syndicate scope checks for election and mandate listings and rejected election creation without a scoped syndicate.
+- Added row-level syndicate checks for idea voting/review/deletion and financial justification challenge/vote/resolve operations.
+- Prevented private-works listings from falling back to an unscoped query when the JWT has no syndicate.
+- API typecheck, production build, diff validation, workflow restart, health probe (`200`), and unauthenticated protected-route probes (`401`) passed.
+
 # Project Progress
 
 ## 2026-08-11 — Server-side tenant-isolation hardening continuation

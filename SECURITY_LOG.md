@@ -11,6 +11,13 @@
 - AG creation no longer persists an empty syndicate identifier and validates optional building references against the target syndicate.
 - Verification: API typecheck, production build, managed workflow restart, health probe, and unauthenticated AG route probe passed.
 
+## 2026-08-13
+
+- Hardened elections and mandates against unscoped non-platform sessions; election creation now rejects missing syndicate scope.
+- Hardened ideas and financial transparency with resource-level syndicate authorization on list, vote, review, challenge, and resolution paths.
+- Hardened private-works listing to fail closed instead of querying globally when the JWT lacks syndicate scope.
+- Verification passed: API typecheck, production build, `git diff --check`, API workflow restart, `/api/healthz` (`200`), and protected route probes (`401` without authentication).
+
 # Security Log
 
 ## 2026-08-11

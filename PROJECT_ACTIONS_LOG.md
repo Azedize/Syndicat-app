@@ -8,6 +8,14 @@
 - Added target-syndicate and building ownership validation to AG creation/resolution creation, and rejected missing syndicate scope instead of persisting an empty `syndicateId`.
 - Verified with API typecheck, API production build, `git diff --check`, workflow restart, `/api/healthz` (`200`), and unauthenticated `/api/ag-meetings` (`401`).
 
+## 2026-08-13
+
+- Audited adjacent operational routes and found nullable-scope fallbacks in elections, ideas, transparency, and private works.
+- Added fail-closed `403` guards when non-platform users lack a `syndicateId`.
+- Added resource-level checks before idea votes/reviews/deletes and before transparency challenges/votes/resolution.
+- Preserved `super_admin` platform-wide access while keeping operational records syndicate-scoped.
+- Rebuilt and restarted the API successfully; health and unauthenticated authorization probes passed.
+
 # Project Actions Log
 
 ## 2026-08-11

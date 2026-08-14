@@ -16,6 +16,11 @@ import { requireAuth, requireAdmin } from "../middleware/auth.js";
 
 const router = Router();
 
+function canAccessJustification(req: any, syndicateId: string | null | undefined): boolean {
+  const user = req.user!;
+  return user.role === "super_admin" || (!!user.syndicateId && syndicateId === user.syndicateId);
+}
+
 // GET /transparency — list expense justifications
 router.get("/expense-justifications", requireAuth, async (req, res) => {
   try {
@@ -23,7 +28,12 @@ router.get("/expense-justifications", requireAuth, async (req, res) => {
     const { status } = req.query as Record<string, string>;
 
     const conditions: any[] = [];
-    if (user.syndicateId) conditions.push(eq(expenseJustificationsTable.syndicateId, user.syndicateId));
+    if (user.role !== "super_admin" && !user.syndicateId) {
+      return void res.status(403).json({ error: "Syndicat non défini dans le token" });
+    }
+    if (user.role !== "super_admin") {
+      conditions.push(eq(expenseJustificationsTable.syndicateId, user.syndicateId!));
+    }
     if (status) conditions.push(eq(expenseJustificationsTable.status, status));
 
     const rows = await db
@@ -58,6 +68,9 @@ router.post("/expense-justifications", requireAuth, requireAdmin, async (req, re
     const user = req.user!;
     const { title, description, amount, category, receiptUrl, transactionId } = req.body;
 
+    if (user.role !== "super_admin" && !user.syndicateId) {
+      return void res.status(403).json({ error: "Syndicat non défini dans le token" });
+    }
     if (!title?.trim() || !amount) {
       return void res.status(400).json({ error: "Le titre et le montant sont obligatoires" });
     }
@@ -101,6 +114,9 @@ router.post("/expense-justifications/:id/challenge", requireAuth, async (req, re
       .where(eq(expenseJustificationsTable.id, String(req.params.id) as string));
 
     if (!row) return void res.status(404).json({ error: "Justificatif introuvable" });
+    if (!canAccessJustification(req, row.syndicateId)) {
+      return void res.status(403).json({ error: "Accès refusé" });
+    }
     if (row.status !== "pending") {
       return void res.status(400).json({ error: "Ce justificatif ne peut plus être contesté" });
     }
@@ -139,6 +155,9 @@ router.post("/expense-justifications/:id/vote", requireAuth, async (req, res) =>
       .where(eq(expenseJustificationsTable.id, String(req.params.id) as string));
 
     if (!row) return void res.status(404).json({ error: "Justificatif introuvable" });
+    if (!canAccessJustification(req, row.syndicateId)) {
+      return void res.status(403).json({ error: "Accès refusé" });
+    }
     if (row.status !== "challenged") {
       return void res.status(400).json({ error: "Le vote n'est ouvert que pour les justificatifs contestés" });
     }
@@ -193,6 +212,15 @@ router.put("/expense-justifications/:id/resolve", requireAuth, requireAdmin, asy
   try {
     const { status, resolutionNote } = req.body; // "approved" | "resolved"
 
+    const [existing] = await db
+      .select()
+      .from(expenseJustificationsTable)
+      .where(eq(expenseJustificationsTable.id, String(req.params.id) as string));
+    if (!existing) return void res.status(404).json({ error: "Justificatif introuvable" });
+    if (!canAccessJustification(req, existing.syndicateId)) {
+      return void res.status(403).json({ error: "Accès refusé" });
+    }
+
     const [updated] = await db
       .update(expenseJustificationsTable)
       .set({
@@ -203,7 +231,6 @@ router.put("/expense-justifications/:id/resolve", requireAuth, requireAdmin, asy
       .where(eq(expenseJustificationsTable.id, String(req.params.id) as string))
       .returning();
 
-    if (!updated) return void res.status(404).json({ error: "Justificatif introuvable" });
     res.json({ data: updated, message: "Justificatif résolu" });
   } catch (e) {
     console.error(e);

@@ -18,6 +18,11 @@ import { requireAuth, requireAdmin } from "../middleware/auth.js";
 
 const router = Router();
 
+function canAccessIdea(req: any, syndicateId: string | null | undefined): boolean {
+  const user = req.user!;
+  return user.role === "super_admin" || (!!user.syndicateId && syndicateId === user.syndicateId);
+}
+
 // GET /ideas — list ideas for current syndicate
 router.get("/ideas", requireAuth, async (req, res) => {
   try {
@@ -25,7 +30,10 @@ router.get("/ideas", requireAuth, async (req, res) => {
     const { status, category } = req.query as Record<string, string>;
 
     const conditions: any[] = [];
-    if (user.syndicateId) conditions.push(eq(ideasTable.syndicateId, user.syndicateId));
+    if (user.role !== "super_admin" && !user.syndicateId) {
+      return void res.status(403).json({ error: "Syndicat non défini dans le token" });
+    }
+    if (user.role !== "super_admin") conditions.push(eq(ideasTable.syndicateId, user.syndicateId!));
     if (status) conditions.push(eq(ideasTable.status, status));
     if (category) conditions.push(eq(ideasTable.category, category));
 
@@ -64,6 +72,9 @@ router.post("/ideas", requireAuth, async (req, res) => {
 
     if (!title?.trim() || !description?.trim()) {
       return void res.status(400).json({ error: "Le titre et la description sont obligatoires" });
+    }
+    if (user.role !== "super_admin" && !user.syndicateId) {
+      return void res.status(403).json({ error: "Syndicat non défini dans le token" });
     }
 
     // Max 1 active (non-rejected) idea per user per calendar year
@@ -117,6 +128,9 @@ router.post("/ideas/:id/vote", requireAuth, async (req, res) => {
 
     const [idea] = await db.select().from(ideasTable).where(eq(ideasTable.id, ideaId));
     if (!idea) return void res.status(404).json({ error: "Idée introuvable" });
+    if (!canAccessIdea(req, idea.syndicateId)) {
+      return void res.status(403).json({ error: "Accès refusé" });
+    }
 
     if (idea.status === "rejected" || idea.status === "implemented") {
       return void res.status(400).json({ error: "Le vote est fermé pour cette idée" });
@@ -157,6 +171,15 @@ router.post("/ideas/:id/vote", requireAuth, async (req, res) => {
 // PUT /ideas/:id — admin review (approve/reject/implement)
 router.put("/ideas/:id", requireAuth, requireAdmin, async (req, res) => {
   try {
+    const [idea] = await db
+      .select({ syndicateId: ideasTable.syndicateId })
+      .from(ideasTable)
+      .where(eq(ideasTable.id, String(req.params.id) as string));
+    if (!idea) return void res.status(404).json({ error: "Idée introuvable" });
+    if (!canAccessIdea(req, idea.syndicateId)) {
+      return void res.status(403).json({ error: "Accès refusé" });
+    }
+
     const allowed: Record<string, any> = {};
     const { status, adminNote, voteDeadline } = req.body;
 
@@ -171,7 +194,6 @@ router.put("/ideas/:id", requireAuth, requireAdmin, async (req, res) => {
       .where(eq(ideasTable.id, String(req.params.id) as string))
       .returning();
 
-    if (!updated) return void res.status(404).json({ error: "Idée introuvable" });
     res.json({ data: updated, message: "Idée mise à jour" });
   } catch (e) {
     console.error(e);
@@ -185,6 +207,9 @@ router.delete("/ideas/:id", requireAuth, async (req, res) => {
     const user = req.user!;
     const [idea] = await db.select().from(ideasTable).where(eq(ideasTable.id, String(req.params.id) as string));
     if (!idea) return void res.status(404).json({ error: "Idée introuvable" });
+    if (!canAccessIdea(req, idea.syndicateId)) {
+      return void res.status(403).json({ error: "Accès refusé" });
+    }
 
     const isAdmin = user.role === "super_admin" || user.role === "syndicate_admin";
     if (!isAdmin && idea.userId !== user.userId) {

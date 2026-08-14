@@ -7,6 +7,12 @@
 - Corrected AG creation fallback that could persist an empty syndicate identifier when a management JWT lacked scope; target syndicate and optional building references are now required/validated.
 - Remaining production audit work is intentionally open for adjacent API routes; no claim of full platform-wide authorization coverage is made here.
 
+## 2026-08-13
+
+- Found adjacent API isolation gaps where a missing `syndicateId` could turn a list into a global query or allow an empty-scope election record.
+- Found ID-based idea and expense-justification mutations that checked authentication/role but not the resource's syndicate.
+- Corrected all confirmed gaps in the audited modules; broader route coverage remains an ongoing audit item.
+
 # Project Bugs Log
 
 ## 2026-08-11

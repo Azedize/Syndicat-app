@@ -83,6 +83,9 @@ function assertAccess(req: any, election: { syndicateId: string | null }): boole
 router.get("/elections", requireAuth, async (req, res) => {
   try {
     const syndicateId = req.user!.syndicateId;
+    if (req.user!.role !== "super_admin" && !syndicateId) {
+      return void res.status(403).json({ error: "Syndicat non défini dans le token" });
+    }
     const elections = syndicateId
       ? await db.select().from(electionsTable).where(eq(electionsTable.syndicateId, syndicateId))
       : await db.select().from(electionsTable);
@@ -135,6 +138,9 @@ async function enrichElections(elections: (typeof electionsTable.$inferSelect)[]
 router.get("/elections/mandates", requireAuth, async (req, res) => {
   try {
     const syndicateId = req.user!.syndicateId;
+    if (req.user!.role !== "super_admin" && !syndicateId) {
+      return void res.status(403).json({ error: "Syndicat non défini dans le token" });
+    }
     const mandates = syndicateId
       ? await db.select().from(conseilSyndicalTable).where(eq(conseilSyndicalTable.syndicateId, syndicateId))
       : await db.select().from(conseilSyndicalTable);
@@ -236,6 +242,9 @@ router.post("/elections", requireAuth, requireOperationalAccess, async (req, res
   }
 
   try {
+    if (req.user!.role !== "super_admin" && !req.user!.syndicateId) {
+      return void res.status(403).json({ error: "Syndicat non défini dans le token" });
+    }
     const syndicateId = req.user!.syndicateId || "";
     const [election] = await db
       .insert(electionsTable)

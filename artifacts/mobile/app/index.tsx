@@ -1,22 +1,13 @@
-import { router } from "expo-router";
-import React, { useEffect } from "react";
-import { StyleSheet, View } from "react-native";
+import { Redirect } from "expo-router";
 
 import { useAuth } from "@/context/AuthContext";
-import WelcomeScreen from "@/app/welcome";
 
 export default function RootIndexScreen() {
-  const { user } = useAuth();
+  const { user, isLoading } = useAuth();
 
-  useEffect(() => {
-    if (user) {
-      router.replace("/(tabs)/" as any);
-    }
-  }, [user]);
-
-  return <WelcomeScreen />;
+  // Keep the root entry route-only. Mounting the welcome screen here as a
+  // second component caused Expo web to render a partially initialized copy
+  // of the public page before the real /welcome route settled.
+  if (isLoading) return null;
+  return <Redirect href={user ? "/(tabs)" : "/welcome"} />;
 }
-
-const styles = StyleSheet.create({
-  loading: { flex: 1, backgroundColor: "#070D1A" },
-});

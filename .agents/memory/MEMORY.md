@@ -45,6 +45,7 @@
 - [Profile and editor localization](profile-and-editor-localization.md) — authenticated profile feedback and Template Studio metadata must be runtime-localized with safe API error copy.
 - [Dashboard data state](dashboard-data-state.md) — home metrics use shared fan-out loading and partial-failure semantics; do not treat initial empty arrays as real zeros.
 - [Expo public entry](expo-public-entry.md) — public landing routes need an immediate root entry before session redirects.
+- [Expo root route redirects](expo-root-route.md) — keep app/index.tsx as a route redirect; mounting a second copy of welcome can blank or partially render Expo web.
 - [Small-screen mobile layout](small-screen-mobile-layout.md) — carousel mockups and auth option rows need explicit responsive bounds to prevent overlap on compact devices.
 - [Finance locale formatting](finance-locale-formatting.md) — user-facing financial amounts use active-locale MAD formatting, never compact k/M totals; dates follow the same locale.
 - [Admin-created account credentials](admin-account-credentials.md) — account creation must generate temporary credentials server-side; never ship a shared default password in the client.

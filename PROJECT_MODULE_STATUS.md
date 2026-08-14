@@ -7,6 +7,12 @@
 - API typecheck/build, diff validation, workflow restart, health probe, and unauthenticated route probe passed.
 - Adjacent API route authorization audit remains in progress.
 
+## 2026-08-13
+
+- Elections, Ideas, Financial Transparency, and Private Works: adjacent API syndicate-isolation hardening completed for the confirmed gaps.
+- Missing-scope sessions now fail closed; ID-based mutations validate the parent/resource syndicate before acting.
+- API verification passed; the wider authorization audit remains open for additional route families.
+
 # Project Module Status
 
 ## 2026-08-11

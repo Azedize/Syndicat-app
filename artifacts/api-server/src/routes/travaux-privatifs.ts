@@ -54,10 +54,12 @@ router.get("/travaux-privatifs", requireAuth, async (req, res) => {
 
     const conditions: any[] = [];
 
-    if (user.role === "super_admin") {
+    if (user.role !== "super_admin" && !user.syndicateId) {
+      return void res.status(403).json({ error: "Syndicat non défini dans le token" });
+    } else if (user.role === "super_admin") {
       // unrestricted
     } else if (user.role === "syndicate_admin") {
-      if (user.syndicateId) conditions.push(eq(travauxPrivatifsTable.syndicateId, user.syndicateId));
+      conditions.push(eq(travauxPrivatifsTable.syndicateId, user.syndicateId!));
     } else {
       // member / tenant: only own requests
       conditions.push(eq(travauxPrivatifsTable.requestedById, user.userId));
