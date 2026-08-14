@@ -17,7 +17,7 @@ import {
   buildingsTable,
 } from "@workspace/db/schema";
 import { eq, and, desc, sql, inArray } from "drizzle-orm";
-import { requireAuth, requireAdmin } from "../middleware/auth.js";
+import { requireAuth, requireSuperAdmin } from "../middleware/auth.js";
 
 const router = Router();
 
@@ -107,7 +107,9 @@ async function computeScoreForSyndicate(syndicateId: string, month: number, year
 }
 
 // POST /rankings/compute — compute and persist rankings for a month
-router.post("/rankings/compute", requireAuth, requireAdmin, async (req, res) => {
+// This is a platform-wide write: a syndicate administrator must never be able
+// to trigger reads/upserts/rank changes for every other syndicate.
+router.post("/rankings/compute", requireAuth, requireSuperAdmin, async (req, res) => {
   try {
     const now = new Date();
     const month = parseInt((req.body.month ?? now.getMonth() + 1).toString());
