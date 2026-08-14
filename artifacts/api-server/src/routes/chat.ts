@@ -12,6 +12,7 @@ import {
   usersTable,
   productsTable,
   reclamationsTable,
+  buildingsTable,
 } from "@workspace/db/schema";
 import { eq, or, and, desc, count, inArray, gt, sql } from "drizzle-orm";
 import { requireAuth, type JwtPayload } from "../middleware/auth.js";
@@ -609,6 +610,19 @@ router.post("/conversations", requireAuth, async (req, res) => {
         return;
       }
 
+      // Keep the communication matrix fail-closed even if a future role is
+      // added to canDirectMessage without an explicit scope rule.
+      if (
+        actor.role !== "super_admin" &&
+        (!actor.syndicateId || target.syndicateId !== actor.syndicateId)
+      ) {
+        res.status(403).json({
+          error: "Les conversations inter-syndicats ne sont pas autorisées",
+          code: "SYNDICATE_SCOPE_REQUIRED",
+        });
+        return;
+      }
+
       // Emergency chats always target the syndicate's admin and are allowed
       // for any member/tenant of that syndicate, bypassing the normal matrix.
       const isEmergencyToOwnAdmin =
@@ -657,6 +671,54 @@ router.post("/conversations", requireAuth, async (req, res) => {
     const allParticipantIds = participantIds
       ? [...new Set([actor.userId, ...participantIds])]
       : undefined;
+
+    // Group conversations accept a list of arbitrary user IDs and an
+    // optional building ID. Validate both resources against the actor's
+    // syndicate before persisting the conversation.
+    if ((isGroup || convType === "group") && actor.role !== "super_admin") {
+      if (!actor.syndicateId) {
+        res.status(403).json({
+          error: "Syndicat non défini dans le token",
+          code: "SYNDICATE_SCOPE_REQUIRED",
+        });
+        return;
+      }
+
+      const requestedParticipantIds = Array.from(
+        new Set((participantIds ?? []).filter((id) => id !== actor.userId)),
+      );
+      if (requestedParticipantIds.length > 0) {
+        const participants = await db
+          .select({ id: usersTable.id, syndicateId: usersTable.syndicateId })
+          .from(usersTable)
+          .where(inArray(usersTable.id, requestedParticipantIds));
+
+        if (
+          participants.length !== requestedParticipantIds.length ||
+          participants.some((participant) => participant.syndicateId !== actor.syndicateId)
+        ) {
+          res.status(403).json({
+            error: "Tous les participants doivent appartenir à votre syndicat",
+            code: "SYNDICATE_SCOPE_REQUIRED",
+          });
+          return;
+        }
+      }
+
+      if (buildingId) {
+        const [building] = await db
+          .select({ syndicateId: buildingsTable.syndicateId })
+          .from(buildingsTable)
+          .where(eq(buildingsTable.id, buildingId));
+        if (!building || building.syndicateId !== actor.syndicateId) {
+          res.status(403).json({
+            error: "Ce bâtiment n'appartient pas à votre syndicat",
+            code: "SYNDICATE_SCOPE_REQUIRED",
+          });
+          return;
+        }
+      }
+    }
 
     const [conv] = await db
       .insert(conversationsTable)

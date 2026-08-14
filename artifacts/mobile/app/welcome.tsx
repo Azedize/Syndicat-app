@@ -14,20 +14,12 @@ import {
   View,
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
-import Svg, {
-  Circle,
-  Defs,
-  G,
-  LinearGradient as SvgGradient,
-  Path,
-  Rect,
-  Stop,
-} from "react-native-svg";
 
 import MizanLogo from "@/components/brand/MizanLogo";
 import { MIZAN } from "@/constants/brand";
 import { useLanguage } from "@/context/LanguageContext";
 import { useTheme } from "@/context/ThemeContext";
+import { useColors } from "@/hooks/useColors";
 
 const SERVICES = [
   { icon: "shield" as const, titleKey: "welcomeGovernance", textKey: "welcomeGovernanceText" },
@@ -92,77 +84,42 @@ function ServiceCard({
   );
 }
 
-function ProductStage({ isDark, t }: { isDark: boolean; t: (key: string) => string }) {
-  const frame = isDark ? "#102442" : "#FFFFFF";
-  const surface = isDark ? "#0A1628" : "#F8FBFF";
-  const softSurface = isDark ? "#132C4D" : "#EDF4FF";
-  const ink = isDark ? "#F8FAFF" : "#0A1628";
-  const muted = isDark ? "#7F9BC2" : "#7085A0";
+function PromiseBand({
+  isDark,
+  colors,
+  t,
+}: {
+  isDark: boolean;
+  colors: ReturnType<typeof useColors>;
+  t: (key: string) => string;
+}) {
+  const promises = [
+    { icon: "compass" as const, label: t("welcomePilotage") },
+    { icon: "check-circle" as const, label: t("welcomeAllInOne") },
+    { icon: "users" as const, label: t("welcomeMoroccoReady") },
+  ];
 
   return (
-    <View style={styles.heroVisual}>
-      <View style={[styles.glow, { backgroundColor: isDark ? "#2563EB" : "#93C5FD" }]} />
-      <View style={[styles.productFrame, { backgroundColor: frame, borderColor: isDark ? "#35527D" : "#D5E5FA" }]}>
-        <Svg width="100%" height={276} viewBox="0 0 300 276" preserveAspectRatio="xMidYMid meet">
-          <Defs>
-            <SvgGradient id="productBlue" x1="0" y1="0" x2="1" y2="1">
-              <Stop offset="0" stopColor="#5E9BFF" />
-              <Stop offset="1" stopColor="#2563EB" />
-            </SvgGradient>
-            <SvgGradient id="productGlow" x1="0" y1="0" x2="1" y2="1">
-              <Stop offset="0" stopColor="#3B82F6" stopOpacity="0.32" />
-              <Stop offset="1" stopColor="#3B82F6" stopOpacity="0" />
-            </SvgGradient>
-          </Defs>
-          <Rect width="300" height="276" rx="18" fill={surface} />
-          <Circle cx="256" cy="18" r="110" fill="url(#productGlow)" />
-          <Rect x="0" y="0" width="300" height="40" rx="18" fill={frame} />
-          <Rect x="0" y="22" width="300" height="18" fill={frame} />
-          <Circle cx="18" cy="20" r="7" fill="#34D399" />
-          <Rect x="32" y="15" width="72" height="9" rx="4.5" fill={ink} opacity="0.85" />
-          <Rect x="218" y="14" width="22" height="11" rx="5" fill={softSurface} />
-          <Circle cx="263" cy="20" r="6" fill="#60A5FA" opacity="0.8" />
-          <Rect x="14" y="54" width="62" height="200" rx="12" fill={frame} />
-          <Rect x="27" y="70" width="36" height="7" rx="3.5" fill="#60A5FA" />
-          <Rect x="27" y="98" width="35" height="8" rx="4" fill={softSurface} />
-          <Rect x="27" y="122" width="28" height="8" rx="4" fill={softSurface} />
-          <Rect x="27" y="146" width="34" height="8" rx="4" fill="#2563EB" />
-          <Rect x="27" y="170" width="25" height="8" rx="4" fill={softSurface} />
-          <Rect x="27" y="224" width="38" height="1" fill={softSurface} />
-          <Circle cx="34" cy="241" r="8" fill="#F59E0B" opacity="0.9" />
-          <Rect x="88" y="54" width="198" height="32" rx="10" fill={frame} />
-          <Rect x="101" y="63" width="58" height="7" rx="3.5" fill={ink} opacity="0.78" />
-          <Rect x="101" y="74" width="92" height="5" rx="2.5" fill={muted} opacity="0.8" />
-          <Rect x="218" y="62" width="54" height="18" rx="9" fill="#2563EB" />
-          <Path d="M232 71l4 4 8-9" stroke="#FFF" strokeWidth="2" fill="none" strokeLinecap="round" strokeLinejoin="round" />
-          <Rect x="88" y="96" width="94" height="67" rx="12" fill={frame} />
-          <Rect x="192" y="96" width="94" height="67" rx="12" fill={frame} />
-          <Rect x="101" y="109" width="28" height="6" rx="3" fill={muted} />
-          <Rect x="101" y="125" width="50" height="15" rx="5" fill={ink} opacity="0.9" />
-          <Rect x="205" y="109" width="34" height="6" rx="3" fill={muted} />
-          <Rect x="205" y="125" width="40" height="15" rx="5" fill="#34D399" opacity="0.9" />
-          <Rect x="88" y="174" width="198" height="80" rx="12" fill={frame} />
-          <Rect x="101" y="188" width="61" height="6" rx="3" fill={ink} opacity="0.78" />
-          <Path d="M103 236 C120 222 128 230 140 214 S160 228 172 205 S192 218 204 198 S225 208 238 187 S258 200 273 181" stroke="url(#productBlue)" strokeWidth="3" fill="none" strokeLinecap="round" />
-          <Path d="M103 238 C120 224 128 232 140 216 S160 230 172 207 S192 220 204 200 S225 210 238 189 S258 202 273 183 L273 244 L103 244 Z" fill="url(#productGlow)" opacity="0.7" />
-          <Circle cx="204" cy="200" r="4" fill="#FFFFFF" stroke="#3B82F6" strokeWidth="2" />
-        </Svg>
-        <View style={styles.stageCaption}>
-          <View style={styles.captionLive}>
-            <View style={styles.captionDot} />
-            <Text style={styles.captionLiveText}>{t("welcomePilotage")}</Text>
+    <View style={[styles.promiseBand, { backgroundColor: colors.card, borderColor: colors.border }]}>
+      {promises.map((promise) => (
+        <View key={promise.label} style={styles.promiseItem}>
+          <View style={[styles.promiseIcon, { backgroundColor: colors.accent }]}>
+            <Feather name={promise.icon} size={15} color={colors.primary} />
           </View>
-          <Text style={styles.captionText}>{t("welcomeAllInOne")}</Text>
+          <Text style={[styles.promiseText, { color: isDark ? colors.foreground : colors.cardForeground }]}>
+            {promise.label}
+          </Text>
         </View>
-      </View>
+      ))}
     </View>
   );
 }
 
 export default function WelcomeScreen() {
   const insets = useSafeAreaInsets();
-  const { isDark } = useTheme();
+  const { isDark, toggle } = useTheme();
   const { t, isRTL } = useLanguage();
+  const colors = useColors();
   // Keep the landing page legible on the very first frame (including Expo web
   // previews), while the content still gets a subtle upward entrance motion.
   const fade = useRef(new Animated.Value(1)).current;
@@ -172,16 +129,16 @@ export default function WelcomeScreen() {
     Animated.timing(rise, { toValue: 0, duration: 650, useNativeDriver: true }).start();
   }, [fade, rise]);
 
-  const background = isDark ? MIZAN.colors.navyDeep : "#F4F8FF";
-  const panel = isDark ? MIZAN.colors.navyMid : "#FFFFFF";
-  const muted = isDark ? "#91A5C0" : "#64748B";
-  const foreground = isDark ? "#F8FAFF" : MIZAN.colors.navyDeep;
+  const background = colors.background;
+  const panel = colors.card;
+  const muted = colors.mutedForeground;
+  const foreground = colors.foreground;
 
   return (
     <View style={[styles.root, { backgroundColor: background }]}>
-      <StatusBar barStyle="light-content" translucent backgroundColor="transparent" />
+      <StatusBar barStyle={isDark ? "light-content" : "dark-content"} translucent backgroundColor="transparent" />
       <LinearGradient
-        colors={isDark ? ["#0A1B35", "#081326", "#07101E"] : ["#EAF3FF", "#F8FBFF", "#EEF5FF"]}
+        colors={isDark ? [colors.background, colors.muted, colors.background] : [colors.secondary, colors.background, colors.card]}
         style={StyleSheet.absoluteFill}
         start={{ x: 0, y: 0 }}
         end={{ x: 1, y: 1 }}
@@ -197,26 +154,38 @@ export default function WelcomeScreen() {
         <View style={styles.pagePadding}>
           <View style={[styles.topBar, isRTL && styles.rtlRow]}>
             <MizanLogo variant="horizontal" colorScheme={isDark ? "dark" : "light"} size={40} showTagline={false} />
-            <TouchableOpacity
-              testID="welcome-login"
-              onPress={() => {
-                Haptics.selectionAsync();
-                router.replace("/login");
-              }}
-              style={[
-                styles.loginButton,
-                {
-                   borderColor: isDark ? "rgba(147,197,253,0.38)" : "#BFDBFE",
-                  backgroundColor: isDark ? "rgba(37,99,235,0.12)" : "#FFFFFF",
-                },
-              ]}
-              activeOpacity={0.82}
-            >
-              <Text style={[styles.loginText, { color: isDark ? "#BFDBFE" : MIZAN.colors.blue }]}>
-                {t("connect")}
-              </Text>
-              <Feather name="arrow-up-right" size={16} color={isDark ? "#93C5FD" : MIZAN.colors.blue} />
-            </TouchableOpacity>
+            <View style={styles.headerActions}>
+              <TouchableOpacity
+                testID="welcome-login"
+                onPress={() => {
+                  Haptics.selectionAsync();
+                  router.replace("/login");
+                }}
+                style={[
+                  styles.loginButton,
+                  {
+                    borderColor: colors.border,
+                    backgroundColor: colors.card,
+                  },
+                ]}
+                activeOpacity={0.82}
+              >
+                <Text style={[styles.loginText, { color: colors.primary }]}>
+                  {t("connect")}
+                </Text>
+                <Feather name="arrow-up-right" size={16} color={colors.primary} />
+              </TouchableOpacity>
+              <TouchableOpacity
+                testID="welcome-theme-toggle"
+                onPress={toggle}
+                style={[styles.themeButton, { backgroundColor: colors.card, borderColor: colors.border }]}
+                activeOpacity={0.82}
+                accessibilityRole="button"
+                accessibilityLabel={isDark ? t("lightMode") : t("darkMode")}
+              >
+                <Feather name={isDark ? "sun" : "moon"} size={17} color={colors.foreground} />
+              </TouchableOpacity>
+            </View>
           </View>
 
           <Animated.View style={[styles.heroBlock, { opacity: fade, transform: [{ translateY: rise }] }]}>
@@ -272,13 +241,13 @@ export default function WelcomeScreen() {
               </View>
             </View>
 
-            <ProductStage isDark={isDark} t={t} />
+            <PromiseBand isDark={isDark} colors={colors} t={t} />
           </Animated.View>
 
           <View
             style={[
               styles.trustBar,
-              { backgroundColor: isDark ? "rgba(13,31,54,0.78)" : "#FFFFFF", borderColor: isDark ? "rgba(96,165,250,0.16)" : "#DBEAFE" },
+               { backgroundColor: colors.card, borderColor: colors.border },
             ]}
           >
             <TrustMark icon="check-circle" label={t("welcomeLaw18")} isDark={isDark} />
@@ -300,7 +269,7 @@ export default function WelcomeScreen() {
             ))}
           </View>
 
-          <View style={[styles.proofCard, { backgroundColor: panel, borderColor: isDark ? "#203A61" : "#DBEAFE" }]}>
+           <View style={[styles.proofCard, { backgroundColor: panel, borderColor: colors.border }]}>
             <View style={styles.proofCopy}>
               <View style={styles.proofTag}>
                 <Feather name="bar-chart-2" size={14} color="#60A5FA" />
@@ -315,21 +284,21 @@ export default function WelcomeScreen() {
                 <Text style={[styles.proofSignalText, { color: muted }]}>{t("welcomePilotageSignal")}</Text>
               </View>
             </View>
-            <View style={[styles.proofEmblem, { backgroundColor: isDark ? "#0A1628" : "#F1F6FF" }]}>
-              <Feather name="activity" size={42} color={isDark ? "#60A5FA" : MIZAN.colors.blue} />
+             <View style={[styles.proofEmblem, { backgroundColor: colors.secondary }]}>
+               <Feather name="activity" size={42} color={colors.primary} />
             </View>
           </View>
 
-          <View style={styles.bottomCta}>
+           <View style={[styles.bottomCta, { backgroundColor: isDark ? colors.card : colors.primary }]}>
             <Text style={[styles.bottomCtaTitle, { color: foreground }]}>{t("welcomeBottomTitle")}</Text>
             <Text style={[styles.bottomCtaText, { color: muted }]}>{t("welcomeBottomText")}</Text>
             <TouchableOpacity
               onPress={() => router.push("/get-started")}
-              style={styles.bottomCtaButton}
+               style={[styles.bottomCtaButton, { backgroundColor: isDark ? colors.primary : colors.card }]}
               activeOpacity={0.86}
             >
-              <Text style={styles.bottomCtaButtonText}>{t("welcomeStartFree")}</Text>
-              <Feather name="arrow-right" size={18} color="#FFFFFF" />
+               <Text style={[styles.bottomCtaButtonText, { color: isDark ? colors.primaryForeground : colors.primary }]}>{t("welcomeStartFree")}</Text>
+               <Feather name="arrow-right" size={18} color={isDark ? colors.primaryForeground : colors.primary} />
             </TouchableOpacity>
           </View>
         </View>
@@ -343,6 +312,7 @@ const styles = StyleSheet.create({
   pagePadding: { paddingHorizontal: 22 },
   topBar: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", marginBottom: 30 },
   rtlRow: { flexDirection: "row-reverse" },
+  headerActions: { flexDirection: "row", alignItems: "center", gap: 8 },
   loginButton: { flexDirection: "row", alignItems: "center", gap: 7, borderWidth: 1, borderRadius: 22, paddingHorizontal: 13, paddingVertical: 9 },
   loginText: { fontFamily: "Inter_600SemiBold", fontSize: 13 },
   heroBlock: { gap: 28 },
@@ -359,14 +329,11 @@ const styles = StyleSheet.create({
   primaryButtonText: { color: "#FFFFFF", fontFamily: "Inter_700Bold", fontSize: 14 },
   plansButton: { minHeight: 54, justifyContent: "center", alignItems: "center", borderRadius: 14, borderWidth: 1.3, paddingHorizontal: 15 },
   plansButtonText: { fontFamily: "Inter_600SemiBold", fontSize: 14 },
-  heroVisual: { alignItems: "center", justifyContent: "center", minHeight: 330 },
-  glow: { position: "absolute", width: 260, height: 260, borderRadius: 130, opacity: 0.18, transform: [{ scaleX: 1.18 }] },
-  productFrame: { width: "82%", borderRadius: 25, borderWidth: 1, padding: 7, transform: [{ rotate: "-2deg" }], shadowColor: "#000", shadowOpacity: 0.3, shadowRadius: 18, shadowOffset: { width: 0, height: 12 }, elevation: 10 },
-  stageCaption: { paddingHorizontal: 10, paddingVertical: 10, gap: 4 },
-  captionLive: { flexDirection: "row", alignItems: "center", gap: 6 },
-  captionDot: { width: 6, height: 6, borderRadius: 3, backgroundColor: "#34D399" },
-  captionLiveText: { color: "#60A5FA", fontFamily: "Inter_600SemiBold", fontSize: 10 },
-  captionText: { color: "#FFFFFF", fontFamily: "Inter_600SemiBold", fontSize: 12 },
+  themeButton: { width: 38, height: 38, borderWidth: 1, borderRadius: 19, alignItems: "center", justifyContent: "center" },
+  promiseBand: { flexDirection: "row", flexWrap: "wrap", gap: 10, borderWidth: 1, borderRadius: 18, padding: 13 },
+  promiseItem: { flexDirection: "row", alignItems: "center", gap: 7, flex: 1, minWidth: 92 },
+  promiseIcon: { width: 28, height: 28, borderRadius: 9, alignItems: "center", justifyContent: "center" },
+  promiseText: { flex: 1, fontFamily: "Inter_600SemiBold", fontSize: 11, lineHeight: 15 },
   trustBar: { flexDirection: "row", flexWrap: "wrap", justifyContent: "space-between", gap: 10, borderWidth: 1, borderRadius: 16, padding: 12, marginTop: 10 },
   trustMark: { flexDirection: "row", alignItems: "center", gap: 6 },
   trustIcon: { width: 26, height: 26, borderRadius: 8, alignItems: "center", justifyContent: "center" },
@@ -389,9 +356,9 @@ const styles = StyleSheet.create({
   proofSignal: { flexDirection: "row", alignItems: "center", gap: 7, marginTop: 16 },
   proofSignalText: { fontFamily: "Inter_500Medium", fontSize: 11, lineHeight: 16, flex: 1 },
   proofEmblem: { width: 112, height: 164, borderRadius: 12, alignItems: "center", justifyContent: "center" },
-  bottomCta: { alignItems: "center", marginTop: 36, padding: 22, borderRadius: 22, backgroundColor: "#0E2A55", gap: 8 },
+  bottomCta: { alignItems: "center", marginTop: 36, padding: 22, borderRadius: 22, gap: 8 },
   bottomCtaTitle: { fontFamily: "Inter_700Bold", fontSize: 20, textAlign: "center" },
   bottomCtaText: { fontFamily: "Inter_400Regular", fontSize: 13, lineHeight: 19, textAlign: "center", color: "#9DB1CC" },
   bottomCtaButton: { flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 9, width: "100%", minHeight: 50, borderRadius: 13, backgroundColor: "#2563EB", marginTop: 8 },
-  bottomCtaButtonText: { fontFamily: "Inter_700Bold", fontSize: 14, color: "#FFFFFF" },
+  bottomCtaButtonText: { fontFamily: "Inter_700Bold", fontSize: 14 },
 });

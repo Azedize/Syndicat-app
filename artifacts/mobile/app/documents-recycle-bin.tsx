@@ -28,6 +28,7 @@ import { useBreakpoints } from "@/hooks/useBreakpoints";
 import { useColors } from "@/hooks/useColors";
 import { useToast } from "@/context/ToastContext";
 import { ErrorState, LoadingState } from "@/components/DataState";
+import RoleGuard from "@/components/RoleGuard";
 
 interface DeletedDoc {
   id: string;
@@ -194,6 +195,7 @@ export default function DocumentsRecycleBin() {
   };
 
   const handlePurge = (doc: DeletedDoc) => {
+    if (!isSuperAdmin) return;
     Alert.alert(
       t("recycleBinPurgeTitle"),
       formatCopy("recycleBinPurgeMessage", { name: doc.title }),
@@ -228,15 +230,16 @@ export default function DocumentsRecycleBin() {
   };
 
   return (
-    <View
-      style={[
-        styles.root,
-        {
-          backgroundColor: colors.background,
-          direction: isRTL ? "rtl" : "ltr",
-        },
-      ]}
-    >
+    <RoleGuard allow={["super_admin", "syndicate_admin"]}>
+      <View
+        style={[
+          styles.root,
+          {
+            backgroundColor: colors.background,
+            direction: isRTL ? "rtl" : "ltr",
+          },
+        ]}
+      >
       <View
         style={[
           styles.header,
@@ -434,7 +437,8 @@ export default function DocumentsRecycleBin() {
           )}
         />
       )}
-    </View>
+      </View>
+    </RoleGuard>
   );
 }
 
