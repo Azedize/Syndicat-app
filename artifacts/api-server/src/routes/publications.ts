@@ -78,6 +78,10 @@ router.post(
     const result = schema.safeParse(req.body);
     if (!result.success) { res.status(400).json({ error: "Données invalides" }); return; }
     try {
+      if (!req.user!.syndicateId) {
+        res.status(403).json({ error: "Syndicat non défini dans le token" });
+        return;
+      }
       const [pub] = await db
         .insert(publicationsTable)
         .values({
@@ -98,7 +102,14 @@ router.post(
 router.post("/publications/:id/like", requireAuth, async (req, res) => {
   const id = String(req.params.id) as string;
   try {
-    const [pub] = await db.select().from(publicationsTable).where(eq(publicationsTable.id, id));
+    if (req.user!.role !== "super_admin" && !req.user!.syndicateId) {
+      res.status(403).json({ error: "Syndicat non défini dans le token" });
+      return;
+    }
+    const scope = req.user!.role === "super_admin"
+      ? eq(publicationsTable.id, id)
+      : and(eq(publicationsTable.id, id), eq(publicationsTable.syndicateId, req.user!.syndicateId!));
+    const [pub] = await db.select().from(publicationsTable).where(scope);
     if (!pub) { res.status(404).json({ error: "Publication introuvable" }); return; }
 
     const existing = await db
@@ -123,7 +134,7 @@ router.post("/publications/:id/like", requireAuth, async (req, res) => {
       await db
         .update(publicationsTable)
         .set({ likes: Math.max(0, (pub.likes ?? 0) - 1) })
-        .where(eq(publicationsTable.id, id));
+        .where(scope);
       res.json({ message: "Like retiré", liked: false });
     } else {
       await db
@@ -132,7 +143,7 @@ router.post("/publications/:id/like", requireAuth, async (req, res) => {
       await db
         .update(publicationsTable)
         .set({ likes: (pub.likes ?? 0) + 1 })
-        .where(eq(publicationsTable.id, id));
+        .where(scope);
       res.json({ message: "Publication aimée", liked: true });
     }
   } catch (err) {

@@ -273,3 +273,6 @@
 - Member creation and audit writes/reads now fail closed when a non-platform JWT has no syndicate scope; member creation also requires a real target syndicate before persistence.
 - Lot listing and personal-lot lookup now require and apply syndicate scope for non-platform users; Super Admin team-member role changes now require explicit supervision and a scoped target.
 - API typecheck, diff validation, production build, managed workflow restart, health probe, and valid-but-scope-less JWT probes passed; the wider route audit remains open.
+- 2026-08-14 — Continued the server-side authorization audit on chat. Non-platform chat sessions now fail closed when JWT syndicate scope is absent across contact discovery, conversation lists/search, conversation/message reads and writes, typing, archive, reactions, and deletion paths.
+- Marketplace and incident conversation creation no longer persists an empty non-platform syndicate scope; message and reaction mutations now verify conversation access before changing rows.
+- API typecheck, formatting/diff validation, production build via managed restart, health probe (`200`), and unauthenticated chat probe (`401`) passed. The wider route audit remains open.

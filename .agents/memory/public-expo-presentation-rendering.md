@@ -14,3 +14,5 @@ In this project, direct appPreview captures of `/intro` were intermittent at nar
 **Why:** The route could render correctly at desktop width while a direct narrow preview stayed white without a browser error, suggesting a preview/cache issue rather than a TypeScript failure.
 
 **How to apply:** Do not add complex UI solely to chase a blank narrow screenshot. Keep the route dependency-light, restart Metro after changes, and validate both the actual welcome-to-intro flow and a desktop capture.
+
+Repeated fresh-bundle captures can still remain blank on the direct `/intro` URL while Metro reports a clean bundle. Treat a successful in-app navigation from `/welcome` as the authoritative public-flow check.

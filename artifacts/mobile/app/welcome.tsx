@@ -54,32 +54,24 @@ function TrustMark({
   );
 }
 
-function ServiceCard({
+function ServiceRow({
   service,
-  isDark,
+  colors,
   t,
 }: {
   service: (typeof SERVICES)[number];
-  isDark: boolean;
+  colors: ReturnType<typeof useColors>;
   t: (key: string) => string;
 }) {
   return (
-    <View
-      style={[
-        styles.serviceCard,
-        {
-          backgroundColor: isDark ? "rgba(16,31,55,0.84)" : "#FFFFFF",
-          borderColor: isDark ? "rgba(96,165,250,0.17)" : "#DBEAFE",
-        },
-      ]}
-    >
-      <View style={[styles.serviceIcon, { backgroundColor: isDark ? "rgba(37,99,235,0.2)" : "#EFF6FF" }]}>
-       <Feather name={service.icon} size={18} color={isDark ? "#60A5FA" : MIZAN.colors.blue} />
+    <View style={[styles.serviceRow, { borderTopColor: colors.border }]}>
+      <View style={[styles.serviceIcon, { backgroundColor: colors.secondary }]}>
+        <Feather name={service.icon} size={17} color={colors.primary} />
       </View>
-      <Text style={[styles.serviceTitle, { color: isDark ? "#F8FAFF" : MIZAN.colors.navyDeep }]}>
-        {t(service.titleKey)}
-      </Text>
-      <Text style={[styles.serviceText, { color: isDark ? "#8EA3C0" : "#64748B" }]}>{t(service.textKey)}</Text>
+      <View style={styles.serviceCopy}>
+        <Text style={[styles.serviceTitle, { color: colors.foreground }]}>{t(service.titleKey)}</Text>
+        <Text style={[styles.serviceText, { color: colors.mutedForeground }]}>{t(service.textKey)}</Text>
+      </View>
     </View>
   );
 }
@@ -184,6 +176,7 @@ export default function WelcomeScreen() {
                 accessibilityLabel={isDark ? t("lightMode") : t("darkMode")}
               >
                 <Feather name={isDark ? "sun" : "moon"} size={17} color={colors.foreground} />
+                <Text style={[styles.themeLabel, { color: colors.foreground }]}>{isDark ? "Clair" : "Sombre"}</Text>
               </TouchableOpacity>
             </View>
           </View>
@@ -244,12 +237,7 @@ export default function WelcomeScreen() {
             <PromiseBand isDark={isDark} colors={colors} t={t} />
           </Animated.View>
 
-          <View
-            style={[
-              styles.trustBar,
-               { backgroundColor: colors.card, borderColor: colors.border },
-            ]}
-          >
+          <View style={[styles.trustBar, { backgroundColor: colors.card, borderColor: colors.border }]}>
             <TrustMark icon="check-circle" label={t("welcomeLaw18")} isDark={isDark} />
             <TrustMark icon="lock" label={t("welcomeDataProtected")} isDark={isDark} />
             <TrustMark icon="globe" label={t("welcomeMoroccoReady")} isDark={isDark} />
@@ -265,11 +253,11 @@ export default function WelcomeScreen() {
 
           <View style={styles.servicesGrid}>
             {SERVICES.map((service) => (
-              <ServiceCard key={service.titleKey} service={service} isDark={isDark} t={t} />
+              <ServiceRow key={service.titleKey} service={service} colors={colors} t={t} />
             ))}
           </View>
 
-           <View style={[styles.proofCard, { backgroundColor: panel, borderColor: colors.border }]}>
+          <View style={[styles.proofCard, { backgroundColor: panel, borderColor: colors.border }]}>
             <View style={styles.proofCopy}>
               <View style={styles.proofTag}>
                 <Feather name="bar-chart-2" size={14} color="#60A5FA" />
@@ -284,21 +272,18 @@ export default function WelcomeScreen() {
                 <Text style={[styles.proofSignalText, { color: muted }]}>{t("welcomePilotageSignal")}</Text>
               </View>
             </View>
-             <View style={[styles.proofEmblem, { backgroundColor: colors.secondary }]}>
-               <Feather name="activity" size={42} color={colors.primary} />
-            </View>
           </View>
 
-           <View style={[styles.bottomCta, { backgroundColor: isDark ? colors.card : colors.primary }]}>
-            <Text style={[styles.bottomCtaTitle, { color: foreground }]}>{t("welcomeBottomTitle")}</Text>
-            <Text style={[styles.bottomCtaText, { color: muted }]}>{t("welcomeBottomText")}</Text>
+          <View style={[styles.bottomCta, { backgroundColor: colors.primary }]}>
+            <Text style={[styles.bottomCtaTitle, { color: colors.primaryForeground }]}>{t("welcomeBottomTitle")}</Text>
+            <Text style={[styles.bottomCtaText, { color: colors.primaryForeground }]}>{t("welcomeBottomText")}</Text>
             <TouchableOpacity
               onPress={() => router.push("/get-started")}
-               style={[styles.bottomCtaButton, { backgroundColor: isDark ? colors.primary : colors.card }]}
+              style={[styles.bottomCtaButton, { backgroundColor: colors.card }]}
               activeOpacity={0.86}
             >
-               <Text style={[styles.bottomCtaButtonText, { color: isDark ? colors.primaryForeground : colors.primary }]}>{t("welcomeStartFree")}</Text>
-               <Feather name="arrow-right" size={18} color={isDark ? colors.primaryForeground : colors.primary} />
+              <Text style={[styles.bottomCtaButtonText, { color: colors.primary }]}>{t("welcomeStartFree")}</Text>
+              <Feather name="arrow-right" size={18} color={colors.primary} />
             </TouchableOpacity>
           </View>
         </View>
@@ -329,7 +314,8 @@ const styles = StyleSheet.create({
   primaryButtonText: { color: "#FFFFFF", fontFamily: "Inter_700Bold", fontSize: 14 },
   plansButton: { minHeight: 54, justifyContent: "center", alignItems: "center", borderRadius: 14, borderWidth: 1.3, paddingHorizontal: 15 },
   plansButtonText: { fontFamily: "Inter_600SemiBold", fontSize: 14 },
-  themeButton: { width: 38, height: 38, borderWidth: 1, borderRadius: 19, alignItems: "center", justifyContent: "center" },
+  themeButton: { minWidth: 38, height: 38, borderWidth: 1, borderRadius: 19, paddingHorizontal: 10, flexDirection: "row", gap: 5, alignItems: "center", justifyContent: "center" },
+  themeLabel: { fontFamily: "Inter_600SemiBold", fontSize: 10 },
   promiseBand: { flexDirection: "row", flexWrap: "wrap", gap: 10, borderWidth: 1, borderRadius: 18, padding: 13 },
   promiseItem: { flexDirection: "row", alignItems: "center", gap: 7, flex: 1, minWidth: 92 },
   promiseIcon: { width: 28, height: 28, borderRadius: 9, alignItems: "center", justifyContent: "center" },
@@ -342,12 +328,13 @@ const styles = StyleSheet.create({
   sectionKicker: { fontFamily: "Inter_700Bold", fontSize: 10, letterSpacing: 1.3 },
   sectionTitle: { fontFamily: "Inter_700Bold", fontSize: 25, lineHeight: 31, letterSpacing: -0.6 },
   sectionDescription: { fontFamily: "Inter_400Regular", fontSize: 14, lineHeight: 21 },
-  servicesGrid: { flexDirection: "row", flexWrap: "wrap", gap: 10, marginTop: 18 },
-  serviceCard: { width: "48.3%", minHeight: 142, borderRadius: 16, borderWidth: 1, padding: 14 },
-  serviceIcon: { width: 36, height: 36, borderRadius: 11, alignItems: "center", justifyContent: "center", marginBottom: 12 },
+  servicesGrid: { marginTop: 18 },
+  serviceRow: { flexDirection: "row", alignItems: "center", gap: 12, minHeight: 76, borderTopWidth: 1 },
+  serviceCopy: { flex: 1, gap: 4 },
+  serviceIcon: { width: 34, height: 34, borderRadius: 11, alignItems: "center", justifyContent: "center" },
   serviceTitle: { fontFamily: "Inter_700Bold", fontSize: 14 },
   serviceText: { fontFamily: "Inter_400Regular", fontSize: 11, lineHeight: 16, marginTop: 5 },
-  proofCard: { flexDirection: "row", alignItems: "center", gap: 12, borderRadius: 20, borderWidth: 1, padding: 16, marginTop: 26, overflow: "hidden" },
+  proofCard: { borderRadius: 20, borderWidth: 1, padding: 16, marginTop: 26 },
   proofCopy: { flex: 1 },
   proofTag: { flexDirection: "row", alignItems: "center", gap: 5, marginBottom: 9 },
   proofTagText: { fontFamily: "Inter_700Bold", fontSize: 9, letterSpacing: 1, color: "#60A5FA" },
@@ -355,10 +342,9 @@ const styles = StyleSheet.create({
   proofText: { fontFamily: "Inter_400Regular", fontSize: 11, lineHeight: 16, marginTop: 8 },
   proofSignal: { flexDirection: "row", alignItems: "center", gap: 7, marginTop: 16 },
   proofSignalText: { fontFamily: "Inter_500Medium", fontSize: 11, lineHeight: 16, flex: 1 },
-  proofEmblem: { width: 112, height: 164, borderRadius: 12, alignItems: "center", justifyContent: "center" },
   bottomCta: { alignItems: "center", marginTop: 36, padding: 22, borderRadius: 22, gap: 8 },
   bottomCtaTitle: { fontFamily: "Inter_700Bold", fontSize: 20, textAlign: "center" },
-  bottomCtaText: { fontFamily: "Inter_400Regular", fontSize: 13, lineHeight: 19, textAlign: "center", color: "#9DB1CC" },
-  bottomCtaButton: { flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 9, width: "100%", minHeight: 50, borderRadius: 13, backgroundColor: "#2563EB", marginTop: 8 },
+  bottomCtaText: { fontFamily: "Inter_400Regular", fontSize: 13, lineHeight: 19, textAlign: "center", opacity: 0.82 },
+  bottomCtaButton: { flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 9, width: "100%", minHeight: 50, borderRadius: 13, marginTop: 8 },
   bottomCtaButtonText: { fontFamily: "Inter_700Bold", fontSize: 14 },
 });

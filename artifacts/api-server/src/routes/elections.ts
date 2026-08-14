@@ -14,6 +14,7 @@ import {
   lotsTable,
   tenantsTable,
   usersTable,
+  buildingsTable,
 } from "@workspace/db/schema";
 import { eq, and, or } from "drizzle-orm";
 import { requireAuth, requireNotTenant, requireOperationalAccess } from "../middleware/auth.js";
@@ -75,7 +76,10 @@ async function isUserEligible(userId: string, syndicateId: string | null, buildi
 }
 
 function assertAccess(req: any, election: { syndicateId: string | null }): boolean {
-  return req.user!.role === "super_admin" || election.syndicateId === req.user!.syndicateId;
+  return req.user!.role === "super_admin" || (
+    !!election.syndicateId &&
+    election.syndicateId === req.user!.syndicateId
+  );
 }
 
 // ─── List / Detail ────────────────────────────────────────────────────────────
@@ -245,7 +249,23 @@ router.post("/elections", requireAuth, requireOperationalAccess, async (req, res
     if (req.user!.role !== "super_admin" && !req.user!.syndicateId) {
       return void res.status(403).json({ error: "Syndicat non défini dans le token" });
     }
-    const syndicateId = req.user!.syndicateId || "";
+     const syndicateId = req.user!.role === "super_admin"
+       ? String(req.query.syndicateId ?? "")
+       : (req.user!.syndicateId ?? "");
+     if (!syndicateId) {
+       return void res.status(400).json({ error: "Un syndicat cible est requis pour créer une élection" });
+     }
+
+     if (d.buildingId) {
+       const [building] = await db
+         .select({ syndicateId: buildingsTable.syndicateId })
+         .from(buildingsTable)
+         .where(eq(buildingsTable.id, d.buildingId));
+       if (!building || building.syndicateId !== syndicateId) {
+         return void res.status(403).json({ error: "Bâtiment hors du périmètre du syndicat" });
+       }
+     }
+
     const [election] = await db
       .insert(electionsTable)
       .values({
@@ -597,6 +617,10 @@ router.put("/elections/:id/candidates/:candidateId/validate", requireAuth, requi
 router.post("/elections/:id/candidates/:candidateId/withdraw", requireAuth, async (req, res) => {
   const { id, candidateId } = req.params as { id: string; candidateId: string };
   try {
+    const [election] = await db.select().from(electionsTable).where(eq(electionsTable.id, id));
+    if (!election) { res.status(404).json({ error: "Élection introuvable" }); return; }
+    if (!assertAccess(req, election)) { res.status(403).json({ error: "Accès refusé" }); return; }
+
     const [candidate] = await db.select().from(candidatesTable).where(and(eq(candidatesTable.id, candidateId), eq(candidatesTable.electionId, id)));
     if (!candidate) { res.status(404).json({ error: "Candidat introuvable" }); return; }
     const isAdmin = req.user!.role === "super_admin" || req.user!.role === "syndicate_admin";
@@ -605,7 +629,7 @@ router.post("/elections/:id/candidates/:candidateId/withdraw", requireAuth, asyn
     const [updated] = await db
       .update(candidatesTable)
       .set({ status: "withdrawn", withdrawnAt: new Date() } as any)
-      .where(eq(candidatesTable.id, candidateId))
+      .where(and(eq(candidatesTable.id, candidateId), eq(candidatesTable.electionId, id)))
       .returning();
 
     await serverAuditLog(req, { action: "WITHDRAW_CANDIDACY", entity: "election", entityId: id, details: `${candidate.name} s'est retiré(e)` });
@@ -624,6 +648,10 @@ router.put("/elections/:id/candidates/:candidateId/program", requireAuth, async 
   const result = schema.safeParse(req.body);
   if (!result.success) { res.status(400).json({ error: "Données invalides" }); return; }
   try {
+    const [election] = await db.select().from(electionsTable).where(eq(electionsTable.id, id));
+    if (!election) { res.status(404).json({ error: "Élection introuvable" }); return; }
+    if (!assertAccess(req, election)) { res.status(403).json({ error: "Accès refusé" }); return; }
+
     const [candidate] = await db.select().from(candidatesTable).where(and(eq(candidatesTable.id, candidateId), eq(candidatesTable.electionId, id)));
     if (!candidate) { res.status(404).json({ error: "Candidat introuvable" }); return; }
     if (candidate.userId !== req.user!.userId) { res.status(403).json({ error: "Accès refusé" }); return; }
@@ -643,7 +671,11 @@ router.post("/elections/:id/candidates/:candidateId/questions", requireAuth, req
   const result = schema.safeParse(req.body);
   if (!result.success) { res.status(400).json({ error: "Question requise" }); return; }
   try {
-    const [candidate] = await db.select().from(candidatesTable).where(and(eq(candidatesTable.id, candidateId), eq(candidatesTable.electionId, id), eq(candidatesTable.status, "approved")));
+     const [election] = await db.select().from(electionsTable).where(eq(electionsTable.id, id));
+     if (!election) { res.status(404).json({ error: "Élection introuvable" }); return; }
+     if (!assertAccess(req, election)) { res.status(403).json({ error: "Accès refusé" }); return; }
+
+     const [candidate] = await db.select().from(candidatesTable).where(and(eq(candidatesTable.id, candidateId), eq(candidatesTable.electionId, id), eq(candidatesTable.status, "approved")));
     if (!candidate) { res.status(404).json({ error: "Candidat introuvable" }); return; }
     const [q] = await db
       .insert(electionQuestionsTable)
@@ -660,12 +692,19 @@ router.post("/elections/:id/candidates/:candidateId/questions", requireAuth, req
 });
 
 router.put("/elections/:id/questions/:questionId/answer", requireAuth, async (req, res) => {
-  const { questionId } = req.params as { questionId: string };
+  const { id, questionId } = req.params as { id: string; questionId: string };
   const schema = z.object({ answer: z.string().min(1) });
   const result = schema.safeParse(req.body);
   if (!result.success) { res.status(400).json({ error: "Réponse requise" }); return; }
   try {
-    const [question] = await db.select().from(electionQuestionsTable).where(eq(electionQuestionsTable.id, questionId));
+     const [election] = await db.select().from(electionsTable).where(eq(electionsTable.id, id));
+     if (!election) { res.status(404).json({ error: "Élection introuvable" }); return; }
+     if (!assertAccess(req, election)) { res.status(403).json({ error: "Accès refusé" }); return; }
+
+     const [question] = await db.select().from(electionQuestionsTable).where(and(
+       eq(electionQuestionsTable.id, questionId),
+       eq(electionQuestionsTable.electionId, id),
+     ));
     if (!question) { res.status(404).json({ error: "Question introuvable" }); return; }
     const [candidate] = await db.select().from(candidatesTable).where(eq(candidatesTable.id, question.candidateId));
     const isAdmin = req.user!.role === "super_admin" || req.user!.role === "syndicate_admin";

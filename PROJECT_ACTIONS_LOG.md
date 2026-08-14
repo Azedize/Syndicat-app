@@ -250,3 +250,7 @@
 - Added fail-closed scope checks for member creation, audit writes/reads, lot list/personal lookup, and non-platform team operations; member creation validates the target syndicate before the transaction.
 - Added explicit `?supervision=true` enforcement before target lookup for Super Admin team-member role changes, avoiding ID existence disclosure and preserving scoped audit semantics.
 - Verified with API typecheck, production build, `git diff --check`, managed restart, health probe, unauthenticated 401 checks, and valid-but-scope-less 403 checks.
+- Audited `artifacts/api-server/src/routes/chat.ts` for the same missing-scope/global-fallback class and found chat endpoints continuing with `syndicateId || ""`.
+- Added one fail-closed scope boundary for non-platform chat sessions, applied it to contact discovery, conversation search/list/read/write paths, message mutations, reactions, archive operations, and typing endpoints.
+- Preserved Super Admin supervision and the existing marketplace/incident communication exceptions while ensuring non-platform conversation inserts use an authenticated scope.
+- Verified with Prettier, API typecheck, `git diff --check`, managed workflow restart/build, fresh startup logs, `/api/healthz` (`200`), and unauthenticated `/api/conversations` (`401`).

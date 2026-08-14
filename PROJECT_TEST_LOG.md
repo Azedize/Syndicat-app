@@ -235,3 +235,8 @@
 - `pnpm --filter @workspace/api-server run build` — passed; managed API restart completed with clean server, SMTP, retention, and expiry-scan startup logs.
 - `git diff --check` — passed for the four audited route files.
 - `/api/healthz` returned 200; unauthenticated affected routes returned 401; valid-but-scope-less management JWT probes returned 403 for member creation, audit read/write, lot list/personal lookup, and Super Admin team mutation without supervision.
+- `pnpm exec prettier --write artifacts/api-server/src/routes/chat.ts` — passed.
+- `pnpm --filter @workspace/api-server run typecheck` — passed with zero errors after the chat scope hardening.
+- `git diff --check -- artifacts/api-server/src/routes/chat.ts` — passed.
+- Restarted `artifacts/api-server: API Server`; production build, server startup, SMTP verification, document retention scan, and expiry scan completed cleanly.
+- `/api/healthz` returned 200; unauthenticated `/api/conversations` returned 401 with the expected authentication error.

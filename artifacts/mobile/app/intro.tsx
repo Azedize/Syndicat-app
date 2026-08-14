@@ -117,45 +117,138 @@ const ROLE_BENEFITS = [
   { icon: "key" as IconName, label: "Locataires", text: "Accédez simplement à vos démarches." },
 ];
 
-function ModuleCard({
+const PREVIEWS: Record<
+  string,
+  {
+    metrics: [string, string];
+    rows: [string, string];
+  }
+> = {
+  PILOTAGE: {
+    metrics: ["Décisions", "Alertes"],
+    rows: ["Activité de la résidence", "Actions prioritaires"],
+  },
+  FINANCE: {
+    metrics: ["Appels de fonds", "Règlements"],
+    rows: ["Échéances et paiements", "Budgets par poste"],
+  },
+  GOUVERNANCE: {
+    metrics: ["Assemblées", "Votes"],
+    rows: ["Ordre du jour", "Quorum et résultats"],
+  },
+  DOCUMENTS: {
+    metrics: ["Dossiers", "Signatures"],
+    rows: ["Documents récents", "Validations en attente"],
+  },
+  SERVICES: {
+    metrics: ["Prestataires", "Demandes"],
+    rows: ["Offres de la résidence", "Devis et partenaires"],
+  },
+  MAINTENANCE: {
+    metrics: ["Interventions", "Chantiers"],
+    rows: ["Incidents signalés", "Suivi des travaux"],
+  },
+  "RELATION RÉSIDENTS": {
+    metrics: ["Demandes", "Réponses"],
+    rows: ["Réclamations ouvertes", "Suivi des interventions"],
+  },
+  COMMUNICATION: {
+    metrics: ["Annonces", "Échanges"],
+    rows: ["Publications officielles", "Conversations ciblées"],
+  },
+  ADMINISTRATION: {
+    metrics: ["Équipes", "Accès"],
+    rows: ["Rôles et responsabilités", "Audit et transparence"],
+  },
+};
+
+function DashboardMini({
   module,
   colors,
 }: {
   module: (typeof MODULES)[number];
   colors: ReturnType<typeof useColors>;
 }) {
+  const preview = PREVIEWS[module.tag] ?? PREVIEWS.PILOTAGE;
+
+  return (
+    <View style={[styles.dashboardPreview, { backgroundColor: colors.background, borderColor: colors.border }]}>
+      <View style={styles.dashboardHeader}>
+        <View style={[styles.dashboardMark, { backgroundColor: module.color }]}>
+          <Feather name={module.icon} size={13} color="#FFFFFF" />
+        </View>
+        <View style={styles.dashboardHeaderCopy}>
+          <Text style={[styles.dashboardEyebrow, { color: module.color }]}>APERÇU DE VUE</Text>
+          <Text style={[styles.dashboardHeading, { color: colors.foreground }]}>Tableau {module.tag.toLowerCase()}</Text>
+        </View>
+        <View style={[styles.dashboardMenu, { backgroundColor: colors.secondary }]}>
+          <Feather name="more-horizontal" size={15} color={colors.mutedForeground} />
+        </View>
+      </View>
+
+      <View style={styles.dashboardMetrics}>
+        {preview.metrics.map((metric, index) => (
+          <View key={metric} style={[styles.dashboardMetric, { backgroundColor: colors.card, borderColor: colors.border }]}>
+            <Text style={[styles.dashboardMetricLabel, { color: colors.mutedForeground }]}>{metric}</Text>
+            <View style={styles.dashboardMetricBottom}>
+              <Text style={[styles.dashboardMetricValue, { color: colors.foreground }]}>Aperçu</Text>
+              <View style={[styles.dashboardMetricBar, { backgroundColor: index === 0 ? module.color : colors.accent }]} />
+            </View>
+          </View>
+        ))}
+      </View>
+
+      <View style={[styles.dashboardList, { backgroundColor: colors.card, borderColor: colors.border }]}>
+        {preview.rows.map((row, index) => (
+          <View
+            key={row}
+            style={[
+              styles.dashboardRow,
+              index === 1 && [styles.dashboardRowSecond, { borderTopColor: colors.border }],
+            ]}
+          >
+            <View style={[styles.dashboardRowDot, { backgroundColor: index === 0 ? module.color : colors.success }]} />
+            <Text style={[styles.dashboardRowText, { color: colors.foreground }]}>{row}</Text>
+            <Feather name="arrow-up-right" size={13} color={colors.mutedForeground} />
+          </View>
+        ))}
+      </View>
+    </View>
+  );
+}
+
+function ServiceLine({
+  module,
+  index,
+  colors,
+}: {
+  module: (typeof MODULES)[number];
+  index: number;
+  colors: ReturnType<typeof useColors>;
+}) {
   return (
     <View
       style={[
-        styles.moduleCard,
+        styles.serviceBlock,
         {
           backgroundColor: colors.card,
           borderColor: colors.border,
         },
       ]}
     >
-      <View style={styles.moduleHeader}>
-        <View style={[styles.moduleIcon, { backgroundColor: module.color }]}>
-          <Feather name={module.icon} size={19} color="#FFFFFF" />
+      <View style={styles.serviceMeta}>
+        <View style={[styles.serviceNumber, { backgroundColor: colors.secondary }]}>
+          <Text style={[styles.serviceNumberText, { color: module.color }]}>
+            {String(index + 1).padStart(2, "0")}
+          </Text>
         </View>
-        <View style={styles.moduleTagWrap}>
+        <View style={styles.serviceCopy}>
           <Text style={[styles.moduleTag, { color: module.color }]}>{module.tag}</Text>
-          <View style={[styles.moduleLine, { backgroundColor: `${module.color}35` }]} />
+          <Text style={[styles.moduleTitle, { color: colors.cardForeground }]}>{module.title}</Text>
+          <Text style={[styles.moduleDescription, { color: colors.mutedForeground }]}>{module.description}</Text>
         </View>
-        <Feather name="arrow-up-right" size={16} color={colors.mutedForeground} />
       </View>
-      <Text style={[styles.moduleTitle, { color: colors.cardForeground }]}>{module.title}</Text>
-      <Text style={[styles.moduleDescription, { color: colors.mutedForeground }]}>{module.description}</Text>
-      <View style={styles.pointList}>
-        {module.points.map((point) => (
-          <View key={point} style={styles.pointRow}>
-            <View style={[styles.pointIcon, { backgroundColor: `${module.color}18` }]}>
-              <Feather name="check" size={11} color={module.color} />
-            </View>
-            <Text style={[styles.pointText, { color: colors.foreground }]}>{point}</Text>
-          </View>
-        ))}
-      </View>
+      <DashboardMini module={module} colors={colors} />
     </View>
   );
 }
@@ -197,6 +290,7 @@ export default function IntroScreen() {
                 accessibilityLabel={isDark ? "Activer le mode clair" : "Activer le mode sombre"}
               >
                 <Feather name={isDark ? "sun" : "moon"} size={17} color={colors.foreground} />
+                <Text style={[styles.themeLabel, { color: colors.foreground }]}>{isDark ? "Clair" : "Sombre"}</Text>
               </TouchableOpacity>
             </View>
           </View>
@@ -221,17 +315,17 @@ export default function IntroScreen() {
           <Text style={[styles.sectionDescription, { color: muted }]}>
             De la première décision au suivi quotidien, chaque fonction trouve sa place dans le même environnement.
           </Text>
-          {MODULES.map((module) => (
-            <ModuleCard key={module.tag} module={module} colors={colors} />
+          {MODULES.map((module, index) => (
+            <ServiceLine key={module.tag} module={module} index={index} colors={colors} />
           ))}
         </View>
         <View style={[styles.pageSection, { backgroundColor: colors.background }]}>
-          <View style={[styles.finalCta, { backgroundColor: isDark ? colors.card : colors.primary }]}>
-            <Text style={[styles.finalTitle, { color: isDark ? colors.foreground : colors.primaryForeground }]}>Votre résidence peut fonctionner autrement.</Text>
-            <Text style={[styles.finalText, { color: isDark ? colors.mutedForeground : colors.primaryForeground }]}>Créez votre espace et donnez à chaque personne la bonne information, au bon moment.</Text>
-            <TouchableOpacity onPress={openStart} style={[styles.finalButton, { backgroundColor: isDark ? colors.primary : colors.card }]}>
-              <Text style={[styles.finalButtonText, { color: isDark ? colors.primaryForeground : colors.primary }]}>Créer mon espace</Text>
-              <Feather name="arrow-right" size={17} color={isDark ? colors.primaryForeground : colors.primary} />
+          <View style={[styles.finalCta, { backgroundColor: colors.primary }]}>
+            <Text style={[styles.finalTitle, { color: colors.primaryForeground }]}>Votre résidence peut fonctionner autrement.</Text>
+            <Text style={[styles.finalText, { color: colors.primaryForeground }]}>Créez votre espace et donnez à chaque personne la bonne information, au bon moment.</Text>
+            <TouchableOpacity onPress={openStart} style={[styles.finalButton, { backgroundColor: colors.card }]}>
+              <Text style={[styles.finalButtonText, { color: colors.primary }]}>Créer mon espace</Text>
+              <Feather name="arrow-right" size={17} color={colors.primary} />
             </TouchableOpacity>
           </View>
         </View>
@@ -245,17 +339,10 @@ const styles = StyleSheet.create({
   hero: { paddingHorizontal: 20, paddingBottom: 42, borderBottomWidth: 1 },
   topBar: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", minHeight: 56 },
   headerActions: { flexDirection: "row", alignItems: "center", gap: 8 },
-  brandLockup: { flexDirection: "row", alignItems: "center", gap: 9 },
-  brandMark: { width: 34, height: 34, borderRadius: 11, backgroundColor: "#1F5EFF", alignItems: "center", justifyContent: "center" },
-  brandMarkInner: { width: 24, height: 24, borderRadius: 8, borderWidth: 1, borderColor: "rgba(255,255,255,0.45)", alignItems: "center", justifyContent: "center" },
-  brandName: { color: "#FFFFFF", fontFamily: "Inter_700Bold", fontSize: 13, letterSpacing: 1.8 },
-  brandSubname: { color: "#7F9BC1", fontFamily: "Inter_600SemiBold", fontSize: 8, letterSpacing: 1.9, marginTop: 2 },
-  topActions: { flexDirection: "row", alignItems: "center", gap: 8 },
-  topLogin: { paddingHorizontal: 8, paddingVertical: 10 },
-  topLoginText: { color: "#B9CCFF", fontFamily: "Inter_600SemiBold", fontSize: 11 },
   topCta: { minHeight: 38, borderRadius: 10, paddingHorizontal: 13, flexDirection: "row", gap: 6, alignItems: "center", justifyContent: "center" },
   topCtaText: { fontFamily: "Inter_700Bold", fontSize: 11 },
-  themeButton: { width: 38, height: 38, borderRadius: 19, borderWidth: 1, alignItems: "center", justifyContent: "center" },
+  themeButton: { minWidth: 38, height: 38, borderRadius: 19, borderWidth: 1, paddingHorizontal: 10, flexDirection: "row", gap: 5, alignItems: "center", justifyContent: "center" },
+  themeLabel: { fontFamily: "Inter_600SemiBold", fontSize: 10 },
   heroCopy: { alignItems: "center", paddingTop: 52, gap: 16 },
   heroEyebrow: { flexDirection: "row", alignItems: "center", gap: 8 },
   liveDot: { width: 7, height: 7, borderRadius: 4, backgroundColor: "#72E0C4" },
@@ -263,83 +350,41 @@ const styles = StyleSheet.create({
   heroTitle: { fontFamily: "Inter_700Bold", textAlign: "center", fontSize: 30, lineHeight: 37, letterSpacing: -0.8 },
   heroTitleAccent: {},
   heroDescription: { fontFamily: "Inter_400Regular", textAlign: "center", fontSize: 14, lineHeight: 22, maxWidth: 580 },
-  heroActions: { width: "100%", gap: 10, marginTop: 3 },
   primaryButton: { minHeight: 54, borderRadius: 13, flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 9, paddingHorizontal: 18 },
   primaryText: { fontFamily: "Inter_700Bold", fontSize: 14 },
-  secondaryButton: { minHeight: 47, borderRadius: 13, borderWidth: 1, borderColor: "#2D4E7D", backgroundColor: "#0D2443", flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 8 },
-  secondaryText: { color: "#B9CCFF", fontFamily: "Inter_600SemiBold", fontSize: 13 },
-  heroPreview: { alignItems: "center", marginTop: 34, position: "relative" },
-  previewGlow: { position: "absolute", width: 220, height: 180, top: 18, backgroundColor: "#1F5EFF", opacity: 0.15, borderRadius: 120 },
-  previewShell: { width: "100%", maxWidth: 560, borderRadius: 15, backgroundColor: "#0E2342", borderWidth: 1, borderColor: "#315581", padding: 9, shadowColor: "#000000", shadowOpacity: 0.35, shadowRadius: 24, shadowOffset: { width: 0, height: 14 }, elevation: 10 },
-  previewTopbar: { height: 27, flexDirection: "row", alignItems: "center", paddingHorizontal: 6, gap: 10 },
-  previewWindowDots: { flexDirection: "row", gap: 4 },
-  previewDot: { width: 5, height: 5, borderRadius: 3 },
-  previewTopLine: { flex: 1, height: 5, borderRadius: 3, backgroundColor: "#17365F" },
-  previewAvatar: { width: 17, height: 17, borderRadius: 9, backgroundColor: "#2D5DAD", alignItems: "center", justifyContent: "center" },
-  previewAvatarText: { color: "#FFFFFF", fontFamily: "Inter_700Bold", fontSize: 6 },
-  previewBody: { flexDirection: "row", borderRadius: 9, overflow: "hidden", backgroundColor: "#0A1A32", minHeight: 214 },
-  previewRail: { width: 35, backgroundColor: "#102B4D", alignItems: "center", paddingTop: 10, gap: 11 },
-  previewRailLogo: { width: 20, height: 20, borderRadius: 6, backgroundColor: "#1F5EFF", alignItems: "center", justifyContent: "center", marginBottom: 3 },
-  previewRailItem: { width: 22, height: 22, borderRadius: 6, alignItems: "center", justifyContent: "center" },
-  previewRailItemActive: { backgroundColor: "#2A5794" },
-  previewContent: { flex: 1, padding: 14, gap: 13 },
-  previewHeadingRow: { flexDirection: "row", alignItems: "center", justifyContent: "space-between" },
-  previewKicker: { color: "#6F8FB8", fontFamily: "Inter_700Bold", fontSize: 7, letterSpacing: 1.2, marginBottom: 3 },
-  previewTitle: { color: "#FFFFFF", fontFamily: "Inter_700Bold", fontSize: 13 },
-  previewBell: { width: 25, height: 25, borderRadius: 8, backgroundColor: "#14315F", alignItems: "center", justifyContent: "center" },
-  previewMetricRow: { flexDirection: "row", gap: 8 },
-  previewMetric: { flex: 1, borderRadius: 8, padding: 9, minHeight: 62 },
-  previewMetricLabel: { color: "#91A9CC", fontFamily: "Inter_700Bold", fontSize: 6, letterSpacing: 0.8 },
-  previewMetricValue: { fontFamily: "Inter_700Bold", fontSize: 20, marginTop: 2 },
-  previewMetricHint: { color: "#7794BB", fontFamily: "Inter_400Regular", fontSize: 7 },
-  previewActivity: { backgroundColor: "#0E2342", borderRadius: 8, padding: 10, gap: 8, flex: 1 },
-  previewActivityHeader: { flexDirection: "row", alignItems: "center", justifyContent: "space-between" },
-  previewActivityTitle: { color: "#FFFFFF", fontFamily: "Inter_600SemiBold", fontSize: 9 },
-  previewSeeAll: { color: "#7EA7FF", fontFamily: "Inter_500Medium", fontSize: 7 },
-  previewActivityRow: { flexDirection: "row", alignItems: "center", gap: 7 },
-  previewActivityIcon: { width: 22, height: 22, borderRadius: 6, alignItems: "center", justifyContent: "center" },
-  previewActivityCopy: { flex: 1 },
-  previewActivityText: { color: "#D5E1F2", fontFamily: "Inter_500Medium", fontSize: 8 },
-  previewActivityTime: { color: "#6F8FB8", fontFamily: "Inter_400Regular", fontSize: 7, marginTop: 2 },
-  previewCaption: { flexDirection: "row", alignItems: "center", gap: 7, marginTop: 13 },
-  captionCheck: { width: 19, height: 19, borderRadius: 10, backgroundColor: "#143D3A", alignItems: "center", justifyContent: "center" },
-  captionText: { color: "#8EA5C4", fontFamily: "Inter_500Medium", fontSize: 11 },
-  trustStrip: { paddingHorizontal: 20, paddingVertical: 18, borderBottomWidth: 1, gap: 12 },
-  trustLabel: { textAlign: "center", fontFamily: "Inter_700Bold", fontSize: 9, letterSpacing: 1.5 },
-  trustItems: { flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 10 },
-  trustItem: { flexDirection: "row", alignItems: "center", gap: 10 },
-  trustDivider: { width: 3, height: 3, borderRadius: 2 },
-  trustItemText: { fontFamily: "Inter_700Bold", fontSize: 9, letterSpacing: 1.1 },
   pageSection: { paddingHorizontal: 20, paddingVertical: 48, maxWidth: 1100, width: "100%", alignSelf: "center" },
-  sectionIntro: { gap: 10, marginBottom: 25 },
-  sectionKicker: { color: "#4C7DFF", fontFamily: "Inter_700Bold", fontSize: 9, letterSpacing: 1.5 },
+  sectionKicker: { fontFamily: "Inter_700Bold", fontSize: 9, letterSpacing: 1.5 },
   sectionTitle: { fontFamily: "Inter_700Bold", fontSize: 27, lineHeight: 33, letterSpacing: -0.7 },
   sectionDescription: { fontFamily: "Inter_400Regular", fontSize: 14, lineHeight: 22, maxWidth: 650 },
-  roleGrid: { flexDirection: "row", flexWrap: "wrap", gap: 10 },
-  roleCard: { flexGrow: 1, flexBasis: "45%", minWidth: 145, borderWidth: 1, borderRadius: 15, padding: 14, gap: 7 },
-  roleIcon: { width: 32, height: 32, borderRadius: 10, backgroundColor: "#EDF3FF", alignItems: "center", justifyContent: "center", marginBottom: 2 },
-  roleLabel: { fontFamily: "Inter_700Bold", fontSize: 13 },
-  roleText: { fontFamily: "Inter_400Regular", fontSize: 11, lineHeight: 16 },
-  modulesSection: { width: "100%" },
-  moduleList: { gap: 13 },
-  moduleCard: { borderRadius: 17, borderWidth: 1, padding: 16, gap: 10 },
-  moduleHeader: { flexDirection: "row", alignItems: "center", gap: 10 },
-  moduleIcon: { width: 40, height: 40, borderRadius: 12, alignItems: "center", justifyContent: "center" },
-  moduleTagWrap: { flex: 1, gap: 6 },
+  serviceBlock: { borderRadius: 20, borderWidth: 1, padding: 14, marginTop: 14 },
+  serviceMeta: { flexDirection: "row", alignItems: "flex-start", gap: 14 },
+  serviceNumber: { width: 42, height: 42, borderRadius: 14, alignItems: "center", justifyContent: "center" },
+  serviceNumberText: { fontFamily: "Inter_700Bold", fontSize: 13 },
+  serviceCopy: { flex: 1, gap: 5 },
   moduleTag: { fontFamily: "Inter_700Bold", fontSize: 9, letterSpacing: 1.3 },
-  moduleLine: { width: "100%", height: 2, borderRadius: 1 },
   moduleTitle: { fontFamily: "Inter_700Bold", fontSize: 17, lineHeight: 22, marginTop: 2 },
   moduleDescription: { fontFamily: "Inter_400Regular", fontSize: 13, lineHeight: 20 },
-  pointList: { gap: 7, marginTop: 2 },
-  pointRow: { flexDirection: "row", alignItems: "center", gap: 8 },
-  pointIcon: { width: 20, height: 20, borderRadius: 10, alignItems: "center", justifyContent: "center" },
-  pointText: { flex: 1, fontFamily: "Inter_500Medium", fontSize: 11, lineHeight: 16 },
+  dashboardPreview: { borderWidth: 1, borderRadius: 16, padding: 10, marginTop: 14, gap: 9 },
+  dashboardHeader: { flexDirection: "row", alignItems: "center", gap: 8 },
+  dashboardMark: { width: 29, height: 29, borderRadius: 9, alignItems: "center", justifyContent: "center" },
+  dashboardHeaderCopy: { flex: 1, gap: 2 },
+  dashboardEyebrow: { fontFamily: "Inter_700Bold", fontSize: 7, letterSpacing: 1.1 },
+  dashboardHeading: { fontFamily: "Inter_700Bold", fontSize: 11 },
+  dashboardMenu: { width: 27, height: 27, borderRadius: 8, alignItems: "center", justifyContent: "center" },
+  dashboardMetrics: { flexDirection: "row", gap: 8 },
+  dashboardMetric: { flex: 1, minHeight: 47, borderRadius: 10, borderWidth: 1, padding: 8, justifyContent: "space-between" },
+  dashboardMetricLabel: { fontFamily: "Inter_600SemiBold", fontSize: 8 },
+  dashboardMetricBottom: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", gap: 5 },
+  dashboardMetricValue: { fontFamily: "Inter_700Bold", fontSize: 9 },
+  dashboardMetricBar: { width: 27, height: 5, borderRadius: 3 },
+  dashboardList: { borderRadius: 10, borderWidth: 1, paddingHorizontal: 9 },
+  dashboardRow: { minHeight: 32, flexDirection: "row", alignItems: "center", gap: 7 },
+  dashboardRowSecond: { borderTopWidth: 1 },
+  dashboardRowDot: { width: 7, height: 7, borderRadius: 4 },
+  dashboardRowText: { flex: 1, fontFamily: "Inter_500Medium", fontSize: 9 },
   finalCta: { borderRadius: 22, padding: 24, alignItems: "center", gap: 11 },
-  finalCtaBadge: { flexDirection: "row", alignItems: "center", gap: 7, paddingHorizontal: 10, paddingVertical: 6, borderRadius: 20, backgroundColor: "#143D3A" },
-  finalCtaBadgeText: { color: "#72E0C4", fontFamily: "Inter_700Bold", fontSize: 8, letterSpacing: 1.1 },
   finalTitle: { fontFamily: "Inter_700Bold", textAlign: "center", fontSize: 23, lineHeight: 29, letterSpacing: -0.4, maxWidth: 540 },
   finalText: { fontFamily: "Inter_400Regular", textAlign: "center", fontSize: 13, lineHeight: 20, maxWidth: 520 },
   finalButton: { minHeight: 50, width: "100%", maxWidth: 460, marginTop: 5, borderRadius: 12, flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 8 },
   finalButtonText: { fontFamily: "Inter_700Bold", fontSize: 14 },
-  finalNote: { color: "#7894B9", fontFamily: "Inter_400Regular", fontSize: 10, marginTop: 2 },
 });

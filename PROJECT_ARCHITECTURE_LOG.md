@@ -31,3 +31,4 @@
 - Financial Reports continue to consume the existing statistics reports response; locale-aware financial formatting is applied only at render time and does not alter API payloads or stored values.
 - Level-1 Support continues to consume the same authenticated support endpoints; RTL direction, text alignment, icon direction, and localized labels remain presentation-only concerns.
 - Buildings and parking operational routes now derive management scope from `isSyndicateTeamRole` plus JWT `syndicateId`; resident building scope derives from `getUserBuildingIds`, and client-supplied parking lot IDs are validated against the target building before mutation.
+- Chat conversation access now treats JWT syndicate scope as a mandatory boundary for non-platform sessions; direct/group/message routes use the authenticated scope and parent-conversation checks before mutation, while Super Admin and marketplace/incident exceptions remain explicit.

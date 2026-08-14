@@ -119,8 +119,9 @@ router.get("/ag-meetings/:id", requireAuth, requireNotTenant, async (req, res) =
 
     if (!meeting) return void res.status(404).json({ error: "AG introuvable" });
 
-    // Syndicate isolation: non-super_admin can only read their own syndicate's meetings
-    if (user.role !== "super_admin" && meeting.syndicateId && meeting.syndicateId !== user.syndicateId) {
+    // Syndicate isolation: orphaned meetings with no scope are not readable by
+    // non-platform users, even when a caller knows their ID.
+    if (!assertSyndicateAccess(req, meeting.syndicateId)) {
       return void res.status(403).json({ error: "Accès refusé" });
     }
 

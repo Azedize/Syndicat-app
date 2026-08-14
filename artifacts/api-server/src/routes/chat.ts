@@ -1,4 +1,4 @@
-import { Router } from "express";
+import { Request, Response, Router } from "express";
 import { z } from "zod";
 import { db } from "@workspace/db";
 import {
@@ -38,17 +38,27 @@ function canDirectMessage(
   target: { role: Role; syndicateId?: string | null },
 ): boolean {
   const sameSyndicate =
-    !!actor.syndicateId && !!target.syndicateId && actor.syndicateId === target.syndicateId;
+    !!actor.syndicateId &&
+    !!target.syndicateId &&
+    actor.syndicateId === target.syndicateId;
 
   // Super Admin ↔ Syndicate Admin (any syndicate — supervision)
-  if (actor.role === "super_admin" && target.role === "syndicate_admin") return true;
-  if (target.role === "super_admin" && actor.role === "syndicate_admin") return true;
+  if (actor.role === "super_admin" && target.role === "syndicate_admin")
+    return true;
+  if (target.role === "super_admin" && actor.role === "syndicate_admin")
+    return true;
 
   // Syndicate Admin ↔ Member / Tenant (same syndicate only)
-  if (actor.role === "syndicate_admin" && (target.role === "member" || target.role === "tenant")) {
+  if (
+    actor.role === "syndicate_admin" &&
+    (target.role === "member" || target.role === "tenant")
+  ) {
     return sameSyndicate;
   }
-  if (target.role === "syndicate_admin" && (actor.role === "member" || actor.role === "tenant")) {
+  if (
+    target.role === "syndicate_admin" &&
+    (actor.role === "member" || actor.role === "tenant")
+  ) {
     return sameSyndicate;
   }
 
@@ -60,14 +70,23 @@ function canDirectMessage(
   return false;
 }
 
-async function isBlockedEitherWay(userAId: string, userBId: string): Promise<boolean> {
+async function isBlockedEitherWay(
+  userAId: string,
+  userBId: string,
+): Promise<boolean> {
   const rows = await db
     .select({ id: blockedUsersTable.id })
     .from(blockedUsersTable)
     .where(
       or(
-        and(eq(blockedUsersTable.blockerId, userAId), eq(blockedUsersTable.blockedId, userBId)),
-        and(eq(blockedUsersTable.blockerId, userBId), eq(blockedUsersTable.blockedId, userAId)),
+        and(
+          eq(blockedUsersTable.blockerId, userAId),
+          eq(blockedUsersTable.blockedId, userBId),
+        ),
+        and(
+          eq(blockedUsersTable.blockerId, userBId),
+          eq(blockedUsersTable.blockedId, userAId),
+        ),
       ),
     );
   return rows.length > 0;
@@ -82,17 +101,26 @@ const typingState = new Map<string, Map<string, number>>(); // conversationId ->
 
 function setTyping(conversationId: string, userId: string) {
   let m = typingState.get(conversationId);
-  if (!m) { m = new Map(); typingState.set(conversationId, m); }
+  if (!m) {
+    m = new Map();
+    typingState.set(conversationId, m);
+  }
   m.set(userId, Date.now() + TYPING_TTL_MS);
 }
 
-function getTypingUsers(conversationId: string, excludeUserId: string): string[] {
+function getTypingUsers(
+  conversationId: string,
+  excludeUserId: string,
+): string[] {
   const m = typingState.get(conversationId);
   if (!m) return [];
   const now = Date.now();
   const active: string[] = [];
   for (const [uid, expiresAt] of m.entries()) {
-    if (expiresAt < now) { m.delete(uid); continue; }
+    if (expiresAt < now) {
+      m.delete(uid);
+      continue;
+    }
     if (uid !== excludeUserId) active.push(uid);
   }
   return active;
@@ -113,13 +141,17 @@ async function canAccessConversation(
   if (conv.convType === "announcement") return conv.syndicateId === syndicateId;
   if (conv.convType === "building") return conv.syndicateId === syndicateId;
   if (conv.isGroup) {
-    if (conv.participantIds) {
-      try {
-        const ids: string[] = JSON.parse(conv.participantIds);
-        return ids.includes(userId);
-      } catch { /* fall through */ }
+    if (conv.syndicateId !== syndicateId || !conv.participantIds) return false;
+    try {
+      const ids: unknown = JSON.parse(conv.participantIds);
+      return (
+        Array.isArray(ids) &&
+        ids.every((id): id is string => typeof id === "string") &&
+        ids.includes(userId)
+      );
+    } catch {
+      return false;
     }
-    return conv.syndicateId === syndicateId;
   }
   return conv.participant1Id === userId || conv.participant2Id === userId;
 }
@@ -131,11 +163,31 @@ function formatTime(d: Date | null | undefined): string {
     d.getFullYear() === now.getFullYear() &&
     d.getMonth() === now.getMonth() &&
     d.getDate() === now.getDate();
-  if (sameDay) return d.toLocaleTimeString("fr-FR", { hour: "2-digit", minute: "2-digit" });
+  if (sameDay)
+    return d.toLocaleTimeString("fr-FR", {
+      hour: "2-digit",
+      minute: "2-digit",
+    });
   const daysDiff = Math.floor((now.getTime() - d.getTime()) / 86400000);
   if (daysDiff === 1) return "Hier";
   if (daysDiff < 7) return d.toLocaleDateString("fr-FR", { weekday: "short" });
   return d.toLocaleDateString("fr-FR", { day: "2-digit", month: "2-digit" });
+}
+
+/**
+ * Chat data is syndicate-scoped for every non-platform session. A malformed
+ * or partially migrated JWT must not be allowed to continue with an empty
+ * scope, even when the requested resource is addressed by a direct ID.
+ */
+function hasChatSyndicateScope(req: Request, res: Response): boolean {
+  if (req.user?.role !== "super_admin" && !req.user?.syndicateId) {
+    res.status(403).json({
+      error: "Syndicat non défini dans le token",
+      code: "SYNDICATE_SCOPE_REQUIRED",
+    });
+    return false;
+  }
+  return true;
 }
 
 /**
@@ -158,7 +210,12 @@ export async function createIncidentConversation(params: {
     ? await db
         .select({ id: usersTable.id })
         .from(usersTable)
-        .where(and(eq(usersTable.syndicateId, syndicateId), eq(usersTable.role, "syndicate_admin")))
+        .where(
+          and(
+            eq(usersTable.syndicateId, syndicateId),
+            eq(usersTable.role, "syndicate_admin"),
+          ),
+        )
     : [];
 
   const participantIds = new Set<string>(admins.map((a) => a.id));
@@ -191,11 +248,20 @@ export async function addResponsibleToIncidentConversation(
   const [conv] = await db
     .select()
     .from(conversationsTable)
-    .where(and(eq(conversationsTable.incidentId, incidentId), eq(conversationsTable.convType, "incident")));
+    .where(
+      and(
+        eq(conversationsTable.incidentId, incidentId),
+        eq(conversationsTable.convType, "incident"),
+      ),
+    );
   if (!conv) return;
 
   let ids: string[] = [];
-  try { ids = JSON.parse(conv.participantIds ?? "[]"); } catch { /* ignore */ }
+  try {
+    ids = JSON.parse(conv.participantIds ?? "[]");
+  } catch {
+    /* ignore */
+  }
   if (ids.includes(responsibleUserId)) return;
   ids.push(responsibleUserId);
 
@@ -219,56 +285,71 @@ export async function addResponsibleToIncidentConversation(
 // "new conversation" contact picker in the mobile app so the UI only shows
 // users who are actually reachable — matching the server-side enforcement.
 
-router.get("/conversations/contactable-users", requireAuth, async (req, res) => {
-  try {
-    const actor = req.user!;
-    const syndicateId = actor.syndicateId || "";
-    let conditions: any;
+router.get(
+  "/conversations/contactable-users",
+  requireAuth,
+  async (req, res) => {
+    try {
+      if (!hasChatSyndicateScope(req, res)) return;
+      const actor = req.user!;
+      const syndicateId = actor.syndicateId ?? "";
+      let conditions: any;
 
-    if (actor.role === "super_admin") {
-      // Super admins can DM all syndicate admins across the platform
-      conditions = eq(usersTable.role, "syndicate_admin");
-    } else if (actor.role === "syndicate_admin") {
-      // Syndicate admins can DM: members and tenants in their syndicate, + all super_admins
-      conditions = or(
-        eq(usersTable.role, "super_admin"),
-        and(
+      if (actor.role === "super_admin") {
+        // Super admins can DM all syndicate admins across the platform
+        conditions = eq(usersTable.role, "syndicate_admin");
+      } else if (actor.role === "syndicate_admin") {
+        // Syndicate admins can DM: members and tenants in their syndicate, + all super_admins
+        conditions = or(
+          eq(usersTable.role, "super_admin"),
+          and(
+            eq(usersTable.syndicateId, syndicateId),
+            or(eq(usersTable.role, "member"), eq(usersTable.role, "tenant")),
+          ),
+        );
+      } else if (actor.role === "member") {
+        // Members can DM: their syndicate admin + other members in same syndicate
+        conditions = and(
           eq(usersTable.syndicateId, syndicateId),
-          or(eq(usersTable.role, "member"), eq(usersTable.role, "tenant")),
-        ),
-      );
-    } else if (actor.role === "member") {
-      // Members can DM: their syndicate admin + other members in same syndicate
-      conditions = and(
-        eq(usersTable.syndicateId, syndicateId),
-        or(eq(usersTable.role, "syndicate_admin"), eq(usersTable.role, "member")),
-      );
-    } else {
-      // Tenants can only DM their syndicate admin
-      conditions = and(
-        eq(usersTable.syndicateId, syndicateId),
-        eq(usersTable.role, "syndicate_admin"),
-      );
+          or(
+            eq(usersTable.role, "syndicate_admin"),
+            eq(usersTable.role, "member"),
+          ),
+        );
+      } else {
+        // Tenants can only DM their syndicate admin
+        conditions = and(
+          eq(usersTable.syndicateId, syndicateId),
+          eq(usersTable.role, "syndicate_admin"),
+        );
+      }
+
+      const rows = await db
+        .select({
+          id: usersTable.id,
+          name: usersTable.name,
+          email: usersTable.email,
+          role: usersTable.role,
+          syndicateId: usersTable.syndicateId,
+        })
+        .from(usersTable)
+        .where(and(conditions, sql`${usersTable.id} != ${actor.userId}`));
+
+      res.json({ data: rows });
+    } catch (err) {
+      req.log.error(err);
+      res.status(500).json({ error: "Erreur serveur" });
     }
-
-    const rows = await db
-      .select({ id: usersTable.id, name: usersTable.name, email: usersTable.email, role: usersTable.role, syndicateId: usersTable.syndicateId })
-      .from(usersTable)
-      .where(and(conditions, sql`${usersTable.id} != ${actor.userId}`));
-
-    res.json({ data: rows });
-  } catch (err) {
-    req.log.error(err);
-    res.status(500).json({ error: "Erreur serveur" });
-  }
-});
+  },
+);
 
 // ─── GET /conversations ───────────────────────────────────────────────────────
 
 router.get("/conversations", requireAuth, async (req, res) => {
   try {
+    if (!hasChatSyndicateScope(req, res)) return;
     const userId = req.user!.userId;
-    const syndicateId = req.user!.syndicateId || "";
+    const syndicateId = req.user!.syndicateId ?? "";
     const includeArchived = req.query.archived === "true";
 
     const conversations = await db
@@ -298,12 +379,19 @@ router.get("/conversations", requireAuth, async (req, res) => {
     // (isGroup+syndicate match alone isn't enough — must be an actual participant)
     const visible = conversations.filter((c) => {
       if (!c.isGroup) return true;
-      if (c.convType === "announcement" || c.convType === "building") return true;
-      if (!c.participantIds) return true;
+      if (c.convType === "announcement" || c.convType === "building")
+        return true;
+      if (c.syndicateId !== syndicateId || !c.participantIds) return false;
       try {
-        const ids: string[] = JSON.parse(c.participantIds);
-        return ids.includes(userId);
-      } catch { return true; }
+        const ids: unknown = JSON.parse(c.participantIds);
+        return (
+          Array.isArray(ids) &&
+          ids.every((id): id is string => typeof id === "string") &&
+          ids.includes(userId)
+        );
+      } catch {
+        return false;
+      }
     });
 
     if (visible.length === 0) {
@@ -317,7 +405,9 @@ router.get("/conversations", requireAuth, async (req, res) => {
       .where(eq(conversationArchivesTable.userId, userId));
     const archivedSet = new Set(archiveRows.map((r) => r.conversationId));
 
-    const filtered = visible.filter((c) => (includeArchived ? archivedSet.has(c.id) : !archivedSet.has(c.id)));
+    const filtered = visible.filter((c) =>
+      includeArchived ? archivedSet.has(c.id) : !archivedSet.has(c.id),
+    );
 
     if (filtered.length === 0) {
       res.json({ data: [], total: 0 });
@@ -327,8 +417,9 @@ router.get("/conversations", requireAuth, async (req, res) => {
     // Batch-load participant user data
     const participantIds = Array.from(
       new Set(
-        filtered.flatMap((c) =>
-          [c.participant1Id, c.participant2Id].filter(Boolean) as string[],
+        filtered.flatMap(
+          (c) =>
+            [c.participant1Id, c.participant2Id].filter(Boolean) as string[],
         ),
       ),
     );
@@ -336,7 +427,11 @@ router.get("/conversations", requireAuth, async (req, res) => {
     const users =
       participantIds.length > 0
         ? await db
-            .select({ id: usersTable.id, name: usersTable.name, role: usersTable.role })
+            .select({
+              id: usersTable.id,
+              name: usersTable.name,
+              role: usersTable.role,
+            })
             .from(usersTable)
             .where(inArray(usersTable.id, participantIds))
         : [];
@@ -375,11 +470,14 @@ router.get("/conversations", requireAuth, async (req, res) => {
         ),
       );
 
-    const unreadMap: Record<string, number> = Object.fromEntries(convIds.map((id) => [id, 0]));
+    const unreadMap: Record<string, number> = Object.fromEntries(
+      convIds.map((id) => [id, 0]),
+    );
     for (const msg of unreadMessages) {
       const lastRead = readMap[msg.conversationId];
       if (!lastRead || (msg.createdAt && msg.createdAt > lastRead)) {
-        unreadMap[msg.conversationId] = (unreadMap[msg.conversationId] ?? 0) + 1;
+        unreadMap[msg.conversationId] =
+          (unreadMap[msg.conversationId] ?? 0) + 1;
       }
     }
 
@@ -387,9 +485,16 @@ router.get("/conversations", requireAuth, async (req, res) => {
     const blockRows = await db
       .select()
       .from(blockedUsersTable)
-      .where(or(eq(blockedUsersTable.blockerId, userId), eq(blockedUsersTable.blockedId, userId)));
+      .where(
+        or(
+          eq(blockedUsersTable.blockerId, userId),
+          eq(blockedUsersTable.blockedId, userId),
+        ),
+      );
     const blockedWith = new Set(
-      blockRows.map((b) => (b.blockerId === userId ? b.blockedId : b.blockerId)),
+      blockRows.map((b) =>
+        b.blockerId === userId ? b.blockedId : b.blockerId,
+      ),
     );
 
     const enriched = filtered.map((c) => {
@@ -439,8 +544,9 @@ router.get("/conversations", requireAuth, async (req, res) => {
 
 router.get("/conversations/unread-count", requireAuth, async (req, res) => {
   try {
+    if (!hasChatSyndicateScope(req, res)) return;
     const userId = req.user!.userId;
-    const syndicateId = req.user!.syndicateId || "";
+    const syndicateId = req.user!.syndicateId ?? "";
 
     const conversations = await db
       .select({ id: conversationsTable.id })
@@ -449,8 +555,14 @@ router.get("/conversations/unread-count", requireAuth, async (req, res) => {
         or(
           eq(conversationsTable.participant1Id, userId),
           eq(conversationsTable.participant2Id, userId),
-          and(eq(conversationsTable.isGroup, true), eq(conversationsTable.syndicateId, syndicateId)),
-          and(eq(conversationsTable.convType, "announcement"), eq(conversationsTable.syndicateId, syndicateId)),
+          and(
+            eq(conversationsTable.isGroup, true),
+            eq(conversationsTable.syndicateId, syndicateId),
+          ),
+          and(
+            eq(conversationsTable.convType, "announcement"),
+            eq(conversationsTable.syndicateId, syndicateId),
+          ),
         ),
       );
 
@@ -463,7 +575,9 @@ router.get("/conversations/unread-count", requireAuth, async (req, res) => {
       .select()
       .from(messageReadsTable)
       .where(eq(messageReadsTable.userId, userId));
-    const readMap = Object.fromEntries(readRows.map((r) => [r.conversationId, r.lastReadAt]));
+    const readMap = Object.fromEntries(
+      readRows.map((r) => [r.conversationId, r.lastReadAt]),
+    );
 
     const unreadMsgs = await db
       .select({
@@ -501,10 +615,14 @@ router.get("/conversations/unread-count", requireAuth, async (req, res) => {
 
 router.get("/conversations/search", requireAuth, async (req, res) => {
   const q = String(req.query.q ?? "").trim();
-  if (!q) { res.json({ data: [] }); return; }
+  if (!q) {
+    res.json({ data: [] });
+    return;
+  }
   try {
+    if (!hasChatSyndicateScope(req, res)) return;
     const userId = req.user!.userId;
-    const syndicateId = req.user!.syndicateId || "";
+    const syndicateId = req.user!.syndicateId ?? "";
 
     const conversations = await db
       .select()
@@ -513,37 +631,72 @@ router.get("/conversations/search", requireAuth, async (req, res) => {
         or(
           eq(conversationsTable.participant1Id, userId),
           eq(conversationsTable.participant2Id, userId),
-          and(eq(conversationsTable.isGroup, true), eq(conversationsTable.syndicateId, syndicateId)),
+          and(
+            eq(conversationsTable.isGroup, true),
+            eq(conversationsTable.syndicateId, syndicateId),
+          ),
         ),
       );
-    if (conversations.length === 0) { res.json({ data: [] }); return; }
+    if (conversations.length === 0) {
+      res.json({ data: [] });
+      return;
+    }
 
     const convIds = conversations.map((c) => c.id);
     const matchingMessages = await db
       .select({ conversationId: messagesTable.conversationId })
       .from(messagesTable)
-      .where(and(inArray(messagesTable.conversationId, convIds), sql`${messagesTable.text} ILIKE ${'%' + q + '%'}`));
-    const convWithMatchingMessages = new Set(matchingMessages.map((m) => m.conversationId));
+      .where(
+        and(
+          inArray(messagesTable.conversationId, convIds),
+          sql`${messagesTable.text} ILIKE ${"%" + q + "%"}`,
+        ),
+      );
+    const convWithMatchingMessages = new Set(
+      matchingMessages.map((m) => m.conversationId),
+    );
 
     const participantIds = Array.from(
-      new Set(conversations.flatMap((c) => [c.participant1Id, c.participant2Id].filter(Boolean) as string[])),
+      new Set(
+        conversations.flatMap(
+          (c) =>
+            [c.participant1Id, c.participant2Id].filter(Boolean) as string[],
+        ),
+      ),
     );
     const users = participantIds.length
-      ? await db.select({ id: usersTable.id, name: usersTable.name }).from(usersTable).where(inArray(usersTable.id, participantIds))
+      ? await db
+          .select({ id: usersTable.id, name: usersTable.name })
+          .from(usersTable)
+          .where(inArray(usersTable.id, participantIds))
       : [];
     const userMap = Object.fromEntries(users.map((u) => [u.id, u.name]));
 
     const lowerQ = q.toLowerCase();
     const matches = conversations.filter((c) => {
-      const otherId = c.participant1Id === userId ? c.participant2Id : c.participant1Id;
-      const name = c.isGroup ? (c.name ?? "") : (otherId ? userMap[otherId] ?? "" : "");
-      return name.toLowerCase().includes(lowerQ) || convWithMatchingMessages.has(c.id);
+      const otherId =
+        c.participant1Id === userId ? c.participant2Id : c.participant1Id;
+      const name = c.isGroup
+        ? (c.name ?? "")
+        : otherId
+          ? (userMap[otherId] ?? "")
+          : "";
+      return (
+        name.toLowerCase().includes(lowerQ) ||
+        convWithMatchingMessages.has(c.id)
+      );
     });
 
     res.json({
       data: matches.map((c) => ({
         id: c.id,
-        name: c.isGroup ? (c.name ?? "Groupe") : userMap[c.participant1Id === userId ? (c.participant2Id ?? "") : (c.participant1Id ?? "")] ?? "Contact",
+        name: c.isGroup
+          ? (c.name ?? "Groupe")
+          : (userMap[
+              c.participant1Id === userId
+                ? (c.participant2Id ?? "")
+                : (c.participant1Id ?? "")
+            ] ?? "Contact"),
         matchedInMessages: convWithMatchingMessages.has(c.id),
       })),
     });
@@ -561,7 +714,16 @@ router.post("/conversations", requireAuth, async (req, res) => {
     syndicateAdminLookup: z.string().optional(), // syndicateId — super_admin shortcut: find the admin of this syndicate
     isGroup: z.boolean().default(false),
     name: z.string().max(100).optional(),
-    convType: z.enum(["direct", "group", "announcement", "support", "building", "emergency"]).default("direct"),
+    convType: z
+      .enum([
+        "direct",
+        "group",
+        "announcement",
+        "support",
+        "building",
+        "emergency",
+      ])
+      .default("direct"),
     buildingId: z.string().optional(),
     participantIds: z.array(z.string()).optional(), // for group conversations
   });
@@ -572,12 +734,18 @@ router.post("/conversations", requireAuth, async (req, res) => {
   }
 
   try {
-    let { participantId, isGroup, name, convType, buildingId, participantIds } = result.data;
+    if (!hasChatSyndicateScope(req, res)) return;
+    let { participantId, isGroup, name, convType, buildingId, participantIds } =
+      result.data;
     const { syndicateAdminLookup } = result.data;
     const actor = req.user!;
 
     // ── Super-admin shortcut: resolve syndicate admin by syndicateId ──────────
-    if (syndicateAdminLookup && !participantId && actor.role === "super_admin") {
+    if (
+      syndicateAdminLookup &&
+      !participantId &&
+      actor.role === "super_admin"
+    ) {
       const [adminUser] = await db
         .select({ id: usersTable.id })
         .from(usersTable)
@@ -589,20 +757,32 @@ router.post("/conversations", requireAuth, async (req, res) => {
         )
         .limit(1);
       if (!adminUser) {
-        res.status(404).json({ error: "Aucun administrateur trouvé pour ce syndicat" });
+        res
+          .status(404)
+          .json({ error: "Aucun administrateur trouvé pour ce syndicat" });
         return;
       }
       participantId = adminUser.id;
     }
 
     // ── RBAC communication matrix: enforced for direct + emergency 1:1 chats ──
-    if ((convType === "direct" || convType === "emergency") && !isGroup && participantId) {
+    if (
+      (convType === "direct" || convType === "emergency") &&
+      !isGroup &&
+      participantId
+    ) {
       if (participantId === actor.userId) {
-        res.status(400).json({ error: "Impossible de démarrer une conversation avec soi-même" });
+        res.status(400).json({
+          error: "Impossible de démarrer une conversation avec soi-même",
+        });
         return;
       }
       const [target] = await db
-        .select({ id: usersTable.id, role: usersTable.role, syndicateId: usersTable.syndicateId })
+        .select({
+          id: usersTable.id,
+          role: usersTable.role,
+          syndicateId: usersTable.syndicateId,
+        })
         .from(usersTable)
         .where(eq(usersTable.id, participantId));
       if (!target) {
@@ -630,7 +810,10 @@ router.post("/conversations", requireAuth, async (req, res) => {
         target.role === "syndicate_admin" &&
         target.syndicateId === actor.syndicateId;
 
-      if (!isEmergencyToOwnAdmin && !canDirectMessage(actor as any, target as any)) {
+      if (
+        !isEmergencyToOwnAdmin &&
+        !canDirectMessage(actor as any, target as any)
+      ) {
         res.status(403).json({
           error: "Cette communication n'est pas autorisée entre ces deux rôles",
           code: "COMMUNICATION_NOT_ALLOWED",
@@ -639,13 +822,20 @@ router.post("/conversations", requireAuth, async (req, res) => {
       }
 
       if (await isBlockedEitherWay(actor.userId, participantId)) {
-        res.status(403).json({ error: "Conversation bloquée entre ces utilisateurs", code: "USER_BLOCKED" });
+        res.status(403).json({
+          error: "Conversation bloquée entre ces utilisateurs",
+          code: "USER_BLOCKED",
+        });
         return;
       }
     }
 
     // Prevent duplicate direct conversations
-    if (!isGroup && (convType === "direct" || convType === "emergency") && participantId) {
+    if (
+      !isGroup &&
+      (convType === "direct" || convType === "emergency") &&
+      participantId
+    ) {
       const existing = await db
         .select()
         .from(conversationsTable)
@@ -695,7 +885,9 @@ router.post("/conversations", requireAuth, async (req, res) => {
 
         if (
           participants.length !== requestedParticipantIds.length ||
-          participants.some((participant) => participant.syndicateId !== actor.syndicateId)
+          participants.some(
+            (participant) => participant.syndicateId !== actor.syndicateId,
+          )
         ) {
           res.status(403).json({
             error: "Tous les participants doivent appartenir à votre syndicat",
@@ -723,12 +915,14 @@ router.post("/conversations", requireAuth, async (req, res) => {
     const [conv] = await db
       .insert(conversationsTable)
       .values({
-        syndicateId: actor.syndicateId || null,
+        syndicateId: actor.syndicateId ?? null,
         buildingId: buildingId,
         convType,
         participant1Id: actor.userId,
         participant2Id: participantId,
-        participantIds: allParticipantIds ? JSON.stringify(allParticipantIds) : undefined,
+        participantIds: allParticipantIds
+          ? JSON.stringify(allParticipantIds)
+          : undefined,
         isGroup: isGroup || convType === "group",
         name,
         createdBy: actor.userId,
@@ -739,10 +933,17 @@ router.post("/conversations", requireAuth, async (req, res) => {
     res.status(201).json({ data: conv });
 
     if (convType === "emergency" && conv.participant2Id) {
-      sendPushToUsers([conv.participant2Id], "🚨 Urgence", `${actor.name} a signalé une urgence`, {
-        conversationId: conv.id,
-        type: "chat_emergency",
-      }).catch(() => { /* never let push errors affect the route */ });
+      sendPushToUsers(
+        [conv.participant2Id],
+        "🚨 Urgence",
+        `${actor.name} a signalé une urgence`,
+        {
+          conversationId: conv.id,
+          type: "chat_emergency",
+        },
+      ).catch(() => {
+        /* never let push errors affect the route */
+      });
     }
   } catch (err) {
     req.log.error(err);
@@ -755,20 +956,38 @@ router.post("/conversations", requireAuth, async (req, res) => {
 router.post("/conversations/product", requireAuth, async (req, res) => {
   const schema = z.object({ productId: z.string() });
   const result = schema.safeParse(req.body);
-  if (!result.success) { res.status(400).json({ error: "Données invalides" }); return; }
+  if (!result.success) {
+    res.status(400).json({ error: "Données invalides" });
+    return;
+  }
 
   try {
+    if (!hasChatSyndicateScope(req, res)) return;
     const actor = req.user!;
-    const [product] = await db.select().from(productsTable).where(eq(productsTable.id, result.data.productId));
-    if (!product) { res.status(404).json({ error: "Produit introuvable" }); return; }
-    if (!product.sellerId) { res.status(422).json({ error: "Ce produit n'a pas de vendeur associé" }); return; }
+    const [product] = await db
+      .select()
+      .from(productsTable)
+      .where(eq(productsTable.id, result.data.productId));
+    if (!product) {
+      res.status(404).json({ error: "Produit introuvable" });
+      return;
+    }
+    if (!product.sellerId) {
+      res.status(422).json({ error: "Ce produit n'a pas de vendeur associé" });
+      return;
+    }
     if (product.sellerId === actor.userId) {
-      res.status(400).json({ error: "Vous ne pouvez pas contacter votre propre annonce" });
+      res
+        .status(400)
+        .json({ error: "Vous ne pouvez pas contacter votre propre annonce" });
       return;
     }
 
     if (await isBlockedEitherWay(actor.userId, product.sellerId)) {
-      res.status(403).json({ error: "Conversation bloquée entre ces utilisateurs", code: "USER_BLOCKED" });
+      res.status(403).json({
+        error: "Conversation bloquée entre ces utilisateurs",
+        code: "USER_BLOCKED",
+      });
       return;
     }
 
@@ -780,8 +999,14 @@ router.post("/conversations/product", requireAuth, async (req, res) => {
         and(
           eq(conversationsTable.productId, product.id),
           or(
-            and(eq(conversationsTable.participant1Id, actor.userId), eq(conversationsTable.participant2Id, product.sellerId)),
-            and(eq(conversationsTable.participant1Id, product.sellerId), eq(conversationsTable.participant2Id, actor.userId)),
+            and(
+              eq(conversationsTable.participant1Id, actor.userId),
+              eq(conversationsTable.participant2Id, product.sellerId),
+            ),
+            and(
+              eq(conversationsTable.participant1Id, product.sellerId),
+              eq(conversationsTable.participant2Id, actor.userId),
+            ),
           ),
         ),
       );
@@ -793,7 +1018,10 @@ router.post("/conversations/product", requireAuth, async (req, res) => {
     const [conv] = await db
       .insert(conversationsTable)
       .values({
-        syndicateId: actor.syndicateId || product.syndicateId || null,
+        syndicateId:
+          actor.role === "super_admin"
+            ? (actor.syndicateId ?? product.syndicateId ?? null)
+            : actor.syndicateId,
         convType: "marketplace",
         participant1Id: actor.userId,
         participant2Id: product.sellerId,
@@ -818,28 +1046,51 @@ router.post("/conversations/product", requireAuth, async (req, res) => {
 router.post("/conversations/incident", requireAuth, async (req, res) => {
   const schema = z.object({ incidentId: z.string() });
   const result = schema.safeParse(req.body);
-  if (!result.success) { res.status(400).json({ error: "Données invalides" }); return; }
+  if (!result.success) {
+    res.status(400).json({ error: "Données invalides" });
+    return;
+  }
   try {
-    const [incident] = await db.select().from(reclamationsTable).where(eq(reclamationsTable.id, result.data.incidentId));
-    if (!incident) { res.status(404).json({ error: "Incident introuvable" }); return; }
+    if (!hasChatSyndicateScope(req, res)) return;
+    const [incident] = await db
+      .select()
+      .from(reclamationsTable)
+      .where(eq(reclamationsTable.id, result.data.incidentId));
+    if (!incident) {
+      res.status(404).json({ error: "Incident introuvable" });
+      return;
+    }
 
     const actor = req.user!;
     const isOwner = incident.memberId === actor.userId;
-    const isAdmin = actor.role === "super_admin" || actor.role === "syndicate_admin";
-    if (!isOwner && !isAdmin) { res.status(403).json({ error: "Accès refusé" }); return; }
+    const isAdmin =
+      actor.role === "super_admin" || actor.role === "syndicate_admin";
+    if (!isOwner && !isAdmin) {
+      res.status(403).json({ error: "Accès refusé" });
+      return;
+    }
 
-    const existing = await db.select().from(conversationsTable).where(eq(conversationsTable.incidentId, incident.id));
-    if (existing.length > 0) { res.json({ data: existing[0], existing: true }); return; }
+    const existing = await db
+      .select()
+      .from(conversationsTable)
+      .where(eq(conversationsTable.incidentId, incident.id));
+    if (existing.length > 0) {
+      res.json({ data: existing[0], existing: true });
+      return;
+    }
 
     await createIncidentConversation({
       incidentId: incident.id,
-      syndicateId: actor.syndicateId || null,
+      syndicateId: actor.syndicateId ?? null,
       memberId: incident.memberId,
       memberName: incident.memberName ?? "Membre",
       title: incident.titre,
     });
 
-    const [created] = await db.select().from(conversationsTable).where(eq(conversationsTable.incidentId, incident.id));
+    const [created] = await db
+      .select()
+      .from(conversationsTable)
+      .where(eq(conversationsTable.incidentId, incident.id));
     res.status(201).json({ data: created });
   } catch (err) {
     req.log.error(err);
@@ -852,9 +1103,10 @@ router.post("/conversations/incident", requireAuth, async (req, res) => {
 router.delete("/conversations/:id", requireAuth, async (req, res) => {
   const id = String(req.params.id) as string;
   try {
+    if (!hasChatSyndicateScope(req, res)) return;
     const canAccess = await canAccessConversation(
       req.user!.userId,
-      req.user!.syndicateId || "",
+      req.user!.syndicateId ?? "",
       id,
     );
     if (!canAccess) {
@@ -873,7 +1125,9 @@ router.delete("/conversations/:id", requireAuth, async (req, res) => {
       req.user!.role === "super_admin" || req.user!.role === "syndicate_admin";
 
     if (!isCreator && !isAdmin) {
-      res.status(403).json({ error: "Seul le créateur peut supprimer cette conversation" });
+      res
+        .status(403)
+        .json({ error: "Seul le créateur peut supprimer cette conversation" });
       return;
     }
 
@@ -890,24 +1144,53 @@ router.delete("/conversations/:id", requireAuth, async (req, res) => {
 router.patch("/conversations/:id/archive", requireAuth, async (req, res) => {
   const id = String(req.params.id);
   try {
-    const canAccess = await canAccessConversation(req.user!.userId, req.user!.syndicateId || "", id);
-    if (!canAccess) { res.status(403).json({ error: "Accès refusé" }); return; }
+    if (!hasChatSyndicateScope(req, res)) return;
+    const canAccess = await canAccessConversation(
+      req.user!.userId,
+      req.user!.syndicateId ?? "",
+      id,
+    );
+    if (!canAccess) {
+      res.status(403).json({ error: "Accès refusé" });
+      return;
+    }
     await db
       .insert(conversationArchivesTable)
       .values({ conversationId: id, userId: req.user!.userId })
       .onConflictDoNothing();
     res.json({ message: "Conversation archivée" });
-  } catch (err) { req.log.error(err); res.status(500).json({ error: "Erreur serveur" }); }
+  } catch (err) {
+    req.log.error(err);
+    res.status(500).json({ error: "Erreur serveur" });
+  }
 });
 
 router.patch("/conversations/:id/unarchive", requireAuth, async (req, res) => {
   const id = String(req.params.id);
   try {
+    if (!hasChatSyndicateScope(req, res)) return;
+    const canAccess = await canAccessConversation(
+      req.user!.userId,
+      req.user!.syndicateId ?? "",
+      id,
+    );
+    if (!canAccess) {
+      res.status(403).json({ error: "Accès refusé" });
+      return;
+    }
     await db
       .delete(conversationArchivesTable)
-      .where(and(eq(conversationArchivesTable.conversationId, id), eq(conversationArchivesTable.userId, req.user!.userId)));
+      .where(
+        and(
+          eq(conversationArchivesTable.conversationId, id),
+          eq(conversationArchivesTable.userId, req.user!.userId),
+        ),
+      );
     res.json({ message: "Conversation désarchivée" });
-  } catch (err) { req.log.error(err); res.status(500).json({ error: "Erreur serveur" }); }
+  } catch (err) {
+    req.log.error(err);
+    res.status(500).json({ error: "Erreur serveur" });
+  }
 });
 
 // ─── PATCH /conversations/:id/read ────────────────────────────────────────────
@@ -915,9 +1198,10 @@ router.patch("/conversations/:id/unarchive", requireAuth, async (req, res) => {
 router.patch("/conversations/:id/read", requireAuth, async (req, res) => {
   const id = String(req.params.id) as string;
   try {
+    if (!hasChatSyndicateScope(req, res)) return;
     const canAccess = await canAccessConversation(
       req.user!.userId,
-      req.user!.syndicateId || "",
+      req.user!.syndicateId ?? "",
       id,
     );
     if (!canAccess) {
@@ -932,7 +1216,11 @@ router.patch("/conversations/:id/read", requireAuth, async (req, res) => {
     // onConflictDoUpdate targeting that composite key.
     await db
       .insert(messageReadsTable)
-      .values({ conversationId: id, userId: req.user!.userId, lastReadAt: new Date() })
+      .values({
+        conversationId: id,
+        userId: req.user!.userId,
+        lastReadAt: new Date(),
+      })
       .onConflictDoUpdate({
         target: [messageReadsTable.conversationId, messageReadsTable.userId],
         set: { lastReadAt: new Date() },
@@ -949,16 +1237,32 @@ router.patch("/conversations/:id/read", requireAuth, async (req, res) => {
 
 router.patch("/conversations/:id/typing", requireAuth, async (req, res) => {
   const id = String(req.params.id);
-  const canAccess = await canAccessConversation(req.user!.userId, req.user!.syndicateId || "", id);
-  if (!canAccess) { res.status(403).json({ error: "Accès refusé" }); return; }
+  if (!hasChatSyndicateScope(req, res)) return;
+  const canAccess = await canAccessConversation(
+    req.user!.userId,
+    req.user!.syndicateId ?? "",
+    id,
+  );
+  if (!canAccess) {
+    res.status(403).json({ error: "Accès refusé" });
+    return;
+  }
   setTyping(id, req.user!.userId);
   res.json({ message: "ok" });
 });
 
 router.get("/conversations/:id/typing", requireAuth, async (req, res) => {
   const id = String(req.params.id);
-  const canAccess = await canAccessConversation(req.user!.userId, req.user!.syndicateId || "", id);
-  if (!canAccess) { res.status(403).json({ error: "Accès refusé" }); return; }
+  if (!hasChatSyndicateScope(req, res)) return;
+  const canAccess = await canAccessConversation(
+    req.user!.userId,
+    req.user!.syndicateId ?? "",
+    id,
+  );
+  if (!canAccess) {
+    res.status(403).json({ error: "Accès refusé" });
+    return;
+  }
   res.json({ data: getTypingUsers(id, req.user!.userId) });
 });
 
@@ -994,23 +1298,36 @@ function enrichMessagesForUser(messages: any[], userId: string): any[] {
 // ─── Reactions helper ────────────────────────────────────────────────────────
 
 async function loadReactionsByMessage(messageIds: string[], userId: string) {
-  if (messageIds.length === 0) return new Map<string, { emoji: string; count: number; mine: boolean }[]>();
+  if (messageIds.length === 0)
+    return new Map<string, { emoji: string; count: number; mine: boolean }[]>();
   const rows = await db
     .select()
     .from(messageReactionsTable)
     .where(inArray(messageReactionsTable.messageId, messageIds));
-  const grouped = new Map<string, Map<string, { count: number; mine: boolean }>>();
+  const grouped = new Map<
+    string,
+    Map<string, { count: number; mine: boolean }>
+  >();
   for (const r of rows) {
     let byEmoji = grouped.get(r.messageId);
-    if (!byEmoji) { byEmoji = new Map(); grouped.set(r.messageId, byEmoji); }
+    if (!byEmoji) {
+      byEmoji = new Map();
+      grouped.set(r.messageId, byEmoji);
+    }
     const entry = byEmoji.get(r.emoji) ?? { count: 0, mine: false };
     entry.count += 1;
     if (r.userId === userId) entry.mine = true;
     byEmoji.set(r.emoji, entry);
   }
-  const result = new Map<string, { emoji: string; count: number; mine: boolean }[]>();
+  const result = new Map<
+    string,
+    { emoji: string; count: number; mine: boolean }[]
+  >();
   for (const [msgId, byEmoji] of grouped.entries()) {
-    result.set(msgId, [...byEmoji.entries()].map(([emoji, v]) => ({ emoji, ...v })));
+    result.set(
+      msgId,
+      [...byEmoji.entries()].map(([emoji, v]) => ({ emoji, ...v })),
+    );
   }
   return result;
 }
@@ -1021,9 +1338,10 @@ router.get("/conversations/:id/messages", requireAuth, async (req, res) => {
   const id = String(req.params.id) as string;
   const pagination = getPagination(req, 100);
   try {
+    if (!hasChatSyndicateScope(req, res)) return;
     const canAccess = await canAccessConversation(
       req.user!.userId,
-      req.user!.syndicateId || "",
+      req.user!.syndicateId ?? "",
       id,
     );
     if (!canAccess) {
@@ -1045,7 +1363,10 @@ router.get("/conversations/:id/messages", requireAuth, async (req, res) => {
         .where(eq(messagesTable.conversationId, id)),
     ]);
 
-    const reactionMap = await loadReactionsByMessage(messages.map((m) => m.id), req.user!.userId);
+    const reactionMap = await loadReactionsByMessage(
+      messages.map((m) => m.id),
+      req.user!.userId,
+    );
     const enriched = enrichMessagesForUser(
       messages.map((m) => ({
         ...m,
@@ -1070,9 +1391,10 @@ router.get("/conversations/:id/since", requireAuth, async (req, res) => {
   const id = String(req.params.id) as string;
   const since = req.query.since as string | undefined;
   try {
+    if (!hasChatSyndicateScope(req, res)) return;
     const canAccess = await canAccessConversation(
       req.user!.userId,
-      req.user!.syndicateId || "",
+      req.user!.syndicateId ?? "",
       id,
     );
     if (!canAccess) {
@@ -1102,7 +1424,10 @@ router.get("/conversations/:id/since", requireAuth, async (req, res) => {
       .orderBy(messagesTable.createdAt)
       .limit(50);
 
-    const reactionMap = await loadReactionsByMessage(messages.map((m) => m.id), req.user!.userId);
+    const reactionMap = await loadReactionsByMessage(
+      messages.map((m) => m.id),
+      req.user!.userId,
+    );
     const enriched = enrichMessagesForUser(
       messages.map((m) => ({
         ...m,
@@ -1126,14 +1451,21 @@ router.post("/conversations/:id/messages", requireAuth, async (req, res) => {
   const id = String(req.params.id) as string;
   const schema = z.object({
     text: z.string().max(10000).default(""),
-    messageType: z.enum(["text", "image", "document", "announcement", "voice"]).default("text"),
+    messageType: z
+      .enum(["text", "image", "document", "announcement", "voice"])
+      .default("text"),
     // Accept both full URLs (https://...) and storage object paths (/objects/<uuid>)
     // so the mobile client can store an environment-agnostic path instead of a
     // localhost URL that breaks across devices, refreshes, and deployments.
     attachmentUrl: z.string().max(2000).optional(),
     attachmentType: z.string().max(100).optional(),
     attachmentName: z.string().max(255).optional(),
-    attachmentSize: z.number().int().nonnegative().max(50 * 1024 * 1024).optional(),
+    attachmentSize: z
+      .number()
+      .int()
+      .nonnegative()
+      .max(50 * 1024 * 1024)
+      .optional(),
     durationSeconds: z.number().int().positive().max(600).optional(),
   });
   const result = schema.safeParse(req.body);
@@ -1149,12 +1481,19 @@ router.post("/conversations/:id/messages", requireAuth, async (req, res) => {
   }
 
   try {
-    const [conv] = await db.select().from(conversationsTable).where(eq(conversationsTable.id, id));
-    if (!conv) { res.status(404).json({ error: "Conversation introuvable" }); return; }
+    if (!hasChatSyndicateScope(req, res)) return;
+    const [conv] = await db
+      .select()
+      .from(conversationsTable)
+      .where(eq(conversationsTable.id, id));
+    if (!conv) {
+      res.status(404).json({ error: "Conversation introuvable" });
+      return;
+    }
 
     const canAccess = await canAccessConversation(
       req.user!.userId,
-      req.user!.syndicateId || "",
+      req.user!.syndicateId ?? "",
       id,
     );
     if (!canAccess) {
@@ -1164,9 +1503,15 @@ router.post("/conversations/:id/messages", requireAuth, async (req, res) => {
 
     // Block check for direct/marketplace 1:1 threads
     if (!conv.isGroup && conv.participant1Id && conv.participant2Id) {
-      const other = conv.participant1Id === req.user!.userId ? conv.participant2Id : conv.participant1Id;
+      const other =
+        conv.participant1Id === req.user!.userId
+          ? conv.participant2Id
+          : conv.participant1Id;
       if (await isBlockedEitherWay(req.user!.userId, other)) {
-        res.status(403).json({ error: "Vous ne pouvez pas envoyer de message à cet utilisateur", code: "USER_BLOCKED" });
+        res.status(403).json({
+          error: "Vous ne pouvez pas envoyer de message à cet utilisateur",
+          code: "USER_BLOCKED",
+        });
         return;
       }
     }
@@ -1231,7 +1576,9 @@ router.post("/conversations/:id/messages", requireAuth, async (req, res) => {
 
     // ── Fire-and-forget push notifications to other participants ──────────────
     // Runs after response is sent so it never delays the reply to the sender.
-    db.select().from(conversationsTable).where(eq(conversationsTable.id, id))
+    db.select()
+      .from(conversationsTable)
+      .where(eq(conversationsTable.id, id))
       .then(async ([conv]) => {
         if (!conv) return;
         const senderId = req.user!.userId;
@@ -1241,9 +1588,14 @@ router.post("/conversations/:id/messages", requireAuth, async (req, res) => {
           try {
             const ids: string[] = JSON.parse(conv.participantIds ?? "[]");
             recipientIds.push(...ids.filter((uid) => uid !== senderId));
-          } catch { /* ignore malformed JSON */ }
+          } catch {
+            /* ignore malformed JSON */
+          }
         } else if (conv.participant1Id && conv.participant2Id) {
-          const other = conv.participant1Id === senderId ? conv.participant2Id : conv.participant1Id;
+          const other =
+            conv.participant1Id === senderId
+              ? conv.participant2Id
+              : conv.participant1Id;
           recipientIds.push(other);
         }
 
@@ -1259,35 +1611,60 @@ router.post("/conversations/:id/messages", requireAuth, async (req, res) => {
         // Matches "@FirstName" or "@First Last" tokens against recipient names
         // so a mentioned resident gets a distinct, higher-attention notification.
         let mentionedIds: string[] = [];
-        if (conv.isGroup && result.data.text.includes("@") && recipientIds.length > 0) {
+        if (
+          conv.isGroup &&
+          result.data.text.includes("@") &&
+          recipientIds.length > 0
+        ) {
           const recipients = await db
             .select({ id: usersTable.id, name: usersTable.name })
             .from(usersTable)
             .where(inArray(usersTable.id, recipientIds));
-          const normalize = (s: string) => s.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase();
+          const normalize = (s: string) =>
+            s
+              .normalize("NFD")
+              .replace(/[\u0300-\u036f]/g, "")
+              .toLowerCase();
           const textNorm = normalize(result.data.text);
           mentionedIds = recipients
-            .filter((r) => r.name && textNorm.includes(`@${normalize(r.name).split(" ")[0]}`))
+            .filter(
+              (r) =>
+                r.name &&
+                textNorm.includes(`@${normalize(r.name).split(" ")[0]}`),
+            )
             .map((r) => r.id);
         }
 
-        const nonMentioned = recipientIds.filter((rid) => !mentionedIds.includes(rid));
+        const nonMentioned = recipientIds.filter(
+          (rid) => !mentionedIds.includes(rid),
+        );
         const pushes: Promise<unknown>[] = [];
         if (mentionedIds.length > 0) {
-          pushes.push(sendPushToUsers(mentionedIds, `${senderName} vous a mentionné`, pushBody, {
-            conversationId: id,
-            type: "chat_mention",
-          }));
+          pushes.push(
+            sendPushToUsers(
+              mentionedIds,
+              `${senderName} vous a mentionné`,
+              pushBody,
+              {
+                conversationId: id,
+                type: "chat_mention",
+              },
+            ),
+          );
         }
         if (nonMentioned.length > 0) {
-          pushes.push(sendPushToUsers(nonMentioned, pushTitle, pushBody, {
-            conversationId: id,
-            type: "chat_message",
-          }));
+          pushes.push(
+            sendPushToUsers(nonMentioned, pushTitle, pushBody, {
+              conversationId: id,
+              type: "chat_message",
+            }),
+          );
         }
         return Promise.all(pushes);
       })
-      .catch(() => { /* never let push errors affect the route */ });
+      .catch(() => {
+        /* never let push errors affect the route */
+      });
   } catch (err) {
     req.log.error(err);
     res.status(500).json({ error: "Erreur serveur" });
@@ -1303,21 +1680,39 @@ router.delete("/messages/:id", requireAuth, async (req, res) => {
   const id = String(req.params.id);
   const mode = (req.body?.mode ?? "for_everyone") as "for_me" | "for_everyone";
   try {
-    const [msg] = await db.select().from(messagesTable).where(eq(messagesTable.id, id));
-    if (!msg) { res.status(404).json({ error: "Message introuvable" }); return; }
+    const [msg] = await db
+      .select()
+      .from(messagesTable)
+      .where(eq(messagesTable.id, id));
+    if (!msg) {
+      res.status(404).json({ error: "Message introuvable" });
+      return;
+    }
 
+    if (!hasChatSyndicateScope(req, res)) return;
     if (mode === "for_me") {
       // Any conversation participant may hide a message for themselves
       const canAccess = await canAccessConversation(
-        req.user!.userId, req.user!.syndicateId || "", msg.conversationId,
+        req.user!.userId,
+        req.user!.syndicateId ?? "",
+        msg.conversationId,
       );
-      if (!canAccess) { res.status(403).json({ error: "Accès refusé" }); return; }
+      if (!canAccess) {
+        res.status(403).json({ error: "Accès refusé" });
+        return;
+      }
 
       let deletedFor: string[] = [];
-      try { deletedFor = JSON.parse(msg.deletedForUserIds ?? "[]"); } catch { /* ignore */ }
-      if (!deletedFor.includes(req.user!.userId)) deletedFor.push(req.user!.userId);
+      try {
+        deletedFor = JSON.parse(msg.deletedForUserIds ?? "[]");
+      } catch {
+        /* ignore */
+      }
+      if (!deletedFor.includes(req.user!.userId))
+        deletedFor.push(req.user!.userId);
 
-      await db.update(messagesTable)
+      await db
+        .update(messagesTable)
         .set({ deletedForUserIds: JSON.stringify(deletedFor) })
         .where(eq(messagesTable.id, id));
       res.json({ message: "Message supprimé pour vous", mode: "for_me" });
@@ -1326,16 +1721,31 @@ router.delete("/messages/:id", requireAuth, async (req, res) => {
 
     // "for_everyone" — sender only; within 60 minutes
     if (msg.senderId !== req.user!.userId) {
-      res.status(403).json({ error: "Vous ne pouvez supprimer que vos propres messages" });
+      res
+        .status(403)
+        .json({ error: "Vous ne pouvez supprimer que vos propres messages" });
+      return;
+    }
+    const canAccess = await canAccessConversation(
+      req.user!.userId,
+      req.user!.syndicateId ?? "",
+      msg.conversationId,
+    );
+    if (!canAccess) {
+      res.status(403).json({ error: "Accès refusé" });
       return;
     }
     const ageMins = (Date.now() - new Date(msg.createdAt!).getTime()) / 60_000;
     if (ageMins > 60) {
-      res.status(400).json({ error: "Délai de suppression dépassé (60 minutes)", code: "EXPIRED" });
+      res.status(400).json({
+        error: "Délai de suppression dépassé (60 minutes)",
+        code: "EXPIRED",
+      });
       return;
     }
 
-    await db.update(messagesTable)
+    await db
+      .update(messagesTable)
       .set({
         text: "",
         deletedAt: new Date(),
@@ -1346,7 +1756,10 @@ router.delete("/messages/:id", requireAuth, async (req, res) => {
       })
       .where(eq(messagesTable.id, id));
     res.json({ message: "Message supprimé pour tous", mode: "for_everyone" });
-  } catch (err) { req.log.error(err); res.status(500).json({ error: "Erreur serveur" }); }
+  } catch (err) {
+    req.log.error(err);
+    res.status(500).json({ error: "Erreur serveur" });
+  }
 });
 
 // ─── PATCH /messages/:id — edit own text message (15-minute window) ──────────
@@ -1355,12 +1768,33 @@ router.patch("/messages/:id", requireAuth, async (req, res) => {
   const id = String(req.params.id);
   const schema = z.object({ text: z.string().min(1).max(10_000) });
   const parsed = schema.safeParse(req.body);
-  if (!parsed.success) { res.status(400).json({ error: "Texte invalide" }); return; }
+  if (!parsed.success) {
+    res.status(400).json({ error: "Texte invalide" });
+    return;
+  }
   try {
-    const [msg] = await db.select().from(messagesTable).where(eq(messagesTable.id, id));
-    if (!msg) { res.status(404).json({ error: "Message introuvable" }); return; }
+    const [msg] = await db
+      .select()
+      .from(messagesTable)
+      .where(eq(messagesTable.id, id));
+    if (!msg) {
+      res.status(404).json({ error: "Message introuvable" });
+      return;
+    }
+    if (!hasChatSyndicateScope(req, res)) return;
+    const canAccess = await canAccessConversation(
+      req.user!.userId,
+      req.user!.syndicateId ?? "",
+      msg.conversationId,
+    );
+    if (!canAccess) {
+      res.status(403).json({ error: "Accès refusé" });
+      return;
+    }
     if (msg.senderId !== req.user!.userId) {
-      res.status(403).json({ error: "Vous ne pouvez modifier que vos propres messages" });
+      res
+        .status(403)
+        .json({ error: "Vous ne pouvez modifier que vos propres messages" });
       return;
     }
     if (msg.isDeletedForEveryone) {
@@ -1368,12 +1802,17 @@ router.patch("/messages/:id", requireAuth, async (req, res) => {
       return;
     }
     if (msg.messageType !== "text") {
-      res.status(400).json({ error: "Seuls les messages texte peuvent être modifiés" });
+      res
+        .status(400)
+        .json({ error: "Seuls les messages texte peuvent être modifiés" });
       return;
     }
     const ageMins = (Date.now() - new Date(msg.createdAt!).getTime()) / 60_000;
     if (ageMins > 15) {
-      res.status(400).json({ error: "Délai de modification dépassé (15 minutes)", code: "EXPIRED" });
+      res.status(400).json({
+        error: "Délai de modification dépassé (15 minutes)",
+        code: "EXPIRED",
+      });
       return;
     }
     const [updated] = await db
@@ -1382,7 +1821,10 @@ router.patch("/messages/:id", requireAuth, async (req, res) => {
       .where(eq(messagesTable.id, id))
       .returning();
     res.json({ data: { ...updated, isMe: true, reactions: [] } });
-  } catch (err) { req.log.error(err); res.status(500).json({ error: "Erreur serveur" }); }
+  } catch (err) {
+    req.log.error(err);
+    res.status(500).json({ error: "Erreur serveur" });
+  }
 });
 
 // ─── POST/DELETE /messages/:id/reactions ─────────────────────────────────────
@@ -1391,25 +1833,67 @@ router.post("/messages/:id/reactions", requireAuth, async (req, res) => {
   const id = String(req.params.id);
   const schema = z.object({ emoji: z.string().min(1).max(8) });
   const result = schema.safeParse(req.body);
-  if (!result.success) { res.status(400).json({ error: "Données invalides" }); return; }
+  if (!result.success) {
+    res.status(400).json({ error: "Données invalides" });
+    return;
+  }
   try {
-    const [msg] = await db.select().from(messagesTable).where(eq(messagesTable.id, id));
-    if (!msg) { res.status(404).json({ error: "Message introuvable" }); return; }
-    const canAccess = await canAccessConversation(req.user!.userId, req.user!.syndicateId || "", msg.conversationId);
-    if (!canAccess) { res.status(403).json({ error: "Accès refusé" }); return; }
+    const [msg] = await db
+      .select()
+      .from(messagesTable)
+      .where(eq(messagesTable.id, id));
+    if (!msg) {
+      res.status(404).json({ error: "Message introuvable" });
+      return;
+    }
+    if (!hasChatSyndicateScope(req, res)) return;
+    const canAccess = await canAccessConversation(
+      req.user!.userId,
+      req.user!.syndicateId ?? "",
+      msg.conversationId,
+    );
+    if (!canAccess) {
+      res.status(403).json({ error: "Accès refusé" });
+      return;
+    }
 
     await db
       .insert(messageReactionsTable)
-      .values({ messageId: id, userId: req.user!.userId, emoji: result.data.emoji })
+      .values({
+        messageId: id,
+        userId: req.user!.userId,
+        emoji: result.data.emoji,
+      })
       .onConflictDoNothing();
     res.status(201).json({ message: "Réaction ajoutée" });
-  } catch (err) { req.log.error(err); res.status(500).json({ error: "Erreur serveur" }); }
+  } catch (err) {
+    req.log.error(err);
+    res.status(500).json({ error: "Erreur serveur" });
+  }
 });
 
 router.delete("/messages/:id/reactions", requireAuth, async (req, res) => {
   const id = String(req.params.id);
   const emoji = String(req.query.emoji ?? "");
   try {
+    const [msg] = await db
+      .select({ conversationId: messagesTable.conversationId })
+      .from(messagesTable)
+      .where(eq(messagesTable.id, id));
+    if (!msg) {
+      res.status(404).json({ error: "Message introuvable" });
+      return;
+    }
+    if (!hasChatSyndicateScope(req, res)) return;
+    const canAccess = await canAccessConversation(
+      req.user!.userId,
+      req.user!.syndicateId ?? "",
+      msg.conversationId,
+    );
+    if (!canAccess) {
+      res.status(403).json({ error: "Accès refusé" });
+      return;
+    }
     await db
       .delete(messageReactionsTable)
       .where(
@@ -1420,7 +1904,10 @@ router.delete("/messages/:id/reactions", requireAuth, async (req, res) => {
         ),
       );
     res.json({ message: "Réaction retirée" });
-  } catch (err) { req.log.error(err); res.status(500).json({ error: "Erreur serveur" }); }
+  } catch (err) {
+    req.log.error(err);
+    res.status(500).json({ error: "Erreur serveur" });
+  }
 });
 
 // ─── Block / Unblock / List blocked users ────────────────────────────────────
@@ -1433,19 +1920,28 @@ router.get("/blocked-users", requireAuth, async (req, res) => {
       .leftJoin(usersTable, eq(usersTable.id, blockedUsersTable.blockedId))
       .where(eq(blockedUsersTable.blockerId, req.user!.userId));
     res.json({ data: rows });
-  } catch (err) { req.log.error(err); res.status(500).json({ error: "Erreur serveur" }); }
+  } catch (err) {
+    req.log.error(err);
+    res.status(500).json({ error: "Erreur serveur" });
+  }
 });
 
 router.post("/blocked-users/:userId", requireAuth, async (req, res) => {
   const targetId = String(req.params.userId);
-  if (targetId === req.user!.userId) { res.status(400).json({ error: "Action invalide" }); return; }
+  if (targetId === req.user!.userId) {
+    res.status(400).json({ error: "Action invalide" });
+    return;
+  }
   try {
     await db
       .insert(blockedUsersTable)
       .values({ blockerId: req.user!.userId, blockedId: targetId })
       .onConflictDoNothing();
     res.status(201).json({ message: "Utilisateur bloqué" });
-  } catch (err) { req.log.error(err); res.status(500).json({ error: "Erreur serveur" }); }
+  } catch (err) {
+    req.log.error(err);
+    res.status(500).json({ error: "Erreur serveur" });
+  }
 });
 
 router.delete("/blocked-users/:userId", requireAuth, async (req, res) => {
@@ -1453,9 +1949,17 @@ router.delete("/blocked-users/:userId", requireAuth, async (req, res) => {
   try {
     await db
       .delete(blockedUsersTable)
-      .where(and(eq(blockedUsersTable.blockerId, req.user!.userId), eq(blockedUsersTable.blockedId, targetId)));
+      .where(
+        and(
+          eq(blockedUsersTable.blockerId, req.user!.userId),
+          eq(blockedUsersTable.blockedId, targetId),
+        ),
+      );
     res.json({ message: "Utilisateur débloqué" });
-  } catch (err) { req.log.error(err); res.status(500).json({ error: "Erreur serveur" }); }
+  } catch (err) {
+    req.log.error(err);
+    res.status(500).json({ error: "Erreur serveur" });
+  }
 });
 
 // ─── Report abuse ─────────────────────────────────────────────────────────────
@@ -1468,14 +1972,20 @@ router.post("/chat-reports", requireAuth, async (req, res) => {
     reason: z.string().min(1).max(1000),
   });
   const result = schema.safeParse(req.body);
-  if (!result.success) { res.status(400).json({ error: "Données invalides" }); return; }
+  if (!result.success) {
+    res.status(400).json({ error: "Données invalides" });
+    return;
+  }
   try {
     const [row] = await db
       .insert(chatReportsTable)
       .values({ reporterId: req.user!.userId, ...result.data })
       .returning();
     res.status(201).json({ data: row, message: "Signalement envoyé" });
-  } catch (err) { req.log.error(err); res.status(500).json({ error: "Erreur serveur" }); }
+  } catch (err) {
+    req.log.error(err);
+    res.status(500).json({ error: "Erreur serveur" });
+  }
 });
 
 export default router;

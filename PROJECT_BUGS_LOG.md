@@ -75,3 +75,5 @@
 - Member creation and audit logging no longer accept a missing syndicate scope from non-platform sessions; audit reads no longer fall back to a global log query.
 - Lot list and personal-lot lookup no longer fall through to global data when a management JWT lacks syndicate scope; personal member lookup is constrained to the caller's syndicate.
 - Super Admin team-member role changes no longer mutate arbitrary member IDs without explicit supervision, and supervision is checked before target existence is revealed.
+- Chat endpoints no longer let a non-platform JWT with no syndicate scope proceed through empty-string fallbacks; scoped conversation, message, typing, archive, reaction, and contact queries now fail closed.
+- Chat message/reaction writes now confirm access to the parent conversation before mutation, and non-platform marketplace/incident conversation inserts no longer accept an empty syndicate scope.
