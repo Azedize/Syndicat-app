@@ -28,9 +28,17 @@ import { serverAuditLog } from "../lib/audit.js";
 
 const router = Router();
 
+function requireEscalationScope(req: any, res: any, next: any): void {
+  if (req.user.role !== "super_admin" && !req.user.syndicateId) {
+    res.status(403).json({ error: "Syndicat non défini dans le token" });
+    return;
+  }
+  next();
+}
+
 // ─── GET /escalation ──────────────────────────────────────────────────────────
 
-router.get("/escalation", requireAuth, requireAdmin, async (req, res) => {
+router.get("/escalation", requireAuth, requireEscalationScope, requireAdmin, async (req, res) => {
   try {
     const user = req.user!;
     const { level, status, page = "1", limit = "50" } = req.query as Record<string, string>;
@@ -41,11 +49,7 @@ router.get("/escalation", requireAuth, requireAdmin, async (req, res) => {
     const filters: ReturnType<typeof and>[] = [];
 
     if (user.role !== "super_admin") {
-      if (!user.syndicateId) {
-        res.json({ data: [], total: 0, page: pageNum, limit: limitNum });
-        return;
-      }
-      filters.push(eq(debtEscalationsTable.syndicateId, user.syndicateId));
+      filters.push(eq(debtEscalationsTable.syndicateId, user.syndicateId!));
     }
 
     if (level && LEVEL_ORDER.includes(level as any)) {
@@ -108,18 +112,40 @@ router.get("/escalation", requireAuth, requireAdmin, async (req, res) => {
 
 // ─── GET /escalation/overdue ──────────────────────────────────────────────────
 
-router.get("/escalation/overdue", requireAuth, requireAdmin, async (req, res) => {
+router.get("/escalation/overdue", requireAuth, requireEscalationScope, requireAdmin, async (req, res) => {
   try {
     const user = req.user!;
+
+    // Resolve the authenticated syndicate to lot IDs before loading unpaid
+    // appels. This keeps the query scoped and avoids loading every syndicate's
+    // debt into memory before filtering the response.
+    let scopedLotIds: string[] | undefined;
+    if (user.role !== "super_admin") {
+      const scopedBuildings = await db
+        .select({ id: buildingsTable.id })
+        .from(buildingsTable)
+        .where(eq(buildingsTable.syndicateId, user.syndicateId!));
+      if (scopedBuildings.length === 0) {
+        res.json({ data: [] });
+        return;
+      }
+
+      const scopedLots = await db
+        .select({ id: lotsTable.id })
+        .from(lotsTable)
+        .where(inArray(lotsTable.buildingId, scopedBuildings.map((b) => b.id)));
+      scopedLotIds = scopedLots.map((lot) => lot.id);
+      if (scopedLotIds.length === 0) {
+        res.json({ data: [] });
+        return;
+      }
+    }
 
     // Fetch unpaid appels
     const filters: ReturnType<typeof and>[] = [
       inArray(appelsDeFondsTable.status, ["pending", "overdue"]),
     ];
-    if (user.role !== "super_admin" && user.syndicateId) {
-      // Filter by buildings in this syndicate — join via lots→buildings
-      // For simplicity we filter in JS after fetching (lots are small per syndicate)
-    }
+    if (scopedLotIds) filters.push(inArray(appelsDeFondsTable.lotId, scopedLotIds));
 
     const unpaidAppels = await db
       .select()
@@ -293,18 +319,17 @@ router.post("/escalation/scan", requireAuth, requireRole("super_admin"), async (
 
 // ─── GET /escalation/history/:residentId ──────────────────────────────────────
 
-router.get("/escalation/history/:residentId", requireAuth, requireAdmin, async (req, res) => {
+router.get("/escalation/history/:residentId", requireAuth, requireEscalationScope, requireAdmin, async (req, res) => {
   try {
     const user = req.user!;
     const residentId = req.params.residentId as string;
 
-    const whereClause =
-      user.role !== "super_admin" && user.syndicateId
-        ? and(
-            eq(debtEscalationsTable.memberId, residentId),
-            eq(debtEscalationsTable.syndicateId, user.syndicateId),
-          )
-        : eq(debtEscalationsTable.memberId, residentId);
+    const whereClause = user.role !== "super_admin"
+      ? and(
+          eq(debtEscalationsTable.memberId, residentId),
+          eq(debtEscalationsTable.syndicateId, user.syndicateId!),
+        )
+      : eq(debtEscalationsTable.memberId, residentId);
 
     const history = await db
       .select()
@@ -326,7 +351,7 @@ router.get("/escalation/history/:residentId", requireAuth, requireAdmin, async (
 
 // ─── GET /escalation/:id ──────────────────────────────────────────────────────
 
-router.get("/escalation/:id", requireAuth, requireAdmin, async (req, res) => {
+router.get("/escalation/:id", requireAuth, requireEscalationScope, requireAdmin, async (req, res) => {
   try {
     const user = req.user!;
     const id = String(req.params.id) as string;
@@ -383,7 +408,7 @@ const overrideSchema = z.object({
   reason: z.string().min(10, "La justification doit comporter au moins 10 caractères"),
 });
 
-router.post("/escalation/:id/override", requireAuth, requireAdmin, async (req, res) => {
+router.post("/escalation/:id/override", requireAuth, requireEscalationScope, requireAdmin, async (req, res) => {
   try {
     const user = req.user!;
     const id = String(req.params.id) as string;
@@ -439,7 +464,7 @@ router.post("/escalation/:id/override", requireAuth, requireAdmin, async (req, r
 
 // ─── POST /escalation/:id/resolve ────────────────────────────────────────────
 
-router.post("/escalation/:id/resolve", requireAuth, requireAdmin, async (req, res) => {
+router.post("/escalation/:id/resolve", requireAuth, requireEscalationScope, requireAdmin, async (req, res) => {
   try {
     const user = req.user!;
     const id = String(req.params.id) as string;

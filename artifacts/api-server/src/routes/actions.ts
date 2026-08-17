@@ -25,6 +25,14 @@ function isSameSyndicate(req: any, syndicateId: string | null): boolean {
   return req.user.role === "super_admin" || req.user.syndicateId === syndicateId;
 }
 
+function requireActionScope(req: any, res: any, next: any): void {
+  if (req.user.role !== "super_admin" && !req.user.syndicateId) {
+    res.status(403).json({ error: "Syndicat non défini dans le token" });
+    return;
+  }
+  next();
+}
+
 /** Annotate action rows with support/participant counts + user state */
 async function annotateActions(actions: any[], userId: string) {
   if (actions.length === 0) return [];
@@ -74,7 +82,7 @@ async function annotateActions(actions: any[], userId: string) {
 
 // ─── GET /actions ─────────────────────────────────────────────────────────────
 
-router.get("/actions", requireAuth, async (req, res) => {
+router.get("/actions", requireAuth, requireActionScope, async (req, res) => {
   const { type, status } = req.query as Record<string, string>;
   const pagination = getPagination(req);
 
@@ -102,7 +110,7 @@ router.get("/actions", requireAuth, async (req, res) => {
 
 // ─── GET /actions/:id ─────────────────────────────────────────────────────────
 
-router.get("/actions/:id", requireAuth, async (req, res) => {
+router.get("/actions/:id", requireAuth, requireActionScope, async (req, res) => {
   const id = String(req.params.id) as string;
   try {
     const [action] = await db.select().from(unionActionsTable).where(eq(unionActionsTable.id, id));
@@ -120,6 +128,7 @@ router.get("/actions/:id", requireAuth, async (req, res) => {
 router.post(
   "/actions",
   requireAuth,
+  requireActionScope,
   requireRole("super_admin", "syndicate_admin"),
   async (req, res) => {
     const schema = z.object({
@@ -166,6 +175,7 @@ router.post(
 router.put(
   "/actions/:id",
   requireAuth,
+  requireActionScope,
   requireRole("super_admin", "syndicate_admin"),
   async (req, res) => {
     const id = String(req.params.id) as string;
@@ -214,6 +224,7 @@ router.put(
 router.delete(
   "/actions/:id",
   requireAuth,
+  requireActionScope,
   requireRole("super_admin", "syndicate_admin"),
   async (req, res) => {
     const id = String(req.params.id) as string;
@@ -236,7 +247,7 @@ router.delete(
 
 // ─── POST /actions/:id/support ────────────────────────────────────────────────
 
-router.post("/actions/:id/support", requireAuth, async (req, res) => {
+router.post("/actions/:id/support", requireAuth, requireActionScope, async (req, res) => {
   const id = String(req.params.id) as string;
   try {
     const [action] = await db.select({ id: unionActionsTable.id, syndicateId: unionActionsTable.syndicateId })
@@ -265,7 +276,7 @@ router.post("/actions/:id/support", requireAuth, async (req, res) => {
 
 // ─── POST /actions/:id/participate ───────────────────────────────────────────
 
-router.post("/actions/:id/participate", requireAuth, async (req, res) => {
+router.post("/actions/:id/participate", requireAuth, requireActionScope, async (req, res) => {
   const id = String(req.params.id) as string;
   try {
     const [action] = await db.select().from(unionActionsTable).where(eq(unionActionsTable.id, id));
@@ -299,6 +310,7 @@ router.post("/actions/:id/participate", requireAuth, async (req, res) => {
 router.get(
   "/actions/:id/participants",
   requireAuth,
+  requireActionScope,
   requireRole("super_admin", "syndicate_admin"),
   async (req, res) => {
     const id = String(req.params.id) as string;

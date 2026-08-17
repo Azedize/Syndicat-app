@@ -77,3 +77,11 @@
 - Super Admin team-member role changes no longer mutate arbitrary member IDs without explicit supervision, and supervision is checked before target existence is revealed.
 - Chat endpoints no longer let a non-platform JWT with no syndicate scope proceed through empty-string fallbacks; scoped conversation, message, typing, archive, reaction, and contact queries now fail closed.
 - Chat message/reaction writes now confirm access to the parent conversation before mutation, and non-platform marketplace/incident conversation inserts no longer accept an empty syndicate scope.
+- Support routes no longer create or expose syndicate tickets through a missing JWT scope; escalation no longer writes an empty syndicate identifier.
+- Publication and cotisation reads now reject scope-less non-platform sessions before database access, and Email Center syndicate-admin queries no longer rely on an empty-string filter.
+- Administrative-act update/delete now require explicit Super Admin supervision, idea voting no longer builds SQL from interpolated IDs, and document-linked storage objects are no longer served without a valid ownership/syndicate authorization.
+- User-management list/create/status no longer fall through to global or null-syndicate behavior for scope-less syndicate admins; document preview/autofill no longer use empty-string scope fallbacks, and non-platform autofill rejects missing scope.
+- Actions no longer convert missing-scope authorization failures into generic 500 responses; Documents list/summary/entities reject scope-less non-platform sessions instead of querying globally or returning ambiguous empty data.
+- Subscription payment history and invoice/self-service routes no longer use an undefined filter or misleading empty/active fallback for scope-less syndicate admins.
+- Debt escalation resident history no longer falls back to a global `memberId` lookup when JWT scope is missing; overdue computation now avoids loading other syndicates' unpaid calls into memory.
+- Governance council and mandate routes no longer represent a missing syndicate scope as a valid empty dataset.

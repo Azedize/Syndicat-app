@@ -995,6 +995,10 @@ router.get("/documents", requireAuth, async (req, res) => {
   const { category, status } = req.query as Record<string, string>;
   try {
     const syndicateId = req.user!.syndicateId;
+    if (req.user!.role !== "super_admin" && !syndicateId) {
+      res.status(403).json({ error: "Accès refusé : syndicateId manquant" });
+      return;
+    }
     const conditions: ReturnType<typeof eq>[] = [];
 
     // Never return soft-deleted documents to API consumers
@@ -1086,6 +1090,10 @@ router.get(
 router.get("/documents/summary", requireAuth, async (req, res) => {
   try {
     const syndicateId = req.user!.syndicateId;
+    if (req.user!.role !== "super_admin" && !syndicateId) {
+      res.status(403).json({ error: "Accès refusé : syndicateId manquant" });
+      return;
+    }
     const conditions = [eq(documentsTable.isDeleted, false)];
     if (syndicateId) conditions.push(eq(documentsTable.syndicateId, syndicateId));
     if (req.user!.role === "member" || req.user!.role === "tenant") {
@@ -1409,7 +1417,7 @@ router.post(
 
     try {
       const { templateId, buildingId, memberName } = result.data;
-      const syndicateId = req.user!.syndicateId || "";
+      const syndicateId = req.user!.syndicateId;
 
       const [syndInfo, property, officeHolders] = await Promise.all([
         getSyndicateInfo(syndicateId),
@@ -1822,7 +1830,11 @@ router.get("/documents/verify/:token", async (req, res) => {
 router.get("/documents/autofill", requireAuth, async (req, res) => {
   try {
     const user = req.user!;
-    const syndicateId = user.syndicateId || "";
+    if (user.role !== "super_admin" && !user.syndicateId) {
+      res.status(403).json({ error: "Accès refusé : syndicateId manquant" });
+      return;
+    }
+    const syndicateId = user.syndicateId;
 
     const [syndInfo, property, officeHolders] = await Promise.all([
       getSyndicateInfo(syndicateId),
@@ -2305,7 +2317,14 @@ router.get("/documents/entities", requireAuth, async (req, res) => {
     const syndicateId = user.syndicateId;
     const type        = String(req.query.type ?? "meetings");
 
-    if (!syndicateId) { res.json({ data: [] }); return; }
+    if (!syndicateId) {
+      if (user.role !== "super_admin") {
+        res.status(403).json({ error: "Accès refusé : syndicateId manquant" });
+        return;
+      }
+      res.json({ data: [] });
+      return;
+    }
 
     type EntityItem = { id: string; label: string; sublabel: string };
     let data: EntityItem[] = [];

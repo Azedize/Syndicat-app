@@ -13,14 +13,20 @@ import {
   ideaVotesTable,
   syndicatesTable,
 } from "@workspace/db/schema";
-import { eq, and, desc, sql, count } from "drizzle-orm";
+import { eq, and, desc, sql, count, inArray } from "drizzle-orm";
 import { requireAuth, requireAdmin } from "../middleware/auth.js";
 
 const router = Router();
 
-function canAccessIdea(req: any, syndicateId: string | null | undefined): boolean {
+function canAccessIdea(
+  req: any,
+  syndicateId: string | null | undefined,
+): boolean {
   const user = req.user!;
-  return user.role === "super_admin" || (!!user.syndicateId && syndicateId === user.syndicateId);
+  return (
+    user.role === "super_admin" ||
+    (!!user.syndicateId && syndicateId === user.syndicateId)
+  );
 }
 
 // GET /ideas — list ideas for current syndicate
@@ -31,9 +37,12 @@ router.get("/ideas", requireAuth, async (req, res) => {
 
     const conditions: any[] = [];
     if (user.role !== "super_admin" && !user.syndicateId) {
-      return void res.status(403).json({ error: "Syndicat non défini dans le token" });
+      return void res
+        .status(403)
+        .json({ error: "Syndicat non défini dans le token" });
     }
-    if (user.role !== "super_admin") conditions.push(eq(ideasTable.syndicateId, user.syndicateId!));
+    if (user.role !== "super_admin")
+      conditions.push(eq(ideasTable.syndicateId, user.syndicateId!));
     if (status) conditions.push(eq(ideasTable.status, status));
     if (category) conditions.push(eq(ideasTable.category, category));
 
@@ -49,7 +58,11 @@ router.get("/ideas", requireAuth, async (req, res) => {
       ? await db
           .select({ ideaId: ideaVotesTable.ideaId })
           .from(ideaVotesTable)
-          .where(and(eq(ideaVotesTable.userId, user.userId), sql`${ideaVotesTable.ideaId} = ANY(${sql.raw(`ARRAY[${ideaIds.map((id) => `'${id}'`).join(",")}]::text[]`)})`)
+          .where(
+            and(
+              eq(ideaVotesTable.userId, user.userId),
+              inArray(ideaVotesTable.ideaId, ideaIds),
+            ),
           )
       : [];
     const votedSet = new Set(userVotes.map((v) => v.ideaId));
@@ -71,10 +84,14 @@ router.post("/ideas", requireAuth, async (req, res) => {
     const { title, description, category, voteDeadline } = req.body;
 
     if (!title?.trim() || !description?.trim()) {
-      return void res.status(400).json({ error: "Le titre et la description sont obligatoires" });
+      return void res
+        .status(400)
+        .json({ error: "Le titre et la description sont obligatoires" });
     }
     if (user.role !== "super_admin" && !user.syndicateId) {
-      return void res.status(403).json({ error: "Syndicat non défini dans le token" });
+      return void res
+        .status(403)
+        .json({ error: "Syndicat non défini dans le token" });
     }
 
     // Max 1 active (non-rejected) idea per user per calendar year
@@ -87,14 +104,15 @@ router.post("/ideas", requireAuth, async (req, res) => {
           eq(ideasTable.userId, user.userId),
           eq(ideasTable.syndicateId, user.syndicateId ?? ""),
           sql`EXTRACT(YEAR FROM ${ideasTable.createdAt}) = ${thisYear}`,
-          sql`${ideasTable.status} != 'rejected'`
-        )
+          sql`${ideasTable.status} != 'rejected'`,
+        ),
       )
       .limit(1);
 
     if (existing) {
       return void res.status(409).json({
-        error: "Vous avez déjà soumis une idée cette année. Une seule proposition active par an est autorisée.",
+        error:
+          "Vous avez déjà soumis une idée cette année. Une seule proposition active par an est autorisée.",
       });
     }
 
@@ -126,29 +144,44 @@ router.post("/ideas/:id/vote", requireAuth, async (req, res) => {
     const user = req.user!;
     const ideaId = String(req.params.id) as string;
 
-    const [idea] = await db.select().from(ideasTable).where(eq(ideasTable.id, ideaId));
+    const [idea] = await db
+      .select()
+      .from(ideasTable)
+      .where(eq(ideasTable.id, ideaId));
     if (!idea) return void res.status(404).json({ error: "Idée introuvable" });
     if (!canAccessIdea(req, idea.syndicateId)) {
       return void res.status(403).json({ error: "Accès refusé" });
     }
 
     if (idea.status === "rejected" || idea.status === "implemented") {
-      return void res.status(400).json({ error: "Le vote est fermé pour cette idée" });
+      return void res
+        .status(400)
+        .json({ error: "Le vote est fermé pour cette idée" });
     }
     if (idea.voteDeadline && new Date(idea.voteDeadline) < new Date()) {
-      return void res.status(400).json({ error: "La période de vote est terminée" });
+      return void res
+        .status(400)
+        .json({ error: "La période de vote est terminée" });
     }
 
     // Check existing vote
     const [existingVote] = await db
       .select()
       .from(ideaVotesTable)
-      .where(and(eq(ideaVotesTable.ideaId, ideaId), eq(ideaVotesTable.userId, user.userId)));
+      .where(
+        and(
+          eq(ideaVotesTable.ideaId, ideaId),
+          eq(ideaVotesTable.userId, user.userId),
+        ),
+      );
 
     if (existingVote) {
       // Remove vote
-      await db.delete(ideaVotesTable).where(eq(ideaVotesTable.id, existingVote.id));
-      await db.update(ideasTable)
+      await db
+        .delete(ideaVotesTable)
+        .where(eq(ideaVotesTable.id, existingVote.id));
+      await db
+        .update(ideasTable)
         .set({ voteCount: Math.max(0, (idea.voteCount ?? 1) - 1) })
         .where(eq(ideasTable.id, ideaId));
       return void res.json({ hasVoted: false, message: "Vote retiré" });
@@ -161,7 +194,11 @@ router.post("/ideas/:id/vote", requireAuth, async (req, res) => {
       .where(eq(ideasTable.id, ideaId))
       .returning();
 
-    res.json({ hasVoted: true, voteCount: updated.voteCount, message: "Vote enregistré" });
+    res.json({
+      hasVoted: true,
+      voteCount: updated.voteCount,
+      message: "Vote enregistré",
+    });
   } catch (e) {
     console.error(e);
     res.status(500).json({ error: "Erreur serveur" });
@@ -205,13 +242,17 @@ router.put("/ideas/:id", requireAuth, requireAdmin, async (req, res) => {
 router.delete("/ideas/:id", requireAuth, async (req, res) => {
   try {
     const user = req.user!;
-    const [idea] = await db.select().from(ideasTable).where(eq(ideasTable.id, String(req.params.id) as string));
+    const [idea] = await db
+      .select()
+      .from(ideasTable)
+      .where(eq(ideasTable.id, String(req.params.id) as string));
     if (!idea) return void res.status(404).json({ error: "Idée introuvable" });
     if (!canAccessIdea(req, idea.syndicateId)) {
       return void res.status(403).json({ error: "Accès refusé" });
     }
 
-    const isAdmin = user.role === "super_admin" || user.role === "syndicate_admin";
+    const isAdmin =
+      user.role === "super_admin" || user.role === "syndicate_admin";
     if (!isAdmin && idea.userId !== user.userId) {
       return void res.status(403).json({ error: "Accès refusé" });
     }

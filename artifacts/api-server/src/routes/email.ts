@@ -5,7 +5,11 @@ import { emailLogsTable } from "@workspace/db/schema";
 import { eq, and, desc, ilike, or, count, gte, lte, sql } from "drizzle-orm";
 import { requireAuth, requireAdmin } from "../middleware/auth.js";
 import { getPagination, buildPagedResponse } from "../lib/paginate.js";
-import { sendTransactionalEmail, retryEmailLog, verifySmtpConnection } from "../lib/email/emailService.js";
+import {
+  sendTransactionalEmail,
+  retryEmailLog,
+  verifySmtpConnection,
+} from "../lib/email/emailService.js";
 import { testEmailTemplate } from "../lib/email/templates.js";
 import { serverAuditLog } from "../lib/audit.js";
 
@@ -25,9 +29,17 @@ router.post("/test-email", requireAuth, async (req, res) => {
     });
 
     if (result.ok) {
-      res.json({ data: { sent: true, logId: result.logId }, message: `Email de test envoyé à ${req.user!.email}` });
+      res.json({
+        data: { sent: true, logId: result.logId },
+        message: `Email de test envoyé à ${req.user!.email}`,
+      });
     } else {
-      res.status(502).json({ error: result.error ?? "Échec de l'envoi de l'email de test", data: { sent: false, logId: result.logId } });
+      res
+        .status(502)
+        .json({
+          error: result.error ?? "Échec de l'envoi de l'email de test",
+          data: { sent: false, logId: result.logId },
+        });
     }
   } catch (err) {
     req.log.error(err);
@@ -42,11 +54,20 @@ router.get("/email-logs", requireAuth, requireAdmin, async (req, res) => {
     const { limit, offset } = pagination;
     const { status, template, search } = req.query as Record<string, string>;
     const user = req.user!;
+    if (user.role === "syndicate_admin" && !user.syndicateId) {
+      res.status(403).json({ error: "Syndicat non défini dans le token" });
+      return;
+    }
 
     const conditions = [
       status ? eq(emailLogsTable.status, status) : undefined,
       template ? eq(emailLogsTable.template, template) : undefined,
-      search ? or(ilike(emailLogsTable.recipient, `%${search}%`), ilike(emailLogsTable.subject, `%${search}%`)) : undefined,
+      search
+        ? or(
+            ilike(emailLogsTable.recipient, `%${search}%`),
+            ilike(emailLogsTable.subject, `%${search}%`),
+          )
+        : undefined,
       // syndicate_admin only sees their own syndicate's emails; super_admin sees all
       // (or a specific syndicate via ?syndicateId= for supervision mode).
       user.role === "syndicate_admin"
@@ -91,6 +112,10 @@ router.get("/email-logs", requireAuth, requireAdmin, async (req, res) => {
 router.get("/email-logs/stats", requireAuth, requireAdmin, async (req, res) => {
   try {
     const user = req.user!;
+    if (user.role === "syndicate_admin" && !user.syndicateId) {
+      res.status(403).json({ error: "Syndicat non défini dans le token" });
+      return;
+    }
     const scope =
       user.role === "syndicate_admin"
         ? eq(emailLogsTable.syndicateId, user.syndicateId ?? "")
@@ -112,7 +137,20 @@ router.get("/email-logs/stats", requireAuth, requireAdmin, async (req, res) => {
     const [last24h] = await db
       .select({ n: count() })
       .from(emailLogsTable)
-      .where(scope ? and(scope, gte(emailLogsTable.createdAt, new Date(Date.now() - 24 * 3600 * 1000))) : gte(emailLogsTable.createdAt, new Date(Date.now() - 24 * 3600 * 1000)));
+      .where(
+        scope
+          ? and(
+              scope,
+              gte(
+                emailLogsTable.createdAt,
+                new Date(Date.now() - 24 * 3600 * 1000),
+              ),
+            )
+          : gte(
+              emailLogsTable.createdAt,
+              new Date(Date.now() - 24 * 3600 * 1000),
+            ),
+      );
 
     res.json({
       data: {
@@ -131,52 +169,76 @@ router.get("/email-logs/stats", requireAuth, requireAdmin, async (req, res) => {
 });
 
 // POST /email-logs/:id/retry — admin-only manual retry of a failed email.
-router.post("/email-logs/:id/retry", requireAuth, requireAdmin, async (req, res) => {
-  try {
-    const [log] = await db.select().from(emailLogsTable).where(eq(emailLogsTable.id, String(req.params.id)));
-    if (!log) {
-      res.status(404).json({ error: "Email introuvable" });
-      return;
-    }
-    if (req.user!.role === "syndicate_admin" && log.syndicateId !== req.user!.syndicateId) {
-      res.status(403).json({ error: "Accès refusé" });
-      return;
-    }
+router.post(
+  "/email-logs/:id/retry",
+  requireAuth,
+  requireAdmin,
+  async (req, res) => {
+    try {
+      const [log] = await db
+        .select()
+        .from(emailLogsTable)
+        .where(eq(emailLogsTable.id, String(req.params.id)));
+      if (!log) {
+        res.status(404).json({ error: "Email introuvable" });
+        return;
+      }
+      if (
+        req.user!.role === "syndicate_admin" &&
+        log.syndicateId !== req.user!.syndicateId
+      ) {
+        res.status(403).json({ error: "Accès refusé" });
+        return;
+      }
 
-    const result = await retryEmailLog(log.id);
+      const result = await retryEmailLog(log.id);
 
-    await serverAuditLog(req, {
-      action: "RETRY",
-      entity: "email",
-      entityId: log.id,
-      details: `Retry ${log.recipient}: ${result.ok ? "success" : result.error}`,
-      syndicateId: log.syndicateId ?? undefined,
-    });
+      await serverAuditLog(req, {
+        action: "RETRY",
+        entity: "email",
+        entityId: log.id,
+        details: `Retry ${log.recipient}: ${result.ok ? "success" : result.error}`,
+        syndicateId: log.syndicateId ?? undefined,
+      });
 
-    if (result.ok) {
-      res.json({ data: { sent: true }, message: "Email renvoyé avec succès" });
-    } else {
-      res.status(502).json({ error: result.error ?? "Échec du renvoi", data: { sent: false } });
+      if (result.ok) {
+        res.json({
+          data: { sent: true },
+          message: "Email renvoyé avec succès",
+        });
+      } else {
+        res
+          .status(502)
+          .json({
+            error: result.error ?? "Échec du renvoi",
+            data: { sent: false },
+          });
+      }
+    } catch (err) {
+      req.log.error(err);
+      res.status(500).json({ error: "Erreur serveur" });
     }
-  } catch (err) {
-    req.log.error(err);
-    res.status(500).json({ error: "Erreur serveur" });
-  }
-});
+  },
+);
 
 // GET /email-config/status — admin-only SMTP connection health check (used by the
 // Email Center to show a live "connected/disconnected" indicator).
-router.get("/email-config/status", requireAuth, requireAdmin, async (req, res) => {
-  const result = await verifySmtpConnection();
-  res.json({
-    data: {
-      configured: !!process.env.SMTP_HOST,
-      connected: result.ok,
-      error: result.error,
-      host: process.env.SMTP_HOST ?? null,
-      from: process.env.SMTP_FROM ?? process.env.SMTP_USER ?? null,
-    },
-  });
-});
+router.get(
+  "/email-config/status",
+  requireAuth,
+  requireAdmin,
+  async (req, res) => {
+    const result = await verifySmtpConnection();
+    res.json({
+      data: {
+        configured: !!process.env.SMTP_HOST,
+        connected: result.ok,
+        error: result.error,
+        host: process.env.SMTP_HOST ?? null,
+        from: process.env.SMTP_FROM ?? process.env.SMTP_USER ?? null,
+      },
+    });
+  },
+);
 
 export default router;

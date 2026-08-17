@@ -1,7 +1,11 @@
 import { Router } from "express";
 import { z } from "zod";
 import { db } from "@workspace/db";
-import { publicationsTable, publicationLikesTable, publicationCommentsTable } from "@workspace/db/schema";
+import {
+  publicationsTable,
+  publicationLikesTable,
+  publicationCommentsTable,
+} from "@workspace/db/schema";
 import { eq, and, desc, count, inArray } from "drizzle-orm";
 import { requireAuth, requireRole } from "../middleware/auth.js";
 import { syndicateWhere } from "../lib/syndicate-filter.js";
@@ -11,10 +15,16 @@ const router = Router();
 
 router.get("/publications", requireAuth, async (req, res) => {
   const pagination = getPagination(req);
+  if (req.user!.role !== "super_admin" && !req.user!.syndicateId) {
+    res.status(403).json({ error: "Syndicat non défini dans le token" });
+    return;
+  }
   try {
     const where = syndicateWhere(req, publicationsTable.syndicateId);
     const [rows, [{ value: total }]] = await Promise.all([
-      db.select().from(publicationsTable)
+      db
+        .select()
+        .from(publicationsTable)
         .where(where)
         .orderBy(desc(publicationsTable.createdAt))
         .limit(pagination.limit)
@@ -31,8 +41,13 @@ router.get("/publications", requireAuth, async (req, res) => {
 
     // Batch-fetch all likes and comments in exactly 2 queries (no N+1)
     const [allLikes, allComments] = await Promise.all([
-      db.select().from(publicationLikesTable).where(inArray(publicationLikesTable.publicationId, pubIds)),
-      db.select().from(publicationCommentsTable)
+      db
+        .select()
+        .from(publicationLikesTable)
+        .where(inArray(publicationLikesTable.publicationId, pubIds)),
+      db
+        .select()
+        .from(publicationCommentsTable)
         .where(inArray(publicationCommentsTable.publicationId, pubIds))
         .orderBy(publicationCommentsTable.createdAt),
     ]);
@@ -45,7 +60,8 @@ router.get("/publications", requireAuth, async (req, res) => {
 
     const commentsByPub = new Map<string, typeof allComments>();
     for (const c of allComments) {
-      if (!commentsByPub.has(c.publicationId)) commentsByPub.set(c.publicationId, []);
+      if (!commentsByPub.has(c.publicationId))
+        commentsByPub.set(c.publicationId, []);
       commentsByPub.get(c.publicationId)!.push(c);
     }
 
@@ -76,7 +92,10 @@ router.post(
       pinned: z.boolean().default(false),
     });
     const result = schema.safeParse(req.body);
-    if (!result.success) { res.status(400).json({ error: "Données invalides" }); return; }
+    if (!result.success) {
+      res.status(400).json({ error: "Données invalides" });
+      return;
+    }
     try {
       if (!req.user!.syndicateId) {
         res.status(403).json({ error: "Syndicat non défini dans le token" });
@@ -86,7 +105,7 @@ router.post(
         .insert(publicationsTable)
         .values({
           ...result.data,
-          syndicateId: req.user!.syndicateId || "",
+          syndicateId: req.user!.syndicateId,
           authorId: req.user!.userId,
           authorName: req.user!.name,
         })
@@ -106,11 +125,18 @@ router.post("/publications/:id/like", requireAuth, async (req, res) => {
       res.status(403).json({ error: "Syndicat non défini dans le token" });
       return;
     }
-    const scope = req.user!.role === "super_admin"
-      ? eq(publicationsTable.id, id)
-      : and(eq(publicationsTable.id, id), eq(publicationsTable.syndicateId, req.user!.syndicateId!));
+    const scope =
+      req.user!.role === "super_admin"
+        ? eq(publicationsTable.id, id)
+        : and(
+            eq(publicationsTable.id, id),
+            eq(publicationsTable.syndicateId, req.user!.syndicateId!),
+          );
     const [pub] = await db.select().from(publicationsTable).where(scope);
-    if (!pub) { res.status(404).json({ error: "Publication introuvable" }); return; }
+    if (!pub) {
+      res.status(404).json({ error: "Publication introuvable" });
+      return;
+    }
 
     const existing = await db
       .select()
@@ -156,15 +182,25 @@ router.post("/publications/:id/comments", requireAuth, async (req, res) => {
   const id = String(req.params.id) as string;
   const schema = z.object({ text: z.string().min(1).max(2000) });
   const result = schema.safeParse(req.body);
-  if (!result.success) { res.status(400).json({ error: "Commentaire vide" }); return; }
+  if (!result.success) {
+    res.status(400).json({ error: "Commentaire vide" });
+    return;
+  }
   try {
-    const [pub] = await db.select().from(publicationsTable).where(eq(publicationsTable.id, id));
-    if (!pub) { res.status(404).json({ error: "Publication introuvable" }); return; }
+    const [pub] = await db
+      .select()
+      .from(publicationsTable)
+      .where(eq(publicationsTable.id, id));
+    if (!pub) {
+      res.status(404).json({ error: "Publication introuvable" });
+      return;
+    }
     if (
       req.user!.role !== "super_admin" &&
       pub.syndicateId !== req.user!.syndicateId
     ) {
-      res.status(403).json({ error: "Accès refusé" }); return;
+      res.status(403).json({ error: "Accès refusé" });
+      return;
     }
     const [comment] = await db
       .insert(publicationCommentsTable)

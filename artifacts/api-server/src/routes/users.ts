@@ -23,10 +23,15 @@ router.get(
     const { search, role, status } = req.query as Record<string, string>;
     const pagination = getPagination(req);
     try {
+      const syndicateId = req.user!.syndicateId;
+      if (req.user!.role === "syndicate_admin" && !syndicateId) {
+        res.status(403).json({ error: "Syndicat non défini dans le token" });
+        return;
+      }
       const conditions: any[] = [];
 
-      if (req.user!.role === "syndicate_admin" && req.user!.syndicateId) {
-        conditions.push(eq(usersTable.syndicateId, req.user!.syndicateId));
+      if (req.user!.role === "syndicate_admin") {
+        conditions.push(eq(usersTable.syndicateId, syndicateId!));
       }
       if (role) conditions.push(eq(usersTable.role, role as any));
       if (status) conditions.push(eq(usersTable.status, status as any));
@@ -110,6 +115,11 @@ router.post(
     try {
       const { name, email, phone, role, password } = result.data;
 
+      if (req.user!.role === "syndicate_admin" && !req.user!.syndicateId) {
+        res.status(403).json({ error: "Syndicat non défini dans le token" });
+        return;
+      }
+
       // syndicate_admin can only create users scoped to their own syndicate,
       // and cannot create other admins.
       if (req.user!.role === "syndicate_admin" && (role === "super_admin" || role === "syndicate_admin")) {
@@ -192,6 +202,10 @@ router.put(
     }
     try {
       if (req.user!.role === "syndicate_admin") {
+        if (!req.user!.syndicateId) {
+          res.status(403).json({ error: "Syndicat non défini dans le token" });
+          return;
+        }
         const [target] = await db
           .select({ syndicateId: usersTable.syndicateId })
           .from(usersTable)

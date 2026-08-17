@@ -19,6 +19,14 @@ import { serverAuditLog } from "../lib/audit.js";
 
 const router = Router();
 
+function requireGovernanceScope(req: any, res: any, next: any): void {
+  if (req.user.role !== "super_admin" && !req.user.syndicateId) {
+    res.status(403).json({ error: "Syndicat non défini dans le token" });
+    return;
+  }
+  next();
+}
+
 // ─── Role → icon helper (used in API response so mobile can rely on it) ────
 function roleToIcon(role: string | null | undefined): string {
   switch (role) {
@@ -31,7 +39,7 @@ function roleToIcon(role: string | null | undefined): string {
 }
 
 // ─── GET /governance/conseil ─────────────────────────────────────────────────
-router.get("/governance/conseil", requireAuth, async (req, res) => {
+router.get("/governance/conseil", requireAuth, requireGovernanceScope, async (req, res) => {
   try {
     const user = req.user!;
     if (!user.syndicateId) return void res.json({ data: [] });
@@ -69,7 +77,7 @@ router.get("/governance/conseil", requireAuth, async (req, res) => {
 });
 
 // ─── POST /governance/conseil ─────────────────────────────────────────────────
-router.post("/governance/conseil", requireAuth, requireAdmin, async (req, res) => {
+router.post("/governance/conseil", requireAuth, requireGovernanceScope, requireAdmin, async (req, res) => {
   const schema = z.object({
     name: z.string().min(1).max(200),
     role: z.string().min(1).max(100),
@@ -138,7 +146,7 @@ router.post("/governance/conseil", requireAuth, requireAdmin, async (req, res) =
 });
 
 // ─── DELETE /governance/conseil/:id ─────────────────────────────────────────
-router.delete("/governance/conseil/:id", requireAuth, requireAdmin, async (req, res) => {
+router.delete("/governance/conseil/:id", requireAuth, requireGovernanceScope, requireAdmin, async (req, res) => {
   try {
     const user = req.user!;
     if (!user.syndicateId) {
@@ -182,7 +190,7 @@ router.delete("/governance/conseil/:id", requireAuth, requireAdmin, async (req, 
 
 // ─── GET /governance/mandats ─────────────────────────────────────────────────
 // Derives mandate list from conseil_syndical rows (all, not just active).
-router.get("/governance/mandats", requireAuth, async (req, res) => {
+router.get("/governance/mandats", requireAuth, requireGovernanceScope, async (req, res) => {
   try {
     const user = req.user!;
     if (!user.syndicateId) return void res.json({ data: [] });
@@ -227,7 +235,7 @@ router.get("/governance/mandats", requireAuth, async (req, res) => {
 // ─── GET /governance/delegations ─────────────────────────────────────────────
 // No delegations persistence table yet — returns empty list.
 // Mobile falls back to empty state gracefully.
-router.get("/governance/delegations", requireAuth, (_req, res) => {
+router.get("/governance/delegations", requireAuth, requireGovernanceScope, (_req, res) => {
   res.json({ data: [] });
 });
 

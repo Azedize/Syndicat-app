@@ -37,14 +37,22 @@ router.get("/actes", requireAuth, async (req, res) => {
 router.get("/actes/:id", requireAuth, async (req, res) => {
   const { id } = req.params as { id: string };
   const { role, syndicateId } = req.user!;
+  if (role !== "super_admin" && !syndicateId) {
+    res.status(403).json({ error: "Syndicat non défini dans le token" });
+    return;
+  }
   try {
     const [acte] = await db
       .select()
       .from(actesAdministratifsTable)
       .where(eq(actesAdministratifsTable.id, id));
-    if (!acte) { res.status(404).json({ error: "Acte introuvable" }); return; }
+    if (!acte) {
+      res.status(404).json({ error: "Acte introuvable" });
+      return;
+    }
     if (role !== "super_admin" && acte.syndicateId !== syndicateId) {
-      res.status(403).json({ error: "Accès refusé" }); return;
+      res.status(403).json({ error: "Accès refusé" });
+      return;
     }
     res.json(acte);
   } catch (err) {
@@ -91,13 +99,19 @@ router.post(
     };
 
     if (!type || !numero || !titre || !objet || !date || !auteur) {
-      res.status(400).json({ error: "Champs obligatoires manquants : type, numero, titre, objet, date, auteur" });
+      res
+        .status(400)
+        .json({
+          error:
+            "Champs obligatoires manquants : type, numero, titre, objet, date, auteur",
+        });
       return;
     }
 
-    const targetSyndicateId = role === "super_admin"
-      ? (req.body.syndicateId as string | undefined) ?? syndicateId
-      : syndicateId;
+    const targetSyndicateId =
+      role === "super_admin"
+        ? ((req.body.syndicateId as string | undefined) ?? syndicateId)
+        : syndicateId;
 
     if (!targetSyndicateId) {
       res.status(400).json({ error: "Syndicat requis" });
@@ -150,20 +164,44 @@ router.patch(
   async (req, res) => {
     const { id } = req.params as { id: string };
     const { role, syndicateId, userId, name } = req.user!;
+    if (role === "super_admin" && req.query.supervision !== "true") {
+      res.status(403).json({
+        error:
+          "Les Super Admins doivent activer le mode supervision pour modifier un acte syndical.",
+        code: "SUPERVISION_REQUIRED",
+      });
+      return;
+    }
+    if (role !== "super_admin" && !syndicateId) {
+      res.status(403).json({ error: "Syndicat non défini dans le token" });
+      return;
+    }
     try {
       const [existing] = await db
         .select()
         .from(actesAdministratifsTable)
         .where(eq(actesAdministratifsTable.id, id));
-      if (!existing) { res.status(404).json({ error: "Acte introuvable" }); return; }
+      if (!existing) {
+        res.status(404).json({ error: "Acte introuvable" });
+        return;
+      }
       if (role !== "super_admin" && existing.syndicateId !== syndicateId) {
-        res.status(403).json({ error: "Accès refusé" }); return;
+        res.status(403).json({ error: "Accès refusé" });
+        return;
       }
 
       const updates: Partial<typeof existing> = {};
       const allowed = [
-        "statut", "titre", "objet", "date", "dateEcheance",
-        "auteur", "signataires", "destinataires", "resumeContenu", "important",
+        "statut",
+        "titre",
+        "objet",
+        "date",
+        "dateEcheance",
+        "auteur",
+        "signataires",
+        "destinataires",
+        "resumeContenu",
+        "important",
       ] as const;
       for (const key of allowed) {
         if (req.body[key] !== undefined) (updates as any)[key] = req.body[key];
@@ -200,14 +238,30 @@ router.delete(
   async (req, res) => {
     const { id } = req.params as { id: string };
     const { role, syndicateId, userId, name } = req.user!;
+    if (role === "super_admin" && req.query.supervision !== "true") {
+      res.status(403).json({
+        error:
+          "Les Super Admins doivent activer le mode supervision pour supprimer un acte syndical.",
+        code: "SUPERVISION_REQUIRED",
+      });
+      return;
+    }
+    if (role !== "super_admin" && !syndicateId) {
+      res.status(403).json({ error: "Syndicat non défini dans le token" });
+      return;
+    }
     try {
       const [existing] = await db
         .select()
         .from(actesAdministratifsTable)
         .where(eq(actesAdministratifsTable.id, id));
-      if (!existing) { res.status(404).json({ error: "Acte introuvable" }); return; }
+      if (!existing) {
+        res.status(404).json({ error: "Acte introuvable" });
+        return;
+      }
       if (role !== "super_admin" && existing.syndicateId !== syndicateId) {
-        res.status(403).json({ error: "Accès refusé" }); return;
+        res.status(403).json({ error: "Accès refusé" });
+        return;
       }
 
       await db

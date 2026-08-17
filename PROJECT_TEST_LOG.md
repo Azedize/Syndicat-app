@@ -240,3 +240,20 @@
 - `git diff --check -- artifacts/api-server/src/routes/chat.ts` — passed.
 - Restarted `artifacts/api-server: API Server`; production build, server startup, SMTP verification, document retention scan, and expiry scan completed cleanly.
 - `/api/healthz` returned 200; unauthenticated `/api/conversations` returned 401 with the expected authentication error.
+- `pnpm exec prettier --write artifacts/api-server/src/routes/content.ts artifacts/api-server/src/routes/publications.ts artifacts/api-server/src/routes/email.ts artifacts/api-server/src/routes/actes.ts artifacts/api-server/src/routes/ideas.ts artifacts/api-server/src/routes/storage.ts` — passed.
+- `pnpm --filter @workspace/api-server run typecheck` — passed with zero errors after the adjacent authorization/storage batch.
+- `pnpm --filter @workspace/api-server run build` — passed; managed API restart completed with clean server, scheduler, retention/expiry, and SMTP startup logs.
+- `git diff --check` — passed for all six audited API route files.
+- `/api/healthz` returned 200; unauthenticated `/api/support`, `/api/publications`, `/api/email-logs`, `/api/actes`, and `/api/ideas` returned 401.
+- `pnpm --filter @workspace/api-server run typecheck` — passed with zero errors after the users/documents scope batch.
+- `pnpm --filter @workspace/api-server run build` — passed; managed API restart completed with clean server, scheduler, retention/expiry, and SMTP startup logs.
+- `git diff --check -- artifacts/api-server/src/routes/users.ts artifacts/api-server/src/routes/documents.ts` — passed.
+- `/api/healthz` returned 200; unauthenticated `/api/users` and `/api/documents` returned 401.
+- `pnpm --filter @workspace/api-server run typecheck` — passed with zero errors after the Actions/Documents scope batch.
+- `pnpm --filter @workspace/api-server run build` — passed; managed API restart completed with clean server, scheduler, retention/expiry, and SMTP logs.
+- `git diff --check -- artifacts/api-server/src/routes/actions.ts artifacts/api-server/src/routes/documents.ts artifacts/api-server/src/routes/subscriptions.ts` — passed.
+- `/api/healthz` returned 200; unauthenticated `/api/actions`, `/api/documents`, `/api/documents/summary`, `/api/documents/entities`, `/api/subscriptions/my`, `/api/subscriptions/status`, `/api/subscriptions/payments`, and `/api/subscriptions/invoices` returned 401.
+- `pnpm --filter @workspace/api-server run typecheck` — passed with zero errors after the escalation/governance scope batch.
+- `pnpm --filter @workspace/api-server run build` — passed; managed API restart completed with clean server, scheduler, retention/expiry, and SMTP startup logs.
+- `git diff --check -- artifacts/api-server/src/routes/escalation.ts artifacts/api-server/src/routes/governance.ts` — passed.
+- `/api/healthz` returned 200; unauthenticated `/api/escalation`, `/api/escalation/overdue`, `/api/escalation/history/test-resident`, `/api/governance/conseil`, `/api/governance/mandats`, and `/api/governance/delegations` returned 401.

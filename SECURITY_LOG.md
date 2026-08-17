@@ -64,3 +64,14 @@
 - Lot list and personal-lot lookup apply the authenticated syndicate to building/owner resolution; Super Admin team-member role changes require explicit supervision before target lookup and update the row within its resolved syndicate.
 - Chat contact discovery, conversation lists/search, conversation reads/writes, typing, archive, message deletion/editing, and reactions now reject non-platform sessions without JWT `syndicateId` instead of substituting an empty scope.
 - Chat message and reaction mutations validate access to the parent conversation before changing rows; non-platform marketplace/incident conversation creation persists only the authenticated syndicate scope. Existing Super Admin supervision and marketplace/incident exceptions remain unchanged.
+- Support ticket list/detail/reply/resolve/escalate and publication/cotisation retrieval now fail closed for non-platform JWTs without a syndicate scope; support escalation no longer persists an empty scope.
+- Email Center syndicate-admin list/stat queries fail closed without scope, and Super Admin administrative-act updates/deletes require explicit supervision before ID lookup.
+- Idea vote lookup now uses parameterized `inArray` predicates instead of interpolated SQL identifiers.
+- Document-linked storage objects now decode optional bearer tokens and require a valid owner or matching syndicate; document deletion also checks the caller's syndicate before admin/owner authorization.
+- User-management list/create/status operations now fail closed for scope-less `syndicate_admin` sessions instead of querying globally or creating null-syndicate users.
+- Document preview/autofill no longer substitute an empty syndicate identifier; non-platform autofill requests without JWT scope are rejected before loading syndicate data.
+- Actions now reject missing-scope non-platform sessions before route handlers, preserving 403 instead of turning `syndicateWhere()` failures into generic 500 responses.
+- Documents list, summary, and entity selectors now reject scope-less non-platform sessions before database queries.
+- Subscription self-service, payment history/detail, payment creation/cancel/retry, subscription update, and billing-invoice endpoints now reject scope-less non-platform sessions before any query or mutation.
+- Debt escalation history now applies both resident and syndicate predicates for non-platform users; overdue debt queries resolve scoped buildings/lots before loading unpaid calls.
+- Escalation detail/override/resolve/list/history/overdue and governance council/mandate/delegation endpoints reject non-platform JWTs without a syndicate scope instead of falling through to empty or global behavior.

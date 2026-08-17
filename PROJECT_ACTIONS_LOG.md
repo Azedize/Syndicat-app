@@ -254,3 +254,17 @@
 - Added one fail-closed scope boundary for non-platform chat sessions, applied it to contact discovery, conversation search/list/read/write paths, message mutations, reactions, archive operations, and typing endpoints.
 - Preserved Super Admin supervision and the existing marketplace/incident communication exceptions while ensuring non-platform conversation inserts use an authenticated scope.
 - Verified with Prettier, API typecheck, `git diff --check`, managed workflow restart/build, fresh startup logs, `/api/healthz` (`200`), and unauthenticated `/api/conversations` (`401`).
+- Audited `artifacts/api-server/src/routes/content.ts`, `publications.ts`, `email.ts`, and `actes.ts` for missing-scope fallbacks and ID-based operational mutations.
+- Added explicit fail-closed scope checks to Level-1/Level-2 support retrieval and creation paths, removed empty syndicate persistence during support escalation, constrained member cotisation reads, and protected publication retrieval/creation.
+- Added missing scope checks to Email Center syndicate-admin reads and explicit `?supervision=true` requirements for Super Admin administrative-act updates/deletes.
+- Audited `artifacts/api-server/src/routes/ideas.ts` and `storage.ts`; replaced raw SQL ID interpolation with `inArray`, decoded optional bearer tokens with `softAuth`, protected document-linked object serving, and constrained document deletion to the caller's syndicate.
+- Verified with Prettier, API typecheck, API build, managed restart, startup/scheduler/SMTP logs, `git diff --check`, `/api/healthz` (`200`), and unauthenticated probes for support/publications/email/acts/ideas (`401`).
+- Audited the remaining user-management and document-scope fallbacks in `artifacts/api-server/src/routes/users.ts` and `documents.ts`.
+- Added fail-closed scope checks to syndicate-admin user listing, account creation, and status updates; replaced empty-string document preview/autofill fallbacks and blocked unscoped non-platform autofill.
+- Verified with API typecheck, API build, `git diff --check`, managed workflow restart, clean server/scheduler/SMTP startup logs, `/api/healthz` (`200`), and unauthenticated `/api/users` and `/api/documents` (`401`).
+- Audited `artifacts/api-server/src/routes/actions.ts` and the remaining Documents list/summary/entities handlers; added a shared action-scope guard and fail-closed responses instead of allowing `syndicateWhere()` failures to become 500s.
+- Audited `artifacts/api-server/src/routes/subscriptions.ts`; added a shared scope guard to subscription self-service, payment history/detail, payment creation/cancel/retry, subscription update, and billing-invoice routes.
+- Verified with API typecheck, API build, `git diff --check`, managed workflow restart, clean scheduler/SMTP/document-scan logs, `/api/healthz` (`200`), unauthenticated Actions/Documents/Subscriptions probes (`401`).
+- Audited `artifacts/api-server/src/routes/escalation.ts` and `governance.ts`.
+- Added fail-closed scope middleware to escalation and governance routes; constrained overdue debt loading by scoped building/lot IDs and removed the resident-history fallback that could query by member ID without a syndicate predicate.
+- Verified with API typecheck, API build, `git diff --check`, managed workflow restart, clean scheduler/SMTP/document-scan logs, `/api/healthz` (`200`), and unauthenticated escalation/governance probes (`401`).

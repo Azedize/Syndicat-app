@@ -14,6 +14,14 @@ import { serverAuditLog } from "../lib/audit.js";
 
 const router = Router();
 
+function requireSubscriptionScope(req: any, res: any, next: any): void {
+  if (req.user.role !== "super_admin" && !req.user.syndicateId) {
+    res.status(403).json({ error: "Syndicat non défini dans le token" });
+    return;
+  }
+  next();
+}
+
 // ─── Helpers ────────────────────────────────────────────────────────────────
 
 function computeSubscriptionStatus(sub: {
@@ -315,7 +323,7 @@ router.put("/subscriptions/plans/:id", requireAuth, requireSuperAdmin, async (re
 
 // ─── GET /subscriptions/my ───────────────────────────────────────────────
 
-router.get("/subscriptions/my", requireAuth, async (req, res) => {
+router.get("/subscriptions/my", requireAuth, requireSubscriptionScope, async (req, res) => {
   try {
     const syndicateId = req.user!.syndicateId;
     if (!syndicateId) {
@@ -387,7 +395,7 @@ router.get("/subscriptions/my", requireAuth, async (req, res) => {
 
 // ─── GET /subscriptions/status (lightweight — for middleware/banner) ──────
 
-router.get("/subscriptions/status", requireAuth, async (req, res) => {
+router.get("/subscriptions/status", requireAuth, requireSubscriptionScope, async (req, res) => {
   try {
     const syndicateId = req.user!.syndicateId;
     if (!syndicateId) { res.json({ data: { isReadOnly: false, effectiveStatus: "active", daysRemaining: null } }); return; }
@@ -468,7 +476,7 @@ router.get("/subscriptions/payment-methods", requireAuth, async (_req, res) => {
 // This endpoint never activates a subscription. Activation only happens from
 // finalizeSuccessfulPayment(), after an authorized payment confirmation.
 
-router.post("/subscriptions", requireAuth, requireAdmin, async (req, res) => {
+router.post("/subscriptions", requireAuth, requireSubscriptionScope, requireAdmin, async (req, res) => {
   try {
     const { planId, syndicateId: targetSyndicateId, billingInterval, paymentMethod, idempotencyKey: bodyKey } = req.body as {
       planId: string; syndicateId?: string; billingInterval?: "monthly" | "yearly";
@@ -569,7 +577,7 @@ router.post("/subscriptions", requireAuth, requireAdmin, async (req, res) => {
 
 // ─── GET /subscriptions/payments (auditable payment history) ──────────────
 
-router.get("/subscriptions/payments", requireAuth, requireAdmin, async (req, res) => {
+router.get("/subscriptions/payments", requireAuth, requireSubscriptionScope, requireAdmin, async (req, res) => {
   try {
     const syndicateId = req.user!.role === "super_admin"
       ? (typeof req.query.syndicateId === "string" ? req.query.syndicateId : undefined)
@@ -610,7 +618,7 @@ router.get("/subscriptions/payments", requireAuth, requireAdmin, async (req, res
 // Mobile uses this after an app restart or network interruption to reconcile
 // the locally persisted attempt with the server's authoritative state.
 
-router.get("/subscriptions/payments/:id", requireAuth, requireAdmin, async (req, res) => {
+router.get("/subscriptions/payments/:id", requireAuth, requireSubscriptionScope, requireAdmin, async (req, res) => {
   try {
     const [payment] = await db.select({
       id: subscriptionPaymentsTable.id,
@@ -698,7 +706,7 @@ router.post("/subscriptions/payments/:id/fail", requireAuth, requireSuperAdmin, 
 
 // ─── POST /subscriptions/payments/:id/cancel ───────────────────────────────
 
-router.post("/subscriptions/payments/:id/cancel", requireAuth, requireAdmin, async (req, res) => {
+router.post("/subscriptions/payments/:id/cancel", requireAuth, requireSubscriptionScope, requireAdmin, async (req, res) => {
   try {
     const paymentId = String(req.params.id);
     const [payment] = await db.select().from(subscriptionPaymentsTable).where(eq(subscriptionPaymentsTable.id, paymentId)).limit(1);
@@ -721,7 +729,7 @@ router.post("/subscriptions/payments/:id/cancel", requireAuth, requireAdmin, asy
 
 // ─── POST /subscriptions/payments/:id/retry ────────────────────────────────
 
-router.post("/subscriptions/payments/:id/retry", requireAuth, requireAdmin, async (req, res) => {
+router.post("/subscriptions/payments/:id/retry", requireAuth, requireSubscriptionScope, requireAdmin, async (req, res) => {
   try {
     const [previous] = await db.select().from(subscriptionPaymentsTable).where(eq(subscriptionPaymentsTable.id, String(req.params.id))).limit(1);
     if (!previous) { paymentError(res, "PAYMENT_NOT_FOUND", "Paiement introuvable", 404); return; }
@@ -775,7 +783,7 @@ router.post("/subscriptions/payments/:id/refund", requireAuth, requireSuperAdmin
 
 // ─── PUT /subscriptions/:id ───────────────────────────────────────────────
 
-router.put("/subscriptions/:id", requireAuth, requireAdmin, async (req, res) => {
+router.put("/subscriptions/:id", requireAuth, requireSubscriptionScope, requireAdmin, async (req, res) => {
   try {
     const user = req.user!;
     const id = String(req.params.id);
@@ -827,7 +835,7 @@ router.post("/subscriptions/trial", requireAuth, requireSuperAdmin, async (req, 
 
 // ─── GET /subscriptions/invoices ─────────────────────────────────────────
 
-router.get("/subscriptions/invoices", requireAuth, async (req, res) => {
+router.get("/subscriptions/invoices", requireAuth, requireSubscriptionScope, async (req, res) => {
   try {
     const user = req.user!;
     const syndicateId = user.role === "super_admin" ? (req.query.syndicateId as string | undefined) : user.syndicateId;

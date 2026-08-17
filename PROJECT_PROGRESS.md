@@ -276,3 +276,17 @@
 - 2026-08-14 — Continued the server-side authorization audit on chat. Non-platform chat sessions now fail closed when JWT syndicate scope is absent across contact discovery, conversation lists/search, conversation/message reads and writes, typing, archive, reactions, and deletion paths.
 - Marketplace and incident conversation creation no longer persists an empty non-platform syndicate scope; message and reaction mutations now verify conversation access before changing rows.
 - API typecheck, formatting/diff validation, production build via managed restart, health probe (`200`), and unauthenticated chat probe (`401`) passed. The wider route audit remains open.
+- 2026-08-14 — Continued the adjacent API authorization and storage audit on support, publications, email logs, administrative acts, ideas, and document storage.
+- Support ticket creation, detail, reply, resolve, and escalation now fail closed without a non-platform syndicate scope; escalation no longer persists an empty scope. Publications and cotisation retrieval also reject scope-less sessions before querying.
+- Email-center syndicate-admin queries reject missing scope, administrative-act mutations require explicit Super Admin supervision, idea vote lookup no longer interpolates IDs into SQL, and document-linked objects now require a valid owner/syndicate authorization check when served.
+- API typecheck, production build, managed restart, health probe (`200`), unauthenticated probes (`401`), and diff validation passed. The wider route audit remains open.
+- User management list/create/status routes now fail closed for syndicate admins without JWT scope; document preview/autofill no longer substitute an empty scope, and autofill rejects unscoped non-platform sessions.
+- API typecheck, production build, managed restart, clean startup logs, health probe (`200`), protected unauthenticated probes (`401`), and diff validation passed.
+- 2026-08-17 — Continued the API isolation audit on Actions, Documents, and Subscriptions.
+- Actions now reject scope-less non-platform sessions before list/detail/mutation handlers; Documents list, summary, entity pickers, preview, and autofill no longer fall through to broad or empty-scope queries.
+- Subscription self-service, payment-history, payment-detail, cancellation/retry, creation, update, and invoice routes now require a valid syndicate scope for non-Super Admin users.
+- API typecheck, production build, managed restart, scheduler/SMTP startup, health probe (`200`), protected route probes (`401`), and diff validation passed.
+- 2026-08-17 — Hardened debt escalation and council governance scope handling.
+- Resident escalation history now always combines the resident ID with the authenticated syndicate for non-platform users; overdue debt loading is filtered to scoped lots before querying unpaid calls.
+- Escalation and governance endpoints reject scope-less non-platform sessions instead of returning ambiguous empty/global results.
+- API typecheck, production build, managed restart, clean scheduler/SMTP/document-scan logs, health probe (`200`), protected route probes (`401`), and diff validation passed.
