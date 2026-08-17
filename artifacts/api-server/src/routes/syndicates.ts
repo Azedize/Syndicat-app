@@ -17,6 +17,9 @@ const router = Router();
 router.get("/syndicates", requireAuth, async (req, res) => {
   try {
     const user = req.user!;
+    if (user.role !== "super_admin" && !user.syndicateId) {
+      return void res.status(403).json({ error: "Syndicat non défini dans le token" });
+    }
     const rows =
       user.role === "super_admin"
         ? await db.select().from(syndicatesTable)

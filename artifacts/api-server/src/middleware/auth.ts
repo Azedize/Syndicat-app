@@ -10,7 +10,9 @@ function getJwtSecret(): string {
     );
   }
   if (secret.length < 32) {
-    throw new Error("JWT_SECRET must be at least 32 characters long for security.");
+    throw new Error(
+      "JWT_SECRET must be at least 32 characters long for security.",
+    );
   }
   return secret;
 }
@@ -56,7 +58,8 @@ export function requireAuth(req: Request, res: Response, next: NextFunction) {
   const auth = req.headers.authorization;
   // Also accept ?token= query param so PDF/file URLs opened via Linking.openURL
   // (which cannot attach Authorization headers) still authenticate correctly.
-  const queryToken = typeof req.query.token === "string" ? req.query.token : null;
+  const queryToken =
+    typeof req.query.token === "string" ? req.query.token : null;
   const rawToken = auth?.startsWith("Bearer ") ? auth.slice(7) : queryToken;
   if (!rawToken) {
     res.status(401).json({ error: "Non authentifié" });
@@ -103,7 +106,11 @@ export function isSyndicateTeamRole(role: UserRole): boolean {
 export const requireSyndicateTeam = requireRole(...SYNDICATE_TEAM_ROLES);
 
 /** Finance access: full financial management (admin + treasurer), always syndicate-scoped. */
-export function requireFinanceAccess(req: Request, res: Response, next: NextFunction) {
+export function requireFinanceAccess(
+  req: Request,
+  res: Response,
+  next: NextFunction,
+) {
   if (!req.user) {
     res.status(401).json({ error: "Non authentifié" });
     return;
@@ -121,12 +128,17 @@ export function requireFinanceAccess(req: Request, res: Response, next: NextFunc
 
 /** Governance access: meetings, elections, AG (admin + president + secretary + committee_member) */
 export const requireGovernanceAccess = requireRole(
-  "syndicate_admin", "president", "secretary", "committee_member"
+  "syndicate_admin",
+  "president",
+  "secretary",
+  "committee_member",
 );
 
 /** Document management access (admin + secretary + president) */
 export const requireDocumentAccess = requireRole(
-  "syndicate_admin", "secretary", "president"
+  "syndicate_admin",
+  "secretary",
+  "president",
 );
 
 /** Shorthand: requires super_admin or syndicate_admin role */
@@ -136,10 +148,19 @@ export const requireAdmin = requireRole("super_admin", "syndicate_admin");
 export const requireTenant = requireRole("tenant");
 
 /** Blocks tenant users — passes members and admins */
-export function requireNotTenant(req: Request, res: Response, next: NextFunction) {
-  if (!req.user) { res.status(401).json({ error: "Non authentifié" }); return; }
+export function requireNotTenant(
+  req: Request,
+  res: Response,
+  next: NextFunction,
+) {
+  if (!req.user) {
+    res.status(401).json({ error: "Non authentifié" });
+    return;
+  }
   if (req.user.role === "tenant") {
-    res.status(403).json({ error: "Accès réservé aux membres et administrateurs" });
+    res
+      .status(403)
+      .json({ error: "Accès réservé aux membres et administrateurs" });
     return;
   }
   next();
@@ -164,14 +185,32 @@ export const requireTenantOnly = requireRole("tenant");
  * - super_admin: must pass ?supervision=true to access another syndicate's data.
  * - member / tenant: blocked (403)
  */
-export function requireOperationalAccess(req: Request, res: Response, next: NextFunction) {
-  if (!req.user) { res.status(401).json({ error: "Non authentifié" }); return; }
+export function requireOperationalAccess(
+  req: Request,
+  res: Response,
+  next: NextFunction,
+) {
+  if (!req.user) {
+    res.status(401).json({ error: "Non authentifié" });
+    return;
+  }
   const { role } = req.user;
-  if (isSyndicateTeamRole(role)) { next(); return; }
+  if (isSyndicateTeamRole(role)) {
+    // A management role without a tenant scope must never reach a route that
+    // may fall back to a global query. The JWT is the source of truth for
+    // syndicate isolation; fail closed before the handler runs.
+    if (!req.user.syndicateId) {
+      res.status(403).json({ error: "Syndicat non défini dans le token" });
+      return;
+    }
+    next();
+    return;
+  }
   if (role === "super_admin") {
     if (req.query.supervision !== "true") {
       res.status(403).json({
-        error: "Les Super Admins doivent activer le mode supervision pour accéder aux opérations d'un syndicat.",
+        error:
+          "Les Super Admins doivent activer le mode supervision pour accéder aux opérations d'un syndicat.",
         code: "SUPERVISION_REQUIRED",
         hint: "Ajoutez ?supervision=true à la requête.",
       });
@@ -180,7 +219,9 @@ export function requireOperationalAccess(req: Request, res: Response, next: Next
     next();
     return;
   }
-  res.status(403).json({ error: "Accès réservé aux membres de l'équipe du syndicat" });
+  res
+    .status(403)
+    .json({ error: "Accès réservé aux membres de l'équipe du syndicat" });
 }
 
 /**
@@ -188,7 +229,10 @@ export function requireOperationalAccess(req: Request, res: Response, next: Next
  * Returns true if access is allowed, false otherwise.
  * Use this inside route handlers after fetching the resource, to enforce row-level syndicate isolation.
  */
-export function assertSyndicateAccess(req: Request, resourceSyndicateId: string | null | undefined): boolean {
+export function assertSyndicateAccess(
+  req: Request,
+  resourceSyndicateId: string | null | undefined,
+): boolean {
   if (!req.user) return false;
   const { role, syndicateId } = req.user;
   if (role === "super_admin") return true;
@@ -201,9 +245,14 @@ export function assertSyndicateAccess(req: Request, resourceSyndicateId: string 
  * pre-middleware so downstream middleware (e.g. subscription enforcement) can
  * read req.user before route-level requireAuth runs.
  */
-export function softAuth(req: Request, _res: Response, next: NextFunction): void {
+export function softAuth(
+  req: Request,
+  _res: Response,
+  next: NextFunction,
+): void {
   const auth = req.headers.authorization;
-  const queryToken = typeof req.query.token === "string" ? req.query.token : null;
+  const queryToken =
+    typeof req.query.token === "string" ? req.query.token : null;
   const rawToken = auth?.startsWith("Bearer ") ? auth.slice(7) : queryToken;
   if (rawToken) {
     try {

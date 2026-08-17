@@ -60,16 +60,23 @@ router.get("/members", requireAuth, requireRole("super_admin", "syndicate_admin"
     // Enrich with userId from usersTable (matched by email) for chat/conversations
     const emails = rows.map((r) => r.email).filter(Boolean);
     const usersByEmail = emails.length > 0
-      ? await db.select({ id: usersTable.id, email: usersTable.email, role: usersTable.role })
+      ? await db.select({
+          id: usersTable.id,
+          email: usersTable.email,
+          role: usersTable.role,
+          syndicateId: usersTable.syndicateId,
+        })
           .from(usersTable)
           .where(inArray(usersTable.email, emails))
       : [];
-    const userEmailMap = Object.fromEntries(usersByEmail.map((u) => [u.email, u]));
+    const userEmailMap = Object.fromEntries(
+      usersByEmail.map((u) => [`${u.email}:${u.syndicateId ?? ""}`, u]),
+    );
 
     const enriched = rows.map((r) => ({
       ...r,
-      userId: userEmailMap[r.email]?.id ?? null,
-      role: userEmailMap[r.email]?.role ?? null,
+      userId: userEmailMap[`${r.email}:${r.syndicateId ?? ""}`]?.id ?? null,
+      role: userEmailMap[`${r.email}:${r.syndicateId ?? ""}`]?.role ?? null,
     }));
 
     res.json(buildPagedResponse(enriched, Number(total), pagination));
@@ -197,7 +204,19 @@ router.put(
       if (!isSameSyndicate(req, member.syndicateId ?? "")) {
         res.status(403).json({ error: "Accès refusé" }); return;
       }
-      const [updated] = await db.update(membersTable).set(result.data).where(eq(membersTable.id, id)).returning();
+      const ownershipCondition =
+        req.user!.role === "super_admin"
+          ? eq(membersTable.id, id)
+          : and(
+              eq(membersTable.id, id),
+              eq(membersTable.syndicateId, req.user!.syndicateId!),
+            );
+      const [updated] = await db
+        .update(membersTable)
+        .set(result.data)
+        .where(ownershipCondition)
+        .returning();
+      if (!updated) { res.status(404).json({ error: "Membre introuvable" }); return; }
       res.json({ data: updated, message: "Membre mis à jour" });
     } catch (err) {
       req.log.error(err);
@@ -227,7 +246,14 @@ router.put(
         const [u] = await tx
           .update(membersTable)
           .set({ status: result.data.status })
-          .where(eq(membersTable.id, id))
+          .where(
+            req.user!.role === "super_admin"
+              ? eq(membersTable.id, id)
+              : and(
+                  eq(membersTable.id, id),
+                  eq(membersTable.syndicateId, req.user!.syndicateId!),
+                ),
+          )
           .returning();
         updated = u;
 

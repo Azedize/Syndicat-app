@@ -468,10 +468,25 @@ router.get("/contrats", requireAuth, async (req, res) => {
 
     const conditions: any[] = [];
 
-    if (user.role === "member" || user.role === "tenant") {
-      const buildingIds = await getUserBuildingIds(user);
-      if (buildingIds.length === 0) return void res.json({ data: [], total: 0 });
-      conditions.push(inArray(contratsPrestatairesTable.buildingId, buildingIds));
+    if (user.role !== "super_admin") {
+      if (!user.syndicateId) {
+        return void res.status(403).json({ error: "Syndicat non défini dans le token" });
+      }
+
+      const syndicateBuildings = await db
+        .select({ id: buildingsTable.id })
+        .from(buildingsTable)
+        .where(eq(buildingsTable.syndicateId, user.syndicateId));
+      let visibleBuildingIds = syndicateBuildings.map((building) => building.id);
+
+      if (user.role === "member" || user.role === "tenant") {
+        const userBuildingIds = await getUserBuildingIds(user);
+        const visibleSet = new Set(visibleBuildingIds);
+        visibleBuildingIds = userBuildingIds.filter((id) => visibleSet.has(id));
+      }
+
+      if (visibleBuildingIds.length === 0) return void res.json({ data: [], total: 0 });
+      conditions.push(inArray(contratsPrestatairesTable.buildingId, visibleBuildingIds));
     }
 
     if (buildingId) conditions.push(eq(contratsPrestatairesTable.buildingId, buildingId));

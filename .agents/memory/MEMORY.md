@@ -56,3 +56,4 @@
 - [Public Expo presentation rendering](public-expo-presentation-rendering.md) — long public Expo pages render more reliably with simple native primitives than complex animated/SVG compositions.
 - [MIZAN canonical brand](mizan-brand-canonical.md) — use MIZAN for customer-facing product presentation; retain MIZAN Community OS SARL only as legal entity wording.
 - [Stripe SDK webhook compatibility](stripe-sdk-webhook-compat.md) — Stripe Node v22 uses subscription-item periods and invoice parent subscription details instead of legacy top-level fields.
+- [Development database schema readiness](dev-database-schema-readiness.md) — API health can pass while scheduled jobs fail if the attached dev database lacks current core relations.

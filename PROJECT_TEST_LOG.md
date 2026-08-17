@@ -257,3 +257,7 @@
 - `pnpm --filter @workspace/api-server run build` — passed; managed API restart completed with clean server, scheduler, retention/expiry, and SMTP startup logs.
 - `git diff --check -- artifacts/api-server/src/routes/escalation.ts artifacts/api-server/src/routes/governance.ts` — passed.
 - `/api/healthz` returned 200; unauthenticated `/api/escalation`, `/api/escalation/overdue`, `/api/escalation/history/test-resident`, `/api/governance/conseil`, `/api/governance/mandats`, and `/api/governance/delegations` returned 401.
+- `pnpm exec prettier --write` on the updated API middleware/finance files and `git diff --check` — passed.
+- `pnpm --filter @workspace/api-server run typecheck` — passed with zero errors; `pnpm --filter @workspace/api-server run build` — passed.
+- Restarted `artifacts/api-server: API Server`; server listens on port 8080 and SMTP verification succeeds. `/api/healthz` returned 200; unauthenticated `/api/finance/transactions` and `/api/invoice-attachments/demo` returned 401.
+- Scheduler logs continue to report missing development relations (`appels_de_fonds`, `documents`, `syndicate_subscriptions`); this prevents a clean scheduled-scan result but does not prevent API startup or health responses.

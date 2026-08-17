@@ -27,49 +27,85 @@ const router = Router();
 // ─── Validation Schemas ───────────────────────────────────────────────────────
 
 const TEMPLATE_CATEGORIES = [
-  "meeting_minutes", "financial", "legal", "elections", "contracts",
-  "certificates", "regulations", "administrative", "maintenance", "insurance",
+  "meeting_minutes",
+  "financial",
+  "legal",
+  "elections",
+  "contracts",
+  "certificates",
+  "regulations",
+  "administrative",
+  "maintenance",
+  "insurance",
 ] as const;
 
-const TEMPLATE_STATUSES = ["draft", "published", "archived", "disabled"] as const;
+const TEMPLATE_STATUSES = [
+  "draft",
+  "published",
+  "archived",
+  "disabled",
+] as const;
 const LANGUAGES = ["fr", "ar", "en", "es"] as const;
 
 const variableDefSchema = z.object({
-  name: z.string().min(1),                  // e.g. "syndicate_name"
-  label: z.record(z.string(), z.string()),  // { fr: "Nom du syndicat", ar: "...", en: "..." }
-  source: z.enum(["db_syndicate", "db_property", "db_office_holders", "db_member", "user_input", "generated"]),
+  name: z.string().min(1), // e.g. "syndicate_name"
+  label: z.record(z.string(), z.string()), // { fr: "Nom du syndicat", ar: "...", en: "..." }
+  source: z.enum([
+    "db_syndicate",
+    "db_property",
+    "db_office_holders",
+    "db_member",
+    "user_input",
+    "generated",
+  ]),
   type: z.enum(["text", "date", "number", "boolean", "list"]).default("text"),
   required: z.boolean().default(false),
   defaultValue: z.string().optional(),
-  dbPath: z.string().optional(),            // e.g. "syndicatesTable.name"
-  example: z.string().optional(),           // preview value for the variable explorer
+  dbPath: z.string().optional(), // e.g. "syndicatesTable.name"
+  example: z.string().optional(), // preview value for the variable explorer
 });
 
 const sectionDefSchema = z.object({
   id: z.string().min(1),
-  title: z.record(z.string(), z.string()),  // { fr, ar, en, es }
+  title: z.record(z.string(), z.string()), // { fr, ar, en, es }
   content: z.record(z.string(), z.string()).optional(), // default body text per language
-  type: z.enum(["text", "table", "signature", "stamp", "qr", "image", "chart", "page_break"]).default("text"),
+  type: z
+    .enum([
+      "text",
+      "table",
+      "signature",
+      "stamp",
+      "qr",
+      "image",
+      "chart",
+      "page_break",
+    ])
+    .default("text"),
   required: z.boolean().default(true),
   order: z.number().int().min(0),
   config: z.record(z.string(), z.unknown()).optional(), // type-specific config (columns for tables, etc.)
 });
 
-const layoutConfigSchema = z.object({
-  accentColor: z.string().default("#2563EB"),
-  headerStyle: z.enum(["branded", "minimal", "none"]).default("branded"),
-  footerStyle: z.enum(["full", "minimal", "none"]).default("full"),
-  watermark: z.boolean().default(false),
-  pageSize: z.enum(["A4", "A3", "Letter"]).default("A4"),
-  fontFamily: z.enum(["DejaVu", "Helvetica", "Amiri"]).default("DejaVu"),
-  showQr: z.boolean().default(true),
-  showStamp: z.boolean().default(true),
-}).partial();
+const layoutConfigSchema = z
+  .object({
+    accentColor: z.string().default("#2563EB"),
+    headerStyle: z.enum(["branded", "minimal", "none"]).default("branded"),
+    footerStyle: z.enum(["full", "minimal", "none"]).default("full"),
+    watermark: z.boolean().default(false),
+    pageSize: z.enum(["A4", "A3", "Letter"]).default("A4"),
+    fontFamily: z.enum(["DejaVu", "Helvetica", "Amiri"]).default("DejaVu"),
+    showQr: z.boolean().default(true),
+    showStamp: z.boolean().default(true),
+  })
+  .partial();
 
 const createTemplateSchema = z.object({
-  slug: z.string().min(1).regex(/^[a-z0-9_]+$/),
+  slug: z
+    .string()
+    .min(1)
+    .regex(/^[a-z0-9_]+$/),
   category: z.enum(TEMPLATE_CATEGORIES),
-  name: z.record(z.string(), z.string()),        // { fr, ar, en, es }
+  name: z.record(z.string(), z.string()), // { fr, ar, en, es }
   description: z.record(z.string(), z.string()).optional(),
   variables: z.array(variableDefSchema).default([]),
   sections: z.array(sectionDefSchema).default([]),
@@ -82,12 +118,14 @@ const updateTemplateSchema = createTemplateSchema.partial().extend({
   changeDescription: z.string().optional(),
 });
 
-const permissionsSchema = z.array(z.object({
-  role: z.enum(["super_admin", "syndicate_admin", "member", "tenant", "all"]),
-  canUse: z.boolean().default(true),
-  canEdit: z.boolean().default(false),
-  canPublish: z.boolean().default(false),
-}));
+const permissionsSchema = z.array(
+  z.object({
+    role: z.enum(["super_admin", "syndicate_admin", "member", "tenant", "all"]),
+    canUse: z.boolean().default(true),
+    canEdit: z.boolean().default(false),
+    canPublish: z.boolean().default(false),
+  }),
+);
 
 function routeParam(value: string | string[] | undefined): string {
   return Array.isArray(value) ? (value[0] ?? "") : (value ?? "");
@@ -100,7 +138,33 @@ async function getTemplateOrFail(id: string, res: import("express").Response) {
     .select()
     .from(templateDefinitionsTable)
     .where(eq(templateDefinitionsTable.id, id));
-  if (!tmpl) { res.status(404).json({ error: "Template introuvable" }); return null; }
+  if (!tmpl) {
+    res.status(404).json({ error: "Template introuvable" });
+    return null;
+  }
+  return tmpl;
+}
+
+async function getTemplateForReader(
+  id: string,
+  req: import("express").Request,
+  res: import("express").Response,
+) {
+  const tmpl = await getTemplateOrFail(id, res);
+  if (!tmpl || req.user!.role === "super_admin") return tmpl;
+
+  const syndicateId = req.user!.syndicateId;
+  if (!syndicateId) {
+    res.status(403).json({ error: "Syndicat non défini dans le token" });
+    return null;
+  }
+  if (
+    tmpl.status !== "published" ||
+    (tmpl.syndicateId !== null && tmpl.syndicateId !== syndicateId)
+  ) {
+    res.status(404).json({ error: "Template introuvable" });
+    return null;
+  }
   return tmpl;
 }
 
@@ -112,19 +176,39 @@ router.get(
   requireRole("super_admin", "syndicate_admin"),
   async (req, res) => {
     try {
+      const isSuperAdmin = req.user!.role === "super_admin";
+      if (!isSuperAdmin && !req.user!.syndicateId) {
+        res.status(403).json({ error: "Syndicat non défini dans le token" });
+        return;
+      }
+      const conditions = isSuperAdmin
+        ? []
+        : [
+            eq(templateDefinitionsTable.status, "published"),
+            or(
+              isNull(templateDefinitionsTable.syndicateId),
+              eq(templateDefinitionsTable.syndicateId, req.user!.syndicateId!),
+            )!,
+          ];
+      const scopedWhere = conditions.length ? and(...conditions) : undefined;
+
       const [totals] = await db
         .select({
-          total:     count(),
+          total: count(),
           published: sql<number>`count(*) filter (where ${templateDefinitionsTable.status} = 'published')`,
-          draft:     sql<number>`count(*) filter (where ${templateDefinitionsTable.status} = 'draft')`,
-          archived:  sql<number>`count(*) filter (where ${templateDefinitionsTable.status} = 'archived')`,
-          disabled:  sql<number>`count(*) filter (where ${templateDefinitionsTable.status} = 'disabled')`,
+          draft: sql<number>`count(*) filter (where ${templateDefinitionsTable.status} = 'draft')`,
+          archived: sql<number>`count(*) filter (where ${templateDefinitionsTable.status} = 'archived')`,
+          disabled: sql<number>`count(*) filter (where ${templateDefinitionsTable.status} = 'disabled')`,
         })
-        .from(templateDefinitionsTable);
+        .from(templateDefinitionsTable)
+        .where(scopedWhere);
 
       const [usage] = await db
-        .select({ totalUsage: sql<number>`coalesce(sum(${templateDefinitionsTable.usageCount}), 0)` })
-        .from(templateDefinitionsTable);
+        .select({
+          totalUsage: sql<number>`coalesce(sum(${templateDefinitionsTable.usageCount}), 0)`,
+        })
+        .from(templateDefinitionsTable)
+        .where(scopedWhere);
 
       // Count by category
       const byCategory = await db
@@ -133,17 +217,20 @@ router.get(
           cnt: count(),
         })
         .from(templateDefinitionsTable)
+        .where(scopedWhere)
         .groupBy(templateDefinitionsTable.category);
 
       res.json({
         data: {
-          total:      Number(totals.total),
-          published:  Number(totals.published),
-          draft:      Number(totals.draft),
-          archived:   Number(totals.archived),
-          disabled:   Number(totals.disabled),
+          total: Number(totals.total),
+          published: Number(totals.published),
+          draft: Number(totals.draft),
+          archived: Number(totals.archived),
+          disabled: Number(totals.disabled),
           totalUsage: Number(usage.totalUsage),
-          byCategory: Object.fromEntries(byCategory.map((r) => [r.category, Number(r.cnt)])),
+          byCategory: Object.fromEntries(
+            byCategory.map((r) => [r.category, Number(r.cnt)]),
+          ),
         },
       });
     } catch (err) {
@@ -160,44 +247,51 @@ router.get(
   requireRole("super_admin", "syndicate_admin"),
   async (req, res) => {
     try {
-      const { category, status, syndicateId, search } = req.query as Record<string, string>;
+      const { category, status, syndicateId, search } = req.query as Record<
+        string,
+        string
+      >;
       const conditions = [];
 
-      if (category) conditions.push(eq(templateDefinitionsTable.category, category));
-      if (status)   conditions.push(eq(templateDefinitionsTable.status, status));
+      if (category)
+        conditions.push(eq(templateDefinitionsTable.category, category));
+      if (status) conditions.push(eq(templateDefinitionsTable.status, status));
 
       // Super admin sees all; syndicate_admin sees published platform-wide + their syndicate's
       if (req.user!.role !== "super_admin") {
         const sid = req.user!.syndicateId;
-        conditions.push(
-          eq(templateDefinitionsTable.status, "published"),
-        );
-        if (sid) {
-          conditions.push(
-            or(isNull(templateDefinitionsTable.syndicateId), eq(templateDefinitionsTable.syndicateId, sid))!
-          );
+        if (!sid) {
+          res.status(403).json({ error: "Syndicat non défini dans le token" });
+          return;
         }
+        conditions.push(eq(templateDefinitionsTable.status, "published"));
+        conditions.push(
+          or(
+            isNull(templateDefinitionsTable.syndicateId),
+            eq(templateDefinitionsTable.syndicateId, sid),
+          )!,
+        );
       } else if (syndicateId) {
         conditions.push(eq(templateDefinitionsTable.syndicateId, syndicateId));
       }
 
       const templates = await db
         .select({
-          id:             templateDefinitionsTable.id,
-          slug:           templateDefinitionsTable.slug,
-          category:       templateDefinitionsTable.category,
-          name:           templateDefinitionsTable.name,
-          description:    templateDefinitionsTable.description,
-          status:         templateDefinitionsTable.status,
-          languages:      templateDefinitionsTable.languages,
+          id: templateDefinitionsTable.id,
+          slug: templateDefinitionsTable.slug,
+          category: templateDefinitionsTable.category,
+          name: templateDefinitionsTable.name,
+          description: templateDefinitionsTable.description,
+          status: templateDefinitionsTable.status,
+          languages: templateDefinitionsTable.languages,
           currentVersion: templateDefinitionsTable.currentVersion,
-          usageCount:     templateDefinitionsTable.usageCount,
-          syndicateId:    templateDefinitionsTable.syndicateId,
-          createdBy:      templateDefinitionsTable.createdBy,
-          publishedAt:    templateDefinitionsTable.publishedAt,
-          archivedAt:     templateDefinitionsTable.archivedAt,
-          createdAt:      templateDefinitionsTable.createdAt,
-          updatedAt:      templateDefinitionsTable.updatedAt,
+          usageCount: templateDefinitionsTable.usageCount,
+          syndicateId: templateDefinitionsTable.syndicateId,
+          createdBy: templateDefinitionsTable.createdBy,
+          publishedAt: templateDefinitionsTable.publishedAt,
+          archivedAt: templateDefinitionsTable.archivedAt,
+          createdAt: templateDefinitionsTable.createdAt,
+          updatedAt: templateDefinitionsTable.updatedAt,
         })
         .from(templateDefinitionsTable)
         .where(conditions.length ? and(...conditions) : undefined)
@@ -218,36 +312,41 @@ router.post(
   requireRole("super_admin"),
   async (req, res) => {
     const result = createTemplateSchema.safeParse(req.body);
-    if (!result.success) { res.status(400).json({ error: result.error.issues }); return; }
+    if (!result.success) {
+      res.status(400).json({ error: result.error.issues });
+      return;
+    }
     const data = result.data;
 
     try {
       const [template] = await db
         .insert(templateDefinitionsTable)
         .values({
-          slug:         data.slug,
-          category:     data.category,
-          name:         JSON.stringify(data.name),
-          description:  data.description ? JSON.stringify(data.description) : null,
-          variables:    JSON.stringify(data.variables),
-          sections:     JSON.stringify(data.sections),
+          slug: data.slug,
+          category: data.category,
+          name: JSON.stringify(data.name),
+          description: data.description
+            ? JSON.stringify(data.description)
+            : null,
+          variables: JSON.stringify(data.variables),
+          sections: JSON.stringify(data.sections),
           layoutConfig: JSON.stringify(data.layoutConfig ?? {}),
-          status:       "draft",
-          syndicateId:  data.syndicateId ?? null,
-          languages:    JSON.stringify(data.languages),
+          status: "draft",
+          syndicateId: data.syndicateId ?? null,
+          languages: JSON.stringify(data.languages),
           currentVersion: 1,
-          createdBy:    req.user!.userId,
-          updatedBy:    req.user!.userId,
+          createdBy: req.user!.userId,
+          updatedBy: req.user!.userId,
         } as any)
         .returning();
 
       // Save initial version snapshot
       await db.insert(templateDefinitionVersionsTable).values({
-        templateId:        template.id,
-        version:           1,
-        snapshot:          JSON.stringify({ ...data, status: "draft", version: 1 }),
+        templateId: template.id,
+        version: 1,
+        snapshot: JSON.stringify({ ...data, status: "draft", version: 1 }),
         changeDescription: "Version initiale",
-        createdBy:         req.user!.userId,
+        createdBy: req.user!.userId,
       } as any);
 
       await serverAuditLog(req, {
@@ -275,7 +374,11 @@ router.get(
   requireAuth,
   requireRole("super_admin", "syndicate_admin"),
   async (req, res) => {
-    const tmpl = await getTemplateOrFail(routeParam(req.params.id), res);
+    const tmpl = await getTemplateForReader(
+      routeParam(req.params.id),
+      req,
+      res,
+    );
     if (!tmpl) return;
 
     // Fetch permissions
@@ -287,12 +390,12 @@ router.get(
     res.json({
       data: {
         ...tmpl,
-        name:         safeJson(tmpl.name),
-        description:  safeJson(tmpl.description),
-        variables:    safeJson(tmpl.variables, []),
-        sections:     safeJson(tmpl.sections, []),
+        name: safeJson(tmpl.name),
+        description: safeJson(tmpl.description),
+        variables: safeJson(tmpl.variables, []),
+        sections: safeJson(tmpl.sections, []),
         layoutConfig: safeJson(tmpl.layoutConfig, {}),
-        languages:    safeJson(tmpl.languages, ["fr"]),
+        languages: safeJson(tmpl.languages, ["fr"]),
         permissions,
       },
     });
@@ -306,16 +409,27 @@ router.put(
   requireAuth,
   requireRole("super_admin"),
   async (req, res) => {
-    const tmpl = await getTemplateOrFail(routeParam(req.params.id), res);
+    const tmpl = await getTemplateForReader(
+      routeParam(req.params.id),
+      req,
+      res,
+    );
     if (!tmpl) return;
 
     if (tmpl.status === "archived" || tmpl.status === "disabled") {
-      res.status(409).json({ error: "Impossible de modifier un template archivé ou désactivé" });
+      res
+        .status(409)
+        .json({
+          error: "Impossible de modifier un template archivé ou désactivé",
+        });
       return;
     }
 
     const result = updateTemplateSchema.safeParse(req.body);
-    if (!result.success) { res.status(400).json({ error: result.error.issues }); return; }
+    if (!result.success) {
+      res.status(400).json({ error: result.error.issues });
+      return;
+    }
     const data = result.data;
 
     const newVersion = (tmpl.currentVersion ?? 1) + 1;
@@ -324,15 +438,29 @@ router.put(
       const [updated] = await db
         .update(templateDefinitionsTable)
         .set({
-          ...(data.slug        ? { slug: data.slug } : {}),
-          ...(data.category    ? { category: data.category } : {}),
-          ...(data.name        ? { name: JSON.stringify(data.name) } : {}),
-          ...(data.description !== undefined ? { description: data.description ? JSON.stringify(data.description) : null } : {}),
-          ...(data.variables   ? { variables: JSON.stringify(data.variables) } : {}),
-          ...(data.sections    ? { sections: JSON.stringify(data.sections) } : {}),
-          ...(data.layoutConfig ? { layoutConfig: JSON.stringify(data.layoutConfig) } : {}),
-          ...(data.languages   ? { languages: JSON.stringify(data.languages) } : {}),
-          ...(data.syndicateId !== undefined ? { syndicateId: data.syndicateId ?? null } : {}),
+          ...(data.slug ? { slug: data.slug } : {}),
+          ...(data.category ? { category: data.category } : {}),
+          ...(data.name ? { name: JSON.stringify(data.name) } : {}),
+          ...(data.description !== undefined
+            ? {
+                description: data.description
+                  ? JSON.stringify(data.description)
+                  : null,
+              }
+            : {}),
+          ...(data.variables
+            ? { variables: JSON.stringify(data.variables) }
+            : {}),
+          ...(data.sections ? { sections: JSON.stringify(data.sections) } : {}),
+          ...(data.layoutConfig
+            ? { layoutConfig: JSON.stringify(data.layoutConfig) }
+            : {}),
+          ...(data.languages
+            ? { languages: JSON.stringify(data.languages) }
+            : {}),
+          ...(data.syndicateId !== undefined
+            ? { syndicateId: data.syndicateId ?? null }
+            : {}),
           currentVersion: newVersion,
           updatedBy: req.user!.userId,
           updatedAt: new Date(),
@@ -348,18 +476,22 @@ router.put(
         status: tmpl.status,
       };
       await db.insert(templateDefinitionVersionsTable).values({
-        templateId:        tmpl.id,
-        version:           newVersion,
-        snapshot:          JSON.stringify(snapshot),
-        changeDescription: data.changeDescription ?? `Mise à jour v${newVersion}`,
-        createdBy:         req.user!.userId,
+        templateId: tmpl.id,
+        version: newVersion,
+        snapshot: JSON.stringify(snapshot),
+        changeDescription:
+          data.changeDescription ?? `Mise à jour v${newVersion}`,
+        createdBy: req.user!.userId,
       } as any);
 
       await serverAuditLog(req, {
         action: "template_updated",
         entity: "template_definition",
         entityId: tmpl.id,
-        details: JSON.stringify({ newVersion, changeDescription: data.changeDescription }),
+        details: JSON.stringify({
+          newVersion,
+          changeDescription: data.changeDescription,
+        }),
       });
 
       res.json({ data: updated });
@@ -374,7 +506,7 @@ router.put(
 async function setTemplateStatus(
   req: import("express").Request,
   res: import("express").Response,
-  newStatus: typeof TEMPLATE_STATUSES[number],
+  newStatus: (typeof TEMPLATE_STATUSES)[number],
   action: string,
   guard?: (tmpl: Record<string, unknown>) => string | null,
 ) {
@@ -382,7 +514,10 @@ async function setTemplateStatus(
   if (!tmpl) return;
   if (guard) {
     const err = guard(tmpl as any);
-    if (err) { res.status(409).json({ error: err }); return; }
+    if (err) {
+      res.status(409).json({ error: err });
+      return;
+    }
   }
   const patch: Record<string, unknown> = {
     status: newStatus,
@@ -390,8 +525,8 @@ async function setTemplateStatus(
     updatedBy: req.user!.userId,
   };
   if (newStatus === "published") patch.publishedAt = new Date();
-  if (newStatus === "archived")  patch.archivedAt  = new Date();
-  if (newStatus === "disabled")  patch.disabledAt  = new Date();
+  if (newStatus === "archived") patch.archivedAt = new Date();
+  if (newStatus === "disabled") patch.disabledAt = new Date();
 
   const [updated] = await db
     .update(templateDefinitionsTable)
@@ -399,29 +534,54 @@ async function setTemplateStatus(
     .where(eq(templateDefinitionsTable.id, tmpl.id))
     .returning();
 
-  await serverAuditLog(req, { action, entity: "template_definition", entityId: tmpl.id, details: JSON.stringify({ newStatus }) });
+  await serverAuditLog(req, {
+    action,
+    entity: "template_definition",
+    entityId: tmpl.id,
+    details: JSON.stringify({ newStatus }),
+  });
   res.json({ data: updated });
 }
 
-router.post("/template-studio/templates/:id/publish",
-  requireAuth, requireRole("super_admin"),
-  (req, res) => setTemplateStatus(req, res, "published", "template_published",
-    (t) => t.status === "published" ? "Déjà publié" : null));
+router.post(
+  "/template-studio/templates/:id/publish",
+  requireAuth,
+  requireRole("super_admin"),
+  (req, res) =>
+    setTemplateStatus(req, res, "published", "template_published", (t) =>
+      t.status === "published" ? "Déjà publié" : null,
+    ),
+);
 
-router.post("/template-studio/templates/:id/archive",
-  requireAuth, requireRole("super_admin"),
-  (req, res) => setTemplateStatus(req, res, "archived", "template_archived",
-    (t) => t.status === "archived" ? "Déjà archivé" : null));
+router.post(
+  "/template-studio/templates/:id/archive",
+  requireAuth,
+  requireRole("super_admin"),
+  (req, res) =>
+    setTemplateStatus(req, res, "archived", "template_archived", (t) =>
+      t.status === "archived" ? "Déjà archivé" : null,
+    ),
+);
 
-router.post("/template-studio/templates/:id/restore",
-  requireAuth, requireRole("super_admin"),
-  (req, res) => setTemplateStatus(req, res, "draft", "template_restored",
-    (t) => t.status === "draft" ? "Déjà en brouillon" : null));
+router.post(
+  "/template-studio/templates/:id/restore",
+  requireAuth,
+  requireRole("super_admin"),
+  (req, res) =>
+    setTemplateStatus(req, res, "draft", "template_restored", (t) =>
+      t.status === "draft" ? "Déjà en brouillon" : null,
+    ),
+);
 
-router.post("/template-studio/templates/:id/disable",
-  requireAuth, requireRole("super_admin"),
-  (req, res) => setTemplateStatus(req, res, "disabled", "template_disabled",
-    (t) => t.status === "disabled" ? "Déjà désactivé" : null));
+router.post(
+  "/template-studio/templates/:id/disable",
+  requireAuth,
+  requireRole("super_admin"),
+  (req, res) =>
+    setTemplateStatus(req, res, "disabled", "template_disabled", (t) =>
+      t.status === "disabled" ? "Déjà désactivé" : null,
+    ),
+);
 
 // ─── POST /template-studio/templates/:id/duplicate ───────────────────────────
 
@@ -435,39 +595,46 @@ router.post(
 
     const { newSlug } = req.body;
     if (!newSlug || !/^[a-z0-9_]+$/.test(newSlug)) {
-      res.status(400).json({ error: "newSlug requis (lettres minuscules, chiffres, _)" }); return;
+      res
+        .status(400)
+        .json({ error: "newSlug requis (lettres minuscules, chiffres, _)" });
+      return;
     }
 
     try {
       const [clone] = await db
         .insert(templateDefinitionsTable)
         .values({
-          slug:         newSlug,
-          category:     tmpl.category,
-          name:         (() => {
+          slug: newSlug,
+          category: tmpl.category,
+          name: (() => {
             const n = safeJson(tmpl.name, {}) as Record<string, string>;
             const suffix = " (copie)";
-            return JSON.stringify(Object.fromEntries(Object.entries(n).map(([k, v]) => [k, v + suffix])));
+            return JSON.stringify(
+              Object.fromEntries(
+                Object.entries(n).map(([k, v]) => [k, v + suffix]),
+              ),
+            );
           })(),
-          description:  tmpl.description,
-          variables:    tmpl.variables,
-          sections:     tmpl.sections,
+          description: tmpl.description,
+          variables: tmpl.variables,
+          sections: tmpl.sections,
           layoutConfig: tmpl.layoutConfig,
-          status:       "draft",
-          syndicateId:  tmpl.syndicateId,
-          languages:    tmpl.languages,
+          status: "draft",
+          syndicateId: tmpl.syndicateId,
+          languages: tmpl.languages,
           currentVersion: 1,
-          createdBy:    req.user!.userId,
-          updatedBy:    req.user!.userId,
+          createdBy: req.user!.userId,
+          updatedBy: req.user!.userId,
         } as any)
         .returning();
 
       await db.insert(templateDefinitionVersionsTable).values({
-        templateId:        clone.id,
-        version:           1,
-        snapshot:          JSON.stringify({ clonedFrom: tmpl.id }),
+        templateId: clone.id,
+        version: 1,
+        snapshot: JSON.stringify({ clonedFrom: tmpl.id }),
         changeDescription: `Dupliqué depuis ${tmpl.slug}`,
-        createdBy:         req.user!.userId,
+        createdBy: req.user!.userId,
       } as any);
 
       res.status(201).json({ data: clone });
@@ -493,15 +660,18 @@ router.get(
 
     const versions = await db
       .select({
-        id:                templateDefinitionVersionsTable.id,
-        version:           templateDefinitionVersionsTable.version,
+        id: templateDefinitionVersionsTable.id,
+        version: templateDefinitionVersionsTable.version,
         changeDescription: templateDefinitionVersionsTable.changeDescription,
-        createdBy:         templateDefinitionVersionsTable.createdBy,
-        createdAt:         templateDefinitionVersionsTable.createdAt,
-        authorName:        usersTable.name,
+        createdBy: templateDefinitionVersionsTable.createdBy,
+        createdAt: templateDefinitionVersionsTable.createdAt,
+        authorName: usersTable.name,
       })
       .from(templateDefinitionVersionsTable)
-      .leftJoin(usersTable, eq(templateDefinitionVersionsTable.createdBy, usersTable.id))
+      .leftJoin(
+        usersTable,
+        eq(templateDefinitionVersionsTable.createdBy, usersTable.id),
+      )
       .where(eq(templateDefinitionVersionsTable.templateId, tmpl.id))
       .orderBy(desc(templateDefinitionVersionsTable.version));
 
@@ -521,12 +691,20 @@ router.get(
       .from(templateDefinitionVersionsTable)
       .where(
         and(
-          eq(templateDefinitionVersionsTable.templateId, routeParam(req.params.id)),
+          eq(
+            templateDefinitionVersionsTable.templateId,
+            routeParam(req.params.id),
+          ),
           eq(templateDefinitionVersionsTable.id, routeParam(req.params.vid)),
         ),
       );
-    if (!version) { res.status(404).json({ error: "Version introuvable" }); return; }
-    res.json({ data: { ...version, snapshot: safeJson(version.snapshot, {}) } });
+    if (!version) {
+      res.status(404).json({ error: "Version introuvable" });
+      return;
+    }
+    res.json({
+      data: { ...version, snapshot: safeJson(version.snapshot, {}) },
+    });
   },
 );
 
@@ -549,7 +727,10 @@ router.post(
           eq(templateDefinitionVersionsTable.id, routeParam(req.params.vid)),
         ),
       );
-    if (!version) { res.status(404).json({ error: "Version introuvable" }); return; }
+    if (!version) {
+      res.status(404).json({ error: "Version introuvable" });
+      return;
+    }
 
     const snap = safeJson(version.snapshot, {}) as Record<string, unknown>;
     const newVersion = (tmpl.currentVersion ?? 1) + 1;
@@ -557,12 +738,20 @@ router.post(
     const [updated] = await db
       .update(templateDefinitionsTable)
       .set({
-        ...(snap.name        ? { name:        JSON.stringify(snap.name) } : {}),
-        ...(snap.description ? { description: JSON.stringify(snap.description) } : {}),
-        ...(snap.variables   ? { variables:   JSON.stringify(snap.variables) } : {}),
-        ...(snap.sections    ? { sections:    JSON.stringify(snap.sections) } : {}),
-        ...(snap.layoutConfig ? { layoutConfig: JSON.stringify(snap.layoutConfig) } : {}),
-        ...(snap.languages   ? { languages:   JSON.stringify(snap.languages) } : {}),
+        ...(snap.name ? { name: JSON.stringify(snap.name) } : {}),
+        ...(snap.description
+          ? { description: JSON.stringify(snap.description) }
+          : {}),
+        ...(snap.variables
+          ? { variables: JSON.stringify(snap.variables) }
+          : {}),
+        ...(snap.sections ? { sections: JSON.stringify(snap.sections) } : {}),
+        ...(snap.layoutConfig
+          ? { layoutConfig: JSON.stringify(snap.layoutConfig) }
+          : {}),
+        ...(snap.languages
+          ? { languages: JSON.stringify(snap.languages) }
+          : {}),
         currentVersion: newVersion,
         updatedAt: new Date(),
         updatedBy: req.user!.userId,
@@ -571,18 +760,21 @@ router.post(
       .returning();
 
     await db.insert(templateDefinitionVersionsTable).values({
-      templateId:        tmpl.id,
-      version:           newVersion,
-      snapshot:          version.snapshot,
+      templateId: tmpl.id,
+      version: newVersion,
+      snapshot: version.snapshot,
       changeDescription: `Restauré depuis v${version.version}`,
-      createdBy:         req.user!.userId,
+      createdBy: req.user!.userId,
     } as any);
 
     await serverAuditLog(req, {
       action: "template_version_restored",
       entity: "template_definition_version",
       entityId: tmpl.id,
-      details: JSON.stringify({ restoredFromVersion: version.version, newVersion }),
+      details: JSON.stringify({
+        restoredFromVersion: version.version,
+        newVersion,
+      }),
     });
 
     res.json({ data: updated });
@@ -599,7 +791,12 @@ router.get(
     const perms = await db
       .select()
       .from(templateDefinitionPermissionsTable)
-      .where(eq(templateDefinitionPermissionsTable.templateId, routeParam(req.params.id)));
+      .where(
+        eq(
+          templateDefinitionPermissionsTable.templateId,
+          routeParam(req.params.id),
+        ),
+      );
     res.json({ data: perms });
   },
 );
@@ -615,7 +812,10 @@ router.put(
     if (!tmpl) return;
 
     const result = permissionsSchema.safeParse(req.body.permissions);
-    if (!result.success) { res.status(400).json({ error: result.error.issues }); return; }
+    if (!result.success) {
+      res.status(400).json({ error: result.error.issues });
+      return;
+    }
 
     // Replace all permissions for this template
     await db
@@ -624,13 +824,16 @@ router.put(
 
     if (result.data.length > 0) {
       await db.insert(templateDefinitionPermissionsTable).values(
-        result.data.map((p) => ({
-          templateId: tmpl.id,
-          role:       p.role,
-          canUse:     p.canUse,
-          canEdit:    p.canEdit,
-          canPublish: p.canPublish,
-        }) as any),
+        result.data.map(
+          (p) =>
+            ({
+              templateId: tmpl.id,
+              role: p.role,
+              canUse: p.canUse,
+              canEdit: p.canEdit,
+              canPublish: p.canPublish,
+            }) as any,
+        ),
       );
     }
 
@@ -652,18 +855,18 @@ router.get("/verify/:token", async (req, res) => {
 
     const [doc] = await db
       .select({
-        id:              documentsTable.id,
-        title:           documentsTable.title,
-        category:        documentsTable.category,
-        status:          documentsTable.status,
-        documentNumber:  documentsTable.documentNumber,
-        templateId:      documentsTable.templateId,
-        createdAt:       documentsTable.createdAt,
-        publishedAt:     documentsTable.publishedAt,
-        expiresAt:       documentsTable.expiresAt,
-        isDeleted:       documentsTable.isDeleted,
-        signedAt:        documentsTable.signedAt,
-        rejectedAt:      documentsTable.rejectedAt,
+        id: documentsTable.id,
+        title: documentsTable.title,
+        category: documentsTable.category,
+        status: documentsTable.status,
+        documentNumber: documentsTable.documentNumber,
+        templateId: documentsTable.templateId,
+        createdAt: documentsTable.createdAt,
+        publishedAt: documentsTable.publishedAt,
+        expiresAt: documentsTable.expiresAt,
+        isDeleted: documentsTable.isDeleted,
+        signedAt: documentsTable.signedAt,
+        rejectedAt: documentsTable.rejectedAt,
         verificationToken: documentsTable.verificationToken,
       })
       .from(documentsTable)
@@ -709,9 +912,15 @@ router.get("/verify/:token", async (req, res) => {
     }
 
     const categoryLabels: Record<string, string> = {
-      pv: "Procès-verbal", attestation: "Attestation", juridique: "Document juridique",
-      reglements: "Règlement", finances: "Document financier", statuts: "Statuts",
-      meeting_minutes: "Procès-verbal", financial: "Financier", legal: "Juridique",
+      pv: "Procès-verbal",
+      attestation: "Attestation",
+      juridique: "Document juridique",
+      reglements: "Règlement",
+      finances: "Document financier",
+      statuts: "Statuts",
+      meeting_minutes: "Procès-verbal",
+      financial: "Financier",
+      legal: "Juridique",
     };
 
     const html = `<!DOCTYPE html>
@@ -763,13 +972,16 @@ router.get("/verify/:token", async (req, res) => {
         <div class="logo-sub">Vérification de document officiel</div>
       </div>
     </div>
-    ${!doc || doc.isDeleted ? `
+    ${
+      !doc || doc.isDeleted
+        ? `
     <div class="not-found">
       <div class="icon">🔍</div>
       <h2>Document introuvable</h2>
       <p>Le jeton de vérification fourni ne correspond à aucun document enregistré dans notre système ou le document a été supprimé.</p>
     </div>
-    ` : `
+    `
+        : `
     <div class="status-badge">${statusIcon} ${verificationStatus}</div>
     <div class="doc-title">${escapeHtml(doc.title ?? "Document officiel")}</div>
     <div class="doc-ref">Réf : ${escapeHtml(doc.documentNumber ?? token.slice(0, 8).toUpperCase())}</div>
@@ -786,16 +998,25 @@ router.get("/verify/:token", async (req, res) => {
         <span class="field-label">Créé le</span>
         <span class="field-value">${doc.createdAt ? new Date(doc.createdAt).toLocaleDateString("fr-MA", { dateStyle: "long" }) : "—"}</span>
       </div>
-      ${doc.signedAt ? `<div class="field">
+      ${
+        doc.signedAt
+          ? `<div class="field">
         <span class="field-label">Signé le</span>
         <span class="field-value">${new Date(doc.signedAt).toLocaleDateString("fr-MA", { dateStyle: "long" })}</span>
-      </div>` : ""}
-      ${doc.expiresAt ? `<div class="field">
+      </div>`
+          : ""
+      }
+      ${
+        doc.expiresAt
+          ? `<div class="field">
         <span class="field-label">Expire le</span>
         <span class="field-value">${new Date(doc.expiresAt).toLocaleDateString("fr-MA", { dateStyle: "long" })}</span>
-      </div>` : ""}
+      </div>`
+          : ""
+      }
     </div>
-    `}
+    `
+    }
     <div class="footer">
       Ce service de vérification est fourni par la plateforme MIZAN.<br>
       Pour toute question : <a href="mailto:support@mizan.ma">support@mizan.ma</a>
@@ -816,25 +1037,39 @@ router.get("/verify/:token", async (req, res) => {
 // Workflow: syndicate_admin submits → super_admin reviews → approved/rejected.
 
 const REQUEST_CATEGORIES = [
-  "meeting_minutes", "financial", "legal", "elections", "contracts",
-  "certificates", "regulations", "administrative", "maintenance", "insurance",
+  "meeting_minutes",
+  "financial",
+  "legal",
+  "elections",
+  "contracts",
+  "certificates",
+  "regulations",
+  "administrative",
+  "maintenance",
+  "insurance",
 ] as const;
 
 const requestCreateSchema = z.object({
-  title:           z.string().min(3),
-  category:        z.enum(REQUEST_CATEGORIES),
-  description:     z.string().optional(),
+  title: z.string().min(3),
+  category: z.enum(REQUEST_CATEGORIES),
+  description: z.string().optional(),
   businessPurpose: z.string().optional(),
-  requiredFields:  z.string().optional(), // JSON array of {name, type, required}
-  legalNotes:      z.string().optional(),
-  priority:        z.enum(["low", "normal", "high", "urgent"]).default("normal"),
-  publishScope:    z.enum(["global", "private"]).default("private"),
+  requiredFields: z.string().optional(), // JSON array of {name, type, required}
+  legalNotes: z.string().optional(),
+  priority: z.enum(["low", "normal", "high", "urgent"]).default("normal"),
+  publishScope: z.enum(["global", "private"]).default("private"),
 });
 
 const requestReviewSchema = z.object({
-  status:           z.enum(["pending", "in_review", "approved", "rejected", "need_more_info"]),
-  reviewNotes:      z.string().optional(),
-  rejectionReason:  z.string().optional(),
+  status: z.enum([
+    "pending",
+    "in_review",
+    "approved",
+    "rejected",
+    "need_more_info",
+  ]),
+  reviewNotes: z.string().optional(),
+  rejectionReason: z.string().optional(),
 });
 
 // GET /template-studio/requests — super_admin sees all, syndicate_admin sees own
@@ -846,36 +1081,46 @@ router.get(
     try {
       const user = req.user!;
       const isSuperAdmin = user.role === "super_admin";
+      if (!isSuperAdmin && !user.syndicateId) {
+        res.status(403).json({ error: "Syndicat non défini dans le token" });
+        return;
+      }
 
       const rows = await db
         .select({
-          id:               templateRequestsTable.id,
-          title:            templateRequestsTable.title,
-          category:         templateRequestsTable.category,
-          description:      templateRequestsTable.description,
-          businessPurpose:  templateRequestsTable.businessPurpose,
-          requiredFields:   templateRequestsTable.requiredFields,
-          legalNotes:       templateRequestsTable.legalNotes,
-          status:           templateRequestsTable.status,
-          priority:         templateRequestsTable.priority,
-          publishScope:     templateRequestsTable.publishScope,
-          reviewNotes:      templateRequestsTable.reviewNotes,
-          rejectionReason:  templateRequestsTable.rejectionReason,
-          reviewedAt:       templateRequestsTable.reviewedAt,
-          createdAt:        templateRequestsTable.createdAt,
-          updatedAt:        templateRequestsTable.updatedAt,
-          requestedBy:      templateRequestsTable.requestedBy,
-          syndicateId:      templateRequestsTable.syndicateId,
-          requesterName:    usersTable.name,
-          syndicateName:    syndicatesTable.name,
+          id: templateRequestsTable.id,
+          title: templateRequestsTable.title,
+          category: templateRequestsTable.category,
+          description: templateRequestsTable.description,
+          businessPurpose: templateRequestsTable.businessPurpose,
+          requiredFields: templateRequestsTable.requiredFields,
+          legalNotes: templateRequestsTable.legalNotes,
+          status: templateRequestsTable.status,
+          priority: templateRequestsTable.priority,
+          publishScope: templateRequestsTable.publishScope,
+          reviewNotes: templateRequestsTable.reviewNotes,
+          rejectionReason: templateRequestsTable.rejectionReason,
+          reviewedAt: templateRequestsTable.reviewedAt,
+          createdAt: templateRequestsTable.createdAt,
+          updatedAt: templateRequestsTable.updatedAt,
+          requestedBy: templateRequestsTable.requestedBy,
+          syndicateId: templateRequestsTable.syndicateId,
+          requesterName: usersTable.name,
+          syndicateName: syndicatesTable.name,
         })
         .from(templateRequestsTable)
-        .leftJoin(usersTable,     eq(templateRequestsTable.requestedBy, usersTable.id))
-        .leftJoin(syndicatesTable, eq(templateRequestsTable.syndicateId, syndicatesTable.id))
+        .leftJoin(
+          usersTable,
+          eq(templateRequestsTable.requestedBy, usersTable.id),
+        )
+        .leftJoin(
+          syndicatesTable,
+          eq(templateRequestsTable.syndicateId, syndicatesTable.id),
+        )
         .where(
           isSuperAdmin
             ? undefined
-            : eq(templateRequestsTable.syndicateId, user.syndicateId ?? "")
+            : eq(templateRequestsTable.syndicateId, user.syndicateId ?? ""),
         )
         .orderBy(desc(templateRequestsTable.createdAt));
 
@@ -894,11 +1139,15 @@ router.post(
   requireRole("syndicate_admin"),
   async (req, res) => {
     if (!req.user!.syndicateId) {
-      res.status(403).json({ error: "Syndicat introuvable dans votre compte" }); return;
+      res.status(403).json({ error: "Syndicat introuvable dans votre compte" });
+      return;
     }
     const parsed = requestCreateSchema.safeParse(req.body);
     if (!parsed.success) {
-      res.status(400).json({ error: "Données invalides", details: parsed.error.flatten() }); return;
+      res
+        .status(400)
+        .json({ error: "Données invalides", details: parsed.error.flatten() });
+      return;
     }
     try {
       const [row] = await db
@@ -910,7 +1159,9 @@ router.post(
           status: "pending",
         } as any)
         .returning();
-      res.status(201).json({ data: row, message: "Demande soumise avec succès" });
+      res
+        .status(201)
+        .json({ data: row, message: "Demande soumise avec succès" });
     } catch (err) {
       req.log.error(err);
       res.status(500).json({ error: "Erreur serveur" });
@@ -926,22 +1177,28 @@ router.put(
   async (req, res) => {
     const parsed = requestReviewSchema.safeParse(req.body);
     if (!parsed.success) {
-      res.status(400).json({ error: "Données invalides", details: parsed.error.flatten() }); return;
+      res
+        .status(400)
+        .json({ error: "Données invalides", details: parsed.error.flatten() });
+      return;
     }
     try {
       const [updated] = await db
         .update(templateRequestsTable)
         .set({
-          status:          parsed.data.status,
-          reviewNotes:     parsed.data.reviewNotes    ?? null,
+          status: parsed.data.status,
+          reviewNotes: parsed.data.reviewNotes ?? null,
           rejectionReason: parsed.data.rejectionReason ?? null,
-          reviewedBy:      req.user!.userId,
-          reviewedAt:      new Date(),
-          updatedAt:       new Date(),
+          reviewedBy: req.user!.userId,
+          reviewedAt: new Date(),
+          updatedAt: new Date(),
         })
         .where(eq(templateRequestsTable.id, routeParam(req.params.id)))
         .returning();
-      if (!updated) { res.status(404).json({ error: "Demande introuvable" }); return; }
+      if (!updated) {
+        res.status(404).json({ error: "Demande introuvable" });
+        return;
+      }
       res.json({ data: updated, message: "Demande mise à jour" });
     } catch (err) {
       req.log.error(err);
@@ -955,12 +1212,20 @@ router.put(
 function safeJson(val: unknown, fallback?: unknown) {
   if (!val) return fallback ?? null;
   if (typeof val !== "string") return val;
-  try { return JSON.parse(val); } catch { return fallback ?? null; }
+  try {
+    return JSON.parse(val);
+  } catch {
+    return fallback ?? null;
+  }
 }
 
 function escapeHtml(str: string) {
-  return str.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;")
-            .replace(/"/g, "&quot;").replace(/'/g, "&#039;");
+  return str
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;")
+    .replace(/'/g, "&#039;");
 }
 
 export default router;

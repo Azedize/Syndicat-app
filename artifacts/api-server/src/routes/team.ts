@@ -16,7 +16,12 @@ import {
   refreshTokensTable,
 } from "@workspace/db/schema";
 import { eq, and, or } from "drizzle-orm";
-import { requireAuth, requireAdmin, signToken, signRefreshToken } from "../middleware/auth.js";
+import {
+  requireAuth,
+  requireAdmin,
+  signToken,
+  signRefreshToken,
+} from "../middleware/auth.js";
 import { sendTransactionalEmail } from "../lib/email/emailService.js";
 import { teamInvitationTemplate } from "../lib/email/templates.js";
 
@@ -26,7 +31,11 @@ const router = Router();
 router.get("/team", requireAuth, async (req, res) => {
   try {
     const user = req.user!;
-    if (!user.syndicateId) return void res.json({ data: [] });
+    if (!user.syndicateId) {
+      return void res
+        .status(403)
+        .json({ error: "Syndicat non défini dans le token" });
+    }
 
     // Admins in this syndicate
     const admins = await db
@@ -45,9 +54,9 @@ router.get("/team", requireAuth, async (req, res) => {
           eq(usersTable.syndicateId, user.syndicateId),
           or(
             eq(usersTable.role, "syndicate_admin"),
-            eq(usersTable.role, "super_admin")
-          )
-        )
+            eq(usersTable.role, "super_admin"),
+          ),
+        ),
       );
 
     // Committee members (members with status "committee", "president" etc.)
@@ -68,9 +77,9 @@ router.get("/team", requireAuth, async (req, res) => {
             eq(membersTable.status, "committee"),
             eq(membersTable.status, "president"),
             eq(membersTable.status, "treasurer"),
-            eq(membersTable.status, "secretary")
-          )
-        )
+            eq(membersTable.status, "secretary"),
+          ),
+        ),
       );
 
     // Syndicate info
@@ -96,9 +105,19 @@ router.get("/team", requireAuth, async (req, res) => {
 router.put("/team/syndicate", requireAuth, requireAdmin, async (req, res) => {
   try {
     const user = req.user!;
-    if (!user.syndicateId) return void res.status(400).json({ error: "Pas de syndicat associé" });
+    if (!user.syndicateId)
+      return void res.status(400).json({ error: "Pas de syndicat associé" });
 
-    const allowed = ["email", "phone", "address", "officeHours", "website", "bankName", "bankIban", "bankBic"];
+    const allowed = [
+      "email",
+      "phone",
+      "address",
+      "officeHours",
+      "website",
+      "bankName",
+      "bankIban",
+      "bankBic",
+    ];
     const updates: Record<string, any> = {};
     for (const k of allowed) {
       if (req.body[k] !== undefined) updates[k] = req.body[k];
@@ -122,9 +141,19 @@ router.put("/team/members/:id", requireAuth, requireAdmin, async (req, res) => {
   try {
     const user = req.user!;
     const { role } = req.body;
-    const validRoles = ["member", "committee", "president", "treasurer", "secretary"];
+    const validRoles = [
+      "member",
+      "committee",
+      "president",
+      "treasurer",
+      "secretary",
+    ];
     if (!validRoles.includes(role)) {
-      return void res.status(400).json({ error: `Rôle invalide. Valeurs acceptées: ${validRoles.join(", ")}` });
+      return void res
+        .status(400)
+        .json({
+          error: `Rôle invalide. Valeurs acceptées: ${validRoles.join(", ")}`,
+        });
     }
 
     if (user.role === "super_admin" && req.query.supervision !== "true") {
@@ -138,15 +167,20 @@ router.put("/team/members/:id", requireAuth, requireAdmin, async (req, res) => {
       .select({ syndicateId: membersTable.syndicateId })
       .from(membersTable)
       .where(eq(membersTable.id, String(req.params.id) as string));
-    if (!target) return void res.status(404).json({ error: "Membre introuvable" });
+    if (!target)
+      return void res.status(404).json({ error: "Membre introuvable" });
 
     if (user.role === "super_admin") {
       if (!target.syndicateId) {
-        return void res.status(403).json({ error: "Syndicat cible non défini" });
+        return void res
+          .status(403)
+          .json({ error: "Syndicat cible non défini" });
       }
     } else {
       if (!user.syndicateId) {
-        return void res.status(403).json({ error: "Syndicat non défini dans le token" });
+        return void res
+          .status(403)
+          .json({ error: "Syndicat non défini dans le token" });
       }
       if (target.syndicateId !== user.syndicateId) {
         return void res.status(403).json({ error: "Accès refusé" });
@@ -167,7 +201,8 @@ router.put("/team/members/:id", requireAuth, requireAdmin, async (req, res) => {
       )
       .returning();
 
-    if (!updated) return void res.status(404).json({ error: "Membre introuvable" });
+    if (!updated)
+      return void res.status(404).json({ error: "Membre introuvable" });
     res.json({ data: updated, message: "Rôle mis à jour" });
   } catch (e) {
     console.error(e);
@@ -181,43 +216,64 @@ const inviteSchema = z.object({
   name: z.string().min(2).max(100),
   email: z.string().email(),
   phone: z.string().max(30).optional(),
-  role: z.enum(["president", "treasurer", "secretary", "committee_member", "syndicate_admin"]),
+  role: z.enum([
+    "president",
+    "treasurer",
+    "secretary",
+    "committee_member",
+    "syndicate_admin",
+  ]),
 });
 
 router.post("/team/invite", requireAuth, requireAdmin, async (req, res) => {
   const result = inviteSchema.safeParse(req.body);
   if (!result.success) {
-    return void res.status(400).json({ error: result.error.issues[0]?.message ?? "Données invalides" });
+    return void res
+      .status(400)
+      .json({ error: result.error.issues[0]?.message ?? "Données invalides" });
   }
 
   const { name, email, phone, role } = result.data;
   const syndicateId = req.user!.syndicateId;
 
   if (!syndicateId) {
-    return void res.status(400).json({ error: "Aucun syndicat associé à votre compte" });
+    return void res
+      .status(400)
+      .json({ error: "Aucun syndicat associé à votre compte" });
   }
 
   try {
     const emailLower = email.trim().toLowerCase();
 
-    const [existing] = await db.select().from(usersTable).where(eq(usersTable.email, emailLower));
+    const [existing] = await db
+      .select()
+      .from(usersTable)
+      .where(eq(usersTable.email, emailLower));
     if (existing) {
-      return void res.status(409).json({ error: `L'email ${emailLower} est déjà utilisé` });
+      return void res
+        .status(409)
+        .json({ error: `L'email ${emailLower} est déjà utilisé` });
     }
 
     // Generate a temporary password: 8 random chars (memorable format)
-    const tempPassword = randomBytes(3).toString("hex").toUpperCase() + "-" + randomBytes(2).toString("hex");
+    const tempPassword =
+      randomBytes(3).toString("hex").toUpperCase() +
+      "-" +
+      randomBytes(2).toString("hex");
     const passwordHash = await bcrypt.hash(tempPassword, 10);
 
-    const [newUser] = await db.insert(usersTable).values({
-      name: name.trim(),
-      email: emailLower,
-      phone: phone?.trim() ?? null,
-      passwordHash,
-      role,
-      syndicateId,
-      status: "active",
-    } as any).returning();
+    const [newUser] = await db
+      .insert(usersTable)
+      .values({
+        name: name.trim(),
+        email: emailLower,
+        phone: phone?.trim() ?? null,
+        passwordHash,
+        role,
+        syndicateId,
+        status: "active",
+      } as any)
+      .returning();
 
     // Issue tokens so the invited user can log in immediately
     const accessToken = signToken({
@@ -237,12 +293,25 @@ router.post("/team/invite", requireAuth, requireAdmin, async (req, res) => {
     });
 
     // Get syndicate info for email
-    const [syndicate] = await db.select({ name: syndicatesTable.name }).from(syndicatesTable).where(eq(syndicatesTable.id, syndicateId));
+    const [syndicate] = await db
+      .select({ name: syndicatesTable.name })
+      .from(syndicatesTable)
+      .where(eq(syndicatesTable.id, syndicateId));
 
     // Send invitation email (best-effort)
     try {
-      const { subject, html } = teamInvitationTemplate(name, role, syndicate?.name ?? "votre syndicat", tempPassword);
-      await sendTransactionalEmail({ to: emailLower, subject, html, template: "team_invitation" });
+      const { subject, html } = teamInvitationTemplate(
+        name,
+        role,
+        syndicate?.name ?? "votre syndicat",
+        tempPassword,
+      );
+      await sendTransactionalEmail({
+        to: emailLower,
+        subject,
+        html,
+        template: "team_invitation",
+      });
     } catch (emailErr) {
       req.log.warn(emailErr, "Failed to send team invitation email");
     }

@@ -57,7 +57,11 @@ function formatMoney(v?: number | string | null): string {
 
 function getSyndicate(syndicateId?: string | null) {
   if (!syndicateId) return null;
-  return db.select().from(syndicatesTable).where(eq(syndicatesTable.id, syndicateId)).then((r) => r[0] ?? null);
+  return db
+    .select()
+    .from(syndicatesTable)
+    .where(eq(syndicatesTable.id, syndicateId))
+    .then((r) => r[0] ?? null);
 }
 
 const ROLE_LABELS: Record<string, string> = {
@@ -77,12 +81,37 @@ async function getBadgeContext(user: typeof usersTable.$inferSelect) {
   const syndicate = await getSyndicate(user.syndicateId);
 
   if (user.role === "tenant") {
-    const [tenant] = await db.select().from(tenantsTable).where(eq(tenantsTable.email, user.email));
+    const [tenant] = await db
+      .select()
+      .from(tenantsTable)
+      .where(
+        and(
+          eq(tenantsTable.email, user.email),
+          user.syndicateId
+            ? eq(tenantsTable.syndicateId, user.syndicateId)
+            : undefined,
+        ),
+      );
     const lot = tenant?.lotId
-      ? await db.select().from(lotsTable).where(eq(lotsTable.id, tenant.lotId)).then((r) => r[0] ?? null)
+      ? await db
+          .select()
+          .from(lotsTable)
+          .where(eq(lotsTable.id, tenant.lotId))
+          .then((r) => r[0] ?? null)
       : null;
     const building = tenant?.buildingId
-      ? await db.select().from(buildingsTable).where(eq(buildingsTable.id, tenant.buildingId)).then((r) => r[0] ?? null)
+      ? await db
+          .select()
+          .from(buildingsTable)
+          .where(
+            and(
+              eq(buildingsTable.id, tenant.buildingId),
+              user.syndicateId
+                ? eq(buildingsTable.syndicateId, user.syndicateId)
+                : undefined,
+            ),
+          )
+          .then((r) => r[0] ?? null)
       : null;
     return {
       syndicate,
@@ -95,12 +124,37 @@ async function getBadgeContext(user: typeof usersTable.$inferSelect) {
     };
   }
 
-  const [member] = await db.select().from(membersTable).where(eq(membersTable.email, user.email));
+  const [member] = await db
+    .select()
+    .from(membersTable)
+    .where(
+      and(
+        eq(membersTable.email, user.email),
+        user.syndicateId
+          ? eq(membersTable.syndicateId, user.syndicateId)
+          : undefined,
+      ),
+    );
   const lot = member
-    ? await db.select().from(lotsTable).where(eq(lotsTable.ownerId, member.id)).then((r) => r[0] ?? null)
+    ? await db
+        .select()
+        .from(lotsTable)
+        .where(eq(lotsTable.ownerId, member.id))
+        .then((r) => r[0] ?? null)
     : null;
   const building = lot?.buildingId
-    ? await db.select().from(buildingsTable).where(eq(buildingsTable.id, lot.buildingId)).then((r) => r[0] ?? null)
+    ? await db
+        .select()
+        .from(buildingsTable)
+        .where(
+          and(
+            eq(buildingsTable.id, lot.buildingId),
+            user.syndicateId
+              ? eq(buildingsTable.syndicateId, user.syndicateId)
+              : undefined,
+          ),
+        )
+        .then((r) => r[0] ?? null)
     : null;
   return {
     syndicate,
@@ -159,7 +213,20 @@ function pageHeader(title: string, subtitle?: string) {
     { text: "MIZAN", style: "brand", margin: [0, 0, 0, 2] },
     { text: title, style: "header" },
     ...(subtitle ? [{ text: subtitle, style: "subheader" }] : []),
-    { canvas: [{ type: "line", x1: 0, y1: 0, x2: 515, y2: 0, lineWidth: 2, lineColor: "#2563EB" }], margin: [0, 8, 0, 16] },
+    {
+      canvas: [
+        {
+          type: "line",
+          x1: 0,
+          y1: 0,
+          x2: 515,
+          y2: 0,
+          lineWidth: 2,
+          lineColor: "#2563EB",
+        },
+      ],
+      margin: [0, 8, 0, 16],
+    },
   ];
 }
 
@@ -167,7 +234,12 @@ const styles = {
   brand: { fontSize: 18, bold: true, color: "#2563EB" },
   header: { fontSize: 14, bold: true, color: "#1e293b" },
   subheader: { fontSize: 11, color: "#64748b", margin: [0, 2, 0, 0] },
-  sectionTitle: { fontSize: 11, bold: true, color: "#1e293b", margin: [0, 12, 0, 6] },
+  sectionTitle: {
+    fontSize: 11,
+    bold: true,
+    color: "#1e293b",
+    margin: [0, 12, 0, 6],
+  },
   label: { fontSize: 9, color: "#64748b" },
   value: { fontSize: 10, color: "#1e293b" },
   tableHeader: { fontSize: 9, bold: true, color: "#fff", fillColor: "#2563EB" },
@@ -180,12 +252,25 @@ const styles = {
 router.get("/pdf/invoice/:id", requireAuth, async (req, res) => {
   const id = String(req.params.id) as string;
   try {
-    const [invoice] = await db.select().from(invoicesTable).where(eq(invoicesTable.id, id));
-    if (!invoice) { res.status(404).json({ error: "Facture introuvable" }); return; }
-    if (req.user!.role !== "super_admin" && invoice.syndicateId !== req.user!.syndicateId) {
-      res.status(403).json({ error: "Accès refusé" }); return;
+    const [invoice] = await db
+      .select()
+      .from(invoicesTable)
+      .where(eq(invoicesTable.id, id));
+    if (!invoice) {
+      res.status(404).json({ error: "Facture introuvable" });
+      return;
     }
-    const items = await db.select().from(invoiceItemsTable).where(eq(invoiceItemsTable.invoiceId, id));
+    if (
+      req.user!.role !== "super_admin" &&
+      invoice.syndicateId !== req.user!.syndicateId
+    ) {
+      res.status(403).json({ error: "Accès refusé" });
+      return;
+    }
+    const items = await db
+      .select()
+      .from(invoiceItemsTable)
+      .where(eq(invoiceItemsTable.invoiceId, id));
     const syndicate = await getSyndicate(invoice.syndicateId);
 
     const tableBody = [
@@ -197,9 +282,24 @@ router.get("/pdf/invoice/:id", requireAuth, async (req, res) => {
       ],
       ...items.map((item) => [
         { text: item.label ?? "—", style: "value" },
-        { text: String(item.quantity ?? 1), alignment: "center", style: "value" },
-        { text: formatMoney(item.unitPrice), alignment: "right", style: "value" },
-        { text: formatMoney(parseFloat(String(item.unitPrice ?? 0)) * parseFloat(String(item.quantity ?? 1))), alignment: "right", style: "value" },
+        {
+          text: String(item.quantity ?? 1),
+          alignment: "center",
+          style: "value",
+        },
+        {
+          text: formatMoney(item.unitPrice),
+          alignment: "right",
+          style: "value",
+        },
+        {
+          text: formatMoney(
+            parseFloat(String(item.unitPrice ?? 0)) *
+              parseFloat(String(item.quantity ?? 1)),
+          ),
+          alignment: "right",
+          style: "value",
+        },
       ]),
     ];
 
@@ -207,7 +307,7 @@ router.get("/pdf/invoice/:id", requireAuth, async (req, res) => {
       content: [
         ...pageHeader(
           invoice.type === "devis" ? "DEVIS" : "FACTURE",
-          `Référence: ${invoice.reference ?? id}`
+          `Référence: ${invoice.reference ?? id}`,
         ),
         {
           columns: [
@@ -225,8 +325,20 @@ router.get("/pdf/invoice/:id", requireAuth, async (req, res) => {
         },
         {
           columns: [
-            [{ text: `Date: ${formatDate(invoice.date as any)}`, style: "label", margin: [0, 12, 0, 0] }],
-            [{ text: `Échéance: ${formatDate(invoice.dueDate as any)}`, style: "label", margin: [0, 12, 0, 0] }],
+            [
+              {
+                text: `Date: ${formatDate(invoice.date as any)}`,
+                style: "label",
+                margin: [0, 12, 0, 0],
+              },
+            ],
+            [
+              {
+                text: `Échéance: ${formatDate(invoice.dueDate as any)}`,
+                style: "label",
+                margin: [0, 12, 0, 0],
+              },
+            ],
           ],
         },
         { text: "DÉTAIL", style: "sectionTitle" },
@@ -241,7 +353,14 @@ router.get("/pdf/invoice/:id", requireAuth, async (req, res) => {
               width: "auto",
               table: {
                 body: [
-                  [{ text: "TOTAL TTC", style: "total" }, { text: formatMoney(invoice.amount), style: "total", alignment: "right" }],
+                  [
+                    { text: "TOTAL TTC", style: "total" },
+                    {
+                      text: formatMoney(invoice.amount),
+                      style: "total",
+                      alignment: "right",
+                    },
+                  ],
                 ],
               },
               layout: "noBorders",
@@ -249,7 +368,13 @@ router.get("/pdf/invoice/:id", requireAuth, async (req, res) => {
             },
           ],
         },
-        invoice.proofUrl ? { text: `Pièce justificative: ${invoice.proofUrl}`, style: "label", margin: [0, 16, 0, 0] } : {},
+        invoice.proofUrl
+          ? {
+              text: `Pièce justificative: ${invoice.proofUrl}`,
+              style: "label",
+              margin: [0, 16, 0, 0],
+            }
+          : {},
       ],
       styles,
       footer: (page: number, pages: number) => ({
@@ -272,10 +397,20 @@ router.get("/pdf/invoice/:id", requireAuth, async (req, res) => {
 router.get("/pdf/receipt/:id", requireAuth, async (req, res) => {
   const id = String(req.params.id) as string;
   try {
-    const [tx] = await db.select().from(transactionsTable).where(eq(transactionsTable.id, id));
-    if (!tx) { res.status(404).json({ error: "Transaction introuvable" }); return; }
-    if (req.user!.role !== "super_admin" && tx.syndicateId !== req.user!.syndicateId) {
-      res.status(403).json({ error: "Accès refusé" }); return;
+    const [tx] = await db
+      .select()
+      .from(transactionsTable)
+      .where(eq(transactionsTable.id, id));
+    if (!tx) {
+      res.status(404).json({ error: "Transaction introuvable" });
+      return;
+    }
+    if (
+      req.user!.role !== "super_admin" &&
+      tx.syndicateId !== req.user!.syndicateId
+    ) {
+      res.status(403).json({ error: "Accès refusé" });
+      return;
     }
     const syndicate = await getSyndicate(tx.syndicateId);
 
@@ -286,11 +421,29 @@ router.get("/pdf/receipt/:id", requireAuth, async (req, res) => {
           table: {
             widths: ["*", "*"],
             body: [
-              [{ text: "Date", style: "label" }, { text: formatDate(tx.date as any), style: "value" }],
-              [{ text: "Syndicat", style: "label" }, { text: syndicate?.name ?? "—", style: "value" }],
-              [{ text: "Libellé", style: "label" }, { text: tx.label ?? "—", style: "value" }],
-              [{ text: "Type", style: "label" }, { text: tx.type ?? "—", style: "value" }],
-              [{ text: "Statut", style: "label" }, { text: tx.status === "paid" ? "PAYÉ" : tx.status ?? "—", style: "value" }],
+              [
+                { text: "Date", style: "label" },
+                { text: formatDate(tx.date as any), style: "value" },
+              ],
+              [
+                { text: "Syndicat", style: "label" },
+                { text: syndicate?.name ?? "—", style: "value" },
+              ],
+              [
+                { text: "Libellé", style: "label" },
+                { text: tx.label ?? "—", style: "value" },
+              ],
+              [
+                { text: "Type", style: "label" },
+                { text: tx.type ?? "—", style: "value" },
+              ],
+              [
+                { text: "Statut", style: "label" },
+                {
+                  text: tx.status === "paid" ? "PAYÉ" : (tx.status ?? "—"),
+                  style: "value",
+                },
+              ],
             ],
           },
           layout: "lightHorizontalLines",
@@ -300,7 +453,14 @@ router.get("/pdf/receipt/:id", requireAuth, async (req, res) => {
           table: {
             widths: ["*", "auto"],
             body: [
-              [{ text: "MONTANT TOTAL", style: "total" }, { text: formatMoney(tx.amount), style: "total", alignment: "right" }],
+              [
+                { text: "MONTANT TOTAL", style: "total" },
+                {
+                  text: formatMoney(tx.amount),
+                  style: "total",
+                  alignment: "right",
+                },
+              ],
             ],
           },
           layout: "noBorders",
@@ -345,14 +505,30 @@ router.get("/pdf/receipt/:id", requireAuth, async (req, res) => {
 router.get("/pdf/budget/:id", requireAuth, async (req, res) => {
   const id = String(req.params.id) as string;
   try {
-    const [budget] = await db.select().from(budgetsTable).where(eq(budgetsTable.id, id));
-    if (!budget) { res.status(404).json({ error: "Budget introuvable" }); return; }
-    const [building] = await db.select().from(buildingsTable).where(eq(buildingsTable.id, budget.buildingId));
-    const syndicateId = building?.syndicateId ?? null;
-    if (req.user!.role !== "super_admin" && syndicateId !== req.user!.syndicateId) {
-      res.status(403).json({ error: "Accès refusé" }); return;
+    const [budget] = await db
+      .select()
+      .from(budgetsTable)
+      .where(eq(budgetsTable.id, id));
+    if (!budget) {
+      res.status(404).json({ error: "Budget introuvable" });
+      return;
     }
-    const lines = await db.select().from(budgetLinesTable).where(eq(budgetLinesTable.budgetId, id));
+    const [building] = await db
+      .select()
+      .from(buildingsTable)
+      .where(eq(buildingsTable.id, budget.buildingId));
+    const syndicateId = building?.syndicateId ?? null;
+    if (
+      req.user!.role !== "super_admin" &&
+      syndicateId !== req.user!.syndicateId
+    ) {
+      res.status(403).json({ error: "Accès refusé" });
+      return;
+    }
+    const lines = await db
+      .select()
+      .from(budgetLinesTable)
+      .where(eq(budgetLinesTable.budgetId, id));
     const syndicate = await getSyndicate(syndicateId);
 
     const linesBody = [
@@ -368,7 +544,11 @@ router.get("/pdf/budget/:id", requireAuth, async (req, res) => {
       ...lines.map((l) => [
         { text: l.label ?? "—", style: "value" },
         { text: l.category ?? "—", style: "label" },
-        { text: formatMoney(l.amountAnnual), alignment: "right", style: "value" },
+        {
+          text: formatMoney(l.amountAnnual),
+          alignment: "right",
+          style: "value",
+        },
         { text: formatMoney(l.amountQ1), alignment: "right", style: "label" },
         { text: formatMoney(l.amountQ2), alignment: "right", style: "label" },
         { text: formatMoney(l.amountQ3), alignment: "right", style: "label" },
@@ -379,7 +559,10 @@ router.get("/pdf/budget/:id", requireAuth, async (req, res) => {
     const docDef = {
       pageOrientation: "landscape",
       content: [
-        ...pageHeader(`BUDGET PRÉVISIONNEL ${budget.year ?? ""}`, syndicate?.name ?? ""),
+        ...pageHeader(
+          `BUDGET PRÉVISIONNEL ${budget.year ?? ""}`,
+          syndicate?.name ?? "",
+        ),
         {
           columns: [
             [
@@ -387,9 +570,19 @@ router.get("/pdf/budget/:id", requireAuth, async (req, res) => {
               { text: `Statut: ${budget.status ?? "—"}`, style: "label" },
             ],
             [
-              { text: `Budget total: ${formatMoney(budget.totalAmount)}`, style: "value", bold: true },
-              { text: `Charges: ${formatMoney(budget.chargesAmount)}`, style: "value" },
-              { text: `Fonds de réserve: ${formatMoney(budget.fondsReserve)}`, style: "value" },
+              {
+                text: `Budget total: ${formatMoney(budget.totalAmount)}`,
+                style: "value",
+                bold: true,
+              },
+              {
+                text: `Charges: ${formatMoney(budget.chargesAmount)}`,
+                style: "value",
+              },
+              {
+                text: `Fonds de réserve: ${formatMoney(budget.fondsReserve)}`,
+                style: "value",
+              },
             ],
           ],
           margin: [0, 0, 0, 16],
@@ -425,10 +618,20 @@ router.get("/pdf/budget/:id", requireAuth, async (req, res) => {
 router.get("/pdf/ag/:id", requireAuth, async (req, res) => {
   const id = String(req.params.id) as string;
   try {
-    const [meeting] = await db.select().from(meetingsTable).where(eq(meetingsTable.id, id));
-    if (!meeting) { res.status(404).json({ error: "Réunion introuvable" }); return; }
-    if (req.user!.role !== "super_admin" && meeting.syndicateId !== req.user!.syndicateId) {
-      res.status(403).json({ error: "Accès refusé" }); return;
+    const [meeting] = await db
+      .select()
+      .from(meetingsTable)
+      .where(eq(meetingsTable.id, id));
+    if (!meeting) {
+      res.status(404).json({ error: "Réunion introuvable" });
+      return;
+    }
+    if (
+      req.user!.role !== "super_admin" &&
+      meeting.syndicateId !== req.user!.syndicateId
+    ) {
+      res.status(403).json({ error: "Accès refusé" });
+      return;
     }
     const [{ attendeeCount }] = await db
       .select({ attendeeCount: count() })
@@ -440,37 +643,66 @@ router.get("/pdf/ag/:id", requireAuth, async (req, res) => {
       content: [
         ...pageHeader(
           "PROCÈS-VERBAL D'ASSEMBLÉE GÉNÉRALE",
-          `${meeting.title ?? "Assemblée Générale"} — ${formatDate(meeting.date as any)}`
+          `${meeting.title ?? "Assemblée Générale"} — ${formatDate(meeting.date as any)}`,
         ),
         { text: "INFORMATIONS GÉNÉRALES", style: "sectionTitle" },
         {
           table: {
             widths: ["*", "*"],
             body: [
-              [{ text: "Date", style: "label" }, { text: formatDate(meeting.date as any), style: "value" }],
-              [{ text: "Heure", style: "label" }, { text: meeting.time ?? "—", style: "value" }],
-              [{ text: "Lieu", style: "label" }, { text: meeting.location ?? "—", style: "value" }],
-              [{ text: "Type", style: "label" }, { text: meeting.type ?? "—", style: "value" }],
-              [{ text: "Syndicat", style: "label" }, { text: syndicate?.name ?? "—", style: "value" }],
-              [{ text: "Membres présents", style: "label" }, { text: String(Number(attendeeCount) ?? 0), style: "value" }],
+              [
+                { text: "Date", style: "label" },
+                { text: formatDate(meeting.date as any), style: "value" },
+              ],
+              [
+                { text: "Heure", style: "label" },
+                { text: meeting.time ?? "—", style: "value" },
+              ],
+              [
+                { text: "Lieu", style: "label" },
+                { text: meeting.location ?? "—", style: "value" },
+              ],
+              [
+                { text: "Type", style: "label" },
+                { text: meeting.type ?? "—", style: "value" },
+              ],
+              [
+                { text: "Syndicat", style: "label" },
+                { text: syndicate?.name ?? "—", style: "value" },
+              ],
+              [
+                { text: "Membres présents", style: "label" },
+                { text: String(Number(attendeeCount) ?? 0), style: "value" },
+              ],
             ],
           },
           layout: "lightHorizontalLines",
           margin: [0, 0, 0, 16],
         },
-        meeting.description ? [
-          { text: "DESCRIPTION", style: "sectionTitle" },
-          { text: meeting.description, style: "value", margin: [0, 0, 0, 16] },
-        ] : [],
-        meeting.agenda ? [
-          { text: "ORDRE DU JOUR", style: "sectionTitle" },
-          ...(Array.isArray(meeting.agenda) ? meeting.agenda : [meeting.agenda]).map((item: string, i: number) => ({
-            text: `${i + 1}. ${item}`,
-            style: "value",
-            margin: [0, 2, 0, 2],
-          })),
-        ] : [],
-        { text: "\n\n", },
+        meeting.description
+          ? [
+              { text: "DESCRIPTION", style: "sectionTitle" },
+              {
+                text: meeting.description,
+                style: "value",
+                margin: [0, 0, 0, 16],
+              },
+            ]
+          : [],
+        meeting.agenda
+          ? [
+              { text: "ORDRE DU JOUR", style: "sectionTitle" },
+              ...(Array.isArray(meeting.agenda)
+                ? meeting.agenda
+                : [meeting.agenda]
+              ).map((item: string, i: number) => ({
+                text: `${i + 1}. ${item}`,
+                style: "value",
+                margin: [0, 2, 0, 2],
+              })),
+            ]
+          : [],
+        { text: "\n\n" },
         {
           columns: [
             [
@@ -505,23 +737,58 @@ router.get("/pdf/ag/:id", requireAuth, async (req, res) => {
 
 router.get("/pdf/membership/:userId", requireAuth, async (req, res) => {
   const userId = String(req.params.userId) as string;
-  if (req.user!.role !== "super_admin" && req.user!.role !== "syndicate_admin" && req.user!.userId !== userId) {
-    res.status(403).json({ error: "Accès refusé" }); return;
+  if (
+    req.user!.role !== "super_admin" &&
+    req.user!.role !== "syndicate_admin" &&
+    req.user!.userId !== userId
+  ) {
+    res.status(403).json({ error: "Accès refusé" });
+    return;
   }
   try {
-    const [user] = await db.select().from(usersTable).where(eq(usersTable.id, userId));
-    if (!user) { res.status(404).json({ error: "Utilisateur introuvable" }); return; }
+    const [user] = await db
+      .select()
+      .from(usersTable)
+      .where(eq(usersTable.id, userId));
+    if (!user) {
+      res.status(404).json({ error: "Utilisateur introuvable" });
+      return;
+    }
+    if (
+      req.user!.role === "syndicate_admin" &&
+      (!req.user!.syndicateId || user.syndicateId !== req.user!.syndicateId)
+    ) {
+      res.status(403).json({ error: "Accès refusé" });
+      return;
+    }
     const syndicate = await getSyndicate(user.syndicateId);
-    const [member] = await db.select().from(membersTable).where(eq(membersTable.email, user.email));
+    const [member] = await db
+      .select()
+      .from(membersTable)
+      .where(
+        and(
+          eq(membersTable.email, user.email),
+          user.syndicateId
+            ? eq(membersTable.syndicateId, user.syndicateId)
+            : undefined,
+        ),
+      );
 
     // Fetch member's lot
     const lot = member
-      ? await db.select().from(lotsTable).where(eq(lotsTable.ownerId, member.id)).then((r) => r[0] ?? null)
+      ? await db
+          .select()
+          .from(lotsTable)
+          .where(eq(lotsTable.ownerId, member.id))
+          .then((r) => r[0] ?? null)
       : null;
 
     // Generate QR code pointing to public badge verification endpoint
     const verifyUrl = `${process.env.APP_URL ?? "https://mizan.ma"}/verify/badge/${userId}`;
-    const qrDataUrl = await QRCode.toDataURL(verifyUrl, { width: 120, margin: 1 });
+    const qrDataUrl = await QRCode.toDataURL(verifyUrl, {
+      width: 120,
+      margin: 1,
+    });
 
     const docDef = {
       content: [
@@ -531,18 +798,58 @@ router.get("/pdf/membership/:userId", requireAuth, async (req, res) => {
             {
               width: "*",
               stack: [
-                { text: "Nous soussignés, certifions que :", style: "value", margin: [0, 20, 0, 20] },
+                {
+                  text: "Nous soussignés, certifions que :",
+                  style: "value",
+                  margin: [0, 20, 0, 20],
+                },
                 {
                   table: {
                     widths: ["*", "*"],
                     body: [
-                      [{ text: "Nom complet", style: "label" }, { text: user.name, style: "value" }],
-                      [{ text: "Email", style: "label" }, { text: user.email, style: "value" }],
-                      [{ text: "CIN", style: "label" }, { text: user.cin ?? "—", style: "value" }],
-                      [{ text: "Téléphone", style: "label" }, { text: user.phone ?? "—", style: "value" }],
-                      [{ text: "Lot / Appartement", style: "label" }, { text: lot ? `N° ${lot.number} (Étage ${lot.floor ?? 0})` : "—", style: "value" }],
-                      [{ text: "Date d'adhésion", style: "label" }, { text: formatDate(member?.joinDate) ?? formatDate(user.createdAt?.toString()), style: "value" }],
-                      [{ text: "Statut", style: "label" }, { text: "MEMBRE ACTIF", bold: true, color: "#059669", style: "value" }],
+                      [
+                        { text: "Nom complet", style: "label" },
+                        { text: user.name, style: "value" },
+                      ],
+                      [
+                        { text: "Email", style: "label" },
+                        { text: user.email, style: "value" },
+                      ],
+                      [
+                        { text: "CIN", style: "label" },
+                        { text: user.cin ?? "—", style: "value" },
+                      ],
+                      [
+                        { text: "Téléphone", style: "label" },
+                        { text: user.phone ?? "—", style: "value" },
+                      ],
+                      [
+                        { text: "Lot / Appartement", style: "label" },
+                        {
+                          text: lot
+                            ? `N° ${lot.number} (Étage ${lot.floor ?? 0})`
+                            : "—",
+                          style: "value",
+                        },
+                      ],
+                      [
+                        { text: "Date d'adhésion", style: "label" },
+                        {
+                          text:
+                            formatDate(member?.joinDate) ??
+                            formatDate(user.createdAt?.toString()),
+                          style: "value",
+                        },
+                      ],
+                      [
+                        { text: "Statut", style: "label" },
+                        {
+                          text: "MEMBRE ACTIF",
+                          bold: true,
+                          color: "#059669",
+                          style: "value",
+                        },
+                      ],
                     ],
                   },
                   layout: "lightHorizontalLines",
@@ -554,7 +861,12 @@ router.get("/pdf/membership/:userId", requireAuth, async (req, res) => {
               width: "auto",
               stack: [
                 { image: qrDataUrl, width: 110, margin: [16, 20, 0, 4] },
-                { text: "Vérifier ce badge", style: "label", alignment: "center", margin: [16, 0, 0, 0] },
+                {
+                  text: "Vérifier ce badge",
+                  style: "label",
+                  alignment: "center",
+                  margin: [16, 0, 0, 0],
+                },
               ],
             },
           ],
@@ -567,8 +879,14 @@ router.get("/pdf/membership/:userId", requireAuth, async (req, res) => {
         {
           columns: [
             [
-              { text: `Fait à ${syndicate?.address?.split(",").pop()?.trim() ?? ""}`, style: "label" },
-              { text: `Le ${new Date().toLocaleDateString("fr-MA")}`, style: "label" },
+              {
+                text: `Fait à ${syndicate?.address?.split(",").pop()?.trim() ?? ""}`,
+                style: "label",
+              },
+              {
+                text: `Le ${new Date().toLocaleDateString("fr-MA")}`,
+                style: "label",
+              },
             ],
             [
               { text: "\n\n_____________________________", style: "label" },
@@ -580,7 +898,11 @@ router.get("/pdf/membership/:userId", requireAuth, async (req, res) => {
       styles,
     };
 
-    await sendPdf(res, docDef, `certificat-adhesion-${user.name.replace(/\s+/g, "-")}.pdf`);
+    await sendPdf(
+      res,
+      docDef,
+      `certificat-adhesion-${user.name.replace(/\s+/g, "-")}.pdf`,
+    );
   } catch (err) {
     req.log.error({ err }, "PDF membership error");
     res.status(500).json({ error: "Erreur de génération PDF" });
@@ -595,11 +917,34 @@ router.get("/pdf/membership/:userId", requireAuth, async (req, res) => {
 const CARD_W = 243; // ~85.6mm — standard ID card width in points
 const CARD_H = 153; // ~53.98mm — standard ID card height in points
 
-const CARD_THEMES: Record<string, { bg: string; accent: string; text: string; roleLabel: string }> = {
-  super_admin: { bg: "#111827", accent: "#d4af37", text: "#f5f0e0", roleLabel: "DIRECTION" },
-  syndicate_admin: { bg: "#5b21b6", accent: "#e9d5ff", text: "#ffffff", roleLabel: "GESTION" },
-  member: { bg: "#065f46", accent: "#d1fae5", text: "#ffffff", roleLabel: "RÉSIDENT" },
-  tenant: { bg: "#1e3a8a", accent: "#dbeafe", text: "#ffffff", roleLabel: "LOCATAIRE" },
+const CARD_THEMES: Record<
+  string,
+  { bg: string; accent: string; text: string; roleLabel: string }
+> = {
+  super_admin: {
+    bg: "#111827",
+    accent: "#d4af37",
+    text: "#f5f0e0",
+    roleLabel: "DIRECTION",
+  },
+  syndicate_admin: {
+    bg: "#5b21b6",
+    accent: "#e9d5ff",
+    text: "#ffffff",
+    roleLabel: "GESTION",
+  },
+  member: {
+    bg: "#065f46",
+    accent: "#d1fae5",
+    text: "#ffffff",
+    roleLabel: "RÉSIDENT",
+  },
+  tenant: {
+    bg: "#1e3a8a",
+    accent: "#dbeafe",
+    text: "#ffffff",
+    roleLabel: "LOCATAIRE",
+  },
 };
 
 function badgeVerificationCode(badgeId: string): string {
@@ -607,77 +952,312 @@ function badgeVerificationCode(badgeId: string): string {
   for (let i = 0; i < badgeId.length; i++) {
     hash = (hash * 31 + badgeId.charCodeAt(i)) & 0xffffffff;
   }
-  const code = Math.abs(hash).toString(36).toUpperCase().padStart(6, "0").slice(0, 6);
+  const code = Math.abs(hash)
+    .toString(36)
+    .toUpperCase()
+    .padStart(6, "0")
+    .slice(0, 6);
   return `${code.slice(0, 3)}-${code.slice(3)}`;
 }
 
 router.get("/pdf/badge/:userId", requireAuth, async (req, res) => {
   const userId = String(req.params.userId) as string;
-  if (req.user!.role !== "super_admin" && req.user!.role !== "syndicate_admin" && req.user!.userId !== userId) {
-    res.status(403).json({ error: "Accès refusé" }); return;
+  if (
+    req.user!.role !== "super_admin" &&
+    req.user!.role !== "syndicate_admin" &&
+    req.user!.userId !== userId
+  ) {
+    res.status(403).json({ error: "Accès refusé" });
+    return;
   }
   try {
-    const [user] = await db.select().from(usersTable).where(eq(usersTable.id, userId));
-    if (!user) { res.status(404).json({ error: "Utilisateur introuvable" }); return; }
+    const [user] = await db
+      .select()
+      .from(usersTable)
+      .where(eq(usersTable.id, userId));
+    if (!user) {
+      res.status(404).json({ error: "Utilisateur introuvable" });
+      return;
+    }
+    if (
+      req.user!.role === "syndicate_admin" &&
+      (!req.user!.syndicateId || user.syndicateId !== req.user!.syndicateId)
+    ) {
+      res.status(403).json({ error: "Accès refusé" });
+      return;
+    }
     const ctx = await getBadgeContext(user);
 
     const theme = CARD_THEMES[user.role] ?? CARD_THEMES.member;
-    const rolePrefix = { super_admin: "SA", syndicate_admin: "AD", member: "PR", tenant: "LO" }[user.role] ?? "MB";
+    const rolePrefix =
+      { super_admin: "SA", syndicate_admin: "AD", member: "PR", tenant: "LO" }[
+        user.role
+      ] ?? "MB";
     const badgeId = `SGC-${rolePrefix}-${user.id.slice(-8).toUpperCase()}`;
-    const initials = user.name.split(" ").map((n) => n[0]).join("").slice(0, 2).toUpperCase();
-    const issueDate = ctx.joinDate ?? (user.createdAt ? new Date(user.createdAt as any).toISOString().split("T")[0] : null);
+    const initials = user.name
+      .split(" ")
+      .map((n) => n[0])
+      .join("")
+      .slice(0, 2)
+      .toUpperCase();
+    const issueDate =
+      ctx.joinDate ??
+      (user.createdAt
+        ? new Date(user.createdAt as any).toISOString().split("T")[0]
+        : null);
     const isActive = user.status === "active";
-    const locationLine = [ctx.building?.name, ctx.lot ? `Lot ${ctx.lot.number}` : null].filter(Boolean).join(" · ");
+    const locationLine = [
+      ctx.building?.name,
+      ctx.lot ? `Lot ${ctx.lot.number}` : null,
+    ]
+      .filter(Boolean)
+      .join(" · ");
     const verifyUrl = `${process.env.APP_URL ?? "https://mizan.ma"}/verify/badge/${userId}`;
-    const qrDataUrl = await QRCode.toDataURL(verifyUrl, { width: 200, margin: 0, color: { dark: "#111827", light: "#ffffff" } });
+    const qrDataUrl = await QRCode.toDataURL(verifyUrl, {
+      width: 200,
+      margin: 0,
+      color: { dark: "#111827", light: "#ffffff" },
+    });
     const verifCode = badgeVerificationCode(badgeId);
 
-    const bg = (color: string) => ({ canvas: [{ type: "rect", x: 0, y: 0, w: CARD_W, h: CARD_H, color }] });
+    const bg = (color: string) => ({
+      canvas: [{ type: "rect", x: 0, y: 0, w: CARD_W, h: CARD_H, color }],
+    });
 
     // ─ Recto (front) ─
     const front = [
       bg(theme.bg),
-      { text: "MIZAN", color: theme.text, bold: true, fontSize: 9.5, absolutePosition: { x: 16, y: 14 } },
-      { text: "Carte d'identité officielle", color: theme.accent, fontSize: 7, absolutePosition: { x: 16, y: 25 } },
       {
-        canvas: [{ type: "rect", x: 0, y: 0, w: 78, h: 15, r: 8, color: theme.bg, lineColor: theme.accent, lineWidth: 1 }],
+        text: "MIZAN",
+        color: theme.text,
+        bold: true,
+        fontSize: 9.5,
+        absolutePosition: { x: 16, y: 14 },
+      },
+      {
+        text: "Carte d'identité officielle",
+        color: theme.accent,
+        fontSize: 7,
+        absolutePosition: { x: 16, y: 25 },
+      },
+      {
+        canvas: [
+          {
+            type: "rect",
+            x: 0,
+            y: 0,
+            w: 78,
+            h: 15,
+            r: 8,
+            color: theme.bg,
+            lineColor: theme.accent,
+            lineWidth: 1,
+          },
+        ],
         absolutePosition: { x: 149, y: 13 },
       },
-      { text: theme.roleLabel, color: theme.accent, bold: true, fontSize: 6.5, absolutePosition: { x: 149, y: 17 }, width: 78, alignment: "center" },
       {
-        canvas: [{ type: "ellipse", x: 22, y: 22, r1: 22, r2: 22, color: "#ffffff", fillOpacity: 0.15, lineColor: theme.accent, lineWidth: 1 }],
+        text: theme.roleLabel,
+        color: theme.accent,
+        bold: true,
+        fontSize: 6.5,
+        absolutePosition: { x: 149, y: 17 },
+        width: 78,
+        alignment: "center",
+      },
+      {
+        canvas: [
+          {
+            type: "ellipse",
+            x: 22,
+            y: 22,
+            r1: 22,
+            r2: 22,
+            color: "#ffffff",
+            fillOpacity: 0.15,
+            lineColor: theme.accent,
+            lineWidth: 1,
+          },
+        ],
         absolutePosition: { x: 16, y: 40 },
       },
-      { text: initials, color: theme.text, bold: true, fontSize: 15, absolutePosition: { x: 22, y: 55 } },
-      { text: user.name, color: theme.text, bold: true, fontSize: 13, absolutePosition: { x: 74, y: 44 }, width: 155 },
-      { text: ROLE_LABELS[user.role] ?? user.role, color: theme.accent, bold: true, fontSize: 9, absolutePosition: { x: 74, y: 60 } },
-      ...(ctx.syndicate?.name ? [{ text: ctx.syndicate.name, color: theme.text, fontSize: 8, absolutePosition: { x: 74, y: 73 }, width: 155 }] : []),
-      ...(locationLine ? [{ text: locationLine, color: theme.text, opacity: 0.85, fontSize: 8, absolutePosition: { x: 74, y: 84 }, width: 155 }] : []),
-      { canvas: [{ type: "line", x1: 0, y1: 0, x2: CARD_W - 32, y2: 0, lineWidth: 0.5, lineColor: theme.accent }], absolutePosition: { x: 16, y: 108 } },
       {
-        canvas: [{ type: "rect", x: 0, y: 0, w: 60, h: 13, r: 7, color: isActive ? "#4ade8030" : "#f8717130" }],
+        text: initials,
+        color: theme.text,
+        bold: true,
+        fontSize: 15,
+        absolutePosition: { x: 22, y: 55 },
+      },
+      {
+        text: user.name,
+        color: theme.text,
+        bold: true,
+        fontSize: 13,
+        absolutePosition: { x: 74, y: 44 },
+        width: 155,
+      },
+      {
+        text: ROLE_LABELS[user.role] ?? user.role,
+        color: theme.accent,
+        bold: true,
+        fontSize: 9,
+        absolutePosition: { x: 74, y: 60 },
+      },
+      ...(ctx.syndicate?.name
+        ? [
+            {
+              text: ctx.syndicate.name,
+              color: theme.text,
+              fontSize: 8,
+              absolutePosition: { x: 74, y: 73 },
+              width: 155,
+            },
+          ]
+        : []),
+      ...(locationLine
+        ? [
+            {
+              text: locationLine,
+              color: theme.text,
+              opacity: 0.85,
+              fontSize: 8,
+              absolutePosition: { x: 74, y: 84 },
+              width: 155,
+            },
+          ]
+        : []),
+      {
+        canvas: [
+          {
+            type: "line",
+            x1: 0,
+            y1: 0,
+            x2: CARD_W - 32,
+            y2: 0,
+            lineWidth: 0.5,
+            lineColor: theme.accent,
+          },
+        ],
+        absolutePosition: { x: 16, y: 108 },
+      },
+      {
+        canvas: [
+          {
+            type: "rect",
+            x: 0,
+            y: 0,
+            w: 60,
+            h: 13,
+            r: 7,
+            color: isActive ? "#4ade8030" : "#f8717130",
+          },
+        ],
         absolutePosition: { x: 16, y: 116 },
       },
-      { text: isActive ? "● ACTIF" : "● SUSPENDU", color: isActive ? "#4ade80" : "#f87171", bold: true, fontSize: 7, absolutePosition: { x: 22, y: 119 } },
-      { text: badgeId, color: theme.accent, bold: true, fontSize: 9, absolutePosition: { x: 16, y: 131 } },
-      { text: `Délivrée le ${formatDate(issueDate as any)}`, color: theme.text, opacity: 0.7, fontSize: 6.5, absolutePosition: { x: 16, y: 142 } },
-      { image: qrDataUrl, width: 38, height: 38, absolutePosition: { x: 189, y: 105 } },
+      {
+        text: isActive ? "● ACTIF" : "● SUSPENDU",
+        color: isActive ? "#4ade80" : "#f87171",
+        bold: true,
+        fontSize: 7,
+        absolutePosition: { x: 22, y: 119 },
+      },
+      {
+        text: badgeId,
+        color: theme.accent,
+        bold: true,
+        fontSize: 9,
+        absolutePosition: { x: 16, y: 131 },
+      },
+      {
+        text: `Délivrée le ${formatDate(issueDate as any)}`,
+        color: theme.text,
+        opacity: 0.7,
+        fontSize: 6.5,
+        absolutePosition: { x: 16, y: 142 },
+      },
+      {
+        image: qrDataUrl,
+        width: 38,
+        height: 38,
+        absolutePosition: { x: 189, y: 105 },
+      },
     ];
 
     // ─ Verso (back) ─
     const back = [
       bg(theme.bg),
-      { text: "VÉRIFICATION D'IDENTITÉ", color: theme.text, bold: true, fontSize: 10, absolutePosition: { x: 16, y: 14 } },
-      { image: qrDataUrl, width: 58, height: 58, absolutePosition: { x: 16, y: 34 } },
-      { text: "CODE DE VÉRIFICATION", color: theme.accent, fontSize: 6.5, bold: true, absolutePosition: { x: 86, y: 36 } },
-      { text: verifCode, color: theme.text, bold: true, fontSize: 13, absolutePosition: { x: 86, y: 45 } },
-      { text: "SUPPORT", color: theme.accent, fontSize: 6.5, bold: true, absolutePosition: { x: 86, y: 66 } },
-      { text: "support@mizan.ma", color: theme.text, fontSize: 8.5, absolutePosition: { x: 86, y: 75 } },
-      { canvas: [{ type: "line", x1: 0, y1: 0, x2: CARD_W - 32, y2: 0, lineWidth: 0.5, lineColor: theme.accent }], absolutePosition: { x: 16, y: 98 } },
-      ...(ctx.emergencyContact || ctx.emergencyPhone || ctx.phone ? [
-        { text: "CONTACT D'URGENCE", color: theme.accent, fontSize: 6.5, bold: true, absolutePosition: { x: 16, y: 104 } },
-        { text: `${ctx.emergencyContact ?? user.name} · ${ctx.emergencyPhone ?? ctx.phone ?? "—"}`, color: theme.text, fontSize: 7.5, absolutePosition: { x: 16, y: 113 }, width: CARD_W - 32 },
-      ] : []),
+      {
+        text: "VÉRIFICATION D'IDENTITÉ",
+        color: theme.text,
+        bold: true,
+        fontSize: 10,
+        absolutePosition: { x: 16, y: 14 },
+      },
+      {
+        image: qrDataUrl,
+        width: 58,
+        height: 58,
+        absolutePosition: { x: 16, y: 34 },
+      },
+      {
+        text: "CODE DE VÉRIFICATION",
+        color: theme.accent,
+        fontSize: 6.5,
+        bold: true,
+        absolutePosition: { x: 86, y: 36 },
+      },
+      {
+        text: verifCode,
+        color: theme.text,
+        bold: true,
+        fontSize: 13,
+        absolutePosition: { x: 86, y: 45 },
+      },
+      {
+        text: "SUPPORT",
+        color: theme.accent,
+        fontSize: 6.5,
+        bold: true,
+        absolutePosition: { x: 86, y: 66 },
+      },
+      {
+        text: "support@mizan.ma",
+        color: theme.text,
+        fontSize: 8.5,
+        absolutePosition: { x: 86, y: 75 },
+      },
+      {
+        canvas: [
+          {
+            type: "line",
+            x1: 0,
+            y1: 0,
+            x2: CARD_W - 32,
+            y2: 0,
+            lineWidth: 0.5,
+            lineColor: theme.accent,
+          },
+        ],
+        absolutePosition: { x: 16, y: 98 },
+      },
+      ...(ctx.emergencyContact || ctx.emergencyPhone || ctx.phone
+        ? [
+            {
+              text: "CONTACT D'URGENCE",
+              color: theme.accent,
+              fontSize: 6.5,
+              bold: true,
+              absolutePosition: { x: 16, y: 104 },
+            },
+            {
+              text: `${ctx.emergencyContact ?? user.name} · ${ctx.emergencyPhone ?? ctx.phone ?? "—"}`,
+              color: theme.text,
+              fontSize: 7.5,
+              absolutePosition: { x: 16, y: 113 },
+              width: CARD_W - 32,
+            },
+          ]
+        : []),
       {
         text: "Cette carte est la propriété de MIZAN. En cas de perte, merci de la retourner ou de contacter le support. Toute falsification est passible de poursuites.",
         color: theme.text,
@@ -691,13 +1271,14 @@ router.get("/pdf/badge/:userId", requireAuth, async (req, res) => {
     const docDef = {
       pageSize: { width: CARD_W, height: CARD_H },
       pageMargins: [0, 0, 0, 0],
-      content: [
-        { stack: front },
-        { stack: back, pageBreak: "before" },
-      ],
+      content: [{ stack: front }, { stack: back, pageBreak: "before" }],
     };
 
-    await sendPdf(res, docDef, `carte-identite-${user.name.replace(/\s+/g, "-")}.pdf`);
+    await sendPdf(
+      res,
+      docDef,
+      `carte-identite-${user.name.replace(/\s+/g, "-")}.pdf`,
+    );
   } catch (err) {
     req.log.error({ err }, "PDF badge error");
     res.status(500).json({ error: "Erreur de génération PDF" });
@@ -710,12 +1291,25 @@ router.get("/pdf/badge/:userId", requireAuth, async (req, res) => {
 
 router.get("/badge/me", requireAuth, async (req, res) => {
   try {
-    const [user] = await db.select().from(usersTable).where(eq(usersTable.id, req.user!.userId));
-    if (!user) { res.status(404).json({ error: "Utilisateur introuvable" }); return; }
+    const [user] = await db
+      .select()
+      .from(usersTable)
+      .where(eq(usersTable.id, req.user!.userId));
+    if (!user) {
+      res.status(404).json({ error: "Utilisateur introuvable" });
+      return;
+    }
     const ctx = await getBadgeContext(user);
 
-    const issueDate = ctx.joinDate ?? (user.createdAt ? new Date(user.createdAt as any).toISOString().split("T")[0] : null);
-    const rolePrefix = { super_admin: "SA", syndicate_admin: "AD", member: "PR", tenant: "LO" }[user.role] ?? "MB";
+    const issueDate =
+      ctx.joinDate ??
+      (user.createdAt
+        ? new Date(user.createdAt as any).toISOString().split("T")[0]
+        : null);
+    const rolePrefix =
+      { super_admin: "SA", syndicate_admin: "AD", member: "PR", tenant: "LO" }[
+        user.role
+      ] ?? "MB";
     const badgeId = `SGC-${rolePrefix}-${user.id.slice(-8).toUpperCase()}`;
 
     res.json({
@@ -752,8 +1346,14 @@ router.get("/badge/me", requireAuth, async (req, res) => {
 router.get("/verify/badge/:userId", async (req, res) => {
   const { userId } = req.params as { userId: string };
   try {
-    const [user] = await db.select().from(usersTable).where(eq(usersTable.id, userId));
-    if (!user) { res.status(404).json({ valid: false, error: "Badge introuvable" }); return; }
+    const [user] = await db
+      .select()
+      .from(usersTable)
+      .where(eq(usersTable.id, userId));
+    if (!user) {
+      res.status(404).json({ valid: false, error: "Badge introuvable" });
+      return;
+    }
     const ctx = await getBadgeContext(user);
     // Public endpoint (anyone scanning the QR badge) — must not leak contact PII
     // such as email or phone; only what's needed to confirm the badge is legitimate.
@@ -764,9 +1364,15 @@ router.get("/verify/badge/:userId", async (req, res) => {
       roleLabel: ROLE_LABELS[user.role] ?? user.role,
       syndicateName: ctx.syndicate?.name ?? null,
       buildingName: ctx.building?.name ?? null,
-      lot: ctx.lot ? `N° ${ctx.lot.number} — Étage ${ctx.lot.floor ?? 0}` : null,
+      lot: ctx.lot
+        ? `N° ${ctx.lot.number} — Étage ${ctx.lot.floor ?? 0}`
+        : null,
       status: user.status === "active" ? "ACTIF" : "SUSPENDU",
-      joinDate: ctx.joinDate ?? (user.createdAt ? new Date(user.createdAt as any).toISOString().split("T")[0] : null),
+      joinDate:
+        ctx.joinDate ??
+        (user.createdAt
+          ? new Date(user.createdAt as any).toISOString().split("T")[0]
+          : null),
       verifiedAt: new Date().toISOString(),
     });
   } catch (err) {
@@ -784,12 +1390,13 @@ router.get("/verify/badge/:userId", async (req, res) => {
 router.get("/pdf/escalation/:id", async (req, res) => {
   try {
     // Support both Authorization header and ?token= query param (for mobile openURL)
-    let bearerToken: string | undefined =
-      req.headers.authorization?.startsWith("Bearer ")
-        ? req.headers.authorization.slice(7)
-        : typeof req.query.token === "string"
-          ? req.query.token
-          : undefined;
+    let bearerToken: string | undefined = req.headers.authorization?.startsWith(
+      "Bearer ",
+    )
+      ? req.headers.authorization.slice(7)
+      : typeof req.query.token === "string"
+        ? req.query.token
+        : undefined;
 
     if (!bearerToken) {
       res.status(401).json({ error: "Non authentifié" });
@@ -799,7 +1406,10 @@ router.get("/pdf/escalation/:id", async (req, res) => {
     // Verify token manually (same logic as requireAuth middleware)
     const jwt = await import("jsonwebtoken");
     const jwtSecret = process.env.JWT_SECRET;
-    if (!jwtSecret) { res.status(500).json({ error: "Configuration serveur invalide" }); return; }
+    if (!jwtSecret) {
+      res.status(500).json({ error: "Configuration serveur invalide" });
+      return;
+    }
 
     let userPayload: any;
     try {
@@ -810,7 +1420,10 @@ router.get("/pdf/escalation/:id", async (req, res) => {
     }
 
     // Require admin role — formal debt letters are not visible to members/tenants
-    if (userPayload.role !== "super_admin" && userPayload.role !== "syndicate_admin") {
+    if (
+      userPayload.role !== "super_admin" &&
+      userPayload.role !== "syndicate_admin"
+    ) {
       res.status(403).json({ error: "Accès réservé aux administrateurs" });
       return;
     }
@@ -828,18 +1441,31 @@ router.get("/pdf/escalation/:id", async (req, res) => {
       return;
     }
 
-    if (user.role !== "super_admin" && escalation.syndicateId !== user.syndicateId) {
+    if (
+      user.role !== "super_admin" &&
+      escalation.syndicateId !== user.syndicateId
+    ) {
       res.status(403).json({ error: "Accès refusé" });
       return;
     }
 
     const [syndicate, lot, member, unpaidAppels] = await Promise.all([
-      escalation.syndicateId ? getSyndicate(escalation.syndicateId) : Promise.resolve(null),
+      escalation.syndicateId
+        ? getSyndicate(escalation.syndicateId)
+        : Promise.resolve(null),
       escalation.lotId
-        ? db.select().from(lotsTable).where(eq(lotsTable.id, escalation.lotId)).then((r) => r[0] ?? null)
+        ? db
+            .select()
+            .from(lotsTable)
+            .where(eq(lotsTable.id, escalation.lotId))
+            .then((r) => r[0] ?? null)
         : Promise.resolve(null),
       escalation.memberId
-        ? db.select().from(membersTable).where(eq(membersTable.id, escalation.memberId)).then((r) => r[0] ?? null)
+        ? db
+            .select()
+            .from(membersTable)
+            .where(eq(membersTable.id, escalation.memberId))
+            .then((r) => r[0] ?? null)
         : Promise.resolve(null),
       escalation.lotId
         ? db
@@ -856,7 +1482,10 @@ router.get("/pdf/escalation/:id", async (req, res) => {
 
     let building = null;
     if (lot?.buildingId) {
-      const rows = await db.select().from(buildingsTable).where(eq(buildingsTable.id, lot.buildingId));
+      const rows = await db
+        .select()
+        .from(buildingsTable)
+        .where(eq(buildingsTable.id, lot.buildingId));
       building = rows[0] ?? null;
     }
 
@@ -872,12 +1501,16 @@ router.get("/pdf/escalation/:id", async (req, res) => {
       reminder: "Rappel de paiement — Charges impayées",
       warning: "Mise en demeure de payer",
       final_warning: "Dernière mise en demeure avant action judiciaire",
-      agm_proposal: "Proposition de convocation d'une Assemblée Générale Extraordinaire",
+      agm_proposal:
+        "Proposition de convocation d'une Assemblée Générale Extraordinaire",
       legal_action: "Transmission du dossier au conseil juridique",
     };
     // NOTE: `amount` is already formatted with currency (e.g. "1 250,00 MAD") via formatMoney().
     // Do NOT append "MAD" again in these template strings.
-    const letterBodies: Record<string, (amount: string, months: number) => string[]> = {
+    const letterBodies: Record<
+      string,
+      (amount: string, months: number) => string[]
+    > = {
       reminder: (amount, months) => [
         `Nous avons constaté que votre compte présente un solde impayé de ${amount} correspondant à ${months} mois de charges non réglées.`,
         "Nous vous rappelons que le règlement de vos charges de copropriété est une obligation légale en vertu du Dahir 1-57-119 relatif à la copropriété des immeubles bâtis.",
@@ -931,10 +1564,22 @@ router.get("/pdf/escalation/:id", async (req, res) => {
       ],
       ...unpaidAppels.map((a) => [
         { text: a.period ?? "—", style: "value" },
-        { text: a.type === "charges_courantes" ? "Charges courantes" : a.type === "fonds_reserve" ? "Fonds réserve" : a.type ?? "—", style: "value" },
+        {
+          text:
+            a.type === "charges_courantes"
+              ? "Charges courantes"
+              : a.type === "fonds_reserve"
+                ? "Fonds réserve"
+                : (a.type ?? "—"),
+          style: "value",
+        },
         { text: formatDate(a.dueDate), style: "value" },
         { text: formatMoney(a.amount), style: "value", alignment: "right" },
-        { text: a.status === "overdue" ? "En retard" : "En attente", style: "label", alignment: "center" },
+        {
+          text: a.status === "overdue" ? "En retard" : "En attente",
+          style: "label",
+          alignment: "center",
+        },
       ]),
     ];
 
@@ -951,7 +1596,11 @@ router.get("/pdf/escalation/:id", async (req, res) => {
         {
           columns: [
             { text: `Réf.: ${refNum}`, style: "label" },
-            { text: `Casablanca, le ${formatDate(today.toISOString())}`, style: "label", alignment: "right" },
+            {
+              text: `Casablanca, le ${formatDate(today.toISOString())}`,
+              style: "label",
+              alignment: "right",
+            },
           ],
           margin: [0, 0, 0, 16],
         },
@@ -960,17 +1609,34 @@ router.get("/pdf/escalation/:id", async (req, res) => {
           columns: [
             [
               { text: "ÉMETTEUR", style: "sectionTitle" },
-              { text: syndicate?.name ?? "Syndicat des copropriétaires", style: "value", bold: true },
-              { text: syndicate?.address ?? (building?.address ?? ""), style: "label" },
+              {
+                text: syndicate?.name ?? "Syndicat des copropriétaires",
+                style: "value",
+                bold: true,
+              },
+              {
+                text: syndicate?.address ?? building?.address ?? "",
+                style: "label",
+              },
               { text: syndicate?.email ?? "", style: "label" },
               { text: syndicate?.phone ?? "", style: "label" },
             ],
             [
               { text: "DESTINATAIRE", style: "sectionTitle" },
-              { text: member?.name ?? escalation.memberName ?? "Le copropriétaire", style: "value", bold: true },
+              {
+                text:
+                  member?.name ?? escalation.memberName ?? "Le copropriétaire",
+                style: "value",
+                bold: true,
+              },
               { text: member?.email ?? "", style: "label" },
               { text: member?.phone ?? "", style: "label" },
-              { text: lot ? `Lot N° ${lot.number}${building ? ` — ${building.name}` : ""}` : "", style: "label" },
+              {
+                text: lot
+                  ? `Lot N° ${lot.number}${building ? ` — ${building.name}` : ""}`
+                  : "",
+                style: "label",
+              },
             ],
           ],
           margin: [0, 0, 0, 16],
@@ -990,7 +1656,11 @@ router.get("/pdf/escalation/:id", async (req, res) => {
           alignment: "justify",
         })),
         // Unpaid charges table
-        { text: "DÉTAIL DES CHARGES IMPAYÉES", style: "sectionTitle", margin: [0, 12, 0, 6] },
+        {
+          text: "DÉTAIL DES CHARGES IMPAYÉES",
+          style: "sectionTitle",
+          margin: [0, 12, 0, 6],
+        },
         unpaidAppels.length > 0
           ? {
               table: {
@@ -1000,7 +1670,10 @@ router.get("/pdf/escalation/:id", async (req, res) => {
               },
               layout: "lightHorizontalLines",
             }
-          : { text: `Montant total impayé: ${formatMoney(escalation.totalOverdue)}`, style: "value" },
+          : {
+              text: `Montant total impayé: ${formatMoney(escalation.totalOverdue)}`,
+              style: "value",
+            },
         // Total
         {
           columns: [
@@ -1012,7 +1685,11 @@ router.get("/pdf/escalation/:id", async (req, res) => {
                 body: [
                   [
                     { text: "TOTAL IMPAYÉ", style: "total" },
-                    { text: formatMoney(escalation.totalOverdue), style: "total", alignment: "right" },
+                    {
+                      text: formatMoney(escalation.totalOverdue),
+                      style: "total",
+                      alignment: "right",
+                    },
                   ],
                 ],
               },
@@ -1030,15 +1707,24 @@ router.get("/pdf/escalation/:id", async (req, res) => {
           columns: [
             { text: "", width: "*" },
             [
-              { text: "Le Syndic", style: "value", bold: true, alignment: "right" },
-              { text: syndicate?.name ?? "", style: "label", alignment: "right" },
+              {
+                text: "Le Syndic",
+                style: "value",
+                bold: true,
+                alignment: "right",
+              },
+              {
+                text: syndicate?.name ?? "",
+                style: "label",
+                alignment: "right",
+              },
             ],
           ],
           margin: [0, 0, 0, 0],
         },
         // Footer note
         {
-        text: `Document généré automatiquement le ${formatDate(today.toISOString())} | Réf. ${refNum} | MIZAN Platform`,
+          text: `Document généré automatiquement le ${formatDate(today.toISOString())} | Réf. ${refNum} | MIZAN Platform`,
           style: "footer",
           margin: [0, 24, 0, 0],
           alignment: "center",
@@ -1064,10 +1750,17 @@ router.get("/pdf/acte/:id", requireAuth, async (req, res) => {
   const { role, syndicateId } = req.user!;
   try {
     const { actesAdministratifsTable } = await import("@workspace/db/schema");
-    const [acte] = await db.select().from(actesAdministratifsTable).where(eq(actesAdministratifsTable.id, id));
-    if (!acte) { res.status(404).json({ error: "Acte introuvable" }); return; }
+    const [acte] = await db
+      .select()
+      .from(actesAdministratifsTable)
+      .where(eq(actesAdministratifsTable.id, id));
+    if (!acte) {
+      res.status(404).json({ error: "Acte introuvable" });
+      return;
+    }
     if (role !== "super_admin" && acte.syndicateId !== syndicateId) {
-      res.status(403).json({ error: "Accès refusé" }); return;
+      res.status(403).json({ error: "Accès refusé" });
+      return;
     }
     const syndicate = await getSyndicate(acte.syndicateId);
 
@@ -1091,10 +1784,17 @@ router.get("/pdf/acte/:id", requireAuth, async (req, res) => {
 
     const sigRows = (acte.signataires ?? []).map((s) => [
       { text: s, style: "value" },
-      { text: "✓ Signé", style: "value", color: "#10b981", alignment: "right" as const },
+      {
+        text: "✓ Signé",
+        style: "value",
+        color: "#10b981",
+        alignment: "right" as const,
+      },
     ]);
 
-    const destRows = (acte.destinataires ?? []).map((d) => [{ text: d, style: "value" }]);
+    const destRows = (acte.destinataires ?? []).map((d) => [
+      { text: d, style: "value" },
+    ]);
 
     const docDef = {
       content: [
@@ -1106,11 +1806,33 @@ router.get("/pdf/acte/:id", requireAuth, async (req, res) => {
           table: {
             widths: ["*", "*"],
             body: [
-              [{ text: "N° de référence", style: "label" }, { text: acte.numero, style: "value" }],
-              [{ text: "Date", style: "label" }, { text: formatDate(acte.date), style: "value" }],
-              ...(acte.dateEcheance ? [[{ text: "Échéance", style: "label" }, { text: formatDate(acte.dateEcheance), style: "value" }]] : []),
-              [{ text: "Statut", style: "label" }, { text: STATUT_LABELS[acte.statut] ?? acte.statut.toUpperCase(), style: "value" }],
-              [{ text: "Auteur", style: "label" }, { text: acte.auteur, style: "value" }],
+              [
+                { text: "N° de référence", style: "label" },
+                { text: acte.numero, style: "value" },
+              ],
+              [
+                { text: "Date", style: "label" },
+                { text: formatDate(acte.date), style: "value" },
+              ],
+              ...(acte.dateEcheance
+                ? [
+                    [
+                      { text: "Échéance", style: "label" },
+                      { text: formatDate(acte.dateEcheance), style: "value" },
+                    ],
+                  ]
+                : []),
+              [
+                { text: "Statut", style: "label" },
+                {
+                  text: STATUT_LABELS[acte.statut] ?? acte.statut.toUpperCase(),
+                  style: "value",
+                },
+              ],
+              [
+                { text: "Auteur", style: "label" },
+                { text: acte.auteur, style: "value" },
+              ],
             ],
           },
           layout: "lightHorizontalLines",
@@ -1118,26 +1840,36 @@ router.get("/pdf/acte/:id", requireAuth, async (req, res) => {
         },
         { text: "OBJET", style: "sectionTitle" },
         { text: acte.objet, style: "value", margin: [0, 0, 0, 16] },
-        ...(acte.resumeContenu ? [
-          { text: "CONTENU", style: "sectionTitle" },
-          { text: acte.resumeContenu, style: "value", margin: [0, 0, 0, 16] },
-        ] : []),
-        ...(sigRows.length > 0 ? [
-          { text: "SIGNATAIRES", style: "sectionTitle" },
-          {
-            table: { widths: ["*", "auto"], body: sigRows },
-            layout: "lightHorizontalLines",
-            margin: [0, 0, 0, 16],
-          },
-        ] : []),
-        ...(destRows.length > 0 ? [
-          { text: "DESTINATAIRES", style: "sectionTitle" },
-          {
-            table: { widths: ["*"], body: destRows },
-            layout: "lightHorizontalLines",
-            margin: [0, 0, 0, 16],
-          },
-        ] : []),
+        ...(acte.resumeContenu
+          ? [
+              { text: "CONTENU", style: "sectionTitle" },
+              {
+                text: acte.resumeContenu,
+                style: "value",
+                margin: [0, 0, 0, 16],
+              },
+            ]
+          : []),
+        ...(sigRows.length > 0
+          ? [
+              { text: "SIGNATAIRES", style: "sectionTitle" },
+              {
+                table: { widths: ["*", "auto"], body: sigRows },
+                layout: "lightHorizontalLines",
+                margin: [0, 0, 0, 16],
+              },
+            ]
+          : []),
+        ...(destRows.length > 0
+          ? [
+              { text: "DESTINATAIRES", style: "sectionTitle" },
+              {
+                table: { widths: ["*"], body: destRows },
+                layout: "lightHorizontalLines",
+                margin: [0, 0, 0, 16],
+              },
+            ]
+          : []),
         {
           columns: [
             [
@@ -1145,8 +1877,17 @@ router.get("/pdf/acte/:id", requireAuth, async (req, res) => {
               { text: "Signature autorisée", style: "label" },
             ],
             [
-              { text: syndicate?.name ?? "", style: "value", bold: true, alignment: "right" as const },
-              { text: syndicate?.address ?? "", style: "label", alignment: "right" as const },
+              {
+                text: syndicate?.name ?? "",
+                style: "value",
+                bold: true,
+                alignment: "right" as const,
+              },
+              {
+                text: syndicate?.address ?? "",
+                style: "label",
+                alignment: "right" as const,
+              },
             ],
           ],
           margin: [0, 30, 0, 0],

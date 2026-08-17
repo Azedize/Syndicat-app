@@ -268,3 +268,7 @@
 - Audited `artifacts/api-server/src/routes/escalation.ts` and `governance.ts`.
 - Added fail-closed scope middleware to escalation and governance routes; constrained overdue debt loading by scoped building/lot IDs and removed the resident-history fallback that could query by member ID without a syndicate predicate.
 - Verified with API typecheck, API build, `git diff --check`, managed workflow restart, clean scheduler/SMTP/document-scan logs, `/api/healthz` (`200`), and unauthenticated escalation/governance probes (`401`).
+- Audited the shared `requireOperationalAccess` boundary and financial attachment/finance-dashboard routes.
+- Management-team requests without a JWT `syndicateId` now stop at middleware with `403`; invoice attachment listing is restricted to financial management roles; treasurer access now matches the finance buildings dashboard contract.
+- Added server audit entries for transaction, salary, cash, invoice, and delivery-note creation/status mutations, preserving the existing syndicate row checks and non-blocking audit behavior.
+- API typecheck, production build, `git diff --check`, managed API restart, `/api/healthz` (`200`), and unauthenticated finance/attachment probes (`401`) passed. Restart logs show the current development database is missing `appels_de_fonds`, `documents`, and `syndicate_subscriptions`, which is separate from application startup.

@@ -25,24 +25,36 @@ const router = Router();
 // ─── Role → colour token ────────────────────────────────────────────────────
 function roleColor(role: string | null | undefined): string {
   switch (role) {
-    case "syndicate_admin": return "#2563EB";
-    case "president":       return "#7C3AED";
-    case "treasurer":       return "#059669";
-    case "secretary":       return "#EA580C";
-    case "committee_member":return "#6B7280";
-    default:                return "#6B7280";
+    case "syndicate_admin":
+      return "#2563EB";
+    case "president":
+      return "#7C3AED";
+    case "treasurer":
+      return "#059669";
+    case "secretary":
+      return "#EA580C";
+    case "committee_member":
+      return "#6B7280";
+    default:
+      return "#6B7280";
   }
 }
 
 // ─── Role → label ───────────────────────────────────────────────────────────
 function roleLabel(role: string | null | undefined): string {
   switch (role) {
-    case "syndicate_admin":  return "Admin de Syndicat";
-    case "president":        return "Président";
-    case "treasurer":        return "Trésorier";
-    case "secretary":        return "Secrétaire";
-    case "committee_member": return "Membre du Bureau";
-    default:                 return "Membre";
+    case "syndicate_admin":
+      return "Admin de Syndicat";
+    case "president":
+      return "Président";
+    case "treasurer":
+      return "Trésorier";
+    case "secretary":
+      return "Secrétaire";
+    case "committee_member":
+      return "Membre du Bureau";
+    default:
+      return "Membre";
   }
 }
 
@@ -62,46 +74,161 @@ function rolePermissions(role: string | null | undefined) {
     case "syndicate_admin":
       return {
         ...base,
-        modules: ["Administration", "Membres", "Finance", "Documents", "Réunions", "Gouvernance", "Marketplace", "Support"],
-        approvalRights: ["Toutes les dépenses", "Membres", "Documents", "Fournisseurs"],
-        signatureRights: ["Tous documents", "Contrats", "PV d'assemblée", "Actes administratifs"],
+        modules: [
+          "Administration",
+          "Membres",
+          "Finance",
+          "Documents",
+          "Réunions",
+          "Gouvernance",
+          "Marketplace",
+          "Support",
+        ],
+        approvalRights: [
+          "Toutes les dépenses",
+          "Membres",
+          "Documents",
+          "Fournisseurs",
+        ],
+        signatureRights: [
+          "Tous documents",
+          "Contrats",
+          "PV d'assemblée",
+          "Actes administratifs",
+        ],
         reportsAccess: ["Financiers", "Activité", "Statistiques", "Audit"],
-        documentAccess: ["Création", "Modification", "Archivage", "Publication"],
-        financialAccess: ["Budget", "Charges", "Paiements", "Comptabilité", "Recouvrement"],
-        permissions: ["Gestion plateforme", "Gestion utilisateurs", "Configuration résidence", "Paramètres globaux", "Permissions"],
+        documentAccess: [
+          "Création",
+          "Modification",
+          "Archivage",
+          "Publication",
+        ],
+        financialAccess: [
+          "Budget",
+          "Charges",
+          "Paiements",
+          "Comptabilité",
+          "Recouvrement",
+        ],
+        permissions: [
+          "Gestion plateforme",
+          "Gestion utilisateurs",
+          "Configuration résidence",
+          "Paramètres globaux",
+          "Permissions",
+        ],
       };
     case "president":
       return {
         ...base,
-        modules: ["Gouvernance", "Assemblées", "Documents", "Réunions", "Travaux", "Budget"],
-        approvalRights: ["Décisions AG", "Travaux > 50 000 MAD", "Contrats prestataires"],
-        signatureRights: ["PV d'assemblée", "Contrats", "Décisions officielles", "Actes notariaux"],
+        modules: [
+          "Gouvernance",
+          "Assemblées",
+          "Documents",
+          "Réunions",
+          "Travaux",
+          "Budget",
+        ],
+        approvalRights: [
+          "Décisions AG",
+          "Travaux > 50 000 MAD",
+          "Contrats prestataires",
+        ],
+        signatureRights: [
+          "PV d'assemblée",
+          "Contrats",
+          "Décisions officielles",
+          "Actes notariaux",
+        ],
         reportsAccess: ["Gouvernance", "Financiers (lecture)", "Activité"],
         documentAccess: ["Lecture", "Signature", "Approbation"],
         financialAccess: ["Budget (lecture)", "Rapport financier (lecture)"],
-        permissions: ["Gouvernance", "Prises de décision", "Approbations", "Signatures", "Direction stratégique"],
+        permissions: [
+          "Gouvernance",
+          "Prises de décision",
+          "Approbations",
+          "Signatures",
+          "Direction stratégique",
+        ],
       };
     case "treasurer":
       return {
         ...base,
-        modules: ["Finance", "Charges", "Budget", "Rapports financiers", "Recouvrement"],
-        approvalRights: ["Dépenses opérationnelles", "Appels de fonds", "Remboursements"],
-        signatureRights: ["Chèques", "Virements", "Rapports financiers", "Reçus de paiement"],
-        reportsAccess: ["Financiers complets", "Trésorerie", "Recouvrement", "Budget vs Réel"],
-        documentAccess: ["Documents financiers", "Factures", "Bons de livraison"],
-        financialAccess: ["Paiements", "Charges", "Budget", "Rapports", "Recouvrement", "Gestion trésorerie"],
-        permissions: ["Paiements", "Charges", "Budget", "Rapports financiers", "Recouvrement", "Gestion trésorerie"],
+        modules: [
+          "Finance",
+          "Charges",
+          "Budget",
+          "Rapports financiers",
+          "Recouvrement",
+        ],
+        approvalRights: [
+          "Dépenses opérationnelles",
+          "Appels de fonds",
+          "Remboursements",
+        ],
+        signatureRights: [
+          "Chèques",
+          "Virements",
+          "Rapports financiers",
+          "Reçus de paiement",
+        ],
+        reportsAccess: [
+          "Financiers complets",
+          "Trésorerie",
+          "Recouvrement",
+          "Budget vs Réel",
+        ],
+        documentAccess: [
+          "Documents financiers",
+          "Factures",
+          "Bons de livraison",
+        ],
+        financialAccess: [
+          "Paiements",
+          "Charges",
+          "Budget",
+          "Rapports",
+          "Recouvrement",
+          "Gestion trésorerie",
+        ],
+        permissions: [
+          "Paiements",
+          "Charges",
+          "Budget",
+          "Rapports financiers",
+          "Recouvrement",
+          "Gestion trésorerie",
+        ],
       };
     case "secretary":
       return {
         ...base,
-        modules: ["Réunions", "Documents", "PV", "Publications", "Annonces", "Messagerie"],
+        modules: [
+          "Réunions",
+          "Documents",
+          "PV",
+          "Publications",
+          "Annonces",
+          "Messagerie",
+        ],
         approvalRights: ["Ordres du jour", "Convocations", "Publications"],
         signatureRights: ["Convocations", "PV de réunion", "Correspondances"],
         reportsAccess: ["Activité des réunions", "Documents archivés"],
-        documentAccess: ["Création", "Archivage", "Publication", "Gestion complète"],
+        documentAccess: [
+          "Création",
+          "Archivage",
+          "Publication",
+          "Gestion complète",
+        ],
         financialAccess: [],
-        permissions: ["Réunions", "Minutes", "Documents", "Publications", "Archives", "Suivi administratif"],
+        permissions: [
+          "Réunions",
+          "Minutes",
+          "Documents",
+          "Publications",
+          "Archives",
+          "Suivi administratif",
+        ],
       };
     case "committee_member":
       return {
@@ -112,7 +239,13 @@ function rolePermissions(role: string | null | undefined) {
         reportsAccess: ["Rapports d'activité (lecture)"],
         documentAccess: ["Lecture uniquement"],
         financialAccess: ["Budget (lecture)"],
-        permissions: ["Participation aux décisions", "Vote", "Présence aux réunions", "Révision documents", "Support gouvernance"],
+        permissions: [
+          "Participation aux décisions",
+          "Vote",
+          "Présence aux réunions",
+          "Révision documents",
+          "Support gouvernance",
+        ],
       };
     default:
       return base;
@@ -127,12 +260,17 @@ router.get("/organigramme", requireAuth, async (req, res) => {
     // Super admin sees everything — but uses /organigramme/national for the global view.
     // For a specific syndicate view (when super_admin selects one), fall through normally.
     if (!user.syndicateId && user.role !== "super_admin") {
-      return void res.json({ data: null });
+      return void res
+        .status(403)
+        .json({ error: "Syndicat non défini dans le token" });
     }
 
     const syndicateId = user.syndicateId;
     if (!syndicateId) {
-      return void res.json({ data: null, message: "Sélectionnez un syndicat pour voir l'organigramme." });
+      return void res.json({
+        data: null,
+        message: "Sélectionnez un syndicat pour voir l'organigramme.",
+      });
     }
 
     // ── Syndicate info ──────────────────────────────────────────────────────
@@ -188,7 +326,12 @@ router.get("/organigramme", requireAuth, async (req, res) => {
       .orderBy(desc(conseilSyndicalTable.createdAt));
 
     // ── Build hierarchy nodes ───────────────────────────────────────────────
-    const ROLE_ORDER = ["president", "treasurer", "secretary", "committee_member"];
+    const ROLE_ORDER = [
+      "president",
+      "treasurer",
+      "secretary",
+      "committee_member",
+    ];
 
     const adminNodes = admins.map((a) => ({
       id: a.id,
@@ -208,7 +351,8 @@ router.get("/organigramme", requireAuth, async (req, res) => {
 
     const councilNodes = council.map((c) => {
       const endDate = c.mandateEnd ?? "";
-      const isExpiring = endDate && endDate >= nowStr && endDate <= ninetyDaysStr;
+      const isExpiring =
+        endDate && endDate >= nowStr && endDate <= ninetyDaysStr;
       const isExpired = endDate && endDate < nowStr;
       return {
         id: c.id,
@@ -234,7 +378,9 @@ router.get("/organigramme", requireAuth, async (req, res) => {
     const vacantPositions = REQUIRED_ROLES.filter((r) => !presentRoles.has(r));
 
     const activeMandates = council.length;
-    const expiringMandates = councilNodes.filter((n) => n.status === "expiring").length;
+    const expiringMandates = councilNodes.filter(
+      (n) => n.status === "expiring",
+    ).length;
     const expiredMandates = allMandates.filter((m) => {
       const end = m.mandateEnd;
       return m.status === "active" && end && end < nowStr;
@@ -243,13 +389,17 @@ router.get("/organigramme", requireAuth, async (req, res) => {
     // Governance alerts
     const alerts: string[] = [];
     if (vacantPositions.length > 0) {
-      alerts.push(`${vacantPositions.length} poste(s) vacant(s): ${vacantPositions.map(roleLabel).join(", ")}`);
+      alerts.push(
+        `${vacantPositions.length} poste(s) vacant(s): ${vacantPositions.map(roleLabel).join(", ")}`,
+      );
     }
     if (expiringMandates > 0) {
       alerts.push(`${expiringMandates} mandat(s) expirant(s) dans 90 jours`);
     }
     if (expiredMandates > 0) {
-      alerts.push(`${expiredMandates} mandat(s) expiré(s) — renouvellement requis`);
+      alerts.push(
+        `${expiredMandates} mandat(s) expiré(s) — renouvellement requis`,
+      );
     }
     if (admins.length === 0) {
       alerts.push("Aucun administrateur de syndicat assigné");
@@ -259,18 +409,22 @@ router.get("/organigramme", requireAuth, async (req, res) => {
     const president = councilNodes.find((n) => n.role === "president") ?? null;
     const treasurer = councilNodes.find((n) => n.role === "treasurer") ?? null;
     const secretary = councilNodes.find((n) => n.role === "secretary") ?? null;
-    const committeeMembers = councilNodes.filter((n) => n.role === "committee_member");
+    const committeeMembers = councilNodes.filter(
+      (n) => n.role === "committee_member",
+    );
 
     res.json({
       data: {
-        syndicate: syndicate ? {
-          id: syndicate.id,
-          name: syndicate.name,
-          address: syndicate.address ?? "",
-          city: syndicate.city ?? "",
-          foundingDate: syndicate.foundingDate ?? "",
-          logoColor: syndicate.logoColor ?? "#7c3aed",
-        } : null,
+        syndicate: syndicate
+          ? {
+              id: syndicate.id,
+              name: syndicate.name,
+              address: syndicate.address ?? "",
+              city: syndicate.city ?? "",
+              foundingDate: syndicate.foundingDate ?? "",
+              logoColor: syndicate.logoColor ?? "#7c3aed",
+            }
+          : null,
         hierarchy: {
           admins: adminNodes,
           president,
@@ -311,29 +465,37 @@ router.get("/organigramme/national", requireAuth, async (req, res) => {
       return void res.status(403).json({ error: "Accès refusé" });
     }
 
-    const syndicates = await db.select().from(syndicatesTable).orderBy(desc(syndicatesTable.createdAt));
+    const syndicates = await db
+      .select()
+      .from(syndicatesTable)
+      .orderBy(desc(syndicatesTable.createdAt));
 
     const syndicateIds = syndicates.map((s) => s.id);
 
     // Batch-load council members and buildings for all syndicates
     const [allCouncil, allBuildings, allMembers] = await Promise.all([
       syndicateIds.length > 0
-        ? db.select().from(conseilSyndicalTable).where(
-            and(
-              inArray(conseilSyndicalTable.syndicateId, syndicateIds),
-              eq(conseilSyndicalTable.status, "active"),
-            ),
-          )
+        ? db
+            .select()
+            .from(conseilSyndicalTable)
+            .where(
+              and(
+                inArray(conseilSyndicalTable.syndicateId, syndicateIds),
+                eq(conseilSyndicalTable.status, "active"),
+              ),
+            )
         : Promise.resolve([]),
       syndicateIds.length > 0
-        ? db.select({ syndicateId: buildingsTable.syndicateId }).from(buildingsTable).where(
-            inArray(buildingsTable.syndicateId, syndicateIds),
-          )
+        ? db
+            .select({ syndicateId: buildingsTable.syndicateId })
+            .from(buildingsTable)
+            .where(inArray(buildingsTable.syndicateId, syndicateIds))
         : Promise.resolve([]),
       syndicateIds.length > 0
-        ? db.select({ syndicateId: membersTable.syndicateId }).from(membersTable).where(
-            inArray(membersTable.syndicateId, syndicateIds),
-          )
+        ? db
+            .select({ syndicateId: membersTable.syndicateId })
+            .from(membersTable)
+            .where(inArray(membersTable.syndicateId, syndicateIds))
         : Promise.resolve([]),
     ]);
 
@@ -341,21 +503,28 @@ router.get("/organigramme/national", requireAuth, async (req, res) => {
     const REQUIRED_ROLES = ["president", "treasurer", "secretary"];
 
     const syndicateData = syndicates.map((s) => {
-      const council = (allCouncil as any[]).filter((c: any) => c.syndicateId === s.id);
+      const council = (allCouncil as any[]).filter(
+        (c: any) => c.syndicateId === s.id,
+      );
       const buildings = allBuildings.filter((b: any) => b.syndicateId === s.id);
       const members = allMembers.filter((m: any) => m.syndicateId === s.id);
       const presentRoles = new Set(council.map((c: any) => c.role));
       const vacantRoles = REQUIRED_ROLES.filter((r) => !presentRoles.has(r));
-      const expiredMandates = council.filter((c: any) => c.mandateEnd && c.mandateEnd < now).length;
+      const expiredMandates = council.filter(
+        (c: any) => c.mandateEnd && c.mandateEnd < now,
+      ).length;
 
       let governanceStatus: "healthy" | "warning" | "critical" = "healthy";
-      if (vacantRoles.length > 0 || expiredMandates > 0) governanceStatus = "warning";
+      if (vacantRoles.length > 0 || expiredMandates > 0)
+        governanceStatus = "warning";
       if (vacantRoles.length >= 2) governanceStatus = "critical";
 
       const president = council.find((c: any) => c.role === "president");
       const alerts: string[] = [];
-      if (vacantRoles.length > 0) alerts.push(`${vacantRoles.length} poste(s) vacant(s)`);
-      if (expiredMandates > 0) alerts.push(`${expiredMandates} mandat(s) expiré(s)`);
+      if (vacantRoles.length > 0)
+        alerts.push(`${vacantRoles.length} poste(s) vacant(s)`);
+      if (expiredMandates > 0)
+        alerts.push(`${expiredMandates} mandat(s) expiré(s)`);
 
       return {
         id: s.id,
@@ -372,14 +541,22 @@ router.get("/organigramme/national", requireAuth, async (req, res) => {
         vacantRoles,
         expiredMandates,
         governanceStatus,
-        president: president ? { name: president.name, email: president.email ?? "" } : null,
+        president: president
+          ? { name: president.name, email: president.email ?? "" }
+          : null,
         alerts,
       };
     });
 
-    const healthy = syndicateData.filter((s) => s.governanceStatus === "healthy").length;
-    const warnings = syndicateData.filter((s) => s.governanceStatus === "warning").length;
-    const critical = syndicateData.filter((s) => s.governanceStatus === "critical").length;
+    const healthy = syndicateData.filter(
+      (s) => s.governanceStatus === "healthy",
+    ).length;
+    const warnings = syndicateData.filter(
+      (s) => s.governanceStatus === "warning",
+    ).length;
+    const critical = syndicateData.filter(
+      (s) => s.governanceStatus === "critical",
+    ).length;
 
     res.json({
       data: {
@@ -389,8 +566,14 @@ router.get("/organigramme/national", requireAuth, async (req, res) => {
           healthy,
           warnings,
           critical,
-          totalVacancies: syndicateData.reduce((a, s) => a + s.vacantPositions, 0),
-          totalExpired: syndicateData.reduce((a, s) => a + s.expiredMandates, 0),
+          totalVacancies: syndicateData.reduce(
+            (a, s) => a + s.vacantPositions,
+            0,
+          ),
+          totalExpired: syndicateData.reduce(
+            (a, s) => a + s.expiredMandates,
+            0,
+          ),
         },
       },
     });

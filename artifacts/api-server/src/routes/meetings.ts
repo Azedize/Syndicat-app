@@ -1,7 +1,7 @@
 import { Router } from "express";
 import { z } from "zod";
 import { db } from "@workspace/db";
-import { meetingsTable, meetingAttendeesTable, usersTable } from "@workspace/db/schema";
+import { meetingsTable, meetingAttendeesTable, usersTable, syndicatesTable } from "@workspace/db/schema";
 import { eq, and, inArray, asc, ne } from "drizzle-orm";
 import { requireAuth, requireRole } from "../middleware/auth.js";
 import { serverAuditLog } from "../lib/audit.js";
@@ -76,21 +76,39 @@ router.post("/meetings", requireAuth, requireRole("super_admin", "syndicate_admi
     type: z.enum(ALL_MEETING_TYPES).default("general"),
     description: z.string().default(""),
     agenda: z.string().optional(),
+    syndicateId: z.string().optional(),
   });
   const result = schema.safeParse(req.body);
   if (!result.success) { res.status(400).json({ error: "Données invalides" }); return; }
   try {
     const user = req.user!;
 
-    // All non-super_admin roles must have syndicateId — hard fail to prevent unscoped records.
-    // Covers syndicate_admin, president, and secretary who can now create meetings.
-    if (user.role !== "super_admin" && !user.syndicateId) {
-      return void res.status(403).json({ error: "Syndicat non défini dans le token" });
+    if (user.role === "super_admin" && req.query.supervision !== "true") {
+      return void res.status(403).json({
+        error: "Les Super Admins doivent activer le mode supervision pour créer une réunion.",
+        code: "SUPERVISION_REQUIRED",
+      });
     }
 
-    const syndicateId = user.syndicateId ?? "";
+    const { syndicateId: requestedSyndicateId, ...meetingData } = result.data;
+    const syndicateId = user.role === "super_admin" ? requestedSyndicateId : user.syndicateId;
+    if (!syndicateId) {
+      return void res.status(user.role === "super_admin" ? 400 : 403).json({
+        error: user.role === "super_admin"
+          ? "Un syndicat cible est requis"
+          : "Syndicat non défini dans le token",
+      });
+    }
+    const [targetSyndicate] = await db
+      .select({ id: syndicatesTable.id })
+      .from(syndicatesTable)
+      .where(eq(syndicatesTable.id, syndicateId));
+    if (!targetSyndicate) {
+      return void res.status(404).json({ error: "Syndicat introuvable" });
+    }
+
     const [meeting] = await db.insert(meetingsTable).values({
-      ...result.data,
+      ...meetingData,
       syndicateId,
       status: "scheduled",
       createdBy: user.userId,

@@ -14,8 +14,12 @@ import {
 } from "@workspace/db/schema";
 import { eq, desc, count, inArray } from "drizzle-orm";
 import { requireAuth, requireFinanceAccess } from "../middleware/auth.js";
-import { syndicateWhere, effectiveSyndicateId } from "../lib/syndicate-filter.js";
+import {
+  syndicateWhere,
+  effectiveSyndicateId,
+} from "../lib/syndicate-filter.js";
 import { getPagination, buildPagedResponse } from "../lib/paginate.js";
+import { serverAuditLog } from "../lib/audit.js";
 
 const router = Router();
 
@@ -30,7 +34,9 @@ router.get(
     try {
       const where = syndicateWhere(req, transactionsTable.syndicateId);
       const [rows, [{ value: total }]] = await Promise.all([
-        db.select().from(transactionsTable)
+        db
+          .select()
+          .from(transactionsTable)
           .where(where)
           .orderBy(desc(transactionsTable.createdAt))
           .limit(pagination.limit)
@@ -62,12 +68,17 @@ router.post(
         proofUrl: z.string().optional(),
       })
       .refine((d) => d.type !== "depense" || !!d.proofUrl, {
-        message: "Un justificatif (facture) est obligatoire pour toute dépense.",
+        message:
+          "Un justificatif (facture) est obligatoire pour toute dépense.",
         path: ["proofUrl"],
       });
     const result = schema.safeParse(req.body);
     if (!result.success) {
-      res.status(400).json({ error: result.error.issues[0]?.message ?? "Données invalides" });
+      res
+        .status(400)
+        .json({
+          error: result.error.issues[0]?.message ?? "Données invalides",
+        });
       return;
     }
     try {
@@ -77,6 +88,13 @@ router.post(
         .insert(transactionsTable)
         .values({ ...data, syndicateId: sid } as any)
         .returning();
+      await serverAuditLog(req, {
+        action: "CREATE",
+        entity: "transaction",
+        entityId: row.id,
+        syndicateId: sid,
+        details: `${row.label} — ${row.amount}`,
+      });
       res.status(201).json({ data: row, message: "Transaction ajoutée" });
     } catch (err) {
       req.log.error(err);
@@ -97,18 +115,38 @@ router.patch(
       status: z.enum(["paid", "pending", "overdue"]),
     });
     const result = schema.safeParse(req.body);
-    if (!result.success) { res.status(400).json({ error: "Statut invalide" }); return; }
+    if (!result.success) {
+      res.status(400).json({ error: "Statut invalide" });
+      return;
+    }
     try {
-      const [tx] = await db.select().from(transactionsTable).where(eq(transactionsTable.id, id));
-      if (!tx) { res.status(404).json({ error: "Transaction introuvable" }); return; }
-      if (req.user!.role !== "super_admin" && tx.syndicateId !== req.user!.syndicateId) {
-        res.status(403).json({ error: "Accès refusé" }); return;
+      const [tx] = await db
+        .select()
+        .from(transactionsTable)
+        .where(eq(transactionsTable.id, id));
+      if (!tx) {
+        res.status(404).json({ error: "Transaction introuvable" });
+        return;
+      }
+      if (
+        req.user!.role !== "super_admin" &&
+        tx.syndicateId !== req.user!.syndicateId
+      ) {
+        res.status(403).json({ error: "Accès refusé" });
+        return;
       }
       const [updated] = await db
         .update(transactionsTable)
         .set({ status: result.data.status })
         .where(eq(transactionsTable.id, id))
         .returning();
+      await serverAuditLog(req, {
+        action: "UPDATE_STATUS",
+        entity: "transaction",
+        entityId: id,
+        syndicateId: tx.syndicateId ?? undefined,
+        details: result.data.status,
+      });
       res.json({ data: updated, message: "Statut mis à jour" });
     } catch (err) {
       req.log.error(err);
@@ -128,7 +166,9 @@ router.get(
     try {
       const where = syndicateWhere(req, salaryRecordsTable.syndicateId);
       const [rows, [{ value: total }]] = await Promise.all([
-        db.select().from(salaryRecordsTable)
+        db
+          .select()
+          .from(salaryRecordsTable)
           .where(where)
           .orderBy(desc(salaryRecordsTable.createdAt))
           .limit(pagination.limit)
@@ -158,7 +198,10 @@ router.post(
       syndicateId: z.string().optional(),
     });
     const result = schema.safeParse(req.body);
-    if (!result.success) { res.status(400).json({ error: "Données invalides" }); return; }
+    if (!result.success) {
+      res.status(400).json({ error: "Données invalides" });
+      return;
+    }
     try {
       const sid = effectiveSyndicateId(req, result.data.syndicateId);
       const { syndicateId: _sid, ...data } = result.data;
@@ -166,6 +209,13 @@ router.post(
         .insert(salaryRecordsTable)
         .values({ ...data, syndicateId: sid } as any)
         .returning();
+      await serverAuditLog(req, {
+        action: "CREATE",
+        entity: "salary",
+        entityId: row.id,
+        syndicateId: sid,
+        details: `${row.employee} — ${row.month}`,
+      });
       res.status(201).json({ data: row, message: "Salaire ajouté" });
     } catch (err) {
       req.log.error(err);
@@ -185,7 +235,9 @@ router.get(
     try {
       const where = syndicateWhere(req, caisseEntriesTable.syndicateId);
       const [rows, [{ value: total }]] = await Promise.all([
-        db.select().from(caisseEntriesTable)
+        db
+          .select()
+          .from(caisseEntriesTable)
           .where(where)
           .orderBy(desc(caisseEntriesTable.createdAt))
           .limit(pagination.limit)
@@ -214,7 +266,10 @@ router.post(
       syndicateId: z.string().optional(),
     });
     const result = schema.safeParse(req.body);
-    if (!result.success) { res.status(400).json({ error: "Données invalides" }); return; }
+    if (!result.success) {
+      res.status(400).json({ error: "Données invalides" });
+      return;
+    }
     try {
       const syndicateId = effectiveSyndicateId(req, result.data.syndicateId);
       const { syndicateId: _sid, ...data } = result.data;
@@ -223,7 +278,9 @@ router.post(
       await db.transaction(async (tx) => {
         // Advisory lock keyed on syndicateId — prevents concurrent caisse writes
         // from reading the same lastBalance and producing wrong running totals.
-        await tx.execute(sql`SELECT pg_advisory_xact_lock(hashtext(${syndicateId}))`);
+        await tx.execute(
+          sql`SELECT pg_advisory_xact_lock(hashtext(${syndicateId}))`,
+        );
 
         const existing = await tx
           .select()
@@ -245,6 +302,13 @@ router.post(
         newRow = row;
       });
 
+      await serverAuditLog(req, {
+        action: "CREATE",
+        entity: "caisse_entry",
+        entityId: newRow!.id,
+        syndicateId,
+        details: `${newRow!.label} — ${newRow!.amount}`,
+      });
       res.status(201).json({ data: newRow!, message: "Entrée caisse ajoutée" });
     } catch (err) {
       req.log.error(err);
@@ -255,52 +319,52 @@ router.post(
 
 // ─── Invoices ─────────────────────────────────────────────────────────────────
 
-router.get(
-  "/invoices",
-  requireAuth,
-  requireFinanceAccess,
-  async (req, res) => {
-    const pagination = getPagination(req);
-    try {
-      const where = syndicateWhere(req, invoicesTable.syndicateId);
-      const [rows, [{ value: total }]] = await Promise.all([
-        db.select().from(invoicesTable)
-          .where(where)
-          .orderBy(desc(invoicesTable.createdAt))
-          .limit(pagination.limit)
-          .offset(pagination.offset),
-        db.select({ value: count() }).from(invoicesTable).where(where),
-      ]);
+router.get("/invoices", requireAuth, requireFinanceAccess, async (req, res) => {
+  const pagination = getPagination(req);
+  try {
+    const where = syndicateWhere(req, invoicesTable.syndicateId);
+    const [rows, [{ value: total }]] = await Promise.all([
+      db
+        .select()
+        .from(invoicesTable)
+        .where(where)
+        .orderBy(desc(invoicesTable.createdAt))
+        .limit(pagination.limit)
+        .offset(pagination.offset),
+      db.select({ value: count() }).from(invoicesTable).where(where),
+    ]);
 
-      // Attach line items — the mobile client renders selectedInvoice.items.map(...)
-      // and crashes with a blank error screen if items is undefined.
-      const invoiceIds = rows.map((r) => r.id);
-      const allItems = invoiceIds.length
-        ? await db.select().from(invoiceItemsTable).where(inArray(invoiceItemsTable.invoiceId, invoiceIds))
-        : [];
-      const itemsByInvoice = new Map<string, typeof allItems>();
-      for (const item of allItems) {
-        const arr = itemsByInvoice.get(item.invoiceId) ?? [];
-        arr.push(item);
-        itemsByInvoice.set(item.invoiceId, arr);
-      }
-      const enriched = rows.map((r) => ({
-        ...r,
-        amount: Number(r.amount),
-        items: (itemsByInvoice.get(r.id) ?? []).map((i) => ({
-          label: i.label,
-          quantity: Number(i.quantity),
-          unitPrice: Number(i.unitPrice),
-        })),
-      }));
-
-      res.json(buildPagedResponse(enriched, Number(total), pagination));
-    } catch (err) {
-      req.log.error(err);
-      res.status(500).json({ error: "Erreur serveur" });
+    // Attach line items — the mobile client renders selectedInvoice.items.map(...)
+    // and crashes with a blank error screen if items is undefined.
+    const invoiceIds = rows.map((r) => r.id);
+    const allItems = invoiceIds.length
+      ? await db
+          .select()
+          .from(invoiceItemsTable)
+          .where(inArray(invoiceItemsTable.invoiceId, invoiceIds))
+      : [];
+    const itemsByInvoice = new Map<string, typeof allItems>();
+    for (const item of allItems) {
+      const arr = itemsByInvoice.get(item.invoiceId) ?? [];
+      arr.push(item);
+      itemsByInvoice.set(item.invoiceId, arr);
     }
-  },
-);
+    const enriched = rows.map((r) => ({
+      ...r,
+      amount: Number(r.amount),
+      items: (itemsByInvoice.get(r.id) ?? []).map((i) => ({
+        label: i.label,
+        quantity: Number(i.quantity),
+        unitPrice: Number(i.unitPrice),
+      })),
+    }));
+
+    res.json(buildPagedResponse(enriched, Number(total), pagination));
+  } catch (err) {
+    req.log.error(err);
+    res.status(500).json({ error: "Erreur serveur" });
+  }
+});
 
 router.post(
   "/invoices",
@@ -320,10 +384,19 @@ router.post(
       proofUrl: z.string().optional(),
     });
     const result = schema.safeParse(req.body);
-    if (!result.success) { res.status(400).json({ error: "Données invalides" }); return; }
+    if (!result.success) {
+      res.status(400).json({ error: "Données invalides" });
+      return;
+    }
     try {
       const sid = effectiveSyndicateId(req, result.data.syndicateId);
-      const { syndicateId: _sid, items, type, recipient, proofUrl } = result.data;
+      const {
+        syndicateId: _sid,
+        items,
+        type,
+        recipient,
+        proofUrl,
+      } = result.data;
       const issuedAt = new Date();
       const dueAt = new Date(issuedAt);
       dueAt.setDate(dueAt.getDate() + 30);
@@ -349,7 +422,19 @@ router.post(
           .insert(invoiceItemsTable)
           .values(items.map((i) => ({ ...i, invoiceId: inv.id })) as any);
       }
-      res.status(201).json({ data: { ...inv, amount: Number(inv.amount), items }, message: "Facture créée" });
+      await serverAuditLog(req, {
+        action: "CREATE",
+        entity: "invoice",
+        entityId: inv.id,
+        syndicateId: sid,
+        details: `${reference} — ${amount}`,
+      });
+      res
+        .status(201)
+        .json({
+          data: { ...inv, amount: Number(inv.amount), items },
+          message: "Facture créée",
+        });
     } catch (err) {
       req.log.error(err);
       res.status(500).json({ error: "Erreur serveur" });
@@ -364,24 +449,50 @@ router.put(
   async (req, res) => {
     const id = String(req.params.id) as string;
     const schema = z.object({
-      status: z.enum(["draft", "issued", "sent", "paid", "partially_paid", "due", "overdue", "cancelled"]),
+      status: z.enum([
+        "draft",
+        "issued",
+        "sent",
+        "paid",
+        "partially_paid",
+        "due",
+        "overdue",
+        "cancelled",
+      ]),
     });
     const result = schema.safeParse(req.body);
-    if (!result.success) { res.status(400).json({ error: "Statut invalide" }); return; }
+    if (!result.success) {
+      res.status(400).json({ error: "Statut invalide" });
+      return;
+    }
     try {
-      const [inv] = await db.select().from(invoicesTable).where(eq(invoicesTable.id, id));
-      if (!inv) { res.status(404).json({ error: "Facture introuvable" }); return; }
+      const [inv] = await db
+        .select()
+        .from(invoicesTable)
+        .where(eq(invoicesTable.id, id));
+      if (!inv) {
+        res.status(404).json({ error: "Facture introuvable" });
+        return;
+      }
       if (
         req.user!.role !== "super_admin" &&
         inv.syndicateId !== req.user!.syndicateId
       ) {
-        res.status(403).json({ error: "Accès refusé" }); return;
+        res.status(403).json({ error: "Accès refusé" });
+        return;
       }
       const [updated] = await db
         .update(invoicesTable)
         .set({ status: result.data.status })
         .where(eq(invoicesTable.id, id))
         .returning();
+      await serverAuditLog(req, {
+        action: "UPDATE_STATUS",
+        entity: "invoice",
+        entityId: id,
+        syndicateId: inv.syndicateId ?? undefined,
+        details: result.data.status,
+      });
       res.json({ data: updated, message: "Statut mis à jour" });
     } catch (err) {
       req.log.error(err);
@@ -401,7 +512,9 @@ router.get(
     try {
       const where = syndicateWhere(req, bonsLivraisonTable.syndicateId);
       const [rows, [{ value: total }]] = await Promise.all([
-        db.select().from(bonsLivraisonTable)
+        db
+          .select()
+          .from(bonsLivraisonTable)
           .where(where)
           .orderBy(desc(bonsLivraisonTable.createdAt))
           .limit(pagination.limit)
@@ -413,7 +526,10 @@ router.get(
       // crashes with a blank error screen if items is undefined.
       const bonIds = rows.map((r) => r.id);
       const allItems = bonIds.length
-        ? await db.select().from(bonItemsTable).where(inArray(bonItemsTable.bonId, bonIds))
+        ? await db
+            .select()
+            .from(bonItemsTable)
+            .where(inArray(bonItemsTable.bonId, bonIds))
         : [];
       const itemsByBon = new Map<string, typeof allItems>();
       for (const item of allItems) {
@@ -424,7 +540,12 @@ router.get(
       // Normalize any legacy/seed status values not recognized by the mobile client's
       // STATUS_CONFIG (draft | sent | delivered | cancelled) — an unmapped status
       // crashes the list render immediately.
-      const VALID_STATUSES = new Set(["draft", "sent", "delivered", "cancelled"]);
+      const VALID_STATUSES = new Set([
+        "draft",
+        "sent",
+        "delivered",
+        "cancelled",
+      ]);
       const enriched = rows.map((r) => ({
         ...r,
         total: Number(r.total),
@@ -463,7 +584,10 @@ router.post(
       syndicateId: z.string().optional(),
     });
     const result = schema.safeParse(req.body);
-    if (!result.success) { res.status(400).json({ error: "Données invalides" }); return; }
+    if (!result.success) {
+      res.status(400).json({ error: "Données invalides" });
+      return;
+    }
     try {
       const sid = effectiveSyndicateId(req, result.data.syndicateId);
       const { syndicateId: _sid, items, ...data } = result.data;
@@ -477,6 +601,13 @@ router.post(
           .insert(bonItemsTable)
           .values(items.map((i) => ({ ...i, bonId: bon.id })) as any);
       }
+      await serverAuditLog(req, {
+        action: "CREATE",
+        entity: "delivery_note",
+        entityId: bon.id,
+        syndicateId: sid,
+        details: `${bon.reference} — ${bon.total}`,
+      });
       res.status(201).json({ data: bon, message: "Bon de livraison créé" });
     } catch (err) {
       req.log.error(err);
@@ -491,26 +622,42 @@ router.put(
   requireFinanceAccess,
   async (req, res) => {
     const id = String(req.params.id) as string;
-    const schema = z.object({ status: z.enum(["draft", "sent", "delivered", "cancelled"]) });
+    const schema = z.object({
+      status: z.enum(["draft", "sent", "delivered", "cancelled"]),
+    });
     const result = schema.safeParse(req.body);
-    if (!result.success) { res.status(400).json({ error: "Statut invalide" }); return; }
+    if (!result.success) {
+      res.status(400).json({ error: "Statut invalide" });
+      return;
+    }
     try {
       const [bon] = await db
         .select()
         .from(bonsLivraisonTable)
         .where(eq(bonsLivraisonTable.id, id));
-      if (!bon) { res.status(404).json({ error: "Bon introuvable" }); return; }
+      if (!bon) {
+        res.status(404).json({ error: "Bon introuvable" });
+        return;
+      }
       if (
         req.user!.role !== "super_admin" &&
         bon.syndicateId !== req.user!.syndicateId
       ) {
-        res.status(403).json({ error: "Accès refusé" }); return;
+        res.status(403).json({ error: "Accès refusé" });
+        return;
       }
       const [updated] = await db
         .update(bonsLivraisonTable)
         .set({ status: result.data.status })
         .where(eq(bonsLivraisonTable.id, id))
         .returning();
+      await serverAuditLog(req, {
+        action: "UPDATE_STATUS",
+        entity: "delivery_note",
+        entityId: id,
+        syndicateId: bon.syndicateId ?? undefined,
+        details: result.data.status,
+      });
       res.json({ data: updated, message: "Statut mis à jour" });
     } catch (err) {
       req.log.error(err);

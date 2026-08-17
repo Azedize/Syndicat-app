@@ -75,3 +75,5 @@
 - Subscription self-service, payment history/detail, payment creation/cancel/retry, subscription update, and billing-invoice endpoints now reject scope-less non-platform sessions before any query or mutation.
 - Debt escalation history now applies both resident and syndicate predicates for non-platform users; overdue debt queries resolve scoped buildings/lots before loading unpaid calls.
 - Escalation detail/override/resolve/list/history/overdue and governance council/mandate/delegation endpoints reject non-platform JWTs without a syndicate scope instead of falling through to empty or global behavior.
+- The shared operational middleware now fails closed for every syndicate management role whose JWT lacks `syndicateId`, preventing route-specific global-query fallbacks.
+- Invoice attachment listing is restricted to `super_admin`, `syndicate_admin`, and `treasurer`; financial creation and status mutations now emit scoped audit records without changing row-level ownership checks.

@@ -215,10 +215,22 @@ router.put(
           res.status(403).json({ error: "Accès refusé" }); return;
         }
       }
-      await db
+      const ownershipCondition =
+        req.user!.role === "super_admin"
+          ? eq(usersTable.id, String(req.params.id) as string)
+          : and(
+              eq(usersTable.id, String(req.params.id) as string),
+              eq(usersTable.syndicateId, req.user!.syndicateId!),
+            );
+      const [updated] = await db
         .update(usersTable)
         .set({ status: result.data.status })
-        .where(eq(usersTable.id, String(req.params.id) as string));
+        .where(ownershipCondition)
+        .returning({ id: usersTable.id });
+      if (!updated) {
+        res.status(404).json({ error: "Utilisateur introuvable" });
+        return;
+      }
 
       await serverAuditLog(req, {
         action: "UPDATE_STATUS",

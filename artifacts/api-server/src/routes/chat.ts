@@ -190,6 +190,33 @@ function hasChatSyndicateScope(req: Request, res: Response): boolean {
   return true;
 }
 
+function isVisibleToChatUser(
+  conversation: {
+    isGroup: boolean | null;
+    convType: string;
+    syndicateId: string | null;
+    participantIds: string | null;
+  },
+  userId: string,
+  syndicateId: string,
+): boolean {
+  if (!conversation.isGroup) return true;
+  if (conversation.convType === "announcement" || conversation.convType === "building") {
+    return conversation.syndicateId === syndicateId;
+  }
+  if (conversation.syndicateId !== syndicateId || !conversation.participantIds) return false;
+  try {
+    const ids: unknown = JSON.parse(conversation.participantIds);
+    return (
+      Array.isArray(ids) &&
+      ids.every((id): id is string => typeof id === "string") &&
+      ids.includes(userId)
+    );
+  } catch {
+    return false;
+  }
+}
+
 /**
  * Shared incident-conversation creation, called both from a manual endpoint
  * and automatically by the reclamations route when a grievance is filed.
@@ -375,24 +402,10 @@ router.get("/conversations", requireAuth, async (req, res) => {
       )
       .orderBy(desc(conversationsTable.lastMessageAt));
 
-    // Filter out conversations where a group membership check is required
-    // (isGroup+syndicate match alone isn't enough — must be an actual participant)
-    const visible = conversations.filter((c) => {
-      if (!c.isGroup) return true;
-      if (c.convType === "announcement" || c.convType === "building")
-        return true;
-      if (c.syndicateId !== syndicateId || !c.participantIds) return false;
-      try {
-        const ids: unknown = JSON.parse(c.participantIds);
-        return (
-          Array.isArray(ids) &&
-          ids.every((id): id is string => typeof id === "string") &&
-          ids.includes(userId)
-        );
-      } catch {
-        return false;
-      }
-    });
+    // A same-syndicate private group is visible only to its participants.
+    const visible = conversations.filter((c) =>
+      isVisibleToChatUser(c, userId, syndicateId),
+    );
 
     if (visible.length === 0) {
       res.json({ data: [], total: 0 });
@@ -549,7 +562,13 @@ router.get("/conversations/unread-count", requireAuth, async (req, res) => {
     const syndicateId = req.user!.syndicateId ?? "";
 
     const conversations = await db
-      .select({ id: conversationsTable.id })
+      .select({
+        id: conversationsTable.id,
+        isGroup: conversationsTable.isGroup,
+        convType: conversationsTable.convType,
+        syndicateId: conversationsTable.syndicateId,
+        participantIds: conversationsTable.participantIds,
+      })
       .from(conversationsTable)
       .where(
         or(
@@ -563,10 +582,17 @@ router.get("/conversations/unread-count", requireAuth, async (req, res) => {
             eq(conversationsTable.convType, "announcement"),
             eq(conversationsTable.syndicateId, syndicateId),
           ),
+          and(
+            eq(conversationsTable.convType, "building"),
+            eq(conversationsTable.syndicateId, syndicateId),
+          ),
         ),
       );
 
-    if (conversations.length === 0) {
+    const visibleConversations = conversations.filter((c) =>
+      isVisibleToChatUser(c, userId, syndicateId),
+    );
+    if (visibleConversations.length === 0) {
       res.json({ total: 0 });
       return;
     }
@@ -589,7 +615,7 @@ router.get("/conversations/unread-count", requireAuth, async (req, res) => {
         and(
           inArray(
             messagesTable.conversationId,
-            conversations.map((c) => c.id),
+              visibleConversations.map((c) => c.id),
           ),
           sql`${messagesTable.senderId} != ${userId}`,
         ),
@@ -637,12 +663,15 @@ router.get("/conversations/search", requireAuth, async (req, res) => {
           ),
         ),
       );
-    if (conversations.length === 0) {
+    const visibleConversations = conversations.filter((c) =>
+      isVisibleToChatUser(c, userId, syndicateId),
+    );
+    if (visibleConversations.length === 0) {
       res.json({ data: [] });
       return;
     }
 
-    const convIds = conversations.map((c) => c.id);
+    const convIds = visibleConversations.map((c) => c.id);
     const matchingMessages = await db
       .select({ conversationId: messagesTable.conversationId })
       .from(messagesTable)
@@ -658,7 +687,7 @@ router.get("/conversations/search", requireAuth, async (req, res) => {
 
     const participantIds = Array.from(
       new Set(
-        conversations.flatMap(
+        visibleConversations.flatMap(
           (c) =>
             [c.participant1Id, c.participant2Id].filter(Boolean) as string[],
         ),
@@ -673,7 +702,7 @@ router.get("/conversations/search", requireAuth, async (req, res) => {
     const userMap = Object.fromEntries(users.map((u) => [u.id, u.name]));
 
     const lowerQ = q.toLowerCase();
-    const matches = conversations.filter((c) => {
+    const matches = visibleConversations.filter((c) => {
       const otherId =
         c.participant1Id === userId ? c.participant2Id : c.participant1Id;
       const name = c.isGroup

@@ -290,3 +290,7 @@
 - Resident escalation history now always combines the resident ID with the authenticated syndicate for non-platform users; overdue debt loading is filtered to scoped lots before querying unpaid calls.
 - Escalation and governance endpoints reject scope-less non-platform sessions instead of returning ambiguous empty/global results.
 - API typecheck, production build, managed restart, clean scheduler/SMTP/document-scan logs, health probe (`200`), protected route probes (`401`), and diff validation passed.
+- 2026-08-17 — Continued the API isolation audit on the shared operational guard and financial records.
+- `requireOperationalAccess` now rejects syndicate-team JWTs without `syndicateId` before route handlers can fall back to broad queries; invoice attachment reads are limited to Super Admin, syndicate admin, and treasurer roles.
+- Financial transaction, salary, cash-entry, invoice, and delivery-note mutations now emit non-blocking audit records; treasurers can access the building-level finance dashboard consistently with the building list endpoint.
+- API typecheck, production build, managed restart, health probe (`200`), protected finance/attachment probes (`401`), and diff validation passed. The development database still lacks several relations used by scheduled jobs, so scheduler errors remain an environment/schema follow-up.
