@@ -1392,318 +1392,383 @@ router.get(
   requireAuth,
   requireRole("super_admin", "syndicate_admin"),
   async (req, res) => {
-  try {
-    // requireAuth supports both Authorization and ?token= for mobile PDF
-    // viewers, while the shared role middleware validates the JWT shape.
-    const user = req.user!;
-    const id = String(req.params.id) as string;
+    try {
+      // requireAuth supports both Authorization and ?token= for mobile PDF
+      // viewers, while the shared role middleware validates the JWT shape.
+      const user = req.user!;
+      const id = String(req.params.id) as string;
 
-    const [escalation] = await db
-      .select()
-      .from(debtEscalationsTable)
-      .where(eq(debtEscalationsTable.id, id));
+      const [escalation] = await db
+        .select()
+        .from(debtEscalationsTable)
+        .where(eq(debtEscalationsTable.id, id));
 
-    if (!escalation) {
-      res.status(404).json({ error: "Escalade introuvable" });
-      return;
-    }
+      if (!escalation) {
+        res.status(404).json({ error: "Escalade introuvable" });
+        return;
+      }
 
-    if (user.role !== "super_admin" && (!user.syndicateId || escalation.syndicateId !== user.syndicateId)) {
-      res.status(403).json({ error: "Accès refusé" });
-      return;
-    }
+      if (
+        user.role !== "super_admin" &&
+        (!user.syndicateId || escalation.syndicateId !== user.syndicateId)
+      ) {
+        res.status(403).json({ error: "Accès refusé" });
+        return;
+      }
 
-    const [syndicate, lot, member, unpaidAppels] = await Promise.all([
-      escalation.syndicateId
-        ? getSyndicate(escalation.syndicateId)
-        : Promise.resolve(null),
-      escalation.lotId
-        ? db
-            .select()
-            .from(lotsTable)
-            .where(eq(lotsTable.id, escalation.lotId))
-            .then((r) => r[0] ?? null)
-        : Promise.resolve(null),
-      escalation.memberId
-        ? db
-            .select()
-            .from(membersTable)
-            .where(eq(membersTable.id, escalation.memberId))
-            .then((r) => r[0] ?? null)
-        : Promise.resolve(null),
-      escalation.lotId
-        ? db
+      const [syndicate, lot, member] = await Promise.all([
+        escalation.syndicateId
+          ? getSyndicate(escalation.syndicateId)
+          : Promise.resolve(null),
+        escalation.lotId
+          ? db
+              .select()
+              .from(lotsTable)
+              .where(eq(lotsTable.id, escalation.lotId))
+              .then((r) => r[0] ?? null)
+          : Promise.resolve(null),
+        escalation.memberId
+          ? db
+              .select()
+              .from(membersTable)
+              .where(eq(membersTable.id, escalation.memberId))
+              .then((r) => r[0] ?? null)
+          : Promise.resolve(null),
+      ]);
+
+      // The escalation row is the authorization boundary, but its nullable
+      // lot/member references are legacy data and must not be trusted to pull
+      // records from another syndicate into the generated legal document.
+      if (!escalation.syndicateId) {
+        req.log.warn(
+          { escalationId: id },
+          "Refusing escalation PDF without syndicate scope",
+        );
+        return void res
+          .status(409)
+          .json({ error: "Escalade sans syndicat associé" });
+      }
+      if (!escalation.lotId || !lot) {
+        req.log.warn(
+          { escalationId: id, lotId: escalation.lotId },
+          "Escalation references missing lot",
+        );
+        return void res
+          .status(409)
+          .json({ error: "Lot associé à l'escalade introuvable" });
+      }
+      if (
+        escalation.memberId &&
+        (!member || member.syndicateId !== escalation.syndicateId)
+      ) {
+        req.log.warn(
+          {
+            escalationId: id,
+            memberId: escalation.memberId,
+            escalationSyndicateId: escalation.syndicateId,
+            memberSyndicateId: member?.syndicateId,
+          },
+          "Escalation member does not belong to the escalation syndicate",
+        );
+        return void res
+          .status(409)
+          .json({ error: "Membre associé à l'escalade incohérent" });
+      }
+
+      let building = null;
+      if (lot?.buildingId) {
+        const rows = await db
+          .select()
+          .from(buildingsTable)
+          .where(
+            and(
+              eq(buildingsTable.id, lot.buildingId),
+              eq(buildingsTable.syndicateId, escalation.syndicateId),
+            ),
+          );
+        building = rows[0] ?? null;
+        if (!building) {
+          req.log.warn(
+            {
+              escalationId: id,
+              lotId: lot.id,
+              buildingId: lot.buildingId,
+              syndicateId: escalation.syndicateId,
+            },
+            "Escalation lot does not belong to the escalation syndicate",
+          );
+          return void res
+            .status(409)
+            .json({ error: "Immeuble associé à l'escalade incohérent" });
+        }
+      }
+
+      const unpaidAppels = lot
+        ? await db
             .select()
             .from(appelsDeFondsTable)
             .where(
               and(
-                eq(appelsDeFondsTable.lotId, escalation.lotId),
+                eq(appelsDeFondsTable.lotId, lot.id),
+                eq(appelsDeFondsTable.buildingId, lot.buildingId),
                 inArray(appelsDeFondsTable.status, ["pending", "overdue"]),
               ),
             )
-        : Promise.resolve([]),
-    ]);
+        : [];
 
-    let building = null;
-    if (lot?.buildingId) {
-      const rows = await db
-        .select()
-        .from(buildingsTable)
-        .where(eq(buildingsTable.id, lot.buildingId));
-      building = rows[0] ?? null;
-    }
+      const level = escalation.escalationLevel ?? escalation.level;
+      const levelTitles: Record<string, string> = {
+        reminder: "LETTRE DE RAPPEL",
+        warning: "MISE EN DEMEURE",
+        final_warning: "DERNIÈRE MISE EN DEMEURE",
+        agm_proposal: "AVIS DE CONVOCATION D'AG EXTRAORDINAIRE",
+        legal_action: "AVIS DE TRANSMISSION AU CONTENTIEUX",
+      };
+      const levelSubtitles: Record<string, string> = {
+        reminder: "Rappel de paiement — Charges impayées",
+        warning: "Mise en demeure de payer",
+        final_warning: "Dernière mise en demeure avant action judiciaire",
+        agm_proposal:
+          "Proposition de convocation d'une Assemblée Générale Extraordinaire",
+        legal_action: "Transmission du dossier au conseil juridique",
+      };
+      // NOTE: `amount` is already formatted with currency (e.g. "1 250,00 MAD") via formatMoney().
+      // Do NOT append "MAD" again in these template strings.
+      const letterBodies: Record<
+        string,
+        (amount: string, months: number) => string[]
+      > = {
+        reminder: (amount, months) => [
+          `Nous avons constaté que votre compte présente un solde impayé de ${amount} correspondant à ${months} mois de charges non réglées.`,
+          "Nous vous rappelons que le règlement de vos charges de copropriété est une obligation légale en vertu du Dahir 1-57-119 relatif à la copropriété des immeubles bâtis.",
+          "Nous vous invitons à régulariser votre situation dans un délai de 15 jours à compter de la réception de la présente lettre.",
+          "À défaut de règlement dans ce délai, nous serons contraints d'engager les procédures prévues par notre règlement de copropriété.",
+          "Pour tout renseignement ou accord de paiement, veuillez contacter le syndic aux coordonnées mentionnées ci-dessus.",
+        ],
+        warning: (amount, months) => [
+          `Malgré notre rappel du mois précédent, votre compte présente toujours un solde impayé de ${amount} représentant ${months} mois de charges non réglées.`,
+          "Par la présente, nous vous adressons une mise en demeure formelle de régler l'intégralité des sommes dues dans un délai de 30 jours.",
+          "En application de l'article 37 du Dahir 1-57-119 et du règlement de copropriété, le syndic est habilité à engager des poursuites judiciaires pour le recouvrement des charges impayées.",
+          "Des frais de mise en demeure ainsi que les intérêts légaux commenceront à courir à compter de la présente notification.",
+          "Nous vous exhortons à prendre contact avec nous dans les meilleurs délais pour éviter toute procédure judiciaire.",
+        ],
+        final_warning: (amount, months) => [
+          `Après deux tentatives amiables infructueuses, votre solde impayé s'élève désormais à ${amount} pour une période de ${months} mois de charges non réglées.`,
+          "La présente constitue votre DERNIÈRE MISE EN DEMEURE amiable avant l'engagement de toute procédure judiciaire de recouvrement.",
+          "Conformément aux dispositions légales en vigueur et au règlement de copropriété, vous disposez d'un délai de 15 jours à compter de la présente pour régulariser intégralement votre situation.",
+          "À l'issue de ce délai, et sans réponse de votre part, le dossier sera transmis à notre conseil juridique pour engagement de poursuites judiciaires à vos frais et risques.",
+          "Seul le règlement intégral de la somme due ou la conclusion d'un plan d'apurement formalisé permettra d'éviter cette procédure.",
+        ],
+        agm_proposal: (amount, months) => [
+          `Après ${months} mois d'impayés s'élevant à ${amount}, et en l'absence de régularisation suite à nos mises en demeure successives, le Conseil Syndical envisage la convocation d'une Assemblée Générale Extraordinaire.`,
+          "Conformément à l'article 22 du Dahir 1-57-119, une Assemblée Générale Extraordinaire peut être convoquée pour statuer sur les mesures à prendre à l'encontre des copropriétaires défaillants.",
+          "Cette assemblée sera notamment saisie pour délibérer sur: l'autorisation d'ester en justice pour recouvrement forcé des charges, la constitution d'une provision spéciale, et toute autre mesure conservatoire.",
+          "Vous êtes une dernière fois invité à vous rapprocher du syndic pour convenir d'un plan de règlement avant la tenue de cette assemblée.",
+          "La présente vous est adressée à titre d'information et de dernier recours amiable.",
+        ],
+        legal_action: (amount, months) => [
+          `Suite à ${months} mois d'impayés s'élevant à ${amount}, et en l'absence de tout règlement ou contact de votre part malgré nos multiples relances, nous avons l'obligation de vous informer que votre dossier est transmis à notre conseil juridique.`,
+          "Un avocat mandaté par le syndicat des copropriétaires engagera dans les prochains jours une procédure judiciaire de recouvrement conformément aux dispositions du Code de procédure civile.",
+          "Les frais judiciaires, honoraires d'avocat, frais d'huissier et intérêts de retard seront intégralement mis à votre charge.",
+          "Pour éviter toute procédure judiciaire, vous disposez d'un délai de 7 jours ouvrables à compter de la réception de la présente pour régler intégralement le montant dû ou convenir d'un plan de règlement approuvé par le syndic.",
+          "Passé ce délai, aucune intervention amiable ne sera plus possible.",
+        ],
+      };
 
-    const level = escalation.escalationLevel ?? escalation.level;
-    const levelTitles: Record<string, string> = {
-      reminder: "LETTRE DE RAPPEL",
-      warning: "MISE EN DEMEURE",
-      final_warning: "DERNIÈRE MISE EN DEMEURE",
-      agm_proposal: "AVIS DE CONVOCATION D'AG EXTRAORDINAIRE",
-      legal_action: "AVIS DE TRANSMISSION AU CONTENTIEUX",
-    };
-    const levelSubtitles: Record<string, string> = {
-      reminder: "Rappel de paiement — Charges impayées",
-      warning: "Mise en demeure de payer",
-      final_warning: "Dernière mise en demeure avant action judiciaire",
-      agm_proposal:
-        "Proposition de convocation d'une Assemblée Générale Extraordinaire",
-      legal_action: "Transmission du dossier au conseil juridique",
-    };
-    // NOTE: `amount` is already formatted with currency (e.g. "1 250,00 MAD") via formatMoney().
-    // Do NOT append "MAD" again in these template strings.
-    const letterBodies: Record<
-      string,
-      (amount: string, months: number) => string[]
-    > = {
-      reminder: (amount, months) => [
-        `Nous avons constaté que votre compte présente un solde impayé de ${amount} correspondant à ${months} mois de charges non réglées.`,
-        "Nous vous rappelons que le règlement de vos charges de copropriété est une obligation légale en vertu du Dahir 1-57-119 relatif à la copropriété des immeubles bâtis.",
-        "Nous vous invitons à régulariser votre situation dans un délai de 15 jours à compter de la réception de la présente lettre.",
-        "À défaut de règlement dans ce délai, nous serons contraints d'engager les procédures prévues par notre règlement de copropriété.",
-        "Pour tout renseignement ou accord de paiement, veuillez contacter le syndic aux coordonnées mentionnées ci-dessus.",
-      ],
-      warning: (amount, months) => [
-        `Malgré notre rappel du mois précédent, votre compte présente toujours un solde impayé de ${amount} représentant ${months} mois de charges non réglées.`,
-        "Par la présente, nous vous adressons une mise en demeure formelle de régler l'intégralité des sommes dues dans un délai de 30 jours.",
-        "En application de l'article 37 du Dahir 1-57-119 et du règlement de copropriété, le syndic est habilité à engager des poursuites judiciaires pour le recouvrement des charges impayées.",
-        "Des frais de mise en demeure ainsi que les intérêts légaux commenceront à courir à compter de la présente notification.",
-        "Nous vous exhortons à prendre contact avec nous dans les meilleurs délais pour éviter toute procédure judiciaire.",
-      ],
-      final_warning: (amount, months) => [
-        `Après deux tentatives amiables infructueuses, votre solde impayé s'élève désormais à ${amount} pour une période de ${months} mois de charges non réglées.`,
-        "La présente constitue votre DERNIÈRE MISE EN DEMEURE amiable avant l'engagement de toute procédure judiciaire de recouvrement.",
-        "Conformément aux dispositions légales en vigueur et au règlement de copropriété, vous disposez d'un délai de 15 jours à compter de la présente pour régulariser intégralement votre situation.",
-        "À l'issue de ce délai, et sans réponse de votre part, le dossier sera transmis à notre conseil juridique pour engagement de poursuites judiciaires à vos frais et risques.",
-        "Seul le règlement intégral de la somme due ou la conclusion d'un plan d'apurement formalisé permettra d'éviter cette procédure.",
-      ],
-      agm_proposal: (amount, months) => [
-        `Après ${months} mois d'impayés s'élevant à ${amount}, et en l'absence de régularisation suite à nos mises en demeure successives, le Conseil Syndical envisage la convocation d'une Assemblée Générale Extraordinaire.`,
-        "Conformément à l'article 22 du Dahir 1-57-119, une Assemblée Générale Extraordinaire peut être convoquée pour statuer sur les mesures à prendre à l'encontre des copropriétaires défaillants.",
-        "Cette assemblée sera notamment saisie pour délibérer sur: l'autorisation d'ester en justice pour recouvrement forcé des charges, la constitution d'une provision spéciale, et toute autre mesure conservatoire.",
-        "Vous êtes une dernière fois invité à vous rapprocher du syndic pour convenir d'un plan de règlement avant la tenue de cette assemblée.",
-        "La présente vous est adressée à titre d'information et de dernier recours amiable.",
-      ],
-      legal_action: (amount, months) => [
-        `Suite à ${months} mois d'impayés s'élevant à ${amount}, et en l'absence de tout règlement ou contact de votre part malgré nos multiples relances, nous avons l'obligation de vous informer que votre dossier est transmis à notre conseil juridique.`,
-        "Un avocat mandaté par le syndicat des copropriétaires engagera dans les prochains jours une procédure judiciaire de recouvrement conformément aux dispositions du Code de procédure civile.",
-        "Les frais judiciaires, honoraires d'avocat, frais d'huissier et intérêts de retard seront intégralement mis à votre charge.",
-        "Pour éviter toute procédure judiciaire, vous disposez d'un délai de 7 jours ouvrables à compter de la réception de la présente pour régler intégralement le montant dû ou convenir d'un plan de règlement approuvé par le syndic.",
-        "Passé ce délai, aucune intervention amiable ne sera plus possible.",
-      ],
-    };
+      const bodyParagraphs = letterBodies[level]?.(
+        formatMoney(escalation.totalOverdue),
+        escalation.overdueMonths,
+      ) ?? ["Veuillez régulariser votre situation."];
 
-    const bodyParagraphs = letterBodies[level]?.(
-      formatMoney(escalation.totalOverdue),
-      escalation.overdueMonths,
-    ) ?? ["Veuillez régulariser votre situation."];
+      // Build unpaid charges table
+      const chargesTableBody = [
+        [
+          { text: "Période", style: "tableHeader" },
+          { text: "Type", style: "tableHeader" },
+          { text: "Échéance", style: "tableHeader" },
+          { text: "Montant", style: "tableHeader", alignment: "right" },
+          { text: "Statut", style: "tableHeader", alignment: "center" },
+        ],
+        ...unpaidAppels.map((a) => [
+          { text: a.period ?? "—", style: "value" },
+          {
+            text:
+              a.type === "charges_courantes"
+                ? "Charges courantes"
+                : a.type === "fonds_reserve"
+                  ? "Fonds réserve"
+                  : (a.type ?? "—"),
+            style: "value",
+          },
+          { text: formatDate(a.dueDate), style: "value" },
+          { text: formatMoney(a.amount), style: "value", alignment: "right" },
+          {
+            text: a.status === "overdue" ? "En retard" : "En attente",
+            style: "label",
+            alignment: "center",
+          },
+        ]),
+      ];
 
-    // Build unpaid charges table
-    const chargesTableBody = [
-      [
-        { text: "Période", style: "tableHeader" },
-        { text: "Type", style: "tableHeader" },
-        { text: "Échéance", style: "tableHeader" },
-        { text: "Montant", style: "tableHeader", alignment: "right" },
-        { text: "Statut", style: "tableHeader", alignment: "center" },
-      ],
-      ...unpaidAppels.map((a) => [
-        { text: a.period ?? "—", style: "value" },
-        {
-          text:
-            a.type === "charges_courantes"
-              ? "Charges courantes"
-              : a.type === "fonds_reserve"
-                ? "Fonds réserve"
-                : (a.type ?? "—"),
-          style: "value",
-        },
-        { text: formatDate(a.dueDate), style: "value" },
-        { text: formatMoney(a.amount), style: "value", alignment: "right" },
-        {
-          text: a.status === "overdue" ? "En retard" : "En attente",
-          style: "label",
-          alignment: "center",
-        },
-      ]),
-    ];
+      const today = new Date();
+      const refNum = `ESC-${escalation.id.slice(0, 8).toUpperCase()}-${today.getFullYear()}`;
 
-    const today = new Date();
-    const refNum = `ESC-${escalation.id.slice(0, 8).toUpperCase()}-${today.getFullYear()}`;
-
-    const docDef = {
-      content: [
-        ...pageHeader(
-          levelTitles[level] ?? "AVIS DE RECOUVREMENT",
-          levelSubtitles[level] ?? "",
-        ),
-        // Reference + date
-        {
-          columns: [
-            { text: `Réf.: ${refNum}`, style: "label" },
-            {
-              text: `Casablanca, le ${formatDate(today.toISOString())}`,
-              style: "label",
-              alignment: "right",
-            },
-          ],
-          margin: [0, 0, 0, 16],
-        },
-        // Parties
-        {
-          columns: [
-            [
-              { text: "ÉMETTEUR", style: "sectionTitle" },
+      const docDef = {
+        content: [
+          ...pageHeader(
+            levelTitles[level] ?? "AVIS DE RECOUVREMENT",
+            levelSubtitles[level] ?? "",
+          ),
+          // Reference + date
+          {
+            columns: [
+              { text: `Réf.: ${refNum}`, style: "label" },
               {
-                text: syndicate?.name ?? "Syndicat des copropriétaires",
-                style: "value",
-                bold: true,
-              },
-              {
-                text: syndicate?.address ?? building?.address ?? "",
+                text: `Casablanca, le ${formatDate(today.toISOString())}`,
                 style: "label",
-              },
-              { text: syndicate?.email ?? "", style: "label" },
-              { text: syndicate?.phone ?? "", style: "label" },
-            ],
-            [
-              { text: "DESTINATAIRE", style: "sectionTitle" },
-              {
-                text:
-                  member?.name ?? escalation.memberName ?? "Le copropriétaire",
-                style: "value",
-                bold: true,
-              },
-              { text: member?.email ?? "", style: "label" },
-              { text: member?.phone ?? "", style: "label" },
-              {
-                text: lot
-                  ? `Lot N° ${lot.number}${building ? ` — ${building.name}` : ""}`
-                  : "",
-                style: "label",
+                alignment: "right",
               },
             ],
-          ],
-          margin: [0, 0, 0, 16],
-        },
-        // Objet
-        {
-          text: `OBJET : ${levelTitles[level] ?? "AVIS DE RECOUVREMENT"} — Charges impayées`,
-          style: "sectionTitle",
-          margin: [0, 0, 0, 8],
-        },
-        { text: "Madame, Monsieur,", style: "value", margin: [0, 0, 0, 8] },
-        // Body paragraphs
-        ...bodyParagraphs.map((p) => ({
-          text: p,
-          style: "value",
-          margin: [0, 0, 0, 8],
-          alignment: "justify",
-        })),
-        // Unpaid charges table
-        {
-          text: "DÉTAIL DES CHARGES IMPAYÉES",
-          style: "sectionTitle",
-          margin: [0, 12, 0, 6],
-        },
-        unpaidAppels.length > 0
-          ? {
-              table: {
-                headerRows: 1,
-                widths: ["auto", "*", "auto", "auto", "auto"],
-                body: chargesTableBody,
+            margin: [0, 0, 0, 16],
+          },
+          // Parties
+          {
+            columns: [
+              [
+                { text: "ÉMETTEUR", style: "sectionTitle" },
+                {
+                  text: syndicate?.name ?? "Syndicat des copropriétaires",
+                  style: "value",
+                  bold: true,
+                },
+                {
+                  text: syndicate?.address ?? building?.address ?? "",
+                  style: "label",
+                },
+                { text: syndicate?.email ?? "", style: "label" },
+                { text: syndicate?.phone ?? "", style: "label" },
+              ],
+              [
+                { text: "DESTINATAIRE", style: "sectionTitle" },
+                {
+                  text:
+                    member?.name ??
+                    escalation.memberName ??
+                    "Le copropriétaire",
+                  style: "value",
+                  bold: true,
+                },
+                { text: member?.email ?? "", style: "label" },
+                { text: member?.phone ?? "", style: "label" },
+                {
+                  text: lot
+                    ? `Lot N° ${lot.number}${building ? ` — ${building.name}` : ""}`
+                    : "",
+                  style: "label",
+                },
+              ],
+            ],
+            margin: [0, 0, 0, 16],
+          },
+          // Objet
+          {
+            text: `OBJET : ${levelTitles[level] ?? "AVIS DE RECOUVREMENT"} — Charges impayées`,
+            style: "sectionTitle",
+            margin: [0, 0, 0, 8],
+          },
+          { text: "Madame, Monsieur,", style: "value", margin: [0, 0, 0, 8] },
+          // Body paragraphs
+          ...bodyParagraphs.map((p) => ({
+            text: p,
+            style: "value",
+            margin: [0, 0, 0, 8],
+            alignment: "justify",
+          })),
+          // Unpaid charges table
+          {
+            text: "DÉTAIL DES CHARGES IMPAYÉES",
+            style: "sectionTitle",
+            margin: [0, 12, 0, 6],
+          },
+          unpaidAppels.length > 0
+            ? {
+                table: {
+                  headerRows: 1,
+                  widths: ["auto", "*", "auto", "auto", "auto"],
+                  body: chargesTableBody,
+                },
+                layout: "lightHorizontalLines",
+              }
+            : {
+                text: `Montant total impayé: ${formatMoney(escalation.totalOverdue)}`,
+                style: "value",
               },
-              layout: "lightHorizontalLines",
-            }
-          : {
-              text: `Montant total impayé: ${formatMoney(escalation.totalOverdue)}`,
-              style: "value",
-            },
-        // Total
-        {
-          columns: [
-            { text: "", width: "*" },
-            {
-              width: "auto",
-              margin: [0, 12, 0, 0],
-              table: {
-                body: [
-                  [
-                    { text: "TOTAL IMPAYÉ", style: "total" },
-                    {
-                      text: formatMoney(escalation.totalOverdue),
-                      style: "total",
-                      alignment: "right",
-                    },
+          // Total
+          {
+            columns: [
+              { text: "", width: "*" },
+              {
+                width: "auto",
+                margin: [0, 12, 0, 0],
+                table: {
+                  body: [
+                    [
+                      { text: "TOTAL IMPAYÉ", style: "total" },
+                      {
+                        text: formatMoney(escalation.totalOverdue),
+                        style: "total",
+                        alignment: "right",
+                      },
+                    ],
                   ],
-                ],
-              },
-              layout: "noBorders",
-            },
-          ],
-        },
-        // Closing
-        {
-          text: "\nNous vous prions d'agréer, Madame, Monsieur, l'expression de nos salutations distinguées.",
-          style: "value",
-          margin: [0, 16, 0, 8],
-        },
-        {
-          columns: [
-            { text: "", width: "*" },
-            [
-              {
-                text: "Le Syndic",
-                style: "value",
-                bold: true,
-                alignment: "right",
-              },
-              {
-                text: syndicate?.name ?? "",
-                style: "label",
-                alignment: "right",
+                },
+                layout: "noBorders",
               },
             ],
-          ],
-          margin: [0, 0, 0, 0],
-        },
-        // Footer note
-        {
-          text: `Document généré automatiquement le ${formatDate(today.toISOString())} | Réf. ${refNum} | MIZAN Platform`,
-          style: "footer",
-          margin: [0, 24, 0, 0],
-          alignment: "center",
-        },
-      ],
-      styles,
-      pageMargins: [40, 40, 40, 60] as [number, number, number, number],
-    };
+          },
+          // Closing
+          {
+            text: "\nNous vous prions d'agréer, Madame, Monsieur, l'expression de nos salutations distinguées.",
+            style: "value",
+            margin: [0, 16, 0, 8],
+          },
+          {
+            columns: [
+              { text: "", width: "*" },
+              [
+                {
+                  text: "Le Syndic",
+                  style: "value",
+                  bold: true,
+                  alignment: "right",
+                },
+                {
+                  text: syndicate?.name ?? "",
+                  style: "label",
+                  alignment: "right",
+                },
+              ],
+            ],
+            margin: [0, 0, 0, 0],
+          },
+          // Footer note
+          {
+            text: `Document généré automatiquement le ${formatDate(today.toISOString())} | Réf. ${refNum} | MIZAN Platform`,
+            style: "footer",
+            margin: [0, 24, 0, 0],
+            alignment: "center",
+          },
+        ],
+        styles,
+        pageMargins: [40, 40, 40, 60] as [number, number, number, number],
+      };
 
-    const filename = `escalation-${level}-${refNum}.pdf`;
-    await sendPdf(res, docDef, filename);
-  } catch (err) {
-    console.error(err);
-    res.status(500).json({ error: "Erreur génération PDF" });
-  }
+      const filename = `escalation-${level}-${refNum}.pdf`;
+      await sendPdf(res, docDef, filename);
+    } catch (err) {
+      console.error(err);
+      res.status(500).json({ error: "Erreur génération PDF" });
+    }
   },
 );
 

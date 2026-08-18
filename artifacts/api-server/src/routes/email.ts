@@ -34,12 +34,10 @@ router.post("/test-email", requireAuth, async (req, res) => {
         message: `Email de test envoyé à ${req.user!.email}`,
       });
     } else {
-      res
-        .status(502)
-        .json({
-          error: result.error ?? "Échec de l'envoi de l'email de test",
-          data: { sent: false, logId: result.logId },
-        });
+      res.status(502).json({
+        error: result.error ?? "Échec de l'envoi de l'email de test",
+        data: { sent: false, logId: result.logId },
+      });
     }
   } catch (err) {
     req.log.error(err);
@@ -58,6 +56,22 @@ router.get("/email-logs", requireAuth, requireAdmin, async (req, res) => {
       res.status(403).json({ error: "Syndicat non défini dans le token" });
       return;
     }
+    const requestedSyndicateId =
+      typeof req.query.syndicateId === "string"
+        ? req.query.syndicateId
+        : undefined;
+    if (
+      user.role === "super_admin" &&
+      requestedSyndicateId &&
+      req.query.supervision !== "true"
+    ) {
+      res.status(403).json({
+        error:
+          "Les Super Admins doivent activer le mode supervision pour cibler un syndicat.",
+        code: "SUPERVISION_REQUIRED",
+      });
+      return;
+    }
 
     const conditions = [
       status ? eq(emailLogsTable.status, status) : undefined,
@@ -72,8 +86,8 @@ router.get("/email-logs", requireAuth, requireAdmin, async (req, res) => {
       // (or a specific syndicate via ?syndicateId= for supervision mode).
       user.role === "syndicate_admin"
         ? eq(emailLogsTable.syndicateId, user.syndicateId ?? "")
-        : req.query.syndicateId
-          ? eq(emailLogsTable.syndicateId, req.query.syndicateId as string)
+        : requestedSyndicateId
+          ? eq(emailLogsTable.syndicateId, requestedSyndicateId)
           : undefined,
     ].filter(Boolean);
 
@@ -116,11 +130,27 @@ router.get("/email-logs/stats", requireAuth, requireAdmin, async (req, res) => {
       res.status(403).json({ error: "Syndicat non défini dans le token" });
       return;
     }
+    const requestedSyndicateId =
+      typeof req.query.syndicateId === "string"
+        ? req.query.syndicateId
+        : undefined;
+    if (
+      user.role === "super_admin" &&
+      requestedSyndicateId &&
+      req.query.supervision !== "true"
+    ) {
+      res.status(403).json({
+        error:
+          "Les Super Admins doivent activer le mode supervision pour cibler un syndicat.",
+        code: "SUPERVISION_REQUIRED",
+      });
+      return;
+    }
     const scope =
       user.role === "syndicate_admin"
         ? eq(emailLogsTable.syndicateId, user.syndicateId ?? "")
-        : req.query.syndicateId
-          ? eq(emailLogsTable.syndicateId, req.query.syndicateId as string)
+        : requestedSyndicateId
+          ? eq(emailLogsTable.syndicateId, requestedSyndicateId)
           : undefined;
 
     const rows = await db
@@ -207,12 +237,10 @@ router.post(
           message: "Email renvoyé avec succès",
         });
       } else {
-        res
-          .status(502)
-          .json({
-            error: result.error ?? "Échec du renvoi",
-            data: { sent: false },
-          });
+        res.status(502).json({
+          error: result.error ?? "Échec du renvoi",
+          data: { sent: false },
+        });
       }
     } catch (err) {
       req.log.error(err);

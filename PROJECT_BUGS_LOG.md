@@ -86,3 +86,6 @@
 - Debt escalation resident history no longer falls back to a global `memberId` lookup when JWT scope is missing; overdue computation now avoids loading other syndicates' unpaid calls into memory.
 - Governance council and mandate routes no longer represent a missing syndicate scope as a valid empty dataset.
 - 2026-08-18 — Resolved the development-environment data gap noted in the previous API audit: the idempotent enterprise seed restored the relations and rows required by scheduled scans and finance/document/subscription verification.
+- 2026-08-18 — Provider creation could attach a valid building ID from another syndicate, creating inconsistent tenant relationships; creation now validates the building parent against the effective syndicate before insert.
+- 2026-08-18 — Super Admin Email Center list/stat filters could target a syndicate without the platform's explicit supervision marker; targeted queries now require `supervision=true`, while unfiltered global platform queries remain available.
+- 2026-08-18 — Escalation PDF generation trusted nullable legacy lot/member references after authorizing the escalation row; a malformed cross-syndicate relationship could have mixed another syndicate's property or member data into a legal document. Related lot/building/member records are now validated before rendering.

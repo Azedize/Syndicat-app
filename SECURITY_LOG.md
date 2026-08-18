@@ -79,3 +79,4 @@
 - Escalation detail/override/resolve/list/history/overdue and governance council/mandate/delegation endpoints reject non-platform JWTs without a syndicate scope instead of falling through to empty or global behavior.
 - The shared operational middleware now fails closed for every syndicate management role whose JWT lacks `syndicateId`, preventing route-specific global-query fallbacks.
 - Invoice attachment listing is restricted to `super_admin`, `syndicate_admin`, and `treasurer`; financial creation and status mutations now emit scoped audit records without changing row-level ownership checks.
+- 2026-08-18 — Escalation PDF generation now validates every nullable related lot, building, and member against the authorized escalation syndicate before loading legal-document details or unpaid charges; malformed cross-syndicate relationships fail closed with `409`.

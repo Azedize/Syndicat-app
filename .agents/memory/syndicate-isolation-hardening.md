@@ -37,3 +37,15 @@ For resident-submitted work requests, building membership is not enough to autho
 **Why:** A resident can legitimately belong to the same building as many other occupants. Building-level scope alone would expose private descriptions/attachments or allow a request to be filed against another occupant's lot.
 
 **How to apply:** Keep building validation for every work request, then add the requester identity check on resident list/detail routes and validate `ownerId`/`tenantId` (including the email-linked legacy IDs) before inserting a lot-bound request.
+
+For tenant-scoped inserts with an optional parent resource, validate the parent resource's syndicate against the effective insert scope before persistence; list filtering alone cannot repair an inconsistent relationship created at insert time.
+
+**Why:** A provider could otherwise be stored under one syndicate while pointing at a building from another syndicate, making later building-based reads and workflows inconsistent.
+
+**How to apply:** Resolve the effective syndicate first, load the referenced parent, reject missing parents, and return `403` when the parent belongs to a different syndicate before inserting the child row.
+
+For sensitive generated documents, validating the authorized root row is not enough when legacy foreign keys are nullable: verify every related lot, building, member, and charge used in the document against the root syndicate before rendering.
+
+**Why:** A malformed or historically inconsistent relationship can bypass a later query's apparent scope and mix another syndicate's property or resident data into a legal document.
+
+**How to apply:** Fail closed with a safe data-integrity response when a required relation is missing or cross-syndicate; do not render a partial legal document.

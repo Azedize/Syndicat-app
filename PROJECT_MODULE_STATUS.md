@@ -16,6 +16,7 @@
 # Project Module Status
 
 - 2026-08-18 — Travaux & Travaux privatifs: resident/tenant work-order reads now enforce personal ownership in addition to building scope; lot references are checked against the authenticated resident/tenant; private-work withdrawal is scoped and audited. API verification passed. Adjacent authorization audit remains open.
+- 2026-08-18 — Sensitive PDF authorization audit: escalation letters now fail closed when their nullable lot/member/building relationships are missing or cross-syndicate. API verification passed. Adjacent authorization audit remains open.
 
 ## 2026-08-11
 
@@ -147,3 +148,4 @@
 - User Management & Document Scope: syndicate-admin user list/create/status operations fail closed without JWT scope; document preview/autofill use optional authenticated scope without empty-string fallback, and non-platform autofill requires a syndicate.
 - Actions, Documents & Subscriptions Scope: union actions use a shared fail-closed scope guard; document list/summary/entity endpoints require non-platform scope; subscription payment, self-service, update, and invoice routes enforce scope. Wider adjacent-route audit remains open.
 - Debt Escalation & Governance Scope: escalation history/detail/mutations fail closed without non-platform scope, overdue debt is prefiltered by scoped lots, and council/mandate/delegation endpoints reject ambiguous scope-less sessions. Wider adjacent-route audit remains open.
+- Provider & Email Center Scope: provider creation validates building-to-syndicate consistency before persistence; Super Admin Email Center syndicate filters require explicit supervision while global platform view remains available. Adjacent route audit remains open.

@@ -304,3 +304,9 @@
 - API typecheck, production build, managed restart, health probe (`200`), protected finance/attachment probes (`401`), and diff validation passed. The development database still lacks several relations used by scheduled jobs, so scheduler errors remain an environment/schema follow-up.
 - 2026-08-18 — Replayed the idempotent enterprise test-data seed against the development database. The database now contains coherent multi-role, multi-syndicate records across property, finance, governance, documents, support, marketplace, subscriptions, and audit modules.
 - Database verification passed: key relations are populated, scheduled API scans start cleanly, health probe returns `200`, seeded login succeeds, and an authenticated building query returns two scoped buildings.
+- 2026-08-18 — Continued the adjacent API isolation audit on provider/building relationships and Email Center supervision.
+- Provider creation now validates that an optional building belongs to the authenticated/effective syndicate before persistence; Super Admin syndicate-targeted email log queries now require explicit `supervision=true`.
+- API typecheck, Prettier, diff validation, managed restart, health probe, cross-tenant provider creation probe (`403`), unsupervised email scope probe (`403`), and supervised email scope probe (`200`) passed. The wider route audit remains open.
+- 2026-08-18 — Continued the sensitive-document authorization audit on escalation PDFs.
+- Escalation PDF generation now rejects missing or cross-syndicate lot, building, and member relationships before rendering unpaid charges into a legal document; malformed legacy records return a recoverable data-integrity response instead of mixing tenant data.
+- Verification is pending for the API typecheck/build and managed workflow restart; the wider route audit remains open.

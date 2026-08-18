@@ -340,11 +340,31 @@ router.post("/prestataires", requireAuth, requireAdmin, async (req, res) => {
   }
   try {
     const user = (req as any).user;
+    const syndicateId = effectiveSyndicateId(req, user.syndicateId);
+
+    // A provider may only be attached to a building in the same syndicate.
+    // Validate the parent row before inserting so a client cannot create a
+    // cross-tenant relationship that later bypasses provider-level filters.
+    if (parsed.data.buildingId) {
+      const [building] = await db
+        .select({ syndicateId: buildingsTable.syndicateId })
+        .from(buildingsTable)
+        .where(eq(buildingsTable.id, parsed.data.buildingId))
+        .limit(1);
+
+      if (!building) {
+        return void res.status(400).json({ error: "Bâtiment introuvable" });
+      }
+      if (building.syndicateId !== syndicateId) {
+        return void res.status(403).json({ error: "Accès refusé" });
+      }
+    }
+
     const [p] = await db
       .insert(prestatairesTable)
       .values({
         ...parsed.data,
-        syndicateId: effectiveSyndicateId(req, user.syndicateId),
+        syndicateId,
       })
       .returning();
 
@@ -356,9 +376,11 @@ router.post("/prestataires", requireAuth, requireAdmin, async (req, res) => {
     });
 
     res.status(201).json(p);
-  } catch (e) {
+  } catch (e: any) {
     console.error(e);
-    res.status(500).json({ error: "Server error" });
+    res.status(e?.status ?? 500).json({
+      error: e?.status ? e.message : "Server error",
+    });
   }
 });
 
@@ -482,11 +504,9 @@ router.post(
   async (req, res) => {
     const parsed = evaluationSchema.safeParse(req.body);
     if (!parsed.success) {
-      return void res
-        .status(400)
-        .json({
-          error: parsed.error.issues[0]?.message ?? "Données invalides",
-        });
+      return void res.status(400).json({
+        error: parsed.error.issues[0]?.message ?? "Données invalides",
+      });
     }
     try {
       const user = (req as any).user;
@@ -792,11 +812,9 @@ router.post(
   async (req, res) => {
     const parsed = renewSchema.safeParse(req.body);
     if (!parsed.success) {
-      return void res
-        .status(400)
-        .json({
-          error: parsed.error.issues[0]?.message ?? "Données invalides",
-        });
+      return void res.status(400).json({
+        error: parsed.error.issues[0]?.message ?? "Données invalides",
+      });
     }
     try {
       const user = (req as any).user;
