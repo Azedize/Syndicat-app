@@ -257,19 +257,29 @@ router.get("/organigramme", requireAuth, async (req, res) => {
   try {
     const user = req.user!;
 
-    // Super admin sees everything — but uses /organigramme/national for the global view.
-    // For a specific syndicate view (when super_admin selects one), fall through normally.
     if (!user.syndicateId && user.role !== "super_admin") {
       return void res
         .status(403)
         .json({ error: "Syndicat non défini dans le token" });
     }
 
-    const syndicateId = user.syndicateId;
+    if (user.role === "super_admin" && req.query.supervision !== "true") {
+      return void res.status(403).json({
+        error:
+          "Les Super Admins doivent activer le mode supervision pour consulter l'organigramme d'un syndicat.",
+        code: "SUPERVISION_REQUIRED",
+      });
+    }
+
+    const syndicateId =
+      user.role === "super_admin"
+        ? typeof req.query.syndicateId === "string"
+          ? req.query.syndicateId.trim()
+          : ""
+        : user.syndicateId;
     if (!syndicateId) {
-      return void res.json({
-        data: null,
-        message: "Sélectionnez un syndicat pour voir l'organigramme.",
+      return void res.status(400).json({
+        error: "Un syndicat cible est requis pour l'organigramme.",
       });
     }
 

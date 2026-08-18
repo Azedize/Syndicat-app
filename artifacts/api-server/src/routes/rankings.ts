@@ -23,7 +23,11 @@ const router = Router();
 
 // ─── Scoring helpers ──────────────────────────────────────────────────────────
 
-async function computeScoreForSyndicate(syndicateId: string, month: number, year: number) {
+async function computeScoreForSyndicate(
+  syndicateId: string,
+  month: number,
+  year: number,
+) {
   const monthStr = `${year}-${String(month).padStart(2, "0")}`;
   const monthStart = `${monthStr}-01`;
   const monthEnd = new Date(year, month, 0).toISOString().split("T")[0];
@@ -32,21 +36,31 @@ async function computeScoreForSyndicate(syndicateId: string, month: number, year
     .select({ id: buildingsTable.id })
     .from(buildingsTable)
     .where(eq(buildingsTable.syndicateId, syndicateId));
-  const buildingIds = buildings.map((b) => b.id).filter((id): id is string => id != null);
+  const buildingIds = buildings
+    .map((b) => b.id)
+    .filter((id): id is string => id != null);
   if (!buildingIds.length) return null;
 
   // 1. Collection rate — % of appels paid (period matches month)
   const appelsAll = await db
-    .select({ status: appelsDeFondsTable.status, amount: appelsDeFondsTable.amount })
+    .select({
+      status: appelsDeFondsTable.status,
+      amount: appelsDeFondsTable.amount,
+    })
     .from(appelsDeFondsTable)
     .where(
       and(
         inArray(appelsDeFondsTable.buildingId, buildingIds),
-        sql`${appelsDeFondsTable.period} LIKE ${monthStr + "%"}`
-      )
+        sql`${appelsDeFondsTable.period} LIKE ${monthStr + "%"}`,
+      ),
     );
-  const totalAmt = appelsAll.reduce((s, a) => s + parseFloat(a.amount ?? "0"), 0);
-  const paidAmt = appelsAll.filter((a) => a.status === "paid").reduce((s, a) => s + parseFloat(a.amount ?? "0"), 0);
+  const totalAmt = appelsAll.reduce(
+    (s, a) => s + parseFloat(a.amount ?? "0"),
+    0,
+  );
+  const paidAmt = appelsAll
+    .filter((a) => a.status === "paid")
+    .reduce((s, a) => s + parseFloat(a.amount ?? "0"), 0);
   const collectionRate = totalAmt > 0 ? (paidAmt / totalAmt) * 100 : 100;
 
   // 2. Incident resolution rate — % sinistres resolved/closed
@@ -55,8 +69,11 @@ async function computeScoreForSyndicate(syndicateId: string, month: number, year
     .from(sinistresTable)
     .where(inArray(sinistresTable.buildingId, buildingIds));
   const totalSin = sinistresAll.length;
-  const resolvedSin = sinistresAll.filter((s) => ["resolved", "closed"].includes(s.status ?? "")).length;
-  const incidentResolutionRate = totalSin > 0 ? (resolvedSin / totalSin) * 100 : 100;
+  const resolvedSin = sinistresAll.filter((s) =>
+    ["resolved", "closed"].includes(s.status ?? ""),
+  ).length;
+  const incidentResolutionRate =
+    totalSin > 0 ? (resolvedSin / totalSin) * 100 : 100;
 
   // 3. Documentation score — docs uploaded in month vs target of 5
   const docsCount = await db
@@ -66,8 +83,8 @@ async function computeScoreForSyndicate(syndicateId: string, month: number, year
       and(
         eq(documentsTable.syndicateId, syndicateId),
         sql`${documentsTable.createdAt} >= ${monthStart}`,
-        sql`${documentsTable.createdAt} <= ${monthEnd}`
-      )
+        sql`${documentsTable.createdAt} <= ${monthEnd}`,
+      ),
     );
   const documentationScore = Math.min(100, (docsCount.length / 5) * 100);
 
@@ -79,11 +96,14 @@ async function computeScoreForSyndicate(syndicateId: string, month: number, year
       and(
         eq(meetingsTable.syndicateId, syndicateId),
         sql`EXTRACT(YEAR FROM ${meetingsTable.createdAt}) = ${year}`,
-        sql`${meetingsTable.status} IN ('completed', 'held')`
-      )
+        sql`${meetingsTable.status} IN ('completed', 'held')`,
+      ),
     );
   const expectedMeetings = Math.ceil(month / 3); // 1 per quarter
-  const meetingComplianceScore = Math.min(100, (meetingsHeld.length / expectedMeetings) * 100);
+  const meetingComplianceScore = Math.min(
+    100,
+    (meetingsHeld.length / expectedMeetings) * 100,
+  );
 
   // 5. Member satisfaction — placeholder (50/100) until reviews link to syndicates
   const memberSatisfaction = 50;
@@ -94,7 +114,7 @@ async function computeScoreForSyndicate(syndicateId: string, month: number, year
     incidentResolutionRate * 0.25 +
     documentationScore * 0.15 +
     meetingComplianceScore * 0.15 +
-    memberSatisfaction * 0.10;
+    memberSatisfaction * 0.1;
 
   return {
     collectionRate: collectionRate.toFixed(2),
@@ -109,66 +129,89 @@ async function computeScoreForSyndicate(syndicateId: string, month: number, year
 // POST /rankings/compute — compute and persist rankings for a month
 // This is a platform-wide write: a syndicate administrator must never be able
 // to trigger reads/upserts/rank changes for every other syndicate.
-router.post("/rankings/compute", requireAuth, requireSuperAdmin, async (req, res) => {
-  try {
-    const now = new Date();
-    const month = parseInt((req.body.month ?? now.getMonth() + 1).toString());
-    const year = parseInt((req.body.year ?? now.getFullYear()).toString());
+router.post(
+  "/rankings/compute",
+  requireAuth,
+  requireSuperAdmin,
+  async (req, res) => {
+    try {
+      const now = new Date();
+      const month = parseInt((req.body.month ?? now.getMonth() + 1).toString());
+      const year = parseInt((req.body.year ?? now.getFullYear()).toString());
 
-    const syndicates = await db.select({ id: syndicatesTable.id, region: syndicatesTable.city }).from(syndicatesTable);
+      const syndicates = await db
+        .select({ id: syndicatesTable.id, region: syndicatesTable.city })
+        .from(syndicatesTable);
 
-    const results: Array<{ syndicateId: string; totalScore: string }> = [];
+      const results: Array<{ syndicateId: string; totalScore: string }> = [];
 
-    for (const syndicate of syndicates) {
-      try {
-        const scores = await computeScoreForSyndicate(syndicate.id, month, year);
-        if (!scores) continue;
-
-        // Upsert
-        await db
-          .insert(nationalRankingsTable)
-          .values({
-            syndicateId: syndicate.id,
+      for (const syndicate of syndicates) {
+        try {
+          const scores = await computeScoreForSyndicate(
+            syndicate.id,
             month,
             year,
-            region: syndicate.region ?? "",
-            ...scores,
-          })
-          .onConflictDoUpdate({
-            target: [nationalRankingsTable.syndicateId, nationalRankingsTable.month, nationalRankingsTable.year],
-            set: scores,
+          );
+          if (!scores) continue;
+
+          // Upsert
+          await db
+            .insert(nationalRankingsTable)
+            .values({
+              syndicateId: syndicate.id,
+              month,
+              year,
+              region: syndicate.region ?? "",
+              ...scores,
+            })
+            .onConflictDoUpdate({
+              target: [
+                nationalRankingsTable.syndicateId,
+                nationalRankingsTable.month,
+                nationalRankingsTable.year,
+              ],
+              set: scores,
+            });
+
+          results.push({
+            syndicateId: syndicate.id,
+            totalScore: scores.totalScore,
           });
-
-        results.push({ syndicateId: syndicate.id, totalScore: scores.totalScore });
-      } catch (_) {
-        // Skip failed syndicates silently
+        } catch (_) {
+          // Skip failed syndicates silently
+        }
       }
-    }
 
-    // Assign global ranks by score desc
-    results.sort((a, b) => parseFloat(b.totalScore) - parseFloat(a.totalScore));
-    for (let i = 0; i < results.length; i++) {
-      await db
-        .update(nationalRankingsTable)
-        .set({ rank: i + 1 })
-        .where(
-          and(
-            eq(nationalRankingsTable.syndicateId, results[i].syndicateId),
-            eq(nationalRankingsTable.month, month),
-            eq(nationalRankingsTable.year, year)
-          )
-        );
-    }
+      // Assign global ranks by score desc
+      results.sort(
+        (a, b) => parseFloat(b.totalScore) - parseFloat(a.totalScore),
+      );
+      for (let i = 0; i < results.length; i++) {
+        await db
+          .update(nationalRankingsTable)
+          .set({ rank: i + 1 })
+          .where(
+            and(
+              eq(nationalRankingsTable.syndicateId, results[i].syndicateId),
+              eq(nationalRankingsTable.month, month),
+              eq(nationalRankingsTable.year, year),
+            ),
+          );
+      }
 
-    res.json({ message: `Classement calculé pour ${month}/${year}`, computed: results.length });
-  } catch (e) {
-    console.error(e);
-    res.status(500).json({ error: "Erreur serveur" });
-  }
-});
+      res.json({
+        message: `Classement calculé pour ${month}/${year}`,
+        computed: results.length,
+      });
+    } catch (e) {
+      console.error(e);
+      res.status(500).json({ error: "Erreur serveur" });
+    }
+  },
+);
 
 // GET /rankings — leaderboard
-router.get("/rankings", requireAuth, async (req, res) => {
+router.get("/rankings", requireAuth, requireSuperAdmin, async (req, res) => {
   try {
     const now = new Date();
     const month = parseInt((req.query.month ?? now.getMonth() + 1) as string);
@@ -190,7 +233,10 @@ router.get("/rankings", requireAuth, async (req, res) => {
         syndicateCity: syndicatesTable.city,
       })
       .from(nationalRankingsTable)
-      .leftJoin(syndicatesTable, eq(nationalRankingsTable.syndicateId, syndicatesTable.id))
+      .leftJoin(
+        syndicatesTable,
+        eq(nationalRankingsTable.syndicateId, syndicatesTable.id),
+      )
       .where(and(...conditions))
       .orderBy(nationalRankingsTable.rank)
       .limit(limit)
@@ -202,7 +248,11 @@ router.get("/rankings", requireAuth, async (req, res) => {
       .where(and(...conditions));
 
     res.json({
-      data: rows.map((r) => ({ ...r.ranking, syndicateName: r.syndicateName, city: r.syndicateCity })),
+      data: rows.map((r) => ({
+        ...r.ranking,
+        syndicateName: r.syndicateName,
+        city: r.syndicateCity,
+      })),
       total,
       month,
       year,
@@ -229,7 +279,10 @@ router.get("/rankings/my-syndicate", requireAuth, async (req, res) => {
       .select()
       .from(nationalRankingsTable)
       .where(eq(nationalRankingsTable.syndicateId, user.syndicateId))
-      .orderBy(desc(nationalRankingsTable.year), desc(nationalRankingsTable.month))
+      .orderBy(
+        desc(nationalRankingsTable.year),
+        desc(nationalRankingsTable.month),
+      )
       .limit(12);
 
     res.json({ data: rows });

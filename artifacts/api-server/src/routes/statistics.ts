@@ -25,6 +25,49 @@ import { syndicateWhere } from "../lib/syndicate-filter.js";
 
 const router = Router();
 
+async function resolveScopedSyndicateId(req: any): Promise<string> {
+  const user = req.user!;
+  if (user.role !== "super_admin") {
+    if (!user.syndicateId) {
+      throw Object.assign(new Error("Syndicat non défini dans le token"), {
+        status: 403,
+      });
+    }
+    return user.syndicateId;
+  }
+
+  if (req.query.supervision !== "true") {
+    throw Object.assign(
+      new Error(
+        "Les Super Admins doivent activer le mode supervision pour accéder aux statistiques d'un syndicat.",
+      ),
+      { status: 403, code: "SUPERVISION_REQUIRED" },
+    );
+  }
+
+  const syndicateId =
+    typeof req.query.syndicateId === "string"
+      ? req.query.syndicateId.trim()
+      : "";
+  if (!syndicateId) {
+    throw Object.assign(new Error("Un syndicat cible est requis"), {
+      status: 400,
+    });
+  }
+
+  const [target] = await db
+    .select({ id: syndicatesTable.id })
+    .from(syndicatesTable)
+    .where(eq(syndicatesTable.id, syndicateId))
+    .limit(1);
+  if (!target) {
+    throw Object.assign(new Error("Syndicat cible introuvable"), {
+      status: 404,
+    });
+  }
+  return syndicateId;
+}
+
 // Helper: last N months as { label, from, to }
 function lastNMonths(n: number) {
   const months: { label: string; key: string; from: Date; to: Date }[] = [];
@@ -197,9 +240,10 @@ router.get(
   requireRole("super_admin", "syndicate_admin"),
   async (req, res) => {
     try {
-      const where = syndicateWhere(req, membersTable.syndicateId);
-      const cotWhere = syndicateWhere(req, cotisationsTable.syndicateId);
-      const actionWhere = syndicateWhere(req, unionActionsTable.syndicateId);
+      const syndicateId = await resolveScopedSyndicateId(req);
+      const where = eq(membersTable.syndicateId, syndicateId);
+      const cotWhere = eq(cotisationsTable.syndicateId, syndicateId);
+      const actionWhere = eq(unionActionsTable.syndicateId, syndicateId);
       const months = lastNMonths(6);
 
       const [
@@ -213,11 +257,7 @@ router.get(
         db
           .select({ value: count() })
           .from(membersTable)
-          .where(
-            where
-              ? and(where, eq(membersTable.status, "active"))
-              : eq(membersTable.status, "active"),
-          ),
+          .where(and(where, eq(membersTable.status, "active"))),
         db
           .select({
             status: cotisationsTable.status,
@@ -236,22 +276,13 @@ router.get(
           })
           .from(unionActionsTable)
           .where(
-            actionWhere
-              ? and(
-                  actionWhere,
-                  gte(unionActionsTable.createdAt!, months[0].from),
-                )
-              : gte(unionActionsTable.createdAt!, months[0].from),
+            and(actionWhere, gte(unionActionsTable.createdAt!, months[0].from)),
           )
           .limit(500),
         db
           .select({ createdAt: membersTable.createdAt })
           .from(membersTable)
-          .where(
-            where
-              ? and(where, gte(membersTable.createdAt!, months[0].from))
-              : gte(membersTable.createdAt!, months[0].from),
-          )
+          .where(and(where, gte(membersTable.createdAt!, months[0].from)))
           .limit(500),
       ]);
 
@@ -328,8 +359,9 @@ router.get(
   requireRole("super_admin", "syndicate_admin"),
   async (req, res) => {
     try {
-      const caisseWhere = syndicateWhere(req, caisseEntriesTable.syndicateId);
-      const txWhere = syndicateWhere(req, transactionsTable.syndicateId);
+      const syndicateId = await resolveScopedSyndicateId(req);
+      const caisseWhere = eq(caisseEntriesTable.syndicateId, syndicateId);
+      const txWhere = eq(transactionsTable.syndicateId, syndicateId);
 
       const now = new Date();
       const thisMonthStart = new Date(now.getFullYear(), now.getMonth(), 1);
@@ -356,18 +388,12 @@ router.get(
           })
           .from(transactionsTable)
           .where(
-            txWhere
-              ? and(
-                  txWhere,
-                  sql`${transactionsTable.type} IN ('cotisation','recette')`,
-                  eq(transactionsTable.status, "paid"),
-                  gte(transactionsTable.createdAt, thisMonthStart),
-                )
-              : and(
-                  sql`${transactionsTable.type} IN ('cotisation','recette')`,
-                  eq(transactionsTable.status, "paid"),
-                  gte(transactionsTable.createdAt, thisMonthStart),
-                ),
+            and(
+              txWhere,
+              sql`${transactionsTable.type} IN ('cotisation','recette')`,
+              eq(transactionsTable.status, "paid"),
+              gte(transactionsTable.createdAt, thisMonthStart),
+            ),
           ),
         db
           .select({
@@ -375,18 +401,12 @@ router.get(
           })
           .from(transactionsTable)
           .where(
-            txWhere
-              ? and(
-                  txWhere,
-                  sql`${transactionsTable.type} IN ('depense','salaire')`,
-                  eq(transactionsTable.status, "paid"),
-                  gte(transactionsTable.createdAt, thisMonthStart),
-                )
-              : and(
-                  sql`${transactionsTable.type} IN ('depense','salaire')`,
-                  eq(transactionsTable.status, "paid"),
-                  gte(transactionsTable.createdAt, thisMonthStart),
-                ),
+            and(
+              txWhere,
+              sql`${transactionsTable.type} IN ('depense','salaire')`,
+              eq(transactionsTable.status, "paid"),
+              gte(transactionsTable.createdAt, thisMonthStart),
+            ),
           ),
         db
           .select({
@@ -394,16 +414,11 @@ router.get(
           })
           .from(transactionsTable)
           .where(
-            txWhere
-              ? and(
-                  txWhere,
-                  sql`${transactionsTable.type} IN ('cotisation','recette')`,
-                  eq(transactionsTable.status, "paid"),
-                )
-              : and(
-                  sql`${transactionsTable.type} IN ('cotisation','recette')`,
-                  eq(transactionsTable.status, "paid"),
-                ),
+            and(
+              txWhere,
+              sql`${transactionsTable.type} IN ('cotisation','recette')`,
+              eq(transactionsTable.status, "paid"),
+            ),
           ),
         db
           .select({
@@ -411,16 +426,11 @@ router.get(
           })
           .from(transactionsTable)
           .where(
-            txWhere
-              ? and(
-                  txWhere,
-                  sql`${transactionsTable.type} IN ('depense','salaire')`,
-                  eq(transactionsTable.status, "paid"),
-                )
-              : and(
-                  sql`${transactionsTable.type} IN ('depense','salaire')`,
-                  eq(transactionsTable.status, "paid"),
-                ),
+            and(
+              txWhere,
+              sql`${transactionsTable.type} IN ('depense','salaire')`,
+              eq(transactionsTable.status, "paid"),
+            ),
           ),
       ]);
 
@@ -460,7 +470,8 @@ router.get(
   requireRole("super_admin", "syndicate_admin"),
   async (req, res) => {
     try {
-      const cotWhere = syndicateWhere(req, cotisationsTable.syndicateId);
+      const syndicateId = await resolveScopedSyndicateId(req);
+      const cotWhere = eq(cotisationsTable.syndicateId, syndicateId);
       const today = new Date().toISOString().split("T")[0];
 
       const overdueClause = and(
@@ -487,19 +498,17 @@ router.get(
               syndicateId: cotisationsTable.syndicateId,
             })
             .from(cotisationsTable)
-            .where(cotWhere ? and(cotWhere, statusFilter) : statusFilter)
+            .where(and(cotWhere, statusFilter))
             .orderBy(desc(cotisationsTable.createdAt))
             .limit(200),
           db
             .select({ value: count() })
             .from(cotisationsTable)
-            .where(cotWhere ? and(cotWhere, overdueClause) : overdueClause),
+            .where(and(cotWhere, overdueClause)),
           db
             .select({ value: count() })
             .from(cotisationsTable)
-            .where(
-              cotWhere ? and(cotWhere, validationClause) : validationClause,
-            ),
+            .where(and(cotWhere, validationClause)),
         ]);
 
       const memberIds = [...new Set(flaggedCotisations.map((c) => c.memberId))];

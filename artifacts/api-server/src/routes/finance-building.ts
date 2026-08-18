@@ -29,6 +29,17 @@ router.get(
     try {
       const user = (req as any).user;
 
+      // Financial data across syndicates is a supervision action. Check this
+      // before resolving buildings so the list does not disclose platform-wide
+      // financial records without an explicit supervision boundary.
+      if (user.role === "super_admin" && req.query.supervision !== "true") {
+        return void res.status(403).json({
+          error:
+            "Les Super Admins doivent activer le mode supervision pour accéder aux finances des syndicats.",
+          code: "SUPERVISION_REQUIRED",
+        });
+      }
+
       // Every non-super-admin finance user must have a syndicate scope in JWT.
       if (isSyndicateTeamRole(user.role) && !user.syndicateId) {
         return void res

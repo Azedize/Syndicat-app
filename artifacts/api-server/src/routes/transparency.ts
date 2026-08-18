@@ -10,6 +10,7 @@ import { db } from "@workspace/db";
 import {
   expenseJustificationsTable,
   expenseVotesTable,
+  membersTable,
   syndicatesTable,
   transactionsTable,
 } from "@workspace/db/schema";
@@ -23,10 +24,44 @@ function canAccessJustification(
   syndicateId: string | null | undefined,
 ): boolean {
   const user = req.user!;
-  return (
-    user.role === "super_admin" ||
-    (!!user.syndicateId && syndicateId === user.syndicateId)
-  );
+  if (user.role === "super_admin") {
+    return (
+      req.query.supervision === "true" &&
+      !!req.query.syndicateId &&
+      syndicateId === req.query.syndicateId
+    );
+  }
+  return !!user.syndicateId && syndicateId === user.syndicateId;
+}
+
+async function requireActiveMember(req: any, res: any): Promise<boolean> {
+  const user = req.user!;
+  if (user.role !== "member") {
+    res
+      .status(403)
+      .json({ error: "Cette action est réservée aux copropriétaires actifs" });
+    return false;
+  }
+  if (!user.syndicateId) {
+    res.status(403).json({ error: "Syndicat non défini dans le token" });
+    return false;
+  }
+  const [member] = await db
+    .select({ id: membersTable.id })
+    .from(membersTable)
+    .where(
+      and(
+        eq(membersTable.syndicateId, user.syndicateId),
+        eq(membersTable.email, user.email),
+        eq(membersTable.status, "active"),
+      ),
+    )
+    .limit(1);
+  if (!member) {
+    res.status(403).json({ error: "Adhésion active introuvable" });
+    return false;
+  }
+  return true;
 }
 
 // GET /transparency — list expense justifications
@@ -36,16 +71,40 @@ router.get("/expense-justifications", requireAuth, async (req, res) => {
     const { status } = req.query as Record<string, string>;
 
     const conditions: any[] = [];
-    if (user.role !== "super_admin" && !user.syndicateId) {
+    if (user.role === "super_admin" && req.query.supervision !== "true") {
+      return void res.status(403).json({
+        error:
+          "Les Super Admins doivent activer le mode supervision pour consulter la transparence.",
+        code: "SUPERVISION_REQUIRED",
+      });
+    }
+    const targetSyndicateId =
+      user.role === "super_admin"
+        ? typeof req.query.syndicateId === "string"
+          ? req.query.syndicateId.trim()
+          : ""
+        : user.syndicateId;
+    if (!targetSyndicateId) {
       return void res
-        .status(403)
-        .json({ error: "Syndicat non défini dans le token" });
+        .status(user.role === "super_admin" ? 400 : 403)
+        .json({
+          error:
+            user.role === "super_admin"
+              ? "Un syndicat cible est requis"
+              : "Syndicat non défini dans le token",
+        });
     }
-    if (user.role !== "super_admin") {
-      conditions.push(
-        eq(expenseJustificationsTable.syndicateId, user.syndicateId!),
-      );
+    const [targetSyndicate] = await db
+      .select({ id: syndicatesTable.id })
+      .from(syndicatesTable)
+      .where(eq(syndicatesTable.id, targetSyndicateId))
+      .limit(1);
+    if (!targetSyndicate) {
+      return void res.status(404).json({ error: "Syndicat cible introuvable" });
     }
+    conditions.push(
+      eq(expenseJustificationsTable.syndicateId, targetSyndicateId),
+    );
     if (status) conditions.push(eq(expenseJustificationsTable.status, status));
 
     const rows = await db
@@ -206,6 +265,8 @@ router.post(
       const user = req.user!;
       const { reason } = req.body;
 
+      if (!(await requireActiveMember(req, res))) return;
+
       if (!reason?.trim()) {
         return void res
           .status(400)
@@ -260,6 +321,8 @@ router.post(
     try {
       const user = req.user!;
       const { vote } = req.body; // "for" | "against"
+
+      if (!(await requireActiveMember(req, res))) return;
 
       if (!["for", "against"].includes(vote)) {
         return void res
@@ -348,6 +411,17 @@ router.put(
     try {
       const { status, resolutionNote } = req.body; // "approved" | "resolved"
 
+      if (
+        req.user!.role === "super_admin" &&
+        req.query.supervision !== "true"
+      ) {
+        return void res.status(403).json({
+          error:
+            "Les Super Admins doivent activer le mode supervision pour résoudre un justificatif.",
+          code: "SUPERVISION_REQUIRED",
+        });
+      }
+
       const [existing] = await db
         .select()
         .from(expenseJustificationsTable)
@@ -373,7 +447,10 @@ router.put(
           resolvedAt: new Date(),
         })
         .where(
-          eq(expenseJustificationsTable.id, String(req.params.id) as string),
+          and(
+            eq(expenseJustificationsTable.id, String(req.params.id) as string),
+            eq(expenseJustificationsTable.syndicateId, existing.syndicateId!),
+          ),
         )
         .returning();
 
