@@ -1,3 +1,4 @@
+- Finance — Building dashboard and financial attachments: Super Admin syndicate access now requires explicit supervision before ID resolution; syndicate-admin/treasurer and personal charge ownership boundaries remain enforced. API verification passed. Adjacent authorization audit remains open.
 - Documents — Corbeille : localisation complète FR/EN/AR/ES, formatage de dates selon la langue active et présentation RTL/LTR complète terminés ; restauration et purge restent protégées par les mêmes rôles.
 - Documents — Bibliothèque : historique des versions et commentaires utilisent le format de date actif pour les quatre langues ; génération, signature, téléchargement, commentaires et permissions conservés.
 - Mon Bail & Loyer — formatage des dates et montants MAD selon la langue active terminé ; navigation et présentation RTL adaptées, API locataire et RoleGuard conservés.

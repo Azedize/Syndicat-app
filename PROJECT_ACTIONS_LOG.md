@@ -1,3 +1,5 @@
+- 2026-08-18 — Audité `finance-building.ts` et `attachments.ts` : ajout d’une barrière de supervision Super Admin avant les recherches ID de tableaux financiers et pièces jointes ; les contrôles de syndicat, propriétaire et uploader restent inchangés. `reclamations.ts` a été vérifié comme module RH global intentionnel selon le schéma.
+
 - 2026-08-18 — Audité `artifacts/api-server/src/routes/actes.ts` : la création d’un acte par Super Admin exige maintenant `supervision=true` avant toute résolution de cible, et le syndicat cible doit exister avant insertion. Le contrat mobile et les permissions syndicat restent inchangés.
 
 - 2026-08-18 — Complété `scripts/src/seed.ts` pour les 101 tables : ajout des paiements d’abonnement, OTP, puis de scénarios supplémentaires pour les tables de blocage, archives, mandats, promotions, signalements et avis. Le seed reste relançable sans doublons.

@@ -71,6 +71,18 @@ function enforceSyndicateAccess(
   return true;
 }
 
+function enforceSupervisionForSuperAdmin(req: Request, res: Response): boolean {
+  if (req.user?.role === "super_admin" && req.query.supervision !== "true") {
+    res.status(403).json({
+      error:
+        "Les Super Admins doivent activer le mode supervision pour accéder aux pièces financières d'un syndicat.",
+      code: "SUPERVISION_REQUIRED",
+    });
+    return false;
+  }
+  return true;
+}
+
 async function enforcePersonalChargeAccess(
   req: Request,
   res: Response,
@@ -111,6 +123,7 @@ async function enforcePersonalChargeAccess(
 // POST /charge-attachments — add a proof document to an appel de fonds
 router.post("/charge-attachments", requireAuth, async (req, res) => {
   try {
+    if (!enforceSupervisionForSuperAdmin(req, res)) return;
     const user = req.user!;
     const { appelDeFondsId, url, filename, mimeType } = req.body as {
       appelDeFondsId: string;
@@ -136,7 +149,10 @@ router.post("/charge-attachments", requireAuth, async (req, res) => {
     const syndicateId = await getAppelSyndicateId(appelDeFondsId);
     if (!syndicateId || !enforceSyndicateAccess(req, res, syndicateId)) return;
     // Members/tenants can only attach to their own appels
-    if (!(await enforcePersonalChargeAccess(req, res, appel.ownerId, syndicateId))) return;
+    if (
+      !(await enforcePersonalChargeAccess(req, res, appel.ownerId, syndicateId))
+    )
+      return;
 
     const [row] = await db
       .insert(chargeAttachmentsTable)
@@ -178,6 +194,7 @@ router.post("/charge-attachments", requireAuth, async (req, res) => {
 // GET /charge-attachments/:appelId — list all attachments for a charge
 router.get("/charge-attachments/:appelId", requireAuth, async (req, res) => {
   try {
+    if (!enforceSupervisionForSuperAdmin(req, res)) return;
     const user = req.user!;
     const appelId = String(req.params.appelId);
 
@@ -188,7 +205,11 @@ router.get("/charge-attachments/:appelId", requireAuth, async (req, res) => {
       .select({ ownerId: appelsDeFondsTable.ownerId })
       .from(appelsDeFondsTable)
       .where(eq(appelsDeFondsTable.id, appelId));
-    if (!appel || !(await enforcePersonalChargeAccess(req, res, appel.ownerId, syndicateId))) return;
+    if (
+      !appel ||
+      !(await enforcePersonalChargeAccess(req, res, appel.ownerId, syndicateId))
+    )
+      return;
 
     const rows = await db
       .select()
@@ -205,6 +226,7 @@ router.get("/charge-attachments/:appelId", requireAuth, async (req, res) => {
 // DELETE /charge-attachments/:id — remove a charge attachment
 router.delete("/charge-attachments/:id", requireAuth, async (req, res) => {
   try {
+    if (!enforceSupervisionForSuperAdmin(req, res)) return;
     const user = req.user!;
     const attId = String(String(req.params.id));
     const [att] = await db
@@ -254,6 +276,7 @@ router.post(
   requireAdmin,
   async (req, res) => {
     try {
+      if (!enforceSupervisionForSuperAdmin(req, res)) return;
       const user = req.user!;
       const { invoiceId, url, filename, mimeType } = req.body as {
         invoiceId: string;
@@ -311,22 +334,23 @@ router.get(
   requireAuth,
   requireRole("super_admin", "syndicate_admin", "treasurer"),
   async (req, res) => {
-  try {
-    const invoiceId = String(req.params.invoiceId);
+    try {
+      if (!enforceSupervisionForSuperAdmin(req, res)) return;
+      const invoiceId = String(req.params.invoiceId);
 
-    const syndicateId = await getInvoiceSyndicateId(invoiceId);
-    if (!enforceSyndicateAccess(req, res, syndicateId)) return;
+      const syndicateId = await getInvoiceSyndicateId(invoiceId);
+      if (!enforceSyndicateAccess(req, res, syndicateId)) return;
 
-    const rows = await db
-      .select()
-      .from(invoiceAttachmentsTable)
-      .where(eq(invoiceAttachmentsTable.invoiceId, invoiceId));
+      const rows = await db
+        .select()
+        .from(invoiceAttachmentsTable)
+        .where(eq(invoiceAttachmentsTable.invoiceId, invoiceId));
 
-    return void res.json({ data: rows });
-  } catch (e) {
-    req.log.error(e);
-    return void res.status(500).json({ error: "Server error" });
-  }
+      return void res.json({ data: rows });
+    } catch (e) {
+      req.log.error(e);
+      return void res.status(500).json({ error: "Server error" });
+    }
   },
 );
 
@@ -337,6 +361,7 @@ router.delete(
   requireAdmin,
   async (req, res) => {
     try {
+      if (!enforceSupervisionForSuperAdmin(req, res)) return;
       const user = req.user!;
       const invAttId = String(String(req.params.id));
       const [att] = await db

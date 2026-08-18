@@ -102,6 +102,17 @@ router.get(
       const user = (req as any).user;
       const buildingId = String(req.params.id);
 
+      // A Super Admin may inspect a syndicate's financial dashboard only in
+      // explicit supervision mode. Check this before resolving the building
+      // so the endpoint does not disclose whether an ID exists.
+      if (user.role === "super_admin" && req.query.supervision !== "true") {
+        return void res.status(403).json({
+          error:
+            "Les Super Admins doivent activer le mode supervision pour accéder aux finances d'un syndicat.",
+          code: "SUPERVISION_REQUIRED",
+        });
+      }
+
       const [building] = await db
         .select()
         .from(buildingsTable)
