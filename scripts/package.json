@@ -9,6 +9,7 @@
     "seed:stripe-products": "tsx ./src/seed-stripe-products.ts",
     "election-audit:seed": "tsx ./src/election-audit-seed.ts",
     "election-audit:test": "tsx ./src/election-audit-test.ts",
+    "rbac-regression:test": "tsx ./src/rbac-regression-test.ts",
     "typecheck": "tsc -p tsconfig.json --noEmit"
   },
   "dependencies": {

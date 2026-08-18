@@ -55,3 +55,4 @@
 - Level-1 Support now translates ticket synchronization recovery, conversation loading, conversation failure, and retry guidance for `fr`, `en`, `ar`, and `es`.
 - Financial Reports now use the active locale for all visible revenue/expense indicator and chart number formatting; existing translated labels remain unchanged.
 - Level-1 Support now routes the detail description label through the shared translation catalog and keeps all added RTL presentation behavior independent of translation content.
+- Template Request Modal now translates form labels, placeholders, category and priority names, publication scope, required-field metadata, legal guidance, submission validation, success, and recovery feedback for `fr`, `en`, `ar`, and `es`.
