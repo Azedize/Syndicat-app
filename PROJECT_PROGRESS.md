@@ -1,3 +1,5 @@
+- 2026-08-18 — Administrative-act authorization hardening: Super Admin creation now requires explicit supervision, and the target syndicate is verified before an act is persisted. API typecheck, production build, diff validation, managed restart, health probe (`200`), and protected act probes (`401`) passed. Adjacent route-family audit remains open.
+
 - 2026-08-18 — Private and general work-order authorization hardening: resident and tenant list/detail reads are now limited to requests they submitted, optional lot references are validated against the requester’s own lot, missing buildings are rejected before persistence, and withdrawals are scoped and audited. API typecheck, diff validation, managed restart, scheduler scans, and unauthenticated route probes passed. Adjacent route-family audit remains open.
 
 - 2026-08-18 — Seed de démonstration exécuté dans la base de développement : 101/101 tables renseignées, 459 lignes au total, minimum 2 lignes par table. Le seed est idempotent et couvre les scénarios financiers, documents, élections, support, marketplace, chat, OTP et abonnements.

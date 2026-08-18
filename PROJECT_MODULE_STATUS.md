@@ -15,6 +15,7 @@
 
 # Project Module Status
 
+- 2026-08-18 — Administrative Acts: Super Admin creation now requires explicit supervision and validates the target syndicate before persistence; syndicate-admin/secretary/president creation behavior remains scoped by JWT. API verification passed. Adjacent authorization audit remains open.
 - 2026-08-18 — Travaux & Travaux privatifs: resident/tenant work-order reads now enforce personal ownership in addition to building scope; lot references are checked against the authenticated resident/tenant; private-work withdrawal is scoped and audited. API verification passed. Adjacent authorization audit remains open.
 - 2026-08-18 — Sensitive PDF authorization audit: escalation letters now fail closed when their nullable lot/member/building relationships are missing or cross-syndicate. API verification passed. Adjacent authorization audit remains open.
 

@@ -1,6 +1,9 @@
 import { Router } from "express";
 import { db } from "@workspace/db";
-import { actesAdministratifsTable } from "@workspace/db/schema";
+import {
+  actesAdministratifsTable,
+  syndicatesTable,
+} from "@workspace/db/schema";
 import { eq, and, desc } from "drizzle-orm";
 import { requireAuth, requireRole } from "../middleware/auth.js";
 import { serverAuditLog } from "../lib/audit.js";
@@ -99,12 +102,19 @@ router.post(
     };
 
     if (!type || !numero || !titre || !objet || !date || !auteur) {
-      res
-        .status(400)
-        .json({
-          error:
-            "Champs obligatoires manquants : type, numero, titre, objet, date, auteur",
-        });
+      res.status(400).json({
+        error:
+          "Champs obligatoires manquants : type, numero, titre, objet, date, auteur",
+      });
+      return;
+    }
+
+    if (role === "super_admin" && req.query.supervision !== "true") {
+      res.status(403).json({
+        error:
+          "Les Super Admins doivent activer le mode supervision pour créer un acte syndical.",
+        code: "SUPERVISION_REQUIRED",
+      });
       return;
     }
 
@@ -119,6 +129,15 @@ router.post(
     }
 
     try {
+      const [targetSyndicate] = await db
+        .select({ id: syndicatesTable.id })
+        .from(syndicatesTable)
+        .where(eq(syndicatesTable.id, targetSyndicateId));
+      if (!targetSyndicate) {
+        res.status(404).json({ error: "Syndicat introuvable" });
+        return;
+      }
+
       const [created] = await db
         .insert(actesAdministratifsTable)
         .values({

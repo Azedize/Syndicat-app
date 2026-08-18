@@ -1,3 +1,5 @@
+- 2026-08-18 — Administrative Acts authorization batch: Prettier, `pnpm --filter @workspace/api-server run typecheck`, production build, and `git diff --check -- artifacts/api-server/src/routes/actes.ts` passed. Managed API restart completed; `/api/healthz` returned `200`, unauthenticated `/api/actes` and `/api/actes?supervision=true` returned `401`, and no new workflow/browser errors appeared.
+
 - 2026-08-18 — `pnpm --filter @workspace/scripts run seed` exécuté deux fois avec succès ; contrôle SQL final : 101 tables, 459 lignes, minimum 2 lignes par table. `pnpm --filter @workspace/scripts run typecheck` et `git diff --check` réussis.
 
 - 2026-08-18 — `pnpm --filter @workspace/db run db:push` — réussi sans option destructive ; vérification SQL : 101 tables publiques, dont les 5 relations critiques.
