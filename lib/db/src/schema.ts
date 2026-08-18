@@ -111,6 +111,30 @@ export const passwordResetTokensTable = pgTable(
   (t) => [index("password_reset_tokens_user_id_idx").on(t.userId)],
 );
 
+// ─── Storage object ownership ───────────────────────────────────────────────
+// Every private upload gets a durable authorization record. Object paths are
+// deliberately not treated as bearer capabilities: the serving route resolves
+// access from this table and the authenticated request context.
+
+export const storageObjectsTable = pgTable(
+  "storage_objects",
+  {
+    id: id(),
+    objectPath: text("object_path").notNull(),
+    ownerId: text("owner_id").references(() => usersTable.id, { onDelete: "set null" }),
+    syndicateId: text("syndicate_id").references(() => syndicatesTable.id, { onDelete: "cascade" }),
+    originalName: text("original_name"),
+    contentType: text("content_type").notNull(),
+    size: integer("size"),
+    createdAt: createdAt(),
+  },
+  (t) => [
+    uniqueIndex("storage_objects_object_path_uq").on(t.objectPath),
+    index("storage_objects_owner_id_idx").on(t.ownerId),
+    index("storage_objects_syndicate_id_idx").on(t.syndicateId),
+  ],
+);
+
 // ─── Members ────────────────────────────────────────────────────────────────
 
 export const membersTable = pgTable(

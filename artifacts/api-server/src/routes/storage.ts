@@ -21,10 +21,13 @@ import {
   ObjectNotFoundError,
   ObjectStorageService,
 } from "../lib/objectStorage.js";
-import { requireAuth, requireAdmin, softAuth } from "../middleware/auth.js";
+import { requireAuth, softAuth } from "../middleware/auth.js";
 import { db } from "@workspace/db";
-import { documentsTable } from "@workspace/db/schema";
-import { eq, and } from "drizzle-orm";
+import {
+  documentsTable,
+  storageObjectsTable,
+} from "@workspace/db/schema";
+import { eq } from "drizzle-orm";
 
 /** Workspace-relative directory for locally-stored uploads (dev fallback). */
 const LOCAL_UPLOADS_DIR = path.resolve("/home/runner/workspace/uploads");
@@ -214,6 +217,19 @@ router.post(
       const filePath = path.join(LOCAL_UPLOADS_DIR, filename);
       await fs.writeFile(filePath, req.file.buffer);
       const objectPath = `/objects/uploads/${filename}`;
+      try {
+        await db.insert(storageObjectsTable).values({
+          objectPath,
+          ownerId: req.user!.userId,
+          syndicateId: req.user!.syndicateId ?? null,
+          originalName: req.file.originalname || null,
+          contentType: req.file.mimetype,
+          size: req.file.size,
+        });
+      } catch (err) {
+        await fs.unlink(filePath).catch(() => {});
+        throw err;
+      }
       res.json({
         objectPath,
         fileName: req.file.originalname,
@@ -262,11 +278,9 @@ router.post(
   async (req: Request, res: Response) => {
     const parsed = requestUrlSchema.safeParse(req.body);
     if (!parsed.success) {
-      res
-        .status(400)
-        .json({
-          error: parsed.error.issues[0]?.message ?? "Données invalides",
-        });
+      res.status(400).json({
+        error: parsed.error.issues[0]?.message ?? "Données invalides",
+      });
       return;
     }
     try {
@@ -274,6 +288,15 @@ router.post(
         parsed.data;
       const uploadURL = await storage.getObjectEntityUploadURL();
       const objectPath = storage.normalizeObjectEntityPath(uploadURL);
+
+      await db.insert(storageObjectsTable).values({
+        objectPath,
+        ownerId: req.user!.userId,
+        syndicateId: req.user!.syndicateId ?? null,
+        originalName: name,
+        contentType,
+        size,
+      });
 
       let documentId: string | undefined;
       if (documentCategory && req.user!.syndicateId) {
@@ -331,12 +354,47 @@ router.patch(
         return;
       }
       if (
-        doc.syndicateId !== req.user!.syndicateId &&
-        req.user!.role !== "super_admin"
+        req.user!.role !== "super_admin" &&
+        (!req.user!.syndicateId || doc.syndicateId !== req.user!.syndicateId)
       ) {
         res.status(403).json({ error: "Accès refusé" });
         return;
       }
+
+      const isSupervision =
+        req.user!.role === "super_admin" && req.query.supervision === "true";
+      if (req.user!.role === "super_admin" && !isSupervision) {
+        res.status(403).json({
+          error: "La supervision est requise pour confirmer un document.",
+          code: "SUPERVISION_REQUIRED",
+        });
+        return;
+      }
+
+      const isDocumentManager =
+        req.user!.role === "super_admin" ||
+        req.user!.role === "syndicate_admin" ||
+        req.user!.role === "secretary" ||
+        req.user!.role === "president";
+      const isOwner = doc.createdBy === req.user!.userId;
+      if (!isDocumentManager && !isOwner) {
+        res
+          .status(403)
+          .json({
+            error:
+              "Seul le créateur ou un gestionnaire peut modifier ce document",
+          });
+        return;
+      }
+      if (parsed.data.status === "published" && !isDocumentManager) {
+        res
+          .status(403)
+          .json({
+            error: "La publication est réservée aux gestionnaires de documents",
+          });
+        return;
+      }
+
       const [updated] = await db
         .update(documentsTable)
         .set({
@@ -376,6 +434,16 @@ router.get(
         res.end();
       }
     } catch (err) {
+      if (
+        err instanceof Error &&
+        err.message.includes("PUBLIC_OBJECT_SEARCH_PATHS not set")
+      ) {
+        // Public storage is an optional deployment resource. When no public
+        // bucket is configured, fail closed as a missing asset rather than
+        // turning every public-object request into a server error.
+        res.status(404).json({ error: "Fichier introuvable" });
+        return;
+      }
       req.log.error({ err }, "Error serving public object");
       res.status(500).json({ error: "Erreur serveur" });
     }
@@ -384,11 +452,8 @@ router.get(
 
 // ─── GET /storage/objects/* ──────────────────────────────────────────────────
 // Serve uploaded objects.
-// Auth is OPTIONAL — the UUID-based objectPath is practically unguessable,
-// providing adequate security for attachments loaded by mobile Image components
-// which cannot easily send custom Authorization headers.
-// Documents linked to a specific syndicate still enforce syndicate access
-// when a valid JWT is present.
+// Uploaded objects are private. A random UUID is not an authorization boundary:
+// callers must present a valid JWT and match the durable owner/syndicate record.
 
 router.get(
   "/storage/objects/*path",
@@ -399,9 +464,15 @@ router.get(
       const wildcardPath = Array.isArray(raw) ? raw.join("/") : raw;
       const objectPath = `/objects/${wildcardPath}`;
 
-      // Document-linked objects are private. Public assets and generic uploads
-      // remain available without a token, while documents require a valid caller
-      // and an ownership/syndicate match.
+      const [ownedObject] = await db
+        .select()
+        .from(storageObjectsTable)
+        .where(eq(storageObjectsTable.objectPath, objectPath))
+        .limit(1);
+
+      // Document-linked objects may predate storage ownership records. Keep
+      // their existing row-level authorization while legacy records are
+      // gradually migrated through the upload/document workflows.
       const docs = await db
         .select({
           syndicateId: documentsTable.syndicateId,
@@ -409,6 +480,35 @@ router.get(
         })
         .from(documentsTable)
         .where(eq(documentsTable.content, objectPath));
+
+      // Generic uploads use owner/syndicate authorization. Document objects
+      // deliberately skip this branch because documents have their own
+      // stricter resource-level policy below.
+      if (ownedObject && docs.length === 0) {
+        if (!req.user) {
+          res.status(401).json({ error: "Authentification requise pour ce fichier" });
+          return;
+        }
+
+        const isOwner = ownedObject.ownerId === req.user.userId;
+        const isSameSyndicate =
+          !!ownedObject.syndicateId &&
+          ownedObject.syndicateId === req.user.syndicateId;
+        const isSupervisedPlatformAccess =
+          req.user.role === "super_admin" &&
+          req.query.supervision === "true" &&
+          !!ownedObject.syndicateId;
+
+        if (
+          !isOwner &&
+          !isSameSyndicate &&
+          !(req.user.role === "super_admin" && isSupervisedPlatformAccess)
+        ) {
+          res.status(403).json({ error: "Accès refusé" });
+          return;
+        }
+      }
+
       if (docs.length > 0) {
         if (!req.user) {
           res
@@ -417,7 +517,8 @@ router.get(
           return;
         }
         const canAccess =
-          req.user.role === "super_admin" ||
+          (req.user.role === "super_admin" &&
+            req.query.supervision === "true") ||
           docs.some(
             (doc) =>
               doc.createdBy === req.user!.userId ||
@@ -429,6 +530,14 @@ router.get(
           res.status(403).json({ error: "Accès refusé" });
           return;
         }
+      }
+
+      // Unknown private paths are not served. This closes the legacy bearer
+      // fallback while still allowing document rows created before the
+      // ownership table to be accessed through their existing authorization.
+      if (!ownedObject && docs.length === 0) {
+        res.status(404).json({ error: "Fichier introuvable" });
+        return;
       }
 
       // Try GCS first (works in production with real sidecar credentials)
@@ -524,6 +633,11 @@ router.delete(
       }
 
       await db.delete(documentsTable).where(eq(documentsTable.id, id));
+      if (objectPath.startsWith("/objects/")) {
+        await db
+          .delete(storageObjectsTable)
+          .where(eq(storageObjectsTable.objectPath, objectPath));
+      }
       res.json({ message: "Document supprimé" });
     } catch (err) {
       req.log.error({ err }, "Error deleting document");

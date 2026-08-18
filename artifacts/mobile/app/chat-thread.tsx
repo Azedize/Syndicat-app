@@ -31,6 +31,7 @@ import {
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { chat as chatApi } from "@/services/api";
 import { useData, type ChatMessage } from "@/context/DataContext";
+import { useAuth } from "@/context/AuthContext";
 import { useBreakpoints } from "@/hooks/useBreakpoints";
 import EmptyState from "@/components/EmptyState";
 import { useColors } from "@/hooks/useColors";
@@ -127,12 +128,16 @@ function getAttachmentBaseUrl(): string {
   return `http://localhost:${process.env.EXPO_PUBLIC_API_PORT ?? "8080"}/api`;
 }
 
-function resolveAttachmentUrl(raw: string | null | undefined): string | null {
+function resolveAttachmentUrl(
+  raw: string | null | undefined,
+  token: string | null,
+): string | null {
   if (!raw) return null;
   if (raw.startsWith("http")) return raw;
   // objectPath starts with /objects/ → serve via /storage/objects/
-  if (raw.startsWith("/objects/"))
-    return `${getAttachmentBaseUrl()}/storage${raw}`;
+  if (raw.startsWith("/objects/") && token)
+    return `${getAttachmentBaseUrl()}/storage${raw}?token=${encodeURIComponent(token)}`;
+  if (raw.startsWith("/objects/")) return null;
   return `${getAttachmentBaseUrl()}/storage/public-objects/${raw}`;
 }
 
@@ -145,6 +150,7 @@ function formatBytes(bytes: number): string {
 export default function ChatThreadScreen() {
   const colors = useColors();
   const { t } = useLanguage();
+  const { token } = useAuth();
   const insets = useSafeAreaInsets();
   const { id } = useLocalSearchParams<{ id: string }>();
   const [text, setText] = useState("");
@@ -764,7 +770,7 @@ export default function ChatThreadScreen() {
             msg.attachmentType?.startsWith("image/");
           const isDoc =
             msg.messageType === "document" || (!isImage && !!msg.attachmentUrl);
-          const resolvedUrl = resolveAttachmentUrl(msg.attachmentUrl);
+          const resolvedUrl = resolveAttachmentUrl(msg.attachmentUrl, token);
 
           return (
             <View style={[styles.msgRow, msg.isMe && styles.msgRowMe]}>

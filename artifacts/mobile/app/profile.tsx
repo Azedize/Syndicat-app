@@ -33,11 +33,16 @@ function getAvatarBaseUrl(): string {
   return `http://localhost:${process.env.EXPO_PUBLIC_API_PORT ?? "8080"}/api`;
 }
 
-/** Server-hosted avatars are stored as "/objects/uploads/<uuid>" object paths. */
-function resolveAvatarUrl(raw: string | null | undefined): string | null {
+/** Server-hosted avatars are private object paths protected by the session token. */
+function resolveAvatarUrl(
+  raw: string | null | undefined,
+  token: string | null,
+): string | null {
   if (!raw) return null;
   if (raw.startsWith("http")) return raw;
-  if (raw.startsWith("/objects/")) return `${getAvatarBaseUrl()}/storage${raw}`;
+  if (raw.startsWith("/objects/") && token) {
+    return `${getAvatarBaseUrl()}/storage${raw}?token=${encodeURIComponent(token)}`;
+  }
   return null;
 }
 
@@ -221,8 +226,8 @@ export default function ProfileScreen() {
             disabled={!editing || avatarUploading}
             activeOpacity={editing ? 0.7 : 1}
           >
-            {resolveAvatarUrl(user?.avatar) ? (
-              <Image source={{ uri: resolveAvatarUrl(user?.avatar)! }} style={styles.heroAvatarImage} />
+            {resolveAvatarUrl(user?.avatar, token) ? (
+              <Image source={{ uri: resolveAvatarUrl(user?.avatar, token)! }} style={styles.heroAvatarImage} />
             ) : (
               <Text style={styles.heroAvatarText}>{initials}</Text>
             )}

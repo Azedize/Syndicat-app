@@ -2,7 +2,7 @@ import { Router } from "express";
 import { z } from "zod";
 import { db } from "@workspace/db";
 import { syndicatesTable, usersTable } from "@workspace/db/schema";
-import { eq } from "drizzle-orm";
+import { and, eq, isNull } from "drizzle-orm";
 import { requireAuth, requireRole, requireAdmin } from "../middleware/auth.js";
 import { serverAuditLog } from "../lib/audit.js";
 import { sendTransactionalEmail } from "../lib/email/emailService.js";
@@ -18,7 +18,9 @@ router.get("/syndicates", requireAuth, async (req, res) => {
   try {
     const user = req.user!;
     if (user.role !== "super_admin" && !user.syndicateId) {
-      return void res.status(403).json({ error: "Syndicat non défini dans le token" });
+      return void res
+        .status(403)
+        .json({ error: "Syndicat non défini dans le token" });
     }
     const rows =
       user.role === "super_admin"
@@ -44,8 +46,14 @@ router.get("/syndicates/:id", requireAuth, async (req, res) => {
       res.status(403).json({ error: "Accès refusé" });
       return;
     }
-    const [syndicate] = await db.select().from(syndicatesTable).where(eq(syndicatesTable.id, id));
-    if (!syndicate) { res.status(404).json({ error: "Syndicat introuvable" }); return; }
+    const [syndicate] = await db
+      .select()
+      .from(syndicatesTable)
+      .where(eq(syndicatesTable.id, id));
+    if (!syndicate) {
+      res.status(404).json({ error: "Syndicat introuvable" });
+      return;
+    }
     res.json({ data: syndicate });
   } catch (err) {
     req.log.error(err);
@@ -125,120 +133,162 @@ export const createSyndicateSchema = z.object({
   foundingDate: z.string().optional(),
   // Finance
   cotisationAmount: z.string().optional(),
-  cotisationCycle: z.enum(["monthly", "quarterly", "yearly"]).default("monthly"),
+  cotisationCycle: z
+    .enum(["monthly", "quarterly", "yearly"])
+    .default("monthly"),
   // Branding
-  logoColor: z.string().regex(/^#[0-9a-fA-F]{6}$/).default("#2563EB"),
+  logoColor: z
+    .string()
+    .regex(/^#[0-9a-fA-F]{6}$/)
+    .default("#2563EB"),
   logoUrl: z.string().optional().or(z.literal("")),
   // Banking
   bankName: z.string().max(100).optional(),
   bankIban: z.string().max(50).optional(),
-  bankBic:  z.string().max(20).optional(),
+  bankBic: z.string().max(20).optional(),
   // Optional: initial member count
   membersCount: z.number().int().min(0).default(0),
   // Optional: designate an existing user as admin
   adminId: z.string().optional(),
 });
 
-router.post("/syndicates", requireAuth, requireRole("super_admin"), async (req, res) => {
-  const result = createSyndicateSchema.safeParse(req.body);
-  if (!result.success) {
-    res.status(400).json({ error: "Données invalides", details: result.error.flatten() });
-    return;
-  }
-  try {
-    const data = result.data;
-
-    const [syndicate] = await db.transaction(async (tx) => {
-      if (data.adminId) {
-        const [admin] = await tx
-          .select({ id: usersTable.id })
-          .from(usersTable)
-          .where(eq(usersTable.id, data.adminId))
-          .limit(1);
-        if (!admin) {
-          throw Object.assign(new Error("adminId introuvable"), { status: 400 });
-        }
-      }
-
-      const insertValues: Record<string, unknown> = {
-        name: data.name,
-        abbreviation: data.abbreviation,
-        sector: data.sector,
-        region: data.region,
-        mission: data.mission,
-        email: data.email || undefined,
-        phone: data.phone || undefined,
-        website: data.website || undefined,
-        address: data.address,
-        city: data.city,
-        legalForm: data.legalForm,
-        registrationNumber: data.registrationNumber || undefined,
-        iceNumber: data.iceNumber || undefined,
-        rcNumber: data.rcNumber || undefined,
-        foundingDate: data.foundingDate,
-        cotisationAmount: data.cotisationAmount,
-        cotisationCycle: data.cotisationCycle,
-        logoColor: data.logoColor,
-        logoUrl: data.logoUrl || undefined,
-        bankName: data.bankName || undefined,
-        bankIban: data.bankIban || undefined,
-        bankBic:  data.bankBic  || undefined,
-        membersCount: data.membersCount,
-        adminId: data.adminId,
-        status: "active",
-      };
-      const [s] = await tx.insert(syndicatesTable).values(insertValues as any).returning();
-
-      if (data.adminId) {
-        const linkResult = await tx
-          .update(usersTable)
-          .set({ syndicateId: s.id, role: "syndicate_admin" })
-          .where(eq(usersTable.id, data.adminId))
-          .returning({ id: usersTable.id });
-        if (linkResult.length === 0) {
-          throw Object.assign(new Error("Impossible de lier l'administrateur"), { status: 500 });
-        }
-      }
-
-      return [s];
-    });
-
-    await serverAuditLog(req, {
-      action: "CREATE",
-      entity: "syndicate",
-      entityId: syndicate.id,
-      details: syndicate.name,
-      platformAction: true,
-    });
-
-    if (data.adminId) {
-      const [adminUser] = await db
-        .select({ email: usersTable.email, name: usersTable.name })
-        .from(usersTable)
-        .where(eq(usersTable.id, data.adminId));
-      if (adminUser) {
-        const { subject, html } = syndicateCreatedTemplate(syndicate.name, adminUser.name);
-        sendTransactionalEmail({
-          to: adminUser.email,
-          subject,
-          html,
-          template: "syndicate_created",
-          syndicateId: syndicate.id,
-          req,
-        }).catch(() => {});
-      }
+router.post(
+  "/syndicates",
+  requireAuth,
+  requireRole("super_admin"),
+  async (req, res) => {
+    const result = createSyndicateSchema.safeParse(req.body);
+    if (!result.success) {
+      res
+        .status(400)
+        .json({ error: "Données invalides", details: result.error.flatten() });
+      return;
     }
+    try {
+      const data = result.data;
 
-    // Auto-assign 30-day free trial
-    assignTrial(syndicate.id).catch((e) => req.log.warn({ err: e }, "Trial auto-assign failed"));
+      const [syndicate] = await db.transaction(async (tx) => {
+        if (data.adminId) {
+          const [admin] = await tx
+            .select({ id: usersTable.id })
+            .from(usersTable)
+            .where(
+              and(
+                eq(usersTable.id, data.adminId),
+                eq(usersTable.role, "member"),
+                isNull(usersTable.syndicateId),
+              ),
+            )
+            .limit(1);
+          if (!admin) {
+            throw Object.assign(
+              new Error(
+                "L'administrateur doit être un membre actif non affecté à un syndicat",
+              ),
+              { status: 400 },
+            );
+          }
+        }
 
-    res.status(201).json({ data: syndicate, message: "Syndicat créé avec succès" });
-  } catch (err: any) {
-    req.log.error(err);
-    const status = typeof err?.status === "number" ? err.status : 500;
-    res.status(status).json({ error: err?.message ?? "Erreur serveur" });
-  }
-});
+        const insertValues: Record<string, unknown> = {
+          name: data.name,
+          abbreviation: data.abbreviation,
+          sector: data.sector,
+          region: data.region,
+          mission: data.mission,
+          email: data.email || undefined,
+          phone: data.phone || undefined,
+          website: data.website || undefined,
+          address: data.address,
+          city: data.city,
+          legalForm: data.legalForm,
+          registrationNumber: data.registrationNumber || undefined,
+          iceNumber: data.iceNumber || undefined,
+          rcNumber: data.rcNumber || undefined,
+          foundingDate: data.foundingDate,
+          cotisationAmount: data.cotisationAmount,
+          cotisationCycle: data.cotisationCycle,
+          logoColor: data.logoColor,
+          logoUrl: data.logoUrl || undefined,
+          bankName: data.bankName || undefined,
+          bankIban: data.bankIban || undefined,
+          bankBic: data.bankBic || undefined,
+          membersCount: data.membersCount,
+          adminId: data.adminId,
+          status: "active",
+        };
+        const [s] = await tx
+          .insert(syndicatesTable)
+          .values(insertValues as any)
+          .returning();
+
+        if (data.adminId) {
+          const linkResult = await tx
+            .update(usersTable)
+            .set({ syndicateId: s.id, role: "syndicate_admin" })
+            .where(
+              and(
+                eq(usersTable.id, data.adminId),
+                eq(usersTable.role, "member"),
+                isNull(usersTable.syndicateId),
+              ),
+            )
+            .returning({ id: usersTable.id });
+          if (linkResult.length === 0) {
+            throw Object.assign(
+              new Error("L'administrateur a déjà été affecté à un syndicat"),
+              { status: 409 },
+            );
+          }
+        }
+
+        return [s];
+      });
+
+      await serverAuditLog(req, {
+        action: "CREATE",
+        entity: "syndicate",
+        entityId: syndicate.id,
+        details: syndicate.name,
+        platformAction: true,
+      });
+
+      if (data.adminId) {
+        const [adminUser] = await db
+          .select({ email: usersTable.email, name: usersTable.name })
+          .from(usersTable)
+          .where(eq(usersTable.id, data.adminId));
+        if (adminUser) {
+          const { subject, html } = syndicateCreatedTemplate(
+            syndicate.name,
+            adminUser.name,
+          );
+          sendTransactionalEmail({
+            to: adminUser.email,
+            subject,
+            html,
+            template: "syndicate_created",
+            syndicateId: syndicate.id,
+            req,
+          }).catch(() => {});
+        }
+      }
+
+      // Auto-assign 30-day free trial
+      assignTrial(syndicate.id).catch((e) =>
+        req.log.warn({ err: e }, "Trial auto-assign failed"),
+      );
+
+      res
+        .status(201)
+        .json({ data: syndicate, message: "Syndicat créé avec succès" });
+    } catch (err: any) {
+      req.log.error(err);
+      const status = typeof err?.status === "number" ? err.status : 500;
+      res.status(status).json({ error: err?.message ?? "Erreur serveur" });
+    }
+  },
+);
 
 // ─── PUT /syndicates/:id ───────────────────────────────────────────────────────
 
@@ -261,19 +311,30 @@ const updateSchema = z.object({
   foundingDate: z.string().optional(),
   cotisationAmount: z.string().optional(),
   cotisationCycle: z.enum(["monthly", "quarterly", "yearly"]).optional(),
-  logoColor: z.string().regex(/^#[0-9a-fA-F]{6}$/).optional(),
+  logoColor: z
+    .string()
+    .regex(/^#[0-9a-fA-F]{6}$/)
+    .optional(),
   logoUrl: z.string().optional().or(z.literal("")),
   status: z.enum(["active", "inactive"]).optional(),
   adminId: z.string().optional(),
   // Banking — used on payment demands, invoices, and legal enforcement letters
   bankName: z.string().max(100).optional(),
   bankIban: z.string().max(50).optional(),
-  bankBic:  z.string().max(20).optional(),
+  bankBic: z.string().max(20).optional(),
 });
 
 router.put("/syndicates/:id", requireAuth, requireAdmin, async (req, res) => {
   const id = String(req.params.id) as string;
   const user = req.user!;
+
+  if (user.role === "super_admin" && req.query.supervision !== "true") {
+    res.status(403).json({
+      error: "La supervision est requise pour modifier un syndicat.",
+      code: "SUPERVISION_REQUIRED",
+    });
+    return;
+  }
 
   if (user.role === "syndicate_admin" && user.syndicateId !== id) {
     res.status(403).json({ error: "Accès refusé" });
@@ -284,21 +345,37 @@ router.put("/syndicates/:id", requireAuth, requireAdmin, async (req, res) => {
   // syndicate, but lifecycle state and platform ownership stay under Super
   // Admin control. Keeping these fields out of the accepted payload avoids
   // silently persisting a client-provided platform mutation.
-  const schema = user.role === "super_admin"
-    ? updateSchema
-    : updateSchema.omit({ status: true, adminId: true });
+  const schema =
+    user.role === "super_admin"
+      ? updateSchema
+      : updateSchema.omit({ status: true, adminId: true });
   const result = schema.safeParse(req.body);
-  if (!result.success) { res.status(400).json({ error: "Données invalides" }); return; }
+  if (!result.success) {
+    res.status(400).json({ error: "Données invalides" });
+    return;
+  }
   const updateData = result.data as z.infer<typeof updateSchema>;
   try {
     if (user.role === "super_admin" && updateData.adminId !== undefined) {
       const [admin] = await db
-        .select({ id: usersTable.id, role: usersTable.role, syndicateId: usersTable.syndicateId })
+        .select({
+          id: usersTable.id,
+          role: usersTable.role,
+          syndicateId: usersTable.syndicateId,
+        })
         .from(usersTable)
         .where(eq(usersTable.id, updateData.adminId))
         .limit(1);
-      if (!admin || admin.syndicateId !== id || admin.role !== "syndicate_admin") {
-        res.status(400).json({ error: "L'administrateur doit appartenir au syndicat cible" });
+      if (
+        !admin ||
+        admin.syndicateId !== id ||
+        admin.role !== "syndicate_admin"
+      ) {
+        res
+          .status(400)
+          .json({
+            error: "L'administrateur doit appartenir au syndicat cible",
+          });
         return;
       }
     }
@@ -308,14 +385,23 @@ router.put("/syndicates/:id", requireAuth, requireAdmin, async (req, res) => {
       .set(updateData)
       .where(eq(syndicatesTable.id, id))
       .returning();
-    if (!updated) { res.status(404).json({ error: "Syndicat introuvable" }); return; }
+    if (!updated) {
+      res.status(404).json({ error: "Syndicat introuvable" });
+      return;
+    }
     // Bust logo cache so next PDF generation picks up the new logo immediately
     if (updateData.logoUrl !== undefined && updated.logoUrl) {
       bustLogoCache(updated.logoUrl);
     }
     // Managing syndicate settings/lifecycle is a normal Super Admin platform duty,
     // not supervision of a syndicate_admin's day-to-day operations.
-    await serverAuditLog(req, { action: "UPDATE", entity: "syndicate", entityId: id, syndicateId: id, platformAction: user.role === "super_admin" });
+    await serverAuditLog(req, {
+      action: "UPDATE",
+      entity: "syndicate",
+      entityId: id,
+      syndicateId: id,
+      platformAction: user.role === "super_admin",
+    });
     res.json({ data: updated, message: "Syndicat mis à jour" });
   } catch (err) {
     req.log.error(err);
