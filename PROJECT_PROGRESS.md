@@ -309,4 +309,6 @@
 - API typecheck, Prettier, diff validation, managed restart, health probe, cross-tenant provider creation probe (`403`), unsupervised email scope probe (`403`), and supervised email scope probe (`200`) passed. The wider route audit remains open.
 - 2026-08-18 — Continued the sensitive-document authorization audit on escalation PDFs.
 - Escalation PDF generation now rejects missing or cross-syndicate lot, building, and member relationships before rendering unpaid charges into a legal document; malformed legacy records return a recoverable data-integrity response instead of mixing tenant data.
-- Verification is pending for the API typecheck/build and managed workflow restart; the wider route audit remains open.
+- API typecheck, production build, managed restart, health probe (`200`), clean scheduler/retention/expiry/SMTP startup, and protected PDF probes (`401`) passed.
+- 2026-08-18 — Continued the adjacent authorization audit on Email Center, financial transparency, and identity PDFs. Email retries now query within the syndicate scope before loading a log; Super Admin financial justifications require explicit supervision and a real target syndicate; cross-user membership/badge PDFs require explicit Super Admin supervision.
+- Public badge verification no longer returns building, lot, or join-date details; identity, role, syndicate, status, and verification time remain available for legitimate QR validation. Wider route audit remains open.

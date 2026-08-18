@@ -738,6 +738,18 @@ router.get("/pdf/ag/:id", requireAuth, async (req, res) => {
 router.get("/pdf/membership/:userId", requireAuth, async (req, res) => {
   const userId = String(req.params.userId) as string;
   if (
+    req.user!.role === "super_admin" &&
+    req.user!.userId !== userId &&
+    req.query.supervision !== "true"
+  ) {
+    res.status(403).json({
+      error:
+        "Les Super Admins doivent activer le mode supervision pour cibler un autre utilisateur.",
+      code: "SUPERVISION_REQUIRED",
+    });
+    return;
+  }
+  if (
     req.user!.role !== "super_admin" &&
     req.user!.role !== "syndicate_admin" &&
     req.user!.userId !== userId
@@ -962,6 +974,18 @@ function badgeVerificationCode(badgeId: string): string {
 
 router.get("/pdf/badge/:userId", requireAuth, async (req, res) => {
   const userId = String(req.params.userId) as string;
+  if (
+    req.user!.role === "super_admin" &&
+    req.user!.userId !== userId &&
+    req.query.supervision !== "true"
+  ) {
+    res.status(403).json({
+      error:
+        "Les Super Admins doivent activer le mode supervision pour cibler un autre utilisateur.",
+      code: "SUPERVISION_REQUIRED",
+    });
+    return;
+  }
   if (
     req.user!.role !== "super_admin" &&
     req.user!.role !== "syndicate_admin" &&
@@ -1363,16 +1387,7 @@ router.get("/verify/badge/:userId", async (req, res) => {
       role: user.role,
       roleLabel: ROLE_LABELS[user.role] ?? user.role,
       syndicateName: ctx.syndicate?.name ?? null,
-      buildingName: ctx.building?.name ?? null,
-      lot: ctx.lot
-        ? `N° ${ctx.lot.number} — Étage ${ctx.lot.floor ?? 0}`
-        : null,
       status: user.status === "active" ? "ACTIF" : "SUSPENDU",
-      joinDate:
-        ctx.joinDate ??
-        (user.createdAt
-          ? new Date(user.createdAt as any).toISOString().split("T")[0]
-          : null),
       verifiedAt: new Date().toISOString(),
     });
   } catch (err) {

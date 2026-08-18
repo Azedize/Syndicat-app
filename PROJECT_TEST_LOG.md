@@ -271,3 +271,5 @@
 - `pnpm --filter @workspace/api-server run typecheck` — passed with zero errors; `pnpm --filter @workspace/api-server run build` — passed.
 - Restarted `artifacts/api-server: API Server`; server listens on port 8080 and SMTP verification succeeds. `/api/healthz` returned 200; unauthenticated `/api/finance/transactions` and `/api/invoice-attachments/demo` returned 401.
 - Scheduler logs continue to report missing development relations (`appels_de_fonds`, `documents`, `syndicate_subscriptions`); this prevents a clean scheduled-scan result but does not prevent API startup or health responses.
+- 2026-08-18 — API typecheck, Prettier, `git diff --check`, production build, managed restart, scheduler/retention/expiry/SMTP startup, and `/api/healthz` (`200`) passed after the Email Center, transparency, and identity-PDF authorization batch.
+- Protected probes for `/api/email-logs`, `/api/expense-justifications`, `/api/pdf/membership/demo-user`, and `/api/pdf/badge/demo-user` returned `401`; `/api/verify/badge/demo-user` returned the expected public `404` for an unknown badge.

@@ -205,19 +205,25 @@ router.post(
   requireAdmin,
   async (req, res) => {
     try {
+      const user = req.user!;
+      if (user.role === "syndicate_admin" && !user.syndicateId) {
+        res.status(403).json({ error: "Syndicat non défini dans le token" });
+        return;
+      }
+      const scope =
+        user.role === "syndicate_admin"
+          ? eq(emailLogsTable.syndicateId, user.syndicateId!)
+          : undefined;
       const [log] = await db
         .select()
         .from(emailLogsTable)
-        .where(eq(emailLogsTable.id, String(req.params.id)));
+        .where(
+          scope
+            ? and(eq(emailLogsTable.id, String(req.params.id)), scope)
+            : eq(emailLogsTable.id, String(req.params.id)),
+        );
       if (!log) {
         res.status(404).json({ error: "Email introuvable" });
-        return;
-      }
-      if (
-        req.user!.role === "syndicate_admin" &&
-        log.syndicateId !== req.user!.syndicateId
-      ) {
-        res.status(403).json({ error: "Accès refusé" });
         return;
       }
 

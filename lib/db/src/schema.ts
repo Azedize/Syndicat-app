@@ -2081,6 +2081,50 @@ export const conseilSyndicalTable = pgTable(
   ],
 );
 
+// ─── Governance Delegations ─────────────────────────────────────────────────
+// A council member may delegate a defined authority to another active council
+// member for a bounded period. The copied names keep the historical record
+// readable even if a council row is later resigned or removed.
+export const governanceDelegationsTable = pgTable(
+  "governance_delegations",
+  {
+    id: id(),
+    syndicateId: text("syndicate_id")
+      .notNull()
+      .references(() => syndicatesTable.id, { onDelete: "cascade" }),
+    delegantId: text("delegant_id").references(() => conseilSyndicalTable.id, {
+      onDelete: "set null",
+    }),
+    delegantName: text("delegant_name").notNull(),
+    delegataireId: text("delegataire_id").references(
+      () => conseilSyndicalTable.id,
+      { onDelete: "set null" },
+    ),
+    delegataireName: text("delegataire_name").notNull(),
+    domaine: text("domaine").notNull(),
+    description: text("description").notNull().default(""),
+    startDate: text("start_date").notNull(),
+    endDate: text("end_date").notNull(),
+    // active | expired | revoked
+    status: text("status").notNull().default("active"),
+    createdBy: text("created_by").references(() => usersTable.id, {
+      onDelete: "set null",
+    }),
+    revokedAt: timestamp("revoked_at"),
+    revokedBy: text("revoked_by").references(() => usersTable.id, {
+      onDelete: "set null",
+    }),
+    revokeReason: text("revoke_reason"),
+    createdAt: createdAt(),
+  },
+  (t) => [
+    index("governance_delegations_syndicate_id_idx").on(t.syndicateId),
+    index("governance_delegations_status_idx").on(t.status),
+    index("governance_delegations_delegant_id_idx").on(t.delegantId),
+    index("governance_delegations_delegataire_id_idx").on(t.delegataireId),
+  ],
+);
+
 // ─── Fonds de Travaux (Law 18-00 Art. 18 — mandatory 5% reserve fund) ────────
 
 export const fondsTravauxTable = pgTable(

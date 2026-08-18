@@ -10,6 +10,7 @@ import { db } from "@workspace/db";
 import {
   expenseJustificationsTable,
   expenseVotesTable,
+  syndicatesTable,
   transactionsTable,
 } from "@workspace/db/schema";
 import { eq, and, desc } from "drizzle-orm";
@@ -91,6 +92,7 @@ router.post(
         category,
         receiptUrl,
         transactionId,
+        syndicateId: requestedSyndicateId,
       } = req.body;
 
       if (user.role !== "super_admin" && !user.syndicateId) {
@@ -98,12 +100,26 @@ router.post(
           .status(403)
           .json({ error: "Syndicat non défini dans le token" });
       }
+      if (user.role === "super_admin" && req.query.supervision !== "true") {
+        return void res.status(403).json({
+          error:
+            "Les Super Admins doivent activer le mode supervision pour cibler un syndicat.",
+          code: "SUPERVISION_REQUIRED",
+        });
+      }
       if (!title?.trim() || !amount) {
         return void res
           .status(400)
           .json({ error: "Le titre et le montant sont obligatoires" });
       }
 
+      let targetSyndicateId =
+        user.role === "super_admin"
+          ? typeof requestedSyndicateId === "string" &&
+            requestedSyndicateId.trim()
+            ? requestedSyndicateId.trim()
+            : null
+          : user.syndicateId!;
       let transactionSyndicateId: string | null | undefined;
       if (transactionId) {
         const [transaction] = await db
@@ -123,17 +139,44 @@ router.post(
           return void res.status(403).json({ error: "Accès refusé" });
         }
         transactionSyndicateId = transaction.syndicateId;
-        if (user.role === "super_admin" && !transactionSyndicateId) {
+        if (!transactionSyndicateId) {
           return void res
             .status(400)
             .json({ error: "La transaction doit appartenir à un syndicat" });
         }
+        if (
+          user.role === "super_admin" &&
+          targetSyndicateId &&
+          targetSyndicateId !== transactionSyndicateId
+        ) {
+          return void res.status(400).json({
+            error: "Le syndic ciblé ne correspond pas à la transaction",
+          });
+        }
+        targetSyndicateId = transactionSyndicateId;
+      }
+
+      if (!targetSyndicateId) {
+        return void res.status(400).json({
+          error: "Un syndicat cible est obligatoire pour ce justificatif",
+        });
+      }
+
+      const [targetSyndicate] = await db
+        .select({ id: syndicatesTable.id })
+        .from(syndicatesTable)
+        .where(eq(syndicatesTable.id, targetSyndicateId))
+        .limit(1);
+      if (!targetSyndicate) {
+        return void res
+          .status(400)
+          .json({ error: "Syndicat cible introuvable" });
       }
 
       const [row] = await db
         .insert(expenseJustificationsTable)
         .values({
-          syndicateId: user.syndicateId ?? transactionSyndicateId ?? null,
+          syndicateId: targetSyndicateId,
           transactionId: transactionId ?? null,
           title: title.trim(),
           description: (description ?? "").trim(),

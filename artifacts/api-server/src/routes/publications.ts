@@ -187,6 +187,10 @@ router.post("/publications/:id/comments", requireAuth, async (req, res) => {
     return;
   }
   try {
+    if (req.user!.role !== "super_admin" && !req.user!.syndicateId) {
+      res.status(403).json({ error: "Syndicat non défini dans le token" });
+      return;
+    }
     const [pub] = await db
       .select()
       .from(publicationsTable)
@@ -195,10 +199,7 @@ router.post("/publications/:id/comments", requireAuth, async (req, res) => {
       res.status(404).json({ error: "Publication introuvable" });
       return;
     }
-    if (
-      req.user!.role !== "super_admin" &&
-      pub.syndicateId !== req.user!.syndicateId
-    ) {
+    if (req.user!.role !== "super_admin" && pub.syndicateId !== req.user!.syndicateId) {
       res.status(403).json({ error: "Accès refusé" });
       return;
     }

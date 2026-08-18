@@ -283,3 +283,5 @@
 - Verified API typecheck, Prettier, `git diff --check`, managed restart/build, scheduler/SMTP startup, health `200`, provider cross-tenant probe `403`, email target without supervision `403`, and email target with supervision `200`.
 - 2026-08-18 — Audited `artifacts/api-server/src/routes/pdf.ts` escalation document generation. The escalation itself was scoped, but nullable legacy lot/member references and the derived building lookup were not verified against the escalation syndicate before rendering.
 - Added fail-closed relationship validation for the escalation syndicate, member, lot, and building; malformed relationships now return `409` with safe recovery copy and are logged with request context.
+- 2026-08-18 — Audited Email Center retry, financial transparency writes, and identity PDFs. Added database-scoped email retry lookup, supervised/validated Super Admin transparency targeting, supervised cross-user identity PDF access, and reduced public badge verification payload.
+- Verified API typecheck, Prettier, `git diff --check`, managed restart, health `200`, clean schedulers/SMTP, and protected/public badge probes.
