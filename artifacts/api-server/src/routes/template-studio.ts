@@ -417,11 +417,9 @@ router.put(
     if (!tmpl) return;
 
     if (tmpl.status === "archived" || tmpl.status === "disabled") {
-      res
-        .status(409)
-        .json({
-          error: "Impossible de modifier un template archivé ou désactivé",
-        });
+      res.status(409).json({
+        error: "Impossible de modifier un template archivé ou désactivé",
+      });
       return;
     }
 
@@ -655,7 +653,11 @@ router.get(
   requireAuth,
   requireRole("super_admin", "syndicate_admin"),
   async (req, res) => {
-    const tmpl = await getTemplateOrFail(routeParam(req.params.id), res);
+    const tmpl = await getTemplateForReader(
+      routeParam(req.params.id),
+      req,
+      res,
+    );
     if (!tmpl) return;
 
     const versions = await db

@@ -27,7 +27,7 @@ import {
   documentsTable,
   storageObjectsTable,
 } from "@workspace/db/schema";
-import { eq } from "drizzle-orm";
+import { eq, or } from "drizzle-orm";
 
 /** Workspace-relative directory for locally-stored uploads (dev fallback). */
 const LOCAL_UPLOADS_DIR = path.resolve("/home/runner/workspace/uploads");
@@ -117,7 +117,7 @@ async function serveLocalFile(
   filename: string,
   res: Response,
 ): Promise<boolean> {
-  const filePath = path.join(LOCAL_UPLOADS_DIR, filename);
+    const filePath = path.join(LOCAL_UPLOADS_DIR, filename);
   try {
     const data = await fs.readFile(filePath);
     const ext = path.extname(filename).toLowerCase();
@@ -137,15 +137,16 @@ async function serveLocalFile(
     res.setHeader("Content-Type", contentType);
     // Images: long cache + inline display. Non-images: prompt download.
     if (isImage) {
-      res.setHeader("Cache-Control", "public, max-age=31536000, immutable");
+      res.setHeader("Cache-Control", "private, no-store");
       res.setHeader("Content-Disposition", "inline");
     } else {
-      res.setHeader("Cache-Control", "public, max-age=86400");
+      res.setHeader("Cache-Control", "private, no-store");
       res.setHeader(
         "Content-Disposition",
         `attachment; filename="${encodeURIComponent(filename)}"`,
       );
     }
+    res.setHeader("Referrer-Policy", "no-referrer");
     res.setHeader("Content-Length", String(data.byteLength));
     res.send(data);
     return true;
@@ -475,11 +476,20 @@ router.get(
       // gradually migrated through the upload/document workflows.
       const docs = await db
         .select({
+          id: documentsTable.id,
           syndicateId: documentsTable.syndicateId,
           createdBy: documentsTable.createdBy,
+          category: documentsTable.category,
+          status: documentsTable.status,
+          isDeleted: documentsTable.isDeleted,
         })
         .from(documentsTable)
-        .where(eq(documentsTable.content, objectPath));
+        .where(
+          or(
+            eq(documentsTable.content, objectPath),
+            eq(documentsTable.fileUrl, objectPath),
+          ),
+        );
 
       // Generic uploads use owner/syndicate authorization. Document objects
       // deliberately skip this branch because documents have their own
@@ -516,16 +526,29 @@ router.get(
             .json({ error: "Authentification requise pour ce document" });
           return;
         }
-        const canAccess =
-          (req.user.role === "super_admin" &&
-            req.query.supervision === "true") ||
-          docs.some(
-            (doc) =>
-              doc.createdBy === req.user!.userId ||
-              (!!req.user!.syndicateId &&
-                !!doc.syndicateId &&
-                doc.syndicateId === req.user!.syndicateId),
-          );
+        const isSupervised =
+          req.user.role === "super_admin" &&
+          req.query.supervision === "true";
+        const canAccess = docs.some((doc) => {
+          if (doc.isDeleted) return false;
+          if (isSupervised) return true;
+          if (!req.user!.syndicateId || doc.syndicateId !== req.user!.syndicateId) {
+            return false;
+          }
+          if (
+            (req.user!.role === "member" || req.user!.role === "tenant") &&
+            doc.status !== "published"
+          ) {
+            return false;
+          }
+          if (
+            req.user!.role === "tenant" &&
+            !["bail", "reglement", "reglement_interieur"].includes(doc.category)
+          ) {
+            return false;
+          }
+          return true;
+        });
         if (!canAccess) {
           res.status(403).json({ error: "Accès refusé" });
           return;
@@ -551,6 +574,8 @@ router.get(
         if (gcsContentType.startsWith("image/")) {
           res.setHeader("Content-Disposition", "inline");
         }
+        res.setHeader("Cache-Control", "private, no-store");
+        res.setHeader("Referrer-Policy", "no-referrer");
         if (response.body) {
           Readable.fromWeb(response.body as ReadableStream<Uint8Array>).pipe(
             res,

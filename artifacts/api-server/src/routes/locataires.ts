@@ -2,72 +2,92 @@ import { Router } from "express";
 import { db } from "@workspace/db";
 import { tenantsTable, lotsTable, buildingsTable } from "@workspace/db/schema";
 import { eq, and, desc, or, ilike } from "drizzle-orm";
-import { requireAuth, requireAdmin, requireRole, requireOperationalAccess } from "../middleware/auth.js";
+import {
+  requireAuth,
+  requireAdmin,
+  requireRole,
+  requireOperationalAccess,
+} from "../middleware/auth.js";
 import { z } from "zod";
 
 const router = Router();
 
 // GET /locataires — management team only (tenants see their own lease via /locataires/my-lease)
 // President and secretary manage tenant relations; syndicateId scoping enforces isolation.
-router.get("/locataires", requireAuth, requireRole("super_admin", "syndicate_admin", "president", "secretary"), async (req, res) => {
-  try {
-    const user = (req as any).user;
-    const { status, buildingId, lotId, search } = req.query as Record<string, string>;
+router.get(
+  "/locataires",
+  requireAuth,
+  requireRole("super_admin", "syndicate_admin", "president", "secretary"),
+  async (req, res) => {
+    try {
+      const user = (req as any).user;
+      const { status, buildingId, lotId, search } = req.query as Record<
+        string,
+        string
+      >;
 
-    const conditions: any[] = [];
+      const conditions: any[] = [];
 
-    if (status) conditions.push(eq(tenantsTable.status, status));
-    if (buildingId) conditions.push(eq(tenantsTable.buildingId, buildingId));
-    if (lotId) conditions.push(eq(tenantsTable.lotId, lotId));
+      if (status) conditions.push(eq(tenantsTable.status, status));
+      if (buildingId) conditions.push(eq(tenantsTable.buildingId, buildingId));
+      if (lotId) conditions.push(eq(tenantsTable.lotId, lotId));
 
-    if (user.role !== "super_admin") {
-      // Every management role is still tenant-scoped. Never let a missing
-      // syndicateId turn this list into a global query.
-      if (!user.syndicateId) return void res.status(403).json({ error: "Syndicat non défini dans le token" });
-      conditions.push(eq(tenantsTable.syndicateId, user.syndicateId));
-    }
+      if (user.role !== "super_admin") {
+        // Every management role is still tenant-scoped. Never let a missing
+        // syndicateId turn this list into a global query.
+        if (!user.syndicateId)
+          return void res
+            .status(403)
+            .json({ error: "Syndicat non défini dans le token" });
+        conditions.push(eq(tenantsTable.syndicateId, user.syndicateId));
+      }
 
-    const rows = await db
-      .select({
-        id: tenantsTable.id,
-        name: tenantsTable.name,
-        email: tenantsTable.email,
-        phone: tenantsTable.phone,
-        lotId: tenantsTable.lotId,
-        buildingId: tenantsTable.buildingId,
-        leaseStart: tenantsTable.leaseStart,
-        leaseEnd: tenantsTable.leaseEnd,
-        monthlyRent: tenantsTable.monthlyRent,
-        depositAmount: tenantsTable.depositAmount,
-        status: tenantsTable.status,
-        emergencyContact: tenantsTable.emergencyContact,
-        emergencyPhone: tenantsTable.emergencyPhone,
-        notes: tenantsTable.notes,
-        createdAt: tenantsTable.createdAt,
-        syndicateId: tenantsTable.syndicateId,
-        lotNumber: lotsTable.number,
-        buildingName: buildingsTable.name,
-      })
-      .from(tenantsTable)
-      .leftJoin(lotsTable, eq(tenantsTable.lotId, lotsTable.id))
-      .leftJoin(buildingsTable, eq(tenantsTable.buildingId, buildingsTable.id))
-      .where(conditions.length ? and(...conditions) : undefined)
-      .orderBy(desc(tenantsTable.createdAt));
-
-    const filtered = search
-      ? rows.filter((r) =>
-          r.name.toLowerCase().includes(search.toLowerCase()) ||
-          (r.email ?? "").toLowerCase().includes(search.toLowerCase()) ||
-          (r.lotNumber ?? "").toLowerCase().includes(search.toLowerCase())
+      const rows = await db
+        .select({
+          id: tenantsTable.id,
+          name: tenantsTable.name,
+          email: tenantsTable.email,
+          phone: tenantsTable.phone,
+          lotId: tenantsTable.lotId,
+          buildingId: tenantsTable.buildingId,
+          leaseStart: tenantsTable.leaseStart,
+          leaseEnd: tenantsTable.leaseEnd,
+          monthlyRent: tenantsTable.monthlyRent,
+          depositAmount: tenantsTable.depositAmount,
+          status: tenantsTable.status,
+          emergencyContact: tenantsTable.emergencyContact,
+          emergencyPhone: tenantsTable.emergencyPhone,
+          notes: tenantsTable.notes,
+          createdAt: tenantsTable.createdAt,
+          syndicateId: tenantsTable.syndicateId,
+          lotNumber: lotsTable.number,
+          buildingName: buildingsTable.name,
+        })
+        .from(tenantsTable)
+        .leftJoin(lotsTable, eq(tenantsTable.lotId, lotsTable.id))
+        .leftJoin(
+          buildingsTable,
+          eq(tenantsTable.buildingId, buildingsTable.id),
         )
-      : rows;
+        .where(conditions.length ? and(...conditions) : undefined)
+        .orderBy(desc(tenantsTable.createdAt));
 
-    res.json({ data: filtered, total: filtered.length });
-  } catch (e) {
-    console.error(e);
-    res.status(500).json({ error: "Erreur serveur" });
-  }
-});
+      const filtered = search
+        ? rows.filter(
+            (r) =>
+              r.name.toLowerCase().includes(search.toLowerCase()) ||
+              (r.email ?? "").toLowerCase().includes(search.toLowerCase()) ||
+              (r.lotNumber ?? "").toLowerCase().includes(search.toLowerCase()),
+          )
+        : rows;
+
+      res.json({ data: filtered, total: filtered.length });
+    } catch (e) {
+      console.error(e);
+      res.status(500).json({ error: "Erreur serveur" });
+    }
+  },
+);
 
 // GET /locataires/my-lease — tenant viewing their own lease record.
 // Tenants aren't FK-linked to a tenantsTable row; matched by verified JWT email,
@@ -75,7 +95,21 @@ router.get("/locataires", requireAuth, requireRole("super_admin", "syndicate_adm
 router.get("/locataires/my-lease", requireAuth, async (req, res) => {
   try {
     const user = req.user!;
-    if (!user.email) return void res.status(404).json({ error: "Aucun bail associé à ce compte" });
+    if (!user.email)
+      return void res
+        .status(404)
+        .json({ error: "Aucun bail associé à ce compte" });
+    if (user.role === "super_admin" && req.query.supervision !== "true") {
+      return void res.status(403).json({
+        error: "La supervision est requise pour accéder à ce bail.",
+        code: "SUPERVISION_REQUIRED",
+      });
+    }
+    if (user.role !== "super_admin" && !user.syndicateId) {
+      return void res
+        .status(403)
+        .json({ error: "Syndicat non défini dans le token" });
+    }
 
     const [row] = await db
       .select({
@@ -104,10 +138,20 @@ router.get("/locataires/my-lease", requireAuth, async (req, res) => {
       .from(tenantsTable)
       .leftJoin(lotsTable, eq(tenantsTable.lotId, lotsTable.id))
       .leftJoin(buildingsTable, eq(tenantsTable.buildingId, buildingsTable.id))
-      .where(eq(tenantsTable.email, user.email))
+      .where(
+        and(
+          eq(tenantsTable.email, user.email),
+          user.role === "super_admin"
+            ? undefined
+            : eq(tenantsTable.syndicateId, user.syndicateId!),
+        ),
+      )
       .limit(1);
 
-    if (!row) return void res.status(404).json({ error: "Aucun bail associé à ce compte" });
+    if (!row)
+      return void res
+        .status(404)
+        .json({ error: "Aucun bail associé à ce compte" });
     res.json({ data: row });
   } catch (e) {
     console.error(e);
@@ -116,285 +160,350 @@ router.get("/locataires/my-lease", requireAuth, async (req, res) => {
 });
 
 // GET /locataires/:id — admin only or the tenant viewing their own record
-router.get("/locataires/:id", requireAuth, requireRole("super_admin", "syndicate_admin"), async (req, res) => {
-  try {
-    const [row] = await db
-      .select({
-        id: tenantsTable.id,
-        name: tenantsTable.name,
-        email: tenantsTable.email,
-        phone: tenantsTable.phone,
-        lotId: tenantsTable.lotId,
-        buildingId: tenantsTable.buildingId,
-        leaseStart: tenantsTable.leaseStart,
-        leaseEnd: tenantsTable.leaseEnd,
-        monthlyRent: tenantsTable.monthlyRent,
-        depositAmount: tenantsTable.depositAmount,
-        status: tenantsTable.status,
-        emergencyContact: tenantsTable.emergencyContact,
-        emergencyPhone: tenantsTable.emergencyPhone,
-        notes: tenantsTable.notes,
-        createdAt: tenantsTable.createdAt,
-        syndicateId: tenantsTable.syndicateId,
-        lotNumber: lotsTable.number,
-        buildingName: buildingsTable.name,
-        buildingAddress: buildingsTable.address,
-      })
-      .from(tenantsTable)
-      .leftJoin(lotsTable, eq(tenantsTable.lotId, lotsTable.id))
-      .leftJoin(buildingsTable, eq(tenantsTable.buildingId, buildingsTable.id))
-      .where(eq(tenantsTable.id, String(req.params.id)))
-      .limit(1);
-
-    if (!row) return void res.status(404).json({ error: "Locataire introuvable" });
-
-    // Syndicate isolation: never allow a missing tenant/building scope to pass.
-    const user = req.user!;
-    if (user.role !== "super_admin") {
-      if (!user.syndicateId) return void res.status(403).json({ error: "Syndicat non défini dans le token" });
-      let resourceSyndicateId = row.syndicateId;
-      if (!resourceSyndicateId && row.buildingId) {
-        const [building] = await db
-          .select({ syndicateId: buildingsTable.syndicateId })
-          .from(buildingsTable)
-          .where(eq(buildingsTable.id, row.buildingId))
-          .limit(1);
-        resourceSyndicateId = building?.syndicateId ?? null;
-      }
-      if (!resourceSyndicateId || resourceSyndicateId !== user.syndicateId) {
-        return void res.status(403).json({ error: "Accès refusé" });
-      }
-    }
-
-    res.json({ data: row });
-  } catch (e) {
-    console.error(e);
-    res.status(500).json({ error: "Erreur serveur" });
-  }
-});
-
-// POST /locataires (syndicate_admin; super_admin requires ?supervision=true)
-router.post("/locataires", requireAuth, requireOperationalAccess, async (req, res) => {
-  const schema = z.object({
-    name: z.string().min(1),
-    email: z.string().email().optional().or(z.literal("")),
-    phone: z.string().optional(),
-    lotId: z.string().optional(),
-    buildingId: z.string().optional(),
-    syndicateId: z.string().optional(),
-    leaseStart: z.string().optional(),
-    leaseEnd: z.string().optional(),
-    monthlyRent: z.number().nonnegative().optional(),
-    depositAmount: z.number().nonnegative().optional(),
-    emergencyContact: z.string().optional(),
-    emergencyPhone: z.string().optional(),
-    notes: z.string().optional(),
-    status: z.enum(["active", "pending", "expired"]).default("active"),
-  });
-
-  const result = schema.safeParse(req.body);
-  if (!result.success) return void res.status(400).json({ error: "Données invalides", details: result.error.issues });
-
-  try {
-    const user = (req as any).user;
-    const data = result.data;
-
-    let buildingId = data.buildingId;
-    if (!buildingId && data.lotId) {
-      const [lot] = await db
-        .select({ buildingId: lotsTable.buildingId })
-        .from(lotsTable)
-        .where(eq(lotsTable.id, data.lotId))
+router.get(
+  "/locataires/:id",
+  requireAuth,
+  requireRole("super_admin", "syndicate_admin"),
+  async (req, res) => {
+    try {
+      const [row] = await db
+        .select({
+          id: tenantsTable.id,
+          name: tenantsTable.name,
+          email: tenantsTable.email,
+          phone: tenantsTable.phone,
+          lotId: tenantsTable.lotId,
+          buildingId: tenantsTable.buildingId,
+          leaseStart: tenantsTable.leaseStart,
+          leaseEnd: tenantsTable.leaseEnd,
+          monthlyRent: tenantsTable.monthlyRent,
+          depositAmount: tenantsTable.depositAmount,
+          status: tenantsTable.status,
+          emergencyContact: tenantsTable.emergencyContact,
+          emergencyPhone: tenantsTable.emergencyPhone,
+          notes: tenantsTable.notes,
+          createdAt: tenantsTable.createdAt,
+          syndicateId: tenantsTable.syndicateId,
+          lotNumber: lotsTable.number,
+          buildingName: buildingsTable.name,
+          buildingAddress: buildingsTable.address,
+        })
+        .from(tenantsTable)
+        .leftJoin(lotsTable, eq(tenantsTable.lotId, lotsTable.id))
+        .leftJoin(
+          buildingsTable,
+          eq(tenantsTable.buildingId, buildingsTable.id),
+        )
+        .where(eq(tenantsTable.id, String(req.params.id)))
         .limit(1);
-      if (lot) buildingId = lot.buildingId;
-    }
 
-    let syndicateId = data.syndicateId ?? user.syndicateId ?? null;
-    if (user.role !== "super_admin") {
-      if (!user.syndicateId) return void res.status(403).json({ error: "Syndicat non défini dans le token" });
-      syndicateId = user.syndicateId;
-    }
+      if (!row)
+        return void res.status(404).json({ error: "Locataire introuvable" });
 
-    if (user.role !== "super_admin" && buildingId) {
-      const [building] = await db
-        .select({ syndicateId: buildingsTable.syndicateId })
-        .from(buildingsTable)
-        .where(eq(buildingsTable.id, buildingId))
-        .limit(1);
-      if (!building || building.syndicateId !== user.syndicateId) {
-        return void res.status(403).json({ error: "Accès refusé à cet immeuble" });
-      }
-    }
-
-    if (data.lotId) {
-      const [lot] = await db
-        .select({ buildingId: lotsTable.buildingId })
-        .from(lotsTable)
-        .where(eq(lotsTable.id, data.lotId))
-        .limit(1);
-      if (!lot || (buildingId && lot.buildingId !== buildingId)) {
-        return void res.status(400).json({ error: "Lot ou immeuble invalide" });
-      }
-    }
-
-    const [row] = await db
-      .insert(tenantsTable)
-      .values({
-        name: data.name,
-        email: data.email || null,
-        phone: data.phone || null,
-        lotId: data.lotId || null,
-        buildingId: buildingId || null,
-        syndicateId,
-        leaseStart: data.leaseStart || null,
-        leaseEnd: data.leaseEnd || null,
-        monthlyRent: data.monthlyRent ?? null,
-        depositAmount: data.depositAmount ?? null,
-        emergencyContact: data.emergencyContact || null,
-        emergencyPhone: data.emergencyPhone || null,
-        notes: data.notes || null,
-        status: data.status,
-      } as any)
-      .returning();
-
-    res.status(201).json({ data: row, message: "Locataire enregistré avec succès" });
-  } catch (e) {
-    console.error(e);
-    res.status(500).json({ error: "Erreur serveur" });
-  }
-});
-
-// PUT /locataires/:id (syndicate_admin; super_admin requires ?supervision=true)
-router.put("/locataires/:id", requireAuth, requireOperationalAccess, async (req, res) => {
-  const schema = z.object({
-    name: z.string().min(1).optional(),
-    email: z.string().email().optional().or(z.literal("")),
-    phone: z.string().optional(),
-    lotId: z.string().optional(),
-    buildingId: z.string().optional(),
-    leaseStart: z.string().optional(),
-    leaseEnd: z.string().optional(),
-    monthlyRent: z.number().nonnegative().optional(),
-    depositAmount: z.number().nonnegative().optional(),
-    emergencyContact: z.string().optional(),
-    emergencyPhone: z.string().optional(),
-    notes: z.string().optional(),
-    status: z.enum(["active", "pending", "expired"]).optional(),
-  });
-
-  const result = schema.safeParse(req.body);
-  if (!result.success) return void res.status(400).json({ error: "Données invalides" });
-
-  try {
-    const user = req.user!;
-    const [existing] = await db
-      .select({ syndicateId: tenantsTable.syndicateId, buildingId: tenantsTable.buildingId })
-      .from(tenantsTable)
-      .where(eq(tenantsTable.id, String(req.params.id)))
-      .limit(1);
-    if (!existing) return void res.status(404).json({ error: "Locataire introuvable" });
-
-    if (user.role !== "super_admin") {
-      if (!user.syndicateId) return void res.status(403).json({ error: "Syndicat non défini dans le token" });
-      let resourceSyndicateId = existing.syndicateId;
-      if (!resourceSyndicateId && existing.buildingId) {
-        const [building] = await db
-          .select({ syndicateId: buildingsTable.syndicateId })
-          .from(buildingsTable)
-          .where(eq(buildingsTable.id, existing.buildingId))
-          .limit(1);
-        resourceSyndicateId = building?.syndicateId ?? null;
-      }
-      if (!resourceSyndicateId || resourceSyndicateId !== user.syndicateId) {
-        return void res.status(403).json({ error: "Accès refusé" });
-      }
-    }
-
-    const updates: Record<string, any> = {};
-    for (const [k, v] of Object.entries(result.data)) {
-      if (v !== undefined) updates[k] = v === "" ? null : v;
-    }
-
-    if (result.data.lotId) {
-      const [lot] = await db
-        .select({ buildingId: lotsTable.buildingId })
-        .from(lotsTable)
-        .where(eq(lotsTable.id, result.data.lotId))
-        .limit(1);
-      if (!lot || (result.data.buildingId && lot.buildingId !== result.data.buildingId)) {
-        return void res.status(400).json({ error: "Lot ou immeuble invalide" });
-      }
+      // Syndicate isolation: never allow a missing tenant/building scope to pass.
+      const user = req.user!;
       if (user.role !== "super_admin") {
-        const [building] = await db
-          .select({ syndicateId: buildingsTable.syndicateId })
-          .from(buildingsTable)
-          .where(eq(buildingsTable.id, lot.buildingId))
-          .limit(1);
-        if (!building || building.syndicateId !== user.syndicateId) {
-          return void res.status(403).json({ error: "Accès refusé à cet immeuble" });
+        if (!user.syndicateId)
+          return void res
+            .status(403)
+            .json({ error: "Syndicat non défini dans le token" });
+        let resourceSyndicateId = row.syndicateId;
+        if (!resourceSyndicateId && row.buildingId) {
+          const [building] = await db
+            .select({ syndicateId: buildingsTable.syndicateId })
+            .from(buildingsTable)
+            .where(eq(buildingsTable.id, row.buildingId))
+            .limit(1);
+          resourceSyndicateId = building?.syndicateId ?? null;
+        }
+        if (!resourceSyndicateId || resourceSyndicateId !== user.syndicateId) {
+          return void res.status(403).json({ error: "Accès refusé" });
         }
       }
-    } else if (result.data.buildingId && user.role !== "super_admin") {
-      const [building] = await db
-        .select({ syndicateId: buildingsTable.syndicateId })
-        .from(buildingsTable)
-        .where(eq(buildingsTable.id, result.data.buildingId))
-        .limit(1);
-      if (!building || building.syndicateId !== user.syndicateId) {
-        return void res.status(403).json({ error: "Accès refusé à cet immeuble" });
-      }
+
+      res.json({ data: row });
+    } catch (e) {
+      console.error(e);
+      res.status(500).json({ error: "Erreur serveur" });
     }
+  },
+);
 
-    const [updated] = await db
-      .update(tenantsTable)
-      .set(updates)
-      .where(eq(tenantsTable.id, String(req.params.id)))
-      .returning();
+// POST /locataires (syndicate_admin; super_admin requires ?supervision=true)
+router.post(
+  "/locataires",
+  requireAuth,
+  requireOperationalAccess,
+  async (req, res) => {
+    const schema = z.object({
+      name: z.string().min(1),
+      email: z.string().email().optional().or(z.literal("")),
+      phone: z.string().optional(),
+      lotId: z.string().optional(),
+      buildingId: z.string().optional(),
+      syndicateId: z.string().optional(),
+      leaseStart: z.string().optional(),
+      leaseEnd: z.string().optional(),
+      monthlyRent: z.number().nonnegative().optional(),
+      depositAmount: z.number().nonnegative().optional(),
+      emergencyContact: z.string().optional(),
+      emergencyPhone: z.string().optional(),
+      notes: z.string().optional(),
+      status: z.enum(["active", "pending", "expired"]).default("active"),
+    });
 
-    if (!updated) return void res.status(404).json({ error: "Locataire introuvable" });
-    res.json({ data: updated, message: "Locataire mis à jour" });
-  } catch (e) {
-    console.error(e);
-    res.status(500).json({ error: "Erreur serveur" });
-  }
-});
+    const result = schema.safeParse(req.body);
+    if (!result.success)
+      return void res
+        .status(400)
+        .json({ error: "Données invalides", details: result.error.issues });
 
-// DELETE /locataires/:id (syndicate_admin; super_admin requires ?supervision=true)
-router.delete("/locataires/:id", requireAuth, requireOperationalAccess, async (req, res) => {
-  try {
-    const user = req.user!;
-    if (user.role !== "super_admin") {
-      if (!user.syndicateId) return void res.status(403).json({ error: "Syndicat non défini dans le token" });
+    try {
+      const user = (req as any).user;
+      const data = result.data;
+
+      let buildingId = data.buildingId;
+      if (!buildingId && data.lotId) {
+        const [lot] = await db
+          .select({ buildingId: lotsTable.buildingId })
+          .from(lotsTable)
+          .where(eq(lotsTable.id, data.lotId))
+          .limit(1);
+        if (lot) buildingId = lot.buildingId;
+      }
+
+      let syndicateId = data.syndicateId ?? user.syndicateId ?? null;
+      if (user.role !== "super_admin") {
+        if (!user.syndicateId)
+          return void res
+            .status(403)
+            .json({ error: "Syndicat non défini dans le token" });
+        syndicateId = user.syndicateId;
+      }
+
+      if (user.role !== "super_admin" && buildingId) {
+        const [building] = await db
+          .select({ syndicateId: buildingsTable.syndicateId })
+          .from(buildingsTable)
+          .where(eq(buildingsTable.id, buildingId))
+          .limit(1);
+        if (!building || building.syndicateId !== user.syndicateId) {
+          return void res
+            .status(403)
+            .json({ error: "Accès refusé à cet immeuble" });
+        }
+      }
+
+      if (data.lotId) {
+        const [lot] = await db
+          .select({ buildingId: lotsTable.buildingId })
+          .from(lotsTable)
+          .where(eq(lotsTable.id, data.lotId))
+          .limit(1);
+        if (!lot || (buildingId && lot.buildingId !== buildingId)) {
+          return void res
+            .status(400)
+            .json({ error: "Lot ou immeuble invalide" });
+        }
+      }
+
+      const [row] = await db
+        .insert(tenantsTable)
+        .values({
+          name: data.name,
+          email: data.email || null,
+          phone: data.phone || null,
+          lotId: data.lotId || null,
+          buildingId: buildingId || null,
+          syndicateId,
+          leaseStart: data.leaseStart || null,
+          leaseEnd: data.leaseEnd || null,
+          monthlyRent: data.monthlyRent ?? null,
+          depositAmount: data.depositAmount ?? null,
+          emergencyContact: data.emergencyContact || null,
+          emergencyPhone: data.emergencyPhone || null,
+          notes: data.notes || null,
+          status: data.status,
+        } as any)
+        .returning();
+
+      res
+        .status(201)
+        .json({ data: row, message: "Locataire enregistré avec succès" });
+    } catch (e) {
+      console.error(e);
+      res.status(500).json({ error: "Erreur serveur" });
+    }
+  },
+);
+
+// PUT /locataires/:id (syndicate_admin; super_admin requires ?supervision=true)
+router.put(
+  "/locataires/:id",
+  requireAuth,
+  requireOperationalAccess,
+  async (req, res) => {
+    const schema = z.object({
+      name: z.string().min(1).optional(),
+      email: z.string().email().optional().or(z.literal("")),
+      phone: z.string().optional(),
+      lotId: z.string().optional(),
+      buildingId: z.string().optional(),
+      leaseStart: z.string().optional(),
+      leaseEnd: z.string().optional(),
+      monthlyRent: z.number().nonnegative().optional(),
+      depositAmount: z.number().nonnegative().optional(),
+      emergencyContact: z.string().optional(),
+      emergencyPhone: z.string().optional(),
+      notes: z.string().optional(),
+      status: z.enum(["active", "pending", "expired"]).optional(),
+    });
+
+    const result = schema.safeParse(req.body);
+    if (!result.success)
+      return void res.status(400).json({ error: "Données invalides" });
+
+    try {
+      const user = req.user!;
       const [existing] = await db
-        .select({ syndicateId: tenantsTable.syndicateId, buildingId: tenantsTable.buildingId })
+        .select({
+          syndicateId: tenantsTable.syndicateId,
+          buildingId: tenantsTable.buildingId,
+        })
         .from(tenantsTable)
         .where(eq(tenantsTable.id, String(req.params.id)))
         .limit(1);
-      if (!existing) return void res.status(404).json({ error: "Locataire introuvable" });
-      let resourceSyndicateId = existing.syndicateId;
-      if (!resourceSyndicateId && existing.buildingId) {
+      if (!existing)
+        return void res.status(404).json({ error: "Locataire introuvable" });
+
+      if (user.role !== "super_admin") {
+        if (!user.syndicateId)
+          return void res
+            .status(403)
+            .json({ error: "Syndicat non défini dans le token" });
+        let resourceSyndicateId = existing.syndicateId;
+        if (!resourceSyndicateId && existing.buildingId) {
+          const [building] = await db
+            .select({ syndicateId: buildingsTable.syndicateId })
+            .from(buildingsTable)
+            .where(eq(buildingsTable.id, existing.buildingId))
+            .limit(1);
+          resourceSyndicateId = building?.syndicateId ?? null;
+        }
+        if (!resourceSyndicateId || resourceSyndicateId !== user.syndicateId) {
+          return void res.status(403).json({ error: "Accès refusé" });
+        }
+      }
+
+      const updates: Record<string, any> = {};
+      for (const [k, v] of Object.entries(result.data)) {
+        if (v !== undefined) updates[k] = v === "" ? null : v;
+      }
+
+      if (result.data.lotId) {
+        const [lot] = await db
+          .select({ buildingId: lotsTable.buildingId })
+          .from(lotsTable)
+          .where(eq(lotsTable.id, result.data.lotId))
+          .limit(1);
+        if (
+          !lot ||
+          (result.data.buildingId && lot.buildingId !== result.data.buildingId)
+        ) {
+          return void res
+            .status(400)
+            .json({ error: "Lot ou immeuble invalide" });
+        }
+        if (user.role !== "super_admin") {
+          const [building] = await db
+            .select({ syndicateId: buildingsTable.syndicateId })
+            .from(buildingsTable)
+            .where(eq(buildingsTable.id, lot.buildingId))
+            .limit(1);
+          if (!building || building.syndicateId !== user.syndicateId) {
+            return void res
+              .status(403)
+              .json({ error: "Accès refusé à cet immeuble" });
+          }
+        }
+      } else if (result.data.buildingId && user.role !== "super_admin") {
         const [building] = await db
           .select({ syndicateId: buildingsTable.syndicateId })
           .from(buildingsTable)
-          .where(eq(buildingsTable.id, existing.buildingId))
+          .where(eq(buildingsTable.id, result.data.buildingId))
           .limit(1);
-        resourceSyndicateId = building?.syndicateId ?? null;
+        if (!building || building.syndicateId !== user.syndicateId) {
+          return void res
+            .status(403)
+            .json({ error: "Accès refusé à cet immeuble" });
+        }
       }
-      if (!resourceSyndicateId || resourceSyndicateId !== user.syndicateId) {
-        return void res.status(403).json({ error: "Accès refusé" });
-      }
-    }
-    const [deleted] = await db
-      .delete(tenantsTable)
-      .where(eq(tenantsTable.id, String(req.params.id)))
-      .returning();
 
-    if (!deleted) return void res.status(404).json({ error: "Locataire introuvable" });
-    res.json({ message: "Locataire supprimé" });
-  } catch (e) {
-    console.error(e);
-    res.status(500).json({ error: "Erreur serveur" });
-  }
-});
+      const [updated] = await db
+        .update(tenantsTable)
+        .set(updates)
+        .where(eq(tenantsTable.id, String(req.params.id)))
+        .returning();
+
+      if (!updated)
+        return void res.status(404).json({ error: "Locataire introuvable" });
+      res.json({ data: updated, message: "Locataire mis à jour" });
+    } catch (e) {
+      console.error(e);
+      res.status(500).json({ error: "Erreur serveur" });
+    }
+  },
+);
+
+// DELETE /locataires/:id (syndicate_admin; super_admin requires ?supervision=true)
+router.delete(
+  "/locataires/:id",
+  requireAuth,
+  requireOperationalAccess,
+  async (req, res) => {
+    try {
+      const user = req.user!;
+      if (user.role !== "super_admin") {
+        if (!user.syndicateId)
+          return void res
+            .status(403)
+            .json({ error: "Syndicat non défini dans le token" });
+        const [existing] = await db
+          .select({
+            syndicateId: tenantsTable.syndicateId,
+            buildingId: tenantsTable.buildingId,
+          })
+          .from(tenantsTable)
+          .where(eq(tenantsTable.id, String(req.params.id)))
+          .limit(1);
+        if (!existing)
+          return void res.status(404).json({ error: "Locataire introuvable" });
+        let resourceSyndicateId = existing.syndicateId;
+        if (!resourceSyndicateId && existing.buildingId) {
+          const [building] = await db
+            .select({ syndicateId: buildingsTable.syndicateId })
+            .from(buildingsTable)
+            .where(eq(buildingsTable.id, existing.buildingId))
+            .limit(1);
+          resourceSyndicateId = building?.syndicateId ?? null;
+        }
+        if (!resourceSyndicateId || resourceSyndicateId !== user.syndicateId) {
+          return void res.status(403).json({ error: "Accès refusé" });
+        }
+      }
+      const [deleted] = await db
+        .delete(tenantsTable)
+        .where(eq(tenantsTable.id, String(req.params.id)))
+        .returning();
+
+      if (!deleted)
+        return void res.status(404).json({ error: "Locataire introuvable" });
+      res.json({ message: "Locataire supprimé" });
+    } catch (e) {
+      console.error(e);
+      res.status(500).json({ error: "Erreur serveur" });
+    }
+  },
+);
 
 export default router;

@@ -18,6 +18,7 @@ import {
   invoicesTable,
   buildingsTable,
   membersTable,
+  storageObjectsTable,
 } from "@workspace/db/schema";
 import { eq, and } from "drizzle-orm";
 import {
@@ -78,6 +79,37 @@ function enforceSupervisionForSuperAdmin(req: Request, res: Response): boolean {
         "Les Super Admins doivent activer le mode supervision pour accéder aux pièces financières d'un syndicat.",
       code: "SUPERVISION_REQUIRED",
     });
+    return false;
+  }
+  return true;
+}
+
+const PRIVATE_OBJECT_PATH = /^\/objects\/(?!.*(?:^|\/)\.\.(?:\/|$))[A-Za-z0-9._/-]+$/;
+
+async function enforceAttachmentObject(
+  req: Request,
+  res: Response,
+  url: string,
+  syndicateId: string,
+): Promise<boolean> {
+  if (!PRIVATE_OBJECT_PATH.test(url)) {
+    res.status(400).json({ error: "Le fichier doit provenir du stockage privé de la plateforme" });
+    return false;
+  }
+  const [object] = await db
+    .select({ ownerId: storageObjectsTable.ownerId, syndicateId: storageObjectsTable.syndicateId })
+    .from(storageObjectsTable)
+    .where(eq(storageObjectsTable.objectPath, url))
+    .limit(1);
+  if (!object) {
+    res.status(400).json({ error: "Fichier introuvable" });
+    return false;
+  }
+  if (
+    req.user!.role !== "super_admin" &&
+    (!req.user!.syndicateId || object.syndicateId !== syndicateId || object.syndicateId !== req.user!.syndicateId)
+  ) {
+    res.status(403).json({ error: "Le fichier n'appartient pas à ce syndicat" });
     return false;
   }
   return true;
@@ -148,6 +180,7 @@ router.post("/charge-attachments", requireAuth, async (req, res) => {
 
     const syndicateId = await getAppelSyndicateId(appelDeFondsId);
     if (!syndicateId || !enforceSyndicateAccess(req, res, syndicateId)) return;
+    if (!(await enforceAttachmentObject(req, res, url, syndicateId))) return;
     // Members/tenants can only attach to their own appels
     if (
       !(await enforcePersonalChargeAccess(req, res, appel.ownerId, syndicateId))
@@ -300,6 +333,7 @@ router.post(
 
       const syndicateId = await getInvoiceSyndicateId(invoiceId);
       if (!enforceSyndicateAccess(req, res, syndicateId)) return;
+      if (!(await enforceAttachmentObject(req, res, url, syndicateId!))) return;
 
       const [row] = await db
         .insert(invoiceAttachmentsTable)

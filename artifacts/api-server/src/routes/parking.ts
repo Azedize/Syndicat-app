@@ -101,6 +101,12 @@ router.get("/parking/spots", requireAuth, async (req, res) => {
   try {
     const user = req.user!;
     const { buildingId, type, status } = req.query as Record<string, string>;
+    if (user.role === "super_admin" && req.query.supervision !== "true") {
+      return void res.status(403).json({
+        error: "La supervision est requise pour accéder aux places de parking.",
+        code: "SUPERVISION_REQUIRED",
+      });
+    }
 
     const conditions: any[] = [];
 
@@ -306,6 +312,12 @@ router.put("/parking/spots/:id", requireAdmin, async (req, res) => {
 router.get("/parking/vehicles", requireAuth, async (req, res) => {
   try {
     const user = req.user!;
+    if (user.role === "super_admin" && req.query.supervision !== "true") {
+      return void res.status(403).json({
+        error: "La supervision est requise pour accéder aux véhicules.",
+        code: "SUPERVISION_REQUIRED",
+      });
+    }
     if (isSyndicateTeamRole(user.role) && !user.syndicateId) {
       return void res
         .status(403)
@@ -509,6 +521,13 @@ router.get("/parking/violations", requireAuth, async (req, res) => {
   try {
     const user = req.user!;
     const { buildingId, status } = req.query as Record<string, string>;
+    if (user.role === "super_admin" && req.query.supervision !== "true") {
+      return void res.status(403).json({
+        error:
+          "La supervision est requise pour accéder aux infractions de parking.",
+        code: "SUPERVISION_REQUIRED",
+      });
+    }
     const conditions: any[] = [];
 
     if (buildingId) {
@@ -666,11 +685,9 @@ router.post("/parking/violations", requireAuth, async (req, res) => {
 router.put("/parking/violations/:id/status", requireAdmin, async (req, res) => {
   const { status } = req.body as { status: string };
   if (!["resolved", "dismissed"].includes(status)) {
-    return void res
-      .status(400)
-      .json({
-        error: "Statut invalide. Valeurs acceptées: resolved, dismissed",
-      });
+    return void res.status(400).json({
+      error: "Statut invalide. Valeurs acceptées: resolved, dismissed",
+    });
   }
   try {
     const user = req.user!;
@@ -713,6 +730,13 @@ router.get("/parking/reservations", requireAuth, async (req, res) => {
   try {
     const user = req.user!;
     const { spotId, status } = req.query as Record<string, string>;
+    if (user.role === "super_admin" && req.query.supervision !== "true") {
+      return void res.status(403).json({
+        error:
+          "La supervision est requise pour accéder aux réservations de parking.",
+        code: "SUPERVISION_REQUIRED",
+      });
+    }
     const conditions: any[] = [];
 
     if (user.role === "member" || user.role === "tenant") {
@@ -809,11 +833,9 @@ router.post("/parking/reservations", requireAuth, async (req, res) => {
       return void res.status(400).json({ error: "Dates invalides" });
     }
     if (end <= start) {
-      return void res
-        .status(400)
-        .json({
-          error: "La date de fin doit être postérieure à la date de début",
-        });
+      return void res.status(400).json({
+        error: "La date de fin doit être postérieure à la date de début",
+      });
     }
 
     // Verify the spot exists, is a visitor spot, and user has building access
@@ -938,6 +960,13 @@ router.delete("/parking/reservations/:id", requireAuth, async (req, res) => {
 router.get("/parking/availability/:spotId", requireAuth, async (req, res) => {
   try {
     const user = req.user!;
+    if (user.role === "super_admin" && req.query.supervision !== "true") {
+      return void res.status(403).json({
+        error:
+          "La supervision est requise pour accéder aux disponibilités de parking.",
+        code: "SUPERVISION_REQUIRED",
+      });
+    }
     const [spot] = await db
       .select({ buildingId: parkingSpotsTable.buildingId })
       .from(parkingSpotsTable)

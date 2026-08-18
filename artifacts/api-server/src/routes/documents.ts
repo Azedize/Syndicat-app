@@ -78,19 +78,29 @@ const router = Router();
 // kept as-is (not renamed) to avoid breaking existing consumers; approvedAt/
 // approvedBy are populated whenever a document transitions into "validated".
 
-const VALID_STATUSES = ["draft", "generated", "pending_review", "validated", "signed", "published", "archived", "rejected", "expired"] as const;
-type DocStatus = typeof VALID_STATUSES[number];
+const VALID_STATUSES = [
+  "draft",
+  "generated",
+  "pending_review",
+  "validated",
+  "signed",
+  "published",
+  "archived",
+  "rejected",
+  "expired",
+] as const;
+type DocStatus = (typeof VALID_STATUSES)[number];
 
 const ALLOWED_TRANSITIONS: Record<DocStatus, DocStatus[]> = {
-  draft:          ["generated", "pending_review", "published"],
-  generated:      ["pending_review", "validated", "rejected"],
+  draft: ["generated", "pending_review", "published"],
+  generated: ["pending_review", "validated", "rejected"],
   pending_review: ["generated", "validated", "draft", "rejected"],
-  validated:      ["signed", "published", "rejected"],
-  signed:         ["published", "expired"],
-  published:      ["archived", "expired"],
-  archived:       [],
-  rejected:       ["draft", "pending_review"],
-  expired:        ["archived"],
+  validated: ["signed", "published", "rejected"],
+  signed: ["published", "expired"],
+  published: ["archived", "expired"],
+  archived: [],
+  rejected: ["draft", "pending_review"],
+  expired: ["archived"],
 };
 
 function isTransitionAllowed(from: DocStatus, to: DocStatus): boolean {
@@ -105,14 +115,20 @@ function isTransitionAllowed(from: DocStatus, to: DocStatus): boolean {
  * is available, e.g. in an environment with no public domain at all.
  */
 function buildVerifyUrl(token: string): string | undefined {
-  const base = process.env.PUBLIC_APP_URL || (process.env.REPLIT_DOMAINS ? `https://${process.env.REPLIT_DOMAINS.split(",")[0]}` : undefined);
+  const base =
+    process.env.PUBLIC_APP_URL ||
+    (process.env.REPLIT_DOMAINS
+      ? `https://${process.env.REPLIT_DOMAINS.split(",")[0]}`
+      : undefined);
   if (!base) return undefined;
   return `${base.replace(/\/$/, "")}/api/documents/verify/${token}`;
 }
 
 // ─── Helper: fetch full syndicate branding for PDF ────────────────────────────
 
-async function getSyndicateInfo(syndicateId?: string | null): Promise<SyndicateInfo> {
+async function getSyndicateInfo(
+  syndicateId?: string | null,
+): Promise<SyndicateInfo> {
   const defaults: SyndicateInfo = {
     name: "MIZAN",
     address: "",
@@ -132,37 +148,37 @@ async function getSyndicateInfo(syndicateId?: string | null): Promise<SyndicateI
 
   const [s] = await db
     .select({
-      name:               syndicatesTable.name,
-      address:            syndicatesTable.address,
-      city:               syndicatesTable.city,
-      phone:              syndicatesTable.phone,
-      email:              syndicatesTable.email,
-      website:            syndicatesTable.website,
+      name: syndicatesTable.name,
+      address: syndicatesTable.address,
+      city: syndicatesTable.city,
+      phone: syndicatesTable.phone,
+      email: syndicatesTable.email,
+      website: syndicatesTable.website,
       registrationNumber: syndicatesTable.registrationNumber,
-      logoColor:          syndicatesTable.logoColor,
-      logoUrl:            syndicatesTable.logoUrl,
-      abbreviation:       syndicatesTable.abbreviation,
-      bankName:           syndicatesTable.bankName,
-      bankIban:           syndicatesTable.bankIban,
-      bankBic:            syndicatesTable.bankBic,
+      logoColor: syndicatesTable.logoColor,
+      logoUrl: syndicatesTable.logoUrl,
+      abbreviation: syndicatesTable.abbreviation,
+      bankName: syndicatesTable.bankName,
+      bankIban: syndicatesTable.bankIban,
+      bankBic: syndicatesTable.bankBic,
     })
     .from(syndicatesTable)
     .where(eq(syndicatesTable.id, syndicateId));
 
   return {
-    name:               s?.name               ?? defaults.name,
-    address:            s?.address            ?? defaults.address,
-    city:               s?.city               ?? defaults.city,
-    phone:              s?.phone              ?? defaults.phone,
-    email:              s?.email              ?? defaults.email,
-    website:            s?.website            ?? defaults.website,
+    name: s?.name ?? defaults.name,
+    address: s?.address ?? defaults.address,
+    city: s?.city ?? defaults.city,
+    phone: s?.phone ?? defaults.phone,
+    email: s?.email ?? defaults.email,
+    website: s?.website ?? defaults.website,
     registrationNumber: s?.registrationNumber ?? defaults.registrationNumber,
-    logoColor:          s?.logoColor          ?? defaults.logoColor,
-    logoUrl:            s?.logoUrl            ?? defaults.logoUrl,
-    abbreviation:       s?.abbreviation       ?? defaults.abbreviation,
-    bankName:           s?.bankName           ?? defaults.bankName,
-    bankIban:           s?.bankIban           ?? defaults.bankIban,
-    bankBic:            s?.bankBic            ?? defaults.bankBic,
+    logoColor: s?.logoColor ?? defaults.logoColor,
+    logoUrl: s?.logoUrl ?? defaults.logoUrl,
+    abbreviation: s?.abbreviation ?? defaults.abbreviation,
+    bankName: s?.bankName ?? defaults.bankName,
+    bankIban: s?.bankIban ?? defaults.bankIban,
+    bankBic: s?.bankBic ?? defaults.bankBic,
   };
 }
 
@@ -172,14 +188,17 @@ async function getSyndicateInfo(syndicateId?: string | null): Promise<SyndicateI
 // landRegistryReference). When buildingId is given, scopes to that building only;
 // otherwise aggregates across all buildings of the syndicate.
 
-async function getPropertyInfo(syndicateId?: string | null, buildingId?: string | null): Promise<PropertyInfo | undefined> {
+async function getPropertyInfo(
+  syndicateId?: string | null,
+  buildingId?: string | null,
+): Promise<PropertyInfo | undefined> {
   if (!syndicateId && !buildingId) return undefined;
 
   const buildingConditions = buildingId
     ? [eq(buildingsTable.id, buildingId)]
     : syndicateId
-    ? [eq(buildingsTable.syndicateId, syndicateId)]
-    : [];
+      ? [eq(buildingsTable.syndicateId, syndicateId)]
+      : [];
   if (buildingConditions.length === 0) return undefined;
 
   const buildings = await db
@@ -201,13 +220,22 @@ async function getPropertyInfo(syndicateId?: string | null, buildingId?: string 
   const buildingIds = buildings.map((b) => b.id);
   const lots = buildingIds.length
     ? await db
-        .select({ surfaceM2: lotsTable.surfaceM2, titreFoncier: lotsTable.titreFoncier })
+        .select({
+          surfaceM2: lotsTable.surfaceM2,
+          titreFoncier: lotsTable.titreFoncier,
+        })
         .from(lotsTable)
         .where(inArray(lotsTable.buildingId, buildingIds))
     : [];
 
-  const totalSurfaceM2 = lots.reduce((sum, l) => sum + (l.surfaceM2 ? Number(l.surfaceM2) : 0), 0);
-  const landRegistryReference = lots.find((l) => l.titreFoncier)?.titreFoncier ?? buildings[0].registrationNumber ?? null;
+  const totalSurfaceM2 = lots.reduce(
+    (sum, l) => sum + (l.surfaceM2 ? Number(l.surfaceM2) : 0),
+    0,
+  );
+  const landRegistryReference =
+    lots.find((l) => l.titreFoncier)?.titreFoncier ??
+    buildings[0].registrationNumber ??
+    null;
 
   const primary = buildings[0];
   return {
@@ -228,24 +256,51 @@ async function getPropertyInfo(syndicateId?: string | null, buildingId?: string 
 // trésorier) plus the syndicate_admin acting as gestionnaire, for
 // {{president.fullName}}, {{manager.phone}}, etc.
 
-async function getOfficeHolders(syndicateId?: string | null): Promise<OfficeHolders | undefined> {
+async function getOfficeHolders(
+  syndicateId?: string | null,
+): Promise<OfficeHolders | undefined> {
   if (!syndicateId) return undefined;
 
   const [council, [manager]] = await Promise.all([
     db
-      .select({ role: conseilSyndicalTable.role, name: conseilSyndicalTable.name, email: conseilSyndicalTable.email, phone: conseilSyndicalTable.phone })
+      .select({
+        role: conseilSyndicalTable.role,
+        name: conseilSyndicalTable.name,
+        email: conseilSyndicalTable.email,
+        phone: conseilSyndicalTable.phone,
+      })
       .from(conseilSyndicalTable)
-      .where(and(eq(conseilSyndicalTable.syndicateId, syndicateId), eq(conseilSyndicalTable.status, "active"))),
+      .where(
+        and(
+          eq(conseilSyndicalTable.syndicateId, syndicateId),
+          eq(conseilSyndicalTable.status, "active"),
+        ),
+      ),
     db
-      .select({ name: usersTable.name, email: usersTable.email, phone: usersTable.phone })
+      .select({
+        name: usersTable.name,
+        email: usersTable.email,
+        phone: usersTable.phone,
+      })
       .from(usersTable)
-      .where(and(eq(usersTable.syndicateId, syndicateId), eq(usersTable.role, "syndicate_admin")))
+      .where(
+        and(
+          eq(usersTable.syndicateId, syndicateId),
+          eq(usersTable.role, "syndicate_admin"),
+        ),
+      )
       .limit(1),
   ]);
 
   const byRole = (role: string) => {
     const row = council.find((c) => c.role === role);
-    return row ? { fullName: row.name, email: row.email ?? null, phone: row.phone ?? null } : undefined;
+    return row
+      ? {
+          fullName: row.name,
+          email: row.email ?? null,
+          phone: row.phone ?? null,
+        }
+      : undefined;
   };
 
   const holders: OfficeHolders = {
@@ -253,15 +308,26 @@ async function getOfficeHolders(syndicateId?: string | null): Promise<OfficeHold
     vicePresident: byRole("vice_president"),
     secretary: byRole("secretary"),
     treasurer: byRole("treasurer"),
-    manager: manager ? { fullName: manager.name, email: manager.email ?? null, phone: manager.phone ?? null } : undefined,
+    manager: manager
+      ? {
+          fullName: manager.name,
+          email: manager.email ?? null,
+          phone: manager.phone ?? null,
+        }
+      : undefined,
   };
   return Object.values(holders).some(Boolean) ? holders : undefined;
 }
 
 // ─── Entity loaders — load real DB data for entity-driven templates ────────────
 
-async function getMeetingData(meetingId: string): Promise<Record<string, string>> {
-  const [meeting] = await db.select().from(meetingsTable).where(eq(meetingsTable.id, meetingId));
+async function getMeetingData(
+  meetingId: string,
+): Promise<Record<string, string>> {
+  const [meeting] = await db
+    .select()
+    .from(meetingsTable)
+    .where(eq(meetingsTable.id, meetingId));
   if (!meeting) return {};
   const attendees = await db
     .select({ name: usersTable.name })
@@ -273,40 +339,48 @@ async function getMeetingData(meetingId: string): Promise<Record<string, string>
     .from(agResolutionsTable)
     .where(eq(agResolutionsTable.meetingId, meetingId))
     .orderBy(agResolutionsTable.number);
-  const resolutionsText = resolutions.map((r) =>
-    `${r.number}. ${r.title}\n   ${r.description ?? ""}\n   ${r.result === "approved" ? "✓ ADOPTÉ" : r.result === "rejected" ? "✗ REJETÉ" : "EN ATTENTE"}` +
-    (r.tantiemesFor ? ` — Pour: ${r.tantiemesFor} / Contre: ${r.tantiemesAgainst} / Abs.: ${r.tantiemesAbstain}` : "")
-  ).join("\n\n");
+  const resolutionsText = resolutions
+    .map(
+      (r) =>
+        `${r.number}. ${r.title}\n   ${r.description ?? ""}\n   ${r.result === "approved" ? "✓ ADOPTÉ" : r.result === "rejected" ? "✗ REJETÉ" : "EN ATTENTE"}` +
+        (r.tantiemesFor
+          ? ` — Pour: ${r.tantiemesFor} / Contre: ${r.tantiemesAgainst} / Abs.: ${r.tantiemesAbstain}`
+          : ""),
+    )
+    .join("\n\n");
   // Structured JSON for the PV template to render resolution cards with vote badges
   const resolutionsJson = JSON.stringify(
     resolutions.map((r) => ({
-      number:      r.number,
-      title:       r.title,
+      number: r.number,
+      title: r.title,
       description: r.description ?? "",
-      result:      r.result ?? "pending",
-      pour:        r.tantiemesFor        ? Number(r.tantiemesFor)        : null,
-      contre:      r.tantiemesAgainst    ? Number(r.tantiemesAgainst)    : null,
-      abstention:  r.tantiemesAbstain    ? Number(r.tantiemesAbstain)    : null,
-    }))
+      result: r.result ?? "pending",
+      pour: r.tantiemesFor ? Number(r.tantiemesFor) : null,
+      contre: r.tantiemesAgainst ? Number(r.tantiemesAgainst) : null,
+      abstention: r.tantiemesAbstain ? Number(r.tantiemesAbstain) : null,
+    })),
   );
   const attendeeNames = attendees.map((a) => a.name ?? "—").filter(Boolean);
   return {
-    meetingDate:        meeting.date,
-    heure:              meeting.time ?? "",
-    lieu:               meeting.location ?? "",
-    agendaText:         meeting.agenda ?? "",
-    deliberationsText:  meeting.description ?? "",
+    meetingDate: meeting.date,
+    heure: meeting.time ?? "",
+    lieu: meeting.location ?? "",
+    agendaText: meeting.agenda ?? "",
+    deliberationsText: meeting.description ?? "",
     resolutionsText,
-    _resolutionsJson:   resolutionsJson,
-    participants:       attendeeNames.join(", "),
-    _attendeesCount:    String(attendeeNames.length),
-    dateMeeting:        meeting.date,
-    _meetingTitle:      meeting.title,
-    _meetingType:       meeting.type ?? "general",
+    _resolutionsJson: resolutionsJson,
+    participants: attendeeNames.join(", "),
+    _attendeesCount: String(attendeeNames.length),
+    dateMeeting: meeting.date,
+    _meetingTitle: meeting.title,
+    _meetingType: meeting.type ?? "general",
   };
 }
 
-async function getLotMemberData(lotId?: string, memberId?: string): Promise<Record<string, string>> {
+async function getLotMemberData(
+  lotId?: string,
+  memberId?: string,
+): Promise<Record<string, string>> {
   let lot: typeof lotsTable.$inferSelect | null = null;
   let building: typeof buildingsTable.$inferSelect | null = null;
   let member: typeof membersTable.$inferSelect | null = null;
@@ -316,14 +390,23 @@ async function getLotMemberData(lotId?: string, memberId?: string): Promise<Reco
       .from(lotsTable)
       .leftJoin(buildingsTable, eq(lotsTable.buildingId, buildingsTable.id))
       .where(eq(lotsTable.id, lotId));
-    if (row) { lot = row.lots; building = row.buildings ?? null; }
+    if (row) {
+      lot = row.lots;
+      building = row.buildings ?? null;
+    }
   }
   if (memberId) {
-    const [m] = await db.select().from(membersTable).where(eq(membersTable.id, memberId));
+    const [m] = await db
+      .select()
+      .from(membersTable)
+      .where(eq(membersTable.id, memberId));
     member = m ?? null;
   }
   if (lot?.ownerId && !member) {
-    const [m] = await db.select().from(membersTable).where(eq(membersTable.id, lot.ownerId));
+    const [m] = await db
+      .select()
+      .from(membersTable)
+      .where(eq(membersTable.id, lot.ownerId));
     member = m ?? null;
   }
   // When only memberId was supplied (no lotId), auto-resolve the member's lot as owner
@@ -335,28 +418,33 @@ async function getLotMemberData(lotId?: string, memberId?: string): Promise<Reco
       .leftJoin(buildingsTable, eq(lotsTable.buildingId, buildingsTable.id))
       .where(eq(lotsTable.ownerId, member.id))
       .limit(1);
-    if (row) { lot = row.lots; building = row.buildings ?? null; }
+    if (row) {
+      lot = row.lots;
+      building = row.buildings ?? null;
+    }
   }
   return {
-    memberName:         member?.name ?? "",
-    _lotNumber:         lot?.number ?? "",
-    _lotFloor:          lot?.floor != null ? String(lot.floor) : "",
-    _lotSurface:        lot?.surfaceM2 ? `${Number(lot.surfaceM2)} m²` : "",
-    _lotTantiemes:      lot?.tantiemes ? `${Number(lot.tantiemes)} / 10 000` : "",
-    _lotTitreFoncier:   lot?.titreFoncier ?? "",
-    _lotType:           lot?.type ?? "",
-    _buildingName:      building?.name ?? "",
-    _buildingAddress:   [building?.address, building?.city].filter(Boolean).join(", "),
+    memberName: member?.name ?? "",
+    _lotNumber: lot?.number ?? "",
+    _lotFloor: lot?.floor != null ? String(lot.floor) : "",
+    _lotSurface: lot?.surfaceM2 ? `${Number(lot.surfaceM2)} m²` : "",
+    _lotTantiemes: lot?.tantiemes ? `${Number(lot.tantiemes)} / 10 000` : "",
+    _lotTitreFoncier: lot?.titreFoncier ?? "",
+    _lotType: lot?.type ?? "",
+    _buildingName: building?.name ?? "",
+    _buildingAddress: [building?.address, building?.city]
+      .filter(Boolean)
+      .join(", "),
     // ── Extended member fields for attestation + profile documents ────────────
-    _memberEmail:       member?.email ?? "",
-    _memberPhone:       member?.phone ?? "",
-    _memberProfession:  (member as any)?.profession ?? "",
-    _memberJoinDate:    member?.joinDate ?? "",
-    _memberStatus:      member?.status ?? "",
-    _memberCotisation:  member?.cotisationStatus ?? "",
-    _memberRef:         member ? `ADH-${member.id.slice(-8).toUpperCase()}` : "",
+    _memberEmail: member?.email ?? "",
+    _memberPhone: member?.phone ?? "",
+    _memberProfession: (member as any)?.profession ?? "",
+    _memberJoinDate: member?.joinDate ?? "",
+    _memberStatus: member?.status ?? "",
+    _memberCotisation: member?.cotisationStatus ?? "",
+    _memberRef: member ? `ADH-${member.id.slice(-8).toUpperCase()}` : "",
     // CIN + avatar — stored on usersTable (matched by email), not on membersTable directly
-    ...await (async () => {
+    ...(await (async () => {
       if (!member?.email) {
         logger.warn(
           { memberId: member?.id ?? null },
@@ -385,112 +473,158 @@ async function getLotMemberData(lotId?: string, memberId?: string): Promise<Reco
         );
       }
       return {
-        _memberCIN:       uRow?.cin    ?? "",
+        _memberCIN: uRow?.cin ?? "",
         _memberAvatarUrl: uRow?.avatar ?? "",
       };
-    })(),
+    })()),
   };
 }
 
-async function getAppelDeFondsData(appelId: string): Promise<Record<string, string>> {
+async function getAppelDeFondsData(
+  appelId: string,
+): Promise<Record<string, string>> {
   const [row] = await db
     .select()
     .from(appelsDeFondsTable)
     .leftJoin(lotsTable, eq(appelsDeFondsTable.lotId, lotsTable.id))
-    .leftJoin(buildingsTable, eq(appelsDeFondsTable.buildingId, buildingsTable.id))
+    .leftJoin(
+      buildingsTable,
+      eq(appelsDeFondsTable.buildingId, buildingsTable.id),
+    )
     .leftJoin(membersTable, eq(appelsDeFondsTable.ownerId, membersTable.id))
     .where(eq(appelsDeFondsTable.id, appelId));
   if (!row) return {};
-  const a = row.appels_de_fonds; const lot = row.lots; const building = row.buildings; const member = row.members;
+  const a = row.appels_de_fonds;
+  const lot = row.lots;
+  const building = row.buildings;
+  const member = row.members;
   return {
-    memberName:       member?.name ?? "",
-    _lotNumber:       lot?.number ?? "",
-    _lotFloor:        lot?.floor != null ? String(lot.floor) : "",
-    _lotSurface:      lot?.surfaceM2 ? `${Number(lot.surfaceM2)} m²` : "",
-    _lotTantiemes:    lot?.tantiemes ? `${Number(lot.tantiemes)} / 10 000` : "",
+    memberName: member?.name ?? "",
+    _lotNumber: lot?.number ?? "",
+    _lotFloor: lot?.floor != null ? String(lot.floor) : "",
+    _lotSurface: lot?.surfaceM2 ? `${Number(lot.surfaceM2)} m²` : "",
+    _lotTantiemes: lot?.tantiemes ? `${Number(lot.tantiemes)} / 10 000` : "",
     _lotTitreFoncier: lot?.titreFoncier ?? "",
-    _buildingName:    building?.name ?? "",
-    _buildingAddress: [building?.address, building?.city].filter(Boolean).join(", "),
-    periode:          a.period,
-    _chargeType:      a.type ?? "charges_courantes",
-    amount:           String(Number(a.amount ?? 0)),
-    dueDate:          a.dueDate ?? "",
-    _status:          a.status ?? "pending",
-    _receiptNumber:   a.receiptNumber ?? "",
-    _paidDate:        a.paidDate ?? "",
-    _paymentMethod:   a.paymentMethod ?? "",
-    _appelId:         appelId,
+    _buildingName: building?.name ?? "",
+    _buildingAddress: [building?.address, building?.city]
+      .filter(Boolean)
+      .join(", "),
+    periode: a.period,
+    _chargeType: a.type ?? "charges_courantes",
+    amount: String(Number(a.amount ?? 0)),
+    dueDate: a.dueDate ?? "",
+    _status: a.status ?? "pending",
+    _receiptNumber: a.receiptNumber ?? "",
+    _paidDate: a.paidDate ?? "",
+    _paymentMethod: a.paymentMethod ?? "",
+    _appelId: appelId,
   };
 }
 
-async function getBudgetData(budgetId: string): Promise<Record<string, string>> {
+async function getBudgetData(
+  budgetId: string,
+): Promise<Record<string, string>> {
   const [row] = await db
     .select()
     .from(budgetsTable)
     .leftJoin(buildingsTable, eq(budgetsTable.buildingId, buildingsTable.id))
     .where(eq(budgetsTable.id, budgetId));
   if (!row) return {};
-  const b = row.budgets; const building = row.buildings;
-  const lines = await db.select().from(budgetLinesTable).where(eq(budgetLinesTable.budgetId, budgetId));
-  const linesText = lines.map((l) =>
-    `${l.category.padEnd(20)} ${l.label.padEnd(28)} ${Number(l.amountAnnual ?? 0).toLocaleString("fr-MA")} MAD`
-  ).join("\n");
+  const b = row.budgets;
+  const building = row.buildings;
+  const lines = await db
+    .select()
+    .from(budgetLinesTable)
+    .where(eq(budgetLinesTable.budgetId, budgetId));
+  const linesText = lines
+    .map(
+      (l) =>
+        `${l.category.padEnd(20)} ${l.label.padEnd(28)} ${Number(l.amountAnnual ?? 0).toLocaleString("fr-MA")} MAD`,
+    )
+    .join("\n");
   return {
-    exercice:         String(b.year),
-    _totalAmount:     Number(b.totalAmount ?? 0).toLocaleString("fr-MA"),
-    _chargesAmount:   Number(b.chargesAmount ?? 0).toLocaleString("fr-MA"),
-    _fondsReserve:    Number(b.fondsReserve ?? 0).toLocaleString("fr-MA"),
-    _budgetStatus:    b.status ?? "draft",
-    _buildingName:    building?.name ?? "",
-    _budgetLines:     linesText,
-    _linesCount:      String(lines.length),
-    _budgetId:        budgetId,
+    exercice: String(b.year),
+    _totalAmount: Number(b.totalAmount ?? 0).toLocaleString("fr-MA"),
+    _chargesAmount: Number(b.chargesAmount ?? 0).toLocaleString("fr-MA"),
+    _fondsReserve: Number(b.fondsReserve ?? 0).toLocaleString("fr-MA"),
+    _budgetStatus: b.status ?? "draft",
+    _buildingName: building?.name ?? "",
+    _budgetLines: linesText,
+    _linesCount: String(lines.length),
+    _budgetId: budgetId,
   };
 }
 
-async function getElectionData(electionId: string): Promise<Record<string, string>> {
-  const [election] = await db.select().from(electionsTable).where(eq(electionsTable.id, electionId));
+async function getElectionData(
+  electionId: string,
+): Promise<Record<string, string>> {
+  const [election] = await db
+    .select()
+    .from(electionsTable)
+    .where(eq(electionsTable.id, electionId));
   if (!election) return {};
-  const candidates = await db.select().from(candidatesTable).where(eq(candidatesTable.electionId, electionId));
-  const quorumOk = election.quorumReached ??
-    ((election.participantCount ?? 0) >= ((election.eligibleCount ?? 0) * (election.quorumPercent ?? 50) / 100));
+  const candidates = await db
+    .select()
+    .from(candidatesTable)
+    .where(eq(candidatesTable.electionId, electionId));
+  const quorumOk =
+    election.quorumReached ??
+    (election.participantCount ?? 0) >=
+      ((election.eligibleCount ?? 0) * (election.quorumPercent ?? 50)) / 100;
   const participationRate = election.eligibleCount
-    ? Math.round(((election.participantCount ?? 0) / election.eligibleCount) * 100) : 0;
-  const totalVotes = candidates.reduce((s: number, c: any) => s + (c.voteCount ?? 0), 0);
-  const sortedCandidates = [...candidates].sort((a: any, b: any) => (b.voteCount ?? 0) - (a.voteCount ?? 0));
-  const candidatesText = sortedCandidates.map((c: any) =>
-    `• ${c.name ?? c.userId ?? "—"} — ${c.voteCount ?? 0} vote(s)${c.isWinner ? " ✓ ÉLU" : ""}`
-  ).join("\n");
+    ? Math.round(
+        ((election.participantCount ?? 0) / election.eligibleCount) * 100,
+      )
+    : 0;
+  const totalVotes = candidates.reduce(
+    (s: number, c: any) => s + (c.voteCount ?? 0),
+    0,
+  );
+  const sortedCandidates = [...candidates].sort(
+    (a: any, b: any) => (b.voteCount ?? 0) - (a.voteCount ?? 0),
+  );
+  const candidatesText = sortedCandidates
+    .map(
+      (c: any) =>
+        `• ${c.name ?? c.userId ?? "—"} — ${c.voteCount ?? 0} vote(s)${c.isWinner ? " ✓ ÉLU" : ""}`,
+    )
+    .join("\n");
   // Structured JSON for template to render a proper results table
   const candidatesJson = JSON.stringify(
     sortedCandidates.map((c: any, i: number) => ({
-      rank:     i + 1,
-      name:     c.name ?? c.userId ?? "—",
-      votes:    c.voteCount ?? 0,
-      pct:      totalVotes > 0 ? Math.round(((c.voteCount ?? 0) / totalVotes) * 100) : 0,
+      rank: i + 1,
+      name: c.name ?? c.userId ?? "—",
+      votes: c.voteCount ?? 0,
+      pct:
+        totalVotes > 0
+          ? Math.round(((c.voteCount ?? 0) / totalVotes) * 100)
+          : 0,
       isWinner: c.isWinner ?? false,
-    }))
+    })),
   );
   const winners = sortedCandidates.filter((c: any) => c.isWinner);
-  const winnersText = winners.map((c: any) => `• ${c.name ?? c.userId ?? "—"}`).join("\n") || "—";
+  const winnersText =
+    winners.map((c: any) => `• ${c.name ?? c.userId ?? "—"}`).join("\n") || "—";
   return {
-    _electionTitle:      election.title,
-    _electionType:       election.electionType ?? "special",
-    _startDate:          election.startDate ?? "",
-    _endDate:            election.endDate ?? "",
-    _eligibleCount:      String(election.eligibleCount ?? 0),
-    _participantCount:   String(election.participantCount ?? 0),
-    _quorumPercent:      String(election.quorumPercent ?? 50),
-    _quorumReached:      quorumOk ? "OUI" : "NON",
-    _participationRate:  `${participationRate}%`,
-    _invalidVotes:       String(election.invalidVotesCount ?? 0),
-    _mandateDuration:    election.mandateDurationMonths ? `${election.mandateDurationMonths} mois` : "Indéfini",
-    _candidates:         candidatesText,
-    _candidatesJson:     candidatesJson,
-    _candidatesCount:    String(candidates.length),
-    _winnersText:        winnersText,
-    _electionStatus:     election.status ?? "draft",
-    _electionId:         electionId,
+    _electionTitle: election.title,
+    _electionType: election.electionType ?? "special",
+    _startDate: election.startDate ?? "",
+    _endDate: election.endDate ?? "",
+    _eligibleCount: String(election.eligibleCount ?? 0),
+    _participantCount: String(election.participantCount ?? 0),
+    _quorumPercent: String(election.quorumPercent ?? 50),
+    _quorumReached: quorumOk ? "OUI" : "NON",
+    _participationRate: `${participationRate}%`,
+    _invalidVotes: String(election.invalidVotesCount ?? 0),
+    _mandateDuration: election.mandateDurationMonths
+      ? `${election.mandateDurationMonths} mois`
+      : "Indéfini",
+    _candidates: candidatesText,
+    _candidatesJson: candidatesJson,
+    _candidatesCount: String(candidates.length),
+    _winnersText: winnersText,
+    _electionStatus: election.status ?? "draft",
+    _electionId: electionId,
   };
 }
 
@@ -510,49 +644,77 @@ async function getFinancialDashboardData(
     // ── 1. Appels de fonds ────────────────────────────────────────────────────
     //    Prefer building-scoped query; fall back to ALL buildings in the syndicate
     //    so KPI values are never silently zero when no buildingId is provided.
-    let appels: Array<{ amount: unknown; status: string | null; period: string | null }> = [];
+    let appels: Array<{
+      amount: unknown;
+      status: string | null;
+      period: string | null;
+    }> = [];
     if (buildingId) {
-      appels = await db.select({
-        amount: appelsDeFondsTable.amount,
-        status: appelsDeFondsTable.status,
-        period: appelsDeFondsTable.period,
-      }).from(appelsDeFondsTable)
+      appels = await db
+        .select({
+          amount: appelsDeFondsTable.amount,
+          status: appelsDeFondsTable.status,
+          period: appelsDeFondsTable.period,
+        })
+        .from(appelsDeFondsTable)
         .where(eq(appelsDeFondsTable.buildingId, buildingId));
     } else if (syndicateId) {
       // Syndicate-wide: join through buildings to scope by syndicateId
-      appels = await db.select({
-        amount: appelsDeFondsTable.amount,
-        status: appelsDeFondsTable.status,
-        period: appelsDeFondsTable.period,
-      }).from(appelsDeFondsTable)
-        .innerJoin(buildingsTable, eq(appelsDeFondsTable.buildingId, buildingsTable.id))
+      appels = await db
+        .select({
+          amount: appelsDeFondsTable.amount,
+          status: appelsDeFondsTable.status,
+          period: appelsDeFondsTable.period,
+        })
+        .from(appelsDeFondsTable)
+        .innerJoin(
+          buildingsTable,
+          eq(appelsDeFondsTable.buildingId, buildingsTable.id),
+        )
         .where(eq(buildingsTable.syndicateId, syndicateId));
     }
 
     const totalCharged = appels.reduce((s, a) => s + Number(a.amount ?? 0), 0);
-    const totalPaid    = appels.filter((a) => a.status === "paid").reduce((s, a) => s + Number(a.amount ?? 0), 0);
-    const outstanding  = totalCharged - totalPaid;
-    const collectionRate = totalCharged > 0 ? Math.round((totalPaid / totalCharged) * 100) : 0;
+    const totalPaid = appels
+      .filter((a) => a.status === "paid")
+      .reduce((s, a) => s + Number(a.amount ?? 0), 0);
+    const outstanding = totalCharged - totalPaid;
+    const collectionRate =
+      totalCharged > 0 ? Math.round((totalPaid / totalCharged) * 100) : 0;
 
     // Year-scoped subsets for monthly / annual breakdown
-    const yearAppels = appels.filter((a) => a.period?.startsWith(String(currentYear)));
-    const yearCharged = yearAppels.reduce((s, a) => s + Number(a.amount ?? 0), 0);
-    const yearPaid    = yearAppels.filter((a) => a.status === "paid").reduce((s, a) => s + Number(a.amount ?? 0), 0);
+    const yearAppels = appels.filter((a) =>
+      a.period?.startsWith(String(currentYear)),
+    );
+    const yearCharged = yearAppels.reduce(
+      (s, a) => s + Number(a.amount ?? 0),
+      0,
+    );
+    const yearPaid = yearAppels
+      .filter((a) => a.status === "paid")
+      .reduce((s, a) => s + Number(a.amount ?? 0), 0);
 
     // ── 2. Caisse entries (revenue / expenses / cash balance) ─────────────────
     let totalRevenue = 0;
     let totalExpenses = 0;
     if (syndicateId) {
-      const caisse = await db.select({
-        amount: caisseEntriesTable.amount,
-        type:   caisseEntriesTable.type,
-      }).from(caisseEntriesTable).where(eq(caisseEntriesTable.syndicateId, syndicateId));
+      const caisse = await db
+        .select({
+          amount: caisseEntriesTable.amount,
+          type: caisseEntriesTable.type,
+        })
+        .from(caisseEntriesTable)
+        .where(eq(caisseEntriesTable.syndicateId, syndicateId));
 
-      totalRevenue  = caisse.filter((e) => e.type === "credit").reduce((s, e) => s + Number(e.amount ?? 0), 0);
-      totalExpenses = caisse.filter((e) => e.type === "debit").reduce((s, e) => s + Number(e.amount ?? 0), 0);
+      totalRevenue = caisse
+        .filter((e) => e.type === "credit")
+        .reduce((s, e) => s + Number(e.amount ?? 0), 0);
+      totalExpenses = caisse
+        .filter((e) => e.type === "debit")
+        .reduce((s, e) => s + Number(e.amount ?? 0), 0);
     }
     const cashBalance = totalRevenue - totalExpenses;
-    const netBalance  = totalPaid + totalRevenue - totalExpenses;
+    const netBalance = totalPaid + totalRevenue - totalExpenses;
 
     // ── 3. Budget consumption ─────────────────────────────────────────────────
     let budgetTotal = 0;
@@ -560,57 +722,72 @@ async function getFinancialDashboardData(
     let budgetCharges = 0;
     let budgetReserve = 0;
     if (buildingId) {
-      const budgets = await db.select({
-        totalAmount:   budgetsTable.totalAmount,
-        chargesAmount: budgetsTable.chargesAmount,
-        fondsReserve:  budgetsTable.fondsReserve,
-        status:        budgetsTable.status,
-      }).from(budgetsTable)
-        .where(and(eq(budgetsTable.buildingId, buildingId), eq(budgetsTable.year, currentYear)));
+      const budgets = await db
+        .select({
+          totalAmount: budgetsTable.totalAmount,
+          chargesAmount: budgetsTable.chargesAmount,
+          fondsReserve: budgetsTable.fondsReserve,
+          status: budgetsTable.status,
+        })
+        .from(budgetsTable)
+        .where(
+          and(
+            eq(budgetsTable.buildingId, buildingId),
+            eq(budgetsTable.year, currentYear),
+          ),
+        );
       if (budgets[0]) {
-        budgetTotal   = Number(budgets[0].totalAmount   ?? 0);
+        budgetTotal = Number(budgets[0].totalAmount ?? 0);
         budgetCharges = Number(budgets[0].chargesAmount ?? 0);
-        budgetReserve = Number(budgets[0].fondsReserve  ?? 0);
+        budgetReserve = Number(budgets[0].fondsReserve ?? 0);
         budgetStatusVal = budgets[0].status ?? "draft";
       }
     }
-    const budgetConsumed = budgetTotal > 0 ? Math.round((yearCharged / budgetTotal) * 100) : 0;
+    const budgetConsumed =
+      budgetTotal > 0 ? Math.round((yearCharged / budgetTotal) * 100) : 0;
 
     // ── 4. Fonds de travaux balance ───────────────────────────────────────────
     let fondsTravauxBalance = 0;
-    let fondsTravauxTarget  = 0;
+    let fondsTravauxTarget = 0;
     if (syndicateId) {
-      const ft = await db.select({
-        currentBalance: fondsTravauxTable.currentBalance,
-        targetAmount:   fondsTravauxTable.targetAmount,
-      }).from(fondsTravauxTable)
-        .where(and(eq(fondsTravauxTable.syndicateId, syndicateId), eq(fondsTravauxTable.year, currentYear)));
+      const ft = await db
+        .select({
+          currentBalance: fondsTravauxTable.currentBalance,
+          targetAmount: fondsTravauxTable.targetAmount,
+        })
+        .from(fondsTravauxTable)
+        .where(
+          and(
+            eq(fondsTravauxTable.syndicateId, syndicateId),
+            eq(fondsTravauxTable.year, currentYear),
+          ),
+        );
       if (ft[0]) {
         fondsTravauxBalance = Number(ft[0].currentBalance ?? 0);
-        fondsTravauxTarget  = Number(ft[0].targetAmount   ?? 0);
+        fondsTravauxTarget = Number(ft[0].targetAmount ?? 0);
       }
     }
 
     const fmt = (n: number) => n.toLocaleString("fr-MA");
     return {
-      _kpiTotalCharged:     fmt(totalCharged),
-      _kpiTotalPaid:        fmt(totalPaid),
-      _kpiOutstanding:      fmt(outstanding),
-      _kpiCollectionRate:   String(collectionRate),
-      _kpiCashBalance:      fmt(cashBalance),
-      _kpiBudgetTotal:      fmt(budgetTotal),
-      _kpiBudgetCharges:    fmt(budgetCharges),
-      _kpiBudgetReserve:    fmt(budgetReserve),
-      _kpiBudgetConsumed:   String(budgetConsumed),
-      _kpiBudgetStatus:     budgetStatusVal,
-      _kpiTotalRevenue:     fmt(totalRevenue),
-      _kpiTotalExpenses:    fmt(totalExpenses),
-      _kpiNetBalance:       fmt(netBalance),
-      _kpiYearCharged:      fmt(yearCharged),
-      _kpiYearPaid:         fmt(yearPaid),
-      _kpiFondsTravauxBal:  fmt(fondsTravauxBalance),
-      _kpiFondsTravauxTgt:  fmt(fondsTravauxTarget),
-      _kpiYear:             String(currentYear),
+      _kpiTotalCharged: fmt(totalCharged),
+      _kpiTotalPaid: fmt(totalPaid),
+      _kpiOutstanding: fmt(outstanding),
+      _kpiCollectionRate: String(collectionRate),
+      _kpiCashBalance: fmt(cashBalance),
+      _kpiBudgetTotal: fmt(budgetTotal),
+      _kpiBudgetCharges: fmt(budgetCharges),
+      _kpiBudgetReserve: fmt(budgetReserve),
+      _kpiBudgetConsumed: String(budgetConsumed),
+      _kpiBudgetStatus: budgetStatusVal,
+      _kpiTotalRevenue: fmt(totalRevenue),
+      _kpiTotalExpenses: fmt(totalExpenses),
+      _kpiNetBalance: fmt(netBalance),
+      _kpiYearCharged: fmt(yearCharged),
+      _kpiYearPaid: fmt(yearPaid),
+      _kpiFondsTravauxBal: fmt(fondsTravauxBalance),
+      _kpiFondsTravauxTgt: fmt(fondsTravauxTarget),
+      _kpiYear: String(currentYear),
     };
   } catch (err) {
     return {};
@@ -630,21 +807,31 @@ async function getDecompteChargesData(
   const targetYear = year || String(new Date().getFullYear());
   try {
     // All appels for this lot
-    const appels = await db.select({
-      amount:  appelsDeFondsTable.amount,
-      status:  appelsDeFondsTable.status,
-      period:  appelsDeFondsTable.period,
-      type:    appelsDeFondsTable.type,
-      buildingId: appelsDeFondsTable.buildingId,
-    }).from(appelsDeFondsTable).where(eq(appelsDeFondsTable.lotId, lotId));
+    const appels = await db
+      .select({
+        amount: appelsDeFondsTable.amount,
+        status: appelsDeFondsTable.status,
+        period: appelsDeFondsTable.period,
+        type: appelsDeFondsTable.type,
+        buildingId: appelsDeFondsTable.buildingId,
+      })
+      .from(appelsDeFondsTable)
+      .where(eq(appelsDeFondsTable.lotId, lotId));
 
     // Prefer year-scoped; fall back to all
     const scopedAppels = appels.filter((a) => a.period?.startsWith(targetYear));
     const useAppels = scopedAppels.length > 0 ? scopedAppels : appels;
 
-    const totalProvisioned = useAppels.reduce((s, a) => s + Number(a.amount ?? 0), 0);
-    const totalPaid        = useAppels.filter((a) => a.status === "paid").reduce((s, a) => s + Number(a.amount ?? 0), 0);
-    const totalOverdue     = useAppels.filter((a) => a.status === "overdue").reduce((s, a) => s + Number(a.amount ?? 0), 0);
+    const totalProvisioned = useAppels.reduce(
+      (s, a) => s + Number(a.amount ?? 0),
+      0,
+    );
+    const totalPaid = useAppels
+      .filter((a) => a.status === "paid")
+      .reduce((s, a) => s + Number(a.amount ?? 0), 0);
+    const totalOverdue = useAppels
+      .filter((a) => a.status === "overdue")
+      .reduce((s, a) => s + Number(a.amount ?? 0), 0);
 
     // Group by type for breakdown
     const byType: Record<string, number> = {};
@@ -663,39 +850,48 @@ async function getDecompteChargesData(
       ascenseur: "Ascenseur",
     };
     const breakdownLines = Object.entries(byType)
-      .map(([type, amount]) => `${typeLabels[type] ?? type}: ${amount.toLocaleString("fr-MA")} MAD`)
+      .map(
+        ([type, amount]) =>
+          `${typeLabels[type] ?? type}: ${amount.toLocaleString("fr-MA")} MAD`,
+      )
       .join("\n");
 
     // Lot info for tantièmes ratio → estimated real charges
     const buildingId = useAppels[0]?.buildingId;
     let estimatedRealCharges = totalProvisioned;
     if (buildingId) {
-      const [lotRow] = await db.select({ tantiemes: lotsTable.tantiemes })
+      const [lotRow] = await db
+        .select({ tantiemes: lotsTable.tantiemes })
         .from(lotsTable)
         .where(eq(lotsTable.id, lotId));
       const tantiemes = Number(lotRow?.tantiemes ?? 0);
 
       if (syndicateId && tantiemes > 0) {
-        const caisse = await db.select({
-          amount: caisseEntriesTable.amount,
-          type:   caisseEntriesTable.type,
-        }).from(caisseEntriesTable).where(eq(caisseEntriesTable.syndicateId, syndicateId));
+        const caisse = await db
+          .select({
+            amount: caisseEntriesTable.amount,
+            type: caisseEntriesTable.type,
+          })
+          .from(caisseEntriesTable)
+          .where(eq(caisseEntriesTable.syndicateId, syndicateId));
         const totalBldgExpenses = caisse
           .filter((e) => e.type === "debit")
           .reduce((s, e) => s + Number(e.amount ?? 0), 0);
-        estimatedRealCharges = Math.round(totalBldgExpenses * (tantiemes / 10000));
+        estimatedRealCharges = Math.round(
+          totalBldgExpenses * (tantiemes / 10000),
+        );
       }
     }
 
     const fmt = (n: number) => n.toLocaleString("fr-MA");
     return {
-      totalPrevu:           String(totalProvisioned),
-      totalRealise:         String(estimatedRealCharges),
-      _decompteYear:        targetYear,
-      _decompteTotalPaid:   fmt(totalPaid),
+      totalPrevu: String(totalProvisioned),
+      totalRealise: String(estimatedRealCharges),
+      _decompteYear: targetYear,
+      _decompteTotalPaid: fmt(totalPaid),
       _decompteTotalOverdue: fmt(totalOverdue),
-      _decompteBreakdown:   breakdownLines,
-      _decompteAppelCount:  String(useAppels.length),
+      _decompteBreakdown: breakdownLines,
+      _decompteAppelCount: String(useAppels.length),
     };
   } catch (err) {
     return {};
@@ -704,31 +900,46 @@ async function getDecompteChargesData(
 
 // ─── Real invoice loader for facture template ──────────────────────────────────
 
-async function getInvoiceData(invoiceId: string): Promise<Record<string, string>> {
-  const [invoice] = await db.select().from(invoicesTable).where(eq(invoicesTable.id, invoiceId));
+async function getInvoiceData(
+  invoiceId: string,
+): Promise<Record<string, string>> {
+  const [invoice] = await db
+    .select()
+    .from(invoicesTable)
+    .where(eq(invoicesTable.id, invoiceId));
   if (!invoice) return {};
 
-  const items = await db.select().from(invoiceItemsTable).where(eq(invoiceItemsTable.invoiceId, invoiceId));
+  const items = await db
+    .select()
+    .from(invoiceItemsTable)
+    .where(eq(invoiceItemsTable.invoiceId, invoiceId));
   const invoiceLines = items.map((item) => ({
-    label:     item.label,
-    qty:       Number(item.quantity ?? 1),
+    label: item.label,
+    qty: Number(item.quantity ?? 1),
     unitPrice: Number(item.unitPrice ?? 0),
-    total:     Number(item.quantity ?? 1) * Number(item.unitPrice ?? 0),
+    total: Number(item.quantity ?? 1) * Number(item.unitPrice ?? 0),
   }));
 
-  const totalHT = invoiceLines.reduce((s, l) => s + l.total, 0) || Number(invoice.amount ?? 0);
+  const totalHT =
+    invoiceLines.reduce((s, l) => s + l.total, 0) ||
+    Number(invoice.amount ?? 0);
   if (invoiceLines.length === 0) {
-    invoiceLines.push({ label: "Prestation de service", qty: 1, unitPrice: totalHT, total: totalHT });
+    invoiceLines.push({
+      label: "Prestation de service",
+      qty: 1,
+      unitPrice: totalHT,
+      total: totalHT,
+    });
   }
 
   return {
-    _invoiceRef:    invoice.reference,
-    _recipient:     invoice.recipient,
-    amount:         String(Number(invoice.amount ?? 0)),
-    dueDate:        invoice.dueDate,
-    _invoiceDate:   invoice.date,
+    _invoiceRef: invoice.reference,
+    _recipient: invoice.recipient,
+    amount: String(Number(invoice.amount ?? 0)),
+    dueDate: invoice.dueDate,
+    _invoiceDate: invoice.date,
     _invoiceStatus: invoice.status ?? "draft",
-    _invoiceLines:  JSON.stringify(invoiceLines),
+    _invoiceLines: JSON.stringify(invoiceLines),
   };
 }
 
@@ -742,11 +953,11 @@ async function getAttestationPaiementData(
   try {
     const [lotRow] = await db
       .select({
-        number:      lotsTable.number,
-        floor:       lotsTable.floor,
-        tantiemes:   lotsTable.tantiemes,
-        titreFoncier:lotsTable.titreFoncier,
-        ownerId:     lotsTable.ownerId,
+        number: lotsTable.number,
+        floor: lotsTable.floor,
+        tantiemes: lotsTable.tantiemes,
+        titreFoncier: lotsTable.titreFoncier,
+        ownerId: lotsTable.ownerId,
       })
       .from(lotsTable)
       .where(eq(lotsTable.id, lotId));
@@ -754,30 +965,43 @@ async function getAttestationPaiementData(
 
     let memberName = "";
     if (lotRow.ownerId) {
-      const [m] = await db.select({ name: membersTable.name }).from(membersTable).where(eq(membersTable.id, lotRow.ownerId));
+      const [m] = await db
+        .select({ name: membersTable.name })
+        .from(membersTable)
+        .where(eq(membersTable.id, lotRow.ownerId));
       memberName = m?.name ?? "";
     }
 
     // All appels for this lot
-    const allAppels = await db.select({
-      amount:   appelsDeFondsTable.amount,
-      status:   appelsDeFondsTable.status,
-      period:   appelsDeFondsTable.period,
-      paidDate: appelsDeFondsTable.paidDate,
-    }).from(appelsDeFondsTable).where(eq(appelsDeFondsTable.lotId, lotId));
+    const allAppels = await db
+      .select({
+        amount: appelsDeFondsTable.amount,
+        status: appelsDeFondsTable.status,
+        period: appelsDeFondsTable.period,
+        paidDate: appelsDeFondsTable.paidDate,
+      })
+      .from(appelsDeFondsTable)
+      .where(eq(appelsDeFondsTable.lotId, lotId));
 
     const periodeAppels = periode
       ? allAppels.filter((a) => a.period?.includes(periode))
       : allAppels;
     const useAppels = periodeAppels.length > 0 ? periodeAppels : allAppels;
 
-    const totalPaid    = useAppels.filter((a) => a.status === "paid").reduce((s, a) => s + Number(a.amount ?? 0), 0);
-    const totalCharged = useAppels.reduce((s, a) => s + Number(a.amount ?? 0), 0);
-    const hasOverdue   = useAppels.some((a) => a.status === "overdue");
+    const totalPaid = useAppels
+      .filter((a) => a.status === "paid")
+      .reduce((s, a) => s + Number(a.amount ?? 0), 0);
+    const totalCharged = useAppels.reduce(
+      (s, a) => s + Number(a.amount ?? 0),
+      0,
+    );
+    const hasOverdue = useAppels.some((a) => a.status === "overdue");
     const inGoodStanding = !hasOverdue && totalCharged <= totalPaid;
     const lastPaid = useAppels
       .filter((a) => a.status === "paid" && a.paidDate)
-      .sort((a, b) => (b.paidDate ?? "").localeCompare(a.paidDate ?? ""))[0]?.paidDate;
+      .sort((a, b) =>
+        (b.paidDate ?? "").localeCompare(a.paidDate ?? ""),
+      )[0]?.paidDate;
 
     const fmt = (n: number) => n.toLocaleString("fr-MA");
     // Structured payment history JSON — used by the attestation PDF template
@@ -785,23 +1009,27 @@ async function getAttestationPaiementData(
       useAppels
         .sort((a, b) => (a.period ?? "").localeCompare(b.period ?? ""))
         .map((a) => ({
-          period:  a.period  ?? "—",
-          amount:  Number(a.amount ?? 0),
-          status:  a.status  ?? "pending",
+          period: a.period ?? "—",
+          amount: Number(a.amount ?? 0),
+          status: a.status ?? "pending",
           paidDate: a.paidDate ?? null,
-        }))
+        })),
     );
     return {
       memberName,
-      _lotNumber:          lotRow.number ?? "",
-      _lotFloor:           lotRow.floor != null ? String(lotRow.floor) : "",
-      _lotTantiemes:       lotRow.tantiemes ? `${Number(lotRow.tantiemes)} / 10 000` : "",
-      _lotTitreFoncier:    lotRow.titreFoncier ?? "",
-      montant:             fmt(totalPaid),
-      _totalCharged:       fmt(totalCharged),
-      _paiementStatus:     inGoodStanding ? "EN RÈGLE" : "ATTENTION — CHARGES EN COURS",
-      _lastPaidDate:       lastPaid ?? "",
-      _appelCount:         String(useAppels.length),
+      _lotNumber: lotRow.number ?? "",
+      _lotFloor: lotRow.floor != null ? String(lotRow.floor) : "",
+      _lotTantiemes: lotRow.tantiemes
+        ? `${Number(lotRow.tantiemes)} / 10 000`
+        : "",
+      _lotTitreFoncier: lotRow.titreFoncier ?? "",
+      montant: fmt(totalPaid),
+      _totalCharged: fmt(totalCharged),
+      _paiementStatus: inGoodStanding
+        ? "EN RÈGLE"
+        : "ATTENTION — CHARGES EN COURS",
+      _lastPaidDate: lastPaid ?? "",
+      _appelCount: String(useAppels.length),
       _paymentHistoryJson: paymentHistoryJson,
     };
   } catch {
@@ -811,44 +1039,48 @@ async function getAttestationPaiementData(
 
 // ─── Entity loader: tenantsTable → contrat_bail ──────────────────────────────
 
-async function getTenantData(tenantId: string): Promise<Record<string, string>> {
+async function getTenantData(
+  tenantId: string,
+): Promise<Record<string, string>> {
   try {
     const [row] = await db
       .select({
-        name:          tenantsTable.name,
-        email:         tenantsTable.email,
-        phone:         tenantsTable.phone,
-        leaseStart:    tenantsTable.leaseStart,
-        leaseEnd:      tenantsTable.leaseEnd,
-        monthlyRent:   tenantsTable.monthlyRent,
+        name: tenantsTable.name,
+        email: tenantsTable.email,
+        phone: tenantsTable.phone,
+        leaseStart: tenantsTable.leaseStart,
+        leaseEnd: tenantsTable.leaseEnd,
+        monthlyRent: tenantsTable.monthlyRent,
         depositAmount: tenantsTable.depositAmount,
-        status:        tenantsTable.status,
-        lotNumber:     lotsTable.number,
-        lotFloor:      lotsTable.floor,
-        lotSurface:    lotsTable.surfaceM2,
-        buildingName:  buildingsTable.name,
+        status: tenantsTable.status,
+        lotNumber: lotsTable.number,
+        lotFloor: lotsTable.floor,
+        lotSurface: lotsTable.surfaceM2,
+        buildingName: buildingsTable.name,
         buildingAddress: buildingsTable.address,
       })
       .from(tenantsTable)
-      .leftJoin(lotsTable,      eq(tenantsTable.lotId,      lotsTable.id))
+      .leftJoin(lotsTable, eq(tenantsTable.lotId, lotsTable.id))
       .leftJoin(buildingsTable, eq(tenantsTable.buildingId, buildingsTable.id))
       .where(eq(tenantsTable.id, tenantId));
 
     if (!row) return {};
     return {
-      memberName:       row.name ?? "",
-      _tenantName:      row.name ?? "",
-      _tenantEmail:     row.email ?? "",
-      _tenantPhone:     row.phone ?? "",
-      _leaseStart:      row.leaseStart ?? "",
-      _leaseEnd:        row.leaseEnd ?? "",
-      _monthlyRent:     row.monthlyRent ? String(Number(row.monthlyRent)) : "",
-      _depositAmount:   row.depositAmount ? String(Number(row.depositAmount)) : "",
-      _leaseStatus:     row.status ?? "active",
-      _lotNumber:       row.lotNumber ?? "",
-      _lotFloor:        row.lotFloor != null ? String(row.lotFloor) : "",
-      _lotSurface:      row.lotSurface ? String(Number(row.lotSurface)) : "",
-      _buildingName:    row.buildingName ?? "",
+      memberName: row.name ?? "",
+      _tenantName: row.name ?? "",
+      _tenantEmail: row.email ?? "",
+      _tenantPhone: row.phone ?? "",
+      _leaseStart: row.leaseStart ?? "",
+      _leaseEnd: row.leaseEnd ?? "",
+      _monthlyRent: row.monthlyRent ? String(Number(row.monthlyRent)) : "",
+      _depositAmount: row.depositAmount
+        ? String(Number(row.depositAmount))
+        : "",
+      _leaseStatus: row.status ?? "active",
+      _lotNumber: row.lotNumber ?? "",
+      _lotFloor: row.lotFloor != null ? String(row.lotFloor) : "",
+      _lotSurface: row.lotSurface ? String(Number(row.lotSurface)) : "",
+      _buildingName: row.buildingName ?? "",
       _buildingAddress: row.buildingAddress ?? "",
     };
   } catch {
@@ -858,48 +1090,60 @@ async function getTenantData(tenantId: string): Promise<Record<string, string>> 
 
 // ─── Entity loader: sinistresTable → sinistre ─────────────────────────────────
 
-async function getSinistreData(sinistreId: string): Promise<Record<string, string>> {
+async function getSinistreData(
+  sinistreId: string,
+): Promise<Record<string, string>> {
   try {
     const [row] = await db
       .select({
-        type:            sinistresTable.type,
-        description:     sinistresTable.description,
-        date:            sinistresTable.date,
-        status:          sinistresTable.status,
-        urgency:         sinistresTable.urgency,
-        claimNumber:     sinistresTable.claimNumber,
+        type: sinistresTable.type,
+        description: sinistresTable.description,
+        date: sinistresTable.date,
+        status: sinistresTable.status,
+        urgency: sinistresTable.urgency,
+        claimNumber: sinistresTable.claimNumber,
         estimatedAmount: sinistresTable.estimatedAmount,
-        indemnisedAmount:sinistresTable.indemnisedAmount,
-        reportedByName:  sinistresTable.reportedByName,
-        resolutionNote:  sinistresTable.resolutionNote,
-        lotId:           sinistresTable.lotId,
-        buildingName:    buildingsTable.name,
+        indemnisedAmount: sinistresTable.indemnisedAmount,
+        reportedByName: sinistresTable.reportedByName,
+        resolutionNote: sinistresTable.resolutionNote,
+        lotId: sinistresTable.lotId,
+        buildingName: buildingsTable.name,
         buildingAddress: buildingsTable.address,
       })
       .from(sinistresTable)
-      .innerJoin(buildingsTable, eq(sinistresTable.buildingId, buildingsTable.id))
+      .innerJoin(
+        buildingsTable,
+        eq(sinistresTable.buildingId, buildingsTable.id),
+      )
       .where(eq(sinistresTable.id, sinistreId));
 
     if (!row) return {};
     let lotNumber = "";
     if (row.lotId) {
-      const [lot] = await db.select({ number: lotsTable.number }).from(lotsTable).where(eq(lotsTable.id, row.lotId));
+      const [lot] = await db
+        .select({ number: lotsTable.number })
+        .from(lotsTable)
+        .where(eq(lotsTable.id, row.lotId));
       lotNumber = lot?.number ?? "";
     }
     return {
-      _sinistreType:        row.type ?? "",
+      _sinistreType: row.type ?? "",
       _sinistreDescription: row.description ?? "",
-      _sinistreDate:        row.date ?? "",
-      _sinistreStatus:      row.status ?? "declared",
-      _sinistreUrgency:     row.urgency ?? "normal",
-      _claimNumber:         row.claimNumber ?? "",
-      _estimatedAmount:     row.estimatedAmount ? String(Number(row.estimatedAmount)) : "",
-      _indemnisedAmount:    row.indemnisedAmount ? String(Number(row.indemnisedAmount)) : "",
-      _reportedByName:      row.reportedByName ?? "",
-      _resolutionNote:      row.resolutionNote ?? "",
-      _buildingName:        row.buildingName ?? "",
-      _buildingAddress:     row.buildingAddress ?? "",
-      _lotNumber:           lotNumber,
+      _sinistreDate: row.date ?? "",
+      _sinistreStatus: row.status ?? "declared",
+      _sinistreUrgency: row.urgency ?? "normal",
+      _claimNumber: row.claimNumber ?? "",
+      _estimatedAmount: row.estimatedAmount
+        ? String(Number(row.estimatedAmount))
+        : "",
+      _indemnisedAmount: row.indemnisedAmount
+        ? String(Number(row.indemnisedAmount))
+        : "",
+      _reportedByName: row.reportedByName ?? "",
+      _resolutionNote: row.resolutionNote ?? "",
+      _buildingName: row.buildingName ?? "",
+      _buildingAddress: row.buildingAddress ?? "",
+      _lotNumber: lotNumber,
     };
   } catch {
     return {};
@@ -908,60 +1152,72 @@ async function getSinistreData(sinistreId: string): Promise<Record<string, strin
 
 // ─── Entity loader: travauxTable → travaux ────────────────────────────────────
 
-async function getTravauxData(travauxId: string): Promise<Record<string, string>> {
+async function getTravauxData(
+  travauxId: string,
+): Promise<Record<string, string>> {
   try {
     const [row] = await db
       .select({
-        title:           travauxTable.title,
-        description:     travauxTable.description,
-        type:            travauxTable.type,
-        priority:        travauxTable.priority,
-        status:          travauxTable.status,
-        startDate:       travauxTable.startDate,
-        endDate:         travauxTable.endDate,
+        title: travauxTable.title,
+        description: travauxTable.description,
+        type: travauxTable.type,
+        priority: travauxTable.priority,
+        status: travauxTable.status,
+        startDate: travauxTable.startDate,
+        endDate: travauxTable.endDate,
         estimatedAmount: travauxTable.estimatedAmount,
-        actualAmount:    travauxTable.actualAmount,
-        invoiceAmount:   travauxTable.invoiceAmount,
-        reportedByName:  travauxTable.reportedByName,
+        actualAmount: travauxTable.actualAmount,
+        invoiceAmount: travauxTable.invoiceAmount,
+        reportedByName: travauxTable.reportedByName,
         validatedByName: travauxTable.validatedByName,
-        notes:           travauxTable.notes,
-        lotId:           travauxTable.lotId,
-        buildingName:    buildingsTable.name,
+        notes: travauxTable.notes,
+        lotId: travauxTable.lotId,
+        buildingName: buildingsTable.name,
         buildingAddress: buildingsTable.address,
         prestataireName: prestatairesTable.name,
-        prestatairePhone:prestatairesTable.phone,
-        prestataireEmail:prestatairesTable.email,
+        prestatairePhone: prestatairesTable.phone,
+        prestataireEmail: prestatairesTable.email,
       })
       .from(travauxTable)
-      .innerJoin(buildingsTable,   eq(travauxTable.buildingId,    buildingsTable.id))
-      .leftJoin(prestatairesTable, eq(travauxTable.prestataireId, prestatairesTable.id))
+      .innerJoin(buildingsTable, eq(travauxTable.buildingId, buildingsTable.id))
+      .leftJoin(
+        prestatairesTable,
+        eq(travauxTable.prestataireId, prestatairesTable.id),
+      )
       .where(eq(travauxTable.id, travauxId));
 
     if (!row) return {};
     let lotNumber = "";
     if (row.lotId) {
-      const [lot] = await db.select({ number: lotsTable.number }).from(lotsTable).where(eq(lotsTable.id, row.lotId));
+      const [lot] = await db
+        .select({ number: lotsTable.number })
+        .from(lotsTable)
+        .where(eq(lotsTable.id, row.lotId));
       lotNumber = lot?.number ?? "";
     }
     return {
-      _travauxTitle:       row.title ?? "",
+      _travauxTitle: row.title ?? "",
       _travauxDescription: row.description ?? "",
-      _travauxType:        row.type ?? "entretien",
-      _travauxPriority:    row.priority ?? "normal",
-      _travauxStatus:      row.status ?? "reported",
-      _startDate:          row.startDate ?? "",
-      _endDate:            row.endDate ?? "",
-      _estimatedAmount:    row.estimatedAmount ? String(Number(row.estimatedAmount)) : "",
-      _actualAmount:       row.actualAmount ? String(Number(row.actualAmount)) : "",
-      _invoiceAmount:      row.invoiceAmount ? String(Number(row.invoiceAmount)) : "",
-      _reportedByName:     row.reportedByName ?? "",
-      _validatedByName:    row.validatedByName ?? "",
-      _buildingName:       row.buildingName ?? "",
-      _buildingAddress:    row.buildingAddress ?? "",
-      _lotNumber:          lotNumber,
-      _prestataireNom:     row.prestataireName ?? "",
-      _prestatairePhone:   row.prestatairePhone ?? "",
-      _prestataireEmail:   row.prestataireEmail ?? "",
+      _travauxType: row.type ?? "entretien",
+      _travauxPriority: row.priority ?? "normal",
+      _travauxStatus: row.status ?? "reported",
+      _startDate: row.startDate ?? "",
+      _endDate: row.endDate ?? "",
+      _estimatedAmount: row.estimatedAmount
+        ? String(Number(row.estimatedAmount))
+        : "",
+      _actualAmount: row.actualAmount ? String(Number(row.actualAmount)) : "",
+      _invoiceAmount: row.invoiceAmount
+        ? String(Number(row.invoiceAmount))
+        : "",
+      _reportedByName: row.reportedByName ?? "",
+      _validatedByName: row.validatedByName ?? "",
+      _buildingName: row.buildingName ?? "",
+      _buildingAddress: row.buildingAddress ?? "",
+      _lotNumber: lotNumber,
+      _prestataireNom: row.prestataireName ?? "",
+      _prestatairePhone: row.prestatairePhone ?? "",
+      _prestataireEmail: row.prestataireEmail ?? "",
     };
   } catch {
     return {};
@@ -972,7 +1228,10 @@ async function getTravauxData(travauxId: string): Promise<Record<string, string>
 // One counter row per (syndicateId, prefix, year); increments atomically via
 // INSERT ... ON CONFLICT DO UPDATE so concurrent generations never collide.
 
-async function generateSequentialDocumentNumber(syndicateId: string | null | undefined, template: DocumentTemplate): Promise<string> {
+async function generateSequentialDocumentNumber(
+  syndicateId: string | null | undefined,
+  template: DocumentTemplate,
+): Promise<string> {
   const prefix = TEMPLATE_NUMBER_PREFIX[template] ?? template.toUpperCase();
   const year = new Date().getFullYear();
   const scopeId = syndicateId || "global";
@@ -981,7 +1240,11 @@ async function generateSequentialDocumentNumber(syndicateId: string | null | und
     .insert(documentSequencesTable)
     .values({ syndicateId: scopeId, prefix, year, currentValue: 1 } as any)
     .onConflictDoUpdate({
-      target: [documentSequencesTable.syndicateId, documentSequencesTable.prefix, documentSequencesTable.year],
+      target: [
+        documentSequencesTable.syndicateId,
+        documentSequencesTable.prefix,
+        documentSequencesTable.year,
+      ],
       set: { currentValue: sql`${documentSequencesTable.currentValue} + 1` },
     })
     .returning({ currentValue: documentSequencesTable.currentValue });
@@ -1005,10 +1268,11 @@ router.get("/documents", requireAuth, async (req, res) => {
     conditions.push(eq(documentsTable.isDeleted, false));
 
     if (req.user!.role !== "super_admin" || syndicateId) {
-      if (syndicateId) conditions.push(eq(documentsTable.syndicateId, syndicateId));
+      if (syndicateId)
+        conditions.push(eq(documentsTable.syndicateId, syndicateId));
     }
     if (category) conditions.push(eq(documentsTable.category, category as any));
-    if (status)   conditions.push(eq(documentsTable.status, status));
+    if (status) conditions.push(eq(documentsTable.status, status));
 
     // Members and tenants only see published documents
     if (req.user!.role === "member" || req.user!.role === "tenant") {
@@ -1049,13 +1313,22 @@ router.get(
       const conditions = [eq(documentsTable.isDeleted, true)];
       const syndicateId = req.user!.syndicateId;
       if (req.user!.role !== "super_admin") {
-        if (!syndicateId) { res.status(403).json({ error: "Accès refusé : syndicateId manquant" }); return; }
+        if (!syndicateId) {
+          res
+            .status(403)
+            .json({ error: "Accès refusé : syndicateId manquant" });
+          return;
+        }
         conditions.push(eq(documentsTable.syndicateId, syndicateId));
       } else if (syndicateId) {
         conditions.push(eq(documentsTable.syndicateId, syndicateId));
       }
-      if (category) conditions.push(eq(documentsTable.category, category as any));
-      if (search) conditions.push(sql`${documentsTable.title} ILIKE ${"%" + search + "%"}`);
+      if (category)
+        conditions.push(eq(documentsTable.category, category as any));
+      if (search)
+        conditions.push(
+          sql`${documentsTable.title} ILIKE ${"%" + search + "%"}`,
+        );
 
       const rows = await db
         .select({
@@ -1095,7 +1368,8 @@ router.get("/documents/summary", requireAuth, async (req, res) => {
       return;
     }
     const conditions = [eq(documentsTable.isDeleted, false)];
-    if (syndicateId) conditions.push(eq(documentsTable.syndicateId, syndicateId));
+    if (syndicateId)
+      conditions.push(eq(documentsTable.syndicateId, syndicateId));
     if (req.user!.role === "member" || req.user!.role === "tenant") {
       conditions.push(eq(documentsTable.status, "published"));
     }
@@ -1111,7 +1385,11 @@ router.get("/documents/summary", requireAuth, async (req, res) => {
       .where(and(...conditions));
 
     const byStatus: Record<string, number> = {};
-    const expiring: { in30: typeof rows; in60: typeof rows; in90: typeof rows } = { in30: [], in60: [], in90: [] };
+    const expiring: {
+      in30: typeof rows;
+      in60: typeof rows;
+      in90: typeof rows;
+    } = { in30: [], in60: [], in90: [] };
     const now = new Date();
 
     for (const row of rows) {
@@ -1148,242 +1426,941 @@ router.get("/documents/summary", requireAuth, async (req, res) => {
 router.get("/documents/templates", requireAuth, async (_req, res) => {
   const catalog = [
     {
-      id: "attestation", name: "Attestation d'adhésion", category: "attestation",
-      description: "Certifie officiellement qu'un membre est en règle auprès du syndicat.",
-      icon: "award", color: "#8b5cf6", version: "2.0", author: "MIZAN", updatedAt: "2026-01-01",
+      id: "attestation",
+      name: "Attestation d'adhésion",
+      category: "attestation",
+      description:
+        "Certifie officiellement qu'un membre est en règle auprès du syndicat.",
+      icon: "award",
+      color: "#8b5cf6",
+      version: "2.0",
+      author: "MIZAN",
+      updatedAt: "2026-01-01",
       sections: [
-        { title: "En-tête", description: "Logo, coordonnées et accréditation du syndicat", source: "syndicatesTable" },
-        { title: "Informations du syndicat", description: "Nom, adresse, N° d'enregistrement", source: "syndicatesTable" },
-        { title: "Attestation", description: "Corps du document avec nom du membre et date", source: "usersTable + input" },
-        { title: "Signatures", description: "Bloc de signature officielle du président", source: "conseilSyndicalTable" },
-        { title: "QR de vérification", description: "Code QR d'authenticité avec URL publique", source: "documents (généré)" },
-        { title: "Pied de page légal", description: "Référence légale et note de non-altération", source: "documents (généré)" },
+        {
+          title: "En-tête",
+          description: "Logo, coordonnées et accréditation du syndicat",
+          source: "syndicatesTable",
+        },
+        {
+          title: "Informations du syndicat",
+          description: "Nom, adresse, N° d'enregistrement",
+          source: "syndicatesTable",
+        },
+        {
+          title: "Attestation",
+          description: "Corps du document avec nom du membre et date",
+          source: "usersTable + input",
+        },
+        {
+          title: "Signatures",
+          description: "Bloc de signature officielle du président",
+          source: "conseilSyndicalTable",
+        },
+        {
+          title: "QR de vérification",
+          description: "Code QR d'authenticité avec URL publique",
+          source: "documents (généré)",
+        },
+        {
+          title: "Pied de page légal",
+          description: "Référence légale et note de non-altération",
+          source: "documents (généré)",
+        },
       ],
       variables: [
-        { name: "syndicateName",      label: "Nom du syndicat",        source: "syndicatesTable.name",               required: true  },
-        { name: "syndicateAddress",   label: "Adresse du syndicat",    source: "syndicatesTable.address",             required: false },
-        { name: "registrationNumber", label: "N° d'enregistrement",   source: "syndicatesTable.registrationNumber", required: false },
-        { name: "memberName",         label: "Nom du membre",          source: "input utilisateur",                   required: true  },
-        { name: "documentDate",       label: "Date d'émission",        source: "généré automatiquement",             required: true  },
-        { name: "presidentName",      label: "Nom du président",       source: "conseilSyndicalTable.name",           required: false },
-        { name: "documentNumber",     label: "N° de document",         source: "documentSequencesTable (atomique)",  required: true  },
-        { name: "verificationQR",     label: "QR de vérification",     source: "généré automatiquement",             required: true  },
+        {
+          name: "syndicateName",
+          label: "Nom du syndicat",
+          source: "syndicatesTable.name",
+          required: true,
+        },
+        {
+          name: "syndicateAddress",
+          label: "Adresse du syndicat",
+          source: "syndicatesTable.address",
+          required: false,
+        },
+        {
+          name: "registrationNumber",
+          label: "N° d'enregistrement",
+          source: "syndicatesTable.registrationNumber",
+          required: false,
+        },
+        {
+          name: "memberName",
+          label: "Nom du membre",
+          source: "input utilisateur",
+          required: true,
+        },
+        {
+          name: "documentDate",
+          label: "Date d'émission",
+          source: "généré automatiquement",
+          required: true,
+        },
+        {
+          name: "presidentName",
+          label: "Nom du président",
+          source: "conseilSyndicalTable.name",
+          required: false,
+        },
+        {
+          name: "documentNumber",
+          label: "N° de document",
+          source: "documentSequencesTable (atomique)",
+          required: true,
+        },
+        {
+          name: "verificationQR",
+          label: "QR de vérification",
+          source: "généré automatiquement",
+          required: true,
+        },
       ],
       requiredInputs: ["memberName"],
     },
     {
-      id: "pv", name: "Procès-verbal de réunion", category: "pv",
-      description: "Procès-verbal officiel enregistrant les délibérations et résolutions d'une réunion.",
-      icon: "clipboard", color: "#10b981", version: "2.0", author: "MIZAN", updatedAt: "2026-01-01",
+      id: "pv",
+      name: "Procès-verbal de réunion",
+      category: "pv",
+      description:
+        "Procès-verbal officiel enregistrant les délibérations et résolutions d'une réunion.",
+      icon: "clipboard",
+      color: "#10b981",
+      version: "2.0",
+      author: "MIZAN",
+      updatedAt: "2026-01-01",
       sections: [
-        { title: "En-tête", description: "Logo et coordonnées du syndicat", source: "syndicatesTable" },
-        { title: "Informations de la réunion", description: "Date, lieu, heure, président de séance", source: "input" },
-        { title: "Ordre du jour", description: "Points inscrits à l'ordre du jour", source: "input" },
-        { title: "Délibérations", description: "Discussion et décisions de la réunion", source: "input" },
-        { title: "Résolutions", description: "Résolutions officiellement adoptées", source: "input" },
-        { title: "Signatures", description: "Président et secrétaire de séance", source: "conseilSyndicalTable + input" },
-        { title: "QR de vérification", description: "Code QR d'authenticité", source: "généré" },
+        {
+          title: "En-tête",
+          description: "Logo et coordonnées du syndicat",
+          source: "syndicatesTable",
+        },
+        {
+          title: "Informations de la réunion",
+          description: "Date, lieu, heure, président de séance",
+          source: "input",
+        },
+        {
+          title: "Ordre du jour",
+          description: "Points inscrits à l'ordre du jour",
+          source: "input",
+        },
+        {
+          title: "Délibérations",
+          description: "Discussion et décisions de la réunion",
+          source: "input",
+        },
+        {
+          title: "Résolutions",
+          description: "Résolutions officiellement adoptées",
+          source: "input",
+        },
+        {
+          title: "Signatures",
+          description: "Président et secrétaire de séance",
+          source: "conseilSyndicalTable + input",
+        },
+        {
+          title: "QR de vérification",
+          description: "Code QR d'authenticité",
+          source: "généré",
+        },
       ],
       variables: [
-        { name: "syndicateName",      label: "Nom du syndicat",        source: "syndicatesTable.name",     required: true  },
-        { name: "meetingDate",        label: "Date de réunion",        source: "input utilisateur",         required: true  },
-        { name: "lieu",               label: "Lieu de la réunion",     source: "input utilisateur",         required: false },
-        { name: "heure",              label: "Heure",                  source: "input utilisateur",         required: false },
-        { name: "presidentSeance",    label: "Président de séance",    source: "input / conseilSyndical",   required: false },
-        { name: "agendaText",         label: "Ordre du jour",          source: "input utilisateur",         required: false },
-        { name: "deliberationsText",  label: "Délibérations",          source: "input utilisateur",         required: false },
-        { name: "resolutionsText",    label: "Résolutions",            source: "input utilisateur",         required: false },
-        { name: "documentNumber",     label: "N° de document",         source: "documentSequencesTable",    required: true  },
+        {
+          name: "syndicateName",
+          label: "Nom du syndicat",
+          source: "syndicatesTable.name",
+          required: true,
+        },
+        {
+          name: "meetingDate",
+          label: "Date de réunion",
+          source: "input utilisateur",
+          required: true,
+        },
+        {
+          name: "lieu",
+          label: "Lieu de la réunion",
+          source: "input utilisateur",
+          required: false,
+        },
+        {
+          name: "heure",
+          label: "Heure",
+          source: "input utilisateur",
+          required: false,
+        },
+        {
+          name: "presidentSeance",
+          label: "Président de séance",
+          source: "input / conseilSyndical",
+          required: false,
+        },
+        {
+          name: "agendaText",
+          label: "Ordre du jour",
+          source: "input utilisateur",
+          required: false,
+        },
+        {
+          name: "deliberationsText",
+          label: "Délibérations",
+          source: "input utilisateur",
+          required: false,
+        },
+        {
+          name: "resolutionsText",
+          label: "Résolutions",
+          source: "input utilisateur",
+          required: false,
+        },
+        {
+          name: "documentNumber",
+          label: "N° de document",
+          source: "documentSequencesTable",
+          required: true,
+        },
       ],
       requiredInputs: ["meetingDate"],
     },
     {
-      id: "convocation", name: "Convocation officielle", category: "pv",
-      description: "Convocation officielle adressée aux membres pour une réunion.",
-      icon: "calendar", color: "#3b82f6", version: "2.0", author: "MIZAN", updatedAt: "2026-01-01",
+      id: "convocation",
+      name: "Convocation officielle",
+      category: "pv",
+      description:
+        "Convocation officielle adressée aux membres pour une réunion.",
+      icon: "calendar",
+      color: "#3b82f6",
+      version: "2.0",
+      author: "MIZAN",
+      updatedAt: "2026-01-01",
       sections: [
-        { title: "En-tête", description: "Logo et identité du syndicat", source: "syndicatesTable" },
-        { title: "Destinataire", description: "Nom du ou des destinataires", source: "input / usersTable" },
-        { title: "Objet de la convocation", description: "Raison de la convocation", source: "input" },
-        { title: "Corps", description: "Texte officiel de convocation avec date, lieu, heure", source: "syndicatesTable + input" },
-        { title: "Signatures", description: "Signature officielle du président", source: "conseilSyndicalTable" },
-        { title: "QR de vérification", description: "Code QR d'authenticité", source: "généré" },
+        {
+          title: "En-tête",
+          description: "Logo et identité du syndicat",
+          source: "syndicatesTable",
+        },
+        {
+          title: "Destinataire",
+          description: "Nom du ou des destinataires",
+          source: "input / usersTable",
+        },
+        {
+          title: "Objet de la convocation",
+          description: "Raison de la convocation",
+          source: "input",
+        },
+        {
+          title: "Corps",
+          description: "Texte officiel de convocation avec date, lieu, heure",
+          source: "syndicatesTable + input",
+        },
+        {
+          title: "Signatures",
+          description: "Signature officielle du président",
+          source: "conseilSyndicalTable",
+        },
+        {
+          title: "QR de vérification",
+          description: "Code QR d'authenticité",
+          source: "généré",
+        },
       ],
       variables: [
-        { name: "syndicateName",  label: "Nom du syndicat",   source: "syndicatesTable.name", required: true  },
-        { name: "memberName",     label: "Destinataire",       source: "input / usersTable",   required: false },
-        { name: "meetingDate",    label: "Date de la réunion", source: "input utilisateur",    required: true  },
-        { name: "lieu",           label: "Lieu",               source: "input utilisateur",    required: false },
-        { name: "heure",          label: "Heure",              source: "input utilisateur",    required: false },
-        { name: "objet",          label: "Objet",              source: "input utilisateur",    required: false },
-        { name: "documentNumber", label: "N° de document",     source: "documentSequencesTable", required: true },
+        {
+          name: "syndicateName",
+          label: "Nom du syndicat",
+          source: "syndicatesTable.name",
+          required: true,
+        },
+        {
+          name: "memberName",
+          label: "Destinataire",
+          source: "input / usersTable",
+          required: false,
+        },
+        {
+          name: "meetingDate",
+          label: "Date de la réunion",
+          source: "input utilisateur",
+          required: true,
+        },
+        {
+          name: "lieu",
+          label: "Lieu",
+          source: "input utilisateur",
+          required: false,
+        },
+        {
+          name: "heure",
+          label: "Heure",
+          source: "input utilisateur",
+          required: false,
+        },
+        {
+          name: "objet",
+          label: "Objet",
+          source: "input utilisateur",
+          required: false,
+        },
+        {
+          name: "documentNumber",
+          label: "N° de document",
+          source: "documentSequencesTable",
+          required: true,
+        },
       ],
       requiredInputs: ["meetingDate"],
     },
     {
-      id: "contrat", name: "Contrat", category: "juridique",
-      description: "Contrat formel entre le syndicat et un tiers (prestataire, partenaire…).",
-      icon: "file-text", color: "#0891b2", version: "2.0", author: "MIZAN", updatedAt: "2026-01-01",
+      id: "contrat",
+      name: "Contrat",
+      category: "juridique",
+      description:
+        "Contrat formel entre le syndicat et un tiers (prestataire, partenaire…).",
+      icon: "file-text",
+      color: "#0891b2",
+      version: "2.0",
+      author: "MIZAN",
+      updatedAt: "2026-01-01",
       sections: [
-        { title: "En-tête", description: "Logo et identité du syndicat", source: "syndicatesTable" },
-        { title: "Parties contractantes", description: "Syndicat (Partie 1) et Tiers (Partie 2)", source: "syndicatesTable + input" },
-        { title: "Objet du contrat", description: "Description de l'objet et des prestations", source: "input" },
-        { title: "Contenu du contrat", description: "Clauses et conditions générales", source: "input" },
-        { title: "Signatures", description: "Signatures des deux parties", source: "conseilSyndicalTable + input" },
-        { title: "QR de vérification", description: "Code QR d'authenticité", source: "généré" },
+        {
+          title: "En-tête",
+          description: "Logo et identité du syndicat",
+          source: "syndicatesTable",
+        },
+        {
+          title: "Parties contractantes",
+          description: "Syndicat (Partie 1) et Tiers (Partie 2)",
+          source: "syndicatesTable + input",
+        },
+        {
+          title: "Objet du contrat",
+          description: "Description de l'objet et des prestations",
+          source: "input",
+        },
+        {
+          title: "Contenu du contrat",
+          description: "Clauses et conditions générales",
+          source: "input",
+        },
+        {
+          title: "Signatures",
+          description: "Signatures des deux parties",
+          source: "conseilSyndicalTable + input",
+        },
+        {
+          title: "QR de vérification",
+          description: "Code QR d'authenticité",
+          source: "généré",
+        },
       ],
       variables: [
-        { name: "syndicateName",  label: "Partie 1 (Syndicat)", source: "syndicatesTable.name", required: true  },
-        { name: "partieB",        label: "Partie 2",            source: "input utilisateur",    required: true  },
-        { name: "objet",          label: "Objet du contrat",    source: "input utilisateur",    required: false },
-        { name: "content",        label: "Corps du contrat",    source: "input utilisateur",    required: false },
-        { name: "documentNumber", label: "N° de document",      source: "documentSequencesTable", required: true },
+        {
+          name: "syndicateName",
+          label: "Partie 1 (Syndicat)",
+          source: "syndicatesTable.name",
+          required: true,
+        },
+        {
+          name: "partieB",
+          label: "Partie 2",
+          source: "input utilisateur",
+          required: true,
+        },
+        {
+          name: "objet",
+          label: "Objet du contrat",
+          source: "input utilisateur",
+          required: false,
+        },
+        {
+          name: "content",
+          label: "Corps du contrat",
+          source: "input utilisateur",
+          required: false,
+        },
+        {
+          name: "documentNumber",
+          label: "N° de document",
+          source: "documentSequencesTable",
+          required: true,
+        },
       ],
       requiredInputs: ["partieB"],
     },
     {
-      id: "decision", name: "Décision syndicale", category: "juridique",
+      id: "decision",
+      name: "Décision syndicale",
+      category: "juridique",
       description: "Décision officielle prise par le bureau syndical.",
-      icon: "check-circle", color: "#16a34a", version: "2.0", author: "MIZAN", updatedAt: "2026-01-01",
+      icon: "check-circle",
+      color: "#16a34a",
+      version: "2.0",
+      author: "MIZAN",
+      updatedAt: "2026-01-01",
       sections: [
-        { title: "En-tête", description: "Logo et identité du syndicat", source: "syndicatesTable" },
-        { title: "Informations de la décision", description: "Organe décisionnel, date, objet", source: "input" },
-        { title: "Corps de la décision", description: "Texte officiel de la décision", source: "input" },
-        { title: "Signatures", description: "Président et bureau syndical", source: "conseilSyndicalTable" },
-        { title: "QR de vérification", description: "Code QR d'authenticité", source: "généré" },
+        {
+          title: "En-tête",
+          description: "Logo et identité du syndicat",
+          source: "syndicatesTable",
+        },
+        {
+          title: "Informations de la décision",
+          description: "Organe décisionnel, date, objet",
+          source: "input",
+        },
+        {
+          title: "Corps de la décision",
+          description: "Texte officiel de la décision",
+          source: "input",
+        },
+        {
+          title: "Signatures",
+          description: "Président et bureau syndical",
+          source: "conseilSyndicalTable",
+        },
+        {
+          title: "QR de vérification",
+          description: "Code QR d'authenticité",
+          source: "généré",
+        },
       ],
       variables: [
-        { name: "syndicateName",  label: "Syndicat",            source: "syndicatesTable.name",   required: true  },
-        { name: "organe",         label: "Organe décisionnel",  source: "input utilisateur",      required: false },
-        { name: "objet",          label: "Objet de la décision",source: "input utilisateur",      required: false },
-        { name: "content",        label: "Corps de la décision",source: "input utilisateur",      required: false },
-        { name: "documentNumber", label: "N° de document",      source: "documentSequencesTable", required: true  },
+        {
+          name: "syndicateName",
+          label: "Syndicat",
+          source: "syndicatesTable.name",
+          required: true,
+        },
+        {
+          name: "organe",
+          label: "Organe décisionnel",
+          source: "input utilisateur",
+          required: false,
+        },
+        {
+          name: "objet",
+          label: "Objet de la décision",
+          source: "input utilisateur",
+          required: false,
+        },
+        {
+          name: "content",
+          label: "Corps de la décision",
+          source: "input utilisateur",
+          required: false,
+        },
+        {
+          name: "documentNumber",
+          label: "N° de document",
+          source: "documentSequencesTable",
+          required: true,
+        },
       ],
       requiredInputs: [],
     },
     {
-      id: "mise_en_demeure", name: "Mise en demeure", category: "juridique",
-      description: "Document légal de mise en demeure adressé à un débiteur ou contrevenant.",
-      icon: "alert-circle", color: "#ef4444", version: "2.0", author: "MIZAN", updatedAt: "2026-01-01",
+      id: "mise_en_demeure",
+      name: "Mise en demeure",
+      category: "juridique",
+      description:
+        "Document légal de mise en demeure adressé à un débiteur ou contrevenant.",
+      icon: "alert-circle",
+      color: "#ef4444",
+      version: "2.0",
+      author: "MIZAN",
+      updatedAt: "2026-01-01",
       sections: [
-        { title: "En-tête", description: "Logo et identité du syndicat", source: "syndicatesTable" },
-        { title: "Identité du destinataire", description: "Nom et coordonnées du mis en demeure", source: "input" },
-        { title: "Objet de la mise en demeure", description: "Manquements constatés", source: "input" },
-        { title: "Délai et conséquences", description: "Délai imparti et mesures en cas d'inexécution", source: "input" },
-        { title: "Préambule", description: "Contexte juridique et factuel", source: "input" },
-        { title: "Signatures", description: "Président du syndicat", source: "conseilSyndicalTable" },
-        { title: "QR de vérification", description: "Code QR d'authenticité", source: "généré" },
+        {
+          title: "En-tête",
+          description: "Logo et identité du syndicat",
+          source: "syndicatesTable",
+        },
+        {
+          title: "Identité du destinataire",
+          description: "Nom et coordonnées du mis en demeure",
+          source: "input",
+        },
+        {
+          title: "Objet de la mise en demeure",
+          description: "Manquements constatés",
+          source: "input",
+        },
+        {
+          title: "Délai et conséquences",
+          description: "Délai imparti et mesures en cas d'inexécution",
+          source: "input",
+        },
+        {
+          title: "Préambule",
+          description: "Contexte juridique et factuel",
+          source: "input",
+        },
+        {
+          title: "Signatures",
+          description: "Président du syndicat",
+          source: "conseilSyndicalTable",
+        },
+        {
+          title: "QR de vérification",
+          description: "Code QR d'authenticité",
+          source: "généré",
+        },
       ],
       variables: [
-        { name: "syndicateName",  label: "Syndicat émetteur",  source: "syndicatesTable.name",   required: true  },
-        { name: "memberName",     label: "Mis en demeure",     source: "input utilisateur",      required: true  },
-        { name: "objet",          label: "Objet",              source: "input utilisateur",      required: false },
-        { name: "delai",          label: "Délai imparti",      source: "input utilisateur",      required: false },
-        { name: "consequences",   label: "Conséquences",       source: "input utilisateur",      required: false },
-        { name: "preamble",       label: "Préambule",          source: "input utilisateur",      required: false },
-        { name: "documentNumber", label: "N° de document",     source: "documentSequencesTable", required: true  },
+        {
+          name: "syndicateName",
+          label: "Syndicat émetteur",
+          source: "syndicatesTable.name",
+          required: true,
+        },
+        {
+          name: "memberName",
+          label: "Mis en demeure",
+          source: "input utilisateur",
+          required: true,
+        },
+        {
+          name: "objet",
+          label: "Objet",
+          source: "input utilisateur",
+          required: false,
+        },
+        {
+          name: "delai",
+          label: "Délai imparti",
+          source: "input utilisateur",
+          required: false,
+        },
+        {
+          name: "consequences",
+          label: "Conséquences",
+          source: "input utilisateur",
+          required: false,
+        },
+        {
+          name: "preamble",
+          label: "Préambule",
+          source: "input utilisateur",
+          required: false,
+        },
+        {
+          name: "documentNumber",
+          label: "N° de document",
+          source: "documentSequencesTable",
+          required: true,
+        },
       ],
       requiredInputs: ["memberName"],
     },
     {
-      id: "rapport_financier", name: "Rapport financier", category: "finances",
-      description: "Bilan financier de la période avec prévisions et réalisations.",
-      icon: "dollar-sign", color: "#f59e0b", version: "2.0", author: "MIZAN", updatedAt: "2026-01-01",
+      id: "rapport_financier",
+      name: "Rapport financier",
+      category: "finances",
+      description:
+        "Bilan financier de la période avec prévisions et réalisations.",
+      icon: "dollar-sign",
+      color: "#f59e0b",
+      version: "2.0",
+      author: "MIZAN",
+      updatedAt: "2026-01-01",
       sections: [
-        { title: "En-tête", description: "Logo et identité du syndicat", source: "syndicatesTable" },
-        { title: "Informations de l'immeuble", description: "Résidence, adresse, N° de lots", source: "buildingsTable + lotsTable" },
-        { title: "Exercice couvert", description: "Période financière analysée", source: "input" },
-        { title: "Prévisions vs Réalisations", description: "Budget prévu vs réalisé", source: "input" },
-        { title: "Observations", description: "Analyse et commentaires financiers", source: "input" },
-        { title: "Approbation", description: "Établi et approuvé par", source: "input + conseilSyndicalTable" },
-        { title: "Signatures", description: "Trésorier et président", source: "conseilSyndicalTable" },
-        { title: "QR de vérification", description: "Code QR d'authenticité", source: "généré" },
+        {
+          title: "En-tête",
+          description: "Logo et identité du syndicat",
+          source: "syndicatesTable",
+        },
+        {
+          title: "Informations de l'immeuble",
+          description: "Résidence, adresse, N° de lots",
+          source: "buildingsTable + lotsTable",
+        },
+        {
+          title: "Exercice couvert",
+          description: "Période financière analysée",
+          source: "input",
+        },
+        {
+          title: "Prévisions vs Réalisations",
+          description: "Budget prévu vs réalisé",
+          source: "input",
+        },
+        {
+          title: "Observations",
+          description: "Analyse et commentaires financiers",
+          source: "input",
+        },
+        {
+          title: "Approbation",
+          description: "Établi et approuvé par",
+          source: "input + conseilSyndicalTable",
+        },
+        {
+          title: "Signatures",
+          description: "Trésorier et président",
+          source: "conseilSyndicalTable",
+        },
+        {
+          title: "QR de vérification",
+          description: "Code QR d'authenticité",
+          source: "généré",
+        },
       ],
       variables: [
-        { name: "syndicateName",  label: "Syndicat",              source: "syndicatesTable.name",  required: true  },
-        { name: "propertyName",   label: "Résidence",             source: "buildingsTable.name",   required: false },
-        { name: "exercice",       label: "Exercice comptable",    source: "input utilisateur",     required: false },
-        { name: "totalPrevu",     label: "Budget prévu",          source: "input utilisateur",     required: false },
-        { name: "totalRealise",   label: "Réalisé",               source: "input utilisateur",     required: false },
-        { name: "observations",   label: "Observations",          source: "input utilisateur",     required: false },
-        { name: "etabliPar",      label: "Établi par",            source: "input utilisateur",     required: false },
-        { name: "approuvePar",    label: "Approuvé par",          source: "input utilisateur",     required: false },
-        { name: "documentNumber", label: "N° de document",        source: "documentSequencesTable",required: true  },
+        {
+          name: "syndicateName",
+          label: "Syndicat",
+          source: "syndicatesTable.name",
+          required: true,
+        },
+        {
+          name: "propertyName",
+          label: "Résidence",
+          source: "buildingsTable.name",
+          required: false,
+        },
+        {
+          name: "exercice",
+          label: "Exercice comptable",
+          source: "input utilisateur",
+          required: false,
+        },
+        {
+          name: "totalPrevu",
+          label: "Budget prévu",
+          source: "input utilisateur",
+          required: false,
+        },
+        {
+          name: "totalRealise",
+          label: "Réalisé",
+          source: "input utilisateur",
+          required: false,
+        },
+        {
+          name: "observations",
+          label: "Observations",
+          source: "input utilisateur",
+          required: false,
+        },
+        {
+          name: "etabliPar",
+          label: "Établi par",
+          source: "input utilisateur",
+          required: false,
+        },
+        {
+          name: "approuvePar",
+          label: "Approuvé par",
+          source: "input utilisateur",
+          required: false,
+        },
+        {
+          name: "documentNumber",
+          label: "N° de document",
+          source: "documentSequencesTable",
+          required: true,
+        },
       ],
       requiredInputs: [],
     },
     // ── 3 smart certificate templates (auto-fills member + lot + building) ──────
     {
-      id: "attestation_residence", name: "Attestation de résidence", category: "attestation",
-      description: "Certifie officiellement la résidence d'un copropriétaire dans l'immeuble. Le nom, le bâtiment et le numéro d'appartement sont injectés automatiquement.",
-      icon: "home", color: "#0891b2", version: "2.0", author: "MIZAN", updatedAt: "2026-01-01",
+      id: "attestation_residence",
+      name: "Attestation de résidence",
+      category: "attestation",
+      description:
+        "Certifie officiellement la résidence d'un copropriétaire dans l'immeuble. Le nom, le bâtiment et le numéro d'appartement sont injectés automatiquement.",
+      icon: "home",
+      color: "#0891b2",
+      version: "2.0",
+      author: "MIZAN",
+      updatedAt: "2026-01-01",
       sections: [
-        { title: "En-tête professionnel", description: "Logo, coordonnées et accréditation du syndicat", source: "syndicatesTable" },
-        { title: "Identité du résident", description: "Nom complet du copropriétaire / locataire", source: "usersTable + membersTable" },
-        { title: "Détails de la résidence", description: "N° d'appartement, résidence, adresse, étage", source: "buildingsTable + lotsTable" },
-        { title: "Corps de l'attestation", description: "Texte certifiant la résidence", source: "généré automatiquement" },
-        { title: "Signature officielle", description: "Président du syndicat", source: "conseilSyndicalTable" },
-        { title: "QR de vérification", description: "Code QR d'authenticité avec URL publique", source: "documents (généré)" },
+        {
+          title: "En-tête professionnel",
+          description: "Logo, coordonnées et accréditation du syndicat",
+          source: "syndicatesTable",
+        },
+        {
+          title: "Identité du résident",
+          description: "Nom complet du copropriétaire / locataire",
+          source: "usersTable + membersTable",
+        },
+        {
+          title: "Détails de la résidence",
+          description: "N° d'appartement, résidence, adresse, étage",
+          source: "buildingsTable + lotsTable",
+        },
+        {
+          title: "Corps de l'attestation",
+          description: "Texte certifiant la résidence",
+          source: "généré automatiquement",
+        },
+        {
+          title: "Signature officielle",
+          description: "Président du syndicat",
+          source: "conseilSyndicalTable",
+        },
+        {
+          title: "QR de vérification",
+          description: "Code QR d'authenticité avec URL publique",
+          source: "documents (généré)",
+        },
       ],
       variables: [
-        { name: "syndicateName",   label: "Nom du syndicat",         source: "syndicatesTable.name",             required: true  },
-        { name: "memberName",      label: "Nom du résident",         source: "membersTable.name (auto-rempli)",  required: true  },
-        { name: "lotNumber",       label: "N° d'appartement",        source: "lotsTable.number (auto-rempli)",   required: false },
-        { name: "lotFloor",        label: "Étage",                   source: "lotsTable.floor (auto-rempli)",    required: false },
-        { name: "buildingName",    label: "Résidence / Immeuble",    source: "buildingsTable.name (auto-rempli)",required: false },
-        { name: "documentDate",    label: "Date d'émission",         source: "généré automatiquement",           required: true  },
-        { name: "documentNumber",  label: "N° de document",          source: "documentSequencesTable (ATT-RES)", required: true  },
-        { name: "verificationQR",  label: "QR de vérification",      source: "généré automatiquement",           required: true  },
+        {
+          name: "syndicateName",
+          label: "Nom du syndicat",
+          source: "syndicatesTable.name",
+          required: true,
+        },
+        {
+          name: "memberName",
+          label: "Nom du résident",
+          source: "membersTable.name (auto-rempli)",
+          required: true,
+        },
+        {
+          name: "lotNumber",
+          label: "N° d'appartement",
+          source: "lotsTable.number (auto-rempli)",
+          required: false,
+        },
+        {
+          name: "lotFloor",
+          label: "Étage",
+          source: "lotsTable.floor (auto-rempli)",
+          required: false,
+        },
+        {
+          name: "buildingName",
+          label: "Résidence / Immeuble",
+          source: "buildingsTable.name (auto-rempli)",
+          required: false,
+        },
+        {
+          name: "documentDate",
+          label: "Date d'émission",
+          source: "généré automatiquement",
+          required: true,
+        },
+        {
+          name: "documentNumber",
+          label: "N° de document",
+          source: "documentSequencesTable (ATT-RES)",
+          required: true,
+        },
+        {
+          name: "verificationQR",
+          label: "QR de vérification",
+          source: "généré automatiquement",
+          required: true,
+        },
       ],
       requiredInputs: ["memberName"],
     },
     {
-      id: "attestation_propriete", name: "Attestation de propriété", category: "attestation",
-      description: "Certifie officiellement la propriété d'un lot de copropriété. Le titre foncier et les tantiièmes sont injectés depuis la base de données.",
-      icon: "key", color: "#2563EB", version: "2.0", author: "MIZAN", updatedAt: "2026-01-01",
+      id: "attestation_propriete",
+      name: "Attestation de propriété",
+      category: "attestation",
+      description:
+        "Certifie officiellement la propriété d'un lot de copropriété. Le titre foncier et les tantiièmes sont injectés depuis la base de données.",
+      icon: "key",
+      color: "#2563EB",
+      version: "2.0",
+      author: "MIZAN",
+      updatedAt: "2026-01-01",
       sections: [
-        { title: "En-tête professionnel", description: "Logo, coordonnées et accréditation du syndicat", source: "syndicatesTable" },
-        { title: "Identité du propriétaire", description: "Nom complet du copropriétaire", source: "membersTable" },
-        { title: "Détails du lot", description: "N° de lot, titre foncier, tantiièmes", source: "lotsTable" },
-        { title: "Corps de l'attestation", description: "Texte certifiant la propriété", source: "généré automatiquement" },
-        { title: "Avertissement légal", description: "Note : ne constitue pas un titre de propriété", source: "généré" },
-        { title: "Signature officielle", description: "Président du syndicat", source: "conseilSyndicalTable" },
-        { title: "QR de vérification", description: "Code QR d'authenticité avec URL publique", source: "documents (généré)" },
+        {
+          title: "En-tête professionnel",
+          description: "Logo, coordonnées et accréditation du syndicat",
+          source: "syndicatesTable",
+        },
+        {
+          title: "Identité du propriétaire",
+          description: "Nom complet du copropriétaire",
+          source: "membersTable",
+        },
+        {
+          title: "Détails du lot",
+          description: "N° de lot, titre foncier, tantiièmes",
+          source: "lotsTable",
+        },
+        {
+          title: "Corps de l'attestation",
+          description: "Texte certifiant la propriété",
+          source: "généré automatiquement",
+        },
+        {
+          title: "Avertissement légal",
+          description: "Note : ne constitue pas un titre de propriété",
+          source: "généré",
+        },
+        {
+          title: "Signature officielle",
+          description: "Président du syndicat",
+          source: "conseilSyndicalTable",
+        },
+        {
+          title: "QR de vérification",
+          description: "Code QR d'authenticité avec URL publique",
+          source: "documents (généré)",
+        },
       ],
       variables: [
-        { name: "syndicateName",   label: "Nom du syndicat",         source: "syndicatesTable.name",                   required: true  },
-        { name: "memberName",      label: "Nom du propriétaire",     source: "membersTable.name (auto-rempli)",        required: true  },
-        { name: "lotNumber",       label: "N° de lot",               source: "lotsTable.number (auto-rempli)",         required: false },
-        { name: "titreFoncier",    label: "Titre Foncier",           source: "lotsTable.titreFoncier (auto-rempli)",   required: false },
-        { name: "tantiemes",       label: "Quote-part / Tantiièmes", source: "lotsTable.tantiemes (auto-rempli)",      required: false },
-        { name: "documentDate",    label: "Date d'émission",         source: "généré automatiquement",                 required: true  },
-        { name: "documentNumber",  label: "N° de document",          source: "documentSequencesTable (ATT-PRO)",       required: true  },
-        { name: "verificationQR",  label: "QR de vérification",      source: "généré automatiquement",                 required: true  },
+        {
+          name: "syndicateName",
+          label: "Nom du syndicat",
+          source: "syndicatesTable.name",
+          required: true,
+        },
+        {
+          name: "memberName",
+          label: "Nom du propriétaire",
+          source: "membersTable.name (auto-rempli)",
+          required: true,
+        },
+        {
+          name: "lotNumber",
+          label: "N° de lot",
+          source: "lotsTable.number (auto-rempli)",
+          required: false,
+        },
+        {
+          name: "titreFoncier",
+          label: "Titre Foncier",
+          source: "lotsTable.titreFoncier (auto-rempli)",
+          required: false,
+        },
+        {
+          name: "tantiemes",
+          label: "Quote-part / Tantiièmes",
+          source: "lotsTable.tantiemes (auto-rempli)",
+          required: false,
+        },
+        {
+          name: "documentDate",
+          label: "Date d'émission",
+          source: "généré automatiquement",
+          required: true,
+        },
+        {
+          name: "documentNumber",
+          label: "N° de document",
+          source: "documentSequencesTable (ATT-PRO)",
+          required: true,
+        },
+        {
+          name: "verificationQR",
+          label: "QR de vérification",
+          source: "généré automatiquement",
+          required: true,
+        },
       ],
       requiredInputs: ["memberName"],
     },
     {
-      id: "attestation_paiement", name: "Attestation de paiement des charges", category: "attestation",
-      description: "Certifie que le copropriétaire est en règle de paiement de ses charges pour la période indiquée.",
-      icon: "check-circle", color: "#16a34a", version: "2.0", author: "MIZAN", updatedAt: "2026-01-01",
+      id: "attestation_paiement",
+      name: "Attestation de paiement des charges",
+      category: "attestation",
+      description:
+        "Certifie que le copropriétaire est en règle de paiement de ses charges pour la période indiquée.",
+      icon: "check-circle",
+      color: "#16a34a",
+      version: "2.0",
+      author: "MIZAN",
+      updatedAt: "2026-01-01",
       sections: [
-        { title: "En-tête professionnel", description: "Logo, coordonnées et accréditation du syndicat", source: "syndicatesTable" },
-        { title: "Identité du payeur", description: "Nom et N° de lot du copropriétaire", source: "membersTable + lotsTable" },
-        { title: "Période et montant", description: "Période couverte et total des charges réglées", source: "input" },
-        { title: "Corps de l'attestation", description: "Texte certifiant le paiement", source: "généré automatiquement" },
-        { title: "Confirmation comptable", description: "Note de vérification comptable à la date de délivrance", source: "généré" },
-        { title: "Signature officielle", description: "Président du syndicat", source: "conseilSyndicalTable" },
-        { title: "QR de vérification", description: "Code QR d'authenticité avec URL publique", source: "documents (généré)" },
+        {
+          title: "En-tête professionnel",
+          description: "Logo, coordonnées et accréditation du syndicat",
+          source: "syndicatesTable",
+        },
+        {
+          title: "Identité du payeur",
+          description: "Nom et N° de lot du copropriétaire",
+          source: "membersTable + lotsTable",
+        },
+        {
+          title: "Période et montant",
+          description: "Période couverte et total des charges réglées",
+          source: "input",
+        },
+        {
+          title: "Corps de l'attestation",
+          description: "Texte certifiant le paiement",
+          source: "généré automatiquement",
+        },
+        {
+          title: "Confirmation comptable",
+          description: "Note de vérification comptable à la date de délivrance",
+          source: "généré",
+        },
+        {
+          title: "Signature officielle",
+          description: "Président du syndicat",
+          source: "conseilSyndicalTable",
+        },
+        {
+          title: "QR de vérification",
+          description: "Code QR d'authenticité avec URL publique",
+          source: "documents (généré)",
+        },
       ],
       variables: [
-        { name: "syndicateName",  label: "Nom du syndicat",         source: "syndicatesTable.name",           required: true  },
-        { name: "memberName",     label: "Nom du copropriétaire",   source: "membersTable.name (auto-rempli)",required: true  },
-        { name: "lotNumber",      label: "N° de lot",               source: "lotsTable.number (auto-rempli)", required: false },
-        { name: "periode",        label: "Période couverte",        source: "input utilisateur",              required: true  },
-        { name: "montant",        label: "Montant total réglé (MAD)", source: "input utilisateur",            required: false },
-        { name: "documentDate",   label: "Date d'émission",         source: "généré automatiquement",         required: true  },
-        { name: "documentNumber", label: "N° de document",          source: "documentSequencesTable (ATT-PAI)", required: true  },
-        { name: "verificationQR", label: "QR de vérification",      source: "généré automatiquement",         required: true  },
+        {
+          name: "syndicateName",
+          label: "Nom du syndicat",
+          source: "syndicatesTable.name",
+          required: true,
+        },
+        {
+          name: "memberName",
+          label: "Nom du copropriétaire",
+          source: "membersTable.name (auto-rempli)",
+          required: true,
+        },
+        {
+          name: "lotNumber",
+          label: "N° de lot",
+          source: "lotsTable.number (auto-rempli)",
+          required: false,
+        },
+        {
+          name: "periode",
+          label: "Période couverte",
+          source: "input utilisateur",
+          required: true,
+        },
+        {
+          name: "montant",
+          label: "Montant total réglé (MAD)",
+          source: "input utilisateur",
+          required: false,
+        },
+        {
+          name: "documentDate",
+          label: "Date d'émission",
+          source: "généré automatiquement",
+          required: true,
+        },
+        {
+          name: "documentNumber",
+          label: "N° de document",
+          source: "documentSequencesTable (ATT-PAI)",
+          required: true,
+        },
+        {
+          name: "verificationQR",
+          label: "QR de vérification",
+          source: "généré automatiquement",
+          required: true,
+        },
       ],
       requiredInputs: ["memberName", "periode"],
     },
@@ -1402,17 +2379,21 @@ router.post(
   requireRole("super_admin", "syndicate_admin"),
   async (req, res) => {
     if (req.user!.role === "syndicate_admin" && !req.user!.syndicateId) {
-      res.status(403).json({ error: "Accès refusé : syndicateId manquant" }); return;
+      res.status(403).json({ error: "Accès refusé : syndicateId manquant" });
+      return;
     }
     const schema = z.object({
       templateId: z.string(),
       buildingId: z.string().optional(),
       memberName: z.string().optional(),
-      language:   z.enum(["fr", "ar", "en", "es"] as const).optional(),
+      language: z.enum(["fr", "ar", "en", "es"] as const).optional(),
     });
     const result = schema.safeParse(req.body);
     if (!result.success) {
-      res.status(400).json({ error: "Données invalides", details: result.error.flatten() }); return;
+      res
+        .status(400)
+        .json({ error: "Données invalides", details: result.error.flatten() });
+      return;
     }
 
     try {
@@ -1426,39 +2407,41 @@ router.post(
       ]);
 
       const today = new Date().toLocaleDateString("fr-FR");
-      const year  = new Date().getFullYear();
+      const year = new Date().getFullYear();
 
       const resolvedVariables: Record<string, string | null> = {
-        syndicateName:          syndInfo.name            || null,
-        syndicateAddress:       syndInfo.address         || null,
-        syndicateCity:          syndInfo.city            || null,
-        syndicatePhone:         syndInfo.phone           || null,
-        syndicateEmail:         syndInfo.email           || null,
-        registrationNumber:     syndInfo.registrationNumber || null,
-        syndicateColor:         syndInfo.logoColor       || null,
-        propertyName:           property?.name           || null,
-        propertyAddress:        property?.address        || null,
-        propertyCity:           property?.city           || null,
-        totalBuildings:         property ? String(property.totalBuildings) : null,
-        totalFloors:            property ? String(property.totalFloors)    : null,
-        totalLots:              property ? String(property.totalLots)      : null,
-        totalSurfaceM2:         property?.totalSurfaceM2 ? `${property.totalSurfaceM2} m²` : null,
-        landRegistryReference:  property?.landRegistryReference ?? null,
-        presidentName:          officeHolders?.president?.fullName   ?? null,
-        presidentEmail:         officeHolders?.president?.email      ?? null,
-        vicePresidentName:      officeHolders?.vicePresident?.fullName ?? null,
-        secretaryName:          officeHolders?.secretary?.fullName   ?? null,
-        treasurerName:          officeHolders?.treasurer?.fullName   ?? null,
-        managerName:            officeHolders?.manager?.fullName     ?? null,
-        managerPhone:           officeHolders?.manager?.phone        ?? null,
-        memberName:             memberName || null,
-        documentDate:           today,
-        documentYear:           String(year),
-        documentNumber:         `[GÉNÉRÉ — ex: ATT-${year}-0001]`,
-        verificationQR:         "[QR généré automatiquement à la création]",
-        bankName:               syndInfo.bankName  || null,
-        bankIban:               syndInfo.bankIban  || null,
-        bankBic:                syndInfo.bankBic   || null,
+        syndicateName: syndInfo.name || null,
+        syndicateAddress: syndInfo.address || null,
+        syndicateCity: syndInfo.city || null,
+        syndicatePhone: syndInfo.phone || null,
+        syndicateEmail: syndInfo.email || null,
+        registrationNumber: syndInfo.registrationNumber || null,
+        syndicateColor: syndInfo.logoColor || null,
+        propertyName: property?.name || null,
+        propertyAddress: property?.address || null,
+        propertyCity: property?.city || null,
+        totalBuildings: property ? String(property.totalBuildings) : null,
+        totalFloors: property ? String(property.totalFloors) : null,
+        totalLots: property ? String(property.totalLots) : null,
+        totalSurfaceM2: property?.totalSurfaceM2
+          ? `${property.totalSurfaceM2} m²`
+          : null,
+        landRegistryReference: property?.landRegistryReference ?? null,
+        presidentName: officeHolders?.president?.fullName ?? null,
+        presidentEmail: officeHolders?.president?.email ?? null,
+        vicePresidentName: officeHolders?.vicePresident?.fullName ?? null,
+        secretaryName: officeHolders?.secretary?.fullName ?? null,
+        treasurerName: officeHolders?.treasurer?.fullName ?? null,
+        managerName: officeHolders?.manager?.fullName ?? null,
+        managerPhone: officeHolders?.manager?.phone ?? null,
+        memberName: memberName || null,
+        documentDate: today,
+        documentYear: String(year),
+        documentNumber: `[GÉNÉRÉ — ex: ATT-${year}-0001]`,
+        verificationQR: "[QR généré automatiquement à la création]",
+        bankName: syndInfo.bankName || null,
+        bankIban: syndInfo.bankIban || null,
+        bankBic: syndInfo.bankBic || null,
       };
 
       res.json({
@@ -1473,7 +2456,9 @@ router.post(
       });
     } catch (err) {
       req.log.error(err);
-      res.status(500).json({ error: "Erreur lors de la résolution des variables" });
+      res
+        .status(500)
+        .json({ error: "Erreur lors de la résolution des variables" });
     }
   },
 );
@@ -1496,7 +2481,12 @@ function escHtml(s: string | null | undefined): string {
 
 type VerifStatus = "valid" | "pending" | "revoked" | "expired" | "replaced";
 
-interface SigRow { signerName: string | null; signerRole: string | null; signedAt: Date | null; isValid: boolean | null }
+interface SigRow {
+  signerName: string | null;
+  signerRole: string | null;
+  signedAt: Date | null;
+  isValid: boolean | null;
+}
 
 function buildVerificationHtml(opts: {
   status: VerifStatus;
@@ -1510,26 +2500,112 @@ function buildVerificationHtml(opts: {
   accentColor?: string;
   docVersion?: number;
 }): string {
-  const { status, title, documentNumber, issuedBy, issuedAt, signatures, rejectionReason, token, accentColor, docVersion } = opts;
+  const {
+    status,
+    title,
+    documentNumber,
+    issuedBy,
+    issuedAt,
+    signatures,
+    rejectionReason,
+    token,
+    accentColor,
+    docVersion,
+  } = opts;
   // Derive gradient stops from syndicate accent color
   const ac = accentColor ?? "#4338ca";
-  const _dk = (h: string, a: number) => "#" + h.replace("#", "").match(/../g)!.map(x => Math.max(0, parseInt(x, 16) - a).toString(16).padStart(2, "0")).join("");
+  const _dk = (h: string, a: number) =>
+    "#" +
+    h
+      .replace("#", "")
+      .match(/../g)!
+      .map((x) =>
+        Math.max(0, parseInt(x, 16) - a)
+          .toString(16)
+          .padStart(2, "0"),
+      )
+      .join("");
   const acDark = _dk(ac, 68);
-  const acMid  = _dk(ac, 36);
+  const acMid = _dk(ac, 36);
 
-  const cfg: Record<VerifStatus, { bg: string; accent: string; icon: string; badge: string; label: string; sub: string }> = {
-    valid:    { bg: "#f0fdf4", accent: "#16a34a", icon: "✓", badge: "#dcfce7", label: "DOCUMENT AUTHENTIQUE", sub: "Ce document a été vérifié et est valide." },
-    pending:  { bg: "#fffbeb", accent: "#d97706", icon: "⏳", badge: "#fef3c7", label: "EN ATTENTE DE VALIDATION", sub: "Ce document est en cours d'examen par le syndicat." },
-    revoked:  { bg: "#fef2f2", accent: "#dc2626", icon: "✕", badge: "#fee2e2", label: "DOCUMENT RÉVOQUÉ", sub: rejectionReason ? `Motif : ${rejectionReason}` : "Ce document a été révoqué ou rejeté." },
-    expired:  { bg: "#fff7ed", accent: "#ea580c", icon: "⚠", badge: "#ffedd5", label: "DOCUMENT EXPIRÉ", sub: "La période de validité de ce document est écoulée." },
-    replaced: { bg: "#eff6ff", accent: "#2563eb", icon: "↻", badge: "#dbeafe", label: "VERSION REMPLACÉE", sub: "Ce document a été remplacé par une version plus récente." },
+  const cfg: Record<
+    VerifStatus,
+    {
+      bg: string;
+      accent: string;
+      icon: string;
+      badge: string;
+      label: string;
+      sub: string;
+    }
+  > = {
+    valid: {
+      bg: "#f0fdf4",
+      accent: "#16a34a",
+      icon: "✓",
+      badge: "#dcfce7",
+      label: "DOCUMENT AUTHENTIQUE",
+      sub: "Ce document a été vérifié et est valide.",
+    },
+    pending: {
+      bg: "#fffbeb",
+      accent: "#d97706",
+      icon: "⏳",
+      badge: "#fef3c7",
+      label: "EN ATTENTE DE VALIDATION",
+      sub: "Ce document est en cours d'examen par le syndicat.",
+    },
+    revoked: {
+      bg: "#fef2f2",
+      accent: "#dc2626",
+      icon: "✕",
+      badge: "#fee2e2",
+      label: "DOCUMENT RÉVOQUÉ",
+      sub: rejectionReason
+        ? `Motif : ${rejectionReason}`
+        : "Ce document a été révoqué ou rejeté.",
+    },
+    expired: {
+      bg: "#fff7ed",
+      accent: "#ea580c",
+      icon: "⚠",
+      badge: "#ffedd5",
+      label: "DOCUMENT EXPIRÉ",
+      sub: "La période de validité de ce document est écoulée.",
+    },
+    replaced: {
+      bg: "#eff6ff",
+      accent: "#2563eb",
+      icon: "↻",
+      badge: "#dbeafe",
+      label: "VERSION REMPLACÉE",
+      sub: "Ce document a été remplacé par une version plus récente.",
+    },
   };
   const c = cfg[status];
 
-  const fmtDate = (d: Date | null) => d ? new Date(d).toLocaleDateString("fr-FR", { year: "numeric", month: "long", day: "numeric" }) : "—";
-  const fmtDateTime = (d: Date | null) => d ? new Date(d).toLocaleDateString("fr-FR", { year: "numeric", month: "short", day: "numeric", hour: "2-digit", minute: "2-digit" }) : "—";
+  const fmtDate = (d: Date | null) =>
+    d
+      ? new Date(d).toLocaleDateString("fr-FR", {
+          year: "numeric",
+          month: "long",
+          day: "numeric",
+        })
+      : "—";
+  const fmtDateTime = (d: Date | null) =>
+    d
+      ? new Date(d).toLocaleDateString("fr-FR", {
+          year: "numeric",
+          month: "short",
+          day: "numeric",
+          hour: "2-digit",
+          minute: "2-digit",
+        })
+      : "—";
 
-  const sigRows = signatures.map((s) => `
+  const sigRows = signatures
+    .map(
+      (s) => `
     <tr>
       <td style="padding:10px 12px;border-bottom:1px solid #f1f5f9;">
         <div style="font-weight:600;color:#1e293b;font-size:13px;">${escHtml(s.signerName)}</div>
@@ -1537,33 +2613,54 @@ function buildVerificationHtml(opts: {
       </td>
       <td style="padding:10px 12px;border-bottom:1px solid #f1f5f9;color:#475569;font-size:12px;">${fmtDateTime(s.signedAt)}</td>
       <td style="padding:10px 12px;border-bottom:1px solid #f1f5f9;text-align:center;">
-        ${s.isValid
-          ? `<span style="display:inline-block;background:#dcfce7;color:#16a34a;border-radius:20px;padding:2px 10px;font-size:11px;font-weight:700;">VALIDE</span>`
-          : `<span style="display:inline-block;background:#fee2e2;color:#dc2626;border-radius:20px;padding:2px 10px;font-size:11px;font-weight:700;">INVALIDÉE</span>`
+        ${
+          s.isValid
+            ? `<span style="display:inline-block;background:#dcfce7;color:#16a34a;border-radius:20px;padding:2px 10px;font-size:11px;font-weight:700;">VALIDE</span>`
+            : `<span style="display:inline-block;background:#fee2e2;color:#dc2626;border-radius:20px;padding:2px 10px;font-size:11px;font-weight:700;">INVALIDÉE</span>`
         }
       </td>
-    </tr>`).join("");
+    </tr>`,
+    )
+    .join("");
 
   // Build chronological event timeline from available dates
-  const timelineEvents: Array<{ date: Date | null; label: string; detail: string | null; color: string }> = [
-    { date: issuedAt, label: "Document créé", detail: issuedBy ? `par ${issuedBy}` : null, color: ac },
-    ...signatures.map(s => ({
+  const timelineEvents: Array<{
+    date: Date | null;
+    label: string;
+    detail: string | null;
+    color: string;
+  }> = [
+    {
+      date: issuedAt,
+      label: "Document créé",
+      detail: issuedBy ? `par ${issuedBy}` : null,
+      color: ac,
+    },
+    ...signatures.map((s) => ({
       date: s.signedAt,
       label: `Signé — ${s.signerName || "—"}`,
       detail: s.signerRole ? `Rôle : ${s.signerRole}` : null,
       color: s.isValid ? "#16a34a" : "#dc2626",
     })),
-  ].filter(e => e.date != null).sort((a, b) => (a.date!.getTime() - b.date!.getTime()));
+  ]
+    .filter((e) => e.date != null)
+    .sort((a, b) => a.date!.getTime() - b.date!.getTime());
 
-  const timelineRows = timelineEvents.map(e => `
+  const timelineRows = timelineEvents
+    .map(
+      (e) => `
     <div style="position:relative;margin-bottom:12px;padding-left:0;">
       <div style="position:absolute;left:-22px;top:4px;width:8px;height:8px;background:${e.color};border-radius:50%;border:2px solid #fff;outline:1px solid ${e.color};"></div>
       <div style="font-size:11px;font-weight:700;color:#1e293b;">${escHtml(e.label)}</div>
       <div style="font-size:10px;color:#64748b;">${fmtDateTime(e.date)}</div>
       ${e.detail ? `<div style="font-size:10px;color:#94a3b8;margin-top:1px;">${escHtml(e.detail)}</div>` : ""}
-    </div>`).join("");
+    </div>`,
+    )
+    .join("");
 
-  const timelineSection = timelineEvents.length > 0 ? `
+  const timelineSection =
+    timelineEvents.length > 0
+      ? `
     <div style="background:#fff;border-radius:12px;box-shadow:0 1px 3px rgba(0,0,0,.08);padding:16px;margin-bottom:16px;">
       <div style="display:flex;align-items:center;gap:8px;margin-bottom:14px;">
         <span style="font-size:14px;">📋</span>
@@ -1572,9 +2669,12 @@ function buildVerificationHtml(opts: {
       <div style="border-left:2px solid ${ac};margin-left:4px;padding-left:18px;">
         ${timelineRows}
       </div>
-    </div>` : "";
+    </div>`
+      : "";
 
-  const sigSection = signatures.length > 0 ? `
+  const sigSection =
+    signatures.length > 0
+      ? `
     <div style="background:#fff;border-radius:12px;box-shadow:0 1px 3px rgba(0,0,0,.08);overflow:hidden;margin-bottom:16px;">
       <div style="padding:14px 16px;border-bottom:1px solid #f1f5f9;display:flex;align-items:center;gap:8px;">
         <span style="font-size:15px;">✍️</span>
@@ -1590,9 +2690,15 @@ function buildVerificationHtml(opts: {
         </thead>
         <tbody>${sigRows}</tbody>
       </table>
-    </div>` : "";
+    </div>`
+      : "";
 
-  const fingerprint = token.slice(0, 8).toUpperCase().match(/.{1,4}/g)?.join("-") ?? token.slice(0, 8);
+  const fingerprint =
+    token
+      .slice(0, 8)
+      .toUpperCase()
+      .match(/.{1,4}/g)
+      ?.join("-") ?? token.slice(0, 8);
   const issuedAtStr = fmtDate(issuedAt);
 
   return `<!DOCTYPE html>
@@ -1770,22 +2876,47 @@ router.get("/documents/verify/:token", async (req, res) => {
       if (req.accepts(["html", "json"]) === "html") {
         res.status(404).send(buildVerificationNotFoundHtml());
       } else {
-        res.status(404).json({ error: "Document introuvable", verified: false });
+        res
+          .status(404)
+          .json({ error: "Document introuvable", verified: false });
       }
       return;
     }
 
     const now = new Date();
-    let verificationStatus: "valid" | "pending" | "revoked" | "expired" | "replaced";
-    if (doc.isDeleted || doc.status === "rejected") verificationStatus = "revoked";
-    else if (doc.status === "expired" || (doc.expiresAt && doc.expiresAt < now)) verificationStatus = "expired";
+    let verificationStatus:
+      | "valid"
+      | "pending"
+      | "revoked"
+      | "expired"
+      | "replaced";
+    if (doc.isDeleted || doc.status === "rejected")
+      verificationStatus = "revoked";
+    else if (doc.status === "expired" || (doc.expiresAt && doc.expiresAt < now))
+      verificationStatus = "expired";
     else if (doc.supersededByDocumentId) verificationStatus = "replaced";
-    else if (doc.status === "signed" || doc.status === "published" || doc.status === "archived") verificationStatus = "valid";
+    else if (
+      doc.status === "signed" ||
+      doc.status === "published" ||
+      doc.status === "archived"
+    )
+      verificationStatus = "valid";
     else verificationStatus = "pending";
 
-    const [syndInfo] = await db.select({ name: syndicatesTable.name, logoColor: syndicatesTable.logoColor }).from(syndicatesTable).where(eq(syndicatesTable.id, doc.syndicateId ?? ""));
+    const [syndInfo] = await db
+      .select({
+        name: syndicatesTable.name,
+        logoColor: syndicatesTable.logoColor,
+      })
+      .from(syndicatesTable)
+      .where(eq(syndicatesTable.id, doc.syndicateId ?? ""));
     const sigs = await db
-      .select({ signerName: documentSignaturesTable.signerName, signerRole: documentSignaturesTable.signerRole, signedAt: documentSignaturesTable.signedAt, isValid: documentSignaturesTable.isValid })
+      .select({
+        signerName: documentSignaturesTable.signerName,
+        signerRole: documentSignaturesTable.signerRole,
+        signedAt: documentSignaturesTable.signedAt,
+        isValid: documentSignaturesTable.isValid,
+      })
       .from(documentSignaturesTable)
       .where(eq(documentSignaturesTable.documentId, doc.id))
       .orderBy(documentSignaturesTable.signatureOrder);
@@ -1797,23 +2928,31 @@ router.get("/documents/verify/:token", async (req, res) => {
       documentNumber: doc.documentNumber,
       issuedBy: syndInfo?.name ?? null,
       issuedAt: doc.createdAt,
-      rejectionReason: verificationStatus === "revoked" ? doc.rejectionReason : undefined,
-      signatures: sigs.map((s) => ({ signerName: s.signerName, signerRole: s.signerRole, signedAt: s.signedAt, isValid: s.isValid })),
+      rejectionReason:
+        verificationStatus === "revoked" ? doc.rejectionReason : undefined,
+      signatures: sigs.map((s) => ({
+        signerName: s.signerName,
+        signerRole: s.signerRole,
+        signedAt: s.signedAt,
+        isValid: s.isValid,
+      })),
     };
 
     if (req.accepts(["html", "json"]) === "html") {
-      res.status(200).send(buildVerificationHtml({
-        status: verificationStatus,
-        title: payload.title,
-        documentNumber: payload.documentNumber,
-        issuedBy: payload.issuedBy,
-        issuedAt: doc.createdAt,
-        signatures: sigs,
-        rejectionReason: payload.rejectionReason,
-        token,
-        accentColor: syndInfo?.logoColor ?? undefined,
-        docVersion: (doc as any).version ?? undefined,
-      }));
+      res.status(200).send(
+        buildVerificationHtml({
+          status: verificationStatus,
+          title: payload.title,
+          documentNumber: payload.documentNumber,
+          issuedBy: payload.issuedBy,
+          issuedAt: doc.createdAt,
+          signatures: sigs,
+          rejectionReason: payload.rejectionReason,
+          token,
+          accentColor: syndInfo?.logoColor ?? undefined,
+          docVersion: (doc as any).version ?? undefined,
+        }),
+      );
     } else {
       res.json(payload);
     }
@@ -1849,61 +2988,80 @@ router.get("/documents/autofill", requireAuth, async (req, res) => {
           .select({ number: lotsTable.number, floor: lotsTable.floor })
           .from(lotsTable)
           .innerJoin(membersTable, eq(lotsTable.ownerId, membersTable.id))
-          .where(and(eq(membersTable.syndicateId, syndicateId), eq(membersTable.email, user.email ?? "")))
+          .where(
+            and(
+              eq(membersTable.syndicateId, syndicateId),
+              eq(membersTable.email, user.email ?? ""),
+            ),
+          )
           .limit(1)
       : [];
     const memberRow = lotRows[0];
 
     const today = new Date().toLocaleDateString("fr-FR");
-    const year  = new Date().getFullYear();
+    const year = new Date().getFullYear();
 
     res.json({
       data: {
         syndicateInfo: {
-          syndicate_name:       syndInfo.name            || null,
-          syndicate_address:    syndInfo.address         || null,
-          syndicate_city:       syndInfo.city            || null,
-          syndicate_phone:      syndInfo.phone           || null,
-          syndicate_email:      syndInfo.email           || null,
-          registration_number:  syndInfo.registrationNumber || null,
-          syndicate_color:      syndInfo.logoColor       || null,
-          bank_name:            syndInfo.bankName        || null,
-          bank_iban:            syndInfo.bankIban        || null,
-          bank_bic:             syndInfo.bankBic         || null,
+          syndicate_name: syndInfo.name || null,
+          syndicate_address: syndInfo.address || null,
+          syndicate_city: syndInfo.city || null,
+          syndicate_phone: syndInfo.phone || null,
+          syndicate_email: syndInfo.email || null,
+          registration_number: syndInfo.registrationNumber || null,
+          syndicate_color: syndInfo.logoColor || null,
+          bank_name: syndInfo.bankName || null,
+          bank_iban: syndInfo.bankIban || null,
+          bank_bic: syndInfo.bankBic || null,
         },
-        propertyInfo: property ? {
-          building_name:    property.name    || null,
-          building_address: property.address || null,
-          building_city:    property.city    || null,
-          total_lots:       property.totalLots    != null ? String(property.totalLots)    : null,
-          total_floors:     property.totalFloors  != null ? String(property.totalFloors)  : null,
-          total_buildings:  String(property.totalBuildings),
-        } : null,
-        officeHolders: officeHolders ? {
-          president_name:      officeHolders.president?.fullName   ?? null,
-          president_email:     officeHolders.president?.email      ?? null,
-          vice_president_name: officeHolders.vicePresident?.fullName ?? null,
-          secretary_name:      officeHolders.secretary?.fullName   ?? null,
-          treasurer_name:      officeHolders.treasurer?.fullName   ?? null,
-          manager_name:        officeHolders.manager?.fullName     ?? null,
-          manager_phone:       officeHolders.manager?.phone        ?? null,
-        } : null,
+        propertyInfo: property
+          ? {
+              building_name: property.name || null,
+              building_address: property.address || null,
+              building_city: property.city || null,
+              total_lots:
+                property.totalLots != null ? String(property.totalLots) : null,
+              total_floors:
+                property.totalFloors != null
+                  ? String(property.totalFloors)
+                  : null,
+              total_buildings: String(property.totalBuildings),
+            }
+          : null,
+        officeHolders: officeHolders
+          ? {
+              president_name: officeHolders.president?.fullName ?? null,
+              president_email: officeHolders.president?.email ?? null,
+              vice_president_name:
+                officeHolders.vicePresident?.fullName ?? null,
+              secretary_name: officeHolders.secretary?.fullName ?? null,
+              treasurer_name: officeHolders.treasurer?.fullName ?? null,
+              manager_name: officeHolders.manager?.fullName ?? null,
+              manager_phone: officeHolders.manager?.phone ?? null,
+            }
+          : null,
         memberInfo: {
-          member_name:  user.name  || null,
+          member_name: user.name || null,
           member_email: user.email || null,
-          lot_number:   (memberRow as any)?.number ?? null,
-          floor:        (memberRow as any)?.floor != null ? String((memberRow as any).floor) : null,
+          lot_number: (memberRow as any)?.number ?? null,
+          floor:
+            (memberRow as any)?.floor != null
+              ? String((memberRow as any).floor)
+              : null,
         },
         generated: {
-          issue_date:      today,
-          document_year:   String(year),
+          issue_date: today,
+          document_year: String(year),
           document_number: `[Généré automatiquement]`,
         },
       },
     });
   } catch (err) {
     req.log.error(err);
-    res.status(500).json({ error: "Erreur lors de la résolution des variables" });
+    res
+      .status(500)
+      .json({ error: "Erreur lors de la résolution des variables" });
   }
 });
 
@@ -1917,321 +3075,391 @@ router.get("/documents/autofill", requireAuth, async (req, res) => {
 // Canonical signing order per template — defines who must sign and in
 // which order. Used by both GET /documents/:id/signers and the sign endpoint
 // to surface "who's turn is it?" without requiring a per-document config.
-const TEMPLATE_SIGNING_ORDER: Record<string, Array<{ order: number; role: string; label: string }>> = {
-  pv:                    [{ order: 1, role: "syndicate_admin", label: "Secrétaire de séance" }, { order: 2, role: "syndicate_admin", label: "Président" }],
-  convocation:           [{ order: 1, role: "syndicate_admin", label: "Secrétaire" }],
+const TEMPLATE_SIGNING_ORDER: Record<
+  string,
+  Array<{ order: number; role: string; label: string }>
+> = {
+  pv: [
+    { order: 1, role: "syndicate_admin", label: "Secrétaire de séance" },
+    { order: 2, role: "syndicate_admin", label: "Président" },
+  ],
+  convocation: [{ order: 1, role: "syndicate_admin", label: "Secrétaire" }],
   // ── V1 production templates ──────────────────────────────────────────────────
-  attestation:           [{ order: 1, role: "syndicate_admin", label: "Président" }, { order: 2, role: "syndicate_admin", label: "Secrétaire" }],
-  attestation_paiement:  [{ order: 1, role: "syndicate_admin", label: "Trésorier" }, { order: 2, role: "syndicate_admin", label: "Président" }],
-  attestation_residence: [{ order: 1, role: "syndicate_admin", label: "Président" }],
-  attestation_propriete: [{ order: 1, role: "syndicate_admin", label: "Président" }, { order: 2, role: "syndicate_admin", label: "Secrétaire" }],
-  mise_en_demeure:       [{ order: 1, role: "syndicate_admin", label: "Président" }, { order: 2, role: "syndicate_admin", label: "Secrétaire" }],
-  appel_de_fonds:        [{ order: 1, role: "syndicate_admin", label: "Trésorier" }, { order: 2, role: "syndicate_admin", label: "Président" }],
-  facture:               [{ order: 1, role: "syndicate_admin", label: "Trésorier" }],
-  rapport_financier:     [{ order: 1, role: "syndicate_admin", label: "Trésorier" }, { order: 2, role: "syndicate_admin", label: "Président" }],
-  contrat:               [{ order: 1, role: "syndicate_admin", label: "Président" }, { order: 2, role: "syndicate_admin", label: "Secrétaire" }],
-  decision:              [{ order: 1, role: "syndicate_admin", label: "Président" }],
+  attestation: [
+    { order: 1, role: "syndicate_admin", label: "Président" },
+    { order: 2, role: "syndicate_admin", label: "Secrétaire" },
+  ],
+  attestation_paiement: [
+    { order: 1, role: "syndicate_admin", label: "Trésorier" },
+    { order: 2, role: "syndicate_admin", label: "Président" },
+  ],
+  attestation_residence: [
+    { order: 1, role: "syndicate_admin", label: "Président" },
+  ],
+  attestation_propriete: [
+    { order: 1, role: "syndicate_admin", label: "Président" },
+    { order: 2, role: "syndicate_admin", label: "Secrétaire" },
+  ],
+  mise_en_demeure: [
+    { order: 1, role: "syndicate_admin", label: "Président" },
+    { order: 2, role: "syndicate_admin", label: "Secrétaire" },
+  ],
+  appel_de_fonds: [
+    { order: 1, role: "syndicate_admin", label: "Trésorier" },
+    { order: 2, role: "syndicate_admin", label: "Président" },
+  ],
+  facture: [{ order: 1, role: "syndicate_admin", label: "Trésorier" }],
+  rapport_financier: [
+    { order: 1, role: "syndicate_admin", label: "Trésorier" },
+    { order: 2, role: "syndicate_admin", label: "Président" },
+  ],
+  contrat: [
+    { order: 1, role: "syndicate_admin", label: "Président" },
+    { order: 2, role: "syndicate_admin", label: "Secrétaire" },
+  ],
+  decision: [{ order: 1, role: "syndicate_admin", label: "Président" }],
 };
 
-router.post(
-  "/documents/request",
-  requireAuth,
-  async (req, res) => {
-    const schema = z.object({
-      templateId: z.string().min(1),
-      category:   z.enum(["reglements", "statuts", "pv", "juridique", "finances", "attestation"]),
-      title:      z.string().min(1).max(500).optional(),
-      note:       z.string().max(2000).optional(),
-      language:   z.enum(["fr", "ar", "en", "es"] as const).optional(),
-      // Free-text context fields the requester can optionally add
-      objet:      z.string().max(500).optional(),
-      periode:    z.string().max(200).optional(),
-    });
-    const result = schema.safeParse(req.body);
-    if (!result.success) {
-      res.status(400).json({ error: "Données invalides", details: result.error.flatten() }); return;
-    }
+router.post("/documents/request", requireAuth, async (req, res) => {
+  const schema = z.object({
+    templateId: z.string().min(1),
+    category: z.enum([
+      "reglements",
+      "statuts",
+      "pv",
+      "juridique",
+      "finances",
+      "attestation",
+    ]),
+    title: z.string().min(1).max(500).optional(),
+    note: z.string().max(2000).optional(),
+    language: z.enum(["fr", "ar", "en", "es"] as const).optional(),
+    // Free-text context fields the requester can optionally add
+    objet: z.string().max(500).optional(),
+    periode: z.string().max(200).optional(),
+  });
+  const result = schema.safeParse(req.body);
+  if (!result.success) {
+    res
+      .status(400)
+      .json({ error: "Données invalides", details: result.error.flatten() });
+    return;
+  }
 
-    try {
-      const user = req.user!;
-      const syndicateId = user.syndicateId ?? null;
-      const { templateId, category, note, language, ...extras } = result.data;
-      const docLanguage: DocumentLanguage = (language as DocumentLanguage) ?? "fr";
+  try {
+    const user = req.user!;
+    const syndicateId = user.syndicateId ?? null;
+    const { templateId, category, note, language, ...extras } = result.data;
+    const docLanguage: DocumentLanguage =
+      (language as DocumentLanguage) ?? "fr";
 
-      // 1. Load syndicate/property/office-holders + member's own lot in parallel
-      const [syndInfo, property, officeHolders, memberRows] = await Promise.all([
-        getSyndicateInfo(syndicateId),
-        getPropertyInfo(syndicateId),
-        getOfficeHolders(syndicateId),
-        syndicateId && user.email
-          ? db.select({
-              memberId:     membersTable.id,
-              name:         membersTable.name,
-              email:        membersTable.email,
-              phone:        membersTable.phone,
-              lotNumber:    lotsTable.number,
-              lotId:        lotsTable.id,
-              floor:        lotsTable.floor,
+    // 1. Load syndicate/property/office-holders + member's own lot in parallel
+    const [syndInfo, property, officeHolders, memberRows] = await Promise.all([
+      getSyndicateInfo(syndicateId),
+      getPropertyInfo(syndicateId),
+      getOfficeHolders(syndicateId),
+      syndicateId && user.email
+        ? db
+            .select({
+              memberId: membersTable.id,
+              name: membersTable.name,
+              email: membersTable.email,
+              phone: membersTable.phone,
+              lotNumber: lotsTable.number,
+              lotId: lotsTable.id,
+              floor: lotsTable.floor,
               buildingName: buildingsTable.name,
             })
             .from(membersTable)
-            .leftJoin(lotsTable,      eq(lotsTable.ownerId,       membersTable.id))
-            .leftJoin(buildingsTable, eq(lotsTable.buildingId,    buildingsTable.id))
-            .where(and(
-              eq(membersTable.syndicateId, syndicateId),
-              eq(membersTable.email, user.email),
-            ))
+            .leftJoin(lotsTable, eq(lotsTable.ownerId, membersTable.id))
+            .leftJoin(
+              buildingsTable,
+              eq(lotsTable.buildingId, buildingsTable.id),
+            )
+            .where(
+              and(
+                eq(membersTable.syndicateId, syndicateId),
+                eq(membersTable.email, user.email),
+              ),
+            )
             .limit(1)
-          : Promise.resolve([] as any[]),
-      ]);
+        : Promise.resolve([] as any[]),
+    ]);
 
-      const member = memberRows?.[0] ?? null;
-      const memberName = member?.name ?? user.name ?? null;
-      const docTitle = result.data.title
-        ?? `${templateId.replace(/_/g, " ")} — ${memberName ?? user.email ?? "Membre"}`;
+    const member = memberRows?.[0] ?? null;
+    const memberName = member?.name ?? user.name ?? null;
+    const docTitle =
+      result.data.title ??
+      `${templateId.replace(/_/g, " ")} — ${memberName ?? user.email ?? "Membre"}`;
 
-      // 2. Sequential number + QR token
-      const template = templateId as DocumentTemplate;
-      const documentNumber = await generateSequentialDocumentNumber(syndicateId, template);
-      const verificationToken = randomUUID();
-      const verificationUrl = buildVerifyUrl(verificationToken);
+    // 2. Sequential number + QR token
+    const template = templateId as DocumentTemplate;
+    const documentNumber = await generateSequentialDocumentNumber(
+      syndicateId,
+      template,
+    );
+    const verificationToken = randomUUID();
+    const verificationUrl = buildVerifyUrl(verificationToken);
 
-      // 3. Auto-load lot/member entity data
-      let entityData: Record<string, string> = {};
-      if (member?.lotId) {
-        const lotData = await getLotMemberData(member.lotId, undefined);
-        entityData = { ...entityData, ...lotData };
-      }
-      if (member?.name) entityData.memberName = member.name;
-      if (member?.phone) entityData.memberPhone = member.phone;
-      if (member?.lotNumber != null) entityData.lotNumber = String(member.lotNumber);
-      if (member?.buildingName) entityData.buildingName = member.buildingName;
-
-      // 4. Generate PDF in pending_review status
-      const generated = await generateAndUploadDocument(template, {
-        title: docTitle,
-        syndicate: syndInfo,
-        property,
-        officeHolders,
-        memberName: entityData.memberName ?? memberName ?? "",
-        documentNumber,
-        docStatus: "pending_review",
-        version: "v1.0",
-        language: docLanguage,
-        verificationUrl,
-        signatures: [],
-        ...entityData,
-        ...extras,
-        ...(note ? { observations: note } : {}),
-      });
-
-      // 5. Insert document record in pending_review
-      const createdAt = new Date();
-      const [doc] = await db
-        .insert(documentsTable)
-        .values({
-          title:           docTitle,
-          category,
-          status:          "pending_review",
-          syndicateId,
-          size:            generated.fileSizeKo,
-          fileUrl:         generated.fileUrl || null,
-          documentNumber:  generated.documentNumber,
-          templateId:      template,
-          version:         1,
-          isDeleted:       false,
-          createdBy:       user.userId,
-          updatedAt:       createdAt,
-          language:        docLanguage,
-          verificationToken,
-          retentionUntil:  computeRetentionUntil(category, template, createdAt),
-        } as any)
-        .returning();
-
-      // 6. Audit + notify admins
-      await serverAuditLog(req, {
-        action: "DOCUMENT_REQUESTED",
-        entity: "document",
-        entityId: doc.id,
-        details: `Demande de ${memberName ?? user.email} : ${docTitle} (${template})`,
-      });
-
-      if (syndicateId) {
-        createAlert({
-          title: "Nouvelle demande de document",
-          message: `${memberName ?? user.email} a demandé : "${docTitle}".`,
-          type: "info",
-          syndicateId,
-          target: "admin",
-        }).catch(() => {});
-
-        db.select({ email: usersTable.email })
-          .from(usersTable)
-          .where(and(eq(usersTable.syndicateId, syndicateId), eq(usersTable.role, "syndicate_admin")))
-          .then((admins) =>
-            sendEmailToMany(
-              admins.map((a) => a.email),
-              "Nouvelle demande de document",
-              `<p><strong>${memberName ?? user.email}</strong> a soumis une demande de document :</p><p><strong>${docTitle}</strong></p><p>Veuillez valider depuis l'espace Documents → En attente de validation.</p>`,
-              "document_requested",
-              syndicateId,
-            ),
-          )
-          .catch(() => {});
-      }
-
-      res.status(201).json({
-        data: doc,
-        message: "Votre demande a été soumise. L'administrateur du syndicat en sera informé.",
-      });
-    } catch (err) {
-      req.log.error(err);
-      res.status(500).json({ error: "Erreur serveur lors de la soumission de la demande" });
+    // 3. Auto-load lot/member entity data
+    let entityData: Record<string, string> = {};
+    if (member?.lotId) {
+      const lotData = await getLotMemberData(member.lotId, undefined);
+      entityData = { ...entityData, ...lotData };
     }
-  },
-);
+    if (member?.name) entityData.memberName = member.name;
+    if (member?.phone) entityData.memberPhone = member.phone;
+    if (member?.lotNumber != null)
+      entityData.lotNumber = String(member.lotNumber);
+    if (member?.buildingName) entityData.buildingName = member.buildingName;
+
+    // 4. Generate PDF in pending_review status
+    const generated = await generateAndUploadDocument(template, {
+      title: docTitle,
+      syndicate: syndInfo,
+      property,
+      officeHolders,
+      memberName: entityData.memberName ?? memberName ?? "",
+      documentNumber,
+      docStatus: "pending_review",
+      version: "v1.0",
+      language: docLanguage,
+      verificationUrl,
+      signatures: [],
+      ...entityData,
+      ...extras,
+      ...(note ? { observations: note } : {}),
+    });
+
+    // 5. Insert document record in pending_review
+    const createdAt = new Date();
+    const [doc] = await db
+      .insert(documentsTable)
+      .values({
+        title: docTitle,
+        category,
+        status: "pending_review",
+        syndicateId,
+        size: generated.fileSizeKo,
+        fileUrl: generated.fileUrl || null,
+        documentNumber: generated.documentNumber,
+        templateId: template,
+        version: 1,
+        isDeleted: false,
+        createdBy: user.userId,
+        updatedAt: createdAt,
+        language: docLanguage,
+        verificationToken,
+        retentionUntil: computeRetentionUntil(category, template, createdAt),
+      } as any)
+      .returning();
+
+    // 6. Audit + notify admins
+    await serverAuditLog(req, {
+      action: "DOCUMENT_REQUESTED",
+      entity: "document",
+      entityId: doc.id,
+      details: `Demande de ${memberName ?? user.email} : ${docTitle} (${template})`,
+    });
+
+    if (syndicateId) {
+      createAlert({
+        title: "Nouvelle demande de document",
+        message: `${memberName ?? user.email} a demandé : "${docTitle}".`,
+        type: "info",
+        syndicateId,
+        target: "admin",
+      }).catch(() => {});
+
+      db.select({ email: usersTable.email })
+        .from(usersTable)
+        .where(
+          and(
+            eq(usersTable.syndicateId, syndicateId),
+            eq(usersTable.role, "syndicate_admin"),
+          ),
+        )
+        .then((admins) =>
+          sendEmailToMany(
+            admins.map((a) => a.email),
+            "Nouvelle demande de document",
+            `<p><strong>${memberName ?? user.email}</strong> a soumis une demande de document :</p><p><strong>${docTitle}</strong></p><p>Veuillez valider depuis l'espace Documents → En attente de validation.</p>`,
+            "document_requested",
+            syndicateId,
+          ),
+        )
+        .catch(() => {});
+    }
+
+    res.status(201).json({
+      data: doc,
+      message:
+        "Votre demande a été soumise. L'administrateur du syndicat en sera informé.",
+    });
+  } catch (err) {
+    req.log.error(err);
+    res
+      .status(500)
+      .json({ error: "Erreur serveur lors de la soumission de la demande" });
+  }
+});
 
 // ─── GET /documents/template-requests — List template requests ────────────────
 // super_admin sees ALL requests; syndicate_admin sees their syndicate's;
 // member/tenant sees only their own submissions.
 
-router.get(
-  "/documents/template-requests",
-  requireAuth,
-  async (req, res) => {
-    try {
-      const user = req.user!;
-      let rows: unknown[];
+router.get("/documents/template-requests", requireAuth, async (req, res) => {
+  try {
+    const user = req.user!;
+    let rows: unknown[];
 
-      if (user.role === "super_admin") {
-        rows = await db
-          .select({
-            id:              templateRequestsTable.id,
-            title:           templateRequestsTable.title,
-            category:        templateRequestsTable.category,
-            description:     templateRequestsTable.description,
-            businessPurpose: templateRequestsTable.businessPurpose,
-            requiredFields:  templateRequestsTable.requiredFields,
-            legalNotes:      templateRequestsTable.legalNotes,
-            status:          templateRequestsTable.status,
-            priority:        templateRequestsTable.priority,
-            publishScope:    templateRequestsTable.publishScope,
-            reviewNotes:     templateRequestsTable.reviewNotes,
-            rejectionReason: templateRequestsTable.rejectionReason,
-            reviewedAt:      templateRequestsTable.reviewedAt,
-            createdAt:       templateRequestsTable.createdAt,
-            updatedAt:       templateRequestsTable.updatedAt,
-            requestedByName:  usersTable.name,
-            requestedByEmail: usersTable.email,
-            syndicateName:   syndicatesTable.name,
-          })
-          .from(templateRequestsTable)
-          .leftJoin(usersTable,    eq(templateRequestsTable.requestedBy,  usersTable.id))
-          .leftJoin(syndicatesTable, eq(templateRequestsTable.syndicateId, syndicatesTable.id))
-          .orderBy(desc(templateRequestsTable.createdAt))
-          .limit(200);
-      } else {
-        const where = (user.role === "syndicate_admin" && user.syndicateId)
+    if (user.role === "super_admin") {
+      rows = await db
+        .select({
+          id: templateRequestsTable.id,
+          title: templateRequestsTable.title,
+          category: templateRequestsTable.category,
+          description: templateRequestsTable.description,
+          businessPurpose: templateRequestsTable.businessPurpose,
+          requiredFields: templateRequestsTable.requiredFields,
+          legalNotes: templateRequestsTable.legalNotes,
+          status: templateRequestsTable.status,
+          priority: templateRequestsTable.priority,
+          publishScope: templateRequestsTable.publishScope,
+          reviewNotes: templateRequestsTable.reviewNotes,
+          rejectionReason: templateRequestsTable.rejectionReason,
+          reviewedAt: templateRequestsTable.reviewedAt,
+          createdAt: templateRequestsTable.createdAt,
+          updatedAt: templateRequestsTable.updatedAt,
+          requestedByName: usersTable.name,
+          requestedByEmail: usersTable.email,
+          syndicateName: syndicatesTable.name,
+        })
+        .from(templateRequestsTable)
+        .leftJoin(
+          usersTable,
+          eq(templateRequestsTable.requestedBy, usersTable.id),
+        )
+        .leftJoin(
+          syndicatesTable,
+          eq(templateRequestsTable.syndicateId, syndicatesTable.id),
+        )
+        .orderBy(desc(templateRequestsTable.createdAt))
+        .limit(200);
+    } else {
+      const where =
+        user.role === "syndicate_admin" && user.syndicateId
           ? eq(templateRequestsTable.syndicateId, user.syndicateId)
           : eq(templateRequestsTable.requestedBy, user.userId);
 
-        rows = await db
-          .select({
-            id:              templateRequestsTable.id,
-            title:           templateRequestsTable.title,
-            category:        templateRequestsTable.category,
-            description:     templateRequestsTable.description,
-            businessPurpose: templateRequestsTable.businessPurpose,
-            status:          templateRequestsTable.status,
-            priority:        templateRequestsTable.priority,
-            reviewNotes:     templateRequestsTable.reviewNotes,
-            rejectionReason: templateRequestsTable.rejectionReason,
-            createdAt:       templateRequestsTable.createdAt,
-            updatedAt:       templateRequestsTable.updatedAt,
-          })
-          .from(templateRequestsTable)
-          .where(where)
-          .orderBy(desc(templateRequestsTable.createdAt))
-          .limit(100);
-      }
-
-      res.json({ data: rows });
-    } catch (err) {
-      req.log.error(err);
-      res.status(500).json({ error: "Erreur serveur" });
+      rows = await db
+        .select({
+          id: templateRequestsTable.id,
+          title: templateRequestsTable.title,
+          category: templateRequestsTable.category,
+          description: templateRequestsTable.description,
+          businessPurpose: templateRequestsTable.businessPurpose,
+          status: templateRequestsTable.status,
+          priority: templateRequestsTable.priority,
+          reviewNotes: templateRequestsTable.reviewNotes,
+          rejectionReason: templateRequestsTable.rejectionReason,
+          createdAt: templateRequestsTable.createdAt,
+          updatedAt: templateRequestsTable.updatedAt,
+        })
+        .from(templateRequestsTable)
+        .where(where)
+        .orderBy(desc(templateRequestsTable.createdAt))
+        .limit(100);
     }
-  },
-);
+
+    res.json({ data: rows });
+  } catch (err) {
+    req.log.error(err);
+    res.status(500).json({ error: "Erreur serveur" });
+  }
+});
 
 // ─── POST /documents/template-requests — Submit template request ──────────────
 
-router.post(
-  "/documents/template-requests",
-  requireAuth,
-  async (req, res) => {
-    const schema = z.object({
-      title:           z.string().min(2).max(300),
-      category:        z.string().min(1).max(100),
-      description:     z.string().max(2000).optional(),
-      businessPurpose: z.string().max(2000).optional(),
-      requiredFields:  z.array(z.object({
-        name:     z.string(),
-        type:     z.enum(["text", "date", "number", "boolean", "select"] as const),
-        required: z.boolean().default(false),
-      })).optional(),
-      legalNotes:      z.string().max(2000).optional(),
-      priority:        z.enum(["low", "normal", "high", "urgent"] as const).optional(),
-      publishScope:    z.enum(["global", "private"] as const).optional(),
+router.post("/documents/template-requests", requireAuth, async (req, res) => {
+  const schema = z.object({
+    title: z.string().min(2).max(300),
+    category: z.string().min(1).max(100),
+    description: z.string().max(2000).optional(),
+    businessPurpose: z.string().max(2000).optional(),
+    requiredFields: z
+      .array(
+        z.object({
+          name: z.string(),
+          type: z.enum([
+            "text",
+            "date",
+            "number",
+            "boolean",
+            "select",
+          ] as const),
+          required: z.boolean().default(false),
+        }),
+      )
+      .optional(),
+    legalNotes: z.string().max(2000).optional(),
+    priority: z.enum(["low", "normal", "high", "urgent"] as const).optional(),
+    publishScope: z.enum(["global", "private"] as const).optional(),
+  });
+
+  const result = schema.safeParse(req.body);
+  if (!result.success) {
+    res
+      .status(400)
+      .json({ error: "Données invalides", details: result.error.flatten() });
+    return;
+  }
+
+  try {
+    const user = req.user!;
+    const { requiredFields, ...rest } = result.data;
+
+    const [newReq] = await db
+      .insert(templateRequestsTable)
+      .values({
+        requestedBy: user.userId,
+        syndicateId: user.syndicateId ?? null,
+        requiredFields: JSON.stringify(requiredFields ?? []),
+        status: "pending",
+        ...rest,
+      } as any)
+      .returning();
+
+    await serverAuditLog(req, {
+      action: "TEMPLATE_REQUEST_SUBMITTED",
+      entity: "template_request",
+      entityId: newReq.id,
+      details: `Titre : ${result.data.title}, Catégorie : ${result.data.category}`,
     });
 
-    const result = schema.safeParse(req.body);
-    if (!result.success) {
-      res.status(400).json({ error: "Données invalides", details: result.error.flatten() }); return;
-    }
+    // Notify super_admin(s) (fire-and-forget)
+    db.select({ email: usersTable.email })
+      .from(usersTable)
+      .where(eq(usersTable.role, "super_admin"))
+      .then((admins) =>
+        sendEmailToMany(
+          admins.map((a) => a.email),
+          "Nouvelle demande de modèle de document",
+          `<p><strong>${user.name ?? user.email}</strong> a soumis une demande de nouveau modèle :</p><p><strong>${result.data.title}</strong> — ${result.data.category}</p>`,
+          "template_request_submitted",
+          user.syndicateId ?? undefined,
+        ),
+      )
+      .catch(() => {});
 
-    try {
-      const user = req.user!;
-      const { requiredFields, ...rest } = result.data;
-
-      const [newReq] = await db
-        .insert(templateRequestsTable)
-        .values({
-          requestedBy:    user.userId,
-          syndicateId:    user.syndicateId ?? null,
-          requiredFields: JSON.stringify(requiredFields ?? []),
-          status:         "pending",
-          ...rest,
-        } as any)
-        .returning();
-
-      await serverAuditLog(req, {
-        action: "TEMPLATE_REQUEST_SUBMITTED",
-        entity: "template_request",
-        entityId: newReq.id,
-        details: `Titre : ${result.data.title}, Catégorie : ${result.data.category}`,
-      });
-
-      // Notify super_admin(s) (fire-and-forget)
-      db.select({ email: usersTable.email })
-        .from(usersTable).where(eq(usersTable.role, "super_admin"))
-        .then((admins) =>
-          sendEmailToMany(
-            admins.map((a) => a.email),
-            "Nouvelle demande de modèle de document",
-            `<p><strong>${user.name ?? user.email}</strong> a soumis une demande de nouveau modèle :</p><p><strong>${result.data.title}</strong> — ${result.data.category}</p>`,
-            "template_request_submitted",
-            user.syndicateId ?? undefined,
-          ),
-        )
-        .catch(() => {});
-
-      res.status(201).json({ data: newReq, message: "Demande de modèle soumise avec succès" });
-    } catch (err) {
-      req.log.error(err);
-      res.status(500).json({ error: "Erreur serveur" });
-    }
-  },
-);
+    res
+      .status(201)
+      .json({ data: newReq, message: "Demande de modèle soumise avec succès" });
+  } catch (err) {
+    req.log.error(err);
+    res.status(500).json({ error: "Erreur serveur" });
+  }
+});
 
 // ─── PUT /documents/template-requests/:trId — Admin review ───────────────────
 // super_admin only — approves, rejects, or updates a template request.
@@ -2243,23 +3471,44 @@ router.put(
   async (req, res) => {
     const trId = String(req.params.trId);
     const schema = z.object({
-      status:          z.enum(["pending", "in_review", "approved", "rejected", "published"] as const).optional(),
-      reviewNotes:     z.string().max(2000).optional(),
+      status: z
+        .enum([
+          "pending",
+          "in_review",
+          "approved",
+          "rejected",
+          "published",
+        ] as const)
+        .optional(),
+      reviewNotes: z.string().max(2000).optional(),
       rejectionReason: z.string().max(2000).optional(),
-      publishScope:    z.enum(["global", "private"] as const).optional(),
+      publishScope: z.enum(["global", "private"] as const).optional(),
     });
 
     const result = schema.safeParse(req.body);
     if (!result.success) {
-      res.status(400).json({ error: "Données invalides" }); return;
+      res.status(400).json({ error: "Données invalides" });
+      return;
     }
 
     try {
-      const [existing] = await db.select().from(templateRequestsTable).where(eq(templateRequestsTable.id, trId));
-      if (!existing) { res.status(404).json({ error: "Demande introuvable" }); return; }
+      const [existing] = await db
+        .select()
+        .from(templateRequestsTable)
+        .where(eq(templateRequestsTable.id, trId));
+      if (!existing) {
+        res.status(404).json({ error: "Demande introuvable" });
+        return;
+      }
 
-      const updates: Record<string, unknown> = { ...result.data, updatedAt: new Date() };
-      if (result.data.status && ["approved", "rejected", "in_review"].includes(result.data.status)) {
+      const updates: Record<string, unknown> = {
+        ...result.data,
+        updatedAt: new Date(),
+      };
+      if (
+        result.data.status &&
+        ["approved", "rejected", "in_review"].includes(result.data.status)
+      ) {
         updates.reviewedBy = req.user!.userId;
         updates.reviewedAt = new Date();
       }
@@ -2278,19 +3527,27 @@ router.put(
       });
 
       // Email the requester on final decision
-      if (result.data.status === "approved" || result.data.status === "rejected") {
+      if (
+        result.data.status === "approved" ||
+        result.data.status === "rejected"
+      ) {
         const [requester] = await db
           .select({ email: usersTable.email, name: usersTable.name })
-          .from(usersTable).where(eq(usersTable.id, existing.requestedBy));
+          .from(usersTable)
+          .where(eq(usersTable.id, existing.requestedBy));
         const approved = result.data.status === "approved";
         if (requester?.email) {
           sendEmail(
             requester.email,
-            approved ? "Votre demande de modèle a été approuvée" : "Votre demande de modèle a été rejetée",
+            approved
+              ? "Votre demande de modèle a été approuvée"
+              : "Votre demande de modèle a été rejetée",
             approved
               ? `<p>Bonne nouvelle ! Votre demande de modèle <strong>${existing.title}</strong> a été approuvée et sera prochainement disponible dans la bibliothèque de documents.</p>${result.data.reviewNotes ? `<p>Note de l'équipe : ${result.data.reviewNotes}</p>` : ""}`
               : `<p>Votre demande de modèle <strong>${existing.title}</strong> n'a pas pu être approuvée.</p><p>Motif : ${result.data.rejectionReason ?? "—"}</p>`,
-            approved ? "template_request_approved" : "template_request_rejected",
+            approved
+              ? "template_request_approved"
+              : "template_request_rejected",
             existing.syndicateId ?? undefined,
           ).catch(() => {});
         }
@@ -2313,9 +3570,9 @@ router.put(
 
 router.get("/documents/entities", requireAuth, async (req, res) => {
   try {
-    const user        = req.user!;
+    const user = req.user!;
     const syndicateId = user.syndicateId;
-    const type        = String(req.query.type ?? "meetings");
+    const type = String(req.query.type ?? "meetings");
 
     if (!syndicateId) {
       if (user.role !== "super_admin") {
@@ -2331,217 +3588,294 @@ router.get("/documents/entities", requireAuth, async (req, res) => {
 
     switch (type) {
       case "meetings": {
-        const rows = await db.select({
-          id:       meetingsTable.id,
-          title:    meetingsTable.title,
-          date:     meetingsTable.date,
-          type:     meetingsTable.type,
-          location: meetingsTable.location,
-        }).from(meetingsTable)
+        const rows = await db
+          .select({
+            id: meetingsTable.id,
+            title: meetingsTable.title,
+            date: meetingsTable.date,
+            type: meetingsTable.type,
+            location: meetingsTable.location,
+          })
+          .from(meetingsTable)
           .where(eq(meetingsTable.syndicateId, syndicateId))
           .orderBy(desc(meetingsTable.date))
           .limit(50);
         data = rows.map((r) => ({
-          id:       r.id,
-          label:    r.title,
+          id: r.id,
+          label: r.title,
           sublabel: [r.date, r.type, r.location].filter(Boolean).join("  •  "),
         }));
         break;
       }
       case "lots": {
-        const rows = await db.select({
-          id:           lotsTable.id,
-          number:       lotsTable.number,
-          floor:        lotsTable.floor,
-          buildingName: buildingsTable.name,
-          ownerName:    membersTable.name,
-        }).from(lotsTable)
+        const rows = await db
+          .select({
+            id: lotsTable.id,
+            number: lotsTable.number,
+            floor: lotsTable.floor,
+            buildingName: buildingsTable.name,
+            ownerName: membersTable.name,
+          })
+          .from(lotsTable)
           .leftJoin(buildingsTable, eq(lotsTable.buildingId, buildingsTable.id))
           .leftJoin(membersTable, eq(lotsTable.ownerId, membersTable.id))
           .where(eq(buildingsTable.syndicateId, syndicateId))
           .orderBy(lotsTable.number)
           .limit(200);
         data = rows.map((r) => ({
-          id:       r.id,
-          label:    `Lot ${r.number ?? "—"}${r.floor != null ? ` — Étage ${r.floor}` : ""}`,
+          id: r.id,
+          label: `Lot ${r.number ?? "—"}${r.floor != null ? ` — Étage ${r.floor}` : ""}`,
           sublabel: [r.buildingName, r.ownerName].filter(Boolean).join("  •  "),
         }));
         break;
       }
       case "members": {
-        const rows = await db.select({
-          id:    membersTable.id,
-          name:  membersTable.name,
-          email: membersTable.email,
-          phone: membersTable.phone,
-        }).from(membersTable)
+        const rows = await db
+          .select({
+            id: membersTable.id,
+            name: membersTable.name,
+            email: membersTable.email,
+            phone: membersTable.phone,
+          })
+          .from(membersTable)
           .where(eq(membersTable.syndicateId, syndicateId))
           .orderBy(membersTable.name)
           .limit(200);
         data = rows.map((r) => ({
-          id:       r.id,
-          label:    r.name,
+          id: r.id,
+          label: r.name,
           sublabel: [r.email, r.phone].filter(Boolean).join("  •  "),
         }));
         break;
       }
       case "elections": {
-        const rows = await db.select({
-          id:           electionsTable.id,
-          title:        electionsTable.title,
-          status:       electionsTable.status,
-          startDate:    electionsTable.startDate,
-          electionType: electionsTable.electionType,
-        }).from(electionsTable)
+        const rows = await db
+          .select({
+            id: electionsTable.id,
+            title: electionsTable.title,
+            status: electionsTable.status,
+            startDate: electionsTable.startDate,
+            electionType: electionsTable.electionType,
+          })
+          .from(electionsTable)
           .where(eq(electionsTable.syndicateId, syndicateId))
           .orderBy(desc(electionsTable.startDate))
           .limit(50);
         data = rows.map((r) => ({
-          id:       r.id,
-          label:    r.title,
-          sublabel: [r.startDate, r.electionType, r.status].filter(Boolean).join("  •  "),
+          id: r.id,
+          label: r.title,
+          sublabel: [r.startDate, r.electionType, r.status]
+            .filter(Boolean)
+            .join("  •  "),
         }));
         break;
       }
       case "invoices": {
-        const rows = await db.select({
-          id:        invoicesTable.id,
-          reference: invoicesTable.reference,
-          recipient: invoicesTable.recipient,
-          amount:    invoicesTable.amount,
-          status:    invoicesTable.status,
-          dueDate:   invoicesTable.dueDate,
-        }).from(invoicesTable)
+        const rows = await db
+          .select({
+            id: invoicesTable.id,
+            reference: invoicesTable.reference,
+            recipient: invoicesTable.recipient,
+            amount: invoicesTable.amount,
+            status: invoicesTable.status,
+            dueDate: invoicesTable.dueDate,
+          })
+          .from(invoicesTable)
           .where(eq(invoicesTable.syndicateId, syndicateId))
           .orderBy(desc(invoicesTable.createdAt))
           .limit(100);
         data = rows.map((r) => ({
-          id:       r.id,
-          label:    [r.reference, r.recipient].filter(Boolean).join(" — "),
-          sublabel: [`${Number(r.amount ?? 0).toLocaleString("fr-MA")} MAD`, r.status, r.dueDate].filter(Boolean).join("  •  "),
+          id: r.id,
+          label: [r.reference, r.recipient].filter(Boolean).join(" — "),
+          sublabel: [
+            `${Number(r.amount ?? 0).toLocaleString("fr-MA")} MAD`,
+            r.status,
+            r.dueDate,
+          ]
+            .filter(Boolean)
+            .join("  •  "),
         }));
         break;
       }
       case "appels": {
         // appelsDeFondsTable has no syndicateId; scope via buildingId → buildingsTable
-        const rows = await db.select({
-          id:        appelsDeFondsTable.id,
-          period:    appelsDeFondsTable.period,
-          amount:    appelsDeFondsTable.amount,
-          status:    appelsDeFondsTable.status,
-          type:      appelsDeFondsTable.type,
-          ownerName: membersTable.name,
-          lotNumber: lotsTable.number,
-        }).from(appelsDeFondsTable)
-          .innerJoin(buildingsTable, eq(appelsDeFondsTable.buildingId, buildingsTable.id))
-          .leftJoin(membersTable,   eq(appelsDeFondsTable.ownerId,     membersTable.id))
-          .leftJoin(lotsTable,      eq(appelsDeFondsTable.lotId,       lotsTable.id))
+        const rows = await db
+          .select({
+            id: appelsDeFondsTable.id,
+            period: appelsDeFondsTable.period,
+            amount: appelsDeFondsTable.amount,
+            status: appelsDeFondsTable.status,
+            type: appelsDeFondsTable.type,
+            ownerName: membersTable.name,
+            lotNumber: lotsTable.number,
+          })
+          .from(appelsDeFondsTable)
+          .innerJoin(
+            buildingsTable,
+            eq(appelsDeFondsTable.buildingId, buildingsTable.id),
+          )
+          .leftJoin(
+            membersTable,
+            eq(appelsDeFondsTable.ownerId, membersTable.id),
+          )
+          .leftJoin(lotsTable, eq(appelsDeFondsTable.lotId, lotsTable.id))
           .where(eq(buildingsTable.syndicateId, syndicateId))
           .orderBy(desc(appelsDeFondsTable.createdAt))
           .limit(200);
         data = rows.map((r) => ({
-          id:       r.id,
-          label:    `${r.period ?? "—"} — ${Number(r.amount ?? 0).toLocaleString("fr-MA")} MAD`,
-          sublabel: [r.ownerName, r.lotNumber ? `Lot ${r.lotNumber}` : "", r.status].filter(Boolean).join("  •  "),
+          id: r.id,
+          label: `${r.period ?? "—"} — ${Number(r.amount ?? 0).toLocaleString("fr-MA")} MAD`,
+          sublabel: [
+            r.ownerName,
+            r.lotNumber ? `Lot ${r.lotNumber}` : "",
+            r.status,
+          ]
+            .filter(Boolean)
+            .join("  •  "),
         }));
         break;
       }
       case "budgets": {
-        const rows = await db.select({
-          id:           budgetsTable.id,
-          year:         budgetsTable.year,
-          totalAmount:  budgetsTable.totalAmount,
-          status:       budgetsTable.status,
-          buildingName: buildingsTable.name,
-        }).from(budgetsTable)
-          .leftJoin(buildingsTable, eq(budgetsTable.buildingId, buildingsTable.id))
+        const rows = await db
+          .select({
+            id: budgetsTable.id,
+            year: budgetsTable.year,
+            totalAmount: budgetsTable.totalAmount,
+            status: budgetsTable.status,
+            buildingName: buildingsTable.name,
+          })
+          .from(budgetsTable)
+          .leftJoin(
+            buildingsTable,
+            eq(budgetsTable.buildingId, buildingsTable.id),
+          )
           .where(eq(buildingsTable.syndicateId, syndicateId))
           .orderBy(desc(budgetsTable.year))
           .limit(50);
         data = rows.map((r) => ({
-          id:       r.id,
-          label:    `Budget ${r.year} — ${r.buildingName ?? "—"}`,
-          sublabel: [`${Number(r.totalAmount ?? 0).toLocaleString("fr-MA")} MAD`, r.status].filter(Boolean).join("  •  "),
+          id: r.id,
+          label: `Budget ${r.year} — ${r.buildingName ?? "—"}`,
+          sublabel: [
+            `${Number(r.totalAmount ?? 0).toLocaleString("fr-MA")} MAD`,
+            r.status,
+          ]
+            .filter(Boolean)
+            .join("  •  "),
         }));
         break;
       }
       case "tenants": {
-        const rows = await db.select({
-          id:           tenantsTable.id,
-          name:         tenantsTable.name,
-          phone:        tenantsTable.phone,
-          email:        tenantsTable.email,
-          leaseStart:   tenantsTable.leaseStart,
-          leaseEnd:     tenantsTable.leaseEnd,
-          monthlyRent:  tenantsTable.monthlyRent,
-          status:       tenantsTable.status,
-          lotNumber:    lotsTable.number,
-          buildingName: buildingsTable.name,
-        }).from(tenantsTable)
-          .leftJoin(lotsTable,      eq(tenantsTable.lotId,      lotsTable.id))
-          .leftJoin(buildingsTable, eq(tenantsTable.buildingId, buildingsTable.id))
+        const rows = await db
+          .select({
+            id: tenantsTable.id,
+            name: tenantsTable.name,
+            phone: tenantsTable.phone,
+            email: tenantsTable.email,
+            leaseStart: tenantsTable.leaseStart,
+            leaseEnd: tenantsTable.leaseEnd,
+            monthlyRent: tenantsTable.monthlyRent,
+            status: tenantsTable.status,
+            lotNumber: lotsTable.number,
+            buildingName: buildingsTable.name,
+          })
+          .from(tenantsTable)
+          .leftJoin(lotsTable, eq(tenantsTable.lotId, lotsTable.id))
+          .leftJoin(
+            buildingsTable,
+            eq(tenantsTable.buildingId, buildingsTable.id),
+          )
           .where(eq(tenantsTable.syndicateId, syndicateId))
           .orderBy(tenantsTable.name)
           .limit(200);
         data = rows.map((r) => ({
-          id:       r.id,
-          label:    r.name,
+          id: r.id,
+          label: r.name,
           sublabel: [
             r.lotNumber ? `Lot ${r.lotNumber}` : null,
             r.buildingName,
-            r.monthlyRent ? `${Number(r.monthlyRent).toLocaleString("fr-MA")} MAD/mois` : null,
+            r.monthlyRent
+              ? `${Number(r.monthlyRent).toLocaleString("fr-MA")} MAD/mois`
+              : null,
             r.status,
-          ].filter(Boolean).join("  •  "),
+          ]
+            .filter(Boolean)
+            .join("  •  "),
         }));
         break;
       }
       case "sinistres": {
-        const rows = await db.select({
-          id:           sinistresTable.id,
-          type:         sinistresTable.type,
-          description:  sinistresTable.description,
-          date:         sinistresTable.date,
-          status:       sinistresTable.status,
-          urgency:      sinistresTable.urgency,
-          claimNumber:  sinistresTable.claimNumber,
-          buildingName: buildingsTable.name,
-        }).from(sinistresTable)
-          .innerJoin(buildingsTable, eq(sinistresTable.buildingId, buildingsTable.id))
+        const rows = await db
+          .select({
+            id: sinistresTable.id,
+            type: sinistresTable.type,
+            description: sinistresTable.description,
+            date: sinistresTable.date,
+            status: sinistresTable.status,
+            urgency: sinistresTable.urgency,
+            claimNumber: sinistresTable.claimNumber,
+            buildingName: buildingsTable.name,
+          })
+          .from(sinistresTable)
+          .innerJoin(
+            buildingsTable,
+            eq(sinistresTable.buildingId, buildingsTable.id),
+          )
           .where(eq(buildingsTable.syndicateId, syndicateId))
           .orderBy(desc(sinistresTable.createdAt))
           .limit(100);
         data = rows.map((r) => ({
-          id:       r.id,
-          label:    `${r.type} — ${r.buildingName ?? "—"}`,
-          sublabel: [r.date, r.status, r.urgency !== "normal" ? `⚡ ${r.urgency}` : null, r.claimNumber].filter(Boolean).join("  •  "),
+          id: r.id,
+          label: `${r.type} — ${r.buildingName ?? "—"}`,
+          sublabel: [
+            r.date,
+            r.status,
+            r.urgency !== "normal" ? `⚡ ${r.urgency}` : null,
+            r.claimNumber,
+          ]
+            .filter(Boolean)
+            .join("  •  "),
         }));
         break;
       }
       case "travaux": {
-        const rows = await db.select({
-          id:              travauxTable.id,
-          title:           travauxTable.title,
-          type:            travauxTable.type,
-          status:          travauxTable.status,
-          priority:        travauxTable.priority,
-          startDate:       travauxTable.startDate,
-          estimatedAmount: travauxTable.estimatedAmount,
-          buildingName:    buildingsTable.name,
-          prestataireName: prestatairesTable.name,
-        }).from(travauxTable)
-          .innerJoin(buildingsTable,  eq(travauxTable.buildingId,    buildingsTable.id))
-          .leftJoin(prestatairesTable,eq(travauxTable.prestataireId, prestatairesTable.id))
+        const rows = await db
+          .select({
+            id: travauxTable.id,
+            title: travauxTable.title,
+            type: travauxTable.type,
+            status: travauxTable.status,
+            priority: travauxTable.priority,
+            startDate: travauxTable.startDate,
+            estimatedAmount: travauxTable.estimatedAmount,
+            buildingName: buildingsTable.name,
+            prestataireName: prestatairesTable.name,
+          })
+          .from(travauxTable)
+          .innerJoin(
+            buildingsTable,
+            eq(travauxTable.buildingId, buildingsTable.id),
+          )
+          .leftJoin(
+            prestatairesTable,
+            eq(travauxTable.prestataireId, prestatairesTable.id),
+          )
           .where(eq(buildingsTable.syndicateId, syndicateId))
           .orderBy(desc(travauxTable.createdAt))
           .limit(100);
         data = rows.map((r) => ({
-          id:       r.id,
-          label:    r.title,
+          id: r.id,
+          label: r.title,
           sublabel: [
-            r.type, r.status, r.prestataireName,
-            r.estimatedAmount ? `${Number(r.estimatedAmount).toLocaleString("fr-MA")} MAD` : null,
+            r.type,
+            r.status,
+            r.prestataireName,
+            r.estimatedAmount
+              ? `${Number(r.estimatedAmount).toLocaleString("fr-MA")} MAD`
+              : null,
             r.startDate,
-          ].filter(Boolean).join("  •  "),
+          ]
+            .filter(Boolean)
+            .join("  •  "),
         }));
         break;
       }
@@ -2552,7 +3886,9 @@ router.get("/documents/entities", requireAuth, async (req, res) => {
     res.json({ data });
   } catch (err) {
     req.log.error(err);
-    res.status(500).json({ error: "Erreur lors de la récupération des entités" });
+    res
+      .status(500)
+      .json({ error: "Erreur lors de la récupération des entités" });
   }
 });
 
@@ -2566,120 +3902,318 @@ router.get("/documents/available-templates", requireAuth, async (req, res) => {
   const role = req.user!.role;
 
   type TplEntry = {
-    id: string; name: string; family: string; familyLabel: string; icon: string;
-    color: string; category: string; description: string; allowedRoles: string[];
-    isBundle: boolean; requiresBalance: boolean; autoFilled: string[];
+    id: string;
+    name: string;
+    family: string;
+    familyLabel: string;
+    icon: string;
+    color: string;
+    category: string;
+    description: string;
+    allowedRoles: string[];
+    isBundle: boolean;
+    requiresBalance: boolean;
+    autoFilled: string[];
   };
 
   const ALL: TplEntry[] = [
     // ── FAMILLE 1: CERTIFICATS ──────────────────────────────────────────────────
-    { id: "attestation_residence", name: "Attestation de résidence",
-      family: "certificates", familyLabel: "Certificats", icon: "home", color: "#0891b2", category: "attestation",
-      description: "Prouve la résidence dans la copropriété. Utile pour inscriptions scolaires, démarches administratives.",
-      allowedRoles: ["member", "tenant", "syndicate_admin", "super_admin"], isBundle: false, requiresBalance: false,
-      autoFilled: ["Nom complet", "Numéro de lot", "Bâtiment", "Adresse"] },
-    { id: "attestation_propriete", name: "Attestation de propriété",
-      family: "certificates", familyLabel: "Certificats", icon: "key", color: "#2563EB", category: "attestation",
-      description: "Certifie la propriété d'un lot. Titre foncier et tantièmes injectés automatiquement.",
-      allowedRoles: ["member", "syndicate_admin", "super_admin"], isBundle: false, requiresBalance: false,
-      autoFilled: ["Nom du propriétaire", "Titre foncier", "Tantièmes", "N° de lot"] },
-    { id: "attestation_paiement", name: "Attestation de paiement des charges",
-      family: "certificates", familyLabel: "Certificats", icon: "check-circle", color: "#16a34a", category: "attestation",
-      description: "Certifie que les charges sont à jour. Bloquée automatiquement si des impayés existent.",
-      allowedRoles: ["member", "syndicate_admin", "super_admin"], isBundle: false, requiresBalance: true,
-      autoFilled: ["Total payé", "Solde", "Date du dernier paiement", "Historique des charges"] },
-    { id: "attestation", name: "Attestation d'adhésion",
-      family: "certificates", familyLabel: "Certificats", icon: "award", color: "#8b5cf6", category: "attestation",
+    {
+      id: "attestation_residence",
+      name: "Attestation de résidence",
+      family: "certificates",
+      familyLabel: "Certificats",
+      icon: "home",
+      color: "#0891b2",
+      category: "attestation",
+      description:
+        "Prouve la résidence dans la copropriété. Utile pour inscriptions scolaires, démarches administratives.",
+      allowedRoles: ["member", "tenant", "syndicate_admin", "super_admin"],
+      isBundle: false,
+      requiresBalance: false,
+      autoFilled: ["Nom complet", "Numéro de lot", "Bâtiment", "Adresse"],
+    },
+    {
+      id: "attestation_propriete",
+      name: "Attestation de propriété",
+      family: "certificates",
+      familyLabel: "Certificats",
+      icon: "key",
+      color: "#2563EB",
+      category: "attestation",
+      description:
+        "Certifie la propriété d'un lot. Titre foncier et tantièmes injectés automatiquement.",
+      allowedRoles: ["member", "syndicate_admin", "super_admin"],
+      isBundle: false,
+      requiresBalance: false,
+      autoFilled: [
+        "Nom du propriétaire",
+        "Titre foncier",
+        "Tantièmes",
+        "N° de lot",
+      ],
+    },
+    {
+      id: "attestation_paiement",
+      name: "Attestation de paiement des charges",
+      family: "certificates",
+      familyLabel: "Certificats",
+      icon: "check-circle",
+      color: "#16a34a",
+      category: "attestation",
+      description:
+        "Certifie que les charges sont à jour. Bloquée automatiquement si des impayés existent.",
+      allowedRoles: ["member", "syndicate_admin", "super_admin"],
+      isBundle: false,
+      requiresBalance: true,
+      autoFilled: [
+        "Total payé",
+        "Solde",
+        "Date du dernier paiement",
+        "Historique des charges",
+      ],
+    },
+    {
+      id: "attestation",
+      name: "Attestation d'adhésion",
+      family: "certificates",
+      familyLabel: "Certificats",
+      icon: "award",
+      color: "#8b5cf6",
+      category: "attestation",
       description: "Certifie l'appartenance au syndicat de copropriété.",
-      allowedRoles: ["member", "syndicate_admin", "super_admin"], isBundle: false, requiresBalance: false,
-      autoFilled: ["Nom du membre", "Coordonnées", "Syndicat"] },
+      allowedRoles: ["member", "syndicate_admin", "super_admin"],
+      isBundle: false,
+      requiresBalance: false,
+      autoFilled: ["Nom du membre", "Coordonnées", "Syndicat"],
+    },
     // ── FAMILLE 2: FINANCES ─────────────────────────────────────────────────────
-    { id: "rapport_financier", name: "Rapport financier",
-      family: "finance", familyLabel: "Finances", icon: "dollar-sign", color: "#f59e0b", category: "finances",
-      description: "Bilan financier complet avec prévisions, réalisations et indicateurs clés.",
-      allowedRoles: ["member", "syndicate_admin", "super_admin"], isBundle: false, requiresBalance: false,
-      autoFilled: ["Données financières complètes depuis la comptabilité"] },
-    { id: "appel_de_fonds", name: "Appel de fonds",
-      family: "finance", familyLabel: "Finances", icon: "file-text", color: "#06b6d4", category: "finances",
-      description: "Appel de charges communes avec données copropriétaire auto-injectées.",
-      allowedRoles: ["syndicate_admin", "super_admin"], isBundle: false, requiresBalance: false,
-      autoFilled: ["Données copropriétaire", "Montant des charges"] },
-    { id: "facture", name: "Facture",
-      family: "finance", familyLabel: "Finances", icon: "file-minus", color: "#dc2626", category: "finances",
+    {
+      id: "rapport_financier",
+      name: "Rapport financier",
+      family: "finance",
+      familyLabel: "Finances",
+      icon: "dollar-sign",
+      color: "#f59e0b",
+      category: "finances",
+      description:
+        "Bilan financier complet avec prévisions, réalisations et indicateurs clés.",
+      allowedRoles: ["member", "syndicate_admin", "super_admin"],
+      isBundle: false,
+      requiresBalance: false,
+      autoFilled: ["Données financières complètes depuis la comptabilité"],
+    },
+    {
+      id: "appel_de_fonds",
+      name: "Appel de fonds",
+      family: "finance",
+      familyLabel: "Finances",
+      icon: "file-text",
+      color: "#06b6d4",
+      category: "finances",
+      description:
+        "Appel de charges communes avec données copropriétaire auto-injectées.",
+      allowedRoles: ["syndicate_admin", "super_admin"],
+      isBundle: false,
+      requiresBalance: false,
+      autoFilled: ["Données copropriétaire", "Montant des charges"],
+    },
+    {
+      id: "facture",
+      name: "Facture",
+      family: "finance",
+      familyLabel: "Finances",
+      icon: "file-minus",
+      color: "#dc2626",
+      category: "finances",
       description: "Facture officielle avec lignes et montants automatiques.",
-      allowedRoles: ["syndicate_admin", "super_admin"], isBundle: false, requiresBalance: false,
-      autoFilled: ["Lignes de facturation depuis la comptabilité"] },
-    { id: "decompte_charges", name: "Décompte de charges",
-      family: "finance", familyLabel: "Finances", icon: "bar-chart-2", color: "#f59e0b", category: "finances",
-      description: "Détail des charges sur une période donnée pour un copropriétaire.",
-      allowedRoles: ["member", "syndicate_admin", "super_admin"], isBundle: false, requiresBalance: false,
-      autoFilled: ["Charges calculées depuis le lot"] },
+      allowedRoles: ["syndicate_admin", "super_admin"],
+      isBundle: false,
+      requiresBalance: false,
+      autoFilled: ["Lignes de facturation depuis la comptabilité"],
+    },
+    {
+      id: "decompte_charges",
+      name: "Décompte de charges",
+      family: "finance",
+      familyLabel: "Finances",
+      icon: "bar-chart-2",
+      color: "#f59e0b",
+      category: "finances",
+      description:
+        "Détail des charges sur une période donnée pour un copropriétaire.",
+      allowedRoles: ["member", "syndicate_admin", "super_admin"],
+      isBundle: false,
+      requiresBalance: false,
+      autoFilled: ["Charges calculées depuis le lot"],
+    },
     // ── FAMILLE 3: GOUVERNANCE ──────────────────────────────────────────────────
-    { id: "pv", name: "Procès-verbal de réunion",
-      family: "governance", familyLabel: "Gouvernance", icon: "clipboard", color: "#10b981", category: "pv",
-      description: "PV officiel enregistrant les délibérations et résolutions d'une réunion.",
-      allowedRoles: ["syndicate_admin", "super_admin"], isBundle: false, requiresBalance: false,
-      autoFilled: ["Bureau syndical", "Ordre du jour depuis la réunion"] },
-    { id: "convocation", name: "Convocation officielle",
-      family: "governance", familyLabel: "Gouvernance", icon: "calendar", color: "#3b82f6", category: "pv",
-      description: "Convocation officielle adressée aux membres pour une réunion.",
-      allowedRoles: ["syndicate_admin", "super_admin"], isBundle: false, requiresBalance: false,
-      autoFilled: ["Coordonnées du syndicat", "Bureau syndical"] },
-    { id: "decision", name: "Décision syndicale",
-      family: "governance", familyLabel: "Gouvernance", icon: "check-circle", color: "#16a34a", category: "pv",
+    {
+      id: "pv",
+      name: "Procès-verbal de réunion",
+      family: "governance",
+      familyLabel: "Gouvernance",
+      icon: "clipboard",
+      color: "#10b981",
+      category: "pv",
+      description:
+        "PV officiel enregistrant les délibérations et résolutions d'une réunion.",
+      allowedRoles: ["syndicate_admin", "super_admin"],
+      isBundle: false,
+      requiresBalance: false,
+      autoFilled: ["Bureau syndical", "Ordre du jour depuis la réunion"],
+    },
+    {
+      id: "convocation",
+      name: "Convocation officielle",
+      family: "governance",
+      familyLabel: "Gouvernance",
+      icon: "calendar",
+      color: "#3b82f6",
+      category: "pv",
+      description:
+        "Convocation officielle adressée aux membres pour une réunion.",
+      allowedRoles: ["syndicate_admin", "super_admin"],
+      isBundle: false,
+      requiresBalance: false,
+      autoFilled: ["Coordonnées du syndicat", "Bureau syndical"],
+    },
+    {
+      id: "decision",
+      name: "Décision syndicale",
+      family: "governance",
+      familyLabel: "Gouvernance",
+      icon: "check-circle",
+      color: "#16a34a",
+      category: "pv",
       description: "Décision officielle prise par le bureau syndical.",
-      allowedRoles: ["syndicate_admin", "super_admin"], isBundle: false, requiresBalance: false,
-      autoFilled: ["Bureau syndical"] },
+      allowedRoles: ["syndicate_admin", "super_admin"],
+      isBundle: false,
+      requiresBalance: false,
+      autoFilled: ["Bureau syndical"],
+    },
     // ── FAMILLE 4: JURIDIQUE ────────────────────────────────────────────────────
-    { id: "contrat", name: "Contrat",
-      family: "legal", familyLabel: "Juridique", icon: "file-text", color: "#0891b2", category: "juridique",
-      description: "Contrat formel entre le syndicat et un tiers (prestataire, partenaire).",
-      allowedRoles: ["syndicate_admin", "super_admin"], isBundle: false, requiresBalance: false,
-      autoFilled: ["Coordonnées du syndicat"] },
-    { id: "mise_en_demeure", name: "Mise en demeure",
-      family: "legal", familyLabel: "Juridique", icon: "alert-circle", color: "#ef4444", category: "juridique",
+    {
+      id: "contrat",
+      name: "Contrat",
+      family: "legal",
+      familyLabel: "Juridique",
+      icon: "file-text",
+      color: "#0891b2",
+      category: "juridique",
+      description:
+        "Contrat formel entre le syndicat et un tiers (prestataire, partenaire).",
+      allowedRoles: ["syndicate_admin", "super_admin"],
+      isBundle: false,
+      requiresBalance: false,
+      autoFilled: ["Coordonnées du syndicat"],
+    },
+    {
+      id: "mise_en_demeure",
+      name: "Mise en demeure",
+      family: "legal",
+      familyLabel: "Juridique",
+      icon: "alert-circle",
+      color: "#ef4444",
+      category: "juridique",
       description: "Document légal de mise en demeure adressé à un débiteur.",
-      allowedRoles: ["syndicate_admin", "super_admin"], isBundle: false, requiresBalance: false,
-      autoFilled: ["Données du débiteur depuis membersTable"] },
+      allowedRoles: ["syndicate_admin", "super_admin"],
+      isBundle: false,
+      requiresBalance: false,
+      autoFilled: ["Données du débiteur depuis membersTable"],
+    },
     // ── FAMILLE 5: DOSSIERS (BUNDLES) ───────────────────────────────────────────
-    { id: "bundle_sale", name: "Dossier de vente",
-      family: "bundles", familyLabel: "Dossiers", icon: "package", color: "#7c3aed", category: "attestation",
-      description: "4 documents requis par le notaire pour la vente d'un appartement. Générés en une seule opération.",
-      allowedRoles: ["member", "syndicate_admin", "super_admin"], isBundle: true, requiresBalance: false,
-      autoFilled: ["Attestation propriété", "Attestation paiement", "Rapport financier", "Décision syndicale"] },
-    { id: "bundle_recovery", name: "Dossier de recouvrement",
-      family: "bundles", familyLabel: "Dossiers", icon: "alert-triangle", color: "#dc2626", category: "juridique",
-      description: "5 documents escaladés automatiquement : relance amiable → officielle → mise en demeure → rapport → dossier juridique.",
-      allowedRoles: ["syndicate_admin", "super_admin"], isBundle: true, requiresBalance: false,
-      autoFilled: ["Historique des impayés", "Montants", "Relances précédentes"] },
-    { id: "bundle_ag", name: "Dossier Assemblée Générale",
-      family: "bundles", familyLabel: "Dossiers", icon: "users", color: "#3b82f6", category: "pv",
-      description: "Convocation + PV + Décisions générés automatiquement pour l'Assemblée Générale.",
-      allowedRoles: ["syndicate_admin", "super_admin"], isBundle: true, requiresBalance: false,
-      autoFilled: ["Membres du syndicat", "Bureau syndical"] },
+    {
+      id: "bundle_sale",
+      name: "Dossier de vente",
+      family: "bundles",
+      familyLabel: "Dossiers",
+      icon: "package",
+      color: "#7c3aed",
+      category: "attestation",
+      description:
+        "4 documents requis par le notaire pour la vente d'un appartement. Générés en une seule opération.",
+      allowedRoles: ["member", "syndicate_admin", "super_admin"],
+      isBundle: true,
+      requiresBalance: false,
+      autoFilled: [
+        "Attestation propriété",
+        "Attestation paiement",
+        "Rapport financier",
+        "Décision syndicale",
+      ],
+    },
+    {
+      id: "bundle_recovery",
+      name: "Dossier de recouvrement",
+      family: "bundles",
+      familyLabel: "Dossiers",
+      icon: "alert-triangle",
+      color: "#dc2626",
+      category: "juridique",
+      description:
+        "5 documents escaladés automatiquement : relance amiable → officielle → mise en demeure → rapport → dossier juridique.",
+      allowedRoles: ["syndicate_admin", "super_admin"],
+      isBundle: true,
+      requiresBalance: false,
+      autoFilled: [
+        "Historique des impayés",
+        "Montants",
+        "Relances précédentes",
+      ],
+    },
+    {
+      id: "bundle_ag",
+      name: "Dossier Assemblée Générale",
+      family: "bundles",
+      familyLabel: "Dossiers",
+      icon: "users",
+      color: "#3b82f6",
+      category: "pv",
+      description:
+        "Convocation + PV + Décisions générés automatiquement pour l'Assemblée Générale.",
+      allowedRoles: ["syndicate_admin", "super_admin"],
+      isBundle: true,
+      requiresBalance: false,
+      autoFilled: ["Membres du syndicat", "Bureau syndical"],
+    },
   ];
 
   const filtered = ALL.filter((t) => t.allowedRoles.includes(role));
 
   const familyMeta: Record<string, { color: string }> = {
     certificates: { color: "#0891b2" },
-    finance:      { color: "#f59e0b" },
-    governance:   { color: "#10b981" },
-    legal:        { color: "#ef4444" },
-    operations:   { color: "#6366f1" },
-    administration:{ color: "#8b5cf6" },
-    bundles:      { color: "#7c3aed" },
+    finance: { color: "#f59e0b" },
+    governance: { color: "#10b981" },
+    legal: { color: "#ef4444" },
+    operations: { color: "#6366f1" },
+    administration: { color: "#8b5cf6" },
+    bundles: { color: "#7c3aed" },
   };
 
-  const familiesMap: Record<string, { id: string; label: string; color: string; templates: TplEntry[] }> = {};
+  const familiesMap: Record<
+    string,
+    { id: string; label: string; color: string; templates: TplEntry[] }
+  > = {};
   for (const tpl of filtered) {
     if (!familiesMap[tpl.family]) {
-      familiesMap[tpl.family] = { id: tpl.family, label: tpl.familyLabel, color: familyMeta[tpl.family]?.color ?? "#6366f1", templates: [] };
+      familiesMap[tpl.family] = {
+        id: tpl.family,
+        label: tpl.familyLabel,
+        color: familyMeta[tpl.family]?.color ?? "#6366f1",
+        templates: [],
+      };
     }
     familiesMap[tpl.family].templates.push(tpl);
   }
 
-  res.json({ data: { role, families: Object.values(familiesMap), total: filtered.length } });
+  res.json({
+    data: {
+      role,
+      families: Object.values(familiesMap),
+      total: filtered.length,
+    },
+  });
 });
 
 // ─── POST /documents/payment-certificate/check — Eligibility pre-check ────────
@@ -2694,44 +4228,93 @@ router.post(
       const user = req.user!;
       const syndicateId = user.syndicateId ?? null;
       if (!syndicateId) {
-        res.status(400).json({ error: "Aucun syndicat associé" }); return;
+        res.status(400).json({ error: "Aucun syndicat associé" });
+        return;
       }
 
       // Find the member's lot (owners only)
       const memberRows = await db
-        .select({ memberId: membersTable.id, lotId: lotsTable.id, lotNumber: lotsTable.number })
+        .select({
+          memberId: membersTable.id,
+          lotId: lotsTable.id,
+          lotNumber: lotsTable.number,
+        })
         .from(membersTable)
         .leftJoin(lotsTable, eq(lotsTable.ownerId, membersTable.id))
-        .where(and(eq(membersTable.syndicateId, syndicateId), eq(membersTable.email, user.email ?? "")))
+        .where(
+          and(
+            eq(membersTable.syndicateId, syndicateId),
+            eq(membersTable.email, user.email ?? ""),
+          ),
+        )
         .limit(1);
 
       const member = memberRows[0] ?? null;
       if (!member?.lotId) {
-        res.json({ data: { eligible: false, blockedReason: "Aucun lot trouvé pour ce compte.", totalPaid: 0, totalCharged: 0, remainingBalance: 0, overdueCount: 0, lastPaymentDate: null } });
+        res.json({
+          data: {
+            eligible: false,
+            blockedReason: "Aucun lot trouvé pour ce compte.",
+            totalPaid: 0,
+            totalCharged: 0,
+            remainingBalance: 0,
+            overdueCount: 0,
+            lastPaymentDate: null,
+          },
+        });
         return;
       }
 
       const appels = await db
-        .select({ amount: appelsDeFondsTable.amount, status: appelsDeFondsTable.status, period: appelsDeFondsTable.period, paidDate: appelsDeFondsTable.paidDate })
+        .select({
+          amount: appelsDeFondsTable.amount,
+          status: appelsDeFondsTable.status,
+          period: appelsDeFondsTable.period,
+          paidDate: appelsDeFondsTable.paidDate,
+        })
         .from(appelsDeFondsTable)
         .where(eq(appelsDeFondsTable.lotId, member.lotId));
 
-      const totalPaid    = appels.filter((a) => a.status === "paid").reduce((s, a) => s + Number(a.amount ?? 0), 0);
-      const totalCharged = appels.reduce((s, a) => s + Number(a.amount ?? 0), 0);
-      const overdueItems = appels.filter((a) => a.status === "overdue" || a.status === "pending");
-      const overdueAmount = overdueItems.reduce((s, a) => s + Number(a.amount ?? 0), 0);
+      const totalPaid = appels
+        .filter((a) => a.status === "paid")
+        .reduce((s, a) => s + Number(a.amount ?? 0), 0);
+      const totalCharged = appels.reduce(
+        (s, a) => s + Number(a.amount ?? 0),
+        0,
+      );
+      const overdueItems = appels.filter(
+        (a) => a.status === "overdue" || a.status === "pending",
+      );
+      const overdueAmount = overdueItems.reduce(
+        (s, a) => s + Number(a.amount ?? 0),
+        0,
+      );
       const remainingBalance = Math.max(0, totalCharged - totalPaid);
       const hasOverdue = overdueItems.length > 0 || remainingBalance > 0;
-      const lastPaymentDate = appels
-        .filter((a) => a.status === "paid" && a.paidDate)
-        .sort((a, b) => (b.paidDate ?? "").localeCompare(a.paidDate ?? ""))[0]?.paidDate ?? null;
+      const lastPaymentDate =
+        appels
+          .filter((a) => a.status === "paid" && a.paidDate)
+          .sort((a, b) => (b.paidDate ?? "").localeCompare(a.paidDate ?? ""))[0]
+          ?.paidDate ?? null;
 
       const eligible = !hasOverdue;
       const blockedReason = !eligible
         ? `Ce certificat ne peut pas être délivré car ${overdueItems.length > 0 ? `${overdueItems.length} charge(s) impayée(s) existent` : "le solde n'est pas apuré"}. Montant dû : ${remainingBalance.toLocaleString("fr-MA")} MAD.`
         : null;
 
-      res.json({ data: { eligible, blockedReason, totalPaid, totalCharged, remainingBalance, overdueCount: overdueItems.length, overdueAmount, lastPaymentDate, lotNumber: member.lotNumber } });
+      res.json({
+        data: {
+          eligible,
+          blockedReason,
+          totalPaid,
+          totalCharged,
+          remainingBalance,
+          overdueCount: overdueItems.length,
+          overdueAmount,
+          lastPaymentDate,
+          lotNumber: member.lotNumber,
+        },
+      });
     } catch (err) {
       req.log.error(err);
       res.status(500).json({ error: "Erreur serveur" });
@@ -2757,76 +4340,232 @@ router.post(
       language: z.enum(["fr", "ar", "en", "es"] as const).optional(),
     });
     const parsed = schema.safeParse(req.body);
-    if (!parsed.success) { res.status(400).json({ error: "Données invalides", details: parsed.error.flatten() }); return; }
+    if (!parsed.success) {
+      res
+        .status(400)
+        .json({ error: "Données invalides", details: parsed.error.flatten() });
+      return;
+    }
 
     try {
       const user = req.user!;
       const syndicateId = user.syndicateId ?? null;
-      if (!syndicateId && user.role !== "super_admin") { res.status(403).json({ error: "syndicateId requis" }); return; }
+      if (!syndicateId && user.role !== "super_admin") {
+        res.status(403).json({ error: "syndicateId requis" });
+        return;
+      }
       const { memberId, language = "fr" } = parsed.data;
       const docLanguage: DocumentLanguage = language as DocumentLanguage;
 
-      const [syndInfo, property, officeHolders, lotMemberData, memberRows] = await Promise.all([
-        getSyndicateInfo(syndicateId),
-        getPropertyInfo(syndicateId),
-        getOfficeHolders(syndicateId),
-        getLotMemberData(undefined, memberId),
-        db.select({ name: membersTable.name, email: membersTable.email }).from(membersTable).where(eq(membersTable.id, memberId)).limit(1),
-      ]);
+      const [syndInfo, property, officeHolders, lotMemberData, memberRows] =
+        await Promise.all([
+          getSyndicateInfo(syndicateId),
+          getPropertyInfo(syndicateId),
+          getOfficeHolders(syndicateId),
+          getLotMemberData(undefined, memberId),
+          db
+            .select({ name: membersTable.name, email: membersTable.email })
+            .from(membersTable)
+            .where(eq(membersTable.id, memberId))
+            .limit(1),
+        ]);
 
       const member = memberRows[0];
-      if (!member) { res.status(404).json({ error: "Membre introuvable" }); return; }
+      if (!member) {
+        res.status(404).json({ error: "Membre introuvable" });
+        return;
+      }
 
-      const [lotRow] = await db.select({ id: lotsTable.id, number: lotsTable.number }).from(lotsTable).where(eq(lotsTable.ownerId, memberId)).limit(1);
+      const [lotRow] = await db
+        .select({ id: lotsTable.id, number: lotsTable.number })
+        .from(lotsTable)
+        .where(eq(lotsTable.ownerId, memberId))
+        .limit(1);
       const lotId = lotRow?.id ?? null;
-      const debtData = lotId ? await getAttestationPaiementData(lotId, undefined, syndicateId) : {};
+      const debtData = lotId
+        ? await getAttestationPaiementData(lotId, undefined, syndicateId)
+        : {};
 
       const memberName = member.name ?? lotMemberData.memberName ?? "Inconnu";
-      const totalCharged = Number((debtData as any)._totalCharged?.replace(/\s/g, "").replace(/,/g, ".") ?? 0);
-      const totalPaid    = Number((debtData as any).montant?.replace(/\s/g, "").replace(/,/g, ".") ?? 0);
-      const totalDue = Math.max(0, totalCharged - totalPaid).toLocaleString("fr-MA");
+      const totalCharged = Number(
+        (debtData as any)._totalCharged
+          ?.replace(/\s/g, "")
+          .replace(/,/g, ".") ?? 0,
+      );
+      const totalPaid = Number(
+        (debtData as any).montant?.replace(/\s/g, "").replace(/,/g, ".") ?? 0,
+      );
+      const totalDue = Math.max(0, totalCharged - totalPaid).toLocaleString(
+        "fr-MA",
+      );
 
-      const steps: Array<{ step: number; template: DocumentTemplate; category: "pv" | "juridique" | "finances"; title: string; extra: Record<string, string> }> = [
-        { step: 1, template: "convocation", category: "pv",      title: `Relance amiable — ${memberName}`,    extra: { objet: `1ère relance : charges impayées — Montant dû : ${totalDue} MAD`, heure: "", meetingDate: new Date().toISOString().slice(0, 10) } },
-        { step: 2, template: "decision",    category: "pv",      title: `Relance officielle — ${memberName}`, extra: { objet: `2ème relance officielle — Charges impayées : ${totalDue} MAD`, organe: "Bureau syndical", content: `Malgré notre relance amiable, les charges restent impayées. Montant total dû : ${totalDue} MAD. Délai accordé : 8 jours.` } },
-        { step: 3, template: "mise_en_demeure", category: "juridique", title: `Mise en demeure — ${memberName}`, extra: { objet: `Non-paiement des charges — ${totalDue} MAD`, delai: "48 heures", consequences: "Procédure judiciaire — frais à la charge du débiteur", preamble: `Malgré deux relances restées sans suite, les charges de copropriété demeurent impayées.` } },
-        { step: 4, template: "rapport_financier", category: "finances", title: `Rapport de dette — ${memberName}`, extra: { observations: `Rapport de situation financière du copropriétaire ${memberName}. Total impayé : ${totalDue} MAD. Nb appels : ${(debtData as any)._appelCount ?? "—"}.`, etabliPar: officeHolders?.treasurer?.fullName ?? "" } },
-        { step: 5, template: "contrat",     category: "juridique", title: `Dossier juridique — ${memberName}`,  extra: { partieB: memberName, objet: `Constitution du dossier de recouvrement judiciaire pour ${memberName}`, content: `Dossier constitué suite à l'échec des procédures amiable et officielle. Montant litigieux : ${totalDue} MAD.` } },
+      const steps: Array<{
+        step: number;
+        template: DocumentTemplate;
+        category: "pv" | "juridique" | "finances";
+        title: string;
+        extra: Record<string, string>;
+      }> = [
+        {
+          step: 1,
+          template: "convocation",
+          category: "pv",
+          title: `Relance amiable — ${memberName}`,
+          extra: {
+            objet: `1ère relance : charges impayées — Montant dû : ${totalDue} MAD`,
+            heure: "",
+            meetingDate: new Date().toISOString().slice(0, 10),
+          },
+        },
+        {
+          step: 2,
+          template: "decision",
+          category: "pv",
+          title: `Relance officielle — ${memberName}`,
+          extra: {
+            objet: `2ème relance officielle — Charges impayées : ${totalDue} MAD`,
+            organe: "Bureau syndical",
+            content: `Malgré notre relance amiable, les charges restent impayées. Montant total dû : ${totalDue} MAD. Délai accordé : 8 jours.`,
+          },
+        },
+        {
+          step: 3,
+          template: "mise_en_demeure",
+          category: "juridique",
+          title: `Mise en demeure — ${memberName}`,
+          extra: {
+            objet: `Non-paiement des charges — ${totalDue} MAD`,
+            delai: "48 heures",
+            consequences:
+              "Procédure judiciaire — frais à la charge du débiteur",
+            preamble: `Malgré deux relances restées sans suite, les charges de copropriété demeurent impayées.`,
+          },
+        },
+        {
+          step: 4,
+          template: "rapport_financier",
+          category: "finances",
+          title: `Rapport de dette — ${memberName}`,
+          extra: {
+            observations: `Rapport de situation financière du copropriétaire ${memberName}. Total impayé : ${totalDue} MAD. Nb appels : ${(debtData as any)._appelCount ?? "—"}.`,
+            etabliPar: officeHolders?.treasurer?.fullName ?? "",
+          },
+        },
+        {
+          step: 5,
+          template: "contrat",
+          category: "juridique",
+          title: `Dossier juridique — ${memberName}`,
+          extra: {
+            partieB: memberName,
+            objet: `Constitution du dossier de recouvrement judiciaire pour ${memberName}`,
+            content: `Dossier constitué suite à l'échec des procédures amiable et officielle. Montant litigieux : ${totalDue} MAD.`,
+          },
+        },
       ];
 
-      const createdDocs: { step: number; documentId: string; title: string; documentNumber: string }[] = [];
+      const createdDocs: {
+        step: number;
+        documentId: string;
+        title: string;
+        documentNumber: string;
+      }[] = [];
 
       for (const s of steps) {
-        const docNumber = await generateSequentialDocumentNumber(syndicateId, s.template);
+        const docNumber = await generateSequentialDocumentNumber(
+          syndicateId,
+          s.template,
+        );
         const verificationToken = randomUUID();
         const createdAt = new Date();
         const generated = await generateAndUploadDocument(s.template, {
-          title: s.title, syndicate: syndInfo, property, officeHolders, memberName,
-          documentNumber: docNumber, docStatus: "generated", version: "v1.0",
-          language: docLanguage, verificationUrl: buildVerifyUrl(verificationToken), signatures: [],
-          ...lotMemberData, ...(debtData as Record<string, string>), ...s.extra,
+          title: s.title,
+          syndicate: syndInfo,
+          property,
+          officeHolders,
+          memberName,
+          documentNumber: docNumber,
+          docStatus: "generated",
+          version: "v1.0",
+          language: docLanguage,
+          verificationUrl: buildVerifyUrl(verificationToken),
+          signatures: [],
+          ...lotMemberData,
+          ...(debtData as Record<string, string>),
+          ...s.extra,
         });
-        const [doc] = await db.insert(documentsTable).values({
-          title: s.title, category: s.category, status: "generated", syndicateId,
-          size: generated.fileSizeKo, fileUrl: generated.fileUrl ?? null,
-          documentNumber: generated.documentNumber, templateId: s.template,
-          version: 1, isDeleted: false, createdBy: user.userId, updatedAt: createdAt,
-          language: docLanguage, verificationToken,
-          retentionUntil: computeRetentionUntil(s.category, s.template, createdAt),
-          generationParams: { memberId, lotId, step: s.step, bundleType: "recovery" },
-        } as any).returning();
-        createdDocs.push({ step: s.step, documentId: doc.id, title: doc.title, documentNumber: doc.documentNumber ?? docNumber });
+        const [doc] = await db
+          .insert(documentsTable)
+          .values({
+            title: s.title,
+            category: s.category,
+            status: "generated",
+            syndicateId,
+            size: generated.fileSizeKo,
+            fileUrl: generated.fileUrl ?? null,
+            documentNumber: generated.documentNumber,
+            templateId: s.template,
+            version: 1,
+            isDeleted: false,
+            createdBy: user.userId,
+            updatedAt: createdAt,
+            language: docLanguage,
+            verificationToken,
+            retentionUntil: computeRetentionUntil(
+              s.category,
+              s.template,
+              createdAt,
+            ),
+            generationParams: {
+              memberId,
+              lotId,
+              step: s.step,
+              bundleType: "recovery",
+            },
+          } as any)
+          .returning();
+        createdDocs.push({
+          step: s.step,
+          documentId: doc.id,
+          title: doc.title,
+          documentNumber: doc.documentNumber ?? docNumber,
+        });
       }
 
-      await serverAuditLog(req, { action: "RECOVERY_PACKAGE_GENERATED", entity: "document", entityId: createdDocs[0]?.documentId ?? memberId, details: `Dossier recouvrement — ${memberName} — ${createdDocs.length} docs` });
+      await serverAuditLog(req, {
+        action: "RECOVERY_PACKAGE_GENERATED",
+        entity: "document",
+        entityId: createdDocs[0]?.documentId ?? memberId,
+        details: `Dossier recouvrement — ${memberName} — ${createdDocs.length} docs`,
+      });
       if (syndicateId) {
-        createAlert({ title: "Dossier de recouvrement généré", message: `${createdDocs.length} documents créés pour ${memberName}.`, type: "warning", syndicateId, target: "admin" }).catch(() => {});
+        createAlert({
+          title: "Dossier de recouvrement généré",
+          message: `${createdDocs.length} documents créés pour ${memberName}.`,
+          type: "warning",
+          syndicateId,
+          target: "admin",
+        }).catch(() => {});
       }
 
-      res.status(201).json({ data: { memberName, totalDue, documents: createdDocs, message: `Dossier de recouvrement complet : ${createdDocs.length} documents générés.` } });
+      res
+        .status(201)
+        .json({
+          data: {
+            memberName,
+            totalDue,
+            documents: createdDocs,
+            message: `Dossier de recouvrement complet : ${createdDocs.length} documents générés.`,
+          },
+        });
     } catch (err) {
       req.log.error(err);
-      res.status(500).json({ error: "Erreur serveur lors de la génération du dossier de recouvrement" });
+      res
+        .status(500)
+        .json({
+          error:
+            "Erreur serveur lors de la génération du dossier de recouvrement",
+        });
     }
   },
 );
@@ -2839,78 +4578,186 @@ router.post(
 //   4. Décision syndicale (situation)
 // Available to owners (for their own lot) and admins.
 
-router.post(
-  "/documents/sale-bundle",
-  requireAuth,
-  async (req, res) => {
-    const schema = z.object({
-      lotId:    z.string().uuid(),
-      language: z.enum(["fr", "ar", "en", "es"] as const).optional(),
-    });
-    const parsed = schema.safeParse(req.body);
-    if (!parsed.success) { res.status(400).json({ error: "Données invalides", details: parsed.error.flatten() }); return; }
+router.post("/documents/sale-bundle", requireAuth, async (req, res) => {
+  const schema = z.object({
+    lotId: z.string().uuid(),
+    language: z.enum(["fr", "ar", "en", "es"] as const).optional(),
+  });
+  const parsed = schema.safeParse(req.body);
+  if (!parsed.success) {
+    res
+      .status(400)
+      .json({ error: "Données invalides", details: parsed.error.flatten() });
+    return;
+  }
 
-    try {
-      const user = req.user!;
-      const syndicateId = user.syndicateId ?? null;
-      const { lotId, language = "fr" } = parsed.data;
-      const docLanguage: DocumentLanguage = language as DocumentLanguage;
+  try {
+    const user = req.user!;
+    const syndicateId = user.syndicateId ?? null;
+    const { lotId, language = "fr" } = parsed.data;
+    const docLanguage: DocumentLanguage = language as DocumentLanguage;
 
-      // Members can only request for their own lot
-      if (user.role === "member" || user.role === "tenant") {
-        const [lotCheck] = await db.select({ ownerId: lotsTable.ownerId }).from(lotsTable).where(eq(lotsTable.id, lotId)).limit(1);
-        if (lotCheck?.ownerId) {
-          const [mc] = await db.select({ id: membersTable.id }).from(membersTable)
-            .where(and(eq(membersTable.id, lotCheck.ownerId), eq(membersTable.email, user.email ?? ""))).limit(1);
-          if (!mc) { res.status(403).json({ error: "Vous ne pouvez demander ce dossier que pour votre propre lot" }); return; }
+    // Members can only request for their own lot
+    if (user.role === "member" || user.role === "tenant") {
+      const [lotCheck] = await db
+        .select({ ownerId: lotsTable.ownerId })
+        .from(lotsTable)
+        .where(eq(lotsTable.id, lotId))
+        .limit(1);
+      if (lotCheck?.ownerId) {
+        const [mc] = await db
+          .select({ id: membersTable.id })
+          .from(membersTable)
+          .where(
+            and(
+              eq(membersTable.id, lotCheck.ownerId),
+              eq(membersTable.email, user.email ?? ""),
+            ),
+          )
+          .limit(1);
+        if (!mc) {
+          res
+            .status(403)
+            .json({
+              error:
+                "Vous ne pouvez demander ce dossier que pour votre propre lot",
+            });
+          return;
         }
       }
+    }
 
-      const [syndInfo, property, officeHolders, lotMemberData, paiementData] = await Promise.all([
-        getSyndicateInfo(syndicateId), getPropertyInfo(syndicateId), getOfficeHolders(syndicateId),
-        getLotMemberData(lotId, undefined), getAttestationPaiementData(lotId, undefined, syndicateId),
+    const [syndInfo, property, officeHolders, lotMemberData, paiementData] =
+      await Promise.all([
+        getSyndicateInfo(syndicateId),
+        getPropertyInfo(syndicateId),
+        getOfficeHolders(syndicateId),
+        getLotMemberData(lotId, undefined),
+        getAttestationPaiementData(lotId, undefined, syndicateId),
       ]);
 
-      const memberName = lotMemberData.memberName || "Propriétaire";
-      const bundleItems: Array<{ template: DocumentTemplate; category: "attestation" | "finances" | "pv"; title: string; extra?: Record<string, string> }> = [
-        { template: "attestation_propriete", category: "attestation", title: `Attestation de propriété — ${memberName}` },
-        { template: "attestation_paiement",  category: "attestation", title: `Attestation de paiement — ${memberName}` },
-        { template: "rapport_financier",     category: "finances",    title: `Rapport financier — Dossier de vente` },
-        { template: "decision",              category: "pv",          title: `Situation syndicale — ${memberName}`, extra: { organe: "Bureau syndical", objet: `Certification pour dossier de vente — Lot ${lotMemberData.lotNumber ?? lotId}` } },
-      ];
+    const memberName = lotMemberData.memberName || "Propriétaire";
+    const bundleItems: Array<{
+      template: DocumentTemplate;
+      category: "attestation" | "finances" | "pv";
+      title: string;
+      extra?: Record<string, string>;
+    }> = [
+      {
+        template: "attestation_propriete",
+        category: "attestation",
+        title: `Attestation de propriété — ${memberName}`,
+      },
+      {
+        template: "attestation_paiement",
+        category: "attestation",
+        title: `Attestation de paiement — ${memberName}`,
+      },
+      {
+        template: "rapport_financier",
+        category: "finances",
+        title: `Rapport financier — Dossier de vente`,
+      },
+      {
+        template: "decision",
+        category: "pv",
+        title: `Situation syndicale — ${memberName}`,
+        extra: {
+          organe: "Bureau syndical",
+          objet: `Certification pour dossier de vente — Lot ${lotMemberData.lotNumber ?? lotId}`,
+        },
+      },
+    ];
 
-      const createdDocs: { documentId: string; title: string; templateId: string; documentNumber: string }[] = [];
+    const createdDocs: {
+      documentId: string;
+      title: string;
+      templateId: string;
+      documentNumber: string;
+    }[] = [];
 
-      for (const item of bundleItems) {
-        const docNumber = await generateSequentialDocumentNumber(syndicateId, item.template);
-        const verificationToken = randomUUID();
-        const createdAt = new Date();
-        const generated = await generateAndUploadDocument(item.template, {
-          title: item.title, syndicate: syndInfo, property, officeHolders, memberName,
-          documentNumber: docNumber, docStatus: "generated", version: "v1.0",
-          language: docLanguage, verificationUrl: buildVerifyUrl(verificationToken), signatures: [],
-          lotId, ...lotMemberData, ...paiementData, ...(item.extra ?? {}),
-        });
-        const [doc] = await db.insert(documentsTable).values({
-          title: item.title, category: item.category, status: "generated", syndicateId,
-          size: generated.fileSizeKo, fileUrl: generated.fileUrl ?? null,
-          documentNumber: generated.documentNumber, templateId: item.template,
-          version: 1, isDeleted: false, createdBy: user.userId, updatedAt: createdAt,
-          language: docLanguage, verificationToken,
-          retentionUntil: computeRetentionUntil(item.category, item.template, createdAt),
+    for (const item of bundleItems) {
+      const docNumber = await generateSequentialDocumentNumber(
+        syndicateId,
+        item.template,
+      );
+      const verificationToken = randomUUID();
+      const createdAt = new Date();
+      const generated = await generateAndUploadDocument(item.template, {
+        title: item.title,
+        syndicate: syndInfo,
+        property,
+        officeHolders,
+        memberName,
+        documentNumber: docNumber,
+        docStatus: "generated",
+        version: "v1.0",
+        language: docLanguage,
+        verificationUrl: buildVerifyUrl(verificationToken),
+        signatures: [],
+        lotId,
+        ...lotMemberData,
+        ...paiementData,
+        ...(item.extra ?? {}),
+      });
+      const [doc] = await db
+        .insert(documentsTable)
+        .values({
+          title: item.title,
+          category: item.category,
+          status: "generated",
+          syndicateId,
+          size: generated.fileSizeKo,
+          fileUrl: generated.fileUrl ?? null,
+          documentNumber: generated.documentNumber,
+          templateId: item.template,
+          version: 1,
+          isDeleted: false,
+          createdBy: user.userId,
+          updatedAt: createdAt,
+          language: docLanguage,
+          verificationToken,
+          retentionUntil: computeRetentionUntil(
+            item.category,
+            item.template,
+            createdAt,
+          ),
           generationParams: { lotId, bundleType: "sale" },
-        } as any).returning();
-        createdDocs.push({ documentId: doc.id, title: doc.title, templateId: item.template, documentNumber: doc.documentNumber ?? docNumber });
-      }
-
-      await serverAuditLog(req, { action: "SALE_BUNDLE_GENERATED", entity: "document", entityId: createdDocs[0]?.documentId ?? lotId, details: `Dossier de vente — ${memberName} — Lot ${lotId} — ${createdDocs.length} docs` });
-      res.status(201).json({ data: { memberName, lotNumber: lotMemberData.lotNumber, documents: createdDocs, message: `Dossier de vente complet : ${createdDocs.length} documents générés.` } });
-    } catch (err) {
-      req.log.error(err);
-      res.status(500).json({ error: "Erreur serveur lors de la génération du dossier de vente" });
+        } as any)
+        .returning();
+      createdDocs.push({
+        documentId: doc.id,
+        title: doc.title,
+        templateId: item.template,
+        documentNumber: doc.documentNumber ?? docNumber,
+      });
     }
-  },
-);
+
+    await serverAuditLog(req, {
+      action: "SALE_BUNDLE_GENERATED",
+      entity: "document",
+      entityId: createdDocs[0]?.documentId ?? lotId,
+      details: `Dossier de vente — ${memberName} — Lot ${lotId} — ${createdDocs.length} docs`,
+    });
+    res
+      .status(201)
+      .json({
+        data: {
+          memberName,
+          lotNumber: lotMemberData.lotNumber,
+          documents: createdDocs,
+          message: `Dossier de vente complet : ${createdDocs.length} documents générés.`,
+        },
+      });
+  } catch (err) {
+    req.log.error(err);
+    res
+      .status(500)
+      .json({
+        error: "Erreur serveur lors de la génération du dossier de vente",
+      });
+  }
+});
 
 // ─── POST /documents/ag-bundle — Assemblée Générale document bundle ─────────────
 // Generates AG documentation package (secretary/admin only):
@@ -2924,70 +4771,189 @@ router.post(
   requireRole("syndicate_admin", "super_admin"),
   async (req, res) => {
     const schema = z.object({
-      meetingId:   z.string().uuid().optional(),
+      meetingId: z.string().uuid().optional(),
       meetingDate: z.string().optional(),
-      lieu:        z.string().max(300).optional(),
-      heure:       z.string().max(50).optional(),
-      agendaText:  z.string().max(5000).optional(),
-      language:    z.enum(["fr", "ar", "en", "es"] as const).optional(),
+      lieu: z.string().max(300).optional(),
+      heure: z.string().max(50).optional(),
+      agendaText: z.string().max(5000).optional(),
+      language: z.enum(["fr", "ar", "en", "es"] as const).optional(),
     });
     const parsed = schema.safeParse(req.body);
-    if (!parsed.success) { res.status(400).json({ error: "Données invalides", details: parsed.error.flatten() }); return; }
+    if (!parsed.success) {
+      res
+        .status(400)
+        .json({ error: "Données invalides", details: parsed.error.flatten() });
+      return;
+    }
 
     try {
       const user = req.user!;
       const syndicateId = user.syndicateId ?? null;
-      if (!syndicateId && user.role !== "super_admin") { res.status(403).json({ error: "syndicateId requis" }); return; }
-      const { meetingId, meetingDate, lieu, heure, agendaText, language = "fr" } = parsed.data;
+      if (!syndicateId && user.role !== "super_admin") {
+        res.status(403).json({ error: "syndicateId requis" });
+        return;
+      }
+      const {
+        meetingId,
+        meetingDate,
+        lieu,
+        heure,
+        agendaText,
+        language = "fr",
+      } = parsed.data;
       const docLanguage: DocumentLanguage = language as DocumentLanguage;
 
       const [syndInfo, property, officeHolders] = await Promise.all([
-        getSyndicateInfo(syndicateId), getPropertyInfo(syndicateId), getOfficeHolders(syndicateId),
+        getSyndicateInfo(syndicateId),
+        getPropertyInfo(syndicateId),
+        getOfficeHolders(syndicateId),
       ]);
 
       const meetingData = meetingId ? await getMeetingData(meetingId) : {};
-      const agDate = meetingDate ?? meetingData.meetingDate ?? new Date().toISOString().slice(0, 10);
+      const agDate =
+        meetingDate ??
+        meetingData.meetingDate ??
+        new Date().toISOString().slice(0, 10);
       const agTitle = `AG du ${agDate}`;
 
-      const agDocs: Array<{ template: DocumentTemplate; category: "pv"; title: string; extra: Record<string, string> }> = [
-        { template: "convocation", category: "pv", title: `Convocation — ${agTitle}`, extra: { meetingDate: agDate, lieu: lieu ?? meetingData.lieu ?? "", heure: heure ?? meetingData.heure ?? "", objet: agendaText ?? meetingData.agendaText ?? "Assemblée Générale annuelle" } },
-        { template: "pv",          category: "pv", title: `Procès-verbal — ${agTitle}`, extra: { meetingDate: agDate, lieu: lieu ?? meetingData.lieu ?? "", heure: heure ?? meetingData.heure ?? "", agendaText: agendaText ?? meetingData.agendaText ?? "" } },
-        { template: "decision",    category: "pv", title: `Décisions AG — ${agTitle}`,  extra: { organe: "Assemblée Générale", objet: `Résolutions de l'AG du ${agDate}`, meetingDate: agDate } },
+      const agDocs: Array<{
+        template: DocumentTemplate;
+        category: "pv";
+        title: string;
+        extra: Record<string, string>;
+      }> = [
+        {
+          template: "convocation",
+          category: "pv",
+          title: `Convocation — ${agTitle}`,
+          extra: {
+            meetingDate: agDate,
+            lieu: lieu ?? meetingData.lieu ?? "",
+            heure: heure ?? meetingData.heure ?? "",
+            objet:
+              agendaText ??
+              meetingData.agendaText ??
+              "Assemblée Générale annuelle",
+          },
+        },
+        {
+          template: "pv",
+          category: "pv",
+          title: `Procès-verbal — ${agTitle}`,
+          extra: {
+            meetingDate: agDate,
+            lieu: lieu ?? meetingData.lieu ?? "",
+            heure: heure ?? meetingData.heure ?? "",
+            agendaText: agendaText ?? meetingData.agendaText ?? "",
+          },
+        },
+        {
+          template: "decision",
+          category: "pv",
+          title: `Décisions AG — ${agTitle}`,
+          extra: {
+            organe: "Assemblée Générale",
+            objet: `Résolutions de l'AG du ${agDate}`,
+            meetingDate: agDate,
+          },
+        },
       ];
 
-      const createdDocs: { documentId: string; title: string; templateId: string; documentNumber: string }[] = [];
+      const createdDocs: {
+        documentId: string;
+        title: string;
+        templateId: string;
+        documentNumber: string;
+      }[] = [];
 
       for (const item of agDocs) {
-        const docNumber = await generateSequentialDocumentNumber(syndicateId, item.template);
+        const docNumber = await generateSequentialDocumentNumber(
+          syndicateId,
+          item.template,
+        );
         const verificationToken = randomUUID();
         const createdAt = new Date();
         const generated = await generateAndUploadDocument(item.template, {
-          title: item.title, syndicate: syndInfo, property, officeHolders,
-          documentNumber: docNumber, docStatus: "generated", version: "v1.0",
-          language: docLanguage, verificationUrl: buildVerifyUrl(verificationToken), signatures: [],
-          ...meetingData, ...item.extra,
+          title: item.title,
+          syndicate: syndInfo,
+          property,
+          officeHolders,
+          documentNumber: docNumber,
+          docStatus: "generated",
+          version: "v1.0",
+          language: docLanguage,
+          verificationUrl: buildVerifyUrl(verificationToken),
+          signatures: [],
+          ...meetingData,
+          ...item.extra,
         });
-        const [doc] = await db.insert(documentsTable).values({
-          title: item.title, category: item.category, status: "generated", syndicateId,
-          size: generated.fileSizeKo, fileUrl: generated.fileUrl ?? null,
-          documentNumber: generated.documentNumber, templateId: item.template,
-          version: 1, isDeleted: false, createdBy: user.userId, updatedAt: createdAt,
-          language: docLanguage, verificationToken,
-          retentionUntil: computeRetentionUntil(item.category, item.template, createdAt),
-          generationParams: { meetingId: meetingId ?? null, bundleType: "ag" },
-        } as any).returning();
-        createdDocs.push({ documentId: doc.id, title: doc.title, templateId: item.template, documentNumber: doc.documentNumber ?? docNumber });
+        const [doc] = await db
+          .insert(documentsTable)
+          .values({
+            title: item.title,
+            category: item.category,
+            status: "generated",
+            syndicateId,
+            size: generated.fileSizeKo,
+            fileUrl: generated.fileUrl ?? null,
+            documentNumber: generated.documentNumber,
+            templateId: item.template,
+            version: 1,
+            isDeleted: false,
+            createdBy: user.userId,
+            updatedAt: createdAt,
+            language: docLanguage,
+            verificationToken,
+            retentionUntil: computeRetentionUntil(
+              item.category,
+              item.template,
+              createdAt,
+            ),
+            generationParams: {
+              meetingId: meetingId ?? null,
+              bundleType: "ag",
+            },
+          } as any)
+          .returning();
+        createdDocs.push({
+          documentId: doc.id,
+          title: doc.title,
+          templateId: item.template,
+          documentNumber: doc.documentNumber ?? docNumber,
+        });
       }
 
-      await serverAuditLog(req, { action: "AG_BUNDLE_GENERATED", entity: "document", entityId: createdDocs[0]?.documentId ?? (syndicateId ?? ""), details: `Dossier AG — ${agTitle} — ${createdDocs.length} docs` });
+      await serverAuditLog(req, {
+        action: "AG_BUNDLE_GENERATED",
+        entity: "document",
+        entityId: createdDocs[0]?.documentId ?? syndicateId ?? "",
+        details: `Dossier AG — ${agTitle} — ${createdDocs.length} docs`,
+      });
       if (syndicateId) {
-        createAlert({ title: "Dossier AG généré", message: `${createdDocs.length} documents pour ${agTitle}.`, type: "info", syndicateId, target: "admin" }).catch(() => {});
+        createAlert({
+          title: "Dossier AG généré",
+          message: `${createdDocs.length} documents pour ${agTitle}.`,
+          type: "info",
+          syndicateId,
+          target: "admin",
+        }).catch(() => {});
       }
 
-      res.status(201).json({ data: { agTitle, meetingDate: agDate, documents: createdDocs, message: `Dossier AG complet : ${createdDocs.length} documents générés.` } });
+      res
+        .status(201)
+        .json({
+          data: {
+            agTitle,
+            meetingDate: agDate,
+            documents: createdDocs,
+            message: `Dossier AG complet : ${createdDocs.length} documents générés.`,
+          },
+        });
     } catch (err) {
       req.log.error(err);
-      res.status(500).json({ error: "Erreur serveur lors de la génération du dossier AG" });
+      res
+        .status(500)
+        .json({ error: "Erreur serveur lors de la génération du dossier AG" });
     }
   },
 );
@@ -2997,13 +4963,27 @@ router.post(
 router.get("/documents/:id", requireAuth, async (req, res) => {
   const id = String(req.params.id);
   try {
-    const [doc] = await db.select().from(documentsTable).where(eq(documentsTable.id, id));
-    if (!doc || doc.isDeleted) { res.status(404).json({ error: "Document introuvable" }); return; }
-    if (req.user!.role !== "super_admin" && doc.syndicateId !== req.user!.syndicateId) {
-      res.status(403).json({ error: "Accès refusé" }); return;
+    const [doc] = await db
+      .select()
+      .from(documentsTable)
+      .where(eq(documentsTable.id, id));
+    if (!doc || doc.isDeleted) {
+      res.status(404).json({ error: "Document introuvable" });
+      return;
     }
-    if ((req.user!.role === "member" || req.user!.role === "tenant") && doc.status !== "published") {
-      res.status(403).json({ error: "Document non publié" }); return;
+    if (
+      req.user!.role !== "super_admin" &&
+      doc.syndicateId !== req.user!.syndicateId
+    ) {
+      res.status(403).json({ error: "Accès refusé" });
+      return;
+    }
+    if (
+      (req.user!.role === "member" || req.user!.role === "tenant") &&
+      doc.status !== "published"
+    ) {
+      res.status(403).json({ error: "Document non publié" });
+      return;
     }
     res.json({ data: doc });
   } catch (err) {
@@ -3014,45 +4994,142 @@ router.get("/documents/:id", requireAuth, async (req, res) => {
 
 // ─── GET /documents/local-docs/:uuid/:filename — serve local-disk fallback PDFs
 
-router.get("/documents/local-docs/:uuid/:filename", requireAuth, async (req, res) => {
-  const uuid     = String(req.params.uuid);
-  const filename = String(req.params.filename);
-  if (!uuid || !filename || /[/\\]/.test(uuid) || /[/\\]/.test(filename)) {
-    res.status(400).json({ error: "Chemin invalide" }); return;
-  }
-  try {
-    const buffer = await readLocalDocFile(uuid, filename);
-    res.setHeader("Content-Type", "application/pdf");
-    res.setHeader("Content-Disposition", `attachment; filename="${filename}"`);
-    res.setHeader("Cache-Control", "private, max-age=3600");
-    res.send(buffer);
-  } catch {
-    res.status(404).json({ error: "Fichier introuvable — il a peut-être expiré après un redémarrage du serveur." });
-  }
-});
+router.get(
+  "/documents/local-docs/:uuid/:filename",
+  requireAuth,
+  async (req, res) => {
+    const uuid = String(req.params.uuid);
+    const filename = String(req.params.filename);
+    if (
+      !/^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(
+        uuid,
+      ) ||
+      !filename ||
+      /[/\\]/.test(filename) ||
+      filename === "." ||
+      filename === ".." ||
+      filename.includes("..")
+    ) {
+      res.status(400).json({ error: "Chemin invalide" });
+      return;
+    }
+    try {
+      const localPath = `/local-docs/${uuid}/${filename}`;
+      const [doc] = await db
+        .select({
+          syndicateId: documentsTable.syndicateId,
+          status: documentsTable.status,
+          category: documentsTable.category,
+          isDeleted: documentsTable.isDeleted,
+        })
+        .from(documentsTable)
+        .where(eq(documentsTable.fileUrl, localPath))
+        .limit(1);
+      if (!doc || doc.isDeleted) {
+        res.status(404).json({ error: "Fichier introuvable" });
+        return;
+      }
+      if (req.user!.role === "super_admin") {
+        if (req.query.supervision !== "true") {
+          res.status(403).json({
+            error: "La supervision est requise pour accéder à ce document.",
+            code: "SUPERVISION_REQUIRED",
+          });
+          return;
+        }
+      } else if (
+        !req.user!.syndicateId ||
+        doc.syndicateId !== req.user!.syndicateId
+      ) {
+        res.status(403).json({ error: "Accès refusé" });
+        return;
+      }
+      if (
+        (req.user!.role === "member" || req.user!.role === "tenant") &&
+        doc.status !== "published"
+      ) {
+        res.status(403).json({ error: "Document non publié" });
+        return;
+      }
+      if (
+        req.user!.role === "tenant" &&
+        !["bail", "reglement", "reglement_interieur"].includes(doc.category)
+      ) {
+        res.status(403).json({ error: "Accès refusé" });
+        return;
+      }
+      const buffer = await readLocalDocFile(uuid, filename);
+      res.setHeader("Content-Type", "application/pdf");
+      res.setHeader(
+        "Content-Disposition",
+        `attachment; filename="${filename}"`,
+      );
+      res.setHeader("Cache-Control", "private, no-store");
+      res.setHeader("Referrer-Policy", "no-referrer");
+      res.send(buffer);
+    } catch {
+      res
+        .status(404)
+        .json({
+          error:
+            "Fichier introuvable — il a peut-être expiré après un redémarrage du serveur.",
+        });
+    }
+  },
+);
 
 // ─── GET /documents/:id/download-url ──────────────────────────────────────────
 
 router.get("/documents/:id/download-url", requireAuth, async (req, res) => {
   const id = String(req.params.id);
   try {
-    const [doc] = await db.select().from(documentsTable).where(eq(documentsTable.id, id));
-    if (!doc || doc.isDeleted) { res.status(404).json({ error: "Document introuvable" }); return; }
-    if (req.user!.role !== "super_admin" && doc.syndicateId !== req.user!.syndicateId) {
-      res.status(403).json({ error: "Accès refusé" }); return;
+    const [doc] = await db
+      .select()
+      .from(documentsTable)
+      .where(eq(documentsTable.id, id));
+    if (!doc || doc.isDeleted) {
+      res.status(404).json({ error: "Document introuvable" });
+      return;
     }
-    if ((req.user!.role === "member" || req.user!.role === "tenant") && doc.status !== "published") {
-      res.status(403).json({ error: "Document non publié" }); return;
+    if (
+      req.user!.role !== "super_admin" &&
+      doc.syndicateId !== req.user!.syndicateId
+    ) {
+      res.status(403).json({ error: "Accès refusé" });
+      return;
+    }
+    if (
+      (req.user!.role === "member" || req.user!.role === "tenant") &&
+      doc.status !== "published"
+    ) {
+      res.status(403).json({ error: "Document non publié" });
+      return;
     }
     if (!doc.fileUrl) {
-      res.status(404).json({ error: "Aucun fichier PDF généré pour ce document" }); return;
+      res
+        .status(404)
+        .json({ error: "Aucun fichier PDF généré pour ce document" });
+      return;
     }
     const url = await signDocumentDownloadUrl(doc.fileUrl, 3600);
-    await serverAuditLog(req, { action: "DOCUMENT_DOWNLOAD", entity: "document", entityId: id, details: doc.title });
-    res.json({ url, expiresIn: 3600, filename: `${doc.documentNumber ?? doc.id}.pdf` });
+    await serverAuditLog(req, {
+      action: "DOCUMENT_DOWNLOAD",
+      entity: "document",
+      entityId: id,
+      details: doc.title,
+    });
+    res.json({
+      url,
+      expiresIn: 3600,
+      filename: `${doc.documentNumber ?? doc.id}.pdf`,
+    });
   } catch (err) {
     req.log.error(err);
-    res.status(500).json({ error: "Erreur lors de la génération du lien de téléchargement" });
+    res
+      .status(500)
+      .json({
+        error: "Erreur lors de la génération du lien de téléchargement",
+      });
   }
 });
 
@@ -3064,12 +5141,22 @@ router.post(
   requireRole("super_admin", "syndicate_admin"),
   async (req, res) => {
     if (req.user!.role === "syndicate_admin" && !req.user!.syndicateId) {
-      res.status(403).json({ error: "Accès refusé : syndicateId manquant dans le jeton" }); return;
+      res
+        .status(403)
+        .json({ error: "Accès refusé : syndicateId manquant dans le jeton" });
+      return;
     }
     const schema = z.object({
-      title:      z.string().min(1).max(500),
-      category:   z.enum(["reglements", "statuts", "pv", "juridique", "finances", "attestation"]),
-      content:    z.string().max(500_000).optional(),
+      title: z.string().min(1).max(500),
+      category: z.enum([
+        "reglements",
+        "statuts",
+        "pv",
+        "juridique",
+        "finances",
+        "attestation",
+      ]),
+      content: z.string().max(500_000).optional(),
       memberName: z.string().optional(),
       // Scopes {{property.*}} injection to a specific residence; otherwise
       // aggregates across all buildings of the syndicate.
@@ -3077,29 +5164,31 @@ router.post(
       // Optional direct template override — bypasses CATEGORY_TO_TEMPLATE lookup
       // Includes all 21 templates: 9 original + 11 new enterprise + reglement
       // V1 — 12 essential production templates
-      templateId: z.enum([
-        "attestation",
-        "attestation_residence",
-        "attestation_propriete",
-        "attestation_paiement",
-        "convocation",
-        "pv",
-        "decision",
-        "rapport_financier",
-        "appel_de_fonds",
-        "facture",
-        "contrat",
-        "mise_en_demeure",
-      ] as const).optional(),
+      templateId: z
+        .enum([
+          "attestation",
+          "attestation_residence",
+          "attestation_propriete",
+          "attestation_paiement",
+          "convocation",
+          "pv",
+          "decision",
+          "rapport_financier",
+          "appel_de_fonds",
+          "facture",
+          "contrat",
+          "mise_en_demeure",
+        ] as const)
+        .optional(),
       // ── Entity IDs — auto-load data from DB instead of manual entry ───────────
-      meetingId:        z.string().optional(),
-      lotId:            z.string().optional(),
-      memberId:         z.string().optional(),
-      appelDeFondsId:   z.string().optional(),
-      budgetId:         z.string().optional(),
-      invoiceId:        z.string().optional(),
+      meetingId: z.string().optional(),
+      lotId: z.string().optional(),
+      memberId: z.string().optional(),
+      appelDeFondsId: z.string().optional(),
+      budgetId: z.string().optional(),
+      invoiceId: z.string().optional(),
       // Internal: pass when re-generating a signed document so existing signatures load
-      _existingDocumentId:    z.string().optional(),
+      _existingDocumentId: z.string().optional(),
       // Output language — the mobile UI always presents an explicit choice; "fr" is
       // only used as a server-side fallback for callers that omit it entirely.
       language: z.enum(["fr", "ar", "en", "es"] as const).optional(),
@@ -3107,57 +5196,71 @@ router.post(
       // contract/mandate/authorization validity end date. ISO date/datetime string.
       expiresAt: z.string().optional(),
       // Extra fields passed through to the template
-      lieu:              z.string().optional(),
-      meetingDate:       z.string().optional(),
-      heure:             z.string().optional(),
-      agendaText:        z.string().optional(),
+      lieu: z.string().optional(),
+      meetingDate: z.string().optional(),
+      heure: z.string().optional(),
+      agendaText: z.string().optional(),
       deliberationsText: z.string().optional(),
-      resolutionsText:   z.string().optional(),
-      periode:           z.string().optional(),
-      organe:            z.string().optional(),
-      objet:             z.string().optional(),
-      delai:             z.string().optional(),
-      priorite:          z.string().optional(),
-      modeEnvoi:         z.string().optional(),
-      preamble:          z.string().optional(),
-      consequences:      z.string().optional(),
-      activites:         z.string().optional(),
-      indicateurs:       z.string().optional(),
-      perspectives:      z.string().optional(),
-      synthese:          z.string().optional(),
-      president:         z.string().optional(),
-      secretaire:        z.string().optional(),
+      resolutionsText: z.string().optional(),
+      periode: z.string().optional(),
+      organe: z.string().optional(),
+      objet: z.string().optional(),
+      delai: z.string().optional(),
+      priorite: z.string().optional(),
+      modeEnvoi: z.string().optional(),
+      preamble: z.string().optional(),
+      consequences: z.string().optional(),
+      activites: z.string().optional(),
+      indicateurs: z.string().optional(),
+      perspectives: z.string().optional(),
+      synthese: z.string().optional(),
+      president: z.string().optional(),
+      secretaire: z.string().optional(),
       // ── Template-specific optional fields ───────────────────────────────────
       // rapport_financier / contrat / mise_en_demeure
-      etabliPar:         z.string().optional(),
-      approuvePar:       z.string().optional(),
-      exercice:          z.string().optional(),
-      observations:      z.string().optional(),
-      totalPrevu:        z.string().optional(),
-      totalRealise:      z.string().optional(),
+      etabliPar: z.string().optional(),
+      approuvePar: z.string().optional(),
+      exercice: z.string().optional(),
+      observations: z.string().optional(),
+      totalPrevu: z.string().optional(),
+      totalRealise: z.string().optional(),
       // contrat
-      conditions:        z.string().optional(),
-      dateDebut:         z.string().optional(),
-      dateFin:           z.string().optional(),
+      conditions: z.string().optional(),
+      dateDebut: z.string().optional(),
+      dateFin: z.string().optional(),
       // pv / convocation / decision
-      dateMeeting:       z.string().optional(),
-      presidentSeance:   z.string().optional(),
-      participants:      z.string().optional(),
-      ordreJour:         z.string().optional(),
-      deroulement:       z.string().optional(),
-      decisions:         z.string().optional(),
-      prochaineReunion:  z.string().optional(),
+      dateMeeting: z.string().optional(),
+      presidentSeance: z.string().optional(),
+      participants: z.string().optional(),
+      ordreJour: z.string().optional(),
+      deroulement: z.string().optional(),
+      decisions: z.string().optional(),
+      prochaineReunion: z.string().optional(),
     });
 
     const result = schema.safeParse(req.body);
     if (!result.success) {
-      res.status(400).json({ error: "Données invalides", details: result.error.flatten() }); return;
+      res
+        .status(400)
+        .json({ error: "Données invalides", details: result.error.flatten() });
+      return;
     }
 
     try {
-      const { title, category, content, memberName, templateId, buildingId, language, expiresAt, ...extraFields } = result.data;
+      const {
+        title,
+        category,
+        content,
+        memberName,
+        templateId,
+        buildingId,
+        language,
+        expiresAt,
+        ...extraFields
+      } = result.data;
       const syndicateId = req.user!.syndicateId || null;
-      const docLanguage: DocumentLanguage = (language as DocumentLanguage) ?? "fr";
+      const docLanguage: DocumentLanguage =
+        (language as DocumentLanguage) ?? "fr";
 
       // 1. Fetch full syndicate branding + real residence/office-holder data
       const [syndInfo, property, officeHolders] = await Promise.all([
@@ -3167,10 +5270,14 @@ router.post(
       ]);
 
       // 2. Determine template (direct override > category mapping > fallback)
-      const template: DocumentTemplate = templateId ?? CATEGORY_TO_TEMPLATE[category] ?? "attestation";
+      const template: DocumentTemplate =
+        templateId ?? CATEGORY_TO_TEMPLATE[category] ?? "attestation";
 
       // 3. Mint a real sequential document number (REG-2026-0001, PV-2026-0001, …)
-      const documentNumber = await generateSequentialDocumentNumber(syndicateId, template);
+      const documentNumber = await generateSequentialDocumentNumber(
+        syndicateId,
+        template,
+      );
 
       // 3b. Mint the QR verification token + its real, environment-portable public URL
       const verificationToken = randomUUID();
@@ -3178,46 +5285,80 @@ router.post(
 
       // 4. Load entity-specific data from DB (entity-driven generation)
       const entityLoads: Promise<Record<string, string>>[] = [];
-      if (extraFields.meetingId)      entityLoads.push(getMeetingData(extraFields.meetingId as string));
-      if (extraFields.appelDeFondsId) entityLoads.push(getAppelDeFondsData(extraFields.appelDeFondsId as string));
-      if (extraFields.budgetId)       entityLoads.push(getBudgetData(extraFields.budgetId as string));
+      if (extraFields.meetingId)
+        entityLoads.push(getMeetingData(extraFields.meetingId as string));
+      if (extraFields.appelDeFondsId)
+        entityLoads.push(
+          getAppelDeFondsData(extraFields.appelDeFondsId as string),
+        );
+      if (extraFields.budgetId)
+        entityLoads.push(getBudgetData(extraFields.budgetId as string));
       if (extraFields.lotId || extraFields.memberId) {
-        entityLoads.push(getLotMemberData(extraFields.lotId as string | undefined, extraFields.memberId as string | undefined));
+        entityLoads.push(
+          getLotMemberData(
+            extraFields.lotId as string | undefined,
+            extraFields.memberId as string | undefined,
+          ),
+        );
       }
       if (extraFields.invoiceId) {
         entityLoads.push(getInvoiceData(extraFields.invoiceId as string));
       }
       // Attestation paiement — auto-calculate paid charges for the lot
       if (template === "attestation_paiement" && extraFields.lotId) {
-        entityLoads.push(getAttestationPaiementData(
-          extraFields.lotId as string,
-          extraFields.periode as string | undefined ?? null,
-          syndicateId,
-        ));
+        entityLoads.push(
+          getAttestationPaiementData(
+            extraFields.lotId as string,
+            (extraFields.periode as string | undefined) ?? null,
+            syndicateId,
+          ),
+        );
       }
       // Financial KPI dashboard — loaded for all financial templates + rapport_financier
-      const isFinancialTemplate = ["appel_de_fonds", "facture", "rapport_financier"].includes(template);
+      const isFinancialTemplate = [
+        "appel_de_fonds",
+        "facture",
+        "rapport_financier",
+      ].includes(template);
       if (isFinancialTemplate) {
         const kpiBuildingId = buildingId ?? null;
-        const kpiYear = extraFields.exercice ? parseInt(extraFields.exercice as string) : null;
-        entityLoads.push(getFinancialDashboardData(syndicateId, kpiBuildingId, kpiYear));
+        const kpiYear = extraFields.exercice
+          ? parseInt(extraFields.exercice as string)
+          : null;
+        entityLoads.push(
+          getFinancialDashboardData(syndicateId, kpiBuildingId, kpiYear),
+        );
       }
       const entityResults = await Promise.all(entityLoads);
-      const entityData: Record<string, string> = Object.assign({}, ...entityResults);
+      const entityData: Record<string, string> = Object.assign(
+        {},
+        ...entityResults,
+      );
 
       // ── Auto-inject établiPar / approuvePar from office-holders ────────────
       // Only set when not already supplied by the user or an entity loader,
       // so explicit user input always wins.
-      if (officeHolders?.treasurer?.fullName && !extraFields.etabliPar && !entityData.etabliPar) {
-        entityData.etabliPar  = officeHolders.treasurer.fullName;
+      if (
+        officeHolders?.treasurer?.fullName &&
+        !extraFields.etabliPar &&
+        !entityData.etabliPar
+      ) {
+        entityData.etabliPar = officeHolders.treasurer.fullName;
       }
-      if (officeHolders?.president?.fullName && !extraFields.approuvePar && !entityData.approuvePar) {
+      if (
+        officeHolders?.president?.fullName &&
+        !extraFields.approuvePar &&
+        !entityData.approuvePar
+      ) {
         entityData.approuvePar = officeHolders.president.fullName;
       }
 
       // Also load existing signatures for documents being regenerated after signing
-      const existingDocId = extraFields._existingDocumentId as string | undefined;
-      let loadedSignatures: import("../lib/documentPdf.js").InlineSignatureInfo[] = [];
+      const existingDocId = extraFields._existingDocumentId as
+        | string
+        | undefined;
+      let loadedSignatures: import("../lib/documentPdf.js").InlineSignatureInfo[] =
+        [];
       if (existingDocId) {
         const sigRows = await db
           .select()
@@ -3250,8 +5391,8 @@ router.post(
         language: docLanguage,
         verificationUrl,
         signatures: loadedSignatures,
-        ...entityData,   // entity DB data first (auto-populated)
-        ...extraFields,  // user-provided fields override auto-populated ones
+        ...entityData, // entity DB data first (auto-populated)
+        ...extraFields, // user-provided fields override auto-populated ones
       });
 
       // 5. Insert document record
@@ -3275,24 +5416,36 @@ router.post(
           updatedAt: createdAt,
           language: docLanguage,
           verificationToken,
-          expiresAt: parsedExpiresAt && !Number.isNaN(parsedExpiresAt.getTime()) ? parsedExpiresAt : null,
+          expiresAt:
+            parsedExpiresAt && !Number.isNaN(parsedExpiresAt.getTime())
+              ? parsedExpiresAt
+              : null,
           // Legal retention — computed from category/template, see lib/retention.ts
           retentionUntil: computeRetentionUntil(category, template, createdAt),
           // Store entity IDs + form fields to enable full PDF regeneration with inline signatures
           generationParams: {
-            buildingId:     buildingId ?? null,
-            meetingId:      (extraFields.meetingId        as string | undefined) ?? null,
-            lotId:          (extraFields.lotId            as string | undefined) ?? null,
-            memberId:       (extraFields.memberId         as string | undefined) ?? null,
-            appelDeFondsId: (extraFields.appelDeFondsId   as string | undefined) ?? null,
-            budgetId:       (extraFields.budgetId         as string | undefined) ?? null,
-            invoiceId:      (extraFields.invoiceId        as string | undefined) ?? null,
-            memberName:     memberName ?? null,
+            buildingId: buildingId ?? null,
+            meetingId: (extraFields.meetingId as string | undefined) ?? null,
+            lotId: (extraFields.lotId as string | undefined) ?? null,
+            memberId: (extraFields.memberId as string | undefined) ?? null,
+            appelDeFondsId:
+              (extraFields.appelDeFondsId as string | undefined) ?? null,
+            budgetId: (extraFields.budgetId as string | undefined) ?? null,
+            invoiceId: (extraFields.invoiceId as string | undefined) ?? null,
+            memberName: memberName ?? null,
             formFields: Object.fromEntries(
-              Object.entries(extraFields).filter(([k]) =>
-                !["meetingId","lotId","memberId","appelDeFondsId","budgetId",
-                  "invoiceId","_existingDocumentId"].includes(k)
-              )
+              Object.entries(extraFields).filter(
+                ([k]) =>
+                  ![
+                    "meetingId",
+                    "lotId",
+                    "memberId",
+                    "appelDeFondsId",
+                    "budgetId",
+                    "invoiceId",
+                    "_existingDocumentId",
+                  ].includes(k),
+              ),
             ),
           },
         } as any)
@@ -3318,7 +5471,12 @@ router.post(
 
         db.select({ email: usersTable.email })
           .from(usersTable)
-          .where(and(eq(usersTable.syndicateId, syndicateId), eq(usersTable.role, "syndicate_admin")))
+          .where(
+            and(
+              eq(usersTable.syndicateId, syndicateId),
+              eq(usersTable.role, "syndicate_admin"),
+            ),
+          )
           .then((admins) =>
             sendEmailToMany(
               admins.map((a) => a.email),
@@ -3331,10 +5489,14 @@ router.post(
           .catch(() => {});
       }
 
-      res.status(201).json({ data: doc, message: "Document généré avec succès" });
+      res
+        .status(201)
+        .json({ data: doc, message: "Document généré avec succès" });
     } catch (err) {
       req.log.error(err);
-      res.status(500).json({ error: "Erreur serveur lors de la génération du document" });
+      res
+        .status(500)
+        .json({ error: "Erreur serveur lors de la génération du document" });
     }
   },
 );
@@ -3348,10 +5510,19 @@ router.put(
   async (req, res) => {
     const id = String(req.params.id);
     const schema = z.object({
-      title:    z.string().min(1).max(500).optional(),
-      category: z.enum(["reglements", "statuts", "pv", "juridique", "finances", "attestation"]).optional(),
-      content:  z.string().max(500_000).optional(),
-      status:   z.enum(VALID_STATUSES).optional(),
+      title: z.string().min(1).max(500).optional(),
+      category: z
+        .enum([
+          "reglements",
+          "statuts",
+          "pv",
+          "juridique",
+          "finances",
+          "attestation",
+        ])
+        .optional(),
+      content: z.string().max(500_000).optional(),
+      status: z.enum(VALID_STATUSES).optional(),
       language: z.enum(["fr", "ar", "en", "es"] as const).optional(),
       expiresAt: z.string().optional(),
       // Required when status is set to "rejected" — legal traceability of why.
@@ -3360,34 +5531,52 @@ router.put(
       changeReason: z.string().max(500).optional(),
     });
     const result = schema.safeParse(req.body);
-    if (!result.success) { res.status(400).json({ error: "Données invalides" }); return; }
+    if (!result.success) {
+      res.status(400).json({ error: "Données invalides" });
+      return;
+    }
 
     try {
-      const [existing] = await db.select().from(documentsTable).where(eq(documentsTable.id, id));
-      if (!existing || existing.isDeleted) { res.status(404).json({ error: "Document introuvable" }); return; }
-      if (req.user!.role !== "super_admin" && existing.syndicateId !== req.user!.syndicateId) {
-        res.status(403).json({ error: "Accès refusé" }); return;
+      const [existing] = await db
+        .select()
+        .from(documentsTable)
+        .where(eq(documentsTable.id, id));
+      if (!existing || existing.isDeleted) {
+        res.status(404).json({ error: "Document introuvable" });
+        return;
+      }
+      if (
+        req.user!.role !== "super_admin" &&
+        existing.syndicateId !== req.user!.syndicateId
+      ) {
+        res.status(403).json({ error: "Accès refusé" });
+        return;
       }
 
       // Enforce workflow state machine
       if (result.data.status && result.data.status !== existing.status) {
         const from = (existing.status ?? "draft") as DocStatus;
-        const to   = result.data.status as DocStatus;
+        const to = result.data.status as DocStatus;
         if (!isTransitionAllowed(from, to)) {
           res.status(422).json({
             error: `Transition invalide : "${from}" → "${to}"`,
             allowed: ALLOWED_TRANSITIONS[from],
-          }); return;
+          });
+          return;
         }
         if (to === "rejected" && !result.data.rejectionReason) {
-          res.status(400).json({ error: "Un motif de rejet est requis" }); return;
+          res.status(400).json({ error: "Un motif de rejet est requis" });
+          return;
         }
       }
 
       // Snapshot the pre-update state into version history BEFORE applying any
       // content/status change — never lost, even if this specific PUT fails partway.
       const { changeReason, rejectionReason, ...fieldUpdates } = result.data;
-      const isMeaningfulChange = fieldUpdates.content !== undefined || fieldUpdates.title !== undefined || fieldUpdates.status !== undefined;
+      const isMeaningfulChange =
+        fieldUpdates.content !== undefined ||
+        fieldUpdates.title !== undefined ||
+        fieldUpdates.status !== undefined;
       if (isMeaningfulChange) {
         await db.insert(documentVersionsTable).values({
           documentId: id,
@@ -3398,11 +5587,18 @@ router.put(
           fileUrl: existing.fileUrl,
           language: existing.language,
           modifiedBy: req.user!.userId,
-          changeReason: changeReason ?? (fieldUpdates.status ? `Transition ${existing.status} → ${fieldUpdates.status}` : "Modification du contenu"),
+          changeReason:
+            changeReason ??
+            (fieldUpdates.status
+              ? `Transition ${existing.status} → ${fieldUpdates.status}`
+              : "Modification du contenu"),
         } as any);
       }
 
-      const updates: Record<string, unknown> = { ...fieldUpdates, updatedAt: new Date() };
+      const updates: Record<string, unknown> = {
+        ...fieldUpdates,
+        updatedAt: new Date(),
+      };
       if (result.data.expiresAt !== undefined) {
         const parsed = new Date(result.data.expiresAt);
         updates.expiresAt = Number.isNaN(parsed.getTime()) ? null : parsed;
@@ -3417,8 +5613,8 @@ router.put(
       }
       // Lifecycle timestamps
       if (result.data.status === "published") updates.publishedAt = new Date();
-      if (result.data.status === "archived")  updates.archivedAt  = new Date();
-      if (result.data.status === "signed")    updates.signedAt    = new Date();
+      if (result.data.status === "archived") updates.archivedAt = new Date();
+      if (result.data.status === "signed") updates.signedAt = new Date();
       if (result.data.status === "validated") {
         updates.approvedAt = new Date();
         updates.approvedBy = req.user!.userId;
@@ -3437,7 +5633,10 @@ router.put(
 
       // A rejected document's existing signatures no longer certify anything valid.
       if (result.data.status === "rejected") {
-        await db.update(documentSignaturesTable).set({ isValid: false } as any).where(eq(documentSignaturesTable.documentId, id));
+        await db
+          .update(documentSignaturesTable)
+          .set({ isValid: false } as any)
+          .where(eq(documentSignaturesTable.documentId, id));
       }
 
       await serverAuditLog(req, {
@@ -3459,8 +5658,15 @@ router.put(
       }
 
       // Approval / rejection email + in-app notifications to the document's author
-      if ((result.data.status === "validated" || result.data.status === "rejected") && existing.createdBy) {
-        const [author] = await db.select({ email: usersTable.email }).from(usersTable).where(eq(usersTable.id, existing.createdBy));
+      if (
+        (result.data.status === "validated" ||
+          result.data.status === "rejected") &&
+        existing.createdBy
+      ) {
+        const [author] = await db
+          .select({ email: usersTable.email })
+          .from(usersTable)
+          .where(eq(usersTable.id, existing.createdBy));
         const approved = result.data.status === "validated";
         createAlert({
           title: approved ? "Document approuvé" : "Document rejeté",
@@ -3474,7 +5680,9 @@ router.put(
         if (author?.email) {
           sendEmail(
             author.email,
-            approved ? "Votre document a été approuvé" : "Votre document a été rejeté",
+            approved
+              ? "Votre document a été approuvé"
+              : "Votre document a été rejeté",
             approved
               ? `<p>Le document <strong>${doc.title}</strong> a été approuvé.</p>`
               : `<p>Le document <strong>${doc.title}</strong> a été rejeté.</p><p>Motif : ${rejectionReason}</p>`,
@@ -3494,40 +5702,46 @@ router.put(
 
 // ─── GET /documents/:id/versions — version history ────────────────────────────
 
-router.get(
-  "/documents/:id/versions",
-  requireAuth,
-  async (req, res) => {
-    const id = String(req.params.id);
-    try {
-      const [doc] = await db.select({ syndicateId: documentsTable.syndicateId }).from(documentsTable).where(eq(documentsTable.id, id));
-      if (!doc) { res.status(404).json({ error: "Document introuvable" }); return; }
-      if (req.user!.role !== "super_admin" && doc.syndicateId !== req.user!.syndicateId) {
-        res.status(403).json({ error: "Accès refusé" }); return;
-      }
-      const versions = await db
-        .select({
-          id: documentVersionsTable.id,
-          versionNumber: documentVersionsTable.versionNumber,
-          title: documentVersionsTable.title,
-          status: documentVersionsTable.status,
-          language: documentVersionsTable.language,
-          modifiedBy: documentVersionsTable.modifiedBy,
-          modifiedByName: usersTable.name,
-          modifiedAt: documentVersionsTable.modifiedAt,
-          changeReason: documentVersionsTable.changeReason,
-        })
-        .from(documentVersionsTable)
-        .leftJoin(usersTable, eq(documentVersionsTable.modifiedBy, usersTable.id))
-        .where(eq(documentVersionsTable.documentId, id))
-        .orderBy(desc(documentVersionsTable.versionNumber));
-      res.json({ data: versions });
-    } catch (err) {
-      req.log.error(err);
-      res.status(500).json({ error: "Erreur serveur" });
+router.get("/documents/:id/versions", requireAuth, async (req, res) => {
+  const id = String(req.params.id);
+  try {
+    const [doc] = await db
+      .select({ syndicateId: documentsTable.syndicateId })
+      .from(documentsTable)
+      .where(eq(documentsTable.id, id));
+    if (!doc) {
+      res.status(404).json({ error: "Document introuvable" });
+      return;
     }
-  },
-);
+    if (
+      req.user!.role !== "super_admin" &&
+      doc.syndicateId !== req.user!.syndicateId
+    ) {
+      res.status(403).json({ error: "Accès refusé" });
+      return;
+    }
+    const versions = await db
+      .select({
+        id: documentVersionsTable.id,
+        versionNumber: documentVersionsTable.versionNumber,
+        title: documentVersionsTable.title,
+        status: documentVersionsTable.status,
+        language: documentVersionsTable.language,
+        modifiedBy: documentVersionsTable.modifiedBy,
+        modifiedByName: usersTable.name,
+        modifiedAt: documentVersionsTable.modifiedAt,
+        changeReason: documentVersionsTable.changeReason,
+      })
+      .from(documentVersionsTable)
+      .leftJoin(usersTable, eq(documentVersionsTable.modifiedBy, usersTable.id))
+      .where(eq(documentVersionsTable.documentId, id))
+      .orderBy(desc(documentVersionsTable.versionNumber));
+    res.json({ data: versions });
+  } catch (err) {
+    req.log.error(err);
+    res.status(500).json({ error: "Erreur serveur" });
+  }
+});
 
 // ─── POST /documents/:id/versions/:versionId/restore ──────────────────────────
 // Restores a document's title/content/status/language from a past snapshot.
@@ -3542,13 +5756,34 @@ router.post(
     const id = String(req.params.id);
     const versionId = String(req.params.versionId);
     try {
-      const [existing] = await db.select().from(documentsTable).where(eq(documentsTable.id, id));
-      if (!existing || existing.isDeleted) { res.status(404).json({ error: "Document introuvable" }); return; }
-      if (req.user!.role !== "super_admin" && existing.syndicateId !== req.user!.syndicateId) {
-        res.status(403).json({ error: "Accès refusé" }); return;
+      const [existing] = await db
+        .select()
+        .from(documentsTable)
+        .where(eq(documentsTable.id, id));
+      if (!existing || existing.isDeleted) {
+        res.status(404).json({ error: "Document introuvable" });
+        return;
       }
-      const [version] = await db.select().from(documentVersionsTable).where(and(eq(documentVersionsTable.id, versionId), eq(documentVersionsTable.documentId, id)));
-      if (!version) { res.status(404).json({ error: "Version introuvable" }); return; }
+      if (
+        req.user!.role !== "super_admin" &&
+        existing.syndicateId !== req.user!.syndicateId
+      ) {
+        res.status(403).json({ error: "Accès refusé" });
+        return;
+      }
+      const [version] = await db
+        .select()
+        .from(documentVersionsTable)
+        .where(
+          and(
+            eq(documentVersionsTable.id, versionId),
+            eq(documentVersionsTable.documentId, id),
+          ),
+        );
+      if (!version) {
+        res.status(404).json({ error: "Version introuvable" });
+        return;
+      }
 
       // Snapshot the current state before overwriting it, so restoring is reversible.
       await db.insert(documentVersionsTable).values({
@@ -3602,12 +5837,20 @@ router.delete(
   async (req, res) => {
     const id = String(req.params.id);
     try {
-      const [existing] = await db.select().from(documentsTable).where(eq(documentsTable.id, id));
+      const [existing] = await db
+        .select()
+        .from(documentsTable)
+        .where(eq(documentsTable.id, id));
       if (!existing || existing.isDeleted) {
-        res.status(404).json({ error: "Document introuvable" }); return;
+        res.status(404).json({ error: "Document introuvable" });
+        return;
       }
-      if (req.user!.role !== "super_admin" && existing.syndicateId !== req.user!.syndicateId) {
-        res.status(403).json({ error: "Accès refusé" }); return;
+      if (
+        req.user!.role !== "super_admin" &&
+        existing.syndicateId !== req.user!.syndicateId
+      ) {
+        res.status(403).json({ error: "Accès refusé" });
+        return;
       }
 
       // Soft delete — preserve PDF file, audit trail, and signatures
@@ -3628,7 +5871,9 @@ router.delete(
         details: `Titre: ${existing.title}, Catégorie: ${existing.category} — suppression logique`,
       });
 
-      res.json({ message: "Document supprimé (conservé pour archivage légal)" });
+      res.json({
+        message: "Document supprimé (conservé pour archivage légal)",
+      });
     } catch (err) {
       req.log.error(err);
       res.status(500).json({ error: "Erreur serveur" });
@@ -3646,9 +5891,36 @@ router.post(
   async (req, res) => {
     const id = String(req.params.id);
     try {
-      const [existing] = await db.select().from(documentsTable).where(eq(documentsTable.id, id));
-      if (!existing) { res.status(404).json({ error: "Document introuvable" }); return; }
-      if (!existing.isDeleted) { res.status(409).json({ error: "Ce document n'est pas supprimé" }); return; }
+      if (
+        req.user!.role === "super_admin" &&
+        req.query.supervision !== "true"
+      ) {
+        res.status(403).json({
+          error: "La supervision est requise pour restaurer ce document.",
+          code: "SUPERVISION_REQUIRED",
+        });
+        return;
+      }
+      const [existing] = await db
+        .select()
+        .from(documentsTable)
+        .where(eq(documentsTable.id, id));
+      if (!existing) {
+        res.status(404).json({ error: "Document introuvable" });
+        return;
+      }
+      if (!existing.isDeleted) {
+        res.status(409).json({ error: "Ce document n'est pas supprimé" });
+        return;
+      }
+      if (
+        req.user!.role !== "super_admin" &&
+        (!req.user!.syndicateId ||
+          existing.syndicateId !== req.user!.syndicateId)
+      ) {
+        res.status(403).json({ error: "Accès refusé" });
+        return;
+      }
 
       const [doc] = await db
         .update(documentsTable)
@@ -3658,7 +5930,14 @@ router.post(
           deletedBy: null,
           updatedAt: new Date(),
         } as any)
-        .where(eq(documentsTable.id, id))
+        .where(
+          req.user!.role === "super_admin"
+            ? eq(documentsTable.id, id)
+            : and(
+                eq(documentsTable.id, id),
+                eq(documentsTable.syndicateId, req.user!.syndicateId!),
+              ),
+        )
         .returning();
 
       await serverAuditLog(req, {
@@ -3686,10 +5965,21 @@ router.post(
   async (req, res) => {
     const id = String(req.params.id);
     try {
-      const [existing] = await db.select().from(documentsTable).where(eq(documentsTable.id, id));
-      if (!existing) { res.status(404).json({ error: "Document introuvable" }); return; }
+      const [existing] = await db
+        .select()
+        .from(documentsTable)
+        .where(eq(documentsTable.id, id));
+      if (!existing) {
+        res.status(404).json({ error: "Document introuvable" });
+        return;
+      }
       if (!existing.isDeleted) {
-        res.status(409).json({ error: "Effectuez d'abord une suppression logique avant de purger" }); return;
+        res
+          .status(409)
+          .json({
+            error: "Effectuez d'abord une suppression logique avant de purger",
+          });
+        return;
       }
 
       // Delete PDF from GCS
@@ -3757,28 +6047,48 @@ async function regenerateDocumentWithSignatures(
   ]);
 
   const entityLoads: Promise<Record<string, string>>[] = [];
-  if (params.meetingId)      entityLoads.push(getMeetingData(params.meetingId));
-  if (params.appelDeFondsId) entityLoads.push(getAppelDeFondsData(params.appelDeFondsId));
-  if (params.budgetId)       entityLoads.push(getBudgetData(params.budgetId));
+  if (params.meetingId) entityLoads.push(getMeetingData(params.meetingId));
+  if (params.appelDeFondsId)
+    entityLoads.push(getAppelDeFondsData(params.appelDeFondsId));
+  if (params.budgetId) entityLoads.push(getBudgetData(params.budgetId));
   if (params.lotId || params.memberId) {
-    entityLoads.push(getLotMemberData(params.lotId ?? undefined, params.memberId ?? undefined));
+    entityLoads.push(
+      getLotMemberData(params.lotId ?? undefined, params.memberId ?? undefined),
+    );
   }
-  if (params.invoiceId)  entityLoads.push(getInvoiceData(params.invoiceId));
+  if (params.invoiceId) entityLoads.push(getInvoiceData(params.invoiceId));
   if (template === "attestation_paiement" && params.lotId) {
-    entityLoads.push(getAttestationPaiementData(
-      params.lotId,
-      params.formFields?.periode ?? null,
-      syndicateId,
-    ));
+    entityLoads.push(
+      getAttestationPaiementData(
+        params.lotId,
+        params.formFields?.periode ?? null,
+        syndicateId,
+      ),
+    );
   }
-  const isFinancialTemplate = ["appel_de_fonds", "facture", "rapport_financier"].includes(template);
+  const isFinancialTemplate = [
+    "appel_de_fonds",
+    "facture",
+    "rapport_financier",
+  ].includes(template);
   if (isFinancialTemplate) {
-    const kpiYear = params.formFields?.exercice ? parseInt(params.formFields.exercice) : null;
-    entityLoads.push(getFinancialDashboardData(syndicateId, params.buildingId ?? null, kpiYear));
+    const kpiYear = params.formFields?.exercice
+      ? parseInt(params.formFields.exercice)
+      : null;
+    entityLoads.push(
+      getFinancialDashboardData(
+        syndicateId,
+        params.buildingId ?? null,
+        kpiYear,
+      ),
+    );
   }
 
   const entityResults = await Promise.all(entityLoads);
-  const entityData: Record<string, string> = Object.assign({}, ...entityResults);
+  const entityData: Record<string, string> = Object.assign(
+    {},
+    ...entityResults,
+  );
 
   if (officeHolders?.treasurer?.fullName && !entityData.etabliPar) {
     entityData.etabliPar = officeHolders.treasurer.fullName;
@@ -3787,7 +6097,9 @@ async function regenerateDocumentWithSignatures(
     entityData.approuvePar = officeHolders.president.fullName;
   }
 
-  const verificationUrl = doc.verificationToken ? buildVerifyUrl(doc.verificationToken) : undefined;
+  const verificationUrl = doc.verificationToken
+    ? buildVerifyUrl(doc.verificationToken)
+    : undefined;
 
   const generated = await generateAndUploadDocument(template, {
     title: doc.title,
@@ -3824,29 +6136,57 @@ router.post(
       signatureData: z.string().optional(),
     });
     const result = schema.safeParse(req.body);
-    if (!result.success) { res.status(400).json({ error: "Données invalides" }); return; }
+    if (!result.success) {
+      res.status(400).json({ error: "Données invalides" });
+      return;
+    }
 
     // Reject non-SVG signature data up-front — empty/missing is allowed (text-only signature)
     const rawSig = result.data.signatureData;
     if (rawSig && rawSig.trim().length > 0) {
       const looksLikeSvg = /^\s*(?:<\?xml[^>]*>\s*)?<svg/i.test(rawSig.trim());
       if (!looksLikeSvg) {
-        res.status(422).json({ error: "Les données de signature ne sont pas un SVG valide" }); return;
+        res
+          .status(422)
+          .json({
+            error: "Les données de signature ne sont pas un SVG valide",
+          });
+        return;
       }
     }
 
     try {
-      const [doc] = await db.select().from(documentsTable).where(eq(documentsTable.id, id));
-      if (!doc || doc.isDeleted) { res.status(404).json({ error: "Document introuvable" }); return; }
-      if (req.user!.role !== "super_admin" && doc.syndicateId !== req.user!.syndicateId) {
-        res.status(403).json({ error: "Accès refusé" }); return;
+      const [doc] = await db
+        .select()
+        .from(documentsTable)
+        .where(eq(documentsTable.id, id));
+      if (!doc || doc.isDeleted) {
+        res.status(404).json({ error: "Document introuvable" });
+        return;
+      }
+      if (
+        req.user!.role !== "super_admin" &&
+        doc.syndicateId !== req.user!.syndicateId
+      ) {
+        res.status(403).json({ error: "Accès refusé" });
+        return;
       }
       // generated, pending_review, validated, AND signed documents may be signed
       // "signed" must be included so multi-signature workflows allow a second/third signer
       // after the first signer has already changed the status to "signed".
-      const signable: DocStatus[] = ["generated", "pending_review", "validated", "signed"];
+      const signable: DocStatus[] = [
+        "generated",
+        "pending_review",
+        "validated",
+        "signed",
+      ];
       if (!signable.includes((doc.status ?? "draft") as DocStatus)) {
-        res.status(422).json({ error: `Le document au statut "${doc.status}" ne peut pas être signé` }); return;
+        res
+          .status(422)
+          .json({
+            error: `Le document au statut "${doc.status}" ne peut pas être signé`,
+          });
+        return;
       }
 
       // Prevent the same user signing the same document twice (also enforced by
@@ -3854,9 +6194,15 @@ router.post(
       const [alreadySigned] = await db
         .select({ id: documentSignaturesTable.id })
         .from(documentSignaturesTable)
-        .where(and(eq(documentSignaturesTable.documentId, id), eq(documentSignaturesTable.signedBy, req.user!.userId)));
+        .where(
+          and(
+            eq(documentSignaturesTable.documentId, id),
+            eq(documentSignaturesTable.signedBy, req.user!.userId),
+          ),
+        );
       if (alreadySigned) {
-        res.status(409).json({ error: "Vous avez déjà signé ce document" }); return;
+        res.status(409).json({ error: "Vous avez déjà signé ce document" });
+        return;
       }
 
       // Next signature order = count of existing signatures + 1
@@ -3872,24 +6218,27 @@ router.post(
       const [sig] = await db
         .insert(documentSignaturesTable)
         .values({
-          documentId:    id,
-          signedBy:      req.user!.userId,
-          signerRole:    req.user!.role,
+          documentId: id,
+          signedBy: req.user!.userId,
+          signerRole: req.user!.role,
           signerName,
-          syndicateId:   req.user!.syndicateId,
-          ipAddress:     req.ip ?? req.socket?.remoteAddress,
+          syndicateId: req.user!.syndicateId,
+          ipAddress: req.ip ?? req.socket?.remoteAddress,
           signatureData: result.data.signatureData,
           signatureOrder: nextOrder,
           isValid: true,
         } as any)
         .returning();
 
-      await db.update(documentsTable).set({
-        status:    "signed",
-        signedAt:  now,
-        signedBy:  req.user!.userId,
-        updatedAt: now,
-      } as any).where(eq(documentsTable.id, id));
+      await db
+        .update(documentsTable)
+        .set({
+          status: "signed",
+          signedAt: now,
+          signedBy: req.user!.userId,
+          updatedAt: now,
+        } as any)
+        .where(eq(documentsTable.id, id));
 
       // Embed signatures in the PDF body — awaited synchronously so the response
       // reflects the true PDF state. Full regeneration when generationParams is available;
@@ -3913,27 +6262,39 @@ router.post(
             signatureData: s.signatureData ?? undefined,
           }));
 
-        const storedParams = (doc as any).generationParams as GenerationParams | null;
+        const storedParams = (doc as any)
+          .generationParams as GenerationParams | null;
 
         try {
           if (storedParams) {
             // Full regeneration — SVG traces appear inline in the document body
-            const newFileUrl = await regenerateDocumentWithSignatures(doc, storedParams, allInlineSigs);
+            const newFileUrl = await regenerateDocumentWithSignatures(
+              doc,
+              storedParams,
+              allInlineSigs,
+            );
             if (newFileUrl) {
-              await db.update(documentsTable).set({
-                fileUrl: newFileUrl,
-                appendedSignaturePages: 0,
-                regenerationFailed: false,
-                updatedAt: new Date(),
-              } as any).where(eq(documentsTable.id, id));
+              await db
+                .update(documentsTable)
+                .set({
+                  fileUrl: newFileUrl,
+                  appendedSignaturePages: 0,
+                  regenerationFailed: false,
+                  updatedAt: new Date(),
+                } as any)
+                .where(eq(documentsTable.id, id));
               pdfReady = true;
             }
           } else {
             // Legacy fallback: strip old sig page then append fresh one with all sigs
-            const prevCount = ((doc as any).appendedSignaturePages as number | null) ?? 0;
+            const prevCount =
+              ((doc as any).appendedSignaturePages as number | null) ?? 0;
             const syndBranding = doc.syndicateId
               ? await db
-                  .select({ name: syndicatesTable.name, logoColor: syndicatesTable.logoColor })
+                  .select({
+                    name: syndicatesTable.name,
+                    logoColor: syndicatesTable.logoColor,
+                  })
                   .from(syndicatesTable)
                   .where(eq(syndicatesTable.id, doc.syndicateId))
                   .limit(1)
@@ -3955,17 +6316,25 @@ router.post(
               doc.documentNumber ?? "",
               prevCount,
             );
-            await db.update(documentsTable).set({
-              appendedSignaturePages: 1,
-              regenerationFailed: false,
-              updatedAt: new Date(),
-            } as any).where(eq(documentsTable.id, id));
+            await db
+              .update(documentsTable)
+              .set({
+                appendedSignaturePages: 1,
+                regenerationFailed: false,
+                updatedAt: new Date(),
+              } as any)
+              .where(eq(documentsTable.id, id));
             pdfReady = true;
           }
         } catch (err) {
-          req.log.error({ err, docId: id }, "PDF signature embedding failed — document signed but PDF not updated");
+          req.log.error(
+            { err, docId: id },
+            "PDF signature embedding failed — document signed but PDF not updated",
+          );
           // Mark the document so admins can identify stale PDFs needing manual regeneration
-          await db.update(documentsTable).set({ regenerationFailed: true, updatedAt: new Date() } as any)
+          await db
+            .update(documentsTable)
+            .set({ regenerationFailed: true, updatedAt: new Date() } as any)
             .where(eq(documentsTable.id, id));
         }
       }
@@ -3987,7 +6356,9 @@ router.post(
         }).catch(() => {});
 
         if (doc.createdBy && doc.createdBy !== req.user!.userId) {
-          db.select({ email: usersTable.email }).from(usersTable).where(eq(usersTable.id, doc.createdBy))
+          db.select({ email: usersTable.email })
+            .from(usersTable)
+            .where(eq(usersTable.id, doc.createdBy))
             .then(([author]) => {
               if (author?.email) {
                 sendEmail(
@@ -4003,7 +6374,9 @@ router.post(
         }
       }
 
-      res.status(201).json({ data: sig, pdfReady, message: "Document signé avec succès" });
+      res
+        .status(201)
+        .json({ data: sig, pdfReady, message: "Document signé avec succès" });
     } catch (err) {
       req.log.error(err);
       res.status(500).json({ error: "Erreur serveur" });
@@ -4019,83 +6392,99 @@ router.post(
 //  - isMyTurn:            whether the calling user is the next expected signer
 //  - allSigned:           true when every required step is complete
 
-router.get(
-  "/documents/:id/signers",
-  requireAuth,
-  async (req, res) => {
-    const id = String(req.params.id);
-    try {
-      const [doc] = await db
-        .select({
-          id:         documentsTable.id,
-          title:      documentsTable.title,
-          status:     documentsTable.status,
-          syndicateId:documentsTable.syndicateId,
-          templateId: documentsTable.templateId,
-        })
-        .from(documentsTable)
-        .where(eq(documentsTable.id, id));
+router.get("/documents/:id/signers", requireAuth, async (req, res) => {
+  const id = String(req.params.id);
+  try {
+    const [doc] = await db
+      .select({
+        id: documentsTable.id,
+        title: documentsTable.title,
+        status: documentsTable.status,
+        syndicateId: documentsTable.syndicateId,
+        templateId: documentsTable.templateId,
+      })
+      .from(documentsTable)
+      .where(eq(documentsTable.id, id));
 
-      if (!doc) { res.status(404).json({ error: "Document introuvable" }); return; }
-      if (req.user!.role !== "super_admin" && doc.syndicateId !== req.user!.syndicateId) {
-        res.status(403).json({ error: "Accès refusé" }); return;
-      }
+    if (!doc) {
+      res.status(404).json({ error: "Document introuvable" });
+      return;
+    }
+    if (
+      req.user!.role !== "super_admin" &&
+      doc.syndicateId !== req.user!.syndicateId
+    ) {
+      res.status(403).json({ error: "Accès refusé" });
+      return;
+    }
 
-      const completedSigs = await db
-        .select({
-          id:             documentSignaturesTable.id,
-          signedBy:       documentSignaturesTable.signedBy,
-          signerName:     documentSignaturesTable.signerName,
-          signerRole:     documentSignaturesTable.signerRole,
-          signedAt:       documentSignaturesTable.signedAt,
-          signatureOrder: documentSignaturesTable.signatureOrder,
-          isValid:        documentSignaturesTable.isValid,
-        })
-        .from(documentSignaturesTable)
-        .where(eq(documentSignaturesTable.documentId, id))
-        .orderBy(documentSignaturesTable.signatureOrder);
+    const completedSigs = await db
+      .select({
+        id: documentSignaturesTable.id,
+        signedBy: documentSignaturesTable.signedBy,
+        signerName: documentSignaturesTable.signerName,
+        signerRole: documentSignaturesTable.signerRole,
+        signedAt: documentSignaturesTable.signedAt,
+        signatureOrder: documentSignaturesTable.signatureOrder,
+        isValid: documentSignaturesTable.isValid,
+      })
+      .from(documentSignaturesTable)
+      .where(eq(documentSignaturesTable.documentId, id))
+      .orderBy(documentSignaturesTable.signatureOrder);
 
-      // Look up template-default signing chain
-      const templateKey = (doc.templateId ?? "").replace(/-/g, "_");
-      const requiredSigners: Array<{ order: number; role: string; label: string }> =
-        TEMPLATE_SIGNING_ORDER[templateKey] ?? [];
+    // Look up template-default signing chain
+    const templateKey = (doc.templateId ?? "").replace(/-/g, "_");
+    const requiredSigners: Array<{
+      order: number;
+      role: string;
+      label: string;
+    }> = TEMPLATE_SIGNING_ORDER[templateKey] ?? [];
 
-      // Which orders have been completed?
-      const completedOrders = new Set(completedSigs.map((s) => s.signatureOrder ?? 0));
-      const nextSigner = requiredSigners.find((r) => !completedOrders.has(r.order)) ?? null;
+    // Which orders have been completed?
+    const completedOrders = new Set(
+      completedSigs.map((s) => s.signatureOrder ?? 0),
+    );
+    const nextSigner =
+      requiredSigners.find((r) => !completedOrders.has(r.order)) ?? null;
 
-      // Is it the calling user's turn?
-      const isMyTurn = nextSigner != null
-        ? (nextSigner.role === req.user!.role || nextSigner.role === "syndicate_admin" && req.user!.role === "syndicate_admin")
+    // Is it the calling user's turn?
+    const isMyTurn =
+      nextSigner != null
+        ? nextSigner.role === req.user!.role ||
+          (nextSigner.role === "syndicate_admin" &&
+            req.user!.role === "syndicate_admin")
         : false;
 
-      const allSigned = requiredSigners.length > 0
+    const allSigned =
+      requiredSigners.length > 0
         ? requiredSigners.every((r) => completedOrders.has(r.order))
         : false;
 
-      res.json({
-        data: {
-          documentId:          id,
-          title:               doc.title,
-          status:              doc.status,
-          requiredSigners,
-          completedSignatures: completedSigs,
-          nextSigner,
-          isMyTurn,
-          allSigned,
-          totalRequired:  requiredSigners.length,
-          totalCompleted: completedSigs.length,
-          percentage:     requiredSigners.length > 0
+    res.json({
+      data: {
+        documentId: id,
+        title: doc.title,
+        status: doc.status,
+        requiredSigners,
+        completedSignatures: completedSigs,
+        nextSigner,
+        isMyTurn,
+        allSigned,
+        totalRequired: requiredSigners.length,
+        totalCompleted: completedSigs.length,
+        percentage:
+          requiredSigners.length > 0
             ? Math.round((completedSigs.length / requiredSigners.length) * 100)
-            : (completedSigs.length > 0 ? 100 : 0),
-        },
-      });
-    } catch (err) {
-      req.log.error(err);
-      res.status(500).json({ error: "Erreur serveur" });
-    }
-  },
-);
+            : completedSigs.length > 0
+              ? 100
+              : 0,
+      },
+    });
+  } catch (err) {
+    req.log.error(err);
+    res.status(500).json({ error: "Erreur serveur" });
+  }
+});
 
 // ─── GET /documents/:id/signatures ────────────────────────────────────────────
 
@@ -4106,10 +6495,20 @@ router.get(
   async (req, res) => {
     const id = String(req.params.id);
     try {
-      const [doc] = await db.select().from(documentsTable).where(eq(documentsTable.id, id));
-      if (!doc) { res.status(404).json({ error: "Document introuvable" }); return; }
-      if (req.user!.role !== "super_admin" && doc.syndicateId !== req.user!.syndicateId) {
-        res.status(403).json({ error: "Accès refusé" }); return;
+      const [doc] = await db
+        .select()
+        .from(documentsTable)
+        .where(eq(documentsTable.id, id));
+      if (!doc) {
+        res.status(404).json({ error: "Document introuvable" });
+        return;
+      }
+      if (
+        req.user!.role !== "super_admin" &&
+        doc.syndicateId !== req.user!.syndicateId
+      ) {
+        res.status(403).json({ error: "Accès refusé" });
+        return;
       }
       const sigs = await db
         .select()
@@ -4126,134 +6525,180 @@ router.get(
 
 // ─── Comments: GET /documents/:id/comments ───────────────────────────────────
 
-router.get(
-  "/:id/comments",
-  requireAuth,
-  async (req, res) => {
-    const id = String(req.params.id);
-    try {
-      const [doc] = await db.select({ id: documentsTable.id, syndicateId: documentsTable.syndicateId, status: documentsTable.status })
-        .from(documentsTable)
-        .where(and(eq(documentsTable.id, id), eq(documentsTable.isDeleted, false)));
-      if (!doc) { res.status(404).json({ error: "Document introuvable" }); return; }
-
-      const user = req.user!;
-      const isSuperAdmin = user.role === "super_admin";
-      const isAdminOfSyndicate = (user.role === "syndicate_admin") && doc.syndicateId === user.syndicateId;
-      const isMemberOfSyndicate = (user.role === "member") && doc.syndicateId === user.syndicateId;
-      if (!isSuperAdmin && !isAdminOfSyndicate && !isMemberOfSyndicate) {
-        res.status(403).json({ error: "Accès refusé" }); return;
-      }
-
-      const comments = await db
-        .select({
-          id:        documentCommentsTable.id,
-          content:   documentCommentsTable.content,
-          parentId:  documentCommentsTable.parentId,
-          isDeleted: documentCommentsTable.isDeleted,
-          editedAt:  documentCommentsTable.editedAt,
-          createdAt: documentCommentsTable.createdAt,
-          authorId:  documentCommentsTable.authorId,
-          authorName: usersTable.name,
-          authorRole: usersTable.role,
-        })
-        .from(documentCommentsTable)
-        .leftJoin(usersTable, eq(documentCommentsTable.authorId, usersTable.id))
-        .where(eq(documentCommentsTable.documentId, id))
-        .orderBy(documentCommentsTable.createdAt);
-
-      res.json({ data: comments });
-    } catch (err) {
-      req.log.error(err);
-      res.status(500).json({ error: "Erreur serveur" });
+router.get("/:id/comments", requireAuth, async (req, res) => {
+  const id = String(req.params.id);
+  try {
+    const [doc] = await db
+      .select({
+        id: documentsTable.id,
+        syndicateId: documentsTable.syndicateId,
+        status: documentsTable.status,
+      })
+      .from(documentsTable)
+      .where(
+        and(eq(documentsTable.id, id), eq(documentsTable.isDeleted, false)),
+      );
+    if (!doc) {
+      res.status(404).json({ error: "Document introuvable" });
+      return;
     }
-  },
-);
+
+    const user = req.user!;
+    const isSuperAdmin = user.role === "super_admin";
+    const isAdminOfSyndicate =
+      user.role === "syndicate_admin" && doc.syndicateId === user.syndicateId;
+    const isMemberOfSyndicate =
+      user.role === "member" && doc.syndicateId === user.syndicateId;
+    if (!isSuperAdmin && !isAdminOfSyndicate && !isMemberOfSyndicate) {
+      res.status(403).json({ error: "Accès refusé" });
+      return;
+    }
+
+    const comments = await db
+      .select({
+        id: documentCommentsTable.id,
+        content: documentCommentsTable.content,
+        parentId: documentCommentsTable.parentId,
+        isDeleted: documentCommentsTable.isDeleted,
+        editedAt: documentCommentsTable.editedAt,
+        createdAt: documentCommentsTable.createdAt,
+        authorId: documentCommentsTable.authorId,
+        authorName: usersTable.name,
+        authorRole: usersTable.role,
+      })
+      .from(documentCommentsTable)
+      .leftJoin(usersTable, eq(documentCommentsTable.authorId, usersTable.id))
+      .where(eq(documentCommentsTable.documentId, id))
+      .orderBy(documentCommentsTable.createdAt);
+
+    res.json({ data: comments });
+  } catch (err) {
+    req.log.error(err);
+    res.status(500).json({ error: "Erreur serveur" });
+  }
+});
 
 // ─── Comments: POST /documents/:id/comments ──────────────────────────────────
 
 const CommentCreateSchema = z.object({
-  content:  z.string().min(1).max(2000),
+  content: z.string().min(1).max(2000),
   parentId: z.string().optional(),
 });
 
-router.post(
-  "/:id/comments",
-  requireAuth,
-  async (req, res) => {
-    const id = String(req.params.id);
-    const parsed = CommentCreateSchema.safeParse(req.body);
-    if (!parsed.success) { res.status(400).json({ error: parsed.error.flatten() }); return; }
+router.post("/:id/comments", requireAuth, async (req, res) => {
+  const id = String(req.params.id);
+  const parsed = CommentCreateSchema.safeParse(req.body);
+  if (!parsed.success) {
+    res.status(400).json({ error: parsed.error.flatten() });
+    return;
+  }
 
-    try {
-      const [doc] = await db.select({ id: documentsTable.id, syndicateId: documentsTable.syndicateId })
-        .from(documentsTable)
-        .where(and(eq(documentsTable.id, id), eq(documentsTable.isDeleted, false)));
-      if (!doc) { res.status(404).json({ error: "Document introuvable" }); return; }
-
-      const user = req.user!;
-      const isSuperAdmin = user.role === "super_admin";
-      const isAdminOfSyndicate = (user.role === "syndicate_admin") && doc.syndicateId === user.syndicateId;
-      const isMemberOfSyndicate = (user.role === "member") && doc.syndicateId === user.syndicateId;
-      if (!isSuperAdmin && !isAdminOfSyndicate && !isMemberOfSyndicate) {
-        res.status(403).json({ error: "Accès refusé" }); return;
-      }
-
-      const [comment] = await db.insert(documentCommentsTable).values({
-        documentId: id,
-        authorId:   user.userId,
-        content:    parsed.data.content,
-        parentId:   parsed.data.parentId ?? null,
-      } as any).returning();
-
-      serverAuditLog(req, { action: "document_comment_added", entity: "document", entityId: id, details: `commentId: ${comment.id}` });
-      res.status(201).json({ data: comment });
-    } catch (err) {
-      req.log.error(err);
-      res.status(500).json({ error: "Erreur serveur" });
+  try {
+    const [doc] = await db
+      .select({
+        id: documentsTable.id,
+        syndicateId: documentsTable.syndicateId,
+      })
+      .from(documentsTable)
+      .where(
+        and(eq(documentsTable.id, id), eq(documentsTable.isDeleted, false)),
+      );
+    if (!doc) {
+      res.status(404).json({ error: "Document introuvable" });
+      return;
     }
-  },
-);
+
+    const user = req.user!;
+    const isSuperAdmin = user.role === "super_admin";
+    const isAdminOfSyndicate =
+      user.role === "syndicate_admin" && doc.syndicateId === user.syndicateId;
+    const isMemberOfSyndicate =
+      user.role === "member" && doc.syndicateId === user.syndicateId;
+    if (!isSuperAdmin && !isAdminOfSyndicate && !isMemberOfSyndicate) {
+      res.status(403).json({ error: "Accès refusé" });
+      return;
+    }
+
+    const [comment] = await db
+      .insert(documentCommentsTable)
+      .values({
+        documentId: id,
+        authorId: user.userId,
+        content: parsed.data.content,
+        parentId: parsed.data.parentId ?? null,
+      } as any)
+      .returning();
+
+    serverAuditLog(req, {
+      action: "document_comment_added",
+      entity: "document",
+      entityId: id,
+      details: `commentId: ${comment.id}`,
+    });
+    res.status(201).json({ data: comment });
+  } catch (err) {
+    req.log.error(err);
+    res.status(500).json({ error: "Erreur serveur" });
+  }
+});
 
 // ─── Comments: DELETE /documents/:id/comments/:commentId ─────────────────────
 
-router.delete(
-  "/:id/comments/:commentId",
-  requireAuth,
-  async (req, res) => {
-    const id = String(req.params.id);
-    const commentId = String(req.params.commentId);
-    try {
-      const [comment] = await db.select().from(documentCommentsTable)
-        .where(and(eq(documentCommentsTable.id, commentId), eq(documentCommentsTable.documentId, id)));
-      if (!comment) { res.status(404).json({ error: "Commentaire introuvable" }); return; }
-
-      const [doc] = await db.select({ syndicateId: documentsTable.syndicateId })
-        .from(documentsTable)
-        .where(eq(documentsTable.id, id));
-      if (!doc) { res.status(404).json({ error: "Document introuvable" }); return; }
-
-      const user = req.user!;
-      const isOwner = comment.authorId === user.userId;
-      const isSuperAdmin = user.role === "super_admin";
-      // IDOR fix: a syndicate_admin may only moderate comments on documents
-      // belonging to THEIR OWN syndicate, never a global "any syndicate_admin" bypass.
-      const isSyndicateAdminOfDoc = user.role === "syndicate_admin" && doc.syndicateId === user.syndicateId;
-      if (!isOwner && !isSuperAdmin && !isSyndicateAdminOfDoc) {
-        res.status(403).json({ error: "Accès refusé" }); return;
-      }
-
-      await db.update(documentCommentsTable)
-        .set({ isDeleted: true })
-        .where(eq(documentCommentsTable.id, commentId));
-
-      serverAuditLog(req, { action: "document_comment_deleted", entity: "document", entityId: id, details: `commentId: ${commentId}` });
-      res.json({ message: "Commentaire supprimé" });
-    } catch (err) {
-      req.log.error(err);
-      res.status(500).json({ error: "Erreur serveur" });
+router.delete("/:id/comments/:commentId", requireAuth, async (req, res) => {
+  const id = String(req.params.id);
+  const commentId = String(req.params.commentId);
+  try {
+    const [comment] = await db
+      .select()
+      .from(documentCommentsTable)
+      .where(
+        and(
+          eq(documentCommentsTable.id, commentId),
+          eq(documentCommentsTable.documentId, id),
+        ),
+      );
+    if (!comment) {
+      res.status(404).json({ error: "Commentaire introuvable" });
+      return;
     }
-  },
-);
+
+    const [doc] = await db
+      .select({ syndicateId: documentsTable.syndicateId })
+      .from(documentsTable)
+      .where(eq(documentsTable.id, id));
+    if (!doc) {
+      res.status(404).json({ error: "Document introuvable" });
+      return;
+    }
+
+    const user = req.user!;
+    const isOwner = comment.authorId === user.userId;
+    const isSuperAdmin = user.role === "super_admin";
+    // IDOR fix: a syndicate_admin may only moderate comments on documents
+    // belonging to THEIR OWN syndicate, never a global "any syndicate_admin" bypass.
+    const isSyndicateAdminOfDoc =
+      user.role === "syndicate_admin" && doc.syndicateId === user.syndicateId;
+    if (!isOwner && !isSuperAdmin && !isSyndicateAdminOfDoc) {
+      res.status(403).json({ error: "Accès refusé" });
+      return;
+    }
+
+    await db
+      .update(documentCommentsTable)
+      .set({ isDeleted: true })
+      .where(eq(documentCommentsTable.id, commentId));
+
+    serverAuditLog(req, {
+      action: "document_comment_deleted",
+      entity: "document",
+      entityId: id,
+      details: `commentId: ${commentId}`,
+    });
+    res.json({ message: "Commentaire supprimé" });
+  } catch (err) {
+    req.log.error(err);
+    res.status(500).json({ error: "Erreur serveur" });
+  }
+});
 
 export default router;

@@ -14,9 +14,25 @@ import { serverAuditLog } from "../lib/audit.js";
 
 const router = Router();
 
-function requireSubscriptionScope(req: any, res: any, next: any): void {
+function requireSubscriptionScope(
+  req: any,
+  res: any,
+  next: any,
+  requireSupervisionForSuperAdmin = false,
+): void {
   if (req.user.role !== "super_admin" && !req.user.syndicateId) {
     res.status(403).json({ error: "Syndicat non défini dans le token" });
+    return;
+  }
+  if (
+    requireSupervisionForSuperAdmin &&
+    req.user.role === "super_admin" &&
+    req.query.supervision !== "true"
+  ) {
+    res.status(403).json({
+      error: "La supervision est requise pour cette opération.",
+      code: "SUPERVISION_REQUIRED",
+    });
     return;
   }
   next();
@@ -476,7 +492,7 @@ router.get("/subscriptions/payment-methods", requireAuth, async (_req, res) => {
 // This endpoint never activates a subscription. Activation only happens from
 // finalizeSuccessfulPayment(), after an authorized payment confirmation.
 
-router.post("/subscriptions", requireAuth, requireSubscriptionScope, requireAdmin, async (req, res) => {
+router.post("/subscriptions", requireAuth, (req, res, next) => requireSubscriptionScope(req, res, next, true), requireAdmin, async (req, res) => {
   try {
     const { planId, syndicateId: targetSyndicateId, billingInterval, paymentMethod, idempotencyKey: bodyKey } = req.body as {
       planId: string; syndicateId?: string; billingInterval?: "monthly" | "yearly";
@@ -618,7 +634,7 @@ router.get("/subscriptions/payments", requireAuth, requireSubscriptionScope, req
 // Mobile uses this after an app restart or network interruption to reconcile
 // the locally persisted attempt with the server's authoritative state.
 
-router.get("/subscriptions/payments/:id", requireAuth, requireSubscriptionScope, requireAdmin, async (req, res) => {
+router.get("/subscriptions/payments/:id", requireAuth, (req, res, next) => requireSubscriptionScope(req, res, next, true), requireAdmin, async (req, res) => {
   try {
     const [payment] = await db.select({
       id: subscriptionPaymentsTable.id,
@@ -706,7 +722,7 @@ router.post("/subscriptions/payments/:id/fail", requireAuth, requireSuperAdmin, 
 
 // ─── POST /subscriptions/payments/:id/cancel ───────────────────────────────
 
-router.post("/subscriptions/payments/:id/cancel", requireAuth, requireSubscriptionScope, requireAdmin, async (req, res) => {
+router.post("/subscriptions/payments/:id/cancel", requireAuth, (req, res, next) => requireSubscriptionScope(req, res, next, true), requireAdmin, async (req, res) => {
   try {
     const paymentId = String(req.params.id);
     const [payment] = await db.select().from(subscriptionPaymentsTable).where(eq(subscriptionPaymentsTable.id, paymentId)).limit(1);
@@ -729,7 +745,7 @@ router.post("/subscriptions/payments/:id/cancel", requireAuth, requireSubscripti
 
 // ─── POST /subscriptions/payments/:id/retry ────────────────────────────────
 
-router.post("/subscriptions/payments/:id/retry", requireAuth, requireSubscriptionScope, requireAdmin, async (req, res) => {
+router.post("/subscriptions/payments/:id/retry", requireAuth, (req, res, next) => requireSubscriptionScope(req, res, next, true), requireAdmin, async (req, res) => {
   try {
     const [previous] = await db.select().from(subscriptionPaymentsTable).where(eq(subscriptionPaymentsTable.id, String(req.params.id))).limit(1);
     if (!previous) { paymentError(res, "PAYMENT_NOT_FOUND", "Paiement introuvable", 404); return; }
@@ -783,7 +799,7 @@ router.post("/subscriptions/payments/:id/refund", requireAuth, requireSuperAdmin
 
 // ─── PUT /subscriptions/:id ───────────────────────────────────────────────
 
-router.put("/subscriptions/:id", requireAuth, requireSubscriptionScope, requireAdmin, async (req, res) => {
+router.put("/subscriptions/:id", requireAuth, (req, res, next) => requireSubscriptionScope(req, res, next, true), requireAdmin, async (req, res) => {
   try {
     const user = req.user!;
     const id = String(req.params.id);

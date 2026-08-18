@@ -12,6 +12,7 @@ import {
   productCommentsTable,
   marketplacePromotionsTable,
   usersTable,
+  storageObjectsTable,
 } from "@workspace/db/schema";
 import { eq, and, desc, asc, ilike, or, inArray, count, ne } from "drizzle-orm";
 import { requireAuth, requireSuperAdmin } from "../middleware/auth.js";
@@ -35,6 +36,27 @@ function isAdmin(role: string) {
 }
 
 const PUBLIC_PRODUCT_STATUSES = new Set(["approved", "reserved", "sold", "sold_out"]);
+const PRIVATE_OBJECT_PATH = /^\/objects\/(?!.*(?:^|\/)\.\.(?:\/|$))[A-Za-z0-9._/-]+$/;
+
+async function areOwnedMediaPaths(
+  ownerId: string,
+  paths: string[],
+): Promise<boolean> {
+  const uniquePaths = [...new Set(paths)];
+  if (uniquePaths.some((value) => !PRIVATE_OBJECT_PATH.test(value))) return false;
+  if (uniquePaths.length === 0) return true;
+  const rows = await db
+    .select({
+      objectPath: storageObjectsTable.objectPath,
+      ownerId: storageObjectsTable.ownerId,
+    })
+    .from(storageObjectsTable)
+    .where(inArray(storageObjectsTable.objectPath, uniquePaths));
+  return (
+    rows.length === uniquePaths.length &&
+    rows.every((row) => row.ownerId === ownerId)
+  );
+}
 
 async function getVisibleProductForUser(productId: string, user: NonNullable<Express.Request["user"]>) {
   const [product] = await db
@@ -374,6 +396,16 @@ router.post("/products", requireAuth, async (req, res) => {
     // operational user must always persist the scope carried by their JWT.
     const listingSyndicateId =
       user.role === "super_admin" ? undefined : user.syndicateId;
+    const mediaPaths = [
+      ...result.data.imageUrls,
+      ...(result.data.videoUrl ? [result.data.videoUrl] : []),
+    ];
+    if (!(await areOwnedMediaPaths(user.userId, mediaPaths))) {
+      res.status(403).json({
+        error: "Chaque média doit être un fichier privé appartenant au vendeur",
+      });
+      return;
+    }
 
     // Auto-scan for prohibited content
     const scan = autoScan(result.data.name, result.data.description);
@@ -464,6 +496,18 @@ router.put("/products/:id", requireAuth, async (req, res) => {
     const adminUser = isAdmin(user.role);
     if (!adminUser && product.sellerId !== user.userId) {
       res.status(403).json({ error: "Accès refusé" }); return;
+    }
+    if (result.data.imageUrls !== undefined || result.data.videoUrl !== undefined) {
+      const mediaPaths = [
+        ...(result.data.imageUrls ?? []),
+        ...(result.data.videoUrl ? [result.data.videoUrl] : []),
+      ];
+      if (!product.sellerId || !(await areOwnedMediaPaths(product.sellerId, mediaPaths))) {
+        res.status(403).json({
+          error: "Chaque média doit être un fichier privé appartenant au vendeur",
+        });
+        return;
+      }
     }
 
     const updates: Record<string, unknown> = { ...result.data };
