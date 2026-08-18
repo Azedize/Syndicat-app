@@ -1,3 +1,5 @@
+- 2026-08-18 — Seed de démonstration exécuté dans la base de développement : 101/101 tables renseignées, 459 lignes au total, minimum 2 lignes par table. Le seed est idempotent et couvre les scénarios financiers, documents, élections, support, marketplace, chat, OTP et abonnements.
+
 - 2026-08-18 — Base de développement resynchronisée avec `pnpm --filter @workspace/db run db:push` sans option destructive ; les 101 tables publiques et les cinq relations critiques (`users`, `syndicates`, `appels_de_fonds`, `documents`, `syndicate_subscriptions`) sont présentes.
 - 2026-08-18 — Validation API après restauration : workflow redémarré, build et démarrage sur le port 8080 réussis, SMTP vérifié, scans de rétention et d’expiration documentaires terminés avec `errors: 0`. Le scan d’escalade ne trouve aucun appel de fonds `pending` ou `overdue` à traiter ; aucune erreur de relation manquante n’est remontée.
 - 2026-08-18 — `/api/healthz` répond `200` ; les routes financières, pièces jointes, recouvrement et documents protégées répondent `401` sans authentification. Typecheck API et `git diff --check` réussis.
@@ -298,3 +300,5 @@
 - `requireOperationalAccess` now rejects syndicate-team JWTs without `syndicateId` before route handlers can fall back to broad queries; invoice attachment reads are limited to Super Admin, syndicate admin, and treasurer roles.
 - Financial transaction, salary, cash-entry, invoice, and delivery-note mutations now emit non-blocking audit records; treasurers can access the building-level finance dashboard consistently with the building list endpoint.
 - API typecheck, production build, managed restart, health probe (`200`), protected finance/attachment probes (`401`), and diff validation passed. The development database still lacks several relations used by scheduled jobs, so scheduler errors remain an environment/schema follow-up.
+- 2026-08-18 — Replayed the idempotent enterprise test-data seed against the development database. The database now contains coherent multi-role, multi-syndicate records across property, finance, governance, documents, support, marketplace, subscriptions, and audit modules.
+- Database verification passed: key relations are populated, scheduled API scans start cleanly, health probe returns `200`, seeded login succeeds, and an authenticated building query returns two scoped buildings.

@@ -1,3 +1,5 @@
+- 2026-08-18 — `pnpm --filter @workspace/scripts run seed` exécuté deux fois avec succès ; contrôle SQL final : 101 tables, 459 lignes, minimum 2 lignes par table. `pnpm --filter @workspace/scripts run typecheck` et `git diff --check` réussis.
+
 - 2026-08-18 — `pnpm --filter @workspace/db run db:push` — réussi sans option destructive ; vérification SQL : 101 tables publiques, dont les 5 relations critiques.
 - 2026-08-18 — Workflow `artifacts/api-server: API Server` redémarré ; build, écoute sur le port 8080, SMTP, scans de rétention/expiration (`errors: 0`) et démarrage du scheduler de rappels d’abonnement réussis. La table `appels_de_fonds` ne contient aucun statut `pending` ou `overdue`, donc le scan d’escalade n’avait aucun dossier à créer.
 - 2026-08-18 — `/api/healthz` — `200`; `/api/finance/transactions`, `/api/finance/salaries`, `/api/finance/caisse`, `/api/invoice-attachments/:invoiceId`, `/api/escalation` et `/api/documents` sans authentification — `401`.

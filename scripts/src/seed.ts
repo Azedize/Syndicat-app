@@ -71,6 +71,7 @@ import {
   payslipsTable,
   subscriptionPlansTable,
   syndicateSubscriptionsTable,
+  subscriptionPaymentsTable,
   auditLogsTable,
   ideasTable,
   ideaVotesTable,
@@ -110,6 +111,7 @@ import {
   templateDefinitionVersionsTable,
   templateDefinitionPermissionsTable,
   templateRequestsTable,
+  otpTokensTable,
 } from "@workspace/db/schema";
 
 const PASSWORD_HASH = await bcrypt.hash("password123", 10);
@@ -551,6 +553,7 @@ async function main() {
   ]).onConflictDoNothing();
   await db.insert(reviewsTable).values([
     { id: "review_1", productId: "product_3", productName: "Machine à café Nespresso", orderId: "order_1", rating: 5, comment: "Vendeur sérieux, article conforme.",   reviewerId: "user_member_1", reviewerName: "Mohammed Alaoui", date: "2026-06-26" },
+    { id: "review_2", productId: "product_4", productName: "Bibliothèque IKEA KALLAX", orderId: "order_2", rating: 4, comment: "Bon état, remise en main propre rapide.", reviewerId: "user_tenant_1", reviewerName: "Sara Bouzid", date: "2026-07-02" },
   ]).onConflictDoNothing();
   await db.insert(productFavoritesTable).values([
     { id: "fav_1", productId: "product_1", userId: "user_tenant_1" },
@@ -558,6 +561,7 @@ async function main() {
   ]).onConflictDoNothing();
   await db.insert(productReportsTable).values([
     { id: "report_1", productId: "product_2", reporterId: "user_member_1", reporterName: "Mohammed Alaoui", reason: "mauvaise_info", details: "Prix incohérent avec la description.", status: "pending" },
+    { id: "report_2", productId: "product_5", reporterId: "user_member_4", reporterName: "Amina Rachidi", reason: "autre", details: "Annonce publiée avec des photos qui ne correspondent pas exactement au produit.", status: "reviewed", reviewedBy: "user_admin_agdal", reviewedAt: daysAgo(2) },
   ]).onConflictDoNothing();
   await db.insert(productCommentsTable).values([
     { id: "prodcomment_1", productId: "product_1", userId: "user_tenant_1",  userName: "Sara Bouzid",     userRole: "tenant", content: "Toujours disponible ?" },
@@ -566,6 +570,7 @@ async function main() {
   ]).onConflictDoNothing();
   await db.insert(marketplacePromotionsTable).values([
     { id: "promo_1", productId: "product_1", sellerId: "user_member_1", type: "featured", startDate: daysAgo(15), endDate: daysAgo(-15), amount: "50.00", status: "active", approvedBy: "user_admin_atlas" },
+    { id: "promo_2", productId: "product_3", sellerId: "user_member_3", type: "homepage", startDate: daysAgo(4), endDate: daysAgo(-11), amount: "35.00", status: "pending_payment", paymentMethod: "card", notes: "Promotion demandée pour la semaine des ventes d'été." },
   ]).onConflictDoNothing();
 
   // ─────────────────────────────────────────────────────────────────────────
@@ -653,6 +658,11 @@ async function main() {
   await db.insert(syndicateSubscriptionsTable).values([
     { id: "sub_1", syndicateId: "syn_residence_atlas", planId: "plan_pro",     status: "active", autoRenew: true, createdAt: daysAgo(190) },
     { id: "sub_2", syndicateId: "syn_jardins_agdal",   planId: "plan_basic",   status: "active", autoRenew: true, createdAt: daysAgo(170) },
+  ]).onConflictDoNothing();
+  await db.insert(subscriptionPaymentsTable).values([
+    { id: "subpay_1", syndicateId: "syn_residence_atlas", subscriptionId: "sub_1", planId: "plan_pro", invoiceId: "binv_2", idempotencyKey: "seed-subpay-001", amount: "699.00", currency: "MAD", billingInterval: "monthly", paymentMethod: "card", provider: "stripe", providerReference: "pi_seed_001", status: "succeeded", metadata: { source: "demo_seed", scenario: "paid_renewal" }, processedAt: daysAgo(118), createdAt: daysAgo(118), updatedAt: daysAgo(118) },
+    { id: "subpay_2", syndicateId: "syn_residence_atlas", subscriptionId: "sub_1", planId: "plan_pro", invoiceId: "binv_3", idempotencyKey: "seed-subpay-002", amount: "699.00", currency: "MAD", billingInterval: "monthly", paymentMethod: "card", provider: "stripe", status: "pending", metadata: { source: "demo_seed", scenario: "pending_payment" }, createdAt: daysAgo(2), updatedAt: daysAgo(2) },
+    { id: "subpay_3", syndicateId: "syn_jardins_agdal", subscriptionId: "sub_2", planId: "plan_basic", invoiceId: "binv_5", idempotencyKey: "seed-subpay-003", amount: "299.00", currency: "MAD", billingInterval: "monthly", paymentMethod: "bank_transfer", provider: "manual", status: "failed", failureCode: "insufficient_funds", failureMessage: "Virement non reçu à la date d'échéance.", metadata: { source: "demo_seed", scenario: "failed_payment" }, createdAt: daysAgo(8), updatedAt: daysAgo(8) },
   ]).onConflictDoNothing();
 
   // ─────────────────────────────────────────────────────────────────────────
@@ -1142,6 +1152,7 @@ async function main() {
   // ─────────────────────────────────────────────────────────────────────────
   await db.insert(electionProxiesTable).values([
     { id: "eproxy_1", electionId: "election_1", syndicateId: "syn_residence_atlas", grantorId: "user_member_5", grantorName: "Hassan Cherkaoui", granteeId: "user_member_1", granteeName: "Mohammed Alaoui", status: "active",  createdAt: daysAgo(5) },
+    { id: "eproxy_2", electionId: "election_2", syndicateId: "syn_jardins_agdal", grantorId: "user_member_4", grantorName: "Amina Rachidi", granteeId: "user_member_3", granteeName: "Rachid El Amrani", status: "used", documentUrl: "/objects/demo/eproxy_2.pdf", createdAt: daysAgo(34) },
   ]).onConflictDoNothing();
 
   // ─────────────────────────────────────────────────────────────────────────
@@ -1179,6 +1190,7 @@ async function main() {
   // ─────────────────────────────────────────────────────────────────────────
   await db.insert(blockedUsersTable).values([
     { id: "block_1", blockerId: "user_member_1", blockedId: "user_member_5", createdAt: daysAgo(5) },
+    { id: "block_2", blockerId: "user_member_2", blockedId: "user_tenant_2", createdAt: daysAgo(12) },
   ]).onConflictDoNothing();
 
   // ─────────────────────────────────────────────────────────────────────────
@@ -1186,6 +1198,7 @@ async function main() {
   // ─────────────────────────────────────────────────────────────────────────
   await db.insert(conversationArchivesTable).values([
     { id: "archive_1", conversationId: "conv_support_atlas", userId: "user_admin_atlas" },
+    { id: "archive_2", conversationId: "conv_direct_2", userId: "user_tenant_1" },
   ]).onConflictDoNothing();
 
   // ─────────────────────────────────────────────────────────────────────────
@@ -1395,6 +1408,15 @@ async function main() {
   ]).onConflictDoNothing();
 
   // ─────────────────────────────────────────────────────────────────────────
+  // 54. OTP TOKENS (email/phone verification test states)
+  // ─────────────────────────────────────────────────────────────────────────
+  await db.insert(otpTokensTable).values([
+    { id: "otp_1", email: "mohammed.alaoui@residence-atlas.ma", codeHash: await bcrypt.hash("123456", 10), purpose: "email_verification", expiresAt: daysAgo(-2), attempts: 0, createdAt: daysAgo(1) },
+    { id: "otp_2", email: "khadija.tahiri@residence-atlas.ma", codeHash: await bcrypt.hash("654321", 10), purpose: "email_verification", expiresAt: daysAgo(2), usedAt: daysAgo(1), attempts: 1, createdAt: daysAgo(5) },
+    { id: "otp_3", email: "sara.bouzid@gmail.com", codeHash: await bcrypt.hash("246810", 10), purpose: "phone_verification", expiresAt: daysAgo(-1), attempts: 2, createdAt: daysAgo(0) },
+  ]).onConflictDoNothing();
+
+  // ─────────────────────────────────────────────────────────────────────────
   // DONE
   // ─────────────────────────────────────────────────────────────────────────
   console.log("\n✅  Seed terminé avec succès.\n");
@@ -1442,7 +1464,7 @@ async function main() {
     "cotisations (7)",           "payment_proofs (4)",
     "alerts (5)",                "alert_reads (3)",           "notification_preferences (6)",
     "partners (3)",              "payslips (3)",
-    "subscription_plans (3)",    "syndicate_subscriptions (2)",
+    "subscription_plans (3)",    "syndicate_subscriptions (2)", "subscription_payments (3)",
     "billing_invoices (5)",
     "audit_logs (10)",           "email_logs (7)",
     "ideas (4)",                 "idea_votes (5)",
@@ -1459,7 +1481,7 @@ async function main() {
     "reclamations (6)",          "workflows (5)",             "workflow_steps (15)",
     "fiches_juridiques (6)",
     "template_definitions (5)",  "template_def_versions (3)", "template_def_permissions (9)",
-    "template_requests (3)",
+    "template_requests (3)",     "otp_tokens (3)",
   ];
   for (let i = 0; i < tables.length; i += 3) {
     const row = tables.slice(i, i + 3).map((t) => `  • ${t.padEnd(35)}`).join("");

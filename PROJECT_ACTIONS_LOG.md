@@ -1,3 +1,5 @@
+- 2026-08-18 — Complété `scripts/src/seed.ts` pour les 101 tables : ajout des paiements d’abonnement, OTP, puis de scénarios supplémentaires pour les tables de blocage, archives, mandats, promotions, signalements et avis. Le seed reste relançable sans doublons.
+
 - 2026-08-18 — Restauré le schéma de développement via la procédure `db:push` existante, sans remplacement de base ni option destructive ; vérifié la présence des 101 tables publiques et des relations nécessaires aux tâches planifiées.
 - 2026-08-18 — Terminé la vérification du redémarrage API : démarrage, SMTP, scans documentaires sans erreur, absence d’appels de fonds impayés à escalader, healthcheck `200` et probes protégées `401`.
 
@@ -275,3 +277,5 @@
 - Management-team requests without a JWT `syndicateId` now stop at middleware with `403`; invoice attachment listing is restricted to financial management roles; treasurer access now matches the finance buildings dashboard contract.
 - Added server audit entries for transaction, salary, cash, invoice, and delivery-note creation/status mutations, preserving the existing syndicate row checks and non-blocking audit behavior.
 - API typecheck, production build, `git diff --check`, managed API restart, `/api/healthz` (`200`), and unauthenticated finance/attachment probes (`401`) passed. Restart logs show the current development database is missing `appels_de_fonds`, `documents`, and `syndicate_subscriptions`, which is separate from application startup.
+- 2026-08-18 — Replayed `@workspace/scripts` idempotent seed to restore a complete development test dataset for the enterprise workflows. Verified counts for syndicates, users, members, buildings, lots, tenants, budgets, fund calls, transactions, documents, meetings, elections, support tickets, products, and audit logs.
+- Verified the seeded authentication flow and scoped API access through the shared proxy: health `200`, login token present, and buildings endpoint `200` with two records. Scheduler logs now show clean document/retention/escalation scans.

@@ -85,3 +85,4 @@
 - Subscription payment history and invoice/self-service routes no longer use an undefined filter or misleading empty/active fallback for scope-less syndicate admins.
 - Debt escalation resident history no longer falls back to a global `memberId` lookup when JWT scope is missing; overdue computation now avoids loading other syndicates' unpaid calls into memory.
 - Governance council and mandate routes no longer represent a missing syndicate scope as a valid empty dataset.
+- 2026-08-18 — Resolved the development-environment data gap noted in the previous API audit: the idempotent enterprise seed restored the relations and rows required by scheduled scans and finance/document/subscription verification.
