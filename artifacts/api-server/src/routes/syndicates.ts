@@ -280,17 +280,37 @@ router.put("/syndicates/:id", requireAuth, requireAdmin, async (req, res) => {
     return;
   }
 
-  const result = updateSchema.safeParse(req.body);
+  // Syndicate admins may maintain operational/contact settings for their own
+  // syndicate, but lifecycle state and platform ownership stay under Super
+  // Admin control. Keeping these fields out of the accepted payload avoids
+  // silently persisting a client-provided platform mutation.
+  const schema = user.role === "super_admin"
+    ? updateSchema
+    : updateSchema.omit({ status: true, adminId: true });
+  const result = schema.safeParse(req.body);
   if (!result.success) { res.status(400).json({ error: "Données invalides" }); return; }
+  const updateData = result.data as z.infer<typeof updateSchema>;
   try {
+    if (user.role === "super_admin" && updateData.adminId !== undefined) {
+      const [admin] = await db
+        .select({ id: usersTable.id, role: usersTable.role, syndicateId: usersTable.syndicateId })
+        .from(usersTable)
+        .where(eq(usersTable.id, updateData.adminId))
+        .limit(1);
+      if (!admin || admin.syndicateId !== id || admin.role !== "syndicate_admin") {
+        res.status(400).json({ error: "L'administrateur doit appartenir au syndicat cible" });
+        return;
+      }
+    }
+
     const [updated] = await db
       .update(syndicatesTable)
-      .set(result.data)
+      .set(updateData)
       .where(eq(syndicatesTable.id, id))
       .returning();
     if (!updated) { res.status(404).json({ error: "Syndicat introuvable" }); return; }
     // Bust logo cache so next PDF generation picks up the new logo immediately
-    if (result.data.logoUrl !== undefined && updated.logoUrl) {
+    if (updateData.logoUrl !== undefined && updated.logoUrl) {
       bustLogoCache(updated.logoUrl);
     }
     // Managing syndicate settings/lifecycle is a normal Super Admin platform duty,

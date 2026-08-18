@@ -31,3 +31,9 @@ For nullable-scope tables, a scoped list query is not enough: every ID-based rea
 **Why:** Adjacent modules can otherwise expose cross-syndicate rows through a missing-scope fallback or let an authenticated role vote, review, challenge, or delete a resource belonging to another syndicate.
 
 **How to apply:** Use a small `canAccessResource` helper for the row-level check and keep `super_admin` as the only unrestricted role; never treat `syndicateId ?? ""` as a valid operational scope.
+
+For resident-submitted work requests, building membership is not enough to authorize a row read or lot association: members and tenants must be limited to their own request IDs and, when a lot is supplied, to a lot they own or occupy.
+
+**Why:** A resident can legitimately belong to the same building as many other occupants. Building-level scope alone would expose private descriptions/attachments or allow a request to be filed against another occupant's lot.
+
+**How to apply:** Keep building validation for every work request, then add the requester identity check on resident list/detail routes and validate `ownerId`/`tenantId` (including the email-linked legacy IDs) before inserting a lot-bound request.

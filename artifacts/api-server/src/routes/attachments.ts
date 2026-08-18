@@ -17,6 +17,7 @@ import {
   appelsDeFondsTable,
   invoicesTable,
   buildingsTable,
+  membersTable,
 } from "@workspace/db/schema";
 import { eq, and } from "drizzle-orm";
 import {
@@ -70,15 +71,33 @@ function enforceSyndicateAccess(
   return true;
 }
 
-function enforcePersonalChargeAccess(
+async function enforcePersonalChargeAccess(
   req: Request,
   res: Response,
   ownerId: string | null | undefined,
-): boolean {
+  syndicateId: string,
+): Promise<boolean> {
   if (
     (req.user?.role === "member" || req.user?.role === "tenant") &&
     ownerId !== req.user.userId
   ) {
+    // Seeded and legacy charge rows may use members.id while newer rows use
+    // users.id. Resolve the authenticated member within the already verified
+    // syndicate before deciding that the charge belongs to someone else.
+    if (req.user.role === "member") {
+      const [member] = await db
+        .select({ id: membersTable.id })
+        .from(membersTable)
+        .where(
+          and(
+            eq(membersTable.email, req.user.email),
+            eq(membersTable.syndicateId, syndicateId),
+          ),
+        )
+        .limit(1);
+      if (member?.id === ownerId) return true;
+    }
+
     res.status(403).json({
       error: "Vous ne pouvez accéder qu'aux pièces de vos propres charges",
     });
@@ -115,9 +134,9 @@ router.post("/charge-attachments", requireAuth, async (req, res) => {
       return void res.status(404).json({ error: "Appel de fonds introuvable" });
 
     const syndicateId = await getAppelSyndicateId(appelDeFondsId);
-    if (!enforceSyndicateAccess(req, res, syndicateId)) return;
+    if (!syndicateId || !enforceSyndicateAccess(req, res, syndicateId)) return;
     // Members/tenants can only attach to their own appels
-    if (!enforcePersonalChargeAccess(req, res, appel.ownerId)) return;
+    if (!(await enforcePersonalChargeAccess(req, res, appel.ownerId, syndicateId))) return;
 
     const [row] = await db
       .insert(chargeAttachmentsTable)
@@ -163,13 +182,13 @@ router.get("/charge-attachments/:appelId", requireAuth, async (req, res) => {
     const appelId = String(req.params.appelId);
 
     const syndicateId = await getAppelSyndicateId(appelId);
-    if (!enforceSyndicateAccess(req, res, syndicateId)) return;
+    if (!syndicateId || !enforceSyndicateAccess(req, res, syndicateId)) return;
 
     const [appel] = await db
       .select({ ownerId: appelsDeFondsTable.ownerId })
       .from(appelsDeFondsTable)
       .where(eq(appelsDeFondsTable.id, appelId));
-    if (!appel || !enforcePersonalChargeAccess(req, res, appel.ownerId)) return;
+    if (!appel || !(await enforcePersonalChargeAccess(req, res, appel.ownerId, syndicateId))) return;
 
     const rows = await db
       .select()

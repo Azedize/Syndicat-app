@@ -217,7 +217,13 @@ router.get("/rankings", requireAuth, async (req, res) => {
 router.get("/rankings/my-syndicate", requireAuth, async (req, res) => {
   try {
     const user = req.user!;
-    if (!user.syndicateId) return void res.json({ data: [] });
+    // A missing scope is an authorization failure, not an empty trend. Returning
+    // an empty success here hides malformed/stale tokens and makes the caller
+    // unable to distinguish "no rankings yet" from "no syndicate context".
+    if (!user.syndicateId) {
+      res.status(403).json({ error: "Syndicat non défini dans le token" });
+      return;
+    }
 
     const rows = await db
       .select()

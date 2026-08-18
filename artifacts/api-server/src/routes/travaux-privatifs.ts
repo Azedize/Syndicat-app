@@ -26,7 +26,13 @@
 import { Router } from "express";
 import { z } from "zod";
 import { db } from "@workspace/db";
-import { travauxPrivatifsTable, buildingsTable } from "@workspace/db/schema";
+import {
+  travauxPrivatifsTable,
+  buildingsTable,
+  lotsTable,
+  membersTable,
+  tenantsTable,
+} from "@workspace/db/schema";
 import { eq, and, desc } from "drizzle-orm";
 import { requireAuth, requireAdmin } from "../middleware/auth.js";
 import { assertUserCanAccessBuilding } from "../lib/scope.js";
@@ -44,6 +50,48 @@ async function loadAndScope(id: string, user: any) {
   // Re-validate via building — works for super_admin, syndicate_admin, member, tenant.
   await assertUserCanAccessBuilding(user, row.buildingId);
   return row;
+}
+
+async function assertRequestedLotAccess(
+  user: NonNullable<Express.Request["user"]>,
+  lotId: string,
+  buildingId: string,
+): Promise<void> {
+  const [lot] = await db
+    .select({
+      buildingId: lotsTable.buildingId,
+      ownerId: lotsTable.ownerId,
+      tenantId: lotsTable.tenantId,
+    })
+    .from(lotsTable)
+    .where(eq(lotsTable.id, lotId))
+    .limit(1);
+
+  if (!lot || lot.buildingId !== buildingId) {
+    throw Object.assign(new Error("Lot ou immeuble invalide"), { status: 400 });
+  }
+
+  if (user.role === "member") {
+    if (lot.ownerId === user.userId) return;
+    const [member] = await db
+      .select({ id: membersTable.id })
+      .from(membersTable)
+      .where(eq(membersTable.email, user.email))
+      .limit(1);
+    if (member && lot.ownerId === member.id) return;
+    throw Object.assign(new Error("Accès refusé à ce lot"), { status: 403 });
+  }
+
+  if (user.role === "tenant") {
+    if (lot.tenantId === user.userId) return;
+    const [tenant] = await db
+      .select({ id: tenantsTable.id })
+      .from(tenantsTable)
+      .where(eq(tenantsTable.email, user.email))
+      .limit(1);
+    if (tenant && lot.tenantId === tenant.id) return;
+    throw Object.assign(new Error("Accès refusé à ce lot"), { status: 403 });
+  }
 }
 
 // ─── GET /travaux-privatifs ───────────────────────────────────────────────────
@@ -90,8 +138,14 @@ router.get("/travaux-privatifs", requireAuth, async (req, res) => {
 // ─── GET /travaux-privatifs/:id ───────────────────────────────────────────────
 router.get("/travaux-privatifs/:id", requireAuth, async (req, res) => {
   try {
-    const row = await loadAndScope(String(String(req.params.id)), req.user!).catch(() => null);
+    const row = await loadAndScope(String(req.params.id), req.user!).catch(() => null);
     if (!row) return void res.status(404).json({ error: "Demande introuvable ou accès refusé" });
+    if (
+      (req.user!.role === "member" || req.user!.role === "tenant") &&
+      row.requestedById !== req.user!.userId
+    ) {
+      return void res.status(403).json({ error: "Accès refusé" });
+    }
     res.json({ data: row });
   } catch (e) {
     console.error(e);
@@ -129,13 +183,26 @@ router.post("/travaux-privatifs", requireAuth, async (req, res) => {
       .select({ syndicateId: buildingsTable.syndicateId })
       .from(buildingsTable)
       .where(eq(buildingsTable.id, buildingId));
+    if (!building) {
+      return void res.status(400).json({ error: "Immeuble introuvable" });
+    }
+
+    if (lotId) {
+      try {
+        await assertRequestedLotAccess(user, lotId, buildingId);
+      } catch (error: any) {
+        return void res.status(error.status ?? 400).json({
+          error: error.message ?? "Lot ou immeuble invalide",
+        });
+      }
+    }
 
     const [row] = await db
       .insert(travauxPrivatifsTable)
       .values({
         buildingId,
         lotId,
-        syndicateId: building?.syndicateId ?? user.syndicateId ?? null,
+        syndicateId: building.syndicateId,
         requestedById: user.userId,
         requestedByName: user.name,
         title: title.trim(),
@@ -396,10 +463,7 @@ router.post("/travaux-privatifs/:id/decision", requireAuth, requireAdmin, async 
 router.put("/travaux-privatifs/:id/withdraw", requireAuth, async (req, res) => {
   try {
     const user = req.user!;
-    const [row] = await db
-      .select()
-      .from(travauxPrivatifsTable)
-      .where(eq(travauxPrivatifsTable.id, String(String(req.params.id))));
+    const row = await loadAndScope(String(req.params.id), user).catch(() => null);
     if (!row) return void res.status(404).json({ error: "Demande introuvable" });
     if (row.requestedById !== user.userId) {
       return void res.status(403).json({ error: "Seul le demandeur peut retirer sa demande" });
@@ -411,8 +475,15 @@ router.put("/travaux-privatifs/:id/withdraw", requireAuth, async (req, res) => {
     const [updated] = await db
       .update(travauxPrivatifsTable)
       .set({ status: "withdrawn" })
-      .where(eq(travauxPrivatifsTable.id, String(String(req.params.id))))
+      .where(eq(travauxPrivatifsTable.id, String(req.params.id)))
       .returning();
+
+    await serverAuditLog(req, {
+      action: "WITHDRAW",
+      entity: "travaux_privatifs",
+      entityId: row.id,
+      details: `Demande retirée: ${row.title}`,
+    });
 
     res.json({ data: updated, message: "Demande retirée" });
   } catch (e) {

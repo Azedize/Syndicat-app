@@ -1,6 +1,6 @@
 import { Router } from "express";
 import { z } from "zod";
-import { sql } from "drizzle-orm";
+import { sql, type SQL } from "drizzle-orm";
 import { db } from "@workspace/db";
 import {
   productsTable,
@@ -32,6 +32,20 @@ function isAdmin(role: string) {
   // Only the platform super_admin has marketplace admin privileges.
   // syndicate_admin has NO moderation rights — they see the public catalogue only.
   return role === "super_admin";
+}
+
+const PUBLIC_PRODUCT_STATUSES = new Set(["approved", "reserved", "sold", "sold_out"]);
+
+async function getVisibleProductForUser(productId: string, user: NonNullable<Express.Request["user"]>) {
+  const [product] = await db
+    .select()
+    .from(productsTable)
+    .where(eq(productsTable.id, productId))
+    .limit(1);
+
+  if (!product) return null;
+  if (isAdmin(user.role) || product.sellerId === user.userId) return product;
+  return PUBLIC_PRODUCT_STATUSES.has(product.status ?? "") ? product : null;
 }
 
 // ─── Auto-scan: prohibited words + spam detection ─────────────────────────────
@@ -355,6 +369,11 @@ router.post("/products", requireAuth, async (req, res) => {
       res.status(403).json({ error: "Syndicat non défini dans le token" });
       return;
     }
+    // Marketplace listings are visible across syndicates once approved. A
+    // super-admin may therefore create a platform-level listing, but an
+    // operational user must always persist the scope carried by their JWT.
+    const listingSyndicateId =
+      user.role === "super_admin" ? undefined : user.syndicateId;
 
     // Auto-scan for prohibited content
     const scan = autoScan(result.data.name, result.data.description);
@@ -387,7 +406,7 @@ router.post("/products", requireAuth, async (req, res) => {
         imageUrls: JSON.stringify(result.data.imageUrls),
         contactPreferences: JSON.stringify(result.data.contactPreferences),
         originalPrice: result.data.originalPrice !== undefined ? String(result.data.originalPrice) : undefined,
-        syndicateId: user.syndicateId ?? "",
+        syndicateId: listingSyndicateId,
         sellerId: user.userId,
         sellerName: user.name,
         status: adminUser ? "approved" : "pending_review",
@@ -602,6 +621,12 @@ router.post("/products/:id/favorite", requireAuth, async (req, res) => {
   const productId = String(req.params.id) as string;
   const userId = req.user!.userId;
   try {
+    const product = await getVisibleProductForUser(productId, req.user!);
+    if (!product) {
+      res.status(404).json({ error: "Produit introuvable" });
+      return;
+    }
+
     const [existing] = await db
       .select()
       .from(productFavoritesTable)
@@ -636,6 +661,12 @@ router.get("/products/:id/comments", requireAuth, async (req, res) => {
   const q = req.query as Record<string, string>;
   const { page, limit, offset } = parsePage(q);
   try {
+    const product = await getVisibleProductForUser(productId, req.user!);
+    if (!product) {
+      res.status(404).json({ error: "Produit introuvable" });
+      return;
+    }
+
     const [rows, [{ total }]] = await Promise.all([
       db
         .select()
@@ -668,6 +699,12 @@ router.post("/products/:id/comments", requireAuth, async (req, res) => {
   }
   try {
     const user = req.user!;
+    const product = await getVisibleProductForUser(productId, user);
+    if (!product) {
+      res.status(404).json({ error: "Produit introuvable" });
+      return;
+    }
+
     const [comment] = await db
       .insert(productCommentsTable)
       .values({
@@ -927,6 +964,32 @@ router.post("/products/:id/report", requireAuth, async (req, res) => {
   }
   try {
     const user = req.user!;
+    const [product] = await db
+      .select({ id: productsTable.id, status: productsTable.status })
+      .from(productsTable)
+      .where(eq(productsTable.id, productId))
+      .limit(1);
+    if (!product || product.status !== "approved") {
+      res.status(404).json({ error: "Produit introuvable" });
+      return;
+    }
+
+    const [existingReport] = await db
+      .select({ id: productReportsTable.id })
+      .from(productReportsTable)
+      .where(
+        and(
+          eq(productReportsTable.productId, productId),
+          eq(productReportsTable.reporterId, user.userId),
+          eq(productReportsTable.status, "pending"),
+        ),
+      )
+      .limit(1);
+    if (existingReport) {
+      res.status(409).json({ error: "Vous avez déjà signalé ce produit" });
+      return;
+    }
+
     const [report] = await db
       .insert(productReportsTable)
       .values({
@@ -1529,8 +1592,24 @@ router.put(
 router.get("/reviews", requireAuth, async (req, res) => {
   const q = req.query as Record<string, string>;
   const { page, limit, offset } = parsePage(q);
-  const cond = q.productId ? eq(reviewsTable.productId, q.productId) : undefined;
   try {
+    const user = req.user!;
+    let cond: SQL<unknown> | undefined;
+    if (q.productId) {
+      const product = await getVisibleProductForUser(q.productId, user);
+      if (!product) {
+        res.status(404).json({ error: "Produit introuvable" });
+        return;
+      }
+      cond = eq(reviewsTable.productId, q.productId);
+    } else if (!isAdmin(user.role)) {
+      const publicProducts = await db
+        .select({ id: productsTable.id })
+        .from(productsTable)
+        .where(inArray(productsTable.status, [...PUBLIC_PRODUCT_STATUSES]));
+      cond = inArray(reviewsTable.productId, publicProducts.map((product) => product.id));
+    }
+
     const [rows, [{ total }]] = await Promise.all([
       db
         .select()
@@ -1551,7 +1630,7 @@ router.get("/reviews", requireAuth, async (req, res) => {
 router.post("/reviews", requireAuth, async (req, res) => {
   const schema = z.object({
     productId: z.string(),
-    orderId: z.string().optional(),
+    orderId: z.string().min(1),
     rating: z.number().int().min(1).max(5),
     comment: z.string().max(2000).default(""),
   });
@@ -1567,6 +1646,53 @@ router.post("/reviews", requireAuth, async (req, res) => {
       .from(productsTable)
       .where(eq(productsTable.id, result.data.productId));
     if (!product) { res.status(404).json({ error: "Produit introuvable" }); return; }
+
+    // Reviews are reserved for verified buyers. The order must belong to the
+    // caller, match the product, and be delivered before the review can be
+    // created. Never trust a client-provided orderId on its own.
+    const [order] = await db
+      .select({
+        id: ordersTable.id,
+        productId: ordersTable.productId,
+        buyerId: ordersTable.buyerId,
+        status: ordersTable.status,
+      })
+      .from(ordersTable)
+      .where(
+        and(
+          eq(ordersTable.id, result.data.orderId),
+          eq(ordersTable.productId, result.data.productId),
+          eq(ordersTable.buyerId, user.userId),
+          eq(ordersTable.status, "delivered"),
+        ),
+      )
+      .limit(1);
+    if (!order) {
+      res.status(403).json({
+        error: "Un avis est disponible uniquement après la livraison de votre commande",
+        code: "REVIEW_REQUIRES_DELIVERED_ORDER",
+      });
+      return;
+    }
+
+    const [existingReview] = await db
+      .select({ id: reviewsTable.id })
+      .from(reviewsTable)
+      .where(
+        and(
+          eq(reviewsTable.orderId, order.id),
+          eq(reviewsTable.reviewerId, user.userId),
+        ),
+      )
+      .limit(1);
+    if (existingReview) {
+      res.status(409).json({
+        error: "Vous avez déjà évalué cette commande",
+        code: "REVIEW_ALREADY_EXISTS",
+      });
+      return;
+    }
+
     const [review] = await db
       .insert(reviewsTable)
       .values({

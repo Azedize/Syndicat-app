@@ -6,6 +6,8 @@ import {
   prestatairesTable,
   buildingsTable,
   lotsTable,
+  membersTable,
+  tenantsTable,
   transactionsTable,
 } from "@workspace/db/schema";
 import { eq, and, desc, inArray, sql } from "drizzle-orm";
@@ -56,6 +58,48 @@ async function assertPrestataireMatchesBuilding(
   }
 }
 
+async function assertRequestedLotAccess(
+  user: NonNullable<Express.Request["user"]>,
+  lotId: string,
+  buildingId: string,
+): Promise<void> {
+  const [lot] = await db
+    .select({
+      buildingId: lotsTable.buildingId,
+      ownerId: lotsTable.ownerId,
+      tenantId: lotsTable.tenantId,
+    })
+    .from(lotsTable)
+    .where(eq(lotsTable.id, lotId))
+    .limit(1);
+
+  if (!lot || lot.buildingId !== buildingId) {
+    throw Object.assign(new Error("Lot ou immeuble invalide"), { status: 400 });
+  }
+
+  if (user.role === "member") {
+    if (lot.ownerId === user.userId) return;
+    const [member] = await db
+      .select({ id: membersTable.id })
+      .from(membersTable)
+      .where(eq(membersTable.email, user.email))
+      .limit(1);
+    if (member && lot.ownerId === member.id) return;
+    throw Object.assign(new Error("Accès refusé à ce lot"), { status: 403 });
+  }
+
+  if (user.role === "tenant") {
+    if (lot.tenantId === user.userId) return;
+    const [tenant] = await db
+      .select({ id: tenantsTable.id })
+      .from(tenantsTable)
+      .where(eq(tenantsTable.email, user.email))
+      .limit(1);
+    if (tenant && lot.tenantId === tenant.id) return;
+    throw Object.assign(new Error("Accès refusé à ce lot"), { status: 403 });
+  }
+}
+
 // GET /travaux — List work orders (no N+1: batch joins)
 router.get("/travaux", requireAuth, async (req, res) => {
   try {
@@ -90,6 +134,9 @@ router.get("/travaux", requireAuth, async (req, res) => {
       const ids = await getUserBuildingIds(user);
       if (ids.length === 0) return void res.json({ data: [], total: 0 });
       conditions.push(inArray(travauxTable.buildingId, ids));
+      // Residents only see the requests they submitted. Building-level access
+      // alone would expose other occupants' descriptions and attachments.
+      conditions.push(eq(travauxTable.reportedById, user.userId));
     }
     // super_admin with no buildingId filter sees all
 
@@ -161,6 +208,12 @@ router.get("/travaux/:id", requireAuth, async (req, res) => {
     } catch {
       return void res.status(403).json({ error: "Accès refusé" });
     }
+    if (
+      (user.role === "member" || user.role === "tenant") &&
+      travail.reportedById !== user.userId
+    ) {
+      return void res.status(403).json({ error: "Accès refusé" });
+    }
 
     const [prestataire, lot, building] = await Promise.all([
       travail.prestataireId
@@ -223,6 +276,11 @@ router.post("/travaux", requireAuth, async (req, res) => {
       if (!lot) return void res.status(400).json({ error: "Lot introuvable" });
       if (lot.buildingId !== buildingId) {
         return void res.status(400).json({ error: "Le lot ne correspond pas à l'immeuble sélectionné" });
+      }
+      try {
+        await assertRequestedLotAccess(user, lotId, buildingId);
+      } catch (error: any) {
+        return void res.status(error.status ?? 400).json({ error: error.message });
       }
     }
 

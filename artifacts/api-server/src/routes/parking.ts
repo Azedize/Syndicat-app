@@ -13,7 +13,11 @@ import {
   membersTable,
 } from "@workspace/db/schema";
 import { eq, and, desc, inArray, or, lte, gte } from "drizzle-orm";
-import { isSyndicateTeamRole, requireAuth, requireAdmin } from "../middleware/auth.js";
+import {
+  isSyndicateTeamRole,
+  requireAuth,
+  requireAdmin,
+} from "../middleware/auth.js";
 import type { JwtPayload } from "../middleware/auth.js";
 import { createAlert, sendPushToUsers } from "../lib/notify.js";
 import { getUserBuildingIds } from "../lib/scope.js";
@@ -27,7 +31,9 @@ async function getScopedBuildingIds(user: JwtPayload): Promise<string[]> {
   if (user.role === "super_admin") return []; // empty = "all"
   if (isSyndicateTeamRole(user.role)) {
     if (!user.syndicateId) {
-      throw Object.assign(new Error("Syndicat non défini dans le token"), { status: 403 });
+      throw Object.assign(new Error("Syndicat non défini dans le token"), {
+        status: 403,
+      });
     }
     const bldgs = await db
       .select({ id: buildingsTable.id })
@@ -43,7 +49,10 @@ async function getScopedBuildingIds(user: JwtPayload): Promise<string[]> {
  * Returns the permitted building IDs for query scoping (empty = super_admin / unconstrained).
  * Throws with `{ status, error }` when access is denied.
  */
-async function assertBuildingAccess(user: JwtPayload, buildingId: string): Promise<void> {
+async function assertBuildingAccess(
+  user: JwtPayload,
+  buildingId: string,
+): Promise<void> {
   if (user.role === "super_admin") return; // super_admin can see everything
   const allowed = await getScopedBuildingIds(user);
   if (!allowed.includes(buildingId)) {
@@ -53,7 +62,10 @@ async function assertBuildingAccess(user: JwtPayload, buildingId: string): Promi
   }
 }
 
-async function assertLotMatchesBuilding(lotId: string, buildingId: string): Promise<void> {
+async function assertLotMatchesBuilding(
+  lotId: string,
+  buildingId: string,
+): Promise<void> {
   const [lot] = await db
     .select({ buildingId: lotsTable.buildingId })
     .from(lotsTable)
@@ -63,7 +75,9 @@ async function assertLotMatchesBuilding(lotId: string, buildingId: string): Prom
     throw Object.assign(new Error("Lot introuvable"), { status: 400 });
   }
   if (lot.buildingId !== buildingId) {
-    throw Object.assign(new Error("Le lot n'appartient pas à cet immeuble"), { status: 400 });
+    throw Object.assign(new Error("Le lot n'appartient pas à cet immeuble"), {
+      status: 400,
+    });
   }
 }
 
@@ -71,7 +85,12 @@ async function getSyndicateAdminIds(syndicateId: string): Promise<string[]> {
   const admins = await db
     .select({ id: usersTable.id })
     .from(usersTable)
-    .where(and(eq(usersTable.syndicateId, syndicateId), eq(usersTable.role, "syndicate_admin")));
+    .where(
+      and(
+        eq(usersTable.syndicateId, syndicateId),
+        eq(usersTable.role, "syndicate_admin"),
+      ),
+    );
   return admins.map((a) => a.id);
 }
 
@@ -113,9 +132,18 @@ router.get("/parking/spots", requireAuth, async (req, res) => {
     if (spots.length === 0) return void res.json({ data: [], total: 0 });
 
     // Batch-load lots
-    const lotIds = [...new Set(spots.map((s) => s.lotId).filter(Boolean))] as string[];
+    const lotIds = [
+      ...new Set(spots.map((s) => s.lotId).filter(Boolean)),
+    ] as string[];
     const lots = lotIds.length
-      ? await db.select({ id: lotsTable.id, number: lotsTable.number, type: lotsTable.type }).from(lotsTable).where(inArray(lotsTable.id, lotIds))
+      ? await db
+          .select({
+            id: lotsTable.id,
+            number: lotsTable.number,
+            type: lotsTable.type,
+          })
+          .from(lotsTable)
+          .where(inArray(lotsTable.id, lotIds))
       : [];
     const lotMap = new Map(lots.map((l) => [l.id, l]));
 
@@ -143,8 +171,15 @@ router.get("/parking/spots/my", requireAuth, async (req, res) => {
       const tenantRows = await db
         .select({ lotId: tenantsTable.lotId })
         .from(tenantsTable)
-        .where(or(eq(tenantsTable.id, user.userId), eq(tenantsTable.email, user.email)));
-      tenantRows.forEach((r) => { if (r.lotId) lotIds.push(r.lotId); });
+        .where(
+          or(
+            eq(tenantsTable.id, user.userId),
+            eq(tenantsTable.email, user.email),
+          ),
+        );
+      tenantRows.forEach((r) => {
+        if (r.lotId) lotIds.push(r.lotId);
+      });
     } else if (user.role === "member") {
       // Members: lots can be owned by userId or membersTable.id (see scope.ts pattern)
       const [member] = await db
@@ -191,7 +226,9 @@ const createSpotSchema = z.object({
 router.post("/parking/spots", requireAdmin, async (req, res) => {
   const parsed = createSpotSchema.safeParse(req.body);
   if (!parsed.success) {
-    return void res.status(400).json({ error: parsed.error.issues[0]?.message ?? "Données invalides" });
+    return void res
+      .status(400)
+      .json({ error: parsed.error.issues[0]?.message ?? "Données invalides" });
   }
   try {
     const user = req.user!;
@@ -218,7 +255,9 @@ router.post("/parking/spots", requireAdmin, async (req, res) => {
   } catch (e: any) {
     if (e?.status) return void res.status(e.status).json({ error: e.message });
     if (e?.code === "23505") {
-      return void res.status(409).json({ error: "Ce numéro de place existe déjà dans cet immeuble" });
+      return void res
+        .status(409)
+        .json({ error: "Ce numéro de place existe déjà dans cet immeuble" });
     }
     console.error(e);
     res.status(500).json({ error: "Erreur serveur" });
@@ -230,8 +269,12 @@ router.put("/parking/spots/:id", requireAdmin, async (req, res) => {
   try {
     const user = req.user!;
     // Verify admin has access to this spot's building
-    const [existing] = await db.select({ buildingId: parkingSpotsTable.buildingId }).from(parkingSpotsTable).where(eq(parkingSpotsTable.id, String(req.params.id)));
-    if (!existing) return void res.status(404).json({ error: "Place introuvable" });
+    const [existing] = await db
+      .select({ buildingId: parkingSpotsTable.buildingId })
+      .from(parkingSpotsTable)
+      .where(eq(parkingSpotsTable.id, String(req.params.id)));
+    if (!existing)
+      return void res.status(404).json({ error: "Place introuvable" });
     await assertBuildingAccess(user, existing.buildingId);
 
     const { lotId, status, notes, floor } = req.body as Record<string, string>;
@@ -264,7 +307,9 @@ router.get("/parking/vehicles", requireAuth, async (req, res) => {
   try {
     const user = req.user!;
     if (isSyndicateTeamRole(user.role) && !user.syndicateId) {
-      return void res.status(403).json({ error: "Syndicat non défini dans le token" });
+      return void res
+        .status(403)
+        .json({ error: "Syndicat non défini dans le token" });
     }
     const conditions: any[] = [];
 
@@ -288,14 +333,26 @@ router.get("/parking/vehicles", requireAuth, async (req, res) => {
 
     // Batch-load owners + lots
     const ownerIds = [...new Set(vehicles.map((v) => v.userId))];
-    const lotIds = [...new Set(vehicles.map((v) => v.lotId).filter(Boolean))] as string[];
+    const lotIds = [
+      ...new Set(vehicles.map((v) => v.lotId).filter(Boolean)),
+    ] as string[];
 
     const [owners, lots] = await Promise.all([
       ownerIds.length
-        ? db.select({ id: usersTable.id, name: usersTable.name, email: usersTable.email }).from(usersTable).where(inArray(usersTable.id, ownerIds))
+        ? db
+            .select({
+              id: usersTable.id,
+              name: usersTable.name,
+              email: usersTable.email,
+            })
+            .from(usersTable)
+            .where(inArray(usersTable.id, ownerIds))
         : [],
       lotIds.length
-        ? db.select({ id: lotsTable.id, number: lotsTable.number }).from(lotsTable).where(inArray(lotsTable.id, lotIds))
+        ? db
+            .select({ id: lotsTable.id, number: lotsTable.number })
+            .from(lotsTable)
+            .where(inArray(lotsTable.id, lotIds))
         : [],
     ]);
 
@@ -327,13 +384,20 @@ const registerVehicleSchema = z.object({
 router.post("/parking/vehicles", requireAuth, async (req, res) => {
   const parsed = registerVehicleSchema.safeParse(req.body);
   if (!parsed.success) {
-    return void res.status(400).json({ error: parsed.error.issues[0]?.message ?? "Données invalides" });
+    return void res
+      .status(400)
+      .json({ error: parsed.error.issues[0]?.message ?? "Données invalides" });
   }
   try {
     const user = req.user!;
     if (parsed.data.lotId) {
       const [lot] = await db
-        .select({ id: lotsTable.id, buildingId: lotsTable.buildingId, ownerId: lotsTable.ownerId, tenantId: lotsTable.tenantId })
+        .select({
+          id: lotsTable.id,
+          buildingId: lotsTable.buildingId,
+          ownerId: lotsTable.ownerId,
+          tenantId: lotsTable.tenantId,
+        })
         .from(lotsTable)
         .where(eq(lotsTable.id, parsed.data.lotId))
         .limit(1);
@@ -346,16 +410,25 @@ router.post("/parking/vehicles", requireAuth, async (req, res) => {
           .where(eq(membersTable.email, user.email))
           .limit(1);
         if (![user.userId, member?.id].includes(lot.ownerId ?? "")) {
-          return void res.status(403).json({ error: "Ce lot n'est pas rattaché à votre compte" });
+          return void res
+            .status(403)
+            .json({ error: "Ce lot n'est pas rattaché à votre compte" });
         }
       } else if (user.role === "tenant") {
         const [tenant] = await db
           .select({ id: tenantsTable.id })
           .from(tenantsTable)
-          .where(or(eq(tenantsTable.id, user.userId), eq(tenantsTable.email, user.email)))
+          .where(
+            or(
+              eq(tenantsTable.id, user.userId),
+              eq(tenantsTable.email, user.email),
+            ),
+          )
           .limit(1);
         if (lot.tenantId !== tenant?.id) {
-          return void res.status(403).json({ error: "Ce lot n'est pas rattaché à votre compte" });
+          return void res
+            .status(403)
+            .json({ error: "Ce lot n'est pas rattaché à votre compte" });
         }
       }
     }
@@ -375,7 +448,9 @@ router.post("/parking/vehicles", requireAuth, async (req, res) => {
     res.status(201).json({ data: vehicle, message: "Véhicule enregistré" });
   } catch (e: any) {
     if (e?.code === "23505") {
-      return void res.status(409).json({ error: "Cette plaque est déjà enregistrée" });
+      return void res
+        .status(409)
+        .json({ error: "Cette plaque est déjà enregistrée" });
     }
     console.error(e);
     res.status(500).json({ error: "Erreur serveur" });
@@ -387,27 +462,39 @@ router.delete("/parking/vehicles/:id", requireAuth, async (req, res) => {
   try {
     const user = req.user!;
     if (isSyndicateTeamRole(user.role) && !user.syndicateId) {
-      return void res.status(403).json({ error: "Syndicat non défini dans le token" });
+      return void res
+        .status(403)
+        .json({ error: "Syndicat non défini dans le token" });
     }
     const [vehicle] = await db
       .select()
       .from(vehiclesTable)
       .where(eq(vehiclesTable.id, String(req.params.id)));
 
-    if (!vehicle) return void res.status(404).json({ error: "Véhicule introuvable" });
+    if (!vehicle)
+      return void res.status(404).json({ error: "Véhicule introuvable" });
 
-    if (vehicle.userId !== user.userId && user.role !== "super_admin" && user.role !== "syndicate_admin") {
+    if (
+      vehicle.userId !== user.userId &&
+      user.role !== "super_admin" &&
+      user.role !== "syndicate_admin"
+    ) {
       return void res.status(403).json({ error: "Accès refusé" });
     }
     // Syndicate admin: ensure the vehicle owner belongs to their syndicate
     if (user.role === "syndicate_admin" && user.syndicateId) {
-      const [owner] = await db.select({ syndicateId: usersTable.syndicateId }).from(usersTable).where(eq(usersTable.id, vehicle.userId));
+      const [owner] = await db
+        .select({ syndicateId: usersTable.syndicateId })
+        .from(usersTable)
+        .where(eq(usersTable.id, vehicle.userId));
       if (owner?.syndicateId !== user.syndicateId) {
         return void res.status(403).json({ error: "Accès refusé" });
       }
     }
 
-    await db.delete(vehiclesTable).where(eq(vehiclesTable.id, String(req.params.id)));
+    await db
+      .delete(vehiclesTable)
+      .where(eq(vehiclesTable.id, String(req.params.id)));
     res.json({ message: "Véhicule supprimé" });
   } catch (e) {
     console.error(e);
@@ -432,10 +519,18 @@ router.get("/parking/violations", requireAuth, async (req, res) => {
       if (ids.length === 0 && user.role !== "super_admin") {
         return void res.json({ data: [], total: 0 });
       }
-      if (ids.length > 0) conditions.push(inArray(parkingViolationsTable.buildingId, ids));
+      if (ids.length > 0)
+        conditions.push(inArray(parkingViolationsTable.buildingId, ids));
     }
 
     if (status) conditions.push(eq(parkingViolationsTable.status, status));
+
+    // Building access alone is not enough for residents: violation records
+    // contain reporter identity, photos, and notes. Management can review the
+    // building queue, while members/tenants only receive their own reports.
+    if (user.role === "member" || user.role === "tenant") {
+      conditions.push(eq(parkingViolationsTable.reportedById, user.userId));
+    }
 
     const violations = await db
       .select()
@@ -444,9 +539,18 @@ router.get("/parking/violations", requireAuth, async (req, res) => {
       .orderBy(desc(parkingViolationsTable.reportedAt));
 
     // Batch-load spots
-    const spotIds = [...new Set(violations.map((v) => v.spotId).filter(Boolean))] as string[];
+    const spotIds = [
+      ...new Set(violations.map((v) => v.spotId).filter(Boolean)),
+    ] as string[];
     const spots = spotIds.length
-      ? await db.select({ id: parkingSpotsTable.id, spotNumber: parkingSpotsTable.spotNumber, type: parkingSpotsTable.type }).from(parkingSpotsTable).where(inArray(parkingSpotsTable.id, spotIds))
+      ? await db
+          .select({
+            id: parkingSpotsTable.id,
+            spotNumber: parkingSpotsTable.spotNumber,
+            type: parkingSpotsTable.type,
+          })
+          .from(parkingSpotsTable)
+          .where(inArray(parkingSpotsTable.id, spotIds))
       : [];
     const spotMap = new Map(spots.map((s) => [s.id, s]));
 
@@ -475,7 +579,9 @@ const reportViolationSchema = z.object({
 router.post("/parking/violations", requireAuth, async (req, res) => {
   const parsed = reportViolationSchema.safeParse(req.body);
   if (!parsed.success) {
-    return void res.status(400).json({ error: parsed.error.issues[0]?.message ?? "Données invalides" });
+    return void res
+      .status(400)
+      .json({ error: parsed.error.issues[0]?.message ?? "Données invalides" });
   }
   try {
     const user = req.user!;
@@ -491,7 +597,9 @@ router.post("/parking/violations", requireAuth, async (req, res) => {
         .from(parkingSpotsTable)
         .where(eq(parkingSpotsTable.id, spotId));
       if (!spotCheck || spotCheck.buildingId !== buildingId) {
-        return void res.status(400).json({ error: "La place indiquée n'appartient pas à cet immeuble" });
+        return void res
+          .status(400)
+          .json({ error: "La place indiquée n'appartient pas à cet immeuble" });
       }
     }
 
@@ -514,7 +622,13 @@ router.post("/parking/violations", requireAuth, async (req, res) => {
     const [registeredVehicle] = await db
       .select()
       .from(vehiclesTable)
-      .where(eq(vehiclesTable.plateNumber, plateNumber.toUpperCase().trim()))
+      .innerJoin(lotsTable, eq(vehiclesTable.lotId, lotsTable.id))
+      .where(
+        and(
+          eq(vehiclesTable.plateNumber, plateNumber.toUpperCase().trim()),
+          eq(lotsTable.buildingId, buildingId),
+        ),
+      )
       .limit(1);
 
     const alertTitle = registeredVehicle
@@ -552,7 +666,11 @@ router.post("/parking/violations", requireAuth, async (req, res) => {
 router.put("/parking/violations/:id/status", requireAdmin, async (req, res) => {
   const { status } = req.body as { status: string };
   if (!["resolved", "dismissed"].includes(status)) {
-    return void res.status(400).json({ error: "Statut invalide. Valeurs acceptées: resolved, dismissed" });
+    return void res
+      .status(400)
+      .json({
+        error: "Statut invalide. Valeurs acceptées: resolved, dismissed",
+      });
   }
   try {
     const user = req.user!;
@@ -561,7 +679,8 @@ router.put("/parking/violations/:id/status", requireAdmin, async (req, res) => {
       .select({ buildingId: parkingViolationsTable.buildingId })
       .from(parkingViolationsTable)
       .where(eq(parkingViolationsTable.id, String(req.params.id)));
-    if (!existing) return void res.status(404).json({ error: "Infraction introuvable" });
+    if (!existing)
+      return void res.status(404).json({ error: "Infraction introuvable" });
     await assertBuildingAccess(user, existing.buildingId);
 
     const [violation] = await db
@@ -570,7 +689,8 @@ router.put("/parking/violations/:id/status", requireAdmin, async (req, res) => {
       .where(eq(parkingViolationsTable.id, String(req.params.id)))
       .returning();
 
-    if (!violation) return void res.status(404).json({ error: "Infraction introuvable" });
+    if (!violation)
+      return void res.status(404).json({ error: "Infraction introuvable" });
 
     await sendPushToUsers(
       [violation.reportedById],
@@ -596,10 +716,13 @@ router.get("/parking/reservations", requireAuth, async (req, res) => {
     const conditions: any[] = [];
 
     if (user.role === "member" || user.role === "tenant") {
-      conditions.push(eq(visitorParkingReservationsTable.requestedById, user.userId));
+      conditions.push(
+        eq(visitorParkingReservationsTable.requestedById, user.userId),
+      );
     } else if (user.role !== "super_admin") {
       const buildingIds = await getScopedBuildingIds(user);
-      if (buildingIds.length === 0) return void res.json({ data: [], total: 0 });
+      if (buildingIds.length === 0)
+        return void res.json({ data: [], total: 0 });
       const scopedSpots = await db
         .select({ id: parkingSpotsTable.id })
         .from(parkingSpotsTable)
@@ -611,16 +734,17 @@ router.get("/parking/reservations", requireAuth, async (req, res) => {
     if (spotId) {
       await assertBuildingAccess(
         user,
-        (await db
+        await db
           .select({ buildingId: parkingSpotsTable.buildingId })
           .from(parkingSpotsTable)
           .where(eq(parkingSpotsTable.id, spotId))
           .limit(1)
-          .then(([spot]) => spot?.buildingId ?? "")),
+          .then(([spot]) => spot?.buildingId ?? ""),
       );
       conditions.push(eq(visitorParkingReservationsTable.spotId, spotId));
     }
-    if (status) conditions.push(eq(visitorParkingReservationsTable.status, status));
+    if (status)
+      conditions.push(eq(visitorParkingReservationsTable.status, status));
 
     const reservations = await db
       .select()
@@ -632,7 +756,12 @@ router.get("/parking/reservations", requireAuth, async (req, res) => {
     const spotIds = [...new Set(reservations.map((r) => r.spotId))];
     const spots = spotIds.length
       ? await db
-          .select({ id: parkingSpotsTable.id, spotNumber: parkingSpotsTable.spotNumber, floor: parkingSpotsTable.floor, buildingId: parkingSpotsTable.buildingId })
+          .select({
+            id: parkingSpotsTable.id,
+            spotNumber: parkingSpotsTable.spotNumber,
+            floor: parkingSpotsTable.floor,
+            buildingId: parkingSpotsTable.buildingId,
+          })
           .from(parkingSpotsTable)
           .where(inArray(parkingSpotsTable.id, spotIds))
       : [];
@@ -664,11 +793,14 @@ const createReservationSchema = z.object({
 router.post("/parking/reservations", requireAuth, async (req, res) => {
   const parsed = createReservationSchema.safeParse(req.body);
   if (!parsed.success) {
-    return void res.status(400).json({ error: parsed.error.issues[0]?.message ?? "Données invalides" });
+    return void res
+      .status(400)
+      .json({ error: parsed.error.issues[0]?.message ?? "Données invalides" });
   }
   try {
     const user = req.user!;
-    const { spotId, visitorName, visitorPlate, startTime, endTime, notes } = parsed.data;
+    const { spotId, visitorName, visitorPlate, startTime, endTime, notes } =
+      parsed.data;
 
     const start = new Date(startTime);
     const end = new Date(endTime);
@@ -677,14 +809,23 @@ router.post("/parking/reservations", requireAuth, async (req, res) => {
       return void res.status(400).json({ error: "Dates invalides" });
     }
     if (end <= start) {
-      return void res.status(400).json({ error: "La date de fin doit être postérieure à la date de début" });
+      return void res
+        .status(400)
+        .json({
+          error: "La date de fin doit être postérieure à la date de début",
+        });
     }
 
     // Verify the spot exists, is a visitor spot, and user has building access
-    const [spot] = await db.select().from(parkingSpotsTable).where(eq(parkingSpotsTable.id, spotId));
+    const [spot] = await db
+      .select()
+      .from(parkingSpotsTable)
+      .where(eq(parkingSpotsTable.id, spotId));
     if (!spot) return void res.status(404).json({ error: "Place introuvable" });
     if (spot.type !== "visitor") {
-      return void res.status(400).json({ error: "Cette place n'est pas une place visiteur" });
+      return void res
+        .status(400)
+        .json({ error: "Cette place n'est pas une place visiteur" });
     }
     await assertBuildingAccess(user, spot.buildingId);
 
@@ -704,7 +845,9 @@ router.post("/parking/reservations", requireAuth, async (req, res) => {
         .limit(1);
 
       if (overlapping.length > 0) {
-        const err: any = new Error("Cette place est déjà réservée sur ce créneau");
+        const err: any = new Error(
+          "Cette place est déjà réservée sur ce créneau",
+        );
         err.status = 409;
         throw err;
       }
@@ -733,7 +876,9 @@ router.post("/parking/reservations", requireAuth, async (req, res) => {
       `${visitorName} · ${start.toLocaleDateString("fr-FR")} ${start.toLocaleTimeString("fr-FR", { hour: "2-digit", minute: "2-digit" })} → ${end.toLocaleTimeString("fr-FR", { hour: "2-digit", minute: "2-digit" })}`,
     );
 
-    res.status(201).json({ data: reservation, message: "Réservation confirmée" });
+    res
+      .status(201)
+      .json({ data: reservation, message: "Réservation confirmée" });
   } catch (e: any) {
     if (e?.status) return void res.status(e.status).json({ error: e.message });
     console.error(e);
@@ -746,14 +891,17 @@ router.delete("/parking/reservations/:id", requireAuth, async (req, res) => {
   try {
     const user = req.user!;
     if (isSyndicateTeamRole(user.role) && !user.syndicateId) {
-      return void res.status(403).json({ error: "Syndicat non défini dans le token" });
+      return void res
+        .status(403)
+        .json({ error: "Syndicat non défini dans le token" });
     }
     const [reservation] = await db
       .select()
       .from(visitorParkingReservationsTable)
       .where(eq(visitorParkingReservationsTable.id, String(req.params.id)));
 
-    if (!reservation) return void res.status(404).json({ error: "Réservation introuvable" });
+    if (!reservation)
+      return void res.status(404).json({ error: "Réservation introuvable" });
 
     // Only the requester or an admin can cancel
     if (reservation.requestedById !== user.userId) {
@@ -761,8 +909,15 @@ router.delete("/parking/reservations/:id", requireAuth, async (req, res) => {
         return void res.status(403).json({ error: "Accès refusé" });
       }
       // Syndicate admins can only cancel reservations in their buildings
-      const [spot] = await db.select({ buildingId: parkingSpotsTable.buildingId }).from(parkingSpotsTable).where(eq(parkingSpotsTable.id, reservation.spotId));
-      if (spot) await assertBuildingAccess(user, spot.buildingId);
+      const [spot] = await db
+        .select({ buildingId: parkingSpotsTable.buildingId })
+        .from(parkingSpotsTable)
+        .where(eq(parkingSpotsTable.id, reservation.spotId));
+      if (!spot)
+        return void res
+          .status(409)
+          .json({ error: "La place associée est introuvable" });
+      await assertBuildingAccess(user, spot.buildingId);
     }
 
     const [updated] = await db
@@ -783,7 +938,10 @@ router.delete("/parking/reservations/:id", requireAuth, async (req, res) => {
 router.get("/parking/availability/:spotId", requireAuth, async (req, res) => {
   try {
     const user = req.user!;
-    const [spot] = await db.select({ buildingId: parkingSpotsTable.buildingId }).from(parkingSpotsTable).where(eq(parkingSpotsTable.id, String(req.params.spotId)));
+    const [spot] = await db
+      .select({ buildingId: parkingSpotsTable.buildingId })
+      .from(parkingSpotsTable)
+      .where(eq(parkingSpotsTable.id, String(req.params.spotId)));
     if (!spot) return void res.status(404).json({ error: "Place introuvable" });
     await assertBuildingAccess(user, spot.buildingId);
 

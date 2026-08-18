@@ -30,7 +30,7 @@ import {
 } from "@workspace/db/schema";
 import { eq, and, inArray, count } from "drizzle-orm";
 import QRCode from "qrcode";
-import { requireAuth } from "../middleware/auth.js";
+import { requireAuth, requireRole } from "../middleware/auth.js";
 
 const router = Router();
 
@@ -1387,48 +1387,15 @@ router.get("/verify/badge/:userId", async (req, res) => {
 // Mobile clients may pass token as ?token= query param when Linking.openURL
 // cannot attach Authorization headers.
 
-router.get("/pdf/escalation/:id", async (req, res) => {
+router.get(
+  "/pdf/escalation/:id",
+  requireAuth,
+  requireRole("super_admin", "syndicate_admin"),
+  async (req, res) => {
   try {
-    // Support both Authorization header and ?token= query param (for mobile openURL)
-    let bearerToken: string | undefined = req.headers.authorization?.startsWith(
-      "Bearer ",
-    )
-      ? req.headers.authorization.slice(7)
-      : typeof req.query.token === "string"
-        ? req.query.token
-        : undefined;
-
-    if (!bearerToken) {
-      res.status(401).json({ error: "Non authentifié" });
-      return;
-    }
-
-    // Verify token manually (same logic as requireAuth middleware)
-    const jwt = await import("jsonwebtoken");
-    const jwtSecret = process.env.JWT_SECRET;
-    if (!jwtSecret) {
-      res.status(500).json({ error: "Configuration serveur invalide" });
-      return;
-    }
-
-    let userPayload: any;
-    try {
-      userPayload = jwt.default.verify(bearerToken, jwtSecret);
-    } catch {
-      res.status(401).json({ error: "Token invalide ou expiré" });
-      return;
-    }
-
-    // Require admin role — formal debt letters are not visible to members/tenants
-    if (
-      userPayload.role !== "super_admin" &&
-      userPayload.role !== "syndicate_admin"
-    ) {
-      res.status(403).json({ error: "Accès réservé aux administrateurs" });
-      return;
-    }
-
-    const user = userPayload;
+    // requireAuth supports both Authorization and ?token= for mobile PDF
+    // viewers, while the shared role middleware validates the JWT shape.
+    const user = req.user!;
     const id = String(req.params.id) as string;
 
     const [escalation] = await db
@@ -1441,10 +1408,7 @@ router.get("/pdf/escalation/:id", async (req, res) => {
       return;
     }
 
-    if (
-      user.role !== "super_admin" &&
-      escalation.syndicateId !== user.syndicateId
-    ) {
+    if (user.role !== "super_admin" && (!user.syndicateId || escalation.syndicateId !== user.syndicateId)) {
       res.status(403).json({ error: "Accès refusé" });
       return;
     }
@@ -1740,7 +1704,8 @@ router.get("/pdf/escalation/:id", async (req, res) => {
     console.error(err);
     res.status(500).json({ error: "Erreur génération PDF" });
   }
-});
+  },
+);
 
 // ─── GET /pdf/acte/:id ────────────────────────────────────────────────────────
 // Generate a formal PDF for an administrative act
