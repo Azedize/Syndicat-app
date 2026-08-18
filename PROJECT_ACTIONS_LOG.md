@@ -1,3 +1,6 @@
+- 2026-08-18 — Restauré le schéma de développement via la procédure `db:push` existante, sans remplacement de base ni option destructive ; vérifié la présence des 101 tables publiques et des relations nécessaires aux tâches planifiées.
+- 2026-08-18 — Terminé la vérification du redémarrage API : démarrage, SMTP, scans documentaires sans erreur, absence d’appels de fonds impayés à escalader, healthcheck `200` et probes protégées `401`.
+
 - 2026-08-10 — Audité `documents-recycle-bin.tsx` et supprimé les derniers libellés et dates français codés en dur. Ajout de clés de traduction partagées pour les catégories de documents, la corbeille et les confirmations destructives ; permissions de restauration/purge et endpoints inchangés.
 - 2026-08-10 — Audité `documents.tsx` et remplacé les dates forcées en `fr-FR` de l’historique des versions et des commentaires par un formateur dépendant de la langue active ; contenu, API et permissions inchangés.
 - 2026-08-10 — Audité `mon-bail.tsx` et remplacé les formats français fixes des dates et montants par des helpers dépendant de `fr-MA`, `en-GB`, `ar-MA` ou `es-ES`; ajout de la direction RTL sur la page locataire.

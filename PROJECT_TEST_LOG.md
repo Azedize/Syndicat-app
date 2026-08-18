@@ -1,3 +1,8 @@
+- 2026-08-18 — `pnpm --filter @workspace/db run db:push` — réussi sans option destructive ; vérification SQL : 101 tables publiques, dont les 5 relations critiques.
+- 2026-08-18 — Workflow `artifacts/api-server: API Server` redémarré ; build, écoute sur le port 8080, SMTP, scans de rétention/expiration (`errors: 0`) et démarrage du scheduler de rappels d’abonnement réussis. La table `appels_de_fonds` ne contient aucun statut `pending` ou `overdue`, donc le scan d’escalade n’avait aucun dossier à créer.
+- 2026-08-18 — `/api/healthz` — `200`; `/api/finance/transactions`, `/api/finance/salaries`, `/api/finance/caisse`, `/api/invoice-attachments/:invoiceId`, `/api/escalation` et `/api/documents` sans authentification — `401`.
+- 2026-08-18 — `pnpm --filter @workspace/api-server run typecheck` et `git diff --check` — réussis ; aucun warning/erreur ni relation SQL manquante dans le journal du workflow.
+
 - 2026-08-10 — `pnpm --filter @workspace/mobile run typecheck` après le passage de localisation de la corbeille — réussi.
 - 2026-08-10 — Prettier et `git diff --check` sur les fichiers modifiés — réussis.
 - 2026-08-10 — Workflow Expo redémarré ; Metro a recompilé le bundle sans erreur de transformation. La prévisualisation protégée de `/documents-recycle-bin` redirige correctement sans session ; seuls les avertissements Expo Web déjà connus et le 401 attendu sont présents.

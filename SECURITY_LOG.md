@@ -1,3 +1,5 @@
+- 2026-08-18 — Vérification post-restauration : le schéma de développement contient les relations financières, documentaires et d’abonnement requises ; les endpoints financiers, pièces jointes, recouvrement et documents restent protégés (`401` sans session), sans erreur de relation manquante au démarrage.
+
 # 2026-08-07 — Invoice persistence boundary
 
 - Invoice IDs, references, dates, status, amount, and syndicate ownership are now determined server-side from authenticated request scope rather than trusted client fields.
