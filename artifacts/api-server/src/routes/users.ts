@@ -15,6 +15,20 @@ const router = Router();
 
 const ROLE_VALUES = ["super_admin", "syndicate_admin", "member", "tenant"] as const;
 
+function requireSupervisedUserScope(req: any, res: any): string | null | undefined {
+  if (req.user?.role !== "super_admin") return undefined;
+  const syndicateId =
+    typeof req.query.syndicateId === "string" ? req.query.syndicateId : "";
+  if (req.query.supervision !== "true" || !syndicateId) {
+    res.status(403).json({
+      error: "La supervision et un syndicat cible sont requis pour modifier ce compte.",
+      code: "SUPERVISION_REQUIRED",
+    });
+    return null;
+  }
+  return syndicateId;
+}
+
 router.get(
   "/users",
   requireAuth,
@@ -201,6 +215,8 @@ router.put(
       return;
     }
     try {
+      const supervisedSyndicateId = requireSupervisedUserScope(req, res);
+      if (req.user!.role === "super_admin" && !supervisedSyndicateId) return;
       if (req.user!.role === "syndicate_admin") {
         if (!req.user!.syndicateId) {
           res.status(403).json({ error: "Syndicat non défini dans le token" });
@@ -209,7 +225,14 @@ router.put(
         const [target] = await db
           .select({ syndicateId: usersTable.syndicateId })
           .from(usersTable)
-          .where(eq(usersTable.id, String(req.params.id) as string));
+          .where(
+            and(
+              eq(usersTable.id, String(req.params.id) as string),
+              req.user!.role === "super_admin"
+                ? eq(usersTable.syndicateId, supervisedSyndicateId!)
+                : undefined,
+            ),
+          );
         if (!target) { res.status(404).json({ error: "Utilisateur introuvable" }); return; }
         if (target.syndicateId !== req.user!.syndicateId) {
           res.status(403).json({ error: "Accès refusé" }); return;
@@ -217,7 +240,10 @@ router.put(
       }
       const ownershipCondition =
         req.user!.role === "super_admin"
-          ? eq(usersTable.id, String(req.params.id) as string)
+          ? and(
+              eq(usersTable.id, String(req.params.id) as string),
+              eq(usersTable.syndicateId, supervisedSyndicateId!),
+            )
           : and(
               eq(usersTable.id, String(req.params.id) as string),
               eq(usersTable.syndicateId, req.user!.syndicateId!),
@@ -259,10 +285,30 @@ router.put(
       return;
     }
     try {
+      const supervisedSyndicateId = requireSupervisedUserScope(req, res);
+      if (!supervisedSyndicateId) return;
+      const [target] = await db
+        .select({ id: usersTable.id })
+        .from(usersTable)
+        .where(
+          and(
+            eq(usersTable.id, String(req.params.id) as string),
+            eq(usersTable.syndicateId, supervisedSyndicateId),
+          ),
+        );
+      if (!target) {
+        res.status(404).json({ error: "Utilisateur introuvable" });
+        return;
+      }
       await db
         .update(usersTable)
         .set({ role: result.data.role })
-        .where(eq(usersTable.id, String(req.params.id) as string));
+        .where(
+          and(
+            eq(usersTable.id, String(req.params.id) as string),
+            eq(usersTable.syndicateId, supervisedSyndicateId),
+          ),
+        );
 
       await serverAuditLog(req, {
         action: "UPDATE_ROLE",
@@ -286,7 +332,29 @@ router.delete(
   requireRole("super_admin"),
   async (req, res) => {
     try {
-      await db.delete(usersTable).where(eq(usersTable.id, String(req.params.id) as string));
+      const supervisedSyndicateId = requireSupervisedUserScope(req, res);
+      if (!supervisedSyndicateId) return;
+      const [target] = await db
+        .select({ id: usersTable.id })
+        .from(usersTable)
+        .where(
+          and(
+            eq(usersTable.id, String(req.params.id) as string),
+            eq(usersTable.syndicateId, supervisedSyndicateId),
+          ),
+        );
+      if (!target) {
+        res.status(404).json({ error: "Utilisateur introuvable" });
+        return;
+      }
+      await db
+        .delete(usersTable)
+        .where(
+          and(
+            eq(usersTable.id, String(req.params.id) as string),
+            eq(usersTable.syndicateId, supervisedSyndicateId),
+          ),
+        );
 
       await serverAuditLog(req, {
         action: "DELETE",
