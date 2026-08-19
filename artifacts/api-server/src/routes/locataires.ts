@@ -258,7 +258,6 @@ router.post(
       phone: z.string().optional(),
       lotId: z.string().optional(),
       buildingId: z.string().optional(),
-      syndicateId: z.string().optional(),
       leaseStart: z.string().optional(),
       leaseEnd: z.string().optional(),
       monthlyRent: z.number().nonnegative().optional(),
@@ -276,7 +275,6 @@ router.post(
         .json({ error: "Données invalides", details: result.error.issues });
 
     try {
-      const user = (req as any).user;
       const data = result.data;
       const effectiveSyndicateId = getMutationSyndicate(req, res);
       if (!effectiveSyndicateId) return;
@@ -286,7 +284,16 @@ router.post(
         const [lot] = await db
           .select({ buildingId: lotsTable.buildingId })
           .from(lotsTable)
-          .where(eq(lotsTable.id, data.lotId))
+          .innerJoin(
+            buildingsTable,
+            eq(lotsTable.buildingId, buildingsTable.id),
+          )
+          .where(
+            and(
+              eq(lotsTable.id, data.lotId),
+              eq(buildingsTable.syndicateId, effectiveSyndicateId),
+            ),
+          )
           .limit(1);
         if (lot) buildingId = lot.buildingId;
       }
@@ -390,7 +397,6 @@ router.put(
       return void res.status(400).json({ error: "Données invalides" });
 
     try {
-      const user = req.user!;
       const effectiveSyndicateId = getMutationSyndicate(req, res);
       if (!effectiveSyndicateId) return;
       const [existing] = await db
@@ -418,7 +424,16 @@ router.put(
         const [lot] = await db
           .select({ buildingId: lotsTable.buildingId })
           .from(lotsTable)
-          .where(eq(lotsTable.id, result.data.lotId))
+          .innerJoin(
+            buildingsTable,
+            eq(lotsTable.buildingId, buildingsTable.id),
+          )
+          .where(
+            and(
+              eq(lotsTable.id, result.data.lotId),
+              eq(buildingsTable.syndicateId, effectiveSyndicateId),
+            ),
+          )
           .limit(1);
         if (
           !lot ||

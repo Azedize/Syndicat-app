@@ -49,3 +49,14 @@ boundary.
 
 **How to apply:** reuse the scoped reader/supervision helper for template details, versions,
 permissions, duplication, restoration, and lifecycle mutations.
+
+Tenant mutations follow the same boundary through parent resources: resolve the effective
+syndicate first, then constrain lot lookups by joining their building and applying the
+syndicate predicate; never derive a tenant building from a globally loaded lot.
+
+**Why:** a valid lot identifier from another syndicate can otherwise influence the derived
+building before the later ownership check, creating an inconsistent and easy-to-miss IDOR edge.
+
+**How to apply:** for tenant create/update, validate both explicit building IDs and lot IDs
+against the effective syndicate before insert/update; Super Admin uses the supervised target,
+while non-platform roles require their JWT syndicate scope.

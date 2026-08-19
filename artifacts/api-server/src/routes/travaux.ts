@@ -18,6 +18,45 @@ import { getUserBuildingIds, assertUserCanAccessBuilding } from "../lib/scope.js
 
 const router = Router();
 
+function getMutationSyndicate(
+  req: import("express").Request,
+  res: import("express").Response,
+): string | null {
+  const user = req.user!;
+  if (user.role === "super_admin") {
+    const syndicateId =
+      typeof req.query.syndicateId === "string" ? req.query.syndicateId : "";
+    if (req.query.supervision !== "true" || !syndicateId) {
+      res.status(403).json({
+        error: "La supervision et un syndicat cible sont requis.",
+        code: "SUPERVISION_REQUIRED",
+      });
+      return null;
+    }
+    return syndicateId;
+  }
+  if (!user.syndicateId) {
+    res.status(403).json({ error: "Syndicat non défini dans le token" });
+    return null;
+  }
+  return user.syndicateId;
+}
+
+async function getScopedTravail(id: string, syndicateId: string) {
+  const [row] = await db
+    .select({ travail: travauxTable })
+    .from(travauxTable)
+    .innerJoin(buildingsTable, eq(travauxTable.buildingId, buildingsTable.id))
+    .where(
+      and(
+        eq(travauxTable.id, id),
+        eq(buildingsTable.syndicateId, syndicateId),
+      ),
+    )
+    .limit(1);
+  return row?.travail;
+}
+
 async function assertPrestataireMatchesBuilding(
   prestataireId: string,
   buildingId: string,
@@ -296,6 +335,8 @@ router.post("/travaux", requireAuth, async (req, res) => {
   try {
     const user = (req as any).user;
     const { title, description, type, priority, buildingId, lotId, prestataireId, estimatedAmount, startDate, endDate, notes } = parsed.data;
+    const effectiveSyndicateId = getMutationSyndicate(req, res);
+    if (!effectiveSyndicateId) return;
 
     if (prestataireId && !isSyndicateTeamRole(user.role) && user.role !== "super_admin") {
       return void res.status(403).json({ error: "Seule l'équipe de gestion peut affecter un prestataire" });
@@ -305,6 +346,19 @@ router.post("/travaux", requireAuth, async (req, res) => {
     try {
       await assertUserCanAccessBuilding(user, buildingId);
     } catch {
+      return void res.status(403).json({ error: "Accès refusé à cet immeuble" });
+    }
+    const [buildingScope] = await db
+      .select({ id: buildingsTable.id })
+      .from(buildingsTable)
+      .where(
+        and(
+          eq(buildingsTable.id, buildingId),
+          eq(buildingsTable.syndicateId, effectiveSyndicateId),
+        ),
+      )
+      .limit(1);
+    if (!buildingScope) {
       return void res.status(403).json({ error: "Accès refusé à cet immeuble" });
     }
 
@@ -391,7 +445,9 @@ router.post("/travaux/:id/assign", requireAuth, requireAdmin, async (req, res) =
   if (!prestataireId) return void res.status(400).json({ error: "prestataireId requis" });
   try {
     const user = (req as any).user;
-    const [travail] = await db.select().from(travauxTable).where(eq(travauxTable.id, String(String(req.params.id))));
+    const effectiveSyndicateId = getMutationSyndicate(req, res);
+    if (!effectiveSyndicateId) return;
+    const travail = await getScopedTravail(String(req.params.id), effectiveSyndicateId);
     if (!travail) return void res.status(404).json({ error: "Not found" });
     try { await assertUserCanAccessBuilding(user, travail.buildingId); } catch { return void res.status(403).json({ error: "Accès refusé" }); }
     try {
@@ -443,7 +499,9 @@ router.post("/travaux/:id/report", requireAuth, requireAdmin, async (req, res) =
   }
   try {
     const user = (req as any).user;
-    const [existing] = await db.select({ buildingId: travauxTable.buildingId }).from(travauxTable).where(eq(travauxTable.id, String(String(req.params.id))));
+    const effectiveSyndicateId = getMutationSyndicate(req, res);
+    if (!effectiveSyndicateId) return;
+    const existing = await getScopedTravail(String(req.params.id), effectiveSyndicateId);
     if (!existing) return void res.status(404).json({ error: "Not found" });
     try { await assertUserCanAccessBuilding(user, existing.buildingId); } catch { return void res.status(403).json({ error: "Accès refusé" }); }
     const { reportUrl, photoUrls, invoiceUrl, invoiceAmount } = parsed.data;
@@ -480,7 +538,9 @@ router.post("/travaux/:id/report", requireAuth, requireAdmin, async (req, res) =
 router.post("/travaux/:id/validate", requireAuth, requireAdmin, async (req, res) => {
   try {
     const user = (req as any).user;
-    const [travail] = await db.select().from(travauxTable).where(eq(travauxTable.id, String(String(req.params.id))));
+    const effectiveSyndicateId = getMutationSyndicate(req, res);
+    if (!effectiveSyndicateId) return;
+    const travail = await getScopedTravail(String(req.params.id), effectiveSyndicateId);
     if (!travail) return void res.status(404).json({ error: "Not found" });
     try { await assertUserCanAccessBuilding(user, travail.buildingId); } catch { return void res.status(403).json({ error: "Accès refusé" }); }
 
@@ -556,7 +616,9 @@ router.put("/travaux/:id", requireAuth, requireAdmin, async (req, res) => {
     }
 
     const user = (req as any).user;
-    const [existing] = await db.select({ buildingId: travauxTable.buildingId }).from(travauxTable).where(eq(travauxTable.id, String(String(req.params.id))));
+    const effectiveSyndicateId = getMutationSyndicate(req, res);
+    if (!effectiveSyndicateId) return;
+    const existing = await getScopedTravail(String(req.params.id), effectiveSyndicateId);
     if (!existing) return void res.status(404).json({ error: "Not found" });
     try { await assertUserCanAccessBuilding(user, existing.buildingId); } catch { return void res.status(403).json({ error: "Accès refusé" }); }
     if (req.body.prestataireId) {
@@ -595,7 +657,9 @@ router.put("/travaux/:id", requireAuth, requireAdmin, async (req, res) => {
 router.delete("/travaux/:id", requireAuth, requireAdmin, async (req, res) => {
   try {
     const user = (req as any).user;
-    const [existing] = await db.select({ buildingId: travauxTable.buildingId }).from(travauxTable).where(eq(travauxTable.id, String(String(req.params.id))));
+    const effectiveSyndicateId = getMutationSyndicate(req, res);
+    if (!effectiveSyndicateId) return;
+    const existing = await getScopedTravail(String(req.params.id), effectiveSyndicateId);
     if (!existing) return void res.status(404).json({ error: "Not found" });
     try { await assertUserCanAccessBuilding(user, existing.buildingId); } catch { return void res.status(403).json({ error: "Accès refusé" }); }
 
