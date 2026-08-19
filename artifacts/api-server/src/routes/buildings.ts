@@ -14,7 +14,7 @@ import {
   requireOperationalAccess,
 } from "../middleware/auth.js";
 import { serverAuditLog } from "../lib/audit.js";
-import { getUserBuildingIds } from "../lib/scope.js";
+import { getUserBuildingIds, getUserLotIds } from "../lib/scope.js";
 
 const router = Router();
 
@@ -152,22 +152,47 @@ router.get("/buildings/:id", requireAuth, async (req, res) => {
       }
     }
 
+    const isResident = user.role === "member" || user.role === "tenant";
+    const residentLotIds = isResident ? await getUserLotIds(user) : [];
+    const personalFilter = isResident
+      ? residentLotIds.length
+        ? inArray(lotsTable.id, residentLotIds)
+        : eq(lotsTable.id, "__no_access__")
+      : undefined;
+    const personalWorkFilter = isResident
+      ? residentLotIds.length
+        ? or(
+            inArray(travauxTable.lotId, residentLotIds),
+            eq(travauxTable.reportedById, user.userId),
+          )
+        : eq(travauxTable.reportedById, user.userId)
+      : undefined;
+    const personalClaimFilter = isResident
+      ? eq(sinistresTable.reportedById, user.userId)
+      : undefined;
+
     const [lots, travaux, sinistres, [chargeStats]] = await Promise.all([
       db
         .select()
         .from(lotsTable)
-        .where(eq(lotsTable.buildingId, building.id))
+        .where(
+          and(eq(lotsTable.buildingId, building.id), personalFilter),
+        )
         .orderBy(lotsTable.floor, lotsTable.number),
       db
         .select()
         .from(travauxTable)
-        .where(eq(travauxTable.buildingId, building.id))
+        .where(
+          and(eq(travauxTable.buildingId, building.id), personalWorkFilter),
+        )
         .orderBy(desc(travauxTable.createdAt))
         .limit(10),
       db
         .select()
         .from(sinistresTable)
-        .where(eq(sinistresTable.buildingId, building.id))
+        .where(
+          and(eq(sinistresTable.buildingId, building.id), personalClaimFilter),
+        )
         .orderBy(desc(sinistresTable.createdAt))
         .limit(5),
       db
@@ -179,7 +204,16 @@ router.get("/buildings/:id", requireAuth, async (req, res) => {
           totalPending: sql<number>`COALESCE(SUM(${appelsDeFondsTable.amount}) FILTER (WHERE ${appelsDeFondsTable.status} IN ('pending','overdue')), 0)`,
         })
         .from(appelsDeFondsTable)
-        .where(eq(appelsDeFondsTable.buildingId, building.id)),
+        .where(
+          and(
+            eq(appelsDeFondsTable.buildingId, building.id),
+            isResident
+              ? residentLotIds.length
+                ? inArray(appelsDeFondsTable.lotId, residentLotIds)
+                : eq(appelsDeFondsTable.lotId, "__no_access__")
+              : undefined,
+          ),
+        ),
     ]);
 
     res.json({ building, lots, travaux, sinistres, chargeStats });

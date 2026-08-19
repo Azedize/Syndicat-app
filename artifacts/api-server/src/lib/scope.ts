@@ -15,7 +15,12 @@ export async function getUserBuildingIds(user: JwtPayload): Promise<string[]> {
       .select({ buildingId: tenantsTable.buildingId })
       .from(tenantsTable)
       .where(
-        or(eq(tenantsTable.id, user.userId), eq(tenantsTable.email, user.email)),
+        and(
+          or(eq(tenantsTable.id, user.userId), eq(tenantsTable.email, user.email)),
+          user.syndicateId
+            ? eq(tenantsTable.syndicateId, user.syndicateId)
+            : undefined,
+        ),
       );
     return [...new Set(rows.map((r) => r.buildingId).filter((v): v is string => !!v))];
   }
@@ -24,15 +29,79 @@ export async function getUserBuildingIds(user: JwtPayload): Promise<string[]> {
     const [member] = await db
       .select({ id: membersTable.id })
       .from(membersTable)
-      .where(eq(membersTable.email, user.email))
+      .where(
+        and(
+          eq(membersTable.email, user.email),
+          user.syndicateId
+            ? eq(membersTable.syndicateId, user.syndicateId)
+            : undefined,
+        ),
+      )
       .limit(1);
 
     const ownerIds = member ? [user.userId, member.id] : [user.userId];
     const rows = await db
       .select({ buildingId: lotsTable.buildingId })
       .from(lotsTable)
-      .where(inArray(lotsTable.ownerId, ownerIds));
+      .innerJoin(buildingsTable, eq(buildingsTable.id, lotsTable.buildingId))
+      .where(
+        and(
+          inArray(lotsTable.ownerId, ownerIds),
+          user.syndicateId
+            ? eq(buildingsTable.syndicateId, user.syndicateId)
+            : undefined,
+        ),
+      );
     return [...new Set(rows.map((r) => r.buildingId).filter((v): v is string => !!v))];
+  }
+
+  return [];
+}
+
+/** Returns the exact lots owned/occupied by a member or tenant. */
+export async function getUserLotIds(user: JwtPayload): Promise<string[]> {
+  if (user.role === "tenant") {
+    const rows = await db
+      .select({ lotId: tenantsTable.lotId })
+      .from(tenantsTable)
+      .where(
+        and(
+          or(eq(tenantsTable.id, user.userId), eq(tenantsTable.email, user.email)),
+          user.syndicateId
+            ? eq(tenantsTable.syndicateId, user.syndicateId)
+            : undefined,
+        ),
+      );
+    return [...new Set(rows.map((r) => r.lotId).filter((v): v is string => !!v))];
+  }
+
+  if (user.role === "member") {
+    const [member] = await db
+      .select({ id: membersTable.id })
+      .from(membersTable)
+      .where(
+        and(
+          eq(membersTable.email, user.email),
+          user.syndicateId
+            ? eq(membersTable.syndicateId, user.syndicateId)
+            : undefined,
+        ),
+      )
+      .limit(1);
+    const ownerIds = member ? [user.userId, member.id] : [user.userId];
+    const rows = await db
+      .select({ id: lotsTable.id })
+      .from(lotsTable)
+      .innerJoin(buildingsTable, eq(buildingsTable.id, lotsTable.buildingId))
+      .where(
+        and(
+          inArray(lotsTable.ownerId, ownerIds),
+          user.syndicateId
+            ? eq(buildingsTable.syndicateId, user.syndicateId)
+            : undefined,
+        ),
+      );
+    return rows.map((r) => r.id);
   }
 
   return [];

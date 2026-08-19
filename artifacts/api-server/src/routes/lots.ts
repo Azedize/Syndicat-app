@@ -15,6 +15,7 @@ import {
   requireAdmin,
   requireOperationalAccess,
 } from "../middleware/auth.js";
+import { getUserLotIds } from "../lib/scope.js";
 
 const router = Router();
 
@@ -126,6 +127,13 @@ router.get("/lots", requireAuth, async (req, res) => {
         );
       }
       // super_admin with no syndicateId filter sees all lots (global view)
+    }
+    if (user.role === "member") {
+      const personalLotIds = await getUserLotIds(user);
+      if (personalLotIds.length === 0) {
+        return void res.json({ data: [], total: 0 });
+      }
+      conditions.push(inArray(lotsTable.id, personalLotIds));
     }
     if (type) conditions.push(eq(lotsTable.type, type));
     if (status) conditions.push(eq(lotsTable.status, status));
@@ -321,6 +329,12 @@ router.get("/lots/:id", requireAuth, async (req, res) => {
         .limit(1);
       if (!building || building.syndicateId !== user.syndicateId) {
         return void res.status(403).json({ error: "Accès refusé" });
+      }
+      if (user.role === "member") {
+        const personalLotIds = await getUserLotIds(user);
+        if (!personalLotIds.includes(lot.id)) {
+          return void res.status(403).json({ error: "Accès refusé" });
+        }
       }
     }
 
