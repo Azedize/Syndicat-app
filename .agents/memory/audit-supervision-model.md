@@ -37,3 +37,15 @@ could mutate an arbitrary member ID without the supervision boundary used by ope
 **How to apply:** for Super Admin ID-based syndicate mutations, check `?supervision=true` before
 the target query, resolve the target's syndicate, and include that syndicate in the final update
 predicate; non-platform roles must require a non-empty JWT `syndicateId`.
+
+Template Studio follows the same rule: template-id reads for syndicate admins must constrain
+status and `(syndicateId IS NULL OR syndicateId = JWT syndicateId)` in the SQL predicate, not
+fetch the row first and reject it afterward. Super Admin id-based template operations use the
+explicit supervision target before loading the template.
+
+**Why:** Template definitions are either global or syndicate-owned; post-fetch checks leave an
+unscoped identifier lookup and make the route family inconsistent with the platform supervision
+boundary.
+
+**How to apply:** reuse the scoped reader/supervision helper for template details, versions,
+permissions, duplication, restoration, and lifecycle mutations.
