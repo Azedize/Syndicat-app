@@ -34,6 +34,30 @@ function canAccessJustification(
   return !!user.syndicateId && syndicateId === user.syndicateId;
 }
 
+function getJustificationSyndicate(
+  req: import("express").Request,
+  res: import("express").Response,
+): string | null {
+  const user = req.user!;
+  if (user.role === "super_admin") {
+    const syndicateId =
+      typeof req.query.syndicateId === "string" ? req.query.syndicateId : "";
+    if (req.query.supervision !== "true" || !syndicateId) {
+      res.status(403).json({
+        error: "La supervision et un syndicat cible sont requis.",
+        code: "SUPERVISION_REQUIRED",
+      });
+      return null;
+    }
+    return syndicateId;
+  }
+  if (!user.syndicateId) {
+    res.status(403).json({ error: "Syndicat non défini dans le token" });
+    return null;
+  }
+  return user.syndicateId;
+}
+
 async function requireActiveMember(req: any, res: any): Promise<boolean> {
   const user = req.user!;
   if (user.role !== "member") {
@@ -277,7 +301,13 @@ router.post(
         .select()
         .from(expenseJustificationsTable)
         .where(
-          eq(expenseJustificationsTable.id, String(req.params.id) as string),
+          and(
+            eq(expenseJustificationsTable.id, String(req.params.id)),
+            eq(
+              expenseJustificationsTable.syndicateId,
+              req.user!.syndicateId!,
+            ),
+          ),
         );
 
       if (!row)
@@ -334,7 +364,13 @@ router.post(
         .select()
         .from(expenseJustificationsTable)
         .where(
-          eq(expenseJustificationsTable.id, String(req.params.id) as string),
+          and(
+            eq(expenseJustificationsTable.id, String(req.params.id)),
+            eq(
+              expenseJustificationsTable.syndicateId,
+              req.user!.syndicateId!,
+            ),
+          ),
         );
 
       if (!row)
@@ -422,11 +458,20 @@ router.put(
         });
       }
 
+      const effectiveSyndicateId = getJustificationSyndicate(req, res);
+      if (!effectiveSyndicateId) return;
+
       const [existing] = await db
         .select()
         .from(expenseJustificationsTable)
         .where(
-          eq(expenseJustificationsTable.id, String(req.params.id) as string),
+          and(
+            eq(expenseJustificationsTable.id, String(req.params.id)),
+            eq(
+              expenseJustificationsTable.syndicateId,
+              effectiveSyndicateId,
+            ),
+          ),
         );
       if (!existing)
         return void res.status(404).json({ error: "Justificatif introuvable" });

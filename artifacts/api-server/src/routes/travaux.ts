@@ -148,6 +148,25 @@ router.get("/travaux", requireAuth, async (req, res) => {
     const conditions: any[] = [];
 
     if (buildingId) {
+      if (user.role === "super_admin") {
+        const effectiveSyndicateId = getMutationSyndicate(req, res);
+        if (!effectiveSyndicateId) return;
+        const [building] = await db
+          .select({ id: buildingsTable.id })
+          .from(buildingsTable)
+          .where(
+            and(
+              eq(buildingsTable.id, buildingId),
+              eq(buildingsTable.syndicateId, effectiveSyndicateId),
+            ),
+          )
+          .limit(1);
+        if (!building) {
+          return void res
+            .status(403)
+            .json({ error: "Accès refusé à cet immeuble" });
+        }
+      }
       // Verify the requesting user actually has access to the requested building
       // before using it as a filter — prevents cross-syndicate data leaks.
       try {
