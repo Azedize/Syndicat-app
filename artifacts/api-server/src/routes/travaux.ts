@@ -338,7 +338,7 @@ router.get("/travaux/:id", requireAuth, async (req, res) => {
                 eq(buildingsTable.id, travail.buildingId),
               ),
             )
-            .then(([row]) => row?.lotsTable ?? null)
+            .then(([row]) => row?.lots ?? null)
         : Promise.resolve(null),
     ]);
 
