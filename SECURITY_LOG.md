@@ -1,3 +1,5 @@
+- 2026-08-19 — User-management mutations now require Super Admin `supervision=true` plus an explicit target `syndicateId` before status, role, or deletion lookups. Updates and deletes reapply the same syndicate predicate, preventing cross-syndicate account mutation while preserving syndicate-admin ownership checks.
+
 - 2026-08-18 — Vérification post-restauration : le schéma de développement contient les relations financières, documentaires et d’abonnement requises ; les endpoints financiers, pièces jointes, recouvrement et documents restent protégés (`401` sans session), sans erreur de relation manquante au démarrage.
 
 # 2026-08-07 — Invoice persistence boundary

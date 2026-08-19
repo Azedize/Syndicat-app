@@ -225,14 +225,7 @@ router.put(
         const [target] = await db
           .select({ syndicateId: usersTable.syndicateId })
           .from(usersTable)
-          .where(
-            and(
-              eq(usersTable.id, String(req.params.id) as string),
-              req.user!.role === "super_admin"
-                ? eq(usersTable.syndicateId, supervisedSyndicateId!)
-                : undefined,
-            ),
-          );
+          .where(eq(usersTable.id, String(req.params.id) as string));
         if (!target) { res.status(404).json({ error: "Utilisateur introuvable" }); return; }
         if (target.syndicateId !== req.user!.syndicateId) {
           res.status(403).json({ error: "Accès refusé" }); return;
