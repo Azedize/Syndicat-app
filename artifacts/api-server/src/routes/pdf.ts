@@ -1810,6 +1810,13 @@ router.get(
 router.get("/pdf/acte/:id", requireAuth, async (req, res) => {
   const { id } = req.params as { id: string };
   const { role, syndicateId } = req.user!;
+  if (role === "super_admin" && req.query.supervision !== "true") {
+    res.status(403).json({
+      error: "La supervision est requise pour générer cet acte syndical.",
+      code: "SUPERVISION_REQUIRED",
+    });
+    return;
+  }
   try {
     const { actesAdministratifsTable } = await import("@workspace/db/schema");
     const [acte] = await db

@@ -4548,24 +4548,20 @@ router.post(
         }).catch(() => {});
       }
 
-      res
-        .status(201)
-        .json({
-          data: {
-            memberName,
-            totalDue,
-            documents: createdDocs,
-            message: `Dossier de recouvrement complet : ${createdDocs.length} documents générés.`,
-          },
-        });
+      res.status(201).json({
+        data: {
+          memberName,
+          totalDue,
+          documents: createdDocs,
+          message: `Dossier de recouvrement complet : ${createdDocs.length} documents générés.`,
+        },
+      });
     } catch (err) {
       req.log.error(err);
-      res
-        .status(500)
-        .json({
-          error:
-            "Erreur serveur lors de la génération du dossier de recouvrement",
-        });
+      res.status(500).json({
+        error:
+          "Erreur serveur lors de la génération du dossier de recouvrement",
+      });
     }
   },
 );
@@ -4616,12 +4612,10 @@ router.post("/documents/sale-bundle", requireAuth, async (req, res) => {
           )
           .limit(1);
         if (!mc) {
-          res
-            .status(403)
-            .json({
-              error:
-                "Vous ne pouvez demander ce dossier que pour votre propre lot",
-            });
+          res.status(403).json({
+            error:
+              "Vous ne pouvez demander ce dossier que pour votre propre lot",
+          });
           return;
         }
       }
@@ -4739,23 +4733,19 @@ router.post("/documents/sale-bundle", requireAuth, async (req, res) => {
       entityId: createdDocs[0]?.documentId ?? lotId,
       details: `Dossier de vente — ${memberName} — Lot ${lotId} — ${createdDocs.length} docs`,
     });
-    res
-      .status(201)
-      .json({
-        data: {
-          memberName,
-          lotNumber: lotMemberData.lotNumber,
-          documents: createdDocs,
-          message: `Dossier de vente complet : ${createdDocs.length} documents générés.`,
-        },
-      });
+    res.status(201).json({
+      data: {
+        memberName,
+        lotNumber: lotMemberData.lotNumber,
+        documents: createdDocs,
+        message: `Dossier de vente complet : ${createdDocs.length} documents générés.`,
+      },
+    });
   } catch (err) {
     req.log.error(err);
-    res
-      .status(500)
-      .json({
-        error: "Erreur serveur lors de la génération du dossier de vente",
-      });
+    res.status(500).json({
+      error: "Erreur serveur lors de la génération du dossier de vente",
+    });
   }
 });
 
@@ -4939,16 +4929,14 @@ router.post(
         }).catch(() => {});
       }
 
-      res
-        .status(201)
-        .json({
-          data: {
-            agTitle,
-            meetingDate: agDate,
-            documents: createdDocs,
-            message: `Dossier AG complet : ${createdDocs.length} documents générés.`,
-          },
-        });
+      res.status(201).json({
+        data: {
+          agTitle,
+          meetingDate: agDate,
+          documents: createdDocs,
+          message: `Dossier AG complet : ${createdDocs.length} documents générés.`,
+        },
+      });
     } catch (err) {
       req.log.error(err);
       res
@@ -5068,12 +5056,10 @@ router.get(
       res.setHeader("Referrer-Policy", "no-referrer");
       res.send(buffer);
     } catch {
-      res
-        .status(404)
-        .json({
-          error:
-            "Fichier introuvable — il a peut-être expiré après un redémarrage du serveur.",
-        });
+      res.status(404).json({
+        error:
+          "Fichier introuvable — il a peut-être expiré après un redémarrage du serveur.",
+      });
     }
   },
 );
@@ -5125,11 +5111,9 @@ router.get("/documents/:id/download-url", requireAuth, async (req, res) => {
     });
   } catch (err) {
     req.log.error(err);
-    res
-      .status(500)
-      .json({
-        error: "Erreur lors de la génération du lien de téléchargement",
-      });
+    res.status(500).json({
+      error: "Erreur lors de la génération du lien de téléchargement",
+    });
   }
 });
 
@@ -5965,6 +5949,13 @@ router.post(
   async (req, res) => {
     const id = String(req.params.id);
     try {
+      if (req.query.supervision !== "true") {
+        res.status(403).json({
+          error: "La supervision est requise pour purger ce document.",
+          code: "SUPERVISION_REQUIRED",
+        });
+        return;
+      }
       const [existing] = await db
         .select()
         .from(documentsTable)
@@ -5974,11 +5965,9 @@ router.post(
         return;
       }
       if (!existing.isDeleted) {
-        res
-          .status(409)
-          .json({
-            error: "Effectuez d'abord une suppression logique avant de purger",
-          });
+        res.status(409).json({
+          error: "Effectuez d'abord une suppression logique avant de purger",
+        });
         return;
       }
 
@@ -6146,11 +6135,9 @@ router.post(
     if (rawSig && rawSig.trim().length > 0) {
       const looksLikeSvg = /^\s*(?:<\?xml[^>]*>\s*)?<svg/i.test(rawSig.trim());
       if (!looksLikeSvg) {
-        res
-          .status(422)
-          .json({
-            error: "Les données de signature ne sont pas un SVG valide",
-          });
+        res.status(422).json({
+          error: "Les données de signature ne sont pas un SVG valide",
+        });
         return;
       }
     }
@@ -6171,6 +6158,16 @@ router.post(
         res.status(403).json({ error: "Accès refusé" });
         return;
       }
+      if (
+        req.user!.role === "super_admin" &&
+        req.query.supervision !== "true"
+      ) {
+        res.status(403).json({
+          error: "La supervision est requise pour signer ce document.",
+          code: "SUPERVISION_REQUIRED",
+        });
+        return;
+      }
       // generated, pending_review, validated, AND signed documents may be signed
       // "signed" must be included so multi-signature workflows allow a second/third signer
       // after the first signer has already changed the status to "signed".
@@ -6181,11 +6178,9 @@ router.post(
         "signed",
       ];
       if (!signable.includes((doc.status ?? "draft") as DocStatus)) {
-        res
-          .status(422)
-          .json({
-            error: `Le document au statut "${doc.status}" ne peut pas être signé`,
-          });
+        res.status(422).json({
+          error: `Le document au statut "${doc.status}" ne peut pas être signé`,
+        });
         return;
       }
 

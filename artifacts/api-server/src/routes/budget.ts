@@ -14,6 +14,7 @@ import {
   caisseEntriesTable,
   usersTable,
   prestatairesTable,
+  meetingsTable,
 } from "@workspace/db/schema";
 import { eq, and, desc, sql, sum, or, inArray } from "drizzle-orm";
 import {
@@ -224,12 +225,9 @@ router.post("/budgets", requireAuth, requireFinanceAccess, async (req, res) => {
       isSyndicateScoped(user.role) &&
       building.syndicateId !== user.syndicateId
     ) {
-      return void res
-        .status(403)
-        .json({
-          error:
-            "Accès refusé : cet immeuble n'appartient pas à votre syndicat",
-        });
+      return void res.status(403).json({
+        error: "Accès refusé : cet immeuble n'appartient pas à votre syndicat",
+      });
     }
 
     const providerIds = [
@@ -350,6 +348,20 @@ router.put(
         if (req.body[k] !== undefined) updates[k] = req.body[k];
       }
 
+      if (updates.meetingId !== undefined && updates.meetingId !== null) {
+        const [meeting] = await db
+          .select({ syndicateId: meetingsTable.syndicateId })
+          .from(meetingsTable)
+          .where(eq(meetingsTable.id, String(updates.meetingId)))
+          .limit(1);
+        if (!meeting || meeting.syndicateId !== building?.syndicateId) {
+          return void res.status(400).json({
+            error:
+              "La réunion sélectionnée n'appartient pas au syndicat du budget",
+          });
+        }
+      }
+
       const [updated] = await db
         .update(budgetsTable)
         .set(updates)
@@ -405,12 +417,10 @@ router.post(
 
       if (isSyndicateScoped(user.role)) {
         if (!building || building.syndicateId !== user.syndicateId) {
-          return void res
-            .status(403)
-            .json({
-              error:
-                "Accès refusé : cet immeuble n'appartient pas à votre syndicat",
-            });
+          return void res.status(403).json({
+            error:
+              "Accès refusé : cet immeuble n'appartient pas à votre syndicat",
+          });
         }
       }
 
@@ -583,11 +593,9 @@ router.get("/appels-de-fonds", requireAuth, async (req, res) => {
 
     // Tenants do NOT have access to appels de fonds at all
     if (user.role === "tenant") {
-      return void res
-        .status(403)
-        .json({
-          error: "Les locataires n'ont pas accès aux charges de copropriété",
-        });
+      return void res.status(403).json({
+        error: "Les locataires n'ont pas accès aux charges de copropriété",
+      });
     }
 
     const where = conditions.length ? and(...conditions) : undefined;
@@ -621,6 +629,12 @@ router.get("/appels-de-fonds", requireAuth, async (req, res) => {
 router.put("/appels-de-fonds/:id/pay", requireAuth, async (req, res) => {
   try {
     const user = req.user!;
+    if (user.role === "super_admin" && req.query.supervision !== "true") {
+      return void res.status(403).json({
+        error: "La supervision est requise pour soumettre un paiement.",
+        code: "SUPERVISION_REQUIRED",
+      });
+    }
     if (isSyndicateScoped(user.role) && !user.syndicateId) {
       return void res
         .status(403)
@@ -629,11 +643,9 @@ router.put("/appels-de-fonds/:id/pay", requireAuth, async (req, res) => {
 
     // Tenants cannot pay appels de fonds (not owners)
     if (user.role === "tenant") {
-      return void res
-        .status(403)
-        .json({
-          error: "Les locataires n'ont pas accès aux charges de copropriété",
-        });
+      return void res.status(403).json({
+        error: "Les locataires n'ont pas accès aux charges de copropriété",
+      });
     }
 
     // Fetch the call-for-funds first to verify ownership
@@ -671,12 +683,10 @@ router.put("/appels-de-fonds/:id/pay", requireAuth, async (req, res) => {
         appel.ownerId === user.userId ||
         (memberId && appel.ownerId === memberId);
       if (!isOwner) {
-        return void res
-          .status(403)
-          .json({
-            error:
-              "Vous ne pouvez soumettre un paiement que pour vos propres appels de fonds",
-          });
+        return void res.status(403).json({
+          error:
+            "Vous ne pouvez soumettre un paiement que pour vos propres appels de fonds",
+        });
       }
     }
 
@@ -871,6 +881,12 @@ router.put(
 router.get("/appels-de-fonds/:id/receipt", requireAuth, async (req, res) => {
   try {
     const user = req.user!;
+    if (user.role === "super_admin" && req.query.supervision !== "true") {
+      return void res.status(403).json({
+        error: "La supervision est requise pour accéder à ce reçu.",
+        code: "SUPERVISION_REQUIRED",
+      });
+    }
 
     const [appel] = await db
       .select()
@@ -909,11 +925,9 @@ router.get("/appels-de-fonds/:id/receipt", requireAuth, async (req, res) => {
     }
 
     if (appel.status !== "paid" || !appel.receiptNumber) {
-      return void res
-        .status(400)
-        .json({
-          error: "Reçu disponible uniquement pour les paiements validés",
-        });
+      return void res.status(400).json({
+        error: "Reçu disponible uniquement pour les paiements validés",
+      });
     }
 
     // Fetch enrichment data

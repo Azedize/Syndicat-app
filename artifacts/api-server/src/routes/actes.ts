@@ -14,6 +14,13 @@ const router = Router();
 
 router.get("/actes", requireAuth, async (req, res) => {
   const { role, syndicateId } = req.user!;
+  if (role === "super_admin" && req.query.supervision !== "true") {
+    res.status(403).json({
+      error: "La supervision est requise pour consulter les actes syndicaux.",
+      code: "SUPERVISION_REQUIRED",
+    });
+    return;
+  }
   if (!syndicateId && role !== "super_admin") {
     res.status(400).json({ error: "Syndicat requis" });
     return;
@@ -40,6 +47,13 @@ router.get("/actes", requireAuth, async (req, res) => {
 router.get("/actes/:id", requireAuth, async (req, res) => {
   const { id } = req.params as { id: string };
   const { role, syndicateId } = req.user!;
+  if (role === "super_admin" && req.query.supervision !== "true") {
+    res.status(403).json({
+      error: "La supervision est requise pour consulter cet acte syndical.",
+      code: "SUPERVISION_REQUIRED",
+    });
+    return;
+  }
   if (role !== "super_admin" && !syndicateId) {
     res.status(403).json({ error: "Syndicat non défini dans le token" });
     return;

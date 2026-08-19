@@ -32,11 +32,9 @@ router.get("/meetings", requireAuth, async (req, res) => {
 
     // Tenants do not participate in meetings (not copropriétaires)
     if (user.role === "tenant") {
-      return void res
-        .status(403)
-        .json({
-          error: "Les locataires n'ont pas accès aux assemblées générales",
-        });
+      return void res.status(403).json({
+        error: "Les locataires n'ont pas accès aux assemblées générales",
+      });
     }
 
     if (user.role === "super_admin" && req.query.supervision !== "true") {
@@ -309,6 +307,12 @@ router.delete(
           .status(403)
           .json({ error: "Syndicat non défini dans le token" });
       }
+      if (user.role === "super_admin" && req.query.supervision !== "true") {
+        return void res.status(403).json({
+          error: "La supervision est requise pour supprimer une réunion.",
+          code: "SUPERVISION_REQUIRED",
+        });
+      }
 
       const whereClause =
         user.role === "super_admin"
@@ -357,11 +361,9 @@ router.post("/meetings/:id/attend", requireAuth, async (req, res) => {
 
   // Tenants cannot attend AG meetings
   if (user.role === "tenant") {
-    return void res
-      .status(403)
-      .json({
-        error: "Les locataires n'ont pas accès aux assemblées générales",
-      });
+    return void res.status(403).json({
+      error: "Les locataires n'ont pas accès aux assemblées générales",
+    });
   }
 
   // Non-super users must have syndicateId — hard fail
