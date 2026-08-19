@@ -145,13 +145,58 @@ async function getTemplateOrFail(id: string, res: import("express").Response) {
   return tmpl;
 }
 
+function getSupervisionSyndicate(
+  req: import("express").Request,
+  res: import("express").Response,
+): string | null {
+  const syndicateId =
+    typeof req.query.syndicateId === "string" ? req.query.syndicateId : "";
+  if (req.query.supervision !== "true" || !syndicateId) {
+    res.status(403).json({
+      error: "La supervision et un syndicat cible sont requis pour ce template.",
+      code: "SUPERVISION_REQUIRED",
+    });
+    return null;
+  }
+  return syndicateId;
+}
+
+async function getSupervisedTemplateOrFail(
+  id: string,
+  req: import("express").Request,
+  res: import("express").Response,
+) {
+  const syndicateId = getSupervisionSyndicate(req, res);
+  if (!syndicateId) return null;
+  const [tmpl] = await db
+    .select()
+    .from(templateDefinitionsTable)
+    .where(
+      and(
+        eq(templateDefinitionsTable.id, id),
+        or(
+          isNull(templateDefinitionsTable.syndicateId),
+          eq(templateDefinitionsTable.syndicateId, syndicateId),
+        )!,
+      ),
+    );
+  if (!tmpl) {
+    res.status(404).json({ error: "Template introuvable" });
+    return null;
+  }
+  return tmpl;
+}
+
 async function getTemplateForReader(
   id: string,
   req: import("express").Request,
   res: import("express").Response,
 ) {
+  if (req.user!.role === "super_admin") {
+    return getSupervisedTemplateOrFail(id, req, res);
+  }
   const tmpl = await getTemplateOrFail(id, res);
-  if (!tmpl || req.user!.role === "super_admin") return tmpl;
+  if (!tmpl) return null;
 
   const syndicateId = req.user!.syndicateId;
   if (!syndicateId) {
@@ -371,6 +416,41 @@ router.post(
 
 router.get(
   "/template-studio/templates/:id",
+  requireAuth,
+  requireRole("super_admin", "syndicate_admin"),
+  async (req, res) => {
+    const tmpl = await getSupervisedTemplateOrFail(
+      routeParam(req.params.id),
+      req,
+      res,
+    );
+    if (!tmpl) return;
+
+    const permissions = await db
+      .select()
+      .from(templateDefinitionPermissionsTable)
+      .where(eq(templateDefinitionPermissionsTable.templateId, tmpl.id));
+
+    res.json({
+      data: {
+        ...tmpl,
+        name: safeJson(tmpl.name),
+        description: safeJson(tmpl.description),
+        variables: safeJson(tmpl.variables, []),
+        sections: safeJson(tmpl.sections, []),
+        layoutConfig: safeJson(tmpl.layoutConfig, {}),
+        languages: safeJson(tmpl.languages, ["fr"]),
+        permissions,
+      },
+    });
+  },
+);
+
+/*
+ * Reader route implementation for syndicate_admin and Super Admin.
+ */
+router.get(
+  "/template-studio/templates/:id/legacy-reader",
   requireAuth,
   requireRole("super_admin", "syndicate_admin"),
   async (req, res) => {
