@@ -20,7 +20,7 @@ import {
 } from "../middleware/auth.js";
 import type { JwtPayload } from "../middleware/auth.js";
 import { createAlert, sendPushToUsers } from "../lib/notify.js";
-import { getUserBuildingIds } from "../lib/scope.js";
+import { getUserBuildingIds, getUserLotIds } from "../lib/scope.js";
 
 const router = Router();
 
@@ -170,39 +170,11 @@ router.get("/parking/spots", requireAuth, async (req, res) => {
 router.get("/parking/spots/my", requireAuth, async (req, res) => {
   try {
     const user = req.user!;
-    const lotIds: string[] = [];
-
-    if (user.role === "tenant") {
-      // Tenants: look up their lot via the tenants table (matched by id or email)
-      const tenantRows = await db
-        .select({ lotId: tenantsTable.lotId })
-        .from(tenantsTable)
-        .where(
-          or(
-            eq(tenantsTable.id, user.userId),
-            eq(tenantsTable.email, user.email),
-          ),
-        );
-      tenantRows.forEach((r) => {
-        if (r.lotId) lotIds.push(r.lotId);
-      });
-    } else if (user.role === "member") {
-      // Members: lots can be owned by userId or membersTable.id (see scope.ts pattern)
-      const [member] = await db
-        .select({ id: membersTable.id })
-        .from(membersTable)
-        .where(eq(membersTable.email, user.email))
-        .limit(1);
-      const ownerIds = member ? [user.userId, member.id] : [user.userId];
-      const memberLots = await db
-        .select({ id: lotsTable.id })
-        .from(lotsTable)
-        .where(inArray(lotsTable.ownerId, ownerIds));
-      memberLots.forEach((l) => lotIds.push(l.id));
-    } else {
+    if (user.role !== "member" && user.role !== "tenant") {
       // Admins: no personal spot concept
       return void res.json({ data: null });
     }
+    const lotIds = await getUserLotIds(user);
 
     if (lotIds.length === 0) return void res.json({ data: null });
 

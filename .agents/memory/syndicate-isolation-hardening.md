@@ -49,3 +49,9 @@ For sensitive generated documents, validating the authorized root row is not eno
 **Why:** A malformed or historically inconsistent relationship can bypass a later query's apparent scope and mix another syndicate's property or resident data into a legal document.
 
 **How to apply:** Fail closed with a safe data-integrity response when a required relation is missing or cross-syndicate; do not render a partial legal document.
+
+For platform-owner supervision of governance/elections, require both an explicit supervision flag and a single target syndicate; never let a Super Admin list or inspect these modules globally by default.
+
+**Why:** governance and election rows contain syndicate-specific resident and mandate data, so an unrestricted platform role is still a cross-syndicate disclosure risk.
+
+**How to apply:** scope Super Admin list queries to the target syndicate and make row-level access require the same target match; apply relationship checks again when enriching work orders, lots, and providers.

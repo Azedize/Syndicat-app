@@ -1,6 +1,6 @@
 import { db } from "@workspace/db";
 import { lotsTable, membersTable, tenantsTable, buildingsTable } from "@workspace/db/schema";
-import { eq, or, inArray } from "drizzle-orm";
+import { eq, and, or, inArray } from "drizzle-orm";
 import { isSyndicateTeamRole, type JwtPayload } from "../middleware/auth.js";
 
 /**

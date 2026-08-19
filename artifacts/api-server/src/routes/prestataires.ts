@@ -39,7 +39,20 @@ router.get("/prestataires", requireAuth, async (req, res) => {
       const providerIds = await db
         .selectDistinct({ id: contratsPrestatairesTable.prestataireId })
         .from(contratsPrestatairesTable)
-        .where(inArray(contratsPrestatairesTable.buildingId, buildingIds));
+        .innerJoin(
+          buildingsTable,
+          eq(buildingsTable.id, contratsPrestatairesTable.buildingId),
+        )
+        .innerJoin(
+          prestatairesTable,
+          eq(prestatairesTable.id, contratsPrestatairesTable.prestataireId),
+        )
+        .where(
+          and(
+            inArray(contratsPrestatairesTable.buildingId, buildingIds),
+            eq(prestatairesTable.syndicateId, buildingsTable.syndicateId),
+          ),
+        );
       const ids = providerIds.map((p) => p.id);
       if (ids.length === 0) return void res.json({ data: [], total: 0 });
       conditions.push(inArray(prestatairesTable.id, ids));
@@ -716,6 +729,27 @@ router.post("/contrats", requireAuth, requireAdmin, async (req, res) => {
       await assertUserCanAccessBuilding(user, buildingId);
     } catch {
       return void res.status(403).json({ error: "Accès refusé" });
+    }
+
+    const [[building], [provider]] = await Promise.all([
+      db
+        .select({ syndicateId: buildingsTable.syndicateId })
+        .from(buildingsTable)
+        .where(eq(buildingsTable.id, buildingId))
+        .limit(1),
+      db
+        .select({ syndicateId: prestatairesTable.syndicateId })
+        .from(prestatairesTable)
+        .where(eq(prestatairesTable.id, prestataireId))
+        .limit(1),
+    ]);
+    if (!building || !provider) {
+      return void res.status(400).json({ error: "Immeuble ou prestataire introuvable" });
+    }
+    if (!provider.syndicateId || provider.syndicateId !== building.syndicateId) {
+      return void res.status(403).json({
+        error: "Le prestataire et l'immeuble doivent appartenir au même syndicat",
+      });
     }
 
     const [contract] = await db

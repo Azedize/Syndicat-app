@@ -7,7 +7,7 @@ import {
   appelsDeFondsTable,
   sinistresTable,
 } from "@workspace/db/schema";
-import { eq, and, sql, desc, count, inArray } from "drizzle-orm";
+import { eq, and, or, sql, desc, count, inArray } from "drizzle-orm";
 import {
   isSyndicateTeamRole,
   requireAuth,

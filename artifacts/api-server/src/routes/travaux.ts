@@ -163,13 +163,26 @@ router.get("/travaux", requireAuth, async (req, res) => {
     const [prestataires, lots] = await Promise.all([
       prestataireIds.length
         ? db
-            .select({ id: prestatairesTable.id, name: prestatairesTable.name, phone: prestatairesTable.phone, type: prestatairesTable.type })
+            .select({
+              id: prestatairesTable.id,
+              name: prestatairesTable.name,
+              phone: prestatairesTable.phone,
+              type: prestatairesTable.type,
+              buildingId: prestatairesTable.buildingId,
+              syndicateId: prestatairesTable.syndicateId,
+            })
             .from(prestatairesTable)
             .where(inArray(prestatairesTable.id, prestataireIds))
         : [],
       lotIds.length
         ? db
-            .select({ id: lotsTable.id, number: lotsTable.number, floor: lotsTable.floor, type: lotsTable.type })
+            .select({
+              id: lotsTable.id,
+              number: lotsTable.number,
+              floor: lotsTable.floor,
+              type: lotsTable.type,
+              buildingId: lotsTable.buildingId,
+            })
             .from(lotsTable)
             .where(inArray(lotsTable.id, lotIds))
         : [],
@@ -178,11 +191,27 @@ router.get("/travaux", requireAuth, async (req, res) => {
     const prestataireMap = new Map(prestataires.map((p) => [p.id, p]));
     const lotMap = new Map(lots.map((l) => [l.id, l]));
 
-    const enriched = rows.map((t) => ({
-      ...t,
-      prestataire: t.prestataireId ? (prestataireMap.get(t.prestataireId) ?? null) : null,
-      lot: t.lotId ? (lotMap.get(t.lotId) ?? null) : null,
-    }));
+    const buildingRows = await db
+      .select({ id: buildingsTable.id, syndicateId: buildingsTable.syndicateId })
+      .from(buildingsTable)
+      .where(inArray(buildingsTable.id, [...new Set(rows.map((r) => r.buildingId))]));
+    const syndicateByBuilding = new Map(buildingRows.map((b) => [b.id, b.syndicateId]));
+    const enriched = rows.map((t) => {
+      const syndicateId = syndicateByBuilding.get(t.buildingId);
+      const provider = t.prestataireId ? prestataireMap.get(t.prestataireId) : undefined;
+      const lot = t.lotId ? lotMap.get(t.lotId) : undefined;
+      const providerBelongs =
+        !!provider &&
+        (!provider.buildingId || provider.buildingId === t.buildingId) &&
+        !!syndicateId &&
+        provider.syndicateId === syndicateId;
+      const lotBelongs = !!lot && lot.buildingId === t.buildingId;
+      return {
+        ...t,
+        prestataire: providerBelongs ? provider : null,
+        lot: lotBelongs ? lot : null,
+      };
+    });
 
     res.json({ data: enriched, total: enriched.length });
   } catch (e) {
@@ -224,6 +253,18 @@ router.get("/travaux/:id", requireAuth, async (req, res) => {
         : Promise.resolve(null),
       db.select().from(buildingsTable).where(eq(buildingsTable.id, travail.buildingId)).then(([b]) => b ?? null),
     ]);
+
+    if (
+      !building ||
+      (prestataire &&
+        (prestataire.syndicateId !== building.syndicateId ||
+          (prestataire.buildingId && prestataire.buildingId !== building.id))) ||
+      (lot && lot.buildingId !== building.id)
+    ) {
+      return void res.status(409).json({
+        error: "Les relations du bon de travaux sont incohérentes",
+      });
+    }
 
     res.json({ data: { ...travail, prestataire, lot, building } });
   } catch (e) {

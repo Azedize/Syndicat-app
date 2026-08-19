@@ -144,14 +144,31 @@ function assertAccess(
   req: any,
   election: { syndicateId: string | null },
 ): boolean {
+  if (req.user!.role === "super_admin") {
+    return (
+      req.query.supervision === "true" &&
+      typeof req.query.syndicateId === "string" &&
+      !!req.query.syndicateId &&
+      election.syndicateId === req.query.syndicateId
+    );
+  }
   return (
-    req.user!.role === "super_admin" ||
     (!!election.syndicateId && election.syndicateId === req.user!.syndicateId)
   );
 }
 
 function requireSyndicateScope(req: any, res: any): boolean {
-  if (req.user!.role !== "super_admin" && !req.user!.syndicateId) {
+  if (req.user!.role === "super_admin") {
+    if (req.query.supervision !== "true" || typeof req.query.syndicateId !== "string" || !req.query.syndicateId) {
+      res.status(403).json({
+        error: "La supervision et un syndicat cible sont requis pour les élections.",
+        code: "SUPERVISION_REQUIRED",
+      });
+      return false;
+    }
+    return true;
+  }
+  if (!req.user!.syndicateId) {
     res.status(403).json({ error: "Syndicat non défini dans le token" });
     return false;
   }
@@ -162,18 +179,18 @@ function requireSyndicateScope(req: any, res: any): boolean {
 
 router.get("/elections", requireAuth, async (req, res) => {
   try {
+    if (!requireSyndicateScope(req, res)) return;
     const syndicateId = req.user!.syndicateId;
-    if (req.user!.role !== "super_admin" && !syndicateId) {
-      return void res
-        .status(403)
-        .json({ error: "Syndicat non défini dans le token" });
-    }
-    const elections = syndicateId
+    const targetSyndicateId =
+      req.user!.role === "super_admin"
+        ? String(req.query.syndicateId)
+        : syndicateId!;
+    const elections = targetSyndicateId
       ? await db
           .select()
           .from(electionsTable)
-          .where(eq(electionsTable.syndicateId, syndicateId))
-      : await db.select().from(electionsTable);
+          .where(eq(electionsTable.syndicateId, targetSyndicateId))
+      : [];
 
     if (req.user!.role === "tenant") {
       // Tenants only ever see elections explicitly opened to them, and never in draft
@@ -242,18 +259,17 @@ async function enrichElections(
 // via the wrong handler for every caller, including the mobile elected-members screen).
 router.get("/elections/mandates", requireAuth, async (req, res) => {
   try {
-    const syndicateId = req.user!.syndicateId;
-    if (req.user!.role !== "super_admin" && !syndicateId) {
-      return void res
-        .status(403)
-        .json({ error: "Syndicat non défini dans le token" });
-    }
+    if (!requireSyndicateScope(req, res)) return;
+    const syndicateId =
+      req.user!.role === "super_admin"
+        ? String(req.query.syndicateId)
+        : req.user!.syndicateId!;
     const mandates = syndicateId
       ? await db
           .select()
           .from(conseilSyndicalTable)
           .where(eq(conseilSyndicalTable.syndicateId, syndicateId))
-      : await db.select().from(conseilSyndicalTable);
+      : [];
     res.json({ data: mandates });
   } catch (err) {
     req.log.error(err);
@@ -264,6 +280,7 @@ router.get("/elections/mandates", requireAuth, async (req, res) => {
 router.get("/elections/:id", requireAuth, async (req, res) => {
   const id = String(req.params.id);
   try {
+    if (!requireSyndicateScope(req, res)) return;
     const [election] = await db
       .select()
       .from(electionsTable)

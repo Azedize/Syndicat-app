@@ -29,11 +29,28 @@ import { serverAuditLog } from "../lib/audit.js";
 const router = Router();
 
 function requireGovernanceScope(req: any, res: any, next: any): void {
-  if (req.user.role !== "super_admin" && !req.user.syndicateId) {
+  if (req.user.role === "super_admin") {
+    if (req.query.supervision !== "true" || typeof req.query.syndicateId !== "string" || !req.query.syndicateId) {
+      res.status(403).json({
+        error: "La supervision et un syndicat cible sont requis pour la gouvernance.",
+        code: "SUPERVISION_REQUIRED",
+      });
+      return;
+    }
+    next();
+    return;
+  }
+  if (!req.user.syndicateId) {
     res.status(403).json({ error: "Syndicat non défini dans le token" });
     return;
   }
   next();
+}
+
+function scopedSyndicateId(req: any): string | null {
+  return req.user.role === "super_admin"
+    ? (typeof req.query.syndicateId === "string" ? req.query.syndicateId : null)
+    : (req.user.syndicateId ?? null);
 }
 
 // ─── Role → icon helper (used in API response so mobile can rely on it) ────
@@ -60,14 +77,15 @@ router.get(
   async (req, res) => {
     try {
       const user = req.user!;
-      if (!user.syndicateId) return void res.json({ data: [] });
+      const syndicateId = scopedSyndicateId(req);
+      if (!syndicateId) return void res.status(403).json({ error: "Syndicat non défini dans le périmètre" });
 
       const rows = await db
         .select()
         .from(conseilSyndicalTable)
         .where(
           and(
-            eq(conseilSyndicalTable.syndicateId, user.syndicateId),
+            eq(conseilSyndicalTable.syndicateId, syndicateId),
             eq(conseilSyndicalTable.status, "active"),
           ),
         )
@@ -239,12 +257,13 @@ router.get(
   async (req, res) => {
     try {
       const user = req.user!;
-      if (!user.syndicateId) return void res.json({ data: [] });
+      const syndicateId = scopedSyndicateId(req);
+      if (!syndicateId) return void res.status(403).json({ error: "Syndicat non défini dans le périmètre" });
 
       const rows = await db
         .select()
         .from(conseilSyndicalTable)
-        .where(eq(conseilSyndicalTable.syndicateId, user.syndicateId))
+        .where(eq(conseilSyndicalTable.syndicateId, syndicateId))
         .orderBy(desc(conseilSyndicalTable.createdAt));
 
       const now = new Date();
@@ -313,12 +332,13 @@ router.get(
   async (req, res) => {
     try {
       const user = req.user!;
-      if (!user.syndicateId) return void res.json({ data: [] });
+      const syndicateId = scopedSyndicateId(req);
+      if (!syndicateId) return void res.status(403).json({ error: "Syndicat non défini dans le périmètre" });
 
       const rows = await db
         .select()
         .from(governanceDelegationsTable)
-        .where(eq(governanceDelegationsTable.syndicateId, user.syndicateId))
+        .where(eq(governanceDelegationsTable.syndicateId, syndicateId))
         .orderBy(desc(governanceDelegationsTable.createdAt));
 
       res.json({ data: rows.map(serializeDelegation) });

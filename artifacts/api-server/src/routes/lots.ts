@@ -77,8 +77,11 @@ async function validateLotAssignments(
 router.get("/lots", requireAuth, async (req, res) => {
   try {
     const user = req.user!;
+    const conditions: any[] = [];
     if (user.role === "tenant") {
-      return void res.status(403).json({ error: "Accès refusé" });
+      const personalLotIds = await getUserLotIds(user);
+      if (personalLotIds.length === 0) return void res.json({ data: [], total: 0 });
+      conditions.push(inArray(lotsTable.id, personalLotIds));
     }
 
     const { buildingId, type, status, ownerId } = req.query as Record<
@@ -86,7 +89,6 @@ router.get("/lots", requireAuth, async (req, res) => {
       string
     >;
 
-    const conditions: any[] = [];
     if (user.role !== "super_admin" && !user.syndicateId) {
       return void res
         .status(403)
@@ -240,7 +242,15 @@ router.get("/lots/my-lot", requireAuth, async (req, res) => {
         .json({ error: "Syndicat non défini dans le token" });
     }
 
-    // Find member record by email (membersTable has no userId FK, only email)
+    // Find member record by email (membersTable has no userId FK, only email).
+    // Tenants are scoped through their tenancy lot, never through a guessed ownerId.
+    const tenantLotIds =
+      user.role === "tenant" ? await getUserLotIds(user) : [];
+    if (user.role === "tenant" && tenantLotIds.length === 0) {
+      return void res
+        .status(404)
+        .json({ error: "Aucun lot associé à votre compte" });
+    }
     const memberRows = await db
       .select({ id: membersTable.id })
       .from(membersTable)
@@ -254,7 +264,10 @@ router.get("/lots/my-lot", requireAuth, async (req, res) => {
       );
 
     // Build OR conditions: ownerId could store membersTable.id or usersTable.id
-    const ownerConditions: any[] = [eq(lotsTable.ownerId, user.userId)];
+    const ownerConditions: any[] =
+      user.role === "tenant"
+        ? [inArray(lotsTable.id, tenantLotIds)]
+        : [eq(lotsTable.ownerId, user.userId)];
     for (const member of memberRows) {
       ownerConditions.push(eq(lotsTable.ownerId, member.id));
     }
@@ -306,9 +319,6 @@ router.get("/lots/my-lot", requireAuth, async (req, res) => {
 router.get("/lots/:id", requireAuth, async (req, res) => {
   try {
     const user = req.user!;
-    if (user.role === "tenant")
-      return void res.status(403).json({ error: "Accès refusé" });
-
     const [lot] = await db
       .select()
       .from(lotsTable)
@@ -330,7 +340,7 @@ router.get("/lots/:id", requireAuth, async (req, res) => {
       if (!building || building.syndicateId !== user.syndicateId) {
         return void res.status(403).json({ error: "Accès refusé" });
       }
-      if (user.role === "member") {
+      if (user.role === "member" || user.role === "tenant") {
         const personalLotIds = await getUserLotIds(user);
         if (!personalLotIds.includes(lot.id)) {
           return void res.status(403).json({ error: "Accès refusé" });
