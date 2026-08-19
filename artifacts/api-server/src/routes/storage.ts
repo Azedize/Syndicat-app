@@ -23,10 +23,7 @@ import {
 } from "../lib/objectStorage.js";
 import { requireAuth, softAuth } from "../middleware/auth.js";
 import { db } from "@workspace/db";
-import {
-  documentsTable,
-  storageObjectsTable,
-} from "@workspace/db/schema";
+import { documentsTable, storageObjectsTable } from "@workspace/db/schema";
 import { eq, or } from "drizzle-orm";
 
 /** Workspace-relative directory for locally-stored uploads (dev fallback). */
@@ -117,7 +114,7 @@ async function serveLocalFile(
   filename: string,
   res: Response,
 ): Promise<boolean> {
-    const filePath = path.join(LOCAL_UPLOADS_DIR, filename);
+  const filePath = path.join(LOCAL_UPLOADS_DIR, filename);
   try {
     const data = await fs.readFile(filePath);
     const ext = path.extname(filename).toLowerCase();
@@ -379,20 +376,16 @@ router.patch(
         req.user!.role === "president";
       const isOwner = doc.createdBy === req.user!.userId;
       if (!isDocumentManager && !isOwner) {
-        res
-          .status(403)
-          .json({
-            error:
-              "Seul le créateur ou un gestionnaire peut modifier ce document",
-          });
+        res.status(403).json({
+          error:
+            "Seul le créateur ou un gestionnaire peut modifier ce document",
+        });
         return;
       }
       if (parsed.data.status === "published" && !isDocumentManager) {
-        res
-          .status(403)
-          .json({
-            error: "La publication est réservée aux gestionnaires de documents",
-          });
+        res.status(403).json({
+          error: "La publication est réservée aux gestionnaires de documents",
+        });
         return;
       }
 
@@ -496,7 +489,9 @@ router.get(
       // stricter resource-level policy below.
       if (ownedObject && docs.length === 0) {
         if (!req.user) {
-          res.status(401).json({ error: "Authentification requise pour ce fichier" });
+          res
+            .status(401)
+            .json({ error: "Authentification requise pour ce fichier" });
           return;
         }
 
@@ -527,12 +522,14 @@ router.get(
           return;
         }
         const isSupervised =
-          req.user.role === "super_admin" &&
-          req.query.supervision === "true";
+          req.user.role === "super_admin" && req.query.supervision === "true";
         const canAccess = docs.some((doc) => {
           if (doc.isDeleted) return false;
           if (isSupervised) return true;
-          if (!req.user!.syndicateId || doc.syndicateId !== req.user!.syndicateId) {
+          if (
+            !req.user!.syndicateId ||
+            doc.syndicateId !== req.user!.syndicateId
+          ) {
             return false;
           }
           if (
@@ -616,6 +613,17 @@ router.delete(
   async (req: Request, res: Response) => {
     const id = String(req.params.id) as string;
     try {
+      if (
+        req.user?.role === "super_admin" &&
+        req.query.supervision !== "true"
+      ) {
+        res.status(403).json({
+          error: "La supervision est requise pour supprimer un document.",
+          code: "SUPERVISION_REQUIRED",
+          hint: "Ajoutez ?supervision=true à la requête.",
+        });
+        return;
+      }
       const [doc] = await db
         .select()
         .from(documentsTable)

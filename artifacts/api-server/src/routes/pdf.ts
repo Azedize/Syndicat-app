@@ -9,7 +9,7 @@
  *   GET /pdf/ag/:id             — AG meeting minutes PDF
  *   GET /pdf/membership/:userId — Membership certificate PDF
  */
-import { Router } from "express";
+import { Router, type Request, type Response } from "express";
 import { db } from "@workspace/db";
 import {
   invoicesTable,
@@ -247,11 +247,25 @@ const styles = {
   footer: { fontSize: 8, color: "#94a3b8", italics: true },
 };
 
+function requireSupervisionForPdf(req: Request, res: Response): boolean {
+  if (req.user?.role === "super_admin" && req.query.supervision !== "true") {
+    res.status(403).json({
+      error:
+        "Les Super Admins doivent activer le mode supervision pour accéder aux PDF d'un syndicat.",
+      code: "SUPERVISION_REQUIRED",
+      hint: "Ajoutez ?supervision=true à la requête.",
+    });
+    return false;
+  }
+  return true;
+}
+
 // ─── GET /pdf/invoice/:id ─────────────────────────────────────────────────────
 
 router.get("/pdf/invoice/:id", requireAuth, async (req, res) => {
   const id = String(req.params.id) as string;
   try {
+    if (!requireSupervisionForPdf(req, res)) return;
     const [invoice] = await db
       .select()
       .from(invoicesTable)
@@ -397,6 +411,7 @@ router.get("/pdf/invoice/:id", requireAuth, async (req, res) => {
 router.get("/pdf/receipt/:id", requireAuth, async (req, res) => {
   const id = String(req.params.id) as string;
   try {
+    if (!requireSupervisionForPdf(req, res)) return;
     const [tx] = await db
       .select()
       .from(transactionsTable)
@@ -505,6 +520,7 @@ router.get("/pdf/receipt/:id", requireAuth, async (req, res) => {
 router.get("/pdf/budget/:id", requireAuth, async (req, res) => {
   const id = String(req.params.id) as string;
   try {
+    if (!requireSupervisionForPdf(req, res)) return;
     const [budget] = await db
       .select()
       .from(budgetsTable)
@@ -618,6 +634,7 @@ router.get("/pdf/budget/:id", requireAuth, async (req, res) => {
 router.get("/pdf/ag/:id", requireAuth, async (req, res) => {
   const id = String(req.params.id) as string;
   try {
+    if (!requireSupervisionForPdf(req, res)) return;
     const [meeting] = await db
       .select()
       .from(meetingsTable)
