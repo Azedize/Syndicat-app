@@ -195,18 +195,28 @@ async function getTemplateForReader(
   if (req.user!.role === "super_admin") {
     return getSupervisedTemplateOrFail(id, req, res);
   }
-  const tmpl = await getTemplateOrFail(id, res);
-  if (!tmpl) return null;
-
   const syndicateId = req.user!.syndicateId;
   if (!syndicateId) {
     res.status(403).json({ error: "Syndicat non défini dans le token" });
     return null;
   }
-  if (
-    tmpl.status !== "published" ||
-    (tmpl.syndicateId !== null && tmpl.syndicateId !== syndicateId)
-  ) {
+
+  // Scope the lookup itself. Do not fetch another syndicate's template and
+  // only reject it after the row has already been loaded.
+  const [tmpl] = await db
+    .select()
+    .from(templateDefinitionsTable)
+    .where(
+      and(
+        eq(templateDefinitionsTable.id, id),
+        eq(templateDefinitionsTable.status, "published"),
+        or(
+          isNull(templateDefinitionsTable.syndicateId),
+          eq(templateDefinitionsTable.syndicateId, syndicateId),
+        )!,
+      ),
+    );
+  if (!tmpl) {
     res.status(404).json({ error: "Template introuvable" });
     return null;
   }
@@ -419,41 +429,6 @@ router.get(
   requireAuth,
   requireRole("super_admin", "syndicate_admin"),
   async (req, res) => {
-    const tmpl = await getSupervisedTemplateOrFail(
-      routeParam(req.params.id),
-      req,
-      res,
-    );
-    if (!tmpl) return;
-
-    const permissions = await db
-      .select()
-      .from(templateDefinitionPermissionsTable)
-      .where(eq(templateDefinitionPermissionsTable.templateId, tmpl.id));
-
-    res.json({
-      data: {
-        ...tmpl,
-        name: safeJson(tmpl.name),
-        description: safeJson(tmpl.description),
-        variables: safeJson(tmpl.variables, []),
-        sections: safeJson(tmpl.sections, []),
-        layoutConfig: safeJson(tmpl.layoutConfig, {}),
-        languages: safeJson(tmpl.languages, ["fr"]),
-        permissions,
-      },
-    });
-  },
-);
-
-/*
- * Reader route implementation for syndicate_admin and Super Admin.
- */
-router.get(
-  "/template-studio/templates/:id/legacy-reader",
-  requireAuth,
-  requireRole("super_admin", "syndicate_admin"),
-  async (req, res) => {
     const tmpl = await getTemplateForReader(
       routeParam(req.params.id),
       req,
@@ -461,7 +436,6 @@ router.get(
     );
     if (!tmpl) return;
 
-    // Fetch permissions
     const permissions = await db
       .select()
       .from(templateDefinitionPermissionsTable)
@@ -588,7 +562,11 @@ async function setTemplateStatus(
   action: string,
   guard?: (tmpl: Record<string, unknown>) => string | null,
 ) {
-  const tmpl = await getTemplateOrFail(routeParam(req.params.id), res);
+  const tmpl = await getSupervisedTemplateOrFail(
+    routeParam(req.params.id),
+    req,
+    res,
+  );
   if (!tmpl) return;
   if (guard) {
     const err = guard(tmpl as any);
@@ -668,7 +646,11 @@ router.post(
   requireAuth,
   requireRole("super_admin"),
   async (req, res) => {
-    const tmpl = await getTemplateOrFail(routeParam(req.params.id), res);
+    const tmpl = await getSupervisedTemplateOrFail(
+      routeParam(req.params.id),
+      req,
+      res,
+    );
     if (!tmpl) return;
 
     const { newSlug } = req.body;
@@ -768,6 +750,13 @@ router.get(
   requireAuth,
   requireRole("super_admin"),
   async (req, res) => {
+    const tmpl = await getSupervisedTemplateOrFail(
+      routeParam(req.params.id),
+      req,
+      res,
+    );
+    if (!tmpl) return;
+
     const [version] = await db
       .select()
       .from(templateDefinitionVersionsTable)
@@ -775,7 +764,7 @@ router.get(
         and(
           eq(
             templateDefinitionVersionsTable.templateId,
-            routeParam(req.params.id),
+            tmpl.id,
           ),
           eq(templateDefinitionVersionsTable.id, routeParam(req.params.vid)),
         ),
@@ -797,7 +786,11 @@ router.post(
   requireAuth,
   requireRole("super_admin"),
   async (req, res) => {
-    const tmpl = await getTemplateOrFail(routeParam(req.params.id), res);
+    const tmpl = await getSupervisedTemplateOrFail(
+      routeParam(req.params.id),
+      req,
+      res,
+    );
     if (!tmpl) return;
 
     const [version] = await db
@@ -870,13 +863,20 @@ router.get(
   requireAuth,
   requireRole("super_admin"),
   async (req, res) => {
+    const tmpl = await getSupervisedTemplateOrFail(
+      routeParam(req.params.id),
+      req,
+      res,
+    );
+    if (!tmpl) return;
+
     const perms = await db
       .select()
       .from(templateDefinitionPermissionsTable)
       .where(
         eq(
           templateDefinitionPermissionsTable.templateId,
-          routeParam(req.params.id),
+          tmpl.id,
         ),
       );
     res.json({ data: perms });
@@ -890,7 +890,11 @@ router.put(
   requireAuth,
   requireRole("super_admin"),
   async (req, res) => {
-    const tmpl = await getTemplateOrFail(routeParam(req.params.id), res);
+    const tmpl = await getSupervisedTemplateOrFail(
+      routeParam(req.params.id),
+      req,
+      res,
+    );
     if (!tmpl) return;
 
     const result = permissionsSchema.safeParse(req.body.permissions);
