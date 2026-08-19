@@ -12,6 +12,30 @@ import { z } from "zod";
 
 const router = Router();
 
+function getMutationSyndicate(
+  req: import("express").Request,
+  res: import("express").Response,
+): string | null {
+  const user = req.user!;
+  if (user.role === "super_admin") {
+    const syndicateId =
+      typeof req.query.syndicateId === "string" ? req.query.syndicateId : "";
+    if (req.query.supervision !== "true" || !syndicateId) {
+      res.status(403).json({
+        error: "La supervision et un syndicat cible sont requis.",
+        code: "SUPERVISION_REQUIRED",
+      });
+      return null;
+    }
+    return syndicateId;
+  }
+  if (!user.syndicateId) {
+    res.status(403).json({ error: "Syndicat non défini dans le token" });
+    return null;
+  }
+  return user.syndicateId;
+}
+
 // GET /locataires — management team only (tenants see their own lease via /locataires/my-lease)
 // President and secretary manage tenant relations; syndicateId scoping enforces isolation.
 router.get(
@@ -166,6 +190,15 @@ router.get(
   requireRole("super_admin", "syndicate_admin"),
   async (req, res) => {
     try {
+      const user = req.user!;
+      const scope =
+        user.role === "super_admin"
+          ? getMutationSyndicate(req, res)
+          : user.syndicateId;
+      if (user.role !== "super_admin" && !scope) {
+        res.status(403).json({ error: "Syndicat non défini dans le token" });
+        return;
+      }
       const [row] = await db
         .select({
           id: tenantsTable.id,
@@ -194,32 +227,16 @@ router.get(
           buildingsTable,
           eq(tenantsTable.buildingId, buildingsTable.id),
         )
-        .where(eq(tenantsTable.id, String(req.params.id)))
+        .where(
+          and(
+            eq(tenantsTable.id, String(req.params.id)),
+            scope ? eq(tenantsTable.syndicateId, scope) : undefined,
+          ),
+        )
         .limit(1);
 
       if (!row)
         return void res.status(404).json({ error: "Locataire introuvable" });
-
-      // Syndicate isolation: never allow a missing tenant/building scope to pass.
-      const user = req.user!;
-      if (user.role !== "super_admin") {
-        if (!user.syndicateId)
-          return void res
-            .status(403)
-            .json({ error: "Syndicat non défini dans le token" });
-        let resourceSyndicateId = row.syndicateId;
-        if (!resourceSyndicateId && row.buildingId) {
-          const [building] = await db
-            .select({ syndicateId: buildingsTable.syndicateId })
-            .from(buildingsTable)
-            .where(eq(buildingsTable.id, row.buildingId))
-            .limit(1);
-          resourceSyndicateId = building?.syndicateId ?? null;
-        }
-        if (!resourceSyndicateId || resourceSyndicateId !== user.syndicateId) {
-          return void res.status(403).json({ error: "Accès refusé" });
-        }
-      }
 
       res.json({ data: row });
     } catch (e) {
@@ -261,6 +278,8 @@ router.post(
     try {
       const user = (req as any).user;
       const data = result.data;
+      const effectiveSyndicateId = getMutationSyndicate(req, res);
+      if (!effectiveSyndicateId) return;
 
       let buildingId = data.buildingId;
       if (!buildingId && data.lotId) {
@@ -272,22 +291,20 @@ router.post(
         if (lot) buildingId = lot.buildingId;
       }
 
-      let syndicateId = data.syndicateId ?? user.syndicateId ?? null;
-      if (user.role !== "super_admin") {
-        if (!user.syndicateId)
-          return void res
-            .status(403)
-            .json({ error: "Syndicat non défini dans le token" });
-        syndicateId = user.syndicateId;
-      }
+      const syndicateId = effectiveSyndicateId;
 
-      if (user.role !== "super_admin" && buildingId) {
+      if (buildingId) {
         const [building] = await db
           .select({ syndicateId: buildingsTable.syndicateId })
           .from(buildingsTable)
-          .where(eq(buildingsTable.id, buildingId))
+          .where(
+            and(
+              eq(buildingsTable.id, buildingId),
+              eq(buildingsTable.syndicateId, effectiveSyndicateId),
+            ),
+          )
           .limit(1);
-        if (!building || building.syndicateId !== user.syndicateId) {
+        if (!building) {
           return void res
             .status(403)
             .json({ error: "Accès refusé à cet immeuble" });
@@ -298,7 +315,16 @@ router.post(
         const [lot] = await db
           .select({ buildingId: lotsTable.buildingId })
           .from(lotsTable)
-          .where(eq(lotsTable.id, data.lotId))
+          .innerJoin(
+            buildingsTable,
+            eq(lotsTable.buildingId, buildingsTable.id),
+          )
+          .where(
+            and(
+              eq(lotsTable.id, data.lotId),
+              eq(buildingsTable.syndicateId, effectiveSyndicateId),
+            ),
+          )
           .limit(1);
         if (!lot || (buildingId && lot.buildingId !== buildingId)) {
           return void res
@@ -365,35 +391,23 @@ router.put(
 
     try {
       const user = req.user!;
+      const effectiveSyndicateId = getMutationSyndicate(req, res);
+      if (!effectiveSyndicateId) return;
       const [existing] = await db
         .select({
           syndicateId: tenantsTable.syndicateId,
           buildingId: tenantsTable.buildingId,
         })
         .from(tenantsTable)
-        .where(eq(tenantsTable.id, String(req.params.id)))
+        .where(
+          and(
+            eq(tenantsTable.id, String(req.params.id)),
+            eq(tenantsTable.syndicateId, effectiveSyndicateId),
+          ),
+        )
         .limit(1);
       if (!existing)
         return void res.status(404).json({ error: "Locataire introuvable" });
-
-      if (user.role !== "super_admin") {
-        if (!user.syndicateId)
-          return void res
-            .status(403)
-            .json({ error: "Syndicat non défini dans le token" });
-        let resourceSyndicateId = existing.syndicateId;
-        if (!resourceSyndicateId && existing.buildingId) {
-          const [building] = await db
-            .select({ syndicateId: buildingsTable.syndicateId })
-            .from(buildingsTable)
-            .where(eq(buildingsTable.id, existing.buildingId))
-            .limit(1);
-          resourceSyndicateId = building?.syndicateId ?? null;
-        }
-        if (!resourceSyndicateId || resourceSyndicateId !== user.syndicateId) {
-          return void res.status(403).json({ error: "Accès refusé" });
-        }
-      }
 
       const updates: Record<string, any> = {};
       for (const [k, v] of Object.entries(result.data)) {
@@ -414,25 +428,32 @@ router.put(
             .status(400)
             .json({ error: "Lot ou immeuble invalide" });
         }
-        if (user.role !== "super_admin") {
-          const [building] = await db
-            .select({ syndicateId: buildingsTable.syndicateId })
-            .from(buildingsTable)
-            .where(eq(buildingsTable.id, lot.buildingId))
-            .limit(1);
-          if (!building || building.syndicateId !== user.syndicateId) {
-            return void res
-              .status(403)
-              .json({ error: "Accès refusé à cet immeuble" });
-          }
-        }
-      } else if (result.data.buildingId && user.role !== "super_admin") {
         const [building] = await db
           .select({ syndicateId: buildingsTable.syndicateId })
           .from(buildingsTable)
-          .where(eq(buildingsTable.id, result.data.buildingId))
+          .where(
+            and(
+              eq(buildingsTable.id, lot.buildingId),
+              eq(buildingsTable.syndicateId, effectiveSyndicateId),
+            ),
+          )
           .limit(1);
-        if (!building || building.syndicateId !== user.syndicateId) {
+        if (!building)
+          return void res
+            .status(403)
+            .json({ error: "Accès refusé à cet immeuble" });
+      } else if (result.data.buildingId) {
+        const [building] = await db
+          .select({ syndicateId: buildingsTable.syndicateId })
+          .from(buildingsTable)
+          .where(
+            and(
+              eq(buildingsTable.id, result.data.buildingId),
+              eq(buildingsTable.syndicateId, effectiveSyndicateId),
+            ),
+          )
+          .limit(1);
+        if (!building) {
           return void res
             .status(403)
             .json({ error: "Accès refusé à cet immeuble" });
@@ -442,7 +463,12 @@ router.put(
       const [updated] = await db
         .update(tenantsTable)
         .set(updates)
-        .where(eq(tenantsTable.id, String(req.params.id)))
+        .where(
+          and(
+            eq(tenantsTable.id, String(req.params.id)),
+            eq(tenantsTable.syndicateId, effectiveSyndicateId),
+          ),
+        )
         .returning();
 
       if (!updated)
@@ -463,37 +489,16 @@ router.delete(
   async (req, res) => {
     try {
       const user = req.user!;
-      if (user.role !== "super_admin") {
-        if (!user.syndicateId)
-          return void res
-            .status(403)
-            .json({ error: "Syndicat non défini dans le token" });
-        const [existing] = await db
-          .select({
-            syndicateId: tenantsTable.syndicateId,
-            buildingId: tenantsTable.buildingId,
-          })
-          .from(tenantsTable)
-          .where(eq(tenantsTable.id, String(req.params.id)))
-          .limit(1);
-        if (!existing)
-          return void res.status(404).json({ error: "Locataire introuvable" });
-        let resourceSyndicateId = existing.syndicateId;
-        if (!resourceSyndicateId && existing.buildingId) {
-          const [building] = await db
-            .select({ syndicateId: buildingsTable.syndicateId })
-            .from(buildingsTable)
-            .where(eq(buildingsTable.id, existing.buildingId))
-            .limit(1);
-          resourceSyndicateId = building?.syndicateId ?? null;
-        }
-        if (!resourceSyndicateId || resourceSyndicateId !== user.syndicateId) {
-          return void res.status(403).json({ error: "Accès refusé" });
-        }
-      }
+      const effectiveSyndicateId = getMutationSyndicate(req, res);
+      if (!effectiveSyndicateId) return;
       const [deleted] = await db
         .delete(tenantsTable)
-        .where(eq(tenantsTable.id, String(req.params.id)))
+        .where(
+          and(
+            eq(tenantsTable.id, String(req.params.id)),
+            eq(tenantsTable.syndicateId, effectiveSyndicateId),
+          ),
+        )
         .returning();
 
       if (!deleted)
