@@ -263,10 +263,31 @@ router.get("/travaux", requireAuth, async (req, res) => {
 router.get("/travaux/:id", requireAuth, async (req, res) => {
   try {
     const user = (req as any).user;
-    const [travail] = await db
-      .select()
-      .from(travauxTable)
-      .where(eq(travauxTable.id, String(String(req.params.id))));
+    let travail;
+    if (user.role === "super_admin") {
+      const effectiveSyndicateId = getMutationSyndicate(req, res);
+      if (!effectiveSyndicateId) return;
+      travail = await getScopedTravail(
+        String(req.params.id),
+        effectiveSyndicateId,
+      );
+    } else if (isSyndicateTeamRole(user.role)) {
+      if (!user.syndicateId) {
+        return void res
+          .status(403)
+          .json({ error: "Syndicat non défini dans le token" });
+      }
+      travail = await getScopedTravail(
+        String(req.params.id),
+        user.syndicateId,
+      );
+    } else {
+      const [row] = await db
+        .select()
+        .from(travauxTable)
+        .where(eq(travauxTable.id, String(req.params.id)));
+      travail = row;
+    }
 
     if (!travail) return void res.status(404).json({ error: "Not found" });
 
@@ -283,14 +304,42 @@ router.get("/travaux/:id", requireAuth, async (req, res) => {
       return void res.status(403).json({ error: "Accès refusé" });
     }
 
-    const [prestataire, lot, building] = await Promise.all([
+    const [building] = await db
+      .select()
+      .from(buildingsTable)
+      .where(eq(buildingsTable.id, travail.buildingId))
+      .limit(1);
+
+    const [prestataire, lot] = await Promise.all([
       travail.prestataireId
-        ? db.select().from(prestatairesTable).where(eq(prestatairesTable.id, travail.prestataireId)).then(([p]) => p ?? null)
+        ? db
+            .select()
+            .from(prestatairesTable)
+            .where(
+              and(
+                eq(prestatairesTable.id, travail.prestataireId),
+                eq(prestatairesTable.syndicateId, building?.syndicateId ?? ""),
+              ),
+            )
+            .then(([p]) => p ?? null)
         : Promise.resolve(null),
       travail.lotId
-        ? db.select().from(lotsTable).where(eq(lotsTable.id, travail.lotId)).then(([l]) => l ?? null)
+        ? db
+            .select()
+            .from(lotsTable)
+            .innerJoin(
+              buildingsTable,
+              eq(lotsTable.buildingId, buildingsTable.id),
+            )
+            .where(
+              and(
+                eq(lotsTable.id, travail.lotId),
+                eq(lotsTable.buildingId, travail.buildingId),
+                eq(buildingsTable.id, travail.buildingId),
+              ),
+            )
+            .then(([row]) => row?.lotsTable ?? null)
         : Promise.resolve(null),
-      db.select().from(buildingsTable).where(eq(buildingsTable.id, travail.buildingId)).then(([b]) => b ?? null),
     ]);
 
     if (
