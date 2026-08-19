@@ -15,6 +15,8 @@ import {
   documentsTable,
   meetingsTable,
   buildingsTable,
+  productsTable,
+  reviewsTable,
 } from "@workspace/db/schema";
 import { eq, and, desc, sql, inArray } from "drizzle-orm";
 import { requireAuth, requireSuperAdmin } from "../middleware/auth.js";
@@ -105,23 +107,55 @@ async function computeScoreForSyndicate(
     (meetingsHeld.length / expectedMeetings) * 100,
   );
 
-  // 5. Member satisfaction — placeholder (50/100) until reviews link to syndicates
-  const memberSatisfaction = 50;
+  // 5. Member satisfaction — marketplace reviews are the only persisted
+  // satisfaction signal currently linked to a syndicate. Do not substitute a
+  // synthetic score when a syndicate has no reviews yet.
+  const [satisfactionRow] = await db
+    .select({
+      averageRating: sql<string | null>`avg(${reviewsTable.rating})`,
+      reviewCount: sql<number>`count(${reviewsTable.id})`,
+    })
+    .from(reviewsTable)
+    .innerJoin(productsTable, eq(reviewsTable.productId, productsTable.id))
+    .where(
+      and(
+        eq(productsTable.syndicateId, syndicateId),
+        eq(productsTable.status, "approved"),
+      ),
+    );
+  const reviewCount = Number(satisfactionRow?.reviewCount ?? 0);
+  const memberSatisfaction =
+    reviewCount > 0
+      ? (Number(satisfactionRow?.averageRating ?? 0) / 5) * 100
+      : null;
 
-  // Weighted score
+  // Normalize the weighted score over available persisted criteria. This
+  // prevents missing review data from silently becoming a 50/100 score.
+  const weightedCriteria = [
+    { value: collectionRate, weight: 0.35 },
+    { value: incidentResolutionRate, weight: 0.25 },
+    { value: documentationScore, weight: 0.15 },
+    { value: meetingComplianceScore, weight: 0.15 },
+    ...(memberSatisfaction == null
+      ? []
+      : [{ value: memberSatisfaction, weight: 0.1 }]),
+  ];
+  const availableWeight = weightedCriteria.reduce(
+    (sum, criterion) => sum + criterion.weight,
+    0,
+  );
   const totalScore =
-    collectionRate * 0.35 +
-    incidentResolutionRate * 0.25 +
-    documentationScore * 0.15 +
-    meetingComplianceScore * 0.15 +
-    memberSatisfaction * 0.1;
+    weightedCriteria.reduce(
+      (sum, criterion) => sum + criterion.value * criterion.weight,
+      0,
+    ) / availableWeight;
 
   return {
     collectionRate: collectionRate.toFixed(2),
     incidentResolutionRate: incidentResolutionRate.toFixed(2),
     documentationScore: documentationScore.toFixed(2),
     meetingComplianceScore: meetingComplianceScore.toFixed(2),
-    memberSatisfaction: memberSatisfaction.toFixed(2),
+    memberSatisfaction: (memberSatisfaction ?? 0).toFixed(2),
     totalScore: totalScore.toFixed(2),
   };
 }
