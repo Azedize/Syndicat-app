@@ -40,8 +40,50 @@ import { serverAuditLog } from "../lib/audit.js";
 
 const router = Router();
 
-// Helper: load a row and assert the caller has access to its building.
-async function loadAndScope(id: string, user: any) {
+function getMutationSyndicate(
+  req: import("express").Request,
+  res: import("express").Response,
+): string | null {
+  const user = req.user!;
+  if (user.role === "super_admin") {
+    const syndicateId =
+      typeof req.query.syndicateId === "string" ? req.query.syndicateId : "";
+    if (req.query.supervision !== "true" || !syndicateId) {
+      res.status(403).json({
+        error: "La supervision et un syndicat cible sont requis.",
+        code: "SUPERVISION_REQUIRED",
+      });
+      return null;
+    }
+    return syndicateId;
+  }
+  if (!user.syndicateId) {
+    res.status(403).json({ error: "Syndicat non défini dans le token" });
+    return null;
+  }
+  return user.syndicateId;
+}
+
+// Helper: load a row through its authoritative building syndicate scope.
+async function loadAndScope(id: string, user: any, syndicateId?: string) {
+  if (syndicateId) {
+    const [scoped] = await db
+      .select({ row: travauxPrivatifsTable })
+      .from(travauxPrivatifsTable)
+      .innerJoin(
+        buildingsTable,
+        eq(travauxPrivatifsTable.buildingId, buildingsTable.id),
+      )
+      .where(
+        and(
+          eq(travauxPrivatifsTable.id, id),
+          eq(buildingsTable.syndicateId, syndicateId),
+        ),
+      )
+      .limit(1);
+    return scoped?.row ?? null;
+  }
+
   const [row] = await db
     .select()
     .from(travauxPrivatifsTable)
@@ -103,19 +145,25 @@ router.get("/travaux-privatifs", requireAuth, async (req, res) => {
     const conditions: any[] = [];
 
     if (user.role !== "super_admin" && !user.syndicateId) {
-      return void res.status(403).json({ error: "Syndicat non défini dans le token" });
-    } else if (user.role === "super_admin") {
-      // unrestricted
-    } else if (user.role === "syndicate_admin") {
-      conditions.push(eq(travauxPrivatifsTable.syndicateId, user.syndicateId!));
+      return void res
+        .status(403)
+        .json({ error: "Syndicat non défini dans le token" });
+    } else if (user.role === "super_admin" || user.role === "syndicate_admin") {
+      const syndicateId = getMutationSyndicate(req, res);
+      if (!syndicateId) return;
+      conditions.push(eq(buildingsTable.syndicateId, syndicateId));
     } else {
       // member / tenant: only own requests
       conditions.push(eq(travauxPrivatifsTable.requestedById, user.userId));
     }
 
     if (buildingId) {
-      try { await assertUserCanAccessBuilding(user, buildingId); } catch {
-        return void res.status(403).json({ error: "Accès refusé à cet immeuble" });
+      try {
+        await assertUserCanAccessBuilding(user, buildingId);
+      } catch {
+        return void res
+          .status(403)
+          .json({ error: "Accès refusé à cet immeuble" });
       }
       conditions.push(eq(travauxPrivatifsTable.buildingId, buildingId));
     }
@@ -123,12 +171,16 @@ router.get("/travaux-privatifs", requireAuth, async (req, res) => {
     if (status) conditions.push(eq(travauxPrivatifsTable.status, status));
 
     const rows = await db
-      .select()
+      .select({ row: travauxPrivatifsTable })
       .from(travauxPrivatifsTable)
+      .innerJoin(
+        buildingsTable,
+        eq(travauxPrivatifsTable.buildingId, buildingsTable.id),
+      )
       .where(conditions.length ? and(...conditions) : undefined)
       .orderBy(desc(travauxPrivatifsTable.createdAt));
 
-    res.json({ data: rows, total: rows.length });
+    res.json({ data: rows.map(({ row }) => row), total: rows.length });
   } catch (e) {
     console.error(e);
     res.status(500).json({ error: "Erreur serveur" });
@@ -138,8 +190,26 @@ router.get("/travaux-privatifs", requireAuth, async (req, res) => {
 // ─── GET /travaux-privatifs/:id ───────────────────────────────────────────────
 router.get("/travaux-privatifs/:id", requireAuth, async (req, res) => {
   try {
-    const row = await loadAndScope(String(req.params.id), req.user!).catch(() => null);
-    if (!row) return void res.status(404).json({ error: "Demande introuvable ou accès refusé" });
+    const user = req.user!;
+    const syndicateId =
+      user.role === "super_admin" || user.role === "syndicate_admin"
+        ? getMutationSyndicate(req, res)
+        : undefined;
+    if (
+      (user.role === "super_admin" || user.role === "syndicate_admin") &&
+      !syndicateId
+    ) {
+      return;
+    }
+    const row = await loadAndScope(
+      String(req.params.id),
+      user,
+      syndicateId ?? undefined,
+    ).catch(() => null);
+    if (!row)
+      return void res
+        .status(404)
+        .json({ error: "Demande introuvable ou accès refusé" });
     if (
       (req.user!.role === "member" || req.user!.role === "tenant") &&
       row.requestedById !== req.user!.userId
@@ -159,7 +229,16 @@ const submitSchema = z.object({
   lotId: z.string().optional(),
   title: z.string().min(1).max(200),
   description: z.string().min(1).max(5000),
-  workType: z.enum(["ac_unit", "balcony", "windows", "facade", "structural", "plumbing", "electrical", "other"]),
+  workType: z.enum([
+    "ac_unit",
+    "balcony",
+    "windows",
+    "facade",
+    "structural",
+    "plumbing",
+    "electrical",
+    "other",
+  ]),
   currentPhotoUrls: z.array(z.string()).default([]),
   proposedPhotoUrls: z.array(z.string()).default([]),
   planUrls: z.array(z.string()).default([]),
@@ -168,15 +247,39 @@ const submitSchema = z.object({
 router.post("/travaux-privatifs", requireAuth, async (req, res) => {
   const parsed = submitSchema.safeParse(req.body);
   if (!parsed.success) {
-    return void res.status(400).json({ error: parsed.error.issues[0]?.message ?? "Données invalides" });
+    return void res
+      .status(400)
+      .json({ error: parsed.error.issues[0]?.message ?? "Données invalides" });
   }
   try {
     const user = req.user!;
-    const { buildingId, lotId, title, description, workType,
-            currentPhotoUrls, proposedPhotoUrls, planUrls } = parsed.data;
+    const syndicateId =
+      user.role === "super_admin" || user.role === "syndicate_admin"
+        ? getMutationSyndicate(req, res)
+        : undefined;
+    if (
+      (user.role === "super_admin" || user.role === "syndicate_admin") &&
+      !syndicateId
+    ) {
+      return;
+    }
+    const {
+      buildingId,
+      lotId,
+      title,
+      description,
+      workType,
+      currentPhotoUrls,
+      proposedPhotoUrls,
+      planUrls,
+    } = parsed.data;
 
-    try { await assertUserCanAccessBuilding(user, buildingId); } catch {
-      return void res.status(403).json({ error: "Accès refusé à cet immeuble" });
+    try {
+      await assertUserCanAccessBuilding(user, buildingId);
+    } catch {
+      return void res
+        .status(403)
+        .json({ error: "Accès refusé à cet immeuble" });
     }
 
     const [building] = await db
@@ -185,6 +288,11 @@ router.post("/travaux-privatifs", requireAuth, async (req, res) => {
       .where(eq(buildingsTable.id, buildingId));
     if (!building) {
       return void res.status(400).json({ error: "Immeuble introuvable" });
+    }
+    if (syndicateId && building.syndicateId !== syndicateId) {
+      return void res
+        .status(403)
+        .json({ error: "Accès refusé à cet immeuble" });
     }
 
     if (lotId) {
@@ -237,62 +345,82 @@ const syndicReviewSchema = z.object({
   requiresGAVote: z.boolean(),
 });
 
-router.post("/travaux-privatifs/:id/syndic-review", requireAuth, requireAdmin, async (req, res) => {
-  const parsed = syndicReviewSchema.safeParse(req.body);
-  if (!parsed.success) {
-    return void res.status(400).json({ error: parsed.error.issues[0]?.message ?? "Données invalides" });
-  }
-  try {
-    const user = req.user!;
-    let row: any;
-    try { row = await loadAndScope(String(String(req.params.id)), user); } catch {
-      return void res.status(403).json({ error: "Accès refusé" });
+router.post(
+  "/travaux-privatifs/:id/syndic-review",
+  requireAuth,
+  requireAdmin,
+  async (req, res) => {
+    const parsed = syndicReviewSchema.safeParse(req.body);
+    if (!parsed.success) {
+      return void res.status(400).json({
+        error: parsed.error.issues[0]?.message ?? "Données invalides",
+      });
     }
-    if (!row) return void res.status(404).json({ error: "Demande introuvable" });
-    if (row.status !== "submitted") {
-      return void res.status(400).json({ error: "La revue initiale ne peut être effectuée que sur une demande soumise" });
-    }
+    try {
+      const user = req.user!;
+      const syndicateId = getMutationSyndicate(req, res);
+      if (!syndicateId) return;
+      let row: any;
+      try {
+        row = await loadAndScope(String(req.params.id), user, syndicateId);
+      } catch {
+        return void res.status(403).json({ error: "Accès refusé" });
+      }
+      if (!row)
+        return void res.status(404).json({ error: "Demande introuvable" });
+      if (row.status !== "submitted") {
+        return void res.status(400).json({
+          error:
+            "La revue initiale ne peut être effectuée que sur une demande soumise",
+        });
+      }
 
-    const { reviewNote, bylawReference, requiresCommitteeReview, requiresGAVote } = parsed.data;
-
-    // Strict next-state: committee before vote if both required
-    let nextStatus: string;
-    if (requiresCommitteeReview) {
-      nextStatus = "committee_review"; // committee goes first; it can then escalate to vote
-    } else if (requiresGAVote) {
-      nextStatus = "vote_required";
-    } else {
-      nextStatus = "under_review"; // syndic decides directly
-    }
-
-    const [updated] = await db
-      .update(travauxPrivatifsTable)
-      .set({
-        status: nextStatus,
-        syndicReviewNote: reviewNote,
-        bylawReference: bylawReference ?? null,
+      const {
+        reviewNote,
+        bylawReference,
         requiresCommitteeReview,
         requiresGAVote,
-        syndicReviewedById: user.userId,
-        syndicReviewedByName: user.name,
-        syndicReviewedAt: new Date(),
-      })
-      .where(eq(travauxPrivatifsTable.id, String(String(req.params.id))))
-      .returning();
+      } = parsed.data;
 
-    await serverAuditLog(req, {
-      action: "SYNDIC_REVIEW",
-      entity: "travaux_privatifs",
-      entityId: row.id,
-      details: `Revue syndicale → ${nextStatus} (committee:${requiresCommitteeReview} vote:${requiresGAVote})`,
-    });
+      // Strict next-state: committee before vote if both required
+      let nextStatus: string;
+      if (requiresCommitteeReview) {
+        nextStatus = "committee_review"; // committee goes first; it can then escalate to vote
+      } else if (requiresGAVote) {
+        nextStatus = "vote_required";
+      } else {
+        nextStatus = "under_review"; // syndic decides directly
+      }
 
-    res.json({ data: updated, message: "Revue initiale enregistrée" });
-  } catch (e) {
-    console.error(e);
-    res.status(500).json({ error: "Erreur serveur" });
-  }
-});
+      const [updated] = await db
+        .update(travauxPrivatifsTable)
+        .set({
+          status: nextStatus,
+          syndicReviewNote: reviewNote,
+          bylawReference: bylawReference ?? null,
+          requiresCommitteeReview,
+          requiresGAVote,
+          syndicReviewedById: user.userId,
+          syndicReviewedByName: user.name,
+          syndicReviewedAt: new Date(),
+        })
+        .where(eq(travauxPrivatifsTable.id, String(String(req.params.id))))
+        .returning();
+
+      await serverAuditLog(req, {
+        action: "SYNDIC_REVIEW",
+        entity: "travaux_privatifs",
+        entityId: row.id,
+        details: `Revue syndicale → ${nextStatus} (committee:${requiresCommitteeReview} vote:${requiresGAVote})`,
+      });
+
+      res.json({ data: updated, message: "Revue initiale enregistrée" });
+    } catch (e) {
+      console.error(e);
+      res.status(500).json({ error: "Erreur serveur" });
+    }
+  },
+);
 
 // ─── POST /travaux-privatifs/:id/committee-review ─────────────────────────────
 const committeeReviewSchema = z.object({
@@ -300,53 +428,68 @@ const committeeReviewSchema = z.object({
   recommendation: z.enum(["approve", "reject", "escalate_vote"]),
 });
 
-router.post("/travaux-privatifs/:id/committee-review", requireAuth, requireAdmin, async (req, res) => {
-  const parsed = committeeReviewSchema.safeParse(req.body);
-  if (!parsed.success) {
-    return void res.status(400).json({ error: parsed.error.issues[0]?.message ?? "Données invalides" });
-  }
-  try {
-    const user = req.user!;
-    let row: any;
-    try { row = await loadAndScope(String(String(req.params.id)), user); } catch {
-      return void res.status(403).json({ error: "Accès refusé" });
+router.post(
+  "/travaux-privatifs/:id/committee-review",
+  requireAuth,
+  requireAdmin,
+  async (req, res) => {
+    const parsed = committeeReviewSchema.safeParse(req.body);
+    if (!parsed.success) {
+      return void res.status(400).json({
+        error: parsed.error.issues[0]?.message ?? "Données invalides",
+      });
     }
-    if (!row) return void res.status(404).json({ error: "Demande introuvable" });
-    if (row.status !== "committee_review") {
-      return void res.status(400).json({ error: "Cette demande n'est pas en phase de revue par comité" });
+    try {
+      const user = req.user!;
+      const syndicateId = getMutationSyndicate(req, res);
+      if (!syndicateId) return;
+      let row: any;
+      try {
+        row = await loadAndScope(String(req.params.id), user, syndicateId);
+      } catch {
+        return void res.status(403).json({ error: "Accès refusé" });
+      }
+      if (!row)
+        return void res.status(404).json({ error: "Demande introuvable" });
+      if (row.status !== "committee_review") {
+        return void res.status(400).json({
+          error: "Cette demande n'est pas en phase de revue par comité",
+        });
+      }
+
+      const { committeeNote, recommendation } = parsed.data;
+
+      // escalate_vote → vote_required; approve or reject → under_review for final syndic decision
+      const nextStatus =
+        recommendation === "escalate_vote" ? "vote_required" : "under_review";
+
+      const [updated] = await db
+        .update(travauxPrivatifsTable)
+        .set({
+          status: nextStatus,
+          committeeNote,
+          committeeRecommendation: recommendation,
+          committeeReviewedById: user.userId,
+          committeeReviewedByName: user.name,
+          committeeReviewedAt: new Date(),
+        })
+        .where(eq(travauxPrivatifsTable.id, String(String(req.params.id))))
+        .returning();
+
+      await serverAuditLog(req, {
+        action: "COMMITTEE_REVIEW",
+        entity: "travaux_privatifs",
+        entityId: row.id,
+        details: `Avis comité: ${recommendation} → ${nextStatus}`,
+      });
+
+      res.json({ data: updated, message: "Avis du comité enregistré" });
+    } catch (e) {
+      console.error(e);
+      res.status(500).json({ error: "Erreur serveur" });
     }
-
-    const { committeeNote, recommendation } = parsed.data;
-
-    // escalate_vote → vote_required; approve or reject → under_review for final syndic decision
-    const nextStatus = recommendation === "escalate_vote" ? "vote_required" : "under_review";
-
-    const [updated] = await db
-      .update(travauxPrivatifsTable)
-      .set({
-        status: nextStatus,
-        committeeNote,
-        committeeRecommendation: recommendation,
-        committeeReviewedById: user.userId,
-        committeeReviewedByName: user.name,
-        committeeReviewedAt: new Date(),
-      })
-      .where(eq(travauxPrivatifsTable.id, String(String(req.params.id))))
-      .returning();
-
-    await serverAuditLog(req, {
-      action: "COMMITTEE_REVIEW",
-      entity: "travaux_privatifs",
-      entityId: row.id,
-      details: `Avis comité: ${recommendation} → ${nextStatus}`,
-    });
-
-    res.json({ data: updated, message: "Avis du comité enregistré" });
-  } catch (e) {
-    console.error(e);
-    res.status(500).json({ error: "Erreur serveur" });
-  }
-});
+  },
+);
 
 // ─── POST /travaux-privatifs/:id/vote ─────────────────────────────────────────
 const voteSchema = z.object({
@@ -356,120 +499,157 @@ const voteSchema = z.object({
   voteItemId: z.string().optional(),
 });
 
-router.post("/travaux-privatifs/:id/vote", requireAuth, requireAdmin, async (req, res) => {
-  const parsed = voteSchema.safeParse(req.body);
-  if (!parsed.success) {
-    return void res.status(400).json({ error: parsed.error.issues[0]?.message ?? "Données invalides" });
-  }
-  try {
-    const user = req.user!;
-    let row: any;
-    try { row = await loadAndScope(String(String(req.params.id)), user); } catch {
-      return void res.status(403).json({ error: "Accès refusé" });
+router.post(
+  "/travaux-privatifs/:id/vote",
+  requireAuth,
+  requireAdmin,
+  async (req, res) => {
+    const parsed = voteSchema.safeParse(req.body);
+    if (!parsed.success) {
+      return void res.status(400).json({
+        error: parsed.error.issues[0]?.message ?? "Données invalides",
+      });
     }
-    if (!row) return void res.status(404).json({ error: "Demande introuvable" });
-    if (row.status !== "vote_required") {
-      return void res.status(400).json({ error: "Cette demande n'est pas en phase de vote" });
+    try {
+      const user = req.user!;
+      const syndicateId = getMutationSyndicate(req, res);
+      if (!syndicateId) return;
+      let row: any;
+      try {
+        row = await loadAndScope(String(req.params.id), user, syndicateId);
+      } catch {
+        return void res.status(403).json({ error: "Accès refusé" });
+      }
+      if (!row)
+        return void res.status(404).json({ error: "Demande introuvable" });
+      if (row.status !== "vote_required") {
+        return void res
+          .status(400)
+          .json({ error: "Cette demande n'est pas en phase de vote" });
+      }
+
+      const { voteOutcome, voteDate, voteSummary, voteItemId } = parsed.data;
+
+      const [updated] = await db
+        .update(travauxPrivatifsTable)
+        .set({
+          status: "under_review", // syndic issues the formal final decision after vote
+          voteOutcome,
+          voteDate,
+          voteSummary,
+          voteItemId: voteItemId ?? null,
+        })
+        .where(eq(travauxPrivatifsTable.id, String(String(req.params.id))))
+        .returning();
+
+      await serverAuditLog(req, {
+        action: "VOTE_RECORDED",
+        entity: "travaux_privatifs",
+        entityId: row.id,
+        details: `Résultat vote AG: ${voteOutcome}`,
+      });
+
+      res.json({ data: updated, message: "Résultat du vote enregistré" });
+    } catch (e) {
+      console.error(e);
+      res.status(500).json({ error: "Erreur serveur" });
     }
-
-    const { voteOutcome, voteDate, voteSummary, voteItemId } = parsed.data;
-
-    const [updated] = await db
-      .update(travauxPrivatifsTable)
-      .set({
-        status: "under_review", // syndic issues the formal final decision after vote
-        voteOutcome,
-        voteDate,
-        voteSummary,
-        voteItemId: voteItemId ?? null,
-      })
-      .where(eq(travauxPrivatifsTable.id, String(String(req.params.id))))
-      .returning();
-
-    await serverAuditLog(req, {
-      action: "VOTE_RECORDED",
-      entity: "travaux_privatifs",
-      entityId: row.id,
-      details: `Résultat vote AG: ${voteOutcome}`,
-    });
-
-    res.json({ data: updated, message: "Résultat du vote enregistré" });
-  } catch (e) {
-    console.error(e);
-    res.status(500).json({ error: "Erreur serveur" });
-  }
-});
+  },
+);
 
 // ─── POST /travaux-privatifs/:id/decision ────────────────────────────────────
 // Permanent legal record — only from under_review, never skipping stages.
 const decisionSchema = z.object({
   decision: z.enum(["approved", "rejected"]),
-  justification: z.string().min(10, "La justification doit comporter au moins 10 caractères").max(5000),
+  justification: z
+    .string()
+    .min(10, "La justification doit comporter au moins 10 caractères")
+    .max(5000),
 });
 
-router.post("/travaux-privatifs/:id/decision", requireAuth, requireAdmin, async (req, res) => {
-  const parsed = decisionSchema.safeParse(req.body);
-  if (!parsed.success) {
-    return void res.status(400).json({ error: parsed.error.issues[0]?.message ?? "Données invalides" });
-  }
-  try {
-    const user = req.user!;
-    let row: any;
-    try { row = await loadAndScope(String(String(req.params.id)), user); } catch {
-      return void res.status(403).json({ error: "Accès refusé" });
-    }
-    if (!row) return void res.status(404).json({ error: "Demande introuvable" });
-
-    // Strict: final decision only from under_review (all review/vote steps must be complete first)
-    if (row.status !== "under_review") {
+router.post(
+  "/travaux-privatifs/:id/decision",
+  requireAuth,
+  requireAdmin,
+  async (req, res) => {
+    const parsed = decisionSchema.safeParse(req.body);
+    if (!parsed.success) {
       return void res.status(400).json({
-        error: "La décision finale ne peut être rendue qu'après revue complète du dossier (statut : en examen)",
+        error: parsed.error.issues[0]?.message ?? "Données invalides",
       });
     }
+    try {
+      const user = req.user!;
+      const syndicateId = getMutationSyndicate(req, res);
+      if (!syndicateId) return;
+      let row: any;
+      try {
+        row = await loadAndScope(String(req.params.id), user, syndicateId);
+      } catch {
+        return void res.status(403).json({ error: "Accès refusé" });
+      }
+      if (!row)
+        return void res.status(404).json({ error: "Demande introuvable" });
 
-    const { decision, justification } = parsed.data;
+      // Strict: final decision only from under_review (all review/vote steps must be complete first)
+      if (row.status !== "under_review") {
+        return void res.status(400).json({
+          error:
+            "La décision finale ne peut être rendue qu'après revue complète du dossier (statut : en examen)",
+        });
+      }
 
-    const [updated] = await db
-      .update(travauxPrivatifsTable)
-      .set({
-        status: decision,
-        finalDecision: decision,
-        finalDecisionNote: justification,
-        finalDecisionById: user.userId,
-        finalDecisionByName: user.name,
-        finalDecisionAt: new Date(),
-      })
-      .where(eq(travauxPrivatifsTable.id, String(String(req.params.id))))
-      .returning();
+      const { decision, justification } = parsed.data;
 
-    await serverAuditLog(req, {
-      action: "FINAL_DECISION",
-      entity: "travaux_privatifs",
-      entityId: row.id,
-      details: `Décision finale: ${decision}`,
-    });
+      const [updated] = await db
+        .update(travauxPrivatifsTable)
+        .set({
+          status: decision,
+          finalDecision: decision,
+          finalDecisionNote: justification,
+          finalDecisionById: user.userId,
+          finalDecisionByName: user.name,
+          finalDecisionAt: new Date(),
+        })
+        .where(eq(travauxPrivatifsTable.id, String(String(req.params.id))))
+        .returning();
 
-    res.json({
-      data: updated,
-      message: `Demande ${decision === "approved" ? "approuvée" : "refusée"} et archivée`,
-    });
-  } catch (e) {
-    console.error(e);
-    res.status(500).json({ error: "Erreur serveur" });
-  }
-});
+      await serverAuditLog(req, {
+        action: "FINAL_DECISION",
+        entity: "travaux_privatifs",
+        entityId: row.id,
+        details: `Décision finale: ${decision}`,
+      });
+
+      res.json({
+        data: updated,
+        message: `Demande ${decision === "approved" ? "approuvée" : "refusée"} et archivée`,
+      });
+    } catch (e) {
+      console.error(e);
+      res.status(500).json({ error: "Erreur serveur" });
+    }
+  },
+);
 
 // ─── PUT /travaux-privatifs/:id/withdraw ─────────────────────────────────────
 router.put("/travaux-privatifs/:id/withdraw", requireAuth, async (req, res) => {
   try {
     const user = req.user!;
-    const row = await loadAndScope(String(req.params.id), user).catch(() => null);
-    if (!row) return void res.status(404).json({ error: "Demande introuvable" });
+    const row = await loadAndScope(String(req.params.id), user).catch(
+      () => null,
+    );
+    if (!row)
+      return void res.status(404).json({ error: "Demande introuvable" });
     if (row.requestedById !== user.userId) {
-      return void res.status(403).json({ error: "Seul le demandeur peut retirer sa demande" });
+      return void res
+        .status(403)
+        .json({ error: "Seul le demandeur peut retirer sa demande" });
     }
     if (["approved", "rejected", "withdrawn"].includes(row.status ?? "")) {
-      return void res.status(400).json({ error: "Cette demande ne peut plus être retirée" });
+      return void res
+        .status(400)
+        .json({ error: "Cette demande ne peut plus être retirée" });
     }
 
     const [updated] = await db

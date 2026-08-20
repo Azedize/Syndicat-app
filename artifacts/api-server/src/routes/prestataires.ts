@@ -621,8 +621,18 @@ router.get("/contrats", requireAuth, async (req, res) => {
     >;
 
     const conditions: any[] = [];
+    let targetSyndicateId: string | undefined;
 
-    if (user.role !== "super_admin") {
+    if (user.role === "super_admin") {
+      if (req.query.supervision !== "true" || typeof req.query.syndicateId !== "string" || !req.query.syndicateId) {
+        return void res.status(403).json({
+          error: "La supervision et un syndicat cible sont requis.",
+          code: "SUPERVISION_REQUIRED",
+        });
+      }
+      targetSyndicateId = req.query.syndicateId;
+      conditions.push(eq(buildingsTable.syndicateId, targetSyndicateId));
+    } else {
       if (!user.syndicateId) {
         return void res
           .status(403)
@@ -659,14 +669,25 @@ router.get("/contrats", requireAuth, async (req, res) => {
     if (status) conditions.push(eq(contratsPrestatairesTable.status, status));
 
     const rows = await db
-      .select()
+      .select({ contract: contratsPrestatairesTable })
       .from(contratsPrestatairesTable)
-      .where(conditions.length ? and(...conditions) : undefined)
+      .innerJoin(buildingsTable, eq(contratsPrestatairesTable.buildingId, buildingsTable.id))
+      .innerJoin(
+        prestatairesTable,
+        eq(contratsPrestatairesTable.prestataireId, prestatairesTable.id),
+      )
+      .where(
+        and(
+          ...conditions,
+          eq(prestatairesTable.syndicateId, buildingsTable.syndicateId),
+        ),
+      )
       .orderBy(desc(contratsPrestatairesTable.createdAt));
 
     if (rows.length === 0) return void res.json({ data: [], total: 0 });
+    const contracts = rows.map(({ contract }) => contract);
 
-    const providerIds = [...new Set(rows.map((c) => c.prestataireId))];
+    const providerIds = [...new Set(contracts.map((c) => c.prestataireId))];
     const providers = await db
       .select({
         id: prestatairesTable.id,
@@ -677,7 +698,7 @@ router.get("/contrats", requireAuth, async (req, res) => {
       .where(inArray(prestatairesTable.id, providerIds));
     const providerMap = new Map(providers.map((p) => [p.id, p]));
 
-    const enriched = rows.map((c) => ({
+    const enriched = contracts.map((c) => ({
       ...c,
       prestataireNom: providerMap.get(c.prestataireId)?.name ?? "",
       prestataireType: providerMap.get(c.prestataireId)?.type ?? "",
@@ -713,6 +734,22 @@ router.post("/contrats", requireAuth, requireAdmin, async (req, res) => {
   }
   try {
     const user = (req as any).user;
+    const targetSyndicateId =
+      user.role === "super_admin"
+        ? req.query.syndicateId
+        : user.syndicateId;
+    if (
+      user.role === "super_admin" &&
+      (req.query.supervision !== "true" || typeof targetSyndicateId !== "string" || !targetSyndicateId)
+    ) {
+      return void res.status(403).json({
+        error: "La supervision et un syndicat cible sont requis.",
+        code: "SUPERVISION_REQUIRED",
+      });
+    }
+    if (!targetSyndicateId) {
+      return void res.status(403).json({ error: "Syndicat non défini dans le token" });
+    }
     const {
       prestataireId,
       buildingId,
@@ -745,6 +782,9 @@ router.post("/contrats", requireAuth, requireAdmin, async (req, res) => {
     ]);
     if (!building || !provider) {
       return void res.status(400).json({ error: "Immeuble ou prestataire introuvable" });
+    }
+    if (building.syndicateId !== targetSyndicateId) {
+      return void res.status(403).json({ error: "Accès refusé" });
     }
     if (!provider.syndicateId || provider.syndicateId !== building.syndicateId) {
       return void res.status(403).json({

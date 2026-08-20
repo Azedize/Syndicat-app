@@ -239,14 +239,6 @@ router.put(
     try {
       const user = req.user!;
 
-      if (user.role === "super_admin" && req.query.supervision !== "true") {
-        return void res.status(403).json({
-          error:
-            "Les Super Admins doivent activer le mode supervision pour supprimer une réunion.",
-          code: "SUPERVISION_REQUIRED",
-        });
-      }
-
       if (user.role === "syndicate_admin" && !user.syndicateId) {
         return void res
           .status(403)
@@ -406,6 +398,13 @@ router.post("/meetings/:id/attend", requireAuth, async (req, res) => {
     await db
       .insert(meetingAttendeesTable)
       .values({ meetingId: id, userId: user.userId });
+    await serverAuditLog(req, {
+      action: "CONFIRM_ATTENDANCE",
+      entity: "meeting",
+      entityId: id,
+      syndicateId: meeting.syndicateId ?? undefined,
+      details: `Présence confirmée par ${user.userId}`,
+    });
     res.json({ message: "Présence confirmée avec succès" });
   } catch (err) {
     req.log.error(err);
