@@ -404,6 +404,37 @@ function isSamePrestataireSyndicate(
   return user.role === "super_admin" || syndicateId === user.syndicateId;
 }
 
+function enforceSupervisedSyndicate(
+  req: any,
+  res: any,
+  resourceSyndicateId: string | null | undefined,
+): boolean {
+  if (req.user?.role !== "super_admin") return true;
+  const targetSyndicateId =
+    typeof req.query.syndicateId === "string" ? req.query.syndicateId : "";
+  if (req.query.supervision !== "true" || !targetSyndicateId) {
+    res.status(403).json({
+      error: "La supervision et un syndicat cible sont requis.",
+      code: "SUPERVISION_REQUIRED",
+    });
+    return false;
+  }
+  if (!resourceSyndicateId || resourceSyndicateId !== targetSyndicateId) {
+    res.status(404).json({ error: "Ressource introuvable" });
+    return false;
+  }
+  return true;
+}
+
+async function getContractSyndicateId(buildingId: string): Promise<string | null> {
+  const [building] = await db
+    .select({ syndicateId: buildingsTable.syndicateId })
+    .from(buildingsTable)
+    .where(eq(buildingsTable.id, buildingId))
+    .limit(1);
+  return building?.syndicateId ?? null;
+}
+
 // PUT /prestataires/:id
 router.put("/prestataires/:id", requireAuth, requireAdmin, async (req, res) => {
   try {
@@ -413,6 +444,7 @@ router.put("/prestataires/:id", requireAuth, requireAdmin, async (req, res) => {
       .from(prestatairesTable)
       .where(eq(prestatairesTable.id, String(req.params.id)));
     if (!existing) return void res.status(404).json({ error: "Not found" });
+    if (!enforceSupervisedSyndicate(req, res, existing.syndicateId)) return;
     if (!isSamePrestataireSyndicate(user, existing.syndicateId)) {
       return void res.status(403).json({ error: "Accès refusé" });
     }
@@ -471,6 +503,7 @@ router.delete(
         .from(prestatairesTable)
         .where(eq(prestatairesTable.id, String(req.params.id)));
       if (!existing) return void res.status(404).json({ error: "Not found" });
+      if (!enforceSupervisedSyndicate(req, res, existing.syndicateId)) return;
       if (!isSamePrestataireSyndicate(user, existing.syndicateId)) {
         return void res.status(403).json({ error: "Accès refusé" });
       }
@@ -533,6 +566,7 @@ router.post(
         .where(eq(prestatairesTable.id, String(req.params.id)));
       if (!prestataire)
         return void res.status(404).json({ error: "Prestataire introuvable" });
+      if (!enforceSupervisedSyndicate(req, res, prestataire.syndicateId)) return;
       if (!isSamePrestataireSyndicate(user, prestataire.syndicateId)) {
         return void res.status(403).json({ error: "Accès refusé" });
       }
@@ -837,6 +871,8 @@ router.put("/contrats/:id", requireAuth, requireAdmin, async (req, res) => {
     const user = (req as any).user;
     const existing = await findContract(String(req.params.id));
     if (!existing) return void res.status(404).json({ error: "Not found" });
+    const contractSyndicateId = await getContractSyndicateId(existing.buildingId);
+    if (!enforceSupervisedSyndicate(req, res, contractSyndicateId)) return;
     try {
       await assertUserCanAccessBuilding(user, existing.buildingId);
     } catch {
@@ -894,6 +930,8 @@ router.post(
       const user = (req as any).user;
       const existing = await findContract(String(req.params.id));
       if (!existing) return void res.status(404).json({ error: "Not found" });
+      const contractSyndicateId = await getContractSyndicateId(existing.buildingId);
+      if (!enforceSupervisedSyndicate(req, res, contractSyndicateId)) return;
       try {
         await assertUserCanAccessBuilding(user, existing.buildingId);
       } catch {
@@ -949,6 +987,8 @@ router.post(
       const user = (req as any).user;
       const existing = await findContract(String(req.params.id));
       if (!existing) return void res.status(404).json({ error: "Not found" });
+      const contractSyndicateId = await getContractSyndicateId(existing.buildingId);
+      if (!enforceSupervisedSyndicate(req, res, contractSyndicateId)) return;
       try {
         await assertUserCanAccessBuilding(user, existing.buildingId);
       } catch {
@@ -987,6 +1027,8 @@ router.post(
       const user = (req as any).user;
       const existing = await findContract(String(req.params.id));
       if (!existing) return void res.status(404).json({ error: "Not found" });
+      const contractSyndicateId = await getContractSyndicateId(existing.buildingId);
+      if (!enforceSupervisedSyndicate(req, res, contractSyndicateId)) return;
       try {
         await assertUserCanAccessBuilding(user, existing.buildingId);
       } catch {
