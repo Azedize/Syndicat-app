@@ -62,6 +62,41 @@ async function assertBuildingAccess(
   }
 }
 
+function assertSupervisedSyndicate(
+  req: any,
+  syndicateId: string | null | undefined,
+): void {
+  if (req.user?.role !== "super_admin") return;
+  const targetSyndicateId =
+    typeof req.query.syndicateId === "string" ? req.query.syndicateId : "";
+  if (req.query.supervision !== "true" || !targetSyndicateId) {
+    throw Object.assign(
+      new Error("La supervision et un syndicat cible sont requis."),
+      { status: 403, code: "SUPERVISION_REQUIRED" },
+    );
+  }
+  if (!syndicateId || syndicateId !== targetSyndicateId) {
+    throw Object.assign(new Error("Accès refusé"), { status: 403 });
+  }
+}
+
+async function assertScopedBuildingAction(
+  user: JwtPayload,
+  req: any,
+  buildingId: string,
+): Promise<void> {
+  const [building] = await db
+    .select({ syndicateId: buildingsTable.syndicateId })
+    .from(buildingsTable)
+    .where(eq(buildingsTable.id, buildingId))
+    .limit(1);
+  if (!building) {
+    throw Object.assign(new Error("Immeuble introuvable"), { status: 404 });
+  }
+  assertSupervisedSyndicate(req, building.syndicateId);
+  await assertBuildingAccess(user, buildingId);
+}
+
 async function assertLotMatchesBuilding(
   lotId: string,
   buildingId: string,
@@ -253,7 +288,7 @@ router.put("/parking/spots/:id", requireAdmin, async (req, res) => {
       .where(eq(parkingSpotsTable.id, String(req.params.id)));
     if (!existing)
       return void res.status(404).json({ error: "Place introuvable" });
-    await assertBuildingAccess(user, existing.buildingId);
+    await assertScopedBuildingAction(user, req, existing.buildingId);
 
     const { lotId, status, notes, floor } = req.body as Record<string, string>;
     if (lotId) {
@@ -465,12 +500,22 @@ router.delete("/parking/vehicles/:id", requireAuth, async (req, res) => {
     ) {
       return void res.status(403).json({ error: "Accès refusé" });
     }
+    const [owner] = await db
+      .select({ syndicateId: usersTable.syndicateId })
+      .from(usersTable)
+      .where(eq(usersTable.id, vehicle.userId));
+    if (user.role === "super_admin") {
+      try {
+        assertSupervisedSyndicate(req, owner?.syndicateId);
+      } catch (e: any) {
+        return void res.status(e?.status ?? 403).json({
+          error: e?.message ?? "Accès refusé",
+          ...(e?.code ? { code: e.code } : {}),
+        });
+      }
+    }
     // Syndicate admin: ensure the vehicle owner belongs to their syndicate
     if (user.role === "syndicate_admin" && user.syndicateId) {
-      const [owner] = await db
-        .select({ syndicateId: usersTable.syndicateId })
-        .from(usersTable)
-        .where(eq(usersTable.id, vehicle.userId));
       if (owner?.syndicateId !== user.syndicateId) {
         return void res.status(403).json({ error: "Accès refusé" });
       }
@@ -670,7 +715,7 @@ router.put("/parking/violations/:id/status", requireAdmin, async (req, res) => {
       .where(eq(parkingViolationsTable.id, String(req.params.id)));
     if (!existing)
       return void res.status(404).json({ error: "Infraction introuvable" });
-    await assertBuildingAccess(user, existing.buildingId);
+    await assertScopedBuildingAction(user, req, existing.buildingId);
 
     const [violation] = await db
       .update(parkingViolationsTable)
@@ -896,6 +941,15 @@ router.delete("/parking/reservations/:id", requireAuth, async (req, res) => {
 
     if (!reservation)
       return void res.status(404).json({ error: "Réservation introuvable" });
+    const [reservationSpot] = await db
+      .select({ buildingId: parkingSpotsTable.buildingId })
+      .from(parkingSpotsTable)
+      .where(eq(parkingSpotsTable.id, reservation.spotId));
+    if (!reservationSpot)
+      return void res
+        .status(409)
+        .json({ error: "La place associée est introuvable" });
+    await assertScopedBuildingAction(user, req, reservationSpot.buildingId);
 
     // Only the requester or an admin can cancel
     if (reservation.requestedById !== user.userId) {
@@ -903,15 +957,6 @@ router.delete("/parking/reservations/:id", requireAuth, async (req, res) => {
         return void res.status(403).json({ error: "Accès refusé" });
       }
       // Syndicate admins can only cancel reservations in their buildings
-      const [spot] = await db
-        .select({ buildingId: parkingSpotsTable.buildingId })
-        .from(parkingSpotsTable)
-        .where(eq(parkingSpotsTable.id, reservation.spotId));
-      if (!spot)
-        return void res
-          .status(409)
-          .json({ error: "La place associée est introuvable" });
-      await assertBuildingAccess(user, spot.buildingId);
     }
 
     const [updated] = await db
@@ -944,7 +989,7 @@ router.get("/parking/availability/:spotId", requireAuth, async (req, res) => {
       .from(parkingSpotsTable)
       .where(eq(parkingSpotsTable.id, String(req.params.spotId)));
     if (!spot) return void res.status(404).json({ error: "Place introuvable" });
-    await assertBuildingAccess(user, spot.buildingId);
+    await assertScopedBuildingAction(user, req, spot.buildingId);
 
     const { from, to } = req.query as Record<string, string>;
     const start = from ? new Date(from) : new Date();

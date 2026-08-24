@@ -70,6 +70,40 @@ async function validateLotAssignments(
   }
 }
 
+async function assertLotBuildingScope(
+  req: any,
+  buildingId: string,
+): Promise<void> {
+  const [building] = await db
+    .select({ syndicateId: buildingsTable.syndicateId })
+    .from(buildingsTable)
+    .where(eq(buildingsTable.id, buildingId))
+    .limit(1);
+  if (!building) {
+    throw Object.assign(new Error("Immeuble introuvable"), { status: 404 });
+  }
+
+  const user = req.user!;
+  if (user.role === "super_admin") {
+    const targetSyndicateId =
+      typeof req.query.syndicateId === "string" ? req.query.syndicateId : "";
+    if (req.query.supervision !== "true" || !targetSyndicateId) {
+      throw Object.assign(
+        new Error("La supervision et un syndicat cible sont requis."),
+        { status: 403, code: "SUPERVISION_REQUIRED" },
+      );
+    }
+    if (building.syndicateId !== targetSyndicateId) {
+      throw Object.assign(new Error("Accès refusé"), { status: 403 });
+    }
+    return;
+  }
+
+  if (!user.syndicateId || building.syndicateId !== user.syndicateId) {
+    throw Object.assign(new Error("Accès refusé"), { status: 403 });
+  }
+}
+
 // GET /lots — List lots scoped to the user's syndicate (via building join)
 // super_admin: all lots (or filter by ?syndicateId= for a specific syndicate)
 // syndicate_admin / member: only lots belonging to their syndicate's buildings
@@ -80,7 +114,8 @@ router.get("/lots", requireAuth, async (req, res) => {
     const conditions: any[] = [];
     if (user.role === "tenant") {
       const personalLotIds = await getUserLotIds(user);
-      if (personalLotIds.length === 0) return void res.json({ data: [], total: 0 });
+      if (personalLotIds.length === 0)
+        return void res.json({ data: [], total: 0 });
       conditions.push(inArray(lotsTable.id, personalLotIds));
     }
 
@@ -326,20 +361,15 @@ router.get("/lots/:id", requireAuth, async (req, res) => {
 
     if (!lot) return void res.status(404).json({ error: "Lot not found" });
 
-    // Syndicate isolation for non-super_admin
+    try {
+      await assertLotBuildingScope(req, lot.buildingId);
+    } catch (error: any) {
+      return void res.status(error.status ?? 403).json({
+        error: error.message,
+        ...(error.code ? { code: error.code } : {}),
+      });
+    }
     if (user.role !== "super_admin") {
-      if (!user.syndicateId)
-        return void res
-          .status(403)
-          .json({ error: "Syndicat non défini dans le token" });
-      const [building] = await db
-        .select({ syndicateId: buildingsTable.syndicateId })
-        .from(buildingsTable)
-        .where(eq(buildingsTable.id, lot.buildingId))
-        .limit(1);
-      if (!building || building.syndicateId !== user.syndicateId) {
-        return void res.status(403).json({ error: "Accès refusé" });
-      }
       if (user.role === "member" || user.role === "tenant") {
         const personalLotIds = await getUserLotIds(user);
         if (!personalLotIds.includes(lot.id)) {
@@ -427,20 +457,13 @@ router.post(
           .json({ error: "number and buildingId are required" });
       }
 
-      // Syndicate ownership: verify the target building belongs to the caller's syndicate
-      if (user.role !== "super_admin") {
-        if (!user.syndicateId)
-          return void res
-            .status(403)
-            .json({ error: "Syndicat non défini dans le token" });
-        const [bld] = await db
-          .select({ syndicateId: buildingsTable.syndicateId })
-          .from(buildingsTable)
-          .where(eq(buildingsTable.id, buildingId))
-          .limit(1);
-        if (!bld || bld.syndicateId !== user.syndicateId) {
-          return void res.status(403).json({ error: "Accès refusé" });
-        }
+      try {
+        await assertLotBuildingScope(req, buildingId);
+      } catch (error: any) {
+        return void res.status(error.status ?? 403).json({
+          error: error.message,
+          ...(error.code ? { code: error.code } : {}),
+        });
       }
       try {
         await validateLotAssignments(buildingId, ownerId, tenantId);
@@ -495,19 +518,13 @@ router.put(
         .limit(1);
       if (!existingLot)
         return void res.status(404).json({ error: "Lot not found" });
-      // Row-level syndicate check before mutation
-      if (user.role !== "super_admin") {
-        if (!user.syndicateId)
-          return void res
-            .status(403)
-            .json({ error: "Syndicat non défini dans le token" });
-        const [bld] = await db
-          .select({ syndicateId: buildingsTable.syndicateId })
-          .from(buildingsTable)
-          .where(eq(buildingsTable.id, existingLot.buildingId))
-          .limit(1);
-        if (!bld || bld.syndicateId !== user.syndicateId)
-          return void res.status(403).json({ error: "Accès refusé" });
+      try {
+        await assertLotBuildingScope(req, existingLot.buildingId);
+      } catch (error: any) {
+        return void res.status(error.status ?? 403).json({
+          error: error.message,
+          ...(error.code ? { code: error.code } : {}),
+        });
       }
       const allowed = [
         "number",
@@ -560,26 +577,20 @@ router.delete(
   async (req, res) => {
     try {
       const user = req.user!;
-      // Row-level syndicate check before deletion
-      if (user.role !== "super_admin") {
-        if (!user.syndicateId)
-          return void res
-            .status(403)
-            .json({ error: "Syndicat non défini dans le token" });
-        const [existing] = await db
-          .select({ buildingId: lotsTable.buildingId })
-          .from(lotsTable)
-          .where(eq(lotsTable.id, String(req.params.id)))
-          .limit(1);
-        if (!existing)
-          return void res.status(404).json({ error: "Lot not found" });
-        const [bld] = await db
-          .select({ syndicateId: buildingsTable.syndicateId })
-          .from(buildingsTable)
-          .where(eq(buildingsTable.id, existing.buildingId))
-          .limit(1);
-        if (!bld || bld.syndicateId !== user.syndicateId)
-          return void res.status(403).json({ error: "Accès refusé" });
+      const [existing] = await db
+        .select({ buildingId: lotsTable.buildingId })
+        .from(lotsTable)
+        .where(eq(lotsTable.id, String(req.params.id)))
+        .limit(1);
+      if (!existing)
+        return void res.status(404).json({ error: "Lot not found" });
+      try {
+        await assertLotBuildingScope(req, existing.buildingId);
+      } catch (error: any) {
+        return void res.status(error.status ?? 403).json({
+          error: error.message,
+          ...(error.code ? { code: error.code } : {}),
+        });
       }
       const [lot] = await db
         .delete(lotsTable)
