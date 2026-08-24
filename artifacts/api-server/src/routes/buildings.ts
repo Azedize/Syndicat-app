@@ -18,6 +18,24 @@ import { getUserBuildingIds, getUserLotIds } from "../lib/scope.js";
 
 const router = Router();
 
+function assertSupervisedBuildingTarget(
+  req: any,
+  syndicateId: string | null | undefined,
+): void {
+  if (req.user?.role !== "super_admin") return;
+  const targetSyndicateId =
+    typeof req.query.syndicateId === "string" ? req.query.syndicateId : "";
+  if (req.query.supervision !== "true" || !targetSyndicateId) {
+    throw Object.assign(
+      new Error("La supervision et un syndicat cible sont requis."),
+      { status: 403, code: "SUPERVISION_REQUIRED" },
+    );
+  }
+  if (!syndicateId || syndicateId !== targetSyndicateId) {
+    throw Object.assign(new Error("Accès refusé"), { status: 403 });
+  }
+}
+
 // GET /buildings — List all buildings for this syndicate
 // PERFORMANCE: Replaced N+1 (3 queries per building) with 3 batch aggregation queries
 router.get("/buildings", requireAuth, async (req, res) => {
@@ -134,6 +152,14 @@ router.get("/buildings/:id", requireAuth, async (req, res) => {
 
     // Enforce both syndicate isolation and resident personal-building scope.
     const user = req.user!;
+    try {
+      assertSupervisedBuildingTarget(req, building.syndicateId);
+    } catch (error: any) {
+      return void res.status(error.status ?? 403).json({
+        error: error.message,
+        ...(error.code ? { code: error.code } : {}),
+      });
+    }
     if (user.role !== "super_admin") {
       if (isSyndicateTeamRole(user.role) && !user.syndicateId) {
         return void res
@@ -175,9 +201,7 @@ router.get("/buildings/:id", requireAuth, async (req, res) => {
       db
         .select()
         .from(lotsTable)
-        .where(
-          and(eq(lotsTable.buildingId, building.id), personalFilter),
-        )
+        .where(and(eq(lotsTable.buildingId, building.id), personalFilter))
         .orderBy(lotsTable.floor, lotsTable.number),
       db
         .select()
@@ -258,11 +282,21 @@ router.post(
 
       const syndicateId =
         user.role === "super_admin"
-          ? (req.body.syndicateId ?? user.syndicateId)
+          ? typeof req.query.syndicateId === "string"
+            ? req.query.syndicateId
+            : undefined
           : user.syndicateId;
 
       if (!syndicateId) {
         return void res.status(400).json({ error: "syndicateId est requis" });
+      }
+      try {
+        assertSupervisedBuildingTarget(req, syndicateId);
+      } catch (error: any) {
+        return void res.status(error.status ?? 403).json({
+          error: error.message,
+          ...(error.code ? { code: error.code } : {}),
+        });
       }
 
       const [building] = await db
@@ -322,6 +356,14 @@ router.put(
       if (!existing)
         return void res.status(404).json({ error: "Building not found" });
 
+      try {
+        assertSupervisedBuildingTarget(req, existing.syndicateId);
+      } catch (error: any) {
+        return void res.status(error.status ?? 403).json({
+          error: error.message,
+          ...(error.code ? { code: error.code } : {}),
+        });
+      }
       if (isSyndicateTeamRole(user.role)) {
         if (!user.syndicateId)
           return void res
