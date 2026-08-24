@@ -6,7 +6,7 @@ ON CONFLICT (id) DO NOTHING;
 -- ─── Users ──────────────────────────────────────────────────────────────────
 -- password hash below corresponds to bcrypt hash of "password123" for all seed accounts
 INSERT INTO users (id, name, email, phone, password_hash, role, status, syndicate_id, profession, created_at) VALUES
-  ('user_admin', 'Administrateur Syndycat', 'admin@syndycat.ma', '+212600000001', '$2b$10$E6fCiXjZOQ9prUb2mtPtrOSITUuc3riG5jX7ijiCHiiz33RvZEzQG', 'super_admin', 'active', NULL, 'Administrateur', NOW() - '400 days'::interval),
+  ('user_admin', 'Administrateur MIZAN', 'admin@mizan.ma', '+212600000001', '$2b$10$E6fCiXjZOQ9prUb2mtPtrOSITUuc3riG5jX7ijiCHiiz33RvZEzQG', 'super_admin', 'active', NULL, 'Administrateur', NOW() - '400 days'::interval),
   ('user_dir_sne', 'Fatima Zahra El Alami', 'directrice@sne.ma', '+212600000002', '$2b$10$E6fCiXjZOQ9prUb2mtPtrOSITUuc3riG5jX7ijiCHiiz33RvZEzQG', 'syndicate_admin', 'active', 'syn_sne', 'Enseignante - Directrice syndicale', NOW() - '365 days'::interval),
   ('user_member_1', 'Mohammed Alaoui', 'mohammed.alaoui@sne.ma', '+212600000003', '$2b$10$E6fCiXjZOQ9prUb2mtPtrOSITUuc3riG5jX7ijiCHiiz33RvZEzQG', 'member', 'active', 'syn_sne', 'Enseignant primaire', NOW() - '300 days'::interval),
   ('user_member_2', 'Khadija Tahiri', 'khadija.tahiri@sne.ma', '+212600000004', '$2b$10$E6fCiXjZOQ9prUb2mtPtrOSITUuc3riG5jX7ijiCHiiz33RvZEzQG', 'member', 'active', 'syn_sne', 'Enseignante secondaire', NOW() - '280 days'::interval)

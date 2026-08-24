@@ -226,7 +226,7 @@ export default function PdfViewerScreen() {
 
   const webSource: { uri: string } | { html: string; baseUrl: string } = isIos
     ? { uri: buildIosViewerUrl(pdfUrl) }
-    : { html: buildPdfJsHtml(pdfUrl, copy), baseUrl: "https://syndycat.ma" };
+    : { html: buildPdfJsHtml(pdfUrl, copy), baseUrl: "https://mizan.ma" };
 
   // ── Messages from pdf.js (Android) ─────────────────────────────────────────
 

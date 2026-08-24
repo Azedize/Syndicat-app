@@ -205,8 +205,8 @@ export default function WelcomeScreen() {
                   }}
                   activeOpacity={0.86}
                 >
-                  <LinearGradient
-                    colors={["#4D8DFF", "#2563EB"]}
+                 <LinearGradient
+                    colors={[MIZAN.colors.blueLight, MIZAN.colors.blue]}
                     style={styles.primaryButtonGradient}
                     start={{ x: 0, y: 0 }}
                     end={{ x: 1, y: 1 }}
@@ -221,13 +221,13 @@ export default function WelcomeScreen() {
                   style={[
                     styles.plansButton,
                     {
-                      borderColor: isDark ? "rgba(147,197,253,0.34)" : "#BFDBFE",
-                      backgroundColor: isDark ? "rgba(13,32,58,0.78)" : "#FFFFFF",
+                       borderColor: isDark ? "rgba(141,178,255,0.34)" : MIZAN.colors.bluePale,
+                       backgroundColor: isDark ? "rgba(13,32,58,0.78)" : MIZAN.colors.white,
                     },
                   ]}
                   activeOpacity={0.82}
                 >
-                  <Text style={[styles.plansButtonText, { color: isDark ? "#BFDBFE" : MIZAN.colors.blue }]}>
+                   <Text style={[styles.plansButtonText, { color: isDark ? MIZAN.colors.bluePale : MIZAN.colors.blue }]}>
                     {t("welcomeViewPlans")}
                   </Text>
                 </TouchableOpacity>

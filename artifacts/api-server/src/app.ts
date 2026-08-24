@@ -24,7 +24,7 @@ const allowedOrigins = process.env.ALLOWED_ORIGINS
 if (process.env.NODE_ENV === "production" && allowedOrigins.length === 0) {
   throw new Error(
     "FATAL: ALLOWED_ORIGINS environment variable must be set in production. " +
-    "Set it to a comma-separated list of permitted origins (e.g. https://app.syndycat.ma). " +
+    "Set it to a comma-separated list of permitted origins (e.g. https://app.mizan.ma). " +
     "Refusing to start with open CORS + credentials=true.",
   );
 }

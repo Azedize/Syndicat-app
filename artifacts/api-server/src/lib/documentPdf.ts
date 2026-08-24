@@ -571,10 +571,10 @@ const I18N: Record<string, Record<DocumentLanguage, string>> = {
   officialStamp: { fr: "CACHET OFFICIEL", ar: "ختم رسمي", en: "OFFICIAL STAMP", es: "SELLO OFICIAL" },
   presidentTitle: { fr: "Le Président du Syndicat", ar: "رئيس النقابة", en: "The Syndicate President", es: "El Presidente del Sindicato" },
   legalFooterNote: {
-    fr: "Ce document officiel porte la référence {ref}. Toute modification non autorisée est passible de poursuites. Vérification : syndycat.ma/verify/{ref}",
-    ar: "تحمل هذه الوثيقة الرسمية المرجع {ref}. كل تعديل غير مصرح به يعرض صاحبه للمتابعة القانونية. التحقق: syndycat.ma/verify/{ref}",
-    en: "This official document bears reference {ref}. Any unauthorized alteration may lead to legal action. Verify at: syndycat.ma/verify/{ref}",
-    es: "Este documento oficial lleva la referencia {ref}. Toda modificación no autorizada puede dar lugar a acciones legales. Verificación: syndycat.ma/verify/{ref}",
+    fr: "Ce document officiel porte la référence {ref}. Toute modification non autorisée est passible de poursuites. Vérification : mizan.ma/verify/{ref}",
+    ar: "تحمل هذه الوثيقة الرسمية المرجع {ref}. كل تعديل غير مصرح به يعرض صاحبه للمتابعة. التحقق: mizan.ma/verify/{ref}",
+    en: "This official document bears reference {ref}. Any unauthorized alteration may lead to legal action. Verify at: mizan.ma/verify/{ref}",
+    es: "Este documento oficial lleva la referencia {ref}. Toda modificación no autorizada puede dar lugar a acciones legales. Verificación: mizan.ma/verify/{ref}",
   },
   notRenseigne: { fr: "non renseignée", ar: "غير محدد", en: "not provided", es: "no especificada" },
   reglementObjetText: {
@@ -1368,7 +1368,7 @@ export async function appendSignaturesToPdf(
     // ── Footer bar
     page.drawRectangle({ x: 0, y: 0, width: PAGE_W, height: FOOTER_H, color: rgb(0.970, 0.980, 0.992) });
     page.drawLine({ start: { x: 0, y: FOOTER_H }, end: { x: PAGE_W, y: FOOTER_H }, thickness: 0.5, color: rgb(0.878, 0.902, 0.925) });
-    const footerLeft = lang === "ar" ? "موثّق بواسطة Syndycat.ma" : "Document certifié — Syndycat.ma";
+    const footerLeft = lang === "ar" ? "موثّق بواسطة MIZAN.ma" : "Document certifié — MIZAN.ma";
     page.drawText(footerLeft, { x: ML, y: 8, size: 7.5, font, color: rgb(0.576, 0.620, 0.659) });
     if (docRef) {
       const refLabel = `Réf : ${docRef}`;
@@ -1680,7 +1680,7 @@ async function buildDocDef(template: DocumentTemplate, input: DocumentInput): Pr
   // ── Enterprise footer ────────────────────────────────────────────────────────
   // Layout: 3-column strip below a hairline rule.
   //   LEFT  — syndicate name (bold) + Réf. + date + verify URL
-  //   CENTER — status chip (semantic color) + "Document certifié Syndycat.ma"
+  //   CENTER — status chip (semantic color) + "Document certifié MIZAN.ma"
   //   RIGHT  — page N / M (prominent) + MIZAN brand mark
   // No duplicate QR — QR code lives in the header only.
   const docStatus = input.docStatus as string | null ?? null;
@@ -1730,7 +1730,7 @@ async function buildDocDef(template: DocumentTemplate, input: DocumentInput): Pr
                 margin: [0, 0, 0, 2],
               }] : []),
               {
-                text: "Document certifié — Syndycat.ma",
+                text: "Document certifié — MIZAN.ma",
                 fontSize: 5.5, color: BRAND.mutedLight,
                 alignment: "center" as const,
               },
@@ -3390,7 +3390,7 @@ async function buildDocDef(template: DocumentTemplate, input: DocumentInput): Pr
                 {
                   stack: [
                     { text: "VERIFICATION URL", fontSize: 4.5, bold: true, color: "#94A3B8", characterSpacing: 0.3, margin: [0,0,0,2] },
-                    { text: verifyUrl || `https://verify.syndycat.com/doc/${pvDocNum_}`, fontSize: 5.5, color: pvWhite, margin: [0,0,0,0] },
+                    { text: verifyUrl || `https://verify.mizan.ma/doc/${pvDocNum_}`, fontSize: 5.5, color: pvWhite, margin: [0,0,0,0] },
                   ],
                   border: [false,false,true,false] as [boolean,boolean,boolean,boolean],
                   borderColor: ["","","","#1E3A5A","","","",""] as unknown as [string,string,string,string],

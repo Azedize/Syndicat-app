@@ -2706,7 +2706,7 @@ function buildVerificationHtml(opts: {
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width,initial-scale=1">
-  <title>Vérification de document — Syndycat</title>
+  <title>Vérification de document — MIZAN</title>
   <style>
     *{box-sizing:border-box;margin:0;padding:0}
     body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;background:${c.bg};min-height:100vh;padding:0 0 40px}
@@ -2721,7 +2721,7 @@ function buildVerificationHtml(opts: {
       <div style="width:28px;height:28px;background:rgba(255,255,255,.15);border-radius:6px;display:flex;align-items:center;justify-content:center;">
         <span style="color:#fff;font-size:15px;">🏛</span>
       </div>
-      <span style="color:rgba(255,255,255,.85);font-size:13px;font-weight:600;letter-spacing:.8px;text-transform:uppercase;">Syndycat — Portail de vérification</span>
+      <span style="color:rgba(255,255,255,.85);font-size:13px;font-weight:600;letter-spacing:.8px;text-transform:uppercase;">MIZAN — Portail de vérification</span>
     </div>
     <div style="color:rgba(255,255,255,.5);font-size:11px;margin-top:4px;letter-spacing:.3px;">documents.mizan.ma</div>
   </div>
@@ -2795,14 +2795,14 @@ function buildVerificationHtml(opts: {
         </div>
       </div>
       <div style="margin-top:10px;font-size:11px;color:#94a3b8;line-height:1.6;">
-        Ce lien de vérification est généré cryptographiquement par Syndycat et est unique à ce document.
+        Ce lien de vérification est généré cryptographiquement par MIZAN et est unique à ce document.
         Toute modification du document invalide automatiquement ce certificat.
       </div>
     </div>
 
     <!-- Footer -->
     <div style="text-align:center;padding:8px 0;">
-      <div style="font-size:11px;color:#94a3b8;">Propulsé par <span style="font-weight:700;color:#6366f1;">Syndycat</span> · Gestion de copropriété</div>
+      <div style="font-size:11px;color:#94a3b8;">Propulsé par <span style="font-weight:700;color:#1F5EFF;">MIZAN</span> · Gouvernance des résidences</div>
       <div style="font-size:10px;color:#cbd5e1;margin-top:3px;">Vérifié le ${new Date().toLocaleDateString("fr-FR", { year: "numeric", month: "long", day: "numeric", hour: "2-digit", minute: "2-digit" })}</div>
     </div>
 
@@ -2817,13 +2817,13 @@ function buildVerificationNotFoundHtml(): string {
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width,initial-scale=1">
-  <title>Document introuvable — Syndycat</title>
+  <title>Document introuvable — MIZAN</title>
   <style>*{box-sizing:border-box;margin:0;padding:0}body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;background:#fef2f2;min-height:100vh;padding:0 0 40px}</style>
 </head>
 <body>
   <div style="background:linear-gradient(135deg,#1e1b4b 0%,#312e81 60%,#4338ca 100%);padding:28px 20px 80px;text-align:center;">
     <div style="display:inline-flex;align-items:center;gap:8px;">
-      <span style="color:rgba(255,255,255,.85);font-size:13px;font-weight:600;letter-spacing:.8px;text-transform:uppercase;">Syndycat — Portail de vérification</span>
+      <span style="color:rgba(255,255,255,.85);font-size:13px;font-weight:600;letter-spacing:.8px;text-transform:uppercase;">MIZAN — Portail de vérification</span>
     </div>
   </div>
   <div style="max-width:520px;margin:-52px auto 0;padding:0 16px;">
@@ -2844,8 +2844,8 @@ function buildVerificationNotFoundHtml(): string {
         </div>
       </div>
     </div>
-    <div style="text-align:center;padding:8px 0;">
-      <div style="font-size:11px;color:#94a3b8;">Propulsé par <span style="font-weight:700;color:#6366f1;">Syndycat</span> · Gestion de copropriété</div>
+      <div style="text-align:center;padding:8px 0;">
+       <div style="font-size:11px;color:#94a3b8;">Propulsé par <span style="font-weight:700;color:#1F5EFF;">MIZAN</span> · Gouvernance des résidences</div>
     </div>
   </div>
 </body>

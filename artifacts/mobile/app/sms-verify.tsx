@@ -1,5 +1,5 @@
 /**
- * SYNDYCAT — SMS OTP Verification Screen (Twilio Verify)
+ * MIZAN — SMS OTP Verification Screen (Twilio Verify)
  *
  * Receives ?phone=+212XXXXXXXXX from the previous screen.
  * Sends → verifies via Twilio Verify API.

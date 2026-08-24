@@ -1,4 +1,4 @@
-// Comprehensive test-data seed for SYNDYCAT GLOBAL CPS.
+// Comprehensive test-data seed for MIZAN.
 // Populates EVERY table in lib/db/src/schema.ts with realistic Moroccan
 // condominium-management data, covering all four user roles:
 //   super_admin | syndicate_admin | member | tenant
@@ -120,7 +120,7 @@ const daysAgo = (n: number) => new Date(Date.now() - n * 86_400_000);
 const isoDate = (n: number) => daysAgo(n).toISOString().slice(0, 10);
 
 async function main() {
-  console.log("🌱  Seeding SYNDYCAT GLOBAL CPS test data…\n");
+  console.log("🌱  Seeding MIZAN test data…\n");
 
   // ─────────────────────────────────────────────────────────────────────────
   // 1. SYNDICATES (2 fully-operational residences)
@@ -179,7 +179,7 @@ async function main() {
   // ─────────────────────────────────────────────────────────────────────────
   await db.insert(usersTable).values([
     // ── Super-admin ──────────────────────────────────────────────────────
-    { id: "user_super_admin",   name: "Karim Bensouda",        email: "superadmin@syndycat.ma",                    phone: "+212600000001", cin: "BE123456", passwordHash: PASSWORD_HASH, role: "super_admin",       status: "active",                                  profession: "Administrateur plateforme", createdAt: daysAgo(1500) },
+    { id: "user_super_admin",   name: "Karim Bensouda",        email: "superadmin@mizan.ma",                      phone: "+212600000001", cin: "BE123456", passwordHash: PASSWORD_HASH, role: "super_admin",       status: "active",                                  profession: "Administrateur plateforme", createdAt: daysAgo(1500) },
     // ── Syndic admins ────────────────────────────────────────────────────
     { id: "user_admin_atlas",   name: "Nadia Ouahbi",          email: "syndic@andalous.ma",                        phone: "+212600000002", cin: "A123456",  passwordHash: PASSWORD_HASH, role: "syndicate_admin",   status: "active", syndicateId: "syn_residence_atlas",  profession: "Syndic bénévole",           createdAt: daysAgo(1400) },
     { id: "user_admin_agdal",   name: "Youssef Idrissi",       email: "syndic@jardins-agdal.ma",                   phone: "+212600000003", cin: "R778899",  passwordHash: PASSWORD_HASH, role: "syndicate_admin",   status: "active", syndicateId: "syn_jardins_agdal",    profession: "Syndic professionnel",      createdAt: daysAgo(880) },
@@ -1136,7 +1136,7 @@ async function main() {
     { id: "email_4", recipient: "sara.bouzid@gmail.com",              subject: "Votre bail a été mis à jour",                      template: "document_updated", status: "sent",   syndicateId: "syn_residence_atlas", sentAt: daysAgo(5),  createdAt: daysAgo(5) },
     { id: "email_5", recipient: "syndic@andalous.ma",                 subject: "Nouveau ticket support — #ticket_1",               template: "ticket_created",   status: "sent",   syndicateId: "syn_residence_atlas", sentAt: daysAgo(1),  createdAt: daysAgo(1) },
     { id: "email_6", recipient: "omar.zaki@gmail.com",                subject: "Confirmation de votre réservation de parking",     template: "parking_confirm",  status: "failed", syndicateId: "syn_jardins_agdal",   errorMessage: "SMTP timeout", retryCount: 2, createdAt: daysAgo(3) },
-    { id: "email_7", recipient: "superadmin@syndycat.ma",             subject: "Rapport mensuel — juillet 2026",                  template: "monthly_report",   status: "pending",                                  createdAt: daysAgo(0) },
+    { id: "email_7", recipient: "superadmin@mizan.ma",               subject: "Rapport mensuel — juillet 2026",                  template: "monthly_report",   status: "pending",                                  createdAt: daysAgo(0) },
   ]).onConflictDoNothing();
 
   // ─────────────────────────────────────────────────────────────────────────
@@ -1425,7 +1425,7 @@ async function main() {
   console.log("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━");
   console.log("  Rôle              Email                                    Syndicat");
   console.log("  ─────────────     ─────────────────────────────────────    ─────────────────────────");
-  console.log("  super_admin       superadmin@syndycat.ma                   (Plateforme)");
+  console.log("  super_admin       superadmin@mizan.ma                     (Plateforme)");
   console.log("  syndicate_admin   syndic@andalous.ma                       Résidence Atlas");
   console.log("  syndicate_admin   syndic@jardins-agdal.ma                  Les Jardins d'Agdal");
   console.log("  member            mohammed.alaoui@residence-atlas.ma       Résidence Atlas");

@@ -2,7 +2,7 @@
 
 ## Phase 1 — Brand Identity
 
-**Status:** Complete — 2026-08-10
+**Status:** Complete — 2026-08-24
 
 ### Decision
 
@@ -59,6 +59,23 @@ The legacy presentation identities **SYNDYCAT GLOBAL CPS** and **VERIDIAN** were
 - Expo workflow restarted and Metro bundled successfully.
 - Public `/welcome` preview checked at 402×874 with no new browser runtime exceptions; existing Expo web compatibility warnings remain non-blocking.
 
-### Next phase
+### Final identity standard
 
-Phase 3 — Design System. The MIZAN identity and icon system are now stable inputs for the broader welcome experience and product UI refinement.
+- Official product: **MIZAN**
+- Descriptor: **Community Governance & Residence Operations**
+- Morocco-market descriptor: **Gouvernance & gestion des résidences**
+- Promise: **Clarté, confiance et gouvernance numérique pour chaque résidence.**
+- Mark: geometric balance line and central signal, representing shared governance, security, and transparent administration.
+- Palette: deep navy `#0B1F3A`, signal blue `#1F5EFF`, calm teal `#20B8A6`, muted gold `#D9A441`, cool background `#F5F8FC`.
+- Typography: Inter, with a restrained uppercase wordmark and generous tracking.
+
+### Compatibility note
+
+The existing iOS and Android bundle identifiers remain unchanged to preserve installed-app continuity and store update eligibility. They are technical identifiers, not customer-facing branding.
+
+### Final verification — 2026-08-24
+
+- Mobile and API TypeScript checks pass with zero errors.
+- Expo and API workflows restarted successfully; Metro bundled and the API started cleanly.
+- Remaining legacy strings are limited to technical persistence keys, Firebase project identifiers, and stable store bundle identifiers; none are customer-facing.
+- Public mobile preview checked at 402×874. Existing Expo web deprecation/support warnings remain non-blocking.

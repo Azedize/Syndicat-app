@@ -14,6 +14,12 @@ export const MIZAN = {
   tagline: "Community Governance & Residence Operations",
   /** Primary Morocco-market descriptor used in compact surfaces */
   taglineShort: "Gouvernance & gestion des résidences",
+  /** Brand promise used in strategy, metadata and formal communications */
+  promise: "Clarté, confiance et gouvernance numérique pour chaque résidence.",
+  /** Identity principles for future surfaces and campaigns */
+  values: ["Confiance", "Transparence", "Gouvernance", "Sécurité", "Excellence"] as const,
+  /** Geometric mark meaning: a balanced community under shared governance */
+  markMeaning: "Une communauté équilibrée, guidée par une gouvernance claire.",
 
   colors: {
     /** Deep navy — trust, app icon background and dark surfaces */

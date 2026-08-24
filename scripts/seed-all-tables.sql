@@ -96,7 +96,7 @@ INSERT INTO orders (id, product_id, product_name, buyer_id, buyer_name, seller_i
    'user_member_2', 'Khadija Tahiri', 'user_dir_sne', 'SNE',
    85.00, 'shipped', 'physical', '2026-06-25', NOW() - '5 days'::interval),
   ('ord_007', '75ef3851-083b-4f6c-b3a9-5af19c71f668', 'Livre Droit du travail marocain',
-   'user_admin', 'Administrateur Syndycat', 'user_dir_sne', 'SNE',
+   'user_admin', 'Administrateur MIZAN', 'user_dir_sne', 'SNE',
    120.00, 'delivered', 'physical', '2026-05-30', NOW() - '30 days'::interval),
   ('ord_008', '435a7bcd-7b7c-42bc-8ac5-542e839d6522', 'Agenda scolaire 2026-2027',
    'user_member_1', 'Mohammed Alaoui', 'user_dir_sne', 'SNE',
@@ -116,7 +116,7 @@ INSERT INTO reviews (id, product_id, product_name, order_id, rating, comment, re
    'user_member_1', 'Mohammed Alaoui', '2026-06-18', NOW() - '12 days'::interval),
   ('rev_004', '75ef3851-083b-4f6c-b3a9-5af19c71f668', 'Livre Droit du travail marocain', 'ord_007',
    5, 'Très bon ouvrage. Complet et accessible. Idéal pour les représentants syndicaux.',
-   'user_admin', 'Administrateur Syndycat', '2026-06-05', NOW() - '25 days'::interval),
+   'user_admin', 'Administrateur MIZAN', '2026-06-05', NOW() - '25 days'::interval),
   ('rev_005', '0ca691c9-3c77-44da-8e11-39b7193eb71b', 'Manuel pédagogique 2026', 'ord_006',
    4, 'Bon manuel, conforme à la description. Livraison rapide. Certaines sections mériteraient plus d''exemples pratiques.',
    'user_member_2', 'Khadija Tahiri', '2026-06-28', NOW() - '2 days'::interval)

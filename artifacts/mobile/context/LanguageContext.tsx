@@ -56,10 +56,10 @@ export const TRANSLATIONS: Translations = {
   // ─── App ───────────────────────────────────────────────────────────────────
   appName: { fr: "MIZAN", en: "MIZAN", ar: "ميزان", es: "MIZAN" },
   appTagline: {
-    fr: "Global CPS Platform",
-    en: "Global CPS Platform",
-    ar: "منصة CPS العالمية",
-    es: "Plataforma CPS Global",
+    fr: "Gouvernance & gestion des résidences",
+    en: "Community governance & residence operations",
+    ar: "حوكمة المجتمعات وتدبير الإقامات",
+    es: "Gobernanza comunitaria y gestión residencial",
   },
 
   // ─── Roles ─────────────────────────────────────────────────────────────────

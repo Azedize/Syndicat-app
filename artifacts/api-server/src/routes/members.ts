@@ -1,9 +1,17 @@
 import { Router } from "express";
 import { z } from "zod";
 import { db } from "@workspace/db";
-import { membersTable, syndicatesTable, usersTable } from "@workspace/db/schema";
+import {
+  membersTable,
+  syndicatesTable,
+  usersTable,
+} from "@workspace/db/schema";
 import { eq, and, ilike, or, sql, count, inArray } from "drizzle-orm";
-import { requireAuth, requireRole, requireOperationalAccess } from "../middleware/auth.js";
+import {
+  requireAuth,
+  requireRole,
+  requireOperationalAccess,
+} from "../middleware/auth.js";
 import { serverAuditLog } from "../lib/audit.js";
 import { getPagination, buildPagedResponse } from "../lib/paginate.js";
 import { createAlert } from "../lib/notify.js";
@@ -11,80 +19,118 @@ import { createAlert } from "../lib/notify.js";
 const router = Router();
 
 function isSameSyndicate(req: any, syndicateId: string): boolean {
-  return req.user.role === "super_admin" || req.user.syndicateId === syndicateId;
+  return (
+    req.user.role === "super_admin" || req.user.syndicateId === syndicateId
+  );
+}
+
+function assertSupervisedMemberTarget(
+  req: any,
+  syndicateId: string | null | undefined,
+): void {
+  if (req.user?.role !== "super_admin") return;
+  const targetSyndicateId =
+    typeof req.query.syndicateId === "string" ? req.query.syndicateId : "";
+  if (req.query.supervision !== "true" || !targetSyndicateId) {
+    throw Object.assign(
+      new Error("La supervision et un syndicat cible sont requis."),
+      { status: 403, code: "SUPERVISION_REQUIRED" },
+    );
+  }
+  if (!syndicateId || syndicateId !== targetSyndicateId) {
+    throw Object.assign(new Error("Accès refusé"), { status: 403 });
+  }
 }
 
 // FIX [R12]: President, treasurer, and secretary need the member directory for
 // operational work: president for quorum, treasurer for charge notices, secretary
 // for convocation letters. All are scoped to their syndicateId — no PII leak.
 // Members and tenants are still correctly blocked (they cannot browse other residents).
-router.get("/members", requireAuth, requireRole("super_admin", "syndicate_admin", "president", "treasurer", "secretary", "committee_member"), async (req, res) => {
-  const { search, status, syndicateId } = req.query as Record<string, string>;
-  const pagination = getPagination(req);
-  try {
-    const conditions: any[] = [];
-    if (req.user!.role === "super_admin") {
-      if (syndicateId) {
-        // super_admin filtering by specific syndicate
-        conditions.push(eq(membersTable.syndicateId, syndicateId));
+router.get(
+  "/members",
+  requireAuth,
+  requireRole(
+    "super_admin",
+    "syndicate_admin",
+    "president",
+    "treasurer",
+    "secretary",
+    "committee_member",
+  ),
+  async (req, res) => {
+    const { search, status, syndicateId } = req.query as Record<string, string>;
+    const pagination = getPagination(req);
+    try {
+      const conditions: any[] = [];
+      if (req.user!.role === "super_admin") {
+        if (syndicateId) {
+          // super_admin filtering by specific syndicate
+          conditions.push(eq(membersTable.syndicateId, syndicateId));
+        }
+        // super_admin with no syndicateId filter sees all members (platform view)
+      } else {
+        // Non-super_admin MUST have syndicateId in JWT — never return unscoped results
+        if (!req.user!.syndicateId) {
+          return void res
+            .status(403)
+            .json({ error: "Syndicat non défini dans le token" });
+        }
+        conditions.push(eq(membersTable.syndicateId, req.user!.syndicateId));
       }
-      // super_admin with no syndicateId filter sees all members (platform view)
-    } else {
-      // Non-super_admin MUST have syndicateId in JWT — never return unscoped results
-      if (!req.user!.syndicateId) {
-        return void res.status(403).json({ error: "Syndicat non défini dans le token" });
+      if (status) conditions.push(eq(membersTable.status, status as any));
+      if (search) {
+        conditions.push(
+          or(
+            ilike(membersTable.name, `%${search}%`),
+            ilike(membersTable.email, `%${search}%`),
+            ilike(membersTable.profession, `%${search}%`),
+          ),
+        );
       }
-      conditions.push(eq(membersTable.syndicateId, req.user!.syndicateId));
-    }
-    if (status) conditions.push(eq(membersTable.status, status as any));
-    if (search) {
-      conditions.push(
-        or(
-          ilike(membersTable.name, `%${search}%`),
-          ilike(membersTable.email, `%${search}%`),
-          ilike(membersTable.profession, `%${search}%`),
-        ),
+
+      const where = conditions.length > 0 ? and(...conditions) : undefined;
+
+      const [rows, [{ value: total }]] = await Promise.all([
+        db
+          .select()
+          .from(membersTable)
+          .where(where)
+          .limit(pagination.limit)
+          .offset(pagination.offset),
+        db.select({ value: count() }).from(membersTable).where(where),
+      ]);
+
+      // Enrich with userId from usersTable (matched by email) for chat/conversations
+      const emails = rows.map((r) => r.email).filter(Boolean);
+      const usersByEmail =
+        emails.length > 0
+          ? await db
+              .select({
+                id: usersTable.id,
+                email: usersTable.email,
+                role: usersTable.role,
+                syndicateId: usersTable.syndicateId,
+              })
+              .from(usersTable)
+              .where(inArray(usersTable.email, emails))
+          : [];
+      const userEmailMap = Object.fromEntries(
+        usersByEmail.map((u) => [`${u.email}:${u.syndicateId ?? ""}`, u]),
       );
+
+      const enriched = rows.map((r) => ({
+        ...r,
+        userId: userEmailMap[`${r.email}:${r.syndicateId ?? ""}`]?.id ?? null,
+        role: userEmailMap[`${r.email}:${r.syndicateId ?? ""}`]?.role ?? null,
+      }));
+
+      res.json(buildPagedResponse(enriched, Number(total), pagination));
+    } catch (err) {
+      req.log.error(err);
+      res.status(500).json({ error: "Erreur serveur" });
     }
-
-    const where = conditions.length > 0 ? and(...conditions) : undefined;
-
-    const [rows, [{ value: total }]] = await Promise.all([
-      db.select().from(membersTable)
-        .where(where)
-        .limit(pagination.limit)
-        .offset(pagination.offset),
-      db.select({ value: count() }).from(membersTable).where(where),
-    ]);
-
-    // Enrich with userId from usersTable (matched by email) for chat/conversations
-    const emails = rows.map((r) => r.email).filter(Boolean);
-    const usersByEmail = emails.length > 0
-      ? await db.select({
-          id: usersTable.id,
-          email: usersTable.email,
-          role: usersTable.role,
-          syndicateId: usersTable.syndicateId,
-        })
-          .from(usersTable)
-          .where(inArray(usersTable.email, emails))
-      : [];
-    const userEmailMap = Object.fromEntries(
-      usersByEmail.map((u) => [`${u.email}:${u.syndicateId ?? ""}`, u]),
-    );
-
-    const enriched = rows.map((r) => ({
-      ...r,
-      userId: userEmailMap[`${r.email}:${r.syndicateId ?? ""}`]?.id ?? null,
-      role: userEmailMap[`${r.email}:${r.syndicateId ?? ""}`]?.role ?? null,
-    }));
-
-    res.json(buildPagedResponse(enriched, Number(total), pagination));
-  } catch (err) {
-    req.log.error(err);
-    res.status(500).json({ error: "Erreur serveur" });
-  }
-});
+  },
+);
 
 router.post(
   "/members",
@@ -101,21 +147,35 @@ router.post(
     });
     const result = schema.safeParse(req.body);
     if (!result.success) {
-      res.status(400).json({ error: "Données invalides", details: result.error.issues });
+      res
+        .status(400)
+        .json({ error: "Données invalides", details: result.error.issues });
       return;
     }
     try {
       const syndicateId =
         req.user!.role === "super_admin"
-          ? result.data.syndicateId
+          ? typeof req.query.syndicateId === "string"
+            ? req.query.syndicateId
+            : undefined
           : req.user!.syndicateId;
 
       if (!syndicateId) {
-        return void res.status(req.user!.role === "super_admin" ? 400 : 403).json({
-          error:
-            req.user!.role === "super_admin"
-              ? "Un syndicat cible est requis"
-              : "Syndicat non défini dans le token",
+        return void res
+          .status(req.user!.role === "super_admin" ? 400 : 403)
+          .json({
+            error:
+              req.user!.role === "super_admin"
+                ? "Un syndicat cible est requis"
+                : "Syndicat non défini dans le token",
+          });
+      }
+      try {
+        assertSupervisedMemberTarget(req, syndicateId);
+      } catch (error: any) {
+        return void res.status(error.status ?? 403).json({
+          error: error.message,
+          ...(error.code ? { code: error.code } : {}),
         });
       }
 
@@ -132,7 +192,12 @@ router.post(
       await db.transaction(async (tx) => {
         const [m] = await tx
           .insert(membersTable)
-          .values({ ...result.data, syndicateId, status: "active", cotisationStatus: "pending" })
+          .values({
+            ...result.data,
+            syndicateId,
+            status: "active",
+            cotisationStatus: "pending",
+          })
           .returning();
         member = m;
 
@@ -159,7 +224,9 @@ router.post(
         target: "admin",
       }).catch(() => {});
 
-      res.status(201).json({ data: member!, message: "Membre ajouté avec succès" });
+      res
+        .status(201)
+        .json({ data: member!, message: "Membre ajouté avec succès" });
     } catch (err) {
       req.log.error(err);
       res.status(500).json({ error: "Erreur serveur" });
@@ -169,20 +236,47 @@ router.post(
 
 // Governance roles need individual member profiles (e.g. secretary invites members to AG,
 // president reviews member status). The row-level isSameSyndicate check enforces isolation.
-router.get("/members/:id", requireAuth, requireRole("super_admin", "syndicate_admin", "president", "treasurer", "secretary", "committee_member"), async (req, res) => {
-  const id = String(req.params.id) as string;
-  try {
-    const [member] = await db.select().from(membersTable).where(eq(membersTable.id, id));
-    if (!member) { res.status(404).json({ error: "Membre introuvable" }); return; }
-    if (!isSameSyndicate(req, member.syndicateId ?? "")) {
-      res.status(403).json({ error: "Accès refusé" }); return;
+router.get(
+  "/members/:id",
+  requireAuth,
+  requireRole(
+    "super_admin",
+    "syndicate_admin",
+    "president",
+    "treasurer",
+    "secretary",
+    "committee_member",
+  ),
+  async (req, res) => {
+    const id = String(req.params.id) as string;
+    try {
+      const [member] = await db
+        .select()
+        .from(membersTable)
+        .where(eq(membersTable.id, id));
+      if (!member) {
+        res.status(404).json({ error: "Membre introuvable" });
+        return;
+      }
+      try {
+        assertSupervisedMemberTarget(req, member.syndicateId);
+      } catch (error: any) {
+        return void res.status(error.status ?? 403).json({
+          error: error.message,
+          ...(error.code ? { code: error.code } : {}),
+        });
+      }
+      if (!isSameSyndicate(req, member.syndicateId ?? "")) {
+        res.status(403).json({ error: "Accès refusé" });
+        return;
+      }
+      res.json({ data: member });
+    } catch (err) {
+      req.log.error(err);
+      res.status(500).json({ error: "Erreur serveur" });
     }
-    res.json({ data: member });
-  } catch (err) {
-    req.log.error(err);
-    res.status(500).json({ error: "Erreur serveur" });
-  }
-});
+  },
+);
 
 router.put(
   "/members/:id",
@@ -197,12 +291,30 @@ router.put(
       profession: z.string().optional(),
     });
     const result = schema.safeParse(req.body);
-    if (!result.success) { res.status(400).json({ error: "Données invalides" }); return; }
+    if (!result.success) {
+      res.status(400).json({ error: "Données invalides" });
+      return;
+    }
     try {
-      const [member] = await db.select().from(membersTable).where(eq(membersTable.id, id));
-      if (!member) { res.status(404).json({ error: "Membre introuvable" }); return; }
+      const [member] = await db
+        .select()
+        .from(membersTable)
+        .where(eq(membersTable.id, id));
+      if (!member) {
+        res.status(404).json({ error: "Membre introuvable" });
+        return;
+      }
+      try {
+        assertSupervisedMemberTarget(req, member.syndicateId);
+      } catch (error: any) {
+        return void res.status(error.status ?? 403).json({
+          error: error.message,
+          ...(error.code ? { code: error.code } : {}),
+        });
+      }
       if (!isSameSyndicate(req, member.syndicateId ?? "")) {
-        res.status(403).json({ error: "Accès refusé" }); return;
+        res.status(403).json({ error: "Accès refusé" });
+        return;
       }
       const ownershipCondition =
         req.user!.role === "super_admin"
@@ -216,7 +328,10 @@ router.put(
         .set(result.data)
         .where(ownershipCondition)
         .returning();
-      if (!updated) { res.status(404).json({ error: "Membre introuvable" }); return; }
+      if (!updated) {
+        res.status(404).json({ error: "Membre introuvable" });
+        return;
+      }
       res.json({ data: updated, message: "Membre mis à jour" });
     } catch (err) {
       req.log.error(err);
@@ -228,17 +343,37 @@ router.put(
 router.put(
   "/members/:id/status",
   requireAuth,
-  requireRole("super_admin", "syndicate_admin"),
+  requireOperationalAccess,
   async (req, res) => {
     const id = String(req.params.id) as string;
-    const schema = z.object({ status: z.enum(["active", "inactive", "pending"]) });
+    const schema = z.object({
+      status: z.enum(["active", "inactive", "pending"]),
+    });
     const result = schema.safeParse(req.body);
-    if (!result.success) { res.status(400).json({ error: "Statut invalide" }); return; }
+    if (!result.success) {
+      res.status(400).json({ error: "Statut invalide" });
+      return;
+    }
     try {
-      const [member] = await db.select().from(membersTable).where(eq(membersTable.id, id));
-      if (!member) { res.status(404).json({ error: "Membre introuvable" }); return; }
+      const [member] = await db
+        .select()
+        .from(membersTable)
+        .where(eq(membersTable.id, id));
+      if (!member) {
+        res.status(404).json({ error: "Membre introuvable" });
+        return;
+      }
+      try {
+        assertSupervisedMemberTarget(req, member.syndicateId);
+      } catch (error: any) {
+        return void res.status(error.status ?? 403).json({
+          error: error.message,
+          ...(error.code ? { code: error.code } : {}),
+        });
+      }
       if (!isSameSyndicate(req, member.syndicateId ?? "")) {
-        res.status(403).json({ error: "Accès refusé" }); return;
+        res.status(403).json({ error: "Accès refusé" });
+        return;
       }
 
       let updated: typeof membersTable.$inferSelect;
@@ -266,7 +401,9 @@ router.put(
           if (wasActive && goingInactive) {
             await tx
               .update(syndicatesTable)
-              .set({ membersCount: sql`GREATEST(${syndicatesTable.membersCount} - 1, 0)` })
+              .set({
+                membersCount: sql`GREATEST(${syndicatesTable.membersCount} - 1, 0)`,
+              })
               .where(eq(syndicatesTable.id, member.syndicateId));
           } else if (wasInactive && goingActive) {
             await tx

@@ -16,7 +16,7 @@ set -euo pipefail
 
 echo ""
 echo "════════════════════════════════════════════════════"
-echo "  SYNDYCAT GLOBAL CPS — Replit Setup"
+echo "  MIZAN — Replit Setup"
 echo "════════════════════════════════════════════════════"
 echo ""
 

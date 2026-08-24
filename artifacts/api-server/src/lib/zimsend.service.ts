@@ -166,7 +166,7 @@ export async function sendOtp(rawPhone: string): Promise<SendOtpResult> {
     attempts:  0,
   });
 
-  const message = `Votre code de vérification SYNDYCAT est : ${code}. Valable 5 minutes.`;
+  const message = `Votre code de vérification MIZAN est : ${code}. Valable 5 minutes.`;
   const result  = await sendSMS(phone, message);
 
   if (!result.success) {

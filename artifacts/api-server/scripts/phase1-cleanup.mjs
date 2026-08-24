@@ -190,7 +190,7 @@ function reconstructionPlaceholder(
     {
       columns: [
         { text: "Réf. " + docNum, fontSize: 7, color: "#687078", width: "*" },
-        { text: syndInfo.name + " — SYNDYCAT", fontSize: 7, color: "#687078", alignment: "right" as const, width: "auto" },
+        { text: syndInfo.name + " — MIZAN", fontSize: 7, color: "#687078", alignment: "right" as const, width: "auto" },
       ],
       margin: [0, 6, 0, 0] as [number, number, number, number],
     },

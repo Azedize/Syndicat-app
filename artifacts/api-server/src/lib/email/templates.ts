@@ -6,8 +6,8 @@
  * same branded header/footer, regardless of which flow triggered it.
  */
 
-const BRAND_NAVY  = "#0A1628";   // MIZAN navyDeep — header background
-const BRAND_BLUE  = "#2563EB";   // MIZAN blue — action color, buttons
+const BRAND_NAVY  = "#0B1F3A";   // MIZAN navyDeep — header background
+const BRAND_BLUE  = "#1F5EFF";   // MIZAN blue — action color, buttons
 const BRAND_COLOR = BRAND_BLUE;  // legacy alias kept for button() helper
 
 /** Shared branded shell every email body gets wrapped in. */
@@ -31,13 +31,13 @@ export function wrapEmail(preheader: string, bodyHtml: string): string {
                         <table role="presentation" cellpadding="0" cellspacing="0">
                           <tr>
                             <td style="vertical-align:middle;padding-right:14px;">
-                              <div style="width:38px;height:44px;background:linear-gradient(160deg,${BRAND_BLUE},#60A5FA);border-radius:4px 4px 6px 6px;display:inline-block;text-align:center;line-height:44px;">
+                              <div style="width:38px;height:44px;background:linear-gradient(160deg,${BRAND_BLUE},#20B8A6);border-radius:4px 4px 6px 6px;display:inline-block;text-align:center;line-height:44px;">
                                 <span style="color:#fff;font-size:18px;font-weight:900;">M</span>
                               </div>
                             </td>
                             <td style="vertical-align:middle;">
                               <div style="color:#ffffff;font-size:22px;font-weight:900;letter-spacing:3px;font-family:Helvetica,Arial,sans-serif;">MIZAN</div>
-                              <div style="color:#93C5FD;font-size:10px;font-weight:600;letter-spacing:2px;margin-top:2px;font-family:Helvetica,Arial,sans-serif;">GOUVERNANCE &amp; GESTION DES RÉSIDENCES</div>
+                              <div style="color:#8DB2FF;font-size:10px;font-weight:600;letter-spacing:2px;margin-top:2px;font-family:Helvetica,Arial,sans-serif;">GOUVERNANCE &amp; GESTION DES RÉSIDENCES</div>
                             </td>
                           </tr>
                         </table>
@@ -45,7 +45,7 @@ export function wrapEmail(preheader: string, bodyHtml: string): string {
                     </tr>
                     <!-- Brand accent stripe -->
                     <tr>
-                      <td style="height:3px;background:linear-gradient(90deg,${BRAND_BLUE},#60A5FA,${BRAND_BLUE});"></td>
+                      <td style="height:3px;background:linear-gradient(90deg,${BRAND_BLUE},#20B8A6,${BRAND_BLUE});"></td>
                     </tr>
                   </table>
                 </td>
