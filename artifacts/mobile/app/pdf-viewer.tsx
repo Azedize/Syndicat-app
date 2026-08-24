@@ -497,7 +497,7 @@ export default function PdfViewerScreen() {
         // Loading overlay
         renderLoading={() => (
           <View style={[styles.loadingOverlay, styles.center]}>
-            <ActivityIndicator size="large" color="#6366f1" />
+            <ActivityIndicator size="large" color="#1F5EFF" />
             <Text style={styles.loadingText}>
               {loadPct > 0 ? `Chargement… ${loadPct}%` : "Préparation du PDF…"}
             </Text>
@@ -545,7 +545,7 @@ const styles = StyleSheet.create({
     marginTop: 2,
   },
   progressBg: { height: 3, backgroundColor: "#ffffff20", overflow: "hidden" },
-  progressFill: { height: 3, backgroundColor: "#6366f1" },
+  progressFill: { height: 3, backgroundColor: "#1F5EFF" },
   webview: { flex: 1, backgroundColor: "#404040" },
   loadingOverlay: {
     position: "absolute" as const,
@@ -597,7 +597,7 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     alignItems: "center",
     gap: 8,
-    backgroundColor: "#6366f1",
+    backgroundColor: "#1F5EFF",
     paddingHorizontal: 20,
     paddingVertical: 12,
     borderRadius: 12,

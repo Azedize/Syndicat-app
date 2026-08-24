@@ -1018,13 +1018,13 @@ router.get("/verify/:token", async (req, res) => {
   <style>
     * { box-sizing: border-box; margin: 0; padding: 0; }
     body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-           background: linear-gradient(135deg, #0f172a 0%, #1e1b4b 50%, #0f172a 100%);
+           background: linear-gradient(135deg, #0B1F3A 0%, #102B4D 50%, #0B1F3A 100%);
            min-height: 100vh; display: flex; align-items: center; justify-content: center; padding: 20px; }
     .card { background: rgba(255,255,255,0.05); backdrop-filter: blur(20px);
             border: 1px solid rgba(255,255,255,0.1); border-radius: 24px;
             max-width: 480px; width: 100%; padding: 40px 36px; color: #fff; }
     .logo { display: flex; align-items: center; gap: 12px; margin-bottom: 32px; }
-    .logo-mark { width: 44px; height: 44px; background: linear-gradient(135deg, #2563EB, #4f46e5);
+    .logo-mark { width: 44px; height: 44px; background: linear-gradient(135deg, #1F5EFF, #20B8A6);
                  border-radius: 12px; display: flex; align-items: center; justify-content: center;
                  font-size: 22px; font-weight: 900; }
     .logo-text { font-size: 18px; font-weight: 700; letter-spacing: -0.5px; }

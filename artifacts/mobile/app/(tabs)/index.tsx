@@ -38,7 +38,7 @@ const QUICK_ACTIONS_SUPER = [
     labelKey: "tableauNational",
     icon: "globe",
     route: "/tableau-national",
-    color: "#6366f1",
+    color: "#1F5EFF",
   },
   {
     labelKey: "gestionUtilisateurs",
@@ -90,7 +90,7 @@ const QUICK_ACTIONS_ADMIN = [
     labelKey: "assemblee",
     icon: "users",
     route: "/assemblee-generale",
-    color: "#6366f1",
+    color: "#1F5EFF",
   },
   {
     labelKey: "tableauBord",
@@ -108,7 +108,7 @@ const QUICK_ACTIONS_ADMIN = [
     labelKey: "documents",
     icon: "folder",
     route: "/documents",
-    color: "#6366f1",
+    color: "#1F5EFF",
   },
   {
     labelKey: "teamSyndic",
@@ -140,7 +140,7 @@ const QUICK_ACTIONS_PRESIDENT = [
     labelKey: "documentsCopro",
     icon: "folder",
     route: "/documents",
-    color: "#6366f1",
+    color: "#1F5EFF",
   },
   {
     labelKey: "governance",
@@ -185,7 +185,7 @@ const QUICK_ACTIONS_TREASURER = [
     labelKey: "devisFactures",
     icon: "file-text",
     route: "/invoices",
-    color: "#6366f1",
+    color: "#1F5EFF",
   },
 ];
 const QUICK_ACTIONS_SECRETARY = [
@@ -193,7 +193,7 @@ const QUICK_ACTIONS_SECRETARY = [
     labelKey: "documentsCopro",
     icon: "folder",
     route: "/documents",
-    color: "#6366f1",
+    color: "#1F5EFF",
   },
   {
     labelKey: "reunionsConvocations",
@@ -244,7 +244,7 @@ const QUICK_ACTIONS_COMMITTEE = [
     labelKey: "documentsCopro",
     icon: "folder",
     route: "/documents",
-    color: "#6366f1",
+    color: "#1F5EFF",
   },
   {
     labelKey: "avisResidents",
@@ -270,7 +270,7 @@ const QUICK_ACTIONS_MEMBER = [
     labelKey: "documentsCopro",
     icon: "folder",
     route: "/documents",
-    color: "#6366f1",
+    color: "#1F5EFF",
   },
   {
     labelKey: "reclamationsLabel",
@@ -302,7 +302,7 @@ const QUICK_ACTIONS_TENANT = [
     labelKey: "documentsCopro",
     icon: "folder",
     route: "/documents",
-    color: "#6366f1",
+    color: "#1F5EFF",
   },
   {
     labelKey: "avisResidents",
@@ -377,7 +377,7 @@ function mapAuditActivity(raw: {
     color: isFinance
       ? "#10b981"
       : isDocument
-        ? "#6366f1"
+        ? "#1F5EFF"
         : isGovernance
           ? "#3b82f6"
           : "#6b7280",

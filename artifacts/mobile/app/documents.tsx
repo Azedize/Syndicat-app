@@ -30,6 +30,7 @@ import { useToast } from "@/context/ToastContext";
 import { useBreakpoints } from "@/hooks/useBreakpoints";
 import { useColors } from "@/hooks/useColors";
 import { useLanguage, type LangCode } from "@/context/LanguageContext";
+import { MIZAN } from "@/constants/brand";
 import FilterChips from "@/components/FilterChips";
 import SignaturePad, {
   type SignaturePadHandle,
@@ -1083,7 +1084,7 @@ export default function DocumentsScreen() {
         target: selectedTemplate.name,
         route: "/documents",
         icon: "file-text",
-        color: "#6366f1",
+        color: MIZAN.colors.blue,
       });
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
       await refreshDocuments().catch(() => {});
@@ -1257,7 +1258,7 @@ export default function DocumentsScreen() {
         target: doc.title,
         route: "/documents",
         icon: "download",
-        color: "#6366f1",
+        color: MIZAN.colors.blue,
       });
 
       if (afterDownload === "share") {
@@ -1399,7 +1400,7 @@ export default function DocumentsScreen() {
         target: editTitle.trim(),
         route: "/documents",
         icon: "edit-2",
-        color: "#6366f1",
+        color: MIZAN.colors.blue,
       });
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
       setShowEdit(false);
@@ -1759,7 +1760,7 @@ export default function DocumentsScreen() {
               id: FAV_ID,
               title: t("documentsTitle"),
               icon: "file-text",
-              color: "#6366f1",
+              color: MIZAN.colors.blue,
               route: "/documents",
             })
           }

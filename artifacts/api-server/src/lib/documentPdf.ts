@@ -158,11 +158,11 @@ const ARABIC_FONT = FONTS.Amiri ? "Amiri" : PRIMARY_FONT;
 
 const BRAND = {
   // ── Core palette — MIZAN brand colors ────────────────────────────────────
-  primary:        "#2563EB",   // MIZAN blue — brand action blue
+  primary:        "#1F5EFF",   // MIZAN blue — brand action blue
   primaryMid:     "#1D4ED8",   // blue-700
   primaryDark:    "#1E40AF",   // blue-800
   primaryDeep:    "#1E3A8A",   // blue-900
-  primaryDeeper:  "#0A1628",   // MIZAN navyDeep
+  primaryDeeper:  "#0B1F3A",   // MIZAN navyDeep
   primaryLight:   "#DBEAFE",   // blue-100 tint
   primaryLighter: "#EFF6FF",   // blue-50
 
@@ -184,7 +184,7 @@ const BRAND = {
   infoLight:      "#eff6ff",   // blue-50
 
   // ── Neutrals ─────────────────────────────────────────────────────────────
-  ink:            "#0A1628",   // MIZAN navyDeep — dark text / headers
+  ink:            "#0B1F3A",   // MIZAN navyDeep — dark text / headers
   inkMid:         "#374151",   // gray-700
   inkLight:       "#475569",   // slate-600
   muted:          "#6b7280",   // gray-500
@@ -198,7 +198,7 @@ const BRAND = {
   // ── Legacy helpers ────────────────────────────────────────────────────────
   // Used by document families that share colors with the system palette.
   legalRed:       "#b91c1c",   // red-700 — enforcement docs
-  contractIndigo: "#1e1b4b",   // app foreground — contracts
+  contractIndigo: "#0B1F3A",   // MIZAN deep navy — contracts
   slateAdmin:     "#374151",   // gray-700 — admin docs
   bailDark:       "#2d2540",   // deep secondary — lease
 

@@ -22,6 +22,7 @@ import { useData, type Document } from "@/context/DataContext";
 import { useLanguage } from "@/context/LanguageContext";
 import { useBreakpoints } from "@/hooks/useBreakpoints";
 import { useColors } from "@/hooks/useColors";
+import { MIZAN } from "@/constants/brand";
 import { ErrorState, LoadingState } from "@/components/DataState";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
@@ -225,7 +226,7 @@ export default function DocumentsDashboard() {
       label: t("documentsDashboardPublished"),
       count: metrics.published,
       icon: "globe",
-      color: "#6366f1",
+      color: MIZAN.colors.blue,
       filterStatus: "published",
       description: t("documentsDashboardPublishedDescription"),
     },
@@ -268,7 +269,7 @@ export default function DocumentsDashboard() {
       ({
         published: {
           label: t("documentsDashboardStatusPublished"),
-          color: "#6366f1",
+          color: MIZAN.colors.blue,
         },
         draft: { label: t("documentsDashboardStatusDraft"), color: "#94a3b8" },
         generated: {
@@ -469,7 +470,7 @@ export default function DocumentsDashboard() {
             {
               label: t("documentsDashboardStatusPublished"),
               count: metrics.published,
-              color: "#6366f1",
+              color: MIZAN.colors.blue,
             },
           ].map((step, i, arr) => (
             <React.Fragment key={step.label}>

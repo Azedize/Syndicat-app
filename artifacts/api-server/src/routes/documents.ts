@@ -2821,7 +2821,7 @@ function buildVerificationNotFoundHtml(): string {
   <style>*{box-sizing:border-box;margin:0;padding:0}body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;background:#fef2f2;min-height:100vh;padding:0 0 40px}</style>
 </head>
 <body>
-  <div style="background:linear-gradient(135deg,#1e1b4b 0%,#312e81 60%,#4338ca 100%);padding:28px 20px 80px;text-align:center;">
+  <div style="background:linear-gradient(135deg,#0B1F3A 0%,#102B4D 60%,#1F5EFF 100%);padding:28px 20px 80px;text-align:center;">
     <div style="display:inline-flex;align-items:center;gap:8px;">
       <span style="color:rgba(255,255,255,.85);font-size:13px;font-weight:600;letter-spacing:.8px;text-transform:uppercase;">MIZAN — Portail de vérification</span>
     </div>

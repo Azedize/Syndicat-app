@@ -131,7 +131,7 @@ export default function FavoritesScreen() {
                 { id: "fav-dash", title: "Dashboard", icon: "home", color: "#2563EB", route: "/(tabs)/" },
                 { id: "fav-elections", title: "Élections", icon: "check-square", color: "#f59e0b", route: "/elections" },
                 { id: "fav-chat", title: "Chat", icon: "message-circle", color: "#ec4899", route: "/chat" },
-                { id: "fav-docs", title: "Documents", icon: "file-text", color: "#6366f1", route: "/documents" },
+                { id: "fav-docs", title: "Documents", icon: "file-text", color: "#1F5EFF", route: "/documents" },
               ].filter((s) => !favorites.some((f) => f.id === s.id)).map((s) => (
                 <TouchableOpacity
                   key={s.id}

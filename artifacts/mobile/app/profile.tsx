@@ -196,7 +196,7 @@ export default function ProfileScreen() {
     { icon: "inbox" as const, label: t("profileRequests"), color: "#ec4899", onPress: () => router.push("/support" as any) },
     { icon: "activity" as const, label: t("profileSocialProtection"), color: "#10b981", onPress: () => router.push("/cotisations" as any) },
     { icon: "shopping-bag" as const, label: t("profileMyShop"), color: "#10b981", onPress: () => router.push("/my-shop" as any) },
-    { icon: "package" as const, label: t("profileOrders"), color: "#6366f1", onPress: () => router.push("/orders" as any) },
+    { icon: "package" as const, label: t("profileOrders"), color: "#1F5EFF", onPress: () => router.push("/orders" as any) },
     { icon: "headphones" as const, label: t("profileSyndicateSupport"), color: "#ef4444", onPress: () => router.push("/support" as any) },
   ];
 

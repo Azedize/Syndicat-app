@@ -54,7 +54,7 @@ const MENU_SECTIONS_DEF: SectionDef[] = [
   {
     titleKey: "menuSectionAdmin",
     items: [
-      { labelKey: "tableauNational",      icon: "globe",          route: "/tableau-national",    color: "#6366f1", roles: ["super_admin"] },
+      { labelKey: "tableauNational",      icon: "globe",          route: "/tableau-national",    color: "#1F5EFF", roles: ["super_admin"] },
       { labelKey: "gestionUtilisateurs",  icon: "users",          route: "/utilisateurs",        color: "#2563EB", roles: ["super_admin"] },
       { labelKey: "creerSyndicat",        icon: "plus-circle",    route: "/syndicate-setup",     color: "#10b981", roles: ["super_admin"] },
       { labelKey: "journalAudit",         icon: "shield",         route: "/journal-audit",       color: "#ef4444", roles: ["super_admin"] },
@@ -106,11 +106,11 @@ const MENU_SECTIONS_DEF: SectionDef[] = [
       { labelKey: "paymentHistory",     icon: "dollar-sign", route: "/paiements",              color: "#10b981", roles: ["member", "tenant", "president", "treasurer", "secretary", "committee_member"] },
       // FIX [M9]: president chairs AG where budget is voted — must have read-only access
       { labelKey: "budgetPrevisionnel", icon: "pie-chart",   route: "/budget-previsionnel",    color: "#8b5cf6", roles: ["syndicate_admin", "treasurer", "president"] },
-      { labelKey: "devisFactures",      icon: "file-text",   route: "/invoices",               color: "#6366f1", roles: ["syndicate_admin", "treasurer"] },
+      { labelKey: "devisFactures",      icon: "file-text",   route: "/invoices",               color: "#1F5EFF", roles: ["syndicate_admin", "treasurer"] },
       { labelKey: "bonLivraison",       icon: "package",     route: "/bon-livraison",          color: "#f97316", roles: ["syndicate_admin", "treasurer"] },
       { labelKey: "rapportsFinanciers", icon: "bar-chart-2", route: "/reports",                color: "#2563EB", roles: ["syndicate_admin", "treasurer"] },
       // Payroll: restricted — spec says member must not see payroll
-      { labelKey: "fichesPaie",         icon: "file-text",   route: "/fiches-paie",            color: "#6366f1", roles: ["syndicate_admin", "treasurer"] },
+      { labelKey: "fichesPaie",         icon: "file-text",   route: "/fiches-paie",            color: "#1F5EFF", roles: ["syndicate_admin", "treasurer"] },
       { labelKey: "escalationLabel",    icon: "trending-up", route: "/escalation",             color: "#ef4444", roles: ["syndicate_admin", "treasurer"] },
     ],
   },
@@ -143,7 +143,7 @@ const MENU_SECTIONS_DEF: SectionDef[] = [
       { labelKey: "assembleesGenerales",  icon: "users",        route: "/assemblee-generale", color: "#2563EB", roles: ["syndicate_admin", "president", "secretary"] },
       { labelKey: "reunionsConvocations", icon: "calendar",     route: "/meetings",            color: "#3b82f6", roles: ["syndicate_admin", "president", "secretary", "committee_member", "member"] },
       { labelKey: "votesResolutions",     icon: "check-square", route: "/elections",           color: "#f59e0b", roles: ["syndicate_admin", "president", "secretary", "committee_member", "member"] },
-      { labelKey: "pvLabel",              icon: "file-text",    route: "/pv",                  color: "#6366f1", roles: ["syndicate_admin", "president", "secretary"] },
+      { labelKey: "pvLabel",              icon: "file-text",    route: "/pv",                  color: "#1F5EFF", roles: ["syndicate_admin", "president", "secretary"] },
       { labelKey: "governance",           icon: "award",        route: "/governance",          color: "#8b5cf6", roles: ["syndicate_admin", "president", "secretary", "committee_member"] },
       { labelKey: "organigramme",         icon: "git-merge",    route: "/organigramme",        color: "#7C3AED", roles: ["super_admin", "syndicate_admin", "president", "treasurer", "secretary", "committee_member"] },
     ],
@@ -158,7 +158,7 @@ const MENU_SECTIONS_DEF: SectionDef[] = [
   {
     titleKey: "menuSectionLegal",
     items: [
-      { labelKey: "documentsCopro",       icon: "folder",    route: "/documents",            color: "#6366f1", roles: ["syndicate_admin", "president", "secretary", "member", "tenant"] },
+      { labelKey: "documentsCopro",       icon: "folder",    route: "/documents",            color: "#1F5EFF", roles: ["syndicate_admin", "president", "secretary", "member", "tenant"] },
       { labelKey: "reglementsLabel",       icon: "book",      route: "/reglements",           color: "#3b82f6", roles: ["syndicate_admin", "secretary"] },
       { labelKey: "actesAdministratifs",   icon: "file-text", route: "/actes-administratifs", color: "#2563EB", roles: ["syndicate_admin", "secretary", "president"] },
       { labelKey: "alertesReglementaires", icon: "shield",    route: "/legal",                color: "#8b5cf6", roles: ["syndicate_admin", "president", "secretary"] },
@@ -194,7 +194,7 @@ const MENU_SECTIONS_DEF: SectionDef[] = [
     titleKey: "menuSectionSupport",
     items: [
       { labelKey: "demandesIntervention", icon: "headphones",   route: "/support",          color: "#ef4444", roles: [...ALL_TEAM, "member", "tenant"] },
-      { labelKey: "supportPlateforme",    icon: "life-buoy",    route: "/platform-support", color: "#6366f1", roles: ["super_admin", ...ALL_TEAM] },
+      { labelKey: "supportPlateforme",    icon: "life-buoy",    route: "/platform-support", color: "#1F5EFF", roles: ["super_admin", ...ALL_TEAM] },
       // Réclamations = HR grievance module (salaire/discrimination/harcèlement).
       // Tenants are not employees and must not access it (use /support instead).
       { labelKey: "reclamationsLabel",    icon: "inbox",        route: "/reclamations",     color: "#f97316", roles: ["syndicate_admin", "president", "member"] },
@@ -207,7 +207,7 @@ const MENU_SECTIONS_DEF: SectionDef[] = [
     items: [
       // Members and tenants are buyers in the marketplace — they need cart and orders access.
       { labelKey: "monPanier",    icon: "shopping-cart", route: "/cart",    color: "#f59e0b", roles: ["syndicate_admin", "member", "tenant"] },
-      { labelKey: "mesCommandes", icon: "package",       route: "/orders",  color: "#6366f1", roles: ["syndicate_admin", "member", "tenant"] },
+      { labelKey: "mesCommandes", icon: "package",       route: "/orders",  color: "#1F5EFF", roles: ["syndicate_admin", "member", "tenant"] },
       // ma-boutique is seller management — admin only
       { labelKey: "maBoutique",   icon: "shopping-bag",  route: "/my-shop", color: "#10b981", roles: ["syndicate_admin"] },
     ],
@@ -226,7 +226,7 @@ const MENU_SECTIONS_DEF: SectionDef[] = [
   {
     titleKey: "menuSectionAccount",
     items: [
-      { labelKey: "monProfil",     icon: "user",      route: "/profile",       color: "#6366f1", roles: ALL_USERS },
+      { labelKey: "monProfil",     icon: "user",      route: "/profile",       color: "#1F5EFF", roles: ALL_USERS },
       { labelKey: "notifications", icon: "bell",      route: "/notifications", color: "#ec4899", roles: ALL_USERS },
       // FIX [M3]: ALL users need settings (language, dark mode, biometrics, notifications)
       { labelKey: "settings",      icon: "settings",  route: "/settings",      color: "#6b7280", roles: ALL_USERS },

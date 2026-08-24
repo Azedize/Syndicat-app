@@ -39,7 +39,7 @@ const TYPE_CONFIG = {
   },
   info: {
     icon:        "info" as const,
-    accent:      "#6366f1",
+    accent:      "#1F5EFF",
     iconBg:      "#ede9fe",
     iconColor:   "#4338ca",
     defaultTitle:"Information",
