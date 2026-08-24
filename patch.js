@@ -324,7 +324,7 @@ export function SuperAdminDashboard() {
       {/* HEADER */}
       <View style={[SA_styles.header, { backgroundColor: colors.card, borderBottomColor: colors.border, paddingTop: topPadding }]}>
         <View style={SA_styles.headerLeft}>
-          <Text style={[SA_styles.headerLogo, { color: colors.primary }]}>SYNDYCAT</Text>
+          <Text style={[SA_styles.headerLogo, { color: colors.primary }]}>MIZAN</Text>
           <Text style={[SA_styles.headerSubtitle, { color: colors.mutedForeground }]}>Platform Admin</Text>
         </View>
         <View style={SA_styles.headerRight}>
