@@ -41,7 +41,7 @@ const TYPE_CONFIG = {
     icon:        "info" as const,
     accent:      "#1F5EFF",
     iconBg:      "#ede9fe",
-    iconColor:   "#4338ca",
+    iconColor:   "#1F5EFF",
     defaultTitle:"Information",
   },
 };

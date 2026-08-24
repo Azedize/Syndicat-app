@@ -329,7 +329,7 @@ export default function MembersScreen() {
                         {
                           label: t("tableauNationalLabel"),
                           icon: "globe" as const,
-                          color: "#6366f1",
+                          color: "#1F5EFF",
                           onPress: () => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); navigateFromSyndicateModal("/tableau-national"); },
                         },
                       ].map((action) => (

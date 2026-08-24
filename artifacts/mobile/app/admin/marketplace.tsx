@@ -140,7 +140,7 @@ const STATUS_TABS: {
   { key: "rejected",                labelKey: "marketplaceStatusRejected", color: "#ef4444", icon: "x-circle"    },
   { key: "modification_requested",  labelKey: "marketplaceStatusModificationRequested", color: "#f97316", icon: "edit-2"      },
   { key: "reported",                labelKey: "marketplaceReported", color: "#dc2626", icon: "flag"        },
-  { key: "reserved",                labelKey: "marketplaceStatusReserved", color: "#6366f1", icon: "lock"        },
+  { key: "reserved",                labelKey: "marketplaceStatusReserved", color: "#1F5EFF", icon: "lock"        },
   { key: "sold",                    labelKey: "marketplaceStatusSold", color: "#94a3b8", icon: "package"     },
 ];
 
@@ -824,7 +824,7 @@ function StatusBadge({ status, colors, t }: { status: string; colors: Colors; t:
     pending_review:         { color: "#f59e0b", label: "marketplaceStatusPendingReview" },
     rejected:               { color: "#ef4444", label: "marketplaceStatusRejected" },
     modification_requested: { color: "#f97316", label: "marketplaceStatusModificationRequested" },
-    reserved:               { color: "#6366f1", label: "marketplaceStatusReserved" },
+    reserved:               { color: "#1F5EFF", label: "marketplaceStatusReserved" },
     sold:                   { color: "#94a3b8", label: "marketplaceStatusSold" },
   };
   const { color, label } = STATUS_MAP[status] ?? { color: colors.mutedForeground, label: status };
@@ -892,7 +892,7 @@ function ProductCard({
     rejected:               "#ef4444",
     modification_requested: "#f97316",
     reported:               "#dc2626",
-    reserved:               "#6366f1",
+    reserved:               "#1F5EFF",
     sold:                   "#94a3b8",
   };
   const accent    = STATUS_BORDER[tab];

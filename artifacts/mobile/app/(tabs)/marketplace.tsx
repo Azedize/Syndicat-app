@@ -93,7 +93,7 @@ const STATUS_COLORS: Record<string, string> = {
   rejected: "#ef4444",
   modification_requested: "#f97316",
   sold_out: "#94a3b8",
-  reserved: "#6366f1",
+  reserved: "#1F5EFF",
   sold: "#94a3b8",
 };
 
@@ -304,7 +304,7 @@ export default function MarketplaceScreen() {
             </View>
           )}
           {isReserved && (
-            <View style={[styles.reservedBadge, { backgroundColor: "#6366f1" }]}>
+            <View style={[styles.reservedBadge, { backgroundColor: "#1F5EFF" }]}>
               <Feather name="lock" size={10} color="#fff" />
               <Text style={styles.featuredBadgeText}>{t("marketplaceStatusReserved")}</Text>
             </View>
@@ -789,7 +789,7 @@ function OrdersAdminView({ colors, insets, isWide, refreshing, onRefresh, t, lan
     );
   }
 
-  const statusColors: Record<string, string> = { pending: "#f59e0b", confirmed: colors.primary, shipped: "#6366f1", delivered: colors.success, cancelled: colors.destructive };
+  const statusColors: Record<string, string> = { pending: "#f59e0b", confirmed: colors.primary, shipped: "#1F5EFF", delivered: colors.success, cancelled: colors.destructive };
   const statusLabels: Record<string, string> = {
     pending: t("ordStatusPending"),
     confirmed: t("ordStatusConfirmed"),
@@ -854,7 +854,7 @@ function StatsView({ colors, insets, isWide, stats, refreshing, onRefresh, t, la
   const kpis = [
     { label: t("marketplaceStatsPending"), value: stats.pending, color: "#f59e0b", icon: "clock" as const },
     { label: t("marketplaceStatsApproved"), value: stats.approved, color: colors.success, icon: "check-circle" as const },
-    { label: t("marketplaceStatsReserved"), value: stats.reserved, color: "#6366f1", icon: "lock" as const },
+    { label: t("marketplaceStatsReserved"), value: stats.reserved, color: "#1F5EFF", icon: "lock" as const },
     { label: t("marketplaceStatsSold"), value: stats.sold, color: "#94a3b8", icon: "check-circle" as const },
     { label: t("marketplaceStatsRejected"), value: stats.rejected, color: colors.destructive, icon: "x-circle" as const },
     { label: t("marketplaceStatsReported"), value: stats.reported, color: colors.destructive, icon: "flag" as const },

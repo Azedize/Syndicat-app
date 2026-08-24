@@ -262,13 +262,13 @@ export default function RepertoireJuridiqueScreen() {
                     {selected.jurisprudence && selected.jurisprudence.length > 0 ? (
                       <View style={[styles.refsCard, { backgroundColor: colors.card, borderColor: colors.border }]}>
                         <View style={styles.refsHeader}>
-                          <Feather name="archive" size={15} color="#6366f1" />
+                          <Feather name="archive" size={15} color="#1F5EFF" />
                           <Text style={[styles.refsTitle, { color: colors.foreground }]}>{t("legalDirectoryCasesTitle")}</Text>
                         </View>
                         {selected.jurisprudence.map((j, i) => (
-                          <View key={i} style={[styles.refItem, { backgroundColor: "#6366f110" }]}>
-                            <Feather name="chevron-right" size={12} color="#6366f1" />
-                            <Text style={[styles.refText, { color: "#6366f1" }]}>{j}</Text>
+                          <View key={i} style={[styles.refItem, { backgroundColor: "#1F5EFF10" }]}>
+                            <Feather name="chevron-right" size={12} color="#1F5EFF" />
+                            <Text style={[styles.refText, { color: "#1F5EFF" }]}>{j}</Text>
                           </View>
                         ))}
                       </View>

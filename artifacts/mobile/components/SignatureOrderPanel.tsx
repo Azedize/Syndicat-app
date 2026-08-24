@@ -164,8 +164,8 @@ export default function SignatureOrderPanel({ documentId, onSignPress }: Props) 
     <View style={[s.card, { borderColor: colors.border, backgroundColor: colors.card }]}>
       {/* Header */}
       <View style={s.cardHeader}>
-        <View style={[s.iconWrap, { backgroundColor: "#6366f115" }]}>
-          <Feather name="pen-tool" size={14} color="#6366f1" />
+        <View style={[s.iconWrap, { backgroundColor: "#1F5EFF15" }]}>
+          <Feather name="pen-tool" size={14} color="#1F5EFF" />
         </View>
         <Text style={[s.cardTitle, { color: colors.foreground }]}>{t("signatureTitle")}</Text>
         <View style={[s.badge, {

@@ -2513,7 +2513,7 @@ function buildVerificationHtml(opts: {
     docVersion,
   } = opts;
   // Derive gradient stops from syndicate accent color
-  const ac = accentColor ?? "#4338ca";
+  const ac = accentColor ?? "#1F5EFF";
   const _dk = (h: string, a: number) =>
     "#" +
     h
@@ -4186,7 +4186,7 @@ router.get("/documents/available-templates", requireAuth, async (req, res) => {
     finance: { color: "#f59e0b" },
     governance: { color: "#10b981" },
     legal: { color: "#ef4444" },
-    operations: { color: "#6366f1" },
+    operations: { color: "#1F5EFF" },
     administration: { color: "#8b5cf6" },
     bundles: { color: "#7c3aed" },
   };
@@ -4200,7 +4200,7 @@ router.get("/documents/available-templates", requireAuth, async (req, res) => {
       familiesMap[tpl.family] = {
         id: tpl.family,
         label: tpl.familyLabel,
-        color: familyMeta[tpl.family]?.color ?? "#6366f1",
+        color: familyMeta[tpl.family]?.color ?? "#1F5EFF",
         templates: [],
       };
     }

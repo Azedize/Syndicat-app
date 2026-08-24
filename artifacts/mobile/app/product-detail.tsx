@@ -111,7 +111,7 @@ const STATUS_COLORS: Record<string, string> = {
   rejected: "#ef4444",
   modification_requested: "#f97316",
   sold_out: "#94a3b8",
-  reserved: "#6366f1",
+  reserved: "#1F5EFF",
   sold: "#94a3b8",
 };
 
@@ -505,7 +505,7 @@ export default function ProductDetailScreen() {
             <Feather name="image" size={48} color={colors.mutedForeground} />
           )}
           {product.status === "reserved" && (
-            <View style={[styles.overlayBadge, { backgroundColor: "#6366f1CC" }]}>
+            <View style={[styles.overlayBadge, { backgroundColor: "#1F5EFFCC" }]}>
               <Feather name="lock" size={14} color="#fff" />
               <Text style={styles.overlayBadgeText}>{t("productReservedBy")} {product.reservedByName ?? t("productAResident")}</Text>
             </View>
@@ -774,7 +774,7 @@ export default function ProductDetailScreen() {
       {/* Reserve / Unreserve FAB */}
       {canReserve && (
         <TouchableOpacity
-          style={[styles.cartFab, { backgroundColor: "#6366f1", bottom: insets.bottom + 80 }]}
+          style={[styles.cartFab, { backgroundColor: "#1F5EFF", bottom: insets.bottom + 80 }]}
           onPress={handleReserve}
           disabled={reserving}
         >
@@ -789,14 +789,14 @@ export default function ProductDetailScreen() {
 
       {canUnreserve && (
         <TouchableOpacity
-          style={[styles.cartFab, { backgroundColor: colors.card, borderWidth: 1, borderColor: "#6366f1", bottom: insets.bottom + 80 }]}
+          style={[styles.cartFab, { backgroundColor: colors.card, borderWidth: 1, borderColor: "#1F5EFF", bottom: insets.bottom + 80 }]}
           onPress={handleUnreserve}
           disabled={reserving}
         >
-          {reserving ? <ActivityIndicator size="small" color="#6366f1" /> : (
+          {reserving ? <ActivityIndicator size="small" color="#1F5EFF" /> : (
             <>
-              <Feather name="unlock" size={18} color="#6366f1" />
-              <Text style={[styles.cartFabText, { color: "#6366f1" }]}>{t("productCancelReservation")}</Text>
+              <Feather name="unlock" size={18} color="#1F5EFF" />
+              <Text style={[styles.cartFabText, { color: "#1F5EFF" }]}>{t("productCancelReservation")}</Text>
             </>
           )}
         </TouchableOpacity>

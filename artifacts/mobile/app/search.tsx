@@ -345,7 +345,7 @@ function EmptyState({
   const SUGGESTIONS = [
     { labelKey: "searchCategoryMembers", icon: "users" as const, color: "#2563EB", query: "membre" },
     { labelKey: "searchCategoryMeetings", icon: "calendar" as const, color: "#3b82f6", query: "réunion" },
-    { labelKey: "searchCategoryDocuments", icon: "file-text" as const, color: "#6366f1", query: "statut" },
+    { labelKey: "searchCategoryDocuments", icon: "file-text" as const, color: "#1F5EFF", query: "statut" },
     { labelKey: "searchCategoryElections", icon: "check-square" as const, color: "#f59e0b", query: "bureau" },
     { labelKey: "searchCategoryFinance", icon: "dollar-sign" as const, color: "#10b981", query: "cotisation" },
     { labelKey: "searchCategoryAlerts", icon: "bell" as const, color: "#ef4444", query: "alerte" },
@@ -425,7 +425,7 @@ function EmptyState({
           {[
             { labelKey: "publications", icon: "rss" as const, color: "#f97316", route: "/publications" },
             { labelKey: "chat", icon: "message-circle" as const, color: "#ec4899", route: "/chat" },
-            { labelKey: "profile", icon: "user" as const, color: "#6366f1", route: "/profile" },
+            { labelKey: "profile", icon: "user" as const, color: "#1F5EFF", route: "/profile" },
             { labelKey: "settings", icon: "settings" as const, color: "#6b7280", route: "/settings" },
           ].map((s) => (
             <TouchableOpacity

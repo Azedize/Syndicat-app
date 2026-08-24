@@ -95,7 +95,7 @@ Les documents signés électroniquement via MIZAN sont générés avec un hash S
   {
     title: "6. Responsabilités et obligations des utilisateurs",
     icon: "users" as const,
-    color: "#6366f1",
+    color: "#1F5EFF",
     content: `En utilisant la Plateforme, vous vous engagez à :
 
 • Fournir des informations exactes et à jour

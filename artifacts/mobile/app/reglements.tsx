@@ -874,8 +874,8 @@ export default function ReglementsScreen() {
                       Share.share({ title: d.title, message: `${d.title}\n${d.type} — ${d.status}\nPartagé depuis MIZAN` });
                     }}
                   >
-                    <Feather name="share-2" size={14} color="#6366f1" />
-                    <Text style={[styles.docActionText, { color: "#6366f1" }]}>{STRINGS.shareAction[lang]}</Text>
+                    <Feather name="share-2" size={14} color="#1F5EFF" />
+                    <Text style={[styles.docActionText, { color: "#1F5EFF" }]}>{STRINGS.shareAction[lang]}</Text>
                   </TouchableOpacity>
                 )}
                 {isAdmin && (d.status === "draft" || d.status === "revision") && (

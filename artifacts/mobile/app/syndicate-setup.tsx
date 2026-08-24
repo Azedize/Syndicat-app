@@ -107,7 +107,7 @@ const LOGO_PRESETS: { icon: keyof typeof Feather.glyphMap; color: string; label:
   { icon: "key",         color: "#db2777", label: "Accès"         },
   { icon: "map-pin",     color: "#0f172a", label: "Quartier"      },
   { icon: "briefcase",   color: "#f97316", label: "Professionnel" },
-  { icon: "trending-up", color: "#6366f1", label: "Croissance"    },
+  { icon: "trending-up", color: "#1F5EFF", label: "Croissance"    },
 ];
 
 // ─── Validation helpers ───────────────────────────────────────────────────────

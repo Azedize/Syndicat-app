@@ -1376,14 +1376,14 @@ function ReclamationsScreenInner() {
                             } as any);
                           }}
                         >
-                          <Feather name="file-text" size={14} color="#6366f1" />
-                          <Text style={[s.docName, { color: "#6366f1" }]}>
+                          <Feather name="file-text" size={14} color="#1F5EFF" />
+                          <Text style={[s.docName, { color: "#1F5EFF" }]}>
                             {doc}
                           </Text>
                           <Feather
                             name="external-link"
                             size={14}
-                            color="#6366f1"
+                            color="#1F5EFF"
                           />
                         </TouchableOpacity>
                       ))}
