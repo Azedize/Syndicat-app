@@ -13,15 +13,24 @@ import { welcomeTemplate } from "../lib/email/templates.js";
 
 const router = Router();
 
-const ROLE_VALUES = ["super_admin", "syndicate_admin", "member", "tenant"] as const;
+const ROLE_VALUES = [
+  "super_admin",
+  "syndicate_admin",
+  "member",
+  "tenant",
+] as const;
 
-function requireSupervisedUserScope(req: any, res: any): string | null | undefined {
+function requireSupervisedUserScope(
+  req: any,
+  res: any,
+): string | null | undefined {
   if (req.user?.role !== "super_admin") return undefined;
   const syndicateId =
     typeof req.query.syndicateId === "string" ? req.query.syndicateId : "";
   if (req.query.supervision !== "true" || !syndicateId) {
     res.status(403).json({
-      error: "La supervision et un syndicat cible sont requis pour modifier ce compte.",
+      error:
+        "La supervision et un syndicat cible sont requis pour modifier ce compte.",
       code: "SUPERVISION_REQUIRED",
     });
     return null;
@@ -74,7 +83,10 @@ router.get(
             createdAt: usersTable.createdAt,
           })
           .from(usersTable)
-          .leftJoin(syndicatesTable, eq(usersTable.syndicateId, syndicatesTable.id))
+          .leftJoin(
+            syndicatesTable,
+            eq(usersTable.syndicateId, syndicatesTable.id),
+          )
           .where(where)
           .orderBy(desc(usersTable.createdAt))
           .limit(pagination.limit)
@@ -120,6 +132,7 @@ router.post(
       phone: z.string().optional(),
       role: z.enum(ROLE_VALUES).default("member"),
       password: z.string().min(6).optional(),
+      syndicateId: z.string().min(1).optional(),
     });
     const result = schema.safeParse(req.body);
     if (!result.success) {
@@ -127,7 +140,7 @@ router.post(
       return;
     }
     try {
-      const { name, email, phone, role, password } = result.data;
+      const { name, email, phone, role, password, syndicateId } = result.data;
 
       if (req.user!.role === "syndicate_admin" && !req.user!.syndicateId) {
         res.status(403).json({ error: "Syndicat non défini dans le token" });
@@ -136,9 +149,47 @@ router.post(
 
       // syndicate_admin can only create users scoped to their own syndicate,
       // and cannot create other admins.
-      if (req.user!.role === "syndicate_admin" && (role === "super_admin" || role === "syndicate_admin")) {
+      if (
+        req.user!.role === "syndicate_admin" &&
+        (role === "super_admin" || role === "syndicate_admin")
+      ) {
         res.status(403).json({ error: "Accès refusé" });
         return;
+      }
+
+      let createdSyndicateId: string | null = req.user!.syndicateId ?? null;
+      if (req.user!.role === "super_admin") {
+        if (role !== "super_admin") {
+          const supervisedSyndicateId = requireSupervisedUserScope(req, res);
+          if (!supervisedSyndicateId) return;
+          if (syndicateId && syndicateId !== supervisedSyndicateId) {
+            res.status(400).json({
+              error:
+                "Le syndicat fourni ne correspond pas au syndicat supervisé",
+            });
+            return;
+          }
+          createdSyndicateId = supervisedSyndicateId;
+        } else if (syndicateId) {
+          res.status(400).json({
+            error: "Un Super Admin ne peut pas être rattaché à un syndicat",
+          });
+          return;
+        } else {
+          createdSyndicateId = null;
+        }
+      }
+
+      if (createdSyndicateId) {
+        const [syndicate] = await db
+          .select({ id: syndicatesTable.id })
+          .from(syndicatesTable)
+          .where(eq(syndicatesTable.id, createdSyndicateId))
+          .limit(1);
+        if (!syndicate) {
+          res.status(400).json({ error: "Syndicat cible introuvable" });
+          return;
+        }
       }
 
       const [existing] = await db
@@ -153,7 +204,8 @@ router.post(
       // Generate credentials server-side when an administrator creates an account.
       // The previous client-supplied shared password created a predictable credential
       // and made the invitation flow unsafe.
-      const temporaryPassword = password ?? randomBytes(12).toString("base64url");
+      const temporaryPassword =
+        password ?? randomBytes(12).toString("base64url");
       const passwordHash = await bcrypt.hash(temporaryPassword, 10);
       const [created] = await db
         .insert(usersTable)
@@ -164,7 +216,7 @@ router.post(
           role,
           status: "pending",
           passwordHash,
-          syndicateId: req.user!.role === "syndicate_admin" ? req.user!.syndicateId ?? null : null,
+          syndicateId: createdSyndicateId,
         } as any)
         .returning({
           id: usersTable.id,
@@ -184,8 +236,15 @@ router.post(
         details: `${created.email} (${created.role})`,
       });
 
-      const loginUrl = process.env.APP_URL ? `${process.env.APP_URL}/login` : undefined;
-      const { subject, html } = welcomeTemplate(created.name, created.role, loginUrl, temporaryPassword);
+      const loginUrl = process.env.APP_URL
+        ? `${process.env.APP_URL}/login`
+        : undefined;
+      const { subject, html } = welcomeTemplate(
+        created.name,
+        created.role,
+        loginUrl,
+        temporaryPassword,
+      );
       sendTransactionalEmail({
         to: created.email,
         subject,
@@ -208,7 +267,9 @@ router.put(
   requireAuth,
   requireRole("super_admin", "syndicate_admin"),
   async (req, res) => {
-    const schema = z.object({ status: z.enum(["active", "inactive", "suspended", "pending"]) });
+    const schema = z.object({
+      status: z.enum(["active", "inactive", "suspended", "pending"]),
+    });
     const result = schema.safeParse(req.body);
     if (!result.success) {
       res.status(400).json({ error: "Statut invalide" });
@@ -226,9 +287,13 @@ router.put(
           .select({ syndicateId: usersTable.syndicateId })
           .from(usersTable)
           .where(eq(usersTable.id, String(req.params.id) as string));
-        if (!target) { res.status(404).json({ error: "Utilisateur introuvable" }); return; }
+        if (!target) {
+          res.status(404).json({ error: "Utilisateur introuvable" });
+          return;
+        }
         if (target.syndicateId !== req.user!.syndicateId) {
-          res.status(403).json({ error: "Accès refusé" }); return;
+          res.status(403).json({ error: "Accès refusé" });
+          return;
         }
       }
       const ownershipCondition =
