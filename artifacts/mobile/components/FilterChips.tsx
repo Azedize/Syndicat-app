@@ -7,6 +7,7 @@ import {
   Text,
   TouchableOpacity,
   View,
+  useWindowDimensions,
 } from "react-native";
 import { useColors } from "@/hooks/useColors";
 import { RADIUS } from "@/constants/spacing";
@@ -59,6 +60,7 @@ function Chip({
   onPress: () => void;
 }) {
   const colors = useColors();
+  const { width } = useWindowDimensions();
   const activeColor = opt.color ?? accentColor;
 
   return (
@@ -136,6 +138,7 @@ export default function FilterChips({
   scrollable = true,
 }: Props) {
   const colors = useColors();
+  const { width } = useWindowDimensions();
   const resolvedAccentColor = accentColor ?? colors.primary;
   const resolvedMode: "scroll" | "equal" =
     mode ?? (scrollable ? "scroll" : "equal");
@@ -160,6 +163,7 @@ export default function FilterChips({
         style={[
           styles.bar,
           styles.equalRow,
+          width < 390 && styles.compactRow,
           { backgroundColor: colors.card, borderBottomColor: colors.border },
         ]}
       >
@@ -178,7 +182,10 @@ export default function FilterChips({
       <ScrollView
         horizontal
         showsHorizontalScrollIndicator={false}
-        contentContainerStyle={styles.scrollContent}
+        contentContainerStyle={[
+          styles.scrollContent,
+          width < 390 && styles.compactScrollContent,
+        ]}
       >
         {options.map(renderChip)}
       </ScrollView>
@@ -210,6 +217,14 @@ const styles = StyleSheet.create({
     paddingVertical: BAR_VERTICAL_PADDING,
     gap: CHIP_GAP,
   },
+  compactRow: {
+    paddingHorizontal: 10,
+    gap: 5,
+  },
+  compactScrollContent: {
+    paddingHorizontal: 10,
+    gap: 6,
+  },
   chip: {
     height: CHIP_HEIGHT,
     flexDirection: "row",
@@ -222,6 +237,9 @@ const styles = StyleSheet.create({
     minWidth: 76,
     paddingHorizontal: 14,
     flexShrink: 0,
+  },
+  chipCompact: {
+    paddingHorizontal: 10,
   },
   chipEqual: {
     flex: 1,

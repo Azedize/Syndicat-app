@@ -36,6 +36,7 @@ import { useBreakpoints } from "@/hooks/useBreakpoints";
 import { useColors } from "@/hooks/useColors";
 import { useBackNavigation } from "@/hooks/useBackNavigation";
 import { StatItem } from "@/components/StatsStrip";
+import { MIZAN } from "@/constants/brand";
 
 interface ActionButton {
   icon: keyof typeof Feather.glyphMap;
@@ -58,7 +59,7 @@ interface Props {
 export default function StatisticsHeader({
   title,
   subtitle,
-  color = "#1E3A5F",
+  color = MIZAN.colors.blue,
   onBack,
   action,
   action2,
@@ -66,7 +67,7 @@ export default function StatisticsHeader({
   stats = [],
 }: Props) {
   const insets = useSafeAreaInsets();
-  const { isWide } = useBreakpoints();
+  const { isWide, width } = useBreakpoints();
   const colors = useColors();
   const goBack = useBackNavigation();
 
@@ -79,6 +80,7 @@ export default function StatisticsHeader({
       <View
         style={[
           styles.header,
+          width < 390 && styles.headerCompact,
           { backgroundColor: color, paddingTop: topPad + 14 },
         ]}
       >
@@ -91,7 +93,7 @@ export default function StatisticsHeader({
         </TouchableOpacity>
 
         <View style={styles.titles}>
-          <Text style={styles.title} numberOfLines={1}>
+            <Text style={[styles.title, width < 390 && styles.titleCompact]} numberOfLines={1}>
             {title}
           </Text>
           {subtitle ? (
@@ -108,7 +110,7 @@ export default function StatisticsHeader({
             {action2 ? (
               <TouchableOpacity
                 onPress={action2.onPress}
-                style={styles.actionBtn}
+                style={[styles.actionBtn, width < 390 && styles.actionBtnCompact]}
                 hitSlop={{ top: 8, left: 8, bottom: 8, right: 8 }}
               >
                 <Feather name={action2.icon} size={20} color="#fff" />
@@ -117,7 +119,7 @@ export default function StatisticsHeader({
             {action ? (
               <TouchableOpacity
                 onPress={action.onPress}
-                style={styles.actionBtn}
+                style={[styles.actionBtn, width < 390 && styles.actionBtnCompact]}
                 hitSlop={{ top: 8, left: 8, bottom: 8, right: 8 }}
               >
                 <Feather name={action.icon} size={20} color="#fff" />
@@ -143,6 +145,7 @@ export default function StatisticsHeader({
               key={s.label}
               style={[
                 styles.cell,
+                width < 390 && styles.cellCompact,
                 i < stats.length - 1 && {
                   borderRightWidth: StyleSheet.hairlineWidth,
                   borderRightColor: colors.border,
@@ -182,6 +185,10 @@ const styles = StyleSheet.create({
     gap: 12,
     minHeight: 56,
   },
+  headerCompact: {
+    paddingHorizontal: 12,
+    gap: 8,
+  },
   backBtn: {
     width: 40,
     height: 40,
@@ -199,6 +206,9 @@ const styles = StyleSheet.create({
     fontSize: 20,
     fontFamily: "Inter_700Bold",
     color: "#fff",
+  },
+  titleCompact: {
+    fontSize: 18,
   },
   subtitle: {
     fontSize: 12,
@@ -221,6 +231,11 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "center",
   },
+  actionBtnCompact: {
+    width: 36,
+    height: 36,
+    borderRadius: 10,
+  },
   // Stats strip
   strip: {
     flexDirection: "row",
@@ -231,6 +246,9 @@ const styles = StyleSheet.create({
     alignItems: "center",
     paddingVertical: 10,
     paddingHorizontal: 4,
+  },
+  cellCompact: {
+    paddingHorizontal: 2,
   },
   val: {
     fontSize: 18,

@@ -73,10 +73,15 @@ function enforceSyndicateAccess(
 }
 
 function enforceSupervisionForSuperAdmin(req: Request, res: Response): boolean {
-  if (req.user?.role === "super_admin" && req.query.supervision !== "true") {
+  if (
+    req.user?.role === "super_admin" &&
+    (req.query.supervision !== "true" ||
+      typeof req.query.syndicateId !== "string" ||
+      !req.query.syndicateId)
+  ) {
     res.status(403).json({
       error:
-        "Les Super Admins doivent activer le mode supervision pour accéder aux pièces financières d'un syndicat.",
+        "Les Super Admins doivent activer la supervision et préciser le syndicat cible pour accéder aux pièces financières.",
       code: "SUPERVISION_REQUIRED",
     });
     return false;
@@ -84,7 +89,27 @@ function enforceSupervisionForSuperAdmin(req: Request, res: Response): boolean {
   return true;
 }
 
-const PRIVATE_OBJECT_PATH = /^\/objects\/(?!.*(?:^|\/)\.\.(?:\/|$))[A-Za-z0-9._/-]+$/;
+function enforceSupervisionTarget(
+  req: Request,
+  res: Response,
+  syndicateId: string | null,
+): boolean {
+  if (
+    req.user?.role === "super_admin" &&
+    (typeof req.query.syndicateId !== "string" ||
+      req.query.syndicateId !== syndicateId)
+  ) {
+    res.status(403).json({
+      error: "Le syndicat cible ne correspond pas à la ressource demandée.",
+      code: "SYNDICATE_SCOPE_MISMATCH",
+    });
+    return false;
+  }
+  return true;
+}
+
+const PRIVATE_OBJECT_PATH =
+  /^\/objects\/(?!.*(?:^|\/)\.\.(?:\/|$))[A-Za-z0-9._/-]+$/;
 
 async function enforceAttachmentObject(
   req: Request,
@@ -93,11 +118,18 @@ async function enforceAttachmentObject(
   syndicateId: string,
 ): Promise<boolean> {
   if (!PRIVATE_OBJECT_PATH.test(url)) {
-    res.status(400).json({ error: "Le fichier doit provenir du stockage privé de la plateforme" });
+    res
+      .status(400)
+      .json({
+        error: "Le fichier doit provenir du stockage privé de la plateforme",
+      });
     return false;
   }
   const [object] = await db
-    .select({ ownerId: storageObjectsTable.ownerId, syndicateId: storageObjectsTable.syndicateId })
+    .select({
+      ownerId: storageObjectsTable.ownerId,
+      syndicateId: storageObjectsTable.syndicateId,
+    })
     .from(storageObjectsTable)
     .where(eq(storageObjectsTable.objectPath, url))
     .limit(1);
@@ -107,9 +139,13 @@ async function enforceAttachmentObject(
   }
   if (
     req.user!.role !== "super_admin" &&
-    (!req.user!.syndicateId || object.syndicateId !== syndicateId || object.syndicateId !== req.user!.syndicateId)
+    (!req.user!.syndicateId ||
+      object.syndicateId !== syndicateId ||
+      object.syndicateId !== req.user!.syndicateId)
   ) {
-    res.status(403).json({ error: "Le fichier n'appartient pas à ce syndicat" });
+    res
+      .status(403)
+      .json({ error: "Le fichier n'appartient pas à ce syndicat" });
     return false;
   }
   return true;
@@ -180,6 +216,7 @@ router.post("/charge-attachments", requireAuth, async (req, res) => {
 
     const syndicateId = await getAppelSyndicateId(appelDeFondsId);
     if (!syndicateId || !enforceSyndicateAccess(req, res, syndicateId)) return;
+    if (!enforceSupervisionTarget(req, res, syndicateId)) return;
     if (!(await enforceAttachmentObject(req, res, url, syndicateId))) return;
     // Members/tenants can only attach to their own appels
     if (
@@ -233,6 +270,7 @@ router.get("/charge-attachments/:appelId", requireAuth, async (req, res) => {
 
     const syndicateId = await getAppelSyndicateId(appelId);
     if (!syndicateId || !enforceSyndicateAccess(req, res, syndicateId)) return;
+    if (!enforceSupervisionTarget(req, res, syndicateId)) return;
 
     const [appel] = await db
       .select({ ownerId: appelsDeFondsTable.ownerId })
@@ -270,6 +308,7 @@ router.delete("/charge-attachments/:id", requireAuth, async (req, res) => {
 
     const syndicateId = await getAppelSyndicateId(att.appelDeFondsId);
     if (!enforceSyndicateAccess(req, res, syndicateId)) return;
+    if (!enforceSupervisionTarget(req, res, syndicateId)) return;
     // Only uploader, syndicate_admin, or super_admin can delete. Check the
     // parent scope first so an attachment ID can never authorize a mutation
     // before its financial record is proven to belong to this syndicate.
@@ -333,6 +372,7 @@ router.post(
 
       const syndicateId = await getInvoiceSyndicateId(invoiceId);
       if (!enforceSyndicateAccess(req, res, syndicateId)) return;
+      if (!enforceSupervisionTarget(req, res, syndicateId)) return;
       if (!(await enforceAttachmentObject(req, res, url, syndicateId!))) return;
 
       const [row] = await db
@@ -374,6 +414,7 @@ router.get(
 
       const syndicateId = await getInvoiceSyndicateId(invoiceId);
       if (!enforceSyndicateAccess(req, res, syndicateId)) return;
+      if (!enforceSupervisionTarget(req, res, syndicateId)) return;
 
       const rows = await db
         .select()
@@ -406,6 +447,7 @@ router.delete(
 
       const syndicateId = await getInvoiceSyndicateId(att.invoiceId);
       if (!enforceSyndicateAccess(req, res, syndicateId)) return;
+      if (!enforceSupervisionTarget(req, res, syndicateId)) return;
 
       await db
         .delete(invoiceAttachmentsTable)

@@ -114,7 +114,7 @@ export function ErrorState({
         accessibilityLabel={retryLabel}
       >
         <Feather name="refresh-cw" size={15} color={colors.primaryForeground} />
-        <Text style={styles.actionText}>{retryLabel}</Text>
+      <Text style={[styles.actionText, { color: colors.primaryForeground }]}>{retryLabel}</Text>
       </TouchableOpacity>
     </StateShell>
   );
@@ -171,7 +171,6 @@ const styles = StyleSheet.create({
     marginTop: SPACING.XS,
   },
   actionText: {
-    color: "#FFFFFF",
     fontSize: TYPOGRAPHY.BASE,
     fontFamily: "Inter_600SemiBold",
   },
