@@ -427,8 +427,8 @@ function PlatformSupportScreen() {
         <View style={{ flex: 1, alignItems: isRTL ? "flex-end" : "flex-start" }}>
           <View style={{ flexDirection: rowDirection, alignItems: "center", gap: 8 }}>
             <Text style={[styles.title, { color: colors.foreground, textAlign: isRTL ? "right" : "left" }]}>{t("supportPlateforme")}</Text>
-            <View style={[styles.level2Badge, { backgroundColor: "#6366f1" + "18" }]}>
-              <Text style={[styles.level2BadgeTxt, { color: "#6366f1" }]}>{PLATFORM_COPY.level[lang]}</Text>
+            <View style={[styles.level2Badge, { backgroundColor: "#1F5EFF" + "18" }]}>
+              <Text style={[styles.level2BadgeTxt, { color: "#1F5EFF" }]}>{PLATFORM_COPY.level[lang]}</Text>
             </View>
           </View>
           <Text style={[styles.subtitle, { color: colors.mutedForeground, textAlign: isRTL ? "right" : "left" }]}>
@@ -439,7 +439,7 @@ function PlatformSupportScreen() {
         </View>
         {isSyndicateAdmin && (
           <TouchableOpacity
-            style={[styles.newBtn, { backgroundColor: "#6366f1" }]}
+            style={[styles.newBtn, { backgroundColor: "#1F5EFF" }]}
             onPress={() => { setShowNew(true); Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); }}
           >
             <Feather name="plus" size={18} color="#fff" />
@@ -448,7 +448,7 @@ function PlatformSupportScreen() {
       </View>
 
       {/* ── Hierarchy info banner ── */}
-      <View style={[styles.hierarchyBanner, { flexDirection: rowDirection, backgroundColor: "#6366f1" + "09", borderBottomColor: colors.border }]}>
+      <View style={[styles.hierarchyBanner, { flexDirection: rowDirection, backgroundColor: "#1F5EFF" + "09", borderBottomColor: colors.border }]}>
         <View style={styles.hierarchyStep}>
           <Feather name="users" size={13} color={colors.mutedForeground} />
           <Text style={[styles.hierarchyTxt, { color: colors.mutedForeground }]}>{PLATFORM_COPY.residents[lang]}</Text>
@@ -460,8 +460,8 @@ function PlatformSupportScreen() {
         </View>
         <Feather name={isRTL ? "arrow-left" : "arrow-right"} size={12} color={colors.mutedForeground} />
         <View style={styles.hierarchyStep}>
-          <Feather name="life-buoy" size={13} color="#6366f1" />
-          <Text style={[styles.hierarchyTxt, { color: "#6366f1", fontFamily: "Inter_700Bold" }]}>{PLATFORM_COPY.platform[lang]} {isRTL ? "◀" : "▶"}</Text>
+          <Feather name="life-buoy" size={13} color="#1F5EFF" />
+          <Text style={[styles.hierarchyTxt, { color: "#1F5EFF", fontFamily: "Inter_700Bold" }]}>{PLATFORM_COPY.platform[lang]} {isRTL ? "◀" : "▶"}</Text>
         </View>
         <Feather name={isRTL ? "arrow-left" : "arrow-right"} size={12} color={colors.mutedForeground} />
         <View style={styles.hierarchyStep}>
@@ -476,7 +476,7 @@ function PlatformSupportScreen() {
           { label: PLATFORM_COPY.openFilter[lang], count: tickets.filter((t) => t.status === "open").length, color: "#ef4444" },
           { label: PLATFORM_COPY.inProgress[lang], count: tickets.filter((t) => t.status === "in_progress").length, color: "#f59e0b" },
           { label: PLATFORM_COPY.resolved[lang], count: tickets.filter((t) => t.status === "resolved").length, color: "#10b981" },
-          { label: PLATFORM_COPY.total[lang], count: tickets.length, color: "#6366f1" },
+          { label: PLATFORM_COPY.total[lang], count: tickets.length, color: "#1F5EFF" },
         ].map((s, i) => (
           <React.Fragment key={s.label}>
             {i > 0 && <View style={[styles.statDiv, { backgroundColor: colors.border }]} />}
@@ -493,7 +493,7 @@ function PlatformSupportScreen() {
         {FILTERS.map((f) => (
           <TouchableOpacity
             key={f.key}
-            style={[styles.filterBtn, { backgroundColor: filter === f.key ? "#6366f1" : "transparent" }]}
+            style={[styles.filterBtn, { backgroundColor: filter === f.key ? "#1F5EFF" : "transparent" }]}
             onPress={() => setFilter(f.key)}
           >
             <Text style={[styles.filterLbl, { color: filter === f.key ? "#fff" : colors.mutedForeground }]}>
@@ -508,7 +508,7 @@ function PlatformSupportScreen() {
         <LoadingState
           title={STATE_COPY.loadingTitle[lang]}
           description={STATE_COPY.loadingDescription[lang]}
-          accentColor="#6366f1"
+          accentColor="#1F5EFF"
         />
       ) : loadError ? (
         <ErrorState
@@ -516,7 +516,7 @@ function PlatformSupportScreen() {
           description={STATE_COPY.unavailableDescription[lang]}
           retryLabel={STATE_COPY.retry[lang]}
           onRetry={() => void fetchTickets()}
-          accentColor="#6366f1"
+          accentColor="#1F5EFF"
         />
       ) : (
         <FlatList
@@ -528,26 +528,26 @@ function PlatformSupportScreen() {
             isSyndicateAdmin ? (
               /* Shortcut card for syndicate admin */
               <TouchableOpacity
-                style={[styles.shortcutCard, { backgroundColor: "#6366f1" + "0D", borderColor: "#6366f1" + "30" }]}
+                style={[styles.shortcutCard, { backgroundColor: "#1F5EFF" + "0D", borderColor: "#1F5EFF" + "30" }]}
                 onPress={() => { setShowNew(true); Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); }}
               >
-                <View style={[styles.shortcutIcon, { backgroundColor: "#6366f1" }]}>
+                <View style={[styles.shortcutIcon, { backgroundColor: "#1F5EFF" }]}>
                   <Feather name="send" size={20} color="#fff" />
                 </View>
                 <View style={{ flex: 1 }}>
-                  <Text style={[styles.shortcutTitle, { color: "#6366f1" }]}>Contacter le support plateforme</Text>
+                  <Text style={[styles.shortcutTitle, { color: "#1F5EFF" }]}>Contacter le support plateforme</Text>
                   <Text style={[styles.shortcutSub, { color: colors.mutedForeground }]}>
                     Bug, demande de fonctionnalité, problème de compte…
                   </Text>
                 </View>
-                <Feather name="chevron-right" size={18} color="#6366f1" />
+                <Feather name="chevron-right" size={18} color="#1F5EFF" />
               </TouchableOpacity>
             ) : null
           }
           ListEmptyComponent={
             <View style={styles.empty}>
-              <View style={[styles.emptyIcon, { backgroundColor: "#6366f1" + "12" }]}>
-                <Feather name="life-buoy" size={36} color="#6366f1" />
+              <View style={[styles.emptyIcon, { backgroundColor: "#1F5EFF" + "12" }]}>
+                <Feather name="life-buoy" size={36} color="#1F5EFF" />
               </View>
               <Text style={[styles.emptyTitle, { color: colors.foreground }]}>
                 {isSuperAdmin ? "Aucun ticket plateforme" : "Aucune demande envoyée"}
@@ -703,7 +703,7 @@ function PlatformSupportScreen() {
                 <LoadingState
                   title={STATE_COPY.loadingTitle[lang]}
                   description={STATE_COPY.loadingDescription[lang]}
-                  accentColor="#6366f1"
+                  accentColor="#1F5EFF"
                 />
               ) : repliesError ? (
                 <ErrorState
@@ -711,7 +711,7 @@ function PlatformSupportScreen() {
                   description={STATE_COPY.detailUnavailableDescription[lang]}
                   retryLabel={STATE_COPY.retry[lang]}
                   onRetry={() => void fetchReplies()}
-                  accentColor="#6366f1"
+                  accentColor="#1F5EFF"
                 />
               ) : replies.length > 0 && (
                 <View style={{ gap: 10 }}>
@@ -726,12 +726,12 @@ function PlatformSupportScreen() {
                         style={[
                           styles.bubble,
                           fromPlatform
-                            ? [styles.bubblePlatform, { backgroundColor: "#6366f1" + "10", borderColor: "#6366f1" + "30" }]
+                            ? [styles.bubblePlatform, { backgroundColor: "#1F5EFF" + "10", borderColor: "#1F5EFF" + "30" }]
                             : [styles.bubbleUser,     { backgroundColor: colors.card, borderColor: colors.border }],
                         ]}
                       >
                         <View style={styles.bubbleHdr}>
-                          <Text style={[styles.bubbleAuthor, { color: fromPlatform ? "#6366f1" : colors.foreground }]}>
+                          <Text style={[styles.bubbleAuthor, { color: fromPlatform ? "#1F5EFF" : colors.foreground }]}>
                             {rp.authorName}{fromPlatform ? " · Équipe Plateforme" : ""}
                           </Text>
                           <Text style={[styles.bubbleDate, { color: colors.mutedForeground }]}>{fmtDate(rp.createdAt, lang)}</Text>
@@ -760,7 +760,7 @@ function PlatformSupportScreen() {
                   />
                   <TouchableOpacity
                     style={[styles.sendBtn, {
-                      backgroundColor: replyText.trim() && !replying ? "#6366f1" : colors.muted,
+                      backgroundColor: replyText.trim() && !replying ? "#1F5EFF" : colors.muted,
                     }]}
                     disabled={!replyText.trim() || replying}
                     onPress={handleReply}
@@ -811,7 +811,7 @@ function PlatformSupportScreen() {
           >
             {/* Submitter info */}
             <View style={[styles.prefilledCard, { backgroundColor: colors.card, borderColor: colors.border }]}>
-              <Feather name="user" size={14} color="#6366f1" />
+              <Feather name="user" size={14} color="#1F5EFF" />
               <Text style={[styles.prefilledTxt, { color: colors.foreground }]}>
                 <Text style={{ fontFamily: "Inter_600SemiBold" }}>Administrateur : </Text>
                 {user?.name}
@@ -906,9 +906,9 @@ function PlatformSupportScreen() {
             </View>
 
             {/* Note */}
-            <View style={[styles.noteBox, { backgroundColor: "#6366f1" + "0D", borderColor: "#6366f1" + "25" }]}>
-              <Feather name="shield" size={14} color="#6366f1" />
-              <Text style={[styles.noteTxt, { color: "#6366f1" }]}>
+            <View style={[styles.noteBox, { backgroundColor: "#1F5EFF" + "0D", borderColor: "#1F5EFF" + "25" }]}>
+              <Feather name="shield" size={14} color="#1F5EFF" />
+              <Text style={[styles.noteTxt, { color: "#1F5EFF" }]}>
                 Ce ticket est envoyé directement à l'équipe technique de la plateforme. Les résidents ne peuvent pas accéder à ce canal.
               </Text>
             </View>
@@ -916,7 +916,7 @@ function PlatformSupportScreen() {
             <TouchableOpacity
               style={[styles.submitBtn, {
                 backgroundColor: newTitle.trim() && newDesc.trim() && !submitting
-                  ? "#6366f1" : colors.muted,
+                  ? "#1F5EFF" : colors.muted,
               }]}
               onPress={handleCreate}
               disabled={!newTitle.trim() || !newDesc.trim() || submitting}

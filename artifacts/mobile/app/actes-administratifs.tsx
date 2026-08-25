@@ -64,7 +64,7 @@ const TYPE_CONFIG: Record<
   decision: { label: "Décision", icon: "check-square", color: "#10b981" },
   pv: { label: "Procès-verbal", icon: "file-text", color: "#2563EB" },
   proces_verbal_ag: { label: "PV d'AG", icon: "users", color: "#f59e0b" },
-  resolution: { label: "Résolution", icon: "clipboard", color: "#6366f1" },
+  resolution: { label: "Résolution", icon: "clipboard", color: "#1F5EFF" },
   mandat: { label: "Mandat", icon: "shield", color: "#8b5cf6" },
   attestation: { label: "Attestation", icon: "award", color: "#ec4899" },
   courrier_officiel: {

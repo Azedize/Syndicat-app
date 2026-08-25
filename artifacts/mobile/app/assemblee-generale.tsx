@@ -177,8 +177,8 @@ function AssembleeGeneraleScreenInner() {
       ag_extraordinaire: "#ef4444",
       ag_constitutive: "#10b981",
       ag_elective: "#f59e0b",
-      general: "#6366f1",
-    })[key] ?? "#6366f1";
+       general: "#1F5EFF",
+     })[key] ?? "#1F5EFF";
 
   const typeIcon = (key: string): keyof typeof Feather.glyphMap =>
     (({
@@ -484,7 +484,7 @@ function AssembleeGeneraleScreenInner() {
       <StatisticsHeader
         title={t("assemblee")}
         subtitle={`${ags.length} ${t("assemblee").toLowerCase()}`}
-        color="#6366f1"
+         color="#1F5EFF"
         stats={[
           {
             label: t("agFilterScheduled"),
@@ -504,7 +504,7 @@ function AssembleeGeneraleScreenInner() {
           {
             label: t("resolutions"),
             value: ags.reduce((sum, a) => sum + a.adoptedResolutions, 0),
-            color: "#6366f1",
+             color: "#1F5EFF",
           },
         ]}
         action={
@@ -523,7 +523,7 @@ function AssembleeGeneraleScreenInner() {
       {/* Next AG banner */}
       {prochaine ? (
         <TouchableOpacity
-          style={[s.banner, { backgroundColor: "#6366f1" }]}
+           style={[s.banner, { backgroundColor: "#1F5EFF" }]}
           onPress={() => {
             setSelected(prochaine);
             Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
@@ -562,14 +562,14 @@ function AssembleeGeneraleScreenInner() {
         options={FILTERS}
         value={filterStatus}
         onChange={setFilterStatus}
-        accentColor="#6366f1"
+         accentColor="#1F5EFF"
       />
 
       {loading ? (
         <LoadingState
           title={t("assemblee")}
           description={t("agLoadingMsg")}
-          accentColor="#6366f1"
+           accentColor="#1F5EFF"
         />
       ) : error ? (
         <ErrorState
@@ -577,7 +577,7 @@ function AssembleeGeneraleScreenInner() {
           description={t("agLoadError")}
           retryLabel={t("retry")}
           onRetry={() => load()}
-          accentColor="#6366f1"
+           accentColor="#1F5EFF"
         />
       ) : (
         <FlatList
@@ -592,21 +592,21 @@ function AssembleeGeneraleScreenInner() {
             <RefreshControl
               refreshing={refreshing}
               onRefresh={onRefresh}
-              tintColor="#6366f1"
+               tintColor="#1F5EFF"
             />
           }
           showsVerticalScrollIndicator={false}
           ListEmptyComponent={
             <View style={s.empty}>
-              <View style={[s.stateIcon, { backgroundColor: "#6366f115" }]}>
-                <Feather name="calendar" size={32} color="#6366f1" />
+               <View style={[s.stateIcon, { backgroundColor: "#1F5EFF15" }]}>
+                 <Feather name="calendar" size={32} color="#1F5EFF" />
               </View>
               <Text style={[s.stateTitle, { color: colors.foreground }]}>
                 {t("agNoData")}
               </Text>
               {isAdmin && (
                 <TouchableOpacity
-                  style={[s.emptyBtn, { backgroundColor: "#6366f1" }]}
+                   style={[s.emptyBtn, { backgroundColor: "#1F5EFF" }]}
                   onPress={() => setShowCreate(true)}
                 >
                   <Feather name="plus" size={14} color="#fff" />
@@ -635,7 +635,7 @@ function AssembleeGeneraleScreenInner() {
                   s.card,
                   {
                     backgroundColor: colors.card,
-                    borderColor: isUpcoming ? "#6366f130" : colors.border,
+                     borderColor: isUpcoming ? "#1F5EFF30" : colors.border,
                     borderLeftWidth: 4,
                     borderLeftColor: tColor,
                   },
@@ -1213,8 +1213,8 @@ function AssembleeGeneraleScreenInner() {
                             style={[
                               s.adminBtn,
                               {
-                                backgroundColor: "#6366f115",
-                                borderColor: "#6366f130",
+                                backgroundColor: "#1F5EFF15",
+                                borderColor: "#1F5EFF30",
                               },
                             ]}
                             onPress={() => handleGeneratePV(selected)}
@@ -1222,10 +1222,10 @@ function AssembleeGeneraleScreenInner() {
                             <Feather
                               name="file-text"
                               size={14}
-                              color="#6366f1"
+                              color="#1F5EFF"
                             />
                             <Text
-                              style={[s.adminBtnText, { color: "#6366f1" }]}
+                              style={[s.adminBtnText, { color: "#1F5EFF" }]}
                             >
                               {t("agGeneratePVBtn")}
                             </Text>
@@ -1269,7 +1269,7 @@ function AssembleeGeneraleScreenInner() {
             style={[
               s.modalHeader,
               {
-                backgroundColor: "#6366f1",
+                backgroundColor: "#1F5EFF",
                 paddingTop: Platform.OS === "ios" ? 16 : 8,
               },
             ]}
@@ -1429,7 +1429,7 @@ function AssembleeGeneraleScreenInner() {
                 {
                   backgroundColor:
                     form.title.trim() && form.date.trim()
-                      ? "#6366f1"
+                      ? "#1F5EFF"
                       : colors.muted,
                   opacity: submitting ? 0.7 : 1,
                 },
@@ -1462,7 +1462,7 @@ function AssembleeGeneraleScreenInner() {
             style={[
               s.modalHeader,
               {
-                backgroundColor: "#6366f1",
+                backgroundColor: "#1F5EFF",
                 paddingTop: Platform.OS === "ios" ? 16 : 8,
               },
             ]}
@@ -1536,11 +1536,11 @@ function AssembleeGeneraleScreenInner() {
                     {
                       backgroundColor:
                         resForm.requiredMajority === m
-                          ? "#6366f110"
+                          ? "#1F5EFF10"
                           : colors.card,
                       borderColor:
                         resForm.requiredMajority === m
-                          ? "#6366f1"
+                          ? "#1F5EFF"
                           : colors.border,
                     },
                   ]}
@@ -1554,14 +1554,14 @@ function AssembleeGeneraleScreenInner() {
                       {
                         borderColor:
                           resForm.requiredMajority === m
-                            ? "#6366f1"
+                            ? "#1F5EFF"
                             : colors.border,
                       },
                     ]}
                   >
                     {resForm.requiredMajority === m && (
                       <View
-                        style={[s.radioInner, { backgroundColor: "#6366f1" }]}
+                        style={[s.radioInner, { backgroundColor: "#1F5EFF" }]}
                       />
                     )}
                   </View>
@@ -1577,7 +1577,7 @@ function AssembleeGeneraleScreenInner() {
                 s.submitBtn,
                 {
                   backgroundColor: resForm.title.trim()
-                    ? "#6366f1"
+                    ? "#1F5EFF"
                     : colors.muted,
                   opacity: submitting ? 0.7 : 1,
                 },
@@ -1610,7 +1610,7 @@ function AssembleeGeneraleScreenInner() {
             style={[
               s.modalHeader,
               {
-                backgroundColor: "#6366f1",
+                backgroundColor: "#1F5EFF",
                 paddingTop: Platform.OS === "ios" ? 16 : 8,
               },
             ]}
@@ -1654,7 +1654,7 @@ function AssembleeGeneraleScreenInner() {
               {
                 label: t("agTantTotal"),
                 key: "totalTantiemes" as const,
-                color: "#6366f1",
+                color: "#1F5EFF",
               },
             ].map((field) => (
               <View key={field.key} style={{ gap: 6 }}>
@@ -1686,11 +1686,11 @@ function AssembleeGeneraleScreenInner() {
               <View
                 style={[
                   s.majorityInfo,
-                  { backgroundColor: "#6366f110", borderColor: "#6366f130" },
+                  { backgroundColor: "#1F5EFF10", borderColor: "#1F5EFF30" },
                 ]}
               >
-                <Feather name="info" size={14} color="#6366f1" />
-                <Text style={[s.majorityInfoText, { color: "#6366f1" }]}>
+                <Feather name="info" size={14} color="#1F5EFF" />
+                <Text style={[s.majorityInfoText, { color: "#1F5EFF" }]}>
                   {t("agMajorityInfo")}{" "}
                   {majorityLabel(showVoteModal.requiredMajority)}
                 </Text>
@@ -1700,7 +1700,7 @@ function AssembleeGeneraleScreenInner() {
             <TouchableOpacity
               style={[
                 s.submitBtn,
-                { backgroundColor: "#6366f1", opacity: submitting ? 0.7 : 1 },
+                { backgroundColor: "#1F5EFF", opacity: submitting ? 0.7 : 1 },
               ]}
               onPress={handleVote}
               disabled={submitting}
@@ -1730,7 +1730,7 @@ function AssembleeGeneraleScreenInner() {
             style={[
               s.modalHeader,
               {
-                backgroundColor: "#6366f1",
+                backgroundColor: "#1F5EFF",
                 paddingTop: Platform.OS === "ios" ? 16 : 8,
               },
             ]}

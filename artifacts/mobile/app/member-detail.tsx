@@ -249,7 +249,7 @@ export default function MemberDetailScreen() {
                   <Text style={styles.actionBtnText}>{t("download")}</Text>
                 </TouchableOpacity>
                 <TouchableOpacity
-                  style={[styles.actionBtn, { backgroundColor: "#6366f1" }]}
+                  style={[styles.actionBtn, { backgroundColor: "#1F5EFF" }]}
                   onPress={() => {
                     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
                     Alert.alert(t("send"), `${member.name}`);
@@ -295,7 +295,7 @@ export default function MemberDetailScreen() {
               { icon: "log-in" as const, label: t("activityTitle"), value: t("today"), color: colors.success },
               { icon: "check-square" as const, label: t("elections"), value: t("electionsTitle"), color: colors.primary },
               { icon: "file-text" as const, label: t("documents"), value: t("documentsTitle"), color: "#f59e0b" },
-              { icon: "shopping-bag" as const, label: t("marketplace"), value: t("orders"), color: "#6366f1" },
+              { icon: "shopping-bag" as const, label: t("marketplace"), value: t("orders"), color: "#1F5EFF" },
               { icon: "message-circle" as const, label: t("chat"), value: t("chatTitle"), color: "#ec4899" },
             ].map((act, i) => (
               <View key={act.label}>
@@ -377,9 +377,9 @@ export default function MemberDetailScreen() {
             {
               icon: "download" as const,
               label: t("download"),
-              color: "#6366f1",
+              color: "#1F5EFF",
               action: () => {
-                logActivity({ action: t("download"), target: member?.name ?? "", route: "/member-detail", icon: "download", color: "#6366f1" });
+                logActivity({ action: t("download"), target: member?.name ?? "", route: "/member-detail", icon: "download", color: "#1F5EFF" });
                 router.push({ pathname: "/documents", params: { memberId: member?.id, memberName: member?.name } });
               },
             },

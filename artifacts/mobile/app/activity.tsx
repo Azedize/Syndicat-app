@@ -28,7 +28,7 @@ const CAT_CONFIG: Record<Exclude<ActivityCategory, "all">, { labelKey: string; c
   auth: { labelKey: "activityCategoryAuth", color: "#2563EB", icon: "lock" },
   finance: { labelKey: "activityCategoryFinance", color: "#10b981", icon: "dollar-sign" },
   governance: { labelKey: "activityCategoryGovernance", color: "#3b82f6", icon: "git-merge" },
-  documents: { labelKey: "activityCategoryDocuments", color: "#6366f1", icon: "file-text" },
+  documents: { labelKey: "activityCategoryDocuments", color: "#1F5EFF", icon: "file-text" },
   elections: { labelKey: "activityCategoryElections", color: "#f59e0b", icon: "check-square" },
   marketplace: { labelKey: "activityCategoryMarketplace", color: "#f97316", icon: "shopping-bag" },
   members: { labelKey: "activityCategoryMembers", color: "#ec4899", icon: "users" },

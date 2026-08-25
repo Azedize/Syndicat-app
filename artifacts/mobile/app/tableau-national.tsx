@@ -860,7 +860,7 @@ function TableauNationalScreenInner() {
               label: copy("platformBalance"),
               value: formatMAD(totalBalance),
               icon: "dollar-sign" as const,
-              color: "#6366f1",
+              color: "#1F5EFF",
             },
             {
               label: copy("criticalAlerts"),
@@ -1278,7 +1278,7 @@ function TableauNationalScreenInner() {
                       "#3b82f6",
                       "#10b981",
                       "#f59e0b",
-                      "#6366f1",
+                      "#1F5EFF",
                       "#ec4899",
                     ];
                     const c = syndColors[i % syndColors.length];
@@ -1387,7 +1387,7 @@ function TableauNationalScreenInner() {
                 {
                   label: copy("consolidatedReport"),
                   icon: "file-text" as const,
-                  color: "#6366f1",
+                  color: "#1F5EFF",
                 },
                 {
                   label: copy("exportExcel"),
@@ -1606,9 +1606,9 @@ function TableauNationalScreenInner() {
             >
               <View style={styles.statCardHeader}>
                 <View
-                  style={[styles.statIcon, { backgroundColor: "#6366f118" }]}
+                  style={[styles.statIcon, { backgroundColor: "#1F5EFF18" }]}
                 >
-                  <Feather name="zap" size={15} color="#6366f1" />
+                  <Feather name="zap" size={15} color="#1F5EFF" />
                 </View>
                 <Text
                   style={[styles.statCardTitle, { color: colors.foreground }]}
@@ -2032,7 +2032,7 @@ function TableauNationalScreenInner() {
                         {
                           label: copy("balance"),
                           value: formatMAD(selectedSyndicat.balance),
-                          color: "#6366f1",
+                          color: "#1F5EFF",
                         },
                       ].map((m) => (
                         <View

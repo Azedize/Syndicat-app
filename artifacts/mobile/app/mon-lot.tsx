@@ -557,7 +557,7 @@ function MonLotScreenInner() {
                 {
                   label: "myDocuments",
                   icon: "folder" as const,
-                  color: "#6366f1",
+                  color: "#1F5EFF",
                   route: "/documents",
                 },
               ].map((action) => (

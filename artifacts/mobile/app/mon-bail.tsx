@@ -329,7 +329,7 @@ function MonBailScreenInner() {
             label={t("monLeaseDepositLabel")}
             value={formatMAD(lease.depositAmount, t("na"), lang)}
             icon="shield"
-            color="#6366f1"
+            color="#1F5EFF"
           />
         </View>
 

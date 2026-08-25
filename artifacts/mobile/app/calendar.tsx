@@ -123,7 +123,7 @@ export default function CalendarScreen() {
     completed: { label: t("calStatusCompleted"), color: "#10b981" },
     cancelled: { label: t("calStatusCancelled"), color: "#ef4444" },
     open: { label: t("calStatusOpen"), color: "#f59e0b" },
-    upcoming: { label: t("calStatusUpcoming"), color: "#6366f1" },
+    upcoming: { label: t("calStatusUpcoming"), color: "#1F5EFF" },
     closed: { label: t("calStatusClosed"), color: "#6b7280" },
     pending: { label: t("calStatusPending"), color: "#f59e0b" },
     overdue: { label: t("calStatusOverdue"), color: "#ef4444" },

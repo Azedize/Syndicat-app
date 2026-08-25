@@ -219,7 +219,7 @@ const STATUS_CONFIG: Record<string, { color: string; labelKey: keyof typeof SHOP
   rejected:               { color: "#ef4444", labelKey: "statusRejected" },
   modification_requested: { color: "#f97316", labelKey: "statusModification" },
   sold_out:               { color: "#94a3b8", labelKey: "statusSoldOut" },
-  reserved:               { color: "#6366f1", labelKey: "statusReserved" },
+  reserved:               { color: "#1F5EFF", labelKey: "statusReserved" },
   sold:                   { color: "#94a3b8", labelKey: "statusSold" },
 };
 

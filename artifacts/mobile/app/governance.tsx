@@ -792,8 +792,8 @@ function GovernanceScreenInner() {
                         </View>
                       </View>
                       <View style={{ alignItems: "center", flex: 1 }}>
-                        <View style={[styles.delegPersonCircle, { backgroundColor: "#6366f115" }]}>
-                          <Text style={[styles.delegPersonInitials, { color: "#6366f1" }]}>
+                        <View style={[styles.delegPersonCircle, { backgroundColor: "#1F5EFF15" }]}>
+                          <Text style={[styles.delegPersonInitials, { color: "#1F5EFF" }]}>
                             {selectedDelegation.delegataire.split(" ").map((n) => n[0]).join("").slice(0, 2)}
                           </Text>
                         </View>

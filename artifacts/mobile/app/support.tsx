@@ -611,20 +611,20 @@ export default function SupportScreen() {
               {/* ── Escalation button (syndicate_admin only, on open/in_progress tickets) ── */}
               {isSyndicateAdmin && !["resolved", "closed"].includes(selected.status) && (
                 <TouchableOpacity
-                  style={[styles.escalateBtn, { flexDirection: rowDirection, borderColor: "#6366f1" + "40", backgroundColor: "#6366f1" + "08" }]}
+                  style={[styles.escalateBtn, { flexDirection: rowDirection, borderColor: "#1F5EFF" + "40", backgroundColor: "#1F5EFF" + "08" }]}
                   onPress={() => handleEscalate(selected)}
                   disabled={escalating}
                 >
-                  <Feather name="trending-up" size={16} color="#6366f1" />
+                  <Feather name="trending-up" size={16} color="#1F5EFF" />
                   <View style={{ flex: 1 }}>
-                    <Text style={[styles.escalateBtnTitle, { color: "#6366f1", textAlign: isRTL ? "right" : "left" }]}>
+                    <Text style={[styles.escalateBtnTitle, { color: "#1F5EFF", textAlign: isRTL ? "right" : "left" }]}>
                       {escalating ? t("supportEscalating") : t("supportEscalateAction")}
                     </Text>
                     <Text style={[styles.escalateBtnSub, { color: colors.mutedForeground, textAlign: isRTL ? "right" : "left" }]}>
                        {t("supportEscalateDescription")}
                     </Text>
                   </View>
-                  <Feather name={isRTL ? "chevron-left" : "chevron-right"} size={16} color="#6366f1" />
+                  <Feather name={isRTL ? "chevron-left" : "chevron-right"} size={16} color="#1F5EFF" />
                 </TouchableOpacity>
               )}
             </ScrollView>

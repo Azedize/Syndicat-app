@@ -118,7 +118,7 @@ function sourceColor(source: string): string {
   if (source.includes("buildingsTable") || source.includes("lotsTable")) return "#0891b2";
   if (source.includes("usersTable") || source.includes("conseilSyndical")) return "#10b981";
   if (source.includes("documentSequences")) return "#f59e0b";
-  if (source.includes("généré"))           return "#6366f1";
+  if (source.includes("généré"))           return "#1F5EFF";
   return "#64748b";
 }
 

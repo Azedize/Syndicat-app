@@ -336,7 +336,7 @@ function BuildingsScreenInner() {
                   label="Documents"
                   value={globalStats.documents}
                   icon="file-text"
-                  iconColor="#6366f1"
+                  iconColor="#1F5EFF"
                 />
                 <StatCard
                   label="Réunions AG"
@@ -535,7 +535,7 @@ function BuildingsScreenInner() {
 
                 <View style={[styles.infoRow, { borderTopColor: colors.border }]}>
                   {[
-                    { icon: "layers" as const,      label: `${building.totalFloors} ${t("floors")}`,                  color: "#6366f1" },
+                    { icon: "layers" as const,      label: `${building.totalFloors} ${t("floors")}`,                  color: "#1F5EFF" },
                     { icon: "grid" as const,         label: `${building.lotCount || building.totalLots} ${t("units")}`, color: "#3b82f6" },
                     { icon: "tool" as const,         label: `${building.openTravaux} ${t("travaux")}`,                   color: building.openTravaux > 0 ? "#f59e0b" : "#10b981" },
                     { icon: "credit-card" as const,  label: `${building.pendingCharges} ${t("unpaidCharges")}`,         color: building.pendingCharges > 0 ? "#ef4444" : "#10b981" },
