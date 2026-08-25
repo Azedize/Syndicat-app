@@ -71,7 +71,7 @@ const CHANNELS: ChannelDef[] = [
       name: "Messages",
       importance: Notifications.AndroidImportance.HIGH,
       vibrationPattern: [0, 100, 100, 100],
-      lightColor: "#6366F1",
+      lightColor: "#1F5EFF",
       sound: "default",
       showBadge: true,
       description: "Messages et conversations",

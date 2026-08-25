@@ -73,7 +73,7 @@ export default function FinanceScreen() {
       sub: t("prestatairesContratsSub"),
       icon: "briefcase" as const,
       route: "/prestataires",
-      color: "#6366F1",
+      color: "#1F5EFF",
       bg: "#EEF2FF",
     },
     {
