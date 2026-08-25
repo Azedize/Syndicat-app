@@ -13,7 +13,7 @@ import {
   ideaVotesTable,
   syndicatesTable,
 } from "@workspace/db/schema";
-import { eq, and, desc, sql, count, inArray } from "drizzle-orm";
+import { eq, and, desc, sql, count, inArray, isNull } from "drizzle-orm";
 import { requireAuth, requireAdmin } from "../middleware/auth.js";
 
 const router = Router();
@@ -208,10 +208,48 @@ router.post("/ideas/:id/vote", requireAuth, async (req, res) => {
 // PUT /ideas/:id — admin review (approve/reject/implement)
 router.put("/ideas/:id", requireAuth, requireAdmin, async (req, res) => {
   try {
+    const user = req.user!;
+    const requestedSyndicateId =
+      typeof req.query.syndicateId === "string" && req.query.syndicateId.trim()
+        ? req.query.syndicateId.trim()
+        : null;
+
+    if (
+      user.role === "super_admin" &&
+      requestedSyndicateId &&
+      req.query.supervision !== "true"
+    ) {
+      return void res.status(403).json({
+        error: "La supervision est requise pour modérer une idée de syndicat",
+        code: "SUPERVISION_REQUIRED",
+      });
+    }
+    if (
+      user.role === "super_admin" &&
+      req.query.supervision === "true" &&
+      !requestedSyndicateId
+    ) {
+      return void res.status(403).json({
+        error: "Un syndicat cible est requis pour la supervision",
+        code: "SUPERVISION_REQUIRED",
+      });
+    }
+    if (user.role !== "super_admin" && !user.syndicateId) {
+      return void res
+        .status(403)
+        .json({ error: "Syndicat non défini dans le token" });
+    }
+
+    const scope =
+      user.role === "super_admin"
+        ? requestedSyndicateId
+          ? eq(ideasTable.syndicateId, requestedSyndicateId)
+          : isNull(ideasTable.syndicateId)
+        : eq(ideasTable.syndicateId, user.syndicateId!);
     const [idea] = await db
       .select({ syndicateId: ideasTable.syndicateId })
       .from(ideasTable)
-      .where(eq(ideasTable.id, String(req.params.id) as string));
+      .where(and(eq(ideasTable.id, String(req.params.id) as string), scope));
     if (!idea) return void res.status(404).json({ error: "Idée introuvable" });
     if (!canAccessIdea(req, idea.syndicateId)) {
       return void res.status(403).json({ error: "Accès refusé" });
@@ -228,7 +266,14 @@ router.put("/ideas/:id", requireAuth, requireAdmin, async (req, res) => {
     const [updated] = await db
       .update(ideasTable)
       .set(allowed)
-      .where(eq(ideasTable.id, String(req.params.id) as string))
+      .where(
+        and(
+          eq(ideasTable.id, String(req.params.id) as string),
+          idea.syndicateId
+            ? eq(ideasTable.syndicateId, idea.syndicateId)
+            : isNull(ideasTable.syndicateId),
+        ),
+      )
       .returning();
 
     res.json({ data: updated, message: "Idée mise à jour" });

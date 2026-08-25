@@ -31,9 +31,13 @@ import { serverAuditLog } from "../lib/audit.js";
 const router = Router();
 
 function isSameSyndicate(req: any, syndicateId: string | null): boolean {
-  return (
-    req.user.role === "super_admin" || req.user.syndicateId === syndicateId
-  );
+  if (req.user.role === "super_admin") {
+    if (syndicateId === null) return !req.query.syndicateId;
+    return (
+      req.query.supervision === "true" && req.query.syndicateId === syndicateId
+    );
+  }
+  return req.user.syndicateId === syndicateId;
 }
 
 function requireSyndicateScope(req: any, res: any): string | null {
@@ -260,12 +264,10 @@ router.post("/support", requireAuth, async (req, res) => {
     role !== "syndicate_admin" &&
     role !== "super_admin"
   ) {
-    res
-      .status(403)
-      .json({
-        error:
-          "Seuls les administrateurs peuvent contacter le support plateforme.",
-      });
+    res.status(403).json({
+      error:
+        "Seuls les administrateurs peuvent contacter le support plateforme.",
+    });
     return;
   }
   if (!sid && scope === "syndicate") {
@@ -526,11 +528,9 @@ router.post(
         return;
       }
       if (ticket.scope !== "syndicate") {
-        res
-          .status(400)
-          .json({
-            error: "Seuls les tickets syndicat peuvent être escaladés.",
-          });
+        res.status(400).json({
+          error: "Seuls les tickets syndicat peuvent être escaladés.",
+        });
         return;
       }
       if (ticket.syndicateId !== sid) {
@@ -570,12 +570,10 @@ router.post(
         target: "admin",
       }).catch(() => {});
 
-      res
-        .status(201)
-        .json({
-          data: platformTicket,
-          message: "Ticket escaladé au support plateforme",
-        });
+      res.status(201).json({
+        data: platformTicket,
+        message: "Ticket escaladé au support plateforme",
+      });
     } catch (err) {
       req.log.error(err);
       res.status(500).json({ error: "Erreur serveur" });
@@ -697,12 +695,10 @@ router.put("/cotisations/:id/pay", requireAuth, async (req, res) => {
         return;
       }
       if (cotisation.status === "pending_validation") {
-        res
-          .status(400)
-          .json({
-            error:
-              "Une preuve est déjà en attente de validation pour cette cotisation",
-          });
+        res.status(400).json({
+          error:
+            "Une preuve est déjà en attente de validation pour cette cotisation",
+        });
         return;
       }
       await db.transaction(async (tx) => {

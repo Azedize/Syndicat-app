@@ -149,16 +149,20 @@ router.put("/team/members/:id", requireAuth, requireAdmin, async (req, res) => {
       "secretary",
     ];
     if (!validRoles.includes(role)) {
-      return void res
-        .status(400)
-        .json({
-          error: `Rôle invalide. Valeurs acceptées: ${validRoles.join(", ")}`,
-        });
+      return void res.status(400).json({
+        error: `Rôle invalide. Valeurs acceptées: ${validRoles.join(", ")}`,
+      });
     }
 
-    if (user.role === "super_admin" && req.query.supervision !== "true") {
+    if (
+      user.role === "super_admin" &&
+      (req.query.supervision !== "true" ||
+        typeof req.query.syndicateId !== "string" ||
+        !req.query.syndicateId)
+    ) {
       return void res.status(403).json({
-        error: "La supervision est requise pour modifier un membre de syndicat",
+        error:
+          "La supervision et le syndicat cible sont requis pour modifier un membre de syndicat",
         code: "SUPERVISION_REQUIRED",
       });
     }
@@ -175,6 +179,12 @@ router.put("/team/members/:id", requireAuth, requireAdmin, async (req, res) => {
         return void res
           .status(403)
           .json({ error: "Syndicat cible non défini" });
+      }
+      if (target.syndicateId !== req.query.syndicateId) {
+        return void res.status(403).json({
+          error: "Le syndicat cible ne correspond pas au membre demandé",
+          code: "SYNDICATE_SCOPE_MISMATCH",
+        });
       }
     } else {
       if (!user.syndicateId) {
