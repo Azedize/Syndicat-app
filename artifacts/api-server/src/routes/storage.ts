@@ -499,10 +499,16 @@ router.get(
         const isSameSyndicate =
           !!ownedObject.syndicateId &&
           ownedObject.syndicateId === req.user.syndicateId;
+        const targetSyndicateId =
+          typeof req.query.syndicateId === "string" &&
+          req.query.syndicateId.trim()
+            ? req.query.syndicateId.trim()
+            : null;
         const isSupervisedPlatformAccess =
           req.user.role === "super_admin" &&
           req.query.supervision === "true" &&
-          !!ownedObject.syndicateId;
+          !!ownedObject.syndicateId &&
+          targetSyndicateId === ownedObject.syndicateId;
 
         if (
           !isOwner &&
@@ -521,11 +527,20 @@ router.get(
             .json({ error: "Authentification requise pour ce document" });
           return;
         }
+        const targetSyndicateId =
+          typeof req.query.syndicateId === "string" &&
+          req.query.syndicateId.trim()
+            ? req.query.syndicateId.trim()
+            : null;
         const isSupervised =
-          req.user.role === "super_admin" && req.query.supervision === "true";
+          req.user.role === "super_admin" &&
+          req.query.supervision === "true" &&
+          !!targetSyndicateId;
         const canAccess = docs.some((doc) => {
           if (doc.isDeleted) return false;
-          if (isSupervised) return true;
+          if (isSupervised && doc.syndicateId === targetSyndicateId) {
+            return true;
+          }
           if (
             !req.user!.syndicateId ||
             doc.syndicateId !== req.user!.syndicateId
