@@ -59,3 +59,4 @@
 - [Development database schema readiness](dev-database-schema-readiness.md) — API health can pass while scheduled jobs fail if the attached dev database lacks current core relations.
 - [Private upload ownership](private-upload-ownership.md) — object paths are not bearer capabilities; persist owner/syndicate metadata and pass session tokens for mobile image/document URLs.
 - [Expo Web animation driver](expo-web-animation-driver.md) — initialize critical animated content at its visible state on web; native-driver fallbacks can leave screens washed out.
+- [pnpm workspace package install](pnpm-workspace-package-install.md) — target the owning package manifest when dependency helpers default to the workspace root.
