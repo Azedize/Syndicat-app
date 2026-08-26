@@ -12,7 +12,7 @@ import {
   bonsLivraisonTable,
   bonItemsTable,
 } from "@workspace/db/schema";
-import { eq, desc, count, inArray } from "drizzle-orm";
+import { eq, desc, count, inArray, and } from "drizzle-orm";
 import { requireAuth, requireFinanceAccess } from "../middleware/auth.js";
 import {
   syndicateWhere,
@@ -74,11 +74,9 @@ router.post(
       });
     const result = schema.safeParse(req.body);
     if (!result.success) {
-      res
-        .status(400)
-        .json({
-          error: result.error.issues[0]?.message ?? "Données invalides",
-        });
+      res.status(400).json({
+        error: result.error.issues[0]?.message ?? "Données invalides",
+      });
       return;
     }
     try {
@@ -123,22 +121,25 @@ router.patch(
       const [tx] = await db
         .select()
         .from(transactionsTable)
-        .where(eq(transactionsTable.id, id));
+        .where(
+          and(
+            eq(transactionsTable.id, id),
+            eq(transactionsTable.syndicateId, req.user!.syndicateId!),
+          ),
+        );
       if (!tx) {
         res.status(404).json({ error: "Transaction introuvable" });
-        return;
-      }
-      if (
-        req.user!.role !== "super_admin" &&
-        tx.syndicateId !== req.user!.syndicateId
-      ) {
-        res.status(403).json({ error: "Accès refusé" });
         return;
       }
       const [updated] = await db
         .update(transactionsTable)
         .set({ status: result.data.status })
-        .where(eq(transactionsTable.id, id))
+        .where(
+          and(
+            eq(transactionsTable.id, id),
+            eq(transactionsTable.syndicateId, req.user!.syndicateId!),
+          ),
+        )
         .returning();
       await serverAuditLog(req, {
         action: "UPDATE_STATUS",
@@ -429,12 +430,10 @@ router.post(
         syndicateId: sid,
         details: `${reference} — ${amount}`,
       });
-      res
-        .status(201)
-        .json({
-          data: { ...inv, amount: Number(inv.amount), items },
-          message: "Facture créée",
-        });
+      res.status(201).json({
+        data: { ...inv, amount: Number(inv.amount), items },
+        message: "Facture créée",
+      });
     } catch (err) {
       req.log.error(err);
       res.status(500).json({ error: "Erreur serveur" });
@@ -469,22 +468,25 @@ router.put(
       const [inv] = await db
         .select()
         .from(invoicesTable)
-        .where(eq(invoicesTable.id, id));
+        .where(
+          and(
+            eq(invoicesTable.id, id),
+            eq(invoicesTable.syndicateId, req.user!.syndicateId!),
+          ),
+        );
       if (!inv) {
         res.status(404).json({ error: "Facture introuvable" });
-        return;
-      }
-      if (
-        req.user!.role !== "super_admin" &&
-        inv.syndicateId !== req.user!.syndicateId
-      ) {
-        res.status(403).json({ error: "Accès refusé" });
         return;
       }
       const [updated] = await db
         .update(invoicesTable)
         .set({ status: result.data.status })
-        .where(eq(invoicesTable.id, id))
+        .where(
+          and(
+            eq(invoicesTable.id, id),
+            eq(invoicesTable.syndicateId, req.user!.syndicateId!),
+          ),
+        )
         .returning();
       await serverAuditLog(req, {
         action: "UPDATE_STATUS",
@@ -634,22 +636,25 @@ router.put(
       const [bon] = await db
         .select()
         .from(bonsLivraisonTable)
-        .where(eq(bonsLivraisonTable.id, id));
+        .where(
+          and(
+            eq(bonsLivraisonTable.id, id),
+            eq(bonsLivraisonTable.syndicateId, req.user!.syndicateId!),
+          ),
+        );
       if (!bon) {
         res.status(404).json({ error: "Bon introuvable" });
-        return;
-      }
-      if (
-        req.user!.role !== "super_admin" &&
-        bon.syndicateId !== req.user!.syndicateId
-      ) {
-        res.status(403).json({ error: "Accès refusé" });
         return;
       }
       const [updated] = await db
         .update(bonsLivraisonTable)
         .set({ status: result.data.status })
-        .where(eq(bonsLivraisonTable.id, id))
+        .where(
+          and(
+            eq(bonsLivraisonTable.id, id),
+            eq(bonsLivraisonTable.syndicateId, req.user!.syndicateId!),
+          ),
+        )
         .returning();
       await serverAuditLog(req, {
         action: "UPDATE_STATUS",

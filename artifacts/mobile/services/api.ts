@@ -11,7 +11,9 @@ function getBaseUrl(): string {
   if (__DEV__) {
     return `http://localhost:${port}/api`;
   }
-  console.error("[API] EXPO_PUBLIC_DOMAIN is not set — requests will fail in production.");
+  console.error(
+    "[API] EXPO_PUBLIC_DOMAIN is not set — requests will fail in production.",
+  );
   return `http://localhost:${port}/api`;
 }
 
@@ -146,7 +148,9 @@ async function request<T>(
   const json = await res.json().catch(() => ({}));
 
   if (!res.ok) {
-    const err: any = new Error((json as any).message || (json as any).error || `HTTP ${res.status}`);
+    const err: any = new Error(
+      (json as any).message || (json as any).error || `HTTP ${res.status}`,
+    );
     err.status = res.status;
     if ((json as any).code) err.code = (json as any).code;
     // Carry the full error payload so callers can react to structured fields
@@ -164,7 +168,15 @@ export interface ApiUser {
   id: string;
   name: string;
   email: string;
-  role: "super_admin" | "syndicate_admin" | "president" | "treasurer" | "secretary" | "committee_member" | "member" | "tenant";
+  role:
+    | "super_admin"
+    | "syndicate_admin"
+    | "president"
+    | "treasurer"
+    | "secretary"
+    | "committee_member"
+    | "member"
+    | "tenant";
   syndicateId?: string | null;
   phone?: string | null;
   profession?: string | null;
@@ -176,22 +188,34 @@ export interface ApiUser {
 
 export const auth = {
   login: (email: string, password: string) =>
-    request<{ data: { token: string; refreshToken: string; user: ApiUser } }>("/auth/login", {
-      method: "POST",
-      body: JSON.stringify({ email, password }),
-    }, false),
+    request<{ data: { token: string; refreshToken: string; user: ApiUser } }>(
+      "/auth/login",
+      {
+        method: "POST",
+        body: JSON.stringify({ email, password }),
+      },
+      false,
+    ),
 
   refresh: (refreshToken: string) =>
-    request<{ data: { token: string; refreshToken: string } }>("/auth/refresh", {
-      method: "POST",
-      body: JSON.stringify({ refreshToken }),
-    }, false),
+    request<{ data: { token: string; refreshToken: string } }>(
+      "/auth/refresh",
+      {
+        method: "POST",
+        body: JSON.stringify({ refreshToken }),
+      },
+      false,
+    ),
 
   logout: (refreshToken?: string) =>
-    request<{ message: string }>("/auth/logout", {
-      method: "POST",
-      body: JSON.stringify({ refreshToken }),
-    }, false),
+    request<{ message: string }>(
+      "/auth/logout",
+      {
+        method: "POST",
+        body: JSON.stringify({ refreshToken }),
+      },
+      false,
+    ),
 
   me: () => request<{ data: ApiUser }>("/auth/me"),
 
@@ -201,46 +225,67 @@ export const auth = {
       body: JSON.stringify({ currentPassword, newPassword }),
     }),
 
-  updateProfile: (data: Partial<Pick<ApiUser, "name" | "phone" | "profession" | "avatar">>) =>
+  updateProfile: (
+    data: Partial<Pick<ApiUser, "name" | "phone" | "profession" | "avatar">>,
+  ) =>
     request<{ data: ApiUser; message: string }>("/profile", {
       method: "PUT",
       body: JSON.stringify(data),
     }),
 
-  register: (data: { name: string; email: string; phone?: string; password: string }) =>
-    request<{ data: { token: string; refreshToken: string; user: ApiUser } }>("/auth/register", {
-      method: "POST",
-      body: JSON.stringify(data),
-    }, false),
+  register: (data: {
+    name: string;
+    email: string;
+    phone?: string;
+    password: string;
+  }) =>
+    request<{ data: { token: string; refreshToken: string; user: ApiUser } }>(
+      "/auth/register",
+      {
+        method: "POST",
+        body: JSON.stringify(data),
+      },
+      false,
+    ),
 
   forgotPassword: (email: string) =>
-    request<{ message: string }>("/auth/forgot-password", {
-      method: "POST",
-      body: JSON.stringify({ email }),
-    }, false),
+    request<{ message: string }>(
+      "/auth/forgot-password",
+      {
+        method: "POST",
+        body: JSON.stringify({ email }),
+      },
+      false,
+    ),
 
   resetPassword: (token: string, newPassword: string) =>
-    request<{ message: string }>("/auth/reset-password", {
-      method: "POST",
-      body: JSON.stringify({ token, newPassword }),
-    }, false),
+    request<{ message: string }>(
+      "/auth/reset-password",
+      {
+        method: "POST",
+        body: JSON.stringify({ token, newPassword }),
+      },
+      false,
+    ),
 };
 
 // ─── Audit Logs ──────────────────────────────────────────────────────────────
 
 export const audit = {
   getLogs: () =>
-    request<{ data: Array<{
-      id: string;
-      userId: string;
-      userName: string | null;
-      syndicateId: string | null;
-      action: string;
-      entity: string;
-      entityId: string | null;
-      details: string | null;
-      createdAt: string;
-    }> }>("/audit"),
+    request<{
+      data: Array<{
+        id: string;
+        userId: string;
+        userName: string | null;
+        syndicateId: string | null;
+        action: string;
+        entity: string;
+        entityId: string | null;
+        details: string | null;
+        createdAt: string;
+      }>;
+    }>("/audit"),
 
   log: (action: string, entity: string, entityId?: string, details?: string) =>
     request<{ message: string }>("/audit", {
@@ -281,7 +326,11 @@ export const locataires = {
 // ─── Members ─────────────────────────────────────────────────────────────────
 
 export const members = {
-  list: (params?: { syndicateId?: string; status?: string; search?: string }) => {
+  list: (params?: {
+    syndicateId?: string;
+    status?: string;
+    search?: string;
+  }) => {
     const qs = new URLSearchParams();
     if (params?.syndicateId) qs.set("syndicateId", params.syndicateId);
     if (params?.status) qs.set("status", params.status);
@@ -290,11 +339,20 @@ export const members = {
   },
   get: (id: string) => request<{ data: unknown }>(`/members/${id}`),
   create: (data: unknown) =>
-    request<{ data: unknown }>("/members", { method: "POST", body: JSON.stringify(data) }),
+    request<{ data: unknown }>("/members", {
+      method: "POST",
+      body: JSON.stringify(data),
+    }),
   update: (id: string, data: unknown) =>
-    request<{ data: unknown }>(`/members/${id}`, { method: "PUT", body: JSON.stringify(data) }),
+    request<{ data: unknown }>(`/members/${id}`, {
+      method: "PUT",
+      body: JSON.stringify(data),
+    }),
   updateStatus: (id: string, status: string) =>
-    request<{ data: unknown }>(`/members/${id}/status`, { method: "PUT", body: JSON.stringify({ status }) }),
+    request<{ data: unknown }>(`/members/${id}/status`, {
+      method: "PUT",
+      body: JSON.stringify({ status }),
+    }),
 };
 
 // ─── Syndicates ───────────────────────────────────────────────────────────────
@@ -303,9 +361,15 @@ export const syndicates = {
   list: () => request<{ data: unknown[] }>("/syndicates"),
   get: (id: string) => request<{ data: unknown }>(`/syndicates/${id}`),
   create: (data: unknown) =>
-    request<{ data: unknown }>("/syndicates", { method: "POST", body: JSON.stringify(data) }),
+    request<{ data: unknown }>("/syndicates", {
+      method: "POST",
+      body: JSON.stringify(data),
+    }),
   update: (id: string, data: unknown) =>
-    request<{ data: unknown }>(`/syndicates/${id}`, { method: "PATCH", body: JSON.stringify(data) }),
+    request<{ data: unknown }>(`/syndicates/${id}`, {
+      method: "PATCH",
+      body: JSON.stringify(data),
+    }),
 };
 
 // ─── Elections ────────────────────────────────────────────────────────────────
@@ -315,86 +379,170 @@ export const elections = {
   get: (id: string) =>
     // Ballots are anonymous by design — the API only confirms participation (hasVoted),
     // it never reveals which candidate was chosen, even to the voter themselves.
-    request<{ data: unknown; candidates: unknown[]; questions: unknown[]; hasVoted: boolean; isEligible: boolean; mandates: unknown[]; myDelegation: any; delegatedToMe: any[] }>(`/elections/${id}`),
+    request<{
+      data: unknown;
+      candidates: unknown[];
+      questions: unknown[];
+      hasVoted: boolean;
+      isEligible: boolean;
+      mandates: unknown[];
+      myDelegation: any;
+      delegatedToMe: any[];
+    }>(`/elections/${id}`),
   create: (data: unknown) =>
-    request<{ data: unknown }>("/elections", { method: "POST", body: JSON.stringify(data) }),
+    request<{ data: unknown }>("/elections", {
+      method: "POST",
+      body: JSON.stringify(data),
+    }),
   update: (id: string, data: unknown) =>
-    request<{ data: unknown }>(`/elections/${id}`, { method: "PUT", body: JSON.stringify(data) }),
-  transition: (id: string, action: string, reason?: string, tiebreakWinnerIds?: string[]) =>
+    request<{ data: unknown }>(`/elections/${id}`, {
+      method: "PUT",
+      body: JSON.stringify(data),
+    }),
+  transition: (
+    id: string,
+    action: string,
+    reason?: string,
+    tiebreakWinnerIds?: string[],
+  ) =>
     request<{ data: unknown; message: string }>(`/elections/${id}/transition`, {
       method: "POST",
       body: JSON.stringify({ action, reason, tiebreakWinnerIds }),
     }),
-  vote: (electionId: string, candidateId?: string, abstain?: boolean, onBehalfOfUserId?: string) =>
+  vote: (
+    electionId: string,
+    candidateId?: string,
+    abstain?: boolean,
+    onBehalfOfUserId?: string,
+  ) =>
     request<{ message: string }>(`/elections/${electionId}/vote`, {
       method: "POST",
-      body: JSON.stringify({ candidateId, abstain: !!abstain, onBehalfOfUserId }),
+      body: JSON.stringify({
+        candidateId,
+        abstain: !!abstain,
+        onBehalfOfUserId,
+      }),
     }),
   eligibleVoters: (electionId: string) =>
-    request<{ data: { id: string; name: string }[] }>(`/elections/${electionId}/eligible-voters`),
+    request<{ data: { id: string; name: string }[] }>(
+      `/elections/${electionId}/eligible-voters`,
+    ),
   delegate: (electionId: string, granteeId: string) =>
-    request<{ data: unknown; message: string }>(`/elections/${electionId}/delegate`, {
-      method: "POST",
-      body: JSON.stringify({ granteeId }),
-    }),
+    request<{ data: unknown; message: string }>(
+      `/elections/${electionId}/delegate`,
+      {
+        method: "POST",
+        body: JSON.stringify({ granteeId }),
+      },
+    ),
   revokeDelegation: (electionId: string) =>
-    request<{ data: unknown; message: string }>(`/elections/${electionId}/delegate`, { method: "DELETE" }),
+    request<{ data: unknown; message: string }>(
+      `/elections/${electionId}/delegate`,
+      { method: "DELETE" },
+    ),
   setInvalidVotes: (electionId: string, count: number) =>
-    request<{ data: unknown; message: string }>(`/elections/${electionId}/invalid-votes`, {
-      method: "PUT",
-      body: JSON.stringify({ count }),
-    }),
+    request<{ data: unknown; message: string }>(
+      `/elections/${electionId}/invalid-votes`,
+      {
+        method: "PUT",
+        body: JSON.stringify({ count }),
+      },
+    ),
   results: (electionId: string) =>
     request<{ data: any }>(`/elections/${electionId}/results`),
   submitCandidacy: (electionId: string, data: unknown) =>
-    request<{ data: unknown; message: string }>(`/elections/${electionId}/candidates`, {
-      method: "POST",
-      body: JSON.stringify(data),
-    }),
-  validateCandidacy: (electionId: string, candidateId: string, decision: "approved" | "rejected", reason?: string) =>
-    request<{ data: unknown; message: string }>(`/elections/${electionId}/candidates/${candidateId}/validate`, {
-      method: "PUT",
-      body: JSON.stringify({ decision, reason }),
-    }),
+    request<{ data: unknown; message: string }>(
+      `/elections/${electionId}/candidates`,
+      {
+        method: "POST",
+        body: JSON.stringify(data),
+      },
+    ),
+  validateCandidacy: (
+    electionId: string,
+    candidateId: string,
+    decision: "approved" | "rejected",
+    reason?: string,
+  ) =>
+    request<{ data: unknown; message: string }>(
+      `/elections/${electionId}/candidates/${candidateId}/validate`,
+      {
+        method: "PUT",
+        body: JSON.stringify({ decision, reason }),
+      },
+    ),
   withdrawCandidacy: (electionId: string, candidateId: string) =>
-    request<{ data: unknown; message: string }>(`/elections/${electionId}/candidates/${candidateId}/withdraw`, { method: "POST" }),
+    request<{ data: unknown; message: string }>(
+      `/elections/${electionId}/candidates/${candidateId}/withdraw`,
+      { method: "POST" },
+    ),
   updateProgram: (electionId: string, candidateId: string, data: unknown) =>
-    request<{ data: unknown; message: string }>(`/elections/${electionId}/candidates/${candidateId}/program`, {
-      method: "PUT",
-      body: JSON.stringify(data),
-    }),
+    request<{ data: unknown; message: string }>(
+      `/elections/${electionId}/candidates/${candidateId}/program`,
+      {
+        method: "PUT",
+        body: JSON.stringify(data),
+      },
+    ),
   askQuestion: (electionId: string, candidateId: string, question: string) =>
-    request<{ data: unknown; message: string }>(`/elections/${electionId}/candidates/${candidateId}/questions`, {
-      method: "POST",
-      body: JSON.stringify({ question }),
-    }),
+    request<{ data: unknown; message: string }>(
+      `/elections/${electionId}/candidates/${candidateId}/questions`,
+      {
+        method: "POST",
+        body: JSON.stringify({ question }),
+      },
+    ),
   answerQuestion: (electionId: string, questionId: string, answer: string) =>
-    request<{ data: unknown; message: string }>(`/elections/${electionId}/questions/${questionId}/answer`, {
-      method: "PUT",
-      body: JSON.stringify({ answer }),
-    }),
+    request<{ data: unknown; message: string }>(
+      `/elections/${electionId}/questions/${questionId}/answer`,
+      {
+        method: "PUT",
+        body: JSON.stringify({ answer }),
+      },
+    ),
   mandates: () => request<{ data: unknown[] }>("/elections/mandates"),
   resignMandate: (mandateId: string, reason?: string) =>
-    request<{ data: unknown; message: string }>(`/elections/mandates/${mandateId}/resign`, {
-      method: "POST",
-      body: JSON.stringify({ reason }),
-    }),
+    request<{ data: unknown; message: string }>(
+      `/elections/mandates/${mandateId}/resign`,
+      {
+        method: "POST",
+        body: JSON.stringify({ reason }),
+      },
+    ),
   revokeMandate: (mandateId: string, reason: string) =>
-    request<{ data: unknown; message: string }>(`/elections/mandates/${mandateId}/revoke`, {
-      method: "POST",
-      body: JSON.stringify({ reason }),
-    }),
+    request<{ data: unknown; message: string }>(
+      `/elections/mandates/${mandateId}/revoke`,
+      {
+        method: "POST",
+        body: JSON.stringify({ reason }),
+      },
+    ),
 };
 
 // ─── Meetings ─────────────────────────────────────────────────────────────────
 
 export const meetings = {
-  list: () => request<{ data: unknown[] }>("/meetings"),
+  list: (scope?: { supervision?: boolean; syndicateId?: string }) => {
+    const params = new URLSearchParams();
+    if (scope?.supervision) params.set("supervision", "true");
+    if (scope?.syndicateId) params.set("syndicateId", scope.syndicateId);
+    const query = params.toString();
+    return request<{ data: unknown[] }>(`/meetings${query ? `?${query}` : ""}`);
+  },
   get: (id: string) => request<{ data: unknown }>(`/meetings/${id}`),
   create: (data: unknown) =>
-    request<{ data: unknown }>("/meetings", { method: "POST", body: JSON.stringify(data) }),
-  confirmAttendance: (id: string) =>
-    request<{ message: string }>(`/meetings/${id}/attend`, { method: "POST" }),
+    request<{ data: unknown }>("/meetings", {
+      method: "POST",
+      body: JSON.stringify(data),
+    }),
+  confirmAttendance: (id: string, syndicateId?: string) => {
+    const query = syndicateId
+      ? `?supervision=true&syndicateId=${encodeURIComponent(syndicateId)}`
+      : "";
+    return request<{ message: string }>(`/meetings/${id}/attend${query}`, {
+      method: "POST",
+    });
+  },
 };
 
 // ─── Finance ──────────────────────────────────────────────────────────────────
@@ -402,19 +550,34 @@ export const meetings = {
 export const finance = {
   transactions: () => request<{ data: unknown[] }>("/finance/transactions"),
   addTransaction: (data: unknown) =>
-    request<{ data: unknown }>("/finance/transactions", { method: "POST", body: JSON.stringify(data) }),
+    request<{ data: unknown }>("/finance/transactions", {
+      method: "POST",
+      body: JSON.stringify(data),
+    }),
   salaries: () => request<{ data: unknown[] }>("/finance/salaries"),
   caisse: () => request<{ data: unknown[] }>("/finance/caisse"),
   invoices: () => request<{ data: unknown[] }>("/invoices"),
   addInvoice: (data: unknown) =>
-    request<{ data: unknown }>("/invoices", { method: "POST", body: JSON.stringify(data) }),
+    request<{ data: unknown }>("/invoices", {
+      method: "POST",
+      body: JSON.stringify(data),
+    }),
   bons: () => request<{ data: unknown[] }>("/bons-livraison"),
   addBon: (data: unknown) =>
-    request<{ data: unknown }>("/bons-livraison", { method: "POST", body: JSON.stringify(data) }),
+    request<{ data: unknown }>("/bons-livraison", {
+      method: "POST",
+      body: JSON.stringify(data),
+    }),
   updateBon: (id: string, data: unknown) =>
-    request<{ data: unknown }>(`/bons-livraison/${id}/status`, { method: "PUT", body: JSON.stringify(data) }),
+    request<{ data: unknown }>(`/bons-livraison/${id}/status`, {
+      method: "PUT",
+      body: JSON.stringify(data),
+    }),
   updateTransactionStatus: (id: string, status: string) =>
-    request<{ data: unknown }>(`/finance/transactions/${id}/status`, { method: "PATCH", body: JSON.stringify({ status }) }),
+    request<{ data: unknown }>(`/finance/transactions/${id}/status`, {
+      method: "PATCH",
+      body: JSON.stringify({ status }),
+    }),
 };
 
 // ─── Marketplace ──────────────────────────────────────────────────────────────
@@ -426,26 +589,45 @@ export const marketplace = {
     return request<{ data: unknown[]; pagination: unknown }>(`/products?${qs}`);
   },
   featured: () => request<{ data: unknown[] }>("/products/featured"),
-  pending: () => request<{ data: unknown[]; pagination: unknown }>("/products/pending"),
+  pending: () =>
+    request<{ data: unknown[]; pagination: unknown }>("/products/pending"),
   myFavorites: (params?: Record<string, string>) => {
     const qs = new URLSearchParams(params ?? {});
-    return request<{ data: unknown[]; pagination: unknown }>(`/products/my-favorites?${qs}`);
+    return request<{ data: unknown[]; pagination: unknown }>(
+      `/products/my-favorites?${qs}`,
+    );
   },
   myListings: (params?: Record<string, string>) => {
     const qs = new URLSearchParams(params ?? {});
-    return request<{ data: unknown[]; pagination: unknown }>(`/products/my-listings?${qs}`);
+    return request<{ data: unknown[]; pagination: unknown }>(
+      `/products/my-listings?${qs}`,
+    );
   },
-  productDetail: (id: string) =>
-    request<{ data: unknown }>(`/products/${id}`),
+  productDetail: (id: string) => request<{ data: unknown }>(`/products/${id}`),
   addProduct: (data: unknown) =>
-    request<{ data: unknown; message: string }>("/products", { method: "POST", body: JSON.stringify(data) }),
+    request<{ data: unknown; message: string }>("/products", {
+      method: "POST",
+      body: JSON.stringify(data),
+    }),
   updateProduct: (id: string, data: unknown) =>
-    request<{ data: unknown; message: string }>(`/products/${id}`, { method: "PUT", body: JSON.stringify(data) }),
+    request<{ data: unknown; message: string }>(`/products/${id}`, {
+      method: "PUT",
+      body: JSON.stringify(data),
+    }),
   deleteProduct: (id: string) =>
     request<{ message: string }>(`/products/${id}`, { method: "DELETE" }),
 
   // ── Moderation ────────────────────────────────────────────────────────────
-  moderate: (id: string, payload: { action: string; reason?: string; note?: string; boostType?: string; boostDays?: number }) =>
+  moderate: (
+    id: string,
+    payload: {
+      action: string;
+      reason?: string;
+      note?: string;
+      boostType?: string;
+      boostDays?: number;
+    },
+  ) =>
     request<{ data: unknown; message: string }>(`/products/${id}/moderate`, {
       method: "POST",
       body: JSON.stringify(payload),
@@ -453,12 +635,17 @@ export const marketplace = {
 
   // ── Favorites ─────────────────────────────────────────────────────────────
   toggleFavorite: (id: string) =>
-    request<{ isFavorited: boolean; message: string }>(`/products/${id}/favorite`, { method: "POST" }),
+    request<{ isFavorited: boolean; message: string }>(
+      `/products/${id}/favorite`,
+      { method: "POST" },
+    ),
 
   // ── Comments ──────────────────────────────────────────────────────────────
   comments: (productId: string, params?: Record<string, string>) => {
     const qs = new URLSearchParams(params ?? {});
-    return request<{ data: unknown[]; pagination: unknown }>(`/products/${productId}/comments?${qs}`);
+    return request<{ data: unknown[]; pagination: unknown }>(
+      `/products/${productId}/comments?${qs}`,
+    );
   },
   addComment: (productId: string, content: string) =>
     request<{ data: unknown }>(`/products/${productId}/comments`, {
@@ -466,7 +653,10 @@ export const marketplace = {
       body: JSON.stringify({ content }),
     }),
   deleteComment: (productId: string, commentId: string) =>
-    request<{ message: string }>(`/products/${productId}/comments/${commentId}`, { method: "DELETE" }),
+    request<{ message: string }>(
+      `/products/${productId}/comments/${commentId}`,
+      { method: "DELETE" },
+    ),
 
   // ── Reports ───────────────────────────────────────────────────────────────
   reportProduct: (id: string, payload: { reason: string; details?: string }) =>
@@ -476,35 +666,62 @@ export const marketplace = {
     }),
 
   // ── Premium promotion ─────────────────────────────────────────────────────
-  promote: (id: string, payload: { type: string; durationDays: number; amount?: number }) =>
+  promote: (
+    id: string,
+    payload: { type: string; durationDays: number; amount?: number },
+  ) =>
     request<{ data: unknown; message: string }>(`/products/${id}/promote`, {
       method: "POST",
       body: JSON.stringify(payload),
     }),
 
   // ── Sponsored-listing purchase flow (seller submits proof, admin validates) ─
-  requestPromotion: (id: string, payload: { type: string; durationDays: number; paymentMethod: string; proofUrl?: string }) =>
-    request<{ data: unknown; message: string }>(`/products/${id}/promotions/request`, {
-      method: "POST",
-      body: JSON.stringify(payload),
-    }),
+  requestPromotion: (
+    id: string,
+    payload: {
+      type: string;
+      durationDays: number;
+      paymentMethod: string;
+      proofUrl?: string;
+    },
+  ) =>
+    request<{ data: unknown; message: string }>(
+      `/products/${id}/promotions/request`,
+      {
+        method: "POST",
+        body: JSON.stringify(payload),
+      },
+    ),
   myPromotions: () => request<{ data: any[] }>("/products/my-promotions"),
-  pendingPromotions: () => request<{ data: any[] }>("/products/promotions/pending"),
-  validatePromotion: (id: string, payload: { approve: boolean; rejectionReason?: string }) =>
-    request<{ data: unknown; message: string }>(`/products/promotions/${id}/validate`, {
-      method: "PUT",
-      body: JSON.stringify(payload),
-    }),
+  pendingPromotions: () =>
+    request<{ data: any[] }>("/products/promotions/pending"),
+  validatePromotion: (
+    id: string,
+    payload: { approve: boolean; rejectionReason?: string },
+  ) =>
+    request<{ data: unknown; message: string }>(
+      `/products/promotions/${id}/validate`,
+      {
+        method: "PUT",
+        body: JSON.stringify(payload),
+      },
+    ),
 
   // ── Reservation ───────────────────────────────────────────────────────────
   reserveProduct: (id: string) =>
-    request<{ data: unknown; message: string }>(`/products/${id}/reserve`, { method: "POST" }),
+    request<{ data: unknown; message: string }>(`/products/${id}/reserve`, {
+      method: "POST",
+    }),
   unreserveProduct: (id: string) =>
-    request<{ data: unknown; message: string }>(`/products/${id}/reserve`, { method: "DELETE" }),
+    request<{ data: unknown; message: string }>(`/products/${id}/reserve`, {
+      method: "DELETE",
+    }),
 
   // ── Mark sold ─────────────────────────────────────────────────────────────
   markSold: (id: string) =>
-    request<{ data: unknown; message: string }>(`/products/${id}/mark-sold`, { method: "POST" }),
+    request<{ data: unknown; message: string }>(`/products/${id}/mark-sold`, {
+      method: "POST",
+    }),
 
   // ── Seller reputation ─────────────────────────────────────────────────────
   sellerReputation: (sellerId: string) =>
@@ -516,7 +733,9 @@ export const marketplace = {
   // ── Reported products (admin) ─────────────────────────────────────────────
   reported: (params?: Record<string, string>) => {
     const qs = new URLSearchParams(params ?? {});
-    return request<{ data: unknown[]; pagination: unknown }>(`/products/reported?${qs}`);
+    return request<{ data: unknown[]; pagination: unknown }>(
+      `/products/reported?${qs}`,
+    );
   },
 
   // ── Per-product reports detail (admin) ────────────────────────────────────
@@ -537,7 +756,10 @@ export const marketplace = {
       body: JSON.stringify({ productId, quantity }),
     }),
   updateCartItem: (id: string, quantity: number) =>
-    request<{ data: unknown }>(`/cart/${id}`, { method: "PUT", body: JSON.stringify({ quantity }) }),
+    request<{ data: unknown }>(`/cart/${id}`, {
+      method: "PUT",
+      body: JSON.stringify({ quantity }),
+    }),
   removeFromCart: (id: string) =>
     request<{ message: string }>(`/cart/${id}`, { method: "DELETE" }),
   clearCart: () => request<{ message: string }>("/cart", { method: "DELETE" }),
@@ -564,7 +786,10 @@ export const marketplace = {
     return request<{ data: unknown[] }>(`/reviews${qs}`);
   },
   addReview: (data: unknown) =>
-    request<{ data: unknown }>("/reviews", { method: "POST", body: JSON.stringify(data) }),
+    request<{ data: unknown }>("/reviews", {
+      method: "POST",
+      body: JSON.stringify(data),
+    }),
 };
 
 // ─── Documents ───────────────────────────────────────────────────────────────
@@ -587,27 +812,49 @@ export const documents = {
   ) =>
     request<{ data: unknown }>("/documents", {
       method: "POST",
-      body: JSON.stringify({ title, category, content, templateId, memberName, language, expiresAt }),
+      body: JSON.stringify({
+        title,
+        category,
+        content,
+        templateId,
+        memberName,
+        language,
+        expiresAt,
+      }),
     }),
   get: (id: string) => request<{ data: unknown }>(`/documents/${id}`),
   update: (
     id: string,
-    data: { title?: string; category?: string; content?: string; status?: string; rejectionReason?: string; expiresAt?: string; language?: string },
+    data: {
+      title?: string;
+      category?: string;
+      content?: string;
+      status?: string;
+      rejectionReason?: string;
+      expiresAt?: string;
+      language?: string;
+    },
   ) =>
     request<{ data: unknown }>(`/documents/${id}`, {
       method: "PUT",
       body: JSON.stringify(data),
     }),
   // Version history — list past snapshots and restore one
-  versions: (id: string) => request<{ data: unknown[] }>(`/documents/${id}/versions`),
+  versions: (id: string) =>
+    request<{ data: unknown[] }>(`/documents/${id}/versions`),
   restoreVersion: (id: string, versionId: string) =>
-    request<{ data: unknown; message: string }>(`/documents/${id}/versions/${versionId}/restore`, { method: "POST" }),
+    request<{ data: unknown; message: string }>(
+      `/documents/${id}/versions/${versionId}/restore`,
+      { method: "POST" },
+    ),
   // FIX BUG-07: delete a document (admin only)
   delete: (id: string) =>
     request<{ message: string }>(`/documents/${id}`, { method: "DELETE" }),
   // Get a signed 1-hour download URL for a document's PDF
   downloadUrl: (id: string) =>
-    request<{ url: string; expiresIn: number }>(`/documents/${id}/download-url`),
+    request<{ url: string; expiresIn: number }>(
+      `/documents/${id}/download-url`,
+    ),
   // Record a signature on a document
   sign: (id: string, signatureData?: string) =>
     request<{ data: unknown }>(`/documents/${id}/sign`, {
@@ -619,9 +866,18 @@ export const documents = {
     request<{ data: unknown[] }>(`/documents/${id}/signatures`),
   // Real dashboard aggregates: counts by status + 30/60/90-day retention-expiry buckets
   summary: () =>
-    request<{ data: { total: number; byStatus: Record<string, number>; expiring: { in30: number; in60: number; in90: number; documents30: { id: string; title: string }[] } } }>(
-      "/documents/summary",
-    ),
+    request<{
+      data: {
+        total: number;
+        byStatus: Record<string, number>;
+        expiring: {
+          in30: number;
+          in60: number;
+          in90: number;
+          documents30: { id: string; title: string }[];
+        };
+      };
+    }>("/documents/summary"),
   // Recycle bin — admin-only, lists soft-deleted documents
   deleted: (params?: { search?: string; category?: string }) => {
     const qs = new URLSearchParams();
@@ -631,42 +887,79 @@ export const documents = {
   },
   // Restore a soft-deleted document (super_admin / syndicate_admin)
   restore: (id: string) =>
-    request<{ data: unknown; message: string }>(`/documents/${id}/restore`, { method: "POST" }),
+    request<{ data: unknown; message: string }>(`/documents/${id}/restore`, {
+      method: "POST",
+    }),
   // Permanently purge a soft-deleted document (super_admin only)
   purge: (id: string) =>
     request<{ message: string }>(`/documents/${id}/purge`, { method: "POST" }),
   // Comments
   comments: (id: string) =>
-    request<{ data: Array<{ id: string; content: string; parentId: string | null; isDeleted: boolean; editedAt: string | null; createdAt: string; authorId: string; authorName: string | null; authorRole: string | null }> }>(`/documents/${id}/comments`),
+    request<{
+      data: Array<{
+        id: string;
+        content: string;
+        parentId: string | null;
+        isDeleted: boolean;
+        editedAt: string | null;
+        createdAt: string;
+        authorId: string;
+        authorName: string | null;
+        authorRole: string | null;
+      }>;
+    }>(`/documents/${id}/comments`),
   addComment: (id: string, content: string, parentId?: string) =>
     request<{ data: unknown; message: string }>(`/documents/${id}/comments`, {
       method: "POST",
       body: JSON.stringify({ content, parentId }),
     }),
   deleteComment: (id: string, commentId: string) =>
-    request<{ message: string }>(`/documents/${id}/comments/${commentId}`, { method: "DELETE" }),
+    request<{ message: string }>(`/documents/${id}/comments/${commentId}`, {
+      method: "DELETE",
+    }),
   // QR code image (returns { qrDataUrl })
   qrCode: (id: string) =>
     request<{ qrDataUrl: string; verifyUrl: string }>(`/documents/${id}/qr`),
   // Template catalog — all 21 templates with sections + variables + data sources
   templates: () =>
-    request<{ data: Array<{
-      id: string; name: string; category: string; description: string;
-      icon: string; color: string; version: string; author: string; updatedAt: string;
-      sections: Array<{ title: string; description: string; source: string }>;
-      variables: Array<{ name: string; label: string; source: string; required: boolean }>;
-      requiredInputs: string[];
-    }> }>("/documents/templates"),
+    request<{
+      data: Array<{
+        id: string;
+        name: string;
+        category: string;
+        description: string;
+        icon: string;
+        color: string;
+        version: string;
+        author: string;
+        updatedAt: string;
+        sections: Array<{ title: string; description: string; source: string }>;
+        variables: Array<{
+          name: string;
+          label: string;
+          source: string;
+          required: boolean;
+        }>;
+        requiredInputs: string[];
+      }>;
+    }>("/documents/templates"),
   // Preview — resolve DB variable values without generating a PDF
-  preview: (params: { templateId: string; buildingId?: string; memberName?: string; language?: string }) =>
-    request<{ data: {
-      templateId: string;
-      syndicateInfo: Record<string, string | null>;
-      propertyInfo: Record<string, unknown> | null;
-      officeHolders: Record<string, unknown> | null;
-      resolvedVariables: Record<string, string | null>;
-      resolvedAt: string;
-    } }>("/documents/preview", {
+  preview: (params: {
+    templateId: string;
+    buildingId?: string;
+    memberName?: string;
+    language?: string;
+  }) =>
+    request<{
+      data: {
+        templateId: string;
+        syndicateInfo: Record<string, string | null>;
+        propertyInfo: Record<string, unknown> | null;
+        officeHolders: Record<string, unknown> | null;
+        resolvedVariables: Record<string, string | null>;
+        resolvedAt: string;
+      };
+    }>("/documents/preview", {
       method: "POST",
       body: JSON.stringify(params),
     }),
@@ -678,22 +971,32 @@ export const documents = {
     }),
   // Auto-fill — resolve DB variables (syndicate, property, office holders, member) for current user
   autofill: () =>
-    request<{ data: {
-      syndicateInfo:  Record<string, string | null>;
-      propertyInfo:   Record<string, string | null> | null;
-      officeHolders:  Record<string, string | null> | null;
-      memberInfo:     Record<string, string | null>;
-      generated:      Record<string, string | null>;
-    } }>("/documents/autofill"),
+    request<{
+      data: {
+        syndicateInfo: Record<string, string | null>;
+        propertyInfo: Record<string, string | null> | null;
+        officeHolders: Record<string, string | null> | null;
+        memberInfo: Record<string, string | null>;
+        generated: Record<string, string | null>;
+      };
+    }>("/documents/autofill"),
   // Entity lists for smart document generation — replaces manual text entry with DB pickers.
   // type = meetings | lots | members | elections | invoices | appels | budgets
   entities: (type: string) =>
     request<{ data: Array<{ id: string; label: string; sublabel: string }> }>(
-      `/documents/entities?type=${encodeURIComponent(type)}`
+      `/documents/entities?type=${encodeURIComponent(type)}`,
     ),
 
   // Self-service document request (member/tenant) — auto-fills all DB data, creates pending_review
-  request: (body: { templateId: string; category: string; title?: string; note?: string; language?: string; objet?: string; periode?: string }) =>
+  request: (body: {
+    templateId: string;
+    category: string;
+    title?: string;
+    note?: string;
+    language?: string;
+    objet?: string;
+    periode?: string;
+  }) =>
     request<{ data: unknown; message: string }>("/documents/request", {
       method: "POST",
       body: JSON.stringify(body),
@@ -701,96 +1004,192 @@ export const documents = {
 
   // Role-aware template catalog — grouped by family, filtered by user role
   availableTemplates: () =>
-    request<{ data: {
-      role: string;
-      total: number;
-      families: Array<{
-        id: string; label: string; color: string;
-        templates: Array<{
-          id: string; name: string; family: string; familyLabel: string; icon: string;
-          color: string; category: string; description: string; allowedRoles: string[];
-          isBundle: boolean; requiresBalance: boolean; autoFilled: string[];
+    request<{
+      data: {
+        role: string;
+        total: number;
+        families: Array<{
+          id: string;
+          label: string;
+          color: string;
+          templates: Array<{
+            id: string;
+            name: string;
+            family: string;
+            familyLabel: string;
+            icon: string;
+            color: string;
+            category: string;
+            description: string;
+            allowedRoles: string[];
+            isBundle: boolean;
+            requiresBalance: boolean;
+            autoFilled: string[];
+          }>;
         }>;
-      }>;
-    } }>("/documents/available-templates"),
+      };
+    }>("/documents/available-templates"),
 
   // Payment certificate eligibility pre-check
   paymentCertificateCheck: () =>
-    request<{ data: {
-      eligible: boolean;
-      blockedReason: string | null;
-      totalPaid: number;
-      totalCharged: number;
-      remainingBalance: number;
-      overdueCount: number;
-      overdueAmount: number;
-      lastPaymentDate: string | null;
-      lotNumber: string | null;
-    } }>("/documents/payment-certificate/check", { method: "POST", body: JSON.stringify({}) }),
+    request<{
+      data: {
+        eligible: boolean;
+        blockedReason: string | null;
+        totalPaid: number;
+        totalCharged: number;
+        remainingBalance: number;
+        overdueCount: number;
+        overdueAmount: number;
+        lastPaymentDate: string | null;
+        lotNumber: string | null;
+      };
+    }>("/documents/payment-certificate/check", {
+      method: "POST",
+      body: JSON.stringify({}),
+    }),
 
   // Recovery package — 5-step debt recovery bundle (admin only)
   recoveryPackage: (body: { memberId: string; language?: string }) =>
-    request<{ data: {
-      memberName: string;
-      totalDue: string;
-      documents: Array<{ step: number; documentId: string; title: string; documentNumber: string }>;
-      message: string;
-    } }>("/documents/recovery-package", { method: "POST", body: JSON.stringify(body) }),
+    request<{
+      data: {
+        memberName: string;
+        totalDue: string;
+        documents: Array<{
+          step: number;
+          documentId: string;
+          title: string;
+          documentNumber: string;
+        }>;
+        message: string;
+      };
+    }>("/documents/recovery-package", {
+      method: "POST",
+      body: JSON.stringify(body),
+    }),
 
   // Sale bundle — 4 notary docs for apartment sale
   saleBundle: (body: { lotId: string; language?: string }) =>
-    request<{ data: {
-      memberName: string;
-      lotNumber: string | null;
-      documents: Array<{ documentId: string; title: string; templateId: string; documentNumber: string }>;
-      message: string;
-    } }>("/documents/sale-bundle", { method: "POST", body: JSON.stringify(body) }),
+    request<{
+      data: {
+        memberName: string;
+        lotNumber: string | null;
+        documents: Array<{
+          documentId: string;
+          title: string;
+          templateId: string;
+          documentNumber: string;
+        }>;
+        message: string;
+      };
+    }>("/documents/sale-bundle", {
+      method: "POST",
+      body: JSON.stringify(body),
+    }),
 
   // AG bundle — convocation + PV + décisions for Assemblée Générale
-  agBundle: (body: { meetingId?: string; meetingDate?: string; lieu?: string; heure?: string; agendaText?: string; language?: string }) =>
-    request<{ data: {
-      agTitle: string;
-      meetingDate: string;
-      documents: Array<{ documentId: string; title: string; templateId: string; documentNumber: string }>;
-      message: string;
-    } }>("/documents/ag-bundle", { method: "POST", body: JSON.stringify(body) }),
+  agBundle: (body: {
+    meetingId?: string;
+    meetingDate?: string;
+    lieu?: string;
+    heure?: string;
+    agendaText?: string;
+    language?: string;
+  }) =>
+    request<{
+      data: {
+        agTitle: string;
+        meetingDate: string;
+        documents: Array<{
+          documentId: string;
+          title: string;
+          templateId: string;
+          documentNumber: string;
+        }>;
+        message: string;
+      };
+    }>("/documents/ag-bundle", { method: "POST", body: JSON.stringify(body) }),
 
   // Signature order status for a document
   signers: (id: string) =>
-    request<{ data: {
-      documentId: string;
-      title: string;
-      status: string;
-      requiredSigners: Array<{ order: number; role: string; label: string }>;
-      completedSignatures: Array<{ id: string; signedBy: string; signerName: string | null; signerRole: string | null; signedAt: string | null; signatureOrder: number | null; isValid: boolean | null }>;
-      nextSigner: { order: number; role: string; label: string } | null;
-      isMyTurn: boolean;
-      allSigned: boolean;
-      totalRequired: number;
-      totalCompleted: number;
-      percentage: number;
-    } }>(`/documents/${id}/signers`),
+    request<{
+      data: {
+        documentId: string;
+        title: string;
+        status: string;
+        requiredSigners: Array<{ order: number; role: string; label: string }>;
+        completedSignatures: Array<{
+          id: string;
+          signedBy: string;
+          signerName: string | null;
+          signerRole: string | null;
+          signedAt: string | null;
+          signatureOrder: number | null;
+          isValid: boolean | null;
+        }>;
+        nextSigner: { order: number; role: string; label: string } | null;
+        isMyTurn: boolean;
+        allSigned: boolean;
+        totalRequired: number;
+        totalCompleted: number;
+        percentage: number;
+      };
+    }>(`/documents/${id}/signers`),
 
   // Template requests
   templateRequests: {
     list: () =>
-      request<{ data: Array<{
-        id: string; title: string; category: string; description: string | null;
-        businessPurpose: string | null; status: string; priority: string;
-        reviewNotes: string | null; rejectionReason: string | null;
-        createdAt: string; updatedAt: string;
-        requestedByName?: string | null; requestedByEmail?: string | null; syndicateName?: string | null;
-      }> }>("/documents/template-requests"),
-    create: (body: { title: string; category: string; description?: string; businessPurpose?: string; requiredFields?: Array<{ name: string; type: string; required: boolean }>; legalNotes?: string; priority?: string; publishScope?: string }) =>
-      request<{ data: unknown; message: string }>("/documents/template-requests", {
-        method: "POST",
-        body: JSON.stringify(body),
-      }),
-    update: (id: string, body: { status?: string; reviewNotes?: string; rejectionReason?: string; publishScope?: string }) =>
-      request<{ data: unknown; message: string }>(`/documents/template-requests/${id}`, {
-        method: "PUT",
-        body: JSON.stringify(body),
-      }),
+      request<{
+        data: Array<{
+          id: string;
+          title: string;
+          category: string;
+          description: string | null;
+          businessPurpose: string | null;
+          status: string;
+          priority: string;
+          reviewNotes: string | null;
+          rejectionReason: string | null;
+          createdAt: string;
+          updatedAt: string;
+          requestedByName?: string | null;
+          requestedByEmail?: string | null;
+          syndicateName?: string | null;
+        }>;
+      }>("/documents/template-requests"),
+    create: (body: {
+      title: string;
+      category: string;
+      description?: string;
+      businessPurpose?: string;
+      requiredFields?: Array<{ name: string; type: string; required: boolean }>;
+      legalNotes?: string;
+      priority?: string;
+      publishScope?: string;
+    }) =>
+      request<{ data: unknown; message: string }>(
+        "/documents/template-requests",
+        {
+          method: "POST",
+          body: JSON.stringify(body),
+        },
+      ),
+    update: (
+      id: string,
+      body: {
+        status?: string;
+        reviewNotes?: string;
+        rejectionReason?: string;
+        publishScope?: string;
+      },
+    ) =>
+      request<{ data: unknown; message: string }>(
+        `/documents/template-requests/${id}`,
+        {
+          method: "PUT",
+          body: JSON.stringify(body),
+        },
+      ),
   },
 };
 
@@ -803,7 +1202,10 @@ export const publications = {
     return request<{ data: unknown[] }>(`/publications?${qs}`);
   },
   create: (data: unknown) =>
-    request<{ data: unknown }>("/publications", { method: "POST", body: JSON.stringify(data) }),
+    request<{ data: unknown }>("/publications", {
+      method: "POST",
+      body: JSON.stringify(data),
+    }),
   like: (id: string) =>
     request<{ data: unknown }>(`/publications/${id}/like`, { method: "POST" }),
 };
@@ -830,10 +1232,11 @@ export const content = {
     amount: number;
     dueDate: string;
     status?: "pending" | "paid" | "overdue";
-  }) => request<{ data: unknown; message: string }>("/cotisations", {
-    method: "POST",
-    body: JSON.stringify(data),
-  }),
+  }) =>
+    request<{ data: unknown; message: string }>("/cotisations", {
+      method: "POST",
+      body: JSON.stringify(data),
+    }),
   payCotisation: (id: string, proofUrl?: string) =>
     request<{ data: unknown }>(`/cotisations/${id}/pay`, {
       method: "PUT",
@@ -842,15 +1245,21 @@ export const content = {
 
   legalAlerts: () => request<{ data: unknown[] }>("/legal-alerts"),
   resolveLegalAlert: (id: string) =>
-    request<{ data: unknown }>(`/legal-alerts/${id}/resolve`, { method: "PUT" }),
+    request<{ data: unknown }>(`/legal-alerts/${id}/resolve`, {
+      method: "PUT",
+    }),
 
   supportTickets: () => request<{ data: unknown[] }>("/support"),
   createTicket: (data: unknown) =>
-    request<{ data: unknown }>("/support", { method: "POST", body: JSON.stringify(data) }),
+    request<{ data: unknown }>("/support", {
+      method: "POST",
+      body: JSON.stringify(data),
+    }),
   resolveTicket: (id: string) =>
     request<{ data: unknown }>(`/support/${id}/resolve`, { method: "PUT" }),
 
-  notificationPrefs: () => request<{ data: unknown[] }>("/notifications/preferences"),
+  notificationPrefs: () =>
+    request<{ data: unknown[] }>("/notifications/preferences"),
   toggleNotificationPref: (id: string, channel: string, value: boolean) =>
     request<{ data: unknown }>(`/notifications/preferences/${id}`, {
       method: "PUT",
@@ -865,7 +1274,12 @@ export const content = {
       body: JSON.stringify({ planId }),
     }),
 
-  auditLog: (entry: { action: string; entity: string; entityId?: string; details?: string }) =>
+  auditLog: (entry: {
+    action: string;
+    entity: string;
+    entityId?: string;
+    details?: string;
+  }) =>
     request<{ message: string }>("/audit", {
       method: "POST",
       body: JSON.stringify(entry),
@@ -874,7 +1288,10 @@ export const content = {
 
   partners: () => request<{ data: unknown[] }>("/partners"),
   addPartner: (data: unknown) =>
-    request<{ data: unknown }>("/partners", { method: "POST", body: JSON.stringify(data) }),
+    request<{ data: unknown }>("/partners", {
+      method: "POST",
+      body: JSON.stringify(data),
+    }),
   updatePartnerStatus: (id: string, status: string) =>
     request<{ data: unknown }>(`/partners/${id}/status`, {
       method: "PUT",
@@ -893,7 +1310,15 @@ export const content = {
 
 export interface ApiConversation {
   id: string;
-  convType: "direct" | "group" | "announcement" | "support" | "building" | "marketplace" | "incident" | "emergency";
+  convType:
+    | "direct"
+    | "group"
+    | "announcement"
+    | "support"
+    | "building"
+    | "marketplace"
+    | "incident"
+    | "emergency";
   isGroup: boolean;
   participant: string;
   participantId?: string | null;
@@ -938,19 +1363,22 @@ export const chat = {
       `/conversations${opts?.archived ? "?archived=true" : ""}`,
     ),
 
-  unreadCount: () =>
-    request<{ total: number }>("/conversations/unread-count"),
+  unreadCount: () => request<{ total: number }>("/conversations/unread-count"),
 
   search: (q: string) =>
-    request<{ data: { id: string; name: string; matchedInMessages: boolean }[] }>(
-      `/conversations/search?q=${encodeURIComponent(q)}`,
-    ),
+    request<{
+      data: { id: string; name: string; matchedInMessages: boolean }[];
+    }>(`/conversations/search?q=${encodeURIComponent(q)}`),
 
   messages: (id: string) =>
-    request<{ data: ApiMessage[]; total: number }>(`/conversations/${id}/messages`),
+    request<{ data: ApiMessage[]; total: number }>(
+      `/conversations/${id}/messages`,
+    ),
 
   since: (id: string, since: string) =>
-    request<{ data: ApiMessage[]; typing: string[] }>(`/conversations/${id}/since?since=${encodeURIComponent(since)}`),
+    request<{ data: ApiMessage[]; typing: string[] }>(
+      `/conversations/${id}/since?since=${encodeURIComponent(since)}`,
+    ),
 
   send: (
     id: string,
@@ -970,9 +1398,15 @@ export const chat = {
     }),
 
   contactableUsers: () =>
-    request<{ data: { id: string; name: string; email: string; role: string; syndicateId: string | null }[] }>(
-      "/conversations/contactable-users",
-    ),
+    request<{
+      data: {
+        id: string;
+        name: string;
+        email: string;
+        role: string;
+        syndicateId: string | null;
+      }[];
+    }>("/conversations/contactable-users"),
 
   // Legacy alias kept for existing callers
   sendMessage: (id: string, text: string) =>
@@ -981,7 +1415,10 @@ export const chat = {
       body: JSON.stringify({ text }),
     }),
 
-  deleteMessage: (messageId: string, mode: "for_me" | "for_everyone" = "for_everyone") =>
+  deleteMessage: (
+    messageId: string,
+    mode: "for_me" | "for_everyone" = "for_everyone",
+  ) =>
     request<{ message: string; mode: string }>(`/messages/${messageId}`, {
       method: "DELETE",
       body: JSON.stringify({ mode }),
@@ -1000,12 +1437,17 @@ export const chat = {
     }),
 
   unreact: (messageId: string, emoji: string) =>
-    request<{ message: string }>(`/messages/${messageId}/reactions?emoji=${encodeURIComponent(emoji)}`, {
-      method: "DELETE",
-    }),
+    request<{ message: string }>(
+      `/messages/${messageId}/reactions?emoji=${encodeURIComponent(emoji)}`,
+      {
+        method: "DELETE",
+      },
+    ),
 
   typing: (id: string) =>
-    request<{ message: string }>(`/conversations/${id}/typing`, { method: "PATCH" }),
+    request<{ message: string }>(`/conversations/${id}/typing`, {
+      method: "PATCH",
+    }),
 
   typingUsers: (id: string) =>
     request<{ data: string[] }>(`/conversations/${id}/typing`),
@@ -1025,25 +1467,37 @@ export const chat = {
     }),
 
   contactSeller: (productId: string) =>
-    request<{ data: ApiConversation; existing?: boolean }>("/conversations/product", {
-      method: "POST",
-      body: JSON.stringify({ productId }),
-    }),
+    request<{ data: ApiConversation; existing?: boolean }>(
+      "/conversations/product",
+      {
+        method: "POST",
+        body: JSON.stringify({ productId }),
+      },
+    ),
 
   openIncidentChat: (incidentId: string) =>
-    request<{ data: ApiConversation; existing?: boolean }>("/conversations/incident", {
-      method: "POST",
-      body: JSON.stringify({ incidentId }),
-    }),
+    request<{ data: ApiConversation; existing?: boolean }>(
+      "/conversations/incident",
+      {
+        method: "POST",
+        body: JSON.stringify({ incidentId }),
+      },
+    ),
 
   markRead: (id: string) =>
-    request<{ message: string }>(`/conversations/${id}/read`, { method: "PATCH" }),
+    request<{ message: string }>(`/conversations/${id}/read`, {
+      method: "PATCH",
+    }),
 
   archive: (id: string) =>
-    request<{ message: string }>(`/conversations/${id}/archive`, { method: "PATCH" }),
+    request<{ message: string }>(`/conversations/${id}/archive`, {
+      method: "PATCH",
+    }),
 
   unarchive: (id: string) =>
-    request<{ message: string }>(`/conversations/${id}/unarchive`, { method: "PATCH" }),
+    request<{ message: string }>(`/conversations/${id}/unarchive`, {
+      method: "PATCH",
+    }),
 
   delete: (id: string) =>
     request<{ message: string }>(`/conversations/${id}`, { method: "DELETE" }),
@@ -1052,12 +1506,21 @@ export const chat = {
     request<{ data: { id: string; name: string | null }[] }>("/blocked-users"),
 
   blockUser: (userId: string) =>
-    request<{ message: string }>(`/blocked-users/${userId}`, { method: "POST" }),
+    request<{ message: string }>(`/blocked-users/${userId}`, {
+      method: "POST",
+    }),
 
   unblockUser: (userId: string) =>
-    request<{ message: string }>(`/blocked-users/${userId}`, { method: "DELETE" }),
+    request<{ message: string }>(`/blocked-users/${userId}`, {
+      method: "DELETE",
+    }),
 
-  reportAbuse: (payload: { reportedUserId?: string; conversationId?: string; messageId?: string; reason: string }) =>
+  reportAbuse: (payload: {
+    reportedUserId?: string;
+    conversationId?: string;
+    messageId?: string;
+    reason: string;
+  }) =>
     request<{ message: string }>("/chat-reports", {
       method: "POST",
       body: JSON.stringify(payload),
@@ -1123,10 +1586,23 @@ export interface EnrichedSyndicate {
 export const statistics = {
   platform: () => request<{ data: PlatformStats }>("/statistics/platform"),
   hr: () => request<{ data: HRStats }>("/statistics/hr"),
-  financeSummary: () => request<{ data: FinanceSummary }>("/statistics/finance/summary"),
+  financeSummary: () =>
+    request<{ data: FinanceSummary }>("/statistics/finance/summary"),
   reports: (period: "month" | "quarter" | "year") =>
-    request<{ data: { revenueChart: { label: string; value: number }[]; membersChart: { label: string; value: number }[]; kpi: { revenues: number; expenses: number; memberGrowth: number; cotisationRate: number } } }>(`/statistics/reports?period=${period}`),
-  syndicates: () => request<{ data: EnrichedSyndicate[] }>("/statistics/syndicates"),
+    request<{
+      data: {
+        revenueChart: { label: string; value: number }[];
+        membersChart: { label: string; value: number }[];
+        kpi: {
+          revenues: number;
+          expenses: number;
+          memberGrowth: number;
+          cotisationRate: number;
+        };
+      };
+    }>(`/statistics/reports?period=${period}`),
+  syndicates: () =>
+    request<{ data: EnrichedSyndicate[] }>("/statistics/syndicates"),
 };
 
 // ─── Announcements ────────────────────────────────────────────────────────────
@@ -1149,7 +1625,9 @@ export const announcements = {
   list: (params?: { priority?: string }) => {
     const qs = new URLSearchParams();
     if (params?.priority) qs.set("priority", params.priority);
-    return request<{ data: ApiAnnouncement[]; total: number }>(`/announcements?${qs}`);
+    return request<{ data: ApiAnnouncement[]; total: number }>(
+      `/announcements?${qs}`,
+    );
   },
   create: (data: {
     title: string;
@@ -1158,19 +1636,31 @@ export const announcements = {
     audience?: string;
     pinned?: boolean;
     expiresAt?: string;
-  }) => request<{ data: ApiAnnouncement; message: string }>("/announcements", {
-    method: "POST",
-    body: JSON.stringify(data),
-  }),
-  update: (id: string, data: Partial<{
-    title: string; body: string;
-    priority: ApiAnnouncement["priority"];
-    audience: string; pinned: boolean; expiresAt: string | null;
-  }>) => request<{ data: ApiAnnouncement; message: string }>(`/announcements/${id}`, {
-    method: "PUT",
-    body: JSON.stringify(data),
-  }),
-  delete: (id: string) => request<{ message: string }>(`/announcements/${id}`, { method: "DELETE" }),
+  }) =>
+    request<{ data: ApiAnnouncement; message: string }>("/announcements", {
+      method: "POST",
+      body: JSON.stringify(data),
+    }),
+  update: (
+    id: string,
+    data: Partial<{
+      title: string;
+      body: string;
+      priority: ApiAnnouncement["priority"];
+      audience: string;
+      pinned: boolean;
+      expiresAt: string | null;
+    }>,
+  ) =>
+    request<{ data: ApiAnnouncement; message: string }>(
+      `/announcements/${id}`,
+      {
+        method: "PUT",
+        body: JSON.stringify(data),
+      },
+    ),
+  delete: (id: string) =>
+    request<{ message: string }>(`/announcements/${id}`, { method: "DELETE" }),
 };
 
 // ─── Union Actions ────────────────────────────────────────────────────────────
@@ -1218,27 +1708,51 @@ export const actions = {
     updates?: Array<{ date: string; text: string }>;
     tags?: string[];
     syndicateId?: string;
-  }) => request<{ data: ApiUnionAction; message: string }>("/actions", { method: "POST", body: JSON.stringify(data) }),
-  update: (id: string, data: Partial<{
-    title: string;
-    description: string;
-    type: ApiUnionAction["type"];
-    status: ApiUnionAction["status"];
-    date: string;
-    location: string | null;
-    organizer: string;
-    participantsTarget: number;
-    demands: string[];
-    updates: Array<{ date: string; text: string }>;
-    tags: string[];
-  }>) => request<{ data: ApiUnionAction; message: string }>(`/actions/${id}`, { method: "PUT", body: JSON.stringify(data) }),
-  delete: (id: string) => request<{ message: string }>(`/actions/${id}`, { method: "DELETE" }),
+  }) =>
+    request<{ data: ApiUnionAction; message: string }>("/actions", {
+      method: "POST",
+      body: JSON.stringify(data),
+    }),
+  update: (
+    id: string,
+    data: Partial<{
+      title: string;
+      description: string;
+      type: ApiUnionAction["type"];
+      status: ApiUnionAction["status"];
+      date: string;
+      location: string | null;
+      organizer: string;
+      participantsTarget: number;
+      demands: string[];
+      updates: Array<{ date: string; text: string }>;
+      tags: string[];
+    }>,
+  ) =>
+    request<{ data: ApiUnionAction; message: string }>(`/actions/${id}`, {
+      method: "PUT",
+      body: JSON.stringify(data),
+    }),
+  delete: (id: string) =>
+    request<{ message: string }>(`/actions/${id}`, { method: "DELETE" }),
   toggleSupport: (id: string) =>
-    request<{ supported: boolean; message: string }>(`/actions/${id}/support`, { method: "POST" }),
+    request<{ supported: boolean; message: string }>(`/actions/${id}/support`, {
+      method: "POST",
+    }),
   toggleParticipate: (id: string) =>
-    request<{ participating: boolean; message: string }>(`/actions/${id}/participate`, { method: "POST" }),
+    request<{ participating: boolean; message: string }>(
+      `/actions/${id}/participate`,
+      { method: "POST" },
+    ),
   participants: (id: string) =>
-    request<{ data: Array<{ id: string; userId: string; userName: string; createdAt: string }> }>(`/actions/${id}/participants`),
+    request<{
+      data: Array<{
+        id: string;
+        userId: string;
+        userName: string;
+        createdAt: string;
+      }>;
+    }>(`/actions/${id}/participants`),
 };
 
 // ─── P6: Ideas & Voting ───────────────────────────────────────────────────────
@@ -1263,12 +1777,21 @@ export interface ApiIdea {
 export const ideas = {
   list: () => request<{ data: ApiIdea[] }>("/ideas"),
   create: (data: { title: string; description: string; category: string }) =>
-    request<{ data: ApiIdea; message: string }>("/ideas", { method: "POST", body: JSON.stringify(data) }),
+    request<{ data: ApiIdea; message: string }>("/ideas", {
+      method: "POST",
+      body: JSON.stringify(data),
+    }),
   vote: (id: string) =>
-    request<{ voted: boolean; voteCount: number }>(`/ideas/${id}/vote`, { method: "POST" }),
+    request<{ voted: boolean; voteCount: number }>(`/ideas/${id}/vote`, {
+      method: "POST",
+    }),
   review: (id: string, data: { status: string; adminNote?: string }) =>
-    request<{ data: ApiIdea; message: string }>(`/ideas/${id}`, { method: "PUT", body: JSON.stringify(data) }),
-  delete: (id: string) => request<{ message: string }>(`/ideas/${id}`, { method: "DELETE" }),
+    request<{ data: ApiIdea; message: string }>(`/ideas/${id}`, {
+      method: "PUT",
+      body: JSON.stringify(data),
+    }),
+  delete: (id: string) =>
+    request<{ message: string }>(`/ideas/${id}`, { method: "DELETE" }),
 };
 
 // ─── P10: Financial Transparency ─────────────────────────────────────────────
@@ -1292,15 +1815,34 @@ export interface ApiExpenseJustification {
 }
 
 export const transparency = {
-  list: () => request<{ data: ApiExpenseJustification[] }>("/expense-justifications"),
-  create: (data: { title: string; description: string; amount: number; category?: string; receiptUrl?: string }) =>
-    request<{ data: ApiExpenseJustification; message: string }>("/expense-justifications", { method: "POST", body: JSON.stringify(data) }),
+  list: () =>
+    request<{ data: ApiExpenseJustification[] }>("/expense-justifications"),
+  create: (data: {
+    title: string;
+    description: string;
+    amount: number;
+    category?: string;
+    receiptUrl?: string;
+  }) =>
+    request<{ data: ApiExpenseJustification; message: string }>(
+      "/expense-justifications",
+      { method: "POST", body: JSON.stringify(data) },
+    ),
   challenge: (id: string, reason: string) =>
-    request<{ data: ApiExpenseJustification; message: string }>(`/expense-justifications/${id}/challenge`, { method: "POST", body: JSON.stringify({ reason }) }),
+    request<{ data: ApiExpenseJustification; message: string }>(
+      `/expense-justifications/${id}/challenge`,
+      { method: "POST", body: JSON.stringify({ reason }) },
+    ),
   vote: (id: string, vote: "for" | "against") =>
-    request<{ data: ApiExpenseJustification }>(`/expense-justifications/${id}/vote`, { method: "POST", body: JSON.stringify({ vote }) }),
+    request<{ data: ApiExpenseJustification }>(
+      `/expense-justifications/${id}/vote`,
+      { method: "POST", body: JSON.stringify({ vote }) },
+    ),
   resolve: (id: string, outcome: string) =>
-    request<{ data: ApiExpenseJustification; message: string }>(`/expense-justifications/${id}/resolve`, { method: "PUT", body: JSON.stringify({ outcome }) }),
+    request<{ data: ApiExpenseJustification; message: string }>(
+      `/expense-justifications/${id}/resolve`,
+      { method: "PUT", body: JSON.stringify({ outcome }) },
+    ),
 };
 
 // ─── P11: Team Directory ──────────────────────────────────────────────────────
@@ -1317,13 +1859,47 @@ export interface ApiTeamMember {
 }
 
 export const team = {
-  list: () => request<{ data: ApiTeamMember[]; syndicate: { name: string; address?: string | null; email?: string | null; phone?: string | null } }>("/team"),
-  updateSyndicate: (data: { phone?: string; email?: string; address?: string; website?: string }) =>
-    request<{ message: string }>("/team/syndicate", { method: "PUT", body: JSON.stringify(data) }),
+  list: () =>
+    request<{
+      data: ApiTeamMember[];
+      syndicate: {
+        name: string;
+        address?: string | null;
+        email?: string | null;
+        phone?: string | null;
+      };
+    }>("/team"),
+  updateSyndicate: (data: {
+    phone?: string;
+    email?: string;
+    address?: string;
+    website?: string;
+  }) =>
+    request<{ message: string }>("/team/syndicate", {
+      method: "PUT",
+      body: JSON.stringify(data),
+    }),
   updateMember: (id: string, committeeRole: string) =>
-    request<{ message: string }>(`/team/members/${id}`, { method: "PUT", body: JSON.stringify({ committeeRole }) }),
-  invite: (data: { name: string; email: string; phone?: string; role: string }) =>
-    request<{ data: { id: string; name: string; email: string; role: string; tempPassword: string }; message: string }>("/team/invite", {
+    request<{ message: string }>(`/team/members/${id}`, {
+      method: "PUT",
+      body: JSON.stringify({ committeeRole }),
+    }),
+  invite: (data: {
+    name: string;
+    email: string;
+    phone?: string;
+    role: string;
+  }) =>
+    request<{
+      data: {
+        id: string;
+        name: string;
+        email: string;
+        role: string;
+        tempPassword: string;
+      };
+      message: string;
+    }>("/team/invite", {
       method: "POST",
       body: JSON.stringify(data),
     }),
@@ -1349,7 +1925,10 @@ export interface ApiRanking {
 
 export const rankings = {
   compute: (syndicateId?: string) =>
-    request<{ data: ApiRanking[] }>("/rankings/compute", { method: "POST", body: JSON.stringify({ syndicateId }) }),
+    request<{ data: ApiRanking[] }>("/rankings/compute", {
+      method: "POST",
+      body: JSON.stringify({ syndicateId }),
+    }),
   list: (params?: { month?: number; year?: number; region?: string }) => {
     const qs = new URLSearchParams();
     if (params?.month) qs.set("month", String(params.month));
@@ -1389,23 +1968,34 @@ export const subscriptions = {
   my: () => request<{ data: ApiSyndicateSub | null }>("/subscriptions/my"),
   list: () => request<{ data: ApiSyndicateSub[] }>("/subscriptions"),
   subscribe: (planId: string, syndicateId?: string) =>
-    request<{ data: ApiSyndicateSub; message: string }>("/subscriptions", { method: "POST", body: JSON.stringify({ planId, syndicateId }) }),
+    request<{ data: ApiSyndicateSub; message: string }>("/subscriptions", {
+      method: "POST",
+      body: JSON.stringify({ planId, syndicateId }),
+    }),
   update: (id: string, data: { status?: string; autoRenew?: boolean }) =>
-    request<{ data: ApiSyndicateSub; message: string }>(`/subscriptions/${id}`, { method: "PUT", body: JSON.stringify(data) }),
+    request<{ data: ApiSyndicateSub; message: string }>(
+      `/subscriptions/${id}`,
+      { method: "PUT", body: JSON.stringify(data) },
+    ),
 };
 
 // ─── P7/P8: Debt Escalation & Reserve Alerts ────────────────────────────────
 
 export const debtEscalations = {
   escalate: () =>
-    request<{ escalations: number; data: any[] }>("/appels-de-fonds/escalate-debts", { method: "POST" }),
-  list: () =>
-    request<{ data: any[] }>("/debt-escalations"),
+    request<{ escalations: number; data: any[] }>(
+      "/appels-de-fonds/escalate-debts",
+      { method: "POST" },
+    ),
+  list: () => request<{ data: any[] }>("/debt-escalations"),
 };
 
 export const reserveFund = {
   check: (thresholdMonths = 3) =>
-    request<{ alerts: number; data: any[] }>("/budgets/check-reserve-fund", { method: "POST", body: JSON.stringify({ thresholdMonths }) }),
+    request<{ alerts: number; data: any[] }>("/budgets/check-reserve-fund", {
+      method: "POST",
+      body: JSON.stringify({ thresholdMonths }),
+    }),
 };
 
 // ─── Module Prestataires ─────────────────────────────────────────────────────
@@ -1480,7 +2070,12 @@ export interface ApiTravail {
   startDate?: string | null;
   endDate?: string | null;
   createdAt: string;
-  prestataire?: { id: string; name: string; phone: string; type: string } | null;
+  prestataire?: {
+    id: string;
+    name: string;
+    phone: string;
+    type: string;
+  } | null;
   lot?: { id: string; number: string; floor: number; type: string } | null;
 }
 
@@ -1515,28 +2110,53 @@ export const prestataires = {
     if (params?.type) qs.set("type", params.type);
     if (params?.status) qs.set("status", params.status);
     if (params?.buildingId) qs.set("buildingId", params.buildingId);
-    return request<{ data: ApiPrestataire[]; total: number }>(`/prestataires?${qs}`);
+    return request<{ data: ApiPrestataire[]; total: number }>(
+      `/prestataires?${qs}`,
+    );
   },
   get: (id: string) => request<ApiPrestataire>(`/prestataires/${id}`),
   create: (data: Partial<ApiPrestataire>) =>
-    request<ApiPrestataire>("/prestataires", { method: "POST", body: JSON.stringify(data) }),
-  update: (id: string, data: Partial<ApiPrestataire>) =>
-    request<ApiPrestataire>(`/prestataires/${id}`, { method: "PUT", body: JSON.stringify(data) }),
-  delete: (id: string) => request<{ success: boolean }>(`/prestataires/${id}`, { method: "DELETE" }),
-  dashboard: () => request<{ data: ApiPrestatairesDashboard }>("/prestataires/dashboard"),
-  ranking: () => request<{ data: ApiPrestataire[] }>("/prestataires/ranking/top"),
-  addEvaluation: (
-    id: string,
-    data: { travauxId?: string; quality: number; speed: number; communication: number; price: number; comment?: string },
-  ) =>
-    request<{ data: ApiEvaluation; newRating: number }>(`/prestataires/${id}/evaluations`, {
+    request<ApiPrestataire>("/prestataires", {
       method: "POST",
       body: JSON.stringify(data),
     }),
+  update: (id: string, data: Partial<ApiPrestataire>) =>
+    request<ApiPrestataire>(`/prestataires/${id}`, {
+      method: "PUT",
+      body: JSON.stringify(data),
+    }),
+  delete: (id: string) =>
+    request<{ success: boolean }>(`/prestataires/${id}`, { method: "DELETE" }),
+  dashboard: () =>
+    request<{ data: ApiPrestatairesDashboard }>("/prestataires/dashboard"),
+  ranking: () =>
+    request<{ data: ApiPrestataire[] }>("/prestataires/ranking/top"),
+  addEvaluation: (
+    id: string,
+    data: {
+      travauxId?: string;
+      quality: number;
+      speed: number;
+      communication: number;
+      price: number;
+      comment?: string;
+    },
+  ) =>
+    request<{ data: ApiEvaluation; newRating: number }>(
+      `/prestataires/${id}/evaluations`,
+      {
+        method: "POST",
+        body: JSON.stringify(data),
+      },
+    ),
 };
 
 export const contrats = {
-  list: (params?: { buildingId?: string; prestataireId?: string; status?: string }) => {
+  list: (params?: {
+    buildingId?: string;
+    prestataireId?: string;
+    status?: string;
+  }) => {
     const qs = new URLSearchParams();
     if (params?.buildingId) qs.set("buildingId", params.buildingId);
     if (params?.prestataireId) qs.set("prestataireId", params.prestataireId);
@@ -1554,15 +2174,38 @@ export const contrats = {
     autoRenew?: boolean;
     documentUrl: string;
     notes?: string;
-  }) => request<ApiContrat>("/contrats", { method: "POST", body: JSON.stringify(data) }),
+  }) =>
+    request<ApiContrat>("/contrats", {
+      method: "POST",
+      body: JSON.stringify(data),
+    }),
   update: (id: string, data: Partial<ApiContrat>) =>
-    request<ApiContrat>(`/contrats/${id}`, { method: "PUT", body: JSON.stringify(data) }),
-  renew: (id: string, data: { endDate: string; documentUrl?: string; monthlyAmount?: number; annualAmount?: number }) =>
-    request<ApiContrat>(`/contrats/${id}/renew`, { method: "POST", body: JSON.stringify(data) }),
-  suspend: (id: string) => request<ApiContrat>(`/contrats/${id}/suspend`, { method: "POST" }),
-  reactivate: (id: string) => request<ApiContrat>(`/contrats/${id}/reactivate`, { method: "POST" }),
+    request<ApiContrat>(`/contrats/${id}`, {
+      method: "PUT",
+      body: JSON.stringify(data),
+    }),
+  renew: (
+    id: string,
+    data: {
+      endDate: string;
+      documentUrl?: string;
+      monthlyAmount?: number;
+      annualAmount?: number;
+    },
+  ) =>
+    request<ApiContrat>(`/contrats/${id}/renew`, {
+      method: "POST",
+      body: JSON.stringify(data),
+    }),
+  suspend: (id: string) =>
+    request<ApiContrat>(`/contrats/${id}/suspend`, { method: "POST" }),
+  reactivate: (id: string) =>
+    request<ApiContrat>(`/contrats/${id}/reactivate`, { method: "POST" }),
   resilier: (id: string, reason: string) =>
-    request<ApiContrat>(`/contrats/${id}/resilier`, { method: "POST", body: JSON.stringify({ reason }) }),
+    request<ApiContrat>(`/contrats/${id}/resilier`, {
+      method: "POST",
+      body: JSON.stringify({ reason }),
+    }),
 };
 
 // ─── Parking ─────────────────────────────────────────────────────────────────
@@ -1631,71 +2274,169 @@ export const parking = {
     if (params?.buildingId) qs.set("buildingId", params.buildingId);
     if (params?.type) qs.set("type", params.type);
     if (params?.status) qs.set("status", params.status);
-    return request<{ data: ApiParkingSpot[]; total: number }>(`/parking/spots?${qs}`);
+    return request<{ data: ApiParkingSpot[]; total: number }>(
+      `/parking/spots?${qs}`,
+    );
   },
   mySpot: () => request<{ data: ApiParkingSpot | null }>("/parking/spots/my"),
-  createSpot: (data: { buildingId: string; spotNumber: string; type?: string; floor?: string; lotId?: string; notes?: string }) =>
-    request<{ data: ApiParkingSpot; message: string }>("/parking/spots", { method: "POST", body: JSON.stringify(data) }),
-  updateSpot: (id: string, data: { lotId?: string | null; status?: string; notes?: string; floor?: string }) =>
-    request<{ data: ApiParkingSpot; message: string }>(`/parking/spots/${id}`, { method: "PUT", body: JSON.stringify(data) }),
+  createSpot: (data: {
+    buildingId: string;
+    spotNumber: string;
+    type?: string;
+    floor?: string;
+    lotId?: string;
+    notes?: string;
+  }) =>
+    request<{ data: ApiParkingSpot; message: string }>("/parking/spots", {
+      method: "POST",
+      body: JSON.stringify(data),
+    }),
+  updateSpot: (
+    id: string,
+    data: {
+      lotId?: string | null;
+      status?: string;
+      notes?: string;
+      floor?: string;
+    },
+  ) =>
+    request<{ data: ApiParkingSpot; message: string }>(`/parking/spots/${id}`, {
+      method: "PUT",
+      body: JSON.stringify(data),
+    }),
 
   vehicles: (params?: { buildingId?: string }) => {
     const qs = new URLSearchParams();
     if (params?.buildingId) qs.set("buildingId", params.buildingId);
-    return request<{ data: ApiVehicle[]; total: number }>(`/parking/vehicles?${qs}`);
+    return request<{ data: ApiVehicle[]; total: number }>(
+      `/parking/vehicles?${qs}`,
+    );
   },
-  registerVehicle: (data: { plateNumber: string; brand?: string; model?: string; color?: string; lotId?: string }) =>
-    request<{ data: ApiVehicle; message: string }>("/parking/vehicles", { method: "POST", body: JSON.stringify(data) }),
+  registerVehicle: (data: {
+    plateNumber: string;
+    brand?: string;
+    model?: string;
+    color?: string;
+    lotId?: string;
+  }) =>
+    request<{ data: ApiVehicle; message: string }>("/parking/vehicles", {
+      method: "POST",
+      body: JSON.stringify(data),
+    }),
   deleteVehicle: (id: string) =>
-    request<{ message: string }>(`/parking/vehicles/${id}`, { method: "DELETE" }),
+    request<{ message: string }>(`/parking/vehicles/${id}`, {
+      method: "DELETE",
+    }),
 
   violations: (params?: { buildingId?: string; status?: string }) => {
     const qs = new URLSearchParams();
     if (params?.buildingId) qs.set("buildingId", params.buildingId);
     if (params?.status) qs.set("status", params.status);
-    return request<{ data: ApiParkingViolation[]; total: number }>(`/parking/violations?${qs}`);
+    return request<{ data: ApiParkingViolation[]; total: number }>(
+      `/parking/violations?${qs}`,
+    );
   },
-  reportViolation: (data: { buildingId: string; spotId?: string; plateNumber: string; photoUrl?: string; notes?: string }) =>
-    request<{ data: ApiParkingViolation; message: string }>("/parking/violations", { method: "POST", body: JSON.stringify(data) }),
+  reportViolation: (data: {
+    buildingId: string;
+    spotId?: string;
+    plateNumber: string;
+    photoUrl?: string;
+    notes?: string;
+  }) =>
+    request<{ data: ApiParkingViolation; message: string }>(
+      "/parking/violations",
+      { method: "POST", body: JSON.stringify(data) },
+    ),
   resolveViolation: (id: string, status: "resolved" | "dismissed") =>
-    request<{ data: ApiParkingViolation; message: string }>(`/parking/violations/${id}/status`, { method: "PUT", body: JSON.stringify({ status }) }),
+    request<{ data: ApiParkingViolation; message: string }>(
+      `/parking/violations/${id}/status`,
+      { method: "PUT", body: JSON.stringify({ status }) },
+    ),
 
   reservations: (params?: { spotId?: string; status?: string }) => {
     const qs = new URLSearchParams();
     if (params?.spotId) qs.set("spotId", params.spotId);
     if (params?.status) qs.set("status", params.status);
-    return request<{ data: ApiVisitorReservation[]; total: number }>(`/parking/reservations?${qs}`);
+    return request<{ data: ApiVisitorReservation[]; total: number }>(
+      `/parking/reservations?${qs}`,
+    );
   },
-  reserve: (data: { spotId: string; visitorName: string; visitorPlate?: string; startTime: string; endTime: string; notes?: string }) =>
-    request<{ data: ApiVisitorReservation; message: string }>("/parking/reservations", { method: "POST", body: JSON.stringify(data) }),
+  reserve: (data: {
+    spotId: string;
+    visitorName: string;
+    visitorPlate?: string;
+    startTime: string;
+    endTime: string;
+    notes?: string;
+  }) =>
+    request<{ data: ApiVisitorReservation; message: string }>(
+      "/parking/reservations",
+      { method: "POST", body: JSON.stringify(data) },
+    ),
   cancelReservation: (id: string) =>
-    request<{ data: ApiVisitorReservation; message: string }>(`/parking/reservations/${id}`, { method: "DELETE" }),
+    request<{ data: ApiVisitorReservation; message: string }>(
+      `/parking/reservations/${id}`,
+      { method: "DELETE" },
+    ),
   availability: (spotId: string, params?: { from?: string; to?: string }) => {
     const qs = new URLSearchParams();
     if (params?.from) qs.set("from", params.from);
     if (params?.to) qs.set("to", params.to);
-    return request<{ data: Array<{ id: string; startTime: string; endTime: string }> }>(`/parking/availability/${spotId}?${qs}`);
+    return request<{
+      data: Array<{ id: string; startTime: string; endTime: string }>;
+    }>(`/parking/availability/${spotId}?${qs}`);
   },
 };
 
 export const travaux = {
-  list: (params?: { buildingId?: string; status?: string; priority?: string; type?: string; prestataireId?: string }) => {
+  list: (params?: {
+    buildingId?: string;
+    status?: string;
+    priority?: string;
+    type?: string;
+    prestataireId?: string;
+  }) => {
     const qs = new URLSearchParams();
-    Object.entries(params ?? {}).forEach(([k, v]) => { if (v) qs.set(k, v); });
+    Object.entries(params ?? {}).forEach(([k, v]) => {
+      if (v) qs.set(k, v);
+    });
     return request<{ data: ApiTravail[]; total: number }>(`/travaux?${qs}`);
   },
   get: (id: string) => request<{ data: ApiTravail }>(`/travaux/${id}`),
   create: (data: Partial<ApiTravail>) =>
-    request<{ data: ApiTravail; message: string }>("/travaux", { method: "POST", body: JSON.stringify(data) }),
+    request<{ data: ApiTravail; message: string }>("/travaux", {
+      method: "POST",
+      body: JSON.stringify(data),
+    }),
   update: (id: string, data: Partial<ApiTravail>) =>
-    request<{ data: ApiTravail; message: string }>(`/travaux/${id}`, { method: "PUT", body: JSON.stringify(data) }),
-  delete: (id: string) => request<{ success: boolean }>(`/travaux/${id}`, { method: "DELETE" }),
+    request<{ data: ApiTravail; message: string }>(`/travaux/${id}`, {
+      method: "PUT",
+      body: JSON.stringify(data),
+    }),
+  delete: (id: string) =>
+    request<{ success: boolean }>(`/travaux/${id}`, { method: "DELETE" }),
   assign: (id: string, prestataireId: string) =>
-    request<{ data: ApiTravail; message: string }>(`/travaux/${id}/assign`, { method: "POST", body: JSON.stringify({ prestataireId }) }),
-  submitReport: (id: string, data: { reportUrl: string; photoUrls: string[]; invoiceUrl: string; invoiceAmount?: number }) =>
-    request<{ data: ApiTravail; message: string }>(`/travaux/${id}/report`, { method: "POST", body: JSON.stringify(data) }),
+    request<{ data: ApiTravail; message: string }>(`/travaux/${id}/assign`, {
+      method: "POST",
+      body: JSON.stringify({ prestataireId }),
+    }),
+  submitReport: (
+    id: string,
+    data: {
+      reportUrl: string;
+      photoUrls: string[];
+      invoiceUrl: string;
+      invoiceAmount?: number;
+    },
+  ) =>
+    request<{ data: ApiTravail; message: string }>(`/travaux/${id}/report`, {
+      method: "POST",
+      body: JSON.stringify(data),
+    }),
   validate: (id: string) =>
-    request<{ data: ApiTravail; message: string }>(`/travaux/${id}/validate`, { method: "POST" }),
+    request<{ data: ApiTravail; message: string }>(`/travaux/${id}/validate`, {
+      method: "POST",
+    }),
 };
 
 // ─── Template Requests ────────────────────────────────────────────────────────
@@ -1723,7 +2464,8 @@ export interface ApiTemplateRequest {
 }
 
 export const templateRequests = {
-  list: () => request<{ data: ApiTemplateRequest[] }>("/template-studio/requests"),
+  list: () =>
+    request<{ data: ApiTemplateRequest[] }>("/template-studio/requests"),
   create: (data: {
     title: string;
     category: string;
@@ -1734,17 +2476,31 @@ export const templateRequests = {
     priority?: string;
     publishScope?: string;
   }) =>
-    request<{ data: ApiTemplateRequest; message: string }>("/template-studio/requests", {
-      method: "POST",
-      body: JSON.stringify(data),
-    }),
-  review: (id: string, data: {
-    status: "pending" | "in_review" | "approved" | "rejected" | "need_more_info";
-    reviewNotes?: string;
-    rejectionReason?: string;
-  }) =>
-    request<{ data: ApiTemplateRequest; message: string }>(`/template-studio/requests/${id}`, {
-      method: "PUT",
-      body: JSON.stringify(data),
-    }),
+    request<{ data: ApiTemplateRequest; message: string }>(
+      "/template-studio/requests",
+      {
+        method: "POST",
+        body: JSON.stringify(data),
+      },
+    ),
+  review: (
+    id: string,
+    data: {
+      status:
+        | "pending"
+        | "in_review"
+        | "approved"
+        | "rejected"
+        | "need_more_info";
+      reviewNotes?: string;
+      rejectionReason?: string;
+    },
+  ) =>
+    request<{ data: ApiTemplateRequest; message: string }>(
+      `/template-studio/requests/${id}`,
+      {
+        method: "PUT",
+        body: JSON.stringify(data),
+      },
+    ),
 };

@@ -85,6 +85,7 @@ export default function MeetingsScreen() {
     "secretary",
     "committee_member",
   ].includes(user?.role ?? "");
+  const canCreateMeeting = isAdmin && user?.role !== "super_admin";
   const [saving, setSaving] = useState(false);
   const { showToast } = useToast();
 
@@ -214,7 +215,11 @@ export default function MeetingsScreen() {
     setSaving(true);
     try {
       const res = await apiRequest<{ data: any }>(
-        `/meetings/${editMeeting.id}`,
+        `/meetings/${editMeeting.id}${
+          user?.role === "super_admin" && editMeeting.syndicateId
+            ? `?supervision=true&syndicateId=${encodeURIComponent(editMeeting.syndicateId)}`
+            : ""
+        }`,
         "PUT",
         {
           title: editTitle.trim(),
@@ -298,7 +303,7 @@ export default function MeetingsScreen() {
             color={isFavorite(FAV_ID) ? "#f59e0b" : colors.mutedForeground}
           />
         </TouchableOpacity>
-        {isAdmin ? (
+        {canCreateMeeting ? (
           <TouchableOpacity
             style={[styles.createBtn, { backgroundColor: colors.primary }]}
             onPress={() => {
@@ -374,9 +379,9 @@ export default function MeetingsScreen() {
                   ? t("meetingsEmptyScheduled")
                   : t("meetingsEmptyPast")
             }
-            actionLabel={isAdmin ? t("meetingsPlanBtn") : undefined}
+            actionLabel={canCreateMeeting ? t("meetingsPlanBtn") : undefined}
             onAction={
-              isAdmin
+              canCreateMeeting
                 ? () => {
                     setShowCreate(true);
                     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);

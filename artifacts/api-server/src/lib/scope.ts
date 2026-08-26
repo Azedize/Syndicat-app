@@ -1,5 +1,10 @@
 import { db } from "@workspace/db";
-import { lotsTable, membersTable, tenantsTable, buildingsTable } from "@workspace/db/schema";
+import {
+  lotsTable,
+  membersTable,
+  tenantsTable,
+  buildingsTable,
+} from "@workspace/db/schema";
 import { eq, and, or, inArray } from "drizzle-orm";
 import { isSyndicateTeamRole, type JwtPayload } from "../middleware/auth.js";
 
@@ -11,30 +16,33 @@ import { isSyndicateTeamRole, type JwtPayload } from "../middleware/auth.js";
  */
 export async function getUserBuildingIds(user: JwtPayload): Promise<string[]> {
   if (user.role === "tenant") {
+    if (!user.syndicateId) return [];
     const rows = await db
       .select({ buildingId: tenantsTable.buildingId })
       .from(tenantsTable)
       .where(
         and(
-          or(eq(tenantsTable.id, user.userId), eq(tenantsTable.email, user.email)),
-          user.syndicateId
-            ? eq(tenantsTable.syndicateId, user.syndicateId)
-            : undefined,
+          or(
+            eq(tenantsTable.id, user.userId),
+            eq(tenantsTable.email, user.email),
+          ),
+          eq(tenantsTable.syndicateId, user.syndicateId),
         ),
       );
-    return [...new Set(rows.map((r) => r.buildingId).filter((v): v is string => !!v))];
+    return [
+      ...new Set(rows.map((r) => r.buildingId).filter((v): v is string => !!v)),
+    ];
   }
 
   if (user.role === "member") {
+    if (!user.syndicateId) return [];
     const [member] = await db
       .select({ id: membersTable.id })
       .from(membersTable)
       .where(
         and(
           eq(membersTable.email, user.email),
-          user.syndicateId
-            ? eq(membersTable.syndicateId, user.syndicateId)
-            : undefined,
+          eq(membersTable.syndicateId, user.syndicateId),
         ),
       )
       .limit(1);
@@ -47,12 +55,12 @@ export async function getUserBuildingIds(user: JwtPayload): Promise<string[]> {
       .where(
         and(
           inArray(lotsTable.ownerId, ownerIds),
-          user.syndicateId
-            ? eq(buildingsTable.syndicateId, user.syndicateId)
-            : undefined,
+          eq(buildingsTable.syndicateId, user.syndicateId),
         ),
       );
-    return [...new Set(rows.map((r) => r.buildingId).filter((v): v is string => !!v))];
+    return [
+      ...new Set(rows.map((r) => r.buildingId).filter((v): v is string => !!v)),
+    ];
   }
 
   return [];
@@ -61,30 +69,33 @@ export async function getUserBuildingIds(user: JwtPayload): Promise<string[]> {
 /** Returns the exact lots owned/occupied by a member or tenant. */
 export async function getUserLotIds(user: JwtPayload): Promise<string[]> {
   if (user.role === "tenant") {
+    if (!user.syndicateId) return [];
     const rows = await db
       .select({ lotId: tenantsTable.lotId })
       .from(tenantsTable)
       .where(
         and(
-          or(eq(tenantsTable.id, user.userId), eq(tenantsTable.email, user.email)),
-          user.syndicateId
-            ? eq(tenantsTable.syndicateId, user.syndicateId)
-            : undefined,
+          or(
+            eq(tenantsTable.id, user.userId),
+            eq(tenantsTable.email, user.email),
+          ),
+          eq(tenantsTable.syndicateId, user.syndicateId),
         ),
       );
-    return [...new Set(rows.map((r) => r.lotId).filter((v): v is string => !!v))];
+    return [
+      ...new Set(rows.map((r) => r.lotId).filter((v): v is string => !!v)),
+    ];
   }
 
   if (user.role === "member") {
+    if (!user.syndicateId) return [];
     const [member] = await db
       .select({ id: membersTable.id })
       .from(membersTable)
       .where(
         and(
           eq(membersTable.email, user.email),
-          user.syndicateId
-            ? eq(membersTable.syndicateId, user.syndicateId)
-            : undefined,
+          eq(membersTable.syndicateId, user.syndicateId),
         ),
       )
       .limit(1);
@@ -96,9 +107,7 @@ export async function getUserLotIds(user: JwtPayload): Promise<string[]> {
       .where(
         and(
           inArray(lotsTable.ownerId, ownerIds),
-          user.syndicateId
-            ? eq(buildingsTable.syndicateId, user.syndicateId)
-            : undefined,
+          eq(buildingsTable.syndicateId, user.syndicateId),
         ),
       );
     return rows.map((r) => r.id);

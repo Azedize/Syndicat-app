@@ -109,14 +109,12 @@ router.get("/expense-justifications", requireAuth, async (req, res) => {
           : ""
         : user.syndicateId;
     if (!targetSyndicateId) {
-      return void res
-        .status(user.role === "super_admin" ? 400 : 403)
-        .json({
-          error:
-            user.role === "super_admin"
-              ? "Un syndicat cible est requis"
-              : "Syndicat non défini dans le token",
-        });
+      return void res.status(user.role === "super_admin" ? 400 : 403).json({
+        error:
+          user.role === "super_admin"
+            ? "Un syndicat cible est requis"
+            : "Syndicat non défini dans le token",
+      });
     }
     const [targetSyndicate] = await db
       .select({ id: syndicatesTable.id })
@@ -203,23 +201,27 @@ router.post(
             ? requestedSyndicateId.trim()
             : null
           : user.syndicateId!;
+      if (user.role === "super_admin" && !targetSyndicateId) {
+        return void res.status(400).json({
+          error: "Un syndicat cible est obligatoire pour ce justificatif",
+        });
+      }
       let transactionSyndicateId: string | null | undefined;
       if (transactionId) {
         const [transaction] = await db
           .select({ syndicateId: transactionsTable.syndicateId })
           .from(transactionsTable)
-          .where(eq(transactionsTable.id, String(transactionId)))
+          .where(
+            and(
+              eq(transactionsTable.id, String(transactionId)),
+              eq(transactionsTable.syndicateId, targetSyndicateId!),
+            ),
+          )
           .limit(1);
         if (!transaction) {
           return void res
             .status(400)
             .json({ error: "Transaction introuvable" });
-        }
-        if (
-          user.role !== "super_admin" &&
-          transaction.syndicateId !== user.syndicateId
-        ) {
-          return void res.status(403).json({ error: "Accès refusé" });
         }
         transactionSyndicateId = transaction.syndicateId;
         if (!transactionSyndicateId) {
@@ -227,16 +229,11 @@ router.post(
             .status(400)
             .json({ error: "La transaction doit appartenir à un syndicat" });
         }
-        if (
-          user.role === "super_admin" &&
-          targetSyndicateId &&
-          targetSyndicateId !== transactionSyndicateId
-        ) {
+        if (targetSyndicateId !== transactionSyndicateId) {
           return void res.status(400).json({
             error: "Le syndic ciblé ne correspond pas à la transaction",
           });
         }
-        targetSyndicateId = transactionSyndicateId;
       }
 
       if (!targetSyndicateId) {
@@ -303,10 +300,7 @@ router.post(
         .where(
           and(
             eq(expenseJustificationsTable.id, String(req.params.id)),
-            eq(
-              expenseJustificationsTable.syndicateId,
-              req.user!.syndicateId!,
-            ),
+            eq(expenseJustificationsTable.syndicateId, req.user!.syndicateId!),
           ),
         );
 
@@ -366,10 +360,7 @@ router.post(
         .where(
           and(
             eq(expenseJustificationsTable.id, String(req.params.id)),
-            eq(
-              expenseJustificationsTable.syndicateId,
-              req.user!.syndicateId!,
-            ),
+            eq(expenseJustificationsTable.syndicateId, req.user!.syndicateId!),
           ),
         );
 
@@ -467,10 +458,7 @@ router.put(
         .where(
           and(
             eq(expenseJustificationsTable.id, String(req.params.id)),
-            eq(
-              expenseJustificationsTable.syndicateId,
-              effectiveSyndicateId,
-            ),
+            eq(expenseJustificationsTable.syndicateId, effectiveSyndicateId),
           ),
         );
       if (!existing)

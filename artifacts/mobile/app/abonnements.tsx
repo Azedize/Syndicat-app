@@ -204,7 +204,10 @@ export default function AbonnementsScreen() {
     try {
       setSaving(true);
       const syndicateId = isSuper && manageModal ? manageModal.syndicateId : undefined;
-      await apiRequest("/subscriptions", "POST", { planId, billingInterval, ...(syndicateId ? { syndicateId } : {}) }, token);
+      const supervisionQuery = isSuper && syndicateId
+        ? `?supervision=true&syndicateId=${encodeURIComponent(syndicateId)}`
+        : "";
+      await apiRequest(`/subscriptions${supervisionQuery}`, "POST", { planId, billingInterval, ...(syndicateId ? { syndicateId } : {}) }, token);
       showToast({ type: "success", title: t("success"), message: t("subscriptionSuccess") });
       setManageModal(null);
       load(true);
@@ -216,7 +219,10 @@ export default function AbonnementsScreen() {
   const handleUpdateSub = async (subId: string, updates: Record<string, any>) => {
     try {
       setSaving(true);
-      await apiRequest(`/subscriptions/${subId}`, "PUT", updates, token);
+      const supervisionQuery = isSuper && manageModal
+        ? `?supervision=true&syndicateId=${encodeURIComponent(manageModal.syndicateId)}`
+        : "";
+      await apiRequest(`/subscriptions/${subId}${supervisionQuery}`, "PUT", updates, token);
       showToast({ type: "success", message: t("subscriptionUpdated") });
       setManageModal(null);
       load(true);

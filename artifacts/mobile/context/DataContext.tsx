@@ -38,6 +38,7 @@ export interface Candidate {
 
 export interface Meeting {
   id: string;
+  syndicateId?: string;
   title: string;
   date: string;
   time: string;
@@ -641,7 +642,9 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
         const results = await Promise.allSettled([
           api.members.list(),
           api.elections.list(),
-          api.meetings.list(),
+          api.meetings.list(
+            user?.role === "super_admin" ? { supervision: true } : undefined,
+          ),
           api.finance.transactions(),
           api.finance.salaries(),
           api.finance.caisse(),
@@ -736,6 +739,9 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
                   : [];
                 return {
                   id: String(row.id),
+                  syndicateId: row.syndicateId
+                    ? String(row.syndicateId)
+                    : undefined,
                   title: String(row.title ?? ""),
                   status: (row.status as Election["status"]) ?? "upcoming",
                   candidates: cands.length,
@@ -1364,7 +1370,13 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
           : m,
       ),
     );
-    api.meetings.confirmAttendance(id).catch(() => {});
+    const meeting = meetings.find((item) => item.id === id);
+    api.meetings
+      .confirmAttendance(
+        id,
+        user?.role === "super_admin" ? meeting?.syndicateId : undefined,
+      )
+      .catch(() => {});
   };
 
   const addMeeting = (m: Meeting) => {

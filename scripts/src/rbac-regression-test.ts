@@ -11,7 +11,7 @@
  */
 import jwt from "jsonwebtoken";
 import { and, eq } from "drizzle-orm";
-import { db } from "@workspace/db";
+import { db, pool } from "@workspace/db";
 import {
   budgetsTable,
   buildingsTable,
@@ -450,6 +450,45 @@ async function main(): Promise<void> {
       ).status,
       200,
     );
+    expectStatus(
+      "Super Admin finance buildings without target",
+      (
+        await api("/finance/buildings?supervision=true", {
+          token: tokens.superAdmin,
+        })
+      ).status,
+      403,
+    );
+    expectStatus(
+      "Super Admin finance buildings with target",
+      (
+        await api(
+          `/finance/buildings?supervision=true&syndicateId=${adminA.syndicateId}`,
+          { token: tokens.superAdmin },
+        )
+      ).status,
+      200,
+    );
+    expectStatus(
+      "Super Admin cross-syndicate finance detail",
+      (
+        await api(
+          `/finance/building/${buildingB.id}?supervision=true&syndicateId=${adminA.syndicateId}`,
+          { token: tokens.superAdmin },
+        )
+      ).status,
+      404,
+    );
+    expectStatus(
+      "Super Admin same-syndicate finance detail",
+      (
+        await api(
+          `/finance/building/${buildingA.id}?supervision=true&syndicateId=${adminA.syndicateId}`,
+          { token: tokens.superAdmin },
+        )
+      ).status,
+      200,
+    );
 
     // Positive same-syndicate access, plus private-object ownership behavior.
     expectStatus(
@@ -512,7 +551,11 @@ async function main(): Promise<void> {
   }
 }
 
-main().catch((error) => {
-  console.error("RBAC regression suite failed to start:", error);
-  process.exitCode = 1;
-});
+main()
+  .catch((error) => {
+    console.error("RBAC regression suite failed to start:", error);
+    process.exitCode = 1;
+  })
+  .finally(async () => {
+    await pool.end();
+  });

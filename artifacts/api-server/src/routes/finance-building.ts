@@ -9,6 +9,7 @@ import {
   prestatairesTable,
   contratsPrestatairesTable,
   lotsTable,
+  syndicatesTable,
 } from "@workspace/db/schema";
 import { eq, and, inArray, sql } from "drizzle-orm";
 import {
@@ -32,10 +33,18 @@ router.get(
       // Financial data across syndicates is a supervision action. Check this
       // before resolving buildings so the list does not disclose platform-wide
       // financial records without an explicit supervision boundary.
-      if (user.role === "super_admin" && req.query.supervision !== "true") {
+      const supervisedSyndicateId =
+        user.role === "super_admin" && typeof req.query.syndicateId === "string"
+          ? req.query.syndicateId.trim()
+          : "";
+
+      if (
+        user.role === "super_admin" &&
+        (req.query.supervision !== "true" || !supervisedSyndicateId)
+      ) {
         return void res.status(403).json({
           error:
-            "Les Super Admins doivent activer le mode supervision pour accéder aux finances des syndicats.",
+            "La supervision et le syndicat cible sont requis pour accéder aux finances d'un syndicat.",
           code: "SUPERVISION_REQUIRED",
         });
       }
@@ -47,13 +56,30 @@ router.get(
           .json({ error: "Syndicat non défini dans le token" });
       }
 
-      const buildings =
-        user.role === "super_admin"
-          ? await db.select().from(buildingsTable)
-          : await db
-              .select()
-              .from(buildingsTable)
-              .where(eq(buildingsTable.syndicateId, user.syndicateId!));
+      if (user.role === "super_admin") {
+        const [targetSyndicate] = await db
+          .select({ id: syndicatesTable.id })
+          .from(syndicatesTable)
+          .where(eq(syndicatesTable.id, supervisedSyndicateId))
+          .limit(1);
+        if (!targetSyndicate) {
+          return void res
+            .status(404)
+            .json({ error: "Syndicat cible introuvable" });
+        }
+      }
+
+      const buildings = await db
+        .select()
+        .from(buildingsTable)
+        .where(
+          eq(
+            buildingsTable.syndicateId,
+            user.role === "super_admin"
+              ? supervisedSyndicateId
+              : user.syndicateId!,
+          ),
+        );
 
       if (buildings.length === 0) return void res.json({ data: [] });
 
@@ -114,12 +140,20 @@ router.get(
       const buildingId = String(req.params.id);
 
       // A Super Admin may inspect a syndicate's financial dashboard only in
-      // explicit supervision mode. Check this before resolving the building
-      // so the endpoint does not disclose whether an ID exists.
-      if (user.role === "super_admin" && req.query.supervision !== "true") {
+      // explicit supervision mode with a declared target syndicate. Check this
+      // before resolving the building so the endpoint does not disclose whether
+      // an ID exists outside that target.
+      const supervisedSyndicateId =
+        user.role === "super_admin" && typeof req.query.syndicateId === "string"
+          ? req.query.syndicateId.trim()
+          : "";
+      if (
+        user.role === "super_admin" &&
+        (req.query.supervision !== "true" || !supervisedSyndicateId)
+      ) {
         return void res.status(403).json({
           error:
-            "Les Super Admins doivent activer le mode supervision pour accéder aux finances d'un syndicat.",
+            "La supervision et le syndicat cible sont requis pour accéder aux finances d'un syndicat.",
           code: "SUPERVISION_REQUIRED",
         });
       }
@@ -127,7 +161,14 @@ router.get(
       const [building] = await db
         .select()
         .from(buildingsTable)
-        .where(eq(buildingsTable.id, buildingId));
+        .where(
+          user.role === "super_admin"
+            ? and(
+                eq(buildingsTable.id, buildingId),
+                eq(buildingsTable.syndicateId, supervisedSyndicateId),
+              )
+            : eq(buildingsTable.id, buildingId),
+        );
 
       if (!building)
         return void res.status(404).json({ error: "Immeuble introuvable" });

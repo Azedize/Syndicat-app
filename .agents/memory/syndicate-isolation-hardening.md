@@ -55,3 +55,16 @@ For platform-owner supervision of governance/elections, require both an explicit
 **Why:** governance and election rows contain syndicate-specific resident and mandate data, so an unrestricted platform role is still a cross-syndicate disclosure risk.
 
 **How to apply:** scope Super Admin list queries to the target syndicate and make row-level access require the same target match; apply relationship checks again when enriching work orders, lots, and providers.
+
+For secondary operational modules such as parking and publications, `supervision=true` without
+`syndicateId` is still an isolation failure. Require both values on every Super Admin list,
+read, and mutation path, and apply the target to secondary owner/child queries as well as the
+primary resource query.
+
+**Why:** A broad primary query or unscoped enrichment query can disclose another syndicate's
+vehicles, reservations, publication interactions, or related identities even when the route
+appears to have a supervision gate.
+
+**How to apply:** Use a small target-extraction guard for Super Admins, filter list queries by
+the target's buildings/users, and re-check the resource's actual syndicate before ID-based
+mutations or nested interactions.

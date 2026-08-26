@@ -91,6 +91,8 @@ router.get("/sinistres", requireAuth, async (req, res) => {
   try {
     const user = (req as any).user;
     const { buildingId, status, type } = req.query as Record<string, string>;
+    const scopedSyndicateId = getSupervisedSyndicate(req, res);
+    if (!scopedSyndicateId) return;
 
     const conditions: any[] = [];
 
@@ -98,18 +100,30 @@ router.get("/sinistres", requireAuth, async (req, res) => {
       const building = await getClaimBuildingAccess(user, buildingId);
       if (!building)
         return void res.status(404).json({ error: "Immeuble introuvable" });
+      if (building.syndicateId !== scopedSyndicateId)
+        return void res.status(403).json({ error: "Accès refusé" });
       conditions.push(eq(sinistresTable.buildingId, buildingId));
-    } else if (user.role !== "super_admin") {
-      const ids = isSyndicateTeamRole(user.role)
-        ? user.syndicateId
-          ? (
-              await db
-                .select({ id: buildingsTable.id })
-                .from(buildingsTable)
-                .where(eq(buildingsTable.syndicateId, user.syndicateId))
-            ).map((b) => b.id)
-          : []
-        : await getUserBuildingIds(user);
+    } else {
+      let ids: string[];
+      if (user.role === "super_admin") {
+        ids = (
+          await db
+            .select({ id: buildingsTable.id })
+            .from(buildingsTable)
+            .where(eq(buildingsTable.syndicateId, scopedSyndicateId))
+        ).map((b) => b.id);
+      } else {
+        ids = isSyndicateTeamRole(user.role)
+          ? user.syndicateId
+            ? (
+                await db
+                  .select({ id: buildingsTable.id })
+                  .from(buildingsTable)
+                  .where(eq(buildingsTable.syndicateId, user.syndicateId))
+              ).map((b) => b.id)
+            : []
+          : await getUserBuildingIds(user);
+      }
       if (ids.length === 0) return void res.json({ data: [], total: 0 });
       conditions.push(inArray(sinistresTable.buildingId, ids));
     }
@@ -181,11 +195,9 @@ router.post("/sinistres", requireAuth, async (req, res) => {
     } = req.body;
 
     if (!buildingId || !type || !description || !date) {
-      return void res
-        .status(400)
-        .json({
-          error: "buildingId, type, description et date sont obligatoires",
-        });
+      return void res.status(400).json({
+        error: "buildingId, type, description et date sont obligatoires",
+      });
     }
 
     const supervisedSyndicateId =

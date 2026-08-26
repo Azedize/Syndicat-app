@@ -13,6 +13,21 @@ import { getPagination, buildPagedResponse } from "../lib/paginate.js";
 
 const router = Router();
 
+function getSupervisedPublicationSyndicateId(req: any): string | null {
+  if (req.user?.role !== "super_admin") return null;
+  const syndicateId =
+    typeof req.query.syndicateId === "string"
+      ? req.query.syndicateId.trim()
+      : "";
+  if (req.query.supervision !== "true" || !syndicateId) {
+    throw Object.assign(
+      new Error("La supervision et un syndicat cible sont requis."),
+      { status: 403, code: "SUPERVISION_REQUIRED" },
+    );
+  }
+  return syndicateId;
+}
+
 router.get("/publications", requireAuth, async (req, res) => {
   const pagination = getPagination(req);
   if (req.user!.role !== "super_admin" && !req.user!.syndicateId) {
@@ -20,6 +35,7 @@ router.get("/publications", requireAuth, async (req, res) => {
     return;
   }
   try {
+    getSupervisedPublicationSyndicateId(req);
     const where = syndicateWhere(req, publicationsTable.syndicateId);
     const [rows, [{ value: total }]] = await Promise.all([
       db
@@ -125,9 +141,14 @@ router.post("/publications/:id/like", requireAuth, async (req, res) => {
       res.status(403).json({ error: "Syndicat non défini dans le token" });
       return;
     }
+    const supervisedSyndicateId =
+      getSupervisedPublicationSyndicateId(req);
     const scope =
       req.user!.role === "super_admin"
-        ? eq(publicationsTable.id, id)
+        ? and(
+            eq(publicationsTable.id, id),
+            eq(publicationsTable.syndicateId, supervisedSyndicateId!),
+          )
         : and(
             eq(publicationsTable.id, id),
             eq(publicationsTable.syndicateId, req.user!.syndicateId!),
@@ -191,16 +212,24 @@ router.post("/publications/:id/comments", requireAuth, async (req, res) => {
       res.status(403).json({ error: "Syndicat non défini dans le token" });
       return;
     }
+    const supervisedSyndicateId =
+      getSupervisedPublicationSyndicateId(req);
+    const publicationScope =
+      req.user!.role === "super_admin"
+        ? and(
+            eq(publicationsTable.id, id),
+            eq(publicationsTable.syndicateId, supervisedSyndicateId!),
+          )
+        : and(
+            eq(publicationsTable.id, id),
+            eq(publicationsTable.syndicateId, req.user!.syndicateId!),
+          );
     const [pub] = await db
       .select()
       .from(publicationsTable)
-      .where(eq(publicationsTable.id, id));
+      .where(publicationScope);
     if (!pub) {
       res.status(404).json({ error: "Publication introuvable" });
-      return;
-    }
-    if (req.user!.role !== "super_admin" && pub.syndicateId !== req.user!.syndicateId) {
-      res.status(403).json({ error: "Accès refusé" });
       return;
     }
     const [comment] = await db

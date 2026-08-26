@@ -26,6 +26,31 @@ const ALL_MEETING_TYPES = [
   "ag_elective",
 ] as const;
 
+function getMeetingSyndicateScope(
+  req: import("express").Request,
+  res: import("express").Response,
+): string | null {
+  const user = req.user!;
+  if (user.role === "super_admin") {
+    const syndicateId =
+      typeof req.query.syndicateId === "string" ? req.query.syndicateId : "";
+    if (req.query.supervision !== "true" || !syndicateId) {
+      res.status(403).json({
+        error:
+          "La supervision et un syndicat cible sont requis pour cette réunion.",
+        code: "SUPERVISION_REQUIRED",
+      });
+      return null;
+    }
+    return syndicateId;
+  }
+  if (!user.syndicateId) {
+    res.status(403).json({ error: "Syndicat non défini dans le token" });
+    return null;
+  }
+  return user.syndicateId;
+}
+
 router.get("/meetings", requireAuth, async (req, res) => {
   try {
     const user = req.user!;
@@ -124,6 +149,15 @@ router.post(
     try {
       const user = req.user!;
 
+      const { syndicateId: requestedSyndicateId, ...meetingData } = result.data;
+      const querySyndicateId =
+        typeof req.query.syndicateId === "string"
+          ? req.query.syndicateId
+          : undefined;
+      const syndicateId =
+        user.role === "super_admin"
+          ? (querySyndicateId ?? requestedSyndicateId)
+          : user.syndicateId;
       if (user.role === "super_admin" && req.query.supervision !== "true") {
         return void res.status(403).json({
           error:
@@ -131,18 +165,6 @@ router.post(
           code: "SUPERVISION_REQUIRED",
         });
       }
-
-      if (user.role === "super_admin" && req.query.supervision !== "true") {
-        return void res.status(403).json({
-          error:
-            "Les Super Admins doivent activer le mode supervision pour créer une réunion.",
-          code: "SUPERVISION_REQUIRED",
-        });
-      }
-
-      const { syndicateId: requestedSyndicateId, ...meetingData } = result.data;
-      const syndicateId =
-        user.role === "super_admin" ? requestedSyndicateId : user.syndicateId;
       if (!syndicateId) {
         return void res.status(user.role === "super_admin" ? 400 : 403).json({
           error:
@@ -238,32 +260,18 @@ router.put(
     }
     try {
       const user = req.user!;
-
-      if (user.role === "syndicate_admin" && !user.syndicateId) {
-        return void res
-          .status(403)
-          .json({ error: "Syndicat non défini dans le token" });
-      }
-
-      // All non-super_admin roles (including president, secretary) must have syndicateId.
-      if (user.role !== "super_admin" && !user.syndicateId) {
-        return void res
-          .status(403)
-          .json({ error: "Syndicat non défini dans le token" });
-      }
-
-      const whereClause =
-        user.role === "super_admin"
-          ? eq(meetingsTable.id, String(req.params.id))
-          : and(
-              eq(meetingsTable.id, String(req.params.id)),
-              eq(meetingsTable.syndicateId, user.syndicateId!),
-            );
+      const syndicateId = getMeetingSyndicateScope(req, res);
+      if (!syndicateId) return;
 
       const [meeting] = await db
         .update(meetingsTable)
         .set(result.data)
-        .where(whereClause)
+        .where(
+          and(
+            eq(meetingsTable.id, String(req.params.id)),
+            eq(meetingsTable.syndicateId, syndicateId),
+          ),
+        )
         .returning();
       if (!meeting) {
         res.status(404).json({ error: "Réunion introuvable ou accès refusé" });
@@ -294,29 +302,17 @@ router.delete(
     try {
       const user = req.user!;
 
-      if (user.role === "syndicate_admin" && !user.syndicateId) {
-        return void res
-          .status(403)
-          .json({ error: "Syndicat non défini dans le token" });
-      }
-      if (user.role === "super_admin" && req.query.supervision !== "true") {
-        return void res.status(403).json({
-          error: "La supervision est requise pour supprimer une réunion.",
-          code: "SUPERVISION_REQUIRED",
-        });
-      }
-
-      const whereClause =
-        user.role === "super_admin"
-          ? eq(meetingsTable.id, String(req.params.id))
-          : and(
-              eq(meetingsTable.id, String(req.params.id)),
-              eq(meetingsTable.syndicateId, user.syndicateId!),
-            );
+      const syndicateId = getMeetingSyndicateScope(req, res);
+      if (!syndicateId) return;
 
       const [meeting] = await db
         .delete(meetingsTable)
-        .where(whereClause)
+        .where(
+          and(
+            eq(meetingsTable.id, String(req.params.id)),
+            eq(meetingsTable.syndicateId, syndicateId),
+          ),
+        )
         .returning();
       if (!meeting) {
         res.status(404).json({ error: "Réunion introuvable ou accès refusé" });
@@ -343,14 +339,6 @@ router.post("/meetings/:id/attend", requireAuth, async (req, res) => {
   const id = String(req.params.id) as string;
   const user = req.user!;
 
-  if (user.role === "super_admin" && req.query.supervision !== "true") {
-    return void res.status(403).json({
-      error:
-        "Les Super Admins doivent activer le mode supervision pour confirmer une présence.",
-      code: "SUPERVISION_REQUIRED",
-    });
-  }
-
   // Tenants cannot attend AG meetings
   if (user.role === "tenant") {
     return void res.status(403).json({
@@ -358,29 +346,22 @@ router.post("/meetings/:id/attend", requireAuth, async (req, res) => {
     });
   }
 
-  // Non-super users must have syndicateId — hard fail
-  if (user.role !== "super_admin" && !user.syndicateId) {
-    return void res
-      .status(403)
-      .json({ error: "Syndicat non défini dans le token" });
-  }
-
   try {
+    const syndicateId = getMeetingSyndicateScope(req, res);
+    if (!syndicateId) return;
+
     const [meeting] = await db
       .select({ syndicateId: meetingsTable.syndicateId })
       .from(meetingsTable)
-      .where(eq(meetingsTable.id, id));
+      .where(
+        and(
+          eq(meetingsTable.id, id),
+          eq(meetingsTable.syndicateId, syndicateId),
+        ),
+      );
 
     if (!meeting)
       return void res.status(404).json({ error: "Réunion introuvable" });
-
-    // Verify the meeting belongs to the user's syndicate
-    if (
-      user.role !== "super_admin" &&
-      meeting.syndicateId !== user.syndicateId
-    ) {
-      return void res.status(403).json({ error: "Accès refusé" });
-    }
 
     const existing = await db
       .select()

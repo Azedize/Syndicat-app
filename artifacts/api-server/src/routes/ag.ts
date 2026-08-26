@@ -11,7 +11,6 @@ import {
 } from "@workspace/db/schema";
 import { eq, and, desc, sql, count, inArray, ne } from "drizzle-orm";
 import {
-  assertSyndicateAccess,
   requireAuth,
   requireAdmin,
   requireOperationalAccess,
@@ -22,6 +21,24 @@ import { sendEmailToMany } from "../lib/notify.js";
 import { agmInvitationTemplate } from "../lib/email/templates.js";
 
 const router = Router();
+
+function assertAgSyndicateAccess(
+  req: import("express").Request,
+  resourceSyndicateId: string | null | undefined,
+): boolean {
+  if (!req.user || !resourceSyndicateId) return false;
+  if (req.user.role === "super_admin") {
+    return (
+      req.query.supervision === "true" &&
+      typeof req.query.syndicateId === "string" &&
+      req.query.syndicateId === resourceSyndicateId
+    );
+  }
+  return (
+    Boolean(req.user.syndicateId) &&
+    req.user.syndicateId === resourceSyndicateId
+  );
+}
 
 // ─── AG Meetings ──────────────────────────────────────────────────────────────
 
@@ -153,7 +170,7 @@ router.get(
 
       // Syndicate isolation: orphaned meetings with no scope are not readable by
       // non-platform users, even when a caller knows their ID.
-      if (!assertSyndicateAccess(req, meeting.syndicateId)) {
+      if (!assertAgSyndicateAccess(req, meeting.syndicateId)) {
         return void res.status(403).json({ error: "Accès refusé" });
       }
 
@@ -329,7 +346,7 @@ router.put(
 
       if (!meeting)
         return void res.status(404).json({ error: "AG introuvable" });
-      if (!assertSyndicateAccess(req, meeting.syndicateId)) {
+      if (!assertAgSyndicateAccess(req, meeting.syndicateId)) {
         return void res.status(403).json({ error: "Accès refusé" });
       }
 
@@ -376,7 +393,7 @@ router.post(
         .where(eq(meetingsTable.id, id));
       if (!meeting)
         return void res.status(404).json({ error: "AG introuvable" });
-      if (!assertSyndicateAccess(req, meeting.syndicateId)) {
+      if (!assertAgSyndicateAccess(req, meeting.syndicateId)) {
         return void res.status(403).json({ error: "Accès refusé" });
       }
 
@@ -444,7 +461,7 @@ router.post(
         .where(eq(meetingsTable.id, meetingId));
       if (!meeting)
         return void res.status(404).json({ error: "AG introuvable" });
-      if (!assertSyndicateAccess(req, meeting.syndicateId)) {
+      if (!assertAgSyndicateAccess(req, meeting.syndicateId)) {
         return void res.status(403).json({ error: "Accès refusé" });
       }
 
@@ -546,7 +563,7 @@ router.put(
 
       if (!resolutionRow)
         return void res.status(404).json({ error: "Résolution introuvable" });
-      if (!assertSyndicateAccess(req, resolutionRow.meetings.syndicateId)) {
+      if (!assertAgSyndicateAccess(req, resolutionRow.meetings.syndicateId)) {
         return void res.status(403).json({ error: "Accès refusé" });
       }
       const resolution = resolutionRow.ag_resolutions;
@@ -624,7 +641,7 @@ router.get(
 
       // Syndicate isolation: this route previously had none — any authenticated
       // non-tenant user could fetch any syndicate's PV by guessing/incrementing IDs.
-      if (!assertSyndicateAccess(req, meeting.syndicateId)) {
+      if (!assertAgSyndicateAccess(req, meeting.syndicateId)) {
         return void res.status(403).json({ error: "Accès refusé" });
       }
 
@@ -730,7 +747,7 @@ router.get(
         res.status(404).json({ error: "Réunion introuvable" });
         return;
       }
-      if (!assertSyndicateAccess(req, meeting.syndicateId)) {
+      if (!assertAgSyndicateAccess(req, meeting.syndicateId)) {
         res.status(403).json({ error: "Accès refusé" });
         return;
       }
@@ -771,7 +788,7 @@ router.post(
         res.status(404).json({ error: "Réunion introuvable" });
         return;
       }
-      if (!assertSyndicateAccess(req, meeting.syndicateId)) {
+      if (!assertAgSyndicateAccess(req, meeting.syndicateId)) {
         res.status(403).json({ error: "Accès refusé" });
         return;
       }
@@ -792,11 +809,9 @@ router.post(
       res.status(201).json({ data: proxy });
     } catch (e: any) {
       if (e?.code === "23505") {
-        res
-          .status(409)
-          .json({
-            error: "Ce copropriétaire a déjà un pouvoir pour cette réunion",
-          });
+        res.status(409).json({
+          error: "Ce copropriétaire a déjà un pouvoir pour cette réunion",
+        });
         return;
       }
       console.error(e);
@@ -831,7 +846,7 @@ router.put(
         res.status(404).json({ error: "Réunion introuvable" });
         return;
       }
-      if (!assertSyndicateAccess(req, meeting.syndicateId)) {
+      if (!assertAgSyndicateAccess(req, meeting.syndicateId)) {
         res.status(403).json({ error: "Accès refusé" });
         return;
       }
@@ -876,7 +891,7 @@ router.delete(
         res.status(404).json({ error: "Réunion introuvable" });
         return;
       }
-      if (!assertSyndicateAccess(req, meeting.syndicateId)) {
+      if (!assertAgSyndicateAccess(req, meeting.syndicateId)) {
         res.status(403).json({ error: "Accès refusé" });
         return;
       }

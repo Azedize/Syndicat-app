@@ -25,6 +25,37 @@ import { syndicateWhere } from "../lib/syndicate-filter.js";
 
 const router = Router();
 
+function respondWithStatisticsError(req: any, res: any, err: unknown): void {
+  req.log.error(err);
+  const details =
+    err && typeof err === "object"
+      ? (err as {
+          status?: unknown;
+          code?: unknown;
+          message?: unknown;
+        })
+      : {};
+  const status =
+    typeof details.status === "number"
+      ? details.status
+      : typeof details.status === "string"
+        ? Number(details.status)
+        : NaN;
+
+  if (Number.isInteger(status) && status >= 400 && status < 500) {
+    res.status(status).json({
+      error:
+        typeof details.message === "string"
+          ? details.message
+          : "Requête invalide",
+      ...(typeof details.code === "string" ? { code: details.code } : {}),
+    });
+    return;
+  }
+
+  res.status(500).json({ error: "Erreur serveur" });
+}
+
 async function resolveScopedSyndicateId(req: any): Promise<string> {
   const user = req.user!;
   if (user.role !== "super_admin") {
@@ -227,8 +258,7 @@ router.get(
         },
       });
     } catch (err) {
-      req.log.error(err);
-      res.status(500).json({ error: "Erreur serveur" });
+      respondWithStatisticsError(req, res, err);
     }
   },
 );
@@ -346,8 +376,7 @@ router.get(
         },
       });
     } catch (err) {
-      req.log.error(err);
-      res.status(500).json({ error: "Erreur serveur" });
+      respondWithStatisticsError(req, res, err);
     }
   },
 );
@@ -457,8 +486,7 @@ router.get(
         },
       });
     } catch (err) {
-      req.log.error(err);
-      res.status(500).json({ error: "Erreur serveur" });
+      respondWithStatisticsError(req, res, err);
     }
   },
 );
@@ -555,8 +583,7 @@ router.get(
         },
       });
     } catch (err) {
-      req.log.error(err);
-      res.status(500).json({ error: "Erreur serveur" });
+      respondWithStatisticsError(req, res, err);
     }
   },
 );
@@ -677,8 +704,7 @@ router.get(
 
       res.json({ data: enriched });
     } catch (err) {
-      req.log.error(err);
-      res.status(500).json({ error: "Erreur serveur" });
+      respondWithStatisticsError(req, res, err);
     }
   },
 );
@@ -932,8 +958,7 @@ router.get(
 
       res.json({ data: result });
     } catch (err) {
-      req.log.error(err);
-      res.status(500).json({ error: "Erreur serveur" });
+      respondWithStatisticsError(req, res, err);
     }
   },
 );
@@ -1103,8 +1128,7 @@ router.get(
         },
       });
     } catch (err) {
-      req.log.error(err);
-      res.status(500).json({ error: "Erreur serveur" });
+      respondWithStatisticsError(req, res, err);
     }
   },
 );

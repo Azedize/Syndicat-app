@@ -80,6 +80,19 @@ function assertSupervisedSyndicate(
   }
 }
 
+function getSupervisedTargetSyndicateId(req: any): string | null {
+  if (req.user?.role !== "super_admin") return null;
+  const targetSyndicateId =
+    typeof req.query.syndicateId === "string" ? req.query.syndicateId : "";
+  if (req.query.supervision !== "true" || !targetSyndicateId) {
+    throw Object.assign(
+      new Error("La supervision et un syndicat cible sont requis."),
+      { status: 403, code: "SUPERVISION_REQUIRED" },
+    );
+  }
+  return targetSyndicateId;
+}
+
 async function assertScopedBuildingAction(
   user: JwtPayload,
   req: any,
@@ -136,23 +149,28 @@ router.get("/parking/spots", requireAuth, async (req, res) => {
   try {
     const user = req.user!;
     const { buildingId, type, status } = req.query as Record<string, string>;
-    if (user.role === "super_admin" && req.query.supervision !== "true") {
-      return void res.status(403).json({
-        error: "La supervision est requise pour accéder aux places de parking.",
-        code: "SUPERVISION_REQUIRED",
-      });
-    }
 
     const conditions: any[] = [];
 
     if (buildingId) {
       // Validate user actually has access to the requested building
-      await assertBuildingAccess(user, buildingId);
+      await assertScopedBuildingAction(user, req, buildingId);
       conditions.push(eq(parkingSpotsTable.buildingId, buildingId));
+    } else if (user.role === "super_admin") {
+      const targetSyndicateId = getSupervisedTargetSyndicateId(req);
+      const targetBuildings = await db
+        .select({ id: buildingsTable.id })
+        .from(buildingsTable)
+        .where(eq(buildingsTable.syndicateId, targetSyndicateId!));
+      const targetBuildingIds = targetBuildings.map((building) => building.id);
+      if (targetBuildingIds.length === 0) {
+        return void res.json({ data: [], total: 0 });
+      }
+      conditions.push(inArray(parkingSpotsTable.buildingId, targetBuildingIds));
     } else {
       // Scope automatically based on role
       const ids = await getScopedBuildingIds(user);
-      if (ids.length === 0 && user.role !== "super_admin") {
+      if (ids.length === 0) {
         return void res.json({ data: [], total: 0 });
       }
       if (ids.length > 0) {
@@ -246,7 +264,7 @@ router.post("/parking/spots", requireAdmin, async (req, res) => {
   try {
     const user = req.user!;
     // Syndicate admins may only manage their own buildings
-    await assertBuildingAccess(user, parsed.data.buildingId);
+    await assertScopedBuildingAction(user, req, parsed.data.buildingId);
     if (parsed.data.lotId) {
       await assertLotMatchesBuilding(parsed.data.lotId, parsed.data.buildingId);
     }
@@ -319,12 +337,6 @@ router.put("/parking/spots/:id", requireAdmin, async (req, res) => {
 router.get("/parking/vehicles", requireAuth, async (req, res) => {
   try {
     const user = req.user!;
-    if (user.role === "super_admin" && req.query.supervision !== "true") {
-      return void res.status(403).json({
-        error: "La supervision est requise pour accéder aux véhicules.",
-        code: "SUPERVISION_REQUIRED",
-      });
-    }
     if (isSyndicateTeamRole(user.role) && !user.syndicateId) {
       return void res
         .status(403)
@@ -339,6 +351,15 @@ router.get("/parking/vehicles", requireAuth, async (req, res) => {
         .select({ id: usersTable.id })
         .from(usersTable)
         .where(eq(usersTable.syndicateId, user.syndicateId!));
+      const ids = users.map((u) => u.id);
+      if (ids.length === 0) return void res.json({ data: [], total: 0 });
+      conditions.push(inArray(vehiclesTable.userId, ids));
+    } else if (user.role === "super_admin") {
+      const targetSyndicateId = getSupervisedTargetSyndicateId(req);
+      const users = await db
+        .select({ id: usersTable.id })
+        .from(usersTable)
+        .where(eq(usersTable.syndicateId, targetSyndicateId!));
       const ids = users.map((u) => u.id);
       if (ids.length === 0) return void res.json({ data: [], total: 0 });
       conditions.push(inArray(vehiclesTable.userId, ids));
@@ -538,21 +559,27 @@ router.get("/parking/violations", requireAuth, async (req, res) => {
   try {
     const user = req.user!;
     const { buildingId, status } = req.query as Record<string, string>;
-    if (user.role === "super_admin" && req.query.supervision !== "true") {
-      return void res.status(403).json({
-        error:
-          "La supervision est requise pour accéder aux infractions de parking.",
-        code: "SUPERVISION_REQUIRED",
-      });
-    }
     const conditions: any[] = [];
 
     if (buildingId) {
-      await assertBuildingAccess(user, buildingId);
+      await assertScopedBuildingAction(user, req, buildingId);
       conditions.push(eq(parkingViolationsTable.buildingId, buildingId));
+    } else if (user.role === "super_admin") {
+      const targetSyndicateId = getSupervisedTargetSyndicateId(req);
+      const targetBuildings = await db
+        .select({ id: buildingsTable.id })
+        .from(buildingsTable)
+        .where(eq(buildingsTable.syndicateId, targetSyndicateId!));
+      const targetBuildingIds = targetBuildings.map((building) => building.id);
+      if (targetBuildingIds.length === 0) {
+        return void res.json({ data: [], total: 0 });
+      }
+      conditions.push(
+        inArray(parkingViolationsTable.buildingId, targetBuildingIds),
+      );
     } else {
       const ids = await getScopedBuildingIds(user);
-      if (ids.length === 0 && user.role !== "super_admin") {
+      if (ids.length === 0) {
         return void res.json({ data: [], total: 0 });
       }
       if (ids.length > 0)
@@ -623,8 +650,9 @@ router.post("/parking/violations", requireAuth, async (req, res) => {
     const user = req.user!;
     const { buildingId, spotId, plateNumber, photoUrl, notes } = parsed.data;
 
-    // Verify reporter is a member of this building
-    await assertBuildingAccess(user, buildingId);
+    // Verify reporter is a member of this building and, for Super Admin,
+    // that the request is tied to the explicitly supervised syndicate.
+    await assertScopedBuildingAction(user, req, buildingId);
 
     // If a spotId is given, validate it belongs to the same building
     if (spotId) {
@@ -747,20 +775,34 @@ router.get("/parking/reservations", requireAuth, async (req, res) => {
   try {
     const user = req.user!;
     const { spotId, status } = req.query as Record<string, string>;
-    if (user.role === "super_admin" && req.query.supervision !== "true") {
-      return void res.status(403).json({
-        error:
-          "La supervision est requise pour accéder aux réservations de parking.",
-        code: "SUPERVISION_REQUIRED",
-      });
-    }
     const conditions: any[] = [];
 
     if (user.role === "member" || user.role === "tenant") {
       conditions.push(
         eq(visitorParkingReservationsTable.requestedById, user.userId),
       );
-    } else if (user.role !== "super_admin") {
+    } else if (user.role === "super_admin") {
+      const targetSyndicateId = getSupervisedTargetSyndicateId(req);
+      const targetBuildings = await db
+        .select({ id: buildingsTable.id })
+        .from(buildingsTable)
+        .where(eq(buildingsTable.syndicateId, targetSyndicateId!));
+      const targetBuildingIds = targetBuildings.map((building) => building.id);
+      if (targetBuildingIds.length === 0) {
+        return void res.json({ data: [], total: 0 });
+      }
+      const scopedSpots = await db
+        .select({ id: parkingSpotsTable.id })
+        .from(parkingSpotsTable)
+        .where(inArray(parkingSpotsTable.buildingId, targetBuildingIds));
+      const scopedSpotIds = scopedSpots.map((spot) => spot.id);
+      if (scopedSpotIds.length === 0) {
+        return void res.json({ data: [], total: 0 });
+      }
+      conditions.push(
+        inArray(visitorParkingReservationsTable.spotId, scopedSpotIds),
+      );
+    } else {
       const buildingIds = await getScopedBuildingIds(user);
       if (buildingIds.length === 0)
         return void res.json({ data: [], total: 0 });
@@ -773,15 +815,13 @@ router.get("/parking/reservations", requireAuth, async (req, res) => {
       conditions.push(inArray(visitorParkingReservationsTable.spotId, spotIds));
     }
     if (spotId) {
-      await assertBuildingAccess(
-        user,
-        await db
-          .select({ buildingId: parkingSpotsTable.buildingId })
-          .from(parkingSpotsTable)
-          .where(eq(parkingSpotsTable.id, spotId))
-          .limit(1)
-          .then(([spot]) => spot?.buildingId ?? ""),
-      );
+      const [spot] = await db
+        .select({ buildingId: parkingSpotsTable.buildingId })
+        .from(parkingSpotsTable)
+        .where(eq(parkingSpotsTable.id, spotId))
+        .limit(1);
+      if (!spot) return void res.status(404).json({ error: "Place introuvable" });
+      await assertScopedBuildingAction(user, req, spot.buildingId);
       conditions.push(eq(visitorParkingReservationsTable.spotId, spotId));
     }
     if (status)
@@ -866,7 +906,7 @@ router.post("/parking/reservations", requireAuth, async (req, res) => {
         .status(400)
         .json({ error: "Cette place n'est pas une place visiteur" });
     }
-    await assertBuildingAccess(user, spot.buildingId);
+    await assertScopedBuildingAction(user, req, spot.buildingId);
 
     // Use a transaction so the overlap check and insert are atomic
     const reservation = await db.transaction(async (tx) => {
