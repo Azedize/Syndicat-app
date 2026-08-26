@@ -34,6 +34,43 @@ import { serverAuditLog } from "../lib/audit.js";
 
 const router = Router();
 
+const CHARGE_READ_ROLES = [
+  "super_admin",
+  "syndicate_admin",
+  "treasurer",
+  "member",
+] as const;
+
+async function resolveSupervisedChargeSyndicate(req: any): Promise<string> {
+  if (req.query.supervision !== "true") {
+    throw Object.assign(
+      new Error("La supervision est requise pour cibler un syndicat."),
+      { status: 403, code: "SUPERVISION_REQUIRED" },
+    );
+  }
+
+  const syndicateId =
+    typeof req.query.syndicateId === "string"
+      ? req.query.syndicateId.trim()
+      : "";
+  if (!syndicateId) {
+    throw Object.assign(new Error("syndicateId est requis."), {
+      status: 403,
+      code: "SYNDICATE_TARGET_REQUIRED",
+    });
+  }
+
+  const [syndicate] = await db
+    .select({ id: syndicatesTable.id })
+    .from(syndicatesTable)
+    .where(eq(syndicatesTable.id, syndicateId))
+    .limit(1);
+  if (!syndicate) {
+    throw Object.assign(new Error("Syndicat introuvable."), { status: 404 });
+  }
+  return syndicateId;
+}
+
 // GET /budgets — finance team (syndicate_admin + treasurer)
 router.get("/budgets", requireAuth, requireFinanceAccess, async (req, res) => {
   try {
@@ -501,13 +538,19 @@ router.get("/appels-de-fonds", requireAuth, async (req, res) => {
       string
     >;
 
-    const conditions: any[] = [];
+    if (
+      !CHARGE_READ_ROLES.includes(
+        user.role as (typeof CHARGE_READ_ROLES)[number],
+      )
+    ) {
+      return void res.status(403).json({ error: "Accès refusé" });
+    }
 
-    if (user.role === "super_admin" && req.query.supervision !== "true") {
-      return void res.status(403).json({
-        error: "La supervision est requise pour accéder aux appels de fonds.",
-        code: "SUPERVISION_REQUIRED",
-      });
+    const conditions: any[] = [];
+    let scopedSyndicateId: string | null = null;
+
+    if (user.role === "super_admin") {
+      scopedSyndicateId = await resolveSupervisedChargeSyndicate(req);
     }
 
     // Syndicate admin MUST have syndicateId in JWT — never fall through to global scope
@@ -516,29 +559,48 @@ router.get("/appels-de-fonds", requireAuth, async (req, res) => {
         .status(403)
         .json({ error: "Syndicat non défini dans le token" });
     }
+    if (isSyndicateScoped(user.role)) {
+      scopedSyndicateId = user.syndicateId!;
+    }
 
     if (buildingId) {
-      await assertUserCanAccessBuilding(user, buildingId);
-      // For syndicate_admin, verify the buildingId belongs to their syndicate
-      if (isSyndicateScoped(user.role)) {
+      if (user.role === "super_admin") {
         const [bld] = await db
           .select({ syndicateId: buildingsTable.syndicateId })
           .from(buildingsTable)
-          .where(eq(buildingsTable.id, buildingId))
+          .where(
+            and(
+              eq(buildingsTable.id, buildingId),
+              eq(buildingsTable.syndicateId, scopedSyndicateId!),
+            ),
+          )
           .limit(1);
-        if (!bld || bld.syndicateId !== user.syndicateId) {
-          return void res
-            .status(403)
-            .json({ error: "Accès refusé à cet immeuble" });
+        if (!bld) {
+          return void res.status(404).json({ error: "Immeuble introuvable" });
+        }
+      } else {
+        await assertUserCanAccessBuilding(user, buildingId);
+        // For syndicate-team roles, verify the buildingId belongs to their syndicate
+        if (isSyndicateScoped(user.role)) {
+          const [bld] = await db
+            .select({ syndicateId: buildingsTable.syndicateId })
+            .from(buildingsTable)
+            .where(eq(buildingsTable.id, buildingId))
+            .limit(1);
+          if (!bld || bld.syndicateId !== user.syndicateId) {
+            return void res
+              .status(403)
+              .json({ error: "Accès refusé à cet immeuble" });
+          }
         }
       }
       conditions.push(eq(appelsDeFondsTable.buildingId, buildingId));
-    } else if (isSyndicateScoped(user.role)) {
-      // No explicit buildingId — scope to all buildings in this syndicate
+    } else if (scopedSyndicateId) {
+      // Super Admin and syndicate-team views must always be syndicate-scoped.
       const syndicateBuildings = await db
         .select({ id: buildingsTable.id })
         .from(buildingsTable)
-        .where(eq(buildingsTable.syndicateId, user.syndicateId!));
+        .where(eq(buildingsTable.syndicateId, scopedSyndicateId));
       const buildingIds = syndicateBuildings.map((b) => b.id);
       if (buildingIds.length === 0) {
         return void res.json({
@@ -552,8 +614,12 @@ router.get("/appels-de-fonds", requireAuth, async (req, res) => {
 
     if (lotId) {
       const [lot] = await db
-        .select({ buildingId: lotsTable.buildingId })
+        .select({
+          buildingId: lotsTable.buildingId,
+          syndicateId: buildingsTable.syndicateId,
+        })
         .from(lotsTable)
+        .innerJoin(buildingsTable, eq(buildingsTable.id, lotsTable.buildingId))
         .where(eq(lotsTable.id, lotId))
         .limit(1);
       if (!lot) return void res.status(404).json({ error: "Lot introuvable" });
@@ -562,11 +628,15 @@ router.get("/appels-de-fonds", requireAuth, async (req, res) => {
           .status(400)
           .json({ error: "Le lot n'appartient pas à cet immeuble" });
       }
-      if (isSyndicateScoped(user.role)) {
+      if (scopedSyndicateId && lot.syndicateId !== scopedSyndicateId) {
+        return void res.status(403).json({ error: "Accès refusé" });
+      }
+      if (user.role === "member") {
         await assertUserCanAccessBuilding(user, lot.buildingId);
       }
       conditions.push(eq(appelsDeFondsTable.lotId, lotId));
     }
+
     if (status) conditions.push(eq(appelsDeFondsTable.status, status));
     if (period) conditions.push(eq(appelsDeFondsTable.period, period));
     if (ownerId) conditions.push(eq(appelsDeFondsTable.ownerId, ownerId));
@@ -574,10 +644,20 @@ router.get("/appels-de-fonds", requireAuth, async (req, res) => {
     // Members see only their own charges.
     // ownerId may store membersTable.id (seeded) or usersTable.id — try both.
     if (user.role === "member") {
+      if (!user.syndicateId) {
+        return void res
+          .status(403)
+          .json({ error: "Syndicat non défini dans le token" });
+      }
       const [member] = await db
         .select({ id: membersTable.id })
         .from(membersTable)
-        .where(eq(membersTable.email, user.email))
+        .where(
+          and(
+            eq(membersTable.email, user.email),
+            eq(membersTable.syndicateId, user.syndicateId),
+          ),
+        )
         .limit(1);
       if (member) {
         conditions.push(
@@ -589,13 +669,6 @@ router.get("/appels-de-fonds", requireAuth, async (req, res) => {
       } else {
         conditions.push(eq(appelsDeFondsTable.ownerId, user.userId));
       }
-    }
-
-    // Tenants do NOT have access to appels de fonds at all
-    if (user.role === "tenant") {
-      return void res.status(403).json({
-        error: "Les locataires n'ont pas accès aux charges de copropriété",
-      });
     }
 
     const where = conditions.length ? and(...conditions) : undefined;
@@ -629,23 +702,21 @@ router.get("/appels-de-fonds", requireAuth, async (req, res) => {
 router.put("/appels-de-fonds/:id/pay", requireAuth, async (req, res) => {
   try {
     const user = req.user!;
-    if (user.role === "super_admin" && req.query.supervision !== "true") {
-      return void res.status(403).json({
-        error: "La supervision est requise pour soumettre un paiement.",
-        code: "SUPERVISION_REQUIRED",
-      });
+    if (
+      user.role !== "super_admin" &&
+      user.role !== "syndicate_admin" &&
+      user.role !== "member"
+    ) {
+      return void res.status(403).json({ error: "Accès refusé" });
+    }
+    let supervisedSyndicateId: string | null = null;
+    if (user.role === "super_admin") {
+      supervisedSyndicateId = await resolveSupervisedChargeSyndicate(req);
     }
     if (isSyndicateScoped(user.role) && !user.syndicateId) {
       return void res
         .status(403)
         .json({ error: "Syndicat non défini dans le token" });
-    }
-
-    // Tenants cannot pay appels de fonds (not owners)
-    if (user.role === "tenant") {
-      return void res.status(403).json({
-        error: "Les locataires n'ont pas accès aux charges de copropriété",
-      });
     }
 
     // Fetch the call-for-funds first to verify ownership
@@ -656,17 +727,21 @@ router.put("/appels-de-fonds/:id/pay", requireAuth, async (req, res) => {
 
     if (!appel) return void res.status(404).json({ error: "Not found" });
 
-    // Admins can submit payment for any call-for-funds in their syndicate.
-    const isAdmin = user.role === "super_admin" || isSyndicateScoped(user.role);
+    // Only Super Admin (supervised) and syndicate admins can submit for any
+    // charge in scope. Members must match the owner identity.
+    const isAdmin =
+      user.role === "super_admin" || user.role === "syndicate_admin";
 
-    if (isAdmin && isSyndicateScoped(user.role)) {
-      // Verify this charge belongs to the admin's syndicate via building FK
+    if (isAdmin) {
+      // Verify this charge belongs to the admin's syndicate via building FK.
       const [bld] = await db
         .select({ syndicateId: buildingsTable.syndicateId })
         .from(buildingsTable)
         .where(eq(buildingsTable.id, appel.buildingId))
         .limit(1);
-      if (!bld || bld.syndicateId !== user.syndicateId) {
+      const expectedSyndicateId =
+        user.role === "super_admin" ? supervisedSyndicateId : user.syndicateId;
+      if (!bld || bld.syndicateId !== expectedSyndicateId) {
         return void res.status(403).json({ error: "Accès refusé" });
       }
     }
@@ -676,7 +751,12 @@ router.put("/appels-de-fonds/:id/pay", requireAuth, async (req, res) => {
       const [member] = await db
         .select({ id: membersTable.id })
         .from(membersTable)
-        .where(eq(membersTable.email, user.email))
+        .where(
+          and(
+            eq(membersTable.email, user.email),
+            eq(membersTable.syndicateId, user.syndicateId!),
+          ),
+        )
         .limit(1);
       const memberId = member?.id;
       const isOwner =
@@ -727,6 +807,11 @@ router.put("/appels-de-fonds/:id/pay", requireAuth, async (req, res) => {
       message: "Paiement soumis, en attente de validation",
     });
   } catch (e) {
+    if ((e as any)?.status) {
+      return void res
+        .status((e as any).status)
+        .json({ error: (e as any).message, code: (e as any).code });
+    }
     req.log.error(e);
     res.status(500).json({ error: "Server error" });
   }
@@ -881,11 +966,17 @@ router.put(
 router.get("/appels-de-fonds/:id/receipt", requireAuth, async (req, res) => {
   try {
     const user = req.user!;
-    if (user.role === "super_admin" && req.query.supervision !== "true") {
-      return void res.status(403).json({
-        error: "La supervision est requise pour accéder à ce reçu.",
-        code: "SUPERVISION_REQUIRED",
-      });
+    if (
+      user.role !== "super_admin" &&
+      user.role !== "syndicate_admin" &&
+      user.role !== "treasurer" &&
+      user.role !== "member"
+    ) {
+      return void res.status(403).json({ error: "Accès refusé" });
+    }
+    let supervisedSyndicateId: string | null = null;
+    if (user.role === "super_admin") {
+      supervisedSyndicateId = await resolveSupervisedChargeSyndicate(req);
     }
 
     const [appel] = await db
@@ -909,14 +1000,35 @@ router.get("/appels-de-fonds/:id/receipt", requireAuth, async (req, res) => {
         return void res.status(403).json({ error: "Accès refusé" });
       }
     }
+    if (user.role === "super_admin") {
+      const [buildingScope] = await db
+        .select({ syndicateId: buildingsTable.syndicateId })
+        .from(buildingsTable)
+        .where(eq(buildingsTable.id, appel.buildingId))
+        .limit(1);
+      if (
+        !buildingScope ||
+        buildingScope.syndicateId !== supervisedSyndicateId
+      ) {
+        return void res.status(403).json({ error: "Accès refusé" });
+      }
+    }
 
     // Access check: admin in same syndicate, or the owner
-    const isAdmin = user.role === "super_admin" || isSyndicateScoped(user.role);
+    const isAdmin =
+      user.role === "super_admin" ||
+      user.role === "syndicate_admin" ||
+      user.role === "treasurer";
     if (!isAdmin) {
       const [member] = await db
         .select({ id: membersTable.id })
         .from(membersTable)
-        .where(eq(membersTable.email, user.email))
+        .where(
+          and(
+            eq(membersTable.email, user.email),
+            eq(membersTable.syndicateId, user.syndicateId!),
+          ),
+        )
         .limit(1);
       const isOwner =
         appel.ownerId === user.userId ||
@@ -1238,6 +1350,11 @@ router.get("/appels-de-fonds/:id/receipt", requireAuth, async (req, res) => {
     });
     pdfDoc.end();
   } catch (e) {
+    if ((e as any)?.status) {
+      return void res
+        .status((e as any).status)
+        .json({ error: (e as any).message, code: (e as any).code });
+    }
     req.log.error(e);
     if (!res.headersSent) res.status(500).json({ error: "Server error" });
   }

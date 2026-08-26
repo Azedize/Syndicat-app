@@ -156,13 +156,13 @@ export default function GetStartedScreen() {
   const insets = useSafeAreaInsets();
   const { isDark } = useTheme();
 
-  const fadeAnim = useRef(new Animated.Value(0)).current;
-  const slideAnim = useRef(new Animated.Value(30)).current;
+  const fadeAnim = useRef(new Animated.Value(Platform.OS === "web" ? 1 : 0)).current;
+  const slideAnim = useRef(new Animated.Value(Platform.OS === "web" ? 0 : 30)).current;
 
   useEffect(() => {
     Animated.parallel([
-      Animated.timing(fadeAnim, { toValue: 1, duration: 600, useNativeDriver: true }),
-      Animated.timing(slideAnim, { toValue: 0, duration: 600, useNativeDriver: true }),
+      Animated.timing(fadeAnim, { toValue: 1, duration: 600, useNativeDriver: Platform.OS !== "web" }),
+      Animated.timing(slideAnim, { toValue: 0, duration: 600, useNativeDriver: Platform.OS !== "web" }),
     ]).start();
   }, []);
 

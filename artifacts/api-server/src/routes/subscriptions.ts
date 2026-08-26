@@ -1144,12 +1144,10 @@ router.post(
     try {
       const targetSyndicateId = requestedSyndicateId(req);
       if (!targetSyndicateId) {
-        res
-          .status(403)
-          .json({
-            error: "Un syndicat cible est requis",
-            code: "SUPERVISION_REQUIRED",
-          });
+        res.status(403).json({
+          error: "Un syndicat cible est requis",
+          code: "SUPERVISION_REQUIRED",
+        });
         return;
       }
       const [payment] = await db
@@ -1399,13 +1397,11 @@ router.post(
         syndicateId: payment.syndicateId,
         details: JSON.stringify({ retryOfPaymentId: previous.id }),
       });
-      res
-        .status(201)
-        .json({
-          data: payment,
-          duplicate: false,
-          message: "Nouvelle tentative de paiement créée",
-        });
+      res.status(201).json({
+        data: payment,
+        duplicate: false,
+        message: "Nouvelle tentative de paiement créée",
+      });
     } catch (e) {
       logger.error(e, "POST subscription payment retry error");
       res.status(500).json({ error: "Erreur serveur" });
@@ -1425,12 +1421,10 @@ router.post(
       const paymentId = String(req.params.id);
       const targetSyndicateId = requestedSyndicateId(req);
       if (!targetSyndicateId) {
-        res
-          .status(403)
-          .json({
-            error: "Un syndicat cible est requis",
-            code: "SUPERVISION_REQUIRED",
-          });
+        res.status(403).json({
+          error: "Un syndicat cible est requis",
+          code: "SUPERVISION_REQUIRED",
+        });
         return;
       }
       const [existingPayment] = await db
@@ -1519,36 +1513,59 @@ router.put(
     try {
       const user = req.user!;
       const id = String(req.params.id);
-      const { status, autoRenew, notes } = req.body as {
+      const { status, autoRenew, notes, planId } = req.body as {
         status?: string;
         autoRenew?: boolean;
         notes?: string;
+        planId?: string;
       };
+      const targetSyndicateId =
+        user.role === "super_admin"
+          ? requestedSyndicateId(req)
+          : user.syndicateId;
 
-      if (user.role === "syndicate_admin") {
-        const [target] = await db
-          .select({ syndicateId: syndicateSubscriptionsTable.syndicateId })
-          .from(syndicateSubscriptionsTable)
-          .where(eq(syndicateSubscriptionsTable.id, id));
-        if (!target) {
-          res.status(404).json({ error: "Abonnement introuvable" });
-          return;
-        }
-        if (target.syndicateId !== user.syndicateId) {
-          res.status(403).json({ error: "Accès refusé" });
-          return;
-        }
+      if (!targetSyndicateId) {
+        res.status(403).json({
+          error: "Un syndicat cible est requis",
+          code: "SUPERVISION_REQUIRED",
+        });
+        return;
       }
-      if (user.role === "super_admin") {
-        const [target] = await db
-          .select({ syndicateId: syndicateSubscriptionsTable.syndicateId })
-          .from(syndicateSubscriptionsTable)
-          .where(eq(syndicateSubscriptionsTable.id, id));
-        if (!target) {
-          res.status(404).json({ error: "Abonnement introuvable" });
+
+      const validStatuses = [
+        "pending_payment",
+        "trial",
+        "active",
+        "grace",
+        "suspended",
+        "cancelled",
+        "expired",
+      ];
+      if (status !== undefined && !validStatuses.includes(status)) {
+        res.status(400).json({ error: "Statut d'abonnement invalide" });
+        return;
+      }
+      if (planId !== undefined && user.role !== "super_admin") {
+        res.status(403).json({
+          error: "Seul le Super Admin peut changer le plan.",
+        });
+        return;
+      }
+      if (planId !== undefined) {
+        const [plan] = await db
+          .select({ id: subscriptionPlansTable.id })
+          .from(subscriptionPlansTable)
+          .where(
+            and(
+              eq(subscriptionPlansTable.id, planId),
+              eq(subscriptionPlansTable.isActive, true),
+            ),
+          )
+          .limit(1);
+        if (!plan) {
+          res.status(400).json({ error: "Plan d'abonnement invalide" });
           return;
         }
-        if (!assertSupervisedTarget(req, res, target.syndicateId)) return;
       }
 
       const update: Record<string, any> = {};
@@ -1558,11 +1575,21 @@ router.put(
       }
       if (autoRenew !== undefined) update.autoRenew = autoRenew;
       if (notes !== undefined) update.notes = notes;
+      if (planId !== undefined) update.planId = planId;
+      if (Object.keys(update).length === 0) {
+        res.status(400).json({ error: "Aucune modification fournie" });
+        return;
+      }
 
       const [updated] = await db
         .update(syndicateSubscriptionsTable)
         .set(update)
-        .where(eq(syndicateSubscriptionsTable.id, id))
+        .where(
+          and(
+            eq(syndicateSubscriptionsTable.id, id),
+            eq(syndicateSubscriptionsTable.syndicateId, targetSyndicateId),
+          ),
+        )
         .returning();
 
       if (!updated) {

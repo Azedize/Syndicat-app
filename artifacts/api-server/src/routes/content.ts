@@ -14,13 +14,11 @@ import {
   notificationPreferencesTable,
   partnersTable,
   payslipsTable,
-  subscriptionPlansTable,
-  syndicateSubscriptionsTable,
   announcementsTable,
   usersTable,
   membersTable,
 } from "@workspace/db/schema";
-import { eq, and, desc, count, inArray, sql } from "drizzle-orm";
+import { eq, and, desc, count, inArray, isNull, sql } from "drizzle-orm";
 import { requireAuth, requireRole } from "../middleware/auth.js";
 import {
   syndicateWhere,
@@ -47,6 +45,40 @@ function requireSyndicateScope(req: any, res: any): string | null {
     return null;
   }
   return req.user.syndicateId ?? null;
+}
+
+/**
+ * Scope an ID-based lookup before loading its row.
+ *
+ * Super Admins may access platform-level rows without a target, while
+ * syndicate-owned rows require explicit supervision and a matching target.
+ * This prevents cross-syndicate ID enumeration through a later in-memory
+ * authorization check.
+ */
+function scopedSyndicateWhere(req: any, res: any, column: any): any | null {
+  if (req.user.role === "super_admin") {
+    const target =
+      typeof req.query?.syndicateId === "string"
+        ? req.query.syndicateId.trim()
+        : "";
+    if (target) {
+      if (req.query?.supervision !== "true") {
+        res.status(403).json({
+          error: "La supervision est requise pour cibler un syndicat.",
+          code: "SUPERVISION_REQUIRED",
+        });
+        return null;
+      }
+      return eq(column, target);
+    }
+    return isNull(column);
+  }
+
+  if (!req.user.syndicateId) {
+    res.status(403).json({ error: "Syndicat non défini dans le token" });
+    return null;
+  }
+  return eq(column, req.user.syndicateId);
 }
 
 async function resolveMemberIdentityIds(
@@ -140,10 +172,16 @@ router.put(
   async (req, res) => {
     const id = String(req.params.id) as string;
     try {
+      const scopeWhere = scopedSyndicateWhere(
+        req,
+        res,
+        legalAlertsTable.syndicateId,
+      );
+      if (!scopeWhere) return;
       const [alert] = await db
         .select()
         .from(legalAlertsTable)
-        .where(eq(legalAlertsTable.id, id));
+        .where(and(eq(legalAlertsTable.id, id), scopeWhere));
       if (!alert) {
         res.status(404).json({ error: "Alerte introuvable" });
         return;
@@ -155,7 +193,7 @@ router.put(
       const [updated] = await db
         .update(legalAlertsTable)
         .set({ status: "resolved" })
-        .where(eq(legalAlertsTable.id, id))
+        .where(and(eq(legalAlertsTable.id, id), scopeWhere))
         .returning();
       await serverAuditLog(req, {
         action: "RESOLVE",
@@ -204,9 +242,11 @@ function canAccessTicket(
 ): boolean {
   const role = req.user!.role as string;
   const uid = req.user!.userId as string;
-  const sid = req.user!.syndicateId as string | null;
+  const sid = String(req.user!.syndicateId ?? "");
 
-  if (role === "super_admin") return true;
+  // Platform support is the Super Admin queue. Syndicate-level tickets stay
+  // with the syndicate team and must not be exposed through an ID lookup.
+  if (role === "super_admin") return ticket.scope === "platform";
 
   // Platform tickets: syndicate_admin may see their own, members may never see platform tickets
   if (ticket.scope === "platform") {
@@ -217,6 +257,31 @@ function canAccessTicket(
   if (ticket.syndicateId !== sid) return false;
   if (role === "syndicate_admin") return true;
   return ticket.submittedById === uid;
+}
+
+function supportTicketWhere(req: any, id: string): any {
+  const role = req.user!.role as string;
+  const sid = String(req.user!.syndicateId ?? "");
+  const uid = req.user!.userId as string;
+
+  if (role === "super_admin") {
+    return and(
+      eq(supportTicketsTable.id, id),
+      eq(supportTicketsTable.scope, "platform"),
+    );
+  }
+  if (role === "syndicate_admin") {
+    return and(
+      eq(supportTicketsTable.id, id),
+      eq(supportTicketsTable.syndicateId, sid),
+    );
+  }
+  return and(
+    eq(supportTicketsTable.id, id),
+    eq(supportTicketsTable.scope, "syndicate"),
+    eq(supportTicketsTable.syndicateId, sid),
+    eq(supportTicketsTable.submittedById, uid),
+  );
 }
 
 // ─── Support — LIST ──────────────────────────────────────────────────────────
@@ -414,7 +479,7 @@ router.get("/support/:id", requireAuth, async (req, res) => {
     const [ticket] = await db
       .select()
       .from(supportTicketsTable)
-      .where(eq(supportTicketsTable.id, id));
+      .where(supportTicketWhere(req, id));
     if (!ticket) {
       res.status(404).json({ error: "Ticket introuvable" });
       return;
@@ -451,7 +516,7 @@ router.post("/support/:id/replies", requireAuth, async (req, res) => {
     const [ticket] = await db
       .select()
       .from(supportTicketsTable)
-      .where(eq(supportTicketsTable.id, id));
+      .where(supportTicketWhere(req, id));
     if (!ticket) {
       res.status(404).json({ error: "Ticket introuvable" });
       return;
@@ -473,7 +538,7 @@ router.post("/support/:id/replies", requireAuth, async (req, res) => {
     await db
       .update(supportTicketsTable)
       .set({ status: "in_progress" })
-      .where(eq(supportTicketsTable.id, id));
+      .where(supportTicketWhere(req, id));
 
     // Notify the ticket submitter that a reply arrived
     createAlert({
@@ -505,7 +570,7 @@ router.put(
       const [ticket] = await db
         .select()
         .from(supportTicketsTable)
-        .where(eq(supportTicketsTable.id, id));
+        .where(supportTicketWhere(req, id));
       if (!ticket) {
         res.status(404).json({ error: "Ticket introuvable" });
         return;
@@ -517,7 +582,7 @@ router.put(
       const [updated] = await db
         .update(supportTicketsTable)
         .set({ status: "resolved" })
-        .where(eq(supportTicketsTable.id, id))
+        .where(supportTicketWhere(req, id))
         .returning();
       res.json({ data: updated, message: "Ticket résolu" });
     } catch (err) {
@@ -544,7 +609,13 @@ router.post(
       const [ticket] = await db
         .select()
         .from(supportTicketsTable)
-        .where(eq(supportTicketsTable.id, id));
+        .where(
+          and(
+            eq(supportTicketsTable.id, id),
+            eq(supportTicketsTable.scope, "syndicate"),
+            eq(supportTicketsTable.syndicateId, sid),
+          ),
+        );
       if (!ticket) {
         res.status(404).json({ error: "Ticket introuvable" });
         return;
@@ -581,7 +652,13 @@ router.post(
       await db
         .update(supportTicketsTable)
         .set({ status: "in_progress" })
-        .where(eq(supportTicketsTable.id, id));
+        .where(
+          and(
+            eq(supportTicketsTable.id, id),
+            eq(supportTicketsTable.scope, "syndicate"),
+            eq(supportTicketsTable.syndicateId, sid),
+          ),
+        );
 
       // Notify super_admins
       createAlert({
@@ -954,10 +1031,12 @@ router.get("/alerts", requireAuth, async (req, res) => {
 router.put("/alerts/:id/read", requireAuth, async (req, res) => {
   const id = String(req.params.id) as string;
   try {
+    const scopeWhere = scopedSyndicateWhere(req, res, alertsTable.syndicateId);
+    if (!scopeWhere) return;
     const [alert] = await db
       .select()
       .from(alertsTable)
-      .where(eq(alertsTable.id, id));
+      .where(and(eq(alertsTable.id, id), scopeWhere));
     if (!alert) {
       res.status(404).json({ error: "Alerte introuvable" });
       return;
@@ -1166,10 +1245,16 @@ router.put(
       return;
     }
     try {
+      const scopeWhere = scopedSyndicateWhere(
+        req,
+        res,
+        partnersTable.syndicateId,
+      );
+      if (!scopeWhere) return;
       const [partner] = await db
         .select()
         .from(partnersTable)
-        .where(eq(partnersTable.id, id));
+        .where(and(eq(partnersTable.id, id), scopeWhere));
       if (!partner) {
         res.status(404).json({ error: "Partenaire introuvable" });
         return;
@@ -1196,10 +1281,45 @@ router.put(
 router.get("/payslips", requireAuth, async (req, res) => {
   const pagination = getPagination(req);
   try {
-    const where =
-      req.user!.role === "member"
-        ? eq(payslipsTable.userId, req.user!.userId)
-        : syndicateWhere(req, payslipsTable.syndicateId);
+    const role = req.user!.role;
+    let where;
+
+    if (role === "member") {
+      if (!req.user!.syndicateId) {
+        return void res
+          .status(403)
+          .json({ error: "Syndicat non défini dans le token" });
+      }
+      // A member may only see their own payroll records inside their
+      // authenticated syndicate, never a same-user record from another scope.
+      where = and(
+        eq(payslipsTable.userId, req.user!.userId),
+        eq(payslipsTable.syndicateId, req.user!.syndicateId),
+      );
+    } else if (role === "syndicate_admin" || role === "treasurer") {
+      if (!req.user!.syndicateId) {
+        return void res
+          .status(403)
+          .json({ error: "Syndicat non défini dans le token" });
+      }
+      where = eq(payslipsTable.syndicateId, req.user!.syndicateId);
+    } else if (role === "super_admin") {
+      const targetSyndicateId =
+        typeof req.query.syndicateId === "string"
+          ? req.query.syndicateId.trim()
+          : "";
+      if (req.query.supervision !== "true" || !targetSyndicateId) {
+        return void res.status(403).json({
+          error:
+            "La supervision et un syndicat cible sont requis pour accéder aux fiches de paie.",
+          code: "SUPERVISION_REQUIRED",
+        });
+      }
+      where = eq(payslipsTable.syndicateId, targetSyndicateId);
+    } else {
+      return void res.status(403).json({ error: "Accès refusé" });
+    }
+
     const [rows, [{ value: total }]] = await Promise.all([
       db
         .select()
@@ -1260,66 +1380,6 @@ router.post(
         } as any)
         .returning();
       res.status(201).json({ data: row, message: "Fiche de paie générée" });
-    } catch (err) {
-      req.log.error(err);
-      res.status(500).json({ error: "Erreur serveur" });
-    }
-  },
-);
-
-// ─── Subscriptions ────────────────────────────────────────────────────────────
-
-router.get("/subscriptions/plans", requireAuth, async (req, res) => {
-  try {
-    const rows = await db.select().from(subscriptionPlansTable);
-    res.json({ data: rows });
-  } catch (err) {
-    req.log.error(err);
-    res.status(500).json({ error: "Erreur serveur" });
-  }
-});
-
-router.get(
-  "/subscriptions",
-  requireAuth,
-  requireRole("super_admin"),
-  async (req, res) => {
-    try {
-      const rows = await db
-        .select()
-        .from(syndicateSubscriptionsTable)
-        .orderBy(desc(syndicateSubscriptionsTable.createdAt));
-      res.json({ data: rows });
-    } catch (err) {
-      req.log.error(err);
-      res.status(500).json({ error: "Erreur serveur" });
-    }
-  },
-);
-
-router.put(
-  "/subscriptions/:id",
-  requireAuth,
-  requireRole("super_admin"),
-  async (req, res) => {
-    const id = String(req.params.id) as string;
-    const schema = z.object({
-      status: z.enum(["active", "trial", "suspended", "cancelled"]).optional(),
-      autoRenew: z.boolean().optional(),
-      planId: z.string().optional(),
-    });
-    const result = schema.safeParse(req.body);
-    if (!result.success) {
-      res.status(400).json({ error: "Données invalides" });
-      return;
-    }
-    try {
-      const [updated] = await db
-        .update(syndicateSubscriptionsTable)
-        .set(result.data)
-        .where(eq(syndicateSubscriptionsTable.id, id))
-        .returning();
-      res.json({ data: updated, message: "Abonnement mis à jour" });
     } catch (err) {
       req.log.error(err);
       res.status(500).json({ error: "Erreur serveur" });
@@ -1426,10 +1486,16 @@ router.put(
       return;
     }
     try {
+      const scopeWhere = scopedSyndicateWhere(
+        req,
+        res,
+        announcementsTable.syndicateId,
+      );
+      if (!scopeWhere) return;
       const [existing] = await db
         .select()
         .from(announcementsTable)
-        .where(eq(announcementsTable.id, id));
+        .where(and(eq(announcementsTable.id, id), scopeWhere));
       if (!existing) {
         res.status(404).json({ error: "Annonce introuvable" });
         return;
@@ -1447,7 +1513,7 @@ router.put(
             ? { expiresAt: expiresAt ? new Date(expiresAt) : null }
             : {}),
         })
-        .where(eq(announcementsTable.id, id))
+        .where(and(eq(announcementsTable.id, id), scopeWhere))
         .returning();
       res.json({ data: updated, message: "Annonce mise à jour" });
     } catch (err) {
@@ -1464,10 +1530,16 @@ router.delete(
   async (req, res) => {
     const id = String(req.params.id) as string;
     try {
+      const scopeWhere = scopedSyndicateWhere(
+        req,
+        res,
+        announcementsTable.syndicateId,
+      );
+      if (!scopeWhere) return;
       const [existing] = await db
         .select()
         .from(announcementsTable)
-        .where(eq(announcementsTable.id, id));
+        .where(and(eq(announcementsTable.id, id), scopeWhere));
       if (!existing) {
         res.status(404).json({ error: "Annonce introuvable" });
         return;
@@ -1476,7 +1548,9 @@ router.delete(
         res.status(403).json({ error: "Accès refusé" });
         return;
       }
-      await db.delete(announcementsTable).where(eq(announcementsTable.id, id));
+      await db
+        .delete(announcementsTable)
+        .where(and(eq(announcementsTable.id, id), scopeWhere));
       await serverAuditLog(req, {
         action: "delete",
         entity: "announcement",
