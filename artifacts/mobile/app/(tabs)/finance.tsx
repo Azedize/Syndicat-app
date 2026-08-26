@@ -14,6 +14,7 @@ import { useAuth } from "@/context/AuthContext";
 import { useLanguage } from "@/context/LanguageContext";
 import { useBreakpoints } from "@/hooks/useBreakpoints";
 import { useColors } from "@/hooks/useColors";
+import { crossPlatformShadow } from "@/lib/shadow";
 
 export default function FinanceScreen() {
   const colors = useColors();
@@ -217,10 +218,7 @@ const styles = StyleSheet.create({
     marginBottom: 16,
     padding: 16,
     borderRadius: 16,
-    shadowColor: "#000",
-    shadowOpacity: 0.15,
-    shadowRadius: 10,
-    elevation: 4,
+    ...crossPlatformShadow({ color: "#000", offsetY: 0, opacity: 0.15, radius: 10, elevation: 4 }),
   },
   highlightLeft: {
     width: 50,

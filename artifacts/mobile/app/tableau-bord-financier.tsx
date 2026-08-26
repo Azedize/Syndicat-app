@@ -15,6 +15,7 @@ import { apiRequest } from "@/lib/api";
 import RoleGuard from "@/components/RoleGuard";
 import { LangCode, useLanguage } from "@/context/LanguageContext";
 import { useColors } from "@/hooks/useColors";
+import { crossPlatformShadow } from "@/lib/shadow";
 import { ErrorState, LoadingState } from "@/components/DataState";
 
 type Colors = ReturnType<typeof useColors>;
@@ -1751,10 +1752,7 @@ function createStyles(colors: Colors) {
       paddingHorizontal: 14,
       marginEnd: 8,
       minWidth: 140,
-      shadowColor: "#000",
-      shadowOpacity: 0.06,
-      shadowRadius: 4,
-      elevation: 2,
+      ...crossPlatformShadow({ color: "#000", offsetY: 0, opacity: 0.06, radius: 4, elevation: 2 }),
     },
     buildingChipActive: { backgroundColor: colors.primary },
     chipName: { fontSize: 13, fontWeight: "700", color: colors.text },
@@ -1795,7 +1793,7 @@ function createStyles(colors: Colors) {
       alignItems: "center",
       borderRadius: 8,
     },
-    tabActive: { backgroundColor: colors.card, shadowColor: "#000", shadowOpacity: 0.08, shadowRadius: 3, elevation: 2 },
+    tabActive: { backgroundColor: colors.card, ...crossPlatformShadow({ color: "#000", offsetY: 0, opacity: 0.08, radius: 3, elevation: 2 }) },
     tabText: { fontSize: 13, color: colors.mutedForeground, fontWeight: "500" },
     tabTextActive: { color: colors.primary, fontWeight: "700" },
 
@@ -1805,10 +1803,7 @@ function createStyles(colors: Colors) {
       marginBottom: 12,
       borderRadius: colors.radius,
       padding: 16,
-      shadowColor: "#000",
-      shadowOpacity: 0.05,
-      shadowRadius: 6,
-      elevation: 2,
+      ...crossPlatformShadow({ color: "#000", offsetY: 0, opacity: 0.05, radius: 6, elevation: 2 }),
     },
     cardTitle: {
       fontSize: 15,
@@ -1868,10 +1863,7 @@ function createStyles(colors: Colors) {
       alignItems: "center",
       // Top accent bar instead of left border — no left-border width subtraction needed
       borderTopWidth: 3,
-      shadowColor: "#000",
-      shadowOpacity: 0.06,
-      shadowRadius: 8,
-      elevation: 2,
+      ...crossPlatformShadow({ color: "#000", offsetY: 0, opacity: 0.06, radius: 8, elevation: 2 }),
       gap: 4,
       overflow: "hidden",
     },

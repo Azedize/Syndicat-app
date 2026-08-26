@@ -16,6 +16,7 @@ import {
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useAuth } from "@/context/AuthContext";
 import { useColors } from "@/hooks/useColors";
+import { crossPlatformShadow } from "@/lib/shadow";
 
 interface Message {
   id: string;
@@ -350,11 +351,7 @@ const styles = StyleSheet.create({
     width: 54,
     height: 54,
     borderRadius: 27,
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.25,
-    shadowRadius: 8,
-    elevation: 8,
+    ...crossPlatformShadow({ color: "#000", offsetY: 4, opacity: 0.25, radius: 8, elevation: 8 }),
     zIndex: 999,
   },
   fabInner: { flex: 1, alignItems: "center", justifyContent: "center", borderRadius: 27 },

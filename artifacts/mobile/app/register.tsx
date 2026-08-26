@@ -30,6 +30,7 @@ import { useAuth } from "@/context/AuthContext";
 import { useLanguage } from "@/context/LanguageContext";
 import { useTheme } from "@/context/ThemeContext";
 import { useColors } from "@/hooks/useColors";
+import { crossPlatformShadow } from "@/lib/shadow";
 import { apiRequest } from "@/lib/api";
 import { auth as authApi } from "@/services/api";
 
@@ -763,11 +764,7 @@ const s = StyleSheet.create({
     alignItems: "center",
     justifyContent: "center",
     gap: 8,
-    shadowColor: "#2563EB",
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.3,
-    shadowRadius: 12,
-    elevation: 6,
+    ...crossPlatformShadow({ color: "#2563EB", offsetY: 4, opacity: 0.3, radius: 12, elevation: 6 }),
   },
   submitBtnText: { fontFamily: "Inter_700Bold", fontSize: 16, color: "#fff" },
 

@@ -14,6 +14,7 @@ import QRCode from "react-native-qrcode-svg";
 import { useAuth } from "@/context/AuthContext";
 import { useLanguage } from "@/context/LanguageContext";
 import { apiRequest } from "@/lib/api";
+import { crossPlatformShadow } from "@/lib/shadow";
 
 export interface BadgeData {
   badgeId: string;
@@ -274,11 +275,7 @@ const styles = StyleSheet.create({
     borderRadius: 22,
     backfaceVisibility: "hidden",
     overflow: "hidden",
-    shadowColor: "#000",
-    shadowOpacity: 0.25,
-    shadowRadius: 16,
-    shadowOffset: { width: 0, height: 8 },
-    elevation: 8,
+    ...crossPlatformShadow({ color: "#000", offsetY: 8, opacity: 0.25, radius: 16, elevation: 8 }),
   },
   faceBack: {},
   gradient: { flex: 1, padding: 18, justifyContent: "space-between" },

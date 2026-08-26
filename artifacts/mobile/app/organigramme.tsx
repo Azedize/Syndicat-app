@@ -31,6 +31,7 @@ import { useColors } from "@/hooks/useColors";
 import { useLanguage } from "@/context/LanguageContext";
 import { ErrorState, LoadingState } from "@/components/DataState";
 import { apiRequest } from "@/lib/api";
+import { crossPlatformShadow } from "@/lib/shadow";
 import { useBreakpoints } from "@/hooks/useBreakpoints";
 
 // ─── Types ──────────────────────────────────────────────────────────────────
@@ -793,11 +794,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 16,
     paddingBottom: 16,
     borderBottomWidth: StyleSheet.hairlineWidth,
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.04,
-    shadowRadius: 4,
-    elevation: 2,
+    ...crossPlatformShadow({ color: "#000", offsetY: 2, opacity: 0.04, radius: 4, elevation: 2 }),
   },
   backBtn: { padding: 4 },
   headerTitle: { fontSize: 17, fontWeight: "700", letterSpacing: -0.2 },
@@ -830,11 +827,7 @@ const styles = StyleSheet.create({
     alignItems: "center",
     gap: 6,
     borderWidth: 1,
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.04,
-    shadowRadius: 3,
-    elevation: 1,
+    ...crossPlatformShadow({ color: "#000", offsetY: 1, opacity: 0.04, radius: 3, elevation: 1 }),
   },
   statIconWrap: { width: 28, height: 28, borderRadius: 8, alignItems: "center", justifyContent: "center" },
   statValue: { fontSize: 20, fontWeight: "800", letterSpacing: -0.5 },
@@ -866,16 +859,10 @@ const styles = StyleSheet.create({
     padding: 14,
     borderRadius: 16,
     borderWidth: 1.5,
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.06,
-    shadowRadius: 6,
-    elevation: 2,
+    ...crossPlatformShadow({ color: "#000", offsetY: 2, opacity: 0.06, radius: 6, elevation: 2 }),
   },
   nodeCardTop: {
-    shadowOpacity: 0.14,
-    shadowRadius: 10,
-    elevation: 4,
+    ...crossPlatformShadow({ color: "#000", offsetY: 2, opacity: 0.14, radius: 10, elevation: 4 }),
   },
   nodeAvatar: {
     width: 46,
@@ -1019,11 +1006,7 @@ const styles = StyleSheet.create({
     borderRadius: 14,
     borderWidth: 1,
     overflow: "hidden",
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.05,
-    shadowRadius: 4,
-    elevation: 1,
+    ...crossPlatformShadow({ color: "#000", offsetY: 1, opacity: 0.05, radius: 4, elevation: 1 }),
   },
   natStripe: { width: 4 },
   natHeader: { flexDirection: "row", justifyContent: "space-between", alignItems: "flex-start" },

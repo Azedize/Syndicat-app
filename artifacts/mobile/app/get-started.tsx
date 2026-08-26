@@ -18,6 +18,7 @@ import Svg, { Circle, Defs, LinearGradient as SvgGradient, Stop, Path } from "re
 
 import MizanLogo from "@/components/brand/MizanLogo";
 import { useTheme } from "@/context/ThemeContext";
+import { crossPlatformShadow } from "@/lib/shadow";
 
 // ─── Background decoration ────────────────────────────────────────────────────
 
@@ -78,11 +79,13 @@ function ActionBtn({ icon, label, sublabel, onPress, variant, color = "#2563EB",
           backgroundColor: cardBg,
           borderColor: borderColor,
           borderWidth: variant === "ghost" || isPrimary ? 0 : 1.5,
-          shadowColor: isPrimary ? color : "#000",
-          elevation: isPrimary ? 8 : (variant === "ghost" ? 0 : 2),
-          shadowOffset: isPrimary ? { width: 0, height: 6 } : { width: 0, height: 1 },
-          shadowOpacity: isPrimary ? 0.35 : 0.05,
-          shadowRadius: isPrimary ? 12 : 3,
+          ...crossPlatformShadow({
+            color: isPrimary ? color : "#000",
+            offsetY: isPrimary ? 6 : 1,
+            opacity: isPrimary ? 0.35 : 0.05,
+            radius: isPrimary ? 12 : 3,
+            elevation: isPrimary ? 8 : (variant === "ghost" ? 0 : 2),
+          }),
         },
       ]}
       onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); onPress(); }}
@@ -272,7 +275,7 @@ const styles = StyleSheet.create({
   actionLabel: { fontFamily: "Inter_600SemiBold", fontSize: 16 },
   actionSublabel: { fontFamily: "Inter_400Regular", fontSize: 13, marginTop: 4 },
 
-  testimonial: { borderRadius: 20, borderWidth: 1, padding: 24, gap: 16, shadowColor: "#000", shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.03, shadowRadius: 10, elevation: 3 },
+  testimonial: { borderRadius: 20, borderWidth: 1, padding: 24, gap: 16, ...crossPlatformShadow({ color: "#000", offsetY: 4, opacity: 0.03, radius: 10, elevation: 3 }) },
   testimonialStars: { flexDirection: "row", gap: 4 },
   testimonialText: { fontFamily: "Inter_400Regular", fontSize: 15, lineHeight: 24, fontStyle: "italic" },
   testimonialAuthor: { flexDirection: "row", alignItems: "center", gap: 12, marginTop: 8 },

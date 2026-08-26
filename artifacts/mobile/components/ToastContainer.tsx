@@ -12,6 +12,7 @@ import {
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { type Toast, useToast } from "@/context/ToastContext";
 import { useColors } from "@/hooks/useColors";
+import { crossPlatformShadow } from "@/lib/shadow";
 
 // ─── Type config ──────────────────────────────────────────────────────────────
 
@@ -105,7 +106,7 @@ function ToastItem({ toast, onDismiss }: { toast: Toast; onDismiss: () => void }
           transform: [{ translateY }, { scale }],
           opacity,
           // Subtle shadow tinted by accent
-          shadowColor: cfg.accent,
+          ...crossPlatformShadow({ color: cfg.accent, offsetY: 6, opacity: 0.14, radius: 18, elevation: 10 }),
         },
       ]}
     >
@@ -200,11 +201,6 @@ const styles = StyleSheet.create({
     paddingVertical:  14,
     paddingHorizontal: 14,
     gap:              12,
-    // Shadow
-    shadowOffset:  { width: 0, height: 6 },
-    shadowOpacity: 0.14,
-    shadowRadius:  18,
-    elevation:     10,
   },
   accentBar: {
     position:     "absolute",

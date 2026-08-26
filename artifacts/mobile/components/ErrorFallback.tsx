@@ -10,6 +10,7 @@ import {
   Text,
   View,
 } from "react-native";
+import { crossPlatformShadow } from "@/lib/shadow";
 
 export type ErrorFallbackProps = {
   error: Error;
@@ -203,11 +204,7 @@ const styles = StyleSheet.create({
     borderRadius: 10,
     paddingHorizontal: 32,
     minWidth: 200,
-    shadowColor: "#2563EB",
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.2,
-    shadowRadius: 4,
-    elevation: 3,
+    ...crossPlatformShadow({ color: "#2563EB", offsetY: 2, opacity: 0.2, radius: 4, elevation: 3 }),
     marginTop: 8,
   },
   buttonText: {

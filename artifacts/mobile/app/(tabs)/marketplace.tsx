@@ -25,6 +25,7 @@ import FilterChips from "@/components/FilterChips";
 import FilterTabs from "@/components/FilterTabs";
 import { ErrorState } from "@/components/DataState";
 import { marketplace } from "@/services/api";
+import { crossPlatformShadow } from "@/lib/shadow";
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
@@ -950,7 +951,7 @@ const styles = StyleSheet.create({
   orderAmount: { fontSize: 14, fontWeight: "700", marginTop: 2 },
   orderStatus: { paddingHorizontal: 8, paddingVertical: 4, borderRadius: 8 },
   orderStatusText: { fontSize: 11, fontWeight: "600" },
-  fab: { position: "absolute", end: 16, flexDirection: "row", alignItems: "center", gap: 8, paddingHorizontal: 18, paddingVertical: 12, borderRadius: 28, elevation: 4, shadowColor: "#000", shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.2, shadowRadius: 6 },
+  fab: { position: "absolute", end: 16, flexDirection: "row", alignItems: "center", gap: 8, paddingHorizontal: 18, paddingVertical: 12, borderRadius: 28, ...crossPlatformShadow({ color: "#000", offsetY: 2, opacity: 0.2, radius: 6, elevation: 4 }) },
   fabText: { color: "#fff", fontSize: 15, fontWeight: "700" },
   // Modification modal
   modal: { position: "absolute", start: 0, end: 0, bottom: 0, borderTopStartRadius: 20, borderTopEndRadius: 20, padding: 24, gap: 10 },

@@ -22,6 +22,7 @@ import {
   useBreakpoints,
 } from "@/hooks/useBreakpoints";
 import { useColors } from "@/hooks/useColors";
+import { crossPlatformShadow } from "@/lib/shadow";
 import { LinearGradient } from "expo-linear-gradient";
 import { audit as auditApi } from "@/services/api";
 
@@ -782,8 +783,7 @@ export default function DashboardScreen() {
               borderColor: dataLoadError
                 ? colors.destructive + "30"
                 : colors.border,
-              shadowColor: "#000",
-              elevation: 4,
+              ...crossPlatformShadow({ color: "#000", offsetY: 2, opacity: 0.05, radius: 8, elevation: 4 }),
             },
           ]}
         >
@@ -975,8 +975,7 @@ export default function DashboardScreen() {
                       backgroundColor: colors.card,
                       borderColor: colors.border,
                       width: actionItemWidth,
-                      shadowColor: "#000",
-                      elevation: 2,
+                      ...crossPlatformShadow({ color: "#000", offsetY: 4, opacity: 0.05, radius: 10, elevation: 2 }),
                     },
                   ]}
                   onPress={() => {
@@ -1470,11 +1469,7 @@ const styles = StyleSheet.create({
   header: {
     borderBottomLeftRadius: 32,
     borderBottomRightRadius: 32,
-    elevation: 8,
-    shadowColor: "#2563EB",
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.3,
-    shadowRadius: 12,
+    ...crossPlatformShadow({ color: "#2563EB", offsetY: 4, opacity: 0.3, radius: 12, elevation: 8 }),
   },
   headerContent: {
     flexDirection: "row",
@@ -1538,11 +1533,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 12,
     paddingVertical: 6,
     borderRadius: 20,
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 4,
-    elevation: 2,
+    ...crossPlatformShadow({ color: "#000", offsetY: 2, opacity: 0.1, radius: 4, elevation: 2 }),
   },
   roleBadgeText: {
     fontFamily: "Inter_600SemiBold",
@@ -1559,9 +1550,7 @@ const styles = StyleSheet.create({
     padding: 16,
     borderRadius: 20,
     borderWidth: 1,
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.05,
-    shadowRadius: 8,
+    ...crossPlatformShadow({ color: "#000", offsetY: 2, opacity: 0.05, radius: 8 }),
   },
   dataStatusIcon: {
     width: 36,
@@ -1647,9 +1636,7 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     alignItems: "center",
     gap: 10,
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.05,
-    shadowRadius: 10,
+    ...crossPlatformShadow({ color: "#000", offsetY: 4, opacity: 0.05, radius: 10 }),
   },
   actionIcon: {
     width: 42,
@@ -1671,11 +1658,7 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     flexDirection: "row",
     overflow: "hidden",
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.05,
-    shadowRadius: 8,
-    elevation: 2,
+    ...crossPlatformShadow({ color: "#000", offsetY: 2, opacity: 0.05, radius: 8, elevation: 2 }),
   },
   meetingDateBox: {
     width: 68,
@@ -1700,11 +1683,7 @@ const styles = StyleSheet.create({
     gap: 16,
     padding: 20,
     borderRadius: 24,
-    shadowColor: "#2563EB",
-    shadowOffset: { width: 0, height: 6 },
-    shadowOpacity: 0.3,
-    shadowRadius: 12,
-    elevation: 6,
+    ...crossPlatformShadow({ color: "#2563EB", offsetY: 6, opacity: 0.3, radius: 12, elevation: 6 }),
   },
   electionBannerIcon: {
     width: 48,
@@ -1743,11 +1722,7 @@ const styles = StyleSheet.create({
     borderRadius: 24,
     borderWidth: 1,
     overflow: "hidden",
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.03,
-    shadowRadius: 8,
-    elevation: 2,
+    ...crossPlatformShadow({ color: "#000", offsetY: 4, opacity: 0.03, radius: 8, elevation: 2 }),
   },
   activityItem: {
     flexDirection: "row",

@@ -22,6 +22,7 @@ import { useAuth } from "@/context/AuthContext";
 import { useLanguage } from "@/context/LanguageContext";
 import { useTheme } from "@/context/ThemeContext";
 import { useColors } from "@/hooks/useColors";
+import { crossPlatformShadow } from "@/lib/shadow";
 
 function LoginBgDecor({ isDark }: { isDark: boolean }) {
   const lineStr = isDark ? "rgba(255,255,255,0.03)" : "rgba(37,99,235,0.04)";
@@ -211,7 +212,7 @@ export default function LoginScreen() {
                 </View>
               )}
 
-              <TouchableOpacity onPress={handleLogin} disabled={loading} style={[styles.ctaOuter, { shadowColor: colors.primary }]} accessibilityRole="button" accessibilityLabel={t("connect")}>
+              <TouchableOpacity onPress={handleLogin} disabled={loading} style={[styles.ctaOuter, crossPlatformShadow({ color: colors.primary, offsetY: 6, opacity: 0.4, radius: 16, elevation: 8 })]} accessibilityRole="button" accessibilityLabel={t("connect")}>
                 <LinearGradient colors={[colors.primary, colors.secondaryForeground]} style={styles.ctaGradient} start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }}>
                   {loading ? <ActivityIndicator color={colors.primaryForeground} /> : (
                     <>
@@ -242,7 +243,7 @@ export default function LoginScreen() {
 const styles = StyleSheet.create({
   root: { flex: 1 },
   headerControls: { position: "absolute", left: 24, right: 24, flexDirection: "row", justifyContent: "space-between", zIndex: 10 },
-  iconBtn: { width: 44, height: 44, borderRadius: 22, borderWidth: 1, alignItems: "center", justifyContent: "center", shadowColor: "#000", shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.1, shadowRadius: 4, elevation: 3 },
+  iconBtn: { width: 44, height: 44, borderRadius: 22, borderWidth: 1, alignItems: "center", justifyContent: "center", ...crossPlatformShadow({ color: "#000", offsetY: 2, opacity: 0.1, radius: 4, elevation: 3 }) },
   kav: { flex: 1 },
   scroll: { paddingHorizontal: 24, gap: 32 },
   
@@ -253,7 +254,7 @@ const styles = StyleSheet.create({
   featureTile: { width: "23.5%", borderWidth: 1, borderRadius: 12, paddingVertical: 12, alignItems: "center", gap: 8 },
   featureLabel: { fontSize: 10, fontFamily: "Inter_600SemiBold" },
 
-  card: { borderRadius: 24, borderWidth: 1, overflow: "hidden", shadowColor: "#000", shadowOffset: { width: 0, height: 12 }, shadowOpacity: 0.15, shadowRadius: 24, elevation: 12 },
+  card: { borderRadius: 24, borderWidth: 1, overflow: "hidden", ...crossPlatformShadow({ color: "#000", offsetY: 12, opacity: 0.15, radius: 24, elevation: 12 }) },
   cardAccent: { height: 4, backgroundColor: "#2563EB" },
   cardBody: { padding: 24, gap: 20 },
   cardHead: { gap: 6 },
@@ -273,7 +274,7 @@ const styles = StyleSheet.create({
   errorBox: { alignItems: "center", gap: 8, borderWidth: 1, borderRadius: 12, padding: 12 },
   errorText: { flex: 1, fontSize: 14, fontFamily: "Inter_500Medium" },
 
-  ctaOuter: { borderRadius: 16, overflow: "hidden", shadowColor: "#2563EB", shadowOffset: { width: 0, height: 6 }, shadowOpacity: 0.4, shadowRadius: 16, elevation: 8, marginTop: 4 },
+  ctaOuter: { borderRadius: 16, overflow: "hidden", marginTop: 4 },
   ctaGradient: { paddingVertical: 18, alignItems: "center", justifyContent: "center", flexDirection: "row", gap: 10 },
   ctaLabel: { fontSize: 16, fontFamily: "Inter_700Bold", color: "#FFF" },
 

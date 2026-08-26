@@ -30,6 +30,7 @@ import { useToast } from "@/context/ToastContext";
 import { useColors } from "@/hooks/useColors";
 import RoleGuard from "@/components/RoleGuard";
 import { apiRequest as libApiRequest } from "@/lib/api";
+import { crossPlatformShadow } from "@/lib/shadow";
 import { templateRequests as requestsApi, type ApiTemplateRequest } from "@/services/api";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
@@ -838,8 +839,7 @@ const styles = StyleSheet.create({
   fabWrap:        { position: "absolute", right: 24 },
   fab:            { width: 56, height: 56, borderRadius: 28, backgroundColor: "#2563EB",
                     alignItems: "center", justifyContent: "center",
-                    shadowColor: "#2563EB", shadowOffset: { width: 0, height: 8 },
-                    shadowOpacity: 0.5, shadowRadius: 16, elevation: 12 },
+                    ...crossPlatformShadow({ color: "#2563EB", offsetY: 8, opacity: 0.5, radius: 16, elevation: 12 }) },
 
   // Requests button (header)
   requestsBtn:        { width: 38, height: 38, borderRadius: 19, backgroundColor: "#1e293b",

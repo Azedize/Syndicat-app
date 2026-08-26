@@ -20,6 +20,7 @@ import { MIZAN } from "@/constants/brand";
 import { useLanguage } from "@/context/LanguageContext";
 import { useTheme } from "@/context/ThemeContext";
 import { useColors } from "@/hooks/useColors";
+import { crossPlatformShadow } from "@/lib/shadow";
 
 const SERVICES = [
   { icon: "shield" as const, titleKey: "welcomeGovernance", textKey: "welcomeGovernanceText" },
@@ -118,7 +119,7 @@ export default function WelcomeScreen() {
   const rise = useRef(new Animated.Value(22)).current;
 
   useEffect(() => {
-    Animated.timing(rise, { toValue: 0, duration: 650, useNativeDriver: true }).start();
+    Animated.timing(rise, { toValue: 0, duration: 650, useNativeDriver: Platform.OS !== "web" }).start();
   }, [fade, rise]);
 
   const background = colors.background;
@@ -309,7 +310,7 @@ const styles = StyleSheet.create({
   headlineAccent: { color: "#3B82F6" },
   subtitle: { fontFamily: "Inter_400Regular", fontSize: 15, lineHeight: 23, marginTop: 14 },
   heroActions: { flexDirection: "row", alignItems: "center", gap: 10, marginTop: 22, width: "100%" },
-  primaryButton: { flex: 1, borderRadius: 14, overflow: "hidden", elevation: 7, shadowColor: "#2563EB", shadowOpacity: 0.28, shadowRadius: 12, shadowOffset: { width: 0, height: 6 } },
+  primaryButton: { flex: 1, borderRadius: 14, overflow: "hidden", ...crossPlatformShadow({ color: "#2563EB", offsetY: 6, opacity: 0.28, radius: 12, elevation: 7 }) },
   primaryButtonGradient: { minHeight: 54, flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 8, paddingHorizontal: 12 },
   primaryButtonText: { color: "#FFFFFF", fontFamily: "Inter_700Bold", fontSize: 14 },
   plansButton: { minHeight: 54, justifyContent: "center", alignItems: "center", borderRadius: 14, borderWidth: 1.3, paddingHorizontal: 15 },

@@ -29,6 +29,7 @@ import { useFavorites } from "@/context/FavoritesContext";
 import { useToast } from "@/context/ToastContext";
 import { useBreakpoints } from "@/hooks/useBreakpoints";
 import { useColors } from "@/hooks/useColors";
+import { crossPlatformShadow } from "@/lib/shadow";
 import { useLanguage, type LangCode } from "@/context/LanguageContext";
 import { MIZAN } from "@/constants/brand";
 import FilterChips from "@/components/FilterChips";
@@ -2496,7 +2497,7 @@ export default function DocumentsScreen() {
                               {
                                 backgroundColor: colors.card,
                                 borderColor: colors.border,
-                                shadowColor: "#000",
+                                ...crossPlatformShadow({ color: "#000", offsetY: 3, opacity: 0.1, radius: 6, elevation: 3 }),
                               },
                             ]}
                           >
@@ -3951,11 +3952,7 @@ const styles = StyleSheet.create({
     zIndex: 100,
     borderWidth: 1,
     borderRadius: 16,
-    shadowColor: "#000",
-    shadowOpacity: 0.12,
-    shadowRadius: 12,
-    shadowOffset: { width: 0, height: 4 },
-    elevation: 8,
+    ...crossPlatformShadow({ color: "#000", offsetY: 4, opacity: 0.12, radius: 12, elevation: 8 }),
     overflow: "hidden" as const,
     minWidth: 260,
   },
@@ -4044,11 +4041,7 @@ const styles = StyleSheet.create({
     borderTopWidth: 1,
     borderTopLeftRadius: 20,
     borderTopRightRadius: 20,
-    elevation: 8,
-    shadowColor: "#000",
-    shadowOpacity: 0.12,
-    shadowRadius: 12,
-    shadowOffset: { width: 0, height: -4 },
+    ...crossPlatformShadow({ color: "#000", offsetY: -4, opacity: 0.12, radius: 12, elevation: 8 }),
   },
   dlHeader: { flexDirection: "row", alignItems: "center" },
   dlTitle: { fontSize: 13, fontFamily: "Inter_600SemiBold" },
@@ -4423,10 +4416,7 @@ const detailStyles = StyleSheet.create({
     padding: 9,
     gap: 5,
     alignItems: "flex-start",
-    shadowOpacity: 0.1,
-    shadowRadius: 6,
-    shadowOffset: { width: 0, height: 3 },
-    elevation: 3,
+    ...crossPlatformShadow({ color: "#000", offsetY: 3, opacity: 0.1, radius: 6, elevation: 3 }),
   },
   pdfPageHeader: {
     width: "100%",

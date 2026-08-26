@@ -30,6 +30,7 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useAuth } from "@/context/AuthContext";
 import { useLanguage } from "@/context/LanguageContext";
 import { useTheme } from "@/context/ThemeContext";
+import { crossPlatformShadow } from "@/lib/shadow";
 import { useColors } from "@/hooks/useColors";
 import { KeyboardAwareScrollViewCompat } from "@/components/KeyboardAwareScrollViewCompat";
 import MizanFormField from "@/components/MizanFormField";
@@ -859,11 +860,7 @@ const s = StyleSheet.create({
     alignItems: "center",
     justifyContent: "center",
     gap: 10,
-    shadowColor: "#2563EB",
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.25,
-    shadowRadius: 10,
-    elevation: 5,
+    ...crossPlatformShadow({ color: "#2563EB", offsetY: 4, opacity: 0.25, radius: 10, elevation: 5 }),
   },
   ctaBtnText: { fontFamily: "Inter_700Bold", fontSize: 16, color: "#fff" },
 

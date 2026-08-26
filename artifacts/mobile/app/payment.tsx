@@ -32,6 +32,7 @@ import { useAuth } from "@/context/AuthContext";
 import { useLanguage } from "@/context/LanguageContext";
 import { useTheme } from "@/context/ThemeContext";
 import { apiRequest } from "@/lib/api";
+import { crossPlatformShadow } from "@/lib/shadow";
 
 const PENDING_PLAN_KEY = "@mizan_pending_plan";
 
@@ -505,8 +506,7 @@ const s = StyleSheet.create({
   ctaBtn: {
     borderRadius: 16, paddingVertical: 16,
     flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 10,
-    shadowColor: "#2563EB", shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.3, shadowRadius: 12, elevation: 6,
+    ...crossPlatformShadow({ color: "#2563EB", offsetY: 4, opacity: 0.3, radius: 12, elevation: 6 }),
   },
   ctaBtnText: { fontFamily: "Inter_700Bold", fontSize: 16, color: "#fff" },
   skipText: { fontFamily: "Inter_400Regular", fontSize: 13 },

@@ -22,6 +22,7 @@ import { useColors } from "@/hooks/useColors";
 import { useToast } from "@/context/ToastContext";
 import { marketplace, chat } from "@/services/api";
 import { ErrorState, LoadingState } from "@/components/DataState";
+import { crossPlatformShadow } from "@/lib/shadow";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -932,7 +933,7 @@ const styles = StyleSheet.create({
   commentInputBar: { flexDirection: "row", alignItems: "flex-end", gap: 10, paddingHorizontal: 16, paddingTop: 10, borderTopWidth: 1 },
   commentInput: { flex: 1, borderRadius: 20, borderWidth: 1, paddingHorizontal: 14, paddingVertical: 8, fontSize: 14, maxHeight: 100 },
   sendBtn: { width: 40, height: 40, borderRadius: 20, alignItems: "center", justifyContent: "center" },
-  cartFab: { position: "absolute", start: 16, end: 16, flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 10, paddingVertical: 14, borderRadius: 14, elevation: 4, shadowColor: "#000", shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.2, shadowRadius: 6 },
+  cartFab: { position: "absolute", start: 16, end: 16, flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 10, paddingVertical: 14, borderRadius: 14, ...crossPlatformShadow({ color: "#000", offsetY: 2, opacity: 0.2, radius: 6, elevation: 4 }) },
   cartFabText: { color: "#fff", fontSize: 15, fontWeight: "700" },
   contactSellerFab: { position: "absolute", start: 16, end: 16, flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 10, paddingVertical: 14, borderRadius: 14, borderWidth: 1 },
   contactSellerFabText: { fontSize: 15, fontWeight: "700" },
