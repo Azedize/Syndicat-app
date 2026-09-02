@@ -3,6 +3,8 @@ import * as ImagePicker from "expo-image-picker";
 import { getToken } from "@/services/api";
 
 function getBaseUrl(): string {
+  const apiUrl = process.env.EXPO_PUBLIC_API_URL;
+  if (apiUrl) return apiUrl.trim().replace(/\/$/, "");
   const domain = process.env.EXPO_PUBLIC_DOMAIN;
   if (domain) return `https://${domain}/api`;
   return `http://localhost:${process.env.EXPO_PUBLIC_API_PORT ?? "8080"}/api`;

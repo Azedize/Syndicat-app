@@ -4,10 +4,12 @@ const TOKEN_KEY = "@syndycat_token";
 const REFRESH_TOKEN_KEY = "@syndycat_refresh_token";
 
 function getBaseUrl(): string {
+  const apiUrl = process.env.EXPO_PUBLIC_API_URL;
+  if (apiUrl) return apiUrl.trim().replace(/\/$/, "");
   const domain = process.env.EXPO_PUBLIC_DOMAIN;
   if (domain) return `https://${domain}/api`;
-  // In dev, fall back to the API server port (8080 by default; override with EXPO_PUBLIC_API_PORT)
-  const port = process.env.EXPO_PUBLIC_API_PORT ?? "8080";
+  // In dev, fall back to the API server port.
+  const port = process.env.EXPO_PUBLIC_API_PORT ?? "5000";
   if (__DEV__) {
     return `http://localhost:${port}/api`;
   }
@@ -128,7 +130,7 @@ async function request<T>(
     if (token) headers["Authorization"] = `Bearer ${token}`;
   }
 
-  const res = await fetch(`${getBaseUrl()}${path}`, {
+  const res = await fetch(`${getBaseUrl()}${path.trim()}`, {
     ...options,
     headers,
   });

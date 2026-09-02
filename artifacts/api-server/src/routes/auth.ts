@@ -120,6 +120,7 @@ router.post("/auth/register", async (req, res) => {
     });
   } catch (err) {
     req.log.error(err);
+    if (res.headersSent) return;
     res.status(500).json({ error: "Erreur serveur" });
   }
 });
@@ -593,7 +594,11 @@ router.post("/auth/otp/send", async (req, res) => {
         </div>
         <p style="color:#94A3B8;font-size:12px;text-align:center;margin:0;">Ce code expire dans <strong>10 minutes</strong>. Ne le partagez avec personne.</p>
       </div>`;
-    await sendTransactionalEmail({ to: em, subject, html, template: "otp" });
+    const result = await sendTransactionalEmail({ to: em, subject, html, template: "otp" });
+    if (!result.ok) {
+      res.status(502).json({ error: "Le service email est indisponible. Réessayez plus tard." });
+      return;
+    }
     res.json({ message: "Code envoyé", expiresIn: 600 });
   } catch (err) {
     req.log.error(err, "POST /auth/otp/send error");

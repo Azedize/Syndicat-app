@@ -43,6 +43,14 @@ Compléter `.env` à la racine. Ne jamais mettre le mot de passe réel dans
 DATABASE_URL=postgresql://postgres:VOTRE_MOT_DE_PASSE@localhost:5432/syndycat_global_cps
 PORT=5000
 JWT_SECRET=une-cle-locale-d-au-moins-32-caracteres
+SMTP_HOST=smtp.gmail.com
+SMTP_PORT=587
+SMTP_USER=votre-adresse@gmail.com
+SMTP_PASS=votre-mot-de-passe-application-gmail
+USE_TLS=true
+SMTP_SECURE=false
+SMTP_FROM=votre-adresse@gmail.com
+EXPO_PUBLIC_API_URL=http://10.0.2.2:5000/api
 ```
 
 Pour une session PowerShell temporaire, sans modifier `.env`:
@@ -86,7 +94,7 @@ Ouvrir un autre terminal PowerShell:
 
 ```powershell
 cd C:\Users\Dell\OneDrive\Documents\zip-repl
-$env:EXPO_PUBLIC_API_PORT = "5000"
+$env:EXPO_PUBLIC_API_URL = "http://10.0.2.2:5000/api"
 pnpm --filter @workspace/mobile run dev
 ```
 
@@ -116,7 +124,7 @@ pnpm --filter @workspace/api-server run dev
 Terminal 4, frontend:
 
 ```powershell
-$env:EXPO_PUBLIC_API_PORT = "5000"
+$env:EXPO_PUBLIC_API_URL = "http://10.0.2.2:5000/api"
 pnpm --filter @workspace/mobile run dev
 ```
 
@@ -129,4 +137,6 @@ Invoke-WebRequest -UseBasicParsing http://localhost:5000/api/healthz
 ```
 
 Redis et SMTP sont optionnels en local. Sans `REDIS_URL`, le rate limiting
-utilise la mémoire; sans SMTP, les emails ne sont pas envoyés.
+utilise la mémoire; sans SMTP, les emails ne sont pas envoyés. Pour Gmail,
+utiliser un mot de passe d’application avec la validation en deux étapes;
+ne jamais utiliser le mot de passe principal du compte.

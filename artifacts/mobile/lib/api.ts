@@ -1,6 +1,8 @@
 import { getToken } from "../services/api";
 
 function getBaseUrl(): string {
+  const apiUrl = process.env.EXPO_PUBLIC_API_URL;
+  if (apiUrl) return apiUrl.trim().replace(/\/$/, "");
   const domain = process.env.EXPO_PUBLIC_DOMAIN;
   if (domain) return `https://${domain}/api`;
   // In production, EXPO_PUBLIC_DOMAIN must be set — missing it silently breaks
@@ -22,7 +24,7 @@ export async function apiRequest<T = any>(
   body?: unknown,
   token?: string | null,
 ): Promise<T> {
-  const url = `${getBaseUrl()}${path}`;
+  const url = `${getBaseUrl()}${path.trim()}`;
 
   // Auto-fetch token from storage if not passed explicitly
   const resolvedToken = token ?? (await getToken());

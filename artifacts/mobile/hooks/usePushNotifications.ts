@@ -14,26 +14,28 @@
 import { useEffect, useRef } from "react";
 import { Platform } from "react-native";
 import { router } from "expo-router";
-import * as Notifications from "expo-notifications";
+import Constants from "expo-constants";
 import * as Device from "expo-device";
 import { notificationBus } from "./useNotificationBus";
 import { useAuth } from "@/context/AuthContext";
 import { apiRequest } from "@/lib/api";
-import { registerBackgroundNotificationTask } from "@/tasks/backgroundNotifications";
 
 // ─── Android Notification Channels ───────────────────────────────────────────
 
 interface ChannelDef {
   id: string;
-  config: Notifications.NotificationChannelInput;
+  config: any;
 }
+
+const ANDROID_IMPORTANCE_HIGH = 4;
+const ANDROID_IMPORTANCE_MAX = 5;
 
 const CHANNELS: ChannelDef[] = [
   {
     id: "default",
     config: {
       name: "Général",
-      importance: Notifications.AndroidImportance.HIGH,
+      importance: ANDROID_IMPORTANCE_HIGH,
       vibrationPattern: [0, 250, 250, 250],
       lightColor: "#4F7FFF",
       sound: "default",
@@ -45,7 +47,7 @@ const CHANNELS: ChannelDef[] = [
     id: "meetings",
     config: {
       name: "Réunions",
-      importance: Notifications.AndroidImportance.MAX,
+      importance: ANDROID_IMPORTANCE_MAX,
       vibrationPattern: [0, 500, 200, 500],
       lightColor: "#22C55E",
       sound: "default",
@@ -57,7 +59,7 @@ const CHANNELS: ChannelDef[] = [
     id: "finance",
     config: {
       name: "Finance",
-      importance: Notifications.AndroidImportance.HIGH,
+      importance: ANDROID_IMPORTANCE_HIGH,
       vibrationPattern: [0, 250, 250, 250],
       lightColor: "#F59E0B",
       sound: "default",
@@ -69,7 +71,7 @@ const CHANNELS: ChannelDef[] = [
     id: "chat",
     config: {
       name: "Messages",
-      importance: Notifications.AndroidImportance.HIGH,
+      importance: ANDROID_IMPORTANCE_HIGH,
       vibrationPattern: [0, 100, 100, 100],
       lightColor: "#1F5EFF",
       sound: "default",
@@ -81,7 +83,7 @@ const CHANNELS: ChannelDef[] = [
     id: "alerts",
     config: {
       name: "Alertes",
-      importance: Notifications.AndroidImportance.MAX,
+      importance: ANDROID_IMPORTANCE_MAX,
       vibrationPattern: [0, 1000, 500, 1000],
       lightColor: "#EF4444",
       sound: "default",
@@ -90,18 +92,6 @@ const CHANNELS: ChannelDef[] = [
     },
   },
 ];
-
-// ─── Foreground handler (must be set before any listener) ────────────────────
-
-Notifications.setNotificationHandler({
-  handleNotification: async () => ({
-    shouldShowAlert: true,
-    shouldShowBanner: true,
-    shouldShowList: true,
-    shouldPlaySound: true,
-    shouldSetBadge: true,
-  }),
-});
 
 // ─── Navigation helper ────────────────────────────────────────────────────────
 
@@ -141,6 +131,9 @@ export function usePushNotifications() {
   useEffect(() => {
     if (initialized.current || Platform.OS === "web") return;
     if (!user || !authToken) return;
+    // Expo Go no longer supports remote push notifications from SDK 53 onward.
+    // Avoid importing expo-notifications here so Expo Go does not emit its warning.
+    if (Constants.appOwnership === "expo") return;
     initialized.current = true;
 
     let receivedSub: { remove(): void } | null = null;
@@ -148,6 +141,18 @@ export function usePushNotifications() {
 
     (async () => {
       try {
+        const Notifications = await import("expo-notifications");
+        const { registerBackgroundNotificationTask } = await import("@/tasks/backgroundNotifications");
+        Notifications.setNotificationHandler({
+          handleNotification: async () => ({
+            shouldShowAlert: true,
+            shouldShowBanner: true,
+            shouldShowList: true,
+            shouldPlaySound: true,
+            shouldSetBadge: true,
+          }),
+        });
+
         // Background task (no-op in Expo Go, works in EAS builds)
         await registerBackgroundNotificationTask();
 
