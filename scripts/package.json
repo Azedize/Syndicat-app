@@ -5,7 +5,8 @@
   "type": "module",
   "scripts": {
     "hello": "tsx ./src/hello.ts",
-    "seed": "tsx ./src/seed.ts",
+    "seed": "node --env-file=../.env --import=tsx ./src/seed.ts",
+    "db:status": "node --env-file=../.env --import=tsx ./src/db-status.ts",
     "seed:stripe-products": "tsx ./src/seed-stripe-products.ts",
     "election-audit:seed": "tsx ./src/election-audit-seed.ts",
     "election-audit:test": "tsx ./src/election-audit-test.ts",
