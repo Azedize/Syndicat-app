@@ -1,9 +1,12 @@
 import AsyncStorage from "@react-native-async-storage/async-storage";
+import * as SecureStore from "expo-secure-store";
+import { Platform } from "react-native";
 
 const TOKEN_KEY = "@syndycat_token";
 const REFRESH_TOKEN_KEY = "@syndycat_refresh_token";
+const PENDING_REGISTER_KEY = "@mizan_pending_register";
 
-function getBaseUrl(): string {
+export function getApiBaseUrl(): string {
   const apiUrl = process.env.EXPO_PUBLIC_API_URL;
   if (apiUrl) return apiUrl.trim().replace(/\/$/, "");
   const domain = process.env.EXPO_PUBLIC_DOMAIN;
@@ -21,6 +24,17 @@ function getBaseUrl(): string {
 
 export async function getToken(): Promise<string | null> {
   try {
+    if (Platform.OS !== "web") {
+      const secureToken = await SecureStore.getItemAsync(TOKEN_KEY);
+      if (secureToken) return secureToken;
+
+      const legacyToken = await AsyncStorage.getItem(TOKEN_KEY);
+      if (legacyToken) {
+        await SecureStore.setItemAsync(TOKEN_KEY, legacyToken);
+        await AsyncStorage.removeItem(TOKEN_KEY);
+      }
+      return legacyToken;
+    }
     return await AsyncStorage.getItem(TOKEN_KEY);
   } catch {
     return null;
@@ -28,15 +42,34 @@ export async function getToken(): Promise<string | null> {
 }
 
 export async function setToken(token: string): Promise<void> {
+  if (Platform.OS !== "web") {
+    await SecureStore.setItemAsync(TOKEN_KEY, token);
+    await AsyncStorage.removeItem(TOKEN_KEY);
+    return;
+  }
   await AsyncStorage.setItem(TOKEN_KEY, token);
 }
 
 export async function removeToken(): Promise<void> {
+  if (Platform.OS !== "web") {
+    await SecureStore.deleteItemAsync(TOKEN_KEY);
+  }
   await AsyncStorage.removeItem(TOKEN_KEY);
 }
 
 export async function getRefreshToken(): Promise<string | null> {
   try {
+    if (Platform.OS !== "web") {
+      const secureToken = await SecureStore.getItemAsync(REFRESH_TOKEN_KEY);
+      if (secureToken) return secureToken;
+
+      const legacyToken = await AsyncStorage.getItem(REFRESH_TOKEN_KEY);
+      if (legacyToken) {
+        await SecureStore.setItemAsync(REFRESH_TOKEN_KEY, legacyToken);
+        await AsyncStorage.removeItem(REFRESH_TOKEN_KEY);
+      }
+      return legacyToken;
+    }
     return await AsyncStorage.getItem(REFRESH_TOKEN_KEY);
   } catch {
     return null;
@@ -44,15 +77,58 @@ export async function getRefreshToken(): Promise<string | null> {
 }
 
 export async function setRefreshToken(token: string): Promise<void> {
+  if (Platform.OS !== "web") {
+    await SecureStore.setItemAsync(REFRESH_TOKEN_KEY, token);
+    await AsyncStorage.removeItem(REFRESH_TOKEN_KEY);
+    return;
+  }
   await AsyncStorage.setItem(REFRESH_TOKEN_KEY, token);
 }
 
 export async function removeRefreshToken(): Promise<void> {
+  if (Platform.OS !== "web") {
+    await SecureStore.deleteItemAsync(REFRESH_TOKEN_KEY);
+  }
   await AsyncStorage.removeItem(REFRESH_TOKEN_KEY);
 }
 
 export async function clearAllTokens(): Promise<void> {
   await Promise.all([removeToken(), removeRefreshToken()]);
+}
+
+export async function getPendingRegistration(): Promise<string | null> {
+  try {
+    if (Platform.OS !== "web") {
+      const secureData = await SecureStore.getItemAsync(PENDING_REGISTER_KEY);
+      if (secureData) return secureData;
+
+      const legacyData = await AsyncStorage.getItem(PENDING_REGISTER_KEY);
+      if (legacyData) {
+        await SecureStore.setItemAsync(PENDING_REGISTER_KEY, legacyData);
+        await AsyncStorage.removeItem(PENDING_REGISTER_KEY);
+      }
+      return legacyData;
+    }
+    return await AsyncStorage.getItem(PENDING_REGISTER_KEY);
+  } catch {
+    return null;
+  }
+}
+
+export async function setPendingRegistration(value: string): Promise<void> {
+  if (Platform.OS !== "web") {
+    await SecureStore.setItemAsync(PENDING_REGISTER_KEY, value);
+    await AsyncStorage.removeItem(PENDING_REGISTER_KEY);
+    return;
+  }
+  await AsyncStorage.setItem(PENDING_REGISTER_KEY, value);
+}
+
+export async function removePendingRegistration(): Promise<void> {
+  if (Platform.OS !== "web") {
+    await SecureStore.deleteItemAsync(PENDING_REGISTER_KEY);
+  }
+  await AsyncStorage.removeItem(PENDING_REGISTER_KEY);
 }
 
 // ─── Token Refresh Logic ──────────────────────────────────────────────────────
@@ -78,7 +154,7 @@ async function attemptTokenRefresh(): Promise<string | null> {
       return null;
     }
 
-    const res = await fetch(`${getBaseUrl()}/auth/refresh`, {
+    const res = await fetch(`${getApiBaseUrl()}/auth/refresh`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ refreshToken }),
@@ -130,7 +206,7 @@ async function request<T>(
     if (token) headers["Authorization"] = `Bearer ${token}`;
   }
 
-  const res = await fetch(`${getBaseUrl()}${path.trim()}`, {
+  const res = await fetch(`${getApiBaseUrl()}${path.trim()}`, {
     ...options,
     headers,
   });

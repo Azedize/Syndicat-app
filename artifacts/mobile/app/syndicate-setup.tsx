@@ -911,22 +911,17 @@ function SyndicateSetupScreenInner() {
           const contentType = ext === "png" ? "image/png" : "image/jpeg";
           const fileName = `logo-${Date.now()}.${ext}`;
 
-          const urlRes = await fetch(
-            `${(() => {
-              const domain = process.env.EXPO_PUBLIC_DOMAIN;
-              if (domain) return `https://${domain}/api`;
-              const port = process.env.EXPO_PUBLIC_API_PORT ?? "8080";
-              return `http://localhost:${port}/api`;
-            })()}/storage/uploads/request-url`,
-            {
-              method: "POST",
-              headers: { "Content-Type": "application/json" },
-              body: JSON.stringify({ name: fileName, size: 500000, contentType }),
-            }
-          );
+          const uploadRequest = await apiRequest<{
+            uploadURL: string;
+            objectPath: string;
+          }>("/storage/uploads/request-url", "POST", {
+            name: fileName,
+            size: 500000,
+            contentType,
+          });
 
-          if (urlRes.ok) {
-            const { uploadURL, objectPath } = await urlRes.json();
+          if (uploadRequest.uploadURL && uploadRequest.objectPath) {
+            const { uploadURL, objectPath } = uploadRequest;
             // Upload to GCS
             const imgRes = await fetch(form.logoUri);
             const blob = await imgRes.blob();

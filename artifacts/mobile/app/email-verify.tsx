@@ -28,7 +28,11 @@ import { useTheme } from "@/context/ThemeContext";
 import { useColors } from "@/hooks/useColors";
 import { KeyboardAwareScrollViewCompat } from "@/components/KeyboardAwareScrollViewCompat";
 import { apiRequest } from "@/lib/api";
-import { auth as authApi } from "@/services/api";
+import {
+  auth as authApi,
+  getPendingRegistration,
+  removePendingRegistration,
+} from "@/services/api";
 
 const PENDING_REGISTER_KEY = "@mizan_pending_register";
 const PENDING_PLAN_KEY = "@mizan_pending_plan";
@@ -59,7 +63,7 @@ export default function EmailVerifyScreen() {
 
   // Load pending registration data
   useEffect(() => {
-    AsyncStorage.getItem(PENDING_REGISTER_KEY)
+    getPendingRegistration()
       .then((raw) => {
         if (!raw) return;
         try {
@@ -160,7 +164,7 @@ export default function EmailVerifyScreen() {
         );
       }
 
-      await AsyncStorage.removeItem(PENDING_REGISTER_KEY);
+      await removePendingRegistration();
 
       // Show success
       setSuccess(true);

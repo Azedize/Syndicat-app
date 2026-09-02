@@ -11,6 +11,7 @@ import {
   StyleSheet,
   Text,
   TouchableOpacity,
+  useWindowDimensions,
   View,
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
@@ -113,6 +114,8 @@ export default function WelcomeScreen() {
   const { isDark, toggle } = useTheme();
   const { t, isRTL } = useLanguage();
   const colors = useColors();
+  const { width } = useWindowDimensions();
+  const stackHeroActions = width < 520;
   // Keep the landing page legible on the very first frame (including Expo web
   // previews), while the content still gets a subtle upward entrance motion.
   const fade = useRef(new Animated.Value(1)).current;
@@ -177,7 +180,7 @@ export default function WelcomeScreen() {
                 accessibilityLabel={isDark ? t("lightMode") : t("darkMode")}
               >
                 <Feather name={isDark ? "sun" : "moon"} size={17} color={colors.foreground} />
-                <Text style={[styles.themeLabel, { color: colors.foreground }]}>{isDark ? "Clair" : "Sombre"}</Text>
+                <Text style={[styles.themeLabel, { color: colors.foreground }]}>{isDark ? t("lightMode") : t("darkMode")}</Text>
               </TouchableOpacity>
             </View>
           </View>
@@ -196,10 +199,10 @@ export default function WelcomeScreen() {
                 {t("welcomeSubtitle")}
               </Text>
 
-              <View style={styles.heroActions}>
+              <View style={[styles.heroActions, stackHeroActions && styles.heroActionsStack]}>
                 <TouchableOpacity
                   testID="welcome-discover"
-                  style={styles.primaryButton}
+                  style={[styles.primaryButton, stackHeroActions && styles.heroActionFullWidth]}
                   onPress={() => {
                     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
                     router.push("/intro");
@@ -212,7 +215,12 @@ export default function WelcomeScreen() {
                     start={{ x: 0, y: 0 }}
                     end={{ x: 1, y: 1 }}
                   >
-                    <Text style={styles.primaryButtonText}>{t("welcomeDiscover")}</Text>
+                    <Text
+                      style={styles.primaryButtonText}
+                      numberOfLines={1}
+                    >
+                      {t("welcomeDiscover")}
+                    </Text>
                     <Feather name="arrow-right" size={19} color="#FFFFFF" />
                   </LinearGradient>
                 </TouchableOpacity>
@@ -221,6 +229,7 @@ export default function WelcomeScreen() {
                   onPress={() => router.push("/plans")}
                   style={[
                     styles.plansButton,
+                    stackHeroActions && styles.heroActionFullWidth,
                     {
                        borderColor: isDark ? "rgba(141,178,255,0.34)" : MIZAN.colors.bluePale,
                        backgroundColor: isDark ? "rgba(13,32,58,0.78)" : MIZAN.colors.white,
@@ -228,7 +237,10 @@ export default function WelcomeScreen() {
                   ]}
                   activeOpacity={0.82}
                 >
-                   <Text style={[styles.plansButtonText, { color: isDark ? MIZAN.colors.bluePale : MIZAN.colors.blue }]}>
+                   <Text
+                     style={[styles.plansButtonText, { color: isDark ? MIZAN.colors.bluePale : MIZAN.colors.blue }]}
+                     numberOfLines={1}
+                   >
                     {t("welcomeViewPlans")}
                   </Text>
                 </TouchableOpacity>
@@ -310,10 +322,12 @@ const styles = StyleSheet.create({
   headlineAccent: { color: "#3B82F6" },
   subtitle: { fontFamily: "Inter_400Regular", fontSize: 15, lineHeight: 23, marginTop: 14 },
   heroActions: { flexDirection: "row", alignItems: "center", gap: 10, marginTop: 22, width: "100%" },
-  primaryButton: { flex: 1, borderRadius: 14, overflow: "hidden", ...crossPlatformShadow({ color: "#2563EB", offsetY: 6, opacity: 0.28, radius: 12, elevation: 7 }) },
-  primaryButtonGradient: { minHeight: 54, flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 8, paddingHorizontal: 12 },
-  primaryButtonText: { color: "#FFFFFF", fontFamily: "Inter_700Bold", fontSize: 14 },
-  plansButton: { minHeight: 54, justifyContent: "center", alignItems: "center", borderRadius: 14, borderWidth: 1.3, paddingHorizontal: 15 },
+  heroActionsStack: { flexDirection: "column", alignItems: "stretch" },
+  heroActionFullWidth: { flex: 0, width: "100%" },
+  primaryButton: { flex: 1.15, minWidth: 0, borderRadius: 14, overflow: "hidden", ...crossPlatformShadow({ color: "#2563EB", offsetY: 6, opacity: 0.28, radius: 12, elevation: 7 }) },
+  primaryButtonGradient: { minHeight: 54, flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 7, paddingHorizontal: 8 },
+  primaryButtonText: { flexShrink: 1, color: "#FFFFFF", fontFamily: "Inter_700Bold", fontSize: 14, textAlign: "center" },
+  plansButton: { flex: 1, minWidth: 0, minHeight: 54, justifyContent: "center", alignItems: "center", borderRadius: 14, borderWidth: 1.3, paddingHorizontal: 10 },
   plansButtonText: { fontFamily: "Inter_600SemiBold", fontSize: 14 },
   themeButton: { minWidth: 38, height: 38, borderWidth: 1, borderRadius: 19, paddingHorizontal: 10, flexDirection: "row", gap: 5, alignItems: "center", justifyContent: "center" },
   themeLabel: { fontFamily: "Inter_600SemiBold", fontSize: 10 },

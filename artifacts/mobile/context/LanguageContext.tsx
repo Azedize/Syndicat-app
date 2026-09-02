@@ -248,6 +248,12 @@ export const TRANSLATIONS: Translations = {
     ar: "البريد الإلكتروني أو كلمة المرور غير صحيحة.",
     es: "Correo o contraseña incorrectos.",
   },
+  authServerError: {
+    fr: "Connexion au serveur impossible. Vérifiez votre connexion puis réessayez.",
+    en: "Unable to connect to the server. Check your connection and try again.",
+    ar: "تعذر الاتصال بالخادم. تحقق من الاتصال وحاول مرة أخرى.",
+    es: "No se puede conectar al servidor. Compruebe la conexión e inténtelo de nuevo.",
+  },
 
   // ─── Forgot Password ───────────────────────────────────────────────────────
   forgotPasswordTitle: {

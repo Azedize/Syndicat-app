@@ -28,6 +28,7 @@ import {
   type UploadResult,
   MAX_ATTACHMENT_SIZE,
 } from "@/lib/upload";
+import { getApiBaseUrl } from "@/services/api";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { chat as chatApi } from "@/services/api";
 import { useData, type ChatMessage } from "@/context/DataContext";
@@ -123,9 +124,7 @@ const EMOJI_GRID = [
 const REACTION_EMOJIS = ["👍", "❤️", "😂", "😮", "😢", "🙏"];
 
 function getAttachmentBaseUrl(): string {
-  const domain = process.env.EXPO_PUBLIC_DOMAIN;
-  if (domain) return `https://${domain}/api`;
-  return `http://localhost:${process.env.EXPO_PUBLIC_API_PORT ?? "8080"}/api`;
+  return getApiBaseUrl();
 }
 
 function resolveAttachmentUrl(

@@ -1,14 +1,6 @@
 import * as DocumentPicker from "expo-document-picker";
 import * as ImagePicker from "expo-image-picker";
-import { getToken } from "@/services/api";
-
-function getBaseUrl(): string {
-  const apiUrl = process.env.EXPO_PUBLIC_API_URL;
-  if (apiUrl) return apiUrl.trim().replace(/\/$/, "");
-  const domain = process.env.EXPO_PUBLIC_DOMAIN;
-  if (domain) return `https://${domain}/api`;
-  return `http://localhost:${process.env.EXPO_PUBLIC_API_PORT ?? "8080"}/api`;
-}
+import { getApiBaseUrl, getToken } from "@/services/api";
 
 /** Max attachment size: 50 MB */
 export const MAX_ATTACHMENT_SIZE = 50 * 1024 * 1024;
@@ -54,7 +46,7 @@ async function uploadUri(
   const form = new FormData();
   form.append("file", blob, fileName);
 
-  const uploadRes = await fetch(`${getBaseUrl()}/storage/uploads`, {
+  const uploadRes = await fetch(`${getApiBaseUrl()}/storage/uploads`, {
     method: "POST",
     headers: token ? { Authorization: `Bearer ${token}` } : {},
     body: form,

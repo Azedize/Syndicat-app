@@ -15,6 +15,7 @@ import {
   View,
 } from "react-native";
 import { apiRequest } from "@/lib/api";
+import { getApiBaseUrl } from "@/services/api";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useAuth } from "@/context/AuthContext";
 import { useLanguage } from "@/context/LanguageContext";
@@ -250,12 +251,9 @@ function BudgetPrevisionnelScreenInner() {
             if (!budgetId) return;
             try {
               setDownloading(true);
-              const domain = process.env.EXPO_PUBLIC_DOMAIN;
-              const base = domain
-                ? `https://${domain}`
-                : `http://localhost:${process.env.EXPO_PUBLIC_API_PORT ?? "8080"}`;
+              const base = getApiBaseUrl();
               const tokenParam = token ? `?token=${encodeURIComponent(token)}` : "";
-              const url = `${base}/api/pdf/budget/${budgetId}${tokenParam}`;
+              const url = `${base}/pdf/budget/${budgetId}${tokenParam}`;
               await Linking.openURL(url);
             } catch {
                showToast({ type: "error", title: t("budgetPdfError") });

@@ -28,6 +28,7 @@ import RoleGuard from "@/components/RoleGuard";
 import ScreenHeader from "@/components/ScreenHeader";
 import StatsStrip from "@/components/StatsStrip";
 import { ErrorState } from "@/components/DataState";
+import { getApiBaseUrl } from "@/services/api";
 
 // Charges screen — co-owners see their personal charges; treasurer/admin manage all charges.
 export default function ChargesScreen() {
@@ -247,10 +248,7 @@ function ChargesScreenInner() {
   };
 
   const uploadProofImage = async (uri: string): Promise<string | undefined> => {
-    const domain = process.env.EXPO_PUBLIC_DOMAIN;
-    const baseUrl = domain
-      ? `https://${domain}/api`
-      : `http://localhost:${process.env.EXPO_PUBLIC_API_PORT ?? "8080"}/api`;
+    const baseUrl = getApiBaseUrl();
     try {
       const fileRes = await fetch(uri);
       if (!fileRes.ok) return undefined;
@@ -306,10 +304,7 @@ function ChargesScreenInner() {
   const downloadReceipt = async (appel: Appel) => {
     try {
       Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-      const domain = process.env.EXPO_PUBLIC_DOMAIN;
-      const baseUrl = domain
-        ? `https://${domain}/api`
-        : `http://localhost:${process.env.EXPO_PUBLIC_API_PORT ?? "8080"}/api`;
+      const baseUrl = getApiBaseUrl();
       const receiptUrl = `${baseUrl}/appels-de-fonds/${appel.id}/receipt?token=${token}`;
       const { Linking } = await import("react-native");
       await Linking.openURL(receiptUrl);

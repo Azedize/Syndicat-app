@@ -9,6 +9,7 @@ import { startMandateExpiryScheduler } from "./lib/mandate-expiry.js";
 import { startDocumentRetentionScheduler } from "./lib/document-retention-job.js";
 import { startDocumentExpiryScheduler } from "./lib/document-expiry-job.js";
 import { startSubscriptionReminderScheduler } from "./lib/subscription-reminders.js";
+import { startOtpRetentionScheduler } from "./lib/otp-retention.js";
 import { verifySmtpConnection } from "./lib/email/emailService.js";
 
 // Fail fast on missing auth config — do not wait for first request
@@ -42,6 +43,10 @@ startDocumentExpiryScheduler();
 // Sends push + email alerts to syndicate admins 7, 3, and 1 day before their
 // subscription expires (Scenario 7). After expiry, platform is read-only.
 startSubscriptionReminderScheduler();
+
+// Removes OTP records only after they are no longer needed for verification or
+// the one-hour send-rate window.
+startOtpRetentionScheduler();
 
 const rawPort = process.env["PORT"];
 

@@ -155,7 +155,7 @@ export const createSyndicateSchema = z.object({
 router.post(
   "/syndicates",
   requireAuth,
-  requireRole("super_admin"),
+  requireRole("super_admin", "syndicate_admin"),
   async (req, res) => {
     const result = createSyndicateSchema.safeParse(req.body);
     if (!result.success) {
@@ -166,16 +166,24 @@ router.post(
     }
     try {
       const data = result.data;
+      const isSelfOnboarding = req.user!.role === "syndicate_admin";
+      if (isSelfOnboarding && req.user!.syndicateId) {
+        res.status(409).json({ error: "Vous êtes déjà rattaché à un syndicat" });
+        return;
+      }
+      const adminId = isSelfOnboarding ? req.user!.userId : data.adminId;
 
       const [syndicate] = await db.transaction(async (tx) => {
-        if (data.adminId) {
+        if (adminId) {
           const [admin] = await tx
             .select({ id: usersTable.id })
             .from(usersTable)
             .where(
               and(
-                eq(usersTable.id, data.adminId),
-                eq(usersTable.role, "member"),
+                eq(usersTable.id, adminId),
+                isSelfOnboarding
+                  ? eq(usersTable.role, "syndicate_admin")
+                  : eq(usersTable.role, "member"),
                 isNull(usersTable.syndicateId),
               ),
             )
@@ -214,7 +222,7 @@ router.post(
           bankIban: data.bankIban || undefined,
           bankBic: data.bankBic || undefined,
           membersCount: data.membersCount,
-          adminId: data.adminId,
+          adminId,
           status: "active",
         };
         const [s] = await tx
@@ -222,14 +230,16 @@ router.post(
           .values(insertValues as any)
           .returning();
 
-        if (data.adminId) {
+        if (adminId) {
           const linkResult = await tx
             .update(usersTable)
             .set({ syndicateId: s.id, role: "syndicate_admin" })
             .where(
               and(
-                eq(usersTable.id, data.adminId),
-                eq(usersTable.role, "member"),
+                eq(usersTable.id, adminId),
+                isSelfOnboarding
+                  ? eq(usersTable.role, "syndicate_admin")
+                  : eq(usersTable.role, "member"),
                 isNull(usersTable.syndicateId),
               ),
             )
@@ -253,11 +263,11 @@ router.post(
         platformAction: true,
       });
 
-      if (data.adminId) {
+      if (adminId) {
         const [adminUser] = await db
           .select({ email: usersTable.email, name: usersTable.name })
           .from(usersTable)
-          .where(eq(usersTable.id, data.adminId));
+          .where(eq(usersTable.id, adminId));
         if (adminUser) {
           const { subject, html } = syndicateCreatedTemplate(
             syndicate.name,

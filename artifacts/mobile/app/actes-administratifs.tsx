@@ -22,7 +22,7 @@ import { useAuth } from "@/context/AuthContext";
 import { useBreakpoints } from "@/hooks/useBreakpoints";
 import { useColors } from "@/hooks/useColors";
 import { apiRequest } from "@/lib/api";
-import { getToken } from "@/services/api";
+import { getApiBaseUrl, getToken } from "@/services/api";
 import RoleGuard from "@/components/RoleGuard";
 import { useToast } from "@/context/ToastContext";
 import { useLanguage } from "@/context/LanguageContext";
@@ -203,14 +203,11 @@ function ActesAdministratifsScreenInner() {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
     try {
       const currentToken = await getToken();
-      const domain = process.env.EXPO_PUBLIC_DOMAIN;
-      const base = domain
-        ? `https://${domain}`
-        : `http://localhost:${process.env.EXPO_PUBLIC_API_PORT ?? "8080"}`;
+      const base = getApiBaseUrl();
       const tokenParam = currentToken
         ? `?token=${encodeURIComponent(currentToken)}`
         : "";
-      const url = `${base}/api/pdf/acte/${acte.id}${tokenParam}`;
+      const url = `${base}/pdf/acte/${acte.id}${tokenParam}`;
       await Linking.openURL(url);
     } catch {
       showToast({

@@ -132,8 +132,11 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         setTokenState(newToken);
         setUser(mapApiUser(u as unknown as Record<string, unknown>));
         return true;
-      } catch {
-        return false;
+      } catch (error: any) {
+        if (error?.status === 401 || error?.httpStatus === 401) {
+          return false;
+        }
+        throw error;
       }
     },
     [],

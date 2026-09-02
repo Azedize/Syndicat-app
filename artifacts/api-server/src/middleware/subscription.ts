@@ -50,8 +50,11 @@ export async function requireActiveSubscription(req: Request, res: Response, nex
     }
 
     next();
-  } catch {
-    // On DB error, fail open so a billing glitch never breaks core operations
-    next();
+  } catch (error) {
+    req.log?.error(error, "Subscription verification failed");
+    res.status(503).json({
+      error: "Vérification de l'abonnement temporairement indisponible. Réessayez.",
+      code: "SUBSCRIPTION_CHECK_UNAVAILABLE",
+    });
   }
 }

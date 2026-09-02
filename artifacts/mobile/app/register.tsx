@@ -32,7 +32,7 @@ import { useTheme } from "@/context/ThemeContext";
 import { useColors } from "@/hooks/useColors";
 import { crossPlatformShadow } from "@/lib/shadow";
 import { apiRequest } from "@/lib/api";
-import { auth as authApi } from "@/services/api";
+import { auth as authApi, setPendingRegistration } from "@/services/api";
 
 const PENDING_PLAN_KEY = "@mizan_pending_plan";
 const PENDING_REGISTER_KEY = "@mizan_pending_register";
@@ -120,8 +120,7 @@ export default function RegisterScreen() {
       });
 
       // Store all registration data for the OTP screen to use after verification
-      await AsyncStorage.setItem(
-        PENDING_REGISTER_KEY,
+      await setPendingRegistration(
         JSON.stringify({
           name: name.trim(),
           email: email.trim().toLowerCase(),

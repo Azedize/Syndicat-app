@@ -26,6 +26,7 @@ import { useBreakpoints } from "@/hooks/useBreakpoints";
 import { useColors } from "@/hooks/useColors";
 import { useToast } from "@/context/ToastContext";
 import { marketplace } from "@/services/api";
+import { getApiBaseUrl } from "@/services/api";
 import { ErrorState, LoadingState } from "@/components/DataState";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
@@ -435,10 +436,7 @@ export default function MyShopScreen() {
   // ─── Image picker ──────────────────────────────────────────────────────
 
   const uploadImageUri = async (uri: string, authToken?: string): Promise<string | null> => {
-    const domain = process.env.EXPO_PUBLIC_DOMAIN;
-    const baseUrl = domain
-      ? `https://${domain}/api`
-      : `http://localhost:${process.env.EXPO_PUBLIC_API_PORT ?? "8080"}/api`;
+    const baseUrl = getApiBaseUrl();
     try {
       const fileRes = await fetch(uri);
       if (!fileRes.ok) return null;

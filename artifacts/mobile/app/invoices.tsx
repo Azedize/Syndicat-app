@@ -28,6 +28,7 @@ import { useColors } from "@/hooks/useColors";
 import { useToast } from "@/context/ToastContext";
 import { ErrorState, LoadingState } from "@/components/DataState";
 import { apiRequest } from "@/lib/api";
+import { getApiBaseUrl } from "@/services/api";
 import {
   pickAndUploadPhoto,
   captureAndUploadPhoto,
@@ -39,10 +40,7 @@ import {
  *  objectPath = "/objects/<uuid>" → /api/storage/objects/<uuid>
  */
 function proofUrlFromResult(result: UploadResult): string {
-  const domain = process.env.EXPO_PUBLIC_DOMAIN;
-  const base = domain
-    ? `https://${domain}/api`
-    : `http://localhost:${process.env.EXPO_PUBLIC_API_PORT ?? "8080"}/api`;
+  const base = getApiBaseUrl();
   // objectPath already has leading slash: "/objects/..."
   return `${base}/storage${result.objectPath}`;
 }
@@ -106,12 +104,9 @@ function InvoicesScreenInner() {
     try {
       setDownloadingPdf(true);
       Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-      const domain = process.env.EXPO_PUBLIC_DOMAIN;
-      const base = domain
-        ? `https://${domain}`
-        : `http://localhost:${process.env.EXPO_PUBLIC_API_PORT ?? "8080"}`;
+      const base = getApiBaseUrl();
       const tokenParam = token ? `?token=${encodeURIComponent(token)}` : "";
-      const url = `${base}/api/pdf/invoice/${invoiceId}${tokenParam}`;
+      const url = `${base}/pdf/invoice/${invoiceId}${tokenParam}`;
       await Linking.openURL(url);
     } catch {
       showToast({ type: "error", title: t("error"), message: t("invPdfError") });

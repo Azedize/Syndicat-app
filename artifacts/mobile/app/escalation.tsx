@@ -26,6 +26,7 @@ import {
   View,
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
+import { getApiBaseUrl } from "@/services/api";
 import { useAuth } from "@/context/AuthContext";
 import { useLanguage } from "@/context/LanguageContext";
 import { useToast } from "@/context/ToastContext";
@@ -254,12 +255,14 @@ function EscalationScreenInner() {
     if (!item.letterUrl) return;
     // Build absolute URL — pass JWT as query param because Linking.openURL
     // cannot attach Authorization headers (the endpoint accepts ?token= as fallback)
-    const domain = process.env.EXPO_PUBLIC_DOMAIN;
-    const base = domain
-      ? `https://${domain}`
-      : `http://localhost:${process.env.EXPO_PUBLIC_API_PORT ?? "8080"}`;
-    const tokenParam = token ? `?token=${encodeURIComponent(token)}` : "";
-    const url = `${base}${item.letterUrl}${tokenParam}`;
+    const rawUrl = item.letterUrl;
+    const urlBase = /^https?:\/\//i.test(rawUrl)
+      ? rawUrl
+      : `${getApiBaseUrl()}${rawUrl.replace(/^\/api(?=\/)/, "")}`;
+    const tokenParam = token
+      ? `${urlBase.includes("?") ? "&" : "?"}token=${encodeURIComponent(token)}`
+      : "";
+    const url = `${urlBase}${tokenParam}`;
     Linking.openURL(url).catch(() =>
       showToast({ type: "error", title: t("error"), message: t("escOpenDocError") }),
     );

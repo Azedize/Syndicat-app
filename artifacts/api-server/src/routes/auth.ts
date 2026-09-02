@@ -1,6 +1,6 @@
 import { Router } from "express";
 import bcrypt from "bcryptjs";
-import { randomBytes } from "node:crypto";
+import { randomBytes, randomInt } from "node:crypto";
 import { z } from "zod";
 import { db } from "@workspace/db";
 import {
@@ -9,7 +9,7 @@ import {
   passwordResetTokensTable,
   otpTokensTable,
 } from "@workspace/db/schema";
-import { eq, and, gt, isNull, desc } from "drizzle-orm";
+import { eq, and, gt, isNull, desc, count } from "drizzle-orm";
 import {
   requireAuth,
   signToken,
@@ -132,7 +132,7 @@ const loginSchema = z.object({
 
 const changePasswordSchema = z.object({
   currentPassword: z.string().min(1),
-  newPassword: z.string().min(6),
+  newPassword: z.string().min(8, "Le mot de passe doit contenir au moins 8 caractères"),
 });
 
 // ─── Login ────────────────────────────────────────────────────────────────────
@@ -143,7 +143,8 @@ router.post("/auth/login", async (req, res) => {
     res.status(400).json({ error: "Email ou mot de passe invalide" });
     return;
   }
-  const { email, password } = result.data;
+  const { password } = result.data;
+  const email = result.data.email.trim().toLowerCase();
   try {
     const [user] = await db
       .select()
@@ -538,18 +539,20 @@ router.post("/auth/reset-password", async (req, res) => {
   }
 });
 
-// ─── In-memory OTP rate limit (per email, 5 sends/hour) ──────────────────────
-const _otpRate = new Map<string, { count: number; resetAt: number }>();
-function checkOtpRate(email: string): boolean {
-  const now = Date.now();
-  const e = _otpRate.get(email);
-  if (!e || now > e.resetAt) {
-    _otpRate.set(email, { count: 1, resetAt: now + 3600_000 });
-    return true;
-  }
-  if (e.count >= 5) return false;
-  e.count++;
-  return true;
+// ─── Durable OTP rate limit (per email, 5 sends/hour) ────────────────────────
+async function checkOtpRate(email: string): Promise<boolean> {
+  const since = new Date(Date.now() - 3600_000);
+  const [{ value }] = await db
+    .select({ value: count() })
+    .from(otpTokensTable)
+    .where(
+      and(
+        eq(otpTokensTable.email, email),
+        eq(otpTokensTable.purpose, "email_verification"),
+        gt(otpTokensTable.createdAt, since),
+      ),
+    );
+  return Number(value) < 5;
 }
 
 // ─── POST /auth/otp/send ─────────────────────────────────────────────────────
@@ -560,18 +563,17 @@ router.post("/auth/otp/send", async (req, res) => {
     return;
   }
   const em = email.trim().toLowerCase();
-  if (!checkOtpRate(em)) {
-    res
-      .status(429)
-      .json({ error: "Trop de tentatives. Réessayez dans 1 heure." });
-    return;
-  }
   try {
-    const code = String(Math.floor(100000 + Math.random() * 900000));
+    if (!(await checkOtpRate(em))) {
+      res
+        .status(429)
+        .json({ error: "Trop de tentatives. Réessayez dans 1 heure." });
+      return;
+    }
+    const code = String(randomInt(100000, 1000000));
     const codeHash = await bcrypt.hash(code, 8);
     const expiresAt = new Date(Date.now() + 10 * 60_000); // 10 min
 
-    await db.delete(otpTokensTable).where(eq(otpTokensTable.email, em));
     await db.insert(otpTokensTable).values({
       email: em,
       codeHash,

@@ -23,14 +23,12 @@ import { useData } from "@/context/DataContext";
 import { useLanguage } from "@/context/LanguageContext";
 import { useBreakpoints } from "@/hooks/useBreakpoints";
 import { useColors } from "@/hooks/useColors";
-import { auth as authApi, getToken } from "@/services/api";
+import { auth as authApi, getApiBaseUrl, getToken } from "@/services/api";
 import { pickAndUploadPhoto } from "@/lib/upload";
 import { useToast } from "@/context/ToastContext";
 
 function getAvatarBaseUrl(): string {
-  const domain = process.env.EXPO_PUBLIC_DOMAIN;
-  if (domain) return `https://${domain}/api`;
-  return `http://localhost:${process.env.EXPO_PUBLIC_API_PORT ?? "8080"}/api`;
+  return getApiBaseUrl();
 }
 
 /** Server-hosted avatars are private object paths protected by the session token. */
@@ -152,19 +150,12 @@ export default function ProfileScreen() {
     }
   };
 
-  const getApiBase = () => {
-    const domain = process.env.EXPO_PUBLIC_DOMAIN;
-    return domain
-      ? `https://${domain}`
-      : `http://localhost:${process.env.EXPO_PUBLIC_API_PORT ?? "8080"}`;
-  };
-
   const handleAttestation = async () => {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
     try {
       const currentToken = await getToken();
       const tokenParam = currentToken ? `?token=${encodeURIComponent(currentToken)}` : "";
-      const url = `${getApiBase()}/api/pdf/membership/${user?.id}${tokenParam}`;
+      const url = `${getApiBaseUrl()}/pdf/membership/${user?.id}${tokenParam}`;
       await Linking.openURL(url);
     } catch {
       showToast({ type: "error", title: t("error"), message: t("profileAttestationError") });
@@ -178,7 +169,7 @@ export default function ProfileScreen() {
     try {
       const currentToken = await getToken();
       const tokenParam = currentToken ? `?token=${encodeURIComponent(currentToken)}` : "";
-      const url = `${getApiBase()}/api/pdf/badge/${user?.id}${tokenParam}`;
+      const url = `${getApiBaseUrl()}/pdf/badge/${user?.id}${tokenParam}`;
       await Linking.openURL(url);
     } catch {
       showToast({ type: "error", title: t("error"), message: t("profileBadgeError") });

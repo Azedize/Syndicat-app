@@ -1,22 +1,4 @@
-import { getToken } from "../services/api";
-
-function getBaseUrl(): string {
-  const apiUrl = process.env.EXPO_PUBLIC_API_URL;
-  if (apiUrl) return apiUrl.trim().replace(/\/$/, "");
-  const domain = process.env.EXPO_PUBLIC_DOMAIN;
-  if (domain) return `https://${domain}/api`;
-  // In production, EXPO_PUBLIC_DOMAIN must be set — missing it silently breaks
-  // all API calls. Fail loudly so misconfigured production builds are caught.
-  if (process.env.NODE_ENV === "production") {
-    throw new Error(
-      "[MIZAN] EXPO_PUBLIC_DOMAIN is required in production builds. " +
-        "Set it to the public API domain in the environment variables.",
-    );
-  }
-  // Dev fallback: API server on PORT (default 8080)
-  const port = process.env.EXPO_PUBLIC_API_PORT ?? "8080";
-  return `http://localhost:${port}/api`;
-}
+import { getApiBaseUrl, getToken } from "../services/api";
 
 export async function apiRequest<T = any>(
   path: string,
@@ -24,7 +6,7 @@ export async function apiRequest<T = any>(
   body?: unknown,
   token?: string | null,
 ): Promise<T> {
-  const url = `${getBaseUrl()}${path.trim()}`;
+  const url = `${getApiBaseUrl()}${path.trim()}`;
 
   // Auto-fetch token from storage if not passed explicitly
   const resolvedToken = token ?? (await getToken());

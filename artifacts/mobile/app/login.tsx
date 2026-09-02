@@ -107,8 +107,9 @@ export default function LoginScreen() {
         Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
         router.replace("/(tabs)/" as any);
       }
-    } catch {
-      setError(t("invalidCredentials"));
+    } catch (error: any) {
+      const status = error?.status ?? error?.httpStatus;
+      setError(status === 401 ? t("invalidCredentials") : t("authServerError"));
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
     } finally {
       setLoading(false);
