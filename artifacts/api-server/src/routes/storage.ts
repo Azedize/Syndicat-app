@@ -1,14 +1,9 @@
 /**
  * Storage routes — JWT-auth-protected file upload/serve.
  *
- * Upload strategy (dev vs prod):
- *   The Replit GCS sidecar only provides real credentials in deployed
- *   environments.  In development the sidecar returns a placeholder JWT
- *   and every GCS call fails.  To keep uploads working in dev we use a
- *   direct multipart upload endpoint that saves files to the workspace
- *   filesystem (persistent in Replit dev).  The GET serving route tries
- *   GCS first and falls back to the workspace filesystem automatically,
- *   so both dev and prod use the same objectPath format.
+ * Upload strategy (local vs cloud):
+ *   Multipart uploads are saved to the local filesystem. The GET serving route
+ *   tries configured Google Cloud Storage first and falls back to local files.
  */
 import { Readable } from "stream";
 import fs from "fs/promises";
@@ -27,7 +22,7 @@ import { documentsTable, storageObjectsTable } from "@workspace/db/schema";
 import { eq, or } from "drizzle-orm";
 
 /** Workspace-relative directory for locally-stored uploads (dev fallback). */
-const LOCAL_UPLOADS_DIR = path.resolve("/home/runner/workspace/uploads");
+const LOCAL_UPLOADS_DIR = path.resolve(process.env.LOCAL_UPLOADS_DIR ?? "uploads");
 
 async function ensureUploadsDir() {
   try {

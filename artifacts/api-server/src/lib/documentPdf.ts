@@ -1063,10 +1063,7 @@ export async function signDocumentDownloadUrl(internalPath: string, ttlSec = 360
   // Local-disk fallback: return a direct API route instead of a signed GCS URL
   if (internalPath.startsWith("/local-docs/")) {
     const rest = internalPath.replace(/^\/local-docs\//, "");
-    const devDomain = process.env.REPLIT_DEV_DOMAIN ?? "";
-    const base = devDomain
-      ? `https://${devDomain}`
-      : `http://localhost:${process.env.PORT ?? 8080}`;
+    const base = process.env.PUBLIC_APP_URL ?? `http://localhost:${process.env.PORT ?? 8080}`;
     return `${base}/api/documents/local-docs/${rest}`;
   }
   const privateDir = process.env.PRIVATE_OBJECT_DIR || "";
@@ -1075,20 +1072,11 @@ export async function signDocumentDownloadUrl(internalPath: string, ttlSec = 360
   const sep = privateDir.endsWith("/") ? "" : "/";
   const fullPath = `${privateDir}${sep}${entityId}`;
   const { bucketName, objectName } = parseGcsPath(fullPath);
-  const response = await fetch(`${SIDECAR}/object-storage/signed-object-url`, {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({
-      bucket_name: bucketName,
-      object_name: objectName,
-      method: "GET",
-      expires_at: new Date(Date.now() + ttlSec * 1000).toISOString(),
-    }),
-    signal: AbortSignal.timeout(30_000),
-  });
-  if (!response.ok) throw new Error(`signDocumentDownloadUrl failed: ${response.status}`);
-  const { signed_url } = (await response.json()) as { signed_url: string };
-  return signed_url;
+  const [signedUrl] = await objectStorageClient
+    .bucket(bucketName)
+    .file(objectName)
+    .getSignedUrl({ version: "v4", action: "read", expires: Date.now() + ttlSec * 1000 });
+  return signedUrl;
 }
 
 // ─── Syndicate Logo ───────────────────────────────────────────────────────────

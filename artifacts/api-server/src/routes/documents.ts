@@ -109,17 +109,11 @@ function isTransitionAllowed(from: DocStatus, to: DocStatus): boolean {
 
 /**
  * Builds the real, environment-portable public verification URL for a document's
- * QR code and footer note — read from $REPLIT_DOMAINS at runtime (never a
- * hardcoded domain). Falls back to PUBLIC_APP_URL if explicitly configured, and
- * to undefined (caller then falls back to a bare documentNumber QR) if neither
- * is available, e.g. in an environment with no public domain at all.
+ * QR code and footer note — read from PUBLIC_APP_URL at runtime and omitted
+ * when no public application URL is configured.
  */
 function buildVerifyUrl(token: string): string | undefined {
-  const base =
-    process.env.PUBLIC_APP_URL ||
-    (process.env.REPLIT_DOMAINS
-      ? `https://${process.env.REPLIT_DOMAINS.split(",")[0]}`
-      : undefined);
+  const base = process.env.PUBLIC_APP_URL;
   if (!base) return undefined;
   return `${base.replace(/\/$/, "")}/api/documents/verify/${token}`;
 }

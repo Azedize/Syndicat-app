@@ -8,7 +8,7 @@ function getBaseUrl(): string {
   if (process.env.NODE_ENV === "production") {
     throw new Error(
       "[MIZAN] EXPO_PUBLIC_DOMAIN is required in production builds. " +
-        "Set it to your Replit dev domain in the environment variables.",
+        "Set it to the public API domain in the environment variables.",
     );
   }
   // Dev fallback: API server on PORT (default 8080)

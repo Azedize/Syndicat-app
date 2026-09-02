@@ -23,9 +23,7 @@ export type UploadProgressCallback = (progress: number) => void;
 /**
  * Upload a file URI directly to the API server (POST /storage/uploads, multipart).
  *
- * This avoids the GCS presigned-URL flow, which requires a real Replit sidecar
- * credential that is only available in deployed environments.  The server saves
- * the file to workspace storage and returns the same objectPath format
+ * The server saves the file to local or configured cloud storage and returns the same objectPath format
  * ("/objects/uploads/<uuid>") so the rest of the pipeline is unchanged.
  */
 async function uploadUri(
