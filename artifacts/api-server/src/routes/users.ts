@@ -131,7 +131,10 @@ router.post(
       email: z.string().email(),
       phone: z.string().optional(),
       role: z.enum(ROLE_VALUES).default("member"),
-      password: z.string().min(6).optional(),
+      password: z
+        .string()
+        .min(8, "Le mot de passe doit contenir au moins 8 caractères")
+        .optional(),
       syndicateId: z.string().min(1).optional(),
     });
     const result = schema.safeParse(req.body);
@@ -140,7 +143,8 @@ router.post(
       return;
     }
     try {
-      const { name, email, phone, role, password, syndicateId } = result.data;
+      const { name, phone, role, password, syndicateId } = result.data;
+      const normalizedEmail = result.data.email.trim().toLowerCase();
 
       if (req.user!.role === "syndicate_admin" && !req.user!.syndicateId) {
         res.status(403).json({ error: "Syndicat non défini dans le token" });
@@ -195,7 +199,7 @@ router.post(
       const [existing] = await db
         .select({ id: usersTable.id })
         .from(usersTable)
-        .where(eq(usersTable.email, email));
+        .where(eq(usersTable.email, normalizedEmail));
       if (existing) {
         res.status(400).json({ error: "Cet email est déjà utilisé" });
         return;
@@ -211,7 +215,7 @@ router.post(
         .insert(usersTable)
         .values({
           name,
-          email,
+          email: normalizedEmail,
           phone: phone || null,
           role,
           status: "pending",

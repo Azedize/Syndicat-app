@@ -23,6 +23,8 @@
 - Enabled secure self-onboarding for a new `syndicate_admin` without a syndicate, while preventing client-controlled admin reassignment.
 - Replaced in-memory email OTP send limiting with a durable PostgreSQL count over the last hour, preserving multi-instance enforcement.
 - Added hourly OTP retention cleanup with a two-hour safety window, preserving verification and rate-limit accounting while preventing indefinite row growth.
+- Required a recent verified email OTP before `POST /auth/register`, closing the direct-registration bypass while preserving the mobile OTP flow.
+- Aligned invited-user password validation with the 8-character authentication policy and normalized invited-user emails.
 
 ### Files changed
 - `artifacts/mobile/context/AuthContext.tsx`
@@ -32,6 +34,8 @@
 - `artifacts/api-server/src/routes/auth.ts`
 - `artifacts/api-server/src/lib/otp-retention.ts`
 - `artifacts/api-server/src/index.ts`
+- `artifacts/api-server/src/routes/users.ts`
+- `artifacts/api-server/src/routes/auth.ts`
 - `artifacts/api-server/src/routes/syndicates.ts`
 - `artifacts/api-server/src/routes/auth.ts`
 - `artifacts/api-server/src/middleware/subscription.ts`
@@ -76,6 +80,8 @@
 - `pnpm --filter @workspace/api-server run typecheck` passed after durable OTP rate-limit change.
 - `pnpm --filter @workspace/api-server run typecheck` passed after OTP retention scheduler integration.
 - `pnpm --filter @workspace/api-server run build` passed after OTP retention scheduler integration.
+- `pnpm --filter @workspace/api-server run typecheck` passed after invitation policy alignment.
+- `pnpm --filter @workspace/api-server run build` passed after invitation policy alignment.
 
 ### Remaining
 - Review and harden multi-tenant authorization across all API routes.
@@ -86,6 +92,8 @@
 - Add cleanup/retention for historical OTP rows without weakening rate-limit accounting.
 - Add an integration test for concurrent OTP send requests and the five-per-hour boundary.
 - Observe the OTP cleanup log after a clean API restart; current port 5000 is occupied by another API process.
+- Add an automated integration test for direct registration rejection and OTP-verified registration success.
+- Test invited-user activation and welcome email delivery with a non-production account.
 - Complete route-by-route tenant isolation review and negative authorization tests.
 - Validate onboarding logo upload against local storage and deployed GCS configuration.
 - Add versioned Drizzle migrations and reconcile legacy/current seeds.

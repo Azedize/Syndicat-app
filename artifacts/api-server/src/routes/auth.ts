@@ -77,6 +77,27 @@ router.post("/auth/register", async (req, res) => {
       return;
     }
 
+    const verificationCutoff = new Date(Date.now() - 15 * 60_000);
+    const [verifiedOtp] = await db
+      .select({ id: otpTokensTable.id })
+      .from(otpTokensTable)
+      .where(
+        and(
+          eq(otpTokensTable.email, emailLower),
+          eq(otpTokensTable.purpose, "email_verification"),
+          gt(otpTokensTable.usedAt, verificationCutoff),
+        ),
+      )
+      .orderBy(desc(otpTokensTable.usedAt))
+      .limit(1);
+    if (!verifiedOtp) {
+      res.status(403).json({
+        error: "Veuillez vérifier votre adresse email avant de créer le compte.",
+        code: "EMAIL_VERIFICATION_REQUIRED",
+      });
+      return;
+    }
+
     const passwordHash = await bcrypt.hash(password, 10);
 
     const [newUser] = await db
