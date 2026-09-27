@@ -45,7 +45,7 @@ export default function PrivacyScreen() {
         </TouchableOpacity>
         <View style={{ flex: 1 }}>
           <Text style={[s.headerTitle, { color: fg }]}>Politique de Confidentialité</Text>
-          <Text style={[s.headerSub, { color: muted }]}>Version 1.0 — Juillet 2025 · Conforme CNDP & RGPD</Text>
+          <Text style={[s.headerSub, { color: muted }]}>Version 1.0 — Juillet 2025 · Loi n° 09-08</Text>
         </View>
       </View>
 
